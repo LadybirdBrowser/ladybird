@@ -5,7 +5,7 @@ visual viewport scrolled down: true
 window.scrollY: 0
 visual viewport scroll and scrollend: received
 window scrolled: true
-scrollend order: visualViewport,document
+scrollend order: document,visualViewport
 after reset scale: 1
 after reset offsets: 0,0
 reset scroll and scrollend: received

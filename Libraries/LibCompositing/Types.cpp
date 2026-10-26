@@ -143,6 +143,7 @@ ErrorOr<void> encode(Encoder& encoder, Compositing::AppliedScrollRequest const& 
 {
     TRY(encoder.encode(applied_scroll_request.stable_node_id));
     TRY(encoder.encode(applied_scroll_request.request_id));
+    TRY(encoder.encode(applied_scroll_request.moved_the_box));
     return {};
 }
 
@@ -152,6 +153,7 @@ ErrorOr<Compositing::AppliedScrollRequest> decode(Decoder& decoder)
     return Compositing::AppliedScrollRequest {
         .stable_node_id = TRY(decoder.decode<Web::AsyncScrollNodeStableID>()),
         .request_id = TRY(decoder.decode<u64>()),
+        .moved_the_box = TRY(decoder.decode<bool>()),
     };
 }
 
@@ -165,8 +167,9 @@ ErrorOr<void> encode(Encoder& encoder, Compositing::PendingAsyncScrollUpdates co
     TRY(encoder.encode(updates.operation_ids_taken_over_by_user_input));
     TRY(encoder.encode(updates.started_user_scrolls));
     TRY(encoder.encode(updates.applied_scroll_requests));
-    TRY(encoder.encode(updates.user_scroll_gesture_in_progress));
-    TRY(encoder.encode(updates.user_scroll_gesture_ended));
+    TRY(encoder.encode(updates.boxes_in_user_scroll_gesture));
+    TRY(encoder.encode(updates.boxes_whose_user_scroll_gesture_ended));
+    TRY(encoder.encode(updates.wheel_latched_scroller));
     return {};
 }
 
@@ -181,8 +184,9 @@ ErrorOr<Compositing::PendingAsyncScrollUpdates> decode(Decoder& decoder)
         .operation_ids_taken_over_by_user_input = TRY(decoder.decode<Vector<Compositing::AsyncScrollOperationID>>()),
         .started_user_scrolls = TRY(decoder.decode<Vector<Compositing::StartedUserScroll>>()),
         .applied_scroll_requests = TRY(decoder.decode<Vector<Compositing::AppliedScrollRequest>>()),
-        .user_scroll_gesture_in_progress = TRY(decoder.decode<bool>()),
-        .user_scroll_gesture_ended = TRY(decoder.decode<bool>()),
+        .boxes_in_user_scroll_gesture = TRY(decoder.decode<Vector<Web::AsyncScrollNodeStableID>>()),
+        .boxes_whose_user_scroll_gesture_ended = TRY(decoder.decode<Vector<Web::AsyncScrollNodeStableID>>()),
+        .wheel_latched_scroller = TRY(decoder.decode<Optional<Web::AsyncScrollNodeStableID>>()),
     };
 }
 

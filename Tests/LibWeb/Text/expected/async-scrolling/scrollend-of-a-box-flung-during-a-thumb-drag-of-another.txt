@@ -1,0 +1,4 @@
+flung box at rest while the thumb is held: dragged box 0, flung box 1
+thumb released: dragged box 1, flung box 1
+thumb released while the other box is under momentum: dragged box 2, flung box 1
+momentum ended: dragged box 2, flung box 2

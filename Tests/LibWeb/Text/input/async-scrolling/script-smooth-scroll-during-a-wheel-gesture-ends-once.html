@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #scroller {
+        width: 200px;
+        height: 200px;
+        overflow: scroll;
+    }
+
+    .content {
+        height: 5000px;
+    }
+</style>
+<div id="scroller"><div class="content"></div></div>
+<script>
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+
+        const scroller = document.getElementById("scroller");
+        const scrollends = [];
+        scroller.addEventListener("scrollend", () => scrollends.push(scroller.scrollTop));
+
+        // A script starts a smooth scroll while the fingers are still down, then they lift. The box's scroll ends once,
+        // when the script's scroll arrives.
+        internals.wheelThroughUIProcess(50, 50, 0, 0, true, "began");
+        for (let step = 0; step < 3; step++)
+            await internals.wheelThroughUIProcess(50, 50, 0, 50, true, "ongoing");
+        scroller.scrollTo({ top: 3000, behavior: "smooth" });
+        await new Promise(resolve => setTimeout(resolve, 100));
+        await internals.wheelThroughUIProcess(50, 50, 0, 0, true, "ended");
+        await new Promise(resolve => setTimeout(resolve, 2500));
+        println(`scrollend events at: ${scrollends.join(", ")}`);
+    });
+</script>

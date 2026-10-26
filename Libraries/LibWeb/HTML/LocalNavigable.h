@@ -11,6 +11,7 @@
 #include <AK/HashMap.h>
 #include <AK/HashTable.h>
 #include <AK/OwnPtr.h>
+#include <AK/TemporaryChange.h>
 #include <AK/Time.h>
 #include <AK/Tuple.h>
 #include <AK/Utf16String.h>
@@ -401,16 +402,6 @@ public:
         UntilGestureSettles,
     };
 
-    enum class SmoothScrollAbortCause {
-        ReplacedByNewScroll,
-        TakenOverByUserInput,
-    };
-
-    enum class AsyncScrollCompletion {
-        Finished,
-        TakenOverByUserInput,
-    };
-
     bool scroll_scrolling_box_by_delta(Layout::Node&, CSSPixelPoint delta, Painting::ScrollKind, Compositing::ScrollAnimationKind = Compositing::ScrollAnimationKind::SmoothScroll);
     bool continued_scroll_step_moves(Layout::Node&, CSSPixelPoint delta, Compositing::ScrollAnimationKind);
     bool scroll_viewport_by_delta(CSSPixelPoint delta, Bindings::ScrollBehavior, Painting::ScrollKind, Compositing::ScrollAnimationKind = Compositing::ScrollAnimationKind::SmoothScroll);
@@ -421,19 +412,29 @@ public:
     bool perform_a_snapped_momentum_scroll(Layout::Node&, CSSPixelPoint momentum_delta);
     Layout::Node* layout_node_for_async_scroll_node_stable_id(Web::AsyncScrollNodeStableID);
     void re_snap_scroll_containers_after_layout_change(Layout::BegunRead const& read);
-    void abort_in_flight_smooth_scrolls(Web::AsyncScrollNodeStableID, SmoothScrollAbortCause);
+    void abort_in_flight_smooth_scrolls(Web::AsyncScrollNodeStableID);
     void abort_in_flight_smooth_scrolls_taken_over_by_user_input(Web::AsyncScrollNodeStableID, CSSPixelPoint scroll_offset_at_gesture_start);
-    void queue_scrollend_event_after_user_scroll(GC::Ref<DOM::EventTarget>, Optional<Web::AsyncScrollNodeStableID>, Optional<CSSPixelPoint> scroll_offset_before_scroll = {}, SnapPositionSelection = SnapPositionSelection::AtGestureEnd);
+    // Whether the user input a box's gesture is noted for has moved the box already, or only started a scroll of it.
+    enum class UserScrollMovedBox {
+        No,
+        Yes,
+    };
+    void note_user_scroll_gesture_of(Web::AsyncScrollNodeStableID, Optional<CSSPixelPoint> scroll_offset_at_gesture_start, UserScrollMovedBox, SnapPositionSelection = SnapPositionSelection::AtGestureEnd);
     void note_user_scroll_input_intent(Compositing::SnapSelectionStrategy::Type);
     RefPtr<Painting::Scrollbar> scrollbar_dragged_by_compositor(Layout::BegunRead const& read, Web::ScrollbarDraggedByCompositor const&);
     // Returns false if the scroller is not in this navigable's active document.
     bool set_overlay_scrollbar_hidden(Web::AsyncScrollNodeStableID, bool vertical, bool hidden);
     void note_user_scroll_gesture_phase(Web::ScrollGesturePhase);
     void did_handle_wheel_event();
-    void defer_user_scroll_settlement();
+    void note_wheel_user_scroll_gesture_scrolls(Web::AsyncScrollNodeStableID);
+    void extend_user_scroll_gesture_of(Web::AsyncScrollNodeStableID);
+    void extend_wheel_user_scroll_gesture(Optional<Web::AsyncScrollNodeStableID> box_latched_on_this_thread);
     void snap_user_scroll_gestures_that_awaited_layout();
-    void begin_user_scroll_gesture_hold(Badge<UserScrollGestureHold>);
-    void end_user_scroll_gesture_hold(Badge<UserScrollGestureHold>);
+    void end_scroll_sequences_that_completed_since_the_last_frame();
+    // The boxes that user input scrolls on this thread while the returned change is alive are held by the hold.
+    [[nodiscard]] TemporaryChange<UserScrollGestureHold*> hold_boxes_user_input_scrolls_with(UserScrollGestureHold&);
+    void begin_user_scroll_gesture_hold(Badge<UserScrollGestureHold>, Web::AsyncScrollNodeStableID);
+    void end_user_scroll_gesture_hold(Badge<UserScrollGestureHold>, Web::AsyncScrollNodeStableID);
     void reset_zoom();
 
 protected:
@@ -491,9 +492,9 @@ private:
     // scroll can owe more than one promise.
     using ScrollPromises = Vector<GC::Ref<WebIDL::Promise>, 1>;
 
-    void resolve_async_scroll_operation(Compositing::AsyncScrollOperationID, AsyncScrollCompletion = AsyncScrollCompletion::Finished);
+    void resolve_async_scroll_operation(Compositing::AsyncScrollOperationID);
     void resolve_all_pending_async_scroll_operations();
-    void resolve_pending_smooth_scrolls(Web::AsyncScrollNodeStableID, SmoothScrollAbortCause);
+    void resolve_pending_smooth_scrolls(Web::AsyncScrollNodeStableID);
     // Whether a programmatic scroll still needs a snap position selected for its destination, or was given a
     // destination that snap position selection already produced.
     enum class DestinationSnapping {
@@ -530,10 +531,7 @@ private:
     GC::Ptr<WebIDL::Promise> continue_in_flight_user_smooth_scroll(Web::AsyncScrollNodeStableID, CSSPixelPoint position, Optional<CSSPixelPoint> relative_displacement, Compositing::ScrollAnimationKind);
     Optional<CSSPixelPoint> scroll_offset_for(Web::AsyncScrollNodeStableID) const;
     bool set_scroll_offset_for(Web::AsyncScrollNodeStableID, CSSPixelPoint);
-    void queue_scrollend_event(Web::AsyncScrollNodeStableID, ScrollTrigger, Optional<CSSPixelPoint> scroll_offset_before_scroll = {});
-    void queue_scrollend_event(DOM::Document&, GC::Ref<DOM::EventTarget>, Optional<Web::AsyncScrollNodeStableID>, ScrollTrigger, Optional<CSSPixelPoint> scroll_offset_before_scroll = {});
-    void queue_scrollend_event_for_finished_scroll(Web::AsyncScrollNodeStableID, ScrollTrigger, Optional<CSSPixelPoint> scroll_offset_before_scroll);
-    void queue_scrollend_event_and_promise_resolution_for_finished_scroll(Optional<Web::AsyncScrollNodeStableID>, ScrollTrigger, Optional<CSSPixelPoint> scroll_offset_before_scroll, ReadonlySpan<GC::Ref<WebIDL::Promise>>);
+    void resolve_promises_of_finished_scroll(ReadonlySpan<GC::Ref<WebIDL::Promise>>);
     ScrollPromises* promises_of_smooth_scroll_in_flight_toward(Web::AsyncScrollNodeStableID, CSSPixelPoint position, ScrollTrigger, Compositing::ScrollAnimationKind);
     // The scroll a new input to a scrolling box would interact with; a scroll driven by user input is reported over
     // any programmatic scroll also in flight.
@@ -544,30 +542,47 @@ private:
     };
     Optional<InFlightScroll> in_flight_scroll_for(Optional<Web::AsyncScrollNodeStableID> const&) const;
     Optional<CSSPixelPoint> in_flight_user_scroll_destination(Web::AsyncScrollNodeStableID, Compositing::ScrollAnimationKind) const;
-    struct PendingUserScrollendTarget {
-        GC::Ref<DOM::EventTarget> target;
-        Optional<Web::AsyncScrollNodeStableID> stable_node_id;
+    // The part user input plays in a scroll sequence, which the box snaps at the end of.
+    struct UserScrollGesture {
         Optional<CSSPixelPoint> scroll_offset_at_gesture_start;
         Optional<CSSPixelPoint> unsnapped_scroll_destination;
         Compositing::SnapSelectionStrategy::Type intent { Compositing::SnapSelectionStrategy::Type::EndPosition };
         bool travels_under_momentum { false };
         SnapPositionSelection snap_position_selection { SnapPositionSelection::AtGestureEnd };
+        // A programmatic scroll of the box decides where the box comes to rest instead.
+        bool snaps_at_its_end { true };
         bool awaits_layout_for_snapping { false };
+        bool waited_for_layout_for_snapping { false };
+        // The input goes on until then, unless the release of a hold on the box ends it first.
+        Optional<MonotonicTime> input_deadline;
     };
-    PendingUserScrollendTarget* latched_user_scroll_gesture_for(GC::Ref<DOM::EventTarget>, Optional<Web::AsyncScrollNodeStableID> const&);
+    // https://drafts.csswg.org/cssom-view-1/#scroll-completed
+    // Scroll is completed when the scroll position has no more pending updates or translations and the user has
+    // completed their gesture.
+    // NB: The scrolls of a box run from the first of them until none is left in progress, and the box's scrollend
+    //     event is fired once at the end, if any of them moved it.
+    struct ScrollSequence {
+        GC::Ref<DOM::EventTarget> target;
+        Web::AsyncScrollNodeStableID stable_node_id;
+        bool moved { false };
+        // Which of the boxes' moves was the last of this one, which the sequences end in the order of.
+        u64 last_moved_ordinal { 0 };
+        Optional<UserScrollGesture> user_gesture;
+    };
+    ScrollSequence* scroll_sequence_for(Web::AsyncScrollNodeStableID);
+    ScrollSequence* begin_scroll_sequence(Web::AsyncScrollNodeStableID);
+    void note_scroll_sequence_moved(Web::AsyncScrollNodeStableID);
+    UserScrollGesture* user_scroll_gesture_for(Web::AsyncScrollNodeStableID);
+    bool has_scroll_in_progress(ScrollSequence const&, MonotonicTime now) const;
+    void note_scroll_sequences_may_have_completed();
+    void end_completed_scroll_sequences();
+    bool snap_at_end_of_user_scroll_gesture(ScrollSequence&, Layout::BegunRead const&, bool can_snap);
+    void schedule_end_of_user_scroll_gesture_input();
     void abandon_snapping_of_user_scroll_gesture(Web::AsyncScrollNodeStableID);
-    void settle_user_scroll_gesture();
-    void settle_user_scroll_gesture_if_input_deadline_passed();
+    void note_user_scroll_gesture_input_ended(Web::AsyncScrollNodeStableID);
     void release_wheel_user_scroll_gesture_hold();
     void reset_momentum_fling_state();
-    // Which of the latched gestures a settlement is for: every gesture that ran out of input, or only those left
-    // waiting for layout by an earlier settlement.
-    enum class UserScrollSettlement {
-        GestureRanOutOfInput,
-        SnappingDeferredUntilLayout,
-    };
-    void user_scroll_did_settle(UserScrollSettlement = UserScrollSettlement::GestureRanOutOfInput);
-    void cancel_user_scroll_settlement();
+    void cancel_scroll_sequences();
     void schedule_hover_update_after_async_scroll();
     void update_hover_after_async_scroll_stops();
     void cancel_hover_update_after_async_scroll();
@@ -656,12 +671,16 @@ private:
     u64 m_committed_generation { 0 };
     OwnPtr<Compositor::CompositorContextHandle> m_compositor_context;
     RefPtr<Core::Timer> m_async_scroll_hover_update_timer;
-    Vector<PendingUserScrollendTarget> m_pending_user_scrollend_targets;
-    RefPtr<Core::Timer> m_user_scroll_settle_timer;
+    Vector<ScrollSequence> m_scroll_sequences;
+    u64 m_last_scroll_move_ordinal { 0 };
+    RefPtr<Core::Timer> m_user_scroll_gesture_input_timer;
     OwnPtr<UserScrollGestureHold> m_compositor_user_scroll_gesture_hold;
     OwnPtr<UserScrollGestureHold> m_wheel_user_scroll_gesture_hold;
     RefPtr<Core::Timer> m_wheel_user_scroll_gesture_hold_expiry_timer;
-    size_t m_user_scroll_gesture_hold_count { 0 };
+    HashMap<Web::AsyncScrollNodeStableID, size_t> m_user_scroll_gesture_hold_counts;
+    UserScrollGestureHold* m_user_scroll_gesture_hold_of_current_input { nullptr };
+    Optional<Web::AsyncScrollNodeStableID> m_compositor_wheel_latched_scroller;
+    bool m_scroll_sequences_may_have_completed { false };
     Compositing::SnapSelectionStrategy::Type m_user_scroll_input_intent { Compositing::SnapSelectionStrategy::Type::EndPosition };
     bool m_user_scroll_gesture_travels_under_momentum { false };
     // Momentum that selects no snap position is scrolled by for the rest of the gesture rather than being asked again
@@ -673,15 +692,12 @@ private:
     };
     MomentumSnapPositionSelection m_momentum_snap_position_selection { MomentumSnapPositionSelection::NotSelectedYet };
     Compositing::MomentumFlingEstimator m_momentum_fling_estimator;
-    size_t m_scrolls_being_started { 0 };
-    bool m_user_scroll_settlement_awaits_scroll_start { false };
     bool m_is_re_snapping_scroll_containers { false };
 
     struct PendingAsyncScrollOperation {
         Compositing::AsyncScrollOperationID operation_id { 0 };
         ScrollPromises promises;
         Optional<Web::AsyncScrollNodeStableID> stable_node_id;
-        Optional<CSSPixelPoint> initial_scroll_offset;
         Optional<CSSPixelPoint> destination_scroll_offset;
         ScrollTrigger trigger { ScrollTrigger::Programmatic };
         Compositing::ScrollAnimationKind animation_kind { Compositing::ScrollAnimationKind::SmoothScroll };
@@ -691,7 +707,6 @@ private:
     struct InstantScrollAwaitingAnswer {
         Web::AsyncScrollNodeStableID stable_node_id;
         u64 request_id { 0 };
-        CSSPixelPoint initial_scroll_offset;
         GC::Ref<WebIDL::Promise> promise;
     };
     Vector<InstantScrollAwaitingAnswer> m_instant_scrolls_awaiting_answers;
@@ -729,7 +744,6 @@ private:
         Compositing::SmoothScrollAnimation animation;
         MonotonicTime last_tick;
         AK::Duration elapsed;
-        CSSPixelPoint initial_scroll_offset;
         CSSPixelPoint destination_scroll_offset;
         ScrollPromises promises;
         ScrollTrigger trigger { ScrollTrigger::Programmatic };
@@ -739,15 +753,14 @@ private:
     // A scroll taken out of the lists of scrolls in progress, which visit_edges() traces, to be reported. Reporting a
     // scroll allocates, so its promises stay rooted until it is reported.
     struct FinishedScroll {
-        Optional<Web::AsyncScrollNodeStableID> stable_node_id;
-        Optional<CSSPixelPoint> initial_scroll_offset;
         GC::RootVector<GC::Ref<WebIDL::Promise>> promises;
-        ScrollTrigger trigger { ScrollTrigger::Programmatic };
     };
     static FinishedScroll finished_scroll(PendingAsyncScrollOperation const&);
     static FinishedScroll finished_scroll(MainThreadSmoothScroll const&);
 };
 
+// Held user input, such as a pressed key or a grabbed scrollbar thumb, keeps the gesture of each box it holds going until
+// it is released.
 class WEB_API UserScrollGestureHold {
     AK_MAKE_NONCOPYABLE(UserScrollGestureHold);
     AK_MAKE_NONMOVABLE(UserScrollGestureHold);
@@ -755,11 +768,16 @@ class WEB_API UserScrollGestureHold {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    explicit UserScrollGestureHold(LocalNavigable&);
+    explicit UserScrollGestureHold(LocalNavigable&, Optional<Web::AsyncScrollNodeStableID> held_box = {});
     ~UserScrollGestureHold();
+
+    void hold(Web::AsyncScrollNodeStableID);
+    void release(Web::AsyncScrollNodeStableID);
+    ReadonlySpan<Web::AsyncScrollNodeStableID> held_boxes() const { return m_held_boxes; }
 
 private:
     GC::Weak<LocalNavigable> m_navigable;
+    Vector<Web::AsyncScrollNodeStableID, 1> m_held_boxes;
 };
 
 struct PopulateSessionHistoryEntryDocumentOutput final : public JS::Cell {

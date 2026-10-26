@@ -141,7 +141,7 @@ bool Scrollbar::scroll_to_mouse_position(CSSPixelPoint position)
             : max(min(offset_relative_to_gutter, thumb_size / 2), offset_relative_to_gutter - gutter_size + thumb_size);
         push_enlarged_state();
         if (auto navigable = node->document().navigable())
-            m_thumb_grab_gesture_hold = make<HTML::UserScrollGestureHold>(*navigable);
+            m_thumb_grab_gesture_hold = make<HTML::UserScrollGestureHold>(*navigable, async_scroll_node_stable_id(*node));
     }
 
     auto constrained_offset = AK::clamp(offset_relative_to_gutter - m_thumb_grab_position.value(), 0, gutter_size - thumb_size);

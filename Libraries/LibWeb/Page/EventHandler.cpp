@@ -1028,8 +1028,14 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
 
     m_navigable->note_user_scroll_gesture_phase(scroll_gesture_phase);
 
-    // Wheel activity marks the scroll gesture as still in progress even when it no longer moves any scrolling box.
-    m_navigable->defer_user_scroll_settlement();
+    // Wheel activity marks the scroll gesture as still in progress even when it no longer moves any scrolling box. The
+    // end of the gesture is not such activity.
+    if (scroll_gesture_phase != Web::ScrollGesturePhase::Ended) {
+        Optional<AsyncScrollNodeStableID> box_latched_on_this_thread;
+        if (m_wheel_scroll_latch.has_value())
+            box_latched_on_this_thread = m_wheel_scroll_latch->scrolling_box;
+        m_navigable->extend_wheel_user_scroll_gesture(box_latched_on_this_thread);
+    }
     m_navigable->note_user_scroll_input_intent(wheel_delta_precision == Web::WheelDeltaPrecision::Discrete
             ? Compositing::SnapSelectionStrategy::Type::Direction
             : Compositing::SnapSelectionStrategy::Type::EndPosition);
@@ -1120,8 +1126,11 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
     };
 
     auto latch_gesture_to_scrolling_box = [&](Layout::Node& scrolling_box) {
+        auto stable_node_id = Painting::async_scroll_node_stable_id(scrolling_box);
         if (m_wheel_scroll_latch.has_value())
-            m_wheel_scroll_latch->scrolling_box = Painting::async_scroll_node_stable_id(scrolling_box);
+            m_wheel_scroll_latch->scrolling_box = stable_node_id;
+        if (stable_node_id.has_value())
+            m_navigable->note_wheel_user_scroll_gesture_scrolls(stable_node_id.value());
     };
 
     // The latched scrolling box takes every step of the gesture and drops what it cannot scroll by, so that neither an
@@ -2214,12 +2223,13 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
 
     auto page_scroll_distance = page_scroll_distance_for_key_input();
 
-    // The held key keeps the scroll gesture in progress until it is released.
+    // The held key keeps the gesture of each box it scrolls in progress until it is released.
     auto hold_scroll_gesture_until_key_release = [&](Compositing::SnapSelectionStrategy::Type intent) {
         m_held_scroll_key = key;
         if (!m_scroll_key_gesture_hold)
             m_scroll_key_gesture_hold = make<HTML::UserScrollGestureHold>(*m_navigable);
         m_navigable->note_user_scroll_input_intent(intent);
+        return m_navigable->hold_boxes_user_input_scrolls_with(*m_scroll_key_gesture_hold);
     };
     // https://drafts.csswg.org/css-overscroll-1/#overscroll-behavior-properties
     // This property must be applied to all scrolling methods supported by the user agent.
@@ -2274,7 +2284,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         return m_navigable->perform_a_snapped_relative_user_scroll(*scrolling_box, delta, Compositing::SnapSelectionStrategy::Type::EndPosition, HTML::LocalNavigable::SnapStepAccumulation::UntilScrollFinishes, Compositing::ScrollAnimationKind::SmoothScroll, Painting::ScrollKind::Absolute);
     };
     auto scroll_by_for_key_input = [&](CSSPixels delta_x, CSSPixels delta_y, Compositing::SnapSelectionStrategy::Type intent) {
-        hold_scroll_gesture_until_key_release(intent);
+        auto key_holds_boxes_it_scrolls = hold_scroll_gesture_until_key_release(intent);
         if (perform_scroll_step_for_key_input({ delta_x, delta_y }, intent))
             return;
         if (!viewport_is_in_scroll_chain_for_key_input({ delta_x, delta_y }))
@@ -2282,7 +2292,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         m_navigable->scroll_viewport_by_delta({ delta_x, delta_y }, Bindings::ScrollBehavior::Smooth, Painting::ScrollKind::Relative);
     };
     auto scroll_to_the_beginning_for_key_input = [&] {
-        hold_scroll_gesture_until_key_release(Compositing::SnapSelectionStrategy::Type::EndPosition);
+        auto key_holds_boxes_it_scrolls = hold_scroll_gesture_until_key_release(Compositing::SnapSelectionStrategy::Type::EndPosition);
         // https://drafts.csswg.org/css-scroll-snap-1/#scroll-types
         // Scrolling to the beginning or end is an absolute scroll.
         if (perform_snapped_scroll_to_extent_for_key_input({ 0, -CSSPixels::max() }))
@@ -2294,7 +2304,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         m_navigable->scroll_viewport_by_delta({ 0, -CSSPixels::max() }, Bindings::ScrollBehavior::Smooth, Painting::ScrollKind::Absolute);
     };
     auto scroll_to_the_end_for_key_input = [&] {
-        hold_scroll_gesture_until_key_release(Compositing::SnapSelectionStrategy::Type::EndPosition);
+        auto key_holds_boxes_it_scrolls = hold_scroll_gesture_until_key_release(Compositing::SnapSelectionStrategy::Type::EndPosition);
         if (perform_snapped_scroll_to_extent_for_key_input({ 0, CSSPixels::max() }))
             return;
         if (scroll_container_of_scroll_target_by({ 0, CSSPixels::max() }, Painting::ScrollKind::Absolute))
@@ -2466,7 +2476,8 @@ EventResult EventHandler::handle_pinch_event(CSSPixelPoint point, u32 modifiers,
         return EventResult::Dropped;
 
     // Pinch activity keeps the scroll gesture in progress even when it no longer moves the visual viewport.
-    m_navigable->defer_user_scroll_settlement();
+    AsyncScrollNodeStableID visual_viewport_stable_node_id { .node_id = document->unique_id(), .kind = AsyncScrollNodeKind::VisualViewport };
+    m_navigable->extend_user_scroll_gesture_of(visual_viewport_stable_node_id);
 
     auto scale = 1.0 + scale_delta;
     if (scale == 1.0)
@@ -2489,7 +2500,7 @@ EventResult EventHandler::handle_pinch_event(CSSPixelPoint point, u32 modifiers,
     auto offset_top_before_zoom = visual_viewport->offset_top();
     visual_viewport->zoom(point, scale_delta);
     if (visual_viewport->offset_left() != offset_left_before_zoom || visual_viewport->offset_top() != offset_top_before_zoom)
-        m_navigable->queue_scrollend_event_after_user_scroll(*visual_viewport, {});
+        m_navigable->note_user_scroll_gesture_of(visual_viewport_stable_node_id, {}, HTML::LocalNavigable::UserScrollMovedBox::Yes);
     return EventResult::Handled;
 }
 

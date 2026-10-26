@@ -90,9 +90,10 @@ public:
 
     // A gesture whose steps this controller chains awaits its next step until its input deadline passes, and ends
     // once that happens without one.
-    bool has_gesture_awaiting_input() const;
+    Vector<Web::AsyncScrollNodeStableID> boxes_with_gesture_awaiting_input() const;
     Optional<MonotonicTime> earliest_gesture_input_deadline() const;
-    bool end_gestures_whose_input_ran_out(MonotonicTime now);
+    // Returns the boxes whose gesture ended.
+    Vector<Web::AsyncScrollNodeStableID> end_gestures_whose_input_ran_out(MonotonicTime now);
 
 private:
     struct InFlightSnapScroll {

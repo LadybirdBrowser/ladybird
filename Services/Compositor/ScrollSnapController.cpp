@@ -46,13 +46,14 @@ void ScrollSnapController::end_gesture()
         state.gesture_start = {};
 }
 
-bool ScrollSnapController::has_gesture_awaiting_input() const
+Vector<Web::AsyncScrollNodeStableID> ScrollSnapController::boxes_with_gesture_awaiting_input() const
 {
+    Vector<Web::AsyncScrollNodeStableID> boxes;
     for (auto const& [stable_node_id, state] : m_nodes) {
         if (state.gesture_input_deadline.has_value())
-            return true;
+            boxes.append(stable_node_id);
     }
-    return false;
+    return boxes;
 }
 
 Optional<MonotonicTime> ScrollSnapController::earliest_gesture_input_deadline() const
@@ -67,17 +68,17 @@ Optional<MonotonicTime> ScrollSnapController::earliest_gesture_input_deadline() 
     return earliest;
 }
 
-bool ScrollSnapController::end_gestures_whose_input_ran_out(MonotonicTime now)
+Vector<Web::AsyncScrollNodeStableID> ScrollSnapController::end_gestures_whose_input_ran_out(MonotonicTime now)
 {
-    bool ended_any = false;
+    Vector<Web::AsyncScrollNodeStableID> ended_boxes;
     for (auto& [stable_node_id, state] : m_nodes) {
         if (!state.gesture_input_deadline.has_value() || now <= *state.gesture_input_deadline)
             continue;
         state.gesture_input_deadline = {};
         state.unsnapped_scroll_destination = {};
-        ended_any = true;
+        ended_boxes.append(stable_node_id);
     }
-    return ended_any;
+    return ended_boxes;
 }
 
 void ScrollSnapController::did_scroll_node_plainly(Web::AsyncScrollNodeStableID stable_node_id, Web::ScrollGesturePhase phase, Web::CSSPixelPoint scroll_offset_before_scroll)
