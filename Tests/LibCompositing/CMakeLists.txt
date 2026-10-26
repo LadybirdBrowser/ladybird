@@ -4,6 +4,7 @@ set(TEST_SOURCES
     TestOverlayGeometry.cpp
     TestPausedDebuggerOverlay.cpp
     TestPictureInPictureControls.cpp
+    TestScrollRequest.cpp
     TestScrollState.cpp
     TestSmoothScrollAnimation.cpp
     TestTextureUpload.cpp

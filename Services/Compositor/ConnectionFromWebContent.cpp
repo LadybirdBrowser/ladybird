@@ -498,6 +498,12 @@ static bool is_valid_scroll_request(Compositing::ScrollRequest const& scroll_req
     auto is_finite = [](Gfx::FloatPoint point) { return isfinite(point.x()) && isfinite(point.y()); };
     if (scroll_request.jump_offset.has_value() && !is_finite(scroll_request.jump_offset.value()))
         return false;
+    if (auto const& relative_scroll = scroll_request.relative_scroll; relative_scroll.has_value()) {
+        if (!is_finite(relative_scroll->delta) || !is_finite(relative_scroll->lower_bound) || !is_finite(relative_scroll->upper_bound))
+            return false;
+        if (relative_scroll->lower_bound.x() > relative_scroll->upper_bound.x() || relative_scroll->lower_bound.y() > relative_scroll->upper_bound.y())
+            return false;
+    }
     if (scroll_request.visual_viewport_scale.has_value()) {
         auto scale = scroll_request.visual_viewport_scale.value();
         if (!isfinite(scale) || scale <= 0)

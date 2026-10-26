@@ -364,6 +364,8 @@ private:
     HashMap<Web::AsyncScrollNodeStableID, u64> m_applied_scroll_request_ids;
     // How many times this context scrolled each box for user input of its own, which the reports are marked with too.
     HashMap<Web::AsyncScrollNodeStableID, u64> m_user_input_scroll_counts;
+    // The boxes the last frame brought, whose offsets came from that frame's snapshot.
+    HashTable<Web::AsyncScrollNodeStableID> m_scroll_nodes_seeded_by_last_frame;
     // Whether this context has scrolled boxes to offsets that WebContent's last frame does not have them at.
     bool m_scroll_offsets_differ_from_last_frame { false };
     // The document whose visual viewport this context zoomed or panned, which it presents as it left it from then on.

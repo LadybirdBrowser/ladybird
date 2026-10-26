@@ -111,6 +111,7 @@ TEST_CASE(pinch_zoom_is_presented_until_the_main_thread_asks_for_another)
         .request_id = 1,
         .jump_offset = Gfx::FloatPoint {},
         .visual_viewport_scale = 1.0f,
+        .relative_scroll = {},
         .smooth_scroll = {},
     };
     (void)context.apply_scroll_requests({ &reset_zoom, 1 });

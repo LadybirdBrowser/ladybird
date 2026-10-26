@@ -1020,6 +1020,13 @@ Optional<PendingFrame> ContextState::apply_scroll_requests(ReadonlySpan<Composit
             retargeted_operation_id = scroll_request.smooth_scroll->operation_id;
         auto running_animation = m_smooth_scroll_animations.find_if([&](auto const& animation) { return animation.stable_node_id == scroll_request.stable_node_id; });
         bool retargets_running_animation = running_animation != m_smooth_scroll_animations.end() && running_animation->operation_id == retargeted_operation_id;
+        // A step of the user's by a distance goes on from where the user's scroll of the same kind is headed, unless the
+        // box jumped or scrolled elsewhere first.
+        Optional<Gfx::FloatPoint> destination_of_running_user_scroll;
+        if (running_animation != m_smooth_scroll_animations.end() && running_animation->is_user_scroll && scroll_request.smooth_scroll.has_value()
+            && running_animation->animation.kind() == scroll_request.smooth_scroll->animation_kind
+            && !scroll_request.jump_offset.has_value() && !scroll_request.relative_scroll.has_value())
+            destination_of_running_user_scroll = running_animation->animation.destination_offset();
 
         // The main thread settled the user's gesture once it heard of no more input for the box. User input this
         // context took since then carries the gesture on, and the box goes where that input takes it instead.
@@ -1029,7 +1036,7 @@ Optional<PendingFrame> ContextState::apply_scroll_requests(ReadonlySpan<Composit
             m_async_scroll_update_outbox.note_operation_taken_over_by_user_input(smooth_scroll->operation_id);
             m_async_scroll_update_outbox.complete_operation(smooth_scroll->operation_id);
             smooth_scroll.clear();
-            if (!scroll_request.jump_offset.has_value()) {
+            if (!scroll_request.jump_offset.has_value() && !scroll_request.relative_scroll.has_value()) {
                 answer_with_the_offset_of_the_box();
                 continue;
             }
@@ -1042,9 +1049,22 @@ Optional<PendingFrame> ContextState::apply_scroll_requests(ReadonlySpan<Composit
 
         if (scroll_request.jump_offset.has_value())
             (void)m_async_scroll_tree.set_scroll_offset(node_id.value(), scroll_request.jump_offset.value(), m_scene.current_visual_context_tree(), m_scroll_state_snapshot);
+        // A box new to this context took its offset from the frame's snapshot, which has the frame's scrolls in it.
+        bool offset_has_the_request_in_it = m_scroll_nodes_seeded_by_last_frame.contains(scroll_request.stable_node_id);
+        if (auto const& relative_scroll = scroll_request.relative_scroll; relative_scroll.has_value() && !offset_has_the_request_in_it) {
+            auto offset = m_async_scroll_tree.scroll_offset_for_node(node_id.value(), m_scroll_state_snapshot).value();
+            (void)m_async_scroll_tree.set_scroll_offset(node_id.value(), relative_scroll->applied_to(offset), m_scene.current_visual_context_tree(), m_scroll_state_snapshot);
+        }
 
         if (smooth_scroll.has_value()) {
-            auto destination_offset = m_async_scroll_tree.clamped_scroll_offset_for_node(node_id.value(), smooth_scroll->destination_offset);
+            auto destination_offset = smooth_scroll->destination_offset;
+            if (smooth_scroll->destination_is_relative) {
+                auto relative_scroll_start = m_async_scroll_tree.scroll_offset_for_node(node_id.value(), m_scroll_state_snapshot).value();
+                if (smooth_scroll->initiator == Compositing::SmoothScrollInitiator::UserInput && destination_of_running_user_scroll.has_value())
+                    relative_scroll_start = destination_of_running_user_scroll.value();
+                destination_offset.translate_by(relative_scroll_start);
+            }
+            destination_offset = m_async_scroll_tree.clamped_scroll_offset_for_node(node_id.value(), destination_offset);
             if (retargets_running_animation) {
                 retarget_user_scroll(*running_animation, destination_offset, MonotonicTime::now());
             } else {
@@ -1884,10 +1904,13 @@ Optional<Gfx::FloatPoint> ContextState::keep_scroll_offsets_of_known_nodes(HashM
     Optional<Gfx::FloatPoint> viewport_scroll_offset;
     Vector<Compositing::AsyncScrollOffset> clamped_scroll_offsets;
     m_scroll_offsets_differ_from_last_frame = false;
+    m_scroll_nodes_seeded_by_last_frame.clear();
     for (auto const& node : m_async_scroll_tree.scroll_nodes()) {
         auto known_scroll_offset = scroll_offsets_of_known_nodes.get(node.stable_node_id);
-        if (!known_scroll_offset.has_value())
+        if (!known_scroll_offset.has_value()) {
+            m_scroll_nodes_seeded_by_last_frame.set(node.stable_node_id);
             continue;
+        }
         if (m_async_scroll_tree.scroll_offset_for_node(node.node_id, m_scroll_state_snapshot) != known_scroll_offset)
             m_scroll_offsets_differ_from_last_frame = true;
         auto kept_scroll_offset = m_async_scroll_tree.set_scroll_offset(node.node_id, known_scroll_offset.value(), m_scene.current_visual_context_tree(), m_scroll_state_snapshot);

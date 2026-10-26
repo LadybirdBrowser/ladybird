@@ -168,10 +168,30 @@ ErrorOr<Compositing::PendingAsyncScrollUpdates> decode(Decoder& decoder)
 }
 
 template<>
+ErrorOr<void> encode(Encoder& encoder, Compositing::RequestedRelativeScroll const& relative_scroll)
+{
+    TRY(encoder.encode(relative_scroll.delta));
+    TRY(encoder.encode(relative_scroll.lower_bound));
+    TRY(encoder.encode(relative_scroll.upper_bound));
+    return {};
+}
+
+template<>
+ErrorOr<Compositing::RequestedRelativeScroll> decode(Decoder& decoder)
+{
+    return Compositing::RequestedRelativeScroll {
+        .delta = TRY(decoder.decode<Gfx::FloatPoint>()),
+        .lower_bound = TRY(decoder.decode<Gfx::FloatPoint>()),
+        .upper_bound = TRY(decoder.decode<Gfx::FloatPoint>()),
+    };
+}
+
+template<>
 ErrorOr<void> encode(Encoder& encoder, Compositing::RequestedSmoothScroll const& smooth_scroll)
 {
     TRY(encoder.encode(smooth_scroll.operation_id));
     TRY(encoder.encode(smooth_scroll.destination_offset));
+    TRY(encoder.encode(smooth_scroll.destination_is_relative));
     TRY(encoder.encode(smooth_scroll.animation_kind));
     TRY(encoder.encode(smooth_scroll.initiator));
     TRY(encoder.encode(smooth_scroll.retargets_operation));
@@ -185,6 +205,7 @@ ErrorOr<Compositing::RequestedSmoothScroll> decode(Decoder& decoder)
     return Compositing::RequestedSmoothScroll {
         .operation_id = TRY(decoder.decode<Compositing::AsyncScrollOperationID>()),
         .destination_offset = TRY(decoder.decode<Gfx::FloatPoint>()),
+        .destination_is_relative = TRY(decoder.decode<bool>()),
         .animation_kind = TRY(decoder.decode<Compositing::ScrollAnimationKind>()),
         .initiator = TRY(decoder.decode<Compositing::SmoothScrollInitiator>()),
         .retargets_operation = TRY(decoder.decode<bool>()),
@@ -199,6 +220,7 @@ ErrorOr<void> encode(Encoder& encoder, Compositing::ScrollRequest const& request
     TRY(encoder.encode(request.request_id));
     TRY(encoder.encode(request.jump_offset));
     TRY(encoder.encode(request.visual_viewport_scale));
+    TRY(encoder.encode(request.relative_scroll));
     TRY(encoder.encode(request.smooth_scroll));
     return {};
 }
@@ -211,6 +233,7 @@ ErrorOr<Compositing::ScrollRequest> decode(Decoder& decoder)
         .request_id = TRY(decoder.decode<u64>()),
         .jump_offset = TRY(decoder.decode<Optional<Gfx::FloatPoint>>()),
         .visual_viewport_scale = TRY(decoder.decode<Optional<float>>()),
+        .relative_scroll = TRY(decoder.decode<Optional<Compositing::RequestedRelativeScroll>>()),
         .smooth_scroll = TRY(decoder.decode<Optional<Compositing::RequestedSmoothScroll>>()),
     };
 }
