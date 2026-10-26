@@ -944,6 +944,7 @@ void EventLoop::update_the_rendering()
     for (auto& document : docs) {
         auto now = relative_frame_timestamp_for(*document);
         run_animation_frame_callbacks(*document, now);
+        document->window()->animation_frame_callback_driver().run_after_callbacks(now);
     }
 
     // AD-HOC: Captures in this update's video frame and animation frame callbacks draw the frame that the video frame

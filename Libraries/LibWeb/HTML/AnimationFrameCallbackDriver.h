@@ -24,13 +24,15 @@ class WEB_API AnimationFrameCallbackDriver final : public JS::Cell {
     using Callback = GC::Ref<GC::Function<void(double)>>;
 
 public:
-    size_t callback_count() const { return m_callbacks.size(); }
+    size_t callback_count() const { return m_callbacks.size() + m_after_callbacks.size(); }
     [[nodiscard]] static GC::Ref<AnimationFrameCallbackDriver> create();
 
     [[nodiscard]] WebIDL::UnsignedLong add(Callback handler);
+    [[nodiscard]] WebIDL::UnsignedLong add_after_callbacks(Callback handler);
     bool remove(WebIDL::UnsignedLong);
     bool has_callbacks() const;
     void run(double now);
+    void run_after_callbacks(double now);
 
 private:
     virtual void visit_edges(Cell::Visitor&) override;
@@ -40,6 +42,8 @@ private:
 
     OrderedHashMap<WebIDL::UnsignedLong, Callback> m_callbacks;
     OrderedHashMap<WebIDL::UnsignedLong, Callback> m_executing_callbacks;
+    OrderedHashMap<WebIDL::UnsignedLong, Callback> m_after_callbacks;
+    OrderedHashMap<WebIDL::UnsignedLong, Callback> m_executing_after_callbacks;
 };
 
 }

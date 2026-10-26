@@ -941,6 +941,8 @@ void WebDriverBiDi::run_command(u64 command_id, String const& method, JsonValue 
         return browsing_context_set_viewport(params, move(on_complete));
     if (method == "browsingContext.traverseHistory"sv)
         return browsing_context_traverse_history(params, move(on_complete));
+    if (method.is_one_of("browsingContext.captureScreenshot"sv, "browsingContext.locateNodes"sv))
+        return route_to_navigable(method, params, move(on_complete));
 
     if (method == "script.addPreloadScript"sv)
         return script_add_preload_script(params, move(on_complete));
@@ -1620,6 +1622,26 @@ void WebDriverBiDi::browsing_context_traverse_history(JsonObject const& params, 
         if (auto on_complete = move(pending_traversal->on_complete))
             on_complete(JsonValue {});
     });
+}
+
+void WebDriverBiDi::route_to_navigable(String const& method, JsonObject const& params, CommandResult on_complete)
+{
+    auto navigable_id = TRY_OR_COMPLETE(get_string(params, "context"sv));
+    auto* navigable = TRY_OR_COMPLETE(get_a_navigable(navigable_id));
+
+    // https://w3c.github.io/webdriver-bidi/#command-browsingContext-locateNodes
+    // -> type is the string "context"
+    //     4. Let child navigable be the result of trying to get a navigable with context id.
+    // NB: The browser process knows whether a navigable with the id exists.
+    if (method == "browsingContext.locateNodes"sv) {
+        if (auto locator = params.get_object("locator"sv); locator.has_value() && locator->get_string("type"sv) == "context"sv) {
+            if (auto value = locator->get_object("value"sv); value.has_value()) {
+                if (auto context_id = value->get_string("context"sv); context_id.has_value())
+                    (void)TRY_OR_COMPLETE(get_a_navigable(*context_id));
+            }
+        }
+    }
+    run_content_command(*navigable, method, params, move(on_complete));
 }
 
 // https://w3c.github.io/webdriver-bidi/#realm-id

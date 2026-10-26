@@ -144,6 +144,131 @@ class ReloadHandler(http.server.BaseHTTPRequestHandler):
         pass
 
 
+def check_screenshot_handles(bidi, context):
+    bidi.command("browsingContext.activate", {"context": context})
+    element = bidi.evaluate(context, "document.body.style.height = '20px'; document.body")["result"]
+    params = {
+        "context": context,
+        "clip": {"type": "element", "element": {"sharedId": element["sharedId"]}},
+        "imageSize": {"maxWidth": 1, "maxHeight": 1},
+    }
+    for handle in [42, None, {}]:
+        params["clip"]["element"]["handle"] = handle
+        result = bidi.response(bidi.send("browsingContext.captureScreenshot", params))
+        assert result["type"] == "error" and result["error"] == "invalid argument", result
+    for reference in [{"sharedId": element["sharedId"]}, {"sharedId": element["sharedId"], "handle": "ignored"}]:
+        params["clip"]["element"] = reference
+        result = bidi.command("browsingContext.captureScreenshot", params)
+        assert base64.b64decode(result["data"]).startswith(b"\x89PNG\r\n\x1a\n"), result
+
+
+def check_screenshot_lifecycle(bidi, context, cases=("hidden", "hide", "navigate")):
+    def wait_visibility(target, visible):
+        expected_hidden = "false" if visible else "true"
+        result = bidi.evaluate(
+            target,
+            "new Promise(resolve => { const changed = () => { if (document.hidden === "
+            + expected_hidden
+            + ") { document.removeEventListener('visibilitychange', changed); resolve(document.hidden); } }; document.addEventListener('visibilitychange', changed); changed(); })",
+            awaitPromise=True,
+        )
+        assert result["result"]["value"] is (not visible), result
+        bidi.evaluate(target, "0")
+
+    def expect_canceled(command_id):
+        # The same-context evaluation is an IPC barrier: cancellation must precede its response, without GC.
+        assert command_id in bidi.responses, "Screenshot remained pending after its document became unavailable"
+        result = bidi.response(command_id)
+        assert result["type"] == "error" and result["error"] == "unsupported operation", result
+        bidi.evaluate(context, "internals.gc(); 0")
+        assert command_id not in bidi.responses, "Screenshot completed twice after collection"
+
+    bidi.command("browsingContext.activate", {"context": context})
+    other = bidi.command("browsingContext.create", {"type": "tab", "background": True})["context"]
+    wait_visibility(context, True)
+    try:
+        if "hidden" in cases:
+            wait_visibility(other, False)
+            hidden = bidi.send("browsingContext.captureScreenshot", {"context": other})
+            bidi.evaluate(other, "0")
+            expect_canceled(hidden)
+
+        if "hide" in cases:
+            # Hold frame delivery so hiding a visible document must cancel its queued capture directly.
+            bidi.evaluate(context, "internals.setManualRenderingOpportunities(true)")
+            pending = bidi.send("browsingContext.captureScreenshot", {"context": context})
+            bidi.evaluate(context, "0")
+            assert pending not in bidi.responses, bidi.responses
+            bidi.command("browsingContext.activate", {"context": other})
+            wait_visibility(context, False)
+            expect_canceled(pending)
+            bidi.command("browsingContext.activate", {"context": context})
+            wait_visibility(context, True)
+            bidi.evaluate(context, "internals.setManualRenderingOpportunities(false)")
+
+        if "navigate" in cases:
+            # The parent retains the old child document and its window throughout navigation.
+            bidi.evaluate(
+                context,
+                "new Promise(resolve => { const f = document.createElement('iframe'); f.onload = () => { if (f.contentDocument.URL !== 'about:blank?capture-child') return; f.onload = null; window.retainedCaptureDocument = f.contentDocument; window.retainedCaptureFunction = f.contentWindow.Function('return document'); resolve(); }; f.src = 'about:blank?capture-child'; document.body.append(f); })",
+                awaitPromise=True,
+            )
+            child = bidi.command("browsingContext.getTree", {"root": context})["contexts"][0]["children"][0]["context"]
+            result = bidi.evaluate(child, "internals.setManualRenderingOpportunities(true); document.URL")
+            assert result["result"]["value"] == "about:blank?capture-child", result
+            pending = bidi.send("browsingContext.captureScreenshot", {"context": child})
+            bidi.evaluate(child, "0")
+            assert pending not in bidi.responses, bidi.responses
+            bidi.command(
+                "browsingContext.navigate", {"context": child, "url": "about:blank?after-capture", "wait": "complete"}
+            )
+            assert (
+                bidi.evaluate(
+                    context,
+                    "retainedCaptureFunction() === retainedCaptureDocument && retainedCaptureDocument !== document.querySelector('iframe').contentDocument",
+                )["result"]["value"]
+                is True
+            )
+            expect_canceled(pending)
+    finally:
+        bidi.command("browsingContext.activate", {"context": context})
+        wait_visibility(context, True)
+        bidi.evaluate(context, "internals.setManualRenderingOpportunities(false)")
+        bidi.command("browsingContext.close", {"context": other})
+        bidi.command("browsingContext.navigate", {"context": context, "url": "about:blank", "wait": "complete"})
+
+
+def check_screenshot_frame_order(bidi, context):
+    bidi.command("browsingContext.activate", {"context": context})
+    bidi.evaluate(
+        context,
+        "document.documentElement.style.background = 'lime'; document.body.style.cssText = 'margin:0;height:100vh;background:lime'; internals.setManualRenderingOpportunities(true)",
+    )
+
+    def capture(script):
+        pending = bidi.send(
+            "browsingContext.captureScreenshot", {"context": context, "imageSize": {"maxWidth": 1, "maxHeight": 1}}
+        )
+        bidi.evaluate(context, script + "; internals.injectRenderingOpportunity(performance.now() + 16); 0")
+        result = bidi.response(pending)
+        assert result["type"] == "success", result
+        return result["result"]["data"]
+
+    try:
+        green = capture("0")
+        assert capture("0") == green, "Identical-color reference screenshots differ"
+        bidi.evaluate(
+            context, "document.documentElement.style.background = 'red'; document.body.style.background = 'red'"
+        )
+        actual = capture(
+            "requestAnimationFrame(() => { document.documentElement.style.background = 'lime'; document.body.style.background = 'lime'; })"
+        )
+        assert actual == green, f"Capture ran before a later callback in the same frame: actual={actual}, green={green}"
+    finally:
+        bidi.evaluate(context, "internals.setManualRenderingOpportunities(false)")
+        bidi.command("browsingContext.navigate", {"context": context, "url": "about:blank", "wait": "complete"})
+
+
 def check_viewport_changes(bidi, connection, session_id, first, second):
     def metrics(context):
         result = bidi.evaluate(context, "[innerWidth, innerHeight, devicePixelRatio]")
@@ -310,6 +435,9 @@ def run_test(webdriver_binary):
             rejected.close()
             bidi = BiDiConnection(websocket_url)
             context = bidi.command("browsingContext.getTree", {})["contexts"][0]["context"]
+            check_screenshot_handles(bidi, context)
+            check_screenshot_lifecycle(bidi, context)
+            check_screenshot_frame_order(bidi, context)
 
             bidi.command("browsingContext.getTree", {"maxDepth": 1.0})
             for depth in [-1, 0.5, float(2**53)]:
