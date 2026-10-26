@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<link rel=author href="mailto:jarhar@chromium.org">
+<link rel=help href="https://github.com/w3c/csswg-drafts/issues/4441">
+<link rel=help href="https://drafts.csswg.org/css-text-4/#propdef-hyphenate-character">
+<link rel=help href="https://drafts.csswg.org/css-text-4/#propdef-hyphenate-limit-chars">
+<link rel=help href="https://drafts.csswg.org/css-text-4/#propdef-hyphenate-limit-lines">
+<link rel=help href="https://drafts.csswg.org/css-text/#hyphens-property">
+<link rel=help href="https://drafts.csswg.org/css-transitions-2/#transition-property-property">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<body>
+<script>
+test_no_interpolation({
+  property: 'hyphenate-character',
+  from: 'initial',
+  to: '"e"'
+});
+
+test_no_interpolation({
+  property: 'hyphenate-limit-chars',
+  from: 'initial',
+  to: '10'
+});
+
+test_no_interpolation({
+  property: 'hyphenate-limit-lines',
+  from: 'initial',
+  to: '4'
+});
+
+test_no_interpolation({
+  property: 'hyphens',
+  from: 'initial',
+  to: 'auto'
+});
+</script>
