@@ -73,6 +73,7 @@ All properties associated with getComputedStyle(document.body):
     "text-align-last",
     "text-anchor",
     "text-decoration-skip-ink",
+    "text-emphasis-position",
     "text-indent",
     "text-justify",
     "text-orientation",

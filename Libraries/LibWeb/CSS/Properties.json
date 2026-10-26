@@ -5259,6 +5259,19 @@
     ],
     "percentages-resolve-to": "length"
   },
+  "text-emphasis-position": {
+    "__comment": "FIXME: Use this position when text emphasis rendering is implemented.",
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "over right",
+    "requires-computation": "non-inherited-value",
+    "valid-identifiers": [
+      "over",
+      "under",
+      "left",
+      "right"
+    ]
+  },
   "text-indent": {
     "style-group": "InheritedTextValues",
     "animation-type": "by-computed-value",

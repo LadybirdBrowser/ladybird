@@ -4322,6 +4322,18 @@ pub(crate) unsafe fn drive_property_computation(
                         NativeValue::Unsupported
                     }
                 }
+                // INTEROP: Preserve explicit right in declarations, but omit it from the computed value, as in
+                //          Chromium and WebKit.
+                (_, prop::TEXT_EMPHASIS_POSITION) => {
+                    if let StyleValueData::ValueList { values, .. } = value_data
+                        && let [horizontal, vertical] = values.as_slice()
+                        && matches!(vertical.data(), StyleValueData::Keyword { keyword: code } if *code == keyword::RIGHT)
+                    {
+                        NativeValue::StyleValue(Arc::new(horizontal.data().clone()))
+                    } else {
+                        NativeValue::Unchanged
+                    }
+                }
                 (_, prop::POSITION_AREA) => match compute_position_area(value_data) {
                     Some(value) => NativeValue::StyleValue(value),
                     None => NativeValue::Unchanged,
