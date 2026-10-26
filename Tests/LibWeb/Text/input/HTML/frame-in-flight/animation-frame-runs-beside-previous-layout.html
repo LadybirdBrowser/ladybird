@@ -11,7 +11,7 @@
     // beside the event loop, where nothing script sees waits for that layout: the update takes it in, and paints it,
     // once its callbacks have run.
     asyncTest(async done => {
-        await twoFrames();
+        await twoFramesLanded();
         internals.setManualRenderingOpportunities(true);
         const order = [];
         requestAnimationFrame(() => {

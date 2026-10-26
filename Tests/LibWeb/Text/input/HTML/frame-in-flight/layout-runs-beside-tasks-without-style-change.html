@@ -7,7 +7,7 @@
     // loop right away: the tasks after the update run while the layout does. Nothing here reads the layout until it is
     // taken in, which a read would wait for, and no rendering update runs to take it in.
     asyncTest(async done => {
-        await twoFrames();
+        await twoFramesLanded();
         requestAnimationFrame(() => {
             internals.holdNextFrame("layout");
             internals.setManualRenderingOpportunities(true);

@@ -6,7 +6,7 @@
     // A rendering update whose style is already up to date lays out beside the event loop even where list items wait
     // to be renumbered: the round renumbers them first, as the layout update's first round would.
     asyncTest(async done => {
-        await twoFrames();
+        await twoFramesLanded();
         requestAnimationFrame(() => {
             internals.holdNextFrame("layout");
             internals.setManualRenderingOpportunities(true);
