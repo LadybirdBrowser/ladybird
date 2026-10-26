@@ -2042,8 +2042,7 @@ fn reuse_committed_subtree_as_it_is(
 ) -> Option<ChildLayoutResult> {
     let fragments = parent_fragments?;
     let entry = &*hit.entry;
-    if purpose != LayoutPurpose::Commit
-        || !hit.reuses_committed_subtree
+    if !hit.reuses_committed_subtree
         || !cache_key.has_no_table_cell_intrinsic_block_padding()
         || entry
             .outputs
@@ -2684,7 +2683,6 @@ pub(crate) fn layout_inside_child(
         // OPTIMIZATION: A box that took its metrics from its committed fragment is placed with that fragment, where
         // it shows the box as the record holds it.
         if let Some(fragment) = committed_fragment
-            && run.purpose == LayoutPurpose::Commit
             && let Some(fragments) = run.fragments.as_deref()
             && fragment.is_plain_box()
             && used.shows_box_of_fragment(&fragment)
@@ -2788,8 +2786,7 @@ pub(crate) fn run_table_cell_ahead_of_its_intrinsic_block_padding(
         input.participation,
         ParticipationInParentFormattingContext::Item
     ));
-    if run.purpose != LayoutPurpose::Commit
-        || run.layout_mode != LayoutMode::Normal
+    if run.fragments.is_none()
         || formatting_context_type_created_by_box(NodeFacts::new(&run.callbacks, cell))
             != Some(FormattingContextType::Block)
         || !fc_run_cache::table_cell_contents_never_observe_intrinsic_block_padding(&run.callbacks, cell)
