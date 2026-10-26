@@ -390,11 +390,10 @@ impl<'arena> RunRecords<'arena> {
         root_used: Option<&'arena UsedValues>,
         run: impl FnOnce(&Self) -> R,
     ) -> R {
-        // What the arena let go of since the last run is dropped before this run reads a cache.
-        let drops = arena.take_intrinsic_size_cache_drops();
-        if !drops.is_empty() {
-            scratch.intrinsic_size_caches.drop_slots(drops);
-        }
+        debug_assert!(
+            !arena.has_intrinsic_size_cache_drops(),
+            "the layout stage drops released intrinsic size cache entries before its runs read a cache"
+        );
         let _innermost_run = InnermostRunGuard {
             arena,
             previous: arena.innermost_run.replace((root, root_containing_block)),

@@ -1474,6 +1474,10 @@ impl LayoutNodeArena {
         self.intrinsic_size_cache_drops.take()
     }
 
+    pub(crate) fn has_intrinsic_size_cache_drops(&self) -> bool {
+        !self.intrinsic_size_cache_drops.borrow().is_empty()
+    }
+
     /// What an intrinsic size cache entry measured for the row `id` now is valid for.
     pub(crate) fn intrinsic_size_cache_stamp(&self, id: NodeSlotId) -> IntrinsicSizeCacheStamp {
         IntrinsicSizeCacheStamp {
