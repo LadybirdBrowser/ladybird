@@ -13,12 +13,13 @@ use core::ptr::NonNull;
 use libjs_rust::api::{RawNativeFunctionResult, Realm, ThrowCompletionOr, Value, Vm};
 
 use crate::bindings::conversions::BufferSource;
+use crate::bindings::cpp_cell::CppCell;
 use crate::bindings::interface::{Ref, allocate, cell_from_abi, cell_into_abi, realm_arguments};
 use crate::bindings::promise::WebIdlPromise;
 use crate::bindings::{CallContext, MustNotThrow, WebIdlResult};
 use crate::streams::algorithms::{CancelAlgorithm, FlushAlgorithm, TransformAlgorithm};
 use crate::streams::cpp::{
-    CppBytesSteps, CppCell, CppPromiseAlgorithm, CppPromiseAlgorithmWithArgument, CppReadRequest, CppValueSteps,
+    CppBytesSteps, CppPromiseAlgorithm, CppPromiseAlgorithmWithArgument, CppReadRequest, CppValueSteps,
 };
 use crate::streams::readable_byte_stream_controller::readable_byte_stream_controller_enqueue_native_bytes;
 use crate::streams::readable_stream::ReadableStreamReader;

@@ -10,8 +10,9 @@
 use core::ffi::c_void;
 use core::ptr::NonNull;
 
-use libjs_rust::api::{ForeignCellSlot, Gc, Trace, Value};
+use libjs_rust::api::{Gc, Trace, Value};
 
+use crate::bindings::cpp_cell::CppCell;
 use crate::bindings::promise::{WebIdlPromise, promise_from_abi};
 
 unsafe extern "C" {
@@ -35,34 +36,6 @@ unsafe extern "C" {
 
     /// Calls a GC::Function<void(JS::Value)>.
     fn web_streams_call_value_steps(function: *mut c_void, value: u64);
-}
-
-/// A cell of LibWeb's C++ code, which this keeps alive.
-#[derive(Trace)]
-#[gc(crate = libjs_rust)]
-pub(crate) struct CppCell(ForeignCellSlot);
-
-impl Clone for CppCell {
-    fn clone(&self) -> Self {
-        // SAFETY: The slot keeps the cell alive.
-        unsafe { Self::from_raw(self.0.as_ptr()) }
-    }
-}
-
-impl CppCell {
-    /// # Safety
-    ///
-    /// `cell` must be a live cell of LibWeb's C++ code.
-    pub(crate) unsafe fn from_raw(cell: *mut c_void) -> Self {
-        let slot = ForeignCellSlot::empty();
-        // SAFETY: The caller passes a live cell.
-        unsafe { slot.set(Some(NonNull::new(cell).expect("C++ passes a cell"))) };
-        Self(slot)
-    }
-
-    pub(crate) fn as_ptr(&self) -> *mut c_void {
-        self.0.as_ptr()
-    }
 }
 
 /// A promise-returning algorithm with no arguments that C++ set a stream up with, a pullAlgorithm or a flushAlgorithm.

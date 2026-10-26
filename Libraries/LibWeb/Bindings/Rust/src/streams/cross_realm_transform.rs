@@ -16,6 +16,7 @@ use libjs_rust::api::{
     RawNativeFunctionResult, Realm, Trace, Value, Vm,
 };
 
+use crate::bindings::cpp_cell::CppCell;
 use crate::bindings::interface::{Ref, allocate};
 use crate::bindings::promise::{
     NativeSteps, WebIdlPromise, create_promise, create_rejected_promise_from_exception, create_resolved_promise,
@@ -26,7 +27,6 @@ use crate::bindings::{CallContext, Exception, MustNotThrow, WebIdlResult};
 use crate::streams::algorithms::{
     AbortAlgorithm, CancelAlgorithm, CloseAlgorithm, PullAlgorithm, SizeAlgorithm, StartAlgorithm, WriteAlgorithm,
 };
-use crate::streams::cpp::CppCell;
 use crate::streams::readable_stream::{ReadableStream, initialize_readable_stream};
 use crate::streams::readable_stream_default_controller::{
     ReadableStreamDefaultController, readable_stream_default_controller_close,
