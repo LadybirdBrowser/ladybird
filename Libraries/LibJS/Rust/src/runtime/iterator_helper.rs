@@ -31,6 +31,10 @@ pub const ITERATOR_HELPER_BRAND: &str = "Iterator Helper";
 /// lives in cells they capture.
 #[derive(Clone, Copy, Trace)]
 pub enum IteratorHelperClosure {
+    Chunks {
+        iterated: Gc<IteratorRecord>,
+        chunk_size: u32,
+    },
     Concat {
         iterables: Gc<ConcatIterator>,
     },
@@ -63,6 +67,7 @@ pub enum IteratorHelperClosure {
 impl IteratorHelperClosure {
     fn call(self, vm: &Vm, iterator: &IteratorHelper) -> ThrowCompletionOr<IterationResult> {
         match self {
+            Self::Chunks { iterated, chunk_size } => iterator_prototype::chunks_closure(vm, iterated, chunk_size),
             Self::Concat { iterables } => iterables.next(vm, iterator),
             Self::Drop {
                 iterated,
@@ -88,6 +93,7 @@ impl IteratorHelperClosure {
     /// The abrupt closure, for the helpers that have one.
     fn abrupt_closure(self, vm: &Vm, completion: Completion) -> Option<ThrowCompletionOr<Value>> {
         match self {
+            Self::Chunks { iterated, .. } if iterated.done() => Some(completion.into_throw_completion_or()),
             Self::Concat { iterables } => Some(iterables.on_abrupt_completion(vm, completion)),
             Self::FlatMap {
                 iterated,
@@ -95,7 +101,9 @@ impl IteratorHelperClosure {
                 ..
             } => Some(flat_map_iterator.on_abrupt_completion(vm, iterated, completion)),
             Self::Zip { zip_iterator } => Some(zip_iterator.on_abrupt_completion(vm, completion)),
-            Self::Drop { .. } | Self::Filter { .. } | Self::Map { .. } | Self::Take { .. } => None,
+            Self::Chunks { .. } | Self::Drop { .. } | Self::Filter { .. } | Self::Map { .. } | Self::Take { .. } => {
+                None
+            }
         }
     }
 }

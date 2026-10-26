@@ -125,6 +125,7 @@ define_common_property_names! {
     ceil,
     charAt,
     charCodeAt,
+    chunks,
     clear,
     clz32,
     codePointAt,
