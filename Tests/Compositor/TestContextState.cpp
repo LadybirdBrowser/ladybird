@@ -115,6 +115,7 @@ TEST_CASE(pinch_zoom_is_presented_until_the_main_thread_asks_for_another)
         .relative_scroll_moves_visual_viewport_first = false,
         .instant_scroll_is_for_user_input = false,
         .smooth_scroll = {},
+        .takes_over_from_momentum = false,
     };
     (void)context.apply_scroll_requests({ &reset_zoom, 1 });
     EXPECT(context.handle_pinch_event(pinch_event(1.0)).accepted);

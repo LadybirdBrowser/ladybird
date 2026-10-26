@@ -264,6 +264,42 @@ void ContextState::end_keyboard_scroll_gesture()
     request_rendering_update();
 }
 
+Optional<ContextState::KeyScroll> ContextState::key_scroll_for(Web::KeyEvent const& event) const
+{
+    if (!presents_to_client() || m_presenter.ui_overlays().paused_debugger.has_value()
+        || m_visibility != Compositing::ContextVisibility::Visible
+        || !Web::is_keyboard_scroll_key(event.key, event.modifiers)
+        || !m_keyboard_scroll_controller.has_target()
+        || !m_scene.visual_context_tree().has_value()
+        || !m_keyboard_scroll_controller.state_matches_visual_context_tree_epoch(m_scene.current_visual_context_tree().structural_epoch()))
+        return {};
+    // Keyboard scrolling has not yet been adapted to a separately panned visual viewport.
+    if (m_scene.visual_viewport_scale().value_or(1.0f) != 1.0f)
+        return {};
+
+    auto key_step = m_keyboard_scroll_controller.step_for_key(event, m_async_scroll_tree);
+    if (!key_step.has_value())
+        return {};
+    auto target = m_async_scroll_tree.scroll_node_for_keyboard_scroll(key_step->keyboard_scroll_target, key_step->delta, scroll_state_snapshot_at_keyboard_step_starts());
+    // If every destination is at its boundary, consume repeats while a scrolling box can still move toward it.
+    // Falling back would cancel the running animation and lose the steps already accumulated in its destination.
+    if (!target.has_value())
+        target = m_async_scroll_tree.scroll_node_for_keyboard_scroll(key_step->keyboard_scroll_target, key_step->delta, m_scroll_state_snapshot);
+    if (!target.has_value())
+        return {};
+    return KeyScroll { .step = key_step.release_value(), .target = target.value() };
+}
+
+Optional<Web::AsyncScrollNodeStableID> ContextState::box_scrolled_for_key_event(Web::KeyEvent const& event) const
+{
+    if (event.type != Web::KeyEvent::Type::KeyDown)
+        return {};
+    auto key_scroll = key_scroll_for(event);
+    if (!key_scroll.has_value())
+        return {};
+    return m_async_scroll_tree.scroll_node_for_id(key_scroll->target)->stable_node_id;
+}
+
 ContextState::ContextUpdateResult ContextState::handle_key_event(Web::KeyEvent const& event)
 {
     if (!Web::is_keyboard_scroll_key(event.key, Web::UIEvents::Mod_None))
@@ -280,35 +316,18 @@ ContextState::ContextUpdateResult ContextState::handle_key_event(Web::KeyEvent c
         return { .accepted = true, .frame_to_present = {}, .should_request_rendering_update = true };
     }
 
-    if (!presents_to_client() || m_presenter.ui_overlays().paused_debugger.has_value()
-        || m_visibility != Compositing::ContextVisibility::Visible
-        || !Web::is_keyboard_scroll_key(event.key, event.modifiers)
-        || !m_keyboard_scroll_controller.has_target()
-        || !m_scene.visual_context_tree().has_value()
-        || !m_keyboard_scroll_controller.state_matches_visual_context_tree_epoch(m_scene.current_visual_context_tree().structural_epoch()))
+    auto key_scroll = key_scroll_for(event);
+    if (!key_scroll.has_value())
         return {};
-    // Keyboard scrolling has not yet been adapted to a separately panned visual viewport.
-    if (m_scene.visual_viewport_scale().value_or(1.0f) != 1.0f)
-        return {};
-
-    auto key_step = m_keyboard_scroll_controller.step_for_key(event, m_async_scroll_tree);
-    if (!key_step.has_value())
-        return {};
-    auto delta = key_step->delta;
-    auto scrolls_to_extent = key_step->scrolls_to_extent;
+    auto const& key_step = key_scroll->step;
+    auto delta = key_step.delta;
+    auto scrolls_to_extent = key_step.scrolls_to_extent;
     auto now = MonotonicTime::now();
-    auto scroll_state_at_step_starts = scroll_state_snapshot_at_keyboard_step_starts();
-    auto target = m_async_scroll_tree.scroll_node_for_keyboard_scroll(key_step->keyboard_scroll_target, delta, scroll_state_at_step_starts);
-    // If every destination is at its boundary, consume repeats while a scrolling box can still move toward it.
-    // Falling back would cancel the running animation and lose the steps already accumulated in its destination.
-    if (!target.has_value())
-        target = m_async_scroll_tree.scroll_node_for_keyboard_scroll(key_step->keyboard_scroll_target, delta, m_scroll_state_snapshot);
-    if (!target.has_value())
-        return {};
+    auto target = key_scroll->target;
 
     m_keyboard_scroll_controller.hold_key(event.key);
 
-    auto stable_node_id = m_async_scroll_tree.scroll_node_for_id(*target)->stable_node_id;
+    auto stable_node_id = m_async_scroll_tree.scroll_node_for_id(target)->stable_node_id;
     if (!m_boxes_scrolled_by_held_keys.contains_slow(stable_node_id))
         m_boxes_scrolled_by_held_keys.append(stable_node_id);
     Optional<Gfx::FloatPoint> scroll_in_flight_destination;
@@ -317,11 +336,11 @@ ContextState::ContextUpdateResult ContextState::handle_key_event(Web::KeyEvent c
             scroll_in_flight_destination = running_animation.animation.destination_offset();
     }
     auto css_scroll_in_flight_destination = scroll_in_flight_destination.map([&](auto offset) { return m_async_scroll_tree.css_pixels_from_device_offset(offset); });
-    if (auto decision = m_scroll_snap_controller.decide_key_step(m_async_scroll_tree, m_scroll_state_snapshot, *target, m_async_scroll_tree.css_pixels_from_device_offset(delta), key_step->snap_selection_intent, css_scroll_in_flight_destination, now); decision.has_value()) {
+    if (auto decision = m_scroll_snap_controller.decide_key_step(m_async_scroll_tree, m_scroll_state_snapshot, target, m_async_scroll_tree.css_pixels_from_device_offset(delta), key_step.snap_selection_intent, css_scroll_in_flight_destination, now); decision.has_value()) {
         schedule_end_of_scroll_step_gestures(now);
         if (auto* snap_scroll = decision->get_pointer<ScrollSnapController::SnapScrollStart>()) {
             snap_scroll->is_absolute_scroll = scrolls_to_extent;
-            start_snap_scroll(*target, move(*snap_scroll), false, now);
+            start_snap_scroll(target, move(*snap_scroll), false, now);
             return {
                 .accepted = true,
                 .frame_to_present = PendingFrame::repainting_changes(m_async_scrolling_viewport_rect),
@@ -336,11 +355,11 @@ ContextState::ContextUpdateResult ContextState::handle_key_event(Web::KeyEvent c
         return { .accepted = true, .frame_to_present = {}, .should_request_rendering_update = true };
     }
 
-    auto current_offset = m_async_scroll_tree.scroll_offset_for_node(*target, m_scroll_state_snapshot);
+    auto current_offset = m_async_scroll_tree.scroll_offset_for_node(target, m_scroll_state_snapshot);
     VERIFY(current_offset.has_value());
     // A plain step continues toward the animation's destination, including any snap on the other axis.
     auto step_start = scroll_in_flight_destination.value_or(*current_offset);
-    auto destination = m_async_scroll_tree.clamped_scroll_offset_for_node(*target, { step_start.x() + delta.x(), step_start.y() + delta.y() });
+    auto destination = m_async_scroll_tree.clamped_scroll_offset_for_node(target, { step_start.x() + delta.x(), step_start.y() + delta.y() });
     if (destination == step_start)
         return { .accepted = true, .frame_to_present = {}, .should_request_rendering_update = true };
 
@@ -357,7 +376,7 @@ ContextState::ContextUpdateResult ContextState::handle_key_event(Web::KeyEvent c
         };
     }
 
-    cancel_smooth_scroll_taken_over_by_user_input(*target);
+    cancel_smooth_scroll_taken_over_by_user_input(target);
     auto operation_id = m_async_scroll_update_outbox.allocate_operation_id();
     m_smooth_scroll_animations.append({
         .stable_node_id = stable_node_id,
@@ -996,16 +1015,6 @@ Optional<Gfx::Orientation> ContextState::axis_held_by_scrollbar_of(Compositing::
     return scrollbar.vertical ? Gfx::Orientation::Vertical : Gfx::Orientation::Horizontal;
 }
 
-void ContextState::stop_user_scroll_carried_on_by_momentum_of(Web::AsyncScrollNodeStableID stable_node_id)
-{
-    if (m_wheel_gesture_routing.latched_scroller() != stable_node_id)
-        return;
-    if (m_latched_gesture_carries_on_by_momentum)
-        m_momentum_of_latched_gesture_is_stopped = true;
-    if (m_scroll_fling_controller.is_active())
-        m_scroll_fling_controller.end_on_next_step();
-}
-
 Optional<PendingFrame> ContextState::apply_scroll_requests(ReadonlySpan<Compositing::ScrollRequest> scroll_requests)
 {
     Vector<Compositing::AsyncScrollOffset> answers;
@@ -1140,8 +1149,6 @@ Optional<PendingFrame> ContextState::apply_scroll_requests(ReadonlySpan<Composit
             }
         }
 
-        if (instant_scroll_is_for_script || smooth_scroll_is_for_script)
-            stop_user_scroll_carried_on_by_momentum_of(scroll_request.stable_node_id);
         if (instant_scroll_is_for_script)
             m_elastic_overscroll_controller.drop_stretch_moved_by(scroll_request.stable_node_id, instant_scroll_delta);
         if (smooth_scroll_is_for_script)
@@ -1451,6 +1458,11 @@ void ContextState::note_wheel_event_from_ui(Web::MouseEvent const& event, Option
     auto now = now_for_testing.value_or(MonotonicTime::now());
     auto phase = event.scroll_gesture_phase;
 
+    if (phase == Web::ScrollGesturePhase::Momentum)
+        m_last_reported_scroll_momentum_step = event.clone_without_browser_data();
+    else
+        m_last_reported_scroll_momentum_step.clear();
+
     // The end of the gesture before this one may never have arrived.
     if (m_wheel_gesture_routing.note_wheel_event_from_ui(event, wheel_event_position(event), m_async_scroll_tree, now))
         m_elastic_overscroll_controller.end_gesture(now);
@@ -1469,6 +1481,44 @@ bool ContextState::start_scroll_fling_if_flicked(Web::MouseEvent const& gesture_
 Optional<Web::MouseEvent> ContextState::interrupt_scroll_fling(Web::MouseEvent const& event, Optional<MonotonicTime> now_for_testing)
 {
     return m_scroll_fling_controller.interrupt(event, now_for_testing.value_or(MonotonicTime::now()));
+}
+
+Optional<Web::MouseEvent> ContextState::interrupt_reported_scroll_momentum()
+{
+    if (!m_last_reported_scroll_momentum_step.has_value())
+        return {};
+
+    // WebContent holds the gesture open while momentum events arrive. The end of the gesture releases it.
+    auto gesture_end = m_last_reported_scroll_momentum_step.release_value();
+    gesture_end.wheel_delta_x = 0;
+    gesture_end.wheel_delta_y = 0;
+    gesture_end.wheel_tick_120ths_x = 0;
+    gesture_end.wheel_tick_120ths_y = 0;
+    gesture_end.scroll_gesture_phase = Web::ScrollGesturePhase::Ended;
+    gesture_end.async_scroll_performed_default_action = false;
+    // The IDs of UI input events start at 1. Thus, ID 0 does not match a UI event.
+    gesture_end.id = 0;
+    m_reported_scroll_momentum_was_interrupted = true;
+    return gesture_end;
+}
+
+Optional<Web::MouseEvent> ContextState::end_momentum_scrolling(Web::AsyncScrollNodeStableID stable_node_id)
+{
+    if (m_wheel_gesture_routing.latched_scroller() != stable_node_id)
+        return {};
+    if (has_active_scroll_fling())
+        return end_scroll_fling();
+    return interrupt_reported_scroll_momentum();
+}
+
+bool ContextState::absorbs_wheel_event_of_interrupted_momentum(Web::MouseEvent const& event)
+{
+    if (!m_reported_scroll_momentum_was_interrupted)
+        return false;
+    if (first_is_one_of(event.scroll_gesture_phase, Web::ScrollGesturePhase::Momentum, Web::ScrollGesturePhase::Ended))
+        return true;
+    m_reported_scroll_momentum_was_interrupted = false;
+    return false;
 }
 
 Optional<Web::MouseEvent> ContextState::take_scroll_fling_step(MonotonicTime frame_time)
@@ -1504,13 +1554,6 @@ ContextState::ContextUpdateResult ContextState::scroll_for_wheel_event(Web::Mous
     auto latch = resolve_wheel_scroll_latch(position, event.scroll_gesture_phase, event.modifiers, now);
     if (latch.nested_context_id.has_value())
         return { .nested_context_wheel_step = NestedContextWheelStep { .context_id = *latch.nested_context_id } };
-
-    // The fingers start a gesture of their own, while momentum that a script's scroll stopped scrolls nothing more.
-    m_latched_gesture_carries_on_by_momentum = event.scroll_gesture_phase == Web::ScrollGesturePhase::Momentum;
-    if (event.scroll_gesture_phase != Web::ScrollGesturePhase::Momentum)
-        m_momentum_of_latched_gesture_is_stopped = false;
-    else if (m_momentum_of_latched_gesture_is_stopped)
-        return { .accepted = true };
 
     // The first step of a gesture over the content of a nested context goes to that context. A gesture whose first step
     // went elsewhere is not handed to a nested context that comes under the pointer later.

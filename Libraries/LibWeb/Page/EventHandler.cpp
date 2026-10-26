@@ -2227,7 +2227,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
     auto hold_scroll_gesture_until_key_release = [&](Compositing::SnapSelectionStrategy::Type intent) {
         m_held_scroll_key = key;
         if (!m_scroll_key_gesture_hold)
-            m_scroll_key_gesture_hold = make<HTML::UserScrollGestureHold>(*m_navigable);
+            m_scroll_key_gesture_hold = make<HTML::UserScrollGestureHold>(*m_navigable, HTML::UserScrollGestureHold::TakesOverMomentum::Yes);
         m_navigable->note_user_scroll_input_intent(intent);
         return m_navigable->hold_boxes_user_input_scrolls_with(*m_scroll_key_gesture_hold);
     };

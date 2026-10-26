@@ -603,8 +603,8 @@ void CompositorState::handle_and_dispatch_key_event(Web::CompositorContextId con
     }
 
     if (allow_keyboard_scroll) {
-        if (event.type == Web::KeyEvent::Type::KeyDown && Web::is_keyboard_scroll_key(event.key, Web::UIEvents::Mod_None))
-            dispatch_scroll_fling_step(context_id, *context, context->end_scroll_fling(), MonotonicTime::now());
+        if (auto box = context->box_scrolled_for_key_event(event); box.has_value())
+            dispatch_scroll_fling_step(context_id, *context, context->end_momentum_scrolling(box.value()), MonotonicTime::now());
         auto handled = apply_context_update_result(context_id, *context, context->handle_key_event(event));
         event.async_scroll_performed_default_action = handled && event.type == Web::KeyEvent::Type::KeyDown;
     }
@@ -636,6 +636,13 @@ void CompositorState::handle_and_dispatch_mouse_event(Web::CompositorContextId c
 
     auto is_wheel_event = event.type == Web::MouseEvent::Type::MouseWheel;
     if (is_wheel_event) {
+        // A key or a script that scrolls takes over from momentum, until wheel input other than the momentum takes
+        // over again.
+        if (context->absorbs_wheel_event_of_interrupted_momentum(event)) {
+            record_routing(Web::InputRoutingDecision::MomentumInterrupted);
+            presentation->did_consume_input_event(context_id, event.id);
+            return;
+        }
         context->note_wheel_event_from_ui(event);
 
         // The UI can send the end of a gesture more than once. An end that arrives during a fling belongs to the
@@ -884,12 +891,26 @@ Compositing::AsyncScrollEnqueueResult CompositorState::async_scroll_by(Web::Comp
     return result.enqueue_result;
 }
 
+static bool scroll_request_scrolls_for_script(Compositing::ScrollRequest const& scroll_request)
+{
+    bool has_instant_scroll = scroll_request.jump_offset.has_value() || scroll_request.relative_scroll.has_value();
+    if (has_instant_scroll && !scroll_request.instant_scroll_is_for_user_input)
+        return true;
+    return scroll_request.smooth_scroll.has_value() && scroll_request.smooth_scroll->initiator == Compositing::SmoothScrollInitiator::Programmatic;
+}
+
 void CompositorState::apply_scroll_requests(Web::CompositorContextId context_id, ReadonlySpan<Compositing::ScrollRequest> scroll_requests)
 {
     auto* context = context_if_present(context_id);
     if (!context)
         return;
 
+    // A script's scroll of a box ends the momentum scrolling it, as a key's does.
+    auto now = MonotonicTime::now();
+    for (auto const& scroll_request : scroll_requests) {
+        if (scroll_request.takes_over_from_momentum || scroll_request_scrolls_for_script(scroll_request))
+            dispatch_scroll_fling_step(context_id, *context, context->end_momentum_scrolling(scroll_request.stable_node_id), now);
+    }
     if (auto frame_to_present = context->apply_scroll_requests(scroll_requests); frame_to_present.has_value())
         schedule_present_frame(context_id, *context, frame_to_present.value());
     schedule_animation_frames_if_needed(*context);

@@ -247,6 +247,7 @@ ErrorOr<void> encode(Encoder& encoder, Compositing::ScrollRequest const& request
     TRY(encoder.encode(request.relative_scroll_moves_visual_viewport_first));
     TRY(encoder.encode(request.instant_scroll_is_for_user_input));
     TRY(encoder.encode(request.smooth_scroll));
+    TRY(encoder.encode(request.takes_over_from_momentum));
     return {};
 }
 
@@ -262,6 +263,7 @@ ErrorOr<Compositing::ScrollRequest> decode(Decoder& decoder)
         .relative_scroll_moves_visual_viewport_first = TRY(decoder.decode<bool>()),
         .instant_scroll_is_for_user_input = TRY(decoder.decode<bool>()),
         .smooth_scroll = TRY(decoder.decode<Optional<Compositing::RequestedSmoothScroll>>()),
+        .takes_over_from_momentum = TRY(decoder.decode<bool>()),
     };
 }
 

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    .row {
+        display: flex;
+        gap: 100px;
+    }
+
+    .scroller {
+        width: 300px;
+        height: 300px;
+        overflow: scroll;
+    }
+
+    .content {
+        height: 20000px;
+    }
+</style>
+<div class="row">
+    <div class="scroller" id="flung"><div class="content"></div></div>
+    <div class="scroller" id="keyed"><div class="content"></div></div>
+</div>
+<script>
+    promiseTest(async () => {
+        const flung = document.getElementById("flung");
+        const keyed = document.getElementById("keyed");
+        let scrollends = { flung: 0, keyed: 0 };
+        flung.addEventListener("scrollend", () => scrollends.flung++);
+        keyed.addEventListener("scrollend", () => scrollends.keyed++);
+        const nextScrollendOf = scroller => new Promise(resolve => scroller.addEventListener("scrollend", resolve, { once: true }));
+        await animationFrame();
+        await animationFrame();
+
+        // Keys scroll the box that was clicked last.
+        await internals.clickThroughUIProcess(550, 150);
+
+        const flingOneBoxWhileAKeyScrollsTheOther = async ({ whileMomentumStepIsPending }) => {
+            scrollends = { flung: 0, keyed: 0 };
+            const flungStart = flung.scrollTop;
+            const keyedStart = keyed.scrollTop;
+            const ended = Promise.all([nextScrollendOf(flung), nextScrollendOf(keyed)]);
+            internals.wheelThroughUIProcess(150, 150, 0, 0, true, "began");
+            for (let step = 0; step < 3; step++)
+                await internals.wheelThroughUIProcess(150, 150, 0, 50, true, "ongoing");
+            for (let step = 0; step < 3; step++) {
+                await internals.wheelThroughUIProcess(150, 150, 0, 30, true, "momentum");
+                await animationFrame();
+            }
+            // With input still on its way to WebContent, the compositor leaves the key's scroll to WebContent.
+            if (whileMomentumStepIsPending)
+                internals.wheelThroughUIProcess(150, 150, 0, 30, true, "momentum");
+            internals.sendKeyThroughUIProcess("Down");
+            for (let step = 0; step < 5; step++)
+                await internals.wheelThroughUIProcess(150, 150, 0, 30, true, "momentum");
+            await internals.wheelThroughUIProcess(150, 150, 0, 0, true, "ended");
+            await ended;
+            await new Promise(resolve => setTimeout(resolve, 700));
+            println(`The flung box moved ${flung.scrollTop - flungStart}, the box the key scrolls moved ${keyed.scrollTop - keyedStart}, scrollend events: ${scrollends.flung} and ${scrollends.keyed}`);
+        };
+
+        // The momentum of one box goes on while a key scrolls another.
+        await flingOneBoxWhileAKeyScrollsTheOther({ whileMomentumStepIsPending: false });
+        await flingOneBoxWhileAKeyScrollsTheOther({ whileMomentumStepIsPending: true });
+    });
+</script>

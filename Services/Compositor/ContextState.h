@@ -159,6 +159,7 @@ public:
     void invalidate_wheel_event_listener_state(u64 generation);
     void invalidate_keyboard_scroll_state(u64 generation);
     ContextUpdateResult handle_key_event(Web::KeyEvent const&);
+    Optional<Web::AsyncScrollNodeStableID> box_scrolled_for_key_event(Web::KeyEvent const&) const;
     ContextUpdateResult handle_mouse_event(Web::MouseEvent const&);
     // The UI's wheel deltas are in CSS pixels; this scales them for the scroll tree, which works in device pixels.
     ContextUpdateResult handle_wheel_event(Web::MouseEvent const&, Optional<MonotonicTime> now_for_testing = {});
@@ -207,6 +208,11 @@ public:
     bool start_scroll_fling_if_flicked(Web::MouseEvent const& gesture_end_event, Optional<MonotonicTime> now_for_testing = {});
     // Ends the fling before a wheel event from a new gesture or other input.
     Optional<Web::MouseEvent> interrupt_scroll_fling(Web::MouseEvent const&, Optional<MonotonicTime> now_for_testing = {});
+    // Ends the fling, or the gesture whose momentum the platform is reporting, if it scrolls the box, so that the rest of
+    // its momentum scrolls nothing. Returns the end of the gesture to send on to WebContent.
+    Optional<Web::MouseEvent> end_momentum_scrolling(Web::AsyncScrollNodeStableID);
+    // Whether the wheel event from the UI is momentum, or the end, of a gesture whose momentum was interrupted.
+    bool absorbs_wheel_event_of_interrupted_momentum(Web::MouseEvent const&);
     void set_scrolls_elastically(bool);
     void set_scrollbar_track_press_jumps(bool jumps) { m_scrollbar_track_press_jumps = jumps; }
     Optional<Gfx::IntRect> advance_elastic_overscroll_rebounds(MonotonicTime frame_time);
@@ -269,13 +275,17 @@ private:
     };
 
     void end_keyboard_scroll_gesture();
+    struct KeyScroll {
+        KeyboardScrollController::KeyStep step;
+        Compositing::AsyncScrollNodeID target;
+    };
+    Optional<KeyScroll> key_scroll_for(Web::KeyEvent const&) const;
+    Optional<Web::MouseEvent> interrupt_reported_scroll_momentum();
     Compositing::ScrollStateSnapshot scroll_state_snapshot_at_keyboard_step_starts() const;
     void adopt_keyboard_scroll_state(Compositing::KeyboardScrollState);
     Optional<VisualViewportScrollDelta> apply_visual_viewport_scroll_delta(Gfx::FloatPoint);
     void note_user_input_scrolled(Web::AsyncScrollNodeStableID);
     Optional<Gfx::Orientation> axis_held_by_scrollbar_of(Compositing::AsyncScrollNodeID) const;
-    // A script that scrolls the box a gesture is latched to stops the momentum the gesture carries on with.
-    void stop_user_scroll_carried_on_by_momentum_of(Web::AsyncScrollNodeStableID);
     void scroll_visual_viewport_position_in_page(Compositing::AsyncScrollNodeID viewport_node_id, Compositing::RequestedRelativeScroll const&, Vector<Compositing::AsyncScrollOffset>& answers);
     // Returns whether the request moved the visual viewport.
     bool apply_visual_viewport_scroll_request(Compositing::ScrollRequest const&, Vector<Compositing::AsyncScrollOffset>& answers);
@@ -373,9 +383,6 @@ private:
     HashMap<Web::AsyncScrollNodeStableID, u64> m_applied_scroll_request_ids;
     // How many times this context scrolled each box for user input of its own, which the reports are marked with too.
     HashMap<Web::AsyncScrollNodeStableID, u64> m_user_input_scroll_counts;
-    // Whether the gesture the wheel is latched to carries on by momentum, and whether a script's scroll stopped that.
-    bool m_latched_gesture_carries_on_by_momentum { false };
-    bool m_momentum_of_latched_gesture_is_stopped { false };
     // The boxes the last frame brought, whose offsets came from that frame's snapshot.
     HashTable<Web::AsyncScrollNodeStableID> m_scroll_nodes_seeded_by_last_frame;
     // Whether this context has scrolled boxes to offsets that WebContent's last frame does not have them at.
@@ -399,6 +406,8 @@ private:
     bool m_scrollbar_track_press_jumps { false };
     RefPtr<Core::Timer> m_scrollbar_paging_timer;
     ScrollFlingController m_scroll_fling_controller;
+    Optional<Web::MouseEvent> m_last_reported_scroll_momentum_step;
+    bool m_reported_scroll_momentum_was_interrupted { false };
     ElasticOverscrollController m_elastic_overscroll_controller;
     Gfx::IntRect m_async_scrolling_viewport_rect;
     bool m_has_async_scrolling_state { false };
