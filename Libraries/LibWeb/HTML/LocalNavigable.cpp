@@ -1582,6 +1582,8 @@ void LocalNavigable::set_active_document(GC::Ptr<DOM::Document> document)
         cancel_hover_update_after_async_scroll();
         cancel_user_scroll_settlement();
         m_event_handler.reset_hover_for_document_replacement({});
+        // NB: A composition belongs to the outgoing document, not the navigable that survives it.
+        forget_input_method_composition_session();
         m_active_document->set_navigable(nullptr);
     }
     m_active_document = document;
@@ -6157,6 +6159,8 @@ void LocalNavigable::unmark_text_from_input_method()
 // to is gone: A LocalNavigable outlives its documents — so session state left behind here would leak into the next one.
 void LocalNavigable::forget_input_method_composition_session()
 {
+    if (auto document = active_document())
+        document->set_is_input_method_composing(false);
     m_input_method_composition_node = nullptr;
     m_input_method_composition_active = false;
     m_input_method_last_marked_text = {};

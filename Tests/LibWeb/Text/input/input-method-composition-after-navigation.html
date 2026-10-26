@@ -1,0 +1,58 @@
+<!doctype html>
+<script src="include.js"></script>
+<script>
+    promiseTest(async () => {
+        const frame = document.createElement("iframe");
+        let events = [];
+        const navigate = async markup => {
+            const loaded = new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
+            frame.srcdoc = markup;
+            if (!frame.isConnected) document.body.append(frame);
+            await loaded;
+            const editable = frame.contentDocument.getElementById("editable");
+            for (const type of ["compositionstart", "compositionupdate", "compositionend", "beforeinput", "input"]) {
+                editable.addEventListener(type, event => {
+                    const composing = "isComposing" in event ? ` isComposing=${event.isComposing}` : "";
+                    events.push(`${type}: ${JSON.stringify(event.data)}${composing}`);
+                });
+            }
+            editable.focus();
+            if (editable.isContentEditable) frame.contentWindow.getSelection().collapse(editable, 0);
+            return editable;
+        };
+        const insert = async (editable, action) => {
+            const inserted = new Promise(resolve => editable.addEventListener("input", resolve, { once: true }));
+            action();
+            await inserted;
+        };
+        const show = label => {
+            println(`${label}:\n${events.join("\n")}`);
+            events = [];
+        };
+
+        // Leave a composition open in each outgoing document. The next document must start its own session.
+        let editable = await navigate('<textarea id="editable"></textarea>');
+        await insert(editable, () => internals.setMarkedTextFromInputMethod("old"));
+        show("first document");
+
+        editable = await navigate('<div id="editable" contenteditable="true"></div>');
+        await insert(editable, () => internals.setMarkedTextFromInputMethod("n"));
+        show("second document");
+
+        // Same-document navigation must preserve the current session.
+        const hashChanged = new Promise(resolve =>
+            frame.contentWindow.addEventListener("hashchange", resolve, { once: true })
+        );
+        frame.contentWindow.location.hash = "same-document";
+        await hashChanged;
+        await insert(editable, () => internals.setMarkedTextFromInputMethod("ni"));
+        show("same document");
+
+        editable = await navigate('<textarea id="editable"></textarea>');
+        await insert(editable, () => internals.setMarkedTextFromInputMethod("x"));
+        await insert(editable, () => internals.commitTextFromInputMethod("done"));
+        show("third document");
+        println(`committed text: ${editable.value}`);
+        frame.remove();
+    });
+</script>

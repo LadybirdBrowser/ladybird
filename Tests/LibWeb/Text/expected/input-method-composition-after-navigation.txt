@@ -1,0 +1,24 @@
+first document:
+compositionstart: ""
+compositionupdate: "old"
+beforeinput: "old" isComposing=true
+input: "old" isComposing=true
+second document:
+compositionstart: ""
+compositionupdate: "n"
+beforeinput: "n" isComposing=true
+input: "n" isComposing=true
+same document:
+compositionupdate: "ni"
+beforeinput: "ni" isComposing=true
+input: "ni" isComposing=true
+third document:
+compositionstart: ""
+compositionupdate: "x"
+beforeinput: "x" isComposing=true
+input: "x" isComposing=true
+compositionupdate: "done"
+beforeinput: "done" isComposing=true
+input: "done" isComposing=true
+compositionend: "done"
+committed text: done
