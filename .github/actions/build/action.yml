@@ -1,0 +1,186 @@
+name: 'Build'
+description: 'Configures, builds and installs Lagom into Build/ and Install/'
+author: 'Ladybird'
+
+inputs:
+  os:
+    description: 'Operating System to build for'
+    required: true
+  arch:
+    description: 'Target Architecture to build for'
+    required: true
+  toolchain:
+    description: 'Toolchain to build with'
+    required: true
+  build_preset:
+    description: 'CMake preset to configure with'
+    required: true
+  clang_plugins:
+    description: 'Whether to build with the Clang plugins'
+    required: false
+    default: 'false'
+  version:
+    description: 'Version of a release build, if any'
+    required: false
+    default: ''
+  vcpkg_cache_sas:
+    description: 'Access token that lets builds on master write to the vcpkg binary cache'
+    required: false
+    default: ''
+
+runs:
+  using: 'composite'
+  steps:
+    # FIXME: The kernel of our Linux runners is built without Landlock, and helpers refuse to run without it. Remove this
+    #        once the runners have Landlock, so that CI tests the sandbox that users get.
+    - name: Check for Landlock
+      if: ${{ inputs.os == 'Linux' }}
+      shell: bash
+      run: |
+        if ! python3 -c 'import ctypes, sys; sys.exit(0 if ctypes.CDLL(None, use_errno=True).syscall(444, None, 0, 1) > 0 else 1)'; then
+          echo "::warning::This kernel has no Landlock, so the helpers run without file system confinement. The rest of the sandbox still applies."
+          echo "LADYBIRD_UNSAFE_ALLOW_MISSING_LANDLOCK=1" >> "$GITHUB_ENV"
+        fi
+
+    - name: Set Up Environment
+      uses: ./.github/actions/setup
+      id: 'setup'
+      with:
+        os: ${{ inputs.os }}
+        arch: ${{ inputs.arch }}
+        toolchain: ${{ inputs.toolchain }}
+        build_preset: ${{ inputs.build_preset }}
+
+    # Use the compiler version for the ccache compiler hash. Otherwise, if plugins are enabled, the plugin .so files
+    # are included in the hash. This results in clean builds on every run as the .so files are rebuilt.
+    #
+    # Note: This only works because our plugins do not transform any code. If that becomes untrue, we must revisit this.
+    - name: Set the ccache compiler check
+      shell: bash
+      run: echo "CCACHE_COMPILERCHECK=%compiler% -v" >> "$GITHUB_ENV"
+
+    # === PREPARE FOR BUILDING ===
+
+    - name: Assign Build Parameters
+      if: ${{ inputs.os != 'Windows' }}
+      id: 'build-parameters'
+      shell: bash
+      run: |
+        CMAKE_OPTIONS="-DENABLE_CI_BASELINE_CPU=ON"
+        if ${{ inputs.os == 'Linux' }} ; then
+          # FIXME: https://github.com/WebAssembly/wabt/issues/2533
+          #        wabt doesn't have binary releases for arm64 Linux
+          if ${{ inputs.arch == 'arm64' }} ; then
+            PKGCONFIG=$(which pkg-config)
+            CMAKE_OPTIONS="$CMAKE_OPTIONS -DPKG_CONFIG_EXECUTABLE=$PKGCONFIG"
+          fi
+
+          if ${{ inputs.toolchain == 'Clang' }} ; then
+            echo "host_cc=clang" >> "$GITHUB_OUTPUT"
+            echo "host_cxx=clang++" >> "$GITHUB_OUTPUT"
+          elif ${{ inputs.toolchain == 'GNU' }} ; then
+            echo "host_cc=gcc" >> "$GITHUB_OUTPUT"
+            echo "host_cxx=g++" >> "$GITHUB_OUTPUT"
+          fi
+        elif ${{ inputs.os == 'macOS' }} ; then
+          echo "host_cc=$(xcrun --find clang)" >> "$GITHUB_OUTPUT"
+          echo "host_cxx=$(xcrun --find clang++)" >> "$GITHUB_OUTPUT"
+        fi
+
+        if ${{ inputs.clang_plugins == 'true' }} ; then
+          echo "ccache_key=${{ inputs.build_preset }}-CLANG_PLUGINS" >> "$GITHUB_OUTPUT"
+          CMAKE_OPTIONS="$CMAKE_OPTIONS -DENABLE_CLANG_PLUGINS=ON"
+        else
+          echo "ccache_key=${{ inputs.build_preset }}" >> "$GITHUB_OUTPUT"
+          CMAKE_OPTIONS="$CMAKE_OPTIONS -DINCLUDE_WASM_SPEC_TESTS=ON -DWASM_SPEC_TEST_SKIP_FORMATTING=ON"
+        fi
+
+        echo "cmake_options=$CMAKE_OPTIONS" >> "$GITHUB_OUTPUT"
+
+    - name: Restore Caches
+      uses: ./.github/actions/cache-restore
+      id: 'cache-restore'
+      with:
+        os: ${{ inputs.os }}
+        arch: ${{ inputs.arch }}
+        toolchain: ${{ inputs.toolchain }}
+        cache_key_extra: ${{ inputs.os == 'Windows' && inputs.build_preset || steps.build-parameters.outputs.ccache_key }}
+        ccache_path: ${{ steps.setup.outputs.ccache_path }}
+        vcpkg_cache_path: ${{ steps.setup.outputs.vcpkg_cache_path }}
+
+    - name: Cache the WebAssembly spec test suite
+      if: ${{ inputs.os != 'Windows' }}
+      uses: actions/cache@v6
+      with:
+        path: ${{ github.workspace }}/caches/WasmSpecTests
+        key: wasm-spec-test-suite | ${{ hashFiles('Meta/CMake/wasm_spec_tests.cmake') }}
+
+    - name: Set dynamic environment variables
+      if: ${{ inputs.os != 'Windows' }}
+      shell: bash
+      run: |
+        # Note: Required for vcpkg to use this compiler for its own builds.
+        echo "CC=${{ steps.build-parameters.outputs.host_cc }}" >> "$GITHUB_ENV"
+        echo "CXX=${{ steps.build-parameters.outputs.host_cxx }}" >> "$GITHUB_ENV"
+
+    - name: Create Build Environment
+      if: ${{ inputs.os != 'Windows' && inputs.build_preset != 'Fuzzers' }}
+      working-directory: ${{ github.workspace }}
+      shell: bash
+      env:
+        VCPKG_CACHE_SAS: ${{ github.ref == 'refs/heads/master' && inputs.vcpkg_cache_sas || '' }}
+        VCPKG_CACHE_MODE: ${{ github.ref == 'refs/heads/master' && 'write' || '' }}
+        RELEASE_VERSION: ${{ inputs.version }}
+      run: |
+        cmake --preset ${{ inputs.build_preset }} -B Build \
+          ${{ steps.build-parameters.outputs.cmake_options }} \
+          -DPython3_EXECUTABLE=${{ env.pythonLocation }}/bin/python \
+          -DCMAKE_C_COMPILER=${{ steps.build-parameters.outputs.host_cc }} \
+          -DCMAKE_CXX_COMPILER=${{ steps.build-parameters.outputs.host_cxx }} \
+          "-DLADYBIRD_VERSION=${RELEASE_VERSION}"
+
+    - name: Create Build Environment (Windows)
+      if: ${{ inputs.os == 'Windows' }}
+      working-directory: ${{ github.workspace }}
+      shell: pwsh
+      env:
+        VCPKG_CACHE_SAS: ${{ github.ref == 'refs/heads/master' && inputs.vcpkg_cache_sas || '' }}
+        VCPKG_CACHE_MODE: ${{ github.ref == 'refs/heads/master' && 'write' || '' }}
+      run: |
+        cmake --preset ${{ inputs.build_preset }} -B Build `
+          -DENABLE_CI_BASELINE_CPU=ON
+
+    - name: Create Build Environment (Fuzzers)
+      if: ${{ inputs.build_preset == 'Fuzzers' }}
+      working-directory: ${{ github.workspace }}
+      shell: bash
+      env:
+        VCPKG_CACHE_SAS: ${{ github.ref == 'refs/heads/master' && inputs.vcpkg_cache_sas || '' }}
+        VCPKG_CACHE_MODE: ${{ github.ref == 'refs/heads/master' && 'write' || '' }}
+      run: |
+        cmake --preset ${{ inputs.build_preset }} -B Build \
+          ${{ steps.build-parameters.outputs.cmake_options }} \
+          -DPython3_EXECUTABLE=${{ env.pythonLocation }}/bin/python \
+          -DCMAKE_C_COMPILER=${{ steps.build-parameters.outputs.host_cc }} \
+          -DCMAKE_CXX_COMPILER=${{ steps.build-parameters.outputs.host_cxx }}
+
+    # === BUILD ===
+
+    - name: Build
+      working-directory: ${{ github.workspace }}/Build
+      shell: bash
+      run: cmake --build .
+
+    - name: Install
+      working-directory: ${{ github.workspace }}/Build
+      shell: bash
+      run: cmake --install . --strip --prefix "${{ github.workspace }}/Install"
+
+    - name: Save Caches
+      uses: ./.github/actions/cache-save
+      with:
+        arch: ${{ inputs.arch }}
+        ccache_path: ${{ steps.setup.outputs.ccache_path }}
+        ccache_primary_key: ${{ steps.cache-restore.outputs.ccache_primary_key }}
+        vcpkg_cache_path: ${{ steps.setup.outputs.vcpkg_cache_path }}
+        vcpkg_cache_primary_key: ${{ steps.cache-restore.outputs.vcpkg_cache_primary_key }}
