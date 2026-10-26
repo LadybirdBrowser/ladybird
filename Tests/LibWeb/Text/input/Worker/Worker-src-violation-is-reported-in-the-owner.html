@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<meta http-equiv="Content-Security-Policy" content="worker-src 'none'">
+<script src="../include.js"></script>
+<script>
+    // The worker's script is fetched by the worker's process, whose client is this document. The document's
+    // worker-src blocks the fetch, and the document sees the violation as a securitypolicyviolation event.
+    promiseTest(async () => {
+        const violation = new Promise(resolve => document.addEventListener("securitypolicyviolation", resolve, { once: true }));
+
+        const worker = new Worker("worker.js");
+        const failed = new Promise(resolve => (worker.onerror = resolve));
+
+        const event = await violation;
+        await failed;
+
+        println(`effective directive: ${event.effectiveDirective}`);
+        println(`disposition: ${event.disposition}`);
+        println(`blocked URL matches: ${event.blockedURI === new URL("worker.js", location.href).href}`);
+        println(`document URL matches: ${event.documentURI === location.href}`);
+        println("worker failed to load");
+    });
+</script>

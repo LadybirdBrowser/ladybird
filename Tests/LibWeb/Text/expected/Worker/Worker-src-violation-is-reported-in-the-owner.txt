@@ -1,0 +1,5 @@
+effective directive: worker-src
+disposition: enforce
+blocked URL matches: true
+document URL matches: true
+worker failed to load

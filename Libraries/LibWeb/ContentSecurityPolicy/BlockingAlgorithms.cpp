@@ -68,6 +68,31 @@ ViolationReporter violation_reporter_for_request(JS::Realm& realm, NonnullRefPtr
     };
 }
 
+static bool policy_governs_directive(Policy const& policy, Utf16FlyString const& directive)
+{
+    auto governing_directives = Directives::get_fetch_directive_fallback_list(directive);
+    if (governing_directives.is_empty())
+        governing_directives.append(directive);
+    return any_of(governing_directives, [&](auto const& governing_directive) {
+        return policy.contains_directive_with_name(governing_directive);
+    });
+}
+
+// AD-HOC: A fetch in another process found the violation of a policy of a client this process hosts. The report is
+//         that process's claim, so it is reported only for a policy of the client governing its directive.
+void report_a_violation_found_in_another_process(HTML::EnvironmentSettingsObject& settings, u64 policy_index, Utf16FlyString const& directive, URL::URL resource)
+{
+    // NB: The other process's copy of the client's CSP list lists its policies in the same order, and the list only
+    //     grows while the client keeps its document, so while it does, policy_index names the violated policy.
+    auto const& policies = settings.policy_container()->csp_list.policies();
+    if (policy_index >= policies.size() || !policy_governs_directive(policies[policy_index], directive))
+        return;
+
+    auto violation = Violation::create_a_violation_object_for_global_policy_and_directive(settings.global_object(), policies[policy_index], directive.view().to_utf8_but_should_be_ported_to_utf16());
+    violation->set_resource(move(resource));
+    violation->report_a_violation(settings.realm());
+}
+
 // https://w3c.github.io/webappsec-csp/#should-block-navigation-request
 Directives::Directive::Result should_navigation_request_of_type_be_blocked_by_content_security_policy(NonnullRefPtr<Fetch::Infrastructure::Request> navigation_request, Directives::Directive::NavigationType navigation_type)
 {
