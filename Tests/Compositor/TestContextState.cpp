@@ -94,12 +94,12 @@ TEST_CASE(wheel_pans_the_zoomed_visual_viewport_of_a_page_without_scroll_nodes)
     EXPECT(result.accepted);
     EXPECT(result.frame_to_present.has_value());
 
-    // The main thread adopts the pan as a scroll of the document's viewport, at half the delta since the zoom is 2x.
+    // The main thread adopts the pan as a scroll of the document's visual viewport, at half the delta at 2x zoom.
     auto updates = context.take_pending_async_scroll_updates();
     EXPECT_EQ(updates.document_id, document_id);
     EXPECT_EQ(updates.scroll_offsets.size(), 1u);
     auto const& scroll_offset = updates.scroll_offsets.first();
     EXPECT_EQ(scroll_offset.stable_node_id.node_id, document_id);
-    EXPECT_EQ(scroll_offset.stable_node_id.kind, Web::AsyncScrollNodeKind::Viewport);
+    EXPECT_EQ(scroll_offset.stable_node_id.kind, Web::AsyncScrollNodeKind::VisualViewport);
     EXPECT_EQ(scroll_offset.unadopted_scroll_delta, Gfx::FloatPoint(0, 25));
 }

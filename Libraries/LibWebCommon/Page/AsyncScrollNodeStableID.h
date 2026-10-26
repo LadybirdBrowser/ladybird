@@ -20,6 +20,7 @@ enum class AsyncScrollNodeKind : u8 {
     Viewport,
     Element,
     PseudoElement,
+    VisualViewport,
 };
 
 // Stable identity for reconciling compositor-side scroll offsets after the paint snapshot has been rebuilt.
