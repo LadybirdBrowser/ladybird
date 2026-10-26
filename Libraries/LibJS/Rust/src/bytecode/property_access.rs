@@ -634,12 +634,6 @@ pub fn put_by_property_key(
                                 continue;
                             }
 
-                            if cached_shape.is_dictionary()
-                                && object.shape().dictionary_generation() != cache.shape_dictionary_generation
-                            {
-                                continue;
-                            }
-
                             // The cache is invalid if the prototype chain has been mutated, since such a mutation could have added a setter for the property.
                             if cache
                                 .prototype_chain_validity
@@ -687,9 +681,6 @@ pub fn put_by_property_key(
                     cache.shape = Some(object.shape());
                     if let Some(prototype) = cacheable_metadata.prototype {
                         cache.prototype_chain_validity = prototype.shape().prototype_chain_validity();
-                    }
-                    if object.shape().is_dictionary() {
-                        cache.shape_dictionary_generation = object.shape().dictionary_generation();
                     }
                 });
             }
@@ -776,11 +767,6 @@ pub fn put_by_property_key(
                         let Some(cached_shape) = cache.shape else {
                             continue;
                         };
-                        if cached_shape.is_dictionary()
-                            && object.shape().dictionary_generation() != cache.shape_dictionary_generation
-                        {
-                            continue;
-                        }
                         object.unsafe_set_shape(cached_shape);
                         object.initialize_direct(cache.property_offset, value);
                         return Ok(());
@@ -798,15 +784,13 @@ pub fn put_by_property_key(
 
             if let Some(caches) = caches
                 && from_shape != object.shape()
+                && !object.shape().is_dictionary()
             {
                 caches.update(PropertyLookupCacheEntryType::AddOwnProperty, |cache| {
                     cache.key = cache_key;
                     cache.from_shape = Some(from_shape);
                     cache.shape = Some(object.shape());
                     cache.property_offset = object.shape().lookup(name).expect("the property was just added").offset;
-                    if object.shape().is_dictionary() {
-                        cache.shape_dictionary_generation = object.shape().dictionary_generation();
-                    }
                 });
             }
         }

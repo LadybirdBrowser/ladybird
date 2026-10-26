@@ -561,8 +561,6 @@ fn put_by_value_with_keyed_store_cache(
                 let new_shape = entry.new_shape.expect("additions have a new shape");
                 if property_addition_is_cacheable(vm, &object, property_key)
                     && object.internal_is_extensible(vm)?
-                    && (!new_shape.is_dictionary()
-                        || shape.dictionary_generation() == entry.shape_dictionary_generation)
                     && entry
                         .prototype_chain_validity
                         .is_none_or(|validity| validity.is_valid())
@@ -600,7 +598,6 @@ fn put_by_value_with_keyed_store_cache(
         PropertyLookupCacheEntryType::AddOwnProperty if entry.from_shape == Some(shape) && entry.shape.is_some() => {
             lookup.entry_type = PropertyLookupCacheEntryType::AddOwnProperty;
             lookup.property_offset = entry.property_offset;
-            lookup.shape_dictionary_generation = entry.shape_dictionary_generation;
             lookup.prototype_chain_validity = entry.prototype_chain_validity;
             lookup.new_shape = entry.shape;
         }
@@ -1497,11 +1494,6 @@ pub fn try_put_by_id_cache(vm: &Vm, instruction: &op::PutById, values: &op::PutB
                 if !object.extensible() {
                     continue;
                 }
-                if cached_shape.is_dictionary()
-                    && object.shape().dictionary_generation() != entry.shape_dictionary_generation.get()
-                {
-                    continue;
-                }
                 if entry
                     .prototype_chain_validity
                     .get()
@@ -1621,11 +1613,6 @@ pub fn try_put_by_value_cache(vm: &Vm, instruction: &op::PutByValue, values: &op
                     continue;
                 };
                 if !object.extensible() {
-                    continue;
-                }
-                if cached_shape.is_dictionary()
-                    && object.shape().dictionary_generation() != entry.shape_dictionary_generation.get()
-                {
                     continue;
                 }
                 if entry
