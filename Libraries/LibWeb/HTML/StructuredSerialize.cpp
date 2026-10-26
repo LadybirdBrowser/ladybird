@@ -1215,9 +1215,9 @@ static WebIDL::ExceptionOr<void> serialize_agent_cluster(StructuredSerializeWrit
 // https://html.spec.whatwg.org/multipage/structured-data.html#structuredserializeinternal
 static WebIDL::ExceptionOr<void> serialize_array_buffer(JS::VM& vm, StructuredSerializeWriter& data_holder, JS::ArrayBuffer& array_buffer, bool for_storage, AllowSharedArrayBuffers allow_shared_array_buffers)
 {
-    // 13. Otherwise, if value has an [[ArrayBufferData]] internal slot, then:
+    // 14. Otherwise, if value has an [[ArrayBufferData]] internal slot:
 
-    // 1. If IsSharedArrayBuffer(value) is true, then:
+    // 1. If IsSharedArrayBuffer(value) is true:
     if (array_buffer.is_shared_array_buffer()) {
         // 1. If the current settings object's cross-origin isolated capability is false, then throw a "DataCloneError" DOMException.
         // NOTE: This check is only needed when serializing (and not when deserializing) as the cross-origin isolated capability cannot change
@@ -1227,15 +1227,10 @@ static WebIDL::ExceptionOr<void> serialize_array_buffer(JS::VM& vm, StructuredSe
         if (allow_shared_array_buffers == AllowSharedArrayBuffers::CrossOriginIsolatedOnly
             && current_settings_object().cross_origin_isolated_capability() == CanUseCrossOriginIsolatedAPIs::No)
             return data_clone_error("Cannot serialize SharedArrayBuffer when not cross-origin isolated"_utf16);
-        // 2. If forStorage is true, then throw a "DataCloneError" DOMException.
-        if (for_storage)
-            return data_clone_error("Cannot serialize SharedArrayBuffer for storage"_utf16);
-
         if (!array_buffer.is_fixed_length()) {
-            // 3. If value has an [[ArrayBufferMaxByteLength]] internal slot, then set serialized to { [[Type]]: "GrowableSharedArrayBuffer",
+            // 2. If value has an [[ArrayBufferMaxByteLength]] internal slot, then set serialized to { [[Type]]: "GrowableSharedArrayBuffer",
             //           [[ArrayBufferData]]: value.[[ArrayBufferData]], [[ArrayBufferByteLengthData]]: value.[[ArrayBufferByteLengthData]],
-            //           [[ArrayBufferMaxByteLength]]: value.[[ArrayBufferMaxByteLength]],
-            //           [[AgentCluster]]: the surrounding agent's agent cluster }.
+            //           [[ArrayBufferMaxByteLength]]: value.[[ArrayBufferMaxByteLength]] }.
             // To share with a same-process target, stash the source buffer in the side table. The byte copy keeps the
             // wire format self-contained for records that cross a process boundary.
             // AD-HOC: A growable SharedArrayBuffer isn't backed by cross-process shared memory (its storage is
@@ -1248,9 +1243,8 @@ static WebIDL::ExceptionOr<void> serialize_array_buffer(JS::VM& vm, StructuredSe
             data_holder.encode(MUST(array_buffer.copy_to_byte_buffer()));
             data_holder.encode(static_cast<u64>(array_buffer.max_byte_length()));
         } else {
-            // 4. Otherwise, set serialized to { [[Type]]: "SharedArrayBuffer", [[ArrayBufferData]]: value.[[ArrayBufferData]],
-            //           [[ArrayBufferByteLength]]: value.[[ArrayBufferByteLength]],
-            //           [[AgentCluster]]: the surrounding agent's agent cluster }.
+            // 3. Otherwise, set serialized to { [[Type]]: "SharedArrayBuffer", [[ArrayBufferData]]: value.[[ArrayBufferData]],
+            //           [[ArrayBufferByteLength]]: value.[[ArrayBufferByteLength]] }.
             // To share (rather than copy) [[ArrayBufferData]] with a same-process target, stash the source buffer in the
             // record's side table and encode its index. A record that crosses a process boundary arrives with an empty
             // side table — and shares through the file-descriptor side list below instead, or falls back to a byte copy.
@@ -1275,6 +1269,13 @@ static WebIDL::ExceptionOr<void> serialize_array_buffer(JS::VM& vm, StructuredSe
                 data_holder.encode(MUST(array_buffer.copy_to_byte_buffer()));
             }
         }
+
+        // 4. Set sameAgentCluster to true.
+        // 29. If forStorage is true and serialized.[[AgentCluster]] is not null, then throw a "DataCloneError" DOMException.
+        // NB: A SharedArrayBuffer is the only value whose record is restricted to the same agent cluster, so step 29
+        //     throws here, once its record is set.
+        if (for_storage)
+            return data_clone_error("Cannot serialize SharedArrayBuffer for storage"_utf16);
     }
     // 2. Otherwise:
     else {
@@ -1312,7 +1313,7 @@ static WebIDL::ExceptionOr<void> serialize_array_buffer(JS::VM& vm, StructuredSe
 template<OneOf<JS::TypedArrayBase, JS::DataView> ViewType>
 static WebIDL::ExceptionOr<void> serialize_viewed_array_buffer(JS::VM& vm, StructuredSerializeWriter& data_holder, ViewType const& view, bool for_storage, SerializationMemory& memory, AllowSharedArrayBuffers allow_shared_array_buffers)
 {
-    // 14. Otherwise, if value has a [[ViewedArrayBuffer]] internal slot, then:
+    // 15. Otherwise, if value has a [[ViewedArrayBuffer]] internal slot:
 
     // 1. If IsArrayBufferViewOutOfBounds(value) is true, then throw a "DataCloneError" DOMException.
     if constexpr (IsSame<ViewType, JS::DataView>) {
@@ -1327,6 +1328,9 @@ static WebIDL::ExceptionOr<void> serialize_viewed_array_buffer(JS::VM& vm, Struc
 
     // 2. Let buffer be the value of value's [[ViewedArrayBuffer]] internal slot.
     JS::Value buffer = view.viewed_array_buffer();
+
+    // 4. Assert: bufferSerialized.[[Type]] is "ArrayBuffer", "ResizableArrayBuffer", "SharedArrayBuffer", or "GrowableSharedArrayBuffer".
+    // NB: buffer is an ArrayBuffer, which serializes to one of those, or to a reference to an earlier one.
 
     auto serialize_byte_length = [&](JS::ByteLength byte_length) {
         VERIFY(!byte_length.is_detached());
@@ -1386,6 +1390,9 @@ public:
 
         auto& serialized = m_serialized;
 
+        // 1. If memory was not supplied, let memory be an empty map.
+        // NB: Every caller supplies memory.
+
         // 2. If memory[value] exists, then return memory[value].
         if (m_memory.contains(value)) {
             encode(ValueTag::ObjectReference);
@@ -1396,7 +1403,10 @@ public:
         // 3. Let deep be false.
         auto deep = false;
 
-        // 4. If value is undefined, null, a Boolean, a Number, a BigInt, or a String, then return { [[Type]]: "primitive", [[Value]]: value }.
+        // 4. Let sameAgentCluster be false.
+        // NB: Only a SharedArrayBuffer restricts its record to the same agent cluster, which its branch handles.
+
+        // 5. If value is undefined, null, a Boolean, a Number, a BigInt, or a String, then return { [[Type]]: "primitive", [[Value]]: value }.
         bool return_primitive_type = true;
 
         if (value.is_undefined()) {
@@ -1425,44 +1435,44 @@ public:
         if (return_primitive_type)
             return {};
 
-        // 5. If value is a Symbol, then throw a "DataCloneError" DOMException.
+        // 6. If value is a Symbol, then throw a "DataCloneError" DOMException.
         if (value.is_symbol())
             return data_clone_error("Cannot serialize Symbol"_utf16);
 
-        // 6. Let serialized be an uninitialized value.
+        // 7. Let serialized be an uninitialized value.
         // NOTE: We created the serialized value above.
         if (auto object = value.as_if<JS::Object>()) {
-            // 7. If value has a [[BooleanData]] internal slot, then set serialized to { [[Type]]: "Boolean", [[BooleanData]]: value.[[BooleanData]] }.
+            // 8. If value has a [[BooleanData]] internal slot, then set serialized to { [[Type]]: "Boolean", [[BooleanData]]: value.[[BooleanData]] }.
             if (auto const* boolean_object = as_if<JS::BooleanObject>(*object)) {
                 encode(ValueTag::BooleanObject);
                 encode(boolean_object->boolean());
             }
 
-            // 8. Otherwise, if value has a [[NumberData]] internal slot, then set serialized to { [[Type]]: "Number", [[NumberData]]: value.[[NumberData]] }.
+            // 9. Otherwise, if value has a [[NumberData]] internal slot, then set serialized to { [[Type]]: "Number", [[NumberData]]: value.[[NumberData]] }.
             else if (auto const* number_object = as_if<JS::NumberObject>(*object)) {
                 encode(ValueTag::NumberObject);
                 encode(number_object->number());
             }
 
-            // 9. Otherwise, if value has a [[BigIntData]] internal slot, then set serialized to { [[Type]]: "BigInt", [[BigIntData]]: value.[[BigIntData]] }.
+            // 10. Otherwise, if value has a [[BigIntData]] internal slot, then set serialized to { [[Type]]: "BigInt", [[BigIntData]]: value.[[BigIntData]] }.
             else if (auto const* big_int_object = as_if<JS::BigIntObject>(*object)) {
                 encode(ValueTag::BigIntObject);
                 encode_signed_big_integer(m_serialized, big_int_object->bigint().big_integer());
             }
 
-            // 10. Otherwise, if value has a [[StringData]] internal slot, then set serialized to { [[Type]]: "String", [[StringData]]: value.[[StringData]] }.
+            // 11. Otherwise, if value has a [[StringData]] internal slot, then set serialized to { [[Type]]: "String", [[StringData]]: value.[[StringData]] }.
             else if (auto const* string_object = as_if<JS::StringObject>(*object)) {
                 encode(ValueTag::StringObject);
                 encode(string_object->primitive_string().utf16_string());
             }
 
-            // 11. Otherwise, if value has a [[DateValue]] internal slot, then set serialized to { [[Type]]: "Date", [[DateValue]]: value.[[DateValue]] }.
+            // 12. Otherwise, if value has a [[DateValue]] internal slot, then set serialized to { [[Type]]: "Date", [[DateValue]]: value.[[DateValue]] }.
             else if (auto const* date = as_if<JS::Date>(*object)) {
                 encode(ValueTag::DateObject);
                 encode(date->date_value());
             }
 
-            // 12. Otherwise, if value has a [[RegExpMatcher]] internal slot, then set serialized to
+            // 13. Otherwise, if value has a [[RegExpMatcher]] internal slot, then set serialized to
             //     { [[Type]]: "RegExp", [[RegExpMatcher]]: value.[[RegExpMatcher]], [[OriginalSource]]: value.[[OriginalSource]],
             //       [[OriginalFlags]]: value.[[OriginalFlags]] }.
             else if (auto const* reg_exp_object = as_if<JS::RegExpObject>(*object)) {
@@ -1474,19 +1484,19 @@ public:
                 encode(reg_exp_object->flags());
             }
 
-            // 13. Otherwise, if value has an [[ArrayBufferData]] internal slot, then:
+            // 14. Otherwise, if value has an [[ArrayBufferData]] internal slot:
             else if (auto* array_buffer = as_if<JS::ArrayBuffer>(*object)) {
                 TRY(serialize_array_buffer(m_vm, serialized, *array_buffer, m_for_storage, m_allow_shared_array_buffers));
             }
 
-            // 14. Otherwise, if value has a [[ViewedArrayBuffer]] internal slot, then:
+            // 15. Otherwise, if value has a [[ViewedArrayBuffer]] internal slot:
             else if (auto const* typed_array_base = as_if<JS::TypedArrayBase>(*object)) {
                 TRY(serialize_viewed_array_buffer(m_vm, serialized, *typed_array_base, m_for_storage, m_memory, m_allow_shared_array_buffers));
             } else if (auto const* data_view = as_if<JS::DataView>(*object)) {
                 TRY(serialize_viewed_array_buffer(m_vm, serialized, *data_view, m_for_storage, m_memory, m_allow_shared_array_buffers));
             }
 
-            // 15. Otherwise, if value has a [[MapData]] internal slot, then:
+            // 16. Otherwise, if value has a [[MapData]] internal slot:
             else if (is<JS::Map>(*object)) {
                 // 1. Set serialized to { [[Type]]: "Map", [[MapData]]: a new empty List }.
                 encode(ValueTag::MapObject);
@@ -1495,7 +1505,7 @@ public:
                 deep = true;
             }
 
-            // 16. Otherwise, if value has a [[SetData]] internal slot, then:
+            // 17. Otherwise, if value has a [[SetData]] internal slot:
             else if (is<JS::Set>(*object)) {
                 // 1. Set serialized to { [[Type]]: "Set", [[SetData]]: a new empty List }.
                 encode(ValueTag::SetObject);
@@ -1504,7 +1514,7 @@ public:
                 deep = true;
             }
 
-            // 17. Otherwise, if value has an [[ErrorData]] internal slot and value is not a platform object, then:
+            // 18. Otherwise, if value has an [[ErrorData]] internal slot and value is not a platform object:
             else if (is<JS::Error>(*object) && !Bindings::is_platform_object(*object)) {
                 // 1. Let name be ? Get(value, "name").
                 auto name = TRY(object->get(m_vm.names.name));
@@ -1531,15 +1541,16 @@ public:
                 if (value_cause_descriptor.has_value() && value_cause_descriptor->is_data_descriptor())
                     cause = TRY(value_cause_descriptor->value->to_utf16_string(m_vm));
 
-                // 5. Set serialized to { [[Type]]: "Error", [[Name]]: name, [[Message]]: message }.
-                // FIXME: 6. User agents should attach a serialized representation of any interesting accompanying data which are not yet specified, notably the stack property, to serialized.
+                // FIXME: 5. Let stack be an implementation-defined string that represents value.[[Stack]].
+                // 6. Set serialized to { [[Type]]: "Error", [[Name]]: name, [[Message]]: message, [[Stack]]: stack }.
+                // FIXME: 7. User agents should attach a serialized representation of any interesting accompanying data which are not yet specified to serialized.
                 encode(ValueTag::ErrorObject);
                 encode(type);
                 encode(message);
                 encode(cause);
             }
 
-            // 18. Otherwise, if value is an Array exotic object, then:
+            // 19. Otherwise, if value is an Array exotic object:
             else if (is<JS::Array>(*object)) {
                 // 1. Let valueLenDescriptor be ? OrdinaryGetOwnProperty(value, "length").
                 // 2. Let valueLen be valueLenDescriptor.[[Value]].
@@ -1554,7 +1565,7 @@ public:
                 deep = true;
             }
 
-            // 19. Otherwise, if value is a platform object that is a serializable object:
+            // 20. Otherwise, if value is a platform object that is a serializable object:
             else if (auto serializable = Bindings::serializable_from_object(*object); serializable.has_value()) {
                 // 1. If value has a [[Detached]] internal slot whose value is true, then throw a "DataCloneError" DOMException.
                 // NB: The platform objects that have a [[Detached]] internal slot are the transferable objects.
@@ -1568,25 +1579,27 @@ public:
                 if (m_for_storage)
                     serialized.encode(serializable_payload_version);
 
-                // 4. Set deep to true
+                // FIXME: 4. If value's primary interface is decorated with [SameAgentCluster], then set sameAgentCluster to true.
+
+                // 5. Set deep to true.
                 deep = true;
             }
 
-            // 20. Otherwise, if value is a platform object, then throw a "DataCloneError" DOMException.
+            // 21. Otherwise, if value is a platform object, then throw a "DataCloneError" DOMException.
             else if (Bindings::is_platform_object(*object)) {
                 return data_clone_error("Cannot serialize platform objects"_utf16);
             }
 
-            // 21. Otherwise, if IsCallable(value) is true, then throw a "DataCloneError" DOMException.
+            // 22. Otherwise, if IsCallable(value) is true, then throw a "DataCloneError" DOMException.
             else if (value.is_function()) {
                 return data_clone_error("Cannot serialize functions"_utf16);
             }
 
-            // FIXME: 22. Otherwise, if value has any internal slot other than [[Prototype]] or [[Extensible]], then throw a "DataCloneError" DOMException.
+            // FIXME: 23. Otherwise, if value has any internal slot other than [[Prototype]], [[Extensible]], or [[PrivateElements]], then throw a "DataCloneError" DOMException.
 
-            // FIXME: 23. Otherwise, if value is an exotic object and value is not the %Object.prototype% intrinsic object associated with any realm, then throw a "DataCloneError" DOMException.
+            // FIXME: 24. Otherwise, if value is an exotic object and value is not the %Object.prototype% intrinsic object associated with any realm, then throw a "DataCloneError" DOMException.
 
-            // 24. Otherwise:
+            // 25. Otherwise:
             else {
                 // 1. Set serialized to { [[Type]]: "Object", [[Properties]]: a new empty List }.
                 encode(ValueTag::Object);
@@ -1596,15 +1609,18 @@ public:
             }
         }
 
-        // 25. Set memory[value] to serialized.
+        // 26. If sameAgentCluster is true, then restrict serialized to the same agent cluster; otherwise, set serialized.[[AgentCluster]] to null.
+        // NB: The SharedArrayBuffer branch encodes the agent cluster with its record.
+
+        // 27. Set memory[value] to serialized.
         // Nested sub-serialization above may already have claimed earlier ids.
         m_memory.set(make_root(value), m_memory.size());
 
-        // 26. If deep is true, then:
+        // 28. If deep is true:
         if (deep) {
             auto& object = value.as_object();
 
-            // 1. If value has a [[MapData]] internal slot, then:
+            // 1. If value has a [[MapData]] internal slot:
             if (auto const* map = as_if<JS::Map>(object)) {
                 // 1. Let copiedList be a new empty List.
                 GC::RootVector<JS::Value> copied_list;
@@ -1631,7 +1647,7 @@ public:
                 }
             }
 
-            // 2. Otherwise, if value has a [[SetData]] internal slot, then:
+            // 2. Otherwise, if value has a [[SetData]] internal slot:
             else if (auto const* set = as_if<JS::Set>(object)) {
                 // 1. Let copiedList be a new empty List.
                 GC::RootVector<JS::Value> copied_list;
@@ -1665,7 +1681,7 @@ public:
                 for (auto key : MUST(object.enumerable_own_property_names(JS::Object::PropertyKind::Key))) {
                     auto property_key = MUST(JS::PropertyKey::from_value(m_vm, key));
 
-                    // 1. If ! HasOwnProperty(value, key) is true, then:
+                    // 1. If ! HasOwnProperty(value, key) is true:
                     if (MUST(object.has_own_property(property_key))) {
                         // 1. Let inputValue be ? value.[[Get]](key, value).
                         auto input_value = TRY(object.internal_get(property_key, value));
@@ -1682,7 +1698,10 @@ public:
             }
         }
 
-        // 27. Return serialized.
+        // 29. If forStorage is true and serialized.[[AgentCluster]] is not null, then throw a "DataCloneError" DOMException.
+        // NB: The SharedArrayBuffer branch throws, once its record is set.
+
+        // 30. Return serialized.
         return {};
     }
 
@@ -1770,6 +1789,9 @@ public:
 
         auto& realm = *m_target_realm;
 
+        // 1. If memory was not supplied, let memory be an empty map.
+        // NB: Every caller supplies memory.
+
         auto tag = static_cast<ValueTag>(raw_tag);
 
         // EndObject is handled by the Object/Array property loop, not here.
@@ -1784,10 +1806,10 @@ public:
             return m_memory[index];
         }
 
-        // 3. Let deep be false.
+        // 5. Let deep be false.
         auto deep = false;
 
-        // 4. Let value be an uninitialized value.
+        // 6. Let value be an uninitialized value.
         JS::Value value;
 
         auto is_primitive = false;
@@ -1802,7 +1824,7 @@ public:
         };
 
         switch (tag) {
-        // 5. If serialized.[[Type]] is "primitive", then set value to serialized.[[Value]].
+        // 3. If serialized.[[Type]] is "primitive", then return serialized.[[Value]].
         case ValueTag::UndefinedPrimitive:
             value = JS::js_undefined();
             is_primitive = true;
@@ -1832,32 +1854,32 @@ public:
             is_primitive = true;
             break;
 
-        // 6. Otherwise, if serialized.[[Type]] is "Boolean", then set value to a new Boolean object in targetRealm whose [[BooleanData]] internal slot value is serialized.[[BooleanData]].
+        // 7. If serialized.[[Type]] is "Boolean", then set value to a new Boolean object in targetRealm whose [[BooleanData]] internal slot value is serialized.[[BooleanData]].
         case ValueTag::BooleanObject:
             value = JS::BooleanObject::create(realm, TRY(decode<bool>()));
             break;
 
-        // 7. Otherwise, if serialized.[[Type]] is "Number", then set value to a new Number object in targetRealm whose [[NumberData]] internal slot value is serialized.[[NumberData]].
+        // 8. Otherwise, if serialized.[[Type]] is "Number", then set value to a new Number object in targetRealm whose [[NumberData]] internal slot value is serialized.[[NumberData]].
         case ValueTag::NumberObject:
             value = JS::NumberObject::create(realm, TRY(decode<double>()));
             break;
 
-        // 8. Otherwise, if serialized.[[Type]] is "BigInt", then set value to a new BigInt object in targetRealm whose [[BigIntData]] internal slot value is serialized.[[BigIntData]].
+        // 9. Otherwise, if serialized.[[Type]] is "BigInt", then set value to a new BigInt object in targetRealm whose [[BigIntData]] internal slot value is serialized.[[BigIntData]].
         case ValueTag::BigIntObject:
             value = JS::BigIntObject::create(realm, TRY(decode_big_int()));
             break;
 
-        // 9. Otherwise, if serialized.[[Type]] is "String", then set value to a new String object in targetRealm whose [[StringData]] internal slot value is serialized.[[StringData]].
+        // 10. Otherwise, if serialized.[[Type]] is "String", then set value to a new String object in targetRealm whose [[StringData]] internal slot value is serialized.[[StringData]].
         case ValueTag::StringObject:
             value = JS::StringObject::create(realm, TRY(decode_string()), realm.intrinsics().string_prototype());
             break;
 
-        // 10. Otherwise, if serialized.[[Type]] is "Date", then set value to a new Date object in targetRealm whose [[DateValue]] internal slot value is serialized.[[DateValue]].
+        // 11. Otherwise, if serialized.[[Type]] is "Date", then set value to a new Date object in targetRealm whose [[DateValue]] internal slot value is serialized.[[DateValue]].
         case ValueTag::DateObject:
             value = JS::Date::create(realm, TRY(decode<double>()));
             break;
 
-        // 11. Otherwise, if serialized.[[Type]] is "RegExp", then set value to a new RegExp object in targetRealm whose [[RegExpMatcher]] internal slot value is serialized.[[RegExpMatcher]],
+        // 12. Otherwise, if serialized.[[Type]] is "RegExp", then set value to a new RegExp object in targetRealm whose [[RegExpMatcher]] internal slot value is serialized.[[RegExpMatcher]],
         //     whose [[OriginalSource]] internal slot value is serialized.[[OriginalSource]], and whose [[OriginalFlags]] internal slot value is serialized.[[OriginalFlags]].
         case ValueTag::RegExpObject: {
             auto pattern = TRY(decode_string());
@@ -1870,13 +1892,12 @@ public:
             break;
         }
 
-        // 12. Otherwise, if serialized.[[Type]] is "SharedArrayBuffer", then:
+        // 13. Otherwise, if serialized.[[Type]] is "SharedArrayBuffer", then set value to a new SharedArrayBuffer object in targetRealm whose [[ArrayBufferData]] internal slot value is serialized.[[ArrayBufferData]] and whose [[ArrayBufferByteLength]] internal slot value is serialized.[[ArrayBufferByteLength]].
         case ValueTag::SharedArrayBuffer: {
-            // 1. If targetRealm's corresponding agent cluster is not serialized.[[AgentCluster]], then throw a "DataCloneError" DOMException.
+            // 4. If serialized.[[AgentCluster]] is not null and targetRealm's corresponding agent cluster is not serialized.[[AgentCluster]], then throw a "DataCloneError" DOMException.
+            // NB: The agent cluster is encoded with the record of a SharedArrayBuffer, the only record restricted to one.
             TRY(deserialize_agent_cluster());
 
-            // 2. Otherwise, set value to a new SharedArrayBuffer object in targetRealm whose [[ArrayBufferData]] internal slot value is serialized.[[ArrayBufferData]]
-            //    and whose [[ArrayBufferByteLength]] internal slot value is serialized.[[ArrayBufferByteLength]].
             auto side_table_index = TRY(decode<u32>());
 
             // AD-HOC: When the backing was transferred as cross-process shared memory, map it from the side list by
@@ -1908,14 +1929,12 @@ public:
             break;
         }
 
-        // 13. Otherwise, if serialized.[[Type]] is "GrowableSharedArrayBuffer", then:
+        // 14. Otherwise, if serialized.[[Type]] is "GrowableSharedArrayBuffer", then set value to a new SharedArrayBuffer object in targetRealm whose [[ArrayBufferData]] internal slot value is serialized.[[ArrayBufferData]], whose [[ArrayBufferByteLengthData]] internal slot value is serialized.[[ArrayBufferByteLengthData]], and whose [[ArrayBufferMaxByteLength]] internal slot value is serialized.[[ArrayBufferMaxByteLength]].
         case ValueTag::GrowableSharedArrayBuffer: {
-            // 1. If targetRealm's corresponding agent cluster is not serialized.[[AgentCluster]], then throw a "DataCloneError" DOMException.
+            // 4. If serialized.[[AgentCluster]] is not null and targetRealm's corresponding agent cluster is not serialized.[[AgentCluster]], then throw a "DataCloneError" DOMException.
+            // NB: The agent cluster is encoded with the record of a SharedArrayBuffer, the only record restricted to one.
             TRY(deserialize_agent_cluster());
 
-            // 2. Otherwise, set value to a new SharedArrayBuffer object in targetRealm whose [[ArrayBufferData]] internal slot value is serialized.[[ArrayBufferData]],
-            //    whose [[ArrayBufferByteLengthData]] internal slot value is serialized.[[ArrayBufferByteLengthData]],
-            //    and whose [[ArrayBufferMaxByteLength]] internal slot value is serialized.[[ArrayBufferMaxByteLength]].
             auto side_table_index = TRY(decode<u32>());
             auto buffer = TRY(decode<ByteBuffer>());
             auto max_byte_length = TRY(decode<size_t>());
@@ -1937,14 +1956,18 @@ public:
             break;
         }
 
-        // 14. Otherwise, if serialized.[[Type]] is "ArrayBuffer", then set value to a new ArrayBuffer object in targetRealm whose [[ArrayBufferData]] internal slot value is serialized.[[ArrayBufferData]], and whose [[ArrayBufferByteLength]] internal slot value is serialized.[[ArrayBufferByteLength]].
+        // 15. Otherwise, if serialized.[[Type]] is "ArrayBuffer", then set value to a new ArrayBuffer object in targetRealm whose [[ArrayBufferData]] internal slot value is serialized.[[ArrayBufferData]], and whose [[ArrayBufferByteLength]] internal slot value is serialized.[[ArrayBufferByteLength]].
+        //     If this throws an exception, catch it, and then throw a "DataCloneError" DOMException.
+        // NB: The bytes were allocated when they were decoded, which throws a "DataCloneError" DOMException if it fails.
         case ValueTag::ArrayBuffer: {
             auto buffer = TRY(decode<ByteBuffer>());
             value = JS::ArrayBuffer::create(realm, move(buffer));
             break;
         }
 
-        // 15. Otherwise, if serialized.[[Type]] is "ResizableArrayBuffer", then set value to a new ArrayBuffer object in targetRealm whose [[ArrayBufferData]] internal slot value is serialized.[[ArrayBufferData]], whose [[ArrayBufferByteLength]] internal slot value is serialized.[[ArrayBufferByteLength]], and whose [[ArrayBufferMaxByteLength]] internal slot value is a serialized.[[ArrayBufferMaxByteLength]].
+        // 16. Otherwise, if serialized.[[Type]] is "ResizableArrayBuffer", then set value to a new ArrayBuffer object in targetRealm whose [[ArrayBufferData]] internal slot value is serialized.[[ArrayBufferData]], whose [[ArrayBufferByteLength]] internal slot value is serialized.[[ArrayBufferByteLength]], and whose [[ArrayBufferMaxByteLength]] internal slot value is serialized.[[ArrayBufferMaxByteLength]].
+        //     If this throws an exception, catch it, and then throw a "DataCloneError" DOMException.
+        // NB: The bytes were allocated when they were decoded, which throws a "DataCloneError" DOMException if it fails.
         case ValueTag::ResizeableArrayBuffer: {
             auto buffer = TRY(decode<ByteBuffer>());
             auto max_byte_length = TRY(decode<size_t>());
@@ -1956,8 +1979,9 @@ public:
             break;
         }
 
-        // 16. Otherwise, if serialized.[[Type]] is "ArrayBufferView", then:
+        // 17. Otherwise, if serialized.[[Type]] is "ArrayBufferView":
         case ValueTag::ArrayBufferView: {
+            // 1. Let deserializedArrayBuffer be ? StructuredDeserialize(serialized.[[ArrayBufferSerialized]], targetRealm, memory).
             auto array_buffer_value = TRY(deserialize());
             if (!array_buffer_value.is_object() || !is<JS::ArrayBuffer>(array_buffer_value.as_object()))
                 return data_clone_error_from_serialization_error(realm, AK::Error::from_string_literal("ArrayBufferView is not backed by an ArrayBuffer"));
@@ -1986,11 +2010,17 @@ public:
                 return !end.has_overflow() && end.value() <= array_buffer.byte_length();
             };
 
+            // 2. If serialized.[[Constructor]] is "DataView", then set value to a new DataView object in targetRealm whose [[ViewedArrayBuffer]] internal slot value is deserializedArrayBuffer,
+            //    whose [[ByteLength]] internal slot value is serialized.[[ByteLength]], and whose [[ByteOffset]] internal slot value is serialized.[[ByteOffset]].
             if (constructor_name == "DataView"sv) {
                 if (!length_fits_buffer(byte_length, 1))
                     return data_clone_error_from_serialization_error(realm, AK::Error::from_string_literal("DataView does not fit its ArrayBuffer"));
                 value = JS::DataView::create(realm, &array_buffer, byte_length, byte_offset);
-            } else {
+            }
+            // 3. Otherwise, set value to a new typed array object in targetRealm, using the constructor given by serialized.[[Constructor]], whose [[ViewedArrayBuffer]] internal slot value is
+            //    deserializedArrayBuffer, whose [[TypedArrayName]] internal slot value is serialized.[[Constructor]], whose [[ByteLength]] internal slot value is serialized.[[ByteLength]],
+            //    whose [[ByteOffset]] internal slot value is serialized.[[ByteOffset]], and whose [[ArrayLength]] internal slot value is serialized.[[ArrayLength]].
+            else {
                 auto array_length = TRY(deserialize_byte_length());
 
                 Optional<JS::TypedArrayBase::Kind> kind;
@@ -2020,7 +2050,7 @@ public:
             break;
         }
 
-        // 17. Otherwise, if serialized.[[Type]] is "Map", then:
+        // 18. Otherwise, if serialized.[[Type]] is "Map":
         case ValueTag::MapObject: {
             // 1. Set value to a new Map object in targetRealm whose [[MapData]] internal slot value is a new empty List.
             value = JS::Map::create(realm);
@@ -2030,7 +2060,7 @@ public:
             break;
         }
 
-        // 18. Otherwise, if serialized.[[Type]] is "Set", then:
+        // 19. Otherwise, if serialized.[[Type]] is "Set":
         case ValueTag::SetObject: {
             // 1. Set value to a new Set object in targetRealm whose [[SetData]] internal slot value is a new empty List.
             value = JS::Set::create(realm);
@@ -2040,7 +2070,7 @@ public:
             break;
         }
 
-        // 19. Otherwise, if serialized.[[Type]] is "Array", then:
+        // 20. Otherwise, if serialized.[[Type]] is "Array":
         case ValueTag::ArrayObject: {
             // 1. Let outputProto be targetRealm.[[Intrinsics]].[[%Array.prototype%]].
             // 2. Set value to ! ArrayCreate(serialized.[[Length]], outputProto).
@@ -2055,7 +2085,7 @@ public:
             break;
         }
 
-        // 20. Otherwise, if serialized.[[Type]] is "Object", then:
+        // 21. Otherwise, if serialized.[[Type]] is "Object":
         case ValueTag::Object: {
             // 1. Set value to a new Object in targetRealm.
             value = JS::Object::create(realm, realm.intrinsics().object_prototype());
@@ -2065,12 +2095,26 @@ public:
             break;
         }
 
-        // 21. Otherwise, if serialized.[[Type]] is "Error", then:
+        // 22. Otherwise, if serialized.[[Type]] is "Error":
         case ValueTag::ErrorObject: {
+            // 1. Let prototype be %Error.prototype%.
+            // 2. If serialized.[[Name]] is "EvalError", then set prototype to %EvalError.prototype%.
+            // 3. If serialized.[[Name]] is "RangeError", then set prototype to %RangeError.prototype%.
+            // 4. If serialized.[[Name]] is "ReferenceError", then set prototype to %ReferenceError.prototype%.
+            // 5. If serialized.[[Name]] is "SyntaxError", then set prototype to %SyntaxError.prototype%.
+            // 6. If serialized.[[Name]] is "TypeError", then set prototype to %TypeError.prototype%.
+            // 7. If serialized.[[Name]] is "URIError", then set prototype to %URIError.prototype%.
+            // NB: The error created below for the decoded type has that prototype.
             auto type = TRY(decode<ErrorType>());
+
+            // 8. Let message be serialized.[[Message]].
             auto message = TRY(decode<Optional<Utf16String>>());
+
+            // FIXME: Spec bug - https://github.com/whatwg/html/issues/11321
+            // MISSING STEP: Let cause be serialized.[[Cause]].
             auto cause = TRY(decode<Optional<Utf16String>>());
 
+            // 9. Set value to OrdinaryObjectCreate(prototype, « [[ErrorData]], [[Stack]] »).
             GC::Ptr<JS::Error> error;
 
             switch (type) {
@@ -2088,9 +2132,14 @@ public:
             // decode<ErrorType> validated type, and every ErrorType has a case above, so error is set.
             VERIFY(error);
 
+            // 10. Let messageDesc be PropertyDescriptor { [[Value]]: message, [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true }.
+            // 11. If message is not undefined, then perform ! OrdinaryDefineOwnProperty(value, "message", messageDesc).
             if (message.has_value())
                 error->set_message(message.release_value());
 
+            // FIXME: 12. Set value.[[Stack]] to serialized.[[Stack]].
+            // 13. Any interesting accompanying data attached to serialized should be deserialized and attached to value.
+            // MISSING STEP: If cause is not undefined, then perform ! CreateNonEnumerableDataPropertyOrThrow(value, "cause", cause).
             if (cause.has_value())
                 error->create_non_enumerable_data_property_or_throw(m_vm.names.cause, JS::PrimitiveString::create(m_vm, cause.release_value()));
 
@@ -2098,7 +2147,7 @@ public:
             break;
         }
 
-        // 22. Otherwise:
+        // 23. Otherwise:
         default:
             if (tag != ValueTag::SerializableObject)
                 return data_clone_error_from_serialization_error(realm, AK::Error::from_string_literal("Unexpected structured serialize value tag"));
@@ -2136,14 +2185,14 @@ public:
             deep = true;
         }
 
-        // 23. Set memory[serialized] to value.
+        // 24. Set memory[serialized] to value.
         // IMPLEMENTATION DEFINED: We don't add primitive values to the memory to match the serialization indices (which also doesn't add them)
         if (!is_primitive)
             m_memory.append(value);
 
-        // 24. If deep is true, then:
+        // 25. If deep is true:
         if (deep) {
-            // 1. If serialized.[[Type]] is "Map", then:
+            // 1. If serialized.[[Type]] is "Map":
             if (tag == ValueTag::MapObject) {
                 auto& map = as<JS::Map>(value.as_object());
                 auto length = TRY(decode<u64>());
@@ -2161,7 +2210,7 @@ public:
                 }
             }
 
-            // 2. Otherwise, if serialized.[[Type]] is "Set", then:
+            // 2. Otherwise, if serialized.[[Type]] is "Set":
             else if (tag == ValueTag::SetObject) {
                 auto& set = as<JS::Set>(value.as_object());
                 auto length = TRY(decode<u64>());
@@ -2176,7 +2225,7 @@ public:
                 }
             }
 
-            // 3. Otherwise, if serialized.[[Type]] is "Array" or "Object", then:
+            // 3. Otherwise, if serialized.[[Type]] is "Array" or "Object":
             else if (tag == ValueTag::ArrayObject || tag == ValueTag::Object) {
                 auto& object = value.as_object();
 
@@ -2186,11 +2235,15 @@ public:
                     auto raw_property_tag = TRY(decode<u8>());
                     if (raw_property_tag == to_underlying(ValueTag::EndObject))
                         break;
+                    // 1. Let deserializedValue be ? StructuredDeserialize(entry.[[Value]], targetRealm, memory).
                     auto deserialized_value = TRY(deserialize_value(raw_property_tag));
                     auto key = TRY(decode<Utf16String>());
 
                     // 2. Let result be ! CreateDataProperty(value, entry.[[Key]], deserializedValue).
                     auto result = object.create_data_property(key, deserialized_value);
+
+                    // 3. Assert: result is true.
+                    // NB: A record that was not serialized from a value, as one read back from storage, can fail here, which throws instead.
                     if (result.is_error() || !result.release_value())
                         return data_clone_error_from_serialization_error(realm, AK::Error::from_string_literal("Invalid serialized property"));
                 }
@@ -2205,7 +2258,7 @@ public:
             }
         }
 
-        // 25. Return value.
+        // 26. Return value.
         return value;
     }
 
@@ -2235,7 +2288,7 @@ WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer
         auto const* as_array_buffer = as_if<JS::ArrayBuffer>(*transferable);
 
         // 1. If transferable has neither an [[ArrayBufferData]] internal slot nor a [[Detached]] internal slot, then throw a "DataCloneError" DOMException.
-        // FIXME: Handle transferring objects with [[Detached]] internal slot.
+        // NB: The platform objects that have a [[Detached]] internal slot are the transferable objects.
         if (!as_array_buffer && !Bindings::transferable_from_object(*transferable).has_value())
             return WebIDL::DataCloneError::create("Cannot transfer type"_utf16);
 
@@ -2249,7 +2302,7 @@ WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer
         if (memory.contains(transferable_value))
             return WebIDL::DataCloneError::create("Cannot transfer value twice"_utf16);
 
-        // 4. Set memory[transferable] to { [[Type]]: an uninitialized value }.
+        // 4. Set memory[transferable] to { [[Type]]: an uninitialized value, [[AgentCluster]]: null }.
         memory.set(GC::make_root(transferable_value), memory.size());
     }
 
@@ -2297,9 +2350,9 @@ WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer
         // IMPLEMENTATION DEFINED: We just create a data holder here, our memory holds indices into the serialized record.
         TransferDataEncoder data_holder;
 
-        // 4. If transferable has an [[ArrayBufferData]] internal slot, then:
+        // 4. If transferable has an [[ArrayBufferData]] internal slot:
         if (array_buffer) {
-            // 1. If transferable has an [[ArrayBufferMaxByteLength]] internal slot, then:
+            // 1. If transferable has an [[ArrayBufferMaxByteLength]] internal slot:
             auto buffer_data = MUST(array_buffer->copy_to_byte_buffer());
 
             if (!array_buffer->is_fixed_length()) {
@@ -2339,10 +2392,12 @@ WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer
             // 3. Set dataHolder.[[Type]] to interfaceName.
             MUST(data_holder.encode(interface_name));
 
-            // 4. Perform the appropriate transfer steps for the interface identified by interfaceName, given transferable and dataHolder.
+            // FIXME: 4. If transferable's primary interface is decorated with [SameAgentCluster], then restrict dataHolder to the same agent cluster.
+
+            // 5. Perform the appropriate transfer steps for the interface identified by interfaceName, given transferable and dataHolder.
             TRY(transferable_object.transfer_steps(realm, data_holder, image_bitmap_pixels.has_value() ? &image_bitmap_pixels.value() : nullptr));
 
-            // 5. Set transferable.[[Detached]] to true.
+            // 6. Set transferable.[[Detached]] to true.
             transferable_object.set_detached();
         }
 
@@ -2350,7 +2405,11 @@ WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer
         transfer_data_holders.append(move(data_holder));
     }
 
-    // 6. Return { [[Serialized]]: serialized, [[TransferDataHolders]]: transferDataHolders }.
+    // 6. Let result be { [[Serialized]]: serialized, [[TransferDataHolders]]: transferDataHolders, [[InterfaceNames]]: an empty ordered set, [[AgentCluster]]: null }.
+    // FIXME: 7. For each object → record of memory:
+    //     1. If object is a platform object, then append record.[[Type]] to result.[[InterfaceNames]].
+    //     2. If record.[[AgentCluster]] is not null, then restrict result to the same agent cluster.
+    // 8. Return result.
     return SerializedTransferRecord { .serialized = move(serialized_record), .transfer_data_holders = move(transfer_data_holders), .shared_buffers = serialized_writer.take_shared_buffers() };
 }
 
@@ -2386,10 +2445,14 @@ WebIDL::ExceptionOr<DeserializedTransferRecord> structured_deserialize_with_tran
     // 1. Let memory be an empty map.
     DeserializationMemory memory {};
 
-    // 2. Let transferredValues be a new empty List.
+    // FIXME: 2. If serializeWithTransferResult.[[AgentCluster]] is not null and targetRealm's corresponding agent cluster is not serializeWithTransferResult.[[AgentCluster]], then throw a "DataCloneError" DOMException.
+    // FIXME: 3. For each interfaceName of serializeWithTransferResult.[[InterfaceNames]]:
+    //     1. If the interface identified by interfaceName is not exposed in targetRealm, then throw a "DataCloneError" DOMException.
+
+    // 4. Let transferredValues be a new empty List.
     Vector<GC::Root<JS::Object>> transferred_values;
 
-    // 3. For each transferDataHolder of serializeWithTransferResult.[[TransferDataHolders]]:
+    // 5. For each transferDataHolder of serializeWithTransferResult.[[TransferDataHolders]]:
     for (auto& transfer_data_holder : serialize_with_transfer_result.transfer_data_holders) {
         if (transfer_data_holder.buffer().data().is_empty())
             continue;
@@ -2407,14 +2470,14 @@ WebIDL::ExceptionOr<DeserializedTransferRecord> structured_deserialize_with_tran
         transferred_values.append(GC::make_root(value.as_object()));
     }
 
-    // 4. Let deserialized be ? StructuredDeserialize(serializeWithTransferResult.[[Serialized]], targetRealm, memory).
+    // 6. Let deserialized be ? StructuredDeserialize(serializeWithTransferResult.[[Serialized]], targetRealm, memory).
     auto deserialized = TRY(structured_deserialize(vm, serialize_with_transfer_result.serialized, target_realm, memory, &serialize_with_transfer_result.shared_buffers));
 
     // NB: The deserialized values hold their own references to the shared memory they use. The record can outlive its
     //     delivery, as in a task that awaits garbage collection, so it must not keep that memory alive.
     serialize_with_transfer_result.shared_buffers.clear();
 
-    // 5. Return { [[Deserialized]]: deserialized, [[TransferredValues]]: transferredValues }.
+    // 7. Return { [[Deserialized]]: deserialized, [[TransferredValues]]: transferredValues }.
     return DeserializedTransferRecord { .deserialized = deserialized, .transferred_values = move(transferred_values) };
 }
 
@@ -2457,12 +2520,13 @@ WebIDL::ExceptionOr<JS::Value> structured_deserialize_with_transfer_internal(Tra
     // 4. Otherwise:
     else {
         // 1. Let interfaceName be transferDataHolder.[[Type]].
-        // 2. If the interface identified by interfaceName is not exposed in targetRealm, then throw a "DataCloneError" DOMException.
+        // NB: Step 3 of StructuredDeserializeWithTransfer checks that every transferred interface is exposed before any
+        //     transfer-receiving steps run. The check runs here, per data holder, instead.
         if (!is_transferable_interface_exposed_on_target_realm(type, target_realm))
             return WebIDL::DataCloneError::create("Unknown type transferred"_utf16);
 
-        // 3. Set value to a new instance of the interface identified by interfaceName, created in targetRealm.
-        // 4. Perform the appropriate transfer-receiving steps for the interface identified by interfaceName given transferDataHolder and value.
+        // 2. Set value to a new instance of the interface identified by interfaceName, created in targetRealm.
+        // 3. Perform the appropriate transfer-receiving steps for the interface identified by interfaceName given transferDataHolder and value.
         value = TRY(Bindings::create_transferred_platform_object(type, target_realm, decoder));
     }
 
