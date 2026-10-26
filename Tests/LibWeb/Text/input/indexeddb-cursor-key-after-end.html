@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+asyncTest(done => {
+    spoofCurrentURL("https://example.com/indexeddb-cursor-key-after-end.html");
+
+    const dbName = "test-cursor-key-after-end-" + Date.now() + Math.random();
+    const request = indexedDB.open(dbName, 1);
+
+    request.onupgradeneeded = event => {
+        const store = event.target.result.createObjectStore("store");
+        store.createIndex("byTag", "tag");
+        store.put({ tag: "a" }, 1);
+        store.put({ tag: "b" }, 2);
+    };
+
+    request.onsuccess = event => {
+        const db = event.target.result;
+        const store = db.transaction("store", "readonly").objectStore("store");
+        const sources = [["index", store.index("byTag")], ["object store", store]];
+        let remaining = sources.length;
+        for (const [name, source] of sources) {
+            const cursorRequest = source.openCursor();
+            let cursor = null;
+            cursorRequest.onsuccess = () => {
+                if (cursorRequest.result) {
+                    cursor = cursorRequest.result;
+                    cursor.continue();
+                    return;
+                }
+                println(`${name} cursor after the end: key=${cursor.key} primaryKey=${cursor.primaryKey}`);
+                if (--remaining === 0) {
+                    db.close();
+                    indexedDB.deleteDatabase(dbName);
+                    done();
+                }
+            };
+        }
+    };
+});
+</script>

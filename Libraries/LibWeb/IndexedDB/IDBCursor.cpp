@@ -43,6 +43,10 @@ JS::Value IDBCursor::primary_key(JS::Realm& realm)
     //       is inspected, until the cursor's effective key is changed. This means that if the object is modified,
     //       those modifications will be seen by anyone inspecting the value of the cursor. However modifying such an
     //       object does not modify the contents of the database.
+    // AD-HOC: The effective key of a cursor whose key is undefined is undefined too, as in other engines.
+    if (!current_key())
+        return JS::js_undefined();
+
     auto effective_key = this->effective_key();
     if (m_cached_primary_key_value.key.ptr() != effective_key.ptr())
         m_cached_primary_key_value = { effective_key, convert_a_key_to_a_value(realm, effective_key) };
