@@ -17,7 +17,9 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <math.h>
-#include <sys/resource.h>
+#if !defined(AK_OS_WINDOWS)
+#    include <sys/resource.h>
+#endif
 
 // NB: Starts the Rust endpoint, which the IPC compiler generated Rust code for from the same definition as the C++ code
 //     this test uses, and returns this end of a transport to it.
@@ -33,6 +35,15 @@ static NonnullOwnPtr<IPC::Transport> start_server()
     IPC::TransportMachPort::raise_receive_queue_limit(server_receive_right);
     rust_echo_server_serve(server_receive_right.release(), server_send_right.release());
     return make<IPC::TransportMachPort>(move(our_receive_right), move(our_send_right));
+}
+#elif defined(AK_OS_WINDOWS)
+extern "C" void rust_echo_server_serve(int descriptor);
+
+static NonnullOwnPtr<IPC::Transport> start_server()
+{
+    auto handles = MUST(Core::System::duplex_pipe());
+    rust_echo_server_serve(handles[1]);
+    return MUST(IPC::Transport::adopt_fd(handles[0]));
 }
 #else
 extern "C" void rust_echo_server_serve(int socket_fd);
@@ -112,7 +123,7 @@ TEST_CASE(strings_with_lone_surrogates_make_a_round_trip_through_rust)
 TEST_CASE(large_payloads_make_a_round_trip_through_rust)
 {
     auto transport = start_server();
-    auto bytes = MUST(ByteBuffer::create_uninitialized(100'000));
+    auto bytes = MUST(ByteBuffer::create_uninitialized(2 * MiB));
     for (size_t i = 0; i < bytes.size(); ++i)
         bytes[i] = static_cast<u8>(i * 7);
     Vector<Optional<i64>> values;
@@ -139,14 +150,16 @@ TEST_CASE(files_go_to_rust_as_attachments)
 //     processes running at the same time count towards, so raise it as LibMain does for every process.
 static void raise_descriptor_limit()
 {
+#if !defined(AK_OS_WINDOWS)
     rlimit limit {};
     VERIFY(getrlimit(RLIMIT_NOFILE, &limit) == 0);
     limit.rlim_cur = min<rlim_t>(limit.rlim_max, 65536);
-#if defined(AK_OS_MACOS) || defined(AK_OS_IOS)
+#    if defined(AK_OS_MACOS) || defined(AK_OS_IOS)
     // NB: macOS rejects a descriptor limit above OPEN_MAX, but still needs one above its default of 256.
     limit.rlim_cur = min<rlim_t>(limit.rlim_cur, OPEN_MAX);
-#endif
+#    endif
     VERIFY(setrlimit(RLIMIT_NOFILE, &limit) == 0);
+#endif
 }
 
 TEST_CASE(many_files_make_a_round_trip_through_rust)

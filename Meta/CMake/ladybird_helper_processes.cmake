@@ -6,6 +6,7 @@ set(ladybird_helper_processes
     RequestServer
     VideoDecoderServer
     WebContent
+    WebRTCClient
     WebWorker
 )
 

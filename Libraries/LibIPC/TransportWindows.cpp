@@ -454,9 +454,13 @@ TransportWindows::ShouldShutdown TransportWindows::read_as_many_messages_as_poss
     }
 
     // Nothing the peer has not read by now will ever be read, so the handles that were waiting for it can go.
-    if (should_shutdown == ShouldShutdown::Yes && m_has_parked_attachments) {
-        HandleBroker::the().forget_channel(m_handle_broker_channel);
-        m_has_parked_attachments = false;
+    if (should_shutdown == ShouldShutdown::Yes) {
+        MutexLocker locker(m_send_mutex);
+        m_peer_has_hung_up.store(true, AK::MemoryOrder::memory_order_relaxed);
+        if (m_has_parked_attachments) {
+            HandleBroker::the().forget_channel(m_handle_broker_channel);
+            m_has_parked_attachments = false;
+        }
     }
 
     return should_shutdown;
