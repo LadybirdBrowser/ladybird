@@ -11,9 +11,10 @@ on:
         type: string
 
 jobs:
-  Lagom:
+  Distribution:
     if: github.repository == 'LadybirdBrowser/ladybird'
     name: ${{ matrix.os_name }}, ${{ matrix.arch }}, Distribution, Clang
+    runs-on: ${{ fromJSON(matrix.runner_labels) }}
 
     strategy:
       fail-fast: false
@@ -29,13 +30,40 @@ jobs:
       attestations: write
       artifact-metadata: write
 
-    secrets:
-      VCPKG_CACHE_SAS: ${{ secrets.VCPKG_CACHE_SAS }}
-    uses: ./.github/workflows/build-and-test.yml
-    with:
-      toolchain: 'Clang'
-      os_name: ${{ matrix.os_name }}
-      runner_labels: ${{ matrix.runner_labels }}
-      arch: ${{ matrix.arch }}
-      build_preset: 'Distribution'
-      version: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - name: Build
+        uses: ./.github/actions/build
+        with:
+          os: ${{ matrix.os_name }}
+          arch: ${{ matrix.arch }}
+          toolchain: 'Clang'
+          build_preset: 'Distribution'
+          version: ${{ inputs.version }}
+          vcpkg_cache_sas: ${{ secrets.VCPKG_CACHE_SAS }}
+
+      - name: Test
+        working-directory: ${{ github.workspace }}
+        run: ctest --output-on-failure -E 'LibWebAccessibilityBridge|AccessibilityBridgeMac' --test-dir Build --timeout 1800
+        env:
+          TESTS_ONLY: 1
+
+      - name: Package
+        working-directory: ${{ github.workspace }}/Build
+        run: |
+          cpack -G TZST -B packages -D CPACK_COMPONENTS_ALL="ladybird_Runtime;ladybird_Symbols" \
+            -D CPACK_ARCHIVE_COMPRESSION_LEVEL=19 -D CPACK_COMPONENT_INCLUDE_TOPLEVEL_DIRECTORY=ON
+
+      - name: Attest
+        uses: actions/attest@v4
+        with:
+          subject-path: '${{ github.workspace }}/Build/packages/*.tar.zst'
+
+      - name: Upload
+        uses: actions/upload-artifact@v7
+        with:
+          name: ladybird-${{ matrix.os_name }}-${{ matrix.arch }}
+          path: Build/packages/*.tar.zst
+          compression-level: 0
+          if-no-files-found: error
