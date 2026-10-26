@@ -36,12 +36,11 @@ static constexpr auto scrollbar_track_press_inverting_modifier = Web::UIEvents::
 static constexpr auto scrollbar_track_press_inverting_modifier = Web::UIEvents::Mod_Shift;
 #endif
 
-static Web::AsyncScrollNodeStableID viewport_stable_id_from(Compositing::AsyncScrollNodeID node_id)
+// The offset of the visual viewport in the layout viewport, in device pixels of the content it scales.
+static Gfx::FloatPoint visual_viewport_scroll_offset(Compositing::TransformWithOrigin const& transform)
 {
-    return {
-        .node_id = node_id.document_id,
-        .kind = Web::AsyncScrollNodeKind::Viewport,
-    };
+    auto scale = transform.matrix[0, 0];
+    return Gfx::FloatPoint { -transform.matrix[0, 3], -transform.matrix[1, 3] }.scaled(1.0f / scale);
 }
 
 static void clamp_visual_viewport_transform_to_viewport(Compositing::TransformWithOrigin& transform, Gfx::IntRect viewport_rect)
@@ -1703,21 +1702,9 @@ Optional<ContextState::VisualViewportScrollDelta> ContextState::apply_visual_vie
     if (!m_scene.visual_context_tree().has_value())
         return {};
 
-    // A page whose viewport cannot be scrolled records no viewport scroll node, and its viewport stays where it is.
-    Web::AsyncScrollNodeStableID viewport_stable_id;
-    Gfx::FloatPoint viewport_scroll_offset;
-    if (auto viewport_node_id = m_async_scroll_tree.viewport_scroll_node_id(); viewport_node_id.has_value()) {
-        auto scroll_offset = m_async_scroll_tree.scroll_offset_for_node(*viewport_node_id, m_scroll_state_snapshot);
-        if (!scroll_offset.has_value())
-            return {};
-        viewport_stable_id = viewport_stable_id_from(*viewport_node_id);
-        viewport_scroll_offset = *scroll_offset;
-    } else if (auto document_id = m_async_scroll_tree.document_id(); document_id.has_value()) {
-        viewport_stable_id = { .node_id = *document_id, .kind = Web::AsyncScrollNodeKind::Viewport };
-        viewport_scroll_offset = m_async_scrolling_viewport_rect.location().to_type<float>();
-    } else {
+    auto document_id = m_async_scroll_tree.document_id();
+    if (!document_id.has_value())
         return {};
-    }
 
     auto transform = m_scene.visual_viewport_transform();
     auto scale = transform.matrix[0, 0];
@@ -1742,8 +1729,8 @@ Optional<ContextState::VisualViewportScrollDelta> ContextState::apply_visual_vie
 
     return VisualViewportScrollDelta {
         .scroll_offset = {
-            .stable_node_id = viewport_stable_id,
-            .compositor_scroll_offset = viewport_scroll_offset,
+            .stable_node_id = { .node_id = document_id.value(), .kind = Web::AsyncScrollNodeKind::VisualViewport },
+            .compositor_scroll_offset = visual_viewport_scroll_offset(transform),
             .unadopted_scroll_delta = consumed_delta.scaled(1.0f / scale),
             .last_relative_scroll_delta = {},
         },

@@ -4791,6 +4791,7 @@ static GC::Ptr<DOM::Element> adopt_async_element_scroll_delta(DOM::Document& doc
     Optional<CSS::PseudoElement> pseudo_element;
     switch (stable_id.kind) {
     case Web::AsyncScrollNodeKind::Viewport:
+    case Web::AsyncScrollNodeKind::VisualViewport:
         return {};
     case Web::AsyncScrollNodeKind::Element:
         break;
@@ -5648,21 +5649,43 @@ void LocalNavigable::process_main_thread_smooth_scrolls()
         page().client().request_frame();
 }
 
-static bool adopt_async_viewport_scroll_delta(LocalNavigable& navigable, CSSPixelPoint scroll_delta)
+bool LocalNavigable::adopt_async_viewport_scroll_delta(CSSPixelPoint scroll_delta)
 {
-    auto document = navigable.active_document();
+    if (!active_document())
+        return false;
+
+    defer_user_scroll_settlement();
+
+    auto viewport_scroll_offset = m_viewport_scroll_offset;
+    // The direction of the scroll was recorded from the compositor's report, which knows whether it was relative.
+    perform_a_scroll_of_the_layout_viewport(scroll_delta, Bindings::ScrollBehavior::Instant, ScrollTrigger::UserInput, {}, Painting::ScrollKind::Absolute, Compositing::ScrollAnimationKind::SmoothScroll);
+    return m_viewport_scroll_offset != viewport_scroll_offset;
+}
+
+bool LocalNavigable::adopt_async_visual_viewport_scroll_delta(CSSPixelPoint scroll_delta)
+{
+    auto document = active_document();
     if (!document)
         return false;
 
-    auto visual_viewport = document->visual_viewport();
-    CSSPixelPoint page_position { CSSPixels(visual_viewport->page_left()), CSSPixels(visual_viewport->page_top()) };
-    auto viewport_scroll_offset = navigable.viewport_scroll_offset();
-    // The direction of the scroll was recorded from the compositor's report, which knows whether it was relative.
-    navigable.scroll_viewport_by_delta(scroll_delta, Bindings::ScrollBehavior::Instant, Painting::ScrollKind::Absolute);
+    defer_user_scroll_settlement();
 
-    CSSPixelPoint new_page_position { CSSPixels(visual_viewport->page_left()), CSSPixels(visual_viewport->page_top()) };
-    return new_page_position != page_position
-        || navigable.viewport_scroll_offset() != viewport_scroll_offset;
+    auto visual_viewport = document->visual_viewport();
+
+    auto max_x = m_viewport_size.width().to_double() - visual_viewport->width();
+    auto max_y = m_viewport_size.height().to_double() - visual_viewport->height();
+    auto visual_x = visual_viewport->offset_left();
+    auto visual_y = visual_viewport->offset_top();
+    CSSPixelPoint visual_delta {
+        min(max_x, max(0.0, visual_x + scroll_delta.x().to_double())) - visual_x,
+        min(max_y, max(0.0, visual_y + scroll_delta.y().to_double())) - visual_y,
+    };
+    if (visual_delta.is_zero())
+        return false;
+
+    visual_viewport->scroll_by(visual_delta);
+    queue_scrollend_event(*document, *visual_viewport, {}, ScrollTrigger::UserInput);
+    return true;
 }
 
 void LocalNavigable::adopt_pending_async_scroll_offsets(Compositing::AsyncScrollUpdateFreshness freshness)
@@ -5757,13 +5780,24 @@ void LocalNavigable::adopt_pending_async_scroll_offsets(Compositing::AsyncScroll
             continue;
         }
 
+        if (async_scroll_offset.stable_node_id.kind == Web::AsyncScrollNodeKind::VisualViewport) {
+            if (async_scroll_offset.stable_node_id.node_id != document->unique_id())
+                continue;
+            if (adopt_async_visual_viewport_scroll_delta(css_scroll_delta)) {
+                adopted_any_scroll_offset = true;
+                dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Main thread adopting async visual viewport delta {},{}",
+                    async_scroll_offset.unadopted_scroll_delta.x(), async_scroll_offset.unadopted_scroll_delta.y());
+            }
+            continue;
+        }
+
         // The compositor process reports which of its scrolling was relative, since dragging a scrollbar thumb is not.
         record_relative_scroll(*document, async_scroll_offset.stable_node_id, async_scroll_offset_to_css_pixels(async_scroll_offset.last_relative_scroll_delta, device_pixels_per_css_pixel));
 
         if (async_scroll_offset.stable_node_id.kind == Web::AsyncScrollNodeKind::Viewport) {
             if (async_scroll_offset.stable_node_id.node_id != document->unique_id())
                 continue;
-            if (adopt_async_viewport_scroll_delta(*this, css_scroll_delta)) {
+            if (adopt_async_viewport_scroll_delta(css_scroll_delta)) {
                 adopted_any_scroll_offset = true;
                 dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Main thread adopting async viewport delta {},{}",
                     async_scroll_offset.unadopted_scroll_delta.x(), async_scroll_offset.unadopted_scroll_delta.y());
@@ -7535,27 +7569,35 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_the_viewport(CSSPix
     else
         queue_scrollend_event(*doc, *vv, {}, trigger);
 
+    auto scroll_promise = perform_a_scroll_of_the_layout_viewport({ layout_dx, layout_dy }, behavior, trigger, relative_displacement, scroll_kind, animation_kind);
+
+    // 17. Return scrollPromise, and run the remaining steps in parallel.
+    // 18. Resolve scrollPromise when both scrollPromise1 and scrollPromise2 have settled.
+    // FIXME: Actually wait for visual viewport scrolling to settle as well.
+    return scroll_promise;
+}
+
+GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_the_layout_viewport(CSSPixelPoint delta, Bindings::ScrollBehavior behavior, ScrollTrigger trigger, Optional<CSSPixelPoint> relative_displacement, Painting::ScrollKind scroll_kind, Compositing::ScrollAnimationKind animation_kind)
+{
+    auto doc = active_document();
+
     // NB: Must update layout before accessing paintables.
     Layout::ForcedReadScope read { *doc };
     doc->update_layout(DOM::UpdateLayoutReason::NavigableViewportScroll);
 
     auto minimum_scroll_offset = Painting::minimum_scroll_offset(*doc->layout_node(read)).to_type<double>();
     auto maximum_scroll_offset = Painting::maximum_scroll_offset(*doc->layout_node(read)).to_type<double>();
-    auto new_viewport_scroll_offset = m_viewport_scroll_offset.to_type<double>() + Gfx::Point(layout_dx, layout_dy);
+    auto new_viewport_scroll_offset = m_viewport_scroll_offset.to_type<double>() + delta.to_type<double>();
     // NOTE: Clamp to the scrolling area.
     new_viewport_scroll_offset.set_x(clamp(new_viewport_scroll_offset.x(), minimum_scroll_offset.x(), maximum_scroll_offset.x()));
     new_viewport_scroll_offset.set_y(clamp(new_viewport_scroll_offset.y(), minimum_scroll_offset.y(), maximum_scroll_offset.y()));
 
-    auto scroll_promise = perform_a_scroll_of_a_scrolling_box({
-                                                                  .node_id = doc->unique_id(),
-                                                                  .kind = Web::AsyncScrollNodeKind::Viewport,
-                                                              },
+    TemporaryExecutionContext temporary_execution_context { HTML::relevant_realm(*doc) };
+    return perform_a_scroll_of_a_scrolling_box({
+                                                   .node_id = doc->unique_id(),
+                                                   .kind = Web::AsyncScrollNodeKind::Viewport,
+                                               },
         new_viewport_scroll_offset.to_type<CSSPixels>(), behavior, doc->document_element(), trigger, relative_displacement, DestinationSnapping::SelectSnapPosition, animation_kind, scroll_kind);
-
-    // 17. Return scrollPromise, and run the remaining steps in parallel.
-    // 18. Resolve scrollPromise when both scrollPromise1 and scrollPromise2 have settled.
-    // FIXME: Actually wait for visual viewport scrolling to settle as well.
-    return scroll_promise;
 }
 
 void LocalNavigable::reset_zoom()
