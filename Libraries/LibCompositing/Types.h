@@ -191,12 +191,16 @@ struct ScrollRequest {
     Optional<float> visual_viewport_scale;
     // A relative scroll after the jump.
     Optional<RequestedRelativeScroll> relative_scroll;
+    // Whether the instant scroll is the main thread's response to user input, rather than a script's or its own.
+    bool instant_scroll_is_for_user_input { false };
     Optional<RequestedSmoothScroll> smooth_scroll;
 
     // A request made later in the same frame aborts the smooth scroll of this one, which never got under way.
     void fold_later(ScrollRequest const& later)
     {
         request_id = later.request_id;
+        if (later.jump_offset.has_value() || later.relative_scroll.has_value())
+            instant_scroll_is_for_user_input = later.instant_scroll_is_for_user_input;
         if (later.jump_offset.has_value()) {
             jump_offset = later.jump_offset;
             visual_viewport_scale = later.visual_viewport_scale;

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 2000px;
+    }
+    #nested {
+        width: 100px;
+        height: 100px;
+        overflow: scroll;
+    }
+    #nested > div {
+        height: 300px;
+    }
+</style>
+<div id="nested"><div></div></div>
+<script>
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+        const stretch = () => internals.compositorScrollState(nested).stretch.y;
+        const stretchReleased = async () => {
+            while (stretch() !== 0)
+                await animationFrame();
+        };
+
+        // A script that scrolls the box along the axis it is stretched in lets go of the stretch at once.
+        await scrollSettled(nested, () => nested.scrollTo(0, 190));
+        await internals.wheel(50, 50, 0, 410, true, "ongoing");
+        println(`stretched: ${stretch() > 0}`);
+        nested.scrollTo(0, 50);
+        await stretchReleased();
+        println(`after an instant scroll: scrollTop=${nested.scrollTop} stretch=${stretch()}`);
+        await internals.wheel(50, 50, 0, 0, true, "ended");
+
+        // A smooth scroll lets the stretch spring back as it goes.
+        await scrollSettled(nested, () => nested.scrollTo(0, 190));
+        await internals.wheel(50, 50, 0, 410, true, "ongoing");
+        println(`stretched again: ${stretch() > 0}`);
+        await nested.scrollTo({ top: 50, behavior: "smooth" });
+        await stretchReleased();
+        println(`after a smooth scroll: scrollTop=${nested.scrollTop} stretch=${stretch()}`);
+        await internals.wheel(50, 50, 0, 0, true, "ended");
+    });
+</script>

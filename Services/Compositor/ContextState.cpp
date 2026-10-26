@@ -345,6 +345,7 @@ ContextState::ContextUpdateResult ContextState::handle_key_event(Web::KeyEvent c
         if (animation.stable_node_id != stable_node_id || !animation.is_user_scroll || animation.animation.kind() != Compositing::ScrollAnimationKind::SmoothScroll)
             continue;
         retarget_user_scroll(animation, destination, now);
+        animation.heads_to_an_extent = scrolls_to_extent;
         report_started_user_scroll(animation.operation_id, stable_node_id, step_start, destination, Compositing::ScrollAnimationKind::SmoothScroll, scrolls_to_extent);
         return {
             .accepted = true,
@@ -361,6 +362,7 @@ ContextState::ContextUpdateResult ContextState::handle_key_event(Web::KeyEvent c
         .animation = Compositing::SmoothScrollAnimation { *current_offset, destination, m_async_scroll_tree.device_pixels_per_css_pixel() },
         .started_at = now,
         .is_user_scroll = true,
+        .heads_to_an_extent = scrolls_to_extent,
     });
     report_started_user_scroll(operation_id, stable_node_id, step_start, destination, Compositing::ScrollAnimationKind::SmoothScroll, scrolls_to_extent);
     return {
@@ -669,6 +671,7 @@ Compositing::AsyncScrollOperationID ContextState::start_snap_scroll(Compositing:
         .animation = Compositing::SmoothScrollAnimation { *current_offset, m_async_scroll_tree.device_offset_from_css_pixels(destination), m_async_scroll_tree.device_pixels_per_css_pixel(), snap_scroll.animation_kind },
         .started_at = now,
         .is_user_scroll = true,
+        .heads_to_an_extent = false,
     });
     m_scroll_snap_controller.did_start_snap_scroll(stable_node_id, operation_id, destination);
     note_user_input_scrolled(stable_node_id);
@@ -977,6 +980,28 @@ void ContextState::note_user_input_scrolled(Web::AsyncScrollNodeStableID stable_
     m_user_input_scroll_counts.ensure(stable_node_id)++;
 }
 
+Optional<Gfx::Orientation> ContextState::axis_held_by_scrollbar_of(Compositing::AsyncScrollNodeID node_id) const
+{
+    // Paging steps toward the pointer like keys do, and takes a script's scroll along like them.
+    auto scrollbar_index = m_scrollbar_controller.captured_scrollbar_index();
+    if (!scrollbar_index.has_value() || m_scrollbar_paging.has_value())
+        return {};
+    auto const& scrollbar = m_scrollbar_controller.scrollbars()[scrollbar_index.value()];
+    if (scrollbar.scroll_node_id != node_id)
+        return {};
+    return scrollbar.vertical ? Gfx::Orientation::Vertical : Gfx::Orientation::Horizontal;
+}
+
+void ContextState::stop_user_scroll_carried_on_by_momentum_of(Web::AsyncScrollNodeStableID stable_node_id)
+{
+    if (m_wheel_gesture_routing.latched_scroller() != stable_node_id)
+        return;
+    if (m_latched_gesture_carries_on_by_momentum)
+        m_momentum_of_latched_gesture_is_stopped = true;
+    if (m_scroll_fling_controller.is_active())
+        m_scroll_fling_controller.end_on_next_step();
+}
+
 Optional<PendingFrame> ContextState::apply_scroll_requests(ReadonlySpan<Compositing::ScrollRequest> scroll_requests)
 {
     Vector<Compositing::AsyncScrollOffset> answers;
@@ -1042,11 +1067,40 @@ Optional<PendingFrame> ContextState::apply_scroll_requests(ReadonlySpan<Composit
             }
         }
 
-        if (running_animation != m_smooth_scroll_animations.end() && !retargets_running_animation)
-            cancel_smooth_scroll(scroll_request.stable_node_id);
-        else if (!retargets_running_animation && smooth_scroll.has_value())
-            m_scroll_snap_controller.did_start_main_thread_scroll(scroll_request.stable_node_id);
+        bool has_instant_scroll = scroll_request.jump_offset.has_value() || scroll_request.relative_scroll.has_value();
+        bool instant_scroll_is_for_script = has_instant_scroll && !scroll_request.instant_scroll_is_for_user_input;
+        bool smooth_scroll_is_for_script = smooth_scroll.has_value() && smooth_scroll->initiator == Compositing::SmoothScrollInitiator::Programmatic;
 
+        // The thumb of a scrollbar that the user holds stays under the pointer: the user scrolls the box along that axis
+        // from the moment a script does, which aborts a smooth scroll of the script's.
+        auto axis_held_by_scrollbar = axis_held_by_scrollbar_of(node_id.value());
+        if (axis_held_by_scrollbar.has_value() && smooth_scroll_is_for_script) {
+            m_async_scroll_update_outbox.note_operation_taken_over_by_user_input(smooth_scroll->operation_id);
+            m_async_scroll_update_outbox.complete_operation(smooth_scroll->operation_id);
+            smooth_scroll.clear();
+            smooth_scroll_is_for_script = false;
+        }
+
+        // A smooth scroll in progress is aborted by any other, and by an instant scroll, except that a script's instant
+        // scroll carries the steps of the user's scroll along with it. A request that only aborts is for the main
+        // thread's own scrolls.
+        bool shifts_running_animation = false;
+        if (running_animation != m_smooth_scroll_animations.end() && !retargets_running_animation) {
+            bool running_animation_is_requested = running_animation->operation_id >= Compositing::first_operation_id_the_main_thread_requests;
+            bool running_animation_is_user_step = running_animation->is_user_scroll
+                && running_animation->animation.kind() != Compositing::ScrollAnimationKind::Momentum
+                && !m_scroll_snap_controller.is_snap_scroll(scroll_request.stable_node_id, running_animation->operation_id);
+            if (smooth_scroll.has_value())
+                cancel_smooth_scroll(scroll_request.stable_node_id);
+            else if (has_instant_scroll && instant_scroll_is_for_script && running_animation_is_user_step)
+                shifts_running_animation = true;
+            else if (has_instant_scroll || running_animation_is_requested)
+                cancel_smooth_scroll(scroll_request.stable_node_id);
+        } else if (!retargets_running_animation && smooth_scroll.has_value()) {
+            m_scroll_snap_controller.did_start_main_thread_scroll(scroll_request.stable_node_id);
+        }
+
+        auto offset_before_instant_scroll = m_async_scroll_tree.scroll_offset_for_node(node_id.value(), m_scroll_state_snapshot).value();
         if (scroll_request.jump_offset.has_value())
             (void)m_async_scroll_tree.set_scroll_offset(node_id.value(), scroll_request.jump_offset.value(), m_scene.current_visual_context_tree(), m_scroll_state_snapshot);
         // A box new to this context took its offset from the frame's snapshot, which has the frame's scrolls in it.
@@ -1055,6 +1109,30 @@ Optional<PendingFrame> ContextState::apply_scroll_requests(ReadonlySpan<Composit
             auto offset = m_async_scroll_tree.scroll_offset_for_node(node_id.value(), m_scroll_state_snapshot).value();
             (void)m_async_scroll_tree.set_scroll_offset(node_id.value(), relative_scroll->applied_to(offset), m_scene.current_visual_context_tree(), m_scroll_state_snapshot);
         }
+        if (axis_held_by_scrollbar.has_value() && instant_scroll_is_for_script) {
+            auto offset = m_async_scroll_tree.scroll_offset_for_node(node_id.value(), m_scroll_state_snapshot).value();
+            offset.set_primary_offset_for_orientation(axis_held_by_scrollbar.value(), offset_before_instant_scroll.primary_offset_for_orientation(axis_held_by_scrollbar.value()));
+            (void)m_async_scroll_tree.set_scroll_offset(node_id.value(), offset, m_scene.current_visual_context_tree(), m_scroll_state_snapshot);
+        }
+        auto instant_scroll_delta = m_async_scroll_tree.scroll_offset_for_node(node_id.value(), m_scroll_state_snapshot).value() - offset_before_instant_scroll;
+
+        if (shifts_running_animation) {
+            // A step that goes to an end of the scroll range still goes there.
+            if (!running_animation->heads_to_an_extent) {
+                running_animation->animation.shift_by(instant_scroll_delta);
+                auto destination_offset = running_animation->animation.destination_offset();
+                auto clamped_destination_offset = m_async_scroll_tree.clamped_scroll_offset_for_node(node_id.value(), destination_offset);
+                if (clamped_destination_offset != destination_offset)
+                    running_animation->animation.retarget(clamped_destination_offset, MonotonicTime::now() - running_animation->started_at);
+            }
+        }
+
+        if (instant_scroll_is_for_script || smooth_scroll_is_for_script)
+            stop_user_scroll_carried_on_by_momentum_of(scroll_request.stable_node_id);
+        if (instant_scroll_is_for_script)
+            m_elastic_overscroll_controller.drop_stretch_moved_by(scroll_request.stable_node_id, instant_scroll_delta);
+        if (smooth_scroll_is_for_script)
+            m_elastic_overscroll_controller.release_stretch_of(scroll_request.stable_node_id, MonotonicTime::now());
 
         if (smooth_scroll.has_value()) {
             auto destination_offset = smooth_scroll->destination_offset;
@@ -1079,6 +1157,7 @@ Optional<PendingFrame> ContextState::apply_scroll_requests(ReadonlySpan<Composit
                         .animation = move(animation),
                         .started_at = MonotonicTime::now(),
                         .is_user_scroll = smooth_scroll->initiator == Compositing::SmoothScrollInitiator::UserInput,
+                        .heads_to_an_extent = false,
                     });
                 }
             }
@@ -1174,6 +1253,7 @@ ContextState::AsyncScrollResult ContextState::smooth_wheel_scroll_by(Optional<Co
         .animation = Compositing::SmoothScrollAnimation { scroll_target->current_offset, scroll_target->destination_offset, m_async_scroll_tree.device_pixels_per_css_pixel(), Compositing::ScrollAnimationKind::Wheel },
         .started_at = now,
         .is_user_scroll = true,
+        .heads_to_an_extent = false,
     });
     report_started_user_scroll(operation_id, scroll_target->stable_node_id, scroll_target->start_offset, scroll_target->destination_offset, Compositing::ScrollAnimationKind::Wheel);
     m_async_scrolling_viewport_rect = viewport_rect;
@@ -1368,6 +1448,13 @@ ContextState::ContextUpdateResult ContextState::scroll_for_wheel_event(Web::Mous
     auto latch = resolve_wheel_scroll_latch(position, event.scroll_gesture_phase, event.modifiers, now);
     if (latch.nested_context_id.has_value())
         return { .nested_context_wheel_step = NestedContextWheelStep { .context_id = *latch.nested_context_id } };
+
+    // The fingers start a gesture of their own, while momentum that a script's scroll stopped scrolls nothing more.
+    m_latched_gesture_carries_on_by_momentum = event.scroll_gesture_phase == Web::ScrollGesturePhase::Momentum;
+    if (event.scroll_gesture_phase != Web::ScrollGesturePhase::Momentum)
+        m_momentum_of_latched_gesture_is_stopped = false;
+    else if (m_momentum_of_latched_gesture_is_stopped)
+        return { .accepted = true };
 
     // The first step of a gesture over the content of a nested context goes to that context. A gesture whose first step
     // went elsewhere is not handed to a nested context that comes under the pointer later.
@@ -2072,6 +2159,7 @@ Optional<PendingFrame> ContextState::start_scrollbar_press_scroll(Compositing::A
         .animation = Compositing::SmoothScrollAnimation { old_scroll_offset, destination, m_async_scroll_tree.device_pixels_per_css_pixel() },
         .started_at = MonotonicTime::now(),
         .is_user_scroll = true,
+        .heads_to_an_extent = false,
     });
     report_started_user_scroll(operation_id, node.stable_node_id, old_scroll_offset, destination, Compositing::ScrollAnimationKind::SmoothScroll, is_absolute_scroll);
     m_scrollbar_press_scroll_operation = operation_id;

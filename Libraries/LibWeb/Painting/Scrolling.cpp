@@ -213,7 +213,13 @@ ScrollHandled set_scroll_offset_from_user_input(Layout::Node& node, CSSPixelPoin
     if (navigable && stable_node_id.has_value())
         navigable->abort_in_flight_smooth_scrolls_taken_over_by_user_input(*stable_node_id, scroll_offset_before_scroll);
 
-    auto scroll_handled = set_scroll_offset(node, offset);
+    auto scroll_handled = ScrollHandled::No;
+    if (navigable && stable_node_id.has_value()) {
+        if (navigable->set_scroll_offset_for_user_input(node, *stable_node_id, offset))
+            scroll_handled = ScrollHandled::Yes;
+    } else {
+        scroll_handled = set_scroll_offset(node, offset);
+    }
     if (scroll_handled == ScrollHandled::Yes && scroll_kind == ScrollKind::Relative)
         node.document().scroll_state_query_containers().did_scroll_relatively(node, scroll_offset(node) - scroll_offset_before_scroll);
     if (!navigable)

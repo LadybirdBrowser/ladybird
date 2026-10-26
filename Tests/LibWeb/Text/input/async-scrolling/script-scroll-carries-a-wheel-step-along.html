@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 5000px;
+    }
+</style>
+<script>
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+
+        // A script that scrolls the page while a wheel step animates it takes the step along, which still travels its
+        // whole distance.
+        const stepEnded = scrollendEvent(document);
+        const stepMoved = new Promise(resolve => document.addEventListener("scroll", resolve, { once: true }));
+        await internals.wheelThroughUIProcess(50, 50, 0, 100);
+        await stepMoved;
+        println(`step in flight when the script scrolled: ${window.scrollY > 0 && window.scrollY < 100}`);
+        window.scrollBy(0, 1000);
+        await stepEnded;
+        println(`scrollY once the step ends: ${window.scrollY}`);
+    });
+</script>

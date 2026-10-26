@@ -249,6 +249,8 @@ public:
     void perform_scroll_of_viewport_scrolling_box(CSSPixelPoint position);
     // Every change of a scroll offset here, other than one the compositor made, goes to the compositor as a request.
     void did_change_scroll_offset(Web::AsyncScrollNodeStableID);
+    // Changes a scrolling box's offset for user input on this thread, which the compositor is asked for as the user's.
+    bool set_scroll_offset_for_user_input(Layout::Node& scrolling_box, Web::AsyncScrollNodeStableID, CSSPixelPoint);
     void adopt_pending_async_scroll_offsets(Compositing::AsyncScrollUpdateFreshness = Compositing::AsyncScrollUpdateFreshness::Pushed);
     void adopt_started_user_scroll(DOM::Document&, Compositing::StartedUserScroll const&);
     void process_main_thread_smooth_scrolls();
@@ -681,8 +683,8 @@ private:
     bool m_scroll_offset_changes_need_no_request { false };
     Compositing::ScrollRequest& unsent_scroll_request_for(Web::AsyncScrollNodeStableID);
     u64 last_scroll_request_id_for(Web::AsyncScrollNodeStableID) const;
-    void request_scroll_jump(Web::AsyncScrollNodeStableID);
-    void request_relative_scroll(Web::AsyncScrollNodeStableID, CSSPixelPoint displacement);
+    void request_scroll_jump(Web::AsyncScrollNodeStableID, ScrollTrigger);
+    void request_relative_scroll(Web::AsyncScrollNodeStableID, CSSPixelPoint displacement, ScrollTrigger);
     void request_smooth_scroll(Web::AsyncScrollNodeStableID, Compositing::RequestedSmoothScroll);
     void request_abort_of_smooth_scroll(Web::AsyncScrollNodeStableID);
     void drop_unsent_smooth_scroll(Compositing::ScrollRequest&);

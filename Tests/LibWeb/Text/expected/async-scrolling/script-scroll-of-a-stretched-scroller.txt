@@ -1,0 +1,4 @@
+stretched: true
+after an instant scroll: scrollTop=50 stretch=0
+stretched again: true
+after a smooth scroll: scrollTop=50 stretch=0
