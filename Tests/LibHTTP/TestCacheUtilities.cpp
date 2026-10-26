@@ -263,3 +263,21 @@ TEST_CASE(vary_key_keeps_quoted_strings_intact)
     auto uppercase_request_headers = HTTP::HeaderList::create({ { "Accept", "TEXT/HTML;p=\"VALUE\"" } });
     EXPECT_NE(HTTP::create_vary_key(*lowercase_request_headers, *response_headers), HTTP::create_vary_key(*uppercase_request_headers, *response_headers));
 }
+
+TEST_CASE(invalid_max_age_does_not_cache_temporary_redirect)
+{
+    auto invalid_headers = HTTP::HeaderList::create({ { "Cache-Control", "max-age=+3600" } });
+    EXPECT(!HTTP::is_cacheable(302, *invalid_headers));
+    EXPECT_EQ(HTTP::calculate_freshness_lifetime(302, *invalid_headers), AK::Duration {});
+
+    auto control_headers = HTTP::HeaderList::create({ { "Cache-Control", "max-age=00000" } });
+    EXPECT(HTTP::is_cacheable(302, *control_headers));
+    EXPECT_EQ(HTTP::calculate_freshness_lifetime(302, *control_headers), AK::Duration {});
+}
+
+TEST_CASE(overflowing_max_age_saturates)
+{
+    auto headers = HTTP::HeaderList::create({ { "Cache-Control", "max-age=9223372036854775808" } });
+    EXPECT(HTTP::is_cacheable(302, *headers));
+    EXPECT_EQ(HTTP::calculate_freshness_lifetime(302, *headers).to_seconds(), 2'147'483'648);
+}

@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AllOf.h>
+#include <AK/CharacterTypes.h>
 #include <AK/GenericLexer.h>
 #include <AK/NumericLimits.h>
 #include <AK/QuickSort.h>
@@ -19,6 +21,21 @@
 namespace HTTP {
 
 static Optional<StringView> extract_cache_control_directive(StringView, StringView, bool allow_argument);
+
+// https://httpwg.org/specs/rfc9111.html#delta-seconds
+static Optional<AK::Duration> parse_delta_seconds(StringView value)
+{
+    // delta-seconds = 1*DIGIT
+    if (value.is_empty() || !all_of(value, is_ascii_digit))
+        return {};
+
+    // If a cache receives a delta-seconds value greater than the greatest integer it can represent, or if any of its
+    // subsequent calculations overflows, the cache MUST consider the value to be 2147483648 (2^31) or the greatest
+    // positive integer it can conveniently represent.
+    static constexpr u64 maximum_delta_seconds = 2'147'483'648;
+    auto seconds = min(value.to_number<u64>().value_or(maximum_delta_seconds), maximum_delta_seconds);
+    return AK::Duration::from_seconds(static_cast<i64>(seconds));
+}
 
 // https://httpwg.org/specs/rfc9110.html#field.date
 static Optional<UnixDateTime> parse_http_date(Optional<ByteString const&> date)
@@ -412,7 +429,7 @@ bool is_cacheable(u32 status_code, HeaderList const& headers)
     if (cache_control.has_value()) {
         has_public = contains_cache_control_directive(*cache_control, "public"sv);
         has_private = contains_cache_control_directive(*cache_control, "private"sv);
-        has_max_age = contains_cache_control_directive(*cache_control, "max-age"sv);
+        has_max_age = extract_cache_control_duration_directive(*cache_control, "max-age"sv).has_value();
 
         // FIXME: cache extensions that explicitly allow caching are not interpreted.
     }
@@ -603,11 +620,8 @@ AK::Duration calculate_age(HeaderList const& headers, UnixDateTime request_time,
     AK::Duration age_value;
 
     if (auto age = headers.get("Age"sv); age.has_value()) {
-        if (!age->is_empty() && all_of(*age, is_ascii_digit)) {
-            static constexpr u64 maximum_age_value = 2'147'483'648;
-            auto seconds = min(age->to_number<u64>().value_or(maximum_age_value), maximum_age_value);
-            age_value = AK::Duration::from_seconds(static_cast<i64>(seconds));
-        }
+        if (auto seconds = parse_delta_seconds(*age); seconds.has_value())
+            age_value = *seconds;
     }
 
     // The term "now" means the current value of this implementation's clock (Section 5.6.7 of [HTTP]).
@@ -933,8 +947,7 @@ Optional<AK::Duration> extract_cache_control_duration_directive(StringView cache
     if (auto value = extract_cache_control_directive(cache_control, directive); value.has_value()) {
         if (value->is_empty())
             return valueless_fallback;
-        if (auto seconds = value->to_number<i64>(); seconds.has_value())
-            return AK::Duration::from_seconds(*seconds);
+        return parse_delta_seconds(*value);
     }
 
     return {};
