@@ -383,6 +383,12 @@ if (BUILD_TESTING AND NOT WIN32)
     set_tests_properties(TestWebDriverSettingsChanges PROPERTIES TIMEOUT 120)
 
     add_test(
+        NAME TestWebDriverWebUIPagesShareAProcess
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-web-ui-pages-share-a-process.py $<TARGET_FILE:WebDriver>
+    )
+    set_tests_properties(TestWebDriverWebUIPagesShareAProcess PROPERTIES TIMEOUT 120)
+
+    add_test(
         NAME TestWebDriverSessionHistory
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-session-history.py $<TARGET_FILE:WebDriver>
     )

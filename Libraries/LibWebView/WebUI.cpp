@@ -7,6 +7,7 @@
 #include <LibIPC/Transport.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibWebView/WebContentClient.h>
+#include <LibWebView/WebContentPage.h>
 #include <LibWebView/WebUI.h>
 #include <LibWebView/WebUI/BookmarksUI.h>
 #include <LibWebView/WebUI/DownloadsUI.h>
@@ -95,7 +96,8 @@ WebUI::~WebUI() = default;
 void WebUI::die()
 {
     if (auto client = m_client.strong_ref())
-        client->web_ui_disconnected({});
+        if (auto* page = client->page(m_page_id))
+            page->web_ui_disconnected({}, *this);
 }
 
 void WebUI::register_interface(StringView name, Interface interface)

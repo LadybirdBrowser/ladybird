@@ -106,6 +106,12 @@ public:
     // awaiting a detached close remains open; it still coordinates its own close.
     bool is_open() const { return m_is_open; }
 
+    // The channel to the WebUI this page shows, if it shows one. Each page has its own, so two WebUI pages in one
+    // process each keep theirs.
+    RefPtr<WebUI> const& web_ui() const { return m_web_ui; }
+    void set_web_ui(RefPtr<WebUI>);
+    void web_ui_disconnected(Badge<WebUI>, WebUI&);
+
     // Whether a document this page hosts may use the feature. The process hosting the page can act for any of them.
     bool hosts_a_document_allowed_to_use(Web::PermissionsPolicy::PolicyControlledFeature) const;
     void close();
@@ -376,6 +382,7 @@ private:
     Web::PageId m_id;
     WeakPtr<CanonicalTraversable> m_traversable;
     bool m_is_open { true };
+    RefPtr<WebUI> m_web_ui;
     Optional<PresentedBackingStores> m_presented_backing_stores;
     bool m_needs_beforeunload_check { true };
     bool m_detached_close_pending { false };
