@@ -13,7 +13,7 @@ block0:
   [  80] End value:reg5
 
 
-subVector$1711d4a3 computed-compound-assign-register-reuse.js:5:13
+subVector$144de393 computed-compound-assign-register-reuse.js:5:13
   Registers: 9
   Blocks:    1
   Constants:
@@ -23,14 +23,16 @@ subVector$1711d4a3 computed-compound-assign-register-reuse.js:5:13
 
 block0:
   [   0] Enter
-  [   8] GetByValue value_feedback:0, keyed_feedback:0, dst:reg5, base:arg0, property:Int32(0) (self[Int32(0)])
-  [  28] Mov2 c0_dst:reg6, c0_src:Int32(0), c1_dst:reg7, c1_src:arg1
-  [  40] GetByValue value_feedback:1, keyed_feedback:1, dst:reg8, base:reg7, property:Int32(0) (v[Int32(0)])
-  [  60] Sub arith_feedback:0, dst:reg7, lhs:reg5, rhs:reg8
-  [  70] PutByValue keyed_feedback:2, base:arg0, property:reg6, src:reg7, kind:Normal
-  [  90] GetByValue value_feedback:2, keyed_feedback:3, dst:reg7, base:arg0, property:Int32(1) (self[Int32(1)])
-  [  b0] Mov2 c0_dst:reg5, c0_src:Int32(1), c1_dst:reg6, c1_src:arg1
-  [  c8] GetByValue value_feedback:3, keyed_feedback:4, dst:reg8, base:reg6, property:Int32(1) (v[Int32(1)])
-  [  e8] Sub arith_feedback:1, dst:reg6, lhs:reg7, rhs:reg8
-  [  f8] PutByValue keyed_feedback:5, base:arg0, property:reg5, src:reg6, kind:Normal
-  [ 118] End value:Undefined
+  [   8] Mov dst:reg5, src:arg0
+  [  18] GetByValue value_feedback:0, keyed_feedback:0, dst:reg6, base:reg5, property:Int32(0) (self[Int32(0)])
+  [  38] Mov dst:reg7, src:arg1
+  [  48] GetByValue value_feedback:1, keyed_feedback:1, dst:reg8, base:reg7, property:Int32(0) (v[Int32(0)])
+  [  68] Sub arith_feedback:0, dst:reg7, lhs:reg6, rhs:reg8
+  [  78] PutByValue keyed_feedback:2, base:reg5, property:Int32(0), src:reg7, kind:Normal
+  [  98] Mov dst:reg7, src:arg0
+  [  a8] GetByValue value_feedback:2, keyed_feedback:3, dst:reg5, base:reg7, property:Int32(1) (self[Int32(1)])
+  [  c8] Mov dst:reg6, src:arg1
+  [  d8] GetByValue value_feedback:3, keyed_feedback:4, dst:reg8, base:reg6, property:Int32(1) (v[Int32(1)])
+  [  f8] Sub arith_feedback:1, dst:reg6, lhs:reg5, rhs:reg8
+  [ 108] PutByValue keyed_feedback:5, base:reg7, property:Int32(1), src:reg6, kind:Normal
+  [ 128] End value:Undefined
