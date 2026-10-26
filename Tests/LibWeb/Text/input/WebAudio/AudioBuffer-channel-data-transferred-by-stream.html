@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const audioBuffer = new AudioBuffer({ numberOfChannels: 1, length: 1024, sampleRate: 8000 });
+
+        const readChunk = async () => {
+            const channel = audioBuffer.getChannelData(0);
+            channel.fill(0.25);
+            let controller;
+            const stream = new ReadableStream({
+                type: "bytes",
+                start(c) {
+                    controller = c;
+                },
+            });
+            controller.enqueue(channel);
+            const { value } = await stream.getReader().read();
+            return new Float32Array(value.buffer, value.byteOffset, value.byteLength / Float32Array.BYTES_PER_ELEMENT);
+        };
+
+        const chunk = await readChunk();
+        internals.gc();
+        internals.gc();
+
+        const context = new OfflineAudioContext(1, 128, 8000);
+        new AudioBufferSourceNode(context, { buffer: audioBuffer }).start();
+        const channel = audioBuffer.getChannelData(0);
+
+        println(`chunk holds the samples it was given: ${chunk.every(sample => sample === 0.25)}`);
+
+        chunk.fill(-1);
+        println(`AudioBuffer unchanged by writes through the chunk: ${channel[0] !== -1}`);
+    });
+</script>

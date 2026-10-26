@@ -338,7 +338,7 @@ public:
     DataBlock const data_block() const;
 
     // Detaches this ArrayBuffer and returns its underlying DataBlock for use in a TransferArrayBuffer-like operation.
-    // If detach fails, the underlying storage is left untouched.
+    // If detach fails, the underlying storage is left untouched. External storage is returned as a copy.
     ThrowCompletionOr<DataBlock> detach_and_take_data_block(VM&);
 
     // [[ArrayBufferMaxByteLength]]
