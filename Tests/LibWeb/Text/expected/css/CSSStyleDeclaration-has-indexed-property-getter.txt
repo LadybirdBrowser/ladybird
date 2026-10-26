@@ -48,6 +48,7 @@ All properties associated with getComputedStyle(document.body):
     "image-rendering",
     "interpolate-size",
     "letter-spacing",
+    "line-break",
     "line-height",
     "list-style-image",
     "list-style-position",

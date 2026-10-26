@@ -1,5 +1,6 @@
-normal is inherited: false
-normal allows a CJ line start: false
+normal is inherited: true
+normal allows a CJ line start: true
 strict restores the original break: true
-loose allows a CJ line start: false
+loose allows a CJ line start: true
 auto restores the original break: true
+keep-all keeps CJ with adjacent ideographs: true

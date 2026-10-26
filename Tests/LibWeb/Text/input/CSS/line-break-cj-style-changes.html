@@ -34,6 +34,12 @@
 
         container.style.lineBreak = "auto";
         println(`auto restores the original break: ${marker.getBoundingClientRect().left === strictPosition}`);
+
+        container.style.lineBreak = "normal";
+        target.style.wordBreak = "keep-all";
+        const keepAllTop = marker.getBoundingClientRect().top;
+        target.style.width = "1000px";
+        println(`keep-all keeps CJ with adjacent ideographs: ${marker.getBoundingClientRect().top === keepAllTop}`);
         done();
     });
 </script>

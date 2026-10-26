@@ -46,6 +46,7 @@ hyphenate-character: auto
 image-rendering: auto
 interpolate-size: numeric-only
 letter-spacing: normal
+line-break: auto
 line-height: normal
 list-style-image: none
 list-style-position: outside

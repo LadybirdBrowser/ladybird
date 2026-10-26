@@ -2,17 +2,17 @@ Harness status: OK
 
 Found 36 tests
 
-26 Pass
-10 Fail
-Fail	Can set 'line-break' to CSS-wide keywords: initial
-Fail	Can set 'line-break' to CSS-wide keywords: inherit
-Fail	Can set 'line-break' to CSS-wide keywords: unset
-Fail	Can set 'line-break' to CSS-wide keywords: revert
-Fail	Can set 'line-break' to var() references:  var(--A)
-Fail	Can set 'line-break' to the 'auto' keyword: auto
-Fail	Can set 'line-break' to the 'loose' keyword: loose
-Fail	Can set 'line-break' to the 'normal' keyword: normal
-Fail	Can set 'line-break' to the 'strict' keyword: strict
+35 Pass
+1 Fail
+Pass	Can set 'line-break' to CSS-wide keywords: initial
+Pass	Can set 'line-break' to CSS-wide keywords: inherit
+Pass	Can set 'line-break' to CSS-wide keywords: unset
+Pass	Can set 'line-break' to CSS-wide keywords: revert
+Pass	Can set 'line-break' to var() references:  var(--A)
+Pass	Can set 'line-break' to the 'auto' keyword: auto
+Pass	Can set 'line-break' to the 'loose' keyword: loose
+Pass	Can set 'line-break' to the 'normal' keyword: normal
+Pass	Can set 'line-break' to the 'strict' keyword: strict
 Fail	Can set 'line-break' to the 'anywhere' keyword: anywhere
 Pass	Setting 'line-break' to a length: 0px throws TypeError
 Pass	Setting 'line-break' to a length: -3.14em throws TypeError

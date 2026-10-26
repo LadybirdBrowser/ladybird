@@ -653,6 +653,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'left': 'auto'
 'letterSpacing': 'normal'
 'letter-spacing': 'normal'
+'lineBreak': 'auto'
+'line-break': 'auto'
 'lineClamp': 'none'
 'line-clamp': 'none'
 'lineHeight': 'normal'
