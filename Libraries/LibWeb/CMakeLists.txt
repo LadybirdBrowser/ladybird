@@ -659,6 +659,7 @@ set(SOURCES
     HTML/Storage.cpp
     HTML/StorageEvent.cpp
     HTML/StructuredSerialize.cpp
+    HTML/StructuredSerializeRustIntegration.cpp
     HTML/SubmitEvent.cpp
     HTML/SupportedImageTypes.cpp
     HTML/SyntaxHighlighter/SyntaxHighlighter.cpp

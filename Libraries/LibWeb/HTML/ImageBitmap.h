@@ -32,6 +32,8 @@ using ImageBitmapOptions = Bindings::ImageBitmapOptions;
 //         message carries alongside the memory of its SharedArrayBuffers. However many bitmaps a message transfers,
 //         their pixels then take one attachment, and the receiver uses them without copying.
 struct ImageBitmapSharedPixels {
+    AK_ALLOC_WITH_KMALLOC;
+
     Core::AnonymousBuffer buffer;
     u32 buffer_index { 0 };
     size_t used_size { 0 };

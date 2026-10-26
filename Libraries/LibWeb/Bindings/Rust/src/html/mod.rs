@@ -62,4 +62,6 @@ pub(crate) mod offscreen_canvas_rendering_context2d;
 #[cfg(not(test))]
 pub(crate) mod path2d;
 #[cfg(not(test))]
+pub(crate) mod structured_serialize;
+#[cfg(not(test))]
 pub(crate) mod text_metrics;
