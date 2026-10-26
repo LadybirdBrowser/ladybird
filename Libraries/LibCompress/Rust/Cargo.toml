@@ -9,7 +9,7 @@ crate-type = ["rlib"]
 # After changing dependencies, regenerate the Flatpak sources:
 #   python3 Meta/CMake/flatpak/generate-cargo-sources.py
 [dependencies]
-# NB: Without the ffi-api feature, which would export C functions named as libbrotli's, which LibCompress links.
+# NB: Without the ffi-api feature, which would export C functions named as libbrotli's, which curl and woff2 link.
 brotli = { version = "9.0.0", default-features = false, features = ["std"] }
 flate2 = { version = "1.1.10", default-features = false, features = ["zlib-rs"] }
 
