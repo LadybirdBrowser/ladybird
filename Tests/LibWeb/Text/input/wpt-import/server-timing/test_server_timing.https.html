@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<head>
+    <meta charset='utf-8' />
+    <script src="../resources/testharness.js"></script>
+    <script src="../resources/testharnessreport.js"></script>
+    <script src="../common/performance-timeline-utils.js"></script>
+    <script>
+      setup({explicit_done: true})
+
+      delayedLoadListener(function() {
+        // there should be exactly three server-timing entries, 2 for document, 1 for img#one
+        test_entries(performance.getEntriesByType('navigation')[0].serverTiming, [{
+          duration: 1.1,
+          name: 'metric1',
+          description: 'document',
+        }, {
+          duration: 1.2,
+          name: 'metric1',
+          description: 'document',
+        }])
+        test_entries(performance.getEntriesByName(document.querySelector('img#one').src)[0].serverTiming, [{
+          duration: 2.1,
+          name: 'metric2',
+          description: 'blue.png',
+        }])
+
+        new PerformanceObserver(function(entryList, observer) {
+          // there should be exactly one server-timing entry, 1 for img#two
+          test_entries(entryList.getEntriesByName(document.querySelector('img#two').src)[0].serverTiming, [{
+            duration: 3.1,
+            name: 'metric3',
+            description: 'green.png',
+          }])
+          observer.disconnect()
+          done()
+        }).observe({entryTypes: ['resource']})
+
+        var img = document.createElement('img')
+        img.id = 'two'
+        img.src = './resources/green.png'
+        document.getElementsByTagName('script')[0].parentNode.appendChild(img)
+      })
+    </script>
+</head>
+<img id='one' src='resources/blue.png'>
