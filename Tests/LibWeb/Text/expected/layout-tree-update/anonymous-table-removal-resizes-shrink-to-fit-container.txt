@@ -1,0 +1,1 @@
+width after removing the cell matches the remaining text: true

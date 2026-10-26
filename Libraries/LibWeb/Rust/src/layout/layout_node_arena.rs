@@ -5703,6 +5703,7 @@ impl LayoutNodeArena {
         self.note_overflow_contained_boxes_may_move_with_subtree(child);
         self.unlink_child(parent, child);
         self.note_structural_change_at_and_above(parent);
+        self.reset_cached_intrinsic_sizes_of_self_and_ancestors(parent);
     }
 
     fn unlink_child(&self, parent: NodeSlotId, child: NodeSlotId) {

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .shrink-to-fit { position: absolute; }
+    #cell { display: table-cell; }
+</style>
+<div id="container" class="shrink-to-fit"><span><span id="cell">X</span>X</span></div>
+<div id="reference" class="shrink-to-fit"><span>X</span></div>
+<script>
+    asyncTest(done => {
+        window.onload = () => {
+            cell.remove();
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+                const width = container.getBoundingClientRect().width;
+                const expected = reference.getBoundingClientRect().width;
+                println(`width after removing the cell matches the remaining text: ${width === expected}`);
+                done();
+            }));
+        };
+    });
+</script>
