@@ -25,6 +25,8 @@
         });
         box.firstChild.data = "third";
         await twoFrames();
+        while (internals.frameSchedulerState() !== "idle")
+            await nextTask();
         println(`flight presented by: ${afterFlight.presentedBy}`);
         println(`current after the flight: ${afterFlight.current}`);
         println(`current after the next frame: ${internals.lastFrameKeyboardScrollStateIsCurrent()}`);
