@@ -34,7 +34,7 @@ pub use crate::layout::host_class::{
 pub use crate::layout::value::Value;
 pub use crate::layout_forward::{RawNativeFunctionPointer, RawNativeFunctionResult};
 pub use crate::raw_native;
-pub use crate::runtime::abstract_operations::{call, construct, get_function_realm};
+pub use crate::runtime::abstract_operations::{call, construct, get_function_realm, length_of_array_like};
 pub use crate::runtime::agent::agent_can_suspend;
 pub use crate::runtime::array::Array;
 pub use crate::runtime::array_buffer::{
@@ -47,6 +47,7 @@ pub use crate::runtime::data_view::{
     DataView, DataViewWithBufferWitness, get_view_byte_length, is_view_out_of_bounds,
     make_data_view_with_buffer_witness_record,
 };
+pub use crate::runtime::date::Date;
 pub use crate::runtime::environment::InitializeBindingHint;
 pub use crate::runtime::error::{Error, ErrorKind};
 pub use crate::runtime::error_data::CompactTraceback;
