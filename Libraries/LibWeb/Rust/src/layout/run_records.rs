@@ -343,17 +343,6 @@ pub(crate) struct RunRecords<'arena> {
     omitted_line_layout: Cell<bool>,
 }
 
-struct InnermostRunGuard<'arena> {
-    arena: &'arena LayoutNodeArena,
-    previous: (Node, Node),
-}
-
-impl Drop for InnermostRunGuard<'_> {
-    fn drop(&mut self) {
-        self.arena.innermost_run.set(self.previous);
-    }
-}
-
 enum RunRecordClaim {
     Claimed,
     AlreadyClaimed,
@@ -361,43 +350,38 @@ enum RunRecordClaim {
 }
 
 impl<'arena> RunRecords<'arena> {
+    /// Runs `run` with the records of a run rooted at `root`, and the pass as that run sees it.
     pub(crate) fn with_root<R>(
-        scratch: &'arena LayoutScratch,
-        arena: &'arena LayoutNodeArena,
+        callbacks: LayoutPass<'arena>,
         root: Node,
         root_containing_block: Node,
         root_used: &'arena UsedValues,
-        run: impl FnOnce(&Self) -> R,
+        run: impl FnOnce(&Self, LayoutPass<'arena>) -> R,
     ) -> R {
-        Self::enter(scratch, arena, root, root_containing_block, Some(root_used), run)
+        Self::enter(callbacks, root, root_containing_block, Some(root_used), run)
     }
 
     pub(crate) fn with_unrooted<R>(
-        scratch: &'arena LayoutScratch,
-        arena: &'arena LayoutNodeArena,
+        callbacks: LayoutPass<'arena>,
         root: Node,
         root_containing_block: Node,
-        run: impl FnOnce(&Self) -> R,
+        run: impl FnOnce(&Self, LayoutPass<'arena>) -> R,
     ) -> R {
-        Self::enter(scratch, arena, root, root_containing_block, None, run)
+        Self::enter(callbacks, root, root_containing_block, None, run)
     }
 
     fn enter<R>(
-        scratch: &'arena LayoutScratch,
-        arena: &'arena LayoutNodeArena,
+        callbacks: LayoutPass<'arena>,
         root: Node,
         root_containing_block: Node,
         root_used: Option<&'arena UsedValues>,
-        run: impl FnOnce(&Self) -> R,
+        run: impl FnOnce(&Self, LayoutPass<'arena>) -> R,
     ) -> R {
         debug_assert!(
-            !arena.has_intrinsic_size_cache_drops(),
+            !callbacks.arena().has_intrinsic_size_cache_drops(),
             "the layout stage drops released intrinsic size cache entries before its runs read a cache"
         );
-        let _innermost_run = InnermostRunGuard {
-            arena,
-            previous: arena.innermost_run.replace((root, root_containing_block)),
-        };
+        let scratch = callbacks.scratch();
         let records = Self {
             root,
             root_used,
@@ -408,7 +392,7 @@ impl<'arena> RunRecords<'arena> {
             table_inline_layouts: RefCell::new(HashMap::default()),
             omitted_line_layout: Cell::new(false),
         };
-        run(&records)
+        run(&records, callbacks.for_run(root, root_containing_block))
     }
 
     /// What this run found out for the host, which its outputs carry to the run that uses its result.
@@ -637,24 +621,41 @@ mod tests {
         let child = arena.allocate_for_test().slot;
         let root_used = UsedValues::default();
         let nested_used = UsedValues::default();
-        let parent_nonce = RunRecords::with_root(&scratch, &arena, root, NodeSlotId::INVALID, &root_used, |parent| {
-            let child_used: *const UsedValues = parent.register(child, UsedValues::default());
-            RunRecords::with_root(&scratch, &arena, child, root, &nested_used, |nested| {
+        let parent_nonce = RunRecords::with_root(
+            LayoutPass::for_test(&arena, &scratch),
+            root,
+            NodeSlotId::INVALID,
+            &root_used,
+            |parent, _| {
+                let child_used: *const UsedValues = parent.register(child, UsedValues::default());
+                RunRecords::with_root(
+                    LayoutPass::for_test(&arena, &scratch),
+                    child,
+                    root,
+                    &nested_used,
+                    |nested, _| {
+                        assert!(std::ptr::eq(parent.used_values(child), child_used));
+                        assert!(std::ptr::eq(parent.used_values(root), &raw const root_used));
+                        assert!(std::ptr::eq(nested.used_values(child), &raw const nested_used));
+                        assert!(nested.used_values_if_owned(root).is_none());
+                        RunRecords::with_unrooted(
+                            LayoutPass::for_test(&arena, &scratch),
+                            child,
+                            root,
+                            |measurement, _| {
+                                let measured: *const UsedValues = measurement.register(child, UsedValues::default());
+                                assert!(std::ptr::eq(measurement.used_values(child), measured));
+                                assert!(std::ptr::eq(parent.used_values(child), child_used));
+                                assert!(std::ptr::eq(nested.used_values(child), &raw const nested_used));
+                            },
+                        );
+                        assert!(std::ptr::eq(parent.used_values(child), child_used));
+                    },
+                );
                 assert!(std::ptr::eq(parent.used_values(child), child_used));
-                assert!(std::ptr::eq(parent.used_values(root), &raw const root_used));
-                assert!(std::ptr::eq(nested.used_values(child), &raw const nested_used));
-                assert!(nested.used_values_if_owned(root).is_none());
-                RunRecords::with_unrooted(&scratch, &arena, child, root, |measurement| {
-                    let measured: *const UsedValues = measurement.register(child, UsedValues::default());
-                    assert!(std::ptr::eq(measurement.used_values(child), measured));
-                    assert!(std::ptr::eq(parent.used_values(child), child_used));
-                    assert!(std::ptr::eq(nested.used_values(child), &raw const nested_used));
-                });
-                assert!(std::ptr::eq(parent.used_values(child), child_used));
-            });
-            assert!(std::ptr::eq(parent.used_values(child), child_used));
-            parent.nonce
-        });
+                parent.nonce
+            },
+        );
         assert!(scratch.run_record(root.slot_index(), parent_nonce).is_none());
         assert_eq!(scratch.run_record_stack.length(), 0);
     }
@@ -668,25 +669,40 @@ mod tests {
         let lines = std::sync::Arc::new(crate::layout::inline_content::InlineContent::default());
         let weak_lines = std::sync::Arc::downgrade(&lines);
         let root_used = UsedValues::default();
-        let first_record = RunRecords::with_root(&scratch, &arena, root, NodeSlotId::INVALID, &root_used, |records| {
-            let used = records.register(child, UsedValues::default());
-            used.set_finished_line_data(lines);
-            std::ptr::from_ref(used)
-        });
+        let first_record = RunRecords::with_root(
+            LayoutPass::for_test(&arena, &scratch),
+            root,
+            NodeSlotId::INVALID,
+            &root_used,
+            |records, _| {
+                let used = records.register(child, UsedValues::default());
+                used.set_finished_line_data(lines);
+                std::ptr::from_ref(used)
+            },
+        );
         assert!(weak_lines.upgrade().is_none());
-        let second_record = RunRecords::with_root(&scratch, &arena, root, NodeSlotId::INVALID, &root_used, |records| {
-            std::ptr::from_ref(records.register(child, UsedValues::default()))
-        });
+        let second_record = RunRecords::with_root(
+            LayoutPass::for_test(&arena, &scratch),
+            root,
+            NodeSlotId::INVALID,
+            &root_used,
+            |records, _| std::ptr::from_ref(records.register(child, UsedValues::default())),
+        );
         assert_eq!(first_record, second_record);
 
         let nodes: Vec<_> = (0..RECORDS_PER_STACK_CHUNK * 2 + 1)
             .map(|_| arena.allocate_for_test().slot)
             .collect();
-        RunRecords::with_unrooted(&scratch, &arena, root, NodeSlotId::INVALID, |records| {
-            for node in nodes {
-                records.register(node, UsedValues::default());
-            }
-        });
+        RunRecords::with_unrooted(
+            LayoutPass::for_test(&arena, &scratch),
+            root,
+            NodeSlotId::INVALID,
+            |records, _| {
+                for node in nodes {
+                    records.register(node, UsedValues::default());
+                }
+            },
+        );
         assert_eq!(scratch.run_record_stack.chunks.borrow().len(), 3);
         scratch.end_layout_pass();
         assert_eq!(scratch.run_record_stack.chunks.borrow().len(), 1);
@@ -699,9 +715,15 @@ mod tests {
         let root = arena.allocate_for_test().slot;
         let child = arena.allocate_for_test().slot;
         let root_used = UsedValues::default();
-        RunRecords::with_root(&scratch, &arena, root, NodeSlotId::INVALID, &root_used, |records| {
-            records.register(child, UsedValues::default());
-        });
+        RunRecords::with_root(
+            LayoutPass::for_test(&arena, &scratch),
+            root,
+            NodeSlotId::INVALID,
+            &root_used,
+            |records, _| {
+                records.register(child, UsedValues::default());
+            },
+        );
         let _ = arena.free_subtree(child);
     }
 
@@ -712,9 +734,15 @@ mod tests {
         let scratch = LayoutScratch::default();
         let root = arena.allocate_for_test().slot;
         let root_used = UsedValues::default();
-        RunRecords::with_root(&scratch, &arena, root, NodeSlotId::INVALID, &root_used, |records| {
-            records.register(root, UsedValues::default());
-        });
+        RunRecords::with_root(
+            LayoutPass::for_test(&arena, &scratch),
+            root,
+            NodeSlotId::INVALID,
+            &root_used,
+            |records, _| {
+                records.register(root, UsedValues::default());
+            },
+        );
     }
 
     #[test]
@@ -725,11 +753,22 @@ mod tests {
         let root = arena.allocate_for_test().slot;
         let child = arena.allocate_for_test().slot;
         let root_used = UsedValues::default();
-        RunRecords::with_unrooted(&scratch, &arena, root, NodeSlotId::INVALID, |parent| {
-            RunRecords::with_root(&scratch, &arena, root, NodeSlotId::INVALID, &root_used, |_| {
-                parent.register(child, UsedValues::default());
-            });
-        });
+        RunRecords::with_unrooted(
+            LayoutPass::for_test(&arena, &scratch),
+            root,
+            NodeSlotId::INVALID,
+            |parent, _| {
+                RunRecords::with_root(
+                    LayoutPass::for_test(&arena, &scratch),
+                    root,
+                    NodeSlotId::INVALID,
+                    &root_used,
+                    |_, _| {
+                        parent.register(child, UsedValues::default());
+                    },
+                );
+            },
+        );
     }
 
     #[test]
@@ -740,17 +779,29 @@ mod tests {
         let child = arena.allocate_for_test().slot;
         let root_used = UsedValues::default();
         let nested_used = UsedValues::default();
-        RunRecords::with_root(&scratch, &arena, root, NodeSlotId::INVALID, &root_used, |parent| {
-            let child_used: *const UsedValues = parent.register(child, UsedValues::default());
-            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                RunRecords::with_root(&scratch, &arena, child, root, &nested_used, |nested| {
-                    nested.register(root, UsedValues::default());
-                    panic!("abort the nested measurement");
-                });
-            }));
-            assert!(result.is_err());
-            assert!(std::ptr::eq(parent.used_values(root), &raw const root_used));
-            assert!(std::ptr::eq(parent.used_values(child), child_used));
-        });
+        RunRecords::with_root(
+            LayoutPass::for_test(&arena, &scratch),
+            root,
+            NodeSlotId::INVALID,
+            &root_used,
+            |parent, _| {
+                let child_used: *const UsedValues = parent.register(child, UsedValues::default());
+                let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    RunRecords::with_root(
+                        LayoutPass::for_test(&arena, &scratch),
+                        child,
+                        root,
+                        &nested_used,
+                        |nested, _| {
+                            nested.register(root, UsedValues::default());
+                            panic!("abort the nested measurement");
+                        },
+                    );
+                }));
+                assert!(result.is_err());
+                assert!(std::ptr::eq(parent.used_values(root), &raw const root_used));
+                assert!(std::ptr::eq(parent.used_values(child), child_used));
+            },
+        );
     }
 }

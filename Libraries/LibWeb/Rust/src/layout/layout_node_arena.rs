@@ -1309,7 +1309,6 @@ pub(crate) struct LayoutNodeArena {
     fc_run_cache_store: super::fc_run_cache::FcRunCacheArenaStore,
     in_flow_block_cache_store: super::in_flow_block_cache::InFlowBlockCacheStore,
     pub(super) layout_trace: super::trace::LayoutTrace,
-    pub(super) innermost_run: Cell<(NodeSlotId, NodeSlotId)>,
     pub(crate) paintable_rows: crate::painting::paintable_rows::PaintableRowStore,
     paint_state: RefCell<crate::painting::paint_state::PaintState>,
     // Hit testing can measure overflow and invalidate painting state while querying this list.
@@ -1426,7 +1425,6 @@ impl LayoutNodeArena {
             fc_run_cache_store: super::fc_run_cache::FcRunCacheArenaStore::default(),
             in_flow_block_cache_store: super::in_flow_block_cache::InFlowBlockCacheStore::default(),
             layout_trace: super::trace::LayoutTrace::default(),
-            innermost_run: Cell::new((NodeSlotId::INVALID, NodeSlotId::INVALID)),
             paintable_rows: crate::painting::paintable_rows::PaintableRowStore::default(),
             paint_state: RefCell::new(crate::painting::paint_state::PaintState::default()),
             scrollable_overflow: Default::default(),

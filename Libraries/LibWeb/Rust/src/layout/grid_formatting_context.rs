@@ -2983,21 +2983,19 @@ impl<'pass> GridFormattingContext<'pass> {
         scratch_root
             .has_definite_block_size
             .set(live.has_definite_block_size.get());
-        let arena = self.run.callbacks.arena();
         let containing_block = self.run.callbacks.in_flow_containing_block(subgrid.box_);
         RunRecords::with_root(
-            self.run.callbacks.scratch(),
-            arena,
+            self.run.callbacks,
             subgrid.box_,
             containing_block,
             &scratch_root,
-            |records| {
+            |records, callbacks| {
                 let scratch_run = FormattingContextRun {
                     purpose: formatting_context::LayoutPurpose::Measurement,
                     records,
                     box_: subgrid.box_,
                     layout_mode: LayoutMode::IntrinsicSizing,
-                    callbacks: self.run.callbacks,
+                    callbacks,
                     should_collect_devtools_layout_data: false,
                     treat_block_axis_percentage_insets_as_auto_beyond_root: false,
                     fragments: None,

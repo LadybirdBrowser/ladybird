@@ -2053,12 +2053,11 @@ fn execute_formatting_context_run(
     assert!(!box_.is_invalid());
     let root_used = root_cells.materialize_record();
     RunRecords::with_root(
-        callbacks.scratch(),
-        callbacks.arena(),
+        callbacks,
         box_,
         root_containing_block,
         &root_used,
-        |records| {
+        |records, callbacks| {
             let run = FormattingContextRun {
                 purpose,
                 records,
@@ -3134,7 +3133,7 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
         percentage_basis_block_size: Some(viewport_block_size),
         ..ContainingBlockConstraints::default()
     };
-    RunRecords::with_unrooted(scratch, arena, root, NodeSlotId::INVALID, |entry_records| {
+    RunRecords::with_unrooted(callbacks, root, NodeSlotId::INVALID, |entry_records, callbacks| {
         let _trace = arena.layout_trace.pass(None);
         let viewport_used = entry_records.create_used_values(&callbacks, root, root_constraints);
         let entry_fragments = std::rc::Rc::new(fragment_tree::RunFragmentBuilder::new_entry_accumulator(root));
@@ -3278,11 +3277,10 @@ fn compute_subtree_layout_fragments(input: LayoutStageInput<'_>, containing_bloc
         (root, containing_block)
     };
     RunRecords::with_unrooted(
-        scratch,
-        arena,
+        callbacks,
         entry_root,
         entry_root_containing_block,
-        |entry_records| {
+        |entry_records, callbacks| {
             let _trace = arena.layout_trace.pass(Some(root));
             let entry_fragments =
                 std::rc::Rc::new(fragment_tree::RunFragmentBuilder::new_entry_accumulator(entry_root));
@@ -3434,7 +3432,7 @@ mod baseline_tests {
             false,
         );
         let parent_used = UsedValues::default();
-        RunRecords::with_root(&scratch, &arena, parent, Node::INVALID, &parent_used, |records| {
+        RunRecords::with_root(callbacks, parent, Node::INVALID, &parent_used, |records, callbacks| {
             let child_used = records.register(child, UsedValues::default());
             store_derived_baselines(
                 child_used,

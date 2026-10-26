@@ -70,6 +70,9 @@ pub(crate) struct LayoutPass<'arena> {
     pub(crate) document_in_quirks_mode: bool,
     /// The frame of the formatting context the pass is laying out, in which style reads see sizes and box sides.
     pub(crate) frame: super::geometry::Frame,
+    /// The root of the run this pass view was handed to and that root's containing block, where containing block
+    /// searches from inside the run stop. Invalid outside any run.
+    innermost_run: (Node, Node),
 }
 
 impl<'arena> LayoutPass<'arena> {
@@ -89,7 +92,31 @@ impl<'arena> LayoutPass<'arena> {
             initial_containing_block_block_size,
             document_in_quirks_mode,
             frame: super::geometry::Frame::PHYSICAL,
+            innermost_run: (NodeSlotId::INVALID, NodeSlotId::INVALID),
         }
+    }
+
+    /// A pass whose only question to the document has no answer, over `arena` and `scratch`.
+    #[cfg(test)]
+    pub(crate) fn for_test(arena: &'arena LayoutNodeArena, scratch: &'arena super::run_records::LayoutScratch) -> Self {
+        Self::new(
+            arena,
+            scratch,
+            ContainerLengthBasesQuery {
+                context: std::ptr::null_mut(),
+                query: None,
+            },
+            CssPixels::default(),
+            CssPixels::default(),
+            false,
+        )
+    }
+
+    /// This pass, as the run rooted at `root` sees it.
+    #[inline]
+    pub(super) fn for_run(mut self, root: Node, root_containing_block: Node) -> Self {
+        self.innermost_run = (root, root_containing_block);
+        self
     }
 
     /// This pass, laying out in the frame of `writing_mode`.
@@ -245,7 +272,7 @@ impl<'arena> LayoutPass<'arena> {
     }
 
     pub(crate) fn in_flow_containing_block(&self, node: Node) -> Node {
-        let (innermost_root, innermost_root_containing_block) = self.arena.innermost_run.get();
+        let (innermost_root, innermost_root_containing_block) = self.innermost_run;
         if node == innermost_root {
             return innermost_root_containing_block;
         }
