@@ -1,0 +1,13 @@
+While a writing suggestion is showing, a plain Tab in Ladybird accepts
+it before the page sees the key. The page gets a keydown with the key
+Tab and the keyCode 229, and canceling it doesn’t stop the insertion.
+
+WebKit does the same: WebViewImpl::interpretKeyEvent() hands the key to
+NSTextInputContext’s “handleEventByInputMethod:” first, and AppKit
+takes Tab to accept the inline prediction. WebCore’s EventHandler::
+internalKeyEvent() then sets the keydown’s keyCode to 229, its
+CompositionEventKeyCode, skips the keydown’s default handling, and
+dispatches no keypress. WebPage::handleEditingKeyboardEvent() inserts
+the text after the keydown.
+
+Neither Blink nor Gecko shows macOS inline predictions in web content.
