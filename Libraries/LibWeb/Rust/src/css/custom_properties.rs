@@ -1726,10 +1726,11 @@ fn resolve_custom_property_with_lookup(
             .and_then(|registration| registration.initial_source.as_ref())
             .map_or(TokenResolution::Invalid, TokenResolution::from_source);
     };
+    // Declared names are unique keys from own_values; equal counts mean the owner lookup proves membership.
     if lookup == CustomPropertyLookup::Normal
         && context.element_store.is_some_and(|store| std::ptr::eq(store, owner))
-        && owner.declared_names.contains(&name.raw_identity())
         && store.is_some_and(|store| std::ptr::eq(store, owner))
+        && (owner.declared_names.len() == owner.own_values.len() || owner.declared_names.contains(&name.raw_identity()))
     {
         let computed_value = compute_element_custom_property(
             owner,
