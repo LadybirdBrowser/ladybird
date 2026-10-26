@@ -2551,7 +2551,8 @@ impl<'pass> BlockFormattingContext<'pass> {
     ) -> bool {
         let facts = self.facts(node);
         let container_facts = self.facts(block_container);
-        self.run.purpose == formatting_context::LayoutPurpose::Commit
+        !self.run.callbacks.scratch().reads_no_memoized_layout()
+            && self.run.purpose == formatting_context::LayoutPurpose::Commit
             && self.run.fragmentainer.is_none()
             && self.run.layout_mode == LayoutMode::Normal
             && self.run.fragments.is_some()

@@ -75,6 +75,23 @@ fn same_allocation<T>(left: Option<&std::sync::Arc<T>>, right: Option<&std::sync
     }
 }
 
+/// How two fragments' shared payloads compare: as the same allocations, as painting needs, or as equal values, as
+/// two layouts of one box do.
+#[derive(Clone, Copy)]
+enum PayloadComparison {
+    SameAllocation,
+    SameValue,
+}
+
+impl PayloadComparison {
+    fn matches<T: PartialEq>(self, left: Option<&std::sync::Arc<T>>, right: Option<&std::sync::Arc<T>>) -> bool {
+        match self {
+            Self::SameAllocation => same_allocation(left, right),
+            Self::SameValue => left.map(|left| &**left) == right.map(|right| &**right),
+        }
+    }
+}
+
 impl Fragment {
     fn builds_identically_to(&self, previous: &Fragment) -> bool {
         self.has_same_box_properties(previous)
@@ -113,6 +130,15 @@ impl Fragment {
     /// Box properties excluding inline content and child fragments. Painting compares those
     /// separately: a new descendant fragment does not necessarily change this box's commands.
     pub(crate) fn has_same_box_properties(&self, previous: &Fragment) -> bool {
+        self.has_same_box_properties_comparing_payloads(previous, PayloadComparison::SameAllocation)
+    }
+
+    /// Box properties excluding inline content and child fragments, with payloads compared by value.
+    pub(crate) fn has_same_box_properties_comparing_payloads_by_value(&self, previous: &Fragment) -> bool {
+        self.has_same_box_properties_comparing_payloads(previous, PayloadComparison::SameValue)
+    }
+
+    fn has_same_box_properties_comparing_payloads(&self, previous: &Fragment, payloads: PayloadComparison) -> bool {
         self.node == previous.node
             && self.content_inline_size == previous.content_inline_size
             && self.content_block_size == previous.content_block_size
@@ -133,18 +159,18 @@ impl Fragment {
             && self.table_column_index == previous.table_column_index
             && self.table_column_span == previous.table_column_span
             && self.hidden_by_collapsed_columns == previous.hidden_by_collapsed_columns
-            && same_allocation(
+            && payloads.matches(
                 self.collapsed_table_borders.as_ref(),
                 previous.collapsed_table_borders.as_ref(),
             )
-            && same_allocation(self.grid_layout_data.as_ref(), previous.grid_layout_data.as_ref())
-            && same_allocation(self.flex_layout_data.as_ref(), previous.flex_layout_data.as_ref())
+            && payloads.matches(self.grid_layout_data.as_ref(), previous.grid_layout_data.as_ref())
+            && payloads.matches(self.flex_layout_data.as_ref(), previous.flex_layout_data.as_ref())
             && self.multicol_layout_data == previous.multicol_layout_data
             && self.math_paint_data == previous.math_paint_data
-            && same_allocation(self.used_grid_tracks.as_ref(), previous.used_grid_tracks.as_ref())
+            && payloads.matches(self.used_grid_tracks.as_ref(), previous.used_grid_tracks.as_ref())
             && self.svg == previous.svg
-            && same_allocation(self.computed_svg_path.as_ref(), previous.computed_svg_path.as_ref())
-            && same_allocation(
+            && payloads.matches(self.computed_svg_path.as_ref(), previous.computed_svg_path.as_ref())
+            && payloads.matches(
                 self.svg_text_character_cells.as_ref(),
                 previous.svg_text_character_cells.as_ref(),
             )
