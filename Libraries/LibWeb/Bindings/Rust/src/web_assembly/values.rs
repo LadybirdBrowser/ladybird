@@ -203,17 +203,24 @@ pub(crate) fn to_webassembly_value(vm: &Vm, value: Value, ty: ValType) -> ThrowC
 }
 
 /// DefaultValue(valuetype), https://webassembly.github.io/spec/js-api/#defaultvalue
-pub(crate) fn default_webassembly_value(vm: &Vm, ty: ValType) -> WasmValue {
-    // 1. If valuetype equals externref, return ToWebAssemblyValue(undefined, valuetype).
-    if let ValType::Ref(RefType {
-        heap: HeapType::Extern, ..
-    }) = ty
+/// Returns `None` where it is an error.
+pub(crate) fn default_webassembly_value(vm: &Vm, ty: ValType) -> Option<WasmValue> {
+    // 1. If valuetype equals externref, return ! ToWebAssemblyValue(undefined, valuetype).
+    if ty
+        == ValType::Ref(RefType {
+            nullable: true,
+            heap: HeapType::Extern,
+        })
     {
-        return WasmValue::Ref(host_reference_of(vm, Value::UNDEFINED));
+        return Some(WasmValue::Ref(host_reference_of(vm, Value::UNDEFINED)));
     }
 
-    // 2. Return DefaultValue(valuetype).
-    WasmValue::default_for(ty)
+    // 2. Return val_default(valuetype).
+    // NB: A non-nullable reference type has no default value.
+    match ty {
+        ValType::Ref(RefType { nullable: false, .. }) => None,
+        _ => Some(WasmValue::default_for(ty)),
+    }
 }
 
 /// ToJSValue(w), https://webassembly.github.io/spec/js-api/#tojsvalue, for a value of the type, which is in the store's

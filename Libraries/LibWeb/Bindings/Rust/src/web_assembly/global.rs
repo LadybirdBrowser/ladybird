@@ -79,10 +79,13 @@ impl Global {
             return Err(Exception::type_error("V128 is not supported as a global value type"));
         }
 
-        // FIXME: https://github.com/WebAssembly/spec/issues/1861
-        //        Is there a difference between *missing* and undefined for optional any values?
+        // 4. If v is missing,
+        //     1. Let value be DefaultValue(valuetype).
+        //     2. Assert: value is not error.
+        // 5. Otherwise,
+        //     1. Let value be ? ToWebAssemblyValue(v, valuetype).
         let value = match v {
-            None => default_webassembly_value(vm, value_type),
+            None => default_webassembly_value(vm, value_type).expect("ToValueType gives types with a default value"),
             Some(v) => to_webassembly_value(vm, v, value_type)?,
         };
 

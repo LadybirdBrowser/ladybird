@@ -1,0 +1,42 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    // (module
+    //   (func $f (export "f"))
+    //   (table (export "t") 1 10 (ref func) (ref.func $f)))
+    const funcTableBytes = new Uint8Array([
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60, 0x00, 0x00, 0x03, 0x02,
+        0x01, 0x00, 0x04, 0x0b, 0x01, 0x40, 0x00, 0x64, 0x70, 0x01, 0x01, 0x0a, 0xd2, 0x00, 0x0b, 0x07,
+        0x09, 0x02, 0x01, 0x74, 0x01, 0x00, 0x01, 0x66, 0x00, 0x00, 0x0a, 0x04, 0x01, 0x02, 0x00, 0x0b,
+    ]);
+
+    // (module
+    //   (table (export "t") 1 10 (ref extern) (extern.convert_any (ref.i31 (i32.const 0)))))
+    const externTableBytes = new Uint8Array([
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x04, 0x0f, 0x01, 0x40, 0x00, 0x64, 0x6f, 0x01,
+        0x01, 0x0a, 0x41, 0x00, 0xfb, 0x1c, 0xfb, 0x1b, 0x0b, 0x07, 0x05, 0x01, 0x01, 0x74, 0x01, 0x00,
+    ]);
+
+    function attempt(fn) {
+        try {
+            return `returned ${fn()}`;
+        } catch (e) {
+            return e.name;
+        }
+    }
+
+    test(() => {
+        const funcTable = new WebAssembly.Instance(new WebAssembly.Module(funcTableBytes)).exports;
+        println(`(ref func) set(0): ${attempt(() => funcTable.t.set(0))}`);
+        println(`(ref func) grow(1): ${attempt(() => funcTable.t.grow(1))}`);
+        println(`(ref func) length: ${funcTable.t.length}, get(0) is f: ${funcTable.t.get(0) === funcTable.f}`);
+
+        const externTable = new WebAssembly.Instance(new WebAssembly.Module(externTableBytes)).exports;
+        println(`(ref extern) set(0): ${attempt(() => externTable.t.set(0))}`);
+        println(`(ref extern) grow(1): ${attempt(() => externTable.t.grow(1))}`);
+        println(`(ref extern) length: ${externTable.t.length}`);
+
+        const nullableTable = new WebAssembly.Table({ element: "externref", initial: 0 });
+        println(`externref grow(1): ${attempt(() => nullableTable.grow(1))}, get(0): ${nullableTable.get(0)}`);
+    });
+</script>
