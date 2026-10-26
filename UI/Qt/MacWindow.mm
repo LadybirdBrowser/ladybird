@@ -7,6 +7,7 @@
 #include <UI/Qt/MacWindow.h>
 
 #include <AK/ScopeGuard.h>
+#include <AK/Vector.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/Size.h>
@@ -16,12 +17,14 @@
 #include <QGuiApplication>
 #include <QMouseEvent>
 #include <QPointer>
+#include <QWheelEvent>
 #include <QWidget>
 #include <QWindow>
 #include <UI/Qt/WebContentView.h>
 
 #import <Cocoa/Cocoa.h>
 #import <UI/Qt/DictionaryLookup.h>
+#import <dlfcn.h>
 #import <objc/runtime.h>
 
 @interface LadybirdWindowControlOffsetObserver : NSObject
@@ -312,6 +315,92 @@ static void follow_mouse_while_inactive(NSEvent* event)
     QCoreApplication::sendEvent(view, &move_event);
 }
 
+// AppKit reports no more than whether a scroll event ends the fingers' part of a gesture, but the HID event behind it
+// says whether momentum follows. The functions that read it are private, so they are looked up rather than linked.
+static bool appkit_scroll_momentum_will_begin(NSEvent* event)
+{
+    using CopyIOHIDEventFunction = CFTypeRef (*)(CGEventRef);
+    using GetScrollMomentumFunction = u8 (*)(CFTypeRef);
+    static auto copy_iohid_event = reinterpret_cast<CopyIOHIDEventFunction>(dlsym(RTLD_DEFAULT, "CGEventCopyIOHIDEvent"));
+    static auto get_scroll_momentum = reinterpret_cast<GetScrollMomentumFunction>(dlsym(RTLD_DEFAULT, "IOHIDEventGetScrollMomentum"));
+    static constexpr u8 scroll_momentum_will_begin = 1 << 3;
+
+    if (!copy_iohid_event || !get_scroll_momentum || !event.CGEvent)
+        return false;
+    auto iohid_event = copy_iohid_event(event.CGEvent);
+    if (!iohid_event)
+        return false;
+    ScopeGuard release_iohid_event = [&] { CFRelease(iohid_event); };
+    return (get_scroll_momentum(iohid_event) & scroll_momentum_will_begin) != 0;
+}
+
+struct RecordedAppKitScrollMomentumTransition {
+    u64 timestamp_in_milliseconds { 0 };
+    AppKitScrollMomentumTransition transition;
+};
+static Vector<RecordedAppKitScrollMomentumTransition> s_recorded_appkit_scroll_momentum_transitions;
+
+// Qt delivers a wheel event after AppKit dispatched the scroll event it came from, and stamps it with that event's
+// time in milliseconds.
+static u64 qt_timestamp_for_appkit_event(NSEvent* event)
+{
+    return static_cast<u64>(event.timestamp * 1000);
+}
+
+static void record_appkit_scroll_momentum_transition(NSEvent* event)
+{
+    if (event.type != NSEventTypeScrollWheel)
+        return;
+
+    Optional<AppKitScrollMomentumTransition> transition;
+    if (event.momentumPhase == NSEventPhaseBegan)
+        transition = AppKitScrollMomentumTransition::Began;
+    else if (event.phase == NSEventPhaseEnded && event.momentumPhase == NSEventPhaseNone && appkit_scroll_momentum_will_begin(event))
+        transition = AppKitScrollMomentumTransition::WillBegin;
+    if (!transition.has_value())
+        return;
+
+    static constexpr size_t maximum_recorded_transitions = 8;
+    if (s_recorded_appkit_scroll_momentum_transitions.size() == maximum_recorded_transitions)
+        s_recorded_appkit_scroll_momentum_transitions.remove(0);
+    s_recorded_appkit_scroll_momentum_transitions.append({
+        .timestamp_in_milliseconds = qt_timestamp_for_appkit_event(event),
+        .transition = transition.value(),
+    });
+}
+
+// Qt makes a ScrollEnd of the lift, unless it saw the momentum coming, and a ScrollBegin of the momentum's first event,
+// unless it did. The fingers' last step can share the lift's millisecond, and takes neither.
+static bool qt_wheel_event_is_made_of(QWheelEvent const& wheel_event, AppKitScrollMomentumTransition transition)
+{
+    switch (transition) {
+    case AppKitScrollMomentumTransition::WillBegin:
+        return wheel_event.phase() == Qt::ScrollEnd;
+    case AppKitScrollMomentumTransition::Began:
+        return wheel_event.phase() == Qt::ScrollBegin;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+Optional<AppKitScrollMomentumTransition> take_appkit_scroll_momentum_transition_for(QWheelEvent const& wheel_event)
+{
+    // The transitions recorded before this one went to other windows, or were dropped by Qt.
+    auto timestamp = static_cast<u64>(wheel_event.timestamp());
+    while (!s_recorded_appkit_scroll_momentum_transitions.is_empty() && s_recorded_appkit_scroll_momentum_transitions.first().timestamp_in_milliseconds < timestamp)
+        s_recorded_appkit_scroll_momentum_transitions.remove(0);
+    for (size_t index = 0; index < s_recorded_appkit_scroll_momentum_transitions.size(); index++) {
+        auto const& recorded = s_recorded_appkit_scroll_momentum_transitions[index];
+        if (recorded.timestamp_in_milliseconds > timestamp)
+            break;
+        if (!qt_wheel_event_is_made_of(wheel_event, recorded.transition))
+            continue;
+        auto transition = recorded.transition;
+        s_recorded_appkit_scroll_momentum_transitions.remove(index);
+        return transition;
+    }
+    return {};
+}
+
 class LadybirdAppKitEventCaptureFilter final : public QAbstractNativeEventFilter {
 public:
     AK_ALLOC_WITH_KMALLOC;
@@ -323,6 +412,7 @@ public:
 
         auto* event = static_cast<NSEvent*>(message);
         follow_mouse_while_inactive(event);
+        record_appkit_scroll_momentum_transition(event);
 
         if (perform_dictionary_lookup_for_event(event))
             return true;

@@ -16,6 +16,7 @@
 
 class QColor;
 class QDrag;
+class QWheelEvent;
 class QWidget;
 
 namespace Ladybird {
@@ -35,6 +36,13 @@ void offset_appkit_window_controls(QWidget&, int x_offset, int y_offset);
 // to their offset right away, before the next frame is drawn.
 void reapply_appkit_window_control_offsets(QWidget&);
 void install_appkit_event_capture();
+// What AppKit says of a flick's momentum at the scroll event a wheel event came from, which Qt does not pass on.
+enum class AppKitScrollMomentumTransition {
+    // The fingers lifted, and the momentum of the flick they made is about to begin.
+    WillBegin,
+    Began,
+};
+Optional<AppKitScrollMomentumTransition> take_appkit_scroll_momentum_transition_for(QWheelEvent const&);
 void make_appkit_window_first_responder(QWidget&);
 // Rounds the corners of a native child widget's view, which shows what is below it through them, and outlines it.
 void round_appkit_view_corners(QWidget&, qreal radius, QColor const& border_color);
