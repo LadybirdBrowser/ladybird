@@ -38,7 +38,11 @@ public:
     virtual ~FFmpegVulkanVideoDecoder() override;
 
     virtual void set_storage_freed_callback(Function<void()> callback) override { m_surface_pool->set_slot_freed_callback(move(callback)); }
-    virtual void set_output_arrived_callback(Function<void()> callback) override { m_output_arrived_callback = move(callback); }
+    virtual void set_output_arrived_callback(Function<void()> callback) override
+    {
+        MutexLocker locker { m_mutex };
+        m_output_arrived_callback = move(callback);
+    }
 
     virtual DecoderErrorOr<void> receive_coded_data(CodedFrame const&, DecodeIntent) override;
     virtual void signal_end_of_stream() override;
