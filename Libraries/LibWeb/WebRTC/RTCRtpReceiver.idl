@@ -1,0 +1,23 @@
+
+// https://w3c.github.io/webrtc-pc/#rtcrtpreceiver-interface
+
+[Exposed=Window]
+interface RTCRtpReceiver {
+    readonly attribute MediaStreamTrack track;
+    [FIXME] readonly attribute RTCDtlsTransport? transport;
+    [FIXME] static RTCRtpCapabilities? getCapabilities(DOMString kind);
+    [FIXME] RTCRtpReceiveParameters getParameters();
+    [FIXME] sequence<RTCRtpContributingSource> getContributingSources();
+    [FIXME] sequence<RTCRtpSynchronizationSource> getSynchronizationSources();
+    [FIXME] Promise<RTCStatsReport> getStats();
+    [FIXME] attribute DOMHighResTimeStamp? jitterBufferTarget;
+};
+
+dictionary RTCRtpContributingSource {
+    required DOMHighResTimeStamp timestamp;
+    required unsigned long source;
+    double audioLevel;
+    required unsigned long rtpTimestamp;
+};
+
+dictionary RTCRtpSynchronizationSource : RTCRtpContributingSource { };

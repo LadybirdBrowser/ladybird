@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<body>
+<script src="../include.js"></script>
+<script>
+asyncTest(async done => {
+    const frame = document.createElement("iframe");
+    const loaded = new Promise(resolve => frame.onload = resolve);
+    frame.srcdoc = "<!DOCTYPE html>";
+    document.body.append(frame);
+    await loaded;
+    const pc = new frame.contentWindow.RTCPeerConnection();
+    const transceiver = pc.addTransceiver("audio");
+    let endedEvents = 0;
+    transceiver.receiver.track.onended = () => ++endedEvents;
+    frame.remove();
+    for (let attempt = 0; attempt < 50 && pc.signalingState !== "closed"; ++attempt)
+        await new Promise(resolve => setTimeout(resolve, 20));
+    println(`connection after document cleanup: ${pc.signalingState}`);
+    println(`ended events during document cleanup: ${endedEvents}`);
+    done();
+});
+</script>

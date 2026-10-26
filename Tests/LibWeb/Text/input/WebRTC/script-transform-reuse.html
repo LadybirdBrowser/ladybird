@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+// A script transform belongs to the first sender or receiver it's set on, so one that's been replaced can't come back.
+test(() => {
+    const pc = new RTCPeerConnection();
+    const worker = new Worker(URL.createObjectURL(new Blob([""], { type: "text/javascript" })));
+    const [first, second] = [pc.addTransceiver("audio").sender, pc.addTransceiver("audio").sender];
+    const transform = new RTCRtpScriptTransform(worker);
+
+    first.transform = transform;
+    println(`attached: ${first.transform === transform}`);
+
+    for (const [description, attach] of [
+        ["same sender", () => first.transform = transform],
+        ["other sender", () => second.transform = transform],
+    ]) {
+        try {
+            attach();
+            println(`${description}: no exception`);
+        } catch (error) {
+            println(`${description}: ${error.name}`);
+        }
+    }
+
+    first.transform = new RTCRtpScriptTransform(worker);
+    try {
+        second.transform = transform;
+        println("after replacement: no exception");
+    } catch (error) {
+        println(`after replacement: ${error.name}`);
+    }
+
+    worker.terminate();
+    pc.close();
+});
+</script>

@@ -17,6 +17,12 @@
 #include <LibWeb/HTML/WorkerGlobalScope.h>
 #include <LibWebCommon/HTML/Scripting/SerializedEnvironmentSettingsObject.h>
 
+namespace Web::HTML {
+
+class WorkerGlobalScope;
+
+}
+
 namespace WebWorker {
 
 class WorkerHost : public RefCounted<WorkerHost> {
@@ -26,6 +32,14 @@ public:
 
     void run(GC::Ref<Web::Page>, Web::HTML::TransferDataEncoder message_port_data, Web::HTML::SerializedEnvironmentSettingsObject const&, Web::HTML::RequestCredentials, bool is_shared, URL::Origin origin, Web::HTML::EnvironmentId environment_id);
     void connect_shared_worker(Web::HTML::TransferDataEncoder message_port_data, Web::HTML::SerializedEnvironmentSettingsObject);
+
+    GC::Ptr<Web::HTML::WorkerGlobalScope> global_scope() { return m_worker_global_scope.cell(); }
+
+    bool script_has_run() const { return m_script_has_run; }
+    void set_on_script_ready(Function<void()> callback) { m_on_script_ready = move(callback); }
+
+    // Called from WorkerHost::run's on_complete callback once the initial script has executed.
+    void notify_script_ran();
 
 private:
     struct PendingSharedWorkerConnection {
@@ -52,6 +66,9 @@ private:
     bool m_accepting_shared_worker_connections { false };
     // WorkerHost is only touched on the WebWorker main thread.
     Vector<PendingSharedWorkerConnection> m_pending_shared_worker_connections;
+
+    bool m_script_has_run { false };
+    Function<void()> m_on_script_ready;
 };
 
 }

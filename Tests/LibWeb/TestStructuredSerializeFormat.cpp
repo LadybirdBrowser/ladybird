@@ -26,7 +26,9 @@
 #include <LibWeb/HTML/ImageData.h>
 #include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/WebIDL/DOMException.h>
+#include <LibWeb/WebIDL/ExceptionOrUtils.h>
 #include <LibWeb/WebIDL/QuotaExceededError.h>
+#include <LibWeb/WebRTC/RTCEncodedAudioFrame.h>
 
 #if !defined(AK_OS_WINDOWS)
 #    include <fcntl.h>
@@ -936,4 +938,96 @@ TEST_CASE(serializable_payload_version_bumps_require_migration_support)
     // interface names to storage identifiers. Keep this check focused on the registry's completeness.
     for (auto const& entry : Web::HTML::serializable_storage_registry())
         EXPECT(!entry.identifier.is_empty());
+}
+
+TEST_CASE(rtc_encoded_audio_frame_serialization_preserves_metadata_and_buffer_identity)
+{
+    auto& realm = test_realm();
+    auto& vm = realm.vm();
+    Array<u8, 4> payload { 0x12, 0x34, 0x56, 0x78 };
+    auto data = JS::ArrayBuffer::create(realm, MUST(ByteBuffer::copy(payload)));
+    Web::Bindings::RTCEncodedAudioFrameMetadata metadata;
+    metadata.synchronization_source = 0xfedcba98;
+    metadata.payload_type = 111;
+    metadata.contributing_sources = Vector<u32> { 0, 0xffffffff };
+    metadata.rtp_timestamp = 0x87654321;
+    metadata.receive_time = 1234.5;
+    metadata.capture_time = 1200.25;
+    metadata.sender_capture_time_offset = -34.25;
+    metadata.mime_type = "audio/opus; test=🎵"_utf16;
+    metadata.sequence_number = -1234;
+    metadata.audio_level = 0.5;
+    auto frame = Web::WebRTC::RTCEncodedAudioFrame::create(data, metadata);
+    auto wrapper = Web::Bindings::wrap(Web::Bindings::host_defined_wrapper_world(realm), realm, frame);
+    auto array = MUST(JS::Array::create(realm, 0));
+    MUST(array->create_data_property_or_throw(0, wrapper));
+    MUST(array->create_data_property_or_throw(1, data));
+    MUST(array->create_data_property_or_throw(2, wrapper));
+
+    auto record = MUST(Web::HTML::structured_serialize(vm, array));
+    auto clone = MUST(Web::HTML::structured_deserialize(vm, ipc_round_trip(record), realm));
+    auto cloned_frame_value = MUST(clone.as_object().get(0));
+    auto& cloned_frame = unwrap_wrappable<Web::WebRTC::RTCEncodedAudioFrame>(cloned_frame_value);
+    EXPECT(&cloned_frame != frame.ptr());
+    EXPECT(cloned_frame.data().ptr() != data.ptr());
+    auto cloned_payload = MUST(cloned_frame.data()->copy_to_byte_buffer());
+    EXPECT_EQ(cloned_payload.bytes(), payload.span());
+    EXPECT(cloned_frame.data().ptr() == &MUST(clone.as_object().get(1)).as_object());
+    EXPECT_EQ(cloned_frame_value, MUST(clone.as_object().get(2)));
+    auto cloned_metadata = cloned_frame.get_metadata();
+    EXPECT_EQ(cloned_metadata.synchronization_source, metadata.synchronization_source);
+    EXPECT_EQ(cloned_metadata.payload_type, metadata.payload_type);
+    EXPECT_EQ(cloned_metadata.contributing_sources, metadata.contributing_sources);
+    EXPECT_EQ(cloned_metadata.rtp_timestamp, metadata.rtp_timestamp);
+    EXPECT_EQ(cloned_metadata.receive_time, metadata.receive_time);
+    EXPECT_EQ(cloned_metadata.capture_time, metadata.capture_time);
+    EXPECT_EQ(cloned_metadata.sender_capture_time_offset, metadata.sender_capture_time_offset);
+    EXPECT_EQ(cloned_metadata.mime_type, metadata.mime_type);
+    EXPECT_EQ(cloned_metadata.sequence_number, metadata.sequence_number);
+    EXPECT_EQ(cloned_metadata.audio_level, metadata.audio_level);
+}
+
+TEST_CASE(rtc_encoded_audio_frame_serialization_preserves_missing_and_empty_metadata)
+{
+    auto& realm = test_realm();
+    auto& vm = realm.vm();
+    for (bool present : { false, true }) {
+        Web::Bindings::RTCEncodedAudioFrameMetadata metadata;
+        if (present) {
+            metadata.contributing_sources = Vector<u32> {};
+            metadata.mime_type = Utf16String {};
+            metadata.sequence_number = 0;
+        }
+        auto frame = Web::WebRTC::RTCEncodedAudioFrame::create(MUST(JS::ArrayBuffer::create(realm, 0)), metadata);
+        auto record = structured_serialize(vm, frame);
+        auto clone = MUST(Web::HTML::structured_deserialize(vm, record, realm));
+        auto& cloned_frame = unwrap_wrappable<Web::WebRTC::RTCEncodedAudioFrame>(clone);
+        auto cloned_metadata = cloned_frame.get_metadata();
+        EXPECT_EQ(cloned_metadata.contributing_sources, metadata.contributing_sources);
+        EXPECT_EQ(cloned_metadata.mime_type, metadata.mime_type);
+        EXPECT_EQ(cloned_metadata.sequence_number, metadata.sequence_number);
+        EXPECT(!cloned_metadata.synchronization_source.has_value());
+        EXPECT(!cloned_metadata.payload_type.has_value());
+        EXPECT(!cloned_metadata.rtp_timestamp.has_value());
+        EXPECT(!cloned_metadata.receive_time.has_value());
+        EXPECT(!cloned_metadata.capture_time.has_value());
+        EXPECT(!cloned_metadata.sender_capture_time_offset.has_value());
+        EXPECT(!cloned_metadata.audio_level.has_value());
+        EXPECT_EQ(cloned_frame.data()->byte_length(), 0u);
+    }
+}
+
+TEST_CASE(rtc_encoded_audio_frame_cannot_be_serialized_for_storage)
+{
+    auto& realm = test_realm();
+    auto frame = Web::WebRTC::RTCEncodedAudioFrame::create(MUST(JS::ArrayBuffer::create(realm, 0)), {});
+    auto wrapper = Web::Bindings::wrap(Web::Bindings::host_defined_wrapper_world(realm), realm, frame);
+    auto result = Web::WebIDL::throw_dom_exception_if_needed(realm.vm(), realm, [&] {
+        return Web::HTML::structured_serialize_for_storage(realm.vm(), wrapper);
+    });
+    EXPECT(result.is_error());
+    if (result.is_error()) {
+        auto& exception = unwrap_wrappable<Web::WebIDL::DOMException>(result.error_value());
+        EXPECT_EQ(exception.name(), "DataCloneError"_utf16);
+    }
 }

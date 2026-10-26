@@ -1,0 +1,9 @@
+// https://w3c.github.io/webrtc-pc/#rtcdtmfsender
+
+[Exposed=Window]
+interface RTCDTMFSender : EventTarget {
+    [FIXME] undefined insertDTMF(DOMString tones, optional unsigned long duration = 100, optional unsigned long interToneGap = 70);
+    attribute EventHandler ontonechange;
+    [FIXME] readonly attribute boolean canInsertDTMF;
+    [FIXME] readonly attribute DOMString toneBuffer;
+};

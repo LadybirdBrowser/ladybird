@@ -1,0 +1,9 @@
+offer pending: true
+negotiated: true
+trickle ICE: true
+remote label: echo
+text payload: hello 🐦
+binary payload: 0,1,127,255
+blob payload: true
+real stats report: true
+channel close: closed

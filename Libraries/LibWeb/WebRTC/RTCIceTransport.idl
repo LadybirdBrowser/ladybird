@@ -1,0 +1,38 @@
+
+// https://w3c.github.io/webrtc-pc/#rtcicetransport-interface
+
+[Exposed=Window]
+interface RTCIceTransport : EventTarget {
+    [FIXME] readonly attribute RTCIceRole role;
+    [FIXME] readonly attribute RTCIceComponent component;
+    [FIXME] readonly attribute RTCIceTransportState state;
+    [FIXME] readonly attribute RTCIceGathererState gatheringState;
+    [FIXME] sequence<RTCIceCandidate> getLocalCandidates();
+    [FIXME] sequence<RTCIceCandidate> getRemoteCandidates();
+    [FIXME] RTCIceCandidatePair? getSelectedCandidatePair();
+    [FIXME] RTCIceParameters? getLocalParameters();
+    [FIXME] RTCIceParameters? getRemoteParameters();
+    attribute EventHandler onstatechange;
+    attribute EventHandler ongatheringstatechange;
+    attribute EventHandler onselectedcandidatepairchange;
+};
+
+dictionary RTCIceParameters {
+    DOMString usernameFragment;
+    DOMString password;
+};
+
+enum RTCIceGathererState { "new", "gathering", "complete" };
+
+enum RTCIceTransportState {
+    "closed",
+    "failed",
+    "disconnected",
+    "new",
+    "checking",
+    "completed",
+    "connected"
+};
+
+enum RTCIceRole { "unknown", "controlling", "controlled" };
+enum RTCIceComponent { "rtp", "rtcp" };

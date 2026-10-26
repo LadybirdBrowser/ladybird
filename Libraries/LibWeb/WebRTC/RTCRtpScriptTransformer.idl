@@ -1,0 +1,11 @@
+// https://w3c.github.io/webrtc-encoded-transform/#rtcrtpscripttransformer
+
+[Exposed=DedicatedWorker]
+interface RTCRtpScriptTransformer : EventTarget {
+    readonly attribute ReadableStream readable;
+    [FIXME] Promise<undefined> generateKeyFrame(optional DOMString rid);
+    [FIXME] Promise<undefined> sendKeyFrameRequest();
+    readonly attribute WritableStream writable;
+    attribute EventHandler onkeyframerequest;
+    readonly attribute any options;
+};

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+test(() => {
+    const candidate = new RTCIceCandidate({ candidate: "candidate:1 1 udp 2122260223 127.0.0.1 12345 typ host", sdpMid: "audio", sdpMLineIndex: 0, usernameFragment: "ufrag" });
+    const roundtrip = candidate.toJSON();
+    println(`candidate roundtrip: ${roundtrip.candidate === candidate.candidate && roundtrip.sdpMid === "audio" && roundtrip.sdpMLineIndex === 0 && roundtrip.usernameFragment === "ufrag"}`);
+    const event = new RTCPeerConnectionIceEvent("icecandidate", { candidate });
+    println(`candidate identity: ${event.candidate === candidate}`);
+    println(`end of candidates: ${new RTCPeerConnectionIceEvent("icecandidate").candidate === null}`);
+
+    const pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:localhost:3478" }], bundlePolicy: "max-bundle" });
+    println(`configuration retained: ${pc.getConfiguration().iceServers[0].urls === "stun:localhost:3478" && pc.getConfiguration().bundlePolicy === "max-bundle"}`);
+    const channel = pc.createDataChannel("test", { ordered: false, maxRetransmits: 2, protocol: "echo", negotiated: true, id: 0 });
+    println(`channel attributes: ${channel.label}, ${channel.ordered}, ${channel.maxRetransmits}, ${channel.protocol}, ${channel.negotiated}, ${channel.id}, ${channel.binaryType}`);
+    println(`channel event identity: ${new RTCDataChannelEvent("datachannel", { channel }).channel === channel}`);
+    const first = pc.addTransceiver("audio");
+    const second = pc.addTransceiver("audio");
+    first.stop();
+    pc.close();
+    pc.close();
+    println(`closed: ${pc.signalingState}, ${pc.connectionState}, ${pc.iceConnectionState}, ${channel.readyState}`);
+    println(`all transceivers stopped: ${first.direction === "inactive" && second.direction === "inactive"}`);
+});
+</script>

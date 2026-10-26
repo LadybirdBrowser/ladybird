@@ -1,0 +1,45 @@
+// https://w3c.github.io/webrtc-encoded-transform/#rtcsframesendertransform
+
+enum SFrameCipherSuite {
+    "AES_128_CTR_HMAC_SHA256_80",
+    "AES_128_CTR_HMAC_SHA256_64",
+    "AES_128_CTR_HMAC_SHA256_32",
+    "AES_128_GCM_SHA256_128",
+    "AES_256_GCM_SHA512_128",
+    "AES_256_CTR_HMAC_SHA512_80",
+    "AES_256_CTR_HMAC_SHA512_64",
+    "AES_256_CTR_HMAC_SHA512_32"
+};
+
+dictionary SFrameTransformOptions {
+    required SFrameCipherSuite cipherSuite;
+};
+
+enum SFrameType {
+    "per-frame",
+    "per-packet"
+};
+
+dictionary RTCSFrameSenderTransformOptions : SFrameTransformOptions {
+    SFrameType type = "per-frame";
+};
+
+typedef [EnforceRange] unsigned long long SmallCryptoKeyID;
+// FIXME: spec is `(SmallCryptoKeyID or bigint)` — bigint isn't supported in our IDL yet.
+typedef SmallCryptoKeyID CryptoKeyID;
+
+interface mixin SFrameEncrypterManager {
+    [FIXME] Promise<undefined> setEncryptionKey(CryptoKey key, CryptoKeyID keyId);
+};
+
+interface mixin SFrameDecrypterManager {
+    [FIXME] Promise<undefined> addDecryptionKey(CryptoKey key, CryptoKeyID keyId);
+    [FIXME] Promise<undefined> removeDecryptionKey(CryptoKeyID keyId);
+    [FIXME] attribute EventHandler onerror;
+};
+
+[Exposed=Window]
+interface RTCSFrameSenderTransform {
+    [FIXME] constructor(RTCSFrameSenderTransformOptions options);
+};
+RTCSFrameSenderTransform includes SFrameEncrypterManager;

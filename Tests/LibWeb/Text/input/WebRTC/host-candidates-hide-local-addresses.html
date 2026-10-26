@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+asyncTest(async done => {
+    const connection = new RTCPeerConnection();
+    const candidates = [];
+    const gathered = new Promise(resolve => {
+        connection.onicecandidate = event => {
+            if (event.candidate)
+                candidates.push(event.candidate);
+            else
+                resolve();
+        };
+    });
+    try {
+        connection.createDataChannel("test");
+        await connection.setLocalDescription(await connection.createOffer());
+        await gathered;
+        // candidate:<foundation> <component> <transport> <priority> <address> <port> typ <type>
+        const hosts = candidates.map(candidate => candidate.candidate.split(" ")).filter(fields => fields[7] === "host");
+        println(`gathered host candidates: ${hosts.length > 0}`);
+        println(`every host candidate is an mDNS name: ${hosts.every(fields => fields[4].endsWith(".local"))}`);
+        const description = connection.localDescription.sdp;
+        println(`the description has no IPv4 host candidates: ${!/a=candidate:\S+ \d+ udp \d+ \d+\.\d+\.\d+\.\d+ \d+ typ host/.test(description)}`);
+    } catch (error) {
+        println(`FAIL: ${error.name}: ${error.message}`);
+    } finally {
+        connection.close();
+        done();
+    }
+});
+</script>

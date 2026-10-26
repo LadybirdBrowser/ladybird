@@ -129,7 +129,7 @@ impl<'a, 'memory> SerializationWriter<'a, 'memory> {
         object: &T,
         for_storage: bool,
     ) -> WebIdlResult<()> {
-        encode_serializable_object_header(self.serialized(), T::INTERFACE_NAME);
+        encode_serializable_object_header(self.serialized(), T::INTERFACE_NAME)?;
         object.serialization_steps(cx, self, for_storage)
     }
 }

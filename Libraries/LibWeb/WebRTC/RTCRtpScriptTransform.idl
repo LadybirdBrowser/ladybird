@@ -1,0 +1,28 @@
+// https://w3c.github.io/webrtc-encoded-transform/#rtcrtpscripttransform
+
+enum RTCRtpScriptTransformType {
+    "sframe"
+};
+
+dictionary WorkerAndParameters {
+    required Worker worker;
+    RTCRtpScriptTransformType type;
+};
+
+typedef (Worker or WorkerAndParameters) WorkerOrWorkerAndParameters;
+
+[Exposed=Window]
+interface RTCRtpScriptTransform {
+    constructor(WorkerOrWorkerAndParameters workerOrWorkerAndParameters, optional any options, optional sequence<object> transfer);
+};
+
+typedef (RTCSFrameSenderTransform or RTCRtpScriptTransform) RTCRtpSenderTransform;
+typedef (RTCSFrameReceiverTransform or RTCRtpScriptTransform) RTCRtpReceiverTransform;
+
+partial interface RTCRtpSender {
+    attribute RTCRtpSenderTransform? transform;
+};
+
+partial interface RTCRtpReceiver {
+    attribute RTCRtpReceiverTransform? transform;
+};

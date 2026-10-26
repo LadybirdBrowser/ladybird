@@ -1,0 +1,7 @@
+// https://w3c.github.io/webrtc-encoded-transform/#rtcsframereceivertransform
+
+[Exposed=Window]
+interface RTCSFrameReceiverTransform : EventTarget {
+    [FIXME] constructor(SFrameTransformOptions options);
+};
+RTCSFrameReceiverTransform includes SFrameDecrypterManager;
