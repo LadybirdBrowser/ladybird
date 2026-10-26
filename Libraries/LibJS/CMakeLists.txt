@@ -123,28 +123,19 @@ if (LIBJS_FOLDED_INTO_LIBWEB)
     ladybird_install_library_headers(LibJS JS)
     add_lagom_library_install_rules(LibJS ALIAS_NAME JS)
 
-    # LibJSStandalone is what a JavaScript tool that does not use LibWeb links: the objects, and the runtime out of the
-    # archive of LibWeb's crate, of which the tool takes only the members it references, so that building a tool never
-    # builds LibWeb's C++. The tool initializes the runtime's panic hook and demangler as the crate the runtime is.
-    add_rust_crate_initializer(libjs_rust)
+    # Standalone JavaScript tools link the objects and an independent runtime archive, so building them does not
+    # build LibWeb's Rust code or generate its bindings.
     add_library(LibJSStandalone INTERFACE)
     target_link_libraries(LibJSStandalone INTERFACE
         $<TARGET_OBJECTS:LibJSObjects>
-        $<TARGET_OBJECTS:libjs_rust_init>
-        LibJSHeaders libweb_bindings_rust_archive AK LibCore LibCrypto LibGC LibSyntax LibTextCodec
+        LibJSHeaders libjs_rust AK LibCore LibCrypto LibGC LibSyntax LibTextCodec
     )
     if ((LINUX OR BSD) AND BUILD_SHARED_LIBS)
         # The tool's copy of the runtime, with its Rust standard library, stays out of its dynamic symbol table, as the
-        # copy in LibJS's own library does. LibWeb's directory, which imports the archive, comes after this one, so
-        # the archive's name is resolved when the build is generated.
+        # copy in LibJS's own library does.
         target_link_options(LibJSStandalone INTERFACE
-            "LINKER:--exclude-libs,$<TARGET_FILE_NAME:libweb_bindings_rust_archive>"
+            "LINKER:--exclude-libs,$<TARGET_FILE_NAME:libjs_rust>"
         )
-    elseif ((LINUX OR BSD) AND NOT BUILD_SHARED_LIBS)
-        # The archive carries its own copy of the Rust standard library and of the crates it shares with the Rust
-        # archives of LibUnicode and the other libraries a tool links, whose exported symbols then appear twice in
-        # static ELF links.
-        target_link_options(LibJSStandalone INTERFACE LINKER:--allow-multiple-definition)
     endif()
 else()
     set(SOURCES $<TARGET_OBJECTS:LibJSObjects>)
