@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Sanitized markup is parsed into a separate document. Elements that the sanitizer removes must not fetch anything
+    // from there, while the elements that it keeps fetch once they are inserted into this document.
+    const SVG_NS = "http://www.w3.org/2000/svg";
+    const cases = [
+        ["video-poster", url => `<video poster="${url}"></video>`, ["video"]],
+        ["input-image", url => `<input type="image" src="${url}">`, ["input"]],
+        ["svg-image", url => `<svg><image href="${url}"></image></svg>`, [{ name: "image", namespace: SVG_NS }]],
+        ["svg-feimage", url => `<svg><filter><feImage href="${url}"></feImage></filter></svg>`, [{ name: "feImage", namespace: SVG_NS }]],
+        ["svg-use", url => `<svg><use href="${url}#target"></use></svg>`, [{ name: "use", namespace: SVG_NS }]],
+    ];
+
+    async function wasFetched(server, url) {
+        try {
+            const response = await fetch(server.recordedRequestHeadersURL(url));
+            return response.ok;
+        } catch {
+            // NB: The server answers with an error without CORS headers if it has not recorded a request.
+            return false;
+        }
+    }
+
+    async function waitUntilFetched(server, url) {
+        for (let attempt = 0; attempt < 600; ++attempt) {
+            if (await wasFetched(server, url))
+                return true;
+            await timeout(25);
+        }
+        return false;
+    }
+
+    promiseTest(async () => {
+        const server = httpTestServer();
+        for (const [name, markup, removeElements] of cases) {
+            const removedURL = await server.createEcho("GET", `/removed-${name}`, { status: 200, headers: { "Content-Type": "image/png" }, body: "x" });
+            const keptURL = await server.createEcho("GET", `/kept-${name}`, { status: 200, headers: { "Content-Type": "image/png" }, body: "x" });
+
+            const removedContainer = document.createElement("div");
+            document.body.append(removedContainer);
+            removedContainer.setHTMLUnsafe(markup(removedURL), { sanitizer: { removeElements } });
+
+            // NB: The kept element is parsed after the removed one, so once its request has arrived, a request for
+            //     the removed element would have arrived too.
+            const keptContainer = document.createElement("div");
+            document.body.append(keptContainer);
+            keptContainer.setHTMLUnsafe(markup(keptURL), { sanitizer: {} });
+
+            println(`${name}: kept element fetched: ${await waitUntilFetched(server, keptURL)}`);
+            println(`${name}: removed element fetched: ${await wasFetched(server, removedURL)}`);
+        }
+    });
+</script>
