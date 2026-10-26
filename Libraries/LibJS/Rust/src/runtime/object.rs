@@ -2966,6 +2966,7 @@ impl Object {
                 );
             }
         }
+        self.write_direct(self.shape().property_count(), Value::UNDEFINED);
     }
 
     pub fn set_prototype(&self, vm: &Vm, new_prototype: Option<Gc<Object>>) {
