@@ -1,0 +1,56 @@
+Harness status: OK
+
+Found 51 tests
+
+51 Pass
+Pass	3041  HIRAGANA LETTER SMALL A may NOT appear at line start if de and strict
+Pass	3043  HIRAGANA LETTER SMALL I may NOT appear at line start if de and strict
+Pass	3045  HIRAGANA LETTER SMALL U may NOT appear at line start if de and strict
+Pass	3047  HIRAGANA LETTER SMALL E may NOT appear at line start if de and strict
+Pass	3049  HIRAGANA LETTER SMALL O may NOT appear at line start if de and strict
+Pass	3063  HIRAGANA LETTER SMALL TU may NOT appear at line start if de and strict
+Pass	3083  HIRAGANA LETTER SMALL YA may NOT appear at line start if de and strict
+Pass	3085  HIRAGANA LETTER SMALL YU may NOT appear at line start if de and strict
+Pass	3087  HIRAGANA LETTER SMALL YO may NOT appear at line start if de and strict
+Pass	308E  HIRAGANA LETTER SMALL WA may NOT appear at line start if de and strict
+Pass	3095  HIRAGANA LETTER SMALL KA may NOT appear at line start if de and strict
+Pass	3096  HIRAGANA LETTER SMALL KE may NOT appear at line start if de and strict
+Pass	30A1  KATAKANA LETTER SMALL A may NOT appear at line start if de and strict
+Pass	30A3  KATAKANA LETTER SMALL I may NOT appear at line start if de and strict
+Pass	30A5  KATAKANA LETTER SMALL U may NOT appear at line start if de and strict
+Pass	30A7  KATAKANA LETTER SMALL E may NOT appear at line start if de and strict
+Pass	30A9  KATAKANA LETTER SMALL O may NOT appear at line start if de and strict
+Pass	30C3  KATAKANA LETTER SMALL TU may NOT appear at line start if de and strict
+Pass	30E3  KATAKANA LETTER SMALL YA may NOT appear at line start if de and strict
+Pass	30E5  KATAKANA LETTER SMALL YU may NOT appear at line start if de and strict
+Pass	30E7  KATAKANA LETTER SMALL YO may NOT appear at line start if de and strict
+Pass	30EE  KATAKANA LETTER SMALL WA may NOT appear at line start if de and strict
+Pass	30F5  KATAKANA LETTER SMALL KA may NOT appear at line start if de and strict
+Pass	30F6  KATAKANA LETTER SMALL KE may NOT appear at line start if de and strict
+Pass	30FC  KATAKANA-HIRAGANA PROLONGED SOUND MARK may NOT appear at line start if de and strict
+Pass	31F0  KATAKANA LETTER SMALL KU may NOT appear at line start if de and strict
+Pass	31F1  KATAKANA LETTER SMALL SI may NOT appear at line start if de and strict
+Pass	31F2  KATAKANA LETTER SMALL SU may NOT appear at line start if de and strict
+Pass	31F3  KATAKANA LETTER SMALL TO may NOT appear at line start if de and strict
+Pass	31F4  KATAKANA LETTER SMALL NU may NOT appear at line start if de and strict
+Pass	31F5  KATAKANA LETTER SMALL HA may NOT appear at line start if de and strict
+Pass	31F6  KATAKANA LETTER SMALL HI may NOT appear at line start if de and strict
+Pass	31F7  KATAKANA LETTER SMALL HU may NOT appear at line start if de and strict
+Pass	31F8  KATAKANA LETTER SMALL HE may NOT appear at line start if de and strict
+Pass	31F9  KATAKANA LETTER SMALL HO may NOT appear at line start if de and strict
+Pass	31FA  KATAKANA LETTER SMALL MU may NOT appear at line start if de and strict
+Pass	31FB  KATAKANA LETTER SMALL RA may NOT appear at line start if de and strict
+Pass	31FC  KATAKANA LETTER SMALL RI may NOT appear at line start if de and strict
+Pass	31FD  KATAKANA LETTER SMALL RU may NOT appear at line start if de and strict
+Pass	31FE  KATAKANA LETTER SMALL RE may NOT appear at line start if de and strict
+Pass	31FF  KATAKANA LETTER SMALL RO may NOT appear at line start if de and strict
+Pass	FF67  HALFWIDTH KATAKANA LETTER SMALL A may NOT appear at line start if de and strict
+Pass	FF68  HALFWIDTH KATAKANA LETTER SMALL I may NOT appear at line start if de and strict
+Pass	FF69  HALFWIDTH KATAKANA LETTER SMALL U may NOT appear at line start if de and strict
+Pass	FF6A  HALFWIDTH KATAKANA LETTER SMALL E may NOT appear at line start if de and strict
+Pass	FF6B  HALFWIDTH KATAKANA LETTER SMALL O may NOT appear at line start if de and strict
+Pass	FF6C  HALFWIDTH KATAKANA LETTER SMALL YA may NOT appear at line start if de and strict
+Pass	FF6D  HALFWIDTH KATAKANA LETTER SMALL YU may NOT appear at line start if de and strict
+Pass	FF6E  HALFWIDTH KATAKANA LETTER SMALL YO may NOT appear at line start if de and strict
+Pass	FF6F  HALFWIDTH KATAKANA LETTER SMALL TU may NOT appear at line start if de and strict
+Pass	FF70  HALFWIDTH KATAKANA-HIRAGANA PROLONGED SOUND MARK may NOT appear at line start if de and strict

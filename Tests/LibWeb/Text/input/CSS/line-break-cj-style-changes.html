@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face {
+        font-family: TestKana;
+        src: url("../wpt-import/fonts/mplus-1p-regular.woff");
+    }
+    .line {
+        font: 30px / 1 TestKana;
+        width: 185px;
+    }
+</style>
+<div id="line-parent" style="line-break: strict"><div class="line" id="target">文文文文文文ぁ字<span id="marker">字</span></div></div>
+<div class="line">文文文文文文<br>ぁ字<span id="reference">字</span></div>
+<script>
+    asyncTest(async done => {
+        const container = document.getElementById("line-parent");
+        const target = document.getElementById("target");
+        const marker = document.getElementById("marker");
+        const reference = document.getElementById("reference");
+        await document.fonts.load("30px TestKana");
+        const strictPosition = marker.getBoundingClientRect().left;
+        const normalPosition = reference.getBoundingClientRect().left;
+
+        container.style.lineBreak = "normal";
+        println(`normal is inherited: ${getComputedStyle(target).lineBreak === "normal"}`);
+        println(`normal allows a CJ line start: ${marker.getBoundingClientRect().left === normalPosition}`);
+
+        container.style.lineBreak = "strict";
+        println(`strict restores the original break: ${marker.getBoundingClientRect().left === strictPosition}`);
+
+        container.style.lineBreak = "loose";
+        println(`loose allows a CJ line start: ${marker.getBoundingClientRect().left === normalPosition}`);
+
+        container.style.lineBreak = "auto";
+        println(`auto restores the original break: ${marker.getBoundingClientRect().left === strictPosition}`);
+        done();
+    });
+</script>

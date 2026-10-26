@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html  lang="en" >
+<head>
+<meta charset="utf-8"/>
+<title>Line-break:loose, Conditional Japanese Starter (CJ) (unknown lang)</title>
+<link rel="author" title="Richard Ishida" href="mailto:ishida@w3.org">
+<link rel="help" href="https://drafts.csswg.org/css-text-3/#line-break-property">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<meta name="assert" content="The browser allows a conditional Japanese starter at the beginning of a line; the language being unknown makes no difference.">
+<style type="text/css">
+@font-face {
+    font-family: 'mplus-1p-regular';
+    src: url('../../../../fonts/mplus-1p-regular.woff') format('woff');
+    }
+#wrapper { position: relative; }
+.test { color: red; }
+.test, .ref { font-size: 30px; font-family: mplus-1p-regular, sans-serif; width: 185px; padding: 0; border: 1px solid orange; line-height: 1em; }
+</style>
+<style>
+.test { line-break: loose; }
+</style>
+<script>
+var charlist = `3041  HIRAGANA LETTER SMALL A
+3043  HIRAGANA LETTER SMALL I
+3045  HIRAGANA LETTER SMALL U
+3047  HIRAGANA LETTER SMALL E
+3049  HIRAGANA LETTER SMALL O
+3063  HIRAGANA LETTER SMALL TU
+3083  HIRAGANA LETTER SMALL YA
+3085  HIRAGANA LETTER SMALL YU
+3087  HIRAGANA LETTER SMALL YO
+308E  HIRAGANA LETTER SMALL WA
+3095  HIRAGANA LETTER SMALL KA
+3096  HIRAGANA LETTER SMALL KE
+30A1  KATAKANA LETTER SMALL A
+30A3  KATAKANA LETTER SMALL I
+30A5  KATAKANA LETTER SMALL U
+30A7  KATAKANA LETTER SMALL E
+30A9  KATAKANA LETTER SMALL O
+30C3  KATAKANA LETTER SMALL TU
+30E3  KATAKANA LETTER SMALL YA
+30E5  KATAKANA LETTER SMALL YU
+30E7  KATAKANA LETTER SMALL YO
+30EE  KATAKANA LETTER SMALL WA
+30F5  KATAKANA LETTER SMALL KA
+30F6  KATAKANA LETTER SMALL KE
+30FC  KATAKANA-HIRAGANA PROLONGED SOUND MARK
+31F0  KATAKANA LETTER SMALL KU
+31F1  KATAKANA LETTER SMALL SI
+31F2  KATAKANA LETTER SMALL SU
+31F3  KATAKANA LETTER SMALL TO
+31F4  KATAKANA LETTER SMALL NU
+31F5  KATAKANA LETTER SMALL HA
+31F6  KATAKANA LETTER SMALL HI
+31F7  KATAKANA LETTER SMALL HU
+31F8  KATAKANA LETTER SMALL HE
+31F9  KATAKANA LETTER SMALL HO
+31FA  KATAKANA LETTER SMALL MU
+31FB  KATAKANA LETTER SMALL RA
+31FC  KATAKANA LETTER SMALL RI
+31FD  KATAKANA LETTER SMALL RU
+31FE  KATAKANA LETTER SMALL RE
+31FF  KATAKANA LETTER SMALL RO
+FF67  HALFWIDTH KATAKANA LETTER SMALL A
+FF68  HALFWIDTH KATAKANA LETTER SMALL I
+FF69  HALFWIDTH KATAKANA LETTER SMALL U
+FF6A  HALFWIDTH KATAKANA LETTER SMALL E
+FF6B  HALFWIDTH KATAKANA LETTER SMALL O
+FF6C  HALFWIDTH KATAKANA LETTER SMALL YA
+FF6D  HALFWIDTH KATAKANA LETTER SMALL YU
+FF6E  HALFWIDTH KATAKANA LETTER SMALL YO
+FF6F  HALFWIDTH KATAKANA LETTER SMALL TU
+FF70  HALFWIDTH KATAKANA-HIRAGANA PROLONGED SOUND MARK`
+</script>
+</head>
+<body>
+<script>
+var lines = charlist.split('\n')
+var out = '<div id="log"></div>\n'
+for (var i=0;i<lines.length;i++) {
+	// get the data
+	var firstSpace = lines[i].indexOf(' ')
+	var hex = lines[i].substr(0,firstSpace)
+	var name = lines[i].substr(firstSpace)
+	// make a test
+	out +=  '<div class="wrapper"><div>'+hex+'</div>' +
+	'<div class="test" id="test'+i+'" lang="">文文文文文文&#x'+hex+';字<span id="testSpan'+i+'">字</span></div>' +
+	 '<div class="ref" id="ref'+i+'" lang="">文文文文文文<br/>&#x'+hex+';字<span id="refSpan'+i+'">字</span></div>' +
+	 '</div>'
+	}
+
+document.querySelector('body').innerHTML = out
+setup({explicit_done: true});
+
+document.fonts.ready.then(validate);
+
+function validate() {
+  for (i=0;i<lines.length;i++) {
+    test(function() {
+      assert_approx_equals(
+        document.getElementById('testSpan'+i).getBoundingClientRect().left,
+        document.getElementById('refSpan'+i).getBoundingClientRect().left, 1);
+      // Hide successful tests.
+      document.getElementById('test'+i).parentNode.style.display = 'none';
+    }, lines[i]+' may appear at line start if loose');
+  }
+  done();
+}
+</script>
+<!--Notes:
+The test creates a box with room for 6 characters, causing wrapping to occur either between the 6th and the 7th character, or before the 6th if the breaks after the 6th or before the 7th are prohibited.
+
+It also creates the expected behaviour with a ref instance, using <br/>. Each line ends with a span. The test then checks whether the left edge of the span is in the same place in test and ref instance.
+-->
+</body>
+</html>
