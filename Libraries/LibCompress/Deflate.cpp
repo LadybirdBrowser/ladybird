@@ -6,7 +6,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/NeverDestroyed.h>
 #include <LibCompress/Deflate.h>
 #include <LibCompress/DeflateTables.h>
 
