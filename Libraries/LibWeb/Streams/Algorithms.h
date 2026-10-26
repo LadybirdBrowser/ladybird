@@ -17,5 +17,6 @@ using PullAlgorithm = GC::Function<GC::Ref<WebIDL::Promise>()>;
 using CancelAlgorithm = GC::Function<GC::Ref<WebIDL::Promise>(JS::Value)>;
 using FlushAlgorithm = GC::Function<GC::Ref<WebIDL::Promise>()>;
 using TransformAlgorithm = GC::Function<GC::Ref<WebIDL::Promise>(JS::Value)>;
+using WriteAlgorithm = GC::Function<GC::Ref<WebIDL::Promise>(JS::Value)>;
 
 }
