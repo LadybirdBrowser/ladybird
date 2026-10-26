@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const error = new Error("message");
+        error.name = "InternalError";
+        const clone = structuredClone(error);
+        println(`constructor is Error: ${clone.constructor === Error}`);
+        println(`name: ${clone.name}`);
+        println(`message: ${clone.message}`);
+    });
+</script>

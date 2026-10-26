@@ -1523,6 +1523,9 @@ public:
                 auto type = ErrorType::Error;
                 if (name.is_string())
                     type = error_name_to_type(name.as_string().utf16_string_view());
+                // NB: InternalError is a native error of LibJS, but it is not one of those names.
+                if (type == ErrorType::InternalError)
+                    type = ErrorType::Error;
 
                 // 3. Let valueMessageDesc be ? value.[[GetOwnProperty]]("message").
                 auto value_message_descriptor = TRY(object->internal_get_own_property(m_vm.names.message));
