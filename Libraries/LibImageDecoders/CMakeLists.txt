@@ -24,7 +24,6 @@ import_rust_crate(
 )
 
 target_link_libraries(LibImageDecoders PRIVATE
-    LibCompress
     LibCore
     LibCrypto
     LibFileSystem
