@@ -38,7 +38,7 @@ option(LADYBIRD_GENERATE_SYMBOL_FILES "Build with debug info and write the symbo
 if (LADYBIRD_GENERATE_SYMBOL_FILES AND MSVC)
     message(FATAL_ERROR "LADYBIRD_GENERATE_SYMBOL_FILES is not supported with MSVC-style toolchains")
 endif()
-option(ENABLE_CI_BASELINE_CPU "Use a baseline CPU target for improved ccache sharing" OFF)
+option(ENABLE_CI_BASELINE_CPU "Use a common CPU baseline for portable binaries and ccache sharing" OFF)
 
 # lto1 uses a crazy amount of RAM in static builds.
 # Disable LTO for static gcc builds unless explicitly asked for.

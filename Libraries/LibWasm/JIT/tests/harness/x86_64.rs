@@ -19,7 +19,7 @@ const VMOVUPS_STORE: VexOpcode = VexOpcode::new(VexPrefix::None, VexMap::Map0F, 
 
 /// The trap exit, entered with the trap code in edi: returns 1 from the trampoline.
 pub(super) fn trap_exit_code(state: *mut SessionState) -> Vec<u8> {
-    let mut asm = Assembler::new();
+    let mut asm = Assembler::for_host();
     let rax = Gpr(convention::RAX);
     let sp = Gpr(convention::RSP);
     asm.mov_ri(rax, state as u64);
@@ -36,7 +36,7 @@ pub(super) fn not_compiled_code(trap_exit: u64) -> Vec<u8> {
 
 /// Code that traps with `code`.
 pub(super) fn trap_stub(trap_exit: u64, code: u32) -> Vec<u8> {
-    let mut asm = Assembler::new();
+    let mut asm = Assembler::for_host();
     asm.mov_ri32(Gpr(convention::RDI), code);
     asm.mov_ri(Gpr(convention::R11), trap_exit);
     asm.jmp_r(Gpr(convention::R11));
@@ -62,7 +62,7 @@ fn restore_and_return(asm: &mut Assembler, status: u32) {
 /// `extern "C" fn(entry, arguments, results, instance) -> u32`: calls `entry` with the arguments' slots under the
 /// compiled convention, stores the results' slots, and returns 0, or 1 if the code trapped.
 pub(super) fn trampoline_code(params: &[Type], results: &[Type], state: *mut SessionState) -> Vec<u8> {
-    let mut asm = Assembler::new();
+    let mut asm = Assembler::for_host();
     let g = Gpr;
     let (rdi, rsi, rdx, rcx) = (
         g(convention::RDI),

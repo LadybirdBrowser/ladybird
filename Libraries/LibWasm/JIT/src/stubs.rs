@@ -74,7 +74,7 @@ fn copy(asm: &mut Assembler, ty: Type, from: Address, to: Address) {
 
 /// The host stub for functions with these parameter and result types.
 pub fn host_stub(params: &[Type], results: &[Type], runtime: &RuntimeInfo) -> Vec<u8> {
-    let mut asm = Assembler::new();
+    let mut asm = Assembler::for_host();
     let parameter_slots = convention::slots(params) as i32;
     let result_slots = convention::slots(results) as i32;
     let buffer_slots = parameter_slots.max(result_slots);
@@ -230,7 +230,7 @@ fn field(offset: usize) -> i32 {
 /// The trap exit: stores the code in edi as the context's first argument, and the context in the frame that
 /// trapped, and continues at the interpreter's TrapFromNative handler at `handler`.
 pub fn trap_exit(handler: u64) -> Vec<u8> {
-    let mut asm = Assembler::new();
+    let mut asm = Assembler::for_host();
     let context = gpr(convention::RAX);
     asm.mov_rm(Width::W64, context, &Address::new(FP, convention::FRAME_INSTANCE));
     asm.mov_rm(
@@ -277,7 +277,7 @@ fn copy_words(asm: &mut Assembler, from: Gpr, to: Gpr, count: Gpr, temp: Gpr) {
 /// The entry trampoline, `extern "C" fn(*mut NativeCall)`, and the offset of the address its call of compiled code
 /// returns to, where an exception the compiled code does not handle continues (see `RuntimeInfo::throw`).
 pub fn entry_trampoline() -> (Vec<u8>, usize) {
-    let mut asm = Assembler::new();
+    let mut asm = Assembler::for_host();
     let record = gpr(convention::R11);
     let (rax, rcx, rdx, rsi, rdi) = (
         gpr(convention::RAX),
@@ -377,7 +377,7 @@ pub const ADAPTER_RESUME: u64 = u64::MAX;
 /// with the callee's header, the save area and fp as the context's first three arguments. A nonzero result is a
 /// trap code, or `ADAPTER_RESUME`.
 pub fn runtime_adapter(function: u64, runtime: &RuntimeInfo) -> Vec<u8> {
-    let mut asm = Assembler::new();
+    let mut asm = Assembler::for_host();
     let instance = gpr(convention::INSTANCE_REGISTER);
     // Below the frame header, the save area at rsp.
     let frame_size = (convention::FRAME_HEADER_SIZE as usize + ADAPTER_SAVE_AREA).next_multiple_of(16) as i32;

@@ -83,8 +83,8 @@ pub fn check_cpu_features() {
     );
 }
 
-/// Whether the CPU has the features the JIT's code uses: those of x86-64-v3 on x86-64, and those of the interpreter on
-/// AArch64. Without them, everything runs in the interpreter.
+/// Whether the CPU has the JIT's baseline features. On x86-64, optional AVX, BMI and LZCNT instructions are selected
+/// at runtime; SSE4.2 and POPCNT suffice for both tiers. AArch64 uses the interpreter's features.
 pub fn cpu_supports_jit() -> bool {
     missing_jit_cpu_features().is_empty()
 }
@@ -120,9 +120,7 @@ fn missing_interpreter_cpu_features() -> Vec<&'static str> {
 
 #[cfg(target_arch = "x86_64")]
 fn missing_jit_cpu_features() -> Vec<&'static str> {
-    missing_cpu_features!(
-        "sse4.1", "sse4.2", "popcnt", "lzcnt", "bmi1", "bmi2", "avx", "avx2", "fma", "movbe"
-    )
+    missing_cpu_features!("ssse3", "sse4.1", "sse4.2", "popcnt")
 }
 
 #[cfg(target_arch = "aarch64")]

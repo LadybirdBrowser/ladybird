@@ -4,13 +4,14 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Encoders of the x86-64-v3 instructions the WebAssembly JIT uses beyond what LibJS needs: VEX three-operand
+//! Encoders of the instructions the WebAssembly JIT uses beyond what LibJS needs: VEX three-operand
 //! scalar float arithmetic for f32 and f64, rounding and conversions, bitwise operations on xmm registers, BMI1 and
 //! BMI2 (`andn`, `shlx`, `sarx`, `shrx`, `rorx`), bit counting (`lzcnt`, `tzcnt`, `popcnt`) and unsigned division,
 //! and `vex()`, which encodes any VEX instruction from its opcode, for the vector instructions.
 //!
 //! VEX instructions with a scalar operand ignore VEX.L (they are LIG); this file encodes them with L = 0, like the
 //! 128-bit forms.
+//! With `Assembler::for_host`, SIMD, rotations and bit counts select SSE and bit-scan fallbacks as needed.
 
 use super::super::Address;
 use super::super::Fpr;
@@ -141,7 +142,7 @@ impl Assembler {
     /// Emits a VEX prefix and opcode with ModRM for `reg`, the extra source `vvvv` and `rm`, using the two-byte form
     /// where it can.
     #[allow(clippy::too_many_arguments)]
-    fn vex_instruction(
+    pub(super) fn vex_instruction(
         &mut self,
         prefix: VexPrefix,
         map: VexMap,
@@ -177,7 +178,12 @@ impl Assembler {
 
     /// Emits the VEX instruction `opcode` with `reg` in ModRM.reg, `vvvv` as the extra source (0 where the
     /// instruction has none), `rm` and an immediate byte. Registers are by their encoding, whatever their class.
+    /// With host instruction selection, the Wasm SIMD subset uses equivalent SSE sequences without AVX2.
     pub fn vex(&mut self, opcode: VexOpcode, reg: u8, vvvv: u8, rm: VexOperand, immediate: Option<u8>) {
+        if !self.cpu_features().avx2 {
+            self.legacy_vector(opcode, reg, vvvv, rm, immediate);
+            return;
+        }
         let rm = match rm {
             VexOperand::Register(register) => Rm::Reg(register),
             VexOperand::Memory(address) => Rm::Mem(address),
@@ -207,7 +213,7 @@ impl Assembler {
 
     /// `vaddss`/`vsubss`/... `dst, lhs, rhs` (and the `sd` forms). The bits above the scalar come from `lhs`.
     pub fn vfloat_rrr(&mut self, op: FloatOp, precision: Precision, dst: Fpr, lhs: Fpr, rhs: Fpr) {
-        self.vex_instruction(
+        self.simd_instruction(
             precision.scalar_prefix(),
             VexMap::Map0F,
             false,
@@ -221,7 +227,7 @@ impl Assembler {
 
     /// `vaddss`/`vsubss`/... `dst, lhs, [address]` (and the `sd` forms).
     pub fn vfloat_rrm(&mut self, op: FloatOp, precision: Precision, dst: Fpr, lhs: Fpr, address: &Address) {
-        self.vex_instruction(
+        self.simd_instruction(
             precision.scalar_prefix(),
             VexMap::Map0F,
             false,
@@ -244,7 +250,7 @@ impl Assembler {
             Precision::Single => 0x0a,
             Precision::Double => 0x0b,
         };
-        self.vex_instruction(
+        self.simd_instruction(
             VexPrefix::OperandSize,
             VexMap::Map0F3A,
             false,
@@ -259,7 +265,7 @@ impl Assembler {
 
     /// `vandps`/`vandnps`/`vorps`/`vxorps dst, lhs, rhs` on all 128 bits. `AndNot` computes `!lhs & rhs`.
     pub fn vbitwise_rrr(&mut self, op: BitwiseOp, dst: Fpr, lhs: Fpr, rhs: Fpr) {
-        self.vex_instruction(
+        self.simd_instruction(
             VexPrefix::None,
             VexMap::Map0F,
             false,
@@ -273,7 +279,7 @@ impl Assembler {
 
     /// `vandps`/... `dst, lhs, xmmword [rip + label]`.
     pub fn vbitwise_r_label(&mut self, op: BitwiseOp, dst: Fpr, lhs: Fpr, label: Label) {
-        self.vex_instruction(
+        self.simd_instruction(
             VexPrefix::None,
             VexMap::Map0F,
             false,
@@ -287,7 +293,7 @@ impl Assembler {
 
     /// `vmovaps dst, src`.
     pub fn vmovaps_rr(&mut self, dst: Fpr, src: Fpr) {
-        self.vex_instruction(VexPrefix::None, VexMap::Map0F, false, 0x28, dst.0, 0, Rm::Reg(src.0), 0);
+        self.simd_instruction(VexPrefix::None, VexMap::Map0F, false, 0x28, dst.0, 0, Rm::Reg(src.0), 0);
     }
 
     /// `vucomiss`/`vucomisd lhs, rhs`: ZF/PF/CF = unordered 111, less 001, equal 100, greater 000.
@@ -296,14 +302,14 @@ impl Assembler {
             Precision::Single => VexPrefix::None,
             Precision::Double => VexPrefix::OperandSize,
         };
-        self.vex_instruction(prefix, VexMap::Map0F, false, 0x2e, lhs.0, 0, Rm::Reg(rhs.0), 0);
+        self.simd_instruction(prefix, VexMap::Map0F, false, 0x2e, lhs.0, 0, Rm::Reg(rhs.0), 0);
     }
 
     // Loads and stores.
 
     /// `vmovss`/`vmovsd dst, [address]`, zeroing the bits above the scalar.
     pub fn vmovs_rm(&mut self, precision: Precision, dst: Fpr, address: &Address) {
-        self.vex_instruction(
+        self.simd_instruction(
             precision.scalar_prefix(),
             VexMap::Map0F,
             false,
@@ -317,7 +323,7 @@ impl Assembler {
 
     /// `vmovss`/`vmovsd [address], src`.
     pub fn vmovs_mr(&mut self, precision: Precision, address: &Address, src: Fpr) {
-        self.vex_instruction(
+        self.simd_instruction(
             precision.scalar_prefix(),
             VexMap::Map0F,
             false,
@@ -331,7 +337,7 @@ impl Assembler {
 
     /// `vmovss`/`vmovsd dst, [rip + label]`.
     pub fn vmovs_r_label(&mut self, precision: Precision, dst: Fpr, label: Label) {
-        self.vex_instruction(
+        self.simd_instruction(
             precision.scalar_prefix(),
             VexMap::Map0F,
             false,
@@ -347,7 +353,7 @@ impl Assembler {
 
     /// `vmovd xmm, r32` or `vmovq xmm, r64`, zeroing the rest of the register.
     pub fn vmov_xr(&mut self, width: Width, dst: Fpr, src: Gpr) {
-        self.vex_instruction(
+        self.simd_instruction(
             VexPrefix::OperandSize,
             VexMap::Map0F,
             width == Width::W64,
@@ -361,7 +367,7 @@ impl Assembler {
 
     /// `vmovd r32, xmm` or `vmovq r64, xmm`.
     pub fn vmov_rx(&mut self, width: Width, dst: Gpr, src: Fpr) {
-        self.vex_instruction(
+        self.simd_instruction(
             VexPrefix::OperandSize,
             VexMap::Map0F,
             width == Width::W64,
@@ -378,7 +384,7 @@ impl Assembler {
     /// `vcvtsi2ss`/`vcvtsi2sd dst, upper, r32/r64`: the signed integer as a float, with the bits above the scalar
     /// from `upper`.
     pub fn vcvtsi2s(&mut self, precision: Precision, width: Width, dst: Fpr, upper: Fpr, src: Gpr) {
-        self.vex_instruction(
+        self.simd_instruction(
             precision.scalar_prefix(),
             VexMap::Map0F,
             width == Width::W64,
@@ -393,7 +399,7 @@ impl Assembler {
     /// `vcvttss2si`/`vcvttsd2si r32/r64, src`: truncates toward zero. Produces the "integer indefinite" value (only
     /// the sign bit set) for NaN and out of range inputs.
     pub fn vcvtts2si(&mut self, precision: Precision, width: Width, dst: Gpr, src: Fpr) {
-        self.vex_instruction(
+        self.simd_instruction(
             precision.scalar_prefix(),
             VexMap::Map0F,
             width == Width::W64,
@@ -407,7 +413,7 @@ impl Assembler {
 
     /// `vcvtss2sd dst, upper, src`: widens a float to a double.
     pub fn vcvtss2sd(&mut self, dst: Fpr, upper: Fpr, src: Fpr) {
-        self.vex_instruction(
+        self.simd_instruction(
             VexPrefix::Rep,
             VexMap::Map0F,
             false,
@@ -421,7 +427,7 @@ impl Assembler {
 
     /// `vcvtsd2ss dst, upper, src`: rounds a double to a float.
     pub fn vcvtsd2ss(&mut self, dst: Fpr, upper: Fpr, src: Fpr) {
-        self.vex_instruction(
+        self.simd_instruction(
             VexPrefix::Repne,
             VexMap::Map0F,
             false,
@@ -437,6 +443,11 @@ impl Assembler {
 
     /// `lzcnt`/`tzcnt`/`popcnt dst, src`.
     pub fn bit_count(&mut self, op: BitCount, width: Width, dst: Gpr, src: Gpr) {
+        let features = self.cpu_features();
+        if (op == BitCount::Lzcnt && !features.lzcnt) || (op == BitCount::Tzcnt && !features.bmi1) {
+            self.count_zeros(op, width, dst, src);
+            return;
+        }
         self.emit_instruction(
             Prefix::Rep,
             width == Width::W64,
@@ -480,8 +491,13 @@ impl Assembler {
         );
     }
 
-    /// `rorx dst, src, amount`: rotates right by an immediate, leaving the flags alone.
+    /// `rorx dst, src, amount`: rotates right by an immediate. Without BMI2, uses MOV and ROR, clobbering flags.
     pub fn rorx(&mut self, width: Width, dst: Gpr, src: Gpr, amount: u8) {
+        if !self.cpu_features().bmi2 {
+            self.mov_rr(width, dst, src);
+            self.shift_ri(super::ShiftOp::Ror, width, dst, amount);
+            return;
+        }
         self.vex_instruction(
             VexPrefix::Repne,
             VexMap::Map0F3A,

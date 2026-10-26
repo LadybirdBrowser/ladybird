@@ -74,6 +74,17 @@ impl CodeGenerator<'_> {
                         _ => ShiftOp::Shr,
                     };
                     self.asm.shift_ri(op, width(ty), dst, amount);
+                } else if !self.asm.cpu_features().bmi2 {
+                    debug_assert_eq!(gpr(b), crate::asm::x86_64::RCX);
+                    if output != a {
+                        self.asm.mov_rr(width(ty), dst, source);
+                    }
+                    let op = match node.op {
+                        Op::Shl => ShiftOp::Shl,
+                        Op::ShrS => ShiftOp::Sar,
+                        _ => ShiftOp::Shr,
+                    };
+                    self.asm.shift_rcl(op, width(ty), dst);
                 } else {
                     let op = match node.op {
                         Op::Shl => ShiftX::Shl,

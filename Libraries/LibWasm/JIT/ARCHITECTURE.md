@@ -306,10 +306,15 @@ There is a backend per target, with the same structure: `codegen/x86_64/` and `c
 (ARMv8.1 with LSE atomics and NEON), each with its own instruction selection for numbers, vectors,
 memory, calls, tables and GC objects. The rest of this section describes the x86-64 one.
 
-`codegen/x86_64/` lowers the blocks in linear order with x86-64-v3 instructions (VEX three-operand
-float arithmetic, BMI1/BMI2 shifts and rotates, lzcnt, tzcnt, popcnt, and AVX2 for vectors), from
-libjs_jit's encoders and the additions in its `asm/x86_64/extended.rs`, whose `vex()` encodes any
-VEX instruction from its opcode (`codegen/x86_64/vector.rs` names the SIMD ones). After each node, a value with a slot is stored
+`codegen/x86_64/` lowers the blocks in linear order for an x86-64-v2 baseline (SSE4.2 and POPCNT).
+The assembler and allocator select optional instructions independently using runtime CPU detection:
+AVX for scalar floats, AVX2 for vectors, BMI2 for shifts and rotates, and LZCNT/BMI1 for zero counts.
+Without them, `asm/x86_64/sse.rs` emits legacy SSE sequences and bit scans, and variable integer
+shifts use CL. This selection also covers entry, exit and host stubs. The shared encoders live in
+libjs_jit's `asm/x86_64/`; `codegen/x86_64/vector.rs` names the SIMD opcodes. SSE packed operations
+read spilled vectors through registers, since their memory operands require sixteen-byte alignment.
+Distributed C++ and Rust builds target the same v2 baseline (`ENABLE_CI_BASELINE_CPU`); native
+builds still target the machine building them. After each node, a value with a slot is stored
 there; a phi in a register with a slot is stored where its block starts.
 
 - **Vectors.** A vector node's output register differs from its inputs and temps, so lowerings may
@@ -381,6 +386,11 @@ the interpreter and the host. The JIT is on by default; `LIBWASM_JIT` configures
   traps with a code of its own; binding a module's instance points the engine's function headers at
   the code. With `--runtime`, the script calls go through `Store::invoke` instead, and the runtime
   compiles what `LIBWASM_JIT` says (`eager` by default).
+- To check the SSE path on an AVX-capable development machine, build `spec_check` with
+  `RUSTFLAGS='-Ctarget-cpu=x86-64-v2' cargo build -p libwasm_jit --example spec_check`, then run
+  `qemu-x86_64 -cpu Nehalem target/debug/examples/spec_check SCRIPT_DIRECTORY`. Repeat with
+  `--stress-registers` to exercise spills and with `--runtime` to exercise the runtime's tier
+  transitions and stubs. `-cpu SandyBridge` also checks AVX scalar floats alongside SSE vectors.
 - `examples/bench_check.rs` runs a module's entry in an interpreted store and a compiled one, with
   deterministic imports, and compares results, exit codes, memories, tables and globals.
 - `examples/smith_check.rs` does the same for random modules from `wasm-tools smith` in the subset

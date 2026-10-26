@@ -33,6 +33,7 @@ ALLOWED = {
     "Libraries/LibCompositing/Rust/src/test_stubs.rs:NEXT": "test stub for LibGfx's C++ counters, in the cargo test binary that has no C++ side",
     "Libraries/LibCompositing/Rust/src/display_list/replay.rs:WARM_REPLAY_SCRATCH_STORAGE": "per-thread replay scratch; a second copy costs memory, never an answer",
     "Libraries/LibJS/Flap/src/low_ir/lowering.rs:LABELS": "per-thread scratch buffer; a second copy costs memory, never an answer",
+    "Libraries/LibJS/JIT/Rust/src/asm/x86_64/sse.rs:FEATURES": "immutable CPU/OS feature cache; each copy computes the same supported instructions",
     "Libraries/LibWeb/HTML/Parser/Rust/src/token.rs:SPARE_ATTRIBUTE_LISTS": "per-thread allocation pool; a second copy costs memory, never an answer",
     "Libraries/LibWeb/HTML/Parser/Rust/src/token.rs:SPARE_ATTRIBUTE_VALUES": "per-thread allocation pool; a second copy costs memory, never an answer",
 }
