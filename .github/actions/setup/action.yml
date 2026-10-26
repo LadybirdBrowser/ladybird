@@ -162,12 +162,11 @@ runs:
         echo "filename=${NAME}.${EXTENSION}" >> "$GITHUB_OUTPUT"
         echo "extension=${EXTENSION}" >> "$GITHUB_OUTPUT"
 
-    - name: 'Cache wasm-tools'
+    - name: 'Restore wasm-tools'
       id: 'wasm-tools-cache'
       if: ${{ inputs.type == 'build' && inputs.os != 'Linux' }}
-      uses: actions/cache@v6
+      uses: actions/cache/restore@v6
       with:
-        # The post-job save evaluates `path` without the steps context, so it must not depend on step outputs.
         path: ${{ github.workspace }}/wasm-tools
         key: ${{ steps.wasm-tools.outputs.name }}
 
@@ -198,13 +197,23 @@ runs:
         rm "${FILENAME}"
         mv "${{ steps.wasm-tools.outputs.name }}" wasm-tools
 
+    # Saved right after the install rather than by actions/cache's post-job step, which runs only if the whole job
+    # succeeds — so a flaky test would keep the cache from ever being saved.
+    - name: 'Save wasm-tools'
+      if: ${{ inputs.type == 'build' && inputs.os != 'Linux' && steps.wasm-tools-cache.outputs.cache-hit != 'true' }}
+      uses: actions/cache/save@v6
+      with:
+        path: ${{ github.workspace }}/wasm-tools
+        key: ${{ steps.wasm-tools-cache.outputs.cache-primary-key }}
+
     - name: 'Add wasm-tools to PATH'
       if: ${{ inputs.type == 'build' && inputs.os != 'Linux' }}
       shell: bash
       run: echo "${GITHUB_WORKSPACE}/wasm-tools" >> "$GITHUB_PATH"
 
-    - name: 'Cache cargo registry'
-      uses: actions/cache@v6
+    - name: 'Restore cargo registry'
+      id: 'cargo-registry'
+      uses: actions/cache/restore@v6
       with:
         path: |
           ~/.cargo/registry
@@ -216,7 +225,7 @@ runs:
     - name: 'Fetch cargo dependencies'
       shell: bash
       run: |
-        # Fetch every crate in both lockfiles, so the registry cache saved at the end of the job is complete no matter
+        # Fetch every crate in both lockfiles, so the registry cache saved after this step is complete no matter
         # which job saves it first, or which crates that job builds. Builds of older commits run this action from
         # master, so skip any manifest that the checkout doesn't have.
         for manifest in Cargo.toml Libraries/LibJS/Flap/Cargo.toml; do
@@ -224,6 +233,17 @@ runs:
             cargo fetch --locked --manifest-path "${manifest}"
           fi
         done
+
+    # Saved right after the fetch rather than by actions/cache's post-job step, which runs only if the whole job
+    # succeeds — so a flaky test would keep the cache from ever being saved.
+    - name: 'Save cargo registry'
+      if: ${{ steps.cargo-registry.outputs.cache-hit != 'true' }}
+      uses: actions/cache/save@v6
+      with:
+        path: |
+          ~/.cargo/registry
+          /opt/cargo/registry
+        key: ${{ steps.cargo-registry.outputs.cache-primary-key }}
 
     - name: 'Set required environment variables'
       if: ${{ inputs.os == 'Linux' && inputs.arch == 'arm64' }}
