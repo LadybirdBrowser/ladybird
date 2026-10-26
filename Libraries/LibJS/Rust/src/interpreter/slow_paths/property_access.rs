@@ -45,6 +45,7 @@ use crate::runtime::private_environment::{PrivateEnvironment, PrivateName};
 use crate::runtime::property_attributes::{Attribute, DEFAULT_ATTRIBUTES, PropertyAttributes};
 use crate::runtime::property_key::{NonSymbolPropertyKey, PropertyKey};
 use crate::runtime::reference::Reference;
+use crate::runtime::shape::ShapeKey;
 use crate::runtime::typed_array::{Kind, is_valid_integer_index, typed_array_of_object};
 
 fn strict_of(header_strict: bool) -> Strict {
@@ -173,7 +174,7 @@ pub fn get_by_id_cached_accessor(
         && let Some(completed_entry) = cache.first_entry_slot()
     {
         let completed = completed_entry.get();
-        if completed.shape == Some(object.shape()) {
+        if completed.shape == Some(ShapeKey::of(object.shape())) {
             let completed_holder = completed.prototype.unwrap_or(object);
             let completed_value = completed_holder.get_direct(completed.property_offset);
             if completed_value.is_accessor() && completed_value.as_accessor().getter() == Some(getter) {
@@ -546,12 +547,13 @@ fn put_by_value_with_keyed_store_cache(
             cache_key,
         )
     };
-    if let Some(entry) = store_cache.lookup(index, shape, name) {
+    let shape_key = ShapeKey::of(shape);
+    if let Some(entry) = store_cache.lookup(index, shape, name)
+        && entry.shape_key() == Some(shape_key)
+    {
         match entry.entry_type {
             PropertyLookupCacheEntryType::ChangeOwnProperty => {
-                if (!shape.is_dictionary() || shape.dictionary_generation() == entry.shape_dictionary_generation)
-                    && !object.get_direct(entry.property_offset).is_accessor()
-                {
+                if !object.get_direct(entry.property_offset).is_accessor() {
                     object.put_direct_from_cache(entry.property_offset, value);
                     return Ok(());
                 }
@@ -570,32 +572,25 @@ fn put_by_value_with_keyed_store_cache(
                     return Ok(());
                 }
             }
-            _ => {
-                if !shape.is_dictionary() || shape.dictionary_generation() == entry.shape_dictionary_generation {
-                    return generic_put(None, 0);
-                }
-            }
+            _ => return generic_put(None, 0),
         }
     }
 
-    let shape_dictionary_generation = shape.dictionary_generation();
     let scratch_cache = vm.keyed_property_store_scratch_cache();
     scratch_cache.forget_entries();
     generic_put(Some(scratch_cache), key.0)?;
     let entry = scratch_cache.first_entry().unwrap_or_default();
     scratch_cache.forget_entries();
     // NB: Puts the cache does not make are remembered with another type, for the shape they found.
-    let mut lookup = KeyedPropertyLookup {
-        shape_dictionary_generation,
-        shape: Some(shape),
-        ..Default::default()
-    };
+    let mut lookup = KeyedPropertyLookup::for_shape(shape_key);
     match entry.entry_type {
-        PropertyLookupCacheEntryType::ChangeOwnProperty if entry.writes_data_property && entry.shape == Some(shape) => {
+        PropertyLookupCacheEntryType::ChangeOwnProperty
+            if entry.writes_data_property && entry.shape == Some(shape_key) =>
+        {
             lookup.entry_type = PropertyLookupCacheEntryType::ChangeOwnProperty;
             lookup.property_offset = entry.property_offset;
         }
-        PropertyLookupCacheEntryType::AddOwnProperty if entry.shape == Some(shape) && entry.new_shape.is_some() => {
+        PropertyLookupCacheEntryType::AddOwnProperty if entry.shape == Some(shape_key) && entry.new_shape.is_some() => {
             lookup.entry_type = PropertyLookupCacheEntryType::AddOwnProperty;
             lookup.property_offset = entry.property_offset;
             lookup.prototype_chain_validity = entry.prototype_chain_validity;
@@ -949,11 +944,7 @@ fn object_property_iterator_cache_matches(object: Gc<Object>, cache: &ObjectProp
     }
 
     let shape = object.shape();
-    if Some(shape) != cache.shape() {
-        return false;
-    }
-
-    if shape.is_dictionary() && shape.dictionary_generation() != cache.shape_dictionary_generation() {
+    if cache.shape_key() != Some(ShapeKey::of(shape)) {
         return false;
     }
 
@@ -1535,15 +1526,7 @@ fn try_put_by_property_lookup_cache(
         }
         match entry.entry_type.get() {
             PropertyLookupCacheEntryType::ChangeOwnProperty => {
-                let Some(cached_shape) = entry.shape.get() else {
-                    continue;
-                };
-                if cached_shape != object.shape() {
-                    continue;
-                }
-                if cached_shape.is_dictionary()
-                    && cached_shape.dictionary_generation() != entry.shape_dictionary_generation.get()
-                {
+                if entry.shape_key() != Some(ShapeKey::of(object.shape())) {
                     continue;
                 }
                 let current = object.get_direct(entry.property_offset.get());
@@ -1554,7 +1537,7 @@ fn try_put_by_property_lookup_cache(
                 return true;
             }
             PropertyLookupCacheEntryType::AddOwnProperty => {
-                if entry.shape.get() != Some(object.shape()) {
+                if entry.shape_key() != Some(ShapeKey::of(object.shape())) {
                     continue;
                 }
                 if !object_can_cache_property_additions(&object) {

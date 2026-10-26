@@ -22,6 +22,7 @@ use crate::runtime::module_namespace_object::ModuleNamespaceObject;
 use crate::runtime::property_key::{PropertyKey, StringMayBeNumber};
 use crate::runtime::proxy_object::ProxyObject;
 use crate::runtime::realm_watchpoints;
+use crate::runtime::shape::ShapeKey;
 use crate::runtime::string_object::StringObject;
 use crate::runtime::typed_array::{ContentType, TypedArrayBase};
 use crate::utf16::{has_fly_string_storage, to_utf16_fly_string};
@@ -151,7 +152,7 @@ fn has_own_string_property(vm: &Vm, object: Gc<Object>, name: &Utf16FlyString) -
     let cache = vm.keyed_property_lookup_cache();
     let index = KeyedPropertyLookupCache::entry_index_for(shape, name);
     if let Some(entry) = cache.lookup(index, shape, name)
-        && (!shape.is_dictionary() || shape.dictionary_generation() == entry.shape_dictionary_generation)
+        && entry.shape_key() == Some(ShapeKey::of(shape))
     {
         // NB: Only names that are no array indices have entries, since the shape does not hold indexed properties.
         match entry.entry_type {
@@ -177,11 +178,7 @@ fn has_own_string_property(vm: &Vm, object: Gc<Object>, name: &Utf16FlyString) -
                 PropertyLookupCacheEntryType::MissingOwnProperty
             },
             property_offset: metadata.map_or(0, |metadata| metadata.offset),
-            shape_dictionary_generation: shape.dictionary_generation(),
-            shape: Some(shape),
-            prototype: None,
-            prototype_chain_validity: None,
-            new_shape: None,
+            ..KeyedPropertyLookup::for_shape(ShapeKey::of(shape))
         },
         name,
     );

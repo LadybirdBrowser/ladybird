@@ -114,6 +114,23 @@ pub struct AssignCopy {
     pub copy_shape: Gc<Shape>,
 }
 
+/// A shape and its dictionary generation, which changes when a dictionary shape changes its properties in place. Shapes
+/// that are not dictionaries keep generation 0.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ShapeKey {
+    pub shape: Gc<Shape>,
+    pub dictionary_generation: u32,
+}
+
+impl ShapeKey {
+    pub fn of(shape: Gc<Shape>) -> Self {
+        Self {
+            shape,
+            dictionary_generation: shape.dictionary_generation(),
+        }
+    }
+}
+
 /// The string keys of the properties of a shape, as with_own_string_keys() caches them.
 struct OwnStringKeys {
     /// The dictionary generation of the shape when the keys were collected. Changing the properties of a shape in
