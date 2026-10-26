@@ -1,0 +1,3 @@
+right after scrolling by 50: 50
+once the compositor has the scroll: 150
+once the pan has ended: 150

@@ -9,6 +9,7 @@
 #include <AK/Assertions.h>
 #include <AK/DistinctNumeric.h>
 #include <AK/EnumBits.h>
+#include <AK/Math.h>
 #include <AK/Optional.h>
 #include <AK/Time.h>
 #include <AK/Types.h>
@@ -120,10 +121,41 @@ enum class SmoothScrollInitiator : u8 {
 // compositor allocates for scrolls of its own.
 inline constexpr AsyncScrollOperationID first_operation_id_the_main_thread_requests = AsyncScrollOperationID { 1 } << 63;
 
+// An instant scroll by a distance from wherever the box is. Each scroll folded into it clamps the box to the scroll range
+// it had, which leaves the box at clamp(offset + delta, lower_bound, upper_bound) in each axis.
+struct RequestedRelativeScroll {
+    Gfx::FloatPoint delta;
+    Gfx::FloatPoint lower_bound { -AK::Infinity<float>, -AK::Infinity<float> };
+    Gfx::FloatPoint upper_bound { AK::Infinity<float>, AK::Infinity<float> };
+
+    void then(RequestedRelativeScroll const& later)
+    {
+        lower_bound = {
+            AK::clamp(lower_bound.x() + later.delta.x(), later.lower_bound.x(), later.upper_bound.x()),
+            AK::clamp(lower_bound.y() + later.delta.y(), later.lower_bound.y(), later.upper_bound.y()),
+        };
+        upper_bound = {
+            AK::clamp(upper_bound.x() + later.delta.x(), later.lower_bound.x(), later.upper_bound.x()),
+            AK::clamp(upper_bound.y() + later.delta.y(), later.lower_bound.y(), later.upper_bound.y()),
+        };
+        delta.translate_by(later.delta);
+    }
+
+    Gfx::FloatPoint applied_to(Gfx::FloatPoint offset) const
+    {
+        return {
+            AK::clamp(offset.x() + delta.x(), lower_bound.x(), upper_bound.x()),
+            AK::clamp(offset.y() + delta.y(), lower_bound.y(), upper_bound.y()),
+        };
+    }
+};
+
 // A smooth scroll that the main thread requests, from wherever the box is once the request's instant scroll is done.
 struct RequestedSmoothScroll {
     AsyncScrollOperationID operation_id { 0 };
+    // Where the scroll goes, or how far it goes from wherever the box is.
     Gfx::FloatPoint destination_offset;
+    bool destination_is_relative { false };
     ScrollAnimationKind animation_kind { ScrollAnimationKind::SmoothScroll };
     SmoothScrollInitiator initiator { SmoothScrollInitiator::Programmatic };
     // User input that heads the user input scroll of the same operation somewhere else, rather than starting another.
@@ -131,6 +163,21 @@ struct RequestedSmoothScroll {
     // For the scroll that settles a user's gesture, the count of the box's scrolls for the compositor's own user input
     // that the main thread had heard of. User input the compositor took since carries the gesture on instead.
     Optional<u64> settled_user_input_scroll_count;
+
+    // A later scroll of the same operation goes on from where this one was headed.
+    void fold_later(RequestedSmoothScroll const& later)
+    {
+        VERIFY(later.operation_id == operation_id);
+        auto earlier_destination_offset = destination_offset;
+        auto earlier_destination_is_relative = destination_is_relative;
+        auto earlier_retargets_operation = retargets_operation;
+        *this = later;
+        retargets_operation |= earlier_retargets_operation;
+        if (later.destination_is_relative) {
+            destination_offset.translate_by(earlier_destination_offset);
+            destination_is_relative = earlier_destination_is_relative;
+        }
+    }
 };
 
 // What the main thread asks of the compositor for one scrolling box, carried with the frame it changed the box in. A
@@ -142,6 +189,8 @@ struct ScrollRequest {
     Optional<Gfx::FloatPoint> jump_offset;
     // The scale the visual viewport jumps to along with its offset.
     Optional<float> visual_viewport_scale;
+    // A relative scroll after the jump.
+    Optional<RequestedRelativeScroll> relative_scroll;
     Optional<RequestedSmoothScroll> smooth_scroll;
 
     // A request made later in the same frame aborts the smooth scroll of this one, which never got under way.
@@ -151,8 +200,17 @@ struct ScrollRequest {
         if (later.jump_offset.has_value()) {
             jump_offset = later.jump_offset;
             visual_viewport_scale = later.visual_viewport_scale;
+            relative_scroll = later.relative_scroll;
+        } else if (later.relative_scroll.has_value()) {
+            if (relative_scroll.has_value())
+                relative_scroll->then(later.relative_scroll.value());
+            else
+                relative_scroll = later.relative_scroll;
         }
-        smooth_scroll = later.smooth_scroll;
+        if (smooth_scroll.has_value() && later.smooth_scroll.has_value() && smooth_scroll->operation_id == later.smooth_scroll->operation_id)
+            smooth_scroll->fold_later(later.smooth_scroll.value());
+        else
+            smooth_scroll = later.smooth_scroll;
     }
 };
 
@@ -195,6 +253,11 @@ template<>
 COMPOSITING_API ErrorOr<void> encode(Encoder&, Compositing::PendingAsyncScrollUpdates const&);
 template<>
 COMPOSITING_API ErrorOr<Compositing::PendingAsyncScrollUpdates> decode(Decoder&);
+
+template<>
+COMPOSITING_API ErrorOr<void> encode(Encoder&, Compositing::RequestedRelativeScroll const&);
+template<>
+COMPOSITING_API ErrorOr<Compositing::RequestedRelativeScroll> decode(Decoder&);
 
 template<>
 COMPOSITING_API ErrorOr<void> encode(Encoder&, Compositing::RequestedSmoothScroll const&);

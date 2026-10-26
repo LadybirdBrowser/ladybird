@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 5000px;
+    }
+</style>
+<script>
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+
+        const busyWait = milliseconds => {
+            const end = performance.now() + milliseconds;
+            while (performance.now() < end) {}
+        };
+
+        // The compositor pans the page by 100 while the main thread is busy, so the main thread has not heard of the
+        // pan when the page scrolls itself by 50. The page goes 50 past where the pan took it, which is where it is.
+        internals.wheelThroughUIProcess(50, 50, 0, 0, true, "began");
+        internals.wheelThroughUIProcess(50, 50, 0, 100, true, "ongoing");
+        busyWait(200);
+        window.scrollBy(0, 50);
+        println(`right after scrolling by 50: ${window.scrollY}`);
+        while (window.scrollY === 50)
+            await new Promise(resolve => document.addEventListener("scroll", resolve, { once: true }));
+        println(`once the compositor has the scroll: ${window.scrollY}`);
+
+        await scrollSettled(document, () => internals.wheelThroughUIProcess(50, 50, 0, 0, true, "ended"));
+        println(`once the pan has ended: ${window.scrollY}`);
+    });
+</script>

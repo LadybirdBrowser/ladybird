@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 5000px;
+    }
+</style>
+<script>
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+
+        // The second step arrives while the compositor animates the first, and goes on from where the first is headed.
+        await scrollSettled(document, async () => {
+            internals.sendKey(document.body, "Down");
+            await animationFrame();
+            await animationFrame();
+            internals.sendKey(document.body, "Down");
+        });
+        println(`once the steps have settled: ${window.scrollY}`);
+    });
+</script>

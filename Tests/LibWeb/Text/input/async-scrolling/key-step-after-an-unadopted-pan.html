@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 5000px;
+    }
+</style>
+<script>
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+
+        const busyWait = milliseconds => {
+            const end = performance.now() + milliseconds;
+            while (performance.now() < end) {}
+        };
+
+        // The compositor pans the page by 100 while the main thread is busy, so the main thread has not heard of the
+        // pan when an arrow key steps the page by another 100. The step goes on from where the pan took the page.
+        internals.wheelThroughUIProcess(50, 50, 0, 0, true, "began");
+        await animationFrame();
+        await animationFrame();
+        internals.wheelThroughUIProcess(50, 50, 0, 100, true, "ongoing");
+        const panEnded = internals.wheelThroughUIProcess(50, 50, 0, 0, true, "ended");
+        busyWait(200);
+        internals.sendKey(document.body, "Down");
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        await panEnded;
+        println(`once the step has settled: ${window.scrollY}`);
+    });
+</script>

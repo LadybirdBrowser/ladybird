@@ -503,7 +503,7 @@ private:
     bool adopt_async_viewport_scroll_offset(CSSPixelPoint);
     bool adopt_async_visual_viewport_scroll(Optional<float> scale, CSSPixelPoint scroll_offset);
     Gfx::FloatPoint device_scroll_offset(CSSPixelPoint) const;
-    GC::Ptr<WebIDL::Promise> continue_in_flight_user_smooth_scroll(Web::AsyncScrollNodeStableID, CSSPixelPoint position, Compositing::ScrollAnimationKind);
+    GC::Ptr<WebIDL::Promise> continue_in_flight_user_smooth_scroll(Web::AsyncScrollNodeStableID, CSSPixelPoint position, Optional<CSSPixelPoint> relative_displacement, Compositing::ScrollAnimationKind);
     Optional<CSSPixelPoint> scroll_offset_for(Web::AsyncScrollNodeStableID) const;
     bool set_scroll_offset_for(Web::AsyncScrollNodeStableID, CSSPixelPoint);
     void queue_scrollend_event(Web::AsyncScrollNodeStableID, ScrollTrigger, Optional<CSSPixelPoint> scroll_offset_before_scroll = {});
@@ -677,11 +677,13 @@ private:
     Compositing::AsyncScrollOperationID m_last_requested_operation_id { Compositing::first_operation_id_the_main_thread_requests };
     // How many times the compositor reported having scrolled each box for its own user input.
     HashMap<Web::AsyncScrollNodeStableID, u64> m_compositor_user_input_scroll_counts;
-    // Set while this navigable takes the compositor's offsets, which it asks for nothing about.
-    bool m_is_adopting_compositor_scroll_offsets { false };
+    // Set while this navigable changes an offset it asks for in a request of its own making, or takes the compositor's,
+    // which it asks for nothing about.
+    bool m_scroll_offset_changes_need_no_request { false };
     Compositing::ScrollRequest& unsent_scroll_request_for(Web::AsyncScrollNodeStableID);
     u64 last_scroll_request_id_for(Web::AsyncScrollNodeStableID) const;
     void request_scroll_jump(Web::AsyncScrollNodeStableID);
+    void request_relative_scroll(Web::AsyncScrollNodeStableID, CSSPixelPoint displacement);
     void request_smooth_scroll(Web::AsyncScrollNodeStableID, Compositing::RequestedSmoothScroll);
     void request_abort_of_smooth_scroll(Web::AsyncScrollNodeStableID);
     void drop_unsent_smooth_scroll(Compositing::ScrollRequest&);
