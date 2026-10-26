@@ -3238,18 +3238,17 @@ impl<'pass> SizingContext<'pass> {
             .set(table_style.padding_right().to_px(containing_block_inline_size));
 
         RunRecords::with_root(
-            measurement.callbacks().scratch(),
-            measurement.callbacks().arena(),
+            *measurement.callbacks(),
             table_box,
             measurement.callbacks().in_flow_containing_block(table_box),
             &table_used,
-            |records| {
+            |records, callbacks| {
                 let table_run = FormattingContextRun {
                     purpose: formatting_context::LayoutPurpose::Measurement,
                     records,
                     box_: table_box,
                     layout_mode: LayoutMode::IntrinsicSizing,
-                    callbacks: *measurement.callbacks(),
+                    callbacks,
                     should_collect_devtools_layout_data: false,
                     treat_block_axis_percentage_insets_as_auto_beyond_root: false,
                     fragments: None,
