@@ -44,6 +44,7 @@ use crate::utf16::Utf16View;
 pub const EXPOSED_GLOBAL_FUNCTIONS: &[(&str, RawNativeFunctionPointer)] = &[
     ("canParseSource", raw_native!(can_parse_source)),
     ("haveSameShape", raw_native!(have_same_shape)),
+    ("setDictionaryGeneration", raw_native!(set_dictionary_generation)),
     ("gc", raw_native!(collect_garbage)),
     (
         "collectGarbageOnEveryAllocation",
@@ -91,6 +92,15 @@ fn have_same_shape(vm: &Vm) -> ThrowCompletionOr<Value> {
         }
     }
     Ok(Value::from_bool(lhs.as_object().shape() == rhs.as_object().shape()))
+}
+
+fn set_dictionary_generation(vm: &Vm) -> ThrowCompletionOr<Value> {
+    let shape = vm.argument(0).to_object(vm)?.shape();
+    if !shape.is_dictionary() {
+        return vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAnObjectOfType, &[&"dictionary"]);
+    }
+    shape.dictionary_generation.set(vm.argument(1).to_u32(vm)?);
+    Ok(Value::UNDEFINED)
 }
 
 fn can_parse_source(vm: &Vm) -> ThrowCompletionOr<Value> {
