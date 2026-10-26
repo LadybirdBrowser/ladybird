@@ -1442,73 +1442,16 @@ pub fn try_inline_get_by_id_accessor(vm: &Vm, pc: u32, instruction: &op::GetById
     .is_some()
 }
 
-// Fast cache-only PutById. Tries all cache entries for ChangeOwnProperty and
-// AddOwnProperty. Returns whether the cache handled the put; if not, the caller
-// uses the full slow path.
+// Fast cache-only PutById. Returns whether the cache handled the put; if not, the caller uses the full slow path.
 pub fn try_put_by_id_cache(vm: &Vm, instruction: &op::PutById, values: &op::PutByIdValues) -> bool {
     let base = values.base;
     if !base.is_object() {
         return false;
     }
-    let object = base.as_object();
-    let value = values.src;
     let executable = vm.current_executable();
     let cache = executable.property_lookup_cache(instruction.cache as usize);
-
-    for entry in cache.entry_slots_for_shape(object.shape(), 0) {
-        match entry.entry_type.get() {
-            PropertyLookupCacheEntryType::ChangeOwnProperty => {
-                let Some(cached_shape) = entry.shape.get() else {
-                    continue;
-                };
-                if cached_shape != object.shape() {
-                    continue;
-                }
-                if cached_shape.is_dictionary()
-                    && cached_shape.dictionary_generation() != entry.shape_dictionary_generation.get()
-                {
-                    continue;
-                }
-                let current = object.get_direct(entry.property_offset.get());
-                if current.is_accessor() || !entry.writes_data_property.get() {
-                    return false;
-                }
-                object.put_direct_from_cache(entry.property_offset.get(), value);
-                return true;
-            }
-            PropertyLookupCacheEntryType::AddOwnProperty => {
-                if entry.from_shape.get() != Some(object.shape()) {
-                    continue;
-                }
-                if !object_can_cache_property_additions(&object) {
-                    continue;
-                }
-                if object.has_magical_length_property()
-                    && !property_addition_is_cacheable(vm, &object, executable.get_property_key(instruction.property))
-                {
-                    continue;
-                }
-                let Some(cached_shape) = entry.shape.get() else {
-                    continue;
-                };
-                if !object.extensible() {
-                    continue;
-                }
-                if entry
-                    .prototype_chain_validity
-                    .get()
-                    .is_some_and(|validity| !validity.is_valid())
-                {
-                    continue;
-                }
-                object.unsafe_set_shape(cached_shape);
-                object.initialize_direct(entry.property_offset.get(), value);
-                return true;
-            }
-            _ => continue,
-        }
-    }
-    false
+    let property_key = executable.get_property_key(instruction.property);
+    try_put_by_property_lookup_cache(vm, base.as_object(), values.src, cache, 0, Some(property_key))
 }
 
 // Fast cache-only GetById. Returns the cached value on hit, or Empty on miss.
@@ -1563,22 +1506,31 @@ pub fn try_get_by_value_cache(vm: &Vm, instruction: &op::GetByValue, values: &mu
 }
 
 // Fast cache-only PutByValue with a string or symbol key, which the cache's entries match by identity (see
-// PropertyLookupCacheEntry::key). Tries all of them for ChangeOwnProperty and AddOwnProperty. Returns whether it hit;
-// on a miss, the caller falls to the slow path.
+// PropertyLookupCacheEntry::key). Returns whether it hit; on a miss, the caller falls to the slow path.
 pub fn try_put_by_value_cache(vm: &Vm, instruction: &op::PutByValue, values: &op::PutByValueValues) -> bool {
     let base = values.base;
     let key = values.property;
     if !base.is_object() || (!key.is_string() && !key.is_symbol()) {
         return false;
     }
-    let object = base.as_object();
-    let value = values.src;
-    let cache_key = key.0;
     let executable = vm.current_executable();
     let cache = executable.property_lookup_cache(instruction.cache as usize);
+    try_put_by_property_lookup_cache(vm, base.as_object(), values.src, cache, key.0, None)
+}
 
+/// Puts `value` into `object` through a ChangeOwnProperty or AddOwnProperty entry of `cache`, and returns whether one
+/// applied. Additions to objects with a magical length need `property_key`.
+fn try_put_by_property_lookup_cache(
+    vm: &Vm,
+    object: Gc<Object>,
+    value: Value,
+    cache: &PropertyLookupCache,
+    cache_key: u64,
+    property_key: Option<&PropertyKey>,
+) -> bool {
     for entry in cache.entry_slots_for_shape(object.shape(), cache_key) {
-        if entry.key.get() != cache_key {
+        // NB: Only the caches of keyed accesses have keys, and named accesses pass a constant 0.
+        if cache_key != 0 && entry.key.get() != cache_key {
             continue;
         }
         match entry.entry_type.get() {
@@ -1605,8 +1557,13 @@ pub fn try_put_by_value_cache(vm: &Vm, instruction: &op::PutByValue, values: &op
                 if entry.from_shape.get() != Some(object.shape()) {
                     continue;
                 }
-                // NB: Objects with a magical length property are left to the slow path, which knows the key.
-                if !object_can_cache_property_additions(&object) || object.has_magical_length_property() {
+                if !object_can_cache_property_additions(&object) {
+                    continue;
+                }
+                if object.has_magical_length_property()
+                    && !property_key
+                        .is_some_and(|property_key| property_addition_is_cacheable(vm, &object, property_key))
+                {
                     continue;
                 }
                 let Some(cached_shape) = entry.shape.get() else {
