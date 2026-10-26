@@ -2,9 +2,9 @@ Harness status: OK
 
 Found 5 tests
 
-5 Fail
-Fail	Property hyphenate-character value 'auto'
-Fail	Property hyphenate-character value '"="'
-Fail	Property hyphenate-character value '"/-/"'
-Fail	Property hyphenate-character value '"\1400"'
-Fail	Property hyphenate-character value '""'
+5 Pass
+Pass	Property hyphenate-character value 'auto'
+Pass	Property hyphenate-character value '"="'
+Pass	Property hyphenate-character value '"/-/"'
+Pass	Property hyphenate-character value '"\1400"'
+Pass	Property hyphenate-character value '""'

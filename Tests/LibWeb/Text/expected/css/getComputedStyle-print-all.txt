@@ -41,6 +41,7 @@ font-variation-settings: normal
 font-weight: 400
 font-width: 100%
 forced-color-adjust: auto
+hyphenate-character: auto
 image-rendering: auto
 interpolate-size: numeric-only
 letter-spacing: normal
