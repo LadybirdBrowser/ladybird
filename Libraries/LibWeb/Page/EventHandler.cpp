@@ -1894,6 +1894,37 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         return EventResult::Handled;
     };
 
+    // A plain Tab types in a writing suggestion that's showing, rather than moving focus. The suggestion takes the key
+    // ahead of the page, as an input method does — so the page sees the keydown but can't cancel it.
+    if (key == UIEvents::KeyCode::Key_Tab && !(modifiers & (UIEvents::KeyModifier::Mod_Alt | UIEvents::KeyModifier::Mod_Ctrl | UIEvents::KeyModifier::Mod_Shift | UIEvents::KeyModifier::Mod_Super))) {
+        GC::Ref<DOM::Document> document = *m_navigable->active_document();
+        if (auto* controller = document->writing_suggestion_controller_if_exists(); controller && controller->can_accept()) {
+            auto* target = document->active_input_events_target();
+            if (!target)
+                return EventResult::Handled;
+            GC::Root<JS::Cell> rooted_target { target->as_cell() };
+
+            // https://w3c.github.io/uievents/#determine-keydown-keyup-keyCode
+            // If an Input Method Editor is processing key input and the event is keydown, return 229.
+            static constexpr u32 input_method_key_code = 229;
+            fire_keyboard_event(UIEvents::EventNames::keydown, m_navigable, key, modifiers, code_point, repeat, input_method_key_code);
+            if (m_navigable->active_document() != document || !document->is_fully_active() || document->active_input_events_target() != target)
+                return EventResult::Handled;
+
+            // A keydown listener that moved the caret or changed the text leaves nothing to accept.
+            auto suggestion = controller->accept();
+            if (!suggestion.has_value())
+                return EventResult::Handled;
+
+            FIRE(input_event(UIEvents::EventNames::beforeinput, UIEvents::InputTypes::insertText, m_navigable, *suggestion));
+            FIRE(fire_text_input_event(m_navigable, *suggestion));
+            if (m_navigable->active_document() != document || !document->is_fully_active() || document->active_input_events_target() != target)
+                return EventResult::Handled;
+            target->handle_insert(UIEvents::InputTypes::insertText, *suggestion);
+            return EventResult::Handled;
+        }
+    }
+
     GC::Root<DOM::Document> native_command_document;
     if (native_editing_binding_resolved)
         native_command_document = m_navigable->active_document();
@@ -1942,25 +1973,8 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
     GC::Ref<DOM::Document> document = *m_navigable->active_document();
 
     if (!(modifiers & UIEvents::KeyModifier::Mod_Ctrl)) {
-        if (key == UIEvents::KeyCode::Key_Tab) {
-            // Tab types in the writing suggestion that's showing, rather than moving focus. Shift+Tab never does.
-            if (!(modifiers & UIEvents::KeyModifier::Mod_Shift)) {
-                if (auto* controller = document->writing_suggestion_controller_if_exists()) {
-                    if (auto suggestion = controller->accept(); suggestion.has_value()) {
-                        auto* target = document->active_input_events_target();
-                        if (!target)
-                            return EventResult::Handled;
-                        FIRE(input_event(UIEvents::EventNames::beforeinput, UIEvents::InputTypes::insertText, m_navigable, *suggestion));
-                        FIRE(fire_text_input_event(m_navigable, *suggestion));
-                        if (m_navigable->active_document() != document || !document->is_fully_active() || document->active_input_events_target() != target)
-                            return EventResult::Handled;
-                        target->handle_insert(UIEvents::InputTypes::insertText, *suggestion);
-                        return EventResult::Handled;
-                    }
-                }
-            }
+        if (key == UIEvents::KeyCode::Key_Tab)
             return focus_sequentially(modifiers & UIEvents::KeyModifier::Mod_Shift ? HTML::SequentialFocusDirection::Backward : HTML::SequentialFocusDirection::Forward);
-        }
     }
 
     // https://html.spec.whatwg.org/multipage/interaction.html#close-requests
@@ -2849,7 +2863,7 @@ static GC::RootVector<GC::Ref<DOM::StaticRange>> target_ranges_for_input_event(D
     return target_ranges;
 }
 
-EventResult EventHandler::fire_keyboard_event(Utf16FlyString const& event_name, HTML::LocalNavigable& navigable, UIEvents::KeyCode key, u32 modifiers, u32 code_point, bool repeat)
+EventResult EventHandler::fire_keyboard_event(Utf16FlyString const& event_name, HTML::LocalNavigable& navigable, UIEvents::KeyCode key, u32 modifiers, u32 code_point, bool repeat, Optional<u32> key_code)
 {
     GC::Ptr<DOM::Document> document = navigable.active_document();
     if (!document)
@@ -2865,16 +2879,20 @@ EventResult EventHandler::fire_keyboard_event(Utf16FlyString const& event_name, 
                 auto* local_navigable = as_if<HTML::LocalNavigable>(*content_navigable);
                 if (!local_navigable)
                     return EventResult::Dropped;
-                return fire_keyboard_event(event_name, *local_navigable, key, modifiers, code_point, repeat);
+                return fire_keyboard_event(event_name, *local_navigable, key, modifiers, code_point, repeat, key_code);
             }
         }
 
         auto event = UIEvents::KeyboardEvent::create_from_platform_event(HTML::relevant_global_object(*document), event_name, key, modifiers, code_point, repeat);
+        if (key_code.has_value())
+            event->set_key_code(*key_code);
         return focused_area->dispatch_event(event) ? EventResult::Accepted : EventResult::Cancelled;
     }
 
     // FIXME: De-duplicate this. This is just to prevent wasting a KeyboardEvent allocation when recursing into an (i)frame.
     auto event = UIEvents::KeyboardEvent::create_from_platform_event(HTML::relevant_global_object(*document), event_name, key, modifiers, code_point, repeat);
+    if (key_code.has_value())
+        event->set_key_code(*key_code);
 
     GC::Ptr target = document->body() ?: &document->root();
     return target->dispatch_event(event) ? EventResult::Accepted : EventResult::Cancelled;

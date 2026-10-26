@@ -53,6 +53,8 @@ public:
     void did_start_input_method_composition();
     void did_end_input_method_composition();
     void dismiss();
+    // Whether a suggestion is showing, with the caret still where it shows.
+    bool can_accept() const { return caret_is_at_showing_suggestion(); }
     // Drops the suggestion that's showing, and returns what it would add if the caret is still where it shows.
     Optional<Utf16String> accept();
 
