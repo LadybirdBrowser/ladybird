@@ -139,6 +139,23 @@ ErrorOr<Compositing::StartedUserScroll> decode(Decoder& decoder)
 }
 
 template<>
+ErrorOr<void> encode(Encoder& encoder, Compositing::AppliedScrollRequest const& applied_scroll_request)
+{
+    TRY(encoder.encode(applied_scroll_request.stable_node_id));
+    TRY(encoder.encode(applied_scroll_request.request_id));
+    return {};
+}
+
+template<>
+ErrorOr<Compositing::AppliedScrollRequest> decode(Decoder& decoder)
+{
+    return Compositing::AppliedScrollRequest {
+        .stable_node_id = TRY(decoder.decode<Web::AsyncScrollNodeStableID>()),
+        .request_id = TRY(decoder.decode<u64>()),
+    };
+}
+
+template<>
 ErrorOr<void> encode(Encoder& encoder, Compositing::PendingAsyncScrollUpdates const& updates)
 {
     TRY(encoder.encode(updates.document_id));
@@ -147,6 +164,7 @@ ErrorOr<void> encode(Encoder& encoder, Compositing::PendingAsyncScrollUpdates co
     TRY(encoder.encode(updates.completed_operation_ids));
     TRY(encoder.encode(updates.operation_ids_taken_over_by_user_input));
     TRY(encoder.encode(updates.started_user_scrolls));
+    TRY(encoder.encode(updates.applied_scroll_requests));
     TRY(encoder.encode(updates.user_scroll_gesture_in_progress));
     TRY(encoder.encode(updates.user_scroll_gesture_ended));
     return {};
@@ -162,6 +180,7 @@ ErrorOr<Compositing::PendingAsyncScrollUpdates> decode(Decoder& decoder)
         .completed_operation_ids = TRY(decoder.decode<Vector<Compositing::AsyncScrollOperationID>>()),
         .operation_ids_taken_over_by_user_input = TRY(decoder.decode<Vector<Compositing::AsyncScrollOperationID>>()),
         .started_user_scrolls = TRY(decoder.decode<Vector<Compositing::StartedUserScroll>>()),
+        .applied_scroll_requests = TRY(decoder.decode<Vector<Compositing::AppliedScrollRequest>>()),
         .user_scroll_gesture_in_progress = TRY(decoder.decode<bool>()),
         .user_scroll_gesture_ended = TRY(decoder.decode<bool>()),
     };

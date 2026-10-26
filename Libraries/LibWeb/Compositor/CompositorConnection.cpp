@@ -592,6 +592,7 @@ Compositing::PendingAsyncScrollUpdates CompositorConnection::take_pending_async_
     updates.completed_operation_ids = move(pending->completed_operation_ids);
     updates.operation_ids_taken_over_by_user_input = move(pending->operation_ids_taken_over_by_user_input);
     updates.started_user_scrolls = move(pending->started_user_scrolls);
+    updates.applied_scroll_requests = move(pending->applied_scroll_requests);
     updates.document_id = pending->document_id;
     updates.user_scroll_gesture_in_progress = pending->user_scroll_gesture_in_progress;
     updates.user_scroll_gesture_ended = pending->user_scroll_gesture_ended;
@@ -601,6 +602,7 @@ Compositing::PendingAsyncScrollUpdates CompositorConnection::take_pending_async_
     pending->completed_operation_ids.clear();
     pending->operation_ids_taken_over_by_user_input.clear();
     pending->started_user_scrolls.clear();
+    pending->applied_scroll_requests.clear();
     pending->user_scroll_gesture_ended = false;
     return updates;
 }
@@ -627,6 +629,7 @@ void CompositorConnection::merge_async_scroll_updates(Web::CompositorContextId c
     pending.completed_operation_ids.extend(move(updates.completed_operation_ids));
     pending.operation_ids_taken_over_by_user_input.extend(move(updates.operation_ids_taken_over_by_user_input));
     pending.started_user_scrolls.extend(move(updates.started_user_scrolls));
+    pending.applied_scroll_requests.extend(move(updates.applied_scroll_requests));
     if (is_newest) {
         pending.document_id = updates.document_id;
         pending.user_scroll_gesture_in_progress = updates.user_scroll_gesture_in_progress;

@@ -687,6 +687,15 @@ private:
         Compositing::ScrollAnimationKind animation_kind { Compositing::ScrollAnimationKind::SmoothScroll };
     };
     Vector<PendingAsyncScrollOperation> m_pending_async_scroll_operations;
+    // A script's instant scroll, which ends once the compositor answers its request with where the box went.
+    struct InstantScrollAwaitingAnswer {
+        Web::AsyncScrollNodeStableID stable_node_id;
+        u64 request_id { 0 };
+        CSSPixelPoint initial_scroll_offset;
+        GC::Ref<WebIDL::Promise> promise;
+    };
+    Vector<InstantScrollAwaitingAnswer> m_instant_scrolls_awaiting_answers;
+    void finish_instant_scrolls_answered_by(Compositing::AppliedScrollRequest const&);
     // The registry entry of an operation, whether the scroll was registered when it was started or is first heard of
     // from the compositor's report of it.
     PendingAsyncScrollOperation& ensure_pending_async_scroll_operation(Compositing::AsyncScrollOperationID);

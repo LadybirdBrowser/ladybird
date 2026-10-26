@@ -21,6 +21,7 @@ public:
     void record_scroll_offsets(ReadonlySpan<Compositing::AsyncScrollOffset>);
     void record_started_user_scroll(Compositing::StartedUserScroll started_user_scroll) { m_started_user_scrolls.append(move(started_user_scroll)); }
     void note_user_scroll_gesture_ended() { m_user_scroll_gesture_ended = true; }
+    void note_scroll_request_applied(Compositing::AppliedScrollRequest applied_scroll_request) { m_applied_scroll_requests.append(applied_scroll_request); }
 
     bool has_updates(bool user_scroll_gesture_in_progress) const;
     Compositing::PendingAsyncScrollUpdates take_updates(bool user_scroll_gesture_in_progress);
@@ -32,6 +33,7 @@ private:
     Vector<Compositing::AsyncScrollOperationID> m_completed_operation_ids;
     Vector<Compositing::AsyncScrollOperationID> m_operation_ids_taken_over_by_user_input;
     Vector<Compositing::StartedUserScroll> m_started_user_scrolls;
+    Vector<Compositing::AppliedScrollRequest> m_applied_scroll_requests;
     bool m_user_scroll_gesture_ended { false };
     bool m_published_user_scroll_gesture_in_progress { false };
 };

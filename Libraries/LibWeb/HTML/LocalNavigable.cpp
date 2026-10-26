@@ -842,6 +842,8 @@ void LocalNavigable::visit_edges(Cell::Visitor& visitor)
 
     for (auto& async_scroll_operation : m_pending_async_scroll_operations)
         visitor.visit(async_scroll_operation.promises);
+    for (auto& instant_scroll : m_instant_scrolls_awaiting_answers)
+        visitor.visit(instant_scroll.promise);
     for (auto& smooth_scroll : m_main_thread_smooth_scrolls)
         visitor.visit(smooth_scroll.promises);
     for (auto& entry : m_pending_user_scrollend_targets)
@@ -4945,8 +4947,35 @@ void LocalNavigable::resolve_async_scroll_operation(Compositing::AsyncScrollOper
     settle_user_scroll_gesture_if_input_deadline_passed();
 }
 
+// https://drafts.csswg.org/cssom-view-1/#perform-a-scroll
+// 7. If scrollPromise is still in the pending state:
+//     1. If the scroll position changed as a result of this call, emit the scrollend event.
+//     2. Resolve scrollPromise.
+void LocalNavigable::finish_instant_scrolls_answered_by(Compositing::AppliedScrollRequest const& applied_scroll_request)
+{
+    auto document = active_document();
+    m_instant_scrolls_awaiting_answers.remove_all_matching([&](auto const& instant_scroll) {
+        if (instant_scroll.stable_node_id != applied_scroll_request.stable_node_id || instant_scroll.request_id > applied_scroll_request.request_id)
+            return false;
+        auto final_scroll_offset = scroll_offset_for(instant_scroll.stable_node_id);
+        auto target = document ? scroll_event_target_for_async_scroll_node(*document, instant_scroll.stable_node_id) : nullptr;
+        // NB: A user's gesture that holds the box has not completed the scroll, and delivers the event once it does.
+        if (target && final_scroll_offset.has_value() && final_scroll_offset.value() != instant_scroll.initial_scroll_offset
+            && !latched_user_scroll_gesture_for(*target, instant_scroll.stable_node_id)) {
+            document->append_pending_scroll_event({ *target, EventNames::scrollend });
+            page().client().request_frame();
+        }
+        queue_async_scroll_operation_promise_resolution(instant_scroll.promise);
+        return true;
+    });
+}
+
 void LocalNavigable::resolve_all_pending_async_scroll_operations()
 {
+    for (auto const& instant_scroll : m_instant_scrolls_awaiting_answers)
+        queue_async_scroll_operation_promise_resolution(instant_scroll.promise);
+    m_instant_scrolls_awaiting_answers.clear();
+
     while (!m_pending_async_scroll_operations.is_empty()) {
         auto pending = finished_scroll(m_pending_async_scroll_operations.take_last());
         queue_scrollend_event_and_promise_resolution_for_finished_scroll(pending.stable_node_id, pending.trigger, pending.initial_scroll_offset, pending.promises);
@@ -5608,6 +5637,19 @@ void LocalNavigable::user_scroll_did_settle(UserScrollSettlement settlement)
 
 void LocalNavigable::resolve_pending_smooth_scrolls(Web::AsyncScrollNodeStableID stable_node_id, SmoothScrollAbortCause abort_cause)
 {
+    // NB: A script's instant scroll that another scroll of the box replaces before the compositor answered ends with
+    //     where this navigable has the box.
+    auto document = active_document();
+    m_instant_scrolls_awaiting_answers.remove_all_matching([&](auto const& instant_scroll) {
+        if (instant_scroll.stable_node_id != stable_node_id)
+            return false;
+        auto target = document ? scroll_event_target_for_async_scroll_node(*document, stable_node_id) : nullptr;
+        if (target && scroll_offset_for(stable_node_id) != instant_scroll.initial_scroll_offset)
+            document->append_pending_scroll_event({ *target, EventNames::scrollend });
+        queue_async_scroll_operation_promise_resolution(instant_scroll.promise);
+        return true;
+    });
+
     Vector<FinishedScroll> finished_async_scroll_operations;
     m_pending_async_scroll_operations.remove_all_matching([&](auto const& pending) {
         if (pending.stable_node_id != stable_node_id)
@@ -5740,12 +5782,14 @@ void LocalNavigable::adopt_pending_async_scroll_offsets(Compositing::AsyncScroll
             m_compositor_user_scroll_gesture_hold = nullptr;
     };
 
-    if (async_scroll_updates.scroll_offsets.is_empty() && async_scroll_updates.completed_operation_ids.is_empty() && async_scroll_updates.started_user_scrolls.is_empty())
+    if (async_scroll_updates.scroll_offsets.is_empty() && async_scroll_updates.completed_operation_ids.is_empty() && async_scroll_updates.started_user_scrolls.is_empty() && async_scroll_updates.applied_scroll_requests.is_empty())
         return;
 
     if (!document) {
         for (auto operation_id : async_scroll_updates.completed_operation_ids)
             resolve_async_scroll_operation(operation_id);
+        for (auto const& applied_scroll_request : async_scroll_updates.applied_scroll_requests)
+            finish_instant_scrolls_answered_by(applied_scroll_request);
         return;
     }
 
@@ -5846,6 +5890,9 @@ void LocalNavigable::adopt_pending_async_scroll_offsets(Compositing::AsyncScroll
 
     if (adopted_any_scroll_offset)
         schedule_hover_update_after_async_scroll();
+
+    for (auto const& applied_scroll_request : async_scroll_updates.applied_scroll_requests)
+        finish_instant_scrolls_answered_by(applied_scroll_request);
 
     for (auto operation_id : async_scroll_updates.completed_operation_ids) {
         auto completion = async_scroll_updates.operation_ids_taken_over_by_user_input.contains_slow(operation_id)
@@ -7396,6 +7443,16 @@ LocalNavigable::PerformedScroll LocalNavigable::perform_a_scroll_of_a_scrolling_
                 request_relative_scroll(stable_node_id, relative_request_displacement.value(), trigger);
             else
                 request_scroll_jump(stable_node_id, trigger);
+        }
+        // The compositor decides where a script's scroll leaves the box, which the scroll ends at once it says.
+        if (has_compositor_context() && trigger == ScrollTrigger::Programmatic) {
+            m_instant_scrolls_awaiting_answers.append({
+                .stable_node_id = stable_node_id,
+                .request_id = last_scroll_request_id_for(stable_node_id),
+                .initial_scroll_offset = *initial_scroll_offset,
+                .promise = scroll_promise,
+            });
+            return { scroll_promise, goes_to_a_snap_position };
         }
         if (did_scroll)
             queue_scrollend_event(stable_node_id, trigger, initial_scroll_offset);

@@ -1,3 +1,4 @@
 dragged away from the top: true
 held where the drag left it: true
+scrollend events during the drag: 0
 still there once released: true

@@ -1008,6 +1008,7 @@ Optional<PendingFrame> ContextState::apply_scroll_requests(ReadonlySpan<Composit
     for (auto const& scroll_request : scroll_requests) {
         // The box's offsets are reported as of this request from here on, whether or not the box is here yet.
         m_applied_scroll_request_ids.set(scroll_request.stable_node_id, scroll_request.request_id);
+        m_async_scroll_update_outbox.note_scroll_request_applied({ scroll_request.stable_node_id, scroll_request.request_id });
         if (scroll_request.stable_node_id.kind == Web::AsyncScrollNodeKind::VisualViewport) {
             apply_visual_viewport_scroll_request(scroll_request, answers);
             continue;
@@ -1170,8 +1171,10 @@ Optional<PendingFrame> ContextState::apply_scroll_requests(ReadonlySpan<Composit
         answer_with_the_offset_of_the_box();
     }
 
-    if (answers.is_empty())
+    if (answers.is_empty()) {
+        request_rendering_update();
         return {};
+    }
     store_pending_async_scroll_offsets(answers);
     if (m_has_async_scrolling_state)
         rebuild_wheel_hit_test_targets();

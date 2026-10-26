@@ -20,10 +20,10 @@
 <div id="scroller"><div id="spacer"></div></div>
 <script>
     promiseTest(async () => {
-        scroller.scrollLeft = 50;
-        scroller.scrollTop = 0;
-        await animationFrame();
-        await animationFrame();
+        await scrollSettled(scroller, () => {
+            scroller.scrollLeft = 50;
+            scroller.scrollTop = 0;
+        });
         println(`initial scrollLeft: ${scroller.scrollLeft}`);
         println(`vertical wheel target: ${wheelTargetToString(internals.compositorWheelTargetAt(50, 50, 0, 100))}`);
         println(`horizontal wheel target: ${wheelTargetToString(internals.compositorWheelTargetAt(50, 50, 100, 0))}`);
