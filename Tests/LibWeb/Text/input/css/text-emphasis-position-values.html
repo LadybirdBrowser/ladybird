@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="parent"><span id="child"></span></div>
+<script>
+test(() => {
+    const parent_element = document.getElementById("parent");
+    const child_element = document.getElementById("child");
+    for (const value of ["over right", "right under", "left over", "under left"]) {
+        parent_element.style.textEmphasisPosition = value;
+        println(`${value}: specified=${parent_element.style.textEmphasisPosition}, computed=${getComputedStyle(parent_element).textEmphasisPosition}, inherited=${getComputedStyle(child_element).textEmphasisPosition}`);
+    }
+    child_element.style.textEmphasisPosition = "initial";
+    println(`initial=${getComputedStyle(child_element).textEmphasisPosition}`);
+    child_element.style.textEmphasisPosition = "unset";
+    println(`unset=${getComputedStyle(child_element).textEmphasisPosition}`);
+    parent_element.style.textEmphasisPosition = "over right";
+    const animation = child_element.animate({ textEmphasisPosition: ["over right", "under left"] }, { duration: 1000, fill: "both" });
+    animation.pause();
+    for (const time of [0, 499, 500, 1000]) {
+        animation.currentTime = time;
+        println(`time=${time}: ${getComputedStyle(child_element).textEmphasisPosition}`);
+    }
+});
+</script>

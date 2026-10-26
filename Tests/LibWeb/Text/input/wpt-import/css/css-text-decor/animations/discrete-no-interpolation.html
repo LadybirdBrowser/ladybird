@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<meta name=timeout content=long>
+<link rel=author href="mailto:jarhar@chromium.org">
+<link rel=help href="https://github.com/w3c/csswg-drafts/issues/4441">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<body>
+<script>
+  test_no_interpolation({
+    property: 'text-decoration-line',
+    from: 'initial',
+    to: 'underline'
+  });
+
+  test_no_interpolation({
+    property: 'text-decoration-style',
+    from: 'initial',
+    to: 'dashed'
+  });
+
+  test_no_interpolation({
+    property: 'text-decoration-thickness',
+    from: 'initial',
+    to: '123px'
+  });
+
+  test_no_interpolation({
+    property: 'text-decoration-thickness',
+    from: 'auto',
+    to: '123px'
+  });
+
+  test_no_interpolation({
+    property: 'text-decoration-thickness',
+    from: 'from-font',
+    to: '123px'
+  });
+
+  test_no_interpolation({
+    property: 'text-emphasis-position',
+    from: 'initial',
+    to: 'under right'
+  });
+
+  test_no_interpolation({
+    property: 'text-emphasis-style',
+    from: 'initial',
+    to: 'dot'
+  });
+
+  test_no_interpolation({
+    property: 'text-underline-position',
+    from: 'initial',
+    to: 'under'
+  });
+</script>

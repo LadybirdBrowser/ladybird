@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Fail
+Fail	Property text-emphasis-position value 'auto'
+Fail	Property text-emphasis-position value 'over'
+Fail	Property text-emphasis-position value 'under'
+Fail	Property text-emphasis-position value 'over right'
+Fail	Property text-emphasis-position value 'over left'
+Fail	Property text-emphasis-position value 'under right'
+Fail	Property text-emphasis-position value 'under left'

@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-text-decor/#propdef-text-emphasis-position">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<div id="target"></div>
+<script>
+// Computed value: specified keyword(s)
+test_computed_value('text-emphasis-position', 'auto');
+test_computed_value('text-emphasis-position', 'over');
+test_computed_value('text-emphasis-position', 'under');
+test_computed_value('text-emphasis-position', 'over right', 'over');
+test_computed_value('text-emphasis-position', 'over left');
+test_computed_value('text-emphasis-position', 'under right', 'under');
+test_computed_value('text-emphasis-position', 'under left');
+</script>
