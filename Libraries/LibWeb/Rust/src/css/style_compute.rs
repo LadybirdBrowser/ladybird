@@ -7064,7 +7064,9 @@ fn finish_animation_sample(
             &retained,
             finalization,
         );
-        retained.extend(readers);
+        if let Ok(readers) = readers {
+            retained.extend(readers);
+        }
         let rows = retained
             .iter()
             .map(|(name, value)| FfiAnimatedCustomPropertyResult {
