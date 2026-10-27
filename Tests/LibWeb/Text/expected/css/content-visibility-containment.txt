@@ -1,5 +1,5 @@
 visible: 320x240, contain: none
-hidden: 0x0, contain: none
-hidden with new intrinsic size: 0x0, contain: none
+hidden: 10x20, contain: none
+hidden with new intrinsic size: 30x40, contain: none
 visible again: 320x240, contain: none
-hidden again: 0x0, contain: none
+hidden again: 30x40, contain: none

@@ -11,7 +11,8 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                 "▸ "
             GeneratedTextNode <(anonymous)> (not painted)
           TextNode <#text> (not painted)
-        BlockContainer <slot> at [68,84] [0+0+0 664 0+0+0] [0+0+0 0 0+0+0] children: not-inline
+        BlockContainer <slot> at [68,84] [0+0+0 664 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x152] (z-index: auto)
+  SC for BlockContainer<SLOT> [68,84 664x0] (z-index: auto)
