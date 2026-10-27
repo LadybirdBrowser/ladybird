@@ -2133,9 +2133,13 @@ impl<'pass> MathFormattingContext<'pass> {
         );
         input.sizing.math_stretch_size_constraint = stretch_size_constraint;
         let used = run.records.used_values(child);
-        let baselines = match formatting_context::layout_inside_child(run, None, None, child, input, true) {
+        let outcome = formatting_context::layout_inside_child(run, None, None, child, input, true);
+        outcome.report_percentage_block_size_dependency_of(run, child);
+        let baselines = match outcome {
             ChildLayoutOutcome::Created(result) => result.baselines,
-            ChildLayoutOutcome::ReenterCurrent | ChildLayoutOutcome::Skipped => used.content_baselines_from_cells(),
+            ChildLayoutOutcome::ReenterCurrent | ChildLayoutOutcome::Skipped { .. } => {
+                used.content_baselines_from_cells()
+            }
         };
         let collapsed = used.uses_collapsing_borders_model.get();
         let block_size = used.margin_box_block_size(collapsed);

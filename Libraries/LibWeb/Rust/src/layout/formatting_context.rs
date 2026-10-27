@@ -1068,9 +1068,34 @@ pub(crate) struct RunOutputs {
 }
 
 pub(crate) enum ChildLayoutOutcome {
-    Skipped,
+    Skipped { depends_on_percentage_block_size: bool },
     Created(ChildLayoutResult),
     ReenterCurrent,
+}
+
+impl ChildLayoutOutcome {
+    /// Whether the laid out child depends on the block size its percentages resolve against, which the box containing
+    /// it hears of.
+    pub(crate) fn child_depends_on_percentage_block_size(&self) -> bool {
+        match self {
+            Self::Skipped {
+                depends_on_percentage_block_size,
+            } => *depends_on_percentage_block_size,
+            Self::Created(result) => result.depends_on_percentage_block_size,
+            Self::ReenterCurrent => false,
+        }
+    }
+
+    /// Notes for the box containing `child` whether `child`, laid out with this outcome, depends on the block size its
+    /// percentages resolve against.
+    pub(crate) fn report_percentage_block_size_dependency_of(&self, run: &FormattingContextRun, child: Node) {
+        propagate_percentage_block_size_dependency_to_containing_block(
+            run.records,
+            &run.callbacks,
+            child,
+            self.child_depends_on_percentage_block_size(),
+        );
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -2640,13 +2665,8 @@ pub(crate) fn layout_inside_child(
         used.padding_top.set(used.padding_top.get() + padding_top);
         used.padding_bottom.set(used.padding_bottom.get() + padding_bottom);
     }
-    let note_skipped_child_dependency = || {
-        propagate_percentage_block_size_dependency_to_containing_block(
-            run.records,
-            &run.callbacks,
-            child,
-            run.sizing().skipped_child_depends_on_percentage_block_size(child),
-        );
+    let skipped = || ChildLayoutOutcome::Skipped {
+        depends_on_percentage_block_size: run.sizing().skipped_child_depends_on_percentage_block_size(child),
     };
     if !force_independent_context_run
         && !facts.node_has_size_containment()
@@ -2678,8 +2698,7 @@ pub(crate) fn layout_inside_child(
             fragments.hold_committed_fragment_of_empty_box(used, fragment);
         }
         store_derived_baselines(used, DerivedBaselines::default());
-        note_skipped_child_dependency();
-        return ChildLayoutOutcome::Skipped;
+        return skipped();
     }
     let creates_replaced_context = matches!(
         formatting_context_type_created_by_box(facts),
@@ -2687,8 +2706,7 @@ pub(crate) fn layout_inside_child(
     );
     if !facts.can_have_children() && !creates_replaced_context {
         size_skipped_independent_root(run, parent_block, child, &input);
-        note_skipped_child_dependency();
-        return ChildLayoutOutcome::Skipped;
+        return skipped();
     }
 
     let Some(ChildRunPlan {
@@ -2698,8 +2716,7 @@ pub(crate) fn layout_inside_child(
     }) = child_run_plan(run, child, input, force_independent_context_run)
     else {
         if force_independent_context_run {
-            note_skipped_child_dependency();
-            return ChildLayoutOutcome::Skipped;
+            return skipped();
         }
         return ChildLayoutOutcome::ReenterCurrent;
     };
@@ -2716,12 +2733,6 @@ pub(crate) fn layout_inside_child(
         run.callbacks,
         input,
         run.records.take_table_inline_layout(child),
-    );
-    propagate_percentage_block_size_dependency_to_containing_block(
-        run.records,
-        &run.callbacks,
-        child,
-        result.depends_on_percentage_block_size,
     );
     ChildLayoutOutcome::Created(result)
 }

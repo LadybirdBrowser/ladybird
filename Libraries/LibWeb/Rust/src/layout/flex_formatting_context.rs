@@ -2980,15 +2980,16 @@ impl<'pass> FlexFormattingContext<'pass> {
             self.item_used(index),
             self.available_space_for_items.unwrap().space,
         );
-        self.flex_items[index].content_baselines =
-            match formatting_context::layout_inside_child(run, None, None, node, input, false) {
-                ChildLayoutOutcome::Created(result) => result.baselines,
-                ChildLayoutOutcome::ReenterCurrent => {
-                    self.run(run, input);
-                    self.item_used(index).content_baselines_from_cells()
-                }
-                ChildLayoutOutcome::Skipped => self.item_used(index).content_baselines_from_cells(),
-            };
+        let outcome = formatting_context::layout_inside_child(run, None, None, node, input, false);
+        outcome.report_percentage_block_size_dependency_of(run, node);
+        self.flex_items[index].content_baselines = match outcome {
+            ChildLayoutOutcome::Created(result) => result.baselines,
+            ChildLayoutOutcome::ReenterCurrent => {
+                self.run(run, input);
+                self.item_used(index).content_baselines_from_cells()
+            }
+            ChildLayoutOutcome::Skipped { .. } => self.item_used(index).content_baselines_from_cells(),
+        };
 
         let container_inline_size = self.container_used().content_inline_size.get();
         let container_block_size = self.container_used().content_block_size.get();

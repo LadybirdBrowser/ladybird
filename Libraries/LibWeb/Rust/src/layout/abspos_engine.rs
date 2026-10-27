@@ -3111,7 +3111,7 @@ impl<'pass> AbsposEngine<'pass> {
         assert!(!self.facts(node).is_svg_box());
         let (available_space, constraints) = out_of_flow_root_space(inputs);
 
-        match formatting_context::layout_inside_child(
+        let outcome = formatting_context::layout_inside_child(
             run,
             None,
             None,
@@ -3122,8 +3122,10 @@ impl<'pass> AbsposEngine<'pass> {
                 ParticipationInParentFormattingContext::AbsolutelyPositioned(inputs),
             ),
             false,
-        ) {
-            ChildLayoutOutcome::Created(_) | ChildLayoutOutcome::Skipped => {}
+        );
+        outcome.report_percentage_block_size_dependency_of(run, node);
+        match outcome {
+            ChildLayoutOutcome::Created(_) | ChildLayoutOutcome::Skipped { .. } => {}
             ChildLayoutOutcome::ReenterCurrent => {
                 unreachable!("abspos child with contents did not establish a formatting context")
             }

@@ -2580,13 +2580,15 @@ impl<'pass> TableFormattingContext<'pass> {
             },
             participation: ParticipationInParentFormattingContext::Item,
         };
-        match formatting_context::layout_inside_child(run, None, None, cell.box_, layout_input, false) {
+        let outcome = formatting_context::layout_inside_child(run, None, None, cell.box_, layout_input, false);
+        outcome.report_percentage_block_size_dependency_of(run, cell.box_);
+        match outcome {
             ChildLayoutOutcome::Created(result) => result.baselines,
             ChildLayoutOutcome::ReenterCurrent => {
                 self.run(run, layout_input, None);
                 self.used_values(cell.box_).content_baselines_from_cells()
             }
-            ChildLayoutOutcome::Skipped => self.used_values(cell.box_).content_baselines_from_cells(),
+            ChildLayoutOutcome::Skipped { .. } => self.used_values(cell.box_).content_baselines_from_cells(),
         }
     }
 
