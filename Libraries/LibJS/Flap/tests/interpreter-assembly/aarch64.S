@@ -4150,6 +4150,22 @@ asm_handler_ThrowIfNullish:
 asm_handler_ThrowIfNullish_hot_end:
 
 .p2align 4
+asm_handler_ToPrimitiveWithStringHint:
+    ldr w0, [x21, #8]
+    ldr x0, [x27, x0, lsl #3]
+    lsr x9, x0, #48
+    mov w10, #65529
+    cmp x9, x10
+    b.eq .Lasm_ToPrimitiveWithStringHint.ssa_block_1
+    ldr w9, [x21, #4]
+    str x0, [x27, x9, lsl #3]
+    ldrb w9, [x21, #16]
+    add x21, x21, #16
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+asm_handler_ToPrimitiveWithStringHint_hot_end:
+
+.p2align 4
 asm_handler_BitwiseNot:
     ldr w0, [x21, #8]
     ldr x0, [x27, x0, lsl #3]
@@ -12433,8 +12449,9 @@ asm_handler_ToString_hot_end:
 asm_handler_ToString_cold:
 asm_handler_ToString_cold_end:
 
-.p2align 4
-asm_handler_ToPrimitiveWithStringHint:
+asm_handler_ToPrimitiveWithStringHint_cold:
+// Cold paths for ToPrimitiveWithStringHint
+.Lasm_ToPrimitiveWithStringHint.ssa_block_1:
     mov x0, x20
     sub w1, w21, w26
     str w1, [x28, #64]
@@ -12446,8 +12463,12 @@ asm_handler_ToPrimitiveWithStringHint:
     sub w1, w21, w26
     mov x2, x21
     bl CSYM(asm_slow_path_to_primitive_with_string_hint)
-    tbnz x0, #63, .Lasm_ToPrimitiveWithStringHint.scalar_result_done_1
-    tbz x0, #32, .Lasm_ToPrimitiveWithStringHint.scalar_result_done_1
+    tbz x0, #63, 1f
+    b .Lasm_ToPrimitiveWithStringHint.scalar_result_done_1
+1:
+    tbnz x0, #32, 1f
+    b .Lasm_ToPrimitiveWithStringHint.scalar_result_done_1
+1:
     ldr w9, [x21, #4]
     str x1, [x27, x9, lsl #3]
     add x21, x26, w0, uxtw
@@ -12458,7 +12479,9 @@ asm_handler_ToPrimitiveWithStringHint:
     tbz x0, #63, 1f
     b .Lexit
 1:
-    tbz x0, #32, .Lasm_ToPrimitiveWithStringHint.slow_path_transfer_2
+    tbnz x0, #32, 1f
+    b .Lasm_ToPrimitiveWithStringHint.slow_path_transfer_2
+1:
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -12472,10 +12495,7 @@ asm_handler_ToPrimitiveWithStringHint:
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
-asm_handler_ToPrimitiveWithStringHint_hot_end:
-asm_handler_ToPrimitiveWithStringHint_cold:
 asm_handler_ToPrimitiveWithStringHint_cold_end:
-
 .p2align 4
 asm_handler_ToObject:
     mov x0, x20

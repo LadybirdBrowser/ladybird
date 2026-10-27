@@ -273,9 +273,9 @@ pub fn handling(opcode: OpCode) -> Handling {
         // has no return method for it.
         O::IteratorClose => EXPANDED,
 
-        // Conversions that change nothing for objects, and for lengths that
-        // are int32 values already.
-        O::ToObject | O::ToLength => EXPANDED,
+        // Conversions that change nothing for objects, for lengths that are
+        // int32 values already, and for primitives.
+        O::ToObject | O::ToLength | O::ToPrimitiveWithStringHint => EXPANDED,
 
         // Concatenations of strings, and of a string and an integer.
         O::ConcatString => EXPANDED,
@@ -314,7 +314,6 @@ pub fn handling(opcode: OpCode) -> Handling {
         | O::ThrowNotAFunction
         | O::Throw
         | O::ToString
-        | O::ToPrimitiveWithStringHint
         | O::DynamicGetCalleeAndThisFromEnvironment
         | O::GetByIdWithThis
         | O::PutByIdWithThis

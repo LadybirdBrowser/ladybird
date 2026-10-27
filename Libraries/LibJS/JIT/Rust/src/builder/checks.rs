@@ -71,9 +71,12 @@ impl GraphBuilder<'_> {
                 let value = self.read(src)?;
                 self.build_throwing_check(BranchCondition::Nullish, vec![value], true)
             }
-            Instruction::ToObject { dst, value } => self.build_conversion(BranchCondition::Object, dst, value),
+            Instruction::ToObject { dst, value } => self.build_conversion(BranchCondition::Object, true, dst, value),
             Instruction::ToLength { dst, value } => {
-                self.build_conversion(BranchCondition::NonNegativeInt32, dst, value)
+                self.build_conversion(BranchCondition::NonNegativeInt32, true, dst, value)
+            }
+            Instruction::ToPrimitiveWithStringHint { dst, value } => {
+                self.build_conversion(BranchCondition::Object, false, dst, value)
             }
             Instruction::ResolveThisBinding => self.build_resolve_this_binding(),
             Instruction::GetIterator {
@@ -172,18 +175,19 @@ impl GraphBuilder<'_> {
         Ok(self.refine(condition, false, vec![value, empty]))
     }
 
-    /// Writes `src` to `dst` where `condition` holds of it, and the result
-    /// of the instruction's slow path, in a cold block, otherwise.
+    /// Writes `src` to `dst` where `condition` of it is `unchanged_when`, and
+    /// the result of the instruction's slow path, in a cold block, otherwise.
     fn build_conversion(
         &mut self,
         condition: BranchCondition,
+        unchanged_when: bool,
         dst: Operand,
         src: Operand,
     ) -> Result<Flow, CompileFailure> {
         let frame_state = self.eager_frame_state();
         let value = self.read(src)?;
         let slow_path_inputs = self.slow_path_inputs()?;
-        let (hot, cold) = self.branch_with_cold_side(condition, vec![value], true);
+        let (hot, cold) = self.branch_with_cold_side(condition, vec![value], unchanged_when);
         self.block = cold;
         let converted = self.emit_call_slow_path(slow_path_inputs, frame_state, Some(Repr::Tagged));
         self.join_blocks(vec![hot, cold]);
