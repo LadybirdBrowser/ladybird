@@ -2629,8 +2629,10 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
 
     fn size_contained_content_inline_size(&self, node: Node) -> Option<CssPixels> {
         let facts = self.facts(node);
-        (facts.node_has_size_containment() || facts.node_has_inline_size_containment())
-            .then(|| clamp_to_max_dimension_value(formatting_context::explicit_intrinsic_inner_inline_size(&facts)))
+        // NB: An orthogonal box's inline axis is this context's block axis.
+        (facts.node_has_size_containment()
+            || (facts.node_has_inline_size_containment() && !self.establishes_orthogonal_flow(node)))
+        .then(|| clamp_to_max_dimension_value(formatting_context::explicit_intrinsic_inner_inline_size(&facts)))
     }
 
     // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-size-transfers
