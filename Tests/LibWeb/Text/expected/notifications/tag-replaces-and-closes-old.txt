@@ -1,0 +1,3 @@
+a closed, shown: 1
+shown title: B
+replaces a: true
