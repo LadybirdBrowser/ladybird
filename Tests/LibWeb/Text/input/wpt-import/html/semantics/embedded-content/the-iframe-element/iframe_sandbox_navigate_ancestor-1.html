@@ -1,0 +1,12 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Check that sandboxed iframe can not navigate their ancestors</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script>
+  var t = async_test();
+  onmessage = t.step_func_done(function(e) {
+    assert_equals(e.data, "can not navigate", "Should have the right message");
+  });
+</script>
+<iframe sandbox="allow-scripts" src="support/iframe-tried-to-be-navigated-by-its-child.html"></iframe>

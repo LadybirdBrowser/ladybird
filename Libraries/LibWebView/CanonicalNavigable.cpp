@@ -611,12 +611,10 @@ bool CanonicalNavigable::allowed_by_sandboxing_to_navigate(CanonicalNavigable co
     if (source.is_ancestor_of(target))
         return true;
 
-    // 3. If target is an ancestor of source, then:
-    if (target.is_ancestor_of(source)) {
-        // 1. If target is not a top-level traversable, then return true.
-        if (!target.is_top_level_traversable())
-            return true;
-
+    // 3. If target is an ancestor of source:
+    // AD-HOC: Only for a top-level target, which drops step 1, so that other ancestors reach step 5.
+    //         See https://github.com/whatwg/html/pull/13150
+    if (target.is_top_level_traversable() && target.is_ancestor_of(source)) {
         // 2. If sourceSnapshotParams's has transient activation is true, and sourceSnapshotParams's sandboxing flags's
         //    sandboxed top-level navigation with user activation browsing context flag is set, then return false.
         if (source_snapshot_params.has_transient_activation

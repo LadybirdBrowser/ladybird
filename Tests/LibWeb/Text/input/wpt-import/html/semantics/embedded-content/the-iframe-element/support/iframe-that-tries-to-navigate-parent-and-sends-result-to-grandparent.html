@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<p>This is a frame that tries to navigate its parent.</p>
+<script>
+window.onload = function() {
+  try {
+    parent.location.href = "data:text/html,\u003c!DOCTYPE html\u003e\u003cp\u003eIf this message appears, then this frame has been navigated by its child.\u003c/p\u003e\u003cscript\u003eparent.postMessage('can navigate', '*');\u003c/script\u003e";
+  } catch(e) {
+    parent.parent.postMessage("can not navigate", "*");
+  }
+}
+</script>
