@@ -853,7 +853,7 @@ void CompositorState::dispatch_scroll_fling_step(Web::CompositorContextId contex
     event->async_scroll_performed_default_action = apply_context_update_result(context_id, context, result);
     schedule_animation_frames_if_needed(context);
     // The steps this context makes itself carry on the gesture of the wheel events before them.
-    event->wheel_gesture_mark = Web::WheelGestureMark { .continues_gesture = true };
+    event->wheel_gesture_mark = Web::WheelGestureMark { .continues_gesture = true, .lasts_until_fingers_lift = false };
     context.dispatch_mouse_event_to_web_content(*event);
 }
 
@@ -1486,13 +1486,20 @@ BackingStoreManager::GpuSharing CompositorState::gpu_sharing_for_context([[maybe
     return BackingStoreManager::GpuSharing::Allowed;
 }
 
-// A context scrolls elastically, and takes presses on scrollbar tracks, as the presentation of its root context does.
+// A context scrolls elastically, takes presses on scrollbar tracks, and ends touchpad gestures as the presentation of
+// its root context does. A platform that reports the momentum of a flick reports when the fingers lift for it.
 void CompositorState::update_scroll_capabilities()
 {
     for (auto& [context_id, context] : m_contexts) {
-        auto* presentation = presentation_for_context(root_context_of(*context)->context_id());
-        context->set_scrolls_elastically(presentation && m_presentations.get(presentation)->scrolls_elastically);
-        context->set_scrollbar_track_press_jumps(presentation && m_presentations.get(presentation)->scrollbar_track_press_jumps);
+        ContextState::ScrollCapabilities capabilities;
+        if (auto* presentation = presentation_for_context(root_context_of(*context)->context_id())) {
+            auto const& presentation_capabilities = *m_presentations.get(presentation);
+            capabilities.scrolls_elastically = presentation_capabilities.scrolls_elastically;
+            capabilities.scrollbar_track_press_jumps = presentation_capabilities.scrollbar_track_press_jumps;
+            if (!presentation_capabilities.synthesizes_scroll_momentum)
+                capabilities.touchpad_gesture_end = Compositing::TouchpadGestureEnd::WhenFingersLift;
+        }
+        context->set_scroll_capabilities(capabilities);
     }
 }
 
@@ -1537,6 +1544,12 @@ void CompositorState::begin_input_trace_for_testing(Web::CompositorContextId con
 {
     if (auto* context = context_if_present(context_id))
         context->input_trace().begin();
+}
+
+void CompositorState::clear_per_test_input_state_for_testing(Web::CompositorContextId context_id)
+{
+    if (auto* context = context_if_present(context_id))
+        context->clear_per_test_input_state();
 }
 
 Vector<Web::InputTraceRecord> CompositorState::take_input_trace_for_testing(Web::CompositorContextId context_id)

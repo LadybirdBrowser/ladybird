@@ -173,6 +173,7 @@ public:
     ContextUpdateResult scroll_for_wheel_event_passed_on_by_nested_context(Web::MouseEvent const&, MonotonicTime now);
     void latch_wheel_gesture_to_nested_context(Web::CompositorContextId, Optional<Web::AsyncScrollNodeStableID> scroller, Web::MouseEvent const&);
     void forget_wheel_gesture_latch() { m_wheel_gesture_routing.clear_latch(); }
+    void clear_per_test_input_state();
 
     FirstWheelStepRoute route_first_wheel_step_from_containing_context(Gfx::FloatPoint position, Gfx::FloatPoint delta_in_css_pixels, Web::WheelDeltaPrecision, Compositing::NestedContextRegions);
     // Latches the gesture to the scroller the route found, or to the one that keeps the step, and scrolls by the step.
@@ -213,8 +214,13 @@ public:
     Optional<Web::MouseEvent> end_momentum_scrolling(Web::AsyncScrollNodeStableID);
     // Whether the wheel event from the UI is momentum, or the end, of a gesture whose momentum was interrupted.
     bool absorbs_wheel_event_of_interrupted_momentum(Web::MouseEvent const&);
-    void set_scrolls_elastically(bool);
-    void set_scrollbar_track_press_jumps(bool jumps) { m_scrollbar_track_press_jumps = jumps; }
+    // What the presentation a context is shown through makes of the user's scrolling.
+    struct ScrollCapabilities {
+        bool scrolls_elastically { false };
+        bool scrollbar_track_press_jumps { false };
+        Compositing::TouchpadGestureEnd touchpad_gesture_end { Compositing::TouchpadGestureEnd::AfterIdleDelay };
+    };
+    void set_scroll_capabilities(ScrollCapabilities const&);
     Optional<Gfx::IntRect> advance_elastic_overscroll_rebounds(MonotonicTime frame_time);
     Optional<PendingFrame> advance_scrollbar_fades(MonotonicTime frame_time);
     // The installed scrolling state, its routing admission, and how far the given scroller is stretched, as JSON.

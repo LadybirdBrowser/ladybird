@@ -148,6 +148,7 @@ public:
     String scroll_state_for_testing(Web::CompositorContextId, Web::AsyncScrollNodeStableID stretched_scroller) const;
     Optional<Compositing::FirstWheelStepRouteForTesting> route_first_wheel_step_for_testing(Web::CompositorContextId, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_css_pixels);
     void begin_input_trace_for_testing(Web::CompositorContextId);
+    void clear_per_test_input_state_for_testing(Web::CompositorContextId);
     Vector<Web::InputTraceRecord> take_input_trace_for_testing(Web::CompositorContextId);
 
     struct PlaceholderCanvasAllocation {

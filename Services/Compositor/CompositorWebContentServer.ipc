@@ -76,6 +76,7 @@ endpoint CompositorWebContentServer
     synchronize_for_testing() => ()
     route_first_wheel_step_for_testing(Web::CompositorContextId context_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_css_pixels) => (Optional<Web::InputRoutingDecision> decision, Optional<Web::AsyncScrollNodeStableID> scroller, Optional<Web::UniqueNodeID> document_id)
     begin_input_trace_for_testing(Web::CompositorContextId context_id) => ()
+    clear_per_test_input_state_for_testing(Web::CompositorContextId context_id) => ()
     take_input_trace_for_testing(Web::CompositorContextId context_id) => (Vector<Web::InputTraceRecord> records)
 
     take_pending_async_scroll_updates(Web::CompositorContextId context_id) => (Compositing::PendingAsyncScrollUpdates updates)

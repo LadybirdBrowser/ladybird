@@ -5297,13 +5297,18 @@ void LocalNavigable::note_user_scroll_gesture_phase(Web::ScrollGesturePhase phas
     }
 }
 
-void LocalNavigable::did_handle_wheel_event()
+void LocalNavigable::did_handle_wheel_event(bool gesture_lasts_until_fingers_lift)
 {
     if (!m_wheel_user_scroll_gesture_hold)
         return;
     // The compositor latched the gesture to the box it scrolls before it handed the event on.
     if (m_compositor_wheel_latched_scroller.has_value())
         m_wheel_user_scroll_gesture_hold->hold(m_compositor_wheel_latched_scroller.value());
+    if (gesture_lasts_until_fingers_lift) {
+        if (m_wheel_user_scroll_gesture_hold_expiry_timer)
+            m_wheel_user_scroll_gesture_hold_expiry_timer->stop();
+        return;
+    }
     if (!m_wheel_user_scroll_gesture_hold_expiry_timer) {
         m_wheel_user_scroll_gesture_hold_expiry_timer = Core::Timer::create_single_shot(Compositing::user_scroll_settle_delay, [this] {
             m_wheel_user_scroll_gesture_hold = nullptr;

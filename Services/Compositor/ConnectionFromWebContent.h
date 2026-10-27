@@ -83,6 +83,7 @@ private:
     virtual void synchronize_for_testing() override { }
     virtual Messages::CompositorWebContentServer::RouteFirstWheelStepForTestingResponse route_first_wheel_step_for_testing(Web::CompositorContextId, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_css_pixels) override;
     virtual void begin_input_trace_for_testing(Web::CompositorContextId) override;
+    virtual void clear_per_test_input_state_for_testing(Web::CompositorContextId) override;
     virtual Messages::CompositorWebContentServer::TakeInputTraceForTestingResponse take_input_trace_for_testing(Web::CompositorContextId) override;
     virtual Messages::CompositorWebContentServer::TakePendingAsyncScrollUpdatesResponse take_pending_async_scroll_updates(Web::CompositorContextId) override;
     virtual void viewport_size_updated(Web::CompositorContextId, Gfx::IntSize viewport_size, double device_pixel_ratio, Compositing::WindowResizingInProgress) override;

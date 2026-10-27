@@ -634,8 +634,8 @@ void Internals::send_text(HTML::HTMLElement& target, Utf16String const& text, We
 // The compositor context that the UI routes this page's input through.
 static Compositor::CompositorContextHandle* compositor_context_routing_input_for(HTML::Window& window)
 {
-    auto local_root = window.navigable()->local_root();
-    if (!local_root->has_compositor_context())
+    auto local_root = local_root_of(window);
+    if (!local_root || !local_root->has_compositor_context())
         return nullptr;
     return &local_root->compositor_context();
 }
@@ -2062,6 +2062,8 @@ void Internals::perform_per_test_cleanup()
         local_root->event_handler().clear_per_test_input_state({});
         WebDriver::reset_input_state(*local_root->top_level_traversable());
     }
+    if (auto* compositor_context = compositor_context_routing_input_for(window()))
+        compositor_context->clear_per_test_input_state_for_testing();
     if (page().input_trace().is_recording())
         (void)take_input_trace_records(window());
 

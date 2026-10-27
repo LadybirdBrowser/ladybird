@@ -1,0 +1,2 @@
+Before the fingers lift: frame scrollY 150, page scrollY 0, frame scrollend events: 0
+After they lift: frame scrollY 150, page scrollY 0, frame scrollend events: 1

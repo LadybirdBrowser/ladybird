@@ -58,7 +58,7 @@ bool WheelGestureRouting::note_wheel_event(u64 input_event_id, Web::ScrollGestur
             m_newest_wheel_event_ids_from_ui.ended = input_event_id;
     }
 
-    bool starts_gesture = !m_gesture.has_value() || !m_gesture->is_continued_by(position, phase, modifiers, now, position_slop_in_device_pixels(async_scroll_tree));
+    bool starts_gesture = !m_gesture.has_value() || !m_gesture->is_continued_by(position, phase, modifiers, now, position_slop_in_device_pixels(async_scroll_tree), m_touchpad_gesture_end);
     if (starts_gesture) {
         m_gesture = Compositing::WheelGestureIdentity::started_by(position, phase, modifiers, now);
         m_gesture_had_wheel_event_with_delta = false;
@@ -71,6 +71,14 @@ bool WheelGestureRouting::note_wheel_event(u64 input_event_id, Web::ScrollGestur
         m_id_of_first_wheel_event_with_delta = input_event_id;
     }
     return starts_gesture;
+}
+
+void WheelGestureRouting::forget_gesture()
+{
+    m_gesture.clear();
+    m_gesture_had_wheel_event_with_delta = false;
+    m_id_of_first_wheel_event_with_delta = 0;
+    m_latch.clear();
 }
 
 bool WheelGestureRouting::step_was_overtaken_by_ui(Web::ScrollGesturePhase phase, u64 input_event_id) const
@@ -115,6 +123,22 @@ WheelGestureRouting::ResolvedLatch WheelGestureRouting::resolve_latch(Compositin
 Optional<Web::AsyncScrollNodeStableID> WheelGestureRouting::latched_scroller() const
 {
     if (!m_latch.has_value())
+        return {};
+    return m_latch->stable_node_id;
+}
+
+bool WheelGestureRouting::gesture_lasts_until_fingers_lift() const
+{
+    return m_touchpad_gesture_end == Compositing::TouchpadGestureEnd::WhenFingersLift && m_gesture.has_value() && m_gesture->is_held_by_fingers();
+}
+
+Optional<Web::AsyncScrollNodeStableID> WheelGestureRouting::scroller_held_by_fingers() const
+{
+    if (m_touchpad_gesture_end != Compositing::TouchpadGestureEnd::WhenFingersLift || !m_latch.has_value())
+        return {};
+    // The gesture here has every event; a context nested in another has only the steps handed to it, on its latch.
+    bool held_by_fingers = m_gesture.has_value() ? m_gesture->is_held_by_fingers() : m_latch->last_scroll_gesture_phase == Web::ScrollGesturePhase::Ongoing;
+    if (!held_by_fingers)
         return {};
     return m_latch->stable_node_id;
 }

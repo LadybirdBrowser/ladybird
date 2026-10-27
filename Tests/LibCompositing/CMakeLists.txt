@@ -10,6 +10,7 @@ set(TEST_SOURCES
     TestTextureUpload.cpp
     TestUIOverlays.cpp
     TestVideoFrameHold.cpp
+    TestWheelGestureIdentity.cpp
 )
 
 foreach(source IN LISTS TEST_SOURCES)
