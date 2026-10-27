@@ -1501,11 +1501,10 @@ void WebContentView::start_web_compat_report()
         return;
     }
 
-    auto frame = capture.frame;
-    select_screenshot(frame, [review = AK::move(review), capture = AK::move(capture)](QImage screenshot) mutable {
+    select_screenshot(capture.frame).on_finished = [review = AK::move(review), capture = AK::move(capture)](QImage screenshot) mutable {
         capture.screenshot = AK::move(screenshot);
         review(AK::move(capture));
-    });
+    };
 }
 
 // The tab was opened only for the review, so no web content runs behind it, and leaving the review closes it.
@@ -1523,14 +1522,14 @@ void WebContentView::review_web_compat_report(WebCompatReportCapture capture)
     column_layout->addWidget(review);
 
     review->on_select_screenshot = [this, review = QPointer { review }, frame = AK::move(capture.frame)] {
-        if (frame.isNull())
+        if (frame.isNull() || m_screenshot_selection_overlay)
             return;
-        select_screenshot(frame, [review](QImage screenshot) {
+        select_screenshot(frame).on_finished = [review](QImage screenshot) {
             if (!review)
                 return;
             review->set_screenshot(AK::move(screenshot));
             review->setFocus(Qt::OtherFocusReason);
-        });
+        };
     };
     review->on_view_screenshot = [this](QImage const& screenshot) {
         if (screenshot.isNull() || m_screenshot_viewer)
@@ -1569,21 +1568,17 @@ void WebContentView::review_web_compat_report(WebCompatReportCapture capture)
 }
 
 // The selection shows a frame taken earlier, so the user selects what they saw, even while the page underneath changes.
-void WebContentView::select_screenshot(QImage const& frame, Function<void(QImage)> on_selected)
+ScreenshotSelectionOverlay& WebContentView::select_screenshot(QImage const& frame)
 {
-    if (m_screenshot_selection_overlay)
-        return;
+    VERIFY(!m_screenshot_selection_overlay);
 
     auto* overlay = new ScreenshotSelectionOverlay(frame, this);
     m_screenshot_selection_overlay = overlay;
     auto focus_to_restore = show_transient_overlay(*overlay);
-    overlay->on_finished = [this, overlay, focus_to_restore, on_selected = AK::move(on_selected)](QImage screenshot) {
-        close_transient_overlay(*overlay, focus_to_restore);
-        on_selected(AK::move(screenshot));
-    };
-    overlay->on_canceled = [this, overlay, focus_to_restore] {
+    overlay->on_close = [this, overlay, focus_to_restore] {
         close_transient_overlay(*overlay, focus_to_restore);
     };
+    return *overlay;
 }
 
 // An overlay shown for a moment, such as to select or view a screenshot, hands the focus back once it is done.
