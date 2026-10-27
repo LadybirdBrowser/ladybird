@@ -8,7 +8,7 @@ use super::*;
 
 pub(super) struct ContentSizingScope {
     node: Node,
-    root: UsedValues,
+    root_cells: used_values::RootInputCells,
 }
 
 impl ContentSizingScope {
@@ -27,16 +27,19 @@ impl ContentSizingScope {
             root.has_definite_block_size.set(true);
         }
         root.has_definite_inline_size.set(false);
-        Self { node, root }
+        Self {
+            node,
+            root_cells: used_values::RootInputCells::capture(&root),
+        }
     }
 
-    pub(super) fn root(&self) -> &UsedValues {
-        &self.root
+    pub(super) fn root_cells(&self) -> used_values::RootInputCells {
+        self.root_cells
     }
 
     pub(super) fn available_block_size(&self) -> AvailableSize {
-        if self.root.has_definite_block_size() {
-            AvailableSize::definite(self.root.content_block_size.get())
+        if self.root_cells.has_definite_block_size {
+            AvailableSize::definite(self.root_cells.content_block_size)
         } else {
             AvailableSize::Indefinite
         }
@@ -55,11 +58,12 @@ impl ContentSizingScope {
     }
 
     fn enter<R>(&self, callbacks: LayoutPass<'_>, size_content: impl FnOnce(&FormattingContextRun<'_>) -> R) -> R {
+        let root = self.root_cells.materialize_record();
         RunRecords::with_content_inline_sizes_root(
             callbacks,
             self.node,
             callbacks.in_flow_containing_block(self.node),
-            &self.root,
+            &root,
             |records, callbacks| {
                 size_content(&FormattingContextRun {
                     records,
@@ -607,7 +611,7 @@ pub(super) fn content_sizes_of_replaced_content(
     depends_on_block_size: bool,
 ) -> sizing_context::ContentInlineSizes {
     let size = match formatting_context::independent_formatting_context_type(scope.node, &callbacks) {
-        formatting_context::FormattingContextType::ReplacedWithChildren => scope.root().content_inline_size.get(),
+        formatting_context::FormattingContextType::ReplacedWithChildren => scope.root_cells().content_inline_size,
         _ => CssPixels::default(),
     };
     scope.measure(callbacks, depends_on_block_size, |_| sizing_context::ContentSizes {
@@ -637,12 +641,16 @@ pub(super) fn content_sizes_of_orthogonal_flow(
         run.sizing().measurement_root_observes_percentage_inline_basis(node)
     });
     let available_inline_size_in_own_frame = scope.available_block_size();
-    let root = scope.root();
+    let root = scope.root_cells().materialize_record();
     root.move_box_metrics_to_frame(callbacks.frame, own_frame);
     let inline_size = if root.has_definite_inline_size.get() {
         root.content_inline_size.get()
     } else {
-        scope.enter(callbacks_in_own_frame, |run| {
+        let scope_in_own_frame = ContentSizingScope {
+            node,
+            root_cells: used_values::RootInputCells::capture(&root),
+        };
+        scope_in_own_frame.enter(callbacks_in_own_frame, |run| {
             run.sizing().orthogonal_flow_inline_size(
                 node,
                 AvailableSpace {
@@ -670,7 +678,7 @@ pub(super) fn content_sizes_of_orthogonal_flow(
     let result = formatting_context::lay_out_measurement_root_for_its_result(
         callbacks_in_own_frame,
         node,
-        used_values::RootInputCells::capture(root),
+        used_values::RootInputCells::capture(&root),
         input,
     );
     let size = result.automatic_content_block_size;
@@ -702,12 +710,7 @@ pub(super) fn content_sizes_of_math(
         constraints,
         ParticipationInParentFormattingContext::Root,
     );
-    let laid_out = formatting_context::run_root_without_parent_fragments(
-        callbacks,
-        node,
-        used_values::RootInputCells::capture(scope.root()),
-        input,
-    );
+    let laid_out = formatting_context::run_root_without_parent_fragments(callbacks, node, scope.root_cells(), input);
     let size = laid_out.root_cells_left_by_run.content_inline_size;
     let observes_percentage_inline_basis = scope.enter(callbacks, |run| {
         run.sizing().measurement_root_observes_percentage_inline_basis(node)
