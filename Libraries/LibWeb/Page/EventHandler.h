@@ -145,6 +145,9 @@ public:
         return {};
     }
 
+    // For a held key whose release will not reach the page, as when the window loses focus.
+    void release_held_scroll_key();
+
     void clear_per_test_input_state(Badge<Internals::Internals>);
 
 private:
