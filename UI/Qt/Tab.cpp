@@ -1146,7 +1146,7 @@ void Tab::initialize(Optional<WebView::CanonicalTraversable&> traversable)
     m_bookmarks_bar_hover_collapse_timer->setInterval(BOOKMARKS_BAR_HOVER_COLLAPSE_POLL_INTERVAL_MS);
     connect(m_bookmarks_bar_hover_collapse_timer, &QTimer::timeout, this, &Tab::update_bookmarks_bar_hover);
 
-    m_toolbar->installEventFilter(this);
+    m_toolbar_container->installEventFilter(this);
     m_bookmarks_bar_container->installEventFilter(this);
     m_bookmarks_bar->installEventFilter(this);
     m_view->installEventFilter(this);
@@ -2323,12 +2323,12 @@ bool Tab::eventFilter(QObject* watched, QEvent* event)
     if (watched == m_bookmarks_bar && event->type() == QEvent::LayoutRequest)
         update_bookmarks_bar_geometry();
 
-    if (watched == m_toolbar || watched == m_bookmarks_bar_container) {
+    if (watched == m_toolbar_container || watched == m_bookmarks_bar_container) {
         if (event->type() == QEvent::Enter || event->type() == QEvent::Show) {
             update_bookmarks_bar_hover();
         } else if (event->type() == QEvent::Leave) {
             QTimer::singleShot(0, this, &Tab::update_bookmarks_bar_hover);
-        } else if (event->type() == QEvent::Hide && watched == m_toolbar) {
+        } else if (event->type() == QEvent::Hide && watched == m_toolbar_container) {
             set_bookmarks_bar_hover_expanded(false);
         }
     }
@@ -2729,7 +2729,7 @@ bool Tab::cursor_is_over_bookmarks_bar_hover_region() const
     auto contains_cursor = [&](QWidget const& widget) {
         return widget.isVisible() && QRect { widget.mapToGlobal(QPoint {}), widget.size() }.contains(cursor_position);
     };
-    return contains_cursor(*m_toolbar) || contains_cursor(*m_bookmarks_bar_container);
+    return contains_cursor(*m_toolbar_container) || contains_cursor(*m_bookmarks_bar_container);
 }
 
 void Tab::update_bookmarks_bar_hover()
