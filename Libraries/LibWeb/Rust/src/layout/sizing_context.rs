@@ -1227,13 +1227,14 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
     }
 
     pub(crate) fn resolve_percentage_block_size_dependency(&self, node: Node) -> bool {
-        let used = self.used(node);
-        let depends_on_percentage_block_size = used.depends_on_percentage_block_size.get()
+        let found = self.records.percentage_block_size_dependency_of(node);
+        let depends_on_percentage_block_size = found.depends_on_percentage_block_size
             || self.own_style_depends_on_percentage_block_size(node)
-            || (used.has_descendant_that_depends_on_percentage_block_size.get()
+            || (found.has_descendant_that_depends_on_percentage_block_size
                 && self.passes_percentage_block_size_through_to_children(node));
-        used.depends_on_percentage_block_size
-            .set(depends_on_percentage_block_size);
+        if depends_on_percentage_block_size {
+            self.records.note_box_depends_on_percentage_block_size(node);
+        }
         depends_on_percentage_block_size
     }
 
@@ -1296,9 +1297,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         if !depends_on_percentage_block_size {
             return;
         }
-        if let Some(record) = self.records.used_values_if_owned(node) {
-            record.depends_on_percentage_block_size.set(true);
-        }
+        self.records.note_box_depends_on_percentage_block_size(node);
         formatting_context::propagate_percentage_block_size_dependency_to_containing_block(
             self.records,
             &self.callbacks,
@@ -2234,7 +2233,9 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
                             border_end: root_used.border_right.get(),
                             margin_end: root_used.margin_right.get(),
                         },
-                        root_used.depends_on_percentage_block_size.get()
+                        records
+                            .percentage_block_size_dependency_of(node)
+                            .depends_on_percentage_block_size
                             || sizing.skipped_child_depends_on_percentage_block_size(node),
                     )
                 },

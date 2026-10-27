@@ -2611,13 +2611,13 @@ pub(crate) fn propagate_percentage_block_size_dependency_to_containing_block(
         return;
     }
     let containing_block = callbacks.in_flow_containing_block(child);
-    let containing_block_record_or_run_root_that_forwarded_the_basis = (!containing_block.is_invalid())
-        .then(|| records.used_values_if_owned(containing_block))
-        .flatten()
-        .unwrap_or_else(|| records.used_values(records.root()));
-    containing_block_record_or_run_root_that_forwarded_the_basis
-        .has_descendant_that_depends_on_percentage_block_size
-        .set(true);
+    let containing_block_or_run_root_that_forwarded_the_basis =
+        if !containing_block.is_invalid() && records.used_values_if_owned(containing_block).is_some() {
+            containing_block
+        } else {
+            records.root()
+        };
+    records.note_descendant_depends_on_percentage_block_size(containing_block_or_run_root_that_forwarded_the_basis);
 }
 
 pub(crate) fn layout_inside_child(
@@ -2954,12 +2954,14 @@ fn own_block_size_observation_of_item_run(
     input: &LayoutInput,
     result: &ChildLayoutResult,
 ) -> OwnBlockSizeObservation {
-    let root_used = run.records.used_values(run.box_);
     let item_is_plain_block_container_laid_out_without_its_own_block_size = fc_type == FormattingContextType::Block
         && !run.callbacks.frame.is_transposed()
         && parent_owns_root_input_cells(&run.callbacks, run.box_, input)
         && !result.depends_on_percentage_block_size
-        && !root_used.has_descendant_that_depends_on_percentage_block_size.get()
+        && !run
+            .records
+            .percentage_block_size_dependency_of(run.box_)
+            .has_descendant_that_depends_on_percentage_block_size
         && !block_formatting_context::root_lays_out_content_against_its_own_block_size(&run.sizing(), run.box_)
         && !root_content_includes_an_orthogonal_flow_sized_by_the_root_block_size(&run.callbacks, run.box_);
     if item_is_plain_block_container_laid_out_without_its_own_block_size {

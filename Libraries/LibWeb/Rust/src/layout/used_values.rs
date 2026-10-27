@@ -385,10 +385,6 @@ pub(crate) struct UsedValues {
     pub last_baseline: Cell<CssPixels>,
     pub inline_alignment_baseline: Cell<Option<CssPixels>>,
 
-    // Layout outputs, deliberately outside the cell state.
-    pub depends_on_percentage_block_size: Cell<bool>,
-    pub has_descendant_that_depends_on_percentage_block_size: Cell<bool>,
-
     pub(crate) line_data: RefCell<LineDataState>,
     pub(crate) rare_data: LazyRefCell<UsedValuesRareData>,
     /// The anchor-size() resolutions of an absolutely positioned box, set once as the abspos engine places it.
@@ -439,8 +435,6 @@ impl Default for UsedValues {
             has_last_baseline: Cell::new(false),
             last_baseline: Cell::new(zero),
             inline_alignment_baseline: Cell::new(None),
-            depends_on_percentage_block_size: Cell::new(false),
-            has_descendant_that_depends_on_percentage_block_size: Cell::new(false),
             line_data: RefCell::new(LineDataState::Empty),
             rare_data: LazyRefCell::new(),
             anchor_resolved_values: std::cell::OnceCell::new(),
