@@ -188,6 +188,9 @@ static constexpr int LOCATION_PILL_HORIZONTAL_PADDING = 16;
 // The zoom chip is at least wide enough for any zoom level up to 999%, so it keeps its width as the level changes.
 static constexpr int LOCATION_ZOOM_CHIP_MIN_WIDTH = 54;
 static constexpr int LOCATION_ZOOM_CHIP_GAP = 3;
+// The location chip says what it means at first, then shrinks to its icon.
+static constexpr int LOCATION_IN_USE_CHIP_COLLAPSE_DELAY_MS = 4000;
+static constexpr int LOCATION_IN_USE_CHIP_ICON_ONLY_WIDTH = 30;
 
 LocationEdit::LocationEdit(QWidget* parent, WebView::IsPrivate is_private)
     : NativeTextEditingLineEdit(parent)
@@ -269,7 +272,32 @@ LocationEdit::LocationEdit(QWidget* parent, WebView::IsPrivate is_private)
             on_zoom_requested();
     });
 
-    for (auto* button : { m_leading_icon_button, m_trailing_action_button, m_zoom_indicator_button })
+    m_location_in_use_button = new QToolButton(this);
+    m_location_in_use_button->setObjectName("LadybirdLocationInUse");
+    m_location_in_use_button->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+    m_location_in_use_button->setIconSize({ 16, 16 });
+    m_location_in_use_button->setText("Using your location");
+    m_location_in_use_button->setToolTip("This page is using your location");
+    m_location_in_use_button->setFixedHeight(LOCATION_PILL_HEIGHT);
+    m_location_in_use_button->setAutoRaise(true);
+    m_location_in_use_button->setFocusPolicy(Qt::NoFocus);
+    m_location_in_use_button->setCursor(Qt::ArrowCursor);
+    m_location_in_use_button->hide();
+    connect(m_location_in_use_button, &QToolButton::clicked, this, [this] {
+        if (on_site_settings_requested)
+            on_site_settings_requested();
+    });
+    m_location_in_use_collapse_timer = new QTimer(this);
+    m_location_in_use_collapse_timer->setSingleShot(true);
+    m_location_in_use_collapse_timer->setInterval(LOCATION_IN_USE_CHIP_COLLAPSE_DELAY_MS);
+    connect(m_location_in_use_collapse_timer, &QTimer::timeout, this, [this] {
+        m_location_in_use_button->setToolButtonStyle(Qt::ToolButtonIconOnly);
+        update_location_in_use_chip();
+        update_text_margins();
+        update_trailing_item_positions();
+    });
+
+    for (auto* button : { m_leading_icon_button, m_trailing_action_button, m_zoom_indicator_button, m_location_in_use_button })
         button->installEventFilter(this);
 
     update_text_margins();
@@ -863,6 +891,14 @@ void LocationEdit::update_trailing_item_positions()
     auto zoom_y = (height() - zoom_button_size.height()) / 2;
     m_zoom_indicator_button->move(items_x - LOCATION_ZOOM_CHIP_GAP - zoom_button_size.width(), zoom_y);
     m_zoom_indicator_button->raise();
+
+    // The location chip stands before the zoom chip, when there is one.
+    auto location_chip_x = items_x;
+    if (!m_zoom_indicator_button->isHidden())
+        location_chip_x -= LOCATION_ZOOM_CHIP_GAP + zoom_button_size.width();
+    auto location_chip_size = m_location_in_use_button->size();
+    m_location_in_use_button->move(location_chip_x - LOCATION_ZOOM_CHIP_GAP - location_chip_size.width(), (height() - location_chip_size.height()) / 2);
+    m_location_in_use_button->raise();
     m_trailing_action_button->raise();
 }
 
@@ -884,6 +920,8 @@ int LocationEdit::trailing_text_margin() const
 
     if (m_zoom_indicator_button && !m_zoom_indicator_button->isHidden())
         margin += m_zoom_indicator_button->width() + LOCATION_ZOOM_CHIP_GAP;
+    if (m_location_in_use_button && !m_location_in_use_button->isHidden())
+        margin += m_location_in_use_button->width() + LOCATION_ZOOM_CHIP_GAP;
 
     return margin;
 }
@@ -898,6 +936,7 @@ void LocationEdit::update_chrome_style()
     setStyleSheet(ChromeStyle::location_edit_style_sheet(Theme::chrome_palette(*this)));
     m_is_updating_chrome_style = false;
     update_zoom_indicator();
+    update_location_in_use_chip();
 }
 
 void LocationEdit::schedule_chrome_style_update()
@@ -1045,6 +1084,39 @@ void LocationEdit::update_zoom_indicator()
 
     update_text_margins();
     update_trailing_item_positions();
+}
+
+void LocationEdit::set_location_in_use(bool in_use)
+{
+    if (in_use == !m_location_in_use_button->isHidden())
+        return;
+
+    if (in_use) {
+        m_location_in_use_button->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+        update_location_in_use_chip();
+        m_location_in_use_button->show();
+        m_location_in_use_collapse_timer->start();
+    } else {
+        m_location_in_use_collapse_timer->stop();
+        m_location_in_use_button->hide();
+    }
+
+    update_text_margins();
+    update_trailing_item_positions();
+}
+
+void LocationEdit::update_location_in_use_chip()
+{
+    if (!m_location_in_use_button)
+        return;
+
+    m_location_in_use_button->setIcon(create_chrome_icon(ChromeIcon::Location, Theme::chrome_palette(*this)));
+    if (m_location_in_use_button->toolButtonStyle() == Qt::ToolButtonIconOnly) {
+        m_location_in_use_button->setFixedWidth(LOCATION_IN_USE_CHIP_ICON_ONLY_WIDTH);
+        return;
+    }
+    auto width = m_location_in_use_button->fontMetrics().horizontalAdvance(m_location_in_use_button->text()) + 16 + 4 + LOCATION_PILL_HORIZONTAL_PADDING;
+    m_location_in_use_button->setFixedWidth(width);
 }
 
 void LocationEdit::highlight_location()

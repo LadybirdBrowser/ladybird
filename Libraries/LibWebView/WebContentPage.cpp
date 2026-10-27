@@ -1682,6 +1682,8 @@ void WebContentPage::did_request_permission(u64 request_id, Web::HTML::CrossProc
 
     auto deny = [&] { async_permission_request_completed(request_id, Web::Permissions::EffectiveState::Denied); };
 
+    view().did_request_permission({}, *permission_name);
+
     // The UI process decides from what it knows of the requesting document, never from what the renderer says of it.
     auto document = hosted_document_with_id(document_id);
     if (!document) {

@@ -544,6 +544,23 @@ QToolButton#LadybirdLocationZoomIndicator:pressed {{
     background: {16};
 }}
 
+QToolButton#LadybirdLocationInUse {{
+    color: {13};
+    background: {14};
+    border: 0;
+    border-radius: 5px;
+    padding: 0 8px;
+    font-size: 12px;
+}}
+
+QToolButton#LadybirdLocationInUse:hover {{
+    background: {15};
+}}
+
+QToolButton#LadybirdLocationInUse:pressed {{
+    background: {16};
+}}
+
 QToolButton#LadybirdLocationAction {{
     background: transparent;
     border: 0;

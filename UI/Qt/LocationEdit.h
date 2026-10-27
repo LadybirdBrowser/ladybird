@@ -24,6 +24,7 @@ class QGraphicsOpacityEffect;
 class QLabel;
 class QMouseEvent;
 class QResizeEvent;
+class QTimer;
 class QToolButton;
 class QVariantAnimation;
 
@@ -54,6 +55,8 @@ public:
     // The knobs of the site settings icon slide past each other while the given popover is open.
     void follow_site_settings_popover(QWidget&);
     void set_zoom_action(QAction*);
+    // Shows, while the page uses the user's location, a chip that says so.
+    void set_location_in_use(bool);
 
     Optional<URL::URL const&> url() const { return m_url; }
     void set_url(Optional<URL::URL>);
@@ -99,6 +102,7 @@ private:
     void update_chrome_style();
     void update_location_icon();
     void update_zoom_indicator();
+    void update_location_in_use_chip();
     void update_focus_ring(qreal opacity);
     void set_field_hovered(bool);
     void schedule_chrome_style_update();
@@ -125,6 +129,8 @@ private:
     QToolButton* m_zoom_indicator_button { nullptr };
     QGraphicsOpacityEffect* m_zoom_indicator_opacity { nullptr };
     QVariantAnimation* m_zoom_indicator_fade { nullptr };
+    QToolButton* m_location_in_use_button { nullptr };
+    QTimer* m_location_in_use_collapse_timer { nullptr };
     QLabel* m_completion_title { nullptr };
     QVariantAnimation* m_focus_ring_animation { nullptr };
     QGraphicsEffect* m_focus_ring_effect { nullptr };

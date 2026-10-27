@@ -72,6 +72,56 @@ static QString autoplay_policy_name(Web::HTML::AutoplayPolicy policy)
     VERIFY_NOT_REACHED();
 }
 
+static QString permission_label(Web::Permissions::PermissionName name)
+{
+    switch (name) {
+    case Web::Permissions::PermissionName::Geolocation:
+        return QStringLiteral("Location");
+    case Web::Permissions::PermissionName::Microphone:
+        return QStringLiteral("Microphone");
+    }
+    VERIFY_NOT_REACHED();
+}
+
+static ChromeIcon permission_icon(Web::Permissions::PermissionName name)
+{
+    switch (name) {
+    case Web::Permissions::PermissionName::Geolocation:
+        return ChromeIcon::Location;
+    case Web::Permissions::PermissionName::Microphone:
+        return ChromeIcon::Microphone;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+// The value a permission row shows for the site's decision; a site with none is asked.
+static QString permission_decision_name(Optional<WebView::PermissionDecision> decision)
+{
+    if (!decision.has_value())
+        return QStringLiteral("Ask");
+    switch (*decision) {
+    case WebView::PermissionDecision::Allow:
+        return QStringLiteral("Allow");
+    case WebView::PermissionDecision::AllowOnce:
+        return QStringLiteral("Allow this time");
+    case WebView::PermissionDecision::Block:
+        return QStringLiteral("Block");
+    }
+    VERIFY_NOT_REACHED();
+}
+
+static QPushButton* create_value_button(QWidget& parent)
+{
+    auto* button = new QPushButton(&parent);
+    button->setObjectName("LadybirdPopoverValueButton");
+    button->setCursor(Qt::PointingHandCursor);
+    button->setAttribute(Qt::WA_LayoutUsesWidgetRect);
+    // NB: The chevron follows the value.
+    button->setLayoutDirection(Qt::RightToLeft);
+    button->setIconSize({ 12, 12 });
+    return button;
+}
+
 SiteSettingsPopover::SiteSettingsPopover(QWidget* parent)
     : Popover(parent)
 {
@@ -112,6 +162,13 @@ SiteSettingsPopover::SiteSettingsPopover(QWidget* parent)
 
     add_separator(*m_site_page, *layout, 12, 6);
 
+    // The permissions the user decided for the site, or the page asked for. The rows are made for each site shown.
+    m_permission_rows = new QWidget(m_site_page);
+    auto* permission_rows_layout = new QVBoxLayout(m_permission_rows);
+    permission_rows_layout->setContentsMargins(0, 0, 0, 0);
+    permission_rows_layout->setSpacing(0);
+    layout->addWidget(m_permission_rows);
+
     // Whether media may play on its own.
     auto* autoplay_row = new QHBoxLayout;
     autoplay_row->setContentsMargins(10, 0, 10, 0);
@@ -121,13 +178,7 @@ SiteSettingsPopover::SiteSettingsPopover(QWidget* parent)
     auto* autoplay_label = new QLabel("Autoplay", m_site_page);
     autoplay_label->setFixedHeight(ROW_HEIGHT);
     autoplay_row->addWidget(autoplay_label, 1);
-    m_autoplay_button = new QPushButton(m_site_page);
-    m_autoplay_button->setObjectName("LadybirdPopoverValueButton");
-    m_autoplay_button->setCursor(Qt::PointingHandCursor);
-    m_autoplay_button->setAttribute(Qt::WA_LayoutUsesWidgetRect);
-    // NB: The chevron follows the value.
-    m_autoplay_button->setLayoutDirection(Qt::RightToLeft);
-    m_autoplay_button->setIconSize({ 12, 12 });
+    m_autoplay_button = create_value_button(*m_site_page);
     QObject::connect(m_autoplay_button, &QPushButton::clicked, this, [this] {
         // A site is either allowed to autoplay, or follows the default, which the menu names so that the choice it shows
         // on the button is always one of those in the menu.
@@ -203,6 +254,8 @@ SiteSettingsPopover::SiteSettingsPopover(QWidget* parent)
     QObject::connect(m_reset_permissions_link, &QPushButton::clicked, this, [this] {
         WebView::Application::settings().remove_autoplay_site_filter(m_host);
         update_autoplay();
+        if (on_reset_permissions)
+            on_reset_permissions();
     });
     links->addWidget(m_reset_permissions_link);
     links->addStretch(1);
@@ -285,9 +338,70 @@ void SiteSettingsPopover::set_site(Site site)
 
     m_favicon->setPixmap(site.favicon.isNull() ? create_chrome_icon(ChromeIcon::Globe, Theme::panel().muted).pixmap(QSize(16, 16), devicePixelRatioF()) : site.favicon.pixmap(QSize(16, 16), devicePixelRatioF()));
 
+    set_permissions(site.permissions);
     update_autoplay();
     show_blocked_resources(false);
     set_content_blocking(site.content_blocking);
+}
+
+// A permission the user never decided and the page never asked for has no row.
+void SiteSettingsPopover::set_permissions(Vector<WebView::SitePermissionRow> const& permissions)
+{
+    auto* rows_layout = m_permission_rows->layout();
+    while (auto* item = rows_layout->takeAt(0)) {
+        delete item->widget();
+        delete item;
+    }
+    m_permissions.clear();
+    m_has_decided_permissions = false;
+
+    for (auto const& permission : permissions) {
+        if (!permission.decision.has_value() && !permission.requested_by_page)
+            continue;
+        m_has_decided_permissions |= permission.decision.has_value();
+
+        auto* row = new QWidget(m_permission_rows);
+        auto* row_layout = new QHBoxLayout(row);
+        row_layout->setContentsMargins(10, 0, 10, 0);
+        row_layout->setSpacing(10);
+        auto* icon = create_icon(*row);
+        row_layout->addWidget(icon);
+        auto* label = new QLabel(permission_label(permission.name), row);
+        label->setFixedHeight(ROW_HEIGHT);
+        row_layout->addWidget(label, 1);
+        auto* button = create_value_button(*row);
+        button->setObjectName(QStringLiteral("LadybirdSiteSettingsPermission-%1").arg(qstring_from_ak_string(Web::Permissions::to_string(permission.name))));
+        button->setText(permission_decision_name(permission.decision));
+        QObject::connect(button, &QPushButton::clicked, this, [this, button, name = permission.name, decision = permission.decision, one_time_grant_is_live = permission.one_time_grant_is_live] {
+            QMenu menu(this);
+            Vector<QAction*> actions;
+            Vector<Optional<WebView::PermissionDecision>> choices;
+            auto add_choice = [&](QString const& text, Optional<WebView::PermissionDecision> choice) {
+                auto* action = menu.addAction(text);
+                action->setCheckable(true);
+                action->setChecked(choice == decision);
+                actions.append(action);
+                choices.append(choice);
+            };
+            add_choice("Allow", WebView::PermissionDecision::Allow);
+            // A one-time grant can be kept while it lasts, but not given from here.
+            if (one_time_grant_is_live)
+                add_choice("Allow this time", WebView::PermissionDecision::AllowOnce);
+            add_choice("Ask", {});
+            add_choice("Block", WebView::PermissionDecision::Block);
+            auto* chosen = menu.exec(button->mapToGlobal(QPoint(0, button->height())));
+            if (auto index = actions.find_first_index(chosen); index.has_value() && on_permission_change)
+                on_permission_change(name, choices[*index]);
+        });
+        row_layout->addWidget(button);
+        rows_layout->addWidget(row);
+        m_permissions.append({ .name = permission.name, .icon = icon, .button = button });
+    }
+
+    m_permission_rows->setVisible(!m_permissions.is_empty());
+    update_icons();
+    update_reset_link();
+    fit_to_page();
 }
 
 void SiteSettingsPopover::set_content_blocking(WebView::ContentBlockingSnapshot const& blocking)
@@ -359,8 +473,16 @@ void SiteSettingsPopover::update_autoplay()
     auto name = autoplay.site_filters.contains(m_host) ? QStringLiteral("Allow") : autoplay_policy_name(autoplay.policy);
     m_autoplay_button->setText(name);
     m_autoplay_button->setIcon(create_chrome_icon(ChromeIcon::ChevronDown, Theme::panel().muted));
-    if (m_reset_permissions_link)
-        m_reset_permissions_link->setEnabled(autoplay.site_filters.contains(m_host));
+    update_reset_link();
+}
+
+// There is something to reset once the site has a decision of its own, for a permission or for autoplay.
+void SiteSettingsPopover::update_reset_link()
+{
+    if (!m_reset_permissions_link)
+        return;
+    auto const& autoplay = WebView::Application::settings().autoplay_settings();
+    m_reset_permissions_link->setEnabled(m_has_decided_permissions || autoplay.site_filters.contains(m_host));
 }
 
 void SiteSettingsPopover::update_chrome_style(QPalette const& palette)
@@ -374,6 +496,10 @@ void SiteSettingsPopover::update_chrome_style(QPalette const& palette)
 void SiteSettingsPopover::update_icons()
 {
     auto const& panel = Theme::panel();
+    for (auto& permission : m_permissions) {
+        permission.icon->setPixmap(create_chrome_icon(permission_icon(permission.name), panel.body).pixmap(QSize(16, 16), devicePixelRatioF()));
+        permission.button->setIcon(create_chrome_icon(ChromeIcon::ChevronDown, panel.muted));
+    }
     m_autoplay_icon->setPixmap(create_chrome_icon(ChromeIcon::Volume, panel.body).pixmap(QSize(16, 16), devicePixelRatioF()));
     m_content_blocking_icon->setPixmap(create_chrome_icon(ChromeIcon::ContentBlocking, panel.body).pixmap(QSize(16, 16), devicePixelRatioF()));
     m_blocked_row_chevron->setPixmap(create_chrome_icon(ChromeIcon::Forward, panel.muted).pixmap(QSize(12, 12), devicePixelRatioF()));
