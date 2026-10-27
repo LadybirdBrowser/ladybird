@@ -697,7 +697,9 @@ void fetch_classic_script(GC::Ref<HTMLScriptElement> element, URL::URL const& ur
 
         auto on_complete_root = GC::make_root(on_complete);
         auto settings_root = GC::make_root(settings_object);
-        auto response_url_string = response_url.to_byte_string();
+        // NB: The filename is the request's URL. The response's URL could reveal where a cross-origin request was
+        //     redirected.
+        auto filename = request->url().to_byte_string();
         auto source_byte_storage = body_bytes.template get<Core::ImmutableBytes>();
         auto source_bytes = source_byte_storage.bytes();
         auto const& bytecode = response->javascript_bytecode_cache();
@@ -713,7 +715,7 @@ void fetch_classic_script(GC::Ref<HTMLScriptElement> element, URL::URL const& ur
             auto source_encoding = ByteString { extracted_character_encoding };
             auto source_length = TextCodec::decoded_length_in_utf16_code_units(source_bytes, *fallback_decoder).release_value_but_fixme_should_propagate_errors();
             prepare_bytecode_cache_off_thread(settings_object, *bytecode, JS::ProgramType::Script, source_length, *source_hash,
-                [response_url = move(response_url), response_url_string = move(response_url_string),
+                [response_url = move(response_url), filename = move(filename),
                     source_byte_storage = move(source_byte_storage),
                     bytecode_cache_context = move(bytecode_cache_context),
                     source_hash = move(source_hash),
@@ -724,11 +726,11 @@ void fetch_classic_script(GC::Ref<HTMLScriptElement> element, URL::URL const& ur
                     Optional<NonnullRefPtr<JS::SourceCode const>> source_code;
                     if (bytecode_cache) {
                         source_code = JS::SourceCode::create(
-                            utf16_string_from_url_ascii(response_url_string.view()),
+                            utf16_string_from_url_ascii(filename.view()),
                             source_length,
                             source_encoding,
                             source_byte_storage);
-                        auto script = ClassicScript::create_from_bytecode_cache(response_url_string, *source_code, *settings_root, response_url, bytecode_cache.release_nonnull(), muted_errors);
+                        auto script = ClassicScript::create_from_bytecode_cache(filename, *source_code, *settings_root, response_url, bytecode_cache.release_nonnull(), muted_errors);
                         if (script->parse_error().is_null()) {
                             on_complete_root->function()(script);
                             return;
@@ -740,14 +742,14 @@ void fetch_classic_script(GC::Ref<HTMLScriptElement> element, URL::URL const& ur
                         auto fallback_decoder = TextCodec::decoder_for(source_encoding.view());
                         VERIFY(fallback_decoder.has_value());
                         source_code = JS::SourceCode::create(
-                            utf16_string_from_url_ascii(response_url_string.view()),
+                            utf16_string_from_url_ascii(filename.view()),
                             TextCodec::decode_to_utf16(source_byte_storage.bytes(), *fallback_decoder).release_value_but_fixme_should_propagate_errors());
                     }
 
                     auto retain_parse_for_cache = bytecode_cache_context.has_value();
                     auto& settings = *settings_root;
                     compile_off_thread(settings, source_code.release_value(), JS::ProgramType::Script, 1, retain_parse_for_cache,
-                        [response_url = move(response_url), response_url_string = move(response_url_string),
+                        [response_url = move(response_url), filename = move(filename),
                             bytecode_cache_context = move(bytecode_cache_context),
                             source_hash = move(source_hash),
                             muted_errors, on_complete_root = move(on_complete_root),
@@ -755,8 +757,8 @@ void fetch_classic_script(GC::Ref<HTMLScriptElement> element, URL::URL const& ur
                             auto source_code_for_cache = source_code;
                             auto should_generate_bytecode_cache = result.compiled && bytecode_cache_context.has_value();
                             auto script = result.compiled
-                                ? ClassicScript::create_from_pre_compiled(move(response_url_string), move(source_code), *settings_root, move(response_url), move(result.compiled), muted_errors)
-                                : ClassicScript::create_from_pre_parsed(move(response_url_string), move(source_code), *settings_root, move(response_url), move(result.parsed), muted_errors);
+                                ? ClassicScript::create_from_pre_compiled(move(filename), move(source_code), *settings_root, move(response_url), move(result.compiled), muted_errors)
+                                : ClassicScript::create_from_pre_parsed(move(filename), move(source_code), *settings_root, move(response_url), move(result.parsed), muted_errors);
                             BytecodeCacheInstallTarget install_target;
                             if (auto script_record = script->script_record()) {
                                 install_target.script = *script_record;
@@ -776,13 +778,13 @@ void fetch_classic_script(GC::Ref<HTMLScriptElement> element, URL::URL const& ur
 
         if (!source_code.has_value()) {
             source_code = JS::SourceCode::create(
-                utf16_string_from_url_ascii(response_url_string.view()),
+                utf16_string_from_url_ascii(filename.view()),
                 TextCodec::decode_to_utf16(source_bytes, *fallback_decoder).release_value_but_fixme_should_propagate_errors());
         }
 
         auto retain_parse_for_cache = bytecode_cache_context.has_value();
         compile_off_thread(settings_object, source_code.release_value(), JS::ProgramType::Script, 1, retain_parse_for_cache,
-            [response_url = move(response_url), response_url_string = move(response_url_string),
+            [response_url = move(response_url), filename = move(filename),
                 bytecode_cache_context = move(bytecode_cache_context),
                 source_hash = move(source_hash),
                 muted_errors, on_complete_root = move(on_complete_root),
@@ -790,8 +792,8 @@ void fetch_classic_script(GC::Ref<HTMLScriptElement> element, URL::URL const& ur
                 auto source_code_for_cache = source_code;
                 auto should_generate_bytecode_cache = result.compiled && bytecode_cache_context.has_value();
                 auto script = result.compiled
-                    ? ClassicScript::create_from_pre_compiled(move(response_url_string), move(source_code), *settings_root, move(response_url), move(result.compiled), muted_errors)
-                    : ClassicScript::create_from_pre_parsed(move(response_url_string), move(source_code), *settings_root, move(response_url), move(result.parsed), muted_errors);
+                    ? ClassicScript::create_from_pre_compiled(move(filename), move(source_code), *settings_root, move(response_url), move(result.compiled), muted_errors)
+                    : ClassicScript::create_from_pre_parsed(move(filename), move(source_code), *settings_root, move(response_url), move(result.parsed), muted_errors);
                 BytecodeCacheInstallTarget install_target;
                 if (auto script_record = script->script_record()) {
                     install_target.script = *script_record;
@@ -952,7 +954,7 @@ WebIDL::ExceptionOr<GC::Ref<ClassicScript>> fetch_a_classic_worker_imported_scri
 
     // 10. Let script be the result of creating a classic script given sourceText, settingsObject, response's URL, the default classic script fetch options, and mutedErrors.
     auto response_url = response->url().value_or({});
-    auto script = ClassicScript::create(response_url.to_byte_string(), source_text, settings_object, response_url, 1, muted_errors);
+    auto script = ClassicScript::create(url.to_byte_string(), source_text, settings_object, response_url, 1, muted_errors);
 
     // 11. Return script.
     return script;

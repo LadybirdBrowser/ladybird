@@ -1,0 +1,3 @@
+<script src>: hides the redirect target
+setTimeout() string: hides the redirect target
+importScripts(): hides the redirect target
