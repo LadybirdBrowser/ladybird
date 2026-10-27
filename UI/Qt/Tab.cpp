@@ -1638,6 +1638,10 @@ void Tab::initialize(Optional<WebView::CanonicalTraversable&> traversable)
         m_permission_prompts.cancel(request);
     };
 
+    view().on_location_in_use_change = [this](bool in_use) {
+        m_location_edit->set_location_in_use(in_use);
+    };
+
     view().on_request_accept_dialog = [this]() {
         m_javascript_dialog->accept();
     };
@@ -2714,6 +2718,15 @@ void Tab::show_site_settings_popover()
         m_site_settings_popover->on_open_filter_lists = [this] {
             m_window->new_tab_from_url(URL::Parser::basic_parse("about:settings#blocking"sv).release_value(), Web::HTML::ActivateTab::Yes, BrowserWindow::TabLocation::after_current_tab());
         };
+        // A change reaches every page of the site at once, and the panel shows it right away.
+        m_site_settings_popover->on_permission_change = [this](Web::Permissions::PermissionName name, Optional<WebView::PermissionDecision> decision) {
+            view().set_site_permission(view().url().origin(), name, decision);
+            m_site_settings_popover->set_permissions(view().site_permission_rows());
+        };
+        m_site_settings_popover->on_reset_permissions = [this] {
+            view().reset_site_permissions(view().url().origin());
+            m_site_settings_popover->set_permissions(view().site_permission_rows());
+        };
     }
 
     m_site_settings_popover->update_chrome_style(palette());
@@ -2722,6 +2735,7 @@ void Tab::show_site_settings_popover()
         .is_secure = url.scheme() == "https"sv,
         .favicon = m_favicon,
         .content_blocking = view().content_blocking_snapshot(),
+        .permissions = view().site_permission_rows(),
     });
     auto& anchor = m_location_edit->site_settings_button();
     move_popover_below(*m_site_settings_popover, anchor, PopoverAlignment::Leading);

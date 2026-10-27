@@ -324,6 +324,7 @@ void ViewImplementation::did_change_active_document(Badge<CanonicalTraversable>)
     // A prompt the document that asked has left behind goes unanswered: the user ignored it.
     ignore_pending_permission_prompts();
     report_permission_presence();
+    m_permissions_requested_by_page.clear();
     set_title(Utf16String::from_utf8(url().serialize()));
     set_favicon({});
     did_update_url();
@@ -3069,6 +3070,7 @@ void ViewImplementation::initialize_tab(Web::HTML::VisibilityState system_visibi
             auto* view = weak_this.ptr();
             if (!view || !request_page->is_open())
                 return;
+            ScopeGuard update_location_in_use = [view] { view->update_location_in_use(); };
 
             if (is_watch) {
                 if (!view->m_geolocation_watch_ids.contains(key))
@@ -3098,6 +3100,7 @@ void ViewImplementation::initialize_tab(Web::HTML::VisibilityState system_visibi
             auto* view = weak_this.ptr();
             if (!view || !request_page->is_open())
                 return;
+            ScopeGuard update_location_in_use = [view] { view->update_location_in_use(); };
 
             if (is_watch) {
                 if (!view->m_geolocation_watch_ids.contains(key))
@@ -3118,6 +3121,7 @@ void ViewImplementation::initialize_tab(Web::HTML::VisibilityState system_visibi
     };
 
     on_request_geolocation_position = [this, geolocation_error_code, make_geolocation_success_handler, make_geolocation_error_handler](WebContentPage& requesting_page, u64 request_id, Web::HTML::CrossProcessId document_id) {
+        ScopeGuard update_location_in_use = [this] { this->update_location_in_use(); };
         if (!Application::the().sites_can_ask_for_location()) {
             requesting_page.async_geolocation_position_response(request_id, {}, to_underlying(GeolocationErrorCode::PermissionDenied));
             return;
@@ -3139,12 +3143,14 @@ void ViewImplementation::initialize_tab(Web::HTML::VisibilityState system_visibi
     };
 
     on_cancel_geolocation_position_request = [this](WebContentPage& requesting_page, u64 request_id) {
+        ScopeGuard update_location_in_use = [this] { this->update_location_in_use(); };
         auto provider_request_id = m_geolocation_position_request_ids.take({ requesting_page, request_id });
         if (provider_request_id.has_value())
             Application::the().cancel_geolocation_position_request(*provider_request_id);
     };
 
     on_start_geolocation_position_watch = [this, geolocation_error_code, make_geolocation_success_handler, make_geolocation_error_handler](WebContentPage& requesting_page, u64 request_id, Web::HTML::CrossProcessId document_id) {
+        ScopeGuard update_location_in_use = [this] { this->update_location_in_use(); };
         if (!Application::the().sites_can_ask_for_location()) {
             requesting_page.async_geolocation_position_response(request_id, {}, to_underlying(GeolocationErrorCode::PermissionDenied));
             return;
@@ -3167,6 +3173,7 @@ void ViewImplementation::initialize_tab(Web::HTML::VisibilityState system_visibi
     };
 
     on_stop_geolocation_position_watch = [this](WebContentPage& requesting_page, u64 request_id) {
+        ScopeGuard update_location_in_use = [this] { this->update_location_in_use(); };
         auto provider_watch_id = m_geolocation_watch_ids.take({ requesting_page, request_id });
         if (!provider_watch_id.has_value())
             return;
@@ -3184,6 +3191,7 @@ void ViewImplementation::cancel_all_native_geolocation_requests()
     auto geolocation_watch_ids = move(m_geolocation_watch_ids);
     for (auto const& watch : geolocation_watch_ids)
         Application::the().stop_watching_geolocation_position(watch.value);
+    update_location_in_use();
 }
 
 void ViewImplementation::did_start_navigation()
@@ -4329,6 +4337,50 @@ void ViewImplementation::global_privacy_control_changed()
     traversable().for_each_hosting_page(send_global_privacy_control);
 }
 
+Vector<SitePermissionRow> ViewImplementation::site_permission_rows() const
+{
+    auto origin = url().origin();
+    auto const& manager = *session().permission_manager;
+
+    Vector<SitePermissionRow> rows;
+    for (auto name : { Web::Permissions::PermissionName::Geolocation, Web::Permissions::PermissionName::Microphone }) {
+        auto decision = manager.decision(name, origin);
+        rows.append({
+            .name = name,
+            .decision = decision,
+            .one_time_grant_is_live = decision == PermissionDecision::AllowOnce,
+            .requested_by_page = m_permissions_requested_by_page.contains_slow(name),
+        });
+    }
+    return rows;
+}
+
+void ViewImplementation::set_site_permission(URL::Origin const& origin, Web::Permissions::PermissionName name, Optional<PermissionDecision> decision)
+{
+    session().permission_manager->set_decision(name, origin, decision);
+}
+
+void ViewImplementation::reset_site_permissions(URL::Origin const& origin)
+{
+    session().permission_manager->reset_origin(origin);
+}
+
+void ViewImplementation::did_request_permission(Badge<WebContentPage>, Web::Permissions::PermissionName name)
+{
+    if (!m_permissions_requested_by_page.contains_slow(name))
+        m_permissions_requested_by_page.append(name);
+}
+
+void ViewImplementation::update_location_in_use()
+{
+    auto in_use = !m_geolocation_position_request_ids.is_empty() || !m_geolocation_watch_ids.is_empty();
+    if (in_use == m_location_in_use)
+        return;
+    m_location_in_use = in_use;
+    if (on_location_in_use_change)
+        on_location_in_use_change(in_use);
+}
+
 void ViewImplementation::revoke_geolocation_without_permission()
 {
     using ErrorCode = Web::Geolocation::GeolocationPositionErrorCode;
@@ -4351,6 +4403,7 @@ void ViewImplementation::revoke_geolocation_without_permission()
             Application::the().stop_watching_geolocation_position(*provider_watch_id);
         key.page->async_geolocation_position_response(key.request_id, {}, to_underlying(ErrorCode::PermissionDenied));
     }
+    update_location_in_use();
 }
 
 void ViewImplementation::geolocation_settings_changed()
@@ -4376,6 +4429,7 @@ void ViewImplementation::geolocation_settings_changed()
         if (&page != &this->page())
             send_geolocation_emulated_position(page);
     });
+    update_location_in_use();
 }
 
 void ViewImplementation::send_geolocation_emulated_position(WebContentPage& page)

@@ -76,6 +76,7 @@
 #include <LibWebView/ExternalURLHandler.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/HistoryVisitTransition.h>
+#include <LibWebView/PermissionManager.h>
 #include <LibWebView/SessionHistory.h>
 #include <LibWebView/SessionStore.h>
 #include <LibWebView/Settings.h>
@@ -110,6 +111,14 @@ struct PermissionPromptRequest {
 
 using PermissionPromptCallback = Function<void(Web::Permissions::PromptOutcome)>;
 
+// One permission as the site information panel shows it for the site a view shows.
+struct SitePermissionRow {
+    Web::Permissions::PermissionName name;
+    Optional<PermissionDecision> decision;
+    bool one_time_grant_is_live { false };
+    bool requested_by_page { false };
+};
+
 class WEBVIEW_API ViewImplementation
     : public SettingsObserver
     , public BookmarkStoreObserver
@@ -133,6 +142,15 @@ public:
     // Answers the held prompt once this many requests wait on it, since the requests arrive over another connection.
     void release_held_permission_prompt_for_testing(u32 waiters);
     void reset_permission_prompts_for_testing();
+
+    // The site information panel's view of, and changes to, the permissions of the site this view shows.
+    Vector<SitePermissionRow> site_permission_rows() const;
+    // These act on the site given, which a panel showing it keeps even after the view moves on to another site.
+    void set_site_permission(URL::Origin const&, Web::Permissions::PermissionName, Optional<PermissionDecision>);
+    void reset_site_permissions(URL::Origin const&);
+    void did_request_permission(Badge<WebContentPage>, Web::Permissions::PermissionName);
+
+    bool location_in_use() const { return m_location_in_use; }
 
     // Ends every location request and watch whose document the user has since taken the permission away from.
     void revoke_geolocation_without_permission();
@@ -603,6 +621,7 @@ public:
     Function<void(WebContentPage& requesting_page, u64 request_id)> on_stop_geolocation_position_watch;
     Function<void(PermissionPromptRequest const&, PermissionPromptCallback)> on_request_permission;
     Function<void(PermissionPromptRequest const&)> on_cancel_permission_prompt;
+    Function<void(bool)> on_location_in_use_change;
     Function<void(Web::HTML::FileFilter const& accepted_file_types, Web::HTML::AllowMultipleFiles)> on_request_file_picker;
     Function<void(Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items)> on_request_select_dropdown;
     Function<void(Web::KeyEvent const&)> on_finish_handling_key_event;
@@ -691,6 +710,7 @@ protected:
     void did_update_url();
     void settle_permission_prompt(PermissionPromptRequest const&, Web::Permissions::PromptOutcome);
     void report_permission_presence();
+    void update_location_in_use();
     void ignore_pending_permission_prompts();
     void set_title(Utf16String);
     void set_favicon(Optional<Gfx::Bitmap const&>);
@@ -1130,6 +1150,8 @@ protected:
     HashMap<GeolocationRequestKey, Core::GeolocationProvider::RequestId> m_geolocation_position_request_ids;
     HashMap<GeolocationRequestKey, Core::GeolocationProvider::WatchId> m_geolocation_watch_ids;
     HashMap<GeolocationRequestKey, Web::HTML::CrossProcessId> m_geolocation_request_documents;
+    bool m_location_in_use { false };
+    Vector<Web::Permissions::PermissionName> m_permissions_requested_by_page;
 
     struct PendingPermissionPrompt {
         PermissionPromptRequest request;
