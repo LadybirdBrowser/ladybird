@@ -327,6 +327,7 @@ struct AnimationKeyframeValue {
     keyframe: usize,
     /// The keyframe's computed value, or none where the keyframe leaves the property out.
     value: RetainedStyleValueData,
+    is_implicit: bool,
 }
 
 struct AnimationValueInput<'a> {
@@ -570,6 +571,7 @@ pub(crate) struct ResolvedAnimationProperty {
     pub(crate) value_source: FfiAnimationSpecifiedValueSource,
     pub(crate) style_sheet_resource_context: FfiAnimationStyleSheetResourceContext,
     pub(crate) is_transition: bool,
+    is_implicit: bool,
 }
 
 /// The `SUBSTITUTION_MARK_*` bits of the arbitrary-substitution functions a written value holds.
@@ -685,6 +687,7 @@ fn resolve_animation_declarations(
                 value_source,
                 style_sheet_resource_context: candidate.style_sheet_resource_context,
                 is_transition: candidate.is_transition,
+                is_implicit: candidate.use_initial,
             });
         }
     }
@@ -8026,8 +8029,20 @@ fn evaluate_animation_value(
         .optional_data()
         .or(input.initial)
         .expect("an animated property must have an initial value");
-    let start = composite_batch_value(context, input.property_id, underlying, start, start_plan.composite);
-    let end = composite_batch_value(context, input.property_id, underlying, end, end_plan.composite);
+    // https://drafts.csswg.org/web-animations-1/#the-effect-value-of-a-keyframe-animation-effect
+    // NB: Steps 8 and 9 generate implicit endpoints with "a property value set to underlying value, a
+    //     keyframe-specific composite operation of replace". Take the current underlying value, including
+    //     the effects already composed beneath this one, rather than the value captured during preparation.
+    let start = if start_keyframe.is_implicit {
+        BatchAnimationValue::Borrowed(underlying)
+    } else {
+        composite_batch_value(context, input.property_id, underlying, start, start_plan.composite)
+    };
+    let end = if end_keyframe.is_implicit {
+        BatchAnimationValue::Borrowed(underlying)
+    } else {
+        composite_batch_value(context, input.property_id, underlying, end, end_plan.composite)
+    };
     let result = interpolate_value(Some(context), input.property_id, start.data(), end.data(), progress);
     assert!(result.handled);
     AnimatedProperty {
@@ -8719,6 +8734,7 @@ pub(crate) fn evaluate_animations(batch: ComputedAnimationBatch<'_>) -> Vec<(u32
                         .map(|&property_index| AnimationKeyframeValue {
                             keyframe: resolved.properties[property_index].keyframe_index,
                             value: computed_keyframe_values[property_index].clone(),
+                            is_implicit: resolved.properties[property_index].is_implicit,
                         })
                         .collect()
                 })
@@ -9202,6 +9218,7 @@ mod tests {
             .map(|(keyframe, value)| AnimationKeyframeValue {
                 keyframe,
                 value: number(value),
+                is_implicit: false,
             })
             .collect::<Vec<_>>();
         let input = AnimationValueInput {
@@ -9237,6 +9254,7 @@ mod tests {
             .map(|(keyframe, value)| AnimationKeyframeValue {
                 keyframe,
                 value: RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Number { value })),
+                is_implicit: false,
             })
             .collect::<Vec<_>>();
         let evaluate = |current_key| {
@@ -9287,10 +9305,12 @@ mod tests {
                 AnimationKeyframeValue {
                     keyframe: 0,
                     value: start_value,
+                    is_implicit: false,
                 },
                 AnimationKeyframeValue {
                     keyframe: 1,
                     value: end_value,
+                    is_implicit: false,
                 },
             ];
             let input = AnimationValueInput {

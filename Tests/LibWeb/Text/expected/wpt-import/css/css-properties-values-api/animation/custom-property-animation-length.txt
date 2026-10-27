@@ -2,10 +2,10 @@ Harness status: OK
 
 Found 5 tests
 
-3 Pass
-2 Fail
+4 Pass
+1 Fail
 Pass	Animating a custom property of type <length>
 Pass	Animating a custom property of type <length> with a single keyframe
 Pass	Animating a custom property of type <length> with additivity
-Fail	Animating a custom property of type <length> with a single keyframe and additivity
+Pass	Animating a custom property of type <length> with a single keyframe and additivity
 Fail	Animating a custom property of type <length> with iterationComposite

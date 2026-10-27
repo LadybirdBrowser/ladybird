@@ -2,11 +2,11 @@ Harness status: OK
 
 Found 6 tests
 
-4 Pass
-2 Fail
+5 Pass
+1 Fail
 Pass	Animating a custom property of type <angle>+
 Pass	Animating a custom property of type <angle>+ with a single keyframe
 Pass	Animating a custom property of type <angle>+ with additivity
-Fail	Animating a custom property of type <angle>+ with a single keyframe and additivity
+Pass	Animating a custom property of type <angle>+ with a single keyframe and additivity
 Fail	Animating a custom property of type <angle>+ with iterationComposite
 Pass	Animating a custom property of type <angle>+ with different lengths is discrete

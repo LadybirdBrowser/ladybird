@@ -2,11 +2,11 @@ Harness status: OK
 
 Found 6 tests
 
-4 Pass
-2 Fail
+5 Pass
+1 Fail
 Pass	Animating a custom property of type <length-percentage>+
 Pass	Animating a custom property of type <length-percentage>+ with a single keyframe
 Pass	Animating a custom property of type <length-percentage>+ with additivity
-Fail	Animating a custom property of type <length-percentage>+ with a single keyframe and additivity
+Pass	Animating a custom property of type <length-percentage>+ with a single keyframe and additivity
 Fail	Animating a custom property of type <length-percentage>+ with iterationComposite
 Pass	Animating a custom property of type <length-percentage>+ with different lengths is discrete
