@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.css-houdini.org/css-properties-values-api-1/#css-style-value-reification" />
+<meta name="assert" content="Verifies that registered custom properties interact correctly with CSS Typed OM" />
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="./resources/utils.js"></script>
+<style id=style>
+    div {}
+</style>
+<div id=target></div>
+
+<script>
+
+// Cleans style rules used for testing between every test.
+add_result_callback(function(){
+    target.attributeStyleMap.clear();
+    // Clears 'div' rule in #style:
+    style.sheet.rules[0].styleMap.clear();
+});
+
+// In the following utility functions, the 'map' parameter (if present)
+// can be any StylePropertyMap. (Not StylePropertyMapReadOnly).
+
+// Verifies that get()/getAll() reifies the specified property to a
+// CSSUnparsedValue, with a string serialization equal to 'value'.
+function verify_map_get_unparsed(map, name, value) {
+    map.set(name, value);
+
+    let specifiedValue = map.get(name);
+    assert_true(specifiedValue instanceof CSSUnparsedValue);
+    assert_equals(specifiedValue.toString(), value);
+
+    let allSpecifiedValues = map.getAll(name);
+    assert_equals(allSpecifiedValues.length, 1);
+    assert_true(allSpecifiedValues[0] instanceof CSSUnparsedValue);
+    assert_equals(allSpecifiedValues[0].toString(), value);
+}
+
+// Verifies that the specified value is accepted by set().
+function verify_map_set(map, name, value) {
+    map.set(name, value);
+    assert_equals(map.get(name).toString(), value.toString());
+}
+
+// Verifies that the specified value is NOT accepted by set().
+function verify_map_not_set(map, name, value) {
+    assert_throws_js(TypeError, () => {
+        map.set(name, value);
+    });
+}
+
+// Verifies that the specified value is NOT accepted by append().
+function verify_map_no_append(map, name, value) {
+    assert_throws_js(TypeError, () => {
+        map.append(name, value);
+    });
+}
+
+// Verifies that the property 'name' shows up on iteration, that it's reified
+// as a CSSUnparsedValue, and that the string representation is equal to
+// 'value'.
+function verify_map_iteration_unparsed(map, name, value) {
+    map.set(name, value);
+    let result = Array.from(map).filter(e => e[0] == name)[0];
+    assert_equals(result.length, 2);
+    let iter_value = result[1];
+    assert_equals(iter_value.length, 1);
+    assert_true(iter_value[0] instanceof CSSUnparsedValue);
+    assert_equals(iter_value[0].toString(), value);
+}
+
+// Verifies that CSSStyleValue.parse/parseAll results in a CSSStyleValue with
+// the 'expected' type.
+function verify_parsed_type(prop, value, expected) {
+    let parse_value = CSSStyleValue.parse(prop, value);
+    let parse_all_value = CSSStyleValue.parseAll(prop, value);
+
+    assert_true(parse_value instanceof expected);
+    assert_true(parse_all_value.every(x => x instanceof expected))
+}
+
+// On the target element, verify that computed value of 'name' is an instance
+// of 'expected' and not an instance of CSSUnparsedValue.
+//
+// If 'value' is non-null, that value is first set using the style attribute
+// of the target element.
+function verify_computed_type(name, value, expected) {
+    if (expected == CSSUnparsedValue) {
+        throw 'CSSUnparsedValue may not be used as expected type';
+    }
+
+    try {
+        if (value != null) {
+            target.style = `${name}: ${value}`;
+        }
+
+        let computedValue = target.computedStyleMap().get(name);
+
+        assert_false(computedValue instanceof CSSUnparsedValue);
+        assert_true(computedValue instanceof expected);
+    } finally {
+        if (value != null) {
+            target.style = '';
+        }
+    }
+}
+
+// Verifies that the property 'name' shows up on iteration, that it's reified
+// to the specified type, and that the string representation is equal to 'computed'.
+function verify_computed_iteration_type(name, value, type, computed) {
+    if (!computed) {
+        computed = value;
+    }
+
+    target.attributeStyleMap.set(name, value);
+    let result = Array.from(target.computedStyleMap()).filter(e => e[0] == name)[0];
+    assert_equals(result.length, 2);
+    let iter_value = result[1];
+    assert_equals(iter_value.length, 1);
+    assert_true(iter_value[0] instanceof type);
+    assert_equals(iter_value[0].toString(), computed);
+}
+
+// Run the same test twice: once for each StylePropertyMap.
+//
+// https://drafts.css-houdini.org/css-typed-om-1/#stylepropertymap
+function test_specified_maps(func, description) {
+    test(function(){
+        func(target.attributeStyleMap)
+    }, description + ' [attributeStyleMap]');
+
+    test(function(){
+        let rule = style.sheet.rules[0];
+        func(rule.styleMap)
+    }, description + ' [styleMap]');
+}
+
+// StylePropertyMapReadOnly.get
+
+test(function(){
+    let name = generate_property('*', 'if(){}');
+    assert_true(target.computedStyleMap().get(name) instanceof CSSUnparsedValue);
+
+    target.attributeStyleMap.set(name, 'as{}df');
+    assert_true(target.computedStyleMap().get(name) instanceof CSSUnparsedValue);
+    target.attributeStyleMap.delete(name);
+}, 'Computed * is reified as CSSUnparsedValue');
+
+test(function(){
+    verify_computed_type(generate_property('<angle>'), null, CSSUnitValue);
+    verify_computed_type(generate_property('fail | <angle> '), '42deg', CSSUnitValue);
+}, 'Computed <angle> is reified as CSSUnitValue');
+
+test(function(){
+    verify_computed_type(generate_property('<color>'), null, CSSStyleValue);
+    verify_computed_type(generate_property('fail | <color> '), null, CSSStyleValue);
+}, 'Computed <color> is reified as CSSStyleValue');
+
+test(function(){
+    verify_computed_type(generate_property('<custom-ident>'), null, CSSKeywordValue);
+    verify_computed_type(generate_property('<custom-ident> | <length>'), 'none', CSSKeywordValue);
+}, 'Computed <custom-ident> is reified as CSSKeywordValue');
+
+test(function(){
+    verify_computed_type(generate_property('<image>'), null, CSSImageValue);
+    verify_computed_type(generate_property('fail | <image> '), 'url(thing.png)', CSSImageValue);
+}, 'Computed <image> [url] is reified as CSSImageValue');
+
+test(function(){
+    verify_computed_type(generate_property('<integer>'), null, CSSUnitValue);
+    verify_computed_type(generate_property('fail | <integer> '), '100', CSSUnitValue);
+}, 'Computed <integer> is reified as CSSUnitValue');
+
+test(function(){
+    verify_computed_type(generate_property('<length-percentage>'), null, CSSUnitValue);
+    verify_computed_type(generate_property('fail | <length-percentage> '), '10%', CSSUnitValue);
+}, 'Computed <length-percentage> [%] is reified as CSSUnitValue');
+
+test(function(){
+    verify_computed_type(generate_property('<length-percentage>'), null, CSSUnitValue);
+    verify_computed_type(generate_property('fail | <length-percentage> '), '10px', CSSUnitValue);
+}, 'Computed <length-percentage> [px] is reified as CSSUnitValue');
+
+test(function(){
+    verify_computed_type(generate_property({syntax: '<length-percentage>', initialValue: 'calc(10% + 10px)'}), null, CSSMathSum);
+    verify_computed_type(generate_property('fail | <length-percentage> '), 'calc(10px + 10%)', CSSMathSum);
+}, 'Computed <length-percentage> [px + %] is reified as CSSMathSum');
+
+test(function(){
+    verify_computed_type(generate_property('<length>'), null, CSSUnitValue);
+    verify_computed_type(generate_property('fail | <length> '), '10px', CSSUnitValue);
+}, 'Computed <length> is reified as CSSUnitValue');
+
+test(function(){
+    verify_computed_type(generate_property('<number>'), null, CSSUnitValue);
+    verify_computed_type(generate_property('fail | <number> '), '42', CSSUnitValue);
+}, 'Computed <number> is reified as CSSUnitValue');
+
+test(function(){
+    verify_computed_type(generate_property('<percentage>'), null, CSSUnitValue);
+    verify_computed_type(generate_property('fail | <percentage> '), '10%', CSSUnitValue);
+}, 'Computed <percentage> is reified as CSSUnitValue');
+
+test(function(){
+    verify_computed_type(generate_property('<resolution>'), null, CSSUnitValue);
+    verify_computed_type(generate_property('fail | <resolution> '), '300dpi', CSSUnitValue);
+}, 'Computed <resolution> is reified as CSSUnitValue');
+
+test(function(){
+    verify_computed_type(generate_property('<time>'), null, CSSUnitValue);
+    verify_computed_type(generate_property('fail | <time> '), '42s', CSSUnitValue);
+}, 'Computed <time> is reified as CSSUnitValue');
+
+test(function(){
+    verify_computed_type(generate_property('<url>'), null, CSSStyleValue);
+    verify_computed_type(generate_property('fail | <url> '), 'url(a)', CSSStyleValue);
+}, 'Computed <url> is reified as CSSStyleValue');
+
+test(function(){
+    verify_computed_type(generate_property('thing1 | THING2'), null, CSSKeywordValue);
+    verify_computed_type(generate_property('thing1 | THING2 | <url>'), 'THING2', CSSKeywordValue);
+}, 'Computed ident is reified as CSSKeywordValue');
+
+test(function(){
+    verify_computed_type(generate_property('<length>+'), null, CSSUnitValue);
+    verify_computed_type(generate_property('<length>+'), '10px 20px', CSSUnitValue);
+}, 'First computed value correctly reified in space-separated list');
+
+test(function(){
+    verify_computed_type(generate_property('<length>#'), null, CSSUnitValue);
+    verify_computed_type(generate_property('<length>#'), '10px, 20px', CSSUnitValue);
+}, 'First computed value correctly reified in comma-separated list');
+
+// StylePropertyMapReadOnly.getAll
+
+test(function(){
+    let name = generate_property({syntax: '<length>+', initialValue: '10px 20px'});
+    assert_equals(target.computedStyleMap().getAll(name).length, 2);
+    assert_true(target.computedStyleMap().getAll(name).every(x => x instanceof CSSUnitValue));
+
+    target.style = `${name}: 10px 20px 30px`;
+    assert_equals(target.computedStyleMap().getAll(name).length, 3);
+    assert_true(target.computedStyleMap().getAll(name).every(x => x instanceof CSSUnitValue));
+}, 'All computed values correctly reified in space-separated list');
+
+test(function(){
+    let name = generate_property({syntax: '<length>#', initialValue: '10px, 20px'});
+    assert_equals(target.computedStyleMap().getAll(name).length, 2);
+    assert_true(target.computedStyleMap().getAll(name).every(x => x instanceof CSSUnitValue));
+
+    target.style = `${name}: 10px, 20px, 30px`;
+    assert_equals(target.computedStyleMap().getAll(name).length, 3);
+    assert_true(target.computedStyleMap().getAll(name).every(x => x instanceof CSSUnitValue));
+}, 'All computed values correctly reified in comma-separated list');
+
+// StylePropertyMap.get/All
+
+test_specified_maps(function(map){
+    verify_map_get_unparsed(map, generate_property('*'), 'foo');
+}, 'Specified * is reified as CSSUnparsedValue from get/getAll');
+
+test_specified_maps(function(map){
+    verify_map_get_unparsed(map, generate_property('foo'), 'foo');
+}, 'Specified foo is reified as CSSUnparsedValue from get/getAll');
+
+test_specified_maps(function(map){
+    verify_map_get_unparsed(map, generate_property('<angle>'), '10deg');
+}, 'Specified <angle> is reified as CSSUnparsedValue from get/getAll');
+
+test_specified_maps(function(map){
+    verify_map_get_unparsed(map, generate_property('<color>'), 'green');
+}, 'Specified <color> is reified as CSSUnparsedValue from get/getAll');
+
+test_specified_maps(function(map){
+    verify_map_get_unparsed(map, generate_property('<custom-ident>'), 'foo');
+}, 'Specified <custom-ident> is reified as CSSUnparsedValue from get/getAll');
+
+test_specified_maps(function(map){
+    verify_map_get_unparsed(map, generate_property('<image>'), 'url("a")');
+}, 'Specified <image> is reified as CSSUnparsedValue from get/getAll');
+
+test_specified_maps(function(map){
+    verify_map_get_unparsed(map, generate_property('<integer>'), '1');
+}, 'Specified <integer> is reified as CSSUnparsedValue from get/getAll');
+
+test_specified_maps(function(map){
+    verify_map_get_unparsed(map, generate_property('<length-percentage>'), 'calc(10% + 10px)');
+}, 'Specified <length-percentage> is reified as CSSUnparsedValue from get/getAll');
+
+test_specified_maps(function(map){
+    verify_map_get_unparsed(map, generate_property('<length>'), '10px');
+}, 'Specified <length> is reified as CSSUnparsedValue from get/getAll');
+
+test_specified_maps(function(map){
+    verify_map_get_unparsed(map, generate_property('<number>'), '1');
+}, 'Specified <number> is reified as CSSUnparsedValue from get/getAll');
+
+test_specified_maps(function(map){
+    verify_map_get_unparsed(map, generate_property('<percentage>'), '10%');
+}, 'Specified <percentage> is reified as CSSUnparsedValue from get/getAll');
+
+test_specified_maps(function(map){
+    verify_map_get_unparsed(map, generate_property('<resolution>'), '10dpi');
+}, 'Specified <resolution> is reified as CSSUnparsedValue from get/getAll');
+
+test_specified_maps(function(map){
+    verify_map_get_unparsed(map, generate_property('<time>'), '1s');
+}, 'Specified <time> is reified as CSSUnparsedValue from get/getAll');
+
+test_specified_maps(function(map){
+    verify_map_get_unparsed(map, generate_property('<transform-function>'), 'matrix(0, 0, 0, 0, 0, 0)');
+}, 'Specified <transform-function> is reified as CSSUnparsedValue from get/getAll');
+
+test_specified_maps(function(map){
+    verify_map_get_unparsed(map, generate_property('<transform-list>'), 'matrix(0, 0, 0, 0, 0, 0)');
+}, 'Specified <transform-list> is reified as CSSUnparsedValue from get/getAll');
+
+test_specified_maps(function(map){
+    verify_map_get_unparsed(map, generate_property('<url>'), 'url("a")');
+}, 'Specified <url> is reified as CSSUnparsedValue from get/getAll');
+
+test_specified_maps(function(map){
+    verify_map_get_unparsed(map, generate_property('<length>+'), '10px 11px');
+}, 'Specified <length>+ is reified as CSSUnparsedValue from get/getAll');
+
+test_specified_maps(function(map){
+    verify_map_get_unparsed(map, generate_property('<length>#'), '10px, 11px');
+}, 'Specified <length># is reified as CSSUnparsedValue from get/getAll');
+
+// StylePropertyMap.set
+
+// The following strings are valid for the specified syntax, and should be
+// accepted by set().
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('*'), 'foo');
+}, 'Specified string "foo" accepted by set() for syntax *');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('foo'), 'foo');
+}, 'Specified string "foo" accepted by set() for syntax foo');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<angle>'), '10deg');
+}, 'Specified string "10deg" accepted by set() for syntax <angle>');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<color>'), 'green');
+}, 'Specified string "green" accepted by set() for syntax <color>');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<custom-ident>'), 'foo');
+}, 'Specified string "foo" accepted by set() for syntax <custom-ident>');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<image>'), 'url("a")');
+}, 'Specified string "url("a")" accepted by set() for syntax <image>');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<integer>'), '1');
+}, 'Specified string "1" accepted by set() for syntax <integer>');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<length-percentage>'), 'calc(10% + 10px)');
+}, 'Specified string "calc(10% + 10px)" accepted by set() for syntax <length-percentage>');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<length>'), '10px');
+}, 'Specified string "10px" accepted by set() for syntax <length>');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<number>'), '1');
+}, 'Specified string "1" accepted by set() for syntax <number>');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<percentage>'), '10%');
+}, 'Specified string "10%" accepted by set() for syntax <percentage>');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<resolution>'), '10dpi');
+}, 'Specified string "10dpi" accepted by set() for syntax <resolution>');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<time>'), '1s');
+}, 'Specified string "1s" accepted by set() for syntax <time>');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<transform-function>'), 'matrix(0, 0, 0, 0, 0, 0)');
+}, 'Specified string "matrix(0, 0, 0, 0, 0, 0)" accepted by set() for syntax <transform-function>');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<transform-list>'), 'matrix(0, 0, 0, 0, 0, 0)');
+}, 'Specified string "matrix(0, 0, 0, 0, 0, 0)" accepted by set() for syntax <transform-list>');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<url>'), 'url("a")');
+}, 'Specified string "url("a")" accepted by set() for syntax <url>');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<length>+'), '10px 11px');
+}, 'Specified string "10px 11px" accepted by set() for syntax <length>+');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<length>#'), '10px, 11px');
+}, 'Specified string "10px, 11px" accepted by set() for syntax <length>#');
+
+// The following strings are invalid for the specified syntax, but should
+// should be accepted by set().
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('foo'), 'bar');
+}, 'Specified string "bar" accepted by set() for syntax foo');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<angle>'), '10px');
+}, 'Specified string "10px" accepted by set() for syntax <angle>');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<color>'), '10px');
+}, 'Specified string "10px" accepted by set() for syntax <color>');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<custom-ident>'), '10px');
+}, 'Specified string "10px" accepted by set() for syntax <custom-ident>');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<image>'), 'a');
+}, 'Specified string "a" accepted by set() for syntax <image>');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<integer>'), 'float');
+}, 'Specified string "float" accepted by set() for syntax <integer>');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<length-percentage>'), 'red');
+}, 'Specified string "red" accepted by set() for syntax <length-percentage>');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<length>'), 'red');
+}, 'Specified string "red" accepted by set() for syntax <length>');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<number>'), 'red');
+}, 'Specified string "red" accepted by set() for syntax <number>');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<percentage>'), 'var(--x)');
+}, 'Specified string "var(--x)" accepted by set() for syntax <percentage>');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<resolution>'), 'blue');
+}, 'Specified string "blue" accepted by set() for syntax <resolution>');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<time>'), '1meter');
+}, 'Specified string "1meter" accepted by set() for syntax <time>');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<transform-function>'), 'foo(0)');
+}, 'Specified string "foo(0)" accepted by set() for syntax <transform-function>');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<transform-list>'), 'bar(1)');
+}, 'Specified string "bar(1)" accepted by set() for syntax <transform-list>');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<url>'), 'a');
+}, 'Specified string "a" accepted by set() for syntax <url>');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<length>+'), 'a b');
+}, 'Specified string "a b" accepted by set() for syntax <length>+');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<length>#'), 'a, b');
+}, 'Specified string "a, b" accepted by set() for syntax <length>#');
+
+// CSSUnparsedValue should always be accepted by any custom property,
+// regardless of registation status.
+
+const unparsed = CSSStyleValue.parse('--x', 'foo bar thing');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('*'), unparsed);
+}, 'CSSUnparsedValue is accepted via set() for syntax *');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('foo'), unparsed);
+}, 'CSSUnparsedValue is accepted via set() for syntax foo');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<angle>'), unparsed);
+}, 'CSSUnparsedValue is accepted via set() for syntax <angle>');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<color>'), unparsed);
+}, 'CSSUnparsedValue is accepted via set() for syntax <color>');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<custom-ident>'), unparsed);
+}, 'CSSUnparsedValue is accepted via set() for syntax <custom-ident>');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<image>'), unparsed);
+}, 'CSSUnparsedValue is accepted via set() for syntax <image>');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<integer>'), unparsed);
+}, 'CSSUnparsedValue is accepted via set() for syntax <integer>');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<length-percentage>'), unparsed);
+}, 'CSSUnparsedValue is accepted via set() for syntax <length-percentage>');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<length>'), unparsed);
+}, 'CSSUnparsedValue is accepted via set() for syntax <length>');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<number>'), unparsed);
+}, 'CSSUnparsedValue is accepted via set() for syntax <number>');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<percentage>'), unparsed);
+}, 'CSSUnparsedValue is accepted via set() for syntax <percentage>');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<resolution>'), unparsed);
+}, 'CSSUnparsedValue is accepted via set() for syntax <resolution>');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<time>'), unparsed);
+}, 'CSSUnparsedValue is accepted via set() for syntax <time>');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<transform-function>'), unparsed);
+}, 'CSSUnparsedValue is accepted via set() for syntax <transform-function>');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<transform-list>'), unparsed);
+}, 'CSSUnparsedValue is accepted via set() for syntax <transform-list>');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<url>'), unparsed);
+}, 'CSSUnparsedValue is accepted via set() for syntax <url>');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<length>+'), unparsed);
+}, 'CSSUnparsedValue is accepted via set() for syntax <length>+');
+
+test_specified_maps(function(map){
+    verify_map_set(map, generate_property('<length>#'), unparsed);
+}, 'CSSUnparsedValue is accepted via set() for syntax <length>#');
+
+// CSSStyleValues which aren't CSSUnparsedValues aren't accepted by set(),
+// even if they're a value which is compatible with the syntax.
+//
+// https://drafts.css-houdini.org/css-properties-values-api-1/#cssom
+const zero_matrix = CSSStyleValue.parse('transform', 'matrix(0, 0, 0, 0, 0, 0)');
+const image_value = CSSStyleValue.parse('background-image', 'url(a)');
+
+test_specified_maps(function(map){
+    verify_map_not_set(map, generate_property('*'), new CSSKeywordValue('foo'));
+}, 'CSSKeywordValue rejected by set() for syntax *');
+
+test_specified_maps(function(map){
+    verify_map_not_set(map, generate_property('foo'), new CSSKeywordValue('foo'));
+}, 'CSSKeywordValue rejected by set() for syntax foo');
+
+test_specified_maps(function(map){
+    verify_map_not_set(map, generate_property('<angle>'), CSS.deg(10));
+}, 'CSSUnitValue rejected by set() for syntax <angle>');
+
+test_specified_maps(function(map){
+    verify_map_not_set(map, generate_property('<custom-ident>'), new CSSKeywordValue('foo'));
+}, 'CSSKeywordValue rejected by set() for syntax <custom-ident>');
+
+test_specified_maps(function(map){
+    verify_map_not_set(map, generate_property('<image>'), image_value);
+}, 'CSSImageValue rejected by set() for syntax <image>');
+
+test_specified_maps(function(map){
+    verify_map_not_set(map, generate_property('<integer>'), CSS.number(1));
+}, 'CSSUnitValue rejected by set() for syntax <integer>');
+
+test_specified_maps(function(map){
+    verify_map_not_set(map, generate_property('<length-percentage>'), CSS.px(10));
+}, 'CSSUnitValue rejected by set() for syntax <length-percentage>');
+
+test_specified_maps(function(map){
+    verify_map_not_set(map, generate_property('<length>'), CSS.px(10));
+}, 'CSSUnitValue rejected by set() for syntax <length>');
+
+test_specified_maps(function(map){
+    verify_map_not_set(map, generate_property('<number>'), CSS.number(10));
+}, 'CSSUnitValue rejected by set() for syntax <number>');
+
+test_specified_maps(function(map){
+    verify_map_not_set(map, generate_property('<percentage>'), CSS.percent(10));
+}, 'CSSUnitValue rejected by set() for syntax <percentage>');
+
+test_specified_maps(function(map){
+    verify_map_not_set(map, generate_property('<resolution>'), CSS.dpi(10));
+}, 'CSSUnitValue rejected by set() for syntax <resolution>');
+
+test_specified_maps(function(map){
+    verify_map_not_set(map, generate_property('<time>'), CSS.s(10));
+}, 'CSSUnitValue rejected by set() for syntax <time>');
+
+test_specified_maps(function(map){
+    verify_map_not_set(map, generate_property('<transform-list>'), zero_matrix);
+}, 'CSSTransformValue rejected by set() for syntax <transform-list>');
+
+test_specified_maps(function(map){
+    verify_map_not_set(map, generate_property('<length>+'), CSS.px(10), CSS.px(10));
+}, 'CSSUnitValue rejected by set() for syntax <length>+');
+
+test_specified_maps(function(map){
+    verify_map_not_set(map, generate_property('<length>#'), CSS.px(10), CSS.px(10));
+}, 'CSSUnitValue rejected by set() for syntax <length>#');
+
+// <color> has no CSSStyleValue subclass yet.
+// <url> has no CSSStyleValue subclass yet.
+// <transform-function> has no CSSStyleValue subclass yet.
+
+// StylePropertyMap.append
+
+// It is not allowed to append CSSStyleValues to custom properties, even
+// when the string matches the syntax of the custom property.
+
+test_specified_maps(function(map){
+    verify_map_no_append(map, generate_property('*'), 'a');
+}, 'Appending a string to * is not allowed');
+
+test_specified_maps(function(map){
+    verify_map_no_append(map, generate_property('foo+'), 'foo');
+}, 'Appending a string to foo+ is not allowed');
+
+test_specified_maps(function(map){
+    verify_map_no_append(map, generate_property('<angle>+'), '10deg');
+}, 'Appending a string to <angle>+ is not allowed');
+
+test_specified_maps(function(map){
+    verify_map_no_append(map, generate_property('<color>+'), 'red');
+}, 'Appending a string to <color>+ is not allowed');
+
+test_specified_maps(function(map){
+    verify_map_no_append(map, generate_property('<custom-ident>+'), 'foo');
+}, 'Appending a string to <custom-ident>+ is not allowed');
+
+test_specified_maps(function(map){
+    verify_map_no_append(map, generate_property('<image>+'), 'url(a)');
+}, 'Appending a string to <image>+ is not allowed');
+
+test_specified_maps(function(map){
+    verify_map_no_append(map, generate_property('<integer>+'), 'a');
+}, 'Appending a string to <integer>+ is not allowed');
+
+test_specified_maps(function(map){
+    verify_map_no_append(map, generate_property('<length-percentage>+'), 'calc(10*% + 10px)');
+}, 'Appending a string to <length-percentage>+ is not allowed');
+
+test_specified_maps(function(map){
+    verify_map_no_append(map, generate_property('<length>+'), '10px');
+}, 'Appending a string to <length>+ is not allowed');
+
+test_specified_maps(function(map){
+    verify_map_no_append(map, generate_property('<number>+'), '1.3');
+}, 'Appending a string to <number>+ is not allowed');
+
+test_specified_maps(function(map){
+    verify_map_no_append(map, generate_property('<percentage>+'), '10%');
+}, 'Appending a string to <percentage>+ is not allowed');
+
+test_specified_maps(function(map){
+    verify_map_no_append(map, generate_property('<resolution>+'), '10dpi');
+}, 'Appending a string to <resolution>+ is not allowed');
+
+test_specified_maps(function(map){
+    verify_map_no_append(map, generate_property('<time>+'), '1s');
+}, 'Appending a string to <time>+ is not allowed');
+
+test_specified_maps(function(map){
+    verify_map_no_append(map, generate_property('<transform-function>+'), 'matrix(0, 0, 0, 0, 0, 0)');
+}, 'Appending a string to <transform-function>+ is not allowed');
+
+test_specified_maps(function(map){
+    verify_map_no_append(map, generate_property('<transform-list>'), 'matrix(0, 0, 0, 0, 0, 0)');
+}, 'Appending a string to <transform-list> is not allowed');
+
+test_specified_maps(function(map){
+    verify_map_no_append(map, generate_property('<url>+'), 'url(a)');
+}, 'Appending a string to <url>+ is not allowed');
+
+test_specified_maps(function(map){
+    verify_map_no_append(map, generate_property('<length>#'), '10px');
+}, 'Appending a string to <length># is not allowed');
+
+// It is not allowed to append CSSStyleValues to custom properties, even
+// when the CSSStyleValue matches the syntax of the custom property.
+
+test_specified_maps(function(map) {
+    verify_map_no_append(map, generate_property('*'), new CSSKeywordValue('foo'));
+}, 'Appending a CSSKeywordValue to * is not allowed');
+
+test_specified_maps(function(map) {
+    verify_map_no_append(map, generate_property('foo+'), new CSSKeywordValue('foo'));
+}, 'Appending a CSSKeywordValue to foo+ is not allowed');
+
+test_specified_maps(function(map) {
+    verify_map_no_append(map, generate_property('<angle>+'), CSS.deg(10));
+}, 'Appending a CSSUnitValue to <angle>+ is not allowed');
+
+test_specified_maps(function(map) {
+    verify_map_no_append(map, generate_property('<custom-ident>+'), new CSSKeywordValue('foo'));
+}, 'Appending a CSSKeywordValue to <custom-ident>+ is not allowed');
+
+test_specified_maps(function(map) {
+    verify_map_no_append(map, generate_property('<image>+'), image_value);
+}, 'Appending a CSSImageValue to <image>+ is not allowed');
+
+test_specified_maps(function(map) {
+    verify_map_no_append(map, generate_property('<integer>+'), CSS.number(1));
+}, 'Appending a CSSUnitValue to <integer>+ is not allowed');
+
+test_specified_maps(function(map) {
+    verify_map_no_append(map, generate_property('<length-percentage>+'), CSS.px(10));
+}, 'Appending a CSSUnitValue to <length-percentage>+ is not allowed');
+
+test_specified_maps(function(map) {
+    verify_map_no_append(map, generate_property('<length>+'), CSS.px(10));
+}, 'Appending a CSSUnitValue to <length>+ is not allowed');
+
+test_specified_maps(function(map) {
+    verify_map_no_append(map, generate_property('<number>+'), CSS.number(10));
+}, 'Appending a CSSUnitValue to <number>+ is not allowed');
+
+test_specified_maps(function(map) {
+    verify_map_no_append(map, generate_property('<percentage>+'), CSS.percent(10));
+}, 'Appending a CSSUnitValue to <percentage>+ is not allowed');
+
+test_specified_maps(function(map) {
+    verify_map_no_append(map, generate_property('<resolution>+'), CSS.dpi(10));
+}, 'Appending a CSSUnitValue to <resolution>+ is not allowed');
+
+test_specified_maps(function(map) {
+    verify_map_no_append(map, generate_property('<time>+'), CSS.s(10));
+}, 'Appending a CSSUnitValue to <time>+ is not allowed');
+
+test_specified_maps(function(map) {
+    verify_map_no_append(map, generate_property('<transform-list>'), zero_matrix);
+}, 'Appending a CSSKeywordValue to <transform-list> is not allowed');
+
+test_specified_maps(function(map) {
+    verify_map_no_append(map, generate_property('<length>#'), CSS.px(10));
+}, 'Appending a CSSUnitValue to <length># is not allowed');
+
+// <color> has no CSSStyleValue subclass yet.
+// <url> has no CSSStyleValue subclass yet.
+// <transform-function> has no CSSStyleValue subclass yet.
+
+// CSSStyleValue.parse/parseAll
+
+test(function(){
+    verify_parsed_type(generate_property('*'), 'while(){}', CSSUnparsedValue);
+}, 'CSSStyleValue.parse[All] returns CSSUnparsedValue for syntax *', CSSUnparsedValue);
+
+test(function(){
+    verify_parsed_type(generate_property('<angle>'), '42deg', CSSUnparsedValue);
+}, 'CSSStyleValue.parse[All] returns CSSUnparsedValue for syntax <angle>');
+
+test(function(){
+    verify_parsed_type(generate_property('<color>'), '#fefefe', CSSUnparsedValue);
+}, 'CSSStyleValue.parse[All] returns CSSUnparsedValue for syntax <color>');
+
+test(function(){
+    verify_parsed_type(generate_property('<custom-ident> | <length>'), 'none', CSSUnparsedValue);
+}, 'CSSStyleValue.parse[All] returns CSSUnparsedValue for syntax <custom-ident> | <length>');
+
+test(function(){
+    verify_parsed_type(generate_property('<image>'), 'url(thing.png)', CSSUnparsedValue);
+}, 'CSSStyleValue.parse[All] returns CSSUnparsedValue for syntax <image>');
+
+test(function(){
+    verify_parsed_type(generate_property('<integer>'), '100', CSSUnparsedValue);
+}, 'CSSStyleValue.parse[All] returns CSSUnparsedValue for syntax <integer>');
+
+test(function(){
+    verify_parsed_type(generate_property('<length-percentage>'), '10%', CSSUnparsedValue);
+}, 'CSSStyleValue.parse[All] returns CSSUnparsedValue for syntax <length-percentage> (10%)');
+
+test(function(){
+    verify_parsed_type(generate_property('<length-percentage>'), '10px', CSSUnparsedValue);
+}, 'CSSStyleValue.parse[All] returns CSSUnparsedValue for syntax <length-percentage> (10px)');
+
+test(function(){
+    verify_parsed_type(generate_property('<length-percentage>'), 'calc(10px + 10%)', CSSUnparsedValue);
+}, 'CSSStyleValue.parse[All] returns CSSUnparsedValue for syntax <length-percentage> (calc(10px + 10%))');
+
+test(function(){
+    verify_parsed_type(generate_property('<length>'), '10px', CSSUnparsedValue);
+}, 'CSSStyleValue.parse[All] returns CSSUnparsedValue for syntax <length>');
+
+test(function(){
+    verify_parsed_type(generate_property('<number>'), '42', CSSUnparsedValue);
+}, 'CSSStyleValue.parse[All] returns CSSUnparsedValue for syntax <number>');
+
+test(function(){
+    verify_parsed_type(generate_property('<percentage>'), '10%', CSSUnparsedValue);
+}, 'CSSStyleValue.parse[All] returns CSSUnparsedValue for syntax <percentage>');
+
+test(function(){
+    verify_parsed_type(generate_property('<resolution>'), '300dpi', CSSUnparsedValue);
+}, 'CSSStyleValue.parse[All] returns CSSUnparsedValue for syntax <resolution>');
+
+test(function(){
+    verify_parsed_type(generate_property('<time>'), '42s', CSSUnparsedValue);
+}, 'CSSStyleValue.parse[All] returns CSSUnparsedValue for syntax <time>');
+
+test(function(){
+    verify_parsed_type(generate_property('<transform-function>'), 'matrix(0, 0, 0, 0, 0, 0)', CSSUnparsedValue);
+}, 'CSSStyleValue.parse[All] returns CSSUnparsedValue for syntax <transform-function>');
+
+test(function(){
+    verify_parsed_type(generate_property('<transform-list>'), 'matrix(0, 0, 0, 0, 0, 0)', CSSUnparsedValue);
+}, 'CSSStyleValue.parse[All] returns CSSUnparsedValue for syntax <transform-list>');
+
+test(function(){
+    verify_parsed_type(generate_property('<url>'), 'url(a)', CSSUnparsedValue);
+}, 'CSSStyleValue.parse[All] returns CSSUnparsedValue for syntax <url>');
+
+test(function(){
+    verify_parsed_type(generate_property('thing1 | THING2 | <url>'), 'THING2', CSSUnparsedValue);
+}, 'CSSStyleValue.parse[All] returns CSSUnparsedValue for syntax thing1 | THING2 | <url>');
+
+test(function(){
+    verify_parsed_type(generate_property('<length>+'), '10px 20px', CSSUnparsedValue);
+}, 'CSSStyleValue.parse[All] returns CSSUnparsedValue for syntax <length>+');
+
+test(function(){
+    verify_parsed_type(generate_property('<length>#'), '10px, 20px', CSSUnparsedValue);
+}, 'CSSStyleValue.parse[All] returns CSSUnparsedValue for syntax <length>#');
+
+// Direct CSSStyleValue objects:
+
+test_specified_maps(function(map){
+    for (let syntax of all_syntaxes()) {
+        let name = generate_property(syntax);
+
+        let initialValue = target.computedStyleMap().get(name);
+
+        // We only care about direct CSSStyleValue instances in this test.
+        // Ultimately, in some future version of CSS TypedOM, we may have no
+        // direct CSSStyleValue instances at all, which is fine.
+        if (initialValue.constructor !== CSSStyleValue) {
+            continue;
+        }
+
+        // Verify that direct CSSStyleValues are rejected by set(). Two things
+        // should prevent this: 1) direct CSSStyleValues are not
+        // CSSUnparsedValues, and 2) direct CSSStyleValues are only valid for
+        // the property they were reified from.
+        verify_map_not_set(map, generate_property(syntax), initialValue);
+    }
+}, 'Direct CSSStyleValue may not be set');
+
+// StylePropertyMap iteration
+
+test_specified_maps(function(map){
+    verify_map_iteration_unparsed(map, generate_property('*'), 'foo');
+}, 'Specified * is reified CSSUnparsedValue by iterator');
+
+test_specified_maps(function(map){
+    verify_map_iteration_unparsed(map, generate_property('foo'), 'foo');
+}, 'Specified foo is reified CSSUnparsedValue by iterator');
+
+test_specified_maps(function(map){
+    verify_map_iteration_unparsed(map, generate_property('<angle>'), '10deg');
+}, 'Specified <angle> is reified CSSUnparsedValue by iterator');
+
+test_specified_maps(function(map){
+    verify_map_iteration_unparsed(map, generate_property('<color>'), 'green');
+}, 'Specified <color> is reified CSSUnparsedValue by iterator');
+
+test_specified_maps(function(map){
+    verify_map_iteration_unparsed(map, generate_property('<custom-ident>'), 'foo');
+}, 'Specified <custom-ident> is reified CSSUnparsedValue by iterator');
+
+test_specified_maps(function(map){
+    verify_map_iteration_unparsed(map, generate_property('<image>'), 'url("a")');
+}, 'Specified <image> is reified CSSUnparsedValue by iterator');
+
+test_specified_maps(function(map){
+    verify_map_iteration_unparsed(map, generate_property('<integer>'), '1');
+}, 'Specified <integer> is reified CSSUnparsedValue by iterator');
+
+test_specified_maps(function(map){
+    verify_map_iteration_unparsed(map, generate_property('<length-percentage>'), 'calc(10% + 10px)');
+}, 'Specified <length-percentage> is reified CSSUnparsedValue by iterator');
+
+test_specified_maps(function(map){
+    verify_map_iteration_unparsed(map, generate_property('<length>'), '10px');
+}, 'Specified <length> is reified CSSUnparsedValue by iterator');
+
+test_specified_maps(function(map){
+    verify_map_iteration_unparsed(map, generate_property('<number>'), '1');
+}, 'Specified <number> is reified CSSUnparsedValue by iterator');
+
+test_specified_maps(function(map){
+    verify_map_iteration_unparsed(map, generate_property('<percentage>'), '10%');
+}, 'Specified <percentage> is reified CSSUnparsedValue by iterator');
+
+test_specified_maps(function(map){
+    verify_map_iteration_unparsed(map, generate_property('<resolution>'), '10dpi');
+}, 'Specified <resolution> is reified CSSUnparsedValue by iterator');
+
+test_specified_maps(function(map){
+    verify_map_iteration_unparsed(map, generate_property('<time>'), '1s');
+}, 'Specified <time> is reified CSSUnparsedValue by iterator');
+
+test_specified_maps(function(map){
+    verify_map_iteration_unparsed(map, generate_property('<transform-function>'), 'matrix(0, 0, 0, 0, 0, 0)');
+}, 'Specified <transform-function> is reified CSSUnparsedValue by iterator');
+
+test_specified_maps(function(map){
+    verify_map_iteration_unparsed(map, generate_property('<transform-list>'), 'matrix(0, 0, 0, 0, 0, 0)');
+}, 'Specified <transform-list> is reified CSSUnparsedValue by iterator');
+
+test_specified_maps(function(map){
+    verify_map_iteration_unparsed(map, generate_property('<url>'), 'url("a")');
+}, 'Specified <url> is reified CSSUnparsedValue by iterator');
+
+test_specified_maps(function(map){
+    verify_map_iteration_unparsed(map, generate_property('<length>+'), '10px 11px');
+}, 'Specified <length>+ is reified CSSUnparsedValue by iterator');
+
+test_specified_maps(function(map){
+    verify_map_iteration_unparsed(map, generate_property('<length>#'), '10px, 11px');
+}, 'Specified <length># is reified CSSUnparsedValue by iterator');
+
+// StylePropertyMapReadOnly iteration
+
+test(function(){
+    let name = generate_property({syntax: '<length>', initialValue: '10px'});
+    let result = Array.from(target.computedStyleMap()).filter(e => e[0] == name)[0];
+    assert_true(typeof(result) !== 'undefined');
+}, 'Registered property with initial value show up on iteration of computedStyleMap');
+
+test(function(){
+    verify_computed_iteration_type(generate_property('*'), 'thing', CSSUnparsedValue);
+}, 'Computed * is reified as CSSUnparsedValue by iterator');
+
+test(function(){
+    verify_computed_iteration_type(generate_property('<angle>'), '42deg', CSSUnitValue);
+}, 'Computed <angle> is reified as CSSUnitValue by iterator');
+
+test(function(){
+    verify_computed_iteration_type(generate_property('<custom-ident>'), 'thing', CSSKeywordValue);
+}, 'Computed <custom-ident> is reified as CSSKeywordValue by iterator');
+
+test(function(){
+    verify_computed_iteration_type(generate_property('<image>'), 'url(\"a\")', CSSImageValue, `url(\"${new URL("a", document.baseURI)}\")`);
+}, 'Computed <image> is reified as CSSImageValue by iterator');
+
+test(function(){
+    verify_computed_iteration_type(generate_property('<integer>'), '100', CSSUnitValue);
+}, 'Computed <integer> is reified as CSSUnitValue by iterator');
+
+test(function(){
+    verify_computed_iteration_type(generate_property('<length>'), '10px', CSSUnitValue);
+}, 'Computed <length> is reified as CSSUnitValue by iterator');
+
+test(function(){
+    verify_computed_iteration_type(generate_property('<number>'), '42', CSSUnitValue);
+}, 'Computed <number> is reified as CSSUnitValue by iterator');
+
+test(function(){
+    verify_computed_iteration_type(generate_property('<percentage>'), '10%', CSSUnitValue);
+}, 'Computed <percentage> is reified as CSSUnitValue by iterator');
+
+test(function(){
+    verify_computed_iteration_type(generate_property('<resolution>'), '300dppx', CSSUnitValue);
+}, 'Computed <resolution> is reified as CSSUnitValue by iterator');
+
+test(function(){
+    verify_computed_iteration_type(generate_property('<time>'), '10s', CSSUnitValue);
+}, 'Computed <time> is reified as CSSUnitValue by iterator');
+
+test(function(){
+    verify_computed_iteration_type(generate_property('none | thing | THING'), 'THING', CSSKeywordValue);
+}, 'Computed none | thing | THING is reified as CSSKeywordValue by iterator');
+
+test(function(){
+    verify_computed_iteration_type(generate_property('<angle> | <length>'), '10px', CSSUnitValue);
+}, 'Computed <angle> | <length> is reified as CSSUnitValue by iterator');
+
+</script>
