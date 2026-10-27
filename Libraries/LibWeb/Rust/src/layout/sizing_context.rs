@@ -2917,82 +2917,88 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
 
         let trace = self.callbacks.arena().layout_trace.intrinsic_size_miss(node, kind);
         let depends_on_block_size = self.intrinsic_inline_measurement_may_depend_on_block_size(node, block_size);
-        let scope = intrinsic_sizing::ContentSizingScope::new(&self.callbacks, node, constraints, block_size);
-        if let Some(sizes) = intrinsic_sizing::content_sizes_of_inline_content(
-            self.callbacks,
-            &scope,
-            constraints,
-            depends_on_block_size,
-        ) {
-            if let Some(trace) = &trace {
-                trace.append(" FROM ITEMS");
+        let scope = || intrinsic_sizing::ContentSizingScope::new(&self.callbacks, node, constraints, block_size);
+        let facts = self.facts(node);
+        let (source, sizes) = if self.establishes_orthogonal_flow(node) {
+            (
+                "ORTHOGONAL FLOW",
+                intrinsic_sizing::content_sizes_of_orthogonal_flow(self.callbacks, &scope(), constraints),
+            )
+        } else if facts.is_table_wrapper() {
+            (
+                "COLUMNS",
+                intrinsic_sizing::content_sizes_of_table(self.callbacks, &scope(), constraints, depends_on_block_size),
+            )
+        } else {
+            match formatting_context::independent_formatting_context_type(node, &self.callbacks) {
+                formatting_context::FormattingContextType::Block if facts.children_are_inline() => (
+                    "ITEMS",
+                    intrinsic_sizing::content_sizes_of_inline_content(
+                        self.callbacks,
+                        &scope(),
+                        constraints,
+                        depends_on_block_size,
+                    ),
+                ),
+                formatting_context::FormattingContextType::Block => (
+                    "CHILDREN",
+                    intrinsic_sizing::content_sizes_of_block_container(
+                        self.callbacks,
+                        &scope(),
+                        constraints,
+                        depends_on_block_size,
+                    ),
+                ),
+                formatting_context::FormattingContextType::Table => (
+                    "COLUMNS",
+                    intrinsic_sizing::content_sizes_of_table(
+                        self.callbacks,
+                        &scope(),
+                        constraints,
+                        depends_on_block_size,
+                    ),
+                ),
+                formatting_context::FormattingContextType::Flex => (
+                    "FLEX ITEMS",
+                    intrinsic_sizing::content_sizes_of_flex_container(
+                        self.callbacks,
+                        node,
+                        constraints,
+                        block_size,
+                        depends_on_block_size,
+                    ),
+                ),
+                formatting_context::FormattingContextType::Grid => (
+                    "GRID TRACKS",
+                    intrinsic_sizing::content_sizes_of_grid_container(
+                        self.callbacks,
+                        node,
+                        constraints,
+                        block_size,
+                        depends_on_block_size,
+                    ),
+                ),
+                formatting_context::FormattingContextType::Svg
+                | formatting_context::FormattingContextType::InternalReplaced
+                | formatting_context::FormattingContextType::ReplacedWithChildren => (
+                    "REPLACED CONTENT",
+                    intrinsic_sizing::content_sizes_of_replaced_content(
+                        self.callbacks,
+                        &scope(),
+                        depends_on_block_size,
+                    ),
+                ),
+                formatting_context::FormattingContextType::Math => (
+                    "MATH LAYOUT",
+                    intrinsic_sizing::content_sizes_of_math(self.callbacks, &scope(), constraints),
+                ),
             }
-            return self.cache_content_inline_sizes(node, kind, key, sizes);
+        };
+        if let Some(trace) = &trace {
+            trace.append(" FROM ");
+            trace.append(source);
         }
-        if let Some(sizes) = intrinsic_sizing::content_sizes_of_block_container(
-            self.callbacks,
-            &scope,
-            constraints,
-            depends_on_block_size,
-        ) {
-            if let Some(trace) = &trace {
-                trace.append(" FROM CHILDREN");
-            }
-            return self.cache_content_inline_sizes(node, kind, key, sizes);
-        }
-        if let Some(sizes) =
-            intrinsic_sizing::content_sizes_of_table(self.callbacks, &scope, constraints, depends_on_block_size)
-        {
-            if let Some(trace) = &trace {
-                trace.append(" FROM COLUMNS");
-            }
-            return self.cache_content_inline_sizes(node, kind, key, sizes);
-        }
-        if let Some(sizes) = intrinsic_sizing::content_sizes_of_flex_container(
-            self.callbacks,
-            node,
-            constraints,
-            block_size,
-            depends_on_block_size,
-        ) {
-            if let Some(trace) = &trace {
-                trace.append(" FROM FLEX ITEMS");
-            }
-            return self.cache_content_inline_sizes(node, kind, key, sizes);
-        }
-        if let Some(sizes) = intrinsic_sizing::content_sizes_of_grid_container(
-            self.callbacks,
-            node,
-            constraints,
-            block_size,
-            depends_on_block_size,
-        ) {
-            if let Some(trace) = &trace {
-                trace.append(" FROM GRID TRACKS");
-            }
-            return self.cache_content_inline_sizes(node, kind, key, sizes);
-        }
-        if let Some(sizes) =
-            intrinsic_sizing::content_sizes_of_replaced_content(self.callbacks, &scope, depends_on_block_size)
-        {
-            if let Some(trace) = &trace {
-                trace.append(" FROM REPLACED CONTENT");
-            }
-            return self.cache_content_inline_sizes(node, kind, key, sizes);
-        }
-        if let Some(sizes) = intrinsic_sizing::content_sizes_of_orthogonal_flow(self.callbacks, &scope, constraints) {
-            if let Some(trace) = &trace {
-                trace.append(" FROM ORTHOGONAL FLOW");
-            }
-            return self.cache_content_inline_sizes(node, kind, key, sizes);
-        }
-        if let Some(sizes) = intrinsic_sizing::content_sizes_of_math(self.callbacks, &scope, constraints) {
-            if let Some(trace) = &trace {
-                trace.append(" FROM MATH LAYOUT");
-            }
-            return self.cache_content_inline_sizes(node, kind, key, sizes);
-        }
-        unreachable!("no source of content inline sizes answers for {node:?}")
+        self.cache_content_inline_sizes(node, kind, key, sizes)
     }
 
     fn cache_content_inline_sizes(
