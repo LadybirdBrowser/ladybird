@@ -62,6 +62,7 @@
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/Menu.h>
 #include <LibWebView/PermissionManager.h>
+#include <LibWebView/NoOpNotificationBackend.h>
 #include <LibWebView/PictureInPictureWindow.h>
 #include <LibWebView/ProcessType.h>
 #include <LibWebView/RequestServerManager.h>
@@ -2478,6 +2479,11 @@ bool Application::supports_clipboard_type(ClipboardType type) const
 bool Application::supports_picture_in_picture() const
 {
     return browser_options().headless_mode.has_value();
+}
+
+NonnullOwnPtr<NotificationBackend> Application::create_notification_backend()
+{
+    return make<NoOpNotificationBackend>();
 }
 
 OwnPtr<PictureInPictureWindow> Application::create_picture_in_picture_window(WebContentPage& requesting_page, CanonicalTraversable& traversable, Gfx::IntSize video_size)

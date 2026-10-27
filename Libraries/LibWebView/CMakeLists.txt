@@ -47,6 +47,8 @@ set(SOURCES
     NavigationLoader.cpp
     Omnibox.cpp
     OmniboxEngagement.cpp
+    NotificationAttribution.cpp
+    NotificationManager.cpp
     PictureInPictureManager.cpp
     PictureInPictureWindow.cpp
     PermissionManager.cpp
@@ -58,6 +60,7 @@ set(SOURCES
     ProcessMonitor.cpp
     Profile.cpp
     ReportSubmission.cpp
+    RecordingNotificationBackend.cpp
     RequestServerManager.cpp
     RequestServerSiteBindings.cpp
     SearchEngine.cpp

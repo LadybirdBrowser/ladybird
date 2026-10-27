@@ -30,6 +30,7 @@
 #include <LibWebView/GamepadManager.h>
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/NavigationLoader.h>
+#include <LibWebView/NotificationManager.h>
 #include <LibWebView/PermissionManager.h>
 #include <LibWebView/PictureInPictureManager.h>
 #include <LibWebView/RequestServerManager.h>
@@ -644,6 +645,7 @@ void WebContentPage::fail_renderer_owned_downloads()
 void WebContentPage::close()
 {
     PictureInPictureManager::the().close_window(*this);
+    NotificationManager::the().page_did_close(*this);
     m_is_open = false;
     // NB: Nothing finishes the input this page held, including a page discarded while its process hosts other pages.
     if (m_traversable) {
@@ -1853,6 +1855,24 @@ Web::Permissions::PermissionSnapshot WebContentPage::advance_permission_clock_fo
     auto& manager = *view().session().permission_manager;
     manager.age_origin_for_testing(view().url().origin(), AK::Duration::from_milliseconds(static_cast<i64>(milliseconds)));
     return manager.snapshot_for(client().permission_origins());
+}
+
+void WebContentPage::did_request_show_notification(u64 notification_id, Web::NotificationsAPI::NotificationData data, Optional<Gfx::ShareableBitmap> icon)
+{
+    RefPtr<Gfx::Bitmap const> icon_bitmap;
+    if (icon.has_value() && icon->is_valid())
+        icon_bitmap = icon->bitmap();
+    NotificationManager::the().show(*this, notification_id, move(data), move(icon_bitmap));
+}
+
+void WebContentPage::did_request_close_notification(u64 notification_id)
+{
+    NotificationManager::the().close(*this, notification_id);
+}
+
+void WebContentPage::did_handle_notification_click(u64 notification_id, bool into_focus)
+{
+    NotificationManager::the().click_handled(*this, notification_id, into_focus);
 }
 
 void WebContentPage::did_cancel_geolocation_position_request(u64 request_id)
