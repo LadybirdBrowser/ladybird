@@ -128,8 +128,8 @@ GC::Ref<WebIDL::Promise> fetch(JS::Realm& realm, RequestInfo const& input, Bindi
         if (locally_aborted->value())
             return;
 
-        // AD-HOC: An execution context is required for Promise functions.
-        HTML::TemporaryExecutionContext execution_context { relevant_realm };
+        // AD-HOC: Promise reactions need an execution context and incumbent callback settings.
+        HTML::TemporaryExecutionContext execution_context { relevant_realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
         // 2. If response’s aborted flag is set, then:
         if (response->aborted()) {
