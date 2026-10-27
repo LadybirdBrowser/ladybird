@@ -6,56 +6,76 @@
         <link rel="stylesheet" type="text/css" href="resource://ladybird/ladybird.css" />
         <link rel="stylesheet" type="text/css" href="resource://ladybird/about-pages/webui.css" />
         <style>
-            @media (prefers-color-scheme: light) {
-                :root {
-                    --history-entry-hover-color: #e8e8e8;
-                }
+            body {
+                max-width: 908px;
+                padding: 30px 24px;
             }
 
-            @media (prefers-color-scheme: dark) {
-                :root {
-                    --history-entry-hover-color: #2d2d2d;
-                }
+            .history-header {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                margin-bottom: 18px;
+            }
+
+            .history-header h1 {
+                flex: 1;
+                font-size: 22px;
+                font-weight: 600;
+            }
+
+            .search-field {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                width: 280px;
+                height: 28px;
+                padding: 0 10px;
+                border-radius: 7px;
+                background-color: var(--control);
+            }
+
+            .search-field:focus-within {
+                background-color: var(--page);
+                box-shadow:
+                    0 0 0 1px var(--focus-edge),
+                    0 0 0 3px var(--focus-ring);
+            }
+
+            .search-field svg {
+                flex-shrink: 0;
+                width: 14px;
+                height: 14px;
+                color: var(--muted);
+            }
+
+            .search-field input,
+            .search-field input:focus {
+                flex: 1;
+                min-width: 0;
+                height: auto;
+                padding: 0;
+                background: transparent;
+                box-shadow: none;
             }
 
             .history-status {
-                color: var(--secondary-text-color);
-                font-size: 13px;
-            }
-
-            .history-content {
-                display: flex;
-                flex-direction: column;
-                gap: 18px;
+                color: var(--muted);
+                font-size: 12px;
+                padding: 0 10px;
             }
 
             .history-empty {
-                color: var(--secondary-text-color);
+                color: var(--muted);
                 padding: 36px 12px;
                 text-align: center;
-                font-size: 14px;
-            }
-
-            .history-groups {
-                display: flex;
-                flex-direction: column;
-                gap: 18px;
-            }
-
-            .history-group {
-                border-top: 1px solid var(--separator-color);
-                padding-top: 18px;
-            }
-
-            .history-group:first-child {
-                border-top: none;
-                padding-top: 0;
             }
 
             .history-group-title {
-                margin: 0 0 12px 0;
-                font-size: 14px;
+                padding: 14px 10px 6px;
+                font-size: 12px;
                 font-weight: 600;
+                color: var(--muted);
             }
 
             .history-entry-list {
@@ -67,17 +87,23 @@
                 display: flex;
                 align-items: center;
                 gap: 14px;
-
-                border-radius: 8px;
-                padding: 10px 8px;
+                height: 32px;
+                padding: 0 6px 0 10px;
+                border-radius: 6px;
             }
 
-            .history-entry:hover {
-                background-color: var(--history-entry-hover-color);
+            .history-entry:hover,
+            .history-entry:focus-within {
+                background-color: var(--control);
             }
 
-            .history-entry + .history-entry {
-                margin-top: 4px;
+            .entry-time {
+                flex-shrink: 0;
+                min-width: 56px;
+                white-space: nowrap;
+                font-size: 12px;
+                color: var(--muted);
+                font-variant-numeric: tabular-nums;
             }
 
             .entry-favicon {
@@ -86,14 +112,14 @@
                 justify-content: center;
                 flex-shrink: 0;
 
-                width: 32px;
-                height: 32px;
-                border-radius: 8px;
+                width: 16px;
+                height: 16px;
+                border-radius: 3px;
                 overflow: hidden;
 
-                background-color: var(--icon-background-color);
-                color: var(--icon-color);
-                font-size: 13px;
+                background-color: var(--control);
+                color: var(--body);
+                font-size: 9px;
                 font-weight: 700;
                 text-transform: uppercase;
             }
@@ -103,68 +129,73 @@
                 height: 100%;
             }
 
-            .entry-main {
-                display: flex;
-                flex: 1;
-                align-items: center;
-                justify-content: space-between;
-                gap: 16px;
-                min-width: 0;
-            }
-
-            .entry-text {
-                display: flex;
-                flex-direction: column;
-                flex: 1;
-                gap: 4px;
-                min-width: 0;
-                width: 100%;
-            }
-
             .entry-title {
-                color: inherit;
-                display: block;
+                flex: 1;
+                min-width: 0;
                 overflow: hidden;
                 text-overflow: ellipsis;
                 white-space: nowrap;
 
-                font-size: 14px;
-                font-weight: 600;
+                color: var(--text);
                 text-decoration: none;
             }
 
-            .entry-title:hover {
-                text-decoration: underline;
-            }
-
-            .entry-url {
-                color: var(--secondary-text-color);
+            .entry-domain {
+                flex-shrink: 0;
+                max-width: 30%;
                 overflow: hidden;
                 text-overflow: ellipsis;
                 white-space: nowrap;
-
-                font-size: 13px;
-            }
-
-            .entry-meta {
-                color: var(--secondary-text-color);
-                flex-shrink: 0;
-                text-align: right;
                 font-size: 12px;
-                white-space: nowrap;
+                color: var(--muted);
             }
 
             .entry-actions {
                 display: flex;
                 align-items: center;
-                gap: 8px;
                 flex-shrink: 0;
                 position: relative;
+            }
+
+            .menu-toggle {
+                width: 22px;
+                height: 22px;
+                border-radius: 5px;
+                color: var(--muted);
+                visibility: hidden;
+            }
+
+            .menu-toggle svg {
+                width: 14px;
+                height: 14px;
+            }
+
+            .history-entry:hover .menu-toggle,
+            .history-entry:focus-within .menu-toggle,
+            .menu-toggle[aria-expanded="true"] {
+                visibility: visible;
+            }
+
+            .menu-dropdown {
+                border-radius: 10px;
+                padding: 6px;
+                box-shadow:
+                    0 0 0 1px var(--edge),
+                    0 14px 36px rgba(0, 0, 0, 0.16);
+                border: none;
+            }
+
+            .menu-item {
+                height: 26px;
+                padding: 0 10px;
+                border-radius: 5px;
+                font-size: 13px;
             }
 
             .history-actions {
                 display: flex;
                 justify-content: center;
+                margin-top: 16px;
             }
 
             .visually-hidden {
@@ -177,65 +208,33 @@
                 clip: rect(0, 0, 0, 0);
                 border: 0;
             }
-
-            @media (max-width: 640px) {
-                .history-entry {
-                    align-items: flex-start;
-                }
-
-                .entry-main {
-                    flex-direction: column;
-                    align-items: flex-start;
-                }
-
-                .entry-meta {
-                    text-align: left;
-                }
-            }
         </style>
     </head>
     <body>
-        <header>
-            <picture>
-                <source srcset="resource://icons/128x128/app-browser.png" media="(prefers-color-scheme: dark)" />
-                <img src="resource://icons/128x128/app-browser-dark.png" />
-            </picture>
+        <div class="history-header">
             <h1>History</h1>
-        </header>
-
-        <div class="search-container">
-            <label class="visually-hidden" for="history-search">Search history</label>
-            <svg
-                class="search-icon"
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                aria-hidden="true"
-            >
-                <circle cx="11" cy="11" r="7" />
-                <line x1="16" y1="16" x2="22" y2="22" />
-            </svg>
-            <input
-                id="history-search"
-                type="search"
-                class="search-input"
-                placeholder="Search history"
-                spellcheck="false"
-                autofocus
-            />
+            <label class="search-field">
+                <span class="visually-hidden">Search history</span>
+                <svg
+                    viewBox="0 0 16 16"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    aria-hidden="true"
+                >
+                    <path d="M7 2.5a4.5 4.5 0 1 1 0 9a4.5 4.5 0 1 1 0-9zM10.5 10.5L14 14" />
+                </svg>
+                <input id="history-search" type="search" placeholder="Search history" spellcheck="false" autofocus />
+            </label>
+            <button id="clear-history" class="secondary-button">Clear history…</button>
         </div>
 
-        <div class="card">
-            <div class="card-body history-content">
-                <div id="history-status" class="history-status">Loading history...</div>
-                <div id="history-empty" class="history-empty hidden"></div>
-                <div id="history-groups" class="history-groups"></div>
-                <div id="history-actions" class="history-actions hidden">
-                    <button id="load-more" class="secondary-button">Load more</button>
-                </div>
-            </div>
+        <div id="history-status" class="history-status">Loading history…</div>
+        <div id="history-empty" class="history-empty hidden"></div>
+        <div id="history-groups" class="history-groups"></div>
+        <div id="history-actions" class="history-actions hidden">
+            <button id="load-more" class="secondary-button">Load more</button>
         </div>
 
         <script type="module">
@@ -250,6 +249,7 @@
             const loadMoreButton = document.querySelector("#load-more");
 
             const timeFormatter = new Intl.DateTimeFormat([], { timeStyle: "short" });
+            const todayFormatter = new Intl.DateTimeFormat([], { weekday: "long", month: "long", day: "numeric" });
             const dateFormatter = new Intl.DateTimeFormat([], {
                 weekday: "long",
                 month: "long",
@@ -267,10 +267,6 @@
                 query: "",
             };
 
-            function pluralize(count, singular, plural = `${singular}s`) {
-                return `${count} ${count === 1 ? singular : plural}`;
-            }
-
             function startOfDay(date) {
                 return new Date(date.getFullYear(), date.getMonth(), date.getDate());
             }
@@ -281,16 +277,14 @@
                 const entryDay = startOfDay(entryDate);
                 const dayDelta = Math.round((today.getTime() - entryDay.getTime()) / 86400000);
 
-                if (dayDelta === 0) return "Today";
+                if (dayDelta === 0) return `Today · ${todayFormatter.format(entryDate)}`;
                 if (dayDelta === 1) return "Yesterday";
 
                 return dateFormatter.format(entryDate);
             }
 
             function entryTimeLabel(entry) {
-                const timeLabel = timeFormatter.format(new Date(entry.lastVisitedTime));
-                if (entry.visitCount <= 1) return timeLabel;
-                return `${timeLabel} - ${pluralize(entry.visitCount, "visit")}`;
+                return timeFormatter.format(new Date(entry.lastVisitedTime));
             }
 
             function faviconFallbackLabel(entry) {
@@ -359,10 +353,10 @@
                     className: "menu-toggle",
                     title: "History entry options",
                     innerHTML: `
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                            <circle cx="12" cy="5" r="2" />
-                            <circle cx="12" cy="12" r="2" />
-                            <circle cx="12" cy="19" r="2" />
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                            <circle cx="3.5" cy="8" r="1.25" />
+                            <circle cx="8" cy="8" r="1.25" />
+                            <circle cx="12.5" cy="8" r="1.25" />
                         </svg>
                     `,
                 });
@@ -419,27 +413,27 @@
                 return menu;
             }
 
+            function entryDomain(entry) {
+                try {
+                    return new URL(entry.url).host;
+                } catch {
+                    return "";
+                }
+            }
+
             function createEntryRow(entry) {
                 const title = entry.title || entry.url;
 
                 return createElement("div", { className: "history-entry" }, [
+                    createElement("span", { className: "entry-time", textContent: entryTimeLabel(entry) }),
                     createFavicon(entry),
-                    createElement("div", { className: "entry-main" }, [
-                        createElement("div", { className: "entry-text" }, [
-                            createElement("a", {
-                                className: "entry-title",
-                                href: entry.url,
-                                textContent: title,
-                                title,
-                            }),
-                            createElement("div", {
-                                className: "entry-url",
-                                textContent: entry.url,
-                                title: entry.url,
-                            }),
-                        ]),
-                        createElement("div", { className: "entry-meta", textContent: entryTimeLabel(entry) }),
-                    ]),
+                    createElement("a", {
+                        className: "entry-title",
+                        href: entry.url,
+                        textContent: title,
+                        title: entry.url,
+                    }),
+                    createElement("span", { className: "entry-domain", textContent: entryDomain(entry) }),
                     createEntryMenu(entry, title),
                 ]);
             }
@@ -470,32 +464,27 @@
 
             function renderStatus() {
                 if (state.isLoading && state.entries.length === 0) {
-                    historyStatus.textContent = "Loading history...";
+                    historyStatus.textContent = "Loading history…";
                     return;
                 }
 
                 if (state.query) {
                     if (state.isLoading) {
-                        historyStatus.textContent = `Searching for "${state.query}"...`;
+                        historyStatus.textContent = `Searching for "${state.query}"…`;
                         return;
                     }
 
-                    historyStatus.textContent =
-                        state.entries.length === 0
-                            ? `No results for "${state.query}".`
-                            : `${pluralize(state.entries.length, "result")} loaded for "${state.query}".`;
+                    historyStatus.textContent = "";
                     return;
                 }
 
                 if (state.isLoading) {
-                    historyStatus.textContent = "Loading more history...";
+                    historyStatus.textContent = "Loading more history…";
                     return;
                 }
 
-                historyStatus.textContent =
-                    state.entries.length === 0
-                        ? "No browsing history yet."
-                        : `${pluralize(state.entries.length, "entry", "entries")} loaded.`;
+                // The list speaks for itself, and the empty state explains an empty one.
+                historyStatus.textContent = "";
             }
 
             function renderEmptyState() {
@@ -513,7 +502,7 @@
                 const shouldShowLoadMore = state.hasMore || state.isLoading;
                 historyActions.classList.toggle("hidden", !shouldShowLoadMore);
                 loadMoreButton.disabled = state.isLoading;
-                loadMoreButton.textContent = state.isLoading ? "Loading..." : "Load more";
+                loadMoreButton.textContent = state.isLoading ? "Loading…" : "Load more";
             }
 
             function render() {
@@ -544,6 +533,11 @@
                 clearTimeout(searchTimer);
                 searchTimer = setTimeout(() => refreshHistory(), SEARCH_DEBOUNCE_DELAY);
             }
+
+            // Clearing history is one of the choices in Settings' dialog for clearing browsing data.
+            document.querySelector("#clear-history").addEventListener("click", () => {
+                location.href = "about:settings#clearBrowsingData";
+            });
 
             searchInput.addEventListener("input", scheduleSearch);
             searchInput.addEventListener("search", scheduleSearch);

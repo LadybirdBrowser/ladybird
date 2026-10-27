@@ -5,6 +5,37 @@
         <meta name="color-scheme" content="light dark" />
         <title>About URLs</title>
         <link rel="icon" type="image/png" href="resource://icons/48x48/app-browser.png" />
+        <link rel="stylesheet" type="text/css" href="resource://ladybird/ladybird.css" />
+        <style>
+            body {
+                max-width: 640px;
+                margin: 0 auto;
+                padding: 30px 24px;
+            }
+
+            h1 {
+                margin-bottom: 18px;
+                font-size: 22px;
+                font-weight: 600;
+            }
+
+            ul {
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+                list-style: none;
+            }
+
+            a {
+                color: var(--link);
+                text-decoration: none;
+                border-radius: 4px;
+            }
+
+            a:hover {
+                text-decoration: underline;
+            }
+        </style>
     </head>
     <body>
         <h1>List of About URLs</h1>
@@ -12,7 +43,6 @@
             <li><a href="about:about">about:about</a></li>
             <li><a href="about:blocking">about:blocking</a></li>
             <li><a href="about:bookmarks">about:bookmarks</a></li>
-            <li><a href="about:newtab">about:newtab</a></li>
             <li><a href="about:settings">about:settings</a></li>
             <li><a href="about:services">about:services</a></li>
             <li><a href="about:version">about:version</a></li>

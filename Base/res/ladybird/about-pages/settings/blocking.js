@@ -1,32 +1,25 @@
-const builtInLists = document.querySelector("#built-in-content-blocker-lists");
+const contentBlockerLists = document.querySelector("#content-blocker-lists");
 const languageLists = document.querySelector("#language-content-blocker-lists");
 const updateLists = document.querySelector("#update-content-blocker-lists");
+const addFilterList = document.querySelector("#add-filter-list");
+const addFilterListForm = document.querySelector("#add-filter-list-form");
 const subscriptionUrl = document.querySelector("#custom-content-blocker-subscription-url");
 const addSubscription = document.querySelector("#add-content-blocker-subscription");
-const customSubscriptions = document.querySelector("#custom-content-blocker-subscriptions");
 const subscriptionStatus = document.querySelector("#custom-content-blocker-subscription-status");
 const localListPicker = document.querySelector("#local-content-blocker-list-picker");
 const importLocalList = document.querySelector("#import-local-content-blocker-list");
-const localLists = document.querySelector("#local-content-blocker-lists");
 const localListStatus = document.querySelector("#local-content-blocker-list-status");
+const disabledSitesSection = document.querySelector("#content-blocker-disabled-sites-section");
+const disabledSites = document.querySelector("#content-blocker-disabled-sites");
 const customFilters = document.querySelector("#custom-content-blocker-filters");
 const saveCustomFilters = document.querySelector("#save-custom-content-blocker-filters");
 const customFiltersStatus = document.querySelector("#custom-content-blocker-filters-status");
 const enableContentBlocking = document.querySelector("#enable-content-blocking");
-const showContentBlockerCount = document.querySelector("#show-content-blocker-count");
-const showContentBlockerCountSetting = document.querySelector("#show-content-blocker-count-setting");
 
 const maximumCustomFilterSize = 4 * 1024 * 1024;
 
 let updateTimer;
 let savedCustomFilters = "";
-
-function listStatus(list) {
-    if (list.lastUpdatedAt != null) {
-        return `Updated ${new Date(list.lastUpdatedAt).toLocaleString()}`;
-    }
-    return list.enabled ? "Not downloaded yet" : null;
-}
 
 function createListRow(list, removable = false) {
     const row = document.querySelector("#filter-list-row").content.firstElementChild.cloneNode(true);
@@ -34,7 +27,6 @@ function createListRow(list, removable = false) {
     const label = row.querySelector("label");
     const labelText = row.querySelector(".label");
     const details = row.querySelector(".description");
-    const metadata = row.querySelector(".filter-list-metadata");
 
     const id = `content-blocker-list-${list.identifier}`;
     const name = list.name ?? list.url;
@@ -43,15 +35,9 @@ function createListRow(list, removable = false) {
     label.htmlFor = id;
     labelText.textContent = name;
 
-    details.id = `${toggle.id}-description`;
-    details.textContent = list.description ?? "";
+    // A list added by the user has no description of its own, so it is described by where it comes from.
+    details.textContent = list.description || (list.url ? new URL(list.url).host : "Local file");
 
-    metadata.id = `${toggle.id}-metadata`;
-    metadata.textContent = [list.url ? new URL(list.url).host : "Local file", list.url && listStatus(list)]
-        .filter(Boolean)
-        .join(" · ");
-
-    toggle.setAttribute("aria-describedby", `${details.id} ${metadata.id}`);
     toggle.checked = list.enabled;
     toggle.addEventListener("change", () => {
         ladybird.sendMessage("setContentBlockerListEnabled", { identifier: list.identifier, enabled: toggle.checked });
@@ -68,51 +54,53 @@ function createListRow(list, removable = false) {
     return row;
 }
 
-function showEmptyState(container, message) {
-    const emptyState = document.createElement("p");
-    emptyState.className = "description";
-    emptyState.innerText = message;
-    container.append(emptyState);
-}
+function createDisabledSiteRow(site) {
+    const row = document.createElement("div");
 
-function loadFeatures(features) {
-    showContentBlockerCountSetting.classList.toggle("hidden", !features?.contentBlockingControls);
+    const tile = document.createElement("span");
+    tile.className = "letter-tile";
+    tile.setAttribute("aria-hidden", "true");
+    tile.textContent = site.charAt(0).toUpperCase();
+
+    const name = document.createElement("span");
+    name.className = "item-name";
+    name.textContent = site;
+
+    const turnBackOn = document.createElement("button");
+    turnBackOn.className = "link-button";
+    turnBackOn.textContent = "Turn back on";
+    turnBackOn.setAttribute("aria-label", `Turn content blocking back on for ${site}`);
+    turnBackOn.addEventListener("click", () => {
+        ladybird.sendMessage("setContentBlockerEnabledForSite", { site, enabled: true });
+    });
+
+    row.append(tile, name, turnBackOn);
+    return row;
 }
 
 function loadSettings(settings) {
     if (Object.hasOwn(settings, "contentBlockers")) {
         const contentBlockers = settings.contentBlockers;
         enableContentBlocking.checked = contentBlockers.enabled;
-        showContentBlockerCount.checked = contentBlockers.showBlockedCount ?? true;
 
         if (customFilters.value === savedCustomFilters) {
             customFilters.value = contentBlockers.customFilters;
         }
 
         savedCustomFilters = contentBlockers.customFilters;
+
+        const sites = [...(contentBlockers.disabledSites ?? [])].sort();
+        disabledSites.replaceChildren(...sites.map(createDisabledSiteRow));
+        disabledSitesSection.hidden = sites.length === 0;
     }
 
     if (Object.hasOwn(settings, "contentBlockerLists")) {
-        for (const container of [builtInLists, languageLists, customSubscriptions, localLists]) {
-            container.replaceChildren();
-        }
+        contentBlockerLists.replaceChildren();
+        languageLists.replaceChildren();
 
         for (const list of settings.contentBlockerLists) {
-            const container = list.builtIn
-                ? list.languageSpecific
-                    ? languageLists
-                    : builtInLists
-                : list.url
-                  ? customSubscriptions
-                  : localLists;
+            const container = list.builtIn && list.languageSpecific ? languageLists : contentBlockerLists;
             container.append(createListRow(list, !list.builtIn));
-        }
-
-        if (!customSubscriptions.children.length) {
-            showEmptyState(customSubscriptions, "No custom subscriptions added.");
-        }
-        if (!localLists.children.length) {
-            showEmptyState(localLists, "No local lists imported.");
         }
     }
 
@@ -126,6 +114,12 @@ function loadSettings(settings) {
         }
     }
 }
+
+addFilterList.addEventListener("click", () => {
+    addFilterListForm.hidden = !addFilterListForm.hidden;
+    addFilterList.setAttribute("aria-expanded", String(!addFilterListForm.hidden));
+    if (!addFilterListForm.hidden) subscriptionUrl.focus();
+});
 
 enableContentBlocking.addEventListener("change", () => {
     ladybird.sendMessage("setContentBlockerEnabled", enableContentBlocking.checked);
@@ -191,14 +185,8 @@ saveCustomFilters.addEventListener("click", () => {
     customFiltersStatus.innerText = "Saved";
 });
 
-showContentBlockerCount.addEventListener("change", () => {
-    ladybird.sendMessage("setShowContentBlockerCount", showContentBlockerCount.checked);
-});
-
 document.addEventListener("WebUIMessage", event => {
-    if (event.detail.name === "loadFeatures") {
-        loadFeatures(event.detail.data);
-    } else if (event.detail.name === "loadSettings") {
+    if (event.detail.name === "loadSettings") {
         loadSettings(event.detail.data);
     } else if (event.detail.name === "contentBlockerResult") {
         const result = event.detail.data;

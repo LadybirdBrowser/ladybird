@@ -2,57 +2,147 @@
 <html lang="en">
     <head>
         <meta charset="UTF-8" />
-        <title>Error!</title>
+        <title>Can’t reach %failed_host%</title>
         <style>
             :root {
                 color-scheme: light dark;
-                font-family: system-ui, sans-serif;
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+                font-size: 13px;
+
+                --page: #ffffff;
+                --text: #1d1d1f;
+                --body: #3a3a40;
+                --muted: #5d5d64;
+                --control: rgba(0, 0, 0, 0.06);
+                --control-hover: rgba(0, 0, 0, 0.09);
+                --primary: #0a66d0;
+                --primary-hover: #0959b8;
+                --focus-edge: #0a7aff;
+                --focus-ring: rgba(10, 122, 255, 0.16);
+            }
+            @media (prefers-color-scheme: dark) {
+                :root {
+                    --page: #1c1c1e;
+                    --text: #f2f2f5;
+                    --body: #dcdce1;
+                    --muted: #acacb4;
+                    --control: rgba(255, 255, 255, 0.1);
+                    --control-hover: rgba(255, 255, 255, 0.14);
+                    --focus-edge: rgba(64, 140, 255, 0.75);
+                    --focus-ring: rgba(64, 140, 255, 0.16);
+                }
             }
             body {
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-                min-height: 100vh;
-                box-sizing: border-box;
                 margin: 0;
-                padding: 1rem;
-                text-align: center;
+                padding: 132px 24px 48px;
+                color: var(--text);
+                background: var(--page);
             }
-            header {
+            main {
                 display: flex;
                 flex-direction: column;
-                align-items: center;
-                gap: 2rem;
-                margin-bottom: 1rem;
+                gap: 14px;
+                /* The content lines up with the left edge of a centered column. */
+                max-width: 800px;
+                margin: 0 auto;
+            }
+            main > * {
+                max-width: 560px;
             }
             svg {
-                height: 64px;
-                width: auto;
-                stroke: currentColor;
-                fill: none;
-                stroke-width: 1.5;
-                stroke-linecap: round;
-                stroke-linejoin: round;
+                width: 40px;
+                height: 40px;
+                color: var(--muted);
             }
             h1 {
                 margin: 0;
-                font-size: 1.5rem;
+                font-size: 22px;
+                font-weight: 600;
+                overflow-wrap: anywhere;
             }
             p {
-                font-size: 1rem;
-                color: #555;
+                margin: 0;
+                line-height: 1.55;
+                color: var(--body);
+            }
+            .actions {
+                display: flex;
+                gap: 8px;
+                margin-top: 10px;
+            }
+            button,
+            summary {
+                font: inherit;
+                font-size: 13px;
+                height: 28px;
+                padding: 0 16px;
+                border: 0;
+                border-radius: 7px;
+                cursor: pointer;
+            }
+            button {
+                color: #ffffff;
+                background: var(--primary);
+                font-weight: 500;
+            }
+            button:hover {
+                background: var(--primary-hover);
+            }
+            details {
+                display: contents;
+            }
+            summary {
+                display: inline-flex;
+                align-items: center;
+                color: var(--text);
+                background: var(--control);
+                list-style: none;
+            }
+            summary::-webkit-details-marker {
+                display: none;
+            }
+            summary:hover {
+                background: var(--control-hover);
+            }
+            .details {
+                margin-top: 4px;
+                font-size: 12px;
+                color: var(--muted);
+                overflow-wrap: anywhere;
+            }
+            :focus-visible {
+                outline: none;
+                box-shadow:
+                    0 0 0 1px var(--focus-edge),
+                    0 0 0 3px var(--focus-ring);
             }
         </style>
     </head>
     <body>
-        <header>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 17.5 21.5">
-                <path d="M11.75.75h-9c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-13l-5-5z" />
-                <path d="M10.75.75v4c0 1.1.9 2 2 2h4M5.75 9.75v2M11.75 9.75v2M5.75 16.75c1-2.67 5-2.67 6 0" />
+        <main>
+            <svg
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+            >
+                <path d="M2.5 8a5.5 5.5 0 1 0 11 0a5.5 5.5 0 1 0-11 0M4.2 4.2l7.6 7.6" />
             </svg>
-            <h1>Failed to load %failed_url%</h1>
-        </header>
-        <p>%error_message%</p>
+            <h1>Can’t reach %failed_host%</h1>
+            <p>%error_message%</p>
+            <div class="actions">
+                <details>
+                    <summary>Show details</summary>
+                    <div class="details">%failed_url%</div>
+                </details>
+                <button type="button" data-url="%failed_url%" onclick="location.href = this.dataset.url" autofocus>
+                    Try again
+                </button>
+            </div>
+        </main>
     </body>
 </html>

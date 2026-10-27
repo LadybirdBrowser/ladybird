@@ -59,7 +59,6 @@
             .inline-container input[type="number"],
             .inline-container input[type="text"],
             .inline-container input[type="url"],
-            .inline-container select,
             .inline-container textarea {
                 width: 50%;
             }
@@ -68,8 +67,18 @@
                 flex-shrink: 0;
             }
 
-            .inline-container > label,
-            .filter-list-row label {
+            #tab-advanced .search-container {
+                width: auto;
+                margin-bottom: 16px;
+            }
+
+            #tab-layout-group {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .inline-container > label {
                 max-width: 60ch;
                 margin-bottom: 0;
             }
@@ -111,33 +120,8 @@
                 margin: 0 0 16px;
             }
 
-            .filter-list-collection {
-                margin-top: 16px;
-            }
-
-            .filter-list-header {
-                margin-bottom: 16px;
-            }
-
-            .filter-list-header .card-title {
-                margin: 0;
-            }
-
-            .filter-list-metadata {
-                font-size: 12px;
-            }
-
             .tab-panel > .description {
                 margin-bottom: 16px;
-            }
-
-            .filter-list-row > div:first-child {
-                min-width: 0;
-                overflow-wrap: anywhere;
-            }
-
-            .filter-list-row .input-field-container {
-                flex-shrink: 0;
             }
 
             .form-row input {
@@ -153,36 +137,66 @@
             input[type="search"],
             input[type="text"],
             input[type="url"],
-            select,
             textarea {
-                background-color: var(--input-background-color);
+                color: var(--text);
+                background-color: var(--control);
 
                 width: 100%;
-                border: 1px solid var(--border-color);
+                border: none;
+                border-radius: 7px;
+            }
+
+            input[type="number"],
+            input[type="search"],
+            input[type="text"],
+            input[type="url"] {
+                height: 28px;
             }
 
             textarea {
-                font-size: inherit;
+                font: inherit;
                 line-height: inherit;
-                padding: 10px 12px;
+                padding: 6px 10px;
                 resize: vertical;
             }
 
-            input[type="number"].success,
-            input[type="text"].success,
-            input[type="url"].success {
-                border: 1px solid green;
+            input[type="number"]:focus-visible,
+            input[type="search"]:focus-visible,
+            input[type="text"]:focus-visible,
+            input[type="url"]:focus-visible,
+            textarea:focus-visible {
+                background-color: var(--page);
+                outline: none;
+                box-shadow:
+                    0 0 0 1px var(--focus-edge),
+                    0 0 0 3px var(--focus-ring);
+            }
+
+            textarea:focus {
+                outline: none;
             }
 
             input[type="number"].error,
             input[type="text"].error,
             input[type="url"].error {
-                border: 1px solid red;
+                box-shadow: inset 0 0 0 1px var(--error);
+            }
+
+            input[type="number"].error:focus-visible,
+            input[type="text"].error:focus-visible,
+            input[type="url"].error:focus-visible {
+                box-shadow:
+                    inset 0 0 0 1px var(--error),
+                    0 0 0 1px var(--focus-edge),
+                    0 0 0 3px var(--focus-ring);
             }
 
             dialog {
-                background-color: var(--card-background-color);
-                box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+                color: var(--text);
+                background-color: var(--surface);
+                box-shadow:
+                    0 0 0 1px var(--edge),
+                    var(--dialog-shadow);
 
                 width: 90%;
                 max-width: 500px;
@@ -190,8 +204,8 @@
                 margin: auto;
                 padding: 0;
 
-                border: 1px solid var(--border-color);
-                border-radius: 8px;
+                border: none;
+                border-radius: 12px;
                 outline: none;
             }
 
@@ -200,8 +214,6 @@
             }
 
             dialog .dialog-header {
-                background-color: var(--card-header-background-color);
-
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
@@ -248,8 +260,8 @@
             }
 
             dialog .dialog-title {
-                font-size: 18px;
-                font-weight: 500;
+                font-size: 15px;
+                font-weight: 600;
             }
 
             dialog .dialog-button {
@@ -274,8 +286,8 @@
             }
 
             dialog .dialog-list {
-                outline: 1px solid var(--border-color);
-                border-radius: 4px;
+                border-radius: 10px;
+                box-shadow: inset 0 0 0 1px var(--separator);
 
                 margin: 10px 0;
 
@@ -294,7 +306,7 @@
             }
 
             dialog .dialog-list-item:hover {
-                background-color: var(--card-header-background-color);
+                background-color: var(--control);
             }
 
             dialog .dialog-list-item-placeholder {
@@ -322,16 +334,6 @@
             dialog .dialog-controls input,
             dialog .dialog-controls select {
                 flex-grow: 1;
-            }
-
-            .config-name {
-                font-family: monospace;
-                font-size: 13px;
-
-                margin-top: 6px;
-
-                opacity: 0.7;
-                overflow-wrap: anywhere;
             }
 
             .tab-bar {
@@ -382,17 +384,7 @@
                 margin-bottom: 20px;
             }
 
-            textarea:focus {
-                border-color: var(--accent);
-                outline: 2px solid var(--accent);
-                outline-offset: 1px;
-            }
-
             @media (max-width: 600px) {
-                .filter-list-row {
-                    align-items: flex-start;
-                }
-
                 .form-row {
                     align-items: stretch;
                     flex-direction: column;
@@ -402,424 +394,842 @@
                     align-self: flex-end;
                 }
             }
+            /* The Quiet design: a sidebar of sections, and each section's settings as rows divided by soft lines. */
+            body {
+                display: grid;
+                grid-template-columns: 232px minmax(0, 1fr);
+                align-items: start;
+                max-width: none;
+                min-height: 100vh;
+                padding: 0;
+                font-size: 13px;
+            }
+
+            .settings-sidebar {
+                position: sticky;
+                top: 0;
+                display: flex;
+                flex-direction: column;
+                height: 100vh;
+                box-sizing: border-box;
+                padding: 28px 12px;
+                border-right: 1px solid var(--separator-soft);
+                overflow: auto;
+            }
+
+            .search-field {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                height: 28px;
+                margin: 0 0 14px;
+                padding: 0 10px;
+                border-radius: 7px;
+                background-color: var(--control);
+            }
+
+            .search-field:focus-within {
+                background-color: var(--page);
+                box-shadow:
+                    0 0 0 1px var(--focus-edge),
+                    0 0 0 3px var(--focus-ring);
+            }
+
+            .search-field svg {
+                flex-shrink: 0;
+                width: 14px;
+                height: 14px;
+                color: var(--muted);
+            }
+
+            .search-field input,
+            .search-field input:focus {
+                flex: 1;
+                min-width: 0;
+                height: auto;
+                padding: 0;
+                border: none;
+                background: transparent;
+                box-shadow: none;
+            }
+
+            .visually-hidden {
+                position: absolute;
+                width: 1px;
+                height: 1px;
+                margin: -1px;
+                padding: 0;
+                overflow: hidden;
+                clip: rect(0, 0, 0, 0);
+                border: 0;
+            }
+
+            .tab-bar {
+                flex-direction: column;
+                gap: 2px;
+                margin: 0;
+                border-bottom: none;
+            }
+
+            .tab-button {
+                height: 30px;
+                padding: 0 10px;
+                border: none;
+                border-radius: 6px;
+                font-size: 13px;
+                font-weight: 400;
+                text-align: left;
+                opacity: 1;
+            }
+
+            .tab-button:hover {
+                background-color: var(--control);
+                opacity: 1;
+            }
+
+            .tab-button.active {
+                background-color: var(--control);
+            }
+
+            .settings-content {
+                max-width: 712px;
+                padding: 28px 56px;
+            }
+
+            .tab-panel::before {
+                content: attr(data-title);
+                display: block;
+                margin-bottom: 10px;
+                font-size: 22px;
+                font-weight: 600;
+                line-height: 28px;
+            }
+
+            /* A list of choices or of items, in one rounded box with soft lines between its rows. */
+            .boxed-list {
+                border-radius: 10px;
+                box-shadow: inset 0 0 0 1px var(--separator);
+                overflow: hidden;
+            }
+
+            .boxed-list > * {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                min-height: 40px;
+                margin: 0;
+                padding: 8px 14px;
+                box-sizing: border-box;
+            }
+
+            .boxed-list > * + * {
+                border-top: 1px solid var(--separator-soft);
+            }
+
+            .boxed-list .item-name {
+                display: flex;
+                flex: 1;
+                flex-direction: column;
+                gap: 1px;
+                min-width: 0;
+                margin: 0;
+                overflow-wrap: anywhere;
+            }
+
+            .boxed-list .item-name .description {
+                margin: 0;
+                font-size: 12px;
+            }
+
+            .list-heading {
+                display: flex;
+                align-items: baseline;
+                justify-content: space-between;
+                gap: 16px;
+                margin-bottom: 10px;
+            }
+
+            .list-footer {
+                display: flex;
+                justify-content: flex-end;
+                margin-top: 6px;
+            }
+
+            .search-suggestions-row {
+                border-top: 1px solid var(--separator-soft);
+            }
+
+            .add-filter-list:not([hidden]) {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                margin-top: 12px;
+            }
+
+            .add-filter-list .description {
+                margin: 0;
+            }
+
+            .add-filter-list button {
+                flex-shrink: 0;
+                white-space: nowrap;
+            }
+
+            .list-section {
+                padding: 16px 0 6px;
+            }
+
+            button.link-button {
+                height: auto;
+                margin: 0;
+                padding: 2px 4px;
+                border: none;
+                border-radius: 5px;
+                background: transparent;
+                font-size: 12px;
+                color: var(--link);
+                cursor: pointer;
+            }
+
+            button.link-button:hover {
+                background: var(--control);
+            }
+
+            .engine-choice {
+                cursor: pointer;
+            }
+
+            .engine-choice input {
+                position: absolute;
+                opacity: 0;
+                pointer-events: none;
+            }
+
+            .engine-choice:has(input:checked) {
+                background: var(--choice-fill);
+            }
+
+            .engine-choice:has(input:focus-visible) {
+                box-shadow: inset 0 0 0 1.5px var(--choice);
+            }
+
+            .engine-name {
+                flex: 1;
+            }
+
+            .empty-tile {
+                flex-shrink: 0;
+                width: 18px;
+                height: 18px;
+                border-radius: 4px;
+                box-shadow: inset 0 0 0 1px var(--separator);
+            }
+
+            .engine-check {
+                width: 14px;
+                height: 14px;
+                fill: none;
+                stroke: var(--choice);
+                stroke-width: 1.8;
+                stroke-linecap: round;
+                stroke-linejoin: round;
+                visibility: hidden;
+            }
+
+            .engine-choice:has(input:checked) .engine-check {
+                visibility: visible;
+            }
+
+            .filter-list-row input[type="checkbox"] {
+                flex-shrink: 0;
+                margin: 0;
+            }
+
+            /* While searching, every section shows the settings that match, and the sidebar selects none. */
+            body.searching .tab-panel:not(.search-miss) {
+                display: block;
+            }
+
+            body.searching .tab-panel + .tab-panel:not(.search-miss) {
+                margin-top: 30px;
+            }
+
+            body.searching .tab-panel > .description,
+            body.searching .search-miss {
+                display: none !important;
+            }
+
+            body.searching .tab-button.active {
+                background-color: transparent;
+            }
+
+            .search-empty {
+                padding: 36px 0;
+                color: var(--muted);
+                text-align: center;
+            }
+
+            .card-title {
+                margin: 24px 0 2px;
+                font-size: 13px;
+                font-weight: 600;
+                color: var(--muted);
+            }
+
+            .card,
+            .card.card-body {
+                background: none;
+                border: none;
+                border-radius: 0;
+                margin-bottom: 0;
+            }
+
+            .card-body,
+            .card.card-body {
+                padding: 0;
+            }
+
+            .card-group,
+            .card.card-body.inline-container {
+                padding: 14px 0;
+                border-bottom: 1px solid var(--separator-soft);
+            }
+
+            .card-group:not(.hidden) ~ .card-group:not(.hidden) {
+                margin-top: 0;
+                padding-top: 14px;
+                border-top: none;
+            }
+
+            @media (max-width: 720px) {
+                body {
+                    grid-template-columns: minmax(0, 1fr);
+                }
+
+                .settings-sidebar {
+                    position: static;
+                    height: auto;
+                    padding: 12px;
+                    border-right: none;
+                    border-bottom: 1px solid var(--separator-soft);
+                }
+
+                .tab-bar {
+                    flex-direction: row;
+                    overflow-x: auto;
+                }
+
+                .settings-content {
+                    padding: 20px;
+                }
+            }
         </style>
     </head>
     <body>
-        <header>
-            <picture>
-                <source srcset="resource://icons/128x128/app-browser.png" media="(prefers-color-scheme: dark)" />
-                <img src="resource://icons/128x128/app-browser-dark.png" />
-            </picture>
-            <h1>Ladybird Settings</h1>
-        </header>
-
-        <div class="tab-bar" role="tablist" aria-label="Settings categories">
-            <button id="tab-button-general" class="tab-button active" data-tab="general" role="tab">General</button>
-            <button id="tab-button-search" class="tab-button" data-tab="search" role="tab">Search</button>
-            <button id="tab-button-permissions" class="tab-button" data-tab="permissions" role="tab">
-                Permissions
-            </button>
-            <button id="tab-button-privacy" class="tab-button" data-tab="privacy" role="tab">Privacy</button>
-            <button id="tab-button-blocking" class="tab-button" data-tab="blocking" role="tab">Blocking</button>
-            <button id="tab-button-services" class="tab-button" data-tab="services" role="tab">Services</button>
-            <button id="tab-button-network" class="tab-button" data-tab="network" role="tab">Network</button>
-            <button id="tab-button-advanced" class="tab-button" data-tab="advanced" role="tab">Advanced</button>
-        </div>
-
-        <div class="tab-panel active" id="tab-general">
-            <h3 class="card-title">Startup</h3>
-            <div class="card">
-                <div class="card-body">
-                    <div class="card-group inline-container">
-                        <label for="restore-previous-session">Restore previous windows and tabs</label>
-                        <input id="restore-previous-session" type="checkbox" switch />
-                    </div>
-                    <div class="card-group inline-container">
-                        <label for="new-tab-page-url">New tab page URL</label>
-                        <div class="input-with-reset">
-                            <input id="new-tab-page-url" type="url" placeholder="about:newtab" />
-                            <button id="new-tab-page-url-reset" class="input-reset-button" title="Restore default">
-                                &times;
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <h3 class="card-title">Appearance</h3>
-            <div class="card">
-                <div class="card-body">
-                    <div class="card-group inline-container" id="show-menu-bar-group">
-                        <label for="show-menu-bar">Show system menu bar</label>
-                        <input id="show-menu-bar" type="checkbox" switch />
-                    </div>
-                    <div class="card-group inline-container">
-                        <label for="show-bookmarks-bar">Show bookmarks bar</label>
-                        <select id="show-bookmarks-bar">
-                            <option value="always">Always</option>
-                            <option value="never">Never</option>
-                            <option value="onHover">Only when hovering the navigation toolbar</option>
-                        </select>
-                    </div>
-                    <div class="card-group inline-container">
-                        <label for="enable-vertical-tabs">Use vertical tabs</label>
-                        <input id="enable-vertical-tabs" type="checkbox" switch />
-                    </div>
-                    <div class="card-group inline-container hidden">
-                        <label for="vertical-tabs-expand-on-hover">Expand vertical tabs on hover when collapsed</label>
-                        <input id="vertical-tabs-expand-on-hover" type="checkbox" switch />
-                    </div>
-                    <div class="card-group inline-container hidden">
-                        <label for="vertical-tabs-position">Vertical tabs side</label>
-                        <select id="vertical-tabs-position">
-                            <option value="left">Left</option>
-                            <option value="right">Right</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <h3 class="card-title">Content</h3>
-            <div class="card">
-                <div class="card-body">
-                    <div class="card-group inline-container">
-                        <label for="default-zoom-level">Default zoom level</label>
-                        <select id="default-zoom-level"></select>
-                    </div>
-                    <div class="card-group inline-container">
-                        <label for="enable-force-dark">
-                            Force dark mode
-                            <p class="description">
-                                Darken web pages that don’t provide a dark theme of their own. Photos are left as they
-                                are; icons and line art are darkened along with the page.
-                            </p>
-                        </label>
-                        <input id="enable-force-dark" type="checkbox" switch />
-                    </div>
-                    <div class="card-group inline-container">
-                        <label for="languages-settings">Languages</label>
-                        <button id="languages-settings" class="secondary-button">Settings...</button>
-                    </div>
-                </div>
-            </div>
-
-            <h3 class="card-title">Browsing behavior</h3>
-            <div class="card">
-                <div class="card-body">
-                    <div class="card-group inline-container">
-                        <label for="enable-autoscroll">
-                            Enable autoscrolling
-                            <p class="description">
-                                Scroll pages by pressing the middle mouse button and moving the mouse.
-                            </p>
-                        </label>
-                        <input id="enable-autoscroll" type="checkbox" switch />
-                    </div>
-                    <div class="card-group inline-container" id="enable-primary-paste-group">
-                        <label for="enable-primary-paste">
-                            Enable primary pasting
-                            <p class="description">
-                                Paste text from the clipboard when the middle mouse button is clicked.
-                            </p>
-                        </label>
-                        <input id="enable-primary-paste" type="checkbox" switch />
-                    </div>
-                </div>
-            </div>
-
-            <h3 class="card-title">Crash reports</h3>
-            <div class="card">
-                <div class="card-body">
-                    <div class="inline-container">
-                        <p>Open the folder containing saved crash reports.</p>
-                        <button id="open-crash-reports" class="secondary-button">Open folder</button>
-                    </div>
-                    <p id="crash-reports-status" class="description" role="status" hidden></p>
-                </div>
-            </div>
-        </div>
-
-        <div class="tab-panel" id="tab-search">
-            <div class="card">
-                <div class="card-body">
-                    <div class="card-group">
-                        <label>
-                            Default search engine
-                            <p class="description">Select the search engine to use in the address bar.</p>
-                        </label>
-                        <div class="inline-container">
-                            <select id="search-engine" style="width: 100%">
-                                <option value="">Disable search</option>
-                                <hr />
-                            </select>
-                            <button id="search-settings" class="secondary-button">Settings...</button>
-                        </div>
-                    </div>
-                    <div class="card-group inline-container">
-                        <label for="search-suggestions-enabled">
-                            Show search suggestions
-                            <p id="search-suggestions-description" class="description"></p>
-                        </label>
-                        <input
-                            id="search-suggestions-enabled"
-                            type="checkbox"
-                            switch
-                            aria-describedby="search-suggestions-description"
-                        />
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="tab-panel" id="tab-permissions">
-            <div class="card">
-                <div class="card-body">
-                    <div class="card-group inline-container">
-                        <span>Autoplay</span>
-                        <span id="autoplay-forcibly-enabled" class="forcibly-enabled hidden">
-                            This setting is controlled via the command line
-                        </span>
-                        <button id="autoplay-settings" class="secondary-button">Settings...</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-body">
-                    <div class="card-group inline-container">
-                        <label for="enable-geolocation">
-                            Enable geolocation
-                            <p class="description">Allow websites to request your actual location.</p>
-                        </label>
-                        <input id="enable-geolocation" type="checkbox" switch />
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="tab-panel" id="tab-privacy">
-            <h3 class="card-title">Browsing data</h3>
-            <div class="card">
-                <div class="card-body">
-                    <p id="browsing-data-total-size" class="card-group"></p>
-
-                    <div class="card-group">
-                        <div class="inline-container">
-                            <div>
-                                <label for="browsing-data-settings-max-disk-cache-size">
-                                    Maximum disk cache size
-                                    <p class="description">Limit the space used for the HTTP disk cache.</p>
-                                </label>
-                            </div>
-                            <div class="input-field-container">
-                                <input
-                                    id="browsing-data-settings-max-disk-cache-size"
-                                    type="number"
-                                    min="1"
-                                    style="width: 150px"
-                                />
-                                <select id="browsing-data-settings-max-disk-cache-unit" style="width: 80px">
-                                    <option value="MiB">MiB</option>
-                                    <option value="GiB">GiB</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-body">
-                    <div class="card-group inline-container">
-                        <span>Clear browsing data</span>
-                        <button id="browsing-data-settings" class="secondary-button">Clear...</button>
-                    </div>
-                </div>
-            </div>
-
-            <h3 class="card-title">Privacy</h3>
-            <div class="card">
-                <div class="card-body">
-                    <div class="card-group">
-                        <div class="inline-container">
-                            <label for="global-privacy-control-toggle">
-                                Global Privacy Control
-                                <p class="description">Tell websites not to sell or share your data.</p>
-                            </label>
-                            <input id="global-privacy-control-toggle" type="checkbox" switch />
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="tab-panel" id="tab-blocking">
-            <div class="card card-body">
-                <div class="card-group inline-container">
-                    <label for="enable-content-blocking">
-                        Enable ad blocking
-                        <p class="description">Use filter lists to block ads, trackers, and other unwanted content.</p>
-                    </label>
-                    <input id="enable-content-blocking" type="checkbox" switch />
-                </div>
-                <div class="card-group inline-container hidden" id="show-content-blocker-count-setting">
-                    <label for="show-content-blocker-count">
-                        Show the number of blocked requests on the ad blocking icon
-                    </label>
-                    <input id="show-content-blocker-count" type="checkbox" switch />
-                </div>
-            </div>
-            <template id="filter-list-row">
-                <div class="card-group inline-container filter-list-row">
-                    <div>
-                        <label>
-                            <span class="label"></span>
-                            <p class="description"></p>
-                        </label>
-                        <p class="description filter-list-metadata"></p>
-                    </div>
-                    <div class="input-field-container">
-                        <input type="checkbox" switch />
-                        <button class="secondary-button">Remove</button>
-                    </div>
-                </div>
-            </template>
-            <div class="inline-container filter-list-header">
-                <h3 class="card-title">Filter lists</h3>
-                <button id="update-content-blocker-lists" class="secondary-button">Update enabled lists</button>
-            </div>
-            <div id="built-in-content-blocker-lists" class="card card-body"></div>
-            <details class="expandable-list">
-                <summary>Show language-specific lists</summary>
-                <div id="language-content-blocker-lists" class="card card-body"></div>
-            </details>
-
-            <h3 class="card-title">Add a subscription</h3>
-            <div class="card card-body">
-                <p class="description">
-                    Add a filter list maintained by a source you trust. Automatic updates reveal your IP address to that
-                    source.
-                </p>
-                <div class="input-field-container form-row">
-                    <input id="custom-content-blocker-subscription-url" type="url" placeholder="Filter list URL" />
-                    <button id="add-content-blocker-subscription" class="secondary-button">Add</button>
-                </div>
-                <p id="custom-content-blocker-subscription-status" class="description" role="status"></p>
-                <div id="custom-content-blocker-subscriptions" class="filter-list-collection"></div>
-            </div>
-
-            <h3 class="card-title">Local filter lists</h3>
-            <div class="card card-body">
-                <p class="description">Import Adblock-compatible filter lists stored on this computer.</p>
-                <input id="local-content-blocker-list-picker" type="file" accept=".txt,text/plain" hidden />
-                <button id="import-local-content-blocker-list" class="secondary-button">Import list...</button>
-                <p id="local-content-blocker-list-status" class="description" role="status"></p>
-                <div id="local-content-blocker-lists" class="filter-list-collection"></div>
-            </div>
-
-            <h3 class="card-title">Custom filters</h3>
-            <div class="card card-body">
-                <label for="custom-content-blocker-filters"> Add Adblock-compatible rules, one per line. </label>
-                <textarea id="custom-content-blocker-filters" rows="12" spellcheck="false"></textarea>
-                <div class="button-container">
-                    <span id="custom-content-blocker-filters-status" class="description" role="status"></span>
-                    <button id="save-custom-content-blocker-filters" class="secondary-button">Save changes</button>
-                </div>
-            </div>
-        </div>
-
-        <div class="tab-panel" id="tab-services">
-            <p class="description">
-                Services are automatic connections Ladybird makes for browser features in the background. These controls
-                do not affect normal browsing or actions you explicitly request, such as updating filter lists.
-            </p>
-
-            <div class="card card-body">
-                <div class="card-group inline-container">
-                    <label for="allow-services-network-access">
-                        Allow automatic service connections
-                        <p class="description">Let individually enabled services connect in the background.</p>
-                    </label>
-                    <input id="allow-services-network-access" type="checkbox" switch />
-                </div>
-            </div>
-
-            <p id="services-paused-note" class="description hidden" role="status">
-                Automatic service connections are paused. Individual service choices are preserved.
-            </p>
-
-            <h3 class="card-title">Services</h3>
-            <div class="card card-body inline-container">
-                <label for="filter-list-updates">
-                    Filter list updates
-                    <p class="description">Periodically download updates for enabled filter list subscriptions.</p>
-                </label>
-                <input id="filter-list-updates" type="checkbox" switch />
-            </div>
-        </div>
-
-        <div class="tab-panel" id="tab-network">
-            <h3 class="card-title">DNS settings</h3>
-            <div class="card">
-                <div class="card-body">
-                    <span id="dns-forcibly-enabled" class="forcibly-enabled hidden">
-                        This setting is controlled via the command line
-                    </span>
-                    <p id="dns-proxy-note" class="description hidden"></p>
-
-                    <div class="card-group inline-container" id="dns-settings-container">
-                        <label for="dns-upstream">DNS Upstream</label>
-                        <select id="dns-upstream">
-                            <option value="system">System DNS</option>
-                            <option value="custom">Custom DNS Server</option>
-                        </select>
-                    </div>
-                    <div id="custom-dns-settings" class="hidden">
-                        <div class="card-group inline-container">
-                            <label for="dns-type">Type</label>
-                            <select id="dns-type">
-                                <option value="udp">UDP</option>
-                                <option value="tls">TLS</option>
-                            </select>
-                        </div>
-                        <div class="card-group inline-container">
-                            <label for="dnssec-toggle">Validate DNSSEC Locally</label>
-                            <input id="dnssec-toggle" type="checkbox" switch />
-                        </div>
-                        <div class="card-group inline-container">
-                            <label for="dns-server">DNS Server (IP or hostname)</label>
-                            <input id="dns-server" type="text" />
-                        </div>
-                        <div class="card-group inline-container">
-                            <label for="dns-port">Port</label>
-                            <input id="dns-port" type="text" placeholder="53" />
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="tab-panel" id="tab-advanced">
-            <div class="search-container">
+        <nav class="settings-sidebar">
+            <label class="search-field">
+                <span class="visually-hidden">Search settings</span>
                 <svg
-                    class="search-icon"
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
+                    viewBox="0 0 16 16"
                     fill="none"
                     stroke="currentColor"
-                    stroke-width="2"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    aria-hidden="true"
                 >
-                    <circle cx="11" cy="11" r="7" />
-                    <line x1="16" y1="16" x2="22" y2="22" />
+                    <path d="M7 2.5a4.5 4.5 0 1 1 0 9a4.5 4.5 0 1 1 0-9zM10.5 10.5L14 14" />
                 </svg>
-                <input id="config-filter" type="search" class="search-input" placeholder="Filter configuration keys" />
+                <input id="settings-search" type="search" placeholder="Search settings" spellcheck="false" />
+            </label>
+            <div class="tab-bar" role="tablist" aria-label="Settings categories">
+                <button id="tab-button-general" class="tab-button active" data-tab="general" role="tab">General</button>
+                <button id="tab-button-search" class="tab-button" data-tab="search" role="tab">Search</button>
+                <button id="tab-button-appearance" class="tab-button" data-tab="appearance" role="tab">
+                    Appearance
+                </button>
+                <button id="tab-button-privacy" class="tab-button" data-tab="privacy" role="tab">
+                    Privacy and security
+                </button>
+                <button id="tab-button-permissions" class="tab-button" data-tab="permissions" role="tab">
+                    Permissions
+                </button>
+                <button id="tab-button-blocking" class="tab-button" data-tab="blocking" role="tab">
+                    Content blocking
+                </button>
+                <button id="tab-button-languages" class="tab-button" data-tab="languages" role="tab">Languages</button>
+                <button id="tab-button-services" class="tab-button" data-tab="services" role="tab">Services</button>
+                <button id="tab-button-network" class="tab-button" data-tab="network" role="tab">Network</button>
+                <button id="tab-button-advanced" class="tab-button" data-tab="advanced" role="tab">Advanced</button>
             </div>
-            <div class="card">
-                <div class="card-body">
-                    <div class="card-group" id="config-list"></div>
+        </nav>
+
+        <main class="settings-content">
+            <p id="search-empty" class="search-empty" hidden>No settings match this search.</p>
+            <div class="tab-panel active" id="tab-general" data-title="General">
+                <h3 class="card-title">Startup</h3>
+                <div class="card">
+                    <div class="card-body">
+                        <div class="card-group inline-container">
+                            <label for="restore-previous-session">Restore previous windows and tabs</label>
+                            <input id="restore-previous-session" type="checkbox" switch />
+                        </div>
+                        <div class="card-group inline-container">
+                            <label for="new-tab-page-url">New tab page URL</label>
+                            <div class="input-with-reset">
+                                <input id="new-tab-page-url" type="url" placeholder="about:blank" />
+                                <button id="new-tab-page-url-reset" class="input-reset-button" title="Restore default">
+                                    &times;
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <h3 class="card-title">Content</h3>
+                <div class="card">
+                    <div class="card-body">
+                        <div class="card-group inline-container">
+                            <label for="enable-force-dark">
+                                Force dark mode
+                                <p class="description">
+                                    Darken web pages that don’t provide a dark theme of their own. Photos are left as
+                                    they are; icons and line art are darkened along with the page.
+                                </p>
+                            </label>
+                            <input id="enable-force-dark" type="checkbox" switch />
+                        </div>
+                    </div>
+                </div>
+
+                <h3 class="card-title">Browsing behavior</h3>
+                <div class="card">
+                    <div class="card-body">
+                        <div class="card-group inline-container">
+                            <label for="enable-autoscroll">
+                                Enable autoscrolling
+                                <p class="description">
+                                    Scroll pages by pressing the middle mouse button and moving the mouse.
+                                </p>
+                            </label>
+                            <input id="enable-autoscroll" type="checkbox" switch />
+                        </div>
+                        <div class="card-group inline-container" id="enable-primary-paste-group">
+                            <label for="enable-primary-paste">
+                                Enable primary pasting
+                                <p class="description">
+                                    Paste text from the clipboard when the middle mouse button is clicked.
+                                </p>
+                            </label>
+                            <input id="enable-primary-paste" type="checkbox" switch />
+                        </div>
+                    </div>
+                </div>
+
+                <h3 class="card-title">Crash reports</h3>
+                <div class="card">
+                    <div class="card-body">
+                        <div class="inline-container">
+                            <p>Open the folder containing saved crash reports.</p>
+                            <button id="open-crash-reports" class="secondary-button">Open folder</button>
+                        </div>
+                        <p id="crash-reports-status" class="description" role="status" hidden></p>
+                    </div>
                 </div>
             </div>
-        </div>
+
+            <div class="tab-panel" id="tab-appearance" data-title="Appearance">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="card-group inline-container">
+                            <span>Theme</span>
+                            <div id="interface-theme" class="segmented" role="radiogroup" aria-label="Theme">
+                                <label><input type="radio" name="interface-theme" value="system" />System</label>
+                                <label><input type="radio" name="interface-theme" value="light" />Light</label>
+                                <label><input type="radio" name="interface-theme" value="dark" />Dark</label>
+                            </div>
+                        </div>
+                        <div class="card-group inline-container">
+                            <span>
+                                Website appearance
+                                <p class="description">
+                                    Whether websites are asked to show their light or dark design.
+                                </p>
+                            </span>
+                            <div
+                                id="website-color-scheme"
+                                class="segmented"
+                                role="radiogroup"
+                                aria-label="Website appearance"
+                            >
+                                <label><input type="radio" name="website-color-scheme" value="system" />System</label>
+                                <label><input type="radio" name="website-color-scheme" value="light" />Light</label>
+                                <label><input type="radio" name="website-color-scheme" value="dark" />Dark</label>
+                            </div>
+                        </div>
+                        <div id="tab-layout-group" class="card-group">
+                            <span id="tab-layout-title">Tabs</span>
+                            <div class="tab-options" role="radiogroup" aria-labelledby="tab-layout-title">
+                                <label class="tab-option">
+                                    <input type="radio" name="tab-layout" value="horizontal" />
+                                    <span class="tab-preview horizontal-preview" aria-hidden="true">
+                                        <span class="preview-strip"><i class="active"></i><i></i><i></i></span>
+                                        <span class="preview-toolbar"><i></i></span>
+                                    </span>
+                                    <span class="tab-option-label">Along the top</span>
+                                </label>
+                                <label class="tab-option">
+                                    <input type="radio" name="tab-layout" value="vertical" />
+                                    <span class="tab-preview vertical-preview" aria-hidden="true">
+                                        <span class="preview-sidebar"><i></i><i class="active"></i><i></i></span>
+                                        <span class="preview-main"
+                                            ><span class="preview-toolbar"><i></i></span
+                                        ></span>
+                                    </span>
+                                    <span class="tab-option-label">Down the side</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="card-group inline-container" id="show-menu-bar-group">
+                            <label for="show-menu-bar">Show system menu bar</label>
+                            <input id="show-menu-bar" type="checkbox" switch />
+                        </div>
+                        <div class="card-group inline-container">
+                            <label for="show-bookmarks-bar">Show bookmarks bar</label>
+                            <select id="show-bookmarks-bar">
+                                <option value="always">Always</option>
+                                <option value="never">Never</option>
+                                <option value="onHover">Only when hovering the navigation toolbar</option>
+                            </select>
+                        </div>
+                        <div class="card-group inline-container hidden">
+                            <label for="vertical-tabs-expand-on-hover"
+                                >Expand vertical tabs on hover when collapsed</label
+                            >
+                            <input id="vertical-tabs-expand-on-hover" type="checkbox" switch />
+                        </div>
+                        <div class="card-group inline-container hidden">
+                            <label for="vertical-tabs-position">Vertical tabs side</label>
+                            <select id="vertical-tabs-position">
+                                <option value="left">Left</option>
+                                <option value="right">Right</option>
+                            </select>
+                        </div>
+                        <div class="card-group inline-container">
+                            <label for="default-zoom-level">Default page zoom</label>
+                            <select id="default-zoom-level"></select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-panel" id="tab-search" data-title="Search">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="list-section">
+                            <div class="list-heading">
+                                <span id="search-engine-title">Search engine</span>
+                            </div>
+                            <div
+                                id="search-engine"
+                                class="boxed-list"
+                                role="radiogroup"
+                                aria-labelledby="search-engine-title"
+                            ></div>
+                            <div class="list-footer">
+                                <button id="search-settings" class="link-button">Custom search engines…</button>
+                            </div>
+                        </div>
+                        <div class="card-group inline-container search-suggestions-row">
+                            <label for="search-suggestions-enabled">
+                                Show search suggestions
+                                <p id="search-suggestions-description" class="description"></p>
+                            </label>
+                            <input
+                                id="search-suggestions-enabled"
+                                type="checkbox"
+                                switch
+                                aria-describedby="search-suggestions-description"
+                            />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-panel" id="tab-permissions" data-title="Permissions">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="card-group inline-container">
+                            <span>Autoplay</span>
+                            <span id="autoplay-forcibly-enabled" class="forcibly-enabled hidden">
+                                This setting is controlled via the command line
+                            </span>
+                            <button id="autoplay-settings" class="secondary-button">Settings…</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-body">
+                        <div class="card-group inline-container">
+                            <label for="enable-geolocation">
+                                Enable geolocation
+                                <p class="description">Allow websites to request your actual location.</p>
+                            </label>
+                            <input id="enable-geolocation" type="checkbox" switch />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-panel" id="tab-privacy" data-title="Privacy and security">
+                <h3 class="card-title">Browsing data</h3>
+                <div class="card">
+                    <div class="card-body">
+                        <p id="browsing-data-total-size" class="card-group"></p>
+
+                        <div class="card-group">
+                            <div class="inline-container">
+                                <div>
+                                    <label for="browsing-data-settings-max-disk-cache-size">
+                                        Maximum disk cache size
+                                        <p class="description">Limit the space used for the HTTP disk cache.</p>
+                                    </label>
+                                </div>
+                                <div class="input-field-container">
+                                    <input
+                                        id="browsing-data-settings-max-disk-cache-size"
+                                        type="number"
+                                        min="1"
+                                        style="width: 150px"
+                                    />
+                                    <select id="browsing-data-settings-max-disk-cache-unit" style="width: 80px">
+                                        <option value="MiB">MiB</option>
+                                        <option value="GiB">GiB</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-body">
+                        <div class="card-group inline-container">
+                            <span>Clear browsing data</span>
+                            <button id="browsing-data-settings" class="secondary-button">Clear…</button>
+                        </div>
+                    </div>
+                </div>
+
+                <h3 class="card-title">Privacy</h3>
+                <div class="card">
+                    <div class="card-body">
+                        <div class="card-group">
+                            <div class="inline-container">
+                                <label for="global-privacy-control-toggle">
+                                    Global Privacy Control
+                                    <p class="description">Tell websites not to sell or share your data.</p>
+                                </label>
+                                <input id="global-privacy-control-toggle" type="checkbox" switch />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-panel" id="tab-blocking" data-title="Content blocking">
+                <div class="card card-body">
+                    <div class="card-group inline-container">
+                        <label for="enable-content-blocking">Block ads, trackers and more</label>
+                        <input id="enable-content-blocking" type="checkbox" switch />
+                    </div>
+                </div>
+                <template id="filter-list-row">
+                    <div class="filter-list-row">
+                        <input type="checkbox" />
+                        <label class="item-name">
+                            <span class="label"></span>
+                            <span class="description"></span>
+                        </label>
+                        <button class="link-button">Remove</button>
+                    </div>
+                </template>
+                <div class="list-section">
+                    <div class="list-heading">
+                        <span>Filter lists</span>
+                        <span>
+                            <button id="update-content-blocker-lists" class="link-button">Update enabled lists</button>
+                            <button
+                                id="add-filter-list"
+                                class="link-button"
+                                aria-expanded="false"
+                                aria-controls="add-filter-list-form"
+                            >
+                                Add filter list…
+                            </button>
+                        </span>
+                    </div>
+                    <div id="content-blocker-lists" class="boxed-list"></div>
+                    <div id="add-filter-list-form" class="add-filter-list" hidden>
+                        <p class="description">
+                            Add a filter list maintained by a source you trust. Automatic updates reveal your IP address
+                            to that source.
+                        </p>
+                        <div class="input-field-container form-row">
+                            <input
+                                id="custom-content-blocker-subscription-url"
+                                type="url"
+                                placeholder="Filter list URL"
+                            />
+                            <button id="add-content-blocker-subscription" class="secondary-button">Add</button>
+                        </div>
+                        <p id="custom-content-blocker-subscription-status" class="description" role="status"></p>
+                        <div class="inline-container">
+                            <p class="description">Or import an Adblock-compatible list stored on this computer.</p>
+                            <input id="local-content-blocker-list-picker" type="file" accept=".txt,text/plain" hidden />
+                            <button id="import-local-content-blocker-list" class="secondary-button">
+                                Import list…
+                            </button>
+                        </div>
+                        <p id="local-content-blocker-list-status" class="description" role="status"></p>
+                    </div>
+                </div>
+                <details class="expandable-list">
+                    <summary>Show language-specific lists</summary>
+                    <div id="language-content-blocker-lists" class="boxed-list"></div>
+                </details>
+
+                <div id="content-blocker-disabled-sites-section" class="list-section" hidden>
+                    <div class="list-heading"><span>Turned off on</span></div>
+                    <div id="content-blocker-disabled-sites" class="boxed-list"></div>
+                </div>
+
+                <h3 class="card-title">Custom filters</h3>
+                <div class="card card-body">
+                    <label for="custom-content-blocker-filters"> Add Adblock-compatible rules, one per line. </label>
+                    <textarea id="custom-content-blocker-filters" rows="12" spellcheck="false"></textarea>
+                    <div class="button-container">
+                        <span id="custom-content-blocker-filters-status" class="description" role="status"></span>
+                        <button id="save-custom-content-blocker-filters" class="secondary-button">Save changes</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-panel" id="tab-languages" data-title="Languages">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="card-group inline-container">
+                            <label for="languages-settings">
+                                Website languages
+                                <p class="description">
+                                    Languages that websites are asked to use, in order of preference.
+                                </p>
+                            </label>
+                            <button id="languages-settings" class="secondary-button">Edit…</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-panel" id="tab-services" data-title="Services">
+                <p class="description">
+                    Services are automatic connections Ladybird makes for browser features in the background. These
+                    controls do not affect normal browsing or actions you explicitly request, such as updating filter
+                    lists.
+                </p>
+
+                <div class="card card-body">
+                    <div class="card-group inline-container">
+                        <label for="allow-services-network-access">
+                            Allow automatic service connections
+                            <p class="description">Let individually enabled services connect in the background.</p>
+                        </label>
+                        <input id="allow-services-network-access" type="checkbox" switch />
+                    </div>
+                </div>
+
+                <p id="services-paused-note" class="description hidden" role="status">
+                    Automatic service connections are paused. Individual service choices are preserved.
+                </p>
+
+                <h3 class="card-title">Services</h3>
+                <div class="card card-body inline-container">
+                    <label for="filter-list-updates">
+                        Filter list updates
+                        <p class="description">Periodically download updates for enabled filter list subscriptions.</p>
+                    </label>
+                    <input id="filter-list-updates" type="checkbox" switch />
+                </div>
+            </div>
+
+            <div class="tab-panel" id="tab-network" data-title="Network">
+                <h3 class="card-title">DNS settings</h3>
+                <div class="card">
+                    <div class="card-body">
+                        <span id="dns-forcibly-enabled" class="forcibly-enabled hidden">
+                            This setting is controlled via the command line
+                        </span>
+                        <p id="dns-proxy-note" class="description hidden"></p>
+
+                        <div class="card-group inline-container" id="dns-settings-container">
+                            <label for="dns-upstream">DNS upstream</label>
+                            <select id="dns-upstream">
+                                <option value="system">System DNS</option>
+                                <option value="custom">Custom DNS server</option>
+                            </select>
+                        </div>
+                        <div id="custom-dns-settings" class="hidden">
+                            <div class="card-group inline-container">
+                                <label for="dns-type">Type</label>
+                                <select id="dns-type">
+                                    <option value="udp">UDP</option>
+                                    <option value="tls">TLS</option>
+                                </select>
+                            </div>
+                            <div class="card-group inline-container">
+                                <label for="dnssec-toggle">Validate DNSSEC locally</label>
+                                <input id="dnssec-toggle" type="checkbox" switch />
+                            </div>
+                            <div class="card-group inline-container">
+                                <label for="dns-server">DNS server (IP or hostname)</label>
+                                <input id="dns-server" type="text" />
+                            </div>
+                            <div class="card-group inline-container">
+                                <label for="dns-port">Port</label>
+                                <input id="dns-port" type="text" placeholder="53" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-panel" id="tab-advanced" data-title="Advanced">
+                <div class="search-container">
+                    <svg
+                        class="search-icon"
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                    >
+                        <circle cx="11" cy="11" r="7" />
+                        <line x1="16" y1="16" x2="22" y2="22" />
+                    </svg>
+                    <input
+                        id="config-filter"
+                        type="search"
+                        class="search-input"
+                        placeholder="Filter configuration keys"
+                    />
+                </div>
+                <div class="card">
+                    <div class="card-body">
+                        <div class="card-group" id="config-list"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
 
         <dialog id="languages-dialog" closedby="any">
             <div class="dialog-header">
@@ -831,7 +1241,7 @@
                 <div id="languages-list" class="dialog-list"></div>
                 <div class="dialog-controls">
                     <select id="languages-select">
-                        <option value="">Select a language to add...</option>
+                        <option value="">Select a language to add…</option>
                     </select>
                     <button id="languages-add" class="primary-button" disabled>Add</button>
                 </div>
@@ -840,7 +1250,7 @@
 
         <dialog id="search-dialog" closedby="any">
             <div class="dialog-header">
-                <h3 class="dialog-title">Search Settings</h3>
+                <h3 class="dialog-title">Search settings</h3>
                 <button id="search-close" class="close-button dialog-button">&times;</button>
             </div>
             <div class="dialog-body" style="height: 300px">
@@ -849,7 +1259,7 @@
             </div>
             <div class="dialog-form">
                 <div class="form-group">
-                    <label for="search-custom-name">Search Engine Name</label>
+                    <label for="search-custom-name">Search engine name</label>
                     <input id="search-custom-name" type="text" placeholder="Example" />
                 </div>
                 <div class="form-group">
@@ -873,7 +1283,7 @@
                     />
                 </div>
                 <div class="dialog-controls">
-                    <button id="search-custom-add" class="primary-button">Add&nbsp;Engine</button>
+                    <button id="search-custom-add" class="primary-button">Add&nbsp;engine</button>
                 </div>
             </div>
         </dialog>
@@ -893,11 +1303,11 @@
                 <div id="site-settings-list" class="dialog-list"></div>
                 <div class="dialog-controls">
                     <input id="site-settings-input" type="text" placeholder="example.com" />
-                    <button id="site-settings-add" class="primary-button">Add&nbsp;Site</button>
+                    <button id="site-settings-add" class="primary-button">Add&nbsp;site</button>
                 </div>
             </div>
             <div class="dialog-footer">
-                <button id="site-settings-remove-all" class="secondary-button">Remove All Sites</button>
+                <button id="site-settings-remove-all" class="secondary-button">Remove all sites</button>
             </div>
         </dialog>
 
@@ -945,7 +1355,7 @@
                     </label>
                 </div>
                 <div class="button-container">
-                    <button id="clear-browsing-data-remove-data" class="secondary-button">Remove Data</button>
+                    <button id="clear-browsing-data-remove-data" class="secondary-button">Remove data</button>
                 </div>
             </div>
         </dialog>
@@ -982,6 +1392,61 @@
             import { tabForDeepLink } from "resource://ladybird/about-pages/settings/dialog-deep-link.js";
 
             const tabButtons = [...document.querySelectorAll(".tab-button")];
+            const searchInput = document.querySelector("#settings-search");
+            const searchEmpty = document.querySelector("#search-empty");
+
+            // Each setting is a row of a card, or a card of its own.
+            function searchableItems(card) {
+                return [card, ...card.querySelectorAll(".card-group, .card-body")].filter(
+                    item => item.matches(".card-group, .card-body") && !item.querySelector(".card-group")
+                );
+            }
+
+            function matches(element, query) {
+                return element.textContent.toLocaleLowerCase().includes(query);
+            }
+
+            // While searching, every section shows the settings whose text matches. A section or a card whose title
+            // matches shows all of its settings.
+            function search() {
+                const query = searchInput.value.trim().toLocaleLowerCase();
+                const searching = query.length !== 0;
+                document.body.classList.toggle("searching", searching);
+
+                let anyMatch = false;
+                document.querySelectorAll(".tab-panel").forEach(panel => {
+                    panel.hidden = !searching && !panel.classList.contains("active");
+                    const panelMatches = searching && panel.dataset.title.toLocaleLowerCase().includes(query);
+                    let panelHasMatch = panelMatches;
+                    panel.querySelectorAll(".card").forEach(card => {
+                        const title = card.previousElementSibling?.classList.contains("card-title")
+                            ? card.previousElementSibling
+                            : null;
+                        const cardMatches = panelMatches || (title && searching && matches(title, query));
+                        let cardHasMatch = cardMatches;
+                        searchableItems(card).forEach(item => {
+                            const itemMatches = !searching || cardMatches || matches(item, query);
+                            item.classList.toggle("search-miss", !itemMatches);
+                            cardHasMatch ||= itemMatches && !item.classList.contains("hidden");
+                        });
+                        card.classList.toggle("search-miss", searching && !cardHasMatch);
+                        title?.classList.toggle("search-miss", searching && !cardHasMatch);
+                        panelHasMatch ||= cardHasMatch;
+                    });
+                    panel.classList.toggle("search-miss", searching && !panelHasMatch);
+                    anyMatch ||= panelHasMatch;
+                });
+                searchEmpty.hidden = !searching || anyMatch;
+            }
+
+            searchInput.addEventListener("input", search);
+            searchInput.addEventListener("keydown", event => {
+                if (event.key === "Escape" && searchInput.value.length !== 0) {
+                    event.preventDefault();
+                    searchInput.value = "";
+                    search();
+                }
+            });
 
             function switchTab(name) {
                 const button = document.querySelector(`.tab-button[data-tab="${name}"]`);
@@ -1012,6 +1477,10 @@
                 panel.setAttribute("aria-labelledby", button.id);
 
                 button.addEventListener("click", () => {
+                    if (searchInput.value.length !== 0) {
+                        searchInput.value = "";
+                        search();
+                    }
                     switchTab(button.dataset.tab);
                     history.replaceState(null, "", `#${button.dataset.tab}`);
                 });
