@@ -47,25 +47,6 @@ namespace Compositor {
 
 using namespace Compositing;
 
-struct DisplayListPlayerSkia::LayerImageFilterCache {
-    AK_ALLOC_WITH_KMALLOC;
-
-    struct Entry {
-        ByteBuffer filter_bytes;
-        sk_sp<SkImageFilter> image_filter;
-    };
-    struct BackdropEntry {
-        ByteBuffer filter_bytes;
-        Gfx::IntRect region;
-        Gfx::CornerRadii corner_radii;
-        bool limited_to_region { false };
-        sk_sp<SkImageFilter> image_filter;
-    };
-    HashMap<u64, HashMap<u32, Entry>> entries_by_tree_structural_epoch_and_effect;
-    HashMap<u64, HashMap<u32, BackdropEntry>> backdrop_entries_by_tree_structural_epoch_and_effect;
-    u64 tree_structural_epoch { 0 };
-};
-
 DisplayListPlayerSkia::DisplayListPlayerSkia()
     : DisplayListPlayerSkia(Gfx::SkiaBackendContext::the_main_thread_context())
 {
@@ -73,7 +54,6 @@ DisplayListPlayerSkia::DisplayListPlayerSkia()
 
 DisplayListPlayerSkia::DisplayListPlayerSkia(RefPtr<Gfx::SkiaBackendContext> skia_backend_context)
     : m_skia_backend_context(move(skia_backend_context))
-    , m_layer_image_filter_cache(make<LayerImageFilterCache>())
 {
 }
 
@@ -96,11 +76,6 @@ void DisplayListPlayerSkia::execute(
     TemporaryChange scrollbar_controller_change { m_scrollbar_controller, scrollbar_controller };
     raster_cache.drop_clip_paths_not_used_since_last_frame();
     TemporaryChange raster_cache_change { m_raster_cache, &raster_cache };
-    if (m_layer_image_filter_cache->tree_structural_epoch != visual_context_tree.structural_epoch()) {
-        m_layer_image_filter_cache->entries_by_tree_structural_epoch_and_effect.clear();
-        m_layer_image_filter_cache->backdrop_entries_by_tree_structural_epoch_and_effect.clear();
-        m_layer_image_filter_cache->tree_structural_epoch = visual_context_tree.structural_epoch();
-    }
     DisplayListPlayer::execute(
         display_list,
         visual_context_tree,
@@ -1604,42 +1579,31 @@ void DisplayListPlayerSkia::push_layer(ReplayLayer const& layer)
 sk_sp<SkImageFilter> DisplayListPlayerSkia::backdrop_image_filter(ReplayLayer const& layer, bool limited_to_region)
 {
     ReadonlyBytes filter_bytes { layer.backdrop_filter_bytes, layer.backdrop_filter_bytes_size };
-    auto& entries_by_effect = m_layer_image_filter_cache->backdrop_entries_by_tree_structural_epoch_and_effect.ensure(active_visual_context_tree().structural_epoch());
-    if (auto cached = entries_by_effect.get(layer.effect.value());
-        cached.has_value()
-        && cached->filter_bytes.bytes() == filter_bytes
-        && cached->region == layer.backdrop_region
-        && cached->corner_radii == layer.backdrop_corner_radii
-        && cached->limited_to_region == limited_to_region)
-        return cached->image_filter;
-
-    auto image_filter = image_filter_from_bytes(filter_bytes);
-    if (limited_to_region) {
-        auto region = to_skia_rect(layer.backdrop_region);
-        image_filter = SkImageFilters::Crop(region, SkTileMode::kDecal, move(image_filter));
-        if (layer.backdrop_corner_radii.has_any_radius()) {
-            SkPictureRecorder recorder;
-            auto* picture_canvas = recorder.beginRecording(region);
-            SkPaint mask_paint;
-            mask_paint.setAntiAlias(true);
-            mask_paint.setColor(SK_ColorWHITE);
-            picture_canvas->drawRRect(to_skia_rrect(layer.backdrop_region, layer.backdrop_corner_radii), mask_paint);
-            image_filter = SkImageFilters::Blend(SkBlendMode::kDstIn, move(image_filter), SkImageFilters::Picture(recorder.finishRecordingAsPicture()));
+    return raster_cache().backdrop_image_filter(active_visual_context_tree().structural_epoch(), layer, limited_to_region, [&] {
+        auto image_filter = image_filter_from_bytes(filter_bytes);
+        if (limited_to_region) {
+            auto region = to_skia_rect(layer.backdrop_region);
+            image_filter = SkImageFilters::Crop(region, SkTileMode::kDecal, move(image_filter));
+            if (layer.backdrop_corner_radii.has_any_radius()) {
+                SkPictureRecorder recorder;
+                auto* picture_canvas = recorder.beginRecording(region);
+                SkPaint mask_paint;
+                mask_paint.setAntiAlias(true);
+                mask_paint.setColor(SK_ColorWHITE);
+                picture_canvas->drawRRect(to_skia_rrect(layer.backdrop_region, layer.backdrop_corner_radii), mask_paint);
+                image_filter = SkImageFilters::Blend(SkBlendMode::kDstIn, move(image_filter), SkImageFilters::Picture(recorder.finishRecordingAsPicture()));
+            }
         }
-    }
-    entries_by_effect.set(layer.effect.value(), LayerImageFilterCache::BackdropEntry { MUST(ByteBuffer::copy(filter_bytes)), layer.backdrop_region, layer.backdrop_corner_radii, limited_to_region, image_filter });
-    return image_filter;
+        return image_filter;
+    });
 }
 
 sk_sp<SkImageFilter> DisplayListPlayerSkia::layer_image_filter(ReplayLayer const& layer)
 {
     ReadonlyBytes filter_bytes { layer.filter_bytes, layer.filter_bytes_size };
-    auto& entries_by_effect = m_layer_image_filter_cache->entries_by_tree_structural_epoch_and_effect.ensure(active_visual_context_tree().structural_epoch());
-    if (auto cached = entries_by_effect.get(layer.effect.value()); cached.has_value() && cached->filter_bytes.bytes() == filter_bytes)
-        return cached->image_filter;
-    auto image_filter = image_filter_from_bytes(filter_bytes);
-    entries_by_effect.set(layer.effect.value(), LayerImageFilterCache::Entry { MUST(ByteBuffer::copy(filter_bytes)), image_filter });
-    return image_filter;
+    return raster_cache().layer_image_filter(active_visual_context_tree().structural_epoch(), layer, [&] {
+        return image_filter_from_bytes(filter_bytes);
+    });
 }
 
 sk_sp<SkImageFilter> DisplayListPlayerSkia::image_filter_from_bytes(ReadonlyBytes filter_bytes)

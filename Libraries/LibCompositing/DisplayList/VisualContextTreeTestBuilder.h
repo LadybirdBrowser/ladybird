@@ -11,6 +11,7 @@
 #include <LibCompositing/DisplayList/ContextRef.h>
 #include <LibCompositing/DisplayList/DisplayListCommand.h>
 #include <LibCompositing/Export.h>
+#include <LibGfx/Color.h>
 #include <LibGfx/CornerRadii.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Matrix4x4.h>
@@ -48,6 +49,9 @@ public:
     SpatialNodeIndex append_scroll(SpatialNodeIndex parent);
     SpatialNodeIndex append_sticky(SpatialNodeIndex parent, StickyConstraints const&);
     ClipNodeIndex append_clip(ClipNodeIndex parent, SpatialNodeIndex spatial, Gfx::FloatRect, Gfx::CornerRadii = {}, ClipMode = ClipMode::Intersect);
+
+    EffectNodeIndex append_image_filter(u64 image_id, Gfx::IntRect);
+    static NonnullRefPtr<DisplayList> filled_rect_display_list(AccumulatedVisualContextTree const&, ContextRef, Gfx::IntRect, Gfx::Color);
 
     AccumulatedVisualContextTree finish();
 

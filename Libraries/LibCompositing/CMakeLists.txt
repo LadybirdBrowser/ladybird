@@ -60,6 +60,7 @@ import_rust_crate(
     CRATE_NAME libcompositing_rust
     FEATURES allocator
     FFI_HEADERS
+        TestBuilderRustFFI.h
         RustFFI.h
         TypesRustFFI.h
         DisplayList/DisplayListCommandsGenerated.h

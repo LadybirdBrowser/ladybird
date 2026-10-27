@@ -298,6 +298,14 @@ fn main() -> Result<(), Box<dyn Error>> {
     ]
     .map(String::from)
     .to_vec();
+    let mut test_builder_config = ffi_config.clone();
+    test_builder_config.export.include.clear();
+    generate_ffi_header(
+        test_builder_config,
+        &[manifest_dir.join("src/test_builder.rs")],
+        &out_dir,
+        Path::new("TestBuilderRustFFI.h"),
+    );
     generate_ffi_header(
         ffi_config,
         &[
