@@ -372,7 +372,11 @@ pub(crate) fn place_child_in_containing_block(
     let records = run.records;
     let callbacks = &run.callbacks;
     let used = records.used_values(node);
-    set_placement(used, containing_block, offset);
+    let placement = run_records::BoxPlacement {
+        content_offset_in_containing_block: offset,
+        containing_block,
+    };
+    records.place_box(node, placement);
     let fragments = run.fragments.as_deref()?;
     if let Some((fragment, reuses_subtree)) = fragments.take_reused_committed_fragment(callbacks, node, used) {
         fragments.attach_committed_fragment(
@@ -381,11 +385,13 @@ pub(crate) fn place_child_in_containing_block(
             reuses_subtree,
             (!containing_block.is_invalid()).then_some(containing_block),
             used,
-            containing_block_is_sealed(records, containing_block),
+            placement,
+            records.used_insets_of(node),
+            containing_block_is_placed_or_outside_run(records, containing_block),
             resolve_containing_line_box_index(records, callbacks, node, containing_block, containing_line_box_fragment),
             point_add(
                 offset,
-                committed_offset_delta_at_placement(records, callbacks, node, containing_block, used),
+                committed_offset_delta_at_placement(records, callbacks, node, containing_block),
             ),
             callbacks.frame,
         );
@@ -406,8 +412,8 @@ pub(crate) fn place_child_in_containing_block(
     let own_anchor_candidate_border_box_rect = (node_facts.is_box() && node_facts.has_anchor_names()).then(|| {
         let collapsed = used.uses_collapsing_borders_model.get();
         CssPixelRect {
-            x: used.content_offset.get().x - used.border_box_left(collapsed),
-            y: used.content_offset.get().y - used.border_box_top(collapsed),
+            x: offset.x - used.border_box_left(collapsed),
+            y: offset.y - used.border_box_top(collapsed),
             width: used.border_box_inline_size(collapsed),
             height: used.border_box_block_size(collapsed),
         }
@@ -417,11 +423,13 @@ pub(crate) fn place_child_in_containing_block(
         node,
         (!containing_block.is_invalid()).then_some(containing_block),
         used,
-        containing_block_is_sealed(records, containing_block),
+        placement,
+        records.used_insets_of(node),
+        containing_block_is_placed_or_outside_run(records, containing_block),
         resolve_containing_line_box_index(records, callbacks, node, containing_block, containing_line_box_fragment),
         point_add(
             offset,
-            committed_offset_delta_at_placement(records, callbacks, node, containing_block, used),
+            committed_offset_delta_at_placement(records, callbacks, node, containing_block),
         ),
         own_anchor_candidate_border_box_rect,
     ))
@@ -438,8 +446,11 @@ pub(crate) fn place_reused_child(
     let records = run.records;
     let callbacks = &run.callbacks;
     let containing_block = callbacks.in_flow_containing_block(node);
-    let used = records.used_values(node);
-    set_placement(used, containing_block, offset);
+    let placement = run_records::BoxPlacement {
+        content_offset_in_containing_block: offset,
+        containing_block,
+    };
+    records.place_box(node, placement);
     let fragments = run
         .fragments
         .as_deref()
@@ -449,30 +460,22 @@ pub(crate) fn place_reused_child(
         fragment,
         true,
         (!containing_block.is_invalid()).then_some(containing_block),
-        used,
-        containing_block_is_sealed(records, containing_block),
+        records.used_values(node),
+        placement,
+        records.used_insets_of(node),
+        containing_block_is_placed_or_outside_run(records, containing_block),
         None,
         point_add(
             offset,
-            committed_offset_delta_at_placement(records, callbacks, node, containing_block, used),
+            committed_offset_delta_at_placement(records, callbacks, node, containing_block),
         ),
         callbacks.frame,
     );
 }
 
-fn set_placement(used: &UsedValues, containing_block: Node, offset: FfiCssPixelPoint) {
-    assert!(!used.has_content_offset.get());
-    used.has_content_offset.set(true);
-    used.content_offset.set(offset);
-    used.placed_in.set(containing_block);
-    used.seal_committed_box_metrics();
-}
-
-fn containing_block_is_sealed(records: &RunRecords, containing_block: Node) -> bool {
+fn containing_block_is_placed_or_outside_run(records: &RunRecords, containing_block: Node) -> bool {
     !containing_block.is_invalid()
-        && records
-            .used_values_if_owned(containing_block)
-            .is_none_or(|containing_block_used| containing_block_used.has_content_offset.get())
+        && (records.used_values_if_owned(containing_block).is_none() || records.is_placed(containing_block))
 }
 
 /// The line box index to record for atomic inlines whose containing line
@@ -509,7 +512,6 @@ fn committed_offset_delta_at_placement(
     callbacks: &LayoutPass<'_>,
     node: Node,
     containing_block: Node,
-    used: &UsedValues,
 ) -> FfiCssPixelPoint {
     let mut delta = FfiCssPixelPoint::default();
     let facts = NodeFacts::new(callbacks, node);
@@ -517,8 +519,9 @@ fn committed_offset_delta_at_placement(
         return delta;
     }
     if facts.is_relatively_positioned() {
-        delta.x += used.inset_left.get();
-        delta.y += used.inset_top.get();
+        let insets = records.used_insets_of(node);
+        delta.x += insets.left;
+        delta.y += insets.top;
     }
     if facts.is_in_flow() && facts.display().is_block_outside() {
         let chain = inline_formatting_context::accumulated_relative_insets_from_inline_ancestor_chain(
@@ -562,9 +565,8 @@ pub(crate) fn register_contained_abspos_child(
 
 pub(crate) fn placement_containing_block(records: &RunRecords, callbacks: &LayoutPass<'_>, node: Node) -> Node {
     let placed_in = records
-        .used_values_if_owned(node)
-        .filter(|used| used.has_content_offset.get())
-        .map_or(NodeSlotId::INVALID, |used| used.placed_in.get());
+        .placement_of(node)
+        .map_or(NodeSlotId::INVALID, |placement| placement.containing_block);
     if !placed_in.is_invalid() {
         return placed_in;
     }
@@ -801,7 +803,7 @@ pub(crate) fn derive_baselines(records: &RunRecords, callbacks: &LayoutPass<'_>,
                     .first_fragment_node
                     .expect("block-level line must have one fragment");
                 let block_child_state = records.used_values(fragment_node);
-                let child_offset_from_margin_edge = block_child_state.content_offset.get().y
+                let child_offset_from_margin_edge = records.content_offset_or_origin(fragment_node).y
                     - block_child_state.margin_box_top(block_child_state.uses_collapsing_borders_model.get());
                 child_offset_from_margin_edge
                     + box_baseline_for_purpose(
@@ -933,12 +935,13 @@ pub(crate) fn baseline_of_child_for_purpose(
         // https://drafts.csswg.org/css-align-3/#synthesize-baseline
         // The alphabetic baseline is synthesized from the line-under edge of the border box.
         return Some(
-            child_state.content_offset.get().y
+            records.content_offset_or_origin(child).y
                 + child_state.content_block_size.get()
                 + child_state.border_box_bottom(collapsed),
         );
     }
-    let child_offset_from_margin_edge = child_state.content_offset.get().y - child_state.margin_box_top(collapsed);
+    let child_offset_from_margin_edge =
+        records.content_offset_or_origin(child).y - child_state.margin_box_top(collapsed);
     Some(
         child_offset_from_margin_edge
             + box_baseline_for_purpose(
@@ -1715,11 +1718,8 @@ fn in_flow_children_margin_box_block_extent(
         let facts = NodeFacts::new(callbacks, child);
         if facts.is_box() && !facts.is_absolutely_positioned() {
             let used = records.used_values_if_owned(child)?;
-            if !used.has_content_offset.get() {
-                return None;
-            }
+            let content_block_offset = records.placement_of(child)?.content_offset_in_containing_block.y;
             let collapsed = used.uses_collapsing_borders_model.get();
-            let content_block_offset = used.content_offset.get().y;
             block_start = block_start.min(content_block_offset - used.margin_box_top(collapsed));
             block_end =
                 block_end.max(content_block_offset + used.content_block_size.get() + used.margin_box_bottom(collapsed));
@@ -3495,14 +3495,20 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
     // The retained offset already includes relative positioning. Publish it directly instead
     // of applying placement adjustments a second time.
     fragments.normalize_arrivals_for_placement(root, callbacks);
+    let placement = run
+        .records
+        .placement_of(root)
+        .expect("the root of a partial relayout keeps the placement it committed");
     fragments.build_fragment_for_placed_box(
         callbacks,
         root,
         None,
         root_used,
+        placement,
+        run.records.used_insets_of(root),
         false,
         None,
-        root_used.content_offset.get(),
+        placement.content_offset_in_containing_block,
         None,
     );
 }

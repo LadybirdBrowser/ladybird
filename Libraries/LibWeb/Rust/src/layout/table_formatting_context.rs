@@ -3049,11 +3049,12 @@ impl<'pass> TableFormattingContext<'pass> {
                     continue;
                 }
                 let used = self.used_values(row.box_);
+                let row_block_offset = self.run.records.content_offset_or_origin(row.box_).y;
                 if !has_rows {
-                    block_start = used.content_offset.get().y;
+                    block_start = row_block_offset;
                     has_rows = true;
                 }
-                block_end = used.content_offset.get().y + used.border_box_block_size(false);
+                block_end = row_block_offset + used.border_box_block_size(false);
                 inline_size = inline_size.max(used.border_box_inline_size(false));
             }
             let used = self.used_values(group);
@@ -3221,16 +3222,18 @@ impl<'pass> TableFormattingContext<'pass> {
         for cell_index in 0..self.cells.len() {
             let cell = self.cells[cell_index];
             let used = self.used_values(cell.box_);
-            let row_used = self.used_values(self.rows[cell.row_index].box_);
+            let row_content_offset = self
+                .run
+                .records
+                .content_offset_or_origin(self.rows[cell.row_index].box_);
             // Compute cell position as specified by https://www.w3.org/TR/css-tables-3/#bounding-box-assignment:
             // left/top location is the sum of:
             // - for top: the height reserved for top captions (including margins), if any
             // - the padding-left/padding-top and border-left-width/border-top-width of the table
             // - the border spacing after each visible column before the cell (in its column's inline_offset)
-            let x = row_used.content_offset.get().x
-                + used.border_box_left(collapsed)
-                + self.columns[cell.column_index].inline_offset;
-            let y = row_used.content_offset.get().y + used.border_box_top(collapsed);
+            let x =
+                row_content_offset.x + used.border_box_left(collapsed) + self.columns[cell.column_index].inline_offset;
+            let y = row_content_offset.y + used.border_box_top(collapsed);
             self.place_child(cell.box_, x, y);
         }
     }
@@ -3253,7 +3256,7 @@ impl<'pass> TableFormattingContext<'pass> {
             .rows
             .first()
             .map_or(self.table_box_content_block_offset_in_wrapper + block_spacing, |row| {
-                self.used_values(row.box_).content_offset.get().y
+                self.run.records.content_offset_or_origin(row.box_).y
             });
         let mut block_end = block_start;
         for row in &self.rows {
@@ -3261,7 +3264,8 @@ impl<'pass> TableFormattingContext<'pass> {
                 continue;
             }
             let used = self.used_values(row.box_);
-            block_end = block_end.max(used.content_offset.get().y + used.border_box_block_size(false));
+            block_end = block_end
+                .max(self.run.records.content_offset_or_origin(row.box_).y + used.border_box_block_size(false));
         }
         let block_size = block_end - block_start;
 
@@ -3314,7 +3318,7 @@ impl<'pass> TableFormattingContext<'pass> {
             if let Some(group) = group
                 && self.run.callbacks.in_flow_containing_block(node) == group
             {
-                let group_offset = self.used_values(group).content_offset.get();
+                let group_offset = self.run.records.content_offset_or_origin(group);
                 x -= group_offset.x;
                 y -= group_offset.y;
             }
@@ -3346,7 +3350,7 @@ impl<'pass> TableFormattingContext<'pass> {
     /// wrapper (see position_row_boxes), so each baseline is made relative to the content box it is stored on here.
     fn store_table_part_baselines(&self) {
         let baseline_in_wrapper = |row_index: usize| {
-            self.used_values(self.rows[row_index].box_).content_offset.get().y + self.row_baseline(row_index)
+            self.run.records.content_offset_or_origin(self.rows[row_index].box_).y + self.row_baseline(row_index)
         };
         let baselines_of_rows = |rows: &[usize], content_block_offset: CssPixels| DerivedBaselines {
             inline_alignment: None,
@@ -3381,7 +3385,7 @@ impl<'pass> TableFormattingContext<'pass> {
             let used = self.used_values(group);
             formatting_context::store_derived_baselines(
                 used,
-                baselines_of_rows(&rows_in_group, used.content_offset.get().y),
+                baselines_of_rows(&rows_in_group, self.run.records.content_offset_or_origin(group).y),
             );
         }
         self.derived_baselines_of_root_box.set(baselines_of_rows(

@@ -394,13 +394,10 @@ fn propagate_payload_toward_run_root_space<Payload: PropagatedPayload>(
     callbacks: &LayoutPass<'_>,
 ) {
     while payload.coordinate_space_box() != run_root {
-        let Some(used) = records
-            .used_values_if_owned(payload.coordinate_space_box())
-            .filter(|used| used.has_content_offset.get())
-        else {
+        let Some(placement) = records.placement_of(payload.coordinate_space_box()) else {
             break;
         };
-        payload.translate_by(used.content_offset.get());
+        payload.translate_by(placement.content_offset_in_containing_block);
         let containing_block =
             formatting_context::placement_containing_block(records, callbacks, payload.coordinate_space_box());
         if containing_block.is_invalid() {
@@ -545,8 +542,10 @@ pub(crate) struct PlacementData {
 }
 
 impl PlacementData {
-    fn from_record(
+    fn of_box(
         used: &UsedValues,
+        containing_block: crate::layout::node_data::NodeSlotId,
+        used_insets: run_records::UsedInsets,
         containing_line_box_index: Option<usize>,
         committed_offset: FfiCssPixelPoint,
         frame: geometry::Frame,
@@ -555,15 +554,35 @@ impl PlacementData {
         Self {
             frame,
             committed_offset,
-            inset_left: used.inset_left.get(),
-            inset_right: used.inset_right.get(),
-            inset_top: used.inset_top.get(),
-            inset_bottom: used.inset_bottom.get(),
+            inset_left: used_insets.left,
+            inset_right: used_insets.right,
+            inset_top: used_insets.top,
+            inset_bottom: used_insets.bottom,
             containing_line_box_index,
             abspos_layout_inputs: rare.as_ref().and_then(|rare| rare.abspos_layout_inputs),
             default_scroll_shift: rare.as_ref().and_then(|rare| rare.default_scroll_shift),
-            containing_block: used.placed_in.get(),
+            containing_block,
         }
+    }
+
+    /// The placement data of a box `close()` hands on unplaced or placed as it is.
+    fn of_box_as_this_run_left_it(
+        records: &RunRecords,
+        node: crate::layout::node_data::NodeSlotId,
+        frame: geometry::Frame,
+    ) -> Self {
+        Self::of_box(
+            records.used_values(node),
+            records
+                .placement_of(node)
+                .map_or(crate::layout::node_data::NodeSlotId::INVALID, |placement| {
+                    placement.containing_block
+                }),
+            records.used_insets_of(node),
+            None,
+            records.content_offset_or_origin(node),
+            frame,
+        )
     }
 }
 
@@ -1051,9 +1070,7 @@ impl RunFragmentBuilder {
             let containing_block = entry.containing_block();
             !containing_block.is_invalid()
                 && (self.is_entry_accumulator || containing_block != self.root_node)
-                && records
-                    .used_values_if_owned(containing_block)
-                    .is_some_and(|containing_block_used| containing_block_used.has_content_offset.get())
+                && records.is_placed(containing_block)
         };
         let mut taken: Vec<abspos_inputs::PendingAbsposChild> = inner
             .pending_abspos_at_root
@@ -1237,6 +1254,8 @@ impl RunFragmentBuilder {
         node: crate::layout::node_data::NodeSlotId,
         containing_block: Option<crate::layout::node_data::NodeSlotId>,
         used: &UsedValues,
+        placement: run_records::BoxPlacement,
+        used_insets: run_records::UsedInsets,
         containing_block_is_sealed: bool,
         containing_line_box_index: Option<usize>,
         committed_offset: FfiCssPixelPoint,
@@ -1261,14 +1280,21 @@ impl RunFragmentBuilder {
         let fragment = snapshot_fragment(callbacks, node, children, used);
         let link = link_fragment(
             fragment.clone(),
-            PlacementData::from_record(used, containing_line_box_index, committed_offset, callbacks.frame),
+            PlacementData::of_box(
+                used,
+                placement.containing_block,
+                used_insets,
+                containing_line_box_index,
+                committed_offset,
+                callbacks.frame,
+            ),
         );
         self.attach(&mut inner, link, containing_block, containing_block_is_sealed);
         let exports_payloads = !pending_abspos_from_placed_box.is_empty()
             || !anchor_candidates_from_placed_box.is_empty()
             || !inline_containing_block_rects_from_placed_box.is_empty()
             || own_anchor_candidate_border_box_rect.is_some();
-        let content_offset = used.content_offset.get();
+        let content_offset = placement.content_offset_in_containing_block;
         let frames = exports_payloads
             .then(|| {
                 let own = formatting_context::frame_established_by(callbacks, node);
@@ -1343,6 +1369,8 @@ impl RunFragmentBuilder {
         reuses_subtree: bool,
         containing_block: Option<crate::layout::node_data::NodeSlotId>,
         used: &UsedValues,
+        placement: run_records::BoxPlacement,
+        used_insets: run_records::UsedInsets,
         containing_block_is_sealed: bool,
         containing_line_box_index: Option<usize>,
         committed_offset: FfiCssPixelPoint,
@@ -1356,7 +1384,14 @@ impl RunFragmentBuilder {
         );
         let link = link_fragment(
             fragment,
-            PlacementData::from_record(used, containing_line_box_index, committed_offset, frame),
+            PlacementData::of_box(
+                used,
+                placement.containing_block,
+                used_insets,
+                containing_line_box_index,
+                committed_offset,
+                frame,
+            ),
         );
         self.attach(&mut inner, link, containing_block, containing_block_is_sealed);
         if reuses_subtree {
@@ -1444,7 +1479,7 @@ impl RunFragmentBuilder {
             let used = records.used_values(pending_fragment.node);
             inner.top_scope_links.push(link_fragment(
                 snapshot_fragment(callbacks, pending_fragment.node, pending_fragment.children, used),
-                PlacementData::from_record(used, None, used.content_offset.get(), callbacks.frame),
+                PlacementData::of_box_as_this_run_left_it(records, pending_fragment.node, callbacks.frame),
             ));
         }
         // NB: A reused subtree root its run never placed has no children of its own in this run, as an empty held
@@ -1462,7 +1497,7 @@ impl RunFragmentBuilder {
             }
             inner.top_scope_links.push(link_fragment(
                 snapshot_fragment(callbacks, node, Vec::new(), used),
-                PlacementData::from_record(used, None, used.content_offset.get(), callbacks.frame),
+                PlacementData::of_box_as_this_run_left_it(records, node, callbacks.frame),
             ));
         }
         let child_roots_awaiting_placement = std::mem::take(&mut inner.child_roots_awaiting_placement);
@@ -1470,7 +1505,7 @@ impl RunFragmentBuilder {
             let used = records.used_values(root.node);
             inner.top_scope_links.push(link_fragment(
                 snapshot_fragment(callbacks, root.node, root.scoped_descendants, used),
-                PlacementData::from_record(used, None, used.content_offset.get(), callbacks.frame),
+                PlacementData::of_box_as_this_run_left_it(records, root.node, callbacks.frame),
             ));
         }
         for entry in &mut propagated_pending_abspos {
@@ -1480,9 +1515,7 @@ impl RunFragmentBuilder {
                 debug_assert!(
                     containing_block.is_invalid()
                         || containing_block == self.root_node
-                        || records
-                            .used_values_if_owned(containing_block)
-                            .is_none_or(|containing_block_used| !containing_block_used.has_content_offset.get()),
+                        || !records.is_placed(containing_block),
                     "a drainable abspos registration survived its containing block's run (slot {})",
                     entry.child_box.slot_index()
                 );
