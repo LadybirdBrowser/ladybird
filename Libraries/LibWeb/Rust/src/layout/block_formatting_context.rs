@@ -2659,9 +2659,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         if !reusable {
             return;
         }
-        let mut cells = used_values::UsedValuesCellState::capture(used);
-        cells.inputs.has_content_offset = false;
-        cells.inputs.content_offset = FfiCssPixelPoint::default();
+        let cells = used_values::UsedValuesCellState::capture(used);
         let content_offset = self.run.records.content_offset_or_origin(node);
         let entry = in_flow_block_cache::InFlowBlockEntry {
             key,

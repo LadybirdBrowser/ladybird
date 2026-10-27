@@ -341,11 +341,6 @@ pub(crate) struct UsedValues {
     pub padding_top: SealableCell<CssPixels>,
     pub padding_bottom: SealableCell<CssPixels>,
 
-    pub inset_left: SealableCell<CssPixels>,
-    pub inset_right: SealableCell<CssPixels>,
-    pub inset_top: SealableCell<CssPixels>,
-    pub inset_bottom: SealableCell<CssPixels>,
-
     pub has_definite_inline_size: Cell<bool>,
     pub has_definite_block_size: Cell<bool>,
     /// A button, or the anonymous wrapper of its content, whose automatic block size was made definite only so the
@@ -370,11 +365,6 @@ pub(crate) struct UsedValues {
     // For table cells: whether every column the cell spans has 'visibility: collapse', which removes the cell from
     // the display along with the columns (CSS 2.2 §17.5.5).
     pub hidden_by_collapsed_columns: Cell<bool>,
-
-    // Keep these as separate cells: content_offset is read by placement code
-    // even where has_content_offset is false.
-    pub has_content_offset: SealableCell<bool>,
-    pub content_offset: SealableCell<FfiCssPixelPoint>,
 
     // Keep baseline payloads separate so resetting the presence bits does not
     // perturb the payloads observed by the existing derivation flow.
@@ -409,10 +399,6 @@ impl Default for UsedValues {
             padding_right: SealableCell::new(zero),
             padding_top: SealableCell::new(zero),
             padding_bottom: SealableCell::new(zero),
-            inset_left: SealableCell::new(zero),
-            inset_right: SealableCell::new(zero),
-            inset_top: SealableCell::new(zero),
-            inset_bottom: SealableCell::new(zero),
             has_definite_inline_size: Cell::new(false),
             has_definite_block_size: Cell::new(false),
             has_definite_block_size_only_for_button_content_alignment: Cell::new(false),
@@ -426,8 +412,6 @@ impl Default for UsedValues {
             table_column_index: Cell::new(0),
             table_column_span: Cell::new(0),
             hidden_by_collapsed_columns: Cell::new(false),
-            has_content_offset: SealableCell::new(false),
-            content_offset: SealableCell::new(FfiCssPixelPoint::default()),
             has_first_baseline: Cell::new(false),
             first_baseline: Cell::new(zero),
             has_last_baseline: Cell::new(false),
@@ -527,33 +511,7 @@ impl UsedValues {
         }
     }
 
-    /// Seals every box metric that is copied from a committed fragment into
-    /// its paint record. Called when the box is placed: after placement, none
-    /// of these may change again.
-    pub(crate) fn seal_committed_box_metrics(&self) {
-        self.content_inline_size.seal();
-        self.content_block_size.seal();
-        self.margin_left.seal();
-        self.margin_right.seal();
-        self.margin_top.seal();
-        self.margin_bottom.seal();
-        self.border_left.seal();
-        self.border_right.seal();
-        self.border_top.seal();
-        self.border_bottom.seal();
-        self.padding_left.seal();
-        self.padding_right.seal();
-        self.padding_top.seal();
-        self.padding_bottom.seal();
-        self.inset_left.seal();
-        self.inset_right.seal();
-        self.inset_top.seal();
-        self.inset_bottom.seal();
-        self.has_content_offset.seal();
-        self.content_offset.seal();
-    }
-
-    /// Moves the box's sizes, size constraints and box sides from frame `from` to frame `to`, keeping its placement.
+    /// Moves the box's sizes, size constraints and box sides from frame `from` to frame `to`.
     pub(crate) fn move_box_metrics_to_frame(&self, from: geometry::Frame, to: geometry::Frame) {
         if from == to {
             return;
@@ -578,11 +536,7 @@ impl UsedValues {
             padding_left,
             padding_right,
             padding_top,
-            padding_bottom,
-            inset_left,
-            inset_right,
-            inset_top,
-            inset_bottom
+            padding_bottom
         );
         self.has_definite_inline_size.set(state.inputs.has_definite_inline_size);
         self.has_definite_block_size.set(state.inputs.has_definite_block_size);
@@ -655,10 +609,6 @@ used_values_cells! {
         padding_right: CssPixels,
         padding_top: CssPixels,
         padding_bottom: CssPixels,
-        inset_left: CssPixels,
-        inset_right: CssPixels,
-        inset_top: CssPixels,
-        inset_bottom: CssPixels,
         has_definite_inline_size: bool,
         has_definite_block_size: bool,
         has_definite_block_size_only_for_button_content_alignment: bool,
@@ -670,8 +620,6 @@ used_values_cells! {
         table_column_index: u32,
         table_column_span: u32,
         hidden_by_collapsed_columns: bool,
-        has_content_offset: bool,
-        content_offset: FfiCssPixelPoint,
     }
 }
 
@@ -691,9 +639,6 @@ impl RootInputCells {
     pub(crate) fn materialize_record(&self) -> UsedValues {
         let record = UsedValues::default();
         self.apply_to_record(&record);
-        if self.has_content_offset {
-            record.seal_committed_box_metrics();
-        }
         record
     }
 }
@@ -765,20 +710,6 @@ impl UsedValuesCellState {
             ],
             to,
         );
-        [
-            inputs.inset_top,
-            inputs.inset_right,
-            inputs.inset_bottom,
-            inputs.inset_left,
-        ] = from.sides_in(
-            [
-                inputs.inset_top,
-                inputs.inset_right,
-                inputs.inset_bottom,
-                inputs.inset_left,
-            ],
-            to,
-        );
         if from.is_orthogonal_to(to) {
             std::mem::swap(&mut inputs.content_inline_size, &mut inputs.content_block_size);
             std::mem::swap(
@@ -820,7 +751,6 @@ impl UsedValues {
     }
 
     pub(crate) fn set_content_inline_size(&self, value: CssPixels) {
-        assert!(!self.has_content_offset.get());
         // Negative inline sizes are not allowed in CSS. We have a bug somewhere! Clamp to 0 to avoid doing too much damage.
         self.content_inline_size
             .set(clamp_to_max_dimension_value(value.max(CssPixels::default())));
@@ -828,7 +758,6 @@ impl UsedValues {
     }
 
     pub(crate) fn set_content_block_size(&self, value: CssPixels) {
-        assert!(!self.has_content_offset.get());
         // Negative block sizes are not allowed in CSS. We have a bug somewhere! Clamp to 0 to avoid doing too much damage.
         self.content_block_size
             .set(clamp_to_max_dimension_value(value.max(CssPixels::default())));
