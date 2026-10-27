@@ -366,9 +366,9 @@ TEST_CASE(video_presentation_server_releases_playback_edge_when_connection_dies)
     auto server = VideoPresentationServerConnection::construct(move(paired.local));
     auto client = adopt_ref(*new VideoPresentationClientConnection(MUST(paired.remote_handle.create_transport())));
     bool edge_ready = false;
-    client->create_edge(handle, [&](NonnullRefPtr<DisplayingVideoSink>) {
+    MUST(client->create_edge(handle, [&](NonnullRefPtr<DisplayingVideoSink>) {
         edge_ready = true;
-    });
+    }));
     if (!spin_until(loop, [&] { return edge_ready; })) {
         FAIL("Timed out waiting for video edge");
         return;
@@ -377,6 +377,25 @@ TEST_CASE(video_presentation_server_releases_playback_edge_when_connection_dies)
 
     server->shutdown();
     EXPECT(!manager->track_is_enabled(track));
+}
+
+// Each edge keeps buffers mapped in the Compositor, so a client that asks for edges without end is refused past the
+// limit, until it releases one.
+TEST_CASE(video_presentation_client_limits_its_edges)
+{
+    auto paired = MUST(IPC::Transport::create_paired());
+    auto server = VideoPresentationServerConnection::construct(move(paired.local));
+    auto client = adopt_ref(*new VideoPresentationClientConnection(MUST(paired.remote_handle.create_transport())));
+
+    Vector<VideoSinkHandle> handles;
+    for (size_t i = 0; i < VideoPresentationClientConnection::MAX_EDGE_COUNT; i++) {
+        handles.append(allocate_video_sink_handle());
+        EXPECT(!client->create_edge(handles.last(), [](NonnullRefPtr<DisplayingVideoSink>) { }).is_error());
+    }
+    EXPECT(client->create_edge(allocate_video_sink_handle(), [](NonnullRefPtr<DisplayingVideoSink>) { }).is_error());
+
+    client->release_edge(handles.first());
+    EXPECT(!client->create_edge(allocate_video_sink_handle(), [](NonnullRefPtr<DisplayingVideoSink>) { }).is_error());
 }
 
 // A forward seek landing inside the buffered lookahead is resolved locally; a seek past it re-fetches.

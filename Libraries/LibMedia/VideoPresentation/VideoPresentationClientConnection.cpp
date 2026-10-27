@@ -28,11 +28,14 @@ void VideoPresentationClientConnection::die()
     m_edge_states.clear();
 }
 
-void VideoPresentationClientConnection::create_edge(VideoSinkHandle handle, Function<void(NonnullRefPtr<DisplayingVideoSink>)> on_ready)
+ErrorOr<void> VideoPresentationClientConnection::create_edge(VideoSinkHandle handle, Function<void(NonnullRefPtr<DisplayingVideoSink>)> on_ready)
 {
+    if (m_edge_states.size() >= MAX_EDGE_COUNT)
+        return Error::from_string_literal("Too many video edges");
     auto edge_id = m_next_edge_id++;
     m_edge_states.set(edge_id, EdgeState { handle, move(on_ready), nullptr, nullptr, {} });
     async_create_video_edge(handle, edge_id);
+    return {};
 }
 
 void VideoPresentationClientConnection::release_edge(VideoSinkHandle handle)
