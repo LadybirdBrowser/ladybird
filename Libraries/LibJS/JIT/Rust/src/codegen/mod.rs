@@ -90,6 +90,7 @@ use crate::code::Repr;
 use crate::code::Site;
 use crate::code::SiteKind;
 use crate::code::ValueLocation;
+use crate::fast_hash::HashMap;
 use crate::ir;
 use crate::ir::BlockId;
 use crate::ir::BranchCondition;
@@ -327,12 +328,30 @@ struct Codegen<'a, M: PortableMacroAssembler> {
 /// which reads them from the node's inputs instead of frame slots.
 struct SlowPathValues {
     node: NodeId,
-    /// The operands of the node's inputs, in input order.
-    operands: Vec<u32>,
+    /// The index of the first of the node's inputs with each operand.
+    input_of_operand: HashMap<u32, usize>,
     /// Where the inputs in registers are.
     registers: InputRegisters,
     /// The outputs that are SSA values, which no frame slot receives.
     ssa_outputs: Vec<u32>,
+}
+
+impl SlowPathValues {
+    /// `operands` are those of the node's inputs, in input order.
+    fn new(node: NodeId, operands: &[u32], registers: InputRegisters, ssa_outputs: Vec<u32>) -> Self {
+        // NB: Looking up each operand in a list would take time quadratic in the operand count of instructions like
+        //     NewArray of a large array literal.
+        let mut input_of_operand = HashMap::with_capacity_and_hasher(operands.len(), Default::default());
+        for (index, operand) in operands.iter().enumerate() {
+            input_of_operand.entry(*operand).or_insert(index);
+        }
+        Self {
+            node,
+            input_of_operand,
+            registers,
+            ssa_outputs,
+        }
+    }
 }
 
 /// Where the code of a slow path call or a call finds those of its inputs
@@ -2391,7 +2410,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             return Ok(());
         }
         if let Some(values) = &self.slow_path_values
-            && let Some(index) = values.operands.iter().position(|input| *input == operand)
+            && let Some(&index) = values.input_of_operand.get(&operand)
         {
             let (node, registers) = (values.node, values.registers.clone());
             self.load_input(dst, node, index, &registers);
@@ -2555,12 +2574,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             }
             return Ok(());
         }
-        self.slow_path_values = Some(SlowPathValues {
-            node,
-            operands,
-            registers,
-            ssa_outputs,
-        });
+        self.slow_path_values = Some(SlowPathValues::new(node, &operands, registers, ssa_outputs));
         let sources = self.emit_generic(opcode, executable, pc);
         self.slow_path_values = None;
         let sources = sources?;
@@ -2676,12 +2690,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                 self.masm.load64(result, &address);
                 return Ok(vec![OutputSource::Register(result)]);
             }
-            self.slow_path_values = Some(SlowPathValues {
-                node,
-                operands,
-                registers: registers.clone(),
-                ssa_outputs,
-            });
+            self.slow_path_values = Some(SlowPathValues::new(node, &operands, registers.clone(), ssa_outputs));
             let sources = self.emit_generic(opcode, executable, pc);
             self.slow_path_values = None;
             return sources;
