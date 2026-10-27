@@ -18,18 +18,21 @@
     </filter>
 </svg>
 <script>
-    requestAnimationFrame(() => {
+    // NB: feImage fetching and decoding delay load; animation frames alone do not wait for those resources.
+    addEventListener("load", () => {
         requestAnimationFrame(() => {
-            filtered.style.filter = "url(#green-image)";
             requestAnimationFrame(() => {
+                filtered.style.filter = "url(#green-image)";
                 requestAnimationFrame(() => {
-                    if (window.internals)
-                        internals.signalTestIsDone("PASS");
-                    else
-                        document.documentElement.classList.remove("reftest-wait");
+                    requestAnimationFrame(() => {
+                        if (window.internals)
+                            internals.signalTestIsDone("PASS");
+                        else
+                            document.documentElement.classList.remove("reftest-wait");
+                    });
                 });
             });
         });
-    });
+    }, { once: true });
 </script>
 </html>
