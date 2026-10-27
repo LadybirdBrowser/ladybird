@@ -192,6 +192,7 @@ private:
     virtual bool platform_scrolls_elastically() const override;
     virtual bool platform_scrollbar_track_press_jumps() const override;
     virtual Vector<String> platform_preferred_languages() const override;
+    virtual Optional<Gfx::GpuDeviceIdentity> platform_presentation_gpu_device() const override;
 
     virtual void update_tabs_display() const override;
 

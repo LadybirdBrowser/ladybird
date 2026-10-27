@@ -8,12 +8,19 @@
 #include <vulkan/vulkan.h>
 // clang-format on
 
+#include <AK/AnyOf.h>
 #include <AK/Math.h>
+#include <AK/NeverDestroyed.h>
 #include <AK/Optional.h>
+#include <AK/Vector.h>
 #include <AK/kmalloc.h>
 #include <LibGfx/SharedImageBuffer.h>
+#include <LibGfx/VulkanContext.h>
 #include <UI/Qt/NativeWindowContainer.h>
 #include <UI/Qt/WebContentView.h>
+#ifdef LADYBIRD_HAS_WAYLAND_GPU_QUERY
+#    include <UI/Qt/WaylandGpu.h>
+#endif
 
 #include <QByteArrayList>
 #include <QCursor>
@@ -27,6 +34,7 @@
 #include <fcntl.h>
 #include <libdrm/drm_fourcc.h>
 #include <sys/stat.h>
+#include <sys/sysmacros.h>
 #include <unistd.h>
 
 namespace Ladybird {
@@ -65,6 +73,76 @@ static QVulkanInstance* vulkan_instance()
         return instance;
     }();
     return instance;
+}
+
+struct PresentationGpu {
+    int physical_device_index { 0 };
+    Gfx::GpuDeviceIdentity identity;
+};
+
+#ifdef LADYBIRD_HAS_WAYLAND_GPU_QUERY
+static bool device_has_extension(VkPhysicalDevice physical_device, char const* extension_name)
+{
+    u32 extension_count = 0;
+    vkEnumerateDeviceExtensionProperties(physical_device, nullptr, &extension_count, nullptr);
+    Vector<VkExtensionProperties> extensions;
+    extensions.resize(extension_count);
+    vkEnumerateDeviceExtensionProperties(physical_device, nullptr, &extension_count, extensions.data());
+    return any_of(extensions, [&](auto const& extension) {
+        return strcmp(extension.extensionName, extension_name) == 0;
+    });
+}
+#endif
+
+// The GPU that the window system presents on. Painting there too spares each frame a copy from one GPU to another, and
+// a hybrid laptop its discrete GPU's power while that GPU has nothing else to do.
+static Optional<PresentationGpu> const& presentation_gpu()
+{
+    static NeverDestroyed<Optional<PresentationGpu>> presentation_gpu = []() -> Optional<PresentationGpu> {
+#ifdef LADYBIRD_HAS_WAYLAND_GPU_QUERY
+        auto main_device = wayland_compositor_main_device();
+        if (!main_device.has_value())
+            return {};
+
+        auto* instance = vulkan_instance();
+        if (!instance || instance->apiVersion() < QVersionNumber(1, 1))
+            return {};
+
+        u32 physical_device_count = 0;
+        vkEnumeratePhysicalDevices(instance->vkInstance(), &physical_device_count, nullptr);
+        Vector<VkPhysicalDevice> physical_devices;
+        physical_devices.resize(physical_device_count);
+        vkEnumeratePhysicalDevices(instance->vkInstance(), &physical_device_count, physical_devices.data());
+
+        for (size_t i = 0; i < physical_devices.size(); ++i) {
+            auto* physical_device = physical_devices[i];
+            if (!device_has_extension(physical_device, VK_EXT_PHYSICAL_DEVICE_DRM_EXTENSION_NAME))
+                continue;
+
+            VkPhysicalDeviceDrmPropertiesEXT drm_properties {};
+            drm_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRM_PROPERTIES_EXT;
+            VkPhysicalDeviceProperties2 properties {};
+            properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+            properties.pNext = &drm_properties;
+            vkGetPhysicalDeviceProperties2(physical_device, &properties);
+
+            // The compositor may name either of the device's nodes.
+            auto is_primary_node = drm_properties.hasPrimary && makedev(drm_properties.primaryMajor, drm_properties.primaryMinor) == *main_device;
+            auto is_render_node = drm_properties.hasRender && makedev(drm_properties.renderMajor, drm_properties.renderMinor) == *main_device;
+            if (is_primary_node || is_render_node)
+                return PresentationGpu { .physical_device_index = static_cast<int>(i), .identity = Gfx::gpu_device_identity_of(physical_device) };
+        }
+#endif
+        return {};
+    }();
+    return presentation_gpu.get();
+}
+
+Optional<Gfx::GpuDeviceIdentity> WebContentView::presentation_gpu_device()
+{
+    if (auto const& gpu = presentation_gpu(); gpu.has_value())
+        return gpu->identity;
+    return {};
 }
 
 #include <WebContentViewLinuxFragShader.h>
@@ -952,6 +1030,8 @@ void WebContentView::create_vulkan_window()
 
     m_vulkan_window = new VulkanWindow(*this);
     m_vulkan_window->setVulkanInstance(instance);
+    if (auto const& gpu = presentation_gpu(); gpu.has_value())
+        m_vulkan_window->setPhysicalDeviceIndex(gpu->physical_device_index);
     m_vulkan_window->setDeviceExtensions(vulkan_dmabuf_device_extensions());
 
     // Request an alpha channel so QVulkanWindow builds a blending swapchain (pre/post-multiplied composite alpha). This
