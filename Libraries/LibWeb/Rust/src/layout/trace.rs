@@ -196,7 +196,6 @@ impl LayoutTrace {
                 FormattingContextType::Math => "math",
                 FormattingContextType::ReplacedWithChildren => "replaced-with-children",
                 FormattingContextType::InternalReplaced => "internal-replaced",
-                FormattingContextType::InternalDummy => "internal-dummy",
             };
             format!("/{context} {}", action())
         })

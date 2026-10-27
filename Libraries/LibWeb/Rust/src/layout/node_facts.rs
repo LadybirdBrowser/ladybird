@@ -456,6 +456,7 @@ pub(crate) fn node_creates_block_formatting_context(
         if display.is_table_inside() || display.is_flex_inside() || display.is_grid_inside() {
             return false;
         }
+        let inside_is_laid_out_as_flow = display.is_flow_inside() || display.is_ruby_inside();
         if (style.is_floating() && !has_flag(data, NodeFlag::IsFlexItem))
             || style.own_style_establishes_block_formatting_context()
         {
@@ -465,7 +466,7 @@ pub(crate) fn node_creates_block_formatting_context(
         // If a box has a different 'writing-mode' value than its parent box (i.e. nearest ancestor without
         // 'display: contents'):
         // - If the box is a block container, then it establishes an independent block formatting context.
-        if display.is_flow_inside()
+        if inside_is_laid_out_as_flow
             && !display.is_inline_outside()
             && parent_writing_mode().is_some_and(|writing_mode| writing_mode != style.writing_mode())
         {
@@ -475,7 +476,7 @@ pub(crate) fn node_creates_block_formatting_context(
         // inline establishes an independent formatting context: the boxes inside it belong to a context it establishes
         // rather than to the one its line is part of.
         if display.is_inline_outside()
-            && display.is_flow_inside()
+            && inside_is_laid_out_as_flow
             && node_forms_containing_block_for_children(data, Some(style))
         {
             return true;
