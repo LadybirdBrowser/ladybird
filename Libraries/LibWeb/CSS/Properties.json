@@ -1841,7 +1841,10 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "none",
-    "requires-computation": "cascaded-value"
+    "requires-computation": "cascaded-value",
+    "valid-types": [
+      "length [0,∞]"
+    ]
   },
   "contain-intrinsic-inline-size": {
     "logical-alias-for": {
@@ -1865,7 +1868,10 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "none",
-    "requires-computation": "cascaded-value"
+    "requires-computation": "cascaded-value",
+    "valid-types": [
+      "length [0,∞]"
+    ]
   },
   "container": {
     "initial": "none",
