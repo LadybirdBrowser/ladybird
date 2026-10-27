@@ -314,6 +314,12 @@ static constexpr int icon_maximum_side = 128;
 // https://notifications.spec.whatwg.org/#notification-show-steps
 void Notification::show_steps()
 {
+    // The notification joins the page's list now, rather than once it's displayed: The list is what keeps it alive
+    // while its icon is on its way, and what lets the page withdraw it if the document goes away before then.
+    m_id = m_page->allocate_notification_id();
+    m_page->register_showing_notification(m_id, *this);
+    m_state = State::Pending;
+
     // 1. Run the fetch steps given notification and settings.
     // 2. Wait for any fetches to complete and notification's image resource, icon resource, and badge resource to
     //    be set (if any), as well as the icon resources for the notification's actions (if any).
@@ -403,7 +409,14 @@ void Notification::fetch_a_notification_resource(URL::URL const& url, GC::Ref<GC
 
         // 2. Attempt to decode bytes as an image.
         // 3. If the image format is supported, then run processResource given the decoded image.
-        auto on_decoded = [this, process_resource](Platform::DecodedImage& decoded_image) -> ErrorOr<void> {
+        // NB: The decoder answers from outside the heap's view, so the notification and the step it hands the
+        //     resource to are rooted for the wait: Nothing else holds the step once the fetch is over. An answer for a
+        //     notification that's gone in the meantime is dropped.
+        auto on_decoded = [self = GC::Root(*this), process_resource = GC::Root(*process_resource)](Platform::DecodedImage& decoded_image) -> ErrorOr<void> {
+            if (self->m_state != State::Pending)
+                return {};
+            auto* this_notification = self.ptr();
+            auto* m_page = this_notification->m_page.ptr();
             RefPtr<Gfx::Bitmap const> bitmap;
             if (!decoded_image.frames.is_empty() && decoded_image.frames[0].bitmap) {
                 bitmap = decoded_image.frames[0].bitmap;
@@ -424,7 +437,9 @@ void Notification::fetch_a_notification_resource(URL::URL const& url, GC::Ref<GC
             process_resource->function()(move(bitmap));
             return {};
         };
-        auto on_decode_failed = [process_resource](Error&) {
+        auto on_decode_failed = [self = GC::Root(*this), process_resource = GC::Root(*process_resource)](Error&) {
+            if (self->m_state != State::Pending)
+                return;
             process_resource->function()(nullptr);
         };
         (void)Platform::ImageCodecPlugin::the().decode_image(bytes.get<Core::ImmutableBytes>().bytes(), move(on_decoded), move(on_decode_failed));
@@ -436,6 +451,16 @@ void Notification::fetch_a_notification_resource(URL::URL const& url, GC::Ref<GC
 void Notification::display()
 {
     m_fetch_timeout = nullptr;
+    if (m_state != State::Pending)
+        return;
+
+    // A document that went away while the icon was on its way gets no notification: The page may show another site
+    // by now, and the notification would be attributed to that one.
+    auto const* document = this->document();
+    if (!document || !document->is_fully_active()) {
+        abandon();
+        return;
+    }
 
     // 3. Let shown be false.
     // 4. Let oldNotification be the notification in the list of notifications whose tag is not the empty string and is
@@ -454,8 +479,6 @@ void Notification::display()
     // NB: Steps 4, 5 and 7 are the UI process's: It sees every page's notifications, so it finds oldNotification
     //     across pages, replaces it on the platform, and reports its close back through notification_closed().
     //     Here, the notification joins this page's part of the list and is sent off for display.
-    m_id = m_page->allocate_notification_id();
-    m_page->register_showing_notification(m_id, *this);
     m_state = State::Showing;
     m_page->client().page_did_request_show_notification(m_id, data(), m_icon_resource);
 
@@ -474,6 +497,18 @@ DOM::Document const* Notification::document() const
 
 void Notification::abandon()
 {
+    // Still on its way to the platform: Nothing has been shown, so there's nothing to tell the UI process.
+    if (m_state == State::Pending) {
+        m_state = State::Closed;
+        if (m_fetch_timeout)
+            m_fetch_timeout->stop();
+        m_fetch_timeout = nullptr;
+        if (m_icon_fetch_controller)
+            m_icon_fetch_controller->stop_fetch();
+        m_icon_fetch_controller = nullptr;
+        m_page->unregister_notification(m_id);
+        return;
+    }
     if (m_state != State::Showing && m_state != State::Closing)
         return;
     m_state = State::Closed;

@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A notification nobody references any more still shows once its icon arrives: its page keeps it alive while it
+    // is on its way to the platform.
+    asyncTest(async done => {
+        await internals.setPermission("notifications", "granted");
+        (() => {
+            const notification = new Notification("Unreferenced", { icon: "resources/icon-16x16.png" });
+            notification.onshow = () => { println("show"); done(); };
+            notification.onerror = () => { println("error"); done(); };
+        })();
+        for (let i = 0; i < 5; ++i)
+            internals.gc();
+        setTimeout(() => internals.gc(), 0);
+        setTimeout(() => internals.gc(), 50);
+    });
+</script>
