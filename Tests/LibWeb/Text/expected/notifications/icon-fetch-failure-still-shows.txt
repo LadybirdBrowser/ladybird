@@ -1,0 +1,2 @@
+missing file: show, hasIcon: false
+not an image: show, hasIcon: false

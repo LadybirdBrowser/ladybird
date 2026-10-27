@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A large icon is scaled down so its longer side is 128 pixels, keeping its shape.
+    asyncTest(async done => {
+        await internals.setPermission("notifications", "granted");
+        const notification = new Notification("Big icon", { icon: "resources/icon-300x200.png" });
+        notification.onshow = () => {
+            const shown = JSON.parse(internals.notificationsStateForTesting()).shown[0];
+            println(`icon: ${shown.iconWidth}x${shown.iconHeight}`);
+            notification.close();
+            done();
+        };
+        notification.onerror = () => { println("error"); done(); };
+    });
+</script>

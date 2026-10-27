@@ -9,6 +9,7 @@
 #include <AK/Optional.h>
 #include <AK/Utf16String.h>
 #include <AK/Vector.h>
+#include <LibGfx/Bitmap.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibWeb/Bindings/Notification.h>
@@ -172,6 +173,9 @@ private:
 
     void run_steps_in_parallel_after_construction();
     void show_steps();
+    void run_the_fetch_steps(GC::Ref<GC::Function<void()>> on_done);
+    void fetch_a_notification_resource(URL::URL const&, GC::Ref<GC::Function<void(RefPtr<Gfx::Bitmap const>)>> process_resource);
+    void display();
     void close_steps();
     void queue_task_to_fire_event(Utf16FlyString const& event_name);
     NotificationData data() const;
@@ -192,6 +196,12 @@ private:
     };
     State m_state { State::Idle };
     u64 m_id { 0 };
+
+    // https://notifications.spec.whatwg.org/#icon-resource
+    RefPtr<Gfx::Bitmap const> m_icon_resource;
+    GC::Ptr<Fetch::Infrastructure::FetchController> m_icon_fetch_controller;
+    // Bounds the wait for the icon: Past it, the notification shows without one.
+    GC::Ptr<Platform::Timer> m_fetch_timeout;
 };
 
 }

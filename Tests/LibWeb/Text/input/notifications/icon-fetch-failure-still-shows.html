@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // An icon that can't be fetched or decoded doesn't hold the notification back: it shows without one.
+    asyncTest(async done => {
+        await internals.setPermission("notifications", "granted");
+        const outcome = icon => new Promise(resolve => {
+            const notification = new Notification("Icon trouble", { icon });
+            notification.onshow = () => {
+                const shown = JSON.parse(internals.notificationsStateForTesting()).shown;
+                resolve(`show, hasIcon: ${shown[shown.length - 1].hasIcon}`);
+                notification.close();
+            };
+            notification.onerror = () => resolve("error");
+        });
+        println(`missing file: ${await outcome("resources/does-not-exist.png")}`);
+        println(`not an image: ${await outcome("../include.js")}`);
+        done();
+    });
+</script>

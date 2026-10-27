@@ -1,0 +1,1 @@
+hasIcon: true, 16x16
