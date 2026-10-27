@@ -6,22 +6,22 @@
 
 #pragma once
 
-#include <LibWeb/CSS/Flex.h>
 #include <LibWeb/CSS/StyleValues/DimensionStyleValue.h>
+#include <LibWeb/CSS/Units.h>
 
 namespace Web::CSS {
 
 class FlexStyleValue final : public DimensionStyleValue {
 public:
-    static ValueComparingNonnullRefPtr<FlexStyleValue const> create(Flex flex)
+    static ValueComparingNonnullRefPtr<FlexStyleValue const> create(double value, FlexUnit unit)
     {
-        return adopt_ref(*new (nothrow) FlexStyleValue(move(flex)));
+        return adopt_ref(*new (nothrow) FlexStyleValue(value, unit));
     }
     virtual ~FlexStyleValue() override = default;
 
-    Flex flex() const { return Flex(m_value->flex.value, static_cast<FlexUnit>(m_value->flex.unit)); }
+    FlexUnit unit() const { return static_cast<FlexUnit>(m_value->flex.unit); }
     virtual double raw_value() const override { return m_value->flex.value; }
-    virtual Utf16FlyString unit_name() const override { return flex().unit_name(); }
+    virtual Utf16FlyString unit_name() const override { return CSS::to_string(unit()); }
 
 private:
     friend class StyleValue;
@@ -31,8 +31,8 @@ private:
     {
     }
 
-    FlexStyleValue(Flex&& flex)
-        : DimensionStyleValue(Type::Flex, StyleValueFFI::rust_style_value_create_flex(flex.raw_value(), to_underlying(flex.unit())))
+    FlexStyleValue(double value, FlexUnit unit)
+        : DimensionStyleValue(Type::Flex, StyleValueFFI::rust_style_value_create_flex(value, to_underlying(unit)))
     {
     }
 };

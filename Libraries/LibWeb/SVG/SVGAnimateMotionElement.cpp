@@ -140,7 +140,7 @@ public:
             degrees -= 360 * AK::round((degrees - *m_previous_degrees) / 360);
         m_previous_degrees = degrees;
         return CSS::TransformationStyleValue::create(CSS::PropertyID::Rotate, CSS::TransformFunction::Rotate,
-            { CSS::AngleStyleValue::create(CSS::Angle::make_degrees(degrees)) });
+            { CSS::AngleStyleValue::create(degrees, CSS::AngleUnit::Deg) });
     }
 
 private:

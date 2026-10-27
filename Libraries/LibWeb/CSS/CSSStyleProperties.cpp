@@ -1557,7 +1557,7 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
 
             for (auto const& duration : animation_duration_computed_value->as_value_list().values()) {
                 if (duration->to_keyword() == Keyword::Auto) {
-                    resolved_durations.append(TimeStyleValue::create(Time::make_seconds(0)));
+                    resolved_durations.append(TimeStyleValue::create(0, TimeUnit::S));
                 } else {
                     resolved_durations.append(duration);
                 }

@@ -9,22 +9,22 @@
 
 #pragma once
 
-#include <LibWeb/CSS/Angle.h>
 #include <LibWeb/CSS/StyleValues/DimensionStyleValue.h>
+#include <LibWeb/CSS/Units.h>
 
 namespace Web::CSS {
 
 class AngleStyleValue : public DimensionStyleValue {
 public:
-    static ValueComparingNonnullRefPtr<AngleStyleValue const> create(Angle angle)
+    static ValueComparingNonnullRefPtr<AngleStyleValue const> create(double value, AngleUnit unit)
     {
-        return adopt_ref(*new (nothrow) AngleStyleValue(move(angle)));
+        return adopt_ref(*new (nothrow) AngleStyleValue(value, unit));
     }
     virtual ~AngleStyleValue() override;
 
-    Angle angle() const { return Angle(m_value->angle.value, static_cast<AngleUnit>(m_value->angle.unit)); }
+    AngleUnit unit() const { return static_cast<AngleUnit>(m_value->angle.unit); }
     virtual double raw_value() const override { return m_value->angle.value; }
-    virtual Utf16FlyString unit_name() const override { return angle().unit_name(); }
+    virtual Utf16FlyString unit_name() const override { return CSS::to_string(unit()); }
 
 private:
     friend class StyleValue;
@@ -34,7 +34,7 @@ private:
     {
     }
 
-    explicit AngleStyleValue(Angle angle);
+    AngleStyleValue(double value, AngleUnit unit);
 };
 
 }

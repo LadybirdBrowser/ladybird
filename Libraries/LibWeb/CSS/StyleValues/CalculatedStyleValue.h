@@ -9,16 +9,11 @@
 
 #pragma once
 
-#include <LibWeb/CSS/Angle.h>
-#include <LibWeb/CSS/Flex.h>
-#include <LibWeb/CSS/Frequency.h>
 #include <LibWeb/CSS/Number.h>
 #include <LibWeb/CSS/NumericRange.h>
 #include <LibWeb/CSS/NumericType.h>
 #include <LibWeb/CSS/Percentage.h>
-#include <LibWeb/CSS/Resolution.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
-#include <LibWeb/CSS/Time.h>
 
 namespace Web::CSS {
 

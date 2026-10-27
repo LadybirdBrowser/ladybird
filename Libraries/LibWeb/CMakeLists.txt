@@ -66,7 +66,6 @@ set(SOURCES
     Crypto/CryptoBindings.cpp
     Crypto/CryptoKey.cpp
     Crypto/SubtleCrypto.cpp
-    CSS/Angle.cpp
     CSS/AnimationEvent.cpp
     CSS/ComputedStyleWorkingSet.cpp
     CSS/ComputedValues.cpp
@@ -145,14 +144,12 @@ set(SOURCES
     CSS/Display.cpp
     CSS/EasingFunction.cpp
     CSS/Fetch.cpp
-    CSS/Flex.cpp
     CSS/FontComputer.cpp
     CSS/FontFace.cpp
     CSS/FontLoading.cpp
     CSS/FontResolution.cpp
     CSS/FontFaceSet.cpp
     CSS/FontFaceSetLoadEvent.cpp
-    CSS/Frequency.cpp
     CSS/Highlight.cpp
     CSS/HighlightRegistry.cpp
     CSS/HypotheticalElement.cpp
@@ -182,7 +179,6 @@ set(SOURCES
     CSS/Parser/RuleContext.cpp
     CSS/Parser/SelectorParsing.cpp
     CSS/Percentage.cpp
-    CSS/Resolution.cpp
     CSS/ResolvedTransform.cpp
     CSS/Screen.cpp
     CSS/ScreenOrientation.cpp
@@ -235,7 +231,6 @@ set(SOURCES
     CSS/StyleValues/UnresolvedStyleValue.cpp
     CSS/Supports.cpp
     CSS/SyntaxHighlighter/SyntaxHighlighter.cpp
-    CSS/Time.cpp
     CSS/TransitionEvent.cpp
     CSS/URL.cpp
     CSS/UpdateStyle.cpp

@@ -9,6 +9,7 @@
 #include <LibWeb/CSS/CSSUnitValue.h>
 #include <LibWeb/CSS/CalculationResolutionContext.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
+#include <LibWeb/CSS/Units.h>
 
 namespace Web::Animations {
 
@@ -48,7 +49,7 @@ TimeValue TimeValue::from_css_numberish(CSS::CSSNumberish const& time, CSS::Comp
         return { Type::Milliseconds, CSS::resolve_numeric_style_value(*style_value, CanonicalNumericType::Number, calculation_resolution_context).value() };
 
     if (CSS::calculation_resolves_to(*style_value, CanonicalNumericType::Time))
-        return { Type::Milliseconds, CSS::Time::make_seconds(CSS::resolve_numeric_style_value(*style_value, CanonicalNumericType::Time, calculation_resolution_context).value()).to_milliseconds() };
+        return { Type::Milliseconds, CSS::ratio_between_units(CSS::TimeUnit::S, CSS::TimeUnit::Ms) * CSS::resolve_numeric_style_value(*style_value, CanonicalNumericType::Time, calculation_resolution_context).value() };
 
     if (CSS::calculation_resolves_to(*style_value, CanonicalNumericType::Percentage))
         return { Type::Percentage, CSS::resolve_numeric_style_value(*style_value, CanonicalNumericType::Percentage, calculation_resolution_context).value() };

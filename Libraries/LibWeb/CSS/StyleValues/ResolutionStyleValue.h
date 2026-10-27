@@ -6,22 +6,22 @@
 
 #pragma once
 
-#include <LibWeb/CSS/Resolution.h>
 #include <LibWeb/CSS/StyleValues/DimensionStyleValue.h>
+#include <LibWeb/CSS/Units.h>
 
 namespace Web::CSS {
 
 class ResolutionStyleValue : public DimensionStyleValue {
 public:
-    static ValueComparingNonnullRefPtr<ResolutionStyleValue const> create(Resolution resolution)
+    static ValueComparingNonnullRefPtr<ResolutionStyleValue const> create(double value, ResolutionUnit unit)
     {
-        return adopt_ref(*new (nothrow) ResolutionStyleValue(move(resolution)));
+        return adopt_ref(*new (nothrow) ResolutionStyleValue(value, unit));
     }
     virtual ~ResolutionStyleValue() override = default;
 
-    Resolution resolution() const { return Resolution(m_value->resolution.value, static_cast<ResolutionUnit>(m_value->resolution.unit)); }
+    ResolutionUnit unit() const { return static_cast<ResolutionUnit>(m_value->resolution.unit); }
     virtual double raw_value() const override { return m_value->resolution.value; }
-    virtual Utf16FlyString unit_name() const override { return resolution().unit_name(); }
+    virtual Utf16FlyString unit_name() const override { return CSS::to_string(unit()); }
 
 private:
     friend class StyleValue;
@@ -31,8 +31,8 @@ private:
     {
     }
 
-    explicit ResolutionStyleValue(Resolution resolution)
-        : DimensionStyleValue(Type::Resolution, StyleValueFFI::rust_style_value_create_resolution(resolution.raw_value(), to_underlying(resolution.unit())))
+    ResolutionStyleValue(double value, ResolutionUnit unit)
+        : DimensionStyleValue(Type::Resolution, StyleValueFFI::rust_style_value_create_resolution(value, to_underlying(unit)))
     {
     }
 };

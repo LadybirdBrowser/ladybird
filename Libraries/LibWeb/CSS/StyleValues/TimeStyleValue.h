@@ -10,21 +10,21 @@
 #pragma once
 
 #include <LibWeb/CSS/StyleValues/DimensionStyleValue.h>
-#include <LibWeb/CSS/Time.h>
+#include <LibWeb/CSS/Units.h>
 
 namespace Web::CSS {
 
 class TimeStyleValue : public DimensionStyleValue {
 public:
-    static ValueComparingNonnullRefPtr<TimeStyleValue const> create(Time time)
+    static ValueComparingNonnullRefPtr<TimeStyleValue const> create(double value, TimeUnit unit)
     {
-        return adopt_ref(*new (nothrow) TimeStyleValue(move(time)));
+        return adopt_ref(*new (nothrow) TimeStyleValue(value, unit));
     }
     virtual ~TimeStyleValue() override = default;
 
-    Time time() const { return Time(m_value->time.value, static_cast<TimeUnit>(m_value->time.unit)); }
+    TimeUnit unit() const { return static_cast<TimeUnit>(m_value->time.unit); }
     virtual double raw_value() const override { return m_value->time.value; }
-    virtual Utf16FlyString unit_name() const override { return time().unit_name(); }
+    virtual Utf16FlyString unit_name() const override { return CSS::to_string(unit()); }
 
 private:
     friend class StyleValue;
@@ -34,8 +34,8 @@ private:
     {
     }
 
-    explicit TimeStyleValue(Time time)
-        : DimensionStyleValue(Type::Time, StyleValueFFI::rust_style_value_create_time(time.raw_value(), to_underlying(time.unit())))
+    TimeStyleValue(double value, TimeUnit unit)
+        : DimensionStyleValue(Type::Time, StyleValueFFI::rust_style_value_create_time(value, to_underlying(unit)))
     {
     }
 };

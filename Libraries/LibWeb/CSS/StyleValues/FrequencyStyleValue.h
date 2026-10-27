@@ -9,22 +9,22 @@
 
 #pragma once
 
-#include <LibWeb/CSS/Frequency.h>
 #include <LibWeb/CSS/StyleValues/DimensionStyleValue.h>
+#include <LibWeb/CSS/Units.h>
 
 namespace Web::CSS {
 
 class FrequencyStyleValue final : public DimensionStyleValue {
 public:
-    static ValueComparingNonnullRefPtr<FrequencyStyleValue const> create(Frequency frequency)
+    static ValueComparingNonnullRefPtr<FrequencyStyleValue const> create(double value, FrequencyUnit unit)
     {
-        return adopt_ref(*new (nothrow) FrequencyStyleValue(move(frequency)));
+        return adopt_ref(*new (nothrow) FrequencyStyleValue(value, unit));
     }
     virtual ~FrequencyStyleValue() override = default;
 
-    Frequency frequency() const { return Frequency(m_value->frequency.value, static_cast<FrequencyUnit>(m_value->frequency.unit)); }
+    FrequencyUnit unit() const { return static_cast<FrequencyUnit>(m_value->frequency.unit); }
     virtual double raw_value() const override { return m_value->frequency.value; }
-    virtual Utf16FlyString unit_name() const override { return frequency().unit_name(); }
+    virtual Utf16FlyString unit_name() const override { return CSS::to_string(unit()); }
 
 private:
     friend class StyleValue;
@@ -34,8 +34,8 @@ private:
     {
     }
 
-    explicit FrequencyStyleValue(Frequency frequency)
-        : DimensionStyleValue(Type::Frequency, StyleValueFFI::rust_style_value_create_frequency(frequency.raw_value(), to_underlying(frequency.unit())))
+    FrequencyStyleValue(double value, FrequencyUnit unit)
+        : DimensionStyleValue(Type::Frequency, StyleValueFFI::rust_style_value_create_frequency(value, to_underlying(unit)))
     {
     }
 };
