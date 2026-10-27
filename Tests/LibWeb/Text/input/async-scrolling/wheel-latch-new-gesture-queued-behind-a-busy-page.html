@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+    .scroller {
+        width: 100px;
+        height: 100px;
+        overflow: scroll;
+    }
+    .scroller > div {
+        height: 1000px;
+    }
+    #second {
+        margin-top: 100px;
+    }
+</style>
+<div id="first" class="scroller"><div></div></div>
+<div id="second" class="scroller"><div></div></div>
+<script>
+    promiseTest(async () => {
+        // A listener that may cancel the wheel leaves the scrolling to the main thread, which follows its latch.
+        window.addEventListener("wheel", () => {}, { passive: false });
+        await animationFrame();
+        await animationFrame();
+
+        await internals.wheelThroughUIProcess(50, 50, 0, 30, true);
+
+        // The first two ticks of a gesture over the other scroller arrive together while the page is busy, and must
+        // not be taken for ticks of the gesture before them.
+        const ticks = Promise.all([
+            internals.wheelThroughUIProcess(50, 250, 0, 30, true),
+            internals.wheelThroughUIProcess(50, 250, 0, 30, true),
+        ]);
+        const busyUntil = performance.now() + 100;
+        while (performance.now() < busyUntil) { }
+        await ticks;
+        await animationFrame();
+        await animationFrame();
+
+        println(`first.scrollTop: ${first.scrollTop}`);
+        println(`second.scrollTop: ${second.scrollTop}`);
+    });
+</script>

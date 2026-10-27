@@ -945,7 +945,7 @@ void EventHandler::record_input_routing(InputRoutingDecision decision, Optional<
     });
 }
 
-EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers, double wheel_delta_x, double wheel_delta_y, double wheel_tick_120ths_x, double wheel_tick_120ths_y, Web::WheelDeltaPrecision wheel_delta_precision, Web::ScrollGesturePhase scroll_gesture_phase, bool async_scroll_performed_default_action, Optional<AsyncScrollOperation>* async_scroll_operation, Optional<RemoteInputEventTarget>* remote_target)
+EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers, double wheel_delta_x, double wheel_delta_y, double wheel_tick_120ths_x, double wheel_tick_120ths_y, Web::WheelDeltaPrecision wheel_delta_precision, Web::ScrollGesturePhase scroll_gesture_phase, bool async_scroll_performed_default_action, Optional<AsyncScrollOperation>* async_scroll_operation, Optional<RemoteInputEventTarget>* remote_target, Optional<Web::WheelGestureMark> wheel_gesture_mark)
 {
     record_last_known_mouse_position(visual_viewport_position, screen_position, buttons, modifiers);
 
@@ -961,8 +961,15 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
     auto now = MonotonicTime::now();
     auto gesture_position = visual_viewport_position.to_type<float>();
     bool wheel_event_has_delta = wheel_delta_x != 0 || wheel_delta_y != 0;
-    bool continues_latched_gesture = m_wheel_scroll_latch.has_value()
-        && m_wheel_scroll_latch->gesture.is_continued_by(gesture_position, scroll_gesture_phase, modifiers, now, Compositing::wheel_gesture_position_slop_in_css_pixels);
+    // The compositor tells which gesture an event it passed on belongs to, which this navigable follows so that the two
+    // route the event alike.
+    bool continues_latched_gesture = false;
+    if (m_wheel_scroll_latch.has_value()) {
+        if (wheel_gesture_mark.has_value())
+            continues_latched_gesture = wheel_gesture_mark->continues_gesture;
+        else
+            continues_latched_gesture = m_wheel_scroll_latch->gesture.is_continued_by(gesture_position, scroll_gesture_phase, modifiers, now, Compositing::wheel_gesture_position_slop_in_css_pixels);
+    }
     if (continues_latched_gesture)
         m_wheel_scroll_latch->gesture.advance_to(scroll_gesture_phase, now);
     else
@@ -1250,8 +1257,8 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
         // A gesture this navigable latched to a scrolling box of its own is not offered to a nested navigable again.
         bool offer_to_nested_navigable = !continues_latched_gesture || m_wheel_scroll_latch->gesture_handed_to_nested_navigable;
         if (offer_to_nested_navigable) {
-            if (auto result = dispatch_event_to_nested_navigable(*this, *wheel_event_target_layout_node, wheel_event_target_node, visual_viewport_position, remote_target, [screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y, wheel_tick_120ths_x, wheel_tick_120ths_y, wheel_delta_precision, scroll_gesture_phase, async_scroll_performed_default_action, async_scroll_operation, remote_target](EventHandler& event_handler, CSSPixelPoint position) -> EventResult {
-                    return event_handler.handle_mousewheel(position, screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y, wheel_tick_120ths_x, wheel_tick_120ths_y, wheel_delta_precision, scroll_gesture_phase, async_scroll_performed_default_action, async_scroll_operation, remote_target);
+            if (auto result = dispatch_event_to_nested_navigable(*this, *wheel_event_target_layout_node, wheel_event_target_node, visual_viewport_position, remote_target, [screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y, wheel_tick_120ths_x, wheel_tick_120ths_y, wheel_delta_precision, scroll_gesture_phase, async_scroll_performed_default_action, async_scroll_operation, remote_target, wheel_gesture_mark](EventHandler& event_handler, CSSPixelPoint position) -> EventResult {
+                    return event_handler.handle_mousewheel(position, screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y, wheel_tick_120ths_x, wheel_tick_120ths_y, wheel_delta_precision, scroll_gesture_phase, async_scroll_performed_default_action, async_scroll_operation, remote_target, wheel_gesture_mark);
                 });
                 result.has_value()) {
                 record_input_routing(InputRoutingDecision::HandedToNestedNavigable, {}, wheel_event_target_node);

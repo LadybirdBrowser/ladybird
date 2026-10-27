@@ -643,7 +643,7 @@ void CompositorState::handle_and_dispatch_mouse_event(Web::CompositorContextId c
             presentation->did_consume_input_event(context_id, event.id);
             return;
         }
-        context->note_wheel_event_from_ui(event);
+        event.wheel_gesture_mark = context->note_wheel_event_from_ui(event);
 
         // The UI can send the end of a gesture more than once. An end that arrives during a fling belongs to the
         // flicked gesture, so it does not stop the fling.
@@ -787,7 +787,7 @@ CompositorState::WheelStepHandedToNestedContext CompositorState::hand_wheel_step
         step.position = taking_context->position;
         auto nested_result = taking_context->context->take_first_wheel_step_from_containing_context(taking_context->route, step, now);
         handed_step = apply_result_of_nested_context(taking_context->context_id, *taking_context->context, nested_result);
-        context.latch_wheel_gesture_to_nested_context(taking_context->context_id, handed_step.result.routed_scroller, event, now);
+        context.latch_wheel_gesture_to_nested_context(taking_context->context_id, handed_step.result.routed_scroller, event);
     } else {
         handed_step.result = ContextState::ContextUpdateResult::declined(taking_context->route.decision);
     }
@@ -852,6 +852,8 @@ void CompositorState::dispatch_scroll_fling_step(Web::CompositorContextId contex
         context.input_trace().record({ .input_event_id = event->id, .stage = Web::InputTraceStage::Compositor, .decision = *result.routing_decision, .scroller = result.routed_scroller });
     event->async_scroll_performed_default_action = apply_context_update_result(context_id, context, result);
     schedule_animation_frames_if_needed(context);
+    // The steps this context makes itself carry on the gesture of the wheel events before them.
+    event->wheel_gesture_mark = Web::WheelGestureMark { .continues_gesture = true };
     context.dispatch_mouse_event_to_web_content(*event);
 }
 

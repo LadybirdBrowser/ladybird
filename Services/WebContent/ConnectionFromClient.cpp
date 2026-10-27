@@ -909,7 +909,8 @@ void ConnectionFromClient::enqueue_mouse_event(Web::PageId page_id, Optional<Web
             if (event.type == Web::MouseEvent::Type::MouseWheel
                 && (mouse_event->async_scroll_performed_default_action != event.async_scroll_performed_default_action
                     || mouse_event->wheel_delta_precision != event.wheel_delta_precision
-                    || mouse_event->scroll_gesture_phase != event.scroll_gesture_phase))
+                    || mouse_event->scroll_gesture_phase != event.scroll_gesture_phase
+                    || mouse_event->wheel_gesture_mark != event.wheel_gesture_mark))
                 return nullptr;
             return mouse_event;
         }
