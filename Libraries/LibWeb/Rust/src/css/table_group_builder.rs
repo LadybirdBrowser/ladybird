@@ -673,6 +673,7 @@ fn build_grid_group(values: &EffectiveValues, parent: Option<GroupPayloadRef<'_>
         grid_column_end_style_value: retained_slot(property_id::GRID_COLUMN_END),
         grid_row_start_style_value: retained_slot(property_id::GRID_ROW_START),
         grid_row_end_style_value: retained_slot(property_id::GRID_ROW_END),
+        fit_tolerance_style_value: retained_slot(property_id::FIT_TOLERANCE),
     };
     rust_build_grid_group(group_index::GRID, built, parent)
 }
