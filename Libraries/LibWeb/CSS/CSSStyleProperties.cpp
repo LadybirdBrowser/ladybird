@@ -467,14 +467,9 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_property_style_value(PropertyN
     }
 
     if (property.is_custom_property()) {
-        if (auto existing_property = custom_property(property.name()); existing_property.has_value()
-            && existing_property->important == Important::No
-            && *existing_property->value == *style_value) {
-            return {};
-        }
-
         prepare_to_update_style_attribute();
 
+        m_declarations.remove_custom(property.name());
         m_declarations.set_custom(property.name(),
             StyleProperty {
                 Important::No,

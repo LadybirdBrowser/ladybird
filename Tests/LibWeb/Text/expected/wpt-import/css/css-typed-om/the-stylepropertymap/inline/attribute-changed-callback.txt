@@ -2,10 +2,10 @@ Harness status: OK
 
 Found 11 tests
 
-8 Pass
-3 Fail
+10 Pass
+1 Fail
 Pass	attributeStyleMap.set() triggers attributeChangedCallback
-Fail	attributeStyleMap.set() triggers attributeChangedCallback with correct old/new values
+Pass	attributeStyleMap.set() triggers attributeChangedCallback with correct old/new values
 Pass	attributeStyleMap.delete() triggers attributeChangedCallback
 Pass	attributeStyleMap.clear() triggers attributeChangedCallback
 Pass	attributeStyleMap.append() triggers attributeChangedCallback
@@ -13,5 +13,5 @@ Fail	attributeStyleMap.append() with no values does not trigger attributeChanged
 Pass	attributeStyleMap.set() with custom property triggers attributeChangedCallback
 Pass	attributeStyleMap.delete() with custom property triggers attributeChangedCallback
 Pass	attributeStyleMap.set() with shorthand property triggers attributeChangedCallback
-Fail	attributeStyleMap and style interleave correctly with attributeChangedCallback
+Pass	attributeStyleMap and style interleave correctly with attributeChangedCallback
 Pass	attributeStyleMap.set() triggers MutationObserver without duplicates
