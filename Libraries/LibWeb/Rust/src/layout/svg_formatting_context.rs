@@ -1873,6 +1873,19 @@ impl<'pass> SvgFormattingContext<'pass> {
         formatting_context::place_child(&self.run, node, FfiCssPixelPoint { x, y }, None);
     }
 
+    /// Gives `node` a content size that is definite in both axes.
+    fn set_definite_content_size(&self, node: Node, width: CssPixels, height: CssPixels) {
+        let used = self.used_values(node);
+        used.set_content_inline_size(width);
+        used.set_content_block_size(height);
+        used.has_definite_block_size.set(true);
+    }
+
+    fn set_content_rect(&self, node: Node, rect: SvgCssPixelRect) {
+        self.set_definite_content_size(node, rect.width, rect.height);
+        self.place_child(node, rect.x, rect.y);
+    }
+
     fn first_child_of_kind(&self, node: Node, kind: NodeKind) -> Option<Node> {
         self.run
             .callbacks
@@ -2046,7 +2059,7 @@ impl<'pass> SvgFormattingContext<'pass> {
     fn layout_nested_viewport(&mut self, run: &FormattingContextRun<'pass>, viewport: Node) {
         // Layout for a nested SVG viewport.
         // https://svgwg.org/svg2-draft/coords.html#EstablishingANewSVGViewport.
-        let used_pointer = self.create_used_values(viewport);
+        self.create_used_values(viewport);
         let style = self.style(viewport);
         let nested_viewport_x = style.x().to_px(self.viewport_width);
         let nested_viewport_y = style.y().to_px(self.viewport_height);
@@ -2063,11 +2076,7 @@ impl<'pass> SvgFormattingContext<'pass> {
             style.height().to_px(self.viewport_height)
         };
 
-        let used = &used_pointer;
-        used.set_content_inline_size(nested_viewport_width);
-        used.set_content_block_size(nested_viewport_height);
-        used.has_definite_inline_size.set(true);
-        used.has_definite_block_size.set(true);
+        self.set_definite_content_size(viewport, nested_viewport_width, nested_viewport_height);
 
         let mut nested_context = Self::new_nested(run, viewport);
         nested_context.run(run, self.nested_layout_input());
@@ -2173,7 +2182,6 @@ impl<'pass> SvgFormattingContext<'pass> {
         }
         let used = self.used_values(shape);
         used.set_box_metrics_from_fragment(&fragment);
-        used.has_definite_inline_size.set(true);
         used.has_definite_block_size.set(true);
         fragments.hold_committed_fragment_of_empty_box(used, fragment);
         self.place_child(shape, committed_offset.x, committed_offset.y);
@@ -2238,18 +2246,12 @@ impl<'pass> SvgFormattingContext<'pass> {
             }
         }
 
-        let used_pointer = self.used_values(graphics_box);
-        let used = &used_pointer;
-        used.set_content_inline_size(bounding_box.width);
-        used.set_content_block_size(bounding_box.height);
         {
-            let mut rare_data = used.rare_data_mut();
+            let mut rare_data = self.used_values(graphics_box).rare_data_mut();
             rare_data.computed_svg_path = Some(std::sync::Arc::new(path));
             rare_data.svg_text_character_cells = character_cells.map(std::sync::Arc::new);
         }
-        self.place_child(graphics_box, bounding_box.x, bounding_box.y);
-        used.has_definite_inline_size.set(true);
-        used.has_definite_block_size.set(true);
+        self.set_content_rect(graphics_box, bounding_box);
     }
 
     // https://w3c.github.io/svgwg/svg2-draft/embedded.html#Placement
@@ -2299,14 +2301,7 @@ impl<'pass> SvgFormattingContext<'pass> {
     }
 
     fn layout_image_element(&self, image_box: Node) {
-        let bounding_box = self.svg_image_bounding_box(image_box);
-        let used_pointer = self.used_values(image_box);
-        let used = &used_pointer;
-        used.set_content_inline_size(bounding_box.width);
-        used.set_content_block_size(bounding_box.height);
-        self.place_child(image_box, bounding_box.x, bounding_box.y);
-        used.has_definite_inline_size.set(true);
-        used.has_definite_block_size.set(true);
+        self.set_content_rect(image_box, self.svg_image_bounding_box(image_box));
     }
 
     fn layout_mask_or_clip(&mut self, run: &FormattingContextRun<'pass>, resource: Node) {
@@ -2315,54 +2310,48 @@ impl<'pass> SvgFormattingContext<'pass> {
         let attributes = self.svg_attributes(resource);
         assert!(node_facts::kind_is_svg_resource_box(kind));
         // FIXME: Somehow limit <clipPath> contents to: shape elements, <text>, and <use>.
-        let used_pointer = self.create_used_values(resource);
+        self.create_used_values(resource);
         self.commit_svg_element_facts(resource, facts, attributes);
 
-        if kind == NodeKind::SVGPatternBox && attributes.has_active_view_box {
+        let (width, height) = if kind == NodeKind::SVGPatternBox && attributes.has_active_view_box {
             if attributes.pattern_units == SVG_UNITS_USER_SPACE_ON_USE {
-                let width = if attributes.pattern_width.is_percentage {
-                    attributes.pattern_width.value * (self.viewport_width.raw_value() as f32 / 64.0)
-                } else {
-                    attributes.pattern_width.value
-                };
-                let height = if attributes.pattern_height.is_percentage {
-                    attributes.pattern_height.value * (self.viewport_height.raw_value() as f32 / 64.0)
-                } else {
-                    attributes.pattern_height.value
-                };
-                let used = &used_pointer;
-                used.set_content_inline_size(CssPixels::nearest_value_for_f32(width));
-                used.set_content_block_size(CssPixels::nearest_value_for_f32(height));
+                (
+                    CssPixels::nearest_value_for_f32(
+                        attributes
+                            .pattern_width
+                            .resolve_relative_to(self.viewport_width.to_float()),
+                    ),
+                    CssPixels::nearest_value_for_f32(
+                        attributes
+                            .pattern_height
+                            .resolve_relative_to(self.viewport_height.to_float()),
+                    ),
+                )
             } else {
                 let parent = self.parent(resource);
                 assert!(!parent.is_invalid());
-                let parent_used_pointer = self.used_values(parent);
-                let parent_used = parent_used_pointer;
-                let used = &used_pointer;
-                used.set_content_inline_size(CssPixels::nearest_value_for(
-                    attributes.pattern_width.value as f64 * parent_used.content_inline_size.get().to_double(),
-                ));
-                used.set_content_block_size(CssPixels::nearest_value_for(
-                    attributes.pattern_height.value as f64 * parent_used.content_block_size.get().to_double(),
-                ));
+                let parent_used = self.used_values(parent);
+                (
+                    CssPixels::nearest_value_for(
+                        attributes.pattern_width.value as f64 * parent_used.content_inline_size.get().to_double(),
+                    ),
+                    CssPixels::nearest_value_for(
+                        attributes.pattern_height.value as f64 * parent_used.content_block_size.get().to_double(),
+                    ),
+                )
             }
         } else if attributes.content_units == SVG_UNITS_OBJECT_BOUNDING_BOX {
             let parent = self.parent(resource);
             assert!(!parent.is_invalid());
-            let parent_used_pointer = self.used_values(parent);
-            let parent_used = parent_used_pointer;
-            let used = &used_pointer;
-            used.set_content_inline_size(parent_used.content_inline_size.get());
-            used.set_content_block_size(parent_used.content_block_size.get());
+            let parent_used = self.used_values(parent);
+            (
+                parent_used.content_inline_size.get(),
+                parent_used.content_block_size.get(),
+            )
         } else {
-            let used = &used_pointer;
-            used.set_content_inline_size(self.viewport_width);
-            used.set_content_block_size(self.viewport_height);
-        }
-
-        let used = &used_pointer;
-        used.has_definite_inline_size.set(true);
-        used.has_definite_block_size.set(true);
+            (self.viewport_width, self.viewport_height)
+        };
+        self.set_definite_content_size(resource, width, height);
         // Resource content lays out in its own user space; objectBoundingBox content scaling is a
         // paint-time transform in the resource's nested visual context tree.
         let mut nested_context = Self::new_nested(run, resource);
@@ -2411,13 +2400,15 @@ impl<'pass> SvgFormattingContext<'pass> {
             }
         }
 
-        let used_pointer = self.used_values(container);
-        let used = &used_pointer;
-        used.set_content_inline_size(max_x - min_x);
-        used.set_content_block_size(max_y - min_y);
-        self.place_child(container, min_x, min_y);
-        used.has_definite_inline_size.set(true);
-        used.has_definite_block_size.set(true);
+        self.set_content_rect(
+            container,
+            SvgCssPixelRect {
+                x: min_x,
+                y: min_y,
+                width: max_x - min_x,
+                height: max_y - min_y,
+            },
+        );
     }
 }
 
