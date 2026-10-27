@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title> apply interpolated transform on multiple keyframes</title>
+<link rel="help" href="https://drafts.csswg.org/web-animations/#keyframes-section">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../testcommon.js"></script>
+<body>
+<div id="log"></div>
+<div id="target"></div>
+<script>
+'use strict';
+// This test tests the correctness if animation behavior under
+// box-size-denpendent and non-box-size-dependent transformation.
+test(t => {
+  var div_1 = createDiv(t);
+  div_1.style.width = "100px";
+  // Non-pairwise compatible transforms that are effectively no-ops with a
+  // matrix fallback. Both rotate(360deg) and scale(1) are identity matrix,
+  // making it easy to compute.
+  const keyframe1 = [
+      {"transform":"translateX( 200px ) rotate( 360deg )"},
+      {"transform":"translateX( 100% ) scale( 1 )"},
+    ];
+  const keyframe2 = [
+      {"transform":"translateX( 200px ) rotate( 360deg )"},
+      {"transform":"translateX( 100% ) scale( 1 )"},
+      {"transform":"none"},
+      {}
+    ];
+
+  const animation1 = div_1.animate(keyframe1, {
+                            "duration":3000,
+                            "easing":"linear",
+    });
+  const animation2 = div_1.animate(keyframe2, {
+                            "duration":3000,
+                            "easing":"linear",
+    });
+ // new animation on the second div, using px value instead of % as a reference
+
+  var div_2 = createDiv(t);
+  div_2.style.width = "100px";
+  const keyframe3 = [
+      {"transform":"translateX( 200px ) rotate( 360deg )"},
+      {"transform":"translateX( 100px ) scale( 1 )"},
+    ];
+  const keyframe4 = [
+      {"transform":"translateX( 200px ) rotate( 360deg )"},
+      {"transform":"translateX( 100px ) scale( 1 )"},
+      {"transform":"none"},
+      {}
+    ];
+
+  const animation3 = div_2.animate(keyframe1, {
+                            "duration":3000,
+                            "easing":"linear",
+    });
+  const animation4 = div_2.animate(keyframe2, {
+                            "duration":3000,
+                            "easing":"linear",
+                            "composite": 'replace',
+    });
+  animation1.pause();
+  animation2.pause();
+  animation3.pause();
+  animation4.pause();
+  var i;
+  for (i = 0; i <= 30; i++) {
+    animation2.currentTime = 100 * i;
+    animation4.currentTime = 100 * i;
+    var box_size_dependent_transform = getComputedStyle(div_1)['transform'];
+    var reference_transform = getComputedStyle(div_2)['transform']
+    var progress = i / 30;
+    // The second animation replaces the first animation. As the rotate and
+    // scale perations are effectively no-ops when the matrix fallback is
+    // applied. The expected behavior is to go from x-postion 200px to 0 in the
+    // first 2000ms and go back to x-position 200px in the last 1000ms.
+    var expected_transform = 'matrix(1, 0, 0, 1, $1, 0)'
+                            .replace('$1', Math.max(200 - 300 * progress, 0)
+                            + Math.max(0, -400 + 600 * progress));
+    assert_matrix_equals(box_size_dependent_transform, reference_transform);
+    assert_matrix_equals(reference_transform, expected_transform);
+  }
+})
+</script>
+</body>
