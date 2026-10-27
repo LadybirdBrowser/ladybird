@@ -68,6 +68,7 @@ set(SOURCES
     WebDriver/Client.cpp
     WebDriver/Error.cpp
     WebDriver/Input.cpp
+    WebDriver/Network.cpp
     WebDriver/Proxy.cpp
     WebDriver/Response.cpp
     WebDriver/TimeoutsConfiguration.cpp
