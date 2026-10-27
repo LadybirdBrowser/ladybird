@@ -19,8 +19,9 @@ pub(super) struct FcRunCacheKey {
     root_cells: used_values::RootInputCells,
 }
 
+/// The inputs a run never observed, at which its stored outputs are reused as they are.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(super) struct RunInputsTheStoredRunNeverObserved {
+pub(crate) struct RunInputsTheStoredRunNeverObserved {
     pub(super) percentage_block_basis_and_block_size_definiteness: bool,
     pub(super) definite_available_inline_sizes_at_or_above: Option<CssPixels>,
     pub(super) percentage_inline_basis: bool,
@@ -28,28 +29,12 @@ pub(super) struct RunInputsTheStoredRunNeverObserved {
 }
 
 impl RunInputsTheStoredRunNeverObserved {
-    fn proven_by_stored_run(outputs: &formatting_context::RunOutputs) -> Self {
-        Self {
-            percentage_block_basis_and_block_size_definiteness: !outputs.result.depends_on_percentage_block_size,
-            definite_available_inline_sizes_at_or_above: outputs
-                .atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above,
-            percentage_inline_basis: outputs
-                .atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above
-                .is_some()
-                || outputs.result.percentage_inline_basis_observation
-                    == formatting_context::PercentageInlineBasisObservation::Unobserved,
-            own_block_size: outputs.result.own_block_size_observation,
-        }
-    }
-
-    fn accepted_when_reusing_stale_line_data_after_structural_inline_damage(
-        outputs: &formatting_context::RunOutputs,
-    ) -> Self {
+    fn accepted_when_reusing_stale_line_data_after_structural_inline_damage(self) -> Self {
         Self {
             definite_available_inline_sizes_at_or_above: None,
             percentage_inline_basis: false,
             own_block_size: formatting_context::OwnBlockSizeObservation::Observed,
-            ..Self::proven_by_stored_run(outputs)
+            ..self
         }
     }
 
@@ -317,7 +302,7 @@ impl FcRunCacheEntry {
                     self.outputs.root_outcome.line_data.as_ref(),
                 ) && fragment.content_inline_size == content_inline_size
                     && (fragment.content_block_size == content_block_size
-                        || self.outputs.result.own_block_size_observation
+                        || self.outputs.inputs_never_observed.own_block_size
                             == formatting_context::OwnBlockSizeObservation::Unobserved)
             })
             .unwrap_or(false);
@@ -372,9 +357,7 @@ impl FcRunCacheEntry {
             result: self.outputs.result,
             root: None,
             root_outcome: self.outputs.root_outcome.clone(),
-            atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above: self
-                .outputs
-                .atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above,
+            inputs_never_observed: self.outputs.inputs_never_observed,
             host_findings: self.outputs.host_findings.clone(),
         }
     }
@@ -404,7 +387,7 @@ impl FcRunCacheEntry {
     }
 
     fn answers_probe_for(&self, key: &FcRunCacheKey) -> bool {
-        let unobserved = RunInputsTheStoredRunNeverObserved::proven_by_stored_run(&self.outputs);
+        let unobserved = self.outputs.inputs_never_observed;
         self.key.matches(key, unobserved)
             || (self.table_cell_intrinsic_block_padding_unobserved
                 && self
@@ -469,8 +452,7 @@ fn outputs_without_descendant_fragments(outputs: &formatting_context::RunOutputs
         result: outputs.result,
         root,
         root_outcome: outputs.root_outcome.clone(),
-        atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above: outputs
-            .atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above,
+        inputs_never_observed: outputs.inputs_never_observed,
         host_findings: outputs.host_findings.clone(),
     }
 }
@@ -616,9 +598,10 @@ impl FcRunCacheArenaStore {
                 && entry.validity.slot_generation == validity.slot_generation
                 && entry.key.matches(
                     key,
-                    RunInputsTheStoredRunNeverObserved::accepted_when_reusing_stale_line_data_after_structural_inline_damage(
-                        &entry.outputs,
-                    ),
+                    entry
+                        .outputs
+                        .inputs_never_observed
+                        .accepted_when_reusing_stale_line_data_after_structural_inline_damage(),
                 )
                 // Each child-list edit bumps once when topology changes and once
                 // when the parent is marked for layout-tree-update layout.
@@ -1087,7 +1070,11 @@ mod tests {
                     line_data: None,
                     rare: None,
                 },
-                atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above: None,
+                // NB: As a run whose result depends on no percentage block size proves.
+                inputs_never_observed: RunInputsTheStoredRunNeverObserved {
+                    percentage_block_basis_and_block_size_definiteness: true,
+                    ..RunInputsTheStoredRunNeverObserved::default()
+                },
                 host_findings: None,
             },
             table_cell_intrinsic_block_padding_unobserved: false,
@@ -1530,14 +1517,9 @@ mod tests {
             key.input.containing_block_constraints.percentage_basis_inline_size = Some(px(basis));
             key
         };
-        let mut outputs = entry(item_key(40, false), 1, None, 0).outputs;
-        assert!(!at_percentage_inline_basis(400).matches(
-            &at_percentage_inline_basis(300),
-            RunInputsTheStoredRunNeverObserved::proven_by_stored_run(&outputs)
-        ));
-        outputs.result.percentage_inline_basis_observation =
-            formatting_context::PercentageInlineBasisObservation::Unobserved;
-        let unobserved = RunInputsTheStoredRunNeverObserved::proven_by_stored_run(&outputs);
+        let mut unobserved = entry(item_key(40, false), 1, None, 0).outputs.inputs_never_observed;
+        assert!(!at_percentage_inline_basis(400).matches(&at_percentage_inline_basis(300), unobserved));
+        unobserved.percentage_inline_basis = true;
         assert!(at_percentage_inline_basis(400).matches(&at_percentage_inline_basis(300), unobserved));
         let mut wider = at_percentage_inline_basis(300);
         wider.root_cells.content_inline_size = px(320);
@@ -1548,9 +1530,7 @@ mod tests {
         );
         assert!(!at_percentage_inline_basis(400).matches(
             &at_percentage_inline_basis(300),
-            RunInputsTheStoredRunNeverObserved::accepted_when_reusing_stale_line_data_after_structural_inline_damage(
-                &outputs
-            )
+            unobserved.accepted_when_reusing_stale_line_data_after_structural_inline_damage()
         ));
     }
 
@@ -1576,17 +1556,12 @@ mod tests {
 
     #[test]
     fn stale_line_data_after_structural_inline_damage_is_taken_only_at_the_same_own_block_size() {
-        let mut outputs = entry(item_key(40, false), 1, None, 0).outputs;
-        outputs.result.own_block_size_observation = formatting_context::OwnBlockSizeObservation::Unobserved;
-        assert!(item_key(40, false).matches(
-            &item_key(60, true),
-            RunInputsTheStoredRunNeverObserved::proven_by_stored_run(&outputs)
-        ));
+        let mut unobserved = entry(item_key(40, false), 1, None, 0).outputs.inputs_never_observed;
+        unobserved.own_block_size = formatting_context::OwnBlockSizeObservation::Unobserved;
+        assert!(item_key(40, false).matches(&item_key(60, true), unobserved));
         assert!(!item_key(40, false).matches(
             &item_key(60, true),
-            RunInputsTheStoredRunNeverObserved::accepted_when_reusing_stale_line_data_after_structural_inline_damage(
-                &outputs
-            )
+            unobserved.accepted_when_reusing_stale_line_data_after_structural_inline_damage()
         ));
     }
 }
