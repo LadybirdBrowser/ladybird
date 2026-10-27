@@ -317,8 +317,8 @@ void Notification::show_steps()
     // 1. Run the fetch steps given notification and settings.
     // 2. Wait for any fetches to complete and notification's image resource, icon resource, and badge resource to
     //    be set (if any), as well as the icon resources for the notification's actions (if any).
-    // AD-HOC: The wait is bounded: An icon that hasn't arrived after a few seconds isn't worth holding the
-    //         notification back for, so it then shows without one.
+    // AD-HOC: The wait for the fetch is bounded: An icon that hasn't arrived after a few seconds isn't worth holding
+    //         the notification back for, so it then shows without one.
     m_fetch_timeout = Platform::Timer::create_single_shot(heap(), icon_fetch_timeout, GC::create_function(heap(), [this] {
         if (m_icon_fetch_controller)
             m_icon_fetch_controller->stop_fetch();
@@ -388,6 +388,10 @@ void Notification::fetch_a_notification_resource(URL::URL const& url, GC::Ref<GC
     Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::DeliverStreamToConsumerAgent };
     fetch_algorithms_input.process_response_consume_body = [this, process_resource](GC::Ref<Fetch::Infrastructure::ResponseView>, Fetch::Infrastructure::FetchAlgorithms::BodyBytes bytes) {
         m_icon_fetch_controller = nullptr;
+        // The bytes are here, so the wait is no longer on the network: Decoding them finishes on its own, however
+        // long a busy machine takes over it.
+        if (m_fetch_timeout)
+            m_fetch_timeout->stop();
 
         // 1. If bytes is null or failure, then return.
         // AD-HOC: The show steps wait on this fetch, so an absent resource is reported as such, rather than left
