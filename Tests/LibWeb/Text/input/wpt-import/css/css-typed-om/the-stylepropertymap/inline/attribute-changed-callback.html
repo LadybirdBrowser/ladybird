@@ -1,0 +1,168 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>StylePropertyMap mutations trigger attributeChangedCallback</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-set">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/custom-elements.html#concept-custom-element-definition-lifecycle-callbacks">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<body>
+<script>
+'use strict';
+
+class TestElement extends HTMLElement {
+  static observedAttributes = ['style'];
+  constructor() {
+    super();
+    this.calls = [];
+  }
+  attributeChangedCallback(name, oldValue, newValue) {
+    this.calls.push({ name, oldValue, newValue });
+  }
+}
+customElements.define('test-el', TestElement);
+
+function createTestElement(t) {
+  const el = document.createElement('test-el');
+  document.body.appendChild(el);
+  t.add_cleanup(() => el.remove());
+  return el;
+}
+
+
+function flushReactions() {
+  return Promise.resolve();
+}
+
+promise_test(async t => {
+  const el = createTestElement(t);
+  el.attributeStyleMap.set('display', new CSSKeywordValue('block'));
+  await flushReactions();
+  assert_equals(el.calls.length, 1, 'attributeChangedCallback should fire once');
+  assert_equals(el.calls[0].name, 'style');
+  assert_equals(el.calls[0].oldValue, null);
+  assert_equals(el.calls[0].newValue, 'display: block;');
+}, 'attributeStyleMap.set() triggers attributeChangedCallback');
+
+promise_test(async t => {
+  const el = createTestElement(t);
+  el.attributeStyleMap.set('color', 'red');
+  await flushReactions();
+  assert_equals(el.calls.length, 1);
+  el.calls.length = 0;
+  el.attributeStyleMap.set('color', 'blue');
+  await flushReactions();
+  assert_equals(el.calls.length, 1, 'attributeChangedCallback should fire for update');
+  assert_equals(el.calls[0].name, 'style');
+  assert_equals(el.calls[0].oldValue, 'color: red;');
+  assert_equals(el.calls[0].newValue, 'color: blue;');
+}, 'attributeStyleMap.set() triggers attributeChangedCallback with correct old/new values');
+
+promise_test(async t => {
+  const el = createTestElement(t);
+  el.attributeStyleMap.set('display', new CSSKeywordValue('block'));
+  await flushReactions();
+  el.calls.length = 0;
+  el.attributeStyleMap.delete('display');
+  await flushReactions();
+  assert_equals(el.calls.length, 1, 'attributeChangedCallback should fire on delete');
+  assert_equals(el.calls[0].name, 'style');
+}, 'attributeStyleMap.delete() triggers attributeChangedCallback');
+
+promise_test(async t => {
+  const el = createTestElement(t);
+  el.attributeStyleMap.set('display', new CSSKeywordValue('block'));
+  el.attributeStyleMap.set('color', 'red');
+  await flushReactions();
+  el.calls.length = 0;
+  el.attributeStyleMap.clear();
+  await flushReactions();
+  assert_equals(el.calls.length, 1, 'attributeChangedCallback should fire on clear');
+  assert_equals(el.calls[0].name, 'style');
+}, 'attributeStyleMap.clear() triggers attributeChangedCallback');
+
+promise_test(async t => {
+  const el = createTestElement(t);
+  el.attributeStyleMap.set('transition-duration', '1s');
+  await flushReactions();
+  el.calls.length = 0;
+  el.attributeStyleMap.append('transition-duration', '2s');
+  await flushReactions();
+  assert_equals(el.calls.length, 1, 'attributeChangedCallback should fire on append');
+  assert_equals(el.calls[0].name, 'style');
+}, 'attributeStyleMap.append() triggers attributeChangedCallback');
+
+promise_test(async t => {
+  const el = createTestElement(t);
+  el.attributeStyleMap.set('transition-duration', '1s');
+  await flushReactions();
+  el.calls.length = 0;
+  el.attributeStyleMap.append('transition-duration');
+  await flushReactions();
+  assert_equals(el.calls.length, 0, 'attributeChangedCallback should not fire');
+}, 'attributeStyleMap.append() with no values does not trigger attributeChangedCallback');
+
+promise_test(async t => {
+  const el = createTestElement(t);
+  el.attributeStyleMap.set('--my-var', new CSSUnparsedValue(['hello']));
+  await flushReactions();
+  assert_equals(el.calls.length, 1, 'attributeChangedCallback should fire for custom property');
+  assert_equals(el.calls[0].name, 'style');
+  assert_equals(el.calls[0].oldValue, null);
+}, 'attributeStyleMap.set() with custom property triggers attributeChangedCallback');
+
+promise_test(async t => {
+  const el = createTestElement(t);
+  el.attributeStyleMap.set('--my-var', new CSSUnparsedValue(['hello']));
+  await flushReactions();
+  el.calls.length = 0;
+  el.attributeStyleMap.delete('--my-var');
+  await flushReactions();
+  assert_equals(el.calls.length, 1, 'attributeChangedCallback should fire for custom property delete');
+  assert_equals(el.calls[0].name, 'style');
+}, 'attributeStyleMap.delete() with custom property triggers attributeChangedCallback');
+
+promise_test(async t => {
+  const el = createTestElement(t);
+  el.attributeStyleMap.set('margin', '10px');
+  await flushReactions();
+  assert_equals(el.calls.length, 1, 'attributeChangedCallback should fire for shorthand');
+  assert_equals(el.calls[0].name, 'style');
+  assert_equals(el.calls[0].oldValue, null);
+}, 'attributeStyleMap.set() with shorthand property triggers attributeChangedCallback');
+
+promise_test(async t => {
+  const el = createTestElement(t);
+  // el.style.setProperty has [CEReactions] so its callback fires synchronously.
+  el.style.setProperty('display', 'none');
+  assert_equals(el.calls.length, 1);
+  assert_equals(el.calls[0].oldValue, null);
+  assert_equals(el.calls[0].newValue, 'display: none;');
+  el.calls.length = 0;
+  // attributeStyleMap.set uses the backup reaction queue.
+  el.attributeStyleMap.set('display', new CSSKeywordValue('block'));
+  await flushReactions();
+  assert_equals(el.calls.length, 1);
+  assert_equals(el.calls[0].oldValue, 'display: none;');
+  assert_equals(el.calls[0].newValue, 'display: block;');
+  el.calls.length = 0;
+  el.style.setProperty('display', 'none');
+  assert_equals(el.calls.length, 1);
+  assert_equals(el.calls[0].oldValue, 'display: block;');
+  assert_equals(el.calls[0].newValue, 'display: none;');
+}, 'attributeStyleMap and style interleave correctly with attributeChangedCallback');
+
+promise_test(async t => {
+  const el = createTestElement(t);
+  const observer = new MutationObserver(() => {});
+  observer.observe(el, { attributes: true, attributeOldValue: true });
+  t.add_cleanup(() => observer.disconnect());
+
+  el.attributeStyleMap.set('display', new CSSKeywordValue('block'));
+  const records = observer.takeRecords();
+  assert_equals(records.length, 1, 'MutationObserver should fire exactly once');
+  assert_equals(records[0].attributeName, 'style');
+  assert_equals(records[0].oldValue, null);
+}, 'attributeStyleMap.set() triggers MutationObserver without duplicates');
+</script>
+</body>
+</html>
