@@ -1,0 +1,21 @@
+Harness status: OK
+
+Found 16 tests
+
+16 Pass
+Pass	'ontouchstart' in [object Window]
+Pass	'ontouchstart' in [object HTMLElement]
+Pass	'ontouchstart' in [object SVGElement]
+Pass	'ontouchstart' in [object Document]
+Pass	'ontouchmove' in [object Window]
+Pass	'ontouchmove' in [object HTMLElement]
+Pass	'ontouchmove' in [object SVGElement]
+Pass	'ontouchmove' in [object Document]
+Pass	'ontouchend' in [object Window]
+Pass	'ontouchend' in [object HTMLElement]
+Pass	'ontouchend' in [object SVGElement]
+Pass	'ontouchend' in [object Document]
+Pass	'ontouchcancel' in [object Window]
+Pass	'ontouchcancel' in [object HTMLElement]
+Pass	'ontouchcancel' in [object SVGElement]
+Pass	'ontouchcancel' in [object Document]

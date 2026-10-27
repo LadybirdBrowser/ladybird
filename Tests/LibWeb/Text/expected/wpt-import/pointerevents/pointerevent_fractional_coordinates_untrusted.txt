@@ -1,0 +1,1037 @@
+Harness status: OK
+
+Found 1032 tests
+
+1032 Pass
+Pass	PointerEvent.pointerdown.screenX
+Pass	PointerEvent.pointerdown.screenY
+Pass	PointerEvent.pointerdown.clientX
+Pass	PointerEvent.pointerdown.clientY
+Pass	PointerEvent.pointerdown.pageX
+Pass	PointerEvent.pointerdown.pageY
+Pass	PointerEvent.pointerdown.offsetX
+Pass	PointerEvent.pointerdown.offsetY
+Pass	PointerEvent.pointerup.screenX
+Pass	PointerEvent.pointerup.screenY
+Pass	PointerEvent.pointerup.clientX
+Pass	PointerEvent.pointerup.clientY
+Pass	PointerEvent.pointerup.pageX
+Pass	PointerEvent.pointerup.pageY
+Pass	PointerEvent.pointerup.offsetX
+Pass	PointerEvent.pointerup.offsetY
+Pass	PointerEvent.pointermove.screenX
+Pass	PointerEvent.pointermove.screenY
+Pass	PointerEvent.pointermove.clientX
+Pass	PointerEvent.pointermove.clientY
+Pass	PointerEvent.pointermove.pageX
+Pass	PointerEvent.pointermove.pageY
+Pass	PointerEvent.pointermove.offsetX
+Pass	PointerEvent.pointermove.offsetY
+Pass	PointerEvent.pointercancel.screenX
+Pass	PointerEvent.pointercancel.screenY
+Pass	PointerEvent.pointercancel.clientX
+Pass	PointerEvent.pointercancel.clientY
+Pass	PointerEvent.pointercancel.pageX
+Pass	PointerEvent.pointercancel.pageY
+Pass	PointerEvent.pointercancel.offsetX
+Pass	PointerEvent.pointercancel.offsetY
+Pass	PointerEvent.gotpointercapture.screenX
+Pass	PointerEvent.gotpointercapture.screenY
+Pass	PointerEvent.gotpointercapture.clientX
+Pass	PointerEvent.gotpointercapture.clientY
+Pass	PointerEvent.gotpointercapture.pageX
+Pass	PointerEvent.gotpointercapture.pageY
+Pass	PointerEvent.gotpointercapture.offsetX
+Pass	PointerEvent.gotpointercapture.offsetY
+Pass	PointerEvent.lostpointercapture.screenX
+Pass	PointerEvent.lostpointercapture.screenY
+Pass	PointerEvent.lostpointercapture.clientX
+Pass	PointerEvent.lostpointercapture.clientY
+Pass	PointerEvent.lostpointercapture.pageX
+Pass	PointerEvent.lostpointercapture.pageY
+Pass	PointerEvent.lostpointercapture.offsetX
+Pass	PointerEvent.lostpointercapture.offsetY
+Pass	PointerEvent.pointerrawupdate.screenX
+Pass	PointerEvent.pointerrawupdate.screenY
+Pass	PointerEvent.pointerrawupdate.clientX
+Pass	PointerEvent.pointerrawupdate.clientY
+Pass	PointerEvent.pointerrawupdate.pageX
+Pass	PointerEvent.pointerrawupdate.pageY
+Pass	PointerEvent.pointerrawupdate.offsetX
+Pass	PointerEvent.pointerrawupdate.offsetY
+Pass	PointerEvent.pointerover.screenX
+Pass	PointerEvent.pointerover.screenY
+Pass	PointerEvent.pointerover.clientX
+Pass	PointerEvent.pointerover.clientY
+Pass	PointerEvent.pointerover.pageX
+Pass	PointerEvent.pointerover.pageY
+Pass	PointerEvent.pointerover.offsetX
+Pass	PointerEvent.pointerover.offsetY
+Pass	PointerEvent.pointerout.screenX
+Pass	PointerEvent.pointerout.screenY
+Pass	PointerEvent.pointerout.clientX
+Pass	PointerEvent.pointerout.clientY
+Pass	PointerEvent.pointerout.pageX
+Pass	PointerEvent.pointerout.pageY
+Pass	PointerEvent.pointerout.offsetX
+Pass	PointerEvent.pointerout.offsetY
+Pass	PointerEvent.pointerenter.screenX
+Pass	PointerEvent.pointerenter.screenY
+Pass	PointerEvent.pointerenter.clientX
+Pass	PointerEvent.pointerenter.clientY
+Pass	PointerEvent.pointerenter.pageX
+Pass	PointerEvent.pointerenter.pageY
+Pass	PointerEvent.pointerenter.offsetX
+Pass	PointerEvent.pointerenter.offsetY
+Pass	PointerEvent.pointerleave.screenX
+Pass	PointerEvent.pointerleave.screenY
+Pass	PointerEvent.pointerleave.clientX
+Pass	PointerEvent.pointerleave.clientY
+Pass	PointerEvent.pointerleave.pageX
+Pass	PointerEvent.pointerleave.pageY
+Pass	PointerEvent.pointerleave.offsetX
+Pass	PointerEvent.pointerleave.offsetY
+Pass	PointerEvent.foo.screenX
+Pass	PointerEvent.foo.screenY
+Pass	PointerEvent.foo.clientX
+Pass	PointerEvent.foo.clientY
+Pass	PointerEvent.foo.pageX
+Pass	PointerEvent.foo.pageY
+Pass	PointerEvent.foo.offsetX
+Pass	PointerEvent.foo.offsetY
+Pass	0.0 - 0.5: PointerEvent.click.screenX
+Pass	0.0 - 0.5: PointerEvent.click.screenY
+Pass	0.0 - 0.5: PointerEvent.click.clientX
+Pass	0.0 - 0.5: PointerEvent.click.clientY
+Pass	0.0 - 0.5: PointerEvent.click.pageX
+Pass	0.0 - 0.5: PointerEvent.click.pageY
+Pass	0.0 - 0.5: PointerEvent.click.offsetX
+Pass	0.0 - 0.5: PointerEvent.click.offsetY
+Pass	0.5 - 1.0: PointerEvent.click.screenX
+Pass	0.5 - 1.0: PointerEvent.click.screenY
+Pass	0.5 - 1.0: PointerEvent.click.clientX
+Pass	0.5 - 1.0: PointerEvent.click.clientY
+Pass	0.5 - 1.0: PointerEvent.click.pageX
+Pass	0.5 - 1.0: PointerEvent.click.pageY
+Pass	0.5 - 1.0: PointerEvent.click.offsetX
+Pass	0.5 - 1.0: PointerEvent.click.offsetY
+Pass	1.0 - 1.5: PointerEvent.click.screenX
+Pass	1.0 - 1.5: PointerEvent.click.screenY
+Pass	1.0 - 1.5: PointerEvent.click.clientX
+Pass	1.0 - 1.5: PointerEvent.click.clientY
+Pass	1.0 - 1.5: PointerEvent.click.pageX
+Pass	1.0 - 1.5: PointerEvent.click.pageY
+Pass	1.0 - 1.5: PointerEvent.click.offsetX
+Pass	1.0 - 1.5: PointerEvent.click.offsetY
+Pass	-0.5 - 0.0: PointerEvent.click.screenX
+Pass	-0.5 - 0.0: PointerEvent.click.screenY
+Pass	-0.5 - 0.0: PointerEvent.click.clientX
+Pass	-0.5 - 0.0: PointerEvent.click.clientY
+Pass	-0.5 - 0.0: PointerEvent.click.pageX
+Pass	-0.5 - 0.0: PointerEvent.click.pageY
+Pass	-0.5 - 0.0: PointerEvent.click.offsetX
+Pass	-0.5 - 0.0: PointerEvent.click.offsetY
+Pass	-1.0 - -0.5: PointerEvent.click.screenX
+Pass	-1.0 - -0.5: PointerEvent.click.screenY
+Pass	-1.0 - -0.5: PointerEvent.click.clientX
+Pass	-1.0 - -0.5: PointerEvent.click.clientY
+Pass	-1.0 - -0.5: PointerEvent.click.pageX
+Pass	-1.0 - -0.5: PointerEvent.click.pageY
+Pass	-1.0 - -0.5: PointerEvent.click.offsetX
+Pass	-1.0 - -0.5: PointerEvent.click.offsetY
+Pass	-1.5 - -1.0: PointerEvent.click.screenX
+Pass	-1.5 - -1.0: PointerEvent.click.screenY
+Pass	-1.5 - -1.0: PointerEvent.click.clientX
+Pass	-1.5 - -1.0: PointerEvent.click.clientY
+Pass	-1.5 - -1.0: PointerEvent.click.pageX
+Pass	-1.5 - -1.0: PointerEvent.click.pageY
+Pass	-1.5 - -1.0: PointerEvent.click.offsetX
+Pass	-1.5 - -1.0: PointerEvent.click.offsetY
+Pass	0.0 - 0.5: PointerEvent.auxclick.screenX
+Pass	0.0 - 0.5: PointerEvent.auxclick.screenY
+Pass	0.0 - 0.5: PointerEvent.auxclick.clientX
+Pass	0.0 - 0.5: PointerEvent.auxclick.clientY
+Pass	0.0 - 0.5: PointerEvent.auxclick.pageX
+Pass	0.0 - 0.5: PointerEvent.auxclick.pageY
+Pass	0.0 - 0.5: PointerEvent.auxclick.offsetX
+Pass	0.0 - 0.5: PointerEvent.auxclick.offsetY
+Pass	0.5 - 1.0: PointerEvent.auxclick.screenX
+Pass	0.5 - 1.0: PointerEvent.auxclick.screenY
+Pass	0.5 - 1.0: PointerEvent.auxclick.clientX
+Pass	0.5 - 1.0: PointerEvent.auxclick.clientY
+Pass	0.5 - 1.0: PointerEvent.auxclick.pageX
+Pass	0.5 - 1.0: PointerEvent.auxclick.pageY
+Pass	0.5 - 1.0: PointerEvent.auxclick.offsetX
+Pass	0.5 - 1.0: PointerEvent.auxclick.offsetY
+Pass	1.0 - 1.5: PointerEvent.auxclick.screenX
+Pass	1.0 - 1.5: PointerEvent.auxclick.screenY
+Pass	1.0 - 1.5: PointerEvent.auxclick.clientX
+Pass	1.0 - 1.5: PointerEvent.auxclick.clientY
+Pass	1.0 - 1.5: PointerEvent.auxclick.pageX
+Pass	1.0 - 1.5: PointerEvent.auxclick.pageY
+Pass	1.0 - 1.5: PointerEvent.auxclick.offsetX
+Pass	1.0 - 1.5: PointerEvent.auxclick.offsetY
+Pass	-0.5 - 0.0: PointerEvent.auxclick.screenX
+Pass	-0.5 - 0.0: PointerEvent.auxclick.screenY
+Pass	-0.5 - 0.0: PointerEvent.auxclick.clientX
+Pass	-0.5 - 0.0: PointerEvent.auxclick.clientY
+Pass	-0.5 - 0.0: PointerEvent.auxclick.pageX
+Pass	-0.5 - 0.0: PointerEvent.auxclick.pageY
+Pass	-0.5 - 0.0: PointerEvent.auxclick.offsetX
+Pass	-0.5 - 0.0: PointerEvent.auxclick.offsetY
+Pass	-1.0 - -0.5: PointerEvent.auxclick.screenX
+Pass	-1.0 - -0.5: PointerEvent.auxclick.screenY
+Pass	-1.0 - -0.5: PointerEvent.auxclick.clientX
+Pass	-1.0 - -0.5: PointerEvent.auxclick.clientY
+Pass	-1.0 - -0.5: PointerEvent.auxclick.pageX
+Pass	-1.0 - -0.5: PointerEvent.auxclick.pageY
+Pass	-1.0 - -0.5: PointerEvent.auxclick.offsetX
+Pass	-1.0 - -0.5: PointerEvent.auxclick.offsetY
+Pass	-1.5 - -1.0: PointerEvent.auxclick.screenX
+Pass	-1.5 - -1.0: PointerEvent.auxclick.screenY
+Pass	-1.5 - -1.0: PointerEvent.auxclick.clientX
+Pass	-1.5 - -1.0: PointerEvent.auxclick.clientY
+Pass	-1.5 - -1.0: PointerEvent.auxclick.pageX
+Pass	-1.5 - -1.0: PointerEvent.auxclick.pageY
+Pass	-1.5 - -1.0: PointerEvent.auxclick.offsetX
+Pass	-1.5 - -1.0: PointerEvent.auxclick.offsetY
+Pass	0.0 - 0.5: PointerEvent.contextmenu.screenX
+Pass	0.0 - 0.5: PointerEvent.contextmenu.screenY
+Pass	0.0 - 0.5: PointerEvent.contextmenu.clientX
+Pass	0.0 - 0.5: PointerEvent.contextmenu.clientY
+Pass	0.0 - 0.5: PointerEvent.contextmenu.pageX
+Pass	0.0 - 0.5: PointerEvent.contextmenu.pageY
+Pass	0.0 - 0.5: PointerEvent.contextmenu.offsetX
+Pass	0.0 - 0.5: PointerEvent.contextmenu.offsetY
+Pass	0.5 - 1.0: PointerEvent.contextmenu.screenX
+Pass	0.5 - 1.0: PointerEvent.contextmenu.screenY
+Pass	0.5 - 1.0: PointerEvent.contextmenu.clientX
+Pass	0.5 - 1.0: PointerEvent.contextmenu.clientY
+Pass	0.5 - 1.0: PointerEvent.contextmenu.pageX
+Pass	0.5 - 1.0: PointerEvent.contextmenu.pageY
+Pass	0.5 - 1.0: PointerEvent.contextmenu.offsetX
+Pass	0.5 - 1.0: PointerEvent.contextmenu.offsetY
+Pass	1.0 - 1.5: PointerEvent.contextmenu.screenX
+Pass	1.0 - 1.5: PointerEvent.contextmenu.screenY
+Pass	1.0 - 1.5: PointerEvent.contextmenu.clientX
+Pass	1.0 - 1.5: PointerEvent.contextmenu.clientY
+Pass	1.0 - 1.5: PointerEvent.contextmenu.pageX
+Pass	1.0 - 1.5: PointerEvent.contextmenu.pageY
+Pass	1.0 - 1.5: PointerEvent.contextmenu.offsetX
+Pass	1.0 - 1.5: PointerEvent.contextmenu.offsetY
+Pass	-0.5 - 0.0: PointerEvent.contextmenu.screenX
+Pass	-0.5 - 0.0: PointerEvent.contextmenu.screenY
+Pass	-0.5 - 0.0: PointerEvent.contextmenu.clientX
+Pass	-0.5 - 0.0: PointerEvent.contextmenu.clientY
+Pass	-0.5 - 0.0: PointerEvent.contextmenu.pageX
+Pass	-0.5 - 0.0: PointerEvent.contextmenu.pageY
+Pass	-0.5 - 0.0: PointerEvent.contextmenu.offsetX
+Pass	-0.5 - 0.0: PointerEvent.contextmenu.offsetY
+Pass	-1.0 - -0.5: PointerEvent.contextmenu.screenX
+Pass	-1.0 - -0.5: PointerEvent.contextmenu.screenY
+Pass	-1.0 - -0.5: PointerEvent.contextmenu.clientX
+Pass	-1.0 - -0.5: PointerEvent.contextmenu.clientY
+Pass	-1.0 - -0.5: PointerEvent.contextmenu.pageX
+Pass	-1.0 - -0.5: PointerEvent.contextmenu.pageY
+Pass	-1.0 - -0.5: PointerEvent.contextmenu.offsetX
+Pass	-1.0 - -0.5: PointerEvent.contextmenu.offsetY
+Pass	-1.5 - -1.0: PointerEvent.contextmenu.screenX
+Pass	-1.5 - -1.0: PointerEvent.contextmenu.screenY
+Pass	-1.5 - -1.0: PointerEvent.contextmenu.clientX
+Pass	-1.5 - -1.0: PointerEvent.contextmenu.clientY
+Pass	-1.5 - -1.0: PointerEvent.contextmenu.pageX
+Pass	-1.5 - -1.0: PointerEvent.contextmenu.pageY
+Pass	-1.5 - -1.0: PointerEvent.contextmenu.offsetX
+Pass	-1.5 - -1.0: PointerEvent.contextmenu.offsetY
+Pass	0.0 - 0.5: MouseEvent.click.screenX
+Pass	0.0 - 0.5: MouseEvent.click.screenY
+Pass	0.0 - 0.5: MouseEvent.click.clientX
+Pass	0.0 - 0.5: MouseEvent.click.clientY
+Pass	0.0 - 0.5: MouseEvent.click.pageX
+Pass	0.0 - 0.5: MouseEvent.click.pageY
+Pass	0.0 - 0.5: MouseEvent.click.offsetX
+Pass	0.0 - 0.5: MouseEvent.click.offsetY
+Pass	0.5 - 1.0: MouseEvent.click.screenX
+Pass	0.5 - 1.0: MouseEvent.click.screenY
+Pass	0.5 - 1.0: MouseEvent.click.clientX
+Pass	0.5 - 1.0: MouseEvent.click.clientY
+Pass	0.5 - 1.0: MouseEvent.click.pageX
+Pass	0.5 - 1.0: MouseEvent.click.pageY
+Pass	0.5 - 1.0: MouseEvent.click.offsetX
+Pass	0.5 - 1.0: MouseEvent.click.offsetY
+Pass	1.0 - 1.5: MouseEvent.click.screenX
+Pass	1.0 - 1.5: MouseEvent.click.screenY
+Pass	1.0 - 1.5: MouseEvent.click.clientX
+Pass	1.0 - 1.5: MouseEvent.click.clientY
+Pass	1.0 - 1.5: MouseEvent.click.pageX
+Pass	1.0 - 1.5: MouseEvent.click.pageY
+Pass	1.0 - 1.5: MouseEvent.click.offsetX
+Pass	1.0 - 1.5: MouseEvent.click.offsetY
+Pass	-0.5 - 0.0: MouseEvent.click.screenX
+Pass	-0.5 - 0.0: MouseEvent.click.screenY
+Pass	-0.5 - 0.0: MouseEvent.click.clientX
+Pass	-0.5 - 0.0: MouseEvent.click.clientY
+Pass	-0.5 - 0.0: MouseEvent.click.pageX
+Pass	-0.5 - 0.0: MouseEvent.click.pageY
+Pass	-0.5 - 0.0: MouseEvent.click.offsetX
+Pass	-0.5 - 0.0: MouseEvent.click.offsetY
+Pass	-1.0 - -0.5: MouseEvent.click.screenX
+Pass	-1.0 - -0.5: MouseEvent.click.screenY
+Pass	-1.0 - -0.5: MouseEvent.click.clientX
+Pass	-1.0 - -0.5: MouseEvent.click.clientY
+Pass	-1.0 - -0.5: MouseEvent.click.pageX
+Pass	-1.0 - -0.5: MouseEvent.click.pageY
+Pass	-1.0 - -0.5: MouseEvent.click.offsetX
+Pass	-1.0 - -0.5: MouseEvent.click.offsetY
+Pass	-1.5 - -1.0: MouseEvent.click.screenX
+Pass	-1.5 - -1.0: MouseEvent.click.screenY
+Pass	-1.5 - -1.0: MouseEvent.click.clientX
+Pass	-1.5 - -1.0: MouseEvent.click.clientY
+Pass	-1.5 - -1.0: MouseEvent.click.pageX
+Pass	-1.5 - -1.0: MouseEvent.click.pageY
+Pass	-1.5 - -1.0: MouseEvent.click.offsetX
+Pass	-1.5 - -1.0: MouseEvent.click.offsetY
+Pass	0.0 - 0.5: MouseEvent.auxclick.screenX
+Pass	0.0 - 0.5: MouseEvent.auxclick.screenY
+Pass	0.0 - 0.5: MouseEvent.auxclick.clientX
+Pass	0.0 - 0.5: MouseEvent.auxclick.clientY
+Pass	0.0 - 0.5: MouseEvent.auxclick.pageX
+Pass	0.0 - 0.5: MouseEvent.auxclick.pageY
+Pass	0.0 - 0.5: MouseEvent.auxclick.offsetX
+Pass	0.0 - 0.5: MouseEvent.auxclick.offsetY
+Pass	0.5 - 1.0: MouseEvent.auxclick.screenX
+Pass	0.5 - 1.0: MouseEvent.auxclick.screenY
+Pass	0.5 - 1.0: MouseEvent.auxclick.clientX
+Pass	0.5 - 1.0: MouseEvent.auxclick.clientY
+Pass	0.5 - 1.0: MouseEvent.auxclick.pageX
+Pass	0.5 - 1.0: MouseEvent.auxclick.pageY
+Pass	0.5 - 1.0: MouseEvent.auxclick.offsetX
+Pass	0.5 - 1.0: MouseEvent.auxclick.offsetY
+Pass	1.0 - 1.5: MouseEvent.auxclick.screenX
+Pass	1.0 - 1.5: MouseEvent.auxclick.screenY
+Pass	1.0 - 1.5: MouseEvent.auxclick.clientX
+Pass	1.0 - 1.5: MouseEvent.auxclick.clientY
+Pass	1.0 - 1.5: MouseEvent.auxclick.pageX
+Pass	1.0 - 1.5: MouseEvent.auxclick.pageY
+Pass	1.0 - 1.5: MouseEvent.auxclick.offsetX
+Pass	1.0 - 1.5: MouseEvent.auxclick.offsetY
+Pass	-0.5 - 0.0: MouseEvent.auxclick.screenX
+Pass	-0.5 - 0.0: MouseEvent.auxclick.screenY
+Pass	-0.5 - 0.0: MouseEvent.auxclick.clientX
+Pass	-0.5 - 0.0: MouseEvent.auxclick.clientY
+Pass	-0.5 - 0.0: MouseEvent.auxclick.pageX
+Pass	-0.5 - 0.0: MouseEvent.auxclick.pageY
+Pass	-0.5 - 0.0: MouseEvent.auxclick.offsetX
+Pass	-0.5 - 0.0: MouseEvent.auxclick.offsetY
+Pass	-1.0 - -0.5: MouseEvent.auxclick.screenX
+Pass	-1.0 - -0.5: MouseEvent.auxclick.screenY
+Pass	-1.0 - -0.5: MouseEvent.auxclick.clientX
+Pass	-1.0 - -0.5: MouseEvent.auxclick.clientY
+Pass	-1.0 - -0.5: MouseEvent.auxclick.pageX
+Pass	-1.0 - -0.5: MouseEvent.auxclick.pageY
+Pass	-1.0 - -0.5: MouseEvent.auxclick.offsetX
+Pass	-1.0 - -0.5: MouseEvent.auxclick.offsetY
+Pass	-1.5 - -1.0: MouseEvent.auxclick.screenX
+Pass	-1.5 - -1.0: MouseEvent.auxclick.screenY
+Pass	-1.5 - -1.0: MouseEvent.auxclick.clientX
+Pass	-1.5 - -1.0: MouseEvent.auxclick.clientY
+Pass	-1.5 - -1.0: MouseEvent.auxclick.pageX
+Pass	-1.5 - -1.0: MouseEvent.auxclick.pageY
+Pass	-1.5 - -1.0: MouseEvent.auxclick.offsetX
+Pass	-1.5 - -1.0: MouseEvent.auxclick.offsetY
+Pass	0.0 - 0.5: MouseEvent.contextmenu.screenX
+Pass	0.0 - 0.5: MouseEvent.contextmenu.screenY
+Pass	0.0 - 0.5: MouseEvent.contextmenu.clientX
+Pass	0.0 - 0.5: MouseEvent.contextmenu.clientY
+Pass	0.0 - 0.5: MouseEvent.contextmenu.pageX
+Pass	0.0 - 0.5: MouseEvent.contextmenu.pageY
+Pass	0.0 - 0.5: MouseEvent.contextmenu.offsetX
+Pass	0.0 - 0.5: MouseEvent.contextmenu.offsetY
+Pass	0.5 - 1.0: MouseEvent.contextmenu.screenX
+Pass	0.5 - 1.0: MouseEvent.contextmenu.screenY
+Pass	0.5 - 1.0: MouseEvent.contextmenu.clientX
+Pass	0.5 - 1.0: MouseEvent.contextmenu.clientY
+Pass	0.5 - 1.0: MouseEvent.contextmenu.pageX
+Pass	0.5 - 1.0: MouseEvent.contextmenu.pageY
+Pass	0.5 - 1.0: MouseEvent.contextmenu.offsetX
+Pass	0.5 - 1.0: MouseEvent.contextmenu.offsetY
+Pass	1.0 - 1.5: MouseEvent.contextmenu.screenX
+Pass	1.0 - 1.5: MouseEvent.contextmenu.screenY
+Pass	1.0 - 1.5: MouseEvent.contextmenu.clientX
+Pass	1.0 - 1.5: MouseEvent.contextmenu.clientY
+Pass	1.0 - 1.5: MouseEvent.contextmenu.pageX
+Pass	1.0 - 1.5: MouseEvent.contextmenu.pageY
+Pass	1.0 - 1.5: MouseEvent.contextmenu.offsetX
+Pass	1.0 - 1.5: MouseEvent.contextmenu.offsetY
+Pass	-0.5 - 0.0: MouseEvent.contextmenu.screenX
+Pass	-0.5 - 0.0: MouseEvent.contextmenu.screenY
+Pass	-0.5 - 0.0: MouseEvent.contextmenu.clientX
+Pass	-0.5 - 0.0: MouseEvent.contextmenu.clientY
+Pass	-0.5 - 0.0: MouseEvent.contextmenu.pageX
+Pass	-0.5 - 0.0: MouseEvent.contextmenu.pageY
+Pass	-0.5 - 0.0: MouseEvent.contextmenu.offsetX
+Pass	-0.5 - 0.0: MouseEvent.contextmenu.offsetY
+Pass	-1.0 - -0.5: MouseEvent.contextmenu.screenX
+Pass	-1.0 - -0.5: MouseEvent.contextmenu.screenY
+Pass	-1.0 - -0.5: MouseEvent.contextmenu.clientX
+Pass	-1.0 - -0.5: MouseEvent.contextmenu.clientY
+Pass	-1.0 - -0.5: MouseEvent.contextmenu.pageX
+Pass	-1.0 - -0.5: MouseEvent.contextmenu.pageY
+Pass	-1.0 - -0.5: MouseEvent.contextmenu.offsetX
+Pass	-1.0 - -0.5: MouseEvent.contextmenu.offsetY
+Pass	-1.5 - -1.0: MouseEvent.contextmenu.screenX
+Pass	-1.5 - -1.0: MouseEvent.contextmenu.screenY
+Pass	-1.5 - -1.0: MouseEvent.contextmenu.clientX
+Pass	-1.5 - -1.0: MouseEvent.contextmenu.clientY
+Pass	-1.5 - -1.0: MouseEvent.contextmenu.pageX
+Pass	-1.5 - -1.0: MouseEvent.contextmenu.pageY
+Pass	-1.5 - -1.0: MouseEvent.contextmenu.offsetX
+Pass	-1.5 - -1.0: MouseEvent.contextmenu.offsetY
+Pass	0.0 - 0.5: MouseEvent.mousedown.screenX
+Pass	0.0 - 0.5: MouseEvent.mousedown.screenY
+Pass	0.0 - 0.5: MouseEvent.mousedown.clientX
+Pass	0.0 - 0.5: MouseEvent.mousedown.clientY
+Pass	0.0 - 0.5: MouseEvent.mousedown.pageX
+Pass	0.0 - 0.5: MouseEvent.mousedown.pageY
+Pass	0.0 - 0.5: MouseEvent.mousedown.offsetX
+Pass	0.0 - 0.5: MouseEvent.mousedown.offsetY
+Pass	0.5 - 1.0: MouseEvent.mousedown.screenX
+Pass	0.5 - 1.0: MouseEvent.mousedown.screenY
+Pass	0.5 - 1.0: MouseEvent.mousedown.clientX
+Pass	0.5 - 1.0: MouseEvent.mousedown.clientY
+Pass	0.5 - 1.0: MouseEvent.mousedown.pageX
+Pass	0.5 - 1.0: MouseEvent.mousedown.pageY
+Pass	0.5 - 1.0: MouseEvent.mousedown.offsetX
+Pass	0.5 - 1.0: MouseEvent.mousedown.offsetY
+Pass	1.0 - 1.5: MouseEvent.mousedown.screenX
+Pass	1.0 - 1.5: MouseEvent.mousedown.screenY
+Pass	1.0 - 1.5: MouseEvent.mousedown.clientX
+Pass	1.0 - 1.5: MouseEvent.mousedown.clientY
+Pass	1.0 - 1.5: MouseEvent.mousedown.pageX
+Pass	1.0 - 1.5: MouseEvent.mousedown.pageY
+Pass	1.0 - 1.5: MouseEvent.mousedown.offsetX
+Pass	1.0 - 1.5: MouseEvent.mousedown.offsetY
+Pass	-0.5 - 0.0: MouseEvent.mousedown.screenX
+Pass	-0.5 - 0.0: MouseEvent.mousedown.screenY
+Pass	-0.5 - 0.0: MouseEvent.mousedown.clientX
+Pass	-0.5 - 0.0: MouseEvent.mousedown.clientY
+Pass	-0.5 - 0.0: MouseEvent.mousedown.pageX
+Pass	-0.5 - 0.0: MouseEvent.mousedown.pageY
+Pass	-0.5 - 0.0: MouseEvent.mousedown.offsetX
+Pass	-0.5 - 0.0: MouseEvent.mousedown.offsetY
+Pass	-1.0 - -0.5: MouseEvent.mousedown.screenX
+Pass	-1.0 - -0.5: MouseEvent.mousedown.screenY
+Pass	-1.0 - -0.5: MouseEvent.mousedown.clientX
+Pass	-1.0 - -0.5: MouseEvent.mousedown.clientY
+Pass	-1.0 - -0.5: MouseEvent.mousedown.pageX
+Pass	-1.0 - -0.5: MouseEvent.mousedown.pageY
+Pass	-1.0 - -0.5: MouseEvent.mousedown.offsetX
+Pass	-1.0 - -0.5: MouseEvent.mousedown.offsetY
+Pass	-1.5 - -1.0: MouseEvent.mousedown.screenX
+Pass	-1.5 - -1.0: MouseEvent.mousedown.screenY
+Pass	-1.5 - -1.0: MouseEvent.mousedown.clientX
+Pass	-1.5 - -1.0: MouseEvent.mousedown.clientY
+Pass	-1.5 - -1.0: MouseEvent.mousedown.pageX
+Pass	-1.5 - -1.0: MouseEvent.mousedown.pageY
+Pass	-1.5 - -1.0: MouseEvent.mousedown.offsetX
+Pass	-1.5 - -1.0: MouseEvent.mousedown.offsetY
+Pass	0.0 - 0.5: MouseEvent.mousemove.screenX
+Pass	0.0 - 0.5: MouseEvent.mousemove.screenY
+Pass	0.0 - 0.5: MouseEvent.mousemove.clientX
+Pass	0.0 - 0.5: MouseEvent.mousemove.clientY
+Pass	0.0 - 0.5: MouseEvent.mousemove.pageX
+Pass	0.0 - 0.5: MouseEvent.mousemove.pageY
+Pass	0.0 - 0.5: MouseEvent.mousemove.offsetX
+Pass	0.0 - 0.5: MouseEvent.mousemove.offsetY
+Pass	0.5 - 1.0: MouseEvent.mousemove.screenX
+Pass	0.5 - 1.0: MouseEvent.mousemove.screenY
+Pass	0.5 - 1.0: MouseEvent.mousemove.clientX
+Pass	0.5 - 1.0: MouseEvent.mousemove.clientY
+Pass	0.5 - 1.0: MouseEvent.mousemove.pageX
+Pass	0.5 - 1.0: MouseEvent.mousemove.pageY
+Pass	0.5 - 1.0: MouseEvent.mousemove.offsetX
+Pass	0.5 - 1.0: MouseEvent.mousemove.offsetY
+Pass	1.0 - 1.5: MouseEvent.mousemove.screenX
+Pass	1.0 - 1.5: MouseEvent.mousemove.screenY
+Pass	1.0 - 1.5: MouseEvent.mousemove.clientX
+Pass	1.0 - 1.5: MouseEvent.mousemove.clientY
+Pass	1.0 - 1.5: MouseEvent.mousemove.pageX
+Pass	1.0 - 1.5: MouseEvent.mousemove.pageY
+Pass	1.0 - 1.5: MouseEvent.mousemove.offsetX
+Pass	1.0 - 1.5: MouseEvent.mousemove.offsetY
+Pass	-0.5 - 0.0: MouseEvent.mousemove.screenX
+Pass	-0.5 - 0.0: MouseEvent.mousemove.screenY
+Pass	-0.5 - 0.0: MouseEvent.mousemove.clientX
+Pass	-0.5 - 0.0: MouseEvent.mousemove.clientY
+Pass	-0.5 - 0.0: MouseEvent.mousemove.pageX
+Pass	-0.5 - 0.0: MouseEvent.mousemove.pageY
+Pass	-0.5 - 0.0: MouseEvent.mousemove.offsetX
+Pass	-0.5 - 0.0: MouseEvent.mousemove.offsetY
+Pass	-1.0 - -0.5: MouseEvent.mousemove.screenX
+Pass	-1.0 - -0.5: MouseEvent.mousemove.screenY
+Pass	-1.0 - -0.5: MouseEvent.mousemove.clientX
+Pass	-1.0 - -0.5: MouseEvent.mousemove.clientY
+Pass	-1.0 - -0.5: MouseEvent.mousemove.pageX
+Pass	-1.0 - -0.5: MouseEvent.mousemove.pageY
+Pass	-1.0 - -0.5: MouseEvent.mousemove.offsetX
+Pass	-1.0 - -0.5: MouseEvent.mousemove.offsetY
+Pass	-1.5 - -1.0: MouseEvent.mousemove.screenX
+Pass	-1.5 - -1.0: MouseEvent.mousemove.screenY
+Pass	-1.5 - -1.0: MouseEvent.mousemove.clientX
+Pass	-1.5 - -1.0: MouseEvent.mousemove.clientY
+Pass	-1.5 - -1.0: MouseEvent.mousemove.pageX
+Pass	-1.5 - -1.0: MouseEvent.mousemove.pageY
+Pass	-1.5 - -1.0: MouseEvent.mousemove.offsetX
+Pass	-1.5 - -1.0: MouseEvent.mousemove.offsetY
+Pass	0.0 - 0.5: MouseEvent.mouseup.screenX
+Pass	0.0 - 0.5: MouseEvent.mouseup.screenY
+Pass	0.0 - 0.5: MouseEvent.mouseup.clientX
+Pass	0.0 - 0.5: MouseEvent.mouseup.clientY
+Pass	0.0 - 0.5: MouseEvent.mouseup.pageX
+Pass	0.0 - 0.5: MouseEvent.mouseup.pageY
+Pass	0.0 - 0.5: MouseEvent.mouseup.offsetX
+Pass	0.0 - 0.5: MouseEvent.mouseup.offsetY
+Pass	0.5 - 1.0: MouseEvent.mouseup.screenX
+Pass	0.5 - 1.0: MouseEvent.mouseup.screenY
+Pass	0.5 - 1.0: MouseEvent.mouseup.clientX
+Pass	0.5 - 1.0: MouseEvent.mouseup.clientY
+Pass	0.5 - 1.0: MouseEvent.mouseup.pageX
+Pass	0.5 - 1.0: MouseEvent.mouseup.pageY
+Pass	0.5 - 1.0: MouseEvent.mouseup.offsetX
+Pass	0.5 - 1.0: MouseEvent.mouseup.offsetY
+Pass	1.0 - 1.5: MouseEvent.mouseup.screenX
+Pass	1.0 - 1.5: MouseEvent.mouseup.screenY
+Pass	1.0 - 1.5: MouseEvent.mouseup.clientX
+Pass	1.0 - 1.5: MouseEvent.mouseup.clientY
+Pass	1.0 - 1.5: MouseEvent.mouseup.pageX
+Pass	1.0 - 1.5: MouseEvent.mouseup.pageY
+Pass	1.0 - 1.5: MouseEvent.mouseup.offsetX
+Pass	1.0 - 1.5: MouseEvent.mouseup.offsetY
+Pass	-0.5 - 0.0: MouseEvent.mouseup.screenX
+Pass	-0.5 - 0.0: MouseEvent.mouseup.screenY
+Pass	-0.5 - 0.0: MouseEvent.mouseup.clientX
+Pass	-0.5 - 0.0: MouseEvent.mouseup.clientY
+Pass	-0.5 - 0.0: MouseEvent.mouseup.pageX
+Pass	-0.5 - 0.0: MouseEvent.mouseup.pageY
+Pass	-0.5 - 0.0: MouseEvent.mouseup.offsetX
+Pass	-0.5 - 0.0: MouseEvent.mouseup.offsetY
+Pass	-1.0 - -0.5: MouseEvent.mouseup.screenX
+Pass	-1.0 - -0.5: MouseEvent.mouseup.screenY
+Pass	-1.0 - -0.5: MouseEvent.mouseup.clientX
+Pass	-1.0 - -0.5: MouseEvent.mouseup.clientY
+Pass	-1.0 - -0.5: MouseEvent.mouseup.pageX
+Pass	-1.0 - -0.5: MouseEvent.mouseup.pageY
+Pass	-1.0 - -0.5: MouseEvent.mouseup.offsetX
+Pass	-1.0 - -0.5: MouseEvent.mouseup.offsetY
+Pass	-1.5 - -1.0: MouseEvent.mouseup.screenX
+Pass	-1.5 - -1.0: MouseEvent.mouseup.screenY
+Pass	-1.5 - -1.0: MouseEvent.mouseup.clientX
+Pass	-1.5 - -1.0: MouseEvent.mouseup.clientY
+Pass	-1.5 - -1.0: MouseEvent.mouseup.pageX
+Pass	-1.5 - -1.0: MouseEvent.mouseup.pageY
+Pass	-1.5 - -1.0: MouseEvent.mouseup.offsetX
+Pass	-1.5 - -1.0: MouseEvent.mouseup.offsetY
+Pass	0.0 - 0.5: MouseEvent.mouseover.screenX
+Pass	0.0 - 0.5: MouseEvent.mouseover.screenY
+Pass	0.0 - 0.5: MouseEvent.mouseover.clientX
+Pass	0.0 - 0.5: MouseEvent.mouseover.clientY
+Pass	0.0 - 0.5: MouseEvent.mouseover.pageX
+Pass	0.0 - 0.5: MouseEvent.mouseover.pageY
+Pass	0.0 - 0.5: MouseEvent.mouseover.offsetX
+Pass	0.0 - 0.5: MouseEvent.mouseover.offsetY
+Pass	0.5 - 1.0: MouseEvent.mouseover.screenX
+Pass	0.5 - 1.0: MouseEvent.mouseover.screenY
+Pass	0.5 - 1.0: MouseEvent.mouseover.clientX
+Pass	0.5 - 1.0: MouseEvent.mouseover.clientY
+Pass	0.5 - 1.0: MouseEvent.mouseover.pageX
+Pass	0.5 - 1.0: MouseEvent.mouseover.pageY
+Pass	0.5 - 1.0: MouseEvent.mouseover.offsetX
+Pass	0.5 - 1.0: MouseEvent.mouseover.offsetY
+Pass	1.0 - 1.5: MouseEvent.mouseover.screenX
+Pass	1.0 - 1.5: MouseEvent.mouseover.screenY
+Pass	1.0 - 1.5: MouseEvent.mouseover.clientX
+Pass	1.0 - 1.5: MouseEvent.mouseover.clientY
+Pass	1.0 - 1.5: MouseEvent.mouseover.pageX
+Pass	1.0 - 1.5: MouseEvent.mouseover.pageY
+Pass	1.0 - 1.5: MouseEvent.mouseover.offsetX
+Pass	1.0 - 1.5: MouseEvent.mouseover.offsetY
+Pass	-0.5 - 0.0: MouseEvent.mouseover.screenX
+Pass	-0.5 - 0.0: MouseEvent.mouseover.screenY
+Pass	-0.5 - 0.0: MouseEvent.mouseover.clientX
+Pass	-0.5 - 0.0: MouseEvent.mouseover.clientY
+Pass	-0.5 - 0.0: MouseEvent.mouseover.pageX
+Pass	-0.5 - 0.0: MouseEvent.mouseover.pageY
+Pass	-0.5 - 0.0: MouseEvent.mouseover.offsetX
+Pass	-0.5 - 0.0: MouseEvent.mouseover.offsetY
+Pass	-1.0 - -0.5: MouseEvent.mouseover.screenX
+Pass	-1.0 - -0.5: MouseEvent.mouseover.screenY
+Pass	-1.0 - -0.5: MouseEvent.mouseover.clientX
+Pass	-1.0 - -0.5: MouseEvent.mouseover.clientY
+Pass	-1.0 - -0.5: MouseEvent.mouseover.pageX
+Pass	-1.0 - -0.5: MouseEvent.mouseover.pageY
+Pass	-1.0 - -0.5: MouseEvent.mouseover.offsetX
+Pass	-1.0 - -0.5: MouseEvent.mouseover.offsetY
+Pass	-1.5 - -1.0: MouseEvent.mouseover.screenX
+Pass	-1.5 - -1.0: MouseEvent.mouseover.screenY
+Pass	-1.5 - -1.0: MouseEvent.mouseover.clientX
+Pass	-1.5 - -1.0: MouseEvent.mouseover.clientY
+Pass	-1.5 - -1.0: MouseEvent.mouseover.pageX
+Pass	-1.5 - -1.0: MouseEvent.mouseover.pageY
+Pass	-1.5 - -1.0: MouseEvent.mouseover.offsetX
+Pass	-1.5 - -1.0: MouseEvent.mouseover.offsetY
+Pass	0.0 - 0.5: MouseEvent.mouseout.screenX
+Pass	0.0 - 0.5: MouseEvent.mouseout.screenY
+Pass	0.0 - 0.5: MouseEvent.mouseout.clientX
+Pass	0.0 - 0.5: MouseEvent.mouseout.clientY
+Pass	0.0 - 0.5: MouseEvent.mouseout.pageX
+Pass	0.0 - 0.5: MouseEvent.mouseout.pageY
+Pass	0.0 - 0.5: MouseEvent.mouseout.offsetX
+Pass	0.0 - 0.5: MouseEvent.mouseout.offsetY
+Pass	0.5 - 1.0: MouseEvent.mouseout.screenX
+Pass	0.5 - 1.0: MouseEvent.mouseout.screenY
+Pass	0.5 - 1.0: MouseEvent.mouseout.clientX
+Pass	0.5 - 1.0: MouseEvent.mouseout.clientY
+Pass	0.5 - 1.0: MouseEvent.mouseout.pageX
+Pass	0.5 - 1.0: MouseEvent.mouseout.pageY
+Pass	0.5 - 1.0: MouseEvent.mouseout.offsetX
+Pass	0.5 - 1.0: MouseEvent.mouseout.offsetY
+Pass	1.0 - 1.5: MouseEvent.mouseout.screenX
+Pass	1.0 - 1.5: MouseEvent.mouseout.screenY
+Pass	1.0 - 1.5: MouseEvent.mouseout.clientX
+Pass	1.0 - 1.5: MouseEvent.mouseout.clientY
+Pass	1.0 - 1.5: MouseEvent.mouseout.pageX
+Pass	1.0 - 1.5: MouseEvent.mouseout.pageY
+Pass	1.0 - 1.5: MouseEvent.mouseout.offsetX
+Pass	1.0 - 1.5: MouseEvent.mouseout.offsetY
+Pass	-0.5 - 0.0: MouseEvent.mouseout.screenX
+Pass	-0.5 - 0.0: MouseEvent.mouseout.screenY
+Pass	-0.5 - 0.0: MouseEvent.mouseout.clientX
+Pass	-0.5 - 0.0: MouseEvent.mouseout.clientY
+Pass	-0.5 - 0.0: MouseEvent.mouseout.pageX
+Pass	-0.5 - 0.0: MouseEvent.mouseout.pageY
+Pass	-0.5 - 0.0: MouseEvent.mouseout.offsetX
+Pass	-0.5 - 0.0: MouseEvent.mouseout.offsetY
+Pass	-1.0 - -0.5: MouseEvent.mouseout.screenX
+Pass	-1.0 - -0.5: MouseEvent.mouseout.screenY
+Pass	-1.0 - -0.5: MouseEvent.mouseout.clientX
+Pass	-1.0 - -0.5: MouseEvent.mouseout.clientY
+Pass	-1.0 - -0.5: MouseEvent.mouseout.pageX
+Pass	-1.0 - -0.5: MouseEvent.mouseout.pageY
+Pass	-1.0 - -0.5: MouseEvent.mouseout.offsetX
+Pass	-1.0 - -0.5: MouseEvent.mouseout.offsetY
+Pass	-1.5 - -1.0: MouseEvent.mouseout.screenX
+Pass	-1.5 - -1.0: MouseEvent.mouseout.screenY
+Pass	-1.5 - -1.0: MouseEvent.mouseout.clientX
+Pass	-1.5 - -1.0: MouseEvent.mouseout.clientY
+Pass	-1.5 - -1.0: MouseEvent.mouseout.pageX
+Pass	-1.5 - -1.0: MouseEvent.mouseout.pageY
+Pass	-1.5 - -1.0: MouseEvent.mouseout.offsetX
+Pass	-1.5 - -1.0: MouseEvent.mouseout.offsetY
+Pass	0.0 - 0.5: MouseEvent.mouseenter.screenX
+Pass	0.0 - 0.5: MouseEvent.mouseenter.screenY
+Pass	0.0 - 0.5: MouseEvent.mouseenter.clientX
+Pass	0.0 - 0.5: MouseEvent.mouseenter.clientY
+Pass	0.0 - 0.5: MouseEvent.mouseenter.pageX
+Pass	0.0 - 0.5: MouseEvent.mouseenter.pageY
+Pass	0.0 - 0.5: MouseEvent.mouseenter.offsetX
+Pass	0.0 - 0.5: MouseEvent.mouseenter.offsetY
+Pass	0.5 - 1.0: MouseEvent.mouseenter.screenX
+Pass	0.5 - 1.0: MouseEvent.mouseenter.screenY
+Pass	0.5 - 1.0: MouseEvent.mouseenter.clientX
+Pass	0.5 - 1.0: MouseEvent.mouseenter.clientY
+Pass	0.5 - 1.0: MouseEvent.mouseenter.pageX
+Pass	0.5 - 1.0: MouseEvent.mouseenter.pageY
+Pass	0.5 - 1.0: MouseEvent.mouseenter.offsetX
+Pass	0.5 - 1.0: MouseEvent.mouseenter.offsetY
+Pass	1.0 - 1.5: MouseEvent.mouseenter.screenX
+Pass	1.0 - 1.5: MouseEvent.mouseenter.screenY
+Pass	1.0 - 1.5: MouseEvent.mouseenter.clientX
+Pass	1.0 - 1.5: MouseEvent.mouseenter.clientY
+Pass	1.0 - 1.5: MouseEvent.mouseenter.pageX
+Pass	1.0 - 1.5: MouseEvent.mouseenter.pageY
+Pass	1.0 - 1.5: MouseEvent.mouseenter.offsetX
+Pass	1.0 - 1.5: MouseEvent.mouseenter.offsetY
+Pass	-0.5 - 0.0: MouseEvent.mouseenter.screenX
+Pass	-0.5 - 0.0: MouseEvent.mouseenter.screenY
+Pass	-0.5 - 0.0: MouseEvent.mouseenter.clientX
+Pass	-0.5 - 0.0: MouseEvent.mouseenter.clientY
+Pass	-0.5 - 0.0: MouseEvent.mouseenter.pageX
+Pass	-0.5 - 0.0: MouseEvent.mouseenter.pageY
+Pass	-0.5 - 0.0: MouseEvent.mouseenter.offsetX
+Pass	-0.5 - 0.0: MouseEvent.mouseenter.offsetY
+Pass	-1.0 - -0.5: MouseEvent.mouseenter.screenX
+Pass	-1.0 - -0.5: MouseEvent.mouseenter.screenY
+Pass	-1.0 - -0.5: MouseEvent.mouseenter.clientX
+Pass	-1.0 - -0.5: MouseEvent.mouseenter.clientY
+Pass	-1.0 - -0.5: MouseEvent.mouseenter.pageX
+Pass	-1.0 - -0.5: MouseEvent.mouseenter.pageY
+Pass	-1.0 - -0.5: MouseEvent.mouseenter.offsetX
+Pass	-1.0 - -0.5: MouseEvent.mouseenter.offsetY
+Pass	-1.5 - -1.0: MouseEvent.mouseenter.screenX
+Pass	-1.5 - -1.0: MouseEvent.mouseenter.screenY
+Pass	-1.5 - -1.0: MouseEvent.mouseenter.clientX
+Pass	-1.5 - -1.0: MouseEvent.mouseenter.clientY
+Pass	-1.5 - -1.0: MouseEvent.mouseenter.pageX
+Pass	-1.5 - -1.0: MouseEvent.mouseenter.pageY
+Pass	-1.5 - -1.0: MouseEvent.mouseenter.offsetX
+Pass	-1.5 - -1.0: MouseEvent.mouseenter.offsetY
+Pass	0.0 - 0.5: MouseEvent.mouseleave.screenX
+Pass	0.0 - 0.5: MouseEvent.mouseleave.screenY
+Pass	0.0 - 0.5: MouseEvent.mouseleave.clientX
+Pass	0.0 - 0.5: MouseEvent.mouseleave.clientY
+Pass	0.0 - 0.5: MouseEvent.mouseleave.pageX
+Pass	0.0 - 0.5: MouseEvent.mouseleave.pageY
+Pass	0.0 - 0.5: MouseEvent.mouseleave.offsetX
+Pass	0.0 - 0.5: MouseEvent.mouseleave.offsetY
+Pass	0.5 - 1.0: MouseEvent.mouseleave.screenX
+Pass	0.5 - 1.0: MouseEvent.mouseleave.screenY
+Pass	0.5 - 1.0: MouseEvent.mouseleave.clientX
+Pass	0.5 - 1.0: MouseEvent.mouseleave.clientY
+Pass	0.5 - 1.0: MouseEvent.mouseleave.pageX
+Pass	0.5 - 1.0: MouseEvent.mouseleave.pageY
+Pass	0.5 - 1.0: MouseEvent.mouseleave.offsetX
+Pass	0.5 - 1.0: MouseEvent.mouseleave.offsetY
+Pass	1.0 - 1.5: MouseEvent.mouseleave.screenX
+Pass	1.0 - 1.5: MouseEvent.mouseleave.screenY
+Pass	1.0 - 1.5: MouseEvent.mouseleave.clientX
+Pass	1.0 - 1.5: MouseEvent.mouseleave.clientY
+Pass	1.0 - 1.5: MouseEvent.mouseleave.pageX
+Pass	1.0 - 1.5: MouseEvent.mouseleave.pageY
+Pass	1.0 - 1.5: MouseEvent.mouseleave.offsetX
+Pass	1.0 - 1.5: MouseEvent.mouseleave.offsetY
+Pass	-0.5 - 0.0: MouseEvent.mouseleave.screenX
+Pass	-0.5 - 0.0: MouseEvent.mouseleave.screenY
+Pass	-0.5 - 0.0: MouseEvent.mouseleave.clientX
+Pass	-0.5 - 0.0: MouseEvent.mouseleave.clientY
+Pass	-0.5 - 0.0: MouseEvent.mouseleave.pageX
+Pass	-0.5 - 0.0: MouseEvent.mouseleave.pageY
+Pass	-0.5 - 0.0: MouseEvent.mouseleave.offsetX
+Pass	-0.5 - 0.0: MouseEvent.mouseleave.offsetY
+Pass	-1.0 - -0.5: MouseEvent.mouseleave.screenX
+Pass	-1.0 - -0.5: MouseEvent.mouseleave.screenY
+Pass	-1.0 - -0.5: MouseEvent.mouseleave.clientX
+Pass	-1.0 - -0.5: MouseEvent.mouseleave.clientY
+Pass	-1.0 - -0.5: MouseEvent.mouseleave.pageX
+Pass	-1.0 - -0.5: MouseEvent.mouseleave.pageY
+Pass	-1.0 - -0.5: MouseEvent.mouseleave.offsetX
+Pass	-1.0 - -0.5: MouseEvent.mouseleave.offsetY
+Pass	-1.5 - -1.0: MouseEvent.mouseleave.screenX
+Pass	-1.5 - -1.0: MouseEvent.mouseleave.screenY
+Pass	-1.5 - -1.0: MouseEvent.mouseleave.clientX
+Pass	-1.5 - -1.0: MouseEvent.mouseleave.clientY
+Pass	-1.5 - -1.0: MouseEvent.mouseleave.pageX
+Pass	-1.5 - -1.0: MouseEvent.mouseleave.pageY
+Pass	-1.5 - -1.0: MouseEvent.mouseleave.offsetX
+Pass	-1.5 - -1.0: MouseEvent.mouseleave.offsetY
+Pass	0.0 - 0.5: MouseEvent.dblclick.screenX
+Pass	0.0 - 0.5: MouseEvent.dblclick.screenY
+Pass	0.0 - 0.5: MouseEvent.dblclick.clientX
+Pass	0.0 - 0.5: MouseEvent.dblclick.clientY
+Pass	0.0 - 0.5: MouseEvent.dblclick.pageX
+Pass	0.0 - 0.5: MouseEvent.dblclick.pageY
+Pass	0.0 - 0.5: MouseEvent.dblclick.offsetX
+Pass	0.0 - 0.5: MouseEvent.dblclick.offsetY
+Pass	0.5 - 1.0: MouseEvent.dblclick.screenX
+Pass	0.5 - 1.0: MouseEvent.dblclick.screenY
+Pass	0.5 - 1.0: MouseEvent.dblclick.clientX
+Pass	0.5 - 1.0: MouseEvent.dblclick.clientY
+Pass	0.5 - 1.0: MouseEvent.dblclick.pageX
+Pass	0.5 - 1.0: MouseEvent.dblclick.pageY
+Pass	0.5 - 1.0: MouseEvent.dblclick.offsetX
+Pass	0.5 - 1.0: MouseEvent.dblclick.offsetY
+Pass	1.0 - 1.5: MouseEvent.dblclick.screenX
+Pass	1.0 - 1.5: MouseEvent.dblclick.screenY
+Pass	1.0 - 1.5: MouseEvent.dblclick.clientX
+Pass	1.0 - 1.5: MouseEvent.dblclick.clientY
+Pass	1.0 - 1.5: MouseEvent.dblclick.pageX
+Pass	1.0 - 1.5: MouseEvent.dblclick.pageY
+Pass	1.0 - 1.5: MouseEvent.dblclick.offsetX
+Pass	1.0 - 1.5: MouseEvent.dblclick.offsetY
+Pass	-0.5 - 0.0: MouseEvent.dblclick.screenX
+Pass	-0.5 - 0.0: MouseEvent.dblclick.screenY
+Pass	-0.5 - 0.0: MouseEvent.dblclick.clientX
+Pass	-0.5 - 0.0: MouseEvent.dblclick.clientY
+Pass	-0.5 - 0.0: MouseEvent.dblclick.pageX
+Pass	-0.5 - 0.0: MouseEvent.dblclick.pageY
+Pass	-0.5 - 0.0: MouseEvent.dblclick.offsetX
+Pass	-0.5 - 0.0: MouseEvent.dblclick.offsetY
+Pass	-1.0 - -0.5: MouseEvent.dblclick.screenX
+Pass	-1.0 - -0.5: MouseEvent.dblclick.screenY
+Pass	-1.0 - -0.5: MouseEvent.dblclick.clientX
+Pass	-1.0 - -0.5: MouseEvent.dblclick.clientY
+Pass	-1.0 - -0.5: MouseEvent.dblclick.pageX
+Pass	-1.0 - -0.5: MouseEvent.dblclick.pageY
+Pass	-1.0 - -0.5: MouseEvent.dblclick.offsetX
+Pass	-1.0 - -0.5: MouseEvent.dblclick.offsetY
+Pass	-1.5 - -1.0: MouseEvent.dblclick.screenX
+Pass	-1.5 - -1.0: MouseEvent.dblclick.screenY
+Pass	-1.5 - -1.0: MouseEvent.dblclick.clientX
+Pass	-1.5 - -1.0: MouseEvent.dblclick.clientY
+Pass	-1.5 - -1.0: MouseEvent.dblclick.pageX
+Pass	-1.5 - -1.0: MouseEvent.dblclick.pageY
+Pass	-1.5 - -1.0: MouseEvent.dblclick.offsetX
+Pass	-1.5 - -1.0: MouseEvent.dblclick.offsetY
+Pass	0.0 - 0.5: DragEvent.dragstart.screenX
+Pass	0.0 - 0.5: DragEvent.dragstart.screenY
+Pass	0.0 - 0.5: DragEvent.dragstart.clientX
+Pass	0.0 - 0.5: DragEvent.dragstart.clientY
+Pass	0.0 - 0.5: DragEvent.dragstart.pageX
+Pass	0.0 - 0.5: DragEvent.dragstart.pageY
+Pass	0.0 - 0.5: DragEvent.dragstart.offsetX
+Pass	0.0 - 0.5: DragEvent.dragstart.offsetY
+Pass	0.5 - 1.0: DragEvent.dragstart.screenX
+Pass	0.5 - 1.0: DragEvent.dragstart.screenY
+Pass	0.5 - 1.0: DragEvent.dragstart.clientX
+Pass	0.5 - 1.0: DragEvent.dragstart.clientY
+Pass	0.5 - 1.0: DragEvent.dragstart.pageX
+Pass	0.5 - 1.0: DragEvent.dragstart.pageY
+Pass	0.5 - 1.0: DragEvent.dragstart.offsetX
+Pass	0.5 - 1.0: DragEvent.dragstart.offsetY
+Pass	1.0 - 1.5: DragEvent.dragstart.screenX
+Pass	1.0 - 1.5: DragEvent.dragstart.screenY
+Pass	1.0 - 1.5: DragEvent.dragstart.clientX
+Pass	1.0 - 1.5: DragEvent.dragstart.clientY
+Pass	1.0 - 1.5: DragEvent.dragstart.pageX
+Pass	1.0 - 1.5: DragEvent.dragstart.pageY
+Pass	1.0 - 1.5: DragEvent.dragstart.offsetX
+Pass	1.0 - 1.5: DragEvent.dragstart.offsetY
+Pass	-0.5 - 0.0: DragEvent.dragstart.screenX
+Pass	-0.5 - 0.0: DragEvent.dragstart.screenY
+Pass	-0.5 - 0.0: DragEvent.dragstart.clientX
+Pass	-0.5 - 0.0: DragEvent.dragstart.clientY
+Pass	-0.5 - 0.0: DragEvent.dragstart.pageX
+Pass	-0.5 - 0.0: DragEvent.dragstart.pageY
+Pass	-0.5 - 0.0: DragEvent.dragstart.offsetX
+Pass	-0.5 - 0.0: DragEvent.dragstart.offsetY
+Pass	-1.0 - -0.5: DragEvent.dragstart.screenX
+Pass	-1.0 - -0.5: DragEvent.dragstart.screenY
+Pass	-1.0 - -0.5: DragEvent.dragstart.clientX
+Pass	-1.0 - -0.5: DragEvent.dragstart.clientY
+Pass	-1.0 - -0.5: DragEvent.dragstart.pageX
+Pass	-1.0 - -0.5: DragEvent.dragstart.pageY
+Pass	-1.0 - -0.5: DragEvent.dragstart.offsetX
+Pass	-1.0 - -0.5: DragEvent.dragstart.offsetY
+Pass	-1.5 - -1.0: DragEvent.dragstart.screenX
+Pass	-1.5 - -1.0: DragEvent.dragstart.screenY
+Pass	-1.5 - -1.0: DragEvent.dragstart.clientX
+Pass	-1.5 - -1.0: DragEvent.dragstart.clientY
+Pass	-1.5 - -1.0: DragEvent.dragstart.pageX
+Pass	-1.5 - -1.0: DragEvent.dragstart.pageY
+Pass	-1.5 - -1.0: DragEvent.dragstart.offsetX
+Pass	-1.5 - -1.0: DragEvent.dragstart.offsetY
+Pass	0.0 - 0.5: DragEvent.dragover.screenX
+Pass	0.0 - 0.5: DragEvent.dragover.screenY
+Pass	0.0 - 0.5: DragEvent.dragover.clientX
+Pass	0.0 - 0.5: DragEvent.dragover.clientY
+Pass	0.0 - 0.5: DragEvent.dragover.pageX
+Pass	0.0 - 0.5: DragEvent.dragover.pageY
+Pass	0.0 - 0.5: DragEvent.dragover.offsetX
+Pass	0.0 - 0.5: DragEvent.dragover.offsetY
+Pass	0.5 - 1.0: DragEvent.dragover.screenX
+Pass	0.5 - 1.0: DragEvent.dragover.screenY
+Pass	0.5 - 1.0: DragEvent.dragover.clientX
+Pass	0.5 - 1.0: DragEvent.dragover.clientY
+Pass	0.5 - 1.0: DragEvent.dragover.pageX
+Pass	0.5 - 1.0: DragEvent.dragover.pageY
+Pass	0.5 - 1.0: DragEvent.dragover.offsetX
+Pass	0.5 - 1.0: DragEvent.dragover.offsetY
+Pass	1.0 - 1.5: DragEvent.dragover.screenX
+Pass	1.0 - 1.5: DragEvent.dragover.screenY
+Pass	1.0 - 1.5: DragEvent.dragover.clientX
+Pass	1.0 - 1.5: DragEvent.dragover.clientY
+Pass	1.0 - 1.5: DragEvent.dragover.pageX
+Pass	1.0 - 1.5: DragEvent.dragover.pageY
+Pass	1.0 - 1.5: DragEvent.dragover.offsetX
+Pass	1.0 - 1.5: DragEvent.dragover.offsetY
+Pass	-0.5 - 0.0: DragEvent.dragover.screenX
+Pass	-0.5 - 0.0: DragEvent.dragover.screenY
+Pass	-0.5 - 0.0: DragEvent.dragover.clientX
+Pass	-0.5 - 0.0: DragEvent.dragover.clientY
+Pass	-0.5 - 0.0: DragEvent.dragover.pageX
+Pass	-0.5 - 0.0: DragEvent.dragover.pageY
+Pass	-0.5 - 0.0: DragEvent.dragover.offsetX
+Pass	-0.5 - 0.0: DragEvent.dragover.offsetY
+Pass	-1.0 - -0.5: DragEvent.dragover.screenX
+Pass	-1.0 - -0.5: DragEvent.dragover.screenY
+Pass	-1.0 - -0.5: DragEvent.dragover.clientX
+Pass	-1.0 - -0.5: DragEvent.dragover.clientY
+Pass	-1.0 - -0.5: DragEvent.dragover.pageX
+Pass	-1.0 - -0.5: DragEvent.dragover.pageY
+Pass	-1.0 - -0.5: DragEvent.dragover.offsetX
+Pass	-1.0 - -0.5: DragEvent.dragover.offsetY
+Pass	-1.5 - -1.0: DragEvent.dragover.screenX
+Pass	-1.5 - -1.0: DragEvent.dragover.screenY
+Pass	-1.5 - -1.0: DragEvent.dragover.clientX
+Pass	-1.5 - -1.0: DragEvent.dragover.clientY
+Pass	-1.5 - -1.0: DragEvent.dragover.pageX
+Pass	-1.5 - -1.0: DragEvent.dragover.pageY
+Pass	-1.5 - -1.0: DragEvent.dragover.offsetX
+Pass	-1.5 - -1.0: DragEvent.dragover.offsetY
+Pass	0.0 - 0.5: DragEvent.dragend.screenX
+Pass	0.0 - 0.5: DragEvent.dragend.screenY
+Pass	0.0 - 0.5: DragEvent.dragend.clientX
+Pass	0.0 - 0.5: DragEvent.dragend.clientY
+Pass	0.0 - 0.5: DragEvent.dragend.pageX
+Pass	0.0 - 0.5: DragEvent.dragend.pageY
+Pass	0.0 - 0.5: DragEvent.dragend.offsetX
+Pass	0.0 - 0.5: DragEvent.dragend.offsetY
+Pass	0.5 - 1.0: DragEvent.dragend.screenX
+Pass	0.5 - 1.0: DragEvent.dragend.screenY
+Pass	0.5 - 1.0: DragEvent.dragend.clientX
+Pass	0.5 - 1.0: DragEvent.dragend.clientY
+Pass	0.5 - 1.0: DragEvent.dragend.pageX
+Pass	0.5 - 1.0: DragEvent.dragend.pageY
+Pass	0.5 - 1.0: DragEvent.dragend.offsetX
+Pass	0.5 - 1.0: DragEvent.dragend.offsetY
+Pass	1.0 - 1.5: DragEvent.dragend.screenX
+Pass	1.0 - 1.5: DragEvent.dragend.screenY
+Pass	1.0 - 1.5: DragEvent.dragend.clientX
+Pass	1.0 - 1.5: DragEvent.dragend.clientY
+Pass	1.0 - 1.5: DragEvent.dragend.pageX
+Pass	1.0 - 1.5: DragEvent.dragend.pageY
+Pass	1.0 - 1.5: DragEvent.dragend.offsetX
+Pass	1.0 - 1.5: DragEvent.dragend.offsetY
+Pass	-0.5 - 0.0: DragEvent.dragend.screenX
+Pass	-0.5 - 0.0: DragEvent.dragend.screenY
+Pass	-0.5 - 0.0: DragEvent.dragend.clientX
+Pass	-0.5 - 0.0: DragEvent.dragend.clientY
+Pass	-0.5 - 0.0: DragEvent.dragend.pageX
+Pass	-0.5 - 0.0: DragEvent.dragend.pageY
+Pass	-0.5 - 0.0: DragEvent.dragend.offsetX
+Pass	-0.5 - 0.0: DragEvent.dragend.offsetY
+Pass	-1.0 - -0.5: DragEvent.dragend.screenX
+Pass	-1.0 - -0.5: DragEvent.dragend.screenY
+Pass	-1.0 - -0.5: DragEvent.dragend.clientX
+Pass	-1.0 - -0.5: DragEvent.dragend.clientY
+Pass	-1.0 - -0.5: DragEvent.dragend.pageX
+Pass	-1.0 - -0.5: DragEvent.dragend.pageY
+Pass	-1.0 - -0.5: DragEvent.dragend.offsetX
+Pass	-1.0 - -0.5: DragEvent.dragend.offsetY
+Pass	-1.5 - -1.0: DragEvent.dragend.screenX
+Pass	-1.5 - -1.0: DragEvent.dragend.screenY
+Pass	-1.5 - -1.0: DragEvent.dragend.clientX
+Pass	-1.5 - -1.0: DragEvent.dragend.clientY
+Pass	-1.5 - -1.0: DragEvent.dragend.pageX
+Pass	-1.5 - -1.0: DragEvent.dragend.pageY
+Pass	-1.5 - -1.0: DragEvent.dragend.offsetX
+Pass	-1.5 - -1.0: DragEvent.dragend.offsetY
+Pass	0.0 - 0.5: DragEvent.drop.screenX
+Pass	0.0 - 0.5: DragEvent.drop.screenY
+Pass	0.0 - 0.5: DragEvent.drop.clientX
+Pass	0.0 - 0.5: DragEvent.drop.clientY
+Pass	0.0 - 0.5: DragEvent.drop.pageX
+Pass	0.0 - 0.5: DragEvent.drop.pageY
+Pass	0.0 - 0.5: DragEvent.drop.offsetX
+Pass	0.0 - 0.5: DragEvent.drop.offsetY
+Pass	0.5 - 1.0: DragEvent.drop.screenX
+Pass	0.5 - 1.0: DragEvent.drop.screenY
+Pass	0.5 - 1.0: DragEvent.drop.clientX
+Pass	0.5 - 1.0: DragEvent.drop.clientY
+Pass	0.5 - 1.0: DragEvent.drop.pageX
+Pass	0.5 - 1.0: DragEvent.drop.pageY
+Pass	0.5 - 1.0: DragEvent.drop.offsetX
+Pass	0.5 - 1.0: DragEvent.drop.offsetY
+Pass	1.0 - 1.5: DragEvent.drop.screenX
+Pass	1.0 - 1.5: DragEvent.drop.screenY
+Pass	1.0 - 1.5: DragEvent.drop.clientX
+Pass	1.0 - 1.5: DragEvent.drop.clientY
+Pass	1.0 - 1.5: DragEvent.drop.pageX
+Pass	1.0 - 1.5: DragEvent.drop.pageY
+Pass	1.0 - 1.5: DragEvent.drop.offsetX
+Pass	1.0 - 1.5: DragEvent.drop.offsetY
+Pass	-0.5 - 0.0: DragEvent.drop.screenX
+Pass	-0.5 - 0.0: DragEvent.drop.screenY
+Pass	-0.5 - 0.0: DragEvent.drop.clientX
+Pass	-0.5 - 0.0: DragEvent.drop.clientY
+Pass	-0.5 - 0.0: DragEvent.drop.pageX
+Pass	-0.5 - 0.0: DragEvent.drop.pageY
+Pass	-0.5 - 0.0: DragEvent.drop.offsetX
+Pass	-0.5 - 0.0: DragEvent.drop.offsetY
+Pass	-1.0 - -0.5: DragEvent.drop.screenX
+Pass	-1.0 - -0.5: DragEvent.drop.screenY
+Pass	-1.0 - -0.5: DragEvent.drop.clientX
+Pass	-1.0 - -0.5: DragEvent.drop.clientY
+Pass	-1.0 - -0.5: DragEvent.drop.pageX
+Pass	-1.0 - -0.5: DragEvent.drop.pageY
+Pass	-1.0 - -0.5: DragEvent.drop.offsetX
+Pass	-1.0 - -0.5: DragEvent.drop.offsetY
+Pass	-1.5 - -1.0: DragEvent.drop.screenX
+Pass	-1.5 - -1.0: DragEvent.drop.screenY
+Pass	-1.5 - -1.0: DragEvent.drop.clientX
+Pass	-1.5 - -1.0: DragEvent.drop.clientY
+Pass	-1.5 - -1.0: DragEvent.drop.pageX
+Pass	-1.5 - -1.0: DragEvent.drop.pageY
+Pass	-1.5 - -1.0: DragEvent.drop.offsetX
+Pass	-1.5 - -1.0: DragEvent.drop.offsetY
+Pass	0.0 - 0.5: WheelEvent.wheel.screenX
+Pass	0.0 - 0.5: WheelEvent.wheel.screenY
+Pass	0.0 - 0.5: WheelEvent.wheel.clientX
+Pass	0.0 - 0.5: WheelEvent.wheel.clientY
+Pass	0.0 - 0.5: WheelEvent.wheel.pageX
+Pass	0.0 - 0.5: WheelEvent.wheel.pageY
+Pass	0.0 - 0.5: WheelEvent.wheel.offsetX
+Pass	0.0 - 0.5: WheelEvent.wheel.offsetY
+Pass	0.5 - 1.0: WheelEvent.wheel.screenX
+Pass	0.5 - 1.0: WheelEvent.wheel.screenY
+Pass	0.5 - 1.0: WheelEvent.wheel.clientX
+Pass	0.5 - 1.0: WheelEvent.wheel.clientY
+Pass	0.5 - 1.0: WheelEvent.wheel.pageX
+Pass	0.5 - 1.0: WheelEvent.wheel.pageY
+Pass	0.5 - 1.0: WheelEvent.wheel.offsetX
+Pass	0.5 - 1.0: WheelEvent.wheel.offsetY
+Pass	1.0 - 1.5: WheelEvent.wheel.screenX
+Pass	1.0 - 1.5: WheelEvent.wheel.screenY
+Pass	1.0 - 1.5: WheelEvent.wheel.clientX
+Pass	1.0 - 1.5: WheelEvent.wheel.clientY
+Pass	1.0 - 1.5: WheelEvent.wheel.pageX
+Pass	1.0 - 1.5: WheelEvent.wheel.pageY
+Pass	1.0 - 1.5: WheelEvent.wheel.offsetX
+Pass	1.0 - 1.5: WheelEvent.wheel.offsetY
+Pass	-0.5 - 0.0: WheelEvent.wheel.screenX
+Pass	-0.5 - 0.0: WheelEvent.wheel.screenY
+Pass	-0.5 - 0.0: WheelEvent.wheel.clientX
+Pass	-0.5 - 0.0: WheelEvent.wheel.clientY
+Pass	-0.5 - 0.0: WheelEvent.wheel.pageX
+Pass	-0.5 - 0.0: WheelEvent.wheel.pageY
+Pass	-0.5 - 0.0: WheelEvent.wheel.offsetX
+Pass	-0.5 - 0.0: WheelEvent.wheel.offsetY
+Pass	-1.0 - -0.5: WheelEvent.wheel.screenX
+Pass	-1.0 - -0.5: WheelEvent.wheel.screenY
+Pass	-1.0 - -0.5: WheelEvent.wheel.clientX
+Pass	-1.0 - -0.5: WheelEvent.wheel.clientY
+Pass	-1.0 - -0.5: WheelEvent.wheel.pageX
+Pass	-1.0 - -0.5: WheelEvent.wheel.pageY
+Pass	-1.0 - -0.5: WheelEvent.wheel.offsetX
+Pass	-1.0 - -0.5: WheelEvent.wheel.offsetY
+Pass	-1.5 - -1.0: WheelEvent.wheel.screenX
+Pass	-1.5 - -1.0: WheelEvent.wheel.screenY
+Pass	-1.5 - -1.0: WheelEvent.wheel.clientX
+Pass	-1.5 - -1.0: WheelEvent.wheel.clientY
+Pass	-1.5 - -1.0: WheelEvent.wheel.pageX
+Pass	-1.5 - -1.0: WheelEvent.wheel.pageY
+Pass	-1.5 - -1.0: WheelEvent.wheel.offsetX
+Pass	-1.5 - -1.0: WheelEvent.wheel.offsetY
+Pass	PointerEvent.pointerdown.width
+Pass	PointerEvent.pointerdown.height
+Pass	PointerEvent.pointerup.width
+Pass	PointerEvent.pointerup.height
+Pass	PointerEvent.pointermove.width
+Pass	PointerEvent.pointermove.height
+Pass	PointerEvent.pointercancel.width
+Pass	PointerEvent.pointercancel.height
+Pass	PointerEvent.gotpointercapture.width
+Pass	PointerEvent.gotpointercapture.height
+Pass	PointerEvent.lostpointercapture.width
+Pass	PointerEvent.lostpointercapture.height
+Pass	PointerEvent.pointerrawupdate.width
+Pass	PointerEvent.pointerrawupdate.height
+Pass	PointerEvent.pointerover.width
+Pass	PointerEvent.pointerover.height
+Pass	PointerEvent.pointerout.width
+Pass	PointerEvent.pointerout.height
+Pass	PointerEvent.pointerenter.width
+Pass	PointerEvent.pointerenter.height
+Pass	PointerEvent.pointerleave.width
+Pass	PointerEvent.pointerleave.height
+Pass	PointerEvent.foo.width
+Pass	PointerEvent.foo.height
