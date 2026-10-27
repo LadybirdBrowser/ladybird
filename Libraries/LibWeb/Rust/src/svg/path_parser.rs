@@ -751,8 +751,9 @@ impl ParsedPath {
 
     /// https://drafts.csswg.org/css-shapes-1/#interpolating-shape
     /// The commands and points of the shape() equivalent to this path, for interpolating it with a shape(). The first
-    /// command of the path becomes the initial <coordinate-pair> of the shape(). Absolute coordinates become positions
-    /// and relative ones coordinate pairs, the way shape() holds them after parsing.
+    /// command of the path becomes the initial <coordinate-pair> of the shape().
+    /// NB: Commands retain their absolute/relative interpretation, while all coordinates use scalar lengths,
+    ///     matching computed shape() points.
     pub(crate) fn to_shape_commands(
         &self,
     ) -> Option<(
@@ -768,19 +769,8 @@ impl ParsedPath {
             unit: crate::css::style_compute::px_length_unit(),
         };
         let value = |value: StyleValueData| RetainedStyleValueData::from_owned(value);
-        let edge = |offset: f32| {
-            value(StyleValueData::Edge {
-                has_edge: false,
-                edge: 0,
-                offset: value(length(offset)),
-            })
-        };
-        let point = |absolute: bool, point: [f32; 2]| {
-            if absolute {
-                RetainedShapePoint::from_retained_values(edge(point[0]), edge(point[1]))
-            } else {
-                RetainedShapePoint::from_retained_values(value(length(point[0])), value(length(point[1])))
-            }
+        let point = |point: [f32; 2]| {
+            RetainedShapePoint::from_retained_values(value(length(point[0])), value(length(point[1])))
         };
         let zero = || value(StyleValueData::Percentage { value: 0.0 });
         let mut commands = Vec::with_capacity(self.instructions.len());
@@ -793,11 +783,11 @@ impl ParsedPath {
                 } => {
                     if index == 0 {
                         // NB: The current point starts at the origin, so a relative first move is absolute too.
-                        points.push(point(true, end_point));
+                        points.push(point(end_point));
                         commands.push(ShapeCommand::new(ShapeCommandKind::From, false));
                         continue;
                     }
-                    points.push(point(absolute, end_point));
+                    points.push(point(end_point));
                     (ShapeCommandKind::Move, absolute)
                 }
                 _ if index == 0 => return None,
@@ -806,7 +796,7 @@ impl ParsedPath {
                     absolute,
                     point: end_point,
                 } => {
-                    points.push(point(absolute, end_point));
+                    points.push(point(end_point));
                     (ShapeCommandKind::Line, absolute)
                 }
                 PathInstruction::HorizontalLineTo { absolute, x } => {
@@ -849,7 +839,7 @@ impl ParsedPath {
                         _ => unreachable!(),
                     };
                     let mut command = ShapeCommand::new(kind, !absolute);
-                    points.push(point(absolute, end_point));
+                    points.push(point(end_point));
                     for (control_index, control_point) in control_points.into_iter().enumerate() {
                         // Absolute control points are positions in the reference box, and relative ones are relative to
                         // the start of the segment.
@@ -859,7 +849,7 @@ impl ParsedPath {
                             ShapeControlPointAnchor::Start
                         };
                         command.control_point_count += 1;
-                        points.push(point(absolute, control_point));
+                        points.push(point(control_point));
                     }
                     commands.push(command);
                     continue;
@@ -876,7 +866,7 @@ impl ParsedPath {
                     command.arc_clockwise = sweep;
                     command.arc_large = large_arc;
                     command.arc_has_rotation = x_axis_rotation != 0.0;
-                    points.push(point(absolute, end_point));
+                    points.push(point(end_point));
                     points.push(RetainedShapePoint::from_retained_values(
                         value(length(radius[0])),
                         value(length(radius[1])),
