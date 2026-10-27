@@ -608,7 +608,8 @@
           "type": "git",
           "url": "https://github.com/openssl/openssl.git",
           "commit": "c8bd5a57108599ac650bbae77fcabe3109dab2e8",
-          "tag": "openssl-3.6.5"
+          "tag": "openssl-3.6.5",
+          "disable-submodules": true
         }
       ]
     },
