@@ -2068,6 +2068,10 @@ fn execute_formatting_context_run(
     fragmentainer: Option<std::rc::Rc<fragmentation::FragmentainerContext>>,
 ) -> RunOutputs {
     assert!(!box_.is_invalid());
+    assert_eq!(
+        input.sizing.root_keeps_its_committed_geometry, root_cells.has_content_offset,
+        "only a root that keeps its committed geometry is placed before its run"
+    );
     let parent_owns_root_input_cells = parent_owns_root_input_cells(&callbacks, box_, &input);
     let checks_root_input_cells_its_parent_owns =
         parent_owns_root_input_cells && (cfg!(debug_assertions) || run_repeatability::verification_is_enabled());
@@ -2471,6 +2475,7 @@ fn enter_own_frame(
             .treat_block_axis_percentage_insets_as_auto_beyond_root,
         forced_content_inline_size: body_input.sizing.forced_content_inline_size,
         forced_content_block_size: body_input.sizing.forced_content_block_size,
+        root_keeps_its_committed_geometry: input.sizing.root_keeps_its_committed_geometry,
         ..RootSizingDirectives::default()
     };
     std::mem::swap(
@@ -3459,7 +3464,7 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
             .expect("partial relayout root must have committed geometry"),
     );
     let fragments = run.fragments.as_deref().expect("partial relayout must build fragments");
-    let input = LayoutInput::new(
+    let mut input = LayoutInput::new(
         AvailableSpace {
             inline_size: AvailableSize::definite(root_used.content_inline_size.get()),
             block_size: AvailableSize::definite(root_used.content_block_size.get()),
@@ -3469,6 +3474,7 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
         ContainingBlockConstraints::default(),
         ParticipationInParentFormattingContext::Root,
     );
+    input.sizing.root_keeps_its_committed_geometry = true;
 
     let facts = NodeFacts::new(callbacks, root);
     debug_assert!(facts.is_svg_svg_box());

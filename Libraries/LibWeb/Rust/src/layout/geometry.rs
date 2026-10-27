@@ -347,6 +347,9 @@ pub(crate) struct RootSizingDirectives {
     // Input-only: MathML layout lays out an embellished operator with the size its core operator should stretch to
     // cover.
     pub(crate) math_stretch_size_constraint: Option<MathStretchSizeConstraint>,
+    // Input-only: a partial relayout lays out the contents of its root inside the geometry the root committed, which
+    // the run keeps as it is.
+    pub(crate) root_keeps_its_committed_geometry: bool,
 }
 
 /// The size that MathML layout asks the core operator of an embellished operator to stretch to cover.

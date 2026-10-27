@@ -73,10 +73,9 @@ fn unobserved_own_block_size_verification_is_enabled() -> bool {
 }
 
 fn run_is_verified_at_other_unobserved_root_inputs(
-    root_cells: used_values::RootInputCells,
     own_block_size: formatting_context::OwnBlockSizeObservation,
 ) -> bool {
-    own_block_size == formatting_context::OwnBlockSizeObservation::Unobserved && !root_cells.has_content_offset
+    own_block_size == formatting_context::OwnBlockSizeObservation::Unobserved
 }
 
 fn root_inputs_at_other_own_block_sizes(
@@ -85,7 +84,7 @@ fn root_inputs_at_other_own_block_sizes(
     own_block_size: formatting_context::OwnBlockSizeObservation,
     automatic_content_block_size: CssPixels,
 ) -> Vec<(used_values::RootInputCells, LayoutInput)> {
-    if !run_is_verified_at_other_unobserved_root_inputs(root_cells, own_block_size) {
+    if !run_is_verified_at_other_unobserved_root_inputs(own_block_size) {
         return Vec::new();
     }
     let mut other_definite_own_block_sizes = Vec::new();
@@ -119,7 +118,7 @@ fn root_cells_at_other_block_margins(
     root_cells: used_values::RootInputCells,
     own_block_size: formatting_context::OwnBlockSizeObservation,
 ) -> Option<used_values::RootInputCells> {
-    run_is_verified_at_other_unobserved_root_inputs(root_cells, own_block_size).then(|| used_values::RootInputCells {
+    run_is_verified_at_other_unobserved_root_inputs(own_block_size).then(|| used_values::RootInputCells {
         margin_top: root_cells.margin_top + CssPixels::from_integer(30),
         margin_bottom: root_cells.margin_bottom - CssPixels::from_integer(20),
         ..root_cells
