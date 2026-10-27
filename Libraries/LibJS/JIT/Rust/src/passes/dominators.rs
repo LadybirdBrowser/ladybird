@@ -19,6 +19,9 @@ pub struct Dominators {
     idom: Vec<Option<BlockId>>,
     /// Whether each block is reachable from an entry.
     reachable: Vec<bool>,
+    /// When a depth first walk of the dominator tree enters and leaves each reachable block. A block dominates those
+    /// it enters and leaves while it is entered.
+    tree_intervals: Vec<(u32, u32)>,
 }
 
 impl Dominators {
@@ -84,7 +87,34 @@ impl Dominators {
                 }
             }
         }
-        Self { idom, reachable }
+        let mut dominators = Self {
+            idom,
+            reachable,
+            tree_intervals: Vec::new(),
+        };
+        dominators.tree_intervals = dominators.compute_tree_intervals();
+        dominators
+    }
+
+    fn compute_tree_intervals(&self) -> Vec<(u32, u32)> {
+        let children = self.children();
+        let mut intervals = vec![(0, 0); self.idom.len()];
+        let mut time = 0;
+        let mut pending = (0..self.idom.len())
+            .filter(|block| self.reachable[*block] && self.idom[*block].is_none())
+            .map(|block| (block, false))
+            .collect::<Vec<_>>();
+        while let Some((block, leaving)) = pending.pop() {
+            time += 1;
+            if leaving {
+                intervals[block].1 = time;
+                continue;
+            }
+            intervals[block].0 = time;
+            pending.push((block, true));
+            pending.extend(children[block].iter().map(|child| (child.index(), false)));
+        }
+        intervals
     }
 
     pub fn idom(&self, block: BlockId) -> Option<BlockId> {
@@ -133,6 +163,13 @@ impl Dominators {
     /// Whether every path from an entry to `block` goes through `dominator`.
     /// A block dominates itself.
     pub fn dominates(&self, dominator: BlockId, block: BlockId) -> bool {
+        // OPTIMIZATION: Walking up from the block would take time proportional to the depth of the dominator tree,
+        //               which is large in long straight-line code with many branches, like inlined assertions.
+        if self.reachable[dominator.index()] && self.reachable[block.index()] {
+            let (enter, leave) = self.tree_intervals[dominator.index()];
+            let (block_enter, block_leave) = self.tree_intervals[block.index()];
+            return enter <= block_enter && block_leave <= leave;
+        }
         let mut current = Some(block);
         while let Some(candidate) = current {
             if candidate == dominator {
