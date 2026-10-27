@@ -1283,13 +1283,15 @@ impl<'context> InlineFormattingContext<'context> {
             self.input.containing_block_constraints,
             ParticipationInParentFormattingContext::AtomicInline,
         );
-        match formatting_context::layout_inside_child(self.run, Some(self.parent), None, node, input, false) {
+        let outcome = formatting_context::layout_inside_child(self.run, Some(self.parent), None, node, input, false);
+        outcome.report_percentage_block_size_dependency_of(self.run, node);
+        match outcome {
             ChildLayoutOutcome::Created(result) => result.baselines,
             ChildLayoutOutcome::ReenterCurrent => {
                 self.parent.run(self.run, input);
                 self.used(node).content_baselines_from_cells()
             }
-            ChildLayoutOutcome::Skipped => self.used(node).content_baselines_from_cells(),
+            ChildLayoutOutcome::Skipped { .. } => self.used(node).content_baselines_from_cells(),
         }
     }
 

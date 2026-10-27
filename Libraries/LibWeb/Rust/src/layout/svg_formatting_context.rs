@@ -2032,9 +2032,11 @@ impl<'pass> SvgFormattingContext<'pass> {
                 },
                 ..self.nested_layout_input()
             };
-            match formatting_context::layout_inside_child(run, None, None, child, child_input, true) {
+            let outcome = formatting_context::layout_inside_child(run, None, None, child, child_input, true);
+            outcome.report_percentage_block_size_dependency_of(run, child);
+            match outcome {
                 ChildLayoutOutcome::Created(_) => {}
-                ChildLayoutOutcome::Skipped | ChildLayoutOutcome::ReenterCurrent => {
+                ChildLayoutOutcome::Skipped { .. } | ChildLayoutOutcome::ReenterCurrent => {
                     panic!("SVG foreign object did not create an independent formatting context")
                 }
             };

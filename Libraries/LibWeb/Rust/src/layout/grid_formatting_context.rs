@@ -4380,8 +4380,10 @@ impl<'pass> GridFormattingContext<'pass> {
                 // grid area in both axes for the table's percentage resolution.
                 input.containing_block_constraints.percentage_basis_inline_size = Some(inline_basis);
             }
-            match formatting_context::layout_inside_child(run, None, Some(self), item.box_, input, false) {
-                ChildLayoutOutcome::Created(_) | ChildLayoutOutcome::Skipped => {}
+            let outcome = formatting_context::layout_inside_child(run, None, Some(self), item.box_, input, false);
+            outcome.report_percentage_block_size_dependency_of(run, item.box_);
+            match outcome {
+                ChildLayoutOutcome::Created(_) | ChildLayoutOutcome::Skipped { .. } => {}
                 ChildLayoutOutcome::ReenterCurrent => {
                     self.run(run, input);
                 }

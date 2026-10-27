@@ -1745,7 +1745,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             inline_size: AvailableSize::definite(max_content_inline_size),
             block_size: AvailableSize::Indefinite,
         };
-        match formatting_context::layout_inside_child(
+        let marker_outcome = formatting_context::layout_inside_child(
             run,
             None,
             None,
@@ -1760,8 +1760,10 @@ impl<'pass> BlockFormattingContext<'pass> {
                 participation: ParticipationInParentFormattingContext::Item,
             },
             true,
-        ) {
-            ChildLayoutOutcome::Created(_) | ChildLayoutOutcome::Skipped => {}
+        );
+        marker_outcome.report_percentage_block_size_dependency_of(run, marker);
+        match marker_outcome {
+            ChildLayoutOutcome::Created(_) | ChildLayoutOutcome::Skipped { .. } => {}
             ChildLayoutOutcome::ReenterCurrent => {
                 unreachable!("marker inside layout did not establish a formatting context")
             }
@@ -1804,9 +1806,11 @@ impl<'pass> BlockFormattingContext<'pass> {
         input: LayoutInput,
         force_independent_context_run: bool,
     ) -> Option<formatting_context::ChildLayoutResult> {
-        match formatting_context::layout_inside_child(run, Some(self), None, node, input, force_independent_context_run)
-        {
-            ChildLayoutOutcome::Skipped => None,
+        let outcome =
+            formatting_context::layout_inside_child(run, Some(self), None, node, input, force_independent_context_run);
+        outcome.report_percentage_block_size_dependency_of(run, node);
+        match outcome {
+            ChildLayoutOutcome::Skipped { .. } => None,
             ChildLayoutOutcome::Created(child_layout) => Some(child_layout),
             ChildLayoutOutcome::ReenterCurrent => {
                 self.run(run, input);
