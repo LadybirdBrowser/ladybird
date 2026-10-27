@@ -3432,6 +3432,44 @@ impl<'pass> GridFormattingContext<'pass> {
         alignment
     }
 
+    // https://drafts.csswg.org/css-align-3/#overflow-values
+    // safe: If the size of the alignment subject overflows the alignment container, the alignment subject is instead
+    //       aligned as if the alignment mode were flow-start.
+    fn item_alignment_with_overflow(
+        &self,
+        item: GridItem,
+        axis: Axis,
+        alignment: Alignment,
+        alignment_space: CssPixels,
+    ) -> Alignment {
+        if alignment_space >= CssPixels::default() {
+            return alignment;
+        }
+        let style = self.style(item.box_);
+        let container_style = self.style(self.run.box_);
+        let overflow = self.select_grid_axis(
+            axis,
+            if style.justify_self() == justify_self::AUTO {
+                container_style.justify_items_overflow()
+            } else {
+                style.justify_self_overflow()
+            },
+            if style.align_self() == align_self::AUTO {
+                container_style.align_items_overflow()
+            } else {
+                style.align_self_overflow()
+            },
+        );
+        if overflow != crate::css::computed_value_types::OVERFLOW_ALIGNMENT_SAFE {
+            return alignment;
+        }
+        if self.axis_is_reversed(axis) {
+            Alignment::End
+        } else {
+            Alignment::Start
+        }
+    }
+
     // https://drafts.csswg.org/css-align-3/#valdef-justify-self-left
     // left: Aligns the alignment subject to be flush with the alignment container’s line-left or physical left edge,
     // whichever is in the appropriate axis.
@@ -3647,7 +3685,12 @@ impl<'pass> GridFormattingContext<'pass> {
             base_margin_end + item.extra_margin_right,
             wrapper_style.margin_left().is_auto(),
             wrapper_style.margin_right().is_auto(),
-            self.alignment_for_unstretched_size(Axis::Column, alignment, false),
+            self.item_alignment_with_overflow(
+                item,
+                Axis::Column,
+                self.alignment_for_unstretched_size(Axis::Column, alignment, false),
+                containing_for_wrapper - wrapper_size - margin_box_start - margin_box_end,
+            ),
         )
     }
 
@@ -3894,11 +3937,11 @@ impl<'pass> GridFormattingContext<'pass> {
             )
         };
         let resolve_alignment = |size, size_is_auto| {
+            let margin_box_start = self.item_margin_box_start(item, axis);
+            let margin_box_end = self.item_margin_box_end(item, axis);
             let containing = match item.grid_lanes_stacking_area {
                 Some(area) if is_stacking_axis && area.is_adjacent_to_gap => area.size,
-                _ if is_stacking_axis => {
-                    size + self.item_margin_box_start(item, axis) + self.item_margin_box_end(item, axis)
-                }
+                _ if is_stacking_axis => size + margin_box_start + margin_box_end,
                 _ => containing,
             };
             align_item(
@@ -3906,13 +3949,18 @@ impl<'pass> GridFormattingContext<'pass> {
                 size_is_auto,
                 facts.is_replaced_box(),
                 containing,
-                self.item_margin_box_start(item, axis),
-                self.item_margin_box_end(item, axis),
+                margin_box_start,
+                margin_box_end,
                 used_margin_start,
                 used_margin_end,
                 start_auto,
                 end_auto,
-                self.alignment_for_unstretched_size(axis, alignment, size_is_auto && !facts.is_replaced_box()),
+                self.item_alignment_with_overflow(
+                    item,
+                    axis,
+                    self.alignment_for_unstretched_size(axis, alignment, size_is_auto && !facts.is_replaced_box()),
+                    containing - size - margin_box_start - margin_box_end,
+                ),
             )
         };
         let mut resolved = resolve_alignment(size, preferred.is_auto());
