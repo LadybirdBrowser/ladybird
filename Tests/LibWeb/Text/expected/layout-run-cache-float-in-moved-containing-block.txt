@@ -1,0 +1,1 @@
+PASS: a float whose containing block moves keeps the layout of its contents (work + checks)

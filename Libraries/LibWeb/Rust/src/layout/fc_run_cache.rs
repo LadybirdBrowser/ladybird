@@ -87,6 +87,14 @@ impl FcRunCacheKey {
             input.sizing.adopt_automatic_content_block_size = false;
             input.sizing.content_block_size_after_inside_layout = None;
         }
+        // NB: The parent block formatting context sizes a float against its containing block position before the
+        //     run and places it after. The run lays the float out from its own origin.
+        if let ParticipationInParentFormattingContext::Float {
+            containing_block_position_in_bfc_root,
+        } = &mut input.participation
+        {
+            *containing_block_position_in_bfc_root = FfiCssPixelPoint::default();
+        }
         Self {
             fc_type,
             input,
