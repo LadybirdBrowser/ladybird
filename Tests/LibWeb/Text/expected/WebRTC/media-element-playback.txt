@@ -1,0 +1,7 @@
+readyState: 4
+duration: Infinity
+paused after play(): false
+remote track carries audio: true
+currentTime advanced: true
+paused after pause(): true
+paused after playing again: false

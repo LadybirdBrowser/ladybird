@@ -15,6 +15,7 @@
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/Promise.h>
 #include <LibMedia/MediaSupport.h>
+#include <LibMedia/Sinks/AudioOutputFactory.h>
 #include <LibMedia/Track.h>
 #include <LibMediaClient/Client.h>
 #include <LibMediaClient/RemoteMediaStream.h>
@@ -46,6 +47,7 @@
 #include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/MediaError.h>
+#include <LibWeb/HTML/MediaStreamPlayback.h>
 #include <LibWeb/HTML/PotentialCORSRequest.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -660,6 +662,8 @@ void HTMLMediaElement::seek_from_media_controls(double time)
 // https://html.spec.whatwg.org/multipage/media.html#current-playback-position
 double HTMLMediaElement::current_playback_position() const
 {
+    if (m_media_stream_playback)
+        return m_media_stream_playback->current_time();
     if (!m_playback_manager)
         return 0;
     return m_playback_manager->current_time().to_seconds_f64();
@@ -854,6 +858,8 @@ void HTMLMediaElement::update_volume()
 {
     if (m_playback_manager)
         m_playback_manager->set_volume(effective_media_volume());
+    if (m_media_stream_playback)
+        m_media_stream_playback->set_volume(effective_media_volume());
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-media-addtexttrack
@@ -1886,9 +1892,21 @@ void HTMLMediaElement::load_local_resource(MediaProvider const& media_provider, 
                 //     the demuxers that our PlaybackManager is given.
             }
         },
-        [&](GC::Ref<MediaCapture::MediaStream>) {
-            // FIXME: Route MediaStream tracks into media-element playback.
-            // Accept srcObject assignments while RTC audio uses direct playback.
+        [&](GC::Ref<MediaCapture::MediaStream> stream) {
+            // https://w3c.github.io/mediacapture-main/#mediastreams-in-media-elements
+            // FIXME: Reflect the stream's tracks in audioTracks and videoTracks, follow tracks added to or removed
+            //        from the stream after assignment, and render video tracks.
+            m_media_stream_playback = MediaStreamPlayback::create(document().page().client().create_audio_output_factory());
+            m_media_stream_playback->set_tracks(stream->get_audio_tracks());
+            update_volume();
+
+            // A MediaStream is live and unbounded, so its duration is infinite and its data is always as complete as it
+            // will get.
+            set_duration(AK::Infinity<double>);
+            set_ready_state(ReadyState::HaveMetadata);
+            set_ready_state(ReadyState::HaveEnoughData);
+            set_network_state(NetworkState::Idle);
+            set_delaying_the_load_event(false);
         },
         [&](GC::Ref<FileAPI::Blob>) {
             // FIXME: Support File objects.
@@ -2716,6 +2734,10 @@ void HTMLMediaElement::forget_media_resource_specific_tracks()
     m_video_tracks->remove_all_tracks();
     update_audio_play_state();
     m_playback_manager.clear();
+    if (m_media_stream_playback) {
+        m_media_stream_playback->set_tracks({});
+        m_media_stream_playback.clear();
+    }
     m_last_known_current_playback_position = {};
     start_or_stop_playback_position_update_timer();
     update_screen_wake_lock();
@@ -3323,6 +3345,8 @@ void HTMLMediaElement::notify_about_playing()
 
     if (m_playback_manager)
         m_playback_manager->play();
+    if (m_media_stream_playback)
+        m_media_stream_playback->play();
 
     m_has_started_playback = true;
     update_audio_play_state();
@@ -3367,6 +3391,8 @@ void HTMLMediaElement::set_paused(bool paused)
 
         if (m_playback_manager)
             m_playback_manager->pause();
+        if (m_media_stream_playback)
+            m_media_stream_playback->pause();
 
         update_audio_play_state();
     }
@@ -3584,6 +3610,12 @@ bool HTMLMediaElement::has_ended_playback(IgnoreLoopAttribute ignore_loop_attrib
 
     // The element's readyState attribute is HAVE_METADATA or greater, and
     if (m_ready_state < ReadyState::HaveMetadata)
+        return false;
+
+    // NB: A MediaStream is unbounded, so playback never reaches its end and it has no earliest position to go back to.
+    // FIXME: Report ended playback once the MediaStream becomes inactive.
+    //        https://w3c.github.io/mediacapture-main/#mediastreams-in-media-elements
+    if (m_media_stream_playback)
         return false;
 
     VERIFY(m_playback_manager != nullptr);

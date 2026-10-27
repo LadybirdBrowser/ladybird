@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+function attachStream(stream, onLoaded) {
+    const audio = new Audio();
+    audio.srcObject = stream;
+    audio.addEventListener("loadeddata", () => {
+        println(`network idle: ${audio.networkState === HTMLMediaElement.NETWORK_IDLE}`);
+        println(`paused: ${audio.paused}`);
+        onLoaded();
+    }, { once: true });
+    audio.gcSentinel = true;
+    return new WeakRef(audio);
+}
+
+asyncTest(async done => {
+    const context = new AudioContext();
+    const destination = context.createMediaStreamDestination();
+    let weakAudio;
+    await new Promise(resolve => weakAudio = attachStream(destination.stream, resolve));
+    await collectGarbageUntilCleared([weakAudio]);
+    println(`audio collected: ${weakAudio.deref() === undefined}`);
+    await context.close();
+    done();
+});
+</script>
