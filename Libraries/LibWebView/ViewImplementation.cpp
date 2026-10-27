@@ -3780,30 +3780,31 @@ void ViewImplementation::notify_session_history_changed()
     m_session->session_store->update_tab_state(move(update));
 }
 
-NonnullRefPtr<Core::Promise<Empty>> ViewImplementation::reset_session_history_for_testing()
+NonnullRefPtr<Core::Promise<Empty>> ViewImplementation::reset_state_for_testing()
 {
-    m_pending_session_history_reset_for_testing = Core::Promise<Empty>::construct();
+    m_pending_test_state_reset = Core::Promise<Empty>::construct();
     // The algorithms this test control replaces run on the session history traversal queue. Keep that ordering by
     // sending the reset at its queue position, and hold the queue until WebContent returns the retained active
-    // entry so canonical history is reset before anything queued behind the reset runs.
+    // entry so canonical history is reset before anything queued behind the reset runs. WebContent also restores
+    // automatic rendering before acknowledging the reset.
     traversable().append_history_queue_steps([this](NonnullRefPtr<Core::Promise<Empty>> promise) {
-        m_pending_session_history_reset_queue_promise = move(promise);
-        page().reset_session_history_for_testing();
+        m_pending_test_state_reset_queue_promise = move(promise);
+        page().reset_state_for_testing();
     });
-    return *m_pending_session_history_reset_for_testing;
+    return *m_pending_test_state_reset;
 }
 
-void ViewImplementation::did_reset_session_history_for_testing(
+void ViewImplementation::did_reset_state_for_testing(
     Badge<WebContentPage>, Web::HTML::SessionHistoryEntryDescriptor active_entry)
 {
-    auto promise = move(m_pending_session_history_reset_for_testing);
+    auto promise = move(m_pending_test_state_reset);
     traversable().reset_session_history_for_testing(move(active_entry));
     m_webdriver_navigation_observation.clear();
     // The reset installed the process's own active entry as the canonical current entry.
     traversable().active_document().set_host(page());
     update_navigation_action_state();
 
-    if (auto queue_promise = move(m_pending_session_history_reset_queue_promise))
+    if (auto queue_promise = move(m_pending_test_state_reset_queue_promise))
         queue_promise->resolve({});
     if (promise)
         promise->resolve({});
@@ -3931,8 +3932,8 @@ void ViewImplementation::respawn_web_content_process_after_crash()
     // Nothing answers the crashed page's requests.
     fail_pending_debugger_requests();
     reject_pending_selection_requests();
-    // A queued session-history reset awaiting the crashed process's reply can never complete.
-    if (auto queue_promise = move(m_pending_session_history_reset_queue_promise))
+    // A queued test-state reset awaiting the crashed process's reply can never complete.
+    if (auto queue_promise = move(m_pending_test_state_reset_queue_promise))
         queue_promise->resolve({});
     cancel_all_native_geolocation_requests();
     // Don't keep a stale backup bitmap around.

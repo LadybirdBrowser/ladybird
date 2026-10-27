@@ -27,7 +27,7 @@ public:
     void reset_line_box_borders();
     void reset_user_style();
     void reset_geolocation_emulated_position();
-    NonnullRefPtr<Core::Promise<Empty>> reset_session_history();
+    NonnullRefPtr<Core::Promise<Empty>> reset_state_for_next_test();
 
     NonnullRefPtr<Core::Promise<RefPtr<Gfx::Bitmap const>>> take_screenshot();
 
