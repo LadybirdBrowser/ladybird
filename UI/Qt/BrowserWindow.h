@@ -28,6 +28,7 @@
 
 class QIcon;
 class QPropertyAnimation;
+class QTimer;
 class QToolButton;
 class QWidget;
 class QWindow;
@@ -49,9 +50,17 @@ public:
     ExitFullscreenButton(QWidget* parent = nullptr);
     ~ExitFullscreenButton() override = default;
     void animate_show();
+    // The site that went full screen, which the toast names.
+    void set_host(QString);
+
+    virtual QSize sizeHint() const override;
 
 private:
+    virtual void paintEvent(QPaintEvent*) override;
+
+    QString m_host;
     QPropertyAnimation* m_widget_animation;
+    QTimer* m_hide_timer { nullptr };
 };
 
 // Handles Qt UI state related to when Ladybird has entered fullscreen,
@@ -150,6 +159,9 @@ public:
     int tab_count() { return m_tabs_container->count(); }
     int tab_index(Tab*);
     Tab* tab_at(int index) const { return m_tabs_container->tab(index); }
+    TabWidget& tab_widget() const { return *m_tabs_container; }
+    // Closes a tab that isn't worth reopening, such as an empty tab that other tabs took the place of.
+    void close_tab_without_keeping_it(int index);
 
     // Pinned tabs always fill the start of the strip: indices [0, pinned_tab_count()).
     int pinned_tab_count() const;
@@ -177,7 +189,7 @@ public:
     void on_tab_load_start(Tab&);
     FullscreenMode& fullscreen_mode();
 
-    QMenu& hamburger_menu() const { return *m_hamburger_menu; }
+    LadybirdButton& ladybird_button() const { return m_tabs_container->ladybird_button(); }
     static bool has_chrome_in_titlebar();
 
     void show_window_context_menu(QPoint global_position);
@@ -196,9 +208,18 @@ public:
     void update_tabs_display();
 
     void rebuild_bookmarks_menu();
-    void detach_tab_to_new_window(int index, QPoint global_position);
+    enum class DetachedWindowFollowsPointer : bool {
+        No,
+        Yes,
+    };
+    BrowserWindow& detach_tab_to_new_window(int index, QPoint global_position, DetachedWindowFollowsPointer = DetachedWindowFollowsPointer::No);
     void move_tab_to_window(int index, BrowserWindow& target_window, int target_index);
     void adopt_tab(Tab&, int index);
+
+    // A download that failed marks the downloads button until the downloads are looked at.
+    void set_failed_download_count(size_t);
+    void acknowledge_failed_downloads();
+    bool has_unseen_failed_downloads() const { return m_failed_download_count > m_acknowledged_failed_download_count; }
 
     double refresh_rate() const { return m_screen_observer->refresh_rate(); }
     Optional<u64> display_id() const { return m_screen_observer->display_id(); }
@@ -221,12 +242,15 @@ public slots:
     void request_to_close_current_tab();
     void open_next_tab();
     void open_previous_tab();
+    void show_all_tabs();
+    void move_focus_between_chrome_and_page();
     void open_file();
     void show_find_in_page();
     void enter_fullscreen();
     void exit_fullscreen();
 
 private:
+    bool close_tab(int index, WebView::SessionStore::KeepForReopening);
     virtual bool event(QEvent*) override;
     virtual bool eventFilter(QObject*, QEvent*) override;
     virtual void resizeEvent(QResizeEvent*) override;
@@ -262,11 +286,10 @@ private:
 
     void initialize_application_actions();
     void initialize_application_menu();
-    void initialize_hamburger_menu();
+    void initialize_ladybird_menu();
+    QAction* create_ladybird_menu_zoom_row();
+    void update_ladybird_menu_zoom_level();
     void initialize_window_context_menu();
-
-    QAction* create_hamburger_zoom_actions();
-    void update_hamburger_zoom_label();
 
     void update_chrome_style();
 
@@ -303,17 +326,19 @@ private:
     QToolButton* m_menu_bar_maximize_window_button { nullptr };
     QToolButton* m_menu_bar_close_window_button { nullptr };
 
-    QMenu* m_hamburger_menu { nullptr };
+    QMenu* m_ladybird_menu { nullptr };
+    QPushButton* m_ladybird_menu_zoom_level { nullptr };
 
     QMenu* m_window_context_menu { nullptr };
     QAction* m_reopen_closed_tab_action { nullptr };
     QAction* m_always_on_top_action { nullptr };
     QAction* m_toggle_vertical_tabs_action { nullptr };
-    QPushButton* m_zoom_level { nullptr };
 
     IsPopupWindow m_is_popup_window { IsPopupWindow::No };
 
     Optional<WebView::SessionWindowId> m_session_window_id;
+    size_t m_failed_download_count { 0 };
+    size_t m_acknowledged_failed_download_count { 0 };
     Optional<i64> m_window_close_active_tab_index;
     QPointer<Tab> m_window_close_original_active_tab;
     QPointer<Tab> m_window_close_current_preflight_tab;

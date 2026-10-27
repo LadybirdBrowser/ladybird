@@ -20,7 +20,7 @@ CMake 3.30 or newer must be available in $PATH.
 
 <!-- Note: If you change something here, please also change it in the `devcontainer/devcontainer.json` file. -->
 ```bash
-sudo apt install autoconf autoconf-archive automake build-essential ccache cmake curl fonts-liberation2 git glslang-tools libdrm-dev libgl1-mesa-dev libncurses-dev libpulse-dev libtool libxcb-icccm4-dev nasm ninja-build pkg-config python3-venv qt6-base-private-dev qt6-positioning-dev qt6-tools-dev-tools qt6-wayland tar unzip zip
+sudo apt install autoconf autoconf-archive automake build-essential ccache cmake curl fonts-liberation2 git glslang-tools libdrm-dev libgl1-mesa-dev libncurses-dev libpulse-dev libtool libwayland-dev libxcb-icccm4-dev nasm ninja-build pkg-config python3-venv qt6-base-private-dev qt6-positioning-dev qt6-tools-dev-tools qt6-wayland tar unzip zip
 ```
 
 #### CMake 3.30 or newer:
@@ -70,7 +70,7 @@ sudo apt update && sudo apt install g++-16 libstdc++-16-dev
 ### Arch Linux/Manjaro:
 
 ```
-sudo pacman -S --needed autoconf-archive base-devel ccache cmake curl git less libgl libpulse nasm ninja python qt6-base qt6-positioning qt6-tools ttf-liberation tar unzip xcb-util-wm zip
+sudo pacman -S --needed autoconf-archive base-devel ccache cmake curl git less libgl libpulse nasm ninja python qt6-base qt6-positioning qt6-tools ttf-liberation tar unzip wayland xcb-util-wm zip
 ```
 
 ### Fedora or derivatives:

@@ -5,16 +5,29 @@
  */
 
 #include <UI/Qt/ChromeStyle.h>
+#include <UI/Qt/Icon.h>
 #include <UI/Qt/JavaScriptDialog.h>
+#include <UI/Qt/Motion.h>
 #include <UI/Qt/NativeTextEditingLineEdit.h>
+#include <UI/Qt/Popover.h>
+#include <UI/Qt/SystemAppearance.h>
+#include <UI/Qt/Theme.h>
+#if defined(AK_OS_MACOS)
+#    include <UI/Qt/MacWindow.h>
+#endif
 
 #include <AK/Platform.h>
 #include <AK/StdLibExtras.h>
 #include <QApplication>
+#include <QCheckBox>
 #include <QDialogButtonBox>
 #include <QEvent>
 #include <QFocusEvent>
 #include <QFrame>
+#include <QGraphicsDropShadowEffect>
+#include <QGraphicsOpacityEffect>
+#include <QHBoxLayout>
+#include <QIcon>
 #include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
@@ -24,14 +37,19 @@
 #include <QShortcut>
 #include <QShowEvent>
 #include <QVBoxLayout>
+#include <QVariantAnimation>
 
 namespace Ladybird {
 
-static constexpr int DIALOG_MAX_WIDTH = 520;
-static constexpr int DIALOG_MIN_WIDTH = 320;
+// The dialog is a sheet that hangs from the top of the page, over a dimmed page.
+static constexpr int DIALOG_WIDTH = 440;
 static constexpr int DIALOG_MAX_MESSAGE_HEIGHT = 240;
 static constexpr int DIALOG_MARGIN = 24;
 static constexpr int PANEL_HORIZONTAL_PADDING = 20;
+#if defined(AK_OS_MACOS)
+static constexpr int PANEL_CORNER_RADIUS = 12;
+#endif
+static constexpr int OPENING_SLIDE_DISTANCE = 12;
 
 JavaScriptDialog::JavaScriptDialog(QWidget* parent)
     : QWidget(parent)
@@ -39,7 +57,11 @@ JavaScriptDialog::JavaScriptDialog(QWidget* parent)
     setObjectName("LadybirdJavaScriptDialogOverlay");
     setCursor(Qt::ArrowCursor);
     setAttribute(Qt::WA_StyledBackground);
-#if defined(AK_OS_MACOS) || defined(USE_DIRECTX) || defined(USE_VULKAN_DMABUF_IMAGES)
+#if defined(AK_OS_MACOS)
+    // NB: The page is presented above anything Qt paints over it, and a native view over it cannot let it show through.
+    //     So only the sheet is a native view, with its shadow cast by another, and the page view dims the page itself.
+    //     This overlay only takes the input meant for the page.
+#elif defined(USE_DIRECTX) || defined(USE_VULKAN_DMABUF_IMAGES)
     // Native rendering surfaces stack above ordinary child widgets. Match their native stacking level so the dialog
     // remains above the page.
     setAttribute(Qt::WA_DontCreateNativeAncestors);
@@ -53,21 +75,37 @@ JavaScriptDialog::JavaScriptDialog(QWidget* parent)
     QApplication::instance()->installEventFilter(this);
 
     auto* overlay_layout = new QVBoxLayout(this);
-    overlay_layout->setContentsMargins(DIALOG_MARGIN, DIALOG_MARGIN, DIALOG_MARGIN, DIALOG_MARGIN);
-    overlay_layout->addStretch();
+    overlay_layout->setContentsMargins(DIALOG_MARGIN, 0, DIALOG_MARGIN, DIALOG_MARGIN);
 
     m_panel = new QFrame(this);
     m_panel->setObjectName("LadybirdJavaScriptDialogPanel");
     m_panel->setAttribute(Qt::WA_StyledBackground);
     m_panel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Maximum);
+#if defined(AK_OS_MACOS)
+    m_panel->setAttribute(Qt::WA_DontCreateNativeAncestors);
+    m_panel->setAttribute(Qt::WA_NativeWindow);
+    m_panel_floating_shadow = &cast_floating_shadow(*m_panel, PANEL_CORNER_RADIUS, FloatingShadowTone::FollowTheme, FloatingShadowKind::Sheet);
+#else
+    m_panel_shadow = new QGraphicsDropShadowEffect(m_panel);
+    m_panel_shadow->setBlurRadius(ChromeStyle::drop_shadow_blur_radius(40));
+    m_panel_shadow->setOffset(0, 18);
+    m_panel->setGraphicsEffect(m_panel_shadow);
+#endif
 
     auto* panel_layout = new QVBoxLayout(m_panel);
-    panel_layout->setContentsMargins(PANEL_HORIZONTAL_PADDING, 18, PANEL_HORIZONTAL_PADDING, 18);
+    panel_layout->setContentsMargins(PANEL_HORIZONTAL_PADDING, 18, PANEL_HORIZONTAL_PADDING, 16);
     panel_layout->setSpacing(12);
 
+    // The site's icon, then who is asking.
+    auto* title_layout = new QHBoxLayout;
+    title_layout->setSpacing(8);
+    m_title_icon = new QLabel(m_panel);
+    m_title_icon->setFixedSize(16, 16);
+    title_layout->addWidget(m_title_icon);
     m_title_label = new QLabel(m_panel);
     m_title_label->setObjectName("LadybirdJavaScriptDialogTitle");
-    panel_layout->addWidget(m_title_label);
+    title_layout->addWidget(m_title_label, 1);
+    panel_layout->addLayout(title_layout);
 
     m_message_scroll_area = new QScrollArea(m_panel);
     m_message_scroll_area->setObjectName("LadybirdJavaScriptDialogMessageArea");
@@ -91,11 +129,15 @@ JavaScriptDialog::JavaScriptDialog(QWidget* parent)
     m_prompt_text->setObjectName("LadybirdJavaScriptDialogPrompt");
     panel_layout->addWidget(m_prompt_text);
 
+    m_block_further_dialogs = new PopoverCheckBox("Don't let this site show more dialogs", m_panel);
+    m_block_further_dialogs->setObjectName("LadybirdJavaScriptDialogBlockFurtherDialogs");
+    panel_layout->addWidget(m_block_further_dialogs);
+
     m_button_box = new QDialogButtonBox(m_panel);
     m_button_box->setObjectName("LadybirdJavaScriptDialogButtons");
     panel_layout->addWidget(m_button_box);
 
-    overlay_layout->addWidget(m_panel, 0, Qt::AlignHCenter);
+    overlay_layout->addWidget(m_panel, 0, Qt::AlignHCenter | Qt::AlignTop);
     overlay_layout->addStretch();
 
     QObject::connect(m_button_box, &QDialogButtonBox::accepted, this, [this] {
@@ -114,9 +156,9 @@ JavaScriptDialog::JavaScriptDialog(QWidget* parent)
     hide();
 }
 
-void JavaScriptDialog::show_alert(QString const& title, QString const& message)
+void JavaScriptDialog::show_alert(QString const& title, QString const& message, OfferToBlockFurtherDialogs offer_to_block_further_dialogs)
 {
-    open(Type::Alert, title, message);
+    open(Type::Alert, title, message, {}, offer_to_block_further_dialogs);
 }
 
 void JavaScriptDialog::show_before_unload(QString const& title)
@@ -124,17 +166,29 @@ void JavaScriptDialog::show_before_unload(QString const& title)
     open(Type::BeforeUnload, title, "Leave this page? Your changes may not be saved.");
 }
 
-void JavaScriptDialog::show_confirm(QString const& title, QString const& message)
+void JavaScriptDialog::show_confirm(QString const& title, QString const& message, OfferToBlockFurtherDialogs offer_to_block_further_dialogs)
 {
-    open(Type::Confirm, title, message);
+    open(Type::Confirm, title, message, {}, offer_to_block_further_dialogs);
 }
 
-void JavaScriptDialog::show_prompt(QString const& title, QString const& message, QString const& default_text)
+void JavaScriptDialog::show_prompt(QString const& title, QString const& message, QString const& default_text, OfferToBlockFurtherDialogs offer_to_block_further_dialogs)
 {
-    open(Type::Prompt, title, message, default_text);
+    open(Type::Prompt, title, message, default_text, offer_to_block_further_dialogs);
 }
 
-void JavaScriptDialog::open(Type type, QString const& title, QString const& message, QString const& default_text)
+void JavaScriptDialog::set_title_icon(QIcon const& icon)
+{
+    // Like the tab strip, a site without an icon gets the globe.
+    auto const& shown_icon = icon.isNull() ? create_chrome_icon(ChromeIcon::Globe, Theme::panel().muted) : icon;
+    m_title_icon->setPixmap(shown_icon.pixmap(QSize(16, 16), devicePixelRatioF()));
+}
+
+bool JavaScriptDialog::blocks_further_dialogs() const
+{
+    return !m_block_further_dialogs->isHidden() && m_block_further_dialogs->isChecked();
+}
+
+void JavaScriptDialog::open(Type type, QString const& title, QString const& message, QString const& default_text, OfferToBlockFurtherDialogs offer_to_block_further_dialogs)
 {
     if (m_type.has_value())
         return;
@@ -148,6 +202,8 @@ void JavaScriptDialog::open(Type type, QString const& title, QString const& mess
     m_message_label->setText(message);
     m_prompt_text->setVisible(type == Type::Prompt);
     m_prompt_text->setText(default_text);
+    m_block_further_dialogs->setChecked(false);
+    m_block_further_dialogs->setVisible(offer_to_block_further_dialogs == OfferToBlockFurtherDialogs::Yes);
 
     QDialogButtonBox::StandardButtons buttons { QDialogButtonBox::Ok };
     if (type != Type::Alert)
@@ -232,13 +288,19 @@ void JavaScriptDialog::restore_focus_after_close()
 {
     auto* focus_widget = QApplication::focusWidget();
     auto dialog_had_focus = focus_widget == this || isAncestorOf(focus_widget);
-    hide();
     restore_parent_focus_policy();
 
     auto previous_focus_widget = m_previous_focus_widget;
     m_previous_focus_widget = nullptr;
-    if (dialog_had_focus && previous_focus_widget && previous_focus_widget->isVisible())
-        previous_focus_widget->setFocus();
+    // NB: The focus moves before the dialog hides, since hiding it would hand the focus to the next widget in the chain.
+    //     Without a widget to return to, the page the dialog came from takes the focus.
+    if (dialog_had_focus) {
+        if (previous_focus_widget && previous_focus_widget->isVisible())
+            previous_focus_widget->setFocus();
+        else if (parentWidget()->focusPolicy() != Qt::NoFocus)
+            parentWidget()->setFocus();
+    }
+    hide();
 }
 
 bool JavaScriptDialog::event(QEvent* event)
@@ -361,9 +423,65 @@ void JavaScriptDialog::resizeEvent(QResizeEvent* event)
 void JavaScriptDialog::showEvent(QShowEvent* event)
 {
     QWidget::showEvent(event);
+
+#if defined(AK_OS_MACOS)
+    round_appkit_view_bottom_corners(*m_panel, PANEL_CORNER_RADIUS);
+#endif
+
+    // The sheet slides 12 px down from the toolbar as it fades in, over the page as it dims. It only fades in if the
+    // system asks for less motion.
+    if (!m_opening_animation) {
+        m_opening_animation = new QVariantAnimation(this);
+        m_opening_animation->setDuration(Motion::BASE);
+        m_opening_animation->setEasingCurve(Motion::enter_easing());
+        m_opening_animation->setStartValue(0.0);
+        m_opening_animation->setEndValue(1.0);
+        QObject::connect(m_opening_animation, &QVariantAnimation::valueChanged, this, [this](QVariant const& value) {
+            set_opening_progress(value.toReal());
+        });
+    }
+
     update_geometry_constraints();
     raise();
+    set_opening_progress(0);
+    m_opening_animation->stop();
+    m_opening_animation->start();
     focus_dialog();
+}
+
+void JavaScriptDialog::hideEvent(QHideEvent* event)
+{
+    QWidget::hideEvent(event);
+    if (m_opening_animation)
+        m_opening_animation->stop();
+    if (on_page_dim_change)
+        on_page_dim_change(0);
+}
+
+void JavaScriptDialog::set_opening_progress(qreal progress)
+{
+    // NB: The sheet is placed by the layout, and slides from there.
+    layout()->activate();
+    auto offset = SystemAppearance::prefers_reduced_motion() ? 0 : qRound(-OPENING_SLIDE_DISTANCE * (1 - progress));
+    m_panel->move(m_panel->x(), layout()->contentsMargins().top() + offset);
+
+#if defined(AK_OS_MACOS)
+    set_appkit_view_opacity(*m_panel, progress);
+    set_floating_window_opacity(*m_panel_floating_shadow, progress);
+    if (on_page_dim_change)
+        on_page_dim_change(progress);
+#else
+    if (progress >= 1.0) {
+        setGraphicsEffect(nullptr);
+    } else {
+        auto* effect = qobject_cast<QGraphicsOpacityEffect*>(graphicsEffect());
+        if (!effect) {
+            effect = new QGraphicsOpacityEffect(this);
+            setGraphicsEffect(effect);
+        }
+        effect->setOpacity(progress);
+    }
+#endif
 }
 
 void JavaScriptDialog::focus_dialog()
@@ -388,17 +506,20 @@ void JavaScriptDialog::update_chrome_style()
 
     m_is_updating_chrome_style = true;
     setStyleSheet(ChromeStyle::javascript_dialog_style_sheet(palette()));
+#if !defined(AK_OS_MACOS)
+    if (m_panel_shadow)
+        m_panel_shadow->setColor(QColor(0, 0, 0, Theme::is_dark() ? 140 : 56));
+#endif
     m_is_updating_chrome_style = false;
 }
 
 void JavaScriptDialog::update_geometry_constraints()
 {
-    auto available_width = max(0, width() - DIALOG_MARGIN * 2);
-    m_panel->setMinimumWidth(min(DIALOG_MIN_WIDTH, available_width));
-    m_panel->setMaximumWidth(min(DIALOG_MAX_WIDTH, available_width));
+    // The panel is as wide as the design's, unless the view is too narrow for it.
+    auto panel_width = min(DIALOG_WIDTH, max(0, width() - DIALOG_MARGIN * 2));
+    m_panel->setFixedWidth(panel_width);
 
-    auto maximum_message_width = max(1, available_width - PANEL_HORIZONTAL_PADDING * 2);
-    auto message_width = max(1, min(m_message_scroll_area->width(), maximum_message_width));
+    auto message_width = max(1, panel_width - PANEL_HORIZONTAL_PADDING * 2);
     auto desired_message_height = max(0, m_message_label->heightForWidth(message_width));
     m_message_label->setMinimumHeight(desired_message_height);
 

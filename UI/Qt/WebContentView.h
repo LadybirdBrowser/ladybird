@@ -149,6 +149,12 @@ public:
     void set_zoom_level(double);
     void set_vertical_tab_overlay_insets(int left, int right);
     void set_bookmarks_bar_overlay_height(int);
+    // How much the page is dimmed under a page dialog, from 0 to 1, where the page is presented above anything Qt paints
+    // over it.
+    void set_page_dim(qreal);
+    // A card that floats over the page, such as the find bar. Qt paints it above the page, so whatever presents the
+    // page above Qt's painting steps aside while it shows.
+    void add_floating_surface(QWidget&);
     void prepare_for_window_move();
     void finish_window_move();
     void close_select_dropdown_after_crash();
@@ -160,6 +166,7 @@ public:
 
     Function<void(WebCompatReportCapture)> on_request_web_compat_report_review;
     Function<void(Function<void(QImage)> on_selected)> on_request_web_compat_report_screenshot;
+    Function<void()> on_close_web_compat_report_tab;
 
     enum class PaletteMode {
         Default,
@@ -167,10 +174,6 @@ public:
     };
     void update_palette(PaletteMode = PaletteMode::Default);
     Optional<QPixmap> tab_preview_pixmap(QSize const& maximum_size) const;
-
-#ifdef LADYBIRD_QT_USE_IOSURFACE_LAYER
-    void set_has_rounded_corners(bool);
-#endif
 
     WebView::AccessibilityTreeManager const* accessibility_tree_manager() const { return m_accessibility_manager.ptr(); }
 
@@ -186,6 +189,7 @@ public:
 
 signals:
     void ready_to_paint();
+    void crash_overlay_changed();
     void urls_dropped(QList<QUrl> const&);
 
 private:
@@ -245,6 +249,7 @@ private:
 
     Array<QWidget*, 4> overlays() const;
     bool is_page_covered_by_overlay() const;
+    bool has_floating_surface_over_page() const;
 
 #if !defined(Q_OS_WIN)
     virtual void accessibilityActiveChanged(bool active) override;
@@ -299,6 +304,7 @@ private:
 
     QPointer<ScreenshotSelectionOverlay> m_screenshot_selection_overlay;
     QPointer<ScreenshotViewer> m_screenshot_viewer;
+    Vector<QPointer<QWidget>> m_floating_surfaces;
     PageOverlay* m_web_compat_report_overlay { nullptr };
 
 #ifdef AK_OS_MACOS
@@ -306,15 +312,20 @@ private:
 #endif
 
 #ifdef LADYBIRD_QT_USE_IOSURFACE_LAYER
+    virtual bool eventFilter(QObject*, QEvent*) override;
+    void watch_ancestors_for_moves();
+    void place_native_view_again();
+    Vector<QPointer<QWidget>> m_watched_ancestors;
+
     bool ensure_iosurface_layer_attached_to_native_view();
     void present_current_paintable_as_layer_contents();
     void update_iosurface_layer_frame();
     void update_iosurface_layer_background_color();
-    void update_iosurface_layer_border();
     void detach_iosurface_layer_from_native_view();
     void destroy_iosurface_layer();
 
     void* m_iosurface_layer { nullptr };
+    void* m_page_dim_layer { nullptr };
 #endif
 
 #ifdef LADYBIRD_QT_USE_RHI_WIDGET

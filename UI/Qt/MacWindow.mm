@@ -402,6 +402,14 @@ void keep_appkit_window_visible_while_inactive(QWidget& widget)
     view.window.hidesOnDeactivate = NO;
 }
 
+void disable_appkit_window_animations(QWidget& widget)
+{
+    auto* view = reinterpret_cast<NSView*>(widget.winId());
+    if (!view || !view.window)
+        return;
+    view.window.animationBehavior = NSWindowAnimationBehaviorNone;
+}
+
 void ensure_appkit_window_is_exposed(QWidget& widget)
 {
     auto* window = widget.windowHandle();
@@ -517,6 +525,53 @@ void show_appkit_dictionary_lookup(QWidget& widget, WebView::DictionaryLookup co
 {
     auto* view = reinterpret_cast<NSView*>(widget.winId());
     show_dictionary_lookup(view, lookup, widget_position_to_ns_point(widget, position));
+}
+
+void round_appkit_view_corners(QWidget& widget, qreal radius, QColor const& border_color)
+{
+    auto* view = reinterpret_cast<NSView*>(widget.winId());
+    if (!view)
+        return;
+    view.wantsLayer = YES;
+    auto* layer = view.layer;
+    layer.cornerRadius = radius;
+    layer.cornerCurve = kCACornerCurveContinuous;
+    layer.masksToBounds = YES;
+    layer.borderWidth = 1;
+    auto* color = CGColorCreateSRGB(border_color.redF(), border_color.greenF(), border_color.blueF(), border_color.alphaF());
+    layer.borderColor = color;
+    CGColorRelease(color);
+}
+
+void stack_appkit_view_below(QWidget& widget, QWidget& sibling)
+{
+    auto* view = reinterpret_cast<NSView*>(widget.winId());
+    auto* sibling_view = reinterpret_cast<NSView*>(sibling.winId());
+    if (!view || !sibling_view || !sibling_view.superview)
+        return;
+    [sibling_view.superview addSubview:view positioned:NSWindowBelow relativeTo:sibling_view];
+}
+
+void round_appkit_view_bottom_corners(QWidget& widget, qreal radius)
+{
+    auto* view = reinterpret_cast<NSView*>(widget.winId());
+    if (!view)
+        return;
+    view.wantsLayer = YES;
+    auto* layer = view.layer;
+    layer.cornerRadius = radius;
+    layer.cornerCurve = kCACornerCurveContinuous;
+    // NB: Qt's views are flipped, so the bottom of the view is at its layer's largest y.
+    layer.maskedCorners = view.isFlipped ? (kCALayerMinXMaxYCorner | kCALayerMaxXMaxYCorner) : (kCALayerMinXMinYCorner | kCALayerMaxXMinYCorner);
+    layer.masksToBounds = YES;
+}
+
+void set_appkit_view_opacity(QWidget& widget, qreal opacity)
+{
+    auto* view = reinterpret_cast<NSView*>(widget.winId());
+    if (!view)
+        return;
+    view.alphaValue = opacity;
 }
 
 }

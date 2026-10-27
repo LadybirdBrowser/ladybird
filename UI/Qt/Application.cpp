@@ -20,6 +20,8 @@
 #include <UI/Qt/PictureInPictureWindow.h>
 #include <UI/Qt/ProcessManagerWindow.h>
 #include <UI/Qt/StringUtils.h>
+#include <UI/Qt/Tab.h>
+#include <UI/Qt/Theme.h>
 #include <UI/Qt/WebContentView.h>
 
 #if defined(AK_OS_MACOS)
@@ -312,7 +314,7 @@ public:
         m_new_private_window_action->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_N));
         QObject::connect(m_new_private_window_action, &QAction::triggered, this, []() { Application::the().open_new_window(WebView::IsPrivate::Yes); });
 
-        m_reopen_recently_closed_tab_action = make_action("&Reopen Recently Closed Tab");
+        m_reopen_recently_closed_tab_action = make_action("&Reopen Closed Tab");
         m_reopen_recently_closed_tab_action->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_T));
         QObject::connect(m_reopen_recently_closed_tab_action, &QAction::triggered, this, []() { Application::the().reopen_recently_closed_tab(Application::the().active_window_if_any()); });
         update_reopen_recently_closed_action();
@@ -362,7 +364,21 @@ public:
                 window->open_previous_tab();
         });
 
-        m_open_file_action = make_action("&Open File...");
+        m_search_tabs_action = make_action("&Search Tabs…");
+        m_search_tabs_action->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_A));
+        QObject::connect(m_search_tabs_action, &QAction::triggered, this, []() {
+            if (auto* window = Application::the().active_window_if_any())
+                window->show_all_tabs();
+        });
+
+        m_move_focus_action = make_action("Move &Focus Between Toolbar and Page");
+        m_move_focus_action->setShortcut(QKeySequence(Qt::Key_F6));
+        QObject::connect(m_move_focus_action, &QAction::triggered, this, []() {
+            if (auto* window = Application::the().active_window_if_any())
+                window->move_focus_between_chrome_and_page();
+        });
+
+        m_open_file_action = make_action("&Open File…");
         m_open_file_action->setShortcut(QKeySequence(QKeySequence::StandardKey::Open));
         QObject::connect(m_open_file_action, &QAction::triggered, this, []() { Application::the().open_file(); });
 
@@ -371,7 +387,7 @@ public:
 
         m_toggle_bookmark_bar_action = create_application_action(*m_application_widget, application.toggle_bookmark_bar_action(), IncludeActionIcon::No);
 
-        m_find_in_page_action = make_action("&Find in Page...");
+        m_find_in_page_action = make_action("&Find in Page…");
         m_find_in_page_action->setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::Find));
         QObject::connect(m_find_in_page_action, &QAction::triggered, this, []() {
             if (auto* window = Application::the().active_window_if_any())
@@ -436,7 +452,7 @@ public:
         if (!m_reopen_recently_closed_tab_action)
             return;
 
-        m_reopen_recently_closed_tab_action->setText("&Reopen Recently Closed Tab");
+        m_reopen_recently_closed_tab_action->setText("&Reopen Closed Tab");
         auto* active_window = Application::the().active_window_if_any();
         auto& session = active_window ? active_window->session() : WebView::Application::default_session();
         m_reopen_recently_closed_tab_action->setEnabled(session.session_store->has_closed_units());
@@ -528,6 +544,8 @@ private:
     QAction* m_close_current_tab_action { nullptr };
     QAction* m_open_next_tab_action { nullptr };
     QAction* m_open_previous_tab_action { nullptr };
+    QAction* m_search_tabs_action { nullptr };
+    QAction* m_move_focus_action { nullptr };
     QAction* m_open_file_action { nullptr };
     QAction* m_open_settings_action { nullptr };
     QAction* m_open_downloads_action { nullptr };
@@ -540,12 +558,34 @@ private:
 };
 
 Application::Application() = default;
-Application::~Application() = default;
+Application::~Application()
+{
+    // NB: A run stopped by a signal leaves its windows open for the next launch to recover. Their pages must still go
+    //     before the QApplication does, since the processes torn down after it end their navigations, which updates
+    //     their widgets.
+    if (!m_application)
+        return;
+    Vector<QPointer<BrowserWindow>> windows;
+    for (auto* widget : QApplication::topLevelWidgets()) {
+        if (auto* window = as_if<BrowserWindow>(widget))
+            windows.append(window);
+    }
+    for (auto& window : windows)
+        delete window.data();
+}
 
 void Application::show_process_manager()
 {
-    if (!m_process_manager_window)
+    if (!m_process_manager_window) {
         m_process_manager_window = make<ProcessManagerWindow>(process_manager());
+#if defined(AK_OS_MACOS)
+        // The traffic lights are centered in the Task Manager's title bar, which is 52 px tall.
+        m_process_manager_window->on_title_bar_change = [window = m_process_manager_window.ptr()] {
+            hide_appkit_window_title(*window);
+            offset_appkit_window_controls(*window, 3, 10);
+        };
+#endif
+    }
     m_process_manager_window->show();
     m_process_manager_window->raise();
     m_process_manager_window->activateWindow();
@@ -614,6 +654,22 @@ Optional<String> Application::ui_font_family() const
     if (!m_application)
         return {};
     return ak_string_from_qstring(QGuiApplication::font().family());
+}
+
+// The widgets' palette follows the interface theme, and the system's appearance when the theme follows the system.
+Web::CSS::PreferredColorScheme Application::interface_color_scheme() const
+{
+    return Theme::is_dark() ? Web::CSS::PreferredColorScheme::Dark : Web::CSS::PreferredColorScheme::Light;
+}
+
+// Bookmarking the page from the menu or its shortcut does what the star in the address field does.
+void Application::toggle_bookmark_for_view(WebView::ViewImplementation& view)
+{
+    if (auto* tab = active_tab(); tab && &tab->view() == &view) {
+        tab->show_bookmark_popover();
+        return;
+    }
+    WebView::Application::toggle_bookmark_for_view(view);
 }
 
 bool Application::platform_reports_scroll_momentum() const
@@ -761,6 +817,43 @@ BrowserWindow* Application::restore_previous_session(WindowConfiguration const& 
         frontmost_window = window;
     }
     return frontmost_window;
+}
+
+void Application::offer_to_restore_unexpectedly_closed_tabs(BrowserWindow& window)
+{
+    auto& session_store = *WebView::Application::default_session().session_store;
+    if (session_store.consecutive_unclean_exits() == 0)
+        return;
+
+    Vector<WebView::SessionWindowId> unit_ids;
+    size_t tab_count = 0;
+    for (auto const& unit : session_store.recently_closed_units(NumericLimits<size_t>::max())) {
+        if (!unit.from_startup_recovery)
+            continue;
+        unit_ids.append(unit.id);
+        tab_count += unit.tab_count;
+    }
+    if (unit_ids.is_empty() || !window.current_tab())
+        return;
+
+    window.current_tab()->show_restore_session_card(tab_count, [window = QPointer<BrowserWindow>(&window), unit_ids = AK::move(unit_ids)] {
+        // A window that still shows only the new tab page it opened with is taken over by the tabs restored first.
+        QPointer<Tab> new_tab_page;
+        if (window && window->tab_count() == 1) {
+            auto* tab = window->tab_at(0);
+            if (tab->view().url() == WebView::Application::settings().new_tab_page_url() && !tab->view().navigate_back_action().enabled())
+                new_tab_page = tab;
+        }
+
+        // NB: The units are listed most recently closed first, and reopening them oldest first keeps their order.
+        for (size_t i = unit_ids.size(); i > 0; --i) {
+            auto reopen_closed_window = new_tab_page && i == unit_ids.size() ? ReopenClosedWindow::InTargetWindow : ReopenClosedWindow::InNewWindow;
+            Application::the().reopen_recently_closed_tab(window, unit_ids[i - 1], reopen_closed_window);
+        }
+
+        if (new_tab_page && window->tab_count() > 1)
+            window->close_tab_without_keeping_it(window->tab_index(new_tab_page));
+    });
 }
 
 void Application::open_startup_tabs(BrowserWindow& window, Vector<URL::URL> const& urls)
@@ -924,11 +1017,11 @@ void Application::focus_location_editor()
         tab->focus_location_editor();
 }
 
-void Application::reopen_recently_closed_tab(BrowserWindow* target_window)
+void Application::reopen_recently_closed_tab(BrowserWindow* target_window, Optional<WebView::SessionWindowId> unit_id, ReopenClosedWindow reopen_closed_window)
 {
     auto is_private = target_window ? target_window->is_private() : WebView::IsPrivate::No;
     auto& session = target_window ? target_window->session() : WebView::Application::default_session();
-    auto closed_unit = session.session_store->take_most_recently_closed();
+    auto closed_unit = unit_id.has_value() ? session.session_store->take_closed_unit(*unit_id) : session.session_store->take_most_recently_closed();
     if (closed_unit.is_error()) {
         dbgln("Unable to reopen the most recently closed session unit: {}", closed_unit.error());
         return;
@@ -950,7 +1043,7 @@ void Application::reopen_recently_closed_tab(BrowserWindow* target_window)
             break;
         }
     }
-    if (unit.was_window || !window) {
+    if ((unit.was_window && reopen_closed_window == ReopenClosedWindow::InNewWindow) || !window) {
         auto configuration = unit.geometry.has_value() ? window_configuration_for(*unit.geometry) : configuration_for_new_window();
         window = &new_window({}, configuration, BrowserWindow::IsPopupWindow::No, is_private);
     }
@@ -1717,6 +1810,7 @@ QMenuBar* Application::create_application_menu_bar(ForBrowserWindow for_browser_
     if (for_browser_window == ForBrowserWindow::Yes) {
         view_menu->addAction(open_next_tab_action());
         view_menu->addAction(open_previous_tab_action());
+        view_menu->addAction(search_tabs_action());
         view_menu->addSeparator();
 
         auto* zoom_menu = view_menu->addMenu("&Zoom");
@@ -1765,6 +1859,8 @@ DEFINE_APP_MENU_GETTER(QAction, reopen_recently_closed_tab_action);
 DEFINE_APP_MENU_GETTER(QAction, close_current_tab_action);
 DEFINE_APP_MENU_GETTER(QAction, open_next_tab_action);
 DEFINE_APP_MENU_GETTER(QAction, open_previous_tab_action);
+DEFINE_APP_MENU_GETTER(QAction, search_tabs_action);
+DEFINE_APP_MENU_GETTER(QAction, move_focus_action);
 DEFINE_APP_MENU_GETTER(QAction, open_file_action);
 DEFINE_APP_MENU_GETTER(QAction, open_settings_action);
 DEFINE_APP_MENU_GETTER(QAction, open_downloads_action);

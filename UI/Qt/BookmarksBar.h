@@ -46,7 +46,11 @@ private:
     QMenu& bookmark_context_menu();
     QMenu& bookmark_folder_context_menu();
 
+    void slide_in(QWidget&, int width);
+    void slide_out(int index, QPixmap const& image);
+
     Tab* m_tab { nullptr };
+    bool m_has_been_built { false };
 
     QMenu* m_bookmarks_bar_context_menu { nullptr };
     QMenu* m_bookmark_context_menu { nullptr };

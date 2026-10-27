@@ -26,6 +26,7 @@
 #include <UI/Qt/WebContentView.h>
 
 #include <QBoxLayout>
+#include <QElapsedTimer>
 #include <QLabel>
 #include <QMenu>
 #include <QPointer>
@@ -41,12 +42,13 @@ class QVariantAnimation;
 
 namespace Ladybird {
 
+class BookmarkPopover;
 class BrowserWindow;
 enum class ChromeIcon;
+class DownloadsButton;
 class DownloadsPopover;
-class ContentBlockingButton;
-class ContentBlockingPopover;
 class ReloadButton;
+class RestoreSessionCard;
 class JavaScriptDialog;
 class MessagePopover;
 class WindowControlButton;
@@ -81,6 +83,8 @@ struct DeferredTab {
     QIcon favicon;
 };
 
+class Popover;
+class SiteSettingsPopover;
 class Tab final
     : public QWidget
     , public WebView::FileDownloaderObserver
@@ -126,6 +130,7 @@ public:
     void open_file();
 
     void show_find_in_page();
+    void show_restore_session_card(size_t tab_count, Function<void()> on_restore);
     void find_previous();
     void find_next();
 
@@ -141,20 +146,31 @@ public:
     QIcon const& favicon() const { return m_favicon; }
     QIcon tab_icon() const;
     bool is_loading() const { return m_is_loading; }
+    // Whether the page being loaded has yet to respond.
+    bool is_waiting_for_response() const { return m_is_loading && m_is_waiting_for_response; }
+    // How strongly the tab's loading ring shows: fully while the tab loads, then fading out once it has loaded.
+    qreal loading_ring_opacity() const;
+    // How far the favicon has shrunk to sit inside the loading ring: it shrinks as the tab starts loading, and grows back
+    // as the ring fades out.
+    qreal loading_favicon_shrink() const;
+    // A tab in the background whose title changes after it has loaded has news, until it is selected.
+    bool needs_attention() const { return m_needs_attention; }
+    void clear_attention() { m_needs_attention = false; }
     QString title() const;
 
     QMenu* context_menu() const { return m_context_menu; }
 
-    QToolButton* hamburger_button() const { return m_hamburger_button; }
     QWidget* toolbar_container() const { return m_toolbar_container; }
 
     void set_vertical_tabs_enabled(bool);
-#ifdef AK_OS_MACOS
-    void update_web_view_frame(bool chrome_visible, Optional<WebView::VerticalTabsPosition> sidebar_position);
-#endif
     void set_window(BrowserWindow&);
     void set_toolbar_container_in_tab_layout(bool);
     void set_toolbar_window_controls_visible(bool);
+    // While the sidebar is collapsed, the toolbar holds the Ladybird button and the sidebar's toggle, after the window
+    // controls, here.
+    QWidget& toolbar_sidebar_slot() { return *m_toolbar_sidebar_slot; }
+    int toolbar_lead_beside_collapsed_sidebar(QWidget const& ladybird_button, QSize sidebar_toggle_size) const;
+    void set_toolbar_leading_room(int);
     static int toolbar_height(bool window_controls_visible);
     void update_window_control_icons();
     void update_hover_label();
@@ -168,8 +184,21 @@ public:
     bool url_is_hidden() const { return m_location_edit->url_is_hidden(); }
     void set_url_is_hidden(bool url_is_hidden) { m_location_edit->set_url_is_hidden(url_is_hidden); }
 
+public:
+    enum class FocusRingTransition : u8 {
+        FadeIn,
+        Immediate,
+    };
+    void show_downloads_popover();
+    void update_downloads_button();
+    void show_private_session_popover();
+    void show_site_settings_popover();
+    void show_zoom_popover();
+    void show_bookmark_popover();
+    void close_popovers();
+
 public slots:
-    void focus_location_editor();
+    void focus_location_editor(FocusRingTransition = FocusRingTransition::FadeIn);
     void park_location_editing();
     LocationEdit* location_edit_with_parked_editing() const { return is_loaded() && m_location_edit->has_parked_editing_session() ? m_location_edit : nullptr; }
 
@@ -178,7 +207,6 @@ signals:
     void favicon_changed(int id, QIcon const&);
     void audio_play_state_changed(int id, Web::HTML::AudioPlayState);
     void loading_changed();
-    void loading_finished();
     void loaded();
 
 private:
@@ -187,9 +215,6 @@ private:
     void initialize(Optional<WebView::CanonicalTraversable&>);
 
     void location_edit_return_pressed(String, Optional<URL::URL>, WebView::OmniboxDestinationKind);
-#ifdef AK_OS_MACOS
-    virtual void paintEvent(QPaintEvent*) override;
-#endif
     virtual void resizeEvent(QResizeEvent*) override;
     virtual void hideEvent(QHideEvent*) override;
     virtual bool event(QEvent*) override;
@@ -197,21 +222,14 @@ private:
 
     virtual void tab_settings_changed() override;
     virtual void config_variable_changed(WebView::ConfigVariableID) override;
-    virtual void content_blocker_count_visibility_changed() override;
 
     void recreate_toolbar_icons();
-    void connect_hamburger_menu();
     QToolButton* create_navigation_history_toolbar_button(QWidget& parent, QAction&, int direction);
     void update_chrome_style();
     void update_tab_title();
     void leave_report_review();
-    void update_downloads_button();
     void update_downloads_popover();
-    void show_downloads_popover();
     void position_downloads_popover();
-    void show_content_blocking_popover();
-    void update_content_blocking_controls(WebView::ContentBlockingSnapshot const&);
-    void show_private_session_popover();
     void position_private_session_popover();
     void hide_hover_label();
     void set_loading(bool);
@@ -233,6 +251,7 @@ private:
     QWidget* m_toolbar { nullptr };
     QWidget* m_performance_monitor { nullptr };
     QWidget* m_toolbar_window_controls_separator { nullptr };
+    QWidget* m_toolbar_sidebar_slot { nullptr };
     QWidget* m_toolbar_window_controls { nullptr };
     WindowControlButton* m_minimize_window_button { nullptr };
     WindowControlButton* m_maximize_window_button { nullptr };
@@ -246,18 +265,17 @@ private:
     bool m_bookmarks_bar_hover_expanded { false };
     qreal m_bookmarks_bar_hover_expand_progress { 0.0 };
 
-    QPushButton* m_private_badge { nullptr };
-    QToolButton* m_hamburger_button { nullptr };
-    ContentBlockingButton* m_content_blocking_button { nullptr };
-    QPointer<ContentBlockingPopover> m_content_blocking_popover;
-    Optional<String> m_content_blocking_popover_reload_site;
-    QToolButton* m_downloads_button { nullptr };
     QPointer<DownloadsPopover> m_downloads_popover;
     QPointer<MessagePopover> m_private_session_popover;
+    QPointer<SiteSettingsPopover> m_site_settings_popover;
+    QTimer* m_content_blocking_update_timer { nullptr };
+    QPointer<Popover> m_zoom_popover;
+    QPointer<BookmarkPopover> m_bookmark_popover;
     QPointer<Tab> m_tab_to_activate_on_close;
     LocationEdit* m_location_edit { nullptr };
     WebContentView* m_view { nullptr };
     FindInPageWidget* m_find_in_page { nullptr };
+    QPointer<RestoreSessionCard> m_restore_session_card;
     Optional<WakeLock::DisplaySleepInhibitor> m_screen_display_sleep_inhibitor;
     BrowserWindow* m_window { nullptr };
     QString m_title;
@@ -266,18 +284,14 @@ private:
     bool m_has_loaded_report_review_page { false };
     HyperlinkLabel* m_hover_label { nullptr };
     QIcon m_favicon;
-    QTimer* m_loading_animation_timer { nullptr };
     bool m_is_loading { false };
+    bool m_needs_attention { false };
+    bool m_is_waiting_for_response { false };
+    QElapsedTimer m_load_started_clock;
+    QElapsedTimer m_load_finished_clock;
     bool m_has_had_real_size { false };
     bool m_is_updating_chrome_style { false };
     bool m_vertical_tabs_enabled { false };
-#ifdef AK_OS_MACOS
-    QHBoxLayout* m_view_layout { nullptr };
-    // The web view's frame as TabWidget last asked for it, which a tab that hasn't loaded gets once it loads.
-    bool m_web_view_chrome_visible { true };
-    Optional<WebView::VerticalTabsPosition> m_web_view_sidebar_position;
-#endif
-    int m_loading_animation_frame { 0 };
 
     QMenu* m_context_menu { nullptr };
     QMenu* m_page_context_menu { nullptr };
@@ -295,8 +309,8 @@ private:
     ReloadButton* m_reload_button { nullptr };
     QAction* m_open_downloads_page_action { nullptr };
     QAction* m_pin_tab_action { nullptr };
-    Optional<ChromeIcon> m_downloads_button_icon;
-    QString m_downloads_button_tooltip;
+    DownloadsButton* m_downloads_button { nullptr };
+    size_t m_completed_download_count { 0 };
 
     JavaScriptDialog* m_javascript_dialog { nullptr };
     Function<void(bool)> m_before_unload_completion;
@@ -305,12 +319,15 @@ private:
     QPointer<QMessageBox> m_external_url_confirmation_dialog;
     // Requests the same dialog would answer wait on the one open, so a page cannot stack dialogs by asking again.
     struct PendingPermissionRequests {
-        QPointer<QMessageBox> dialog;
+        QPointer<MessagePopover> popover;
         Vector<Function<void(bool granted)>> on_decided;
     };
     HashMap<String, PendingPermissionRequests> m_pending_permission_requests;
 
     bool m_suppress_javascript_dialogs_until_navigation { false };
+    // The dialogs the current document has shown, and whether the user stopped it from showing more.
+    u64 m_javascript_dialogs_shown_by_document { 0 };
+    bool m_javascript_dialogs_blocked_for_document { false };
     bool m_already_requested_close { false };
     bool m_preserve_close_retry_state_on_dialog_dismissal { false };
     bool m_window_is_closing { false };

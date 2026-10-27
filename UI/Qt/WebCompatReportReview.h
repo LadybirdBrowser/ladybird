@@ -46,7 +46,9 @@ public:
 
     Function<void()> on_select_screenshot;
     Function<void(QImage const&)> on_view_screenshot;
+    // Leaving the review returns to the site it is about; closing the tab once the report is sent need not.
     Function<void()> on_exit;
+    Function<void()> on_close_tab;
     Function<void(bool)> on_report_text_visibility_change;
 
 protected:
@@ -74,6 +76,7 @@ private:
     QPlainTextEdit* m_description_edit { nullptr };
     ScreenshotThumbnail* m_screenshot_preview { nullptr };
     QLabel* m_no_screenshot_note { nullptr };
+    QLabel* m_selected_area_label { nullptr };
     QPushButton* m_select_screenshot_button { nullptr };
     QPushButton* m_remove_screenshot_button { nullptr };
     QCheckBox* m_include_page_dumps { nullptr };
@@ -81,11 +84,13 @@ private:
     QPlainTextEdit* m_report_text { nullptr };
     QLabel* m_validation { nullptr };
 
+    QLabel* m_status_icon { nullptr };
     QLabel* m_status_title { nullptr };
     QProgressBar* m_progress { nullptr };
     QLabel* m_status_message { nullptr };
     QPushButton* m_retry_button { nullptr };
     QPushButton* m_cancel_button { nullptr };
+    QPushButton* m_back_to_site_button { nullptr };
     QPushButton* m_close_button { nullptr };
 
     bool m_is_updating_chrome_style { false };

@@ -5,7 +5,6 @@
  */
 
 #include <LibGfx/SharedImageBuffer.h>
-#include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/WebContentView.h>
 
 #include <QWindow>
@@ -17,20 +16,9 @@
 
 namespace Ladybird {
 
-static constexpr CGFloat WEB_VIEW_CORNER_RADIUS = 10;
-
 static CALayer* as_layer(void* layer)
 {
     return static_cast<CALayer*>(layer);
-}
-
-// The page layer and WebContent share one corner radius, which stays zero until a tab rounds its view.
-void WebContentView::set_has_rounded_corners(bool has_rounded_corners)
-{
-    set_viewport_corner_radius(has_rounded_corners ? WEB_VIEW_CORNER_RADIUS : 0);
-    if (m_iosurface_layer)
-        as_layer(m_iosurface_layer).cornerRadius = viewport_corner_radius();
-    update_iosurface_layer_border();
 }
 
 bool WebContentView::ensure_iosurface_layer_attached_to_native_view()
@@ -48,12 +36,7 @@ bool WebContentView::ensure_iosurface_layer_attached_to_native_view()
 
     if (!m_iosurface_layer) {
         auto* layer = [[CALayer alloc] init];
-        // NB: The chrome painted behind the rounded corners shows through, so the layer is not opaque.
-        layer.opaque = NO;
-        layer.masksToBounds = YES;
-        layer.cornerRadius = viewport_corner_radius();
-        // NB: The compositor clips the viewport's scrollbars to arcs concentric with circular corners.
-        layer.cornerCurve = kCACornerCurveCircular;
+        layer.opaque = YES;
         // Without this every new frame would cross-fade in and geometry changes would slide.
         layer.actions = @ {
             @"contents" : NSNull.null,
@@ -64,12 +47,8 @@ bool WebContentView::ensure_iosurface_layer_attached_to_native_view()
             @"position" : NSNull.null,
             @"hidden" : NSNull.null,
             @"backgroundColor" : NSNull.null,
-            @"cornerRadius" : NSNull.null,
-            @"borderWidth" : NSNull.null,
-            @"borderColor" : NSNull.null,
         };
         m_iosurface_layer = layer;
-        update_iosurface_layer_border();
     }
 
     auto* layer = as_layer(m_iosurface_layer);
@@ -132,6 +111,42 @@ void WebContentView::update_iosurface_layer_frame()
     if (!m_iosurface_layer)
         return;
     as_layer(m_iosurface_layer).frame = CGRectMake(0, 0, width(), height());
+    if (m_page_dim_layer)
+        as_layer(m_page_dim_layer).frame = CGRectMake(0, 0, width(), height());
+}
+
+// The dim is a layer of its own right above the page, under the native views of the dialog and the other floating
+// surfaces.
+void WebContentView::set_page_dim(qreal dim)
+{
+    if (!m_page_dim_layer && dim <= 0)
+        return;
+    if (!ensure_iosurface_layer_attached_to_native_view())
+        return;
+
+    auto* page_layer = as_layer(m_iosurface_layer);
+    if (!m_page_dim_layer) {
+        auto* layer = [[CALayer alloc] init];
+        layer.actions = @ {
+            @"bounds" : NSNull.null,
+            @"position" : NSNull.null,
+            @"opacity" : NSNull.null,
+            @"hidden" : NSNull.null,
+        };
+        auto* black = CGColorCreateSRGB(0, 0, 0, 0.22);
+        layer.backgroundColor = black;
+        CGColorRelease(black);
+        m_page_dim_layer = layer;
+    }
+    auto* layer = as_layer(m_page_dim_layer);
+    if (layer.superlayer != page_layer.superlayer || [page_layer.superlayer.sublayers indexOfObject:layer] != [page_layer.superlayer.sublayers indexOfObject:page_layer] + 1) {
+        [layer removeFromSuperlayer];
+        [page_layer.superlayer insertSublayer:layer above:page_layer];
+    }
+    layer.frame = CGRectMake(0, 0, width(), height());
+    layer.opacity = dim;
+    layer.hidden = dim <= 0;
+    reinterpret_cast<NSView*>(winId()).window.viewsNeedDisplay = YES;
 }
 
 void WebContentView::update_iosurface_layer_background_color()
@@ -142,24 +157,6 @@ void WebContentView::update_iosurface_layer_background_color()
     auto* background_color = CGColorCreateSRGB(color.red() / 255.0, color.green() / 255.0, color.blue() / 255.0, 1.0);
     as_layer(m_iosurface_layer).backgroundColor = background_color;
     CGColorRelease(background_color);
-}
-
-// The rounded page is outlined like the location field, so that it stands apart from chrome of a similar color. In dark
-// mode, the page stands apart from the chrome around it without one, like the location field does.
-void WebContentView::update_iosurface_layer_border()
-{
-    if (!m_iosurface_layer)
-        return;
-    auto* layer = as_layer(m_iosurface_layer);
-    if (viewport_corner_radius() <= 0 || ChromeStyle::is_dark(window()->palette())) {
-        layer.borderWidth = 0;
-        return;
-    }
-    auto color = ChromeStyle::location_edit_border(window()->palette());
-    auto* border_color = CGColorCreateSRGB(color.redF(), color.greenF(), color.blueF(), color.alphaF());
-    layer.borderColor = border_color;
-    CGColorRelease(border_color);
-    layer.borderWidth = 1;
 }
 
 void WebContentView::detach_iosurface_layer_from_native_view()
@@ -177,6 +174,12 @@ void WebContentView::destroy_iosurface_layer()
     [layer removeFromSuperlayer];
     [layer release];
     m_iosurface_layer = nullptr;
+
+    if (m_page_dim_layer) {
+        [as_layer(m_page_dim_layer) removeFromSuperlayer];
+        [as_layer(m_page_dim_layer) release];
+        m_page_dim_layer = nullptr;
+    }
 }
 
 }

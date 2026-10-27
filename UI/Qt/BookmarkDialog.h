@@ -20,6 +20,9 @@ class QLineEdit;
 
 namespace Ladybird {
 
+// A drop-down of the bookmark folders to pick from, the Bookmarks Bar first.
+QComboBox* create_bookmark_folder_picker(QWidget* parent, ReadonlySpan<WebView::BookmarkItem> folders, Optional<String const&> selected_folder_id = {}, Optional<String const&> excluded_folder_id = {});
+
 class BookmarkDialog final : public QDialog {
 public:
     AK_ALLOC_WITH_KMALLOC;

@@ -55,12 +55,19 @@ public:
 
     // Opens the windows startup recovery kept open, and returns the frontmost one, if any.
     BrowserWindow* restore_previous_session(WindowConfiguration const& frontmost_window_configuration);
+    // After the last run ended unexpectedly, offers to restore the tabs it left open that didn't come back by themselves.
+    void offer_to_restore_unexpectedly_closed_tabs(BrowserWindow&);
     void open_startup_tabs(BrowserWindow&, Vector<URL::URL> const&);
     virtual WebView::SessionLaunchPolicy launch_restore_policy() const override;
 
     void open_new_tab();
     void open_new_window(WebView::IsPrivate);
-    void reopen_recently_closed_tab(BrowserWindow* target_window);
+    enum class ReopenClosedWindow {
+        InNewWindow,
+        InTargetWindow,
+    };
+    // Reopens the given closed tab or window, or else the one closed most recently.
+    void reopen_recently_closed_tab(BrowserWindow* target_window, Optional<WebView::SessionWindowId> = {}, ReopenClosedWindow = ReopenClosedWindow::InNewWindow);
     void open_file();
 
     void restart_private_browsing_session();
@@ -103,6 +110,8 @@ public:
     QAction* close_current_tab_action();
     QAction* open_next_tab_action();
     QAction* open_previous_tab_action();
+    QAction* search_tabs_action();
+    QAction* move_focus_action();
     QAction* open_file_action();
     QAction* open_settings_action();
     QAction* open_downloads_action();
@@ -130,6 +139,8 @@ private:
     virtual void create_platform_actions() override;
 
     virtual Optional<String> ui_font_family() const override;
+    virtual Web::CSS::PreferredColorScheme interface_color_scheme() const override;
+    virtual void toggle_bookmark_for_view(WebView::ViewImplementation&) override;
 #if !defined(AK_OS_MACOS)
     virtual Optional<String> system_font_family() const override;
 #endif
@@ -168,7 +179,6 @@ private:
     virtual bool supports_system_menu_bar() const override;
     virtual bool supports_vertical_tabs() const override { return true; }
     virtual bool supports_private_browsing_windows() const override { return true; }
-    virtual bool supports_content_blocking_controls() const override { return true; }
     virtual bool supports_client_side_window_decorations() const override
     {
 #if defined(AK_OS_MACOS)

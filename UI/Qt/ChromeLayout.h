@@ -10,8 +10,15 @@
 
 namespace Ladybird {
 
-static constexpr int NATIVE_MACOS_WINDOW_CONTROLS_WIDTH = 62;
-static constexpr int NATIVE_MACOS_WINDOW_CONTROLS_GAP = 16;
+// The traffic lights sit this far in from the left edge and the top edge of the window, which puts them on the line
+// that the window's own items on the tab strip are centered on.
+static constexpr int NATIVE_MACOS_WINDOW_CONTROLS_INSET = 12;
+// The three traffic lights, with the room after the last one.
+static constexpr int NATIVE_MACOS_WINDOW_CONTROLS_WIDTH = 56;
+static constexpr int NATIVE_MACOS_WINDOW_CONTROLS_GAP = 14;
+// The Ladybird button keeps 28 px clear to the traffic lights before it.
+// NB: The traffic lights reach a little past the room kept for them.
+static constexpr int LADYBIRD_BUTTON_TRAFFIC_LIGHTS_GAP = 30;
 
 static constexpr bool use_native_macos_window_controls()
 {
@@ -31,15 +38,9 @@ struct BrowserChromeLayoutPolicy {
 static constexpr BrowserChromeLayoutPolicy browser_chrome_layout_policy()
 {
     return {
-        .expanded_sidebar_width = 232,
+        .expanded_sidebar_width = 236,
         .collapsed_sidebar_width = 52,
-#ifdef AK_OS_MACOS
-        // NB: Leaves an even space around the location field, as the rounded web view below it has no border of its own
-        //     to absorb an odd one.
         .toolbar_height = 40,
-#else
-        .toolbar_height = 41,
-#endif
     };
 }
 

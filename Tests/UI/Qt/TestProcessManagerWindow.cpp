@@ -64,9 +64,9 @@ TEST_CASE(search_keeps_matching_child_processes_visible)
     auto* processes = window.findChild<QTreeWidget*>();
     auto* search = window.findChild<QLineEdit*>();
 
-    auto* browser = new QTreeWidgetItem(processes, { "Browser", "123" });
-    auto* page = new QTreeWidgetItem(processes, { "WebContent - Example", "456" });
-    auto* frame = new QTreeWidgetItem(page, { "WebContent - Child frame", "789" });
+    auto* browser = new QTreeWidgetItem(processes, { "Browser", {}, {}, "123" });
+    auto* page = new QTreeWidgetItem(processes, { "WebContent - Example", {}, {}, "456" });
+    auto* frame = new QTreeWidgetItem(page, { "WebContent - Child frame", {}, {}, "789" });
 
     search->setText("CHILD");
     EXPECT(browser->isHidden());
@@ -127,7 +127,7 @@ TEST_CASE(browser_is_not_terminable_and_can_be_copied)
         if (action->text() == "Copy PID") {
             EXPECT(action->isEnabled());
             action->trigger();
-            EXPECT_EQ(QApplication::clipboard()->text(), browser->text(1));
+            EXPECT_EQ(QApplication::clipboard()->text(), browser->text(3));
         }
     }
 }
@@ -159,22 +159,34 @@ TEST_CASE(end_process_terminates_a_child_and_handles_disappearing_selection)
     auto* processes = window.findChild<QTreeWidget*>();
     auto* button = window.findChild<QPushButton*>();
     auto* timer = window.findChild<QTimer*>();
-    EXPECT_EQ(processes->topLevelItemCount(), 1);
-    auto* browser = processes->topLevelItem(0);
-    EXPECT_EQ(browser->childCount(), 1);
-    auto* child_item = browser->child(0);
-    EXPECT_EQ(child_item->data(1, Qt::UserRole).toLongLong(), pid);
-    EXPECT_EQ(child_item->data(1, Qt::UserRole + 1).toULongLong(), identity.child_id);
-    auto blank_icon = child_item->icon(0).pixmap(16, 16).toImage();
+    auto find_row = [&](u64 child_id) -> QTreeWidgetItem* {
+        for (int i = 0; i < processes->topLevelItemCount(); ++i) {
+            if (processes->topLevelItem(i)->data(3, Qt::UserRole + 1).toULongLong() == child_id)
+                return processes->topLevelItem(i);
+        }
+        return nullptr;
+    };
+
+    // A page process that shows no site is listed with the browser's own processes.
+    EXPECT_EQ(processes->topLevelItemCount(), 2);
+    auto* child_item = find_row(identity.child_id);
+    EXPECT(child_item);
+    EXPECT_EQ(child_item->data(3, Qt::UserRole).toLongLong(), pid);
+
+    // A spare one is listed apart, under a heading of its own.
     manager.find_process(pid)->set_title("(spare)"_utf16);
     EXPECT(QMetaObject::invokeMethod(timer, "timeout", Qt::DirectConnection));
-    EXPECT(child_item->text(0).contains("(spare)"));
-    EXPECT(child_item->icon(0).pixmap(16, 16).toImage() != blank_icon);
+    EXPECT_EQ(processes->topLevelItemCount(), 3);
+    EXPECT_EQ(processes->topLevelItem(1)->text(0), QString("Spare"));
+    EXPECT(find_row(identity.child_id));
     manager.find_process(pid)->set_title({});
     EXPECT(QMetaObject::invokeMethod(timer, "timeout", Qt::DirectConnection));
-    EXPECT_EQ(child_item->icon(0).pixmap(16, 16).toImage(), blank_icon);
+    EXPECT_EQ(processes->topLevelItemCount(), 2);
+
+    child_item = find_row(identity.child_id);
     processes->setCurrentItem(child_item);
     EXPECT(button->isEnabled());
+    EXPECT_EQ(button->text(), QString("End Process"));
     bool inspected_menu = false;
     QTimer::singleShot(0, &window, [&] {
         auto* menu = qobject_cast<QMenu*>(QApplication::activePopupWidget());
@@ -196,13 +208,13 @@ TEST_CASE(end_process_terminates_a_child_and_handles_disappearing_selection)
     EXPECT_EQ(WTERMSIG(status.status), SIGKILL);
     EXPECT(!button->isEnabled());
 
-    processes->setCurrentItem(browser->child(0));
+    processes->setCurrentItem(find_row(identity.child_id));
     EXPECT(button->isEnabled());
     (void)manager.remove_process(identity.child_id);
     button->click();
     EXPECT(!button->isEnabled());
     EXPECT(QMetaObject::invokeMethod(timer, "timeout", Qt::DirectConnection));
-    EXPECT_EQ(browser->childCount(), 0);
+    EXPECT(!find_row(identity.child_id));
     EXPECT(!button->isEnabled());
     EXPECT(processes->selectedItems().isEmpty());
 }

@@ -1037,7 +1037,8 @@ void WebContentView::schedule_vulkan_window_update()
     }
 
     if (m_vulkan_window) {
-        if (!current_paintable_can_use_vulkan_window()) {
+        // NB: The page is painted by Qt while a card floats over it, so that the card shows above it.
+        if (!current_paintable_can_use_vulkan_window() || has_floating_surface_over_page()) {
             set_vulkan_window_container_visible(false);
             update();
             return;
