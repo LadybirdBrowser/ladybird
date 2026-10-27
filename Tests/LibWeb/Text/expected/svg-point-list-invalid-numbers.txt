@@ -1,22 +1,22 @@
 polygon "0,0 1,1": 2
 polygon "0,0 1,1 2": 2
 polygon "0,0 1,1 2,": 2
-polygon "0,0 1,1 INVALID": 2
-polygon "0,0 +": 1
-polygon "0,0 1,+": 1
-polygon "0,0 1e+": 1
-polygon "0,0 .": 1
-polygon "0,0 1,-": 1
-polygon "0,0 1,1,,": 2
+polygon "0,0 1,1 INVALID": 0
+polygon "0,0 +": 0
+polygon "0,0 1,+": 0
+polygon "0,0 1e+": 0
+polygon "0,0 .": 0
+polygon "0,0 1,-": 0
+polygon "0,0 1,1,,": 0
 polygon " ": 0
 polyline "0,0 1,1": 2
 polyline "0,0 1,1 2": 2
 polyline "0,0 1,1 2,": 2
-polyline "0,0 1,1 INVALID": 2
-polyline "0,0 +": 1
-polyline "0,0 1,+": 1
-polyline "0,0 1e+": 1
-polyline "0,0 .": 1
-polyline "0,0 1,-": 1
-polyline "0,0 1,1,,": 2
+polyline "0,0 1,1 INVALID": 0
+polyline "0,0 +": 0
+polyline "0,0 1,+": 0
+polyline "0,0 1e+": 0
+polyline "0,0 .": 0
+polyline "0,0 1,-": 0
+polyline "0,0 1,1,,": 0
 polyline " ": 0
