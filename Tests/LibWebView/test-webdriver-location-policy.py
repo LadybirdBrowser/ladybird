@@ -73,6 +73,17 @@ def run_browser(webdriver_binary, settings, check):
                 )
 
             check(switch_state, toggle_switch, settings_file)
+
+            # The Permissions API is exposed to every site, not only under the experimental-interfaces flag.
+            command("url", {"url": "about:blank"})
+            exposed = command(
+                "execute/sync",
+                {
+                    "script": "return [typeof navigator.permissions, typeof PermissionStatus, typeof Permissions];",
+                    "args": [],
+                },
+            )
+            assert exposed == ["object", "function", "function"], exposed
         finally:
             if session is not None:
                 helpers["request"](port, "DELETE", f"/session/{session}")
