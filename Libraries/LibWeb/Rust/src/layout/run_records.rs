@@ -305,6 +305,22 @@ pub(crate) struct RunRecords<'arena> {
     percentage_block_size_dependencies_in_progress: PercentageBlockSizeDependenciesInProgress,
 }
 
+/// Where a box is placed: the offset of its content box in the containing block it is placed in.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct BoxPlacement {
+    pub(crate) content_offset_in_containing_block: FfiCssPixelPoint,
+    pub(crate) containing_block: Node,
+}
+
+/// The used values of a box's inset properties.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct UsedInsets {
+    pub(crate) left: CssPixels,
+    pub(crate) right: CssPixels,
+    pub(crate) top: CssPixels,
+    pub(crate) bottom: CssPixels,
+}
+
 /// Whether a box depends on the block size its percentages resolve against, and whether a box it contains does.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct PercentageBlockSizeDependency {
@@ -539,6 +555,56 @@ impl<'arena> RunRecords<'arena> {
 
     pub(crate) fn root(&self) -> Node {
         self.root
+    }
+
+    /// Places `node` in `placement`, which is final: the box's metrics are sealed with it.
+    pub(crate) fn place_box(&self, node: Node, placement: BoxPlacement) {
+        let used = self.used_values(node);
+        assert!(!used.has_content_offset.get(), "a box is placed once");
+        used.has_content_offset.set(true);
+        used.content_offset.set(placement.content_offset_in_containing_block);
+        used.placed_in.set(placement.containing_block);
+        used.seal_committed_box_metrics();
+    }
+
+    /// Where `node` is placed, if this run placed it.
+    pub(crate) fn placement_of(&self, node: Node) -> Option<BoxPlacement> {
+        let used = self.used_values_if_owned(node)?;
+        used.has_content_offset.get().then(|| BoxPlacement {
+            content_offset_in_containing_block: used.content_offset.get(),
+            containing_block: used.placed_in.get(),
+        })
+    }
+
+    pub(crate) fn is_placed(&self, node: Node) -> bool {
+        self.placement_of(node).is_some()
+    }
+
+    /// The offset of the content box of `node` in its containing block, or the origin while the box is not placed.
+    #[track_caller]
+    pub(crate) fn content_offset_or_origin(&self, node: Node) -> FfiCssPixelPoint {
+        self.used_values(node).content_offset.get()
+    }
+
+    #[track_caller]
+    pub(crate) fn used_insets_of(&self, node: Node) -> UsedInsets {
+        let used = self.used_values(node);
+        UsedInsets {
+            left: used.inset_left.get(),
+            right: used.inset_right.get(),
+            top: used.inset_top.get(),
+            bottom: used.inset_bottom.get(),
+        }
+    }
+
+    /// Sets the used insets of `node`, which cannot change once the box is placed.
+    #[track_caller]
+    pub(crate) fn set_used_insets(&self, node: Node, insets: UsedInsets) {
+        let used = self.used_values(node);
+        used.inset_left.set(insets.left);
+        used.inset_right.set(insets.right);
+        used.inset_top.set(insets.top);
+        used.inset_bottom.set(insets.bottom);
     }
 
     /// Tracks the percentage block size dependency of `node` until the returned tracking is dropped, which the layout

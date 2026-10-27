@@ -527,9 +527,15 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         block_end_margin: CssPixels,
     ) {
         let used = self.context().used(node);
-        assert!(used.has_content_offset.get());
-        let inline_offset = used.content_offset.get().x;
-        let block_offset = used.content_offset.get().y;
+        let content_offset = self
+            .context()
+            .run
+            .records
+            .placement_of(node)
+            .expect("a block-level box is placed before its line takes it")
+            .content_offset_in_containing_block;
+        let inline_offset = content_offset.x;
+        let block_offset = content_offset.y;
         let inline_length = used.content_inline_size.get();
         let block_length = used.content_block_size.get();
         let border_start = used.border_box_top(false);

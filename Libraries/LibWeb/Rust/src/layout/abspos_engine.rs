@@ -168,14 +168,10 @@ impl<'pass> AbsposEngine<'pass> {
         let mut origin = FfiCssPixelPoint::default();
         loop {
             origins_by_chain_box.push((chain_box, origin));
-            let Some(used) = self
-                .records
-                .used_values_if_owned(chain_box)
-                .filter(|used| used.has_content_offset.get())
-            else {
+            let Some(placement) = self.records.placement_of(chain_box) else {
                 break;
             };
-            origin = formatting_context::point_add(origin, used.content_offset.get());
+            origin = formatting_context::point_add(origin, placement.content_offset_in_containing_block);
             chain_box = self.placement_containing_block(chain_box);
             if chain_box.is_invalid() {
                 break;
@@ -190,17 +186,13 @@ impl<'pass> AbsposEngine<'pass> {
             {
                 return formatting_context::point_sub(*origin, space_origin);
             }
-            let used = self
-                .records
-                .used_values_if_owned(space_box)
-                .filter(|used| used.has_content_offset.get())
-                .unwrap_or_else(|| {
-                    panic!(
-                        "an entry's space chain crossed an unplaced or foreign record before meeting its containing block's chain (slot {})",
-                        space_box.slot_index()
-                    )
-                });
-            space_origin = formatting_context::point_add(space_origin, used.content_offset.get());
+            let placement = self.records.placement_of(space_box).unwrap_or_else(|| {
+                panic!(
+                    "an entry's space chain crossed an unplaced or foreign record before meeting its containing block's chain (slot {})",
+                    space_box.slot_index()
+                )
+            });
+            space_origin = formatting_context::point_add(space_origin, placement.content_offset_in_containing_block);
             space_box = self.placement_containing_block(space_box);
             assert!(
                 !space_box.is_invalid(),
@@ -222,13 +214,12 @@ impl<'pass> AbsposEngine<'pass> {
             let mut offset = FfiCssPixelPoint::default();
             let mut current = descendant;
             while current != merge_point {
-                let used = self.records.used_values_if_owned(current).unwrap_or_else(|| {
-                    panic!(
-                        "a payload resting space's chain crossed a record this run does not own (slot {})",
-                        current.slot_index()
-                    )
-                });
-                offset = formatting_context::point_add(offset, used.content_offset.get());
+                assert!(
+                    self.records.used_values_if_owned(current).is_some(),
+                    "a payload resting space's chain crossed a record this run does not own (slot {})",
+                    current.slot_index()
+                );
+                offset = formatting_context::point_add(offset, self.records.content_offset_or_origin(current));
                 current = self.placement_containing_block(current);
                 assert!(!current.is_invalid());
             }
@@ -3134,20 +3125,21 @@ impl<'pass> AbsposEngine<'pass> {
         let static_offset = self.static_offset(node, inputs.static_position_rect);
         let used = self.used(node);
         let collapsed = used.uses_collapsing_borders_model.get();
+        let mut used_insets = self.records.used_insets_of(node);
         let mut used_offset = geometry::LogicalOffset {
             inline_offset: if inputs.containing_block_info.inline_axis_mode
                 == abspos_inputs::AbsposAxisMode::StaticPosition
             {
                 static_offset.inline_offset
             } else {
-                inputs.containing_block_info.rect.offset.inline_offset + used.inset_left.get()
+                inputs.containing_block_info.rect.offset.inline_offset + used_insets.left
             },
             block_offset: if inputs.containing_block_info.block_axis_mode
                 == abspos_inputs::AbsposAxisMode::StaticPosition
             {
                 static_offset.block_offset
             } else {
-                inputs.containing_block_info.rect.offset.block_offset + used.inset_top.get()
+                inputs.containing_block_info.rect.offset.block_offset + used_insets.top
             },
         };
         used_offset.inline_offset += used.margin_left.get() + used.border_box_left(collapsed);
@@ -3165,17 +3157,14 @@ impl<'pass> AbsposEngine<'pass> {
                 .with_resolved_insets(inputs.resolved_anchor_insets.as_ref());
             let containing_block_size = inputs.containing_block_info.rect.size;
             if aligns_inline {
-                used.inset_left
-                    .set(style.inset_left().to_px(containing_block_size.inline_size));
-                used.inset_right
-                    .set(style.inset_right().to_px(containing_block_size.inline_size));
+                used_insets.left = style.inset_left().to_px(containing_block_size.inline_size);
+                used_insets.right = style.inset_right().to_px(containing_block_size.inline_size);
             }
             if aligns_block {
-                used.inset_top
-                    .set(style.inset_top().to_px(containing_block_size.block_size));
-                used.inset_bottom
-                    .set(style.inset_bottom().to_px(containing_block_size.block_size));
+                used_insets.top = style.inset_top().to_px(containing_block_size.block_size);
+                used_insets.bottom = style.inset_bottom().to_px(containing_block_size.block_size);
             }
+            self.records.set_used_insets(node, used_insets);
         }
         if self.fragments.is_some() {
             self.used(node).rare_data_mut().abspos_layout_inputs = Some(inputs);
@@ -3786,11 +3775,15 @@ impl<'pass> AbsposEngine<'pass> {
             block_axis_inset_value(style.inset_bottom(), treat_block_axis_percentage_insets_as_auto),
             containing_block_size.block_size,
         );
-        let used = self.used(node);
-        used.inset_left.set(left);
-        used.inset_right.set(right);
-        used.inset_top.set(top);
-        used.inset_bottom.set(bottom);
+        self.records.set_used_insets(
+            node,
+            run_records::UsedInsets {
+                left,
+                right,
+                top,
+                bottom,
+            },
+        );
     }
 }
 

@@ -917,9 +917,9 @@ pub(crate) fn accumulated_relative_insets_from_inline_ancestor_chain(
             // committed fragment or piece was entered by its inline
             // formatting context this pass, which created its used values
             // and resolved its insets.
-            let used = records.used_values(ancestor);
-            result.offset_x += used.inset_left.get();
-            result.offset_y += used.inset_top.get();
+            let insets = records.used_insets_of(ancestor);
+            result.offset_x += insets.left;
+            result.offset_y += insets.top;
         }
         ancestor = callbacks.parent(ancestor);
     }

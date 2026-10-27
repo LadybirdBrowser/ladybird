@@ -2475,7 +2475,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             drop(margin_state);
             let used = self.used(node);
             self.block_offset_of_current_block_container.set(Some(
-                used.content_offset.get().y
+                self.run.records.content_offset_or_origin(node).y
                     + used.content_block_size.get()
                     + used.border_box_bottom(used.uses_collapsing_borders_model.get()),
             ));
@@ -2490,7 +2490,7 @@ impl<'pass> BlockFormattingContext<'pass> {
 
         let used = self.used(node);
         *bottom_of_lowest_margin_box = (*bottom_of_lowest_margin_box).max(
-            used.content_offset.get().y
+            self.run.records.content_offset_or_origin(node).y
                 + used.content_block_size.get()
                 + used.margin_box_bottom(used.uses_collapsing_borders_model.get()),
         );
@@ -2662,7 +2662,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let mut cells = used_values::UsedValuesCellState::capture(used);
         cells.inputs.has_content_offset = false;
         cells.inputs.content_offset = FfiCssPixelPoint::default();
-        let content_offset = used.content_offset.get();
+        let content_offset = self.run.records.content_offset_or_origin(node);
         let entry = in_flow_block_cache::InFlowBlockEntry {
             key,
             validity,
@@ -2856,12 +2856,10 @@ impl<'pass> BlockFormattingContext<'pass> {
             .borrow_mut()
             .take_if(|token| token.node == child);
         if let Some(token) = broken_child_token {
-            if self.allows_unforced_breaks()
-                && let Some(used) = self.run.records.used_values_if_owned(child)
-            {
+            if self.allows_unforced_breaks() && self.run.records.used_values_if_owned(child).is_some() {
                 let content_block_end = state.container_content_box_block_start_in_root
                     + self.block_offset_adjustment_from_pending_ancestor_block_start_margins(block_container)
-                    + used.content_offset.get().y
+                    + self.run.records.content_offset_or_origin(child).y
                     + self.block_end_of_content(child);
                 if fragmentainer.exceeds(content_block_end) {
                     fragmentainer.note_space_shortage(content_block_end);
@@ -2891,7 +2889,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         if self.allows_unforced_breaks() {
             let content_block_end = state.container_content_box_block_start_in_root
                 + self.block_offset_adjustment_from_pending_ancestor_block_start_margins(block_container)
-                + used.content_offset.get().y
+                + self.run.records.content_offset_or_origin(child).y
                 + used.content_block_size.get();
             let is_breakable = self.child_is_breakable(child);
             if !is_breakable {
@@ -3201,10 +3199,12 @@ impl<'pass> BlockFormattingContext<'pass> {
                 .map_or(CssPixels::default(), |line| line.physical_vertical_end());
         }
         self.laid_out_children(node)
-            .filter_map(|child| self.run.records.used_values_if_owned(child))
-            .filter(|used| used.has_content_offset.get())
-            .map(|used| {
-                used.content_offset.get().y
+            .filter_map(|child| {
+                let placement = self.run.records.placement_of(child)?;
+                Some((placement, self.run.records.used_values(child)))
+            })
+            .map(|(placement, used)| {
+                placement.content_offset_in_containing_block.y
                     + used.content_block_size.get()
                     + used.border_box_bottom(used.uses_collapsing_borders_model.get())
             })
@@ -4443,7 +4443,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                     margin_state.box_last_in_flow_child_margin_bottom_collapsed = true;
                     margin_bottom = CssPixels::default();
                 }
-                return (child_used.content_offset.get().y
+                return (self.run.records.content_offset_or_origin(child).y
                     + child_used.content_block_size.get()
                     + child_used.border_box_bottom(child_used.uses_collapsing_borders_model.get())
                     + margin_bottom)
@@ -4759,7 +4759,7 @@ pub(crate) fn automatic_block_size_for_bfc_root(
                 }
                 _ => child_used.margin_bottom.get(),
             };
-            let child_bottom = child_used.content_offset.get().y
+            let child_bottom = records.content_offset_or_origin(child).y
                 + child_used.content_block_size.get()
                 + child_used.border_box_bottom(collapsed)
                 + margin_bottom;
