@@ -1,0 +1,3 @@
+allowed this time: granted
+after a same-origin navigation: granted
+after the site was left: prompt

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A one-time grant lasts while some tab shows the site: through same-origin navigations, and no further than the
+    // moment the last of them moves on to another site. The site here is a host of its own, shown in a popup.
+    asyncTest(async done => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+        const htmlHeaders = { "Content-Type": "text/html" };
+        const site = uniqueLocalhostHostname("allow-once-site");
+        const elsewhere = uniqueLocalhostHostname("allow-once-elsewhere");
+
+        const echo = async (host, name, body) => {
+            const url = new URL(await httpServer.createEcho("GET", `/${name}-${runId}`, {
+                status: 200,
+                headers: htmlHeaders,
+                body: `<!DOCTYPE html><script>${body}<\/script>`,
+            }));
+            url.hostname = host;
+            return url.href;
+        };
+        const report = `const report = message => opener.postMessage(message, "*");
+            const state = async () => (await navigator.permissions.query({ name: "microphone" })).state;`;
+
+        const leftUrl = await echo(elsewhere, "left", `${report} report("left");`);
+        const secondPageUrl = await echo(site, "second", `${report}
+            state().then(value => { report(\`after a same-origin navigation: \${value}\`); location.href = ${JSON.stringify(leftUrl)}; });`);
+        const firstPageUrl = await echo(site, "first", `${report}
+            internals.setNextPermissionPromptOutcome("microphone", "allow-once");
+            internals.requestPermission("microphone").then(value => {
+                report(\`allowed this time: \${value}\`);
+                location.href = ${JSON.stringify(secondPageUrl)};
+            });`);
+        const returnUrl = await echo(site, "return", `${report}
+            state().then(value => report(\`after the site was left: \${value}\`));`);
+
+        const popups = [];
+        addEventListener("message", event => {
+            if (event.data === "left") {
+                popups.push(window.open(returnUrl));
+                return;
+            }
+            println(event.data);
+            if (event.data.startsWith("after the site was left")) {
+                popups.forEach(popup => popup.close());
+                done();
+            }
+        });
+        popups.push(window.open(firstPageUrl));
+    });
+</script>
