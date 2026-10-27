@@ -79,36 +79,6 @@ static void store_permission_decision(PermissionDescriptor const& descriptor, HT
 }
 
 // https://w3c.github.io/permissions/#dfn-request-permission-to-use
-PermissionState request_permission(PermissionDescriptor const& descriptor)
-{
-    // 1. Let current state be the descriptor's permission state.
-    auto current_state = permission_state(descriptor);
-
-    // 2. If current state is not "prompt", return current state and abort these steps.
-    if (current_state != PermissionState::Prompt)
-        return current_state;
-
-    // FIXME: 3. Ask the user for express permission for the calling algorithm to use the powerful feature described by descriptor.
-
-    // 4. If the user gives express permission to use the powerful feature, set current state to "granted"; otherwise to "denied".
-    // The user's interaction may provide new information about the user's intent for the origin.
-    if (HTML::Window::in_test_mode()) {
-        current_state = PermissionState::Granted;
-    } else {
-        current_state = PermissionState::Denied;
-    }
-
-    // 5. Let settings be the current settings object.
-    // 6. Let key be the result of generating a permission key for descriptor with settings's top-level origin and settings's origin.
-    // 7. Queue a task on the current settings object's responsible event loop to set a permission store entry with descriptor, key, and current state.
-    // NB: store_permission_decision() carries out steps 6 and 7 for both request algorithms.
-    store_permission_decision(descriptor, HTML::current_settings_object(), current_state);
-
-    // 8. Return current state.
-    return current_state;
-}
-
-// https://w3c.github.io/permissions/#dfn-request-permission-to-use
 void request_permission_with_user_prompt(PermissionDescriptor const& descriptor, HTML::EnvironmentSettingsObject& settings, PermissionDecisionCallback on_decided)
 {
     // 1. Let current state be the descriptor's permission state.

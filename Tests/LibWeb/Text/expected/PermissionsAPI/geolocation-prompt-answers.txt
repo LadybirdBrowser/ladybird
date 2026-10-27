@@ -1,0 +1,4 @@
+dismissed: error 1, query prompt
+blocked: error 1, query denied
+asked again: error 1
+allowed: position 1.25, 2.5, query granted

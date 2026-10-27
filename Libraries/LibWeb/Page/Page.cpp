@@ -1524,20 +1524,20 @@ void Page::permission_request_completed(u64 request_id, Web::Permissions::Effect
         callback.value()->function()(state);
 }
 
-u64 Page::request_geolocation_position(GeolocationPositionCallback callback, GeolocationRequestType type)
+u64 Page::request_geolocation_position(HTML::CrossProcessId requesting_document_id, GeolocationPositionCallback callback, GeolocationRequestType type)
 {
     // This is the browser-process bridge for the Geolocation spec's "try to acquire position data from the underlying system" step.
     auto request_id = m_next_geolocation_request_id++;
-    m_pending_geolocation_requests.set(request_id, { callback, type });
+    m_pending_geolocation_requests.set(request_id, { callback, type, requesting_document_id });
 
     if (type == GeolocationRequestType::Watch) {
-        client().page_did_start_geolocation_position_watch(request_id);
+        client().page_did_start_geolocation_position_watch(request_id, requesting_document_id);
         return request_id;
     }
 
     if (!m_active_geolocation_request_id.has_value()) {
         m_active_geolocation_request_id = request_id;
-        client().page_did_request_geolocation_position(request_id);
+        client().page_did_request_geolocation_position(request_id, requesting_document_id);
     }
 
     return request_id;
@@ -1562,7 +1562,7 @@ void Page::cancel_geolocation_position_request(u64 request_id)
     for (auto const& entry : m_pending_geolocation_requests) {
         if (entry.value.type == GeolocationRequestType::OneShot) {
             m_active_geolocation_request_id = entry.key;
-            client().page_did_request_geolocation_position(entry.key);
+            client().page_did_request_geolocation_position(entry.key, entry.value.requesting_document_id);
             return;
         }
     }

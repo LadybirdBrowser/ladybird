@@ -1301,9 +1301,9 @@ void PageClient::geolocation_position_response(u64 request_id, WebView::Geolocat
         page().receive_geolocation_position(request_id, Web::Geolocation::GeolocationPositionError::ErrorCode::PositionUnavailable);
 }
 
-void PageClient::page_did_request_geolocation_position(u64 request_id)
+void PageClient::page_did_request_geolocation_position(u64 request_id, Web::HTML::CrossProcessId requesting_document_id)
 {
-    client().async_did_request_geolocation_position(m_id, request_id);
+    client().async_did_request_geolocation_position(m_id, request_id, requesting_document_id);
 }
 
 void PageClient::page_did_request_permission(u64 request_id, Web::HTML::CrossProcessId requesting_document_id, Utf16String const& name)
@@ -1355,9 +1355,9 @@ void PageClient::page_did_cancel_geolocation_position_request(u64 request_id)
     client().async_did_cancel_geolocation_position_request(m_id, request_id);
 }
 
-void PageClient::page_did_start_geolocation_position_watch(u64 request_id)
+void PageClient::page_did_start_geolocation_position_watch(u64 request_id, Web::HTML::CrossProcessId requesting_document_id)
 {
-    client().async_did_start_geolocation_position_watch(m_id, request_id);
+    client().async_did_start_geolocation_position_watch(m_id, request_id, requesting_document_id);
 }
 
 void PageClient::page_did_stop_geolocation_position_watch(u64 request_id)
