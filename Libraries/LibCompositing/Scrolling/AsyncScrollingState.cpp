@@ -154,8 +154,6 @@ AsyncScrollingState async_scrolling_state_from_display_list(Compositing::Display
                 .track_rect = command.track_rect,
                 .expanded_gutter_rect = command.expanded_gutter_rect,
                 .expanded_thumb_rect = command.expanded_thumb_rect,
-                .corner_clip_rect = command.corner_clip_rect,
-                .corner_clip_radius = command.corner_clip_radius,
                 .scroll_size = command.scroll_size,
                 .expanded_scroll_size = command.expanded_scroll_size,
                 .min_scroll_offset = command.min_scroll_offset,

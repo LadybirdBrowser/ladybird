@@ -24,6 +24,13 @@ ErrorOr<String> load_error_page(URL::URL const& url, StringView error_message)
     StringBuilder builder;
     SourceGenerator generator { builder, '%', '%' };
     generator.set("failed_url", escape_html_entities(url.to_byte_string()));
+    // NB: The page names the site it could not reach by its host, with the port when the URL has one, or by the whole URL
+    //     when it has no host.
+    auto host = url.host().has_value() ? url.serialized_host() : StringView {};
+    ByteString failed_host = host.is_empty() ? url.to_byte_string() : ByteString { host };
+    if (!host.is_empty() && url.port().has_value())
+        failed_host = ByteString::formatted("{}:{}", failed_host, *url.port());
+    generator.set("failed_host", escape_html_entities(failed_host));
     generator.set("error_message", escape_html_entities(error_message));
     generator.append(template_file->data());
     return TRY(String::from_utf8(generator.as_string_view()));

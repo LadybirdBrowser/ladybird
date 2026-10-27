@@ -138,7 +138,7 @@ VERIFY_SHARED_FFI_TYPE(Gfx::ScalingMode);
 VERIFY_SHARED_FFI_TYPE(Gfx::InterpolationColorSpace);
 VERIFY_SHARED_FFI_TYPE(Compositing::ClipMode);
 VERIFY_SHARED_FFI_TYPE(ChromeMetrics);
-static_assert(sizeof(ChromeMetrics) == 8 * sizeof(CSSPixels));
+static_assert(sizeof(ChromeMetrics) == 7 * sizeof(CSSPixels));
 static_assert(offsetof(ChromeMetrics, scroll_thumb_min_length) == 0);
 static_assert(offsetof(ChromeMetrics, scroll_thumb_padding_thin) == sizeof(CSSPixels));
 static_assert(offsetof(ChromeMetrics, scroll_thumb_thickness_thin) == 2 * sizeof(CSSPixels));
@@ -146,7 +146,6 @@ static_assert(offsetof(ChromeMetrics, scroll_thumb_thickness) == 3 * sizeof(CSSP
 static_assert(offsetof(ChromeMetrics, scroll_gutter_thickness) == 4 * sizeof(CSSPixels));
 static_assert(offsetof(ChromeMetrics, resize_gripper_size) == 5 * sizeof(CSSPixels));
 static_assert(offsetof(ChromeMetrics, resize_gripper_padding) == 6 * sizeof(CSSPixels));
-static_assert(offsetof(ChromeMetrics, viewport_corner_radius) == 7 * sizeof(CSSPixels));
 VERIFY_SHARED_FFI_TYPE(Optional<CSSPixels>);
 VERIFY_SHARED_FFI_TYPE(Optional<CSSPixelRect>);
 VERIFY_SHARED_FFI_TYPE(Optional<Gfx::IntRect>);
@@ -596,7 +595,7 @@ Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRe
     inputs.document_id = document.unique_id().value();
     inputs.has_blocking_wheel_event_region_covering_viewport = wheel_event_region_state.has_blocking_wheel_event_region_covering_viewport;
     inputs.wheel_event_listener_state_generation = document.page().wheel_event_listener_state_generation();
-    inputs.chrome_metrics = document.page().chrome_metrics(document);
+    inputs.chrome_metrics = document.page().chrome_metrics();
     inputs.paint_viewport_scrollbars = should_paint_viewport_scrollbars();
     if (auto navigable = document.navigable()) {
         if (auto handler = navigable->event_handler().middle_button_scroll_handler(); handler.has_value()) {

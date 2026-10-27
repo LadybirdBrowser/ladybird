@@ -26,6 +26,7 @@
 #include <LibWeb/HTML/TimeRanges.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/PictureInPicture/PictureInPictureController.h>
 #include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/KeyboardEvent.h>
 #include <LibWeb/UIEvents/MouseEvent.h>
@@ -90,6 +91,8 @@ void MediaControls::create_shadow_tree()
         MUST(m_dom->container->class_list()->add("video"_utf16));
     else
         MUST(m_dom->container->class_list()->add("audio"_utf16));
+    if (is_picture_in_picture_player())
+        MUST(m_dom->container->class_list()->add("picture-in-picture-player"_utf16));
 
     // Initialize state
     update_play_pause_icon();
@@ -391,6 +394,16 @@ void MediaControls::set_up_event_listeners()
         return true;
     });
 
+    // The placeholder of a video playing in Picture-in-Picture brings it back to the page.
+    if (m_dom->exit_picture_in_picture_button) {
+        add_event_listener(realm, *m_dom->exit_picture_in_picture_button, UIEvents::EventNames::click, [this] {
+            auto& document = m_host->document();
+            if (m_host->is_picture_in_picture_element())
+                document.page().picture_in_picture_controller().enqueue_exit(document, nullptr);
+            return true;
+        });
+    }
+
     // Fullscreen button
     if (m_dom->fullscreen_button) {
         add_event_listener(realm, *m_dom->fullscreen_button, UIEvents::EventNames::click, [this] {
@@ -678,6 +691,17 @@ void MediaControls::request_timeline_update()
     });
 }
 
+// A time as minutes and seconds, such as 4:10, with the hours before them when there are any.
+static String compact_digital_time(i64 time_in_seconds)
+{
+    auto hours = time_in_seconds / 3600;
+    auto minutes = (time_in_seconds % 3600) / 60;
+    auto seconds = time_in_seconds % 60;
+    if (hours > 0)
+        return MUST(String::formatted("{}:{:02}:{:02}", hours, minutes, seconds));
+    return MUST(String::formatted("{}:{:02}", minutes, seconds));
+}
+
 void MediaControls::update_timestamp()
 {
     VERIFY(m_media_element);
@@ -704,6 +728,14 @@ void MediaControls::set_timestamp(double time, double duration)
         return;
     m_last_timestamp_time = rounded_time;
     m_last_timestamp_duration = rounded_duration;
+
+    // A Picture-in-Picture window's player shows the time and the duration on either side of its timeline.
+    if (is_picture_in_picture_player()) {
+        VERIFY(m_dom->duration_element);
+        MUST(m_dom->timestamp_element->set_text_content(Utf16String::from_utf8(compact_digital_time(rounded_time))));
+        MUST(m_dom->duration_element->set_text_content(rounded_duration.has_value() ? Utf16String::from_utf8(compact_digital_time(*rounded_duration)) : Utf16String {}));
+        return;
+    }
 
     auto timestamp_builder = Utf16StringBuilder();
     timestamp_builder.appendff("{}", human_readable_digital_time(rounded_time));

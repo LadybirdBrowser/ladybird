@@ -6619,13 +6619,6 @@ void LocalNavigable::set_force_dark_thresholds(i32 foreground, i32 background)
         child_navigable->set_force_dark_thresholds(foreground, background);
 }
 
-// The viewport's scrollbars are recorded with a clip that follows its corners.
-void LocalNavigable::viewport_corner_radius_did_change()
-{
-    if (auto document = active_document())
-        document->set_needs_repaint(Badge<HTML::LocalNavigable> {}, InvalidateDisplayList::PaintCommands);
-}
-
 void LocalNavigable::set_should_show_caret_hit_test_debug_overlay(bool value)
 {
     m_should_show_caret_hit_test_debug_overlay = value;

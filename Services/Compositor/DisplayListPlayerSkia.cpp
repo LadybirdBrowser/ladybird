@@ -196,7 +196,7 @@ static bool rect_is_pixel_aligned(SkRect const& rect)
     return rect.left() == roundf(rect.left()) && rect.top() == roundf(rect.top()) && rect.right() == roundf(rect.right()) && rect.bottom() == roundf(rect.bottom());
 }
 
-static void paint_scrollbar_into_surface(Gfx::PaintingSurface& surface, ScrollbarController::PresentedScrollbar const& scrollbar, Optional<SkRRect> const& corner_clip = {})
+static void paint_scrollbar_into_surface(Gfx::PaintingSurface& surface, ScrollbarController::PresentedScrollbar const& scrollbar)
 {
     auto opacity = scrollbar.opacity;
     if (opacity <= 0)
@@ -220,28 +220,12 @@ static void paint_scrollbar_into_surface(Gfx::PaintingSurface& surface, Scrollba
     if (thumb_rect.isEmpty())
         return;
 
-    // A thumb reaching into a rounded corner takes the shape of its part inside the corner clip, so that its outline
-    // follows the corner too.
-    Optional<SkPath> clipped_thumb;
-    if (corner_clip.has_value() && !corner_clip->contains(thumb_rect)) {
-        auto result = Op(SkPath::RRect(thumb_rrect), SkPath::RRect(*corner_clip), SkPathOp::kIntersect_SkPathOp);
-        if (!result.has_value() || result->isEmpty())
-            return;
-        clipped_thumb = *std::move(result);
-    }
-    auto draw_thumb = [&](SkPaint const& paint) {
-        if (clipped_thumb.has_value())
-            canvas.drawPath(*clipped_thumb, paint);
-        else
-            canvas.drawRRect(thumb_rrect, paint);
-    };
-
     SkPaint thumb_fill_paint;
     thumb_fill_paint.setColor(to_skia_color(scrollbar.thumb_color));
     thumb_fill_paint.setAlphaf(thumb_fill_paint.getAlphaf() * opacity);
     // A thumb that is growing or shrinking has edges between pixels.
-    thumb_fill_paint.setAntiAlias(clipped_thumb.has_value() || !rect_is_pixel_aligned(thumb_rect));
-    draw_thumb(thumb_fill_paint);
+    thumb_fill_paint.setAntiAlias(!rect_is_pixel_aligned(thumb_rect));
+    canvas.drawRRect(thumb_rrect, thumb_fill_paint);
 
     auto stroke_color = scrollbar.thumb_color.lightened();
     SkPaint stroke_paint;
@@ -250,17 +234,12 @@ static void paint_scrollbar_into_surface(Gfx::PaintingSurface& surface, Scrollba
     stroke_paint.setAntiAlias(true);
     stroke_paint.setColor(to_skia_color(stroke_color));
     stroke_paint.setAlphaf(stroke_paint.getAlphaf() * opacity);
-    draw_thumb(stroke_paint);
+    canvas.drawRRect(thumb_rrect, stroke_paint);
 }
 
-void DisplayListPlayerSkia::paint_scrollbar(Gfx::PaintingSurface& surface, ScrollbarController::PresentedScrollbar const& scrollbar, Gfx::IntRect const& corner_clip_rect, int corner_clip_radius)
+void DisplayListPlayerSkia::paint_scrollbar(Gfx::PaintingSurface& surface, ScrollbarController::PresentedScrollbar const& scrollbar)
 {
-    Optional<SkRRect> corner_clip;
-    if (corner_clip_radius > 0) {
-        auto radius = static_cast<SkScalar>(corner_clip_radius);
-        corner_clip = SkRRect::MakeRectXY(to_skia_rect(corner_clip_rect), radius, radius);
-    }
-    paint_scrollbar_into_surface(surface, scrollbar, corner_clip);
+    paint_scrollbar_into_surface(surface, scrollbar);
 }
 
 static SkMatrix vertical_glyph_run_rotation(Gfx::IntRect const& rect)

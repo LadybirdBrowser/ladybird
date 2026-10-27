@@ -878,20 +878,6 @@ void PageClient::inject_rendering_opportunity(double frame_time)
     grant_rendering_opportunity(frame_time, Web::HTML::EventLoop::RenderingOpportunitySource::Manual);
 }
 
-void PageClient::set_viewport_corner_radius(double radius)
-{
-    static constexpr double maximum_viewport_corner_radius = 64;
-    if (!isfinite(radius) || radius < 0)
-        return;
-    radius = min(radius, maximum_viewport_corner_radius);
-    if (m_viewport_corner_radius == radius)
-        return;
-    m_viewport_corner_radius = radius;
-
-    if (page().has_local_traversable())
-        page().local_traversable()->viewport_corner_radius_did_change();
-}
-
 void PageClient::set_maximum_frames_per_second(double maximum_frames_per_second)
 {
     if (!isfinite(maximum_frames_per_second) || maximum_frames_per_second <= 0)
@@ -2228,9 +2214,9 @@ void PageClient::received_message_from_web_ui(Utf16String const& name, JS::Value
         m_web_ui->received_message_from_web_ui(name, data);
 }
 
-void PageClient::page_did_block_resource()
+void PageClient::page_did_block_resource(URL::URL const& url, StringView kind)
 {
-    client().async_did_block_resource(id());
+    client().async_did_block_resource(id(), url, MUST(String::from_utf8(kind)));
 }
 
 void PageClient::page_did_start_network_request(u64 request_id, URL::URL const& url, ByteString const& method, Vector<HTTP::Header> const& request_headers, ReadonlyBytes request_body, Optional<String> initiator_type, String const& referrer_policy, bool is_navigation_request, Web::Fetch::Infrastructure::Request::Priority priority)

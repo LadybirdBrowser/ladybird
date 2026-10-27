@@ -13,16 +13,16 @@ TEST_CASE(buttons_sit_in_the_top_corners)
 {
     auto geometry = picture_in_picture_controls_geometry({ 800, 600 }, 1.0);
 
-    EXPECT_EQ(geometry.back_to_tab_button, (Gfx::IntRect { 8, 8, 28, 28 }));
-    EXPECT_EQ(geometry.close_button, (Gfx::IntRect { 764, 8, 28, 28 }));
+    EXPECT_EQ(geometry.back_to_tab_button, (Gfx::IntRect { 762, 10, 28, 28 }));
+    EXPECT_EQ(geometry.close_button, (Gfx::IntRect { 10, 10, 28, 28 }));
 }
 
 TEST_CASE(geometry_scales_with_device_pixel_ratio)
 {
     auto geometry = picture_in_picture_controls_geometry({ 1600, 1200 }, 2.0);
 
-    EXPECT_EQ(geometry.back_to_tab_button, (Gfx::IntRect { 16, 16, 56, 56 }));
-    EXPECT_EQ(geometry.close_button, (Gfx::IntRect { 1528, 16, 56, 56 }));
+    EXPECT_EQ(geometry.back_to_tab_button, (Gfx::IntRect { 1524, 20, 56, 56 }));
+    EXPECT_EQ(geometry.close_button, (Gfx::IntRect { 20, 20, 56, 56 }));
 }
 
 TEST_CASE(controls_are_round)

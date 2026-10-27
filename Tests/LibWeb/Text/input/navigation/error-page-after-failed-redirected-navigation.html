@@ -24,14 +24,17 @@
         // Bound the wait well inside the harness's 30-second per-test timeout — so a missing error page fails with a
         // diagnosable message, instead of a bare test timeout.
         const deadline = performance.now() + 15_000;
-        while (!dumpContains("Failed to load")) {
+        while (!dumpContains("reach")) {
             if (performance.now() > deadline)
                 throw new Error("Timed out waiting for the error page to appear in the layout dump");
             await new Promise(resolve => setTimeout(resolve, 50));
         }
 
-        println(`error page names the redirect target that failed: ${dumpContains(failingURL)}`);
-        println(`error page names the pre-redirect URL: ${dumpContains(redirectURL)}`);
+        // The page names the site it could not reach by its host and port, and the two URLs differ in their ports.
+        const failingSite = new URL(failingURL).host;
+        const redirectSite = new URL(redirectURL).host;
+        println(`error page names the redirect target that failed: ${dumpContains(failingSite)}`);
+        println(`error page names the pre-redirect URL: ${dumpContains(redirectSite)}`);
         done();
     });
 </script>

@@ -7,7 +7,7 @@
 use crate::painting::paint_read::{GeometryRead, PaintRead};
 use crate::painting::record::trace::Observer;
 
-use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixelSize, CssPixels};
+use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixelSize};
 use crate::layout::node_data::{DomPaintFact, NodeKind, NodeSlotId};
 use crate::painting::chrome_geometry::{
     ChromeGeometry, maximum_scroll_offset, minimum_scroll_offset, scrollbar_colors_for_paint,
@@ -355,7 +355,6 @@ impl<O: Observer> PaintRecorder<'_, O> {
         let min_scroll_offset = css_point_to_device_point(minimum_scroll_offset(self.source, paintable), scale);
         let max_scroll_offset = css_point_to_device_point(maximum_scroll_offset(self.source, paintable), scale);
         let vertical = direction == ScrollDirection::Vertical;
-        let (corner_clip_rect, corner_clip_radius) = self.viewport_scrollbar_corner_clip(paintable);
         Some(CompositorScrollbar {
             document_id: self.inputs.uncaptured.document_id,
             scroll_node_index: self.data(paintable).own_scroll_node_index,
@@ -364,7 +363,6 @@ impl<O: Observer> PaintRecorder<'_, O> {
             track_rect: self.converter.rounded_device_rect(scrollbar.track_rect),
             expanded_gutter_rect: self.converter.rounded_device_rect(expanded.gutter_rect),
             expanded_thumb_rect: self.converter.rounded_device_rect(expanded.thumb_rect),
-            corner_clip_rect,
             scroll_size: scrollbar.thumb_travel_to_scroll_ratio.to_double(),
             expanded_scroll_size: expanded.thumb_travel_to_scroll_ratio.to_double(),
             min_scroll_offset: if vertical {
@@ -377,35 +375,12 @@ impl<O: Observer> PaintRecorder<'_, O> {
             } else {
                 max_scroll_offset.x
             },
-            corner_clip_radius,
             thumb_color,
             track_color,
             vertical,
             is_painted_by_compositor,
             display_list_paints_enlarged_scrollbar,
         })
-    }
-
-    // The UI may round the viewport's corners. The thumbs of its scrollbars are then clipped to a rounded rect inset by
-    // the gap they keep to the viewport's edges, so that a thumb's end follows a corner with that same gap.
-    fn viewport_scrollbar_corner_clip(&self, paintable: NodeSlotId) -> (IntRect, i32) {
-        let metrics = &self.inputs.uncaptured.chrome_metrics;
-        if metrics.viewport_corner_radius <= CssPixels::from_raw(0)
-            || self.source.node_kind_if_live(paintable) != Some(NodeKind::Viewport)
-        {
-            return (IntRect::default(), 0);
-        }
-        let scale = self.inputs.device_pixels_per_css_pixel;
-        let gap = (metrics.scroll_thumb_padding_thin.to_double() * scale).round() as i32;
-        let radius = (metrics.viewport_corner_radius.to_double() * scale).round() as i32 - gap;
-        let size = self.inputs.uncaptured.device_viewport_size;
-        if radius <= 0 || size.width <= 2 * gap || size.height <= 2 * gap {
-            return (IntRect::default(), 0);
-        }
-        (
-            IntRect::new(gap, gap, size.width - 2 * gap, size.height - 2 * gap),
-            radius,
-        )
     }
 
     fn record_viewport_scrollbar_state(&mut self, paintable: NodeSlotId) {

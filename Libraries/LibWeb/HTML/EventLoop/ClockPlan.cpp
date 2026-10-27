@@ -281,7 +281,7 @@ bool seal_clock_plan(DOM::Document& document, bool may_plan, u64 update_serial)
                 .device_pixels_per_css_pixel = document.page().client().device_pixels_per_css_pixel(),
                 .scroll_offsets = scroll_offsets.data(),
                 .scroll_offset_count = scroll_offsets.size(),
-                .chrome_metrics = document.page().chrome_metrics(document),
+                .chrome_metrics = document.page().chrome_metrics(),
                 .page_cursor = ffi_page_cursor(document.page().cursor()),
                 .effect_timing_nodes = effect_timing_nodes.data(),
                 .effect_timing_identities = effect_timing_identities.data(),

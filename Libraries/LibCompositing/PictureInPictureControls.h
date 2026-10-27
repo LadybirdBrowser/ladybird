@@ -47,12 +47,13 @@ struct PictureInPictureControlsGeometry {
 
 inline PictureInPictureControlsGeometry picture_in_picture_controls_geometry(Gfx::IntSize viewport_size, double device_pixel_ratio)
 {
+    // Close is in the top left corner, and the way back to the tab in the top right one.
     auto button_size = scaled_overlay_length(28, device_pixel_ratio);
-    auto inset = scaled_overlay_length(8, device_pixel_ratio);
+    auto inset = scaled_overlay_length(10, device_pixel_ratio);
 
     return {
-        .back_to_tab_button = { inset, inset, button_size, button_size },
-        .close_button = { viewport_size.width() - inset - button_size, inset, button_size, button_size },
+        .back_to_tab_button = { viewport_size.width() - inset - button_size, inset, button_size, button_size },
+        .close_button = { inset, inset, button_size, button_size },
     };
 }
 
