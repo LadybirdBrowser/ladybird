@@ -1,0 +1,17 @@
+<!doctype html>
+<meta charset="utf-8">
+<link rel="match" href="../expected/inline-border-with-nested-spans-ref.html">
+<style>
+    body { font: 20px/3 sans-serif; }
+    .border { border: 1px dotted blue; padding: 2px 3px; }
+    .tight { line-height: 0.8; }
+    .shifted { vertical-align: 6px; }
+    .relative { position: relative; top: 4px; }
+    .wrap { width: 100px; }
+</style>
+<div><span class="border"><span><span>ˌkɒksɪˈnɛlɪdiː</span></span></span></div>
+<div><span class="border tight"><span><span>phonetic text</span></span></span></div>
+<div><span class="shifted"><span class="border"><span><span>shifted text</span></span></span></span></div>
+<div><span class="border relative"><span><span>relative text</span></span></span></div>
+<div class="wrap"><span class="border"><span>nested text wrapping across lines</span></span></div>
+<div dir="rtl"><span class="border"><span>nested text</span></span></div>
