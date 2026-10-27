@@ -48,8 +48,7 @@ enum class ActionID {
     IgnoreSpelling,
     LearnSpelling,
 
-    TakeVisibleScreenshot,
-    TakeFullScreenshot,
+    TakeScreenshot,
     ReportWebsiteIssue,
 
     ToggleVerticalTabsExpanded,

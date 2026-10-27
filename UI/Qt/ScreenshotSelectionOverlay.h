@@ -28,10 +28,16 @@ public:
 
     static constexpr int minimum_selection_size = 8;
 
-    ScreenshotSelectionOverlay(QImage frame, QWidget* parent);
+    enum class Purpose {
+        ReportIssue,
+        SaveScreenshot,
+    };
+
+    ScreenshotSelectionOverlay(QImage frame, QWidget* parent, Purpose = Purpose::ReportIssue);
 
     void select(QRect);
     void use_whole_frame();
+    void use_full_page();
     void skip();
     void dismiss();
 
@@ -41,6 +47,7 @@ public:
 
     Function<void()> on_close;
     Function<void(QImage)> on_finished;
+    Function<void()> on_full_page_requested;
     Function<QImage()> on_request_page_frame;
     Function<void()> on_page_visibility_change;
 

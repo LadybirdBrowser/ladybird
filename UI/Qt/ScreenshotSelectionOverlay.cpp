@@ -56,7 +56,7 @@ public:
 
 // Shows the page as it was when the selection started or the user last scrolled it, so the user selects what they saw,
 // not what the page has changed to since. The rest of the frame dims around the selection.
-ScreenshotSelectionOverlay::ScreenshotSelectionOverlay(QImage frame, QWidget* parent)
+ScreenshotSelectionOverlay::ScreenshotSelectionOverlay(QImage frame, QWidget* parent, Purpose purpose)
     : QWidget(parent)
     , m_frame(AK::move(frame))
 {
@@ -80,7 +80,8 @@ ScreenshotSelectionOverlay::ScreenshotSelectionOverlay(QImage frame, QWidget* pa
     auto* layout = new QHBoxLayout(instructions);
     layout->setContentsMargins(INSTRUCTIONS_TEXT_INSET, INSTRUCTIONS_BUTTON_INSET, INSTRUCTIONS_BUTTON_INSET, INSTRUCTIONS_BUTTON_INSET);
     layout->setSpacing(INSTRUCTIONS_BUTTON_SPACING);
-    layout->addWidget(new InstructionsLabel(tr("Drag to select the part of the page that shows the problem."), instructions), 1);
+    auto text = purpose == Purpose::ReportIssue ? tr("Drag to select the part of the page that shows the problem.") : tr("Drag to select the part of the page to save.");
+    layout->addWidget(new InstructionsLabel(text, instructions), 1);
     layout->addSpacing(INSTRUCTIONS_TEXT_SPACING - INSTRUCTIONS_BUTTON_SPACING);
 
     auto add_button = [&](QString const& text, char const* object_name, auto on_click) {
@@ -96,8 +97,12 @@ ScreenshotSelectionOverlay::ScreenshotSelectionOverlay(QImage frame, QWidget* pa
         m_buttons.append(button);
         return button;
     };
-    add_button(tr("Use Visible Page"), "ScreenshotSelectionWholeFrameButton", [this] { use_whole_frame(); });
-    add_button(tr("Continue Without Screenshot"), "ScreenshotSelectionSkipButton", [this] { skip(); });
+    add_button(tr("Capture Visible Page"), "ScreenshotSelectionWholeFrameButton", [this] { use_whole_frame(); });
+    // A report can go without a screenshot, and a saved screenshot can show all of the page rather than what is visible.
+    if (purpose == Purpose::ReportIssue)
+        add_button(tr("Continue Without Screenshot"), "ScreenshotSelectionSkipButton", [this] { skip(); });
+    else
+        add_button(tr("Capture Full Page"), "ScreenshotSelectionFullPageButton", [this] { use_full_page(); });
     m_close_button = add_button({}, "ScreenshotSelectionCancelButton", [this] { dismiss(); });
     m_close_button->setToolTip(tr("Close"));
     m_close_button->setAccessibleName(tr("Close"));
@@ -153,6 +158,13 @@ void ScreenshotSelectionOverlay::select(QRect area)
 void ScreenshotSelectionOverlay::use_whole_frame()
 {
     finish(m_frame);
+}
+
+void ScreenshotSelectionOverlay::use_full_page()
+{
+    dismiss();
+    if (on_full_page_requested)
+        on_full_page_requested();
 }
 
 void ScreenshotSelectionOverlay::skip()

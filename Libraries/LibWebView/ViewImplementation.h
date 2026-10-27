@@ -462,6 +462,8 @@ public:
         Full,
     };
     NonnullRefPtr<Core::Promise<LexicalPath>> take_screenshot(ScreenshotType);
+    void take_and_save_screenshot(ScreenshotType);
+    void save_screenshot(Gfx::Bitmap const&);
     NonnullRefPtr<Core::Promise<LexicalPath>> take_dom_node_screenshot(Web::UniqueNodeID);
     virtual void did_receive_screenshot(Badge<WebContentPage>, Gfx::ShareableBitmap const&);
 
@@ -517,6 +519,7 @@ public:
     Function<void(URL::URL const&, URL::Origin const&, ExternalURLHandler const&, Function<void(bool)>)> on_request_external_url_confirmation;
     Function<void()> on_request_accept_dialog;
     Function<void()> on_request_website_issue_report;
+    Function<void()> on_request_screenshot;
     Function<void()> on_request_dismiss_dialog;
     Function<void(JsonObject)> on_received_dom_tree;
     Function<void(DOMNodeProperties)> on_received_dom_node_properties;
@@ -844,8 +847,7 @@ protected:
     HashMap<u64, NonnullRefPtr<Core::Promise<bool>>> m_pending_select_word_for_dictionary_lookup_requests;
     HashMap<u64, NonnullRefPtr<Core::Promise<ByteString>>> m_pending_cut_selected_text_requests;
 
-    RefPtr<Action> m_take_visible_screenshot_action;
-    RefPtr<Action> m_take_full_screenshot_action;
+    RefPtr<Action> m_take_screenshot_action;
     RefPtr<Action> m_report_website_issue_action;
 
     RefPtr<Action> m_open_in_new_tab_action;
