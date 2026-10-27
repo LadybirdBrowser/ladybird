@@ -1,0 +1,21 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+test(() => {
+    for (const parentMode of ["horizontal-tb", "vertical-lr"]) {
+        for (const childMode of ["horizontal-tb", "vertical-lr", "vertical-rl"]) {
+            const parent = document.createElement("div");
+            parent.style.cssText = `writing-mode: ${parentMode}; width: 400px; height: 400px`;
+            const child = document.createElement("div");
+            child.style.cssText = `writing-mode: ${childMode}; display: inline-block; contain: inline-size; contain-intrinsic-size: 100px 50px`;
+            const content = document.createElement("div");
+            content.style.cssText = "width: 40px; height: 20px";
+            child.appendChild(content);
+            parent.appendChild(child);
+            document.body.appendChild(parent);
+            println(`${parentMode} / ${childMode}: ${child.clientWidth}x${child.clientHeight}`);
+            parent.remove();
+        }
+    }
+});
+</script>
