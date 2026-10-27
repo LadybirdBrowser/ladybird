@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<link rel="stylesheet" href="support/svg-paint-computed-urls.css">
+<svg>
+    <g id="parent"><g id="child"></g></g>
+    <g id="external" class="external-paint"></g>
+</svg>
+<script>
+    test(() => {
+        const parent = document.getElementById("parent");
+        const child = document.getElementById("child");
+        const external = document.getElementById("external");
+        const externalURL = new URL("support/paint.svg#gradient", document.baseURI).href;
+        println(`external fill: ${getComputedStyle(external).fill === `url("${externalURL}")`}`);
+        println(`external stroke: ${getComputedStyle(external).stroke === `url("${externalURL}") rgb(12, 34, 56)`}`);
+        for (const property of ["fill", "stroke"]) {
+            for (const url of ["paint.svg#gradient", "../paint.svg#gradient", "é.svg#gradient", "#gradient", "", "https://example.test/paint.svg#gradient"]) {
+                const specified = `url("${url}")`;
+                const computedURL = url === "" || url.startsWith("#") ? url : new URL(url, document.baseURI).href;
+                const expected = `url("${computedURL}")`;
+                parent.style[property] = specified;
+                println(`${property} ${JSON.stringify(url)}: ${getComputedStyle(parent)[property] === expected}`);
+                println(`${property} inherited ${JSON.stringify(url)}: ${getComputedStyle(child)[property] === expected}`);
+                parent.style[property] = `${specified} rgb(12, 34, 56)`;
+                println(`${property} fallback ${JSON.stringify(url)}: ${getComputedStyle(parent)[property] === `${expected} rgb(12, 34, 56)`}`);
+                println(`${property} specified ${JSON.stringify(url)}: ${parent.style[property] === `${specified} rgb(12, 34, 56)`}`);
+            }
+        }
+    });
+</script>

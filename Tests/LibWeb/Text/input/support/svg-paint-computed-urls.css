@@ -1,0 +1,4 @@
+.external-paint {
+    fill: url("paint.svg#gradient");
+    stroke: url("paint.svg#gradient") rgb(12, 34, 56);
+}
