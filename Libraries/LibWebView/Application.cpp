@@ -2260,6 +2260,12 @@ Optional<Process&> Application::find_process(pid_t pid)
 
 void Application::process_did_exit(Process&& process, Optional<int>)
 {
+#if defined(AK_OS_MACOS)
+    // A helper that exits before it fetches its transport leaves its ports registered. Holding them would keep the
+    // other end of the transport from noticing that the helper is gone.
+    m_transport_bootstrap_server.unregister_child_transport(process.pid());
+#endif
+
     if (m_event_loop->was_exit_requested())
         return;
 
