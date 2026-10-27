@@ -31,7 +31,6 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSMathValue::create_an_int
     //
     //     Return the value.
 
-    // FIXME: Check types allowed by registered custom properties.
     auto context = CalculationContext::for_property(property);
     auto matches = [&] {
         if (type().matches_angle(context.percentages_resolve_as))

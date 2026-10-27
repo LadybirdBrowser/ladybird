@@ -81,10 +81,6 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSKeywordValue::create_an_
         // specified in the grammar for width), they apply to this comparison as well.
         if (auto keyword = keyword_from_string(m_value); keyword.has_value() && is_css_wide_keyword(*keyword))
             return true;
-        if (property.is_custom_property()) {
-            // FIXME: If this is a registered custom property, check if that allows the keyword.
-            return true;
-        }
         // NB: The keywords listed for a property are not all valid on their own, like `hanging` for text-indent,
         //     and a property may accept identifiers that are not listed, like a <custom-ident> or the axis keywords
         //     of scroll-snap-type. So we check if the property accepts the value, as an identifier, when parsed.
