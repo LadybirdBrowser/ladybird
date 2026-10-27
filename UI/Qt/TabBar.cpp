@@ -4767,9 +4767,14 @@ void TabBarButton::set_revealed(bool revealed)
     auto is_fading = m_reveal_animation && m_reveal_animation->state() == QAbstractAnimation::Running;
     if (revealed == m_revealed && (is_fading || isVisible() == revealed))
         return;
+    auto was_revealed = m_revealed;
     m_revealed = revealed;
 
-    if (!revealed && !isVisible()) {
+    // NB: A button that was never revealed can still show, as when its tab bar shows all of its buttons to lay them
+    //     out again. It hides at once rather than fading out, so that it never appears.
+    if (!revealed && (!isVisible() || (!was_revealed && !is_fading))) {
+        if (isVisible())
+            hide();
         if (m_reveal_animation)
             m_reveal_animation->stop();
         m_opacity = 1;
