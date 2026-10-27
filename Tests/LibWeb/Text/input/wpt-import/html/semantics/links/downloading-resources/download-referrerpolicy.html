@@ -1,0 +1,29 @@
+<!doctype html>
+<!-- Copied from https://github.com/web-platform-tests/wpt/pull/64051. Replace with an import of the upstream test once that PR merges. -->
+<meta charset="utf-8">
+<meta name="timeout" content="long">
+<title>Downloading a hyperlink uses the element's referrerpolicy attribute</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/links.html#downloading-hyperlinks">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/links.html#attr-hyperlink-referrerpolicy">
+<link rel="help" href="https://github.com/whatwg/html/issues/5623">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../common/utils.js"></script>
+<script src="../../../../common/dispatcher/dispatcher.js"></script>
+<script src="resources/download-referrerpolicy.js"></script>
+<body>
+<script>
+// Default policy: same-origin requests send the full URL.
+for (const tagName of ["a", "area"]) {
+  downloadReferrerTest(tagName, {}, location.href,
+    `<${tagName} download> without referrerpolicy sends the full URL`);
+  downloadReferrerTest(tagName, { referrerpolicy: "no-referrer" }, "",
+    `<${tagName} download referrerpolicy=no-referrer> sends no Referer`);
+  downloadReferrerTest(tagName, { referrerpolicy: "origin" }, location.origin + "/",
+    `<${tagName} download referrerpolicy=origin> sends the origin`);
+  downloadReferrerTest(tagName, { referrerpolicy: "invalid-policy" }, location.href,
+    `<${tagName} download> ignores an invalid referrerpolicy value`);
+  downloadReferrerTest(tagName, { referrerpolicy: "unsafe-url", rel: "noreferrer" }, "",
+    `<${tagName} download rel=noreferrer> wins over referrerpolicy`);
+}
+</script>

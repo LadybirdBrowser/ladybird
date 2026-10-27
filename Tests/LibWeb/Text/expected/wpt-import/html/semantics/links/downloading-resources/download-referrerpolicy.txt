@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 10 tests
+
+10 Pass
+Pass	<a download> without referrerpolicy sends the full URL
+Pass	<a download referrerpolicy=no-referrer> sends no Referer
+Pass	<a download referrerpolicy=origin> sends the origin
+Pass	<a download> ignores an invalid referrerpolicy value
+Pass	<a download rel=noreferrer> wins over referrerpolicy
+Pass	<area download> without referrerpolicy sends the full URL
+Pass	<area download referrerpolicy=no-referrer> sends no Referer
+Pass	<area download referrerpolicy=origin> sends the origin
+Pass	<area download> ignores an invalid referrerpolicy value
+Pass	<area download rel=noreferrer> wins over referrerpolicy
