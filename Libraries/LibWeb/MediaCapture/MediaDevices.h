@@ -30,6 +30,13 @@ class MediaStream;
 using MediaStreamConstraints = Bindings::MediaStreamConstraints;
 using MediaTrackSupportedConstraints = Bindings::MediaTrackSupportedConstraints;
 
+// https://w3c.github.io/mediacapture-main/#dfn-required-constraints
+struct DeviceIdConstraint final {
+    Vector<Utf16String> device_ids;
+    // Only an exact constraint rules other devices out. Any other is a preference that falls back to them.
+    bool is_required { false };
+};
+
 // https://w3c.github.io/mediacapture-main/#mediadevices
 class MediaDevices final : public DOM::EventTarget {
     WEB_WRAPPABLE(MediaDevices, DOM::EventTarget);
@@ -60,7 +67,7 @@ private:
 
     struct PendingGetUserMediaRequest final {
         GC::Ref<WebIDL::Promise> promise;
-        Optional<Vector<Utf16String>> requested_device_ids;
+        Optional<DeviceIdConstraint> device_id_constraint;
     };
 
     struct PendingEnumerateDevicesRequest final {
@@ -81,7 +88,7 @@ private:
     bool has_live_device_of_kind(Utf16FlyString const& kind) const;
     void set_device_information_exposure(bool audio_requested, bool video_requested, bool value);
     void queue_enumerate_devices_task(GC::Ref<WebIDL::Promise>);
-    void queue_get_user_media_task(GC::Ref<WebIDL::Promise>, Optional<Vector<Utf16String>> requested_device_ids);
+    void queue_get_user_media_task(GC::Ref<WebIDL::Promise>, Optional<DeviceIdConstraint>);
     void process_pending_enumerate_devices_requests();
     void process_pending_get_user_media_requests();
     GC::RootVector<GC::Ref<MediaDeviceInfo>> create_list_of_device_info_objects(Vector<StoredDevice> const& device_list);
