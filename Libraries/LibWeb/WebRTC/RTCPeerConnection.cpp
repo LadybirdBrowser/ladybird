@@ -7,7 +7,6 @@
 #include <AK/Debug.h>
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
-#include <LibAudio/PlaybackStream.h>
 #include <LibCore/EventLoop.h>
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Map.h>
@@ -225,11 +224,7 @@ void RTCPeerConnection::close_the_connection_algorithm(bool disappear)
     m_pending_description_requests.clear();
     m_pending_description_payloads.clear();
     m_held_ice_events.clear();
-    for (auto& [_, playback] : m_receiver_audio_playbacks) {
-        if (playback->playback_stream)
-            (void)playback->playback_stream->discard_buffer_and_suspend();
-    }
-    m_receiver_audio_playbacks.clear();
+    m_receiver_audio_decoders.clear();
     agent.unregister_peer_connection(m_pc_id);
     // 6. If connection.[[SctpTransport]] is not null...
     if (m_sctp) {
@@ -1528,9 +1523,7 @@ void RTCPeerConnection::on_remote_track_ended(u64 receiver_id)
     HTML::TemporaryExecutionContext context(relevant_realm());
     if (auto receiver = m_remote_receivers_by_id.get(receiver_id); receiver.has_value())
         (*receiver)->track()->end();
-    auto playback = m_receiver_audio_playbacks.take(receiver_id);
-    if (playback.has_value() && (*playback)->playback_stream)
-        (void)(*playback)->playback_stream->discard_buffer_and_suspend();
+    m_receiver_audio_decoders.remove(receiver_id);
 }
 
 void RTCPeerConnection::on_encoded_audio_frame_received(u64 receiver_id, u32 ssrc, u32 rtp_timestamp, u16 sequence_number, u8 payload_type, ByteBuffer payload)
@@ -1558,114 +1551,41 @@ void RTCPeerConnection::on_encoded_audio_frame_received(u64 receiver_id, u32 ssr
     script_transform.enqueue_encoded_audio_frame(move(payload), ssrc, payload_type, rtp_timestamp, sequence_number);
 }
 
-// Decode one decrypted opus packet and push PCM into the receiver's playback stream.
-// FIXME: this is a shortcut around the spec — the right path is for MediaStreamTrack to
-//        carry the audio data and HTMLMediaElement.srcObject playback to drain it.
+// Decode one decrypted Opus packet and deliver the PCM through the receiver's track.
 void RTCPeerConnection::feed_decoded_audio(u64 receiver_id, ByteBuffer payload, u32 rtp_timestamp)
 {
     if (m_is_closed)
         return;
-    auto playback_iter = m_receiver_audio_playbacks.find(receiver_id);
-    auto* playback = playback_iter == m_receiver_audio_playbacks.end() ? nullptr : playback_iter->value.ptr();
-    if (!playback) {
-        dbgln_if(WEBRTC_DEBUG, "RTCPeerConnection: setting up audio playback for receiver={}", receiver_id);
-        // Opus is fundamentally 48 kHz; channel count comes out of the first decoded block.
-        auto sample_spec = Audio::SampleSpecification(48000, Audio::ChannelMap::stereo());
-        auto decoder_or_err = Media::FFmpeg::FFmpegAudioDecoder::try_create(Media::CodecID::Opus, sample_spec, {});
-        if (decoder_or_err.is_error()) {
-            dbgln("RTCPeerConnection: opus decoder init failed for receiver={}: {}", receiver_id, decoder_or_err.error().description());
+    auto receiver = m_remote_receivers_by_id.get(receiver_id);
+    if (!receiver.has_value())
+        return;
+
+    if (!m_receiver_audio_decoders.contains(receiver_id)) {
+        // Opus always runs at 48 kHz; the channel count comes from the stream.
+        auto sample_specification = Audio::SampleSpecification(48000, Audio::ChannelMap::stereo());
+        auto decoder_or_error = Media::FFmpeg::FFmpegAudioDecoder::try_create(Media::CodecID::Opus, sample_specification, {});
+        if (decoder_or_error.is_error()) {
+            dbgln("RTCPeerConnection: Opus decoder init failed for receiver={}: {}", receiver_id, decoder_or_error.error().description());
             return;
         }
-        auto fresh = make<ReceiverAudioPlayback>();
-        fresh->decoder = decoder_or_err.release_value();
-        auto* fresh_ptr = fresh.ptr();
-        m_receiver_audio_playbacks.set(receiver_id, move(fresh));
-        playback = fresh_ptr;
-
-        auto data_callback = [buffer_state = playback->buffer](Span<float> buffer, MonotonicTime) -> ReadonlySpan<float> {
-            MutexLocker locker(buffer_state->mutex);
-            auto available = buffer_state->samples.size();
-            auto take = AK::min(available, buffer.size());
-            memcpy(buffer.data(), buffer_state->samples.data(), take * sizeof(float));
-            buffer_state->samples.remove(0, take);
-            // Pad the rest of the buffer with silence so the output keeps requesting
-            // data instead of treating a short span as the end of the stream.
-            if (take < buffer.size())
-                memset(buffer.data() + take, 0, (buffer.size() - take) * sizeof(float));
-            return buffer;
-        };
-        constexpr u32 target_latency_ms = 100;
-        auto promise = Audio::PlaybackStream::create(Audio::OutputState::Suspended, target_latency_ms, move(data_callback));
-        promise->when_resolved([self = GC::Weak { *this }, receiver_id](auto& stream) {
-            if (!self || self->m_is_closed)
-                return;
-            auto entry = self->m_receiver_audio_playbacks.find(receiver_id);
-            if (entry == self->m_receiver_audio_playbacks.end())
-                return;
-            auto* playback = entry->value.ptr();
-            playback->playback_stream = stream;
-            dbgln_if(WEBRTC_DEBUG, "RTCPeerConnection: playback stream resolved receiver={} spec={}", receiver_id, stream->sample_specification());
-            auto converter_or_err = Media::FFmpeg::FFmpegAudioConverter::try_create();
-            if (converter_or_err.is_error()) {
-                dbgln("RTCPeerConnection: audio converter init failed for receiver={}: {}", receiver_id, converter_or_err.error());
-            } else {
-                auto converter = converter_or_err.release_value();
-                if (auto rc = converter->set_output_sample_specification(stream->sample_specification()); rc.is_error())
-                    dbgln("RTCPeerConnection: converter set_output failed for receiver={}: {}", receiver_id, rc.error());
-                else
-                    playback->converter = move(converter);
-            }
-            (void)stream->resume();
-        });
-        promise->when_rejected([receiver_id](auto& error) {
-            dbgln("RTCPeerConnection: playback stream init failed for receiver={}: {}", receiver_id, error);
-        });
+        m_receiver_audio_decoders.set(receiver_id, decoder_or_error.release_value());
     }
-
-    if (!playback->decoder)
-        return;
+    auto& decoder = **m_receiver_audio_decoders.get(receiver_id);
 
     auto timestamp = AK::Duration::from_milliseconds(static_cast<i64>(rtp_timestamp / 48));
     Media::CodedFrame coded_frame { Media::CodecID::Opus, timestamp, timestamp, {}, Media::FrameFlags::Keyframe, MUST(FixedArray<u8>::create(payload.bytes())) };
-    if (auto result = playback->decoder->receive_coded_data(coded_frame); result.is_error()) {
-        dbgln_if(WEBRTC_DEBUG, "RTCPeerConnection: opus receive_coded_data failed: {}", result.error().description());
+    if (auto result = decoder.receive_coded_data(coded_frame); result.is_error()) {
+        dbgln_if(WEBRTC_DEBUG, "RTCPeerConnection: Opus receive_coded_data failed: {}", result.error().description());
         return;
     }
     Media::AudioBlock block;
-    if (auto result = playback->decoder->write_next_block(block); result.is_error()) {
-        dbgln_if(WEBRTC_DEBUG, "RTCPeerConnection: write_next_block failed: {}", result.error().description());
+    if (auto result = decoder.write_next_block(block); result.is_error() || block.is_empty())
         return;
-    }
-    if (block.is_empty()) {
-        dbgln_if(WEBRTC_DEBUG, "RTCPeerConnection: write_next_block produced empty block");
-        return;
-    }
-    // Drop frames until the playback stream is up — we need its sample-spec to set up the
-    // resampler, and feeding mismatched-rate samples in the meantime would just stretch.
-    if (!playback->converter)
-        return;
-    if (auto rc = playback->converter->push_block(block); rc.is_error()) {
-        dbgln_if(WEBRTC_DEBUG, "RTCPeerConnection: audio convert failed: {}", rc.error());
-        return;
-    }
-    while (true) {
-        Media::AudioBlock converted;
-        if (auto rc = playback->converter->retrieve_block(converted); rc.is_error()) {
-            break;
-        }
-        if (converted.is_empty())
-            continue;
-        MutexLocker locker(playback->buffer->mutex);
-        playback->channel_count = converted.channel_count();
-        auto max_samples = static_cast<size_t>(converted.sample_specification().sample_rate()) * converted.channel_count() / 5;
-        if (playback->buffer->samples.size() > max_samples)
-            playback->buffer->samples.remove(0, playback->buffer->samples.size() - max_samples);
-        auto base = playback->buffer->samples.size();
-        playback->buffer->samples.resize(base + converted.sample_count());
-        converted.copy_to_interleaved(playback->buffer->samples.span().slice(base));
-        dbgln_if(WEBRTC_DEBUG, "RTCPeerConnection: feed_decoded_audio receiver={} samples={} channels={} spec={} buffer_total={}",
-            receiver_id, converted.sample_count(), converted.channel_count(), converted.sample_specification(), playback->buffer->samples.size());
-    }
+
+    m_decoded_audio_scratch.resize(block.sample_count());
+    block.copy_to_interleaved(m_decoded_audio_scratch.span());
+    dbgln_if(WEBRTC_DEBUG, "RTCPeerConnection: decoded audio receiver={} frames={} spec={}", receiver_id, block.frame_count(), block.sample_specification());
+    (*receiver)->track()->deliver_audio_frames(m_decoded_audio_scratch.data(), block.frame_count(), block.channel_count(), block.sample_specification().sample_rate());
 }
 
 static Bindings::RTCSdpType parse_sdp_type(StringView s)

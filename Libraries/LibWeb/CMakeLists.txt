@@ -574,6 +574,7 @@ set(SOURCES
     HTML/LocalTraversableNavigable.cpp
     HTML/Location.cpp
     HTML/MediaError.cpp
+    HTML/MediaStreamPlayback.cpp
     HTML/MediaTrackBase.cpp
     HTML/MessageChannel.cpp
     HTML/MessageEvent.cpp

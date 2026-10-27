@@ -798,6 +798,7 @@ class LocalNavigable;
 class LocalTraversableNavigable;
 class Location;
 class MediaError;
+class MediaStreamPlayback;
 class MessageChannel;
 class MessageEvent;
 class MessagePort;
