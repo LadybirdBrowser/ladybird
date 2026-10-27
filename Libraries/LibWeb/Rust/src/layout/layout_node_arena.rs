@@ -2412,6 +2412,27 @@ impl LayoutNodeArena {
         previous != style_record
     }
 
+    /// Installs `payloads`, the style of `style_record`, in `slot` as the host publishes it. Unless the box keeps its
+    /// layout inputs, this also drops the layout cached for `previous_payloads`, the style the box showed. `None`
+    /// keeps that layout.
+    pub(crate) fn install_style_record(
+        &self,
+        slot: NodeSlotId,
+        style_record: u64,
+        payloads: StylePayloadsRef,
+        previous_payloads: Option<StylePayloadsRef>,
+    ) {
+        if self.set_node_style(slot, style_record, payloads) {
+            self.refresh_style_flags(slot);
+        }
+        self.publish_new_size_container_geometry(slot);
+        self.enroll_node_for_svg_paint_resources_sync(slot);
+        if previous_payloads.is_some_and(|previous| !self.style_move_keeps_layout_inputs(slot, previous, payloads)) {
+            self.bump_fragment_cache_epoch_of_self_and_ancestors(slot);
+            self.reset_cached_intrinsic_sizes_of_self_and_ancestors(slot);
+        }
+    }
+
     /// Whether the box `slot` keeps the layout it cached when it shows `new` in place of `previous` (see
     /// [`crate::css::computed_values::style_payloads_layout_inputs_equal`]).
     pub(crate) fn style_move_keeps_layout_inputs(
@@ -2477,16 +2498,8 @@ impl LayoutNodeArena {
                     .map_or(std::ptr::null(), <[_]>::as_ptr)
             });
             let payloads = StylePayloadsRef::new(payloads.cast());
-            if self.set_node_style(slot, row.new_style_record, payloads) {
-                self.refresh_style_flags(slot);
-            }
-            self.publish_new_size_container_geometry(slot);
-            self.enroll_node_for_svg_paint_resources_sync(slot);
+            self.install_style_record(slot, row.new_style_record, payloads, Some(previous_payloads));
             self.set_node_flag(slot, NodeFlag::HasAnimatedOpacityOrTransform, false);
-            if !self.style_move_keeps_layout_inputs(slot, previous_payloads, payloads) {
-                self.bump_fragment_cache_epoch_of_self_and_ancestors(slot);
-                self.reset_cached_intrinsic_sizes_of_self_and_ancestors(slot);
-            }
             self.reinherit_anonymous_descendants(HostCalls(host_calls.0), slot);
             if row.relayout {
                 self.mark_row_for_relayout_after_style_change(row.style_node, slot);
@@ -2603,15 +2616,7 @@ impl LayoutNodeArena {
                 .map_or(std::ptr::null(), <[_]>::as_ptr)
         });
         let payloads = StylePayloadsRef::new(payloads.cast());
-        if self.set_node_style(slot, row.new_style_record, payloads) {
-            self.refresh_style_flags(slot);
-        }
-        self.publish_new_size_container_geometry(slot);
-        self.enroll_node_for_svg_paint_resources_sync(slot);
-        if !self.style_move_keeps_layout_inputs(slot, previous_payloads, payloads) {
-            self.bump_fragment_cache_epoch_of_self_and_ancestors(slot);
-            self.reset_cached_intrinsic_sizes_of_self_and_ancestors(slot);
-        }
+        self.install_style_record(slot, row.new_style_record, payloads, Some(previous_payloads));
         self.reinherit_anonymous_descendants(HostCalls(host_calls.0), slot);
         let level = row.record_damage & FfiStyleInvalidationField::LevelMask as u32;
         if level >= RELAYOUT_LEVEL
