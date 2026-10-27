@@ -46,7 +46,7 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSMathValue::create_an_int
         if (type().matches_length(context.percentages_resolve_as))
             return property_accepts_type(property.id(), ValueType::Length);
         if (type().matches_number(context.percentages_resolve_as))
-            return property_accepts_type(property.id(), ValueType::Number) || property_accepts_type(property.id(), ValueType::OpacityValue);
+            return property_accepts_type(property.id(), ValueType::Number) || property_accepts_type(property.id(), ValueType::Integer) || property_accepts_type(property.id(), ValueType::OpacityValue);
         if (type().matches_percentage())
             return property_accepts_type(property.id(), ValueType::Percentage) || property_accepts_type(property.id(), ValueType::OpacityValue);
         if (type().matches_resolution(context.percentages_resolve_as))
