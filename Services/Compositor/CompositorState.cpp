@@ -1482,6 +1482,9 @@ BackingStoreManager::GpuSharing CompositorState::gpu_sharing_for_context([[maybe
     auto* presentation = presentation_for_context(context_id);
     if (!presentation || !m_skia_backend_context || m_presentations.get(presentation)->gpu_presentation_adapter_luid != m_skia_backend_context->direct3d_context().adapter_luid())
         return BackingStoreManager::GpuSharing::Disallowed;
+#else
+    if (auto* presentation = presentation_for_context(context_id); presentation && m_presentations.get(presentation)->cannot_present_gpu_images)
+        return BackingStoreManager::GpuSharing::Disallowed;
 #endif
     return BackingStoreManager::GpuSharing::Allowed;
 }
@@ -1565,10 +1568,11 @@ void CompositorState::set_client_gpu_presentation_capability(CompositorStateClie
     Optional<u64> new_adapter_luid;
     if (supported)
         new_adapter_luid = adapter_luid;
-    auto& presentation_adapter_luid = m_presentations.get(&presentation)->gpu_presentation_adapter_luid;
-    if (presentation_adapter_luid == new_adapter_luid)
+    auto& capabilities = *m_presentations.get(&presentation);
+    if (capabilities.gpu_presentation_adapter_luid == new_adapter_luid && capabilities.cannot_present_gpu_images == !supported)
         return;
-    presentation_adapter_luid = new_adapter_luid;
+    capabilities.gpu_presentation_adapter_luid = new_adapter_luid;
+    capabilities.cannot_present_gpu_images = !supported;
 
     // Reallocate the backing stores of the presentation's contexts so they match the new capability.
     for (auto& context_entry : m_contexts) {
