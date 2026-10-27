@@ -1307,6 +1307,24 @@ void PageClient::page_did_request_permission(u64 request_id, Web::HTML::CrossPro
     client().async_did_request_permission(m_id, request_id, requesting_document_id, name);
 }
 
+void PageClient::page_did_request_show_notification(u64 notification_id, Web::NotificationsAPI::NotificationData const& data, RefPtr<Gfx::Bitmap const> icon)
+{
+    Optional<Gfx::ShareableBitmap> shareable_icon;
+    if (icon)
+        shareable_icon = icon->to_shareable_bitmap();
+    client().async_did_request_show_notification(m_id, notification_id, data, move(shareable_icon));
+}
+
+void PageClient::page_did_request_close_notification(u64 notification_id)
+{
+    client().async_did_request_close_notification(m_id, notification_id);
+}
+
+void PageClient::page_did_handle_notification_click(u64 notification_id, bool into_focus)
+{
+    client().async_did_handle_notification_click(m_id, notification_id, into_focus);
+}
+
 Optional<Web::Permissions::PermissionSnapshot> PageClient::page_did_request_permission_snapshot(URL::Origin const& top_level_origin)
 {
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestPermissionSnapshot>(m_id, top_level_origin);

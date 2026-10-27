@@ -47,6 +47,8 @@ class HSTSStore;
 class Menu;
 class NavigationLoader;
 class OutOfProcessWebView;
+class NotificationBackend;
+class NotificationManager;
 class PictureInPictureManager;
 class PictureInPictureWindow;
 class ProcessManager;
