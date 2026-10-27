@@ -647,14 +647,6 @@ GC::Ptr<FontLoader> FontComputer::load_font_face(ReadonlySpan<FontLoader::Source
         return {};
     }
 
-    StringBuilder key_builder;
-    for (auto const& source : sources) {
-        auto value = source.has<URL>()
-            ? source.get<URL>().to_string()
-            : MUST(source.get<Utf16FlyString>().view().to_utf8());
-        key_builder.appendff("{}{}:{}", source.has<URL>() ? 'u' : 'l', value.bytes_as_string_view().length(), value);
-    }
-
     RuleOrDeclaration rule_or_declaration {
         .environment_settings_object = m_document ? m_document->relevant_settings_object() : *m_environment_settings_object,
         .value = RuleOrDeclaration::Rule {
@@ -663,6 +655,28 @@ GC::Ptr<FontLoader> FontComputer::load_font_face(ReadonlySpan<FontLoader::Source
         .style_resource_base_url = {},
         .parent_style_sheet_origin_clean = {},
     };
+
+    // NB: Identical source text can resolve to different URLs in style sheets with different base URLs.
+    auto url_source_key = [&](URL const& url) {
+        if (auto resolved_url = resolve_a_style_resource_url(url, rule_or_declaration); resolved_url.has_value())
+            return URL { resolved_url->serialize(), url.type(), url.request_url_modifiers() }.to_string();
+        return url.to_string();
+    };
+
+    StringBuilder key_builder;
+    if (parent_style_sheet && any_of(sources, [](auto const& source) { return source.template has<URL>(); })) {
+        // NB: Font fetching uses the sheet's base URL as its referrer, and may inherit its response's referrer policy.
+        //     Equal resolved URLs must not reuse a loader that fetches with another sheet's request context.
+        auto referrer = style_resource_base_url(rule_or_declaration).serialize();
+        auto policy = parent_style_sheet->fetched_referrer_policy().value_or(ReferrerPolicy::ReferrerPolicy::EmptyString);
+        key_builder.appendff("r{}:{}p{};", referrer.bytes_as_string_view().length(), referrer, to_underlying(policy));
+    }
+    for (auto const& source : sources) {
+        auto value = source.has<URL>()
+            ? url_source_key(source.get<URL>())
+            : MUST(source.get<Utf16FlyString>().view().to_utf8());
+        key_builder.appendff("{}{}:{}", source.has<URL>() ? 'u' : 'l', value.bytes_as_string_view().length(), value);
+    }
 
     auto key = MUST(key_builder.to_string());
     if (auto it = m_loaders_by_source.find(key); it != m_loaders_by_source.end()) {

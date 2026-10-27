@@ -1,0 +1,7 @@
+First sheet referrer: true
+Same context shares one request: true
+Second sheet referrer: true
+Different referrers make two requests: true
+Initial policy sends referrer: true
+New policy omits referrer: true
+Different policies make two requests: true
