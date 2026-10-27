@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font: 16px/1.5 sans-serif; }
+.page { display: flex; justify-content: center; }
+.sidebar { width: 200px; }
+.wrap { display: flex; flex-grow: 1; max-width: min(calc(300px + 100px + 48px), calc(100vw - 200px)); }
+.content { display: flex; flex-direction: column; flex-grow: 1; max-width: 300px; padding: 0 24px; }
+.sidecar { width: 100px; margin: 0 24px; overflow-y: auto; height: 200px; }
+</style>
+<div class="page"><div class="sidebar">side</div><div class="wrap">
+<div class="content"><p>Lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua</p></div>
+<div class="sidecar"><ul><li><p>Security</p></li><li><p>Highlights here</p></li></ul></div>
+</div></div>
