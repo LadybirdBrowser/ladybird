@@ -43,6 +43,6 @@ private:
     Permissions();
 };
 
-void permission_query_algorithm(PermissionDescriptor const&, PermissionStatus&);
+void permission_query_algorithm(PermissionDescriptor const&, PermissionStatus&, HTML::EnvironmentSettingsObject&);
 
 }

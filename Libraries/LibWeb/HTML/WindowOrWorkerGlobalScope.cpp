@@ -74,6 +74,7 @@
 #include <LibWeb/PerformanceTimeline/EventNames.h>
 #include <LibWeb/PerformanceTimeline/PerformanceObserver.h>
 #include <LibWeb/PerformanceTimeline/PerformanceObserverEntryList.h>
+#include <LibWeb/PermissionsAPI/PermissionStatus.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/ImageCodecPlugin.h>
 #include <LibWeb/ResourceTiming/PerformanceResourceTiming.h>
@@ -126,6 +127,11 @@ void WindowOrWorkerGlobalScopeMixin::initialize()
 #undef __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES
 }
 
+void WindowOrWorkerGlobalScopeMixin::register_permission_status(PermissionsAPI::PermissionStatus& status)
+{
+    m_permission_statuses.append(status);
+}
+
 void WindowOrWorkerGlobalScopeMixin::visit_edges(JS::Cell::Visitor& visitor)
 {
     visitor.visit(m_performance);
@@ -136,6 +142,14 @@ void WindowOrWorkerGlobalScopeMixin::visit_edges(JS::Cell::Visitor& visitor)
         entry.value.visit_edges(visitor);
     visitor.visit(m_registered_event_sources);
     visitor.visit(m_strongly_referenced_broadcast_channels);
+
+    // A PermissionStatus with a change listener must stay alive while its global does, so the listener can hear of a
+    // change even when nothing else refers to the status.
+    m_permission_statuses.remove_all_matching([](auto const& status) { return !status; });
+    for (auto const& status : m_permission_statuses) {
+        if (status->has_event_listener(EventNames::change))
+            visitor.visit(*status);
+    }
     visitor.visit(m_crypto);
     visitor.visit(m_cache_storage);
     visitor.visit(m_resource_timing_secondary_buffer);

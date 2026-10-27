@@ -1,0 +1,2 @@
+frame without the feature: denied, 0 events
+top level: granted

@@ -10,12 +10,15 @@
 #include <AK/String.h>
 #include <AK/Vector.h>
 #include <AK/kmalloc.h>
+#include <LibGC/Weak.h>
 #include <LibURL/Origin.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/PermissionsAPI/Permissions.h>
 #include <LibWebCommon/Permissions/Permissions.h>
 
 namespace Web::PermissionsAPI {
+
+class PermissionStatus;
 
 // https://w3c.github.io/permissions/#dfn-permission-store-entry
 struct PermissionStoreEntry {
@@ -42,11 +45,14 @@ public:
     void apply_snapshot(Web::Permissions::PermissionSnapshot);
     Web::Permissions::EffectiveState state_for(Web::Permissions::PermissionName, URL::Origin const& key) const;
 
+    void register_status(PermissionStatus&);
+
 private:
     PermissionStore() = default;
 
     Vector<PermissionStoreEntry> m_entries;
     Optional<Web::Permissions::PermissionSnapshot> m_snapshot;
+    Vector<GC::Weak<PermissionStatus>> m_statuses;
 };
 
 bool permission_key_is_equal_to(PermissionDescriptor const& descriptor, URL::Origin const& key1, URL::Origin const& key2);

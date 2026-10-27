@@ -16,6 +16,7 @@
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/PermissionsAPI/PermissionStatus.h>
+#include <LibWeb/PermissionsAPI/PermissionStore.h>
 #include <LibWeb/PermissionsAPI/Permissions.h>
 
 namespace Web::PermissionsAPI {
@@ -52,6 +53,12 @@ GC::Ref<PermissionStatus> PermissionStatus::create(GC::Ref<DOM::EventTarget> rel
     // 2. Initialize status's name to name.
     auto status = GC::Heap::the().allocate<PermissionStatus>(relevant_global_object, name, move(permission_desc));
 
+    // NB: The store tells every status when a permission changes, and the global keeps a status alive while it has a
+    //     change listener.
+    PermissionStore::the().register_status(status);
+    if (auto* global_scope = HTML::window_or_worker_global_scope_from_global_object(status->relevant_global_object()))
+        global_scope->register_permission_status(status);
+
     // 4. Return status.
     return status;
 }
@@ -59,6 +66,29 @@ GC::Ref<PermissionStatus> PermissionStatus::create(GC::Ref<DOM::EventTarget> rel
 PermissionState PermissionStatus::state() const
 {
     return m_state;
+}
+
+void PermissionStatus::update_from_store()
+{
+    auto& global = relevant_global_object();
+
+    // A document that isn't fully active sees no change until it is again.
+    if (auto* window = HTML::window_from_global_object(global); window && !window->associated_document().is_fully_active())
+        return;
+
+    auto state = permission_state(m_query, HTML::relevant_settings_object(global));
+    if (state == m_state)
+        return;
+
+    // NB: The state is read again when the task runs, so a status that heard of several changes ends with the last.
+    HTML::queue_global_task(HTML::Task::Source::Permissions, global, GC::create_function(heap(), [this] {
+        auto& global = relevant_global_object();
+        auto state = permission_state(m_query, HTML::relevant_settings_object(global));
+        if (state == m_state)
+            return;
+        m_state = state;
+        dispatch_event(DOM::Event::create(global, HTML::EventNames::change));
+    }));
 }
 
 JS::Object& PermissionStatus::relevant_global_object() const

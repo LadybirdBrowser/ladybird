@@ -1,0 +1,4 @@
+set granted: state granted, events [granted]
+set denied: state denied, events [granted, denied]
+set denied: state denied, events [granted, denied]
+set prompt: state prompt, events [granted, denied, prompt]

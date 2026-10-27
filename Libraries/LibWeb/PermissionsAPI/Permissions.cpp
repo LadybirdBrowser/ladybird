@@ -222,7 +222,8 @@ void Permissions::query(GC::Ref<JS::Object> permission_desc, GC::Ref<WebIDL::Pro
 
         // 3. Run query's name's permission query algorithm, passing query and status.
         // FIXME: For now, only the base PermissionDescriptor is supported so there is only one permission query algorithm.
-        permission_query_algorithm(query, status);
+        // NB: The status was registered for changes when it was created, so a change from here on reaches it.
+        permission_query_algorithm(query, status, HTML::relevant_settings_object(relevant_global_object));
 
         // 4. Queue a global task on the permissions task source with this's relevant global object to resolve promise with status.
         HTML::queue_global_task(HTML::Task::Source::Permissions, relevant_global_object, GC::create_function(GC::Heap::the(), [relevant_global_object = GC::Ref(relevant_global_object), promise, status]() mutable {
@@ -234,10 +235,10 @@ void Permissions::query(GC::Ref<JS::Object> permission_desc, GC::Ref<WebIDL::Pro
 }
 
 // https://w3c.github.io/permissions/#dfn-permission-query-algorithm
-void permission_query_algorithm(PermissionDescriptor const& permission_desc, PermissionStatus& status)
+void permission_query_algorithm(PermissionDescriptor const& permission_desc, PermissionStatus& status, HTML::EnvironmentSettingsObject& settings)
 {
     // 1. Set status's state to permissionDesc's permission state.
-    status.set_state(permission_state(permission_desc));
+    status.set_state(permission_state(permission_desc, settings));
 }
 
 }

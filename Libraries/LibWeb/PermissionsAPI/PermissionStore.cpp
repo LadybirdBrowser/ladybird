@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Root.h>
+#include <LibWeb/PermissionsAPI/PermissionStatus.h>
 #include <LibWeb/PermissionsAPI/PermissionStore.h>
 
 namespace Web::PermissionsAPI {
@@ -79,6 +81,22 @@ void PermissionStore::apply_snapshot(Web::Permissions::PermissionSnapshot snapsh
     if (m_snapshot.has_value() && snapshot.revision <= m_snapshot->revision)
         return;
     m_snapshot = move(snapshot);
+
+    // NB: Updating a status allocates, and a collection then could clear another status's weak reference, so every
+    //     live status is rooted first.
+    m_statuses.remove_all_matching([](auto const& status) { return !status; });
+    Vector<GC::Root<PermissionStatus>> statuses;
+    for (auto const& status : m_statuses) {
+        if (status)
+            statuses.append(GC::make_root(status.ptr()));
+    }
+    for (auto const& status : statuses)
+        status->update_from_store();
+}
+
+void PermissionStore::register_status(PermissionStatus& status)
+{
+    m_statuses.append(status);
 }
 
 Web::Permissions::EffectiveState PermissionStore::state_for(Web::Permissions::PermissionName name, URL::Origin const& key) const
