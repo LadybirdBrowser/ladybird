@@ -1,9 +1,19 @@
 <!doctype html>
 <script src="../include.js"></script>
 <style>
-    #first, #second { position: absolute; top: 0; width: 100px; height: 100px; }
-    #first { left: 0; }
-    #second { left: 100px; }
+    #first,
+    #second {
+        position: absolute;
+        top: 0;
+        width: 100px;
+        height: 100px;
+    }
+    #first {
+        left: 0;
+    }
+    #second {
+        left: 100px;
+    }
 </style>
 <div id="first"></div>
 <div id="second"></div>
@@ -12,7 +22,15 @@
         const first = document.getElementById("first");
         const second = document.getElementById("second");
         const events = [];
-        const types = ["pointerover", "pointerenter", "pointerdown", "pointermove", "pointerup", "pointerout", "pointerleave"];
+        const types = [
+            "pointerover",
+            "pointerenter",
+            "pointerdown",
+            "pointermove",
+            "pointerup",
+            "pointerout",
+            "pointerleave",
+        ];
         for (const target of [first, second]) {
             for (const type of types) {
                 target.addEventListener(type, event => {
@@ -32,8 +50,44 @@
         internals.mouseDown(110, 10, 1, 2);
         internals.mouseUp(110, 10, 2);
 
-        for (const event of events)
-            println(event);
+        internals.mouseDown(110, 10);
+        internals.mouseDown(110, 10, 1, 2, 0, 3);
+        internals.mouseUp(110, 10, 0, 0, 2);
+        internals.mouseUp(110, 10, 2);
+
+        for (const event of events) println(event);
         println(`Synthetic pointer pressure: ${new PointerEvent("pointerdown", { buttons: 1 }).pressure}`);
+
+        let lastDownPressure;
+        let lastMovePressure;
+        let lastCancelPressure;
+        second.addEventListener("pointerdown", event => {
+            lastDownPressure = event.pressure;
+        });
+        second.addEventListener("pointermove", event => {
+            lastMovePressure = event.pressure;
+        });
+        second.addEventListener("pointercancel", event => {
+            lastCancelPressure = event.pressure;
+        });
+
+        internals.mouseMove(110, 10);
+        internals.mouseDown(110, 10);
+        internals.mouseCancel();
+        println(`Cancelled mouse pressure: ${lastCancelPressure}`);
+
+        lastDownPressure = undefined;
+        internals.click(110, 10);
+        println(`Click pointerdown pressure: ${lastDownPressure}`);
+        lastDownPressure = undefined;
+        internals.clickAndHold(110, 10);
+        println(`Click-and-hold pointerdown pressure: ${lastDownPressure}`);
+        internals.mouseUp(110, 10);
+
+        internals.mouseDown(110, 10);
+        lastMovePressure = undefined;
+        internals.mouseMove(110, 10, 0, 1);
+        println(`Held mouse move pressure: ${lastMovePressure}`);
+        internals.mouseUp(110, 10);
     });
 </script>

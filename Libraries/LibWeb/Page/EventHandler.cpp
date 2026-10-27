@@ -1418,7 +1418,7 @@ EventResult EventHandler::handle_mousecancel()
     // The values of the following properties of the pointercancel event MUST match the values of the last dispatched
     // pointer event with the same pointerId: [...] and the coordinates inherited from Mouse Events.
     auto const& last_position = *m_last_dispatched_pointer_event_position;
-    dispatch_a_pointer_event_for_a_device_that_supports_hover(read, PointerEventType::PointerCancel, target, nullptr, last_position.coordinates, last_position.screen_position, {}, UIEvents::MouseButton::Primary, m_last_known_mouse_buttons, m_last_known_mouse_modifiers);
+    dispatch_a_pointer_event_for_a_device_that_supports_hover(read, PointerEventType::PointerCancel, target, nullptr, last_position.coordinates, last_position.screen_position, {}, UIEvents::MouseButton::Primary, m_buttons_of_last_dispatched_pointer_event, m_last_known_mouse_modifiers);
 
     // NB: Dispatching an event may have disturbed the world.
     if (m_navigable->active_document() != document)

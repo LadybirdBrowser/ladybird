@@ -805,26 +805,26 @@ UIEvents::MouseButton Internals::button_from_unsigned_short(WebIDL::UnsignedShor
     }
 }
 
-void Internals::mouse_down(double x, double y, WebIDL::UnsignedShort click_count, WebIDL::UnsignedShort button, WebIDL::UnsignedShort modifiers)
+void Internals::mouse_down(double x, double y, WebIDL::UnsignedShort click_count, WebIDL::UnsignedShort button, WebIDL::UnsignedShort modifiers, Optional<WebIDL::UnsignedShort> buttons)
 {
     auto& page = this->page();
     auto position = page.css_to_device_point({ x, y });
     auto pressed_button = button_from_unsigned_short(button);
-    page.handle_mousedown(position, position, pressed_button, pressed_button, modifiers, click_count);
+    page.handle_mousedown(position, position, pressed_button, buttons.value_or(pressed_button), modifiers, click_count);
 }
 
-void Internals::mouse_up(double x, double y, WebIDL::UnsignedShort button, WebIDL::UnsignedShort modifiers)
+void Internals::mouse_up(double x, double y, WebIDL::UnsignedShort button, WebIDL::UnsignedShort modifiers, WebIDL::UnsignedShort buttons)
 {
     auto& page = this->page();
     auto position = page.css_to_device_point({ x, y });
-    page.handle_mouseup(position, position, button_from_unsigned_short(button), 0, modifiers);
+    page.handle_mouseup(position, position, button_from_unsigned_short(button), buttons, modifiers);
 }
 
-void Internals::mouse_move(double x, double y, WebIDL::UnsignedShort modifiers)
+void Internals::mouse_move(double x, double y, WebIDL::UnsignedShort modifiers, WebIDL::UnsignedShort buttons)
 {
     auto& page = this->page();
     auto position = page.css_to_device_point({ x, y });
-    page.handle_mousemove(position, position, 0, modifiers);
+    page.handle_mousemove(position, position, buttons, modifiers);
 }
 
 void Internals::mouse_leave()
@@ -848,7 +848,7 @@ void Internals::click_and_hold(double x, double y, WebIDL::UnsignedShort click_c
     auto& page = this->page();
     auto position = page.css_to_device_point({ x, y });
     auto mouse_button = button_from_unsigned_short(button);
-    page.handle_mousedown(position, position, mouse_button, 0, modifiers, click_count);
+    page.handle_mousedown(position, position, mouse_button, mouse_button, modifiers, click_count);
 }
 
 void Internals::wheel(GC::Ref<WebIDL::Promise> promise, double x, double y, double delta_x, double delta_y, bool precise, Bindings::ScrollGesturePhase phase, Bindings::WheelTicks const& ticks)
