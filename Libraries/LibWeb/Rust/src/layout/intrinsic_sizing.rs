@@ -84,7 +84,6 @@ pub(super) fn content_sizes_of_inline_content(
         || formatting_context::independent_formatting_context_type(node, &callbacks)
             != formatting_context::FormattingContextType::Block
         || facts.is_table_wrapper()
-        || style.writing_mode() != writing_mode::HORIZONTAL_TB
         || establishes_orthogonal_flow(&callbacks, node)
     {
         return None;
@@ -336,8 +335,6 @@ pub(super) fn content_sizes_of_block_container(
         || formatting_context::independent_formatting_context_type(node, &callbacks)
             != formatting_context::FormattingContextType::Block
         || facts.is_table_wrapper()
-        || (style.writing_mode() != writing_mode::HORIZONTAL_TB
-            && block_formatting_context::is_line_clamp_container(&callbacks, node))
         || establishes_orthogonal_flow(&callbacks, node)
         || callbacks
             .children(node)
@@ -448,10 +445,7 @@ pub(super) fn content_sizes_of_table(
     let facts = NodeFacts::new(&callbacks, node);
     let is_table_box = formatting_context::independent_formatting_context_type(node, &callbacks)
         == formatting_context::FormattingContextType::Table;
-    if !(facts.is_table_wrapper() || is_table_box)
-        || StyleValues::for_node(&callbacks, node).writing_mode() != writing_mode::HORIZONTAL_TB
-        || establishes_orthogonal_flow(&callbacks, node)
-    {
+    if !(facts.is_table_wrapper() || is_table_box) || establishes_orthogonal_flow(&callbacks, node) {
         return None;
     }
     Some(scope.enter(callbacks, |run| {
@@ -532,7 +526,6 @@ fn container_content_is_sized_without_layout(
     formatting_context_type: formatting_context::FormattingContextType,
 ) -> bool {
     formatting_context::independent_formatting_context_type(node, callbacks) == formatting_context_type
-        && StyleValues::for_node(callbacks, node).writing_mode() == writing_mode::HORIZONTAL_TB
         && !establishes_orthogonal_flow(callbacks, node)
 }
 

@@ -1,0 +1,7 @@
+inline-content: 1 inline misses answered from items, 0 runs under them, inline size 160
+block-children: 1 inline misses answered from children, 0 runs under them, inline size 100
+float: 1 inline misses answered from items, 0 runs under them, inline size 100
+table-in-inline-block: 1 inline misses answered from children, 0 runs under them, inline size 100
+flex: 1 inline misses answered from flex items, 0 runs under them, inline size 150
+grid: 1 inline misses answered from grid tracks, 0 runs under them, inline size 150
+line-clamp: 1 inline misses answered from children, 0 runs under them, inline size 160
