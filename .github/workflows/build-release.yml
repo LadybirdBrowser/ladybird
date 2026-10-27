@@ -94,6 +94,7 @@ jobs:
 
     env:
       BUNDLE: ladybird-${{ inputs.version }}-Linux-${{ matrix.arch }}.flatpak
+      DEBUG_BUNDLE: ladybird-${{ inputs.version }}-Linux-${{ matrix.arch }}-debug.flatpak
 
     steps:
       - uses: actions/checkout@v7.0.1
@@ -130,6 +131,7 @@ jobs:
         uses: flatpak/flatpak-github-actions/flatpak-builder@v6
         with:
           bundle: ${{ env.BUNDLE }}
+          build-debug-bundle: true
           manifest-path: Meta/CMake/flatpak/org.ladybird.Ladybird.json
           arch: ${{ matrix.arch }}
           save-cache: false
@@ -138,12 +140,16 @@ jobs:
       - name: Attest
         uses: actions/attest@v4
         with:
-          subject-path: ${{ env.BUNDLE }}
+          subject-path: |
+            ${{ env.BUNDLE }}
+            ${{ env.DEBUG_BUNDLE }}
 
       - name: Upload
         uses: actions/upload-artifact@v7
         with:
           name: ladybird-Flatpak-${{ matrix.arch }}
-          path: ${{ env.BUNDLE }}
+          path: |
+            ${{ env.BUNDLE }}
+            ${{ env.DEBUG_BUNDLE }}
           compression-level: 0
           if-no-files-found: error
