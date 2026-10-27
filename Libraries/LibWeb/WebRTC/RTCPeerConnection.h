@@ -217,24 +217,10 @@ private:
     // [[PendingRemoteDescription]]
     GC::Ptr<RTCSessionDescription> m_pending_remote_description;
 
-    // Per-remote-receiver playback stack. We bypass the spec's MediaStream → audio-element
-    // path entirely and just opus-decode + push PCM straight to libmedia's audio output.
-    // Once we wire MediaStreamTrack as a real audio source, this should go away.
-    struct PlaybackBuffer : public AtomicRefCounted<PlaybackBuffer> {
-        Mutex mutex;
-        Vector<float> samples;
-    };
-    struct ReceiverAudioPlayback {
-        AK_ALLOC_WITH_KMALLOC;
-
-        OwnPtr<Media::AudioDecoder> decoder;
-        OwnPtr<Media::FFmpeg::FFmpegAudioConverter> converter;
-        RefPtr<Audio::PlaybackStream> playback_stream;
-        NonnullRefPtr<PlaybackBuffer> buffer = adopt_ref(*new PlaybackBuffer);
-        u8 channel_count { 0 };
-        bool started { false };
-    };
-    HashMap<u64, NonnullOwnPtr<ReceiverAudioPlayback>> m_receiver_audio_playbacks;
+    // Decoded audio goes to the receiver's track, and from there to whatever consumes it: media elements,
+    // WebAudio, or another peer connection.
+    HashMap<u64, NonnullOwnPtr<Media::AudioDecoder>> m_receiver_audio_decoders;
+    Vector<float> m_decoded_audio_scratch;
     void feed_decoded_audio(u64 receiver_id, ByteBuffer payload, u32 rtp_timestamp);
 
     // The track may outlive this connection, so its producer callback owns this state independently.

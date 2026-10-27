@@ -492,6 +492,7 @@ private:
     bool m_current_resource_selection_is_explicit { false };
 
     OwnPtr<MediaClient::RemotePlaybackManager> m_playback_manager;
+    OwnPtr<MediaStreamPlayback> m_media_stream_playback;
     Function<void(Utf16String)> m_playback_manager_failure_callback;
 
     RefPtr<Core::Timer> m_playback_position_update_timer;

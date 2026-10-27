@@ -1,0 +1,3 @@
+network idle: true
+paused: true
+audio collected: true
