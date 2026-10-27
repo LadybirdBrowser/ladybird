@@ -147,7 +147,7 @@ public:
                 continue;
             m_hold_for_video_frame_callbacks = move(hold);
             return PresentedVideoFrame {
-                .presented_frames = frame_counts().presented,
+                .presented_frames = m_frame_counts_of_earlier_pages.presented + presented_frame->presented_frame_count,
                 .media_time = presented_frame->media_time,
                 .presentation_time = presented_frame->presentation_time,
                 .width = presented_frame->width,
