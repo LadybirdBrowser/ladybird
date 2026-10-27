@@ -748,3 +748,41 @@ pub(super) fn content_sizes_of_orthogonal_flow(
         },
     })
 }
+
+// https://w3c.github.io/mathml-core/#layout-algorithms
+// NB: MathML layout does not break lines, so the min-content and max-content inline sizes of a MathML box are both the
+//     inline size its layout gives it.
+pub(super) fn content_sizes_of_math(
+    callbacks: LayoutPass<'_>,
+    scope: &ContentSizingScope,
+    constraints: ContainingBlockConstraints,
+) -> Option<sizing_context::ContentInlineSizes> {
+    let node = scope.node;
+    if formatting_context::independent_formatting_context_type(node, &callbacks)
+        != formatting_context::FormattingContextType::Math
+    {
+        return None;
+    }
+    let input = LayoutInput::new(
+        AvailableSpace {
+            inline_size: AvailableSize::Indefinite,
+            block_size: scope.available_block_size(),
+        },
+        constraints,
+        ParticipationInParentFormattingContext::Root,
+    );
+    let result = formatting_context::run_root_without_parent_fragments(callbacks, node, scope.root(), input);
+    let size = result.automatic_content_inline_size;
+    let observes_percentage_inline_basis = scope.enter(callbacks, |run| {
+        run.sizing().measurement_root_observes_percentage_inline_basis(node)
+    });
+    Some(sizing_context::ContentInlineSizes {
+        sizes: sizing_context::ContentSizes { min: size, max: size },
+        first_line_max_content: FirstLineMaxContent::without_floats(size),
+        dependencies: IntrinsicMeasurementDependencies {
+            percentage_block_size: result.depends_on_percentage_block_size,
+            percentage_inline_basis: observes_percentage_inline_basis,
+            block_size: true,
+        },
+    })
+}

@@ -27,7 +27,7 @@ const layoutTraceLines = (() => {
         ["layout FULL", () => ({ event: "layout", partial: false })],
         [`layout PARTIAL ${box}`, box => ({ event: "layout", partial: true, box })],
         [
-            `${box} MEASURE ((?:min|max)-content (?:inline|block)) ${cache}(?: FROM (ITEMS|FLEX ITEMS|GRID TRACKS|CHILDREN|COLUMNS|REPLACED CONTENT|ORTHOGONAL FLOW))?`,
+            `${box} MEASURE ((?:min|max)-content (?:inline|block)) ${cache}(?: FROM (ITEMS|FLEX ITEMS|GRID TRACKS|CHILDREN|COLUMNS|REPLACED CONTENT|ORTHOGONAL FLOW|MATH LAYOUT))?`,
             (box, size, cache, from) => ({ event: "measure", box, size, cache, from: from?.toLowerCase() }),
         ],
         [`${box} REUSE IN-FLOW SUBTREE`, box => ({ event: "reuse in-flow subtree", box })],
@@ -50,7 +50,8 @@ const layoutTraceLines = (() => {
 //   run                     `formattingContext`, `action`, `cache`
 //   reuse in-flow subtree
 //   measure                 `size` ("min-content inline", ...), `cache`, `from` ("items", "flex items",
-//                           "grid tracks", "children", "columns", "replaced content", "orthogonal flow")
+//                           "grid tracks", "children", "columns", "replaced content", "orthogonal flow",
+//                           "math layout")
 function parseLayoutTrace(text) {
     const events = [];
     for (const line of text.replace(/\r/g, "").split("\n")) {

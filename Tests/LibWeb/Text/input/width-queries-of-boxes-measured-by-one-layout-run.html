@@ -17,6 +17,8 @@
     <div class="wrapper"><div id="orthogonal-inline-block" style="writing-mode: vertical-rl; height: 60px; display: inline-block">alpha beta gamma</div></div>
     <div class="wrapper"><div id="orthogonal-flex" style="writing-mode: vertical-rl; height: 60px; display: inline-flex; flex-wrap: wrap"><div>alpha beta</div><div>gamma</div></div></div>
     <div class="wrapper"><div id="orthogonal-grid" style="writing-mode: vertical-rl; height: 60px; display: inline-grid"><div>alpha beta</div><div>gamma</div></div></div>
+    <div class="wrapper"><math id="math"><mfrac><mi>x</mi><mn>2</mn></mfrac></math></div>
+    <div class="wrapper"><math id="block-math" display="block"><mrow><mi>a</mi><mo>+</mo><mi>b</mi></mrow></math></div>
 </template>
 <script>
     asyncTest(async done => {
@@ -24,7 +26,7 @@
         const work = layoutWork(() => {
             document.body.appendChild(document.getElementById("fixture").content.cloneNode(true));
         });
-        const ids = ["orthogonal-block", "orthogonal-inline-block", "orthogonal-flex", "orthogonal-grid"];
+        const ids = ["orthogonal-block", "orthogonal-inline-block", "orthogonal-flex", "orthogonal-grid", "math", "block-math"];
         for (const id of ids) {
             const isTarget = box => box.endsWith(`#${id}`);
             const answers = new Set();
