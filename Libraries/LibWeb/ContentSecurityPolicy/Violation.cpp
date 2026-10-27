@@ -61,6 +61,8 @@ GC::Ref<Violation> Violation::create_a_violation_object_for_global_policy_and_di
     //    and column number from the global, set violation’s source file, line number, and column number
     //    accordingly.
     // SPEC ISSUE 1:  Is this kind of thing specified anywhere? I didn’t see anything that looked useful in [ECMA262].
+    // NOTE: User agents need to ensure that the source file is the URL requested by the page, pre-redirects. If that’s
+    //       not possible, user agents need to strip the URL down to an origin to avoid unintentional leakage.
     // NB: We use the innermost stack frame that has a source location.
     for (auto const& frame : JS::VM::the().stack_trace()) {
         if (!frame.source_range.has_value())
@@ -69,18 +71,6 @@ GC::Ref<Violation> Violation::create_a_violation_object_for_global_policy_and_di
         auto source_file = URL::Parser::basic_parse(source_range.filename().utf16_view());
         if (!source_file.has_value())
             break;
-
-        // NB: The URL of a classic script is its response URL, which can reveal where a cross-origin request was
-        //     redirected to. Per the note in the spec, we strip such URLs down to their origin. Redirects only lead
-        //     to HTTP(S) URLs, so URLs with an opaque origin, such as file: URLs, are kept as they are.
-        if (global_object) {
-            auto source_origin = source_file->origin();
-            if (!source_origin.is_opaque() && !source_origin.is_same_origin(HTML::relevant_settings_object(*global_object).origin())) {
-                source_file = URL::Parser::basic_parse(source_origin.serialize());
-                if (!source_file.has_value())
-                    break;
-            }
-        }
 
         violation->m_source_file = source_file.release_value();
         violation->m_line_number = source_range.start.line;

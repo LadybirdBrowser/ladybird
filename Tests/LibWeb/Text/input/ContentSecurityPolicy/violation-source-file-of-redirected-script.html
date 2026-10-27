@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<meta http-equiv="Content-Security-Policy" content="script-src 'unsafe-inline' file: http:">
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const server = httpTestServer();
+
+        const target = new URL(await server.createEcho("GET", "/csp-redirect-target", {
+            status: 200,
+            headers: { "Content-Type": "text/javascript" },
+            body: `try { eval(""); } catch {}`,
+        }));
+        target.hostname = "127.0.0.1";
+        const start = await server.createEcho("GET", "/csp-redirect-start", {
+            status: 302,
+            headers: { "Location": target.href },
+        });
+
+        document.addEventListener("securitypolicyviolation", event => {
+            println(`sourceFile: ${event.sourceFile === start ? "the requested URL" : event.sourceFile}`);
+            done();
+        });
+
+        const script = document.createElement("script");
+        script.src = start;
+        document.body.appendChild(script);
+    });
+</script>
