@@ -223,6 +223,10 @@ private:
     };
 
     Optional<Paintable> current_paintable() const;
+    // The pixels of a frame, which a frame that lives only in GPU memory has once they are read back from there.
+    RefPtr<Gfx::Bitmap const> cpu_bitmap_of(Paintable const&) const;
+    // The pixels of a frame for Qt to paint, which there is no need to read back while the page's window covers them.
+    RefPtr<Gfx::Bitmap const> cpu_bitmap_to_paint(Paintable const&) const;
     QImage visible_snapshot() const;
 
     void update_viewport_size();
@@ -387,6 +391,13 @@ private:
     VulkanWindow* m_vulkan_window { nullptr };
     QWidget* m_vulkan_window_container { nullptr };
     Optional<bool> m_vulkan_window_supports_alpha_blending;
+
+    // The pixels of the frame on screen, read back from GPU memory once for each frame that Qt paints itself.
+    struct FrameReadFromGpu {
+        Gfx::SharedImageBuffer const* shared_image_buffer { nullptr };
+        RefPtr<Gfx::Bitmap const> bitmap;
+    };
+    mutable FrameReadFromGpu m_frame_read_from_gpu;
 
     int m_vertical_tab_overlay_left { 0 };
     int m_vertical_tab_overlay_right { 0 };

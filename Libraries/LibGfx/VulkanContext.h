@@ -20,6 +20,9 @@ struct VulkanContext {
     VkInstance instance { VK_NULL_HANDLE };
     VkPhysicalDevice physical_device { VK_NULL_HANDLE };
     GpuDeviceIdentity device_identity;
+    // Whether this is the device the context was asked to prefer, which tells the context's user that whoever asked
+    // can import the memory it shares in any layout this device renders to.
+    bool is_preferred_device { false };
     VkDevice logical_device { VK_NULL_HANDLE };
     VkQueue graphics_queue { VK_NULL_HANDLE };
     uint32_t graphics_queue_family { 0 };

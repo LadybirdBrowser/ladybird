@@ -255,6 +255,7 @@ ErrorOr<VulkanContext> create_vulkan_context(Optional<GpuDeviceIdentity> const& 
         .instance = instance,
         .physical_device = physical_device,
         .device_identity = gpu_device_identity_of(physical_device),
+        .is_preferred_device = preferred_device.has_value() && gpu_device_identity_of(physical_device) == *preferred_device,
         .logical_device = logical_device,
         .graphics_queue = graphics_queue,
         .graphics_queue_family = graphics_queue_family,
