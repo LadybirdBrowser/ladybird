@@ -46,7 +46,7 @@ char const* current_rust_panic_message();
 
 }
 
-extern "C" void ladybird_rust_panic(char const*, size_t, char const*, size_t, u32, u32, bool (*)());
+extern "C" void ladybird_rust_panic(u8 const*, size_t, u8 const*, size_t, u32, u32, bool (*)());
 extern "C" void ladybird_rust_panic_hook_returned();
 extern "C" void ladybird_rust_panic_may_abort();
 extern "C" void ladybird_rust_panic_will_abort();

@@ -53,7 +53,7 @@ static thread_local bool s_rust_panic_backtrace_captured;
 static thread_local bool s_capturing_backtrace_quietly;
 #endif
 
-void ladybird_rust_panic(char const* message, size_t message_length, char const* filename, size_t filename_length, u32 line, u32 column, bool (*is_panicking)())
+void ladybird_rust_panic(u8 const* message, size_t message_length, u8 const* filename, size_t filename_length, u32 line, u32 column, bool (*is_panicking)())
 {
     ++s_rust_panic_hook_depth;
     __atomic_store_n(&s_rust_is_panicking, nullptr, __ATOMIC_RELEASE);
@@ -65,7 +65,7 @@ void ladybird_rust_panic(char const* message, size_t message_length, char const*
             s_rust_panic_message[length++] = ch ? ch : '?';
         }
     };
-    append({ message, min(message_length, 4096uz) });
+    append({ reinterpret_cast<char const*>(message), min(message_length, 4096uz) });
     if (message_length > 4096)
         append(" [truncated]"sv);
     if (filename_length) {
@@ -73,7 +73,7 @@ void ladybird_rust_panic(char const* message, size_t message_length, char const*
         if (filename_length > 4096) {
             append("[location unavailable]"sv);
         } else {
-            append({ filename, filename_length });
+            append({ reinterpret_cast<char const*>(filename), filename_length });
             Array<char, 24> location;
             auto count = snprintf(location.data(), location.size(), ":%u:%u", line, column);
             if (count > 0)
