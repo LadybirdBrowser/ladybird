@@ -107,6 +107,14 @@ pub(super) fn phi_inputs_from(
         .map(move |phi| (*phi, graph.node(*phi).inputs[index]))
 }
 
+/// How many calls, and how many nodes that clobber the floating point registers (calls among them), the backwards walk
+/// of the liveness computation passed.
+#[derive(Clone, Copy, Default)]
+struct Clobbers {
+    calls: u32,
+    float_clobbers: u32,
+}
+
 impl ValueLiveness {
     pub fn compute(graph: &Graph) -> Self {
         let value_count = graph.nodes.len();
@@ -204,7 +212,24 @@ impl ValueLiveness {
         let mut last_death = vec![None; value_count];
         let mut dead_outputs = BitSet::new(value_count);
         let mut needs_spill = BitSet::new(value_count);
+        // OPTIMIZATION: Rather than marking every value live across each call or float clobbering slow path there,
+        //               which takes time quadratic in the size of code that keeps many values live past many of them
+        //               (like a large array literal of arrays), the walk counts those nodes, notes the counts where
+        //               each value becomes live, and compares them where the value is defined or the block starts.
+        let mut clobbers = Clobbers::default();
+        let mut live_since: Vec<Option<(BlockId, Clobbers)>> = vec![None; value_count];
         for block in &block_ids {
+            let block_start = clobbers;
+            let since = |live_since: &[Option<(BlockId, Clobbers)>], value: usize| match live_since[value] {
+                Some((since_block, since)) if since_block == *block => since,
+                _ => block_start,
+            };
+            let check_spill = |needs_spill: &mut BitSet, since: Clobbers, clobbers: Clobbers, value: usize| {
+                let is_float = graph.nodes[value].repr == Some(crate::code::Repr::Float64);
+                if clobbers.calls != since.calls || (is_float && clobbers.float_clobbers != since.float_clobbers) {
+                    needs_spill.insert(value);
+                }
+            };
             entering.clone_from(&live_out[block.index()]);
             Self::transfer_block(
                 graph,
@@ -213,28 +238,27 @@ impl ValueLiveness {
                 &mut entering,
                 &mut used,
                 |node, live_after, used| {
-                    if is_allocated_value(graph, node) && !live_after.contains(node.index()) {
+                    if live_after.contains(node.index()) {
+                        check_spill(
+                            &mut needs_spill,
+                            since(&live_since, node.index()),
+                            clobbers,
+                            node.index(),
+                        );
+                    } else if is_allocated_value(graph, node) {
                         dead_outputs.insert(node.index());
                     }
                     let op = &graph.node(node).op;
-                    if op.properties().is_call {
-                        for value in live_after
-                            .iter()
-                            .chain(cached_frame_state_uses(graph, &frames, node).map(NodeId::index))
-                        {
-                            if value != node.index() {
-                                needs_spill.insert(value);
-                            }
-                        }
-                    } else if super::saves_only_gprs(op) {
-                        // NB: Their slow paths clobber the floating point registers.
-                        for value in live_after
-                            .iter()
-                            .chain(cached_frame_state_uses(graph, &frames, node).map(NodeId::index))
-                        {
-                            let is_float = graph.nodes[value].repr == Some(crate::code::Repr::Float64);
-                            if value != node.index() && is_float {
-                                needs_spill.insert(value);
+                    let is_call = op.properties().is_call;
+                    // NB: Their slow paths clobber the floating point registers.
+                    let clobbers_floats = super::saves_only_gprs(op);
+                    if is_call || clobbers_floats {
+                        clobbers.float_clobbers += 1;
+                        clobbers.calls += u32::from(is_call);
+                        for value in cached_frame_state_uses(graph, &frames, node) {
+                            let is_float = graph.nodes[value.index()].repr == Some(crate::code::Repr::Float64);
+                            if value != node && (is_call || is_float) {
+                                needs_spill.insert(value.index());
                             }
                         }
                     }
@@ -242,10 +266,19 @@ impl ValueLiveness {
                         if !live_after.contains(value.index()) && last_death[value.index()] != Some(node) {
                             last_death[value.index()] = Some(node);
                             dies_at[node.index()].push(*value);
+                            live_since[value.index()] = Some((*block, clobbers));
                         }
                     }
                 },
             );
+            // NB: The phis of the block are live from its start if anything uses them.
+            let live_phis = graph.block(*block).phis.iter().map(|phi| phi.index()).filter(|phi| {
+                live_since[*phi].is_some_and(|(since_block, _)| since_block == *block)
+                    || live_out[block.index()].contains(*phi)
+            });
+            for value in entering.iter().chain(live_phis) {
+                check_spill(&mut needs_spill, since(&live_since, value), clobbers, value);
+            }
             // NB: Most merges start with the register state of one of their
             //     predecessors (see `state_predecessor()`).
             let predecessors = &graph.block(*block).predecessors;
