@@ -26,3 +26,5 @@ pub mod node_slot_id;
 mod test_stubs;
 pub mod visual_animation;
 pub mod visual_context;
+
+mod test_builder;

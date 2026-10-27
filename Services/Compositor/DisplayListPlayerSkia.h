@@ -92,11 +92,6 @@ private:
     ScrollbarController const* m_scrollbar_controller { nullptr };
     DisplayListRasterCache* m_raster_cache { nullptr };
     DisplayListRasterCache& raster_cache() const { return *m_raster_cache; }
-
-    // Layer filters are built from their bytes once per frame node and kept until the visual
-    // context tree's structure changes, so a replayed frame does not rebuild them.
-    struct LayerImageFilterCache;
-    NonnullOwnPtr<LayerImageFilterCache> m_layer_image_filter_cache;
 };
 
 }

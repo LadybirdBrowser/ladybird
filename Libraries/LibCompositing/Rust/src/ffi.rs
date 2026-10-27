@@ -596,7 +596,7 @@ pub unsafe extern "C" fn visual_context_tree_test_builder_create() -> *mut c_voi
 /// # Safety
 ///
 /// `builder` must be a live handle from `visual_context_tree_test_builder_create`.
-unsafe fn test_builder_tree<'a>(builder: *mut c_void) -> &'a mut crate::visual_context::VisualContextTree {
+pub(super) unsafe fn test_builder_tree<'a>(builder: *mut c_void) -> &'a mut crate::visual_context::VisualContextTree {
     // SAFETY: The caller guarantees `builder` is the live boxed tree the create call returned.
     unsafe { &mut *builder.cast::<crate::visual_context::VisualContextTree>() }
 }
