@@ -504,6 +504,71 @@ mod tests {
     }
 
     #[test]
+    fn environment_value_comparison_only_reuses_urls_without_resource_dependencies() {
+        use crate::css::style_value::{ImageResourceContext, RetainedRequestUrlModifierList, RetainedString};
+
+        let store = |property, value| {
+            WinnerStore::new(vec![WinnerDeclaration::new(
+                property,
+                false,
+                WinnerValue::Substituted {
+                    value: RetainedStyleValueData::from_owned(value),
+                    source: WinnerSource::Element(ElementDeclarationKind::InlineStyle),
+                },
+            )])
+        };
+        let engine = StyleEngine::new();
+        for (url, can_reuse) in [
+            ("https://example.com/paint.svg#fill", true),
+            ("data:image/svg+xml,paint", true),
+            ("paint.svg#fill", false),
+            ("/paint.svg#fill", false),
+            ("//example.com/paint.svg#fill", false),
+        ] {
+            let url_value = || StyleValueData::Url {
+                url: RetainedString::from_ascii(url.to_owned()),
+                url_type: 0,
+                modifiers: RetainedRequestUrlModifierList::from_retained_modifiers(Vec::new()),
+            };
+            let first = store(property_id::FILL, url_value());
+            let equal = store(property_id::FILL, url_value());
+            assert_eq!(
+                first.environment_values_equal(&equal, &engine.retained),
+                can_reuse,
+                "{url}"
+            );
+            assert_eq!(
+                first.reads_no_resource_contexts(&engine.retained).is_some(),
+                can_reuse,
+                "{url}"
+            );
+        }
+
+        let image_value = |base_url: &str, origin_clean| StyleValueData::Image {
+            url: RetainedString::from_ascii("https://example.com/image.png".to_owned()),
+            url_type: 0,
+            url_modifiers: RetainedRequestUrlModifierList::from_retained_modifiers(Vec::new()),
+            resource_context: ImageResourceContext {
+                base_url: RetainedString::from_ascii(base_url.to_owned()),
+                has_base_url: true,
+                has_parent_style_sheet_origin_clean: true,
+                parent_style_sheet_origin_clean: origin_clean,
+                should_absolutize_url_for_computed_value: true,
+            },
+        };
+        let first = store(
+            property_id::BACKGROUND_IMAGE,
+            image_value("https://example.com/first.css", true),
+        );
+        let equal = store(
+            property_id::BACKGROUND_IMAGE,
+            image_value("https://example.com/second.css", false),
+        );
+        assert!(!first.environment_values_equal(&equal, &engine.retained));
+        assert!(first.reads_no_resource_contexts(&engine.retained).is_none());
+    }
+
+    #[test]
     fn winner_view_borrows_written_spelling_and_preserves_cascade_order() {
         let mut engine = StyleEngine::new();
         let node = StyleNodeID::element(1);

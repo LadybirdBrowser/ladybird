@@ -2071,6 +2071,43 @@ pub(crate) fn absolutize(value: &StyleValueData, context: &AbsolutizationContext
                 }
             })))
         }
+        StyleValueData::Url {
+            url,
+            url_type,
+            modifiers,
+        } => {
+            // https://drafts.csswg.org/css-values-4/#local-urls
+            // When serializing a url() with the local url flag set, it must serialize as just the fragment.
+            if url.is_empty() || url.is_fragment() {
+                return Some(Absolutized::Unchanged);
+            }
+
+            // https://drafts.csswg.org/css-values-4/#relative-urls
+            // When a <url> appears in the computed value of a property, it is resolved to an absolute URL.
+            // The computed value of a URL that the UA cannot resolve to an absolute URL is the specified value.
+            let resolved_url = liburl_rust::basic_parse(url.url_input(), liburl_rust::BasicParseOptions::new())
+                .or_else(|| {
+                    let base_url = context
+                        .style_sheet_resource_context
+                        .map(|resource_context| resource_context.base_url)
+                        .filter(|base_url| !base_url.is_empty())
+                        .unwrap_or(context.document_base_url);
+                    let base_url = std::str::from_utf8(base_url).ok()?;
+                    let base_url = liburl_rust::basic_parse(base_url, liburl_rust::BasicParseOptions::new())?;
+                    liburl_rust::basic_parse(
+                        url.url_input(),
+                        liburl_rust::BasicParseOptions::new().base_url(&base_url),
+                    )
+                });
+            let Some(resolved_url) = resolved_url else {
+                return Some(Absolutized::Unchanged);
+            };
+            Some(Absolutized::Changed(retain_new(StyleValueData::Url {
+                url: crate::css::style_value::RetainedString::from_ascii(resolved_url.into()),
+                url_type: *url_type,
+                modifiers: modifiers.clone(),
+            })))
+        }
         StyleValueData::Image { .. } => absolutize_image(value, context),
         // https://drafts.csswg.org/css-values-5/#random-caching
         // If the random function's <random-value-sharing> is fixed <number>, the random base value is that number.

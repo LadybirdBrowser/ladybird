@@ -1,16 +1,16 @@
-external fill: false
-external stroke: false
-fill "paint.svg#gradient": false
-fill inherited "paint.svg#gradient": false
-fill fallback "paint.svg#gradient": false
+external fill: true
+external stroke: true
+fill "paint.svg#gradient": true
+fill inherited "paint.svg#gradient": true
+fill fallback "paint.svg#gradient": true
 fill specified "paint.svg#gradient": true
-fill "../paint.svg#gradient": false
-fill inherited "../paint.svg#gradient": false
-fill fallback "../paint.svg#gradient": false
+fill "../paint.svg#gradient": true
+fill inherited "../paint.svg#gradient": true
+fill fallback "../paint.svg#gradient": true
 fill specified "../paint.svg#gradient": true
-fill "é.svg#gradient": false
-fill inherited "é.svg#gradient": false
-fill fallback "é.svg#gradient": false
+fill "é.svg#gradient": true
+fill inherited "é.svg#gradient": true
+fill fallback "é.svg#gradient": true
 fill specified "é.svg#gradient": true
 fill "#gradient": true
 fill inherited "#gradient": true
@@ -24,17 +24,17 @@ fill "https://example.test/paint.svg#gradient": true
 fill inherited "https://example.test/paint.svg#gradient": true
 fill fallback "https://example.test/paint.svg#gradient": true
 fill specified "https://example.test/paint.svg#gradient": true
-stroke "paint.svg#gradient": false
-stroke inherited "paint.svg#gradient": false
-stroke fallback "paint.svg#gradient": false
+stroke "paint.svg#gradient": true
+stroke inherited "paint.svg#gradient": true
+stroke fallback "paint.svg#gradient": true
 stroke specified "paint.svg#gradient": true
-stroke "../paint.svg#gradient": false
-stroke inherited "../paint.svg#gradient": false
-stroke fallback "../paint.svg#gradient": false
+stroke "../paint.svg#gradient": true
+stroke inherited "../paint.svg#gradient": true
+stroke fallback "../paint.svg#gradient": true
 stroke specified "../paint.svg#gradient": true
-stroke "é.svg#gradient": false
-stroke inherited "é.svg#gradient": false
-stroke fallback "é.svg#gradient": false
+stroke "é.svg#gradient": true
+stroke inherited "é.svg#gradient": true
+stroke fallback "é.svg#gradient": true
 stroke specified "é.svg#gradient": true
 stroke "#gradient": true
 stroke inherited "#gradient": true

@@ -1560,6 +1560,14 @@ pub(crate) fn collect_external_value_dependencies(value: &StyleValueData) -> Ext
                 dependencies.needs_document_base_url |= !url.is_empty() && !resource_context.has_base_url;
                 dependencies.may_need_style_sheet_resource_context |= !url.is_empty();
             }
+            StyleValueData::Url { url, .. } => {
+                if !url.is_empty() && !url.is_fragment() {
+                    let needs_base_url =
+                        liburl_rust::basic_parse(url.url_input(), liburl_rust::BasicParseOptions::new()).is_none();
+                    dependencies.needs_document_base_url |= needs_base_url;
+                    dependencies.may_need_style_sheet_resource_context |= needs_base_url;
+                }
+            }
             StyleValueData::Calculated { rust_calculation, .. } => {
                 collect_calculation(rust_calculation.node(), dependencies);
             }
@@ -3061,8 +3069,8 @@ pub(crate) fn value_absolutization_is_identity(value: &StyleValueData) -> bool {
         | StyleValueData::CustomIdent { .. }
         | StyleValueData::Percentage { .. }
         | StyleValueData::Flex { .. }
-        | StyleValueData::UnicodeRange { .. }
-        | StyleValueData::Url { .. } => true,
+        | StyleValueData::UnicodeRange { .. } => true,
+        StyleValueData::Url { url, .. } => url.is_empty() || url.is_fragment(),
         _ => false,
     }
 }
@@ -8337,6 +8345,31 @@ pub(crate) mod ffi_test_stubs {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn url_dependencies_only_read_a_base_for_relative_urls() {
+        for (url, needs_base) in [
+            ("https://example.com/paint.svg#fill", false),
+            ("data:image/svg+xml,paint", false),
+            ("https://example.com/色.svg#fill", false),
+            ("paint.svg#fill", true),
+            ("色.svg#fill", true),
+            ("/paint.svg#fill", true),
+            ("//example.com/paint.svg#fill", true),
+            ("#fill", false),
+            ("", false),
+        ] {
+            let value = StyleValueData::Url {
+                url: crate::css::style_value::RetainedString::from_utf16(&url.encode_utf16().collect::<Vec<_>>())
+                    .unwrap(),
+                url_type: 0,
+                modifiers: crate::css::style_value::RetainedRequestUrlModifierList::from_retained_modifiers(Vec::new()),
+            };
+            let dependencies = collect_external_value_dependencies(&value);
+            assert_eq!(dependencies.needs_document_base_url, needs_base, "{url}");
+            assert_eq!(dependencies.may_need_style_sheet_resource_context, needs_base, "{url}");
+        }
+    }
 
     #[test]
     fn calculated_random_values_record_their_document_dependency() {
