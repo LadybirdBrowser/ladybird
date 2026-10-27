@@ -15,6 +15,7 @@
 #include <LibIPC/Connection.h>
 #include <LibIPC/Transport.h>
 #include <LibSandbox/ConnectBroker.h>
+#include <LibURL/URL.h>
 #include <LibWebView/CrashReport.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/ProcessType.h>
@@ -50,6 +51,9 @@ public:
 
     Optional<Utf16String> const& title() const { return m_title; }
     void set_title(Optional<Utf16String> title) { m_title = move(title); }
+
+    Optional<URL::URL> const& site_url() const { return m_site_url; }
+    void set_site_url(Optional<URL::URL> site_url) { m_site_url = move(site_url); }
 
     Optional<u64> owner_child_id() const { return m_owner_child_id; }
     void set_owner_child_id(u64 child_id) { m_owner_child_id = child_id; }
@@ -114,6 +118,7 @@ private:
     u64 m_child_id { 0 };
     ProcessType m_type;
     Optional<Utf16String> m_title;
+    Optional<URL::URL> m_site_url;
     Optional<u64> m_owner_child_id;
     WeakPtr<IPC::ConnectionBase> m_connection;
     ProcessOutputCapture m_output_capture;

@@ -399,21 +399,25 @@ void ProcessManagerWindow::refresh()
     for (auto const& process : processes) {
         auto* item = static_cast<ProcessItem*>(items.take(process.child_id).value_or_lazy_evaluated([] { return new ProcessItem; }));
         auto name = qstring_from_ak_string(WebView::process_name_from_type(process.type));
-        if (process.type == WebView::ProcessType::WebContent || process.type == WebView::ProcessType::ImageDecoder) {
-            auto* label_process = &process;
+        if (first_is_one_of(process.type, WebView::ProcessType::WebContent, WebView::ProcessType::ImageDecoder, WebView::ProcessType::RequestServer)) {
+            auto const* label_process = &process;
             if (process.type == WebView::ProcessType::ImageDecoder && process.owner_child_id.has_value()) {
                 if (auto owner = processes_by_child_id.get(*process.owner_child_id); owner.has_value())
                     label_process = *owner;
             }
+
             auto const& page = label_process->page;
+            auto const& site_url = label_process->site_url;
+
             bool is_spare = label_process->title.has_value() && *label_process->title == "(spare)"_utf16;
-            if (page.has_value()) {
-                auto site = task_manager_site_label(page->url);
+            if (site_url.has_value()) {
+                auto site = task_manager_site_label(*site_url);
                 if (!site.isEmpty())
                     name += QStringLiteral(" — ") + site;
             } else if (label_process->title.has_value()) {
                 name += QStringLiteral(" — ") + qstring_from_utf16_string(*label_process->title);
             }
+
             if (process.type == WebView::ProcessType::WebContent)
                 item->update_page_icon(page.has_value() && page->url != URL::about_blank() ? &*page : nullptr, is_spare ? m_spare_icon : m_web_content_icon);
             else

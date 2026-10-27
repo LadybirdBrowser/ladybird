@@ -36,6 +36,7 @@ struct ProcessSnapshot {
     pid_t pid { 0 };
     ProcessType type { ProcessType::Browser };
     Optional<Utf16String> title;
+    Optional<URL::URL> site_url;
     Optional<u64> owner_child_id;
     float cpu_percent { 0 };
     u64 memory_usage_bytes { 0 };

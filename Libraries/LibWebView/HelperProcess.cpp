@@ -12,6 +12,7 @@
 #include <LibCore/Process.h>
 #include <LibCore/System.h>
 #include <LibSandbox/ConnectBroker.h>
+#include <LibURL/Parser.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/AudioServerControlClient.h>
 #include <LibWebView/CompositorClient.h>
@@ -639,7 +640,14 @@ ErrorOr<NonnullRefPtr<Requests::RequestControlClient>> launch_request_server_pro
     if (request_server_options.resource_substitution_map_path.has_value())
         arguments.append(ByteString::formatted("--resource-map={}", *request_server_options.resource_substitution_map_path));
 
-    auto client = TRY(launch_server_process<Requests::RequestControlClient>("RequestServer"sv, move(arguments)));
+    RefPtr<Requests::RequestControlClient> client;
+    TRY(launch_helper_process("RequestServer"sv, move(arguments), [&](Core::ProcessSpawnOptions const& options, bool capture_output) -> ErrorOr<Process> {
+        auto [process, new_client] = TRY(Process::spawn<Requests::RequestControlClient>(ProcessType::RequestServer, options, capture_output));
+        if (site.has_value())
+            process.set_site_url(URL::Parser::basic_parse(*site));
+        client = move(new_client);
+        return move(process);
+    }));
 
     auto const& browsing_data_settings = Application::settings().browsing_data_settings();
     client->async_set_disk_cache_settings(browsing_data_settings.disk_cache_settings);
@@ -647,7 +655,7 @@ ErrorOr<NonnullRefPtr<Requests::RequestControlClient>> launch_request_server_pro
     if (!Application::settings().dns_settings().has<SystemDNS>())
         apply_dns_settings(*client);
 
-    return client;
+    return client.release_nonnull();
 }
 
 ErrorOr<RequestServerClientConnection> connect_new_request_server_client(BrowsingSession& session, RequestServer::SiteBinding site_binding)
