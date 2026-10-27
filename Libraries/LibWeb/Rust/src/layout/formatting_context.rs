@@ -101,11 +101,7 @@ pub(crate) enum TableWrapperInlineSizeMode {
 }
 
 pub(crate) fn run_builds_fragments(input: &LayoutInput, parent_collects_fragments: bool) -> bool {
-    // NB: An atomic inline lays its content out at the inline size it resolves from the space it is offered, which
-    //     MathML layout offers at max-content.
-    (input.participation == ParticipationInParentFormattingContext::AtomicInline
-        || !input.available_space.inline_size.is_intrinsic_sizing_constraint())
-        && (parent_collects_fragments || input.participation != ParticipationInParentFormattingContext::Root)
+    parent_collects_fragments || input.participation != ParticipationInParentFormattingContext::Root
 }
 
 pub(crate) fn run_root_without_parent_fragments(
@@ -2928,7 +2924,6 @@ pub(crate) fn lay_out_shape_for_its_result(callbacks: LayoutPass<'_>, shape: Chi
 //     root input cells.
 pub(super) fn parent_owns_root_input_cells(callbacks: &LayoutPass<'_>, box_: Node, input: &LayoutInput) -> bool {
     input.participation == ParticipationInParentFormattingContext::Item
-        && !input.available_space.inline_size.is_intrinsic_sizing_constraint()
         && !frame_established_by(callbacks, box_).is_orthogonal_to(callbacks.frame)
 }
 

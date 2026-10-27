@@ -232,13 +232,11 @@ pub(crate) enum AncestorFact {
     IsAnonymousButtonContentWrapper = 1 << 2,
     /// An anonymous box whose parent is an anonymous button content wrapper.
     IsAnonymousButtonContentBox = 1 << 3,
-    /// The node or one of its ancestors has an inline outer display type.
-    HasInlineLevelInclusiveAncestor = 1 << 4,
     /// An anonymous box whose nearest non-anonymous ancestor puts an ellipsis on overflowing lines.
-    InheritsTextOverflowEllipsis = 1 << 5,
-    ParentLaysOutInColumns = 1 << 6,
+    InheritsTextOverflowEllipsis = 1 << 4,
+    ParentLaysOutInColumns = 1 << 5,
     /// The parent lays out its children with a MathML layout algorithm.
-    ParentUsesMathLayout = 1 << 7,
+    ParentUsesMathLayout = 1 << 6,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

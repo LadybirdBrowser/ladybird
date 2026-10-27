@@ -3329,19 +3329,6 @@ impl<'pass> FlexFormattingContext<'pass> {
         self.flex_items[index].add_main_margin_box_sizes(css_clamp(size, clamp_min, clamp_max))
     }
 
-    // https://drafts.csswg.org/css-flexbox-1/#intrinsic-sizes
-    fn determine_intrinsic_size_of_flex_container(&mut self) {
-        let available_space = self.available_space_for_items.unwrap();
-        if available_space.main.is_intrinsic_sizing_constraint() {
-            let size = self.calculate_intrinsic_main_size_of_flex_container();
-            self.set_container_main_size(size);
-        }
-        if available_space.cross.is_intrinsic_sizing_constraint() {
-            let size = self.calculate_intrinsic_cross_size_of_flex_container();
-            self.set_container_cross_size(size);
-        }
-    }
-
     fn resolve_own_auto_block_size_from_max_content_main_size(&mut self) {
         let sizing = self.layout_input.unwrap().sizing;
         let resolution_space = sizing.flex_self_block_size_resolution_space;
@@ -3769,7 +3756,6 @@ impl<'pass> FlexFormattingContext<'pass> {
     }
 
     pub(super) fn run(&mut self, run: &FormattingContextRun<'pass>, layout_input: LayoutInput) {
-        let available_space = layout_input.available_space;
         self.prepare_items(layout_input);
 
         // 5. Collect flex items into flex lines:
@@ -3792,13 +3778,6 @@ impl<'pass> FlexFormattingContext<'pass> {
 
         // 11. Determine the used cross size of each flex item.
         self.determine_used_cross_size_of_each_flex_item();
-        let is_intrinsic_sizing = available_space.inline_size.is_intrinsic_sizing_constraint()
-            || available_space.block_size.is_intrinsic_sizing_constraint();
-        if is_intrinsic_sizing {
-            // Alignment offsets depend on the container's used size, so intrinsic sizing must resolve that size before
-            // the item-placement phases below.
-            self.determine_intrinsic_size_of_flex_container();
-        }
         // 12. Distribute any remaining free space.
         self.distribute_any_remaining_free_space();
         // 13. Resolve cross-axis auto margins.
@@ -3835,16 +3814,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         // 16. Align all flex lines (per align-content)
         self.align_all_flex_lines();
 
-        // https://drafts.csswg.org/css-align-3/#baseline-rules
-        // "... or the first/last in-flow block-level child in the block container that contributes a set of first/last
-        // baselines, whichever comes first/last."
-        // https://drafts.csswg.org/css-flexbox-1/#flex-baselines
-        // NB: Block-level flex containers can therefore contribute baselines through an inline-block ancestor,
-        //     including during intrinsic sizing.
-        // OPTIMIZATION: Avoid laying out items solely for baselines when no inline ancestor needs them.
-        if !is_intrinsic_sizing || self.facts(self.run.box_).has_inline_level_inclusive_ancestor() {
-            self.layout_items_and_derive_baselines(run);
-        }
+        self.layout_items_and_derive_baselines(run);
 
         if self.run.should_collect_devtools_layout_data {
             self.save_flex_layout_data();
