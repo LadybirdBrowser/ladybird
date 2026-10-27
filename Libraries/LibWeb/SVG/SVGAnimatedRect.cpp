@@ -31,25 +31,6 @@ void SVGAnimatedRect::visit_edges(Visitor& visitor)
     visitor.visit(m_anim_val);
 }
 
-GC::Ptr<Geometry::DOMRect> SVGAnimatedRect::base_val() const
-{
-    if (m_nulled)
-        return nullptr;
-    return m_base_val;
-}
-
-GC::Ptr<Geometry::DOMRect> SVGAnimatedRect::anim_val() const
-{
-    if (m_nulled)
-        return nullptr;
-    return m_anim_val;
-}
-
-void SVGAnimatedRect::set_nulled(bool nulled)
-{
-    m_nulled = nulled;
-}
-
 void SVGAnimatedRect::set_base_val(Gfx::DoubleRect const& rect)
 {
     m_base_val->set(rect);
