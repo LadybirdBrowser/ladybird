@@ -4303,7 +4303,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         context.run();
     }
 
-    pub(crate) fn compute_automatic_block_size_for_block_level_element(
+    fn compute_automatic_block_size_for_block_level_element(
         &self,
         node: Node,
         available_space: AvailableSpace,
