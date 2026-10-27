@@ -94,6 +94,13 @@ partial interface Document {
     readonly attribute Element? scrollingElement;
 };
 
+// INTEROP: Chrome and Safari also expose these hit-testing methods on ShadowRoot.
+// https://drafts.csswg.org/cssom-view/#extensions-to-the-document-interface
+partial interface ShadowRoot {
+    Element? elementFromPoint(double x, double y);
+    sequence<Element> elementsFromPoint(double x, double y);
+};
+
 dictionary CaretPositionFromPointOptions {
     sequence<ShadowRoot> shadowRoots = [];
 };
