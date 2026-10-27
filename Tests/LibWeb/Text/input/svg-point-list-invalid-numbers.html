@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        for (const name of ["polygon", "polyline"]) {
+            const element = document.createElementNS("http://www.w3.org/2000/svg", name);
+            for (const points of ["0,0 1,1", "0,0 1,1 2", "0,0 1,1 2,", "0,0 1,1 INVALID", "0,0 +", "0,0 1,+", "0,0 1e+", "0,0 .", "0,0 1,-", "0,0 1,1,,", " "]) {
+                element.setAttribute("points", points);
+                println(`${name} ${JSON.stringify(points)}: ${element.points.numberOfItems}`);
+            }
+        }
+    });
+</script>

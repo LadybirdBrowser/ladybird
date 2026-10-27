@@ -1,0 +1,72 @@
+<!DOCTYPE HTML>
+<title>SVG list types clear items on invalid attribute parse</title>
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/types.html#InterfaceSVGLengthList">
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/types.html#InterfaceSVGNumberList">
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/types.html#InterfaceSVGPointList">
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/types.html#InterfaceSVGTransformList">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script>
+
+test(function() {
+    const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    text.setAttribute("x", "10 20 30");
+
+    assert_equals(text.x.baseVal.numberOfItems, 3, "initial valid parse gives 3 items");
+
+    // Setting a partially invalid value: valid entries followed by an invalid one.
+    text.setAttribute("x", "10 20 INVALID");
+    assert_equals(text.x.baseVal.numberOfItems, 0,
+        "SVGLengthList: partially invalid attribute value should result in 0 items");
+}, "SVGLengthList clears items when attribute value is invalid");
+
+test(function() {
+    const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    text.setAttribute("rotate", "10 20 30");
+
+    assert_equals(text.rotate.baseVal.numberOfItems, 3, "initial valid parse gives 3 items");
+
+    // Setting a partially invalid value: valid entries followed by an invalid one.
+    text.setAttribute("rotate", "10 20 INVALID");
+    assert_equals(text.rotate.baseVal.numberOfItems, 0,
+        "SVGNumberList: partially invalid attribute value should result in 0 items");
+}, "SVGNumberList clears items when attribute value is invalid");
+
+test(function() {
+    const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+    polygon.setAttribute("points", "0,0 100,0 100,100 0,100");
+
+    assert_equals(polygon.points.numberOfItems, 4, "initial valid parse gives 4 items");
+
+    // Setting a partially invalid value: valid point pairs followed by an invalid one.
+    polygon.setAttribute("points", "0,0 100,0 INVALID");
+    assert_equals(polygon.points.numberOfItems, 0,
+        "SVGPointList: partially invalid attribute value should result in 0 items");
+}, "SVGPointList clears items when attribute value is invalid");
+
+test(function() {
+    const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+
+    // Valid point pairs followed by an incomplete pair.
+    polygon.setAttribute("points", "0,0 100,0 20");
+    assert_equals(polygon.points.numberOfItems, 2,
+        "SVGPointList: partially invalid attribute value should result in 2 items");
+
+    // Valid point pairs followed by an incomplete pair.
+    polygon.setAttribute("points", "0,0 100,0 20,");
+    assert_equals(polygon.points.numberOfItems, 2,
+        "SVGPointList: partially invalid attribute value should result in 2 items");
+}, "SVGPointList truncates items when y attribute value is missing");
+
+test(function() {
+    const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    rect.setAttribute("transform", "translate(10,20) rotate(45)");
+
+    assert_equals(rect.transform.baseVal.numberOfItems, 2, "initial valid parse gives 2 items");
+
+    // Setting a partially invalid value: valid transform followed by an invalid one.
+    rect.setAttribute("transform", "translate(10,20) INVALID");
+    assert_equals(rect.transform.baseVal.numberOfItems, 0,
+        "SVGTransformList: partially invalid attribute value should result in 0 items");
+}, "SVGTransformList clears items when attribute value is invalid");
+</script>
