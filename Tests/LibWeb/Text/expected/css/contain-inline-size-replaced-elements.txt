@@ -1,4 +1,4 @@
-svg with viewBox: 784x392
-zoomed canvas: 80x40
+svg with viewBox: 100x150
+zoomed canvas: 200x40
 zoomed size-contained canvas: 200x40
-zoomed canvas with new intrinsic size: 80x40
+zoomed canvas with new intrinsic size: 100x40
