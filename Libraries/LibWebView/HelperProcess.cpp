@@ -537,6 +537,10 @@ ErrorOr<NonnullRefPtr<WebView::CompositorClient>> launch_compositor_process()
         arguments.append("--force-cpu-painting"sv);
     if (web_content_options.force_fontconfig == WebView::ForceFontconfig::Yes)
         arguments.append("--force-fontconfig"sv);
+    if (auto gpu_device = WebView::Application::the().platform_presentation_gpu_device(); gpu_device.has_value()) {
+        arguments.append("--gpu-device"sv);
+        arguments.append(gpu_device->to_byte_string());
+    }
     if (auto server = mach_server_name(); server.has_value()) {
         arguments.append("--mach-server-name"sv);
         arguments.append(server.value());

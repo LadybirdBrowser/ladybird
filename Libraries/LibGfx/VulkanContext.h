@@ -37,7 +37,8 @@ struct VulkanContext {
 #    endif
 };
 
-ErrorOr<VulkanContext> create_vulkan_context();
+// The preferred device is picked when it is present, since memory the context shares can only be imported on the same one.
+ErrorOr<VulkanContext> create_vulkan_context(Optional<GpuDeviceIdentity> const& preferred_device = {});
 GpuDeviceIdentity gpu_device_identity_of(VkPhysicalDevice);
 
 }

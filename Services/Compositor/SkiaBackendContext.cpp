@@ -139,14 +139,14 @@ size_t SkiaBackendContext::resource_cache_bytes() const
     return bytes;
 }
 
-void SkiaBackendContext::initialize_gpu_backend()
+void SkiaBackendContext::initialize_gpu_backend(Optional<GpuDeviceIdentity> const& preferred_device)
 {
     VERIFY(!main_thread_context());
 
-    main_thread_context() = create_independent_gpu_backend();
+    main_thread_context() = create_independent_gpu_backend(preferred_device);
 }
 
-RefPtr<SkiaBackendContext> SkiaBackendContext::create_independent_gpu_backend()
+RefPtr<SkiaBackendContext> SkiaBackendContext::create_independent_gpu_backend([[maybe_unused]] Optional<GpuDeviceIdentity> const& preferred_device)
 {
 #ifdef AK_OS_MACOS
     auto metal_context = get_metal_context();
@@ -161,7 +161,7 @@ RefPtr<SkiaBackendContext> SkiaBackendContext::create_independent_gpu_backend()
     }
     return create_direct3d_context(maybe_direct3d_context.release_value());
 #elif defined(USE_VULKAN)
-    auto maybe_vulkan_context = Gfx::create_vulkan_context();
+    auto maybe_vulkan_context = Gfx::create_vulkan_context(preferred_device);
     if (maybe_vulkan_context.is_error()) {
         dbgln("Vulkan context creation failed: {}", maybe_vulkan_context.error());
         return {};
