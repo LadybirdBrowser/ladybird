@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 146 tests
+Found 147 tests
 
-146 Pass
+147 Pass
 Pass	border-spacing: 10px; parent=10px; child=10px
 Pass	font-size: 10px; parent=10px; child=10px
 Pass	letter-spacing: 10px; parent=10px; child=10px
@@ -61,6 +61,7 @@ Pass	content: linear-gradient(black 10px, white 20px); parent=linear-gradient(rg
 Pass	cx: 10px; parent=10px; child=10px
 Pass	cy: 10px; parent=10px; child=10px
 Pass	filter: blur(10px); parent=blur(10px); child=blur(10px)
+Pass	fit-tolerance: 10px; parent=10px; child=10px
 Pass	flex-basis: 10px; parent=10px; child=10px
 Pass	grid-auto-columns: 10px; parent=10px; child=10px
 Pass	grid-auto-rows: 10px; parent=10px; child=10px
