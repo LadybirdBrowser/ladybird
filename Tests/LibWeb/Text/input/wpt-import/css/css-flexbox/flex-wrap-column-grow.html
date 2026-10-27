@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox-1/#flex-lines">
+<link rel="stylesheet" type="text/css" href="../../fonts/ahem.css">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+.flex {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: wrap;
+    font: 20px/1 Ahem;
+}
+</style>
+
+<!-- Test 1: single grow item fills to container height -->
+<div class="flex" style="max-height: 100px; width: 100px">
+    <div id="t1" style="width: 50px; height: 50px; flex-grow: 1"></div>
+    <div style="width: 50px; height: 100px"></div>
+</div>
+
+<!-- Test 2: max-height on item is respected -->
+<div class="flex" style="max-height: 100px; width: 150px">
+    <div id="t2a" style="width: 50px; height: 20px; flex-grow: 1; max-height: 40px"></div>
+    <div id="t2b" style="width: 50px; height: 30px; flex-grow: 1"></div>
+    <div style="width: 50px; height: 100px"></div>
+</div>
+
+<!-- Test 3: proportional grow -->
+<div class="flex" style="max-height: 100px; width: 150px">
+    <div id="t3a" style="width: 50px; height: 10px; flex-grow: 2"></div>
+    <div id="t3b" style="width: 50px; height: 10px; flex-grow: 1"></div>
+    <div style="width: 50px; height: 100px"></div>
+</div>
+
+<script>
+test(function() {
+    assert_equals(document.getElementById("t1").offsetHeight, 100,
+        "Item should grow from 50px to 100px to fill the line");
+}, "Single flex-grow item fills multi-line column container height");
+
+test(function() {
+    assert_equals(document.getElementById("t2a").offsetHeight, 40,
+        "Item should grow but be clamped by max-height: 40px");
+    assert_equals(document.getElementById("t2b").offsetHeight, 60,
+        "Remaining space should go to the other grow item");
+}, "flex-grow respects max-height on individual items");
+
+test(function() {
+    var a = document.getElementById("t3a").offsetHeight;
+    var b = document.getElementById("t3b").offsetHeight;
+    assert_equals(a + b, 100, "Items should fill 100px total");
+    assert_greater_than(a, b, "Item with flex-grow: 2 should be taller");
+}, "flex-grow distributes space proportionally");
+</script>
