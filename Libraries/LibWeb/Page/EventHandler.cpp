@@ -2379,10 +2379,8 @@ EventResult EventHandler::handle_keyup(UIEvents::KeyCode key, u32 modifiers, u32
     if (repeat)
         return EventResult::Dropped;
 
-    if (m_held_scroll_key == key) {
-        m_held_scroll_key.clear();
-        m_scroll_key_gesture_hold = nullptr;
-    }
+    if (m_held_scroll_key == key)
+        release_held_scroll_key();
 
     return fire_keyboard_event(UIEvents::EventNames::keyup, m_navigable, key, modifiers, code_point, false);
 }
@@ -5515,10 +5513,17 @@ bool EventHandler::has_committed_root_box() const
     return document && document->has_committed_viewport_box();
 }
 
+void EventHandler::release_held_scroll_key()
+{
+    m_held_scroll_key.clear();
+    m_scroll_key_gesture_hold = nullptr;
+}
+
 void EventHandler::clear_per_test_input_state(Badge<Internals::Internals>)
 {
     clear_mousedown_tracking();
     stop_updating_selection();
+    release_held_scroll_key();
 
     m_middle_button_scroll_handler = nullptr;
     m_mouse_pointer.prevent_mouse_event = false;

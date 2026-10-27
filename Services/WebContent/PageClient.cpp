@@ -208,6 +208,8 @@ void PageClient::set_has_focus(bool has_focus)
     // The focus ring, the text caret, and selection highlight colors all depend on the window focus state, so
     // nothing painted before the change can be reused; repaint every document the page hosts.
     for (auto const& navigable : page().hosted_navigables()) {
+        if (!has_focus)
+            navigable->event_handler().release_held_scroll_key();
         auto document = navigable->active_document();
         if (!document)
             continue;
