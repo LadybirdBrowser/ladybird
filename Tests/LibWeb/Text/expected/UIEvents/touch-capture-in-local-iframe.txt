@@ -1,0 +1,5 @@
+pointerdown: touch, 20, primary=true, captured=true
+gotpointercapture: touch, 20, primary=true, captured=true
+pointermove: touch, 180, primary=true, captured=true
+pointerup: touch, 180, primary=true, captured=true
+lostpointercapture: touch, 180, primary=true, captured=false

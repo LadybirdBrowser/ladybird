@@ -32,6 +32,16 @@ window.test_driver_internal.delete_all_cookies = function(context) {
 const pointerStates = new Map();
 
 window.test_driver_internal.action_sequence = async function(actions, context) {
+    if (actions.some(source => source.type === "pointer" && ["touch", "pen"].includes(source.parameters?.pointerType))) {
+        const converted = actions.map(source => ({ ...source, actions: source.actions.map(action => {
+            if (!(action.origin instanceof Element))
+                return action;
+            const center = elementCenter(action.origin);
+            return { ...action, origin: "viewport", x: Math.round(center.x + (action.x ?? 0)), y: Math.round(center.y + (action.y ?? 0)) };
+        }) }));
+        return window.internals.performActions(JSON.stringify({ actions: converted }));
+    }
+
     // Modifier key codes from WebDriver spec
     const SHIFT = "\uE008";
     const CTRL = "\uE009";

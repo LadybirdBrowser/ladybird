@@ -430,7 +430,13 @@ public:
 
     virtual Utf16FlyString node_name() const override { return "#document"_utf16_fly_string; }
 
-    void set_hovered_node(GC::Ptr<Node>, Optional<HoverEventData> = {});
+    enum class BoundaryEventTypes {
+        Pointer,
+        Mouse,
+        All,
+    };
+    void set_hovered_node(GC::Ptr<Node>, Optional<HoverEventData> = {}, BoundaryEventTypes = BoundaryEventTypes::All);
+    void dispatch_boundary_events(GC::Ptr<Node> old_target, GC::Ptr<Node> target, Optional<HoverEventData>, BoundaryEventTypes);
     Node* hovered_node() { return m_hovered_node.ptr(); }
     Node const* hovered_node() const { return m_hovered_node.ptr(); }
 

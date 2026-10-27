@@ -3330,16 +3330,24 @@ static void mark_mouse_transition_event_as_trusted_if_needed(Event& event, Optio
         event.set_is_trusted(true);
 }
 
-void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hover_event_data)
+void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hover_event_data, BoundaryEventTypes types)
 {
-    Layout::ForcedReadScope read { *this };
     // The style's hover follows the node the events hover. A hover beside the host may have moved it already, while
     // the hovered node of the events stayed.
     CSS::move_style_hover(*this, node);
     if (m_hovered_node == node)
         return;
 
-    GC::Ptr<Node> old_hovered_node = move(m_hovered_node);
+    auto old_hovered_node = m_hovered_node;
+    m_hovered_node = node;
+    dispatch_boundary_events(old_hovered_node, node, hover_event_data, types);
+}
+
+void Document::dispatch_boundary_events(GC::Ptr<Node> old_hovered_node, GC::Ptr<Node> node, Optional<HoverEventData> hover_event_data, BoundaryEventTypes types)
+{
+    if (old_hovered_node == node)
+        return;
+    Layout::ForcedReadScope read { *this };
     // AD-HOC: The boundary event steps in the Pointer Events spec walk the target's inclusive ancestors, which stop at
     //         the shadow root and ignore slot assignment. Chromium and Gecko walk the flat tree instead, so content
     //         assigned to a slot is inside the elements around that slot.
@@ -3376,8 +3384,6 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
     for (auto* target = node.ptr(); target && target != common_ancestor; target = target->flat_tree_parent())
         entered_ancestors.append(make_hover_event_target(*target));
 
-    m_hovered_node = node;
-
     auto current_event_time_stamp = [&] {
         return HighResolutionTime::current_high_resolution_time(relevant_global_object(*this));
     };
@@ -3401,12 +3407,12 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
     };
 
     // https://w3c.github.io/pointerevents/#the-pointerout-event
-    if (old_hovered_node && old_hovered_node != m_hovered_node) {
+    if (types != BoundaryEventTypes::Mouse && old_hovered_node && old_hovered_node != node) {
         UIEvents::PointerEventOptions pointer_event_options;
         pointer_event_options.bubbles = true;
         pointer_event_options.cancelable = true;
         pointer_event_options.composed = true;
-        pointer_event_options.related_target = m_hovered_node;
+        pointer_event_options.related_target = node;
         pointer_event_options.is_primary = true;
         pointer_event_options.pointer_type = UIEvents::PointerTypes::Mouse;
         pointer_event_options.view = window_proxy;
@@ -3419,12 +3425,12 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
     }
 
     // https://w3c.github.io/uievents/#mouseout
-    if (old_hovered_node && old_hovered_node != m_hovered_node) {
+    if (types != BoundaryEventTypes::Pointer && old_hovered_node && old_hovered_node != node) {
         UIEvents::MouseEventOptions mouse_event_options;
         mouse_event_options.bubbles = true;
         mouse_event_options.cancelable = true;
         mouse_event_options.composed = true;
-        mouse_event_options.related_target = m_hovered_node;
+        mouse_event_options.related_target = node;
         mouse_event_options.view = window_proxy;
         if (hover_event_data.has_value())
             populate_mouse_event_options_from_hover_event_data(mouse_event_options, *hover_event_data, window_proxy);
@@ -3435,10 +3441,10 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
     }
 
     // https://w3c.github.io/pointerevents/#the-pointerleave-event
-    if (!left_ancestors.is_empty()) {
+    if (types != BoundaryEventTypes::Mouse && !left_ancestors.is_empty()) {
         for (auto const& target : left_ancestors) {
             UIEvents::PointerEventOptions pointer_event_options;
-            pointer_event_options.related_target = m_hovered_node;
+            pointer_event_options.related_target = node;
             pointer_event_options.is_primary = true;
             pointer_event_options.pointer_type = UIEvents::PointerTypes::Mouse;
             pointer_event_options.view = window_proxy;
@@ -3452,10 +3458,10 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
     }
 
     // https://w3c.github.io/uievents/#mouseleave
-    if (!left_ancestors.is_empty()) {
+    if (types != BoundaryEventTypes::Pointer && !left_ancestors.is_empty()) {
         for (auto const& target : left_ancestors) {
             UIEvents::MouseEventOptions mouse_event_options;
-            mouse_event_options.related_target = m_hovered_node;
+            mouse_event_options.related_target = node;
             if (hover_event_data.has_value())
                 populate_mouse_event_options_from_hover_event_data(mouse_event_options, *hover_event_data, window_proxy);
             auto offset = target.offset;
@@ -3466,7 +3472,7 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
     }
 
     // https://w3c.github.io/pointerevents/#the-pointerover-event
-    if (m_hovered_node && m_hovered_node != old_hovered_node) {
+    if (types != BoundaryEventTypes::Mouse && node && node != old_hovered_node) {
         UIEvents::PointerEventOptions pointer_event_options;
         pointer_event_options.bubbles = true;
         pointer_event_options.cancelable = true;
@@ -3480,11 +3486,11 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
         auto offset = *hovered_node_offset;
         auto event = create_pointer_event(UIEvents::EventNames::pointerover, move(pointer_event_options), offset);
         mark_mouse_transition_event_as_trusted_if_needed(event, hover_event_data);
-        m_hovered_node->dispatch_event(event);
+        node->dispatch_event(event);
     }
 
     // https://w3c.github.io/uievents/#mouseover
-    if (m_hovered_node && m_hovered_node != old_hovered_node) {
+    if (types != BoundaryEventTypes::Pointer && node && node != old_hovered_node) {
         UIEvents::MouseEventOptions mouse_event_options;
         mouse_event_options.bubbles = true;
         mouse_event_options.cancelable = true;
@@ -3496,7 +3502,7 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
         auto offset = *hovered_node_offset;
         auto event = create_mouse_event(UIEvents::EventNames::mouseover, mouse_event_options, offset);
         mark_mouse_transition_event_as_trusted_if_needed(event, hover_event_data);
-        m_hovered_node->dispatch_event(event);
+        node->dispatch_event(event);
     }
 
     // https://w3c.github.io/pointerevents/#the-pointerenter-event
@@ -3505,24 +3511,28 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
     // Leave events are dispatched in the opposite order.
     if (!entered_ancestors.is_empty()) {
         for (auto target : entered_ancestors.in_reverse()) {
-            UIEvents::PointerEventOptions pointer_event_options;
-            pointer_event_options.related_target = old_hovered_node;
-            pointer_event_options.is_primary = true;
-            pointer_event_options.pointer_type = UIEvents::PointerTypes::Mouse;
-            pointer_event_options.view = window_proxy;
-            if (hover_event_data.has_value())
-                populate_mouse_event_options_from_hover_event_data(pointer_event_options, *hover_event_data, window_proxy);
             auto offset = target.offset;
-            auto pointer_event = create_pointer_event(UIEvents::EventNames::pointerenter, move(pointer_event_options), offset);
-            mark_mouse_transition_event_as_trusted_if_needed(pointer_event, hover_event_data);
-            target.node->dispatch_event(pointer_event);
-            UIEvents::MouseEventOptions mouse_event_options;
-            mouse_event_options.related_target = old_hovered_node;
-            if (hover_event_data.has_value())
-                populate_mouse_event_options_from_hover_event_data(mouse_event_options, *hover_event_data, window_proxy);
-            auto mouse_event = create_mouse_event(UIEvents::EventNames::mouseenter, mouse_event_options, offset);
-            mark_mouse_transition_event_as_trusted_if_needed(mouse_event, hover_event_data);
-            target.node->dispatch_event(mouse_event);
+            if (types != BoundaryEventTypes::Mouse) {
+                UIEvents::PointerEventOptions pointer_event_options;
+                pointer_event_options.related_target = old_hovered_node;
+                pointer_event_options.is_primary = true;
+                pointer_event_options.pointer_type = UIEvents::PointerTypes::Mouse;
+                pointer_event_options.view = window_proxy;
+                if (hover_event_data.has_value())
+                    populate_mouse_event_options_from_hover_event_data(pointer_event_options, *hover_event_data, window_proxy);
+                auto pointer_event = create_pointer_event(UIEvents::EventNames::pointerenter, move(pointer_event_options), offset);
+                mark_mouse_transition_event_as_trusted_if_needed(pointer_event, hover_event_data);
+                target.node->dispatch_event(pointer_event);
+            }
+            if (types != BoundaryEventTypes::Pointer) {
+                UIEvents::MouseEventOptions mouse_event_options;
+                mouse_event_options.related_target = old_hovered_node;
+                if (hover_event_data.has_value())
+                    populate_mouse_event_options_from_hover_event_data(mouse_event_options, *hover_event_data, window_proxy);
+                auto mouse_event = create_mouse_event(UIEvents::EventNames::mouseenter, mouse_event_options, offset);
+                mark_mouse_transition_event_as_trusted_if_needed(mouse_event, hover_event_data);
+                target.node->dispatch_event(mouse_event);
+            }
         }
     }
 }

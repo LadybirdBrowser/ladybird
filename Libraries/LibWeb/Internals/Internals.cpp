@@ -8,6 +8,7 @@
 #include <AK/Find.h>
 #include <AK/HashTable.h>
 #include <AK/JsonObject.h>
+#include <AK/JsonParser.h>
 #include <AK/NumericLimits.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf16StringBuilder.h>
@@ -108,6 +109,8 @@
 #include <LibWeb/ResizeObserver/ResizeObserver.h>
 #include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/StyleValueRustFFI.h>
+#include <LibWeb/WebDriver/Actions.h>
+#include <LibWeb/WebDriver/InputState.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/Promise.h>
 #include <LibWeb/WebSockets/WebSocket.h>
@@ -117,6 +120,7 @@
 #include <LibWebCommon/Page/DragEvent.h>
 #include <LibWebCommon/Page/InputEvent.h>
 #include <LibWebCommon/StorageAPI/StorageEndpoint.h>
+#include <LibWebCommon/WebDriver/Response.h>
 
 namespace Web::Internals {
 
@@ -175,6 +179,11 @@ void Internals::visit_edges(GC::Cell::Visitor& visitor)
 
 void Internals::signal_test_is_done(Utf16String const& text)
 {
+    // NB: A listener may finish a test while the UI still owns input from its action sequence.
+    if (m_actions_running) {
+        m_pending_action_test_result = text;
+        return;
+    }
     perform_per_test_cleanup();
     page().client().page_did_finish_test(text);
 }
@@ -729,6 +738,49 @@ static Web::MouseEvent::Type mouse_event_type_from(Bindings::MouseEventThroughUI
         return Web::MouseEvent::Type::MouseLeave;
     }
     VERIFY_NOT_REACHED();
+}
+
+void Internals::perform_actions(Utf16String const& json, GC::Ref<WebIDL::Promise> promise)
+{
+    auto& realm = window().principal_realm();
+    auto reject = [&](String const& message) {
+        WebIDL::reject_promise(realm, promise, JS::PrimitiveString::create(vm(), Utf16String::from_utf8(message)));
+    };
+    if (m_actions_running) {
+        reject("An action sequence is already running"_string);
+        return;
+    }
+    auto value = JsonValue::from_string(json.to_utf8());
+    if (value.is_error()) {
+        reject("Invalid action JSON"_string);
+        return;
+    }
+    auto& input_state = WebDriver::get_input_state(*window().navigable()->top_level_traversable());
+    WebDriver::ActionsOptions options;
+    options.is_element_origin = [](JsonValue const&) { return false; };
+    auto actions = WebDriver::extract_an_action_sequence(input_state, value.release_value(), options);
+    if (actions.is_error()) {
+        reject(actions.error().message);
+        return;
+    }
+    let_compositor_take_in_every_rendered_frame(window());
+    m_actions_running = true;
+    auto executor = WebDriver::dispatch_actions(input_state, actions.release_value(), *window().associated_document().browsing_context(), options,
+        GC::create_function(heap(), [this, promise, realm = GC::Ref { realm }](WebDriver::Response response) {
+            HTML::TemporaryExecutionContext context { *realm };
+            m_actions_running = false;
+            m_actions_executor = {};
+            if (response.is_error())
+                WebIDL::reject_promise(*realm, promise, JS::PrimitiveString::create(realm->vm(), Utf16String::from_utf8(response.error().message)));
+            else
+                WebIDL::resolve_promise(*realm, promise);
+            if (m_pending_action_test_result.has_value()) {
+                auto text = m_pending_action_test_result.release_value();
+                signal_test_is_done(text);
+            }
+        }));
+    if (m_actions_running)
+        m_actions_executor = GC::make_root(executor);
 }
 
 void Internals::mouse_event_through_ui_process(Bindings::MouseEventThroughUIProcessType type, double x, double y, Bindings::MouseEventThroughUIProcessOptions const& options, GC::Ref<WebIDL::Promise> promise)

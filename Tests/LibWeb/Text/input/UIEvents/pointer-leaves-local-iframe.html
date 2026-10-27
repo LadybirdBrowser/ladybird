@@ -1,0 +1,57 @@
+<!doctype html>
+<meta charset="utf-8" />
+<style>
+    body {
+        margin: 0;
+    }
+    iframe {
+        position: absolute;
+        left: 40px;
+        top: 30px;
+        width: 100px;
+        height: 100px;
+        border: 0;
+    }
+    #outside {
+        position: absolute;
+        left: 180px;
+        top: 30px;
+        width: 100px;
+        height: 100px;
+    }
+</style>
+<iframe srcdoc="<style>body{margin:0}div{width:100px;height:100px}</style><div id='target'></div>"></iframe>
+<div id="outside"></div>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const frame = document.querySelector("iframe");
+        if (!frame.contentDocument.getElementById("target")) await new Promise(resolve => (frame.onload = resolve));
+        const target = frame.contentDocument.getElementById("target");
+        for (const type of ["pointerout", "pointerleave"])
+            target.addEventListener(type, event => {
+                if (event.pointerType === "pen") println(`${type}: ${event.clientX},${event.clientY}`);
+            });
+        const pen = { pointerType: "pen", pointerId: 20 };
+        await internals.mouseEventThroughUIProcess("mousemove", 65, 55, { pointer: pen });
+        await internals.mouseEventThroughUIProcess("mousemove", 185, 55, { pointer: pen });
+        await internals.mouseEventThroughUIProcess("mousemove", 190, 55, { pointer: pen });
+
+        target.addEventListener("pointerdown", event => {
+            target.releasePointerCapture(event.pointerId);
+            println(`touch pointerdown: primary=${event.isPrimary}`);
+        });
+        target.addEventListener("touchstart", event => println(`touchstart: touches=${event.touches.length}`));
+        target.addEventListener("touchcancel", event =>
+            println(`touchcancel: touches=${event.touches.length}, changed=${event.changedTouches.length}`)
+        );
+        target.addEventListener("click", event => println(`click: ${event.pointerType}`));
+        const first = { pointerType: "touch", pointerId: 21 };
+        await internals.mouseEventThroughUIProcess("mousedown", 65, 55, { pointer: first });
+        await internals.mouseEventThroughUIProcess("mouseup", 185, 55, { pointer: first });
+        const second = { pointerType: "touch", pointerId: 22 };
+        await internals.mouseEventThroughUIProcess("mousedown", 65, 55, { pointer: second });
+        await internals.mouseEventThroughUIProcess("mouseup", 65, 55, { pointer: second });
+        done();
+    });
+</script>

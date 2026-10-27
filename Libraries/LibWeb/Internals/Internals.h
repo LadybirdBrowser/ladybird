@@ -8,6 +8,7 @@
 
 #include <LibCompositing/Scrolling/AsyncScrollTree.h>
 #include <LibCompositing/Scrolling/AsyncScrollingState.h>
+#include <LibGC/Root.h>
 #include <LibWeb/Bindings/Internals.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Export.h>
@@ -99,6 +100,7 @@ public:
     void send_text_through_ui_process(Utf16String const&);
     void grant_transient_activation();
     void click_through_ui_process(double x, double y, GC::Ref<WebIDL::Promise>);
+    void perform_actions(Utf16String const&, GC::Ref<WebIDL::Promise>);
     void mouse_event_through_ui_process(Bindings::MouseEventThroughUIProcessType, double x, double y, Bindings::MouseEventThroughUIProcessOptions const&, GC::Ref<WebIDL::Promise>);
     void wheel_through_ui_process(double x, double y, double delta_x, double delta_y, bool precise, Bindings::ScrollGesturePhase, Bindings::WheelTicks const&, GC::Ref<WebIDL::Promise>);
     void send_key(HTML::HTMLElement&, Utf16String const&, WebIDL::UnsignedShort modifiers, WebIDL::UnsignedLong repeat_count);
@@ -334,6 +336,9 @@ private:
 
     UIEvents::MouseButton button_from_unsigned_short(WebIDL::UnsignedShort button);
 
+    GC::Root<JS::Cell> m_actions_executor;
+    bool m_actions_running { false };
+    Optional<Utf16String> m_pending_action_test_result;
     Vector<GC::Ref<InternalGamepad>> m_gamepads;
 };
 

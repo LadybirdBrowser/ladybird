@@ -1,0 +1,21 @@
+<!doctype html>
+<style>body{margin:0}#target{width:100px;height:100px}</style>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+asyncTest(async done => {
+    for (const type of ["pointercancel", "mouseup"])
+        window.addEventListener(type, event => println(`${type}: ${event.target===window ? "window" : event.target.id}, buttons=${event.buttons}`));
+    await internals.performActions(JSON.stringify({actions:[{type:"pointer",id:"pen",parameters:{pointerType:"pen"},actions:[
+        {type:"pointerMove",x:20,y:20},{type:"pointerDown",button:0},{type:"pointerCancel"}
+    ]}]}));
+    let pointerLeaves=0, mouseLeaves=0;
+    target.addEventListener("pointerleave", () => ++pointerLeaves);
+    target.addEventListener("mouseleave", () => ++mouseLeaves);
+    const pointer = {pointerType:"pen",pointerId:20};
+    await internals.mouseEventThroughUIProcess("mousemove",20,20,{pointer});
+    await internals.mouseEventThroughUIProcess("mouseleave",20,20,{pointer});
+    println(`leaves: pointer=${pointerLeaves}, mouse=${mouseLeaves}, hover=${target.matches(":hover")}`);
+    done();
+});
+</script>

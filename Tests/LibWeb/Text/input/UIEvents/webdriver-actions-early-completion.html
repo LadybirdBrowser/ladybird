@@ -1,0 +1,15 @@
+<!doctype html>
+<style>body{margin:0}#target{width:100px;height:100px}</style>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+asyncTest(async done => {
+    target.addEventListener("pointerdown", () => {
+        println("finished from a pointerdown listener");
+        done();
+    });
+    await internals.performActions(JSON.stringify({actions:[{type:"pointer",id:"touch",parameters:{pointerType:"touch"},actions:[
+        {type:"pointerMove",x:20,y:20},{type:"pointerDown",button:0},{type:"pointerMove",x:30,y:30},{type:"pointerUp",button:0}
+    ]}]}));
+});
+</script>
