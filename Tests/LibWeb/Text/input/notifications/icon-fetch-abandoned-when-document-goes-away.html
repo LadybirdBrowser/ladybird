@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A notification still waiting for its icon when its document goes away never shows: it would be attributed to
+    // whatever the page shows next.
+    asyncTest(async done => {
+        await internals.setPermission("notifications", "granted");
+        const server = httpTestServer();
+        const slowIcon = await server.createEcho("GET", "/notifications/slow-icon.png", {
+            status: 200,
+            headers: { "Content-Type": "image/png" },
+            body: "",
+            delay_ms: 1500,
+        });
+
+        const iframe = document.createElement("iframe");
+        iframe.srcdoc = `<!DOCTYPE html><script>
+            const notification = new Notification("From a document that goes away mid-fetch", { icon: ${JSON.stringify(slowIcon)} });
+            notification.onshow = () => parent.postMessage("show", "*");
+            notification.onerror = () => parent.postMessage("error", "*");
+            parent.postMessage("created", "*");
+        <\/script>`;
+        const first = await new Promise(resolve => {
+            addEventListener("message", event => resolve(event.data), { once: true });
+            document.body.appendChild(iframe);
+        });
+        println(`frame: ${first}`);
+        iframe.remove();
+
+        // Longer than the show steps' bound on the icon fetch, so a notification that outlived its document would
+        // have shown by now.
+        await new Promise(resolve => setTimeout(resolve, 6000));
+        const state = JSON.parse(internals.notificationsStateForTesting());
+        println(`shown after the document went away: ${state.shown.length}`);
+        done();
+    });
+</script>

@@ -186,10 +186,11 @@ private:
     GC::Ptr<JS::Object> m_relevant_global;
     GC::Ptr<Page> m_page;
 
-    // Where the notification is on its way through the UI process. Showing and Closing mean it's in the page's list of
-    // notifications; Closed means it has left it for good.
+    // Where the notification is on its way to the platform. From Pending on it's in the page's list of notifications,
+    // which keeps it alive; Closed means it has left the list for good.
     enum class State {
         Idle,
+        Pending,
         Showing,
         Closing,
         Closed,
