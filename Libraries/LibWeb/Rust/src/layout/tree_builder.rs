@@ -3836,18 +3836,11 @@ impl<'a> TreeBuilderHost<'a> {
         UnplacedLayoutNode::new(slot)
     }
 
-    fn anonymous_wrapper_overrides(&self, parent: LayoutNode) -> AnonymousStyleOverrides {
-        AnonymousStyleOverrides {
-            inline_block_wrapper: self.display(parent).is_inline_block() && self.first_child(parent).is_invalid(),
-            ..AnonymousStyleOverrides::default()
-        }
-    }
-
     fn create_anonymous_wrapper_box(&mut self, parent: LayoutNode) -> UnplacedLayoutNode {
         self.create_anonymous_box(
             parent,
             AnonymousStyleKind::Wrapper,
-            self.anonymous_wrapper_overrides(parent),
+            AnonymousStyleOverrides::default(),
             NodeKind::BlockContainer,
         )
     }
@@ -4808,7 +4801,7 @@ fn wrap_button_contents_if_needed(host: &mut TreeBuilderHost<'_>, layout_node: L
             AnonymousStyleKind::ButtonContentBox,
             AnonymousStyleOverrides {
                 columns_from_parent: !node_facts::has_flag(host.data(layout_node), NodeFlag::IsHtmlInputElement),
-                ..host.anonymous_wrapper_overrides(layout_node)
+                ..AnonymousStyleOverrides::default()
             },
             NodeKind::BlockContainer,
         );
@@ -4862,7 +4855,6 @@ fn wrap_fieldset_contents_if_needed(host: &mut TreeBuilderHost<'_>, layout_node:
 
         let style = node_facts::node_style_view(host.data(layout_node)).expect("fieldset style");
         let overrides = AnonymousStyleOverrides {
-            inline_block_wrapper: false,
             overflow_x: style.box_values().overflow_x,
             overflow_y: style.box_values().overflow_y,
             columns_from_parent: true,
