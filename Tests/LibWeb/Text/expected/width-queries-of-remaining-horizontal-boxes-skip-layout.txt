@@ -9,4 +9,4 @@ grid-limited-to-min-content-in-fixed-width-box: 1 inline misses answered from gr
 grid-limited-to-max-content-in-fixed-width-box: 1 inline misses answered from grid tracks, 0 runs under them, width 150
 svg-without-natural-size: 1 inline misses answered from replaced content, 0 runs under them, width 200
 contained-with-ratio: 0 inline misses answered from nothing, 0 runs under them, width 50
-block-ruby: 1 inline misses answered from replaced content, 0 runs under them, width 0
+block-ruby: 1 inline misses answered from children, 0 runs under them, width 50

@@ -665,8 +665,7 @@ pub(super) fn content_sizes_of_replaced_content(
     }
     let size = match formatting_context::independent_formatting_context_type(node, &callbacks) {
         formatting_context::FormattingContextType::Svg
-        | formatting_context::FormattingContextType::InternalReplaced
-        | formatting_context::FormattingContextType::InternalDummy => CssPixels::default(),
+        | formatting_context::FormattingContextType::InternalReplaced => CssPixels::default(),
         formatting_context::FormattingContextType::ReplacedWithChildren => scope.root().content_inline_size.get(),
         _ => return None,
     };

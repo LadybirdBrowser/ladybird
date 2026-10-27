@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; font: 20px/20px SerenitySans; }
+    .case { width: 300px; height: 120px; }
+    .block { width: 50px; height: 20px; }
+    .vertical { writing-mode: vertical-rl; height: 100px; }
+    legend, input { margin: 0; padding: 0; }
+</style>
+<div class="case"><div id="block-ruby" style="display: block ruby"><div class="block"></div>text</div></div>
+<div class="case"><div id="block-ruby-flow-twin" style="display: block"><div class="block"></div>text</div></div>
+<div class="case"><div id="vertical-block-ruby" class="vertical" style="display: block ruby"><div class="block"></div>text</div></div>
+<div class="case"><div id="vertical-block-ruby-flow-twin" class="vertical" style="display: block"><div class="block"></div>text</div></div>
+<div class="case"><legend id="inline-ruby-legend-with-block-child" style="display: ruby"><div class="block"></div></legend></div>
+<div class="case"><legend id="inline-ruby-legend-with-block-child-flow-twin" style="display: inline"><div class="block"></div></legend></div>
+<div class="case"><legend id="inline-ruby-legend-with-text" style="display: ruby">text</legend></div>
+<div class="case"><legend id="inline-ruby-legend-with-text-flow-twin" style="display: inline">text</legend></div>
+<div class="case"><legend id="ruby-text-legend" style="display: ruby-text"><div class="block"></div>text</legend></div>
+<div class="case"><legend id="ruby-text-legend-flow-twin" style="display: block"><div class="block"></div>text</legend></div>
+<div class="case"><input id="inline-ruby-input" style="display: ruby" value="text"></div>
+<div class="case"><input id="inline-ruby-input-flow-twin" style="display: inline" value="text"></div>
+<script>
+    test(() => {
+        const geometry = id => {
+            const box = document.getElementById(id);
+            const boxRect = box.getBoundingClientRect();
+            const caseRect = box.parentElement.getBoundingClientRect();
+            const parts = [`${boxRect.width}x${boxRect.height} at ${boxRect.left - caseRect.left},${boxRect.top - caseRect.top}`];
+            const child = box.querySelector(".block");
+            if (child) {
+                const childRect = child.getBoundingClientRect();
+                parts.push(`child ${childRect.width}x${childRect.height} at ${childRect.left - boxRect.left},${childRect.top - boxRect.top}`);
+            }
+            return parts.join(", ");
+        };
+        for (const id of [
+            "block-ruby",
+            "vertical-block-ruby",
+            "inline-ruby-legend-with-block-child",
+            "inline-ruby-legend-with-text",
+            "ruby-text-legend",
+            "inline-ruby-input",
+        ]) {
+            const ruby = geometry(id);
+            const flow = geometry(`${id}-flow-twin`);
+            println(`${id}: ${ruby}${ruby === flow ? ", same as its flow twin" : `, flow twin: ${flow}`}`);
+        }
+    });
+</script>

@@ -952,7 +952,6 @@ pub enum FormattingContextType {
     Math,
     ReplacedWithChildren,
     InternalReplaced,
-    InternalDummy,
 }
 
 impl FormattingContextType {
@@ -1298,7 +1297,6 @@ enum FormattingContextImplementation<'pass> {
     Math(Box<math_formatting_context::MathFormattingContext<'pass>>),
     ReplacedWithChildren,
     InternalReplaced,
-    InternalDummy,
 }
 
 pub(crate) fn formatting_context_type_created_by_node_data(
@@ -1361,30 +1359,13 @@ pub(crate) fn formatting_context_type_created_by_node_data(
         }
         return Some(FormattingContextType::Math);
     }
-    if node_facts::node_creates_block_formatting_context(
+    node_facts::node_creates_block_formatting_context(
         data,
         style,
         parent_is_flex_or_grid_container,
         parent_writing_mode,
-    ) {
-        return Some(FormattingContextType::Block);
-    }
-    if node_facts::has_flag(data, NodeFlag::ChildrenAreInline)
-        || display.is_some_and(|display| {
-            display.is_table_column()
-                || display.is_table_column_group()
-                || display.is_table_row()
-                || display.is_table_row_group()
-                || display.is_table_header_group()
-                || display.is_table_footer_group()
-        })
-    {
-        return None;
-    }
-    if !display.is_some_and(|display| display.is_flow_inside()) {
-        return Some(FormattingContextType::InternalDummy);
-    }
-    None
+    )
+    .then_some(FormattingContextType::Block)
 }
 
 pub(crate) fn formatting_context_type_created_by_box(facts: NodeFacts<'_>) -> Option<FormattingContextType> {
@@ -1429,7 +1410,6 @@ fn create_formatting_context_implementation<'pass>(
         }
         FormattingContextType::ReplacedWithChildren => FormattingContextImplementation::ReplacedWithChildren,
         FormattingContextType::InternalReplaced => FormattingContextImplementation::InternalReplaced,
-        FormattingContextType::InternalDummy => FormattingContextImplementation::InternalDummy,
     }
 }
 
@@ -2237,8 +2217,7 @@ fn execute_formatting_context_run(
                     FormattingContextImplementation::ReplacedWithChildren => {
                         replaced_with_children_formatting_context::layout_replaced_with_children(body_run, body_input)
                     }
-                    FormattingContextImplementation::InternalReplaced
-                    | FormattingContextImplementation::InternalDummy => ChildLayoutResult::default(),
+                    FormattingContextImplementation::InternalReplaced => ChildLayoutResult::default(),
                 };
                 implementation = Some(context_implementation);
                 result
@@ -2374,8 +2353,7 @@ fn execute_formatting_context_run(
                     }
                     FormattingContextImplementation::Svg(_) | FormattingContextImplementation::ReplacedWithChildren => {
                     }
-                    FormattingContextImplementation::InternalReplaced
-                    | FormattingContextImplementation::InternalDummy => {
+                    FormattingContextImplementation::InternalReplaced => {
                         return run.outputs(
                             result,
                             take_run_fragments(),
@@ -3094,15 +3072,11 @@ pub(super) fn independent_formatting_context_type(box_: Node, callbacks: &Layout
     if let Some(fc_type) = formatting_context_type_created_by_box(facts) {
         return fc_type;
     }
-    if facts.is_block_container() {
-        return FormattingContextType::Block;
-    }
-
-    // HACK: Instead of crashing in scenarios that assume the formatting context can be created, create a dummy formatting context that does nothing.
-    eprintln!(
-        "FIXME: An independent formatting context was requested from a Box that does not have a formatting context type. A dummy formatting context will be created instead."
+    assert!(
+        facts.is_block_container(),
+        "a box that creates no formatting context must be a block container to be laid out in one"
     );
-    FormattingContextType::InternalDummy
+    FormattingContextType::Block
 }
 
 pub(crate) fn resolve_block_axis_percentage_inset_basis_is_definite(

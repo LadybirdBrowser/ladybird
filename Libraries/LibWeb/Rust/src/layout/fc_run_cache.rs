@@ -968,10 +968,7 @@ pub(super) fn can_describe_run(
     let input = &key.input;
     if should_collect_devtools_layout_data
         || (input.participation == ParticipationInParentFormattingContext::Root && !measurement_root_keeps_its_result)
-        || matches!(
-            fc_type,
-            formatting_context::FormattingContextType::InternalReplaced | formatting_context::FormattingContextType::InternalDummy
-        )
+        || fc_type == formatting_context::FormattingContextType::InternalReplaced
         // The direct normal-layout path for an empty atomic block only sizes and snapshots its root.
         // Replaying a stored output costs more than rebuilding it and retains an entry needlessly.
         || (fc_type == formatting_context::FormattingContextType::Block

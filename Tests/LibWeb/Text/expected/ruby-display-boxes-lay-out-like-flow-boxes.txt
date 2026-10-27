@@ -1,0 +1,6 @@
+block-ruby: 300x40 at 0,0, child 50x20 at 0,0, same as its flow twin
+vertical-block-ruby: 70x100 at 0,0, child 50x20 at 20,0, same as its flow twin
+inline-ruby-legend-with-block-child: 50x20 at 0,0, child 50x20 at 0,0, same as its flow twin
+inline-ruby-legend-with-text: 40.1875x20 at 0,0, same as its flow twin
+ruby-text-legend: 300x40 at 0,0, child 50x20 at 0,0, same as its flow twin
+inline-ruby-input: 242x22 at 0,0, same as its flow twin
