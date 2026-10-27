@@ -13,6 +13,7 @@ set(SOURCES
     EventLoopImplementation.cpp
     EventReceiver.cpp
     File.cpp
+    GeolocationAuthorization.cpp
     GeolocationProvider.cpp
     ImmutableBytes.cpp
     MimeData.cpp

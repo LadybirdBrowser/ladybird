@@ -12,6 +12,7 @@
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <LibCore/Export.h>
+#include <LibCore/GeolocationAuthorization.h>
 
 namespace Core {
 
@@ -55,6 +56,9 @@ public:
     virtual void cancel_current_position_request(RequestId) = 0;
     virtual ErrorOr<WatchId, GeolocationError> start_watching_position(SuccessCallback on_success, ErrorCallback on_error) = 0;
     virtual void stop_watching_position(WatchId) = 0;
+
+    virtual GeolocationAuthorization authorization() const { return GeolocationAuthorization::Unknown; }
+    Function<void()> on_authorization_change;
 };
 
 }
