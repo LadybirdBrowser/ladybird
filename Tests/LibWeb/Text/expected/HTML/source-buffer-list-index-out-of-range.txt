@@ -1,0 +1,18 @@
+sourceBuffers[0] is undefined: true
+sourceBuffers has index 0: false
+sourceBuffers has an own property at 0: false
+sourceBuffers[7] is undefined: true
+sourceBuffers has index 7: false
+sourceBuffers has an own property at 7: false
+sourceBuffers[4294967294] is undefined: true
+sourceBuffers has index 4294967294: false
+sourceBuffers has an own property at 4294967294: false
+activeSourceBuffers[0] is undefined: true
+activeSourceBuffers has index 0: false
+activeSourceBuffers has an own property at 0: false
+activeSourceBuffers[7] is undefined: true
+activeSourceBuffers has index 7: false
+activeSourceBuffers has an own property at 7: false
+activeSourceBuffers[4294967294] is undefined: true
+activeSourceBuffers has index 4294967294: false
+activeSourceBuffers has an own property at 4294967294: false

@@ -171,8 +171,6 @@ def indexed_property_getter_value_mode(interface: Interface) -> str:
         return "optional"
     if interface.name in ("SVGLengthList", "SVGNumberList", "SVGPointList", "SVGStringList", "SVGTransformList"):
         return "svg_list"
-    if interface.name in ("SourceBufferList",):
-        return "value"
     return "pointer"
 
 

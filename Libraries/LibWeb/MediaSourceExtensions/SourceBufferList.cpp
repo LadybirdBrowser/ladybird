@@ -60,8 +60,14 @@ size_t SourceBufferList::length() const
     return m_buffers.size();
 }
 
-GC::Ref<SourceBuffer> const& SourceBufferList::item(u32 index) const
+// https://w3c.github.io/media-source/#dfn-sourcebufferlist-getter
+GC::Ptr<SourceBuffer> SourceBufferList::item(u32 index) const
 {
+    // 1. If index is greater than or equal to the length attribute then return undefined and abort these steps.
+    if (index >= m_buffers.size())
+        return nullptr;
+
+    // 2. Return the index'th SourceBuffer object in the list.
     return m_buffers[index];
 }
 
