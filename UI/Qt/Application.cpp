@@ -9,6 +9,9 @@
 #include <LibURL/URL.h>
 #include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/NotificationBackend.h>
+#if defined(AK_OS_MACOS)
+#    include <LibWebView/NotificationBackendMacOS.h>
+#endif
 #include <LibWebView/SessionStore.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/Utilities.h>
@@ -1300,8 +1303,12 @@ static BrowserWindow* window_for_view(WebView::ViewImplementation const& view)
 
 NonnullOwnPtr<WebView::NotificationBackend> Application::create_notification_backend()
 {
-    // The platform backends follow; until then, pages see every show fail.
+#if defined(AK_OS_MACOS)
+    return make<WebView::NotificationBackendMacOS>();
+#else
+    // The Freedesktop backend follows; until then, pages see every show fail.
     return WebView::Application::create_notification_backend();
+#endif
 }
 
 void Application::focus_page_from_notification(WebView::WebContentPage& page)
