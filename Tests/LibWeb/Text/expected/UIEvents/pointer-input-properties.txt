@@ -1,20 +1,24 @@
+pointerover: pen id=7 primary=true trusted=true
+  contact=12,18 pressure=0.75 tangential=0.25
+  tilt=30,-20 twist=90 altitude=0.5 azimuth=1.25
+  client=10,20 button=-1 buttons=1 shift=true
+pointerdown: pen id=7 primary=true trusted=true
+  contact=12,18 pressure=0.75 tangential=0.25
+  tilt=30,-20 twist=90 altitude=0.5 azimuth=1.25
+  client=10,20 button=0 buttons=1 shift=true
+pointermove: pen id=7 primary=true trusted=true
+  contact=12,18 pressure=0.75 tangential=0.25
+  tilt=30,-20 twist=90 altitude=0.5 azimuth=1.25
+  client=30,40 button=-1 buttons=1 shift=true
+pointerup: pen id=7 primary=true trusted=true
+  contact=1,1 pressure=0 tangential=0.25
+  tilt=30,-20 twist=90 altitude=0.5 azimuth=1.25
+  client=30,40 button=0 buttons=0 shift=false
+native mouse after pen:
 pointerover: mouse id=0 primary=true trusted=true
   contact=1,1 pressure=0 tangential=0
   tilt=0,0 twist=0 altitude=1.5707963267948966 azimuth=0
-  client=10,20 button=0 buttons=1 shift=true
-pointerdown: mouse id=0 primary=true trusted=true
-  contact=1,1 pressure=0 tangential=0
-  tilt=0,0 twist=0 altitude=1.5707963267948966 azimuth=0
-  client=10,20 button=0 buttons=1 shift=true
-pointermove: mouse id=0 primary=true trusted=true
-  contact=1,1 pressure=0 tangential=0
-  tilt=0,0 twist=0 altitude=1.5707963267948966 azimuth=0
-  client=30,40 button=0 buttons=1 shift=true
-pointerup: mouse id=0 primary=true trusted=true
-  contact=1,1 pressure=0 tangential=0
-  tilt=0,0 twist=0 altitude=1.5707963267948966 azimuth=0
-  client=30,40 button=0 buttons=0 shift=false
-native mouse after pen:
+  client=50,60 button=0 buttons=0 shift=false
 pointermove: mouse id=0 primary=true trusted=true
   contact=1,1 pressure=0 tangential=0
   tilt=0,0 twist=0 altitude=1.5707963267948966 azimuth=0

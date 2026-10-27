@@ -897,6 +897,12 @@ void ConnectionFromClient::enqueue_mouse_event(Web::PageId page_id, Optional<Web
         if (auto const* mouse_event = m_input_event_queue.tail().event.get_pointer<Web::MouseEvent>()) {
             if (mouse_event->type != event.type)
                 return nullptr;
+            auto* previous_pointer = mouse_event->pointer_data.ptr();
+            auto* pointer = event.pointer_data.ptr();
+            if (!!previous_pointer != !!pointer)
+                return nullptr;
+            if (pointer && (previous_pointer->pointer_id != pointer->pointer_id || previous_pointer->pointer_type != pointer->pointer_type))
+                return nullptr;
             if (event.type == Web::MouseEvent::Type::MouseWheel
                 && (mouse_event->async_scroll_performed_default_action != event.async_scroll_performed_default_action
                     || mouse_event->wheel_delta_precision != event.wheel_delta_precision

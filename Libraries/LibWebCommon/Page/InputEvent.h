@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/GenericShorthands.h>
+#include <AK/Math.h>
 #include <AK/OwnPtr.h>
 #include <AK/Vector.h>
 #include <LibGfx/Point.h>
@@ -102,6 +103,45 @@ enum class ScrollGesturePhase : u8 {
     Ended,
 };
 
+enum class PointerType : u8 {
+    Mouse,
+    Pen,
+    Touch,
+};
+
+// https://w3c.github.io/pointerevents/#pointerevent-interface
+struct PointerProperties {
+    AK_ALLOC_WITH_KMALLOC;
+
+    i32 pointer_id { 0 };
+    PointerType pointer_type { PointerType::Mouse };
+    double width { 1 };
+    double height { 1 };
+    double pressure { 0 };
+    double tangential_pressure { 0 };
+    i32 tilt_x { 0 };
+    i32 tilt_y { 0 };
+    i32 twist { 0 };
+    double altitude_angle { AK::Pi<double> / 2 };
+    double azimuth_angle { 0 };
+};
+
+// NB: Native mouse input leaves this empty, avoiding an allocation and keeping the input event small.
+class WEBCOMMON_API PointerInputData {
+public:
+    PointerInputData() = default;
+    explicit PointerInputData(Optional<PointerProperties>);
+    PointerInputData(PointerInputData const&);
+    PointerInputData(PointerInputData&&) = default;
+    PointerInputData& operator=(PointerInputData&&) = default;
+
+    Optional<PointerProperties> properties() const;
+    PointerProperties const* ptr() const { return m_properties.ptr(); }
+
+private:
+    OwnPtr<PointerProperties> m_properties;
+};
+
 struct WEBCOMMON_API MouseEvent {
     enum class Type : u8 {
         MouseDown,
@@ -132,6 +172,7 @@ struct WEBCOMMON_API MouseEvent {
     bool async_scroll_performed_default_action { false };
     u64 id { 0 };
     Optional<Web::ScrollbarDraggedByCompositor> scrollbar_dragged_by_compositor {};
+    PointerInputData pointer_data {};
 };
 
 struct WEBCOMMON_API PinchEvent {

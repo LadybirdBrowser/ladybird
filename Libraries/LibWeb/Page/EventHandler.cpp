@@ -12,6 +12,7 @@
 #include <AK/Debug.h>
 #include <AK/Math.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
+#include <LibGC/ConservativeHashTable.h>
 #include <LibGC/Heap.h>
 #include <LibGC/RootHashTable.h>
 #include <LibGfx/Bitmap.h>
@@ -76,6 +77,7 @@
 #include <LibWeb/UIEvents/KeyboardEvent.h>
 #include <LibWeb/UIEvents/MouseEvent.h>
 #include <LibWeb/UIEvents/PointerEvent.h>
+#include <LibWeb/UIEvents/PointerTypes.h>
 #include <LibWeb/UIEvents/TextEvent.h>
 #include <LibWeb/UIEvents/WheelEvent.h>
 #include <LibWeb/VisualLines.h>
@@ -1410,15 +1412,15 @@ EventResult EventHandler::handle_mousecancel()
     // NB: The browser cancels the pointer that presses, so there is a stream to suppress only while a press lasts. The
     //     last pointer event's target is the effective position of the legacy mouse pointer.
     GC::Ptr<DOM::Node> target = m_effective_legacy_mouse_pointer_position.ptr();
-    if (!m_mousedown_target || !target || !m_last_dispatched_pointer_event_position.has_value())
+    if (!m_mousedown_target || !target || !m_mouse_pointer.last_position.has_value())
         return EventResult::Dropped;
 
     // 1. Fire a pointercancel event.
     // https://w3c.github.io/pointerevents/#dfn-pointercancel
     // The values of the following properties of the pointercancel event MUST match the values of the last dispatched
     // pointer event with the same pointerId: [...] and the coordinates inherited from Mouse Events.
-    auto const& last_position = *m_last_dispatched_pointer_event_position;
-    dispatch_a_pointer_event_for_a_device_that_supports_hover(read, PointerEventType::PointerCancel, target, nullptr, last_position.coordinates, last_position.screen_position, {}, UIEvents::MouseButton::Primary, m_buttons_of_last_dispatched_pointer_event, m_last_known_mouse_modifiers);
+    auto const& last_position = *m_mouse_pointer.last_position;
+    dispatch_a_pointer_event_for_a_device_that_supports_hover(read, PointerEventType::PointerCancel, target, nullptr, last_position.coordinates, last_position.screen_position, {}, UIEvents::MouseButton::Primary, m_mouse_pointer.buttons, m_last_known_mouse_modifiers);
 
     // NB: Dispatching an event may have disturbed the world.
     if (m_navigable->active_document() != document)
@@ -4336,6 +4338,249 @@ void EventHandler::stop_updating_selection()
     m_auto_scroll_handler = nullptr;
 }
 
+GC::Ref<UIEvents::PointerEvent> EventHandler::create_pointer_event(PointerState const& pointer, DOM::Node const& target, Utf16FlyString const& name, MouseEventCoordinates const& coordinates, CSSPixelPoint screen_position, i16 button, CSSPixelPoint movement) const
+{
+    UIEvents::PointerEventOptions options;
+    options.view = m_navigable->active_window_proxy();
+    options.screen_x = screen_position.x().to_double();
+    options.screen_y = screen_position.y().to_double();
+    options.client_x = coordinates.viewport_position.x().to_double();
+    options.client_y = coordinates.viewport_position.y().to_double();
+    options.movement_x = movement.x().to_double();
+    options.movement_y = movement.y().to_double();
+    options.button = button;
+    options.buttons = pointer.buttons;
+    options.ctrl_key = pointer.modifiers & UIEvents::Mod_Ctrl;
+    options.shift_key = pointer.modifiers & UIEvents::Mod_Shift;
+    options.alt_key = pointer.modifiers & UIEvents::Mod_Alt;
+    options.meta_key = pointer.modifiers & UIEvents::Mod_Super;
+    auto const& properties = pointer.properties;
+    options.pointer_id = properties.pointer_id;
+    options.pointer_type = properties.pointer_type == PointerType::Touch ? UIEvents::PointerTypes::Touch : UIEvents::PointerTypes::Pen;
+    options.is_primary = pointer.is_primary;
+    options.width = properties.width;
+    options.height = properties.height;
+    options.pressure = properties.pressure;
+    options.tangential_pressure = properties.tangential_pressure;
+    options.tilt_x = properties.tilt_x;
+    options.tilt_y = properties.tilt_y;
+    options.twist = properties.twist;
+    options.altitude_angle = properties.altitude_angle;
+    options.azimuth_angle = properties.azimuth_angle;
+    options.bubbles = true;
+    options.cancelable = true;
+    options.composed = true;
+    auto event = UIEvents::PointerEvent::create(name, move(options), coordinates.page_offset.x().to_double(), coordinates.page_offset.y().to_double(), coordinates.offset.x().to_double(), coordinates.offset.y().to_double(), HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(target)));
+    event->set_is_trusted(true);
+    return event;
+}
+
+// https://w3c.github.io/pointerevents/#the-pointerover-event
+// https://w3c.github.io/pointerevents/#the-pointerout-event
+void EventHandler::update_pointer_hover(Layout::BegunRead const& read, PointerState& pointer, GC::Ptr<DOM::Node> target, MouseEventCoordinates const& coordinates, CSSPixelPoint screen_position)
+{
+    GC::Ptr<DOM::Node> previous = pointer.hovered_node.ptr();
+    if (previous == target)
+        return;
+    pointer.hovered_node = target;
+
+    // INTEROP: Traverse the flat tree like Blink and Gecko do for mouse boundary events.
+    GC::ConservativeHashTable<DOM::Node*> previous_ancestors;
+    for (auto* node = previous.ptr(); node; node = node->flat_tree_parent())
+        previous_ancestors.set(node);
+    DOM::Node* common_ancestor = nullptr;
+    for (auto* node = target.ptr(); node; node = node->flat_tree_parent()) {
+        if (previous_ancestors.contains(node)) {
+            common_ancestor = node;
+            break;
+        }
+    }
+    struct BoundaryTarget {
+        GC::Ref<DOM::Node> node;
+        MouseEventCoordinates coordinates;
+    };
+    auto make_target = [&](DOM::Node& node) {
+        auto target_coordinates = coordinates;
+        if (auto* layout_node = node.layout_node(read))
+            target_coordinates = compute_mouse_event_coordinates(coordinates.visual_viewport_position, coordinates.viewport_position, *layout_node);
+        return BoundaryTarget { node, target_coordinates };
+    };
+    GC::ConservativeVector<BoundaryTarget> left;
+    GC::ConservativeVector<BoundaryTarget> entered;
+    for (auto* node = previous.ptr(); node && node != common_ancestor; node = node->flat_tree_parent())
+        left.append(make_target(*node));
+    for (auto* node = target.ptr(); node && node != common_ancestor; node = node->flat_tree_parent())
+        entered.append(make_target(*node));
+
+    auto dispatch = [&](BoundaryTarget const& boundary, Utf16FlyString const& name, GC::Ptr<DOM::Node> related_target, bool bubbles) {
+        auto event = create_pointer_event(pointer, boundary.node, name, boundary.coordinates, screen_position, -1);
+        event->set_related_target(related_target);
+        event->set_bubbles(bubbles);
+        event->set_cancelable(bubbles);
+        event->set_composed(bubbles);
+        boundary.node->dispatch_event(event);
+    };
+    if (!left.is_empty())
+        dispatch(left.first(), UIEvents::EventNames::pointerout, target, true);
+    for (auto const& boundary : left)
+        dispatch(boundary, UIEvents::EventNames::pointerleave, target, false);
+    if (!entered.is_empty())
+        dispatch(entered.first(), UIEvents::EventNames::pointerover, previous, true);
+    for (auto const& boundary : entered.in_reverse())
+        dispatch(boundary, UIEvents::EventNames::pointerenter, previous, false);
+}
+
+// https://w3c.github.io/pointerevents/#firing-events-using-the-pointerevent-interface
+EventResult EventHandler::handle_pointer_event(Web::MouseEvent const& input, CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, Optional<RemoteInputEventTarget>* remote_target)
+{
+    // FIXME: Add compatibility mouse dispatch and default actions before enabling WebDriver touch and pen input.
+    auto const* properties = input.pointer_data.ptr();
+    VERIFY(properties && properties->pointer_type != PointerType::Mouse);
+    if (input.type == Web::MouseEvent::Type::MouseWheel)
+        return EventResult::Dropped;
+    if (properties->pointer_id <= UIEvents::mouse_pointer_id || should_ignore_device_input_event())
+        return EventResult::Dropped;
+    auto document = m_navigable->active_document();
+    if (!document || !document->is_fully_active())
+        return EventResult::Dropped;
+
+    auto it = m_additional_pointers.find(properties->pointer_id);
+    if (it == m_additional_pointers.end()) {
+        if (input.type != Web::MouseEvent::Type::MouseDown && (properties->pointer_type != PointerType::Pen || input.type != Web::MouseEvent::Type::MouseMove))
+            return EventResult::Handled;
+        auto pointer = make_ref_counted<AdditionalPointerState>();
+        pointer->state.properties = *properties;
+        pointer->state.is_primary = true;
+        for (auto const& entry : m_additional_pointers) {
+            if (entry.value->state.active && entry.value->state.properties.pointer_type == properties->pointer_type) {
+                pointer->state.is_primary = false;
+                break;
+            }
+        }
+        m_additional_pointers.set(properties->pointer_id, move(pointer));
+        it = m_additional_pointers.find(properties->pointer_id);
+    }
+    // NB: Event listeners can replace the document and clear the pointer map while this input is being dispatched.
+    auto pointer_ref = it->value;
+    auto& pointer = pointer_ref->state;
+    auto previous_buttons = pointer.buttons;
+    auto previous_position = pointer.last_position;
+    bool cancelled = input.type == Web::MouseEvent::Type::MouseCancel;
+    if (!cancelled)
+        pointer.properties = *properties;
+    pointer.modifiers = input.modifiers;
+    pointer.buttons = to_underlying(input.buttons);
+    if (cancelled)
+        pointer.buttons = 0;
+    else if (input.type == Web::MouseEvent::Type::MouseLeave)
+        pointer.buttons = previous_buttons;
+    pointer.active = true;
+    if (input.type == Web::MouseEvent::Type::MouseUp && pointer.buttons == 0)
+        pointer.properties.pressure = 0;
+
+    if (pointer.properties.pointer_type == PointerType::Touch && previous_buttons == 0 && pointer.buttons == 0)
+        return EventResult::Handled;
+
+    Layout::ForcedReadScope read { *document };
+    document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseMove);
+    if (!has_committed_root_box())
+        return EventResult::Dropped;
+    auto viewport_position = document->visual_viewport()->map_to_layout_viewport(visual_viewport_position);
+    auto hit = target_for_mouse_position(visual_viewport_position);
+    GC::Ptr<DOM::Node> hit_target = hit.has_value() ? hit->dom_node() : nullptr;
+    auto* layout_node = hit.has_value() ? hit->layout_node(read) : nullptr;
+
+    // FIXME: Route captured pointers to their owning navigable before hit testing, including captures in another
+    //        WebContent process.
+    if (!pointer.pending_capture_target && layout_node) {
+        auto result = dispatch_event_to_nested_navigable(*this, *layout_node, hit_target, visual_viewport_position, remote_target, [&](EventHandler& child, CSSPixelPoint position) {
+            return child.handle_pointer_event(input, position, screen_position, remote_target);
+        });
+        if (result.has_value()) {
+            pointer.active = false;
+            return *result;
+        }
+    }
+    if (layout_node && hit_target && !parent_element_for_event_dispatch(*layout_node, hit_target, layout_node))
+        hit_target = nullptr;
+    MouseEventCoordinates coordinates {
+        .page_offset = compute_mouse_event_page_offset(viewport_position),
+        .visual_viewport_position = visual_viewport_position,
+        .viewport_position = viewport_position,
+        .offset = {},
+    };
+    if (layout_node)
+        coordinates = compute_mouse_event_coordinates(visual_viewport_position, viewport_position, *layout_node);
+    if (cancelled && previous_position.has_value()) {
+        coordinates = previous_position->coordinates;
+        screen_position = previous_position->screen_position;
+    }
+
+    process_pending_pointer_capture(read, pointer);
+    if (m_navigable->active_document() != document)
+        return EventResult::Handled;
+    document->update_layout(DOM::UpdateLayoutReason::EventHandlerPointerCaptureEvents);
+    GC::Ptr<DOM::Node> capture_target = pointer.capture_target.ptr();
+    GC::Ptr<DOM::Node> target = capture_target ? capture_target : hit_target;
+    if (cancelled)
+        target = capture_target ? capture_target : pointer.hovered_node.ptr();
+    if (input.type == Web::MouseEvent::Type::MouseLeave && !capture_target)
+        target = nullptr;
+    if (target && !cancelled) {
+        if (auto* target_layout = target->layout_node(read))
+            coordinates = compute_mouse_event_coordinates(coordinates.visual_viewport_position, coordinates.viewport_position, *target_layout);
+    }
+    update_pointer_hover(read, pointer, target, coordinates, screen_position);
+    if (!target || input.type == Web::MouseEvent::Type::MouseLeave) {
+        if (cancelled || (input.type == Web::MouseEvent::Type::MouseUp && pointer.buttons == 0)) {
+            release_pointer_capture_implicitly(read, pointer);
+            pointer.active = false;
+            m_additional_pointers.remove(properties->pointer_id);
+        } else if (!target) {
+            pointer.active = pointer.buttons != 0;
+        }
+        return EventResult::Handled;
+    }
+    if (m_navigable->active_document() != document)
+        return EventResult::Handled;
+
+    auto name = UIEvents::EventNames::pointermove;
+    if (cancelled)
+        name = UIEvents::EventNames::pointercancel;
+    else if (input.type == Web::MouseEvent::Type::MouseDown && previous_buttons == 0) {
+        // https://w3c.github.io/pointerevents/#the-pointerdown-event
+        // The user agent MUST fire a pointer event named pointerdown when a pointer enters the active buttons state.
+        name = UIEvents::EventNames::pointerdown;
+    } else if (input.type == Web::MouseEvent::Type::MouseUp && pointer.buttons == 0)
+        name = UIEvents::EventNames::pointerup;
+    auto button = input.type == Web::MouseEvent::Type::MouseMove ? i16 { -1 } : UIEvents::mouse_button_to_button_code(input.button);
+    auto movement = name == UIEvents::EventNames::pointermove && previous_position.has_value() ? screen_position - previous_position->screen_position : CSSPixelPoint {};
+    pointer.last_position = PointerEventPosition { coordinates, screen_position };
+    auto event = create_pointer_event(pointer, *target, name, coordinates, screen_position, button, movement);
+    if (cancelled)
+        event->set_cancelable(false);
+    bool pointer_event_cancelled = !target->dispatch_event(event);
+    if (name == UIEvents::EventNames::pointerdown && pointer_event_cancelled)
+        pointer.prevent_mouse_event = true;
+    if (m_navigable->active_document() != document)
+        return EventResult::Handled;
+
+    if (name == UIEvents::EventNames::pointerup || cancelled) {
+        pointer.prevent_mouse_event = false;
+        release_pointer_capture_implicitly(read, pointer);
+        if (m_navigable->active_document() != document)
+            return EventResult::Handled;
+        document->update_layout(DOM::UpdateLayoutReason::EventHandlerPointerCaptureEvents);
+        auto hover_target = pointer.properties.pointer_type == PointerType::Touch || cancelled ? nullptr : hit_target;
+        update_pointer_hover(read, pointer, hover_target, coordinates, screen_position);
+        if (pointer.properties.pointer_type == PointerType::Touch || cancelled) {
+            pointer.active = false;
+            m_additional_pointers.remove(properties->pointer_id);
+        }
+    }
+    return EventResult::Handled;
+}
+
 void EventHandler::reset_mouse_input_tracking(Badge<Page>)
 {
     clear_mousedown_tracking();
@@ -4344,52 +4589,87 @@ void EventHandler::reset_mouse_input_tracking(Badge<Page>)
 
     // The press ended in another document, so no pointerup here releases a capture it set, and the mouse holds no
     // button that a capture needs.
-    m_buttons_of_last_dispatched_pointer_event = 0;
-    if (auto document = m_navigable->active_document(); document && (m_pending_pointer_capture_target_override.ptr() || m_pointer_capture_target_override.ptr())) {
+    m_mouse_pointer.buttons = 0;
+    if (auto document = m_navigable->active_document(); document && (m_mouse_pointer.pending_capture_target.ptr() || m_mouse_pointer.capture_target.ptr())) {
         Layout::ForcedReadScope read { *document };
-        release_pointer_capture_implicitly(read);
+        release_pointer_capture_implicitly(read, m_mouse_pointer);
     }
 }
 
-void EventHandler::set_pending_pointer_capture_target_override(Badge<DOM::Element>, DOM::Element& element)
+EventHandler::PointerState const* EventHandler::pointer_state(i32 pointer_id) const
 {
-    m_pending_pointer_capture_target_override = element;
+    if (pointer_id == UIEvents::mouse_pointer_id)
+        return &m_mouse_pointer;
+    auto it = m_additional_pointers.find(pointer_id);
+    return it == m_additional_pointers.end() ? nullptr : &it->value->state;
 }
 
-void EventHandler::clear_pending_pointer_capture_target_override(Badge<DOM::Element>)
+EventHandler::PointerState* EventHandler::pointer_state(i32 pointer_id)
 {
-    m_pending_pointer_capture_target_override = nullptr;
+    return const_cast<PointerState*>(static_cast<EventHandler const&>(*this).pointer_state(pointer_id));
+}
+
+bool EventHandler::is_active_pointer(i32 pointer_id) const
+{
+    if (pointer_id == UIEvents::mouse_pointer_id)
+        return true;
+    auto const* pointer = pointer_state(pointer_id);
+    return pointer && pointer->active;
+}
+
+bool EventHandler::is_pointer_in_active_buttons_state(i32 pointer_id) const
+{
+    auto const* pointer = pointer_state(pointer_id);
+    return pointer && (pointer_id == UIEvents::mouse_pointer_id || pointer->active) && pointer->buttons != 0;
+}
+
+GC::Ptr<DOM::Element> EventHandler::pending_pointer_capture_target_override(i32 pointer_id) const
+{
+    auto const* pointer = pointer_state(pointer_id);
+    return pointer ? pointer->pending_capture_target.ptr() : nullptr;
+}
+
+void EventHandler::set_pending_pointer_capture_target_override(Badge<DOM::Element>, i32 pointer_id, DOM::Element& element)
+{
+    if (auto* pointer = pointer_state(pointer_id))
+        pointer->pending_capture_target = element;
+}
+
+void EventHandler::clear_pending_pointer_capture_target_override(Badge<DOM::Element>, i32 pointer_id)
+{
+    if (auto* pointer = pointer_state(pointer_id))
+        pointer->pending_capture_target = nullptr;
 }
 
 bool EventHandler::next_pointer_event_is_captured() const
 {
     // Processing the pending pointer capture before the event makes the pending override the override, or clears the
     // override, and drops a pending override that is no longer connected.
-    auto pending_pointer_capture_target_override = m_pending_pointer_capture_target_override.ptr();
+    auto pending_pointer_capture_target_override = m_mouse_pointer.pending_capture_target.ptr();
     return pending_pointer_capture_target_override && pending_pointer_capture_target_override->is_connected();
 }
 
 // https://w3c.github.io/pointerevents/#process-pending-pointer-capture
-EventHandler::PointerCaptureEventsFired EventHandler::process_pending_pointer_capture(Layout::BegunRead const& read)
+EventHandler::PointerCaptureEventsFired EventHandler::process_pending_pointer_capture(Layout::BegunRead const& read, PointerState& pointer)
 {
     // https://w3c.github.io/pointerevents/#implicit-release-of-pointer-capture
     // When the pointer capture target override is no longer connected, the pointer capture target override SHOULD be
     // set to the document. When the pending pointer capture target override is no longer connected, the pending
     // pointer capture target override node SHOULD be cleared.
-    if (auto pending_pointer_capture_target_override = m_pending_pointer_capture_target_override.ptr(); pending_pointer_capture_target_override && !pending_pointer_capture_target_override->is_connected())
-        m_pending_pointer_capture_target_override = nullptr;
-    if (auto pointer_capture_target_override = m_pointer_capture_target_override.ptr(); pointer_capture_target_override && !pointer_capture_target_override->is_connected())
-        m_pointer_capture_target_override = GC::Ptr<DOM::Node> { &pointer_capture_target_override->document() };
+    if (auto pending_pointer_capture_target_override = pointer.pending_capture_target.ptr(); pending_pointer_capture_target_override && !pending_pointer_capture_target_override->is_connected())
+        pointer.pending_capture_target = nullptr;
+    if (auto pointer_capture_target_override = pointer.capture_target.ptr(); pointer_capture_target_override && !pointer_capture_target_override->is_connected())
+        pointer.capture_target = GC::Ptr<DOM::Node> { &pointer_capture_target_override->document() };
 
-    GC::Ptr<DOM::Node> pointer_capture_target_override = m_pointer_capture_target_override.ptr();
-    GC::Ptr<DOM::Node> pending_pointer_capture_target_override = m_pending_pointer_capture_target_override.ptr();
+    GC::Ptr<DOM::Node> pointer_capture_target_override = pointer.capture_target.ptr();
+    GC::Ptr<DOM::Node> pending_pointer_capture_target_override = pointer.pending_capture_target.ptr();
     auto events_fired = PointerCaptureEventsFired::No;
 
     // 1. If the pointer capture target override for this pointer is set and is not equal to the pending pointer
     //    capture target override, then fire a pointer event named lostpointercapture at the pointer capture target
     //    override node.
     if (pointer_capture_target_override && pointer_capture_target_override != pending_pointer_capture_target_override) {
-        fire_pointer_capture_event(read, UIEvents::EventNames::lostpointercapture, *pointer_capture_target_override);
+        fire_pointer_capture_event(read, pointer, UIEvents::EventNames::lostpointercapture, *pointer_capture_target_override);
         events_fired = PointerCaptureEventsFired::Yes;
     }
 
@@ -4397,21 +4677,21 @@ EventHandler::PointerCaptureEventsFired EventHandler::process_pending_pointer_ca
     //    capture target override, then fire a pointer event named gotpointercapture at the pending pointer capture
     //    target override.
     if (pending_pointer_capture_target_override && pending_pointer_capture_target_override != pointer_capture_target_override) {
-        fire_pointer_capture_event(read, UIEvents::EventNames::gotpointercapture, *pending_pointer_capture_target_override);
+        fire_pointer_capture_event(read, pointer, UIEvents::EventNames::gotpointercapture, *pending_pointer_capture_target_override);
         events_fired = PointerCaptureEventsFired::Yes;
     }
 
     // 3. Set the pointer capture target override to the pending pointer capture target override, if set. Otherwise,
     //    clear the pointer capture target override.
     // NB: A listener of the events above may have set or released the capture again, which the override follows.
-    m_pointer_capture_target_override = GC::Ptr<DOM::Node> { m_pending_pointer_capture_target_override.ptr() };
+    pointer.capture_target = GC::Ptr<DOM::Node> { pointer.pending_capture_target.ptr() };
 
     // NB: A listener of the events above may have removed the capturing element as well. Its document then holds the
     //     capture, and loses it before the pointer event these steps precede rather than at the one after.
-    if (auto pointer_capture_target_override = m_pointer_capture_target_override.ptr(); pointer_capture_target_override && !pointer_capture_target_override->is_connected()) {
-        m_pending_pointer_capture_target_override = nullptr;
-        m_pointer_capture_target_override = nullptr;
-        fire_pointer_capture_event(read, UIEvents::EventNames::lostpointercapture, pointer_capture_target_override->document());
+    if (auto pointer_capture_target_override = pointer.capture_target.ptr(); pointer_capture_target_override && !pointer_capture_target_override->is_connected()) {
+        pointer.pending_capture_target = nullptr;
+        pointer.capture_target = nullptr;
+        fire_pointer_capture_event(read, pointer, UIEvents::EventNames::lostpointercapture, pointer_capture_target_override->document());
         events_fired = PointerCaptureEventsFired::Yes;
     }
     return events_fired;
@@ -4419,33 +4699,35 @@ EventHandler::PointerCaptureEventsFired EventHandler::process_pending_pointer_ca
 
 // https://w3c.github.io/pointerevents/#the-gotpointercapture-event
 // https://w3c.github.io/pointerevents/#the-lostpointercapture-event
-void EventHandler::fire_pointer_capture_event(Layout::BegunRead const& read, Utf16FlyString const& event_name, DOM::Node& target)
+void EventHandler::fire_pointer_capture_event(Layout::BegunRead const& read, PointerState& pointer, Utf16FlyString const& event_name, DOM::Node& target)
 {
     // The event tells where the pointer is, which is where its last pointer event went.
     MouseEventCoordinates coordinates;
     CSSPixelPoint screen_position;
-    if (m_last_dispatched_pointer_event_position.has_value()) {
-        coordinates = m_last_dispatched_pointer_event_position->coordinates;
-        screen_position = m_last_dispatched_pointer_event_position->screen_position;
+    if (pointer.last_position.has_value()) {
+        coordinates = pointer.last_position->coordinates;
+        screen_position = pointer.last_position->screen_position;
         // NB: The listeners of the events fired before this one may have invalidated layout.
         target.document().update_layout(DOM::UpdateLayoutReason::EventHandlerPointerCaptureEvents);
         if (auto* target_layout_node = target.layout_node(read))
             coordinates = compute_mouse_event_coordinates(coordinates.visual_viewport_position, coordinates.viewport_position, *target_layout_node);
     }
-    auto event = MUST(UIEvents::PointerEvent::create_from_platform_event(HTML::relevant_global_object(target), m_navigable->active_window_proxy(), event_name, screen_position, coordinates.page_offset, coordinates.viewport_position, coordinates.offset, {}, UIEvents::MouseButton::None, m_buttons_of_last_dispatched_pointer_event, m_last_known_mouse_modifiers));
+    auto event = pointer.properties.pointer_type == PointerType::Mouse
+        ? MUST(UIEvents::PointerEvent::create_from_platform_event(HTML::relevant_global_object(target), m_navigable->active_window_proxy(), event_name, screen_position, coordinates.page_offset, coordinates.viewport_position, coordinates.offset, {}, UIEvents::MouseButton::None, pointer.buttons, m_last_known_mouse_modifiers))
+        : create_pointer_event(pointer, target, event_name, coordinates, screen_position, -1);
     // Bubbles: Yes. Cancelable: No. Composed: Yes.
     event->set_cancelable(false);
     target.dispatch_event(event);
 }
 
 // https://w3c.github.io/pointerevents/#implicit-release-of-pointer-capture
-void EventHandler::release_pointer_capture_implicitly(Layout::BegunRead const& read)
+void EventHandler::release_pointer_capture_implicitly(Layout::BegunRead const& read, PointerState& pointer)
 {
     // Immediately after firing the pointerup or pointercancel events, the user agent MUST clear the pending pointer
     // capture target override for the pointerId of the pointerup or pointercancel event that was just dispatched, and
     // then run process pending pointer capture steps to fire lostpointercapture if necessary.
-    m_pending_pointer_capture_target_override = nullptr;
-    process_pending_pointer_capture(read);
+    pointer.pending_capture_target = nullptr;
+    process_pending_pointer_capture(read, pointer);
 }
 
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#run-light-dismiss-activities
@@ -4477,7 +4759,7 @@ EventHandler::DispatchedPointerEvent EventHandler::dispatch_a_pointer_event_for_
     // https://w3c.github.io/pointerevents/#firing-events-using-the-pointerevent-interface
     // 1. If the event is not a gotpointercapture, lostpointercapture, click, auxclick or contextmenu event, run the
     //    process pending pointer capture steps for this PointerEvent.
-    if (process_pending_pointer_capture(read) == PointerCaptureEventsFired::Yes) {
+    if (process_pending_pointer_capture(read, m_mouse_pointer) == PointerCaptureEventsFired::Yes) {
         // NB: Dispatching an event may have disturbed the world.
         if (m_navigable->active_document().ptr() != &document)
             return { PointerEventDispatchResult::CancelledByPage, {} };
@@ -4489,7 +4771,7 @@ EventHandler::DispatchedPointerEvent EventHandler::dispatch_a_pointer_event_for_
     //      target override object.
     //    - Otherwise, set the target to the object returned by normal hit test mechanisms.
     GC::Ptr<DOM::Node> node = hit_test_target;
-    GC::Ptr<DOM::Node> pointer_capture_target = m_pointer_capture_target_override.ptr();
+    GC::Ptr<DOM::Node> pointer_capture_target = m_mouse_pointer.capture_target.ptr();
     auto hit_test_coordinates = coordinates;
     if (pointer_capture_target) {
         node = pointer_capture_target;
@@ -4558,18 +4840,18 @@ EventHandler::DispatchedPointerEvent EventHandler::dispatch_a_pointer_event_for_
     light_dismiss_activities(pointer_event, *node);
 
     // 3. Dispatch the pointer event.
-    m_last_dispatched_pointer_event_position = PointerEventPosition { coordinates, screen_position };
-    m_buttons_of_last_dispatched_pointer_event = type == PointerEventType::PointerCancel ? 0 : buttons;
+    m_mouse_pointer.last_position = PointerEventPosition { coordinates, screen_position };
+    m_mouse_pointer.buttons = type == PointerEventType::PointerCancel ? 0 : buttons;
     bool pointer_event_cancelled = !node->dispatch_event(pointer_event);
 
     // 4. If the pointer event dispatched was pointerdown and event's canceled flag is set, then set the PREVENT MOUSE
     //    EVENT flag for this pointerType.
     if (type == PointerEventType::PointerDown && pointer_event_cancelled)
-        m_prevent_mouse_event = true;
+        m_mouse_pointer.prevent_mouse_event = true;
 
     // https://w3c.github.io/pointerevents/#implicit-release-of-pointer-capture
     if (type == PointerEventType::PointerUp || type == PointerEventType::PointerCancel) {
-        release_pointer_capture_implicitly(read);
+        release_pointer_capture_implicitly(read, m_mouse_pointer);
 
         // After running process pending pointer capture steps, if the pointer supports hover, user agent MUST also
         // send corresponding boundary events necessary to reflect the current position of the pointer with no capture.
@@ -4592,7 +4874,7 @@ EventHandler::DispatchedPointerEvent EventHandler::dispatch_a_pointer_event_for_
 
     // 5. If the PREVENT MOUSE EVENT flag is not set for this pointerType and the pointer event dispatched was:
     auto result = PointerEventDispatchResult::MouseEventPrevented;
-    if (!m_prevent_mouse_event) {
+    if (!m_mouse_pointer.prevent_mouse_event) {
         GC::Ptr<DOM::EventTarget> mouse_event_target = node;
         auto mouse_event_name = [&] {
             switch (type) {
@@ -4619,7 +4901,7 @@ EventHandler::DispatchedPointerEvent EventHandler::dispatch_a_pointer_event_for_
     // 6. If the pointer event dispatched was pointerup or pointercancel, clear the PREVENT MOUSE EVENT flag for this
     //    pointerType.
     if (type == PointerEventType::PointerUp || type == PointerEventType::PointerCancel)
-        m_prevent_mouse_event = false;
+        m_mouse_pointer.prevent_mouse_event = false;
 
     return { result, pointer_capture_target };
 }
@@ -4712,9 +4994,10 @@ void EventHandler::reset_hover_for_document_replacement(Badge<HTML::LocalNavigab
     m_effective_legacy_mouse_pointer_position = nullptr;
     m_wheel_scroll_latch.clear();
     // A capture in the outgoing document ends with it, with no lostpointercapture event into that document.
-    m_pending_pointer_capture_target_override = nullptr;
-    m_pointer_capture_target_override = nullptr;
-    m_buttons_of_last_dispatched_pointer_event = 0;
+    m_mouse_pointer.pending_capture_target = nullptr;
+    m_mouse_pointer.capture_target = nullptr;
+    m_mouse_pointer.buttons = 0;
+    m_additional_pointers.clear();
     if (m_navigable->page().hover_reporting_navigable() == m_navigable)
         report_hovered_node_to_client(nullptr);
 }
@@ -4849,7 +5132,8 @@ void EventHandler::clear_per_test_input_state(Badge<Internals::Internals>)
     stop_updating_selection();
 
     m_middle_button_scroll_handler = nullptr;
-    m_prevent_mouse_event = false;
+    m_mouse_pointer.prevent_mouse_event = false;
+    m_additional_pointers.clear();
     m_hovered_chrome_widget = nullptr;
     m_captured_chrome_widget = nullptr;
     m_effective_legacy_mouse_pointer_position = nullptr;
