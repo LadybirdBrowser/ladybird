@@ -1460,6 +1460,8 @@ void SeccompPolicy::append_allow_socket_options(u32 syscall_number, u32 level, R
 //     needs to create or connect a socket of its own to talk to us.
 void SeccompPolicy::allow_ipc()
 {
+    // LibIPC's Rust transports shut their socket down when they stop, so the peer sees them go at once.
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, shutdown);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, eventfd2);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, poll);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, ppoll);
