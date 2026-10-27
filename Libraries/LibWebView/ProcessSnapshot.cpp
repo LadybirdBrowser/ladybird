@@ -24,6 +24,8 @@ Vector<ProcessSnapshot> process_snapshots(ProcessManager& manager)
         ProcessPageKind kind;
     };
     HashMap<u64, ProcessPage> process_pages;
+    HashMap<u64, Vector<ProcessTabSnapshot>> process_tabs;
+    HashMap<u64, size_t> process_frame_counts;
     // NB: The Application is only asked once there is a view, so that a ProcessManager without one can be described.
     bool did_look_up_active_view = false;
     Optional<ViewImplementation&> active_view;
@@ -47,10 +49,24 @@ Vector<ProcessSnapshot> process_snapshots(ProcessManager& manager)
                 || (current->view == &view && kind == ProcessPageKind::TopLevel && current->kind == ProcessPageKind::Frame))
                 process_pages.set(child_id, ProcessPage { &view, url, kind });
         };
-        add_page(view.page().client().child_id(), view.url(), ProcessPageKind::TopLevel);
+        auto top_level_child_id = view.page().client().child_id();
+        add_page(top_level_child_id, view.url(), ProcessPageKind::TopLevel);
+        process_tabs.ensure(top_level_child_id).append(ProcessTabSnapshot {
+            .title = view.title(),
+            .page = {
+                .view_id = view.view_id(),
+                .url = view.url(),
+                .kind = ProcessPageKind::TopLevel,
+                .favicon_hash = view.favicon_hash(),
+            },
+        });
         view.traversable().for_each_in_subtree([&](auto const& navigable) {
-            if (navigable.has_remote_host() && navigable.replicated_state().has_value())
-                add_page(navigable.remote_host().client().child_id(), navigable.replicated_state()->active_document_url, ProcessPageKind::Frame);
+            if (navigable.has_remote_host() && navigable.replicated_state().has_value()) {
+                auto child_id = navigable.remote_host().client().child_id();
+                add_page(child_id, navigable.replicated_state()->active_document_url, ProcessPageKind::Frame);
+                if (child_id != top_level_child_id)
+                    ++process_frame_counts.ensure(child_id);
+            }
             return IterationDecision::Continue;
         });
         return IterationDecision::Continue;
@@ -69,6 +85,8 @@ Vector<ProcessSnapshot> process_snapshots(ProcessManager& manager)
             .cpu_percent = statistics.cpu_percent,
             .memory_usage_bytes = statistics.memory_usage_bytes,
             .page = {},
+            .tabs = process_tabs.get(process.child_id()).value_or({}),
+            .frame_count = process_frame_counts.get(process.child_id()).value_or(0),
         };
         if (auto page = process_pages.get(process.child_id()); page.has_value()) {
             snapshot.site_url = page->url;
