@@ -39,7 +39,6 @@ pub(crate) enum AnonymousStyleKind {
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct AnonymousStyleOverrides {
-    pub inline_block_wrapper: bool,
     pub overflow_x: u8,
     pub overflow_y: u8,
     pub columns_from_parent: bool,
@@ -401,19 +400,7 @@ impl LayoutStyle {
         } else {
             Self::inherited(engine, parent)
         };
-        let block_flow = FfiDisplay::outside_and_inside(
-            if overrides.inline_block_wrapper {
-                display_outside::INLINE
-            } else {
-                display_outside::BLOCK
-            },
-            if overrides.inline_block_wrapper {
-                display_inside::FLOW_ROOT
-            } else {
-                display_inside::FLOW
-            },
-            false,
-        );
+        let block_flow = FfiDisplay::outside_and_inside(display_outside::BLOCK, display_inside::FLOW, false);
         match kind {
             AnonymousStyleKind::Wrapper | AnonymousStyleKind::ButtonContentBox => style.set_display(block_flow),
             AnonymousStyleKind::TableRow => style.set_display(FfiDisplay::internal(display_internal::TABLE_ROW)),

@@ -3,7 +3,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 483.203125 0+0+8] children: inline
       frag 0 from VideoBox start: 0, length: 0, rect: [8,8 854x480] baseline: 480
       VideoBox <video> at [8,8] inline-block [0+0+0 854 0+0+0] [0+0+0 480 0+0+0] children: not-inline
-        BlockContainer <(anonymous)> at [8,8] inline-block [0+0+0 854 0+0+0] [0+0+0 480 0+0+0] [BFC] children: not-inline
+        BlockContainer <(anonymous)> at [8,8] [0+0+0 854 0+0+0] [0+0+0 480 0+0+0] children: not-inline
           BlockContainer <div.container.video.picture-in-picture.controls-hidden> at [8,8] positioned [0+0+0 854 0+0+0] [0+0+0 480 0+0+0] [BFC] children: not-inline
             Box <div.picture-in-picture-placeholder> at [8,8] flex-container(column) [0+0+0 854 0+0+0] [0+0+0 480 0+0+0] [FFC] children: not-inline
               SVGSVGBox <svg.picture-in-picture-placeholder-icon> at [411,213] flex-item [0+0+0 48 0+0+0] [0+0+0 48 0+0+0] viewport-transform=[2 0 0 2 0 0] [SVG] children: not-inline
