@@ -370,7 +370,7 @@ void HTMLIFrameElement::apply_presentational_hints(Vector<CSS::StyleProperty>& p
     if (auto frameborder_attribute = get_attribute(HTML::AttributeNames::frameborder); frameborder_attribute.has_value()) {
         auto frameborder = parse_integer(*frameborder_attribute);
         if (!frameborder.has_value() || frameborder == 0) {
-            auto zero = CSS::LengthStyleValue::create(CSS::Length::make_px(0));
+            auto zero = CSS::LengthStyleValue::create_px(0);
             properties.append({ .property_id = CSS::PropertyID::BorderTopWidth, .value = zero });
             properties.append({ .property_id = CSS::PropertyID::BorderRightWidth, .value = zero });
             properties.append({ .property_id = CSS::PropertyID::BorderBottomWidth, .value = zero });

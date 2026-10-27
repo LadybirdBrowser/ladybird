@@ -186,16 +186,14 @@ WebIDL::ExceptionOr<float> SVGLength::value() const
     if (!length_resolution_context.has_value()) {
         if (auto const* scalar = value.get_pointer<SVGLengthValue>()) {
             if (scalar->kind() == SVGLengthValue::Kind::Percentage)
-                return CSS::Length::make_px(viewport_size).percentage_of(scalar->to_percentage()).absolute_length_to_px_without_rounding();
-
-            auto length = scalar->to_length();
+                return scalar->to_percentage().as_fraction() * viewport_size;
 
             // NB: Font-relative and container-relative lengths are not computationally independent; viewport relative
             //     lengths are but we still can't resolve them without an element.
-            if (!length.is_absolute())
+            if (!CSS::is_absolute(scalar->unit()))
                 return error_value();
 
-            return length.absolute_length_to_px_without_rounding();
+            return CSS::ratio_between_units(scalar->unit(), CSS::LengthUnit::Px) * scalar->value();
         }
 
         auto const& style_value = value.get<NonnullRefPtr<CSS::StyleValue const>>();
@@ -229,9 +227,9 @@ WebIDL::ExceptionOr<float> SVGLength::value() const
 
     if (auto const* scalar = value.get_pointer<SVGLengthValue>()) {
         if (scalar->kind() == SVGLengthValue::Kind::Percentage)
-            return CSS::Length::make_px(viewport_size).percentage_of(scalar->to_percentage()).absolute_length_to_px_without_rounding();
+            return scalar->to_percentage().as_fraction() * viewport_size;
 
-        auto absolutized_length = CSS::LengthStyleValue::create(scalar->to_length())->absolutized({ .length_resolution_context = *length_resolution_context, .abstract_element = DOM::AbstractElement { *m_element } });
+        auto absolutized_length = CSS::LengthStyleValue::create(scalar->value(), scalar->unit())->absolutized({ .length_resolution_context = *length_resolution_context, .abstract_element = DOM::AbstractElement { *m_element } });
         return CSS::resolve_absolute_length_in_px(*absolutized_length);
     }
 

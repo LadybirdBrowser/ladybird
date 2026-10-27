@@ -9,20 +9,22 @@
 
 #pragma once
 
-#include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/StyleValues/DimensionStyleValue.h>
+#include <LibWeb/CSS/Units.h>
 #include <LibWeb/Export.h>
 
 namespace Web::CSS {
 
 class WEB_API LengthStyleValue final : public DimensionStyleValue {
 public:
-    static ValueComparingNonnullRefPtr<LengthStyleValue const> create(Length const&);
+    static ValueComparingNonnullRefPtr<LengthStyleValue const> create(double value, LengthUnit);
+    static ValueComparingNonnullRefPtr<LengthStyleValue const> create_px(double value) { return create(value, LengthUnit::Px); }
+    static ValueComparingNonnullRefPtr<LengthStyleValue const> create_px(CSSPixels value) { return create_px(value.to_double()); }
     virtual ~LengthStyleValue() override = default;
 
-    Length length() const { return Length(m_value->length.value, static_cast<LengthUnit>(m_value->length.unit)); }
+    LengthUnit unit() const { return static_cast<LengthUnit>(m_value->length.unit); }
     virtual double raw_value() const override { return m_value->length.value; }
-    virtual Utf16FlyString unit_name() const override { return length().unit_name(); }
+    virtual Utf16FlyString unit_name() const override { return CSS::to_string(unit()); }
 
 private:
     friend class StyleValue;
@@ -32,8 +34,8 @@ private:
     {
     }
 
-    explicit LengthStyleValue(Length const& length)
-        : DimensionStyleValue(Type::Length, StyleValueFFI::rust_style_value_create_length(length.raw_value(), to_underlying(length.unit())))
+    LengthStyleValue(double value, LengthUnit unit)
+        : DimensionStyleValue(Type::Length, StyleValueFFI::rust_style_value_create_length(value, to_underlying(unit)))
     {
     }
 };

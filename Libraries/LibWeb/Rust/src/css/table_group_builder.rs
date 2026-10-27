@@ -767,8 +767,7 @@ fn length_to_px_unrounded(data: &StyleValueData) -> f64 {
         .expect("a computed length is absolute or a calculation that resolves without context")
 }
 
-/// The C++ Length::absolute_length_to_px: the unrounded pixels quantized to
-/// CSSPixels.
+/// A computed length's unrounded pixels quantized to CSSPixels.
 fn length_to_css_pixels(data: &StyleValueData) -> CssPixels {
     CssPixels::nearest_value_for(length_to_px_unrounded(data))
 }

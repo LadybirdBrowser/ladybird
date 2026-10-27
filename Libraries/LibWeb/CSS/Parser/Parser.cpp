@@ -122,7 +122,7 @@ static Optional<double> sizes_attribute_auto_width(HTML::HTMLImageElement const*
 NonnullRefPtr<StyleValue const> Parser::parse_as_sizes_attribute(Utf16View source, HTML::HTMLImageElement const* img)
 {
     if (source.is_empty())
-        return LengthStyleValue::create(Length(100, LengthUnit::Vw));
+        return LengthStyleValue::create(100, LengthUnit::Vw);
     auto auto_width = sizes_attribute_auto_width(img);
     auto context = make_parse_context(ParseContextMode::Value);
     Optional<MediaEnvironmentSnapshot> media_environment;

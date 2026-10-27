@@ -304,7 +304,6 @@ class ImageSetStyleValue;
 class ImageStyleValue;
 class IntegerStyleValue;
 class KeywordStyleValue;
-class Length;
 struct LengthResolutionContext;
 class LengthStyleValue;
 class MediaList;

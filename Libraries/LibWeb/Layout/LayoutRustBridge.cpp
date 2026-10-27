@@ -270,10 +270,10 @@ static RustFFI::FfiSvgAttributeFacts build_svg_attribute_facts(DOM::Element& dom
     RustFFI::FfiSvgLengthValue natural_height { .value = 0, .kind = RustFFI::SVG_LENGTH_KIND_NONE, .unit = 0 };
     Optional<CSSPixelFraction> view_box_aspect_ratio;
     if (auto const* svg_element = as_if<SVG::SVGSVGElement>(dom_node)) {
-        auto to_ffi_length = [](Optional<CSS::Length> const& length) -> RustFFI::FfiSvgLengthValue {
+        auto to_ffi_length = [](Optional<SVG::SVGLengthValue> const& length) -> RustFFI::FfiSvgLengthValue {
             if (!length.has_value())
                 return { .value = 0, .kind = RustFFI::SVG_LENGTH_KIND_NONE, .unit = 0 };
-            return { .value = length->raw_value(), .kind = RustFFI::SVG_LENGTH_KIND_LENGTH, .unit = static_cast<u8>(to_underlying(length->unit())) };
+            return { .value = length->value(), .kind = RustFFI::SVG_LENGTH_KIND_LENGTH, .unit = static_cast<u8>(to_underlying(length->unit())) };
         };
         natural_width = to_ffi_length(svg_element->width_attribute_length());
         natural_height = to_ffi_length(svg_element->height_attribute_length());
@@ -429,9 +429,9 @@ static RustFFI::FfiMathLength math_length_attribute(DOM::Element const& element,
         return { to_underlying(MathLengthUnit::Percentage), static_cast<float>(style_value->as_percentage().percentage().value()) };
     if (!style_value->is_length())
         return {};
-    auto const& length = style_value->as_length().length();
-    if (length.is_absolute())
-        return { to_underlying(MathLengthUnit::Px), static_cast<float>(length.absolute_length_to_px_without_rounding()) };
+    auto const& length = style_value->as_length();
+    if (CSS::is_absolute(length.unit()))
+        return { to_underlying(MathLengthUnit::Px), static_cast<float>(CSS::resolve_absolute_length_in_px(length)) };
     if (length.unit() == CSS::LengthUnit::Em)
         return { to_underlying(MathLengthUnit::Em), static_cast<float>(length.raw_value()) };
     if (length.unit() == CSS::LengthUnit::Ex)

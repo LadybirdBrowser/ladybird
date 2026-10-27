@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/ResolvedTransform.h>
 
 namespace Web::CSS {

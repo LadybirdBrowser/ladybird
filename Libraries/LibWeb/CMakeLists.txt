@@ -167,7 +167,6 @@ set(SOURCES
     CSS/Invalidation/MediaQueryInvalidator.cpp
     CSS/Invalidation/PartInvalidator.cpp
     CSS/Invalidation/PseudoClassInvalidator.cpp
-    CSS/Length.cpp
     CSS/LengthResolutionContext.cpp
     CSS/MediaList.cpp
     CSS/MediaQueryList.cpp

@@ -90,10 +90,10 @@ void HTMLTableCellElement::apply_presentational_hints(Vector<CSS::StyleProperty>
         return;
 
     if (auto padding = table_element->cellpadding(); padding.has_value()) {
-        properties.append({ .property_id = CSS::PropertyID::PaddingTop, .value = CSS::LengthStyleValue::create(CSS::Length::make_px(*padding)) });
-        properties.append({ .property_id = CSS::PropertyID::PaddingBottom, .value = CSS::LengthStyleValue::create(CSS::Length::make_px(*padding)) });
-        properties.append({ .property_id = CSS::PropertyID::PaddingLeft, .value = CSS::LengthStyleValue::create(CSS::Length::make_px(*padding)) });
-        properties.append({ .property_id = CSS::PropertyID::PaddingRight, .value = CSS::LengthStyleValue::create(CSS::Length::make_px(*padding)) });
+        properties.append({ .property_id = CSS::PropertyID::PaddingTop, .value = CSS::LengthStyleValue::create_px(*padding) });
+        properties.append({ .property_id = CSS::PropertyID::PaddingBottom, .value = CSS::LengthStyleValue::create_px(*padding) });
+        properties.append({ .property_id = CSS::PropertyID::PaddingLeft, .value = CSS::LengthStyleValue::create_px(*padding) });
+        properties.append({ .property_id = CSS::PropertyID::PaddingRight, .value = CSS::LengthStyleValue::create_px(*padding) });
     }
 
     auto border = table_element->border();
@@ -104,7 +104,7 @@ void HTMLTableCellElement::apply_presentational_hints(Vector<CSS::StyleProperty>
     //          table's sections and rows inherit from the table in turn.
     auto apply_border_style = [&](CSS::PropertyID style_property, CSS::PropertyID width_property, CSS::PropertyID color_property) {
         properties.append({ .property_id = style_property, .value = CSS::KeywordStyleValue::create(CSS::Keyword::Inset) });
-        properties.append({ .property_id = width_property, .value = CSS::LengthStyleValue::create(CSS::Length::make_px(1)) });
+        properties.append({ .property_id = width_property, .value = CSS::LengthStyleValue::create_px(1) });
         properties.append({ .property_id = color_property, .value = CSS::KeywordStyleValue::create(CSS::Keyword::Inherit) });
     };
     apply_border_style(CSS::PropertyID::BorderLeftStyle, CSS::PropertyID::BorderLeftWidth, CSS::PropertyID::BorderLeftColor);

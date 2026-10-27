@@ -46,11 +46,11 @@ void HTMLHRElement::apply_presentational_hints(Vector<CSS::StyleProperty>& prope
 
         if (name == HTML::AttributeNames::align) {
             if (value.equals_ignoring_ascii_case(u"left"sv)) {
-                properties.append({ .property_id = CSS::PropertyID::MarginLeft, .value = CSS::LengthStyleValue::create(CSS::Length::make_px(0)) });
+                properties.append({ .property_id = CSS::PropertyID::MarginLeft, .value = CSS::LengthStyleValue::create_px(0) });
                 properties.append({ .property_id = CSS::PropertyID::MarginRight, .value = CSS::KeywordStyleValue::create(CSS::Keyword::Auto) });
             } else if (value.equals_ignoring_ascii_case(u"right"sv)) {
                 properties.append({ .property_id = CSS::PropertyID::MarginLeft, .value = CSS::KeywordStyleValue::create(CSS::Keyword::Auto) });
-                properties.append({ .property_id = CSS::PropertyID::MarginRight, .value = CSS::LengthStyleValue::create(CSS::Length::make_px(0)) });
+                properties.append({ .property_id = CSS::PropertyID::MarginRight, .value = CSS::LengthStyleValue::create_px(0) });
             } else if (value.equals_ignoring_ascii_case(u"center"sv)) {
                 properties.append({ .property_id = CSS::PropertyID::MarginLeft, .value = CSS::KeywordStyleValue::create(CSS::Keyword::Auto) });
                 properties.append({ .property_id = CSS::PropertyID::MarginRight, .value = CSS::KeywordStyleValue::create(CSS::Keyword::Auto) });
@@ -73,7 +73,7 @@ void HTMLHRElement::apply_presentational_hints(Vector<CSS::StyleProperty>& prope
         bool has_color_or_noshade = has_attribute(HTML::AttributeNames::color) || has_attribute(HTML::AttributeNames::noshade);
         if (name == HTML::AttributeNames::size && has_color_or_noshade) {
             if (auto parsed_value = parse_non_negative_integer(value); parsed_value.has_value()) {
-                auto size_value = CSS::LengthStyleValue::create(CSS::Length::make_px(parsed_value.value() / 2.0));
+                auto size_value = CSS::LengthStyleValue::create_px(parsed_value.value() / 2.0);
                 properties.append({ .property_id = CSS::PropertyID::BorderTopWidth, .value = size_value });
                 properties.append({ .property_id = CSS::PropertyID::BorderRightWidth, .value = size_value });
                 properties.append({ .property_id = CSS::PropertyID::BorderBottomWidth, .value = size_value });
@@ -89,9 +89,9 @@ void HTMLHRElement::apply_presentational_hints(Vector<CSS::StyleProperty>& prope
             // for the 'height' property on the element.
             if (auto parsed_value = parse_non_negative_integer(value); parsed_value.has_value()) {
                 if (parsed_value.value() == 1) {
-                    properties.append({ .property_id = CSS::PropertyID::BorderBottomWidth, .value = CSS::LengthStyleValue::create(CSS::Length::make_px(0)) });
+                    properties.append({ .property_id = CSS::PropertyID::BorderBottomWidth, .value = CSS::LengthStyleValue::create_px(0) });
                 } else if (parsed_value.value() > 1) {
-                    properties.append({ .property_id = CSS::PropertyID::Height, .value = CSS::LengthStyleValue::create(CSS::Length::make_px(parsed_value.value() - 2)) });
+                    properties.append({ .property_id = CSS::PropertyID::Height, .value = CSS::LengthStyleValue::create_px(parsed_value.value() - 2) });
                 }
             }
         }

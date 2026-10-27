@@ -454,7 +454,7 @@ CSSPixels ComputedStyleWorkingSet::line_height(FontComputer const& font_computer
     // <length [0,∞]>
     // The specified length is used as the preferred line height. Negative values are illegal.
     if (line_height.is_length())
-        return line_height.as_length().length().absolute_length_to_px();
+        return CSSPixels::nearest_value_for(resolve_absolute_length_in_px(line_height));
 
     // <number [0,∞]>
     // The preferred line height is this number multiplied by the element’s computed font-size.

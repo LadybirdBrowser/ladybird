@@ -2222,11 +2222,11 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_size(NonnullRefPtr<S
     if (result.handled) {
         if (result.unchanged)
             return absolutized_value;
-        return LengthStyleValue::create(Length::make_px(result.value));
+        return LengthStyleValue::create_px(result.value);
     }
 
     VERIFY(absolutized_value->is_calculated());
-    return LengthStyleValue::create(Length::make_px(resolve_absolute_length_in_px(*absolutized_value, inherited_font_size.to_double())));
+    return LengthStyleValue::create_px(resolve_absolute_length_in_px(*absolutized_value, inherited_font_size.to_double()));
 }
 
 // The FontStyleKeyword discriminants cross the boundary as the mapped keyword code; pin them.

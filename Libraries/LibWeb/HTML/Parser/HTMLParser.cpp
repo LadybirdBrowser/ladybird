@@ -2406,14 +2406,14 @@ static RefPtr<CSS::StyleValue const> parse_current_dimension_value(double value,
 {
     // 1. If position is past the end of input, then return value as a length.
     if (is_eof(input, position))
-        return CSS::LengthStyleValue::create(CSS::Length::make_px(value));
+        return CSS::LengthStyleValue::create_px(value);
 
     // 2. If the code point at position within input is U+0025 (%), then return value as a percentage.
     if (code_unit_at(input, position) == '%')
         return CSS::PercentageStyleValue::create(CSS::Percentage(value));
 
     // 3. Return value as a length.
-    return CSS::LengthStyleValue::create(CSS::Length::make_px(value));
+    return CSS::LengthStyleValue::create_px(value);
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-dimension-values
@@ -2444,7 +2444,7 @@ RefPtr<CSS::StyleValue const> parse_dimension_value(Utf16View input)
 
     // 6. If position is past the end of input, then return value as a length.
     if (is_eof(input, position))
-        return CSS::LengthStyleValue::create(CSS::Length::make_px(value));
+        return CSS::LengthStyleValue::create_px(value);
 
     // 7. If the code point at position within input is U+002E (.), then:
     if (code_unit_at(input, position) == '.') {
@@ -2473,7 +2473,7 @@ RefPtr<CSS::StyleValue const> parse_dimension_value(Utf16View input)
 
             // 4. If position is past the end of input, then return value as a length.
             if (is_eof(input, position))
-                return CSS::LengthStyleValue::create(CSS::Length::make_px(value));
+                return CSS::LengthStyleValue::create_px(value);
 
             // 5. If the code point at position within input is not an ASCII digit, then break.
             if (!is_ascii_digit(code_unit_at(input, position)))

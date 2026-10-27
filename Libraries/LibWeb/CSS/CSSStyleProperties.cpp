@@ -292,7 +292,7 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_property(PropertyID property_i
 
 static NonnullRefPtr<StyleValue const> style_value_for_css_pixels(CSSPixels css_pixels)
 {
-    return LengthStyleValue::create(Length::make_px(css_pixels));
+    return LengthStyleValue::create_px(css_pixels);
 }
 
 static NonnullRefPtr<StyleValue const> style_value_for_length_percentage_or_auto(ComputedValuesFFI::ComputedLengthPercentageOrAuto const& length_percentage)
@@ -310,14 +310,14 @@ static NonnullRefPtr<StyleValue const> style_value_for_transform_origin(Transfor
 
     StyleValueVector offsets;
     if (reference_box.has_value()) {
-        offsets.append(LengthStyleValue::create(Length::make_px(offset_in_px(*transform_origin.x, reference_box->width()))));
-        offsets.append(LengthStyleValue::create(Length::make_px(offset_in_px(*transform_origin.y, reference_box->height()))));
+        offsets.append(LengthStyleValue::create_px(offset_in_px(*transform_origin.x, reference_box->width())));
+        offsets.append(LengthStyleValue::create_px(offset_in_px(*transform_origin.y, reference_box->height())));
     } else {
         offsets.append(transform_origin.x);
         offsets.append(transform_origin.y);
     }
     if (auto z_offset = offset_in_px(*transform_origin.z, 0); z_offset != 0)
-        offsets.append(LengthStyleValue::create(Length::make_px(z_offset)));
+        offsets.append(LengthStyleValue::create_px(z_offset));
     return StyleValueList::create(move(offsets), StyleValueList::Separator::Space, StyleValueList::Collapsible::No);
 }
 
@@ -933,7 +933,7 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
                     // display types (block and inline boxes, inline blocks, and all table display types) when
                     // 'aspect-ratio' is 'auto'. It also resolves to zero when no box is generated.
                     if (computed_value->to_keyword() == Keyword::Auto && element_generates_no_box(read, abstract_element, *computed_values))
-                        return LengthStyleValue::create(Length::make_px(0));
+                        return LengthStyleValue::create_px(0);
                     return resolve_unresolvable_anchor_functions(computed_property_id, move(computed_value));
                 case PropertyID::MaxHeight:
                 case PropertyID::MaxWidth:
@@ -1181,11 +1181,11 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
             auto pixels = resolve_absolute_length_in_px(*side_value);
             if (pixels >= CSSPixels::min_integer_value && pixels <= CSSPixels::max_integer_value)
                 return computed_value();
-            return LengthStyleValue::create(Length::make_px(CSSPixels::nearest_value_for(pixels)));
+            return LengthStyleValue::create_px(CSSPixels::nearest_value_for(pixels));
         }
 
         auto absolutized_against = [&](CSSPixels percentage_basis) -> NonnullRefPtr<StyleValue const> {
-            return LengthStyleValue::create(Length::make_px(resolve_absolute_length_in_px(*side_value, percentage_basis.to_double())));
+            return LengthStyleValue::create_px(resolve_absolute_length_in_px(*side_value, percentage_basis.to_double()));
         };
         auto size_in_axis = [axis](CSSPixelSize size) { return axis == InsetAxis::Horizontal ? size.width() : size.height(); };
 
@@ -1216,7 +1216,7 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
             return absolutized_against(size_in_axis(Painting::content_size(*containing_block)));
         }
 
-        return LengthStyleValue::create(Length::make_px(used_value_getter(layout_node)));
+        return LengthStyleValue::create_px(used_value_getter(layout_node));
     };
 
     auto get_computed_value = [&element, pseudo_element](PropertyID property_id) -> NonnullRefPtr<StyleValue const> {
@@ -1311,7 +1311,7 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
             return line_height;
         auto const* font_values = element.style_group<ComputedValues::FontValues>(pseudo_element);
         VERIFY(font_values);
-        return LengthStyleValue::create(Length::make_px(font_values->line_height_used));
+        return LengthStyleValue::create_px(font_values->line_height_used);
     }
 
         // -> block-size
@@ -1344,40 +1344,40 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
             [](auto const& box_layout_node) { return Painting::content_height(box_layout_node); },
             [](auto const& box_layout_node) { return Painting::unbroken_border_box_size(box_layout_node).height(); });
         if (maybe_used_height.has_value())
-            return LengthStyleValue::create(Length::make_px(maybe_used_height.release_value()));
+            return LengthStyleValue::create_px(maybe_used_height.release_value());
         return get_computed_value(property_id);
     }
     case PropertyID::MarginBottom:
         if (auto maybe_used_value = used_value_for_property([](auto const& box_layout_node) { return Painting::box_model(box_layout_node).margin.bottom; }); maybe_used_value.has_value())
-            return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
+            return LengthStyleValue::create_px(maybe_used_value.release_value());
         return style_value_for_length_percentage_or_auto(layout_node.margin().bottom);
     case PropertyID::MarginLeft:
         if (auto maybe_used_value = used_value_for_property([](auto const& box_layout_node) { return Painting::box_model(box_layout_node).margin.left; }); maybe_used_value.has_value())
-            return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
+            return LengthStyleValue::create_px(maybe_used_value.release_value());
         return style_value_for_length_percentage_or_auto(layout_node.margin().left);
     case PropertyID::MarginRight:
         if (auto maybe_used_value = used_value_for_property([](auto const& box_layout_node) { return Painting::box_model(box_layout_node).margin.right; }); maybe_used_value.has_value())
-            return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
+            return LengthStyleValue::create_px(maybe_used_value.release_value());
         return style_value_for_length_percentage_or_auto(layout_node.margin().right);
     case PropertyID::MarginTop:
         if (auto maybe_used_value = used_value_for_property([](auto const& box_layout_node) { return Painting::box_model(box_layout_node).margin.top; }); maybe_used_value.has_value())
-            return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
+            return LengthStyleValue::create_px(maybe_used_value.release_value());
         return style_value_for_length_percentage_or_auto(layout_node.margin().top);
     case PropertyID::PaddingBottom:
         if (auto maybe_used_value = used_value_for_property([](auto const& box_layout_node) { return Painting::box_model(box_layout_node).padding.bottom; }); maybe_used_value.has_value())
-            return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
+            return LengthStyleValue::create_px(maybe_used_value.release_value());
         return style_value_for_length_percentage_or_auto(layout_node.padding().bottom);
     case PropertyID::PaddingLeft:
         if (auto maybe_used_value = used_value_for_property([](auto const& box_layout_node) { return Painting::box_model(box_layout_node).padding.left; }); maybe_used_value.has_value())
-            return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
+            return LengthStyleValue::create_px(maybe_used_value.release_value());
         return style_value_for_length_percentage_or_auto(layout_node.padding().left);
     case PropertyID::PaddingRight:
         if (auto maybe_used_value = used_value_for_property([](auto const& box_layout_node) { return Painting::box_model(box_layout_node).padding.right; }); maybe_used_value.has_value())
-            return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
+            return LengthStyleValue::create_px(maybe_used_value.release_value());
         return style_value_for_length_percentage_or_auto(layout_node.padding().right);
     case PropertyID::PaddingTop:
         if (auto maybe_used_value = used_value_for_property([](auto const& box_layout_node) { return Painting::box_model(box_layout_node).padding.top; }); maybe_used_value.has_value())
-            return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
+            return LengthStyleValue::create_px(maybe_used_value.release_value());
         return style_value_for_length_percentage_or_auto(layout_node.padding().top);
     case PropertyID::Width: {
         if (!svg_sizing_properties_apply(element))
@@ -1386,7 +1386,7 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
             [](auto const& box_layout_node) { return Painting::content_width(box_layout_node); },
             [](auto const& box_layout_node) { return Painting::unbroken_border_box_size(box_layout_node).width(); });
         if (maybe_used_width.has_value())
-            return LengthStyleValue::create(Length::make_px(maybe_used_width.release_value()));
+            return LengthStyleValue::create_px(maybe_used_width.release_value());
         return get_computed_value(property_id);
     }
 
@@ -1397,7 +1397,7 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
     case PropertyID::MinHeight:
     case PropertyID::MinWidth:
         if (auto resolved_size = Painting::anchor_resolved_size(layout_node, property_id); resolved_size.has_value())
-            return LengthStyleValue::create(Length::make_px(resolved_size.release_value()));
+            return LengthStyleValue::create_px(resolved_size.release_value());
         return resolve_unresolvable_anchor_functions(property_id, get_computed_value(property_id));
 
         // -> bottom
@@ -1540,7 +1540,7 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
         TransformOrigin perspective_origin {
             style_value_for_computed_handle(transform_values.perspective_origin_x),
             style_value_for_computed_handle(transform_values.perspective_origin_y),
-            LengthStyleValue::create(Length::make_px(0)),
+            LengthStyleValue::create_px(0),
         };
         return style_value_for_transform_origin(perspective_origin, reference_box);
     }
@@ -1572,13 +1572,13 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
         // https://drafts.csswg.org/css-backgrounds/#border-width
         // NB: We do this adjustment when assigning to ComputedValues, so read from there.
     case PropertyID::BorderBottomWidth:
-        return LengthStyleValue::create(Length::make_px(layout_node.border_bottom().width));
+        return LengthStyleValue::create_px(layout_node.border_bottom().width);
     case PropertyID::BorderLeftWidth:
-        return LengthStyleValue::create(Length::make_px(layout_node.border_left().width));
+        return LengthStyleValue::create_px(layout_node.border_left().width);
     case PropertyID::BorderRightWidth:
-        return LengthStyleValue::create(Length::make_px(layout_node.border_right().width));
+        return LengthStyleValue::create_px(layout_node.border_right().width);
     case PropertyID::BorderTopWidth:
-        return LengthStyleValue::create(Length::make_px(layout_node.border_top().width));
+        return LengthStyleValue::create_px(layout_node.border_top().width);
 
         // -> Any other property
         //    The resolved value is the computed value.

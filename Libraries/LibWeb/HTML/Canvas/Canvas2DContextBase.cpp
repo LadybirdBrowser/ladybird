@@ -506,7 +506,7 @@ static bool resolve_font(CanvasType& canvas_element, Utf16View font, CanvasFontS
     // https://drafts.csswg.org/css-font-loading/#font-source
     auto& font_computer = canvas_element.canvas_font_computer();
 
-    auto font_size = computed_font_size->as_length().length().absolute_length_to_px();
+    auto font_size = CSSPixels::nearest_value_for(CSS::resolve_absolute_length_in_px(*computed_font_size));
     auto cascade = CSS::resolve_font_for_style_values(font_computer,
         {
             .font_families = CSS::computed_font_families_from_style_value(*font_family),

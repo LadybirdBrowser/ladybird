@@ -2468,7 +2468,7 @@ void HTMLInputElement::apply_presentational_hints(Vector<CSS::StyleProperty>& pr
                 properties.append({ .property_id = CSS::PropertyID::VerticalAlign, .value = CSS::KeywordStyleValue::create(CSS::Keyword::LibwebBaselineMiddle) });
         } else if (name == HTML::AttributeNames::border) {
             if (auto parsed_value = parse_non_negative_integer(value); parsed_value.has_value()) {
-                auto width_style_value = CSS::LengthStyleValue::create(CSS::Length::make_px(*parsed_value));
+                auto width_style_value = CSS::LengthStyleValue::create_px(*parsed_value);
                 properties.append({ .property_id = CSS::PropertyID::BorderTopWidth, .value = width_style_value });
                 properties.append({ .property_id = CSS::PropertyID::BorderRightWidth, .value = width_style_value });
                 properties.append({ .property_id = CSS::PropertyID::BorderBottomWidth, .value = width_style_value });

@@ -85,7 +85,7 @@ CSS::ElementBoxKind SVGSVGElement::box_kind() const
     return CSS::ElementBoxKind::SvgSvg;
 }
 
-Optional<CSS::Length> SVGSVGElement::width_attribute_length() const
+Optional<SVGLengthValue> SVGSVGElement::width_attribute_length() const
 {
     if (m_cached_width_attribute_length.has_value())
         return *m_cached_width_attribute_length;
@@ -96,17 +96,17 @@ Optional<CSS::Length> SVGSVGElement::width_attribute_length() const
     // NB: If the `width` attribute is an empty string, WebKit and Blink treat it as 100% while Firefox does not (the
     //     spec is unclear); a percentage never contributes here either way, so nothing distinguishes it from any other
     //     non-<length> value.
-    Optional<CSS::Length> result;
+    Optional<SVGLengthValue> result;
     if (auto width_value = parse_css_value(parsing_context, width_attribute.value_or({}), CSS::PropertyID::Width)) {
         if (width_value->is_length())
-            result = width_value->as_length().length();
+            result = SVGLengthValue::length(width_value->as_length().raw_value(), width_value->as_length().unit());
     }
 
     m_cached_width_attribute_length = result;
     return result;
 }
 
-Optional<CSS::Length> SVGSVGElement::height_attribute_length() const
+Optional<SVGLengthValue> SVGSVGElement::height_attribute_length() const
 {
     if (m_cached_height_attribute_length.has_value())
         return *m_cached_height_attribute_length;
@@ -115,10 +115,10 @@ Optional<CSS::Length> SVGSVGElement::height_attribute_length() const
     auto height_attribute = attribute(SVG::AttributeNames::height);
 
     // NB: See the `width` note above; an empty string `height` likewise never contributes a <length>.
-    Optional<CSS::Length> result;
+    Optional<SVGLengthValue> result;
     if (auto height_value = parse_css_value(parsing_context, height_attribute.value_or({}), CSS::PropertyID::Height)) {
         if (height_value->is_length())
-            result = height_value->as_length().length();
+            result = SVGLengthValue::length(height_value->as_length().raw_value(), height_value->as_length().unit());
     }
 
     m_cached_height_attribute_length = result;
@@ -165,8 +165,8 @@ void SVGSVGElement::update_fallback_view_box_for_svg_as_image()
     Optional<double> height;
 
     CSS::ComputationContext computation_context { .length_resolution_context = CSS::LengthResolutionContext::for_document(document()) };
-    auto to_px = [&](CSS::Length const& length) {
-        auto absolutized_length = CSS::LengthStyleValue::create(length)->absolutized(computation_context);
+    auto to_px = [&](SVGLengthValue const& length) {
+        auto absolutized_length = CSS::LengthStyleValue::create(length.value(), length.unit())->absolutized(computation_context);
         return CSSPixels::nearest_value_for(CSS::resolve_absolute_length_in_px(*absolutized_length)).to_double();
     };
 
