@@ -1,0 +1,39 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    #first, #second { position: absolute; top: 0; width: 100px; height: 100px; }
+    #first { left: 0; }
+    #second { left: 100px; }
+</style>
+<div id="first"></div>
+<div id="second"></div>
+<script>
+    test(() => {
+        const first = document.getElementById("first");
+        const second = document.getElementById("second");
+        const events = [];
+        const types = ["pointerover", "pointerenter", "pointerdown", "pointermove", "pointerup", "pointerout", "pointerleave"];
+        for (const target of [first, second]) {
+            for (const type of types) {
+                target.addEventListener(type, event => {
+                    events.push(`${event.type} on ${target.id}: buttons=${event.buttons}, pressure=${event.pressure}`);
+                    event.preventDefault();
+                });
+            }
+        }
+        document.addEventListener("contextmenu", event => event.preventDefault());
+
+        internals.mouseMove(10, 10);
+        internals.mouseDown(10, 10);
+        internals.mouseUp(10, 10);
+        internals.mouseDown(110, 10);
+        internals.mouseUp(110, 10);
+        internals.mouseMove(10, 10);
+        internals.mouseDown(110, 10, 1, 2);
+        internals.mouseUp(110, 10, 2);
+
+        for (const event of events)
+            println(event);
+        println(`Synthetic pointer pressure: ${new PointerEvent("pointerdown", { buttons: 1 }).pressure}`);
+    });
+</script>
