@@ -201,6 +201,7 @@ pub(crate) unsafe fn style_value_from_easing(descriptor: &FfiEasingDescriptor) -
         y2,
         number_of_intervals,
         step_position: descriptor.step_position,
+        is_keyword: false,
     }))
 }
 

@@ -1,0 +1,12 @@
+set step-start: linear, step-start
+width halfway: 20px
+animation step-start: linear, steps(1, start)
+set step-end: linear, step-end
+width halfway: 10px
+animation step-end: linear, steps(1)
+append step-start: linear, step-start
+width halfway: 20px
+animation step-start: linear, steps(1, start)
+append step-end: linear, step-end
+width halfway: 10px
+animation step-end: linear, steps(1)
