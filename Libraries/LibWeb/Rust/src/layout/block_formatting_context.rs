@@ -254,6 +254,7 @@ pub(crate) struct BlockFormattingContext<'pass> {
     is_line_clamp_container: bool,
     clamped_content_is_scrollable_overflow: bool,
     max_lines: Cell<Option<usize>>,
+    line_clamp_point_found: Cell<bool>,
     line_clamp_line_count: Cell<usize>,
     automatic_line_clamp_block_size: Cell<Option<CssPixels>>,
     automatic_line_clamp_max_lines: Cell<Option<usize>>,
@@ -380,6 +381,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                     && style.max_lines() > 0)
                     .then_some(style.max_lines() as usize),
             ),
+            line_clamp_point_found: Cell::new(false),
             line_clamp_line_count: Cell::new(0),
             automatic_line_clamp_block_size: Cell::new(None),
             automatic_line_clamp_max_lines: Cell::new(None),
@@ -411,8 +413,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         // https://drafts.csswg.org/css-overflow-4/#max-lines
         // If the box is a line-clamp container, its line-based clamp point is set to the first possible clamp point
         // after its Nth descendant in-flow line box.
-        let clamp_point = self.used(self.run.box_).has_line_clamp_point.get();
-        if clamp_point || !self.is_line_clamp_container {
+        if self.line_clamp_point_found.get() || !self.is_line_clamp_container {
             return false;
         }
         let line_count = self.line_clamp_line_count.get() + 1;
@@ -444,7 +445,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             .map_or(container, |fragment| fragment.layout_node);
         let future_content = self.line_clamp_has_future_content(clamp_anchor);
         if has_immediate_continuation || future_content.is_some() {
-            self.used(self.run.box_).has_line_clamp_point.set(true);
+            self.line_clamp_point_found.set(true);
         }
         has_immediate_continuation || future_content == Some(true)
     }
@@ -455,7 +456,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         self.clamped_content_is_scrollable_overflow
     }
     pub(crate) fn line_clamp_reached(&self) -> bool {
-        let reached = self.has_line_clamp() && self.used(self.run.box_).has_line_clamp_point.get();
+        let reached = self.has_line_clamp() && self.line_clamp_point_found.get();
         reached && !self.laying_out_invisible_line_clamp_content.get()
     }
 
@@ -3866,10 +3867,16 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 
     pub(crate) fn run(&self, run: &FormattingContextRun<'pass>, input: LayoutInput) {
-        let available_space = input.available_space;
-        self.used(self.run.box_)
+        self.lay_out_root_contents(run, input);
+        let root_used = self.used(self.run.box_);
+        root_used.has_line_clamp_point.set(self.line_clamp_point_found.get());
+        root_used
             .clamped_content_is_scrollable_overflow
             .set(self.clamped_content_is_scrollable_overflow);
+    }
+
+    fn lay_out_root_contents(&self, run: &FormattingContextRun<'pass>, input: LayoutInput) {
+        let available_space = input.available_space;
         if self.is_line_clamp_container && self.style(self.run.box_).max_lines() == 0 {
             let automatic_block_size = self.resolve_automatic_line_clamp_block_size(input);
             if input.sizing.finds_automatic_line_clamp_lines || run.fragments.is_none() {
@@ -3890,7 +3897,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 );
                 self.max_lines.set(measurement_result.automatic_line_clamp_max_lines);
                 if self.max_lines.get() == Some(0) {
-                    self.used(self.run.box_).has_line_clamp_point.set(true);
+                    self.line_clamp_point_found.set(true);
                 }
             }
         }
