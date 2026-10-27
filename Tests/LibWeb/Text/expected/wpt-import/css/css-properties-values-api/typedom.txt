@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 325 tests
 
-244 Pass
-81 Fail
+292 Pass
+33 Fail
 Pass	Computed * is reified as CSSUnparsedValue
 Pass	Computed <angle> is reified as CSSUnitValue
 Pass	Computed <color> is reified as CSSStyleValue
@@ -280,52 +280,52 @@ Pass	CSSStyleValue.parse[All] returns CSSUnparsedValue for syntax <length>+
 Pass	CSSStyleValue.parse[All] returns CSSUnparsedValue for syntax <length>#
 Pass	Direct CSSStyleValue may not be set [attributeStyleMap]
 Pass	Direct CSSStyleValue may not be set [styleMap]
-Fail	Specified * is reified CSSUnparsedValue by iterator [attributeStyleMap]
-Fail	Specified * is reified CSSUnparsedValue by iterator [styleMap]
-Fail	Specified foo is reified CSSUnparsedValue by iterator [attributeStyleMap]
-Fail	Specified foo is reified CSSUnparsedValue by iterator [styleMap]
-Fail	Specified <angle> is reified CSSUnparsedValue by iterator [attributeStyleMap]
-Fail	Specified <angle> is reified CSSUnparsedValue by iterator [styleMap]
-Fail	Specified <color> is reified CSSUnparsedValue by iterator [attributeStyleMap]
-Fail	Specified <color> is reified CSSUnparsedValue by iterator [styleMap]
-Fail	Specified <custom-ident> is reified CSSUnparsedValue by iterator [attributeStyleMap]
-Fail	Specified <custom-ident> is reified CSSUnparsedValue by iterator [styleMap]
-Fail	Specified <image> is reified CSSUnparsedValue by iterator [attributeStyleMap]
-Fail	Specified <image> is reified CSSUnparsedValue by iterator [styleMap]
-Fail	Specified <integer> is reified CSSUnparsedValue by iterator [attributeStyleMap]
-Fail	Specified <integer> is reified CSSUnparsedValue by iterator [styleMap]
-Fail	Specified <length-percentage> is reified CSSUnparsedValue by iterator [attributeStyleMap]
-Fail	Specified <length-percentage> is reified CSSUnparsedValue by iterator [styleMap]
-Fail	Specified <length> is reified CSSUnparsedValue by iterator [attributeStyleMap]
-Fail	Specified <length> is reified CSSUnparsedValue by iterator [styleMap]
-Fail	Specified <number> is reified CSSUnparsedValue by iterator [attributeStyleMap]
-Fail	Specified <number> is reified CSSUnparsedValue by iterator [styleMap]
-Fail	Specified <percentage> is reified CSSUnparsedValue by iterator [attributeStyleMap]
-Fail	Specified <percentage> is reified CSSUnparsedValue by iterator [styleMap]
-Fail	Specified <resolution> is reified CSSUnparsedValue by iterator [attributeStyleMap]
-Fail	Specified <resolution> is reified CSSUnparsedValue by iterator [styleMap]
-Fail	Specified <time> is reified CSSUnparsedValue by iterator [attributeStyleMap]
-Fail	Specified <time> is reified CSSUnparsedValue by iterator [styleMap]
-Fail	Specified <transform-function> is reified CSSUnparsedValue by iterator [attributeStyleMap]
-Fail	Specified <transform-function> is reified CSSUnparsedValue by iterator [styleMap]
-Fail	Specified <transform-list> is reified CSSUnparsedValue by iterator [attributeStyleMap]
-Fail	Specified <transform-list> is reified CSSUnparsedValue by iterator [styleMap]
-Fail	Specified <url> is reified CSSUnparsedValue by iterator [attributeStyleMap]
-Fail	Specified <url> is reified CSSUnparsedValue by iterator [styleMap]
-Fail	Specified <length>+ is reified CSSUnparsedValue by iterator [attributeStyleMap]
-Fail	Specified <length>+ is reified CSSUnparsedValue by iterator [styleMap]
-Fail	Specified <length># is reified CSSUnparsedValue by iterator [attributeStyleMap]
-Fail	Specified <length># is reified CSSUnparsedValue by iterator [styleMap]
-Fail	Registered property with initial value show up on iteration of computedStyleMap
-Fail	Computed * is reified as CSSUnparsedValue by iterator
-Fail	Computed <angle> is reified as CSSUnitValue by iterator
-Fail	Computed <custom-ident> is reified as CSSKeywordValue by iterator
+Pass	Specified * is reified CSSUnparsedValue by iterator [attributeStyleMap]
+Pass	Specified * is reified CSSUnparsedValue by iterator [styleMap]
+Pass	Specified foo is reified CSSUnparsedValue by iterator [attributeStyleMap]
+Pass	Specified foo is reified CSSUnparsedValue by iterator [styleMap]
+Pass	Specified <angle> is reified CSSUnparsedValue by iterator [attributeStyleMap]
+Pass	Specified <angle> is reified CSSUnparsedValue by iterator [styleMap]
+Pass	Specified <color> is reified CSSUnparsedValue by iterator [attributeStyleMap]
+Pass	Specified <color> is reified CSSUnparsedValue by iterator [styleMap]
+Pass	Specified <custom-ident> is reified CSSUnparsedValue by iterator [attributeStyleMap]
+Pass	Specified <custom-ident> is reified CSSUnparsedValue by iterator [styleMap]
+Pass	Specified <image> is reified CSSUnparsedValue by iterator [attributeStyleMap]
+Pass	Specified <image> is reified CSSUnparsedValue by iterator [styleMap]
+Pass	Specified <integer> is reified CSSUnparsedValue by iterator [attributeStyleMap]
+Pass	Specified <integer> is reified CSSUnparsedValue by iterator [styleMap]
+Pass	Specified <length-percentage> is reified CSSUnparsedValue by iterator [attributeStyleMap]
+Pass	Specified <length-percentage> is reified CSSUnparsedValue by iterator [styleMap]
+Pass	Specified <length> is reified CSSUnparsedValue by iterator [attributeStyleMap]
+Pass	Specified <length> is reified CSSUnparsedValue by iterator [styleMap]
+Pass	Specified <number> is reified CSSUnparsedValue by iterator [attributeStyleMap]
+Pass	Specified <number> is reified CSSUnparsedValue by iterator [styleMap]
+Pass	Specified <percentage> is reified CSSUnparsedValue by iterator [attributeStyleMap]
+Pass	Specified <percentage> is reified CSSUnparsedValue by iterator [styleMap]
+Pass	Specified <resolution> is reified CSSUnparsedValue by iterator [attributeStyleMap]
+Pass	Specified <resolution> is reified CSSUnparsedValue by iterator [styleMap]
+Pass	Specified <time> is reified CSSUnparsedValue by iterator [attributeStyleMap]
+Pass	Specified <time> is reified CSSUnparsedValue by iterator [styleMap]
+Pass	Specified <transform-function> is reified CSSUnparsedValue by iterator [attributeStyleMap]
+Pass	Specified <transform-function> is reified CSSUnparsedValue by iterator [styleMap]
+Pass	Specified <transform-list> is reified CSSUnparsedValue by iterator [attributeStyleMap]
+Pass	Specified <transform-list> is reified CSSUnparsedValue by iterator [styleMap]
+Pass	Specified <url> is reified CSSUnparsedValue by iterator [attributeStyleMap]
+Pass	Specified <url> is reified CSSUnparsedValue by iterator [styleMap]
+Pass	Specified <length>+ is reified CSSUnparsedValue by iterator [attributeStyleMap]
+Pass	Specified <length>+ is reified CSSUnparsedValue by iterator [styleMap]
+Pass	Specified <length># is reified CSSUnparsedValue by iterator [attributeStyleMap]
+Pass	Specified <length># is reified CSSUnparsedValue by iterator [styleMap]
+Pass	Registered property with initial value show up on iteration of computedStyleMap
+Pass	Computed * is reified as CSSUnparsedValue by iterator
+Pass	Computed <angle> is reified as CSSUnitValue by iterator
+Pass	Computed <custom-ident> is reified as CSSKeywordValue by iterator
 Fail	Computed <image> is reified as CSSImageValue by iterator
-Fail	Computed <integer> is reified as CSSUnitValue by iterator
-Fail	Computed <length> is reified as CSSUnitValue by iterator
-Fail	Computed <number> is reified as CSSUnitValue by iterator
-Fail	Computed <percentage> is reified as CSSUnitValue by iterator
-Fail	Computed <resolution> is reified as CSSUnitValue by iterator
-Fail	Computed <time> is reified as CSSUnitValue by iterator
-Fail	Computed none | thing | THING is reified as CSSKeywordValue by iterator
-Fail	Computed <angle> | <length> is reified as CSSUnitValue by iterator
+Pass	Computed <integer> is reified as CSSUnitValue by iterator
+Pass	Computed <length> is reified as CSSUnitValue by iterator
+Pass	Computed <number> is reified as CSSUnitValue by iterator
+Pass	Computed <percentage> is reified as CSSUnitValue by iterator
+Pass	Computed <resolution> is reified as CSSUnitValue by iterator
+Pass	Computed <time> is reified as CSSUnitValue by iterator
+Pass	Computed none | thing | THING is reified as CSSKeywordValue by iterator
+Pass	Computed <angle> | <length> is reified as CSSUnitValue by iterator

@@ -11844,6 +11844,16 @@ Optional<CSS::CustomPropertyRegistration const&> Document::get_registered_custom
     return {};
 }
 
+void Document::for_each_registered_custom_property(Function<void(CSS::CustomPropertyRegistration const&)> const& callback) const
+{
+    for (auto const& [name, registration] : m_registered_property_set)
+        callback(registration);
+    for (auto const& [name, registration] : m_cached_registered_properties_from_css_property_rules) {
+        if (!m_registered_property_set.contains(name))
+            callback(registration);
+    }
+}
+
 void Document::did_change_custom_property_registrations(Optional<Utf16FlyString> registered_property_set_change)
 {
     ++m_custom_property_registration_generation;
