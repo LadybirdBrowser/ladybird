@@ -29,11 +29,11 @@ class NetworkBodyPump final : public JS::Cell {
 public:
     virtual ~NetworkBodyPump() override;
 
-    void set_response(GC::Ref<Fetch::Infrastructure::Response const> response) { m_response = response; }
+    void set_response(GC::Ref<Fetch::Infrastructure::Response>);
     void set_body(GC::Ref<Fetch::Infrastructure::Body> body);
 
     void handle_network_data(Requests::ResponseData);
-    void handle_network_complete();
+    void handle_network_complete(Optional<u64> encoded_body_size = {});
     void handle_network_error(StringView error_message);
     void set_cached_response_body(Core::ImmutableBytes);
 
@@ -46,9 +46,10 @@ private:
     virtual void visit_edges(Visitor& visitor) override;
 
     void finalize_cache_entry();
+    void update_response_body_info();
 
     GC::Ptr<Infrastructure::FetchParams const> m_fetch_params;
-    GC::Ptr<Fetch::Infrastructure::Response const> m_response;
+    GC::Ptr<Fetch::Infrastructure::Response> m_response;
     GC::Ptr<Fetch::Infrastructure::Body> m_body;
 
     NonnullRefPtr<Engine::FetchByteChannel> m_channel;
@@ -64,6 +65,8 @@ private:
     Optional<Core::ImmutableBytes> m_cache_body;
     bool m_cache_body_replaces_network_buffer { false };
 
+    u64 m_encoded_body_size { 0 };
+    u64 m_decoded_body_size { 0 };
     bool m_network_complete { false };
     bool m_network_failed { false };
 };

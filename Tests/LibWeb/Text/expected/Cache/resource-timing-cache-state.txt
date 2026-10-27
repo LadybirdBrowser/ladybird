@@ -1,4 +1,4 @@
-Fetched over the network: deliveryType="" transferSize=300
+Fetched over the network: deliveryType="" transferSize=311
 Served from the cache: deliveryType="cache" transferSize=0
-Fetched over the network: deliveryType="" transferSize=300
+Fetched over the network: deliveryType="" transferSize=311
 Revalidated by the server: deliveryType="cache" transferSize=300
