@@ -572,22 +572,27 @@ void ProcessManagerWindow::refresh()
         processes_by_child_id.set(process.child_id, &process);
 
     // Each process is listed with the browser's own processes, with a site, or with the spare processes. A process
-    // that works for another, such as a page's image decoder, is listed with it.
+    // that works for another, such as a page's image decoder or a worker's media server, is listed with it.
     auto is_spare = [](WebView::ProcessSnapshot const& process) {
         return process.type == WebView::ProcessType::WebContent && process.title.has_value() && *process.title == "(spare)"_utf16;
     };
-    // NB: A page's process, and a request server bound to a site, belong to that site.
+    // NB: A page's process, a worker's process, and a request server bound to a site, belong to that site.
     auto site_of = [](WebView::ProcessSnapshot const& process) -> QString {
-        if (!first_is_one_of(process.type, WebView::ProcessType::WebContent, WebView::ProcessType::RequestServer) || !process.site_url.has_value())
+        if (!first_is_one_of(process.type, WebView::ProcessType::WebContent, WebView::ProcessType::WebWorker, WebView::ProcessType::RequestServer) || !process.site_url.has_value())
             return {};
         return task_manager_site_label(*process.site_url);
     };
+    // NB: A process that works for another may itself work for a third, as a worker's image decoder works for the
+    //     worker. A worker with its own site stays with that site; an opaque-origin worker follows its owner.
     auto section_process = [&](WebView::ProcessSnapshot const& process) -> WebView::ProcessSnapshot const& {
-        if (process.owner_child_id.has_value()) {
-            if (auto owner = processes_by_child_id.get(*process.owner_child_id); owner.has_value())
-                return **owner;
+        auto const* section = &process;
+        for (size_t depth = 0; depth < processes.size() && section->owner_child_id.has_value() && site_of(*section).isEmpty(); ++depth) {
+            auto owner = processes_by_child_id.get(*section->owner_child_id);
+            if (!owner.has_value())
+                break;
+            section = *owner;
         }
-        return process;
+        return *section;
     };
 
     struct Site {
