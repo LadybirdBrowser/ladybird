@@ -1,0 +1,34 @@
+// https://w3c.github.io/touch-events/#touch-interface
+[Exposed=Window]
+interface Touch {
+    constructor(TouchInit touchInitDict);
+    readonly attribute long identifier;
+    readonly attribute EventTarget target;
+    readonly attribute double screenX;
+    readonly attribute double screenY;
+    readonly attribute double clientX;
+    readonly attribute double clientY;
+    readonly attribute double pageX;
+    readonly attribute double pageY;
+    readonly attribute float radiusX;
+    readonly attribute float radiusY;
+    readonly attribute float rotationAngle;
+    readonly attribute float force;
+};
+
+dictionary TouchInit {
+    required long identifier;
+    required EventTarget target;
+    double clientX = 0;
+    double clientY = 0;
+    double screenX = 0;
+    double screenY = 0;
+    double pageX = 0;
+    double pageY = 0;
+    float radiusX = 0;
+    float radiusY = 0;
+    float rotationAngle = 0;
+    float force = 0;
+};
+
+// INTEROP: Blink and Gecko omit the draft altitudeAngle, azimuthAngle and touchType attributes.

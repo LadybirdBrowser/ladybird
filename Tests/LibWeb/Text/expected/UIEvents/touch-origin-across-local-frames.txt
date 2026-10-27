@@ -1,0 +1,9 @@
+parent to child: parent:touchstart@parent/parent:205,55:1; parent:touchmove@parent/parent:65,55:1; parent:touchend@parent/parent:65,55:0
+child to parent: child:touchstart@child/child:25,25:1; child:touchmove@child/child:165,25:1; child:touchend@child/child:165,25:0
+child to sibling: child:touchstart@child/child:25,25:1; child:touchmove@child/child:305,25:1; child:touchend@child/child:305,25:0
+same document: parent:touchstart@parent/parent:205,55:1; parent:touchmove@parent/parent:205,175:1; parent:touchend@parent/parent:205,175:0
+released Pointer targets: pointermove@other; pointerup@other
+hidden child: child:touchstart@child/child:25,25:1; child:touchcancel@child/child:25,25:0
+removed child: child:touchstart@child/child:25,25:1
+next contact: primary=true, parent:touchstart@parent/parent:205,55:1; parent:touchend@parent/parent:205,55:0
+compatibility mouse events: 0

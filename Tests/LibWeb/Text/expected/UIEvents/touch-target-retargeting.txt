@@ -1,0 +1,4 @@
+inside: true, true
+outside: true, true, 12.5
+saved inside snapshot: true
+original: true

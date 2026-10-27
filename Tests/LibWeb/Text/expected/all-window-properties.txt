@@ -557,6 +557,9 @@ TextTrackCueList
 TextTrackList
 TimeRanges
 ToggleEvent
+Touch
+TouchEvent
+TouchList
 TrackEvent
 TransformStream
 TransformStreamDefaultController

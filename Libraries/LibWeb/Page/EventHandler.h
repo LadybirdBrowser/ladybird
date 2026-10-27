@@ -180,6 +180,8 @@ private:
         // https://w3c.github.io/pointerevents/#the-pointerdown-event
         // The PREVENT MOUSE EVENT flag.
         bool prevent_mouse_event { false };
+        // NB: A canceled touch event or a multi-touch gesture suppresses the click as well as the mouse events.
+        bool suppress_click { false };
         unsigned buttons { 0 };
         unsigned modifiers { 0 };
         // NB: A pointercancel uses the last dispatched position.
@@ -192,12 +194,15 @@ private:
         // https://w3c.github.io/pointerevents/#dfn-pointer-capture-target-override
         // NB: Once the element is removed, lostpointercapture targets its document.
         GC::Weak<DOM::Node> capture_target;
+        // NB: The contact's latest Touch, which the touch lists of later touch events include.
+        GC::Ptr<UIEvents::Touch> touch;
     };
     struct AdditionalPointerState : public RefCounted<AdditionalPointerState> {
         PointerState state;
     };
     GC::Ref<UIEvents::PointerEvent> create_pointer_event(PointerState const&, DOM::Node const&, Utf16FlyString const&, MouseEventCoordinates const&, CSSPixelPoint screen_position, i16 button, CSSPixelPoint movement = {}) const;
     void update_pointer_hover(Layout::BegunRead const&, PointerState&, GC::Ptr<DOM::Node>, MouseEventCoordinates const&, CSSPixelPoint screen_position);
+    bool dispatch_touch_event(PointerState&, DOM::Node&, Utf16FlyString const&, MouseEventCoordinates const&, CSSPixelPoint screen_position);
     bool has_pointer_capture_in_subtree(i32 pointer_id) const;
     PointerState const* pointer_state(i32 pointer_id) const;
     PointerState* pointer_state(i32 pointer_id);
@@ -305,6 +310,8 @@ private:
     RefPtr<Painting::ChromeWidget> m_captured_chrome_widget;
 
     GC::Weak<DOM::Node> m_effective_legacy_mouse_pointer_position;
+    PointerType m_effective_legacy_mouse_pointer_type { PointerType::Mouse };
+    GC::Ptr<DOM::Node> m_native_mouse_hover_target;
 
     GC::Weak<DOM::Node> m_last_mousedown_target;
     GC::Weak<DOM::Node> m_mousedown_target;

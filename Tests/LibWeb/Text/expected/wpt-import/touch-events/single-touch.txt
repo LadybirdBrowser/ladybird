@@ -1,0 +1,232 @@
+Harness status: OK
+
+Found 227 tests
+
+227 Pass
+Pass	Verify touch events for a single touch drag operation
+Pass	touchstart event is a TouchEvent event
+Pass	touchstart.touches attribute exists check_TouchEvent
+Pass	touchstart.touches attribute is of type TouchList
+Pass	touchstart.touches's touch list is a TouchList object
+Pass	touchstart.touches.TouchList.length attribute exists check_touchList_object
+Pass	touchstart.touches.TouchList.length attribute is of type number (unsigned long)
+Pass	touchstart.touches.TouchList.item attribute exists check_touchList_object
+Pass	touchstart.touches.TouchList.item attribute is of type function
+Pass	touchstart.touches[0]'s touch point is a Touch object
+Pass	touchstart.touches[0].Touch.identifier attribute exists check_Touch_object
+Pass	touchstart.touches[0].Touch.identifier attribute is of type number (long)
+Pass	touchstart.touches[0].Touch.target attribute exists check_Touch_object
+Pass	touchstart.touches[0].Touch.target attribute is of type Element
+Pass	touchstart.touches[0].Touch.screenX attribute exists check_Touch_object
+Pass	touchstart.touches[0].Touch.screenX attribute is of type number (long)
+Pass	touchstart.touches[0].Touch.screenY attribute exists check_Touch_object
+Pass	touchstart.touches[0].Touch.screenY attribute is of type number (long)
+Pass	touchstart.touches[0].Touch.clientX attribute exists check_Touch_object
+Pass	touchstart.touches[0].Touch.clientX attribute is of type number (long)
+Pass	touchstart.touches[0].Touch.clientY attribute exists check_Touch_object
+Pass	touchstart.touches[0].Touch.clientY attribute is of type number (long)
+Pass	touchstart.touches[0].Touch.pageX attribute exists check_Touch_object
+Pass	touchstart.touches[0].Touch.pageX attribute is of type number (long)
+Pass	touchstart.touches[0].Touch.pageY attribute exists check_Touch_object
+Pass	touchstart.touches[0].Touch.pageY attribute is of type number (long)
+Pass	touchstart.targetTouches attribute exists check_TouchEvent
+Pass	touchstart.targetTouches attribute is of type TouchList
+Pass	touchstart.targetTouches's touch list is a TouchList object
+Pass	touchstart.targetTouches.TouchList.length attribute exists check_touchList_object
+Pass	touchstart.targetTouches.TouchList.length attribute is of type number (unsigned long)
+Pass	touchstart.targetTouches.TouchList.item attribute exists check_touchList_object
+Pass	touchstart.targetTouches.TouchList.item attribute is of type function
+Pass	touchstart.targetTouches[0]'s touch point is a Touch object
+Pass	touchstart.targetTouches[0].Touch.identifier attribute exists check_Touch_object
+Pass	touchstart.targetTouches[0].Touch.identifier attribute is of type number (long)
+Pass	touchstart.targetTouches[0].Touch.target attribute exists check_Touch_object
+Pass	touchstart.targetTouches[0].Touch.target attribute is of type Element
+Pass	touchstart.targetTouches[0].Touch.screenX attribute exists check_Touch_object
+Pass	touchstart.targetTouches[0].Touch.screenX attribute is of type number (long)
+Pass	touchstart.targetTouches[0].Touch.screenY attribute exists check_Touch_object
+Pass	touchstart.targetTouches[0].Touch.screenY attribute is of type number (long)
+Pass	touchstart.targetTouches[0].Touch.clientX attribute exists check_Touch_object
+Pass	touchstart.targetTouches[0].Touch.clientX attribute is of type number (long)
+Pass	touchstart.targetTouches[0].Touch.clientY attribute exists check_Touch_object
+Pass	touchstart.targetTouches[0].Touch.clientY attribute is of type number (long)
+Pass	touchstart.targetTouches[0].Touch.pageX attribute exists check_Touch_object
+Pass	touchstart.targetTouches[0].Touch.pageX attribute is of type number (long)
+Pass	touchstart.targetTouches[0].Touch.pageY attribute exists check_Touch_object
+Pass	touchstart.targetTouches[0].Touch.pageY attribute is of type number (long)
+Pass	touchstart.changedTouches attribute exists check_TouchEvent
+Pass	touchstart.changedTouches attribute is of type TouchList
+Pass	touchstart.changedTouches's touch list is a TouchList object
+Pass	touchstart.changedTouches.TouchList.length attribute exists check_touchList_object
+Pass	touchstart.changedTouches.TouchList.length attribute is of type number (unsigned long)
+Pass	touchstart.changedTouches.TouchList.item attribute exists check_touchList_object
+Pass	touchstart.changedTouches.TouchList.item attribute is of type function
+Pass	touchstart.changedTouches[0]'s touch point is a Touch object
+Pass	touchstart.changedTouches[0].Touch.identifier attribute exists check_Touch_object
+Pass	touchstart.changedTouches[0].Touch.identifier attribute is of type number (long)
+Pass	touchstart.changedTouches[0].Touch.target attribute exists check_Touch_object
+Pass	touchstart.changedTouches[0].Touch.target attribute is of type Element
+Pass	touchstart.changedTouches[0].Touch.screenX attribute exists check_Touch_object
+Pass	touchstart.changedTouches[0].Touch.screenX attribute is of type number (long)
+Pass	touchstart.changedTouches[0].Touch.screenY attribute exists check_Touch_object
+Pass	touchstart.changedTouches[0].Touch.screenY attribute is of type number (long)
+Pass	touchstart.changedTouches[0].Touch.clientX attribute exists check_Touch_object
+Pass	touchstart.changedTouches[0].Touch.clientX attribute is of type number (long)
+Pass	touchstart.changedTouches[0].Touch.clientY attribute exists check_Touch_object
+Pass	touchstart.changedTouches[0].Touch.clientY attribute is of type number (long)
+Pass	touchstart.changedTouches[0].Touch.pageX attribute exists check_Touch_object
+Pass	touchstart.changedTouches[0].Touch.pageX attribute is of type number (long)
+Pass	touchstart.changedTouches[0].Touch.pageY attribute exists check_Touch_object
+Pass	touchstart.changedTouches[0].Touch.pageY attribute is of type number (long)
+Pass	touchstart.altKey attribute exists check_TouchEvent
+Pass	touchstart.altKey attribute is of type boolean
+Pass	touchstart.metaKey attribute exists check_TouchEvent
+Pass	touchstart.metaKey attribute is of type boolean
+Pass	touchstart.ctrlKey attribute exists check_TouchEvent
+Pass	touchstart.ctrlKey attribute is of type boolean
+Pass	touchstart.shiftKey attribute exists check_TouchEvent
+Pass	touchstart.shiftKey attribute is of type boolean
+Pass	touchstart: all TouchList lengths are correct
+Pass	touchstart: all TouchList identifiers are consistent
+Pass	touchstart: event target same as targetTouches target
+Pass	touchstart: touch pageX/pageY inside of target element
+Pass	touchstart: touch clientX/clientY is consistent with pageX/pageY
+Pass	touchstart: touch screenX/screenY pageX/pageY and clientX/clientY values are no less than 0
+Pass	touchmove event is a TouchEvent event
+Pass	touchmove.touches attribute exists check_TouchEvent
+Pass	touchmove.touches attribute is of type TouchList
+Pass	touchmove.touches's touch list is a TouchList object
+Pass	touchmove.touches.TouchList.length attribute exists check_touchList_object
+Pass	touchmove.touches.TouchList.length attribute is of type number (unsigned long)
+Pass	touchmove.touches.TouchList.item attribute exists check_touchList_object
+Pass	touchmove.touches.TouchList.item attribute is of type function
+Pass	touchmove.touches[0]'s touch point is a Touch object
+Pass	touchmove.touches[0].Touch.identifier attribute exists check_Touch_object
+Pass	touchmove.touches[0].Touch.identifier attribute is of type number (long)
+Pass	touchmove.touches[0].Touch.target attribute exists check_Touch_object
+Pass	touchmove.touches[0].Touch.target attribute is of type Element
+Pass	touchmove.touches[0].Touch.screenX attribute exists check_Touch_object
+Pass	touchmove.touches[0].Touch.screenX attribute is of type number (long)
+Pass	touchmove.touches[0].Touch.screenY attribute exists check_Touch_object
+Pass	touchmove.touches[0].Touch.screenY attribute is of type number (long)
+Pass	touchmove.touches[0].Touch.clientX attribute exists check_Touch_object
+Pass	touchmove.touches[0].Touch.clientX attribute is of type number (long)
+Pass	touchmove.touches[0].Touch.clientY attribute exists check_Touch_object
+Pass	touchmove.touches[0].Touch.clientY attribute is of type number (long)
+Pass	touchmove.touches[0].Touch.pageX attribute exists check_Touch_object
+Pass	touchmove.touches[0].Touch.pageX attribute is of type number (long)
+Pass	touchmove.touches[0].Touch.pageY attribute exists check_Touch_object
+Pass	touchmove.touches[0].Touch.pageY attribute is of type number (long)
+Pass	touchmove.targetTouches attribute exists check_TouchEvent
+Pass	touchmove.targetTouches attribute is of type TouchList
+Pass	touchmove.targetTouches's touch list is a TouchList object
+Pass	touchmove.targetTouches.TouchList.length attribute exists check_touchList_object
+Pass	touchmove.targetTouches.TouchList.length attribute is of type number (unsigned long)
+Pass	touchmove.targetTouches.TouchList.item attribute exists check_touchList_object
+Pass	touchmove.targetTouches.TouchList.item attribute is of type function
+Pass	touchmove.targetTouches[0]'s touch point is a Touch object
+Pass	touchmove.targetTouches[0].Touch.identifier attribute exists check_Touch_object
+Pass	touchmove.targetTouches[0].Touch.identifier attribute is of type number (long)
+Pass	touchmove.targetTouches[0].Touch.target attribute exists check_Touch_object
+Pass	touchmove.targetTouches[0].Touch.target attribute is of type Element
+Pass	touchmove.targetTouches[0].Touch.screenX attribute exists check_Touch_object
+Pass	touchmove.targetTouches[0].Touch.screenX attribute is of type number (long)
+Pass	touchmove.targetTouches[0].Touch.screenY attribute exists check_Touch_object
+Pass	touchmove.targetTouches[0].Touch.screenY attribute is of type number (long)
+Pass	touchmove.targetTouches[0].Touch.clientX attribute exists check_Touch_object
+Pass	touchmove.targetTouches[0].Touch.clientX attribute is of type number (long)
+Pass	touchmove.targetTouches[0].Touch.clientY attribute exists check_Touch_object
+Pass	touchmove.targetTouches[0].Touch.clientY attribute is of type number (long)
+Pass	touchmove.targetTouches[0].Touch.pageX attribute exists check_Touch_object
+Pass	touchmove.targetTouches[0].Touch.pageX attribute is of type number (long)
+Pass	touchmove.targetTouches[0].Touch.pageY attribute exists check_Touch_object
+Pass	touchmove.targetTouches[0].Touch.pageY attribute is of type number (long)
+Pass	touchmove.changedTouches attribute exists check_TouchEvent
+Pass	touchmove.changedTouches attribute is of type TouchList
+Pass	touchmove.changedTouches's touch list is a TouchList object
+Pass	touchmove.changedTouches.TouchList.length attribute exists check_touchList_object
+Pass	touchmove.changedTouches.TouchList.length attribute is of type number (unsigned long)
+Pass	touchmove.changedTouches.TouchList.item attribute exists check_touchList_object
+Pass	touchmove.changedTouches.TouchList.item attribute is of type function
+Pass	touchmove.changedTouches[0]'s touch point is a Touch object
+Pass	touchmove.changedTouches[0].Touch.identifier attribute exists check_Touch_object
+Pass	touchmove.changedTouches[0].Touch.identifier attribute is of type number (long)
+Pass	touchmove.changedTouches[0].Touch.target attribute exists check_Touch_object
+Pass	touchmove.changedTouches[0].Touch.target attribute is of type Element
+Pass	touchmove.changedTouches[0].Touch.screenX attribute exists check_Touch_object
+Pass	touchmove.changedTouches[0].Touch.screenX attribute is of type number (long)
+Pass	touchmove.changedTouches[0].Touch.screenY attribute exists check_Touch_object
+Pass	touchmove.changedTouches[0].Touch.screenY attribute is of type number (long)
+Pass	touchmove.changedTouches[0].Touch.clientX attribute exists check_Touch_object
+Pass	touchmove.changedTouches[0].Touch.clientX attribute is of type number (long)
+Pass	touchmove.changedTouches[0].Touch.clientY attribute exists check_Touch_object
+Pass	touchmove.changedTouches[0].Touch.clientY attribute is of type number (long)
+Pass	touchmove.changedTouches[0].Touch.pageX attribute exists check_Touch_object
+Pass	touchmove.changedTouches[0].Touch.pageX attribute is of type number (long)
+Pass	touchmove.changedTouches[0].Touch.pageY attribute exists check_Touch_object
+Pass	touchmove.changedTouches[0].Touch.pageY attribute is of type number (long)
+Pass	touchmove.altKey attribute exists check_TouchEvent
+Pass	touchmove.altKey attribute is of type boolean
+Pass	touchmove.metaKey attribute exists check_TouchEvent
+Pass	touchmove.metaKey attribute is of type boolean
+Pass	touchmove.ctrlKey attribute exists check_TouchEvent
+Pass	touchmove.ctrlKey attribute is of type boolean
+Pass	touchmove.shiftKey attribute exists check_TouchEvent
+Pass	touchmove.shiftKey attribute is of type boolean
+Pass	touchmove: all TouchList lengths are correct
+Pass	touchmove: all TouchList identifiers matches touchstart identifier
+Pass	touchmove: event target same as targetTouches target
+Pass	touchmove: touch pageX/pageY inside of one of the target elements
+Pass	touchmove: touch clientX/clientY is consistent with pageX/pageY
+Pass	touchmove: touch screenX/screenY pageX/pageY and clientX/clientY values are no less than 0
+Pass	touchend event is a TouchEvent event
+Pass	touchend.touches attribute exists check_TouchEvent
+Pass	touchend.touches attribute is of type TouchList
+Pass	touchend.touches's touch list is a TouchList object
+Pass	touchend.touches.TouchList.length attribute exists check_touchList_object
+Pass	touchend.touches.TouchList.length attribute is of type number (unsigned long)
+Pass	touchend.touches.TouchList.item attribute exists check_touchList_object
+Pass	touchend.touches.TouchList.item attribute is of type function
+Pass	touchend.targetTouches attribute exists check_TouchEvent
+Pass	touchend.targetTouches attribute is of type TouchList
+Pass	touchend.targetTouches's touch list is a TouchList object
+Pass	touchend.targetTouches.TouchList.length attribute exists check_touchList_object
+Pass	touchend.targetTouches.TouchList.length attribute is of type number (unsigned long)
+Pass	touchend.targetTouches.TouchList.item attribute exists check_touchList_object
+Pass	touchend.targetTouches.TouchList.item attribute is of type function
+Pass	touchend.changedTouches attribute exists check_TouchEvent
+Pass	touchend.changedTouches attribute is of type TouchList
+Pass	touchend.changedTouches's touch list is a TouchList object
+Pass	touchend.changedTouches.TouchList.length attribute exists check_touchList_object
+Pass	touchend.changedTouches.TouchList.length attribute is of type number (unsigned long)
+Pass	touchend.changedTouches.TouchList.item attribute exists check_touchList_object
+Pass	touchend.changedTouches.TouchList.item attribute is of type function
+Pass	touchend.changedTouches[0]'s touch point is a Touch object
+Pass	touchend.changedTouches[0].Touch.identifier attribute exists check_Touch_object
+Pass	touchend.changedTouches[0].Touch.identifier attribute is of type number (long)
+Pass	touchend.changedTouches[0].Touch.target attribute exists check_Touch_object
+Pass	touchend.changedTouches[0].Touch.target attribute is of type Element
+Pass	touchend.changedTouches[0].Touch.screenX attribute exists check_Touch_object
+Pass	touchend.changedTouches[0].Touch.screenX attribute is of type number (long)
+Pass	touchend.changedTouches[0].Touch.screenY attribute exists check_Touch_object
+Pass	touchend.changedTouches[0].Touch.screenY attribute is of type number (long)
+Pass	touchend.changedTouches[0].Touch.clientX attribute exists check_Touch_object
+Pass	touchend.changedTouches[0].Touch.clientX attribute is of type number (long)
+Pass	touchend.changedTouches[0].Touch.clientY attribute exists check_Touch_object
+Pass	touchend.changedTouches[0].Touch.clientY attribute is of type number (long)
+Pass	touchend.changedTouches[0].Touch.pageX attribute exists check_Touch_object
+Pass	touchend.changedTouches[0].Touch.pageX attribute is of type number (long)
+Pass	touchend.changedTouches[0].Touch.pageY attribute exists check_Touch_object
+Pass	touchend.changedTouches[0].Touch.pageY attribute is of type number (long)
+Pass	touchend.altKey attribute exists check_TouchEvent
+Pass	touchend.altKey attribute is of type boolean
+Pass	touchend.metaKey attribute exists check_TouchEvent
+Pass	touchend.metaKey attribute is of type boolean
+Pass	touchend.ctrlKey attribute exists check_TouchEvent
+Pass	touchend.ctrlKey attribute is of type boolean
+Pass	touchend.shiftKey attribute exists check_TouchEvent
+Pass	touchend.shiftKey attribute is of type boolean
+Pass	touchend: all TouchList lengths are correct
+Pass	touchend: touches identifier matches changedTouches identifier
+Pass	touchend: touch pageX/pageY inside expected element
+Pass	touchend: touch clientX/clientY is consistent with pageX/pageY
+Pass	touchend: touch screenX/screenY pageX/pageY and clientX/clientY values are no less than 0

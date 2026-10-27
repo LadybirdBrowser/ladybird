@@ -1,0 +1,44 @@
+<!doctype html>
+<style>
+body { margin:0 }
+#container { position:absolute; width:100px; height:100px }
+.target { width:100px; height:100px }
+.target:hover { background-color:rgb(0,255,0) }
+#container:hover { color:rgb(0,0,255) }
+#mouse { position:absolute; left:150px; width:100px; height:100px }
+</style>
+<div id="container"><div class="target"></div></div><div id="mouse"></div>
+<script src="../include.js"></script>
+<script>
+asyncTest(async done => {
+    const frame=()=>new Promise(resolve=>requestAnimationFrame(resolve));
+    const container=document.getElementById("container");
+    const target=container.firstElementChild;
+    await internals.mouseEventThroughUIProcess("mousemove",180,20);
+    const nativeBoundaries=[];
+    for (const type of ["pointerover","pointerout"])
+        document.addEventListener(type,event=>{if(event.pointerType==="mouse")nativeBoundaries.push(type)});
+    for (const type of ["mouseover","mousemove","mousedown","mouseup","click"])
+        container.addEventListener(type,event=>println(`${type}: hover=${event.target.matches(":hover")}, color=${getComputedStyle(event.target).backgroundColor}`),true);
+    const source=(id,actions)=>({type:"pointer",id,parameters:{pointerType:"touch"},actions});
+    const move=(x,y)=>({type:"pointerMove",x,y});
+    const down={type:"pointerDown",button:0},up={type:"pointerUp",button:0};
+    const tap=()=>internals.performActions(JSON.stringify({actions:[source("tap",[move(20,20),down,up])]}));
+    await tap();
+    await frame();
+    await frame();
+    println(`sticky hover: ${target.matches(":hover")}, color=${getComputedStyle(target).backgroundColor}`);
+    await internals.mouseEventThroughUIProcess("mousemove",180,20);
+    println(`mouse after touch: hover=${mouse.matches(":hover")}, native boundaries=${nativeBoundaries.length}`);
+    let clicks=0;
+    document.addEventListener("click",()=>++clicks);
+    await internals.performActions(JSON.stringify({actions:[source("one",[move(20,20),down,up]),source("two",[move(180,20),down,up])]}));
+    println(`multi-touch clicks: ${clicks}`);
+    target.addEventListener("click",()=>{target.remove();container.appendChild(target.cloneNode())},{once:true});
+    await tap();
+    await frame();
+    await frame();
+    println(`after replacement: child=${container.firstElementChild.matches(":hover")}, parent=${container.matches(":hover")}, color=${getComputedStyle(container).color}`);
+    done();
+});
+</script>

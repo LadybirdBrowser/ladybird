@@ -1,0 +1,30 @@
+interfaces: function, function, function
+desktop handlers: false, false, false
+legacy event factory: NotSupportedError
+touchstart@a: touches=1, target=1, changed=1, trusted=true, composed=true
+  original target=a, x=20, force=0.75, radius=6,9, control=true
+touchmove@a: touches=1, target=1, changed=1, trusted=true, composed=true
+  original target=a, x=180, force=0.5, radius=0.5,0.5, control=true
+touchend@a: touches=0, target=0, changed=1, trusted=true, composed=true
+  original target=a, x=180, force=0, radius=0.5,0.5, control=true
+saved snapshot: length=1, x=20, force=0.75, identity=true
+list bounds: null, undefined
+mouse events after canceled touchstart: 0
+touchstart@a: touches=1, target=1, changed=1, trusted=true, composed=true
+  original target=a, x=20, force=0.5, radius=0.5,0.5, control=false
+touchstart@b: touches=2, target=1, changed=1, trusted=true, composed=true
+  original target=b, x=180, force=0.5, radius=0.5,0.5, control=false
+touchmove@a: touches=2, target=1, changed=1, trusted=true, composed=true
+  original target=a, x=30, force=0.5, radius=0.5,0.5, control=false
+touchmove@b: touches=2, target=1, changed=1, trusted=true, composed=true
+  original target=b, x=190, force=0.5, radius=0.5,0.5, control=false
+touchcancel@a: touches=1, target=0, changed=1, trusted=true, composed=true
+  original target=a, x=30, force=0.5, radius=0.5,0.5, control=false
+touchend@b: touches=0, target=0, changed=1, trusted=true, composed=true
+  original target=b, x=190, force=0, radius=0.5,0.5, control=false
+mouse events after canceled contact: 0
+touchstart@b: touches=1, target=1, changed=1, trusted=true, composed=true
+  original target=b, x=180, force=0.5, radius=0.5,0.5, control=false
+touchend@b: touches=0, target=0, changed=1, trusted=true, composed=true
+  original target=b, x=180, force=0, radius=0.5,0.5, control=false
+mouse events after canceled touchend: 0

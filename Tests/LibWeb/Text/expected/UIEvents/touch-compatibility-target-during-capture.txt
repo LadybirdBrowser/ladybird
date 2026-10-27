@@ -1,0 +1,15 @@
+pointerdown: child
+touchstart: child
+pointerup: parent
+touchend: child
+mousedown: child
+mouseup: child
+click: parent
+pointerdown: child
+touchstart: child
+pointerup: parent
+touchend: child
+mousedown: child
+mouseup: child
+click: parent
+after replacement: child=false, parent=true

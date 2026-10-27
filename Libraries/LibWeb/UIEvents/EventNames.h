@@ -46,6 +46,10 @@ namespace Web::UIEvents::EventNames {
     __ENUMERATE_UI_EVENT(pointerup)          \
     __ENUMERATE_UI_EVENT(resize)             \
     __ENUMERATE_UI_EVENT(textInput)          \
+    __ENUMERATE_UI_EVENT(touchcancel)        \
+    __ENUMERATE_UI_EVENT(touchend)           \
+    __ENUMERATE_UI_EVENT(touchmove)          \
+    __ENUMERATE_UI_EVENT(touchstart)         \
     __ENUMERATE_UI_EVENT(wheel)
 
 #define __ENUMERATE_UI_EVENT(name) extern WEB_API Utf16FlyString const& name;

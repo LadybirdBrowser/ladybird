@@ -1,0 +1,14 @@
+mouseover: hover=true, color=rgb(0, 255, 0)
+mousemove: hover=true, color=rgb(0, 255, 0)
+mousedown: hover=true, color=rgb(0, 255, 0)
+mouseup: hover=true, color=rgb(0, 255, 0)
+click: hover=true, color=rgb(0, 255, 0)
+sticky hover: true, color=rgb(0, 255, 0)
+mouse after touch: hover=true, native boundaries=0
+multi-touch clicks: 0
+mouseover: hover=true, color=rgb(0, 255, 0)
+mousemove: hover=true, color=rgb(0, 255, 0)
+mousedown: hover=true, color=rgb(0, 255, 0)
+mouseup: hover=true, color=rgb(0, 255, 0)
+click: hover=true, color=rgb(0, 255, 0)
+after replacement: child=false, parent=true, color=rgb(0, 0, 255)

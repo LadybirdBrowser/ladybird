@@ -31,6 +31,7 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/UIEvents/MouseEvent.h>
+#include <LibWeb/UIEvents/TouchEvent.h>
 
 namespace Web::DOM {
 
@@ -167,7 +168,12 @@ void EventDispatcher::invoke(Event::PathEntry& struct_, Event& event, Event::Pha
     event.set_related_target(struct_.related_target.ptr());
 
     // 3. Set event’s touch target list to struct’s touch target list.
-    event.set_touch_target_list(struct_.touch_target_list);
+    // OPTIMIZATION: Every path entry has the same touch target count. Ordinary events keep their empty list.
+    if (!struct_.touch_target_list.is_empty()) {
+        event.set_touch_target_list(struct_.touch_target_list);
+        if (auto* touch_event = as_if<UIEvents::TouchEvent>(&event))
+            touch_event->retarget_touch_lists();
+    }
 
     // 4. If event’s stop propagation flag is set, then return.
     if (event.should_stop_propagation())

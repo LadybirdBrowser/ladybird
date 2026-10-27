@@ -1,0 +1,30 @@
+<!doctype html>
+<style>body { margin:0 } #parent { width:100px; height:100px } #child { width:50px; height:50px }</style>
+<div id="parent"><div id="child"></div></div>
+<script src="../include.js"></script>
+<script>
+asyncTest(async done => {
+    const parent = document.getElementById("parent");
+    for (const type of ["pointerdown", "pointerup", "touchstart", "touchend", "mousedown", "mouseup", "click"])
+        document.addEventListener(type, event => {
+            println(`${type}: ${event.target.id}`);
+            if (type === "pointerdown")
+                parent.setPointerCapture(event.pointerId);
+        });
+    const tap = () => internals.performActions(JSON.stringify({actions:[{
+        type:"pointer", id:"contact", parameters:{pointerType:"touch"},
+        actions:[{type:"pointerMove",x:20,y:20},{type:"pointerDown",button:0},{type:"pointerUp",button:0}]
+    }]}));
+    await tap();
+    parent.addEventListener("click", () => {
+        const child = parent.firstElementChild;
+        child.remove();
+        parent.append(child.cloneNode());
+    }, {once:true});
+    await tap();
+    await new Promise(resolve => requestAnimationFrame(resolve));
+    await new Promise(resolve => requestAnimationFrame(resolve));
+    println(`after replacement: child=${parent.firstElementChild.matches(":hover")}, parent=${parent.matches(":hover")}`);
+    done();
+});
+</script>
