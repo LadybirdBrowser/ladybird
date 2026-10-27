@@ -305,6 +305,9 @@ interface Internals {
     // "landed" once the event loop took the frame in and the update has not run its steps from its style and layout on
     // yet, "idle" otherwise.
     DOMString frameSchedulerState();
+    // Waits until the compositor has received every frame already rendered for this page in this process. This does
+    // not start a rendering update or wait for frames hosted by another process.
+    undefined synchronizeCompositor();
     // Keeps the next recording that flies in flight, before it reads its frame, until releaseHeldFrame(), or until a
     // read waits for it. With "layout", only the next rendering update's layout that flies, or recording, is held,
     // before it reads anything.

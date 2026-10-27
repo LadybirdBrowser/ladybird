@@ -1,0 +1,42 @@
+<!doctype html>
+<html class="reftest-wait">
+    <link rel="match" href="../expected/isolated-iframe-is-composited-into-its-parent-ref.html" />
+    <style>
+        body {
+            margin: 0;
+        }
+        iframe {
+            display: block;
+            width: 100px;
+            height: 100px;
+            border: 0;
+        }
+    </style>
+    <script>
+        // The child's recording stays held until the synchronization takes it in. Animation frame callbacks alone do
+        // not publish it, so the screenshot would be blank if the child reported before the barrier completed.
+        const request = new XMLHttpRequest();
+        const path = `/echo/isolated-iframe-composited-${crypto.randomUUID()}`;
+        request.open("POST", "/echo", false);
+        request.setRequestHeader("Content-Type", "application/json");
+        request.send(
+            JSON.stringify({
+                method: "GET",
+                path,
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><style>html, body { margin: 0; height: 100%; background: green; }</style>
+            <script>
+                internals.holdNextFrame();
+                requestAnimationFrame(() => requestAnimationFrame(() => {
+                    internals.synchronizeCompositor();
+                    parent.postMessage("painted", "*");
+                }));<\/script>`,
+            })
+        );
+
+        const host = `oop-iframe-composited-${crypto.randomUUID()}.localhost`;
+        window.addEventListener("message", () => document.documentElement.classList.remove("reftest-wait"));
+        document.write(`<iframe src="http://${host}:${location.port}${path}"></iframe>`);
+    </script>
+</html>
