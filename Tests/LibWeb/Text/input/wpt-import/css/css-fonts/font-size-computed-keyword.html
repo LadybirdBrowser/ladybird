@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>font-size computed keywords</title>
+<link rel="help" href="https://drafts.csswg.org/css-fonts-4/#font-size-prop">
+<link rel="help" href="https://drafts.csswg.org/css-fonts-4/#absolute-size-mapping">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/3906">
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#range">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<style>
+.xxxLarge {
+  font-size: xxx-large;
+}
+.xxLarge {
+  font-size: xx-large;
+}
+.xLarge {
+  font-size: x-large;
+}
+.large {
+  font-size: large;
+}
+.medium {
+  font-size: medium;
+}
+.small {
+  font-size: small;
+}
+.xSmall {
+  font-size: x-small;
+}
+.xxSmall {
+  font-size: xx-small;
+}
+.larger {
+  font-size: larger;
+}
+.smaller {
+  font-size: smaller;
+}
+.initial {
+  font-size: initial;
+}
+.inherit {
+  font-size: inherit;
+}
+.unset {
+  font-size: unset;
+}
+.revert {
+  font-size: revert;
+}
+.revertLayer {
+  font-size: revert-layer;
+}
+</style>
+
+<div id="medium" class="medium"></div>
+<div id="div"></div>
+
+<script>
+"use strict";
+
+const root = document.documentElement;
+const medium = document.getElementById("medium");
+const div = document.getElementById("div");
+
+function cleanup() {
+  div.classList.remove(
+    "xxxLarge",
+    "xxLarge",
+    "xLarge",
+    "large",
+    "medium",
+    "small",
+    "xSmall",
+    "xxSmall",
+    "larger",
+    "smaller",
+    "initial",
+    "inherit",
+    "unset",
+    "revert",
+    "revertLayer"
+  );
+}
+
+test(t => {
+  t.add_cleanup(cleanup);
+  assert_equals(window.getComputedStyle(medium).fontSize, "16px", "medium");
+}, "medium is 16px");
+
+test(t => {
+  t.add_cleanup(cleanup);
+  assert_equals(window.getComputedStyle(root).fontSize, "16px", "root");
+  assert_equals(window.getComputedStyle(div).fontSize, "16px", "div");
+}, "initial value of font size is medium");
+
+test(t => {
+  t.add_cleanup(cleanup);
+  div.classList.add("large");
+  // A scaling factor of 6/5 is recommended for large.
+  // Browsers scale by 9/8 = 18px.
+  assert_equals(window.getComputedStyle(div).fontSize, "18px");
+}, "font size large");
+
+test(t => {
+  t.add_cleanup(cleanup);
+  div.classList.add("xLarge");
+  assert_equals(window.getComputedStyle(div).fontSize, "24px");
+}, "font size x-large");
+
+test(t => {
+  t.add_cleanup(cleanup);
+  div.classList.add("xxLarge");
+  assert_equals(window.getComputedStyle(div).fontSize, "32px");
+}, "font size xx-large");
+
+test(t => {
+  t.add_cleanup(cleanup);
+  div.classList.add("xxxLarge");
+  assert_equals(window.getComputedStyle(div).fontSize, "48px");
+}, "font size xxx-large");
+
+test(t => {
+  t.add_cleanup(cleanup);
+  div.classList.add("small");
+  // A scaling factor of 8/9 is recommended for small.
+  // Browsers scale by 13/16 = 13px.
+  assert_equals(window.getComputedStyle(div).fontSize, "13px");
+}, "font size small");
+
+test(t => {
+  t.add_cleanup(cleanup);
+  div.classList.add("xSmall");
+  // A scaling factor of 3/4 is recommended for x-small.
+  // Browsers scale by 5/8 = 10px.
+  assert_equals(window.getComputedStyle(div).fontSize, "10px");
+}, "font size x-small");
+
+test(t => {
+  t.add_cleanup(cleanup);
+  div.classList.add("xxSmall");
+  // A scaling factor of 3/5 is recommended for xx-small.
+  // Browsers scale by 9/16 = 9px.
+  assert_equals(window.getComputedStyle(div).fontSize, "9px");
+}, "font size xx-small");
+
+test(t => {
+  t.add_cleanup(cleanup);
+  div.classList.add("larger");
+  const size = window.getComputedStyle(div).fontSize;
+  assert_true(size.endsWith("px"), "The computed font size is in pixels");
+  // Allow implementation-defined precision for fractional pixel values.
+  assert_approx_equals(parseFloat(size), 16 * 1.2, 0.02);
+}, "font size larger");
+
+test(t => {
+  t.add_cleanup(cleanup);
+  div.classList.add("smaller");
+  const size = window.getComputedStyle(div).fontSize;
+  assert_true(size.endsWith("px"), "The computed font size is in pixels");
+  assert_approx_equals(parseFloat(size), 16 / 1.2, 0.02);
+}, "font size smaller");
+
+test(t => {
+  t.add_cleanup(cleanup);
+  div.classList.add("large", "initial");
+  assert_equals(window.getComputedStyle(div).fontSize, "16px");
+}, "font size large cascaded by initial");
+
+test(t => {
+  t.add_cleanup(cleanup);
+  div.classList.add("large", "inherit");
+  assert_equals(window.getComputedStyle(div).fontSize, "16px");
+}, "font size large cascaded by inherit");
+
+test(t => {
+  t.add_cleanup(cleanup);
+  div.classList.add("large");
+  div.classList.add("unset");
+  assert_equals(window.getComputedStyle(div).fontSize, "16px");
+}, "font size large cascaded by unset");
+
+test(t => {
+  t.add_cleanup(cleanup);
+  div.classList.add("large");
+  div.classList.add("revert");
+  assert_equals(window.getComputedStyle(div).fontSize, "16px");
+}, "font size large cascaded by revert");
+
+test(t => {
+  t.add_cleanup(cleanup);
+  div.classList.add("large");
+  div.classList.add("revertLayer");
+  assert_equals(window.getComputedStyle(div).fontSize, "16px");
+}, "font size large cascaded by revertLayer");
+</script>
