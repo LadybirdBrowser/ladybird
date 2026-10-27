@@ -7860,17 +7860,6 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_the_viewport(CSSPix
 
     // 13. Let element be doc’s root element if there is one, null otherwise.
 
-    // 14. Perform a scroll of the viewport’s scrolling box to its current scroll position + (layout dx, layout dy)
-    //     with element as the associated element, and behavior as the scroll behavior. Let scrollPromise1 be the
-    //     Promise returned from this step.
-    // NB: Performed after step 15, below.
-    TemporaryExecutionContext temporary_execution_context { HTML::relevant_realm(*doc) };
-
-    // 15. Perform a scroll of vv’s scrolling box to its current scroll position + (visual dx, visual dy) with element
-    //     as the associated element, and behavior as the scroll behavior. Let scrollPromise2 be the Promise returned
-    //     from this step.
-    // AD-HOC: Step 15 is performed before step 14 so that the visual viewport's scroll and scrollend events are
-    //         dispatched before the window's.
     CSSPixelPoint visual_delta { visual_dx, visual_dy };
     if (visual_delta.is_zero())
         doc->set_needs_repaint(Badge<HTML::LocalNavigable> {}, InvalidateDisplayList::No);
@@ -7883,6 +7872,15 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_the_viewport(CSSPix
     bool compositor_splits_the_scroll = has_compositor_context() && relative_displacement.has_value() && !scrolls_smoothly(behavior, doc->document_element());
     auto instant_scroll_requester = compositor_splits_the_scroll ? InstantScrollRequester::Caller : InstantScrollRequester::ThisScroll;
 
+    // 14. Perform a scroll of the viewport’s scrolling box to its current scroll position + (layout dx, layout dy)
+    //     with element as the associated element, and behavior as the scroll behavior. Let scrollPromise1 be the
+    //     Promise returned from this step.
+    TemporaryExecutionContext temporary_execution_context { HTML::relevant_realm(*doc) };
+    auto layout_viewport_scroll = perform_a_scroll_of_the_layout_viewport({ layout_dx, layout_dy }, behavior, trigger, relative_displacement, scroll_kind, animation_kind, instant_scroll_requester);
+
+    // 15. Perform a scroll of vv’s scrolling box to its current scroll position + (visual dx, visual dy) with element
+    //     as the associated element, and behavior as the scroll behavior. Let scrollPromise2 be the Promise returned
+    //     from this step.
     auto visual_viewport_scroll = perform_a_scroll_of_a_scrolling_box(visual_viewport_stable_node_id, {
                                                                                                           .position = vv->offset() + visual_delta,
                                                                                                           .behavior = behavior,
@@ -7892,8 +7890,6 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_the_viewport(CSSPix
                                                                                                           .scroll_kind = scroll_kind,
                                                                                                           .instant_scroll_requester = instant_scroll_requester,
                                                                                                       });
-
-    auto layout_viewport_scroll = perform_a_scroll_of_the_layout_viewport({ layout_dx, layout_dy }, behavior, trigger, relative_displacement, scroll_kind, animation_kind, instant_scroll_requester);
 
     if (compositor_splits_the_scroll) {
         // A layout viewport that came to rest at a snap position goes there, and the visual viewport with it.
