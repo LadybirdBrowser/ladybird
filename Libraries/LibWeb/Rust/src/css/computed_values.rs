@@ -2513,6 +2513,9 @@ impl StyleGroupMasks {
         //     element's own color.
         masks[index(crate::css::property_metadata::property_id::COLOR)] |=
             1 << crate::css::table_group_builder::group_index::INHERITED_UI;
+        // NB: The box group holds the used containment flags implied by hidden content visibility.
+        masks[index(crate::css::property_metadata::property_id::CONTENT_VISIBILITY)] |=
+            1 << crate::css::table_group_builder::group_index::BOX;
         Self { masks, output_masks }
     }
 
