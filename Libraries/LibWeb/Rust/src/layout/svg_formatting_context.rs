@@ -2078,12 +2078,12 @@ impl<'pass> SvgFormattingContext<'pass> {
 
         for child in self.run.callbacks.children(self.run.box_) {
             if NodeFacts::new(&self.run.callbacks, child).is_box() {
-                self.layout_svg_element(run, child, input);
+                self.layout_svg_element(run, child);
             }
         }
     }
 
-    fn layout_svg_element(&mut self, run: &FormattingContextRun<'pass>, child: Node, input: LayoutInput) {
+    fn layout_svg_element(&mut self, run: &FormattingContextRun<'pass>, child: Node) {
         let kind = self.node_kind(child);
         if self.svg_attributes(child).is_fit_to_view_box {
             self.layout_nested_viewport(run, child);
@@ -2105,13 +2105,7 @@ impl<'pass> SvgFormattingContext<'pass> {
                     inline_size: AvailableSize::definite(child_used.content_inline_size.get()),
                     block_size: AvailableSize::definite(child_used.content_block_size.get()),
                 },
-                containing_block_constraints: ContainingBlockConstraints {
-                    quirks_mode_percentage_basis_block_size: self.quirks_mode_percentage_basis_block_size,
-                    ..Default::default()
-                },
-                content_box_position_in_bfc_root: None,
-                sizing: RootSizingDirectives::default(),
-                participation: ParticipationInParentFormattingContext::Item,
+                ..self.nested_layout_input()
             };
             match formatting_context::layout_inside_child(run, None, None, child, child_input, true) {
                 ChildLayoutOutcome::Created(_) => {}
@@ -2129,7 +2123,7 @@ impl<'pass> SvgFormattingContext<'pass> {
                 self.layout_mask_or_clip(run, clip);
             }
         } else if kind_is_svg_graphics_box(kind) {
-            self.layout_graphics_element(run, child, input);
+            self.layout_graphics_element(run, child);
         }
     }
 
@@ -2171,7 +2165,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         self.place_child(viewport, nested_viewport_x, nested_viewport_y);
     }
 
-    fn layout_graphics_element(&mut self, run: &FormattingContextRun<'pass>, graphics_box: Node, input: LayoutInput) {
+    fn layout_graphics_element(&mut self, run: &FormattingContextRun<'pass>, graphics_box: Node) {
         self.create_used_values(graphics_box);
         let facts = self.svg_facts(graphics_box);
         if self.place_unchanged_committed_shape(graphics_box, facts) {
@@ -2188,12 +2182,12 @@ impl<'pass> SvgFormattingContext<'pass> {
             // https://svgwg.org/svg2-draft/struct.html#Groups
             // 5.2. Grouping: the ‘g’ element
             // The ‘g’ element is a container element for grouping together related graphics elements.
-            self.layout_container_element(run, graphics_box, input);
+            self.layout_container_element(run, graphics_box);
         } else if kind == NodeKind::SVGImageBox {
             self.layout_image_element(graphics_box);
         } else {
             // Assume this is a path-like element.
-            self.layout_path_like_element(run, graphics_box, input, facts);
+            self.layout_path_like_element(run, graphics_box, facts);
         }
 
         if let Some(mask) = self.first_child_of_kind(graphics_box, NodeKind::SVGMaskBox) {
@@ -2274,7 +2268,6 @@ impl<'pass> SvgFormattingContext<'pass> {
         &mut self,
         run: &FormattingContextRun<'pass>,
         graphics_box: Node,
-        input: LayoutInput,
         facts: SvgElementFacts,
     ) {
         // A shape's geometry is its own attributes and computed style against the viewport, and
@@ -2316,7 +2309,7 @@ impl<'pass> SvgFormattingContext<'pass> {
             // <text> and <tspan> elements can contain more text elements, whose glyph cells count toward this box too.
             for child in self.run.callbacks.children(graphics_box) {
                 if matches!(self.node_kind(child), NodeKind::SVGTextBox | NodeKind::SVGTextPathBox) {
-                    self.layout_graphics_element(run, child, input);
+                    self.layout_graphics_element(run, child);
                     let child_used = self.used_values(child);
                     let offset = child_used.content_offset.get();
                     bounding_box.unite(SvgCssPixelRect {
@@ -2461,7 +2454,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         self.place_child(resource, CssPixels::default(), CssPixels::default());
     }
 
-    fn layout_container_element(&mut self, run: &FormattingContextRun<'pass>, container: Node, input: LayoutInput) {
+    fn layout_container_element(&mut self, run: &FormattingContextRun<'pass>, container: Node) {
         let mut has_points = false;
         let mut min_x = CssPixels::default();
         let mut min_y = CssPixels::default();
@@ -2472,7 +2465,7 @@ impl<'pass> SvgFormattingContext<'pass> {
             if NodeFacts::new(&self.run.callbacks, child).is_box()
                 && !node_facts::kind_is_svg_resource_box(self.node_kind(child))
             {
-                self.layout_svg_element(run, child, input);
+                self.layout_svg_element(run, child);
                 let child_used_pointer = self.used_values(child);
                 let child_used = child_used_pointer;
                 // The container's bounding box includes descendants' transforms; children lay out
