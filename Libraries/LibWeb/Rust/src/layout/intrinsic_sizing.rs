@@ -702,8 +702,13 @@ pub(super) fn content_sizes_of_math(
         constraints,
         ParticipationInParentFormattingContext::Root,
     );
-    let result = formatting_context::run_root_without_parent_fragments(callbacks, node, scope.root(), input);
-    let size = scope.root().content_inline_size.get();
+    let laid_out = formatting_context::run_root_without_parent_fragments(
+        callbacks,
+        node,
+        used_values::RootInputCells::capture(scope.root()),
+        input,
+    );
+    let size = laid_out.root_cells_left_by_run.content_inline_size;
     let observes_percentage_inline_basis = scope.enter(callbacks, |run| {
         run.sizing().measurement_root_observes_percentage_inline_basis(node)
     });
@@ -711,7 +716,7 @@ pub(super) fn content_sizes_of_math(
         sizes: sizing_context::ContentSizes { min: size, max: size },
         first_line_max_content: FirstLineMaxContent::without_floats(size),
         dependencies: IntrinsicMeasurementDependencies {
-            percentage_block_size: result.depends_on_percentage_block_size,
+            percentage_block_size: laid_out.result.depends_on_percentage_block_size,
             percentage_inline_basis: observes_percentage_inline_basis,
             block_size: true,
         },

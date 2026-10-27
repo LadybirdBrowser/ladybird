@@ -3444,18 +3444,23 @@ impl<'pass> AbsposEngine<'pass> {
         inputs.position_option = Some(choice);
         // 3. Let el rect be the size and position of abspos's margin box, and cb rect be the size and position of
         //    abspos's inset-modified containing block, when laid out with adjusted styles.
-        let used = used_values::create_used_values(&self.callbacks, node, ContainingBlockConstraints::default());
         let (available_space, constraints) = out_of_flow_root_space(inputs);
-        formatting_context::run_root_without_parent_fragments(
+        let used = formatting_context::run_root_without_parent_fragments(
             self.callbacks,
             node,
-            &used,
+            used_values::RootInputCells::capture(&used_values::create_used_values(
+                &self.callbacks,
+                node,
+                ContainingBlockConstraints::default(),
+            )),
             LayoutInput::new(
                 available_space,
                 constraints,
                 ParticipationInParentFormattingContext::AbsolutelyPositioned(inputs),
             ),
-        );
+        )
+        .root_cells_left_by_run
+        .materialize_record();
         let style = self
             .style(node)
             .with_resolved_insets(inputs.resolved_anchor_insets.as_ref());
