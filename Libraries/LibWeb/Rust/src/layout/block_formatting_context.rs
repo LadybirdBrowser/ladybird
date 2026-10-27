@@ -575,20 +575,11 @@ impl<'pass> BlockFormattingContext<'pass> {
         );
     }
 
-    fn compute_and_store_baselines(&self, node: Node) {
-        let baselines = formatting_context::derive_baselines(self.run.records, &self.run.callbacks, node);
-        if node == self.run.box_ {
-            self.record_derived_baselines_of_root_box(baselines);
-        } else {
-            formatting_context::store_derived_baselines(self.used(node), baselines);
-        }
+    fn derive_baselines_of_laid_out_contents(&self, block_container: Node) -> DerivedBaselines {
+        formatting_context::derive_baselines(self.run.records, &self.run.callbacks, block_container)
     }
 
-    pub(crate) fn root_box(&self) -> Node {
-        self.run.box_
-    }
-
-    pub(crate) fn record_derived_baselines_of_root_box(&self, baselines: DerivedBaselines) {
+    fn record_derived_baselines_of_root_box(&self, baselines: DerivedBaselines) {
         self.derived_baselines_of_root_box.set(baselines);
     }
 
@@ -2184,6 +2175,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         } else if suppresses_unforced_breaks_inside {
             self.break_mode.set(BreakMode::ForcedBreaksOnly);
         }
+        let mut baselines_of_contents_laid_out_in_this_flow = None;
         let child_layout = if has_independent_formatting_context {
             // Margins of elements that establish new formatting contexts do not collapse with their in-flow children
             self.margin_state.borrow_mut().reset();
@@ -2269,14 +2261,14 @@ impl<'pass> BlockFormattingContext<'pass> {
                 y: containing_block_position_in_root.y + content_block_offset,
             };
             self.incoming_container_token.replace(continuation.clone());
-            if facts.children_are_inline() {
+            let content_baselines = if facts.children_are_inline() {
                 self.layout_inline_children(
                     run,
                     node,
                     input,
                     content_box_position_in_root,
                     space_available_for_children,
-                );
+                )
             } else {
                 self.layout_block_level_children(
                     run,
@@ -2284,8 +2276,10 @@ impl<'pass> BlockFormattingContext<'pass> {
                     input,
                     content_box_position_in_root,
                     space_available_for_children,
-                );
-            }
+                )
+            };
+            formatting_context::store_derived_baselines(self.used(node), content_baselines);
+            baselines_of_contents_laid_out_in_this_flow = Some(content_baselines);
             if is_in_flow_candidate {
                 self.discard_block_start_margin_of_next_child.set(false);
             }
@@ -2426,11 +2420,9 @@ impl<'pass> BlockFormattingContext<'pass> {
 
         // Now that our children are formatted we place the ListItemBox with the left space we remembered.
         if is_list_item_box && !has_independent_formatting_context && continuation.is_none() {
-            let list_item_used = self.used(node);
-            let list_item_first_baseline = list_item_used
-                .has_first_baseline
-                .get()
-                .then(|| list_item_used.first_baseline.get());
+            let list_item_first_baseline = baselines_of_contents_laid_out_in_this_flow
+                .expect("a list item in this flow had its contents laid out")
+                .first;
             self.layout_list_item_marker(
                 run,
                 node,
@@ -2694,7 +2686,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         input: LayoutInput,
         containing_block_position_in_root: FfiCssPixelPoint,
         available_space_for_children: AvailableSpace,
-    ) {
+    ) -> DerivedBaselines {
         assert!(!self.facts(block_container).children_are_inline());
         debug_assert!(
             !self.facts(block_container).is_table_wrapper(),
@@ -2775,7 +2767,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 .remove(&block_container);
         }
         self.block_offset_of_current_block_container.set(saved);
-        self.compute_and_store_baselines(block_container);
+        self.derive_baselines_of_laid_out_contents(block_container)
     }
 
     fn fragmentation_step_before_child(
@@ -3736,7 +3728,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         run: &FormattingContextRun<'pass>,
         input: LayoutInput,
         available_space_for_children: AvailableSpace,
-    ) {
+    ) -> DerivedBaselines {
         let wrapper = self.run.box_;
         // The table wrapper is invisible to percentage resolution: percentages on the table root
         // resolve against the wrapper's containing block, so the wrapper's own constraints pass
@@ -3774,7 +3766,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             }
         }
         self.block_offset_of_current_block_container.set(saved);
-        self.compute_and_store_baselines(wrapper);
+        self.derive_baselines_of_laid_out_contents(wrapper)
     }
 
     // https://html.spec.whatwg.org/multipage/rendering.html#the-fieldset-and-legend-elements
@@ -3783,7 +3775,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         run: &FormattingContextRun<'pass>,
         fieldset: Node,
         input: LayoutInput,
-    ) {
+    ) -> DerivedBaselines {
         let available_space = input.available_space;
         let child_input = self.child_layout_input(fieldset, input, available_space);
         let legend = self.facts(fieldset).rendered_legend();
@@ -3870,7 +3862,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 },
             );
         }
-        self.compute_and_store_baselines(fieldset);
+        self.derive_baselines_of_laid_out_contents(fieldset)
     }
 
     pub(crate) fn run(&self, run: &FormattingContextRun<'pass>, input: LayoutInput) {
@@ -3918,11 +3910,12 @@ impl<'pass> BlockFormattingContext<'pass> {
         let root_input = input;
         let root_facts = self.facts(self.run.box_);
         if root_facts.is_fieldset_box() && !root_facts.rendered_legend().is_invalid() {
-            self.layout_fieldset_with_rendered_legend(run, self.run.box_, root_input);
+            let baselines = self.layout_fieldset_with_rendered_legend(run, self.run.box_, root_input);
+            self.record_derived_baselines_of_root_box(baselines);
             return;
         }
-        if root_facts.is_table_wrapper() {
-            self.layout_table_wrapper_children(run, root_input, available_space);
+        let baselines = if root_facts.is_table_wrapper() {
+            self.layout_table_wrapper_children(run, root_input, available_space)
         } else if root_facts.children_are_inline() {
             self.layout_inline_children(
                 run,
@@ -3930,7 +3923,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 root_input,
                 FfiCssPixelPoint::default(),
                 available_space,
-            );
+            )
         } else {
             self.layout_block_level_children(
                 run,
@@ -3938,8 +3931,9 @@ impl<'pass> BlockFormattingContext<'pass> {
                 root_input,
                 FfiCssPixelPoint::default(),
                 available_space,
-            );
-        }
+            )
+        };
+        self.record_derived_baselines_of_root_box(baselines);
 
         // Fieldsets without a rendered legend skip collapsed margin assignment.
         if root_facts.is_fieldset_box() {
@@ -4288,7 +4282,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         input: LayoutInput,
         containing_block_position_in_root: FfiCssPixelPoint,
         available_space_for_children: AvailableSpace,
-    ) {
+    ) -> DerivedBaselines {
         assert!(self.facts(block_container).children_are_inline());
         debug_assert!(
             self.used(block_container).has_definite_inline_size(),
@@ -4303,7 +4297,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             self.run.callbacks,
             self,
         );
-        context.run();
+        context.run()
     }
 
     fn compute_automatic_block_size_for_block_level_element(
