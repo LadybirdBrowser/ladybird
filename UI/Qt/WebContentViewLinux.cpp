@@ -968,6 +968,33 @@ struct WebContentView::VulkanWindowRenderer final : public QVulkanWindowRenderer
     VulkanRenderer m_renderer;
 };
 
+namespace {
+
+class ExposeWatcher final : public QObject {
+public:
+    AK_ALLOC_WITH_KMALLOC;
+
+    ExposeWatcher(QObject* parent, Function<void()> on_exposed)
+        : QObject(parent)
+        , m_on_exposed(move(on_exposed))
+    {
+    }
+
+private:
+    virtual bool eventFilter(QObject* watched, QEvent* event) override
+    {
+        if (event->type() == QEvent::Expose && static_cast<QWindow*>(watched)->isExposed()) {
+            watched->removeEventFilter(this);
+            m_on_exposed();
+        }
+        return false;
+    }
+
+    Function<void()> m_on_exposed;
+};
+
+}
+
 struct WebContentView::VulkanWindow final : public QVulkanWindow {
     AK_ALLOC_WITH_KMALLOC;
 
@@ -992,7 +1019,10 @@ struct WebContentView::VulkanWindow final : public QVulkanWindow {
     {
         if (m_view && m_view->handle_vulkan_window_event(event))
             return true;
-        return QVulkanWindow::event(event);
+        auto handled = QVulkanWindow::event(event);
+        if (m_view && event->type() == QEvent::Expose)
+            m_view->vulkan_window_exposure_changed();
+        return handled;
     }
 
     WebContentView* m_view { nullptr };
@@ -1029,6 +1059,10 @@ void WebContentView::create_vulkan_window()
     m_vulkan_window_container->hide();
 
     install_native_window_container_event_forwarding(*this, *m_vulkan_window, *m_vulkan_window_container);
+
+    m_unexposed_vulkan_window_timer.setSingleShot(true);
+    m_unexposed_vulkan_window_timer.setInterval(500);
+    QObject::connect(&m_unexposed_vulkan_window_timer, &QTimer::timeout, this, [this] { remap_unexposed_vulkan_window(); });
 }
 
 bool WebContentView::vulkan_window_has_native_focus() const
@@ -1040,6 +1074,44 @@ void WebContentView::set_vulkan_window_container_visible(bool visible)
 {
     if (m_vulkan_window_container)
         set_native_window_container_visible(*this, *m_vulkan_window_container, visible);
+}
+
+void WebContentView::vulkan_window_exposure_changed()
+{
+    if (!m_vulkan_window)
+        return;
+    if (m_vulkan_window->isExposed()) {
+        m_remapped_unexposed_vulkan_window = false;
+        m_unexposed_vulkan_window_timer.stop();
+        return;
+    }
+    if (!m_remapped_unexposed_vulkan_window)
+        m_unexposed_vulkan_window_timer.start();
+}
+
+void WebContentView::remap_unexposed_vulkan_window()
+{
+    // NB: Qt stops presenting a window on Wayland when the compositor is late with a frame callback, and only presents
+    //     again once one arrives. But a window that does not present is never sent one, which can leave the page
+    //     frozen after a resize. Mapping the window again gets it going, once the window it is in is shown again.
+    if (!m_vulkan_window || m_vulkan_window->isExposed() || !m_vulkan_window_container || !m_vulkan_window_container->isVisible())
+        return;
+    if (m_remapped_unexposed_vulkan_window)
+        return;
+    auto* top_level_window = window()->windowHandle();
+    if (!top_level_window)
+        return;
+    if (!top_level_window->isExposed()) {
+        // NB: A minimized window can stay unexposed for a long time, so wait for it rather than poll.
+        if (!m_top_level_expose_watcher)
+            m_top_level_expose_watcher = new ExposeWatcher(this, [this] { vulkan_window_exposure_changed(); });
+        top_level_window->installEventFilter(m_top_level_expose_watcher);
+        return;
+    }
+    m_remapped_unexposed_vulkan_window = true;
+    set_vulkan_window_container_visible(false);
+    set_vulkan_window_container_visible(true);
+    m_vulkan_window->requestUpdate();
 }
 
 void WebContentView::fall_back_to_bitmap_rendering()
