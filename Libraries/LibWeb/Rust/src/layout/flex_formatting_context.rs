@@ -3948,10 +3948,6 @@ impl<'pass> FlexFormattingContext<'pass> {
         self.derived_baselines_of_root_box
     }
 
-    pub(super) fn automatic_content_inline_size(&self) -> CssPixels {
-        self.container_used().content_inline_size.get()
-    }
-
     pub(super) fn automatic_content_block_size(&self) -> CssPixels {
         self.container_used().content_block_size.get()
     }

@@ -3449,9 +3449,4 @@ impl<'pass> TableFormattingContext<'pass> {
     pub(super) fn derived_baselines_of_root_box(&self) -> DerivedBaselines {
         self.derived_baselines_of_root_box.get()
     }
-
-    pub(super) fn automatic_content_inline_size(&self) -> CssPixels {
-        let used = self.used_values(self.run.box_);
-        used.content_inline_size.get()
-    }
 }

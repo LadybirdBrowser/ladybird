@@ -205,9 +205,6 @@ pub(crate) struct FloatingBox {
     // Offset from left/right edge to the left content edge of `box`.
     offset_from_edge: CssPixels,
 
-    // Top margin edge of `box`.
-    top_margin_edge: CssPixels,
-
     // Bottom margin edge of `box`.
     bottom_margin_edge: CssPixels,
 
@@ -4172,9 +4169,6 @@ impl<'pass> BlockFormattingContext<'pass> {
             box_: node,
             side,
             offset_from_edge: placement.offset_from_edge,
-            top_margin_edge: content_block_offset
-                - self.used(node).margin_top.get()
-                - self.used(node).border_box_top(false),
             bottom_margin_edge: content_block_offset
                 + self.used(node).content_block_size.get()
                 + self.used(node).margin_box_bottom(false),
@@ -4240,6 +4234,10 @@ impl<'pass> BlockFormattingContext<'pass> {
         available_space_for_children: AvailableSpace,
     ) {
         assert!(self.facts(block_container).children_are_inline());
+        debug_assert!(
+            self.used(block_container).has_definite_inline_size(),
+            "lines are laid out in a block container of definite inline size"
+        );
         let inline_input = self.child_layout_input(block_container, input, available_space_for_children);
         let mut context = inline_formatting_context::InlineFormattingContext::new_with_rust_parent(
             run,
@@ -4249,56 +4247,6 @@ impl<'pass> BlockFormattingContext<'pass> {
             self,
         );
         context.run();
-        let automatic_inline_size = context.automatic_content_inline_size;
-        let automatic_block_size = context.automatic_content_block_size;
-        if !self.used(block_container).has_definite_inline_size() {
-            // NOTE: min-width or max-width for boxes with inline children can only be applied after inside layout
-            //       is done and the inline size of the box content is known
-            let mut used_inline_size = automatic_inline_size;
-            // https://www.w3.org/TR/css-sizing-3/#sizing-values
-            // Percentages are resolved against the appropriate inline or block size of the containing block.
-            let containing_inline_size = input.containing_block_constraints.inline_basis();
-            let available_inline_size = AvailableSize::definite(containing_inline_size);
-            let sizing = self.sizing();
-            let style = self.style(block_container);
-            // https://drafts.csswg.org/css-values-5/#calc-size
-            // For the purpose of sizing (including for intrinsic size contributions), calc-size() resolves to the
-            // result of its calc-size calculation.
-            if style.width().is_auto() {
-                used_inline_size = sizing.resolve_calc_size(
-                    block_container,
-                    SizingAxis::Inline,
-                    style.width(),
-                    used_inline_size,
-                    input.containing_block_constraints.percentage_basis_inline_size,
-                );
-            }
-            if !sizing.should_treat_max_inline_size_as_none(
-                block_container,
-                input.available_space.inline_size,
-                input.containing_block_constraints,
-            ) {
-                let maximum = sizing.calculate_inner_inline_size(
-                    block_container,
-                    available_inline_size,
-                    style.max_width(),
-                    input.containing_block_constraints,
-                );
-                used_inline_size = used_inline_size.min(maximum);
-            }
-            if !crate::layout::sizing_context::is_plain_auto(style.min_width()) {
-                let minimum = sizing.calculate_inner_inline_size(
-                    block_container,
-                    available_inline_size,
-                    style.min_width(),
-                    input.containing_block_constraints,
-                );
-                used_inline_size = used_inline_size.max(minimum);
-            }
-            let used = self.used(block_container);
-            used.set_content_inline_size(used_inline_size);
-            used.set_content_block_size(automatic_block_size);
-        }
     }
 
     pub(crate) fn compute_automatic_block_size_for_block_level_element(
@@ -4449,126 +4397,12 @@ impl<'pass> BlockFormattingContext<'pass> {
         CssPixels::default()
     }
 
-    pub(crate) fn greatest_child_inline_size_including_floats(&self, node: Node) -> CssPixels {
-        // Similar to the former C++ greatest_child_inline_size() helper.
-        // but this one takes floats into account!
-        let mut max_inline_size = CssPixels::default();
-
-        // https://drafts.csswg.org/css2/#floats
-        // A line box is next to a float when there exists a vertical position that satisfies all of these
-        // four conditions: (a) at or below the top of the line box, (b) at or above the bottom of the line
-        // box, (c) below the top margin edge of the float, and (d) above the bottom margin edge of the float.
-        let line_box_is_next_to_float = |block_start: CssPixels, block_end: CssPixels, floating_box: &FloatingBox| {
-            block_start < floating_box.bottom_margin_edge && block_end > floating_box.top_margin_edge
-        };
-        let inline_size_to_make_room_for_float_margin_box = |floating_box: &FloatingBox| {
-            let used = self.used(floating_box.box_);
-            if floating_box.side == FloatSide::Left {
-                floating_box.offset_from_edge
-                    + used.content_inline_size.get()
-                    + used.margin_right.get()
-                    + used.border_box_right(false)
-            } else {
-                floating_box.offset_from_edge + used.margin_left.get() + used.border_box_left(false)
-            }
-        };
-
-        let floats = self.floats.borrow();
-        // https://drafts.csswg.org/css-sizing-3/#intrinsic-contribution
-        // A box’s min-content contribution/max-content contribution in each axis is the size of the
-        // content box of a hypothetical width/auto-sized float that contains only that box
-        //
-        // Only direct floats participate here. Descendant floats contribute through their containing block's
-        // own min-content contribution, not as if they belonged to this box's hypothetical float.
-        for candidate in floats.iter().filter(|floating_box| {
-            self.containing_block(floating_box.box_) == node
-                && !self.used(floating_box.box_).is_invisible_for_line_clamp.get()
-        }) {
-            let mut inline_space = inline_formatting_context::SpaceUsedByFloats::default();
-            for direct_float in floats.iter().filter(|floating_box| {
-                self.containing_block(floating_box.box_) == node
-                    && !self.used(floating_box.box_).is_invisible_for_line_clamp.get()
-            }) {
-                if line_box_is_next_to_float(candidate.top_margin_edge, candidate.bottom_margin_edge, direct_float) {
-                    let inline_size = inline_size_to_make_room_for_float_margin_box(direct_float);
-                    if direct_float.side == FloatSide::Left {
-                        inline_space.left = inline_space.left.max(inline_size);
-                    } else {
-                        inline_space.right = inline_space.right.max(inline_size);
-                    }
-                }
-            }
-            max_inline_size = max_inline_size.max(inline_space.left + inline_space.right);
+    pub(crate) fn table_wrapper_content_inline_size(&self) -> Option<CssPixels> {
+        if !self.facts(self.run.box_).is_table_wrapper() {
+            return None;
         }
-
-        let facts = self.facts(node);
-        if facts.children_are_inline() {
-            if let Some(data) = self.used(node).line_data_ref() {
-                for line in data.lines() {
-                    let mut inline_size_here = line.horizontal_extent;
-                    let line_block_start = line.physical_vertical_end() - line.physical_vertical_extent();
-                    let line_block_end = line.physical_vertical_end();
-                    let mut extra_left = CssPixels::default();
-                    for left_float in floats.iter().filter(|floating_box| {
-                        floating_box.side == FloatSide::Left
-                            && self.containing_block(floating_box.box_) == node
-                            && !self.used(floating_box.box_).is_invisible_for_line_clamp.get()
-                    }) {
-                        // NOTE: Floats directly affect the automatic size of their containing block, but only indirectly anything above in the tree.
-                        if line_box_is_next_to_float(line_block_start, line_block_end, left_float) {
-                            extra_left = extra_left.max(inline_size_to_make_room_for_float_margin_box(left_float));
-                        }
-                    }
-                    let mut extra_right = CssPixels::default();
-                    for right_float in floats.iter().filter(|floating_box| {
-                        floating_box.side == FloatSide::Right
-                            && self.containing_block(floating_box.box_) == node
-                            && !self.used(floating_box.box_).is_invisible_for_line_clamp.get()
-                    }) {
-                        // NOTE: Floats directly affect the automatic size of their containing block, but only indirectly anything above in the tree.
-                        if line_box_is_next_to_float(line_block_start, line_block_end, right_float) {
-                            extra_right = extra_right.max(inline_size_to_make_room_for_float_margin_box(right_float));
-                        }
-                    }
-                    inline_size_here += extra_left + extra_right;
-                    max_inline_size = max_inline_size.max(inline_size_here);
-                }
-            }
-        } else {
-            drop(floats);
-            for child in self.laid_out_children(node) {
-                if !self.facts(child).is_flow_layout_participant() {
-                    continue;
-                }
-                if let Some(used) = self.run.records.used_values_if_owned(child) {
-                    if used.is_invisible_for_line_clamp.get() {
-                        continue;
-                    }
-                    max_inline_size = max_inline_size.max(used.margin_box_inline_size(false));
-                }
-            }
-        }
-        max_inline_size
-    }
-
-    pub(crate) fn automatic_content_inline_size(&self) -> CssPixels {
-        let root_facts = self.facts(self.run.box_);
-        if root_facts.children_are_inline() {
-            return self.used(self.run.box_).content_inline_size.get();
-        }
-        if root_facts.is_table_wrapper() {
-            let mut stack: Vec<Node> = self.run.callbacks.children_rev(self.run.box_).collect();
-            while let Some(node) = stack.pop() {
-                let facts = self.facts(node);
-                if facts.is_box() && self.style(node).display().is_table_inside() {
-                    let used = self.used(node);
-                    return used.border_box_inline_size(used.uses_collapsing_borders_model.get());
-                }
-                stack.extend(self.run.callbacks.children_rev(node));
-            }
-            unreachable!("a table wrapper contains its table box");
-        }
-        self.greatest_child_inline_size_including_floats(self.run.box_)
+        let table_used = self.used(self.sizing().table_box_inside_wrapper(self.run.box_));
+        Some(table_used.border_box_inline_size(table_used.uses_collapsing_borders_model.get()))
     }
 
     fn resolve_automatic_line_clamp_block_size(&self, input: LayoutInput) -> Option<CssPixels> {
