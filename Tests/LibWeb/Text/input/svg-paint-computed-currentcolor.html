@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<div id="reference"></div>
+<svg width="100" height="100">
+    <g id="parent" style="color: red"><rect id="child" width="10" height="10" style="color: blue"/></g>
+</svg>
+<script>
+    test(() => {
+        const parent = document.getElementById("parent");
+        const child = document.getElementById("child");
+        const reference = document.getElementById("reference");
+        for (const display of ["block", "none"]) {
+            parent.style.display = display;
+            child.getBoundingClientRect();
+            for (const property of ["fill", "stroke"]) {
+                child.style.color = "blue";
+                parent.style[property] = "currentcolor";
+                println(`${display} ${property}: ${getComputedStyle(parent)[property]}`);
+                println(`${display} inherited ${property}: ${getComputedStyle(child)[property]}`);
+                child.style.color = "green";
+                println(`${display} changed color ${property}: ${getComputedStyle(child)[property]}`);
+                parent.style[property] = 'url("#gradient") currentcolor';
+                println(`${display} fallback ${property}: ${getComputedStyle(child)[property]}`);
+                for (const color of ["rgb(from currentcolor r g b)", "color-mix(in srgb, currentcolor, white)"]) {
+                    parent.style[property] = color;
+                    reference.style.color = getComputedStyle(child).color;
+                    reference.style.backgroundColor = color;
+                    reference.getBoundingClientRect();
+                    println(`${display} ${property} ${color}: ${getComputedStyle(child)[property] === getComputedStyle(reference).backgroundColor}`);
+                }
+                parent.style[property] = "none";
+                println(`${display} none ${property}: ${getComputedStyle(child)[property]}`);
+            }
+        }
+    });
+</script>
