@@ -322,7 +322,6 @@ class PendingSubstitutionStyleValue;
 class Percentage;
 class PercentageStyleValue;
 class PropertyNameAndID;
-class Ratio;
 class RatioStyleValue;
 class Resolution;
 class ResolutionStyleValue;
@@ -418,7 +417,6 @@ struct ColorResolutionStyle;
 struct ComputationContext;
 struct CustomPropertyRegistration;
 struct LogicalAliasMappingContext;
-struct NormalGap;
 struct RequiredInvalidationAfterStyleChange;
 
 // https://drafts.css-houdini.org/css-typed-om-1/#typedefdef-cssnumberish

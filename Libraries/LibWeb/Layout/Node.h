@@ -488,11 +488,6 @@ public:
     CSS::LengthBox padding() const { return length_box(style_group<CSS::ComputedValues::SurroundValues>().padding); }
     bool has_transformations() const { return style_group<CSS::ComputedValues::TransformValues>().has_transformations(); }
     template<typename Callback>
-    void for_each_transformation(Callback callback) const
-    {
-        style_group<CSS::ComputedValues::TransformValues>().for_each_transformation(callback);
-    }
-    template<typename Callback>
     void for_each_resolved_transform(Callback callback) const
     {
         style_group<CSS::ComputedValues::TransformValues>().for_each_resolved_transform(callback);

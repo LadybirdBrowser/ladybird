@@ -183,7 +183,6 @@ set(SOURCES
     CSS/Parser/RuleContext.cpp
     CSS/Parser/SelectorParsing.cpp
     CSS/Percentage.cpp
-    CSS/Ratio.cpp
     CSS/Resolution.cpp
     CSS/ResolvedTransform.cpp
     CSS/Screen.cpp
@@ -220,7 +219,6 @@ set(SOURCES
     CSS/StyleValues/DimensionStyleValue.cpp
     CSS/StyleValues/DisplayStyleValue.cpp
     CSS/StyleValues/FilterStyleValue.cpp
-    CSS/StyleValues/FunctionStyleValue.cpp
     CSS/StyleValues/FontSourceStyleValue.cpp
     CSS/StyleValues/FontStyleStyleValue.cpp
     CSS/StyleValues/ImageSetStyleValue.cpp
