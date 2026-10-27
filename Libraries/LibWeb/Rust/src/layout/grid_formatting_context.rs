@@ -1293,17 +1293,7 @@ impl<'pass> GridFormattingContext<'pass> {
             // A subgrid shares its parent grid's memo, so only an independent grid starts a fresh one.
             self.subgrid_block_size_memo = std::cell::OnceCell::new();
         }
-        // https://drafts.csswg.org/css-sizing-3/#max-content-block-size
-        // The box's “ideal” size in the block axis. Usually the block size of the content after layout.
-        // NB: So we lay the grid out with an indefinite block size when measuring its intrinsic block sizes, instead of
-        //     sizing rows under a min-content or max-content constraint. Under such a constraint, a `0fr` row would
-        //     take its items' limited min-content contributions and grow.
-        // INTEROP: Chrome, Firefox and WebKit measure a grid container's min-content block size this way too.
-        let mut available_space = input.available_space;
-        if available_space.block_size.is_intrinsic_sizing_constraint() {
-            available_space.block_size = AvailableSize::Indefinite;
-        }
-        self.available_space = Some(available_space);
+        self.available_space = Some(input.available_space);
         self.layout_input = Some(input);
         self.maximum_inline_size_resolved_by_caller = input.sizing.maximum_inline_size_resolved_by_caller;
         self.item_runs_offered_to_row_measurements = None;
@@ -3184,19 +3174,10 @@ impl<'pass> GridFormattingContext<'pass> {
         if let Some(size) = self.subgrid_block_size_memo().borrow().get(&key) {
             return *size;
         }
-        let input = LayoutInput::new(
-            AvailableSpace {
-                inline_size,
-                block_size: AvailableSize::MaxContent,
-            },
-            constraints,
-            ParticipationInParentFormattingContext::Item,
-        );
-        let size = self.measure_subgrid(subgrid, |context, scratch_run| {
+        let size = self.measure_subgrid(subgrid, |context, _| {
             // This grid's columns are already sized, so the subgrid's content is laid out in those final widths.
             context.inherits_resolved_parent_columns = true;
-            context.run(scratch_run, input);
-            context.automatic_content_block_size()
+            context.measure_content_block_size(inline_size, constraints)
         });
         self.subgrid_block_size_memo().borrow_mut().insert(key, size);
         size
@@ -4257,10 +4238,7 @@ impl<'pass> GridFormattingContext<'pass> {
     }
 
     fn offers_item_runs_to_row_measurements(&self) -> bool {
-        let available = self.layout_input.unwrap().available_space;
         !self.run.should_collect_devtools_layout_data
-            && !available.inline_size.is_intrinsic_sizing_constraint()
-            && !available.block_size.is_intrinsic_sizing_constraint()
             && self.style(self.run.box_).writing_mode() == writing_mode::HORIZONTAL_TB
     }
 
@@ -4750,8 +4728,12 @@ impl<'pass> GridFormattingContext<'pass> {
         self.track_sum(Axis::Column)
     }
 
-    pub(crate) fn run(&mut self, run: &FormattingContextRun<'pass>, input: LayoutInput) {
-        let available = input.available_space;
+    /// Places the items and sizes the columns, then the rows.
+    fn place_items_and_size_tracks(
+        &mut self,
+        input: LayoutInput,
+        row_measurements_take_item_runs: bool,
+    ) -> &'pass GridValues {
         self.reset_for_run(input);
         let grid_style = self.grid_style(self.run.box_);
         self.cache_subgrid_axes(grid_style);
@@ -4764,34 +4746,66 @@ impl<'pass> GridFormattingContext<'pass> {
 
         if let Some(lanes) = self.lanes {
             self.run_grid_lanes_track_sizing_and_placement(lanes);
-        } else {
-            // Do the first pass of resolving grid items box metrics to compute values that are independent of a track
-            // width
-            self.resolve_item_metrics(Axis::Column);
-            self.run_track_sizing(Axis::Column);
-            // Do the second pass of resolving box metrics to compute values that depend on a track width
-            self.resolve_item_metrics(Axis::Column);
-            // Once the sizes of column tracks, which determine the widths of the grid areas forming the containing
-            // blocks for grid items, ara calculated, it becomes possible to determine the final widths of the grid
-            // items.
-            self.resolve_item_sizes(Axis::Column);
-
-            // Do the first pass of resolving grid items box metrics to compute values that are independent of a track
-            // height
-            self.resolve_item_metrics(Axis::Row);
-            self.offer_runs_of_items_measured_in_their_rows(RowMeasurementsAhead::RowTrackSizingAndItemBlockSizes);
-            self.run_track_sizing(Axis::Row);
-            // Do the second pass of resolving box metrics to compute values that depend on a track height
-            self.resolve_item_metrics(Axis::Row);
-            self.resolve_item_sizes(Axis::Row);
+            return grid_style;
         }
+        // Do the first pass of resolving grid items box metrics to compute values that are independent of a track
+        // width
+        self.resolve_item_metrics(Axis::Column);
+        self.run_track_sizing(Axis::Column);
+        // Do the second pass of resolving box metrics to compute values that depend on a track width
+        self.resolve_item_metrics(Axis::Column);
+        // Once the sizes of column tracks, which determine the widths of the grid areas forming the containing
+        // blocks for grid items, ara calculated, it becomes possible to determine the final widths of the grid
+        // items.
+        self.resolve_item_sizes(Axis::Column);
+
+        // Do the first pass of resolving grid items box metrics to compute values that are independent of a track
+        // height
+        self.resolve_item_metrics(Axis::Row);
+        if row_measurements_take_item_runs {
+            self.offer_runs_of_items_measured_in_their_rows(RowMeasurementsAhead::RowTrackSizingAndItemBlockSizes);
+        }
+        self.run_track_sizing(Axis::Row);
+        // Do the second pass of resolving box metrics to compute values that depend on a track height
+        self.resolve_item_metrics(Axis::Row);
+        self.resolve_item_sizes(Axis::Row);
+        grid_style
+    }
+
+    /// The block size of the grid's content, from its tracks sized at an indefinite available block size, without
+    /// laying out its items.
+    // https://drafts.csswg.org/css-sizing-3/#max-content-block-size
+    // The box's “ideal” size in the block axis. Usually the block size of the content after layout.
+    // NB: So the rows are sized at an indefinite block size, not under a min-content or max-content constraint. Under
+    //     such a constraint, a `0fr` row would take its items' limited min-content contributions and grow.
+    // INTEROP: Chrome, Firefox and WebKit measure a grid container's min-content block size this way too.
+    pub(crate) fn measure_content_block_size(
+        &mut self,
+        inline_size: AvailableSize,
+        constraints: ContainingBlockConstraints,
+    ) -> CssPixels {
+        let mut input = LayoutInput::new(
+            AvailableSpace {
+                inline_size,
+                block_size: AvailableSize::Indefinite,
+            },
+            constraints,
+            ParticipationInParentFormattingContext::Item,
+        );
+        input.sizing.root_is_measured_for_its_content_block_size = true;
+        self.place_items_and_size_tracks(input, false);
+        self.track_sum(Axis::Row)
+    }
+
+    pub(crate) fn run(&mut self, run: &FormattingContextRun<'pass>, input: LayoutInput) {
+        let available = input.available_space;
+        let grid_style = self.place_items_and_size_tracks(input, true);
 
         self.automatic_content_block_size = self.track_sum(Axis::Row);
         self.row_alignment_container_size = self.automatic_content_block_size;
         self.use_row_alignment_container_size = false;
         let intrinsic_block_size = self.automatic_content_block_size;
-        let lays_out_under_intrinsic_inline_size = available.inline_size.is_intrinsic_sizing_constraint();
-        if !lays_out_under_intrinsic_inline_size && available.block_size == AvailableSize::Indefinite {
+        if available.block_size == AvailableSize::Indefinite {
             let resolved_block_size = self.used_container_block_size_for_second_row_layout();
             // NB: The rows of a grid lanes container are run again only when they are its grid axis, since the
             //     placement of its items in a stacking axis does not depend on the block sizes of the items.
@@ -4801,8 +4815,7 @@ impl<'pass> GridFormattingContext<'pass> {
             self.row_alignment_container_size = resolved_block_size;
             self.use_row_alignment_container_size = true;
             self.automatic_content_block_size = intrinsic_block_size;
-        } else if !lays_out_under_intrinsic_inline_size
-            && let AvailableSize::Definite(block_size) = available.block_size
+        } else if let AvailableSize::Definite(block_size) = available.block_size
             && self.sizing().should_treat_block_size_as_auto(
                 self.run.box_,
                 available,
@@ -4817,23 +4830,6 @@ impl<'pass> GridFormattingContext<'pass> {
         }
         let columns_were_distributed = self.resolve_track_spacing(Axis::Column);
         let rows_were_distributed = self.resolve_track_spacing(Axis::Row);
-
-        if available.inline_size.is_intrinsic_sizing_constraint()
-            || available.block_size.is_intrinsic_sizing_constraint()
-        {
-            // https://www.w3.org/TR/css-grid-1/#intrinsic-sizes
-            // The max-content size (min-content size) of a grid container is the sum of the grid container’s track sizes
-            // (including gutters) in the appropriate axis, when the grid is sized under a max-content constraint (min-content constraint).
-            if available.inline_size.is_intrinsic_sizing_constraint() {
-                let size = self.track_sum(Axis::Column);
-                self.container_used().set_content_inline_size(size);
-            }
-            if available.block_size.is_intrinsic_sizing_constraint() {
-                let size = self.track_sum(Axis::Row);
-                self.container_used().set_content_block_size(size);
-            }
-            return;
-        }
 
         // https://drafts.csswg.org/css-align-3/#distribution-grid
         // The grid tracks in the appropriate axis, with any spacing inserted between tracks added to the relevant
