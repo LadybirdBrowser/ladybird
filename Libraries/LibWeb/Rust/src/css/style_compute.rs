@@ -3151,6 +3151,7 @@ fn compute_animation_name(value: &StyleValueData) -> Option<Arc<StyleValueData>>
             StyleValueData::String {
                 string,
                 is_valid_animation_name_custom_ident,
+                ..
             } => Some(if *is_valid_animation_name_custom_ident {
                 RetainedStyleValueData::from_arc(Arc::new(StyleValueData::CustomIdent {
                     custom_ident: string.clone(),
