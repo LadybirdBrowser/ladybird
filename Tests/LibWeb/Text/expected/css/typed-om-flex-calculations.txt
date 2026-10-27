@@ -1,0 +1,2 @@
+grid-auto-rows: TypeError
+grid-auto-columns: TypeError

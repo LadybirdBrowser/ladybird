@@ -1,0 +1,17 @@
+<!doctype html>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const map = document.getElementById("target").attributeStyleMap;
+        const value = new CSSMathSum(CSS.fr(1), CSS.fr(2));
+        for (const property of ["grid-auto-rows", "grid-auto-columns"]) {
+            try {
+                map.set(property, value);
+                println(`${property}: accepted`);
+            } catch (error) {
+                println(`${property}: ${error.name}`);
+            }
+        }
+    });
+</script>
