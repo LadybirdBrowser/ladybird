@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1000 tests
 
-971 Pass
-29 Fail
+975 Pass
+25 Fail
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<table><tbody data-start=0 data-end=1><tr><td>foo<td>bar<td>baz</table>" queryCommandValue("fontsize") before
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<table><tbody data-start=0 data-end=1><tr><td>foo<td>bar<td>baz</table>" queryCommandIndeterm("fontsize") after
 Pass	[["stylewithcss","false"],["fontsize","4"]] "<table><tbody data-start=0 data-end=1><tr><td>foo<td>bar<td>baz</table>" queryCommandState("fontsize") after
@@ -897,7 +897,7 @@ Pass	[["stylewithcss","true"],["fontsize","3"]] "foo<small>[bar]</small>baz" que
 Pass	[["stylewithcss","true"],["fontsize","3"]] "foo<small>[bar]</small>baz" queryCommandValue("stylewithcss") after
 Pass	[["stylewithcss","true"],["fontsize","3"]] "foo<small>[bar]</small>baz" queryCommandIndeterm("fontsize") before
 Pass	[["stylewithcss","true"],["fontsize","3"]] "foo<small>[bar]</small>baz" queryCommandState("fontsize") before
-Fail	[["stylewithcss","true"],["fontsize","3"]] "foo<small>[bar]</small>baz" queryCommandValue("fontsize") before
+Pass	[["stylewithcss","true"],["fontsize","3"]] "foo<small>[bar]</small>baz" queryCommandValue("fontsize") before
 Pass	[["stylewithcss","true"],["fontsize","3"]] "foo<small>[bar]</small>baz" queryCommandIndeterm("fontsize") after
 Pass	[["stylewithcss","true"],["fontsize","3"]] "foo<small>[bar]</small>baz" queryCommandState("fontsize") after
 Pass	[["stylewithcss","true"],["fontsize","3"]] "foo<small>[bar]</small>baz" queryCommandValue("fontsize") after
@@ -913,7 +913,7 @@ Pass	[["stylewithcss","false"],["fontsize","3"]] "foo<small>[bar]</small>baz" qu
 Pass	[["stylewithcss","false"],["fontsize","3"]] "foo<small>[bar]</small>baz" queryCommandValue("stylewithcss") after
 Pass	[["stylewithcss","false"],["fontsize","3"]] "foo<small>[bar]</small>baz" queryCommandIndeterm("fontsize") before
 Pass	[["stylewithcss","false"],["fontsize","3"]] "foo<small>[bar]</small>baz" queryCommandState("fontsize") before
-Fail	[["stylewithcss","false"],["fontsize","3"]] "foo<small>[bar]</small>baz" queryCommandValue("fontsize") before
+Pass	[["stylewithcss","false"],["fontsize","3"]] "foo<small>[bar]</small>baz" queryCommandValue("fontsize") before
 Pass	[["stylewithcss","false"],["fontsize","3"]] "foo<small>[bar]</small>baz" queryCommandIndeterm("fontsize") after
 Pass	[["stylewithcss","false"],["fontsize","3"]] "foo<small>[bar]</small>baz" queryCommandState("fontsize") after
 Pass	[["stylewithcss","false"],["fontsize","3"]] "foo<small>[bar]</small>baz" queryCommandValue("fontsize") after
@@ -929,7 +929,7 @@ Pass	[["stylewithcss","true"],["fontsize","3"]] "foo<small>b[a]r</small>baz" que
 Pass	[["stylewithcss","true"],["fontsize","3"]] "foo<small>b[a]r</small>baz" queryCommandValue("stylewithcss") after
 Pass	[["stylewithcss","true"],["fontsize","3"]] "foo<small>b[a]r</small>baz" queryCommandIndeterm("fontsize") before
 Pass	[["stylewithcss","true"],["fontsize","3"]] "foo<small>b[a]r</small>baz" queryCommandState("fontsize") before
-Fail	[["stylewithcss","true"],["fontsize","3"]] "foo<small>b[a]r</small>baz" queryCommandValue("fontsize") before
+Pass	[["stylewithcss","true"],["fontsize","3"]] "foo<small>b[a]r</small>baz" queryCommandValue("fontsize") before
 Pass	[["stylewithcss","true"],["fontsize","3"]] "foo<small>b[a]r</small>baz" queryCommandIndeterm("fontsize") after
 Pass	[["stylewithcss","true"],["fontsize","3"]] "foo<small>b[a]r</small>baz" queryCommandState("fontsize") after
 Pass	[["stylewithcss","true"],["fontsize","3"]] "foo<small>b[a]r</small>baz" queryCommandValue("fontsize") after
@@ -945,7 +945,7 @@ Pass	[["stylewithcss","false"],["fontsize","3"]] "foo<small>b[a]r</small>baz" qu
 Pass	[["stylewithcss","false"],["fontsize","3"]] "foo<small>b[a]r</small>baz" queryCommandValue("stylewithcss") after
 Pass	[["stylewithcss","false"],["fontsize","3"]] "foo<small>b[a]r</small>baz" queryCommandIndeterm("fontsize") before
 Pass	[["stylewithcss","false"],["fontsize","3"]] "foo<small>b[a]r</small>baz" queryCommandState("fontsize") before
-Fail	[["stylewithcss","false"],["fontsize","3"]] "foo<small>b[a]r</small>baz" queryCommandValue("fontsize") before
+Pass	[["stylewithcss","false"],["fontsize","3"]] "foo<small>b[a]r</small>baz" queryCommandValue("fontsize") before
 Pass	[["stylewithcss","false"],["fontsize","3"]] "foo<small>b[a]r</small>baz" queryCommandIndeterm("fontsize") after
 Pass	[["stylewithcss","false"],["fontsize","3"]] "foo<small>b[a]r</small>baz" queryCommandState("fontsize") after
 Pass	[["stylewithcss","false"],["fontsize","3"]] "foo<small>b[a]r</small>baz" queryCommandValue("fontsize") after

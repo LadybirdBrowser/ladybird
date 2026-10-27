@@ -1886,6 +1886,22 @@ CSSPixels StyleComputer::absolute_size_mapping(AbsoluteSize absolute_size, CSSPi
 {
     // An <absolute-size> keyword refers to an entry in a table of font sizes computed and kept by the user agent. See
     // § 2.5.1 Absolute Size Keyword Mapping Table.
+    // INTEROP: Other browsers share this keyword table for integral default sizes from 9px through 16px, so we use
+    //          it instead of the ratios from the spec's guideline table.
+    static constexpr Array<Array<u8, 8>, 8> font_size_table { {
+        { 9, 9, 9, 9, 11, 14, 18, 27 },
+        { 9, 9, 9, 10, 12, 15, 20, 30 },
+        { 9, 9, 10, 11, 13, 17, 22, 33 },
+        { 9, 9, 10, 12, 14, 18, 24, 36 },
+        { 9, 10, 12, 13, 16, 20, 26, 39 },
+        { 9, 10, 12, 14, 17, 21, 28, 42 },
+        { 9, 10, 13, 15, 18, 23, 30, 45 },
+        { 9, 10, 13, 16, 18, 24, 32, 48 },
+    } };
+    auto default_size = default_font_size.to_int();
+    if (default_size >= 9 && default_size <= 16 && default_font_size == CSSPixels(default_size))
+        return CSSPixels(font_size_table[default_size - 9][to_underlying(absolute_size)]);
+
     switch (absolute_size) {
     case AbsoluteSize::XxSmall:
         return default_font_size * CSSPixels(3) / 5;
