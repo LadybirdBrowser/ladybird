@@ -2,30 +2,29 @@ Harness status: OK
 
 Found 25 tests
 
-4 Pass
-21 Fail
+25 Pass
 Pass	tiltX,tiltY to azimuth/altitude when tiltX=0 and tiltY=0
-Fail	tiltX,tiltY to azimuth/altitude when tiltX=0 and tiltY=90
-Fail	tiltX,tiltY to azimuth/altitude when tiltX=0 and tiltY=-90
-Fail	tiltX,tiltY to azimuth/altitude when tiltX=90 and tiltY=0
-Fail	tiltX,tiltY to azimuth/altitude when tiltX=90 and tiltY=90
-Fail	tiltX,tiltY to azimuth/altitude when tiltX=90 and tiltY=-90
-Fail	tiltX,tiltY to azimuth/altitude when tiltX=-90 and tiltY=0
-Fail	tiltX,tiltY to azimuth/altitude when tiltX=-90 and tiltY=90
-Fail	tiltX,tiltY to azimuth/altitude when tiltX=-90 and tiltY=-90
-Fail	tiltX,tiltY to azimuth/altitude when tiltX=0 and tiltY=45
-Fail	tiltX,tiltY to azimuth/altitude when tiltX=0 and tiltY=-45
-Fail	tiltX,tiltY to azimuth/altitude when tiltX=45 and tiltY=0
-Fail	tiltX,tiltY to azimuth/altitude when tiltX=-45 and tiltY=0
+Pass	tiltX,tiltY to azimuth/altitude when tiltX=0 and tiltY=90
+Pass	tiltX,tiltY to azimuth/altitude when tiltX=0 and tiltY=-90
+Pass	tiltX,tiltY to azimuth/altitude when tiltX=90 and tiltY=0
+Pass	tiltX,tiltY to azimuth/altitude when tiltX=90 and tiltY=90
+Pass	tiltX,tiltY to azimuth/altitude when tiltX=90 and tiltY=-90
+Pass	tiltX,tiltY to azimuth/altitude when tiltX=-90 and tiltY=0
+Pass	tiltX,tiltY to azimuth/altitude when tiltX=-90 and tiltY=90
+Pass	tiltX,tiltY to azimuth/altitude when tiltX=-90 and tiltY=-90
+Pass	tiltX,tiltY to azimuth/altitude when tiltX=0 and tiltY=45
+Pass	tiltX,tiltY to azimuth/altitude when tiltX=0 and tiltY=-45
+Pass	tiltX,tiltY to azimuth/altitude when tiltX=45 and tiltY=0
+Pass	tiltX,tiltY to azimuth/altitude when tiltX=-45 and tiltY=0
 Pass	tiltX/tiltY to azimuth/altitude when tiltX/tiltY are not populated
-Fail	azimuth/altitude to tiltX/tiltY when azimuth=0 and altitude=0
-Fail	azimuth/altitude to tiltX/tiltY when azimuth=0 and altitude=0.7853981633974483
+Pass	azimuth/altitude to tiltX/tiltY when azimuth=0 and altitude=0
+Pass	azimuth/altitude to tiltX/tiltY when azimuth=0 and altitude=0.7853981633974483
 Pass	azimuth/altitude to tiltX/tiltY when azimuth=0 and altitude=1.5707963267948966
-Fail	azimuth/altitude to tiltX/tiltY when azimuth=1.5707963267948966 and altitude=0
-Fail	azimuth/altitude to tiltX/tiltY when azimuth=1.5707963267948966 and altitude=0.7853981633974483
-Fail	azimuth/altitude to tiltX/tiltY when azimuth=3.141592653589793 and altitude=0
-Fail	azimuth/altitude to tiltX/tiltY when azimuth=3.141592653589793 and altitude=0.7853981633974483
-Fail	azimuth/altitude to tiltX/tiltY when azimuth=4.71238898038469 and altitude=0
-Fail	azimuth/altitude to tiltX/tiltY when azimuth=4.71238898038469 and altitude=0.7853981633974483
-Fail	If only one of the values (tiltX, tiltY) or (azimuthAngle, altitudeAngle) is available the other one is set to the default value
+Pass	azimuth/altitude to tiltX/tiltY when azimuth=1.5707963267948966 and altitude=0
+Pass	azimuth/altitude to tiltX/tiltY when azimuth=1.5707963267948966 and altitude=0.7853981633974483
+Pass	azimuth/altitude to tiltX/tiltY when azimuth=3.141592653589793 and altitude=0
+Pass	azimuth/altitude to tiltX/tiltY when azimuth=3.141592653589793 and altitude=0.7853981633974483
+Pass	azimuth/altitude to tiltX/tiltY when azimuth=4.71238898038469 and altitude=0
+Pass	azimuth/altitude to tiltX/tiltY when azimuth=4.71238898038469 and altitude=0.7853981633974483
+Pass	If only one of the values (tiltX, tiltY) or (azimuthAngle, altitudeAngle) is available the other one is set to the default value
 Pass	If one of the values in both sets is provided, the other value in the set is initialized with the default value
