@@ -1,0 +1,3 @@
+pointercancel: target, buttons=0
+mouseup: window, buttons=0
+leaves: pointer=1, mouse=1, hover=false

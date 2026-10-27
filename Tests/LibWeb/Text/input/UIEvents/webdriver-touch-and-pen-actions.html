@@ -1,0 +1,33 @@
+<!doctype html>
+<meta charset="utf-8">
+<style>body { margin: 0 } #a, #b { position:absolute; width:100px; height:100px; top:0 } #a { left:0 } #b { left:150px }</style>
+<div id="a"></div><div id="b"></div>
+<script src="../include.js"></script>
+<script>
+asyncTest(async done => {
+    const log = [];
+    for (const type of ["pointerdown", "pointermove", "pointerup", "pointercancel", "gotpointercapture", "lostpointercapture", "mousedown", "mouseup", "click"])
+        document.addEventListener(type, event => log.push(`${type}:${event.target.id}:${event.pointerType ?? "mouse"}:${event.isPrimary ?? "-"}`));
+    const source = (id, pointerType, actions) => ({ type: "pointer", id, parameters: { pointerType }, actions });
+    const move = (x, y, extra = {}) => ({ type: "pointerMove", x, y, ...extra });
+    const down = { type: "pointerDown", button: 0 };
+    const up = { type: "pointerUp", button: 0 };
+    await internals.performActions(JSON.stringify({ actions: [
+        source("finger1", "touch", [move(20,20), down, move(180,20), up]),
+        source("finger2", "touch", [move(180,20), down, move(20,20), up]),
+    ] }));
+    println(log.join("\n"));
+    log.length = 0;
+    a.addEventListener("pointerdown", event => {
+        if (event.pointerType === "pen") {
+            println(`properties:${event.width},${event.height},${event.pressure},${event.tangentialPressure},${event.tiltX},${event.tiltY},${event.twist},${event.altitudeAngle},${event.azimuthAngle}`);
+            event.preventDefault();
+        }
+    });
+    await internals.performActions(JSON.stringify({ actions: [source("stylus", "pen", [move(20,20), {
+        ...down, width:12, height:18, pressure:0.75, tangentialPressure:0.25, tiltX:30, tiltY:-20, twist:90, altitudeAngle:0.5, azimuthAngle:1.25
+    }, up])] }));
+    println(log.join("\n"));
+    done();
+});
+</script>

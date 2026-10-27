@@ -78,6 +78,8 @@ interface Internals {
     // and resolve once the UI process reports that the input has been handled.
     [CreatesPromise] Promise<undefined> clickThroughUIProcess(double x, double y);
     [CreatesPromise] Promise<undefined> mouseEventThroughUIProcess(MouseEventThroughUIProcessType type, double x, double y, optional MouseEventThroughUIProcessOptions options = {});
+    // Performs a WebDriver action sequence, given as the JSON parameters of Perform Actions, through the UI process.
+    [CreatesPromise] Promise<undefined> performActions(DOMString actions);
     [CreatesPromise] Promise<undefined> wheelThroughUIProcess(double x, double y, double deltaX, double deltaY, optional boolean precise = false, optional ScrollGesturePhase scrollGesturePhase = "none", optional WheelTicks ticks = {});
     undefined sendKey(HTMLElement target, DOMString keyName, optional unsigned short modifiers = 0, optional unsigned long repeatCount = 1);
     undefined sendTextEditingCommand(HTMLElement target, DOMString commandName, optional boolean extendSelection = false);

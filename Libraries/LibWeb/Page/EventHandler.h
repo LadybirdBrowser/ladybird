@@ -185,6 +185,8 @@ private:
         // NB: A pointercancel uses the last dispatched position.
         Optional<PointerEventPosition> last_position;
         GC::Weak<DOM::Node> hovered_node;
+        GC::Weak<DOM::Node> down_target;
+        GC::Weak<DOM::Node> nested_target;
         // https://w3c.github.io/pointerevents/#dfn-pending-pointer-capture-target-override
         GC::Weak<DOM::Element> pending_capture_target;
         // https://w3c.github.io/pointerevents/#dfn-pointer-capture-target-override
@@ -196,6 +198,7 @@ private:
     };
     GC::Ref<UIEvents::PointerEvent> create_pointer_event(PointerState const&, DOM::Node const&, Utf16FlyString const&, MouseEventCoordinates const&, CSSPixelPoint screen_position, i16 button, CSSPixelPoint movement = {}) const;
     void update_pointer_hover(Layout::BegunRead const&, PointerState&, GC::Ptr<DOM::Node>, MouseEventCoordinates const&, CSSPixelPoint screen_position);
+    bool has_pointer_capture_in_subtree(i32 pointer_id) const;
     PointerState const* pointer_state(i32 pointer_id) const;
     PointerState* pointer_state(i32 pointer_id);
 

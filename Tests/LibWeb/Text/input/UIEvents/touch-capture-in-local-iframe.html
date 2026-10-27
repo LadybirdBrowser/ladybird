@@ -1,0 +1,20 @@
+<!doctype html>
+<meta charset="utf-8">
+<style>body { margin:0 } iframe { width:100px; height:100px; border:0 }</style>
+<iframe srcdoc="<style>body{margin:0}div{width:100px;height:100px}</style><div id='target'></div>"></iframe>
+<script src="../include.js"></script>
+<script>
+asyncTest(async done => {
+    const frame = document.querySelector("iframe");
+    if (!frame.contentDocument.getElementById("target"))
+        await new Promise(resolve => frame.onload = resolve);
+    const target = frame.contentDocument.getElementById("target");
+    for (const type of ["pointerdown", "pointermove", "pointerup", "gotpointercapture", "lostpointercapture"])
+        target.addEventListener(type, event => println(`${type}: ${event.pointerType}, ${event.clientX}, primary=${event.isPrimary}, captured=${target.hasPointerCapture(event.pointerId)}`));
+    await internals.performActions(JSON.stringify({ actions: [{ type:"pointer", id:"touch", parameters:{pointerType:"touch"}, actions:[
+        {type:"pointerMove",x:20,y:20}, {type:"pointerDown",button:0},
+        {type:"pointerMove",x:180,y:20}, {type:"pointerUp",button:0}
+    ] }]}));
+    done();
+});
+</script>
