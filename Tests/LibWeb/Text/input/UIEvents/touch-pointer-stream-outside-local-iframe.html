@@ -1,0 +1,167 @@
+<!doctype html>
+<meta charset="utf-8" />
+<style>
+    body {
+        margin: 0;
+    }
+    iframe {
+        position: absolute;
+        left: 40px;
+        top: 30px;
+        width: 100px;
+        height: 100px;
+        border: 0;
+    }
+</style>
+<iframe
+    srcdoc="<style>body{margin:0}div{position:absolute;top:0;width:50px;height:100px}#b{left:50px}</style><div id='a'></div><div id='b'></div>"
+></iframe>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const frame = document.querySelector("iframe");
+        if (!frame.contentDocument.getElementById("a")) await new Promise(resolve => (frame.onload = resolve));
+        const owner = frame.contentDocument;
+        const pointers = [];
+        const touches = [];
+        const parentPointers = [];
+        let touchPointerId;
+        let releaseCapture = true;
+        let preventTouchStart = true;
+        let mouseEvents = 0;
+        for (const target of [document, owner]) {
+            for (const type of ["mousedown", "mouseup", "click"]) target.addEventListener(type, () => ++mouseEvents);
+        }
+        for (const type of [
+            "pointerover",
+            "pointerenter",
+            "gotpointercapture",
+            "lostpointercapture",
+            "pointerdown",
+            "pointermove",
+            "pointerup",
+            "pointercancel",
+            "pointerout",
+            "pointerleave",
+        ]) {
+            document.addEventListener(
+                type,
+                event => {
+                    if (event.pointerType === "touch" && event.pointerId === touchPointerId) parentPointers.push(event);
+                },
+                true
+            );
+            owner.addEventListener(
+                type,
+                event => {
+                    if (!event.target.id) return;
+                    pointers.push(event);
+                    if (type === "pointerdown") touchPointerId = event.pointerId;
+                    if (type === "pointerdown" && releaseCapture) event.target.releasePointerCapture(event.pointerId);
+                },
+                true
+            );
+        }
+        for (const type of ["touchstart", "touchmove", "touchend", "touchcancel"]) {
+            owner.addEventListener(
+                type,
+                event => {
+                    touches.push(
+                        `${type}@${event.target.id}:${event.changedTouches[0].clientX},${event.changedTouches[0].clientY}`
+                    );
+                    if (type === "touchstart" && preventTouchStart) event.preventDefault();
+                },
+                { passive: false }
+            );
+        }
+        const send = (type, x, id, pressure = 0.625) =>
+            internals.mouseEventThroughUIProcess(type, x, 55, {
+                pointer: { pointerType: "touch", pointerId: id, width: 12, height: 18, pressure },
+                buttons: type === "mouseup" ? 0 : 1,
+            });
+        const checkpointFirstExit = () => {
+            const exits = pointers
+                .filter(
+                    event =>
+                        event.target.id === "a" &&
+                        ["pointercancel", "pointerup", "pointerout", "pointerleave"].includes(event.type)
+                )
+                .map(event => event.type);
+            return exits.join(",") === "pointercancel,pointerout,pointerleave";
+        };
+        const report = (label, expectedTerminal, expectedTarget, canceledOnFirstExit) => {
+            const terminal = pointers.filter(event => event.type === "pointerup" || event.type === "pointercancel");
+            const end = terminal[0];
+            const endIndex = pointers.indexOf(end);
+            const previous = pointers[endIndex - 1];
+            const outIndex = pointers.findIndex(
+                (event, index) => index > endIndex && event.type === "pointerout" && event.target === end?.target
+            );
+            const leaveIndex = pointers.findIndex(
+                (event, index) => index > endIndex && event.type === "pointerleave" && event.target === end?.target
+            );
+            const snapshotFields = [
+                "clientX",
+                "clientY",
+                "screenX",
+                "screenY",
+                "width",
+                "height",
+                "pressure",
+                "tangentialPressure",
+                "tiltX",
+                "tiltY",
+                "twist",
+                "altitudeAngle",
+                "azimuthAngle",
+                "pointerType",
+                "isPrimary",
+            ];
+            if (canceledOnFirstExit !== undefined) println(`${label}: canceled on first exit=${canceledOnFirstExit}`);
+            println(`${label}: no parent pointer events=${parentPointers.length === 0}`);
+            println(`${label}: one terminal=${terminal.length === 1}`);
+            println(`${label}: terminal type=${end?.type === expectedTerminal}`);
+            println(`${label}: terminal target=${end?.target?.id === expectedTarget}`);
+            println(
+                `${label}: terminal data=${!!end && end.type === expectedTerminal && (expectedTerminal === "pointerup" ? end.pressure === 0 : !end.cancelable && !!previous && snapshotFields.every(field => end[field] === previous[field]))}`
+            );
+            println(`${label}: terminal before exit=${!!end && outIndex > endIndex && leaveIndex > outIndex}`);
+            println(
+                `${label}: no events after terminal=${!!end && pointers.slice(endIndex + 1).every(event => event.type === "pointerout" || event.type === "pointerleave" || event.type === "lostpointercapture")}`
+            );
+            println(`${label}: ${touches.join("; ")}`);
+            pointers.length = 0;
+            touches.length = 0;
+            parentPointers.length = 0;
+        };
+        await send("mousedown", 65, 41);
+        await send("mousemove", 115, 41);
+        await send("mouseup", 185, 41, 0);
+        report("retarget then outside up", "pointercancel", "b");
+        await send("mousedown", 65, 42);
+        await send("mousemove", 185, 42, 0.75);
+        const reentryFirstExit = checkpointFirstExit();
+        await send("mousemove", 115, 42, 0.875);
+        await send("mouseup", 115, 42, 0);
+        report("outside and reenter", "pointercancel", "a", reentryFirstExit);
+        await send("mousedown", 65, 44);
+        await send("mousemove", 185, 44, 0.75);
+        const outsideFirstExit = checkpointFirstExit();
+        await send("mouseup", 190, 44, 0);
+        report("outside move and outside up", "pointercancel", "a", outsideFirstExit);
+        preventTouchStart = false;
+        await send("mousedown", 65, 45);
+        await send("mousemove", 185, 45, 0.75);
+        const uncanceledFirstExit = checkpointFirstExit();
+        await send("mousemove", 115, 45, 0.875);
+        await send("mouseup", 115, 45, 0);
+        report("uncanceled touch", "pointercancel", "a", uncanceledFirstExit);
+        println(`uncanceled touch compatibility events: ${mouseEvents}`);
+        preventTouchStart = true;
+        releaseCapture = false;
+        await send("mousedown", 65, 43);
+        await send("mouseup", 185, 43, 0);
+        report("captured control", "pointerup", "a");
+        done();
+    });
+</script>
