@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:h="http://www.w3.org/1999/xhtml"
+     color="red">
+  <title>SVG Paint Servers: 'stop-color' inheritance of 'currentcolor'</title>
+  <metadata>
+    <h:link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/pservers.html#StopColorProperty"/>
+    <h:link rel="help" href="https://drafts.csswg.org/css-color/#resolve-color-values"/>
+  </metadata>
+  <h:script src="../../../resources/testharness.js"/>
+  <h:script src="../../../resources/testharnessreport.js"/>
+  <linearGradient stop-color="currentcolor" id="g">
+    <stop stop-color="inherit" color="green"/>
+  </linearGradient>
+  <script><![CDATA[
+
+    test(function() {
+      let stop = document.querySelector('stop');
+      assert_equals(getComputedStyle(stop).stopColor, 'rgb(0, 128, 0)');
+    }, '"currentcolor" is inherited as a keyword');
+
+  ]]></script>
+</svg>
