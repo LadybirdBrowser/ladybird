@@ -238,6 +238,8 @@ enum BreakMode {
 // https://www.w3.org/TR/css-display/#block-formatting-context
 pub(crate) struct BlockFormattingContext<'pass> {
     run: FormattingContextRun<'pass>,
+    /// The lines the stored run of the root laid out, which inline layout of the root's own lines may reuse a prefix of.
+    pub(super) previous_line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
     block_offset_of_current_block_container: Cell<Option<CssPixels>>,
     pending_legend_flow_position: Cell<Option<geometry::LogicalOffset>>,
     margin_state: RefCell<BlockMarginState>,
@@ -344,7 +346,10 @@ pub(crate) fn root_lays_out_content_against_its_own_block_size(
 }
 
 impl<'pass> BlockFormattingContext<'pass> {
-    pub(crate) fn new(run: &FormattingContextRun<'pass>) -> Self {
+    pub(crate) fn new(
+        run: &FormattingContextRun<'pass>,
+        previous_line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
+    ) -> Self {
         let style = StyleValues::for_node(&run.callbacks, run.box_);
         let computed_continue = style.continue_();
         let is_line_clamp_container = is_line_clamp_container(&run.callbacks, run.box_);
@@ -354,6 +359,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             is_line_clamp_container && computed_continue == continue_value::_WEBKIT_LEGACY;
         Self {
             run: run.clone(),
+            previous_line_data,
             block_offset_of_current_block_container: Cell::new(None),
             pending_legend_flow_position: Cell::new(None),
             margin_state: RefCell::new(BlockMarginState::default()),

@@ -68,7 +68,6 @@ impl ContentSizingScope {
                     should_collect_devtools_layout_data: false,
                     treat_block_axis_percentage_insets_as_auto_beyond_root: false,
                     fragments: None,
-                    previous_line_data: None,
                     fragmentainer: None,
                 })
             },
@@ -130,7 +129,7 @@ pub(super) fn content_sizes_of_inline_content(
                 child_constraints,
                 ParticipationInParentFormattingContext::BlockLevel,
             );
-            let parent = block_formatting_context::BlockFormattingContext::new(run);
+            let parent = block_formatting_context::BlockFormattingContext::new(run, None);
             let mut context = inline_formatting_context::InlineFormattingContext::new_with_rust_parent(
                 run,
                 run.box_,

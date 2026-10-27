@@ -1576,7 +1576,7 @@ impl<'context> InlineFormattingContext<'context> {
         let (reused_lines, reused_item_count) = if self.parent.has_line_clamp() || resume.is_some() {
             Default::default()
         } else {
-            self.run
+            self.parent
                 .previous_line_data
                 .as_deref()
                 .map(|previous| self.reusable_atomic_line_prefix(previous, &iterator))

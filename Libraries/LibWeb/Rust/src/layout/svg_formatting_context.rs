@@ -604,11 +604,7 @@ impl<'pass> SvgFormattingContext<'pass> {
 
     fn new_nested(run: &FormattingContextRun<'pass>, box_: Node) -> Self {
         Self {
-            run: FormattingContextRun {
-                box_,
-                previous_line_data: None,
-                ..run.clone()
-            },
+            run: FormattingContextRun { box_, ..run.clone() },
             available_space: None,
             quirks_mode_percentage_basis_block_size: None,
             viewport_width: CssPixels::default(),

@@ -3801,7 +3801,6 @@ pub(crate) fn drain_abspos_with_placed_containing_blocks(
         should_collect_devtools_layout_data,
         treat_block_axis_percentage_insets_as_auto_beyond_root: false,
         fragments: Some(entry_fragments.clone()),
-        previous_line_data: None,
         fragmentainer: None,
     };
     loop {

@@ -1044,10 +1044,7 @@ impl<'pass> TableFormattingContext<'pass> {
 
     pub(super) fn new(run: &FormattingContextRun<'pass>, auto_table_inline_size: AutoTableInlineSize) -> Self {
         Self {
-            run: FormattingContextRun {
-                previous_line_data: None,
-                ..run.clone()
-            },
+            run: run.clone(),
             auto_table_inline_size,
             table_constraints: ContainingBlockConstraints::default(),
             participant_constraints: ContainingBlockConstraints::default(),

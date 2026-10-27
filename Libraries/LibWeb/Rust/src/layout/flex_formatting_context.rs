@@ -236,10 +236,7 @@ impl<'pass> FlexFormattingContext<'pass> {
     pub(super) fn new(run: &FormattingContextRun<'pass>) -> Self {
         let flex_direction = StyleValues::for_node(&run.callbacks, run.box_).effective_flex_direction();
         Self {
-            run: FormattingContextRun {
-                previous_line_data: None,
-                ..run.clone()
-            },
+            run: run.clone(),
             flex_lines: Vec::new(),
             flex_items: Vec::new(),
             derived_baselines_of_root_box: DerivedBaselines::default(),

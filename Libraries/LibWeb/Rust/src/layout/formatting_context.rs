@@ -1237,7 +1237,6 @@ pub(crate) struct FormattingContextRun<'pass> {
     pub(crate) should_collect_devtools_layout_data: bool,
     pub(crate) treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
     pub(crate) fragments: Option<std::rc::Rc<fragment_tree::RunFragmentBuilder>>,
-    pub(crate) previous_line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
     pub(crate) fragmentainer: Option<std::rc::Rc<fragmentation::FragmentainerContext>>,
 }
 
@@ -1252,7 +1251,6 @@ impl<'pass> FormattingContextRun<'pass> {
             treat_block_axis_percentage_insets_as_auto_beyond_root: self
                 .treat_block_axis_percentage_insets_as_auto_beyond_root,
             fragments: self.fragments.clone(),
-            previous_line_data: self.previous_line_data.clone(),
             fragmentainer: self.fragmentainer.clone(),
         }
     }
@@ -1383,11 +1381,12 @@ fn create_formatting_context_implementation<'pass>(
     run: &FormattingContextRun<'pass>,
     parent_grid: Option<&grid_formatting_context::GridFormattingContext<'pass>>,
     fc_type: FormattingContextType,
+    previous_line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
 ) -> FormattingContextImplementation<'pass> {
     match fc_type {
-        FormattingContextType::Block => {
-            FormattingContextImplementation::Block(Box::new(block_formatting_context::BlockFormattingContext::new(run)))
-        }
+        FormattingContextType::Block => FormattingContextImplementation::Block(Box::new(
+            block_formatting_context::BlockFormattingContext::new(run, previous_line_data),
+        )),
         FormattingContextType::Flex => {
             FormattingContextImplementation::Flex(Box::new(flex_formatting_context::FlexFormattingContext::new(run)))
         }
@@ -2069,7 +2068,6 @@ fn execute_formatting_context_run(
                         (!root_containing_block.is_invalid()).then_some(root_containing_block),
                     ))
                 }),
-                previous_line_data,
                 fragmentainer,
             };
             let run = &run;
@@ -2119,7 +2117,7 @@ fn execute_formatting_context_run(
                 ChildLayoutResult::default()
             } else {
                 let mut context_implementation =
-                    create_formatting_context_implementation(body_run, parent_grid, fc_type);
+                    create_formatting_context_implementation(body_run, parent_grid, fc_type, previous_line_data);
                 let result = match &mut context_implementation {
                     FormattingContextImplementation::Block(context) => {
                         context.run(body_run, body_input);
@@ -3269,7 +3267,6 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
             should_collect_devtools_layout_data,
             treat_block_axis_percentage_insets_as_auto_beyond_root: false,
             fragments: Some(entry_fragments.clone()),
-            previous_line_data: None,
             fragmentainer: None,
         };
 
@@ -3402,7 +3399,6 @@ fn compute_subtree_layout_fragments(input: LayoutStageInput<'_>, containing_bloc
                 should_collect_devtools_layout_data: false,
                 treat_block_axis_percentage_insets_as_auto_beyond_root: false,
                 fragments: Some(entry_fragments.clone()),
-                previous_line_data: None,
                 fragmentainer: None,
             };
             if root_is_absolutely_positioned {
