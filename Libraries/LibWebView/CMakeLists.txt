@@ -49,6 +49,7 @@ set(SOURCES
     OmniboxEngagement.cpp
     PictureInPictureManager.cpp
     PictureInPictureWindow.cpp
+    PermissionManager.cpp
     Process.cpp
     ProcessManager.cpp
     ProcessSnapshot.cpp

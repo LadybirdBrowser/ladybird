@@ -156,6 +156,7 @@ set(TEST_SOURCES
     TestHSTSStore.cpp
     TestNavigationLoader.cpp
     TestOmnibox.cpp
+    TestPermissionManager.cpp
     TestPictureInPictureWindow.cpp
     TestProfile.cpp
     TestSessionHistory.cpp
@@ -203,6 +204,9 @@ foreach(source IN LISTS TEST_SOURCES)
     endif()
     if (source STREQUAL "TestAudioServerAudibility.cpp")
         list(APPEND test_libraries LibAudio LibIPC)
+    endif()
+    if (source STREQUAL "TestPermissionManager.cpp")
+        list(APPEND test_libraries LibFileSystem LibWebCommon)
     endif()
     if (source STREQUAL "TestFontService.cpp")
         list(APPEND test_libraries LibFileSystem LibIPC LibGfx)
