@@ -1,4 +1,4 @@
 Identical URLs: 1 request(s)
 Reordered modifiers: 1 request(s)
-Different referrer policies: 1 request(s)
-Default and explicit referrer policy: 1 request(s)
+Different referrer policies: 2 request(s)
+Default and explicit referrer policy: 2 request(s)
