@@ -386,6 +386,16 @@ Web::Permissions::PermissionSnapshot PermissionManager::snapshot() const
     return snapshot;
 }
 
+Web::Permissions::PermissionSnapshot PermissionManager::snapshot_for(Vector<URL::Origin> const& origins) const
+{
+    auto full = snapshot();
+    full.entries.remove_all_matching([&](auto const& entry) {
+        return !origins.contains_slow(entry.top_level_origin);
+    });
+    full.origins = origins;
+    return full;
+}
+
 Vector<SiteDecision> PermissionManager::site_decisions(PermissionName name) const
 {
     Vector<SiteDecision> decisions;

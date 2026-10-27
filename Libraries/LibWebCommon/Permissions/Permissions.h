@@ -49,10 +49,12 @@ struct WEBCOMMON_API PermissionSnapshotEntry {
     EffectiveState state;
 };
 
-// Every origin's effective state for one browsing session, as the UI process pushes it to the processes that read it.
-// An origin with no entry gets the default for the permission's name.
+// The effective states of some of a browsing session's sites, as the UI process sends them to a process that reads them:
+// only the sites that process shows, listed in origins. Of those, a site with no entry gets the default for the
+// permission's name.
 struct WEBCOMMON_API PermissionSnapshot {
     u64 revision { 0 };
+    Vector<URL::Origin> origins;
     Vector<PermissionSnapshotEntry> entries;
     EffectiveState geolocation_default { EffectiveState::Prompt };
     EffectiveState microphone_default { EffectiveState::Prompt };

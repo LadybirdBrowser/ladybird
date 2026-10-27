@@ -38,6 +38,9 @@ public:
 
     RefPtr<BrowsingSession> session() const { return m_session.strong_ref(); }
     IsPrivate is_private() const { return m_is_private; }
+
+    // The sites this process asked for the permissions of: at most its worker's top-level site.
+    Vector<URL::Origin> const& permission_origins() const { return m_permission_origins; }
     RequestServerSiteBindings& request_server_site_bindings() { return m_request_server_site_bindings; }
     void remove_blob_url_entries();
 
@@ -59,6 +62,7 @@ public:
     virtual Messages::WebWorkerClient::DidRequestBlobUrlEntryResponse did_request_blob_url_entry(Utf16String url, Optional<URL::BlobURLEntry::Token> token) override;
     virtual void did_request_file(ByteString path, i32 request_id) override;
     virtual Messages::WebWorkerClient::DidIsKnownHstsHostResponse did_is_known_hsts_host(String domain) override;
+    virtual Messages::WebWorkerClient::DidRequestPermissionSnapshotResponse did_request_permission_snapshot(URL::Origin top_level_origin) override;
     virtual Messages::WebWorkerClient::RequestMediaServerConnectionResponse request_media_server_connection() override;
     virtual void did_post_broadcast_channel_message(Web::HTML::PostedBroadcastChannelMessage) override;
     virtual Messages::WebWorkerClient::StartWorkerAgentResponse start_worker_agent(Web::HTML::WorkerAgentStartRequest request) override;
@@ -75,6 +79,7 @@ private:
 
     ChildIdentity m_child_identity;
     Web::HTML::WorkerAgentId m_agent_id { 0 };
+    Vector<URL::Origin> m_permission_origins;
 
     // The controller connections to the MediaServer and AudioServer spawned for this process, from its first media use
     // until it exits.

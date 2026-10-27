@@ -7,6 +7,7 @@
 #include <LibWebCommon/HTML/BroadcastChannelMessage.h>
 #include <LibWebCommon/HTML/WorkerAgentForward.h>
 #include <LibWebCommon/HTML/WorkerAgentTypes.h>
+#include <LibWebCommon/Permissions/Permissions.h>
 
 endpoint WebWorkerClient {
     did_add_blob_url_entry(Web::HTML::EnvironmentId environment_id, Utf16String url, Web::FileAPI::SerializedBlobURLEntry entry) => (URL::BlobURLEntry::Token token)
@@ -21,6 +22,7 @@ endpoint WebWorkerClient {
     did_request_cookie(URL::URL url, HTTP::Cookie::Source source) => (HTTP::Cookie::VersionedCookie cookie)
     did_request_file(ByteString path, i32 request_id) =|
     did_is_known_hsts_host(String domain) => (bool result)
+    did_request_permission_snapshot(URL::Origin top_level_origin) => (Web::Permissions::PermissionSnapshot snapshot)
     request_media_server_connection() => (Optional<IPC::TransportHandle> handle)
     did_post_broadcast_channel_message(Web::HTML::PostedBroadcastChannelMessage message) =|
     start_worker_agent(Web::HTML::WorkerAgentStartRequest request) => (Web::HTML::WorkerAgentId agent_id)

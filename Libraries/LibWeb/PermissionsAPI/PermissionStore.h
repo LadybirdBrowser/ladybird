@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/HashMap.h>
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
@@ -40,18 +41,34 @@ public:
     // https://w3c.github.io/permissions/#dfn-set-a-permission-store-entry
     void set_permission_store_entry(PermissionDescriptor const& descriptor, URL::Origin const& key, PermissionState state);
 
-    // The UI process owns the user agent's permission decisions, and sends each process that reads them a snapshot of
-    // every site's state; a snapshot older than the one in hand is ignored.
-    void apply_snapshot(Web::Permissions::PermissionSnapshot);
-    Web::Permissions::EffectiveState state_for(Web::Permissions::PermissionName, URL::Origin const& key) const;
+    // The UI process owns the user agent's permission decisions. It tells this process the states of the sites it
+    // shows: the first time the process reads one, through the page reading it, and again whenever one changes. Of
+    // each site, the newest state wins.
+    enum class Notify : bool {
+        No,
+        Yes,
+    };
+    void apply_snapshot(Web::Permissions::PermissionSnapshot, Notify = Notify::Yes);
+    Web::Permissions::EffectiveState state_for(Web::Permissions::PermissionName, URL::Origin const& key, Page&);
 
     void register_status(PermissionStatus&);
+
+    // The sites this process holds decisions for.
+    Vector<String> cached_origins_for_testing() const;
 
 private:
     PermissionStore() = default;
 
     Vector<PermissionStoreEntry> m_entries;
-    Optional<Web::Permissions::PermissionSnapshot> m_snapshot;
+
+    struct CachedSite {
+        u64 revision { 0 };
+        Vector<Web::Permissions::PermissionSnapshotEntry> entries;
+    };
+    HashMap<String, CachedSite> m_sites;
+    Optional<u64> m_defaults_revision;
+    Web::Permissions::EffectiveState m_geolocation_default { Web::Permissions::EffectiveState::Prompt };
+    Web::Permissions::EffectiveState m_microphone_default { Web::Permissions::EffectiveState::Prompt };
     Vector<GC::Weak<PermissionStatus>> m_statuses;
 };
 

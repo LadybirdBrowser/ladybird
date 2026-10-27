@@ -351,6 +351,7 @@ private:
     virtual void page_did_start_geolocation_position_watch(u64 request_id, Web::HTML::CrossProcessId requesting_document_id) override;
     virtual void page_did_stop_geolocation_position_watch(u64 request_id) override;
     virtual void page_did_request_permission(u64 request_id, Web::HTML::CrossProcessId requesting_document_id, Utf16String const& name) override;
+    virtual Optional<Web::Permissions::PermissionSnapshot> page_did_request_permission_snapshot(URL::Origin const& top_level_origin) override;
     virtual Optional<Web::Permissions::PermissionSnapshot> page_did_set_permission_for_testing(Web::HTML::CrossProcessId document_id, String const& name, String const& state) override;
     virtual void page_did_set_next_permission_prompt_outcome_for_testing(String const& name, String const& outcome, bool held) override;
     virtual void page_did_release_held_permission_prompt_for_testing(u32 waiters) override;

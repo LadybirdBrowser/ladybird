@@ -1311,6 +1311,14 @@ void PageClient::page_did_request_permission(u64 request_id, Web::HTML::CrossPro
     client().async_did_request_permission(m_id, request_id, requesting_document_id, name);
 }
 
+Optional<Web::Permissions::PermissionSnapshot> PageClient::page_did_request_permission_snapshot(URL::Origin const& top_level_origin)
+{
+    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestPermissionSnapshot>(m_id, top_level_origin);
+    if (!response)
+        return {};
+    return response->take_snapshot();
+}
+
 Optional<Web::Permissions::PermissionSnapshot> PageClient::page_did_set_permission_for_testing(Web::HTML::CrossProcessId document_id, String const& name, String const& state)
 {
     auto* test_connection = client().test_connection();
