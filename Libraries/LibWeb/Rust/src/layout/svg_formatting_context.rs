@@ -1899,7 +1899,10 @@ impl<'pass> SvgFormattingContext<'pass> {
         let used = &used_pointer;
         self.commit_svg_element_facts(self.run.box_, facts, attributes);
 
-        if facts.is_document_element && !facts.document_is_decoded_svg && !used.has_content_offset.get() {
+        if facts.is_document_element
+            && !facts.document_is_decoded_svg
+            && !input.sizing.root_keeps_its_committed_geometry
+        {
             // Overwrite the content width/height with the styled node width/height (from <svg width height ...>)
             //
             // NOTE: If a height had not been provided by the svg element, it was set to the height of the container
