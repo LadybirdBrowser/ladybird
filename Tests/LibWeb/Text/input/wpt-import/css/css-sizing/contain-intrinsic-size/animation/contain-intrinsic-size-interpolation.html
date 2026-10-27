@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>contain-intrinsic-size interpolation</title>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-4/#intrinsic-size-override">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../css/support/interpolation-testcommon.js"></script>
+
+<style>
+.target {
+  contain: strict;
+  contain-intrinsic-size: 50px 60px;
+}
+</style>
+
+<body></body>
+
+<script>
+// none doesn't interpolate
+test_interpolation({
+  property: 'contain-intrinsic-size',
+  from: neutralKeyframe,
+  to: '20px 10px',
+}, [
+  {at: -0.3, expect: '59px 75px'},
+  {at: 0, expect: '50px 60px'},
+  {at: 0.3, expect: '41px 45px'},
+  {at: 0.6, expect: '32px 30px'},
+  {at: 1, expect: '20px 10px'},
+  {at: 1.5, expect: '5px 0px'}
+]);
+
+test_no_interpolation({
+  property: 'contain-intrinsic-size',
+  from: 'initial',
+  to: '20px 20px',
+});
+
+test_no_interpolation({
+  property: 'contain-intrinsic-size',
+  from: 'inherit',
+  to: '20px',
+});
+
+test_no_interpolation({
+  property: 'contain-intrinsic-size',
+  from: 'unset',
+  to: '20px',
+});
+
+test_no_interpolation({
+  property: 'contain-intrinsic-size',
+  from: 'none',
+  to: '20px 20px',
+});
+
+test_no_interpolation({
+  property: 'contain-intrinsic-size',
+  from: '10px 15px',
+  to: 'none',
+});
+
+test_interpolation({
+  property: 'contain-intrinsic-size',
+  from: 'auto 0px 0px',
+  to: 'auto 10px 10px'
+}, [
+  {at: -0.3, expect: 'auto 0px 0px'}, // contain-intrinsic-size can't be negative.
+  {at: 0, expect: 'auto 0px 0px'},
+  {at: 0.3, expect: 'auto 3px 3px'},
+  {at: 0.6, expect: 'auto 6px 6px'},
+  {at: 1, expect: 'auto 10px 10px'},
+  {at: 1.5, expect: 'auto 15px 15px'}
+]);
+
+test_no_interpolation({
+  property: 'contain-intrinsic-size',
+  from: 'auto 10px 15px',
+  to: '20px 15px',
+});
+
+test_no_interpolation({
+  property: 'contain-intrinsic-size',
+  from: 'none 15px',
+  to: '20px 15px',
+});
+
+test_no_interpolation({
+  property: 'contain-intrinsic-size',
+  from: 'none 15px',
+  to: 'auto 20px 15px',
+});
+
+test_interpolation({
+  property: 'contain-intrinsic-size',
+  from: '0px 0px',
+  to: '10px'
+}, [
+  {at: -0.3, expect: '0px 0px'}, // contain-intrinsic-size can't be negative.
+  {at: 0, expect: '0px 0px'},
+  {at: 0.3, expect: '3px 3px'},
+  {at: 0.6, expect: '6px 6px'},
+  {at: 1, expect: '10px 10px'},
+  {at: 1.5, expect: '15px 15px'}
+]);
+
+test_interpolation({
+  property: 'contain-intrinsic-size',
+  from: '20px 40px',
+  to: '30px 50px'
+}, [
+  {at: -0.3, expect: '17px 37px'},
+  {at: 0, expect: '20px 40px'},
+  {at: 0.3, expect: '23px 43px'},
+  {at: 0.6, expect: '26px 46px'},
+  {at: 1, expect: '30px 50px'},
+  {at: 1.5, expect: '35px 55px'}
+]);
+</script>
