@@ -1,0 +1,192 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="timeout" content="long">
+<title>Fractional coordinates of untrusted events</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script>
+"use strict";
+
+const dict = {
+  screenX: 0.111111111111,
+  screenY: 0.222222222222,
+  clientX: 0.333333333333,
+  clientY: 0.444444444444,
+};
+
+function testExactlyMatch(cls, event, dict) {
+  test(() => {
+    assert_equals(event["screenX"], dict["screenX"]);
+  }, `${cls}.${event.type}.screenX`);
+  test(() => {
+    assert_equals(event["screenY"], dict["screenY"]);
+  }, `${cls}.${event.type}.screenY`);
+  test(() => {
+    assert_equals(event["clientX"], dict["clientX"]);
+  }, `${cls}.${event.type}.clientX`);
+  test(() => {
+    assert_equals(event["clientY"], dict["clientY"]);
+  }, `${cls}.${event.type}.clientY`);
+  test(() => {
+    assert_equals(event["pageX"], dict["clientX"]);
+  }, `${cls}.${event.type}.pageX`);
+  test(() => {
+    assert_equals(event["pageY"], dict["clientY"]);
+  }, `${cls}.${event.type}.pageY`);
+  test(() => {
+    assert_equals(event["offsetX"], dict["clientX"]);
+  }, `${cls}.${event.type}.offsetX`);
+  test(() => {
+    assert_equals(event["offsetY"], dict["clientY"]);
+  }, `${cls}.${event.type}.offsetY`);
+}
+
+function testFlooredMatch(name, cls, event, dict) {
+  test(() => {
+    assert_equals(event["screenX"], Math.floor(dict["screenX"]));
+  }, `${name}: ${cls}.${event.type}.screenX`);
+  test(() => {
+    assert_equals(event["screenY"], Math.floor(dict["screenY"]));
+  }, `${name}: ${cls}.${event.type}.screenY`);
+  test(() => {
+    assert_equals(event["clientX"], Math.floor(dict["clientX"]));
+  }, `${name}: ${cls}.${event.type}.clientX`);
+  test(() => {
+    assert_equals(event["clientY"], Math.floor(dict["clientY"]));
+  }, `${name}: ${cls}.${event.type}.clientY`);
+  test(() => {
+    assert_equals(event["pageX"], Math.floor(dict["clientX"]));
+  }, `${name}: ${cls}.${event.type}.pageX`);
+  test(() => {
+    assert_equals(event["pageY"], Math.floor(dict["clientY"]));
+  }, `${name}: ${cls}.${event.type}.pageY`);
+  test(() => {
+    assert_equals(event["offsetX"], Math.floor(dict["clientX"]));
+  }, `${name}: ${cls}.${event.type}.offsetX`);
+  test(() => {
+    assert_equals(event["offsetY"], Math.floor(dict["clientY"]));
+  }, `${name}: ${cls}.${event.type}.offsetY`);
+}
+
+// PointerEvent whose type is not "click", "auxclick" nor "contextmenu" must support
+// fractional coordinates.
+for (const type of ["pointerdown", "pointerup", "pointermove", "pointercancel",
+                    "gotpointercapture", "lostpointercapture",
+                    "pointerrawupdate",
+                    "pointerover", "pointerout", "pointerenter", "pointerleave",
+                    "foo"]) {
+  const event = new PointerEvent(type, dict);
+  testExactlyMatch("PointerEvent", event, dict);
+}
+
+const otherEvents = [
+  { cls: "PointerEvent", type: "click" },
+  { cls: "PointerEvent", type: "auxclick" },
+  { cls: "PointerEvent", type: "contextmenu" },
+  { cls: "MouseEvent", type: "click" },
+  { cls: "MouseEvent", type: "auxclick" },
+  { cls: "MouseEvent", type: "contextmenu" },
+  { cls: "MouseEvent", type: "mousedown" },
+  { cls: "MouseEvent", type: "mousemove" },
+  { cls: "MouseEvent", type: "mouseup" },
+  { cls: "MouseEvent", type: "mouseover" },
+  { cls: "MouseEvent", type: "mouseout" },
+  { cls: "MouseEvent", type: "mouseenter" },
+  { cls: "MouseEvent", type: "mouseleave" },
+  { cls: "MouseEvent", type: "dblclick" },
+  { cls: "DragEvent", type: "dragstart" },
+  { cls: "DragEvent", type: "dragover" },
+  { cls: "DragEvent", type: "dragend" },
+  { cls: "DragEvent", type: "drop" },
+  { cls: "WheelEvent", type: "wheel" },
+];
+
+// If the browser supports fractional values for all untrusted events, they should work with any event types.
+if ((new PointerEvent("click", {screenX: 0.1})).screenX == 0.1) {
+  for (const data of otherEvents) {
+    const event = new window[data.cls](data.type, dict);
+    testExactlyMatch(data.cls, event, dict);
+  }
+}
+// Otherwise, the values should be floored.
+else {
+  const biggerDict1 = {
+    screenX: 0.555555555555,
+    screenY: 0.666666666666,
+    clientX: 0.777777777777,
+    clientY: 0.888888888888,
+  };
+  const biggerDict2 = {
+    screenX: 1.111111111111,
+    screenY: 1.222222222222,
+    clientX: 1.333333333333,
+    clientY: 1.444444444444,
+  };
+  const negativeDict = {
+    screenX: -0.111111111111,
+    screenY: -0.222222222222,
+    clientX: -0.333333333333,
+    clientY: -0.444444444444,
+  };
+  const smallerNegativeDict1 = {
+    screenX: -0.555555555555,
+    screenY: -0.666666666666,
+    clientX: -0.777777777777,
+    clientY: -0.888888888888,
+  }
+  const smallerNegativeDict2 = {
+    screenX: -1.111111111111,
+    screenY: -1.222222222222,
+    clientX: -1.333333333333,
+    clientY: -1.444444444444,
+  }
+  for (const data of otherEvents) {
+    let event = new window[data.cls](data.type, dict);
+    testFlooredMatch("0.0 - 0.5", data.cls, event, dict);
+
+    event = new window[data.cls](data.type, biggerDict1);
+    testFlooredMatch("0.5 - 1.0", data.cls, event, biggerDict1);
+
+    event = new window[data.cls](data.type, biggerDict2);
+    testFlooredMatch("1.0 - 1.5", data.cls, event, biggerDict2);
+
+    event = new window[data.cls](data.type, negativeDict);
+    testFlooredMatch("-0.5 - 0.0", data.cls, event, negativeDict);
+
+    event = new window[data.cls](data.type, smallerNegativeDict1);
+    testFlooredMatch("-1.0 - -0.5", data.cls, event, smallerNegativeDict1);
+
+    event = new window[data.cls](data.type, smallerNegativeDict2);
+    testFlooredMatch("-1.5 - -1.0", data.cls, event, smallerNegativeDict2);
+  }
+}
+
+const dictAlwaysDouble = {
+  width: 0.111111111111,
+  height: 0.222222222222,
+};
+
+function testExactlyMatchAlwaysDouble(event, dict) {
+  test(() => {
+    assert_equals(event["width"], dict["width"]);
+  }, `PointerEvent.${event.type}.width`);
+  test(() => {
+    assert_equals(event["height"], dict["height"]);
+  }, `PointerEvent.${event.type}.height`);
+}
+
+for (const type of ["pointerdown", "pointerup", "pointermove", "pointercancel",
+                    "gotpointercapture", "lostpointercapture",
+                    "pointerrawupdate",
+                    "pointerover", "pointerout", "pointerenter", "pointerleave",
+                    "foo"]) {
+  const event = new PointerEvent(type, dictAlwaysDouble);
+  testExactlyMatchAlwaysDouble(event, dictAlwaysDouble);
+}
+
+</script>
+</head>
+<body></body>
+</html>

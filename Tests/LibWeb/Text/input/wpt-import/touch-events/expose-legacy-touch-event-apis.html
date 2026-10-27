@@ -1,0 +1,15 @@
+<!DOCTYPE HTML>
+<meta charset=utf-8>
+<title>Expose legacy touch event APIs</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script>
+const exposeLegacyTouchEventAPIs = 'ontouchstart' in document;
+for (const eventHandler of ['ontouchstart', 'ontouchmove', 'ontouchend', 'ontouchcancel']) {
+  for (const eventTarget of [window, HTMLElement.prototype, SVGElement.prototype, Document.prototype]) {
+    test(() => {
+      assert_equals(eventHandler in eventTarget, exposeLegacyTouchEventAPIs);
+    }, `'${eventHandler}' in ${eventTarget}`);
+  }
+}
+</script>
