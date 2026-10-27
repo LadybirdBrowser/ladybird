@@ -50,9 +50,7 @@ public:
     bool is_px() const { return m_unit == LengthUnit::Px; }
 
     bool is_absolute() const { return CSS::is_absolute(m_unit); }
-    bool is_font_relative() const { return CSS::is_font_relative(m_unit); }
     bool is_container_relative() const { return CSS::is_container_relative(m_unit); }
-    bool is_viewport_relative() const { return CSS::is_viewport_relative(m_unit); }
 
     double raw_value() const { return m_value; }
     LengthUnit unit() const { return m_unit; }
@@ -71,7 +69,6 @@ public:
         [[nodiscard]] static ResolutionContext for_document(DOM::Document const&);
         [[nodiscard]] static ResolutionContext for_element(DOM::AbstractElement const&);
         [[nodiscard]] static ResolutionContext for_element(DOM::AbstractElement const&, ComputedValues const&);
-        [[nodiscard]] static ResolutionContext for_layout_node(Layout::NodeWithStyle const&);
 
         CSSPixelRect viewport_rect;
         FontMetrics font_metrics;
@@ -109,35 +106,6 @@ public:
                 *m_did_resolve_viewport_relative_length = true;
         }
 
-        void record_font_relative_length_resolution(LengthUnit unit) const
-        {
-            if (!m_did_resolve_viewport_relative_length)
-                return;
-
-            switch (unit) {
-            case LengthUnit::Rem:
-            case LengthUnit::Rex:
-            case LengthUnit::Rcap:
-            case LengthUnit::Rch:
-            case LengthUnit::Ric:
-            case LengthUnit::Rlh:
-                if (root_font_metrics_depend_on_viewport_metrics)
-                    *m_did_resolve_viewport_relative_length = true;
-                return;
-            case LengthUnit::Em:
-            case LengthUnit::Ex:
-            case LengthUnit::Cap:
-            case LengthUnit::Ch:
-            case LengthUnit::Ic:
-            case LengthUnit::Lh:
-                if (font_metrics_depend_on_viewport_metrics)
-                    *m_did_resolve_viewport_relative_length = true;
-                return;
-            default:
-                return;
-            }
-        }
-
         bool operator==(ResolutionContext const& other) const
         {
             return viewport_rect == other.viewport_rect
@@ -155,24 +123,10 @@ public:
         mutable DeferredContainerQueryMarks* m_deferred_container_query_marks { nullptr };
     };
 
-    [[nodiscard]] CSSPixels to_px(ResolutionContext const&) const;
-
     ALWAYS_INLINE double to_px_without_rounding(ResolutionContext const& context) const
     {
-        if (is_absolute())
-            return absolute_length_to_px_without_rounding();
-        if (is_font_relative()) {
-            context.record_font_relative_length_resolution(m_unit);
-            return font_relative_length_to_px_without_rounding(context.font_metrics, context.root_font_metrics);
-        }
-        if (is_viewport_relative()) {
-            context.record_viewport_relative_length_resolution();
-            return viewport_relative_length_to_px_without_rounding(context.viewport_rect);
-        }
-        if (is_container_relative())
-            return container_relative_length_to_px_without_rounding(context);
-
-        VERIFY_NOT_REACHED();
+        VERIFY(is_container_relative());
+        return container_relative_length_to_px_without_rounding(context);
     }
 
     [[nodiscard]] ALWAYS_INLINE CSSPixels absolute_length_to_px() const
@@ -193,8 +147,6 @@ public:
         return m_unit == other.m_unit && m_value == other.m_value;
     }
 
-    double font_relative_length_to_px_without_rounding(FontMetrics const& font_metrics, FontMetrics const& root_font_metrics) const;
-    double viewport_relative_length_to_px_without_rounding(CSSPixelRect const& viewport_rect) const;
     double container_relative_length_to_px_without_rounding(ResolutionContext const&) const;
 
     static Length from_style_value(NonnullRefPtr<StyleValue const> const&, Optional<Length> percentage_basis);
@@ -203,8 +155,5 @@ private:
     LengthUnit m_unit;
     double m_value { 0 };
 };
-
-double ratio_between_font_relative_unit_and_px(LengthUnit font_relative_unit, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics);
-double ratio_between_viewport_relative_unit_and_px(LengthUnit viewport_relative_unit, CSSPixelRect const& viewport_rect);
 
 }

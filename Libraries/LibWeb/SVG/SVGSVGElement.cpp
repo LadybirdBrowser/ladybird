@@ -10,6 +10,7 @@
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CSS/StyleValues/ComputationContext.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
@@ -163,13 +164,17 @@ void SVGSVGElement::update_fallback_view_box_for_svg_as_image()
     Optional<double> width;
     Optional<double> height;
 
-    auto resolution_context = CSS::Length::ResolutionContext::for_document(document());
+    CSS::ComputationContext computation_context { .length_resolution_context = CSS::Length::ResolutionContext::for_document(document()) };
+    auto to_px = [&](CSS::Length const& length) {
+        auto absolutized_length = CSS::LengthStyleValue::create(length)->absolutized(computation_context);
+        return CSS::Length::from_style_value(absolutized_length, {}).absolute_length_to_px().to_double();
+    };
 
     if (auto width_length = width_attribute_length(); width_length.has_value())
-        width = width_length->to_px(resolution_context).to_double();
+        width = to_px(*width_length);
 
     if (auto height_length = height_attribute_length(); height_length.has_value())
-        height = height_length->to_px(resolution_context).to_double();
+        height = to_px(*height_length);
 
     if (width.has_value() && width.value() > 0 && height.has_value() && height.value() > 0) {
         m_fallback_view_box_for_svg_as_image = ViewBox { 0, 0, width.value(), height.value() };

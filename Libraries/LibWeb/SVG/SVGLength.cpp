@@ -8,8 +8,10 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/SVGLength.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/StyleComputeFFI.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ComputationContext.h>
+#include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/SVG/SVGForeignObjectElement.h>
@@ -230,7 +232,8 @@ WebIDL::ExceptionOr<float> SVGLength::value() const
         if (scalar->kind() == SVGLengthValue::Kind::Percentage)
             return CSS::Length::make_px(viewport_size).percentage_of(scalar->to_percentage()).absolute_length_to_px_without_rounding();
 
-        return scalar->to_length().to_px_without_rounding(*length_resolution_context);
+        auto absolutized_length = CSS::LengthStyleValue::create(scalar->to_length())->absolutized({ .length_resolution_context = *length_resolution_context, .abstract_element = DOM::AbstractElement { *m_element } });
+        return CSS::Length::from_style_value(absolutized_length, {}).absolute_length_to_px_without_rounding();
     }
 
     auto const& style_value = value.get<NonnullRefPtr<CSS::StyleValue const>>();
@@ -397,13 +400,8 @@ static WebIDL::ExceptionOr<SVGLengthValue> convert_px_to_specified_units(JS::Rea
         if (!length_resolution_context.has_value())
             return WebIDL::NotSupportedError::create(realm, "Cannot convert to relative length without an associated element"_utf16);
 
-        if (CSS::is_font_relative(length_unit))
-            return 1.0 / CSS::ratio_between_font_relative_unit_and_px(length_unit, length_resolution_context->font_metrics, length_resolution_context->root_font_metrics);
-
-        if (CSS::is_viewport_relative(length_unit))
-            return 1.0 / CSS::ratio_between_viewport_relative_unit_and_px(length_unit, length_resolution_context->viewport_rect);
-
-        VERIFY_NOT_REACHED();
+        auto ffi_context = CSS::to_ffi_length_resolution_context(*length_resolution_context);
+        return 1.0 / CSS::ComputedValuesFFI::rust_absolutize_length(1.0, to_underlying(length_unit), &ffi_context).px;
     }());
 
     if (!isfinite(ratio))

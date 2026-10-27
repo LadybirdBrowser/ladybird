@@ -432,7 +432,7 @@ pub(crate) fn absolutize_length(value: f64, unit: usize, context: &FfiLengthReso
     }
 }
 
-/// Absolutizes a length during style computation.
+/// Absolutizes a length against a length resolution context.
 ///
 /// # Safety
 /// `context.resolved_viewport_relative_length` must be null or point to a live flag, which the
