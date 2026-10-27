@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Function.h>
+#include <AK/Utf16String.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Realm.h>
@@ -30,5 +31,7 @@ JS::ThrowCompletionOr<T> run_in_a_new_global_object(JS::VM& vm, Function<JS::Thr
         return throw_copy_of_error_in_current_realm(vm, result.error_value());
     return result;
 }
+
+JS::ThrowCompletionOr<Utf16String> serialize_to_json_in_a_new_global_object(JS::VM&, Function<JS::Value(JS::Realm&)> const& create_value);
 
 }

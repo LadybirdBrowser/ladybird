@@ -1,0 +1,3 @@
+No prototype changes: kty=oct alg=HS256 ext=true key_ops=["sign","verify"] k=AQID
+Array.prototype.toJSON returns a string: kty=oct alg=HS256 ext=true key_ops=["sign","verify"] k=AQID
+Object.prototype.toJSON replaces the key: kty=oct alg=HS256 ext=true key_ops=["sign","verify"] k=AQID
