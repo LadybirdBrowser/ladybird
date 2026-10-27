@@ -64,12 +64,14 @@ Vector<ProcessSnapshot> process_snapshots(ProcessManager& manager)
             .pid = statistics.pid,
             .type = process.type(),
             .title = process.title(),
+            .site_url = process.site_url(),
             .owner_child_id = process.owner_child_id(),
             .cpu_percent = statistics.cpu_percent,
             .memory_usage_bytes = statistics.memory_usage_bytes,
             .page = {},
         };
         if (auto page = process_pages.get(process.child_id()); page.has_value()) {
+            snapshot.site_url = page->url;
             snapshot.page = ProcessPageSnapshot {
                 .view_id = page->view->view_id(),
                 .url = page->url,
