@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 81 tests
 
-80 Pass
-1 Fail
+81 Pass
 Pass	SVGAnimatedLength: rect.x
 Pass	SVGAnimatedLength: rect.y
 Pass	SVGAnimatedLength: rect.width
@@ -83,5 +82,5 @@ Pass	SVGPointList: poly.points
 Pass	SVGPointList: poly.animatedPoints
 Pass	SVGStringList: rect.requiredExtensions
 Pass	SVGStringList: rect.systemLanguage
-Fail	DOMPointReadOnly: root.currentTranslate
+Pass	DOMPointReadOnly: root.currentTranslate
 Pass	DOMTokenList: anchor.relList
