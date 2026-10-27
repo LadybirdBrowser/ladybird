@@ -57,7 +57,8 @@ static bool is_valid_mouse_event(Web::MouseEvent const& event)
         && event.click_count >= 0
         // Only the compositor sets these, on its way to WebContent.
         && !event.async_scroll_performed_default_action
-        && !event.scrollbar_dragged_by_compositor.has_value();
+        && !event.scrollbar_dragged_by_compositor.has_value()
+        && !event.wheel_gesture_mark.has_value();
 }
 
 static bool is_valid_pinch_event(Web::PinchEvent const& event)

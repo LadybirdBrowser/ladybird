@@ -142,6 +142,15 @@ private:
     OwnPtr<PointerProperties> m_properties;
 };
 
+// What the compositor found of a wheel event's gesture as it passed the event on, which WebContent follows rather
+// than deciding again.
+struct WheelGestureMark {
+    // Whether the event continues the gesture before it, rather than starting one.
+    bool continues_gesture { false };
+
+    bool operator==(WheelGestureMark const&) const = default;
+};
+
 struct WEBCOMMON_API MouseEvent {
     enum class Type : u8 {
         MouseDown,
@@ -173,6 +182,7 @@ struct WEBCOMMON_API MouseEvent {
     u64 id { 0 };
     Optional<Web::ScrollbarDraggedByCompositor> scrollbar_dragged_by_compositor {};
     PointerInputData pointer_data {};
+    Optional<WheelGestureMark> wheel_gesture_mark {};
 };
 
 struct WEBCOMMON_API PinchEvent {

@@ -2818,6 +2818,7 @@ void WebContentPage::did_request_webdriver_mouse_event(u64 request_id, Web::HTML
     // Only the compositor sets these, on its way to WebContent.
     event.async_scroll_performed_default_action = false;
     event.scrollbar_dragged_by_compositor = {};
+    event.wheel_gesture_mark = {};
     view().enqueue_webdriver_mouse_event({}, move(event), move(on_handled));
 }
 

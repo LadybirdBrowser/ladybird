@@ -36,6 +36,11 @@ enum Web::ScrollGesturePhase : u8 {
 }
 
 [ExistingCpp]
+struct Web::WheelGestureMark {
+    bool continues_gesture;
+}
+
+[ExistingCpp]
 struct Web::KeyEvent {
     Web::KeyEvent::Type type;
     Web::UIEvents::KeyCode key;
@@ -95,6 +100,7 @@ struct Web::MouseEvent {
     u64 id;
     Optional<Web::ScrollbarDraggedByCompositor> scrollbar_dragged_by_compositor;
     Web::PointerInputData pointer_data;
+    Optional<Web::WheelGestureMark> wheel_gesture_mark;
 }
 
 [ExistingCpp]

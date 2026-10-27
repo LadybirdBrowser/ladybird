@@ -44,26 +44,31 @@ bool WheelGestureRouting::only_blocking_wheel_event_listeners_hold_steps_back() 
 
 bool WheelGestureRouting::note_wheel_event_from_ui(Web::MouseEvent const& event, Gfx::FloatPoint position, Compositing::AsyncScrollTree const& async_scroll_tree, MonotonicTime now)
 {
-    auto phase = event.scroll_gesture_phase;
-    if (event.id != 0) {
+    return note_wheel_event(event.id, event.scroll_gesture_phase, event.modifiers, { event.wheel_delta_x, event.wheel_delta_y }, position, async_scroll_tree, now);
+}
+
+bool WheelGestureRouting::note_wheel_event(u64 input_event_id, Web::ScrollGesturePhase phase, u32 modifiers, Gfx::FloatPoint wheel_delta, Gfx::FloatPoint position, Compositing::AsyncScrollTree const& async_scroll_tree, MonotonicTime now)
+{
+    if (input_event_id != 0) {
         if (phase == Web::ScrollGesturePhase::Ongoing)
-            m_newest_wheel_event_ids_from_ui.ongoing = event.id;
+            m_newest_wheel_event_ids_from_ui.ongoing = input_event_id;
         else if (phase == Web::ScrollGesturePhase::Momentum)
-            m_newest_wheel_event_ids_from_ui.momentum = event.id;
+            m_newest_wheel_event_ids_from_ui.momentum = input_event_id;
         else if (phase == Web::ScrollGesturePhase::Ended)
-            m_newest_wheel_event_ids_from_ui.ended = event.id;
+            m_newest_wheel_event_ids_from_ui.ended = input_event_id;
     }
 
-    bool starts_gesture = !m_gesture_from_ui.has_value() || !m_gesture_from_ui->is_continued_by(position, phase, event.modifiers, now, position_slop_in_device_pixels(async_scroll_tree));
+    bool starts_gesture = !m_gesture.has_value() || !m_gesture->is_continued_by(position, phase, modifiers, now, position_slop_in_device_pixels(async_scroll_tree));
     if (starts_gesture) {
-        m_gesture_from_ui = Compositing::WheelGestureIdentity::started_by(position, phase, event.modifiers, now);
-        m_gesture_from_ui_had_wheel_event_with_delta = false;
+        m_gesture = Compositing::WheelGestureIdentity::started_by(position, phase, modifiers, now);
+        m_gesture_had_wheel_event_with_delta = false;
+        m_latch.clear();
     } else {
-        m_gesture_from_ui->advance_to(phase, now);
+        m_gesture->advance_to(phase, now);
     }
-    if (!m_gesture_from_ui_had_wheel_event_with_delta && (event.wheel_delta_x != 0 || event.wheel_delta_y != 0)) {
-        m_gesture_from_ui_had_wheel_event_with_delta = true;
-        m_id_of_first_wheel_event_from_ui_with_delta = event.id;
+    if (!m_gesture_had_wheel_event_with_delta && !wheel_delta.is_zero()) {
+        m_gesture_had_wheel_event_with_delta = true;
+        m_id_of_first_wheel_event_with_delta = input_event_id;
     }
     return starts_gesture;
 }
@@ -87,23 +92,12 @@ bool WheelGestureRouting::step_was_overtaken_by_ui(Web::ScrollGesturePhase phase
     VERIFY_NOT_REACHED();
 }
 
-WheelGestureRouting::ResolvedLatch WheelGestureRouting::resolve_latch(Compositing::AsyncScrollTree const& async_scroll_tree, Compositing::AccumulatedVisualContextTree const& current_visual_context_tree, Gfx::FloatPoint position, Web::ScrollGesturePhase scroll_gesture_phase, u32 modifiers, MonotonicTime now)
-{
-    if (!m_latch.has_value())
-        return {};
-    if (!m_latch->gesture.is_continued_by(position, scroll_gesture_phase, modifiers, now, position_slop_in_device_pixels(async_scroll_tree))) {
-        m_latch.clear();
-        return {};
-    }
-    return resolve_latch_continued_by_containing_context(async_scroll_tree, current_visual_context_tree, scroll_gesture_phase, now);
-}
-
-WheelGestureRouting::ResolvedLatch WheelGestureRouting::resolve_latch_continued_by_containing_context(Compositing::AsyncScrollTree const& async_scroll_tree, Compositing::AccumulatedVisualContextTree const& current_visual_context_tree, Web::ScrollGesturePhase scroll_gesture_phase, MonotonicTime now)
+WheelGestureRouting::ResolvedLatch WheelGestureRouting::resolve_latch(Compositing::AsyncScrollTree const& async_scroll_tree, Compositing::AccumulatedVisualContextTree const& current_visual_context_tree, Web::ScrollGesturePhase scroll_gesture_phase)
 {
     if (!m_latch.has_value())
         return {};
     if (m_latch->nested_context_id.has_value() || !m_latch->stable_node_id.has_value()) {
-        m_latch->gesture.advance_to(scroll_gesture_phase, now);
+        m_latch->last_scroll_gesture_phase = scroll_gesture_phase;
         return { .nested_context_id = m_latch->nested_context_id, .keeps_steps = !m_latch->nested_context_id.has_value() };
     }
     auto node_id = async_scroll_tree.scroll_node_id_for_stable_id(*m_latch->stable_node_id);
@@ -114,7 +108,7 @@ WheelGestureRouting::ResolvedLatch WheelGestureRouting::resolve_latch_continued_
     // The hit test a latched step skips would refuse a tree the wheel hit-test targets were not built for.
     if (!async_scroll_tree.has_wheel_hit_test_targets_for(current_visual_context_tree))
         return {};
-    m_latch->gesture.advance_to(scroll_gesture_phase, now);
+    m_latch->last_scroll_gesture_phase = scroll_gesture_phase;
     return { .node_id = node_id };
 }
 
@@ -125,28 +119,28 @@ Optional<Web::AsyncScrollNodeStableID> WheelGestureRouting::latched_scroller() c
     return m_latch->stable_node_id;
 }
 
-void WheelGestureRouting::latch(Web::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint position, Web::ScrollGesturePhase scroll_gesture_phase, u32 modifiers, MonotonicTime now)
+void WheelGestureRouting::latch(Web::AsyncScrollNodeStableID stable_node_id, Web::ScrollGesturePhase scroll_gesture_phase)
 {
     m_latch = Latch {
         .stable_node_id = stable_node_id,
-        .gesture = Compositing::WheelGestureIdentity::started_by(position, scroll_gesture_phase, modifiers, now),
+        .last_scroll_gesture_phase = scroll_gesture_phase,
     };
 }
 
-void WheelGestureRouting::latch_to_nested_context(Web::CompositorContextId nested_context_id, Optional<Web::AsyncScrollNodeStableID> scroller, Gfx::FloatPoint position, Web::ScrollGesturePhase scroll_gesture_phase, u32 modifiers, MonotonicTime now)
+void WheelGestureRouting::latch_to_nested_context(Web::CompositorContextId nested_context_id, Optional<Web::AsyncScrollNodeStableID> scroller, Web::ScrollGesturePhase scroll_gesture_phase)
 {
     m_latch = Latch {
         .stable_node_id = scroller,
-        .gesture = Compositing::WheelGestureIdentity::started_by(position, scroll_gesture_phase, modifiers, now),
+        .last_scroll_gesture_phase = scroll_gesture_phase,
         .nested_context_id = nested_context_id,
     };
 }
 
-void WheelGestureRouting::latch_keeping_steps(Gfx::FloatPoint position, Web::ScrollGesturePhase scroll_gesture_phase, u32 modifiers, MonotonicTime now)
+void WheelGestureRouting::latch_keeping_steps(Web::ScrollGesturePhase scroll_gesture_phase)
 {
     m_latch = Latch {
         .stable_node_id = {},
-        .gesture = Compositing::WheelGestureIdentity::started_by(position, scroll_gesture_phase, modifiers, now),
+        .last_scroll_gesture_phase = scroll_gesture_phase,
     };
 }
 

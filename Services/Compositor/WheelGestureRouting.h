@@ -32,11 +32,13 @@ public:
     bool admits_async_pinch() const;
     bool only_blocking_wheel_event_listeners_hold_steps_back() const;
 
-    // Returns whether the event starts another gesture than the one the UI was sending.
+    // Returns whether the event starts another gesture than the one before it, which lets go of the latch. Every wheel
+    // event is noted as this context first sees it: from the UI, or from the main thread for one the UI did not send.
     bool note_wheel_event_from_ui(Web::MouseEvent const&, Gfx::FloatPoint position, Compositing::AsyncScrollTree const&, MonotonicTime now);
+    bool note_wheel_event(u64 input_event_id, Web::ScrollGesturePhase, u32 modifiers, Gfx::FloatPoint wheel_delta, Gfx::FloatPoint position, Compositing::AsyncScrollTree const&, MonotonicTime now);
     // Whether the wheel event is the first step of the gesture from the UI that moves anything. A touchpad gesture can
     // start with a step that has no delta.
-    bool is_first_wheel_event_from_ui_with_delta(u64 input_event_id) const { return input_event_id != 0 && input_event_id == m_id_of_first_wheel_event_from_ui_with_delta; }
+    bool is_first_wheel_event_with_delta(u64 input_event_id) const { return input_event_id != 0 && input_event_id == m_id_of_first_wheel_event_with_delta; }
     // Whether the UI sent a later wheel event that this step cannot come before in one gesture, which makes it a step
     // of a gesture this context has already ended or moved past.
     bool step_was_overtaken_by_ui(Web::ScrollGesturePhase, u64 input_event_id) const;
@@ -51,14 +53,12 @@ public:
         Optional<Web::CompositorContextId> nested_context_id {};
         bool keeps_steps { false };
     };
-    // The latch of the gesture the wheel event continues, with the gesture advanced to the event. A latch the event
-    // does not continue, or whose scroller the current display list no longer has, is dropped here.
-    ResolvedLatch resolve_latch(Compositing::AsyncScrollTree const&, Compositing::AccumulatedVisualContextTree const& current_visual_context_tree, Gfx::FloatPoint position, Web::ScrollGesturePhase, u32 modifiers, MonotonicTime now);
-    // The same for a step that the containing context hands in, which has decided that the step continues the gesture.
-    ResolvedLatch resolve_latch_continued_by_containing_context(Compositing::AsyncScrollTree const&, Compositing::AccumulatedVisualContextTree const& current_visual_context_tree, Web::ScrollGesturePhase, MonotonicTime now);
-    void latch(Web::AsyncScrollNodeStableID, Gfx::FloatPoint position, Web::ScrollGesturePhase, u32 modifiers, MonotonicTime now);
-    void latch_to_nested_context(Web::CompositorContextId, Optional<Web::AsyncScrollNodeStableID> scroller, Gfx::FloatPoint position, Web::ScrollGesturePhase, u32 modifiers, MonotonicTime now);
-    void latch_keeping_steps(Gfx::FloatPoint position, Web::ScrollGesturePhase, u32 modifiers, MonotonicTime now);
+    // The latch of the gesture a step continues, advanced to the step's phase. A latch whose scroller the current
+    // display list no longer has is dropped here; one the step does not continue was let go of as the step was noted.
+    ResolvedLatch resolve_latch(Compositing::AsyncScrollTree const&, Compositing::AccumulatedVisualContextTree const& current_visual_context_tree, Web::ScrollGesturePhase);
+    void latch(Web::AsyncScrollNodeStableID, Web::ScrollGesturePhase);
+    void latch_to_nested_context(Web::CompositorContextId, Optional<Web::AsyncScrollNodeStableID> scroller, Web::ScrollGesturePhase);
+    void latch_keeping_steps(Web::ScrollGesturePhase);
     void clear_latch() { m_latch.clear(); }
     void relatch_to(Web::AsyncScrollNodeStableID);
     void note_page_let_latched_gesture_through();
@@ -72,7 +72,8 @@ private:
     struct Latch {
         // Empty for a latch that keeps the steps without a scroller.
         Optional<Web::AsyncScrollNodeStableID> stable_node_id;
-        Compositing::WheelGestureIdentity gesture;
+        // The phase of the last step that reached the latch, which says whether the fingers of its gesture are down.
+        Web::ScrollGesturePhase last_scroll_gesture_phase { Web::ScrollGesturePhase::None };
         Optional<Web::CompositorContextId> nested_context_id {};
         // The momentum of the gesture has gone into a rebound of the scroller. Momentum outlasts that rebound, and the
         // rest of it must not start another one.
@@ -92,11 +93,12 @@ private:
     Compositing::WheelRoutingAdmission m_admission { Compositing::WheelRoutingAdmission::NoAsyncScrollingState };
     bool m_has_blocking_wheel_event_listeners { false };
     u64 m_wheel_event_listener_state_generation { 0 };
-    // The touchpad gesture the UI is sending, whether this context or the main thread scrolls its steps.
-    Optional<Compositing::WheelGestureIdentity> m_gesture_from_ui;
+    // The gesture of the wheel events this context sees first: the UI's, or ones the UI never sent that the main
+    // thread makes. It says which gesture a step is in, whether this context or the main thread scrolls the step.
+    Optional<Compositing::WheelGestureIdentity> m_gesture;
     NewestWheelEventIdsFromUI m_newest_wheel_event_ids_from_ui;
-    u64 m_id_of_first_wheel_event_from_ui_with_delta { 0 };
-    bool m_gesture_from_ui_had_wheel_event_with_delta { false };
+    u64 m_id_of_first_wheel_event_with_delta { 0 };
+    bool m_gesture_had_wheel_event_with_delta { false };
     Optional<Latch> m_latch;
 };
 
