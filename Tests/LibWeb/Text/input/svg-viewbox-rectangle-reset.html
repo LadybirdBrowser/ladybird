@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const coordinates = rect => rect ? [rect.x, rect.y, rect.width, rect.height].join(" ") : "null";
+        for (const name of ["svg", "symbol", "marker", "pattern", "view"]) {
+            const element = document.createElementNS("http://www.w3.org/2000/svg", name);
+            println(`${name} initial: ${coordinates(element.viewBox.baseVal)} / ${coordinates(element.viewBox.animVal)}`);
+            element.setAttribute("viewBox", "1 2 3 4");
+            const base = element.viewBox.baseVal;
+            const animated = element.viewBox.animVal;
+            for (const value of [null, "invalid", ""]) {
+                element.setAttribute("viewBox", "1 2 3 4");
+                if (value === null)
+                    element.removeAttribute("viewBox");
+                else
+                    element.setAttribute("viewBox", value);
+                println(`${name} ${JSON.stringify(value)}: ${coordinates(base)} / ${coordinates(animated)}`);
+                println(`${name} ${JSON.stringify(value)} identity: ${base === element.viewBox.baseVal && animated === element.viewBox.animVal}`);
+            }
+            element.setAttribute("viewBox", "5 6 7 8");
+            println(`${name} restored: ${coordinates(base)} / ${coordinates(animated)}`);
+        }
+    });
+</script>

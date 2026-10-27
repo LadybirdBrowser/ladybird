@@ -1,0 +1,75 @@
+<!DOCTYPE HTML>
+<title>SVGAnimatedRect interface - utilizing the viewBox property of SVGSVGElement</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script>
+const FIELDS = ["x", "y", "width", "height"];
+
+function newSVG() {
+  return document.createElementNS("http://www.w3.org/2000/svg", "svg");
+}
+
+test(function() {
+  // This test checks the SVGAnimatedRect API - utilizing the viewBox property of SVGSVGElement.
+
+  var svgElement = newSVG();
+
+  // Check initial viewBox value.
+  assert_true(svgElement.viewBox instanceof SVGAnimatedRect);
+  assert_true(svgElement.viewBox.baseVal instanceof SVGRect);
+  assert_equals(svgElement.viewBox.baseVal.x, 0);
+  assert_true(svgElement.viewBox.animVal instanceof SVGRect);
+
+  // Check that rects are dynamic, caching value in a local variable and modifying it, should take effect.
+  var numRef = svgElement.viewBox.baseVal;
+  numRef.x = 100;
+  assert_equals(numRef.x, 100);
+  assert_equals(svgElement.viewBox.baseVal.x, 100);
+  assert_true(svgElement.hasAttribute("viewBox"));
+
+  // Check that assigning to baseVal has no effect, as no setter is defined.
+  svgElement.viewBox.baseVal = -1;
+  assert_equals(svgElement.viewBox.baseVal.x, 100);
+  svgElement.viewBox.baseVal = 'aString';
+  assert_equals(svgElement.viewBox.baseVal.x, 100);
+  svgElement.viewBox.baseVal = svgElement;
+  assert_equals(svgElement.viewBox.baseVal.x, 100);
+
+  // Check that the viewBox baseVal type has not been changed.
+  assert_true(svgElement.viewBox.baseVal instanceof SVGRect);
+});
+
+test(function() {
+  var svg = newSVG();
+  for (var p of FIELDS) {
+    assert_equals(svg.viewBox.baseVal[p], 0, "baseVal." + p);
+    assert_equals(svg.viewBox.animVal[p], 0, "animVal." + p);
+  }
+}, "baseVal/animVal are zero rects when the viewBox attribute is unset");
+
+test(function() {
+  var svg = newSVG();
+  assert_equals(svg.viewBox.baseVal, svg.viewBox.baseVal, "baseVal identity");
+  assert_equals(svg.viewBox.animVal, svg.viewBox.animVal, "animVal identity");
+}, "baseVal/animVal return the same SVGRect across reads");
+
+test(function() {
+  var svg = newSVG();
+  svg.setAttribute("viewBox", "1 2 3 4");
+  var expected = [1, 2, 3, 4];
+  FIELDS.forEach(function(p, i) {
+    assert_equals(svg.viewBox.baseVal[p], expected[i], "baseVal." + p);
+    assert_equals(svg.viewBox.animVal[p], expected[i], "animVal." + p);
+  });
+}, "setAttribute('viewBox', ...) is reflected in baseVal/animVal");
+
+test(function() {
+  var svg = newSVG();
+  svg.setAttribute("viewBox", "1 2 3 4");
+  svg.removeAttribute("viewBox");
+  for (var p of FIELDS) {
+    assert_equals(svg.viewBox.baseVal[p], 0, "baseVal." + p);
+    assert_equals(svg.viewBox.animVal[p], 0, "animVal." + p);
+  }
+}, "removeAttribute('viewBox') resets baseVal/animVal to a zero rect");
+</script>
