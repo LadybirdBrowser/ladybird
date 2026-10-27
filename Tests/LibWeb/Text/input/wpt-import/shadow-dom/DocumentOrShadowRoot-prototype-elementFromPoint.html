@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Shadow DOM and CSSOM View: Document.prototype.elementFromPoint</title>
+    <meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+    <meta name="assert" content="DocumentOrShadowRoot must have elementFromPoint and must return retarget the result against the context object.">
+    <link rel="help" href="https://www.w3.org/TR/cssom-view-1/#dom-document-elementfrompoint">
+    <link rel="help" href="https://www.w3.org/TR/shadow-dom/#extensions-to-the-documentorshadowroot-mixin">
+    <script src="../resources/testharness.js"></script>
+    <script src="../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <div id="container"></div>
+    <style>
+test-element { display: block; width: 100px; height: 100px; }
+    </style>
+    <script>
+
+function pointInElement(node) {
+  let x = 5;
+  let y = 5;
+  do {
+    x += node.offsetLeft;
+    y += node.offsetTop;
+    node = node.offsetParent;
+  } while (node);
+  return [x, y];
+}
+
+const displayValues = ['inline', 'block', 'inline-block'];
+var container = document.getElementById('container');
+customElements.define('test-element', class extends HTMLElement {
+  constructor() {
+    super();
+  }
+});
+
+displayValues.forEach(function (displayValue) {
+  test(function () {
+    container.innerHTML = '';
+    let host = document.createElement('test-element');
+    host.style.display = displayValue;
+    let shadow = host.attachShadow({mode: 'closed'});
+    shadow.innerHTML = 'hello';
+    container.appendChild(host);
+    assert_equals(document.elementFromPoint(...pointInElement(host)), host);
+    assert_equals(shadow.elementFromPoint(...pointInElement(host)), host);
+  }, 'document.elementFromPoint and shadow.ElementFromPoint must return the shadow host of the hit-tested text node when the hit-tested text node is a direct child of the root and the host has display: ' + displayValue);
+});
+
+displayValues.forEach(function (displayValue) {
+  test(function () {
+    container.innerHTML = '';
+    let host = document.createElement('test-element');
+    host.style.display = displayValue;
+    let shadow = host.attachShadow({mode: 'closed'});
+    shadow.innerHTML = '<slot></slot>';
+    host.innerHTML = 'text';
+    container.appendChild(host);
+    assert_equals(document.elementFromPoint(...pointInElement(host)), host);
+    assert_equals(shadow.elementFromPoint(...pointInElement(host)), host);
+  }, 'document.elementFromPoint and shadowRoot.elementFromPoint must return the shadow host when the hit-tested text node is assigned to a slot and the host has display: ' + displayValue);
+});
+
+displayValues.forEach(function (displayValue) {
+  test(function () {
+    container.innerHTML = '';
+    let host = document.createElement('test-element');
+    host.style.display = displayValue;
+    let shadow = host.attachShadow({mode: 'closed'});
+    shadow.innerHTML = '<slot></slot>';
+    host.innerHTML = '<span>text</span>';
+    container.appendChild(host);
+    assert_equals(document.elementFromPoint(...pointInElement(host)), host.querySelector('span'));
+    assert_equals(shadow.elementFromPoint(...pointInElement(host)), host.querySelector('span'));
+  }, 'document.elementFromPoint and shadowRoot.elementFromPoint must return the element assigned to a slot when hit-tested text node under an element is assigned to a slot in the shadow tree and the shadow host of the slot has display: ' + displayValue);
+});
+
+displayValues.forEach(function (displayValue) {
+  test(function () {
+    container.innerHTML = '';
+    let host = document.createElement('test-element');
+    host.style.display = displayValue;
+    let shadow = host.attachShadow({mode: 'closed'});
+    shadow.innerHTML = '<span>text</span>';
+    container.appendChild(host);
+    assert_equals(document.elementFromPoint(...pointInElement(host)), host);
+    assert_equals(shadow.elementFromPoint(...pointInElement(host)), shadow.querySelector('span'));
+  }, 'document.elementFromPoint must return the shadow host of the hit-tested element under a shadow root and shadowRoot.elementFromPoint must return the element parent of the hit-tested text node under the point when the shadow host has display: ' + displayValue);
+});
+
+displayValues.forEach(function (displayValue) {
+  test(function () {
+    container.innerHTML = '';
+    let host = document.createElement('test-element');
+    host.style.display = displayValue;
+    let shadow = host.attachShadow({mode: 'closed'});
+    shadow.innerHTML = '<slot>fallback</slot>';
+    container.appendChild(host);
+    assert_equals(document.elementFromPoint(...pointInElement(host)), host);
+    assert_equals(shadow.elementFromPoint(...pointInElement(host)), shadow.querySelector('slot'));
+  }, 'document.elementFromPoint must return the shadow host and shadowRoot.elementFromPoint must return the slot parent of the fallback text when the hit-tested text node is a fallback content and the host has display: ' + displayValue);
+});
+
+
+
+displayValues.forEach(function (displayValue) {
+  test(function () {
+    container.innerHTML = '';
+    let host = document.createElement('test-element');
+    host.style.display = displayValue;
+    let shadow = host.attachShadow({mode: 'closed'});
+    shadow.innerHTML = '<slot></slot>';
+    host.innerHTML = '<inner-host>hello</inner-host>';
+    container.appendChild(host);
+
+    let innerHost = host.querySelector('inner-host');
+    let innerShadow = innerHost.attachShadow({mode: 'closed'});
+    innerShadow.innerHTML = '<slot></slot>';
+    assert_equals(document.elementFromPoint(...pointInElement(host)), innerHost);
+    assert_equals(shadow.elementFromPoint(...pointInElement(host)), innerHost);
+    assert_equals(innerShadow.elementFromPoint(...pointInElement(host)), innerHost);
+  }, 'document.elementFromPoint, shadowRoot.elementFromPoint, innerShadow.elementFromPoint must return a child element assigned to a slot'
+  + ' when the hit-tested text node is assigned to a slot in the shadow tree of the child element and the outer shadow host has display: ' + displayValue);
+});
+
+displayValues.forEach(function (displayValue) {
+  test(function () {
+    container.innerHTML = '';
+    let host = document.createElement('test-element');
+    host.style.display = displayValue;
+    let shadow = host.attachShadow({mode: 'closed'});
+    shadow.innerHTML = '<slot></slot>';
+    host.innerHTML = '<inner-host></inner-host>';
+    container.appendChild(host);
+
+    let innerHost = host.querySelector('inner-host');
+    let innerShadow = innerHost.attachShadow({mode: 'closed'});
+    innerShadow.innerHTML = 'hello';
+    assert_equals(document.elementFromPoint(...pointInElement(host)), innerHost);
+    assert_equals(shadow.elementFromPoint(...pointInElement(host)), innerHost);
+    assert_equals(innerShadow.elementFromPoint(...pointInElement(host)), innerHost);
+  }, 'document.elementFromPoint, shadowRoot.elementFromPoint, innerShadow.elementFromPoint must return a child element with its own shadow tree assigned to a slot'
+  + ' when the hit-tested text node is its direct child and the outer shadow host has display: ' + displayValue);
+});
+
+displayValues.forEach(function (displayValue) {
+  test(function () {
+    container.innerHTML = '';
+    let host = document.createElement('test-element');
+    host.style.display = displayValue;
+    let shadow = host.attachShadow({mode: 'closed'});
+    shadow.innerHTML = '<slot></slot>';
+    host.innerHTML = '<inner-host></inner-host>';
+    container.appendChild(host);
+
+    let innerHost = host.querySelector('inner-host');
+    let innerShadow = innerHost.attachShadow({mode: 'closed'});
+    innerShadow.innerHTML = '<span>hello</span>';
+
+    assert_equals(document.elementFromPoint(...pointInElement(host)), innerHost);
+    assert_equals(shadow.elementFromPoint(...pointInElement(host)), innerHost);
+    assert_equals(innerShadow.elementFromPoint(...pointInElement(host)), innerShadow.querySelector('span'));
+  }, 'document.elementFromPoint, shadowRoot.elementFromPoint must return a child element with its own shadow tree assigned to a slot'
+  + ' when the hit-tested text node is a child of another element and innerShadow.elementFromPoint must return the parent element of the hit-tested text node under it when the outer shadow host has display: ' + displayValue);
+});
+
+displayValues.forEach(function (displayValue) {
+  test(function () {
+    container.innerHTML = '';
+    let host = document.createElement('test-element');
+    host.style.display = displayValue;
+    let shadow = host.attachShadow({mode: 'closed'});
+    shadow.innerHTML = 'hello';
+    container.appendChild(host);
+    assert_array_equals(document.elementsFromPoint(...pointInElement(host)), [host, container, document.body, document.documentElement]);
+    assert_array_equals(shadow.elementsFromPoint(...pointInElement(host)), [host, container, document.body, document.documentElement]);
+  }, 'document.elementsFromPoint and shadow.elementsFromPoint must return the shadow host and its ancestors of the hit-tested text node when the hit-tested text node is a direct child of the root and the host has display: ' + displayValue);
+});
+
+displayValues.forEach(function (displayValue) {
+  test(function () {
+    container.innerHTML = '';
+    let host = document.createElement('test-element');
+    host.style.display = displayValue;
+    let shadow = host.attachShadow({mode: 'closed'});
+    shadow.innerHTML = '<slot></slot>';
+    host.innerHTML = 'text';
+    container.appendChild(host);
+    assert_array_equals(document.elementsFromPoint(...pointInElement(host)), [host, container, document.body, document.documentElement]);
+    assert_array_equals(shadow.elementsFromPoint(...pointInElement(host)), [host, container, document.body, document.documentElement]);
+  },'document.elementsFromPoint and shadowRoot.elementsFromPoint must return the shadow host and its ancestors when the hit-tested text node is assigned to a slot and the host has display: ' + displayValue);
+});
+
+displayValues.forEach(function (displayValue) {
+  test(function () {
+    container.innerHTML = '';
+    let host = document.createElement('test-element');
+    host.style.display = displayValue;
+    let shadow = host.attachShadow({mode: 'closed'});
+    shadow.innerHTML = '<div><slot></slot></div>';
+    host.innerHTML = '<span>text</span>';
+    container.appendChild(host);
+    assert_array_equals(document.elementsFromPoint(...pointInElement(host)), [host.querySelector('span'), host, container, document.body, document.documentElement]);
+    assert_array_equals(shadow.elementsFromPoint(...pointInElement(host)), [host.querySelector('span'), shadow.querySelector('div'),  host, container, document.body, document.documentElement]);
+  }, 'document.elementsFromPoint and shadowRoot.elementsFromPoint must return the element assigned to a slot and its non-shadow ancestors when hit-tested text node under an element is assigned to a slot in the shadow tree and the shadow host of the slot has display: ' + displayValue);
+});
+
+displayValues.forEach(function (displayValue) {
+  test(function () {
+    container.innerHTML = '';
+    let host = document.createElement('test-element');
+    host.style.display = displayValue;
+    let shadow = host.attachShadow({mode: 'closed'});
+    shadow.innerHTML = '<span>text</span>';
+    container.appendChild(host);
+    assert_array_equals(document.elementsFromPoint(...pointInElement(host)), [host, container, document.body, document.documentElement]);
+    assert_array_equals(shadow.elementsFromPoint(...pointInElement(host)), [shadow.querySelector('span'), host, container, document.body, document.documentElement]);
+  }, 'document.elementsFromPoint must return the shadow host and its ancestors of the hit-tested element under a shadow root and'
+  + 'shadowRoot.elementsFromPoint must return the element parent and its non-shadow ancestors of the hit-tested text node under the point when the shadow host has display: ' + displayValue);
+});
+
+displayValues.forEach(function (displayValue) {
+  test(function () {
+    container.innerHTML = '';
+    let host = document.createElement('test-element');
+    host.style.display = displayValue;
+    let shadow = host.attachShadow({mode: 'closed'});
+    shadow.innerHTML = '<div><slot>fallback</slot></div>';
+    container.appendChild(host);
+    assert_array_equals(document.elementsFromPoint(...pointInElement(host)), [host, container, document.body, document.documentElement]);
+    assert_array_equals(shadow.elementsFromPoint(...pointInElement(host)), [shadow.querySelector('slot'), shadow.querySelector('div'), host, container, document.body, document.documentElement]);
+  }, 'document.elementsFromPoint must return the shadow host and its ancestors and shadowRoot.elementsFromPoint must return the slot parent of the fallback text and its non-shadow ancestors when the hit-tested text node is a fallback content and the host has display: ' + displayValue);
+});
+
+test(function () {
+  container.innerHTML = '';
+  let host = document.createElement('test-element');
+  host.style.display = 'block';
+  let shadow = host.attachShadow({mode: 'closed'});
+  shadow.innerHTML = '<div style="margin: 2px;">not hit</div>';
+  let aboveHost = document.createElement("div");
+  aboveHost.appendChild(host);
+  container.appendChild(aboveHost);
+  document.documentElement.style = 'background-attachment: scroll; height: 2px;';
+  let boundingRect = host.getBoundingClientRect();
+  assert_array_equals(document.elementsFromPoint(boundingRect.x, boundingRect.y), [host, aboveHost, container, document.body, document.documentElement]);
+  assert_array_equals(shadow.elementsFromPoint(boundingRect.x, boundingRect.y), [host, aboveHost, container, document.body, document.documentElement]);
+}, 'shadowRoot.elementsFromPoint must behave the same with document.elementsFromPoint regarding HTML element');
+
+container.innerHTML = '';
+
+test(function(t) {
+  const container = document.createElement("div");
+  const span = document.createElement("span");
+  span.innerText = "foo";
+  document.body.appendChild(container);
+  container.appendChild(span);
+
+  let elements = document.elementsFromPoint(...pointInElement(span));
+  assert_equals(elements.length, 4);
+  assert_equals(elements[0], span);
+  assert_equals(elements[1], container);
+  assert_equals(elements[2].nodeName, 'BODY');
+  assert_equals(elements[3].nodeName, 'HTML');
+
+  const host = document.createElement("div");
+  const shadowRoot = host.attachShadow({ mode: "open" });
+  elements = shadowRoot.elementsFromPoint(...pointInElement(span));
+  assert_equals(elements.length, 4);
+  assert_equals(elements[0], span);
+  assert_equals(elements[1], container);
+  assert_equals(elements[2].nodeName, 'BODY');
+  assert_equals(elements[3].nodeName, 'HTML');
+}, "elementsFromPoint should return all elements under a point, even when context object is not connected");
+</script>
+</body>
+</html>
+
