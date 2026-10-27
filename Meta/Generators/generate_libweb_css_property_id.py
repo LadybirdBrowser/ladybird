@@ -389,6 +389,7 @@ def write_implementation_file(out: TextIO, properties: dict, logical_property_gr
 #include <AK/CharacterTypes.h>
 #include <AK/NeverDestroyed.h>
 #include <LibWeb/CSS/Enums.h>
+#include <LibWeb/CSS/Flex.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PropertyName.h>

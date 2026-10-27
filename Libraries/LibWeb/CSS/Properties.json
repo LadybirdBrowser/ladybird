@@ -2835,6 +2835,7 @@
       "auto"
     ],
     "valid-types": [
+      "flex [0,∞]",
       "length [0,∞]",
       "percentage [0,∞]",
       "string"
@@ -2858,6 +2859,7 @@
       "auto"
     ],
     "valid-types": [
+      "flex [0,∞]",
       "length [0,∞]",
       "percentage [0,∞]",
       "string"
