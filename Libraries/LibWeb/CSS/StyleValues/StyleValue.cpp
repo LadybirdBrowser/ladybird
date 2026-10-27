@@ -12,6 +12,7 @@
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontStyleMapping.h>
 #include <LibWeb/CSS/CSSKeywordValue.h>
+#include <LibWeb/CSS/CSSNumericValue.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/Parser/Parser.h>
@@ -19,7 +20,6 @@
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
-#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
@@ -125,7 +125,7 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::adopt_rust_style_value
     case StyleValueFFI::StyleValueData::Tag::BorderImageSlice:
         return adopt_ref(*new (nothrow) StyleValue(Type::BorderImageSlice, data));
     case StyleValueFFI::StyleValueData::Tag::Calculated:
-        return adopt_ref(*new (nothrow) CalculatedStyleValue(data));
+        return adopt_ref(*new (nothrow) StyleValue(Type::Calculated, data));
     case StyleValueFFI::StyleValueData::Tag::ColorFunction:
         return adopt_ref(*new (nothrow) ColorFunctionStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::ColorInterpolationMethod:
@@ -338,7 +338,7 @@ bool StyleValue::equals(StyleValue const& other) const
     case Type::Calculated:
         // Calculations compare by tree structure alone; the data also carries parse-context
         // fields (resolved type, accepted ranges) that must not affect equality.
-        return as_calculated().equals(other);
+        return other.type() == Type::Calculated && StyleValueFFI::rust_calc_equals(m_value.data(), other.m_value.data());
     default:
         return StyleValueFFI::rust_style_value_equals(m_value.data(), other.m_value.data());
     }
@@ -495,7 +495,13 @@ GC::Ref<CSSStyleValue> StyleValue::reify(Utf16FlyString const& associated_proper
             return as_background_size().size_x()->reify(associated_property);
         break;
     case Type::Calculated:
-        return as_calculated().reify(associated_property);
+        // NB: This spec algorithm is incomplete and assumes we do not already have a calculation tree.
+        //     Rust describes the existing tree in one batch instead.
+        if (auto reified = reify_calculation(*this))
+            return *reified;
+        // Some math functions are not reifiable yet. If we contain one, we have to fall back to CSSStyleValue.
+        // https://github.com/w3c/css-houdini-drafts/issues/1090
+        return default_reify(associated_property);
     case Type::CustomIdent:
         return as_custom_ident().reify(associated_property);
     case Type::Display:

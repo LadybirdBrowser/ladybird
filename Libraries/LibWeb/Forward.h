@@ -204,7 +204,6 @@ class AbstractOrHypotheticalElement;
 class AngleStyleValue;
 class BackgroundSizeStyleValue;
 class BlurFilterStyleValue;
-class CalculatedStyleValue;
 class CustomPropertyData;
 class ColorFilterStyleValue;
 class ColorFunctionStyleValue;

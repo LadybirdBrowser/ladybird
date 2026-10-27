@@ -6,7 +6,7 @@
 
 #include "CSSMathValue.h"
 #include <LibWeb/CSS/PropertyNameAndID.h>
-#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CalcNodeRef.h>
 #include <LibWeb/CSS/StyleValues/OpacityValueStyleValue.h>
 
 namespace Web::CSS {
@@ -56,7 +56,7 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSMathValue::create_an_int
     if (perform_type_check == PerformTypeCheck::Yes && !matches)
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Property does not accept values of this type."_utf16 };
 
-    auto calculated_value = CalculatedStyleValue::create(TRY(create_calculation_node(context)), type(), move(context));
+    auto calculated_value = create_calculated_style_value(TRY(create_calculation_node(context)), type(), move(context));
 
     // NB: Our parser represents an <opacity-value> as an opacity value that holds the calculation.
     if (property_accepts_type(property.id(), ValueType::OpacityValue) && (type().matches_number({}) || type().matches_percentage()))

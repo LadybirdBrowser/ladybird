@@ -44,7 +44,7 @@ WEB_API Utf16FlyString css_string_from_rust(StyleValueFFI::CssString const*);
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(BorderImageSlice, border_image_slice, StyleValue)                         \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(BorderRadius, border_radius, StyleValue)                                  \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(BorderRadiusRect, border_radius_rect, StyleValue)                         \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Calculated, calculated, CalculatedStyleValue)                             \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Calculated, calculated, StyleValue)                                       \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(ColorInterpolationMethod, color_interpolation_method, StyleValue)         \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(ColorScheme, color_scheme, ColorSchemeStyleValue)                         \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Color, color, ColorStyleValue)                                            \

@@ -9,7 +9,7 @@
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
-#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CalcNodeRef.h>
 #include <LibWeb/CSS/StyleValues/FlexStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FrequencyStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
@@ -334,7 +334,7 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSUnitValue::create_an_int
         Vector<CalcNodeRef> children;
         children.append(CalcNodeRef::numeric(leaf));
         auto math_sum_node = CalcNodeRef::sum(move(children));
-        return CalculatedStyleValue::create(move(math_sum_node), NumericType::create_from_unit(m_unit).release_value(), context);
+        return create_calculated_style_value(move(math_sum_node), NumericType::create_from_unit(m_unit).release_value(), context);
     };
 
     auto leaf = NumericLeaf::from_typed_om_unit(m_value, m_unit);

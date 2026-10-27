@@ -202,7 +202,7 @@ set(SOURCES
     CSS/StyleSheetState.cpp
     CSS/StyleValues/AbstractImageStyleValue.cpp
     CSS/StyleValues/AngleStyleValue.cpp
-    CSS/StyleValues/CalculatedStyleValue.cpp
+    CSS/StyleValues/CalcNodeRef.cpp
     CSS/StyleValues/ColorFunctionStyleValue.cpp
     CSS/StyleValues/ColorStyleValue.cpp
     CSS/StyleValues/ContentStyleValue.cpp

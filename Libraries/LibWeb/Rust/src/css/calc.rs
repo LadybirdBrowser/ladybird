@@ -2680,7 +2680,7 @@ pub(crate) fn length_percentage_calculated_style_value(
 
 /// Wraps a computed anchor() or anchor-size() value into the calculated style
 /// value the layout engine resolves, matching what the C++ bridge built
-/// through CalculatedStyleValue::create with CalculationContext::for_property
+/// through create_calculated_style_value with CalculationContext::for_property
 /// for the top/right/bottom/left properties: the anchor value as a
 /// non-math-function leaf of the length numeric type, percentages resolving as
 /// length, and no integer rounding. Those properties accept the full float
@@ -4776,8 +4776,8 @@ pub(crate) fn flipped_edge_offset(
     ))
 }
 
-/// Serializes a Calculated style value's math function into the ordered piece batch shared by
-/// the FFI consumer in CalculatedStyleValue.cpp and the native Rust serializer in serialize.rs.
+/// Serializes a Calculated style value's math function into the ordered piece batch the
+/// serializer in serialize.rs walks.
 pub(crate) fn serialize_math_function_pieces(
     calculated: &crate::css::style_value::StyleValueData,
     resolved_mode: bool,

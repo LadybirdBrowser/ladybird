@@ -28,7 +28,6 @@
 #include <LibWeb/CSS/StyleRecordID.h>
 #include <LibWeb/CSS/StyleStructRef.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
-#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CursorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>

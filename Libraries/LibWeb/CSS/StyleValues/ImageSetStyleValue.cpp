@@ -5,7 +5,6 @@
  */
 
 #include <LibWeb/CSS/StyleSheetState.h>
-#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageSetStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ResolutionStyleValue.h>
 #include <LibWeb/DOM/AbstractElement.h>

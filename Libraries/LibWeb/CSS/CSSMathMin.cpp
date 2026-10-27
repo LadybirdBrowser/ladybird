@@ -9,7 +9,7 @@
 #include <LibWeb/CSS/CSSMathNegate.h>
 #include <LibWeb/CSS/CSSNumericArray.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
-#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CalcNodeRef.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 

@@ -12,11 +12,23 @@
 #include <AK/Vector.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/Keyword.h>
+#include <LibWeb/CSS/NumericRange.h>
 #include <LibWeb/CSS/NumericType.h>
-#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
+#include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/StyleValueRustFFI.h>
 
 namespace Web::CSS {
+
+// https://drafts.csswg.org/css-values-4/#calc-context
+// Contains the context available at parse-time.
+struct CalculationContext {
+    Optional<ValueType> percentages_resolve_as {};
+    bool resolve_numbers_as_integers = false;
+    // FIXME: Once calc() parsing knows the target numeric type, pass a single NumericRange instead of the full accepted range set.
+    NumericRangesByValueType accepted_ranges_by_type {};
+
+    static CalculationContext for_property(PropertyNameAndID const&);
+};
 
 // A numeric leaf of a calculation, with its kind numbered as the Rust core numbers it.
 struct NumericLeaf {
@@ -104,5 +116,7 @@ private:
 
     StyleValueFFI::CalcNode const* m_node { nullptr };
 };
+
+ValueComparingNonnullRefPtr<StyleValue const> create_calculated_style_value(CalcNodeRef root, NumericType const& resolved_type, CalculationContext const&);
 
 }

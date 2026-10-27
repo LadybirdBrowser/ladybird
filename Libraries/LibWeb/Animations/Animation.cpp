@@ -24,7 +24,6 @@
 #include <LibWeb/CSS/CSSTransition.h>
 #include <LibWeb/CSS/CSSUnitValue.h>
 #include <LibWeb/CSS/Parser/Parser.h>
-#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ComputationContext.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Scripting/Environments.h>

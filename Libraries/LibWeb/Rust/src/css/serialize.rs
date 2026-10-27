@@ -2264,8 +2264,7 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
 
 /// Serializes one numeric calc leaf using the `CalcNumericValue::leaf_parts` encoding:
 /// 0 = number (with the number type in `unit`), 1 = angle, 2 = flex, 3 = frequency,
-/// 4 = length, 5 = percentage, 6 = resolution, 7 = time. Mirrors the piece consumer in
-/// CalculatedStyleValue.cpp.
+/// 4 = length, 5 = percentage, 6 = resolution, 7 = time.
 fn serialize_numeric_leaf(sink: &mut TextSink, numeric_kind: u8, value: f64, unit: u8, mode: SerializationMode) {
     use crate::css::calc::{
         ANGLE_UNIT_CANONICAL_RATIOS, ANGLE_UNIT_NAMES, FLEX_UNIT_CANONICAL_RATIOS, FLEX_UNIT_NAMES,
@@ -2343,8 +2342,7 @@ fn serialize_number_with_type(sink: &mut TextSink, value: f64, number_type: u8, 
 }
 
 /// https://drafts.csswg.org/css-values-4/#serialize-a-math-function, by walking the piece
-/// batch the calc serializer in calc.rs produces; mirrors the consumer loop in
-/// CalculatedStyleValue.cpp.
+/// batch the calc serializer in calc.rs produces.
 fn serialize_calculated(sink: &mut TextSink, value: &StyleValueData, mode: SerializationMode) {
     serialize_calculated_pieces(sink, value, mode, false);
 }

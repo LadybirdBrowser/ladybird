@@ -8,7 +8,7 @@
 #include <LibWeb/Animations/AnimationTimeline.h>
 #include <LibWeb/CSS/CSSUnitValue.h>
 #include <LibWeb/CSS/CalculationResolutionContext.h>
-#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CalcNodeRef.h>
 #include <LibWeb/CSS/Units.h>
 
 namespace Web::Animations {
@@ -39,7 +39,7 @@ TimeValue TimeValue::from_css_numberish(CSS::CSSNumberish const& time, CSS::Comp
     auto numeric_type = calculation_node.determine_type({});
     VERIFY(numeric_type.has_value());
 
-    auto style_value = CSS::CalculatedStyleValue::create(move(calculation_node), numeric_type.release_value(), {});
+    auto style_value = CSS::create_calculated_style_value(move(calculation_node), numeric_type.release_value(), {});
 
     auto calculation_resolution_context = CSS::CalculationResolutionContext::from_computation_context(computation_context);
 

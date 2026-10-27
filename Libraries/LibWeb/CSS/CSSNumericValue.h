@@ -83,4 +83,8 @@ protected:
 
 GC::Ref<CSSNumericValue> rectify_a_numberish_value(CSSNumberish const&, Optional<Utf16FlyString> unit = {});
 
+// The calculated style value as a Typed OM math expression, or null when it holds a math function that has no
+// Typed OM form yet.
+GC::Ptr<CSSNumericValue> reify_calculation(StyleValue const& calculated);
+
 }

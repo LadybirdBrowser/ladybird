@@ -36,7 +36,7 @@ CHECKED_SUFFIXES = {
 # the same change. If it goes up, justify the architecture change here.
 ALLOWED_REALM_MENTIONS = {
     "Animations": (5, 14, "animation callbacks/events and CSS value materialization still pass spec-selected realms"),
-    "CSS": (9, 24, "CSS Typed OM, parser-facing reification, style-value JS materialization, and setlike/maplike glue"),
+    "CSS": (8, 23, "CSS Typed OM, parser-facing reification, style-value JS materialization, and setlike/maplike glue"),
     "Clipboard": (4, 16, "clipboard item/data callbacks still materialize JS values in caller-selected realms"),
     "ContentSecurityPolicy": (4, 10, "CSP violation/report objects and callbacks still materialize JS-facing values"),
     "CookieStore": (2, 19, "cookie-store async callbacks and promise/value materialization still thread realms"),
