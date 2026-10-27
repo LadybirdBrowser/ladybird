@@ -15,6 +15,7 @@
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/Page/RenderingStats.h>
+#include <LibWeb/WebDriver/BiDi/BiDi.h>
 #include <LibWeb/WebDriver/BiDi/Network.h>
 #include <LibWeb/WebIDL/DOMException.h>
 
@@ -117,6 +118,8 @@ void FetchController::abort(JS::Realm& realm, Optional<JS::Value> error)
     m_state = State::Aborted;
     if (WebDriver::BiDi::g_network_events_enabled && m_fetch_params)
         WebDriver::BiDi::network_fetch_error(*m_fetch_params, "Fetch was aborted"sv);
+    else if (WebDriver::BiDi::is_active() && m_fetch_params)
+        WebDriver::BiDi::cancel_network_interception(*m_fetch_params);
 
     // 2. Let fallbackError be an "AbortError" DOMException.
     auto fallback_error = WebIDL::AbortError::create("Fetch was aborted"_utf16);
@@ -146,6 +149,8 @@ void FetchController::terminate()
     m_state = State::Terminated;
     if (WebDriver::BiDi::g_network_events_enabled && m_fetch_params)
         WebDriver::BiDi::network_fetch_error(*m_fetch_params, "Fetch was terminated"sv);
+    else if (WebDriver::BiDi::is_active() && m_fetch_params)
+        WebDriver::BiDi::cancel_network_interception(*m_fetch_params);
 
     stop_request();
 }
@@ -156,6 +161,8 @@ void FetchController::stop_fetch()
         return;
 
     m_state = State::Stopped;
+    if (WebDriver::BiDi::is_active() && m_fetch_params)
+        WebDriver::BiDi::cancel_network_interception(*m_fetch_params);
 
     // AD-HOC: Some HTML elements need to stop an ongoing fetching process without causing any network error to be raised
     //         (which abort() and terminate() will both do). This is tricky because the fetch process runs across several

@@ -3064,6 +3064,17 @@ void ViewImplementation::run_webdriver_bidi_content_command(u64 command_id, Web:
     run_webdriver_content_command(command_id, navigable_id, method, move(params), {}, WebDriverProtocol::BiDi);
 }
 
+// NB: An intercepted request resumes in the page that paused it, even during a document handoff.
+void ViewImplementation::run_webdriver_bidi_content_command(WebContentPage& target, u64 command_id, Web::HTML::CrossProcessId navigable_id, String const& method, JsonValue params)
+{
+    if (!target.is_open()) {
+        complete_webdriver_input_command(command_id, Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchRequest, "Blocked request's page is closed"sv));
+        return;
+    }
+    m_pending_webdriver_commands.set(command_id, { target, method, navigable_id, WebDriverProtocol::BiDi, true });
+    target.async_run_webdriver_bidi_command(command_id, navigable_id, method, move(params));
+}
+
 void ViewImplementation::run_webdriver_content_command(u64 command_id, Optional<Web::HTML::CrossProcessId> navigable_id, String const& name, JsonValue payload, Vector<String> arguments, WebDriverProtocol protocol)
 {
     if (Web::WebDriver::is_input_state_command(name)) {
@@ -3268,6 +3279,18 @@ void ViewImplementation::display_page_changed(RefPtr<WebContentPage> previous_pa
 
         auto pending_webdriver_commands = move(m_pending_webdriver_commands);
         auto pending_webdriver_crash_commands = move(m_pending_webdriver_crash_commands);
+        // NB: Restore commands that resume intercepted requests before any completion callback can reenter.
+        //     Their original page can still answer while a navigation replaces the displayed page.
+        auto retain_commands_on_open_pages = [&](auto& commands) {
+            commands.remove_all_matching([&](u64 command_id, PendingWebDriverCommand const& command) {
+                if (!command.stays_on_page || !command.page->is_open())
+                    return false;
+                m_pending_webdriver_commands.set(command_id, command);
+                return true;
+            });
+        };
+        retain_commands_on_open_pages(pending_webdriver_commands);
+        retain_commands_on_open_pages(pending_webdriver_crash_commands);
         complete_webdriver_content_commands_after_process_replacement(pending_webdriver_commands);
         complete_webdriver_content_commands_after_process_replacement(pending_webdriver_crash_commands);
     }

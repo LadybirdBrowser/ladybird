@@ -1609,7 +1609,7 @@ GC::Ref<PendingResponse> http_fetch(JS::Realm& realm, Infrastructure::FetchParam
     if (request->service_workers_mode() == Infrastructure::Request::ServiceWorkersMode::All) {
         // 1. Let requestForServiceWorker be a clone of request.
         auto request_for_service_worker = request->clone();
-        if (WebDriver::BiDi::g_network_events_enabled)
+        if (WebDriver::BiDi::g_network_events_enabled || WebDriver::BiDi::g_network_configuration_enabled)
             request_for_service_worker->set_webdriver_bidi_network_request(request->webdriver_bidi_network_request());
 
         // 2. If requestForServiceWorker’s body is non-null, then:
@@ -1904,6 +1904,10 @@ GC::Ptr<PendingResponse> http_redirect_fetch(JS::Realm& realm, Infrastructure::F
         // 1. Set request’s method to `GET` and request’s body to null.
         request->set_method("GET"sv);
         request->set_body({});
+        if (auto state = request->webdriver_bidi_network_request(); state && state->request_header_overrides) {
+            request->header_list()->delete_("Content-Length"sv);
+            state->request_header_overrides->delete_("Content-Length"sv);
+        }
 
         static constexpr Array request_body_header_names {
             "Content-Encoding"sv,
@@ -1971,6 +1975,265 @@ GC::Ptr<PendingResponse> http_redirect_fetch(JS::Realm& realm, Infrastructure::F
     return main_fetch(realm, fetch_params, recursive);
 }
 
+enum class AuthenticationHandled {
+    No,
+    Yes,
+};
+
+// https://fetch.spec.whatwg.org/#concept-http-network-or-cache-fetch
+static void process_http_network_or_cache_response(JS::Object& global_object, Infrastructure::FetchParams const& fetch_params, NonnullRefPtr<Infrastructure::Request> http_request, GC::Ref<Infrastructure::Response> response, GC::Ref<PendingResponse> returned_pending_response, IsAuthenticationFetch is_authentication_fetch, IsNewConnectionFetch is_new_connection_fetch, HTTP::Cookie::IncludeCredentials include_credentials, AuthenticationHandled authentication_handled = AuthenticationHandled::No)
+{
+    auto& realm = HTML::relevant_realm(global_object);
+    auto request = fetch_params.request();
+    // 12. If httpRequest’s header list contains `Range`, then set response’s range-requested flag.
+    if (http_request->header_list()->contains("Range"sv))
+        response->set_range_requested(true);
+
+    // 13. Set response’s request-includes-credentials to includeCredentials.
+    response->set_request_includes_credentials(include_credentials == HTTP::Cookie::IncludeCredentials::Yes);
+
+    auto inner_pending_response = PendingResponse::create(fetch_params, *response);
+
+    // 14. If response’s status is 401, httpRequest’s response tainting is not "cors", includeCredentials is true,
+    //     and request’s traversable for user prompts is a traversable navigable:
+    // AD-HOC: Only enter the 401 handling path if the server is requesting an authentication
+    //         scheme we can handle with a username/password prompt (Basic or Digest).
+    //         Other schemes like PrivateToken (RFC 9577) are not user-prompt-based and should
+    //         not trigger credential prompting or request retries.
+    auto www_authenticate_has_credential_based_scheme = [&] {
+        auto www_authenticate = response->header_list()->get("WWW-Authenticate"sv);
+        if (!www_authenticate.has_value())
+            return false;
+        // The value is a comma-separated list of challenges. Each challenge starts with a scheme name.
+        // We check if any of the schemes are ones we can handle with a username/password prompt.
+        auto value = *www_authenticate;
+        for (auto challenge : value.view().split_view(',')) {
+            auto trimmed = challenge.trim_whitespace();
+            auto space_index = trimmed.find(' ');
+            auto scheme = space_index.has_value() ? trimmed.substring_view(0, *space_index) : trimmed;
+            if (scheme.equals_ignoring_ascii_case("Basic"sv) || scheme.equals_ignoring_ascii_case("Digest"sv))
+                return true;
+        }
+        return false;
+    };
+
+    if (response->status() == 401
+        && http_request->response_tainting() != Infrastructure::Request::ResponseTainting::CORS
+        && include_credentials == HTTP::Cookie::IncludeCredentials::Yes
+        && request->traversable_for_user_prompts().has<HTML::CrossProcessId>()
+        && www_authenticate_has_credential_based_scheme()) {
+        // 1. Needs testing: multiple `WWW-Authenticate` headers, missing, parsing issues.
+        // (Red box in the spec, no-op)
+
+        // 2. If request’s body is non-null, then:
+        if (!request->body().has<Empty>()) {
+            // 1. If request’s body’s source is null, then return a network error.
+            auto source = request->body().get<Infrastructure::FetchBody>().source();
+            if (!source.has_value()) {
+                stop_discarded_response_body(*fetch_params.controller(), *response);
+                returned_pending_response->resolve(Infrastructure::Response::network_error("Request has body but no body source"_string));
+                return;
+            }
+
+            // 2. Set request’s body to the body of the result of safely extracting request’s body’s source.
+            request->set_body(Infrastructure::FetchBody::from_bytes(*source));
+        }
+
+        // 3. If request’s use-URL-credentials flag is unset or isAuthenticationFetch is true, then:
+        if (!request->use_url_credentials() || is_authentication_fetch == IsAuthenticationFetch::Yes) {
+            // 1. If fetchParams is canceled, then return the appropriate network error for fetchParams.
+            if (fetch_params.is_canceled()) {
+                stop_discarded_response_body(*fetch_params.controller(), *response);
+                returned_pending_response->resolve(Infrastructure::Response::appropriate_network_error(fetch_params));
+                return;
+            }
+
+            if (WebDriver::BiDi::g_network_events_enabled && authentication_handled == AuthenticationHandled::No) {
+                auto intercepts = WebDriver::BiDi::get_network_intercepts(fetch_params, "authRequired"sv);
+                if (!intercepts.is_empty()) {
+                    WebDriver::BiDi::block_network_request(realm.global_object(), fetch_params, response, "authRequired"_string, move(intercepts), WebDriver::BiDi::NetworkContinuation::create(realm.heap(), [&realm, &fetch_params, http_request, returned_pending_response, is_authentication_fetch, is_new_connection_fetch, include_credentials](WebDriver::BiDi::NetworkContinuationAction action, GC::Ptr<Infrastructure::Response> continued_response) {
+                        if (action == WebDriver::BiDi::NetworkContinuationAction::ProvideCredentials) {
+                            stop_discarded_response_body(*fetch_params.controller(), *continued_response);
+                            auto pending_response = http_network_or_cache_fetch(realm, fetch_params, IsAuthenticationFetch::Yes);
+                            pending_response->when_loaded([returned_pending_response](auto response) { returned_pending_response->resolve(response); });
+                        } else if (first_is_one_of(action, WebDriver::BiDi::NetworkContinuationAction::CancelAuthentication, WebDriver::BiDi::NetworkContinuationAction::Fail, WebDriver::BiDi::NetworkContinuationAction::ProvideResponse)) {
+                            returned_pending_response->resolve(*continued_response);
+                        } else {
+                            process_http_network_or_cache_response(realm.global_object(), fetch_params, http_request, *continued_response, returned_pending_response, is_authentication_fetch, is_new_connection_fetch, include_credentials, action == WebDriver::BiDi::NetworkContinuationAction::RetryAuthentication ? AuthenticationHandled::No : AuthenticationHandled::Yes);
+                        }
+                    }));
+                    return;
+                }
+                WebDriver::BiDi::network_auth_required(fetch_params, *response);
+            }
+
+            // FIXME: 2. Let username and password be the result of prompting the end user for a username and password,
+            //           respectively, in request’s window.
+            // FIXME: 3. Set the username given request’s current URL and username.
+            // FIXME: 4. Set the password given request’s current URL and password.
+            stop_discarded_response_body(*fetch_params.controller(), *response);
+            dbgln("Fetch: Username/password prompt is not implemented. Aborting the request.");
+            returned_pending_response->resolve(Infrastructure::Response::aborted_network_error());
+            return;
+        }
+
+        // 4. Set response to the result of running HTTP-network-or-cache fetch given fetchParams and true.
+        stop_discarded_response_body(*fetch_params.controller(), *response);
+        inner_pending_response = http_network_or_cache_fetch(realm, fetch_params, IsAuthenticationFetch::Yes);
+    }
+
+    inner_pending_response->when_loaded([&realm, &fetch_params, request, returned_pending_response, is_authentication_fetch, is_new_connection_fetch](GC::Ref<Infrastructure::Response> response) {
+        dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'HTTP network-or-cache fetch' inner_pending_response load callback");
+        // 15. If response’s status is 407, then:
+        if (response->status() == 407) {
+            // 1. If request’s traversable for user prompts is "no-traversable", then return a network error.
+            if (request->traversable_for_user_prompts().has<Infrastructure::Request::TraversableForUserPrompts>()
+                && request->traversable_for_user_prompts().get<Infrastructure::Request::TraversableForUserPrompts>() == Infrastructure::Request::TraversableForUserPrompts::NoTraversable) {
+                returned_pending_response->resolve(Infrastructure::Response::network_error("Request requires proxy authentication but has 'no-window' set"_string));
+                return;
+            }
+
+            // 2. Needs testing: multiple `Proxy-Authenticate` headers, missing, parsing issues.
+            // (Red box in the spec, no-op)
+
+            // 3. If fetchParams is canceled, then return the appropriate network error for fetchParams.
+            if (fetch_params.is_canceled()) {
+                returned_pending_response->resolve(Infrastructure::Response::appropriate_network_error(fetch_params));
+                return;
+            }
+
+            // FIXME: 4. Prompt the end user as appropriate in request’s window and store the result as a
+            //           proxy-authentication entry.
+            // NOTE: Remaining details surrounding proxy authentication are defined by HTTP.
+
+            // FIXME: 5. Set response to the result of running HTTP-network-or-cache fetch given fetchParams.
+            // (Doing this without step 4 would potentially lead to an infinite request cycle.)
+        }
+
+        auto inner_pending_response = PendingResponse::create(fetch_params, *response);
+
+        // 16. If all of the following are true
+        if (
+            // - response’s status is 421
+            response->status() == 421
+            // - isNewConnectionFetch is false
+            && is_new_connection_fetch == IsNewConnectionFetch::No
+            // - request’s body is null, or request’s body is non-null and request’s body’s source is non-null
+            && (request->body().has<Empty>() || request->body().get<Infrastructure::FetchBody>().source().has_value())
+            // then:
+        ) {
+            // 1. If fetchParams is canceled, then return the appropriate network error for fetchParams.
+            if (fetch_params.is_canceled()) {
+                returned_pending_response->resolve(Infrastructure::Response::appropriate_network_error(fetch_params));
+                return;
+            }
+            // 2. Set response to the result of running HTTP-network-or-cache fetch given fetchParams,
+            //    isAuthenticationFetch, and true.
+            inner_pending_response = http_network_or_cache_fetch(realm, fetch_params, is_authentication_fetch, IsNewConnectionFetch::Yes);
+        }
+
+        inner_pending_response->when_loaded([returned_pending_response, is_authentication_fetch](GC::Ref<Infrastructure::Response> response) {
+            // 17. If isAuthenticationFetch is true, then create an authentication entry for request and the given
+            //     realm.
+            if (is_authentication_fetch == IsAuthenticationFetch::Yes) {
+                // FIXME: "create an authentication entry for request and the given realm"
+            }
+
+            returned_pending_response->resolve(response);
+        });
+    });
+}
+
+// https://fetch.spec.whatwg.org/#concept-http-network-or-cache-fetch
+static GC::Ref<PendingResponse> continue_http_network_or_cache_fetch(JS::Object& global_object, Infrastructure::FetchParams const& fetch_params, GC::Ref<Infrastructure::FetchParams const> http_fetch_params, GC::Ptr<Infrastructure::Response> response, GC::Ptr<Infrastructure::Response> stored_response, RefPtr<HTTP::MemoryCache> http_cache, IsAuthenticationFetch is_authentication_fetch, IsNewConnectionFetch is_new_connection_fetch, HTTP::Cookie::IncludeCredentials include_credentials)
+{
+    auto& realm = HTML::relevant_realm(global_object);
+    auto request = fetch_params.request();
+    auto http_request = http_fetch_params->request();
+
+    GC::Ptr<PendingResponse> pending_forward_response;
+
+    // 10. If response is null, then:
+    if (!response) {
+        // 1. If httpRequest’s cache mode is "only-if-cached", then return a network error.
+        // NB: We skip this step in order to allow the disk cache in RequestServer to handle this request. If a disk
+        //     cache entry does not exist, it will return a network error itself.
+
+        // 2. Let forwardResponse be the result of running HTTP-network fetch given httpFetchParams, includeCredentials,
+        //    and isNewConnectionFetch.
+        pending_forward_response = nonstandard_resource_loader_file_or_http_network_fetch(realm, *http_fetch_params, include_credentials, is_new_connection_fetch, http_cache);
+    } else {
+        pending_forward_response = PendingResponse::create(fetch_params, Infrastructure::Response::create());
+    }
+
+    // AD-HOC: If the controller is already in the non-spec Stopped state, we should cancel the network request immediately.
+    if (http_fetch_params->controller()->state() == Infrastructure::FetchController::State::Stopped)
+        http_fetch_params->controller()->stop_fetch();
+
+    auto returned_pending_response = PendingResponse::create(fetch_params);
+
+    pending_forward_response->when_loaded([&realm, &fetch_params, response, stored_response, http_request, http_fetch_params, returned_pending_response, is_authentication_fetch, is_new_connection_fetch, include_credentials, response_was_null = !response, http_cache](GC::Ref<Infrastructure::Response> resolved_forward_response) mutable {
+        dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'HTTP-network-or-cache fetch' pending_forward_response load callback");
+        if (response_was_null) {
+            auto forward_response = resolved_forward_response;
+
+            // NOTE: TRACE is omitted as it is a forbidden method in Fetch.
+            auto method_is_unsafe = !http_request->method().is_one_of("GET"sv, "HEAD"sv, "OPTIONS"sv);
+
+            // 3. If httpRequest’s method is unsafe and forwardResponse’s status is in the range 200 to 399, inclusive,
+            //    invalidate appropriate stored responses in httpCache, as per the "Invalidation" chapter of HTTP
+            //    Caching, and set storedResponse to null.
+            if (method_is_unsafe && forward_response->status() >= 200 && forward_response->status() <= 399) {
+                if (http_cache)
+                    http_cache->invalidate(http_request->current_url());
+                stored_response = nullptr;
+            }
+
+            // 4. If the revalidatingFlag is set and forwardResponse’s status is 304, then:
+            //     1. Update storedResponse’s header list using forwardResponse’s header list, as per the "Freshening
+            //        Stored Responses upon Validation" chapter of HTTP Caching.
+            //     2. Set response to storedResponse.
+            //     3. Set response’s cache state to "validated".
+            // NB: We only cache fresh responses in WebContent. Revalidation is handled by RequestServer.
+
+            // 5. If response is null, then:
+            if (!response) {
+                // 1. Set response to forwardResponse.
+                response = forward_response;
+
+                // 2. Store httpRequest and forwardResponse in httpCache, as per the "Storing Responses in Caches" chapter of HTTP Caching.
+                // NOTE: If forwardResponse is a network error, this effectively caches the network error, which is
+                //       sometimes known as "negative caching".
+                // NOTE: The associated body info is stored in the cache alongside the response.
+                // NB: The network fetch stores forwardResponse as its headers arrive, before the end of its body can
+                //     finalize the entry.
+            }
+        }
+
+        // 11. Set response’s URL list to a clone of httpRequest’s URL list.
+        response->set_url_list(http_request->url_list());
+
+        if (WebDriver::BiDi::g_network_events_enabled) {
+            // NB: Instrumentation may have been enabled after httpRequest was cloned. The controller's original
+            //     request must share the identity reported by the prepared request, including on cancellation.
+            WebDriver::BiDi::synchronize_network_request(*fetch_params.request(), *http_request);
+            auto intercepts = WebDriver::BiDi::get_network_intercepts(*http_fetch_params, "responseStarted"sv);
+            if (!response->is_network_error() && !intercepts.is_empty()) {
+                WebDriver::BiDi::block_network_request(realm.global_object(), *http_fetch_params, response, "responseStarted"_string, move(intercepts), WebDriver::BiDi::NetworkContinuation::create(realm.heap(), [&realm, &fetch_params, http_request, returned_pending_response, is_authentication_fetch, is_new_connection_fetch, include_credentials](WebDriver::BiDi::NetworkContinuationAction, GC::Ptr<Infrastructure::Response> continued_response) {
+                    process_http_network_or_cache_response(realm.global_object(), fetch_params, *http_request, *continued_response, returned_pending_response, is_authentication_fetch, is_new_connection_fetch, include_credentials);
+                }));
+                return;
+            }
+            WebDriver::BiDi::network_response_started(*http_fetch_params, *response);
+        }
+        process_http_network_or_cache_response(realm.global_object(), fetch_params, *http_request, *response, returned_pending_response, is_authentication_fetch, is_new_connection_fetch, include_credentials);
+    });
+
+    // 18. Return response.
+    // NOTE: Typically response’s body’s stream is still being enqueued to after returning.
+    return returned_pending_response;
+}
+
 // https://fetch.spec.whatwg.org/#concept-http-network-or-cache-fetch
 GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastructure::FetchParams const& fetch_params, IsAuthenticationFetch is_authentication_fetch, IsNewConnectionFetch is_new_connection_fetch)
 {
@@ -1982,6 +2245,9 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
 
     if (WebDriver::BiDi::g_network_events_enabled)
         WebDriver::BiDi::initialize_network_request(*request);
+
+    if (WebDriver::BiDi::g_network_configuration_enabled)
+        WebDriver::BiDi::apply_network_cache_behavior(*request);
 
     // 2. Let httpFetchParams be null.
     GC::Ptr<Infrastructure::FetchParams const> http_fetch_params;
@@ -2027,8 +2293,8 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
             //       source is null as only a single body is needed in that case. E.g., when request’s body’s source
             //       is null, redirects and authentication will end up failing the fetch.
             http_request = request->clone();
-            if (WebDriver::BiDi::g_network_events_enabled)
-                http_request->set_webdriver_bidi_network_request(request->webdriver_bidi_network_request());
+            // NB: Existing interception overrides still apply after subscriptions or intercepts are removed.
+            http_request->set_webdriver_bidi_network_request(request->webdriver_bidi_network_request());
 
             // 2. Set httpFetchParams to a copy of fetchParams.
             auto new_http_fetch_params = Infrastructure::FetchParams::copy(fetch_params);
@@ -2234,6 +2500,10 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
         // FIXME: 22. If there’s a proxy-authentication entry, use it as appropriate.
         // NOTE: This intentionally does not depend on httpRequest’s credentials mode.
 
+        WebDriver::BiDi::apply_network_request_header_overrides(*http_request);
+        if (WebDriver::BiDi::g_network_configuration_enabled)
+            WebDriver::BiDi::apply_network_extra_headers(*http_request);
+
         // 23. Set httpCache to the result of determining the HTTP cache partition, given httpRequest.
         http_cache = determine_the_http_cache_partition(*http_request);
 
@@ -2271,220 +2541,29 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
         }
     }
 
-    if (WebDriver::BiDi::g_network_events_enabled)
-        WebDriver::BiDi::network_before_request_sent(*http_fetch_params);
-
     // 9. If aborted, then return the appropriate network error for fetchParams.
     if (aborted)
         return PendingResponse::create(fetch_params, Infrastructure::Response::appropriate_network_error(fetch_params));
 
-    GC::Ptr<PendingResponse> pending_forward_response;
-
-    // 10. If response is null, then:
-    if (!response) {
-        // 1. If httpRequest’s cache mode is "only-if-cached", then return a network error.
-        // NB: We skip this step in order to allow the disk cache in RequestServer to handle this request. If a disk
-        //     cache entry does not exist, it will return a network error itself.
-
-        // 2. Let forwardResponse be the result of running HTTP-network fetch given httpFetchParams, includeCredentials,
-        //    and isNewConnectionFetch.
-        pending_forward_response = nonstandard_resource_loader_file_or_http_network_fetch(realm, *http_fetch_params, include_credentials, is_new_connection_fetch, http_cache);
-    } else {
-        pending_forward_response = PendingResponse::create(fetch_params, Infrastructure::Response::create());
+    if (WebDriver::BiDi::g_network_events_enabled) {
+        auto intercepts = WebDriver::BiDi::get_network_intercepts(*http_fetch_params, "beforeRequestSent"sv);
+        if (!intercepts.is_empty()) {
+            auto returned_pending_response = PendingResponse::create(fetch_params);
+            WebDriver::BiDi::block_network_request(realm.global_object(), *http_fetch_params, nullptr, "beforeRequestSent"_string, move(intercepts), WebDriver::BiDi::NetworkContinuation::create(realm.heap(), [&realm, &fetch_params, http_fetch_params, response, stored_response, http_cache, is_authentication_fetch, is_new_connection_fetch, include_credentials, returned_pending_response](WebDriver::BiDi::NetworkContinuationAction action, GC::Ptr<Infrastructure::Response> continued_response) {
+                // AD-HOC: The fetch can be canceled while its request is blocked.
+                if (fetch_params.is_canceled()) {
+                    returned_pending_response->resolve(Infrastructure::Response::appropriate_network_error(fetch_params));
+                    return;
+                }
+                auto pending_response = continue_http_network_or_cache_fetch(realm.global_object(), fetch_params, *http_fetch_params, action == WebDriver::BiDi::NetworkContinuationAction::Continue ? response : continued_response, stored_response, http_cache, is_authentication_fetch, is_new_connection_fetch, include_credentials);
+                pending_response->when_loaded([returned_pending_response](auto response) { returned_pending_response->resolve(response); });
+            }),
+                request);
+            return returned_pending_response;
+        }
+        WebDriver::BiDi::network_before_request_sent(*http_fetch_params);
     }
-
-    // AD-HOC: If the controller is already in the non-spec Stopped state, we should cancel the network request immediately.
-    if (http_fetch_params->controller()->state() == Infrastructure::FetchController::State::Stopped)
-        http_fetch_params->controller()->stop_fetch();
-
-    auto returned_pending_response = PendingResponse::create(fetch_params);
-
-    pending_forward_response->when_loaded([&realm, &fetch_params, request, response, stored_response, http_request, http_fetch_params, returned_pending_response, is_authentication_fetch, is_new_connection_fetch, include_credentials, response_was_null = !response, http_cache](GC::Ref<Infrastructure::Response> resolved_forward_response) mutable {
-        dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'HTTP-network-or-cache fetch' pending_forward_response load callback");
-        if (response_was_null) {
-            auto forward_response = resolved_forward_response;
-
-            // NOTE: TRACE is omitted as it is a forbidden method in Fetch.
-            auto method_is_unsafe = !http_request->method().is_one_of("GET"sv, "HEAD"sv, "OPTIONS"sv);
-
-            // 3. If httpRequest’s method is unsafe and forwardResponse’s status is in the range 200 to 399, inclusive,
-            //    invalidate appropriate stored responses in httpCache, as per the "Invalidation" chapter of HTTP
-            //    Caching, and set storedResponse to null.
-            if (method_is_unsafe && forward_response->status() >= 200 && forward_response->status() <= 399) {
-                if (http_cache)
-                    http_cache->invalidate(http_request->current_url());
-                stored_response = nullptr;
-            }
-
-            // 4. If the revalidatingFlag is set and forwardResponse’s status is 304, then:
-            //     1. Update storedResponse’s header list using forwardResponse’s header list, as per the "Freshening
-            //        Stored Responses upon Validation" chapter of HTTP Caching.
-            //     2. Set response to storedResponse.
-            //     3. Set response’s cache state to "validated".
-            // NB: We only cache fresh responses in WebContent. Revalidation is handled by RequestServer.
-
-            // 5. If response is null, then:
-            if (!response) {
-                // 1. Set response to forwardResponse.
-                response = forward_response;
-
-                // 2. Store httpRequest and forwardResponse in httpCache, as per the "Storing Responses in Caches" chapter of HTTP Caching.
-                // NOTE: If forwardResponse is a network error, this effectively caches the network error, which is
-                //       sometimes known as "negative caching".
-                // NOTE: The associated body info is stored in the cache alongside the response.
-                // NB: The network fetch stores forwardResponse as its headers arrive, before the end of its body can
-                //     finalize the entry.
-            }
-        }
-
-        // 11. Set response’s URL list to a clone of httpRequest’s URL list.
-        response->set_url_list(http_request->url_list());
-
-        if (WebDriver::BiDi::g_network_events_enabled)
-            WebDriver::BiDi::network_response_started(*http_fetch_params, *response);
-
-        // 12. If httpRequest’s header list contains `Range`, then set response’s range-requested flag.
-        if (http_request->header_list()->contains("Range"sv))
-            response->set_range_requested(true);
-
-        // 13. Set response’s request-includes-credentials to includeCredentials.
-        response->set_request_includes_credentials(include_credentials == HTTP::Cookie::IncludeCredentials::Yes);
-
-        auto inner_pending_response = PendingResponse::create(fetch_params, *response);
-
-        // 14. If response’s status is 401, httpRequest’s response tainting is not "cors", includeCredentials is true,
-        //     and request’s traversable for user prompts is a traversable navigable:
-        // AD-HOC: Only enter the 401 handling path if the server is requesting an authentication
-        //         scheme we can handle with a username/password prompt (Basic or Digest).
-        //         Other schemes like PrivateToken (RFC 9577) are not user-prompt-based and should
-        //         not trigger credential prompting or request retries.
-        auto www_authenticate_has_credential_based_scheme = [&] {
-            auto www_authenticate = response->header_list()->get("WWW-Authenticate"sv);
-            if (!www_authenticate.has_value())
-                return false;
-            // The value is a comma-separated list of challenges. Each challenge starts with a scheme name.
-            // We check if any of the schemes are ones we can handle with a username/password prompt.
-            auto value = *www_authenticate;
-            for (auto challenge : value.view().split_view(',')) {
-                auto trimmed = challenge.trim_whitespace();
-                auto space_index = trimmed.find(' ');
-                auto scheme = space_index.has_value() ? trimmed.substring_view(0, *space_index) : trimmed;
-                if (scheme.equals_ignoring_ascii_case("Basic"sv) || scheme.equals_ignoring_ascii_case("Digest"sv))
-                    return true;
-            }
-            return false;
-        };
-
-        if (response->status() == 401
-            && http_request->response_tainting() != Infrastructure::Request::ResponseTainting::CORS
-            && include_credentials == HTTP::Cookie::IncludeCredentials::Yes
-            && request->traversable_for_user_prompts().has<HTML::CrossProcessId>()
-            && www_authenticate_has_credential_based_scheme()) {
-            // NB: Every branch below drops this response, for a network error or a new fetch's response.
-            stop_discarded_response_body(*fetch_params.controller(), *response);
-
-            // 1. Needs testing: multiple `WWW-Authenticate` headers, missing, parsing issues.
-            // (Red box in the spec, no-op)
-
-            // 2. If request’s body is non-null, then:
-            if (!request->body().has<Empty>()) {
-                // 1. If request’s body’s source is null, then return a network error.
-                auto source = request->body().get<Infrastructure::FetchBody>().source();
-                if (!source.has_value()) {
-                    returned_pending_response->resolve(Infrastructure::Response::network_error("Request has body but no body source"_string));
-                    return;
-                }
-
-                // 2. Set request’s body to the body of the result of safely extracting request’s body’s source.
-                request->set_body(Infrastructure::FetchBody::from_bytes(*source));
-            }
-
-            // 3. If request’s use-URL-credentials flag is unset or isAuthenticationFetch is true, then:
-            if (!request->use_url_credentials() || is_authentication_fetch == IsAuthenticationFetch::Yes) {
-                // 1. If fetchParams is canceled, then return the appropriate network error for fetchParams.
-                if (fetch_params.is_canceled()) {
-                    returned_pending_response->resolve(Infrastructure::Response::appropriate_network_error(fetch_params));
-                    return;
-                }
-
-                // FIXME: 2. Let username and password be the result of prompting the end user for a username and password,
-                //           respectively, in request’s window.
-                // FIXME: 3. Set the username given request’s current URL and username.
-                // FIXME: 4. Set the password given request’s current URL and password.
-                dbgln("Fetch: Username/password prompt is not implemented. Aborting the request.");
-                returned_pending_response->resolve(Infrastructure::Response::aborted_network_error());
-                return;
-            }
-
-            // 4. Set response to the result of running HTTP-network-or-cache fetch given fetchParams and true.
-            inner_pending_response = http_network_or_cache_fetch(realm, fetch_params, IsAuthenticationFetch::Yes);
-        }
-
-        inner_pending_response->when_loaded([&realm, &fetch_params, request, returned_pending_response, is_authentication_fetch, is_new_connection_fetch](GC::Ref<Infrastructure::Response> response) {
-            dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'HTTP network-or-cache fetch' inner_pending_response load callback");
-            // 15. If response’s status is 407, then:
-            if (response->status() == 407) {
-                // 1. If request’s traversable for user prompts is "no-traversable", then return a network error.
-                if (request->traversable_for_user_prompts().has<Infrastructure::Request::TraversableForUserPrompts>()
-                    && request->traversable_for_user_prompts().get<Infrastructure::Request::TraversableForUserPrompts>() == Infrastructure::Request::TraversableForUserPrompts::NoTraversable) {
-                    returned_pending_response->resolve(Infrastructure::Response::network_error("Request requires proxy authentication but has 'no-window' set"_string));
-                    return;
-                }
-
-                // 2. Needs testing: multiple `Proxy-Authenticate` headers, missing, parsing issues.
-                // (Red box in the spec, no-op)
-
-                // 3. If fetchParams is canceled, then return the appropriate network error for fetchParams.
-                if (fetch_params.is_canceled()) {
-                    returned_pending_response->resolve(Infrastructure::Response::appropriate_network_error(fetch_params));
-                    return;
-                }
-
-                // FIXME: 4. Prompt the end user as appropriate in request’s window and store the result as a
-                //           proxy-authentication entry.
-                // NOTE: Remaining details surrounding proxy authentication are defined by HTTP.
-
-                // FIXME: 5. Set response to the result of running HTTP-network-or-cache fetch given fetchParams.
-                // (Doing this without step 4 would potentially lead to an infinite request cycle.)
-            }
-
-            auto inner_pending_response = PendingResponse::create(fetch_params, *response);
-
-            // 16. If all of the following are true
-            if (
-                // - response’s status is 421
-                response->status() == 421
-                // - isNewConnectionFetch is false
-                && is_new_connection_fetch == IsNewConnectionFetch::No
-                // - request’s body is null, or request’s body is non-null and request’s body’s source is non-null
-                && (request->body().has<Empty>() || request->body().get<Infrastructure::FetchBody>().source().has_value())
-                // then:
-            ) {
-                // 1. If fetchParams is canceled, then return the appropriate network error for fetchParams.
-                if (fetch_params.is_canceled()) {
-                    returned_pending_response->resolve(Infrastructure::Response::appropriate_network_error(fetch_params));
-                    return;
-                }
-                // 2. Set response to the result of running HTTP-network-or-cache fetch given fetchParams,
-                //    isAuthenticationFetch, and true.
-                inner_pending_response = http_network_or_cache_fetch(realm, fetch_params, is_authentication_fetch, IsNewConnectionFetch::Yes);
-            }
-
-            inner_pending_response->when_loaded([returned_pending_response, is_authentication_fetch](GC::Ref<Infrastructure::Response> response) {
-                // 17. If isAuthenticationFetch is true, then create an authentication entry for request and the given
-                //     realm.
-                if (is_authentication_fetch == IsAuthenticationFetch::Yes) {
-                    // FIXME: "create an authentication entry for request and the given realm"
-                }
-
-                returned_pending_response->resolve(response);
-            });
-        });
-    });
-
-    // 18. Return response.
-    // NOTE: Typically response’s body’s stream is still being enqueued to after returning.
-    return returned_pending_response;
+    return continue_http_network_or_cache_fetch(realm.global_object(), fetch_params, *http_fetch_params, response, stored_response, http_cache, is_authentication_fetch, is_new_connection_fetch, include_credentials);
 }
 
 #if defined(WEB_FETCH_DEBUG)

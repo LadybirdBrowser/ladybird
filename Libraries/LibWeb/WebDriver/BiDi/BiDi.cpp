@@ -65,7 +65,7 @@ void set_session_state(BiDiSessionState session_state)
 
     state() = move(session_state);
     g_is_active = state().is_active;
-    g_network_events_enabled = g_is_active && any_of(state().enabled_events, [](auto const& name) { return name.starts_with_bytes("network."sv); });
+    network_session_state_changed();
 
     // NB: The documents that existed before the session started run the console steps from now on.
     if (g_is_active && !was_active)

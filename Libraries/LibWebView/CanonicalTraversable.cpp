@@ -400,6 +400,8 @@ void CanonicalTraversable::release_page_if_unused(NonnullRefPtr<WebContentPage> 
         return;
     if (page_hosts_any(page))
         return;
+    if (auto* bidi = WebDriverBiDi::the())
+        bidi->push_session_state_for_client(page->client());
     // A page left hosting none of the tab's documents goes on representing the tab to a process holding part of
     // another tab of its group, whose documents can hold the tab's WindowProxies.
     if (page->client().holds_part_of_a_tab_in_the_group_of(*this)) {
@@ -439,6 +441,8 @@ void CanonicalTraversable::set_page_standing_in_for_lost_document(Badge<ViewImpl
 {
     did_lose_active_document();
     m_page_standing_in_for_lost_document = move(page);
+    if (auto* bidi = WebDriverBiDi::the())
+        bidi->push_session_state_for_client(m_page_standing_in_for_lost_document->client());
 }
 
 void CanonicalTraversable::did_activate_document_in(Badge<CanonicalNavigable>, WebContentPage& host)

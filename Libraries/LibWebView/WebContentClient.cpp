@@ -43,6 +43,7 @@
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
 #include <LibWebView/WebContentTestClient.h>
+#include <LibWebView/WebDriverBiDi.h>
 #include <LibWebView/WebUI.h>
 #include <LibWebView/WorkerProcessManager.h>
 
@@ -278,6 +279,8 @@ WebContentPage& WebContentClient::open_page_for_new_top_level_traversable(Web::P
 
     auto& page = open_page(page_id, traversable);
     traversable.active_document().set_host(page);
+    if (auto* bidi = WebDriverBiDi::the())
+        bidi->push_session_state_for_client(*this);
     return page;
 }
 

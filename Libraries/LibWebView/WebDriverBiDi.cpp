@@ -148,21 +148,58 @@ void WebDriverBiDi::ensure_session_is_active()
         push_session_state();
 }
 
+static ErrorOr<CanonicalTraversable*, Web::WebDriver::Error> get_a_top_level_traversable(StringView);
+
+void WebDriverBiDi::push_session_state_for_client(WebContentClient& client) const
+{
+    if (!m_session_state.is_active)
+        return;
+
+    HashTable<String> hosted_traversables;
+    client.for_each_page([&](WebContentPage& page) {
+        auto& traversable = page.traversable();
+        if (page.displays_tab() || traversable.page_hosts_any(page)) {
+            auto id = traversable.id();
+            hosted_traversables.set(MUST(String::formatted("{}-{}", id.namespace_id, id.local_id)));
+        }
+        return IterationDecision::Continue;
+    });
+    client.async_set_webdriver_bidi_session_state(session_state_for_hosted_traversables(m_session_state, hosted_traversables));
+}
+
 void WebDriverBiDi::push_session_state()
 {
     m_session_state.is_active = true;
+    // NB: A remote top-level navigable has a cross-process ID, but no local WebDriver window handle.
+    Function<String(String const&)> context_id = [](String const& id) {
+        auto navigable = get_a_top_level_traversable(id);
+        if (navigable.is_error())
+            return id;
+        auto internal_id = navigable.value()->id();
+        return MUST(String::formatted("{}-{}", internal_id.namespace_id, internal_id.local_id));
+    };
+    if (m_network)
+        m_network->update_session_state(m_session_state, context_id);
+    m_session_state.enabled_event_contexts = m_enabled_event_contexts;
+    for (auto& [_, contexts] : m_session_state.enabled_event_contexts) {
+        if (contexts.has_value()) {
+            for (auto& id : *contexts)
+                id = context_id(id);
+        }
+    }
     m_session_state.enabled_events.clear_with_capacity();
     for (auto const& event_name : m_enabled_events)
         m_session_state.enabled_events.append(event_name);
 
     WebContentClient::for_each_client([&](WebContentClient& client) {
-        client.async_set_webdriver_bidi_session_state(m_session_state);
+        push_session_state_for_client(client);
         return IterationDecision::Continue;
     });
 }
 
-void WebDriverBiDi::set_enabled_events(Vector<String> const& event_names)
+void WebDriverBiDi::set_enabled_events(Vector<String> const& event_names, HashMap<String, Optional<Vector<String>>> event_contexts)
 {
+    m_enabled_event_contexts = move(event_contexts);
     m_enabled_events.clear();
     for (auto const& event_name : event_names)
         m_enabled_events.set(event_name);
@@ -427,12 +464,14 @@ void WebDriverBiDi::remove_state_of_removed_navigables()
 {
     fail_navigations_of([](auto navigable_id) { return !navigable_exists(navigable_id); });
 
+    m_blocked_network_requests.remove_all_matching([](auto const&, auto const& request) { return !request.page->is_open() || !navigable_exists(request.navigable_id); });
     m_destroyed_navigables.remove_all_matching([](auto navigable_id) { return !navigable_exists(navigable_id); });
     m_closing_traversable_infos.remove_all_matching([](auto navigable_id, auto const&) { return !navigable_exists(navigable_id); });
 }
 
 void WebDriverBiDi::top_level_traversable_did_crash(CanonicalTraversable const& traversable)
 {
+    m_blocked_network_requests.remove_all_matching([&](auto const&, auto const& request) { return CanonicalTraversable::traversable_containing(request.navigable_id) == &traversable; });
     fail_navigations_of([&](auto navigable_id) { return CanonicalTraversable::traversable_containing(navigable_id) == &traversable; });
 }
 
@@ -523,8 +562,10 @@ void WebDriverBiDi::top_level_traversable_is_closing(CanonicalNavigable const& t
 
 void WebDriverBiDi::top_level_traversable_did_close(String const& window_handle)
 {
-    if (m_network)
+    if (m_network) {
         m_network->context_destroyed(window_handle);
+        push_session_state();
+    }
 
     auto os_window = os_window_of(window_handle);
     m_tab_windows.remove(window_handle);
@@ -837,12 +878,9 @@ void WebDriverBiDi::did_receive_event(WebContentPage& page, Web::HTML::CrossProc
         "network.responseStarted"sv,
         "network.responseCompleted"sv,
         "network.fetchError"sv,
+        "network.authRequired"sv,
     });
     if (!any_of(content_events, [&](auto event_name) { return event_name == name; }))
-        return;
-
-    // NB: WebDriver buffers the log events that no subscription enables.
-    if (!is_event_enabled(name) && name != "log.entryAdded"sv)
         return;
 
     // NB: The navigable an event names is the navigable the process reported it for, which the browser process names
@@ -860,6 +898,23 @@ void WebDriverBiDi::did_receive_event(WebContentPage& page, Web::HTML::CrossProc
         set_context(params.as_object());
     }
 
+    if (name.starts_with_bytes("network."sv)) {
+        if (auto request = params.as_object().get_object("request"sv); request.has_value()) {
+            if (auto id = request->get_string("request"sv); id.has_value()) {
+                auto existing = m_blocked_network_requests.find(*id);
+                if (existing != m_blocked_network_requests.end() && existing->value.page != &page)
+                    return;
+                if (params.as_object().get_bool("isBlocked"sv).value_or(false))
+                    m_blocked_network_requests.set(*id, { page, navigable_id, m_next_network_interception_generation++ });
+                else if (name.is_one_of("network.responseCompleted"sv, "network.fetchError"sv))
+                    m_blocked_network_requests.remove(*id);
+            }
+        }
+    }
+    // NB: Route bookkeeping also runs for events whose subscription changed while they were in flight.
+    //     WebDriver buffers the log events that no subscription enables.
+    if (!is_event_enabled(name) && name != "log.entryAdded"sv)
+        return;
     emit_event_for_navigable(name, move(params), *navigable);
 }
 
@@ -1016,14 +1071,38 @@ void WebDriverBiDi::run_command(u64 command_id, String const& method, JsonValue 
     if (method.starts_with_bytes("network."sv)) {
         if (!m_network)
             m_network = make<WebDriverBiDiNetwork>();
+        if (method.is_one_of("network.continueRequest"sv, "network.continueResponse"sv, "network.provideResponse"sv, "network.continueWithAuth"sv, "network.failRequest"sv)) {
+            auto validation = Web::WebDriver::Network::validate_interception_parameters(method, params);
+            if (validation.is_error()) {
+                on_complete(validation.release_error());
+                return;
+            }
+            auto id = params.get_string("request"sv).release_value();
+            if (auto blocked = m_blocked_network_requests.get(id); blocked.has_value() && blocked->page->routed_connection()) {
+                auto content_command_id = m_next_content_command_id++;
+                m_pending_content_commands.set(content_command_id, [id, generation = blocked->generation, on_complete = move(on_complete)](Web::WebDriver::Response response) mutable {
+                    if (!response.is_error()) {
+                        if (auto* bidi = WebDriverBiDi::the()) {
+                            if (auto current = bidi->m_blocked_network_requests.get(id); current.has_value() && current->generation == generation)
+                                bidi->m_blocked_network_requests.remove(id);
+                        }
+                    }
+                    on_complete(move(response));
+                });
+                blocked->page->view().run_webdriver_bidi_content_command(*blocked->page, content_command_id, blocked->navigable_id, method, params);
+                return;
+            }
+        }
         auto result = m_network->run_command(method, params, [](String const& id) -> ErrorOr<void, Web::WebDriver::Error> {
             TRY(get_a_top_level_traversable(id));
             return {};
         });
         if (result.is_error())
             on_complete(result.release_error());
-        else
+        else {
+            push_session_state();
             on_complete(result.release_value());
+        }
         return;
     }
 

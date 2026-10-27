@@ -325,9 +325,9 @@ void WebDriverBrowserConnection::bidi_run_subscribe_steps(u64 command_id, String
     m_webdriver_bidi->run_subscribe_steps(command_id, event_name, top_level_traversable_ids);
 }
 
-void WebDriverBrowserConnection::set_bidi_enabled_events(Vector<String> event_names)
+void WebDriverBrowserConnection::set_bidi_enabled_events(Vector<String> event_names, HashMap<String, Optional<Vector<String>>> event_contexts)
 {
-    m_webdriver_bidi->set_enabled_events(event_names);
+    m_webdriver_bidi->set_enabled_events(event_names, move(event_contexts));
 }
 
 }

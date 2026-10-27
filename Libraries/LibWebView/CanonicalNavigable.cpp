@@ -1018,6 +1018,8 @@ void CanonicalNavigable::abandon_populated_document(NonnullRefPtr<CanonicalDocum
 void CanonicalNavigable::place_populated_document(CanonicalDocument& document, WebContentPage& page)
 {
     document.set_host(page);
+    if (auto* bidi = WebDriverBiDi::the())
+        bidi->push_session_state_for_client(page.client());
     send_viewport_to_host();
 }
 

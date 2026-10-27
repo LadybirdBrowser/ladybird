@@ -15,6 +15,7 @@
 #include <LibWeb/WebDriver/BiDi/BiDi.h>
 #include <LibWeb/WebDriver/BiDi/BrowsingContext.h>
 #include <LibWeb/WebDriver/BiDi/Input.h>
+#include <LibWeb/WebDriver/BiDi/Network.h>
 #include <LibWeb/WebDriver/BiDi/Script.h>
 #include <LibWebCommon/WebDriver/Input.h>
 #include <WebContent/ConnectionFromClient.h>
@@ -87,16 +88,20 @@ void run_webdriver_bidi_command(PageClient& page_client, u64 command_id, Web::HT
         page_client->webdriver_command_complete(command_id, move(response));
     };
 
-    auto navigable = page_client.page().navigable_with_id(navigable_id);
-    if (!navigable) {
-        on_complete(no_such_frame());
-        return;
-    }
     if (!params_value.is_object()) {
         on_complete(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Command parameters must be an object"sv));
         return;
     }
     auto const& params = params_value.as_object();
+
+    if (method.starts_with_bytes("network."sv))
+        return on_complete(Web::WebDriver::BiDi::continue_network_request(method, params));
+
+    auto navigable = page_client.page().navigable_with_id(navigable_id);
+    if (!navigable) {
+        on_complete(no_such_frame());
+        return;
+    }
 
     if (method == "script.evaluate"sv)
         return Web::WebDriver::BiDi::evaluate(*navigable, params, move(on_complete));

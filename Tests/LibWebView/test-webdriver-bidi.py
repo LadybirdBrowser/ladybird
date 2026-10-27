@@ -127,12 +127,91 @@ class ReloadServer(http.server.ThreadingHTTPServer):
         self.range_request_received: threading.Event = threading.Event()
         self.release_initial_download: threading.Event = threading.Event()
         self.initial_download_stopped: threading.Event = threading.Event()
+        self.interception_lock = threading.Lock()
+        self.interception_requests = []
+        self.interception_received = threading.Event()
+        self.release_interception = threading.Event()
+        self.detached_final_received = threading.Event()
+        self.interception_transport_closed = threading.Event()
 
 
 class ReloadHandler(http.server.BaseHTTPRequestHandler):
+    def do_POST(self):
+        self.do_GET()
+
+    def do_PUT(self):
+        self.do_GET()
+
     def do_GET(self):
         server = self.server
         assert isinstance(server, ReloadServer)
+        if self.path == "/network-interception/fail-body":
+            self.send_response(200)
+            self.send_header("Content-Length", "1000000")
+            self.end_headers()
+            self.wfile.write(b"unfinished body")
+            self.wfile.flush()
+            self.connection.settimeout(30)
+            try:
+                if not self.connection.recv(1):
+                    server.interception_transport_closed.set()
+            except (ConnectionResetError, BrokenPipeError):
+                server.interception_transport_closed.set()
+            return
+        if self.path.startswith("/network-interception/"):
+            # NB: Preserve duplicate fields for assertions even if the transport combines their length values.
+            # A stale length on the redirected GET is an assertion failure, not a reason for the fixture to wait.
+            length = int(self.headers.get("Content-Length", "0").split(",", 1)[0])
+            if self.command == "GET" and self.path.startswith("/network-interception/echo-final/"):
+                length = 0
+            body = self.rfile.read(length)
+            record = {
+                "path": self.path,
+                "method": self.command,
+                "body": body.decode(),
+                "headers": list(self.headers.items()),
+            }
+            with server.interception_lock:
+                server.interception_requests.append(record)
+            if self.path == "/network-interception/detached-final":
+                server.detached_final_received.set()
+            if self.path in ["/network-interception/late-enable", "/network-interception/detached-redirect"]:
+                server.interception_received.set()
+                if not server.release_interception.wait(30):
+                    raise TimeoutError("The test did not release its intercepted response")
+            if self.path.startswith("/network-interception/echo-redirect/"):
+                self.send_response(303 if self.path.endswith("303") else 307)
+                self.send_header("Location", self.path.replace("/echo-redirect/", "/echo-final/", 1))
+                body = b""
+            elif self.path.startswith("/network-interception/redirect/"):
+                target = self.path.replace("/redirect/", "/final/", 1)
+                self.send_response(307)
+                self.send_header("Location", target)
+                body = b""
+            elif self.path == "/network-interception/detached-redirect":
+                self.send_response(302)
+                self.send_header("Location", "/network-interception/detached-final")
+                body = b""
+            elif self.path.startswith("/network-interception/auth/") and self.headers.get("Authorization") is None:
+                self.send_response(401)
+                self.send_header("WWW-Authenticate", 'Basic realm="bidi-selective-overrides"')
+                if origin := self.headers.get("Origin"):
+                    self.send_header("Access-Control-Allow-Origin", origin)
+                    self.send_header("Access-Control-Allow-Credentials", "true")
+                body = b"authentication required"
+            else:
+                self.send_response(200)
+                with server.interception_lock:
+                    body = json.dumps(server.interception_requests).encode()
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            try:
+                self.wfile.write(body)
+            except (BrokenPipeError, ConnectionResetError):
+                pass
+            return
         if self.path == "/network-download/split":
             body = server.segmented_download_body
             range_header = self.headers.get("Range")
@@ -223,6 +302,756 @@ class ReloadHandler(http.server.BaseHTTPRequestHandler):
 
     def log_message(self, format, *args):
         pass
+
+
+def intercepted_event(bidi, method, url):
+    while True:
+        event = bidi.event(method)
+        if event["request"]["url"] == url:
+            assert event["isBlocked"], event
+            return event
+        assert not event["isBlocked"], event
+
+
+def send_fetch(bidi, context, url, options=None):
+    return bidi.send(
+        "script.evaluate",
+        {
+            "target": {"context": context},
+            "expression": f"fetch({json.dumps(url)}, {json.dumps(options or {})}).then(response => response.text())",
+            "awaitPromise": True,
+        },
+    )
+
+
+def fetch_records(bidi, command):
+    result = bidi.response(command)
+    assert result["type"] == "success" and result["result"]["type"] == "success", result
+    return json.loads(result["result"]["result"]["value"])
+
+
+def check_network_late_interception(bidi, context, server, abort=False):
+    url = f"http://127.0.0.1:{server.server_port}/network-interception/late-enable"
+    server.interception_received.clear()
+    server.release_interception.clear()
+    with server.interception_lock:
+        server.interception_requests.clear()
+    if abort:
+        pending = bidi.send(
+            "script.evaluate",
+            {
+                "target": {"context": context},
+                "expression": f"window.interceptionAbort = new AbortController(); fetch({json.dumps(url)}, "
+                "{signal: interceptionAbort.signal}).then(() => 'fulfilled', error => error.name)",
+                "awaitPromise": True,
+            },
+        )
+    else:
+        pending = send_fetch(bidi, context, url)
+    assert server.interception_received.wait(30), "The unobserved request did not reach the server"
+    subscription = bidi.command("session.subscribe", {"events": ["network.responseStarted"]})["subscription"]
+    intercept = bidi.command(
+        "network.addIntercept",
+        {"phases": ["responseStarted"], "urlPatterns": [{"type": "string", "pattern": url}]},
+    )["intercept"]
+    try:
+        # NB: State broadcasts and response delivery come from different IPC peers.
+        bidi.evaluate(context, "0")
+        server.release_interception.set()
+        event = intercepted_event(bidi, "network.responseStarted", url)
+        request_id = event["request"]["request"]
+        if abort:
+            bidi.evaluate(context, "interceptionAbort.abort(); 0")
+            result = bidi.response(pending)
+            assert result["type"] == "success" and result["result"]["result"]["value"] == "AbortError", result
+            result = bidi.response(bidi.send("network.continueResponse", {"request": request_id}))
+            assert result["type"] == "error" and result["error"] == "no such request", result
+        else:
+            # A known blocked request stays resumable when its event subscription is removed.
+            bidi.command("session.unsubscribe", {"subscriptions": [subscription]})
+            subscription = None
+            bidi.command("network.continueResponse", {"request": request_id})
+            records = fetch_records(bidi, pending)
+            assert [record["path"] for record in records] == ["/network-interception/late-enable"], records
+    finally:
+        server.release_interception.set()
+        if sys.exc_info()[0] is None:
+            bidi.command("network.removeIntercept", {"intercept": intercept})
+            if subscription is not None:
+                bidi.command("session.unsubscribe", {"subscriptions": [subscription]})
+
+
+def check_network_override_retries(bidi, context, server, kinds):
+    origin = f"http://127.0.0.1:{server.server_port}"
+    subscription = bidi.command("session.subscribe", {"events": ["network.beforeRequestSent", "network.authRequired"]})[
+        "subscription"
+    ]
+
+    def header_values(record, name):
+        return [value for key, value in record["headers"] if key.lower() == name.lower()]
+
+    def check_record(record, method, body, *, generated=True):
+        assert record["method"] == method and record["body"] == body, record
+        assert header_values(record, "Content-Length") == [str(len(body.encode()))], record
+        for name in [
+            "Referer",
+            "Origin",
+            "Sec-Fetch-Dest",
+            "Sec-Fetch-Mode",
+            "Sec-Fetch-Site",
+            "Sec-Fetch-User",
+            "User-Agent",
+            "Content-Type",
+            "Cache-Control",
+            "Pragma",
+        ]:
+            assert len(header_values(record, name)) <= 1, (name, record)
+        if generated:
+            for name, value in [
+                ("Referer", f"{origin}/interception-page"),
+                ("Sec-Fetch-Dest", "empty"),
+                ("Sec-Fetch-Mode", "cors"),
+                ("Sec-Fetch-Site", "same-origin"),
+            ]:
+                assert header_values(record, name) == [value], (name, record)
+            assert len(header_values(record, "User-Agent")) == 1, record
+            if header_values(record, "Origin"):
+                assert header_values(record, "Origin") == [origin], record
+
+    try:
+        for kind in kinds:
+            with server.interception_lock:
+                server.interception_requests.clear()
+            start_url = f"{origin}/network-interception/start/{kind}"
+            target_url = f"{origin}/network-interception/{'auth' if kind == 'auth' else 'redirect'}/{kind}"
+            intercepts = [
+                bidi.command(
+                    "network.addIntercept",
+                    {"phases": ["beforeRequestSent"], "urlPatterns": [{"type": "string", "pattern": start_url}]},
+                )["intercept"]
+            ]
+            if kind == "auth":
+                intercepts.append(
+                    bidi.command(
+                        "network.addIntercept",
+                        {"phases": ["authRequired"], "urlPatterns": [{"type": "string", "pattern": target_url}]},
+                    )["intercept"]
+                )
+            pending = send_fetch(
+                bidi, context, start_url, {"method": "POST", "body": "original-body", "cache": "no-store"}
+            )
+            event = intercepted_event(bidi, "network.beforeRequestSent", start_url)
+            overrides = {"request": event["request"]["request"], "url": target_url}
+            method, body = "POST", "original-body"
+            if kind == "overrides":
+                method, body = "PUT", "overridden payload"
+                overrides.update(
+                    {
+                        "method": method,
+                        "body": {"type": "string", "value": body},
+                        "headers": [
+                            {
+                                "name": "Content-Type",
+                                "value": {"type": "string", "value": "application/x-bidi-override"},
+                            },
+                            {"name": "X-Client-Override", "value": {"type": "string", "value": "kept"}},
+                        ],
+                        "cookies": [{"name": "bidi_override", "value": {"type": "string", "value": "kept"}}],
+                    }
+                )
+            bidi.command("network.continueRequest", overrides)
+            if kind == "auth":
+                event = intercepted_event(bidi, "network.authRequired", target_url)
+                bidi.command(
+                    "network.continueWithAuth",
+                    {
+                        "request": event["request"]["request"],
+                        "action": "provideCredentials",
+                        "credentials": {"type": "password", "username": "user", "password": "pass"},
+                    },
+                )
+            records = fetch_records(bidi, pending)
+            assert len(records) == 2, records
+            assert records[0]["path"] == urllib.parse.urlsplit(target_url).path, records
+            expected_final = target_url if kind == "auth" else target_url.replace("/redirect/", "/final/", 1)
+            assert records[-1]["path"] == urllib.parse.urlsplit(expected_final).path, records
+            for index, record in enumerate(records):
+                check_record(record, method, body, generated=kind != "overrides" or index != 0)
+                if kind == "overrides":
+                    assert header_values(record, "X-Client-Override") == ["kept"], record
+                    assert header_values(record, "Content-Type") == ["application/x-bidi-override"], record
+                    assert header_values(record, "Cookie") == ["bidi_override=kept"], record
+            if kind == "auth":
+                assert header_values(records[-1], "Authorization") == ["Basic dXNlcjpwYXNz"], records
+            for intercept in intercepts:
+                bidi.command("network.removeIntercept", {"intercept": intercept})
+    finally:
+        if sys.exc_info()[0] is None:
+            bidi.command("session.unsubscribe", {"subscriptions": [subscription]})
+
+
+def check_network_echoed_headers(bidi, context, server, kinds):
+    origin = f"http://127.0.0.1:{server.server_port}"
+    subscription = bidi.command("session.subscribe", {"events": ["network.beforeRequestSent", "network.authRequired"]})[
+        "subscription"
+    ]
+
+    subscribed = True
+
+    def values(record, name):
+        return [value for key, value in record["headers"] if key.lower() == name.lower()]
+
+    try:
+        for kind in kinds:
+            if not subscribed:
+                subscription = bidi.command(
+                    "session.subscribe", {"events": ["network.beforeRequestSent", "network.authRequired"]}
+                )["subscription"]
+                subscribed = True
+            with server.interception_lock:
+                server.interception_requests.clear()
+            start_url = f"{origin}/network-interception/start/{kind}"
+            auth = kind.endswith("auth")
+            target_url = f"{origin}/network-interception/{'auth' if auth else 'echo-redirect'}/{kind}"
+            intercepts = [
+                bidi.command(
+                    "network.addIntercept",
+                    {"phases": ["beforeRequestSent"], "urlPatterns": [{"type": "string", "pattern": start_url}]},
+                )["intercept"]
+            ]
+            if auth:
+                intercepts.append(
+                    bidi.command(
+                        "network.addIntercept",
+                        {"phases": ["authRequired"], "urlPatterns": [{"type": "string", "pattern": target_url}]},
+                    )["intercept"]
+                )
+            options: dict[str, object] = {"method": "POST", "body": "original-body"}
+            if kind.endswith("range"):
+                options["headers"] = {"Range": "bytes=0-9"}
+            pending = send_fetch(bidi, context, start_url, options)
+            event = intercepted_event(bidi, "network.beforeRequestSent", start_url)
+            headers = list(event["request"]["headers"])
+            expected = {
+                "Referer": f"{origin}/interception-page",
+                "Origin": origin,
+                "Sec-Fetch-Dest": "empty",
+                "Sec-Fetch-Mode": "cors",
+                "Sec-Fetch-Site": "same-origin",
+                "X-Client-Override": "kept",
+            }
+            if kind.endswith("range"):
+                expected["Accept-Encoding"] = "identity"
+            changed = {"X-Client-Override": "kept"}
+            if kind.startswith("explicit"):
+                changed.update(
+                    {
+                        "Referer": f"{origin}/explicit-referrer",
+                        "Origin": "null",
+                        "Sec-Fetch-Dest": "object",
+                        "Sec-Fetch-Mode": "no-cors",
+                        "Sec-Fetch-Site": "same-site",
+                    }
+                )
+            if kind == "explicit-range":
+                changed["Accept-Encoding"] = "gzip"
+            for name, value in changed.items():
+                headers = [header for header in headers if header["name"].lower() != name.lower()]
+                headers.append({"name": name, "value": {"type": "string", "value": value}})
+            expected.update(changed)
+            overrides = {"request": event["request"]["request"], "url": target_url, "headers": headers}
+            body = "original-body"
+            if kind == "echo-body":
+                body = "replacement-body-is-longer"
+                overrides["body"] = {"type": "string", "value": body}
+            if kind == "explicit-unsubscribe":
+                for intercept in intercepts:
+                    bidi.command("network.removeIntercept", {"intercept": intercept})
+                intercepts.clear()
+                bidi.command("session.unsubscribe", {"subscriptions": [subscription]})
+                subscribed = False
+            bidi.command("network.continueRequest", overrides)
+            if auth:
+                event = intercepted_event(bidi, "network.authRequired", target_url)
+                bidi.command(
+                    "network.continueWithAuth",
+                    {
+                        "request": event["request"]["request"],
+                        "action": "provideCredentials",
+                        "credentials": {"type": "password", "username": "user", "password": "pass"},
+                    },
+                )
+            records = fetch_records(bidi, pending)
+            assert len(records) == 2, records
+            for index, record in enumerate(records):
+                drops_body = index == 1 and kind.endswith("303")
+                assert record["method"] == ("GET" if drops_body else "POST"), record
+                assert record["body"] == ("" if drops_body else body), record
+                assert values(record, "Content-Length") == ([] if drops_body else [str(len(body))]), record
+                for name, value in expected.items():
+                    assert values(record, name) == [value], (name, record)
+                assert len(values(record, "Content-Type")) == (0 if drops_body else 1), record
+            assert records[0]["path"] == urllib.parse.urlsplit(target_url).path, records
+            final_url = target_url if auth else target_url.replace("/echo-redirect/", "/echo-final/", 1)
+            assert records[-1]["path"] == urllib.parse.urlsplit(final_url).path, records
+            if auth:
+                assert values(records[0], "Authorization") == [], records
+                assert values(records[1], "Authorization") == ["Basic dXNlcjpwYXNz"], records
+            for intercept in intercepts:
+                bidi.command("network.removeIntercept", {"intercept": intercept})
+    finally:
+        if sys.exc_info()[0] is None and subscribed:
+            bidi.command("session.unsubscribe", {"subscriptions": [subscription]})
+
+
+def check_network_detached_interception(bidi, context, server):
+    origin = f"http://127.0.0.1:{server.server_port}"
+    url = f"{origin}/network-interception/detached-redirect"
+    final_url = f"{origin}/network-interception/detached-final"
+    server.interception_received.clear()
+    server.release_interception.clear()
+    server.detached_final_received.clear()
+    with server.interception_lock:
+        server.interception_requests.clear()
+    bidi.evaluate(
+        context,
+        f"""new Promise(resolve => {{
+        const frame = document.createElement('iframe');
+        frame.id = 'interception-child';
+        frame.onload = () => resolve(0);
+        frame.src = {json.dumps(origin + "/interception-frame")};
+        document.body.append(frame);
+    }})""",
+        awaitPromise=True,
+    )
+    tree = bidi.command("browsingContext.getTree", {"root": context})["contexts"][0]
+    assert len(tree["children"]) == 1, tree
+    assert tree["children"][0]["url"] == f"{origin}/interception-frame", tree
+    child = tree["children"][0]["context"]
+    bidi.evaluate(context, "window.detachedInterceptionMarker = true; 0")
+    subscription = bidi.command(
+        "session.subscribe",
+        {
+            "events": ["browsingContext.contextDestroyed", "network.beforeRequestSent", "network.responseStarted"],
+        },
+    )["subscription"]
+    intercepts = []
+    try:
+        for phase, target in [("responseStarted", url), ("beforeRequestSent", final_url)]:
+            intercepts.append(
+                bidi.command(
+                    "network.addIntercept",
+                    {
+                        "phases": [phase],
+                        "urlPatterns": [{"type": "string", "pattern": target}],
+                    },
+                )["intercept"]
+            )
+        bidi.evaluate(
+            context,
+            f"""document.getElementById('interception-child').contentWindow
+            .fetch({json.dumps(url)}, {{keepalive: true}}).catch(() => {{}}); 0""",
+        )
+        assert server.interception_received.wait(30), "The child request did not reach the response gate"
+        bidi.evaluate(context, "document.getElementById('interception-child').remove(); 0")
+        destroyed = bidi.event("browsingContext.contextDestroyed")
+        assert destroyed["context"] == child, destroyed
+        bidi.evaluate(context, "internals.gc(); undefined")
+        server.release_interception.set()
+        # NB: Fetch callbacks for the removed document need not run. Observe native redirect progress instead.
+        fetch_records(bidi, send_fetch(bidi, context, f"{origin}/network-interception/barrier"))
+        followed_redirect = server.detached_final_received.is_set()
+        # NB: Automatic crash recovery can restore the page URL while replacing its script state.
+        marker = bidi.evaluate(context, "window.detachedInterceptionMarker")
+        assert marker["result"].get("value") is True, marker
+        for event in bidi.events:
+            if event["method"] in ["network.beforeRequestSent", "network.responseStarted"]:
+                assert not event["params"]["isBlocked"], event
+        bidi.events[:] = [
+            event
+            for event in bidi.events
+            if event["method"] not in ["network.beforeRequestSent", "network.responseStarted"]
+        ]
+        if followed_redirect:
+            print("Detached keepalive transport followed the redirect after context destruction.")
+        else:
+            print("Detached transport did not follow the redirect; stale-navigable counterproof was not reached.")
+
+        # NB: The remaining live parent still intercepts its own request; detachment must not disable interception.
+        pending = send_fetch(bidi, context, final_url)
+        event = intercepted_event(bidi, "network.beforeRequestSent", final_url)
+        bidi.command("network.continueRequest", {"request": event["request"]["request"]})
+        fetch_records(bidi, pending)
+        assert bidi.evaluate(context, "document.readyState")["result"]["value"] == "complete"
+    finally:
+        server.release_interception.set()
+        if sys.exc_info()[0] is None:
+            for intercept in intercepts:
+                bidi.command("network.removeIntercept", {"intercept": intercept})
+            bidi.command("session.unsubscribe", {"subscriptions": [subscription]})
+
+
+def check_network_authentication_gates(bidi, context, server, kinds, credentials=None):
+    subscription = bidi.command("session.subscribe", {"events": ["network.authRequired"]})["subscription"]
+    try:
+        for kind in kinds:
+            host = "localhost" if kind == "cors" else "127.0.0.1"
+            url = f"http://{host}:{server.server_port}/network-interception/auth/gate-{kind}"
+            intercept = bidi.command(
+                "network.addIntercept",
+                {
+                    "phases": ["authRequired"],
+                    "urlPatterns": [{"type": "string", "pattern": url}],
+                },
+            )["intercept"]
+            with server.interception_lock:
+                server.interception_requests.clear()
+            fetch_options = {"credentials": "omit" if kind == "omit" else "include"}
+            if kind != "default":
+                fetch_options.update({"method": "POST", "body": "replayable-body"})
+            options = json.dumps(fetch_options)
+            if kind == "stream":
+                options = "{method: 'POST', credentials: 'include', duplex: 'half', body: new ReadableStream({start(controller) {controller.enqueue(new Uint8Array([97])); controller.close();}})}"
+            pending = bidi.send(
+                "script.evaluate",
+                {
+                    "target": {"context": context},
+                    "awaitPromise": True,
+                    "expression": f"fetch({json.dumps(url)}, {options}).then(async response => JSON.stringify({{status: response.status, body: await response.text()}}), error => JSON.stringify({{error: error.name}}))",
+                },
+            )
+            if kind in ["cancel", "default"]:
+                event = intercepted_event(bidi, "network.authRequired", url)
+                params = {"request": event["request"]["request"], "action": kind}
+                if credentials is not None:
+                    params["credentials"] = credentials
+                bidi.command("network.continueWithAuth", params)
+            else:
+                # Observe an invalid block immediately, rather than waiting for the blocked fetch to time out.
+                while pending not in bidi.responses:
+                    assert not any(
+                        event["method"] == "network.authRequired" and event["params"]["request"]["url"] == url
+                        for event in bidi.events
+                    ), bidi.events
+                    bidi.read_message()
+            result = fetch_records(bidi, pending)
+            if kind == "stream":
+                assert result == {"error": "TypeError"}, result
+            elif kind == "default":
+                # The browser's existing interactive credential prompt is not implemented.
+                assert result == {"error": "AbortError"}, result
+            else:
+                assert result == {"status": 401, "body": "authentication required"}, result
+            bidi.evaluate(context, "0")
+            assert not any(
+                event["method"] == "network.authRequired" and event["params"]["request"]["url"] == url
+                for event in bidi.events
+            ), bidi.events
+            with server.interception_lock:
+                records = list(server.interception_requests)
+            assert len(records) == 1, records
+            assert not any(key.lower() == "authorization" for key, _ in records[0]["headers"]), records
+            if kind != "stream":
+                assert records[0]["body"] == ("" if kind == "default" else "replayable-body"), records
+            bidi.command("network.removeIntercept", {"intercept": intercept})
+    finally:
+        if sys.exc_info()[0] is None:
+            bidi.command("session.unsubscribe", {"subscriptions": [subscription]})
+
+
+def check_network_continue_response_auth(bidi, context, server, credentials):
+    kind = "credentials" if credentials else "default"
+    url = f"http://127.0.0.1:{server.server_port}/network-interception/auth/continue-response-{kind}"
+    subscription = bidi.command("session.subscribe", {"events": ["network.authRequired"]})["subscription"]
+    intercept = bidi.command(
+        "network.addIntercept",
+        {
+            "phases": ["authRequired"],
+            "urlPatterns": [{"type": "string", "pattern": url}],
+        },
+    )["intercept"]
+    try:
+        with server.interception_lock:
+            server.interception_requests.clear()
+        options = {"method": "POST", "body": "continue-response-body"} if credentials else {}
+        pending = bidi.send(
+            "script.evaluate",
+            {
+                "target": {"context": context},
+                "awaitPromise": True,
+                "expression": f"fetch({json.dumps(url)}, {json.dumps(options)}).then(async response => JSON.stringify({{status: response.status, body: await response.text()}}), error => JSON.stringify({{error: error.name}}))",
+            },
+        )
+        event = intercepted_event(bidi, "network.authRequired", url)
+        params = {"request": event["request"]["request"]}
+        if credentials:
+            params["credentials"] = {"type": "password", "username": "user", "password": "pass"}
+        bidi.command("network.continueResponse", params)
+        while pending not in bidi.responses:
+            assert not any(
+                event["method"] == "network.authRequired" and event["params"]["request"]["url"] == url
+                for event in bidi.events
+            ), bidi.events
+            bidi.read_message()
+        result = fetch_records(bidi, pending)
+        with server.interception_lock:
+            records = list(server.interception_requests)
+        if credentials:
+            assert result["status"] == 200, result
+            assert json.loads(result["body"]) == json.loads(json.dumps(records)), (result, records)
+            assert len(records) == 2, records
+            for record in records:
+                assert record["method"] == "POST" and record["body"] == "continue-response-body", record
+                lengths = [value for key, value in record["headers"] if key.lower() == "content-length"]
+                assert lengths == [str(len("continue-response-body"))], record
+            assert not any(key.lower() == "authorization" for key, _ in records[0]["headers"]), records
+            authorization = [value for key, value in records[1]["headers"] if key.lower() == "authorization"]
+            assert authorization == ["Basic dXNlcjpwYXNz"], records
+        else:
+            # Default authentication reaches the browser's existing unimplemented prompt fallback.
+            assert result == {"error": "AbortError"}, result
+            assert len(records) == 1 and records[0]["method"] == "GET", records
+        bidi.evaluate(context, "0")
+        assert not any(
+            event["method"] == "network.authRequired" and event["params"]["request"]["url"] == url
+            for event in bidi.events
+        ), bidi.events
+    finally:
+        if sys.exc_info()[0] is None:
+            bidi.command("network.removeIntercept", {"intercept": intercept})
+            bidi.command("session.unsubscribe", {"subscriptions": [subscription]})
+
+
+def check_network_provide_response_auth(bidi, context, server, status):
+    kind = "omitted" if status is None else str(status)
+    url = f"http://127.0.0.1:{server.server_port}/network-interception/auth/provide-response-{kind}"
+    subscription = bidi.command("session.subscribe", {"events": ["network.authRequired"]})["subscription"]
+    intercept = bidi.command(
+        "network.addIntercept",
+        {"phases": ["authRequired"], "urlPatterns": [{"type": "string", "pattern": url}]},
+    )["intercept"]
+    try:
+        with server.interception_lock:
+            server.interception_requests.clear()
+        pending = bidi.send(
+            "script.evaluate",
+            {
+                "target": {"context": context},
+                "awaitPromise": True,
+                "expression": f"fetch({json.dumps(url)}).then(async response => JSON.stringify({{status: response.status, body: await response.text()}}), error => JSON.stringify({{error: error.name}}))",
+            },
+        )
+        event = intercepted_event(bidi, "network.authRequired", url)
+        params = {"request": event["request"]["request"], "body": {"type": "string", "value": "provided-auth-response"}}
+        if status is not None:
+            params["statusCode"] = status
+        bidi.command("network.provideResponse", params)
+        while pending not in bidi.responses:
+            assert not any(
+                event["method"] == "network.authRequired" and event["params"]["request"]["url"] == url
+                for event in bidi.events
+            ), bidi.events
+            bidi.read_message()
+        assert fetch_records(bidi, pending) == {
+            "status": 401 if status is None else status,
+            "body": "provided-auth-response",
+        }
+        with server.interception_lock:
+            records = list(server.interception_requests)
+        assert len(records) == 1 and records[0]["method"] == "GET", records
+        assert not any(key.lower() == "authorization" for key, _ in records[0]["headers"]), records
+        bidi.evaluate(context, "0")
+        assert not any(
+            event["method"] == "network.authRequired" and event["params"]["request"]["url"] == url
+            for event in bidi.events
+        ), bidi.events
+    finally:
+        if sys.exc_info()[0] is None:
+            bidi.command("network.removeIntercept", {"intercept": intercept})
+            bidi.command("session.unsubscribe", {"subscriptions": [subscription]})
+
+
+def check_network_failed_response_transport(bidi, context, server):
+    url = f"http://127.0.0.1:{server.server_port}/network-interception/fail-body"
+    server.interception_transport_closed.clear()
+    subscription = bidi.command("session.subscribe", {"events": ["network.responseStarted"]})["subscription"]
+    intercept = bidi.command(
+        "network.addIntercept",
+        {
+            "phases": ["responseStarted"],
+            "urlPatterns": [{"type": "string", "pattern": url}],
+        },
+    )["intercept"]
+    try:
+        pending = bidi.send(
+            "script.evaluate",
+            {
+                "target": {"context": context},
+                "awaitPromise": True,
+                "expression": f"fetch({json.dumps(url)}).then(() => 'fulfilled', error => error.name)",
+            },
+        )
+        event = intercepted_event(bidi, "network.responseStarted", url)
+        bidi.command("network.failRequest", {"request": event["request"]["request"]})
+        result = bidi.response(pending)
+        assert result["type"] == "success" and result["result"]["result"]["value"] == "TypeError", result
+        assert server.interception_transport_closed.wait(30), "Failed interception left the original transport open"
+    finally:
+        if sys.exc_info()[0] is None:
+            bidi.command("network.removeIntercept", {"intercept": intercept})
+            bidi.command("session.unsubscribe", {"subscriptions": [subscription]})
+
+
+def check_network_scoped_headers(bidi, context, server):
+    other = bidi.command("browsingContext.create", {"type": "tab"})["context"]
+
+    def set_headers(target, value):
+        bidi.command(
+            "network.setExtraHeaders",
+            {
+                "contexts": [target],
+                "headers": [{"name": "X-Scoped-Secret", "value": {"type": "string", "value": value}}],
+            },
+        )
+
+    def check_headers(target, host, expected):
+        with server.interception_lock:
+            server.interception_requests.clear()
+        records = fetch_records(
+            bidi, send_fetch(bidi, target, f"http://{host}:{server.server_port}/network-interception/scoped")
+        )
+        values = [value for key, value in records[-1]["headers"] if key.lower() == "x-scoped-secret"]
+        assert values == [expected], records
+
+    try:
+        set_headers(context, "first-tab")
+        # Set the second tab's scope before its new process is provisioned.
+        set_headers(other, "second-tab")
+        bidi.command(
+            "browsingContext.navigate",
+            {
+                "context": other,
+                "url": f"http://localhost:{server.server_port}/input-child",
+                "wait": "complete",
+            },
+        )
+        bidi.evaluate(
+            other,
+            "new Promise(resolve => { const frame = document.createElement('iframe'); "
+            f"frame.src = 'http://127.0.0.1:{server.server_port}/input-child'; "
+            "frame.onload = resolve; document.body.append(frame); })",
+            awaitPromise=True,
+        )
+        tree = bidi.command("browsingContext.getTree", {"root": other})["contexts"][0]
+        assert len(tree["children"]) == 1, tree
+        child = tree["children"][0]["context"]
+        check_headers(context, "127.0.0.1", "first-tab")
+        check_headers(other, "localhost", "second-tab")
+        check_headers(child, "127.0.0.1", "second-tab")
+    finally:
+        if sys.exc_info()[0] is None:
+            bidi.command("network.setExtraHeaders", {"contexts": [context], "headers": []})
+            bidi.command("browsingContext.close", {"context": other})
+
+
+def check_network_intercepted_navigation(bidi, context, server):
+    origin = f"http://127.0.0.1:{server.server_port}"
+    url = f"http://localhost:{server.server_port}/intercepted-navigation"
+    subscription = bidi.command("session.subscribe", {"events": ["network.beforeRequestSent", "browsingContext.load"]})[
+        "subscription"
+    ]
+    intercept = bidi.command(
+        "network.addIntercept",
+        {"phases": ["beforeRequestSent"], "urlPatterns": [{"type": "string", "pattern": url}]},
+    )["intercept"]
+    try:
+        navigation_command = bidi.send("browsingContext.navigate", {"context": context, "url": url, "wait": "none"})
+        event = intercepted_event(bidi, "network.beforeRequestSent", url)
+        assert event["navigation"] is not None, event
+        bidi.command(
+            "network.provideResponse",
+            {
+                "request": event["request"]["request"],
+                "statusCode": 200,
+                "headers": [{"name": "Content-Type", "value": {"type": "string", "value": "text/html"}}],
+                "body": {"type": "string", "value": "<!doctype html><title>Intercepted navigation</title><p>Provided"},
+            },
+        )
+        navigation = bidi.response(navigation_command)
+        assert navigation["type"] == "success", navigation
+        assert navigation["result"]["navigation"] == event["navigation"], navigation
+        loaded = bidi.event("browsingContext.load")
+        assert loaded["context"] == context and loaded["url"] == url, loaded
+        assert loaded["navigation"] == event["navigation"], loaded
+        assert bidi.evaluate(context, "document.title")["result"]["value"] == "Intercepted navigation"
+    finally:
+        if sys.exc_info()[0] is None:
+            bidi.command("network.removeIntercept", {"intercept": intercept})
+            bidi.command("session.unsubscribe", {"subscriptions": [subscription]})
+            bidi.command(
+                "browsingContext.navigate",
+                {"context": context, "url": f"{origin}/interception-page", "wait": "complete"},
+            )
+
+
+def check_network_interception(bidi, context, server, case="all"):
+    bidi.command(
+        "browsingContext.navigate",
+        {
+            "context": context,
+            "url": f"http://127.0.0.1:{server.server_port}/interception-page",
+            "wait": "complete",
+        },
+    )
+    # NB: This must run before any network subscription or interception creates state for the held request.
+    if case in ["all", "late-enable"]:
+        check_network_late_interception(bidi, context, server)
+    if case in ["all", "late-abort"]:
+        check_network_late_interception(bidi, context, server, abort=True)
+    if case in ["all", "redirect", "auth", "overrides"]:
+        check_network_override_retries(
+            bidi, context, server, ["redirect", "auth", "overrides"] if case == "all" else [case]
+        )
+    echo_cases = [
+        "echo-307",
+        "echo-303",
+        "echo-auth",
+        "explicit-307",
+        "explicit-303",
+        "explicit-auth",
+        "echo-body",
+        "echo-range",
+        "explicit-range",
+        "explicit-unsubscribe",
+    ]
+    if case in ["all", "echo-headers", *echo_cases]:
+        check_network_echoed_headers(bidi, context, server, echo_cases if case in ["all", "echo-headers"] else [case])
+    if case in ["all", "detached"]:
+        check_network_detached_interception(bidi, context, server)
+    if case in ["all", "navigation"]:
+        check_network_intercepted_navigation(bidi, context, server)
+    if case in ["all", "scoped-headers"]:
+        check_network_scoped_headers(bidi, context, server)
+    if case in ["all", "fail-transport"]:
+        check_network_failed_response_transport(bidi, context, server)
+    for action in ["cancel", "default"]:
+        if case in ["all", "auth-response-matrix", "auth-action-extras", f"auth-{action}-extra"]:
+            for credentials in [{"type": "password", "username": "user", "password": "pass"}, {}]:
+                check_network_authentication_gates(bidi, context, server, [action], credentials)
+    for status, kind in [(None, "omitted"), (401, "401"), (200, "200")]:
+        if case in ["all", "auth-response-matrix", "auth-provide-response", f"auth-provide-response-{kind}"]:
+            check_network_provide_response_auth(bidi, context, server, status)
+    if case in ["all", "auth-response-matrix", "auth-continue-response", "auth-continue-response-default"]:
+        check_network_continue_response_auth(bidi, context, server, credentials=False)
+    if case in ["all", "auth-response-matrix", "auth-continue-response", "auth-continue-response-credentials"]:
+        check_network_continue_response_auth(bidi, context, server, credentials=True)
+    if case in ["all", "auth-gates", "auth-omit", "auth-cors", "auth-stream", "auth-cancel", "auth-default"]:
+        kinds = (
+            ["omit", "cors", "stream", "cancel", "default"]
+            if case in ["all", "auth-gates"]
+            else [case.removeprefix("auth-")]
+        )
+        check_network_authentication_gates(bidi, context, server, kinds)
 
 
 def check_network_download_events(bidi, context, server, downloads):
@@ -911,6 +1740,7 @@ def cleanup_resources(server, webdriver, connection, bidi, session_id, *, primar
             attempt(lambda: webdriver.wait(timeout=5))
 
     attempt(server.release_response.set)
+    attempt(server.release_interception.set)
     if session_id and connection:
         attempt(lambda: helpers.request(connection, "DELETE", f"/session/{session_id}"))
     if bidi:
@@ -924,7 +1754,14 @@ def cleanup_resources(server, webdriver, connection, bidi, session_id, *, primar
         raise errors[0]
 
 
-def run_test(webdriver_binary, *, input_cross_context_only=False, network_download_only=False):
+def run_test(
+    webdriver_binary,
+    *,
+    input_cross_context_only=False,
+    network_download_only=False,
+    network_interception_only=False,
+    network_interception_case="all",
+):
     with tempfile.TemporaryDirectory(prefix="ladybird-webdriver-bidi-") as profile:
         downloads = os.path.join(profile, "downloads")
         os.mkdir(downloads)
@@ -973,6 +1810,12 @@ def run_test(webdriver_binary, *, input_cross_context_only=False, network_downlo
             rejected.close()
             bidi = BiDiConnection(websocket_url)
             context = bidi.command("browsingContext.getTree", {})["contexts"][0]["context"]
+            if network_interception_only:
+                check_network_interception(bidi, context, server, network_interception_case)
+                status, payload, _ = helpers.request(connection, "DELETE", f"/session/{session_id}")
+                assert status == 200, payload
+                session_id = None
+                return
             if network_download_only:
                 check_network_download_events(bidi, context, server, downloads)
                 status, payload, _ = helpers.request(connection, "DELETE", f"/session/{session_id}")
@@ -986,6 +1829,7 @@ def run_test(webdriver_binary, *, input_cross_context_only=False, network_downlo
                 assert status == 200, payload
                 session_id = None
                 return
+            check_network_interception(bidi, context, server, network_interception_case)
             check_network_download_events(bidi, context, server, downloads)
             check_screenshot_handles(bidi, context)
             check_input_handles(bidi, context)
@@ -1177,9 +2021,56 @@ if __name__ == "__main__":
     parser.add_argument("webdriver_binary")
     parser.add_argument("--input-cross-context-only", action="store_true")
     parser.add_argument("--network-download-only", action="store_true")
+    parser.add_argument("--network-interception-only", action="store_true")
+    parser.add_argument(
+        "--network-interception-case",
+        choices=[
+            "all",
+            "late-enable",
+            "late-abort",
+            "redirect",
+            "auth",
+            "overrides",
+            "detached",
+            "navigation",
+            "scoped-headers",
+            "fail-transport",
+            "auth-gates",
+            "auth-omit",
+            "auth-cors",
+            "auth-stream",
+            "auth-cancel",
+            "auth-default",
+            "echo-headers",
+            "echo-307",
+            "echo-303",
+            "echo-auth",
+            "explicit-307",
+            "explicit-303",
+            "explicit-auth",
+            "echo-body",
+            "echo-range",
+            "explicit-range",
+            "explicit-unsubscribe",
+            "auth-response-matrix",
+            "auth-action-extras",
+            "auth-cancel-extra",
+            "auth-default-extra",
+            "auth-provide-response",
+            "auth-provide-response-omitted",
+            "auth-provide-response-401",
+            "auth-provide-response-200",
+            "auth-continue-response",
+            "auth-continue-response-default",
+            "auth-continue-response-credentials",
+        ],
+        default="all",
+    )
     args = parser.parse_args()
     run_test(
         args.webdriver_binary,
         input_cross_context_only=args.input_cross_context_only,
         network_download_only=args.network_download_only,
+        network_interception_only=args.network_interception_only,
+        network_interception_case=args.network_interception_case,
     )

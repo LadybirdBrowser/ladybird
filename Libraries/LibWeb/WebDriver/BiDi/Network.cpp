@@ -11,6 +11,8 @@
 #include <AK/StringBuilder.h>
 #include <AK/Time.h>
 #include <LibRequests/Request.h>
+#include <LibWeb/DOM/Document.h>
+#include <LibWeb/Fetch/BodyInit.h>
 #include <LibWeb/Fetch/Infrastructure/ClientContextSnapshot.h>
 #include <LibWeb/Fetch/Infrastructure/FetchParams.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
@@ -24,8 +26,252 @@
 namespace Web::WebDriver::BiDi {
 
 using namespace Fetch::Infrastructure;
+using Response = Fetch::Infrastructure::Response;
+
+GC_DEFINE_ALLOCATOR(NetworkContinuation);
+
+NetworkContinuation::NetworkContinuation(Callback callback)
+    : m_callback(move(callback))
+{
+}
+
+GC::Ref<NetworkContinuation> NetworkContinuation::create(GC::Heap& heap, Callback callback)
+{
+    return heap.allocate<NetworkContinuation>(move(callback));
+}
+
+void NetworkContinuation::finalize()
+{
+    Base::finalize();
+    clear_blocked_state();
+    m_callback = nullptr;
+}
+
+void NetworkContinuation::visit_edges(JS::Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(fetch_params);
+    visitor.visit(response);
+    visitor.visit(global_object);
+    visitor.visit_possible_values(m_callback.raw_capture_range());
+}
+
+void NetworkContinuation::invoke(NetworkContinuationAction action, GC::Ptr<Response> response)
+{
+    m_callback(action, response);
+    m_callback = nullptr;
+}
 
 bool g_network_events_enabled { false };
+bool g_network_configuration_enabled { false };
+
+void NetworkContinuation::clear_blocked_state()
+{
+    request_id = {};
+    phase = {};
+    intercepts = {};
+    fetch_params = nullptr;
+    original_request = nullptr;
+    response = nullptr;
+    global_object = nullptr;
+}
+
+static HashMap<String, GC::Root<NetworkContinuation>>& blocked_requests()
+{
+    static auto& requests = *new HashMap<String, GC::Root<NetworkContinuation>>;
+    return requests;
+}
+
+static GC::Ptr<NetworkContinuation> blocked_request(Request const& request)
+{
+    auto state = request.webdriver_bidi_network_request();
+    if (!state)
+        return nullptr;
+    auto it = blocked_requests().find(state->id);
+    return it == blocked_requests().end() ? nullptr : it->value.ptr();
+}
+
+static GC::Ptr<NetworkContinuation> blocked_request(FetchController const& controller)
+{
+    auto fetch_params = controller.fetch_params();
+    if (!fetch_params)
+        return nullptr;
+    auto blocked = blocked_request(*fetch_params->request());
+    return blocked && blocked->fetch_params->controller().ptr() == &controller ? blocked : nullptr;
+}
+
+static void share_blocked_request_identity(FetchParams const& fetch_params)
+{
+    if (auto blocked = blocked_request(*fetch_params.controller()))
+        fetch_params.request()->set_webdriver_bidi_network_request(blocked->fetch_params->request()->webdriver_bidi_network_request());
+}
+
+static void stop_response_transport(FetchParams const& fetch_params, Response const& response)
+{
+    response.release_request_transfer_lease();
+    fetch_params.controller()->stop_body_transport();
+}
+
+static void resume_blocked_request(String id, NetworkContinuationAction action, GC::Ptr<Fetch::Infrastructure::Response> response)
+{
+    auto it = blocked_requests().find(id);
+    if (it == blocked_requests().end())
+        return;
+    GC::Ptr<NetworkContinuation> continuation = it->value.ptr();
+    auto fetch_params = continuation->fetch_params;
+    auto original_response = continuation->response;
+    // NB: Remove the entry before stopping transport or invoking a continuation, which can reenter Fetch.
+    blocked_requests().remove(it);
+    continuation->clear_blocked_state();
+    if (action == NetworkContinuationAction::Fail && original_response)
+        stop_response_transport(*fetch_params, *original_response);
+    continuation->invoke(action, response);
+}
+
+static void cancel_network_interception_impl(FetchParams const& fetch_params, StringView error_text)
+{
+    auto blocked = blocked_request(*fetch_params.controller());
+    if (!blocked)
+        return;
+    share_blocked_request_identity(fetch_params);
+    resume_blocked_request(blocked->request_id, NetworkContinuationAction::Fail, Response::network_error(String::from_utf8_with_replacement_character(error_text)));
+}
+
+void cancel_network_interception(FetchParams const& fetch_params)
+{
+    cancel_network_interception_impl(fetch_params, "Intercepted fetch was stopped"sv);
+}
+
+void network_session_state_changed()
+{
+    auto const& state = session_state();
+    g_network_events_enabled = state.is_active && any_of(state.enabled_events, [](auto const& name) { return name.starts_with_bytes("network."sv); });
+    g_network_configuration_enabled = state.is_active && (!state.network_default_headers.is_empty() || !state.network_user_context_headers.is_empty() || !state.network_navigable_headers.is_empty() || state.network_default_cache_behavior != "default"sv || !state.network_navigable_cache_behavior.is_empty());
+    if (!state.is_active) {
+        // https://w3c.github.io/webdriver-bidi/#cleanup-the-session
+        while (!blocked_requests().is_empty()) {
+            auto const& entry = *blocked_requests().begin();
+            auto response = entry.value->response;
+            resume_blocked_request(entry.key, NetworkContinuationAction::Continue, response);
+        }
+    }
+}
+
+static GC::Ptr<HTML::LocalNavigable> navigable_of(NetworkRequest const& state)
+{
+    if (!state.navigable_id.has_value())
+        return {};
+    return HTML::local_navigable_with_id(*state.navigable_id);
+}
+
+static GC::Ptr<HTML::Navigable> request_navigable(Request const& request)
+{
+    if (auto state = request.webdriver_bidi_network_request())
+        return navigable_of(*state);
+    if (auto const& client = request.client_snapshot(); client && client->navigable_id.has_value())
+        return HTML::local_navigable_with_id(*client->navigable_id);
+    if (auto const* id = request.traversable_for_user_prompts().get_pointer<HTML::CrossProcessId>())
+        return HTML::local_navigable_with_id(*id);
+    return nullptr;
+}
+
+static String network_context_id(HTML::Navigable& navigable)
+{
+    auto id = navigable.top_level_traversable()->id();
+    return MUST(String::formatted("{}-{}", id.namespace_id, id.local_id));
+}
+
+// https://w3c.github.io/webdriver-bidi/#webdriver-bidi-cache-behavior
+void apply_network_cache_behavior(Request& request)
+{
+    auto const& state = session_state();
+    auto behavior = state.network_default_cache_behavior;
+    if (auto navigable = request_navigable(request))
+        behavior = state.network_navigable_cache_behavior.get(network_context_id(*navigable)).value_or(behavior);
+    if (behavior == "bypass"sv)
+        request.set_cache_mode(HTTP::CacheMode::NoStore);
+}
+
+// https://w3c.github.io/webdriver-bidi/#update-request-headers
+static constexpr Array fetch_generated_request_header_names {
+    "Content-Length"sv,
+    "Accept-Encoding"sv,
+    "Referer"sv,
+    "Origin"sv,
+    "Sec-Fetch-Dest"sv,
+    "Sec-Fetch-Mode"sv,
+    "Sec-Fetch-Site"sv,
+    "Sec-Fetch-User"sv,
+};
+
+void apply_network_request_header_overrides(Request& request)
+{
+    auto state = request.webdriver_bidi_network_request();
+    if (!state || !state->request_header_overrides)
+        return;
+    for (auto name : fetch_generated_request_header_names) {
+        if (!state->request_header_overrides->contains(name))
+            continue;
+        request.header_list()->delete_(name);
+        for (auto const& header : *state->request_header_overrides) {
+            if (header.name.equals_ignoring_ascii_case(name))
+                request.header_list()->append(header);
+        }
+    }
+}
+
+void apply_network_extra_headers(Request& request)
+{
+    auto const& state = session_state();
+    // https://w3c.github.io/webdriver-bidi/#update-headers
+    auto update_headers = [&](auto const& headers) {
+        for (auto const& header : headers)
+            request.header_list()->set(header);
+    };
+    // 2. Update headers with request and session's extra headers' default headers
+    update_headers(state.network_default_headers);
+    if (auto navigable = request_navigable(request)) {
+        if (auto it = state.network_user_context_headers.find("default"_string); it != state.network_user_context_headers.end())
+            update_headers(it->value);
+        auto id = network_context_id(*navigable);
+        if (auto it = state.network_navigable_headers.find(id); it != state.network_navigable_headers.end())
+            update_headers(it->value);
+    }
+}
+
+// https://w3c.github.io/webdriver-bidi/#get-the-network-intercepts
+JsonArray get_network_intercepts(FetchParams const& fetch_params, StringView phase)
+{
+    JsonArray intercepts;
+    if (session_state().network_intercepts.is_empty() || !is_event_enabled(MUST(String::formatted("network.{}", phase))))
+        return intercepts;
+    auto request = fetch_params.request();
+    auto state = request->webdriver_bidi_network_request();
+    if (state && ((phase == "beforeRequestSent"sv && state->before_request_sent.contains(request->redirect_count())) || (phase == "responseStarted"sv && state->response_started.contains(request->redirect_count()))))
+        return intercepts;
+    // NB: An existing request keeps its original context. A request first observed after instrumentation was
+    //     enabled can still discover its context, and blocking must use that same context.
+    auto navigable = request_navigable(*request);
+    if (!navigable || fetch_params.is_canceled() || fetch_params.controller()->state() == FetchController::State::Stopped)
+        return intercepts;
+    if (!state)
+        initialize_network_request(*request, navigable);
+    auto context = network_context_id(*navigable);
+    auto event_name = MUST(String::formatted("network.{}", phase));
+    auto scope = session_state().enabled_event_contexts.find(event_name);
+    if (scope == session_state().enabled_event_contexts.end() || (scope->value.has_value() && !scope->value->contains_slow(context)))
+        return intercepts;
+    // 5. For each intercept id → intercept of session intercepts:
+    for (auto const& intercept : session_state().network_intercepts) {
+        if (intercept.browsing_contexts.has_value() && !intercept.browsing_contexts->contains_slow(context))
+            continue;
+        if (!intercept.phases.contains_slow(phase))
+            continue;
+        if (intercept.url_patterns.is_empty() || any_of(intercept.url_patterns, [&](auto const& pattern) { return pattern.matches(request->current_url()); }))
+            MUST(intercepts.append(intercept.id));
+    }
+    return intercepts;
+}
 
 NetworkRequest::NetworkRequest()
     : id(generate_random_uuid())
@@ -34,7 +280,7 @@ NetworkRequest::NetworkRequest()
 
 void initialize_network_request(Request& request, GC::Ptr<HTML::Navigable> navigable, Optional<Utf16String> const& navigation)
 {
-    if (!g_network_events_enabled || request.webdriver_bidi_network_request())
+    if ((!g_network_events_enabled && !g_network_configuration_enabled) || request.webdriver_bidi_network_request())
         return;
     auto state = NetworkRequest::create();
     if (navigable)
@@ -46,11 +292,17 @@ void initialize_network_request(Request& request, GC::Ptr<HTML::Navigable> navig
     request.set_webdriver_bidi_network_request(state);
 }
 
-static GC::Ptr<HTML::LocalNavigable> navigable_of(NetworkRequest const& state)
+void synchronize_network_request(Request& original, Request& prepared)
 {
-    if (!state.navigable_id.has_value())
-        return {};
-    return HTML::local_navigable_with_id(*state.navigable_id);
+    auto state = original.webdriver_bidi_network_request();
+    if (!state)
+        state = prepared.webdriver_bidi_network_request();
+    if (!state) {
+        initialize_network_request(original, request_navigable(original));
+        state = original.webdriver_bidi_network_request();
+    }
+    original.set_webdriver_bidi_network_request(state);
+    prepared.set_webdriver_bidi_network_request(state);
 }
 
 // https://w3c.github.io/webdriver-bidi/#serialize-protocol-bytes
@@ -131,10 +383,16 @@ static JsonObject get_the_request_data(Request const& request, FetchTimingInfo c
     result.set("request"sv, request.webdriver_bidi_network_request()->id);
     result.set("url"sv, request.current_url().serialize());
     result.set("method"sv, MUST(String::from_utf8(request.method().view())));
-    result.set("headers"sv, serialize_headers(request.header_list()));
+    // NB: RequestServer sends one field per name, combining repeated values in order.
+    auto headers = HTTP::HeaderList::create();
+    for (auto const& header : *request.header_list()) {
+        if (!headers->contains(header.name))
+            headers->append({ header.name, request.header_list()->get(header.name).release_value() });
+    }
+    result.set("headers"sv, serialize_headers(headers));
     // FIXME: Include the cookies attached by RequestServer.
     result.set("cookies"sv, JsonArray {});
-    result.set("headersSize"sv, headers_size(request.header_list()));
+    result.set("headersSize"sv, headers_size(headers));
     JsonValue body_size;
     if (auto const* bytes = request.body().get_pointer<ByteBuffer>())
         body_size = bytes->size();
@@ -250,7 +508,10 @@ static JsonObject process_a_network_event(HTML::Navigable const& navigable, Requ
     JsonObject params;
     params.set("context"sv, navigable_id(navigable));
     params.set("userContext"sv, "default"sv);
-    params.set("isBlocked"sv, false);
+    auto blocked = blocked_request(request);
+    params.set("isBlocked"sv, blocked != nullptr);
+    if (blocked)
+        params.set("intercepts"sv, blocked->intercepts);
     params.set("navigation"sv, state->navigation.has_value() ? JsonValue(*state->navigation) : JsonValue {});
     params.set("redirectCount"sv, request.redirect_count());
     JsonObject request_data;
@@ -264,9 +525,203 @@ static JsonObject process_a_network_event(HTML::Navigable const& navigable, Requ
     return params;
 }
 
+void block_network_request(JS::Object& global_object, FetchParams const& fetch_params, GC::Ptr<Fetch::Infrastructure::Response> response, String phase, JsonArray intercepts, GC::Ref<NetworkContinuation> continuation, RefPtr<Fetch::Infrastructure::Request> original_request)
+{
+    auto request = fetch_params.request();
+    // NB: Cancellation runs through the controller's original parameters, rather than a prepared HTTP clone.
+    //     Bind both requests to the same identity before exposing a blocked request.
+    if (auto original_params = fetch_params.controller()->fetch_params()) {
+        synchronize_network_request(*original_params->request(), *request);
+        if (!original_request)
+            original_request = original_params->request();
+    }
+    initialize_network_request(*request);
+    auto state = request->webdriver_bidi_network_request();
+    if (fetch_params.is_canceled() || fetch_params.controller()->state() == FetchController::State::Stopped) {
+        if (response)
+            stop_response_transport(fetch_params, *response);
+        continuation->invoke(NetworkContinuationAction::Fail, Response::network_error("Intercepted fetch was stopped"_string));
+        return;
+    }
+    // NB: Allocating the continuation after selecting intercepts can collect an otherwise unreachable origin.
+    //     Continue the fetch without blocking when that context has gone away.
+    if (!state || !navigable_of(*state)) {
+        continuation->invoke(NetworkContinuationAction::Continue, response);
+        return;
+    }
+    VERIFY(!blocked_requests().contains(state->id));
+    continuation->request_id = state->id;
+    continuation->phase = move(phase);
+    continuation->intercepts = move(intercepts);
+    continuation->fetch_params = fetch_params;
+    continuation->original_request = original_request;
+    continuation->response = response;
+    continuation->global_object = global_object;
+    if (original_request)
+        original_request->set_webdriver_bidi_network_request(state);
+    blocked_requests().set(state->id, GC::make_root(continuation));
+    if (continuation->phase == "beforeRequestSent"sv) {
+        network_before_request_sent(fetch_params);
+    } else if (continuation->phase == "responseStarted"sv) {
+        network_response_started(fetch_params, *response);
+    } else {
+        network_auth_required(fetch_params, *response);
+    }
+}
+
+// https://w3c.github.io/webdriver-bidi/#command-network-continueRequest
+// https://w3c.github.io/webdriver-bidi/#update-the-response
+static ErrorOr<JsonValue, Error> continue_network_request_impl(StringView method, JsonObject const& params)
+{
+    TRY(Network::validate_interception_parameters(method, params));
+    // 1. Let blocked requests be session's blocked request map.
+    // 2. Let request id be command parameters["request"].
+    auto id = params.get_string("request"sv).release_value();
+    // 3. If blocked requests does not contain request id then return error with error code no such request.
+    auto it = blocked_requests().find(id);
+    if (it == blocked_requests().end())
+        return Error::from_code(ErrorCode::NoSuchRequest, "Blocked request not found"sv);
+    GC::Ptr<NetworkContinuation> blocked = it->value.ptr();
+    auto phase = blocked->phase;
+    if ((method == "network.continueRequest"sv && phase != "beforeRequestSent"sv)
+        || (method == "network.continueResponse"sv && phase == "beforeRequestSent"sv)
+        || (method == "network.continueWithAuth"sv && phase != "authRequired"sv)
+        || (method == "network.failRequest"sv && phase == "authRequired"sv))
+        return Error::from_code(ErrorCode::InvalidArgument, "Command does not apply to the blocked phase"sv);
+    auto overrides = TRY(Network::deserialize_interception_overrides(method, params));
+    auto request = blocked->fetch_params->request();
+    auto state = request->webdriver_bidi_network_request();
+    auto response = blocked->response;
+    auto action = NetworkContinuationAction::Continue;
+    if (method == "network.continueRequest"sv) {
+        // NB: A supplied header list may include Fetch-generated fields echoed from the event. Remember those
+        //     explicit values separately, so preparation can restore them without appending duplicate fields.
+        if (overrides.headers.has_value()) {
+            state->request_header_overrides = HTTP::HeaderList::create();
+            for (auto const& header : *overrides.headers) {
+                if (any_of(fetch_generated_request_header_names, [&](auto name) { return header.name.equals_ignoring_ascii_case(name); }))
+                    state->request_header_overrides->append(header);
+            }
+        }
+        auto original_request = blocked->original_request;
+        if (original_request && original_request != request) {
+            if (overrides.url.has_value())
+                original_request->url_list().last() = *overrides.url;
+            if (overrides.method.has_value())
+                original_request->set_method(*overrides.method);
+            if (overrides.headers.has_value()) {
+                auto headers = HTTP::HeaderList::create(*overrides.headers);
+                for (auto name : fetch_generated_request_header_names)
+                    headers->delete_(name);
+                original_request->set_header_list(move(headers));
+            }
+            if (overrides.cookie_header.has_value())
+                original_request->header_list()->set({ "Cookie"sv, *overrides.cookie_header });
+        }
+        if (overrides.url.has_value())
+            request->url_list().last() = overrides.url.release_value();
+        if (overrides.method.has_value())
+            request->set_method(overrides.method.release_value());
+        if (overrides.headers.has_value())
+            request->set_header_list(HTTP::HeaderList::create(overrides.headers.release_value()));
+        if (overrides.cookie_header.has_value())
+            request->header_list()->set({ "Cookie"sv, overrides.cookie_header.release_value() });
+        if (overrides.body.has_value()) {
+            if (state->request_header_overrides)
+                state->request_header_overrides->delete_("Content-Length"sv);
+            if (original_request)
+                original_request->header_list()->delete_("Content-Length"sv);
+            auto body = FetchBody::from_bytes(Core::ImmutableBytes::adopt(overrides.body.release_value()));
+            request->set_body(body);
+            if (original_request && original_request != request)
+                original_request->set_body(body);
+            request->header_list()->set({ "Content-Length"sv, ByteString::number(*body.length()) });
+        }
+
+        state->request_data.set(request->redirect_count(), get_the_request_data(*request, *blocked->fetch_params->timing_info()));
+        if (params.has("url"sv) || params.has("method"sv) || params.has("headers"sv) || params.has("body"sv) || params.has("cookies"sv))
+            action = NetworkContinuationAction::ContinueWithModifiedRequest;
+    } else if (method == "network.failRequest"sv) {
+        action = NetworkContinuationAction::Fail;
+        response = Fetch::Infrastructure::Response::network_error("Request failed by WebDriver BiDi"_string);
+    } else if (method != "network.continueWithAuth"sv) {
+        if (!response) {
+            response = Fetch::Infrastructure::Response::create();
+            response->set_url_list(request->url_list());
+        }
+        // 7. If command parameters contains "statusCode":
+        if (overrides.status.has_value())
+            response->set_status(*overrides.status);
+        // 8. If command parameters contains "reasonPhrase":
+        if (overrides.reason.has_value())
+            response->set_status_message(overrides.reason.release_value());
+        // 9. If command parameters contains "headers":
+        if (overrides.headers.has_value())
+            response->set_header_list(HTTP::HeaderList::create(overrides.headers.release_value()));
+        if (overrides.set_cookie_headers.has_value()) {
+            if (!params.has("headers"sv)) {
+                response->set_header_list(HTTP::HeaderList::create(response->header_list()->headers()));
+                response->header_list()->delete_("Set-Cookie"sv);
+            }
+            for (auto const& header : *overrides.set_cookie_headers)
+                response->header_list()->append(header);
+        }
+        if (method == "network.provideResponse"sv)
+            action = NetworkContinuationAction::ProvideResponse;
+        if (method == "network.provideResponse"sv && overrides.body.has_value()) {
+            // NB: A replacement body has no RequestServer transport to transfer to a new navigation process.
+            if (blocked->response) {
+                blocked->response->release_request_transfer_lease();
+                blocked->fetch_params->controller()->stop_body_transport();
+            }
+            auto replacement = Response::create();
+            replacement->set_url_list(response->url_list());
+            replacement->set_status(response->status());
+            replacement->set_status_message(response->status_message());
+            replacement->set_header_list(response->header_list());
+            response = replacement;
+            auto bytes = overrides.body.release_value();
+            auto body = Fetch::safely_extract_body(HTML::relevant_realm(*blocked->global_object), ReadonlyBytes { bytes.bytes() }).body;
+            response->set_body(body);
+            auto info = response->body_info();
+            info.encoded_size = *body->length();
+            info.decoded_size = *body->length();
+            response->set_body_info(info);
+        }
+    }
+    if (phase == "authRequired"sv && method != "network.failRequest"sv && method != "network.provideResponse"sv) {
+        action = NetworkContinuationAction::UseDefaultAuthentication;
+        if (method == "network.continueWithAuth"sv) {
+            auto auth_action = params.get_string("action"sv).release_value();
+            if (auth_action == "default"sv)
+                action = NetworkContinuationAction::UseDefaultAuthentication;
+            else if (auth_action == "cancel"sv)
+                action = NetworkContinuationAction::CancelAuthentication;
+            else
+                action = NetworkContinuationAction::ProvideCredentials;
+        }
+        if (auto credentials = params.get_object("credentials"sv); credentials.has_value() && (method == "network.continueResponse"sv || action == NetworkContinuationAction::ProvideCredentials)) {
+            auto payload = MUST(String::formatted("{}:{}", *credentials->get_string("username"sv), *credentials->get_string("password"sv)));
+            request->header_list()->set({ "Authorization"sv, ByteString::formatted("Basic {}", MUST(encode_base64(payload.bytes()))) });
+            action = NetworkContinuationAction::ProvideCredentials;
+        }
+    }
+    resume_blocked_request(id, action, response);
+    return JsonValue {};
+}
+
+WebDriver::Response continue_network_request(StringView method, JsonObject const& params)
+{
+    auto result = continue_network_request_impl(method, params);
+    if (result.is_error())
+        return result.release_error();
+    return result.release_value();
+}
+
 // https://w3c.github.io/webdriver-bidi/#webdriver-bidi-before-request-sent
 void network_before_request_sent(FetchParams const& fetch_params)
 {
+    share_blocked_request_identity(fetch_params);
     auto request = fetch_params.request();
     initialize_network_request(*request);
     auto state = request->webdriver_bidi_network_request();
@@ -303,6 +758,20 @@ void network_response_started(FetchParams const& fetch_params, Response& respons
     }
 }
 
+// https://w3c.github.io/webdriver-bidi/#event-network-authRequired
+void network_auth_required(FetchParams const& fetch_params, Response const& response)
+{
+    auto state = fetch_params.request()->webdriver_bidi_network_request();
+    if (!state || !is_event_enabled("network.authRequired"sv))
+        return;
+    auto navigable = navigable_of(*state);
+    if (!navigable)
+        return;
+    auto params = process_a_network_event(*navigable, *fetch_params.request(), *fetch_params.timing_info());
+    params.set("response"sv, get_the_response_data(response, *fetch_params.timing_info()));
+    emit_event(*navigable, "network.authRequired"_string, move(params));
+}
+
 // https://w3c.github.io/webdriver-bidi/#event-network-responseCompleted
 void network_response_completed(FetchParams const& fetch_params, Response const& response)
 {
@@ -331,12 +800,15 @@ void network_fetch_error(FetchParams const& fetch_params, StringView error_text)
     network_before_request_sent(fetch_params);
     auto request = fetch_params.request();
     auto state = request->webdriver_bidi_network_request();
-    if (!state || (state->completed.contains(request->redirect_count()) || state->transferred.contains(request->redirect_count())))
+    bool is_first_terminal = state && !state->completed.contains(request->redirect_count()) && !state->transferred.contains(request->redirect_count());
+    if (is_first_terminal)
+        state->completed.set(request->redirect_count());
+    cancel_network_interception_impl(fetch_params, error_text);
+    if (!is_first_terminal)
         return;
     auto navigable = navigable_of(*state);
     if (!navigable)
         return;
-    state->completed.set(request->redirect_count());
     if (!is_event_enabled("network.fetchError"sv))
         return;
     auto params = process_a_network_event(*navigable, *fetch_params.request(), *fetch_params.timing_info());

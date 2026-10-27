@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/HashMap.h>
 #include <AK/JsonValue.h>
 #include <AK/Optional.h>
 #include <AK/String.h>
@@ -13,6 +14,7 @@
 #include <AK/kmalloc.h>
 #include <LibWebCommon/Export.h>
 #include <LibWebCommon/WebDriver/Error.h>
+#include <LibWebCommon/WebDriver/Network.h>
 
 namespace Web::WebDriver {
 
@@ -53,7 +55,15 @@ struct WEBCOMMON_API BiDiSessionState {
 
     bool is_active { false };
     Vector<String> enabled_events;
+    // NB: A null scope enables the event globally; otherwise it names top-level traversables.
+    HashMap<String, Optional<Vector<String>>> enabled_event_contexts;
     Vector<BiDiPreloadScript> preload_scripts;
+    Vector<Network::Intercept> network_intercepts;
+    Vector<Network::Header> network_default_headers;
+    HashMap<String, Vector<Network::Header>> network_user_context_headers;
+    HashMap<String, Vector<Network::Header>> network_navigable_headers;
+    String network_default_cache_behavior { "default"_string };
+    HashMap<String, String> network_navigable_cache_behavior;
 };
 
 }

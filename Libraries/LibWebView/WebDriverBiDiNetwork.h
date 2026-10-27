@@ -9,9 +9,12 @@
 #include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/HashTable.h>
-#include <LibWebCommon/WebDriver/Network.h>
+#include <LibWebCommon/WebDriver/BiDi.h>
+#include <LibWebView/Export.h>
 
 namespace WebView {
+
+WEBVIEW_API Web::WebDriver::BiDiSessionState session_state_for_hosted_traversables(Web::WebDriver::BiDiSessionState const&, HashTable<String> const&);
 
 // NB: The network state belongs to the browser side of a BiDi session, where context IDs can be resolved.
 class WebDriverBiDiNetwork {
@@ -20,6 +23,7 @@ class WebDriverBiDiNetwork {
 public:
     using ValidateContext = Function<ErrorOr<void, Web::WebDriver::Error>(String const&)>;
     ErrorOr<JsonValue, Web::WebDriver::Error> run_command(StringView method, JsonObject const&, ValidateContext const&);
+    void update_session_state(Web::WebDriver::BiDiSessionState&, Function<String(String const&)> const& context_id) const;
     void context_destroyed(String const&);
 
 private:
@@ -29,7 +33,7 @@ private:
         HashTable<String> phases;
         Optional<Vector<String>> browsing_contexts;
     };
-    HashMap<String, Intercept> m_intercept_map;
+    OrderedHashMap<String, Intercept> m_intercept_map;
 
     // https://w3c.github.io/webdriver-bidi/#network-collectors
     struct Collector {
