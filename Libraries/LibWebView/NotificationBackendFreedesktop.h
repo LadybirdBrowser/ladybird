@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/HashMap.h>
+#include <AK/HashTable.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/Vector.h>
@@ -38,6 +39,7 @@ private:
     void request_capabilities();
     void did_receive_capabilities(DBusMessage* reply);
     void send_notify(PlatformNotification const&);
+    void send_close_notification(u32 daemon_id);
     void did_receive_notify_reply(u64 id, DBusMessage* reply);
     void did_receive_signal(DBusMessage*);
     void dispatch();
@@ -58,6 +60,11 @@ private:
     Optional<FreedesktopCapabilities> m_capabilities;
     bool m_capabilities_requested { false };
     Vector<PlatformNotification> m_waiting_for_capabilities;
+
+    // Notifications whose Notify the daemon hasn't answered yet, and among them the ones already closed on this side:
+    // Those are taken down as soon as the daemon's id for them arrives.
+    HashTable<u64> m_awaiting_reply;
+    HashTable<u64> m_close_when_acknowledged;
 
     struct Watch {
         DBusWatch* watch { nullptr };

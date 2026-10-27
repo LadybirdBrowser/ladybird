@@ -8,6 +8,7 @@
 #include <AK/Format.h>
 #include <LibCore/EventLoop.h>
 #include <LibGfx/ImageFormats/PNGWriter.h>
+#include <LibWebView/NotificationAttribution.h>
 #include <LibWebView/NotificationBackendMacOS.h>
 
 #import <Foundation/Foundation.h>
@@ -45,11 +46,6 @@ static NSString* ns_string(String const& string)
     return [NSString stringWithUTF8String:string.to_byte_string().characters()];
 }
 
-static NSString* ns_string(Utf16String const& string)
-{
-    return ns_string(string.to_utf8());
-}
-
 NotificationBackendMacOS::NotificationBackendMacOS()
     : m_bridge(make<Detail::NotificationCenterBridge>())
 {
@@ -61,6 +57,14 @@ NotificationBackendMacOS::NotificationBackendMacOS()
     m_bridge->center = (__bridge_retained void*)[UNUserNotificationCenter currentNotificationCenter];
     m_bridge->delegate = (__bridge_retained void*)[[LadybirdNotificationCenterDelegate alloc] initWithBackend:this];
     center_of(*m_bridge).delegate = delegate_of(*m_bridge);
+    m_launch_token = MUST(String::from_utf8(StringView { [[[NSUUID UUID] UUIDString] UTF8String], strlen([[[NSUUID UUID] UUIDString] UTF8String]) }));
+
+    // The center reports a user's dismissal only for a category that asks for it.
+    auto* category = [UNNotificationCategory categoryWithIdentifier:@"org.ladybird.Ladybird.web-notification"
+                                                            actions:@[]
+                                                  intentIdentifiers:@[]
+                                                            options:UNNotificationCategoryOptionCustomDismissAction];
+    [center_of(*m_bridge) setNotificationCategories:[NSSet setWithObject:category]];
 }
 
 NotificationBackendMacOS::~NotificationBackendMacOS()
@@ -113,6 +117,9 @@ void NotificationBackendMacOS::show(PlatformNotification const& notification)
     }
 
     request_authorization_then([this, notification](bool granted) {
+        // Closed while the authorization was pending: Its close was reported then.
+        if (m_closed_before_shown.remove(notification.id))
+            return;
         if (!granted) {
             if (on_failed)
                 on_failed(notification.id);
@@ -120,10 +127,11 @@ void NotificationBackendMacOS::show(PlatformNotification const& notification)
         }
 
         auto* content = [[UNMutableNotificationContent alloc] init];
-        content.title = ns_string(notification.data.title);
+        content.title = ns_string(platform_text(notification.data.title));
         content.subtitle = ns_string(notification.attribution);
-        content.body = ns_string(notification.data.body);
+        content.body = ns_string(platform_text(notification.data.body));
         content.threadIdentifier = ns_string(notification.attribution);
+        content.categoryIdentifier = @"org.ladybird.Ladybird.web-notification";
         if (notification.data.silent != true)
             content.sound = [UNNotificationSound defaultSound];
 
@@ -156,7 +164,7 @@ void NotificationBackendMacOS::show(PlatformNotification const& notification)
                 identifier = existing.release_value();
         }
         if (identifier.is_empty())
-            identifier = String::number(notification.id);
+            identifier = MUST(String::formatted("{}-{}", m_launch_token, notification.id));
         m_identifier_for_id.set(notification.id, identifier);
         m_id_for_identifier.set(identifier, notification.id);
 
@@ -186,8 +194,16 @@ void NotificationBackendMacOS::show(PlatformNotification const& notification)
 void NotificationBackendMacOS::close(u64 id)
 {
     auto identifier = m_identifier_for_id.take(id);
-    if (!identifier.has_value())
+    if (!identifier.has_value()) {
+        // Not handed to the center yet (authorization pending): The show, when it gets its turn, finds this and
+        // does nothing; the close is reported now.
+        if (m_authorization == Authorization::Pending) {
+            m_closed_before_shown.set(id);
+            if (on_closed)
+                on_closed(id, ByUser::No);
+        }
         return;
+    }
     m_id_for_identifier.remove(*identifier);
     NSArray* identifiers = @[ ns_string(*identifier) ];
     [center_of(*m_bridge) removeDeliveredNotificationsWithIdentifiers:identifiers];
