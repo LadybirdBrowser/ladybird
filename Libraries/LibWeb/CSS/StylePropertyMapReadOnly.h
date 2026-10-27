@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <AK/Function.h>
+#include <AK/IterationDecision.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/DOM/AbstractElement.h>
@@ -28,6 +30,16 @@ public:
     WebIDL::ExceptionOr<bool> has(Utf16String property);
     WebIDL::UnsignedLong size() const;
 
+    ReadonlySpan<Utf16FlyString> property_names() const;
+    struct IterationEntry {
+        Utf16FlyString name;
+        size_t value_offset;
+        size_t value_count;
+    };
+    void collect_iteration_entries(Vector<IterationEntry>&, GC::RootVector<GC::Ref<CSSStyleValue>>&);
+    using ForEachCallback = Function<IterationDecision(Utf16String const&, ReadonlySpan<GC::Ref<CSSStyleValue>>)>;
+    void for_each(ForEachCallback);
+
 protected:
     using Source = Variant<DOM::AbstractElement, GC::Ref<CSSStyleDeclaration>>;
     explicit StylePropertyMapReadOnly(Source);
@@ -41,6 +53,13 @@ protected:
     // declaration block’s declarations.
     // NB: We just directly refer to our source, at least for now.
     Source m_declarations;
+
+private:
+    mutable Vector<Utf16FlyString> m_cached_property_names;
+    mutable Optional<u64> m_cached_declaration_revision;
+    mutable GC::Ptr<DOM::Document> m_cached_document;
+    mutable RefPtr<CustomPropertyData const> m_cached_custom_property_data;
+    mutable size_t m_cached_registration_generation { 0 };
 };
 
 }

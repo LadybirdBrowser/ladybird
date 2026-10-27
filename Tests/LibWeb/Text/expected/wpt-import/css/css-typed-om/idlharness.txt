@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 545 tests
 
-445 Pass
-100 Fail
+446 Pass
+99 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Element: original interface defined
@@ -45,7 +45,7 @@ Pass	StylePropertyMapReadOnly interface object name
 Pass	StylePropertyMapReadOnly interface: existence and properties of interface prototype object
 Pass	StylePropertyMapReadOnly interface: existence and properties of interface prototype object's "constructor" property
 Pass	StylePropertyMapReadOnly interface: existence and properties of interface prototype object's @@unscopables property
-Fail	StylePropertyMapReadOnly interface: iterable<USVString, [object Object]>
+Pass	StylePropertyMapReadOnly interface: iterable<USVString, [object Object]>
 Pass	StylePropertyMapReadOnly interface: operation get(USVString)
 Pass	StylePropertyMapReadOnly interface: operation getAll(USVString)
 Pass	StylePropertyMapReadOnly interface: operation has(USVString)

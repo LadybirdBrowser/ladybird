@@ -2,9 +2,10 @@ Harness status: OK
 
 Found 5 tests
 
-5 Fail
-Fail	Iterating over an empty StylePropertyMap gives a zero-length array
+4 Pass
+1 Fail
+Pass	Iterating over an empty StylePropertyMap gives a zero-length array
 Fail	StylePropertyMap iterates properties in correct order
-Fail	StylePropertyMap iterator returns CSS properties with the correct CSSStyleValue
-Fail	StylePropertyMap iterator returns list-valued properties with the correct CSSStyleValue
-Fail	StylePropertyMap iterator returns custom properties with the correct CSSStyleValue
+Pass	StylePropertyMap iterator returns CSS properties with the correct CSSStyleValue
+Pass	StylePropertyMap iterator returns list-valued properties with the correct CSSStyleValue
+Pass	StylePropertyMap iterator returns custom properties with the correct CSSStyleValue

@@ -1,1 +1,10 @@
-Uncaught Error In Test: TypeError: undefined is not a function (evaluated from 'map.keys')
+initial: --from-api, --from-rule, --without-initial
+rule value: 2px
+size matches iteration: true
+removed rules: --from-api
+unicode order: e000, 10000
+disconnected keys: 0
+disconnected size: 0
+snapshot keys: width, height
+snapshot values: width: 1px; height: 2px
+callback snapshot: width: 1px; height: 2px

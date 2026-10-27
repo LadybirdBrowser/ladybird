@@ -16,6 +16,7 @@
     test(() => {
         CSS.registerProperty({ name: "--from-api", syntax: "<length>", inherits: false, initialValue: "3px" });
         const target = document.getElementById("target");
+        target.style.setProperty("--invalid", "var(--missing)");
         const map = target.computedStyleMap();
         const customNames = () => Array.from(map.keys()).filter(name => name.startsWith("--")).sort().join(", ");
         println(`initial: ${customNames()}`);
@@ -32,5 +33,24 @@
         target.remove();
         println(`disconnected keys: ${Array.from(map.keys()).length}`);
         println(`disconnected size: ${map.size}`);
+        target.style.cssText = "width: 1px; height: 2px";
+        const inlineMap = target.attributeStyleMap;
+        const keys = inlineMap.keys();
+        const entries = inlineMap.entries();
+        inlineMap.set("height", CSS.px(4));
+        inlineMap.set("left", CSS.px(3));
+        internals.gc();
+        println(`snapshot keys: ${Array.from(keys).join(", ")}`);
+        println(`snapshot values: ${Array.from(entries, ([name, values]) => `${name}: ${values.join(", ")}`).join("; ")}`);
+        target.style.cssText = "width: 1px; height: 2px";
+        const visited = [];
+        inlineMap.forEach((values, name) => {
+            visited.push(`${name}: ${values.join(", ")}`);
+            if (name === "width") {
+                inlineMap.set("height", CSS.px(4));
+                inlineMap.set("left", CSS.px(3));
+            }
+        });
+        println(`callback snapshot: ${visited.join("; ")}`);
     });
 </script>
