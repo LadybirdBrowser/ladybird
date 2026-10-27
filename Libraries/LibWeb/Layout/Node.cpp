@@ -276,7 +276,7 @@ void NodeWithStyle::ImageObserver::report_to_paint_timing_if_available()
     if (!image_data)
         return;
     m_reported_to_paint_timing = true;
-    PaintTiming::process_an_image_that_finished_loading(*m_background_image_element, PaintTiming::image_request_info(Utf16String::from_utf8(m_resource->url().serialize()), image_data));
+    PaintTiming::process_an_image_that_finished_loading(*m_background_image_element, PaintTiming::image_request_info(Utf16String::from_utf8(m_resource->key().url.serialize()), image_data));
 }
 
 NodeWithStyle::~NodeWithStyle()

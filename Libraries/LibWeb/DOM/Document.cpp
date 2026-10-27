@@ -1033,6 +1033,8 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_shared_resource_requests);
     for (auto& resource : m_css_image_resources)
         resource.value->visit_edges(visitor);
+    for (auto& resource : m_css_image_resources_with_request_url_modifiers)
+        resource.value->visit_edges(visitor);
 
     visitor.visit(m_associated_animation_timelines);
     visitor.visit(m_smil_time_containers_to_begin);
@@ -8033,25 +8035,40 @@ CSS::ImageStyleValueResource* Document::css_image_resource(URL::URL const& url)
     return it->value.ptr();
 }
 
-CSS::ImageStyleValueResource& Document::create_css_image_resource(GC::Ref<HTML::SharedResourceRequest> request)
+CSS::ImageStyleValueResource* Document::css_image_resource(CSS::ImageStyleValueResourceKey const& key)
+{
+    if (!key.has_request_url_modifiers())
+        return css_image_resource(key.url);
+
+    auto it = m_css_image_resources_with_request_url_modifiers.find(key);
+    if (it == m_css_image_resources_with_request_url_modifiers.end())
+        return nullptr;
+    return it->value.ptr();
+}
+
+CSS::ImageStyleValueResource& Document::create_css_image_resource(CSS::ImageStyleValueResourceKey key, GC::Ref<HTML::SharedResourceRequest> request)
 {
     // NB: The caller should guard against creating already existing resources.
-    VERIFY(!m_css_image_resources.contains(request->url()));
+    VERIFY(!css_image_resource(key));
 
-    auto resource = make<CSS::ImageStyleValueResource>(request, *this);
+    auto resource = make<CSS::ImageStyleValueResource>(key, request, *this);
     auto& resource_ref = *resource;
-    m_css_image_resources.set(request->url(), move(resource));
+    if (key.has_request_url_modifiers())
+        m_css_image_resources_with_request_url_modifiers.set(move(key), move(resource));
+    else
+        m_css_image_resources.set(move(key.url), move(resource));
     return resource_ref;
 }
 
-void Document::remove_css_image_resource_if_unused(URL::URL const& url)
+void Document::remove_css_image_resource_if_unused(CSS::ImageStyleValueResourceKey const& key)
 {
-    auto it = m_css_image_resources.find(url);
-    if (it == m_css_image_resources.end())
+    auto* resource = css_image_resource(key);
+    if (!resource || !resource->can_be_removed())
         return;
-    if (!it->value->can_be_removed())
-        return;
-    m_css_image_resources.remove(it);
+    if (key.has_request_url_modifiers())
+        m_css_image_resources_with_request_url_modifiers.remove(key);
+    else
+        m_css_image_resources.remove(key.url);
 }
 
 void Document::prune_image_resource_caches()
@@ -8060,8 +8077,16 @@ void Document::prune_image_resource_caches()
     static constexpr size_t decoded_image_resource_cache_count_limit = 96;
 
     auto is_used_by_css_image_resource = [&](URL::URL const& url, HTML::SharedResourceRequest const& request) {
-        auto* css_image_resource = this->css_image_resource(url);
-        return css_image_resource && css_image_resource->decoded_image_data() == request.image_data();
+        auto uses_request = [&](CSS::ImageStyleValueResource const* css_image_resource) {
+            return css_image_resource && css_image_resource->decoded_image_data() == request.image_data();
+        };
+        if (uses_request(this->css_image_resource(url)))
+            return true;
+        for (auto const& it : m_css_image_resources_with_request_url_modifiers) {
+            if (it.key.url == url && uses_request(it.value.ptr()))
+                return true;
+        }
+        return false;
     };
 
     struct CacheSize {
