@@ -351,6 +351,7 @@ private:
 
     Optional<u32> m_status_code;
     Optional<String> m_reason_phrase;
+    ByteString m_http_version;
 
     NonnullRefPtr<HTTP::HeaderList> m_response_headers;
     // Cache the first spelling of each header name to avoid repeated HeaderList searches.
