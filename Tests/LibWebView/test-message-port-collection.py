@@ -149,8 +149,8 @@ def main():
                     return;
                 }
                 window.onmessage = null;
-                setTimeout(() => {
-                    internals.gc();
+                setTimeout(async () => {
+                    await internals.gcAsync();
                     done(weakPort.deref() === undefined);
                 }, 0);
             };
