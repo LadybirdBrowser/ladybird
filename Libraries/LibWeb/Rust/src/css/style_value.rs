@@ -1861,6 +1861,7 @@ pub enum StyleValueData {
     String {
         string: CssString,
         is_valid_animation_name_custom_ident: bool,
+        serialize_without_quotes: bool,
     },
     /// An unrecognized CSS function, kept as its name and argument value.
     Function {

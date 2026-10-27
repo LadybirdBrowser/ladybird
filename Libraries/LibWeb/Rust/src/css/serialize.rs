@@ -686,8 +686,18 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                 serialize_a_dimension(sink, *value, LENGTH_UNIT_NAMES[*unit as usize], mode);
             }
         }
-        StyleValueData::String { string, .. } => {
-            with_fly_string_units(string, |units| serialize_a_string(sink, &units));
+        StyleValueData::String {
+            string,
+            serialize_without_quotes,
+            ..
+        } => {
+            if *serialize_without_quotes {
+                for &unit in string.units() {
+                    sink.push_code_unit(unit);
+                }
+            } else {
+                with_fly_string_units(string, |units| serialize_a_string(sink, &units));
+            }
         }
         StyleValueData::CustomIdent { custom_ident } => {
             with_fly_string_units(custom_ident, |units| serialize_an_identifier(sink, &units));

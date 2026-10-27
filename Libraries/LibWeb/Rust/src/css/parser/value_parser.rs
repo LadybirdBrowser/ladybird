@@ -376,6 +376,7 @@ pub(crate) fn string_style_value(string: &[u16]) -> StyleValueData {
     StyleValueData::String {
         string: CssString::from_utf16(string),
         is_valid_animation_name_custom_ident: is_valid_custom_ident(string, &["none"]),
+        serialize_without_quotes: false,
     }
 }
 

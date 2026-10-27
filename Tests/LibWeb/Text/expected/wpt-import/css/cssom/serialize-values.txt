@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 697 tests
 
-691 Pass
-6 Fail
+692 Pass
+5 Fail
 Pass	alignment-baseline: baseline
 Pass	alignment-baseline: text-bottom
 Pass	alignment-baseline: alphabetic
@@ -406,7 +406,7 @@ Pass	float: right
 Pass	float: none
 Pass	float: inherit
 Pass	font-family: Arial
-Fail	font-family: 'Lucida Grande'
+Pass	font-family: 'Lucida Grande'
 Pass	font-family: serif
 Pass	font-family: sans-serif
 Pass	font-family: inherit

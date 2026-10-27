@@ -54,7 +54,7 @@ mod tests {
                 (
                     property_id::FONT,
                     "italic small-caps bold condensed 20px / 1.5 '雪'",
-                    "italic small-caps bold condensed 20px / 1.5 \"雪\"",
+                    "italic small-caps bold condensed 20px / 1.5 雪",
                 ),
                 (
                     property_id::GRID,
