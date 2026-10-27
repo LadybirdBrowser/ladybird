@@ -584,6 +584,9 @@ void Application::show_process_manager()
             hide_appkit_window_title(*window);
             offset_appkit_window_controls(*window, 3, 10);
         };
+        m_process_manager_window->on_title_bar_drag = [window = m_process_manager_window.ptr()] {
+            return start_appkit_window_drag(*window);
+        };
 #endif
     }
     m_process_manager_window->show();

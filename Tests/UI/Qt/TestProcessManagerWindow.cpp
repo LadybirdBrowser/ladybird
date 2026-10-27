@@ -19,6 +19,7 @@
 #include <QContextMenuEvent>
 #include <QLineEdit>
 #include <QMenu>
+#include <QMouseEvent>
 #include <QPalette>
 #include <QPushButton>
 #include <QTimer>
@@ -281,6 +282,38 @@ TEST_CASE(helper_processes_are_listed_with_the_site_they_work_for)
     EXPECT_EQ(child_count_of_site("example.com"), 5);
     EXPECT_EQ(child_count_of_site("example.org"), 2);
     EXPECT_EQ(child_count_of_site("example.net"), 2);
+}
+#endif
+
+#if defined(AK_OS_MACOS)
+TEST_CASE(pressing_the_title_bar_moves_the_window)
+{
+    Core::EventLoop event_loop;
+    Core::ResourceImplementation::install(make<Core::ResourceImplementationFile>(MUST(String::from_utf8(TEST_RESOURCE_ROOT ""sv))));
+    WebView::ProcessManager manager;
+    Ladybird::ProcessManagerWindow window(manager);
+    size_t drag_count = 0;
+    window.on_title_bar_drag = [&] {
+        ++drag_count;
+        return true;
+    };
+    window.show();
+    auto* title_bar = window.findChild<QWidget*>("LadybirdTaskManagerTitleBar");
+    auto* title = window.findChild<QWidget*>("LadybirdTaskManagerTitle");
+    auto* search = window.findChild<QLineEdit*>();
+    auto press = [](QWidget& widget, Qt::MouseButton button) {
+        QPointF position(2, 2);
+        QMouseEvent event(QEvent::MouseButtonPress, position, widget.mapToGlobal(position), button, button, Qt::NoModifier);
+        QApplication::sendEvent(&widget, &event);
+    };
+
+    press(*title_bar, Qt::LeftButton);
+    EXPECT_EQ(drag_count, 1u);
+    press(*title, Qt::LeftButton);
+    EXPECT_EQ(drag_count, 2u);
+    press(*title_bar, Qt::RightButton);
+    press(*search, Qt::LeftButton);
+    EXPECT_EQ(drag_count, 2u);
 }
 #endif
 
