@@ -83,6 +83,7 @@ public:
     void add_resource_timing_entry(Badge<ResourceTiming::PerformanceResourceTiming>, GC::Ref<ResourceTiming::PerformanceResourceTiming> entry);
 
     void register_event_source(Badge<EventSource>, GC::Ref<EventSource>);
+    void register_permission_status(PermissionsAPI::PermissionStatus&);
     void unregister_event_source(Badge<EventSource>, GC::Ref<EventSource>);
     void forcibly_close_all_event_sources();
 
@@ -205,6 +206,7 @@ private:
     // The open BroadcastChannel objects with a message or messageerror listener, which this global keeps alive. They're
     // held here rather than rooted — so a channel that's never closed can't keep its global alive.
     HashTable<GC::Ref<BroadcastChannel>> m_strongly_referenced_broadcast_channels;
+    Vector<GC::Weak<PermissionsAPI::PermissionStatus>> m_permission_statuses;
 
     GC::Ptr<HighResolutionTime::Performance> m_performance;
 

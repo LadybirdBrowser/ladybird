@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // A permission change has to reach every page of the site, in whatever process it lives. The actor changes the
+    // site's geolocation permission; the peer, the same site in a second process, reports the change event its own
+    // PermissionStatus gets.
+    //
+    // The peer runs in a second process because it's opened with noopener on a cross-site trampoline host, and the
+    // trampoline's navigation to the same-origin peer page is a cross-site top-level navigation in a browsing context
+    // group of one, which site isolation hands to a new WebContent process.
+    asyncTest(async done => {
+        const httpServer = httpTestServer();
+        const host = uniqueLocalhostHostname("permission-change");
+        const runId = crypto.randomUUID();
+        const channelName = `permission-change-${runId}`;
+        const htmlHeaders = { "Content-Type": "text/html" };
+
+        const peerUrl = new URL(
+            await httpServer.createEcho("GET", `/permission-change-peer-${runId}`, {
+                status: 200,
+                headers: htmlHeaders,
+                body: `<!DOCTYPE html><script>
+                    const channel = new BroadcastChannel(${JSON.stringify(channelName)});
+                    navigator.permissions.query({ name: "geolocation" }).then(status => {
+                        status.onchange = () => {
+                            channel.postMessage(\`peer saw change to \${status.state}\`);
+                            window.close();
+                        };
+                        channel.postMessage("ready");
+                    });
+                <\/script>`,
+            })
+        );
+        peerUrl.hostname = host;
+
+        const trampolineUrl = new URL(
+            await httpServer.createEcho("GET", `/permission-change-trampoline-${runId}`, {
+                status: 200,
+                headers: htmlHeaders,
+                body: `<!DOCTYPE html><script>location.replace(${JSON.stringify(peerUrl.href)});<\/script>`,
+            })
+        );
+        trampolineUrl.hostname = uniqueLocalhostHostname("permission-change-trampoline");
+
+        const actorUrl = new URL(
+            await httpServer.createEcho("GET", `/permission-change-actor-${runId}`, {
+                status: 200,
+                headers: htmlHeaders,
+                body: `<!DOCTYPE html><script>
+                    const channel = new BroadcastChannel(${JSON.stringify(channelName)});
+                    channel.onmessage = async event => {
+                        if (event.data === "ready") {
+                            await internals.setPermission("geolocation", "granted");
+                            return;
+                        }
+                        opener.postMessage(event.data, "*");
+                    };
+                    window.open(${JSON.stringify(trampolineUrl.href)}, "_blank", "noopener");
+                <\/script>`,
+            })
+        );
+        actorUrl.hostname = host;
+
+        let actor;
+        addEventListener("message", event => {
+            println(event.data);
+            actor.close();
+            done();
+        });
+        actor = window.open(actorUrl);
+    });
+</script>

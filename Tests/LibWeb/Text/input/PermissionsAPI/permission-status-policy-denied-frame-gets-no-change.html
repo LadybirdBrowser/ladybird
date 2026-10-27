@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const childSource = `<!DOCTYPE html><script>
+            (async () => {
+                const status = await navigator.permissions.query({ name: "geolocation" });
+                let events = 0;
+                status.onchange = () => ++events;
+                addEventListener("message", () => parent.postMessage(\`\${status.state}, \${events} events\`, "*"));
+                parent.postMessage("ready", "*");
+            })();
+        <\/script>`;
+        const iframe = document.createElement("iframe");
+        iframe.setAttribute("allow", "geolocation 'none'");
+        iframe.srcdoc = childSource;
+        await new Promise(resolve => {
+            addEventListener("message", resolve, { once: true });
+            document.body.appendChild(iframe);
+        });
+
+        await internals.setPermission("geolocation", "granted");
+        const result = await new Promise(resolve => {
+            addEventListener("message", event => resolve(event.data), { once: true });
+            iframe.contentWindow.postMessage("report", "*");
+        });
+        println(`frame without the feature: ${result}`);
+        println(`top level: ${(await navigator.permissions.query({ name: "geolocation" })).state}`);
+        done();
+    });
+</script>

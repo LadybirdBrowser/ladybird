@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const source = `
+            navigator.permissions.query({ name: "geolocation" }).then(status => {
+                status.onchange = () => postMessage(\`change \${status.state}\`);
+                postMessage(\`initial \${status.state}\`);
+            });
+        `;
+        const worker = new Worker(URL.createObjectURL(new Blob([source], { type: "text/javascript" })));
+        const next = () => new Promise(resolve => worker.addEventListener("message", event => resolve(event.data), { once: true }));
+        println(await next());
+        const change = next();
+        await internals.setPermission("geolocation", "denied");
+        println(await change);
+        done();
+    });
+</script>

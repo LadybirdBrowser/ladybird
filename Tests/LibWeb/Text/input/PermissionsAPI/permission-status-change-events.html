@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const status = await navigator.permissions.query({ name: "geolocation" });
+        const events = [];
+        status.onchange = () => events.push(status.state);
+
+        for (const state of ["granted", "denied", "denied", "prompt"]) {
+            await internals.setPermission("geolocation", state);
+            println(`set ${state}: state ${status.state}, events [${events.join(", ")}]`);
+        }
+        done();
+    });
+</script>
