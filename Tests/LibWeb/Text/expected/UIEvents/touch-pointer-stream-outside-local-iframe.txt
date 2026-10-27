@@ -1,0 +1,44 @@
+retarget then outside up: no parent pointer events=true
+retarget then outside up: one terminal=true
+retarget then outside up: terminal type=true
+retarget then outside up: terminal target=true
+retarget then outside up: terminal data=true
+retarget then outside up: terminal before exit=true
+retarget then outside up: no events after terminal=true
+retarget then outside up: touchstart@a:25,25; touchmove@a:75,25; touchend@a:145,25
+outside and reenter: canceled on first exit=true
+outside and reenter: no parent pointer events=true
+outside and reenter: one terminal=true
+outside and reenter: terminal type=true
+outside and reenter: terminal target=true
+outside and reenter: terminal data=true
+outside and reenter: terminal before exit=true
+outside and reenter: no events after terminal=true
+outside and reenter: touchstart@a:25,25; touchmove@a:145,25; touchmove@a:75,25; touchend@a:75,25
+outside move and outside up: canceled on first exit=true
+outside move and outside up: no parent pointer events=true
+outside move and outside up: one terminal=true
+outside move and outside up: terminal type=true
+outside move and outside up: terminal target=true
+outside move and outside up: terminal data=true
+outside move and outside up: terminal before exit=true
+outside move and outside up: no events after terminal=true
+outside move and outside up: touchstart@a:25,25; touchmove@a:145,25; touchend@a:150,25
+uncanceled touch: canceled on first exit=true
+uncanceled touch: no parent pointer events=true
+uncanceled touch: one terminal=true
+uncanceled touch: terminal type=true
+uncanceled touch: terminal target=true
+uncanceled touch: terminal data=true
+uncanceled touch: terminal before exit=true
+uncanceled touch: no events after terminal=true
+uncanceled touch: touchstart@a:25,25; touchmove@a:145,25; touchmove@a:75,25; touchend@a:75,25
+uncanceled touch compatibility events: 0
+captured control: no parent pointer events=true
+captured control: one terminal=true
+captured control: terminal type=true
+captured control: terminal target=true
+captured control: terminal data=true
+captured control: terminal before exit=true
+captured control: no events after terminal=true
+captured control: touchstart@a:25,25; touchend@a:145,25

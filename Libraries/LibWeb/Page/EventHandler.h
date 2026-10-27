@@ -173,6 +173,12 @@ private:
         MouseEventCoordinates coordinates;
         CSSPixelPoint screen_position;
     };
+    struct PointerEventSnapshot {
+        PointerEventPosition position;
+        PointerProperties properties;
+        bool is_primary { false };
+        GC::Weak<DOM::Node> target;
+    };
     struct PointerState {
         PointerProperties properties;
         bool active { false };
@@ -182,10 +188,13 @@ private:
         bool prevent_mouse_event { false };
         // NB: A canceled touch event or a multi-touch gesture suppresses the click as well as the mouse events.
         bool suppress_click { false };
+        // NB: Touch delivery can continue after its PointerEvent stream has been suppressed.
+        bool pointer_event_stream_suppressed { false };
         unsigned buttons { 0 };
         unsigned modifiers { 0 };
         // NB: A pointercancel uses the last dispatched position.
         Optional<PointerEventPosition> last_position;
+        Optional<PointerEventSnapshot> last_event;
         GC::Weak<DOM::Node> hovered_node;
         GC::Weak<DOM::Node> down_target;
         GC::Weak<DOM::Node> nested_target;
@@ -200,7 +209,7 @@ private:
     struct AdditionalPointerState : public RefCounted<AdditionalPointerState> {
         PointerState state;
     };
-    GC::Ref<UIEvents::PointerEvent> create_pointer_event(PointerState const&, DOM::Node const&, Utf16FlyString const&, MouseEventCoordinates const&, CSSPixelPoint screen_position, i16 button, CSSPixelPoint movement = {}) const;
+    GC::Ref<UIEvents::PointerEvent> create_pointer_event(PointerState&, DOM::Node&, Utf16FlyString const&, MouseEventCoordinates const&, CSSPixelPoint screen_position, i16 button, CSSPixelPoint movement = {}) const;
     void update_pointer_hover(Layout::BegunRead const&, PointerState&, GC::Ptr<DOM::Node>, MouseEventCoordinates const&, CSSPixelPoint screen_position);
     bool dispatch_touch_event(PointerState&, DOM::Node&, Utf16FlyString const&, MouseEventCoordinates const&, CSSPixelPoint screen_position);
     bool has_pointer_capture_in_subtree(i32 pointer_id) const;

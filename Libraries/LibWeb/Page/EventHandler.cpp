@@ -4348,7 +4348,7 @@ void EventHandler::stop_updating_selection()
     m_auto_scroll_handler = nullptr;
 }
 
-GC::Ref<UIEvents::PointerEvent> EventHandler::create_pointer_event(PointerState const& pointer, DOM::Node const& target, Utf16FlyString const& name, MouseEventCoordinates const& coordinates, CSSPixelPoint screen_position, i16 button, CSSPixelPoint movement) const
+GC::Ref<UIEvents::PointerEvent> EventHandler::create_pointer_event(PointerState& pointer, DOM::Node& target, Utf16FlyString const& name, MouseEventCoordinates const& coordinates, CSSPixelPoint screen_position, i16 button, CSSPixelPoint movement) const
 {
     UIEvents::PointerEventOptions options;
     options.view = m_navigable->active_window_proxy();
@@ -4383,6 +4383,12 @@ GC::Ref<UIEvents::PointerEvent> EventHandler::create_pointer_event(PointerState 
     options.composed = true;
     auto event = UIEvents::PointerEvent::create(name, move(options), coordinates.page_offset.x().to_double(), coordinates.page_offset.y().to_double(), coordinates.offset.x().to_double(), coordinates.offset.y().to_double(), HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(target)));
     event->set_is_trusted(true);
+    pointer.last_event = PointerEventSnapshot {
+        .position = { coordinates, screen_position },
+        .properties = pointer.properties,
+        .is_primary = pointer.is_primary,
+        .target = GC::Weak<DOM::Node> { target },
+    };
     return event;
 }
 
@@ -4682,9 +4688,40 @@ EventResult EventHandler::handle_pointer_event(Web::MouseEvent const& input, CSS
     }
     if (!original_touch_target)
         original_touch_target = target;
+    if (pointer.pointer_event_stream_suppressed)
+        target = nullptr;
+    bool suppressing_pointer_event_stream = false;
+    if (is_touch && !target && pointer.touch && !pointer.pointer_event_stream_suppressed && pointer.last_event.has_value()) {
+        // https://www.w3.org/TR/pointerevents3/#suppressing-a-pointer-event-stream
+        // NB: Touch events keep their starting document, but uncaptured PointerEvents cannot continue outside it.
+        //     End that stream before its exit events, while retaining the independent Touch contact until release.
+        auto snapshot = *pointer.last_event;
+        GC::Ptr<DOM::Node> cancel_target = snapshot.target.ptr();
+        if (!cancel_target || !cancel_target->is_connected())
+            cancel_target = document;
+        PointerState cancelled_pointer;
+        cancelled_pointer.properties = snapshot.properties;
+        cancelled_pointer.is_primary = snapshot.is_primary;
+        cancelled_pointer.modifiers = pointer.modifiers;
+        pointer.pointer_event_stream_suppressed = true;
+        pointer.prevent_mouse_event = true;
+        pointer.suppress_click = true;
+        suppressing_pointer_event_stream = true;
+        auto event = create_pointer_event(cancelled_pointer, *cancel_target, UIEvents::EventNames::pointercancel,
+            snapshot.position.coordinates, snapshot.position.screen_position, -1);
+        event->set_cancelable(false);
+        cancel_target->dispatch_event(event);
+        if (m_navigable->active_document() != document || !document->is_fully_active())
+            return EventResult::Handled;
+    }
     update_pointer_hover(read, pointer, target, coordinates, screen_position);
     if (m_navigable->active_document() != document)
         return EventResult::Handled;
+    if (suppressing_pointer_event_stream) {
+        release_pointer_capture_implicitly(read, pointer);
+        if (m_navigable->active_document() != document)
+            return EventResult::Handled;
+    }
     if (!target || input.type == Web::MouseEvent::Type::MouseLeave) {
         if (!target && pointer.is_primary && pointer.properties.pointer_type == PointerType::Pen) {
             DOM::HoverEventData hover_data {
@@ -4966,13 +5003,13 @@ bool EventHandler::is_active_pointer(i32 pointer_id) const
     if (pointer_id == UIEvents::mouse_pointer_id)
         return true;
     auto const* pointer = pointer_state(pointer_id);
-    return pointer && pointer->active;
+    return pointer && pointer->active && !pointer->pointer_event_stream_suppressed;
 }
 
 bool EventHandler::is_pointer_in_active_buttons_state(i32 pointer_id) const
 {
     auto const* pointer = pointer_state(pointer_id);
-    return pointer && (pointer_id == UIEvents::mouse_pointer_id || pointer->active) && pointer->buttons != 0;
+    return pointer && !pointer->pointer_event_stream_suppressed && (pointer_id == UIEvents::mouse_pointer_id || pointer->active) && pointer->buttons != 0;
 }
 
 GC::Ptr<DOM::Element> EventHandler::pending_pointer_capture_target_override(i32 pointer_id) const
