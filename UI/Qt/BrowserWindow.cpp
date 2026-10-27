@@ -22,12 +22,17 @@
 #include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/DevToolsBanner.h>
 #include <UI/Qt/Icon.h>
+#include <UI/Qt/LadybirdButton.h>
 #include <UI/Qt/Menu.h>
+#include <UI/Qt/Motion.h>
+#include <UI/Qt/Popover.h>
 #include <UI/Qt/StringUtils.h>
+#include <UI/Qt/SystemAppearance.h>
 #if defined(AK_OS_MACOS)
 #    include <UI/Qt/MacWindow.h>
 #endif
 #include <UI/Qt/TabBar.h>
+#include <UI/Qt/Theme.h>
 #include <UI/Qt/WebContentView.h>
 #include <UI/Qt/WindowControlButton.h>
 
@@ -38,6 +43,7 @@
 #include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QIcon>
+#include <QLabel>
 #include <QMenuBar>
 #include <QMouseEvent>
 #include <QPainter>
@@ -59,12 +65,32 @@ namespace Ladybird {
 static constexpr auto AUDIO_STATE_BUTTON_POSITION = QTabBar::LeftSide;
 static constexpr auto TAB_CLOSE_BUTTON_POSITION = QTabBar::RightSide;
 static constexpr auto WINDOW_DRAG_REGION_PROPERTY = "LadybirdWindowDragRegion";
+static constexpr int LADYBIRD_MENU_WIDTH = 280;
 static constexpr int WINDOW_RESIZE_BORDER_WIDTH = 6;
 static constexpr int WINDOW_RESIZE_CORNER_WIDTH = WINDOW_RESIZE_BORDER_WIDTH * 2;
 #if defined(AK_OS_MACOS)
-static constexpr int NATIVE_WINDOW_CONTROL_X_OFFSET = 6;
-static constexpr int NATIVE_WINDOW_CONTROL_Y_OFFSET = 4;
+// NB: AppKit puts the traffic lights 10 px in, so they move this far to sit NATIVE_MACOS_WINDOW_CONTROLS_INSET in.
+static constexpr int NATIVE_WINDOW_CONTROL_X_OFFSET = NATIVE_MACOS_WINDOW_CONTROLS_INSET - 10;
+static constexpr int NATIVE_WINDOW_CONTROL_Y_OFFSET = NATIVE_MACOS_WINDOW_CONTROLS_INSET - 10;
 #endif
+
+// The widget in a tab that takes the focus when the tab is shown: an address being edited, or else whatever had the focus
+// in the tab, or else the page.
+static QWidget& focus_widget_for_tab(Tab& tab)
+{
+    if (auto* location_edit = tab.location_edit_with_parked_editing())
+        return *location_edit;
+    if (auto* tab_focus_widget = tab.focusWidget(); tab_focus_widget && tab.isAncestorOf(tab_focus_widget))
+        return *tab_focus_widget;
+    return tab.view();
+}
+
+// Whether the focus is in the address field of one of the window's tabs, whose focus ring then shows.
+static bool focus_is_in_location_edit_of(QWidget const& window)
+{
+    auto* focus_widget = QApplication::focusWidget();
+    return focus_widget && focus_widget->window() == &window && is<LocationEdit>(*focus_widget);
+}
 
 static bool is_empty_window_drag_region(QWidget const& widget, QPoint position)
 {
@@ -112,6 +138,8 @@ void FullscreenMode::enter(Tab* tab)
 
 void FullscreenMode::entered_fullscreen()
 {
+    if (m_fullscreen_tab && m_window->tab_index(m_fullscreen_tab) != -1)
+        m_exit_button->set_host(m_fullscreen_tab->url().host().has_value() ? qstring_from_ak_string(m_fullscreen_tab->url().serialized_host()) : QString {});
     // Let button float in place for 3 times the time it takes to animate it in place.
     m_debounce.start(*this, button_animation_time() * 3);
     m_exit_button->animate_show();
@@ -154,17 +182,88 @@ bool FullscreenMode::eventFilter(QObject* obj, QEvent* event)
     return QObject::eventFilter(obj, event);
 }
 
+// A toast at the top of the screen says which site went full screen, and how to leave. Clicking it leaves too.
+static constexpr int FULLSCREEN_TOAST_HEIGHT = 38;
+static constexpr int FULLSCREEN_TOAST_TOP = 28;
+static constexpr int FULLSCREEN_TOAST_PADDING = 18;
+static constexpr int FULLSCREEN_TOAST_GAP = 10;
+static constexpr int FULLSCREEN_TOAST_VISIBLE_MS = 3000;
+static constexpr auto FULLSCREEN_TOAST_EXIT_TEXT = "Press Esc to exit"sv;
+
+static QFont fullscreen_toast_font(QFont font, QFont::Weight weight = QFont::Normal)
+{
+    font.setPixelSize(13);
+    font.setWeight(weight);
+    return font;
+}
+
 ExitFullscreenButton::ExitFullscreenButton(QWidget* parent)
-    : QPushButton("Exit fullscreen", parent)
+    : QPushButton(parent)
 {
 #if defined(AK_OS_MACOS)
     // The web content view is a native QRhiWidget on macOS, so this overlay must also be native to remain above it.
     setAttribute(Qt::WA_NativeWindow);
 #endif
-    setStyleSheet("background-color:rgb(55, 99, 129); color: white; padding: 10px; border-radius: 5px;");
-    adjustSize();
+    setAttribute(Qt::WA_TranslucentBackground);
+    setAccessibleName("Exit full screen");
+    setCursor(Qt::PointingHandCursor);
     hide();
+    cast_floating_shadow(*this, FULLSCREEN_TOAST_HEIGHT / 2.0, FloatingShadowTone::Dark);
     m_widget_animation = new QPropertyAnimation(this, "pos", this);
+    m_hide_timer = new QTimer(this);
+    m_hide_timer->setSingleShot(true);
+    m_hide_timer->setInterval(FULLSCREEN_TOAST_VISIBLE_MS);
+    QObject::connect(m_hide_timer, &QTimer::timeout, this, [this] {
+        if (!underMouse())
+            hide();
+    });
+}
+
+void ExitFullscreenButton::set_host(QString host)
+{
+    m_host = AK::move(host);
+    resize(sizeHint());
+    update();
+}
+
+QSize ExitFullscreenButton::sizeHint() const
+{
+    auto host_width = m_host.isEmpty() ? 0 : QFontMetrics(fullscreen_toast_font(font(), QFont::DemiBold)).horizontalAdvance(m_host);
+    auto message = m_host.isEmpty() ? QStringLiteral("Full screen") : QStringLiteral(" is now full screen");
+    auto text_width = host_width + QFontMetrics(fullscreen_toast_font(font())).horizontalAdvance(message);
+    auto exit_width = QFontMetrics(fullscreen_toast_font(font())).horizontalAdvance(qstring_from_ak_string(FULLSCREEN_TOAST_EXIT_TEXT));
+    return { (2 * FULLSCREEN_TOAST_PADDING) + text_width + (2 * FULLSCREEN_TOAST_GAP) + 1 + exit_width, FULLSCREEN_TOAST_HEIGHT };
+}
+
+void ExitFullscreenButton::paintEvent(QPaintEvent*)
+{
+    QPainter painter(this);
+    painter.setRenderHint(QPainter::Antialiasing);
+
+    QRectF pill = QRectF(rect()).adjusted(0.5, 0.5, -0.5, -0.5);
+    painter.setPen(QPen(QColor(255, 255, 255, 26), 1));
+    painter.setBrush(QColor(28, 28, 30));
+    painter.drawRoundedRect(pill, pill.height() / 2, pill.height() / 2);
+
+    auto x = FULLSCREEN_TOAST_PADDING;
+    auto draw_text = [&](QString const& text, QFont const& font, QColor const& color) {
+        painter.setFont(font);
+        painter.setPen(color);
+        auto width = QFontMetrics(font).horizontalAdvance(text);
+        painter.drawText(QRect(x, 0, width, height()), Qt::AlignVCenter | Qt::AlignLeft, text);
+        x += width;
+    };
+    if (!m_host.isEmpty()) {
+        draw_text(m_host, fullscreen_toast_font(font(), QFont::DemiBold), Qt::white);
+        draw_text(QStringLiteral(" is now full screen"), fullscreen_toast_font(font()), Qt::white);
+    } else {
+        draw_text(QStringLiteral("Full screen"), fullscreen_toast_font(font()), Qt::white);
+    }
+
+    x += FULLSCREEN_TOAST_GAP;
+    painter.fillRect(QRect(x, (height() - 14) / 2, 1, 14), QColor(255, 255, 255, 64));
+    x += 1 + FULLSCREEN_TOAST_GAP;
+    draw_text(qstring_from_ak_string(FULLSCREEN_TOAST_EXIT_TEXT), fullscreen_toast_font(font()), QColor(0xd0, 0xd0, 0xd6));
 }
 
 void ExitFullscreenButton::animate_show()
@@ -172,36 +271,45 @@ void ExitFullscreenButton::animate_show()
     if (isVisible())
         return;
 
+    resize(sizeHint());
     show();
     raise();
+#if defined(AK_OS_MACOS)
+    // NB: A native child can't show the page through its corners, so its view is rounded instead.
+    round_appkit_view_corners(*this, FULLSCREEN_TOAST_HEIGHT / 2.0, QColor(255, 255, 255, 26));
+#endif
+    m_hide_timer->start();
 
-    auto const container_size = screen() ? screen()->geometry().size() : (parentWidget() ? parentWidget()->size() : QSize {});
+    auto const container_size = parentWidget() ? parentWidget()->size() : (screen() ? screen()->geometry().size() : QSize {});
     int const destination_x = (container_size.width() - width()) / 2;
-    int const destination_y = static_cast<int>(static_cast<float>(container_size.height()) * 0.05);
 
+    // The toast slides down into place, unless the system asks for less motion.
     m_widget_animation->stop();
-    m_widget_animation->setDuration(FullscreenMode::button_animation_time());
+    m_widget_animation->setDuration(SystemAppearance::prefers_reduced_motion() ? 0 : Motion::BASE);
     m_widget_animation->setStartValue(QPoint(destination_x, -height()));
-    m_widget_animation->setEndValue(QPoint(destination_x, destination_y));
-    m_widget_animation->setEasingCurve(QEasingCurve::OutBounce);
+    m_widget_animation->setEndValue(QPoint(destination_x, FULLSCREEN_TOAST_TOP));
+    m_widget_animation->setEasingCurve(Motion::enter_easing());
     m_widget_animation->start();
 }
 
-static QIcon const& app_icon()
+// Private windows have a dark icon of their own, so they are easy to tell apart in the taskbar.
+static QIcon const& app_icon(WebView::IsPrivate is_private)
 {
     static QIcon icon;
-    if (icon.isNull()) {
+    static QIcon private_icon;
+    auto& cached_icon = is_private == WebView::IsPrivate::Yes ? private_icon : icon;
+    if (cached_icon.isNull()) {
         QPixmap pixmap;
-        pixmap.load(":/Icons/ladybird.png");
-        icon = QIcon(pixmap);
+        pixmap.load(is_private == WebView::IsPrivate::Yes ? ":/Icons/ladybird-private.png" : ":/Icons/ladybird.png");
+        cached_icon = QIcon(pixmap);
     }
-    return icon;
+    return cached_icon;
 }
 
 BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow is_popup_window, WebView::IsPrivate is_private, Tab* parent_tab, Optional<WebView::CanonicalTraversable&> traversable, Optional<WebView::SessionWindowId> restored_session_window_id)
     : m_is_private(is_private)
     , m_session(WebView::Application::session_for_new_view(is_private))
-    , m_tabs_container(new TabWidget(this))
+    , m_tabs_container(new TabWidget(is_private, this))
     , m_is_popup_window(is_popup_window)
 {
     auto const& browser_options = WebView::Application::browser_options();
@@ -220,7 +328,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     setWindowFlag(Qt::FramelessWindowHint, uses_client_side_decorations());
 #endif
     setAttribute(Qt::WA_OpaquePaintEvent);
-    setWindowIcon(app_icon());
+    setWindowIcon(app_icon(is_private));
     qApp->installEventFilter(this);
     update_window_border();
 
@@ -240,7 +348,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
 
     initialize_application_actions();
     initialize_application_menu();
-    initialize_hamburger_menu();
+    initialize_ladybird_menu();
     initialize_window_context_menu();
     update_chrome_style();
 
@@ -254,17 +362,17 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
         if (tab)
             update_window_title(tab->title());
 
+        auto focus_was_in_location_edit = focus_is_in_location_edit_of(*this);
         set_current_tab(tab);
         if (tab) {
-            QWidget* focus_widget = &tab->view();
-            if (auto* location_edit = tab->location_edit_with_parked_editing())
-                focus_widget = location_edit;
-            else if (auto* tab_focus_widget = tab->focusWidget(); tab_focus_widget && tab->isAncestorOf(tab_focus_widget))
-                focus_widget = tab_focus_widget;
+            auto& focus_widget = focus_widget_for_tab(*tab);
 #if defined(AK_OS_MACOS)
-            make_appkit_window_first_responder(*focus_widget);
+            make_appkit_window_first_responder(focus_widget);
 #endif
-            focus_widget->setFocus();
+            focus_widget.setFocus();
+            // NB: As the focus moves from one tab's address field to another's, their focus ring stays as it is.
+            if (auto* location_edit = as_if<LocationEdit>(focus_widget); location_edit && focus_was_in_location_edit)
+                location_edit->show_focus_ring_at_once();
         }
         fullscreen_mode().exit(FullscreenMode::ExitInitiatedBy::UI);
     });
@@ -302,6 +410,11 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     setCentralWidget(main_widget);
     setContextMenuPolicy(Qt::PreventContextMenu);
 
+    // The first tab was made current before the tabs were in the window, so its focus never reached the window. Without
+    // it, the window would give the focus to its first focusable widget once it is activated, rather than to the page.
+    if (m_current_tab)
+        focus_widget_for_tab(*m_current_tab).setFocus();
+
     if (browser_options.devtools_port.has_value())
         on_devtools_enabled();
 }
@@ -323,6 +436,8 @@ void BrowserWindow::initialize_application_actions()
     addAction(application.close_current_tab_action());
     addAction(application.open_next_tab_action());
     addAction(application.open_previous_tab_action());
+    addAction(application.search_tabs_action());
+    addAction(application.move_focus_action());
     addAction(application.open_file_action());
     addAction(application.open_settings_action());
     addAction(application.open_downloads_action());
@@ -369,75 +484,106 @@ void BrowserWindow::initialize_application_menu()
     update_menu_bar_visibility();
 }
 
-void BrowserWindow::initialize_hamburger_menu()
+// The Ladybird menu holds what a window's own button is for: new tabs and windows, history, bookmarks and downloads,
+// settings, and Ladybird itself. On macOS the menu bar holds everything else. Elsewhere the menu holds the rest too.
+void BrowserWindow::initialize_ladybird_menu()
 {
     auto& application = Application::the();
 
-    m_hamburger_menu = new QMenu(this);
-    QObject::connect(m_hamburger_menu, &QMenu::aboutToShow, this, &BrowserWindow::update_hamburger_zoom_label);
+    m_ladybird_menu = new QMenu(this);
+    m_ladybird_menu->setObjectName("LadybirdMenu");
+    m_ladybird_menu->setMinimumWidth(LADYBIRD_MENU_WIDTH);
+    QObject::connect(m_ladybird_menu, &QMenu::aboutToShow, this, &BrowserWindow::update_ladybird_menu_zoom_level);
 
-    m_hamburger_menu->addAction(application.new_tab_action());
-    m_hamburger_menu->addAction(application.new_window_action());
-    m_hamburger_menu->addAction(application.new_private_window_action());
-    m_hamburger_menu->addAction(application.reopen_recently_closed_tab_action());
-    m_hamburger_menu->addSeparator();
+    m_ladybird_menu->addAction(application.new_tab_action());
+    m_ladybird_menu->addAction(application.new_window_action());
+    m_ladybird_menu->addAction(application.new_private_window_action());
+    m_ladybird_menu->addAction(application.reopen_recently_closed_tab_action());
+    if (m_is_private == WebView::IsPrivate::Yes) {
+        auto* restart_private_session_action = m_ladybird_menu->addAction("Start a Fresh Private Session…");
+        QObject::connect(restart_private_session_action, &QAction::triggered, this, [this] {
+            if (m_current_tab)
+                m_current_tab->show_private_session_popover();
+        });
+    }
+    m_ladybird_menu->addSeparator();
 
-    m_hamburger_menu->addMenu(application.history_menu());
-    m_hamburger_menu->addMenu(application.bookmarks_menu());
-    m_hamburger_menu->addAction(application.open_downloads_action());
-    m_hamburger_menu->addSeparator();
+    m_ladybird_menu->addMenu(application.history_menu());
+    m_ladybird_menu->addMenu(application.bookmarks_menu());
+    auto* downloads_action = m_ladybird_menu->addAction("Downloads");
+    downloads_action->setShortcutVisibleInContextMenu(true);
+    // NB: The application's own downloads action owns the shortcut. This item only shows it.
+#if defined(AK_OS_MACOS)
+    downloads_action->setShortcut(QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_L));
+#else
+    downloads_action->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_J));
+#endif
+    downloads_action->setShortcutContext(Qt::WidgetShortcut);
+    QObject::connect(downloads_action, &QAction::triggered, this, [this] {
+        if (m_current_tab)
+            m_current_tab->show_downloads_popover();
+    });
+    m_ladybird_menu->addSeparator();
 
-    m_hamburger_menu->addAction(create_hamburger_zoom_actions());
-    m_hamburger_menu->addSeparator();
+    m_ladybird_menu->addAction(create_ladybird_menu_zoom_row());
+    m_ladybird_menu->addAction(application.find_in_page_action());
+    m_ladybird_menu->addSeparator();
 
-    m_hamburger_menu->addAction(application.find_in_page_action());
-    m_hamburger_menu->addSeparator();
+    m_ladybird_menu->addAction(application.open_settings_action());
+    m_ladybird_menu->addMenu(application.inspect_menu());
+    m_ladybird_menu->addMenu(application.debug_menu());
+    m_ladybird_menu->addSeparator();
 
-    m_hamburger_menu->addAction(application.open_settings_action());
-    m_hamburger_menu->addMenu(application.inspect_menu());
-    m_hamburger_menu->addMenu(application.debug_menu());
-    m_hamburger_menu->addSeparator();
+    m_ladybird_menu->addMenu(application.help_menu());
+    // NB: On macOS, the application menu has Quit.
+#if !defined(AK_OS_MACOS)
+    m_ladybird_menu->addAction(application.quit_action());
+#endif
 
-    m_hamburger_menu->addMenu(application.help_menu());
-    m_hamburger_menu->addAction(application.quit_action());
+    m_tabs_container->ladybird_button().setMenu(m_ladybird_menu);
 }
 
-QAction* BrowserWindow::create_hamburger_zoom_actions()
+// The menu's zoom row: its label like an item's, and the page's zoom level between buttons to zoom out and in.
+QAction* BrowserWindow::create_ladybird_menu_zoom_row()
 {
     auto& application = Application::the();
 
-    auto* container = new QWidget(m_hamburger_menu);
-    container->setObjectName("LadybirdHamburgerZoomActions");
+    auto* row = new QWidget(m_ladybird_menu);
+    row->setObjectName("LadybirdMenuZoomRow");
+    auto* layout = new QHBoxLayout(row);
+    layout->setContentsMargins(10, 3, 10, 3);
+    layout->setSpacing(2);
+    layout->addWidget(new QLabel("Zoom", row), 1);
 
-    auto* layout = new QHBoxLayout(container);
-    layout->setContentsMargins(14, 2, 14, 2);
-    layout->setSpacing(4);
-    container->setLayout(layout);
-
-    auto* label = new QLabel("Zoom", container);
-    layout->addWidget(label);
-
-    auto make_button = [&](QAnyStringView name, QString const& text, QString const& tooltip, QAction* action, int width = 24) {
-        auto* button = new QPushButton(text, container);
-        button->setObjectName(name);
+    auto add_button = [&](char const* object_name, QString const& tooltip, QAction* action) {
+        auto* button = new QPushButton(row);
+        button->setObjectName(object_name);
         button->setToolTip(tooltip);
-        button->setFixedSize(width, 24);
-        button->setFlat(true);
-
+        button->setAccessibleName(tooltip);
+        button->setFocusPolicy(Qt::NoFocus);
         QObject::connect(button, &QPushButton::clicked, action, &QAction::trigger);
-        QObject::connect(action, &QAction::triggered, this, &BrowserWindow::update_hamburger_zoom_label);
-
+        QObject::connect(action, &QAction::triggered, this, &BrowserWindow::update_ladybird_menu_zoom_level);
         layout->addWidget(button);
         return button;
     };
+    add_button("LadybirdMenuZoomButton", "Zoom Out", application.zoom_out_action())->setIcon(create_chrome_icon(ChromeIcon::ZoomOut, Theme::panel().body));
+    m_ladybird_menu_zoom_level = add_button("LadybirdMenuZoomLevel", "Reset Zoom", application.reset_zoom_action());
+    // NB: The level is drawn in figures of one width, so it doesn't shift as it changes.
+    auto level_font = m_ladybird_menu_zoom_level->font();
+    level_font.setFeature(QFont::Tag("tnum"), 1);
+    m_ladybird_menu_zoom_level->setFont(level_font);
+    add_button("LadybirdMenuZoomButton", "Zoom In", application.zoom_in_action())->setIcon(create_chrome_icon(ChromeIcon::NewTab, Theme::panel().body));
 
-    make_button("LadybirdHamburgerZoomOutButton", "-", "Zoom out", application.zoom_out_action());
-    m_zoom_level = make_button("LadybirdHamburgerResetZoomButton", "100%", "Reset zoom level", application.reset_zoom_action(), 50);
-    make_button("LadybirdHamburgerZoomInButton", "+", "Zoom in", application.zoom_in_action());
-
-    auto* action = new QWidgetAction(m_hamburger_menu);
-    action->setDefaultWidget(container);
+    auto* action = new QWidgetAction(m_ladybird_menu);
+    action->setDefaultWidget(row);
     return action;
+}
+
+void BrowserWindow::update_ladybird_menu_zoom_level()
+{
+    if (!m_current_tab || !m_ladybird_menu_zoom_level)
+        return;
+    m_ladybird_menu_zoom_level->setText(qformatted("{}%", round_to<int>(m_current_tab->view().zoom_level() * 100)));
 }
 
 void BrowserWindow::initialize_window_context_menu()
@@ -479,12 +625,6 @@ void BrowserWindow::show_window_context_menu(QPoint global_position)
     execute_context_menu(*m_window_context_menu, global_position);
 }
 
-void BrowserWindow::update_hamburger_zoom_label()
-{
-    auto zoom_level = round_to<int>(m_current_tab->view().zoom_level() * 100);
-    m_zoom_level->setText(qformatted("{}%", zoom_level));
-}
-
 void BrowserWindow::update_tabs_display()
 {
     auto const& settings = Application::settings().tab_settings();
@@ -521,9 +661,12 @@ Tab& BrowserWindow::new_tab_from_url(URL::URL const& url, Web::HTML::ActivateTab
 
 void BrowserWindow::open_new_tab()
 {
+    // NB: With the focus already in the selected tab's address field, its focus ring moves to the new tab's field as it
+    //     is, rather than fading in again.
+    auto focus_ring_transition = focus_is_in_location_edit_of(*this) ? Tab::FocusRingTransition::Immediate : Tab::FocusRingTransition::FadeIn;
     auto& tab = new_tab_from_url(WebView::Application::settings().new_tab_page_url(), Web::HTML::ActivateTab::Yes, TabLocation::end());
     tab.set_url_is_hidden(true);
-    tab.focus_location_editor();
+    tab.focus_location_editor(focus_ring_transition);
 }
 
 void BrowserWindow::duplicate_tab(Tab& source_tab)
@@ -698,10 +841,7 @@ void BrowserWindow::initialize_tab(Tab* tab)
     QObject::connect(tab, &Tab::favicon_changed, this, &BrowserWindow::tab_favicon_changed);
     QObject::connect(tab, &Tab::audio_play_state_changed, this, &BrowserWindow::tab_audio_play_state_changed);
     QObject::connect(tab, &Tab::loading_changed, this, [this] {
-        m_tabs_container->tab_bar()->update_loading_swirl_animation();
-    });
-    QObject::connect(tab, &Tab::loading_finished, this, [this, tab] {
-        m_tabs_container->tab_bar()->play_load_sheen(*tab);
+        m_tabs_container->tab_bar()->update_loading_ring_animation();
     });
 
     if (tab->is_loaded())
@@ -826,17 +966,18 @@ void BrowserWindow::move_tab_to_window(int index, BrowserWindow& target_window, 
         close();
 }
 
-void BrowserWindow::detach_tab_to_new_window(int index, QPoint global_position)
+BrowserWindow& BrowserWindow::detach_tab_to_new_window(int index, QPoint global_position, DetachedWindowFollowsPointer follows_pointer)
 {
-    if (index < 0 || index >= m_tabs_container->count())
-        return;
+    VERIFY(index >= 0 && index < m_tabs_container->count());
 
+    // NB: A window that follows the pointer can't be maximized, so it takes the size this window has when restored.
+    auto size = follows_pointer == DetachedWindowFollowsPointer::Yes && isMaximized() ? normalGeometry().size() : this->size();
     WindowConfiguration configuration {
         .x = Web::DevicePixels { global_position.x() - 160 },
         .y = Web::DevicePixels { global_position.y() - 18 },
-        .width = Web::DevicePixels { width() },
-        .height = Web::DevicePixels { height() },
-        .maximized = isMaximized(),
+        .width = Web::DevicePixels { size.width() },
+        .height = Web::DevicePixels { size.height() },
+        .maximized = follows_pointer == DetachedWindowFollowsPointer::No && isMaximized(),
     };
 
     auto& window = Application::the().new_window({}, configuration, IsPopupWindow::No, m_is_private, nullptr, {}, ShowWindow::No);
@@ -849,6 +990,22 @@ void BrowserWindow::detach_tab_to_new_window(int index, QPoint global_position)
 
     window.activateWindow();
     window.raise();
+    return window;
+}
+
+void BrowserWindow::set_failed_download_count(size_t count)
+{
+    // Failed downloads that are cleared or retried are no longer looked at.
+    m_failed_download_count = count;
+    m_acknowledged_failed_download_count = min(m_acknowledged_failed_download_count, count);
+}
+
+void BrowserWindow::acknowledge_failed_downloads()
+{
+    m_acknowledged_failed_download_count = m_failed_download_count;
+    for_each_tab([](Tab& tab) {
+        tab.update_downloads_button();
+    });
 }
 
 void BrowserWindow::set_current_tab(Tab* tab)
@@ -860,12 +1017,16 @@ void BrowserWindow::set_current_tab(Tab* tab)
     if (tab)
         tab->ensure_loaded();
 
-    if (m_current_tab)
+    // What a tab's toolbar showed belongs to that tab, so it goes away with it however another tab is selected.
+    if (m_current_tab) {
+        m_current_tab->close_popovers();
         m_current_tab->view().set_system_visibility_state(Web::HTML::VisibilityState::Hidden);
+    }
 
     m_current_tab = tab;
 
     if (m_current_tab) {
+        m_current_tab->clear_attention();
         m_current_tab->view().set_system_visibility_state(Web::HTML::VisibilityState::Visible);
 
         if (auto session_tab_id = m_current_tab->session_tab_id(); session_tab_id.has_value())
@@ -894,6 +1055,16 @@ Tab* BrowserWindow::activate_tab_with_url(URL::URL const& url, URL::ExcludeFragm
 
 bool BrowserWindow::definitely_close_tab(int index)
 {
+    return close_tab(index, WebView::SessionStore::KeepForReopening::Yes);
+}
+
+void BrowserWindow::close_tab_without_keeping_it(int index)
+{
+    (void)close_tab(index, WebView::SessionStore::KeepForReopening::No);
+}
+
+bool BrowserWindow::close_tab(int index, WebView::SessionStore::KeepForReopening keep_for_reopening)
+{
     cancel_window_close_preflight();
 
     if (m_tabs_container->count() == 1 && Application::the().file_downloader().has_active_downloads() && visible_browser_window_count() <= 1) {
@@ -907,6 +1078,7 @@ bool BrowserWindow::definitely_close_tab(int index)
         WebView::SessionStore::TabClosed closed {
             .tab_id = *session_tab_id,
             .closed_at = UnixDateTime::now(),
+            .keep_for_reopening = keep_for_reopening,
         };
         if (auto result = m_session->session_store->tab_closed(AK::move(closed)); result.is_error())
             dbgln("Unable to record the closed tab in the session store: {}", result.error());
@@ -1043,7 +1215,7 @@ int BrowserWindow::tab_index(Tab* tab)
 void BrowserWindow::update_window_title(QString const& title)
 {
     char const* format = is_private() == WebView::IsPrivate::Yes
-        ? "%1 - Ladybird (Private Browsing)"
+        ? "%1 - Ladybird (Private)"
         : "%1 - Ladybird";
     setWindowTitle(QString(format).arg(title));
 }
@@ -1066,15 +1238,15 @@ void BrowserWindow::tab_favicon_changed(int index, QIcon const& icon)
 
 void BrowserWindow::update_chrome_style()
 {
-    menuBar()->setStyleSheet(ChromeStyle::menu_bar_style_sheet(palette()));
-    m_hamburger_menu->setStyleSheet(ChromeStyle::hamburger_style_sheet(palette()));
+    menuBar()->setStyleSheet(ChromeStyle::menu_bar_style_sheet(Theme::chrome_palette(*this)));
 }
 
 TabBarButton* BrowserWindow::create_tab_close_button(Tab& tab)
 {
-    auto* close_button = new TabBarButton(create_chrome_icon(ChromeIcon::TabClose, palette()));
+    auto* close_button = new TabBarButton(create_chrome_icon(ChromeIcon::TabClose, Theme::chrome_palette(*this)), TabBarButton::Role::Close);
     close_button->setToolTip("Close Tab");
     connect(close_button, &QPushButton::clicked, this, [this, tab = &tab]() {
+        m_tabs_container->tab_bar()->lock_tab_widths();
         request_to_close_tab(m_tabs_container->index_of(tab));
     });
     return close_button;
@@ -1113,7 +1285,7 @@ void BrowserWindow::update_tab_button_icons()
     for (int index = 0; index < m_tabs_container->count(); ++index) {
         if (auto* button = m_tabs_container->tab_bar()->tabButton(index, TAB_CLOSE_BUTTON_POSITION)) {
             if (auto* tab_bar_button = qobject_cast<TabBarButton*>(button))
-                tab_bar_button->setIcon(create_chrome_icon(ChromeIcon::TabClose, palette()));
+                tab_bar_button->setIcon(create_chrome_icon(ChromeIcon::TabClose, Theme::chrome_palette(*this)));
         }
 
         if (auto* button = m_tabs_container->tab_bar()->tabButton(index, AUDIO_STATE_BUTTON_POSITION)) {
@@ -1163,10 +1335,10 @@ void BrowserWindow::update_menu_bar_window_control_icons()
         return;
 
     auto is_maximized = this->isMaximized();
-    m_menu_bar_minimize_window_button->setIcon(create_chrome_icon(ChromeIcon::WindowMinimize, palette()));
-    m_menu_bar_maximize_window_button->setIcon(create_chrome_icon(is_maximized ? ChromeIcon::WindowRestore : ChromeIcon::WindowMaximize, palette()));
+    m_menu_bar_minimize_window_button->setIcon(create_chrome_icon(ChromeIcon::WindowMinimize, Theme::chrome_palette(*this)));
+    m_menu_bar_maximize_window_button->setIcon(create_chrome_icon(is_maximized ? ChromeIcon::WindowRestore : ChromeIcon::WindowMaximize, Theme::chrome_palette(*this)));
     m_menu_bar_maximize_window_button->setToolTip(is_maximized ? "Restore" : "Maximize");
-    m_menu_bar_close_window_button->setIcon(create_chrome_icon(ChromeIcon::WindowClose, palette()));
+    m_menu_bar_close_window_button->setIcon(create_chrome_icon(ChromeIcon::WindowClose, Theme::chrome_palette(*this)));
 }
 
 void BrowserWindow::update_window_decoration_state()
@@ -1242,11 +1414,9 @@ void BrowserWindow::tab_audio_play_state_changed(int index, Web::HTML::AudioPlay
         break;
 
     case Web::HTML::AudioPlayState::Playing:
-        auto* button = new TabBarButton(icon_for_page_mute_state(*tab));
+        auto* button = new TabBarButton(icon_for_page_mute_state(*tab), TabBarButton::Role::Audio);
         button->setToolTip(tool_tip_for_page_mute_state(*tab));
         button->setObjectName("LadybirdAudioState");
-        // NB: The speaker fills more of its icon than the close button's cross does, so it is drawn a little smaller.
-        button->set_icon_inset(2);
 
         connect(button, &QPushButton::clicked, this, [this, tab]() {
             tab->view().toggle_page_mute_state();
@@ -1275,9 +1445,9 @@ QIcon BrowserWindow::icon_for_page_mute_state(Tab& tab) const
 {
     switch (tab.view().page_mute_state()) {
     case Web::HTML::MuteState::Muted:
-        return create_chrome_icon(ChromeIcon::VolumeMuted, palette());
+        return create_chrome_icon(ChromeIcon::VolumeMuted, Theme::chrome_palette(*this));
     case Web::HTML::MuteState::Unmuted:
-        return create_chrome_icon(ChromeIcon::Volume, palette());
+        return create_chrome_icon(ChromeIcon::Volume, Theme::chrome_palette(*this));
     }
 
     VERIFY_NOT_REACHED();
@@ -1293,6 +1463,21 @@ QString BrowserWindow::tool_tip_for_page_mute_state(Tab& tab) const
     }
 
     VERIFY_NOT_REACHED();
+}
+
+void BrowserWindow::show_all_tabs()
+{
+    m_tabs_container->show_all_tabs();
+}
+
+void BrowserWindow::move_focus_between_chrome_and_page()
+{
+    if (!m_current_tab)
+        return;
+    if (m_current_tab->view().hasFocus())
+        m_current_tab->focus_location_editor();
+    else
+        m_current_tab->view().setFocus(Qt::ShortcutFocusReason);
 }
 
 void BrowserWindow::open_next_tab()
@@ -1682,10 +1867,12 @@ void BrowserWindow::changeEvent(QEvent* event)
 
 void BrowserWindow::appearance_changed()
 {
+    SystemAppearance::the().apply_interface_theme(WebView::Application::settings().appearance().interface_theme);
     update_menu_bar_visibility();
 
     for_each_tab([](Tab& tab) {
         tab.update_bookmarks_bar_visibility();
+        tab.view().update_palette();
     });
 }
 
@@ -1715,7 +1902,7 @@ void BrowserWindow::paintEvent(QPaintEvent* event)
         return;
 
     QPainter painter(this);
-    auto color = ChromeStyle::chrome_window_outline(palette());
+    auto color = ChromeStyle::chrome_window_outline(Theme::chrome_palette(*this));
     auto frame = rect();
     painter.fillRect(QRect(frame.left(), frame.top(), frame.width(), 1), color);
     painter.fillRect(QRect(frame.left(), frame.bottom(), frame.width(), 1), color);

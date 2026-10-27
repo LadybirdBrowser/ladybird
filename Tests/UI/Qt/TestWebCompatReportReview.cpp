@@ -50,9 +50,9 @@ TEST_CASE(the_review_shows_the_website_and_the_selected_screenshot)
     WebCompatReportReview review { test_page(), test_screenshot(), nullptr };
     review.show();
 
-    EXPECT_EQ(child<QLabel>(review, "WebCompatReportWebsite").text(), "https://example.com/broken");
+    EXPECT_EQ(child<QLabel>(review, "WebCompatReportWebsite").text(), "example.com/broken");
     EXPECT(child<QWidget>(review, "WebCompatReportScreenshot").isVisible());
-    EXPECT_EQ(child<QPushButton>(review, "WebCompatReportSelectScreenshotButton").text(), "Retake screenshot");
+    EXPECT_EQ(child<QPushButton>(review, "WebCompatReportSelectScreenshotButton").text(), "Retake");
     EXPECT(child<QPushButton>(review, "WebCompatReportRemoveScreenshotButton").isVisible());
 }
 
@@ -98,7 +98,7 @@ TEST_CASE(a_report_without_a_screenshot_offers_to_take_one)
 
     review.set_screenshot(test_screenshot());
     EXPECT(child<QWidget>(review, "WebCompatReportScreenshot").isVisible());
-    EXPECT_EQ(select_button.text(), "Retake screenshot");
+    EXPECT_EQ(select_button.text(), "Retake");
 }
 
 TEST_CASE(page_dumps_can_be_included_once_they_have_arrived)
@@ -161,15 +161,25 @@ TEST_CASE(leaving_the_review_closes_its_tab)
     review.show();
 
     auto& review_close = child<QPushButton>(review, "WebCompatReportReviewCloseButton");
-    EXPECT_EQ(review_close.text(), "Close tab");
+    EXPECT_EQ(review_close.text(), "Cancel");
     review_close.click();
     EXPECT_EQ(exits, 1);
 
     review.show_sent();
+    auto& back_to_site = child<QPushButton>(review, "WebCompatReportBackToSiteButton");
+    EXPECT_EQ(back_to_site.text(), "Back to the site");
+    EXPECT(back_to_site.isVisible());
+    back_to_site.click();
+    EXPECT_EQ(exits, 2);
+
+    // Closing the tab once the report is sent does not have to return to the site.
+    auto closes = 0;
+    review.on_close_tab = [&] { ++closes; };
     auto& close = child<QPushButton>(review, "WebCompatReportCloseButton");
     EXPECT_EQ(close.text(), "Close tab");
     close.click();
     EXPECT_EQ(exits, 2);
+    EXPECT_EQ(closes, 1);
 }
 
 TEST_CASE(sending_can_be_canceled_until_the_report_is_sent)
@@ -206,7 +216,8 @@ TEST_CASE(sending_can_be_canceled_until_the_report_is_sent)
     EXPECT(!retry.isVisible());
     EXPECT(!cancel.isVisible());
     EXPECT(close.isVisible());
-    EXPECT(close.isDefault());
+    EXPECT(!close.isDefault());
+    EXPECT(child<QPushButton>(review, "WebCompatReportBackToSiteButton").isVisible());
 }
 
 TEST_CASE(a_screenshot_is_shrunk_to_fit_a_report)

@@ -42,7 +42,12 @@ QLabel* create_heading(QString const& text, qreal scale, QWidget* parent)
 
 QLabel* create_title(QString const& text, QWidget* parent)
 {
-    return create_heading(text, 1.5, parent);
+    auto* label = create_label(text, parent);
+    auto font = label->font();
+    font.setPixelSize(22);
+    font.setWeight(QFont::DemiBold);
+    label->setFont(font);
+    return label;
 }
 
 // A button that shows or hides the content below it, which starts out hidden. It is drawn as plain text, flush with the

@@ -31,7 +31,11 @@ public:
 
     WindowControlButton(WindowControlButtonType, QString const& tool_tip, QSize icon_size, QSize button_size, QWidget* parent = nullptr);
 
+    // GNOME draws its window controls as small circles, at the trailing end of the button's room.
+    void set_round(bool);
+
 private:
+    virtual void paintEvent(QPaintEvent*) override;
     virtual void enterEvent(QEnterEvent*) override;
     virtual void leaveEvent(QEvent*) override;
     virtual void mouseMoveEvent(QMouseEvent*) override;
@@ -43,7 +47,9 @@ private:
     void set_pressed_outside(bool);
     void update_pressed_position(QPoint const&);
 
+    WindowControlButtonType m_type;
     bool m_tracking_press { false };
+    bool m_is_round { false };
 };
 
 struct WindowControlButtons {

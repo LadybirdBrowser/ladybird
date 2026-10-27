@@ -18,19 +18,21 @@ endif()
 if (LINUX AND NOT ANDROID)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(GIO REQUIRED IMPORTED_TARGET gio-2.0 gio-unix-2.0)
+    # NB: Without the Wayland client library, a tab dragged out of a window does not take a window along with it.
+    pkg_check_modules(WAYLAND_CLIENT IMPORTED_TARGET wayland-client)
     pkg_check_modules(XCB_ICCCM REQUIRED IMPORTED_TARGET xcb-icccm)
 endif()
 
 qt_add_executable(ladybird main.cpp)
 target_sources(ladybird PRIVATE
+    AllTabsPopover.cpp
     Application.cpp
     Autocomplete.cpp
     BookmarkDialog.cpp
+    BookmarkPopover.cpp
     BookmarksBar.cpp
     BrowserWindow.cpp
     ChromeStyle.cpp
-    ContentBlockingButton.cpp
-    ContentBlockingPopover.cpp
     CrashReportNotifier.cpp
     CrashReportReviewWidget.cpp
     DevToolsBanner.cpp
@@ -41,6 +43,7 @@ target_sources(ladybird PRIVATE
     HiddenPageSizing.cpp
     InputMethodUtils.cpp
     JavaScriptDialog.cpp
+    LadybirdButton.cpp
     LocationEdit.cpp
     Menu.cpp
     NativeWindowContainer.cpp
@@ -50,12 +53,16 @@ target_sources(ladybird PRIVATE
     PictureInPictureWindow.cpp
     Popover.cpp
     ReportReview.cpp
+    RestoreSessionCard.cpp
     ScreenshotSelectionOverlay.cpp
     ScreenshotViewer.cpp
     SelectDropdown.cpp
+    SiteSettingsPopover.cpp
     StringUtils.cpp
+    SystemAppearance.cpp
     Tab.cpp
     TabBar.cpp
+    Theme.cpp
     WebCompatReportReview.cpp
     WebContentView.cpp
     WindowCloseCoordinator.cpp
@@ -80,6 +87,11 @@ endif()
 if (LINUX AND NOT ANDROID)
     target_sources(ladybird PRIVATE ExternalURLActivationToken.cpp ExternalURLHandler.cpp X11Window.cpp X11Window.h)
     target_link_libraries(ladybird PRIVATE LibThreading PkgConfig::GIO PkgConfig::XCB_ICCCM Qt::GuiPrivate)
+    if (WAYLAND_CLIENT_FOUND)
+        target_sources(ladybird PRIVATE WaylandWindow.cpp WaylandWindow.h)
+        target_link_libraries(ladybird PRIVATE PkgConfig::WAYLAND_CLIENT)
+        target_compile_definitions(ladybird PRIVATE LADYBIRD_HAS_WAYLAND_CLIENT)
+    endif()
 endif()
 
 if (APPLE)
@@ -95,6 +107,7 @@ if (APPLE)
         Menu.mm
         ScrollbarPreferencesMac.mm
         SpellCheckerMac.mm
+        SystemAppearanceMac.mm
         WebContentViewAccessibility.mm
         WebContentViewMac.mm
     )
@@ -210,7 +223,14 @@ if (BUILD_TESTING)
         ChromeStyle.cpp
         PerformanceMonitorWidget.cpp
         StringUtils.cpp
+        SystemAppearance.cpp
+        Theme.cpp
     )
+    if (APPLE)
+        target_sources(TestPerformanceMonitorWidget PRIVATE SystemAppearanceMac.mm)
+        target_link_libraries(TestPerformanceMonitorWidget PRIVATE "-framework AppKit")
+    endif()
+    set_target_properties(TestPerformanceMonitorWidget PROPERTIES AUTOMOC ON)
     target_include_directories(TestPerformanceMonitorWidget PRIVATE ${LADYBIRD_SOURCE_DIR})
     target_link_libraries(TestPerformanceMonitorWidget PRIVATE Qt6::Widgets LibWebView LibURL AK)
     qt_import_plugins(TestPerformanceMonitorWidget INCLUDE Qt6::QOffscreenIntegrationPlugin)

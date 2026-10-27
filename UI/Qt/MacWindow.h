@@ -14,6 +14,7 @@
 
 #include <Qt>
 
+class QColor;
 class QDrag;
 class QWidget;
 
@@ -25,6 +26,8 @@ Optional<u64> appkit_display_id_for_window(QWidget&);
 void hide_appkit_window_title(QWidget&);
 void make_appkit_window_resizable(QWidget&);
 void keep_appkit_window_visible_while_inactive(QWidget&);
+// For windows that animate their own showing and hiding.
+void disable_appkit_window_animations(QWidget&);
 void ensure_appkit_window_is_exposed(QWidget&);
 void set_appkit_window_content_aspect_ratio(QWidget&, Gfx::IntSize);
 void offset_appkit_window_controls(QWidget&, int x_offset, int y_offset);
@@ -33,6 +36,14 @@ void offset_appkit_window_controls(QWidget&, int x_offset, int y_offset);
 void reapply_appkit_window_control_offsets(QWidget&);
 void install_appkit_event_capture();
 void make_appkit_window_first_responder(QWidget&);
+// Rounds the corners of a native child widget's view, which shows what is below it through them, and outlines it.
+void round_appkit_view_corners(QWidget&, qreal radius, QColor const& border_color);
+// Puts the native view of the first widget right below the second one's, among the views of the second one's superview.
+void stack_appkit_view_below(QWidget&, QWidget& sibling);
+// The opacity of a native view embedded in another window, which has no window opacity of its own.
+void set_appkit_view_opacity(QWidget&, qreal opacity);
+// Clips a native view to rounded bottom corners, for a sheet that hangs from what is above it.
+void round_appkit_view_bottom_corners(QWidget&, qreal radius);
 bool start_appkit_window_drag(QWidget&);
 Qt::DropAction execute_appkit_tab_drag(QWidget&, QDrag&);
 void show_appkit_dictionary_lookup(QWidget&, WebView::DictionaryLookup const&, Gfx::IntPoint);

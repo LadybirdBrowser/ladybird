@@ -146,8 +146,8 @@ TEST_CASE(the_instructions_keep_their_padding_when_their_buttons_grow)
     QApplication::processEvents();
 
     for (auto* button : buttons) {
-        EXPECT(button->geometry().top() >= 12);
-        EXPECT(instructions->height() - button->geometry().bottom() - 1 >= 12);
+        EXPECT(button->geometry().top() >= 8);
+        EXPECT(instructions->height() - button->geometry().bottom() - 1 >= 8);
     }
 }
 

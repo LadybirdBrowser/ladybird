@@ -8,6 +8,7 @@
 #include <LibWebView/CrashReportStore.h>
 #include <UI/Qt/Application.h>
 #include <UI/Qt/CrashReportNotifier.h>
+#include <UI/Qt/LadybirdButton.h>
 #include <UI/Qt/Tab.h>
 
 #include <QApplication>
@@ -51,8 +52,8 @@ void CrashReportNotifier::show_pending()
     if (!m_pending_report_name.has_value() || QGuiApplication::applicationState() != Qt::ApplicationActive)
         return;
 
-    auto* tab = Application::the().active_tab();
-    auto* anchor = tab ? tab->hamburger_button() : nullptr;
+    auto* window = Application::the().active_window_if_any();
+    QWidget* anchor = window ? &window->ladybird_button() : nullptr;
     if (!anchor || !anchor->isVisible() || !window_is_active(*anchor->window()))
         return;
 
@@ -68,8 +69,8 @@ void CrashReportNotifier::show_pending()
     m_anchor->installEventFilter(this);
 
     auto report_name = m_pending_report_name.release_value();
-    m_popover = new MessagePopover(anchor, CRASH_REPORT_POPOVER_WIDTH, tr("Ladybird flew off-course!"),
-        tr("Part of Ladybird stopped unexpectedly. You can send us a crash report to help fix it."), tr("Dismiss"),
+    m_popover = new MessagePopover(anchor, CRASH_REPORT_POPOVER_WIDTH, tr("Part of Ladybird stopped unexpectedly"),
+        tr("You can send us a crash report to help fix it."), tr("Dismiss"),
         tr("Review report"));
     m_popover->setAttribute(Qt::WA_DeleteOnClose);
 
@@ -87,9 +88,9 @@ void CrashReportNotifier::show_pending()
     // The menu button's palette is transparent, so the popover takes its colors from the window instead.
     m_popover->update_chrome_style(anchor->window()->palette());
     m_popover->adjustSize();
-    move_popover_below(*m_popover, *anchor);
+    move_popover_below(*m_popover, *anchor, PopoverAlignment::Leading);
     m_popover->show();
-    move_popover_below(*m_popover, *anchor);
+    move_popover_below(*m_popover, *anchor, PopoverAlignment::Leading);
     m_popover->raise();
 }
 

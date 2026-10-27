@@ -14,10 +14,12 @@
 #include <LibWebView/Autocomplete.h>
 
 #include <QObject>
+#include <QPointer>
 
 class QFrame;
 class QLineEdit;
 class QListView;
+class QVariantAnimation;
 
 namespace Ladybird {
 
@@ -59,11 +61,16 @@ private:
 
     QLineEdit* m_anchor { nullptr };
     QFrame* m_popup { nullptr };
+    // The card's shadow, in a window of its own that lets the mouse through.
+    QPointer<QWidget> m_shadow;
     QListView* m_list_view { nullptr };
     AutocompleteModel* m_model { nullptr };
     AutocompleteDelegate* m_delegate { nullptr };
     bool m_is_updating_chrome_style { false };
     bool m_has_pending_chrome_style_update { false };
+    // The panel slides down this far into place as it opens.
+    qreal m_opening_offset { 0 };
+    QVariantAnimation* m_opening_animation { nullptr };
 };
 
 }

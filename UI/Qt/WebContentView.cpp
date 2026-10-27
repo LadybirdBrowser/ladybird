@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AnyOf.h>
 #include <AK/Array.h>
 #include <AK/Assertions.h>
 #include <AK/ByteBuffer.h>
@@ -37,6 +38,7 @@
 #include <UI/Qt/Application.h>
 #include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/CrashReportReviewWidget.h>
+#include <UI/Qt/Icon.h>
 #include <UI/Qt/ReportReview.h>
 #include <UI/Qt/ScreenshotViewer.h>
 #include <UI/Qt/WebCompatReportReview.h>
@@ -46,6 +48,8 @@
 #include <UI/Qt/InputMethodUtils.h>
 #include <UI/Qt/SelectDropdown.h>
 #include <UI/Qt/StringUtils.h>
+#include <UI/Qt/SystemAppearance.h>
+#include <UI/Qt/Theme.h>
 #include <UI/Qt/WebContentView.h>
 
 #if defined(Q_OS_MACOS)
@@ -68,7 +72,7 @@
 #include <QPaintEvent>
 #include <QPainter>
 #include <QPainterPath>
-#include <QPainterPathStroker>
+
 #include <QPalette>
 #include <QPixmap>
 #include <QPointer>
@@ -82,13 +86,27 @@
 #include <QToolTip>
 #include <QVBoxLayout>
 #include <QWheelEvent>
+#include <QWindow>
 
 template<>
 constexpr bool AllocatedWithSystemAllocator<QKeyEvent> = true;
 
 namespace Ladybird {
 
-bool is_using_dark_system_theme(QWidget&);
+// Whether pages get the dark system colors. This follows the website color scheme setting rather than the interface
+// theme, so pages can stay light in a dark window.
+static bool websites_prefer_dark()
+{
+    switch (WebView::Application::settings().appearance().website_color_scheme) {
+    case WebView::ThemePreference::System:
+        return SystemAppearance::the().prefers_dark();
+    case WebView::ThemePreference::Light:
+        return false;
+    case WebView::ThemePreference::Dark:
+        return true;
+    }
+    VERIFY_NOT_REACHED();
+}
 
 static QWidget* initial_web_content_view_parent([[maybe_unused]] QWidget* window)
 {
@@ -141,7 +159,7 @@ WebContentView::WebContentView(QWidget* window, Optional<WebView::CanonicalTrave
     m_maximum_frames_per_second = initial_state.maximum_frames_per_second;
     m_display_id = initial_state.display_id;
 
-    set_page_background_color_to_system_canvas(is_using_dark_system_theme(*this));
+    set_page_background_color_to_system_canvas(websites_prefer_dark());
 #ifdef LADYBIRD_QT_USE_IOSURFACE_LAYER
     on_page_background_color_change = [this](Gfx::Color) {
         update_iosurface_layer_background_color();
@@ -160,12 +178,14 @@ WebContentView::WebContentView(QWidget* window, Optional<WebView::CanonicalTrave
     for (auto* screen : QGuiApplication::screens())
         watch_screen_geometry(*screen);
 
-    QObject::connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged, this, [this] {
+    auto update_palette_soon = [this] {
         QTimer::singleShot(0, this, [this] {
             update_palette();
             schedule_repaint();
         });
-    });
+    };
+    QObject::connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged, this, update_palette_soon);
+    QObject::connect(&SystemAppearance::the(), &SystemAppearance::changed, this, update_palette_soon);
 
     m_tooltip_hover_timer.setSingleShot(true);
 
@@ -328,6 +348,7 @@ WebContentView::WebContentView(QWidget* window, Optional<WebView::CanonicalTrave
         if (active)
             close_select_dropdown_after_crash();
         set_crash_overlay_visible(active);
+        emit crash_overlay_changed();
     };
 
     on_crash_report_saved = [this] {
@@ -800,6 +821,17 @@ static bool is_browser_reserved_shortcut(QKeyEvent const& event)
     if (modifiers == Qt::ControlModifier && key == Qt::Key_PageUp)
         return true;
 
+    // F6 moves focus between the chrome and the page, and the sidebar shows or hides with its own shortcut.
+    if (modifiers == Qt::NoModifier && key == Qt::Key_F6)
+        return true;
+#if defined(AK_OS_MACOS)
+    if (modifiers == (Qt::ControlModifier | Qt::AltModifier) && key == Qt::Key_S)
+        return true;
+#else
+    if (modifiers == (Qt::ControlModifier | Qt::ShiftModifier) && key == Qt::Key_S)
+        return true;
+#endif
+
     return false;
 }
 
@@ -1159,7 +1191,7 @@ void WebContentView::paintEvent(QPaintEvent*)
 #ifdef LADYBIRD_QT_USE_IOSURFACE_LAYER
 void WebContentView::paintEvent(QPaintEvent*)
 {
-    // The page layer has rounded corners, so the area outside them should match the chrome around this view.
+    // The page layer covers the view, except before its first frame, which shows the chrome's color.
     QPainter painter(this);
     painter.fillRect(rect(), ChromeStyle::chrome_background(window()->palette()));
 }
@@ -1212,51 +1244,13 @@ Optional<QPixmap> WebContentView::tab_preview_pixmap(QSize const& maximum_size) 
 
 namespace {
 
-static void draw_crash_overlay_icon(QPainter& painter, QColor const& color)
-{
-    auto draw_path = [&](QPainterPath const& path) {
-        QPainterPathStroker stroker;
-        stroker.setWidth(1.5);
-        stroker.setCapStyle(Qt::RoundCap);
-        stroker.setJoinStyle(Qt::RoundJoin);
-        painter.fillPath(stroker.createStroke(path), color);
-    };
-
-    QPainterPath page_outline(QPointF(11.75, 0.75));
-    page_outline.lineTo(2.75, 0.75);
-    page_outline.cubicTo(1.65, 0.75, 0.75, 1.65, 0.75, 2.75);
-    page_outline.lineTo(0.75, 18.75);
-    page_outline.cubicTo(0.75, 19.85, 1.65, 20.75, 2.75, 20.75);
-    page_outline.lineTo(14.75, 20.75);
-    page_outline.cubicTo(15.85, 20.75, 16.75, 19.85, 16.75, 18.75);
-    page_outline.lineTo(16.75, 5.75);
-    page_outline.closeSubpath();
-    draw_path(page_outline);
-
-    QPainterPath page_details(QPointF(10.75, 0.75));
-    page_details.lineTo(10.75, 4.75);
-    page_details.cubicTo(10.75, 5.85, 11.65, 6.75, 12.75, 6.75);
-    page_details.lineTo(16.75, 6.75);
-    page_details.moveTo(4.75, 9.75);
-    page_details.lineTo(6.75, 11.75);
-    page_details.moveTo(6.75, 9.75);
-    page_details.lineTo(4.75, 11.75);
-    page_details.moveTo(10.75, 9.75);
-    page_details.lineTo(12.75, 11.75);
-    page_details.moveTo(12.75, 9.75);
-    page_details.lineTo(10.75, 11.75);
-    page_details.moveTo(5.75, 16.75);
-    page_details.cubicTo(6.75, 14.08, 10.75, 14.08, 11.75, 16.75);
-    draw_path(page_details);
-}
-
 static constexpr int PAGE_OVERLAY_MAXIMUM_WIDTH = 640;
 static constexpr int PAGE_OVERLAY_MARGIN = 32;
 static constexpr int CRASH_SCREEN_ICON_SPACING = 16;
 
 static QString crash_screen_message()
 {
-    return WebContentView::tr("This page crashed. You can reload it to try again.");
+    return WebContentView::tr("Something went wrong while showing this page. Your other tabs are fine.");
 }
 
 class CrashOverlayIcon final : public QWidget {
@@ -1266,16 +1260,14 @@ public:
     explicit CrashOverlayIcon(QWidget* parent)
         : QWidget(parent)
     {
-        setFixedSize(39, 48);
+        setFixedSize(40, 40);
     }
 
 protected:
     virtual void paintEvent(QPaintEvent*) override
     {
         QPainter painter(this);
-        painter.setRenderHint(QPainter::Antialiasing);
-        painter.scale(width() / 17.5, height() / 21.5);
-        draw_crash_overlay_icon(painter, palette().color(QPalette::WindowText));
+        create_chrome_icon(ChromeIcon::Warning, Theme::panel().muted).paint(&painter, rect());
     }
 };
 
@@ -1321,11 +1313,20 @@ public:
     QWidget& content() { return *m_content; }
     QWidget& column() { return *m_column; }
 
+    // The column reaches from the top of the tab to its bottom rather than being centered in it.
+    void set_fills_height()
+    {
+        m_fills_height = true;
+        m_layout->setStretch(0, 0);
+        m_layout->setStretch(1, 1);
+        m_layout->setStretch(2, 0);
+    }
+
     // The column takes all of the tab rather than being centered in it, so a review's full report gets as much room as
     // the tab has.
     void set_fills_tab(bool fills_tab)
     {
-        m_layout->setStretch(1, fills_tab ? 1 : 0);
+        m_layout->setStretch(1, fills_tab || m_fills_height ? 1 : 0);
         m_column->setMaximumWidth(fills_tab ? QWIDGETSIZE_MAX : PAGE_OVERLAY_MAXIMUM_WIDTH);
     }
 
@@ -1333,6 +1334,7 @@ private:
     QWidget* m_content { nullptr };
     QWidget* m_column { nullptr };
     QVBoxLayout* m_layout { nullptr };
+    bool m_fills_height { false };
 };
 
 class CrashOverlayUrlLabel final : public QLabel {
@@ -1402,7 +1404,7 @@ void WebContentView::set_crash_overlay_visible(bool visible)
         heading_layout->setContentsMargins(0, 0, 0, 0);
         heading_layout->setSpacing(ReportReview::item_spacing);
 
-        auto* title = ReportReview::create_title(tr("Ladybird flew off-course!"), heading);
+        auto* title = ReportReview::create_title(tr("This tab crashed"), heading);
 
         m_crash_overlay_url = new CrashOverlayUrlLabel(heading);
 
@@ -1411,7 +1413,8 @@ void WebContentView::set_crash_overlay_visible(bool visible)
         m_crash_overlay_message->setForegroundRole(QPalette::PlaceholderText);
         m_crash_overlay_message->setTextInteractionFlags(Qt::TextSelectableByMouse);
 
-        m_crash_overlay_reload_button = new QPushButton(tr("Reload page"), column);
+        m_crash_overlay_reload_button = new QPushButton(tr("Reload"), column);
+        m_crash_overlay_reload_button->setStyleSheet(ChromeStyle::primary_button_style_sheet());
         QObject::connect(m_crash_overlay_reload_button, &QPushButton::clicked, this, [this] {
             reload();
         });
@@ -1536,6 +1539,7 @@ void WebContentView::review_web_compat_report(WebCompatReportCapture capture)
         return;
 
     m_web_compat_report_overlay = new PageOverlay(this);
+    m_web_compat_report_overlay->set_fills_height();
     auto* column = &m_web_compat_report_overlay->column();
 
     auto* review = new WebCompatReportReview(AK::move(capture.page), AK::move(capture.screenshot), column);
@@ -1567,6 +1571,10 @@ void WebContentView::review_web_compat_report(WebCompatReportCapture capture)
     review->on_exit = [this] {
         if (on_close)
             on_close();
+    };
+    review->on_close_tab = [this] {
+        if (on_close_web_compat_report_tab)
+            on_close_web_compat_report_tab();
     };
     // The review is part of the overlay and cannot outlive it, even once leaving the review has let go of the overlay.
     review->on_report_text_visibility_change = [overlay = m_web_compat_report_overlay](bool visible) {
@@ -1653,6 +1661,43 @@ void WebContentView::close_transient_overlay(QWidget& overlay, QPointer<QWidget>
 Array<QWidget*, 4> WebContentView::overlays() const
 {
     return { m_crash_overlay, m_web_compat_report_overlay, m_screenshot_selection_overlay, m_screenshot_viewer };
+}
+
+namespace {
+
+class FloatingSurfaceWatcher final : public QObject {
+public:
+    AK_ALLOC_WITH_KMALLOC;
+
+    FloatingSurfaceWatcher(QWidget& surface, Function<void()> on_shown_or_hidden)
+        : QObject(&surface)
+        , m_on_shown_or_hidden(AK::move(on_shown_or_hidden))
+    {
+        surface.installEventFilter(this);
+    }
+
+private:
+    virtual bool eventFilter(QObject*, QEvent* event) override
+    {
+        if (event->type() == QEvent::Show || event->type() == QEvent::Hide)
+            m_on_shown_or_hidden();
+        return false;
+    }
+
+    Function<void()> m_on_shown_or_hidden;
+};
+
+}
+
+void WebContentView::add_floating_surface(QWidget& surface)
+{
+    m_floating_surfaces.append(&surface);
+    new FloatingSurfaceWatcher(surface, [this] { schedule_repaint(); });
+}
+
+bool WebContentView::has_floating_surface_over_page() const
+{
+    return any_of(m_floating_surfaces, [](auto const& surface) { return surface && surface->isVisible(); });
 }
 
 // Overlays are painted by Qt, underneath whatever presents the page on some platforms, which has to step aside for them.
@@ -1791,6 +1836,13 @@ void WebContentView::set_vertical_tab_overlay_insets([[maybe_unused]] int left, 
 #endif
 }
 
+#ifndef LADYBIRD_QT_USE_IOSURFACE_LAYER
+void WebContentView::set_page_dim(qreal)
+{
+    // NB: Elsewhere, the dialog dims the page by painting over it.
+}
+#endif
+
 void WebContentView::set_bookmarks_bar_overlay_height([[maybe_unused]] int height)
 {
 #ifdef LADYBIRD_QT_USE_VULKAN_WINDOW
@@ -1866,15 +1918,21 @@ void WebContentView::hideEvent(QHideEvent* event)
 static Core::AnonymousBuffer make_system_theme_from_qt_palette(QWidget& widget, WebContentView::PaletteMode mode)
 {
     auto qt_palette = widget.palette();
+    auto dark = websites_prefer_dark();
 
-    auto theme_file = mode == WebContentView::PaletteMode::Default ? "Default"sv : "Dark"sv;
+    auto theme_file = mode == WebContentView::PaletteMode::Dark || dark ? "Dark"sv : "Default"sv;
     auto theme_ini = MUST(Core::Resource::load_from_uri(MUST(String::formatted("resource://themes/{}.ini", theme_file))));
     auto theme = Gfx::load_system_theme(theme_ini->filesystem_path().to_byte_string()).release_value_but_fixme_should_propagate_errors();
 
     auto palette_impl = Gfx::PaletteImpl::create_with_anonymous_buffer(theme);
     auto palette = Gfx::Palette(move(palette_impl));
 
+    // The widgets' palette follows the interface theme. When pages get the other appearance, they keep the colors of
+    // the theme file instead.
+    auto qt_palette_matches = ChromeStyle::is_dark(qt_palette) == dark;
     auto translate = [&](Gfx::ColorRole gfx_color_role, QPalette::ColorRole qt_color_role) {
+        if (!qt_palette_matches)
+            return;
         auto new_color = Gfx::Color::from_bgra(qt_palette.color(qt_color_role).rgba());
         palette.set_color(gfx_color_role, new_color);
     };
@@ -1902,26 +1960,24 @@ static Core::AnonymousBuffer make_system_theme_from_qt_palette(QWidget& widget, 
         palette.set_color(Gfx::ColorRole::InactiveSelectionText, Gfx::Color::from_bgra(inactive_highlighted_text.rgba()));
     } else {
         // The Qt theme does not differentiate inactive selections; use a neutral gray.
-        auto inactive_selection = is_using_dark_system_theme(widget) ? Gfx::Color(0x60, 0x60, 0x60) : Gfx::Color(0xd4, 0xd4, 0xd4);
+        auto inactive_selection = dark ? Gfx::Color(0x60, 0x60, 0x60) : Gfx::Color(0xd4, 0xd4, 0xd4);
         palette.set_color(Gfx::ColorRole::InactiveSelection, inactive_selection);
     }
 #endif
 
-    palette.set_flag(Gfx::FlagRole::IsDark, is_using_dark_system_theme(widget));
+    palette.set_flag(Gfx::FlagRole::IsDark, dark);
 
     return theme;
 }
 
 void WebContentView::update_palette(PaletteMode mode)
 {
-    set_page_background_color_to_system_canvas(is_using_dark_system_theme(*this));
+    set_page_background_color_to_system_canvas(websites_prefer_dark());
 
     // NB: Every page hosting documents of this tab takes the palette, including the pages of out-of-process iframes.
     //     Their prefers-color-scheme and system colors resolve against it.
     update_system_theme(make_system_theme_from_qt_palette(*this, mode));
-#ifdef LADYBIRD_QT_USE_IOSURFACE_LAYER
-    update_iosurface_layer_border();
-#endif
+    update_interface_color_scheme();
 }
 
 Core::AnonymousBuffer WebContentView::system_theme()
@@ -2157,6 +2213,45 @@ Gfx::IntPoint WebContentView::to_widget_position(Gfx::IntPoint content_position)
     return content_position;
 }
 
+#ifdef LADYBIRD_QT_USE_IOSURFACE_LAYER
+// NB: Qt places this native view when the view moves within its parent, but not when a widget it is in moves, such as
+//     the page sliding along with the sidebar. The view watches the widgets it is in, and is placed again when they move.
+void WebContentView::watch_ancestors_for_moves()
+{
+    for (auto& ancestor : m_watched_ancestors) {
+        if (ancestor)
+            ancestor->removeEventFilter(this);
+    }
+    m_watched_ancestors.clear();
+    for (auto* ancestor = parentWidget(); ancestor && !ancestor->isWindow(); ancestor = ancestor->parentWidget()) {
+        ancestor->installEventFilter(this);
+        m_watched_ancestors.append(ancestor);
+    }
+    place_native_view_again();
+}
+
+bool WebContentView::eventFilter(QObject* watched, QEvent* event)
+{
+    if (event->type() == QEvent::Move && watched != this)
+        place_native_view_again();
+    return WebContentViewBase::eventFilter(watched, event);
+}
+
+void WebContentView::place_native_view_again()
+{
+    auto* native_view = windowHandle();
+    auto* native_parent = nativeParentWidget();
+    if (!native_view || !native_parent || !isVisible())
+        return;
+    if (native_view->geometry().topLeft() == mapTo(native_parent, QPoint()))
+        return;
+    // NB: Moving the view itself is what makes Qt place its native view, so it moves away and back.
+    auto position = pos();
+    move(position + QPoint(1, 0));
+    move(position);
+}
+#endif
+
 bool WebContentView::event(QEvent* event)
 {
     // NOTE: We have to implement event() manually as Qt's focus navigation mechanism
@@ -2182,6 +2277,11 @@ bool WebContentView::event(QEvent* event)
             return true;
         }
     }
+
+#ifdef LADYBIRD_QT_USE_IOSURFACE_LAYER
+    if (event->type() == QEvent::ParentChange || event->type() == QEvent::Show)
+        watch_ancestors_for_moves();
+#endif
 
     if (event->type() == QEvent::PaletteChange || event->type() == QEvent::ApplicationPaletteChange || event->type() == QEvent::ThemeChange) {
         QTimer::singleShot(0, this, [this] {

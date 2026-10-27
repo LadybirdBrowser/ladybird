@@ -23,18 +23,13 @@ enum class IncludeActionIcon : u8 {
     Yes,
 };
 
-enum class IncludeActionShortcut : u8 {
-    No,
-    Yes,
-};
-
-QMenu* create_application_menu(QWidget& parent, WebView::Menu&, IncludeActionShortcut = IncludeActionShortcut::Yes);
-void repopulate_application_menu(QMenu& menu, QWidget& parent, WebView::Menu& source, IncludeActionShortcut = IncludeActionShortcut::Yes);
+QMenu* create_application_menu(QWidget& parent, WebView::Menu&);
+void repopulate_application_menu(QMenu& menu, QWidget& parent, WebView::Menu& source);
 void update_history_menu(QMenu& menu, WebContentView*);
 void populate_session_history_traversal_menu(QMenu& menu, WebContentView&, int direction);
 
 QMenu* create_context_menu(QWidget& parent, WebContentView&, WebView::Menu&);
-QAction* create_application_action(QWidget& parent, WebView::Action&, IncludeActionIcon = IncludeActionIcon::Yes, IncludeActionShortcut = IncludeActionShortcut::Yes);
+QAction* create_application_action(QWidget& parent, WebView::Action&, IncludeActionIcon = IncludeActionIcon::Yes);
 
 #if defined(AK_OS_MACOS)
 void enable_menu_icons(QMenu&);

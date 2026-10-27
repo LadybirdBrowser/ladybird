@@ -8,6 +8,7 @@
 #include <LibTest/TestCase.h>
 
 #include <QApplication>
+#include <QCheckBox>
 #include <QDialogButtonBox>
 #include <QFrame>
 #include <QKeyEvent>
@@ -145,6 +146,31 @@ TEST_CASE(alert_and_confirm_report_the_expected_results)
     dialog.dismiss();
     EXPECT(completion.type == Ladybird::JavaScriptDialog::Type::Alert);
     EXPECT(completion.accepted);
+}
+
+TEST_CASE(only_offered_dialogs_can_block_further_dialogs)
+{
+    QWidget web_view;
+    web_view.resize(800, 600);
+    web_view.show();
+
+    Ladybird::JavaScriptDialog dialog(&web_view);
+    auto* checkbox = dialog.findChild<QCheckBox*>("LadybirdJavaScriptDialogBlockFurtherDialogs");
+    VERIFY(checkbox);
+
+    dialog.show_alert("https://example.com", "First alert");
+    EXPECT(checkbox->isHidden());
+    checkbox->setChecked(true);
+    dialog.accept();
+    EXPECT(!dialog.blocks_further_dialogs());
+
+    dialog.show_confirm("https://example.com", "Second dialog", Ladybird::JavaScriptDialog::OfferToBlockFurtherDialogs::Yes);
+    EXPECT(checkbox->isVisible());
+    EXPECT(!checkbox->isChecked());
+    EXPECT(!dialog.blocks_further_dialogs());
+    checkbox->setChecked(true);
+    dialog.dismiss();
+    EXPECT(dialog.blocks_further_dialogs());
 }
 
 TEST_CASE(prompt_supports_defaults_updates_and_keyboard_completion)
@@ -361,7 +387,7 @@ TEST_CASE(dialog_takes_its_views_size_when_it_opens)
     EXPECT_EQ(dialog.geometry(), web_view.rect());
     auto* panel = dialog.findChild<QFrame*>("LadybirdJavaScriptDialogPanel");
     VERIFY(panel);
-    EXPECT_EQ(panel->minimumWidth(), 320);
+    EXPECT_EQ(panel->width(), 440);
     dialog.dismiss();
 }
 

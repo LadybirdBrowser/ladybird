@@ -39,17 +39,23 @@ static void hide_native_context_menu_shortcuts(QMenu& menu)
         return;
     menu.setProperty(property, true);
 
-    // Qt ignores QAction::isShortcutVisibleInContextMenu() for native menus. Run after Qt's aboutToShow handling,
-    // which can update the native items.
+    // Qt ignores QAction::isShortcutVisibleInContextMenu() for native menus, so the shortcuts of the actions that
+    // don't show theirs are removed from the native items. Run after Qt's aboutToShow handling, which can update the
+    // native items.
     QObject::connect(menu.platformMenu(), &QPlatformMenu::aboutToShow, &menu, [&menu] {
-        for (auto* action : menu.actions()) {
+        auto actions = menu.actions();
+        for (auto* action : actions) {
             if (auto* submenu = action->menu())
                 hide_native_context_menu_shortcuts(*submenu);
         }
 
-        for (NSMenuItem* item in menu.toNSMenu().itemArray) {
-            item.keyEquivalent = @"";
-            item.keyEquivalentModifierMask = 0;
+        // NB: The native menu has an item for each action, separators included, in the same order.
+        NSArray<NSMenuItem*>* items = menu.toNSMenu().itemArray;
+        for (NSUInteger index = 0; index < items.count; ++index) {
+            if (index < static_cast<NSUInteger>(actions.size()) && actions[index]->isShortcutVisibleInContextMenu())
+                continue;
+            items[index].keyEquivalent = @"";
+            items[index].keyEquivalentModifierMask = 0;
         }
     });
 }

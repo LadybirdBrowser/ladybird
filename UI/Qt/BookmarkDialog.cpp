@@ -87,7 +87,7 @@ private:
     QIcon m_arrow;
 };
 
-static void add_bookmark_folder_options(QComboBox& folder_combo, ReadonlySpan<WebView::BookmarkItem> items, QString const& prefix, Optional<String const&> excluded_folder_id)
+static void add_bookmark_folder_options(QComboBox& folder_combo, QIcon const& folder_icon, ReadonlySpan<WebView::BookmarkItem> items, QString const& prefix, Optional<String const&> excluded_folder_id)
 {
     for (auto const& item : items) {
         // A folder cannot be moved into itself or any of its descendants.
@@ -96,10 +96,30 @@ static void add_bookmark_folder_options(QComboBox& folder_combo, ReadonlySpan<We
 
         auto title = qstring_from_ak_string(item.folder().title.value_or("(no title)"_string));
         auto path = prefix.isEmpty() ? title : QString("%1 / %2").arg(prefix, title);
-        folder_combo.addItem(path, qstring_from_ak_string(item.id));
+        folder_combo.addItem(folder_icon, path, qstring_from_ak_string(item.id));
 
-        add_bookmark_folder_options(folder_combo, item.folder().children, path, excluded_folder_id);
+        add_bookmark_folder_options(folder_combo, folder_icon, item.folder().children, path, excluded_folder_id);
     }
+}
+
+QComboBox* create_bookmark_folder_picker(QWidget* parent, ReadonlySpan<WebView::BookmarkItem> folders, Optional<String const&> selected_folder_id, Optional<String const&> excluded_folder_id)
+{
+    auto* folder_combo = new BookmarkFolderPicker(parent);
+    auto folder_icon = create_chrome_icon(ChromeIcon::Folder, folder_combo->palette());
+    folder_combo->setIconSize({ 14, 14 });
+    folder_combo->addItem(folder_icon, "Bookmarks bar", QString {});
+    add_bookmark_folder_options(*folder_combo, folder_icon, folders, {}, excluded_folder_id);
+    if (folder_combo->count() > 1) {
+        folder_combo->insertSeparator(1);
+        folder_combo->setItemData(1, true, BOOKMARK_FOLDER_SEPARATOR_ROLE);
+    }
+
+    if (selected_folder_id.has_value()) {
+        auto index = folder_combo->findData(qstring_from_ak_string(*selected_folder_id));
+        if (index >= 0)
+            folder_combo->setCurrentIndex(index);
+    }
+    return folder_combo;
 }
 
 BookmarkDialog::BookmarkDialog(QWidget* parent, Type type, Optional<URL::URL const&> current_url, Optional<String const&> current_title, Optional<String const&> selected_folder_id, ReadonlySpan<WebView::BookmarkItem> folders, Optional<String const&> excluded_folder_id)
@@ -110,16 +130,16 @@ BookmarkDialog::BookmarkDialog(QWidget* parent, Type type, Optional<URL::URL con
 
     switch (type) {
     case Type::AddBookmark:
-        setWindowTitle("Add Bookmark");
+        setWindowTitle("Add bookmark");
         break;
     case Type::EditBookmark:
-        setWindowTitle("Edit Bookmark");
+        setWindowTitle("Edit bookmark");
         break;
     case Type::AddFolder:
-        setWindowTitle("Add Folder");
+        setWindowTitle("Add folder");
         break;
     case Type::EditFolder:
-        setWindowTitle("Edit Folder");
+        setWindowTitle("Edit folder");
         break;
     }
 
@@ -149,21 +169,9 @@ BookmarkDialog::BookmarkDialog(QWidget* parent, Type type, Optional<URL::URL con
         m_title_edit->setText(qstring_from_ak_string(*current_title));
     layout->addRow("Title:", m_title_edit);
 
-    m_folder_combo = new BookmarkFolderPicker(this);
+    m_folder_combo = create_bookmark_folder_picker(this, folders, selected_folder_id, excluded_folder_id);
     m_folder_combo->setMinimumWidth(320);
     m_folder_combo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    m_folder_combo->addItem("Bookmarks Bar", QString {});
-    add_bookmark_folder_options(*m_folder_combo, folders, {}, excluded_folder_id);
-    if (m_folder_combo->count() > 1) {
-        m_folder_combo->insertSeparator(1);
-        m_folder_combo->setItemData(1, true, BOOKMARK_FOLDER_SEPARATOR_ROLE);
-    }
-
-    if (selected_folder_id.has_value()) {
-        auto index = m_folder_combo->findData(qstring_from_ak_string(*selected_folder_id));
-        if (index >= 0)
-            m_folder_combo->setCurrentIndex(index);
-    }
 
     layout->addRow("Folder:", m_folder_combo);
 
