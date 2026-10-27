@@ -746,6 +746,22 @@ void Internals::mouse_event_through_ui_process(Bindings::MouseEventThroughUIProc
         event.buttons = event.button;
     event.modifiers = static_cast<UIEvents::KeyModifier>(options.modifiers);
     event.click_count = options.click_count;
+    if (options.pointer.has_value() && (options.pointer->pointer_type == u"pen"sv || options.pointer->pointer_type == u"touch"sv)) {
+        auto const& init = *options.pointer;
+        PointerProperties properties;
+        properties.pointer_id = init.pointer_id;
+        properties.pointer_type = init.pointer_type == u"touch"sv ? PointerType::Touch : PointerType::Pen;
+        properties.width = init.width;
+        properties.height = init.height;
+        properties.pressure = init.pressure;
+        properties.tangential_pressure = init.tangential_pressure;
+        properties.tilt_x = init.tilt_x.value_or(0);
+        properties.tilt_y = init.tilt_y.value_or(0);
+        properties.twist = init.twist;
+        properties.altitude_angle = init.altitude_angle.value_or(AK::Pi<double> / 2);
+        properties.azimuth_angle = init.azimuth_angle.value_or(0);
+        event.pointer_data = PointerInputData { properties };
+    }
     Vector<Web::MouseEvent> events;
     events.append(move(event));
     send_mouse_events_through_ui_process(move(events), promise);

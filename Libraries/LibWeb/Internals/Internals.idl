@@ -416,6 +416,7 @@ dictionary WheelTicks {
 };
 
 dictionary MouseEventThroughUIProcessOptions {
+    PointerEventInit pointer;
     unsigned short button = 0;
     // The buttons held once the event has happened. By default, the button a mousedown presses, and none otherwise.
     unsigned short buttons;

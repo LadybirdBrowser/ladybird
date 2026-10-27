@@ -839,7 +839,7 @@ void ViewImplementation::enqueue_input_event(Web::InputEvent event)
         return;
     }
 
-    if (m_has_picture_in_picture_controls && mouse_event && handle_picture_in_picture_controls_mouse_event(*mouse_event))
+    if (m_has_picture_in_picture_controls && mouse_event && !mouse_event->pointer_data.ptr() && handle_picture_in_picture_controls_mouse_event(*mouse_event))
         return;
 
     // User input enables a single request for an external URL.
@@ -931,7 +931,7 @@ void ViewImplementation::send_input_event(size_t index)
         [&](Web::MouseEvent const& event) {
             // The compositor scrolls or drags a scrollbar for the event when it can, then forwards the event to
             // WebContent behind the scroll updates that produced, consumes it, or hands it back for direct dispatch.
-            if (pending.endpoint->handle_and_dispatch_mouse_event_in_compositor(event))
+            if (!event.pointer_data.ptr() && pending.endpoint->handle_and_dispatch_mouse_event_in_compositor(event))
                 pending.routed_through_compositor = true;
             else
                 pending.endpoint->async_mouse_event(event.clone_without_browser_data());
@@ -1135,6 +1135,8 @@ void ViewImplementation::did_finish_handling_input_event(Badge<WebContentPage>, 
     // A view can decide what a mouse event goes on to do by whether the page handled it, such as whether the page
     // claimed the press that starts a drag.
     if (auto const* mouse_event = event.get_pointer<Web::MouseEvent>()) {
+        if (mouse_event->pointer_data.ptr())
+            return;
         if (on_finish_handling_mouse_event)
             on_finish_handling_mouse_event(*mouse_event, event_result);
 

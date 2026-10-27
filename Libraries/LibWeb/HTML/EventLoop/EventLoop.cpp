@@ -446,7 +446,7 @@ void EventLoop::process_input_events() const
             //         or leave is dropped, as the queue coalesces the moves it holds, and the newer move's own event
             //         follows. Any other event is handled, without moving the hover or the pointer.
             bool input_is_outdated = false;
-            if (auto const* mouse_event = event.event.get_pointer<Web::MouseEvent>()) {
+            if (auto const* mouse_event = event.event.get_pointer<Web::MouseEvent>(); mouse_event && (!mouse_event->pointer_data.ptr() || mouse_event->pointer_data.ptr()->pointer_type == PointerType::Mouse)) {
                 auto document = root->active_document();
                 auto* arena = document ? document->layout_node_arena_if_created() : nullptr;
                 input_is_outdated = arena && Layout::RustFFI::document_host_mouse_event_is_outdated(arena->host(), mouse_event->id);
@@ -477,6 +477,8 @@ void EventLoop::process_input_events() const
                     VERIFY_NOT_REACHED();
                 },
                 [&](Web::MouseEvent const& mouse_event) {
+                    if (auto* pointer = mouse_event.pointer_data.ptr(); pointer && pointer->pointer_type != PointerType::Mouse)
+                        return root->event_handler().handle_pointer_event(mouse_event, page.device_to_css_point(mouse_event.position), page.device_to_css_point(mouse_event.screen_position), &remote_target);
                     switch (mouse_event.type) {
                     case Web::MouseEvent::Type::MouseDown:
                         return page.handle_mousedown(*root, mouse_event.position, mouse_event.screen_position, mouse_event.button, mouse_event.buttons, mouse_event.modifiers, mouse_event.click_count, mouse_event.scrollbar_dragged_by_compositor, &remote_target);
