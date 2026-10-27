@@ -800,6 +800,32 @@ void ConnectionFromClient::import_request(u64 request_id, Requests::ExportedRequ
     m_active_requests.set(request_id, move(request));
 }
 
+void ConnectionFromClient::resolve_host(u64 lookup_id, ByteString host)
+{
+    // Whatever connects to the host would bypass a proxy, and a proxy that resolves names would never see this lookup,
+    // so nothing is looked up while one is configured.
+    if (!proxy_configuration().is_empty() || host.is_empty() || host.length() > 253) {
+        async_host_resolved(lookup_id, {});
+        return;
+    }
+
+    auto weak_self = make_weak_ptr<ConnectionFromClient>();
+    m_resolver->dns.lookup(host, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA }, { .validate_dnssec_locally = DNSInfo::the().validate_dnssec_locally })
+        ->when_rejected([weak_self, lookup_id](auto const&) {
+            if (auto self = weak_self.strong_ref())
+                self->async_host_resolved(lookup_id, {});
+        })
+        .when_resolved([weak_self, lookup_id](auto const& dns_result) {
+            auto self = weak_self.strong_ref();
+            if (!self)
+                return;
+            Vector<ByteString> addresses;
+            for (auto const& address : dns_result->cached_addresses())
+                addresses.append(address.visit([](auto const& address) { return ByteString { MUST(address.to_string()) }; }));
+            self->async_host_resolved(lookup_id, move(addresses));
+        });
+}
+
 void ConnectionFromClient::ensure_connection(u64 request_id, URL::URL url, ::RequestServer::CacheLevel cache_level)
 {
     if (is_live_request_id(request_id)) {

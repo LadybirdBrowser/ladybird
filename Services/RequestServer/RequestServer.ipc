@@ -29,6 +29,10 @@ endpoint RequestServer
 
     ensure_connection(u64 request_id, URL::URL url, ::RequestServer::CacheLevel cache_level) =|
 
+    // Looks up a host that something other than a request connects to, such as a WebRTC ICE server, so that the
+    // browser's DNS settings apply to it too.
+    resolve_host(u64 lookup_id, ByteString host) =|
+
     store_cache_associated_data(Optional<HTTP::NetworkIsolationKey> network_isolation_key, URL::URL url, ByteString method, Vector<HTTP::Header> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData associated_data, Core::AnonymousBuffer data) => (Optional<IPC::File> file, u64 size)
     retrieve_cache_associated_data(Optional<HTTP::NetworkIsolationKey> network_isolation_key, URL::URL url, ByteString method, Vector<HTTP::Header> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData associated_data) => (Optional<Core::AnonymousBuffer> data)
 

@@ -60,6 +60,10 @@ void RequestClient::die()
     m_requests.clear();
     m_websockets.clear();
 
+    auto host_lookups = move(m_host_lookups);
+    for (auto& [id, on_resolved] : host_lookups)
+        on_resolved({});
+
     for (auto& [id, websocket] : websockets) {
         auto ready_state = websocket->ready_state();
         websocket->detach_from_client({});
@@ -180,6 +184,19 @@ void RequestClient::ensure_connection(URL::URL const& url, RequestServer::CacheL
 {
     auto request_id = m_next_request_id++;
     async_ensure_connection(request_id, url, cache_level);
+}
+
+void RequestClient::resolve_host(ByteString const& host, Function<void(Vector<ByteString>)> on_resolved)
+{
+    auto lookup_id = m_next_host_lookup_id++;
+    m_host_lookups.set(lookup_id, move(on_resolved));
+    async_resolve_host(lookup_id, host);
+}
+
+void RequestClient::host_resolved(u64 lookup_id, Vector<ByteString> addresses)
+{
+    if (auto on_resolved = m_host_lookups.take(lookup_id); on_resolved.has_value())
+        (*on_resolved)(move(addresses));
 }
 
 void RequestClient::request_requires_network(u64 request_id)
