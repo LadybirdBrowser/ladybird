@@ -1,35 +1,45 @@
-<!DOCTYPE html>
+<!doctype html>
 <html class="test-wait">
-<body style="height: 2000px">
-<iframe id="frame"></iframe>
-<script>
-    function afterPaintAndTask(callback) {
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                setTimeout(callback, 0);
-            });
-        });
-    }
+    <body style="height: 2000px">
+        <iframe id="frame"></iframe>
+        <script>
+            function afterPaintAndTask(callback) {
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        setTimeout(callback, 0);
+                    });
+                });
+            }
 
-    const frame = document.getElementById("frame");
-    frame.srcdoc = "<body><p>Content</p></body>";
+            const frame = document.getElementById("frame");
+            frame.srcdoc = "<body><p>Content</p></body>";
 
-    frame.onload = () => {
-        frame.contentDocument.body.offsetHeight;
+            frame.onload = () => {
+                // Closing the replacement document fires load again. Do not reopen it after the test finishes.
+                frame.onload = null;
+                frame.contentDocument.body.offsetHeight;
 
-        afterPaintAndTask(() => {
-            frame.contentDocument.open();
+                afterPaintAndTask(() => {
+                    frame.contentDocument.open();
 
-            // Scroll the viewport so the parent needs repaint without invalidating its cached display list.
-            window.scrollTo(0, 1);
+                    // Scroll the viewport so the parent needs repaint without invalidating its cached display list.
+                    window.scrollTo(0, 1);
 
-            afterPaintAndTask(() => {
-                frame.contentDocument.write("<body></body>");
-                frame.contentDocument.close();
-                document.documentElement.classList.remove("test-wait");
-            });
-        });
-    };
-</script>
-</body>
+                    afterPaintAndTask(() => {
+                        frame.addEventListener(
+                            "load",
+                            () => {
+                                afterPaintAndTask(() => {
+                                    document.documentElement.classList.remove("test-wait");
+                                });
+                            },
+                            { once: true }
+                        );
+                        frame.contentDocument.write("<body></body>");
+                        frame.contentDocument.close();
+                    });
+                });
+            };
+        </script>
+    </body>
 </html>
