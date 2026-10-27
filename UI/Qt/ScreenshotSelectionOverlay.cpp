@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/GenericShorthands.h>
 #include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/Popover.h>
 #include <UI/Qt/ScreenshotSelectionOverlay.h>
@@ -18,7 +19,6 @@
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPushButton>
-#include <QVBoxLayout>
 #include <QtMath>
 
 namespace Ladybird {
@@ -63,7 +63,8 @@ ScreenshotSelectionOverlay::ScreenshotSelectionOverlay(QImage frame, QWidget* pa
     auto* instructions = new QFrame(this);
     instructions->setObjectName("ScreenshotSelectionInstructions");
     instructions->setAttribute(Qt::WA_StyledBackground);
-    instructions->setCursor(Qt::ArrowCursor);
+    instructions->setCursor(Qt::OpenHandCursor);
+    instructions->installEventFilter(this);
     cast_popover_shadow(*instructions);
     // The buttons keep the same distance from the top, bottom and end of the card, and the text starts a little further
     // in. It gives up its width before the buttons do in a narrow tab.
@@ -95,19 +96,30 @@ ScreenshotSelectionOverlay::ScreenshotSelectionOverlay(QImage frame, QWidget* pa
 
     // The macOS style lays out a button by the bezel it would draw, which sits higher in the button than this style
     // sheet's border does. Laying the buttons out by their whole rect keeps them centered in the card.
-    for (auto* button : m_buttons)
+    for (auto* button : m_buttons) {
         button->setAttribute(Qt::WA_LayoutUsesWidgetRect);
+        button->setCursor(Qt::ArrowCursor);
+    }
 
     m_instructions = instructions;
     update_chrome_style();
 
-    // A layout keeps the card as large as its contents, however a restyle changes them, centered at the top.
-    auto* overlay_layout = new QVBoxLayout(this);
-    overlay_layout->setContentsMargins(INSTRUCTIONS_MARGIN, INSTRUCTIONS_MARGIN, INSTRUCTIONS_MARGIN, INSTRUCTIONS_MARGIN);
-    overlay_layout->addWidget(instructions, 0, Qt::AlignHCenter);
-    overlay_layout->addStretch();
     if (parent)
         setGeometry(parent->rect());
+}
+
+// The card is as large as its contents, however a restyle changes them, but no wider than the overlay. It sits centered
+// at the top until the user moves it, and stays within the overlay either way.
+void ScreenshotSelectionOverlay::place_instructions()
+{
+    auto available = rect().adjusted(INSTRUCTIONS_MARGIN, INSTRUCTIONS_MARGIN, -INSTRUCTIONS_MARGIN, -INSTRUCTIONS_MARGIN);
+    auto width = qMax(m_instructions->minimumSizeHint().width(), qMin(m_instructions->sizeHint().width(), available.width()));
+    auto height = m_instructions->hasHeightForWidth() ? m_instructions->heightForWidth(width) : m_instructions->sizeHint().height();
+
+    auto position = m_instructions_position.value_or(QPoint { available.left() + (available.width() - width) / 2, available.top() });
+    position.setX(qMax(available.left(), qMin(position.x(), available.right() + 1 - width)));
+    position.setY(qMax(available.top(), qMin(position.y(), available.bottom() + 1 - height)));
+    m_instructions->setGeometry({ position, QSize { width, height } });
 }
 
 // The selection in the coordinates of this widget, which the frame is stretched across.
@@ -210,6 +222,39 @@ void ScreenshotSelectionOverlay::mouseReleaseEvent(QMouseEvent* event)
     m_drag_start.clear();
     update();
     select(selected);
+}
+
+// The user drags the card out of the way of the part of the page they want to select, rather than starting a selection.
+bool ScreenshotSelectionOverlay::eventFilter(QObject* object, QEvent* event)
+{
+    if (object != m_instructions)
+        return QWidget::eventFilter(object, event);
+
+    if (event->type() == QEvent::LayoutRequest)
+        place_instructions();
+    if (!first_is_one_of(event->type(), QEvent::MouseButtonPress, QEvent::MouseMove, QEvent::MouseButtonRelease))
+        return QWidget::eventFilter(object, event);
+
+    auto& mouse_event = static_cast<QMouseEvent&>(*event);
+    auto position = mouse_event.globalPosition().toPoint();
+    if (event->type() == QEvent::MouseButtonPress && mouse_event.button() == Qt::LeftButton) {
+        m_instructions_grab_offset = position - m_instructions->pos();
+        m_instructions->setCursor(Qt::ClosedHandCursor);
+    } else if (event->type() == QEvent::MouseMove && m_instructions_grab_offset.has_value()) {
+        m_instructions_position = position - *m_instructions_grab_offset;
+        place_instructions();
+        m_instructions_position = m_instructions->pos();
+    } else if (event->type() == QEvent::MouseButtonRelease && mouse_event.button() == Qt::LeftButton) {
+        m_instructions_grab_offset.clear();
+        m_instructions->setCursor(Qt::OpenHandCursor);
+    }
+    return true;
+}
+
+void ScreenshotSelectionOverlay::resizeEvent(QResizeEvent* event)
+{
+    QWidget::resizeEvent(event);
+    place_instructions();
 }
 
 void ScreenshotSelectionOverlay::keyPressEvent(QKeyEvent* event)

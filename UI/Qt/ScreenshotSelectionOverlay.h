@@ -41,11 +41,14 @@ protected:
     virtual void mousePressEvent(QMouseEvent*) override;
     virtual void mouseMoveEvent(QMouseEvent*) override;
     virtual void mouseReleaseEvent(QMouseEvent*) override;
+    virtual void resizeEvent(QResizeEvent*) override;
     virtual void keyPressEvent(QKeyEvent*) override;
     virtual bool focusNextPrevChild(bool next) override;
     virtual void changeEvent(QEvent*) override;
+    virtual bool eventFilter(QObject*, QEvent*) override;
 
 private:
+    void place_instructions();
     QRect selection() const;
     void finish(QImage);
     void update_chrome_style();
@@ -54,6 +57,8 @@ private:
     Optional<QPoint> m_drag_start;
     QPoint m_drag_end;
     QWidget* m_instructions { nullptr };
+    Optional<QPoint> m_instructions_position;
+    Optional<QPoint> m_instructions_grab_offset;
     Vector<QPushButton*> m_buttons;
 };
 
