@@ -60,7 +60,7 @@ SharedImageBuffer::SharedImageBuffer(NonnullRefPtr<Bitmap> bitmap)
 }
 
 #    ifdef USE_VULKAN_DMABUF_IMAGES
-SharedImageBuffer::SharedImageBuffer(NonnullRefPtr<Bitmap> bitmap, LinuxDmaBufHandle&& dmabuf)
+SharedImageBuffer::SharedImageBuffer(RefPtr<Bitmap> bitmap, LinuxDmaBufHandle&& dmabuf)
     : m_linux_dmabuf_handle(move(dmabuf))
     , m_bitmap(move(bitmap))
 {
@@ -99,6 +99,9 @@ SharedImageBuffer SharedImageBuffer::import_from_shared_image(SharedImage shared
         },
         [](LinuxDmaBufHandle& dmabuf) -> SharedImageBuffer {
 #    ifdef USE_VULKAN_DMABUF_IMAGES
+            // NB: Only a linear layout can be read through a mapping. The pixels of a tiled one are only for the GPU.
+            if (dmabuf.modifier != DRM_FORMAT_MOD_LINEAR)
+                return SharedImageBuffer(nullptr, move(dmabuf));
             auto bitmap = create_bitmap_from_linux_dmabuf(dmabuf);
             return SharedImageBuffer(move(bitmap), move(dmabuf));
 #    else

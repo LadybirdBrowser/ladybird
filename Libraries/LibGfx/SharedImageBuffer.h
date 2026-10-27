@@ -55,7 +55,7 @@ private:
 #else
     explicit SharedImageBuffer(NonnullRefPtr<Bitmap>);
 #    ifdef USE_VULKAN_DMABUF_IMAGES
-    SharedImageBuffer(NonnullRefPtr<Bitmap>, LinuxDmaBufHandle&&);
+    SharedImageBuffer(RefPtr<Bitmap>, LinuxDmaBufHandle&&);
     Optional<LinuxDmaBufHandle> m_linux_dmabuf_handle;
 #    endif
 #    ifdef USE_DIRECTX
