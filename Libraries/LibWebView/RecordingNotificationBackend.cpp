@@ -79,6 +79,14 @@ void RecordingNotificationBackend::record_open(URL::URL const& url, Web::PageId 
     m_opened.append({ url, originating_page });
 }
 
+void RecordingNotificationBackend::forget_page(Web::PageId page_id)
+{
+    m_shown.remove_all_matching([&](auto const& notification) { return notification.page_id == page_id; });
+    m_closed.remove_all_matching([&](auto const& entry) { return entry.page_id == page_id; });
+    m_focused.remove_all_matching([&](auto const& focused) { return focused == page_id; });
+    m_opened.remove_all_matching([&](auto const& entry) { return entry.page_id == page_id; });
+}
+
 String RecordingNotificationBackend::state_json(Web::PageId page_id) const
 {
     JsonArray shown;
