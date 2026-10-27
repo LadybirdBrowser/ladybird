@@ -845,7 +845,7 @@ Messages::WebContentClient::DidLoseRequestServerConnectionResponse WebContentCli
 
 Messages::WebContentClient::RequestMediaServerConnectionResponse WebContentClient::request_media_server_connection()
 {
-    auto connection = connect_new_media_server_client(m_media_server_client, [this] { return connect_audio_server_client(); });
+    auto connection = connect_new_media_server_client(m_media_server_client, child_id(), [this] { return connect_audio_server_client(); });
     if (connection.is_error()) {
         warnln("Unable to connect a MediaServer client: {}", connection.error());
         return OptionalNone {};
@@ -875,13 +875,13 @@ ErrorOr<IPC::TransportHandle> WebContentClient::connect_audio_server_client()
 {
     // The server must know of the permission before any client gets its connection.
     TRY(ensure_audio_server_controller());
-    return connect_new_audio_server_client(m_audio_server_client, m_audio_tab_id);
+    return connect_new_audio_server_client(m_audio_server_client, child_id(), m_audio_tab_id);
 }
 
 ErrorOr<void> WebContentClient::ensure_audio_server_controller()
 {
     auto* previous_controller = m_audio_server_client.ptr();
-    TRY(ensure_audio_server_is_running(m_audio_server_client));
+    TRY(ensure_audio_server_is_running(m_audio_server_client, child_id()));
     if (m_audio_server_client.ptr() == previous_controller)
         return {};
     m_audio_server_client->on_capture_requested = [this](u64 tab_id, u64 request_id, ByteString const&) {

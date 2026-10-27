@@ -8,6 +8,7 @@
 #include <LibCore/EventLoop.h>
 #include <LibCore/Timer.h>
 #include <LibIPC/File.h>
+#include <LibURL/Parser.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CanonicalEnvironmentSettingsObject.h>
 #include <LibWebView/CanonicalNavigable.h>
@@ -246,6 +247,21 @@ Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(Owner owner, O
     //     settings it is created for, too.
     auto inside_settings = make<CanonicalWorkerEnvironmentSettingsObject>(move(origin), outside_settings->top_level_origin(), has_cross_site_ancestor, Web::HTML::EnvironmentId::generate());
     auto environment_id = inside_settings->id();
+
+    // NB: The task manager lists the worker's process with the process that started it, and once that one is gone,
+    //     with the site of the worker's origin.
+    if (auto process = Application::process_manager().find_child(client->child_id()); process.has_value()) {
+        owner.client.visit(
+            [&](WebContentOwner const& web_content_owner) {
+                if (web_content_owner.client)
+                    process->set_owner_child_id(web_content_owner.client->child_id());
+            },
+            [&](WebWorkerOwner const& web_worker_owner) {
+                process->set_owner_child_id(web_worker_owner.client->child_id());
+            });
+        if (auto const& worker_origin = inside_settings->origin(); !worker_origin.is_opaque() && !worker_origin.is_file_origin())
+            process->set_site_url(URL::Parser::basic_parse(worker_origin.serialize()));
+    }
 
     // NB: A worker's process reads local files as its owner's does. A worker of a file origin that local file content
     //     starts is local file content too.

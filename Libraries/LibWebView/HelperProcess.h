@@ -25,9 +25,9 @@ namespace WebView {
 
 WEBVIEW_API ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(IsPrivate, Web::PageId initial_page_id, Web::HTML::CrossProcessId root_navigable_id);
 
-WEBVIEW_API ErrorOr<NonnullRefPtr<MediaClient::Client>> launch_media_server_process();
-WEBVIEW_API ErrorOr<NonnullRefPtr<AudioServerControlClient>> launch_audio_server_process();
-WEBVIEW_API ErrorOr<NonnullRefPtr<VideoDecoderServerControlClient>> launch_video_decoder_server_process(Optional<Gfx::GpuDeviceIdentity> const&);
+WEBVIEW_API ErrorOr<NonnullRefPtr<MediaClient::Client>> launch_media_server_process(u64 owner_child_id);
+WEBVIEW_API ErrorOr<NonnullRefPtr<AudioServerControlClient>> launch_audio_server_process(u64 owner_child_id);
+WEBVIEW_API ErrorOr<NonnullRefPtr<VideoDecoderServerControlClient>> launch_video_decoder_server_process(u64 owner_child_id, Optional<Gfx::GpuDeviceIdentity> const&);
 WEBVIEW_API void shut_down_video_decoder_servers();
 WEBVIEW_API ErrorOr<NonnullRefPtr<WebView::CompositorClient>> launch_compositor_process();
 WEBVIEW_API ErrorOr<NonnullRefPtr<WebView::WebWorkerClient>> launch_web_worker_process(Web::HTML::AgentType, IsPrivate, Web::HTML::WorkerAgentId);
@@ -59,17 +59,19 @@ WEBVIEW_API ErrorOr<RequestServerClientConnection> connect_new_request_server_cl
 // Names a tab's mix in the AudioServer. Every renderer and worker process gets one of its own, and every process
 // that plays on its behalf plays into the same mix.
 WEBVIEW_API u64 allocate_audio_tab_id();
-// Launches the AudioServer for a renderer if it has none, keeping its controller connection in the given slot.
-WEBVIEW_API ErrorOr<void> ensure_audio_server_is_running(RefPtr<AudioServerControlClient>& controller);
+// Launches the AudioServer for a renderer if it has none, keeping its controller connection in the given slot. The
+// server is listed with the renderer's process, which the owner child ID names.
+WEBVIEW_API ErrorOr<void> ensure_audio_server_is_running(RefPtr<AudioServerControlClient>& controller, u64 owner_child_id);
 // Likewise, and connects a new client to it as a member of the given tab's mix.
-WEBVIEW_API ErrorOr<IPC::TransportHandle> connect_new_audio_server_client(RefPtr<AudioServerControlClient>& controller, u64 audio_tab_id);
+WEBVIEW_API ErrorOr<IPC::TransportHandle> connect_new_audio_server_client(RefPtr<AudioServerControlClient>& controller, u64 owner_child_id, u64 audio_tab_id);
 // Launches the MediaServer for a renderer if it has none, keeping its controller connection in the given slot, and
 // connects a new client to it. The server gets its AudioServer connection through connect_audio_server, and its
-// VideoDecoderServer from the Browser, which launches one for it on request.
+// VideoDecoderServer from the Browser, which launches one for it on request. Both servers it launches are listed with
+// the renderer's process, which the owner child ID names.
 struct MediaServerClientConnection {
     IPC::TransportHandle handle;
     int client_id { -1 };
 };
-WEBVIEW_API ErrorOr<MediaServerClientConnection> connect_new_media_server_client(RefPtr<MediaClient::Client>& controller, Function<ErrorOr<IPC::TransportHandle>()> connect_audio_server);
+WEBVIEW_API ErrorOr<MediaServerClientConnection> connect_new_media_server_client(RefPtr<MediaClient::Client>& controller, u64 owner_child_id, Function<ErrorOr<IPC::TransportHandle>()> connect_audio_server);
 
 }

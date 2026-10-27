@@ -163,8 +163,8 @@ Messages::WebWorkerClient::DidIsKnownHstsHostResponse WebWorkerClient::did_is_kn
 
 Messages::WebWorkerClient::RequestMediaServerConnectionResponse WebWorkerClient::request_media_server_connection()
 {
-    auto connection = connect_new_media_server_client(m_media_server_client, [this] {
-        return connect_new_audio_server_client(m_audio_server_client, m_audio_tab_id);
+    auto connection = connect_new_media_server_client(m_media_server_client, child_id(), [this] {
+        return connect_new_audio_server_client(m_audio_server_client, child_id(), m_audio_tab_id);
     });
     if (connection.is_error()) {
         warnln("Unable to connect a MediaServer client: {}", connection.error());

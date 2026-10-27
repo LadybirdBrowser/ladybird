@@ -218,6 +218,70 @@ TEST_CASE(end_process_terminates_a_child_and_handles_disappearing_selection)
     EXPECT(!button->isEnabled());
     EXPECT(processes->selectedItems().isEmpty());
 }
+
+TEST_CASE(helper_processes_are_listed_with_the_site_they_work_for)
+{
+    Core::EventLoop event_loop;
+    Core::ResourceImplementation::install(make<Core::ResourceImplementationFile>(MUST(String::from_utf8(TEST_RESOURCE_ROOT ""sv))));
+    WebView::ProcessManager manager;
+    auto pipe = MUST(Core::System::pipe2(O_CLOEXEC));
+    Vector<pid_t> pids;
+    ScopeGuard cleanup = [&] {
+        for (auto pid : pids) {
+            (void)Core::Process::terminate_process(pid, Core::Process::TerminationMode::Forceful);
+            (void)Core::System::waitpid(pid);
+        }
+        (void)Core::System::close(pipe[0]);
+        (void)Core::System::close(pipe[1]);
+    };
+    auto add_process = [&](WebView::ProcessType type, Optional<u64> owner_child_id, Optional<StringView> site) {
+        auto child = MUST(Core::Process::spawn({
+            .executable = "/bin/cat",
+            .file_actions = { Core::FileAction::DupFd { pipe[0], STDIN_FILENO } },
+        }));
+        pids.append(child.pid());
+        auto identity = manager.add_process(WebView::Process(type, nullptr, move(child)));
+        auto process = manager.find_child(identity.child_id);
+        if (owner_child_id.has_value())
+            process->set_owner_child_id(*owner_child_id);
+        if (site.has_value())
+            process->set_site_url(URL::Parser::basic_parse(*site));
+        return identity.child_id;
+    };
+
+    // A worker of an opaque origin has no site of its own, and its helpers are listed with the page that started it.
+    auto page = add_process(WebView::ProcessType::WebContent, {}, "https://example.com/"sv);
+    auto worker = add_process(WebView::ProcessType::WebWorker, page, {});
+    add_process(WebView::ProcessType::ImageDecoder, worker, {});
+    add_process(WebView::ProcessType::AudioServer, worker, {});
+    add_process(WebView::ProcessType::MediaServer, page, {});
+    // A shared worker outlives the page that started it, and is then listed with the site of its own origin.
+    auto gone_page = add_process(WebView::ProcessType::WebContent, {}, "https://example.org/"sv);
+    auto surviving_worker = add_process(WebView::ProcessType::WebWorker, gone_page, "https://example.org"sv);
+    add_process(WebView::ProcessType::ImageDecoder, surviving_worker, {});
+    (void)manager.remove_process(gone_page);
+
+    // With top-level site isolation, a cross-site frame shares its parent's process. Its worker has its own site.
+    auto frame_worker = add_process(WebView::ProcessType::WebWorker, page, "https://example.net"sv);
+    add_process(WebView::ProcessType::ImageDecoder, frame_worker, {});
+
+    Ladybird::ProcessManagerWindow window(manager);
+    window.show();
+    auto* processes = window.findChild<QTreeWidget*>();
+    auto child_count_of_site = [&](QString const& name) -> Optional<int> {
+        for (int i = 0; i < processes->topLevelItemCount(); ++i) {
+            if (processes->topLevelItem(i)->text(0) == name)
+                return processes->topLevelItem(i)->childCount();
+        }
+        return {};
+    };
+
+    // The browser, the sites heading, and the three sites.
+    EXPECT_EQ(processes->topLevelItemCount(), 5);
+    EXPECT_EQ(child_count_of_site("example.com"), 5);
+    EXPECT_EQ(child_count_of_site("example.org"), 2);
+    EXPECT_EQ(child_count_of_site("example.net"), 2);
+}
 #endif
 
 TEST_CASE(site_labels_handle_urls_without_hosts)
