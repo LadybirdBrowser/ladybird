@@ -1533,7 +1533,7 @@ fn apply_root_sizing_directives(
     let mut atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above = None;
     let body_input = match input.participation {
         ParticipationInParentFormattingContext::BlockLevel => dimension_block_level_root(run, input, fc_type),
-        ParticipationInParentFormattingContext::Float => body_input_with_inner_available_space(run, input),
+        ParticipationInParentFormattingContext::Float { .. } => body_input_with_inner_available_space(run, input),
         ParticipationInParentFormattingContext::AtomicInline => {
             let run_cache_may_reuse_this_run_at_other_available_inline_sizes =
                 fc_type == FormattingContextType::Block && run.fragments.is_some();
@@ -1753,7 +1753,7 @@ fn dimension_root_in_parent_scope(
             parent.resolve_block_level_root_block_size_before_body(child, input, flex_self_resolution_space.is_some());
             flex_self_resolution_space
         }
-        ParticipationInParentFormattingContext::Float => {
+        ParticipationInParentFormattingContext::Float { .. } => {
             let parent = parent_block.expect("a floating run requires an enclosing block formatting context");
             let flex_self_resolution_space = flex_self_resolution_space_of_following_run(parent);
             parent.dimension_float_root(child, input, flex_self_resolution_space.is_some());
@@ -1771,7 +1771,7 @@ fn size_skipped_independent_root(
 ) {
     dimension_root_in_parent_scope(parent_block, child, input, false);
     match input.participation {
-        ParticipationInParentFormattingContext::Float => {
+        ParticipationInParentFormattingContext::Float { .. } => {
             let parent = parent_block.expect("a floating run requires an enclosing block formatting context");
             parent.resolve_used_block_size_if_treated_as_auto(
                 child,
@@ -2222,7 +2222,7 @@ fn execute_formatting_context_run(
                 ParticipationInParentFormattingContext::BlockLevel => {
                     finalize_block_level_root(run, &input, &result);
                 }
-                ParticipationInParentFormattingContext::Float => {
+                ParticipationInParentFormattingContext::Float { .. } => {
                     finalize_float_root(run, &input, &result);
                 }
                 ParticipationInParentFormattingContext::AtomicInline => {
@@ -2248,7 +2248,7 @@ fn execute_formatting_context_run(
             if matches!(
                 input.participation,
                 ParticipationInParentFormattingContext::BlockLevel
-                    | ParticipationInParentFormattingContext::Float
+                    | ParticipationInParentFormattingContext::Float { .. }
                     | ParticipationInParentFormattingContext::AtomicInline
             ) {
                 let sizing = run.sizing();
@@ -2394,10 +2394,7 @@ fn enter_own_frame(
     if !parent_frame.is_orthogonal_to(own_frame) {
         // NB: Sizes keep their axes between frames that are not orthogonal, so the contents are laid out with the
         //     input the root's sizing gave them, apart from the parent's block formatting context they leave.
-        return LayoutInput {
-            content_box_position_in_bfc_root: None,
-            ..body_input
-        };
+        return body_input;
     }
     let mut constraints = input.containing_block_constraints;
     let mut available_space = input.available_space;

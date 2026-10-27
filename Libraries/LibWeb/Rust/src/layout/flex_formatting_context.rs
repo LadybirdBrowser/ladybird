@@ -2832,7 +2832,6 @@ impl<'pass> FlexFormattingContext<'pass> {
         let mut input = LayoutInput {
             available_space: used.available_inner_space_or_constraints_from(space_for_items),
             containing_block_constraints: self.item_containing_block_constraints(),
-            content_box_position_in_bfc_root: None,
             sizing: RootSizingDirectives::default(),
             participation: ParticipationInParentFormattingContext::Item,
         };

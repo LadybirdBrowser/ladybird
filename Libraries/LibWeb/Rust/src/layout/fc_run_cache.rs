@@ -144,7 +144,6 @@ fn layout_inputs_match_ignoring_unobserved(
     let LayoutInput {
         available_space,
         containing_block_constraints,
-        content_box_position_in_bfc_root,
         sizing,
         participation,
     } = *a;
@@ -153,7 +152,7 @@ fn layout_inputs_match_ignoring_unobserved(
         percentage_basis_block_size,
         quirks_mode_percentage_basis_block_size,
     } = containing_block_constraints;
-    if participation != b.participation || content_box_position_in_bfc_root != b.content_box_position_in_bfc_root {
+    if participation != b.participation {
         return false;
     }
     let available_inline_sizes_match = available_space.inline_size == b.available_space.inline_size
@@ -1433,7 +1432,11 @@ mod tests {
             |probe| probe.input.containing_block_constraints.percentage_basis_block_size = Some(px(10)),
             |probe| probe.input.available_space.block_size = AvailableSize::definite(px(10)),
             |probe| probe.input.sizing.forced_min_border_box_block_size = Some(px(10)),
-            |probe| probe.input.participation = ParticipationInParentFormattingContext::Float,
+            |probe| {
+                probe.input.participation = ParticipationInParentFormattingContext::Float {
+                    containing_block_position_in_bfc_root: FfiCssPixelPoint::default(),
+                }
+            },
         ];
         for mutate in mutators {
             let mut probe = key(AvailableSize::definite(px(320)), Some(px(320)));

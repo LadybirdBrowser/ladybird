@@ -367,7 +367,11 @@ pub(crate) enum MathStretchSizeConstraint {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ParticipationInParentFormattingContext {
     BlockLevel,
-    Float,
+    /// A float, which its parent block formatting context sizes against the floats beside the content box of its
+    /// containing block, placed here.
+    Float {
+        containing_block_position_in_bfc_root: FfiCssPixelPoint,
+    },
     AtomicInline,
     AbsolutelyPositioned(abspos_inputs::AbsposLayoutInputs),
     Item,
@@ -378,7 +382,6 @@ pub(crate) enum ParticipationInParentFormattingContext {
 pub(crate) struct LayoutInput {
     pub(crate) available_space: AvailableSpace,
     pub(crate) containing_block_constraints: ContainingBlockConstraints,
-    pub(crate) content_box_position_in_bfc_root: Option<FfiCssPixelPoint>,
     pub(crate) sizing: RootSizingDirectives,
     pub(crate) participation: ParticipationInParentFormattingContext,
 }
@@ -392,7 +395,6 @@ impl LayoutInput {
         Self {
             available_space,
             containing_block_constraints,
-            content_box_position_in_bfc_root: None,
             sizing: RootSizingDirectives::default(),
             participation,
         }

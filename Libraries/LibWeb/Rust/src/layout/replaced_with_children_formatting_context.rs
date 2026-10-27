@@ -58,7 +58,6 @@ pub(super) fn layout_replaced_with_children(
         geometry::LayoutInput {
             available_space: child_available_space,
             containing_block_constraints: wrapper_constraints,
-            content_box_position_in_bfc_root: None,
             sizing: geometry::RootSizingDirectives {
                 adopt_automatic_content_block_size: true,
                 ..geometry::RootSizingDirectives::default()
