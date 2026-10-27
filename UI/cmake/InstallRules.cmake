@@ -14,6 +14,18 @@ endif()
 
 set(ladybird_applications ladybird WebDriver ${ladybird_helper_processes})
 
+# CMake installs the binaries unstripped when it has no strip tool, or ignores the failure to run it, for instance when
+# packaging in a different environment than the build. Refuse to install anything in that case. MSVC-style toolchains
+# have no strip tool to begin with.
+if (NOT MSVC)
+    install(CODE "
+    if (CMAKE_INSTALL_DO_STRIP AND NOT EXISTS \"${CMAKE_STRIP}\")
+      message(FATAL_ERROR \"Cannot strip the installed binaries, since the strip tool '${CMAKE_STRIP}' does not exist\")
+    endif()
+  "
+            COMPONENT ladybird_Runtime)
+endif()
+
 install(TARGETS ladybird WebDriver
   EXPORT ladybirdTargets
   RUNTIME
