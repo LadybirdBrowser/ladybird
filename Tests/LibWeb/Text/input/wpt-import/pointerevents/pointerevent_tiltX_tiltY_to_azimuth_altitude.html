@@ -1,0 +1,109 @@
+<!doctype html>
+<html>
+  <head>
+    <title>TiltX/TiltY to Azimuth/Altitude</title>
+    <script src="../resources/testharness.js"></script>
+    <script src="../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <script>
+      if(window.test){
+          [{tiltX:0,tiltY:0, azimuth:0, altitude:Math.PI/2},
+           {tiltX:0, tiltY:90, azimuth:Math.PI/2, altitude:0},
+           {tiltX:0, tiltY:-90, azimuth:3*Math.PI/2, altitude:0},
+           {tiltX:90,tiltY:0, azimuth:0, altitude:0},
+           {tiltX:90, tiltY:90, azimuth:0, altitude:0},
+           {tiltX:90, tiltY:-90, azimuth:0, altitude:0},
+           {tiltX:-90,tiltY:0, azimuth:Math.PI, altitude:0},
+           {tiltX:-90, tiltY:90, azimuth:0, altitude:0},
+           {tiltX:-90, tiltY:-90, azimuth:0, altitude:0},
+           {tiltX:0, tiltY:45, azimuth:Math.PI/2, altitude:Math.PI/4},
+           {tiltX:0, tiltY:-45, azimuth:3*Math.PI/2, altitude:Math.PI/4},
+           {tiltX:45, tiltY:0, azimuth:0, altitude:Math.PI/4},
+           {tiltX:-45, tiltY:0, azimuth:Math.PI, altitude:Math.PI/4},].forEach(
+            (el)=>{
+              test(function(){
+                var event = new PointerEvent("pointerdown",{pointerId:"pointer1", tiltX:el.tiltX, tiltY:el.tiltY});
+                assert_equals(event.azimuthAngle, el.azimuth, "azimuth angle should be " + el.azimuth);
+                assert_equals(event.altitudeAngle, el.altitude, "altitude angle should be " + el.altitude);
+              }, `tiltX,tiltY to azimuth/altitude when tiltX=${el.tiltX} and tiltY=${el.tiltY}`);
+            });
+
+           test(function(){
+              var event = new PointerEvent("pointerdown",{});
+              assert_equals(event.azimuthAngle, 0, "azimuth angle should be 0");
+              assert_equals(event.altitudeAngle, Math.PI/2, "altitude angle should be " + Math.PI/2);
+           }, "tiltX/tiltY to azimuth/altitude when tiltX/tiltY are not populated");
+
+           [{azimuth:0, altitude:0, tiltX:90,tiltY:0},
+           {azimuth:0, altitude:Math.PI/4, tiltX:45, tiltY:0},
+           {azimuth:0, altitude:Math.PI/2, tiltX:0,tiltY:0},
+           {azimuth:Math.PI/2, altitude:0, tiltX:0, tiltY:90},
+           {azimuth:Math.PI/2, altitude:Math.PI/4, tiltX:0, tiltY:45},
+           {azimuth:Math.PI, altitude:0, tiltX:-90,tiltY:0},
+           {azimuth:Math.PI, altitude:Math.PI/4, tiltX:-45, tiltY:0},
+           {azimuth:3*Math.PI/2, altitude:0, tiltX:0, tiltY:-90},
+           {azimuth:3*Math.PI/2, altitude:Math.PI/4, tiltX:0, tiltY:-45},].forEach(
+            (el)=>{
+              test(function(){
+                var event = new PointerEvent("pointerdown",{pointerId:"pointer1", azimuthAngle:el.azimuth, altitudeAngle:el.altitude});
+                assert_equals(event.tiltX, el.tiltX, "tiltX angle should be " + el.tiltX);
+                assert_equals(event.tiltY, el.tiltY, "tiltY angle should be " + el.tiltY);
+              }, `azimuth/altitude to tiltX/tiltY when azimuth=${el.azimuth} and altitude=${el.altitude}`);
+            });
+
+           test(function(){
+              var event = new PointerEvent("pointerdown", {pointerId:"pointer1", tiltX:45});
+              assert_equals(event.tiltX, 45, "tiltX value should stay as initialized");
+              assert_equals(event.tiltY, 0, "tiltY value should be initialized with default value 0");
+              assert_equals(event.azimuthAngle, 0, `for (tiltX, tiltY) = (${event.tiltX}, ${event.tiltY}) azimuthAngle should be 0`);
+              assert_equals(event.altitudeAngle, Math.PI/4, `for (tiltX, tiltY) = (${event.tiltX}, ${event.tiltY}) altitudeAngle should be PI/4`);
+
+              event = new PointerEvent("pointerdown", {pointerId:"pointer1", tiltY:45});
+              assert_equals(event.tiltX, 0, "tiltX value should be initialized with default value 0");
+              assert_equals(event.tiltY, 45, "tiltY value should stay as initialized");
+              assert_equals(event.azimuthAngle, Math.PI/2, `for (tiltX, tiltY) = (${event.tiltX}, ${event.tiltY}) azimuthAngle should be PI/2`);
+              assert_equals(event.altitudeAngle, Math.PI/4, `for (tiltX, tiltY) = (${event.tiltX}, ${event.tiltY}) altitudeAngle should be PI/4`);
+
+              event = new PointerEvent("pointerdown", {pointerId:"pointer1", azimuthAngle:Math.PI/4});
+              assert_equals(event.azimuthAngle, Math.PI/4, "azimuthAngle value should stay as initialized");
+              assert_equals(event.altitudeAngle, Math.PI/2, "altitudeAngle should be initialized with default value of PI/2");
+              assert_equals(event.tiltX, 0, `for (azimuthAngle, altitudeAngle)=(${event.azimuthAngle},${event.altitudeAngle}) tiltX angle should be 0`);
+              assert_equals(event.tiltY, 0, `for (azimuthAngle, altitudeAngle)=(${event.azimuthAngle},${event.altitudeAngle}) tiltY angle should be 0`);
+
+              event = new PointerEvent("pointerdown", {pointerId:"pointer1", altitudeAngle:Math.PI/4});
+              assert_equals(event.azimuthAngle, 0, "azimuthAngle value should be initialized with default value of 0");
+              assert_equals(event.altitudeAngle, Math.PI/4, "altitudeAngle should stay as initialized");
+              assert_equals(event.tiltX, 45, `for (azimuthAngle, altitudeAngle)=(${event.azimuthAngle},${event.altitudeAngle}) tiltX angle should be 45 degrees`);
+              assert_equals(event.tiltY, 0, `for (azimuthAngle, altitudeAngle)=(${event.azimuthAngle},${event.altitudeAngle}) tiltY angle should be 0`);
+           }, "If only one of the values (tiltX, tiltY) or (azimuthAngle, altitudeAngle) is available the other one is set to the default value");
+
+           test(function(){
+              var event = new PointerEvent("pointerdown", {pointerId:"pointer1", tiltX:45, azimuthAngle:Math.PI/4});
+              assert_equals(event.tiltX, 45, "tiltX value should stay as initialized");
+              assert_equals(event.tiltY, 0, "tiltY value should be initialized with default value 0");
+              assert_equals(event.azimuthAngle, Math.PI/4, "azimuthAngle should stay as initialized");
+              assert_equals(event.altitudeAngle, Math.PI/2, `altitudeAngle value should be initialized with default value ${Math.PI/2}`);
+
+              event = new PointerEvent("pointerdown", {pointerId:"pointer1", tiltY:45, azimuthAngle:Math.PI/4});
+              assert_equals(event.tiltX, 0, "tiltX value should be initialized with default value 0");
+              assert_equals(event.tiltY, 45, "tiltY value should stay as initialized");
+              assert_equals(event.azimuthAngle, Math.PI/4, "azimuthAngle value should stay as initialized");
+              assert_equals(event.altitudeAngle, Math.PI/2, `altitudeAngle value should be initialized with default value ${Math.PI/2}`);
+
+              event = new PointerEvent("pointerdown", {pointerId:"pointer1", tiltX:45, altitudeAngle:Math.PI/4});
+              assert_equals(event.tiltX, 45, "tiltX value should stay as initialized");
+              assert_equals(event.tiltY, 0, "tiltY value should be initialized with default value 0");
+              assert_equals(event.azimuthAngle, 0, "azimuthAngle value should be initialized with default value of 0");
+              assert_equals(event.altitudeAngle, Math.PI/4, "altitudeAngle should stay as initialized");
+
+              event = new PointerEvent("pointerdown", {pointerId:"pointer1", tiltY:45, altitudeAngle:Math.PI/4});
+              assert_equals(event.tiltX, 0, "tiltX value should be initialized with default value 0");
+              assert_equals(event.tiltY, 45, "tiltY value should stay as initialized");
+              assert_equals(event.azimuthAngle, 0, "azimuthAngle value should be initialized with default value of 0");
+              assert_equals(event.altitudeAngle, Math.PI/4, "altitudeAngle should stay as initialized");
+           }, "If one of the values in both sets is provided, the other value in the set is initialized with the default value")
+      }
+    </script>
+  </body>
+</html>

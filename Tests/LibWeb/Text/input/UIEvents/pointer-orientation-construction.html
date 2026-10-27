@@ -1,0 +1,17 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const [label, type] of [["ASCII", "pointerdown"], ["UTF-16", "pointerdown\uD800"]]) {
+            const fromTilt = new PointerEvent(type, { tiltX: 45 });
+            println(`${label} tilt: (${fromTilt.tiltX}, ${fromTilt.tiltY}), angles: (${fromTilt.altitudeAngle}, ${fromTilt.azimuthAngle})`);
+            const fromAngles = new PointerEvent(type, { altitudeAngle: Math.PI / 4, azimuthAngle: Math.PI });
+            println(`${label} angles: (${fromAngles.altitudeAngle}, ${fromAngles.azimuthAngle}), tilt: (${fromAngles.tiltX}, ${fromAngles.tiltY})`);
+        }
+
+        const wrappedTilt = new PointerEvent("pointermove", { tiltX: 405 });
+        println(`Wrapped tilt: ${wrappedTilt.tiltX}, altitude: ${wrappedTilt.altitudeAngle}`);
+        const wrappedAzimuth = new PointerEvent("pointermove", { altitudeAngle: 0, azimuthAngle: 3 * Math.PI });
+        println(`Wrapped azimuth: ${wrappedAzimuth.azimuthAngle}, tilt: (${wrappedAzimuth.tiltX}, ${wrappedAzimuth.tiltY})`);
+    });
+</script>
