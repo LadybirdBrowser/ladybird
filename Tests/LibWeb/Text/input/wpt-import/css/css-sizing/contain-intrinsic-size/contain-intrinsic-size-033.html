@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CIS + content-visibility:hidden and contain:size</title>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-4/#explicit-intrinsic-inner-size">
+<link rel="help" href="https://drafts.csswg.org/css-contain-2/#size-containment">
+<link rel="help" href="https://drafts.csswg.org/css-contain-2/#using-cv-hidden">
+<meta name="assert"
+    content="Tests that CIS + content-visibility:hidden should be same to CIS + contain:size" />
+
+<style>
+    .test {
+        width: max-content;
+        height: max-content;
+        border: 1px solid;
+    }
+
+    .test::before {
+        content: "";
+        display: block;
+        width: 320px;
+        height: 240px;
+    }
+
+    .contain-size {
+        contain: size;
+    }
+
+    .ci-width {
+        contain-intrinsic-width: 10px;
+    }
+
+    .ci-height {
+        contain-intrinsic-height: 20px;
+    }
+
+    .ci-both {
+        contain-intrinsic-size: 10px 20px;
+    }
+
+    .skip-contents .test {
+        content-visibility: hidden;
+    }
+
+</style>
+
+<div id="log"></div>
+
+<div id="tests">
+
+    <div></div>
+    <div class="scroll"></div>
+    <div class="columns"></div>
+    <div class="grid"></div>
+    <div class="flex"></div>
+    <fieldset></fieldset>
+    <img src="resources/dice.png">
+    <svg></svg>
+    <canvas></canvas>
+    <iframe></iframe>
+    <video></video>
+    <button></button>
+    <select>
+        <option>Lorem ipsum</option>
+    </select>
+    <select multiple>
+        <option>Lorem ipsum</option>
+    </select>
+
+</div>
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<script>
+addEventListener("load", async function() {
+  const wrapper = document.getElementById("tests");
+  const tests = new DocumentFragment();
+  for (let template of wrapper.children) {
+    template.classList.add("test");
+
+    const containIntrinsicWidthTest = template.cloneNode(true);
+    const containIntrinsicHeightTest = template.cloneNode(true);
+    const containIntrinsicSizeTest = template.cloneNode(true);
+    containIntrinsicWidthTest.classList.add("ci-width");
+    containIntrinsicHeightTest.classList.add("ci-height");
+    containIntrinsicSizeTest.classList.add("ci-both");
+
+    template.classList.add("contain-size");
+    const containSizeWidth = template.clientWidth;
+    const containSizeHeight = template.clientHeight;
+    template.classList.add("ci-both");
+    const CISWidth = template.clientWidth;;
+    const CISHeight = template.clientHeight;
+
+    containIntrinsicWidthTest.dataset.expectedClientWidth = CISWidth;
+    containIntrinsicWidthTest.dataset.expectedClientHeight = containSizeHeight;
+    containIntrinsicHeightTest.dataset.expectedClientWidth = containSizeWidth;
+    containIntrinsicHeightTest.dataset.expectedClientHeight = CISHeight;
+    containIntrinsicSizeTest.dataset.expectedClientWidth = CISWidth;
+    containIntrinsicSizeTest.dataset.expectedClientHeight = CISHeight;
+
+    tests.append(containIntrinsicWidthTest, containIntrinsicHeightTest, containIntrinsicSizeTest);
+  }
+  wrapper.textContent = "";
+  wrapper.appendChild(tests);
+
+  wrapper.classList.add("skip-contents");
+  await new Promise(requestAnimationFrame);
+  checkLayout(".test");
+});
+</script>

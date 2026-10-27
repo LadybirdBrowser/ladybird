@@ -1,0 +1,22 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+#target { width: max-content; height: max-content; contain-intrinsic-size: 10px 20px; }
+#content { width: 320px; height: 240px; }
+</style>
+<div id="target"><div id="content"></div></div>
+<script>
+test(() => {
+    const target = document.getElementById("target");
+    const logSize = label => println(`${label}: ${target.clientWidth}x${target.clientHeight}, contain: ${getComputedStyle(target).contain}`);
+    logSize("visible");
+    target.style.contentVisibility = "hidden";
+    logSize("hidden");
+    target.style.containIntrinsicSize = "30px 40px";
+    logSize("hidden with new intrinsic size");
+    target.style.contentVisibility = "visible";
+    logSize("visible again");
+    target.style.contentVisibility = "hidden";
+    logSize("hidden again");
+});
+</script>
