@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.css-houdini.org/css-properties-values-api-1/#at-property-rule">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  @property --inherited-length-1 {
+      syntax: "<length>";
+      inherits: true;
+      initial-value: 10px;
+  }
+  @property --inherited-length-2 {
+      syntax: "<length>";
+      inherits: true;
+      initial-value: 20px;
+  }
+  @property --non-inherited-length-1 {
+      syntax: "<length>";
+      inherits: false;
+      initial-value: 30px;
+  }
+  @property --non-inherited-length-2 {
+      syntax: "<length>";
+      inherits: false;
+      initial-value: 40px;
+  }
+  @property --inherited-no-initial-value-1 {
+      syntax: "*";
+      inherits: true;
+  }
+  @property --inherited-no-initial-value-2 {
+      syntax: "*";
+      inherits: true;
+  }
+  @property --inherited-no-initial-value-3 {
+      syntax: "*";
+      inherits: true;
+  }
+  @property --non-inherited-no-initial-value-1 {
+      syntax: "*";
+      inherits: false;
+  }
+  @property --non-inherited-no-initial-value-2 {
+      syntax: "*";
+      inherits: false;
+  }
+  @property --non-inherited-no-initial-value-3 {
+      syntax: "*";
+      inherits: false;
+  }
+  #parent {
+      --inherited-no-initial-value-2: parent-A;
+      --non-inherited-no-initial-value-2: parent-B;
+      --non-registered-property-2: parent-C;
+  }
+  #node {
+      --inherited-length-1: 50px;
+      --non-inherited-length-1: 60px;
+      --inherited-no-initial-value-1: child-A;
+      --non-inherited-no-initial-value-1: child-B;
+      --non-registered-property-1: child-C;
+  }
+</style>
+<div id="parent"><div id="node"></div></div>
+<script>
+  let style = window.getComputedStyle(document.getElementById("node"));
+  let properties = new Map();
+  Array.from(style).filter(name => name.startsWith("--"))
+    .forEach(name => properties.set(name, style.getPropertyValue(name)));
+
+  test(() => {
+      assert_equals(properties.get("--inherited-length-1"), "50px");
+      assert_equals(properties.get("--non-inherited-length-1"), "60px");
+      assert_equals(properties.get("--inherited-no-initial-value-1"), "child-A");
+      assert_equals(properties.get("--non-inherited-no-initial-value-1"), "child-B");
+      assert_equals(properties.get("--non-registered-property-1"), "child-C");
+  }, "Custom properties specified on the node exposed when enumerating computed style.");
+
+  test(() => {
+      assert_equals(properties.get("--inherited-no-initial-value-2"), "parent-A");
+      assert_equals(properties.get("--non-registered-property-2"), "parent-C");
+  }, "Inherited custom properties specified on the parent exposed when enumerating computed style.");
+
+  test(() => {
+      assert_equals(properties.get("--inherited-length-2"), "20px");
+      assert_equals(properties.get("--non-inherited-length-2"), "40px");
+  }, "Unspecified properties with initial values exposed when enumerating computed style.");
+
+  test(() => {
+      assert_false(properties.has("--non-inherited-no-initial-value-2"));
+  }, "Non-inherited custom properties specified on the parent without initial values not exposed when enumerating computed style.");
+
+  test(() => {
+      assert_false(properties.has("--inherited-no-initial-value-3"), "inherited");
+      assert_false(properties.has("--non-inherited-no-initial-value-3"), "non-inherited");
+  }, "Unspecified properties without initial values not exposed when enumerating computed style.");
+</script>
