@@ -7707,15 +7707,11 @@ pub(crate) fn interpolate_value(
         ) else {
             return discrete_value(context, from, to, delta);
         };
-        let font_style = if from_font_style == to_font_style {
-            from_font_style
-        } else if !context.is_some_and(|context| context.allow_discrete) {
-            return handled_without_value();
-        } else if delta < 0.5 {
-            from_font_style
-        } else {
-            to_font_style
-        };
+        // https://drafts.csswg.org/web-animations-1/#by-computed-value
+        // If the number of components or the types of corresponding components do not match, or if any component value uses discrete animation and the two corresponding values do not match, then the property values combine as discrete.
+        if from_font_style != to_font_style {
+            return discrete_value(context, from, to, delta);
+        }
         let angle_value = match (from_angle, to_angle) {
             (Some((from_value, from_unit)), Some((to_value, to_unit))) => {
                 let (Some(from_value), Some(to_value)) = (
@@ -7732,7 +7728,7 @@ pub(crate) fn interpolate_value(
             _ => RetainedStyleValueData::none(),
         };
         return owned(StyleValueData::FontStyle {
-            font_style,
+            font_style: from_font_style,
             angle_value,
         });
     }
