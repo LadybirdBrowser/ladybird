@@ -93,6 +93,11 @@ ScreenshotSelectionOverlay::ScreenshotSelectionOverlay(QImage frame, QWidget* pa
 
     m_buttons = { whole_frame_button, skip_button, cancel_button };
 
+    // The macOS style lays out a button by the bezel it would draw, which sits higher in the button than this style
+    // sheet's border does. Laying the buttons out by their whole rect keeps them centered in the card.
+    for (auto* button : m_buttons)
+        button->setAttribute(Qt::WA_LayoutUsesWidgetRect);
+
     m_instructions = instructions;
     update_chrome_style();
 
