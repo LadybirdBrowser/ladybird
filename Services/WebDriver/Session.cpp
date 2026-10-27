@@ -600,6 +600,13 @@ NonnullRefPtr<Session::WebDriverPromise> Session::traverse_history(i32 delta, Ha
     });
 }
 
+NonnullRefPtr<Session::WebDriverPromise> Session::set_permission(JsonValue parameters)
+{
+    return perform_browser_command([this, parameters = move(parameters)](u64 command_id) mutable {
+        m_browser_connection->async_set_permission(command_id, m_current_window_handle, move(parameters));
+    });
+}
+
 NonnullRefPtr<Session::WebDriverPromise> Session::session_history()
 {
     return perform_browser_command([this](u64 command_id) {

@@ -115,6 +115,7 @@ static constexpr auto s_webdriver_endpoints = Array {
     ROUTE(GET, "/session/:session_id/screenshot"sv, take_screenshot),
     ROUTE(GET, "/session/:session_id/element/:element_id/screenshot"sv, take_element_screenshot),
     ROUTE(POST, "/session/:session_id/print"sv, print_page),
+    ROUTE(POST, "/session/:session_id/permissions"sv, set_permission),
 };
 
 // https://w3c.github.io/webdriver/#dfn-match-a-request
