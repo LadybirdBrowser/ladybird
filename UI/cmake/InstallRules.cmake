@@ -121,9 +121,10 @@ if (LADYBIRD_GENERATE_SYMBOL_FILES)
             set(output "${symbol_file}/Contents/Info.plist")
             set(command dsymutil "$<TARGET_FILE:${target}>" -o "${symbol_file}")
         else()
-            set(symbol_file "${symbol_files_dir}/${name}.debug")
-            set(output "${symbol_file}")
-            set(command "${CMAKE_OBJCOPY}" --only-keep-debug "$<TARGET_FILE:${target}>" "${symbol_file}")
+            set(output "${CMAKE_BINARY_DIR}/symbol_file_stamps/${name}")
+            set(command "${CMAKE_COMMAND}" "-DREADELF=${CMAKE_READELF}" "-DOBJCOPY=${CMAKE_OBJCOPY}"
+                "-DBINARY=$<TARGET_FILE:${target}>" "-DSYMBOL_FILES_DIR=${symbol_files_dir}" "-DSTAMP=${output}"
+                -P "${LADYBIRD_SOURCE_DIR}/Meta/CMake/write_symbol_file.cmake")
         endif()
         add_custom_command(OUTPUT "${output}" COMMAND ${command} DEPENDS ${target}
             COMMENT "Writing the symbols of ${name}" VERBATIM)
