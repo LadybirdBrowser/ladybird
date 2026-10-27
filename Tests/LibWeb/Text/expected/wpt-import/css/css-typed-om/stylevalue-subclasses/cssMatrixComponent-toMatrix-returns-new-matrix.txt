@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 4 tests
 
-4 Fail
-Fail	Mutating the result of toMatrix() on a 2D CSSMatrixComponent does not change the component
-Fail	Mutating the result of toMatrix() on a 3D CSSMatrixComponent does not change the component
-Fail	Calling a self-mutating method on the result of toMatrix() on a 3D CSSMatrixComponent does not change the component
-Fail	Mutating the result of toMatrix() on a 3D CSSMatrixComponent does not change an enclosing CSSTransformValue
+4 Pass
+Pass	Mutating the result of toMatrix() on a 2D CSSMatrixComponent does not change the component
+Pass	Mutating the result of toMatrix() on a 3D CSSMatrixComponent does not change the component
+Pass	Calling a self-mutating method on the result of toMatrix() on a 3D CSSMatrixComponent does not change the component
+Pass	Mutating the result of toMatrix() on a 3D CSSMatrixComponent does not change an enclosing CSSTransformValue
