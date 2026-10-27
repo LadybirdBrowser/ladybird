@@ -1,0 +1,40 @@
+svg initial: null / null
+svg null: 1 2 3 4 / 1 2 3 4
+svg null identity: false
+svg "invalid": 1 2 3 4 / 1 2 3 4
+svg "invalid" identity: false
+svg "": 1 2 3 4 / 1 2 3 4
+svg "" identity: false
+svg restored: 5 6 7 8 / 5 6 7 8
+symbol initial: null / null
+symbol null: 1 2 3 4 / 1 2 3 4
+symbol null identity: false
+symbol "invalid": 1 2 3 4 / 1 2 3 4
+symbol "invalid" identity: false
+symbol "": 1 2 3 4 / 1 2 3 4
+symbol "" identity: false
+symbol restored: 5 6 7 8 / 5 6 7 8
+marker initial: null / null
+marker null: 1 2 3 4 / 1 2 3 4
+marker null identity: false
+marker "invalid": 1 2 3 4 / 1 2 3 4
+marker "invalid" identity: false
+marker "": 1 2 3 4 / 1 2 3 4
+marker "" identity: false
+marker restored: 5 6 7 8 / 5 6 7 8
+pattern initial: null / null
+pattern null: 1 2 3 4 / 1 2 3 4
+pattern null identity: false
+pattern "invalid": 1 2 3 4 / 1 2 3 4
+pattern "invalid" identity: false
+pattern "": 1 2 3 4 / 1 2 3 4
+pattern "" identity: false
+pattern restored: 5 6 7 8 / 5 6 7 8
+view initial: null / null
+view null: 1 2 3 4 / 1 2 3 4
+view null identity: false
+view "invalid": 1 2 3 4 / 1 2 3 4
+view "invalid" identity: false
+view "": 1 2 3 4 / 1 2 3 4
+view "" identity: false
+view restored: 5 6 7 8 / 5 6 7 8
