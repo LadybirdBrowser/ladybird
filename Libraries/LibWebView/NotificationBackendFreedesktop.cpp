@@ -197,6 +197,9 @@ void NotificationBackendFreedesktop::show(PlatformNotification const& notificati
             on_failed(notification.id);
         return;
     }
+    // A replaced notification that never reached the daemon is dropped here; one that did is replaced by send_notify().
+    if (notification.replaces.has_value())
+        m_waiting_for_capabilities.remove_first_matching([&](auto const& waiting) { return waiting.id == *notification.replaces; });
     if (!m_capabilities.has_value()) {
         m_waiting_for_capabilities.append(notification);
         return;
@@ -262,6 +265,10 @@ void NotificationBackendFreedesktop::send_notify(PlatformNotification const& not
         if (auto daemon_id = m_daemon_id_for.take(*notification.replaces); daemon_id.has_value()) {
             replaces_daemon_id = *daemon_id;
             m_id_for_daemon_id.remove(replaces_daemon_id);
+        } else if (m_awaiting_reply.contains(*notification.replaces)) {
+            // The one being replaced hasn't been acknowledged yet, so it can't be replaced in place: It comes down
+            // as soon as it can.
+            m_close_when_acknowledged.set(*notification.replaces);
         }
     }
     auto arguments = build_notify_arguments(notification, *m_capabilities, replaces_daemon_id);
@@ -297,6 +304,7 @@ void NotificationBackendFreedesktop::send_notify(PlatformNotification const& not
         return;
     }
     dbus_message_unref(message);
+    m_awaiting_reply.set(notification.id);
 
     struct Context {
         AK_ALLOC_WITH_KMALLOC;
@@ -314,16 +322,35 @@ void NotificationBackendFreedesktop::send_notify(PlatformNotification const& not
     dbus_pending_call_unref(pending);
 }
 
+void NotificationBackendFreedesktop::send_close_notification(u32 daemon_id)
+{
+    auto* message = dbus_message_new_method_call(bus_name, object_path, interface_name, "CloseNotification");
+    dbus_message_append_args(message, DBUS_TYPE_UINT32, &daemon_id, DBUS_TYPE_INVALID);
+    dbus_message_set_no_reply(message, TRUE);
+    dbus_connection_send(m_connection, message, nullptr);
+    dbus_message_unref(message);
+}
+
 void NotificationBackendFreedesktop::did_receive_notify_reply(u64 id, DBusMessage* reply)
 {
+    m_awaiting_reply.remove(id);
+    bool closed_meanwhile = m_close_when_acknowledged.remove(id);
+
     u32 daemon_id = 0;
     if (!reply || dbus_message_get_type(reply) != DBUS_MESSAGE_TYPE_METHOD_RETURN || !dbus_message_get_args(reply, nullptr, DBUS_TYPE_UINT32, &daemon_id, DBUS_TYPE_INVALID)) {
         if (reply && dbus_message_get_type(reply) == DBUS_MESSAGE_TYPE_ERROR)
             dbgln("Notifications: The notification daemon refused the request: {}", dbus_message_get_error_name(reply));
-        if (on_failed)
+        if (!closed_meanwhile && on_failed)
             on_failed(id);
         return;
     }
+
+    // Closed on this side while the daemon was still answering: It comes down now, and its close was reported then.
+    if (closed_meanwhile) {
+        send_close_notification(daemon_id);
+        return;
+    }
+
     m_daemon_id_for.set(id, daemon_id);
     m_id_for_daemon_id.set(daemon_id, id);
     if (on_shown)
@@ -333,14 +360,18 @@ void NotificationBackendFreedesktop::did_receive_notify_reply(u64 id, DBusMessag
 void NotificationBackendFreedesktop::close(u64 id)
 {
     auto daemon_id = m_daemon_id_for.take(id);
-    if (!daemon_id.has_value())
-        return;
-    m_id_for_daemon_id.remove(*daemon_id);
-    auto* message = dbus_message_new_method_call(bus_name, object_path, interface_name, "CloseNotification");
-    dbus_message_append_args(message, DBUS_TYPE_UINT32, &*daemon_id, DBUS_TYPE_INVALID);
-    dbus_message_set_no_reply(message, TRUE);
-    dbus_connection_send(m_connection, message, nullptr);
-    dbus_message_unref(message);
+    if (daemon_id.has_value()) {
+        m_id_for_daemon_id.remove(*daemon_id);
+        send_close_notification(*daemon_id);
+    } else if (m_awaiting_reply.contains(id)) {
+        // The daemon hasn't answered the Notify yet; its answer takes the notification down.
+        m_close_when_acknowledged.set(id);
+    } else {
+        // Not sent yet (still waiting for the capabilities), or unknown: Nothing to take down.
+        bool was_waiting = m_waiting_for_capabilities.remove_first_matching([&](auto const& waiting) { return waiting.id == id; });
+        if (!was_waiting)
+            return;
+    }
     // The daemon's NotificationClosed for this id finds no mapping any more, so the close is reported once, here.
     if (on_closed)
         on_closed(id, ByUser::No);

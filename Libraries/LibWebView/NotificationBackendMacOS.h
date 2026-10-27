@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/HashMap.h>
+#include <AK/HashTable.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/String.h>
 #include <AK/kmalloc.h>
@@ -57,6 +58,12 @@ private:
 
     OwnPtr<Detail::NotificationCenterBridge> m_bridge;
     bool m_bundled { false };
+
+    // Identifiers carry this launch's token, so a click on a notification left over from an earlier run of the browser
+    // isn't delivered to whatever page holds that number now.
+    String m_launch_token;
+    // Closed by the browser before the center was asked to show them (authorization still pending).
+    HashTable<u64> m_closed_before_shown;
 };
 
 }
