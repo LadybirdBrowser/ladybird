@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    html,body {
+        color:black; background-color:white; font:8px/1 monospace; padding:0; margin:0;
+    }
+
+    .grid {
+        position: relative;
+        display: grid;
+        grid-template-columns: 150px;
+        grid-template-rows: 90px 90px 90px;
+        width: 150px;
+        height: 320px;
+        gap: 10px;
+        padding: 15px;
+        border: 2px solid black;
+        margin: 10px;
+    }
+
+    .grid > div {
+        position: absolute;
+        border: 1px solid #333;
+        width: 30px;
+        height: 70px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .flex-start-item {
+        grid-row: 1 / 2;
+        justify-self: flex-start;
+        align-self: flex-start;
+        background: lightcoral;
+    }
+
+    .flex-end-item {
+        grid-row: 2 / 3;
+        justify-self: flex-end;
+        align-self: flex-end;
+        background: lightblue;
+    }
+
+    .mixed-legacy {
+        grid-row: 3 / 4;
+        justify-self: flex-start;
+        align-self: end;
+        background: lightgreen;
+    }
+
+    .normal-item {
+        grid-row: 1 / 2;
+        justify-self: normal;
+        align-self: normal;
+        background: lightyellow;
+    }
+
+    .auto-item {
+        grid-row: 2 / 3;
+        justify-self: auto;
+        align-self: auto;
+        background: plum;
+    }
+
+    .legacy-center {
+        grid-row: 3 / 4;
+        justify-self: flex-start;
+        align-self: center;
+        background: orange;
+    }
+  </style>
+</head>
+<body>
+  <div class="grid">
+    <div class="flex-start-item">flex-start</div>
+    <div class="flex-end-item">flex-end</div>
+    <div class="mixed-legacy">mixed</div>
+    <div class="normal-item">normal</div>
+    <div class="auto-item">auto</div>
+    <div class="legacy-center">legacy-center</div>
+  </div>
+
+  <div class="grid" style="direction: rtl;">
+    <div class="flex-start-item">flex-start</div>
+    <div class="flex-end-item">flex-end</div>
+    <div class="mixed-legacy">mixed</div>
+    <div class="normal-item">normal</div>
+    <div class="auto-item">auto</div>
+    <div class="legacy-center">legacy-center</div>
+  </div>
+</body>
+</html>

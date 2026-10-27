@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CSS Grid Lanes Test: justify-self baseline override</title>
+  <link rel="author" title="Yanling Wang" href="mailto:yanlingwang@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3/#masonry-baseline-alignment">
+  <link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/baseline/column-grid-lanes-item-baseline-002-ref.html">
+  <style>
+    .grid-lanes {
+      width: 400px;
+      border: solid 5px;
+      gap: 3px;
+      display: grid-lanes;
+      grid-template-columns: repeat(3, 120px);
+      background-color: #f0f0f0;
+      border-color: slateblue;
+      justify-items: center;
+      margin-bottom: 20px;
+      font: 16px/1 monospace;
+    }
+
+    .item {
+      height: 50px;
+      padding: 8px;
+    }
+
+    #item1 {
+      background-color: #8cffa0;
+      width: 70px;
+      grid-column: 1;
+      justify-self: baseline;
+    }
+
+    #item2 {
+      background-color: #a0c8ff;
+      width: 80px;
+      grid-column: 1;
+      justify-self: baseline;
+    }
+
+    #item3 {
+      background-color: #ffa08c;
+      width: 65px;
+      grid-column: 1;
+      justify-self: center;
+    }
+
+    #item5 {
+      background-color: #ff8cff;
+      width: 90px;
+      grid-column: 2;
+      justify-self: last baseline;
+    }
+
+    #item6 {
+      background-color: #8cffff;
+      width: 85px;
+      grid-column: 2;
+      justify-self: last baseline;
+    }
+
+    #item7 {
+      background-color: #ff8c8c;
+      width: 60px;
+      grid-column: 2;
+      justify-self: start;
+    }
+
+    #item8 {
+      background-color: #c8ffa0;
+      width: 65px;
+      grid-column: 3;
+      justify-self: baseline;
+    }
+
+    #item9 {
+      background-color: #a0a0ff;
+      width: 75px;
+      grid-column: 3;
+      justify-self: baseline;
+    }
+
+    #item10 {
+      background-color: #ffc88c;
+      width: 70px;
+      grid-column: 3;
+      justify-self: end;
+    }
+  </style>
+</head>
+<body>
+<div class="grid-lanes">
+  <div id="item1" class="item">baseline</div>
+  <div id="item2" class="item">baseline</div>
+  <div id="item3" class="item">center</div>
+  <div id="item5" class="item">last baseline</div>
+  <div id="item6" class="item">last baseline</div>
+  <div id="item7" class="item">start</div>
+  <div id="item8" class="item">baseline</div>
+  <div id="item9" class="item">baseline</div>
+  <div id="item10" class="item">end</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,20 @@
+<!doctype quirks><!-- Intentional quirks mode -->
+<title>CSS Test: Grid Lanes body in quirks mode should fill viewport except for margins</title>
+<link rel="author" title="Celeste Pan" href="celestepan@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="help" href="https://quirks.spec.whatwg.org/#the-body-element-fills-the-html-element-quirk" title="The body element fills the html element quirk">
+<link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/intrinsic-sizing/grid-lanes-quirks-fill-viewport-ref.html">
+<style>
+html {
+  margin:3px 6px 9px 12px;
+  padding: 0px;
+  background-color: green;
+}
+body {
+  display: grid-lanes;
+  margin: 7px 11px 14px 23px;
+  padding: 0px;
+  background-color: yellow;
+}
+</style>
+<p>This is test text.</p>

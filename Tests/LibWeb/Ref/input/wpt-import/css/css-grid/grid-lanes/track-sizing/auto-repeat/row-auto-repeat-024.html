@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<title>Auto-fit repeat tracks with fixed size and auto/explicit spanning item placement</title>
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<link rel="match" href="../../../../../../../expected/wpt-import/css/css-grid/grid-lanes/track-sizing/auto-repeat/row-auto-repeat-024-ref.html">
+<style>
+.grid-lanes {
+    display: grid-lanes;
+    flow-tolerance: 0;
+    grid-template-rows: repeat(4, 50px) repeat(auto-fit, 50px) repeat(4, 50px);
+    width: 200px;
+    height: 500px;
+    gap: 10px;
+}
+
+.grid-lanes > div {
+    height: 100%;
+    width: 100px;
+    background-color: orange;
+}
+</style>
+<div class="grid-lanes">
+  <div style="grid-row: span 3;"></div>
+  <div style="grid-row: -1;"></div>
+</div>
+</html>

@@ -1,0 +1,49 @@
+<!DOCTYPE HTML>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html><head>
+  <meta charset="utf-8">
+  <title>CSS Grid Test: Grid Lanes layout using `grid-column/row`</title>
+  <link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3">
+  <link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/item-placement/grid-lanes-item-placement-002-ref.html">
+  <style>
+    html,body {
+      color:black; background-color:white; font:25px/1 monospace; padding:0; margin:0;
+    }
+
+    grid {
+      display: inline grid-lanes;
+      gap: 10px 20px;
+      grid-auto-columns: 80px;
+      color: #444;
+      border: 1px solid;
+      padding: 2px;
+      flow-tolerance: 0px;
+    }
+
+    item {
+      background-color: #444;
+      color: #fff;
+      padding: 20px;
+      margin: 3px;
+      border: 5px solid blue;
+    }
+  </style>
+</head>
+<body>
+
+<grid>
+  <item style="grid-column:1/span 4;">1</item>
+  <item>2</item>
+  <item style="grid-column:foo 2; grid-row:span 2">3</item>
+  <!-- auto-placement cursor doesn't move after placing item 3, so item 4 goes into track 2.-->
+  <item style="grid-column:span 3">4</item>
+  <item>5</item>
+  <item>6</item>
+</grid>
+
+</body>
+</html>

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="stylesheet" href="../../../../fonts/ahem.css">
+<style>
+.grid {
+    display: grid;
+    grid-template-columns: minmax(15px, min-content) max-content auto;
+    background-color: gray;
+    width: 100px;
+    font: 10px/1 Ahem;
+}
+</style>
+<body>
+  <p>Test that grid-lanes tracks are correctly sized, and auto tracks are stretched.</p>
+  <div class="grid">
+    <div style="grid-column: 1; background: green;">XXX XXX</div>
+    <div style="grid-column: 1 / 3; background: purple;">X XX X</div>
+    <div style="grid-column: 1; width: 30px; height: 1em; background: yellow;"></div>
+    <div style="grid-column: 2; width: 45px; height: 1em; background: orange;"></div>
+    <div style="grid-column: 3; width: 25px; height: 1em; background: blue; position: relative; top: -3em;"></div>
+  </div>
+</body>
+</html>

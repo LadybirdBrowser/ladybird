@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<link rel="stylesheet" href="../../../..../../../../fonts/ahem.css">
+<link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/track-sizing/../../../../../../expected/wpt-import/css/css-grid/grid-lanes/track-sizing/row-track-sizing-002-ref.html">
+<style>
+.grid-lanes {
+    display: grid-lanes;
+    grid-template-rows: minmax(15px, min-content) max-content auto;
+    background-color: gray;
+    height: 100px;
+    width: 100px;
+    font: 10px/1 Ahem;
+}
+</style>
+<body>
+  <p>Test that grid-lanes tracks are correctly sized, and auto tracks are stretched.</p>
+  <div class="grid-lanes">
+    <div style="grid-row: 1; background: green; width: min-content;">XXX XXX</div>
+    <div style="grid-row: 1 / 3; background: purple; width: 2em;">X XX X</div>
+    <div style="grid-row: 1; height: 100%; width: 1em; background: yellow;"></div>
+    <div style="grid-row: 2; height: 100%; width: 1em; background: orange;"></div>
+    <div style="grid-row: 3; height: 100%; width: 1em; background: blue;"></div>
+  </div>
+</body>
+</html>

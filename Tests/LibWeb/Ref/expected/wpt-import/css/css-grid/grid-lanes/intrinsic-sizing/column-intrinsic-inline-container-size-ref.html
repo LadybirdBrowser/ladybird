@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="author" title="Ethan Jimenez" href="mailto:ethavar@microsoft.com">
+<style>
+.grid {
+    display: grid;
+    background: gray;
+    gap: 20px;
+    padding: 20px;
+    align-items: start;
+}
+
+.first-track {
+    background: lightskyblue;
+    grid-column-start: 1;
+}
+
+.second-track {
+    background: lightcoral;
+    grid-column-start: 2;
+}
+
+.third-track {
+    background: lightgreen;
+    grid-column-start: 3;
+}
+</style>
+<body>
+  <p>Test that grid-lanes containers are correctly sized when an intrinsic inline size is specified.</p>
+  <div class="grid" style="width: max-content">
+    <div class="first-track">This is some text</div>
+    <div class="second-track">Some larger words in this sentence</div>
+    <div class="third-track">The cat cannot be separated from milk</div>
+  </div>
+  <div class="grid" style="width: min-content">
+    <div class="first-track" style="height: fit-content;">This is some text</div>
+    <div class="second-track" style="height: fit-content;">Some larger words in this sentence</div>
+    <div class="third-track" style="height: fit-content;">The cat cannot be separated from milk</div>
+  </div>
+</body>
+</html>

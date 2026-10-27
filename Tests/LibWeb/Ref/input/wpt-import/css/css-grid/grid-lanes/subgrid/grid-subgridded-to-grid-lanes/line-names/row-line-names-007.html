@@ -1,0 +1,132 @@
+<!DOCTYPE HTML>
+<html><head>
+  <meta charset="utf-8">
+  <title>CSS Grid Lanes Test: line name resolution for grid-aligned abs.pos. inside subgrid (rows)</title>
+  <link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3">
+  <link rel="match" href="../../../../../../../../expected/wpt-import/css/css-grid/grid-lanes/subgrid/grid-subgridded-to-grid-lanes/line-names/row-line-names-007-ref.html">
+  <style>
+html,body {
+  color:black; background-color:white; font:12px/1 monospace;
+}
+
+.grid-lanes {
+  position: relative;
+  display: inline-grid-lanes;
+  grid-template-rows: repeat(10, 30px);
+  border: 1px solid;
+  padding: 2px 1px;
+  width: 100px;
+}
+
+.grid-lanes > div {
+  display: grid;
+  grid-row: 2 / span 2;
+  grid: subgrid / auto;
+  padding: 10px 1px 33px 4px;
+  border: 3px solid black;
+  background: grey;
+}
+
+n {
+  width: 20px;
+}
+
+x {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: silver;
+}
+
+.vr { writing-mode: vertical-rl; direction: rtl; }
+  </style>
+</head>
+<body>
+
+<div class="grid-lanes">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+  <div style="grid-template-areas: '.' 'a' 'a' 'a' 'a';">
+    <x style="grid-row: a-end -1">x</x>
+  </div>
+</div>
+
+<div class="grid-lanes">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+  <div style="grid-template-rows: subgrid [a];">
+    <x style="grid-row: a -1">x</x>
+  </div>
+</div>
+
+<div class="grid-lanes">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+  <div style="grid-template-rows: subgrid [a]; grid-row:1/span 2">
+    <x style="grid-row: a -1">x</x>
+  </div>
+</div>
+
+<div class="grid-lanes">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+  <div style="grid-template-rows: subgrid [a] [a]; grid-row-end:span 3">
+    <x style="grid-row: a -1">x</x>
+  </div>
+</div>
+
+<div class="grid-lanes">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+  <div style="grid-template-rows: subgrid [a] [a] [a] [a]; grid-row-end:span 3">
+    <x style="grid-row: a -1">x</x>
+  </div>
+</div>
+
+<div class="grid-lanes">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+  <div style="grid-template-rows: subgrid [] [a] [a]; grid-row-end:span 6">
+    <x style="grid-row: a">x</x>
+  </div>
+</div>
+
+<div class="grid-lanes">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+  <div class="vr" style="grid-template-areas: '.' 'a' 'a' 'a' 'a';">
+    <x style="grid-row: a-end -1">x</x>
+  </div>
+</div>
+
+<div class="grid-lanes">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+  <div class="vr" style="grid-template-rows: subgrid [a];">
+    <x style="grid-row: a -1">x</x>
+  </div>
+</div>
+
+<div class="grid-lanes">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+  <div class="vr" style="grid-template-rows: subgrid [a]; grid-row:1/span 2">
+    <x style="grid-row: a -1">x</x>
+  </div>
+</div>
+
+<div class="grid-lanes">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+  <div class="vr" style="grid-template-rows: subgrid [a] [a]; grid-row-end:span 3">
+    <x style="grid-row: a -1">x</x>
+  </div>
+</div>
+
+<div class="grid-lanes">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+  <div class="vr" style="grid-template-rows: subgrid [a] [a] [a] [a]; grid-row-end:span 3">
+    <x style="grid-row: a -1">x</x>
+  </div>
+</div>
+
+<div class="grid-lanes">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+  <div class="vr" style="grid-template-rows: subgrid [] [a] [a]; grid-row-end:span 6">
+    <x style="grid-row: a">x</x>
+  </div>
+</div>
+
+</body>
+</html>

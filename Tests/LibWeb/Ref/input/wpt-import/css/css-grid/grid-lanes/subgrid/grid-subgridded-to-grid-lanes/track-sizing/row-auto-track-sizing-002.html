@@ -1,0 +1,44 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Grid Lanes Test: Subgrid auto track sizing (row-direction grid-lanes)</title>
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="match" href="../../../../../../../../expected/wpt-import/css/css-grid/grid-lanes/subgrid/grid-subgridded-to-grid-lanes/track-sizing/../../../../../reference/ref-filled-green-100px-square.xht">
+<style>
+.wrapper {
+  width: 100px;
+  height: 100px;
+  background: red;
+}
+.grid-lanes {
+  display: inline-grid-lanes;
+  grid-template-rows: repeat(10, auto);
+}
+.subgrid {
+  display: grid;
+  grid-template-rows: subgrid;
+  grid-row: 1 / -1;
+}
+.item {
+  background: green;
+  height: 50px;
+  width: 100px;
+}
+</style>
+</head>
+<body>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div class="wrapper">
+  <div class="grid-lanes">
+    <div class="subgrid">
+      <div class="item" style="grid-row: span 3;"></div>
+      <div class="item" style="grid-row: span 7;"></div>
+      <div class="item" style="grid-row: span 6;"></div>
+      <div class="item" style="grid-row: span 4;"></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

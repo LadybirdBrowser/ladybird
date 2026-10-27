@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    .grid {
+      width: 500px;
+      border: solid 5px;
+      gap: 3px;
+      display: grid;
+      grid-template-columns: repeat(4, min-content);
+      grid-template-rows: repeat(3, 100px);
+      background-color: #f0f0f0;
+      border-color: slateblue;
+      margin-bottom: 20px;
+      font: 16px/1 monospace;
+    }
+
+    .fb {
+      align-items: first baseline;
+    }
+
+    .lb {
+      align-items: last baseline;
+    }
+
+    .item {
+      width: 100px;
+      padding: 5px;
+      text-decoration: underline;
+    }
+
+    #item1 {
+      background-color: #8cffa0;
+      min-height: 30px;
+      font-size: 16px;
+      margin-block: 0;
+    }
+
+    #item2 {
+      background-color: #a0c8ff;
+      min-height: 30px;
+      font-size: 20px;
+      margin-block-start: 10px;
+      margin-block-end: 5px;
+    }
+
+    #item3 {
+      background-color: #ffa08c;
+      min-height: 30px;
+      font-size: 14px;
+      margin-block-start: 20px;
+      margin-block-end: 0;
+    }
+
+    #item4 {
+      background-color: #ffff8c;
+      min-height: 30px;
+      font-size: 18px;
+      margin-block: 15px;
+    }
+
+    #item5 {
+      background-color: #ff8cff;
+      min-height: 35px;
+      font-size: 16px;
+      margin-block-start: 0;
+      margin-block-end: 20px;
+    }
+
+    #item6 {
+      background-color: #8cffff;
+      min-height: 35px;
+      font-size: 22px;
+      margin-block-start: 15px;
+      margin-block-end: 0;
+    }
+
+    #item7 {
+      background-color: #ff8c8c;
+      min-height: 35px;
+      font-size: 12px;
+      margin-block-start: 5px;
+      margin-block-end: 10px;
+    }
+
+    #item8 {
+      background-color: #c8ffa0;
+      min-height: 30px;
+      font-size: 24px;
+      margin-block: 25px 5px;
+      grid-row: 3 / 4;
+    }
+
+    #item9 {
+      background-color: #a0a0ff;
+      min-height: 30px;
+      font-size: 16px;
+      margin-block: 5px 25px;
+      grid-row: 3 / 4;
+    }
+  </style>
+</head>
+<body>
+<div class="grid fb">
+  <div id="item1" class="item">1</div>
+  <div id="item2" class="item">2</div>
+  <div id="item3" class="item">3</div>
+  <div id="item4" class="item">4</div>
+  <div id="item5" class="item">5</div>
+  <div id="item6" class="item">6</div>
+  <div id="item7" class="item">7</div>
+  <div id="item8" class="item">8</div>
+  <div id="item9" class="item">9</div>
+</div>
+<div class="grid lb">
+  <div id="item1" class="item">1</div>
+  <div id="item2" class="item">2</div>
+  <div id="item3" class="item">3</div>
+  <div id="item4" class="item">4</div>
+  <div id="item5" class="item">5</div>
+  <div id="item6" class="item">6</div>
+  <div id="item7" class="item">7</div>
+  <div id="item8" class="item">8</div>
+  <div id="item9" class="item">9</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,129 @@
+<!DOCTYPE HTML>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html><head>
+  <meta charset="utf-8">
+  <title>Reference: Definite column placement in a grid-lanes grid (single edge)</title>
+  <link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
+  <style>
+body,html { color:black; background:white; font:15px/1 monospace; padding:0; margin:0; }
+
+.grid {
+  display: grid;
+  position: relative;
+  border: 1px solid;
+  grid-gap: 1px;
+  grid-auto-flow: dense;
+}
+.t1 {
+  grid-template-columns: 40px 40px 40px 60px 60px 60px 40px 40px 40px 40px 40px 40px;
+
+}
+.t2 {
+  grid-template-columns: 40px 40px 40px 40px 60px 60px 60px 40px 40px 40px 40px 40px;
+}
+
+x {
+  background: grey;
+  border: 1px solid;
+}
+y {
+  position: absolute;
+  border-top: 1px solid blue;
+  bottom:0;height:0;left:0;right:0;
+}
+
+  </style>
+</head>
+<body>
+
+<pre>grid-column-start:</pre>
+<div class="grid t1" style="padding-right:13px; border-right-width:5px">
+<x style="grid-column-start:4; background:grey"></x>
+<x style="grid-column-start:7">-1</x>
+<x style="grid-column-start:7">4</x>
+<x style="grid-column-start:6">-2</x>
+<x style="grid-column-start:5">-3</x>
+<x style="grid-column-start:4">-4</x>
+<x style="grid-column-start:3">-5</x>
+<x style="grid-column-start:5">A -1</x>
+<x style="grid-column-start:3">B -1</x>
+<x style="grid-column-start:4">A -2</x>
+<x style="grid-column-start:3">A -3</x>
+<x style="grid-column-start:2">A -4</x>
+<x style="grid-column-start:1">A -5</x>
+<x style="grid-column-start:4">A</x>
+<x style="grid-column-start:4">B</x>
+<x style="grid-column-start:4">A 1</x>
+<x style="grid-column-start:5">A 2</x>
+<x style="grid-column-start:8">A 3</x>
+<x style="grid-column-start:9">A 4</x>
+<x style="grid-column-start:10">A 5</x>
+<y style="grid-column-start:7; top:0"></y>
+<y style="grid-column-start:7; top:2px"></y>
+<y style="grid-column-start:6; top:4px"></y>
+<y style="grid-column-start:5; top:6px"></y>
+<y style="grid-column-start:4; top:8px"></y>
+<y style="grid-column-start:3; top:10px"></y>
+<y style="grid-column-start:5; top:12px"></y>
+<y style="grid-column-start:3; top:14px"></y>
+<y style="grid-column-start:4; top:16px"></y>
+<y style="grid-column-start:3; top:18px"></y>
+<y style="grid-column-start:2; top:20px"></y>
+<y style="grid-column-start:1; top:22px"></y>
+<y style="grid-column-start:4; top:24px"></y>
+<y style="grid-column-start:4; top:26px"></y>
+<y style="grid-column-start:4; top:28px"></y>
+<y style="grid-column-start:5; top:30px"></y>
+<y style="grid-column-start:8; top:32px"></y>
+<y style="grid-column-start:9; top:34px"></y>
+<y style="grid-column-start:10; top:36px"></y>
+</div>
+
+<pre>grid-column-end:</pre>
+<div class="grid t2" style="padding-left:13px;">
+<x style="grid-column-start:5; background:grey"></x>
+<x style="grid-column-start:7">-1</x>
+<x style="grid-column-start:7">4</x>
+<x style="grid-column-start:6">-2</x>
+<x style="grid-column-start:5">-3</x>
+<x style="grid-column-start:4">-4</x>
+<x style="grid-column-start:3">-5</x>
+<x style="grid-column-start:5">A -1</x>
+<x style="grid-column-start:3">B -1</x>
+<x style="grid-column-start:4">A -2</x>
+<x style="grid-column-start:3">A -3</x>
+<x style="grid-column-start:2">A -4</x>
+<x style="grid-column-start:1">A -5</x>
+<x style="grid-column-start:4">A</x>
+<x style="grid-column-start:5">B</x>
+<x style="grid-column-start:4">A 1</x>
+<x style="grid-column-start:5">A 2</x>
+<x style="grid-column-start:8">A 3</x>
+<x style="grid-column-start:9">A 4</x>
+<x style="grid-column-start:10">A 5</x>
+<y style="grid-column-end:8; top:0px"></y>
+<y style="grid-column-end:8; top:2px"></y>
+<y style="grid-column-end:4; top:4px"></y>
+<y style="grid-column-end:5; top:6px"></y>
+<y style="grid-column-end:6; top:8px"></y>
+<y style="grid-column-end:7; top:10px"></y>
+<y style="grid-column-end:6; top:12px"></y>
+<y style="grid-column-end:4; top:14px"></y>
+<y style="grid-column-end:5; top:16px"></y>
+<y style="grid-column-end:4; top:18px"></y>
+<y style="grid-column-end:3; top:20px"></y>
+<y style="grid-column-end:2; top:22px"></y>
+<y style="grid-column-end:5; top:24px"></y>
+<y style="grid-column-end:6; top:26px"></y>
+<y style="grid-column-end:5; top:28px"></y>
+<y style="grid-column-end:6; top:30px"></y>
+<y style="grid-column-end:9; top:32px"></y>
+<y style="grid-column-end:10; top:34px"></y>
+<y style="grid-column-end:11; top:36px"></y>
+</div>
+
+</body>
+</html>

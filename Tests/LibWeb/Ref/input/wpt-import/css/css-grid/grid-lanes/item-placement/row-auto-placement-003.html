@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<meta charset="utf-8">
+<title>CSS Grid Lanes Test: Explicitly-placed items do not move the auto-placement cursor when the grid axis is the block axis</title>
+<link rel="author" title="Sammy Gill" href="mailto:sammy.gill@apple.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-3/#grid-lanes-layout-algorithm">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/13987">
+<link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/item-placement/row-auto-placement-003-ref.html">
+<style>
+.grid-lanes {
+    display: inline grid-lanes;
+    background: gray;
+    grid-template-rows: repeat(3, 40px);
+    fit-tolerance: 0;
+    gap: 10px;
+    padding: 10px;
+    font: 10px/1 monospace;
+}
+
+.item {
+    width: 50px;
+}
+</style>
+<body>
+  <p>Test that an explicitly-placed item does not advance the auto-placement cursor when the
+     grid axis is the block axis. Item 1 is placed in row 2, so the cursor stays in row 1
+     and item 2 takes row 1. The grid is inline, so this also covers intrinsic sizing.</p>
+  <div class="grid-lanes">
+    <div class="item" style="grid-row: 2; background: lightskyblue">1</div>
+    <div class="item" style="background: lightcoral">2</div>
+    <div class="item" style="background: lightgreen">3</div>
+    <div class="item" style="background: gold">4</div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/item-placement/row-negative-margin-003-ref.html">
+<link rel="author" title="Celeste Pan" href="mailto:celestepan@microsoft.com">
+<style>
+body, html {
+  color:black;
+  font:15px/1 monospace;
+  padding-left: 20px;
+}
+
+.grid-lanes {
+    display: grid-lanes;
+    flow-tolerance: 0;
+    grid-template-rows: repeat(3, 50px);
+}
+.orthogonal {
+    writing-mode: vertical-rl;
+}
+</style>
+<body>
+  <p>Tests that orthogonal items with negative margins are handled correctly in grid-lanes in the row direction.</p>
+  <div class="grid-lanes">
+    <div style="background: aquamarine; width: 50px;">
+      item 1
+    </div>
+    <!-- Orthogonal item that should not regress the running position. -->
+    <div class="orthogonal" style="background: lightsteelblue; width: 50px; margin-right: -30px; margin-left: -20px;">
+      item 2
+    </div>
+    <div style="background: lightblue; width: 30px;">
+      item 3
+    </div>
+    <div class="orthogonal" style="background: lightpink; height: 20px; width: max-content;">
+      item 4
+    </div>
+    <div class="orthogonal" style="background: yellow; width: 20px; margin-left: -10px;">
+      item 5
+    </div>
+  </div>
+</body>
+</html>

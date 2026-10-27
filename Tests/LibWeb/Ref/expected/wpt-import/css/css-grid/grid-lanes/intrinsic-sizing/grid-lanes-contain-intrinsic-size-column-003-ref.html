@@ -1,0 +1,28 @@
+<!doctype html>
+<meta charset="utf8">
+
+<style>
+#grid {
+  border: 3px solid black;
+  display: grid;
+  grid-template-columns: 77px 88px;
+  grid-template-rows: repeat(2, min-content);
+  contain-intrinsic-size: 200px 300px;
+  contain: size;
+  width: max-content;
+  background: lightblue;
+  grid-gap: 5px;
+}
+.item {
+  background: lightgreen;
+  opacity: 0.5;
+  height: 100px;
+}
+</style>
+
+<div id=grid>
+  <div class=item></div>
+  <div class=item></div>
+  <div class=item></div>
+  <div class=item></div>
+</div>

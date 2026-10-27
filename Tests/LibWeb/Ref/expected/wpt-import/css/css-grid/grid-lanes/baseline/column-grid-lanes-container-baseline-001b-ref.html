@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    .container {
+      display: flex;
+      gap: 20px;
+      border: 2px solid blue;
+      padding: 10px;
+      font: 16px/1 monospace;
+      width: 800px;
+      text-decoration: underline;
+    }
+
+    .first-baseline {
+      align-items: first baseline;
+    }
+
+    .last-baseline {
+      align-items: last baseline;
+    }
+
+    .text-reference {
+      background: yellow;
+      padding: 8px;
+    }
+
+    .bottom {
+      display: flex;
+      align-items: end;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 100px);
+      grid-template-rows: auto;
+      gap: 10px;
+      border: 1px solid red;
+      background: #f0f0f0;
+    }
+
+    .grid-item {
+      padding: 8px;
+      border: 1px solid navy;
+    }
+
+    .grid-item:nth-child(1) {
+      grid-column: 1 / span 2;
+      height: 45px;
+      background: lightcoral;
+    }
+
+    .grid-item:nth-child(2) {
+      height: 75px;
+      background: lightgreen;
+    }
+
+    .grid-item:nth-child(3) {
+      grid-column: 1 / span 3;
+      height: 55px;
+      background: lightpink;
+    }
+
+    .grid-item:nth-child(4) {
+      height: 90px;
+      background: lightyellow;
+    }
+
+    .grid-item:nth-child(5) {
+      grid-column: 2 / span 2;
+      height: 65px;
+      background: lightcyan;
+    }
+  </style>
+</head>
+<body>
+<div class="container first-baseline">
+  <div class="text-reference">Reference text</div>
+  <div class="grid">
+    <div class="grid-item">Item 1</div>
+    <div class="grid-item bottom">Item 2</div>
+    <div class="grid-item">Item 3</div>
+    <div class="grid-item">Item 4</div>
+    <div class="grid-item">Item 5</div>
+  </div>
+  <div class="text-reference">Reference text</div>
+</div>
+<div class="container last-baseline">
+  <div class="text-reference">Reference text</div>
+  <div class="grid">
+    <div class="grid-item">Item 1</div>
+    <div class="grid-item">Item 2</div>
+    <div class="grid-item">Item 3</div>
+    <div class="grid-item">Item 4</div>
+    <div class="grid-item bottom">Item 5</div>
+  </div>
+  <div class="text-reference">Reference text</div>
+</div>
+</body>
+</html>

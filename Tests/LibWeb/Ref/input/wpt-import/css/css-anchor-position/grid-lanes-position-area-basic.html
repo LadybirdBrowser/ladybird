@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-position/#original-cb">
+<link rel="match" href="../../../../expected/wpt-import/css/css-anchor-position/grid-lanes-position-area-basic-ref.html">
+<style>
+#grid {
+  display: grid-lanes;
+  grid-template-columns: 200px 300px;
+  padding: 20px;
+  position: relative;
+  border: 1px solid;
+}
+
+#positioned {
+  position: absolute;
+  background: magenta;
+  grid-column: 1 / 2;
+  position-anchor: --foo;
+  position-area: top right;
+}
+
+#anchor {
+  background: lime;
+  height: 100px;
+  grid-column: 2 / 3;
+  anchor-name: --foo;
+}
+</style>
+
+<div id="grid">
+  <div id="anchor"></div>
+  <div id="positioned">Anchored</div>
+</div>

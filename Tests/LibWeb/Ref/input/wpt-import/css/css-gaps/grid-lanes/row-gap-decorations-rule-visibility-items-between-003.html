@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<title>CSS Gap Decorations: rule-visibility-items between with occupied first and third row grid lanes</title>
+<link rel="author" title="Javier Contreras" href="mailto:javiercon@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-gaps-1/#visibility">
+<link rel="help" href="https://drafts.csswg.org/css-grid-3/#grid-lanes-model">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-gaps/grid-lanes/row-gap-decorations-rule-visibility-items-between-003-ref.html">
+<style>
+  body { margin: 0; }
+  .lanes {
+    display: grid-lanes;
+    grid-template-rows: repeat(3, 60px);
+    grid-lanes-direction: row;
+    gap: 20px;
+    width: max-content;
+    background: #cdd5e0;
+    row-rule: 4px solid blue;
+    row-rule-break: none;
+    row-rule-visibility-items: between;
+  }
+  .lanes > div {
+    width: 60px;
+    background: #5b8def;
+  }
+  .first { grid-row: 1; }
+  .third { grid-row: 3; }
+</style>
+<div class="lanes">
+  <div class="first"></div>
+  <div class="third"></div>
+</div>

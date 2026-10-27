@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+      html,body {
+          color:black;
+          background-color:white;
+          font:15px/1 monospace;
+      }
+
+      .container {
+          width: 850px;
+          height: 800px;
+          border: 2px solid black;
+          margin: 20px;
+      }
+
+      .grid {
+          display: grid;
+          grid-template-columns: repeat(5, 150px);
+          grid-auto-rows: auto;
+          position: relative;
+          padding: 20px;
+          gap: 15px;
+          border: 1px dashed #999;
+          height: 700px;
+      }
+
+      .item {
+          background: lightblue;
+          padding: 10px;
+          border: 1px solid blue;
+          height: 80px;
+      }
+
+      .abspos {
+          position: absolute;
+          width: 60px;
+          height: 40px;
+          border: 2px solid black;
+          font-size: 10px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
+      }
+
+      .align-self {
+          grid-column: 2 / 3;
+      }
+
+      .align-start {
+          align-self: start;
+          background: lightcoral;
+      }
+
+      .align-end {
+          align-self: end;
+          background: lightgreen;
+      }
+
+      .align-center {
+          align-self: center;
+          background: lightblue;
+      }
+
+      .justify-self {
+          grid-column: 4 / 5;
+      }
+
+      .justify-start {
+          justify-self: start;
+          background: gold;
+      }
+
+      .justify-end {
+          justify-self: end;
+          background: silver;
+      }
+
+      .justify-center {
+          justify-self: center;
+          background: tan;
+      }
+
+      .combo-center-center {
+          grid-column: 3 / 4;
+          align-self: center;
+          justify-self: center;
+          background: hotpink;
+      }
+
+      .safe-align {
+          position: absolute;
+          background: orange;
+          border: 1px solid darkorange;
+          grid-column: 1 / 2;
+          width: 170px;
+          height: 30px;
+          justify-self: safe end;
+          align-self: center;
+          font-size: 10px;
+      }
+
+    .unsafe-align {
+          position: absolute;
+          background: purple;
+          border: 1px solid darkmagenta;
+          grid-column: 5 / 6;
+          width: 170px;
+          height: 30px;
+          justify-self: unsafe end;
+          align-self: center;
+          font-size: 10px;
+      }
+    </style>
+</head>
+<body>
+<div class="container">
+  <div class="grid">
+    <div class="item">Item 1</div>
+    <div class="item">Item 2</div>
+    <div class="item">Item 3</div>
+    <div class="abspos align-self align-start">align-self: start</div>
+    <div class="abspos align-self align-end">align-self: end</div>
+    <div class="abspos align-self align-center">align-self: center</div>
+    <div class="item">Item 4</div>
+    <div class="item">Item 5</div>
+    <div class="abspos justify-self justify-start">justify-self: start</div>
+    <div class="abspos justify-self justify-end">justify-self: end</div>
+    <div class="abspos justify-self justify-center">justify-self: center</div>
+    <div class="abspos combo-center-center">center + center</div>
+    <div class="safe-align">justify-self: safe end</div>
+    <div class="unsafe-align">justify-self: unsafe end</div>
+  </div>
+</div>
+</body>
+</html>

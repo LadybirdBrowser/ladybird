@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<meta charset="utf-8">
+<title>Reference: Explicitly-placed items do not move the auto-placement cursor with fit-tolerance: infinite</title>
+<link rel="author" title="Sammy Gill" href="mailto:sammy.gill@apple.com">
+<style>
+.grid {
+    display: grid;
+    background: gray;
+    grid-template-columns: repeat(3, 60px);
+    align-items: start;
+    gap: 10px;
+    padding: 10px;
+    width: 200px;
+    font: 10px/1 monospace;
+}
+
+.column {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.item {
+    width: 60px;
+}
+</style>
+<body>
+  <p>Test that an explicitly-placed item does not advance the auto-placement cursor when
+     fit-tolerance is infinite. Item 1 is placed in column 2, so the cursor stays in
+     column 1 and items 2, 3 and 4 fill columns 1, 2 and 3 in order.</p>
+  <div class="grid">
+    <div class="column">
+      <div class="item" style="height: 10px; background: lightcoral">2</div>
+    </div>
+    <div class="column">
+      <div class="item" style="height: 40px; background: lightskyblue">1</div>
+      <div class="item" style="height: 20px; background: lightgreen">3</div>
+    </div>
+    <div class="column">
+      <div class="item" style="height: 30px; background: gold">4</div>
+    </div>
+  </div>
+</body>
+</html>

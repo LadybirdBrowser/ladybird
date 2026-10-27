@@ -1,0 +1,42 @@
+<!DOCTYPE HTML>
+<html><head>
+  <meta charset="utf-8">
+  <style type="text/css">
+.grid {
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-column-gap: 60px;
+  border: 1px solid;
+  padding: 2px;
+  padding-top: 5px;
+  height: 300px;
+}
+
+.subgrid {
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-column: 1 / span 2;
+  grid-column-gap: 40px;
+  background: lightgrey;
+  padding: 10px;
+  padding-top: 5px;
+  height: min-content;
+}
+
+.item {
+  align-self: start;
+  width: 100%;
+  height: 100px;
+  background: grey;
+}
+  </style>
+</head>
+<body>
+<div class="grid">
+  <div class="subgrid">
+    <div class="item"></div>
+    <div class="item" style="width:100px"></div>
+  </div>
+</div>
+</body>
+</html>

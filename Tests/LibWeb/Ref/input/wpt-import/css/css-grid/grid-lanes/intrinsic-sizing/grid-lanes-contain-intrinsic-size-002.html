@@ -1,0 +1,24 @@
+<!doctype html>
+<meta charset="utf8">
+<title>CSS contain-intrinsic-size: div with max-content parent</title>
+<link rel="author" title="Celeste Pan" href="mailto:celestepan@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/intrinsic-sizing/../../../css-sizing/contain-intrinsic-size/contain-intrinsic-size-002-ref.html">
+<meta name="assert" content="contain-intrinsic-size is used to size the div, with parent's max-content width respecting it">
+
+<style>
+#border {
+  width: max-content;
+  border: 1px solid black;
+}
+#target {
+  display: grid-lanes;
+  background: lightblue;
+  contain-intrinsic-size: 111px 222px;
+  contain: size;
+}
+</style>
+
+<div id=border>
+  <div id=target></div>
+</div>

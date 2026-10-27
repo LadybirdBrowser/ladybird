@@ -2,8 +2,9 @@ Harness status: OK
 
 Found 4 tests
 
-4 Fail
-Fail	Check that min-width is honored when sizing auto columns.
-Fail	Check that min-width is honored when sizing auto columns and spanning grid items.
+3 Pass
+1 Fail
+Pass	Check that min-width is honored when sizing auto columns.
+Pass	Check that min-width is honored when sizing auto columns and spanning grid items.
 Fail	Check the interactions between width and min-width and auto tracks.
-Fail	Check that borders and paddings are considering when computing min sizes.
+Pass	Check that borders and paddings are considering when computing min sizes.

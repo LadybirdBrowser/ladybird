@@ -1,0 +1,68 @@
+<!DOCTYPE HTML>
+<meta charset="utf-8">
+<title>CSS Grid Reference: Subgrids with 'overflow' and/or 'scrollbar-gutter'</title>
+<link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+<link rel="author" title="Mozilla" href="https://www.mozilla.org/">
+
+<style>
+:root {
+  overflow: scroll; /* Required to reproduce the bug on Firefox */
+}
+.grid {
+  display: inline-block;
+  inline-size: 75px;
+  border: 5px solid blue;
+  vertical-align: top;
+}
+.subgrid {
+  block-size: 75px;
+}
+.item {
+  inline-size: 50px;
+  block-size: 50px;
+  background: green;
+}
+fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+</style>
+
+<p>All the following subgrid scroll container shouldn't have any scrollbars.</p>
+
+<p>Testcase 1: subgrid with 'overflow: scroll'</p>
+<div class="grid">
+  <div class="subgrid" style="overflow: scroll;">
+    <div class="item"></div>
+  </div>
+</div>
+<div class="grid" style="writing-mode: vertical-rl;">
+  <div class="subgrid" style="overflow: scroll;">
+    <div class="item"></div>
+  </div>
+</div>
+
+<p>Testcase 2: subgrid with 'overflow: auto' and 'scrollbar-gutter: stable'</p>
+<div class="grid">
+  <div class="subgrid" style="overflow: auto; scrollbar-gutter: stable;">
+    <div class="item"></div>
+  </div>
+</div>
+<div class="grid" style="writing-mode: vertical-rl;">
+  <div class="subgrid" style="overflow: auto; scrollbar-gutter: stable;">
+    <div class="item"></div>
+  </div>
+</div>
+
+<p>Testcase 3: subgrid with 'overflow: hidden' and 'scrollbar-gutter: stable'</p>
+<div class="grid">
+  <div class="subgrid" style="overflow: hidden; scrollbar-gutter: stable;">
+    <div class="item"></div>
+  </div>
+</div>
+<div class="grid" style="writing-mode: vertical-rl;">
+  <div class="subgrid" style="overflow: hidden; scrollbar-gutter: stable;">
+    <div class="item"></div>
+  </div>
+</div>

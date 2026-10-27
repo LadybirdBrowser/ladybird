@@ -1,0 +1,110 @@
+<!DOCTYPE HTML>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html>
+  <meta charset="utf-8">
+  <title>Reference: Grid Lanes layout intrinsic sizing</title>
+  <link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
+  <style>
+
+@import "support/grid-lanes-intrinsic-sizing-visual.css";
+
+grid {
+  display: inline-grid;
+  gap: 1px 2px;
+  grid-template-rows: 1fr 2fr 1fr 1fr;
+  grid-auto-flow: column;
+  border: 1px solid;
+  padding: 0 1px 0 2px;
+  vertical-align: top;
+  height: min-content;
+}
+
+item {
+  /* smaller heights to fit into 800x600 */
+  writing-mode: vertical-rl;
+  text-orientation: sideways;
+}
+</style>
+
+<body>
+
+<section>
+<grid style="grid-template-rows: 2ch 4ch 2ch 2ch">
+  <item style="height:2ch">1</item>
+  <item>2</item>
+  <item>3</item>
+  <item>4</item>
+  <item>5</item>
+</grid>
+
+<grid style="grid-template-rows: 2ch 4ch 2ch 2ch">
+  <item>1</item>
+  <item>2</item>
+  <item>3</item>
+  <item>4</item>
+  <item style="height:2ch">5</item>
+</grid>
+
+<grid>
+  <item>1</item>
+  <item>2</item>
+  <item>3</item>
+  <item>4</item>
+  <item style="height:2ch; grid-row:2">5</item>
+</grid>
+
+<grid>
+  <item>1</item>
+  <item>2</item>
+  <item>3</item>
+  <item>4</item>
+  <item style="height:4ch; grid-row:2/span 2">5</item>
+</grid>
+
+<grid>
+  <item>1</item>
+  <item>2</item>
+  <item>3</item>
+  <item>4</item>
+  <item style="grid-row:2/span 2">5</item>
+  <item style="height:5ch; grid-row:span 3/4">6</item>
+</grid>
+
+<grid>
+  <item>1</item>
+  <item>2</item>
+  <item>3</item>
+  <item>4</item>
+  <item style="height:3ch; grid-row:span 2/4">5</item>
+  <item style="height:5ch; grid-row:1/span 3">6</item>
+</grid>
+
+<grid>
+  <item>1</item>
+  <item>2</item>
+  <item>3</item>
+  <item>4</item>
+  <item style="grid-row:span 4">5</item>
+</grid>
+
+<grid>
+  <item>1</item>
+  <item>2</item>
+  <item>3</item>
+  <item>4</item>
+  <item style="height:6ch; grid-row:span 4">5</item>
+</grid>
+
+<grid>
+  <item>1</item>
+  <item>2</item>
+  <item>3</item>
+  <item>4</item>
+  <item style="height:6ch; grid-area: 1/2/4/3">5</item>
+  <item style="height:6ch; grid-area: 2/2/5/3; visibility: hidden">5</item>
+</grid>
+</section>
+</body>

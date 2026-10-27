@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<style>
+#grid {
+  display: grid-lanes;
+  grid-template-columns: 200px 300px;
+  padding: 20px;
+  position: relative;
+  border: 1px solid;
+}
+
+#positioned {
+  position: absolute;
+  background: magenta;
+  left: 520px;
+  bottom: 120px;
+}
+
+#anchor {
+  background: lime;
+  height: 100px;
+  grid-column: 2 / 3;
+}
+</style>
+
+<div id="grid">
+  <div id="anchor"></div>
+  <div id="positioned">Anchored</div>
+  <div id="static"></div>
+</div>

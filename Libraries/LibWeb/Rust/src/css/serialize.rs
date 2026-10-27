@@ -2955,6 +2955,7 @@ fn serialize_display(sink: &mut TextSink, raw: u32) {
                     _ if inside == display_inside::FLEX => Some("flex"),
                     _ if inside == display_inside::_WEBKIT_BOX => Some("-webkit-box"),
                     _ if inside == display_inside::GRID => Some("grid"),
+                    _ if inside == display_inside::GRID_LANES => Some("grid-lanes"),
                     _ if inside == display_inside::TABLE => Some("table"),
                     _ => None,
                 }
@@ -2965,6 +2966,7 @@ fn serialize_display(sink: &mut TextSink, raw: u32) {
                     _ if inside == display_inside::FLEX => Some("inline-flex"),
                     _ if inside == display_inside::_WEBKIT_BOX => Some("-webkit-inline-box"),
                     _ if inside == display_inside::GRID => Some("inline-grid"),
+                    _ if inside == display_inside::GRID_LANES => Some("inline-grid-lanes"),
                     _ if inside == display_inside::RUBY => Some("ruby"),
                     _ if inside == display_inside::TABLE => Some("inline-table"),
                     _ if inside == display_inside::MATH => Some("math"),

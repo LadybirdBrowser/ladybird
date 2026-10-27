@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<meta charset="utf-8">
+<title>CSS Grid Lanes Test: Centered alignment in grid axis</title>
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-3/#alignment">
+<link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/alignment/row-align-items-center-001-ref.html">
+<style>
+.grid-lanes {
+    display: grid-lanes;
+    background: gray;
+    flow-tolerance: 0;
+    grid-template-rows: repeat(3, 100px);
+    width: 300px;
+    align-items: center;
+}
+</style>
+<body>
+  <p>Test that using align-items centers each item to the grid-axis track it is on.</p>
+  <div class="grid-lanes">
+    <div style="width: 50px; height: 50px; background-color: lightblue;"></div>
+    <div style="width: 100px; height: 15px; background-color: lightsalmon;"></div>
+    <div style="width: 25px; height: 25px; background-color: plum;"></div>
+    <div style="background-color: lightgreen; width: 60px; height: 60px;"></div>
+    <div style="background-color: lightpink; height: 80px; width: 200px; grid-row: span 2;"></div>
+  </div>
+</body>
+</html>

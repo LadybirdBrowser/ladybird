@@ -1,0 +1,53 @@
+<!DOCTYPE HTML>
+<meta charset="utf-8">
+<title>CSS Grid Test: Grid Lanes layout shouldn't be inhibited simply due to being an independent formatting context (unlike subgrid)</title>
+<link rel="author" title="Daniel Holbert" href="mailto:dholbert@mozilla.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-3/#grid-template-masonry">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-grid/grid-lanes/grid-lanes-not-inhibited-001-ref.html">
+<style>
+grid {
+  vertical-align: top;
+  display: inline grid-lanes;
+  grid-template-columns: 60px 60px;
+  border: 2px solid black;
+}
+.overflowSet {
+  overflow: hidden;
+}
+.containSet {
+  contain: layout;
+}
+item {
+  width: 60px;
+  height: 30px;
+  background: cyan;
+}
+.tall {
+    /* This item is taller than the others, which lets us know if grid-lanes
+       layout is being applied or not. If we're using grid-lanes, then the second
+       and third items will stack in the same column.  If not, then the third
+       item will automatically fill in below this tall item. */
+    height: 60px;
+    background: tan;
+}
+</style>
+<grid>
+  <item class="tall"></item>
+  <item></item>
+  <item></item>
+</grid>
+<grid class="overflowSet">
+  <item class="tall"></item>
+  <item></item>
+  <item></item>
+</grid>
+<grid class="containSet">
+  <item class="tall"></item>
+  <item></item>
+  <item></item>
+</grid>
+<grid class="containSet overflowSet">
+  <item class="tall"></item>
+  <item></item>
+  <item></item>
+</grid>

@@ -1,0 +1,27 @@
+<!DOCTYPE HTML>
+<html><head>
+  <meta charset="utf-8">
+  <style>
+html,body {
+  color:black; background-color:white; font:16px/1 monospace; padding:0; margin:0;
+}
+
+.grid {
+  display:inline-grid;
+  grid-template-columns: 100px auto;
+  gap:20px;
+  border:3px solid;
+  background:yellow;
+}
+span { background:lightgrey; }
+span:nth-child(2n+1) { background:grey; }
+</style>
+</head>
+<body>
+<div class="grid">
+  <div style="display:grid; grid:100px/subgrid; gap:100px; grid-column:span 2">
+    <span>a</span><span>b</span>
+  </div>
+</div>
+</body>
+</html>

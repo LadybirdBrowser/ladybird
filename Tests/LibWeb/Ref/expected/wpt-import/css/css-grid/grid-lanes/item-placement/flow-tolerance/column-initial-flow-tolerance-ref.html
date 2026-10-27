@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<style>
+.grid {
+    display: grid;
+    background: gray;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    padding: 20px;
+    width: 400px;
+}
+
+.flex {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+</style>
+<body>
+  <p>Test that the initial tie threshold for grid-lanes is correctly resolved.</p>
+  <div class="grid">
+    <div class="flex">
+      <div style="background: lightskyblue; height: 100px"></div>
+      <div style="background: lightgreen; height: 50px"></div>
+    </div>
+    <div class="flex">
+      <div style="background: lightcoral; height: 50px"></div>
+      <div style="background: palegoldenrod; height: 100px"></div>
+    </div>
+  </div>
+</body>
+</html>

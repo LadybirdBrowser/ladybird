@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="author" title="Celeste Pan" href="mailto:celestepan@microsoft.com">
+<style>
+.grid {
+    display: grid;
+    grid-template-rows: 100px auto 100px;
+    align-items: start;
+    background: gray;
+    width: 300px;
+    padding: 10px;
+}
+
+.flex {
+    display: flex;
+    flex-direction: row;
+    overflow: visible;
+    flex-wrap: nowrap;
+    align-items: flex-start;
+}
+
+.square-100x100 {
+    width: 100px;
+    height: 100px;
+}
+</style>
+<body>
+  <p>Test that grid-lanes items with auto placement are correctly positioned when the grid-axis is the block axis. Ensure that margin affects placement.</p>
+  <div class="grid">
+    <div class="flex">
+      <div class="square-100x100" style="background: lightskyblue; margin-right: 100px;">
+        Number 1
+    </div>
+    <div style="background: brown; width: 100px; height: 210px;">
+      Number 6
+    </div>
+    </div>
+    <div class="flex">
+      <div class="square-100x100" style="background: lightcoral; margin-bottom: 10px;">
+        Number 2
+    </div>
+    <div class="square-100x100" style="background: lightpink; margin-bottom: 10px;">
+      Number 4
+    </div>
+    </div>
+    <div class="flex">
+      <div class="square-100x100" style="background: lightgreen; margin-right: 40px;">
+        Number 3
+    </div>
+    <div class="square-100x100" style="background: lightpink; margin-left: -20px;">
+        Number 5
+    </div>
+    </div>
+  </div>
+</body>
+</html>

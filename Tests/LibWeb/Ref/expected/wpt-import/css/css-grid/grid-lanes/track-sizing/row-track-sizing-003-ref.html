@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<style>
+.grid {
+    display: grid;
+    grid-template-rows: 1fr 5fr 3fr 1fr;
+    width: 100px;
+    height: 100px;
+}
+</style>
+<body>
+  <p>Test that grid-lanes tracks are correctly sized, and flexible tracks are expanded.</p>
+  <div class="grid">
+    <div style="background-color: orange;"></div>
+    <div style="background-color: yellow;"></div>
+    <div style="background-color: blue;"></div>
+    <div style="background-color: purple;"></div>
+  </div>
+</body>
+</html>

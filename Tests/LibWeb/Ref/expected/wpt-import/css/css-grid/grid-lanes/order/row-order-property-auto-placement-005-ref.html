@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="stylesheet" type="text/css" href="../../../../fonts/ahem.css" />
+<style>
+#grid {
+  display: grid;
+  font: 50px/1 Ahem;
+  grid-template-columns: auto auto;
+  grid-template-rows: auto auto;
+  grid-auto-flow: column;
+  justify-content: start;
+  align-content: start;
+}
+</style>
+<p>Ensure `order` property affects grid-lanes layout correctly</p>
+<div id="grid">
+  <div id="yellow" style="color: yellow; order: -1;">Y</div>
+  <div id="magenta" style="color: magenta; order: 5;">M</div>
+  <div id="blue" style="color: blue; order: -5;">B</div>
+  <div id="lime" style="color: lime; order: 1;">L</div>
+</div>

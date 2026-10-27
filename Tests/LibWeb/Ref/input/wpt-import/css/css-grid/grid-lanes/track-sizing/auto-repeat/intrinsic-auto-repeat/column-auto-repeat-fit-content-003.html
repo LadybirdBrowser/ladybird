@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<title>Auto repeat tracks with fit-content() track size</title>
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="match" href="../../../../../../../../expected/wpt-import/css/css-grid/grid-lanes/track-sizing/auto-repeat/intrinsic-auto-repeat/column-auto-repeat-fit-content-003-ref.html">
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<link rel="stylesheet" href="../../../../../../fonts/ahem.css">
+<style>
+.grid-lanes {
+    display: grid-lanes;
+    background: gray;
+    flow-tolerance: 0;
+    /*
+      This is not currently a valid track definition and will fall back to
+      none.
+    */
+    grid-template-columns: fit-content(100px) repeat(auto-fill, fit-content(100px)) fit-content(100px);
+    width: 300px;
+    height: 300px;
+    font: 15px/1 Ahem;
+}
+
+.grid-lanes > div {
+    height: 100px;
+}
+</style>
+<body>
+  <div class="grid-lanes">
+    <div style="background: lightskyblue;">
+      Number 1
+    </div>
+    <div style="background: lightcoral;">
+      Number 2
+    </div>
+    <div style="background: lightgreen;">
+      Number 3
+    </div>
+    <div style="background: lightpink;">
+      Number 4
+    </div>
+    <div style="background: orange;">
+      Number 5
+    </div>
+    <div style="grid-column: span 2; background: brown;">
+      Number 6
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        font: 10px/10px serif;
+        margin: 0;
+    }
+    #container {
+        line-height: 0;
+    }
+    #grid {
+        display: inline-grid-lanes;
+        grid-template-columns: 50px 50px;
+        grid-auto-flow: dense;
+    }
+    #text {
+        line-height: 10px;
+    }
+    #first {
+        font-size: 20px;
+        line-height: 20px;
+    }
+</style>
+<div id="container"><span id="text">X</span><div id="grid"><div style="grid-column: 2; height: 60px"></div><div style="grid-column: span 2; height: 10px">spanner</div><div id="first">first</div></div></div>
+<script>
+    test(() => {
+        // The last item is packed densely into the space above the spanning item, which makes it the first item of
+        // the first column. The grid's baseline comes from it rather than from the spanning item.
+        const grid = document.getElementById("grid").getBoundingClientRect();
+        const text = document.getElementById("text").getBoundingClientRect();
+        const first = document.getElementById("first").getBoundingClientRect();
+        println(`first item is at the top of the grid: ${first.top === grid.top}`);
+        println(`grid baseline is above 30px: ${text.bottom - grid.top < 30}`);
+    });
+</script>

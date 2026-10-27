@@ -1,0 +1,164 @@
+<!DOCTYPE HTML>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html>
+  <meta charset="utf-8">
+  <title>Reference: Grid Lanes layout max-content sizing</title>
+  <link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
+  <link rel="stylesheet" type="text/css" href="../../../../fonts/ahem.css">
+  <style>
+
+@import "support/grid-lanes-intrinsic-sizing-visual.css";
+
+grid {
+  display: inline-grid;
+  gap: 1px 2px;
+  grid-template-rows: repeat(4, auto);
+  grid-auto-flow: column;
+  border: 1px solid;
+  padding: 1px 0 2px 0;
+  vertical-align: top;
+  height: max-content;
+  font-family: Ahem;
+}
+
+item {
+  justify-self: start;
+  writing-mode: vertical-rl;
+  text-orientation: sideways;
+}
+
+grid > item:nth-child(1) {
+  background-color: #89CFF0;
+}
+
+grid > item:nth-child(2) {
+  background-color: #FF6F61;
+}
+
+grid > item:nth-child(3) {
+  background-color: #FDF3E7;
+}
+
+grid > item:nth-child(4) {
+  background-color: #F4C542;
+}
+
+grid > item:nth-child(5) {
+  background-color: #333333;
+}
+
+grid > item:nth-child(6) {
+  background-color: #B2C8A5;
+}
+
+.hidden {
+  visibility: hidden;
+  opacity: 0.5;
+  width: 1em;
+}
+</style>
+
+<body>
+
+<section>
+<grid>
+  <item style="height:2ch">1</item>
+  <item>2 2</item>
+  <item>3 3</item>
+  <item>4</item>
+  <item>5 5</item>
+
+  <item class="hidden" style="grid-area: 4/2">0 0</item>
+</grid>
+
+<grid>
+  <item style="height: 3ch">1</item>
+  <item>2 2</item>
+  <item>3 3</item>
+  <item style="height: 3ch">4</item>
+  <item style="height:2ch">5 5</item>
+
+  <item class="hidden" style="grid-area: 4/2">0 0</item>
+</grid>
+
+<grid>
+  <item>1</item>
+  <item>2 2</item>
+  <item>3 3</item>
+  <item>4</item>
+  <item style="height:2ch; grid-row:2">5 5</item>
+
+  <item class="hidden" style="grid-row: 1; grid-column: 2;">0 0</item>
+  <item class="hidden" style="grid-row: 4; grid-column: 2;">0 0</item>
+</grid>
+
+<grid>
+  <item>1</item>
+  <item>2 2</item>
+  <item>3 3</item>
+  <item>4</item>
+  <item style="height:4ch; grid-row:2/span 2">5 5</item>
+
+  <item class="hidden" style="grid-row: 1; grid-column: 2;">0 0</item>
+  <item class="hidden" style="grid-row: 4; grid-column: 2;">0 0</item>
+</grid>
+
+<grid>
+  <item>1</item>
+  <item>2 2</item>
+  <item>3 3</item>
+  <item>4</item>
+  <item style="grid-row:2/span 2">5 5</item>
+  <item style="height:5ch; grid-row:span 3/4">6</item>
+
+  <item class="hidden" style="grid-row: 1; grid-column: 2;">0 0</item>
+  <item class="hidden" style="grid-row: 4; grid-column: 2;">0 0</item>
+</grid>
+
+<grid>
+  <item>1</item>
+  <item>2 2</item>
+  <item>3 3</item>
+  <item>4</item>
+  <item style="height:3ch; grid-row:span 2/4">5</item>
+  <item style="height:5ch; grid-row:1/span 3">6</item>
+
+  <item class="hidden" style="grid-row: 1; grid-column: 2;">0 0</item>
+  <item class="hidden" style="grid-row: 4; grid-column: 2;">0 0</item>
+</grid>
+
+<grid>
+  <item style="height: 3ch">1</item>
+  <item>2 2</item>
+  <item>3 3</item>
+  <item style="height: 3ch">4</item>
+  <item style="grid-area: 1/2/5/3">5 5</item>
+</grid>
+
+<grid>
+  <item>1</item>
+  <item>2 2</item>
+  <item>3 3</item>
+  <item>4</item>
+  <item style="height:6ch; grid-area: 1/2/5/3">5 5</item>
+
+  <item class="hidden" style="grid-area: 1/2">0 0</item>
+  <item class="hidden" style="grid-area: 4/2">0 0</item>
+</grid>
+
+<grid>
+  <item>1</item>
+  <item>2 2</item>
+  <item>3 3</item>
+  <item>4</item>
+  <item style="height:6ch; grid-area: 1/2/4/3">5 5</item>
+
+  <item class="hidden" style="grid-area: 1/2">0 0</item>
+  <item class="hidden" style="grid-area: 4/2">0 0</item>
+  <item class="hidden" style="height:6ch; grid-area: 2/2/5/3">0 0</item>
+</grid>
+</section>
+</body>

@@ -1,0 +1,36 @@
+<!DOCTYPE HTML>
+<html>
+<meta charset="utf-8">
+<style>
+.grid {
+  display: inline-grid;
+  grid-template-rows: repeat(4, auto);
+  grid-template-columns: auto auto;
+  border: 1px solid;
+}
+item {
+  width: 40px;
+  height: 100%;
+  background: grey;
+}
+.subgrid {
+  display: grid;
+  grid: subgrid / auto;
+  grid-row: 1 / span 4;
+  border: 0 solid lightblue;
+  border-bottom-width: 80px;
+  background: yellow;
+}
+.subgrid > item { background: lightgrey; }
+</style>
+<div class="grid">
+  <item style="grid-row: 1;">1</item>
+  <item style="grid-row: 2;">2</item>
+  <item style="grid-row: 3;">3</item>
+  <item style="grid-row: 4;">4</item>
+  <div class="subgrid">
+    <item>a</item>
+    <item>b</item>
+  </div>
+</div>
+</html>

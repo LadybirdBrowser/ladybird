@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="author" title="Ethan Jimenez" href="mailto:ethavar@microsoft.com">
+<link rel="author" title="Celeste Pan" href="mailto:celestepan@microsoft.com">
+<style>
+.grid {
+    display: grid;
+    background: gray;
+    width: 240px;
+    gap: 20px;
+    padding: 20px;
+    align-items: start;
+}
+
+.first-track {
+    background: lightskyblue;
+    grid-column-start: 1;
+}
+
+.second-track {
+    background: lightcoral;
+    grid-column-start: 2;
+    margin-left: 40px;
+}
+
+.third-track {
+    background: lightgreen;
+    grid-column-start: 3;
+    margin-top: 40px;
+    margin-right: 40px;
+}
+
+.fourth-track {
+    background: purple;
+    grid-column-start: 4;
+}
+</style>
+<body>
+  <p>Test that grid-lanes items with explicit placement are correctly positioned within the grid axis.</p>
+  <div class="grid">
+    <div class="first-track">This is some text</div>
+    <div class="second-track">Some larger words in this sentence</div>
+    <div class="third-track">The cat cannot be separated from milk</div>
+    <div class="fourth-track">The cat cannot be separated from milk</div>
+  </div>
+</body>
+</html>

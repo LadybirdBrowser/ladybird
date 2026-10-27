@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    .grid {
+      width: 400px;
+      border: solid 5px;
+      gap: 3px;
+      display: grid;
+      grid-template-columns: repeat(3, 120px);
+      grid-template-rows: repeat(3, min-content);
+      background-color: #f0f0f0;
+      border-color: slateblue;
+      justify-items: center;
+      margin-bottom: 20px;
+      font: 16px/1 monospace;
+    }
+
+    .item {
+      height: 50px;
+      padding: 8px;
+    }
+
+    #item1 {
+      background-color: #8cffa0;
+      width: 70px;
+      justify-self: baseline;
+      grid-column: 1;
+      grid-row: 1;
+    }
+
+    #item2 {
+      background-color: #a0c8ff;
+      width: 80px;
+      justify-self: baseline;
+      grid-column: 1;
+      grid-row: 2;
+    }
+
+    #item3 {
+      background-color: #ffa08c;
+      width: 65px;
+      justify-self: center;
+      grid-column: 1;
+      grid-row: 3;
+    }
+
+    #item4 {
+      background-color: #ff8cff;
+      width: 90px;
+      justify-self: last baseline;
+      grid-column: 2;
+      grid-row: 1;
+    }
+
+    #item5 {
+      background-color: #8cffff;
+      width: 85px;
+      justify-self: last baseline;
+      grid-column: 2;
+      grid-row: 2;
+    }
+
+    #item6 {
+      background-color: #ff8c8c;
+      width: 60px;
+      justify-self: start;
+      grid-column: 2;
+      grid-row: 3;
+    }
+
+    #item7 {
+      background-color: #c8ffa0;
+      width: 65px;
+      justify-self: baseline;
+      grid-column: 3;
+      grid-row: 1;
+    }
+
+    #item8 {
+      background-color: #a0a0ff;
+      width: 75px;
+      justify-self: baseline;
+      grid-column: 3;
+      grid-row: 2;
+    }
+
+    #item9 {
+      background-color: #ffc88c;
+      width: 70px;
+      justify-self: end;
+      grid-column: 3;
+      grid-row: 3;
+    }
+  </style>
+</head>
+<body>
+<div class="grid">
+  <div id="item1" class="item">baseline</div>
+  <div id="item2" class="item">baseline</div>
+  <div id="item3" class="item">center</div>
+  <div id="item4" class="item">last baseline</div>
+  <div id="item5" class="item">last baseline</div>
+  <div id="item6" class="item">start</div>
+  <div id="item7" class="item">baseline</div>
+  <div id="item8" class="item">baseline</div>
+  <div id="item9" class="item">end</div>
+</div>
+</body>
+</html>

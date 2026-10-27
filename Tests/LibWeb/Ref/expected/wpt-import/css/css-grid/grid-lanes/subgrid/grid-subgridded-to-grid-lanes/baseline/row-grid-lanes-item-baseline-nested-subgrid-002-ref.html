@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="stylesheet" type="text/css" href="../../../../../../fonts/ahem.css">
+<style>
+  html, body { color: black; background: white; padding: 0; margin: 0; }
+  .grid {
+    display: grid;
+    grid-template-rows: repeat(4, 50px);
+    grid-template-columns: auto auto;
+    font: 16px/1 Ahem;
+    border: 1px solid black;
+    place-content: start;
+    align-items: baseline;
+  }
+  .subgrid {
+    display: grid;
+    grid-template-rows: subgrid;
+    grid-template-columns: auto auto;
+    grid-row: 1 / span 3;
+    justify-items: baseline;
+  }
+  .b { text-decoration: underline; }
+  .big   { font-size: 40px; }
+  .med   { font-size: 28px; }
+  .small { font-size: 20px; }
+  .tiny  { font-size: 12px; }
+  .r1 { grid-row: 1; }
+  .r2 { grid-row: 2; }
+  .r3 { grid-row: 3; }
+  .c1 { grid-column: 1; }
+  .c2 { grid-column: 2; }
+</style>
+<div class="grid">
+  <div class="b r1 c1 big">X</div>
+  <div class="subgrid c2">
+    <div class="b r1 c1 small">X</div>
+    <div class="b r3 c1 med">X</div>
+    <div class="subgrid c2">
+      <div class="b r2 c1 big">X</div>
+      <div class="subgrid c2">
+        <div class="b r1 c1 med">X</div>
+        <div class="b r2 c2 tiny">X</div>
+        <div class="b r3 c2 big">X</div>
+      </div>
+    </div>
+  </div>
+</div>

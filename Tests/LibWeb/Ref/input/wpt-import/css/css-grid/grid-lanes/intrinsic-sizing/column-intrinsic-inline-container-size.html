@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/intrinsic-sizing/column-intrinsic-inline-container-size-ref.html">
+<link rel="author" title="Ethan Jimenez" href="mailto:ethavar@microsoft.com">
+<style>
+.grid-lanes {
+    display: grid-lanes;
+    background: gray;
+    position: relative;
+    flow-tolerance: 0;
+    gap: 20px;
+    padding: 20px;
+}
+
+.first-track {
+    background: lightskyblue;
+    grid-column-start: 1;
+}
+
+.second-track {
+    background: lightcoral;
+    grid-column-start: 2;
+}
+
+.third-track {
+    background: lightgreen;
+    grid-column-start: 3;
+}
+</style>
+<body>
+  <p>Test that grid-lanes containers are correctly sized when an intrinsic inline size is specified.</p>
+  <div class="grid-lanes" style="width: max-content">
+    <div class="first-track" style="width: max-content">This is some text</div>
+    <div class="second-track" style="width: max-content">Some larger words in this sentence</div>
+    <div class="third-track" style="width: max-content">The cat cannot be separated from milk</div>
+  </div>
+  <div class="grid-lanes" style="width: min-content">
+    <div class="first-track" style="width: min-content">This is some text</div>
+    <div class="second-track" style="width: min-content">Some larger words in this sentence</div>
+    <div class="third-track" style="width: min-content">The cat cannot be separated from milk</div>
+  </div>
+</body>
+</html>

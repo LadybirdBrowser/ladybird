@@ -95,7 +95,7 @@ public:
     bool is_flow_root_inside() const { return is_outside_and_inside() && inside() == DisplayInside::FlowRoot; }
     bool is_table_inside() const { return is_outside_and_inside() && inside() == DisplayInside::Table; }
     bool is_flex_inside() const { return is_outside_and_inside() && first_is_one_of(inside(), DisplayInside::Flex, DisplayInside::WebkitBox); }
-    bool is_grid_inside() const { return is_outside_and_inside() && inside() == DisplayInside::Grid; }
+    bool is_grid_inside() const { return is_outside_and_inside() && first_is_one_of(inside(), DisplayInside::Grid, DisplayInside::GridLanes); }
 
     enum class Short {
         None,
@@ -112,6 +112,8 @@ public:
         InlineFlex,
         Grid,
         InlineGrid,
+        GridLanes,
+        InlineGridLanes,
         Ruby,
         Table,
         InlineTable,

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" type="text/css" href="../../../../fonts/ahem.css" />
+  <style>
+    .container { position: relative; }
+    .grid {
+      display: grid;
+      position: relative;
+      text-orientation: sideways;
+      grid: 100px 200px / 200px 100px;
+      font-family: Ahem;
+      line-height: 1;
+      background-color: grey;
+      justify-items: baseline;
+      width: 300px;
+    }
+    .bigFont  { font-size: 50px; }
+    .height25 { height: 25px; }
+    .paddingLeft { padding-left: 25px; }
+    .paddingRight { padding-right: 25px; }
+
+    .firstRowFirstColumn {
+      background-color: blue;
+      grid-column: 1;
+      grid-row: 1;
+    }
+
+    .secondRowFirstColumn {
+      background-color: purple;
+      grid-column: 1;
+      grid-row: 2;
+    }
+
+    .autoRowSpanning2AutoColumn {
+      background-color: aqua;
+      grid-column: auto;
+      grid-row: span 2;
+    }
+
+    .verticalRL {
+      writing-mode: vertical-rl;
+    }
+    .verticalLR {
+      writing-mode: vertical-lr;
+    }
+    .horizontalTB {
+      writing-mode: horizontal-tb;
+    }
+  </style>
+</head>
+<body>
+<pre>VerticalLR grid-lanes and Horizontal item</pre>
+<div class="grid justifyItemsBaseline verticalLR">
+  <div class="firstRowFirstColumn">ÉÉ É ÉÉÉ É ÉÉ É</div>
+  <div class="secondRowFirstColumn bigFont horizontalTB">É É ÉÉ</div>
+  <div class="autoRowSpanning2AutoColumn height25"></div>
+</div>
+
+<pre>VerticalRL grid-lanes and Horizontal item</pre>
+<div class="grid justifyItemsBaseline verticalRL">
+  <div class="firstRowFirstColumn">ÉÉ É ÉÉÉ É ÉÉ É</div>
+  <div class="secondRowFirstColumn bigFont horizontalTB">É É ÉÉ</div>
+  <div class="autoRowSpanning2AutoColumn height25"></div>
+</div>
+</body>
+</html>

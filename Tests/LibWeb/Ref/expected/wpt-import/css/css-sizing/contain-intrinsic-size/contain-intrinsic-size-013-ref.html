@@ -1,0 +1,18 @@
+<!doctype html>
+<meta charset="utf8">
+<title>CSS contain-intrinsic-size: intrinsic-size changes</title>
+<link rel="author" title="Vladimir Levin" href="mailto:vmpstr@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-sizing-4/#intrinsic-size-override">
+
+<style>
+#border {
+  width: max-content;
+  border: 1px solid black;
+}
+#border > div {
+  width: 77px;
+  height: 88px;
+}
+</style>
+
+<div id=border><div id=target></div></div>

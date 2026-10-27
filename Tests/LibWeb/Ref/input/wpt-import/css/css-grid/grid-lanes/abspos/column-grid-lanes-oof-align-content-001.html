@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CSS Grid Lanes Test: OOF item static positions don't change with content alignment in columns</title>
+  <link rel="author" title="Celeste Pan" href="mailto:celestepan@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3/#abspos">
+  <link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/abspos/column-grid-lanes-oof-align-content-001-ref.html">
+  <style>
+    html, body {
+      font: 16px/1 monospace;
+      background: white;
+    }
+
+    .grid-lanes {
+      display: grid-lanes;
+      grid-template-columns: 80px;
+      gap: 10px;
+      width: 200px;
+      height: 200px;
+      outline: 1px solid black;
+      position: relative;
+    }
+
+    item {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 40px;
+      background: lightblue;
+    }
+
+    .oof {
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      background: red;
+    }
+  </style>
+</head>
+<body>
+  <div class="grid-lanes" style="align-content: end;">
+    <item>1</item>
+    <item>2</item>
+    <item>3</item>
+    <div class="oof" style="left: 0px;"></div>
+    <div class="oof" style="left: 90px;"></div>
+    <div class="oof" style="right: 0px;"></div>
+  </div>
+
+  <div class="grid-lanes" style="align-content: center;">
+    <item>1</item>
+    <item>2</item>
+    <item>3</item>
+    <div class="oof" style="left: 0px;"></div>
+    <div class="oof" style="left: 90px;"></div>
+    <div class="oof" style="right: 0px;"></div>
+  </div>
+</body>
+</html>

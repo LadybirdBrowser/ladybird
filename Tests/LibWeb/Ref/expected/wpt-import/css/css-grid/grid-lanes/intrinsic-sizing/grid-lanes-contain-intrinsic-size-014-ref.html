@@ -1,0 +1,61 @@
+<!doctype html>
+<meta charset="utf8">
+
+<style>
+.grid {
+  display: grid;
+  border: 1px solid black;
+  grid-template-columns: repeat(auto-fit, 100px);
+  height: 40px;
+}
+.one {
+  contain-intrinsic-size: 100px;
+  contain: size;
+  min-width: 200px;
+}
+.two {
+  contain-intrinsic-size: 200px;
+  contain: size;
+  min-width: 100px;
+}
+.three {
+  contain-intrinsic-size: 100px;
+  contain: size;
+  min-width: 200px;
+  max-width: 150px;
+}
+.four {
+  contain-intrinsic-size: 200px;
+  contain: size;
+  min-width: 100px;
+  max-width: 150px;
+}
+.item {
+  background: green;
+  height: 20px;
+}
+</style>
+
+<p>min-width larger than contain-intrinsic-width:
+<div class="grid one">
+  <div class="item">one</div>
+  <div class="item">two</div>
+</div>
+
+<p>min-width smaller than contain-intrinsic-width:
+<div class="grid two">
+  <div class="item">one</div>
+  <div class="item">two</div>
+</div>
+
+<p>max-width ignored since min-width is larger:
+<div class="grid three">
+  <div class="item">one</div>
+  <div class="item">two</div>
+</div>
+
+<p>min-width shrinks grid-lanes container since it overrides contain-intrinsic-width:
+<div class="grid four">
+  <div class="item">one</div>
+  <div class="item">two</div>
+</div>

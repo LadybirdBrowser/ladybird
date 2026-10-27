@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    .grid-lanes {
+      display: grid;
+      grid-template-columns: 40px 60px;
+      font-size: 0;
+      width: 100px;
+      margin-bottom: 20px;
+      align-items: baseline;
+      background: lightgray;
+    }
+
+    .tall-baseline {
+      height: 60px;
+      width: 40px;
+      background: yellow;
+      grid-row: 1;
+    }
+
+    .tall-baseline::before {
+      content: '';
+      display: inline-block;
+      width: 10px;
+      height: 60px;
+      vertical-align: bottom;
+    }
+
+    .short-baseline {
+      height: 30px;
+      width: 40px;
+      background: magenta;
+      grid-row: 1;
+    }
+
+    .short-baseline::before {
+      content: '';
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      vertical-align: top;
+    }
+  </style>
+</head>
+<body>
+<div class="grid-lanes" style="grid-template-rows: minmax(auto, 0px);">
+  <div class="tall-baseline"></div>
+  <div class="short-baseline"></div>
+</div>
+
+<div class="grid-lanes" style="grid-template-rows: minmax(auto, 75px);">
+  <div class="tall-baseline"></div>
+  <div class="short-baseline"></div>
+</div>
+
+<div class="grid-lanes" style="grid-template-rows: minmax(auto, 150px);">
+  <div class="tall-baseline"></div>
+  <div class="short-baseline"></div>
+</div>
+
+<div class="grid-lanes" style="grid-template-rows: minmax(auto, auto);">
+  <div class="tall-baseline"></div>
+  <div class="short-baseline"></div>
+</div>
+</body>
+</html>

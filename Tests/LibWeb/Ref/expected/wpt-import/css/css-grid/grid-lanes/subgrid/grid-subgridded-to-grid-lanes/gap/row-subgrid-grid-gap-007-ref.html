@@ -1,0 +1,34 @@
+<!DOCTYPE HTML>
+<html><head>
+<meta charset="utf-8">
+<link rel="stylesheet" type="text/css" href="../../../../../../fonts/ahem.css">
+<style>
+html,body {
+  color:black; background-color:white; font:24px/1 Ahem; padding:0; margin:0;
+}
+
+.grid {
+  display:inline-grid;
+  grid-template-rows:100px auto;
+  gap:20px;
+  border:3px solid;
+  background:yellow;
+}
+span { background:cyan; }
+span:nth-child(2n+1) { background:grey; }
+
+.hl { writing-mode: horizontal-tb; direction:ltr; }
+.vrl { writing-mode: vertical-rl; direction:ltr; }
+</style>
+</head>
+<body>
+<div class="grid">
+  <div class="vrl" style="display:grid; grid-template-columns:subgrid; gap:100px; grid-row:span 2; background:pink">
+    <div class="hl" style="display:grid; grid-template-rows:subgrid; gap:100px; grid-row:span 2; background:lightgrey">
+      <span>a</span><span>b</span>
+    </div>
+    <span style="grid-area:1/2">ccc</span>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,86 @@
+<!DOCTYPE HTML>
+<html><head>
+  <meta charset="utf-8">
+  <title>CSS Grid Lanes Test: nested column-direction subgrids map margin/border/padding according to writing direction (auto tracks)</title>
+  <link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3/#subgrids">
+  <link rel="match" href="../../../../../../../expected/wpt-import/css/css-grid/grid-lanes/subgrid/grid-subgridded-to-grid-lanes/column-subgrid-writing-direction-002-ref.html">
+  <style>
+html,body {
+  font:12px/1 monospace;
+}
+
+.grid-lanes {
+  display: inline-grid-lanes;
+  grid-template-columns: repeat(10, auto);
+  border: 1px solid;
+  padding: 0 0 0 0;
+}
+
+div > div {
+  display: grid;
+  grid-column: 1 / span 3;
+  grid-template-columns: subgrid;
+  border: 1px solid;
+  background: grey;
+}
+
+x {
+  background: silver;
+}
+
+.rtl { direction:rtl; }
+.ltr { direction:ltr; }
+
+  </style>
+</head>
+<body>
+<div class="grid-lanes">
+    <div class="rtl" style="padding: 0 0 0 10px;">
+      <div class="ltr">
+        <x style="grid-column: 1;">x</x>
+      </div>
+    </div>
+</div>
+
+<div class="grid-lanes">
+    <div class="rtl">
+      <div class="ltr" style="padding: 0 0 0 10px;">
+        <x style="grid-column: 1;">x</x>
+      </div>
+    </div>
+</div>
+
+<div class="grid-lanes">
+    <div class="rtl" style="border-right: 20px solid; border-left: 10px solid;">
+      <div class="ltr">
+        <x style="grid-column: 1;">x</x>
+      </div>
+    </div>
+</div>
+
+<div class="grid-lanes">
+    <div class="rtl">
+      <div class="ltr" style="border-right: 20px solid; border-left: 10px solid;">
+        <x style="grid-column: 1;">x</x>
+      </div>
+    </div>
+</div>
+
+<div class="grid-lanes">
+    <div class="rtl" style="margin: 0 20px 0 0;">
+      <div class="ltr">
+        <x style="grid-column: 1;">x</x>
+      </div>
+    </div>
+</div>
+
+<div class="grid-lanes">
+    <div class="rtl">
+      <div class="ltr" style="margin: 0 20px 0 0;">
+        <x style="grid-column: 1;">x</x>
+      </div>
+    </div>
+</div>
+</body>
+</html>

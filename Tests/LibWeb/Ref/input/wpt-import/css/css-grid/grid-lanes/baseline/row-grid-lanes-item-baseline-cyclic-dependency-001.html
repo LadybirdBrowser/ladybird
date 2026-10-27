@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CSS Grid Lanes Test: Self-Baseline alignment and sizing cyclic dependency</title>
+  <link rel="author" title="Yanling Wang" href="mailto:yanlingwang@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3/#masonry-baseline-alignment">
+  <link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/baseline/row-grid-lanes-item-baseline-cyclic-dependency-001-ref.html">
+  <link rel="stylesheet" type="text/css" href="../../../../fonts/ahem.css" />
+  <style>
+    .grid-lanes {
+      display: inline grid-lanes;
+      background-color: grey;
+      position: relative;
+      border: solid;
+      text-orientation: sideways;
+      font: 15px/1 Ahem;
+      align-items: baseline;
+    }
+
+    .min-content-rows { grid-template-rows: min-content; }
+    .max-content-rows { grid-template-rows: max-content; }
+
+    .height25  { height: 25px; }
+    .height50  { height: 50px; }
+    .height200Percent { height: 200%; }
+
+    .firstRowFirstItem {
+      background-color: blue;
+      grid-row: 1;
+      width: 100px;
+    }
+
+    .firstRowSecondItem {
+      background-color: lime;
+      grid-row: 1;
+      width: 100px;
+    }
+
+    .secondRowSpanning2 {
+      background-color: maroon;
+      width: 200px;
+      grid-row: 2;
+    }
+  </style>
+</head>
+<body>
+<div style="height: 200px">
+    <pre>min-content-sized rows - items with relative height</pre>
+    <div class="grid-lanes min-content-rows">
+        <div class="firstRowFirstItem">ÉÉ É ÉÉ ÉÉÉÉ É ÉÉ ÉÉÉ ÉÉ É</div>
+        <div class="firstRowSecondItem height200Percent">ÉÉÉÉ É ÉÉ</div>
+        <div class="secondRowSpanning2 height25" style="align-self: last baseline;"></div>
+    </div>
+</div>
+<div style="height: 200px">
+    <pre>max-content-sized rows - items with relative height</pre>
+    <div class="grid-lanes max-content-rows">
+        <div class="firstRowFirstItem">ÉÉ É ÉÉ ÉÉÉÉ É ÉÉ ÉÉÉ ÉÉ É</div>
+        <div class="firstRowSecondItem height200Percent">ÉÉÉÉ É ÉÉ</div>
+        <div class="secondRowSpanning2 height25" style="align-self: last baseline;"></div>
+    </div>
+</div>
+</body>
+</html>

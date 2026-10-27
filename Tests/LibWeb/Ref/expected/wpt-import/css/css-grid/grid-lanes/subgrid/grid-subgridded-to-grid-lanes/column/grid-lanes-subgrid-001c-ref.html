@@ -1,0 +1,103 @@
+<!DOCTYPE HTML>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html><head>
+  <meta charset="utf-8">
+  <title>Reference: Grid Lanes layout with a subgrid (grid-lanes-subgrid-001c)</title>
+  <link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
+<style>
+html,body {
+  color:black; background-color:white; font:16px/1 monospace; padding:0; margin:0;
+}
+
+grid {
+  display: inline-grid;
+  grid-template-rows: 50px 80px 40px;
+  grid-template-columns: auto;
+  gap: 4px 2px;
+  padding: 1px 3px 5px 7px;
+  border: solid;
+  border-width: 3px 5px 1px 1px;
+  background: lightgrey content-box;
+}
+grid-lanes-track {
+  display: grid;
+  gap: 4px 2px;
+}
+grid-lanes-track:nth-child(1) {
+  grid-template-rows: 50px;
+  grid-template-columns: min-content auto;
+}
+grid-lanes-track:nth-child(2) {
+  grid-auto-flow: column;
+  grid-template-rows: 80px 40px;
+  grid-template-columns: auto;
+}
+.rows {
+  grid-template-columns: 50px 122px;
+  grid-template-rows: auto;
+  align-content: start;
+}
+.rows > grid-lanes-track:nth-child(1) {
+  grid-template-columns: 50px;
+  grid-template-rows: auto;
+  align-content: start;
+}
+.rows > grid-lanes-track:nth-child(2) {
+  grid-template-columns: 80px 40px;
+  grid-template-rows: auto;
+  align-content: start;
+}
+item {
+  background: grey;
+  width: 3ch;
+  position: relative;
+}
+.purple { background:purple; width:auto; justify-self:start; }
+.rows .purple { justify-self:stretch; }
+.nth-1 {
+  border: solid;
+  border-width: 3px 13px 1px 1px;
+  margin: 7px 1px 5px 3px;
+}
+subgrid {
+  display: grid;
+  grid: subgrid / 2ch auto;
+  grid-row: 2 / span 2;
+  grid-gap: 8px 20px;
+  background: yellow;
+}
+grid-lanes-track > subgrid {
+  grid-row: 1 / span 2;
+}
+.rows > grid-lanes-track > subgrid {
+  grid: auto auto / subgrid;
+  grid-row: 2;
+  grid-column: 1 / span 2;
+}
+.js { justify-self:stretch; }
+</style>
+</head>
+<body>
+
+<!-- just to sanity check that `grid-lanes` behaves as `none` in the column axis in this case: -->
+
+<grid class="rows">
+ <grid-lanes-track>
+  <item class="nth-1">1</item>
+  <item>5</item>
+ </grid-lanes-track>
+ <grid-lanes-track>
+  <item class="purple">2</item>
+  <item>3</item>
+  <subgrid style="grid:auto/subgrid; grid-auto-flow:column">
+    <item class="nth-1">4a</item>
+    <item class="purple">4b</item>
+    <item>4c</item>
+  </subgrid>
+ </grid-lanes-track>
+</grid>
+
+</body></html>

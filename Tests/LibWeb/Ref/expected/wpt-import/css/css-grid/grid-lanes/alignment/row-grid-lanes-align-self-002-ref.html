@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    html,body {
+      color:black; background-color:white; font:15px/1 monospace; padding:0; margin:0;
+    }
+
+    .grid {
+      display: grid;
+      gap: 2px;
+      grid-template-rows: repeat(3, 40px);
+      grid-template-columns: repeat(2, min-content);
+      color: #444;
+      border: 1px solid;
+      padding: 2px;
+      width: 180px;
+      margin: 5px;
+    }
+
+    item {
+      background-color: #444;
+      color: #fff;
+      padding: 2px;
+      width: 45px;
+    }
+
+    .safe-end {
+      align-self: safe end;
+      background-color: purple;
+      height: 50px;
+    }
+
+    .safe-center {
+      align-self: safe center;
+      background-color: teal;
+      height: 45px;
+    }
+
+    .unsafe-end {
+      align-self: end;
+      background-color: darkmagenta;
+      height: 50px;
+    }
+
+    .unsafe-center {
+      align-self: center;
+      background-color: darkcyan;
+      height: 45px;
+    }
+
+    .normal {
+      align-self: normal;
+      background-color: brown;
+    }
+
+    .self-start {
+      align-self: self-start;
+      background-color: darkred;
+    }
+
+    .self-end {
+      align-self: self-end;
+      background-color: darkblue;
+    }
+
+    .short {
+      height: 15px;
+    }
+  </style>
+</head>
+<body>
+<div class="grid">
+  <item class="normal">N1</item>
+  <item class="normal">N3</item>
+  <item class="safe-end">SE1</item>
+  <item class="unsafe-end">UE1</item>
+  <item class="normal">N2</item>
+  <item class="normal">N4</item>
+</div>
+
+<div class="grid">
+  <item class="normal">N1</item>
+  <item class="normal">N3</item>
+  <item class="safe-center">SC1</item>
+  <item class="unsafe-center">UC1</item>
+  <item class="normal">N2</item>
+  <item class="normal">N4</item>
+</div>
+
+<div class="grid">
+  <item class="self-start short">SS1</item>
+  <item class="self-end short">SE4</item>
+  <item class="self-end short">SE2</item>
+  <item class="self-start short">SS5</item>
+  <item class="self-start short">SS3</item>
+  <item class="self-end short">SE6</item>
+</div>
+</body>
+</html>

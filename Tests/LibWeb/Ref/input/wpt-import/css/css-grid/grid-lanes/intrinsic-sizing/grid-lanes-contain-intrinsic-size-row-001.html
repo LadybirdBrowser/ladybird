@@ -1,0 +1,34 @@
+<!doctype html>
+<meta charset="utf8">
+<title>CSS contain-intrinsic-size: grid definite size</title>
+<link rel="author" title="Celeste Pan" href="mailto:celestepan@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/intrinsic-sizing/grid-lanes-contain-intrinsic-size-row-001-ref.html">
+<meta name="assert" content="grid container is sized by intrinsic-size, even if definite track sizes overflow">
+
+<style>
+#grid {
+  border: 3px solid black;
+  display: grid-lanes;
+  grid-template-rows: 55px 66px;
+  contain-intrinsic-size: 70px 80px;
+  contain: size;
+  width: max-content;
+  background: lightblue;
+  grid-gap: 5px;
+}
+.item {
+  background: lightgreen;
+  opacity: 0.5;
+  height: 50px;
+  width: 50px;
+}
+</style>
+
+<!--Because of the intrinsic inline size specified, there is no space to have a second column. -->
+<div id=grid>
+  <div class=item></div>
+  <div class=item></div>
+  <div class=item></div>
+  <div class=item></div>
+</div>

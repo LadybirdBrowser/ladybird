@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    .grid {
+      display: grid;
+      width: 100px;
+      height: 250px;
+      grid-template-rows: repeat(4, 1fr);
+      gap: 5px;
+      border: 1px solid black;
+      margin-bottom: 20px;
+    }
+
+    .item {
+      background-color: #444;
+      color: #fff;
+      padding: 2px;
+      width: 50px;
+    }
+
+    .img-placeholder {
+      width: 48px;
+      height: 30px;
+      background: linear-gradient(45deg, #666, #999);
+      display: inline-block;
+    }
+
+    input[type="text"] {
+      background-color: #f0f0f0;
+      border: 1px solid #999;
+      padding: 2px;
+      height: 20px;
+      width: auto;
+    }
+
+    button {
+      background-color: #ddd;
+      border: 1px solid #999;
+      padding: 2px 4px;
+      cursor: pointer;
+      width: auto;
+    }
+
+    .start {
+      align-self: start;
+      background-color: red;
+      grid-row: 1/2;
+    }
+
+    .center {
+      align-self: center;
+      background-color: green;
+      grid-row: 2/3;
+    }
+
+    .end {
+      align-self: end;
+      background-color: blue;
+      grid-row: 3/4;
+    }
+
+    .stretch {
+      align-self: stretch;
+      background-color: orange;
+      grid-row: 4/5;
+    }
+  </style>
+</head>
+<body>
+<div class="grid">
+  <div class="item start">
+    <div class="img-placeholder"></div>
+  </div>
+  <div class="item center">
+    <div class="img-placeholder"></div>
+  </div>
+  <div class="item end">
+    <div class="img-placeholder"></div>
+  </div>
+  <div class="item stretch">
+    <div class="img-placeholder" style="height: 100%;"></div>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="item start">
+    <input type="text" value="start" style="width: 43px;">
+  </div>
+  <div class="item center">
+    <button>center</button>
+  </div>
+  <div class="item end">
+    <input type="text" value="end" style="width: 43px;">
+  </div>
+  <div class="item stretch">
+    <button style="height: 100%;">stretch</button>
+  </div>
+</div>
+</body>
+</html>

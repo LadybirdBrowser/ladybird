@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    .ref {
+      display: grid;
+      grid-auto-flow: column;
+      grid-template-rows: auto;
+      background: purple;
+      width: 70px;
+      height: 70px;
+      float: left;
+      margin-right: 40px;
+    }
+    .bigItem {
+      background: blue;
+      width: 50px;
+      height: 200px;
+    }
+    .smallItem {
+      background: teal;
+      width: 50px;
+      height: 50px;
+    }
+    .scroll { overflow: scroll }
+    .auto   { overflow: auto   }
+    .hidden { overflow: hidden }
+  </style>
+</head>
+<body>
+  <div class="ref">
+    <div class="bigItem"></div>
+    <div class="smallItem"></div>
+  </div>
+  <div class="ref hidden">
+    <div class="bigItem"></div>
+    <div class="smallItem"></div>
+  </div>
+  <div class="ref scroll">
+    <div class="bigItem"></div>
+    <div class="smallItem"></div>
+  </div>
+  <div class="ref auto">
+    <div class="bigItem"></div>
+    <div class="smallItem"></div>
+  </div>
+</body>
+</html>

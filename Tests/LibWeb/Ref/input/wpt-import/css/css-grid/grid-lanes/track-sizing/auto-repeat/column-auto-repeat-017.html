@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<title>Auto-fit repeat tracks with fixed size and explicit item placement</title>
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="match" href="../../../../../../../expected/wpt-import/css/css-grid/grid-lanes/track-sizing/auto-repeat/column-auto-repeat-017-ref.html">
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<style>
+.grid-lanes {
+    display: grid-lanes;
+    background: gray;
+    flow-tolerance: 0;
+    grid-template-columns: repeat(auto-fit, 100px);
+    height: 300px;
+    width: 300px;
+}
+
+.grid-lanes > div {
+    width: 100%;
+    height: 100px;
+}
+</style>
+<body>
+  <div class="grid-lanes">
+    <div style="background: lightskyblue; grid-column: 1;">
+      Number 1
+    </div>
+    <div style="background: lightcoral; grid-column: 3;">
+      Number 2
+    </div>
+    <div style="background: lightgreen; grid-column: 1;">
+      Number 3
+    </div>
+    <div style="background: lightpink; grid-column: 3;">
+      Number 4
+    </div>
+    <div style="background: orange; grid-column: 1;">
+      Number 5
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    .container {
+        width: 900px;
+        height: 900px;
+        border: 2px solid black;
+        margin: 20px;
+    }
+
+    .grid {
+        display: grid;
+        grid-template-columns: repeat(4, 10rem);
+        grid-template-rows: 800px;
+        justify-content: center;
+        position: relative;
+        height: 800px;
+        width: 40rem;
+        padding: 20px;
+        gap: 10px;
+        border: 1px dashed #999;
+    }
+
+    .abspos-first {
+        grid-column: span 2;
+        position: absolute;
+        top: 70px;
+        bottom: 440px;
+        left: 80px;
+        right: 30px;
+        background: blue;
+    }
+
+    .abspos-second {
+        grid-column: 4 / 5;
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background: red;
+    }
+
+    .abspos-third {
+        grid-column: 4 / 5;
+        position: absolute;
+        width: 50px;
+        height: 60px;
+        background: yellow;
+        align-self: end;
+    }
+
+    .fixedpos {
+        position: fixed;
+        top: 50%;
+        right: 0;
+        background: green;
+        width: 60px;
+        height: 60px;
+    }
+
+    .static-span-two {
+        position: absolute;
+        width: 120px;
+        height: 30px;
+        background: lightcoral;
+        border: 2px solid red;
+        grid-column: span 2;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="grid">
+    <div class="abspos-first"></div>
+    <div class="abspos-second"></div>
+    <div class="abspos-third"></div>
+    <div class="fixedpos"></div>
+    <div class="static-span-two"></div>
+  </div>
+</div>
+</body>
+</html>

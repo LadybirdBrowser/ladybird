@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-grid/grid-lanes/row-empty-grid-lanes-container-content-editable-001-ref.html">
+<link rel="author" title="Celeste Pan" href="mailto:celestepan@microsoft.com">
+<style>
+.empty-container {
+  display: grid-lanes;
+  grid-template-rows: auto;
+}
+</style>
+<body>
+  <p>Test that an empty container that is editable will still have a non-zero block size.</p>
+  <div class="empty-container" style="background: gray;" contenteditable="true"></div>
+  <div class="empty-container" style="background: gray;" contenteditable="false"></div>
+</body>
+</html>

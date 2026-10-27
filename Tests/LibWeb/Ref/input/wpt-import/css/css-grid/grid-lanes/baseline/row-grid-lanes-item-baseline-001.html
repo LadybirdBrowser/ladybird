@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CSS Grid Lanes Test: align-items:baseline/last baseline</title>
+  <link rel="author" title="Yanling Wang" href="mailto:yanlingwang@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3/#masonry-baseline-alignment">
+  <link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/baseline/row-grid-lanes-item-baseline-001-ref.html">
+  <style>
+    .grid-lanes {
+      width: 500px;
+      border: solid 5px transparent;
+      gap: 3px;
+      display: grid-lanes;
+      grid-template-rows: repeat(2, 100px);
+      background-color: #9f8c8c;
+      border-color: slateblue;
+      text-decoration: underline;
+      font: 16px/1 monospace;
+    }
+
+    .fb {
+      align-items: first baseline;
+    }
+
+    .lb {
+      align-items: last baseline;
+    }
+
+    #item1 {
+    background-color: #8cffa0;
+    min-height: 30px;
+    grid-row: 1 / 2;
+    width: 100px;
+    }
+
+    #item2 {
+    background-color: #a0c8ff;
+    min-height: 50px;
+    grid-row: 1 / 2;
+    width: 100px;
+    }
+
+    #item3 {
+    background-color: #ffa08c;
+    min-height: 40px;
+    grid-row: 1 / 2;
+    width: 100px;
+    }
+
+    #item4 {
+    background-color: #ffff8c;
+    min-height: 60px;
+    grid-row: 1 / 2;
+    width: 100px;
+    }
+
+    #item5 {
+    background-color: #ff8cff;
+    min-height: 70px;
+    grid-row: 2 / 3;
+    width: 100px;
+    }
+
+    #item6 {
+    background-color: #8cffff;
+    min-height: 50px;
+    font-size: 30px;
+    grid-row: 2 / 3;
+    width: 100px;
+    }
+    </style>
+</head>
+<body>
+<div class="grid-lanes fb">
+  <div id="item1">1</div>
+  <div id="item2">2</div>
+  <div id="item3">3</div>
+  <div id="item4">4<br />line 2</div>
+  <div id="item5">5</div>
+  <div id="item6">6</div>
+</div>
+<div class="grid-lanes lb">
+  <div id="item1">1</div>
+  <div id="item2">2</div>
+  <div id="item3">3</div>
+  <div id="item4">4<br />line 2</div>
+  <div id="item5">5</div>
+  <div id="item6">6</div>
+</div>
+</body>
+</html>

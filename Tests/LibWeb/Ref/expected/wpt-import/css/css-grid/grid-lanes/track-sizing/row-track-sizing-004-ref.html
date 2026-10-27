@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<style>
+.grid {
+    display: grid;
+    grid-template-rows: 20px 1fr 30%;
+    width: 100px;
+    height: 100px;
+}
+</style>
+<body>
+  <p>Test that grid-lanes tracks are correctly sized with mixed definite, fr and %.</p>
+  <div class="grid">
+    <div style="background-color: orange;"></div>
+    <div style="background-color: yellow;"></div>
+    <div style="background-color: blue;"></div>
+  </div>
+</body>
+</html>

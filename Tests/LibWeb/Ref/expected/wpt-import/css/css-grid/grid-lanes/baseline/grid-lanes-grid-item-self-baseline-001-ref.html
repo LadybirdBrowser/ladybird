@@ -1,0 +1,123 @@
+<!DOCTYPE HTML>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html><head>
+  <meta charset="utf-8">
+  <title>Reference: align-self/justify-self:baseline/last baseline</title>
+  <link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
+  <style>
+html,body {
+    color:black; background-color:white; font:15px/1 monospace; padding:0; margin:0;
+}
+body { width:600px; height:600px; border:1px solid; box-sizing:border-box; }
+
+.grid {
+  float: left;
+  display: grid;
+  grid: auto / repeat(4, auto);
+  place-items: start;
+  padding-block-start: 1px;
+  margin-left: 1px;
+  border:1px solid;
+}
+.c {
+  grid: repeat(4, auto) / auto;
+}
+
+span {
+  text-decoration: underline lime;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0;
+  text-decoration-skip-ink: none;
+  background: grey;
+}
+.central > span { text-decoration-line: line-through; }
+x { display:block; visibility:hidden; }
+span:nth-child(1) { font-size:10px; }
+span:nth-child(2) { font-size:15px; }
+span:nth-child(3) { font-size:25px; }
+span:nth-child(4) { font-size:30px; }
+.pbe { padding-block-end:20px; }
+.pbs { padding-block-start:20px; }
+
+.fb { align-self:baseline; }
+.lb { align-self:last baseline; }
+
+.jfb { justify-self:baseline; }
+.jlb { justify-self:last baseline; }
+
+.hl { writing-mode: horizontal-tb; direction:ltr; }
+.hr { writing-mode: horizontal-tb; direction:rtl; }
+.vll { writing-mode: vertical-lr; direction:ltr; }
+.vlr { writing-mode: vertical-lr; direction:rtl; }
+.vrl { writing-mode: vertical-rl; direction:ltr; }
+.vrr { writing-mode: vertical-rl; direction:rtl; }
+.swl { writing-mode: sideways-lr; }
+.swr { writing-mode: sideways-rl; }
+
+</style>
+</head>
+<body>
+
+<div class="grid"><span class="fb hl">F<br><x>x</x></span><span class="fb hl">F<br><x>x</x></span><span class="fb hl">F<br><x>x</x></span><span class="fb hl">F<br><x>x</x></span></div>
+<div class="grid"><span class="fb hl pbe">F<br><x>x</x></span><span class="fb hl">F<br><x>x</x></span><span class="fb hl">F<br><x>x</x></span><span class="fb hl">F<br><x>x</x></span></div>
+<div class="grid vll central"><span class="fb">F<br><x>x</x></span><span class="fb">F<br><x>x</x></span><span class="fb">F<br><x>x</x></span><span class="fb">F<br><x>x</x></span></div>
+<div class="grid vll central"><span class="fb pbs">F<br><x>x</x></span><span class="fb">F<br><x>x</x></span><span class="fb">F<br><x>x</x></span><span class="fb">F<br><x>x</x></span></div>
+<div class="grid vlr central"><span class="fb">F<br><x>x</x></span><span class="fb">F<br><x>x</x></span><span class="fb">F<br><x>x</x></span><span class="fb">F<br><x>x</x></span></div>
+<div class="grid vrr central"><span class="fb">F<br><x>x</x></span><span class="fb">F<br><x>x</x></span><span class="fb">F<br><x>x</x></span><span class="fb">F<br><x>x</x></span></div>
+<div class="grid vrr central"><span class="fb pbe">F<br><x>x</x></span><span class="fb">F<br><x>x</x></span><span class="fb">F<br><x>x</x></span><span class="fb">F<br><x>x</x></span></div>
+<div class="grid vrl central"><span class="fb">F<br><x>x</x></span><span class="fb">F<br><x>x</x></span><span class="fb">F<br><x>x</x></span><span class="fb">F<br><x>x</x></span></div>
+<div class="grid swl central"><span class="fb">F<br><x>x</x></span><span class="fb">F<br><x>x</x></span><span class="fb">F<br><x>x</x></span><span class="fb">F<br><x>x</x></span></div>
+<div class="grid swr central"><span class="fb">F<br><x>x</x></span><span class="fb">F<br><x>x</x></span><span class="fb">F<br><x>x</x></span><span class="fb">F<br><x>x</x></span></div>
+
+<br clear="all">
+
+<div class="grid"><span class="lb hl"><x>x</x><br>L</span><span class="lb hl"><x>x</x><br>L</span><span class="lb hl"><x>x</x><br>L</span><span class="lb hl"><x>x</x><br>L</span></div>
+<div class="grid"><span class="lb hl pbe"><x>x</x><br>L</span><span class="lb hl"><x>x</x><br>L</span><span class="lb hl"><x>x</x><br>L</span><span class="lb hl"><x>x</x><br>L</span></div>
+<div class="grid vll central"><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span></div>
+<div class="grid vlr central"><span class="lb pbs"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span></div>
+<div class="grid vrr central"><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span></div>
+<div class="grid vrl central"><span class="lb pbe"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span></div>
+<div class="grid swl"><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span></div>
+<div class="grid swr"><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span></div>
+
+<br clear="all">
+
+<div class="grid c central"><span class="jfb vll">F<br><x>x</x></span><span class="jfb vll">F<br><x>x</x></span><span class="jfb vll">F<br><x>x</x></span><span class="jfb vll">F<br><x>x</x></span></div>
+<div class="grid c central"><span class="jfb vll pbe">F<br><x>x</x></span><span class="jfb vll">F<br><x>x</x></span><span class="jfb vll">F<br><x>x</x></span><span class="jfb vll">F<br><x>x</x></span></div>
+<div class="grid c vll"><span class="jfb hl">F<br><x>x</x></span><span class="jfb hl">F<br><x>x</x></span><span class="jfb hl">F<br><x>x</x></span><span class="jfb hl">F<br><x>x</x></span></div>
+<!-- TODO: baseline alignment affects intrinsic inline size
+<div class="grid c vll"><span class="jfb hl pbs">F<br><x>x</x></span><span class="jfb hl">F<br><x>x</x></span><span class="jfb hl">F<br><x>x</x></span><span class="jfb hl">F<br><x>x</x></span></div>
+-->
+<div class="grid c vll" style="height:80px"><span class="jfb hl pbs">F<br><x>x</x></span><span class="jfb hl">F<br><x>x</x></span><span class="jfb hl">F<br><x>x</x></span><span class="jfb hl">F<br><x>x</x></span></div>
+<!-- TODO
+<div class="grid c vrr"><span class="jfb hl">F<br><x>x</x></span><span class="jfb hl">F<br><x>x</x></span><span class="jfb hl">F<br><x>x</x></span><span class="jfb hl">F<br><x>x</x></span></div>
+<div class="grid c vrr"><span class="jfb hl pbe">F<br><x>x</x></span><span class="jfb hl">F<br><x>x</x></span><span class="jfb hl">F<br><x>x</x></span><span class="jfb hl">F<br><x>x</x></span></div>
+<div class="grid c swl"><span class="jfb hl">F<br><x>x</x></span><span class="jfb hl">F<br><x>x</x></span><span class="jfb hl">F<br><x>x</x></span><span class="jfb hl">F<br><x>x</x></span></div>
+-->
+<div class="grid c swr"><span class="jfb hl">F<br><x>x</x></span><span class="jfb hl">F<br><x>x</x></span><span class="jfb hl">F<br><x>x</x></span><span class="jfb hl">F<br><x>x</x></span></div>
+
+<br clear="all">
+
+<div class="grid"><span class="lb hl"><x>x</x><br>L</span><span class="lb hl"><x>x</x><br>L</span><span class="lb hl"><x>x</x><br>L</span><span class="lb hl"><x>x</x><br>L</span></div>
+<div class="grid"><span class="lb hl pbe"><x>x</x><br>L</span><span class="lb hl"><x>x</x><br>L</span><span class="lb hl"><x>x</x><br>L</span><span class="lb hl"><x>x</x><br>L</span></div>
+<div class="grid vll central"><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span></div>
+<div class="grid vll central"><span class="lb pbs"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span></div>
+<div class="grid vrr central"><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span></div>
+<div class="grid vrr central"><span class="lb pbe"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span></div>
+<div class="grid swl"><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span></div>
+<div class="grid swr"><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span></div>
+
+<br clear="all">
+
+<div class="grid vlr central"><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span></div>
+<div class="grid vlr central"><span class="lb pbs"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span></div>
+<div class="grid vrl central"><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span></div>
+<div class="grid vrl central"><span class="lb pbe"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span></div>
+<div class="grid swl"><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span></div>
+<div class="grid swr"><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span><span class="lb"><x>x</x><br>L</span></div>
+
+</body>
+</html>

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    .grid {
+      width: 500px;
+      border: solid 5px transparent;
+      gap: 3px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, 100px);
+      grid-template-rows: repeat(2, 100px);
+      background-color: #9f8c8c;
+      border-color: slateblue;
+      text-decoration: underline;
+      font: 16px/1 monospace;
+    }
+
+    .fb {
+      align-items: first baseline;
+    }
+
+    .lb {
+      align-items: last baseline;
+    }
+
+    #item1 {
+      background-color: #8cffa0;
+      min-height: 30px;
+    }
+
+    #item2 {
+      background-color: #a0c8ff;
+      min-height: 50px;
+    }
+
+    #item3 {
+      background-color: #ffa08c;
+      min-height: 40px;
+    }
+
+    #item4 {
+      background-color: #ffff8c;
+      min-height: 60px;
+    }
+
+    #item5 {
+      background-color: #ff8cff;
+      min-height: 70px;
+    }
+
+    #item6 {
+      background-color: #8cffff;
+      min-height: 50px;
+      font-size: 30px;
+    }
+  </style>
+</head>
+<body>
+<div class="grid fb">
+  <div id="item1">1</div>
+  <div id="item2">2</div>
+  <div id="item3">3</div>
+  <div id="item4">4<br />line 2</div>
+  <div id="item5">5</div>
+  <div id="item6">6</div>
+</div>
+<div class="grid lb">
+  <div id="item1">1</div>
+  <div id="item2">2</div>
+  <div id="item3">3</div>
+  <div id="item4">4<br />line 2</div>
+  <div id="item5">5</div>
+  <div id="item6">6</div>
+</div>
+</body>
+</html>

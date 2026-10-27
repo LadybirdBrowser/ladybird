@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CSS Grid Lanes Test: Self-Baseline alignment with synthesized baselines for orthogonal items</title>
+  <link rel="author" title="Yanling Wang" href="mailto:yanlingwang@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3/#masonry-baseline-alignment">
+  <link rel="help" href="https://drafts.csswg.org/css-align/#synthesize-baseline">
+  <link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/baseline/column-grid-lanes-item-baseline-synthesized-001-ref.html">
+  <link rel="stylesheet" type="text/css" href="../../../../fonts/ahem.css" />
+  <style>
+    .container { position: relative; }
+    .grid-lanes {
+      display: grid-lanes;
+      position: relative;
+      text-orientation: sideways;
+      grid-template-columns: 200px 100px;
+      font-family: Ahem;
+      line-height: 1;
+      background-color: grey;
+      justify-items: baseline;
+      width: 300px;
+    }
+    .bigFont  { font-size: 50px; }
+
+    .paddingLeft { padding-left: 25px; }
+    .paddingRight { padding-right: 25px; }
+
+    .firstItem {
+      background-color: blue;
+      grid-column: 1;
+      height: 100px;
+    }
+
+    .secondItem {
+      background-color: purple;
+      grid-column: 1;
+      height: 200px;
+    }
+
+    .thirdItem {
+      background-color: aqua;
+      grid-column: 2;
+      width: 25px;
+      height: 300px;
+    }
+
+    .verticalRL {
+      writing-mode: vertical-rl;
+    }
+    .verticalLR {
+      writing-mode: vertical-lr;
+    }
+    .horizontalTB {
+      writing-mode: horizontal-tb;
+    }
+  </style>
+</head>
+<body>
+<pre>Horizontal grid-lanes and verticalRL items do not share a baseline context</pre>
+<div class="grid-lanes">
+  <div class="firstItem">ÉÉ É ÉÉÉ É ÉÉ É</div>
+  <div class="secondItem bigFont paddingRight verticalRL">É É ÉÉ</div>
+  <div class="thirdItem"></div>
+</div>
+
+<pre>Horizontal grid-lanes and verticalLR item</pre>
+<div class="grid-lanes">
+  <div class="firstItem">ÉÉ É ÉÉÉ É ÉÉ É</div>
+  <div class="secondItem bigFont paddingLeft verticalLR">É É ÉÉ</div>
+  <div class="thirdItem"></div>
+</div>
+</body>
+</html>

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<style>
+.grid {
+    display: grid;
+    grid-template-rows: 10px 10px 20px 15px 5px;
+    grid-auto-flow: column;
+}
+.flex {
+    display: flex;
+    flex-direction: row;
+}
+</style>
+<body>
+  <p>Ensure that dense-packing with multi-span items are placed into tracks with the same used size and the same number of tracks.</p>
+  <div class="grid">
+    <div class="flex">
+      <div style="background: yellow; width: 20px; height: 20px;" >
+        4
+      </div>
+      <div style="background: lightblue; width: 20px; height: 60px;" >
+        2
+      </div>
+      <div style="background: darkblue; width: 20px; height: 40px;">
+        3
+      </div>
+    </div>
+    <div style="background: lightskyblue; width: 20px; height: 20px; transform: translateY(10px);" >
+      1
+    </div>
+  </div>
+</body>
+</html>

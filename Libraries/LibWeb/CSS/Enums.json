@@ -523,6 +523,7 @@
     "table",
     "flex",
     "grid",
+    "grid-lanes",
     "ruby",
     "math",
     "-webkit-box"
@@ -546,6 +547,7 @@
     "inline-table",
     "inline-flex",
     "inline-grid",
+    "inline-grid-lanes",
     "-webkit-flex",
     "-webkit-inline-box",
     "-webkit-inline-flex"

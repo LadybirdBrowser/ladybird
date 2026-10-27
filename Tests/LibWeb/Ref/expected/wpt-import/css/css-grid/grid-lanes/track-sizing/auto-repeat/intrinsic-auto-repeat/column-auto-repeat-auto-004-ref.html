@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<style>
+.grid {
+    display: grid;
+    grid-template-columns: auto auto auto auto;
+    grid-template-rows: 50px 50px 50px 50px;
+    grid-gap: 20px;
+    background: gray;
+    width: 400px;
+    height: 260px;
+}
+</style>
+<body>
+  <div class="grid">
+    <div style="background: lightskyblue; grid-column: span 2; width: 200px">
+      Number 1
+    </div>
+    <div style="background: lightcoral; grid-column: span 3; width: 300px;">
+      Number 2
+    </div>
+    <div style="background: lightgreen; grid-column: span 4; width: 400px;">
+      Number 3
+    </div>
+    <div style="background: lightpink; grid-column: span 2; width: 200px;">
+      Number 4
+    </div>
+  </div>
+</body>
+</html>

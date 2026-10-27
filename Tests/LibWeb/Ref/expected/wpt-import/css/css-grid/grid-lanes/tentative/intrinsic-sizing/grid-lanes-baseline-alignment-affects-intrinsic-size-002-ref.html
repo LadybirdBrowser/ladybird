@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" type="text/css" href="../../../../../fonts/ahem.css">
+  <style>
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 50px);
+      width: 200px;
+      margin-bottom: 20px;
+      align-items: baseline;
+      background: lightgray;
+      font-family: Ahem;
+      line-height: 1;
+    }
+
+    .font-tall-high-baseline {
+      font-size: 20px;
+      padding-top: 20px;
+      width: 50px;
+      background: lightblue;
+    }
+
+    .font-short-low-baseline {
+      font-size: 20px;
+      width: 50px;
+      background: lightgreen;
+    }
+
+    .font-with-top-padding {
+      font-size: 20px;
+      padding-top: 20px;
+      width: 50px;
+      background: coral;
+      align-self: last baseline;
+    }
+
+    .font-with-bottom-padding {
+      font-size: 20px;
+      padding-bottom: 30px;
+      width: 50px;
+      background: lightcyan;
+    }
+
+    .font-small-top-padded {
+      font-size: 20px;
+      padding-top: 60px;
+      width: 50px;
+      background: gold;
+    }
+
+    .font-medium-plain {
+      font-size: 30px;
+      width: 50px;
+      background: plum;
+    }
+
+    .font-with-margin-top {
+      font-size: 20px;
+      margin-top: 10px;
+      width: 50px;
+      background: lightsalmon;
+    }
+
+    .font-with-bottom-padding-no-margin {
+      font-size: 20px;
+      padding-bottom: 20px;
+      width: 50px;
+      background: lavender;
+    }
+
+    .font-with-margin-and-padding {
+      font-size: 20px;
+      margin-top: 20px;
+      padding-top: 10px;
+      width: 50px;
+      background: palegreen;
+    }
+
+    .font-with-small-margin-bottom-padding {
+      font-size: 20px;
+      margin-top: 10px;
+      padding-bottom: 20px;
+      width: 50px;
+      background: powderblue;
+    }
+  </style>
+</head>
+<body>
+<div class="grid" style="grid-template-rows: minmax(0px, auto);">
+  <div class="font-tall-high-baseline">É</div>
+  <div class="font-short-low-baseline">É</div>
+</div>
+
+<div class="grid" style="grid-template-rows: minmax(0px, min-content);">
+  <div class="font-with-top-padding">É<br>É<br>É</div>
+  <div class="font-with-bottom-padding">É</div>
+  <div class="font-with-bottom-padding" style="align-self: last baseline;">É</div>
+</div>
+
+<div class="grid" style="grid-template-rows: minmax(0px, max-content);">
+  <div class="font-small-top-padded">É</div>
+  <div class="font-medium-plain">É</div>
+</div>
+
+<div class="grid" style="grid-template-rows: minmax(0px, auto);">
+  <div class="font-with-margin-top">É</div>
+  <div class="font-with-bottom-padding-no-margin">É</div>
+</div>
+
+<div class="grid" style="grid-template-rows: minmax(0px, auto);">
+  <div class="font-with-margin-and-padding">É</div>
+  <div class="font-with-small-margin-bottom-padding">É</div>
+</div>
+</body>
+</html>

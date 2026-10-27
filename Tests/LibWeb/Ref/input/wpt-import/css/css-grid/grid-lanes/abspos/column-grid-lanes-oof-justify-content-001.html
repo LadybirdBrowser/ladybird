@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CSS Grid Lanes Test: justify-content accounts for OOF static positions in column grid-lanes</title>
+  <link rel="author" title="Celeste Pan" href="mailto:celestepan@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3/#abspos">
+  <link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/abspos/column-grid-lanes-oof-justify-content-001-ref.html">
+  <style>
+    html, body {
+      font: 16px/1 monospace;
+      background: white;
+    }
+
+    /*
+     * The OOF item's static position must move by the same amount as the content.
+     */
+    .grid-lanes {
+      display: grid-lanes;
+      grid-template-columns: 80px;
+      gap: 10px;
+      width: 200px;
+      height: 200px;
+      outline: 1px solid black;
+      position: relative;
+    }
+
+    item {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 40px;
+      background: lightblue;
+    }
+
+    .oof {
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      background: red;
+    }
+  </style>
+</head>
+<body>
+  <!-- justify-content: end -->
+  <div class="grid-lanes" style="justify-content: end;">
+    <item>1</item>
+    <item>2</item>
+    <item>3</item>
+    <div class="oof" style="top: 0px;"></div>
+    <div class="oof" style="top: 90px;"></div>
+    <div class="oof" style="bottom: 0px;"></div>
+  </div>
+
+  <!-- justify-content: center -->
+  <div class="grid-lanes" style="justify-content: center;">
+    <item>1</item>
+    <item>2</item>
+    <item>3</item>
+    <div class="oof" style="top: 0px;"></div>
+    <div class="oof" style="top: 90px;"></div>
+    <div class="oof" style="bottom: 0px;"></div>
+  </div>
+</body>
+</html>

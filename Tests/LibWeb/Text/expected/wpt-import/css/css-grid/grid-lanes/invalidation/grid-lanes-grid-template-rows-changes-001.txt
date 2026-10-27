@@ -2,17 +2,16 @@ Harness status: OK
 
 Found 12 tests
 
-1 Pass
-11 Fail
-Fail	#gridLanes1 1
-Fail	#gridLanes1 2
-Fail	#gridLanes1 3
-Fail	#gridLanes1 4
-Fail	#gridLanes1 5
-Fail	#gridLanes2 6
-Fail	#gridLanes2 7
-Fail	#gridLanes2 8
+12 Pass
+Pass	#gridLanes1 1
+Pass	#gridLanes1 2
+Pass	#gridLanes1 3
+Pass	#gridLanes1 4
+Pass	#gridLanes1 5
+Pass	#gridLanes2 6
+Pass	#gridLanes2 7
+Pass	#gridLanes2 8
 Pass	#gridLanesSized 9
-Fail	#gridLanesSized 10
-Fail	#gridLanesSized 11
-Fail	#gridLanesSized 12
+Pass	#gridLanesSized 10
+Pass	#gridLanesSized 11
+Pass	#gridLanesSized 12

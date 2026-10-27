@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="match" href="../../../../../../../expected/wpt-import/css/css-grid/grid-lanes/item-placement/dense-packing/row-dense-packing-multi-span-002-ref.html">
+<link rel="author" title="Celeste Pan" href="mailto:celestepan@microsoft.com">
+<style>
+.grid-lanes {
+    display: grid-lanes;
+    flow-tolerance: 0;
+    grid-template-rows: 10px 10px 20px 15px 5px;
+    grid-auto-flow: dense;
+    grid-lanes-pack: dense;
+}
+</style>
+<body>
+  <p>Ensure that dense-packing with multi-span items are placed into tracks with the same used size and the same number of tracks.</p>
+  <div class="grid-lanes">
+    <div style="background: lightskyblue; width: 20px; grid-row: 3" >
+      1
+    </div>
+    <div style="background: lightblue; width: 20px; grid-row: span 5" >
+      2
+    </div>
+    <div style="background: darkblue; width: 20px; grid-row: span 3;">
+      3
+    </div>
+    <div style="background: yellow; width: 20px; grid-row: span 2;" >
+      4
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Lanes Test: subgrid item baseline alignment across multiple fixed size columns</title>
+<link rel="author" title="Yanling Wang" href="mailto:yanlingwang@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-3/#subgrids">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#subgrid-item-contribution">
+<link rel="match" href="../../../../../../../../expected/wpt-import/css/css-grid/grid-lanes/subgrid/grid-subgridded-to-grid-lanes/baseline/column-grid-lanes-item-baseline-subgrid-004-ref.html">
+<link rel="stylesheet" type="text/css" href="../../../../../../fonts/ahem.css">
+<style>
+  html, body { color: black; background: white; padding: 0; margin: 0; }
+  .grid-lanes {
+    display: inline grid-lanes;
+    grid-template-columns: 60px 60px;
+    font: 16px/1 Ahem;
+    border: 1px solid black;
+    place-content: start;
+    flow-tolerance: 0;
+    justify-items: baseline;
+  }
+  .subgrid {
+    display: grid;
+    grid-column: 1 / span 2;
+    grid: auto / subgrid;
+    justify-items: baseline;
+  }
+  .b { text-decoration: underline; writing-mode: vertical-rl; }
+  .big   { font-size: 40px; }
+  .med   { font-size: 28px; }
+  .small { font-size: 20px; }
+  .c1 { grid-column: 1; }
+  .c2 { grid-column: 2; }
+</style>
+<div class="grid-lanes">
+  <div class="b small c1">X</div>
+  <div class="b small c2">X</div>
+  <div class="subgrid">
+    <div class="b big">X</div>
+    <div class="b med">X</div>
+  </div>
+</div>

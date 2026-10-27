@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    html,body {
+      color:black; background-color:white; font:8px/1 monospace; padding:0; margin:0;
+    }
+
+    .grid {
+      position: relative;
+      display: grid;
+      grid-template-columns: 150px;
+      grid-template-rows: 80px 80px 80px;
+      width: 150px;
+      height: 290px;
+      gap: 10px;
+      padding: 10px;
+      border: 2px solid black;
+      margin: 10px;
+    }
+
+    .grid > div {
+      position: absolute;
+      border: 1px solid #333;
+      width: 30px;
+      height: 120px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .safe-start {
+      grid-row: 1 / 2;
+      justify-self: safe start;
+      background: lightcoral;
+    }
+
+    .unsafe-start {
+      grid-row: 2 / 3;
+      justify-self: unsafe start;
+      background: lightblue;
+    }
+
+    .safe-end {
+      grid-row: 3 / 4;
+      justify-self: safe end;
+      background: lightgreen;
+    }
+
+    .unsafe-end {
+      grid-row: 1 / 2;
+      justify-self: unsafe end;
+      background: lightyellow;
+    }
+
+    .safe-center {
+      grid-row: 2 / 3;
+      justify-self: safe center;
+      background: plum;
+    }
+
+    .unsafe-center {
+      grid-row: 3 / 4;
+      justify-self: unsafe center;
+      background: orange;
+    }
+  </style>
+</head>
+<body>
+  <div class="grid">
+    <div class="safe-start">safe-start</div>
+    <div class="unsafe-start">unsafe-start</div>
+    <div class="safe-end">safe-end</div>
+    <div class="unsafe-end">unsafe-end</div>
+    <div class="safe-center">safe-center</div>
+    <div class="unsafe-center">unsafe-center</div>
+  </div>
+
+  <div class="grid" style="direction: rtl;">
+    <div class="safe-start">safe-start</div>
+    <div class="unsafe-start">unsafe-start</div>
+    <div class="safe-end">safe-end</div>
+    <div class="unsafe-end">unsafe-end</div>
+    <div class="safe-center">safe-center</div>
+    <div class="unsafe-center">unsafe-center</div>
+  </div>
+</body>
+</html>

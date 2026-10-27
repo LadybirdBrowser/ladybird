@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CSS Grid Lanes Test: percentage rows with spanning items and indefinite height need additional pass</title>
+  <link rel="author" title="Yanling Wang" href="mailto:yanlingwang@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3">
+  <link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/track-sizing/grid-lanes-percentage-rows-indefinite-height-002-ref.html">
+  <link rel="stylesheet" type="text/css" href="../../../../fonts/ahem.css" />
+  <style>
+    .grid-lanes {
+        display: grid-lanes;
+        flow-tolerance: 0;
+        border: solid 5px;
+        position: relative;
+        font: 25px/1 Ahem;
+        color: transparent;
+        margin-bottom: 40px;
+        width: 100px;
+    }
+  </style>
+</head>
+<body>
+  <!--
+    First pass: row 1 and row 3 resolve to 25px each. Since the total size
+    of tracks spanned is less than the size of the second item, row 2 remains
+    indefinite. Intrinsic block size is 50px.
+    Second pass: row 2 evaluates to 60% of 50px = 30px.
+  -->
+  <div class="grid-lanes" style="grid-template-rows: auto 60% auto;">
+      <div style="grid-row: 1; background: cyan;">X</div>
+      <div style="grid-row: 1 / 4; background: magenta;">X</div>
+      <div style="grid-row: 3; background: lime;">X</div>
+  </div>
+
+  <!--
+    First pass: row 1 and row 3 resolve to 25px each. Intrinsic block size
+    is 50px.
+    Second pass: row 2 evaluates to 20% of 50px = 10px.
+  -->
+  <div class="grid-lanes" style="grid-template-rows: auto 20% auto;">
+      <div style="grid-row: 1; background: cyan;">X</div>
+      <div style="grid-row: 1 / 4; background: magenta;">X</div>
+      <div style="grid-row: 3; background: lime;">X</div>
+  </div>
+</body>
+</html>

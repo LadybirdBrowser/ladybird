@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<style>
+.grid {
+  display: inline-grid;
+  border: 1px solid black;
+  grid-template-rows: [u] repeat(auto-fill, [v] 10px [w] 10px [x] 10px [y]) [z];
+  grid-row-gap: 3px;
+  width: min-content;
+  /* Does not fit a whole-number of repetitions */
+  height: 94px;
+  background: pink;
+}
+div > div {
+  background: blue;
+  width: 25px;
+  height: 100%;
+}
+</style>
+<body>
+    <!-- u -->
+    <div class="grid">
+        <div style="grid-row-start: u"></div>
+    </div>
+    <!-- non-existent line name -->
+    <div class="grid">
+        <div style="grid-row-start: nonesuch"></div>
+    </div>
+    <div class="grid">
+        <div style="grid-row-start: u 1"></div>
+    </div>
+    <div class="grid">
+        <div style="grid-row-start: u -1"></div>
+    </div>
+    <!-- Also non-existent, there is only one u -->
+    <div class="grid">
+        <div style="grid-row-start: u 4"></div>
+    </div>
+    <div class="grid">
+        <div style="grid-row-start: u 9"></div>
+    </div>
+    <div class="grid">
+        <div style="grid-row-start: u 2"></div>
+    </div>
+    <div class="grid">
+        <div style="grid-row-start: u -2"></div>
+    </div>
+    <div class="grid">
+        <div style="grid-row-start: u -6"></div>
+    </div>
+    <div class="grid">
+        <div style="grid-row-start: u -7"></div>
+    </div>
+    <!-- v -->
+    <div class="grid">
+        <div style="grid-row-start: v"></div>
+    </div>
+    <div class="grid">
+        <div style="grid-row-start: v 1"></div>
+    </div>
+    <div class="grid">
+        <div style="grid-row-start: v 2"></div>
+    </div>
+    <div class="grid">
+        <div style="grid-row-start: v -1"></div>
+    </div>
+    <div class="grid">
+        <div style="grid-row-start: v -2"></div>
+    </div>
+    <!-- Also non-existent, there are only two v's -->
+    <div class="grid">
+        <div style="grid-row-start: v 3"></div>
+    </div>
+    <div class="grid">
+        <div style="grid-row-start: v -3"></div>
+    </div>
+    <!-- w -->
+    <div class="grid">
+        <div style="grid-row-start: w"></div>
+    </div>
+    <div class="grid">
+        <div style="grid-row-start: w 1"></div>
+    </div>
+    <div class="grid">
+        <div style="grid-row-start: w 2"></div>
+    </div>
+    <div class="grid">
+        <div style="grid-row-start: w -1"></div>
+    </div>
+    <div class="grid">
+        <div style="grid-row-start: w -2"></div>
+    </div>
+    <!-- Also non-existent, there are only two w's -->
+    <div class="grid">
+        <div style="grid-row-start: w 3"></div>
+    </div>
+    <div class="grid">
+        <div style="grid-row-start: w -3"></div>
+    </div>
+    <!-- x -->
+    <div class="grid">
+        <div style="grid-row-start: x"></div>
+    </div>
+    <div class="grid">
+        <div style="grid-row-start: x 1"></div>
+    </div>
+    <div class="grid">
+        <div style="grid-row-start: x 2"></div>
+    </div>
+    <div class="grid">
+        <div style="grid-row-start: x -1"></div>
+    </div>
+    <div class="grid">
+        <div style="grid-row-start: x -2"></div>
+    </div>
+    <!-- Also non-existent, there are only two x's -->
+    <div class="grid">
+        <div style="grid-row-start: x 3"></div>
+    </div>
+    <div class="grid">
+        <div style="grid-row-start: x -3"></div>
+    </div>
+    <!-- y -->
+    <div class="grid">
+        <div style="grid-row-start: y"></div>
+    </div>
+    <div class="grid">
+        <div style="grid-row-start: y 1"></div>
+    </div>
+    <div class="grid">
+        <div style="grid-row-start: y 2"></div>
+    </div>
+    <div class="grid">
+        <div style="grid-row-start: y -1"></div>
+    </div>
+    <div class="grid">
+        <div style="grid-row-start: y -2"></div>
+    </div>
+    <!-- Also non-existent, there are only two y's -->
+    <div class="grid">
+        <div style="grid-row-start: y -3"></div>
+    </div>
+    <div class="grid">
+        <div style="grid-row-start: y 3"></div>
+    </div>
+    <!-- z -->
+    <div class="grid">
+        <div style="grid-row-start: z"></div>
+    </div>
+    <div class="grid">
+        <div style="grid-row-start: z 1"></div>
+    </div>
+    <div class="grid">
+        <div style="grid-row-start: z -1"></div>
+    </div>
+    <!-- Also non-existent, there is only one z -->
+    <div class="grid">
+        <div style="grid-row-start: z 2"></div>
+    </div>
+    <div class="grid">
+        <div style="grid-row-start: z -2"></div>
+    </div>
+</body>

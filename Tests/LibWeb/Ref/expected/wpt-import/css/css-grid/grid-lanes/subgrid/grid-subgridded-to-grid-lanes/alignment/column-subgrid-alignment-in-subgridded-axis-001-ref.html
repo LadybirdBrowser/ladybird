@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+body { margin: 0; padding: 0; font-size: 0; line-height: 0 }
+.grid {
+  background: gray;
+  display: inline grid;
+  vertical-align: top;
+  grid-template-columns: 100px;
+  height: 100px;
+}
+.subgrid {
+  box-sizing: border-box;
+  margin: 10px;
+  padding: 10px;
+  display: grid;
+  background: orangered;
+  border: blue solid 10px;
+  grid-template-columns: subgrid;
+  height: 80px;
+}
+.subgrid > .item {
+  background: orange;
+  width: 40px;
+  height: 40px;
+}
+.js { justify-self: start }
+.je { justify-self: end }
+.jc { justify-self: center }
+.jb { justify-self: baseline }
+</style>
+<p>Test passes if there are four orange squares in a column.</p>
+<div class="grid"><div class="subgrid js"><div class="item"></div></div></div><br>
+<div class="grid"><div class="subgrid je"><div class="item"></div></div></div><br>
+<div class="grid"><div class="subgrid jc"><div class="item"></div></div></div><br>
+<div class="grid"><div class="subgrid jb"><div class="item"></div></div></div>

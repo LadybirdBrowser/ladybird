@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<title>Auto repeater with minmax size.</title>
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="match" href="../../../../../../../expected/wpt-import/css/css-grid/grid-lanes/track-sizing/auto-repeat/../../../../reference/ref-filled-green-100px-square-only.html">
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<style>
+.grid-lanes {
+    display: grid-lanes;
+    height: 100px;
+    grid-template-rows: repeat(auto-fill, minmax(50px, 25px));
+}
+</style>
+<p>Test passes if there is a filled green square.</p>
+<div class="grid-lanes">
+  <div style="background: green; width: 50px; height: 100%;"></div>
+  <div style="background: green; width: 50px; height: 100%;"></div>
+  <div style="background: green; width: 50px; height: 100%;"></div>
+  <div style="background: green; width: 50px; height: 100%;"></div>
+</div>

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    .grid {
+        display: grid;
+        grid-auto-flow: column;
+        grid-template-rows: 20px 20px 20px;
+        align-content: space-between;
+        min-height: 100px;
+        width: 100px;
+        background: gray;
+    }
+    .grid > div {
+        background: green;
+    }
+  </style>
+</head>
+<body>
+  <div class="grid">
+      <div></div>
+      <div></div>
+      <div></div>
+  </div>
+</body>
+</html>

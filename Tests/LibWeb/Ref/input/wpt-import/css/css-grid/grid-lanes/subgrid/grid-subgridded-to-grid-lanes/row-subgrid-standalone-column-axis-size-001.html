@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Lanes Test: Subgrid contribution size on standalone axis</title>
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-3/#subgrids">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#subgrid-size-contribution">
+<link rel="match" href="../../../../../../../expected/wpt-import/css/css-grid/grid-lanes/subgrid/grid-subgridded-to-grid-lanes/../../../../reference/ref-filled-green-100px-square.xht">
+<style>
+.grid-lanes {
+  background: green;
+  display: inline grid-lanes;
+  grid-template-rows: 100px;
+}
+.subgrid {
+  width: 100px;
+  display: grid;
+  grid-template-rows: subgrid;
+}
+.w200 { width: 200px }
+</style>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div class="grid-lanes">
+  <div class="subgrid">
+    <div class="w200"></div>
+  </div>
+</div>

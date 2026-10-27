@@ -1,0 +1,30 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CSS Grid Lanes Test: reordering children in grid-lanes container triggers relayout</title>
+  <link rel="author" title="Yanling Wang" href="mailto:yanlingwang@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3">
+  <link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/invalidation/../../../reference/ref-filled-green-100px-square-only.html">
+  <style>
+    .grid-lanes {
+      display: grid-lanes;
+      grid-template-columns: repeat(2, 50px);
+    }
+  </style>
+</head>
+<body>
+<p>Test passes if there is a filled green square.</p>
+<div class="grid-lanes" id="gridLanes">
+  <div style="height: 50px; background: green;"></div>
+  <div id="c" style="height: 50px; background: green; grid-column: span 2;"></div>
+  <div id="b" style="height: 50px; background: green;"></div>
+</div>
+
+<script>
+  document.body.offsetTop;
+  const gridLanes = document.getElementById("gridLanes");
+  gridLanes.insertBefore(document.getElementById("b"), document.getElementById("c"));
+</script>
+</body>
+</html>

@@ -1,0 +1,54 @@
+<!DOCTYPE HTML>
+<html><head>
+  <meta charset="utf-8">
+  <title>CSS Grid Lanes Test: row-axis grid-lanes subgrid inherits parent line names</title>
+  <link rel="author" title="Yanling Wang" href="mailto:yanlingwang@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3/#subgrids">
+  <link rel="match" href="../../../../../../../../expected/wpt-import/css/css-grid/grid-lanes/subgrid/grid-lanes-subgridded-to-grid-lanes/row/grid-lanes-subgrid-003a-ref.html">
+  <meta name="assert" content="An explicitly placed grid-lanes subgrid inherits its parent's row line names and resolves them relative to its own grid area.">
+  <style>
+    html,body {
+      color:black; background-color:white; font:32px/1 monospace; padding:0; margin:0;
+    }
+
+    grid-lanes {
+      display: inline grid-lanes;
+      grid-template-rows: 100px [subgrid-start] 160px [middle] 80px [subgrid-end];
+      gap: 4px;
+      padding: 1px 3px 5px 7px;
+      border: solid;
+      border-width: 3px 5px 1px 1px;
+      background: lightgrey content-box;
+    }
+    item {
+      background: grey;
+      width: 3ch;
+      position: relative;
+    }
+    item:nth-child(2n) { background:purple; }
+    item:nth-child(1) {
+      border: solid;
+      border-width: 3px 13px 1px 1px;
+      margin: 7px 1px 5px 3px;
+    }
+    subgrid {
+      display: grid-lanes;
+      grid-template-rows: subgrid;
+      grid-row: 2 / span 2;
+      gap: 4px;
+      background: yellow;
+    }
+  </style>
+</head>
+<body>
+<grid-lanes>
+  <item>1</item>
+  <item>2</item>
+  <item>3</item>
+  <subgrid>
+    <item style="grid-row: middle / subgrid-end;">4a</item>
+    <item style="grid-row: subgrid-start / middle; margin-right: 15px;">4b</item>
+  </subgrid>
+</grid-lanes>
+</body>
+</html>

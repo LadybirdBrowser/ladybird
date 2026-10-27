@@ -1,0 +1,59 @@
+<!DOCTYPE HTML>
+<html><head>
+<meta charset="utf-8">
+<title>CSS Grid Lanes Test: row-direction subgrid with border and percentage gap</title>
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-3/#subgrids">
+<link rel="match" href="../../../../../../../../expected/wpt-import/css/css-grid/grid-lanes/subgrid/grid-subgridded-to-grid-lanes/gap/row-subgrid-grid-gap-003-ref.html">
+<style>
+html,body {
+  color:black; background-color:white; font:12px/1 monospace; padding:0; margin:0;
+}
+
+.grid-lanes {
+  display: grid-lanes;
+  grid-template-rows: repeat(4, auto);
+  place-content: start;
+  border: 1px solid;
+}
+
+.subgrid {
+  display: grid;
+  grid-template-rows: subgrid;
+  gap: 20% 20%;
+  background: lightgrey;
+  grid-row: 2 / span 5;
+  min-width:10px;
+  min-height:0;
+  border: 0 solid lightblue;
+  border-bottom-width: 40px;
+  background: grey;
+}
+
+.subgrid > * { background: lightgrey; }
+
+x {
+  min-width:10px;
+  min-height:0px;
+}
+x:nth-child(2n+1) { background: silver; }
+x:nth-child(2n+2) { background: magenta; }
+x:nth-child(2n+3) { background: pink; }
+x:nth-child(2n+4) { background: grey; }
+
+e { display:block; width: 20px; height:15px; background:black; }
+
+  </style>
+</head>
+<body>
+
+<div class="grid-lanes">
+<x style="grid-row:1"></x><x style="grid-row:2"></x><x style="grid-row:3"></x><x style="grid-row:4"></x><x style="grid-row:5"></x><x style="grid-row:6"></x>
+<div class="subgrid">
+<c><e></e></c>
+<d><e></e></d>
+<c><e></e></c>
+<d><e></e></d>
+</div>
+</div>
+</body></html>

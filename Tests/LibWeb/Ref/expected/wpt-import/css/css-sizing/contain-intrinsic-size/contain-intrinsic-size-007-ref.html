@@ -1,0 +1,27 @@
+<!doctype html>
+<meta charset="utf8">
+<title>CSS contain-intrinsic-size: div with border</title>
+<link rel="author" title="Vladimir Levin" href="mailto:vmpstr@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-sizing-4/#intrinsic-size-override">
+
+<style>
+#border {
+  border: 1px solid blue;
+  width: max-content;
+}
+
+#target {
+  background: lightblue;
+  box-sizing: content-box;
+  width: 55px;
+  height: 66px;
+
+  border-style: solid;
+  border-color: black;
+  border-width: 2px 3px 5px 7px;
+}
+</style>
+
+<div id=border>
+  <div id=target></div>
+</div>

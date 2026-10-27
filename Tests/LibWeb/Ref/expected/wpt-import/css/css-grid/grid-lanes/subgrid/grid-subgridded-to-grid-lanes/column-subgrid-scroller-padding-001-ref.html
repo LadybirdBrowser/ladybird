@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+  .grid {
+    display: inline grid;
+    grid-template-columns: auto auto;
+  }
+
+  .box {
+    display: grid;
+    grid-template-columns: subgrid;
+    grid-column: span 2;
+    height: 220px;
+    overflow: hidden;
+    padding: 60px 0;
+    background: #eee;
+  }
+
+  .item { grid-column: 1; line-height: 24px; }
+  .footer { grid-column: 2; margin: 0; background: tomato; }
+</style>
+<div class="grid">
+  <div class="box">
+    <div class="item"><div>wrapping wrapping wrapping wrapping wrapping wrapping wrapping</div></div>
+    <p class="footer">FOOTER</p>
+  </div>
+</div>

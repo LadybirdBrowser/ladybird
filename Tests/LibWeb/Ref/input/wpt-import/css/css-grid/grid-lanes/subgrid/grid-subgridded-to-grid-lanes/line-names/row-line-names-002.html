@@ -1,0 +1,38 @@
+<!DOCTYPE HTML>
+<html><head>
+  <meta charset="utf-8">
+  <title>CSS Grid Lanes Test: subgrid item using line names with repeat() from grid-lanes (rows)</title>
+  <link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3">
+  <link rel="match" href="../../../../../../../../expected/wpt-import/css/css-grid/grid-lanes/subgrid/grid-subgridded-to-grid-lanes/line-names/row-line-names-002-ref.html">
+  <style>
+html,body {
+  color:black; background-color:white; font:24px/1 monospace; padding:0; margin:0;
+}
+
+.grid-lanes {
+  display: inline-grid-lanes;
+  grid-template-rows: repeat(10, 10px) repeat(10, [a] 10px) [a];
+  padding: 20px 10px;
+}
+
+.subgrid {
+  display: grid;
+  grid: subgrid / 50px;
+  grid-row: 1 / span 10;
+}
+
+x { background: grey; }
+
+  </style>
+</head>
+<body>
+
+<div class="grid-lanes">
+  <div class="subgrid">
+    <x style="grid-row: span a / a 8"></x>
+  </div>
+</div>
+
+</body>
+</html>
