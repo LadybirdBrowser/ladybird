@@ -1,0 +1,17 @@
+Unquoted words: FAIL
+Quoted words: FAIL
+Escaped space: FAIL
+Repeated spaces: PASS
+Leading space: PASS
+Trailing space: PASS
+Leading digit: PASS
+Digit after hyphen: PASS
+Lone hyphen: PASS
+Punctuation: PASS
+Escaped punctuation: FAIL
+CSS-wide keyword: PASS
+Generic family name: PASS
+Quoted identifier: FAIL
+Unicode words: FAIL
+Family list: FAIL
+Custom identifier: PASS

@@ -1,0 +1,37 @@
+<!doctype html>
+<meta charset="utf-8">
+<script src="../include.js"></script>
+<script>
+test(() => {
+    const element = document.createElement("div");
+    document.body.appendChild(element);
+    const cases = [
+        ["Unquoted words", "Non-Generic Example Family Name", "Non-Generic Example Family Name"],
+        ["Quoted words", '"Two Words"', "Two Words"],
+        ["Escaped space", "Two\\ Words", "Two Words"],
+        ["Repeated spaces", '"Two  Words"', '"Two  Words"'],
+        ["Leading space", '" Two Words"', '" Two Words"'],
+        ["Trailing space", '"Two Words "', '"Two Words "'],
+        ["Leading digit", '"21st Century"', '"21st Century"'],
+        ["Digit after hyphen", '"-9 Font"', '"-9 Font"'],
+        ["Lone hyphen", '"-"', '"-"'],
+        ["Punctuation", '"Ahem!"', '"Ahem!"'],
+        ["Escaped punctuation", "Ahem\\!", '"Ahem!"'],
+        ["CSS-wide keyword", '"inherit"', '"inherit"'],
+        ["Generic family name", '"serif"', '"serif"'],
+        ["Quoted identifier", '"NonGeneric"', "NonGeneric"],
+        ["Unicode words", '"雪 字"', "雪 字"],
+        ["Family list", '"Two Words", "21st Century", SERIF', 'Two Words, "21st Century", serif'],
+    ];
+    for (const [label, input, expected] of cases) {
+        element.style.fontFamily = input;
+        const specified = element.style.fontFamily;
+        const computed = getComputedStyle(element).fontFamily;
+        element.style.fontFamily = specified;
+        const roundTrip = getComputedStyle(element).fontFamily;
+        println(`${label}: ${specified === expected && computed === expected && roundTrip === expected ? "PASS" : "FAIL"}`);
+    }
+    element.style.animationName = "Two\\ Words";
+    println(`Custom identifier: ${element.style.animationName === "Two\\ Words" ? "PASS" : "FAIL"}`);
+});
+</script>
