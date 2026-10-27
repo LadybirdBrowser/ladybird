@@ -2,19 +2,18 @@ Harness status: OK
 
 Found 16 tests
 
-10 Pass
-6 Fail
+16 Pass
 Pass	medium is 16px
 Pass	initial value of font size is medium
-Fail	font size large
+Pass	font size large
 Pass	font size x-large
 Pass	font size xx-large
 Pass	font size xxx-large
-Fail	font size small
-Fail	font size x-small
-Fail	font size xx-small
-Fail	font size larger
-Fail	font size smaller
+Pass	font size small
+Pass	font size x-small
+Pass	font size xx-small
+Pass	font size larger
+Pass	font size smaller
 Pass	font size large cascaded by initial
 Pass	font size large cascaded by inherit
 Pass	font size large cascaded by unset

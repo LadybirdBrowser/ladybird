@@ -608,6 +608,7 @@ pub extern "C" fn rust_compute_font_width(absolutized_value: &StyleValueData) ->
     compute_font_width(absolutized_value)
 }
 
+/// https://drafts.csswg.org/css-fonts-4/#absolute-size-mapping
 /// An <absolute-size> keyword refers to an entry in a table of font sizes computed and kept by
 /// the user agent. See 2.5.1 Absolute Size Keyword Mapping Table.
 fn absolute_size_font_mapping(keyword: u16, default_font_size: CssPixels) -> Option<CssPixels> {
@@ -617,6 +618,35 @@ fn absolute_size_font_mapping(keyword: u16, default_font_size: CssPixels) -> Opt
                 .div_as_fraction(CssPixels::from_integer(denominator)),
         )
     };
+    // INTEROP: Other browsers share this keyword table for integral default sizes from 9px through 16px, so we use
+    //          it instead of the ratios from the spec's guideline table.
+    let column = match keyword {
+        keyword::XX_SMALL => 0,
+        keyword::X_SMALL => 1,
+        keyword::SMALL => 2,
+        keyword::MEDIUM => 3,
+        keyword::LARGE => 4,
+        keyword::X_LARGE => 5,
+        keyword::XX_LARGE => 6,
+        keyword::XXX_LARGE => 7,
+        _ => return None,
+    };
+    const FONT_SIZE_TABLE: [[i64; 8]; 8] = [
+        [9, 9, 9, 9, 11, 14, 18, 27],
+        [9, 9, 9, 10, 12, 15, 20, 30],
+        [9, 9, 10, 11, 13, 17, 22, 33],
+        [9, 9, 10, 12, 14, 18, 24, 36],
+        [9, 10, 12, 13, 16, 20, 26, 39],
+        [9, 10, 12, 14, 17, 21, 28, 42],
+        [9, 10, 13, 15, 18, 23, 30, 45],
+        [9, 10, 13, 16, 18, 24, 32, 48],
+    ];
+    let default_size = default_font_size.to_int();
+    if (9..=16).contains(&default_size) && default_font_size == CssPixels::from_integer(i64::from(default_size)) {
+        return Some(CssPixels::from_integer(
+            FONT_SIZE_TABLE[(default_size - 9) as usize][column],
+        ));
+    }
     match keyword {
         keyword::XX_SMALL => entry(3, 5),
         keyword::X_SMALL => entry(3, 4),
@@ -640,8 +670,8 @@ fn relative_size_font_mapping(keyword: u16, inherited_font_size: CssPixels) -> O
         )
     };
     match keyword {
-        keyword::SMALLER => entry(4, 5),
-        keyword::LARGER => entry(5, 4),
+        keyword::SMALLER => entry(5, 6),
+        keyword::LARGER => entry(6, 5),
         _ => None,
     }
 }
@@ -657,6 +687,7 @@ fn compute_font_size(
     inherited_font_size: CssPixels,
     inherited_math_depth: i32,
     default_font_size: CssPixels,
+    default_font_size_scale: f64,
 ) -> FfiComputedNumber {
     let computed = |px: f64| FfiComputedNumber {
         handled: true,
@@ -677,7 +708,7 @@ fn compute_font_size(
         StyleValueData::Percentage { value } => computed(inherited_font_size.to_double() * (value / 100.0)),
         StyleValueData::Keyword { keyword } => {
             if let Some(px) = absolute_size_font_mapping(*keyword, default_font_size) {
-                return computed(px.to_double());
+                return computed(px.scaled(default_font_size_scale).to_double());
             }
             if let Some(px) = relative_size_font_mapping(*keyword, inherited_font_size) {
                 return computed(px.to_double());
@@ -756,6 +787,7 @@ pub extern "C" fn rust_compute_font_size(
         CssPixels::from_raw(inherited_font_size_raw),
         inherited_math_depth,
         CssPixels::from_raw(default_font_size_raw),
+        1.0,
     )
 }
 
@@ -875,8 +907,8 @@ pub(crate) fn recascade_font_size_batch<'a>(
                 if *keyword == keyword::INHERIT {
                     continue;
                 }
-                if let Some(px) = absolute_size_font_mapping(*keyword, zoomed_default_size) {
-                    current_size = px;
+                if let Some(px) = absolute_size_font_mapping(*keyword, default_size) {
+                    current_size = px.scaled(length_zoom);
                     depends_on_viewport_metrics = false;
                     continue;
                 }
@@ -4287,7 +4319,8 @@ pub(crate) unsafe fn drive_property_computation(
                                     computed_math_depth,
                                     inherited_font_size,
                                     inherited_math_depth,
-                                    CssPixels::from_raw(default_font_size_raw).scaled(zoom.length_effective_zoom()),
+                                    CssPixels::from_raw(default_font_size_raw),
+                                    zoom.length_effective_zoom(),
                                 );
                                 if result.handled {
                                     if result.unchanged {
@@ -8793,6 +8826,7 @@ mod tests {
             sixteen,
             0,
             sixteen,
+            1.0,
         );
         assert_eq!(medium.value, 16.0);
         let large = compute_font_size(
@@ -8803,9 +8837,17 @@ mod tests {
             sixteen,
             0,
             sixteen,
+            1.0,
         );
-        assert_eq!(large.value, 19.1875); // 16 * 6 / 5 in 6-bit fixed point
-        let percent = compute_font_size(&StyleValueData::Percentage { value: 150.0 }, 0, sixteen, 0, sixteen);
+        assert_eq!(large.value, 18.0);
+        let percent = compute_font_size(
+            &StyleValueData::Percentage { value: 150.0 },
+            0,
+            sixteen,
+            0,
+            sixteen,
+            1.0,
+        );
         assert_eq!(percent.value, 24.0);
         let math = compute_font_size(
             &StyleValueData::Keyword { keyword: keyword::MATH },
@@ -8813,6 +8855,7 @@ mod tests {
             sixteen,
             0,
             sixteen,
+            1.0,
         );
         assert_eq!(math.value, CssPixels::from_integer(16).scaled(0.71).to_double());
         let math_two_levels = compute_font_size(
@@ -8821,6 +8864,7 @@ mod tests {
             sixteen,
             0,
             sixteen,
+            1.0,
         );
         assert_eq!(
             math_two_levels.value,
