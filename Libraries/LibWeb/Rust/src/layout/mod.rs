@@ -79,7 +79,6 @@ pub(crate) use crate::layout::layout_node_arena::{
     HostStyle, LayoutNodeArena, LiveRow, PublishedBoundRows, RowsVersion, SLOTS_PER_CHUNK, SampleKind, StyleRelayout,
 };
 use crate::layout::node_data::AncestorFact;
-pub use crate::layout::node_data::FfiReplacedContentFacts;
 pub use crate::layout::node_data::FfiStylePayloads;
 use crate::layout::node_data::NodeData;
 use crate::layout::node_data::NodeFlag;

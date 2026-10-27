@@ -68,17 +68,18 @@ pub(crate) enum CyclicPercentageSizeProperty {
     MinSize,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct PixelFraction {
     pub(crate) numerator: CssPixels,
     pub(crate) denominator: CssPixels,
 }
 
-#[derive(Clone, Copy, Debug, Default)]
-pub(super) struct ReplacedIntrinsicSize {
-    pub(super) width: Option<CssPixels>,
-    pub(super) height: Option<CssPixels>,
-    pub(super) aspect_ratio: Option<PixelFraction>,
+/// A replaced box's natural size and aspect ratio, any of which it can lack.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct ReplacedIntrinsicSize {
+    pub(crate) width: Option<CssPixels>,
+    pub(crate) height: Option<CssPixels>,
+    pub(crate) aspect_ratio: Option<PixelFraction>,
 }
 
 #[derive(Clone, Copy, Debug, Default)]

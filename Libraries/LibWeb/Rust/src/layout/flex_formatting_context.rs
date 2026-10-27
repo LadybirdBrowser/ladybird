@@ -1299,10 +1299,10 @@ impl<'pass> FlexFormattingContext<'pass> {
         //           intrinsic size and no cross size to resolve the ratio against.
         //         - in response to cross size min/max constraints.
         let facts = self.facts(node);
-        if facts.has_auto_content_aspect_ratio()
+        if facts.auto_content_size().aspect_ratio.is_some()
             && !basis_is_definite
-            && !facts.has_auto_content_width()
-            && !facts.has_auto_content_height()
+            && !facts.auto_content_size().width.is_some()
+            && !facts.auto_content_size().height.is_some()
             && !self.has_definite_cross_size(index)
             && self.has_definite_main_size_used(self.container_used())
         {
@@ -1984,8 +1984,8 @@ impl<'pass> FlexFormattingContext<'pass> {
             // AD-HOC: For a replaced box whose only sizing information is a natural aspect ratio (e.g an SVG with a
             //         viewBox but no natural width or height) and an indefinite flex basis, we stretch-fit the cross size
             //         to the flex container instead of transferring the used main size through the aspect ratio.
-            let replaced_with_only_natural_ratio =
-                facts.is_replaced_box() && !(facts.has_auto_content_width() && facts.has_auto_content_height());
+            let replaced_with_only_natural_ratio = facts.is_replaced_box()
+                && !(facts.auto_content_size().width.is_some() && facts.auto_content_size().height.is_some());
             if replaced_with_only_natural_ratio
                 && !self.flex_items[index].used_flex_basis_is_definite
                 && self.has_definite_cross_size_used(self.container_used())
@@ -3201,7 +3201,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         // NB: A replaced element with a natural inline size contributes that size. Its post-flexing
         //     block size must not replace the natural inline size through the aspect ratio. Explicit
         //     computed heights are handled by the intrinsic inline size calculation instead.
-        if self.facts(node).is_replaced_box() && self.facts(node).has_auto_content_width() {
+        if self.facts(node).is_replaced_box() && self.facts(node).auto_content_size().width.is_some() {
             return None;
         }
         self.facts(node).preferred_aspect_ratio()?;
@@ -3591,7 +3591,7 @@ impl<'pass> FlexFormattingContext<'pass> {
     fn cross_content_contribution_depends_on_used_main_size(&self, index: usize) -> bool {
         let node = self.flex_items[index].box_;
         let facts = self.facts(node);
-        let has_natural_inline_size = facts.is_replaced_box() && facts.has_auto_content_width();
+        let has_natural_inline_size = facts.is_replaced_box() && facts.auto_content_size().width.is_some();
         if has_natural_inline_size && self.style(node).height().is_auto() {
             return false;
         }

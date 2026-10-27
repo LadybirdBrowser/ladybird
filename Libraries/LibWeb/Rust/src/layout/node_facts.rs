@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use super::formatting_context::{PixelFraction, ReplacedIntrinsicSize};
 use super::*;
 use crate::css::style::{NaturalSize, ReplacedContentInput};
 
@@ -45,7 +46,7 @@ fn style_has_size_containment(style: ComputedValuesView<'_>) -> bool {
 
 /// The replaced content facts of an enrolled node, from its kind, its computed style and what its
 /// element published as the input of its replaced content.
-pub(crate) fn derived_replaced_content_facts(data: &NodeData, input: ReplacedContentInput) -> FfiReplacedContentFacts {
+pub(crate) fn derived_replaced_content_facts(data: &NodeData, input: ReplacedContentInput) -> ReplacedContentFacts {
     if data.kind.get() == NodeKind::SVGImageBox {
         return svg_image_facts(input);
     }
@@ -134,34 +135,19 @@ impl ReplacedContentStyle {
 // An SVG <image> runs the default sizing algorithm over its own geometry, so it takes the natural size exactly as its
 // image reports it, absent rather than zero while nothing has decoded, together with the default object size that
 // applies once something has. Size containment does not apply to it.
-fn svg_image_facts(input: ReplacedContentInput) -> FfiReplacedContentFacts {
+fn svg_image_facts(input: ReplacedContentInput) -> ReplacedContentFacts {
     let (ReplacedContentInput::NaturalSize(natural_size) | ReplacedContentInput::DecodedSvgImage(natural_size)) = input
     else {
         panic!("an SVG image publishes its natural size as it arrives");
     };
-    let mut facts = FfiReplacedContentFacts::default();
-    set_auto_content_size(&mut facts, AutoContentSize::natural(natural_size));
-    // The SVG formatting context reads the default object size as it is. It is no preferred size the
-    // sizing of an ordinary replaced box would take, so the flags that offer it as one stay clear.
-    if matches!(input, ReplacedContentInput::DecodedSvgImage(_)) {
-        facts.default_preferred_width = CssPixels::from_integer(300);
-        facts.default_preferred_height = CssPixels::from_integer(150);
-    }
-    facts
-}
-
-fn set_auto_content_size(facts: &mut FfiReplacedContentFacts, auto_content_size: AutoContentSize) {
-    if let Some(width) = auto_content_size.width {
-        facts.has_auto_content_width = true;
-        facts.auto_content_width = width;
-    }
-    if let Some(height) = auto_content_size.height {
-        facts.has_auto_content_height = true;
-        facts.auto_content_height = height;
-    }
-    if let Some((numerator, denominator)) = auto_content_size.aspect_ratio {
-        facts.auto_content_aspect_ratio_numerator = numerator;
-        facts.auto_content_aspect_ratio_denominator = denominator;
+    ReplacedContentFacts {
+        auto_content_size: ReplacedIntrinsicSize::natural(natural_size),
+        svg_image_default_object_size: if matches!(input, ReplacedContentInput::DecodedSvgImage(_)) {
+            CssPixelSize::new(CssPixels::from_integer(300), CssPixels::from_integer(150))
+        } else {
+            CssPixelSize::default()
+        },
+        ..ReplacedContentFacts::default()
     }
 }
 
@@ -169,9 +155,11 @@ fn replaced_content_facts(
     kind: NodeKind,
     style: ReplacedContentStyle,
     input: ReplacedContentInput,
-) -> FfiReplacedContentFacts {
-    let mut facts = FfiReplacedContentFacts::default();
-    set_auto_content_size(&mut facts, auto_content_size(kind, style, input));
+) -> ReplacedContentFacts {
+    let mut facts = ReplacedContentFacts {
+        auto_content_size: auto_content_size(kind, style, input),
+        ..ReplacedContentFacts::default()
+    };
     if let ReplacedContentInput::Input {
         size,
         is_text_entry: true,
@@ -180,24 +168,50 @@ fn replaced_content_facts(
         facts.text_entry_content_is_ordinary_box = style.appearance_is_none || style.field_sizing_is_content;
         if style.appearance_is_none && !style.field_sizing_is_content {
             let (width, height) = style.text_control_default_preferred_size(size);
-            facts.has_default_preferred_width = true;
-            facts.default_preferred_width = width;
-            facts.has_default_preferred_height = true;
-            facts.default_preferred_height = height;
+            facts.default_preferred_width = Some(width);
+            facts.default_preferred_height = Some(height);
         }
     }
     facts
 }
 
-/// A replaced box's natural size and aspect ratio, any of which it can lack.
-#[derive(Default)]
-struct AutoContentSize {
-    width: Option<CssPixels>,
-    height: Option<CssPixels>,
-    aspect_ratio: Option<(CssPixels, CssPixels)>,
+/// What layout reads of the content of a replaced box.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct ReplacedContentFacts {
+    pub(crate) auto_content_size: ReplacedIntrinsicSize,
+    pub(crate) default_preferred_width: Option<CssPixels>,
+    pub(crate) default_preferred_height: Option<CssPixels>,
+    pub(crate) text_entry_content_is_ordinary_box: bool,
+    /// The default object size of an SVG `<image>`, which applies once something has decoded. The SVG formatting
+    /// context reads it as it is: it is no preferred size the sizing of an ordinary replaced box would take.
+    pub(crate) svg_image_default_object_size: CssPixelSize,
 }
 
-impl AutoContentSize {
+impl ReplacedContentFacts {
+    /// The facts with the axes swapped, as a frame whose horizontal axis is vertical sees them.
+    fn transposed(self) -> Self {
+        let size = self.auto_content_size;
+        Self {
+            auto_content_size: ReplacedIntrinsicSize {
+                width: size.height,
+                height: size.width,
+                aspect_ratio: size
+                    .aspect_ratio
+                    .and_then(|ratio| aspect_ratio_of(ratio.denominator, ratio.numerator)),
+            },
+            default_preferred_width: self.default_preferred_height,
+            default_preferred_height: self.default_preferred_width,
+            ..self
+        }
+    }
+}
+
+/// The aspect ratio of `numerator` to `denominator`, unless the denominator is zero.
+fn aspect_ratio_of(numerator: CssPixels, denominator: CssPixels) -> Option<PixelFraction> {
+    (denominator != CssPixels::default()).then_some(PixelFraction { numerator, denominator })
+}
+
+impl ReplacedIntrinsicSize {
     fn of_size((width, height): (CssPixels, CssPixels)) -> Self {
         Self {
             width: Some(width),
@@ -210,35 +224,43 @@ impl AutoContentSize {
         Self {
             width: natural_size.width.map(CssPixels::from_raw),
             height: natural_size.height.map(CssPixels::from_raw),
-            aspect_ratio: natural_size
-                .aspect_ratio
-                .map(|(numerator, denominator)| (CssPixels::from_raw(numerator), CssPixels::from_raw(denominator))),
+            aspect_ratio: natural_size.aspect_ratio.and_then(|(numerator, denominator)| {
+                aspect_ratio_of(CssPixels::from_raw(numerator), CssPixels::from_raw(denominator))
+            }),
         }
     }
 }
 
-fn auto_content_size(kind: NodeKind, style: ReplacedContentStyle, input: ReplacedContentInput) -> AutoContentSize {
+fn auto_content_size(
+    kind: NodeKind,
+    style: ReplacedContentStyle,
+    input: ReplacedContentInput,
+) -> ReplacedIntrinsicSize {
     if let Some(explicit_size) = style.size_contained {
-        return AutoContentSize::of_size(explicit_size);
+        return ReplacedIntrinsicSize::of_size(explicit_size);
     }
     // https://drafts.csswg.org/css-forms-1/#valdef-field-sizing-content
     // The UA must determine the element's intrinsic size based on its content, and must ignore any default preferred
     // size defined by the host language for that element.
     if style.field_sizing_is_content && matches!(kind, NodeKind::TextAreaBox | NodeKind::TextInputBox) {
-        return AutoContentSize::default();
+        return ReplacedIntrinsicSize::default();
     }
     match kind {
-        NodeKind::CheckBox => AutoContentSize::of_size((CssPixels::from_integer(13), CssPixels::from_integer(13))),
-        NodeKind::RadioButton => AutoContentSize::of_size((CssPixels::from_integer(12), CssPixels::from_integer(12))),
+        NodeKind::CheckBox => {
+            ReplacedIntrinsicSize::of_size((CssPixels::from_integer(13), CssPixels::from_integer(13)))
+        }
+        NodeKind::RadioButton => {
+            ReplacedIntrinsicSize::of_size((CssPixels::from_integer(12), CssPixels::from_integer(12)))
+        }
         // AD-HOC: A slider has no in-flow content to size itself from, so provide a default content-box size for when
         //         its `width` or `height` is `auto`: 20ch by 16px.
-        NodeKind::RangeInputBox => AutoContentSize::of_size((style.characters(20), CssPixels::from_integer(16))),
+        NodeKind::RangeInputBox => ReplacedIntrinsicSize::of_size((style.characters(20), CssPixels::from_integer(16))),
         NodeKind::TextAreaBox => {
             let ReplacedContentInput::TextArea { cols, rows } = input else {
                 panic!("a textarea publishes its cols and rows as it arrives");
             };
             let block_size = CssPixels::nearest_value_for(f64::from(rows) * style.line_height.to_double());
-            AutoContentSize::of_size(style.in_writing_mode(style.characters(cols), block_size))
+            ReplacedIntrinsicSize::of_size(style.in_writing_mode(style.characters(cols), block_size))
         }
         NodeKind::CanvasBox => {
             let ReplacedContentInput::Canvas { width, height } = input else {
@@ -246,38 +268,37 @@ fn auto_content_size(kind: NodeKind, style: ReplacedContentStyle, input: Replace
             };
             let width = CssPixels::from_integer(i64::from(width));
             let height = CssPixels::from_integer(i64::from(height));
-            AutoContentSize {
+            ReplacedIntrinsicSize {
                 width: Some(width),
                 height: Some(height),
-                aspect_ratio: (width != CssPixels::default() && height != CssPixels::default())
-                    .then_some((width, height)),
+                aspect_ratio: aspect_ratio_of(width, height).filter(|_| width != CssPixels::default()),
             }
         }
         NodeKind::TextInputBox => {
             let ReplacedContentInput::Input { size, .. } = input else {
                 panic!("an input publishes its size as it arrives");
             };
-            AutoContentSize::of_size(style.text_control_default_preferred_size(size))
+            ReplacedIntrinsicSize::of_size(style.text_control_default_preferred_size(size))
         }
         NodeKind::VideoBox => {
             let ReplacedContentInput::NaturalSize(natural_size) = input else {
                 panic!("a video publishes its natural size as it arrives");
             };
-            AutoContentSize::natural(natural_size)
+            ReplacedIntrinsicSize::natural(natural_size)
         }
         NodeKind::ImageBox => {
             let ReplacedContentInput::NaturalSize(natural_size) = input else {
                 panic!("an image box's element or its provider publishes its image's natural size");
             };
-            AutoContentSize::natural(natural_size)
+            ReplacedIntrinsicSize::natural(natural_size)
         }
         // An <object> showing an SVG document is sized from the document's root. Any other navigable container has
         // no natural size.
         NodeKind::NavigableContainerViewport => match input {
-            ReplacedContentInput::NaturalSize(natural_size) => AutoContentSize::natural(natural_size),
-            _ => AutoContentSize::default(),
+            ReplacedContentInput::NaturalSize(natural_size) => ReplacedIntrinsicSize::natural(natural_size),
+            _ => ReplacedIntrinsicSize::default(),
         },
-        _ => AutoContentSize::default(),
+        _ => ReplacedIntrinsicSize::default(),
     }
 }
 
@@ -833,27 +854,16 @@ impl<'pass> NodeFacts<'pass> {
 
     #[inline]
     /// The natural and default sizes of the box's replaced content, as width and height in the frame of the pass.
-    fn replaced_content(&self) -> crate::layout::FfiReplacedContentFacts {
+    fn replaced_content(&self) -> ReplacedContentFacts {
         let facts = self.physical_replaced_content();
-        if !self.callbacks.frame.is_transposed() {
-            return facts;
-        }
-        crate::layout::FfiReplacedContentFacts {
-            has_auto_content_width: facts.has_auto_content_height,
-            auto_content_width: facts.auto_content_height,
-            has_auto_content_height: facts.has_auto_content_width,
-            auto_content_height: facts.auto_content_width,
-            auto_content_aspect_ratio_numerator: facts.auto_content_aspect_ratio_denominator,
-            auto_content_aspect_ratio_denominator: facts.auto_content_aspect_ratio_numerator,
-            has_default_preferred_width: facts.has_default_preferred_height,
-            default_preferred_width: facts.default_preferred_height,
-            has_default_preferred_height: facts.has_default_preferred_width,
-            default_preferred_height: facts.default_preferred_width,
-            text_entry_content_is_ordinary_box: facts.text_entry_content_is_ordinary_box,
+        if self.callbacks.frame.is_transposed() {
+            facts.transposed()
+        } else {
+            facts
         }
     }
 
-    fn physical_replaced_content(&self) -> crate::layout::FfiReplacedContentFacts {
+    fn physical_replaced_content(&self) -> ReplacedContentFacts {
         let mut facts = self.unzoomed_physical_replaced_content();
         // NB: SVG geometry and explicit intrinsic inner sizes already resolve against computed lengths.
         if self.data().kind.get() == NodeKind::SVGSVGBox
@@ -867,22 +877,22 @@ impl<'pass> NodeFacts<'pass> {
             .computed_values_view_if_styled()
             .map_or(1.0, |style| style.effective_zoom());
         if zoom != 1.0 {
+            let size = &mut facts.auto_content_size;
+            let zoomed = |length: Option<CssPixels>| length.map(|length| length.scaled(f64::from(zoom)));
             match self.data().kind.get() {
                 // NB: These dimensions are derived from font metrics that already include zoom.
                 NodeKind::TextAreaBox | NodeKind::TextInputBox => {}
-                NodeKind::RangeInputBox => {
-                    facts.auto_content_height = facts.auto_content_height.scaled(f64::from(zoom));
-                }
+                NodeKind::RangeInputBox => size.height = zoomed(size.height),
                 _ => {
-                    facts.auto_content_width = facts.auto_content_width.scaled(f64::from(zoom));
-                    facts.auto_content_height = facts.auto_content_height.scaled(f64::from(zoom));
+                    size.width = zoomed(size.width);
+                    size.height = zoomed(size.height);
                 }
             }
         }
         facts
     }
 
-    fn unzoomed_physical_replaced_content(&self) -> crate::layout::FfiReplacedContentFacts {
+    fn unzoomed_physical_replaced_content(&self) -> ReplacedContentFacts {
         if self.data().kind.get() == NodeKind::SVGSVGBox {
             return self.svg_root_replaced_content();
         }
@@ -898,7 +908,7 @@ impl<'pass> NodeFacts<'pass> {
                 !node_may_have_replaced_content_facts_including_size_containment(self.data()),
                 "replaced content facts were not synced to the arena before layout"
             );
-            return crate::layout::FfiReplacedContentFacts::default();
+            return ReplacedContentFacts::default();
         };
         facts
     }
@@ -906,7 +916,7 @@ impl<'pass> NodeFacts<'pass> {
     /// An <svg> root's natural size resolves the lengths its element published against its style and the
     /// viewport, so the pass negotiates it rather than reading synced facts.
     #[cold]
-    fn svg_root_replaced_content(&self) -> crate::layout::FfiReplacedContentFacts {
+    fn svg_root_replaced_content(&self) -> ReplacedContentFacts {
         let mut facts = derived_replaced_content_facts(self.data(), ReplacedContentInput::None);
         let arena = self.callbacks.arena();
         let is_document_element_box = arena.is_document_svg_root_box(self.node);
@@ -930,14 +940,11 @@ impl<'pass> NodeFacts<'pass> {
             });
         }
         if !size_contained {
-            set_auto_content_size(
-                &mut facts,
-                AutoContentSize {
-                    width,
-                    height,
-                    aspect_ratio,
-                },
-            );
+            facts.auto_content_size = ReplacedIntrinsicSize {
+                width,
+                height,
+                aspect_ratio: aspect_ratio.and_then(|(numerator, denominator)| aspect_ratio_of(numerator, denominator)),
+            };
         }
         facts
     }
@@ -1304,32 +1311,8 @@ impl<'pass> NodeFacts<'pass> {
         has_flag(self.data(), NodeFlag::ListMarkerIsInside)
     }
 
-    pub(crate) fn has_auto_content_width(&self) -> bool {
-        self.replaced_content().has_auto_content_width
-    }
-
-    pub(crate) fn auto_content_width(&self) -> crate::layout::CssPixels {
-        self.replaced_content().auto_content_width
-    }
-
-    pub(crate) fn has_auto_content_height(&self) -> bool {
-        self.replaced_content().has_auto_content_height
-    }
-
-    pub(crate) fn auto_content_height(&self) -> crate::layout::CssPixels {
-        self.replaced_content().auto_content_height
-    }
-
-    pub(crate) fn has_auto_content_aspect_ratio(&self) -> bool {
-        self.replaced_content().auto_content_aspect_ratio_denominator != crate::layout::CssPixels::default()
-    }
-
-    pub(crate) fn auto_content_aspect_ratio_numerator(&self) -> crate::layout::CssPixels {
-        self.replaced_content().auto_content_aspect_ratio_numerator
-    }
-
-    pub(crate) fn auto_content_aspect_ratio_denominator(&self) -> crate::layout::CssPixels {
-        self.replaced_content().auto_content_aspect_ratio_denominator
+    pub(crate) fn auto_content_size(&self) -> ReplacedIntrinsicSize {
+        self.replaced_content().auto_content_size
     }
 
     pub(crate) fn has_auto_content_box_size(&self) -> bool {
@@ -1359,33 +1342,21 @@ impl<'pass> NodeFacts<'pass> {
 
     pub(crate) fn preferred_aspect_ratio(&self) -> Option<formatting_context::PixelFraction> {
         let style = self.style();
-        if !self.node_has_size_containment() && style.aspect_ratio_uses_natural_when_available() {
-            let replaced = self.replaced_content();
-            if replaced.auto_content_aspect_ratio_denominator != crate::layout::CssPixels::default() {
-                return Some(formatting_context::PixelFraction {
-                    numerator: replaced.auto_content_aspect_ratio_numerator,
-                    denominator: replaced.auto_content_aspect_ratio_denominator,
-                });
-            }
+        if !self.node_has_size_containment()
+            && style.aspect_ratio_uses_natural_when_available()
+            && let Some(aspect_ratio) = self.auto_content_size().aspect_ratio
+        {
+            return Some(aspect_ratio);
         }
         let (numerator, denominator) = style.css_preferred_aspect_ratio();
-        (denominator != crate::layout::CssPixels::default())
-            .then_some(formatting_context::PixelFraction { numerator, denominator })
+        aspect_ratio_of(numerator, denominator)
     }
 
-    pub(crate) fn has_default_preferred_width(&self) -> bool {
-        self.replaced_content().has_default_preferred_width
-    }
-
-    pub(crate) fn default_preferred_width(&self) -> crate::layout::CssPixels {
+    pub(crate) fn default_preferred_width(&self) -> Option<CssPixels> {
         self.replaced_content().default_preferred_width
     }
 
-    pub(crate) fn has_default_preferred_height(&self) -> bool {
-        self.replaced_content().has_default_preferred_height
-    }
-
-    pub(crate) fn default_preferred_height(&self) -> crate::layout::CssPixels {
+    pub(crate) fn default_preferred_height(&self) -> Option<CssPixels> {
         self.replaced_content().default_preferred_height
     }
 
@@ -1522,13 +1493,9 @@ mod node_facts_tests {
         }
     }
 
-    fn auto_content_size(facts: crate::layout::FfiReplacedContentFacts) -> Option<(i64, i64)> {
-        (facts.has_auto_content_width && facts.has_auto_content_height).then(|| {
-            (
-                i64::from(facts.auto_content_width.to_int()),
-                i64::from(facts.auto_content_height.to_int()),
-            )
-        })
+    fn auto_content_size(facts: super::ReplacedContentFacts) -> Option<(i64, i64)> {
+        let size = facts.auto_content_size;
+        Some((i64::from(size.width?.to_int()), i64::from(size.height?.to_int())))
     }
 
     #[test]
@@ -1552,7 +1519,7 @@ mod node_facts_tests {
         };
         let text_input = super::replaced_content_facts(NodeKind::TextInputBox, horizontal_style(), input);
         assert_eq!(auto_content_size(text_input), Some((160, 16)));
-        assert!(!text_input.has_default_preferred_width);
+        assert!(text_input.default_preferred_width.is_none());
 
         let primitive_style = super::ReplacedContentStyle {
             appearance_is_none: true,
@@ -1560,15 +1527,15 @@ mod node_facts_tests {
         };
         let primitive = super::replaced_content_facts(NodeKind::BlockContainer, primitive_style, input);
         assert_eq!(auto_content_size(primitive), None);
-        assert!(primitive.has_default_preferred_width && primitive.has_default_preferred_height);
-        assert_eq!(primitive.default_preferred_width.to_int(), 160);
+        assert!(primitive.default_preferred_height.is_some());
+        assert_eq!(primitive.default_preferred_width.map(|width| width.to_int()), Some(160));
 
         let checkbox_input = ReplacedContentInput::Input {
             size: 20,
             is_text_entry: false,
         };
         let checkbox = super::replaced_content_facts(NodeKind::BlockContainer, primitive_style, checkbox_input);
-        assert!(!checkbox.has_default_preferred_width);
+        assert!(checkbox.default_preferred_width.is_none());
     }
 
     #[test]
@@ -1579,7 +1546,7 @@ mod node_facts_tests {
             ReplacedContentInput::Canvas { width: 0, height: 150 },
         );
         assert_eq!(auto_content_size(empty), Some((0, 150)));
-        assert_eq!(empty.auto_content_aspect_ratio_denominator, CssPixels::default());
+        assert!(empty.auto_content_size.aspect_ratio.is_none());
         let sized = super::replaced_content_facts(
             NodeKind::CanvasBox,
             horizontal_style(),
@@ -1588,8 +1555,12 @@ mod node_facts_tests {
                 height: 150,
             },
         );
-        assert_eq!(sized.auto_content_aspect_ratio_numerator.to_int(), 300);
-        assert_eq!(sized.auto_content_aspect_ratio_denominator.to_int(), 150);
+        let aspect_ratio = sized
+            .auto_content_size
+            .aspect_ratio
+            .expect("a sized canvas has an aspect ratio");
+        assert_eq!(aspect_ratio.numerator.to_int(), 300);
+        assert_eq!(aspect_ratio.denominator.to_int(), 150);
     }
 
     #[test]
@@ -1599,7 +1570,7 @@ mod node_facts_tests {
             horizontal_style(),
             ReplacedContentInput::NaturalSize(NaturalSize::default()),
         );
-        assert!(!without_size.has_auto_content_width && !without_size.has_auto_content_height);
+        assert!(without_size.auto_content_size.width.is_none() && without_size.auto_content_size.height.is_none());
         let contained_style = super::ReplacedContentStyle {
             size_contained: Some((CssPixels::from_integer(5), CssPixels::default())),
             ..horizontal_style()
