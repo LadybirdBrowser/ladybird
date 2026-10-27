@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <script src="../include.js"></script>
 <script>
     // The left half of each frame is red, and the right half is gray at 60 times the whole second mod 5.
@@ -12,7 +12,11 @@
     }
 
     function nextVideoFrame(video, onFrame = () => {}) {
-        return new Promise(resolve => video.requestVideoFrameCallback((now, metadata) => resolve({ now, callbackNow: performance.now(), metadata, result: onFrame(now, metadata) })));
+        return new Promise(resolve =>
+            video.requestVideoFrameCallback((now, metadata) =>
+                resolve({ now, callbackNow: performance.now(), metadata, result: onFrame(now, metadata) })
+            )
+        );
     }
 
     async function seekAndWait(video, time) {
@@ -29,34 +33,51 @@
         document.body.append(video);
 
         const first = await nextVideoFrame(video);
-        println(`Paused at the start: mediaTime ${first.metadata.mediaTime}, ${first.metadata.width}x${first.metadata.height}, presentedFrames positive: ${first.metadata.presentedFrames > 0}`);
+        println(
+            `Paused at the start: mediaTime ${first.metadata.mediaTime}, ${first.metadata.width}x${first.metadata.height}, presentedFrames positive: ${first.metadata.presentedFrames > 0}`
+        );
         // NB: The callback's now is the rendering timestamp shared with rAF, not its execution time.
-        println(`Timestamps: presentation before callback: ${first.metadata.presentationTime <= first.callbackNow + 1}, expected display at or after now: ${first.metadata.expectedDisplayTime >= first.now}`);
+        println(
+            `Timestamps: presentation before callback: ${first.metadata.presentationTime <= first.callbackNow + 1}, expected display at or after now: ${first.metadata.expectedDisplayTime >= first.now}`
+        );
 
         // A seek presents a new frame, and a capture in the callback draws the frame that the metadata describes.
         const afterSeek = nextVideoFrame(video, () => grayCapturedFrom(video));
         await seekAndWait(video, 2.05);
         const seekFrame = await afterSeek;
-        println(`After seeking to 2.05: mediaTime ${seekFrame.metadata.mediaTime}, captured second ${seekFrame.result.gray()}, presentedFrames increased: ${seekFrame.metadata.presentedFrames > first.metadata.presentedFrames}`);
+        println(
+            `After seeking to 2.05: mediaTime ${seekFrame.metadata.mediaTime}, captured second ${seekFrame.result.gray()}, presentedFrames increased: ${seekFrame.metadata.presentedFrames > first.metadata.presentedFrames}`
+        );
 
         // A canceled callback does not run.
         let canceledCallbackRan = false;
-        const handle = video.requestVideoFrameCallback(() => { canceledCallbackRan = true; });
+        const handle = video.requestVideoFrameCallback(() => {
+            canceledCallbackRan = true;
+        });
         video.cancelVideoFrameCallback(handle);
         const afterCanceledSeek = nextVideoFrame(video);
         await seekAndWait(video, 3.05);
         const canceledSeekFrame = await afterCanceledSeek;
-        println(`After seeking to 3.05: mediaTime ${canceledSeekFrame.metadata.mediaTime}, canceled callback ran: ${canceledCallbackRan}`);
+        println(
+            `After seeking to 3.05: mediaTime ${canceledSeekFrame.metadata.mediaTime}, canceled callback ran: ${canceledCallbackRan}`
+        );
 
         // A frame presented before the callback was requested is not new to it.
+        const presentedFrames = () => {
+            const quality = video.getVideoPlaybackQuality();
+            return quality.totalVideoFrames - quality.droppedVideoFrames;
+        };
+        const beforeSeek = presentedFrames();
         await seekAndWait(video, 4.05);
-        for (let i = 0; i < 3; i++)
-            await new Promise(resolve => requestAnimationFrame(resolve));
+        // The seek can finish before the compositor presents its frame.
+        while (presentedFrames() === beforeSeek) await new Promise(resolve => requestAnimationFrame(resolve));
         const afterStaleFrame = nextVideoFrame(video);
         await new Promise(resolve => requestAnimationFrame(resolve));
         video.currentTime = 1.05;
         const staleFrameSeekFrame = await afterStaleFrame;
-        println(`After seeking to 1.05 with 4.05 already presented: mediaTime ${staleFrameSeekFrame.metadata.mediaTime}`);
+        println(
+            `After seeking to 1.05 with 4.05 already presented: mediaTime ${staleFrameSeekFrame.metadata.mediaTime}`
+        );
 
         // While playing, every capture in a callback draws the frame its metadata describes.
         await video.play();
@@ -65,13 +86,13 @@
         let nonIncreasingPresentedFrames = 0;
         for (let i = 0; i < 10; i++) {
             const frame = await nextVideoFrame(video, (now, metadata) => grayCapturedFrom(video));
-            if (frame.result.gray() !== Math.floor(frame.metadata.mediaTime + 1e-6) % 5)
-                mismatches++;
-            if (frame.metadata.presentedFrames <= previousPresentedFrames)
-                nonIncreasingPresentedFrames++;
+            if (frame.result.gray() !== Math.floor(frame.metadata.mediaTime + 1e-6) % 5) mismatches++;
+            if (frame.metadata.presentedFrames <= previousPresentedFrames) nonIncreasingPresentedFrames++;
             previousPresentedFrames = frame.metadata.presentedFrames;
         }
         video.pause();
-        println(`While playing: ${mismatches} captures differed from their metadata, ${nonIncreasingPresentedFrames} callbacks did not advance presentedFrames`);
+        println(
+            `While playing: ${mismatches} captures differed from their metadata, ${nonIncreasingPresentedFrames} callbacks did not advance presentedFrames`
+        );
     });
 </script>
