@@ -352,15 +352,17 @@ static MatchResult host_part_matches(Utf16View pattern, Optional<URL::Host> cons
 
     auto const& host = maybe_host.value();
 
-    if (!host.is_domain())
+    // INTEROP: All major engines match IP addresses as well, comparing the pattern against the serialized host as a
+    //          plain string, including "*." suffix matching. IPv6 addresses serialize with brackets, which a host-part
+    //          cannot contain, so only "*" matches them.
+    if (host.has<URL::OpaqueHost>() || host.is_empty_host())
         return MatchResult::DoesNotMatch;
 
     // 2. If pattern is "*", return "Matches".
     if (equals(pattern, "*"sv))
         return MatchResult::Matches;
 
-    VERIFY(host.has<String>());
-    auto host_string = host.get<String>();
+    auto host_string = host.serialize();
 
     // 3. If pattern starts with "*.":
     if (starts_with(pattern, "*."sv)) {
