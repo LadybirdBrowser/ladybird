@@ -6,6 +6,8 @@
 
 #include <AK/Array.h>
 #include <AK/Base64.h>
+#include <AK/CharacterTypes.h>
+#include <AK/Find.h>
 #include <AK/StringBuilder.h>
 #include <AK/Vector.h>
 #include <LibCrypto/Hash/SHA2.h>
@@ -87,34 +89,43 @@ ErrorOr<Vector<Metadata>> parse_metadata(Utf16View metadata)
 
     // 2. For each item returned by splitting metadata on spaces:
     for (auto item : metadata.split_view(u' ', SplitBehavior::Nothing)) {
-        // 1. Let hash-with-opt-token-list be the result of splitting item on U+003F (?).
-        auto hash_with_opt_token_list = item.split_view(u'?', SplitBehavior::Nothing);
-
-        // 2. Let hash-expression be hash-with-opt-token-list[0].
-        auto hash_expression = hash_with_opt_token_list[0];
+        // 1. Let expression-and-options be the result of splitting item on U+003F (?).
+        // 2. Let algorithm-expression be expression-and-options[0].
+        auto algorithm_expression = item.substring_view(0, item.find_code_unit_offset(u'?').value_or(item.length_in_code_units()));
 
         // 3. Let base64-value be the empty string.
         Utf16View base64_value;
 
-        // 4. Let hash-expr-token-list be the result of splitting hash-expression on U+002D (-).
-        auto hash_expr_token_list = hash_expression.split_view(u'-', SplitBehavior::Nothing);
-
-        // 5. Let algorithm be hash-expr-token-list[0].
-        auto algorithm = hash_expr_token_list[0];
+        // 4. Let algorithm-and-value be the result of splitting algorithm-expression on U+002D (-).
+        // 5. Let algorithm be algorithm-and-value[0].
+        auto separator = algorithm_expression.find_code_unit_offset(u'-');
+        auto algorithm = algorithm_expression.substring_view(0, separator.value_or(algorithm_expression.length_in_code_units()));
 
         // 6. If algorithm is not a valid SRI hash algorithm token, then continue.
         if (!is_valid_sri_hash_algorithm_token(algorithm))
             continue;
 
-        // 7. If hash-expr-token-list[1] exists, set base64-value to hash-expr-token-list[1].
+        // 7. If algorithm-and-value[1] exists, set base64-value to algorithm-and-value[1].
         // INTEROP: A base64url-encoded value contains "-" itself, so like other engines, take everything after the
         //          first "-" as the value.
-        if (hash_expr_token_list.size() > 1)
-            base64_value = hash_expression.substring_view(algorithm.length_in_code_units() + 1);
+        if (separator.has_value())
+            base64_value = algorithm_expression.substring_view(*separator + 1);
+
+        // NB: Integrity metadata uses CSP's base64-value grammar: at least one alphabet character and at most two
+        //     trailing padding characters. https://w3c.github.io/webappsec-csp/#grammardef-base64-value
+        // INTEROP: Firefox validates this grammar; Chromium only checks for an empty digest or invalid alphabet characters.
+        auto base64_data = base64_value;
+        for (size_t padding = 0; padding < 2 && base64_data.ends_with(u'='); ++padding)
+            base64_data = base64_data.substring_view(0, base64_data.length_in_code_units() - 1);
+        if (base64_data.is_empty() || !all_of(base64_data, [](u32 character) {
+                return is_ascii_alphanumeric(character) || character == '+' || character == '/' || character == '-'
+                    || character == '_';
+            }))
+            continue;
 
         // 8. Let metadata be the ordered map «["alg" → algorithm, "val" → base64-value]».
         //    Note: Since no options are defined (see the §3.1 Integrity metadata), a corresponding entry is not set in metadata.
-        //    If options are defined in a future version, hash-with-opt-token-list[1] can be utilized as options.
+        //    If options are defined in a future version, expression-and-options[1] can be utilized as options.
         // AD-HOC: Store algorithm in ASCII lowercase, since later steps look it up in the valid SRI hash algorithm token
         //         set, which only contains lowercase tokens.
         auto metadata = Metadata {
