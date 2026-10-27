@@ -260,6 +260,7 @@ public:
     void set_manual_rendering_opportunities(bool enabled);
     void inject_rendering_opportunity(double frame_time_ms);
     Utf16String frame_scheduler_state() const;
+    void synchronize_compositor();
     void hold_next_frame(Utf16String const& hold);
     Utf16String last_frame_presented_by(DOM::Document&);
     void inject_clock_tick(double frame_time_ms, Optional<double> viewport_scroll_y);

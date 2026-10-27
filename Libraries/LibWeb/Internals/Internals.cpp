@@ -643,6 +643,11 @@ static void let_compositor_take_in_every_rendered_frame(HTML::Window& window)
         compositor_context->synchronize_for_testing();
 }
 
+void Internals::synchronize_compositor()
+{
+    let_compositor_take_in_every_rendered_frame(window());
+}
+
 void Internals::send_text_through_ui_process(Utf16String const& text)
 {
     let_compositor_take_in_every_rendered_frame(window());
