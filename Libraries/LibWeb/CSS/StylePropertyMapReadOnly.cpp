@@ -16,6 +16,8 @@
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/StyleSheetState.h>
+#include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
+#include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShorthandStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/Zoom.h>
@@ -352,6 +354,10 @@ RefPtr<StyleValue const> StylePropertyMapReadOnly::get_style_value(Source& sourc
                     auto value = computed_values->computed_style_value(property_id);
                     if (!value)
                         return nullptr;
+                    // INTEROP: Computed style maps expose zero letter-spacing as normal, matching the legacy CSSOM
+                    //          resolved value.
+                    if (property_id == PropertyID::LetterSpacing && value->is_length() && value->as_length().raw_value() == 0)
+                        return KeywordStyleValue::create(Keyword::Normal);
                     return unscaled_by_zoom(property_id, value.release_nonnull(), computed_values->effective_zoom());
                 };
                 return value_for_property(value_for_property, property.id());

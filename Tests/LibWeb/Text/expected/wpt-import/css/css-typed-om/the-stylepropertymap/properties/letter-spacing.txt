@@ -2,18 +2,17 @@ Harness status: OK
 
 Found 32 tests
 
-29 Pass
-3 Fail
+32 Pass
 Pass	Can set 'letter-spacing' to CSS-wide keywords: initial
 Pass	Can set 'letter-spacing' to CSS-wide keywords: inherit
 Pass	Can set 'letter-spacing' to CSS-wide keywords: unset
 Pass	Can set 'letter-spacing' to CSS-wide keywords: revert
 Pass	Can set 'letter-spacing' to var() references:  var(--A)
-Fail	Can set 'letter-spacing' to the 'normal' keyword: normal
-Fail	Can set 'letter-spacing' to a length: 0px
+Pass	Can set 'letter-spacing' to the 'normal' keyword: normal
+Pass	Can set 'letter-spacing' to a length: 0px
 Pass	Can set 'letter-spacing' to a length: -3.14em
 Pass	Can set 'letter-spacing' to a length: 3.14cm
-Fail	Can set 'letter-spacing' to a length: calc(0px + 0em)
+Pass	Can set 'letter-spacing' to a length: calc(0px + 0em)
 Pass	Can set 'letter-spacing' to a percent: 0%
 Pass	Can set 'letter-spacing' to a percent: -3.14%
 Pass	Can set 'letter-spacing' to a percent: 3.14%
