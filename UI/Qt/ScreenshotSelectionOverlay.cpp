@@ -89,7 +89,7 @@ ScreenshotSelectionOverlay::ScreenshotSelectionOverlay(QImage frame, QWidget* pa
     auto* cancel_button = new QPushButton(tr("Cancel"), instructions);
     cancel_button->setObjectName("ScreenshotSelectionCancelButton");
     cancel_button->setFocusPolicy(Qt::TabFocus);
-    QObject::connect(cancel_button, &QPushButton::clicked, this, [this] { cancel(); });
+    QObject::connect(cancel_button, &QPushButton::clicked, this, [this] { dismiss(); });
     layout->addWidget(cancel_button);
 
     m_buttons = { whole_frame_button, skip_button, cancel_button };
@@ -159,16 +159,17 @@ void ScreenshotSelectionOverlay::skip()
     finish({});
 }
 
-void ScreenshotSelectionOverlay::cancel()
+void ScreenshotSelectionOverlay::dismiss()
 {
     hide();
-    if (on_canceled)
-        on_canceled();
+    if (on_close)
+        on_close();
 }
 
+// The overlay closes before the screenshot is handed on, which may open something that takes the focus.
 void ScreenshotSelectionOverlay::finish(QImage image)
 {
-    hide();
+    dismiss();
     if (on_finished)
         on_finished(AK::move(image));
 }
@@ -269,7 +270,7 @@ void ScreenshotSelectionOverlay::keyPressEvent(QKeyEvent* event)
             use_whole_frame();
         return;
     case Qt::Key_Escape:
-        cancel();
+        dismiss();
         return;
     default:
         QWidget::keyPressEvent(event);

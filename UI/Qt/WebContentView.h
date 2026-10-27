@@ -237,7 +237,7 @@ private:
     void show_crash_report_review(Optional<ByteString> const& hidden_crash_report_name = {});
 
     void start_web_compat_report();
-    void select_screenshot(QImage const& frame, Function<void(QImage)> on_selected);
+    ScreenshotSelectionOverlay& select_screenshot(QImage const& frame);
     QPointer<QWidget> show_transient_overlay(QWidget&);
     void close_transient_overlay(QWidget&, QPointer<QWidget> const& focus_to_restore);
 

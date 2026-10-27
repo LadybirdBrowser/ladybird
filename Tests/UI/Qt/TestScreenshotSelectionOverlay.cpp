@@ -42,14 +42,14 @@ static void send_key(QWidget& widget, Qt::Key key)
 
 struct Result {
     Optional<QImage> image;
-    bool canceled { false };
+    bool closed { false };
 };
 
 static void track(ScreenshotSelectionOverlay& overlay, Result& result)
 {
     result = {};
     overlay.on_finished = [&result](QImage image) { result.image = image; };
-    overlay.on_canceled = [&result] { result.canceled = true; };
+    overlay.on_close = [&result] { result.closed = true; };
 }
 
 TEST_CASE(a_selection_crops_the_frame_in_its_own_pixels)
@@ -124,7 +124,7 @@ TEST_CASE(the_keyboard_takes_the_whole_frame_or_cancels)
         track(overlay, result);
         send_key(overlay, Qt::Key_Escape);
         EXPECT(!result.image.has_value());
-        EXPECT(result.canceled);
+        EXPECT(result.closed);
         EXPECT(!overlay.isVisible());
     }
 }
@@ -213,5 +213,5 @@ TEST_CASE(the_instructions_offer_the_same_choices)
     track(third_overlay, result);
     third_overlay.findChild<QPushButton*>("ScreenshotSelectionCancelButton")->click();
     EXPECT(!result.image.has_value());
-    EXPECT(result.canceled);
+    EXPECT(result.closed);
 }

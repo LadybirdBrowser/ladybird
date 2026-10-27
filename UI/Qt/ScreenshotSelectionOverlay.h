@@ -31,10 +31,10 @@ public:
     void select(QRect);
     void use_whole_frame();
     void skip();
-    void cancel();
+    void dismiss();
 
+    Function<void()> on_close;
     Function<void(QImage)> on_finished;
-    Function<void()> on_canceled;
 
 protected:
     virtual void paintEvent(QPaintEvent*) override;
