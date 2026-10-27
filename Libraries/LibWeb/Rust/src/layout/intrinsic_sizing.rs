@@ -58,12 +58,11 @@ impl ContentSizingScope {
     }
 
     fn enter<R>(&self, callbacks: LayoutPass<'_>, size_content: impl FnOnce(&FormattingContextRun<'_>) -> R) -> R {
-        let root = self.root_cells.materialize_record();
         RunRecords::with_content_inline_sizes_root(
             callbacks,
             self.node,
             callbacks.in_flow_containing_block(self.node),
-            &root,
+            self.root_cells,
             |records, callbacks| {
                 size_content(&FormattingContextRun {
                     records,

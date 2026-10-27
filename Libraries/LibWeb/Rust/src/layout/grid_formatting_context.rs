@@ -3113,7 +3113,7 @@ impl<'pass> GridFormattingContext<'pass> {
             self.run.callbacks,
             subgrid.box_,
             containing_block,
-            &scratch_root,
+            used_values::RootInputCells::capture(&scratch_root),
             |records, callbacks| {
                 let scratch_run = FormattingContextRun {
                     records,

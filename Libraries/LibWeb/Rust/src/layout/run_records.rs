@@ -285,12 +285,13 @@ impl LayoutScratch {
 }
 
 /// The per-run registry of UsedValues records, found through the slot-indexed side table in the
-/// layout stage's scratch. A run holds its root's record itself and allocates every other record
-/// on the scratch's record stack, which releases them when the run returns. The scoped
-/// constructors lend records to the run, so callers cannot extend the registry's lifetime.
+/// layout stage's scratch. A run owns its root's record, built from the input cells its caller
+/// hands it, and allocates every other record on the scratch's record stack, which releases them
+/// when the run returns. The scoped constructors lend records to the run, so callers cannot extend
+/// the registry's lifetime.
 pub(crate) struct RunRecords<'arena> {
     root: Node,
-    root_used: Option<&'arena UsedValues>,
+    root_used: Option<UsedValues>,
     scratch: &'arena LayoutScratch,
     nonce: u64,
     stack_length_at_start: usize,
@@ -320,14 +321,14 @@ impl<'arena> RunRecords<'arena> {
         callbacks: LayoutPass<'arena>,
         root: Node,
         root_containing_block: Node,
-        root_used: &'arena UsedValues,
+        root_cells: used_values::RootInputCells,
         run: impl FnOnce(&Self, LayoutPass<'arena>) -> R,
     ) -> R {
         Self::enter(
             callbacks,
             root,
             root_containing_block,
-            Some(root_used),
+            Some(root_cells),
             ContentSizing::Layout,
             run,
         )
@@ -337,14 +338,14 @@ impl<'arena> RunRecords<'arena> {
         callbacks: LayoutPass<'arena>,
         root: Node,
         root_containing_block: Node,
-        root_used: &'arena UsedValues,
+        root_cells: used_values::RootInputCells,
         run: impl FnOnce(&Self, LayoutPass<'arena>) -> R,
     ) -> R {
         Self::enter(
             callbacks,
             root,
             root_containing_block,
-            Some(root_used),
+            Some(root_cells),
             ContentSizing::RootContributions,
             run,
         )
@@ -354,14 +355,14 @@ impl<'arena> RunRecords<'arena> {
         callbacks: LayoutPass<'arena>,
         root: Node,
         root_containing_block: Node,
-        root_used: &'arena UsedValues,
+        root_cells: used_values::RootInputCells,
         run: impl FnOnce(&Self, LayoutPass<'arena>) -> R,
     ) -> R {
         Self::enter(
             callbacks,
             root,
             root_containing_block,
-            Some(root_used),
+            Some(root_cells),
             ContentSizing::RootContentInlineSizes,
             run,
         )
@@ -380,7 +381,7 @@ impl<'arena> RunRecords<'arena> {
         callbacks: LayoutPass<'arena>,
         root: Node,
         root_containing_block: Node,
-        root_used: Option<&'arena UsedValues>,
+        root_cells: Option<used_values::RootInputCells>,
         content_sizing: ContentSizing,
         run: impl FnOnce(&Self, LayoutPass<'arena>) -> R,
     ) -> R {
@@ -391,7 +392,7 @@ impl<'arena> RunRecords<'arena> {
         let scratch = callbacks.scratch();
         let records = Self {
             root,
-            root_used,
+            root_used: root_cells.map(|cells| cells.materialize_record()),
             scratch,
             nonce: scratch.begin_run(),
             stack_length_at_start: scratch.run_record_stack.length(),
@@ -481,7 +482,7 @@ impl<'arena> RunRecords<'arena> {
 
     pub(crate) fn used_values_if_owned(&self, node: Node) -> Option<&UsedValues> {
         if node == self.root
-            && let Some(root_used) = self.root_used
+            && let Some(root_used) = &self.root_used
         {
             return Some(root_used);
         }
@@ -620,30 +621,34 @@ unsafe fn free_stack_chunk(chunk: NonNull<UsedValues>) {
 mod tests {
     use super::*;
 
+    fn default_root_cells() -> used_values::RootInputCells {
+        used_values::RootInputCells::capture(&UsedValues::default())
+    }
+
     #[test]
     fn nested_runs_leave_their_parents_records_in_place() {
         let mut arena = LayoutNodeArena::new();
         let scratch = LayoutScratch::default();
         let root = arena.allocate_for_test().slot;
         let child = arena.allocate_for_test().slot;
-        let root_used = UsedValues::default();
-        let nested_used = UsedValues::default();
         let parent_nonce = RunRecords::with_root(
             LayoutPass::for_test(&arena, &scratch),
             root,
             NodeSlotId::INVALID,
-            &root_used,
+            default_root_cells(),
             |parent, _| {
+                let root_used: *const UsedValues = parent.used_values(root);
                 let child_used: *const UsedValues = parent.register(child, UsedValues::default());
                 RunRecords::with_root(
                     LayoutPass::for_test(&arena, &scratch),
                     child,
                     root,
-                    &nested_used,
+                    default_root_cells(),
                     |nested, _| {
+                        let nested_used: *const UsedValues = nested.used_values(child);
+                        assert!(!std::ptr::eq(nested_used, child_used));
                         assert!(std::ptr::eq(parent.used_values(child), child_used));
-                        assert!(std::ptr::eq(parent.used_values(root), &raw const root_used));
-                        assert!(std::ptr::eq(nested.used_values(child), &raw const nested_used));
+                        assert!(std::ptr::eq(parent.used_values(root), root_used));
                         assert!(nested.used_values_if_owned(root).is_none());
                         RunRecords::with_unrooted(
                             LayoutPass::for_test(&arena, &scratch),
@@ -653,7 +658,7 @@ mod tests {
                                 let measured: *const UsedValues = measurement.register(child, UsedValues::default());
                                 assert!(std::ptr::eq(measurement.used_values(child), measured));
                                 assert!(std::ptr::eq(parent.used_values(child), child_used));
-                                assert!(std::ptr::eq(nested.used_values(child), &raw const nested_used));
+                                assert!(std::ptr::eq(nested.used_values(child), nested_used));
                             },
                         );
                         assert!(std::ptr::eq(parent.used_values(child), child_used));
@@ -675,12 +680,11 @@ mod tests {
         let child = arena.allocate_for_test().slot;
         let lines = std::sync::Arc::new(crate::layout::inline_content::InlineContent::default());
         let weak_lines = std::sync::Arc::downgrade(&lines);
-        let root_used = UsedValues::default();
         let first_record = RunRecords::with_root(
             LayoutPass::for_test(&arena, &scratch),
             root,
             NodeSlotId::INVALID,
-            &root_used,
+            default_root_cells(),
             |records, _| {
                 let used = records.register(child, UsedValues::default());
                 used.set_finished_line_data(lines);
@@ -692,7 +696,7 @@ mod tests {
             LayoutPass::for_test(&arena, &scratch),
             root,
             NodeSlotId::INVALID,
-            &root_used,
+            default_root_cells(),
             |records, _| std::ptr::from_ref(records.register(child, UsedValues::default())),
         );
         assert_eq!(first_record, second_record);
@@ -721,12 +725,11 @@ mod tests {
         let scratch = LayoutScratch::default();
         let root = arena.allocate_for_test().slot;
         let child = arena.allocate_for_test().slot;
-        let root_used = UsedValues::default();
         RunRecords::with_root(
             LayoutPass::for_test(&arena, &scratch),
             root,
             NodeSlotId::INVALID,
-            &root_used,
+            default_root_cells(),
             |records, _| {
                 records.register(child, UsedValues::default());
             },
@@ -740,12 +743,11 @@ mod tests {
         let mut arena = LayoutNodeArena::new();
         let scratch = LayoutScratch::default();
         let root = arena.allocate_for_test().slot;
-        let root_used = UsedValues::default();
         RunRecords::with_root(
             LayoutPass::for_test(&arena, &scratch),
             root,
             NodeSlotId::INVALID,
-            &root_used,
+            default_root_cells(),
             |records, _| {
                 records.register(root, UsedValues::default());
             },
@@ -759,7 +761,6 @@ mod tests {
         let scratch = LayoutScratch::default();
         let root = arena.allocate_for_test().slot;
         let child = arena.allocate_for_test().slot;
-        let root_used = UsedValues::default();
         RunRecords::with_unrooted(
             LayoutPass::for_test(&arena, &scratch),
             root,
@@ -769,7 +770,7 @@ mod tests {
                     LayoutPass::for_test(&arena, &scratch),
                     root,
                     NodeSlotId::INVALID,
-                    &root_used,
+                    default_root_cells(),
                     |_, _| {
                         parent.register(child, UsedValues::default());
                     },
@@ -784,21 +785,20 @@ mod tests {
         let scratch = LayoutScratch::default();
         let root = arena.allocate_for_test().slot;
         let child = arena.allocate_for_test().slot;
-        let root_used = UsedValues::default();
-        let nested_used = UsedValues::default();
         RunRecords::with_root(
             LayoutPass::for_test(&arena, &scratch),
             root,
             NodeSlotId::INVALID,
-            &root_used,
+            default_root_cells(),
             |parent, _| {
+                let root_used: *const UsedValues = parent.used_values(root);
                 let child_used: *const UsedValues = parent.register(child, UsedValues::default());
                 let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                     RunRecords::with_root(
                         LayoutPass::for_test(&arena, &scratch),
                         child,
                         root,
-                        &nested_used,
+                        default_root_cells(),
                         |nested, _| {
                             nested.register(root, UsedValues::default());
                             panic!("abort the nested measurement");
@@ -806,7 +806,7 @@ mod tests {
                     );
                 }));
                 assert!(result.is_err());
-                assert!(std::ptr::eq(parent.used_values(root), &raw const root_used));
+                assert!(std::ptr::eq(parent.used_values(root), root_used));
                 assert!(std::ptr::eq(parent.used_values(child), child_used));
             },
         );
