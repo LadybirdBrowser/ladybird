@@ -16,6 +16,7 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HighResolutionTime/EpochTimeStamp.h>
+#include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::NotificationsAPI {
 
@@ -37,6 +38,8 @@ struct NotificationOptions {
     Optional<Utf16String> image;
     Optional<Utf16String> icon;
     Optional<Utf16String> badge;
+    // FIXME: Validate and normalize the pattern (create step 15); only its presence matters until then.
+    Optional<Variant<WebIDL::UnsignedLong, Vector<WebIDL::UnsignedLong>>> vibrate;
     Optional<HighResolutionTime::EpochTimeStamp> timestamp;
     bool renotify { false };
     Optional<bool> silent;
@@ -110,12 +113,10 @@ public:
 
     static Bindings::NotificationPermission permission();
 
-    static unsigned long max_actions()
-    {
-        // FIXME: Change the number of max_actions supported when actions will actually be supported
-        // It seems like Chrome is 2, Firefox is undefined, Safari is undefined
-        return 0;
-    }
+    // https://notifications.spec.whatwg.org/#maximum-number-of-actions-supported
+    // Two is what both desktop notification platforms show room for; persistent notifications, the only kind that
+    // carries actions, aren't supported yet.
+    static unsigned long max_actions() { return 2; }
 
     String const& title() const { return m_notification.title; }
     NotificationDirection direction() const { return m_notification.direction; }

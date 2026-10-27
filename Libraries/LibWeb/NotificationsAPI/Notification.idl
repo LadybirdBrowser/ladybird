@@ -42,7 +42,7 @@ dictionary NotificationOptions {
     USVString image;
     USVString icon;
     USVString badge;
-    // FIXME: VibratePattern vibrate;
+    VibratePattern vibrate;
     EpochTimeStamp timestamp;
     boolean renotify = false;
     boolean? silent = null;
@@ -50,6 +50,9 @@ dictionary NotificationOptions {
     any data = null;
     sequence<NotificationAction> actions = [];
 };
+
+// https://w3c.github.io/vibration/#idl-def-vibratepattern
+typedef (unsigned long or sequence<unsigned long>) VibratePattern;
 
 enum NotificationPermission {
     "default",
