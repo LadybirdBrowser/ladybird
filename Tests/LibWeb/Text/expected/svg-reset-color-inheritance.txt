@@ -1,5 +1,5 @@
-initial stop-color: currentcolor
-initial flood-color: currentcolor
+initial stop-color: rgb(0, 0, 255)
+initial flood-color: rgb(0, 0, 255)
 block stop-color parent: rgb(255, 0, 0)
 block stop-color inherited: rgb(0, 0, 255)
 block stop-color parent color changed: rgb(0, 0, 255)
