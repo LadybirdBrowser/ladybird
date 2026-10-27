@@ -56,15 +56,6 @@ public:
     LengthUnit unit() const { return m_unit; }
     Utf16FlyString unit_name() const { return CSS::to_string(m_unit); }
 
-    // What resolving container-relative lengths would mark on the DOM, kept for a caller that must not write there
-    // while it resolves them, as a layout pass must not.
-    struct DeferredContainerQueryMarks {
-        GC::Ptr<DOM::Element const> width_query_container;
-        GC::Ptr<DOM::Element const> height_query_container;
-        bool width_query_container_awaits_layout { false };
-        bool height_query_container_awaits_layout { false };
-    };
-
     struct ResolutionContext {
         [[nodiscard]] static ResolutionContext for_document(DOM::Document const&);
         [[nodiscard]] static ResolutionContext for_element(DOM::AbstractElement const&);
@@ -90,16 +81,6 @@ public:
             return m_did_resolve_viewport_relative_length;
         }
 
-        void defer_container_query_marks(DeferredContainerQueryMarks& marks) const
-        {
-            m_deferred_container_query_marks = &marks;
-        }
-
-        [[nodiscard]] DeferredContainerQueryMarks* deferred_container_query_marks() const
-        {
-            return m_deferred_container_query_marks;
-        }
-
         void record_viewport_relative_length_resolution() const
         {
             if (m_did_resolve_viewport_relative_length)
@@ -109,7 +90,6 @@ public:
         void visit_edges(GC::Cell::Visitor&) const;
 
         mutable bool* m_did_resolve_viewport_relative_length { nullptr };
-        mutable DeferredContainerQueryMarks* m_deferred_container_query_marks { nullptr };
     };
 
     ALWAYS_INLINE double to_px_without_rounding(ResolutionContext const& context) const

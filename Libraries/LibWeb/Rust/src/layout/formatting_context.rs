@@ -1153,8 +1153,6 @@ pub struct FfiLayoutHostCallbacks {
     /// them.
     deliver_commit_messages:
         extern "C" fn(*mut c_void, &crate::render_state::BegunRead, *const commit::FfiCommitMessage, usize),
-    /// What a container-relative length on the element with the given identity resolves against.
-    container_length_bases: extern "C" fn(*mut c_void, u32) -> svg_formatting_context::FfiContainerLengthBases,
     /// The scroll containers a finished layout tree build gave a style, each with whether it is a
     /// scroll snap container.
     take_built_scroll_containers:
@@ -1205,14 +1203,6 @@ impl FfiLayoutHostCallbacks {
         }
         // The document registered the host with the arena and outlives this call.
         (self.take_built_scroll_containers)(self.context, read, built.as_ptr(), built.len());
-    }
-
-    /// The one question a layout pass may ask the document while it runs.
-    pub(crate) fn container_length_bases_query(
-        &self,
-        _: &crate::stage::MainThread,
-    ) -> layout_pass::ContainerLengthBasesQuery {
-        layout_pass::ContainerLengthBasesQuery::new(self.context, self.container_length_bases)
     }
 }
 
@@ -3133,8 +3123,8 @@ pub(crate) fn lay_out_boundary(
     .run(state)
 }
 
-/// What every layout stage of a round reads besides the arena: the one question a pass may ask
-/// the document, and the document's viewport and quirks mode as the round began.
+/// What every layout stage of a round reads besides the arena: whether a pass resolves container
+/// lengths, and the document's viewport and quirks mode as the round began.
 #[derive(Clone, Copy)]
 pub(crate) struct LayoutStageFacts {
     pub(crate) container_length_bases: layout_pass::ContainerLengthBasesQuery,
@@ -3144,8 +3134,8 @@ pub(crate) struct LayoutStageFacts {
 }
 
 /// What a layout stage computes from: the arena and the layout stage's scratch, borrowed for the
-/// pass, the one question the pass may ask the document, and the facts of the pass. It holds no
-/// main thread token, so nothing the stage calls can reach the rest of the host.
+/// pass, whether the pass resolves container lengths, and the facts of the pass. It holds no main
+/// thread token, so nothing the stage calls can reach the host.
 struct LayoutStageInput<'a> {
     arena: &'a LayoutNodeArena,
     scratch: &'a super::run_records::LayoutScratch,
@@ -3503,13 +3493,6 @@ mod baseline_tests {
     use crate::layout::node_data::{NodeConstructionFacts, NodeKind, StylePayloadsRef};
     use crate::layout::run_records::LayoutScratch;
 
-    unsafe extern "C" fn unused_container_bases(
-        _: *mut c_void,
-        _: u32,
-    ) -> svg_formatting_context::FfiContainerLengthBases {
-        unreachable!("baseline derivation does not resolve container lengths")
-    }
-
     #[test]
     fn block_derivation_preserves_flex_last_baseline() {
         check_block_derivation(keyword::FLEX);
@@ -3558,7 +3541,7 @@ mod baseline_tests {
         let callbacks = LayoutPass::new(
             &arena,
             &scratch,
-            layout_pass::ContainerLengthBasesQuery::new(std::ptr::null_mut(), unused_container_bases).sealed(),
+            layout_pass::ContainerLengthBasesQuery::SEALED,
             CssPixels::from_integer(800),
             CssPixels::from_integer(600),
             false,

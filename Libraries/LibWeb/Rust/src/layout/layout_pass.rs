@@ -6,50 +6,54 @@
 
 use super::*;
 
-/// The one question a layout pass still asks the document while it runs: what the container-relative
-/// lengths on an element resolve against. The answer reads the committed size of the element's query
-/// container, so it cannot be published ahead of the pass, and it writes nothing in the document: the
-/// dependencies it finds reach the document as commit messages. A pass holds this and no other part
-/// of the host. Every other host call takes the main thread token, which a
-/// pass is not handed, so a pass has no way to make any other call into the document.
+/// Whether a layout pass resolves the container-relative lengths on an element. Style answers what they
+/// resolve against from the committed size of the element's query container, and writes nothing in the
+/// document: the dependencies a pass finds reach the document as commit messages. A pass that runs beside
+/// the host or on a clock leaves them to the host, which lays the node out again.
 #[derive(Clone, Copy)]
 pub(crate) struct ContainerLengthBasesQuery {
-    context: *mut c_void,
-    /// The query, or none for a pass that runs beside the host and cannot ask it.
-    query: Option<unsafe extern "C" fn(*mut c_void, u32) -> svg_formatting_context::FfiContainerLengthBases>,
+    resolves: bool,
 }
 
-// SAFETY: A layout job calls the query while the host waits for the job's answer, so the document the C++ side reads
-// changes under neither of them.
-unsafe impl Send for ContainerLengthBasesQuery {}
-
 impl ContainerLengthBasesQuery {
-    /// Only the layout host makes one, for a caller holding the main thread token.
-    pub(super) fn new(
-        context: *mut c_void,
-        query: unsafe extern "C" fn(*mut c_void, u32) -> svg_formatting_context::FfiContainerLengthBases,
-    ) -> Self {
-        Self {
-            context,
-            query: Some(query),
-        }
-    }
+    pub(crate) const RESOLVING: Self = Self { resolves: true };
+    pub(crate) const SEALED: Self = Self { resolves: false };
 
-    /// The query for a pass that runs beside the host, which answers nothing.
-    pub(crate) fn sealed(self) -> Self {
-        Self {
-            context: std::ptr::null_mut(),
-            query: None,
-        }
-    }
-
-    /// What `cqw` and `cqh` are 100 of for `element`, where the pass can ask the host.
+    /// What `cqw` and `cqh` are 100 of for `element`, where the pass resolves them: per axis, the committed
+    /// content size of its nearest size query container, or the viewport's size without one.
     pub(crate) fn bases(
         self,
+        arena: &LayoutNodeArena,
         element: crate::css::style::tree::StyleNodeID,
+        viewport_width: f64,
+        viewport_height: f64,
     ) -> Option<svg_formatting_context::FfiContainerLengthBases> {
-        // SAFETY: The document registered the query with the arena and outlives the pass, which the host waits for.
-        self.query.map(|query| unsafe { query(self.context, element.raw()) })
+        if !self.resolves || !arena.has_style_engine() {
+            return None;
+        }
+        Some(arena.with_style_store(|engine| {
+            let width = engine.container_unit_basis(element, true);
+            let height = engine.container_unit_basis(element, false);
+            let style_node_of = |container: Option<crate::css::style::tree::StyleNodeID>| {
+                container.map_or(0, |container| container.raw())
+            };
+            svg_formatting_context::FfiContainerLengthBases {
+                width: if width.container.is_some() {
+                    width.basis
+                } else {
+                    viewport_width
+                },
+                height: if height.container.is_some() {
+                    height.basis
+                } else {
+                    viewport_height
+                },
+                width_query_container: style_node_of(width.container),
+                height_query_container: style_node_of(height.container),
+                width_query_container_awaits_layout: width.container_has_no_box,
+                height_query_container_awaits_layout: height.container_has_no_box,
+            }
+        }))
     }
 }
 
@@ -102,10 +106,7 @@ impl<'arena> LayoutPass<'arena> {
         Self::new(
             arena,
             scratch,
-            ContainerLengthBasesQuery {
-                context: std::ptr::null_mut(),
-                query: None,
-            },
+            ContainerLengthBasesQuery::SEALED,
             CssPixels::default(),
             CssPixels::default(),
             false,
