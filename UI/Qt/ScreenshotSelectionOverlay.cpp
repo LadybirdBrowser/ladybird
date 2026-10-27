@@ -21,15 +21,15 @@
 #include <QPainter>
 #include <QPushButton>
 #include <QTimer>
+#include <QVBoxLayout>
 #include <QtMath>
 
 namespace Ladybird {
 
 static constexpr int INSTRUCTIONS_MARGIN = 16;
-static constexpr int INSTRUCTIONS_TEXT_INSET = 16;
-static constexpr int INSTRUCTIONS_BUTTON_INSET = 12;
+static constexpr int INSTRUCTIONS_PADDING = 16;
 static constexpr int INSTRUCTIONS_BUTTON_SPACING = 8;
-static constexpr int INSTRUCTIONS_TEXT_SPACING = 24;
+static constexpr int INSTRUCTIONS_ROW_SPACING = 12;
 static constexpr int DIMMING_ALPHA = 110;
 static constexpr int SCROLL_SETTLE_TIME_MS = 100;
 static constexpr int MAXIMUM_SCROLL_ANIMATION_TIME_MS = 300;
@@ -75,35 +75,41 @@ ScreenshotSelectionOverlay::ScreenshotSelectionOverlay(QImage frame, QWidget* pa
     instructions->setCursor(Qt::OpenHandCursor);
     instructions->installEventFilter(this);
     cast_popover_shadow(*instructions);
-    // The buttons keep the same distance from the top, bottom and end of the card, and the text starts a little further
-    // in. It gives up its width before the buttons do in a narrow tab.
-    auto* layout = new QHBoxLayout(instructions);
-    layout->setContentsMargins(INSTRUCTIONS_TEXT_INSET, INSTRUCTIONS_BUTTON_INSET, INSTRUCTIONS_BUTTON_INSET, INSTRUCTIONS_BUTTON_INSET);
-    layout->setSpacing(INSTRUCTIONS_BUTTON_SPACING);
+    // The text goes above the buttons, with the close button beside it like a dialog's, so that it keeps the card's
+    // width in a narrow tab rather than being squeezed into a column beside the buttons.
+    auto* layout = new QVBoxLayout(instructions);
+    layout->setContentsMargins(INSTRUCTIONS_PADDING, INSTRUCTIONS_PADDING, INSTRUCTIONS_PADDING, INSTRUCTIONS_PADDING);
+    layout->setSpacing(INSTRUCTIONS_ROW_SPACING);
+    auto* text_layout = new QHBoxLayout;
+    text_layout->setSpacing(INSTRUCTIONS_BUTTON_SPACING);
     auto text = purpose == Purpose::ReportIssue ? tr("Drag to select the part of the page that shows the problem.") : tr("Drag to select the part of the page to save.");
-    layout->addWidget(new InstructionsLabel(text, instructions), 1);
-    layout->addSpacing(INSTRUCTIONS_TEXT_SPACING - INSTRUCTIONS_BUTTON_SPACING);
+    text_layout->addWidget(new InstructionsLabel(text, instructions), 1);
+    layout->addLayout(text_layout);
+    auto* button_layout = new QHBoxLayout;
+    button_layout->setSpacing(INSTRUCTIONS_BUTTON_SPACING);
+    button_layout->addStretch();
+    layout->addLayout(button_layout);
 
-    auto add_button = [&](QString const& text, char const* object_name, auto on_click) {
+    auto add_button = [&](QHBoxLayout& row, QString const& text, char const* object_name, auto on_click) {
         auto* button = new QPushButton(text, instructions);
         button->setObjectName(object_name);
         button->setFocusPolicy(Qt::TabFocus);
         button->setCursor(Qt::ArrowCursor);
         // The macOS style lays out a button by the bezel it would draw, which sits higher in the button than this style
-        // sheet's border does. Laying the buttons out by their whole rect keeps them centered in the card.
+        // sheet's border does. Laying the buttons out by their whole rect keeps them in line with the text and the padding.
         button->setAttribute(Qt::WA_LayoutUsesWidgetRect);
         QObject::connect(button, &QPushButton::clicked, this, AK::move(on_click));
-        layout->addWidget(button);
+        row.addWidget(button, 0, Qt::AlignTop);
         m_buttons.append(button);
         return button;
     };
-    add_button(tr("Capture Visible Page"), "ScreenshotSelectionWholeFrameButton", [this] { use_whole_frame(); });
+    add_button(*button_layout, tr("Capture Visible Page"), "ScreenshotSelectionWholeFrameButton", [this] { use_whole_frame(); });
     // A report can go without a screenshot, and a saved screenshot can show all of the page rather than what is visible.
     if (purpose == Purpose::ReportIssue)
-        add_button(tr("Continue Without Screenshot"), "ScreenshotSelectionSkipButton", [this] { skip(); });
+        add_button(*button_layout, tr("Continue Without Screenshot"), "ScreenshotSelectionSkipButton", [this] { skip(); });
     else
-        add_button(tr("Capture Full Page"), "ScreenshotSelectionFullPageButton", [this] { use_full_page(); });
-    m_close_button = add_button({}, "ScreenshotSelectionCancelButton", [this] { dismiss(); });
+        add_button(*button_layout, tr("Capture Full Page"), "ScreenshotSelectionFullPageButton", [this] { use_full_page(); });
+    m_close_button = add_button(*text_layout, {}, "ScreenshotSelectionCancelButton", [this] { dismiss(); });
     m_close_button->setToolTip(tr("Close"));
     m_close_button->setAccessibleName(tr("Close"));
 
