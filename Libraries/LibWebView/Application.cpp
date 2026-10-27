@@ -520,102 +520,6 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
 
     m_stats_log = TRY(Core::StatsLog::create(stats_log_directory, "Ladybird"sv));
 
-#if !defined(AK_OS_ANDROID)
-    ProfileSelection profile_selection;
-    if (force_new_process) {
-        if (profile_name.has_value() || profile_path.has_value() || temporary_profile)
-            return Error::from_string_literal("--force-new-process cannot be combined with another profile selector");
-        warnln("--force-new-process is deprecated; using --temporary-profile");
-        temporary_profile = true;
-    }
-    if (profile_name.has_value())
-        profile_selection.name = profile_name->to_byte_string();
-    if (profile_path.has_value())
-        profile_selection.path = profile_path->to_byte_string();
-    // Naming a profile is an explicit choice and wins; otherwise the app decides whether it wants a throwaway one.
-    if (!temporary_profile && !profile_name.has_value() && !profile_path.has_value())
-        temporary_profile = should_use_temporary_profile_by_default();
-    profile_selection.temporary = temporary_profile;
-#endif
-
-    ProfileRoots profile_roots {
-        .config = Core::StandardPaths::config_directory(),
-        .data = Core::StandardPaths::user_data_directory(),
-        .cache = Core::StandardPaths::cache_directory(),
-        .runtime = TRY(Core::StandardPaths::runtime_directory()),
-        .temporary = Core::StandardPaths::tempfile_directory(),
-    };
-#if defined(AK_OS_WINDOWS)
-    // NB: These StandardPaths values already contain "Ladybird" on Windows.
-    //     Use their parents as the platform roots for profile layouts.
-    profile_roots.data = LexicalPath { profile_roots.data }.parent().string();
-    profile_roots.cache = LexicalPath { profile_roots.cache }.parent().string();
-#endif
-#if defined(AK_OS_ANDROID)
-    m_profile = TRY(Profile::create_legacy(profile_roots));
-#else
-    m_profile = TRY(Profile::create(profile_selection, profile_roots));
-#endif
-
-    // Browsers launched by WebDriver are driven directly and must never join an existing browser process. A browser
-    // that logs process statistics must not join one either, since that browser would not sample them.
-    bool coordinate_browser_process = !headless_mode.has_value() && !webdriver_browser_endpoint.has_value() && !m_stats_log && should_coordinate_browser_process();
-
-    // Synchronous IPC used to forward URLs to an existing browser process requires an event loop.
-    if (coordinate_browser_process) {
-        m_browser_options.headless_mode = headless_mode;
-        m_event_loop = &create_platform_event_loop();
-    }
-
-    auto profile_identity = Profile::routing_identifier(profile().paths().identity);
-#if defined(AK_OS_MACOS)
-    auto mach_process_name = ByteString::formatted("Ladybird-{}", profile_identity);
-    m_mach_port_server = make<IPC::MachBootstrapListener>(mach_server_name_for_process(mach_process_name, Core::System::getpid()));
-    set_mach_server_name(m_mach_port_server->server_port_name());
-
-    m_mach_port_server->on_bootstrap_request = [this](IPC::MachBootstrapListener::BootstrapRequest request) {
-        auto result = m_transport_bootstrap_server.handle_bootstrap_request(request.pid, move(request.reply_port));
-        if (result.is_error()) {
-            dbgln("Unable to bootstrap helper process {}: {}", request.pid, result.error());
-            return;
-        }
-        result.release_value().visit(
-            [this, pid = request.pid, task_name_port = move(request.task_name_port)](IPC::TransportBootstrapMachServer::ChildTransportHandled) mutable {
-                // The child sends its task name port before Process::spawn() returns, so it cannot be added to the process
-                // manager yet. Install the port once control returns to the browser event loop.
-                VERIFY(m_event_loop);
-                m_event_loop->deferred_invoke([this, pid, task_name_port = move(task_name_port)]() mutable {
-                    set_process_task_name_port(pid, move(task_name_port));
-                });
-            },
-            [this](IPC::TransportBootstrapMachServer::OnDemandTransport& transport) {
-                if (!m_on_browser_process_transport)
-                    return;
-
-                VERIFY(m_event_loop);
-                m_event_loop->deferred_invoke([this, transport = move(transport.ports)]() mutable {
-                    if (!m_on_browser_process_transport)
-                        return;
-                    m_on_browser_process_transport(make<IPC::Transport>(move(transport.receive_right), move(transport.send_right)));
-                });
-            });
-    };
-#endif
-
-    m_browser_process = make<BrowserProcess>();
-    if (coordinate_browser_process) {
-        auto disposition = TRY(m_browser_process->connect(raw_urls, new_window ? NewWindow::Yes : NewWindow::No, profile().paths().runtime, profile_identity));
-        if (disposition == BrowserProcess::ProcessDisposition::ExitProcess) {
-            m_should_exit_after_profile_coordination = true;
-            return {};
-        }
-    }
-
-    // Test results must not depend on the languages of the machine running the tests.
-    auto platform_languages = enable_test_mode ? Vector<String> {} : platform_preferred_languages();
-    m_settings = make<Settings>(Settings::create(LexicalPath::join(profile().paths().config, "Settings.json"sv).string(), move(platform_languages)));
-    m_bookmark_store = make<BookmarkStore>(BookmarkStore::create(LexicalPath::join(profile().paths().config, "Bookmarks.json"sv).string()));
-
     if (!dns_server_port.has_value())
         dns_server_port = use_dns_over_tls ? 853 : 53;
 
@@ -643,14 +547,13 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         return Error::from_string_literal("--profile-output requires --profile-tool cpu");
 
     m_explicit_content_blocker_list_paths = move(content_blocker_list_paths);
-    m_content_blocker_lists_directory = LexicalPath::join(profile().paths().data, "ContentBlocking/Lists"sv).string();
 
     // Disable site isolation when debugging WebContent. Otherwise, the process swap may interfere with the gdb session.
     if (debug_process_types.contains_slow(ProcessType::WebContent))
         site_isolation_mode = SiteIsolationMode::Disabled;
 
     m_browser_options = {
-        .urls = sanitize_urls(raw_urls),
+        .urls = {},
         .raw_urls = move(raw_urls),
         .headless_mode = headless_mode,
         .new_window = new_window ? NewWindow::Yes : NewWindow::No,
@@ -671,7 +574,6 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         .disable_sandbox = disable_sandbox ? DisableSandbox::Yes : DisableSandbox::No,
         .force_video_decoder_server = force_video_decoder_server ? ForceVideoDecoderServer::Yes : ForceVideoDecoderServer::No,
     };
-    rebuild_content_blocker_list_paths();
 
     if (screenshot_delay.has_value())
         m_browser_options.screenshot_delay = *screenshot_delay;
@@ -691,7 +593,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
 
     m_request_server_options = {
         .certificates = move(certificates),
-        .cache_path = profile().paths().cache,
+        .cache_path = {},
         .http_disk_cache_mode = http_disk_cache_mode,
         .resource_substitution_map_path = resource_substitution_map_path.has_value() ? Optional<ByteString> { *resource_substitution_map_path } : OptionalNone {},
         .proxy_configuration = HTTP::ProxyConfiguration::from_environment(),
@@ -699,7 +601,6 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     };
 
     m_web_content_options = {
-        .cache_path = profile().paths().cache,
         .user_agent_preset = move(user_agent_preset),
         .is_test_mode = enable_test_mode ? IsTestMode::Yes : IsTestMode::No,
         .log_all_js_exceptions = log_all_js_exceptions ? LogAllJSExceptions::Yes : LogAllJSExceptions::No,
@@ -718,6 +619,39 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     };
 
     create_platform_options(m_browser_options, m_request_server_options, m_web_content_options);
+    TRY(create_profile(profile_name, profile_path, force_new_process, temporary_profile));
+
+    // Browsers launched by WebDriver are driven directly and must never join an existing browser process. A browser
+    // that logs process statistics must not join one either, since that browser would not sample them.
+    bool coordinate_browser_process = !headless_mode.has_value() && !webdriver_browser_endpoint.has_value() && !m_stats_log && should_coordinate_browser_process();
+
+    // Synchronous IPC used to forward URLs to an existing browser process requires an event loop.
+    if (coordinate_browser_process)
+        m_event_loop = &create_platform_event_loop();
+
+    auto profile_identity = Profile::routing_identifier(profile().paths().identity);
+    create_mach_port_server(profile_identity);
+
+    m_browser_process = make<BrowserProcess>();
+    if (coordinate_browser_process) {
+        auto disposition = TRY(m_browser_process->connect(m_browser_options.raw_urls, m_browser_options.new_window, profile().paths().runtime, profile_identity));
+        if (disposition == BrowserProcess::ProcessDisposition::ExitProcess) {
+            m_should_exit_after_profile_coordination = true;
+            return {};
+        }
+    }
+
+    // Test results must not depend on the languages of the machine running the tests.
+    auto platform_languages = enable_test_mode ? Vector<String> {} : platform_preferred_languages();
+    m_settings = make<Settings>(Settings::create(LexicalPath::join(profile().paths().config, "Settings.json"sv).string(), move(platform_languages)));
+    m_bookmark_store = make<BookmarkStore>(BookmarkStore::create(LexicalPath::join(profile().paths().config, "Bookmarks.json"sv).string()));
+
+    m_browser_options.urls = sanitize_urls(m_browser_options.raw_urls);
+    m_request_server_options.cache_path = profile().paths().cache;
+    m_web_content_options.cache_path = profile().paths().cache;
+
+    m_content_blocker_lists_directory = LexicalPath::join(profile().paths().data, "ContentBlocking/Lists"sv).string();
+    rebuild_content_blocker_list_paths();
 
     if (!m_settings->first_run_complete() && !m_browser_options.headless_mode.has_value()
         && !m_browser_options.webdriver_browser_endpoint.has_value() && m_web_content_options.is_test_mode == IsTestMode::No) {
@@ -771,6 +705,87 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     initialize_actions();
 
     return {};
+}
+
+ErrorOr<void> Application::create_profile([[maybe_unused]] Optional<StringView> profile_name, [[maybe_unused]] Optional<StringView> profile_path, [[maybe_unused]] bool force_new_process, [[maybe_unused]] bool temporary_profile)
+{
+#if !defined(AK_OS_ANDROID)
+    ProfileSelection profile_selection { .temporary = temporary_profile };
+
+    if (force_new_process) {
+        if (profile_name.has_value() || profile_path.has_value() || temporary_profile)
+            return Error::from_string_literal("--force-new-process cannot be combined with another profile selector");
+        warnln("--force-new-process is deprecated; using --temporary-profile");
+        profile_selection.temporary = true;
+    }
+
+    if (profile_name.has_value())
+        profile_selection.name = profile_name->to_byte_string();
+    if (profile_path.has_value())
+        profile_selection.path = profile_path->to_byte_string();
+
+    // Naming a profile is an explicit choice and wins; otherwise the app decides whether it wants a throwaway one.
+    if (!profile_selection.temporary && !profile_name.has_value() && !profile_path.has_value())
+        profile_selection.temporary = should_use_temporary_profile_by_default();
+#endif
+
+    ProfileRoots profile_roots {
+        .config = Core::StandardPaths::config_directory(),
+        .data = Core::StandardPaths::user_data_directory(),
+        .cache = Core::StandardPaths::cache_directory(),
+        .runtime = TRY(Core::StandardPaths::runtime_directory()),
+        .temporary = Core::StandardPaths::tempfile_directory(),
+    };
+#if defined(AK_OS_WINDOWS)
+    // These StandardPaths values already contain "Ladybird" on Windows. Use their parents as the platform roots for profile layouts.
+    profile_roots.data = LexicalPath { profile_roots.data }.parent().string();
+    profile_roots.cache = LexicalPath { profile_roots.cache }.parent().string();
+#endif
+
+#if defined(AK_OS_ANDROID)
+    m_profile = TRY(Profile::create_legacy(profile_roots));
+#else
+    m_profile = TRY(Profile::create(profile_selection, profile_roots));
+#endif
+
+    return {};
+}
+
+void Application::create_mach_port_server([[maybe_unused]] ByteString const& profile_identity)
+{
+#if defined(AK_OS_MACOS)
+    auto mach_process_name = ByteString::formatted("Ladybird-{}", profile_identity);
+    m_mach_port_server = make<IPC::MachBootstrapListener>(mach_server_name_for_process(mach_process_name, Core::System::getpid()));
+    set_mach_server_name(m_mach_port_server->server_port_name());
+
+    m_mach_port_server->on_bootstrap_request = [this](IPC::MachBootstrapListener::BootstrapRequest request) {
+        auto result = m_transport_bootstrap_server.handle_bootstrap_request(request.pid, move(request.reply_port));
+        if (result.is_error()) {
+            dbgln("Unable to bootstrap helper process {}: {}", request.pid, result.error());
+            return;
+        }
+        result.release_value().visit(
+            [this, pid = request.pid, task_name_port = move(request.task_name_port)](IPC::TransportBootstrapMachServer::ChildTransportHandled) mutable {
+                // The child sends its task name port before Process::spawn() returns, so it cannot be added to the process
+                // manager yet. Install the port once control returns to the browser event loop.
+                VERIFY(m_event_loop);
+                m_event_loop->deferred_invoke([this, pid, task_name_port = move(task_name_port)]() mutable {
+                    set_process_task_name_port(pid, move(task_name_port));
+                });
+            },
+            [this](IPC::TransportBootstrapMachServer::OnDemandTransport& transport) {
+                if (!m_on_browser_process_transport)
+                    return;
+
+                VERIFY(m_event_loop);
+                m_event_loop->deferred_invoke([this, transport = move(transport.ports)]() mutable {
+                    if (!m_on_browser_process_transport)
+                        return;
+                    m_on_browser_process_transport(make<IPC::Transport>(move(transport.receive_right), move(transport.send_right)));
+                });
+            });
+    };
+#endif
 }
 
 ByteString Application::content_blocker_list_path(StringView identifier) const
