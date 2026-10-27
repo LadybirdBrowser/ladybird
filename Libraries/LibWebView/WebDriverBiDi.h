@@ -11,6 +11,7 @@
 #include <AK/HashTable.h>
 #include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
+#include <AK/OwnPtr.h>
 #include <AK/String.h>
 #include <AK/Utf16String.h>
 #include <AK/Vector.h>
@@ -24,6 +25,7 @@
 namespace WebView {
 
 class WebDriverBrowserConnection;
+class WebDriverBiDiNetwork;
 
 // https://w3c.github.io/webdriver-bidi/
 // NB: The browser process runs the commands of a BiDi session that involve navigables, and routes those that run in the
@@ -152,6 +154,8 @@ private:
 
     HashTable<String> m_enabled_events;
     Web::WebDriver::BiDiSessionState m_session_state;
+
+    OwnPtr<WebDriverBiDiNetwork> m_network;
 
     u64 m_next_content_command_id;
     HashMap<u64, CommandResult> m_pending_content_commands;
