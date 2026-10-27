@@ -13,8 +13,10 @@
 #include <LibURL/Parser.h>
 #include <LibWebCommon/HTML/AutoplayPolicy.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/BrowsingSession.h>
 #include <LibWebView/CrashReport.h>
 #include <LibWebView/CrashReportStore.h>
+#include <LibWebView/PermissionManager.h>
 #include <LibWebView/SearchEngine.h>
 #include <LibWebView/WebUI/SettingsUI.h>
 
@@ -49,8 +51,32 @@ static bool should_show_config_variable(ConfigVariableID id)
     return true;
 }
 
+SettingsUISitePermissionsObserver::SettingsUISitePermissionsObserver(SettingsUI& settings_ui)
+    : m_settings_ui(settings_ui)
+    , m_manager(*Application::the().default_session().permission_manager)
+{
+    m_manager->register_observer(*this);
+}
+
+// The settings page can outlive the browsing session at shutdown.
+SettingsUISitePermissionsObserver::~SettingsUISitePermissionsObserver()
+{
+    if (auto* manager = m_manager.ptr())
+        manager->unregister_observer(*this);
+}
+
+void SettingsUISitePermissionsObserver::permissions_changed(PermissionManager const&)
+{
+    m_settings_ui.broadcast_settings_change();
+}
+
 void SettingsUI::register_interfaces()
 {
+    m_site_permissions_observer = make<SettingsUISitePermissionsObserver>(*this);
+
+    register_interface("setSitePermission"sv, [this](auto const& data) {
+        set_site_permission(data);
+    });
     register_interface("loadFeatures"sv, [this](auto const&) {
         load_features();
     });
@@ -200,6 +226,30 @@ void SettingsUI::load_features()
 JsonObject SettingsUI::serialize_settings() const
 {
     auto settings = Application::settings().serialize_json();
+
+    // The sites the user allowed or blocked, for each permission.
+    JsonObject site_permissions;
+    for (auto name : { Web::Permissions::PermissionName::Geolocation, Web::Permissions::PermissionName::Microphone }) {
+        JsonArray sites;
+        for (auto const& site : Application::the().default_session().permission_manager->site_decisions(name)) {
+            JsonObject entry;
+            entry.set("origin"sv, site.origin.serialize());
+            switch (site.decision) {
+            case PermissionDecision::Allow:
+                entry.set("decision"sv, "allow"_string);
+                break;
+            case PermissionDecision::AllowOnce:
+                entry.set("decision"sv, "allow-once"_string);
+                break;
+            case PermissionDecision::Block:
+                entry.set("decision"sv, "block"_string);
+                break;
+            }
+            sites.must_append(move(entry));
+        }
+        site_permissions.set(Web::Permissions::to_string(name), move(sites));
+    }
+    settings.as_object().set("sitePermissions"sv, move(site_permissions));
 
     JsonArray config_variables;
     for (auto const& variable : config_variable_definitions()) {
@@ -515,6 +565,34 @@ void SettingsUI::remove_all_site_setting_filters(JsonValue const& site_setting)
         Application::settings().remove_all_autoplay_site_filters();
         break;
     }
+}
+
+void SettingsUI::set_site_permission(JsonValue const& data)
+{
+    if (!data.is_object())
+        return;
+    auto const& object = data.as_object();
+
+    auto name = object.get_string("permission"sv).map([](auto const& string) { return Web::Permissions::permission_name_from_string(string); });
+    auto origin_string = object.get_string("origin"sv);
+    if (!name.has_value() || !name->has_value() || !origin_string.has_value())
+        return;
+
+    auto url = URL::Parser::basic_parse(*origin_string);
+    if (!url.has_value() || url->origin().is_opaque())
+        return;
+
+    Optional<PermissionDecision> decision;
+    if (auto value = object.get_string("decision"sv); value.has_value()) {
+        if (*value == "allow"sv)
+            decision = PermissionDecision::Allow;
+        else if (*value == "block"sv)
+            decision = PermissionDecision::Block;
+        else
+            return;
+    }
+
+    Application::the().default_session().permission_manager->set_decision(**name, url->origin(), decision);
 }
 
 void SettingsUI::set_location_policy(JsonValue const& policy)

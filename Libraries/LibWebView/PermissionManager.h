@@ -14,6 +14,8 @@
 #include <AK/Optional.h>
 #include <AK/Time.h>
 #include <AK/Vector.h>
+#include <AK/WeakPtr.h>
+#include <AK/Weakable.h>
 #include <AK/kmalloc.h>
 #include <LibURL/Origin.h>
 #include <LibWebCommon/Permissions/Permissions.h>
@@ -54,7 +56,9 @@ public:
 // Every permission decision of one browsing session, keyed by the top-level origin it was made for. The ordinary
 // session's decisions persist in a file; a private session's live in memory only, and it also honors every block the
 // ordinary session holds.
-class WEBVIEW_API PermissionManager final : public PermissionManagerObserver {
+class WEBVIEW_API PermissionManager final
+    : public PermissionManagerObserver
+    , public Weakable<PermissionManager> {
     AK_MAKE_NONCOPYABLE(PermissionManager);
     AK_MAKE_NONMOVABLE(PermissionManager);
 
