@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 325 tests
 
-320 Pass
-5 Fail
+324 Pass
+1 Fail
 Pass	Computed * is reified as CSSUnparsedValue
 Pass	Computed <angle> is reified as CSSUnitValue
 Pass	Computed <color> is reified as CSSStyleValue
@@ -20,10 +20,10 @@ Pass	Computed <resolution> is reified as CSSUnitValue
 Pass	Computed <time> is reified as CSSUnitValue
 Pass	Computed <url> is reified as CSSStyleValue
 Pass	Computed ident is reified as CSSKeywordValue
-Fail	First computed value correctly reified in space-separated list
-Fail	First computed value correctly reified in comma-separated list
-Fail	All computed values correctly reified in space-separated list
-Fail	All computed values correctly reified in comma-separated list
+Pass	First computed value correctly reified in space-separated list
+Pass	First computed value correctly reified in comma-separated list
+Pass	All computed values correctly reified in space-separated list
+Pass	All computed values correctly reified in comma-separated list
 Pass	Specified * is reified as CSSUnparsedValue from get/getAll [attributeStyleMap]
 Pass	Specified * is reified as CSSUnparsedValue from get/getAll [styleMap]
 Pass	Specified foo is reified as CSSUnparsedValue from get/getAll [attributeStyleMap]
