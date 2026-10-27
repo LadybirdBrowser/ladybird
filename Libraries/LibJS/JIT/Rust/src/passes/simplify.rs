@@ -473,6 +473,7 @@ fn simplify(graph: &mut Graph, dissolve_checks: bool) {
                 {
                     Some(graph.node(double).inputs[0])
                 }
+                Op::CheckInt32 if let Some(integer) = boxed(Op::BoxInt32, inputs[0]) => Some(integer),
                 Op::CheckInt32 => constant_bits(graph, 0)
                     .filter(|bits| graph.node(inputs[0]).repr == Some(Repr::Tagged) && value::as_int32(*bits).is_some())
                     .map(|bits| constants.get_typed(graph, bits & u64::from(u32::MAX), Repr::Int32)),
