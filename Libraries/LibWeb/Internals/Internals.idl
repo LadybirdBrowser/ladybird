@@ -263,6 +263,7 @@ interface Internals {
     undefined setNextPermissionPromptOutcome(DOMString name, DOMString outcome, optional boolean held = false);
     undefined releaseHeldPermissionPrompt(optional unsigned long waiters = 1);
     Promise<undefined> advancePermissionClock(unsigned long long milliseconds);
+    sequence<DOMString> permissionCacheOrigins();
 
     InternalGamepad connectVirtualGamepad();
 

@@ -8,10 +8,12 @@
 #include <LibWebView/Application.h>
 #include <LibWebView/AudioServerControlClient.h>
 #include <LibWebView/BlobURLStore.h>
+#include <LibWebView/BrowsingSession.h>
 #include <LibWebView/CanonicalEnvironmentSettingsObject.h>
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/HSTSStore.h>
 #include <LibWebView/HelperProcess.h>
+#include <LibWebView/PermissionManager.h>
 #include <LibWebView/WebWorkerClient.h>
 #include <LibWebView/WorkerProcessManager.h>
 
@@ -98,6 +100,19 @@ Optional<CanonicalEnvironmentSettingsObject const&> WebWorkerClient::hosted_envi
     if (!inside_settings.has_value() || inside_settings->id() != environment_id)
         return {};
     return *inside_settings;
+}
+
+// A worker may learn the permissions only of its own top-level site; asking about any other gets just the defaults.
+Messages::WebWorkerClient::DidRequestPermissionSnapshotResponse WebWorkerClient::did_request_permission_snapshot(URL::Origin top_level_origin)
+{
+    auto session = m_session.strong_ref();
+    if (!session)
+        return Web::Permissions::PermissionSnapshot {};
+
+    auto worker_top_level_origin = WorkerProcessManager::the().top_level_origin(m_agent_id);
+    if (worker_top_level_origin.has_value() && worker_top_level_origin->is_same_origin(top_level_origin) && !top_level_origin.is_opaque() && !m_permission_origins.contains_slow(top_level_origin))
+        m_permission_origins.append(top_level_origin);
+    return session->permission_manager->snapshot_for(m_permission_origins);
 }
 
 Messages::WebWorkerClient::DidRequestCookieResponse WebWorkerClient::did_request_cookie(URL::URL url, HTTP::Cookie::Source source)

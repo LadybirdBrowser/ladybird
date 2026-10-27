@@ -91,6 +91,8 @@ public:
     void set_os_denies_geolocation(bool);
 
     Web::Permissions::PermissionSnapshot snapshot() const;
+    // Only the given sites' states, for a process that shows those sites and no others.
+    Web::Permissions::PermissionSnapshot snapshot_for(Vector<URL::Origin> const& top_level_origins) const;
     Vector<SiteDecision> site_decisions(Web::Permissions::PermissionName) const;
 
     // The earliest time at which run_expiry() has something to expire.

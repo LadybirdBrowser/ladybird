@@ -119,6 +119,7 @@ public:
     // Whether a document this page hosts may use the feature. The process hosting the page can act for any of them.
     bool hosts_a_document_allowed_to_use(Web::PermissionsPolicy::PolicyControlledFeature) const;
     RefPtr<CanonicalDocument> hosted_document_with_id(Web::HTML::CrossProcessId) const;
+    bool hosts_a_document_with_top_level_origin(URL::Origin const&) const;
     bool document_may_use(Web::HTML::CrossProcessId, Web::Permissions::PermissionName) const;
 
     Web::Permissions::PermissionSnapshot set_permission_for_testing(Web::HTML::CrossProcessId document_id, String const& name, String const& state);

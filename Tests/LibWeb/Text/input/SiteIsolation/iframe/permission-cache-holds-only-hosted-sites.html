@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // A process learns the permission decisions of the sites it shows, and of no other site. A peer site in a second
+    // process grants itself a permission, then navigates to the actor's site to say so; the actor, in this page's
+    // process (a popup with an opener stays in its opener's process), must not have heard of the peer's decision.
+    //
+    // The peer runs in a second process because it's opened with noopener on a cross-site trampoline host, and the
+    // trampoline's navigation to the peer page is a cross-site top-level navigation in a browsing context group of
+    // one, which site isolation hands to a new WebContent process.
+    asyncTest(async done => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+        const channelName = `permission-cache-${runId}`;
+        const htmlHeaders = { "Content-Type": "text/html" };
+        const actorHost = uniqueLocalhostHostname("permission-cache-actor");
+        const peerHost = uniqueLocalhostHostname("permission-cache-peer");
+
+        const echo = async (host, name, body) => {
+            const url = new URL(await httpServer.createEcho("GET", `/${name}-${runId}`, {
+                status: 200,
+                headers: htmlHeaders,
+                body: `<!DOCTYPE html><script>${body}<\/script>`,
+            }));
+            url.hostname = host;
+            return url.href;
+        };
+
+        const reportUrl = await echo(actorHost, "report", `
+            new BroadcastChannel(${JSON.stringify(channelName)}).postMessage("decided");
+        `);
+        const peerUrl = await echo(peerHost, "peer", `
+            internals.setPermission("geolocation", "granted").then(() => location.replace(${JSON.stringify(reportUrl)}));
+        `);
+        const trampolineUrl = await echo(uniqueLocalhostHostname("permission-cache-trampoline"), "trampoline", `
+            location.replace(${JSON.stringify(peerUrl)});
+        `);
+        const actorUrl = await echo(actorHost, "actor", `
+            const channel = new BroadcastChannel(${JSON.stringify(channelName)});
+            channel.onmessage = async () => {
+                // Read this site's own permission, so this process has asked for something.
+                await navigator.permissions.query({ name: "geolocation" });
+                const origins = internals.permissionCacheOrigins();
+                opener.postMessage(\`peer's decision in this process: \${origins.some(origin => origin.includes(${JSON.stringify(peerHost)}))}\`, "*");
+            };
+            window.open(${JSON.stringify(trampolineUrl)}, "_blank", "noopener");
+        `);
+
+        let actor;
+        addEventListener("message", event => {
+            println(event.data);
+            actor.close();
+            done();
+        });
+        actor = window.open(actorUrl);
+    });
+</script>

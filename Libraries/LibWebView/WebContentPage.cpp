@@ -1659,6 +1659,20 @@ void WebContentPage::did_request_geolocation_position(u64 request_id, Web::HTML:
         view().on_request_geolocation_position(*this, request_id, document_id);
 }
 
+bool WebContentPage::hosts_a_document_with_top_level_origin(URL::Origin const& origin) const
+{
+    auto hosts = false;
+    traversable().for_each_in_inclusive_subtree([&](CanonicalNavigable const& navigable) {
+        auto const& document = navigable.active_document();
+        if (document.host() != this)
+            return IterationDecision::Continue;
+        auto top_level_origin = document.top_level_origin();
+        hosts = top_level_origin.has_value() && top_level_origin->is_same_origin(origin);
+        return hosts ? IterationDecision::Break : IterationDecision::Continue;
+    });
+    return hosts;
+}
+
 RefPtr<CanonicalDocument> WebContentPage::hosted_document_with_id(Web::HTML::CrossProcessId document_id) const
 {
     RefPtr<CanonicalDocument> found;
@@ -1779,8 +1793,9 @@ Web::Permissions::PermissionSnapshot WebContentPage::set_permission_for_testing(
             manager.set_decision(*permission_name, *top_level_origin, {});
         if (*permission_name == Web::Permissions::PermissionName::Microphone)
             client().update_audio_capture_permission();
+        client().add_permission_origin(*top_level_origin);
     }
-    return manager.snapshot();
+    return manager.snapshot_for(client().permission_origins());
 }
 
 void WebContentPage::set_next_permission_prompt_outcome_for_testing(String const& name, String const& outcome, bool held)
@@ -1813,7 +1828,7 @@ Web::Permissions::PermissionSnapshot WebContentPage::advance_permission_clock_fo
 {
     auto& manager = *view().session().permission_manager;
     manager.age_origin_for_testing(view().url().origin(), AK::Duration::from_milliseconds(static_cast<i64>(milliseconds)));
-    return manager.snapshot();
+    return manager.snapshot_for(client().permission_origins());
 }
 
 void WebContentPage::did_cancel_geolocation_position_request(u64 request_id)

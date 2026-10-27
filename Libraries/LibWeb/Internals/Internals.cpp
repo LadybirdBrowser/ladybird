@@ -2154,6 +2154,11 @@ GC::Ref<WebIDL::Promise> Internals::advance_permission_clock(WebIDL::UnsignedLon
     return apply_snapshot_then_resolve(window(), move(snapshot));
 }
 
+Vector<String> Internals::permission_cache_origins()
+{
+    return PermissionsAPI::PermissionStore::the().cached_origins_for_testing();
+}
+
 bool Internals::html_parser_body_is_exhausted(DOM::Document& document)
 {
     auto parser = document.parser();

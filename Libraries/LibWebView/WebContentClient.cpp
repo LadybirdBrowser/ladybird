@@ -964,6 +964,29 @@ void WebContentClient::update_audio_capture_permission()
         warnln("Unable to update the AudioServer's capture permission: {}", result.error());
 }
 
+void WebContentClient::add_permission_origin(URL::Origin const& origin)
+{
+    if (!origin.is_opaque() && !m_permission_origins.contains_slow(origin))
+        m_permission_origins.append(origin);
+}
+
+// A process may learn the permissions only of a site it shows; asking about any other is refused, and gets just the
+// defaults.
+Messages::WebContentClient::DidRequestPermissionSnapshotResponse WebContentClient::did_request_permission_snapshot(Web::PageId, URL::Origin top_level_origin)
+{
+    auto& manager = *session().permission_manager;
+    auto shows_site = false;
+    for (auto const& it : m_pages) {
+        if (it.value->is_open() && it.value->hosts_a_document_with_top_level_origin(top_level_origin)) {
+            shows_site = true;
+            break;
+        }
+    }
+    if (shows_site)
+        add_permission_origin(top_level_origin);
+    return manager.snapshot_for(m_permission_origins);
+}
+
 bool WebContentClient::page_may_capture_audio(WebContentPage const& page) const
 {
     auto const& url = page.view().url();

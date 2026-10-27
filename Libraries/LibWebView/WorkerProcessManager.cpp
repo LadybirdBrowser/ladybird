@@ -212,7 +212,7 @@ Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(Owner owner, O
         // The worker's requests go through the RequestServers of its owner's sites.
         TRY(client->request_server_site_bindings().connect(*session));
         client->async_set_site_compatibility_data(Application::the().site_compatibility_data());
-        client->async_set_permission_snapshot(session->permission_manager->snapshot());
+        client->async_set_permission_snapshot(session->permission_manager->snapshot_for({}));
         // The User-Agent string, the navigator compatibility mode, and the preferred languages live in this process.
         // Pages get them through their view; a worker gets the same values here, so its navigator never contradicts
         // the page's.
@@ -326,13 +326,21 @@ Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(Owner owner, O
     return agent_id;
 }
 
-void WorkerProcessManager::update_permission_snapshot(PermissionManager const& manager, Web::Permissions::PermissionSnapshot const& snapshot)
+void WorkerProcessManager::update_permission_snapshot(PermissionManager const& manager)
 {
     for (auto const& agent : m_agents) {
         auto session = agent.value.client->session();
         if (session && session->permission_manager.ptr() == &manager)
-            agent.value.client->async_set_permission_snapshot(snapshot);
+            agent.value.client->async_set_permission_snapshot(manager.snapshot_for(agent.value.client->permission_origins()));
     }
+}
+
+Optional<URL::Origin> WorkerProcessManager::top_level_origin(Web::HTML::WorkerAgentId agent_id) const
+{
+    auto agent = m_agents.find(agent_id);
+    if (agent == m_agents.end())
+        return {};
+    return agent->value.top_level_origin;
 }
 
 void WorkerProcessManager::update_site_compatibility_data(JsonValue const& data)

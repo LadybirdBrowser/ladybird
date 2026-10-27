@@ -7,6 +7,7 @@
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Error.h>
 #include <LibWeb/Bindings/Permissions.h>
+#include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/Document.h>
@@ -159,7 +160,8 @@ PermissionState permission_state(PermissionDescriptor descriptor, Optional<HTML:
     // 8. Return the PermissionState enum value that represents the permission state of feature, taking into account any permission state constraints for descriptor's name.
     if (!feature.has_value())
         return PermissionState::Prompt;
-    return permission_state_from(PermissionStore::the().state_for(*feature, key));
+    auto& page = Bindings::principal_host_defined_page(settings_object.realm());
+    return permission_state_from(PermissionStore::the().state_for(*feature, key, page));
 }
 
 GC_DEFINE_ALLOCATOR(Permissions);

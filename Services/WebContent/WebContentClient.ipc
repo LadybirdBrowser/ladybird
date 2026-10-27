@@ -239,6 +239,7 @@ endpoint WebContentClient routed by Web::PageId page_id
     did_start_geolocation_position_watch(Web::PageId page_id, u64 request_id, Web::HTML::CrossProcessId document_id) =|
     did_stop_geolocation_position_watch(Web::PageId page_id, u64 request_id) =|
     did_request_permission(Web::PageId page_id, u64 request_id, Web::HTML::CrossProcessId document_id, Utf16String name) =|
+    [NotRouted] did_request_permission_snapshot(Web::PageId page_id, URL::Origin top_level_origin) => (Web::Permissions::PermissionSnapshot snapshot)
     did_request_file_picker(Web::PageId page_id, Web::HTML::FileFilter accepted_file_types, Web::HTML::AllowMultipleFiles allow_multiple_files) =|
     did_request_select_dropdown(Web::PageId page_id, Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items) =|
     did_finish_handling_input_event(Web::PageId page_id, u64 event_id, Web::EventResult event_result) =|

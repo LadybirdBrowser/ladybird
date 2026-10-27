@@ -1188,7 +1188,8 @@ ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(
 
     TRY(client->request_server_site_bindings().connect(session));
     client->async_set_site_compatibility_data(m_site_compatibility_data);
-    client->async_set_permission_snapshot(client->session().permission_manager->snapshot());
+    // A process learns a site's permissions only when it shows that site and asks; at launch, just the defaults.
+    client->async_set_permission_snapshot(client->session().permission_manager->snapshot_for({}));
     connect_to_image_decoder(*client, move(image_decoder));
 
     // NB: A WebDriver BiDi session gives its state to every process hosting web content when it changes.
@@ -2980,13 +2981,13 @@ void Application::permissions_changed(Badge<ApplicationPermissionManagerObserver
         return IterationDecision::Continue;
     });
 
-    auto snapshot = manager.snapshot();
+    // Each process hears only about the sites it asked about, which are sites it shows.
     WebContentClient::for_each_client([&](WebContentClient& client) {
         if (client.session().permission_manager.ptr() == &manager)
-            client.async_set_permission_snapshot(snapshot);
+            client.async_set_permission_snapshot(manager.snapshot_for(client.permission_origins()));
         return IterationDecision::Continue;
     });
-    WorkerProcessManager::the().update_permission_snapshot(manager, snapshot);
+    WorkerProcessManager::the().update_permission_snapshot(manager);
 
     schedule_permission_expiry();
 }

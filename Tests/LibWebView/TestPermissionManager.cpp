@@ -419,3 +419,24 @@ TEST_CASE(every_explicit_change_moves_the_decision_generation)
     manager->reset_origin(talk);
     EXPECT(manager->decision_generation(PermissionName::Microphone, talk) != after_reset);
 }
+
+TEST_CASE(snapshot_for_lists_only_the_given_origins)
+{
+    FakeClock clock;
+    auto manager = create_manager(clock, "snapshot-for"sv);
+    manager->set_decision(PermissionName::Geolocation, maps, PermissionDecision::Allow);
+    manager->set_decision(PermissionName::Microphone, talk, PermissionDecision::Block);
+    manager->set_global_default(PermissionName::Microphone, EffectiveState::Denied);
+
+    auto only_maps = manager->snapshot_for({ maps });
+    VERIFY(only_maps.entries.size() == 1);
+    EXPECT(only_maps.entries[0].top_level_origin.is_same_origin(maps));
+    VERIFY(only_maps.origins.size() == 1);
+    EXPECT(only_maps.origins[0].is_same_origin(maps));
+    EXPECT(only_maps.microphone_default == EffectiveState::Denied);
+
+    auto none = manager->snapshot_for({});
+    EXPECT(none.entries.is_empty());
+    EXPECT(none.origins.is_empty());
+    EXPECT(none.microphone_default == EffectiveState::Denied);
+}

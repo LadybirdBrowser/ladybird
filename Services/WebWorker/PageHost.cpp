@@ -89,6 +89,14 @@ Web::CSS::PreferredMotion PageHost::preferred_motion() const
 }
 
 // NB: A worker process hosts one environment, which the UI process knows to be the requesting one.
+Optional<Web::Permissions::PermissionSnapshot> PageHost::page_did_request_permission_snapshot(URL::Origin const& top_level_origin)
+{
+    auto response = m_client.send_sync_but_allow_failure<Messages::WebWorkerClient::DidRequestPermissionSnapshot>(top_level_origin);
+    if (!response)
+        return {};
+    return response->take_snapshot();
+}
+
 HTTP::Cookie::VersionedCookie PageHost::page_did_request_cookie(Optional<Web::HTML::EnvironmentId> const&, URL::URL const& url, HTTP::Cookie::Source source)
 {
     return m_client.did_request_cookie(url, source);

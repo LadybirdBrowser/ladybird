@@ -54,6 +54,7 @@ template<>
 ErrorOr<void> IPC::encode(Encoder& encoder, Web::Permissions::PermissionSnapshot const& snapshot)
 {
     TRY(encoder.encode(snapshot.revision));
+    TRY(encoder.encode(snapshot.origins));
     TRY(encoder.encode(snapshot.entries));
     TRY(encoder.encode(snapshot.geolocation_default));
     TRY(encoder.encode(snapshot.microphone_default));
@@ -64,8 +65,9 @@ template<>
 ErrorOr<Web::Permissions::PermissionSnapshot> IPC::decode(Decoder& decoder)
 {
     auto revision = TRY(decoder.decode<u64>());
+    auto origins = TRY(decoder.decode<Vector<URL::Origin>>());
     auto entries = TRY(decoder.decode<Vector<Web::Permissions::PermissionSnapshotEntry>>());
     auto geolocation_default = TRY(decoder.decode<Web::Permissions::EffectiveState>());
     auto microphone_default = TRY(decoder.decode<Web::Permissions::EffectiveState>());
-    return Web::Permissions::PermissionSnapshot { revision, move(entries), geolocation_default, microphone_default };
+    return Web::Permissions::PermissionSnapshot { revision, move(origins), move(entries), geolocation_default, microphone_default };
 }

@@ -73,7 +73,8 @@ public:
 
     size_t client_count() const { return m_agents.size(); }
 
-    void update_permission_snapshot(PermissionManager const&, Web::Permissions::PermissionSnapshot const&);
+    void update_permission_snapshot(PermissionManager const&);
+    Optional<URL::Origin> top_level_origin(Web::HTML::WorkerAgentId) const;
 
     template<CallableAs<IterationDecision, WebWorkerClient&> Callback>
     void for_each_client(Callback callback)
