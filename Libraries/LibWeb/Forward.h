@@ -1171,6 +1171,9 @@ class KeyboardEvent;
 class MouseEvent;
 class PointerEvent;
 class TextEvent;
+class Touch;
+class TouchEvent;
+class TouchList;
 class UIEvent;
 
 }

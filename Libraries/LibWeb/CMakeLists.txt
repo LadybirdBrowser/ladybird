@@ -966,6 +966,9 @@ set(SOURCES
     UIEvents/PointerEvent.cpp
     UIEvents/PointerTypes.cpp
     UIEvents/TextEvent.cpp
+    UIEvents/Touch.cpp
+    UIEvents/TouchEvent.cpp
+    UIEvents/TouchList.cpp
     UIEvents/UIEvent.cpp
     UIEvents/WheelEvent.cpp
     UserTiming/PerformanceMark.cpp

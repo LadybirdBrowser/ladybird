@@ -1,0 +1,52 @@
+<!DOCTYPE HTML>
+<html>
+<!--
+    Test cases for Touch Events v1 Recommendation
+    http://www.w3.org/TR/touch-events/
+
+    These tests are based on Mozilla-Nokia-Google's single-touch
+    tests and to some extent Olli Pettay's multi-touch tests.
+
+    The primary purpose of the tests in this document is checking that the interactions
+    of various Touch events are correctly implemented under any touch patterns.
+
+    This document references Test Assertions (abbrev TA below) written by Cathy Chan
+    http://www.w3.org/2010/webevents/wiki/TestAssertions
+-->
+
+<head>
+<title>Touch Events Multi-Touch Interaction Test</title>
+<meta name="viewport" content="width=device-width">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-actions.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+<script src="multi-touch-interactions.js"></script>
+<style>
+    div {
+        margin: 0em;
+        padding: 1.5em;
+    }
+    #target0 {
+        background: yellow;
+        border: 1px solid orange;
+    }
+    #target1 {
+        background: lightblue;
+        border: 1px solid blue;
+    }
+</style>
+</head>
+<body onload="run()">
+    <h1>Touch Events: Multi-Touch Interaction Test</h1>
+    <div id="target0">
+        Touch this box with one finger, then another one...
+    </div>
+    <div id="target1">
+        ...then drag to this box, then touch with a third finger, and lift all your fingers.
+    </div>
+    <div id="debug"></div>
+    <div id="log"></div>
+</body>
+</html>

@@ -1,0 +1,78 @@
+Harness status: OK
+
+Found 73 tests
+
+73 Pass
+Pass	touchstart event received
+Pass	touchmove event received
+Pass	touchend event received
+Pass	Interaction with mouse events
+Pass	touchstart #1: changedTouches is a subset of touches
+Pass	touchstart #1: targetTouches is a subset of touches
+Pass	touchstart #1: targets of targetTouches are correct
+Pass	touchstart #1: touches.length is valid
+Pass	touchstart #1: targetTouches is a subset of changedTouches
+Pass	touchstart #1: touches and changedTouches have the same length
+Pass	touchstart #2: changedTouches is a subset of touches
+Pass	touchstart #2: targetTouches is a subset of touches
+Pass	touchstart #2: targets of targetTouches are correct
+Pass	touchstart #2: touches.length is valid
+Pass	touchstart #2: change in targetTouches.length is valid
+Pass	touchstart #2: at least one targetTouches item in changedTouches
+Pass	touchstart #2: change in touches.length is valid
+Pass	touchstart #2: touches is subset of {changedTouches, last received touches}
+Pass	touchmove #1: changedTouches is a subset of touches
+Pass	touchmove #1: targetTouches is a subset of touches
+Pass	touchmove #1: at least one targetTouches item in changedTouches
+Pass	touchmove #1: targets of targetTouches are correct
+Pass	touchmove #1: touches must be same as last received touches
+Pass	touchmove #2: changedTouches is a subset of touches
+Pass	touchmove #2: targetTouches is a subset of touches
+Pass	touchmove #2: at least one targetTouches item in changedTouches
+Pass	touchmove #2: targets of targetTouches are correct
+Pass	touchmove #2: touches must be same as last received touches
+Pass	touchmove #3: changedTouches is a subset of touches
+Pass	touchmove #3: targetTouches is a subset of touches
+Pass	touchmove #3: at least one targetTouches item in changedTouches
+Pass	touchmove #3: targets of targetTouches are correct
+Pass	touchmove #3: touches must be same as last received touches
+Pass	touchmove #4: changedTouches is a subset of touches
+Pass	touchmove #4: targetTouches is a subset of touches
+Pass	touchmove #4: at least one targetTouches item in changedTouches
+Pass	touchmove #4: targets of targetTouches are correct
+Pass	touchmove #4: touches must be same as last received touches
+Pass	touchend #1: length of changedTouches is valid
+Pass	touchend #1: changedTouches is a subset of last received touches
+Pass	touchend #1: no item in changedTouches are in touches or targetTouches
+Pass	touchend #1: at least one item in changedTouches targeted at this element
+Pass	touchend #1: targetTouches is a subset of touches
+Pass	touchend #1: targets of targetTouches are correct
+Pass	touchend #1: change in targetTouches.length is valid
+Pass	touchend #1: change in touches.length is valid
+Pass	touchend #1: event dispatched to correct element<br>
+Pass	touchend #2: length of changedTouches is valid
+Pass	touchend #2: changedTouches is a subset of last received touches
+Pass	touchend #2: no item in changedTouches are in touches or targetTouches
+Pass	touchend #2: at least one item in changedTouches targeted at this element
+Pass	touchend #2: targetTouches is a subset of touches
+Pass	touchend #2: targets of targetTouches are correct
+Pass	touchend #2: change in targetTouches.length is valid
+Pass	touchend #2: change in touches.length is valid
+Pass	touchend #2: event dispatched to correct element<br>
+Pass	touchstart #3: changedTouches is a subset of touches
+Pass	touchstart #3: targetTouches is a subset of touches
+Pass	touchstart #3: targets of targetTouches are correct
+Pass	touchstart #3: touches.length is valid
+Pass	touchstart #3: change in targetTouches.length is valid
+Pass	touchstart #3: at least one targetTouches item in changedTouches
+Pass	touchstart #3: change in touches.length is valid
+Pass	touchstart #3: touches is subset of {changedTouches, last received touches}
+Pass	touchend #3: length of changedTouches is valid
+Pass	touchend #3: changedTouches is a subset of last received touches
+Pass	touchend #3: no item in changedTouches are in touches or targetTouches
+Pass	touchend #3: at least one item in changedTouches targeted at this element
+Pass	touchend #3: targetTouches is a subset of touches
+Pass	touchend #3: targets of targetTouches are correct
+Pass	touchend #3: change in targetTouches.length is valid
+Pass	touchend #3: change in touches.length is valid
+Pass	touchend #3: event dispatched to correct element<br>

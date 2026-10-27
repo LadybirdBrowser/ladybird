@@ -1,0 +1,24 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+test(() => {
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = host.attachShadow({mode:"closed"});
+    const target = document.createElement("div");
+    root.append(target);
+    const original = new Touch({identifier:1,target,clientX:12.5});
+    const event = new TouchEvent("touchstart", {bubbles:true, composed:true, touches:[original], targetTouches:[original], changedTouches:[original]});
+    let inside;
+    target.addEventListener("touchstart", event => {
+        inside = event.touches;
+        println(`inside: ${event.touches[0].target === target}, ${event.touches[0] === event.changedTouches[0]}`);
+    });
+    host.addEventListener("touchstart", event => {
+        println(`outside: ${event.touches[0].target === host}, ${event.touches[0] === event.changedTouches[0]}, ${event.touches[0].clientX}`);
+        println(`saved inside snapshot: ${inside[0].target === target}`);
+    });
+    target.dispatchEvent(event);
+    println(`original: ${original.target === target}`);
+});
+</script>

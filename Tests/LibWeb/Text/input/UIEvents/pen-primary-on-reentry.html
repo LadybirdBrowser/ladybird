@@ -1,0 +1,17 @@
+<!doctype html>
+<style>body{margin:0}#target{width:100px;height:100px}</style>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+asyncTest(async done => {
+    target.addEventListener("pointermove", event => println(`pen ${event.pointerId}: primary=${event.isPrimary}`));
+    const first={pointerType:"pen",pointerId:30};
+    const second={pointerType:"pen",pointerId:31};
+    await internals.mouseEventThroughUIProcess("mousemove",20,20,{pointer:first});
+    await internals.mouseEventThroughUIProcess("mousemove",30,30,{pointer:second});
+    await internals.mouseEventThroughUIProcess("mouseleave",20,20,{pointer:first});
+    await internals.mouseEventThroughUIProcess("mouseleave",30,30,{pointer:second});
+    await internals.mouseEventThroughUIProcess("mousemove",30,30,{pointer:second});
+    done();
+});
+</script>

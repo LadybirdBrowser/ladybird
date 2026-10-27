@@ -1,0 +1,295 @@
+<!DOCTYPE HTML>
+<html>
+<!--
+     Test cases for Touch Events v1 Recommendation
+     http://www.w3.org/TR/touch-events/
+
+     These tests are based on Mozilla-Nokia-Google's single-touch
+     tests and to some extent Olli Pettay's multi-touch tests.
+
+     The primary purpose of the tests in this document is checking that the
+     various interfaces of the Touch Events APIs are correctly implemented.
+     Other interactions are covered in other test files.
+
+     This document references Test Assertions (abbrev TA below) written by Cathy Chan
+     http://www.w3.org/2010/webevents/wiki/TestAssertions
+-->
+
+<head>
+<title>Touch Events Multi-Touch Interface Tests</title>
+<meta name="viewport" content="width=device-width">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-actions.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+<script>
+    setup({explicit_done: true});
+
+    // Check a Touch object's atttributes for existence and correct type
+    // TA: 1.1.2, 1.1.3
+    function check_Touch_object (t, element) {
+        test(function() {
+           assert_equals(Object.prototype.toString.call(t), "[object Touch]", "touch is of type Touch");
+        }, element + "'s touch point is a Touch object");
+        [
+          ["long", "identifier"],
+          ["EventTarget", "target"],
+          ["long", "screenX"],
+          ["long", "screenY"],
+          ["long", "clientX"],
+          ["long", "clientY"],
+          ["long", "pageX"],
+          ["long", "pageY"],
+        ].forEach(function(attr) {
+            var type = attr[0];
+            var name = attr[1];
+
+            // existence check
+            test(function() {
+                assert_true(name in t, name + " attribute in Touch object");
+            }, element + ".Touch." + name + " attribute exists");
+
+            // type check
+            switch(type) {
+            case "long":
+                test(function() {
+                    assert_equals(typeof t[name], "number", name + " attribute of type long");
+                }, element + ".Touch." + name + " attribute is of type number (long)");
+                break;
+            case "EventTarget":
+                // An event target is some type of Element
+                test(function() {
+                    assert_true(t[name] instanceof Element, "EventTarget must be an Element.");
+                }, element + ".Touch." + name + " attribute is of type Element");
+                break;
+            default:
+                break;
+            }
+       });
+    }
+
+    // Check a TouchList object's attributes and methods for existence and proper type
+    // Also make sure all of the members of the list are Touch objects
+    // TA: 1.2.1, 1.2.2, 1.2.5, 1.2.6
+    function check_TouchList_object (tl, element) {
+        test(function() {
+           assert_equals(Object.prototype.toString.call(tl), "[object TouchList]", "touch list is of type TouchList");
+        }, element + "'s touch list is a TouchList object");
+        [
+          ["unsigned long", "length"],
+          ["function", "item"],
+        ].forEach(function(attr) {
+            var type = attr[0];
+            var name = attr[1];
+
+            // existence check
+            test(function() {
+                assert_true(name in tl, name + " attribute in TouchList");
+            }, element + ".TouchList." + name + " attribute exists");
+
+            // type check
+            switch(type) {
+            case "unsigned long":
+                test(function() {
+                    assert_equals(typeof tl[name], "number", name + " attribute of type long");
+                }, element + ".TouchList." + name + " attribute is of type number (unsigned long)");
+                break;
+            case "function":
+                test(function() {
+                    assert_equals(typeof tl[name], "function", name + " attribute of type function");
+                }, element + ".TouchList." + name + " attribute is of type function");
+                break;
+            default:
+                break;
+            }
+       });
+       // Each member of tl should be a proper Touch object
+       for (var i=0; i < tl.length; i++) {
+           check_Touch_object(tl.item(i), element + "[" + i + "]");
+       }
+    }
+
+    // Check a TouchEvent event's attributes for existence and proper type
+    // Also check that each of the event's TouchList objects are valid
+    // TA: 1.{3,4,5}.1.1, 1.{3,4,5}.1.2
+    function check_TouchEvent(ev, touchstart_count) {
+        test(function() {
+           assert_true(ev instanceof TouchEvent, "event is a TouchEvent event");
+        }, ev.type + touchstart_count + " event is a TouchEvent event");
+        [
+          ["TouchList", "touches"],
+          ["TouchList", "targetTouches"],
+          ["TouchList", "changedTouches"],
+          ["boolean", "altKey"],
+          ["boolean", "metaKey"],
+          ["boolean", "ctrlKey"],
+          ["boolean", "shiftKey"],
+        ].forEach(function(attr) {
+            var type = attr[0];
+            var name = attr[1];
+
+            // existence check
+            test(function() {
+                assert_true(name in ev, name + " attribute in " + ev.type + " event");
+            }, ev.type + touchstart_count + "." + name + " attribute exists");
+
+            // type check
+            switch(type) {
+            case "boolean":
+                test(function() {
+                    assert_equals(typeof ev[name], "boolean", name + " attribute of type boolean");
+                }, ev.type + touchstart_count + "." + name + " attribute is of type boolean");
+                break;
+            case "TouchList":
+                test(function() {
+                    assert_equals(Object.prototype.toString.call(ev[name]), "[object TouchList]", name + " attribute of type TouchList");
+                }, ev.type + touchstart_count + "." + name + " attribute is of type TouchList");
+                // Now check the validity of the TouchList
+                check_TouchList_object(ev[name], ev.type + touchstart_count + "." + name);
+                break;
+            default:
+                break;
+            }
+        });
+    }
+
+    function is_touch_over_element(touch, element) {
+        var bounds = element.getBoundingClientRect();
+        return touch.pageX >= bounds.left && touch.pageX <= bounds.right &&
+               touch.pageY >= bounds.top && touch.pageY <= bounds.bottom;
+    }
+
+    function check_touch_clientXY(touch) {
+        assert_equals(touch.clientX, touch.pageX - window.pageXOffset, "touch.clientX is touch.pageX - window.pageXOffset.");
+        assert_equals(touch.clientY, touch.pageY - window.pageYOffset, "touch.clientY is touch.pageY - window.pageYOffset.");
+    }
+
+    async function run() {
+        var target0 = document.getElementById("target0");
+        var target1 = document.getElementById("target1");
+
+        var test_touchstart = async_test("touchstart event received");
+        var test_touchmove = async_test("touchmove event received");
+        var test_touchend = async_test("touchend event received");
+        var test_mousedown = async_test("Interaction with mouse events");
+
+        var touchstart_received = 0;
+        var touchmove_received = 0;
+        var touchend_received = false;
+        var invalid_touchmove_received = false;
+
+        on_event(target0, "touchstart", function onTouchStart(ev) {
+            ev.preventDefault();
+
+            if(!touchstart_received) {
+                // Check event ordering TA: 1.6.2
+                test_touchstart.step(function() {
+                    assert_true(touchmove_received==0, "touchstart precedes touchmove");
+                    assert_false(touchend_received, "touchstart precedes touchend");
+                });
+                test_touchstart.done();
+                test_mousedown.done(); // If we got here, then the mouse event test is not needed.
+            }
+
+            if(++touchstart_received <= 2)
+                check_TouchEvent(ev, touchstart_received);
+        });
+
+        on_event(target0, "touchmove", function onTouchMove(ev) {
+            ev.preventDefault();
+
+            if(!touchmove_received) {
+                test_touchmove.step(function() {
+                    assert_true(touchstart_received>0, "touchmove follows touchstart");
+                    assert_false(touchend_received, "touchmove precedes touchend");
+                });
+                test_touchmove.done();
+            }
+
+            if(++touchmove_received <= 2)
+                check_TouchEvent(ev, touchmove_received);
+        });
+
+        on_event(target1, "touchmove", function onTouchMove(ev) {
+            invalid_touchmove_received = true;
+        });
+
+        on_event(window, "touchend", function onTouchEnd(ev) {
+            touchend_received = true;
+
+            test_touchend.step(function() {
+                assert_true(touchstart_received>0, "touchend follows touchstart");
+                assert_true(touchmove_received>0, "touchend follows touchmove");
+                assert_false(invalid_touchmove_received, "touchmove dispatched to correct target");
+            });
+            test_touchend.done();
+
+            check_TouchEvent(ev, touchstart_received);
+            done();
+        });
+
+        on_event(target0, "mousedown", function onMouseDown(ev) {
+            test_mousedown.step(function() {
+                assert_true(touchstart_received,
+                    "The touchstart event must be dispatched before any mouse " +
+                    "events. (If this fails, it might mean that the user agent does " +
+                    "not implement W3C touch events at all.)"
+                );
+            });
+            test_mousedown.done();
+
+            if (!touchstart_received) {
+                // Abort the tests.  If touch events are not supported, then most of
+                // the other event handlers will never be called, and the test will
+                // time out with misleading results.
+                done();
+            }
+        });
+
+        await new test_driver.Actions()
+          .addPointer("touchPointer1", "touch")
+          .addPointer("touchPointer2", "touch")
+          .pointerMove(0, 0, {origin: target0, sourceName: "touchPointer1"})
+          .pointerMove(3, 0, {origin: target0, sourceName: "touchPointer2"})
+          .pointerDown({sourceName: "touchPointer1"})
+          .pointerDown({sourceName: "touchPointer2"})
+          .pointerMove(0, 10, {origin: target0, sourceName: "touchPointer1"})
+          .pause(10, "pointer", {sourceName: "touchPointer2"})
+          .pause(10, "pointer", {sourceName: "touchPointer1"})
+          .pointerMove(3, 10, {origin: target0, sourceName: "touchPointer2"})
+          .pointerMove(0, 0, {origin: target1, sourceName: "touchPointer1"})
+          .pause(10, "pointer", {sourceName: "touchPointer2"})
+          .pause(10, "pointer", {sourceName: "touchPointer1"})
+          .pointerMove(3, 0, {origin: target1, sourceName: "touchPointer2"})
+          .pointerUp({sourceName: "touchPointer1"})
+          .pointerUp({sourceName: "touchPointer2"})
+          .send();
+    }
+</script>
+<style>
+    div {
+        margin: 0em;
+        padding: 2em;
+    }
+    #target0 {
+        background: yellow;
+        border: 1px solid orange;
+    }
+    #target1 {
+        background: lightblue;
+        border: 1px solid blue;
+    }
+</style>
+</head>
+<body onload="run()">
+    <h1>Touch Events: multi-touch interface tests</h1>
+    <div id="target0">
+        Touch this box with one finger, then another one...
+    </div>
+    <div id="target1">
+        ...then drag to this box and lift your fingers.
+    </div>
+    <div id="log"></div>
+</body>
+</html>

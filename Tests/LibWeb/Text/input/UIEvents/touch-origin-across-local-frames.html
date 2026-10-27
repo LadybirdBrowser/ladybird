@@ -1,0 +1,113 @@
+<!doctype html>
+<meta charset="utf-8" />
+<style>
+    body {
+        margin: 0;
+    }
+    iframe,
+    #parent {
+        position: absolute;
+        top: 30px;
+        width: 100px;
+        height: 100px;
+        border: 0;
+    }
+    #first {
+        left: 40px;
+    }
+    #parent {
+        left: 180px;
+    }
+    #other {
+        position: absolute;
+        left: 180px;
+        top: 150px;
+        width: 100px;
+        height: 100px;
+    }
+    #second {
+        left: 320px;
+    }
+</style>
+<iframe id="first" srcdoc="<style>body{margin:0}div{width:100px;height:100px}</style><div id='child'></div>"></iframe>
+<div id="parent"></div>
+<div id="other"></div>
+<iframe
+    id="second"
+    srcdoc="<style>body{margin:0}div{width:100px;height:100px}</style><div id='sibling'></div>"
+></iframe>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const frames = [...document.querySelectorAll("iframe")];
+        for (const frame of frames) {
+            if (!frame.contentDocument.querySelector("div")) await new Promise(resolve => (frame.onload = resolve));
+        }
+        const documents = [document, ...frames.map(frame => frame.contentDocument)];
+        const names = ["parent", "child", "sibling"];
+        const touches = [];
+        const pointerTargets = [];
+        let mouseEvents = 0;
+        let primary;
+        for (const [index, owner] of documents.entries()) {
+            owner.addEventListener("pointerdown", event => {
+                event.target.releasePointerCapture(event.pointerId);
+                primary = event.isPrimary;
+            });
+            for (const type of ["pointermove", "pointerup"])
+                owner.addEventListener(type, event => pointerTargets.push(`${type}@${event.target.id}`));
+            for (const type of ["touchstart", "touchmove", "touchend", "touchcancel"]) {
+                owner.addEventListener(
+                    type,
+                    event => {
+                        const touch = event.changedTouches[0];
+                        touches.push(
+                            `${names[index]}:${type}@${event.target.id}/${touch.target.id}:${touch.clientX},${touch.clientY}:${event.touches.length}`
+                        );
+                        if (type === "touchstart") event.preventDefault();
+                    },
+                    { passive: false }
+                );
+            }
+            for (const type of ["mousedown", "mouseup", "click"]) owner.addEventListener(type, () => ++mouseEvents);
+        }
+        const send = (type, x, y, id) =>
+            internals.mouseEventThroughUIProcess(type, x, y, {
+                pointer: { pointerType: "touch", pointerId: id },
+                buttons: type === "mouseup" ? 0 : 1,
+            });
+        const contact = async (label, id, start, end) => {
+            touches.length = 0;
+            await send("mousedown", ...start, id);
+            await send("mousemove", ...end, id);
+            await send("mouseup", ...end, id);
+            println(`${label}: ${touches.join("; ")}`);
+        };
+        // NB: Releasing implicit Pointer capture must not change the Touch event's starting document or target.
+        await contact("parent to child", 31, [205, 55], [65, 55]);
+        await contact("child to parent", 32, [65, 55], [205, 55]);
+        await contact("child to sibling", 33, [65, 55], [345, 55]);
+        pointerTargets.length = 0;
+        await contact("same document", 36, [205, 55], [205, 175]);
+        println(`released Pointer targets: ${pointerTargets.join("; ")}`);
+        touches.length = 0;
+        await send("mousedown", 65, 55, 37);
+        frames[0].style.display = "none";
+        await send("mousemove", 205, 55, 37);
+        await send("mouseup", 205, 55, 37);
+        println(`hidden child: ${touches.join("; ")}`);
+        frames[0].style.display = "";
+        touches.length = 0;
+        await send("mousedown", 65, 55, 34);
+        frames[0].remove();
+        await send("mousemove", 205, 55, 34);
+        await send("mouseup", 205, 55, 34);
+        println(`removed child: ${touches.join("; ")}`);
+        touches.length = 0;
+        await send("mousedown", 205, 55, 35);
+        await send("mouseup", 205, 55, 35);
+        println(`next contact: primary=${primary}, ${touches.join("; ")}`);
+        println(`compatibility mouse events: ${mouseEvents}`);
+        done();
+    });
+</script>

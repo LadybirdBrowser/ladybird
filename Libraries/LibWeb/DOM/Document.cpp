@@ -195,6 +195,7 @@
 #include <LibWeb/HTML/NavigationActivation.h>
 #include <LibWeb/HTML/NavigationHistoryEntry.h>
 #include <LibWeb/HTML/NavigationParams.h>
+#include <LibWeb/HTML/Navigator.h>
 #include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/PolicyContainers.h>
@@ -267,6 +268,7 @@
 #include <LibWeb/UIEvents/PointerEvent.h>
 #include <LibWeb/UIEvents/PointerTypes.h>
 #include <LibWeb/UIEvents/TextEvent.h>
+#include <LibWeb/UIEvents/TouchEvent.h>
 #include <LibWeb/UpgradeInsecureRequests/AbstractOperations.h>
 #include <LibWeb/ViewTransition/ViewTransition.h>
 #include <LibWeb/WebDriver/BiDi/BiDi.h>
@@ -3330,21 +3332,17 @@ static void mark_mouse_transition_event_as_trusted_if_needed(Event& event, Optio
         event.set_is_trusted(true);
 }
 
-void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hover_event_data, BoundaryEventTypes types)
+void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hover_event_data)
 {
-    // The style's hover follows the node the events hover. A hover beside the host may have moved it already, while
-    // the hovered node of the events stayed.
-    CSS::move_style_hover(*this, node);
-    if (m_hovered_node == node)
-        return;
-
-    auto old_hovered_node = m_hovered_node;
-    m_hovered_node = node;
-    dispatch_boundary_events(old_hovered_node, node, hover_event_data, types);
+    dispatch_boundary_events(m_hovered_node, node, hover_event_data, BoundaryEventTypes::All);
 }
 
 void Document::dispatch_boundary_events(GC::Ptr<Node> old_hovered_node, GC::Ptr<Node> node, Optional<HoverEventData> hover_event_data, BoundaryEventTypes types)
 {
+    // The style's hover follows the node the events hover. A hover beside the host may have moved it already, while
+    // the hovered node of the events stayed.
+    CSS::move_style_hover(*this, node);
+    m_hovered_node = node;
     if (old_hovered_node == node)
         return;
     Layout::ForcedReadScope read { *this };
@@ -3860,7 +3858,9 @@ WebIDL::ExceptionOr<GC::Ref<Event>> Document::create_event(Utf16FlyString const&
     } else if (interface.equals_ignoring_ascii_case("textevent"sv)) {
         event = UIEvents::TextEvent::create(Utf16FlyString {}, time_stamp);
     } else if (interface.equals_ignoring_ascii_case("touchevent"sv)) {
-        event = Event::create(FlyString {}, time_stamp); // FIXME: Create TouchEvent
+        // INTEROP: Blink gates this legacy factory on touch feature detection even though its constructor is exposed.
+        if (HTML::Navigator::max_touch_points() > 0)
+            event = UIEvents::TouchEvent::create(FlyString {}, Bindings::TouchEventInit {}, time_stamp);
     } else if (interface.equals_ignoring_ascii_case("uievent"sv)
         || interface.equals_ignoring_ascii_case("uievents"sv)) {
         event = UIEvents::UIEvent::create(FlyString {}, time_stamp);

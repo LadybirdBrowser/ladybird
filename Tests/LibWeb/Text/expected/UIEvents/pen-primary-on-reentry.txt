@@ -1,0 +1,3 @@
+pen 30: primary=true
+pen 31: primary=false
+pen 31: primary=true

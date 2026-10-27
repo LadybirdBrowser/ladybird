@@ -1137,7 +1137,9 @@ bool EventTarget::dispatch_event(Event& event)
                 return pointer_event->pointer_type() != u"mouse"sv;
         }
 
-        // FIXME: touchend
+        // touchend.
+        if (event.type() == UIEvents::EventNames::touchend)
+            return true;
 
         return false;
     };

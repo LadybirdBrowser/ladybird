@@ -2,7 +2,8 @@ pointerout: 145,25
 pointerleave: 145,25
 touch pointerdown: primary=true
 touchstart: touches=1
-touchcancel: touches=0, changed=1
+touchend: touches=0, changed=1
 touch pointerdown: primary=true
 touchstart: touches=1
+touchend: touches=0, changed=1
 click: touch

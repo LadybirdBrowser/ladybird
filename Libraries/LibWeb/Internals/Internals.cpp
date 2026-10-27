@@ -2031,8 +2031,10 @@ void Internals::perform_per_test_cleanup()
     m_gamepads.clear();
 
     // Clear any input state
-    if (auto local_root = local_root_of(window()))
+    if (auto local_root = local_root_of(window())) {
         local_root->event_handler().clear_per_test_input_state({});
+        WebDriver::reset_input_state(*local_root->top_level_traversable());
+    }
     if (page().input_trace().is_recording())
         (void)take_input_trace_records(window());
 

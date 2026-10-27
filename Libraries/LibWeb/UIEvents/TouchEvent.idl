@@ -1,0 +1,22 @@
+// https://w3c.github.io/touch-events/#touchevent-interface
+[Exposed=Window]
+interface TouchEvent : UIEvent {
+    constructor(DOMString type, optional TouchEventInit eventInitDict = {});
+    readonly attribute TouchList touches;
+    readonly attribute TouchList targetTouches;
+    readonly attribute TouchList changedTouches;
+    readonly attribute boolean altKey;
+    readonly attribute boolean metaKey;
+    readonly attribute boolean ctrlKey;
+    readonly attribute boolean shiftKey;
+};
+
+dictionary TouchEventInit : EventModifierInit {
+    sequence<Touch> touches = [];
+    sequence<Touch> targetTouches = [];
+    sequence<Touch> changedTouches = [];
+};
+
+// INTEROP: Expose the interfaces on desktop, as Blink does, while leaving ontouch* handler attributes absent without
+//          a touch screen. Exposing those attributes would incorrectly make feature detection report touch hardware.
+// INTEROP: Blink and Gecko do not implement the draft getModifierState method.

@@ -1,0 +1,3 @@
+touchstart: target=target, connected=true, touches=1
+touchmove: target=target, connected=false, touches=1
+touchend: target=target, connected=false, touches=0

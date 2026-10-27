@@ -1,0 +1,48 @@
+<!doctype html>
+<meta charset="utf-8">
+<style>body { margin:0 } #a,#b { width:100px; height:100px; position:absolute; top:0 } #b { left:150px }</style>
+<div id="a"></div><div id="b"></div>
+<script src="../include.js"></script>
+<script>
+asyncTest(async done => {
+    println(`interfaces: ${typeof Touch}, ${typeof TouchList}, ${typeof TouchEvent}`);
+    println(`desktop handlers: ${"ontouchstart" in window}, ${"ontouchmove" in document}, ${"ontouchend" in a}`);
+    try {
+        document.createEvent("TouchEvent");
+        println("legacy event factory unexpectedly enabled");
+    } catch (error) {
+        println(`legacy event factory: ${error.name}`);
+    }
+    const source = (id, actions) => ({type:"pointer", id, parameters:{pointerType:"touch"}, actions});
+    const move = (x, y) => ({type:"pointerMove",x,y});
+    const down = {type:"pointerDown",button:0};
+    const up = {type:"pointerUp",button:0};
+    let initial;
+    let mouseEvents = 0;
+    for (const type of ["mousedown", "mouseup", "click"])
+        document.addEventListener(type, () => ++mouseEvents);
+    for (const type of ["touchstart", "touchmove", "touchend", "touchcancel"])
+        document.addEventListener(type, event => {
+            if (!initial)
+                initial = event;
+            println(`${type}@${event.target.id}: touches=${event.touches.length}, target=${event.targetTouches.length}, changed=${event.changedTouches.length}, trusted=${event.isTrusted}, composed=${event.composed}`);
+            println(`  original target=${event.changedTouches[0].target.id}, x=${event.changedTouches[0].clientX}, force=${event.changedTouches[0].force}, radius=${event.changedTouches[0].radiusX},${event.changedTouches[0].radiusY}, control=${event.ctrlKey}`);
+        });
+    a.addEventListener("touchstart", event => event.preventDefault(), {passive:false});
+    await internals.performActions(JSON.stringify({actions:[{type:"key",id:"control",actions:[{type:"keyDown",value:"\uE009"}]}]}));
+    await internals.performActions(JSON.stringify({actions:[source("first",[move(20,20),{...down,width:12,height:18,pressure:0.75},move(180,20),up])]}));
+    await internals.performActions(JSON.stringify({actions:[{type:"key",id:"control",actions:[{type:"keyUp",value:"\uE009"}]}]}));
+    println(`saved snapshot: length=${initial.touches.length}, x=${initial.touches[0].clientX}, force=${initial.touches[0].force}, identity=${initial.touches[0]===initial.changedTouches[0]}`);
+    println(`list bounds: ${initial.touches.item(99)}, ${initial.touches[99]}`);
+    println(`mouse events after canceled touchstart: ${mouseEvents}`);
+    await internals.performActions(JSON.stringify({actions:[
+        source("first",[move(20,20),down,move(30,30),{type:"pointerCancel"}]),
+        source("second",[move(180,20),down,move(190,30),up]),
+    ]}));
+    println(`mouse events after canceled contact: ${mouseEvents}`);
+    b.addEventListener("touchend", event => event.preventDefault(), {once:true,passive:false});
+    await internals.performActions(JSON.stringify({actions:[source("end-canceled",[move(180,20),down,up])]}));
+    println(`mouse events after canceled touchend: ${mouseEvents}`);
+    done();
+});
+</script>

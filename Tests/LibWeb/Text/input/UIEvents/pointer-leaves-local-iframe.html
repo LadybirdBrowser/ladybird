@@ -42,8 +42,8 @@
             println(`touch pointerdown: primary=${event.isPrimary}`);
         });
         target.addEventListener("touchstart", event => println(`touchstart: touches=${event.touches.length}`));
-        target.addEventListener("touchcancel", event =>
-            println(`touchcancel: touches=${event.touches.length}, changed=${event.changedTouches.length}`)
+        target.addEventListener("touchend", event =>
+            println(`touchend: touches=${event.touches.length}, changed=${event.changedTouches.length}`)
         );
         target.addEventListener("click", event => println(`click: ${event.pointerType}`));
         const first = { pointerType: "touch", pointerId: 21 };
