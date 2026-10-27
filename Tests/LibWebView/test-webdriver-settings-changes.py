@@ -174,14 +174,14 @@ def run_test(webdriver_binary):
                 {
                     "script": """
                     const done = arguments[0];
-                    const button = document.querySelector('#start-browsing');
-                    if (!button.disabled) return done();
+                    const options = document.querySelector('#setup-options');
+                    if (!options.disabled) return done();
                     const observer = new MutationObserver(() => {
-                        if (button.disabled) return;
+                        if (options.disabled) return;
                         observer.disconnect();
                         done();
                     });
-                    observer.observe(button, {attributes: true, attributeFilter: ['disabled']});
+                    observer.observe(options, {attributes: true, attributeFilter: ['disabled']});
                 """,
                     "args": [],
                 },
@@ -189,8 +189,8 @@ def run_test(webdriver_binary):
             changes = change("setSearchEngineSettings", {"engine": "Google", "suggestions": True})
             assert set(changes) == {"searchEngine"}, changes
             assert script("""
-                return document.querySelector('#search-engine').value === 'Google'
-                    && document.querySelector('#search-suggestions-enabled').checked;
+                return document.querySelector('input[name="search-engine"]:checked')?.value === 'Google'
+                    && !document.querySelector('#start-browsing').disabled;
             """), "The welcome page did not apply a partial search setting"
             changes = change("setContentBlockerEnabled", False)
             assert set(changes) == {"contentBlockers"}, changes

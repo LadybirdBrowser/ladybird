@@ -1425,7 +1425,7 @@ bool CanonicalTraversable::run_changing_navigable_history_step_job(ApplyHistoryS
         if (!operation.parameters.has<Web::ReloadHistoryOperationParameters>()
             && changing_navigable.target_entry->document_state->document.ptr() != &navigable.active_document()) {
             if (auto view = this->view(); view.has_value())
-                view->reset_blocked_request_count();
+                view->reset_blocked_resources();
         }
         if (operation.is_browser_traversal()) {
             if (auto callback = move(operation.browser_traversal().on_ready))

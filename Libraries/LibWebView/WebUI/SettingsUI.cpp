@@ -73,6 +73,9 @@ void SettingsUI::register_interfaces()
     register_interface("setContentBlockerEnabled"sv, [this](auto const& data) {
         set_content_blocker_enabled(data);
     });
+    register_interface("setContentBlockerEnabledForSite"sv, [this](auto const& data) {
+        set_content_blocker_enabled_for_site(data);
+    });
     register_interface("setContentBlockerListEnabled"sv, [this](auto const& data) {
         set_content_blocker_list_enabled(data);
     });
@@ -163,9 +166,6 @@ void SettingsUI::register_interfaces()
     register_interface("updateContentBlockerLists"sv, [this](auto const& data) {
         update_content_blocker_lists(data);
     });
-    register_interface("setShowContentBlockerCount"sv, [this](auto const& data) {
-        set_show_content_blocker_count(data);
-    });
     register_interface("addCustomContentBlockerSubscription"sv, [this](auto const& data) {
         add_custom_content_blocker_subscription(data);
     });
@@ -193,7 +193,6 @@ void SettingsUI::load_features()
     features.set("primaryPaste"_string, application.supports_clipboard_type(Application::ClipboardType::Selection));
     features.set("verticalTabs"_string, application.supports_vertical_tabs());
     features.set("geolocation"_string, Core::GeolocationProvider::is_available());
-    features.set("contentBlockingControls"_string, application.supports_content_blocking_controls());
 
     async_send_message("loadFeatures"sv, move(features));
 }
@@ -645,12 +644,18 @@ void SettingsUI::set_content_blocker_enabled(JsonValue const& enabled)
     }
 }
 
-void SettingsUI::set_show_content_blocker_count(JsonValue const& show)
+void SettingsUI::set_content_blocker_enabled_for_site(JsonValue const& value)
 {
-    if (!show.is_bool() || !Application::the().supports_content_blocking_controls())
+    if (!value.is_object())
         return;
 
-    Application::settings().set_show_content_blocker_count(show.as_bool());
+    auto site = value.as_object().get_string("site"sv);
+    auto enabled = value.as_object().get_bool("enabled"sv);
+    if (!site.has_value() || !enabled.has_value())
+        return;
+
+    if (auto result = Application::settings().set_content_blocker_enabled_for_site(*site, *enabled); result.is_error())
+        dbgln("Unable to change content blocking for {}: {}", *site, result.error());
 }
 
 void SettingsUI::set_content_blocker_list_enabled(JsonValue const& value)

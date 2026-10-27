@@ -661,7 +661,8 @@ void Omnibox::commit_suggestion(size_t suggestion_index, bool should_record_enga
     auto destination_kind = suggestion.source == AutocompleteSuggestionSource::Search
         ? OmniboxDestinationKind::Search
         : OmniboxDestinationKind::URL;
-    if (should_record_engagement) {
+    // NB: Going to choose a search engine is not where the query leads, so it is not learned from.
+    if (should_record_engagement && suggestion.source != AutocompleteSuggestionSource::ChooseSearchEngine) {
         m_provider->record_engagement({
             .input = m_retained_engagement_input.value_or(m_query),
             .destination_kind = destination_kind,
@@ -717,6 +718,17 @@ void Omnibox::apply_completion(String suggestion_text, String completion_text)
     if (m_display_text == completion_text)
         return;
     set_display(move(completion_text), completion_start);
+}
+
+Optional<String> Omnibox::completion_title() const
+{
+    if (m_provenance != TextProvenance::InlineCompleted || !m_completion_suggestion.has_value())
+        return {};
+    for (auto const& suggestion : m_suggestions) {
+        if (suggestion.text == *m_completion_suggestion && suggestion.title.has_value() && !suggestion.title->is_empty())
+            return suggestion.title;
+    }
+    return {};
 }
 
 void Omnibox::apply_preview(String suggestion_text)

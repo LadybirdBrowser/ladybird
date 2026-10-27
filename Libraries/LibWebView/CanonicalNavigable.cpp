@@ -819,8 +819,11 @@ ErrorOr<NonnullRefPtr<WebContentPage>> CanonicalNavigable::obtain_page_to_host(C
     auto page = TRY(obtain_page_to_host_in(process_to_host(document, initiator_origin)));
     if (document.is_local_file_content())
         page->client().set_has_hosted_local_file_content();
-    if (auto const& web_ui_host = document.web_ui_host(); web_ui_host.has_value())
+    if (auto const& web_ui_host = document.web_ui_host(); web_ui_host.has_value()) {
         page->client().set_hosted_web_ui(*web_ui_host);
+        // NB: The page took the view's preferences before it hosted the WebUI, so it now takes the interface theme.
+        page->async_set_preferred_color_scheme(Application::the().interface_color_scheme());
+    }
     return page;
 }
 

@@ -104,6 +104,9 @@ public:
         return m_selection.map([](auto const& selection) { return selection.index; });
     }
 
+    // The title of the page the text on display is inline completed to, if it has one.
+    Optional<String> completion_title() const;
+
     // Callbacks to the chrome:
     Function<void(Display const&)> on_display_change;
     Function<void()> on_suggestions_change;
