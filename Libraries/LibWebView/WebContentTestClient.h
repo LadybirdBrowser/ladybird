@@ -44,6 +44,10 @@ private:
     virtual Messages::WebContentTestClient::DidRequestRestoreSessionHistorySnapshotForTestingResponse did_request_restore_session_history_snapshot_for_testing(Web::PageId page_id) override;
     virtual Messages::WebContentTestClient::DidRequestRegisterSessionStoreTabForTestingResponse did_request_register_session_store_tab_for_testing(Web::PageId page_id) override;
     virtual Messages::WebContentTestClient::DidRequestSessionStoreTabStateForTestingResponse did_request_session_store_tab_state_for_testing(Web::PageId page_id) override;
+    virtual Messages::WebContentTestClient::SetPermissionForTestingResponse set_permission_for_testing(Web::PageId, Web::HTML::CrossProcessId document_id, String name, String state) override;
+    virtual void set_next_permission_prompt_outcome_for_testing(Web::PageId, String name, String outcome, bool held) override;
+    virtual void release_held_permission_prompt_for_testing(Web::PageId, u32 waiters) override;
+    virtual Messages::WebContentTestClient::AdvancePermissionClockForTestingResponse advance_permission_clock_for_testing(Web::PageId, u64 milliseconds) override;
     virtual Messages::WebContentTestClient::CreateVirtualGamepadResponse create_virtual_gamepad() override;
     virtual void set_virtual_gamepad_button(Web::Gamepad::GamepadHandle handle, i32 button, bool down) override;
     virtual void set_virtual_gamepad_axis(Web::Gamepad::GamepadHandle handle, i32 axis, i16 value) override;

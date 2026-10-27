@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        // The user blocks the site and then resets it while its prompt is up: the prompt's answer is stale either way.
+        internals.setNextPermissionPromptOutcome("microphone", "allow", true);
+        const request = internals.requestPermission("microphone");
+        await internals.setPermission("microphone", "denied");
+        await internals.setPermission("microphone", "prompt");
+        internals.releaseHeldPermissionPrompt();
+        println(`request: ${await request}`);
+        println(`query: ${(await navigator.permissions.query({ name: "microphone" })).state}`);
+        done();
+    });
+</script>

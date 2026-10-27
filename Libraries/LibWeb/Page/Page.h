@@ -97,6 +97,7 @@
 #include <LibWebCommon/Page/TextEditingCommand.h>
 #include <LibWebCommon/Page/ViewportIsFullscreen.h>
 #include <LibWebCommon/Page/WritingSuggestion.h>
+#include <LibWebCommon/Permissions/Permissions.h>
 #include <LibWebCommon/PixelUnits.h>
 #include <LibWebCommon/StorageAPI/StorageEndpoint.h>
 #include <LibWebCommon/UIEvents/KeyCode.h>
@@ -348,9 +349,9 @@ public:
     void receive_geolocation_position(u64 request_id, GeolocationPositionResult);
 
     // The browser-process bridge for the Permissions spec's "ask the user for express permission" step.
-    using PermissionPromptCallback = GC::Ref<GC::Function<void(bool granted)>>;
-    void request_permission(Utf16String const& name, PermissionPromptCallback);
-    void permission_request_completed(u64 request_id, bool granted);
+    using PermissionPromptCallback = GC::Ref<GC::Function<void(Web::Permissions::EffectiveState)>>;
+    void request_permission(HTML::CrossProcessId requesting_document_id, Utf16String const& name, PermissionPromptCallback);
+    void permission_request_completed(u64 request_id, Web::Permissions::EffectiveState);
 
     // https://w3c.github.io/geolocation/#dfn-emulated-position-data
     // NB: The top-level traversable's, which the UI process tells every page representing it.
@@ -877,7 +878,11 @@ public:
     virtual void page_did_cancel_geolocation_position_request([[maybe_unused]] u64 request_id) { }
     virtual void page_did_start_geolocation_position_watch([[maybe_unused]] u64 request_id) { }
     virtual void page_did_stop_geolocation_position_watch([[maybe_unused]] u64 request_id) { }
-    virtual void page_did_request_permission([[maybe_unused]] u64 request_id, [[maybe_unused]] Utf16String const& name) { }
+    virtual void page_did_request_permission([[maybe_unused]] u64 request_id, [[maybe_unused]] HTML::CrossProcessId requesting_document_id, [[maybe_unused]] Utf16String const& name) { }
+    virtual Optional<Web::Permissions::PermissionSnapshot> page_did_set_permission_for_testing([[maybe_unused]] HTML::CrossProcessId document_id, [[maybe_unused]] String const& name, [[maybe_unused]] String const& state) { return {}; }
+    virtual void page_did_set_next_permission_prompt_outcome_for_testing([[maybe_unused]] String const& name, [[maybe_unused]] String const& outcome, [[maybe_unused]] bool held) { }
+    virtual void page_did_release_held_permission_prompt_for_testing([[maybe_unused]] u32 waiters) { }
+    virtual Optional<Web::Permissions::PermissionSnapshot> page_did_advance_permission_clock_for_testing([[maybe_unused]] u64 milliseconds) { return {}; }
 
     virtual void page_did_finish_test([[maybe_unused]] Utf16String const& text) { }
     virtual void page_did_set_test_timeout([[maybe_unused]] double milliseconds) { }

@@ -257,7 +257,7 @@ private:
     virtual void set_writing_suggestions_available(Web::PageId page_id, bool available) override;
     virtual void set_geolocation_emulated_position(Web::PageId page_id, WebView::GeolocationPositionData, Optional<u16> error_code) override;
     virtual void geolocation_position_response(Web::PageId page_id, u64 request_id, WebView::GeolocationPositionData, Optional<u16> error_code) override;
-    virtual void permission_request_completed(Web::PageId page_id, u64 request_id, bool granted) override;
+    virtual void permission_request_completed(Web::PageId page_id, u64 request_id, Web::Permissions::EffectiveState state) override;
     virtual void set_has_focus(Web::PageId page_id, bool) override;
     virtual void set_focused_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) override;
     virtual void consume_user_activation(Web::PageId page_id, Web::HTML::UserActivationConsumption) override;

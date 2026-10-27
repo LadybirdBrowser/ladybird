@@ -14,6 +14,7 @@
 #include <LibWebCommon/Geolocation/GeolocationPositionErrorCode.h>
 #include <LibWebCommon/HTML/BrowsingContext.h>
 #include <LibWebCommon/Page/InputEvent.h>
+#include <LibWebCommon/SecureContexts/AbstractOperations.h>
 #include <LibWebCommon/WebDriver/Error.h>
 #include <LibWebCommon/WebView/SiteIsolation.h>
 #include <LibWebView/Application.h>
@@ -28,6 +29,7 @@
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/NavigationLoader.h>
+#include <LibWebView/PermissionManager.h>
 #include <LibWebView/PictureInPictureManager.h>
 #include <LibWebView/RequestServerManager.h>
 #include <LibWebView/StorageAreaRegistry.h>
@@ -1621,31 +1623,175 @@ void WebContentPage::did_request_geolocation_position(u64 request_id)
         view().on_request_geolocation_position(*this, request_id);
 }
 
-void WebContentPage::did_request_permission(u64 request_id, Utf16String name)
+static Optional<Web::Permissions::PermissionName> permission_name_from(Utf16String const& name)
 {
-    if (name != "microphone"_utf16) {
+    if (name == "geolocation"_utf16)
+        return Web::Permissions::PermissionName::Geolocation;
+    if (name == "microphone"_utf16)
+        return Web::Permissions::PermissionName::Microphone;
+    return {};
+}
+
+static Web::PermissionsPolicy::PolicyControlledFeature policy_controlled_feature_for(Web::Permissions::PermissionName name)
+{
+    switch (name) {
+    case Web::Permissions::PermissionName::Geolocation:
+        return Web::PermissionsPolicy::PolicyControlledFeature::Geolocation;
+    case Web::Permissions::PermissionName::Microphone:
+        return Web::PermissionsPolicy::PolicyControlledFeature::Microphone;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+RefPtr<CanonicalDocument> WebContentPage::hosted_document_with_id(Web::HTML::CrossProcessId document_id) const
+{
+    RefPtr<CanonicalDocument> found;
+    traversable().for_each_in_inclusive_subtree([&](CanonicalNavigable const& navigable) {
+        auto document = navigable.document_with_id(document_id);
+        if (!document || document->host() != this)
+            return IterationDecision::Continue;
+        found = move(document);
+        return IterationDecision::Break;
+    });
+    return found;
+}
+
+void WebContentPage::did_request_permission(u64 request_id, Web::HTML::CrossProcessId document_id, Utf16String name)
+{
+    auto permission_name = permission_name_from(name);
+    if (!permission_name.has_value()) {
         client().did_misbehave("did_request_permission"sv, "unknown permission name"sv);
         return;
     }
 
-    if (!view().on_request_permission) {
-        async_permission_request_completed(request_id, false);
+    auto deny = [&] { async_permission_request_completed(request_id, Web::Permissions::EffectiveState::Denied); };
+
+    // The UI process decides from what it knows of the requesting document, never from what the renderer says of it.
+    auto document = hosted_document_with_id(document_id);
+    if (!document) {
+        deny();
+        return;
+    }
+    auto top_level_origin = document->top_level_origin();
+    if (!top_level_origin.has_value()) {
+        deny();
         return;
     }
 
-    auto url = view().url();
-    view().on_request_permission(name, url.origin(), [page = NonnullRefPtr(*this), request_id, name, url](bool granted) {
+    auto policy = Web::PermissionsPolicy::check_permissions_policy(document->permissions_policy(), policy_controlled_feature_for(*permission_name), document->origin(), document->origin());
+    if (policy != Web::PermissionsPolicy::FeatureValue::Enabled) {
+        deny();
+        return;
+    }
+
+    // A file: page has an opaque origin, and it's the only one that gets to ask. Its answer lasts as long as the page.
+    auto is_file = top_level_origin->is_opaque() && view().url().scheme() == "file"sv;
+    if (!is_file) {
+        auto is_trustworthy = [](URL::Origin const& origin) {
+            return Web::SecureContexts::is_origin_potentially_trustworthy(origin) == Web::SecureContexts::Trustworthiness::PotentiallyTrustworthy;
+        };
+        if (!is_trustworthy(*top_level_origin) || !is_trustworthy(document->origin())) {
+            deny();
+            return;
+        }
+    }
+
+    auto& manager = *view().session().permission_manager;
+    if (!is_file) {
+        if (auto state = manager.effective_state(*permission_name, *top_level_origin); state != Web::Permissions::EffectiveState::Prompt) {
+            async_permission_request_completed(request_id, state);
+            return;
+        }
+    }
+
+    auto generation_when_asked = manager.decision_generation(*permission_name, *top_level_origin);
+    PermissionPromptRequest request { *permission_name, *top_level_origin, is_file };
+
+    view().request_permission_prompt(move(request), [page = NonnullRefPtr(*this), request_id, document_id, permission_name = *permission_name, top_level_origin = *top_level_origin, is_file, generation_when_asked](Web::Permissions::PromptOutcome outcome) {
         if (!page->is_open())
             return;
-        // The AudioServer hears of the permission before the page does, so the page's first request finds it in place.
-        if (granted && name == "microphone"_utf16) {
-            if (auto result = page->client().grant_audio_capture(url); result.is_error()) {
-                warnln("Unable to grant audio capture: {}", result.error());
-                granted = false;
+
+        auto state = Web::Permissions::EffectiveState::Prompt;
+        if (is_file) {
+            if (outcome == Web::Permissions::PromptOutcome::AllowAlways || outcome == Web::Permissions::PromptOutcome::AllowOnce)
+                state = Web::Permissions::EffectiveState::Granted;
+            else if (outcome == Web::Permissions::PromptOutcome::Block)
+                state = Web::Permissions::EffectiveState::Denied;
+            if (state == Web::Permissions::EffectiveState::Granted && permission_name == Web::Permissions::PermissionName::Microphone) {
+                if (auto result = page->client().grant_audio_capture_to_file(page->view().url()); result.is_error())
+                    warnln("Unable to grant audio capture: {}", result.error());
             }
+        } else {
+            auto& manager = *page->view().session().permission_manager;
+
+            // The answer counts only if nothing was decided for the site while the prompt was up: A decision made
+            // elsewhere (in the site-info panel, e.g.) wins, and a document that's gone takes its prompt with it. And
+            // requests that shared one prompt record its answer once, as the first of them records it.
+            auto still_relevant = page->hosted_document_with_id(document_id) && manager.decision_generation(permission_name, top_level_origin) == generation_when_asked;
+            if (still_relevant)
+                manager.record_prompt_outcome(permission_name, top_level_origin, outcome);
+            state = manager.effective_state(permission_name, top_level_origin);
         }
-        page->async_permission_request_completed(request_id, granted);
+
+        // The AudioServer hears of the permission before the page does, so the page's first request finds it in place.
+        if (permission_name == Web::Permissions::PermissionName::Microphone)
+            page->client().update_audio_capture_permission();
+
+        page->async_permission_request_completed(request_id, state);
     });
+}
+
+Web::Permissions::PermissionSnapshot WebContentPage::set_permission_for_testing(Web::HTML::CrossProcessId document_id, String const& name, String const& state)
+{
+    auto& manager = *view().session().permission_manager;
+    auto permission_name = Web::Permissions::permission_name_from_string(name);
+    auto document = hosted_document_with_id(document_id);
+    auto top_level_origin = document ? document->top_level_origin() : Optional<URL::Origin> {};
+
+    if (permission_name.has_value() && top_level_origin.has_value()) {
+        if (state == "granted"sv)
+            manager.set_decision(*permission_name, *top_level_origin, PermissionDecision::Allow);
+        else if (state == "denied"sv)
+            manager.set_decision(*permission_name, *top_level_origin, PermissionDecision::Block);
+        else if (state == "prompt"sv)
+            manager.set_decision(*permission_name, *top_level_origin, {});
+        if (*permission_name == Web::Permissions::PermissionName::Microphone)
+            client().update_audio_capture_permission();
+    }
+    return manager.snapshot();
+}
+
+void WebContentPage::set_next_permission_prompt_outcome_for_testing(String const& name, String const& outcome, bool held)
+{
+    auto permission_name = Web::Permissions::permission_name_from_string(name);
+    if (!permission_name.has_value())
+        return;
+
+    Optional<Web::Permissions::PromptOutcome> prompt_outcome;
+    if (outcome == "allow"sv)
+        prompt_outcome = Web::Permissions::PromptOutcome::AllowAlways;
+    else if (outcome == "allow-once"sv)
+        prompt_outcome = Web::Permissions::PromptOutcome::AllowOnce;
+    else if (outcome == "block"sv)
+        prompt_outcome = Web::Permissions::PromptOutcome::Block;
+    else if (outcome == "dismiss"sv)
+        prompt_outcome = Web::Permissions::PromptOutcome::Dismissed;
+    else if (outcome == "ignore"sv)
+        prompt_outcome = Web::Permissions::PromptOutcome::Ignored;
+    if (prompt_outcome.has_value())
+        view().set_next_permission_prompt_outcome_for_testing(*permission_name, *prompt_outcome, held);
+}
+
+void WebContentPage::release_held_permission_prompt_for_testing(u32 waiters)
+{
+    view().release_held_permission_prompt_for_testing(waiters);
+}
+
+Web::Permissions::PermissionSnapshot WebContentPage::advance_permission_clock_for_testing(u64 milliseconds)
+{
+    auto& manager = *view().session().permission_manager;
+    manager.age_origin_for_testing(view().url().origin(), AK::Duration::from_milliseconds(static_cast<i64>(milliseconds)));
+    return manager.snapshot();
 }
 
 void WebContentPage::did_cancel_geolocation_position_request(u64 request_id)

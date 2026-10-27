@@ -369,16 +369,16 @@ TEST_CASE(site_decisions_list_stored_decisions)
         EXPECT(site.decision == (site.origin.is_same_origin(maps) ? PermissionDecision::Allow : PermissionDecision::Block));
 }
 
-TEST_CASE(clear_for_testing_forgets_everything)
+TEST_CASE(aging_an_origin_leaves_others_alone)
 {
-    FakeClock clock;
-    auto manager = create_manager(clock, "clear"sv);
-    manager->set_decision(PermissionName::Geolocation, maps, PermissionDecision::Block);
-    for (int i = 0; i < 3; ++i)
-        manager->record_prompt_outcome(PermissionName::Microphone, talk, PromptOutcome::Dismissed);
-    manager->clear_for_testing();
+    auto manager = PermissionManager::create_for_ordinary_session(persistence_path("aging"sv));
+    for (auto const& origin : { maps, talk }) {
+        for (int i = 0; i < 3; ++i)
+            manager->record_prompt_outcome(PermissionName::Geolocation, origin, PromptOutcome::Dismissed);
+    }
+    manager->age_origin_for_testing(maps, AK::Duration::from_seconds(7 * 86400));
     EXPECT(manager->effective_state(PermissionName::Geolocation, maps) == EffectiveState::Prompt);
-    EXPECT(manager->effective_state(PermissionName::Microphone, talk) == EffectiveState::Prompt);
+    EXPECT(manager->effective_state(PermissionName::Geolocation, talk) == EffectiveState::Denied);
 }
 
 TEST_CASE(global_block_overrides_stored_allow)

@@ -107,7 +107,7 @@ public:
 
     void set_geolocation_emulated_position(WebView::GeolocationPositionData const&, Optional<u16> error_code);
     void geolocation_position_response(u64 request_id, WebView::GeolocationPositionData const&, Optional<u16> error_code);
-    void permission_request_completed(u64 request_id, bool granted);
+    void permission_request_completed(u64 request_id, Web::Permissions::EffectiveState);
     Optional<URL::URL> generate_text_fragment_url(u64 generation_id);
 
     void alert_closed();
@@ -350,7 +350,11 @@ private:
     virtual void page_did_cancel_geolocation_position_request(u64 request_id) override;
     virtual void page_did_start_geolocation_position_watch(u64 request_id) override;
     virtual void page_did_stop_geolocation_position_watch(u64 request_id) override;
-    virtual void page_did_request_permission(u64 request_id, Utf16String const& name) override;
+    virtual void page_did_request_permission(u64 request_id, Web::HTML::CrossProcessId requesting_document_id, Utf16String const& name) override;
+    virtual Optional<Web::Permissions::PermissionSnapshot> page_did_set_permission_for_testing(Web::HTML::CrossProcessId document_id, String const& name, String const& state) override;
+    virtual void page_did_set_next_permission_prompt_outcome_for_testing(String const& name, String const& outcome, bool held) override;
+    virtual void page_did_release_held_permission_prompt_for_testing(u32 waiters) override;
+    virtual Optional<Web::Permissions::PermissionSnapshot> page_did_advance_permission_clock_for_testing(u64 milliseconds) override;
     virtual void page_did_finish_test(Utf16String const& text) override;
     virtual void page_did_set_test_timeout(double milliseconds) override;
     virtual void page_did_receive_reference_test_metadata(JsonValue) override;

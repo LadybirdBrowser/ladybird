@@ -1306,14 +1306,48 @@ void PageClient::page_did_request_geolocation_position(u64 request_id)
     client().async_did_request_geolocation_position(m_id, request_id);
 }
 
-void PageClient::page_did_request_permission(u64 request_id, Utf16String const& name)
+void PageClient::page_did_request_permission(u64 request_id, Web::HTML::CrossProcessId requesting_document_id, Utf16String const& name)
 {
-    client().async_did_request_permission(m_id, request_id, name);
+    client().async_did_request_permission(m_id, request_id, requesting_document_id, name);
 }
 
-void PageClient::permission_request_completed(u64 request_id, bool granted)
+Optional<Web::Permissions::PermissionSnapshot> PageClient::page_did_set_permission_for_testing(Web::HTML::CrossProcessId document_id, String const& name, String const& state)
 {
-    page().permission_request_completed(request_id, granted);
+    auto* test_connection = client().test_connection();
+    if (!test_connection)
+        return {};
+    auto response = test_connection->send_sync_but_allow_failure<Messages::WebContentTestClient::SetPermissionForTesting>(m_id, document_id, name, state);
+    if (!response)
+        return {};
+    return response->take_snapshot();
+}
+
+void PageClient::page_did_set_next_permission_prompt_outcome_for_testing(String const& name, String const& outcome, bool held)
+{
+    if (auto* test_connection = client().test_connection())
+        (void)test_connection->send_sync_but_allow_failure<Messages::WebContentTestClient::SetNextPermissionPromptOutcomeForTesting>(m_id, name, outcome, held);
+}
+
+void PageClient::page_did_release_held_permission_prompt_for_testing(u32 waiters)
+{
+    if (auto* test_connection = client().test_connection())
+        (void)test_connection->send_sync_but_allow_failure<Messages::WebContentTestClient::ReleaseHeldPermissionPromptForTesting>(m_id, waiters);
+}
+
+Optional<Web::Permissions::PermissionSnapshot> PageClient::page_did_advance_permission_clock_for_testing(u64 milliseconds)
+{
+    auto* test_connection = client().test_connection();
+    if (!test_connection)
+        return {};
+    auto response = test_connection->send_sync_but_allow_failure<Messages::WebContentTestClient::AdvancePermissionClockForTesting>(m_id, milliseconds);
+    if (!response)
+        return {};
+    return response->take_snapshot();
+}
+
+void PageClient::permission_request_completed(u64 request_id, Web::Permissions::EffectiveState state)
+{
+    page().permission_request_completed(request_id, state);
 }
 
 void PageClient::page_did_cancel_geolocation_position_request(u64 request_id)

@@ -256,6 +256,12 @@ public:
     void set_environments_top_level_url(Utf16String const& url);
     void set_geolocation_emulated_position(double latitude, double longitude, double accuracy);
 
+    GC::Ref<WebIDL::Promise> request_permission(Utf16String const& name);
+    GC::Ref<WebIDL::Promise> set_permission(Utf16String const& name, Utf16String const& state);
+    void set_next_permission_prompt_outcome(Utf16String const& name, Utf16String const& outcome, bool held);
+    void release_held_permission_prompt(WebIDL::UnsignedLong waiters);
+    GC::Ref<WebIDL::Promise> advance_permission_clock(WebIDL::UnsignedLongLong milliseconds);
+
     u64 parser_non_append_insertions();
     DOM::Document::StyleInvalidationCounters const& style_invalidation_counters() const;
     GC::Ref<JS::Object> style_invalidation_counters_object() const;

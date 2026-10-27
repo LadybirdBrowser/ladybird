@@ -59,6 +59,7 @@
 #include <LibWebCommon/Page/QueuedInputEvent.h>
 #include <LibWebCommon/Page/ScreenWakeLockState.h>
 #include <LibWebCommon/Page/ViewportIsFullscreen.h>
+#include <LibWebCommon/Permissions/Permissions.h>
 #include <LibWebCommon/WebDriver/Response.h>
 #include <LibWebCommon/WebDriver/SessionBrowsingContext.h>
 #include <LibWebCommon/WebView/DOMNodeProperties.h>
@@ -93,6 +94,22 @@ struct GeolocationRequestKey {
     bool operator==(GeolocationRequestKey const&) const = default;
 };
 
+// What the UI shows the user when a site asks for a permission. The origin is the top-level one the decision is kept
+// for; a file: page has none worth showing, so the prompt names it as a file instead.
+struct PermissionPromptRequest {
+    Web::Permissions::PermissionName name;
+    URL::Origin top_level_origin;
+    bool is_file { false };
+    bool show_os_hint { false };
+
+    bool is_same_request_as(PermissionPromptRequest const& other) const
+    {
+        return name == other.name && is_file == other.is_file && top_level_origin.is_same_origin(other.top_level_origin);
+    }
+};
+
+using PermissionPromptCallback = Function<void(Web::Permissions::PromptOutcome)>;
+
 class WEBVIEW_API ViewImplementation
     : public SettingsObserver
     , public BookmarkStoreObserver
@@ -109,6 +126,13 @@ public:
 
     IsPrivate is_private() const { return m_is_private; }
     BrowsingSession& session() const { return *m_session; }
+
+    // Asks the user, unless an identical prompt is already up, in which case its answer goes to every request for it.
+    void request_permission_prompt(PermissionPromptRequest, PermissionPromptCallback);
+    void set_next_permission_prompt_outcome_for_testing(Web::Permissions::PermissionName, Web::Permissions::PromptOutcome, bool held);
+    // Answers the held prompt once this many requests wait on it, since the requests arrive over another connection.
+    void release_held_permission_prompt_for_testing(u32 waiters);
+    void reset_permission_prompts_for_testing();
 
     u64 view_id() const { return m_view_id; }
     pid_t web_content_pid() const;
@@ -574,7 +598,8 @@ public:
     Function<void(WebContentPage& requesting_page, u64 request_id)> on_cancel_geolocation_position_request;
     Function<void(WebContentPage& requesting_page, u64 request_id)> on_start_geolocation_position_watch;
     Function<void(WebContentPage& requesting_page, u64 request_id)> on_stop_geolocation_position_watch;
-    Function<void(Utf16String const& name, URL::Origin const&, Function<void(bool granted)> on_decided)> on_request_permission;
+    Function<void(PermissionPromptRequest const&, PermissionPromptCallback)> on_request_permission;
+    Function<void(PermissionPromptRequest const&)> on_cancel_permission_prompt;
     Function<void(Web::HTML::FileFilter const& accepted_file_types, Web::HTML::AllowMultipleFiles)> on_request_file_picker;
     Function<void(Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items)> on_request_select_dropdown;
     Function<void(Web::KeyEvent const&)> on_finish_handling_key_event;
@@ -661,6 +686,8 @@ protected:
     void set_owner_view(ViewImplementation const& owner_view) { m_owner_view_id = owner_view.view_id(); }
 
     void did_update_url();
+    void settle_permission_prompt(PermissionPromptRequest const&, Web::Permissions::PromptOutcome);
+    void ignore_pending_permission_prompts();
     void set_title(Utf16String);
     void set_favicon(Optional<Gfx::Bitmap const&>);
     Optional<URL::URL const&> browser_ui_load_url() const;
@@ -1098,6 +1125,22 @@ protected:
 
     HashMap<GeolocationRequestKey, Core::GeolocationProvider::RequestId> m_geolocation_position_request_ids;
     HashMap<GeolocationRequestKey, Core::GeolocationProvider::WatchId> m_geolocation_watch_ids;
+
+    struct PendingPermissionPrompt {
+        PermissionPromptRequest request;
+        Vector<PermissionPromptCallback> waiters;
+    };
+    Vector<PendingPermissionPrompt> m_pending_permission_prompts;
+
+    struct PermissionPromptOutcomeForTesting {
+        Web::Permissions::PromptOutcome outcome;
+        bool held { false };
+    };
+    HashMap<Web::Permissions::PermissionName, PermissionPromptOutcomeForTesting> m_next_permission_prompt_outcomes_for_testing;
+    Optional<PermissionPromptRequest> m_held_permission_prompt_for_testing;
+    Web::Permissions::PromptOutcome m_held_permission_prompt_outcome_for_testing { Web::Permissions::PromptOutcome::Cancelled };
+    Optional<u32> m_held_permission_prompt_release_waiters_for_testing;
+    void release_held_permission_prompt_if_ready_for_testing();
 
     Core::AnonymousBuffer m_document_cookie_version_buffer;
     HashMap<String, Core::SharedVersionIndex> m_document_cookie_version_indices;

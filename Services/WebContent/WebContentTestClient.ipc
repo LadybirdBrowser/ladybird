@@ -5,6 +5,7 @@
 #include <LibWebCommon/HTML/Scripting/EnvironmentId.h>
 #include <LibWebCommon/HTML/SessionHistoryEntryDescriptor.h>
 #include <LibWebCommon/Page/PageId.h>
+#include <LibWebCommon/Permissions/Permissions.h>
 #include <LibWebCommon/StorageAPI/StorageEndpoint.h>
 
 endpoint WebContentTestClient routed by Web::PageId page_id
@@ -17,6 +18,11 @@ endpoint WebContentTestClient routed by Web::PageId page_id
     did_store_hsts_policy_for_testing(String domain, HTTP::HSTS::ParsedHSTSPolicy policy) => ()
     [NotRouted] did_request_clear_storage_for_testing(Web::PageId page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId environment_id) => ()
     did_simulate_worker_request_server_connection_loss(Web::PageId page_id) => ()
+
+    [NotRouted] set_permission_for_testing(Web::PageId page_id, Web::HTML::CrossProcessId document_id, String name, String state) => (Web::Permissions::PermissionSnapshot snapshot)
+    [NotRouted] set_next_permission_prompt_outcome_for_testing(Web::PageId page_id, String name, String outcome, bool held) => ()
+    [NotRouted] release_held_permission_prompt_for_testing(Web::PageId page_id, u32 waiters) => ()
+    [NotRouted] advance_permission_clock_for_testing(Web::PageId page_id, u64 milliseconds) => (Web::Permissions::PermissionSnapshot snapshot)
     [NotRouted] did_spoof_document_origin_for_testing(Web::PageId page_id, Web::HTML::EnvironmentId environment_id, URL::Origin origin) => ()
 
     [NotRouted] did_request_ui_process_session_history_for_testing(Web::PageId page_id) => (String session_history)

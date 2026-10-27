@@ -151,3 +151,7 @@ window.test_driver_internal.action_sequence = async function(actions, context) {
         }
     }
 };
+
+window.test_driver_internal.set_permission = function(permission_params, context) {
+    return window.internals.setPermission(permission_params.descriptor.name, permission_params.state);
+};

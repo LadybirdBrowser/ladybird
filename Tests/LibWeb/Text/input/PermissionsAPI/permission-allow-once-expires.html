@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        internals.setNextPermissionPromptOutcome("microphone", "allow-once");
+        println(`request: ${await internals.requestPermission("microphone")}`);
+        await internals.advancePermissionClock(16 * 60 * 60 * 1000 - 1000);
+        println(`just under sixteen hours: ${(await navigator.permissions.query({ name: "microphone" })).state}`);
+        await internals.advancePermissionClock(1000);
+        println(`sixteen hours: ${(await navigator.permissions.query({ name: "microphone" })).state}`);
+        done();
+    });
+</script>

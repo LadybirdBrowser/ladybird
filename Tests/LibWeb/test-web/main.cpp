@@ -1271,6 +1271,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
                 view->reset_line_box_borders();
                 view->reset_user_style();
                 view->reset_geolocation_emulated_position();
+                view->reset_permissions();
                 view->reset_viewport_size(window_size);
             }
 

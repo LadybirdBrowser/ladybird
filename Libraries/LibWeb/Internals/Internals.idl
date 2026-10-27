@@ -258,6 +258,12 @@ interface Internals {
     undefined setEnvironmentsTopLevelURL(USVString url);
     undefined setGeolocationEmulatedPosition(double latitude, double longitude, optional double accuracy = 100);
 
+    Promise<DOMString> requestPermission(DOMString name);
+    Promise<undefined> setPermission(DOMString name, DOMString state);
+    undefined setNextPermissionPromptOutcome(DOMString name, DOMString outcome, optional boolean held = false);
+    undefined releaseHeldPermissionPrompt(optional unsigned long waiters = 1);
+    Promise<undefined> advancePermissionClock(unsigned long long milliseconds);
+
     InternalGamepad connectVirtualGamepad();
 
     undefined setHighlightedNode(Node? node);
