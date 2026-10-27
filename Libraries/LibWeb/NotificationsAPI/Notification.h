@@ -16,6 +16,7 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HighResolutionTime/EpochTimeStamp.h>
+#include <LibWebCommon/NotificationsAPI/NotificationData.h>
 #include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::NotificationsAPI {
@@ -91,6 +92,7 @@ class WEB_API Notification final : public DOM::EventTarget {
 
 public:
     [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<Notification>> create_with_global_scope(
+        JS::Object& relevant_global_object,
         HTML::WindowOrWorkerGlobalScopeMixin&,
         String const& title,
         NotificationOptions options);
@@ -112,6 +114,23 @@ public:
         HighResolutionTime::EpochTimeStamp fallback_timestamp);
 
     static Bindings::NotificationPermission permission();
+
+    void close();
+
+    void set_onclick(WebIDL::CallbackType*);
+    WebIDL::CallbackType* onclick();
+    void set_onshow(WebIDL::CallbackType*);
+    WebIDL::CallbackType* onshow();
+    void set_onerror(WebIDL::CallbackType*);
+    WebIDL::CallbackType* onerror();
+    void set_onclose(WebIDL::CallbackType*);
+    WebIDL::CallbackType* onclose();
+
+    // What the UI process reports back about the notification it shows for this object.
+    void did_show();
+    void did_fail_to_show();
+    void did_click();
+    void did_close(bool by_user);
 
     // https://notifications.spec.whatwg.org/#maximum-number-of-actions-supported
     // Two is what both desktop notification platforms show room for; persistent notifications, the only kind that
@@ -139,9 +158,32 @@ public:
 private:
     Notification();
 
+    virtual void visit_edges(Cell::Visitor&) override;
+
     static Utf16String serialize_url_for_bindings(Optional<URL::URL> const&);
 
+    void run_steps_in_parallel_after_construction();
+    void show_steps();
+    void close_steps();
+    void queue_task_to_fire_event(Utf16FlyString const& event_name);
+    NotificationData data() const;
+
     ConceptNotification m_notification;
+
+    // The global the constructor ran in: Where the events fire, and whose window the notification belongs to.
+    GC::Ptr<JS::Object> m_relevant_global;
+    GC::Ptr<Page> m_page;
+
+    // Where the notification is on its way through the UI process. Showing and Closing mean it's in the page's list of
+    // notifications; Closed means it has left it for good.
+    enum class State {
+        Idle,
+        Showing,
+        Closing,
+        Closed,
+    };
+    State m_state { State::Idle };
+    u64 m_id { 0 };
 };
 
 }
