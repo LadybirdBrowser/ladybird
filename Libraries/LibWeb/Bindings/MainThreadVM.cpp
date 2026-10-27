@@ -704,6 +704,10 @@ void initialize_main_thread_vm(HTML::AgentType type)
     };
 
     main_thread_vm_ptr()->host_unrecognized_date_string = [](Utf16View date) {
+        // NB: Sites routinely construct dates from empty strings on purpose, so those would only drown out strings our
+        //     date parser fails to understand.
+        if (date.is_empty())
+            return;
         dbgln("Unable to parse date string: \"{}\"", date);
     };
 
