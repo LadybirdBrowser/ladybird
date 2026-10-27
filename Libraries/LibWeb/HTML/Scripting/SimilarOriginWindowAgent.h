@@ -52,7 +52,7 @@ struct SimilarOriginWindowAgent : public Agent {
     // https://html.spec.whatwg.org/multipage/custom-elements.html#active-custom-element-constructor-map
     // Each similar-origin window agent has an associated active custom element constructor map, which is a map of
     // constructors to CustomElementRegistry objects.
-    HashMap<GC::Ref<JS::FunctionObject>, GC::Root<CustomElementRegistry>> active_custom_element_constructor_map;
+    HashMap<GC::RawRef<JS::FunctionObject>, GC::Root<CustomElementRegistry>> active_custom_element_constructor_map;
 
 private:
     SimilarOriginWindowAgent(CanBlock);
