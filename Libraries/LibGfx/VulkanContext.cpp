@@ -51,7 +51,7 @@ static ErrorOr<VkInstance> create_instance(uint32_t api_version)
     return instance;
 }
 
-static ErrorOr<VkPhysicalDevice> pick_physical_device(VkInstance instance)
+static ErrorOr<VkPhysicalDevice> pick_physical_device(VkInstance instance, Optional<GpuDeviceIdentity> const& preferred_device)
 {
     uint32_t device_count = 0;
     vkEnumeratePhysicalDevices(instance, &device_count, nullptr);
@@ -62,6 +62,14 @@ static ErrorOr<VkPhysicalDevice> pick_physical_device(VkInstance instance)
     Vector<VkPhysicalDevice> devices;
     devices.resize(device_count);
     vkEnumeratePhysicalDevices(instance, &device_count, devices.data());
+
+    if (preferred_device.has_value()) {
+        for (auto const& device : devices) {
+            if (gpu_device_identity_of(device) == *preferred_device)
+                return device;
+        }
+        dbgln("The preferred GPU is not a Vulkan device here, picking another one");
+    }
 
     VkPhysicalDevice picked_device = VK_NULL_HANDLE;
     // Pick discrete GPU or the first device in the list
@@ -212,11 +220,11 @@ GpuDeviceIdentity gpu_device_identity_of(VkPhysicalDevice physical_device)
     return identity;
 }
 
-ErrorOr<VulkanContext> create_vulkan_context()
+ErrorOr<VulkanContext> create_vulkan_context(Optional<GpuDeviceIdentity> const& preferred_device)
 {
     uint32_t const api_version = VK_API_VERSION_1_1; // v1.1 needed for vkGetPhysicalDeviceFormatProperties2
     auto* instance = TRY(create_instance(api_version));
-    auto* physical_device = TRY(pick_physical_device(instance));
+    auto* physical_device = TRY(pick_physical_device(instance, preferred_device));
 
     uint32_t graphics_queue_family = 0;
     auto can_sample_through_ycbcr_conversion = device_can_sample_through_ycbcr_conversion(physical_device);

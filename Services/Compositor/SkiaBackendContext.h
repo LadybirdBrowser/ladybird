@@ -9,6 +9,8 @@
 #include <AK/AtomicRefCounted.h>
 #include <AK/Function.h>
 #include <AK/Noncopyable.h>
+#include <AK/Optional.h>
+#include <LibGfx/GpuDeviceIdentity.h>
 
 #ifdef USE_DIRECTX
 #    include <LibGfx/Direct3DContext.h>
@@ -49,8 +51,9 @@ public:
     static RefPtr<SkiaBackendContext> create_metal_context(NonnullRefPtr<MetalContext>);
 #endif
 
-    static void initialize_gpu_backend();
-    static RefPtr<SkiaBackendContext> create_independent_gpu_backend();
+    // The preferred GPU is used when there is one, so that the backing stores can be shared with the presentation.
+    static void initialize_gpu_backend(Optional<GpuDeviceIdentity> const& preferred_device = {});
+    static RefPtr<SkiaBackendContext> create_independent_gpu_backend(Optional<GpuDeviceIdentity> const& preferred_device = {});
     static RefPtr<SkiaBackendContext> the_main_thread_context();
 
     SkiaBackendContext() { }

@@ -34,6 +34,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     bool force_cpu_painting = false;
     bool force_fontconfig = false;
     bool disable_sandbox = false;
+    StringView gpu_device;
 
     int crash_report_fd = -1;
     StringView stats_log_directory;
@@ -48,12 +49,20 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(force_cpu_painting, "Force CPU painting", "force-cpu-painting");
     args_parser.add_option(force_fontconfig, "Force using fontconfig for font loading", "force-fontconfig");
     args_parser.add_option(disable_sandbox, "Disable process sandboxing", "disable-sandbox");
+    args_parser.add_option(gpu_device, "The GPU to paint on, as the presentation identifies it", "gpu-device", 0, "identity");
     args_parser.parse(arguments);
 
     auto stats_log = TRY(Core::StatsLog::create(stats_log_directory, "Compositor"sv));
 
     if (resource_root.is_empty())
         return Error::from_string_literal("--resource-root is required");
+
+    Optional<Gfx::GpuDeviceIdentity> preferred_gpu_device;
+    if (!gpu_device.is_empty()) {
+        preferred_gpu_device = Gfx::GpuDeviceIdentity::from_string(gpu_device);
+        if (!preferred_gpu_device.has_value())
+            return Error::from_string_literal("Malformed GPU device identity");
+    }
 
     if (crash_report_fd >= 0) {
         if (auto result = Core::CrashHandler::initialize(crash_report_fd); result.is_error())
@@ -85,7 +94,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 #endif
 
     if (!force_cpu_painting)
-        Gfx::SkiaBackendContext::initialize_gpu_backend();
+        Gfx::SkiaBackendContext::initialize_gpu_backend(preferred_gpu_device);
     auto skia_backend_context = Gfx::SkiaBackendContext::the_main_thread_context();
 
     auto& event_loop = Core::EventLoop::initialize_for_current_thread();
