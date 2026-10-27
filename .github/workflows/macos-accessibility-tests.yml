@@ -319,6 +319,19 @@ jobs:
               fi
               fail=1
             fi
+            # A screen-locked session passes every check above — but macOS withholds each window's accessibility
+            # representation while the session is locked, so every test would fail. The wake step above tries to clear
+            # the lock. So if the lock's still there, fail here, with an error that names the runner. But if the lock
+            # state can't be read, just warn: The checks above already fail a runner with no GUI session, which is when
+            # CGSessionCopyCurrentDictionary() returns null.
+            locked=$("${py}" -c "from Quartz import CGSessionCopyCurrentDictionary as s; d = s(); print('unknown' if d is None else 'yes' if d.get('CGSSessionScreenIsLocked') else 'no')" 2>/dev/null || echo "error")
+            echo "screen locked         : ${locked}"
+            if [ "${locked}" = "yes" ]; then
+              echo "::error title=AX preflight: session screen-locked::Runner ${RUNNER_NAME} booted with its session screen-locked, and waking it didn't clear the lock. macOS withholds each window's accessibility representation while the session is locked, so the accessibility tests can't run on this runner. Rerunning the job usually lands it on an unlocked runner."
+              fail=1
+            elif [ "${locked}" != "no" ]; then
+              echo "::warning title=AX preflight: lock state unknown::Couldn't read if the session is screen-locked (got '${locked}'), so the accessibility tests run without that check."
+            fi
           else
             echo "::error title=AX preflight: no PyObjC::No python3 with PyObjC found, so the accessibility tests cannot run on this runner."
             fail=1
@@ -327,7 +340,11 @@ jobs:
             echo "AX preflight FAILED: this runner isn't set up to run the macOS accessibility tests (see the annotated errors above)."
             exit 1
           fi
-          echo "AX preflight OK: GUI (Aqua) session and Accessibility access are both present."
+          if [ "${locked}" = "no" ]; then
+            echo "AX preflight OK: GUI (Aqua) session unlocked, and Accessibility access present."
+          else
+            echo "AX preflight OK: GUI (Aqua) session and Accessibility access present, but the lock state is unknown."
+          fi
 
       # When Ladybird never surfaces a populated AXWebArea, every test-class run waits out its full startup timeout. At
       # the 60s default, that's 20 classes times 60s: 1200s. That's past this step's timeout. And unittest only prints
