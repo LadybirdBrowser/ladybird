@@ -33,6 +33,7 @@
 #include <LibWeb/HTML/HistoryExecutor.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
+#include <LibWeb/HTML/Navigator.h>
 #include <LibWeb/HTML/OffscreenCanvas.h>
 #include <LibWeb/HTML/RemoteNavigable.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -41,6 +42,7 @@
 #include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Loader/ContentBlocker.h>
+#include <LibWeb/MediaCapture/MediaDevices.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Page/RenderingStats.h>
 #include <LibWeb/Painting/BoxViews.h>
@@ -209,6 +211,22 @@ GC::Ptr<HTML::Navigable> Page::focused_navigable() const
 GC::Ptr<HTML::LocalNavigable> Page::hosted_focused_navigable() const
 {
     return as_if<HTML::LocalNavigable>(focused_navigable().ptr());
+}
+
+void Page::system_focus_changed()
+{
+    for (auto const& navigable : hosted_navigables()) {
+        auto document = navigable->active_document();
+        if (!document)
+            continue;
+        auto window = document->window();
+        if (!window)
+            continue;
+        if (auto navigator = window->navigator_if_created(); navigator) {
+            if (auto media_devices = navigator->media_devices_if_created())
+                media_devices->system_focus_changed();
+        }
+    }
 }
 
 void Page::set_focused_navigable(HTML::Navigable& navigable)

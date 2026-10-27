@@ -225,6 +225,8 @@ void PageClient::set_has_focus(bool has_focus)
             controller->dismiss();
         Web::Painting::request_document_repaint(*document, Web::InvalidateDisplayList::PaintCommands);
     }
+
+    page().system_focus_changed();
 }
 
 void PageClient::set_window_handle(Utf16String window_handle)

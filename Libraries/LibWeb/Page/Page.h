@@ -181,6 +181,7 @@ public:
     GC::Ptr<HTML::Navigable> focused_navigable() const;
     GC::Ptr<HTML::LocalNavigable> hosted_focused_navigable() const;
     void set_focused_navigable(HTML::Navigable&);
+    void system_focus_changed();
     void focused_navigable_changed_in_another_page(HTML::CrossProcessId);
     void navigable_document_destroyed(Badge<DOM::Document>, HTML::LocalNavigable&);
 
