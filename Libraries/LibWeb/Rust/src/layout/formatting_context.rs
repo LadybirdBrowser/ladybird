@@ -2182,10 +2182,6 @@ fn execute_formatting_context_run(
                 implementation = Some(context_implementation);
                 result
             };
-            if changes_frame {
-                result = leave_own_frame(run, body_run, result, parent_frame, own_frame);
-            }
-
             // https://drafts.csswg.org/css-sizing-4/#intrinsic-size-override
             // If an element has an explicit intrinsic inner size in an axis, then after laying out the element as normal for
             // size containment, the size of the contents in that axis are instead treated as being the explicit intrinsic inner
@@ -2193,7 +2189,7 @@ fn execute_formatting_context_run(
             //
             // Every formatting context reports its content sizes through ChildLayoutResult, so overriding here covers them all
             // rather than one context's root-height path.
-            let containment_facts = NodeFacts::new(&run.callbacks, run.box_);
+            let containment_facts = NodeFacts::new(&body_run.callbacks, run.box_);
             let lays_out_own_content = run.fragmentainer.is_none();
             if lays_out_own_content && containment_facts.node_has_size_containment() {
                 let style = containment_facts.style();
@@ -2207,6 +2203,12 @@ fn execute_formatting_context_run(
                 } else {
                     CssPixels::default()
                 };
+            }
+
+            // NB: Intrinsic size overrides use the box's own writing mode, before its sizes are projected into the
+            //     parent's frame.
+            if changes_frame {
+                result = leave_own_frame(run, body_run, result, parent_frame, own_frame);
             }
 
             if containment_facts.has_preferred_aspect_ratio() {
