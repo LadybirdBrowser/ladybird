@@ -1,0 +1,27 @@
+<!doctype html>
+<style id="registration">
+    @property --sheet-initial {
+        syntax: "<length>";
+        inherits: false;
+        initial-value: 2px;
+    }
+</style>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const registration = document.getElementById("registration");
+        const style = getComputedStyle(target);
+        const names = () => Array.from(style).filter(name => name.startsWith("--")).sort().join(", ");
+        println(`initial: ${JSON.stringify(names())}`);
+        target.style.setProperty("--dynamic", "value");
+        println(`specified: ${JSON.stringify(names())}`);
+        CSS.registerProperty({ name: "--api-initial", syntax: "<length>", inherits: false, initialValue: "3px" });
+        println(`registered: ${JSON.stringify(names())}`);
+        registration.textContent = '@property --replacement-initial { syntax: "<length>"; inherits: false; initial-value: 4px; }';
+        println(`stylesheet: ${JSON.stringify(names())}`);
+        target.style.removeProperty("--dynamic");
+        println(`removed: ${JSON.stringify(names())}`);
+    });
+</script>
