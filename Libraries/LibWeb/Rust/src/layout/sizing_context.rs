@@ -3355,7 +3355,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         wrapper: Node,
         containing_block_inline_size: CssPixels,
         table_constraints: ContainingBlockConstraints,
-        size_table: impl FnOnce(&FormattingContextRun<'_>, &UsedValues) -> R,
+        size_table: impl FnOnce(&FormattingContextRun<'_>) -> R,
     ) -> R {
         let table_box = self.table_box_inside_wrapper(wrapper);
         let table_used = used_values::create_used_values(&self.callbacks, table_box, table_constraints);
@@ -3384,7 +3384,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
                     fragments: None,
                     fragmentainer: None,
                 };
-                size_table(&table_run, &table_used)
+                size_table(&table_run)
             },
         )
     }
@@ -3416,42 +3416,38 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         // wrapper's constraints unchanged. Callers measuring a table wrapper for grid alignment
         // pass the grid-area inline size as the wrapper's percentage basis.
         let table_constraints = table_wrapper_constraints;
-        self.size_table_box_inside_wrapper(
-            wrapper,
-            containing_block_inline_size,
-            table_constraints,
-            |table_run, table_used| {
-                let mut table = table_formatting_context::TableFormattingContext::new(
-                    table_run,
-                    table_formatting_context::AutoTableInlineSize::ShrinksToFitAvailableInlineSize,
-                );
-                let table_available = table_used.available_inner_space_or_constraints_from(available_space);
-                table.run_until_inline_size_calculation(
-                    LayoutInput::new(
-                        table_available,
-                        table_constraints,
-                        ParticipationInParentFormattingContext::Root,
-                    ),
-                    true,
-                );
+        self.size_table_box_inside_wrapper(wrapper, containing_block_inline_size, table_constraints, |table_run| {
+            let table_used = table_run.records.used_values(table_run.box_);
+            let mut table = table_formatting_context::TableFormattingContext::new(
+                table_run,
+                table_formatting_context::AutoTableInlineSize::ShrinksToFitAvailableInlineSize,
+            );
+            let table_available = table_used.available_inner_space_or_constraints_from(available_space);
+            table.run_until_inline_size_calculation(
+                LayoutInput::new(
+                    table_available,
+                    table_constraints,
+                    ParticipationInParentFormattingContext::Root,
+                ),
+                true,
+            );
 
-                let table_used_inline_size =
-                    table_used.border_box_inline_size(table_used.uses_collapsing_borders_model.get());
-                self.records
-                    .store_table_inline_layout(wrapper, table.take_inline_layout());
-                if table_wrapper_inline_size_mode
-                    == formatting_context::TableWrapperInlineSizeMode::UseTableUsedInlineSizeIfNotAuto
-                    && !self.style(table_run.box_).width().is_auto()
-                {
-                    return table_used_inline_size;
-                }
-                if matches!(available_space.inline_size, AvailableSize::Definite(_)) {
-                    table_used_inline_size.min(available_inline_size)
-                } else {
-                    table_used_inline_size
-                }
-            },
-        )
+            let table_used_inline_size =
+                table_used.border_box_inline_size(table_used.uses_collapsing_borders_model.get());
+            self.records
+                .store_table_inline_layout(wrapper, table.take_inline_layout());
+            if table_wrapper_inline_size_mode
+                == formatting_context::TableWrapperInlineSizeMode::UseTableUsedInlineSizeIfNotAuto
+                && !self.style(table_run.box_).width().is_auto()
+            {
+                return table_used_inline_size;
+            }
+            if matches!(available_space.inline_size, AvailableSize::Definite(_)) {
+                table_used_inline_size.min(available_inline_size)
+            } else {
+                table_used_inline_size
+            }
+        })
     }
 
     pub(crate) fn table_wrapper_content_inline_sizes(
@@ -3466,7 +3462,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
                 wrapper,
                 indefinite_containing_block_inline_size,
                 table_wrapper_constraints,
-                |table_run, _| {
+                |table_run| {
                     let sizes = table_formatting_context::TableFormattingContext::new(
                         table_run,
                         table_formatting_context::AutoTableInlineSize::ShrinksToFitAvailableInlineSize,
