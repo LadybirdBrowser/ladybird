@@ -39,10 +39,10 @@
 
   <launchable type="desktop-id">org.ladybird.Ladybird.desktop</launchable>
   <releases>
-    <release version="@CMAKE_PROJECT_VERSION@-snapshot-@GIT_HASH@" type="snapshot" date="@DATE@">
+    <release version="@METAINFO_RELEASE_VERSION@" type="@METAINFO_RELEASE_TYPE@" date="@DATE@">
       <description>
         <p>
-          Pre-Alpha.
+          @METAINFO_RELEASE_DESCRIPTION@
         </p>
       </description>
     </release>
