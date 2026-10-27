@@ -30,7 +30,6 @@ set(INTERNAL_RESOURCES
 list(TRANSFORM INTERNAL_RESOURCES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/ladybird/")
 
 set(SITE_COMPATIBILITY_RESOURCES
-    aljazeera.com.json
     cnn.com.json
     nytimes.com.json
 )
