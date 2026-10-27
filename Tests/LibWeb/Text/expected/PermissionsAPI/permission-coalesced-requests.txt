@@ -1,0 +1,2 @@
+first: granted, second: granted
+after sixteen hours: prompt

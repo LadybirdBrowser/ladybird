@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        // Both requests share the one held prompt, so its one-time answer is the only decision made. A second prompt
+        // would have been answered with the default "Allow while visiting the site", which outlasts sixteen hours.
+        internals.setNextPermissionPromptOutcome("microphone", "allow-once", true);
+        const first = internals.requestPermission("microphone");
+        const second = internals.requestPermission("microphone");
+        internals.releaseHeldPermissionPrompt(2);
+        println(`first: ${await first}, second: ${await second}`);
+        await internals.advancePermissionClock(16 * 60 * 60 * 1000);
+        println(`after sixteen hours: ${(await navigator.permissions.query({ name: "microphone" })).state}`);
+        done();
+    });
+</script>

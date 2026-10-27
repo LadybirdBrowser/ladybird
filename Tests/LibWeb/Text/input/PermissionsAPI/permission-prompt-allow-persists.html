@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const status = await navigator.permissions.query({ name: "microphone" });
+        println(`before: ${status.state}`);
+        internals.setNextPermissionPromptOutcome("microphone", "allow");
+        println(`request: ${await internals.requestPermission("microphone")}`);
+        println(`query: ${(await navigator.permissions.query({ name: "microphone" })).state}`);
+        println(`second request: ${await internals.requestPermission("microphone")}`);
+        done();
+    });
+</script>

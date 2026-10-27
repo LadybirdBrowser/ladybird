@@ -11,6 +11,7 @@
 #include <LibCore/AnonymousBuffer.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ShareableBitmap.h>
+#include <LibWebView/PermissionManager.h>
 
 namespace TestWeb {
 
@@ -55,6 +56,14 @@ void TestWebView::reset_user_style()
 void TestWebView::reset_geolocation_emulated_position()
 {
     geolocation_settings_changed();
+}
+
+// Permissions live in the UI process, and outlive the test that changed them. Each test has an origin of its own, and
+// tests run concurrently, so only this test's origin is reset.
+void TestWebView::reset_permissions()
+{
+    session().permission_manager->reset_origin(url().origin());
+    reset_permission_prompts_for_testing();
 }
 
 NonnullRefPtr<Core::Promise<Empty>> TestWebView::reset_state_for_next_test()

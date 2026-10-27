@@ -160,7 +160,8 @@ public:
     ErrorOr<void> recreate_compositor_contexts(Badge<Application>);
     // The user let the page at the URL capture audio. The process's AudioServer hears of the permission before this
     // returns, so a page told afterwards finds it in place.
-    ErrorOr<void> grant_audio_capture(URL::URL const&);
+    // A file: page's microphone grant, which has no origin to be kept for; every other site's is the PermissionManager's.
+    ErrorOr<void> grant_audio_capture_to_file(URL::URL const&);
     // The permission follows the origins the process's open pages show, so it goes with a navigation away.
     void update_audio_capture_permission();
     // The process's AudioServer plays the page's sound while the page is authorized. It hears of an authorization
@@ -261,6 +262,7 @@ private:
     void did_change_audio_playback_audibility(Audio::PlaybackGroupId, Audio::Audibility);
     static String audio_capture_permission_key(URL::URL const&);
     bool audio_capture_permitted() const;
+    bool page_may_capture_audio(WebContentPage const&) const;
     void decide_audio_capture_request(u64 request_id);
 
     // The controller connections to the MediaServer and AudioServer spawned for this process, from its first media use

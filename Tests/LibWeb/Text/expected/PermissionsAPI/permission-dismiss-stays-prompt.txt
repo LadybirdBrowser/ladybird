@@ -1,0 +1,2 @@
+dismiss: request denied, query prompt
+ignore: request denied, query prompt

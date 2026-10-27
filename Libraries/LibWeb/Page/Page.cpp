@@ -1511,17 +1511,17 @@ void Page::unregister_emulated_position_data_observer(u64 observer_id)
     m_emulated_position_data_observers.remove(observer_id);
 }
 
-void Page::request_permission(Utf16String const& name, PermissionPromptCallback callback)
+void Page::request_permission(HTML::CrossProcessId requesting_document_id, Utf16String const& name, PermissionPromptCallback callback)
 {
     auto request_id = m_next_permission_request_id++;
     m_pending_permission_requests.set(request_id, callback);
-    client().page_did_request_permission(request_id, name);
+    client().page_did_request_permission(request_id, requesting_document_id, name);
 }
 
-void Page::permission_request_completed(u64 request_id, bool granted)
+void Page::permission_request_completed(u64 request_id, Web::Permissions::EffectiveState state)
 {
     if (auto callback = m_pending_permission_requests.take(request_id); callback.has_value())
-        callback.value()->function()(granted);
+        callback.value()->function()(state);
 }
 
 u64 Page::request_geolocation_position(GeolocationPositionCallback callback, GeolocationRequestType type)

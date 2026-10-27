@@ -43,6 +43,32 @@ void WebContentTestClient::did_expire_cookies_with_time_offset(AK::Duration offs
     m_client.session().cookie_jar->expire_cookies_with_time_offset(offset);
 }
 
+Messages::WebContentTestClient::SetPermissionForTestingResponse WebContentTestClient::set_permission_for_testing(Web::PageId page_id, Web::HTML::CrossProcessId document_id, String name, String state)
+{
+    if (auto* page = m_client.page(page_id))
+        return page->set_permission_for_testing(document_id, name, state);
+    return Web::Permissions::PermissionSnapshot {};
+}
+
+void WebContentTestClient::set_next_permission_prompt_outcome_for_testing(Web::PageId page_id, String name, String outcome, bool held)
+{
+    if (auto* page = m_client.page(page_id))
+        page->set_next_permission_prompt_outcome_for_testing(name, outcome, held);
+}
+
+void WebContentTestClient::release_held_permission_prompt_for_testing(Web::PageId page_id, u32 waiters)
+{
+    if (auto* page = m_client.page(page_id))
+        page->release_held_permission_prompt_for_testing(waiters);
+}
+
+Messages::WebContentTestClient::AdvancePermissionClockForTestingResponse WebContentTestClient::advance_permission_clock_for_testing(Web::PageId page_id, u64 milliseconds)
+{
+    if (auto* page = m_client.page(page_id))
+        return page->advance_permission_clock_for_testing(milliseconds);
+    return Web::Permissions::PermissionSnapshot {};
+}
+
 void WebContentTestClient::did_spoof_document_origin_for_testing(Web::PageId page_id, Web::HTML::EnvironmentId environment_id, URL::Origin origin)
 {
     if (auto* page = m_client.page(page_id))

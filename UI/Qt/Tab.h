@@ -323,12 +323,13 @@ private:
     QPointer<QColorDialog> m_color_picker_dialog;
     QPointer<QFileDialog> m_file_picker_dialog;
     QPointer<QMessageBox> m_external_url_confirmation_dialog;
-    // Requests the same dialog would answer wait on the one open, so a page cannot stack dialogs by asking again.
-    struct PendingPermissionRequests {
+    // The prompts open for the page's permission requests. The view hands identical requests to one prompt, so each
+    // prompt answers for one request, and a page cannot stack prompts by asking again.
+    struct PendingPermissionPrompt {
         QPointer<MessagePopover> popover;
-        Vector<Function<void(bool granted)>> on_decided;
+        WebView::PermissionPromptCallback on_outcome;
     };
-    HashMap<String, PendingPermissionRequests> m_pending_permission_requests;
+    Vector<PendingPermissionPrompt> m_permission_prompts;
 
     bool m_suppress_javascript_dialogs_until_navigation { false };
     // The dialogs the current document has shown, and whether the user stopped it from showing more.

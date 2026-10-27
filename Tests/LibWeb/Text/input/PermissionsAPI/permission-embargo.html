@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const query = async name => (await navigator.permissions.query({ name })).state;
+        const sevenDays = 7 * 24 * 60 * 60 * 1000;
+
+        for (let i = 1; i <= 3; ++i) {
+            internals.setNextPermissionPromptOutcome("geolocation", "dismiss");
+            await internals.requestPermission("geolocation");
+            println(`after dismissal ${i}: ${await query("geolocation")}`);
+        }
+        // An embargoed site isn't asked: the next answer set up here goes unused.
+        internals.setNextPermissionPromptOutcome("geolocation", "allow");
+        println(`request during embargo: ${await internals.requestPermission("geolocation")}`);
+        await internals.advancePermissionClock(sevenDays);
+        println(`after seven days: ${await query("geolocation")}`);
+
+        for (let i = 1; i <= 4; ++i) {
+            internals.setNextPermissionPromptOutcome("microphone", "ignore");
+            await internals.requestPermission("microphone");
+            println(`after ignore ${i}: ${await query("microphone")}`);
+        }
+        done();
+    });
+</script>

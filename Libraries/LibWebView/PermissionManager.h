@@ -97,7 +97,8 @@ public:
     void register_observer(PermissionManagerObserver&);
     void unregister_observer(PermissionManagerObserver&);
 
-    void clear_for_testing();
+    // Makes the given time pass for one origin's entries only, so concurrently running tests don't disturb each other.
+    void age_origin_for_testing(URL::Origin const&, AK::Duration);
     void set_clock_for_testing(Function<UnixDateTime()>);
     void set_timeouts_for_testing(PermissionTimeouts);
 

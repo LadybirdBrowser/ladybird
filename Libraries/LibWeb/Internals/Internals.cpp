@@ -108,6 +108,8 @@
 #include <LibWeb/Painting/HitTestResult.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/Painting/Scrolling.h>
+#include <LibWeb/PermissionsAPI/PermissionStore.h>
+#include <LibWeb/PermissionsAPI/Permissions.h>
 #include <LibWeb/PictureInPicture/PictureInPictureController.h>
 #include <LibWeb/ResizeObserver/ResizeObserver.h>
 #include <LibWeb/Streams/ReadableStream.h>
@@ -2101,6 +2103,55 @@ void Internals::set_geolocation_emulated_position(double latitude, double longit
         .latitude = latitude,
         .longitude = longitude,
     });
+}
+
+GC::Ref<WebIDL::Promise> Internals::request_permission(Utf16String const& name)
+{
+    auto& realm = window().principal_realm();
+    auto promise = WebIDL::create_promise_for(window());
+    auto& settings = window().associated_document().relevant_settings_object();
+    PermissionsAPI::request_permission_with_user_prompt({ name }, settings, GC::create_function(realm.heap(), [&realm, promise](PermissionsAPI::PermissionState state) {
+        HTML::TemporaryExecutionContext execution_context { realm };
+        WebIDL::resolve_promise(realm, promise, JS::PrimitiveString::create(realm.vm(), Bindings::idl_enum_to_string(state)));
+    }));
+    return promise;
+}
+
+// The UI process answers with the snapshot that holds the change; resolving in a task on the permissions task source lets
+// whatever the change queued run first.
+static GC::Ref<WebIDL::Promise> apply_snapshot_then_resolve(HTML::Window& window, Optional<Web::Permissions::PermissionSnapshot> snapshot)
+{
+    auto promise = WebIDL::create_promise_for(window);
+    if (snapshot.has_value())
+        PermissionsAPI::PermissionStore::the().apply_snapshot(snapshot.release_value());
+    HTML::queue_global_task(HTML::Task::Source::Permissions, window.associated_document().relevant_settings_object().global_object(), GC::create_function(window.heap(), [&window, promise] {
+        auto& realm = window.principal_realm();
+        HTML::TemporaryExecutionContext execution_context { realm };
+        WebIDL::resolve_promise(realm, promise);
+    }));
+    return promise;
+}
+
+GC::Ref<WebIDL::Promise> Internals::set_permission(Utf16String const& name, Utf16String const& state)
+{
+    auto snapshot = page().client().page_did_set_permission_for_testing(window().associated_document().id(), name.to_utf8(), state.to_utf8());
+    return apply_snapshot_then_resolve(window(), move(snapshot));
+}
+
+void Internals::set_next_permission_prompt_outcome(Utf16String const& name, Utf16String const& outcome, bool held)
+{
+    page().client().page_did_set_next_permission_prompt_outcome_for_testing(name.to_utf8(), outcome.to_utf8(), held);
+}
+
+void Internals::release_held_permission_prompt(WebIDL::UnsignedLong waiters)
+{
+    page().client().page_did_release_held_permission_prompt_for_testing(waiters);
+}
+
+GC::Ref<WebIDL::Promise> Internals::advance_permission_clock(WebIDL::UnsignedLongLong milliseconds)
+{
+    auto snapshot = page().client().page_did_advance_permission_clock_for_testing(milliseconds);
+    return apply_snapshot_then_resolve(window(), move(snapshot));
 }
 
 bool Internals::html_parser_body_is_exhausted(DOM::Document& document)

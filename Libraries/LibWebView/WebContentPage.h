@@ -118,6 +118,12 @@ public:
 
     // Whether a document this page hosts may use the feature. The process hosting the page can act for any of them.
     bool hosts_a_document_allowed_to_use(Web::PermissionsPolicy::PolicyControlledFeature) const;
+    RefPtr<CanonicalDocument> hosted_document_with_id(Web::HTML::CrossProcessId) const;
+
+    Web::Permissions::PermissionSnapshot set_permission_for_testing(Web::HTML::CrossProcessId document_id, String const& name, String const& state);
+    void set_next_permission_prompt_outcome_for_testing(String const& name, String const& outcome, bool held);
+    void release_held_permission_prompt_for_testing(u32 waiters);
+    Web::Permissions::PermissionSnapshot advance_permission_clock_for_testing(u64 milliseconds);
     void close();
 
     void owe_reply(OwedReply);
@@ -269,7 +275,7 @@ private:
     virtual void did_cancel_geolocation_position_request(u64 request_id) override;
     virtual void did_start_geolocation_position_watch(u64 request_id) override;
     virtual void did_stop_geolocation_position_watch(u64 request_id) override;
-    virtual void did_request_permission(u64 request_id, Utf16String name) override;
+    virtual void did_request_permission(u64 request_id, Web::HTML::CrossProcessId document_id, Utf16String name) override;
     virtual void did_request_file_picker(Web::HTML::FileFilter accepted_file_types, Web::HTML::AllowMultipleFiles allow_multiple_files) override;
     virtual void did_finish_handling_input_event(u64 event_id, Web::EventResult event_result) override;
     virtual void did_update_input_method_state(Optional<Web::DevicePixelRect> caret_rect, bool is_enabled, i32 cursor_position, i32 anchor_position, Utf16String text_before_cursor, Utf16String text_after_cursor) override;

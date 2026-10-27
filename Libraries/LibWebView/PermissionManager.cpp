@@ -453,10 +453,18 @@ void PermissionManager::unregister_observer(PermissionManagerObserver& observer)
     m_observers.remove_first_matching([&](auto* candidate) { return candidate == &observer; });
 }
 
-void PermissionManager::clear_for_testing()
+void PermissionManager::age_origin_for_testing(URL::Origin const& origin, AK::Duration duration)
 {
-    m_entries.clear();
-    did_change();
+    for (auto& entry : m_entries) {
+        if (!entry.origin.is_same_origin(origin))
+            continue;
+        entry.decided_at -= duration;
+        if (entry.hidden_since.has_value())
+            *entry.hidden_since -= duration;
+        if (entry.embargo_until.has_value())
+            *entry.embargo_until -= duration;
+    }
+    run_expiry();
 }
 
 void PermissionManager::set_clock_for_testing(Function<UnixDateTime()> clock)

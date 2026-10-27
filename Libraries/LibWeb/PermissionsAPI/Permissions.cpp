@@ -120,35 +120,36 @@ void request_permission_with_user_prompt(PermissionDescriptor const& descriptor,
         return;
     }
 
-    auto settle = GC::create_function(GC::Heap::the(), [descriptor, settings = GC::Ref(settings), on_decided](bool granted) {
+    // 3. Ask the user for express permission for the calling algorithm to use the powerful feature described by descriptor.
+    // NB: Only windows have a page to ask through; a worker's request is denied.
+    auto* window = HTML::window_from_global_object(settings.global_object());
+    if (!window) {
+        on_decided->function()(PermissionState::Denied);
+        return;
+    }
+
+    auto settle = GC::create_function(GC::Heap::the(), [descriptor, settings = GC::Ref(settings), on_decided](Web::Permissions::EffectiveState answer) {
         // 4. If the user gives express permission to use the powerful feature, set current state to "granted"; otherwise to "denied".
-        auto current_state = granted ? PermissionState::Granted : PermissionState::Denied;
+        //    The user's interaction may provide new information about the user's intent for the origin.
+        // AD-HOC: A prompt the user dismisses or ignores leaves the permission at "prompt", rather than storing "denied";
+        //         only the calling algorithm sees "denied" then, so the site may ask again.
+        auto current_state = answer == Web::Permissions::EffectiveState::Granted ? PermissionState::Granted : PermissionState::Denied;
 
         // 5. Let settings be the current settings object.
         // NB: The user's answer arrives outside any script, so the requester's settings object was captured instead.
         // 6. Let key be the result of generating a permission key for descriptor with settings's top-level origin and settings's origin.
         // 7. Queue a task on the current settings object's responsible event loop to set a permission store entry with descriptor, key, and current state.
-        // NB: store_permission_decision() carries out steps 6 and 7 for both request algorithms.
-        store_permission_decision(descriptor, settings, current_state);
+        // NB: The UI process stores the user's answer, and sends the snapshot that reflects it ahead of the answer itself.
+        //     It can't key an answer for an opaque top-level origin (a file: page's), so that answer is kept here, for
+        //     as long as the origin lives.
+        if (settings->top_level_origin->is_opaque() && answer != Web::Permissions::EffectiveState::Prompt)
+            store_permission_decision(descriptor, settings, current_state);
 
         // 8. Return current state.
         on_decided->function()(current_state);
     });
 
-    // Tests have no user to ask, so they are granted as the synchronous path grants them.
-    if (HTML::Window::in_test_mode()) {
-        settle->function()(true);
-        return;
-    }
-
-    // 3. Ask the user for express permission for the calling algorithm to use the powerful feature described by descriptor.
-    // Only windows have a page to ask through; a worker's request is denied.
-    auto* window = HTML::window_from_global_object(settings.global_object());
-    if (!window) {
-        settle->function()(false);
-        return;
-    }
-    window->page().request_permission(descriptor.name, settle);
+    window->page().request_permission(window->associated_document().id(), descriptor.name, settle);
 }
 
 // https://w3c.github.io/permissions/#dfn-permission-state

@@ -200,6 +200,108 @@ void ViewImplementation::did_update_url()
     update_displayed_url();
 }
 
+void ViewImplementation::request_permission_prompt(PermissionPromptRequest request, PermissionPromptCallback on_outcome)
+{
+    for (auto& pending : m_pending_permission_prompts) {
+        if (pending.request.is_same_request_as(request)) {
+            pending.waiters.append(move(on_outcome));
+            release_held_permission_prompt_if_ready_for_testing();
+            return;
+        }
+    }
+
+    Vector<PermissionPromptCallback> waiters;
+    waiters.append(move(on_outcome));
+    m_pending_permission_prompts.append({ request, move(waiters) });
+
+    // Tests have no user to ask: They get the answer a test set up, and "Allow while visiting the site" otherwise.
+    if (Application::web_content_options().is_test_mode == IsTestMode::Yes) {
+        auto outcome = Web::Permissions::PromptOutcome::AllowAlways;
+        if (auto next = m_next_permission_prompt_outcomes_for_testing.take(request.name); next.has_value()) {
+            if (next->held) {
+                m_held_permission_prompt_for_testing = request;
+                m_held_permission_prompt_outcome_for_testing = next->outcome;
+                release_held_permission_prompt_if_ready_for_testing();
+                return;
+            }
+            outcome = next->outcome;
+        }
+        settle_permission_prompt(request, outcome);
+        return;
+    }
+
+    if (!on_request_permission) {
+        settle_permission_prompt(request, Web::Permissions::PromptOutcome::Cancelled);
+        return;
+    }
+
+    on_request_permission(request, [weak_this = make_weak_ptr(), request](Web::Permissions::PromptOutcome outcome) {
+        if (auto* view = weak_this.ptr())
+            view->settle_permission_prompt(request, outcome);
+    });
+}
+
+void ViewImplementation::settle_permission_prompt(PermissionPromptRequest const& request, Web::Permissions::PromptOutcome outcome)
+{
+    auto index = m_pending_permission_prompts.find_first_index_if([&](auto const& pending) { return pending.request.is_same_request_as(request); });
+    if (!index.has_value())
+        return;
+
+    auto pending = m_pending_permission_prompts.take(*index);
+    for (auto& waiter : pending.waiters)
+        waiter(outcome);
+}
+
+void ViewImplementation::ignore_pending_permission_prompts()
+{
+    auto pending_prompts = move(m_pending_permission_prompts);
+    m_held_permission_prompt_for_testing.clear();
+    for (auto& pending : pending_prompts) {
+        if (on_cancel_permission_prompt)
+            on_cancel_permission_prompt(pending.request);
+        for (auto& waiter : pending.waiters)
+            waiter(Web::Permissions::PromptOutcome::Ignored);
+    }
+}
+
+void ViewImplementation::set_next_permission_prompt_outcome_for_testing(Web::Permissions::PermissionName name, Web::Permissions::PromptOutcome outcome, bool held)
+{
+    m_next_permission_prompt_outcomes_for_testing.set(name, { outcome, held });
+}
+
+void ViewImplementation::reset_permission_prompts_for_testing()
+{
+    m_next_permission_prompt_outcomes_for_testing.clear();
+    m_held_permission_prompt_for_testing.clear();
+    m_held_permission_prompt_release_waiters_for_testing.clear();
+    auto pending_prompts = move(m_pending_permission_prompts);
+    for (auto& pending : pending_prompts) {
+        for (auto& waiter : pending.waiters)
+            waiter(Web::Permissions::PromptOutcome::Cancelled);
+    }
+}
+
+void ViewImplementation::release_held_permission_prompt_for_testing(u32 waiters)
+{
+    m_held_permission_prompt_release_waiters_for_testing = waiters;
+    release_held_permission_prompt_if_ready_for_testing();
+}
+
+void ViewImplementation::release_held_permission_prompt_if_ready_for_testing()
+{
+    if (!m_held_permission_prompt_for_testing.has_value() || !m_held_permission_prompt_release_waiters_for_testing.has_value())
+        return;
+
+    auto const& request = *m_held_permission_prompt_for_testing;
+    auto pending = m_pending_permission_prompts.find_if([&](auto const& candidate) { return candidate.request.is_same_request_as(request); });
+    if (pending == m_pending_permission_prompts.end() || pending->waiters.size() < *m_held_permission_prompt_release_waiters_for_testing)
+        return;
+
+    m_held_permission_prompt_release_waiters_for_testing.clear();
+    auto held_request = m_held_permission_prompt_for_testing.release_value();
+    settle_permission_prompt(held_request, m_held_permission_prompt_outcome_for_testing);
+}
+
 Optional<URL::URL const&> ViewImplementation::browser_ui_load_url() const
 {
     if (!m_browser_ui_load.has_value() || !m_top_level_traversable)
@@ -217,6 +319,8 @@ void ViewImplementation::did_change_ongoing_navigation(Badge<CanonicalNavigable>
 
 void ViewImplementation::did_change_active_document(Badge<CanonicalTraversable>)
 {
+    // A prompt the document that asked has left behind goes unanswered: the user ignored it.
+    ignore_pending_permission_prompts();
     set_title(Utf16String::from_utf8(url().serialize()));
     set_favicon({});
     did_update_url();

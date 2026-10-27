@@ -38,6 +38,7 @@
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/NavigationLoader.h>
+#include <LibWebView/PermissionManager.h>
 #include <LibWebView/PictureInPictureManager.h>
 #include <LibWebView/RequestServerManager.h>
 #include <LibWebView/ViewImplementation.h>
@@ -941,7 +942,7 @@ String WebContentClient::audio_capture_permission_key(URL::URL const& url)
     return url.serialize(URL::ExcludeFragment::Yes);
 }
 
-ErrorOr<void> WebContentClient::grant_audio_capture(URL::URL const& url)
+ErrorOr<void> WebContentClient::grant_audio_capture_to_file(URL::URL const& url)
 {
     m_audio_capture_grants.set(audio_capture_permission_key(url));
     m_audio_capture_permitted = audio_capture_permitted();
@@ -963,13 +964,22 @@ void WebContentClient::update_audio_capture_permission()
         warnln("Unable to update the AudioServer's capture permission: {}", result.error());
 }
 
+bool WebContentClient::page_may_capture_audio(WebContentPage const& page) const
+{
+    auto const& url = page.view().url();
+    auto origin = url.origin();
+    if (origin.is_opaque())
+        return m_audio_capture_grants.contains(audio_capture_permission_key(url));
+    return session().permission_manager->effective_state(Web::Permissions::PermissionName::Microphone, origin) == Web::Permissions::EffectiveState::Granted;
+}
+
 bool WebContentClient::audio_capture_permitted() const
 {
     // A tab's grant reaches only the documents whose permissions policy allows them the microphone. The process may
     // capture if it hosts one, as it can act for any document it hosts.
     for (auto const& it : m_pages) {
         auto const& page = it.value;
-        if (!page->is_open() || !m_audio_capture_grants.contains(audio_capture_permission_key(page->view().url())))
+        if (!page->is_open() || !page_may_capture_audio(*page))
             continue;
         if (page->hosts_a_document_allowed_to_use(Web::PermissionsPolicy::PolicyControlledFeature::Microphone))
             return true;

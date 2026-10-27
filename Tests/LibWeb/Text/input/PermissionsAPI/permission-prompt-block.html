@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        internals.setNextPermissionPromptOutcome("geolocation", "block");
+        println(`request: ${await internals.requestPermission("geolocation")}`);
+        println(`query: ${(await navigator.permissions.query({ name: "geolocation" })).state}`);
+        done();
+    });
+</script>

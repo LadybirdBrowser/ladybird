@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        // Three requests share one prompt, so dismissing it is one dismissal, not the three that embargo a site.
+        internals.setNextPermissionPromptOutcome("geolocation", "dismiss", true);
+        const requests = [1, 2, 3].map(() => internals.requestPermission("geolocation"));
+        internals.releaseHeldPermissionPrompt(3);
+        println(`requests: ${(await Promise.all(requests)).join(", ")}`);
+        println(`query: ${(await navigator.permissions.query({ name: "geolocation" })).state}`);
+        done();
+    });
+</script>

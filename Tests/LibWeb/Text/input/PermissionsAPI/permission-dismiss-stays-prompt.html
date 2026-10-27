@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        for (const outcome of ["dismiss", "ignore"]) {
+            internals.setNextPermissionPromptOutcome("microphone", outcome);
+            println(`${outcome}: request ${await internals.requestPermission("microphone")}, query ${(await navigator.permissions.query({ name: "microphone" })).state}`);
+        }
+        done();
+    });
+</script>

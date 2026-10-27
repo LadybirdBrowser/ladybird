@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="../wpt-import/resources/testdriver.js"></script>
+<script src="../wpt-import/resources/testdriver-vendor.js"></script>
+<script>
+    asyncTest(async done => {
+        for (const state of ["granted", "denied", "prompt"]) {
+            await test_driver.set_permission({ name: "geolocation" }, state);
+            println(`${state}: ${(await navigator.permissions.query({ name: "geolocation" })).state}`);
+        }
+        done();
+    });
+</script>

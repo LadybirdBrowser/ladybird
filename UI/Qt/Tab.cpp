@@ -1574,10 +1574,14 @@ void Tab::initialize(Optional<WebView::CanonicalTraversable&> traversable)
         }
         if (m_external_url_confirmation_dialog)
             m_external_url_confirmation_dialog->close();
-        auto pending_permission_requests = AK::move(m_pending_permission_requests);
-        for (auto& it : pending_permission_requests) {
-            if (it.value.popover)
-                it.value.popover->close();
+        // A prompt the page leaves behind counts as ignored, since the user never answered it.
+        auto permission_prompts = AK::move(m_permission_prompts);
+        for (auto& prompt : permission_prompts) {
+            if (prompt.popover) {
+                prompt.popover->on_dismiss = nullptr;
+                prompt.popover->close();
+            }
+            prompt.on_outcome(Web::Permissions::PromptOutcome::Ignored);
         }
     };
 
@@ -1618,34 +1622,28 @@ void Tab::initialize(Optional<WebView::CanonicalTraversable&> traversable)
         dialog->open();
     };
 
-    // A site's request for a permission hangs from the site settings button, and is denied unless it is allowed.
-    view().on_request_permission = [this](auto const& name, auto const& origin, auto on_decided) {
-        auto requester = origin.is_opaque() ? "This page"_string : origin.host().serialize();
-        auto question = MUST(String::formatted("{} wants to use your {}", requester, name));
-        if (auto pending = m_pending_permission_requests.get(question); pending.has_value()) {
-            pending.value().on_decided.append(AK::move(on_decided));
-            return;
-        }
+    // A site's request for a permission hangs from the site settings button. Allowing it is a decision the session keeps;
+    // leaving the prompt any other way dismisses it, which decides nothing.
+    view().on_request_permission = [this](WebView::PermissionPromptRequest const& request, WebView::PermissionPromptCallback on_outcome) {
+        auto requester = request.is_file || request.top_level_origin.is_opaque() ? "This page"_string : request.top_level_origin.host().serialize();
+        auto feature = request.name == Web::Permissions::PermissionName::Geolocation ? "know your location"sv : "use your microphone"sv;
+        auto question = MUST(String::formatted("{} wants to {}", requester, feature));
 
-        // NB: The microphone is the only feature a site asks for permission to use.
-        auto icon = name == "microphone"sv ? create_chrome_icon(ChromeIcon::Microphone, Theme::panel().link) : QIcon {};
-        auto* popover = new MessagePopover(this, PERMISSION_POPOVER_WIDTH, qstring_from_ak_string(question), {}, "Block", "Allow", icon);
+        auto icon = request.name == Web::Permissions::PermissionName::Microphone ? create_chrome_icon(ChromeIcon::Microphone, Theme::panel().link) : QIcon {};
+        auto* popover = new MessagePopover(this, PERMISSION_POPOVER_WIDTH, qstring_from_ak_string(question), {}, "Not now", "Allow", icon);
         popover->setAttribute(Qt::WA_DeleteOnClose);
         popover->update_chrome_style(palette());
+        m_permission_prompts.append({ .popover = popover, .on_outcome = AK::move(on_outcome) });
 
-        PendingPermissionRequests pending { .popover = popover, .on_decided = {} };
-        pending.on_decided.append(AK::move(on_decided));
-        m_pending_permission_requests.set(question, AK::move(pending));
-
-        auto decide = [this, question](bool granted) {
-            auto pending = m_pending_permission_requests.take(question);
-            if (!pending.has_value())
+        auto decide = [this, popover = QPointer<MessagePopover> { popover }](Web::Permissions::PromptOutcome outcome) {
+            auto index = m_permission_prompts.find_first_index_if([&](auto const& prompt) { return prompt.popover == popover; });
+            if (!index.has_value())
                 return;
-            for (auto& on_decided : pending.value().on_decided)
-                on_decided(granted);
+            auto prompt = m_permission_prompts.take(*index);
+            prompt.on_outcome(outcome);
         };
-        popover->on_accept = [decide] { decide(true); };
-        popover->on_dismiss = [decide] { decide(false); };
+        popover->on_accept = [decide] { decide(Web::Permissions::PromptOutcome::AllowAlways); };
+        popover->on_dismiss = [decide] { decide(Web::Permissions::PromptOutcome::Dismissed); };
 
         auto& anchor = m_location_edit->site_settings_button();
         QWidget& anchor_or_field = anchor.isVisible() ? anchor : static_cast<QWidget&>(*m_location_edit);
