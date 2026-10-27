@@ -11,7 +11,6 @@
 #include <LibCrypto/Hash/HashManager.h>
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
-#include <LibJS/Runtime/JSONObject.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/PrimitiveString.h>
 #include <LibJS/Runtime/ValueInlines.h>
@@ -65,12 +64,7 @@ static JS::ThrowCompletionOr<ByteBuffer> export_key_result_to_bytes(JS::Realm& r
     if (result.has<ByteBuffer>())
         return move(result.get<ByteBuffer>());
 
-    auto key_object = Bindings::json_web_key_to_value(realm, result.get<JsonWebKey>());
-    auto maybe_json = JS::JSONObject::stringify_impl(realm.vm(), key_object, JS::Value {}, JS::Value {});
-    if (maybe_json.is_error())
-        return maybe_json.release_error();
-
-    auto json = maybe_json.value()->to_well_formed_utf8();
+    auto json = TRY(Bindings::json_web_key_to_json(realm.vm(), result.get<JsonWebKey>())).to_well_formed_utf8();
     return MUST(ByteBuffer::copy(json.bytes()));
 }
 

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const subtle = crypto.subtle;
+        const wrapAlgorithm = { name: "AES-GCM", iv: new Uint8Array(12) };
+        const wrappingKey = await subtle.importKey("raw", new Uint8Array(16), "AES-GCM", false, ["wrapKey", "decrypt"]);
+        const key = await subtle.importKey("raw", new Uint8Array([1, 2, 3]), { name: "HMAC", hash: "SHA-256" }, true, ["sign", "verify"]);
+
+        async function wrapWhile(description, setUp) {
+            const tearDown = setUp();
+            let wrapped;
+            try {
+                wrapped = await subtle.wrapKey("jwk", key, wrappingKey, wrapAlgorithm);
+            } finally {
+                tearDown();
+            }
+            const jwk = JSON.parse(new TextDecoder().decode(await subtle.decrypt(wrapAlgorithm, wrappingKey, wrapped)));
+            println(`${description}: kty=${jwk.kty} alg=${jwk.alg} ext=${jwk.ext} key_ops=${JSON.stringify(jwk.key_ops)} k=${jwk.k}`);
+        }
+
+        await wrapWhile("No prototype changes", () => () => {});
+
+        await wrapWhile("Array.prototype.toJSON returns a string", () => {
+            Array.prototype.toJSON = function () {
+                return "patched";
+            };
+            return () => delete Array.prototype.toJSON;
+        });
+
+        await wrapWhile("Object.prototype.toJSON replaces the key", () => {
+            Object.prototype.toJSON = function () {
+                return { kty: "patched" };
+            };
+            return () => delete Object.prototype.toJSON;
+        });
+    });
+</script>
