@@ -11,6 +11,8 @@
 #include <LibWebView/NotificationBackend.h>
 #if defined(AK_OS_MACOS)
 #    include <LibWebView/NotificationBackendMacOS.h>
+#elif defined(AK_OS_LINUX) || defined(AK_OS_FREEBSD)
+#    include <LibWebView/NotificationBackendFreedesktop.h>
 #endif
 #include <LibWebView/SessionStore.h>
 #include <LibWebView/URL.h>
@@ -1305,8 +1307,9 @@ NonnullOwnPtr<WebView::NotificationBackend> Application::create_notification_bac
 {
 #if defined(AK_OS_MACOS)
     return make<WebView::NotificationBackendMacOS>();
+#elif defined(AK_OS_LINUX) || defined(AK_OS_FREEBSD)
+    return make<WebView::NotificationBackendFreedesktop>();
 #else
-    // The Freedesktop backend follows; until then, pages see every show fail.
     return WebView::Application::create_notification_backend();
 #endif
 }

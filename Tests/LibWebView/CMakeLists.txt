@@ -176,6 +176,7 @@ set(TEST_SOURCES
     TestHSTSStore.cpp
     TestNavigationLoader.cpp
     TestNotificationAttribution.cpp
+    TestNotificationFreedesktopArguments.cpp
     TestOmnibox.cpp
     TestPermissionManager.cpp
     TestPictureInPictureWindow.cpp
