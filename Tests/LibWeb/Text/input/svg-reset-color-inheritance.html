@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<svg width="100" height="100">
+    <g id="parent" style="color: red"><rect id="child" width="10" height="10" style="color: blue"/></g>
+    <defs>
+        <linearGradient stop-color="currentcolor" color="red">
+            <stop id="initial-stop" stop-color="inherit" color="blue"/>
+        </linearGradient>
+        <filter flood-color="currentcolor" color="red">
+            <feFlood id="initial-flood" flood-color="inherit" color="blue"/>
+        </filter>
+    </defs>
+</svg>
+<script>
+    test(() => {
+        const parent = document.getElementById("parent");
+        const child = document.getElementById("child");
+        println(`initial stop-color: ${getComputedStyle(document.getElementById("initial-stop")).stopColor}`);
+        println(`initial flood-color: ${getComputedStyle(document.getElementById("initial-flood")).floodColor}`);
+        for (const display of ["block", "none"]) {
+            parent.style.display = display;
+            child.getBoundingClientRect();
+            for (const property of ["stop-color", "flood-color"]) {
+                parent.style.color = "red";
+                child.style.color = "blue";
+                child.style[property] = "inherit";
+                parent.style[property] = "currentcolor";
+                println(`${display} ${property} parent: ${getComputedStyle(parent)[property]}`);
+                println(`${display} ${property} inherited: ${getComputedStyle(child)[property]}`);
+                parent.style.color = "purple";
+                println(`${display} ${property} parent color changed: ${getComputedStyle(child)[property]}`);
+                child.style.color = "green";
+                println(`${display} ${property} child color changed: ${getComputedStyle(child)[property]}`);
+                parent.style[property] = "rgb(1, 2, 3)";
+                println(`${display} ${property} fixed color: ${getComputedStyle(child)[property]}`);
+                parent.style[property] = "currentcolor";
+                println(`${display} ${property} restored: ${getComputedStyle(child)[property]}`);
+            }
+        }
+    });
+</script>

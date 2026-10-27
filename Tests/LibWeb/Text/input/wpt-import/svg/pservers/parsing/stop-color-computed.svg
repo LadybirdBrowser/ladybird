@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:h="http://www.w3.org/1999/xhtml">
+  <title>SVG Paint Servers: getComputedStyle().stopColor</title>
+  <metadata>
+    <h:link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/pservers.html#StopColorProperty"/>
+    <h:link rel="help" href="https://drafts.csswg.org/css-color/#resolve-color-values"/>
+    <h:link rel="help" href="https://drafts.csswg.org/cssom/#serializing-css-values"/>
+  </metadata>
+  <g id="target" style="color: blue"></g>
+  <h:script src="../../../resources/testharness.js"/>
+  <h:script src="../../../resources/testharnessreport.js"/>
+  <h:script src="../../../css/support/computed-testcommon.js"/>
+  <script><![CDATA[
+
+test_computed_value("stop-color", "currentcolor", "rgb(0, 0, 255)");
+test_computed_value("stop-color", "white", "rgb(255, 255, 255)");
+test_computed_value("stop-color", "transparent", "rgba(0, 0, 0, 0)");
+test_computed_value("stop-color", "rgb(255, 255, 255)");
+test_computed_value("stop-color", "#ffffff", "rgb(255, 255, 255)");
+test_computed_value("stop-color", "rgba(255, 255, 255, 1.0)", "rgb(255, 255, 255)");
+test_computed_value("stop-color", "rgba(255, 255, 255, 0.4)");
+test_computed_value("stop-color", "hsl(0deg, 100%, 100%)", "rgb(255, 255, 255)");
+test_computed_value("stop-color", "hsla(0deg, 100%, 100%, 1.0)", "rgb(255, 255, 255)");
+test_computed_value("stop-color", "hsla(0deg, 100%, 100%, 0.4)", "rgba(255, 255, 255, 0.4)");
+
+  ]]></script>
+</svg>

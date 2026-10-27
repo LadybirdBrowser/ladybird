@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/svg-reset-color-inheritance-ref.html">
+<svg width="200" height="100">
+    <defs>
+        <linearGradient id="gradient" stop-color="currentcolor" color="red">
+            <stop offset="0" stop-color="inherit" color="blue"/>
+            <stop offset="1" stop-color="inherit" color="blue"/>
+        </linearGradient>
+        <filter id="filter" flood-color="currentcolor" color="red" x="0%" y="0%" width="100%" height="100%">
+            <feFlood id="flood" flood-color="inherit" color="blue"/>
+        </filter>
+    </defs>
+    <rect width="100" height="100" fill="url(#gradient)"/>
+    <rect x="100" width="100" height="100" filter="url(#filter)"/>
+</svg>
+<script>
+    window.addEventListener("load", () => {
+        const gradient = document.getElementById("gradient");
+        const filter = document.getElementById("filter");
+        const flood = document.getElementById("flood");
+        for (const stop of gradient.children)
+            getComputedStyle(stop).stopColor;
+        getComputedStyle(flood).floodColor;
+        if (window.internals)
+            internals.dumpDisplayList();
+
+        gradient.style.color = "purple";
+        filter.style.color = "purple";
+        for (const stop of gradient.children)
+            stop.style.color = "green";
+        flood.style.color = "green";
+
+        if (window.internals)
+            internals.signalTestIsDone("PASS");
+        else
+            document.documentElement.classList.remove("reftest-wait");
+    });
+</script>
+</html>

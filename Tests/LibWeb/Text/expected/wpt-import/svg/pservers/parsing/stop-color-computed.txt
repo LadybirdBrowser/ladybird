@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 10 tests
+
+10 Pass
+Pass	Property stop-color value 'currentcolor'
+Pass	Property stop-color value 'white'
+Pass	Property stop-color value 'transparent'
+Pass	Property stop-color value 'rgb(255, 255, 255)'
+Pass	Property stop-color value '#ffffff'
+Pass	Property stop-color value 'rgba(255, 255, 255, 1.0)'
+Pass	Property stop-color value 'rgba(255, 255, 255, 0.4)'
+Pass	Property stop-color value 'hsl(0deg, 100%, 100%)'
+Pass	Property stop-color value 'hsla(0deg, 100%, 100%, 1.0)'
+Pass	Property stop-color value 'hsla(0deg, 100%, 100%, 0.4)'
