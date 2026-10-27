@@ -2202,53 +2202,50 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         let root = used_values::create_used_values(&self.callbacks, node, constraints);
         let indefinite_inline_basis = CssPixels::default();
         root.resolve_box_model(&self.style(node), indefinite_inline_basis);
-        let (
-            min_content_inline_size,
-            max_content_inline_size,
-            percentage_block_size_dependency_its_layout_would_report,
-        ) = RunRecords::with_content_sizing_root(
-            self.callbacks,
-            node,
-            self.callbacks.in_flow_containing_block(node),
-            &root,
-            |records, callbacks| {
-                let sizing = SizingContext::new(records, callbacks);
-                let inline_size_under = |inline_size| {
-                    sizing.atomic_root_content_inline_size(
-                        node,
-                        AvailableSpace {
-                            inline_size,
-                            block_size: available_block_size,
+        let (contributions, percentage_block_size_dependency_its_layout_would_report) =
+            RunRecords::with_content_sizing_root(
+                self.callbacks,
+                node,
+                self.callbacks.in_flow_containing_block(node),
+                &root,
+                |records, callbacks| {
+                    let sizing = SizingContext::new(records, callbacks);
+                    let inline_size_under = |inline_size| {
+                        sizing.atomic_root_content_inline_size(
+                            node,
+                            AvailableSpace {
+                                inline_size,
+                                block_size: available_block_size,
+                            },
+                            constraints,
+                        )
+                    };
+                    let max_content_inline_size = inline_size_under(AvailableSize::MaxContent);
+                    let min_content_inline_size = inline_size_under(AvailableSize::MinContent);
+                    let root_used = records.used_values(node);
+                    (
+                        OuterInlineContributions {
+                            min_content_inline_size,
+                            max_content_inline_size,
+                            margin_start: root_used.margin_left.get(),
+                            border_start: root_used.border_left.get(),
+                            padding_start: root_used.padding_left.get(),
+                            padding_end: root_used.padding_right.get(),
+                            border_end: root_used.border_right.get(),
+                            margin_end: root_used.margin_right.get(),
                         },
-                        constraints,
+                        root_used.depends_on_percentage_block_size.get()
+                            || sizing.skipped_child_depends_on_percentage_block_size(node),
                     )
-                };
-                let max_content_inline_size = inline_size_under(AvailableSize::MaxContent);
-                let min_content_inline_size = inline_size_under(AvailableSize::MinContent);
-                (
-                    min_content_inline_size,
-                    max_content_inline_size,
-                    root.depends_on_percentage_block_size.get()
-                        || sizing.skipped_child_depends_on_percentage_block_size(node),
-                )
-            },
-        );
+                },
+            );
         formatting_context::propagate_percentage_block_size_dependency_to_containing_block(
             self.records,
             &self.callbacks,
             node,
             percentage_block_size_dependency_its_layout_would_report,
         );
-        OuterInlineContributions {
-            min_content_inline_size,
-            max_content_inline_size,
-            margin_start: root.margin_left.get(),
-            border_start: root.border_left.get(),
-            padding_start: root.padding_left.get(),
-            padding_end: root.padding_right.get(),
-            border_end: root.border_right.get(),
-            margin_end: root.margin_right.get(),
-        }
+        contributions
     }
 
     pub(crate) fn outer_inline_contributions_of_legend_whose_fit_content_size_ignores_its_limits(
