@@ -1,0 +1,4 @@
+ECDH deriveBits: same secret
+X25519 deriveBits: same secret
+X448 deriveBits: same secret
+ECDH deriveKey: same secret

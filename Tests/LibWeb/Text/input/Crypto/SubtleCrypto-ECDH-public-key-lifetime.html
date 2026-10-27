@@ -1,0 +1,49 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        // The public key passed to deriveBits() and deriveKey() must stay alive until the derivation runs, even when the
+        // page keeps no other reference to it.
+        const filler = await crypto.subtle.generateKey({ name: "HMAC", hash: "SHA-256" }, true, ["sign"]);
+
+        function hex(buffer) {
+            return Array.from(new Uint8Array(buffer), byte => byte.toString(16).padStart(2, "0")).join("");
+        }
+
+        async function check(label, algorithm, derive) {
+            const ownKeyPair = await crypto.subtle.generateKey(algorithm, false, ["deriveBits", "deriveKey"]);
+            const peerKeyPair = await crypto.subtle.generateKey(algorithm, true, ["deriveBits", "deriveKey"]);
+            const expected = hex(await crypto.subtle.deriveBits({ name: algorithm.name, public: peerKeyPair.publicKey }, ownKeyPair.privateKey, 128));
+
+            // The getter returns a copy of the public key that nothing else refers to.
+            const params = {
+                name: algorithm.name,
+                get public() {
+                    return structuredClone(peerKeyPair.publicKey);
+                },
+            };
+            const promise = derive(params, ownKeyPair.privateKey);
+
+            // Collect the copy if nothing keeps it alive, then reuse its memory for other keys.
+            internals.gc();
+            const fillerCopies = Array.from({ length: 1024 }, () => structuredClone(filler));
+
+            try {
+                println(`${label}: ${hex(await promise) === expected ? "same secret" : "different secret"}`);
+            } catch (error) {
+                println(`${label}: ${error.name}`);
+            }
+        }
+
+        const deriveBits = (params, key) => crypto.subtle.deriveBits(params, key, 128);
+        const deriveKey = async (params, key) => {
+            const derivedKey = await crypto.subtle.deriveKey(params, key, { name: "HMAC", hash: "SHA-256", length: 128 }, true, ["sign"]);
+            return crypto.subtle.exportKey("raw", derivedKey);
+        };
+
+        await check("ECDH deriveBits", { name: "ECDH", namedCurve: "P-256" }, deriveBits);
+        await check("X25519 deriveBits", { name: "X25519" }, deriveBits);
+        await check("X448 deriveBits", { name: "X448" }, deriveBits);
+        await check("ECDH deriveKey", { name: "ECDH", namedCurve: "P-256" }, deriveKey);
+    });
+</script>
