@@ -1,0 +1,2 @@
+click, activation active: true
+focused: 1

@@ -6,7 +6,9 @@
 
 #pragma once
 
+#include <AK/HashMap.h>
 #include <AK/Vector.h>
+#include <LibURL/URL.h>
 #include <LibWebView/NotificationBackend.h>
 
 namespace WebView {
@@ -21,8 +23,18 @@ public:
     void click(u64 id);
     void dismiss(u64 id);
 
+    virtual RecordingNotificationBackend* as_recording_backend() override { return this; }
+
     Vector<PlatformNotification> const& shown() const { return m_shown; }
-    Vector<u64> const& closed() const { return m_closed; }
+
+    // What the browser did on a click: the pages it brought into focus, and the URLs it opened for notifications
+    // whose page was gone. The test application records them here.
+    void record_focus(Web::PageId);
+    void record_open(URL::URL const&, Web::PageId originating_page);
+
+    // Everything above, for the notifications of one page, as JSON for a test page to read. Tests run side by side in
+    // one UI process, so each sees only its own.
+    String state_json(Web::PageId) const;
 
     // When set, the next show() fails instead, as a platform that refuses the notification would.
     bool fail_next_show { false };
@@ -30,8 +42,20 @@ public:
 private:
     Optional<size_t> index_of(u64 id) const;
 
+    struct Closed {
+        u64 id { 0 };
+        Web::PageId page_id;
+    };
+    struct Opened {
+        URL::URL url;
+        Web::PageId page_id;
+    };
+
     Vector<PlatformNotification> m_shown;
-    Vector<u64> m_closed;
+    Vector<Closed> m_closed;
+    Vector<Web::PageId> m_focused;
+    Vector<Opened> m_opened;
+    HashMap<u64, Web::PageId> m_page_of;
 };
 
 }

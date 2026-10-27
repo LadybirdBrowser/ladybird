@@ -1597,6 +1597,17 @@ void Page::notification_closed(u64 notification_id, bool by_user)
         (*notification)->did_close(by_user);
 }
 
+void Page::notifications_document_destroyed(DOM::Document const& document)
+{
+    GC::RootVector<GC::Ref<NotificationsAPI::Notification>> abandoned;
+    for (auto const& [id, notification] : m_notifications_list) {
+        if (notification->document() == &document)
+            abandoned.append(notification);
+    }
+    for (auto const& notification : abandoned)
+        notification->abandon();
+}
+
 u64 Page::request_geolocation_position(HTML::CrossProcessId requesting_document_id, GeolocationPositionCallback callback, GeolocationRequestType type)
 {
     // This is the browser-process bridge for the Geolocation spec's "try to acquire position data from the underlying system" step.

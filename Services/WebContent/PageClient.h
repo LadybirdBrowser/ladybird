@@ -361,7 +361,12 @@ private:
     virtual Optional<Web::Permissions::PermissionSnapshot> page_did_advance_permission_clock_for_testing(u64 milliseconds) override;
     virtual void page_did_request_show_notification(u64 notification_id, Web::NotificationsAPI::NotificationData const&, RefPtr<Gfx::Bitmap const> icon) override;
     virtual void page_did_request_close_notification(u64 notification_id) override;
+    virtual void page_did_abandon_notification(u64 notification_id) override;
     virtual void page_did_handle_notification_click(u64 notification_id, bool into_focus) override;
+    virtual String page_did_request_notifications_state_for_testing() override;
+    virtual void page_did_request_click_notification_for_testing(u64 notification_id) override;
+    virtual void page_did_request_click_notification_by_id_for_testing(u64 browser_notification_id) override;
+    virtual void page_did_request_dismiss_notification_for_testing(u64 notification_id) override;
     virtual void page_did_finish_test(Utf16String const& text) override;
     virtual void page_did_set_test_timeout(double milliseconds) override;
     virtual void page_did_receive_reference_test_metadata(JsonValue) override;

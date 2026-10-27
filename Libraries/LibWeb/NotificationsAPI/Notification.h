@@ -126,6 +126,14 @@ public:
     void set_onclose(WebIDL::CallbackType*);
     WebIDL::CallbackType* onclose();
 
+    // The id this notification is known by across the Page bridge, for tests that act on it from the UI side.
+    u64 id_for_testing() const { return m_id; }
+
+    // The document the notification was created in, if a window's.
+    DOM::Document const* document() const;
+    // The document is gone, so no event can reach this object again; the UI process keeps showing the notification.
+    void abandon();
+
     // What the UI process reports back about the notification it shows for this object.
     void did_show();
     void did_fail_to_show();

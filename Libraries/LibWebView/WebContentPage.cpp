@@ -33,6 +33,7 @@
 #include <LibWebView/NotificationManager.h>
 #include <LibWebView/PermissionManager.h>
 #include <LibWebView/PictureInPictureManager.h>
+#include <LibWebView/RecordingNotificationBackend.h>
 #include <LibWebView/RequestServerManager.h>
 #include <LibWebView/StorageAreaRegistry.h>
 #include <LibWebView/StorageJar.h>
@@ -1870,9 +1871,38 @@ void WebContentPage::did_request_close_notification(u64 notification_id)
     NotificationManager::the().close(*this, notification_id);
 }
 
+void WebContentPage::did_abandon_notification(u64 notification_id)
+{
+    NotificationManager::the().abandon(*this, notification_id);
+}
+
 void WebContentPage::did_handle_notification_click(u64 notification_id, bool into_focus)
 {
     NotificationManager::the().click_handled(*this, notification_id, into_focus);
+}
+
+void WebContentPage::did_request_click_notification_for_testing(u64 notification_id)
+{
+    auto* recording_backend = NotificationManager::the().backend().as_recording_backend();
+    if (!recording_backend)
+        return;
+    if (auto id = NotificationManager::the().id_for(*this, notification_id); id.has_value())
+        recording_backend->click(*id);
+}
+
+void WebContentPage::did_request_click_notification_by_id_for_testing(u64 browser_notification_id)
+{
+    if (auto* recording_backend = NotificationManager::the().backend().as_recording_backend())
+        recording_backend->click(browser_notification_id);
+}
+
+void WebContentPage::did_request_dismiss_notification_for_testing(u64 notification_id)
+{
+    auto* recording_backend = NotificationManager::the().backend().as_recording_backend();
+    if (!recording_backend)
+        return;
+    if (auto id = NotificationManager::the().id_for(*this, notification_id); id.has_value())
+        recording_backend->dismiss(*id);
 }
 
 void WebContentPage::did_cancel_geolocation_position_request(u64 request_id)

@@ -9,6 +9,7 @@
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/VM.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventNames.h>
@@ -328,6 +329,22 @@ void Notification::show_steps()
     //    Notification object representing notification.
     // NB: Fired from did_show(), once the platform has shown the notification: Until then the display can still fail,
     //     and a failure fires error instead.
+}
+
+DOM::Document const* Notification::document() const
+{
+    if (auto const* window = HTML::window_from_global_object(*m_relevant_global))
+        return &window->associated_document();
+    return nullptr;
+}
+
+void Notification::abandon()
+{
+    if (m_state != State::Showing && m_state != State::Closing)
+        return;
+    m_state = State::Closed;
+    m_page->unregister_notification(m_id);
+    m_page->client().page_did_abandon_notification(m_id);
 }
 
 void Notification::did_show()

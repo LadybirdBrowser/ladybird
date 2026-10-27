@@ -43,13 +43,16 @@ void NotificationManager::install_backend_callbacks()
 
 void NotificationManager::show(WebContentPage& page, u64 page_notification_id, Web::NotificationsAPI::NotificationData data, RefPtr<Gfx::Bitmap const> icon)
 {
-    // The notification belongs to the origin the browser knows the page by, never to one the page reports.
+    // The notification belongs to the origin the browser knows the page's top-level document by, never to one the
+    // page reports. (The document's origin, not the URL's: An opaque origin, which file: pages have, is the same
+    // one for the life of the document, where a URL would make a fresh one on every ask.)
     auto url = page.view().url();
-    auto origin = url.origin();
+    auto origin = page.traversable().active_document().origin();
 
     Record record {
         .id = m_next_id++,
         .page = page,
+        .page_id = page.id(),
         .page_notification_id = page_notification_id,
         .origin = origin,
         .origin_url = URL::Parser::basic_parse(origin.serialize()).value_or(url),
@@ -92,6 +95,7 @@ void NotificationManager::show(WebContentPage& page, u64 page_notification_id, W
     m_records.append(move(record));
     backend().show(PlatformNotification {
         .id = id,
+        .page_id = page.id(),
         .replaces = replaces,
         .data = move(data),
         .attribution = attribution_for_origin(origin),
@@ -105,11 +109,23 @@ void NotificationManager::close(WebContentPage& page, u64 page_notification_id)
         backend().close(m_records[*index].id);
 }
 
+void NotificationManager::abandon(WebContentPage& page, u64 page_notification_id)
+{
+    if (auto index = index_of(page, page_notification_id); index.has_value())
+        m_records[*index].page = nullptr;
+}
+
 void NotificationManager::click_handled(WebContentPage& page, u64 page_notification_id, bool into_focus)
 {
-    if (!into_focus)
+    // Only a click the browser sent can bring the tab into focus; the notification itself may be gone by now, since
+    // a click takes it down.
+    auto pending = m_clicks_awaiting_reply.find_first_index_if([&](auto const& reply) {
+        return reply.page == &page && reply.page_notification_id == page_notification_id;
+    });
+    if (!pending.has_value())
         return;
-    if (index_of(page, page_notification_id).has_value())
+    m_clicks_awaiting_reply.remove(*pending);
+    if (into_focus)
         Application::the().focus_page_from_notification(page);
 }
 
@@ -189,15 +205,17 @@ void NotificationManager::backend_did_click(u64 id)
         return;
     auto const& record = m_records[*index];
     if (record.page && record.page->is_open()) {
+        m_clicks_awaiting_reply.append({ record.page, record.page_notification_id });
         record.page->async_notification_clicked(record.page_notification_id);
         return;
     }
 
     // The page is gone, so the click opens the site instead; the notification has done its job.
     auto origin_url = record.origin_url;
+    auto page_id = record.page_id;
     auto traversable = record.traversable;
     m_records.remove(*index);
-    Application::the().open_url_in_new_tab_from_notification(origin_url, traversable.ptr());
+    Application::the().open_url_in_new_tab_from_notification(origin_url, page_id, traversable.ptr());
 }
 
 void NotificationManager::backend_did_close(u64 id, NotificationBackend::ByUser by_user)

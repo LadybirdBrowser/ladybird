@@ -17,6 +17,7 @@
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
 #include <LibWebCommon/NotificationsAPI/NotificationData.h>
+#include <LibWebCommon/Page/PageId.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/NotificationBackend.h>
 
@@ -36,6 +37,8 @@ public:
 
     void show(WebContentPage&, u64 page_notification_id, Web::NotificationsAPI::NotificationData, RefPtr<Gfx::Bitmap const> icon);
     void close(WebContentPage&, u64 page_notification_id);
+    // The page's document is gone: The notification stays up, and a click on it opens the site in a new tab.
+    void abandon(WebContentPage&, u64 page_notification_id);
     void click_handled(WebContentPage&, u64 page_notification_id, bool into_focus);
     void page_did_close(WebContentPage&);
 
@@ -48,8 +51,9 @@ public:
 private:
     struct Record {
         u64 id { 0 };
-        // Null once the page has closed; the record then only serves a later click.
+        // Null once the page has closed or abandoned the notification; the record then only serves a later click.
         RefPtr<WebContentPage> page;
+        Web::PageId page_id;
         u64 page_notification_id { 0 };
         URL::Origin origin;
         // What a click opens once the page is gone.
@@ -71,8 +75,15 @@ private:
     void backend_did_click(u64 id);
     void backend_did_close(u64 id, NotificationBackend::ByUser);
 
+    // A click sent to a page, until the page says whether its handler let the tab come into focus.
+    struct PendingClickReply {
+        RefPtr<WebContentPage> page;
+        u64 page_notification_id { 0 };
+    };
+
     OwnPtr<NotificationBackend> m_backend;
     Vector<Record> m_records;
+    Vector<PendingClickReply> m_clicks_awaiting_reply;
     u64 m_next_id { 1 };
 };
 

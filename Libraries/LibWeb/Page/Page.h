@@ -365,6 +365,9 @@ public:
     void notification_show_failed(u64 notification_id);
     void notification_clicked(u64 notification_id);
     void notification_closed(u64 notification_id, bool by_user);
+    // The document whose script created notifications is gone: Their objects can't get events any more, and the UI
+    // process hears that, so a later click opens the site instead.
+    void notifications_document_destroyed(DOM::Document const&);
 
     // https://w3c.github.io/geolocation/#dfn-emulated-position-data
     // NB: The top-level traversable's, which the UI process tells every page representing it.
@@ -903,7 +906,12 @@ public:
     virtual Optional<Web::Permissions::PermissionSnapshot> page_did_advance_permission_clock_for_testing([[maybe_unused]] u64 milliseconds) { return {}; }
     virtual void page_did_request_show_notification([[maybe_unused]] u64 notification_id, [[maybe_unused]] NotificationsAPI::NotificationData const&, [[maybe_unused]] RefPtr<Gfx::Bitmap const> icon) { }
     virtual void page_did_request_close_notification([[maybe_unused]] u64 notification_id) { }
+    virtual void page_did_abandon_notification([[maybe_unused]] u64 notification_id) { }
     virtual void page_did_handle_notification_click([[maybe_unused]] u64 notification_id, [[maybe_unused]] bool into_focus) { }
+    virtual String page_did_request_notifications_state_for_testing() { return "{}"_string; }
+    virtual void page_did_request_click_notification_for_testing([[maybe_unused]] u64 notification_id) { }
+    virtual void page_did_request_click_notification_by_id_for_testing([[maybe_unused]] u64 browser_notification_id) { }
+    virtual void page_did_request_dismiss_notification_for_testing([[maybe_unused]] u64 notification_id) { }
 
     virtual void page_did_finish_test([[maybe_unused]] Utf16String const& text) { }
     virtual void page_did_set_test_timeout([[maybe_unused]] double milliseconds) { }
