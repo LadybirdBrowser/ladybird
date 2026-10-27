@@ -1,0 +1,3 @@
+GET challenge: AbortError
+POST challenge: AbortError
+POST control: 200, ordinary response

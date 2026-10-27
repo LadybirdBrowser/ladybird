@@ -1,0 +1,34 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const body = "replayable-body";
+
+        async function challenge(method) {
+            const url = await server.createEcho(method, `/post-auth-challenge-abort-${method}`, {
+                status: 401,
+                headers: { "WWW-Authenticate": 'Basic realm="post-auth-challenge-abort"' },
+            });
+            try {
+                const response = await fetch(url, { method, ...(method === "POST" ? { body } : {}) });
+                println(`${method} challenge: status ${response.status}`);
+            } catch (error) {
+                println(`${method} challenge: ${error.name}`);
+            }
+        }
+
+        // The GET control has no request body to cancel.
+        await challenge("GET");
+        // The POST challenge aborts while its JS Request still owns a readable body stream.
+        await challenge("POST");
+
+        const url = await server.createEcho("POST", "/post-auth-challenge-abort-control", {
+            status: 200,
+            headers: { "Content-Type": "text/plain" },
+            body: "ordinary response",
+        });
+        const response = await fetch(url, { method: "POST", body });
+        println(`POST control: ${response.status}, ${await response.text()}`);
+    });
+</script>
