@@ -1499,9 +1499,7 @@ impl<'context> InlineFormattingContext<'context> {
         if style.text_wrap_mode() != text_wrap_mode::WRAP {
             return false;
         }
-        breaks_between_graphemes(style)
-            || (style.overflow_wrap() == overflow_wrap::BREAK_WORD
-                && self.input.available_space.inline_size != AvailableSize::MinContent)
+        breaks_between_graphemes(style) || style.overflow_wrap() == overflow_wrap::BREAK_WORD
     }
 
     fn set_current_line_start_offset(&self, item_index: usize, offset_in_node: usize) {

@@ -310,8 +310,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
     pub(crate) fn remaining_inline_size_for_overflow_break(&mut self) -> Option<CssPixels> {
         match self.available_inline_size_for_current_line {
             AvailableSize::Definite(_) => self.remaining_inline_size_on_current_line(),
-            AvailableSize::MinContent => Some(CssPixels::default()),
-            AvailableSize::MaxContent | AvailableSize::Indefinite => None,
+            _ => None,
         }
     }
 
@@ -604,9 +603,6 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
     }
 
     fn should_break(&mut self, next_item_inline_size: CssPixels) -> bool {
-        if self.available_inline_size_for_current_line == AvailableSize::MaxContent {
-            return false;
-        }
         if self.current_line_is_empty() {
             let line_height = self.containing_style().line_height();
             if !self

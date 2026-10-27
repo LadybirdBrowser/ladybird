@@ -1168,10 +1168,6 @@ impl<'pass> NodeFacts<'pass> {
         has_ancestor_fact(self.data(), AncestorFact::IsAnonymousButtonContentBox)
     }
 
-    pub(crate) fn has_inline_level_inclusive_ancestor(&self) -> bool {
-        has_ancestor_fact(self.data(), AncestorFact::HasInlineLevelInclusiveAncestor)
-    }
-
     pub(crate) fn inherits_text_overflow_ellipsis(&self) -> bool {
         has_ancestor_fact(self.data(), AncestorFact::InheritsTextOverflowEllipsis)
     }
