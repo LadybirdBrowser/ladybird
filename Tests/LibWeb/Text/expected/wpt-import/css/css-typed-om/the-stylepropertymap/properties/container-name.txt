@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 39 tests
 
-38 Pass
-1 Fail
+39 Pass
 Pass	Can set 'container-name' to CSS-wide keywords: initial
 Pass	Can set 'container-name' to CSS-wide keywords: inherit
 Pass	Can set 'container-name' to CSS-wide keywords: unset
@@ -38,7 +37,7 @@ Pass	Setting 'container-name' to a number: calc(2 + 3) throws TypeError
 Pass	Setting 'container-name' to a transform: translate(50%, 50%) throws TypeError
 Pass	Setting 'container-name' to a transform: perspective(10em) throws TypeError
 Pass	Setting 'container-name' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
-Fail	'container-name' does not support 'name1 name2'
+Pass	'container-name' does not support 'name1 name2'
 Pass	Setting 'container-name' to the 'and' keyword: and throws TypeError
 Pass	Setting 'container-name' to the 'not' keyword: not throws TypeError
 Pass	Setting 'container-name' to the 'or' keyword: or throws TypeError

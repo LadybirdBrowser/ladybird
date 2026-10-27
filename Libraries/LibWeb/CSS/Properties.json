@@ -529,6 +529,7 @@
     "needs-layout-node-for-resolved-value": true,
     "__comment": "FIXME: List `filter-value-list` as a valid-type once it's generically supported.",
     "multiplicity": "list",
+    "typed-om-multiplicity": "single",
     "requires-computation": "cascaded-value",
     "valid-identifiers": [
       "none"
@@ -1887,6 +1888,7 @@
     "inherited": false,
     "initial": "none",
     "multiplicity": "list",
+    "typed-om-multiplicity": "single",
     "requires-computation": "never",
     "valid-types": [
       "custom-ident ![none,and,not,or]"
@@ -2321,6 +2323,7 @@
     "needs-layout-node-for-resolved-value": true,
     "__comment": "FIXME: List `filter-value-list` as a valid-type once it's generically supported.",
     "multiplicity": "list",
+    "typed-om-multiplicity": "single",
     "requires-computation": "cascaded-value",
     "valid-identifiers": [
       "none"
@@ -4563,6 +4566,7 @@
     "inherited": true,
     "initial": "auto",
     "multiplicity": "list",
+    "typed-om-multiplicity": "single",
     "requires-computation": "never",
     "valid-types": [
       "string"
@@ -5643,6 +5647,7 @@
     "inherited": false,
     "initial": "all",
     "multiplicity": "coordinating-list",
+    "typed-om-multiplicity": "single",
     "requires-computation": "never",
     "valid-types": [
       "custom-ident ![none]"
@@ -5895,6 +5900,7 @@
     "inherited": false,
     "initial": "auto",
     "multiplicity": "list",
+    "typed-om-multiplicity": "single",
     "requires-computation": "never",
     "valid-types": [
       "custom-ident ![all,auto,contents,none,scroll-position,will-change]"

@@ -622,7 +622,7 @@ bool property_is_list_valued(PropertyID property_id)
 """)
 
     for name, value in properties.items():
-        multiplicity = value.get("multiplicity")
+        multiplicity = value.get("typed-om-multiplicity", value.get("multiplicity"))
         if multiplicity is not None and multiplicity != "single":
             if multiplicity not in ("list", "coordinating-list"):
                 print(
