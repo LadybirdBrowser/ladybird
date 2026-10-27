@@ -22,6 +22,11 @@ function(create_ladybird_bundle target_name)
 
     if (APPLE)
         set(bundle_dir "$<TARGET_BUNDLE_DIR:${target_name}>")
+
+        # The bundle's icon is made after linking, so a changed icon relinks the target.
+        file(GLOB app_icon_images CONFIGURE_DEPENDS "${LADYBIRD_SOURCE_DIR}/UI/Icons/macos/app_icon.iconset/*.png")
+        set_property(TARGET ${target_name} APPEND PROPERTY LINK_DEPENDS ${app_icon_images})
+
         add_custom_command(TARGET ${target_name} POST_BUILD
             COMMAND "${CMAKE_COMMAND}" -E make_directory "${bundle_dir}/Contents/Resources"
             COMMAND "iconutil" --convert icns "${LADYBIRD_SOURCE_DIR}/UI/Icons/macos/app_icon.iconset" --output "${bundle_dir}/Contents/Resources/app_icon.icns"
