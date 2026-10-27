@@ -2167,9 +2167,14 @@ fn lay_out_run_root_and_contents<'pass>(
     } else {
         run
     };
+    let mut inline_layout_of_root_table_box = None;
     if let Some(table_inline_layout) = table_inline_layout {
-        run.records
-            .store_table_inline_layout(table_inline_layout.table_box(), table_inline_layout);
+        if table_inline_layout.table_box() == box_ {
+            inline_layout_of_root_table_box = Some(table_inline_layout);
+        } else {
+            run.records
+                .store_table_inline_layout(table_inline_layout.table_box(), table_inline_layout);
+        }
     }
     let RootSizingOutcome {
         body_input,
@@ -2243,7 +2248,7 @@ fn lay_out_run_root_and_contents<'pass>(
                 }
             }
             FormattingContextImplementation::Table(context) => {
-                context.run(body_run, body_input, run.records.take_table_inline_layout(run.box_));
+                context.run(body_run, body_input, inline_layout_of_root_table_box.take());
                 let baselines = context.derived_baselines_of_root_box();
                 store_derived_baselines(run.records.used_values(run.box_), baselines);
                 ChildLayoutResult {
