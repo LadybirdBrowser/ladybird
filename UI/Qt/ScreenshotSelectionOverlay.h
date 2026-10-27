@@ -11,12 +11,14 @@
 #include <AK/Vector.h>
 #include <AK/kmalloc.h>
 
+#include <QDeadlineTimer>
 #include <QImage>
 #include <QPoint>
 #include <QRect>
 #include <QWidget>
 
 class QPushButton;
+class QTimer;
 
 namespace Ladybird {
 
@@ -33,8 +35,14 @@ public:
     void skip();
     void dismiss();
 
+    bool reveals_page() const { return m_reveals_page; }
+    void page_did_scroll();
+    void page_did_paint();
+
     Function<void()> on_close;
     Function<void(QImage)> on_finished;
+    Function<QImage()> on_request_page_frame;
+    Function<void()> on_page_visibility_change;
 
 protected:
     virtual void paintEvent(QPaintEvent*) override;
@@ -49,11 +57,15 @@ protected:
 
 private:
     void place_instructions();
+    void cover_page();
     QRect selection() const;
     void finish(QImage);
     void update_chrome_style();
 
     QImage m_frame;
+    bool m_reveals_page { false };
+    QTimer* m_scroll_settle_timer { nullptr };
+    QDeadlineTimer m_follow_frames_until;
     Optional<QPoint> m_drag_start;
     QPoint m_drag_end;
     QWidget* m_instructions { nullptr };

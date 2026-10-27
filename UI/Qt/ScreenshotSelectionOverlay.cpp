@@ -19,6 +19,7 @@
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPushButton>
+#include <QTimer>
 #include <QtMath>
 
 namespace Ladybird {
@@ -29,6 +30,8 @@ static constexpr int INSTRUCTIONS_BUTTON_INSET = 12;
 static constexpr int INSTRUCTIONS_BUTTON_SPACING = 8;
 static constexpr int INSTRUCTIONS_TEXT_SPACING = 24;
 static constexpr int DIMMING_ALPHA = 110;
+static constexpr int SCROLL_SETTLE_TIME_MS = 100;
+static constexpr int MAXIMUM_SCROLL_ANIMATION_TIME_MS = 300;
 
 // The instructions stay on one line while the tab has room for it, and wrap rather than being cut off when it does not.
 class InstructionsLabel final : public QLabel {
@@ -50,8 +53,8 @@ public:
     }
 };
 
-// Shows the page as it was when the report was started, so the user selects what they saw, not what the page has
-// changed to since. The rest of the frame dims around the selection.
+// Shows the page as it was when the selection started or the user last scrolled it, so the user selects what they saw,
+// not what the page has changed to since. The rest of the frame dims around the selection.
 ScreenshotSelectionOverlay::ScreenshotSelectionOverlay(QImage frame, QWidget* parent)
     : QWidget(parent)
     , m_frame(AK::move(frame))
@@ -59,6 +62,11 @@ ScreenshotSelectionOverlay::ScreenshotSelectionOverlay(QImage frame, QWidget* pa
     setObjectName("LadybirdScreenshotSelection");
     setCursor(Qt::CrossCursor);
     setFocusPolicy(Qt::StrongFocus);
+
+    m_scroll_settle_timer = new QTimer(this);
+    m_scroll_settle_timer->setSingleShot(true);
+    m_scroll_settle_timer->setInterval(SCROLL_SETTLE_TIME_MS);
+    QObject::connect(m_scroll_settle_timer, &QTimer::timeout, this, [this] { cover_page(); });
 
     auto* instructions = new QFrame(this);
     instructions->setObjectName("ScreenshotSelectionInstructions");
@@ -159,8 +167,53 @@ void ScreenshotSelectionOverlay::skip()
     finish({});
 }
 
+// While the page scrolls underneath, the overlay steps aside for the page to present itself as it does without one,
+// rather than copying each frame the page paints. It still takes the input, so that a press starts a selection rather
+// than reaching the page. Once the scrolling settles, or the user goes on selecting, the overlay takes the page's frame
+// and covers it again.
+void ScreenshotSelectionOverlay::page_did_scroll()
+{
+    if (m_drag_start.has_value())
+        return;
+
+    m_scroll_settle_timer->start();
+    m_follow_frames_until.setRemainingTime(MAXIMUM_SCROLL_ANIMATION_TIME_MS);
+    if (m_reveals_page)
+        return;
+
+    m_reveals_page = true;
+    m_instructions->hide();
+    update();
+    if (on_page_visibility_change)
+        on_page_visibility_change();
+}
+
+// The scrolling settles once the page stops moving, which it may go on doing for a moment after the last input, such as
+// to scroll smoothly. A page that always paints, such as to play an animation, settles soon after the input anyway.
+void ScreenshotSelectionOverlay::page_did_paint()
+{
+    if (m_reveals_page && !m_follow_frames_until.hasExpired())
+        m_scroll_settle_timer->start();
+}
+
+void ScreenshotSelectionOverlay::cover_page()
+{
+    if (!m_reveals_page)
+        return;
+
+    m_scroll_settle_timer->stop();
+    if (auto frame = on_request_page_frame(); !frame.isNull())
+        m_frame = AK::move(frame);
+    m_reveals_page = false;
+    m_instructions->show();
+    update();
+    if (on_page_visibility_change)
+        on_page_visibility_change();
+}
+
 void ScreenshotSelectionOverlay::dismiss()
 {
+    m_scroll_settle_timer->stop();
     hide();
     if (on_close)
         on_close();
@@ -176,6 +229,9 @@ void ScreenshotSelectionOverlay::finish(QImage image)
 
 void ScreenshotSelectionOverlay::paintEvent(QPaintEvent*)
 {
+    if (m_reveals_page)
+        return;
+
     QPainter painter(this);
     painter.drawImage(rect(), m_frame);
 
@@ -197,6 +253,7 @@ void ScreenshotSelectionOverlay::mousePressEvent(QMouseEvent* event)
 {
     if (event->button() != Qt::LeftButton)
         return;
+    cover_page();
     m_drag_start = event->position().toPoint();
     m_drag_end = *m_drag_start;
     update();
@@ -263,6 +320,7 @@ void ScreenshotSelectionOverlay::keyPressEvent(QKeyEvent* event)
     switch (event->key()) {
     case Qt::Key_Return:
     case Qt::Key_Enter:
+        cover_page();
         // A focused button does what it says. Otherwise, the whole frame is taken.
         if (auto* button = qobject_cast<QPushButton*>(QApplication::focusWidget()); button && m_buttons.contains_slow(button))
             button->click();
@@ -281,6 +339,8 @@ void ScreenshotSelectionOverlay::keyPressEvent(QKeyEvent* event)
 // review behind it.
 bool ScreenshotSelectionOverlay::focusNextPrevChild(bool next)
 {
+    cover_page();
+
     Vector<QWidget*> stops { this };
     for (auto* button : m_buttons)
         stops.append(button);
