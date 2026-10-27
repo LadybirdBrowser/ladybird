@@ -34,6 +34,8 @@ public:
     static NotificationManager& the();
 
     static constexpr size_t max_live_notifications_per_origin = 8;
+    // The longest side an icon may have by the time it reaches a backend; a renderer sending more is misbehaving.
+    static constexpr int icon_maximum_side = 128;
 
     void show(WebContentPage&, u64 page_notification_id, Web::NotificationsAPI::NotificationData, RefPtr<Gfx::Bitmap const> icon);
     void close(WebContentPage&, u64 page_notification_id);
@@ -41,6 +43,8 @@ public:
     void abandon(WebContentPage&, u64 page_notification_id);
     void click_handled(WebContentPage&, u64 page_notification_id, bool into_focus);
     void page_did_close(WebContentPage&);
+    // Drops everything a page's tests left behind: its live notifications and the clicks it owes an answer for.
+    void reset_page_for_testing(WebContentPage&);
 
     NotificationBackend& backend();
     void set_backend(NonnullOwnPtr<NotificationBackend>);

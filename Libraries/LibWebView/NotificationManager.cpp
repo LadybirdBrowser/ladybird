@@ -43,6 +43,18 @@ void NotificationManager::install_backend_callbacks()
 
 void NotificationManager::show(WebContentPage& page, u64 page_notification_id, Web::NotificationsAPI::NotificationData data, RefPtr<Gfx::Bitmap const> icon)
 {
+    // Only the page that shows the tab's document may notify for that document. A page hosting a cross-site frame
+    // in the tab has its own process, and its renderer refuses the notification; one that asks anyway is misbehaving,
+    // and would have the frame's notification attributed to the site it's embedded in.
+    if (!page.displays_tab()) {
+        page.client().did_misbehave("did_request_show_notification"sv, "notification from a page that doesn't display its tab"sv);
+        return;
+    }
+
+    // The renderer scales icons down before sending them; one that didn't is sending more than any backend takes.
+    if (icon && (icon->width() > icon_maximum_side || icon->height() > icon_maximum_side))
+        icon = nullptr;
+
     // The notification belongs to the origin the browser knows the page's top-level document by, never to one the
     // page reports. (The document's origin, not the URL's: An opaque origin, which file: pages have, is the same
     // one for the life of the document, where a URL would make a fresh one on every ask.)
@@ -136,6 +148,23 @@ void NotificationManager::page_did_close(WebContentPage& page)
         if (record.page == &page)
             record.page = nullptr;
     }
+    m_clicks_awaiting_reply.remove_all_matching([&](auto const& reply) { return reply.page == &page; });
+}
+
+void NotificationManager::reset_page_for_testing(WebContentPage& page)
+{
+    Vector<u64> live;
+    for (auto const& record : m_records) {
+        if (record.page_id == page.id())
+            live.append(record.id);
+    }
+    for (auto id : live) {
+        if (auto index = index_of(id); index.has_value()) {
+            m_records.remove(*index);
+            backend().close(id);
+        }
+    }
+    m_clicks_awaiting_reply.remove_all_matching([&](auto const& reply) { return reply.page == &page; });
 }
 
 Optional<u64> NotificationManager::id_for(WebContentPage const& page, u64 page_notification_id) const
@@ -205,6 +234,9 @@ void NotificationManager::backend_did_click(u64 id)
         return;
     auto const& record = m_records[*index];
     if (record.page && record.page->is_open()) {
+        // The click is the user's, so the page may open a window from its handler: The UI process checks the
+        // activation it granted, not the one the renderer reports.
+        record.page->give_user_activation();
         m_clicks_awaiting_reply.append({ record.page, record.page_notification_id });
         record.page->async_notification_clicked(record.page_notification_id);
         return;
