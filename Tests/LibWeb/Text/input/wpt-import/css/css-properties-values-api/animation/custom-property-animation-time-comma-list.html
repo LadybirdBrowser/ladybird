@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.css-houdini.org/css-properties-values-api-1">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../resources/utils.js"></script>
+<div id="target"></div>
+<script>
+
+animation_test({
+  syntax: "<time>#",
+  inherits: false,
+  initialValue: "0s"
+}, {
+  keyframes: ["100s, 150s", "200s, 250s"],
+  expected: "150s, 200s"
+}, 'Animating a custom property of type <time>#');
+
+animation_test({
+  syntax: "<time>#",
+  inherits: false,
+  initialValue: "100s, 150s"
+}, {
+  keyframes: "200s, 250s",
+  expected: "150s, 200s"
+}, 'Animating a custom property of type <time># with a single keyframe');
+
+animation_test({
+  syntax: "<time>#",
+  inherits: false,
+  initialValue: "50s, 100s"
+}, {
+  composite: "add",
+  keyframes: ["150s, 200s", "250s, 300s"],
+  expected: "250s, 350s"
+}, 'Animating a custom property of type <time># with additivity');
+
+animation_test({
+  syntax: "<time>#",
+  inherits: false,
+  initialValue: "50s, 100s"
+}, {
+  composite: "add",
+  keyframes: "150s, 200s",
+  expected: "125s, 200s"
+}, 'Animating a custom property of type <time># with a single keyframe and additivity');
+
+animation_test({
+  syntax: "<time>#",
+  inherits: false,
+  initialValue: "0s, 0s"
+}, {
+  iterationComposite: "accumulate",
+  keyframes: ["0s, 50s", "100s, 100s"],
+  expected: "250s, 275s"
+}, 'Animating a custom property of type <time># with iterationComposite');
+
+discrete_animation_test("<time>#", '10s, 20s', '30s', 'Animating a custom property of type <time># with different lengths is discrete');
+
+</script>

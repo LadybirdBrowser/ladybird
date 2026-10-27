@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.css-houdini.org/css-properties-values-api-1">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../resources/utils.js"></script>
+<div id="target"></div>
+<script>
+
+animation_test({
+  syntax: "<length>#",
+  inherits: false,
+  initialValue: "0px"
+}, {
+  keyframes: ["100px, 150px", "200px, 250px"],
+  expected: "150px, 200px"
+}, 'Animating a custom property of type <length>#');
+
+animation_test({
+  syntax: "<length>#",
+  inherits: false,
+  initialValue: "100px, 150px"
+}, {
+  keyframes: "200px, 250px",
+  expected: "150px, 200px"
+}, 'Animating a custom property of type <length># with a single keyframe');
+
+animation_test({
+  syntax: "<length>#",
+  inherits: false,
+  initialValue: "50px, 100px"
+}, {
+  composite: "add",
+  keyframes: ["150px, 200px", "250px, 300px"],
+  expected: "250px, 350px"
+}, 'Animating a custom property of type <length># with additivity');
+
+animation_test({
+  syntax: "<length>#",
+  inherits: false,
+  initialValue: "50px, 100px"
+}, {
+  composite: "add",
+  keyframes: "150px, 200px",
+  expected: "125px, 200px"
+}, 'Animating a custom property of type <length># with a single keyframe and additivity');
+
+animation_test({
+  syntax: "<length>#",
+  inherits: false,
+  initialValue: "0px, 0px"
+}, {
+  iterationComposite: "accumulate",
+  keyframes: ["0px, 50px", "100px, 100px"],
+  expected: "250px, 275px"
+}, 'Animating a custom property of type <length># with iterationComposite');
+
+discrete_animation_test("<length>#", '10px, 20px', '30px', 'Animating a custom property of type <length># with different lengths is discrete');
+
+</script>

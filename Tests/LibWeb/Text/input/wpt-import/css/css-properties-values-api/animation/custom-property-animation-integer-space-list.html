@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.css-houdini.org/css-properties-values-api-1">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../resources/utils.js"></script>
+<div id="target"></div>
+<script>
+
+animation_test({
+  syntax: "<integer>+",
+  inherits: false,
+  initialValue: "0"
+}, {
+  keyframes: ["100 150", "200 250"],
+  expected: "150 200"
+}, 'Animating a custom property of type <integer>+');
+
+animation_test({
+  syntax: "<integer>+",
+  inherits: false,
+  initialValue: "100 150"
+}, {
+  keyframes: "200 250",
+  expected: "150 200"
+}, 'Animating a custom property of type <integer>+ with a single keyframe');
+
+animation_test({
+  syntax: "<integer>+",
+  inherits: false,
+  initialValue: "50 100"
+}, {
+  composite: "add",
+  keyframes: ["150 200", "250 300"],
+  expected: "250 350"
+}, 'Animating a custom property of type <integer>+ with additivity');
+
+animation_test({
+  syntax: "<integer>+",
+  inherits: false,
+  initialValue: "50 100"
+}, {
+  composite: "add",
+  keyframes: "150 200",
+  expected: "125 200"
+}, 'Animating a custom property of type <integer>+ with a single keyframe and additivity');
+
+animation_test({
+  syntax: "<integer>+",
+  inherits: false,
+  initialValue: "0 0"
+}, {
+  iterationComposite: "accumulate",
+  keyframes: ["0 50", "100 100"],
+  expected: "250 275"
+}, 'Animating a custom property of type <integer>+ with iterationComposite');
+
+discrete_animation_test("<integer>+", '10 20', '30', 'Animating a custom property of type <integer>+ with different lengths is discrete');
+
+</script>

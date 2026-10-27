@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 6 tests
+
+4 Pass
+2 Fail
+Pass	Animating a custom property of type <time>#
+Pass	Animating a custom property of type <time># with a single keyframe
+Pass	Animating a custom property of type <time># with additivity
+Fail	Animating a custom property of type <time># with a single keyframe and additivity
+Fail	Animating a custom property of type <time># with iterationComposite
+Pass	Animating a custom property of type <time># with different lengths is discrete
