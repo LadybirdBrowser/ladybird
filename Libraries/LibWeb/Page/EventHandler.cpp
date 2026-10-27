@@ -4512,7 +4512,10 @@ EventHandler::DispatchedPointerEvent EventHandler::dispatch_a_pointer_event_for_
         }
         VERIFY_NOT_REACHED();
     }();
-    auto pointer_event = MUST(UIEvents::PointerEvent::create_from_platform_event(relevant_global_object, m_navigable->active_window_proxy(), pointer_event_name, screen_position, coordinates.page_offset, coordinates.viewport_position, coordinates.offset, movement, button, buttons, modifiers));
+    // https://w3c.github.io/pointerevents/#the-button-property
+    // Neither buttons nor touch/pen contact changed since last event
+    auto pointer_button = type == PointerEventType::PointerMove ? UIEvents::MouseButton::None : static_cast<UIEvents::MouseButton>(button);
+    auto pointer_event = MUST(UIEvents::PointerEvent::create_from_platform_event(relevant_global_object, m_navigable->active_window_proxy(), pointer_event_name, screen_position, coordinates.page_offset, coordinates.viewport_position, coordinates.offset, movement, pointer_button, buttons, modifiers));
 
     // https://w3c.github.io/pointerevents/#dfn-pointercancel
     // The event's cancelable attribute MUST be false.

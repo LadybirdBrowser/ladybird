@@ -3382,6 +3382,9 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
         return HighResolutionTime::current_high_resolution_time(relevant_global_object(*this));
     };
     auto create_pointer_event = [&](Utf16FlyString const& event_name, UIEvents::PointerEventOptions options, CSSPixelPoint offset) {
+        // https://w3c.github.io/pointerevents/#the-button-property
+        // Neither buttons nor touch/pen contact changed since last event
+        options.button = -1;
         // https://w3c.github.io/pointerevents/#dom-pointerevent-pressure
         options.pressure = options.buttons ? UIEvents::PointerEvent::ACTIVE_PRESSURE_DEFAULT_IN_ACTIVE_BUTTON_STATE : 0;
         auto utf8_name = event_name.to_utf16_string().to_utf8();
