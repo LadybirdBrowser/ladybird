@@ -183,6 +183,18 @@ bool MediaDevices::device_enumeration_can_proceed()
     return is_in_view();
 }
 
+// https://w3c.github.io/mediacapture-main/#dfn-has-system-focus
+void MediaDevices::system_focus_changed()
+{
+    // 11.7 While hasSystemFocus is false, the User Agent MUST wait to proceed to the next step until a task queued to set
+    //      hasSystemFocus to the result of the has system focus algorithm, would set hasSystemFocus to true.
+    HTML::queue_global_task(HTML::Task::Source::UserInteraction, HTML::relevant_global_object(*m_window),
+        GC::create_function(heap(), [media_devices = GC::Ref(*this)] {
+            media_devices->process_pending_enumerate_devices_requests();
+            media_devices->process_pending_get_user_media_requests();
+        }));
+}
+
 bool MediaDevices::get_user_media_can_proceed() const
 {
     return is_in_view() && m_window->associated_document().has_focus();
