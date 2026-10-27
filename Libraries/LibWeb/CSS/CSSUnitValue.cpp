@@ -430,11 +430,9 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSUnitValue::create_an_int
             return {};
         },
         [&](Flex const& flex) -> RefPtr<StyleValue const> {
-            if (property_accepts_type(property.id(), ValueType::Flex)) {
-                if (property_accepts_flex(property.id(), flex))
-                    return FlexStyleValue::create(flex);
-                return wrap_in_math_sum(flex);
-            }
+            // NB: Out-of-range flex values cannot be deferred in a calculation.
+            if (property_accepts_type(property.id(), ValueType::Flex) && property_accepts_flex(property.id(), flex))
+                return FlexStyleValue::create(flex);
             return {};
         },
         [&](Frequency const& frequency) -> RefPtr<StyleValue const> {
