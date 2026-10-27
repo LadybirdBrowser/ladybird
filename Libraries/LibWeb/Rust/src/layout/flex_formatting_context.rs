@@ -1765,6 +1765,17 @@ impl<'pass> FlexFormattingContext<'pass> {
                         distributed = distributed_including_item;
                     }
                 }
+            } else {
+                // INTEROP: Distributing no free space leaves the unfrozen items at their flex base size, rather than at
+                //          a target main size left over from a previous iteration of this loop. Otherwise, an item
+                //          that was shrunk before another item froze at its max size stays shrunk, even though the
+                //          line now has room for it.
+                for item_position in 0..item_count {
+                    let index = self.flex_lines[line_index].items[item_position];
+                    if !self.flex_items[index].frozen {
+                        self.flex_items[index].target_main_size = self.flex_items[index].flex_base_size;
+                    }
+                }
             }
 
             // d. Fix min/max violations.
