@@ -1,0 +1,35 @@
+<!doctype html>
+<style>
+body { margin: 0; }
+#left, #right { position: absolute; top: 0; width: 100px; height: 100px; }
+#left { left: 0; }
+#right { left: 150px; }
+</style>
+<div id="left"></div><div id="right"></div>
+<script src="../include.js"></script>
+<script>
+asyncTest(async done => {
+    const left = document.getElementById("left");
+    const right = document.getElementById("right");
+    for (const element of [left, right]) {
+        for (const type of ["pointerover", "pointerout", "pointerdown", "pointermove", "pointerup", "gotpointercapture", "lostpointercapture"])
+            element.addEventListener(type, event => {
+                println(`${event.type}@${element.id}: id=${event.pointerId} primary=${event.isPrimary} buttons=${event.buttons}`);
+            });
+        element.addEventListener("pointerdown", event => element.setPointerCapture(event.pointerId));
+    }
+    const first = { pointerId: 2, pointerType: "touch", pressure: 0.5 };
+    const second = { pointerId: 3, pointerType: "touch", pressure: 0.5 };
+    await internals.mouseEventThroughUIProcess("mousedown", 25, 25, { pointer: first });
+    await internals.mouseEventThroughUIProcess("mousedown", 175, 25, { pointer: second });
+    println(`both captured: ${left.hasPointerCapture(2)},${right.hasPointerCapture(3)}`);
+    await internals.mouseEventThroughUIProcess("mousemove", 175, 25, { pointer: first, buttons: 1 });
+    await internals.mouseEventThroughUIProcess("mousemove", 25, 25, { pointer: second, buttons: 1 });
+    await internals.mouseEventThroughUIProcess("mouseup", 175, 25, { pointer: { ...first, pressure: 0 } });
+    println(`after first release: ${left.hasPointerCapture(2)},${right.hasPointerCapture(3)}`);
+    await internals.mouseEventThroughUIProcess("mousemove", 30, 30, { pointer: second, buttons: 1 });
+    await internals.mouseEventThroughUIProcess("mouseup", 30, 30, { pointer: { ...second, pressure: 0 } });
+    println(`after both releases: ${left.hasPointerCapture(2)},${right.hasPointerCapture(3)}`);
+    done();
+});
+</script>
