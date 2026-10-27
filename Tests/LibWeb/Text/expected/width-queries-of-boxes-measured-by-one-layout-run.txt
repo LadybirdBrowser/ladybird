@@ -2,3 +2,5 @@ orthogonal-block: 1 inline misses answered from orthogonal flow, 1 runs directly
 orthogonal-inline-block: 1 inline misses answered from orthogonal flow, 1 runs directly under them, width 60
 orthogonal-flex: 1 inline misses answered from orthogonal flow, 1 runs directly under them, width 60
 orthogonal-grid: 1 inline misses answered from orthogonal flow, 1 runs directly under them, width 60
+math: 1 inline misses answered from math layout, 1 runs directly under them, width 5.90625
+block-math: 1 inline misses answered from math layout, 1 runs directly under them, width 18.390625

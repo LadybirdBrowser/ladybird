@@ -2986,70 +2986,13 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             }
             return self.cache_content_inline_sizes(node, kind, key, sizes);
         }
-        let sizes = self.content_inline_sizes_by_layout_runs(node, constraints, block_size);
-        self.cache_content_inline_sizes(node, kind, key, sizes)
-    }
-
-    fn content_inline_sizes_by_layout_runs(
-        &self,
-        node: Node,
-        constraints: ContainingBlockConstraints,
-        block_size: Option<CssPixels>,
-    ) -> ContentInlineSizes {
-        debug_assert!(
-            formatting_context::content_inline_sizes_are_measured_by_layout(&self.callbacks, node),
-            "only MathML boxes are measured by layout"
-        );
-        let content_size_named_by_grid_maximum_inline_size =
-            if formatting_context::independent_formatting_context_type(node, &self.callbacks)
-                == formatting_context::FormattingContextType::Grid
-            {
-                intrinsic_sizing::content_size_named_by_maximum_inline_size(&self.callbacks, node)
-            } else {
-                None
-            };
-        let lay_out_under = |available_inline_size: AvailableSize, content_size_named_by_maximum: Option<CssPixels>| {
-            let scope = intrinsic_sizing::ContentSizingScope::new(&self.callbacks, node, constraints, block_size);
-            let mut input = LayoutInput::new(
-                AvailableSpace {
-                    inline_size: available_inline_size,
-                    block_size: scope.available_block_size(),
-                },
-                constraints,
-                ParticipationInParentFormattingContext::Root,
-            );
-            input.sizing.maximum_inline_size_resolved_by_caller = content_size_named_by_maximum.map(|content_size| {
-                self.apply_transferred_limits_to_intrinsic_inline_size(
-                    node,
-                    clamp_to_max_dimension_value(content_size),
-                    intrinsic_sizing::available_inline_size_under_content_size_named_by_maximum(
-                        content_size_named_by_grid_maximum_inline_size,
-                    ),
-                    constraints,
-                )
-            });
-            formatting_context::run_root_without_parent_fragments(self.callbacks, node, scope.root(), input)
-        };
-        let (min_content_result, max_content_result) =
-            intrinsic_sizing::measure_under_each_inline_size_constraint_named_maximum_first(
-                content_size_named_by_grid_maximum_inline_size,
-                lay_out_under,
-                |result| result.automatic_content_inline_size,
-            );
-        let max_content_inline_size = max_content_result.automatic_content_inline_size;
-        ContentInlineSizes {
-            sizes: ContentSizes {
-                min: min_content_result.automatic_content_inline_size,
-                max: max_content_inline_size,
-            },
-            first_line_max_content: FirstLineMaxContent::without_floats(max_content_inline_size),
-            dependencies: IntrinsicMeasurementDependencies {
-                percentage_block_size: min_content_result.depends_on_percentage_block_size
-                    || max_content_result.depends_on_percentage_block_size,
-                percentage_inline_basis: self.measurement_root_observes_percentage_inline_basis(node),
-                block_size: true,
-            },
+        if let Some(sizes) = intrinsic_sizing::content_sizes_of_math(self.callbacks, &scope, constraints) {
+            if let Some(trace) = &trace {
+                trace.append(" FROM MATH LAYOUT");
+            }
+            return self.cache_content_inline_sizes(node, kind, key, sizes);
         }
+        unreachable!("no source of content inline sizes answers for {node:?}")
     }
 
     fn cache_content_inline_sizes(

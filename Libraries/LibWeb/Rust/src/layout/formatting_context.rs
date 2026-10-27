@@ -2036,21 +2036,6 @@ pub(crate) fn explicit_intrinsic_inner_inline_size(facts: &NodeFacts<'_>) -> Css
     }
 }
 
-/// Whether the content inline sizes of `box_` are measured by laying it out under each intrinsic inline size: those of a
-/// MathML box.
-pub(crate) fn content_inline_sizes_are_measured_by_layout(callbacks: &LayoutPass<'_>, box_: Node) -> bool {
-    independent_formatting_context_type(box_, callbacks) == FormattingContextType::Math
-}
-
-fn lays_out_box_for_its_content_inline_sizes(
-    callbacks: &LayoutPass<'_>,
-    box_: Node,
-    participation: ParticipationInParentFormattingContext,
-) -> bool {
-    participation == ParticipationInParentFormattingContext::Root
-        && content_inline_sizes_are_measured_by_layout(callbacks, box_)
-}
-
 #[expect(clippy::too_many_arguments)]
 fn execute_formatting_context_run(
     builds_fragments: bool,
@@ -2116,9 +2101,8 @@ fn execute_formatting_context_run(
                 atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above,
             } = apply_root_sizing_directives(run, &input, fc_type);
             debug_assert!(
-                !body_input.available_space.inline_size.is_intrinsic_sizing_constraint()
-                    || lays_out_box_for_its_content_inline_sizes(&callbacks, box_, input.participation),
-                "only a box whose content inline sizes are measured by layout lays out under an intrinsic inline size"
+                !body_input.available_space.inline_size.is_intrinsic_sizing_constraint(),
+                "no run lays out its contents under an intrinsic inline size"
             );
 
             let body_input = if changes_frame {
