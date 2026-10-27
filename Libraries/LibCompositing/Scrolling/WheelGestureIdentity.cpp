@@ -30,9 +30,15 @@ WheelGestureIdentity WheelGestureIdentity::started_by(Gfx::FloatPoint position, 
     return gesture;
 }
 
-bool WheelGestureIdentity::is_continued_by(Gfx::FloatPoint position, Web::ScrollGesturePhase phase, u32 modifiers, MonotonicTime now, float position_slop) const
+bool WheelGestureIdentity::is_held_by_fingers() const
 {
-    if (now - m_last_event_time > user_scroll_settle_delay)
+    return m_kind == Kind::Phased && !m_ended_at.has_value() && !m_momentum_has_started;
+}
+
+bool WheelGestureIdentity::is_continued_by(Gfx::FloatPoint position, Web::ScrollGesturePhase phase, u32 modifiers, MonotonicTime now, float position_slop, TouchpadGestureEnd touchpad_gesture_end) const
+{
+    bool lasts_while_fingers_rest = touchpad_gesture_end == TouchpadGestureEnd::WhenFingersLift && is_held_by_fingers();
+    if (!lasts_while_fingers_rest && now - m_last_event_time > user_scroll_settle_delay)
         return false;
     if (kind_for(phase) != m_kind)
         return false;

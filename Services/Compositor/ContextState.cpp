@@ -1475,7 +1475,7 @@ Web::WheelGestureMark ContextState::note_wheel_event_from_ui(Web::MouseEvent con
     // Fling steps are not timed here, which leaves them out of the velocity; no platform both flings and stretches.
     if (wheel_step_can_stretch_elastically(event.wheel_delta_precision, phase))
         m_elastic_overscroll_controller.note_step_from_ui(wheel_event_delta_in_device_pixels(event).scaled(1.0f / m_scene.visual_viewport_magnification()), now);
-    return { .continues_gesture = !starts_gesture };
+    return { .continues_gesture = !starts_gesture, .lasts_until_fingers_lift = m_wheel_gesture_routing.gesture_lasts_until_fingers_lift() };
 }
 
 bool ContextState::start_scroll_fling_if_flicked(Web::MouseEvent const& gesture_end_event, Optional<MonotonicTime> now_for_testing)
@@ -1514,6 +1514,14 @@ Optional<Web::MouseEvent> ContextState::end_momentum_scrolling(Web::AsyncScrollN
     if (has_active_scroll_fling())
         return end_scroll_fling();
     return interrupt_reported_scroll_momentum();
+}
+
+void ContextState::clear_per_test_input_state()
+{
+    // A gesture held by fingers never ends by itself, so one a test left unended would take in the next test's steps.
+    m_wheel_gesture_routing.forget_gesture();
+    m_last_reported_scroll_momentum_step.clear();
+    m_reported_scroll_momentum_was_interrupted = false;
 }
 
 bool ContextState::absorbs_wheel_event_of_interrupted_momentum(Web::MouseEvent const& event)
@@ -1798,9 +1806,11 @@ bool ContextState::pull_elastic_overscroll_by(Compositing::AsyncScrollNode const
     return m_elastic_overscroll_controller.pull_by(node, *scroll_offset, step_delta, delta_the_scroller_did_not_scroll_by, m_scene.visual_viewport_magnification());
 }
 
-void ContextState::set_scrolls_elastically(bool scrolls_elastically)
+void ContextState::set_scroll_capabilities(ScrollCapabilities const& capabilities)
 {
-    m_elastic_overscroll_controller.set_enabled(scrolls_elastically);
+    m_elastic_overscroll_controller.set_enabled(capabilities.scrolls_elastically);
+    m_scrollbar_track_press_jumps = capabilities.scrollbar_track_press_jumps;
+    m_wheel_gesture_routing.set_touchpad_gesture_end(capabilities.touchpad_gesture_end);
 }
 
 Optional<Gfx::IntRect> ContextState::advance_elastic_overscroll_rebounds(MonotonicTime frame_time)
@@ -2249,6 +2259,8 @@ AsyncScrollUpdateOutbox::UserScrollGestureState ContextState::user_scroll_gestur
         if (!state.boxes_in_user_scroll_gesture.contains_slow(box))
             state.boxes_in_user_scroll_gesture.append(box);
     }
+    if (auto box = m_wheel_gesture_routing.scroller_held_by_fingers(); box.has_value() && !state.boxes_in_user_scroll_gesture.contains_slow(box.value()))
+        state.boxes_in_user_scroll_gesture.append(box.value());
     state.wheel_latched_scroller = m_wheel_gesture_routing.latched_scroller();
     return state;
 }

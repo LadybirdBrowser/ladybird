@@ -18,6 +18,13 @@ namespace Compositing {
 inline constexpr AK::Duration wheel_gesture_momentum_grace_after_end = AK::Duration::from_milliseconds(100);
 inline constexpr float wheel_gesture_position_slop_in_css_pixels = 10;
 
+// When a touchpad gesture ends: once its steps stop arriving for a while, or once the platform reports that the fingers
+// lifted, however long they rest on the touchpad before that.
+enum class TouchpadGestureEnd : u8 {
+    AfterIdleDelay,
+    WhenFingersLift,
+};
+
 // A wheel gesture keeps scrolling the scroller its first event was routed to, so the compositor and the main thread
 // both have to tell whether a wheel event continues the gesture they latched or starts another one. Both decide by
 // the rules here, so that they agree on the scroller an event belongs to without telling each other.
@@ -26,7 +33,9 @@ public:
     static WheelGestureIdentity started_by(Gfx::FloatPoint position, Web::ScrollGesturePhase, u32 modifiers, MonotonicTime now);
 
     // Positions and the slop are in whatever unit the caller routes in.
-    bool is_continued_by(Gfx::FloatPoint position, Web::ScrollGesturePhase, u32 modifiers, MonotonicTime now, float position_slop) const;
+    bool is_continued_by(Gfx::FloatPoint position, Web::ScrollGesturePhase, u32 modifiers, MonotonicTime now, float position_slop, TouchpadGestureEnd) const;
+    // Whether the fingers of a touchpad gesture are still on the touchpad, before it ends or hands over to momentum.
+    bool is_held_by_fingers() const;
     void advance_to(Web::ScrollGesturePhase, MonotonicTime now);
     void did_handle_event(MonotonicTime now);
 

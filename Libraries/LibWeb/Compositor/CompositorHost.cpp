@@ -87,6 +87,11 @@ void CompositorContextHandle::begin_input_trace_for_testing()
     m_host.begin_input_trace_for_testing(m_context_id);
 }
 
+void CompositorContextHandle::clear_per_test_input_state_for_testing()
+{
+    m_host.clear_per_test_input_state_for_testing(m_context_id);
+}
+
 Vector<Web::InputTraceRecord> CompositorContextHandle::take_input_trace_for_testing()
 {
     return m_host.take_input_trace_for_testing(m_context_id);
@@ -489,6 +494,12 @@ void CompositorHost::begin_input_trace_for_testing(Web::CompositorContextId cont
 {
     if (auto* connection = compositor_connection())
         connection->begin_input_trace_for_testing(context_id);
+}
+
+void CompositorHost::clear_per_test_input_state_for_testing(Web::CompositorContextId context_id)
+{
+    if (auto* connection = compositor_connection())
+        connection->clear_per_test_input_state_for_testing(context_id);
 }
 
 Vector<Web::InputTraceRecord> CompositorHost::take_input_trace_for_testing(Web::CompositorContextId context_id)

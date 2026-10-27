@@ -45,6 +45,11 @@ public:
 
     bool has_latch() const { return m_latch.has_value(); }
     Optional<Web::AsyncScrollNodeStableID> latched_scroller() const;
+    void set_touchpad_gesture_end(Compositing::TouchpadGestureEnd touchpad_gesture_end) { m_touchpad_gesture_end = touchpad_gesture_end; }
+    // Whether the fingers of the gesture are on the touchpad, where the gesture lasts until they lift.
+    bool gesture_lasts_until_fingers_lift() const;
+    // The scroller of such a gesture, or of one a containing context hands the steps of to this one.
+    Optional<Web::AsyncScrollNodeStableID> scroller_held_by_fingers() const;
     // What a gesture is latched to: a scroller in the current scroll tree, a context nested in this one that latched the
     // gesture to a scroller of its own, or nothing that scrolls, when this context keeps the steps from the document
     // around it.
@@ -60,6 +65,7 @@ public:
     void latch_to_nested_context(Web::CompositorContextId, Optional<Web::AsyncScrollNodeStableID> scroller, Web::ScrollGesturePhase);
     void latch_keeping_steps(Web::ScrollGesturePhase);
     void clear_latch() { m_latch.clear(); }
+    void forget_gesture();
     void relatch_to(Web::AsyncScrollNodeStableID);
     void note_page_let_latched_gesture_through();
     bool page_let_latched_touchpad_gesture_through(Web::WheelDeltaPrecision, Web::ScrollGesturePhase) const;
@@ -100,6 +106,7 @@ private:
     u64 m_id_of_first_wheel_event_with_delta { 0 };
     bool m_gesture_had_wheel_event_with_delta { false };
     Optional<Latch> m_latch;
+    Compositing::TouchpadGestureEnd m_touchpad_gesture_end { Compositing::TouchpadGestureEnd::AfterIdleDelay };
 };
 
 }

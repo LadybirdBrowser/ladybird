@@ -425,7 +425,8 @@ public:
     // Returns false if the scroller is not in this navigable's active document.
     bool set_overlay_scrollbar_hidden(Web::AsyncScrollNodeStableID, bool vertical, bool hidden);
     void note_user_scroll_gesture_phase(Web::ScrollGesturePhase);
-    void did_handle_wheel_event();
+    // A gesture that lasts until its fingers lift is held until their lift arrives, not until its events pause.
+    void did_handle_wheel_event(bool gesture_lasts_until_fingers_lift);
     void note_wheel_user_scroll_gesture_scrolls(Web::AsyncScrollNodeStableID);
     void extend_user_scroll_gesture_of(Web::AsyncScrollNodeStableID);
     void extend_wheel_user_scroll_gesture(Optional<Web::AsyncScrollNodeStableID> box_latched_on_this_thread);

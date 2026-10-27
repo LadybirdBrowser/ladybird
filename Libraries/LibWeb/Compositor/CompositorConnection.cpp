@@ -542,6 +542,14 @@ void CompositorConnection::begin_input_trace_for_testing(Web::CompositorContextI
         did_lose_compositor();
 }
 
+void CompositorConnection::clear_per_test_input_state_for_testing(Web::CompositorContextId context_id)
+{
+    if (!can_send_message_to_compositor())
+        return;
+    if (!send_sync_but_allow_failure<Messages::CompositorWebContentServer::ClearPerTestInputStateForTesting>(context_id))
+        did_lose_compositor();
+}
+
 Vector<Web::InputTraceRecord> CompositorConnection::take_input_trace_for_testing(Web::CompositorContextId context_id)
 {
     if (!can_send_message_to_compositor())

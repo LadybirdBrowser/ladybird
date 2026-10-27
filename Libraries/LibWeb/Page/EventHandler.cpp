@@ -968,17 +968,18 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
         if (wheel_gesture_mark.has_value())
             continues_latched_gesture = wheel_gesture_mark->continues_gesture;
         else
-            continues_latched_gesture = m_wheel_scroll_latch->gesture.is_continued_by(gesture_position, scroll_gesture_phase, modifiers, now, Compositing::wheel_gesture_position_slop_in_css_pixels);
+            continues_latched_gesture = m_wheel_scroll_latch->gesture.is_continued_by(gesture_position, scroll_gesture_phase, modifiers, now, Compositing::wheel_gesture_position_slop_in_css_pixels, Compositing::TouchpadGestureEnd::AfterIdleDelay);
     }
     if (continues_latched_gesture)
         m_wheel_scroll_latch->gesture.advance_to(scroll_gesture_phase, now);
     else
         m_wheel_scroll_latch.clear();
 
-    ScopeGuard measure_next_pause_from_end_of_handling = [this] {
+    bool gesture_lasts_until_fingers_lift = wheel_gesture_mark.has_value() && wheel_gesture_mark->lasts_until_fingers_lift;
+    ScopeGuard measure_next_pause_from_end_of_handling = [this, gesture_lasts_until_fingers_lift] {
         if (m_wheel_scroll_latch.has_value())
             m_wheel_scroll_latch->gesture.did_handle_event(MonotonicTime::now());
-        m_navigable->did_handle_wheel_event();
+        m_navigable->did_handle_wheel_event(gesture_lasts_until_fingers_lift);
     };
 
     // A wheel step is routed against the offsets the compositor holds now, which a step it just took may

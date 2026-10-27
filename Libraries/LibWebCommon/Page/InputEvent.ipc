@@ -38,6 +38,7 @@ enum Web::ScrollGesturePhase : u8 {
 [ExistingCpp]
 struct Web::WheelGestureMark {
     bool continues_gesture;
+    bool lasts_until_fingers_lift;
 }
 
 [ExistingCpp]
