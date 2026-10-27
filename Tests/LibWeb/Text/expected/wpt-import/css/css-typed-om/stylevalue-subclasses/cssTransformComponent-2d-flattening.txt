@@ -2,9 +2,8 @@ Harness status: OK
 
 Found 4 tests
 
-3 Pass
-1 Fail
+4 Pass
 Pass	CSSTranslate.toMatrix() flattens when told it is 2d
 Pass	CSSRotate.toMatrix() flattens when told it is 2d
 Pass	CSSScale.toMatrix() flattens when told it is 2d
-Fail	CSSMatrixComponent.toMatrix() flattens when told it is 2d
+Pass	CSSMatrixComponent.toMatrix() flattens when told it is 2d
