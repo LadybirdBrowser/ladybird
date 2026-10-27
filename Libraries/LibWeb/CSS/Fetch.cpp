@@ -65,11 +65,16 @@ static StyleResourceContext style_resource_context(RuleOrDeclaration css_rule_or
     return { nullptr, {}, api_base_url };
 }
 
+::URL::URL style_resource_base_url(RuleOrDeclaration css_rule_or_declaration)
+{
+    return style_resource_context(css_rule_or_declaration).url;
+}
+
 // https://drafts.csswg.org/css-values-4/#resolve-a-style-resource-url
-static Optional<::URL::URL> resolve_a_style_resource_url(StyleResourceURL const& url_value, RuleOrDeclaration css_rule_or_declaration)
+Optional<::URL::URL> resolve_a_style_resource_url(StyleResourceURL const& url_value, RuleOrDeclaration css_rule_or_declaration)
 {
     // 1. Let baseURL be the style resource base URL given cssRuleOrDeclaration.
-    auto base_url = style_resource_context(css_rule_or_declaration).url;
+    auto base_url = style_resource_base_url(css_rule_or_declaration);
 
     // 2. Return the result of the URL parser steps with urlValue’s url and base.
     return url_value.visit(

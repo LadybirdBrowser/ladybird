@@ -1,0 +1,88 @@
+<!doctype html>
+<script src="include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const fontResponse = await fetch("../../Assets/HashSans.woff");
+        const fontBytes = new Uint8Array(await fontResponse.arrayBuffer());
+        const fontBody = btoa(Array.from(fontBytes, byte => String.fromCharCode(byte)).join(""));
+        const createFont = name =>
+            server.createEcho("GET", name, {
+                status: 200,
+                headers: { "Content-Type": "font/woff", "Cache-Control": "no-store" },
+                body: fontBody,
+                body_encoding: "base64",
+            });
+        const createSheet = (path, policy, body) =>
+            server.createEcho("GET", path, {
+                status: 200,
+                headers: { "Content-Type": "text/css", "Cache-Control": "no-store", "Referrer-Policy": policy },
+                body,
+            });
+        const loadSheet = url =>
+            new Promise((resolve, reject) => {
+                const link = document.createElement("link");
+                link.rel = "stylesheet";
+                link.onload = resolve;
+                link.onerror = reject;
+                link.href = url;
+                document.head.append(link);
+            });
+        const loadFace = async family => {
+            const face = Array.from(document.fonts).find(face => face.family === family);
+            if (!face) throw new Error(`Missing font face: ${family}`);
+            await face.load();
+        };
+        const referrer = async url => {
+            const response = await fetch(server.recordedRequestHeadersURL(url), { cache: "no-store" });
+            const headers = await response.json();
+            return Object.entries(headers).find(([name]) => name.toLowerCase() === "referer")?.[1][0] ?? null;
+        };
+        const requests = url => performance.getEntriesByType("resource").filter(entry => entry.name === url).length;
+
+        const fontURL = await createFont("/shared.woff");
+        const firstSheet = await createSheet(
+            "/first/sheet.css",
+            "unsafe-url",
+            `
+            @font-face { font-family: First; src: url(../shared.woff); }
+            @font-face { font-family: SameContext; src: url('${fontURL}'); }
+        `
+        );
+        await loadSheet(firstSheet);
+        await loadFace("First");
+        println(`First sheet referrer: ${(await referrer(fontURL)) === firstSheet}`);
+        await loadFace("SameContext");
+        println(`Same context shares one request: ${requests(fontURL) === 1}`);
+        const secondSheet = await createSheet(
+            "/second/sheet.css",
+            "unsafe-url",
+            `
+            @font-face { font-family: Second; src: url('${fontURL}'); }
+        `
+        );
+        await loadSheet(secondSheet);
+        await loadFace("Second");
+        println(`Second sheet referrer: ${(await referrer(fontURL)) === secondSheet}`);
+        println(`Different referrers make two requests: ${requests(fontURL) === 2}`);
+
+        const policyFontURL = await createFont("/policy.woff");
+        const policySheet = await createSheet(
+            "/policy.css",
+            "no-referrer",
+            `
+            @font-face { font-family: PolicySecond; src: url('${policyFontURL}'); }
+        `
+        );
+        // NB: The base URL is identical, but only the fetched sheet inherits a response's no-referrer policy.
+        const constructed = new CSSStyleSheet({ baseURL: policySheet });
+        constructed.replaceSync("@font-face { font-family: PolicyFirst; src: url(policy.woff); }");
+        document.adoptedStyleSheets = [constructed];
+        await loadFace("PolicyFirst");
+        println(`Initial policy sends referrer: ${(await referrer(policyFontURL)) === policySheet}`);
+        await loadSheet(policySheet);
+        await loadFace("PolicySecond");
+        println(`New policy omits referrer: ${(await referrer(policyFontURL)) === null}`);
+        println(`Different policies make two requests: ${requests(policyFontURL) === 2}`);
+    });
+</script>

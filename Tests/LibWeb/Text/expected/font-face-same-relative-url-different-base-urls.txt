@@ -1,2 +1,2 @@
 WithFont: loaded
-WithoutFont: loaded
+WithoutFont: error
