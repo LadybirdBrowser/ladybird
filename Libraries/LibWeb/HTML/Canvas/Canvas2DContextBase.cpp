@@ -600,8 +600,8 @@ void web_canvas_2d_canvas_resolve_color(void* canvas_host, CSS::StyleValue const
 
 float web_canvas_2d_canvas_resolve_length(void* canvas_host, CSS::StyleValue const* length, FontMetricsSource font)
 {
-    auto absolutized_length = CSS::Length::from_style_value(length->absolutized(computation_context_for(host_from(canvas_host), font)), {});
-    return static_cast<float>(absolutized_length.absolute_length_to_px().to_double());
+    auto absolutized_length = length->absolutized(computation_context_for(host_from(canvas_host), font));
+    return static_cast<float>(CSSPixels::nearest_value_for(CSS::resolve_absolute_length_in_px(*absolutized_length)).to_double());
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-filter
@@ -651,10 +651,10 @@ bool web_canvas_2d_canvas_parse_filter(void* canvas_host, FlatPtr filter, FontMe
         case CSS::FilterStyleValue::Kind::DropShadow: {
             auto const& drop_shadow = static_cast<CSS::DropShadowFilterStyleValue const&>(filter_value);
             function.kind = Compositing::RustFFI::FfiFilterFunctionKind::DropShadow;
-            function.offset_x = static_cast<float>(CSS::Length::from_style_value(drop_shadow.offset_x(), {}).absolute_length_to_px());
-            function.offset_y = static_cast<float>(CSS::Length::from_style_value(drop_shadow.offset_y(), {}).absolute_length_to_px());
+            function.offset_x = static_cast<float>(CSSPixels::nearest_value_for(CSS::resolve_absolute_length_in_px(*drop_shadow.offset_x())));
+            function.offset_y = static_cast<float>(CSSPixels::nearest_value_for(CSS::resolve_absolute_length_in_px(*drop_shadow.offset_y())));
             if (drop_shadow.radius())
-                function.amount = static_cast<float>(CSS::Length::from_style_value(*drop_shadow.radius(), {}).absolute_length_to_px());
+                function.amount = static_cast<float>(CSSPixels::nearest_value_for(CSS::resolve_absolute_length_in_px(*drop_shadow.radius())));
             function.color = drop_shadow.color() ? drop_shadow.color()->to_color(host.canvas_color_resolution_style()).value_or(Gfx::Color::Black) : Gfx::Color::Black;
             break;
         }

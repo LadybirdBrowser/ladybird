@@ -217,10 +217,10 @@ WebIDL::ExceptionOr<float> SVGLength::value() const
         // AD-HOC: We handle literal numbers in step two but calculated values that resolve to numbers haven't been
         //         handled yet (tree counting functions have been filtered out since they aren't computationally
         //         independent).
-        if (absolutized_value->is_calculated() && absolutized_value->as_calculated().resolves_to_number())
+        if (CSS::calculation_resolves_to(*absolutized_value, CSS::StyleValueFFI::CanonicalNumericType::Number))
             return number_from_style_value(*absolutized_value, {});
 
-        return CSS::Length::from_style_value(absolutized_value, CSS::Length::make_px(viewport_size)).absolute_length_to_px_without_rounding();
+        return CSS::resolve_absolute_length_in_px(*absolutized_value, viewport_size);
     }
 
     // NB: Update layout so any container query units are resolved correctly.
@@ -232,7 +232,7 @@ WebIDL::ExceptionOr<float> SVGLength::value() const
             return CSS::Length::make_px(viewport_size).percentage_of(scalar->to_percentage()).absolute_length_to_px_without_rounding();
 
         auto absolutized_length = CSS::LengthStyleValue::create(scalar->to_length())->absolutized({ .length_resolution_context = *length_resolution_context, .abstract_element = DOM::AbstractElement { *m_element } });
-        return CSS::Length::from_style_value(absolutized_length, {}).absolute_length_to_px_without_rounding();
+        return CSS::resolve_absolute_length_in_px(*absolutized_length);
     }
 
     auto const& style_value = value.get<NonnullRefPtr<CSS::StyleValue const>>();
@@ -246,10 +246,10 @@ WebIDL::ExceptionOr<float> SVGLength::value() const
 
     // AD-HOC: We handle literal numbers in step two but tree counting functions (which absolutize to NumberStyleValue)
     //         and calculated values that resolve to numbers haven't been handled yet.
-    if (absolutized_value->is_number() || (absolutized_value->is_calculated() && absolutized_value->as_calculated().resolves_to_number()))
+    if (absolutized_value->is_number() || (CSS::calculation_resolves_to(*absolutized_value, CSS::StyleValueFFI::CanonicalNumericType::Number)))
         return number_from_style_value(*absolutized_value, {});
 
-    return CSS::Length::from_style_value(absolutized_value, CSS::Length::make_px(viewport_size)).absolute_length_to_px_without_rounding();
+    return CSS::resolve_absolute_length_in_px(*absolutized_value, viewport_size);
 }
 
 // https://w3c.github.io/svgwg/svg2-draft/types.html#__svg__SVGLength__unitType

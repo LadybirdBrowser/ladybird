@@ -557,21 +557,72 @@ StyleValueVector StyleValue::subdivide_into_iterations(PropertyNameAndID const& 
     return StyleValueVector { *this };
 }
 
+struct CalcResolutionSnapshot {
+    explicit CalcResolutionSnapshot(CalculationResolutionContext const& resolution_context)
+        : element_facts { resolution_context.length_resolution_context.has_value() ? &*resolution_context.length_resolution_context : nullptr, resolution_context.abstract_element }
+        , ffi_element_facts(element_facts.to_ffi())
+    {
+        ffi_context.element_facts = &ffi_element_facts;
+        if (resolution_context.length_resolution_context.has_value()) {
+            length_resolution_context = resolution_context.length_resolution_context->to_ffi();
+            ffi_context.length_resolution_context = &length_resolution_context.value();
+        }
+        if (resolution_context.percentage_basis_in_px.has_value()) {
+            ffi_context.has_percentage_basis = true;
+            ffi_context.percentage_basis_px = *resolution_context.percentage_basis_in_px;
+        }
+    }
+
+    CalcResolutionSnapshot(CalcResolutionSnapshot const&) = delete;
+
+    ElementFactsForRust element_facts;
+    StyleValueFFI::FfiElementFacts ffi_element_facts;
+    Optional<ComputedValuesFFI::FfiLengthResolutionContext> length_resolution_context;
+    StyleValueFFI::FfiCalcResolutionContext ffi_context {};
+};
+
+Optional<double> resolve_numeric_style_value(StyleValue const& style_value, StyleValueFFI::CanonicalNumericType target, CalculationResolutionContext const& resolution_context)
+{
+    CalcResolutionSnapshot resolution_snapshot { resolution_context };
+    auto result = StyleValueFFI::rust_style_value_resolve_numeric(style_value.rust_style_value_data(), target, &resolution_snapshot.ffi_context);
+    if (!result.resolved)
+        return {};
+    return result.value;
+}
+
+bool calculation_resolves_to(StyleValue const& style_value, StyleValueFFI::CanonicalNumericType target)
+{
+    return StyleValueFFI::rust_calculation_resolves_to(style_value.rust_style_value_data(), target);
+}
+
+double resolve_absolute_length_in_px(StyleValue const& style_value, Optional<double> percentage_basis_in_px)
+{
+    return resolve_numeric_style_value(style_value, StyleValueFFI::CanonicalNumericType::Length, { .percentage_basis_in_px = percentage_basis_in_px }).value();
+}
+
+double resolve_angle_in_degrees(StyleValue const& style_value)
+{
+    return resolve_numeric_style_value(style_value, StyleValueFFI::CanonicalNumericType::Angle).value();
+}
+
+double resolve_resolution_in_dots_per_pixel(StyleValue const& style_value)
+{
+    return resolve_numeric_style_value(style_value, StyleValueFFI::CanonicalNumericType::Resolution).value();
+}
+
 double number_from_style_value(NonnullRefPtr<StyleValue const> const& style_value, Optional<double> percentage_basis)
 {
     if (style_value->is_number())
         return style_value->as_number().number();
 
     if (style_value->is_calculated()) {
-        auto const& calculated_style_value = style_value->as_calculated();
+        if (calculation_resolves_to(*style_value, StyleValueFFI::CanonicalNumericType::Number))
+            return resolve_numeric_style_value(*style_value, StyleValueFFI::CanonicalNumericType::Number).value();
 
-        if (calculated_style_value.resolves_to_number())
-            return calculated_style_value.resolve_number({}).value();
-
-        if (calculated_style_value.resolves_to_percentage()) {
+        if (calculation_resolves_to(*style_value, StyleValueFFI::CanonicalNumericType::Percentage)) {
             VERIFY(percentage_basis.has_value());
 
-            return calculated_style_value.resolve_percentage({}).value().as_fraction() * percentage_basis.value();
+            return resolve_numeric_style_value(*style_value, StyleValueFFI::CanonicalNumericType::Percentage).value() * 0.01 * percentage_basis.value();
         }
 
         VERIFY_NOT_REACHED();

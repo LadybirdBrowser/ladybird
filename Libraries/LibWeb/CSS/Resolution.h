@@ -20,8 +20,6 @@ public:
     Resolution(double value, ResolutionUnit unit);
     static Resolution make_dots_per_pixel(double);
 
-    static Resolution from_style_value(NonnullRefPtr<StyleValue const> const&);
-
     double to_dots_per_pixel() const;
 
     double raw_value() const { return m_value; }

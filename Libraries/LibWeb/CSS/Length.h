@@ -57,8 +57,6 @@ public:
         return m_unit == other.m_unit && m_value == other.m_value;
     }
 
-    static Length from_style_value(NonnullRefPtr<StyleValue const> const&, Optional<Length> percentage_basis);
-
 private:
     LengthUnit m_unit;
     double m_value { 0 };

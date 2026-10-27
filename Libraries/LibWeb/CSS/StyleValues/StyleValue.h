@@ -249,6 +249,11 @@ struct StyleValueWithDefaultOperators : public StyleValue {
     using Base = StyleValue;
 };
 
+Optional<double> resolve_numeric_style_value(StyleValue const&, StyleValueFFI::CanonicalNumericType, CalculationResolutionContext const& = {});
+bool calculation_resolves_to(StyleValue const&, StyleValueFFI::CanonicalNumericType);
+double resolve_absolute_length_in_px(StyleValue const&, Optional<double> percentage_basis_in_px = {});
+double resolve_angle_in_degrees(StyleValue const&);
+double resolve_resolution_in_dots_per_pixel(StyleValue const&);
 double number_from_style_value(NonnullRefPtr<StyleValue const> const& style_value, Optional<double> percentage_basis);
 Utf16FlyString string_from_style_value(NonnullRefPtr<StyleValue const> const& style_value);
 

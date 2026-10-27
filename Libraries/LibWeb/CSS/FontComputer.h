@@ -15,6 +15,7 @@
 #include <AK/Utf16FlyString.h>
 #include <LibGC/CellAllocator.h>
 #include <LibGfx/FontCascadeList.h>
+#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/Fetch.h>
 #include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/StyleEngineIdentifiers.h>

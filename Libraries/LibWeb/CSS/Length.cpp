@@ -9,9 +9,6 @@
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/Serialize.h>
-#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
-#include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
-#include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 
 namespace Web::CSS {
 
@@ -54,30 +51,6 @@ void Length::serialize(Utf16StringBuilder& builder, SerializationMode serializat
     }
     serialize_a_number(builder, m_value);
     builder.append(unit_name());
-}
-
-Length Length::from_style_value(NonnullRefPtr<StyleValue const> const& style_value, Optional<Length> percentage_basis)
-{
-    if (style_value->is_length())
-        return style_value->as_length().length();
-
-    if (style_value->is_calculated()) {
-        CalculationResolutionContext::PercentageBasis resolved_percentage_basis;
-
-        if (percentage_basis.has_value()) {
-            resolved_percentage_basis = percentage_basis.value();
-        }
-
-        return style_value->as_calculated().resolve_length({ .percentage_basis = resolved_percentage_basis }).value();
-    }
-
-    if (style_value->is_percentage()) {
-        VERIFY(percentage_basis.has_value());
-
-        return percentage_basis.value().percentage_of(style_value->as_percentage().percentage());
-    }
-
-    VERIFY_NOT_REACHED();
 }
 
 }

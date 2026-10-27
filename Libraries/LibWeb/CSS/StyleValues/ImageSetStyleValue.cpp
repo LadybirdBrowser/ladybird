@@ -37,7 +37,7 @@ Optional<size_t> ImageSetStyleValue::select_option_index(double device_pixels_pe
         if (option.type.has_value() && !HTML::is_supported_image_type(*option.type))
             continue;
 
-        auto resolution = Resolution::from_style_value(option.resolution).to_dots_per_pixel();
+        auto resolution = resolve_resolution_in_dots_per_pixel(*option.resolution);
 
         if (resolution >= device_pixels_per_css_pixel) {
             if (!best_above_resolution.has_value() || resolution < *best_above_resolution) {
@@ -70,7 +70,7 @@ void ImageSetStyleValue::load_any_resources(DOM::Document& document)
     auto dpr = document.page().client().device_pixels_per_css_pixel();
     if (auto option_index = select_option_index(dpr); option_index.has_value()) {
         m_selected_option_index = option_index;
-        m_selected_resolution = Resolution::from_style_value(options()[*option_index].resolution).to_dots_per_pixel();
+        m_selected_resolution = resolve_resolution_in_dots_per_pixel(*options()[*option_index].resolution);
     }
     if (auto const* selected_image = this->selected_image())
         const_cast<AbstractImageStyleValue&>(*selected_image).load_any_resources(document);

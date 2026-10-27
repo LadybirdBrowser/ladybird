@@ -2889,8 +2889,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     tree_builder_config.export.exclude = vec![
         "ladybird_layout_code_point_category_facts".to_string(),
         "ladybird_layout_node_shell_destroy".to_string(),
-        "rust_calc_node_create_numeric_dimension".to_string(),
-        "rust_calc_resolve".to_string(),
     ];
     expose_css_pixel_types_as_web_types(&mut tree_builder_config);
     expose_compositing_types_as_cpp_types(&mut tree_builder_config);
@@ -2923,13 +2921,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // header.
     let mut layout_config = base_config;
     layout_config.namespaces = Some(vec!["Web".to_string(), "Layout".to_string(), "RustFFI".to_string()]);
-    layout_config.export.exclude = vec![
-        "rust_calc_node_create_numeric_dimension".to_string(),
-        "rust_calc_resolve".to_string(),
-        "rust_calc_root_from_calculated".to_string(),
-        "rust_calc_external_resolutions".to_string(),
-        "rust_calc_external_resolutions_release".to_string(),
-    ];
+    layout_config.export.exclude = Vec::new();
     expose_css_pixel_types_as_web_types(&mut layout_config);
     expose_shared_abi_types_as_cpp_types(&mut layout_config);
     expose_compositing_types_as_cpp_types(&mut layout_config);

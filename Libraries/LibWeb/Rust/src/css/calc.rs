@@ -856,6 +856,89 @@ impl CalcNode {
 mod tests {
     use super::*;
 
+    fn resolve_numeric(
+        value: &crate::css::style_value::StyleValueData,
+        target: CanonicalNumericType,
+        percentage_basis_px: Option<f64>,
+    ) -> Option<f64> {
+        let context = FfiCalcResolutionContext {
+            has_percentage_basis: percentage_basis_px.is_some(),
+            percentage_basis_px: percentage_basis_px.unwrap_or(0.0),
+            length_resolution_context: std::ptr::null(),
+            element_facts: std::ptr::null(),
+        };
+        let result = unsafe { rust_style_value_resolve_numeric(value, target, &context) };
+        result.resolved.then_some(result.value)
+    }
+
+    fn length_unit(name: &str) -> u8 {
+        crate::css::style_compute::LENGTH_UNIT_NAMES
+            .iter()
+            .position(|unit| *unit == name)
+            .expect("a known length unit") as u8
+    }
+
+    #[test]
+    fn resolve_numeric_converts_absolute_lengths_to_px() {
+        use crate::css::style_value::StyleValueData;
+        let inches = StyleValueData::Length {
+            value: 2.0,
+            unit: length_unit("in"),
+        };
+        assert_eq!(
+            resolve_numeric(&inches, CanonicalNumericType::Length, None),
+            Some(192.0)
+        );
+        let font_relative = StyleValueData::Length {
+            value: 2.0,
+            unit: length_unit("em"),
+        };
+        assert_eq!(
+            resolve_numeric(&font_relative, CanonicalNumericType::Length, None),
+            None
+        );
+        assert_eq!(resolve_numeric(&inches, CanonicalNumericType::Angle, None), None);
+    }
+
+    #[test]
+    fn resolve_numeric_resolves_percentages_against_the_length_basis() {
+        use crate::css::style_value::StyleValueData;
+        let percentage = StyleValueData::Percentage { value: 25.0 };
+        assert_eq!(
+            resolve_numeric(&percentage, CanonicalNumericType::Length, Some(200.0)),
+            Some(50.0)
+        );
+        assert_eq!(resolve_numeric(&percentage, CanonicalNumericType::Length, None), None);
+        assert_eq!(
+            resolve_numeric(&percentage, CanonicalNumericType::Percentage, None),
+            Some(25.0)
+        );
+    }
+
+    #[test]
+    fn resolve_numeric_resolves_calculations_of_the_target_type() {
+        let sum = Arc::new(CalcNode::Sum(vec![
+            Arc::new(CalcNode::Numeric(CalcNumericValue::Percentage(50.0))),
+            Arc::new(CalcNode::Numeric(CalcNumericValue::Length {
+                value: 10.0,
+                unit: crate::css::style_compute::px_length_unit(),
+            })),
+        ]));
+        let mut length_type = CalcNumericType::default();
+        length_type.exponents[BASE_TYPE_LENGTH] = Some(1);
+        let calculated = length_percentage_calculated_style_value(sum, FfiNumericType::from_calc(Some(length_type)));
+        assert!(rust_calculation_resolves_to(&calculated, CanonicalNumericType::Length));
+        assert!(!rust_calculation_resolves_to(&calculated, CanonicalNumericType::Number));
+        assert_eq!(
+            resolve_numeric(&calculated, CanonicalNumericType::Length, Some(100.0)),
+            Some(60.0)
+        );
+        assert_eq!(
+            resolve_numeric(&calculated, CanonicalNumericType::Number, Some(100.0)),
+            None
+        );
+    }
+
     #[test]
     fn contains_percentage_walks_the_tree() {
         let percent = Arc::new(CalcNode::Numeric(CalcNumericValue::Percentage(50.0)));
@@ -2636,11 +2719,9 @@ pub(crate) unsafe fn create_anchor_function_calculated(
 /// The resolution inputs marshaled from the C++ CalculationResolutionContext.
 #[repr(C)]
 pub struct FfiCalcResolutionContext {
-    /// The percentage basis: kind 0 = none, then angle, frequency, length,
-    /// time, with the value in the given unit of that dimension.
-    pub basis_kind: u8,
-    pub basis_value: f64,
-    pub basis_unit: u8,
+    /// Whether percentages resolve against a length, and that length in px.
+    pub has_percentage_basis: bool,
+    pub percentage_basis_px: f64,
     /// The length resolution context as an opaque pointer (its type lives in
     /// the computed-values header), or null.
     pub length_resolution_context: *const std::ffi::c_void,
@@ -2713,22 +2794,6 @@ fn prepare_external_resolutions(root: &CalcNode, context: &FfiCalcResolutionCont
     use crate::css::style_value::StyleValueData;
     let mut resolutions = Vec::new();
     collect_external_resolutions(root, &mut resolutions);
-    // A container-relative percentage basis resolves like a container-relative leaf.
-    if context.basis_kind == 3
-        && root.contains_percentage()
-        && crate::css::style_compute::LENGTH_UNIT_NAMES[context.basis_unit as usize].starts_with("cq")
-    {
-        resolutions.push(CalcExternalResolution {
-            kind: CalcExternalResolutionKind::Length,
-            source: RetainedStyleValueData::none(),
-            input_value: context.basis_value,
-            unit_or_channel: context.basis_unit,
-            has_number: false,
-            number: 0.0,
-            resolved_node: None,
-            resolved_style_value: None,
-        });
-    }
     let facts = unsafe { context.element_facts.as_ref() };
     let length = unsafe {
         context
@@ -2765,7 +2830,7 @@ fn prepare_external_resolutions(root: &CalcNode, context: &FfiCalcResolutionCont
                         Some(crate::css::absolutize::Absolutized::Changed(sharing)) => sharing,
                         _ => sharing.clone(),
                     }
-                } else if facts.is_some_and(|facts| facts.has_element) || context.basis_kind != 0 {
+                } else if facts.is_some_and(|facts| facts.has_element) || context.has_percentage_basis {
                     // NB: We don't want to resolve this before computation time even if it's possible.
                     sharing.clone()
                 } else {
@@ -2883,26 +2948,10 @@ fn with_ffi_evaluation<R>(
     f: impl FnOnce(&CalcEvaluationContext, &CalcSimplifyCallbacks) -> R,
 ) -> R {
     let percentage_leaf_type = percentage_leaf_type_for(resolve_as);
-    let percentage_basis = match context.basis_kind {
-        0 => None,
-        1 => Some(CalcNumericValue::Angle {
-            value: context.basis_value,
-            unit: context.basis_unit,
-        }),
-        2 => Some(CalcNumericValue::Frequency {
-            value: context.basis_value,
-            unit: context.basis_unit,
-        }),
-        3 => Some(CalcNumericValue::Length {
-            value: context.basis_value,
-            unit: context.basis_unit,
-        }),
-        4 => Some(CalcNumericValue::Time {
-            value: context.basis_value,
-            unit: context.basis_unit,
-        }),
-        _ => unreachable!("invalid percentage basis kind"),
-    };
+    let percentage_basis = context.has_percentage_basis.then(|| CalcNumericValue::Length {
+        value: context.percentage_basis_px,
+        unit: crate::css::style_compute::px_length_unit(),
+    });
     let random_base_value = |sharing: &RetainedStyleValueData| -> Option<f64> {
         external_resolutions
             .iter()
@@ -3171,7 +3220,7 @@ pub(crate) fn collapse_calculated_without_context(
 }
 
 /// Resolves a calculated value that must produce a number, with no external
-/// context; the equivalent of the C++ resolve_number with an empty context.
+/// context.
 pub(crate) fn resolve_calculated_number_without_context(
     calculated: &crate::css::style_value::StyleValueData,
 ) -> Option<f64> {
@@ -3197,8 +3246,9 @@ pub(crate) fn resolve_calculated_number_with_context(
 }
 
 /// The numeric types a value may be compared in, each in its canonical unit.
+#[repr(u8)]
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub(crate) enum CanonicalNumericType {
+pub enum CanonicalNumericType {
     Number,
     Percentage,
     Length,
@@ -3247,8 +3297,7 @@ pub(crate) fn resolve_calculated_canonically(
 }
 
 /// Resolves a calculated value that must produce a percentage, with no
-/// external context; the equivalent of the C++ resolve_percentage with an
-/// empty context.
+/// external context.
 pub(crate) fn resolve_calculated_percentage_without_context(
     calculated: &crate::css::style_value::StyleValueData,
 ) -> Option<f64> {
@@ -3257,7 +3306,7 @@ pub(crate) fn resolve_calculated_percentage_without_context(
 }
 
 /// Resolves a calculated value that must produce an angle, with no external
-/// context; the equivalent of the C++ resolve_angle with an empty context.
+/// context.
 pub(crate) fn resolve_calculated_angle_without_context(
     calculated: &crate::css::style_value::StyleValueData,
 ) -> Option<f64> {
@@ -3352,8 +3401,7 @@ pub(crate) fn resolve_calculated_angle_with_channels(
 }
 
 /// Resolves a calculated value that must produce a number and rounds it to the
-/// nearest integer (toward +inf on a .5 fraction), with no external context;
-/// the equivalent of the C++ resolve_integer with an empty context.
+/// nearest integer (toward +inf on a .5 fraction), with no external context.
 pub(crate) fn resolve_calculated_integer_without_context(
     calculated: &crate::css::style_value::StyleValueData,
 ) -> Option<i32> {
@@ -3424,8 +3472,7 @@ pub(crate) fn resolve_calculated_resolution_with_context(
 }
 
 /// Resolves a calculated value that must produce a flex value, with no
-/// external context; the equivalent of the C++ resolve_flex with an empty
-/// context. Returns the value in fr.
+/// external context. Returns the value in fr.
 pub(crate) fn resolve_calculated_flex_without_context(
     calculated: &crate::css::style_value::StyleValueData,
 ) -> Option<f64> {
@@ -3435,8 +3482,7 @@ pub(crate) fn resolve_calculated_flex_without_context(
 }
 
 /// Resolves a calculated value that must produce a length, with a percentage
-/// basis length; the equivalent of the C++ resolve_length with a percentage
-/// basis and an otherwise empty context. Returns pixels.
+/// basis length and no other external context. Returns pixels.
 pub(crate) fn resolve_calculated_length_without_context(
     calculated: &crate::css::style_value::StyleValueData,
     percentage_basis_px: f64,
@@ -3548,26 +3594,108 @@ pub(crate) fn resolve_calculated_line_height_without_context(
         .then_some(ResolvedLineHeightCalc::Number(value))
 }
 
-/// Resolves a calculated style value: simplifies its tree with used-value
-/// information and, when the tree collapses to a numeric leaf, applies the
-/// css-values-4 top-level censoring and clamping rules.
+fn numeric_type_matches(
+    numeric_type: &CalcNumericType,
+    target: CanonicalNumericType,
+    resolve_as: Option<ResolveAs>,
+) -> bool {
+    match target {
+        CanonicalNumericType::Number => numeric_type.matches_number(resolve_as),
+        CanonicalNumericType::Percentage => numeric_type.matches_percentage(),
+        CanonicalNumericType::Length => numeric_type.matches_dimension(BASE_TYPE_LENGTH, resolve_as),
+        CanonicalNumericType::Angle => numeric_type.matches_dimension(1, resolve_as),
+        CanonicalNumericType::Time => numeric_type.matches_dimension(2, resolve_as),
+        CanonicalNumericType::Frequency => numeric_type.matches_dimension(3, resolve_as),
+        CanonicalNumericType::Resolution => numeric_type.matches_dimension(4, resolve_as),
+    }
+}
+
+fn percentages_resolve_as(calculated: &crate::css::style_value::StyleValueData) -> Option<ResolveAs> {
+    let crate::css::style_value::StyleValueData::Calculated {
+        has_percentages_resolve_as,
+        percentages_resolve_as,
+        ..
+    } = calculated
+    else {
+        unreachable!("percentages_resolve_as requires calculated value data");
+    };
+    resolve_as_for_value_type(has_percentages_resolve_as.then_some(*percentages_resolve_as))
+}
+
+fn absolute_dimension_in_canonical_unit(value: f64, unit: u8, ratios: &[f64]) -> Option<f64> {
+    let ratio = ratios[unit as usize];
+    ratio.is_finite().then_some(ratio * value)
+}
+
+/// A numeric style value resolved to one numeric type, in that type's canonical unit.
+#[repr(C)]
+pub struct FfiResolvedNumeric {
+    pub resolved: bool,
+    pub value: f64,
+}
+
+/// Resolves a style value to `target` in that type's canonical unit: a number, a percentage, an
+/// absolute dimension, a percentage of the context's length basis, or a calculation that resolves
+/// to `target` with `context`.
 ///
 /// # Safety
-/// `calculated` must point at Calculated style value data and `context` at a
-/// valid resolution context.
+/// `context` must point at a valid resolution context.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_calc_resolve(
-    calculated: &crate::css::style_value::StyleValueData,
+pub unsafe extern "C" fn rust_style_value_resolve_numeric(
+    value: &crate::css::style_value::StyleValueData,
+    target: CanonicalNumericType,
     context: &FfiCalcResolutionContext,
-    apply_censoring_and_clamping: bool,
-) -> FfiResolvedCalc {
-    let externals = prepare_external_resolutions(calc_root(calculated), context);
-    resolve_calculated(
-        calculated,
-        context,
-        &externals.resolutions,
-        apply_censoring_and_clamping,
-    )
+) -> FfiResolvedNumeric {
+    use crate::css::style_value::StyleValueData;
+    let resolved = match (value, target) {
+        (StyleValueData::Number { value }, CanonicalNumericType::Number) => Some(*value),
+        (StyleValueData::Percentage { value }, CanonicalNumericType::Percentage) => Some(*value),
+        (StyleValueData::Percentage { value }, CanonicalNumericType::Length) => context
+            .has_percentage_basis
+            .then(|| value * 0.01 * context.percentage_basis_px),
+        (StyleValueData::Length { value, unit }, CanonicalNumericType::Length) => absolute_dimension_in_canonical_unit(
+            *value,
+            *unit,
+            &crate::css::style_compute::LENGTH_UNIT_CANONICAL_PX_RATIOS,
+        ),
+        (StyleValueData::Angle { value, unit }, CanonicalNumericType::Angle) => {
+            absolute_dimension_in_canonical_unit(*value, *unit, &ANGLE_UNIT_CANONICAL_RATIOS)
+        }
+        (StyleValueData::Time { value, unit }, CanonicalNumericType::Time) => {
+            absolute_dimension_in_canonical_unit(*value, *unit, &TIME_UNIT_CANONICAL_RATIOS)
+        }
+        (StyleValueData::Frequency { value, unit }, CanonicalNumericType::Frequency) => {
+            absolute_dimension_in_canonical_unit(*value, *unit, &FREQUENCY_UNIT_CANONICAL_RATIOS)
+        }
+        (StyleValueData::Resolution { value, unit }, CanonicalNumericType::Resolution) => {
+            absolute_dimension_in_canonical_unit(*value, *unit, &RESOLUTION_UNIT_CANONICAL_RATIOS)
+        }
+        (StyleValueData::Calculated { .. }, _) => {
+            let externals = prepare_external_resolutions(calc_root(value), context);
+            let result = resolve_calculated(value, context, &externals.resolutions, true);
+            (result.resolved
+                && result.numeric_type.valid
+                && numeric_type_matches(&result.numeric_type.to_calc(), target, percentages_resolve_as(value)))
+            .then_some(result.value)
+        }
+        _ => None,
+    };
+    FfiResolvedNumeric {
+        resolved: resolved.is_some(),
+        value: resolved.unwrap_or(0.0),
+    }
+}
+
+/// Whether a calculated style value's type, as parsed, is `target`. False for any other value.
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_calculation_resolves_to(
+    value: &crate::css::style_value::StyleValueData,
+    target: CanonicalNumericType,
+) -> bool {
+    let crate::css::style_value::StyleValueData::Calculated { resolved_type, .. } = value else {
+        return false;
+    };
+    numeric_type_matches(&resolved_type.to_calc(), target, percentages_resolve_as(value))
 }
 
 /// Resolves a calculated style value with its external leaves already resolved.
@@ -4404,9 +4532,8 @@ pub(crate) fn absolutize_calculation_value(
         external.resolved_node = Some(resolved);
     }
     let context = FfiCalcResolutionContext {
-        basis_kind: 0,
-        basis_value: 0.0,
-        basis_unit: 0,
+        has_percentage_basis: false,
+        percentage_basis_px: 0.0,
         length_resolution_context: std::ptr::from_ref(length_context).cast(),
         element_facts: std::ptr::null(),
     };
@@ -4531,9 +4658,8 @@ pub(crate) fn substitute_unresolvable_anchor_functions(
                 external.resolved_node = Some(length_percentage_calc_node(substituted.data())?);
             }
             let context = FfiCalcResolutionContext {
-                basis_kind: 0,
-                basis_value: 0.0,
-                basis_unit: 0,
+                has_percentage_basis: false,
+                percentage_basis_px: 0.0,
                 length_resolution_context: std::ptr::null(),
                 element_facts: std::ptr::null(),
             };
@@ -4633,9 +4759,8 @@ pub(crate) fn flipped_edge_offset(
         Arc::new(CalcNode::Negate(offset_node)),
     ]));
     let context = FfiCalcResolutionContext {
-        basis_kind: 0,
-        basis_value: 0.0,
-        basis_unit: 0,
+        has_percentage_basis: false,
+        percentage_basis_px: 0.0,
         length_resolution_context: std::ptr::null(),
         element_facts: std::ptr::null(),
     };

@@ -32,9 +32,8 @@ use std::ffi::c_void;
 
 pub(crate) fn px_calc_resolution_context(percentage_basis: CssPixels) -> calc::FfiCalcResolutionContext {
     calc::FfiCalcResolutionContext {
-        basis_kind: 3,
-        basis_value: percentage_basis.to_double(),
-        basis_unit: crate::css::style_compute::px_length_unit(),
+        has_percentage_basis: true,
+        percentage_basis_px: percentage_basis.to_double(),
         length_resolution_context: std::ptr::null(),
         element_facts: std::ptr::null(),
     }

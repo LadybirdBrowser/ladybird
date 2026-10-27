@@ -2226,7 +2226,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_size(NonnullRefPtr<S
     }
 
     VERIFY(absolutized_value->is_calculated());
-    return LengthStyleValue::create(absolutized_value->as_calculated().resolve_length({ .percentage_basis = Length::make_px(inherited_font_size) }).value());
+    return LengthStyleValue::create(Length::make_px(resolve_absolute_length_in_px(*absolutized_value, inherited_font_size.to_double())));
 }
 
 // The FontStyleKeyword discriminants cross the boundary as the mapped keyword code; pin them.
@@ -2266,7 +2266,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_weight(NonnullRefPtr
 
     // AD-HOC: Anywhere we support a numbers we should also support calcs
     VERIFY(absolutized_value->is_calculated());
-    return NumberStyleValue::create(absolutized_value->as_calculated().resolve_number({}).value());
+    return NumberStyleValue::create(resolve_numeric_style_value(*absolutized_value, StyleValueFFI::CanonicalNumericType::Number).value());
 }
 
 NonnullRefPtr<StyleValue const> StyleComputer::compute_font_width(NonnullRefPtr<StyleValue const> const& absolutized_value)
@@ -2281,7 +2281,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_width(NonnullRefPtr<
 
     // AD-HOC: We support calculated percentages as well
     VERIFY(absolutized_value->is_calculated());
-    return PercentageStyleValue::create(absolutized_value->as_calculated().resolve_percentage({}).value());
+    return PercentageStyleValue::create(Percentage(resolve_numeric_style_value(*absolutized_value, StyleValueFFI::CanonicalNumericType::Percentage).value()));
 }
 
 }

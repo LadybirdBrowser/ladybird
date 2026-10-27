@@ -44,8 +44,6 @@ public:
         return 0;
     }
 
-    static Angle from_style_value(NonnullRefPtr<StyleValue const> const&, Optional<Angle> percentage_basis);
-
 private:
     AngleUnit m_unit;
     double m_value { 0 };

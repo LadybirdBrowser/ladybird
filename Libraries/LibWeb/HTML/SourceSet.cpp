@@ -403,7 +403,7 @@ void SourceSet::normalize_source_densities(DOM::Document const& document)
     // results of declarations.
     auto const& length_resolution_context = CSS::LengthResolutionContext::for_document(document);
 
-    auto source_size = CSS::Length::from_style_value(m_source_size->absolutized({ length_resolution_context }), {}).absolute_length_to_px();
+    auto source_size = CSSPixels::nearest_value_for(CSS::resolve_absolute_length_in_px(*m_source_size->absolutized({ length_resolution_context })));
 
     // 2. For each image source in source set:
     for (auto& image_source : m_sources) {

@@ -66,8 +66,7 @@ public:
     {
         if (!is_calculated())
             return resolved(reference_value).absolute_length_to_px();
-        auto resolved_length = calculated()->resolve_length({ .percentage_basis = Length::make_px(reference_value) }).value();
-        return CSSPixels::truncated_value_for(resolved_length.absolute_length_to_px_without_rounding());
+        return CSSPixels::truncated_value_for(resolve_absolute_length_in_px(*calculated(), reference_value.to_double()));
     }
 
     Length resolved(CSSPixels reference_value) const
@@ -76,7 +75,7 @@ public:
             return length();
         if (is_percentage())
             return Length::make_px(CSSPixels::truncated_value_for(reference_value.to_double() * percentage().as_fraction()));
-        return calculated()->resolve_length({ .percentage_basis = Length::make_px(reference_value) }).value();
+        return Length::make_px(resolve_absolute_length_in_px(*calculated(), reference_value.to_double()));
     }
 
     void serialize(StringBuilder& builder, SerializationMode mode) const
@@ -99,7 +98,7 @@ public:
 
     static LengthPercentage from_style_value(NonnullRefPtr<StyleValue const> const& style_value)
     {
-        VERIFY(style_value->is_percentage() || style_value->is_length() || (style_value->is_calculated() && style_value->as_calculated().resolves_to_length()));
+        VERIFY(style_value->is_percentage() || style_value->is_length() || (style_value->is_calculated() && calculation_resolves_to(*style_value, StyleValueFFI::CanonicalNumericType::Length)));
         return from_retained_data(StyleValueFFI::rust_style_value_retain(style_value->rust_style_value_data()));
     }
 

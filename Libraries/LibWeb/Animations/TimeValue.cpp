@@ -42,14 +42,16 @@ TimeValue TimeValue::from_css_numberish(CSS::CSSNumberish const& time, CSS::Comp
 
     auto calculation_resolution_context = CSS::CalculationResolutionContext::from_computation_context(computation_context);
 
-    if (style_value->resolves_to_number())
-        return { Type::Milliseconds, style_value->resolve_number(calculation_resolution_context).value() };
+    using CSS::StyleValueFFI::CanonicalNumericType;
 
-    if (style_value->resolves_to_time())
-        return { Type::Milliseconds, style_value->resolve_time(calculation_resolution_context)->to_milliseconds() };
+    if (CSS::calculation_resolves_to(*style_value, CanonicalNumericType::Number))
+        return { Type::Milliseconds, CSS::resolve_numeric_style_value(*style_value, CanonicalNumericType::Number, calculation_resolution_context).value() };
 
-    if (style_value->resolves_to_percentage())
-        return { Type::Percentage, style_value->resolve_percentage(calculation_resolution_context).value().value() };
+    if (CSS::calculation_resolves_to(*style_value, CanonicalNumericType::Time))
+        return { Type::Milliseconds, CSS::Time::make_seconds(CSS::resolve_numeric_style_value(*style_value, CanonicalNumericType::Time, calculation_resolution_context).value()).to_milliseconds() };
+
+    if (CSS::calculation_resolves_to(*style_value, CanonicalNumericType::Percentage))
+        return { Type::Percentage, CSS::resolve_numeric_style_value(*style_value, CanonicalNumericType::Percentage, calculation_resolution_context).value() };
 
     VERIFY_NOT_REACHED();
 }

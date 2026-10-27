@@ -744,9 +744,9 @@ pub(crate) fn angle_degrees(data: &StyleValueData) -> Option<f64> {
     }
 }
 
-/// The C++ Length::from_style_value followed by absolute_length_to_px_without_rounding: a
-/// percentage resolves against the basis when there is one, and calc against it or zero. None for
-/// a value that is not an absolute length, a percentage or a calculation that resolves.
+/// The C++ resolve_absolute_length_in_px: a percentage resolves against the basis when there is
+/// one, and calc against it or zero. None for a value that is not an absolute length, a
+/// percentage or a calculation that resolves.
 pub(crate) fn length_px_unrounded(data: &StyleValueData, percentage_basis_px: Option<f64>) -> Option<f64> {
     match data {
         StyleValueData::Length { value, unit } => {

@@ -45,23 +45,6 @@ public:
     bool equals(StyleValue const& other) const;
     CalculationContext calculation_context() const;
 
-    Optional<Angle> resolve_angle(CalculationResolutionContext const&) const;
-
-    bool resolves_to_length() const { return resolved_type().matches_length(calculation_context().percentages_resolve_as); }
-    Optional<Length> resolve_length(CalculationResolutionContext const&) const;
-
-    bool resolves_to_percentage() const { return resolved_type().matches_percentage(); }
-    Optional<Percentage> resolve_percentage(CalculationResolutionContext const&) const;
-
-    Optional<Resolution> resolve_resolution(CalculationResolutionContext const&) const;
-
-    bool resolves_to_time() const { return resolved_type().matches_time(calculation_context().percentages_resolve_as); }
-    Optional<Time> resolve_time(CalculationResolutionContext const&) const;
-
-    bool resolves_to_number() const { return resolved_type().matches_number(calculation_context().percentages_resolve_as); }
-    Optional<double> resolve_number(CalculationResolutionContext const&) const;
-    Optional<i32> resolve_integer(CalculationResolutionContext const&) const;
-
     bool contains_percentage() const;
 
     GC::Ref<CSSStyleValue> reify(Utf16FlyString const& associated_property) const;
@@ -79,16 +62,6 @@ private:
         : StyleValue(Type::Calculated, make_calculated_data_from_rust_root(rust_root, resolved_type, context))
     {
     }
-
-    struct ResolvedValue {
-        double value;
-        Optional<NumericType> type;
-    };
-    // FIXME: Calculations should be simplified apart from percentages by the absolutized method prior to this method
-    //        being called so we can take just the percentage_basis rather than a full CalculationResolutionContext.
-    //        There are still some CalculatedStyleValues which we don't call absolutized for (i.e. sub-values of other
-    //        StyleValue classes which lack their own absolutized method) which will need to be fixed beforehand.
-    Optional<ResolvedValue> resolve_value(CalculationResolutionContext const&, bool apply_censoring_and_clamping = true) const;
 
     static StyleValueFFI::StyleValueData const* make_calculated_data_from_rust_root(StyleValueFFI::CalcNode const*, NumericType const&, CalculationContext const&);
 
