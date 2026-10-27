@@ -6,8 +6,6 @@
 
 #include <LibTest/TestCase.h>
 
-#include <LibCore/Directory.h>
-#include <LibCore/Environment.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/StandardPaths.h>
 #include <LibCore/ThreadEventQueue.h>
@@ -16,6 +14,7 @@
 #include <LibWebView/Application.h>
 #include <LibWebView/HSTSStore.h>
 #include <LibWebView/HeadlessWebView.h>
+#include <LibWebView/Settings.h>
 #include <LibWebView/Utilities.h>
 #include <LibWebView/WebContentClient.h>
 #include <LibWebView/WebContentPage.h>
@@ -30,11 +29,10 @@ public:
     {
     }
 
-    virtual void create_platform_options(WebView::BrowserOptions& browser_options, WebView::RequestServerOptions&, WebView::WebContentOptions& web_content_options) override
+    virtual void create_platform_options(WebView::BrowserOptions& browser_options, WebView::RequestServerOptions&, WebView::WebContentOptions&) override
     {
         browser_options.headless_mode.clear();
         browser_options.disable_sql_database = WebView::DisableSQLDatabase::No;
-        web_content_options.is_test_mode = WebView::IsTestMode::Yes;
     }
 
     virtual Core::EventLoop& create_platform_event_loop() override { return Core::EventLoop::current(); }
@@ -55,22 +53,22 @@ public:
             (void)FileSystem::remove(m_test_directory, FileSystem::RecursionMode::Allowed);
     }
 
-    ErrorOr<NonnullOwnPtr<TestApplication>> create_application()
+    ErrorOr<NonnullOwnPtr<TestApplication>> create_application(bool test_mode = true)
     {
-        auto make_test_dir = [&](auto dir, auto env) -> ErrorOr<void> {
-            auto path = ByteString::formatted("{}/{}", m_test_directory, dir);
-            TRY(Core::Directory::create(path, Core::Directory::CreateDirectories::Yes));
-            TRY(Core::Environment::set(env, path, Core::Environment::Overwrite::Yes));
-            return {};
-        };
+        auto profile_path = LexicalPath::join(m_test_directory, "profile"sv).string();
+        Vector<StringView> argument_strings { "ladybird"sv };
 
-        TRY(make_test_dir("config"sv, "XDG_CONFIG_HOME"sv));
-        TRY(make_test_dir("data"sv, "XDG_DATA_HOME"sv));
+        if (test_mode) {
+            argument_strings.append("--test-mode"sv);
+        } else {
+            argument_strings.append("--profile-path"sv);
+            argument_strings.append(profile_path);
+        }
 
         Main::Arguments arguments {
             .argc = 0,
             .argv = nullptr,
-            .strings = Span<StringView> { &m_executable, 1 }
+            .strings = argument_strings,
         };
 
 #if defined(LADYBIRD_BINARY_PATH)
@@ -82,7 +80,6 @@ public:
 
 private:
     Core::EventLoop m_event_loop;
-    StringView m_executable { "ladybird"sv };
     ByteString m_test_directory;
 };
 
@@ -97,7 +94,7 @@ TEST_CASE(hsts_store_synchronized_on_destruction)
     TestEnvironment environment;
     ByteString database_path;
     {
-        auto app = TRY_OR_FAIL(environment.create_application());
+        auto app = TRY_OR_FAIL(environment.create_application(false));
         auto view = WebView::HeadlessWebView::create(TRY_OR_FAIL(load_test_theme()), { 1000, 700 });
         database_path = app->profile().paths().data;
 
@@ -169,4 +166,55 @@ TEST_CASE(application_destruction_with_pending_web_ui_callbacks)
         EXPECT(!lifetime.client);
         EXPECT(!lifetime.web_ui);
     }
+}
+
+TEST_CASE(test_mode_uses_a_fresh_profile_and_removes_it_on_destruction)
+{
+    TestEnvironment environment;
+    ByteString user_config_path;
+    {
+        auto app = TRY_OR_FAIL(environment.create_application(false));
+        EXPECT(!app->profile().is_temporary());
+        user_config_path = app->profile().paths().config;
+        app->settings().set_languages({ "fr"_string });
+        app->settings().set_content_blocker_enabled(false);
+        app->settings().set_custom_content_blocker_filters("example.com##.advertisement"_string);
+    }
+
+    ByteString first_test_root;
+    {
+        auto app = TRY_OR_FAIL(environment.create_application());
+        EXPECT(app->profile().is_temporary());
+        EXPECT_NE(app->profile().paths().config, user_config_path);
+        first_test_root = app->profile().paths().identity;
+        EXPECT(FileSystem::is_directory(first_test_root));
+        EXPECT_NE(app->settings().languages().first(), "fr"sv);
+        EXPECT(app->settings().content_blocker_enabled());
+        EXPECT(app->settings().custom_content_blocker_filters().is_empty());
+        EXPECT(!app->has_content_blocking_rules());
+
+        // Changes made during a test must not affect the next run or the user's profile.
+        app->settings().set_languages({ "de"_string });
+        app->settings().set_content_blocker_enabled(false);
+        EXPECT(!app->content_blocking_enabled());
+        app->settings().set_custom_content_blocker_filters("example.com##.test-advertisement"_string);
+        EXPECT(app->has_content_blocking_rules());
+    }
+    EXPECT(!FileSystem::exists(first_test_root));
+
+    ByteString second_test_root;
+    {
+        auto app = TRY_OR_FAIL(environment.create_application());
+        second_test_root = app->profile().paths().identity;
+        EXPECT_NE(first_test_root, second_test_root);
+        EXPECT_NE(app->settings().languages().first(), "de"sv);
+        EXPECT(app->settings().content_blocker_enabled());
+        EXPECT(!app->has_content_blocking_rules());
+    }
+    EXPECT(!FileSystem::exists(second_test_root));
+
+    auto user_settings = WebView::Settings::create(LexicalPath::join(user_config_path, "Settings.json"sv).string());
+    EXPECT_EQ(user_settings.languages().first(), "fr"sv);
+    EXPECT(!user_settings.content_blocker_enabled());
+    EXPECT_EQ(user_settings.custom_content_blocker_filters(), "example.com##.advertisement"sv);
 }

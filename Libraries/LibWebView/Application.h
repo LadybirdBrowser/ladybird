@@ -424,8 +424,6 @@ protected:
     virtual Core::EventLoop& create_platform_event_loop();
 
     virtual bool should_coordinate_browser_process() const { return true; }
-    // An application whose state must not leak between runs — or into a developer's own browsing state.
-    virtual bool should_use_temporary_profile_by_default() const { return false; }
     virtual SiteIsolationMode default_site_isolation_mode() const { return SiteIsolationMode::IFrame; }
 
     virtual Optional<ByteString> ask_user_for_download_path([[maybe_unused]] ByteString const& file) const { return {}; }

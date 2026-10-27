@@ -642,9 +642,16 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     }
 
     // Test results must not depend on the languages of the machine running the tests.
-    auto platform_languages = enable_test_mode ? Vector<String> {} : platform_preferred_languages();
+    auto platform_languages = m_web_content_options.is_test_mode == IsTestMode::Yes ? Vector<String> {} : platform_preferred_languages();
+
     m_settings = make<Settings>(Settings::create(LexicalPath::join(profile().paths().config, "Settings.json"sv).string(), move(platform_languages)));
     m_bookmark_store = make<BookmarkStore>(BookmarkStore::create(LexicalPath::join(profile().paths().config, "Bookmarks.json"sv).string()));
+
+    if (m_web_content_options.is_test_mode == IsTestMode::Yes) {
+        TRY(m_settings->complete_first_run());
+        m_settings->set_background_networking_enabled(false);
+        m_settings->set_content_blocker_enabled(true);
+    }
 
     m_browser_options.urls = sanitize_urls(m_browser_options.raw_urls);
     m_request_server_options.cache_path = profile().paths().cache;
@@ -654,7 +661,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     rebuild_content_blocker_list_paths();
 
     if (!m_settings->first_run_complete() && !m_browser_options.headless_mode.has_value()
-        && !m_browser_options.webdriver_browser_endpoint.has_value() && m_web_content_options.is_test_mode == IsTestMode::No) {
+        && !m_browser_options.webdriver_browser_endpoint.has_value()) {
         if (m_browser_options.raw_urls.is_empty())
             m_browser_options.urls = { URL::about_welcome() };
         else if (!m_browser_options.urls.contains_slow(URL::about_welcome()))
@@ -668,10 +675,6 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         m_web_content_options.expose_experimental_interfaces = ExposeExperimentalInterfaces::Yes;
         m_web_content_options.expose_internals_object = ExposeInternalsObject::Yes;
         m_web_content_options.force_cpu_painting = ForceCPUPainting::Yes;
-
-        // Test results must not depend on the content blocking the developer running the tests happens to have
-        // configured for normal browsing, and compiling those lists into every renderer is not cheap.
-        m_browser_options.content_blocker_list_paths.clear();
     }
 
     if (m_web_content_options.file_scheme_urls_have_tuple_origins == FileSchemeUrlsHaveTupleOrigins::Yes)
@@ -694,7 +697,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         m_stats_log->start_sampling();
     TRY(launch_services());
 
-    if (m_web_content_options.is_test_mode == IsTestMode::No && m_browser_options.enable_content_blocker == EnableContentBlocker::Yes) {
+    if (m_browser_options.enable_content_blocker == EnableContentBlocker::Yes) {
         m_content_blocker_list_update_timer = Core::Timer::create_repeating(AK::Duration::from_seconds(24 * 60 * 60), [this] {
             start_content_blocker_list_update(ContentBlockerListUpdateTrigger::Automatic);
         });
@@ -724,9 +727,11 @@ ErrorOr<void> Application::create_profile([[maybe_unused]] Optional<StringView> 
     if (profile_path.has_value())
         profile_selection.path = profile_path->to_byte_string();
 
-    // Naming a profile is an explicit choice and wins; otherwise the app decides whether it wants a throwaway one.
-    if (!profile_selection.temporary && !profile_name.has_value() && !profile_path.has_value())
-        profile_selection.temporary = should_use_temporary_profile_by_default();
+    if (m_web_content_options.is_test_mode == IsTestMode::Yes) {
+        if (profile_name.has_value() || profile_path.has_value())
+            return Error::from_string_literal("Test mode cannot be combined with a persistent profile selector");
+        profile_selection.temporary = true;
+    }
 #endif
 
     ProfileRoots profile_roots {
@@ -813,9 +818,7 @@ void Application::rebuild_content_blocker_list_paths()
 
 ErrorOr<bool> Application::load_content_blocker_lists()
 {
-    StringView custom_filters;
-    if (m_web_content_options.is_test_mode == IsTestMode::No)
-        custom_filters = m_settings->custom_content_blocker_filters();
+    auto custom_filters = m_settings->custom_content_blocker_filters();
     if (m_browser_options.content_blocker_list_paths.is_empty() && custom_filters.is_empty()) {
         if (m_content_blocker_list_buffer.has_value() && m_content_blocker_list_buffer->size() == 0)
             return false;
@@ -860,8 +863,6 @@ ErrorOr<bool> Application::load_content_blocker_lists()
 
 void Application::start_content_blocker_list_update(ContentBlockerListUpdateTrigger trigger, Optional<StringView> requested_identifier)
 {
-    if (m_web_content_options.is_test_mode == IsTestMode::Yes)
-        return;
     if (trigger == ContentBlockerListUpdateTrigger::Automatic && !m_settings->automatic_filter_list_updates_allowed())
         return;
     if (content_blocker_list_update_in_progress() && !requested_identifier.has_value())
@@ -2979,9 +2980,7 @@ void Application::background_networking_settings_changed(Badge<ApplicationSettin
 
 bool Application::content_blocking_enabled() const
 {
-    // Test mode supplies its own filter lists independently of profile preferences.
-    return m_browser_options.enable_content_blocker == EnableContentBlocker::Yes
-        && (m_web_content_options.is_test_mode == IsTestMode::Yes || m_settings->content_blocker_enabled());
+    return m_browser_options.enable_content_blocker == EnableContentBlocker::Yes && m_settings->content_blocker_enabled();
 }
 
 bool Application::has_content_blocking_rules() const
@@ -2991,7 +2990,7 @@ bool Application::has_content_blocking_rules() const
 
 void Application::apply_content_blocking_policy(WebContentPage& page)
 {
-    auto disabled_sites = m_web_content_options.is_test_mode == IsTestMode::Yes ? Vector<String> {} : m_settings->content_blocker_disabled_sites().values();
+    auto disabled_sites = m_settings->content_blocker_disabled_sites().values();
     page.async_set_content_blocking_policy(content_blocking_enabled(), disabled_sites);
 }
 
@@ -3002,17 +3001,16 @@ void Application::content_blocker_settings_changed(Badge<ApplicationSettingsObse
 
 void Application::apply_content_blocker_settings()
 {
+    rebuild_content_blocker_list_paths();
     bool rules_changed = false;
-    if (m_web_content_options.is_test_mode == IsTestMode::No) {
-        rebuild_content_blocker_list_paths();
-        if (auto result = load_content_blocker_lists(); result.is_error())
-            warnln("Unable to apply content blocker settings: {}", result.error());
-        else
-            rules_changed = result.release_value();
-    }
+
+    if (auto result = load_content_blocker_lists(); result.is_error())
+        warnln("Unable to apply content blocker settings: {}", result.error());
+    else
+        rules_changed = result.release_value();
 
     auto enabled = content_blocking_enabled();
-    auto disabled_sites = m_web_content_options.is_test_mode == IsTestMode::Yes ? Vector<String> {} : m_settings->content_blocker_disabled_sites().values();
+    auto disabled_sites = m_settings->content_blocker_disabled_sites().values();
 
     WebContentClient::for_each_client([&](WebContentClient& client) {
         client.for_each_page([&](WebContentPage& page) {
