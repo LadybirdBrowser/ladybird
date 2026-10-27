@@ -1121,6 +1121,13 @@ impl<'context> InlineFormattingContext<'context> {
         self.containing_used_values
     }
 
+    fn inline_size_of_block_container_holding_lines(&self) -> CssPixels {
+        self.input
+            .containing_block_constraints
+            .percentage_basis_inline_size
+            .expect("lines are laid out in a block container of definite inline size")
+    }
+
     #[track_caller]
     pub(crate) fn used(&self, node: Node) -> &'context UsedValues {
         self.run.records.used_values(node)
@@ -1223,7 +1230,7 @@ impl<'context> InlineFormattingContext<'context> {
         let rect = FfiCssPixelRect {
             x: content_box_position_in_bfc_root.x,
             y: content_box_position_in_bfc_root.y,
-            width: self.containing_used().content_inline_size.get(),
+            width: self.inline_size_of_block_container_holding_lines(),
             height: self.containing_used().content_block_size.get(),
         };
         self.parent.intrusion_by_floats_into_rect(rect, block_start, block_end)
@@ -1906,7 +1913,7 @@ impl<'context> InlineFormattingContext<'context> {
             for line in &mut self.line_data_mut().line_boxes[state_at_clamp_point.current_line_index..] {
                 line.trim_trailing_whitespace();
             }
-            let content_inline_size = self.containing_used().content_inline_size.get();
+            let content_inline_size = self.inline_size_of_block_container_holding_lines();
             let mut lines_after_clamp_point_rect = CssPixelRect::default();
             let mut atomic_inlines_after_clamp_point = Vec::new();
             for line in self.line_data().line_boxes[state_at_clamp_point.current_line_index..]
