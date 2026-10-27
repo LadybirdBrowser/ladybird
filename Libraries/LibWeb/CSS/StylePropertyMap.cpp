@@ -203,11 +203,8 @@ WebIDL::ExceptionOr<void> StylePropertyMap::set(Utf16FlyString property_name, Re
     }
 
     // 7. If props[property] exists, remove it.
-    // FIXME: Avoid converting to string and back.
-    // FIXME: We handle this after creating the internal representations (step 9) so that we maintain the original
-    //        value in the case that fails - see https://github.com/w3c/css-houdini-drafts/issues/1175
-    auto removed_value = TRY(props.remove_property(property->name()));
-    (void)removed_value;
+    // NB: Removal and replacement happen together in set_property_style_value(), after validation, so observers
+    //     receive a single style-attribute update.
 
     // AD-HOC: To match the behavior of our parser we should store values of list-valued longhands as lists even if
     //         there is only one value, except in some rare circumstances.
