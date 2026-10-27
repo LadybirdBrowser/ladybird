@@ -35,6 +35,8 @@ public:
     // Everything above, for the notifications of one page, as JSON for a test page to read. Tests run side by side in
     // one UI process, so each sees only its own.
     String state_json(Web::PageId) const;
+    // Forgets a page's history, since test-web hands the page id to the next test it runs in the same view.
+    void forget_page(Web::PageId);
 
     // When set, the next show() fails instead, as a platform that refuses the notification would.
     bool fail_next_show { false };
