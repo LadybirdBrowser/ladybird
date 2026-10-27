@@ -27,7 +27,9 @@ GC::Ref<CSSStyleValue> NumberStyleValue::reify(Utf16FlyString const& associated_
         // FIXME: Do this for registered custom properties.
         if (auto property_id = property_id_from_string(associated_property); property_id.has_value()
             && property_id != PropertyID::Custom
-            && property_accepts_type(*property_id, ValueType::Length)) {
+            && property_accepts_type(*property_id, ValueType::Length)
+            && !property_accepts_type(*property_id, ValueType::Number)
+            && !property_accepts_type(*property_id, ValueType::Integer)) {
             return CSSUnitValue::create(0, "px"_utf16_fly_string);
         }
     }
