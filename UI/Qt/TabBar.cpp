@@ -4348,6 +4348,11 @@ void TabWidget::place_toolbar_over_page_column()
     auto position = m_page_column->mapTo(this, QPoint());
     m_toolbar_container->setGeometry(position.x(), position.y(), m_page_column->width(), m_toolbar_placeholder->height());
     m_toolbar_container->stackUnder(m_vertical_tab_bar_column);
+
+    // Reparenting the page column when switching tab layouts can put its placeholder above the toolbar.
+    if (m_page_column->parentWidget() == this)
+        m_page_column->stackUnder(m_toolbar_container);
+
     if (m_vertical_tabs_content_separator->isVisible())
         m_vertical_tabs_content_separator->raise();
 }
