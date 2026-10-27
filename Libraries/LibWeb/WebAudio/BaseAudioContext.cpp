@@ -36,6 +36,7 @@
 #include <LibWeb/WebAudio/ControlMessageQueue.h>
 #include <LibWeb/WebAudio/DynamicsCompressorNode.h>
 #include <LibWeb/WebAudio/GainNode.h>
+#include <LibWeb/WebAudio/MediaStreamAudioSourceNode.h>
 #include <LibWeb/WebAudio/OscillatorNode.h>
 #include <LibWeb/WebAudio/PannerNode.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
@@ -99,14 +100,23 @@ void BaseAudioContext::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_audio_worklet);
     visitor.visit(m_playing_sources);
 
+    if (state() == AudioContextState::Closed)
+        return;
+
     // INTEROP: Blink keeps a ScriptProcessorNode with audioprocess listeners alive until its context is cleared
     //          (ScriptProcessorNode::HasPendingActivity()), whether it is connected or not, so that a node script only
     //          reaches through its listener keeps producing audio.
-    if (state() != AudioContextState::Closed) {
-        for (auto& node : m_script_processor_nodes) {
-            if (node.has_event_listener(HTML::EventNames::audioprocess))
-                visitor.visit(node);
-        }
+    for (auto& node : m_script_processor_nodes) {
+        if (node.has_event_listener(HTML::EventNames::audioprocess))
+            visitor.visit(node);
+    }
+
+    // Keep a source and the nodes it feeds alive while its track is live, even after script drops the source.
+    // https://webaudio.github.io/web-audio-api/#AudioNode-actively-processing
+    // NB: A muted or disabled track only pauses its source, so it stays alive as well.
+    for (auto& source : m_media_stream_sources) {
+        if (source.has_live_input_track())
+            visitor.visit(source);
     }
 }
 
@@ -118,6 +128,11 @@ void BaseAudioContext::add_playing_source(GC::Ref<AudioNode> node)
 void BaseAudioContext::add_script_processor_node(ScriptProcessorNode& node)
 {
     m_script_processor_nodes.set(node);
+}
+
+void BaseAudioContext::add_media_stream_source(MediaStreamAudioSourceNode& source)
+{
+    m_media_stream_sources.set(source);
 }
 
 void BaseAudioContext::handle_ended_sources(ReadonlySpan<NodeID> ended_nodes)

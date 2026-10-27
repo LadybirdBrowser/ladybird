@@ -130,6 +130,7 @@ public:
 
     void add_playing_source(GC::Ref<AudioNode>);
     void add_script_processor_node(ScriptProcessorNode&);
+    void add_media_stream_source(MediaStreamAudioSourceNode&);
     void handle_ended_sources(ReadonlySpan<NodeID>);
 
     NodeID next_node_id(Badge<AudioNode>) { return ++m_next_node_id; }
@@ -174,6 +175,8 @@ private:
 
     HashMap<NodeID, GC::Ref<AudioNode>> m_playing_sources;
     GC::WeakHashSet<ScriptProcessorNode> m_script_processor_nodes;
+    // Kept alive only while they can still produce audio; see visit_edges().
+    GC::WeakHashSet<MediaStreamAudioSourceNode> m_media_stream_sources;
 };
 
 void resolve_audio_buffer_promise(JS::Realm&, WebIDL::Promise const&, AudioBuffer&);
