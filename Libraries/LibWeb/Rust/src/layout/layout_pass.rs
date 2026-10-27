@@ -80,18 +80,15 @@ impl<'arena> LayoutPass<'arena> {
     pub(crate) fn new(
         arena: &'arena LayoutNodeArena,
         scratch: &'arena super::run_records::LayoutScratch,
-        container_length_bases: ContainerLengthBasesQuery,
-        initial_containing_block_inline_size: CssPixels,
-        initial_containing_block_block_size: CssPixels,
-        document_in_quirks_mode: bool,
+        stage: super::formatting_context::LayoutStageFacts,
     ) -> Self {
         Self {
             arena,
             scratch,
-            container_length_bases,
-            initial_containing_block_inline_size,
-            initial_containing_block_block_size,
-            document_in_quirks_mode,
+            container_length_bases: stage.container_length_bases,
+            initial_containing_block_inline_size: stage.viewport_inline_size,
+            initial_containing_block_block_size: stage.viewport_block_size,
+            document_in_quirks_mode: stage.document_in_quirks_mode,
             frame: super::geometry::Frame::PHYSICAL,
             innermost_run: (NodeSlotId::INVALID, NodeSlotId::INVALID),
         }
@@ -103,13 +100,15 @@ impl<'arena> LayoutPass<'arena> {
         Self::new(
             arena,
             scratch,
-            ContainerLengthBasesQuery {
-                context: std::ptr::null_mut(),
-                query: None,
+            super::formatting_context::LayoutStageFacts {
+                container_length_bases: ContainerLengthBasesQuery {
+                    context: std::ptr::null_mut(),
+                    query: None,
+                },
+                viewport_inline_size: CssPixels::default(),
+                viewport_block_size: CssPixels::default(),
+                document_in_quirks_mode: false,
             },
-            CssPixels::default(),
-            CssPixels::default(),
-            false,
         )
     }
 
