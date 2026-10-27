@@ -7328,7 +7328,7 @@ static CSSPixelRect compute_intersection(Layout::BegunRead const& read, GC::Ref<
     auto& document = target->document();
     auto const& scroll_margin = observer.scroll_margin_values();
     auto inflate_scroll_container_clip_rect_by_scroll_margin = [](void* context, CSSPixelRect clip_rect) -> CSSPixelRect {
-        auto const& scroll_margin = *static_cast<Vector<CSS::LengthPercentage> const*>(context);
+        auto const& scroll_margin = *static_cast<Vector<IntersectionObserver::MarginValue> const*>(context);
         if (scroll_margin.is_empty())
             return clip_rect;
         clip_rect.inflate(
@@ -7343,7 +7343,7 @@ static CSSPixelRect compute_intersection(Layout::BegunRead const& read, GC::Ref<
         document.layout_node_arena().host(), Layout::Node::slot_id(target->layout_node(read)), target_rect,
         Layout::Node::slot_id(root_layout_box), root_bounds,
         Painting::rect_to_viewport_transform(document, visual_context_tree),
-        const_cast<Vector<CSS::LengthPercentage>*>(&scroll_margin), inflate_scroll_container_clip_rect_by_scroll_margin, &rect);
+        const_cast<Vector<IntersectionObserver::MarginValue>*>(&scroll_margin), inflate_scroll_container_clip_rect_by_scroll_margin, &rect);
     return rect;
 }
 
@@ -8318,7 +8318,7 @@ static Painting::CompositorAnimationEffectState::BuildOutcome build_compositor_a
             || (!effect.target_properties().contains(CSS::PropertyNameAndID::from_id(CSS::PropertyID::Rotate)) && layout_node->has_rotate())
             || (!effect.target_properties().contains(CSS::PropertyNameAndID::from_id(CSS::PropertyID::Scale)) && layout_node->has_scale())
             || (!effect.target_properties().contains(CSS::PropertyNameAndID::from_id(CSS::PropertyID::Transform)) && layout_node->has_transformations())
-            || layout_node->transform_origin().z.to_px(CSSPixels { 0 }) != CSSPixels { 0 })
+            || CSS::length_percentage_to_px(layout_node->style_group<CSS::ComputedValues::TransformValues>().transform_origin_z, CSSPixels { 0 }) != CSSPixels { 0 })
             return {};
     }
     auto row = Painting::committed_row(*layout_node);

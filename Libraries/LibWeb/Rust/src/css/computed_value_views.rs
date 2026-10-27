@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Lazy readers over the computed style group payload types, mirroring the
-//! C++ `CSS::Size` / `CSS::LengthPercentage` method surface: every query
+//! Lazy readers over the computed style group payload types: every query
 //! resolves on demand from the stored computed representation, so readers
 //! need no intermediate decoded value.
 
@@ -58,8 +57,7 @@ pub(crate) fn resolve_calc_to_px(calculated: *const c_void, percentage_basis: Cs
 }
 
 /// A borrowed computed `<length-percentage>`: a retained length, percentage
-/// or calculated style value read in place, the Rust twin of the C++
-/// `LengthPercentage::view` API.
+/// or calculated style value read in place.
 #[derive(Clone, Copy)]
 pub(crate) struct LengthPercentageRef<'a> {
     value: &'a StyleValueData,

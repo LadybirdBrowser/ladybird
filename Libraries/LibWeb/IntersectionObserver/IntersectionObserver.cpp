@@ -12,6 +12,8 @@
 #include <LibWeb/Bindings/IntersectionObserverEntry.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
+#include <LibWeb/CSS/Serialize.h>
+#include <LibWeb/CSS/Units.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/BrowsingContext.h>
@@ -149,7 +151,7 @@ WebIDL::ExceptionOr<GC::Ref<IntersectionObserver>> IntersectionObserver::create_
     return create_with_implicit_root_document(callback, options, *implicit_root_document);
 }
 
-IntersectionObserver::IntersectionObserver(GC::Ptr<WebIDL::CallbackType> callback, IntersectionObserverRoot const& root, GC::Ref<DOM::Document> implicit_root_document, Vector<CSS::LengthPercentage> root_margin, Vector<CSS::LengthPercentage> scroll_margin, Vector<double>&& thresholds, double delay, bool track_visibility)
+IntersectionObserver::IntersectionObserver(GC::Ptr<WebIDL::CallbackType> callback, IntersectionObserverRoot const& root, GC::Ref<DOM::Document> implicit_root_document, Vector<MarginValue> root_margin, Vector<MarginValue> scroll_margin, Vector<double>&& thresholds, double delay, bool track_visibility)
     : m_callback(callback)
     , m_root_margin(root_margin)
     , m_scroll_margin(scroll_margin)
@@ -271,10 +273,17 @@ NullableIntersectionObserverRoot IntersectionObserver::root() const
     VERIFY_NOT_REACHED();
 }
 
-static void append_margin_value(Utf16StringBuilder& builder, CSS::LengthPercentage const& value)
+CSSPixels MarginValue::to_px(CSSPixels reference) const
 {
-    auto serialized = value.to_string(CSS::SerializationMode::ResolvedValue);
-    builder.append_ascii(serialized.bytes_as_string_view());
+    if (is_percentage)
+        return CSSPixels::truncated_value_for(reference.to_double() * (value * 0.01));
+    return CSSPixels::nearest_value_for(value);
+}
+
+static void append_margin_value(Utf16StringBuilder& builder, MarginValue const& value)
+{
+    CSS::serialize_a_number(builder, value.value);
+    builder.append_ascii(value.is_percentage ? "%"sv : "px"sv);
 }
 
 // https://w3c.github.io/IntersectionObserver/#dom-intersectionobserver-rootmargin
@@ -429,21 +438,21 @@ void IntersectionObserver::queue_entry(Badge<DOM::Document>, GC::Ref<Intersectio
 }
 
 // https://w3c.github.io/IntersectionObserver/#parse-a-margin
-Optional<Vector<CSS::LengthPercentage>> IntersectionObserver::parse_a_margin(String margin_string)
+Optional<Vector<MarginValue>> IntersectionObserver::parse_a_margin(String margin_string)
 {
     // 1. Parse a list of component values marginString, storing the result as tokens.
     // 2. Remove all whitespace tokens from tokens.
     // 3. If the length of tokens is greater than 4, return failure.
     // 4. If there are zero elements in tokens, set tokens to ["0px"].
     struct MarginParsingContext {
-        Vector<CSS::LengthPercentage>* values;
+        Vector<MarginValue>* values;
         bool* valid;
     };
 
     // 5. Replace each token in tokens:
     // NOTE: In the spec, tokens miraculously changes type from a list of component values
     //       to a list of pixel lengths or percentages.
-    Vector<CSS::LengthPercentage> tokens_length_percentage;
+    Vector<MarginValue> tokens_length_percentage;
     bool valid = true;
     auto source = Utf16String::from_utf8(margin_string);
     auto source_view = source.utf16_view();
@@ -456,16 +465,17 @@ Optional<Vector<CSS::LengthPercentage>> IntersectionObserver::parse_a_margin(Str
         auto& state = *static_cast<MarginParsingContext*>(context);
         if (type == 1) {
             // If token is a <percentage> token, replace it with an equivalent percentage.
-            state.values->append(CSS::Percentage(value));
+            state.values->append({ .value = value, .is_percentage = true });
             return;
         }
         // If token is an absolute length dimension token, replace it with a an equivalent pixel length.
         auto unit_name = Utf16View { reinterpret_cast<char16_t const*>(unit), unit_length };
-        if (auto length_unit = CSS::string_to_length_unit(unit_name); length_unit.has_value()) {
-            if (auto length = CSS::Length(value, length_unit.release_value()); length.is_absolute()) {
-                state.values->append(length);
-                return;
-            }
+        if (auto length_unit = CSS::string_to_length_unit(unit_name); length_unit.has_value() && CSS::is_absolute(*length_unit)) {
+            auto pixels = *length_unit == CSS::LengthUnit::Px
+                ? value
+                : CSSPixels::nearest_value_for(CSS::ratio_between_units(*length_unit, CSS::LengthUnit::Px) * value).to_double();
+            state.values->append({ .value = pixels });
+            return;
         }
         // Otherwise, return failure.
         *state.valid = false;
@@ -474,7 +484,7 @@ Optional<Vector<CSS::LengthPercentage>> IntersectionObserver::parse_a_margin(Str
     if (!CSS::Parser::ValueParserFFI::rust_visit_margin_components(ffi_source, &context, visit) || !valid)
         return {};
     if (tokens_length_percentage.is_empty())
-        tokens_length_percentage.append(CSS::Length::make_px(0));
+        tokens_length_percentage.append({});
 
     // 6.
     switch (tokens_length_percentage.size()) {

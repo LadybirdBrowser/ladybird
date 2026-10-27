@@ -28,6 +28,13 @@ struct ObservationTarget {
     bool previous_is_intersecting { false };
 };
 
+struct MarginValue {
+    double value { 0 };
+    bool is_percentage { false };
+
+    CSSPixels to_px(CSSPixels reference) const;
+};
+
 // https://w3c.github.io/IntersectionObserver/#intersection-observer-interface
 class IntersectionObserver final : public Bindings::GCAllocatedWrappable {
     WEB_WRAPPABLE(IntersectionObserver, Bindings::GCAllocatedWrappable);
@@ -51,7 +58,7 @@ public:
     NullableIntersectionObserverRoot root() const;
     Utf16String root_margin() const;
     Utf16String scroll_margin() const;
-    Vector<CSS::LengthPercentage> const& scroll_margin_values() const { return m_scroll_margin; }
+    Vector<MarginValue> const& scroll_margin_values() const { return m_scroll_margin; }
     Vector<double> const& thresholds() const { return m_thresholds; }
     long delay() const { return m_delay; }
     bool track_visibility() const { return m_track_visibility; }
@@ -64,11 +71,11 @@ public:
     void queue_entry(Badge<DOM::Document>, GC::Ref<IntersectionObserverEntry>);
 
 private:
-    explicit IntersectionObserver(GC::Ptr<WebIDL::CallbackType> callback, IntersectionObserverRoot const& root, GC::Ref<DOM::Document> implicit_root_document, Vector<CSS::LengthPercentage> root_margin, Vector<CSS::LengthPercentage> scroll_margin, Vector<double>&& thresholds, double delay, bool track_visibility);
+    explicit IntersectionObserver(GC::Ptr<WebIDL::CallbackType> callback, IntersectionObserverRoot const& root, GC::Ref<DOM::Document> implicit_root_document, Vector<MarginValue> root_margin, Vector<MarginValue> scroll_margin, Vector<double>&& thresholds, double delay, bool track_visibility);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
-    static Optional<Vector<CSS::LengthPercentage>> parse_a_margin(String);
+    static Optional<Vector<MarginValue>> parse_a_margin(String);
 
     // https://www.w3.org/TR/intersection-observer/#dom-intersectionobserver-callback-slot
     GC::Ptr<WebIDL::CallbackType> m_callback;
@@ -77,10 +84,10 @@ private:
     GC::Ptr<DOM::Node> m_root;
 
     // https://www.w3.org/TR/intersection-observer/#dom-intersectionobserver-rootmargin
-    Vector<CSS::LengthPercentage> m_root_margin;
+    Vector<MarginValue> m_root_margin;
 
     // https://www.w3.org/TR/intersection-observer/#dom-intersectionobserver-scrollmargin
-    Vector<CSS::LengthPercentage> m_scroll_margin;
+    Vector<MarginValue> m_scroll_margin;
 
     // https://www.w3.org/TR/intersection-observer/#dom-intersectionobserver-thresholds
     Vector<double> m_thresholds;

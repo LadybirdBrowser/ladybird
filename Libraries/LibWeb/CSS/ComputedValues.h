@@ -23,8 +23,6 @@
 #include <LibWeb/CSS/Display.h>
 #include <LibWeb/CSS/EasingFunction.h>
 #include <LibWeb/CSS/Enums.h>
-#include <LibWeb/CSS/LengthBox.h>
-#include <LibWeb/CSS/PercentageOr.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/CSS/ResolvedTransform.h>
@@ -131,13 +129,28 @@ public:
     bool operator==(BorderData const&) const = default;
 };
 
-struct TransformOrigin {
-    LengthPercentage x { Percentage(50) };
-    LengthPercentage y { Percentage(50) };
-    // FIXME: We can store this as a CSSPixels since we know it's always an absolute length
-    LengthPercentage z { Percentage(0) };
+inline NonnullRefPtr<StyleValue const> style_value_for_computed_handle(ComputedValuesFFI::ComputedStyleValueHandle const& handle)
+{
+    return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(handle.pointer)));
+}
 
-    bool operator==(TransformOrigin const&) const = default;
+inline CSSPixels length_percentage_to_px(ComputedValuesFFI::ComputedStyleValueHandle const& handle, CSSPixels reference)
+{
+    return CSSPixels::nearest_value_for(ComputedValuesFFI::rust_length_percentage_px(static_cast<StyleValueFFI::StyleValueData const*>(handle.pointer), reference.to_double()));
+}
+
+inline CSSPixels length_percentage_or_auto_to_px_or_zero(ComputedValuesFFI::ComputedLengthPercentageOrAuto const& value, CSSPixels reference)
+{
+    if (value.is_auto)
+        return 0;
+    return length_percentage_to_px(value.value, reference);
+}
+
+struct TransformOrigin {
+    NonnullRefPtr<StyleValue const> x;
+    NonnullRefPtr<StyleValue const> y;
+    // FIXME: We can store this as a CSSPixels since we know it's always an absolute length
+    NonnullRefPtr<StyleValue const> z;
 };
 
 struct ShadowData {
@@ -413,7 +426,7 @@ public:
         static_assert(sizeof(RustStyleValueHandle) == sizeof(*handle));
         return style_value_from_handle(property_id, reinterpret_cast<RustStyleValueHandle const&>(*handle));
     }
-    LengthBox scroll_margin() const { return length_box(m_noninherited.misc->scroll_margin); }
+    ComputedValuesFFI::ComputedLengthBox const& scroll_margin() const { return m_noninherited.misc->scroll_margin; }
 
     BorderData const& border_left() const { return m_noninherited.border->border_left_value(); }
     BorderData const& border_top() const { return m_noninherited.border->border_top_value(); }
@@ -493,23 +506,6 @@ private:
         default:
             return nullptr;
         }
-    }
-
-    static LengthPercentageOrAuto length_percentage_or_auto(ComputedValuesFFI::ComputedLengthPercentageOrAuto const& value)
-    {
-        if (value.is_auto)
-            return LengthPercentageOrAuto::make_auto();
-        return LengthPercentage::view(value.value);
-    }
-
-    static LengthBox length_box(ComputedValuesFFI::ComputedLengthBox const& box)
-    {
-        return {
-            length_percentage_or_auto(box.top),
-            length_percentage_or_auto(box.right),
-            length_percentage_or_auto(box.bottom),
-            length_percentage_or_auto(box.left),
-        };
     }
 
     static Statistics s_statistics;
@@ -782,9 +778,9 @@ public:
         TransformOrigin transform_origin_value() const
         {
             return {
-                LengthPercentage::view(transform_origin_x),
-                LengthPercentage::view(transform_origin_y),
-                LengthPercentage::view(transform_origin_z),
+                style_value_for_computed_handle(transform_origin_x),
+                style_value_for_computed_handle(transform_origin_y),
+                style_value_for_computed_handle(transform_origin_z),
             };
         }
         TransformStyle transform_style_value() const { return static_cast<TransformStyle>(transform_style); }

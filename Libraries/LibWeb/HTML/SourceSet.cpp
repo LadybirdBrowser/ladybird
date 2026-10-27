@@ -8,6 +8,7 @@
 #include <AK/HashMap.h>
 #include <AK/QuickSort.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/SourceSet.h>
 #include <LibWeb/Layout/Node.h>

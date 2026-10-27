@@ -4583,10 +4583,10 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Layout::BegunRead c
     //         bounding border box (https://drafts.csswg.org/cssom-view-1/#example-51af1565).
     if (target.has<Element*>()) {
         auto scroll_margin = target.get<Element*>()->computed_style()->scroll_margin();
-        auto scroll_margin_top = scroll_margin.top().to_px_or_zero(CSSPixels { 0 });
-        auto scroll_margin_right = scroll_margin.right().to_px_or_zero(CSSPixels { 0 });
-        auto scroll_margin_bottom = scroll_margin.bottom().to_px_or_zero(CSSPixels { 0 });
-        auto scroll_margin_left = scroll_margin.left().to_px_or_zero(CSSPixels { 0 });
+        auto scroll_margin_top = CSS::length_percentage_or_auto_to_px_or_zero(scroll_margin.top, CSSPixels { 0 });
+        auto scroll_margin_right = CSS::length_percentage_or_auto_to_px_or_zero(scroll_margin.right, CSSPixels { 0 });
+        auto scroll_margin_bottom = CSS::length_percentage_or_auto_to_px_or_zero(scroll_margin.bottom, CSSPixels { 0 });
+        auto scroll_margin_left = CSS::length_percentage_or_auto_to_px_or_zero(scroll_margin.left, CSSPixels { 0 });
 
         target_bounding_border_box.set_top(target_bounding_border_box.top() - scroll_margin_top);
         target_bounding_border_box.set_right(target_bounding_border_box.right() + scroll_margin_left + scroll_margin_right);

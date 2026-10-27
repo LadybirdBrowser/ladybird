@@ -295,43 +295,28 @@ static NonnullRefPtr<StyleValue const> style_value_for_css_pixels(CSSPixels css_
     return LengthStyleValue::create(Length::make_px(css_pixels));
 }
 
-static NonnullRefPtr<StyleValue const> style_value_for_length_percentage(LengthPercentage const& length_percentage)
+static NonnullRefPtr<StyleValue const> style_value_for_length_percentage_or_auto(ComputedValuesFFI::ComputedLengthPercentageOrAuto const& length_percentage)
 {
-    if (length_percentage.is_percentage())
-        return PercentageStyleValue::create(length_percentage.percentage());
-    if (length_percentage.is_length())
-        return LengthStyleValue::create(length_percentage.length());
-    return length_percentage.calculated();
-}
-
-static NonnullRefPtr<StyleValue const> style_value_for_length_percentage_or_auto(LengthPercentageOrAuto const& length_percentage)
-{
-    if (length_percentage.is_auto())
+    if (length_percentage.is_auto)
         return KeywordStyleValue::create(Keyword::Auto);
-    if (length_percentage.is_percentage())
-        return PercentageStyleValue::create(length_percentage.percentage());
-    if (length_percentage.is_length())
-        return LengthStyleValue::create(length_percentage.length());
-    return length_percentage.calculated();
+    return style_value_for_computed_handle(length_percentage.value);
 }
 
 static NonnullRefPtr<StyleValue const> style_value_for_transform_origin(TransformOrigin const& transform_origin, Optional<CSSPixelRect> const& reference_box)
 {
-    auto offset_in_px = [](LengthPercentage const& offset, CSSPixels reference_length) {
-        if (offset.is_percentage())
-            return reference_length.to_double() * offset.percentage().as_fraction();
-        return offset.resolved(reference_length).absolute_length_to_px_without_rounding();
+    auto offset_in_px = [](StyleValue const& offset, CSSPixels reference_length) {
+        return resolve_absolute_length_in_px(offset, reference_length.to_double());
     };
 
     StyleValueVector offsets;
     if (reference_box.has_value()) {
-        offsets.append(LengthStyleValue::create(Length::make_px(offset_in_px(transform_origin.x, reference_box->width()))));
-        offsets.append(LengthStyleValue::create(Length::make_px(offset_in_px(transform_origin.y, reference_box->height()))));
+        offsets.append(LengthStyleValue::create(Length::make_px(offset_in_px(*transform_origin.x, reference_box->width()))));
+        offsets.append(LengthStyleValue::create(Length::make_px(offset_in_px(*transform_origin.y, reference_box->height()))));
     } else {
-        offsets.append(style_value_for_length_percentage(transform_origin.x));
-        offsets.append(style_value_for_length_percentage(transform_origin.y));
+        offsets.append(transform_origin.x);
+        offsets.append(transform_origin.y);
     }
-    if (auto z_offset = offset_in_px(transform_origin.z, 0); z_offset != 0)
+    if (auto z_offset = offset_in_px(*transform_origin.z, 0); z_offset != 0)
         offsets.append(LengthStyleValue::create(Length::make_px(z_offset)));
     return StyleValueList::create(move(offsets), StyleValueList::Separator::Space, StyleValueList::Collapsible::No);
 }
@@ -1179,8 +1164,11 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
         Horizontal,
         Vertical,
     };
-    auto resolved_value_for_inset = [&layout_node](LengthPercentageOrAuto const& side, LengthPercentageOrAuto const& opposite_side, InsetAxis axis, Function<CSSPixels(Layout::Node const&)>&& used_value_getter) -> NonnullRefPtr<StyleValue const> {
+    auto resolved_value_for_inset = [&layout_node](ComputedValuesFFI::ComputedLengthPercentageOrAuto const& side, ComputedValuesFFI::ComputedLengthPercentageOrAuto const& opposite_side, InsetAxis axis, Function<CSSPixels(Layout::Node const&)>&& used_value_getter) -> NonnullRefPtr<StyleValue const> {
         auto computed_value = [&] { return style_value_for_length_percentage_or_auto(side); };
+        RefPtr<StyleValue const> side_value;
+        if (!side.is_auto)
+            side_value = style_value_for_computed_handle(side.value);
 
         auto display = layout_node.display();
         if (!layout_node.is_positioned() || display.is_none() || display.is_contents() || !Painting::has_committed_box(layout_node))
@@ -1189,18 +1177,15 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
         // NB: The used value of a fixed length is the length itself. Taking it from the computed value keeps
         //     the precision that layout units would lose. Layout saturates lengths beyond the range of layout
         //     units, so those are reported as saturated.
-        if (side.is_length()) {
-            auto pixels = side.length().absolute_length_to_px_without_rounding();
+        if (side_value && side_value->is_length()) {
+            auto pixels = resolve_absolute_length_in_px(*side_value);
             if (pixels >= CSSPixels::min_integer_value && pixels <= CSSPixels::max_integer_value)
                 return computed_value();
             return LengthStyleValue::create(Length::make_px(CSSPixels::nearest_value_for(pixels)));
         }
 
         auto absolutized_against = [&](CSSPixels percentage_basis) -> NonnullRefPtr<StyleValue const> {
-            auto const& length_percentage = side.length_percentage();
-            if (length_percentage.is_percentage())
-                return LengthStyleValue::create(Length::make_px(percentage_basis.to_double() * length_percentage.percentage().as_fraction()));
-            return LengthStyleValue::create(Length::make_px(length_percentage.resolved(percentage_basis).absolute_length_to_px_without_rounding()));
+            return LengthStyleValue::create(Length::make_px(resolve_absolute_length_in_px(*side_value, percentage_basis.to_double())));
         };
         auto size_in_axis = [axis](CSSPixelSize size) { return axis == InsetAxis::Horizontal ? size.width() : size.height(); };
 
@@ -1208,7 +1193,7 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
         // For sticky positioned boxes, the inset is instead relative to the relevant scrollport's size.
         if (layout_node.is_sticky_position()) {
             // NB: Sticky positioning leaves an auto inset unconstrained, so its used value stays auto.
-            if (side.is_auto())
+            if (side.is_auto)
                 return computed_value();
             // NB: This uses the same scrollport size as the sticky constraints: the content box of the nearest
             //     scroll container, or of the viewport.
@@ -1224,7 +1209,7 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
         // If neither is auto, the position is over-constrained;
         // NB: The resolved value is then the computed value, absolutized against the containing block.
         // INTEROP: Percentages are absolutized rather than serialized as-is, to match other browsers.
-        if (layout_node.position() == Positioning::Relative && !side.is_auto() && !opposite_side.is_auto()) {
+        if (layout_node.position() == Positioning::Relative && !side.is_auto && !opposite_side.is_auto) {
             auto const* containing_block = layout_node.containing_block();
             if (!containing_block || !Painting::has_committed_box(*containing_block))
                 return computed_value();
@@ -1365,35 +1350,35 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
     case PropertyID::MarginBottom:
         if (auto maybe_used_value = used_value_for_property([](auto const& box_layout_node) { return Painting::box_model(box_layout_node).margin.bottom; }); maybe_used_value.has_value())
             return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
-        return style_value_for_length_percentage_or_auto(layout_node.margin().bottom());
+        return style_value_for_length_percentage_or_auto(layout_node.margin().bottom);
     case PropertyID::MarginLeft:
         if (auto maybe_used_value = used_value_for_property([](auto const& box_layout_node) { return Painting::box_model(box_layout_node).margin.left; }); maybe_used_value.has_value())
             return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
-        return style_value_for_length_percentage_or_auto(layout_node.margin().left());
+        return style_value_for_length_percentage_or_auto(layout_node.margin().left);
     case PropertyID::MarginRight:
         if (auto maybe_used_value = used_value_for_property([](auto const& box_layout_node) { return Painting::box_model(box_layout_node).margin.right; }); maybe_used_value.has_value())
             return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
-        return style_value_for_length_percentage_or_auto(layout_node.margin().right());
+        return style_value_for_length_percentage_or_auto(layout_node.margin().right);
     case PropertyID::MarginTop:
         if (auto maybe_used_value = used_value_for_property([](auto const& box_layout_node) { return Painting::box_model(box_layout_node).margin.top; }); maybe_used_value.has_value())
             return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
-        return style_value_for_length_percentage_or_auto(layout_node.margin().top());
+        return style_value_for_length_percentage_or_auto(layout_node.margin().top);
     case PropertyID::PaddingBottom:
         if (auto maybe_used_value = used_value_for_property([](auto const& box_layout_node) { return Painting::box_model(box_layout_node).padding.bottom; }); maybe_used_value.has_value())
             return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
-        return style_value_for_length_percentage_or_auto(layout_node.padding().bottom());
+        return style_value_for_length_percentage_or_auto(layout_node.padding().bottom);
     case PropertyID::PaddingLeft:
         if (auto maybe_used_value = used_value_for_property([](auto const& box_layout_node) { return Painting::box_model(box_layout_node).padding.left; }); maybe_used_value.has_value())
             return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
-        return style_value_for_length_percentage_or_auto(layout_node.padding().left());
+        return style_value_for_length_percentage_or_auto(layout_node.padding().left);
     case PropertyID::PaddingRight:
         if (auto maybe_used_value = used_value_for_property([](auto const& box_layout_node) { return Painting::box_model(box_layout_node).padding.right; }); maybe_used_value.has_value())
             return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
-        return style_value_for_length_percentage_or_auto(layout_node.padding().right());
+        return style_value_for_length_percentage_or_auto(layout_node.padding().right);
     case PropertyID::PaddingTop:
         if (auto maybe_used_value = used_value_for_property([](auto const& box_layout_node) { return Painting::box_model(box_layout_node).padding.top; }); maybe_used_value.has_value())
             return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
-        return style_value_for_length_percentage_or_auto(layout_node.padding().top());
+        return style_value_for_length_percentage_or_auto(layout_node.padding().top);
     case PropertyID::Width: {
         if (!svg_sizing_properties_apply(element))
             return get_computed_value(property_id);
@@ -1428,20 +1413,20 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
         //    none or contents, and the property is not over-constrained, then the resolved value is the used value.
         //    Otherwise the resolved value is the computed value.
     case PropertyID::Bottom: {
-        auto inset = layout_node.inset();
-        return resolved_value_for_inset(inset.bottom(), inset.top(), InsetAxis::Vertical, [](auto const& box_layout_node) { return Painting::box_model(box_layout_node).inset.bottom; });
+        auto const& inset = layout_node.inset();
+        return resolved_value_for_inset(inset.bottom, inset.top, InsetAxis::Vertical, [](auto const& box_layout_node) { return Painting::box_model(box_layout_node).inset.bottom; });
     }
     case PropertyID::Left: {
-        auto inset = layout_node.inset();
-        return resolved_value_for_inset(inset.left(), inset.right(), InsetAxis::Horizontal, [](auto const& box_layout_node) { return Painting::box_model(box_layout_node).inset.left; });
+        auto const& inset = layout_node.inset();
+        return resolved_value_for_inset(inset.left, inset.right, InsetAxis::Horizontal, [](auto const& box_layout_node) { return Painting::box_model(box_layout_node).inset.left; });
     }
     case PropertyID::Right: {
-        auto inset = layout_node.inset();
-        return resolved_value_for_inset(inset.right(), inset.left(), InsetAxis::Horizontal, [](auto const& box_layout_node) { return Painting::box_model(box_layout_node).inset.right; });
+        auto const& inset = layout_node.inset();
+        return resolved_value_for_inset(inset.right, inset.left, InsetAxis::Horizontal, [](auto const& box_layout_node) { return Painting::box_model(box_layout_node).inset.right; });
     }
     case PropertyID::Top: {
-        auto inset = layout_node.inset();
-        return resolved_value_for_inset(inset.top(), inset.bottom(), InsetAxis::Vertical, [](auto const& box_layout_node) { return Painting::box_model(box_layout_node).inset.top; });
+        auto const& inset = layout_node.inset();
+        return resolved_value_for_inset(inset.top, inset.bottom, InsetAxis::Vertical, [](auto const& box_layout_node) { return Painting::box_model(box_layout_node).inset.top; });
     }
 
         // -> A resolved value special case property defined in another specification
@@ -1553,9 +1538,9 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
             return get_computed_value(property_id);
         auto const& transform_values = layout_node.style_group<ComputedValues::TransformValues>();
         TransformOrigin perspective_origin {
-            LengthPercentage::view(transform_values.perspective_origin_x),
-            LengthPercentage::view(transform_values.perspective_origin_y),
-            Length::make_px(0),
+            style_value_for_computed_handle(transform_values.perspective_origin_x),
+            style_value_for_computed_handle(transform_values.perspective_origin_y),
+            LengthStyleValue::create(Length::make_px(0)),
         };
         return style_value_for_transform_origin(perspective_origin, reference_box);
     }

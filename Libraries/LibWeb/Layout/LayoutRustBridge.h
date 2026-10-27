@@ -13,20 +13,11 @@
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibWeb/CSS/Enums.h>
-#include <LibWeb/CSS/PercentageOr.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Layout/LayoutRustFFI.h>
 #include <LibWeb/Layout/TreeBuilderRustFFI.h>
 #include <LibWeb/SVG/AttributeParsing.h>
-
-namespace Web::CSS {
-
-class LengthPercentage;
-class LengthPercentageOrAuto;
-class Size;
-
-}
 
 namespace Web::Layout {
 
