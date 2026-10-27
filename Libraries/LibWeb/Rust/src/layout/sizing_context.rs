@@ -2207,7 +2207,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
                 self.callbacks,
                 node,
                 self.callbacks.in_flow_containing_block(node),
-                &root,
+                used_values::RootInputCells::capture(&root),
                 |records, callbacks| {
                     let sizing = SizingContext::new(records, callbacks);
                     let inline_size_under = |inline_size| {
@@ -3370,7 +3370,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             self.callbacks,
             table_box,
             self.callbacks.in_flow_containing_block(table_box),
-            &table_used,
+            used_values::RootInputCells::capture(&table_used),
             |records, callbacks| {
                 let table_run = FormattingContextRun {
                     records,
