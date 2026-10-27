@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/css-image-request-modifiers-not-shared-ref.html">
+<script src="../../Text/input/include.js"></script>
+<style>
+    section {
+        display: flex;
+    }
+    div {
+        width: 50px;
+        height: 50px;
+        background-size: 50px 50px;
+    }
+</style>
+<body>
+<script>
+    // Create the echoes synchronously so the image loads start while parsing and delay the load event.
+    const server = httpTestServer();
+    const greenPNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGNgaGAAAAEEAIFw9selAAAAAElFTkSuQmCC";
+    const createImageEcho = (name, headers) => {
+        const url = server.echoURL(`/${name}.png`);
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", `${server.baseURL}/echo`, false);
+        xhr.setRequestHeader("Content-Type", "application/json");
+        xhr.send(JSON.stringify({
+            method: "GET",
+            path: new URL(url).pathname,
+            status: 200,
+            headers: { "Content-Type": "image/png", "Cache-Control": "no-store", ...headers },
+            body: greenPNG,
+            body_encoding: "base64",
+        }));
+        return url;
+    };
+
+    // A CORS load passes the Cross-Origin-Resource-Policy check, but a no-cors load must not.
+    const corpURL = createImageEcho("same-origin-corp", {
+        "Access-Control-Allow-Origin": "*",
+        "Cross-Origin-Resource-Policy": "same-origin",
+    });
+    // A no-cors load succeeds, but a CORS load must fail the CORS check.
+    const noCorsURL = createImageEcho("no-acao", {});
+    const anonymousFirstURL = createImageEcho("anonymous-first", { "Access-Control-Allow-Origin": "*" });
+    const credentialsFirstURL = createImageEcho("credentials-first", { "Access-Control-Allow-Origin": "*" });
+    const validIntegrityFirstURL = createImageEcho("valid-integrity-first", { "Access-Control-Allow-Origin": "*" });
+    const invalidIntegrityFirstURL = createImageEcho("invalid-integrity-first", { "Access-Control-Allow-Origin": "*" });
+    const validIntegrity = "sha256-ybJ6Zd0X2BV7UdNtNrVDBewTzqiRUroOJLVGXrPLsMc=";
+    const invalidIntegrity = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+
+    document.write(`
+        <section>
+            <div style="background-image: url('${corpURL}' cross-origin(anonymous))"></div>
+            <div style="background-image: url('${corpURL}')"></div>
+        </section>
+        <section>
+            <div style="background-image: url('${noCorsURL}')"></div>
+            <div style="background-image: url('${noCorsURL}' cross-origin(anonymous))"></div>
+        </section>
+        <section>
+            <div style="background-image: url('${anonymousFirstURL}' cross-origin(anonymous))"></div>
+            <div style="background-image: url('${anonymousFirstURL}' cross-origin(use-credentials))"></div>
+        </section>
+        <section>
+            <div style="background-image: url('${credentialsFirstURL}' cross-origin(use-credentials))"></div>
+            <div style="background-image: url('${credentialsFirstURL}' cross-origin(anonymous))"></div>
+        </section>
+        <section>
+            <div style="background-image: url('${validIntegrityFirstURL}' cross-origin(anonymous) integrity('${validIntegrity}'))"></div>
+            <div style="background-image: url('${validIntegrityFirstURL}' cross-origin(anonymous) integrity('${invalidIntegrity}'))"></div>
+        </section>
+        <section>
+            <div style="background-image: url('${invalidIntegrityFirstURL}' cross-origin(anonymous) integrity('${invalidIntegrity}'))"></div>
+            <div style="background-image: url('${invalidIntegrityFirstURL}' cross-origin(anonymous) integrity('${validIntegrity}'))"></div>
+        </section>
+    `);
+    document.body.offsetWidth;
+</script>
+</body>

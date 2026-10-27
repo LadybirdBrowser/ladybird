@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<body>
+<script>
+    const server = httpTestServer();
+    const greenPNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGNgaGAAAAEEAIFw9selAAAAAElFTkSuQmCC";
+    const createImageEcho = name => {
+        const url = server.echoURL(`/${name}.png`);
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", `${server.baseURL}/echo`, false);
+        xhr.setRequestHeader("Content-Type", "application/json");
+        xhr.send(JSON.stringify({
+            method: "GET",
+            path: new URL(url).pathname,
+            status: 200,
+            headers: { "Content-Type": "image/png", "Cache-Control": "no-store" },
+            body: greenPNG,
+            body_encoding: "base64",
+        }));
+        return url;
+    };
+
+    const identicalURL = createImageEcho("identical");
+    const reorderedModifiersURL = createImageEcho("reordered-modifiers");
+    const differentPoliciesURL = createImageEcho("different-policies");
+    const defaultPolicyURL = createImageEcho("default-policy");
+    document.write(`
+        <div style="background-image: url('${identicalURL}')"></div>
+        <div style="background-image: url('${identicalURL}')"></div>
+        <div style="background-image: url('${reorderedModifiersURL}' cross-origin(anonymous) referrer-policy(no-referrer))"></div>
+        <div style="background-image: url('${reorderedModifiersURL}' referrer-policy(no-referrer) cross-origin(anonymous))"></div>
+        <div style="background-image: url('${differentPoliciesURL}' referrer-policy(no-referrer))"></div>
+        <div style="background-image: url('${differentPoliciesURL}' referrer-policy(unsafe-url))"></div>
+        <div style="background-image: url('${defaultPolicyURL}')"></div>
+        <div style="background-image: url('${defaultPolicyURL}' referrer-policy(no-referrer))"></div>
+    `);
+    document.body.offsetWidth;
+
+    asyncTest(done => {
+        window.addEventListener("load", () => {
+            const entries = performance.getEntriesByType("resource");
+            for (const [label, url] of [
+                ["Identical URLs", identicalURL],
+                ["Reordered modifiers", reorderedModifiersURL],
+                ["Different referrer policies", differentPoliciesURL],
+                ["Default and explicit referrer policy", defaultPolicyURL],
+            ]) {
+                println(`${label}: ${entries.filter(entry => entry.name === url).length} request(s)`);
+            }
+            done();
+        });
+    });
+</script>
