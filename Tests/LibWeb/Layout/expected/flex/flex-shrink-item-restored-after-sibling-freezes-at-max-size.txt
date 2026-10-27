@@ -24,23 +24,23 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
               TextNode <#text> (not painted)
           BlockContainer <(anonymous)> (not painted) [BFC] children: inline
             TextNode <#text> (not painted)
-          BlockContainer <div.sidecar> at [600,0] flex-item [24+0+0 31.875 0+0+24] [0+0+0 200 0+0+0] [BFC] children: not-inline overflow: [600,0 75.515625x200]
-            BlockContainer <ul> at [600,0] [0+0+0 31.875 0+0+0] [0+0+0 72 0+0+0] children: not-inline
-              ListItemBox <li> at [600,0] [0+0+0 31.875 0+0+0] [0+0+0 24 0+0+0] children: not-inline
+          BlockContainer <div.sidecar> at [600,0] flex-item [24+0+0 100 0+0+24] [0+0+0 200 0+0+0] [BFC] children: not-inline
+            BlockContainer <ul> at [600,0] [0+0+0 100 0+0+0] [0+0+0 72 0+0+0] children: not-inline
+              ListItemBox <li> at [600,0] [0+0+0 100 0+0+0] [0+0+0 24 0+0+0] children: not-inline
                 ListItemMarkerBox <(anonymous)> at [586,0] [0+0+0 13.84375 0+0+0] [0+0+0 24 0+0+0] [BFC] children: inline
                   frag 0 from GeneratedTextNode start: 0, length: 2, rect: [586,4 13.84375x16] baseline: 12.796875
                       "• "
                   GeneratedTextNode <(anonymous)> (not painted)
-                BlockContainer <p> at [600,0] [0+0+0 31.875 0+0+0] [0+0+0 24 0+0+0] children: inline
+                BlockContainer <p> at [600,0] [0+0+0 100 0+0+0] [0+0+0 24 0+0+0] children: inline
                   frag 0 from TextNode start: 0, length: 8, rect: [600,4 66.765625x16] baseline: 12.796875
                       "Security"
                   TextNode <#text> (not painted)
-              ListItemBox <li> at [600,24] [0+0+0 31.875 0+0+0] [0+0+0 48 0+0+0] children: not-inline
+              ListItemBox <li> at [600,24] [0+0+0 100 0+0+0] [0+0+0 48 0+0+0] children: not-inline
                 ListItemMarkerBox <(anonymous)> at [586,24] [0+0+0 13.84375 0+0+0] [0+0+0 24 0+0+0] [BFC] children: inline
                   frag 0 from GeneratedTextNode start: 0, length: 2, rect: [586,28 13.84375x16] baseline: 12.796875
                       "• "
                   GeneratedTextNode <(anonymous)> (not painted)
-                BlockContainer <p> at [600,24] [0+0+0 31.875 0+0+0] [0+0+0 48 0+0+0] children: inline
+                BlockContainer <p> at [600,24] [0+0+0 100 0+0+0] [0+0+0 48 0+0+0] children: inline
                   frag 0 from TextNode start: 0, length: 10, rect: [600,28 75.515625x16] baseline: 12.796875
                       "Highlights"
                   frag 1 from TextNode start: 11, length: 4, rect: [600,52 35.5625x16] baseline: 12.796875
