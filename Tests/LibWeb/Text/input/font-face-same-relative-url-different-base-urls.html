@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    promiseTest(async () => {
+        const createSheet = (family, baseURL) => {
+            const sheet = new CSSStyleSheet({ baseURL });
+            sheet.replaceSync(`@font-face { font-family: ${family}; src: url(HashSans.woff); }`);
+            return sheet;
+        };
+        document.adoptedStyleSheets = [
+            createSheet("WithFont", new URL("../../Assets/", location.href).href),
+            createSheet("WithoutFont", new URL("../../Assets/missing/", location.href).href),
+        ];
+
+        for (const face of document.fonts) {
+            try {
+                await face.load();
+            } catch {
+            }
+            println(`${face.family}: ${face.status}`);
+        }
+    });
+</script>
