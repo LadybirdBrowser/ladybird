@@ -1,3 +1,24 @@
+Empty metadata: PASS
+Missing algorithm: PASS
+Missing digest: PASS
+Missing separator: PASS
+Separator only: PASS
+Separator and options marker: PASS
+Options before expression: PASS
+Invalid digest characters: PASS
+Padding-only digest: PASS
+Two padding characters only: PASS
+Excess digest padding: PASS
+Non-trailing digest padding: PASS
+Padding-only stronger digest: PASS
+Excess padding in stronger digest: PASS
+Non-trailing padding in stronger digest: PASS
+Malformed padded stronger digest after mismatch: PASS
+Excess padding on matching stronger digest: PASS
+Malformed expression before valid digest: PASS
+Malformed stronger digest: PASS
+Malformed expression before mismatching digest: PASS
+Malformed stronger digest after mismatching digest: PASS
 SHA-256: PASS
 SHA-384: PASS
 SHA-512: PASS
