@@ -667,7 +667,7 @@ struct ChunkAddress {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum AncestorInvalidation {
+pub(super) enum AncestorInvalidation {
     StructuralChange,
     ContentChange,
 }
@@ -5618,18 +5618,20 @@ impl LayoutNodeArena {
     // run's probe and its store is handled by storing the probe-time validity, which turns it
     // into a fail-safe miss.
     fn invalidate_at_and_above(&self, mut node: NodeSlotId, invalidation: AncestorInvalidation) {
-        let paintable_rows = self.paintable_rows();
         while !node.is_invalid() {
-            let data = self.data(node);
-            if invalidation == AncestorInvalidation::StructuralChange {
-                self.fc_run_cache_store.note_inline_layout_damage(node);
-            }
-            self.bump_fragment_cache_epoch(node);
-            let (kind, parent) = (data.kind.get(), data.parent.get());
-            if super::node_facts::kind_is_box(kind) {
-                paintable_rows.clear_cached_overflow_data(node);
-            }
-            node = parent;
+            self.invalidate_one(node, invalidation);
+            node = self.data(node).parent.get();
+        }
+    }
+
+    /// The part of `invalidate_at_and_above` that applies to one node, for walks that also do other work on the way up.
+    pub(super) fn invalidate_one(&self, node: NodeSlotId, invalidation: AncestorInvalidation) {
+        if invalidation == AncestorInvalidation::StructuralChange {
+            self.fc_run_cache_store.note_inline_layout_damage(node);
+        }
+        self.bump_fragment_cache_epoch(node);
+        if super::node_facts::kind_is_box(self.data(node).kind.get()) {
+            self.paintable_rows().clear_cached_overflow_data(node);
         }
     }
 

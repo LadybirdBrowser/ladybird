@@ -7,6 +7,7 @@
 use crate::layout::LayoutNodeArena;
 use crate::layout::abspos_inputs::AbsposLayoutInputs;
 use crate::layout::formatting_context::{FormattingContextType, formatting_context_type_created_by_node_data};
+use crate::layout::layout_node_arena::AncestorInvalidation;
 use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
 use crate::layout::node_facts;
 use crate::painting::paint_read::PaintRead;
@@ -703,32 +704,32 @@ impl LayoutNodeArena {
     }
 
     // Reset intrinsic size caches for ancestors up to abspos or SVG root boundary.
-    // Absolutely positioned elements don't contribute to ancestor intrinsic sizes,
-    // so changes inside an abspos box don't require resetting ancestor caches.
-    // SVG root elements have intrinsic sizes determined solely by their own attributes
-    // (width, height, viewBox), not by their children, so the same logic applies.
     fn reset_cached_intrinsic_sizes_of_ancestors(&self, node: NodeSlotId) {
         let mut ancestor = self.data(node).parent.get();
         while !ancestor.is_invalid() {
-            let ancestor_data = self.data(ancestor);
-            let (ancestor_kind, ancestor_parent) = { (ancestor_data.kind.get(), ancestor_data.parent.get()) };
-            if node_facts::kind_is_box(ancestor_kind) {
+            if node_facts::kind_is_box(self.data(ancestor).kind.get()) {
                 self.reset_cached_intrinsic_sizes(ancestor);
-                let ancestor_is_absolutely_positioned = self
-                    .node_style_if_live(ancestor)
-                    .is_some_and(|style| style.is_absolutely_positioned());
-                if ancestor_is_absolutely_positioned || ancestor_kind == NodeKind::SVGSVGBox {
+                if self.content_does_not_size_box(ancestor) {
                     break;
                 }
             }
-            ancestor = ancestor_parent;
+            ancestor = self.data(ancestor).parent.get();
         }
     }
 
+    /// Whether a change inside the box leaves the intrinsic sizes of its ancestors as they are.
+    /// Absolutely positioned elements don't contribute to ancestor intrinsic sizes. SVG root
+    /// elements have intrinsic sizes determined solely by their own attributes (width, height,
+    /// viewBox), not by their children.
+    fn content_does_not_size_box(&self, node: NodeSlotId) -> bool {
+        self.data(node).kind.get() == NodeKind::SVGSVGBox
+            || self
+                .node_style_if_live(node)
+                .is_some_and(|style| style.is_absolutely_positioned())
+    }
+
     pub(crate) fn set_needs_layout_update(&self, node: NodeSlotId, propagate_through_ancestors: bool) {
-        // Bumped before the already-dirty early return below: a dirty node does not imply its
-        // whole ancestor chain was bumped for the current epoch values, and over-bumping is free.
-        self.bump_fragment_cache_epoch_of_self_and_ancestors(node);
+        self.invalidate_one(node, AncestorInvalidation::ContentChange);
 
         let data = self.data(node);
         let (node_was_already_dirty, node_is_box, first_child, parent) = {
@@ -740,13 +741,17 @@ impl LayoutNodeArena {
             )
         };
 
-        if node_was_already_dirty && propagate_through_ancestors {
-            // A dirty node normally implies dirty ancestors, but the walk that marked a partial
-            // relayout boundary stopped there and left its ancestors clean, so a through-ancestors
-            // invalidation arriving on the boundary itself must still walk and mark them.
-            if !node_is_box || !self.node_is_partial_relayout_boundary(node) {
-                return;
-            }
+        // A dirty node normally implies dirty ancestors, but the walk that marked a partial
+        // relayout boundary stopped there and left its ancestors clean, so a through-ancestors
+        // invalidation arriving on the boundary itself must still walk and mark them.
+        if node_was_already_dirty
+            && propagate_through_ancestors
+            && !(node_is_box && self.node_is_partial_relayout_boundary(node))
+        {
+            // NB: A dirty node does not imply its whole ancestor chain was bumped for the current epoch values, and
+            //     over-bumping is free.
+            self.bump_fragment_cache_epoch_of_self_and_ancestors(parent);
+            return;
         }
 
         self.set_node_flag(node, NodeFlag::NeedsLayoutUpdate, true);
@@ -775,33 +780,40 @@ impl LayoutNodeArena {
             child = next_sibling;
         }
 
-        if !propagate_through_ancestors {
-            self.register_partial_relayout_boundary_root(node);
-            return;
-        }
-
+        let mut marks_ancestors_for_layout_update = propagate_through_ancestors;
+        let mut resets_ancestor_intrinsic_sizes = propagate_through_ancestors;
         let mut ancestor = parent;
         while !ancestor.is_invalid() {
+            self.invalidate_one(ancestor, AncestorInvalidation::ContentChange);
             let ancestor_data = self.data(ancestor);
-            let (ancestor_kind, ancestor_is_dirty, ancestor_parent) = {
+            let (ancestor_is_box, ancestor_is_dirty, ancestor_parent) = {
                 (
-                    ancestor_data.kind.get(),
+                    node_facts::kind_is_box(ancestor_data.kind.get()),
                     ancestor_data.flags.get() & NodeFlag::NeedsLayoutUpdate as u32 != 0,
                     ancestor_data.parent.get(),
                 )
             };
-            if ancestor_is_dirty {
-                break;
+            if marks_ancestors_for_layout_update {
+                if ancestor_is_dirty {
+                    marks_ancestors_for_layout_update = false;
+                } else {
+                    self.set_node_flag(ancestor, NodeFlag::NeedsLayoutUpdate, true);
+                    if ancestor_is_box && self.node_is_partial_relayout_boundary(ancestor) {
+                        self.register_partial_relayout_boundary_root(ancestor);
+                        marks_ancestors_for_layout_update = false;
+                    }
+                }
             }
-            self.set_node_flag(ancestor, NodeFlag::NeedsLayoutUpdate, true);
-            if node_facts::kind_is_box(ancestor_kind) && self.node_is_partial_relayout_boundary(ancestor) {
-                self.register_partial_relayout_boundary_root(ancestor);
-                break;
+            if resets_ancestor_intrinsic_sizes && ancestor_is_box {
+                self.reset_cached_intrinsic_sizes(ancestor);
+                resets_ancestor_intrinsic_sizes = !self.content_does_not_size_box(ancestor);
             }
             ancestor = ancestor_parent;
         }
 
-        self.reset_cached_intrinsic_sizes_of_ancestors(node);
+        if !propagate_through_ancestors {
+            self.register_partial_relayout_boundary_root(node);
+        }
     }
 }
 
