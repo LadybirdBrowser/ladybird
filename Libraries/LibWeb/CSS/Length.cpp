@@ -15,84 +15,26 @@
 #include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/Percentage.h>
+#include <LibWeb/CSS/StyleComputeFFI.h>
+#include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/DOM/AbstractElement.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/Window.h>
-#include <LibWeb/Layout/Node.h>
+#include <LibWeb/Layout/RenderDocument.h>
+#include <LibWeb/StyleEngineRustFFI.h>
 
 namespace Web::CSS {
 
 void Length::ResolutionContext::visit_edges(GC::Cell::Visitor& visitor) const
 {
     visitor.visit(subject_element);
-    visitor.visit(cached_width_query_container);
-    visitor.visit(cached_height_query_container);
 }
-
-enum class ContainerRelativeAxis {
-    Width,
-    Height,
-};
 
 static bool inline_axis_is_horizontal(WritingMode writing_mode)
 {
     return writing_mode == WritingMode::HorizontalTb;
-}
-
-static ContainerRelativeAxis logical_axis_to_physical_axis(bool inline_axis_is_horizontal, ContainerRelativeAxis logical_axis)
-{
-    if (inline_axis_is_horizontal)
-        return logical_axis;
-    return logical_axis == ContainerRelativeAxis::Width ? ContainerRelativeAxis::Height : ContainerRelativeAxis::Width;
-}
-
-static bool query_container_is_eligible_for_axis(DOM::Element const& container, ContainerRelativeAxis axis)
-{
-    auto style = container.computed_style();
-    if (!style)
-        return false;
-
-    auto container_type = style->container_type();
-    auto container_inline_axis_is_horizontal = inline_axis_is_horizontal(style->writing_mode());
-
-    if (axis == ContainerRelativeAxis::Width) {
-        if (container_inline_axis_is_horizontal)
-            return container_type.is_size_container || container_type.is_inline_size_container;
-        return container_type.is_size_container;
-    }
-
-    if (container_inline_axis_is_horizontal)
-        return container_type.is_size_container;
-    return container_type.is_size_container || container_type.is_inline_size_container;
-}
-
-static DOM::Element const* nearest_query_container_for_axis(DOM::Element const& subject, ContainerRelativeAxis axis)
-{
-    for (auto const* container = subject.flat_tree_parent_element(); container; container = container->flat_tree_parent_element()) {
-        if (query_container_is_eligible_for_axis(*container, axis))
-            return container;
-    }
-    return nullptr;
-}
-
-static Optional<GC::Ptr<DOM::Element const>>& cached_query_container_for_axis(Length::ResolutionContext const& context, ContainerRelativeAxis axis)
-{
-    if (axis == ContainerRelativeAxis::Width)
-        return context.cached_width_query_container;
-    return context.cached_height_query_container;
-}
-
-static GC::Ptr<DOM::Element const> get_or_compute_query_container_for_axis(Length::ResolutionContext const& context, ContainerRelativeAxis axis)
-{
-    auto& cached_query_container = cached_query_container_for_axis(context, axis);
-    if (!cached_query_container.has_value()) {
-        cached_query_container = nullptr;
-        if (context.subject_element)
-            cached_query_container = nearest_query_container_for_axis(*context.subject_element, axis);
-    }
-    return cached_query_container.value();
 }
 
 ComputedValuesFFI::FfiFontMetrics font_metrics_from(CSSPixels font_size, Gfx::FontPixelMetrics const& pixel_metrics, CSSPixels line_height)
@@ -113,78 +55,55 @@ Length Length::percentage_of(Percentage const& percentage) const
     return Length { percentage.as_fraction() * raw_value(), m_unit };
 }
 
-double Length::container_relative_length_to_px_without_rounding(ResolutionContext const& context) const
+ComputedValuesFFI::FfiLengthResolutionContext to_ffi_length_resolution_context_with_container_bases(Length::ResolutionContext const& context, u8 container_relative_length_unit_mask)
 {
-    // https://drafts.csswg.org/css-conditional-5/#container-lengths
-    auto resolve_physical_axis_basis_length = [&](ContainerRelativeAxis physical_axis) {
-        // The query container for each axis is the nearest ancestor container that accepts container size queries on
-        // that axis. If no eligible query container is available, then use the small viewport size for that axis.
-        if (!context.subject_element) {
-            context.record_viewport_relative_length_resolution();
-            auto viewport_length = physical_axis == ContainerRelativeAxis::Width ? context.viewport_rect.width() : context.viewport_rect.height();
-            return viewport_length.to_double();
-        }
+    auto ffi_context = to_ffi_length_resolution_context(context);
+    auto viewport_width = context.viewport_rect.width().to_double();
+    auto viewport_height = context.viewport_rect.height().to_double();
 
-        auto& subject = *context.subject_element;
-        const_cast<DOM::Element&>(subject).set_style_depends_on_size_container_query();
-
-        auto query_container = get_or_compute_query_container_for_axis(context, physical_axis);
-        // A container unit asks about the container's box exactly as a size query does, so the
-        // container has to know that a resize of it is a change for something under it.
-        if (query_container)
-            const_cast<DOM::Element&>(*query_container).set_is_size_query_container();
-        if (!query_container) {
-            context.record_viewport_relative_length_resolution();
-            auto viewport_length = physical_axis == ContainerRelativeAxis::Width ? context.viewport_rect.width() : context.viewport_rect.height();
-            return viewport_length.to_double();
-        }
-
-        // The container's box is read without making its layout node: a layout round asks this on the render owner,
-        // which must not allocate one.
-        auto const* arena = query_container->document().layout_node_arena_if_created();
-        Layout::ForcedReadScope read { query_container->document() };
-        CSSPixelSize container_size;
-        if (!arena || !Layout::RustFFI::layout_row_bound_committed_content_size(arena->host(), read, query_container->style_node_id().value(), &container_size)) {
-            // A running partial relayout pass reports layout as up to date, but a container
-            // with no paintable yet still needs the post-layout evaluation, which routes the
-            // follow-up pass to the full layout path that resolves the container's size.
-            if (!subject.document().layout_is_up_to_date() || subject.document().is_running_update_layout())
-                const_cast<DOM::Document&>(subject.document()).set_needs_container_query_evaluation_after_layout(*query_container);
-            return 0.0;
-        }
-
-        auto container_length = physical_axis == ContainerRelativeAxis::Width ? container_size.width() : container_size.height();
-        return container_length.to_double();
-    };
-
-    auto resolve_physical_axis_length = [&](ContainerRelativeAxis physical_axis) {
-        return resolve_physical_axis_basis_length(physical_axis) * m_value / 100;
-    };
-
-    auto resolve_logical_axis_basis_length = [&](ContainerRelativeAxis logical_axis) {
-        return resolve_physical_axis_basis_length(logical_axis_to_physical_axis(context.subject_inline_axis_is_horizontal, logical_axis));
-    };
-
-    auto resolve_logical_axis_length = [&](ContainerRelativeAxis logical_axis) {
-        return resolve_logical_axis_basis_length(logical_axis) * m_value / 100;
-    };
-
-    switch (m_unit) {
-    case LengthUnit::Cqw:
-        return resolve_physical_axis_length(ContainerRelativeAxis::Width);
-    case LengthUnit::Cqh:
-        return resolve_physical_axis_length(ContainerRelativeAxis::Height);
-    case LengthUnit::Cqi:
-        return resolve_logical_axis_length(ContainerRelativeAxis::Width);
-    case LengthUnit::Cqb:
-        return resolve_logical_axis_length(ContainerRelativeAxis::Height);
-    case LengthUnit::Cqmin:
-        return min(resolve_logical_axis_basis_length(ContainerRelativeAxis::Width), resolve_logical_axis_basis_length(ContainerRelativeAxis::Height)) * m_value / 100;
-    case LengthUnit::Cqmax:
-        return max(resolve_logical_axis_basis_length(ContainerRelativeAxis::Width), resolve_logical_axis_basis_length(ContainerRelativeAxis::Height)) * m_value / 100;
-    default:
-        VERIFY_NOT_REACHED();
+    if (!context.subject_element) {
+        ffi_context.has_container_width_basis = true;
+        ffi_context.has_container_height_basis = true;
+        ffi_context.container_width_basis = viewport_width;
+        ffi_context.container_height_basis = viewport_height;
+        ffi_context.container_width_basis_depends_on_viewport_metrics = true;
+        ffi_context.container_height_basis_depends_on_viewport_metrics = true;
+        return ffi_context;
     }
+
+    auto& subject = const_cast<DOM::Element&>(*context.subject_element);
+    auto& document = subject.document();
+    auto& style_computer = document.style_computer();
+    StyleEngineFFI::FfiContainerUnitBases bases;
+    {
+        Layout::ForcedReadScope read { document };
+        bases = StyleEngineFFI::style_engine_container_unit_bases(style_computer.style_engine().host(), read, subject.style_node_id().value(), container_relative_length_unit_mask, context.subject_inline_axis_is_horizontal);
+    }
+    if (!bases.reads_width && !bases.reads_height)
+        return ffi_context;
+
+    subject.set_style_depends_on_size_container_query();
+    auto apply_axis_basis = [&](u32 container_style_node, double container_basis, bool container_has_no_box, double viewport_basis, bool& has_basis, double& basis, bool& depends_on_viewport_metrics) {
+        has_basis = true;
+        if (!container_style_node) {
+            basis = viewport_basis;
+            depends_on_viewport_metrics = true;
+            return;
+        }
+        basis = container_basis;
+        auto container = style_computer.element_for_style_node(StyleNodeID { container_style_node });
+        if (!container)
+            return;
+        container->set_is_size_query_container();
+        if (container_has_no_box && (!document.layout_is_up_to_date() || document.is_running_update_layout()))
+            document.set_needs_container_query_evaluation_after_layout(*container);
+    };
+    if (bases.reads_width)
+        apply_axis_basis(bases.width_container, bases.width, bases.width_container_has_no_box, viewport_width, ffi_context.has_container_width_basis, ffi_context.container_width_basis, ffi_context.container_width_basis_depends_on_viewport_metrics);
+    if (bases.reads_height)
+        apply_axis_basis(bases.height_container, bases.height, bases.height_container_has_no_box, viewport_height, ffi_context.has_container_height_basis, ffi_context.container_height_basis, ffi_context.container_height_basis_depends_on_viewport_metrics);
+
+    return ffi_context;
 }
 
 Length::ResolutionContext Length::ResolutionContext::for_element(DOM::AbstractElement const& element)

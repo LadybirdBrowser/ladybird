@@ -3031,6 +3031,68 @@ pub unsafe extern "C" fn style_engine_take_container_effects(
     }
 }
 
+/// What the container-relative lengths of a subject the host resolves outside the style drive read
+/// of its containers: for each physical axis the units read, the committed content size of the nearest
+/// size query container on that axis, zero while it has no box, and that container, 0 where the axis
+/// has none and its lengths resolve against the viewport.
+#[repr(C)]
+pub struct FfiContainerUnitBases {
+    pub reads_width: bool,
+    pub reads_height: bool,
+    pub width: f64,
+    pub height: f64,
+    pub width_container: u32,
+    pub height_container: u32,
+    pub width_container_has_no_box: bool,
+    pub height_container_has_no_box: bool,
+}
+
+/// The bases the container-relative units of `unit_mask` read for `subject`, whose inline axis is or
+/// is not the horizontal one, for the host to resolve them as the style drive does and to record what
+/// they read of the containers.
+///
+/// # Safety
+/// `host` must be a live document host, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_container_unit_bases(
+    host: &DocumentHost,
+    read: &crate::render_state::BegunRead,
+    subject: u32,
+    unit_mask: u8,
+    subject_inline_axis_is_horizontal: bool,
+) -> FfiContainerUnitBases {
+    let (reads_width, reads_height) =
+        crate::css::style_compute::container_relative_axes_read(unit_mask, subject_inline_axis_is_horizontal);
+    let mut bases = FfiContainerUnitBases {
+        reads_width,
+        reads_height,
+        width: 0.0,
+        height: 0.0,
+        width_container: 0,
+        height_container: 0,
+        width_container_has_no_box: false,
+        height_container_has_no_box: false,
+    };
+    let Some(subject) = StyleNodeID::from_raw(subject) else {
+        return bases;
+    };
+    with_engine(read, host, |engine| {
+        if reads_width {
+            let basis = engine.container_unit_basis(subject, true);
+            bases.width = basis.basis;
+            bases.width_container = basis.container.map_or(0, StyleNodeID::raw);
+            bases.width_container_has_no_box = basis.container_has_no_box;
+        }
+        if reads_height {
+            let basis = engine.container_unit_basis(subject, false);
+            bases.height = basis.basis;
+            bases.height_container = basis.container.map_or(0, StyleNodeID::raw);
+            bases.height_container_has_no_box = basis.container_has_no_box;
+        }
+    });
+    bases
+}
+
 /// Interns the UTF-16 name `units` in `engine` as a native style atom.
 pub(crate) fn intern_native_text(engine: &mut StyleEngine, units: &[u16]) -> StyleAtomID {
     let name = ak::Utf16FlyString::from_utf16(units);

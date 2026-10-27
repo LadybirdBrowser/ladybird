@@ -14,18 +14,7 @@
 
 namespace Web::CSS {
 
-inline constexpr u8 cqw_container_relative_length_unit_mask = 1 << 0;
-inline constexpr u8 cqh_container_relative_length_unit_mask = 1 << 1;
-inline constexpr u8 cqi_container_relative_length_unit_mask = 1 << 2;
-inline constexpr u8 cqb_container_relative_length_unit_mask = 1 << 3;
-inline constexpr u8 cqmin_container_relative_length_unit_mask = 1 << 4;
-inline constexpr u8 cqmax_container_relative_length_unit_mask = 1 << 5;
-inline constexpr u8 all_container_relative_length_units_mask = cqw_container_relative_length_unit_mask
-    | cqh_container_relative_length_unit_mask
-    | cqi_container_relative_length_unit_mask
-    | cqb_container_relative_length_unit_mask
-    | cqmin_container_relative_length_unit_mask
-    | cqmax_container_relative_length_unit_mask;
+inline constexpr u8 all_container_relative_length_units_mask = (1 << 6) - 1;
 
 inline ComputedValuesFFI::FfiLengthResolutionContext to_ffi_length_resolution_context(Length::ResolutionContext const& context)
 {
@@ -48,28 +37,6 @@ inline ComputedValuesFFI::FfiLengthResolutionContext to_ffi_length_resolution_co
     };
 }
 
-inline ComputedValuesFFI::FfiLengthResolutionContext to_ffi_length_resolution_context_with_container_bases(Length::ResolutionContext const& context, u8 container_relative_length_unit_mask)
-{
-    auto ffi_context = to_ffi_length_resolution_context(context);
-
-    constexpr u8 both_axes_mask = cqmin_container_relative_length_unit_mask | cqmax_container_relative_length_unit_mask;
-    auto const needs_width_basis = (container_relative_length_unit_mask & (cqw_container_relative_length_unit_mask | both_axes_mask | (context.subject_inline_axis_is_horizontal ? cqi_container_relative_length_unit_mask : cqb_container_relative_length_unit_mask))) != 0;
-    auto const needs_height_basis = (container_relative_length_unit_mask & (cqh_container_relative_length_unit_mask | both_axes_mask | (context.subject_inline_axis_is_horizontal ? cqb_container_relative_length_unit_mask : cqi_container_relative_length_unit_mask))) != 0;
-
-    if (needs_width_basis) {
-        auto snapshot_context = context;
-        snapshot_context.set_did_resolve_viewport_relative_length(ffi_context.container_width_basis_depends_on_viewport_metrics);
-        ffi_context.container_width_basis = Length(100, LengthUnit::Cqw).to_px_without_rounding(snapshot_context);
-        ffi_context.has_container_width_basis = true;
-    }
-    if (needs_height_basis) {
-        auto snapshot_context = context;
-        snapshot_context.set_did_resolve_viewport_relative_length(ffi_context.container_height_basis_depends_on_viewport_metrics);
-        ffi_context.container_height_basis = Length(100, LengthUnit::Cqh).to_px_without_rounding(snapshot_context);
-        ffi_context.has_container_height_basis = true;
-    }
-
-    return ffi_context;
-}
+WEB_API ComputedValuesFFI::FfiLengthResolutionContext to_ffi_length_resolution_context_with_container_bases(Length::ResolutionContext const&, u8 container_relative_length_unit_mask);
 
 }

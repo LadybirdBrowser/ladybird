@@ -50,7 +50,6 @@ public:
     bool is_px() const { return m_unit == LengthUnit::Px; }
 
     bool is_absolute() const { return CSS::is_absolute(m_unit); }
-    bool is_container_relative() const { return CSS::is_container_relative(m_unit); }
 
     double raw_value() const { return m_value; }
     LengthUnit unit() const { return m_unit; }
@@ -68,8 +67,6 @@ public:
         bool root_font_metrics_depend_on_viewport_metrics { false };
         bool subject_inline_axis_is_horizontal { true };
         GC::Ptr<DOM::Element const> subject_element { nullptr };
-        mutable Optional<GC::Ptr<DOM::Element const>> cached_width_query_container {};
-        mutable Optional<GC::Ptr<DOM::Element const>> cached_height_query_container {};
 
         void set_did_resolve_viewport_relative_length(bool& did_resolve_viewport_relative_length) const
         {
@@ -81,22 +78,10 @@ public:
             return m_did_resolve_viewport_relative_length;
         }
 
-        void record_viewport_relative_length_resolution() const
-        {
-            if (m_did_resolve_viewport_relative_length)
-                *m_did_resolve_viewport_relative_length = true;
-        }
-
         void visit_edges(GC::Cell::Visitor&) const;
 
         mutable bool* m_did_resolve_viewport_relative_length { nullptr };
     };
-
-    ALWAYS_INLINE double to_px_without_rounding(ResolutionContext const& context) const
-    {
-        VERIFY(is_container_relative());
-        return container_relative_length_to_px_without_rounding(context);
-    }
 
     [[nodiscard]] ALWAYS_INLINE CSSPixels absolute_length_to_px() const
     {
@@ -115,8 +100,6 @@ public:
     {
         return m_unit == other.m_unit && m_value == other.m_value;
     }
-
-    double container_relative_length_to_px_without_rounding(ResolutionContext const&) const;
 
     static Length from_style_value(NonnullRefPtr<StyleValue const> const&, Optional<Length> percentage_basis);
 

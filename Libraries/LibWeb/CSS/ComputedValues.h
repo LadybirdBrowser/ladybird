@@ -108,16 +108,6 @@ struct Containment {
     bool operator==(Containment const&) const = default;
 };
 
-struct ContainerType {
-    bool is_size_container : 1 { false };
-    bool is_inline_size_container : 1 { false };
-    bool is_scroll_state_container : 1 { false };
-
-    bool operator==(ContainerType const&) const = default;
-
-    bool is_empty() const { return !(is_size_container || is_inline_size_container || is_scroll_state_container); }
-};
-
 class InitialValues {
 public:
     static CSSPixels font_size() { return 16; }
@@ -412,15 +402,6 @@ public:
     // https://drafts.csswg.org/css-viewport/#effective-zoom
     double effective_zoom() const { return m_inherited.box->effective_zoom_value(); }
 
-    ContainerType container_type() const
-    {
-        auto const& box = *m_noninherited.box;
-        return ContainerType {
-            .is_size_container = box.is_size_container,
-            .is_inline_size_container = box.is_inline_size_container,
-            .is_scroll_state_container = box.is_scroll_state_container,
-        };
-    }
     MixBlendMode mix_blend_mode() const { return m_noninherited.effects->mix_blend_mode_value(); }
     Optional<Utf16FlyString> view_transition_name() const { return m_noninherited.misc->view_transition_name_value(); }
 
