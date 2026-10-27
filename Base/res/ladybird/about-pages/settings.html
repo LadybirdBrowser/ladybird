@@ -972,10 +972,29 @@
                     <div class="card-body">
                         <div class="card-group inline-container">
                             <label for="enable-geolocation">
-                                Enable geolocation
-                                <p class="description">Allow websites to request your actual location.</p>
+                                Sites can ask for your location
+                                <p class="description">When this is off, sites can't see your location.</p>
                             </label>
                             <input id="enable-geolocation" type="checkbox" switch />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-body">
+                        <div class="card-group inline-container">
+                            <span>
+                                Location
+                                <p class="description">The sites you allowed or blocked from knowing your location.</p>
+                            </span>
+                            <button id="location-permissions-settings" class="secondary-button">Settings…</button>
+                        </div>
+                        <div class="card-group inline-container">
+                            <span>
+                                Microphone
+                                <p class="description">The sites you allowed or blocked from using your microphone.</p>
+                            </span>
+                            <button id="microphone-permissions-settings" class="secondary-button">Settings…</button>
                         </div>
                     </div>
                 </div>
@@ -1288,6 +1307,26 @@
             </div>
         </dialog>
 
+        <dialog id="site-permissions-geolocation" class="site-permissions" closedby="any">
+            <div class="dialog-header">
+                <h3 class="dialog-title">Location</h3>
+                <button class="close-button dialog-button">&times;</button>
+            </div>
+            <div class="dialog-body">
+                <div class="site-permissions-list dialog-list"></div>
+            </div>
+        </dialog>
+
+        <dialog id="site-permissions-microphone" class="site-permissions" closedby="any">
+            <div class="dialog-header">
+                <h3 class="dialog-title">Microphone</h3>
+                <button class="close-button dialog-button">&times;</button>
+            </div>
+            <div class="dialog-body">
+                <div class="site-permissions-list dialog-list"></div>
+            </div>
+        </dialog>
+
         <dialog id="site-settings" closedby="any">
             <div class="dialog-header">
                 <h3 id="site-settings-title" class="dialog-title"></h3>
@@ -1382,6 +1421,7 @@
         <script src="resource://ladybird/about-pages/settings/languages.js" type="module"></script>
         <script src="resource://ladybird/about-pages/settings/network.js" type="module"></script>
         <script src="resource://ladybird/about-pages/settings/permissions.js" type="module"></script>
+        <script src="resource://ladybird/about-pages/settings/site-permissions.js" type="module"></script>
         <script src="resource://ladybird/about-pages/settings/privacy.js" type="module"></script>
         <script src="resource://ladybird/about-pages/settings/search.js" type="module"></script>
         <script src="resource://ladybird/about-pages/settings/services.js" type="module"></script>
