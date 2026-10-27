@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 34 tests
 
-31 Pass
-3 Fail
+34 Pass
 Pass	Can set 'font-feature-settings' to CSS-wide keywords: initial
 Pass	Can set 'font-feature-settings' to CSS-wide keywords: inherit
 Pass	Can set 'font-feature-settings' to CSS-wide keywords: unset
@@ -29,9 +28,9 @@ Pass	Setting 'font-feature-settings' to an angle: calc(0rad + 0deg) throws TypeE
 Pass	Setting 'font-feature-settings' to a flexible length: 0fr throws TypeError
 Pass	Setting 'font-feature-settings' to a flexible length: 1fr throws TypeError
 Pass	Setting 'font-feature-settings' to a flexible length: -3.14fr throws TypeError
-Fail	Setting 'font-feature-settings' to a number: 0 throws TypeError
-Fail	Setting 'font-feature-settings' to a number: -3.14 throws TypeError
-Fail	Setting 'font-feature-settings' to a number: 3.14 throws TypeError
+Pass	Setting 'font-feature-settings' to a number: 0 throws TypeError
+Pass	Setting 'font-feature-settings' to a number: -3.14 throws TypeError
+Pass	Setting 'font-feature-settings' to a number: 3.14 throws TypeError
 Pass	Setting 'font-feature-settings' to a number: calc(2 + 3) throws TypeError
 Pass	Setting 'font-feature-settings' to a transform: translate(50%, 50%) throws TypeError
 Pass	Setting 'font-feature-settings' to a transform: perspective(10em) throws TypeError
