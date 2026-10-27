@@ -2036,11 +2036,10 @@ pub(crate) fn explicit_intrinsic_inner_inline_size(facts: &NodeFacts<'_>) -> Css
     }
 }
 
-/// Whether the content inline sizes of `box_` are measured by laying it out: those of a box in a vertical writing mode,
-/// of a box that establishes an orthogonal flow, whose block size they are, and of a MathML box.
+/// Whether the content inline sizes of `box_` are measured by laying it out: those of a box that establishes an
+/// orthogonal flow, whose block size they are, and of a MathML box.
 pub(crate) fn content_inline_sizes_are_measured_by_layout(callbacks: &LayoutPass<'_>, box_: Node) -> bool {
-    StyleValues::for_node(callbacks, box_).writing_mode() != writing_mode::HORIZONTAL_TB
-        || frame_established_by(callbacks, box_).is_orthogonal_to(callbacks.frame)
+    frame_established_by(callbacks, box_).is_orthogonal_to(callbacks.frame)
         || independent_formatting_context_type(box_, callbacks) == FormattingContextType::Math
 }
 

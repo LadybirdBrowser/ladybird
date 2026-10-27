@@ -2992,7 +2992,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
     ) -> ContentInlineSizes {
         debug_assert!(
             formatting_context::content_inline_sizes_are_measured_by_layout(&self.callbacks, node),
-            "the content inline sizes of a horizontal box are computed without layout"
+            "only boxes that establish an orthogonal flow and MathML boxes are measured by layout"
         );
         let content_size_named_by_grid_maximum_inline_size =
             if formatting_context::independent_formatting_context_type(node, &self.callbacks)

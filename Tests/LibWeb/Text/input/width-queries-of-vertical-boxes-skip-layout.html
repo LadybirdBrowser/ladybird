@@ -1,0 +1,59 @@
+<!doctype html>
+<script src="include.js"></script>
+<script src="layout-test.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../Ref/data/fonts/Ahem.ttf");
+    }
+
+    .vertical {
+        writing-mode: vertical-rl;
+        font: 10px/20px Ahem;
+    }
+
+    #line-clamp {
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 1;
+        overflow: hidden;
+    }
+</style>
+<template id="fixture">
+    <div class="vertical"><div id="inline-content" style="display: inline-block">alpha beta gamma</div></div>
+    <div class="vertical"><div id="block-children" style="display: inline-block"><div>alpha</div><div>beta gamma</div></div></div>
+    <div class="vertical"><div id="float" style="float: left">alpha beta</div></div>
+    <div class="vertical"><div id="table-in-inline-block" style="display: inline-block"><div style="display: table"><div style="display: table-cell">alpha beta</div></div></div></div>
+    <div class="vertical"><div id="flex" style="display: inline-flex"><div>alpha</div><div>beta gamma</div></div></div>
+    <div class="vertical"><div id="grid" style="display: inline-grid; grid-template-columns: auto auto"><div>alpha</div><div>beta gamma</div></div></div>
+    <div class="vertical"><div style="display: inline-block"><div id="line-clamp"><div>alpha</div><div>beta gamma delta</div></div></div></div>
+</template>
+<script>
+    asyncTest(async done => {
+        await document.fonts.load("10px Ahem");
+        const work = layoutWork(() => {
+            document.body.appendChild(document.getElementById("fixture").content.cloneNode(true));
+        });
+        for (const id of ["inline-content", "block-children", "float", "table-in-inline-block", "flex", "grid", "line-clamp"]) {
+            const isTarget = box => box.endsWith(`#${id}`);
+            const answers = new Set();
+            let misses = 0;
+            let nestedRuns = 0;
+            work.events.forEach((measure, start) => {
+                if (measure.event !== "measure" || !isTarget(measure.box) || !measure.size.endsWith("inline")) return;
+                if (measure.cache !== "miss") return;
+                ++misses;
+                answers.add(measure.from);
+                for (const event of work.events.slice(start + 1)) {
+                    if (event.depth <= measure.depth) break;
+                    if (event.event === "run") ++nestedRuns;
+                }
+            });
+            const inlineSize = document.getElementById(id).getBoundingClientRect().height;
+            println(
+                `${id}: ${misses} inline misses answered from ${[...answers].join(", ") || "nothing"}, ${nestedRuns} runs under them, inline size ${inlineSize}`
+            );
+        }
+        done();
+    });
+</script>
