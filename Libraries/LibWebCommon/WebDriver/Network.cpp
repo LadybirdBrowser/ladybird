@@ -293,6 +293,54 @@ ErrorOr<UrlPattern, Error> UrlPattern::parse(JsonValue const& value)
     return parsed;
 }
 
+// https://w3c.github.io/webdriver-bidi/#match-url-pattern
+bool UrlPattern::matches(URL::URL const& url) const
+{
+    // 2. If url pattern's protocol is not null and is not equal to url's scheme, return false.
+    if (protocol.has_value() && *protocol != url.scheme())
+        return false;
+    // 3. If url pattern's hostname is not null and is not equal to url's host, return false.
+    if (hostname.has_value() && *hostname != url.serialized_host())
+        return false;
+    // 4. If url pattern's port is not null:
+    if (port.has_value()) {
+        // 1. Let port be null.
+        Optional<String> url_port;
+
+        // 2. If url's scheme is special and url's scheme's default port is not null, and url's port is null or is
+        //    equal to scheme's default port:
+        auto default_port = URL::default_port_for_scheme(url.scheme());
+        if (url.is_special() && default_port.has_value() && (!url.port().has_value() || url.port() == default_port)) {
+            // 1. Set port to the empty string.
+            url_port = String {};
+        }
+        // 3. Otherwise, if url's port, is not null:
+        else if (url.port().has_value()) {
+            // 1. Set port to serialize an integer with url's port.
+            url_port = String::number(*url.port());
+        }
+
+        // 4. If url pattern's port is not equal to port, return false.
+        if (!url_port.has_value() || *port != *url_port)
+            return false;
+    }
+    // 5. If url pattern's pathname is not null and is not equal to the result of running the URL path serializer with url, return false.
+    if (pathname.has_value() && *pathname != url.serialize_path())
+        return false;
+    // 6. If url pattern's search is not null:
+    if (search.has_value()) {
+        // 1. Let url query be url's query.
+        // 2. If url query is null, set url query to the empty string.
+        auto url_query = url.query().value_or(""sv);
+
+        // 3. If url pattern's search is not equal to url query, return false.
+        if (*search != url_query)
+            return false;
+    }
+    // 7. Return true.
+    return true;
+}
+
 static ErrorOr<void, Error> validate_protocol_bytes(JsonValue const& value)
 {
     if (!value.is_object())
@@ -410,6 +458,100 @@ static ErrorOr<void, Error> validate_cookies(JsonValue const& value, StringView 
         }
     }
     return {};
+}
+
+// https://w3c.github.io/webdriver-bidi/#command-network-continueRequest
+// https://w3c.github.io/webdriver-bidi/#update-the-response
+ErrorOr<InterceptionOverrides, Error> deserialize_interception_overrides(StringView command, JsonObject const& params)
+{
+    InterceptionOverrides result;
+    if (command.is_one_of("network.failRequest"sv, "network.continueWithAuth"sv))
+        return result;
+    if (command == "network.continueRequest"sv) {
+        // 6. If command parameters contains "url":
+        if (auto url = params.get_string("url"sv); url.has_value()) {
+            // 1. Let url record be the result of applying the URL parser to command parameters["url"], with base URL
+            //    null.
+            result.url = URL::Parser::basic_parse(*url);
+
+            // 2. If url record is failure, return error with error code invalid argument.
+            if (!result.url.has_value())
+                return invalid_argument("Invalid request URL"sv);
+        }
+        // 7. If command parameters contains "method":
+        if (auto method = params.get_string("method"sv); method.has_value()) {
+            // 2. If method does not match the method token production, return error with error code "invalid argument".
+            if (!HTTP::is_header_name(method->bytes_as_string_view()))
+                return invalid_argument("Invalid method token"sv);
+            result.method = method->to_byte_string();
+        }
+    }
+    if (auto headers = params.get("headers"sv); headers.has_value())
+        result.headers = TRY(create_a_headers_list(*headers));
+    if (auto body = params.get("body"sv); body.has_value() && command != "network.continueResponse"sv)
+        result.body = TRY(deserialize_protocol_bytes(*body));
+    if (auto status = params.get("statusCode"sv); status.has_value() && command != "network.continueRequest"sv) {
+        result.status = as_js_uint(*status);
+        if (!result.status.has_value() || *result.status < 100 || *result.status > 599)
+            return invalid_argument("Invalid HTTP status code"sv);
+    }
+    if (auto reason = params.get_string("reasonPhrase"sv); reason.has_value() && command != "network.continueRequest"sv) {
+        if (!HTTP::is_header_value(reason->bytes_as_string_view()))
+            return invalid_argument("Invalid response reason phrase"sv);
+        result.reason = reason->to_byte_string();
+    }
+    if (auto cookies = params.get_array("cookies"sv); cookies.has_value()) {
+        StringBuilder cookie_header;
+        Vector<Header> set_cookie_headers;
+        for (auto const& value : cookies->values()) {
+            auto const& cookie = value.as_object();
+            auto name = cookie.get_string("name"sv).release_value();
+            auto bytes = TRY(deserialize_protocol_bytes(cookie.get("value"sv).release_value()));
+            StringBuilder serialized;
+            serialized.append(name);
+            serialized.append('=');
+            serialized.append(StringView { bytes.bytes() });
+            if (command == "network.continueRequest"sv) {
+                if (!cookie_header.is_empty())
+                    cookie_header.append(';');
+                cookie_header.append(serialized.string_view());
+                continue;
+            }
+            // https://w3c.github.io/webdriver-bidi/#serialize-set-cookie-header
+            auto append_attribute = [&](StringView name, StringView header_name) {
+                if (auto text = cookie.get_string(name); text.has_value())
+                    serialized.appendff(";{}={}", header_name, *text);
+            };
+            // 4. If protocol cookie contains "expiry":
+            append_attribute("expiry"sv, "Expires"sv);
+            // 5. If protocol cookie contains "maxAge":
+            if (auto max_age = cookie.get("maxAge"sv); max_age.has_value())
+                serialized.appendff(";Max-Age={}", static_cast<i64>(*max_age->get_double_with_precision_loss()));
+            // 6. If protocol cookie contains "domain":
+            append_attribute("domain"sv, "Domain"sv);
+            // 7. If protocol cookie contains "path":
+            append_attribute("path"sv, "Path"sv);
+            // 8. If protocol cookie contains "secure" and protocol cookie["secure"] is true:
+            if (cookie.get_bool("secure"sv).value_or(false))
+                serialized.append(";Secure"sv);
+            // 9. If protocol cookie contains "httpOnly" and protocol cookie["httpOnly"] is true:
+            if (cookie.get_bool("httpOnly"sv).value_or(false))
+                serialized.append(";HttpOnly"sv);
+            // 10. If protocol cookie contains "sameSite":
+            append_attribute("sameSite"sv, "SameSite"sv);
+            if (!HTTP::is_header_value(serialized.string_view()))
+                return invalid_argument("Invalid Set-Cookie header"sv);
+            set_cookie_headers.append({ "Set-Cookie"sv, serialized.to_byte_string() });
+        }
+        if (command == "network.continueRequest"sv) {
+            if (!HTTP::is_header_value(cookie_header.string_view()))
+                return invalid_argument("Invalid Cookie header"sv);
+            result.cookie_header = cookie_header.to_byte_string();
+        } else {
+            result.set_cookie_headers = move(set_cookie_headers);
+        }
+    }
+    return result;
 }
 
 // https://w3c.github.io/webdriver-bidi/#module-network-commands
