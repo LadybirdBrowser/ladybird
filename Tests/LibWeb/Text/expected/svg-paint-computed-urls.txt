@@ -1,0 +1,50 @@
+external fill: false
+external stroke: false
+fill "paint.svg#gradient": false
+fill inherited "paint.svg#gradient": false
+fill fallback "paint.svg#gradient": false
+fill specified "paint.svg#gradient": true
+fill "../paint.svg#gradient": false
+fill inherited "../paint.svg#gradient": false
+fill fallback "../paint.svg#gradient": false
+fill specified "../paint.svg#gradient": true
+fill "é.svg#gradient": false
+fill inherited "é.svg#gradient": false
+fill fallback "é.svg#gradient": false
+fill specified "é.svg#gradient": true
+fill "#gradient": true
+fill inherited "#gradient": true
+fill fallback "#gradient": true
+fill specified "#gradient": true
+fill "": true
+fill inherited "": true
+fill fallback "": true
+fill specified "": true
+fill "https://example.test/paint.svg#gradient": true
+fill inherited "https://example.test/paint.svg#gradient": true
+fill fallback "https://example.test/paint.svg#gradient": true
+fill specified "https://example.test/paint.svg#gradient": true
+stroke "paint.svg#gradient": false
+stroke inherited "paint.svg#gradient": false
+stroke fallback "paint.svg#gradient": false
+stroke specified "paint.svg#gradient": true
+stroke "../paint.svg#gradient": false
+stroke inherited "../paint.svg#gradient": false
+stroke fallback "../paint.svg#gradient": false
+stroke specified "../paint.svg#gradient": true
+stroke "é.svg#gradient": false
+stroke inherited "é.svg#gradient": false
+stroke fallback "é.svg#gradient": false
+stroke specified "é.svg#gradient": true
+stroke "#gradient": true
+stroke inherited "#gradient": true
+stroke fallback "#gradient": true
+stroke specified "#gradient": true
+stroke "": true
+stroke inherited "": true
+stroke fallback "": true
+stroke specified "": true
+stroke "https://example.test/paint.svg#gradient": true
+stroke inherited "https://example.test/paint.svg#gradient": true
+stroke fallback "https://example.test/paint.svg#gradient": true
+stroke specified "https://example.test/paint.svg#gradient": true

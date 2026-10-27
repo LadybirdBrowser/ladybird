@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 6 tests
+
+5 Pass
+1 Fail
+Pass	Property fill value 'none'
+Pass	Property fill value 'rgb(12, 34, 56)'
+Pass	Property fill value 'url("https://example.com/")'
+Pass	Property fill value 'url("https://example.com/") none'
+Pass	Property fill value 'url("https://example.com/") rgb(12, 34, 56)'
+Fail	url values are made absolute
