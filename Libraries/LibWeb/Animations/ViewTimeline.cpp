@@ -66,7 +66,7 @@ WebIDL::ExceptionOr<GC::Ref<ViewTimeline>> ViewTimeline::create_for_constructor(
         if (!value || value->is_css_wide_keyword() || value->is_unresolved() || value->is_pending_substitution()
             || CSS::ComputedValuesFFI::rust_view_timeline_inset_has_relative_length(value->rust_style_value_data()))
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid view timeline inset"_utf16 };
-        auto computed = value->absolutized(CSS::ComputationContext { .length_resolution_context = CSS::Length::ResolutionContext::for_document(document) });
+        auto computed = value->absolutized(CSS::ComputationContext { .length_resolution_context = CSS::LengthResolutionContext::for_document(document) });
         return view_timeline_inset_from_style_value(*computed);
     };
     auto parse_auto = [&](Utf16View const& keyword) -> WebIDL::ExceptionOr<InsetEdge> {

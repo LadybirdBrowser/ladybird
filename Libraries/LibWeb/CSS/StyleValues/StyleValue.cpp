@@ -15,7 +15,6 @@
 #include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/Parser/Parser.h>
-#include <LibWeb/CSS/StyleComputeFFI.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
@@ -423,7 +422,7 @@ StyleValueFFI::FfiElementFacts ElementFactsForRust::to_ffi() const
         .callback_context = this,
         .fill_container_bases = [](void const* opaque_facts, u8 unit_mask, void* length) {
             auto const& facts = *static_cast<ElementFactsForRust const*>(opaque_facts);
-            *static_cast<ComputedValuesFFI::FfiLengthResolutionContext*>(length) = to_ffi_length_resolution_context_with_container_bases(*facts.length_resolution_context, unit_mask); },
+            *static_cast<ComputedValuesFFI::FfiLengthResolutionContext*>(length) = facts.length_resolution_context->to_ffi_with_container_bases(unit_mask); },
         .tree_counting = [](void const* opaque_facts, u64* sibling_count, u64* sibling_index) {
             auto const& facts = *static_cast<ElementFactsForRust const*>(opaque_facts);
             if (!facts.abstract_element.has_value())
@@ -450,7 +449,7 @@ StyleValueFFI::FfiElementFacts ElementFactsForRust::to_ffi() const
 
 ValueComparingNonnullRefPtr<StyleValue const> StyleValue::absolutized(ComputationContext const& context) const
 {
-    auto length_context = to_ffi_length_resolution_context(context.length_resolution_context);
+    auto length_context = context.length_resolution_context.to_ffi();
     auto document_base_url = context.abstract_element.has_value() ? context.abstract_element->document().serialized_base_url() : String {};
     ElementFactsForRust element_facts { &context.length_resolution_context, context.abstract_element };
     StyleValueFFI::FfiAbsolutizationContext ffi_context {

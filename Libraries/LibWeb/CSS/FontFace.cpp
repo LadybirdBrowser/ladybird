@@ -601,10 +601,10 @@ Optional<ComputationContext> FontFaceState::computation_context() const
 {
     if (m_css_font_face_rule_identity.has_value()) {
         if (auto document = m_source_style_sheet->owning_document())
-            return ComputationContext { .length_resolution_context = Length::ResolutionContext::for_document(*document) };
+            return ComputationContext { .length_resolution_context = LengthResolutionContext::for_document(*document) };
     }
     if (auto document = m_environment->responsible_document())
-        return ComputationContext { .length_resolution_context = Length::ResolutionContext::for_document(*document) };
+        return ComputationContext { .length_resolution_context = LengthResolutionContext::for_document(*document) };
     return {};
 }
 

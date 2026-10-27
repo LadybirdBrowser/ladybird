@@ -164,7 +164,7 @@ void SVGSVGElement::update_fallback_view_box_for_svg_as_image()
     Optional<double> width;
     Optional<double> height;
 
-    CSS::ComputationContext computation_context { .length_resolution_context = CSS::Length::ResolutionContext::for_document(document()) };
+    CSS::ComputationContext computation_context { .length_resolution_context = CSS::LengthResolutionContext::for_document(document()) };
     auto to_px = [&](CSS::Length const& length) {
         auto absolutized_length = CSS::LengthStyleValue::create(length)->absolutized(computation_context);
         return CSS::Length::from_style_value(absolutized_length, {}).absolute_length_to_px().to_double();

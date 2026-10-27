@@ -8,7 +8,6 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/SVGLength.h>
 #include <LibWeb/CSS/Parser/Parser.h>
-#include <LibWeb/CSS/StyleComputeFFI.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ComputationContext.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
@@ -130,14 +129,14 @@ static double percentage_resolution_basis_for_attribute_reflecting_length(GC::Pt
     VERIFY_NOT_REACHED();
 }
 
-static Optional<CSS::Length::ResolutionContext> length_resolution_context_for_element(GC::Ptr<SVGElement> element)
+static Optional<CSS::LengthResolutionContext> length_resolution_context_for_element(GC::Ptr<SVGElement> element)
 {
     // AD-HOC: This is defined in the algorithms of both SVGLength::value and SVGLength::convertToSpecifiedUnits so we
     //         factor it out here to avoid duplication.
 
     // - has no associated element
     // AD-HOC: Other browsers also do this for disconnected elements
-    // FIXME: Length::ResolutionContext::for_element doesn't support elements without a navigable so we bail on that
+    // FIXME: LengthResolutionContext::for_element doesn't support elements without a navigable so we bail on that
     //        too which is incorrect
     if (!element || !element->is_connected() || !element->navigable()) {
         // font size is the absolute length of the initial value of the font-size property
@@ -153,7 +152,7 @@ static Optional<CSS::Length::ResolutionContext> length_resolution_context_for_el
         element->document().update_style_for_element(*element, DOM::Document::StyleUpdateMode::OnlyIfNeeded);
 
         // size is the computed value of the associated element's font-size property
-        return CSS::Length::ResolutionContext::for_element(*element);
+        return CSS::LengthResolutionContext::for_element(*element);
     }
 }
 
@@ -174,7 +173,7 @@ WebIDL::ExceptionOr<float> SVGLength::value() const
     auto viewport_size = percentage_resolution_basis_for_attribute_reflecting_length(m_element, m_directionality);
 
     // 4. Let font size be a basis to resolve font size values against, based on the SVGLength's associated element:
-    // AD-HOC: We need a full-fledged Length::ResolutionContext here instead of just the font size so we can resolve all
+    // AD-HOC: We need a full-fledged LengthResolutionContext here instead of just the font size so we can resolve all
     //         relative lengths, not just em (e.g. ch, vw, etc).
     auto length_resolution_context = length_resolution_context_for_element(m_element);
 
@@ -400,7 +399,7 @@ static WebIDL::ExceptionOr<SVGLengthValue> convert_px_to_specified_units(JS::Rea
         if (!length_resolution_context.has_value())
             return WebIDL::NotSupportedError::create(realm, "Cannot convert to relative length without an associated element"_utf16);
 
-        auto ffi_context = CSS::to_ffi_length_resolution_context(*length_resolution_context);
+        auto ffi_context = length_resolution_context->to_ffi();
         return 1.0 / CSS::ComputedValuesFFI::rust_absolutize_length(1.0, to_underlying(length_unit), &ffi_context).px;
     }());
 

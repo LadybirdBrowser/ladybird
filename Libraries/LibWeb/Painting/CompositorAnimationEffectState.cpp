@@ -142,7 +142,7 @@ static RefPtr<CSS::StyleValue const> resolved_compositor_animation_style_value(L
     // the color the builder resolves needs no length context.
     auto const* inherited_ui_values = target.style_group<CSS::ComputedValues::InheritedUIValues>();
     CSS::ComputationContext computation_context {
-        .length_resolution_context = CSS::Length::ResolutionContext::for_element(target),
+        .length_resolution_context = CSS::LengthResolutionContext::for_element(target),
         .abstract_element = target,
         .color_scheme = inherited_ui_values ? inherited_ui_values->color_scheme_value() : Optional<CSS::PreferredColorScheme> {},
     };

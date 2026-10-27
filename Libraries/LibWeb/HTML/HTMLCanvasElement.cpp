@@ -238,10 +238,10 @@ CSSPixelRect HTMLCanvasElement::canvas_viewport_rect() const
 CSS::ComputationContext HTMLCanvasElement::canvas_font_computation_context()
 {
     DOM::AbstractElement abstract_element { *this };
-    Optional<CSS::Length::ResolutionContext> length_resolution_context;
+    Optional<CSS::LengthResolutionContext> length_resolution_context;
 
     if (is_connected() && this->navigable()) {
-        length_resolution_context = CSS::Length::ResolutionContext::for_element(abstract_element);
+        length_resolution_context = CSS::LengthResolutionContext::for_element(abstract_element);
     } else {
         // NB: This is similar to the document's LRC but using the default canvas context font size of 10px
         auto font_metrics = CSS::font_metrics_from(10, Platform::FontPlugin::the().default_font(8)->pixel_metrics(), CSS::InitialValues::line_height());

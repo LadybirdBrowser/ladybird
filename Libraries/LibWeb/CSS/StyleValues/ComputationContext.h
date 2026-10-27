@@ -6,14 +6,14 @@
 
 #pragma once
 
-#include <LibWeb/CSS/Length.h>
+#include <LibWeb/CSS/LengthResolutionContext.h>
 #include <LibWeb/DOM/AbstractElement.h>
 #include <LibWebCommon/CSS/PreferredColorScheme.h>
 
 namespace Web::CSS {
 
 struct ComputationContext {
-    Length::ResolutionContext length_resolution_context;
+    LengthResolutionContext length_resolution_context;
     Optional<DOM::AbstractElement> abstract_element {};
     Optional<PreferredColorScheme> color_scheme {};
 

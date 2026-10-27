@@ -113,7 +113,7 @@ WEB_API Utf16FlyString css_string_from_rust(StyleValueFFI::CssString const*);
 // The facts of the element a value computes for, which Rust asks for only when a value needs them. The pointers in
 // the FFI form point at this, which must outlive their use.
 struct ElementFactsForRust {
-    Length::ResolutionContext const* length_resolution_context { nullptr };
+    LengthResolutionContext const* length_resolution_context { nullptr };
     Optional<DOM::AbstractElement> abstract_element;
 
     StyleValueFFI::FfiElementFacts to_ffi() const;

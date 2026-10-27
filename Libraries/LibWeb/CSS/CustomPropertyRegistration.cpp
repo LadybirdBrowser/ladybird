@@ -8,7 +8,7 @@
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/CustomPropertyRegistration.h>
 #include <LibWeb/CSS/HypotheticalElement.h>
-#include <LibWeb/CSS/Length.h>
+#include <LibWeb/CSS/LengthResolutionContext.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
@@ -38,7 +38,7 @@ NonnullRefPtr<StyleValue const> compute_registered_custom_property_initial_value
     NonnullRefPtr<StyleValue const> computed_initial_value = StyleValue::create_guaranteed_invalid();
     if (registration.initial_value) {
         ComputationContext computation_context {
-            .length_resolution_context = Length::ResolutionContext::for_document(document),
+            .length_resolution_context = LengthResolutionContext::for_document(document),
         };
         computation_context.reset_viewport_metric_dependency_tracking();
         computed_initial_value = compute_registered_custom_property_value(registration, *registration.initial_value, computation_context);

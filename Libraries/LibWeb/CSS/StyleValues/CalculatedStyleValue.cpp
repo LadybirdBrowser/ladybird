@@ -22,7 +22,6 @@
 #include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
-#include <LibWeb/CSS/StyleComputeFFI.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CalcNodeRef.h>
 #include <LibWeb/CSS/StyleValues/FlexStyleValue.h>
@@ -149,7 +148,7 @@ struct CalcResolutionSnapshot {
     {
         ffi_context.element_facts = &ffi_element_facts;
         if (resolution_context.length_resolution_context.has_value()) {
-            length_resolution_context = to_ffi_length_resolution_context(*resolution_context.length_resolution_context);
+            length_resolution_context = resolution_context.length_resolution_context->to_ffi();
             ffi_context.length_resolution_context = &length_resolution_context.value();
         }
         resolution_context.percentage_basis.visit(

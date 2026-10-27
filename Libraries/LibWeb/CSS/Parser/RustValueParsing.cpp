@@ -6,11 +6,11 @@
 
 #include <AK/GenericShorthands.h>
 #include <AK/StringBuilder.h>
+#include <LibWeb/CSS/LengthResolutionContext.h>
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Parser/RustSyntaxHandle.h>
 #include <LibWeb/CSS/Parser/SyntaxParsing.h>
-#include <LibWeb/CSS/StyleComputeFFI.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/StyleValueRustFFI.h>
 #include <LibWeb/ValueParserRustFFI.h>
@@ -42,8 +42,7 @@ Parser::ParseContextStorage::ParseContextStorage(Parser& parser, ParseContextMod
         document_url = parser.m_document->serialized_url();
         document_base_url = parser.m_document->serialized_base_url();
         if (mode == ParseContextMode::Syntax) {
-            length_resolution_context = to_ffi_length_resolution_context_with_container_bases(
-                Length::ResolutionContext::for_document(*parser.m_document), all_container_relative_length_units_mask);
+            length_resolution_context = LengthResolutionContext::for_document(*parser.m_document).to_ffi_with_container_bases(all_container_relative_length_units_mask);
             length_resolution_context->resolved_viewport_relative_length = nullptr;
         }
     }

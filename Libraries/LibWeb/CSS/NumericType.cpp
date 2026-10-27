@@ -5,6 +5,7 @@
  */
 
 #include "NumericType.h"
+#include <AK/HashMap.h>
 #include <LibWeb/CSS/Angle.h>
 #include <LibWeb/CSS/Flex.h>
 #include <LibWeb/CSS/Frequency.h>

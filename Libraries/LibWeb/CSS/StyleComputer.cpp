@@ -54,7 +54,6 @@
 #include <LibWeb/CSS/Parser/SyntaxParsing.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/SelectorMatching.h>
-#include <LibWeb/CSS/StyleComputeFFI.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleEngineEffectTiming.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
@@ -802,9 +801,7 @@ NonnullOwnPtr<StyleComputer::AnimationSample> StyleComputer::begin_animation_sam
             auto& sample = *static_cast<SampleContext*>(context);
             // Each context is the sampled element's own, built afresh: a batch builds several elements' contexts in one call.
             auto length_context_for = [&](PropertyID property_id) {
-                return to_ffi_length_resolution_context_with_container_bases(
-                    sample.style_computer->make_computation_context_for_property(sample.read, property_id, sample.computed_properties, sample.abstract_element).length_resolution_context,
-                    container_relative_length_unit_mask);
+                return sample.style_computer->make_computation_context_for_property(sample.read, property_id, sample.computed_properties, sample.abstract_element).length_resolution_context.to_ffi_with_container_bases(container_relative_length_unit_mask);
             };
             contexts->font = length_context_for(PropertyID::FontFamily);
             contexts->line_height = length_context_for(PropertyID::LineHeight);
@@ -1957,8 +1954,8 @@ ComputationContext StyleComputer::make_computation_context_for_property(Layout::
     case PropertyID::TextRendering: {
         auto inheritance_parent = abstract_element.map([](auto& element) { return element.element_to_inherit_style_from(); }).value_or(OptionalNone {});
         auto length_resolution_context = inheritance_parent.has_value() && inheritance_parent->has_style() && inheritance_parent->element().navigable()
-            ? Length::ResolutionContext::for_element(inheritance_parent.value())
-            : Length::ResolutionContext::for_document(m_document);
+            ? LengthResolutionContext::for_element(inheritance_parent.value())
+            : LengthResolutionContext::for_document(m_document);
         length_resolution_context.subject_inline_axis_is_horizontal = subject_inline_axis_is_horizontal;
         length_resolution_context.subject_element = abstract_element.has_value() ? &abstract_element->element() : nullptr;
 
@@ -2045,7 +2042,7 @@ StyleRecordID StyleComputer::intern_document_style(Layout::BegunRead const& read
         for (auto const& scheme : *document_supported_color_schemes)
             document_supported_color_scheme_codes.unchecked_append(to_underlying(preferred_color_scheme_from_string(scheme)));
     }
-    auto length_resolution_context = CSS::Length::ResolutionContext::for_document(document());
+    auto length_resolution_context = CSS::LengthResolutionContext::for_document(document());
     auto viewport_rect = this->viewport_rect();
     ComputedValuesFFI::FfiDocumentLonghandInput const input {
         .color_scheme_input = {
@@ -2054,7 +2051,7 @@ StyleRecordID StyleComputer::intern_document_style(Layout::BegunRead const& read
             .document_supported_scheme_codes = document_supported_color_scheme_codes.data(),
             .document_supported_scheme_count = document_supported_color_scheme_codes.size(),
         },
-        .length_resolution_context = to_ffi_length_resolution_context(length_resolution_context),
+        .length_resolution_context = length_resolution_context.to_ffi(),
         .device_pixels_per_css_pixel = m_document->page().client().device_pixels_per_css_pixel(),
         .initial_font_size_raw = InitialValues::font_size().raw_value(),
         .default_font_size_raw = default_user_font_size().raw_value(),

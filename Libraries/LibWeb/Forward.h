@@ -310,6 +310,7 @@ class Length;
 class LengthBox;
 class LengthPercentage;
 class LengthPercentageOrAuto;
+struct LengthResolutionContext;
 class LengthStyleValue;
 class MediaList;
 class MediaQueryList;

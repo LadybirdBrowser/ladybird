@@ -9,8 +9,6 @@
 
 #include "LengthStyleValue.h"
 
-#include <LibWeb/CSS/StyleComputeFFI.h>
-
 namespace Web::CSS {
 
 ValueComparingNonnullRefPtr<LengthStyleValue const> LengthStyleValue::create(Length const& length)
