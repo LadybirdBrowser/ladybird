@@ -44,6 +44,45 @@ fn style_has_size_containment(style: ComputedValuesView<'_>) -> bool {
     style.has_size_containment() || style.is_size_container()
 }
 
+// https://drafts.csswg.org/css-contain-2/#containment-inline-size
+// Giving an element inline-size containment applies size containment to the inline-axis sizing of its principal box.
+fn style_has_inline_size_containment(style: ComputedValuesView<'_>) -> bool {
+    let display = style.display();
+    if display.is_table_inside() || display.is_internal_table() {
+        return false;
+    }
+    style.has_inline_size_containment() || style.is_inline_size_container()
+}
+
+// NB: Like size containment in that axis, a replaced element takes its explicit intrinsic inner inline size, or zero,
+//     as its natural inline size, and has no natural aspect ratio.
+fn apply_inline_size_containment(facts: &mut ReplacedContentFacts, style: ComputedValuesView<'_>) {
+    let is_horizontal = style.writing_mode() == crate::css::css_enums::writing_mode::HORIZONTAL_TB;
+    let (has_length, length) = if is_horizontal {
+        (
+            style.contain_intrinsic_width_has_length(),
+            style.contain_intrinsic_width_px(),
+        )
+    } else {
+        (
+            style.contain_intrinsic_height_has_length(),
+            style.contain_intrinsic_height_px(),
+        )
+    };
+    let inline_size = if has_length {
+        CssPixels::nearest_value_for(length)
+    } else {
+        CssPixels::default()
+    };
+    if is_horizontal {
+        facts.auto_content_size.width = Some(inline_size);
+    } else {
+        facts.auto_content_size.height = Some(inline_size);
+    }
+    // NB: The natural aspect ratio must not restore an inline size from the block size.
+    facts.auto_content_size.aspect_ratio = None;
+}
+
 /// The replaced content facts of an enrolled node, from its kind, its computed style and what its
 /// element published as the input of its replaced content.
 pub(crate) fn derived_replaced_content_facts(data: &NodeData, input: ReplacedContentInput) -> ReplacedContentFacts {
@@ -864,6 +903,20 @@ impl<'pass> NodeFacts<'pass> {
     }
 
     fn physical_replaced_content(&self) -> ReplacedContentFacts {
+        let mut facts = self.zoomed_physical_replaced_content();
+        // NB: The explicit intrinsic inner inline size already resolves against computed lengths, so it replaces the
+        //     natural inline size after zoom, including the natural size that an <svg> root negotiates.
+        if node_may_have_replaced_content_facts(self.data())
+            && self.data().kind.get() != NodeKind::SVGImageBox
+            && let Some(style) = node_style_view(self.data())
+            && style_has_inline_size_containment(style)
+        {
+            apply_inline_size_containment(&mut facts, style);
+        }
+        facts
+    }
+
+    fn zoomed_physical_replaced_content(&self) -> ReplacedContentFacts {
         let mut facts = self.unzoomed_physical_replaced_content();
         // NB: SVG geometry and explicit intrinsic inner sizes already resolve against computed lengths.
         if self.data().kind.get() == NodeKind::SVGSVGBox
@@ -1327,13 +1380,7 @@ impl<'pass> NodeFacts<'pass> {
     // "Giving an element inline-size containment applies size containment to the inline-axis sizing of its principal
     //  box."
     pub(crate) fn node_has_inline_size_containment(&self) -> bool {
-        // NB: So it has no effect where size containment would have none.
-        let display = self.display();
-        if display.is_table_inside() || display.is_internal_table() {
-            return false;
-        }
-        let style = self.style();
-        style.has_inline_size_containment() || style.is_inline_size_container()
+        style_has_inline_size_containment(*self.style())
     }
 
     pub(crate) fn has_preferred_aspect_ratio(&self) -> bool {
