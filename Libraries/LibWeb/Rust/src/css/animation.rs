@@ -844,11 +844,15 @@ fn interpolate_f64(from: f64, to: f64, delta: f32, range: Option<(f64, f64)>) ->
 }
 
 fn interpolate_i32(from: i32, to: i32, delta: f32, range: Option<(f64, f64)>) -> i32 {
-    // https://drafts.csswg.org/css-values/#combine-integers
+    // https://drafts.csswg.org/css-values-4/#combine-integers
     // Interpolation of <integer> is defined as Vresult = round((1 - p) × VA + p × VB);
     // that is, interpolation happens in the real number space as for <number>s, and the result is converted to an <integer> by rounding to the nearest integer.
-    let value = (from as f32 + (to as f32 - from as f32) * delta).round();
-    clamp_to_range(f64::from(value), range) as i32
+    let value = interpolate_f64(f64::from(from), f64::from(to), delta, None);
+    // https://drafts.csswg.org/css-values-4/#integers
+    // Unless otherwise specified, in the CSS specifications rounding to the nearest integer requires rounding in the
+    // direction of +∞ when the fractional portion is exactly 0.5. (For example, 1.5 rounds to 2, while -1.5 rounds to
+    // -1.)
+    clamp_to_range((value + 0.5).floor(), range) as i32
 }
 
 // https://drafts.csswg.org/css-borders-4/#normalized-superellipse-half-corner
