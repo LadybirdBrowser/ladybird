@@ -12,10 +12,48 @@ on:
   workflow_call:
 
 jobs:
+  Source:
+    if: github.repository == 'LadybirdBrowser/ladybird'
+    name: Source
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - name: Package
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          name="ladybird${RELEASE_VERSION:+-${RELEASE_VERSION}}"
+          git archive --prefix= --add-virtual-file="${name}/REVISION:$(git rev-parse HEAD)" --prefix="${name}/" \
+            --output="${name}-source.tar" HEAD
+          xz -9 -T0 "${name}-source.tar"
+
+      - name: Attest
+        if: ${{ inputs.version != '' }}
+        uses: actions/attest@v4
+        with:
+          subject-path: '*-source.tar.xz'
+
+      - name: Upload
+        uses: actions/upload-artifact@v7
+        with:
+          name: ladybird-source
+          path: '*-source.tar.xz'
+          compression-level: 0
+          if-no-files-found: error
+
   Build:
     if: github.repository == 'LadybirdBrowser/ladybird'
     name: ${{ matrix.os_name }}, ${{ matrix.arch }}, Distribution, Clang
-    runs-on: ${{ fromJSON(inputs.version && matrix.runner_labels || matrix.snapshot_runner_labels) }}
+    runs-on: ${{ fromJSON(!inputs.version && matrix.snapshot_runner_labels || matrix.runner_labels) }}
+    container: ${{ fromJSON(matrix.container) }}
 
     strategy:
       fail-fast: false
@@ -25,6 +63,15 @@ jobs:
             arch: 'arm64'
             runner_labels: '{"group": "Distribution build runners", "labels": ["self-hosted", "macos-27", "arm64"]}'
             snapshot_runner_labels: '["blacksmith-6vcpu-macos-26"]'
+            container: 'null'
+          - os_name: 'Linux'
+            arch: 'x86_64'
+            runner_labels: '["blacksmith-16vcpu-ubuntu-2404"]'
+            container: &ci_container '{"image":"ghcr.io/ladybirdbrowser/ladybird-ci:2026.10.16"}'
+          - os_name: 'Linux'
+            arch: 'arm64'
+            runner_labels: '["blacksmith-16vcpu-ubuntu-2404-arm"]'
+            container: *ci_container
 
     permissions:
       contents: read
@@ -45,6 +92,14 @@ jobs:
           version: ${{ inputs.version }}
           vcpkg_cache_sas: ${{ secrets.VCPKG_CACHE_SAS }}
 
+      - name: Start PulseAudio
+        if: ${{ matrix.os_name == 'Linux' }}
+        run: |
+          echo "PULSE_SERVER=unix:/tmp/pulse-native" >> "$GITHUB_ENV"
+          pulseaudio --system -D --exit-idle-time=1800 \
+            --load="module-native-protocol-unix auth-anonymous=1 socket=/tmp/pulse-native" \
+            --load="module-null-sink sink_name=virtual_sink"
+
       - name: Test
         working-directory: ${{ github.workspace }}
         run: ctest --output-on-failure -E 'LibWebAccessibilityBridge|AccessibilityBridgeMac' --test-dir Build --timeout 1800
@@ -54,20 +109,20 @@ jobs:
       - name: Package
         working-directory: ${{ github.workspace }}/Build
         run: |
-          cpack -G TZST -B packages -D CPACK_COMPONENTS_ALL="ladybird_Runtime;ladybird_Symbols" \
-            -D CPACK_ARCHIVE_COMPRESSION_LEVEL=19 -D CPACK_COMPONENT_INCLUDE_TOPLEVEL_DIRECTORY=ON
+          cpack -G TXZ -B packages -D CPACK_COMPONENTS_ALL="ladybird_Runtime;ladybird_Symbols" \
+            -D CPACK_ARCHIVE_COMPRESSION_LEVEL=9 -D CPACK_COMPONENT_INCLUDE_TOPLEVEL_DIRECTORY=ON
 
       - name: Attest
         if: ${{ inputs.version != '' }}
         uses: actions/attest@v4
         with:
-          subject-path: '${{ github.workspace }}/Build/packages/*.tar.zst'
+          subject-path: 'Build/packages/*.tar.xz'
 
       - name: Upload
         uses: actions/upload-artifact@v7
         with:
           name: ladybird-${{ matrix.os_name }}-${{ matrix.arch }}
-          path: Build/packages/*.tar.zst
+          path: Build/packages/*.tar.xz
           compression-level: 0
           if-no-files-found: error
 
