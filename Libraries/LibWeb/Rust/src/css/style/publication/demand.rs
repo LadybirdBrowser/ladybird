@@ -546,6 +546,8 @@ impl StyleEngine {
         let registered_declarations = self
             .retained
             .declarations_name_a_registered_custom_property(custom_declarations, &inputs);
+        let mut initial_registered_context =
+            registered_declarations.then(|| self.retained.standing_registered_value_context(subject, None));
         let mut environment =
             self.retained
                 .engine_custom_property_environment_over(subject, None, cascaded(), 0, &inputs, None)?;
@@ -559,7 +561,6 @@ impl StyleEngine {
         };
         let mut scratch = EngineComputedRecordScratch::default();
 
-        let mut awaits_registered_context = registered_declarations;
         let driven = loop {
             match self.retained.engine_full_drive(
                 drive_subject,
@@ -568,7 +569,7 @@ impl StyleEngine {
                 &inputs,
                 &mut scratch.font_drive,
                 FontDriveGoal::Complete,
-                awaits_registered_context,
+                initial_registered_context.as_ref(),
             ) {
                 Err(Unanswered::Suspended(Suspension::Font)) => {
                     let request = scratch.font_drive.take_suspended_request();
@@ -589,7 +590,7 @@ impl StyleEngine {
                     store = self
                         .retained
                         .declared_only_winners(subject, declarations, environment)?;
-                    awaits_registered_context = false;
+                    initial_registered_context = None;
                 }
                 driven => break driven?,
             }
