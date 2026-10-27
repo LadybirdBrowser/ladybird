@@ -1,0 +1,30 @@
+<!doctype html>
+<style>
+body { margin: 0; }
+#target { width: 100px; height: 100px; }
+</style>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+asyncTest(async done => {
+    const target = document.getElementById("target");
+    for (const type of ["pointerover", "pointerdown", "pointermove", "pointerup"])
+        target.addEventListener(type, event => {
+            println(`${event.type}: ${event.pointerType} id=${event.pointerId} primary=${event.isPrimary} trusted=${event.isTrusted}`);
+            println(`  contact=${event.width},${event.height} pressure=${event.pressure} tangential=${event.tangentialPressure}`);
+            println(`  tilt=${event.tiltX},${event.tiltY} twist=${event.twist} altitude=${event.altitudeAngle} azimuth=${event.azimuthAngle}`);
+            println(`  client=${event.clientX},${event.clientY} button=${event.button} buttons=${event.buttons} shift=${event.shiftKey}`);
+        });
+    const pointer = {
+        pointerId: 7, pointerType: "pen", width: 12, height: 18,
+        pressure: 0.75, tangentialPressure: 0.25, tiltX: 30, tiltY: -20,
+        twist: 90, altitudeAngle: 0.5, azimuthAngle: 1.25,
+    };
+    await internals.mouseEventThroughUIProcess("mousedown", 10, 20, { pointer, modifiers: 4 });
+    await internals.mouseEventThroughUIProcess("mousemove", 30, 40, { pointer, buttons: 1, modifiers: 4 });
+    await internals.mouseEventThroughUIProcess("mouseup", 30, 40, { pointer: { ...pointer, width: 1, height: 1, pressure: 0 } });
+    println("native mouse after pen:");
+    await internals.mouseEventThroughUIProcess("mousemove", 50, 60);
+    done();
+});
+</script>
