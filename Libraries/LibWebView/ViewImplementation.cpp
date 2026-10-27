@@ -2960,7 +2960,7 @@ void ViewImplementation::initialize_tab(Web::HTML::VisibilityState system_visibi
                 return;
             }
 
-            if (!Application::settings().geolocation_enabled()) {
+            if (!Application::the().sites_can_ask_for_location()) {
                 if (auto provider_watch_id = view->m_geolocation_watch_ids.take(key); provider_watch_id.has_value())
                     Application::the().stop_watching_geolocation_position(*provider_watch_id);
                 request_page->async_geolocation_position_response(request_id, {}, to_underlying(GeolocationErrorCode::PermissionDenied));
@@ -3000,7 +3000,7 @@ void ViewImplementation::initialize_tab(Web::HTML::VisibilityState system_visibi
     };
 
     on_request_geolocation_position = [this, geolocation_error_code, make_geolocation_success_handler, make_geolocation_error_handler](WebContentPage& requesting_page, u64 request_id) {
-        if (!Application::settings().geolocation_enabled()) {
+        if (!Application::the().sites_can_ask_for_location()) {
             requesting_page.async_geolocation_position_response(request_id, {}, to_underlying(GeolocationErrorCode::PermissionDenied));
             return;
         }
@@ -3026,7 +3026,7 @@ void ViewImplementation::initialize_tab(Web::HTML::VisibilityState system_visibi
     };
 
     on_start_geolocation_position_watch = [this, geolocation_error_code, make_geolocation_success_handler, make_geolocation_error_handler](WebContentPage& requesting_page, u64 request_id) {
-        if (!Application::settings().geolocation_enabled()) {
+        if (!Application::the().sites_can_ask_for_location()) {
             requesting_page.async_geolocation_position_response(request_id, {}, to_underlying(GeolocationErrorCode::PermissionDenied));
             return;
         }
@@ -4213,7 +4213,7 @@ void ViewImplementation::geolocation_settings_changed()
 {
     using ErrorCode = Web::Geolocation::GeolocationPositionErrorCode;
 
-    if (Application::web_content_options().is_test_mode != IsTestMode::Yes && !Application::settings().geolocation_enabled()) {
+    if (Application::web_content_options().is_test_mode != IsTestMode::Yes && !Application::the().sites_can_ask_for_location()) {
         auto geolocation_position_request_ids = move(m_geolocation_position_request_ids);
         for (auto const& request : geolocation_position_request_ids) {
             Application::the().cancel_geolocation_position_request(request.value);
@@ -4240,7 +4240,7 @@ void ViewImplementation::send_geolocation_emulated_position(WebContentPage& page
 
     if (Application::web_content_options().is_test_mode == IsTestMode::Yes)
         page.async_set_geolocation_emulated_position({ 37.7647658, -122.4345892, 100.0, 0.0, 0.0, 0.0, 0.0 }, {});
-    else if (Application::settings().geolocation_enabled())
+    else if (Application::the().sites_can_ask_for_location())
         page.async_set_geolocation_emulated_position({}, {});
     else
         page.async_set_geolocation_emulated_position({}, to_underlying(ErrorCode::PermissionDenied));

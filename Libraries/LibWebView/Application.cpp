@@ -61,6 +61,7 @@
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/Menu.h>
+#include <LibWebView/PermissionManager.h>
 #include <LibWebView/PictureInPictureWindow.h>
 #include <LibWebView/ProcessType.h>
 #include <LibWebView/RequestServerManager.h>
@@ -157,6 +158,11 @@ struct ApplicationSettingsObserver final : public SettingsObserver {
     virtual void content_blocker_settings_changed() override
     {
         Application::the().content_blocker_settings_changed({});
+    }
+
+    virtual void geolocation_settings_changed() override
+    {
+        Application::the().location_policy_changed({});
     }
 };
 
@@ -1225,6 +1231,7 @@ NonnullRefPtr<BrowsingSession> Application::session_for_new_view(IsPrivate is_pr
         return *session;
 
     auto session = BrowsingSession::create(IsPrivate::Yes);
+    session->permission_manager = PermissionManager::create_for_private_session(*the().m_default_session->permission_manager);
     the().m_private_session = session;
     return session;
 }
@@ -1702,6 +1709,9 @@ ErrorOr<void> Application::launch_services()
         if (m_devtools)
             notify_devtools_of_storage_change(jar, change);
     };
+
+    m_default_session->permission_manager = PermissionManager::create_for_ordinary_session(LexicalPath::join(profile().paths().config, "Permissions.json"sv).string());
+    update_permission_defaults();
 
     m_settings_observer = make<ApplicationSettingsObserver>();
     m_bookmark_store_observer = make<ApplicationBookmarkStoreObserver>();
@@ -2931,6 +2941,23 @@ void Application::apply_view_options(Badge<ViewImplementation>, ViewImplementati
     page.async_debug_request("block-pop-ups"sv, m_block_pop_ups_action->checked() ? "on"sv : "off"sv);
     page.async_debug_request("spoof-user-agent"sv, m_user_agent_string);
     page.async_debug_request("navigator-compatibility-mode"sv, m_navigator_compatibility_mode);
+}
+
+bool Application::sites_can_ask_for_location() const
+{
+    return settings().location_policy() == LocationPolicy::Ask && Core::GeolocationProvider::is_available();
+}
+
+void Application::location_policy_changed(Badge<ApplicationSettingsObserver>)
+{
+    update_permission_defaults();
+}
+
+void Application::update_permission_defaults()
+{
+    // NB: A private session reads its defaults from the ordinary one.
+    auto state = sites_can_ask_for_location() ? Web::Permissions::EffectiveState::Prompt : Web::Permissions::EffectiveState::Denied;
+    m_default_session->permission_manager->set_global_default(Web::Permissions::PermissionName::Geolocation, state);
 }
 
 void Application::languages_changed(Badge<ApplicationSettingsObserver>)
