@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<!-- A data: URL has no host, and the error page for one that fails to load must still name it. -->
+<html class="test-wait">
+<iframe id="target"></iframe>
+<script>
+    const iframe = document.getElementById("target");
+    iframe.onload = () => document.documentElement.classList.remove("test-wait");
+    iframe.src = "data:text/html;base64,%";
+</script>
+</html>

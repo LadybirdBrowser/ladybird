@@ -75,7 +75,6 @@ pub struct FfiChromeMetrics {
     pub scroll_gutter_thickness: CssPixels,
     pub resize_gripper_size: CssPixels,
     pub resize_gripper_padding: CssPixels,
-    pub viewport_corner_radius: CssPixels,
 }
 
 #[derive(Clone, Copy, Debug, Default)]

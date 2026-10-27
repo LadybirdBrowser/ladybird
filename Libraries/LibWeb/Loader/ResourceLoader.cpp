@@ -257,6 +257,47 @@ static void log_filtered_request(LoadRequest const& request)
     dbgln("ResourceLoader: Filtered request to: \"{}\"", url_for_logging);
 }
 
+// What kind of resource a blocked request was for, as the browser names it to the user.
+static StringView blocked_resource_kind(LoadRequest const& request)
+{
+    using Destination = Fetch::Infrastructure::Request::Destination;
+    if (!request.destination().has_value())
+        return "Request"sv;
+    switch (*request.destination()) {
+    case Destination::Script:
+    case Destination::AudioWorklet:
+    case Destination::PaintWorklet:
+    case Destination::ServiceWorker:
+    case Destination::SharedWorker:
+    case Destination::Worker:
+        return "Script"sv;
+    case Destination::Image:
+        return "Image"sv;
+    case Destination::Style:
+    case Destination::XSLT:
+        return "Stylesheet"sv;
+    case Destination::Font:
+        return "Font"sv;
+    case Destination::Audio:
+    case Destination::Track:
+    case Destination::Video:
+        return "Media"sv;
+    case Destination::Document:
+    case Destination::Embed:
+    case Destination::Frame:
+    case Destination::IFrame:
+    case Destination::Object:
+        return "Frame"sv;
+    case Destination::JSON:
+    case Destination::Manifest:
+    case Destination::Report:
+    case Destination::Text:
+    case Destination::WebIdentity:
+        return "Request"sv;
+    }
+    VERIFY_NOT_REACHED();
+}
+
 static bool should_block_request(LoadRequest const& request)
 {
     auto const& url = request.url().value();
@@ -280,7 +321,7 @@ static bool should_block_request(LoadRequest const& request)
         if (ContentBlocker::the().is_filtered(url, source_url, request.destination(), request.initiator_type(), request.request_mode())) {
             log_filtered_request(request);
             if (page)
-                page->client().page_did_block_resource();
+                page->client().page_did_block_resource(url, blocked_resource_kind(request));
             return true;
         }
     }

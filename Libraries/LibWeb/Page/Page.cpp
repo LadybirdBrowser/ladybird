@@ -426,12 +426,9 @@ DevicePixelRect Page::rounded_device_rect(CSSPixelRect rect) const
     };
 }
 
-ChromeMetrics Page::chrome_metrics(DOM::Document const& document) const
+ChromeMetrics Page::chrome_metrics() const
 {
-    // Only the top-level viewport is the one the UI shows with rounded corners.
-    auto navigable = document.navigable();
-    auto is_top_level = navigable && navigable->is_top_level_traversable();
-    return ChromeMetrics { m_client->zoom_level(), is_top_level ? m_client->viewport_corner_radius() : 0 };
+    return ChromeMetrics { m_client->zoom_level() };
 }
 
 EventResult Page::handle_mouseup(HTML::LocalNavigable& root, DevicePixelPoint position, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, Optional<RemoteInputEventTarget>* remote_target)

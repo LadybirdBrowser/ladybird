@@ -365,7 +365,6 @@ public:
     bool force_dark_enabled() const { return m_force_dark_enabled; }
     PaintConfig stamp_paint_config(PaintConfig) const;
     void set_should_show_caret_hit_test_debug_overlay(bool);
-    void viewport_corner_radius_did_change();
     bool should_show_caret_hit_test_debug_overlay() const { return m_should_show_caret_hit_test_debug_overlay; }
 
     bool is_svg_page() const { return m_is_svg_page; }

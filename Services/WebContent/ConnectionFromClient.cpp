@@ -3263,12 +3263,6 @@ void ConnectionFromClient::set_frame_rate_capped(Web::PageId page_id, bool cappe
         page->set_frame_rate_capped(capped);
 }
 
-void ConnectionFromClient::set_viewport_corner_radius(Web::PageId page_id, double radius)
-{
-    if (auto page = this->page(page_id); page.has_value())
-        page->set_viewport_corner_radius(radius);
-}
-
 void ConnectionFromClient::set_window_position(Web::PageId page_id, Web::DevicePixelPoint position)
 {
     if (auto page = this->page(page_id); page.has_value())

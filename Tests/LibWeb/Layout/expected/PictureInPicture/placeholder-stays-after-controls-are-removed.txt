@@ -6,12 +6,19 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         BlockContainer <(anonymous)> at [8,8] [0+0+0 854 0+0+0] [0+0+0 480 0+0+0] children: not-inline
           BlockContainer <div.container.video.picture-in-picture.controls-hidden> at [8,8] positioned [0+0+0 854 0+0+0] [0+0+0 480 0+0+0] [BFC] children: not-inline
             Box <div.picture-in-picture-placeholder> at [8,8] flex-container(column) [0+0+0 854 0+0+0] [0+0+0 480 0+0+0] [FFC] children: not-inline
-              SVGSVGBox <svg.picture-in-picture-placeholder-icon> at [411,213] flex-item [0+0+0 48 0+0+0] [0+0+0 48 0+0+0] viewport-transform=[2 0 0 2 0 0] [SVG] children: not-inline
-                SVGGeometryBox <path> at [2,4] [0+0+0 20 0+0+0] [0+0+0 16 0+0+0] children: not-inline
-              BlockContainer <span> at [334.515625,269] flex-item [0+0+0 200.96875 0+0+0] [0+0+0 14 0+0+0] [BFC] children: inline
-                frag 0 from TextNode start: 0, length: 29, rect: [334.515625,269 200.96875x14] baseline: 11.203125
-                    "Playing in Picture-in-Picture"
+              SVGSVGBox <svg.picture-in-picture-placeholder-icon> at [415,195.5] flex-item [0+0+0 40 0+0+0] [0+0+0 30 0+0+0] viewport-transform=[1 0 0 1 0 0] [SVG] children: not-inline
+                SVGGeometryBox <rect.picture-in-picture-placeholder-frame> at [0,0] [0+0+0 40 0+0+0] [0+0+0 30 0+0+0] children: not-inline
+                SVGGeometryBox <rect.picture-in-picture-placeholder-window> at [20,15] [0+0+0 16 0+0+0] [0+0+0 11 0+0+0] children: not-inline
+              BlockContainer <span> at [329.3125,239.5] flex-item [0+0+0 211.375 0+0+0] [0+0+0 15 0+0+0] [BFC] children: inline
+                frag 0 from TextNode start: 0, length: 29, rect: [329.3125,239.5 211.375x15] baseline: 12
+                    "Playing in picture-in-picture"
                 TextNode <#text> (not painted)
+              BlockContainer <button.exit-picture-in-picture-button> at [381.78125,268.5] flex-item [0+0+16 106.453125 16+0+0] [0+0+0 32 0+0+0] [BFC] children: not-inline
+                BlockContainer <(anonymous)> at [381.78125,268.5] flex-container(column) [0+0+0 106.453125 0+0+0] [0+0+0 32 0+0+0] [FFC] children: not-inline
+                  BlockContainer <(anonymous)> at [381.78125,278] flex-item [0+0+0 106.453125 0+0+0] [0+0+0 13 0+0+0] [BFC] children: inline
+                    frag 0 from TextNode start: 0, length: 16, rect: [381.78125,278 106.453125x13] baseline: 10.390625
+                        "Bring video back"
+                    TextNode <#text> (not painted)
       TextNode <#text> (not painted)
       TextNode <#text> (not painted)
 

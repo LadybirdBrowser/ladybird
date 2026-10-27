@@ -131,9 +131,6 @@ struct AsyncScrollbar {
     Gfx::IntRect track_rect;
     Gfx::IntRect expanded_gutter_rect;
     Gfx::IntRect expanded_thumb_rect;
-    // The compositor clips the thumb to this rounded rect when the radius is not zero.
-    Gfx::IntRect corner_clip_rect;
-    i32 corner_clip_radius { 0 };
     double scroll_size { 0 };
     double expanded_scroll_size { 0 };
     float min_scroll_offset { 0 };

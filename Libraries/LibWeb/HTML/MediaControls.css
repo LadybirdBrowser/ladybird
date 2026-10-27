@@ -147,6 +147,12 @@
     font-variant-numeric: tabular-nums;
 }
 
+.duration {
+    display: none;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
 .volume-area {
     max-width: 60px;
     flex-grow: 1;
@@ -187,18 +193,23 @@
     display: none;
 }
 
+/* NB: The overlay would cover the placeholder's button, and the video it plays or pauses is in its own window. */
+.container.picture-in-picture > .video-overlay {
+    display: none;
+}
+
 .picture-in-picture-placeholder {
     display: none;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 14px;
     width: 100%;
     height: 100%;
-    background-color: rgb(12, 12, 13);
-    color: white;
-    font-family: sans-serif;
-    font-size: 14px;
+    background-color: rgb(17, 17, 20);
+    color: rgb(220, 220, 225);
+    font-family: system-ui, sans-serif;
+    font-size: 15px;
     text-align: center;
 }
 
@@ -207,10 +218,124 @@
 }
 
 .picture-in-picture-placeholder-icon {
-    width: 48px;
-    height: 48px;
-    fill: currentColor;
-    fill-rule: evenodd;
+    width: 40px;
+    height: 30px;
+}
+
+.picture-in-picture-placeholder-frame {
+    fill: none;
+    stroke: rgb(172, 172, 180);
+    stroke-width: 2px;
+}
+
+.picture-in-picture-placeholder-window {
+    fill: rgb(172, 172, 180);
+}
+
+.exit-picture-in-picture-button {
+    height: 32px;
+    padding: 0 16px;
+    border: none;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.12);
+    color: rgb(242, 242, 245);
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.exit-picture-in-picture-button:hover {
+    background: rgba(255, 255, 255, 0.18);
+}
+
+/* The player in a Picture-in-Picture window has its play button in the middle, and a row of the time, the timeline,
+   the duration and the mute button along its bottom, over a shade at its top and bottom. Only the controls take the
+   pointer, so that the shade between them leaves the controls to fade. */
+.container.picture-in-picture-player > .controls {
+    top: 0;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-content: flex-end;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+    background: linear-gradient(
+        rgba(0, 0, 0, 0.45) 0%,
+        rgba(0, 0, 0, 0) 30%,
+        rgba(0, 0, 0, 0) 60%,
+        rgba(0, 0, 0, 0.55) 100%
+    );
+}
+
+.container.picture-in-picture-player > .controls,
+.container.picture-in-picture-player > .controls.visible {
+    pointer-events: none;
+}
+
+.container.picture-in-picture-player > .controls.visible > * {
+    pointer-events: auto;
+}
+
+.container.picture-in-picture-player .button-bar {
+    display: contents;
+}
+
+.container.picture-in-picture-player .timestamp {
+    order: 1;
+}
+
+.container.picture-in-picture-player > .controls > .timeline {
+    order: 2;
+    flex: 1;
+    margin: -5px 0;
+}
+
+.container.picture-in-picture-player .timeline-track {
+    height: 4px;
+    border-radius: 2px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.container.picture-in-picture-player .timeline-fill {
+    background: var(--foreground-color);
+}
+
+.container.picture-in-picture-player .duration {
+    display: inline;
+    order: 3;
+}
+
+.container.picture-in-picture-player .mute-button {
+    order: 4;
+    margin-left: 0;
+    width: 22px;
+    height: 22px;
+}
+
+.container.picture-in-picture-player .mute-button .icon {
+    width: 18px;
+    height: 18px;
+}
+
+.container.picture-in-picture-player .volume-area {
+    display: none;
+}
+
+.container.picture-in-picture-player .play-pause-button {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    width: 56px;
+    height: 56px;
+    margin: -28px 0 0 -28px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.45);
+}
+
+.container.picture-in-picture-player .play-pause-button .icon {
+    width: 22px;
+    height: 22px;
 }
 
 .fullscreen-icon path {

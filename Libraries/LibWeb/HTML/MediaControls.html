@@ -1,10 +1,12 @@
 <link rel="stylesheet" href="MediaControls.css">
 <div data-name="container" class="container">
     <div data-option="video" class="picture-in-picture-placeholder">
-        <svg class="picture-in-picture-placeholder-icon" viewBox="0 0 24 24">
-            <path d="M2 4h20v16H2Zm2 2v12h16V6Zm7 5h8v6h-8Z"/>
+        <svg class="picture-in-picture-placeholder-icon" viewBox="0 0 40 30">
+            <rect class="picture-in-picture-placeholder-frame" x="1" y="1" width="38" height="28" rx="4"/>
+            <rect class="picture-in-picture-placeholder-window" x="20" y="15" width="16" height="11" rx="2"/>
         </svg>
-        <span>Playing in Picture-in-Picture</span>
+        <span>Playing in picture-in-picture</span>
+        <button data-name="exit-picture-in-picture-button" class="exit-picture-in-picture-button">Bring video back</button>
     </div>
     <div data-name="video-overlay" data-option="video" class="video-overlay">
         <div data-name="placeholder-circle" class="placeholder-circle">
@@ -27,6 +29,7 @@
                 </svg>
             </button>
             <span data-name="timestamp-element" class="timestamp"></span>
+            <span data-name="duration-element" class="duration"></span>
             <button data-name="mute-button" class="control-button mute-button">
                 <svg class="icon" viewBox="0 0 24 24">
                     <defs><clipPath id="muted-clip">

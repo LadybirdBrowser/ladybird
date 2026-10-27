@@ -150,7 +150,8 @@ def check_responses(webdriver_port, session_id, page_port):
         expect(script("return [document.URL, window.origin, document.body.innerText];"), [url, origin, text])
 
     def expect_error(url, status):
-        state = script("return [document.URL, window.origin, document.body.innerText];")
+        # NB: The failed URL is in the error page's details, which are collapsed, so it isn't part of innerText.
+        state = script("return [document.URL, window.origin, document.body.textContent];")
         if state[:2] != ["about:error", "null"] or f"HTTP error: {status}" not in state[2] or url not in state[2]:
             raise AssertionError(f"Expected an HTTP {status} error document for {url}, got {state!r}")
 

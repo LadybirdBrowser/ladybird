@@ -499,7 +499,7 @@ bool ScrollbarController::paint(Gfx::PaintingSurface& surface, DisplayListPlayer
             continue;
         if (opacity(i) <= 0)
             continue;
-        display_list_player.paint_scrollbar(surface, presented_scrollbar(i, scroll_state_snapshot, scrollbar.thumb_color, scrollbar.track_color), scrollbar.corner_clip_rect, scrollbar.corner_clip_radius);
+        display_list_player.paint_scrollbar(surface, presented_scrollbar(i, scroll_state_snapshot, scrollbar.thumb_color, scrollbar.track_color));
         painted_a_scrollbar = true;
     }
     return painted_a_scrollbar;
