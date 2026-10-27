@@ -23,6 +23,7 @@
 #include <UI/Qt/BookmarksBar.h>
 #include <UI/Qt/FindInPageWidget.h>
 #include <UI/Qt/LocationEdit.h>
+#include <UI/Qt/PermissionPromptPopover.h>
 #include <UI/Qt/WebContentView.h>
 
 #include <QBoxLayout>
@@ -217,6 +218,7 @@ private:
     void location_edit_return_pressed(String, Optional<URL::URL>, WebView::OmniboxDestinationKind);
     virtual void resizeEvent(QResizeEvent*) override;
     virtual void hideEvent(QHideEvent*) override;
+    virtual void showEvent(QShowEvent*) override;
     virtual bool event(QEvent*) override;
     virtual bool eventFilter(QObject*, QEvent*) override;
 
@@ -323,13 +325,7 @@ private:
     QPointer<QColorDialog> m_color_picker_dialog;
     QPointer<QFileDialog> m_file_picker_dialog;
     QPointer<QMessageBox> m_external_url_confirmation_dialog;
-    // The prompts open for the page's permission requests. The view hands identical requests to one prompt, so each
-    // prompt answers for one request, and a page cannot stack prompts by asking again.
-    struct PendingPermissionPrompt {
-        QPointer<MessagePopover> popover;
-        WebView::PermissionPromptCallback on_outcome;
-    };
-    Vector<PendingPermissionPrompt> m_permission_prompts;
+    PermissionPromptQueue m_permission_prompts;
 
     bool m_suppress_javascript_dialogs_until_navigation { false };
     // The dialogs the current document has shown, and whether the user stopped it from showing more.

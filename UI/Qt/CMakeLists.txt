@@ -52,6 +52,7 @@ target_sources(ladybird PRIVATE
     NativeTextEditingLineEdit.cpp
     ProcessManagerWindow.cpp
     PerformanceMonitorWidget.cpp
+    PermissionPromptPopover.cpp
     PictureInPictureWindow.cpp
     Popover.cpp
     ReportReview.cpp

@@ -275,6 +275,7 @@ static constexpr auto RELOAD_ICON_PATH = "M12.89 9.04A5 5 0 1 1 8 3c1.4 0 2.74.5
 static constexpr auto STOP_ICON_PATH = "M4 4l8 8M12 4l-8 8"sv;
 static constexpr auto SITE_SETTINGS_ICON_PATH = "M2.5 5h6M12.5 5h1M2.5 11h1M7.5 11h6M12.1 5a1.6 1.6 0 1 1-3.2 0a1.6 1.6 0 1 1 3.2 0M7.1 11a1.6 1.6 0 1 1-3.2 0a1.6 1.6 0 1 1 3.2 0"sv;
 static constexpr auto MICROPHONE_ICON_PATH = "M8 2.5a2 2 0 0 1 2 2v3.5a2 2 0 0 1-4 0V4.5a2 2 0 0 1 2-2zM4.5 7.5a3.5 3.5 0 0 0 7 0M8 11v2.5"sv;
+static constexpr auto LOCATION_ICON_PATH = "M8 14.2C5.1 10.9 3.6 8.6 3.6 6.7a4.4 4.4 0 0 1 8.8 0c0 1.9-1.5 4.2-4.4 7.5zM9.6 6.7a1.6 1.6 0 1 1-3.2 0a1.6 1.6 0 1 1 3.2 0"sv;
 static constexpr auto SELECT_AREA_ICON_PATH = "M2 5V3a1 1 0 0 1 1-1h2M11 2h2a1 1 0 0 1 1 1v2M14 11v2a1 1 0 0 1-1 1h-2M5 14H3a1 1 0 0 1-1-1v-2"sv;
 static constexpr auto CHECK_CIRCLE_ICON_PATH = "M14.5 8a6.5 6.5 0 1 1-13 0a6.5 6.5 0 1 1 13 0M5.2 8.2l2 2 3.8-4.2"sv;
 static constexpr auto STAR_ICON_PATH = "M8 2.3l1.75 3.55 3.9.57-2.83 2.75.67 3.88L8 11.22l-3.49 1.83.67-3.88L2.35 6.42l3.9-.57z"sv;
@@ -362,6 +363,8 @@ static StringView chrome_icon_path(ChromeIcon icon)
         return SITE_SETTINGS_ICON_PATH;
     case ChromeIcon::Microphone:
         return MICROPHONE_ICON_PATH;
+    case ChromeIcon::Location:
+        return LOCATION_ICON_PATH;
     case ChromeIcon::SelectArea:
         return SELECT_AREA_ICON_PATH;
     case ChromeIcon::CheckCircle:

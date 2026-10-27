@@ -31,6 +31,7 @@
 #endif
 #include <UI/Qt/Menu.h>
 #include <UI/Qt/Motion.h>
+#include <UI/Qt/PermissionPromptPopover.h>
 #include <UI/Qt/Popover.h>
 #include <UI/Qt/RestoreSessionCard.h>
 #include <UI/Qt/SiteSettingsPopover.h>
@@ -602,7 +603,6 @@ static constexpr int toolbar_right_margin(bool has_custom_window_controls)
 static constexpr int DOWNLOADS_POPOVER_WIDTH = 380;
 static constexpr int DOWNLOADS_POPOVER_MAX_HEIGHT = 360;
 static constexpr int PRIVATE_SESSION_POPOVER_WIDTH = 320;
-static constexpr int PERMISSION_POPOVER_WIDTH = 352;
 
 class ElidedLabel final : public QLabel {
 public:
@@ -1574,15 +1574,7 @@ void Tab::initialize(Optional<WebView::CanonicalTraversable&> traversable)
         }
         if (m_external_url_confirmation_dialog)
             m_external_url_confirmation_dialog->close();
-        // A prompt the page leaves behind counts as ignored, since the user never answered it.
-        auto permission_prompts = AK::move(m_permission_prompts);
-        for (auto& prompt : permission_prompts) {
-            if (prompt.popover) {
-                prompt.popover->on_dismiss = nullptr;
-                prompt.popover->close();
-            }
-            prompt.on_outcome(Web::Permissions::PromptOutcome::Ignored);
-        }
+        m_permission_prompts.ignore_all();
     };
 
     view().on_request_external_url_confirmation = [this](auto const& url, auto const& initiator_origin, auto const& handler, auto on_complete) {
@@ -1622,35 +1614,28 @@ void Tab::initialize(Optional<WebView::CanonicalTraversable&> traversable)
         dialog->open();
     };
 
-    // A site's request for a permission hangs from the site settings button. Allowing it is a decision the session keeps;
-    // leaving the prompt any other way dismisses it, which decides nothing.
-    view().on_request_permission = [this](WebView::PermissionPromptRequest const& request, WebView::PermissionPromptCallback on_outcome) {
-        auto requester = request.is_file || request.top_level_origin.is_opaque() ? "This page"_string : request.top_level_origin.host().serialize();
-        auto feature = request.name == Web::Permissions::PermissionName::Geolocation ? "know your location"sv : "use your microphone"sv;
-        auto question = MUST(String::formatted("{} wants to {}", requester, feature));
-
-        auto icon = request.name == Web::Permissions::PermissionName::Microphone ? create_chrome_icon(ChromeIcon::Microphone, Theme::panel().link) : QIcon {};
-        auto* popover = new MessagePopover(this, PERMISSION_POPOVER_WIDTH, qstring_from_ak_string(question), {}, "Not now", "Allow", icon);
-        popover->setAttribute(Qt::WA_DeleteOnClose);
+    // A site's request for a permission hangs from the site settings button, or from the field when the page has no
+    // such button.
+    m_permission_prompts.create_popover = [this](WebView::PermissionPromptRequest const& request) {
+        auto* popover = new PermissionPromptPopover(this, request);
         popover->update_chrome_style(palette());
-        m_permission_prompts.append({ .popover = popover, .on_outcome = AK::move(on_outcome) });
-
-        auto decide = [this, popover = QPointer<MessagePopover> { popover }](Web::Permissions::PromptOutcome outcome) {
-            auto index = m_permission_prompts.find_first_index_if([&](auto const& prompt) { return prompt.popover == popover; });
-            if (!index.has_value())
-                return;
-            auto prompt = m_permission_prompts.take(*index);
-            prompt.on_outcome(outcome);
+        auto position = [this, popover] {
+            auto& anchor = m_location_edit->site_settings_button();
+            QWidget& anchor_or_field = anchor.isVisible() ? anchor : static_cast<QWidget&>(*m_location_edit);
+            move_popover_below(*popover, anchor_or_field, PopoverAlignment::Leading);
         };
-        popover->on_accept = [decide] { decide(Web::Permissions::PromptOutcome::AllowAlways); };
-        popover->on_dismiss = [decide] { decide(Web::Permissions::PromptOutcome::Dismissed); };
-
-        auto& anchor = m_location_edit->site_settings_button();
-        QWidget& anchor_or_field = anchor.isVisible() ? anchor : static_cast<QWidget&>(*m_location_edit);
         popover->adjustSize();
-        move_popover_below(*popover, anchor_or_field, PopoverAlignment::Leading);
-        popover->show();
-        move_popover_below(*popover, anchor_or_field, PopoverAlignment::Leading);
+        position();
+        popover->on_shown = AK::move(position);
+        return popover;
+    };
+
+    view().on_request_permission = [this](WebView::PermissionPromptRequest const& request, WebView::PermissionPromptCallback on_outcome) {
+        m_permission_prompts.enqueue(request, AK::move(on_outcome));
+    };
+
+    view().on_cancel_permission_prompt = [this](WebView::PermissionPromptRequest const& request) {
+        m_permission_prompts.cancel(request);
     };
 
     view().on_request_accept_dialog = [this]() {
@@ -2311,6 +2296,15 @@ void Tab::hideEvent(QHideEvent* event)
 
     set_bookmarks_bar_hover_expanded(false);
     hide_hover_label();
+
+    // A tab's permission prompt waits, unanswered, while another tab is shown.
+    m_permission_prompts.suspend();
+}
+
+void Tab::showEvent(QShowEvent* event)
+{
+    QWidget::showEvent(event);
+    m_permission_prompts.resume();
 }
 
 void Tab::update_hover_label()
