@@ -751,7 +751,7 @@ public:
     virtual void page_did_change_picture_in_picture_player_controls_visibility(bool) { }
     virtual void page_did_change_active_document_in_top_level_browsing_context(Web::DOM::Document&) { }
     virtual void page_did_finish_loading(HTML::CrossProcessId, HTML::CrossProcessId) { }
-    virtual Optional<u64> page_did_start_download(HTML::CrossProcessId navigable_id, Optional<Utf16String> const& navigation_id, URL::URL const&, ByteString const& suggested_filename, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ByteBuffer initial_data)
+    virtual Optional<u64> page_did_start_download(HTML::CrossProcessId navigable_id, Optional<Utf16String> const& navigation_id, URL::URL const&, ByteString const& suggested_filename, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ByteBuffer initial_data, JsonValue network_response)
     {
         (void)navigable_id;
         (void)navigation_id;
@@ -760,6 +760,7 @@ public:
         (void)request_server_client_id;
         (void)request_server_request_id;
         (void)initial_data;
+        (void)network_response;
         return {};
     }
     virtual Optional<u64> page_did_start_download(URL::URL const&, ByteString const& suggested_filename, Optional<u64> total_size)

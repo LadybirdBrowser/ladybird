@@ -89,7 +89,9 @@ public:
     };
 
     u64 download_file(IsPrivate, URL::URL const&, LexicalPath, MayReplaceDestination = MayReplaceDestination::No);
-    u64 adopt_download(IsPrivate, URL::URL const&, LexicalPath, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ReadonlyBytes initial_data = {});
+    using ResponseFinished = Function<void(u64 decoded_body_size, Requests::RequestTimingInfo const*,
+        Optional<StringView> error)>;
+    u64 adopt_download(IsPrivate, URL::URL const&, LexicalPath, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ReadonlyBytes initial_data = {}, ResponseFinished = {});
     u64 start_download(IsPrivate, URL::URL const&, LexicalPath, Optional<u64> total_size = {}, MayReplaceDestination = MayReplaceDestination::No);
     bool has_active_downloads() const;
     bool has_unresumable_downloads() const;
@@ -126,7 +128,8 @@ private:
     ActiveDownload* active_download(u64 id);
     void start_download_request(u64 id, URL::URL const&);
     void follow_download_redirect(u64 id, HTTP::HeaderList const&);
-    void attach_request_to_download(u64 id, size_t segment_index, NonnullRefPtr<Requests::Request>);
+    void attach_request_to_download(u64 id, size_t segment_index, NonnullRefPtr<Requests::Request>,
+        ResponseFinished = {});
     void maybe_redistribute_segments(u64 id);
     void start_stall_watchdog(u64 id);
     void check_for_stalled_segments(u64 id);

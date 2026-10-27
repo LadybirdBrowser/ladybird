@@ -15,6 +15,7 @@
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/Page/RenderingStats.h>
+#include <LibWeb/WebDriver/BiDi/Network.h>
 #include <LibWeb/WebIDL/DOMException.h>
 
 namespace Web::Fetch::Infrastructure {
@@ -113,6 +114,8 @@ void FetchController::abort(JS::Realm& realm, Optional<JS::Value> error)
 {
     // 1. Set controller’s state to "aborted".
     m_state = State::Aborted;
+    if (WebDriver::BiDi::g_network_events_enabled && m_fetch_params)
+        WebDriver::BiDi::network_fetch_error(*m_fetch_params, "Fetch was aborted"sv);
 
     // 2. Let fallbackError be an "AbortError" DOMException.
     auto fallback_error = WebIDL::AbortError::create("Fetch was aborted"_utf16);
@@ -140,6 +143,8 @@ void FetchController::terminate()
 {
     // To terminate a fetch controller controller, set controller’s state to "terminated".
     m_state = State::Terminated;
+    if (WebDriver::BiDi::g_network_events_enabled && m_fetch_params)
+        WebDriver::BiDi::network_fetch_error(*m_fetch_params, "Fetch was terminated"sv);
 
     stop_request();
 }

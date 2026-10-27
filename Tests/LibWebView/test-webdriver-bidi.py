@@ -120,12 +120,82 @@ class ReloadServer(http.server.ThreadingHTTPServer):
         self.block_reload: bool = False
         self.request_received: threading.Event = threading.Event()
         self.release_response: threading.Event = threading.Event()
+        self.download_headers_sent: threading.Event = threading.Event()
+        self.release_download: threading.Event = threading.Event()
+        self.download_body: bytes = b"BiDi navigation download\n" * 128
+        self.segmented_download_body: bytes = b""
+        self.range_request_received: threading.Event = threading.Event()
+        self.release_initial_download: threading.Event = threading.Event()
+        self.initial_download_stopped: threading.Event = threading.Event()
 
 
 class ReloadHandler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         server = self.server
         assert isinstance(server, ReloadServer)
+        if self.path == "/network-download/split":
+            body = server.segmented_download_body
+            range_header = self.headers.get("Range")
+            start, end = 0, len(body) - 1
+            if range_header is not None:
+                assert range_header.startswith("bytes="), range_header
+                start_text, end_text = range_header.removeprefix("bytes=").split("-", 1)
+                start, end = int(start_text), min(int(end_text), len(body) - 1)
+            else:
+                # Keep the original transfer from buffering the whole body before its segment is stopped.
+                self.connection.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 16384)
+            self.send_response(206 if range_header is not None else 200)
+            self.send_header("Content-Type", "application/octet-stream")
+            self.send_header("Content-Disposition", 'attachment; filename="bidi-split.bin"')
+            self.send_header("Content-Length", str(end - start + 1))
+            self.send_header("Accept-Ranges", "bytes")
+            self.send_header("ETag", '"bidi-split"')
+            if range_header is not None:
+                self.send_header("Content-Range", f"bytes {start}-{end}/{len(body)}")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Connection", "close")
+            self.end_headers()
+            self.close_connection = True
+            self.wfile.write(body[start : start + 1024])
+            self.wfile.flush()
+            if range_header is not None:
+                server.range_request_received.set()
+                release = server.release_download
+            else:
+                server.download_headers_sent.set()
+                release = server.release_initial_download
+            try:
+                if not release.wait(30):
+                    raise TimeoutError("The test did not release the segmented download response")
+                self.wfile.write(body[start + 1024 : end + 1])
+                self.wfile.flush()
+            except (BrokenPipeError, ConnectionResetError):
+                if range_header is None:
+                    server.initial_download_stopped.set()
+            return
+        if self.path.startswith("/network-download/"):
+            kind = self.path.rsplit("/", 1)[-1]
+            truncated = kind == "truncated"
+            self.send_response(200)
+            self.send_header("Content-Type", "application/octet-stream")
+            self.send_header("Content-Disposition", f'attachment; filename="bidi-{kind}.bin"')
+            self.send_header("Content-Length", str(len(server.download_body) + (16 if truncated else 0)))
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Connection", "close")
+            self.end_headers()
+            self.close_connection = True
+            try:
+                self.wfile.write(server.download_body[:1024])
+                self.wfile.flush()
+                server.download_headers_sent.set()
+                if not server.release_download.wait(30):
+                    raise TimeoutError("The test did not release the download response")
+                if not truncated:
+                    self.wfile.write(server.download_body[1024:])
+                    self.wfile.flush()
+            except (BrokenPipeError, ConnectionResetError):
+                pass
+            return
         if server.block_reload:
             server.request_received.set()
             if not server.release_response.wait(30):
@@ -153,6 +223,106 @@ class ReloadHandler(http.server.BaseHTTPRequestHandler):
 
     def log_message(self, format, *args):
         pass
+
+
+def check_network_download_events(bidi, context, server, downloads):
+    if sys.platform == "win32":
+        print("Skipping download event tests: Windows does not support the temporary download directory override.")
+        return
+    terminal_methods = {"network.responseCompleted", "network.fetchError"}
+    subscription = bidi.command(
+        "session.subscribe",
+        {
+            "events": ["network.beforeRequestSent", "network.responseStarted", *sorted(terminal_methods)],
+            "contexts": [context],
+        },
+    )["subscription"]
+    try:
+        for kind in ["success", "truncated", "split"]:
+            url = f"http://127.0.0.1:{server.server_port}/network-download/{kind}"
+            server.download_headers_sent.clear()
+            server.release_download.clear()
+            if kind == "split":
+                server.segmented_download_body = bytes(range(256)) * (8 * 1024 * 1024 // 256)
+                server.range_request_received.clear()
+                server.release_initial_download.clear()
+                server.initial_download_stopped.clear()
+            expected_body = server.segmented_download_body if kind == "split" else server.download_body
+
+            def is_our_event(event, expected_url=url):
+                return event["params"].get("request", {}).get("url") == expected_url
+
+            def next_event(methods):
+                while True:
+                    for index, event in enumerate(bidi.events):
+                        if event["method"] in methods and is_our_event(event):
+                            return bidi.events.pop(index)
+                    bidi.read_message()
+
+            try:
+                # Downloads do not commit documents; observe network events without awaiting the commit waiter.
+                bidi.send("browsingContext.navigate", {"context": context, "url": url, "wait": "none"})
+                before = next_event({"network.beforeRequestSent"})["params"]
+                started = next_event({"network.responseStarted", *terminal_methods})
+                assert started["method"] == "network.responseStarted", started
+                started = started["params"]
+                assert server.download_headers_sent.wait(10)
+                request_id = started["request"]["request"]
+                assert isinstance(request_id, str) and request_id, started
+                assert before["request"]["request"] == request_id, (before, started)
+                assert isinstance(started["navigation"], str), started
+                assert started["navigation"] == before["navigation"], (before, started)
+
+                if kind == "split":
+                    assert server.range_request_received.wait(10), (
+                        "The downloader did not split its range-capable response"
+                    )
+                    server.release_initial_download.set()
+                    assert server.initial_download_stopped.wait(10), "The initial segment did not stop"
+
+                # The initial segment may be stopped, but completion must wait for the held remaining ranges.
+                bidi.evaluate(context, "0")
+                assert not any(event["method"] in terminal_methods and is_our_event(event) for event in bidi.events), (
+                    bidi.events
+                )
+                assert not server.release_download.is_set()
+
+                server.release_download.set()
+                terminal = next_event(terminal_methods)
+                expected_method = "network.fetchError" if kind == "truncated" else "network.responseCompleted"
+                assert terminal["method"] == expected_method, terminal
+                params = terminal["params"]
+                assert params["context"] == context, params
+                assert params["request"]["request"] == request_id, params
+                assert params["navigation"] == started["navigation"], params
+                assert params["redirectCount"] == started["redirectCount"] == 0, params
+                if kind != "truncated":
+                    response = params["response"]
+                    assert response["bodySize"] == len(expected_body), response
+                    assert response["content"]["size"] == len(expected_body), response
+                    assert response["bytesReceived"] == response["headersSize"] + len(expected_body), response
+                    timings = params["request"]["timings"]
+                    assert timings["responseEnd"] >= timings["responseStart"] >= timings["fetchStart"], timings
+                else:
+                    assert isinstance(params["errorText"], str) and params["errorText"], params
+
+                # The transport's finish callback also finalizes the download before the next UI/renderer barrier.
+                bidi.evaluate(context, "0")
+                assert not any(event["method"] in terminal_methods and is_our_event(event) for event in bidi.events), (
+                    bidi.events
+                )
+                path = os.path.join(downloads, f"bidi-{kind}.bin")
+                if kind != "truncated":
+                    with open(path, "rb") as downloaded:
+                        assert downloaded.read() == expected_body
+                else:
+                    assert not os.path.exists(path), path
+            finally:
+                server.release_initial_download.set()
+                server.release_download.set()
+    finally:
+        if sys.exc_info()[0] is None:
+            bidi.command("session.unsubscribe", {"subscriptions": [subscription]})
 
 
 def check_screenshot_handles(bidi, context):
@@ -754,8 +924,10 @@ def cleanup_resources(server, webdriver, connection, bidi, session_id, *, primar
         raise errors[0]
 
 
-def run_test(webdriver_binary, *, input_cross_context_only=False):
+def run_test(webdriver_binary, *, input_cross_context_only=False, network_download_only=False):
     with tempfile.TemporaryDirectory(prefix="ladybird-webdriver-bidi-") as profile:
+        downloads = os.path.join(profile, "downloads")
+        os.mkdir(downloads)
         server = ReloadServer()
         threading.Thread(target=server.serve_forever, daemon=True).start()
         port = helpers.unused_port()
@@ -775,7 +947,8 @@ def run_test(webdriver_binary, *, input_cross_context_only=False):
                     "127.0.0.1",
                     "-p",
                     str(port),
-                ]
+                ],
+                env={**os.environ, "XDG_DOWNLOAD_DIR": downloads},
             )
             helpers.wait_for_port(port)
             connection = http.client.HTTPConnection("127.0.0.1", port, timeout=30)
@@ -800,6 +973,12 @@ def run_test(webdriver_binary, *, input_cross_context_only=False):
             rejected.close()
             bidi = BiDiConnection(websocket_url)
             context = bidi.command("browsingContext.getTree", {})["contexts"][0]["context"]
+            if network_download_only:
+                check_network_download_events(bidi, context, server, downloads)
+                status, payload, _ = helpers.request(connection, "DELETE", f"/session/{session_id}")
+                assert status == 200, payload
+                session_id = None
+                return
             if input_cross_context_only:
                 check_input_cross_context(bidi, connection, session_id, context, server)
                 check_input_click_navigation(bidi, connection, session_id, context, server)
@@ -807,6 +986,7 @@ def run_test(webdriver_binary, *, input_cross_context_only=False):
                 assert status == 200, payload
                 session_id = None
                 return
+            check_network_download_events(bidi, context, server, downloads)
             check_screenshot_handles(bidi, context)
             check_input_handles(bidi, context)
             check_input_queue(bidi, context)
@@ -996,5 +1176,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("webdriver_binary")
     parser.add_argument("--input-cross-context-only", action="store_true")
+    parser.add_argument("--network-download-only", action="store_true")
     args = parser.parse_args()
-    run_test(args.webdriver_binary, input_cross_context_only=args.input_cross_context_only)
+    run_test(
+        args.webdriver_binary,
+        input_cross_context_only=args.input_cross_context_only,
+        network_download_only=args.network_download_only,
+    )

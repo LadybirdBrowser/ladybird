@@ -9,6 +9,7 @@
 #include <AK/ByteBuffer.h>
 #include <AK/ByteString.h>
 #include <AK/Error.h>
+#include <AK/JsonValue.h>
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/Utf16String.h>
@@ -89,6 +90,8 @@ struct NavigationResponseDescriptor {
     Fetch::Infrastructure::RedirectTaint redirect_taint { Fetch::Infrastructure::RedirectTaint::SameOrigin };
 
     NavigationResponseBody body;
+
+    JsonValue webdriver_bidi_network_response;
 };
 
 struct NavigationFetchTimingInfoDescriptor {

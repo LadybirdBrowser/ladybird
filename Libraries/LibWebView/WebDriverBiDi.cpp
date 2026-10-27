@@ -6,12 +6,14 @@
 
 #include <AK/AnyOf.h>
 #include <AK/JsonArray.h>
+#include <AK/Math.h>
 #include <AK/QuickSort.h>
 #include <AK/Random.h>
 #include <AK/ScopeGuard.h>
 #include <AK/Time.h>
 #include <AK/WeakPtr.h>
 #include <LibCore/EventLoop.h>
+#include <LibRequests/RequestTimingInfo.h>
 #include <LibURL/Parser.h>
 #include <LibWebView/CanonicalNavigable.h>
 #include <LibWebView/CanonicalTraversable.h>
@@ -737,6 +739,84 @@ void WebDriverBiDi::did_receive_navigation_event(WebContentPage& page, Web::HTML
     }
 }
 
+void WebDriverBiDi::download_response_finished(
+    String const& context, JsonObject const& metadata, u64 decoded_body_size,
+    Requests::RequestTimingInfo const* timing_info,
+    Optional<StringView> error)
+{
+    auto name = error.has_value() ? "network.fetchError"sv
+                                  : "network.responseCompleted"sv;
+    if (!is_event_enabled(name))
+        return;
+    auto navigable = get_a_navigable(context);
+    auto parameters = metadata.get_object("parameters"sv);
+    if (navigable.is_error() || !parameters.has_value())
+        return;
+    auto params = *parameters;
+    params.set("context"sv, context);
+    params.set("timestamp"sv, UnixDateTime::now().milliseconds_since_epoch());
+    if (error.has_value()) {
+        params.set("errorText"sv,
+            String::from_utf8_with_replacement_character(*error));
+    } else {
+        auto response_data = metadata.get_object("response"sv);
+        if (!response_data.has_value())
+            return;
+        auto response = *response_data;
+        auto header_size = response.get_u64("headersSize"sv);
+        if (!header_size.has_value())
+            return;
+        auto encoded_size = timing_info ? static_cast<u64>(max(timing_info->encoded_body_size, 0))
+                                        : decoded_body_size;
+        response.set("bodySize"sv, encoded_size);
+        response.set("bytesReceived"sv, encoded_size + *header_size);
+        JsonObject content;
+        content.set("size"sv, decoded_body_size);
+        response.set("content"sv, move(content));
+        params.set("response"sv, move(response));
+        if (auto request = params.get_object("request"sv); request.has_value()) {
+            if (auto timings = request->get_object("timings"sv);
+                timings.has_value()) {
+                auto start = metadata.get("postRedirectStartTime"sv);
+                auto origin = metadata.get("timeOrigin"sv);
+                auto absolute_start = start.has_value() ? start->get_double_with_precision_loss() : Optional<double> {};
+                auto time_origin = origin.has_value() ? origin->get_double_with_precision_loss() : Optional<double> {};
+                if (absolute_start.has_value() && time_origin.has_value()) {
+                    // NB: Use the same final-hop origin and coarsening as the renderer's BiDi timings.
+                    auto set_time = [&](StringView key, double time) {
+                        auto bucket = floor(time * 10.0);
+                        auto coarse_time = bucket / 10.0;
+                        if (floor(coarse_time * 10.0) < bucket)
+                            coarse_time = nextafter(coarse_time, AK::Infinity<double>);
+                        timings->set(key, coarse_time - *time_origin);
+                    };
+                    if (timing_info) {
+                        auto set_timing = [&](StringView key, i64 microseconds) {
+                            set_time(key, *absolute_start + static_cast<double>(microseconds) / 1000.0);
+                        };
+                        set_timing("dnsStart"sv,
+                            timing_info->domain_lookup_start_microseconds);
+                        set_timing("dnsEnd"sv, timing_info->domain_lookup_end_microseconds);
+                        set_timing("connectStart"sv, timing_info->connect_start_microseconds);
+                        set_timing("connectEnd"sv, timing_info->connect_end_microseconds);
+                        if (timing_info->secure_connect_start_microseconds)
+                            set_timing("tlsStart"sv,
+                                timing_info->secure_connect_start_microseconds);
+                        set_timing("requestStart"sv, timing_info->request_start_microseconds);
+                        set_timing("responseStart"sv,
+                            timing_info->response_start_microseconds);
+                        set_timing("responseEnd"sv, timing_info->response_end_microseconds);
+                    } else {
+                        // NB: A split response finishes across several transports, not at the original segment's EOF.
+                        set_time("responseEnd"sv, MonotonicTime::now().to_seconds_f64() * 1000.0);
+                    }
+                }
+            }
+        }
+    }
+    emit_event_for_navigable(name, move(params), *navigable.value());
+}
+
 void WebDriverBiDi::did_receive_event(WebContentPage& page, Web::HTML::CrossProcessId navigable_id, String const& name, JsonValue params)
 {
     // NB: A process hosting web content only reports on the navigables it hosts, and only the events that run there.
@@ -753,6 +833,10 @@ void WebDriverBiDi::did_receive_event(WebContentPage& page, Web::HTML::CrossProc
         "script.message"sv,
         "script.realmCreated"sv,
         "script.realmDestroyed"sv,
+        "network.beforeRequestSent"sv,
+        "network.responseStarted"sv,
+        "network.responseCompleted"sv,
+        "network.fetchError"sv,
     });
     if (!any_of(content_events, [&](auto event_name) { return event_name == name; }))
         return;
@@ -772,7 +856,7 @@ void WebDriverBiDi::did_receive_event(WebContentPage& page, Web::HTML::CrossProc
     if (name.is_one_of("log.entryAdded"sv, "script.message"sv)) {
         if (auto source = params.as_object().get_object("source"sv); source.has_value())
             set_context(*source);
-    } else if (name == "script.realmCreated"sv) {
+    } else if (name == "script.realmCreated"sv || name.starts_with_bytes("network."sv)) {
         set_context(params.as_object());
     }
 

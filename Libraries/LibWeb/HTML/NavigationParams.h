@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Optional.h>
+#include <AK/RefCounted.h>
 #include <AK/Utf16String.h>
 #include <LibGC/CellAllocator.h>
 #include <LibGC/Ptr.h>
@@ -27,6 +28,18 @@
 #include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
 
 namespace Web::HTML {
+
+// NB: Reconstructed response callbacks and download adoption share one terminal-event owner.
+struct NavigationResponseNetworkEventState : RefCounted<NavigationResponseNetworkEventState> {
+    AK_ALLOC_WITH_KMALLOC;
+
+    enum class Owner {
+        Renderer,
+        Download,
+        Completed,
+    };
+    Owner owner { Owner::Renderer };
+};
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigation-params
 struct NavigationParams : GC::Cell {
@@ -52,6 +65,11 @@ struct NavigationParams : GC::Cell {
     //         a descriptor carry the fetch's timing info here instead, so the new Document's navigation timing entry
     //         still sees it.
     RefPtr<Fetch::Infrastructure::FetchTimingInfo> fetch_timing_info { nullptr };
+
+    // AD-HOC: The terminal network event follows the owner of a transferred
+    // response, including a download.
+    JsonValue webdriver_bidi_network_response;
+    RefPtr<NavigationResponseNetworkEventState> webdriver_bidi_network_response_state;
 
     // AD-HOC: The agent cluster of the agent the UI process obtained for the new Document's window, and that agent
     //         cluster's cross-origin isolation mode.

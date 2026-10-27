@@ -33,6 +33,12 @@
 #include <LibWebCommon/Fetch/Infrastructure/HTTP/RequestReferrer.h>
 #include <LibWebCommon/HTML/Scripting/EnvironmentId.h>
 
+namespace Web::WebDriver::BiDi {
+
+class NetworkRequest;
+
+}
+
 namespace Web::Fetch::Infrastructure {
 
 class Response;
@@ -346,6 +352,9 @@ public:
 
     UnixDateTime request_time() const { return m_request_time; }
 
+    GC::Ptr<WebDriver::BiDi::NetworkRequest> webdriver_bidi_network_request() const;
+    void set_webdriver_bidi_network_request(GC::Ptr<WebDriver::BiDi::NetworkRequest>);
+
 private:
     explicit Request(NonnullRefPtr<HTTP::HeaderList>);
 
@@ -558,6 +567,7 @@ private:
     // Non-standard
     Vector<GC::Ref<Fetching::PendingResponse>> m_pending_responses;
     UnixDateTime m_request_time;
+    GC::Ptr<WebDriver::BiDi::NetworkRequest> m_webdriver_bidi_network_request;
 };
 
 WEB_API StringView request_destination_to_string(Request::Destination);

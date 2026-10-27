@@ -1034,6 +1034,7 @@ set(SOURCES
     WebDriver/BiDi/BiDi.cpp
     WebDriver/BiDi/BrowsingContext.cpp
     WebDriver/BiDi/Input.cpp
+    WebDriver/BiDi/Network.cpp
     WebDriver/BiDi/RemoteValue.cpp
     WebDriver/BiDi/Script.cpp
     WebDriver/Contexts.cpp

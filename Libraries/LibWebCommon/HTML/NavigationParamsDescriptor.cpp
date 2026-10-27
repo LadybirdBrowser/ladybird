@@ -7,6 +7,7 @@
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 #include <LibWebCommon/HTML/NavigationParamsDescriptor.h>
+#include <LibWebCommon/HTML/NavigationResponseCodecs.h>
 
 namespace IPC {
 
@@ -103,39 +104,6 @@ ErrorOr<Web::HTML::NavigationResponseBodyHandle> decode(Decoder& decoder)
     return Web::HTML::NavigationResponseBodyHandle {
         .request_server_client_id = TRY(decoder.decode<int>()),
         .request_server_request_id = TRY(decoder.decode<u64>()),
-    };
-}
-
-template<>
-ErrorOr<void> encode(Encoder& encoder, Web::HTML::NavigationResponseDescriptor const& response)
-{
-    TRY(encoder.encode(response.url_list));
-    TRY(encoder.encode(response.status));
-    TRY(encoder.encode(response.status_message));
-    TRY(encoder.encode(response.headers));
-    TRY(encoder.encode(response.network_error_message));
-    TRY(encoder.encode(response.timing_allow_passed));
-    TRY(encoder.encode(response.cache_state));
-    TRY(encoder.encode(response.navigation_timing_allow_values_list));
-    TRY(encoder.encode(response.redirect_taint));
-    TRY(encoder.encode(response.body));
-    return {};
-}
-
-template<>
-ErrorOr<Web::HTML::NavigationResponseDescriptor> decode(Decoder& decoder)
-{
-    return Web::HTML::NavigationResponseDescriptor {
-        .url_list = TRY(decoder.decode<Vector<URL::URL>>()),
-        .status = TRY(decoder.decode<u16>()),
-        .status_message = TRY(decoder.decode<ByteString>()),
-        .headers = TRY(decoder.decode<Vector<HTTP::Header>>()),
-        .network_error_message = TRY(decoder.decode<Optional<String>>()),
-        .timing_allow_passed = TRY(decoder.decode<bool>()),
-        .cache_state = TRY(decoder.decode<Optional<Web::Fetch::Infrastructure::ResponseCacheState>>()),
-        .navigation_timing_allow_values_list = TRY(decoder.decode<Vector<Vector<String>>>()),
-        .redirect_taint = TRY(decoder.decode<Web::Fetch::Infrastructure::RedirectTaint>()),
-        .body = TRY(decoder.decode<Web::HTML::NavigationResponseBody>()),
     };
 }
 
