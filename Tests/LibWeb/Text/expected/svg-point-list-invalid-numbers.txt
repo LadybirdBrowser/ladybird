@@ -1,0 +1,22 @@
+polygon "0,0 1,1": 2
+polygon "0,0 1,1 2": 2
+polygon "0,0 1,1 2,": 2
+polygon "0,0 1,1 INVALID": 2
+polygon "0,0 +": 1
+polygon "0,0 1,+": 1
+polygon "0,0 1e+": 1
+polygon "0,0 .": 1
+polygon "0,0 1,-": 1
+polygon "0,0 1,1,,": 2
+polygon " ": 0
+polyline "0,0 1,1": 2
+polyline "0,0 1,1 2": 2
+polyline "0,0 1,1 2,": 2
+polyline "0,0 1,1 INVALID": 2
+polyline "0,0 +": 1
+polyline "0,0 1,+": 1
+polyline "0,0 1e+": 1
+polyline "0,0 .": 1
+polyline "0,0 1,-": 1
+polyline "0,0 1,1,,": 2
+polyline " ": 0
