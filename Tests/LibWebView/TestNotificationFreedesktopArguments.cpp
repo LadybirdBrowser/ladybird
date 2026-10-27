@@ -54,10 +54,49 @@ TEST_CASE(markup_is_escaped_only_when_the_daemon_renders_it)
     EXPECT_EQ(markup.body, "example.com\n\na &lt; b &amp; c"_string);
 }
 
-TEST_CASE(daemon_without_body_support_gets_no_body)
+TEST_CASE(daemon_without_body_support_gets_the_attribution_in_the_summary)
 {
-    auto arguments = build_notify_arguments(notification("t"_utf16, "b"_utf16), {}, 0);
+    auto arguments = build_notify_arguments(notification("New mail"_utf16, "b"_utf16), {}, 0);
+    EXPECT_EQ(arguments.summary, "example.com \xe2\x80\x94"
+                                 " New mail"_string);
     EXPECT_EQ(arguments.body, ""_string);
+}
+
+TEST_CASE(empty_body_leaves_just_the_attribution)
+{
+    auto arguments = build_notify_arguments(notification("t"_utf16, ""_utf16), { .body = true }, 0);
+    EXPECT_EQ(arguments.body, "example.com"_string);
+}
+
+TEST_CASE(lone_surrogates_become_replacement_characters)
+{
+    auto arguments = build_notify_arguments(notification(Utf16String::from_utf16({ u"a\xD800"
+                                                                                   u"b",
+                                                             3 }),
+                                                Utf16String::from_utf16({ u"\xDC00", 1 })),
+        { .body = true }, 0);
+    EXPECT_EQ(arguments.summary, "a\xef\xbf\xbd"
+                                 "b"_string);
+    EXPECT_EQ(arguments.body, "example.com\n\n\xef\xbf\xbd"_string);
+}
+
+TEST_CASE(replacement_without_renotify_is_silent)
+{
+    auto quiet = notification("t"_utf16, "b"_utf16);
+    quiet.replaces = 3;
+    EXPECT(hint(build_notify_arguments(quiet, {}, 0), "suppress-sound"sv).has_value());
+
+    auto loud = notification("t"_utf16, "b"_utf16);
+    loud.replaces = 3;
+    loud.data.renotify = true;
+    EXPECT(!hint(build_notify_arguments(loud, {}, 0), "suppress-sound"sv).has_value());
+}
+
+TEST_CASE(oversized_icon_is_left_out)
+{
+    auto huge = notification("t"_utf16, "b"_utf16);
+    huge.icon = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, { 129, 10 }));
+    EXPECT(!hint(build_notify_arguments(huge, {}, 0), "image-data"sv).has_value());
 }
 
 TEST_CASE(expire_timeout_follows_persistence_and_require_interaction)

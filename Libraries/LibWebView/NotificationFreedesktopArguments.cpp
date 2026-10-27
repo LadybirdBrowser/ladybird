@@ -5,6 +5,7 @@
  */
 
 #include <AK/StringBuilder.h>
+#include <LibWebView/NotificationAttribution.h>
 #include <LibWebView/NotificationFreedesktopArguments.h>
 
 namespace WebView {
@@ -14,6 +15,8 @@ static constexpr i32 expire_timeout_never = 0;
 static constexpr i32 expire_timeout_without_notification_center_ms = 25000;
 static constexpr u8 urgency_normal = 1;
 static constexpr u8 urgency_critical = 2;
+// The longest side an icon may have before it's left out rather than put on the bus.
+static constexpr int icon_maximum_side = 128;
 
 static String escape_markup(String const& text)
 {
@@ -69,16 +72,23 @@ FreedesktopNotifyArguments build_notify_arguments(PlatformNotification const& no
     arguments.app_name = "Ladybird"_string;
     arguments.replaces_id = replaces_daemon_id;
     arguments.app_icon = "org.ladybird.Ladybird"_string;
-    arguments.summary = notification.data.title.to_utf8();
+    auto title = platform_text(notification.data.title);
+    auto body = platform_text(notification.data.body);
 
+    // The origin always shows: in the body where the daemon shows one, else ahead of the title.
     if (capabilities.body) {
+        arguments.summary = title;
         auto attribution = notification.attribution;
-        auto body = notification.data.body.to_utf8();
         if (capabilities.body_markup) {
             attribution = escape_markup(attribution);
             body = escape_markup(body);
         }
-        arguments.body = MUST(String::formatted("{}\n\n{}", attribution, body));
+        if (body.is_empty())
+            arguments.body = attribution;
+        else
+            arguments.body = MUST(String::formatted("{}\n\n{}", attribution, body));
+    } else {
+        arguments.summary = MUST(String::formatted("{} \u2014 {}", notification.attribution, title));
     }
 
     // "default" makes the whole notification clickable where the daemon shows actions as buttons.
@@ -87,10 +97,12 @@ FreedesktopNotifyArguments build_notify_arguments(PlatformNotification const& no
 
     bool sticky = notification.data.require_interaction;
     arguments.hints.append({ "urgency"_string, sticky ? urgency_critical : urgency_normal });
-    if (notification.data.silent == true)
+    // A replacement alerts again only when the page asked to renotify.
+    bool quiet_replacement = notification.replaces.has_value() && !notification.data.renotify;
+    if (notification.data.silent == true || quiet_replacement)
         arguments.hints.append({ "suppress-sound"_string, true });
     arguments.hints.append({ "desktop-entry"_string, "org.ladybird.Ladybird"_string });
-    if (notification.icon)
+    if (notification.icon && notification.icon->width() <= icon_maximum_side && notification.icon->height() <= icon_maximum_side)
         arguments.hints.append({ "image-data"_string, image_data_for(*notification.icon) });
 
     if (sticky)
