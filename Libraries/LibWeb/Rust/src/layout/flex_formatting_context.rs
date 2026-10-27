@@ -1517,17 +1517,27 @@ impl<'pass> FlexFormattingContext<'pass> {
 
         // Repeat until all flex items have been collected into flex lines.
 
+        // NB: A column container resolves its automatic block size, including min/max constraints, before wrapping.
+        //     During intrinsic inline sizing that size is not yet known, and calc-size(auto, ...) keeps an
+        //     indefinite available main size even when its calculation changes the used size.
+        let available_main_size = if !self.main_axis_is_horizontal()
+            && crate::layout::sizing_context::is_plain_auto(self.computed_main_size(self.run.box_).0)
+            && self
+                .layout_input
+                .unwrap()
+                .sizing
+                .flex_self_block_size_resolution_space
+                .is_some()
+        {
+            AvailableSize::definite(self.inner_main_size_used(self.container_used()))
+        } else {
+            self.available_space_for_items.unwrap().main
+        };
         let mut line = FlexLine::default();
         let mut line_main_size = CssPixels::default();
         for index in 0..self.flex_items.len() {
             let outer = self.flex_items[index].outer_hypothetical_main_size();
-            if !line.items.is_empty()
-                && self
-                    .available_space_for_items
-                    .unwrap()
-                    .main
-                    .pixels_greater_than(line_main_size + outer)
-            {
+            if !line.items.is_empty() && available_main_size.pixels_greater_than(line_main_size + outer) {
                 if reverse {
                     line.items.reverse();
                 }

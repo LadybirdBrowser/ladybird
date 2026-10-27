@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	.flexitem + .flexitem 1
+1 Pass
+Pass	.flexitem + .flexitem 1
