@@ -610,7 +610,21 @@ impl<'a> GraphBuilder<'a> {
         // NB: The entry block has no predecessors and jumps to the first bytecode
         //     block, which may be a loop header.
         let entry = self.start_new_block(Vec::new());
-        self.enter_function(entry);
+        // OPTIMIZATION: The code of top-level code that a loop triggered the compile of is only entered inside, so
+        //               what only its start reaches is left out, like a large literal that ran before the loop.
+        let builds_entry_at_osr_pc = self.snapshot.options.osr_pc.is_some_and(|pc| {
+            let index = self
+                .function
+                .instructions
+                .iter()
+                .position(|instruction| instruction.pc == pc);
+            index.is_some_and(|index| self.can_build_osr_entry(index))
+        });
+        if self.snapshot.options.runs_once && self.build_osr_entries && builds_entry_at_osr_pc {
+            self.set_control(Op::Unreachable, Vec::new());
+        } else {
+            self.enter_function(entry);
+        }
         if self.build_osr_entries {
             self.build_osr_entries()?;
             self.build_resume_entries()?;

@@ -1358,6 +1358,7 @@ pub fn capture_snapshot<'d>(
             dump_asm: options.dump_asm,
             verify_ir: options.verify_ir,
             osr_pc,
+            runs_once: function.is_none(),
             inlining: InliningLimits {
                 always_inlined_instructions: ALWAYS_INLINED_INSTRUCTION_COUNT,
                 max_instructions: options.inline_max_size,
