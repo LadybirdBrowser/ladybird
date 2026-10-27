@@ -99,9 +99,11 @@ if (APPLE)
     list(APPEND SOURCES
         CrashReportPOSIX.cpp
         LaunchURLsMacOS.cpp
+        NotificationBackendMacOS.mm
         PlatformColorsMacOS.cpp
         ProcessReaper.cpp
     )
+    set_source_files_properties(NotificationBackendMacOS.mm PROPERTIES COMPILE_FLAGS "-fobjc-arc")
 elseif (LINUX)
     list(APPEND SOURCES AudioDaemonSocket.cpp CrashReportPOSIX.cpp)
 endif()
@@ -165,7 +167,7 @@ if (LINUX)
 endif()
 
 if (APPLE)
-    target_link_libraries(LibWebView PRIVATE "-framework Carbon")
+    target_link_libraries(LibWebView PRIVATE "-framework Carbon" "-framework UserNotifications")
 endif()
 
 # Third-party
