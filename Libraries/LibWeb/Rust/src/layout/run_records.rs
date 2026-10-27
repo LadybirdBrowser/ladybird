@@ -300,6 +300,38 @@ pub(crate) struct RunRecords<'arena> {
     // out the table box. Keeping it on the run prevents measurement state from escaping a pass.
     table_inline_layouts: RefCell<HashMap<Node, table_formatting_context::TableInlineLayout>>,
     content_sizing: ContentSizing,
+    /// What the run found so far about the percentage block size dependency of its root and of the boxes whose
+    /// layout in it is in progress, the innermost last. Only these boxes have their dependency resolved.
+    percentage_block_size_dependencies_in_progress: PercentageBlockSizeDependenciesInProgress,
+}
+
+/// Whether a box depends on the block size its percentages resolve against, and whether a box it contains does.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct PercentageBlockSizeDependency {
+    pub(crate) depends_on_percentage_block_size: bool,
+    pub(crate) has_descendant_that_depends_on_percentage_block_size: bool,
+}
+
+type PercentageBlockSizeDependenciesInProgress =
+    RefCell<smallvec::SmallVec<[(Node, PercentageBlockSizeDependency); 8]>>;
+
+/// Keeps tracking the percentage block size dependency of a box while its layout is in progress.
+pub(crate) struct PercentageBlockSizeDependencyTracking<'records> {
+    dependencies_in_progress: &'records PercentageBlockSizeDependenciesInProgress,
+    node: Node,
+}
+
+impl Drop for PercentageBlockSizeDependencyTracking<'_> {
+    fn drop(&mut self) {
+        let finished = self.dependencies_in_progress.borrow_mut().pop();
+        if !std::thread::panicking() {
+            assert_eq!(
+                finished.map(|(node, _)| node),
+                Some(self.node),
+                "the layouts of boxes in progress finished out of order"
+            );
+        }
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -399,6 +431,10 @@ impl<'arena> RunRecords<'arena> {
             records_outside_table: RefCell::new(HashMap::default()),
             table_inline_layouts: RefCell::new(HashMap::default()),
             content_sizing,
+            percentage_block_size_dependencies_in_progress: RefCell::new(smallvec::smallvec![(
+                root,
+                PercentageBlockSizeDependency::default()
+            )]),
         };
         run(&records, callbacks.for_run(root, root_containing_block))
     }
@@ -503,6 +539,66 @@ impl<'arena> RunRecords<'arena> {
 
     pub(crate) fn root(&self) -> Node {
         self.root
+    }
+
+    /// Tracks the percentage block size dependency of `node` until the returned tracking is dropped, which the layout
+    /// of `node` holds while it is in progress.
+    pub(crate) fn track_percentage_block_size_dependency_while_laying_out(
+        &self,
+        node: Node,
+    ) -> PercentageBlockSizeDependencyTracking<'_> {
+        self.percentage_block_size_dependencies_in_progress
+            .borrow_mut()
+            .push((node, PercentageBlockSizeDependency::default()));
+        PercentageBlockSizeDependencyTracking {
+            dependencies_in_progress: &self.percentage_block_size_dependencies_in_progress,
+            node,
+        }
+    }
+
+    /// The percentage block size dependency found so far for the run's root or a box whose layout is in progress.
+    #[track_caller]
+    pub(crate) fn percentage_block_size_dependency_of(&self, node: Node) -> PercentageBlockSizeDependency {
+        self.percentage_block_size_dependencies_in_progress
+            .borrow()
+            .iter()
+            .rev()
+            .find(|(tracked, _)| *tracked == node)
+            .map(|(_, dependency)| *dependency)
+            .expect("only the run root and boxes whose layout is in progress have their dependency resolved")
+    }
+
+    /// Notes that `node` depends on the block size its percentages resolve against. Nothing resolves the dependency of
+    /// a box that is neither the run root nor in progress, so the note is dropped for such a box.
+    pub(crate) fn note_box_depends_on_percentage_block_size(&self, node: Node) {
+        self.update_percentage_block_size_dependency_of(node, |dependency| {
+            dependency.depends_on_percentage_block_size = true;
+        });
+    }
+
+    /// Notes that a box `containing_block` contains depends on the block size its percentages resolve against.
+    /// Nothing resolves the dependency of a box that is neither the run root nor in progress, so the note is dropped for
+    /// such a box.
+    pub(crate) fn note_descendant_depends_on_percentage_block_size(&self, containing_block: Node) {
+        self.update_percentage_block_size_dependency_of(containing_block, |dependency| {
+            dependency.has_descendant_that_depends_on_percentage_block_size = true;
+        });
+    }
+
+    fn update_percentage_block_size_dependency_of(
+        &self,
+        node: Node,
+        update: impl FnOnce(&mut PercentageBlockSizeDependency),
+    ) {
+        if let Some((_, dependency)) = self
+            .percentage_block_size_dependencies_in_progress
+            .borrow_mut()
+            .iter_mut()
+            .rev()
+            .find(|(tracked, _)| *tracked == node)
+        {
+            update(dependency);
+        }
     }
 
     pub(crate) fn store_table_inline_layout(&self, table: Node, layout: table_formatting_context::TableInlineLayout) {

@@ -1449,15 +1449,14 @@ impl<'pass> TableFormattingContext<'pass> {
             .map(|participant| (participant, create_row_used_values))
             .chain(self.cells.iter().map(|cell| (cell.box_, true)));
         let sizing = self.sizing();
-        let table_record = self.used_values(self.run.box_);
         for (participant, create_used_values) in participants {
             if create_used_values {
                 self.create_used_values(participant, self.participant_constraints);
             }
             if sizing.own_style_depends_on_percentage_block_size(participant) {
-                table_record
-                    .has_descendant_that_depends_on_percentage_block_size
-                    .set(true);
+                self.run
+                    .records
+                    .note_descendant_depends_on_percentage_block_size(self.run.box_);
             }
         }
         for cell in &self.cells {

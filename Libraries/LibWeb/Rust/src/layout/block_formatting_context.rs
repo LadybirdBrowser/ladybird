@@ -1887,6 +1887,10 @@ impl<'pass> BlockFormattingContext<'pass> {
 
         let block_container_inline_size = self.used(block_container).content_inline_size.get();
         let used = self.create_used_values(node, input.containing_block_constraints);
+        let _percentage_block_size_dependency_tracking = self
+            .run
+            .records
+            .track_percentage_block_size_dependency_while_laying_out(node);
         used.is_invisible_for_line_clamp
             .set(self.laying_out_invisible_line_clamp_content.get());
         if facts.is_anonymous_button_content_wrapper() {
@@ -2590,8 +2594,6 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
         let flow_position = self.flow_position();
         *self.margin_state.borrow_mut() = entry.outgoing_margins.clone();
-        used.depends_on_percentage_block_size
-            .set(entry.depends_on_percentage_block_size);
         formatting_context::propagate_percentage_block_size_dependency_to_containing_block(
             self.run.records,
             &self.run.callbacks,
@@ -3673,9 +3675,9 @@ impl<'pass> BlockFormattingContext<'pass> {
             let outputs =
                 formatting_context::run_fragmentainer(&self.run, builds_fragments, input, fragmentainer.clone());
             if outputs.result.depends_on_percentage_block_size {
-                self.used(self.run.box_)
-                    .has_descendant_that_depends_on_percentage_block_size
-                    .set(true);
+                self.run
+                    .records
+                    .note_descendant_depends_on_percentage_block_size(self.run.box_);
             }
             let mut outcome = fragmentainer.take_outcome();
             outcome.minimal_space_shortage = match (
