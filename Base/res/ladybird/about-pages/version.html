@@ -3,183 +3,193 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="color-scheme" content="light dark" />
+        <title>About Ladybird</title>
         <link rel="icon" type="image/png" href="resource://icons/48x48/app-browser.png" />
         <link rel="stylesheet" type="text/css" href="resource://ladybird/ladybird.css" />
-        <link rel="stylesheet" type="text/css" href="resource://ladybird/about-pages/webui.css" />
         <style>
-            @media (prefers-color-scheme: light) {
-                :root {
-                    --about-border-color: #dcdde1;
-                    --about-muted-color: #606873;
-                    --about-value-background-color: white;
-                }
+            body {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                min-height: 100vh;
+                box-sizing: border-box;
+                padding: 100px 24px 26px;
+            }
+
+            .logomark {
+                width: 168px;
+                height: 141px;
+            }
+
+            .logomark path {
+                stroke: var(--brand-mark);
+                stroke-width: 1.55;
+            }
+
+            :root {
+                --brand-mark: #6a39db;
             }
 
             @media (prefers-color-scheme: dark) {
                 :root {
-                    --about-border-color: #3d3d3d;
-                    --about-muted-color: #a0a0a0;
-                    --about-value-background-color: #1d1d1d;
+                    --brand-mark: #b496ff;
                 }
             }
 
-            .summary-card .card-body {
+            .name {
                 display: flex;
                 align-items: center;
-                gap: 16px;
+                gap: 12px;
+                margin-top: 26px;
             }
 
-            .summary-card img {
-                width: 72px;
-                height: 72px;
-                margin: 0;
-            }
-
-            .summary-title {
-                margin: 0 0 6px 0;
-
-                font-size: 24px;
+            h1 {
+                font-size: 40px;
                 font-weight: 600;
+                letter-spacing: -0.025em;
+                line-height: 1;
             }
 
-            .summary-version {
-                color: var(--about-muted-color);
+            .badge {
+                font-size: 12px;
+                font-weight: 600;
+                padding: 3px 8px;
+                border-radius: 6px;
+                color: var(--badge-text);
+                background: var(--badge-background);
+            }
 
-                font-size: 14px;
+            .tagline {
+                margin-top: 10px;
+                font-size: 15px;
+                color: var(--muted);
             }
 
             .details {
                 display: flex;
-                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+                width: 100%;
+                max-width: 460px;
+                margin-top: 30px;
+                padding: 14px 16px 14px 18px;
+                box-sizing: border-box;
+                border-radius: 8px;
+                background: var(--page);
+                box-shadow: inset 0 0 0 1px var(--separator);
             }
 
-            .detail-row {
+            .details dl {
+                flex: 1;
+                display: grid;
+                grid-template-columns: 96px minmax(0, 1fr);
+                row-gap: 8px;
+                font-size: 13px;
+                line-height: 1.4;
+            }
+
+            .details dt {
+                color: var(--muted);
+            }
+
+            .details dd {
+                overflow-wrap: anywhere;
+            }
+
+            .copy {
                 display: flex;
                 align-items: center;
-                gap: 16px;
-
-                padding: 14px 0;
-                border-bottom: 1px solid var(--about-border-color);
-            }
-
-            .detail-row:first-child {
-                padding-top: 0;
-            }
-
-            .detail-row:last-child {
-                padding-bottom: 0;
-                border-bottom: none;
-            }
-
-            .detail-label {
-                width: 150px;
-                flex-shrink: 0;
-
-                color: var(--about-muted-color);
-
-                font-size: 14px;
-            }
-
-            .detail-value {
-                background-color: var(--about-value-background-color);
-
-                flex: 1;
-                min-width: 0;
-                border: 1px solid var(--about-border-color);
-                border-radius: 4px;
-                padding: 8px 10px;
-
-                font-family: monospace;
+                gap: 6px;
+                height: 28px;
+                padding: 0 10px;
+                border: none;
+                border-radius: 7px;
+                font: inherit;
                 font-size: 13px;
-                overflow-wrap: break-word;
+                color: var(--text);
+                background: var(--control);
+                cursor: pointer;
             }
 
-            @media (max-width: 600px) {
-                .summary-card .card-body {
-                    align-items: flex-start;
-                }
+            .copy:hover {
+                background: var(--control-hover);
+            }
 
-                .detail-row {
-                    flex-direction: column;
-                    gap: 8px;
-                }
+            .copy:active {
+                background: var(--control-pressed);
+            }
 
-                .detail-label {
-                    width: auto;
-                }
+            .copy svg {
+                width: 12px;
+                height: 12px;
             }
         </style>
     </head>
     <body>
-        <header>
-            <picture>
-                <source srcset="resource://icons/128x128/app-browser.png" media="(prefers-color-scheme: dark)" />
-                <img src="resource://icons/128x128/app-browser-dark.png" />
-            </picture>
-            <h1 id="browser-name"></h1>
-        </header>
-
-        <h3 class="card-title">Build Details</h3>
-        <div class="card">
-            <div class="card-body details">
-                <div class="detail-row">
-                    <div class="detail-label">Version</div>
-                    <div id="browser-version" class="detail-value"></div>
-                </div>
-                <div class="detail-row">
-                    <div class="detail-label">Commit</div>
-                    <div id="browser-commit" class="detail-value"></div>
-                </div>
-                <div class="detail-row">
-                    <div class="detail-label">Architecture</div>
-                    <div id="arch" class="detail-value"></div>
-                </div>
-                <div class="detail-row">
-                    <div class="detail-label">Operating System</div>
-                    <div id="platform-name" class="detail-value"></div>
-                </div>
-                <div class="detail-row">
-                    <div class="detail-label">User Agent</div>
-                    <div id="user-agent" class="detail-value"></div>
-                </div>
-            </div>
+        <svg
+            class="logomark"
+            viewBox="-11 -9.2 22 18.4"
+            fill="none"
+            stroke-linejoin="round"
+            role="img"
+            aria-label="Ladybird logomark"
+        >
+            <path
+                d="M0.00 0.00 L0.17 0.21 L0.35 0.42 L0.52 0.63 L0.70 0.84 L0.87 1.05 L1.05 1.26 L1.22 1.47 L1.39 1.68 L1.56 1.88 L1.74 2.09 L1.91 2.29 L2.08 2.49 L2.25 2.69 L2.42 2.89 L2.59 3.08 L2.76 3.28 L2.92 3.47 L3.09 3.66 L3.26 3.85 L3.42 4.03 L3.58 4.21 L3.75 4.39 L3.91 4.57 L4.07 4.74 L4.23 4.91 L4.38 5.07 L4.54 5.23 L4.69 5.39 L4.85 5.55 L5.00 5.70 L5.15 5.85 L5.30 5.99 L5.45 6.13 L5.59 6.26 L5.74 6.39 L5.88 6.52 L6.02 6.64 L6.16 6.76 L6.29 6.87 L6.43 6.98 L6.56 7.08 L6.69 7.18 L6.82 7.27 L6.95 7.36 L7.07 7.45 L7.19 7.52 L7.31 7.60 L7.43 7.67 L7.55 7.73 L7.66 7.79 L7.77 7.84 L7.88 7.88 L7.99 7.93 L8.09 7.96 L8.19 7.99 L8.29 8.02 L8.39 8.04 L8.48 8.05 L8.57 8.06 L8.66 8.06 L8.75 8.06 L8.83 8.05 L8.91 8.04 L8.99 8.02 L9.06 7.99 L9.14 7.96 L9.21 7.93 L9.27 7.88 L9.34 7.84 L9.40 7.79 L9.46 7.73 L9.51 7.67 L9.56 7.60 L9.61 7.52 L9.66 7.45 L9.70 7.36 L9.74 7.27 L9.78 7.18 L9.82 7.08 L9.85 6.98 L9.88 6.87 L9.90 6.76 L9.93 6.64 L9.95 6.52 L9.96 6.39 L9.98 6.26 L9.99 6.13 L9.99 5.99 L10.00 5.85 L10.00 5.70 L10.00 5.55 L9.99 5.39 L9.99 5.23 L9.98 5.07 L9.96 4.91 L9.95 4.74 L9.93 4.57 L9.90 4.39 L9.88 4.21 L9.85 4.03 L9.82 3.85 L9.78 3.66 L9.74 3.47 L9.70 3.28 L9.66 3.08 L9.61 2.89 L9.56 2.69 L9.51 2.49 L9.46 2.29 L9.40 2.09 L9.34 1.88 L9.27 1.68 L9.21 1.47 L9.14 1.26 L9.06 1.05 L8.99 0.84 L8.91 0.63 L8.83 0.42 L8.75 0.21 L8.66 0.00 L8.57 -0.21 L8.48 -0.42 L8.39 -0.63 L8.29 -0.84 L8.19 -1.05 L8.09 -1.26 L7.99 -1.47 L7.88 -1.68 L7.77 -1.88 L7.66 -2.09 L7.55 -2.29 L7.43 -2.49 L7.31 -2.69 L7.19 -2.89 L7.07 -3.08 L6.95 -3.28 L6.82 -3.47 L6.69 -3.66 L6.56 -3.85 L6.43 -4.03 L6.29 -4.21 L6.16 -4.39 L6.02 -4.57 L5.88 -4.74 L5.74 -4.91 L5.59 -5.07 L5.45 -5.23 L5.30 -5.39 L5.15 -5.55 L5.00 -5.70 L4.85 -5.85 L4.69 -5.99 L4.54 -6.13 L4.38 -6.26 L4.23 -6.39 L4.07 -6.52 L3.91 -6.64 L3.75 -6.76 L3.58 -6.87 L3.42 -6.98 L3.26 -7.08 L3.09 -7.18 L2.92 -7.27 L2.76 -7.36 L2.59 -7.45 L2.42 -7.52 L2.25 -7.60 L2.08 -7.67 L1.91 -7.73 L1.74 -7.79 L1.56 -7.84 L1.39 -7.88 L1.22 -7.93 L1.05 -7.96 L0.87 -7.99 L0.70 -8.02 L0.52 -8.04 L0.35 -8.05 L0.17 -8.06 L0.00 -8.06 L-0.17 -8.06 L-0.35 -8.05 L-0.52 -8.04 L-0.70 -8.02 L-0.87 -7.99 L-1.05 -7.96 L-1.22 -7.93 L-1.39 -7.88 L-1.56 -7.84 L-1.74 -7.79 L-1.91 -7.73 L-2.08 -7.67 L-2.25 -7.60 L-2.42 -7.52 L-2.59 -7.45 L-2.76 -7.36 L-2.92 -7.27 L-3.09 -7.18 L-3.26 -7.08 L-3.42 -6.98 L-3.58 -6.87 L-3.75 -6.76 L-3.91 -6.64 L-4.07 -6.52 L-4.23 -6.39 L-4.38 -6.26 L-4.54 -6.13 L-4.69 -5.99 L-4.85 -5.85 L-5.00 -5.70 L-5.15 -5.55 L-5.30 -5.39 L-5.45 -5.23 L-5.59 -5.07 L-5.74 -4.91 L-5.88 -4.74 L-6.02 -4.57 L-6.16 -4.39 L-6.29 -4.21 L-6.43 -4.03 L-6.56 -3.85 L-6.69 -3.66 L-6.82 -3.47 L-6.95 -3.28 L-7.07 -3.08 L-7.19 -2.89 L-7.31 -2.69 L-7.43 -2.49 L-7.55 -2.29 L-7.66 -2.09 L-7.77 -1.88 L-7.88 -1.68 L-7.99 -1.47 L-8.09 -1.26 L-8.19 -1.05 L-8.29 -0.84 L-8.39 -0.63 L-8.48 -0.42 L-8.57 -0.21 L-8.66 -0.00 L-8.75 0.21 L-8.83 0.42 L-8.91 0.63 L-8.99 0.84 L-9.06 1.05 L-9.14 1.26 L-9.21 1.47 L-9.27 1.68 L-9.34 1.88 L-9.40 2.09 L-9.46 2.29 L-9.51 2.49 L-9.56 2.69 L-9.61 2.89 L-9.66 3.08 L-9.70 3.28 L-9.74 3.47 L-9.78 3.66 L-9.82 3.85 L-9.85 4.03 L-9.88 4.21 L-9.90 4.39 L-9.93 4.57 L-9.95 4.74 L-9.96 4.91 L-9.98 5.07 L-9.99 5.23 L-9.99 5.39 L-10.00 5.55 L-10.00 5.70 L-10.00 5.85 L-9.99 5.99 L-9.99 6.13 L-9.98 6.26 L-9.96 6.39 L-9.95 6.52 L-9.93 6.64 L-9.90 6.76 L-9.88 6.87 L-9.85 6.98 L-9.82 7.08 L-9.78 7.18 L-9.74 7.27 L-9.70 7.36 L-9.66 7.45 L-9.61 7.52 L-9.56 7.60 L-9.51 7.67 L-9.46 7.73 L-9.40 7.79 L-9.34 7.84 L-9.27 7.88 L-9.21 7.93 L-9.14 7.96 L-9.06 7.99 L-8.99 8.02 L-8.91 8.04 L-8.83 8.05 L-8.75 8.06 L-8.66 8.06 L-8.57 8.06 L-8.48 8.05 L-8.39 8.04 L-8.29 8.02 L-8.19 7.99 L-8.09 7.96 L-7.99 7.93 L-7.88 7.88 L-7.77 7.84 L-7.66 7.79 L-7.55 7.73 L-7.43 7.67 L-7.31 7.60 L-7.19 7.52 L-7.07 7.45 L-6.95 7.36 L-6.82 7.27 L-6.69 7.18 L-6.56 7.08 L-6.43 6.98 L-6.29 6.87 L-6.16 6.76 L-6.02 6.64 L-5.88 6.52 L-5.74 6.39 L-5.59 6.26 L-5.45 6.13 L-5.30 5.99 L-5.15 5.85 L-5.00 5.70 L-4.85 5.55 L-4.69 5.39 L-4.54 5.23 L-4.38 5.07 L-4.23 4.91 L-4.07 4.74 L-3.91 4.57 L-3.75 4.39 L-3.58 4.21 L-3.42 4.03 L-3.26 3.85 L-3.09 3.66 L-2.92 3.47 L-2.76 3.28 L-2.59 3.08 L-2.42 2.89 L-2.25 2.69 L-2.08 2.49 L-1.91 2.29 L-1.74 2.09 L-1.56 1.88 L-1.39 1.68 L-1.22 1.47 L-1.05 1.26 L-0.87 1.05 L-0.70 0.84 L-0.52 0.63 L-0.35 0.42 L-0.17 0.21 L-0.00 0.00 L0.17 -0.21 L0.35 -0.42 L0.52 -0.63 L0.70 -0.84 L0.87 -1.05 L1.05 -1.26 L1.22 -1.47 L1.39 -1.68 L1.56 -1.88 L1.74 -2.09 L1.91 -2.29 L2.08 -2.49 L2.25 -2.69 L2.42 -2.89 L2.59 -3.08 L2.76 -3.28 L2.92 -3.47 L3.09 -3.66 L3.26 -3.85 L3.42 -4.03 L3.58 -4.21 L3.75 -4.39 L3.91 -4.57 L4.07 -4.74 L4.23 -4.91 L4.38 -5.07 L4.54 -5.23 L4.69 -5.39 L4.85 -5.55 L5.00 -5.70 L5.15 -5.85 L5.30 -5.99 L5.45 -6.13 L5.59 -6.26 L5.74 -6.39 L5.88 -6.52 L6.02 -6.64 L6.16 -6.76 L6.29 -6.87 L6.43 -6.98 L6.56 -7.08 L6.69 -7.18 L6.82 -7.27 L6.95 -7.36 L7.07 -7.45 L7.19 -7.52 L7.31 -7.60 L7.43 -7.67 L7.55 -7.73 L7.66 -7.79 L7.77 -7.84 L7.88 -7.88 L7.99 -7.93 L8.09 -7.96 L8.19 -7.99 L8.29 -8.02 L8.39 -8.04 L8.48 -8.05 L8.57 -8.06 L8.66 -8.06 L8.75 -8.06 L8.83 -8.05 L8.91 -8.04 L8.99 -8.02 L9.06 -7.99 L9.14 -7.96 L9.21 -7.93 L9.27 -7.88 L9.34 -7.84 L9.40 -7.79 L9.46 -7.73 L9.51 -7.67 L9.56 -7.60 L9.61 -7.52 L9.66 -7.45 L9.70 -7.36 L9.74 -7.27 L9.78 -7.18 L9.82 -7.08 L9.85 -6.98 L9.88 -6.87 L9.90 -6.76 L9.93 -6.64 L9.95 -6.52 L9.96 -6.39 L9.98 -6.26 L9.99 -6.13 L9.99 -5.99 L10.00 -5.85 L10.00 -5.70 L10.00 -5.55 L9.99 -5.39 L9.99 -5.23 L9.98 -5.07 L9.96 -4.91 L9.95 -4.74 L9.93 -4.57 L9.90 -4.39 L9.88 -4.21 L9.85 -4.03 L9.82 -3.85 L9.78 -3.66 L9.74 -3.47 L9.70 -3.28 L9.66 -3.08 L9.61 -2.89 L9.56 -2.69 L9.51 -2.49 L9.46 -2.29 L9.40 -2.09 L9.34 -1.88 L9.27 -1.68 L9.21 -1.47 L9.14 -1.26 L9.06 -1.05 L8.99 -0.84 L8.91 -0.63 L8.83 -0.42 L8.75 -0.21 L8.66 -0.00 L8.57 0.21 L8.48 0.42 L8.39 0.63 L8.29 0.84 L8.19 1.05 L8.09 1.26 L7.99 1.47 L7.88 1.68 L7.77 1.88 L7.66 2.09 L7.55 2.29 L7.43 2.49 L7.31 2.69 L7.19 2.89 L7.07 3.08 L6.95 3.28 L6.82 3.47 L6.69 3.66 L6.56 3.85 L6.43 4.03 L6.29 4.21 L6.16 4.39 L6.02 4.57 L5.88 4.74 L5.74 4.91 L5.59 5.07 L5.45 5.23 L5.30 5.39 L5.15 5.55 L5.00 5.70 L4.85 5.85 L4.69 5.99 L4.54 6.13 L4.38 6.26 L4.23 6.39 L4.07 6.52 L3.91 6.64 L3.75 6.76 L3.58 6.87 L3.42 6.98 L3.26 7.08 L3.09 7.18 L2.92 7.27 L2.76 7.36 L2.59 7.45 L2.42 7.52 L2.25 7.60 L2.08 7.67 L1.91 7.73 L1.74 7.79 L1.56 7.84 L1.39 7.88 L1.22 7.93 L1.05 7.96 L0.87 7.99 L0.70 8.02 L0.52 8.04 L0.35 8.05 L0.17 8.06 L0.00 8.06 L-0.17 8.06 L-0.35 8.05 L-0.52 8.04 L-0.70 8.02 L-0.87 7.99 L-1.05 7.96 L-1.22 7.93 L-1.39 7.88 L-1.56 7.84 L-1.74 7.79 L-1.91 7.73 L-2.08 7.67 L-2.25 7.60 L-2.42 7.52 L-2.59 7.45 L-2.76 7.36 L-2.92 7.27 L-3.09 7.18 L-3.26 7.08 L-3.42 6.98 L-3.58 6.87 L-3.75 6.76 L-3.91 6.64 L-4.07 6.52 L-4.23 6.39 L-4.38 6.26 L-4.54 6.13 L-4.69 5.99 L-4.85 5.85 L-5.00 5.70 L-5.15 5.55 L-5.30 5.39 L-5.45 5.23 L-5.59 5.07 L-5.74 4.91 L-5.88 4.74 L-6.02 4.57 L-6.16 4.39 L-6.29 4.21 L-6.43 4.03 L-6.56 3.85 L-6.69 3.66 L-6.82 3.47 L-6.95 3.28 L-7.07 3.08 L-7.19 2.89 L-7.31 2.69 L-7.43 2.49 L-7.55 2.29 L-7.66 2.09 L-7.77 1.88 L-7.88 1.68 L-7.99 1.47 L-8.09 1.26 L-8.19 1.05 L-8.29 0.84 L-8.39 0.63 L-8.48 0.42 L-8.57 0.21 L-8.66 0.00 L-8.75 -0.21 L-8.83 -0.42 L-8.91 -0.63 L-8.99 -0.84 L-9.06 -1.05 L-9.14 -1.26 L-9.21 -1.47 L-9.27 -1.68 L-9.34 -1.88 L-9.40 -2.09 L-9.46 -2.29 L-9.51 -2.49 L-9.56 -2.69 L-9.61 -2.89 L-9.66 -3.08 L-9.70 -3.28 L-9.74 -3.47 L-9.78 -3.66 L-9.82 -3.85 L-9.85 -4.03 L-9.88 -4.21 L-9.90 -4.39 L-9.93 -4.57 L-9.95 -4.74 L-9.96 -4.91 L-9.98 -5.07 L-9.99 -5.23 L-9.99 -5.39 L-10.00 -5.55 L-10.00 -5.70 L-10.00 -5.85 L-9.99 -5.99 L-9.99 -6.13 L-9.98 -6.26 L-9.96 -6.39 L-9.95 -6.52 L-9.93 -6.64 L-9.90 -6.76 L-9.88 -6.87 L-9.85 -6.98 L-9.82 -7.08 L-9.78 -7.18 L-9.74 -7.27 L-9.70 -7.36 L-9.66 -7.45 L-9.61 -7.52 L-9.56 -7.60 L-9.51 -7.67 L-9.46 -7.73 L-9.40 -7.79 L-9.34 -7.84 L-9.27 -7.88 L-9.21 -7.93 L-9.14 -7.96 L-9.06 -7.99 L-8.99 -8.02 L-8.91 -8.04 L-8.83 -8.05 L-8.75 -8.06 L-8.66 -8.06 L-8.57 -8.06 L-8.48 -8.05 L-8.39 -8.04 L-8.29 -8.02 L-8.19 -7.99 L-8.09 -7.96 L-7.99 -7.93 L-7.88 -7.88 L-7.77 -7.84 L-7.66 -7.79 L-7.55 -7.73 L-7.43 -7.67 L-7.31 -7.60 L-7.19 -7.52 L-7.07 -7.45 L-6.95 -7.36 L-6.82 -7.27 L-6.69 -7.18 L-6.56 -7.08 L-6.43 -6.98 L-6.29 -6.87 L-6.16 -6.76 L-6.02 -6.64 L-5.88 -6.52 L-5.74 -6.39 L-5.59 -6.26 L-5.45 -6.13 L-5.30 -5.99 L-5.15 -5.85 L-5.00 -5.70 L-4.85 -5.55 L-4.69 -5.39 L-4.54 -5.23 L-4.38 -5.07 L-4.23 -4.91 L-4.07 -4.74 L-3.91 -4.57 L-3.75 -4.39 L-3.58 -4.21 L-3.42 -4.03 L-3.26 -3.85 L-3.09 -3.66 L-2.92 -3.47 L-2.76 -3.28 L-2.59 -3.08 L-2.42 -2.89 L-2.25 -2.69 L-2.08 -2.49 L-1.91 -2.29 L-1.74 -2.09 L-1.56 -1.88 L-1.39 -1.68 L-1.22 -1.47 L-1.05 -1.26 L-0.87 -1.05 L-0.70 -0.84 L-0.52 -0.63 L-0.35 -0.42 L-0.17 -0.21 Z"
+            />
+        </svg>
+        <div class="name">
+            <h1 id="browser-name">Ladybird</h1>
+            <span class="badge">Pre-Alpha</span>
         </div>
-
-        <h3 class="card-title">Runtime</h3>
-        <div class="card">
-            <div class="card-body details">
-                <div class="detail-row">
-                    <div class="detail-label">Command Line</div>
-                    <div id="command-line" class="detail-value"></div>
-                </div>
-                <div class="detail-row">
-                    <div class="detail-label">Executable Path</div>
-                    <div id="executable-path" class="detail-value"></div>
-                </div>
-            </div>
+        <p class="tagline">A truly independent web browser.</p>
+        <div class="details">
+            <dl>
+                <dt>Version</dt>
+                <dd id="browser-version"></dd>
+                <dt>Built</dt>
+                <dd id="browser-commit"></dd>
+                <dt>Platform</dt>
+                <dd id="platform"></dd>
+            </dl>
+            <button class="copy" id="copy" type="button">
+                <svg
+                    viewBox="0 0 16 16"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                >
+                    <path d="M5.5 5.5h7v8h-7zM3.5 10.5v-8h7" />
+                </svg>
+                Copy
+            </button>
         </div>
         <script type="module">
-            const browserName = document.querySelector("#browser-name");
-            const browserVersion = document.querySelector("#browser-version");
-            const browserCommit = document.querySelector("#browser-commit");
-            const arch = document.querySelector("#arch");
-            const platformName = document.querySelector("#platform-name");
-            const userAgent = document.querySelector("#user-agent");
-            const commandLine = document.querySelector("#command-line");
-            const executablePath = document.querySelector("#executable-path");
+            const copyButton = document.querySelector("#copy");
+            let detailsText = "";
 
             function renderVersionInfo(versionInfo) {
-                document.title = `About ${versionInfo?.browserName}`;
+                document.title = `About ${versionInfo.browserName}`;
+                document.querySelector("#browser-name").innerText = versionInfo.browserName;
+                document.querySelector("#browser-version").innerText = versionInfo.browserVersion;
+                document.querySelector("#browser-commit").innerText = `from ${versionInfo.browserCommit.slice(0, 10)}`;
+                document.querySelector("#platform").innerText = `${versionInfo.platformName}, ${versionInfo.arch}`;
 
-                browserName.innerText = document.title;
-                browserVersion.innerText = versionInfo?.browserVersion;
-                browserCommit.innerText = versionInfo?.browserCommit;
-                arch.innerText = versionInfo?.arch;
-                platformName.innerText = versionInfo?.platformName;
-                userAgent.innerText = navigator.userAgent;
-                commandLine.innerText = versionInfo?.commandLine;
-                executablePath.innerText = versionInfo?.executablePath;
+                // What is copied includes the details a bug report needs beyond what the page shows.
+                detailsText = [
+                    `${versionInfo.browserName} ${versionInfo.browserVersion} (${versionInfo.browserCommit})`,
+                    `Platform: ${versionInfo.platformName}, ${versionInfo.arch}`,
+                    `User agent: ${navigator.userAgent}`,
+                    `Command line: ${versionInfo.commandLine}`,
+                    `Executable path: ${versionInfo.executablePath}`,
+                ].join("\n");
             }
+
+            copyButton.addEventListener("click", () => {
+                navigator.clipboard.writeText(detailsText);
+            });
 
             document.addEventListener("WebUILoaded", () => {
                 ladybird.sendMessage("loadVersionInfo");

@@ -1,5 +1,3 @@
-import { populateSearchEngineSelect, updateSearchSuggestionsControl } from "../search-engine-controls.js";
-
 import { registerDialogDeepLink } from "./dialog-deep-link.js";
 
 const searchClose = document.querySelector("#search-close");
@@ -18,16 +16,77 @@ const searchSuggestionsDescription = document.querySelector("#search-suggestions
 let SEARCH_ENGINE = {};
 let ENGINES = [];
 
+function selectedEngine() {
+    return searchEngine.querySelector("input:checked");
+}
+
+// Each engine is a row of the list, with its initial on a tile, and a check mark when it's the one chosen.
+function createEngineChoice(name, supportsSuggestions) {
+    const choice = document.createElement("label");
+    choice.className = "engine-choice";
+
+    const radio = document.createElement("input");
+    radio.type = "radio";
+    radio.name = "search-engine";
+    radio.value = name;
+    radio.dataset.supportsSuggestions = supportsSuggestions;
+
+    const tile = document.createElement("span");
+    tile.setAttribute("aria-hidden", "true");
+    if (name) {
+        tile.className = "letter-tile";
+        tile.textContent = name.charAt(0).toUpperCase();
+    } else {
+        tile.className = "empty-tile";
+    }
+
+    const label = document.createElement("span");
+    label.className = "engine-name";
+    label.textContent = name || "None";
+
+    const check = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    check.setAttribute("class", "engine-check");
+    check.setAttribute("viewBox", "0 0 16 16");
+    check.setAttribute("aria-hidden", "true");
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", "M3.5 8.5l3 3 6-7");
+    check.append(path);
+
+    choice.append(radio, tile, label, check);
+    return choice;
+}
+
+function updateSearchSuggestionsControl() {
+    const engine = selectedEngine();
+    const supportsSuggestions = engine?.dataset.supportsSuggestions === "true";
+    searchSuggestionsEnabled.disabled = !supportsSuggestions;
+    if (!engine?.value) searchSuggestionsDescription.textContent = "Choose a search engine to use search suggestions.";
+    else if (!supportsSuggestions)
+        searchSuggestionsDescription.textContent = `Search suggestions aren't available for ${engine.value}.`;
+    else searchSuggestionsDescription.textContent = `Sends what you type to ${engine.value}.`;
+}
+
 function renderEngineSettings() {
-    populateSearchEngineSelect(searchEngine, ENGINES, SEARCH_ENGINE);
+    const engines = [...ENGINES, ...(SEARCH_ENGINE.custom || [])];
+    searchEngine.replaceChildren(
+        createEngineChoice("", false),
+        ...engines.map(engine =>
+            createEngineChoice(engine.name, Boolean(engine.supportsSuggestions || engine.suggestionsUrl))
+        )
+    );
+    const chosen = [...searchEngine.querySelectorAll("input")].find(
+        radio => radio.value === (SEARCH_ENGINE.engine || "")
+    );
+    if (chosen) chosen.checked = true;
+
     searchSuggestionsEnabled.checked = SEARCH_ENGINE.suggestions === true;
-    updateSearchSuggestionsControl(searchEngine, searchSuggestionsEnabled, searchSuggestionsDescription);
+    updateSearchSuggestionsControl();
     if (searchDialog.open) showSearchEngineSettings();
 }
 
 function saveSearchEngineSettings() {
     ladybird.sendMessage("setSearchEngineSettings", {
-        engine: searchEngine.value || null,
+        engine: selectedEngine()?.value || null,
         suggestions: searchSuggestionsEnabled.checked,
     });
 }
@@ -58,7 +117,7 @@ function showSearchEngineSettings() {
         const url = document.createElement("span");
         url.className = "dialog-list-item-placeholder";
         url.style = "padding-left: 0";
-        url.textContent = ` — ${custom.url}`;
+        url.textContent = ` · ${custom.url}`;
 
         const engine = document.createElement("span");
         engine.className = "dialog-list-item-label";
@@ -98,8 +157,8 @@ function addCustomSearchEngine() {
         return;
     }
 
-    for (let i = 0; i < searchEngine.length; ++i) {
-        if (searchCustomName.value === searchEngine.item(i).value) {
+    for (const radio of searchEngine.querySelectorAll("input")) {
+        if (searchCustomName.value === radio.value) {
             searchCustomName.classList.add("error");
             return;
         }

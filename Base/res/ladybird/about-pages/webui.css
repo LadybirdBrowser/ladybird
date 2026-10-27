@@ -1,41 +1,4 @@
-@media (prefers-color-scheme: light) {
-    :root {
-        --border-color: #dcdde1;
-        --input-background-color: white;
-        --card-background-color: #f5f5f5;
-        --card-header-background-color: #f0f2f5;
-        --icon-background-color: #dfe8f5;
-        --icon-color: #37597d;
-        --item-hover-color: #eceff3;
-        --item-selected-color: #dfe8f5;
-        --menu-background-color: #fff;
-        --menu-border-color: #d8d8d8;
-        --menu-shadow-color: rgba(0, 0, 0, 0.12);
-        --secondary-text-color: #65707d;
-        --separator-color: #e3e6eb;
-    }
-}
-
-@media (prefers-color-scheme: dark) {
-    :root {
-        --border-color: #3d3d3d;
-        --input-background-color: #1e1e1e;
-        --card-background-color: #242424;
-        --card-header-background-color: #252525;
-        --icon-background-color: #243748;
-        --icon-color: #9bc3ef;
-        --item-hover-color: #2a313a;
-        --item-selected-color: #243748;
-        --menu-background-color: #2a2a2a;
-        --menu-border-color: #4a4a4a;
-        --menu-shadow-color: rgba(0, 0, 0, 0.4);
-        --secondary-text-color: #a5b0bc;
-        --separator-color: #323841;
-    }
-}
-
 :root {
-    --accent: var(--violet-100);
     --card-radius: 12px;
 }
 
@@ -50,21 +13,21 @@ body {
     padding: 20px;
 }
 
+/* A page's title, with its actions on the same line. */
 header {
     display: flex;
     align-items: center;
+    gap: 12px;
 
-    margin-bottom: 30px;
+    margin-bottom: 18px;
 }
 
 header h1 {
-    font-size: 20px;
-}
+    flex: 1;
+    margin: 0;
 
-header img {
-    height: 48px;
-    margin-right: 10px;
-    float: left;
+    font-size: 22px;
+    font-weight: 600;
 }
 
 .card-title {
@@ -108,35 +71,38 @@ header img {
     display: none;
 }
 
-button:focus-visible,
-summary:focus-visible,
-input[type="checkbox"]:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-}
-
 .search-container {
-    background-color: var(--card-background-color);
+    background-color: var(--control);
 
     display: flex;
     align-items: center;
+    gap: 8px;
 
-    max-width: 65%;
-    margin: 0 auto 24px auto;
-    padding: 0 12px;
+    width: 280px;
+    height: 28px;
+    padding: 0 10px;
 
     border: none;
-    border-radius: 8px;
+    border-radius: 7px;
+}
+
+.search-container:focus-within {
+    background-color: var(--page);
+    box-shadow:
+        0 0 0 1px var(--focus-edge),
+        0 0 0 3px var(--focus-ring);
 }
 
 .search-container .search-icon {
-    color: var(--placeholder-color);
+    color: var(--muted);
     flex-shrink: 0;
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
 }
 
-.search-container .search-input {
+.search-container .search-input,
+.search-container .search-input:focus,
+.search-container .search-input:focus-visible {
     background: none;
     color: inherit;
 
@@ -145,13 +111,15 @@ input[type="checkbox"]:focus-visible {
     border: none;
     outline: none;
 
-    font-size: 14px;
+    font-size: 13px;
     line-height: 1.2;
 
     width: auto;
     min-width: 0;
+    height: auto;
 
-    padding: 10px 12px;
+    padding: 0;
+    box-shadow: none;
 }
 
 .menu-toggle {
@@ -165,7 +133,7 @@ input[type="checkbox"]:focus-visible {
     color: inherit;
     background: none;
     border: none;
-    border-radius: 4px;
+    border-radius: 6px;
 
     cursor: pointer;
 }
@@ -189,13 +157,14 @@ input[type="checkbox"]:focus-visible {
     flex-direction: column;
 
     min-width: 200px;
-    padding: 4px;
+    padding: 6px;
     margin-top: 4px;
 
     background-color: var(--menu-background-color);
-    border: 1px solid var(--menu-border-color);
-    border-radius: 6px;
-    box-shadow: 0 4px 12px var(--menu-shadow-color);
+    border-radius: 10px;
+    box-shadow:
+        0 0 0 1px var(--edge),
+        var(--popover-shadow);
 }
 
 .menu-dropdown.hidden {
@@ -206,10 +175,10 @@ input[type="checkbox"]:focus-visible {
     color: inherit;
     background: none;
     border: none;
-    border-radius: 4px;
+    border-radius: 6px;
 
     padding: 8px 12px;
-    font-size: 14px;
+    font-size: 13px;
     text-align: left;
 
     cursor: pointer;

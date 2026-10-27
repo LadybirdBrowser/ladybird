@@ -13,9 +13,9 @@ const autoplaySettings = document.querySelector("#autoplay-settings");
 
 const SITE_SETTING_POLICY_OPTIONS = {
     autoplay: [
-        { value: "allow-audio-and-video", label: "Allow Audio and Video" },
-        { value: "block-audio", label: "Block Audio" },
-        { value: "block-audio-and-video", label: "Block Audio and Video" },
+        { value: "allow-audio-and-video", label: "Allow audio and video" },
+        { value: "block-audio", label: "Block audio" },
+        { value: "block-audio-and-video", label: "Block audio and video" },
     ],
 };
 

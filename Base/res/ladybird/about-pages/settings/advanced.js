@@ -67,14 +67,10 @@ function createRow(variable) {
     row.classList.add("card-group");
     row.classList.add("config-row");
     row.classList.add("inline-container");
-    row.dataset.filterText = `${variable.name} ${variable.title} ${variable.description}`.toLowerCase();
+    row.dataset.filterText = `${variable.title} ${variable.description}`.toLowerCase();
 
     const title = document.createElement("p");
     title.textContent = variable.title;
-
-    const name = document.createElement("p");
-    name.classList.add("config-name");
-    name.textContent = variable.name;
 
     const description = document.createElement("p");
     description.classList.add("description");
@@ -82,7 +78,7 @@ function createRow(variable) {
 
     const label = document.createElement("label");
     label.htmlFor = variable.name;
-    label.append(title, name, description);
+    label.append(title, description);
 
     row.append(label, createControl(variable));
     return row;

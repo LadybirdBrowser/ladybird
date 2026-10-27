@@ -35,7 +35,7 @@ newTabPageURL.addEventListener("change", () => {
 });
 
 newTabPageURLReset.addEventListener("click", () => {
-    newTabPageURL.value = "about:newtab";
+    newTabPageURL.value = "about:blank";
     newTabPageURL.dispatchEvent(new Event("change"));
 });
 

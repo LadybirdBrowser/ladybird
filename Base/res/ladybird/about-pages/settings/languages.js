@@ -144,14 +144,14 @@ languagesSelect.addEventListener("change", () => {
 });
 
 registerDialogDeepLink({
-    hash: "languages",
-    tab: "general",
+    hash: "editLanguages",
+    tab: "languages",
     dialog: languagesDialog,
     onOpen: showLanguages,
 });
 
 languagesSettings.addEventListener("click", () => {
-    location.hash = "languages";
+    location.hash = "editLanguages";
 });
 
 document.addEventListener("WebUILoaded", () => {

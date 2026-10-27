@@ -39,40 +39,131 @@
     --slate-blue: var(--slate-blue-100);
 }
 
+/**
+ * The Quiet design's colors for Ladybird's own pages.
+ */
+
 @media (prefers-color-scheme: light) {
     :root {
-        --text-color: #2f3640;
-        --toggle-background-color: #8f8f8f;
-        --toggle-disabled-background-color: #e0e0e0;
-        --toggle-disabled-knob-color: #fafafa;
-        --secondary-button-color: #dddddd;
-        --secondary-button-hover: #e1e1e1;
-        --secondary-button-active: #e9e9e9;
+        --page: #ffffff;
+        --text: #1d1d1f;
+        --body: #3a3a40;
+        --muted: #5d5d64;
+        --separator: #dcdce0;
+        --separator-soft: #ececef;
+        --control: rgba(0, 0, 0, 0.06);
+        --control-hover: rgba(0, 0, 0, 0.075);
+        --control-pressed: rgba(0, 0, 0, 0.09);
+        --segment: #ffffff;
+        --surface: #fbfbfc;
+        --edge: rgba(0, 0, 0, 0.1);
+        --popover-shadow: 0 14px 36px rgba(0, 0, 0, 0.16);
+        --dialog-shadow: 0 18px 40px rgba(0, 0, 0, 0.22);
+        --field-edge: rgba(0, 0, 0, 0.04);
+        --link: #0a66d0;
+        --checkbox-edge: #6e6e75;
+        --error: #b3261e;
+        --success: #208a3a;
+        --warning: #8a4700;
+        --warning-icon: #b25d00;
+        --badge-background: rgba(106, 57, 219, 0.12);
+        --badge-text: #4d2bb0;
+        --brand: #6a39db;
+        --switch-off: #bcbcc2;
+        --preview-tab: #ffffff;
+        --preview-tab-inactive: #cfcfd4;
+        --preview-tab-current: #bdbdc3;
+        --preview-field: #e6e6e9;
+        --choice: var(--primary);
+        --choice-fill: rgba(10, 102, 208, 0.08);
     }
 }
 
 @media (prefers-color-scheme: dark) {
     :root {
-        --text-color: #e0e0e0;
-        --toggle-background-color: #6b6b6b;
-        --toggle-disabled-background-color: #353535;
-        --toggle-disabled-knob-color: #7a7a7a;
-        --secondary-button-color: #555555;
-        --secondary-button-hover: #505050;
-        --secondary-button-active: #444444;
+        --page: #1c1c1e;
+        --text: #f2f2f5;
+        --body: #dcdce1;
+        --muted: #acacb4;
+        --separator: #3d3d42;
+        --separator-soft: #333337;
+        --control: rgba(255, 255, 255, 0.1);
+        --control-hover: rgba(255, 255, 255, 0.12);
+        --control-pressed: rgba(255, 255, 255, 0.14);
+        --segment: #48484e;
+        --surface: #333336;
+        --edge: rgba(255, 255, 255, 0.12);
+        --popover-shadow: 0 14px 36px rgba(0, 0, 0, 0.45);
+        --dialog-shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
+        --field-edge: rgba(255, 255, 255, 0.06);
+        --link: #6aa8ff;
+        --checkbox-edge: #9a9aa2;
+        --error: #ff9a8f;
+        --success: #30b14f;
+        --warning: #f2a33a;
+        --warning-icon: #f2a33a;
+        --badge-background: rgba(150, 110, 255, 0.22);
+        --badge-text: #c9b5ff;
+        --brand: #7a4ce6;
+        --switch-off: #48484e;
+        --preview-tab: #2e2e31;
+        --preview-tab-inactive: #4a4a50;
+        --preview-tab-current: #5b5b61;
+        --preview-field: #3a3a3e;
+        --choice: #3d8bff;
+        --choice-fill: rgba(61, 139, 255, 0.16);
+    }
+}
+
+:root {
+    /* The accent is used for focus rings, selection and switches that are on. The primary action is a darker blue
+       that white text stays clear on. */
+    --accent: #0a7aff;
+    --primary: #0a66d0;
+    --primary-hover: #0959b8;
+    --primary-pressed: #084ea2;
+
+    /* A focus ring is a fine line of the focus edge color right outside the focused control, in a wider, fainter
+       halo. On a dark page it is a lighter blue, as the accent itself is too deep there. */
+    --focus-edge: var(--accent);
+    --focus-ring: rgba(10, 122, 255, 0.16);
+
+    /* Names that the pages' own styles use for the colors above. */
+    --text-color: var(--text);
+    --secondary-text-color: var(--muted);
+    --placeholder-color: var(--muted);
+    --border-color: var(--separator);
+    --separator-color: var(--separator-soft);
+    --card-background-color: var(--page);
+    --item-hover-color: var(--control);
+    --menu-background-color: var(--surface);
+    --toggle-background-color: var(--switch-off);
+    --toggle-disabled-background-color: var(--control);
+    --toggle-disabled-knob-color: var(--muted);
+    --secondary-button-color: var(--control);
+    --secondary-button-hover: var(--control-hover);
+    --secondary-button-active: var(--control-pressed);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --focus-edge: rgba(64, 140, 255, 0.75);
+        --focus-ring: rgba(64, 140, 255, 0.16);
     }
 }
 
 * {
     color-scheme: light dark;
-    font-family: sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
 
     margin: 0;
     padding: 0;
 }
 
 body {
-    color: var(--text-color);
+    color: var(--text);
+    background-color: var(--page);
+    font-size: 13px;
 }
 
 .hidden {
@@ -86,52 +177,60 @@ body {
 
 button.primary-button,
 button.secondary-button {
-    font-size: 14px;
+    font: inherit;
+    font-size: 13px;
+
+    height: 28px;
+    padding: 0 16px;
 
     border: none;
-    border-radius: 4px;
-    padding: 10px 15px;
+    border-radius: 7px;
 
     cursor: pointer;
 }
 
-button.primary-button:hover,
-button.secondary-button:hover {
-    filter: unset;
-}
-
-button.primary-button:active,
-button.secondary-button:active {
-    outline: none;
-}
-
 button.primary-button {
     color: white;
-    background-color: var(--violet-100);
+    background-color: var(--primary);
+    font-weight: 500;
 }
 
 button.primary-button:hover {
-    background-color: var(--violet-500);
+    background-color: var(--primary-hover);
 }
 
 button.primary-button:active {
-    background-color: var(--violet-900);
+    background-color: var(--primary-pressed);
 }
 
 button.primary-button:disabled {
-    background-color: var(--violet-60);
+    color: var(--muted);
+    background-color: var(--control);
+    cursor: default;
 }
 
 button.secondary-button {
-    background-color: var(--secondary-button-color);
+    color: var(--text);
+    background-color: var(--control);
 }
 
 button.secondary-button:hover {
-    background-color: var(--secondary-button-hover);
+    background-color: var(--control-hover);
 }
 
 button.secondary-button:active {
-    background-color: var(--secondary-button-active);
+    background-color: var(--control-pressed);
+}
+
+button:focus-visible,
+a:focus-visible,
+summary:focus-visible,
+select:focus-visible,
+input[type="checkbox"][switch]:focus-visible {
+    outline: none;
+    box-shadow:
+        0 0 0 1px var(--focus-edge),
+        0 0 0 3px var(--focus-ring);
 }
 
 input[type="number"],
@@ -139,37 +238,90 @@ input[type="search"],
 input[type="text"],
 input[type="url"],
 select {
-    color: var(--text-color);
+    color: var(--text);
+    background-color: var(--control);
 
-    font-size: 14px;
+    font: inherit;
+    font-size: 13px;
 
-    border-radius: 4px;
-    padding: 10px 12px;
+    height: 28px;
+    padding: 0 10px;
+
+    border: none;
+    border-radius: 7px;
 }
 
 input[type="number"]:focus,
 input[type="search"]:focus,
 input[type="text"]:focus,
 input[type="url"]:focus,
+select:focus-visible {
+    background-color: var(--page);
+    outline: none;
+    box-shadow:
+        0 0 0 1px var(--focus-edge),
+        0 0 0 3px var(--focus-ring);
+}
+
 select:focus {
-    border-color: var(--violet-100);
     outline: none;
 }
 
-input[type="checkbox"] {
-    width: 14px;
-    height: 14px;
+input::placeholder {
+    color: var(--muted);
+}
 
-    accent-color: var(--violet-100);
+/* A checkbox is a small rounded square, ringed when unchecked and filled with the accent and a white check mark when
+   checked. */
+input[type="checkbox"]:not([switch]) {
+    appearance: none;
+    flex-shrink: 0;
+
+    width: 16px;
+    height: 16px;
+
+    border: none;
+    border-radius: 4px;
+    box-shadow: inset 0 0 0 1.5px var(--checkbox-edge);
+
+    background-color: transparent;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 12px 12px;
 
     outline: none;
+    cursor: pointer;
+}
+
+input[type="checkbox"]:not([switch]):checked {
+    background-color: var(--accent);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2 4.9 8.6 9.5 3.6' fill='none' stroke='white' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    box-shadow: none;
+}
+
+input[type="checkbox"]:not([switch]):disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+input[type="checkbox"]:not([switch]):checked:focus-visible {
+    box-shadow:
+        0 0 0 1px var(--focus-edge),
+        0 0 0 3px var(--focus-ring);
+}
+
+input[type="checkbox"]:not([switch]):not(:checked):focus-visible {
+    box-shadow:
+        inset 0 0 0 1.5px var(--checkbox-edge),
+        0 0 0 1px var(--focus-edge),
+        0 0 0 3px var(--focus-ring);
 }
 
 input[type="checkbox"][switch] {
-    width: 50px;
-    height: 24px;
+    width: 32px;
+    height: 18px;
 
-    background-color: var(--toggle-background-color);
+    background-color: var(--switch-off);
     cursor: pointer;
 
     outline: none;
@@ -187,16 +339,188 @@ input[type="checkbox"][switch]:disabled::before {
 }
 
 input[type="checkbox"][switch]:checked {
-    background-color: var(--violet-100);
+    background-color: var(--accent);
 }
 
 input[type="checkbox"][switch]::before {
     background-color: white;
-    border: 0.6em solid white;
+    border: 7px solid white;
 
-    left: 3px;
+    left: 2px;
 }
 
 input[type="checkbox"][switch]:checked::before {
-    left: calc(100% - 1.3em);
+    left: calc(100% - 16px);
+}
+
+/* A choice between a few options, shown side by side in a track, with the chosen one raised. */
+.segmented {
+    display: inline-flex;
+    padding: 2px;
+    border-radius: 7px;
+    background: var(--control);
+}
+
+.segmented label {
+    display: flex;
+    margin: 0;
+    align-items: center;
+    height: 24px;
+    padding: 0 14px;
+    border-radius: 5px;
+    color: var(--text);
+    font-size: 13px;
+    cursor: default;
+}
+
+.segmented input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.segmented label:has(input:checked) {
+    background: var(--segment);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+.segmented label:has(input:focus-visible) {
+    box-shadow:
+        0 0 0 1px var(--focus-edge),
+        0 0 0 3px var(--focus-ring);
+}
+
+/* A choice of where tabs go, each option a card with a small picture of the window, outlined in the choice blue and
+   lightly filled when chosen. */
+.tab-options {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.tab-option {
+    display: flex;
+    margin: 0;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px;
+    border-radius: 10px;
+    box-shadow: inset 0 0 0 1px var(--separator);
+    cursor: pointer;
+}
+
+.tab-option:has(input:checked) {
+    background: var(--choice-fill);
+    box-shadow: inset 0 0 0 1.5px var(--choice);
+}
+
+.tab-option:has(input:focus-visible) {
+    box-shadow:
+        inset 0 0 0 1.5px var(--choice),
+        0 0 0 3px var(--focus-ring);
+}
+
+.tab-option-label {
+    padding: 0 2px;
+}
+
+.tab-option input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.tab-preview {
+    display: flex;
+    height: 72px;
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--page);
+    box-shadow: 0 0 0 1px var(--separator);
+}
+
+.horizontal-preview {
+    flex-direction: column;
+}
+
+.preview-strip {
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    height: 15px;
+    padding: 0 8px;
+    background: var(--separator);
+}
+
+.preview-strip i {
+    width: 26px;
+    height: 6px;
+    margin-bottom: 2px;
+    border-radius: 2px;
+    background: var(--preview-tab-inactive);
+}
+
+.preview-strip i.active {
+    width: 30px;
+    height: 10px;
+    margin-bottom: 0;
+    border-radius: 3px 3px 0 0;
+    background: var(--preview-tab);
+}
+
+.preview-toolbar {
+    display: flex;
+    align-items: center;
+    height: 13px;
+    padding: 0 8px;
+    background: var(--page);
+    border-bottom: 1px solid var(--separator);
+}
+
+.preview-toolbar i {
+    flex: 1;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--preview-field);
+}
+
+.preview-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 40px;
+    padding: 16px 6px 0;
+    box-sizing: border-box;
+    background: var(--separator);
+}
+
+.preview-sidebar i {
+    height: 5px;
+    border-radius: 2px;
+    background: var(--preview-tab-inactive);
+}
+
+.preview-sidebar i.active {
+    background: var(--preview-tab-current);
+}
+
+.preview-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* A search engine is pictured by a small tile with its initial. */
+.letter-tile {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--page);
+    background: var(--muted);
 }
