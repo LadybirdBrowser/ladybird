@@ -142,6 +142,12 @@ impl TransportMachPort {
         Ok(())
     }
 
+    /// How many posted messages are still waiting to be sent, so a producer can tell when its peer falls behind.
+    pub fn pending_message_count(&self) -> usize {
+        let queue = self.shared.lock_send_queue();
+        queue.pending.len() + usize::from(queue.in_progress)
+    }
+
     /// Waits until every message posted so far is sent, or the transport stops.
     pub fn flush(&self) {
         self.shared.wake_io_thread();
