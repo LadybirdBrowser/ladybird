@@ -18,6 +18,30 @@
 
 namespace Web::CSS {
 
+// A numeric leaf of a calculation, with its kind numbered as the Rust core numbers it.
+struct NumericLeaf {
+    enum class Kind : u8 {
+        Number,
+        Angle,
+        Flex,
+        Frequency,
+        Length,
+        Percentage,
+        Resolution,
+        Time,
+    };
+
+    static Optional<NumericLeaf> from_typed_om_unit(double value, Utf16FlyString const& unit);
+
+    Utf16FlyString typed_om_unit() const;
+    ValueType value_type() const;
+    NonnullRefPtr<StyleValue const> to_style_value() const;
+
+    Kind kind;
+    double value;
+    u8 unit_or_number_type { 0 };
+};
+
 // Move-only owner of one strong reference to a Rust calculation node. This is
 // how C++ builds calculation trees: every factory transfers its argument
 // handles into the new node, mirroring the FFI construction surface, so a
@@ -26,8 +50,6 @@ class CalcNodeRef {
     AK_MAKE_NONCOPYABLE(CalcNodeRef);
 
 public:
-    using NumericValue = CalculatedStyleValue::NumericValue;
-
     CalcNodeRef(CalcNodeRef&& other)
         : m_node(exchange(other.m_node, nullptr))
     {
@@ -56,7 +78,7 @@ public:
     // simplification entry points.
     static CalcNodeRef adopt(StyleValueFFI::CalcNode const* node) { return CalcNodeRef { node }; }
 
-    static CalcNodeRef numeric(NumericValue const&);
+    static CalcNodeRef numeric(NumericLeaf const&);
 
     static CalcNodeRef sum(Vector<CalcNodeRef>);
     static CalcNodeRef product(Vector<CalcNodeRef>);

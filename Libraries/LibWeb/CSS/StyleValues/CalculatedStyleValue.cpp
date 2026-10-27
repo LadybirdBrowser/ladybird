@@ -179,34 +179,7 @@ static GC::Ptr<CSSNumericValue> reify_rust_calculation(StyleValueFFI::StyleValue
 
         switch (node.kind) {
         case 0:
-            switch (node.numeric_kind) {
-            case 0:
-                reified_nodes.append(CSSUnitValue::create(node.value, "number"_utf16_fly_string));
-                break;
-            case 1:
-                reified_nodes.append(CSSUnitValue::create(node.value, Angle { node.value, static_cast<AngleUnit>(node.unit) }.unit_name()));
-                break;
-            case 2:
-                reified_nodes.append(CSSUnitValue::create(node.value, Flex { node.value, static_cast<FlexUnit>(node.unit) }.unit_name()));
-                break;
-            case 3:
-                reified_nodes.append(CSSUnitValue::create(node.value, Frequency { node.value, static_cast<FrequencyUnit>(node.unit) }.unit_name()));
-                break;
-            case 4:
-                reified_nodes.append(CSSUnitValue::create(node.value, Length { node.value, static_cast<LengthUnit>(node.unit) }.unit_name()));
-                break;
-            case 5:
-                reified_nodes.append(CSSUnitValue::create(node.value, "percent"_utf16_fly_string));
-                break;
-            case 6:
-                reified_nodes.append(CSSUnitValue::create(node.value, Resolution { node.value, static_cast<ResolutionUnit>(node.unit) }.unit_name()));
-                break;
-            case 7:
-                reified_nodes.append(CSSUnitValue::create(node.value, Time { node.value, static_cast<TimeUnit>(node.unit) }.unit_name()));
-                break;
-            default:
-                VERIFY_NOT_REACHED();
-            }
+            reified_nodes.append(CSSUnitValue::create(node.value, NumericLeaf { static_cast<NumericLeaf::Kind>(node.numeric_kind), node.value, node.unit }.typed_om_unit()));
             break;
         case 2:
             reified_nodes.append(CSSMathSum::create(added_types_of_children(), reify_children()));
@@ -250,17 +223,109 @@ GC::Ref<CSSStyleValue> CalculatedStyleValue::reify(Utf16FlyString const& associa
     return default_reify(associated_property);
 }
 
-CalcNodeRef CalcNodeRef::numeric(NumericValue const& value)
+Optional<NumericLeaf> NumericLeaf::from_typed_om_unit(double value, Utf16FlyString const& unit)
 {
-    return adopt(value.visit(
-        [](Number const& number) { return StyleValueFFI::rust_calc_node_create_numeric_dimension(0, number.value(), to_underlying(number.type())); },
-        [](Angle const& angle) { return StyleValueFFI::rust_calc_node_create_numeric_dimension(1, angle.raw_value(), to_underlying(angle.unit())); },
-        [](Flex const& flex) { return StyleValueFFI::rust_calc_node_create_numeric_dimension(2, flex.raw_value(), to_underlying(flex.unit())); },
-        [](Frequency const& frequency) { return StyleValueFFI::rust_calc_node_create_numeric_dimension(3, frequency.raw_value(), to_underlying(frequency.unit())); },
-        [](Length const& length) { return StyleValueFFI::rust_calc_node_create_numeric_dimension(4, length.raw_value(), to_underlying(length.unit())); },
-        [](Percentage const& percentage) { return StyleValueFFI::rust_calc_node_create_numeric_dimension(5, percentage.value(), 0); },
-        [](Resolution const& resolution) { return StyleValueFFI::rust_calc_node_create_numeric_dimension(6, resolution.raw_value(), to_underlying(resolution.unit())); },
-        [](Time const& time) { return StyleValueFFI::rust_calc_node_create_numeric_dimension(7, time.raw_value(), to_underlying(time.unit())); }));
+    if (unit == "number"_utf16_fly_string)
+        return NumericLeaf { Kind::Number, value };
+
+    if (unit == "percent"_utf16_fly_string)
+        return NumericLeaf { Kind::Percentage, value };
+
+    if (auto dimension_type = dimension_for_unit(unit); dimension_type.has_value()) {
+        switch (*dimension_type) {
+        case DimensionType::Angle:
+            return NumericLeaf { Kind::Angle, value, to_underlying(string_to_angle_unit(unit).release_value()) };
+        case DimensionType::Flex:
+            return NumericLeaf { Kind::Flex, value, to_underlying(string_to_flex_unit(unit).release_value()) };
+        case DimensionType::Frequency:
+            return NumericLeaf { Kind::Frequency, value, to_underlying(string_to_frequency_unit(unit).release_value()) };
+        case DimensionType::Length:
+            return NumericLeaf { Kind::Length, value, to_underlying(string_to_length_unit(unit).release_value()) };
+        case DimensionType::Resolution:
+            return NumericLeaf { Kind::Resolution, value, to_underlying(string_to_resolution_unit(unit).release_value()) };
+        case DimensionType::Time:
+            return NumericLeaf { Kind::Time, value, to_underlying(string_to_time_unit(unit).release_value()) };
+        }
+    }
+
+    return {};
+}
+
+Utf16FlyString NumericLeaf::typed_om_unit() const
+{
+    switch (kind) {
+    case Kind::Number:
+        return "number"_utf16_fly_string;
+    case Kind::Angle:
+        return CSS::to_string(static_cast<AngleUnit>(unit_or_number_type));
+    case Kind::Flex:
+        return CSS::to_string(static_cast<FlexUnit>(unit_or_number_type));
+    case Kind::Frequency:
+        return CSS::to_string(static_cast<FrequencyUnit>(unit_or_number_type));
+    case Kind::Length:
+        return CSS::to_string(static_cast<LengthUnit>(unit_or_number_type));
+    case Kind::Percentage:
+        return "percent"_utf16_fly_string;
+    case Kind::Resolution:
+        return CSS::to_string(static_cast<ResolutionUnit>(unit_or_number_type));
+    case Kind::Time:
+        return CSS::to_string(static_cast<TimeUnit>(unit_or_number_type));
+    }
+    VERIFY_NOT_REACHED();
+}
+
+ValueType NumericLeaf::value_type() const
+{
+    switch (kind) {
+    case Kind::Number:
+        return ValueType::Number;
+    case Kind::Angle:
+        return ValueType::Angle;
+    case Kind::Flex:
+        return ValueType::Flex;
+    case Kind::Frequency:
+        return ValueType::Frequency;
+    case Kind::Length:
+        return ValueType::Length;
+    case Kind::Percentage:
+        return ValueType::Percentage;
+    case Kind::Resolution:
+        return ValueType::Resolution;
+    case Kind::Time:
+        return ValueType::Time;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+NonnullRefPtr<StyleValue const> NumericLeaf::to_style_value() const
+{
+    auto data = [&] {
+        switch (kind) {
+        case Kind::Number:
+            return StyleValueFFI::rust_style_value_create_number(value);
+        case Kind::Angle:
+            return StyleValueFFI::rust_style_value_create_angle(value, unit_or_number_type);
+        case Kind::Flex:
+            return StyleValueFFI::rust_style_value_create_flex(value, unit_or_number_type);
+        case Kind::Frequency:
+            return StyleValueFFI::rust_style_value_create_frequency(value, unit_or_number_type);
+        case Kind::Length:
+            return StyleValueFFI::rust_style_value_create_length(value, unit_or_number_type);
+        case Kind::Percentage:
+            return StyleValueFFI::rust_style_value_create_percentage(value);
+        case Kind::Resolution:
+            return StyleValueFFI::rust_style_value_create_resolution(value, unit_or_number_type);
+        case Kind::Time:
+            return StyleValueFFI::rust_style_value_create_time(value, unit_or_number_type);
+        }
+        VERIFY_NOT_REACHED();
+    }();
+    return StyleValue::adopt_rust_style_value_data(data);
+}
+
+CalcNodeRef CalcNodeRef::numeric(NumericLeaf const& leaf)
+{
+    return adopt(StyleValueFFI::rust_calc_node_create_numeric_dimension(to_underlying(leaf.kind), leaf.value, leaf.unit_or_number_type));
 }
 
 static CalcNodeRef make_variadic_node(u8 kind, Vector<CalcNodeRef> children)

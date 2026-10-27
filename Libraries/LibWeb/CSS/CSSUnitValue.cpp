@@ -292,34 +292,6 @@ Optional<SumValue> CSSUnitValue::create_a_sum_value() const
     return SumValue { SumValueItem { value, { { unit, 1 } } } };
 }
 
-static Optional<CalcNodeRef::NumericValue> create_numeric_value(double value, Utf16FlyString const& unit)
-{
-    if (unit == "number"_utf16_fly_string)
-        return Number { Number::Type::Number, value };
-
-    if (unit == "percent"_utf16_fly_string)
-        return Percentage { value };
-
-    if (auto dimension_type = dimension_for_unit(unit); dimension_type.has_value()) {
-        switch (*dimension_type) {
-        case DimensionType::Angle:
-            return Angle { value, string_to_angle_unit(unit).release_value() };
-        case DimensionType::Flex:
-            return Flex { value, string_to_flex_unit(unit).release_value() };
-        case DimensionType::Frequency:
-            return Frequency { value, string_to_frequency_unit(unit).release_value() };
-        case DimensionType::Length:
-            return Length { value, string_to_length_unit(unit).release_value() };
-        case DimensionType::Resolution:
-            return Resolution { value, string_to_resolution_unit(unit).release_value() };
-        case DimensionType::Time:
-            return Time { value, string_to_time_unit(unit).release_value() };
-        }
-    }
-
-    return {};
-}
-
 // https://drafts.css-houdini.org/css-typed-om-1/#create-an-internal-representation
 WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSUnitValue::create_an_internal_representation(PropertyNameAndID const& property, PerformTypeCheck perform_type_check) const
 {
@@ -339,137 +311,55 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSUnitValue::create_an_int
         return UnresolvedStyleValue::create(builder.to_string(), Parser::SubstitutionFunctionsPresence {});
     }
 
-    auto wrap_in_math_sum = [this, &property](auto&& value) -> NonnullRefPtr<StyleValue const> {
+    auto wrap_in_math_sum = [this, &property](NumericLeaf const& leaf) -> NonnullRefPtr<StyleValue const> {
         auto context = CalculationContext::for_property(property);
         Vector<CalcNodeRef> children;
-        children.append(CalcNodeRef::numeric(value));
+        children.append(CalcNodeRef::numeric(leaf));
         auto math_sum_node = CalcNodeRef::sum(move(children));
         return CalculatedStyleValue::create(move(math_sum_node), NumericType::create_from_unit(m_unit).release_value(), context);
     };
 
-    auto value = create_numeric_value(m_value, m_unit);
-    if (!value.has_value()) {
+    auto leaf = NumericLeaf::from_typed_om_unit(m_value, m_unit);
+    if (!leaf.has_value()) {
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Unrecognized unit."_utf16 };
     }
 
-    if (perform_type_check == PerformTypeCheck::No) {
-        return value->visit(
-                        [&](Number const& number) -> RefPtr<StyleValue const> {
-                            return NumberStyleValue::create(number.value());
-                        },
-                        [&](Percentage const& percentage) -> RefPtr<StyleValue const> {
-                            return PercentageStyleValue::create(percentage);
-                        },
-                        [&](Angle const& angle) -> RefPtr<StyleValue const> {
-                            return AngleStyleValue::create(angle);
-                        },
-                        [&](Flex const& flex) -> RefPtr<StyleValue const> {
-                            return FlexStyleValue::create(flex);
-                        },
-                        [&](Frequency const& frequency) -> RefPtr<StyleValue const> {
-                            return FrequencyStyleValue::create(frequency);
-                        },
-                        [&](Length const& length) -> RefPtr<StyleValue const> {
-                            return LengthStyleValue::create(length);
-                        },
-                        [&](Resolution const& resolution) -> RefPtr<StyleValue const> {
-                            return ResolutionStyleValue::create(resolution);
-                        },
-                        [&](Time const& time) -> RefPtr<StyleValue const> {
-                            return TimeStyleValue::create(time);
-                        })
-            .release_nonnull();
-    }
+    if (perform_type_check == PerformTypeCheck::No)
+        return leaf->to_style_value();
 
     // FIXME: Check types allowed by registered custom properties.
-    auto style_value = value->visit(
-        [&](Number const& number) -> RefPtr<StyleValue const> {
+    auto style_value = [&] -> RefPtr<StyleValue const> {
+        if (leaf->kind == NumericLeaf::Kind::Number) {
             // NB: Our parser represents an <opacity-value> as an opacity value that holds the number.
             if (property_accepts_type(property.id(), ValueType::OpacityValue))
-                return OpacityValueStyleValue::create(NumberStyleValue::create(number.value()));
+                return OpacityValueStyleValue::create(NumberStyleValue::create(leaf->value));
 
             // NB: Number before Integer, because a custom property accepts either and we want to avoid rounding in that case.
-            if (property_accepts_type(property.id(), ValueType::Number)) {
-                if (property_accepts_number(property.id(), number.value()))
-                    return NumberStyleValue::create(number.value());
-                return wrap_in_math_sum(number);
-            }
-
-            if (property_accepts_type(property.id(), ValueType::Integer)) {
-                auto integer = round_to_nearest_integer(number.value());
+            if (!property_accepts_type(property.id(), ValueType::Number) && property_accepts_type(property.id(), ValueType::Integer)) {
+                auto integer = round_to_nearest_integer(leaf->value);
                 // NB: A number that is not an integer does not match <integer>, so it's wrapped in a CSSMathSum, like
                 //     a value outside of the accepted range. It then gets rounded when computed.
-                if (static_cast<double>(integer) != number.value())
-                    return wrap_in_math_sum(number);
-                if (property_accepts_integer(property.id(), integer))
+                if (static_cast<double>(integer) != leaf->value)
+                    return wrap_in_math_sum(*leaf);
+                if (property_accepts_value_in_range(property.id(), ValueType::Integer, static_cast<double>(integer)))
                     return IntegerStyleValue::create(integer);
-                return wrap_in_math_sum(number);
+                return wrap_in_math_sum(*leaf);
             }
+        }
 
-            return {};
-        },
-        [&](Percentage const& percentage) -> RefPtr<StyleValue const> {
-            // NB: Our parser represents an <opacity-value> as an opacity value that holds the percentage.
-            if (property_accepts_type(property.id(), ValueType::OpacityValue))
-                return OpacityValueStyleValue::create(PercentageStyleValue::create(percentage));
+        // NB: Our parser represents an <opacity-value> as an opacity value that holds the percentage.
+        if (leaf->kind == NumericLeaf::Kind::Percentage && property_accepts_type(property.id(), ValueType::OpacityValue))
+            return OpacityValueStyleValue::create(leaf->to_style_value());
 
-            if (property_accepts_type(property.id(), ValueType::Percentage)) {
-                if (property_accepts_percentage(property.id(), percentage))
-                    return PercentageStyleValue::create(percentage);
-                return wrap_in_math_sum(percentage);
-            }
+        if (!property_accepts_type(property.id(), leaf->value_type()))
+            return {};
+        if (property_accepts_value_in_range(property.id(), leaf->value_type(), leaf->value))
+            return leaf->to_style_value();
+        return wrap_in_math_sum(*leaf);
+    }();
 
-            return {};
-        },
-        [&](Angle const& angle) -> RefPtr<StyleValue const> {
-            if (property_accepts_type(property.id(), ValueType::Angle)) {
-                if (property_accepts_angle(property.id(), angle))
-                    return AngleStyleValue::create(angle);
-                return wrap_in_math_sum(angle);
-            }
-            return {};
-        },
-        [&](Flex const& flex) -> RefPtr<StyleValue const> {
-            if (property_accepts_type(property.id(), ValueType::Flex)) {
-                if (property_accepts_flex(property.id(), flex))
-                    return FlexStyleValue::create(flex);
-                return wrap_in_math_sum(flex);
-            }
-            return {};
-        },
-        [&](Frequency const& frequency) -> RefPtr<StyleValue const> {
-            if (property_accepts_type(property.id(), ValueType::Frequency)) {
-                if (property_accepts_frequency(property.id(), frequency))
-                    return FrequencyStyleValue::create(frequency);
-                return wrap_in_math_sum(frequency);
-            }
-            return {};
-        },
-        [&](Length const& length) -> RefPtr<StyleValue const> {
-            if (property_accepts_type(property.id(), ValueType::Length)) {
-                if (property_accepts_length(property.id(), length))
-                    return LengthStyleValue::create(length);
-                return wrap_in_math_sum(length);
-            }
-            return {};
-        },
-        [&](Resolution const& resolution) -> RefPtr<StyleValue const> {
-            if (property_accepts_type(property.id(), ValueType::Resolution)) {
-                if (property_accepts_resolution(property.id(), resolution))
-                    return ResolutionStyleValue::create(resolution);
-                return wrap_in_math_sum(resolution);
-            }
-            return {};
-        },
-        [&](Time const& time) -> RefPtr<StyleValue const> {
-            if (property_accepts_type(property.id(), ValueType::Time)) {
-                if (property_accepts_time(property.id(), time))
-                    return TimeStyleValue::create(time);
-                return wrap_in_math_sum(time);
-            }
-            return {};
-        });
-
+    if (!style_value)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Property does not accept values of this type."_utf16 };
     if (!style_value)
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Property does not accept values of this type."_utf16 };
     return style_value.release_nonnull();
@@ -477,11 +367,11 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSUnitValue::create_an_int
 
 WebIDL::ExceptionOr<CalcNodeRef> CSSUnitValue::create_calculation_node(CalculationContext const&) const
 {
-    auto value = create_numeric_value(m_value, m_unit);
-    if (!value.has_value())
+    auto leaf = NumericLeaf::from_typed_om_unit(m_value, m_unit);
+    if (!leaf.has_value())
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Unable to create calculation node."_utf16 };
 
-    return CalcNodeRef::numeric(value.release_value());
+    return CalcNodeRef::numeric(*leaf);
 }
 
 }

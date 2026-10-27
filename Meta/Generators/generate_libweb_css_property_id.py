@@ -102,13 +102,22 @@ def is_animatable_property(properties: dict, property_name: str) -> bool:
     return False
 
 
-def generate_bounds_checking_function(
-    out: TextIO, properties: dict, css_type_name: str, type_name: str, value_getter: str = ""
-) -> None:
-    out.write(f"""
-bool property_accepts_{css_type_name}(PropertyID property_id, [[maybe_unused]] {type_name} const& value)
-{{
-    switch (property_id) {{
+def generate_value_range_checking_function(out: TextIO, properties: dict) -> None:
+    numeric_type_names = [
+        "angle",
+        "flex",
+        "frequency",
+        "integer",
+        "length",
+        "number",
+        "percentage",
+        "resolution",
+        "time",
+    ]
+    out.write("""
+bool property_accepts_value_in_range(PropertyID property_id, ValueType value_type, [[maybe_unused]] double value)
+{
+    switch (property_id) {
 """)
 
     for name, value in properties.items():
@@ -117,15 +126,13 @@ bool property_accepts_{css_type_name}(PropertyID property_id, [[maybe_unused]] {
         valid_types = value.get("valid-types")
         if not valid_types:
             continue
+        checks = {}
         for valid_type in valid_types:
             type_and_range = valid_type.split(" ")
-            if type_and_range[0] != css_type_name:
+            type_name = type_and_range[0]
+            if type_name not in numeric_type_names or type_name in checks:
                 continue
-
-            out.write(f"""
-    case PropertyID::{title_casify(name)}:
-        return """)
-
+            checks[type_name] = "true"
             if len(type_and_range) > 1:
                 range_str = type_and_range[1]
                 if not (range_str.startswith("[") and range_str.endswith("]") and "," in range_str):
@@ -133,26 +140,28 @@ bool property_accepts_{css_type_name}(PropertyID property_id, [[maybe_unused]] {
                 comma_index = range_str.index(",")
                 min_value_string = range_str[1:comma_index]
                 max_value_string = range_str[comma_index + 1 : -1]
-
-                if min_value_string == "-∞":
-                    min_value_string = ""
-                if max_value_string == "∞":
-                    max_value_string = ""
-
-                if not min_value_string and not max_value_string:
-                    out.write("true;\n")
-                    break
-
                 parts = []
-                if min_value_string:
-                    parts.append(f"{value_getter} >= {min_value_string}")
-                if max_value_string:
-                    parts.append(f"{value_getter} <= {max_value_string}")
-                out.write(" && ".join(parts))
-                out.write(";\n")
-            else:
-                out.write("true;\n")
-            break
+                if min_value_string != "-∞":
+                    parts.append(f"value >= {min_value_string}")
+                if max_value_string != "∞":
+                    parts.append(f"value <= {max_value_string}")
+                if parts:
+                    checks[type_name] = " && ".join(parts)
+        if not checks:
+            continue
+
+        out.write(f"""
+    case PropertyID::{title_casify(name)}:
+        switch (value_type) {{
+""")
+        for type_name, check in checks.items():
+            out.write(f"""        case ValueType::{title_casify(type_name)}:
+            return {check};
+""")
+        out.write("""        default:
+            return false;
+        }
+""")
 
     out.write("""
     default:
@@ -295,7 +304,6 @@ enum class PropertyID : {property_id_underlying_type} {{
         {title_casify(name)},
 """)
 
-    # FIXME: property_accepts_{number,percentage}() and property_accepted_ranges_by_value_type provide the same data, we should consolidate them.
     out.write(f"""
 }};
 
@@ -317,16 +325,8 @@ bool property_accepts_type(PropertyID, ValueType);
 WEB_API NumericRangesByValueType property_accepted_ranges_by_value_type(PropertyID);
 Optional<ValueType> property_resolves_percentages_relative_to(PropertyID);
 
-// These perform range-checking, but are also safe to call with properties that don't accept that type. (They'll just return false.)
-bool property_accepts_angle(PropertyID, Angle const&);
-bool property_accepts_flex(PropertyID, Flex const&);
-bool property_accepts_frequency(PropertyID, Frequency const&);
-bool property_accepts_integer(PropertyID, i64 const&);
-bool property_accepts_length(PropertyID, Length const&);
-bool property_accepts_number(PropertyID, double const&);
-bool property_accepts_percentage(PropertyID, Percentage const&);
-bool property_accepts_resolution(PropertyID, Resolution const&);
-bool property_accepts_time(PropertyID, Time const&);
+// This performs range-checking, but is also safe to call with properties that don't accept that type. (It'll just return false.)
+bool property_accepts_value_in_range(PropertyID, ValueType, double);
 
 WEB_API bool property_is_shorthand(PropertyID);
 WEB_API bool property_is_legacy_shorthand(PropertyID);
@@ -392,9 +392,7 @@ def write_implementation_file(out: TextIO, properties: dict, logical_property_gr
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PropertyName.h>
-#include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
-#include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
 #include <LibWeb/ComputedValuesRustFFI.h>
 #include <LibWeb/StyleValueRustFFI.h>
 #include <LibWebCommon/Infra/Strings.h>
@@ -742,15 +740,7 @@ Optional<ValueType> property_resolves_percentages_relative_to(PropertyID propert
 }
 """)
 
-    generate_bounds_checking_function(out, properties, "angle", "Angle", "value.raw_value()")
-    generate_bounds_checking_function(out, properties, "flex", "Flex", "value.raw_value()")
-    generate_bounds_checking_function(out, properties, "frequency", "Frequency", "value.raw_value()")
-    generate_bounds_checking_function(out, properties, "integer", "i64", "value")
-    generate_bounds_checking_function(out, properties, "length", "Length", "value.raw_value()")
-    generate_bounds_checking_function(out, properties, "number", "double", "value")
-    generate_bounds_checking_function(out, properties, "percentage", "Percentage", "value.value()")
-    generate_bounds_checking_function(out, properties, "resolution", "Resolution", "value.raw_value()")
-    generate_bounds_checking_function(out, properties, "time", "Time", "value.raw_value()")
+    generate_value_range_checking_function(out, properties)
 
     out.write("""
 bool property_is_shorthand(PropertyID property_id)

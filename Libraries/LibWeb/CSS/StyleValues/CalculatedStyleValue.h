@@ -38,9 +38,6 @@ struct CalculationContext {
 
 class CalculatedStyleValue : public StyleValue {
 public:
-    // The numeric value alternatives a calculation leaf can hold.
-    using NumericValue = Variant<Number, Angle, Flex, Frequency, Length, Percentage, Resolution, Time>;
-
     static ValueComparingNonnullRefPtr<CalculatedStyleValue const> create(CalcNodeRef root, NumericType resolved_type, CalculationContext context);
     bool equals(StyleValue const& other) const;
     CalculationContext calculation_context() const;
