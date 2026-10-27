@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.css-houdini.org/css-properties-values-api-1">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../resources/utils.js"></script>
+<div id="target"></div>
+<script>
+
+animation_test({
+  syntax: "<length-percentage>",
+  inherits: false,
+  initialValue: "0px"
+}, {
+  keyframes: ["100px", "100%"],
+  expected: "calc(50% + 50px)"
+}, 'Animating a custom property of type <length-percentage>');
+
+animation_test({
+  syntax: "<length-percentage>",
+  inherits: false,
+  initialValue: "100px"
+}, {
+  keyframes: "100%",
+  expected: "calc(50% + 50px)"
+}, 'Animating a custom property of type <length-percentage> with a single keyframe');
+
+animation_test({
+  syntax: "<length-percentage>",
+  inherits: false,
+  initialValue: "100px"
+}, {
+  composite: "add",
+  keyframes: ["200%", "300%"],
+  expected: "calc(250% + 100px)"
+}, 'Animating a custom property of type <length-percentage> with additivity');
+
+animation_test({
+  syntax: "<length-percentage>",
+  inherits: false,
+  initialValue: "100px"
+}, {
+  composite: "add",
+  keyframes: "300%",
+  expected: "calc(150% + 100px)"
+}, 'Animating a custom property of type <length-percentage> with a single keyframe and additivity');
+
+animation_test({
+  syntax: "<length-percentage>",
+  inherits: false,
+  initialValue: "100px"
+}, {
+  iterationComposite: "accumulate",
+  keyframes: ["50px", "100%"],
+  expected: "calc(250% + 25px)"
+}, 'Animating a custom property of type <length-percentage> with iterationComposite');
+
+</script>

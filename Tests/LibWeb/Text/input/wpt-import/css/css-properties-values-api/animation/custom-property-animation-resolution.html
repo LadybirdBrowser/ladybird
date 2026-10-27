@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.css-houdini.org/css-properties-values-api-1">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../resources/utils.js"></script>
+<div id="target"></div>
+<script>
+
+animation_test({
+  syntax: "<resolution>",
+  inherits: false,
+  initialValue: "0dppx"
+}, {
+  keyframes: ["100dppx", "200dppx"],
+  expected: "150dppx"
+}, 'Animating a custom property of type <resolution>');
+
+animation_test({
+  syntax: "<resolution>",
+  inherits: false,
+  initialValue: "100dppx"
+}, {
+  keyframes: "200dppx",
+  expected: "150dppx"
+}, 'Animating a custom property of type <resolution> with a single keyframe');
+
+animation_test({
+  syntax: "<resolution>",
+  inherits: false,
+  initialValue: "100dppx"
+}, {
+  composite: "add",
+  keyframes: ["200dppx", "300dppx"],
+  expected: "350dppx"
+}, 'Animating a custom property of type <resolution> with additivity');
+
+animation_test({
+  syntax: "<resolution>",
+  inherits: false,
+  initialValue: "100dppx"
+}, {
+  composite: "add",
+  keyframes: "300dppx",
+  expected: "250dppx"
+}, 'Animating a custom property of type <resolution> with a single keyframe and additivity');
+
+animation_test({
+  syntax: "<resolution>",
+  inherits: false,
+  initialValue: "100dppx"
+}, {
+  iterationComposite: "accumulate",
+  keyframes: ["0dppx", "100dppx"],
+  expected: "250dppx"
+}, 'Animating a custom property of type <resolution> with iterationComposite');
+
+</script>

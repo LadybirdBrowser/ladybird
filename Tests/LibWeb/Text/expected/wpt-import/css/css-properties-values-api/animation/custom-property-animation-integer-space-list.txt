@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 6 tests
+
+4 Pass
+2 Fail
+Pass	Animating a custom property of type <integer>+
+Pass	Animating a custom property of type <integer>+ with a single keyframe
+Pass	Animating a custom property of type <integer>+ with additivity
+Fail	Animating a custom property of type <integer>+ with a single keyframe and additivity
+Fail	Animating a custom property of type <integer>+ with iterationComposite
+Pass	Animating a custom property of type <integer>+ with different lengths is discrete
