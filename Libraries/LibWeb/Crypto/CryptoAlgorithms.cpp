@@ -967,7 +967,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> RSAOAEP::generat
     auto key_pair = maybe_key_pair.release_value();
 
     auto public_exponent = TRY(export_public_exponent(realm.vm(), normalized_algorithm.public_exponent));
-    auto hash_name = TRY(normalized_algorithm.hash.name(realm.vm()));
+    auto hash_name = normalized_algorithm.hash.name;
 
     // 10. Let publicKey be a new CryptoKey representing the public key of the generated key pair.
     auto public_key = CryptoKey::create(CryptoKey::InternalKeyData { key_pair.public_key });
@@ -1191,7 +1191,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAOAEP::import_key(JS::Realm& realm, We
             auto normalized_hash = TRY(normalize_an_algorithm(realm, AlgorithmIdentifier { *hash }, "digest"_string));
 
             // 2. If normalizedHash is not equal to the hash member of normalizedAlgorithm, throw a DataError.
-            if (normalized_hash.parameter->name != TRY(normalized_algorithm.hash.name(realm.vm())))
+            if (normalized_hash.parameter->name != normalized_algorithm.hash.name)
                 return WebIDL::DataError::create("Invalid hash"_utf16);
         }
 
@@ -1274,7 +1274,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAOAEP::import_key(JS::Realm& realm, We
         [](auto) -> WebIDL::ExceptionOr<void> { VERIFY_NOT_REACHED(); }));
 
     // 7. Set the hash attribute of algorithm to the hash member of normalizedAlgorithm.
-    auto hash_name = TRY(normalized_algorithm.hash.name(realm.vm()));
+    auto hash_name = normalized_algorithm.hash.name;
 
     // 3. Let algorithm be a new RsaHashedKeyAlgorithm.
     // 4. Set the name attribute of algorithm to "RSA-OAEP"
@@ -1468,7 +1468,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> RSAPSS::generate
     auto key_pair = maybe_key_pair.release_value();
 
     auto public_exponent = TRY(export_public_exponent(realm.vm(), normalized_algorithm.public_exponent));
-    auto hash_name = TRY(normalized_algorithm.hash.name(realm.vm()));
+    auto hash_name = normalized_algorithm.hash.name;
 
     // 10. Let publicKey be a new CryptoKey representing the public key of the generated key pair.
     auto public_key = CryptoKey::create(CryptoKey::InternalKeyData { key_pair.public_key });
@@ -1771,7 +1771,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAPSS::import_key(JS::Realm& realm, Alg
             auto normalized_hash = TRY(normalize_an_algorithm(realm, AlgorithmIdentifier { *hash }, "digest"_string));
 
             // 2. If normalizedHash is not equal to the hash member of normalizedAlgorithm, throw a DataError.
-            if (normalized_hash.parameter->name != TRY(normalized_algorithm.hash.name(realm.vm())))
+            if (normalized_hash.parameter->name != normalized_algorithm.hash.name)
                 return WebIDL::DataError::create("Invalid hash"_utf16);
         }
 
@@ -1854,7 +1854,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAPSS::import_key(JS::Realm& realm, Alg
         [](auto) -> WebIDL::ExceptionOr<void> { VERIFY_NOT_REACHED(); }));
 
     // 7. Set the hash attribute of algorithm to the hash member of normalizedAlgorithm.
-    auto hash_name = TRY(normalized_algorithm.hash.name(realm.vm()));
+    auto hash_name = normalized_algorithm.hash.name;
 
     // 3. Let algorithm be a new RsaHashedKeyAlgorithm.
     // 4. Set the name attribute of algorithm to "RSA-PSS"
@@ -2049,7 +2049,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> RSASSAPKCS1::gen
     auto key_pair = maybe_key_pair.release_value();
 
     auto public_exponent = TRY(export_public_exponent(realm.vm(), normalized_algorithm.public_exponent));
-    auto hash_name = TRY(normalized_algorithm.hash.name(realm.vm()));
+    auto hash_name = normalized_algorithm.hash.name;
 
     // 10. Let publicKey be a new CryptoKey representing the public key of the generated key pair.
     auto public_key = CryptoKey::create(CryptoKey::InternalKeyData { key_pair.public_key });
@@ -2346,7 +2346,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSASSAPKCS1::import_key(JS::Realm& realm
             auto normalized_hash = TRY(normalize_an_algorithm(realm, AlgorithmIdentifier { *hash }, "digest"_string));
 
             // 2. If normalizedHash is not equal to the hash member of normalizedAlgorithm, throw a DataError.
-            if (normalized_hash.parameter->name != TRY(normalized_algorithm.hash.name(realm.vm())))
+            if (normalized_hash.parameter->name != normalized_algorithm.hash.name)
                 return WebIDL::DataError::create("Invalid hash"_utf16);
         }
 
@@ -2429,7 +2429,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSASSAPKCS1::import_key(JS::Realm& realm
         [](auto) -> WebIDL::ExceptionOr<void> { VERIFY_NOT_REACHED(); }));
 
     // 7. Set the hash attribute of algorithm to the hash member of normalizedAlgorithm.
-    auto hash_name = TRY(normalized_algorithm.hash.name(realm.vm()));
+    auto hash_name = normalized_algorithm.hash.name;
 
     // 3. Let algorithm be a new RsaHashedKeyAlgorithm.
     // 4. Set the name attribute of algorithm to "RSASSA-PKCS1-v1_5"
@@ -3991,7 +3991,7 @@ WebIDL::ExceptionOr<ByteBuffer> ECDSA::sign(JS::Realm& realm, AlgorithmParams co
         return WebIDL::InvalidAccessError::create("Key is not a private key"_utf16);
 
     // 2. Let hashAlgorithm be the hash member of normalizedAlgorithm.
-    auto const& hash_algorithm = TRY(normalized_algorithm.hash.name(vm));
+    auto const& hash_algorithm = normalized_algorithm.hash.name;
 
     // 3. Let M be the result of performing the digest operation specified by hashAlgorithm using message.
     ::Crypto::Hash::HashKind hash_kind;
@@ -4085,7 +4085,7 @@ WebIDL::ExceptionOr<bool> ECDSA::verify(JS::Realm& realm, AlgorithmParams const&
         return WebIDL::InvalidAccessError::create("Key is not a public key"_utf16);
 
     // 2. Let hashAlgorithm be the hash member of normalizedAlgorithm.
-    [[maybe_unused]] auto const& hash_algorithm = TRY(normalized_algorithm.hash.name(realm.vm()));
+    [[maybe_unused]] auto const& hash_algorithm = normalized_algorithm.hash.name;
 
     // 3. Let M be the result of performing the digest operation specified by hashAlgorithm using message.
     ::Crypto::Hash::HashKind hash_kind;
@@ -6854,7 +6854,7 @@ WebIDL::ExceptionOr<bool> ED448::verify(JS::Realm&, AlgorithmParams const& param
 }
 
 // https://w3c.github.io/webcrypto/#hkdf-operations-derive-bits
-WebIDL::ExceptionOr<ByteBuffer> HKDF::derive_bits(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, Optional<u32> length_optional)
+WebIDL::ExceptionOr<ByteBuffer> HKDF::derive_bits(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, Optional<u32> length_optional)
 {
     auto const& normalized_algorithm = static_cast<HKDFParams const&>(params);
 
@@ -6864,7 +6864,7 @@ WebIDL::ExceptionOr<ByteBuffer> HKDF::derive_bits(JS::Realm& realm, AlgorithmPar
 
     // 2. Let hashLength be the length in bits of the output of the hash function identified by the hash member of
     //    normalizedAlgorithm.
-    auto const& hash_algorithm = TRY(normalized_algorithm.hash.name(realm.vm()));
+    auto const& hash_algorithm = normalized_algorithm.hash.name;
     auto hash_kind = TRY([&] -> WebIDL::ExceptionOr<::Crypto::Hash::HashKind> {
         if (hash_algorithm == "SHA-1"sv)
             return ::Crypto::Hash::HashKind::SHA1;
@@ -6920,7 +6920,7 @@ WebIDL::ExceptionOr<Optional<u32>> HKDF::get_key_length(JS::Realm&, AlgorithmPar
 }
 
 // https://w3c.github.io/webcrypto/#pbkdf2-operations-derive-bits
-WebIDL::ExceptionOr<ByteBuffer> PBKDF2::derive_bits(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, Optional<u32> length_optional)
+WebIDL::ExceptionOr<ByteBuffer> PBKDF2::derive_bits(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, Optional<u32> length_optional)
 {
     auto const& normalized_algorithm = static_cast<PBKDF2Params const&>(params);
 
@@ -6933,7 +6933,7 @@ WebIDL::ExceptionOr<ByteBuffer> PBKDF2::derive_bits(JS::Realm& realm, AlgorithmP
         return WebIDL::OperationError::create("Iterations must be greater than 0"_utf16);
 
     // 3. Let prf be the MAC Generation function described in Section 4 of [FIPS-198-1] using the hash function described by the hash member of normalizedAlgorithm.
-    auto const& hash_algorithm = TRY(normalized_algorithm.hash.name(realm.vm()));
+    auto const& hash_algorithm = normalized_algorithm.hash.name;
 
     // 4. Let result be the result of performing the PBKDF2 operation defined in Section 5.2 of [RFC8018]
     // using prf as the pseudo-random function, PRF,
@@ -8005,9 +8005,9 @@ static WebIDL::ExceptionOr<ByteBuffer> hmac_calculate_message_digest(JS::Realm&,
     return hmac.process(message);
 }
 
-static WebIDL::ExceptionOr<WebIDL::UnsignedLong> hmac_hash_block_size(JS::Realm& realm, HashAlgorithmIdentifier hash)
+static WebIDL::ExceptionOr<WebIDL::UnsignedLong> hmac_hash_block_size(HashAlgorithmIdentifier hash)
 {
-    auto hash_name = TRY(hash.name(realm.vm()));
+    auto hash_name = hash.name;
     if (hash_name == "SHA-1"sv)
         return ::Crypto::Hash::SHA1::block_size();
     if (hash_name == "SHA-256"sv)
@@ -8065,7 +8065,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> HMAC::generate_k
     if (!normalized_algorithm.length.has_value()) {
         // Let length be the block size in bits of the hash function identified by the hash member
         // of normalizedAlgorithm.
-        length = TRY(hmac_hash_block_size(realm, normalized_algorithm.hash)) * 8;
+        length = TRY(hmac_hash_block_size(normalized_algorithm.hash)) * 8;
     }
 
     // Otherwise, if the length member of normalizedAlgorithm is non-zero:
@@ -8093,7 +8093,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> HMAC::generate_k
     // 7. Set the name attribute of algorithm to "HMAC".
     // 8. Let hash be a new KeyAlgorithm.
     // 9. Set the name attribute of hash to equal the name member of the hash member of normalizedAlgorithm.
-    auto hash_name = TRY(normalized_algorithm.hash.name(realm.vm()));
+    auto hash_name = normalized_algorithm.hash.name;
 
     // 12. Set the [[type]] internal slot of key to "secret".
     key->set_type(KeyType::Secret);
@@ -8116,7 +8116,6 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> HMAC::generate_k
 // https://w3c.github.io/webcrypto/#hmac-operations-import-key
 WebIDL::ExceptionOr<GC::Ref<CryptoKey>> HMAC::import_key(JS::Realm& realm, Web::Crypto::AlgorithmParams const& params, KeyFormat key_format, CryptoKey::ImportKeyData key_data, bool extractable, Vector<KeyUsage> const& usages)
 {
-    auto& vm = realm.vm();
     auto const& normalized_algorithm = static_cast<HmacImportParams const&>(params);
 
     // 1. If the length member of normalizedAlgorithm is present and is zero, then throw a DataError.
@@ -8141,7 +8140,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> HMAC::import_key(JS::Realm& realm, Web::
         data = move(key_data.get<ByteBuffer>());
 
         // 5.2. Set hash to equal the hash member of normalizedAlgorithm.
-        hash_name = TRY(normalized_algorithm.hash.name(vm));
+        hash_name = normalized_algorithm.hash.name;
     }
 
     // If format is "jwk":
@@ -8164,7 +8163,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> HMAC::import_key(JS::Realm& realm, Web::
         data = TRY(parse_jwk_symmetric_key(realm, jwk));
 
         // 5. Set the hash to equal the hash member of normalizedAlgorithm.
-        hash_name = TRY(normalized_algorithm.hash.name(vm));
+        hash_name = normalized_algorithm.hash.name;
 
         // 6. If the name attribute of hash is "SHA-1":
         if (hash_name == "SHA-1"_utf16) {
@@ -8362,7 +8361,7 @@ WebIDL::ExceptionOr<ExportKeyResult> HMAC::export_key(JS::Realm&, KeyFormat form
 }
 
 // https://w3c.github.io/webcrypto/#hmac-operations-get-key-length
-WebIDL::ExceptionOr<Optional<u32>> HMAC::get_key_length(JS::Realm& realm, AlgorithmParams const& params)
+WebIDL::ExceptionOr<Optional<u32>> HMAC::get_key_length(JS::Realm&, AlgorithmParams const& params)
 {
     auto const& normalized_derived_key_algorithm = static_cast<HmacImportParams const&>(params);
     WebIDL::UnsignedLong length;
@@ -8371,7 +8370,7 @@ WebIDL::ExceptionOr<Optional<u32>> HMAC::get_key_length(JS::Realm& realm, Algori
     if (!normalized_derived_key_algorithm.length.has_value()) {
         // Let length be the block size in bits of the hash function identified by the hash member of
         // normalizedDerivedKeyAlgorithm.
-        length = TRY(hmac_hash_block_size(realm, normalized_derived_key_algorithm.hash)) * 8;
+        length = TRY(hmac_hash_block_size(normalized_derived_key_algorithm.hash)) * 8;
     }
 
     // Otherwise, if the length member of normalizedDerivedKeyAlgorithm is non-zero:

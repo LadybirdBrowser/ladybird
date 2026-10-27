@@ -39,20 +39,8 @@ struct EncapsulatedBits {
     Optional<ByteBuffer> ciphertext;
 };
 
-struct HashAlgorithmIdentifier : public AlgorithmIdentifier {
-    using AlgorithmIdentifier::AlgorithmIdentifier;
-
-    JS::ThrowCompletionOr<Utf16String> name(JS::VM& vm) const
-    {
-        auto value = visit(
-            [](Utf16String const& name) -> JS::ThrowCompletionOr<Utf16String> { return name; },
-            [&](GC::Root<JS::Object> const& obj) -> JS::ThrowCompletionOr<Utf16String> {
-                auto name_property = TRY(obj->get("name"_utf16_fly_string));
-                return TRY(name_property.to_utf16_string(vm));
-            });
-
-        return value;
-    }
+struct HashAlgorithmIdentifier {
+    Utf16String name;
 };
 
 // https://w3c.github.io/webcrypto/#algorithm-overview
