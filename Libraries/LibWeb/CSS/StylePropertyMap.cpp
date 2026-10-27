@@ -68,8 +68,13 @@ static WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_r
 {
     // To create an internal representation, given a string property and a string or CSSStyleValue value:
     auto internal_representation = TRY(value.visit(
-        [&property](GC::Ref<CSSStyleValue> const& css_style_value) {
-            return css_style_value->create_an_internal_representation(property, CSSStyleValue::PerformTypeCheck::Yes);
+        [&property](GC::Ref<CSSStyleValue> const& css_style_value) -> WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> {
+            auto internal_representation = TRY(css_style_value->create_an_internal_representation(property, CSSStyleValue::PerformTypeCheck::Yes));
+            // INTEROP: Custom properties, including registered ones, only accept CSSUnparsedValue objects and
+            //          CSS-wide keywords.
+            if (property.is_custom_property() && !is<CSSUnparsedValue>(*css_style_value) && !internal_representation->is_css_wide_keyword())
+                return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Custom properties only accept unparsed values and CSS-wide keywords"_utf16 };
+            return internal_representation;
         },
         [&](Utf16String const& css_text) -> WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> {
             // If value is a USVString,

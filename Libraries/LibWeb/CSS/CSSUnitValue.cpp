@@ -19,7 +19,6 @@
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ResolutionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
-#include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
 #include <LibWeb/CSS/Units.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -332,13 +331,6 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSUnitValue::create_an_int
     //
     //     Return the value.
 
-    // NB: We store all custom properties as UnresolvedStyleValue, so we always need to create one here.
-    if (perform_type_check == PerformTypeCheck::Yes && property.is_custom_property()) {
-        Utf16StringBuilder builder;
-        serialize_unit_value(builder, {}, {});
-        return UnresolvedStyleValue::create(builder.to_string(), Parser::SubstitutionFunctionsPresence {});
-    }
-
     auto wrap_in_math_sum = [this, &property](auto&& value) -> NonnullRefPtr<StyleValue const> {
         auto context = CalculationContext::for_property(property);
         Vector<CalcNodeRef> children;
@@ -381,14 +373,13 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSUnitValue::create_an_int
             .release_nonnull();
     }
 
-    // FIXME: Check types allowed by registered custom properties.
     auto style_value = value->visit(
         [&](Number const& number) -> RefPtr<StyleValue const> {
             // NB: Our parser represents an <opacity-value> as an opacity value that holds the number.
             if (property_accepts_type(property.id(), ValueType::OpacityValue))
                 return OpacityValueStyleValue::create(NumberStyleValue::create(number.value()));
 
-            // NB: Number before Integer, because a custom property accepts either and we want to avoid rounding in that case.
+            // NB: Prefer <number> to <integer> when both are accepted.
             if (property_accepts_type(property.id(), ValueType::Number)) {
                 if (property_accepts_number(property.id(), number.value()))
                     return NumberStyleValue::create(number.value());

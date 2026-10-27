@@ -40,10 +40,6 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSImageValue::create_an_in
     // NB: https://drafts.css-houdini.org/css-typed-om-1/#cssstylevalue-match-a-grammar doesn't list CSSImageValue, but
     //     we should match <image>.
     bool const matches_grammar = [&] {
-        if (property.is_custom_property()) {
-            // FIXME: If this is a registered custom property, check if that allows <image>.
-            return true;
-        }
         return property_accepts_type(property.id(), ValueType::Image);
     }();
     if (perform_type_check == PerformTypeCheck::Yes && !matches_grammar) {
