@@ -184,6 +184,10 @@ public:
     void request_close_preflight(Function<void(bool approved)> on_complete);
     // Brings the window forward for a page's beforeunload prompt during an application-wide close check.
     void raise_for_close_prompt();
+    // Unminimizes, raises and activates the window, so the user sees it in front.
+    void bring_to_front();
+    // The tab showing this view, if it's one of this window's.
+    Tab* tab_for_view(WebView::ViewImplementation const&) const;
     bool is_window_close_approved() const { return m_window_close_approved; }
     void report_activation_to_session_store();
     void cancel_window_close_preflight();

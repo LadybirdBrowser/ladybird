@@ -2026,10 +2026,25 @@ void BrowserWindow::raise_for_close_prompt()
 
     // A page's beforeunload prompt shows inside this window, which may sit behind other windows or in the Dock while a
     // close check asks it, so the window comes to the front first, where the user can see the prompt.
+    bring_to_front();
+}
+
+void BrowserWindow::bring_to_front()
+{
     if (isMinimized())
         setWindowState(windowState() & ~Qt::WindowMinimized);
     raise();
     activateWindow();
+}
+
+Tab* BrowserWindow::tab_for_view(WebView::ViewImplementation const& view) const
+{
+    for (int index = 0; index < m_tabs_container->count(); ++index) {
+        auto* tab = m_tabs_container->tab(index);
+        if (tab && &tab->view() == &view)
+            return tab;
+    }
+    return nullptr;
 }
 
 void BrowserWindow::report_activation_to_session_store()

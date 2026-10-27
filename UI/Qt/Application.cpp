@@ -7,9 +7,12 @@
 #include <LibCore/ArgsParser.h>
 #include <LibURL/InternalURLs.h>
 #include <LibURL/URL.h>
+#include <LibWebView/CanonicalTraversable.h>
+#include <LibWebView/NotificationBackend.h>
 #include <LibWebView/SessionStore.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/Utilities.h>
+#include <LibWebView/WebContentPage.h>
 #include <UI/Qt/Application.h>
 #include <UI/Qt/BookmarkDialog.h>
 #include <UI/Qt/ChromeLayout.h>
@@ -1283,6 +1286,48 @@ OwnPtr<WebView::PictureInPictureWindow> Application::create_picture_in_picture_w
     if (browser_options().headless_mode.has_value())
         return WebView::Application::create_picture_in_picture_window(requesting_page, traversable, video_size);
     return Ladybird::create_picture_in_picture_window(traversable, requesting_page.view(), video_size);
+}
+
+// The window that shows this view in one of its tabs, if any.
+static BrowserWindow* window_for_view(WebView::ViewImplementation const& view)
+{
+    for (auto* widget : QApplication::topLevelWidgets()) {
+        if (auto* window = as_if<BrowserWindow>(widget); window && window->tab_for_view(view))
+            return window;
+    }
+    return nullptr;
+}
+
+NonnullOwnPtr<WebView::NotificationBackend> Application::create_notification_backend()
+{
+    // The platform backends follow; until then, pages see every show fail.
+    return WebView::Application::create_notification_backend();
+}
+
+void Application::focus_page_from_notification(WebView::WebContentPage& page)
+{
+    auto* window = window_for_view(page.view());
+    if (!window)
+        return;
+    window->activate_tab(window->tab_index(window->tab_for_view(page.view())));
+    window->bring_to_front();
+}
+
+void Application::open_url_in_new_tab_from_notification(URL::URL const& url, Web::PageId, WebView::CanonicalTraversable* traversable)
+{
+    BrowserWindow* window = nullptr;
+    if (traversable) {
+        if (auto view = traversable->view(); view.has_value())
+            window = window_for_view(*view);
+    }
+    if (!window)
+        window = m_active_window;
+    if (!window) {
+        new_window({ url });
+        return;
+    }
+    window->new_tab_from_url(url, Web::HTML::ActivateTab::Yes, BrowserWindow::TabLocation::end());
+    window->bring_to_front();
 }
 
 Optional<WebView::ViewImplementation&> Application::active_web_view() const
