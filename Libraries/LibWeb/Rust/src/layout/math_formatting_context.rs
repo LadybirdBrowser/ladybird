@@ -1459,10 +1459,7 @@ pub(super) struct MathFormattingContext<'pass> {
 impl<'pass> MathFormattingContext<'pass> {
     pub(super) fn new(run: &FormattingContextRun<'pass>) -> Self {
         Self {
-            run: FormattingContextRun {
-                previous_line_data: None,
-                ..run.clone()
-            },
+            run: run.clone(),
             content: MathContent::default(),
             derived_baselines_of_root_box: DerivedBaselines::default(),
         }

@@ -1236,10 +1236,7 @@ impl<'pass> GridFormattingContext<'pass> {
         let parent_grid = parent_grid.filter(|_| grid_template_declares_a_subgrid_axis(&run.callbacks, grid_container));
         let container_style = StyleValues::for_node(&run.callbacks, grid_container);
         Self {
-            run: FormattingContextRun {
-                previous_line_data: None,
-                ..run.clone()
-            },
+            run: run.clone(),
             derived_baselines_of_root_box: DerivedBaselines::default(),
             parent_grid: parent_grid.map(|parent| ParentGridData::for_child_container(parent, grid_container)),
             available_space: None,
@@ -3125,7 +3122,6 @@ impl<'pass> GridFormattingContext<'pass> {
                     should_collect_devtools_layout_data: false,
                     treat_block_axis_percentage_insets_as_auto_beyond_root: false,
                     fragments: None,
-                    previous_line_data: None,
                     fragmentainer: None,
                 };
                 let mut context = GridFormattingContext::new(&scratch_run, Some(self));

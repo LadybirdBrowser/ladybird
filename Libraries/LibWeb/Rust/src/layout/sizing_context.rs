@@ -3380,7 +3380,6 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
                     should_collect_devtools_layout_data: false,
                     treat_block_axis_percentage_insets_as_auto_beyond_root: false,
                     fragments: None,
-                    previous_line_data: None,
                     fragmentainer: None,
                 };
                 size_table(&table_run, &table_used)
