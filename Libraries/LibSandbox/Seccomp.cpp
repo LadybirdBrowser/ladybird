@@ -1587,7 +1587,7 @@ void SeccompPolicy::allow_pulseaudio_client_file_operations()
 //     and connect() fails with EAFNOSUPPORT when the address family does not match the socket.
 //     Being able to create a socket in a domain is therefore the same thing as being able to
 //     address every endpoint in it.
-void SeccompPolicy::allow_network()
+void SeccompPolicy::append_allow_route_netlink_sockets()
 {
 #ifdef __NR_socket
     // glibc enumerates local interfaces with NETLINK_ROUTE sockets.
@@ -1603,7 +1603,14 @@ void SeccompPolicy::allow_network()
     append(SECCOMP_ALLOW);
     append(SECCOMP_ERRNO(EPERM));
     append(SECCOMP_LOAD_SYSCALL_NR);
+#endif
+}
 
+void SeccompPolicy::allow_network()
+{
+    append_allow_route_netlink_sockets();
+
+#ifdef __NR_socket
     // Internet sockets serve TCP streams and UDP datagrams, including the default protocol. Other domains fall
     // through to the groups after this one.
     append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_socket, 0, 16));
@@ -1651,6 +1658,42 @@ void SeccompPolicy::allow_network()
     append(SECCOMP_ALLOW);
     append(SECCOMP_LOAD_SYSCALL_NR);
     append(BPF_STMT(BPF_ALU | BPF_ADD | BPF_K, 0));
+}
+
+// ICE only exchanges UDP datagrams, so unlike allow_network() this leaves out streams. Its mDNS responder shares the
+// mDNS port with the system's and joins the mDNS multicast group.
+void SeccompPolicy::allow_datagram_network()
+{
+    append_allow_route_netlink_sockets();
+
+#ifdef __NR_socket
+    // Internet sockets serve UDP datagrams, including the default protocol. Other domains fall through to the groups
+    // after this one.
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_socket, 0, 11));
+    append(SECCOMP_LOAD_ARGUMENT(0));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, AF_INET, 1, 0));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, AF_INET6, 0, 8));
+    append(SECCOMP_LOAD_ARGUMENT(1));
+    append(BPF_STMT(BPF_ALU | BPF_AND | BPF_K, ~static_cast<u32>(SOCK_CLOEXEC | SOCK_NONBLOCK)));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, SOCK_DGRAM, 0, 4));
+    append(SECCOMP_LOAD_ARGUMENT(2));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 0, 1, 0));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, IPPROTO_UDP, 0, 1));
+    append(SECCOMP_ALLOW);
+    append(SECCOMP_ERRNO(EPERM));
+    append(SECCOMP_LOAD_SYSCALL_NR);
+#endif
+
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, sendto);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, connect);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, bind);
+
+#ifdef __NR_setsockopt
+    static constexpr Array<u32, 3> socket_options { SO_REUSEADDR, SO_REUSEPORT, SO_BROADCAST };
+    append_allow_socket_options(__NR_setsockopt, SOL_SOCKET, socket_options);
+    static constexpr Array<u32, 1> ipv4_options { IP_ADD_MEMBERSHIP };
+    append_allow_socket_options(__NR_setsockopt, IPPROTO_IP, ipv4_options);
+#endif
 }
 
 void SeccompPolicy::allow_memory_without_executable_mappings()
