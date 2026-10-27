@@ -81,6 +81,7 @@ ladybird_test("TestScreenshotSelectionOverlay.cpp" UI/Qt
 )
 target_sources(TestScreenshotSelectionOverlay PRIVATE
     "${LADYBIRD_SOURCE_DIR}/UI/Qt/ChromeStyle.cpp"
+    "${LADYBIRD_SOURCE_DIR}/UI/Qt/Icon.cpp"
     "${LADYBIRD_SOURCE_DIR}/UI/Qt/Popover.cpp"
     "${LADYBIRD_SOURCE_DIR}/UI/Qt/ScreenshotSelectionOverlay.cpp"
     "${LADYBIRD_SOURCE_DIR}/UI/Qt/StringUtils.cpp"

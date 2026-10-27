@@ -72,6 +72,7 @@ private:
     Optional<QPoint> m_instructions_position;
     Optional<QPoint> m_instructions_grab_offset;
     Vector<QPushButton*> m_buttons;
+    QPushButton* m_close_button { nullptr };
 };
 
 }
