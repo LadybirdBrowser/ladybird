@@ -166,6 +166,15 @@ struct ApplicationSettingsObserver final : public SettingsObserver {
     }
 };
 
+struct ApplicationPermissionManagerObserver final : public PermissionManagerObserver {
+    AK_ALLOC_WITH_KMALLOC;
+
+    virtual void permissions_changed(PermissionManager const& manager) override
+    {
+        Application::the().permissions_changed({}, manager);
+    }
+};
+
 struct ApplicationBookmarkStoreObserver final : public BookmarkStoreObserver {
     AK_ALLOC_WITH_KMALLOC;
 
@@ -1179,6 +1188,7 @@ ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(
 
     TRY(client->request_server_site_bindings().connect(session));
     client->async_set_site_compatibility_data(m_site_compatibility_data);
+    client->async_set_permission_snapshot(client->session().permission_manager->snapshot());
     connect_to_image_decoder(*client, move(image_decoder));
 
     // NB: A WebDriver BiDi session gives its state to every process hosting web content when it changes.
@@ -1232,6 +1242,8 @@ NonnullRefPtr<BrowsingSession> Application::session_for_new_view(IsPrivate is_pr
 
     auto session = BrowsingSession::create(IsPrivate::Yes);
     session->permission_manager = PermissionManager::create_for_private_session(*the().m_default_session->permission_manager);
+    session->permission_manager->register_observer(*the().m_permission_manager_observer);
+    session->permission_manager->on_deadlines_changed = [] { the().schedule_permission_expiry(); };
     the().m_private_session = session;
     return session;
 }
@@ -1711,7 +1723,11 @@ ErrorOr<void> Application::launch_services()
     };
 
     m_default_session->permission_manager = PermissionManager::create_for_ordinary_session(LexicalPath::join(profile().paths().config, "Permissions.json"sv).string());
+    m_permission_manager_observer = make<ApplicationPermissionManagerObserver>();
+    m_default_session->permission_manager->register_observer(*m_permission_manager_observer);
+    m_default_session->permission_manager->on_deadlines_changed = [this] { schedule_permission_expiry(); };
     update_permission_defaults();
+    schedule_permission_expiry();
 
     m_settings_observer = make<ApplicationSettingsObserver>();
     m_bookmark_store_observer = make<ApplicationBookmarkStoreObserver>();
@@ -2945,7 +2961,52 @@ void Application::apply_view_options(Badge<ViewImplementation>, ViewImplementati
 
 bool Application::sites_can_ask_for_location() const
 {
-    return settings().location_policy() == LocationPolicy::Ask && Core::GeolocationProvider::is_available();
+    // NB: Tests get their positions from emulation, so they need no provider.
+    auto has_location_source = Core::GeolocationProvider::is_available() || web_content_options().is_test_mode == IsTestMode::Yes;
+    return settings().location_policy() == LocationPolicy::Ask && has_location_source;
+}
+
+void Application::permissions_changed(Badge<ApplicationPermissionManagerObserver>, PermissionManager const& manager)
+{
+    auto snapshot = manager.snapshot();
+    WebContentClient::for_each_client([&](WebContentClient& client) {
+        if (client.session().permission_manager.ptr() == &manager)
+            client.async_set_permission_snapshot(snapshot);
+        return IterationDecision::Continue;
+    });
+    WorkerProcessManager::the().update_permission_snapshot(manager, snapshot);
+
+    schedule_permission_expiry();
+}
+
+void Application::schedule_permission_expiry()
+{
+    Optional<UnixDateTime> deadline;
+    auto consider = [&](PermissionManager const& manager) {
+        if (auto next = manager.next_deadline(); next.has_value() && (!deadline.has_value() || *next < *deadline))
+            deadline = next;
+    };
+    consider(*m_default_session->permission_manager);
+    if (auto private_session = m_private_session.strong_ref())
+        consider(*private_session->permission_manager);
+
+    if (!deadline.has_value()) {
+        if (m_permission_expiry_timer)
+            m_permission_expiry_timer->stop();
+        return;
+    }
+
+    auto delay = max(*deadline - UnixDateTime::now(), AK::Duration::zero());
+    if (!m_permission_expiry_timer) {
+        m_permission_expiry_timer = Core::Timer::create_single_shot(AK::Duration::zero(), [this] {
+            m_default_session->permission_manager->run_expiry();
+            if (auto private_session = m_private_session.strong_ref())
+                private_session->permission_manager->run_expiry();
+            schedule_permission_expiry();
+        });
+    }
+    // NB: The timer's resolution is a millisecond, so wait one more to land at or after the deadline.
+    m_permission_expiry_timer->restart(delay + AK::Duration::from_milliseconds(1));
 }
 
 void Application::location_policy_changed(Badge<ApplicationSettingsObserver>)

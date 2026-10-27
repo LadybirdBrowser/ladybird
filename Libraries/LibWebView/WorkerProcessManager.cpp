@@ -13,6 +13,7 @@
 #include <LibWebView/CanonicalEnvironmentSettingsObject.h>
 #include <LibWebView/CanonicalNavigable.h>
 #include <LibWebView/HelperProcess.h>
+#include <LibWebView/PermissionManager.h>
 #include <LibWebView/RequestServerManager.h>
 #include <LibWebView/Utilities.h>
 #include <LibWebView/ViewImplementation.h>
@@ -211,6 +212,7 @@ Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(Owner owner, O
         // The worker's requests go through the RequestServers of its owner's sites.
         TRY(client->request_server_site_bindings().connect(*session));
         client->async_set_site_compatibility_data(Application::the().site_compatibility_data());
+        client->async_set_permission_snapshot(session->permission_manager->snapshot());
         // The User-Agent string, the navigator compatibility mode, and the preferred languages live in this process.
         // Pages get them through their view; a worker gets the same values here, so its navigator never contradicts
         // the page's.
@@ -322,6 +324,15 @@ Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(Owner owner, O
     client->async_start_worker(request.url, request.type, request.credentials, request.name, move(request.outside_port), request.outside_settings, request.agent_type, move(inside_origin), move(environment_id));
 
     return agent_id;
+}
+
+void WorkerProcessManager::update_permission_snapshot(PermissionManager const& manager, Web::Permissions::PermissionSnapshot const& snapshot)
+{
+    for (auto const& agent : m_agents) {
+        auto session = agent.value.client->session();
+        if (session && session->permission_manager.ptr() == &manager)
+            agent.value.client->async_set_permission_snapshot(snapshot);
+    }
 }
 
 void WorkerProcessManager::update_site_compatibility_data(JsonValue const& data)

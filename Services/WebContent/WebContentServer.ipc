@@ -62,6 +62,7 @@
 #include <LibWebCommon/WebView/DOMNodeProperties.h>
 #include <LibWebCommon/WebView/Debugger.h>
 #include <LibWebCommon/WebView/DictionaryLookup.h>
+#include <LibWebCommon/Permissions/Permissions.h>
 #include <LibWebCommon/WebView/Geolocation.h>
 #include <LibWebCommon/WebView/PageInfo.h>
 #include <LibWebCommon/WebView/StorageSetResult.h>
@@ -95,6 +96,7 @@ endpoint WebContentServer routed by Web::PageId page_id
     connect_to_compositor_process(IPC::TransportHandle handle, IPC::TransportHandle render_clock_handle) =|
     compositor_process_reconnected() =|
     set_site_compatibility_data(JsonValue data) =|
+    set_permission_snapshot(Web::Permissions::PermissionSnapshot snapshot) =|
 
     update_system_theme(Web::PageId page_id, Core::AnonymousBuffer theme_buffer) =|
     update_screen_rects(Web::PageId page_id, Vector<Web::DevicePixelRect> rects, Vector<Web::DevicePixelRect> available_rects, u32 main_screen_index) =|

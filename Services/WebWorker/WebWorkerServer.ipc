@@ -9,6 +9,7 @@
 #include <LibWebCommon/HTML/WorkerAgentTypes.h>
 #include <LibWebCommon/HTML/WorkerTypes.h>
 #include <LibWebCommon/Loader/NavigatorCompatibilityMode.h>
+#include <LibWebCommon/Permissions/Permissions.h>
 
 endpoint WebWorkerServer {
     set_font_service(IPC::TransportHandle handle, IPC::File catalog, u64 catalog_size, u64 generation) =|
@@ -18,6 +19,7 @@ endpoint WebWorkerServer {
     connect_to_image_decoder(IPC::TransportHandle handle) =|
     connect_to_compositor(IPC::TransportHandle handle) =|
     set_site_compatibility_data(JsonValue data) =|
+    set_permission_snapshot(Web::Permissions::PermissionSnapshot snapshot) =|
     set_user_agent(String user_agent) =|
     set_navigator_compatibility_mode(Web::NavigatorCompatibilityMode mode) =|
     set_preferred_languages(Vector<String> preferred_languages) =|
