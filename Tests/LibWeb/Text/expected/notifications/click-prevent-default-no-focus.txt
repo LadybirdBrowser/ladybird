@@ -1,0 +1,2 @@
+click
+focused: 0

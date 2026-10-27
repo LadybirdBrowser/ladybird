@@ -273,6 +273,16 @@ interface Internals {
     Promise<undefined> advancePermissionClock(unsigned long long milliseconds);
     sequence<DOMString> permissionCacheOrigins();
 
+    // What the UI process's recording notification backend has seen, as JSON: the notifications shown (with the
+    // browser's id of each), the ids closed, the pages focused by a click, and the URLs opened by a click on a
+    // notification whose page was gone. "{}" outside test-web.
+    DOMString notificationsStateForTesting();
+    // Acts on a shown notification as the user would: by its Notification object, or by the browser's id, for a
+    // notification whose page is gone.
+    undefined clickNotificationForTesting(Notification notification);
+    undefined clickNotificationByIdForTesting(unsigned long long browserNotificationId);
+    undefined dismissNotificationForTesting(Notification notification);
+
     InternalGamepad connectVirtualGamepad();
 
     undefined setHighlightedNode(Node? node);

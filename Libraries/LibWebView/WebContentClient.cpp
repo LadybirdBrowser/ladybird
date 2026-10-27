@@ -38,8 +38,10 @@
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/NavigationLoader.h>
+#include <LibWebView/NotificationManager.h>
 #include <LibWebView/PermissionManager.h>
 #include <LibWebView/PictureInPictureManager.h>
+#include <LibWebView/RecordingNotificationBackend.h>
 #include <LibWebView/RequestServerManager.h>
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
@@ -645,6 +647,13 @@ Messages::WebContentClient::DidRequestAllCookiesCookiestoreResponse WebContentCl
         return page->did_request_all_cookies_cookiestore(environment_id, move(url));
 
     return Vector<HTTP::Cookie::Cookie> {};
+}
+
+Messages::WebContentClient::DidRequestNotificationsStateForTestingResponse WebContentClient::did_request_notifications_state_for_testing(Web::PageId page_id)
+{
+    if (auto* recording_backend = NotificationManager::the().backend().as_recording_backend())
+        return recording_backend->state_json(page_id);
+    return "{}"_string;
 }
 
 Messages::WebContentClient::DidRequestNamedCookieResponse WebContentClient::did_request_named_cookie(URL::URL url, String name)

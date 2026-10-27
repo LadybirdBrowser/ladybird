@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        await internals.setPermission("notifications", "granted");
+        const notification = new Notification("Close me");
+        notification.onshow = () => notification.close();
+        notification.onclose = () => {
+            const state = JSON.parse(internals.notificationsStateForTesting());
+            println(`close, shown: ${state.shown.length}, closed: ${state.closed.length}`);
+            done();
+        };
+        notification.onerror = () => { println("error"); done(); };
+    });
+</script>

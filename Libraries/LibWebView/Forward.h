@@ -50,6 +50,7 @@ class OutOfProcessWebView;
 class NotificationBackend;
 class NotificationManager;
 class PictureInPictureManager;
+class RecordingNotificationBackend;
 class PictureInPictureWindow;
 class ProcessManager;
 class RequestServerInstance;
