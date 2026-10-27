@@ -622,7 +622,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             .pixels_greater_than(current_inline_size + next_item_inline_size)
     }
 
-    fn baseline_for_style(style: StyleValues, line_height: CssPixels) -> CssPixels {
+    pub(super) fn baseline_for_style(style: StyleValues, line_height: CssPixels) -> CssPixels {
         let typographic = CssPixels::nearest_value_for_f32(style.font_ascent() + style.font_descent());
         CssPixels::nearest_value_for_f32(style.font_ascent()) + (line_height - typographic) / 2
     }

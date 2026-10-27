@@ -698,15 +698,28 @@ pub(crate) fn compute(
                 && !context.inline_boxes_continued_in_next_fragment.borrow().contains(&node);
             let has_low_edge = if reversed { last } else { first };
             let has_high_edge = if reversed { first } else { last };
-            let content_block_start = line
-                .first_direct_fragment_block_start
-                .or(line.fallback_block_start_from_contributions)
-                .unwrap_or_default();
-            let content_block_length = if line.first_direct_fragment_block_start.is_some() {
-                line.max_direct_fragment_block_length
-            } else {
-                context.style(node).line_height()
-            };
+            let (inline_box_baseline, inline_box_vertical_shift) = inline_box_anchor();
+            // https://www.w3.org/TR/CSS22/visudet.html#inline-non-replaced
+            // The height of the content area should be based on the font, but this specification does not specify how.
+            let (content_block_start, content_block_length) =
+                if let Some(block_start) = line.first_direct_fragment_block_start {
+                    (block_start, line.max_direct_fragment_block_length)
+                } else {
+                    let style = context.style(node);
+                    let height = line_builder::normal_line_height(style);
+                    let baseline = line_builder::LineBuilder::baseline_for_style(style, height);
+                    // NB: Line-relative alignment and atomic-only descendants can leave this box without a
+                    //     recorded baseline. In that case, retain the position of its aligned contributions.
+                    let block_start = if context.line_data().line_boxes[line.line_index]
+                        .inline_box_baseline(node)
+                        .is_some()
+                    {
+                        inline_box_baseline - baseline
+                    } else {
+                        line.fallback_block_start_from_contributions.unwrap_or_default()
+                    };
+                    (block_start, height)
+                };
             let border_inline_start = contributions_inline_start
                 - if has_low_edge {
                     border_padding_low
@@ -721,7 +734,6 @@ pub(crate) fn compute(
                 };
             let border_block_start = content_block_start - border_padding_block_low;
             let border_block_length = content_block_length + border_padding_block_low + border_padding_block_high;
-            let (inline_box_baseline, inline_box_vertical_shift) = inline_box_anchor();
             let rect = FfiCssPixelRect {
                 x: border_inline_start,
                 y: border_block_start,
