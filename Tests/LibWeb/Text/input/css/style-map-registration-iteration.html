@@ -1,0 +1,36 @@
+<!doctype html>
+<style id="registrations">
+    @property --from-rule {
+        syntax: "<length>";
+        inherits: false;
+        initial-value: 2px;
+    }
+    @property --without-initial {
+        syntax: "*";
+        inherits: false;
+    }
+</style>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        CSS.registerProperty({ name: "--from-api", syntax: "<length>", inherits: false, initialValue: "3px" });
+        const target = document.getElementById("target");
+        const map = target.computedStyleMap();
+        const customNames = () => Array.from(map.keys()).filter(name => name.startsWith("--")).sort().join(", ");
+        println(`initial: ${customNames()}`);
+        println(`rule value: ${map.get("--from-rule")}`);
+        println(`size matches iteration: ${map.size === Array.from(map).length}`);
+        document.getElementById("registrations").remove();
+        println(`removed rules: ${customNames()}`);
+        target.style.setProperty("--unicode-\uE000", "first");
+        target.style.setProperty("--unicode-\u{10000}", "second");
+        const unicodeOrder = Array.from(map.keys())
+            .filter(name => name.startsWith("--unicode-"))
+            .map(name => Array.from(name).at(-1).codePointAt(0).toString(16));
+        println(`unicode order: ${unicodeOrder.join(", ")}`);
+        target.remove();
+        println(`disconnected keys: ${Array.from(map.keys()).length}`);
+        println(`disconnected size: ${map.size}`);
+    });
+</script>
