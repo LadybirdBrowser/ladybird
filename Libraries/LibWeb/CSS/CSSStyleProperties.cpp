@@ -663,6 +663,7 @@ static void ensure_pseudo_element_style_for_cssom(Layout::BegunRead const& read,
 }
 
 static RefPtr<StyleValue const> resolve_color_style_value(StyleValue const&, Color, Optional<ColorResolutionStyle> = {});
+static NonnullRefPtr<StyleValue const> resolve_svg_paint_style_value(StyleValue const&, ColorResolutionStyle);
 
 static bool is_min_or_max_size_property(PropertyID property_id)
 {
@@ -904,6 +905,9 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
                 switch (computed_property_id) {
                 case PropertyID::Color:
                     return resolve_color_style_value(*computed_value, computed_values->color(), ColorResolutionStyle::for_computed_values(*computed_values)).release_nonnull();
+                case PropertyID::Fill:
+                case PropertyID::Stroke:
+                    return resolve_svg_paint_style_value(*computed_value, ColorResolutionStyle::for_computed_values(*computed_values));
                 case PropertyID::CaretColor:
                     return resolve_color_style_value(*computed_value, computed_values->caret_color()).release_nonnull();
                 case PropertyID::BackgroundColor:
@@ -1113,6 +1117,26 @@ static RefPtr<StyleValue const> resolve_color_style_value(StyleValue const& styl
     return ColorStyleValue::create_from_color(computed_color, ColorSyntax::Modern);
 }
 
+// https://drafts.csswg.org/css-color-4/#resolving-color-values
+// The resolved value of a <color> is its used value.
+static NonnullRefPtr<StyleValue const> resolve_svg_paint_style_value(StyleValue const& style_value, ColorResolutionStyle color_resolution_style)
+{
+    if (!style_value.depends_on_current_color())
+        return style_value;
+
+    if (style_value.is_value_list()) {
+        auto const& list = style_value.as_value_list();
+        auto values = list.values();
+        for (auto& value : values)
+            value = resolve_svg_paint_style_value(*value, color_resolution_style);
+        return StyleValueList::create(move(values), list.separator());
+    }
+
+    if (auto color = style_value.to_color(color_resolution_style); color.has_value())
+        return resolve_color_style_value(style_value, *color, color_resolution_style).release_nonnull();
+    return style_value;
+}
+
 // https://svgwg.org/svg2-draft/geometry.html#Sizing
 // The CSS width and height properties are used for sizing some SVG elements. Specifically, they are used to size
 // ‘rect’, ‘svg’, ‘image’ and ‘foreignObject’.
@@ -1273,6 +1297,9 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
         VERIFY(style);
         return resolve_color_style_value(*get_computed_value(property_id), style->color(), ColorResolutionStyle::for_element(*owner_node()));
     }
+    case PropertyID::Fill:
+    case PropertyID::Stroke:
+        return resolve_svg_paint_style_value(*get_computed_value(property_id), color_resolution_style);
     case PropertyID::ColumnRuleColor:
         return resolve_color_style_value(*get_computed_value(property_id), layout_node.column_rule_color(), color_resolution_style);
     case PropertyID::OutlineColor:

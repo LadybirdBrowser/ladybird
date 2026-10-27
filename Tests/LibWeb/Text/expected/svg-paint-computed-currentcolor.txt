@@ -1,28 +1,28 @@
-block fill: currentcolor
-block inherited fill: currentcolor
-block changed color fill: currentcolor
-block fallback fill: url("#gradient") currentcolor
-block fill rgb(from currentcolor r g b): false
-block fill color-mix(in srgb, currentcolor, white): false
+block fill: rgb(255, 0, 0)
+block inherited fill: rgb(0, 0, 255)
+block changed color fill: rgb(0, 128, 0)
+block fallback fill: url("#gradient") rgb(0, 128, 0)
+block fill rgb(from currentcolor r g b): true
+block fill color-mix(in srgb, currentcolor, white): true
 block none fill: none
-block stroke: currentcolor
-block inherited stroke: currentcolor
-block changed color stroke: currentcolor
-block fallback stroke: url("#gradient") currentcolor
-block stroke rgb(from currentcolor r g b): false
-block stroke color-mix(in srgb, currentcolor, white): false
+block stroke: rgb(255, 0, 0)
+block inherited stroke: rgb(0, 0, 255)
+block changed color stroke: rgb(0, 128, 0)
+block fallback stroke: url("#gradient") rgb(0, 128, 0)
+block stroke rgb(from currentcolor r g b): true
+block stroke color-mix(in srgb, currentcolor, white): true
 block none stroke: none
-none fill: currentcolor
-none inherited fill: currentcolor
-none changed color fill: currentcolor
-none fallback fill: url("#gradient") currentcolor
-none fill rgb(from currentcolor r g b): false
-none fill color-mix(in srgb, currentcolor, white): false
+none fill: rgb(255, 0, 0)
+none inherited fill: rgb(0, 0, 255)
+none changed color fill: rgb(0, 128, 0)
+none fallback fill: url("#gradient") rgb(0, 128, 0)
+none fill rgb(from currentcolor r g b): true
+none fill color-mix(in srgb, currentcolor, white): true
 none none fill: none
-none stroke: currentcolor
-none inherited stroke: currentcolor
-none changed color stroke: currentcolor
-none fallback stroke: url("#gradient") currentcolor
-none stroke rgb(from currentcolor r g b): false
-none stroke color-mix(in srgb, currentcolor, white): false
+none stroke: rgb(255, 0, 0)
+none inherited stroke: rgb(0, 0, 255)
+none changed color stroke: rgb(0, 128, 0)
+none fallback stroke: url("#gradient") rgb(0, 128, 0)
+none stroke rgb(from currentcolor r g b): true
+none stroke color-mix(in srgb, currentcolor, white): true
 none none stroke: none

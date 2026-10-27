@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Property fill value 'currentColor' should not leak :visited for SVG fill with currentColor
+1 Pass
+Pass	Property fill value 'currentColor' should not leak :visited for SVG fill with currentColor
