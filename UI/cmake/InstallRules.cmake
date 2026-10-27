@@ -166,12 +166,20 @@ endif()
 if (ENABLE_INSTALL_FREEDESKTOP_FILES)
     set(FREEDESKTOP_RESOURCE_DIR "${LADYBIRD_SOURCE_DIR}/Meta/CMake/freedesktop")
     string(TIMESTAMP DATE "%Y-%m-%d" UTC)
-    execute_process(
-        COMMAND git rev-parse --short=10 HEAD
-        WORKING_DIRECTORY ${LADYBIRD_SOURCE_DIR}
-        OUTPUT_VARIABLE GIT_HASH
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
+
+    # Source tarballs record their commit in a REVISION file, since they have no Git history of their own. They might be
+    # unpacked inside another Git repository though, so the file takes precedence.
+    if (EXISTS "${LADYBIRD_SOURCE_DIR}/REVISION")
+        file(STRINGS "${LADYBIRD_SOURCE_DIR}/REVISION" GIT_HASH LIMIT_COUNT 1 REGEX "^[0-9a-f]+$")
+        string(SUBSTRING "${GIT_HASH}" 0 10 GIT_HASH)
+    else()
+        execute_process(
+            COMMAND git rev-parse --short=10 HEAD
+            WORKING_DIRECTORY ${LADYBIRD_SOURCE_DIR}
+            OUTPUT_VARIABLE GIT_HASH
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+    endif()
     if (LADYBIRD_VERSION STREQUAL "")
         set(METAINFO_RELEASE_VERSION "${CMAKE_PROJECT_VERSION}-snapshot-${GIT_HASH}")
         set(METAINFO_RELEASE_TYPE "snapshot")
