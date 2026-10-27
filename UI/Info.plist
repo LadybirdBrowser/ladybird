@@ -11,6 +11,10 @@
         <string>APPL</string>
         <key>CFBundleGetInfoString</key>
         <string>Ladybird</string>
+        <key>CFBundleName</key>
+        <string>Ladybird</string>
+        <key>CFBundleDisplayName</key>
+        <string>Ladybird</string>
         <key>CFBundleSignature</key>
         <string></string>
         <key>CFBundleExecutable</key>
