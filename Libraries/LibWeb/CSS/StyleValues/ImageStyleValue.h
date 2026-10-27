@@ -16,6 +16,7 @@
 #include <LibGfx/Forward.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibURL/URL.h>
+#include <LibWeb/CSS/ImageStyleValueResourceKey.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/URL.h>
 #include <LibWeb/Forward.h>
@@ -29,7 +30,7 @@ class ImageStyleValueResource final : public HTML::DecodedImageData::Client {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    explicit ImageStyleValueResource(GC::Ref<HTML::SharedResourceRequest>, GC::Ref<DOM::Document> const&);
+    ImageStyleValueResource(ImageStyleValueResourceKey, GC::Ref<HTML::SharedResourceRequest>, GC::Ref<DOM::Document> const&);
     ~ImageStyleValueResource();
 
     void visit_edges(JS::Cell::Visitor&);
@@ -38,7 +39,7 @@ public:
     void unregister_image_style_value(ImageStyleValue const&);
     bool can_be_removed() const { return m_registration_counts_by_image_style_value.is_empty(); }
 
-    ::URL::URL const& url() const;
+    ImageStyleValueResourceKey const& key() const { return m_key; }
 
     [[nodiscard]] virtual GC::Ptr<HTML::DecodedImageData> decoded_image_data() const override;
 
@@ -48,6 +49,7 @@ private:
     void on_decoded_image_data_loaded();
     void notify_image_style_values_did_update();
 
+    ImageStyleValueResourceKey m_key;
     GC::Ref<HTML::SharedResourceRequest> m_resource_request;
     HashMap<ImageStyleValue const*, size_t> m_registration_counts_by_image_style_value;
 };
@@ -101,6 +103,7 @@ private:
     void update_style_sheet_resource_context(StyleSheetState const&);
     GC::Ptr<HTML::SharedResourceRequest> fetch_image(DOM::Document&) const;
     Optional<::URL::URL> resolved_url(DOM::Document const&) const;
+    Optional<ImageStyleValueResourceKey> resource_key(DOM::Document const&) const;
     ::URL::URL style_resource_base_url(DOM::Document const&) const;
     ImageStyleValueResource* resource_registered_by_clients(DOM::Document const&) const;
 

@@ -41,6 +41,7 @@
     const noCorsURL = createImageEcho("no-acao", {});
     const anonymousFirstURL = createImageEcho("anonymous-first", { "Access-Control-Allow-Origin": "*" });
     const credentialsFirstURL = createImageEcho("credentials-first", { "Access-Control-Allow-Origin": "*" });
+    // FIXME: SharedResourceRequest still shares the last two pairs across different integrity metadata.
     const validIntegrityFirstURL = createImageEcho("valid-integrity-first", { "Access-Control-Allow-Origin": "*" });
     const invalidIntegrityFirstURL = createImageEcho("invalid-integrity-first", { "Access-Control-Allow-Origin": "*" });
     const validIntegrity = "sha256-ybJ6Zd0X2BV7UdNtNrVDBewTzqiRUroOJLVGXrPLsMc=";

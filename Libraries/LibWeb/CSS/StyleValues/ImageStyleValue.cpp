@@ -41,14 +41,15 @@ URL ImageStyleValue::url_value() const
     return url_from_rust_data(data.url, data.url_type, data.url_modifiers);
 }
 
-ImageStyleValueResource::ImageStyleValueResource(GC::Ref<HTML::SharedResourceRequest> request, GC::Ref<DOM::Document> const& document)
-    : m_resource_request(move(request))
+ImageStyleValueResource::ImageStyleValueResource(ImageStyleValueResourceKey key, GC::Ref<HTML::SharedResourceRequest> request, GC::Ref<DOM::Document> const& document)
+    : m_key(move(key))
+    , m_resource_request(move(request))
 {
     m_resource_request->add_callbacks(
-        [weak_document = GC::Weak(document), url = m_resource_request->url()] {
+        [weak_document = GC::Weak(document), key = m_key] {
             // FIXME: Can we directly access the resource (i.e. this) here instead of looking it up in the document?
             if (auto document = weak_document.ptr()) {
-                if (auto* resource = document->css_image_resource(url))
+                if (auto* resource = document->css_image_resource(key))
                     resource->on_decoded_image_data_loaded();
             }
         },
@@ -81,11 +82,6 @@ void ImageStyleValueResource::unregister_image_style_value(ImageStyleValue const
         m_registration_counts_by_image_style_value.remove(it);
     if (m_registration_counts_by_image_style_value.is_empty())
         unregister_with_decoded_image_data_if_needed();
-}
-
-::URL::URL const& ImageStyleValueResource::url() const
-{
-    return m_resource_request->url();
 }
 
 GC::Ptr<HTML::DecodedImageData> ImageStyleValueResource::decoded_image_data() const
@@ -184,7 +180,7 @@ void ImageStyleValue::load_any_resources(DOM::Document& document)
 
     if (resource_registered_by_clients(document))
         return;
-    if (auto resolved_url = this->resolved_url(document); resolved_url.has_value() && document.css_image_resource(*resolved_url))
+    if (auto key = resource_key(document); key.has_value() && document.css_image_resource(*key))
         return;
     fetch_image(document);
 }
@@ -229,11 +225,11 @@ void ImageStyleValue::register_client(Client& client) const
 
     auto* resource = resource_registered_by_clients(*document);
     if (!resource) {
-        auto resolved_url = this->resolved_url(*document);
-        if (!resolved_url.has_value())
+        auto key = resource_key(*document);
+        if (!key.has_value())
             return;
 
-        resource = document->css_image_resource(*resolved_url);
+        resource = document->css_image_resource(*key);
         if (!resource) {
             auto resource_request = fetch_image(*document);
 
@@ -241,7 +237,7 @@ void ImageStyleValue::register_client(Client& client) const
             //     the case here.
             VERIFY(resource_request);
 
-            resource = &document->create_css_image_resource(*resource_request);
+            resource = &document->create_css_image_resource(key.release_value(), *resource_request);
         }
     }
 
@@ -266,7 +262,7 @@ void ImageStyleValue::unregister_client(Client& client) const
 
     resource->unregister_image_style_value(*this);
     if (resource->can_be_removed())
-        document->remove_css_image_resource_if_unused(resource->url());
+        document->remove_css_image_resource_if_unused(resource->key());
 }
 
 void ImageStyleValue::notify_clients_did_update() const
@@ -289,6 +285,18 @@ Optional<::URL::URL> ImageStyleValue::resolved_url(DOM::Document const& document
     if (m_style_resource_base_url.has_value())
         m_resolved_url = resolved_url;
     return resolved_url;
+}
+
+Optional<ImageStyleValueResourceKey> ImageStyleValue::resource_key(DOM::Document const& document) const
+{
+    auto resolved_url = this->resolved_url(document);
+    if (!resolved_url.has_value())
+        return {};
+
+    // OPTIMIZATION: Most url() values have no request modifiers, so don't rebuild the URL value for those.
+    if (m_value->image.url_modifiers.length == 0)
+        return ImageStyleValueResourceKey { .url = resolved_url.release_value(), .cross_origin = {}, .integrity = {}, .referrer_policy = {} };
+    return ImageStyleValueResourceKey::create(resolved_url.release_value(), url_value());
 }
 
 ::URL::URL ImageStyleValue::style_resource_base_url(DOM::Document const& document) const
