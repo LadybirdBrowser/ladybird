@@ -4282,7 +4282,6 @@ impl<'pass> GridFormattingContext<'pass> {
                     .quirks_mode_percentage_basis_for_items(percentage_basis_block_size),
                 ..self.grid_area_constraints(item)
             },
-            content_box_position_in_bfc_root: None,
             sizing: RootSizingDirectives::default(),
             participation: ParticipationInParentFormattingContext::Item,
         }

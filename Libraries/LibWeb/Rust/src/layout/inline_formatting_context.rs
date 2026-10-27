@@ -970,6 +970,7 @@ pub(crate) struct InlineFormattingContext<'context> {
     pub(crate) run: &'context FormattingContextRun<'context>,
     pub(crate) containing_block: Node,
     pub(crate) input: LayoutInput,
+    containing_block_position_in_bfc_root: FfiCssPixelPoint,
     pub(crate) callbacks: LayoutPass<'context>,
     pub(crate) parent: &'context block_formatting_context::BlockFormattingContext<'context>,
     pub(crate) containing_used_values: &'context UsedValues,
@@ -985,6 +986,7 @@ impl<'context> InlineFormattingContext<'context> {
         run: &'context FormattingContextRun<'context>,
         containing_block: Node,
         input: LayoutInput,
+        containing_block_position_in_bfc_root: FfiCssPixelPoint,
         callbacks: LayoutPass<'context>,
         parent: &'context block_formatting_context::BlockFormattingContext<'context>,
     ) -> Self {
@@ -994,6 +996,7 @@ impl<'context> InlineFormattingContext<'context> {
             run,
             containing_block,
             input,
+            containing_block_position_in_bfc_root,
             callbacks,
             parent,
             containing_used_values,
@@ -1201,10 +1204,7 @@ impl<'context> InlineFormattingContext<'context> {
     }
 
     fn content_box_position_in_bfc_root(&self) -> FfiCssPixelPoint {
-        let position = self
-            .input
-            .content_box_position_in_bfc_root
-            .expect("inline layout requires the containing block position in the BFC root");
+        let position = self.containing_block_position_in_bfc_root;
         FfiCssPixelPoint {
             x: position.x,
             y: position.y
@@ -1308,13 +1308,8 @@ impl<'context> InlineFormattingContext<'context> {
     }
 
     fn clear_floating_boxes(&self, node: Node) -> bool {
-        self.parent.clear_floating_boxes(
-            node,
-            Some(self),
-            self.input
-                .content_box_position_in_bfc_root
-                .expect("clearing floats requires the containing block position in the BFC root"),
-        )
+        self.parent
+            .clear_floating_boxes(node, Some(self), self.containing_block_position_in_bfc_root)
     }
 
     fn reset_parent_margin_state(&self) {
@@ -1796,6 +1791,7 @@ impl<'context> InlineFormattingContext<'context> {
                         item.node,
                         self.containing_block,
                         self.input,
+                        self.containing_block_position_in_bfc_root,
                         &mut line_builder,
                         state_at_clamp_point.is_some(),
                     );
@@ -1828,6 +1824,7 @@ impl<'context> InlineFormattingContext<'context> {
                         self.run,
                         item.node,
                         self.input,
+                        self.containing_block_position_in_bfc_root,
                         CssPixels::default(),
                         Some(&mut line_builder),
                     );

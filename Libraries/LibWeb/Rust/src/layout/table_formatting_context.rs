@@ -2574,7 +2574,6 @@ impl<'pass> TableFormattingContext<'pass> {
         let layout_input = LayoutInput {
             available_space: input,
             containing_block_constraints: ContainingBlockConstraints::default(),
-            content_box_position_in_bfc_root: None,
             sizing: RootSizingDirectives {
                 adopt_automatic_content_block_size,
                 table_cell_intrinsic_block_padding: intrinsic_block_padding,
@@ -2661,7 +2660,6 @@ impl<'pass> TableFormattingContext<'pass> {
             LayoutInput {
                 available_space: inner,
                 containing_block_constraints: ContainingBlockConstraints::default(),
-                content_box_position_in_bfc_root: None,
                 sizing: RootSizingDirectives {
                     adopt_automatic_content_block_size,
                     ..RootSizingDirectives::default()

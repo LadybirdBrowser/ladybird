@@ -134,6 +134,7 @@ pub(super) fn content_sizes_of_inline_content(
                 run,
                 run.box_,
                 input,
+                FfiCssPixelPoint::default(),
                 run.callbacks,
                 &parent,
             );
