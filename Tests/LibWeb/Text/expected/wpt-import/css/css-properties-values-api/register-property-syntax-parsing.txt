@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 244 tests
 
-238 Pass
-6 Fail
+243 Pass
+1 Fail
 Pass	syntax:'--foo', initialValue:'--foo' is valid
 Pass	syntax:'--foo | <color>', initialValue:'--foo' is valid
 Pass	syntax:'--foo | <color>', initialValue:'red' is valid
@@ -184,11 +184,11 @@ Pass	syntax:'<length>|INHERIT', initialValue:'10px' is invalid
 Pass	syntax:'<percentage>|unsEt', initialValue:'2%' is invalid
 Pass	syntax:'<color>|REVert', initialValue:'red' is invalid
 Pass	syntax:'<integer>|deFAUlt', initialValue:'1' is invalid
-Fail	syntax:'*', initialValue:'initial' is invalid
-Fail	syntax:'*', initialValue:'inherit' is invalid
-Fail	syntax:'*', initialValue:'unset' is invalid
-Fail	syntax:'*', initialValue:'revert' is invalid
-Fail	syntax:'*', initialValue:'revert-layer' is invalid
+Pass	syntax:'*', initialValue:'initial' is invalid
+Pass	syntax:'*', initialValue:'inherit' is invalid
+Pass	syntax:'*', initialValue:'unset' is invalid
+Pass	syntax:'*', initialValue:'revert' is invalid
+Pass	syntax:'*', initialValue:'revert-layer' is invalid
 Pass	syntax:'<custom-ident>', initialValue:'initial' is invalid
 Pass	syntax:'<custom-ident>', initialValue:'inherit' is invalid
 Pass	syntax:'<custom-ident>', initialValue:'unset' is invalid

@@ -447,6 +447,14 @@ fn parse_with_metadata(
     values: &[ComponentValue],
     source: &[u16],
 ) -> Option<StyleValueData> {
+    if !metadata.allow_css_wide_keywords
+        && single_non_whitespace(values)
+            .and_then(ComponentValue::ident)
+            .and_then(keyword_from_ascii_case_insensitive)
+            .is_some_and(|keyword| is_css_wide_keyword(&StyleValueData::Keyword { keyword }))
+    {
+        return None;
+    }
     for syntax in metadata.syntax {
         let parsed = match syntax {
             DescriptorSyntax::Keyword(keyword) => parse_keyword(values, keyword),
