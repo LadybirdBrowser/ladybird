@@ -10,6 +10,7 @@
 #include <AK/AnyOf.h>
 #include <AK/Assertions.h>
 #include <AK/ByteString.h>
+#include <AK/Checked.h>
 #include <AK/ScopeGuard.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
@@ -37,6 +38,9 @@ extern "C" {
 #endif
 #if defined(AK_OS_LINUX)
 #    include <AK/QuickSort.h>
+#    include <pthread.h>
+#    include <sched.h>
+#    include <sys/mman.h>
 #    include <sys/prctl.h>
 #    include <sys/syscall.h>
 #endif
@@ -260,95 +264,125 @@ static Optional<int> close_undeclared_descriptors(ReadonlySpan<int> declared_des
     return {};
 }
 
+struct SpawnedChildContext {
+    ProcessSpawnOptions const& options;
+    Span<char const*> arguments;
+    char** environment { nullptr };
+    ReadonlySpan<int> descriptors_to_keep;
+    pid_t parent_pid { 0 };
+    sigset_t parent_signal_mask;
+
+    // Written by the child, which shares our memory until it calls exec().
+    int child_errno { 0 };
+};
+
+// The child shares our memory but has its own stack until exec(), while the spawning thread waits.
+// Like a vfork() child, it may only make system calls: allocating could corrupt our heap.
+NO_SANITIZE_ADDRESS static int spawned_child_main(void* argument)
+{
+    auto& context = *static_cast<SpawnedChildContext*>(argument);
+    auto report_errno_and_exit = [&](int error) {
+        context.child_errno = error;
+        _exit(127);
+    };
+
+    // Reset handlers before unblocking signals so they cannot touch our shared state.
+    // Use raw syscalls to avoid sanitizer wrappers modifying bookkeeping in our memory.
+    struct KernelSignalAction {
+        void* handler;
+        unsigned long words[3];
+    };
+    static constexpr size_t kernel_signal_set_size = 8;
+    for (int signal_number = 1; signal_number < NSIG; ++signal_number) {
+        KernelSignalAction action {};
+        if (syscall(SYS_rt_sigaction, signal_number, nullptr, &action, kernel_signal_set_size) < 0)
+            continue;
+        if (action.handler == reinterpret_cast<void*>(SIG_IGN) || action.handler == reinterpret_cast<void*>(SIG_DFL))
+            continue;
+        KernelSignalAction default_action {};
+        default_action.handler = reinterpret_cast<void*>(SIG_DFL);
+        (void)syscall(SYS_rt_sigaction, signal_number, &default_action, nullptr, kernel_signal_set_size);
+    }
+
+    if (context.options.die_with_parent) {
+        if (prctl(PR_SET_PDEATHSIG, SIGKILL) < 0)
+            report_errno_and_exit(errno);
+        if (getppid() != context.parent_pid)
+            _exit(127);
+    }
+
+    if (auto error = run_file_actions_in_child(context.options.file_actions); error.has_value())
+        report_errno_and_exit(error.value());
+    if (auto error = close_undeclared_descriptors(context.descriptors_to_keep); error.has_value())
+        report_errno_and_exit(error.value());
+
+    if (syscall(SYS_rt_sigprocmask, SIG_SETMASK, &context.parent_signal_mask, nullptr, kernel_signal_set_size) < 0)
+        report_errno_and_exit(errno);
+
+    if (context.options.search_for_executable_in_path)
+        execvpe(context.options.executable.characters(), const_cast<char* const*>(context.arguments.data()), context.environment);
+    else
+        execve(context.options.executable.characters(), const_cast<char* const*>(context.arguments.data()), context.environment);
+
+    report_errno_and_exit(errno);
+    return 127;
+}
+
+// Share memory until exec(), as posix_spawn() does, to avoid fork()'s page-table copying and copy-on-write setup.
 static ErrorOr<pid_t> fork_and_exec(ProcessSpawnOptions const& options, Span<char const*> arguments)
 {
     auto environment = environment_for_child(options);
-
-    auto error_pipe = TRY(System::pipe2(O_CLOEXEC));
-
-    // The child reports a failed exec() through the pipe, so no file action may replace, close or duplicate it. A number
-    // that a file action names but that is not open here, such as stdin when we were started without one, could
-    // otherwise be the number the pipe got.
-    auto is_named_by_file_action = [&](int fd) {
-        return any_of(options.file_actions, [&](auto const& file_action) {
-            if (auto const* dup = file_action.template get_pointer<FileAction::DupFd>(); dup && dup->write_fd == fd)
-                return true;
-            return file_action_target(file_action) == fd;
-        });
-    };
-    for (int lowest_candidate = STDERR_FILENO + 1; is_named_by_file_action(error_pipe[1]);) {
-        auto moved_fd = fcntl(error_pipe[1], F_DUPFD_CLOEXEC, lowest_candidate);
-        if (moved_fd < 0) {
-            auto saved_errno = errno;
-            MUST(System::close(error_pipe[0]));
-            MUST(System::close(error_pipe[1]));
-            return Error::from_syscall("fcntl(F_DUPFD_CLOEXEC)"sv, saved_errno);
-        }
-        if (is_named_by_file_action(moved_fd)) {
-            MUST(System::close(moved_fd));
-            lowest_candidate = moved_fd + 1;
-            continue;
-        }
-        MUST(System::close(error_pipe[1]));
-        error_pipe[1] = moved_fd;
-    }
-
-    // Close-on-exec, but it has to stay open until exec() to report a failure.
     auto descriptors_to_keep = declared_descriptors(options.file_actions);
-    descriptors_to_keep.append(error_pipe[1]);
     quick_sort(descriptors_to_keep);
 
-    auto parent_pid = getpid();
-    auto pid = fork();
-    if (pid < 0) {
-        auto saved_errno = errno;
-        MUST(System::close(error_pipe[0]));
-        MUST(System::close(error_pipe[1]));
-        return Error::from_syscall("fork"sv, saved_errno);
-    }
+    SpawnedChildContext context {
+        .options = options,
+        .arguments = arguments,
+        .environment = environment_pointer(environment),
+        .descriptors_to_keep = descriptors_to_keep,
+        .parent_pid = getpid(),
+        .parent_signal_mask = {},
+    };
 
-    if (pid == 0) {
-        close(error_pipe[0]);
+    // execvpe() builds another argv array on the stack when falling back to /bin/sh after ENOEXEC.
+    Checked<size_t> stack_size = arguments.size();
+    stack_size += 1;
+    stack_size *= sizeof(char*);
+    stack_size += 256 * KiB;
+    size_t page_size = PAGE_SIZE;
+    stack_size += page_size - 1;
+    stack_size += page_size;
+    if (stack_size.has_overflow())
+        return Error::from_errno(E2BIG);
+    size_t mapping_size = stack_size.value() / page_size * page_size;
+    auto* child_stack = mmap(nullptr, mapping_size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
+    if (child_stack == MAP_FAILED)
+        return Error::from_syscall("mmap"sv, errno);
+    ScopeGuard unmap_child_stack = [&] { munmap(child_stack, mapping_size); };
+    // Leave a guard page below the downward-growing stack to protect the parent's shared memory.
+    if (mprotect(static_cast<u8*>(child_stack) + page_size, mapping_size - page_size, PROT_READ | PROT_WRITE) < 0)
+        return Error::from_syscall("mprotect"sv, errno);
 
-        auto report_errno_and_exit = [&](int error) {
-            auto bytes_written = write(error_pipe[1], &error, sizeof(error));
-            (void)bytes_written;
-            _exit(127);
-        };
+    // No signal handler may run in the child while it shares our memory.
+    sigset_t all_signals;
+    sigfillset(&all_signals);
+    if (auto result = pthread_sigmask(SIG_SETMASK, &all_signals, &context.parent_signal_mask); result != 0)
+        return Error::from_syscall("pthread_sigmask"sv, result);
 
-        if (options.die_with_parent) {
-            if (prctl(PR_SET_PDEATHSIG, SIGKILL) < 0)
-                report_errno_and_exit(errno);
-            if (getppid() != parent_pid)
-                _exit(127);
-        }
+    // CLONE_VFORK suspends this thread until the child calls exec() or exits.
+    auto* child_stack_top = static_cast<u8*>(child_stack) + mapping_size;
+    auto pid = clone(spawned_child_main, child_stack_top, CLONE_VM | CLONE_VFORK | SIGCHLD, &context);
+    auto saved_errno = errno;
 
-        if (auto error = run_file_actions_in_child(options.file_actions); error.has_value())
-            report_errno_and_exit(error.value());
-        if (auto error = close_undeclared_descriptors(descriptors_to_keep); error.has_value())
-            report_errno_and_exit(error.value());
+    (void)pthread_sigmask(SIG_SETMASK, &context.parent_signal_mask, nullptr);
 
-        if (options.search_for_executable_in_path)
-            execvpe(options.executable.characters(), const_cast<char* const*>(arguments.data()), environment_pointer(environment));
-        else
-            execve(options.executable.characters(), const_cast<char* const*>(arguments.data()), environment_pointer(environment));
+    if (pid < 0)
+        return Error::from_syscall("clone"sv, saved_errno);
 
-        report_errno_and_exit(errno);
-    }
-
-    MUST(System::close(error_pipe[1]));
-
-    int child_errno = 0;
-    // A signal about another process, such as SIGCHLD, can interrupt the wait for this child's exec.
-    auto bytes_read = System::read(error_pipe[0], { &child_errno, sizeof(child_errno) });
-    while (bytes_read.is_error() && bytes_read.error().code() == EINTR)
-        bytes_read = System::read(error_pipe[0], { &child_errno, sizeof(child_errno) });
-    MUST(System::close(error_pipe[0]));
-
-    if (TRY(bytes_read) > 0) {
+    if (context.child_errno != 0) {
         int status = 0;
         (void)waitpid(pid, &status, 0);
-        return Error::from_errno(child_errno);
+        return Error::from_errno(context.child_errno);
     }
 
     return pid;

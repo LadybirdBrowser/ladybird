@@ -5,6 +5,7 @@
  */
 
 #include <AK/ByteString.h>
+#include <AK/ScopeGuard.h>
 #include <LibCore/Environment.h>
 #include <LibCore/Process.h>
 #include <LibCore/System.h>
@@ -16,6 +17,7 @@
 #    include <stddef.h>
 #    include <sys/prctl.h>
 #    include <sys/resource.h>
+#    include <sys/stat.h>
 #    include <sys/syscall.h>
 #    include <sys/wait.h>
 #endif
@@ -110,6 +112,30 @@ TEST_CASE(duplicated_descriptor_is_close_on_exec)
 }
 
 #if defined(AK_OS_LINUX)
+#    if defined(__GLIBC__)
+TEST_CASE(spawned_shell_script_without_shebang_accepts_many_arguments)
+{
+    char path[] = "/tmp/test-libcore-process-XXXXXX";
+    auto fd = MUST(Core::System::mkstemp(path));
+    ScopeGuard remove_script = [&] { MUST(Core::System::unlink(StringView { path, sizeof(path) - 1 })); };
+    // No shebang: execvpe() must build the shell's argv on the child stack.
+    MUST(Core::System::write(fd, "printf '%s\\n' \"$#\"\n"sv.bytes()));
+    VERIFY(fchmod(fd, 0700) == 0);
+    MUST(Core::System::close(fd));
+
+    Vector<ByteString> arguments;
+    for (size_t i = 0; i < 40'000; ++i)
+        arguments.append(""sv);
+    auto output = run_and_read_output({
+        .executable = path,
+        .search_for_executable_in_path = true,
+        .arguments = arguments,
+        .environment = Vector<ByteString> {},
+    });
+    EXPECT_EQ(output, "40000\n"sv);
+}
+#    endif
+
 TEST_CASE(spawned_process_found_in_path_gets_the_given_environment)
 {
     auto output = run_and_read_output({
