@@ -342,9 +342,13 @@ impl Verifier<'_> {
             }
         }
         if let Some(output @ Location::Register(_)) = allocation.output {
-            let mut clobbered = state.clone();
-            clobbered.remove(&output);
-            self.check_exit_values(&clobbered, node_id, &context);
+            // NB: Cloning the state instead would take time quadratic in the size of code that keeps many values in
+            //     their stack slots past many nodes.
+            let previous = state.remove(&output);
+            self.check_exit_values(state, node_id, &context);
+            if let Some(previous) = previous {
+                state.insert(output, previous);
+            }
         } else {
             self.check_exit_values(state, node_id, &context);
         }
