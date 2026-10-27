@@ -315,6 +315,10 @@ WebIDL::ExceptionOr<void> StylePropertyMap::append(Utf16FlyString property_name,
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::formatted("Existing value for '{}' contains var() references.", property_name) };
     }
 
+    // NB: Appending no values must not replace the declaration or update the style attribute.
+    if (values.is_empty())
+        return {};
+
     // 9. Let temp values be an empty list.
     // NB: StyleValues are immutable, so we always create a new one. We add directly to it instead of using "temp values".
     StyleValueVector value_list;
