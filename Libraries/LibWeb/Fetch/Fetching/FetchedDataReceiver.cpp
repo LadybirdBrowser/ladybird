@@ -67,6 +67,11 @@ void FetchedDataReceiver::handle_network_data(JS::Realm& realm, Requests::Respon
     if (state == NetworkState::Complete) {
         VERIFY(data.bytes().is_empty());
         m_network_complete = true;
+        if (m_response) {
+            auto body_info = m_response->body_info();
+            body_info.decoded_size = m_decoded_body_size;
+            m_response->set_body_info(move(body_info));
+        }
         // Mark sniff bytes as complete when the stream ends
         if (m_body)
             m_body->set_sniff_bytes_complete();
@@ -88,8 +93,11 @@ void FetchedDataReceiver::handle_network_data(JS::Realm& realm, Requests::Respon
     // FIXME: 2. Let codings be the result of extracting header list values given `Content-Encoding` and response’s header list.
     // FIXME: 3. Increase response’s body info’s encoded size by bytes’s length.
     // FIXME: 4. Set bytes to the result of handling content codings given codings and bytes.
-    // FIXME: 5. Increase response’s body info’s decoded size by bytes’s length.
     // FIXME: 6. If bytes is failure, then terminate fetchParams’s controller.
+
+    // 5. Increase response’s body info’s decoded size by bytes’s length.
+    // NB: The response's body info is updated once the network completes.
+    m_decoded_body_size += bytes.size();
 
     // Capture bytes for MIME sniffing
     if (m_body) {

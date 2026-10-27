@@ -26,7 +26,7 @@ public:
     explicit FetchedDataReceiver(GC::Ref<Streams::ReadableStream>);
     virtual ~FetchedDataReceiver() override;
 
-    void set_response(GC::Ref<Fetch::Infrastructure::Response const> response) { m_response = response; }
+    void set_response(GC::Ref<Fetch::Infrastructure::Response> response) { m_response = response; }
     void set_body(GC::Ref<Fetch::Infrastructure::Body> body);
     void set_network_request(RefPtr<Requests::Request> const& request) { m_network_request = request; }
 
@@ -48,7 +48,7 @@ private:
     void close_stream(JS::Realm&);
 
     GC::Ptr<Infrastructure::FetchParams const> m_fetch_params;
-    GC::Ptr<Fetch::Infrastructure::Response const> m_response;
+    GC::Ptr<Fetch::Infrastructure::Response> m_response;
     GC::Ptr<Fetch::Infrastructure::Body> m_body;
 
     GC::Ref<Streams::ReadableStream> m_stream;
@@ -64,6 +64,7 @@ private:
     Optional<Core::ImmutableBytes> m_cache_body;
     bool m_cache_body_replaces_network_buffer { false };
 
+    u64 m_decoded_body_size { 0 };
     bool m_network_complete { false };
 
     // Bytes read off the network but not yet handed to the stream. They are delivered by a queued networking task

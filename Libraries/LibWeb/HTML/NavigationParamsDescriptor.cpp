@@ -281,6 +281,7 @@ static GC::Ptr<Fetch::Infrastructure::Body> adopt_navigation_response_body(JS::R
     auto receiver_root = GC::make_root(receiver);
     auto cross_origin_isolated_capability = Bindings::principal_host_defined_environment_settings_object(realm).cross_origin_isolated_capability();
 
+    // NB: receiver_root traces response.
     request->set_unbuffered_request_callbacks(
         [](NonnullRefPtr<HTTP::HeaderList>, Optional<u32>, Optional<String> const&, Optional<Core::ImmutableBytes>, Optional<u64>, Requests::CacheState) { },
         [receiver_root, &realm](Requests::ResponseData data) {
@@ -289,7 +290,7 @@ static GC::Ptr<Fetch::Infrastructure::Body> adopt_navigation_response_body(JS::R
         [receiver_root](Core::ImmutableBytes data) {
             receiver_root->set_cached_response_body(move(data));
         },
-        [receiver_root, stream = GC::make_root(stream), body = GC::make_root(body), timing_info, cross_origin_isolated_capability, &realm](u64, Requests::RequestTimingInfo const& request_timing_info, Optional<Requests::NetworkError> network_error) {
+        [receiver_root, stream = GC::make_root(stream), body = GC::make_root(body), response = GC::Ptr { &response }, timing_info, cross_origin_isolated_capability, &realm](u64, Requests::RequestTimingInfo const& request_timing_info, Optional<Requests::NetworkError> network_error) {
             TemporaryExecutionContext execution_context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
             if (!network_error.has_value()) {
                 // AD-HOC: Nothing reports timing for a navigation fetch, so record the network phases and end time here
@@ -298,6 +299,9 @@ static GC::Ptr<Fetch::Infrastructure::Body> adopt_navigation_response_body(JS::R
                     timing_info->update_final_timings(request_timing_info, cross_origin_isolated_capability);
                     timing_info->set_end_time(HighResolutionTime::unsafe_shared_current_time());
                 }
+                auto body_info = response->body_info();
+                body_info.encoded_size = max(request_timing_info.encoded_body_size, 0);
+                response->set_body_info(move(body_info));
                 receiver_root->handle_network_data(realm, Requests::ResponseData::from_bytes({}), Fetch::Fetching::FetchedDataReceiver::NetworkState::Complete);
                 return;
             }

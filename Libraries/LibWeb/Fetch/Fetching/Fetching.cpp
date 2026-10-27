@@ -2631,13 +2631,13 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
         body_pump->set_cached_response_body(move(data));
     });
 
-    auto complete_load = GC::create_function(GC::Heap::the(), [&realm, pending_response, body_pump, pull_source, delivery_gate, fetch_timing_info, cross_origin_isolated_capability](bool success, Requests::RequestTimingInfo const& timing_info, Optional<StringView> error_message) {
+    auto complete_load = GC::create_function(GC::Heap::the(), [&realm, pending_response, body_pump, pull_source, delivery_gate, request, fetch_timing_info, cross_origin_isolated_capability](bool success, Requests::RequestTimingInfo const& timing_info, Optional<StringView> error_message) {
         HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
         delivery_gate->detach_transport();
 
         if (success) {
             fetch_timing_info->update_final_timings(timing_info, cross_origin_isolated_capability);
-            body_pump->handle_network_complete();
+            body_pump->handle_network_complete(Infrastructure::is_http_or_https_scheme(request->current_url().scheme()) ? Optional<u64>(max(timing_info.encoded_body_size, 0)) : Optional<u64> {});
         } else {
             auto error = Utf16String::formatted("Load failed: {}", error_message.value_or("Unknown error"sv));
             body_pump->handle_network_error(error.to_utf8_but_should_be_ported_to_utf16());

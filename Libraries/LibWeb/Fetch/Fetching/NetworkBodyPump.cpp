@@ -26,6 +26,21 @@ NetworkBodyPump::NetworkBodyPump(GC::Ptr<Infrastructure::FetchParams const> fetc
 
 NetworkBodyPump::~NetworkBodyPump() = default;
 
+void NetworkBodyPump::set_response(GC::Ref<Infrastructure::Response> response)
+{
+    m_response = response;
+    if (m_network_complete)
+        update_response_body_info();
+}
+
+void NetworkBodyPump::update_response_body_info()
+{
+    auto body_info = m_response->body_info();
+    body_info.encoded_size = m_encoded_body_size;
+    body_info.decoded_size = m_decoded_body_size;
+    m_response->set_body_info(move(body_info));
+}
+
 void NetworkBodyPump::set_body(GC::Ref<Fetch::Infrastructure::Body> body)
 {
     m_body = body;
@@ -79,7 +94,6 @@ void NetworkBodyPump::handle_network_data(Requests::ResponseData data)
     // FIXME: 7. Set response’s body info’s content encoding to filteredCoding.
     // FIXME: 8. Increase response’s body info’s encoded size by bytes’s length.
     // FIXME: 9. Set bytes to the result of handling content codings given codings and bytes.
-    // FIXME: 10. Increase response’s body info’s decoded size by bytes’s length.
     // FIXME: 11. If bytes is failure, then terminate fetchParams’s controller.
 
     if (m_delivery_gate->did_deliver(bytes.size()) == Engine::FetchBodyDeliveryGate::DeliveryResult::Rejected)
@@ -110,6 +124,10 @@ void NetworkBodyPump::handle_network_data(Requests::ResponseData data)
         }
     }
 
+    // 10. Increase response’s body info’s decoded size by bytes’s length.
+    // NB: The response's body info is updated once the network completes.
+    m_decoded_body_size += bytes.size();
+
     // 12. Append bytes to buffer. (Steps 12 and 13 live in FetchByteChannel's writes.)
     if (file_backed)
         m_channel->write(file_backed->slice);
@@ -117,9 +135,14 @@ void NetworkBodyPump::handle_network_data(Requests::ResponseData data)
         m_channel->write_copy(bytes);
 }
 
-void NetworkBodyPump::handle_network_complete()
+void NetworkBodyPump::handle_network_complete(Optional<u64> encoded_body_size)
 {
     m_network_complete = true;
+    // AD-HOC: RequestServer reports the encoded size of an HTTP body once it has been received. Other schemes have no
+    //         content coding, so their encoded size is their decoded size.
+    m_encoded_body_size = encoded_body_size.value_or(m_decoded_body_size);
+    if (m_response)
+        update_response_body_info();
     // Mark sniff bytes as complete when the stream ends
     if (m_body)
         m_body->set_sniff_bytes_complete();
