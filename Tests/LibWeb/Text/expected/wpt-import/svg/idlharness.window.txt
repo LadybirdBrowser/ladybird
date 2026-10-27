@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1780 tests
 
-1593 Pass
-187 Fail
+1595 Pass
+185 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Document: original interface defined
@@ -362,8 +362,8 @@ Pass	SVGAnimatedRect interface: attribute baseVal
 Pass	SVGAnimatedRect interface: attribute animVal
 Pass	SVGAnimatedRect must be primary interface of objects.svg.viewBox
 Pass	Stringification of objects.svg.viewBox
-Fail	SVGAnimatedRect interface: objects.svg.viewBox must inherit property "baseVal" with the proper type
-Fail	SVGAnimatedRect interface: objects.svg.viewBox must inherit property "animVal" with the proper type
+Pass	SVGAnimatedRect interface: objects.svg.viewBox must inherit property "baseVal" with the proper type
+Pass	SVGAnimatedRect interface: objects.svg.viewBox must inherit property "animVal" with the proper type
 Pass	SVGAnimatedNumberList interface: existence and properties of interface object
 Pass	SVGAnimatedNumberList interface object length
 Pass	SVGAnimatedNumberList interface object name

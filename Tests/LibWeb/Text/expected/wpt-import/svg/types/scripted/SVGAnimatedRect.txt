@@ -2,10 +2,10 @@ Harness status: OK
 
 Found 5 tests
 
-2 Pass
-3 Fail
+4 Pass
+1 Fail
 Fail	SVGAnimatedRect interface - utilizing the viewBox property of SVGSVGElement
-Fail	baseVal/animVal are zero rects when the viewBox attribute is unset
+Pass	baseVal/animVal are zero rects when the viewBox attribute is unset
 Pass	baseVal/animVal return the same SVGRect across reads
 Pass	setAttribute('viewBox', ...) is reflected in baseVal/animVal
-Fail	removeAttribute('viewBox') resets baseVal/animVal to a zero rect
+Pass	removeAttribute('viewBox') resets baseVal/animVal to a zero rect

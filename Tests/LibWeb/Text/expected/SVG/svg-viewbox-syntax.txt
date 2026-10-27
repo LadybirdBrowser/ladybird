@@ -10,9 +10,9 @@
 9
 10
 11
-null
-null
-null
-null
-null
-null
+[object DOMRect]
+[object DOMRect]
+[object DOMRect]
+[object DOMRect]
+[object DOMRect]
+[object DOMRect]

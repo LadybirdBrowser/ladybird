@@ -1,7 +1,7 @@
 [object SVGSVGElement]
 [object SVGAnimatedRect]
-null
-null
+[object DOMRect]
+[object DOMRect]
 [object DOMRect]
 1
 2
@@ -22,5 +22,5 @@ null
 6
 7
 8
-null
-null
+[object DOMRect]
+[object DOMRect]

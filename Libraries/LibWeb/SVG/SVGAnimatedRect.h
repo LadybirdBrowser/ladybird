@@ -19,23 +19,19 @@ public:
     [[nodiscard]] static GC::Ref<SVGAnimatedRect> create();
     virtual ~SVGAnimatedRect();
 
-    GC::Ptr<Geometry::DOMRect> base_val() const;
-    GC::Ptr<Geometry::DOMRect> anim_val() const;
+    GC::Ref<Geometry::DOMRect> base_val() const { return m_base_val; }
+    GC::Ref<Geometry::DOMRect> anim_val() const { return m_anim_val; }
 
     void set_base_val(Gfx::DoubleRect const&);
     void set_anim_val(Gfx::DoubleRect const&);
-
-    void set_nulled(bool);
 
 private:
     virtual void visit_edges(Visitor&) override;
 
     SVGAnimatedRect();
 
-    GC::Ptr<Geometry::DOMRect> m_base_val;
-    GC::Ptr<Geometry::DOMRect> m_anim_val;
-
-    bool m_nulled { true };
+    GC::Ref<Geometry::DOMRect> m_base_val;
+    GC::Ref<Geometry::DOMRect> m_anim_val;
 };
 
 }
