@@ -2036,11 +2036,10 @@ pub(crate) fn explicit_intrinsic_inner_inline_size(facts: &NodeFacts<'_>) -> Css
     }
 }
 
-/// Whether the content inline sizes of `box_` are measured by laying it out: those of a box that establishes an
-/// orthogonal flow, whose block size they are, and of a MathML box.
+/// Whether the content inline sizes of `box_` are measured by laying it out under each intrinsic inline size: those of a
+/// MathML box.
 pub(crate) fn content_inline_sizes_are_measured_by_layout(callbacks: &LayoutPass<'_>, box_: Node) -> bool {
-    frame_established_by(callbacks, box_).is_orthogonal_to(callbacks.frame)
-        || independent_formatting_context_type(box_, callbacks) == FormattingContextType::Math
+    independent_formatting_context_type(box_, callbacks) == FormattingContextType::Math
 }
 
 fn lays_out_box_for_its_content_inline_sizes(
@@ -2474,14 +2473,8 @@ fn enter_own_frame(
         };
         used.set_content_inline_size(inline_size);
     }
-    let mut body_available_space = used.available_inner_space_or_constraints_from(available_space);
-    // NB: A root measured for its inline size in its parent's frame is laid out under that intrinsic size along its own
-    //     block axis.
-    if !used.has_definite_block_size() && available_space.block_size.is_intrinsic_sizing_constraint() {
-        body_available_space.block_size = available_space.block_size;
-    }
     let mut body_input = LayoutInput::new(
-        body_available_space,
+        used.available_inner_space_or_constraints_from(available_space),
         constraints,
         ParticipationInParentFormattingContext::Root,
     );

@@ -675,3 +675,76 @@ pub(super) fn content_sizes_of_replaced_content(
         }
     }))
 }
+
+// https://drafts.csswg.org/css-writing-modes-4/#orthogonal-shrink-to-fit
+// "when a child box auto-sized in its block axis establishes an orthogonal flow, the used block size of the child is
+//  calculated to fit its content; and this resulting content-based size is used as input to the inline-axis
+//  min-content size and max-content size of the parent."
+pub(super) fn content_sizes_of_orthogonal_flow(
+    callbacks: LayoutPass<'_>,
+    scope: &ContentSizingScope,
+    constraints: ContainingBlockConstraints,
+) -> Option<sizing_context::ContentInlineSizes> {
+    let node = scope.node;
+    if !establishes_orthogonal_flow(&callbacks, node) {
+        return None;
+    }
+    let own_frame = formatting_context::frame_established_by(&callbacks, node);
+    let callbacks_in_own_frame = callbacks.in_frame_of(own_frame.writing_mode());
+    let constraints_in_own_frame = ContainingBlockConstraints {
+        percentage_basis_inline_size: constraints.percentage_basis_block_size,
+        percentage_basis_block_size: constraints.percentage_basis_inline_size,
+        quirks_mode_percentage_basis_block_size: None,
+    };
+    let observes_percentage_inline_basis = scope.enter(callbacks, |run| {
+        run.sizing().measurement_root_observes_percentage_inline_basis(node)
+    });
+    let available_inline_size_in_own_frame = scope.available_block_size();
+    let root = scope.root();
+    root.move_box_metrics_to_frame(callbacks.frame, own_frame);
+    let inline_size = if root.has_definite_inline_size.get() {
+        root.content_inline_size.get()
+    } else {
+        scope.enter(callbacks_in_own_frame, |run| {
+            run.sizing().orthogonal_flow_inline_size(
+                node,
+                AvailableSpace {
+                    inline_size: available_inline_size_in_own_frame,
+                    block_size: AvailableSize::Indefinite,
+                },
+                constraints_in_own_frame,
+            )
+        })
+    };
+    root.set_content_inline_size(inline_size);
+    root.has_definite_inline_size.set(true);
+    root.has_definite_block_size.set(false);
+    let mut input = LayoutInput::new(
+        AvailableSpace {
+            inline_size: AvailableSize::definite(inline_size),
+            block_size: AvailableSize::Indefinite,
+        },
+        constraints_in_own_frame,
+        ParticipationInParentFormattingContext::Root,
+    );
+    input.sizing.root_is_measured_for_its_content_block_size = matches!(
+        formatting_context::independent_formatting_context_type(node, &callbacks_in_own_frame),
+        formatting_context::FormattingContextType::Flex | formatting_context::FormattingContextType::Grid
+    );
+    let result = formatting_context::lay_out_measurement_root_for_its_result(
+        callbacks_in_own_frame,
+        node,
+        used_values::RootInputCells::capture(root),
+        input,
+    );
+    let size = result.automatic_content_block_size;
+    Some(sizing_context::ContentInlineSizes {
+        sizes: sizing_context::ContentSizes { min: size, max: size },
+        first_line_max_content: FirstLineMaxContent::without_floats(size),
+        dependencies: IntrinsicMeasurementDependencies {
+            percentage_block_size: result.depends_on_percentage_block_size,
+            percentage_inline_basis: observes_percentage_inline_basis,
+            block_size: true,
+        },
+    })
+}

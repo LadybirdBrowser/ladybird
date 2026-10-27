@@ -2980,6 +2980,12 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             }
             return self.cache_content_inline_sizes(node, kind, key, sizes);
         }
+        if let Some(sizes) = intrinsic_sizing::content_sizes_of_orthogonal_flow(self.callbacks, &scope, constraints) {
+            if let Some(trace) = &trace {
+                trace.append(" FROM ORTHOGONAL FLOW");
+            }
+            return self.cache_content_inline_sizes(node, kind, key, sizes);
+        }
         let sizes = self.content_inline_sizes_by_layout_runs(node, constraints, block_size);
         self.cache_content_inline_sizes(node, kind, key, sizes)
     }
@@ -2992,7 +2998,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
     ) -> ContentInlineSizes {
         debug_assert!(
             formatting_context::content_inline_sizes_are_measured_by_layout(&self.callbacks, node),
-            "only boxes that establish an orthogonal flow and MathML boxes are measured by layout"
+            "only MathML boxes are measured by layout"
         );
         let content_size_named_by_grid_maximum_inline_size =
             if formatting_context::independent_formatting_context_type(node, &self.callbacks)

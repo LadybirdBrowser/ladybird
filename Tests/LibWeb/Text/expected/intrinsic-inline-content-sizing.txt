@@ -208,7 +208,7 @@ changed font width: 320
 decorated replacement width: 170
 nowrap flex item width: 100
 inline table in an inline-block: width 190, runs under inline size measurements 0
-nested vertical blocks in a float: width 50, runs under inline size measurements 2
+nested vertical blocks in a float: width 50, runs under inline size measurements 1
 percentage max-width table in a flex container: table width 200, caption width 200
 min-content max-width table in a flex container: table width 80, caption width 80
 percentage max-width floating table: table width 200, caption width 200
