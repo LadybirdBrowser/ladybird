@@ -962,4 +962,14 @@ ResponsePromise Client::print_page(Web::WebDriver::Parameters parameters, JsonVa
     return session->run_top_level_content_command("print_page"sv, move(payload));
 }
 
+// Set Permission, https://w3c.github.io/permissions/#webdriver-command-set-permission
+// POST /session/{session id}/permissions
+ResponsePromise Client::set_permission(Web::WebDriver::Parameters parameters, JsonValue payload)
+{
+    dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/permissions");
+    auto session = WEBDRIVER_TRY(Session::find_session(parameters[0]));
+
+    return session->set_permission(move(payload));
+}
+
 }

@@ -32,6 +32,7 @@ private:
     virtual void wait_for_navigation_completion(u64 command_id, String window_handle, Optional<u64> page_load_timeout) override;
     virtual void traverse_history(u64 command_id, String window_handle, i32 delta, bool handle_user_prompts) override;
     virtual void get_session_history(u64 command_id, String window_handle) override;
+    virtual void set_permission(u64 command_id, String window_handle, JsonValue parameters) override;
     virtual void load_url(u64 command_id, String window_handle, URL::URL url) override;
     virtual void run_content_command(u64 command_id, String window_handle, Web::WebDriver::SessionBrowsingContext browsing_context, String name, JsonValue payload, Vector<String> arguments) override;
     virtual void switch_to_window(u64 command_id, String window_handle) override;

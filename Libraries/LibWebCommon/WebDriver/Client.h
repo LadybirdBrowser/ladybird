@@ -130,6 +130,9 @@ public:
     // 18. Print, https://w3c.github.io/webdriver/#print
     virtual ResponsePromise print_page(Parameters parameters, JsonValue payload) = 0;
 
+    // Permissions, https://w3c.github.io/permissions/#automation
+    virtual ResponsePromise set_permission(Parameters parameters, JsonValue payload) = 0;
+
     Function<void()> on_death;
 
 protected:

@@ -7,6 +7,7 @@
 #include <AK/JsonObject.h>
 #include <LibCore/EventLoop.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/PermissionManager.h>
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebDriverBrowserConnection.h>
 #if defined(AK_OS_MACOS)
@@ -308,6 +309,42 @@ void WebDriverBrowserConnection::get_session_history(u64 command_id, String wind
     JsonObject result;
     result.set("ui"sv, view->webdriver_session_history());
     async_command_complete(command_id, JsonValue { move(result) });
+}
+
+// https://w3c.github.io/permissions/#webdriver-command-set-permission
+void WebDriverBrowserConnection::set_permission(u64 command_id, String window_handle, JsonValue parameters)
+{
+    auto invalid_argument = [&](StringView message) {
+        async_command_complete(command_id, Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, message));
+    };
+
+    auto view = ViewImplementation::find_view_by_handle(window_handle);
+    if (!view.has_value()) {
+        async_command_complete(command_id, Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"sv));
+        return;
+    }
+
+    if (!parameters.is_object())
+        return invalid_argument("Parameters must be an object"sv);
+    auto descriptor = parameters.as_object().get_object("descriptor"sv);
+    if (!descriptor.has_value())
+        return invalid_argument("The descriptor must be an object"sv);
+    auto name = descriptor->get_string("name"sv).map([](auto const& string) { return Web::Permissions::permission_name_from_string(string); });
+    if (!name.has_value() || !name->has_value())
+        return invalid_argument("The permission name is not supported"sv);
+
+    Optional<PermissionDecision> decision;
+    auto state = parameters.as_object().get_string("state"sv);
+    if (state == "granted"sv)
+        decision = PermissionDecision::Allow;
+    else if (state == "denied"sv)
+        decision = PermissionDecision::Block;
+    else if (state != "prompt"sv)
+        return invalid_argument("The state must be granted, denied, or prompt"sv);
+
+    // NB: A permission is kept for the top-level origin, whichever frame the session is in.
+    view->set_site_permission(view->url().origin(), **name, decision);
+    async_command_complete(command_id, JsonValue {});
 }
 
 void WebDriverBrowserConnection::bidi_command(u64 command_id, String method, JsonValue params)
