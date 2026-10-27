@@ -95,6 +95,10 @@ String RecordingNotificationBackend::state_json(Web::PageId page_id) const
         entry.set("requireInteraction"sv, notification.data.require_interaction);
         entry.set("renotify"sv, notification.data.renotify);
         entry.set("hasIcon"sv, !notification.icon.is_null());
+        if (notification.icon) {
+            entry.set("iconWidth"sv, notification.icon->width());
+            entry.set("iconHeight"sv, notification.icon->height());
+        }
         entry.set("replaces"sv, notification.replaces.has_value() ? JsonValue(*notification.replaces) : JsonValue());
         shown.must_append(move(entry));
     }

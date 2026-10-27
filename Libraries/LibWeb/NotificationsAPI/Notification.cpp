@@ -9,8 +9,13 @@
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/VM.h>
+#include <LibWeb/Compositor/CompositorHost.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/Fetch/Fetching/Fetching.h>
+#include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
+#include <LibWeb/Fetch/Infrastructure/FetchController.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -20,6 +25,9 @@
 #include <LibWeb/NotificationsAPI/Notification.h>
 #include <LibWeb/NotificationsAPI/NotificationPermission.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Painting/PaintingRustBridge.h>
+#include <LibWeb/Platform/ImageCodecPlugin.h>
+#include <LibWeb/Platform/Timer.h>
 #include <LibWeb/ServiceWorker/ServiceWorkerGlobalScope.h>
 
 namespace Web::NotificationsAPI {
@@ -36,6 +44,8 @@ void Notification::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_relevant_global);
     visitor.visit(m_page);
+    visitor.visit(m_icon_fetch_controller);
+    visitor.visit(m_fetch_timeout);
 }
 
 WebIDL::ExceptionOr<NotificationOptions> Notification::options_from_bindings(JS::VM& vm, Bindings::NotificationOptions const& options)
@@ -296,12 +306,132 @@ void Notification::run_steps_in_parallel_after_construction()
     show_steps();
 }
 
+// The longest a notification waits for its icon before it shows without one.
+static constexpr auto icon_fetch_timeout = AK::Duration::from_seconds(5);
+// The longest side an icon is sent to the platform at; both desktop platforms show icons smaller than this.
+static constexpr int icon_maximum_side = 128;
+
 // https://notifications.spec.whatwg.org/#notification-show-steps
 void Notification::show_steps()
 {
-    // FIXME: 1. Run the fetch steps given notification and settings.
-    // FIXME: 2. Wait for any fetches to complete and notification's image resource, icon resource, and badge resource
-    //           to be set (if any), as well as the icon resources for the notification's actions (if any).
+    // 1. Run the fetch steps given notification and settings.
+    // 2. Wait for any fetches to complete and notification's image resource, icon resource, and badge resource to
+    //    be set (if any), as well as the icon resources for the notification's actions (if any).
+    // AD-HOC: The wait is bounded: An icon that hasn't arrived after a few seconds isn't worth holding the
+    //         notification back for, so it then shows without one.
+    m_fetch_timeout = Platform::Timer::create_single_shot(heap(), icon_fetch_timeout, GC::create_function(heap(), [this] {
+        if (m_icon_fetch_controller)
+            m_icon_fetch_controller->stop_fetch();
+        m_icon_fetch_controller = nullptr;
+        display();
+    }));
+    m_fetch_timeout->start();
+    run_the_fetch_steps(GC::create_function(heap(), [this] {
+        if (!m_fetch_timeout)
+            return;
+        m_fetch_timeout->stop();
+        display();
+    }));
+}
+
+// https://notifications.spec.whatwg.org/#fetch-steps
+void Notification::run_the_fetch_steps(GC::Ref<GC::Function<void()>> on_done)
+{
+    // 1. If the notification platform supports images and notification's image URL is set, then fetch a notification
+    //    resource given notification, notification's image URL, settings, and the following step given a resource
+    //    resource: set notification's image resource to resource.
+    // NB: No platform we show on takes an image.
+
+    // 2. If the notification platform supports icons and notification's icon URL is set, then fetch a notification
+    //    resource given notification, notification's icon URL, settings, and the following step given a resource
+    //    resource: set notification's icon resource to resource.
+    if (!m_notification.icon_url.has_value()) {
+        on_done->function()();
+        return;
+    }
+    fetch_a_notification_resource(*m_notification.icon_url, GC::create_function(heap(), [this, on_done](RefPtr<Gfx::Bitmap const> resource) {
+        m_icon_resource = move(resource);
+        on_done->function()();
+    }));
+
+    // 3. If the notification platform supports badges and notification's badge URL is set, then fetch a notification
+    //    resource given notification, notification's badge URL, settings, and the following step given a resource
+    //    resource: set notification's badge resource to resource.
+    // NB: No platform we show on takes a badge.
+
+    // 4. If the notification platform supports actions and action icons, then for each entry of notification's
+    //    actions: if entry's icon URL is non-null, then fetch a notification resource given notification, entry's
+    //    icon URL, settings, and the following step given a resource resource: set entry's icon resource to resource.
+    // NB: A non-persistent notification has no actions.
+}
+
+// https://notifications.spec.whatwg.org/#fetch-a-notification-resource
+void Notification::fetch_a_notification_resource(URL::URL const& url, GC::Ref<GC::Function<void(RefPtr<Gfx::Bitmap const>)>> process_resource)
+{
+    auto& settings = HTML::relevant_settings_object(*m_relevant_global);
+
+    // 1. Let request be a new request whose URL is url, client is settings, destination is "image", mode is
+    //    "no-cors", and credentials mode is "include".
+    auto request = Fetch::Infrastructure::Request::create();
+    request->set_url(url);
+    request->set_client(settings.address());
+    request->set_destination(Fetch::Infrastructure::Request::Destination::Image);
+    request->set_mode(Fetch::Infrastructure::Request::Mode::NoCORS);
+    request->set_credentials_mode(Fetch::Infrastructure::Request::CredentialsMode::Include);
+
+    // 2. If settings is null, then set request's origin to notification's origin, request's referrer to
+    //    "no-referrer", and request's service-workers mode to "none".
+    // NB: A page's notification always has its settings object.
+
+    // 3. Fetch request with useParallelQueue set to true and processResponseConsumeBody set to the following steps
+    //    given a response response and null, failure, or a byte sequence bytes:
+    Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::DeliverStreamToConsumerAgent };
+    fetch_algorithms_input.process_response_consume_body = [this, process_resource](GC::Ref<Fetch::Infrastructure::ResponseView>, Fetch::Infrastructure::FetchAlgorithms::BodyBytes bytes) {
+        m_icon_fetch_controller = nullptr;
+
+        // 1. If bytes is null or failure, then return.
+        // AD-HOC: The show steps wait on this fetch, so an absent resource is reported as such, rather than left
+        //         for the timeout to notice.
+        if (!bytes.has<Core::ImmutableBytes>()) {
+            process_resource->function()(nullptr);
+            return;
+        }
+
+        // 2. Attempt to decode bytes as an image.
+        // 3. If the image format is supported, then run processResource given the decoded image.
+        auto on_decoded = [this, process_resource](Platform::DecodedImage& decoded_image) -> ErrorOr<void> {
+            RefPtr<Gfx::Bitmap const> bitmap;
+            if (!decoded_image.frames.is_empty() && decoded_image.frames[0].bitmap) {
+                bitmap = decoded_image.frames[0].bitmap;
+                auto size = bitmap->size();
+                if (size.width() > icon_maximum_side || size.height() > icon_maximum_side) {
+                    auto scale = static_cast<float>(icon_maximum_side) / static_cast<float>(max(size.width(), size.height()));
+                    Gfx::IntSize scaled_size { max(1, static_cast<int>(roundf(size.width() * scale))), max(1, static_cast<int>(roundf(size.height() * scale))) };
+                    // Without a compositor to scale with, the platform gets the icon as it came.
+                    if (m_page && m_page->has_compositor_host()) {
+                        auto output = Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, scaled_size);
+                        Compositing::DisplayListResourceStorage resource_storage;
+                        auto display_list = Painting::record_image_frame_display_list(Gfx::DecodedImageFrame { *bitmap }, Gfx::FloatRect { {}, scaled_size.to_type<float>() }, Gfx::ScalingMode::BilinearMipmap, resource_storage);
+                        if (!output.is_error() && m_page->compositor_host().rasterize_display_list(display_list, resource_storage, output.value()))
+                            bitmap = output.release_value();
+                    }
+                }
+            }
+            process_resource->function()(move(bitmap));
+            return {};
+        };
+        auto on_decode_failed = [process_resource](Error&) {
+            process_resource->function()(nullptr);
+        };
+        (void)Platform::ImageCodecPlugin::the().decode_image(bytes.get<Core::ImmutableBytes>().bytes(), move(on_decoded), move(on_decode_failed));
+    };
+    m_icon_fetch_controller = Fetch::Fetching::fetch(settings.realm(), request, Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)), Fetch::Fetching::UseParallelQueue::Yes);
+}
+
+// Steps 3 to 8 of https://notifications.spec.whatwg.org/#notification-show-steps
+void Notification::display()
+{
+    m_fetch_timeout = nullptr;
 
     // 3. Let shown be false.
     // 4. Let oldNotification be the notification in the list of notifications whose tag is not the empty string and is
@@ -323,7 +453,7 @@ void Notification::show_steps()
     m_id = m_page->allocate_notification_id();
     m_page->register_showing_notification(m_id, *this);
     m_state = State::Showing;
-    m_page->client().page_did_request_show_notification(m_id, data(), {});
+    m_page->client().page_did_request_show_notification(m_id, data(), m_icon_resource);
 
     // 8. If notification is a non-persistent notification, then queue a task to fire an event named show on the
     //    Notification object representing notification.
