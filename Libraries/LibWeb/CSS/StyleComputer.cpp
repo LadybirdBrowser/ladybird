@@ -157,7 +157,7 @@ static RustDeclarationBlock const& declaration_of_rule(CSSRule const& rule)
 
 StyleComputer::StyleComputer(DOM::Document& document)
     : m_document(document)
-    , m_default_font_metrics(16, Platform::FontPlugin::the().default_font(16)->pixel_metrics(), InitialValues::line_height())
+    , m_default_font_metrics(font_metrics_from(16, Platform::FontPlugin::the().default_font(16)->pixel_metrics(), InitialValues::line_height()))
     , m_root_element_font_metrics(m_default_font_metrics)
     , m_style_engine(this)
 {
@@ -1870,7 +1870,7 @@ void StyleComputer::sweep_custom_property_environments() const
 
 void StyleComputer::update_root_element_font_metrics(ComputedValues const& values)
 {
-    m_root_element_font_metrics = Length::FontMetrics { values.font_size(), values.font_list().first_available_font().pixel_metrics(), values.line_height() };
+    m_root_element_font_metrics = font_metrics_from(values.font_size(), values.font_list().first_available_font().pixel_metrics(), values.line_height());
     m_root_element_font_metrics_depend_on_viewport_metrics = values.font_metrics_depend_on_viewport_metrics();
     m_root_element_effective_zoom = values.effective_zoom();
 }
@@ -1970,11 +1970,10 @@ ComputationContext StyleComputer::make_computation_context_for_property(Layout::
     case PropertyID::LineHeight: {
         auto inheritance_parent = abstract_element.map([](auto& element) { return element.element_to_inherit_style_from(); }).value_or(OptionalNone {});
 
-        auto line_height_font_metrics = Length::FontMetrics {
+        auto line_height_font_metrics = font_metrics_from(
             style.font_size(),
             style.first_available_computed_font(document().font_computer())->pixel_metrics(),
-            inheritance_parent.has_value() && inheritance_parent->has_style() ? inheritance_parent->computed_style()->line_height() : InitialValues::line_height()
-        };
+            inheritance_parent.has_value() && inheritance_parent->has_style() ? inheritance_parent->computed_style()->line_height() : InitialValues::line_height());
 
         return {
             .length_resolution_context = {
@@ -1994,11 +1993,10 @@ ComputationContext StyleComputer::make_computation_context_for_property(Layout::
         };
     }
     default: {
-        auto font_metrics = Length::FontMetrics {
+        auto font_metrics = font_metrics_from(
             style.font_size(),
             style.first_available_computed_font(document().font_computer())->pixel_metrics(),
-            style.line_height(document().font_computer())
-        };
+            style.line_height(document().font_computer()));
         return {
             .length_resolution_context = {
                 .viewport_rect = viewport_rect(),

@@ -2517,7 +2517,7 @@ fn font_metrics_for_length_resolution(style: StyleValues<'_>) -> crate::css::sty
     crate::css::style_compute::FfiFontMetrics {
         font_size: style.font_size().to_double(),
         x_height: CssPixels::nearest_value_for_f32(font.font_x_height).to_double(),
-        // FIXME: This is only approximately the cap height, exactly as Length::FontMetrics has it.
+        // FIXME: This is only approximately the cap height, exactly as font_metrics_from() has it.
         cap_height: CssPixels::nearest_value_for_f32(font.font_ascent).to_double(),
         zero_advance: CssPixels::nearest_value_for_f32(font.font_zero_advance).to_double(),
         line_height: style.line_height().to_double(),

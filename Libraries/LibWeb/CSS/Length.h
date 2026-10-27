@@ -16,26 +16,26 @@
 #include <LibGfx/Rect.h>
 #include <LibWeb/CSS/SerializationMode.h>
 #include <LibWeb/CSS/Units.h>
+#include <LibWeb/ComputedValuesRustFFI.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWebCommon/PixelUnits.h>
 
 namespace Web::CSS {
 
+namespace ComputedValuesFFI {
+
+inline bool operator==(FfiFontMetrics const& a, FfiFontMetrics const& b)
+{
+    return a.font_size == b.font_size && a.x_height == b.x_height && a.cap_height == b.cap_height && a.zero_advance == b.zero_advance && a.line_height == b.line_height;
+}
+
+}
+
+WEB_API ComputedValuesFFI::FfiFontMetrics font_metrics_from(CSSPixels font_size, Gfx::FontPixelMetrics const&, CSSPixels line_height);
+
 class WEB_API Length {
 public:
-    struct WEB_API FontMetrics {
-        FontMetrics(CSSPixels font_size, Gfx::FontPixelMetrics const&, CSSPixels line_height);
-
-        CSSPixels font_size;
-        CSSPixels x_height;
-        CSSPixels cap_height;
-        CSSPixels zero_advance;
-        CSSPixels line_height;
-
-        bool operator==(FontMetrics const&) const = default;
-    };
-
     Length(double value, LengthUnit unit)
         : m_unit(unit)
         , m_value(value)
@@ -71,8 +71,8 @@ public:
         [[nodiscard]] static ResolutionContext for_element(DOM::AbstractElement const&, ComputedValues const&);
 
         CSSPixelRect viewport_rect;
-        FontMetrics font_metrics;
-        FontMetrics root_font_metrics;
+        ComputedValuesFFI::FfiFontMetrics font_metrics;
+        ComputedValuesFFI::FfiFontMetrics root_font_metrics;
         bool font_metrics_depend_on_viewport_metrics { false };
         bool root_font_metrics_depend_on_viewport_metrics { false };
         bool subject_inline_axis_is_horizontal { true };
@@ -104,17 +104,6 @@ public:
         {
             if (m_did_resolve_viewport_relative_length)
                 *m_did_resolve_viewport_relative_length = true;
-        }
-
-        bool operator==(ResolutionContext const& other) const
-        {
-            return viewport_rect == other.viewport_rect
-                && font_metrics == other.font_metrics
-                && root_font_metrics == other.root_font_metrics
-                && font_metrics_depend_on_viewport_metrics == other.font_metrics_depend_on_viewport_metrics
-                && root_font_metrics_depend_on_viewport_metrics == other.root_font_metrics_depend_on_viewport_metrics
-                && subject_inline_axis_is_horizontal == other.subject_inline_axis_is_horizontal
-                && subject_element == other.subject_element;
         }
 
         void visit_edges(GC::Cell::Visitor&) const;

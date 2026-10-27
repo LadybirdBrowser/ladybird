@@ -292,7 +292,7 @@ CSS::ColorResolutionStyle OffscreenCanvas::canvas_color_resolution_style()
 CSS::ComputationContext OffscreenCanvas::canvas_font_computation_context()
 {
     // NB: The default font for a canvas is 10px sans-serif so we use a point size of 8 here.
-    CSS::Length::FontMetrics font_metrics { 10, Platform::FontPlugin::the().default_font(8)->pixel_metrics(), CSS::InitialValues::line_height() };
+    auto font_metrics = CSS::font_metrics_from(10, Platform::FontPlugin::the().default_font(8)->pixel_metrics(), CSS::InitialValues::line_height());
 
     return CSS::ComputationContext {
         .length_resolution_context = {

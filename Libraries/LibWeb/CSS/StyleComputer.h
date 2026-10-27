@@ -78,7 +78,7 @@ public:
 
     void set_viewport_rect(Badge<DOM::Document>, CSSPixelRect const& viewport_rect) { m_viewport_rect = viewport_rect; }
     [[nodiscard]] CSSPixelRect const& viewport_rect_for_style_environment() const { return m_viewport_rect; }
-    [[nodiscard]] Length::FontMetrics const& root_element_font_metrics() const { return m_root_element_font_metrics; }
+    [[nodiscard]] ComputedValuesFFI::FfiFontMetrics const& root_element_font_metrics() const { return m_root_element_font_metrics; }
     [[nodiscard]] bool root_element_font_metrics_depend_on_viewport_metrics() const { return m_root_element_font_metrics_depend_on_viewport_metrics; }
     // https://drafts.csswg.org/css-viewport/#effective-zoom
     // NB: The root element font metrics are zoomed by this effective zoom of the root element.
@@ -256,8 +256,8 @@ public:
 private:
     GC::Ref<DOM::Document> m_document;
 
-    Length::FontMetrics m_default_font_metrics;
-    mutable Length::FontMetrics m_root_element_font_metrics;
+    ComputedValuesFFI::FfiFontMetrics m_default_font_metrics;
+    mutable ComputedValuesFFI::FfiFontMetrics m_root_element_font_metrics;
     mutable bool m_root_element_font_metrics_depend_on_viewport_metrics { false };
     mutable double m_root_element_effective_zoom { 1 };
 

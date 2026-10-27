@@ -95,15 +95,17 @@ static GC::Ptr<DOM::Element const> get_or_compute_query_container_for_axis(Lengt
     return cached_query_container.value();
 }
 
-Length::FontMetrics::FontMetrics(CSSPixels font_size, Gfx::FontPixelMetrics const& pixel_metrics, CSSPixels line_height)
-    : font_size(font_size)
-    , x_height(pixel_metrics.x_height)
-    // FIXME: This is only approximately the cap height. The spec suggests measuring the "O" glyph:
-    //        https://www.w3.org/TR/css-values-4/#cap
-    , cap_height(pixel_metrics.ascent)
-    , zero_advance(pixel_metrics.advance_of_ascii_zero)
-    , line_height(line_height)
+ComputedValuesFFI::FfiFontMetrics font_metrics_from(CSSPixels font_size, Gfx::FontPixelMetrics const& pixel_metrics, CSSPixels line_height)
 {
+    return {
+        .font_size = font_size.to_double(),
+        .x_height = CSSPixels(pixel_metrics.x_height).to_double(),
+        // FIXME: This is only approximately the cap height. The spec suggests measuring the "O" glyph:
+        //        https://www.w3.org/TR/css-values-4/#cap
+        .cap_height = CSSPixels(pixel_metrics.ascent).to_double(),
+        .zero_advance = CSSPixels(pixel_metrics.advance_of_ascii_zero).to_double(),
+        .line_height = line_height.to_double(),
+    };
 }
 
 Length Length::percentage_of(Percentage const& percentage) const
@@ -212,8 +214,8 @@ Length::ResolutionContext Length::ResolutionContext::for_element(DOM::AbstractEl
 
     return Length::ResolutionContext {
         .viewport_rect = element.element().navigable()->viewport_rect(),
-        .font_metrics = { computed_values.font_size(), computed_values.font_list().first_available_font().pixel_metrics(), computed_values.line_height() },
-        .root_font_metrics = { root_computed_values->font_size(), root_computed_values->font_list().first_available_font().pixel_metrics(), root_computed_values->line_height() },
+        .font_metrics = font_metrics_from(computed_values.font_size(), computed_values.font_list().first_available_font().pixel_metrics(), computed_values.line_height()),
+        .root_font_metrics = font_metrics_from(root_computed_values->font_size(), root_computed_values->font_list().first_available_font().pixel_metrics(), root_computed_values->line_height()),
         .font_metrics_depend_on_viewport_metrics = computed_values.font_metrics_depend_on_viewport_metrics(),
         .root_font_metrics_depend_on_viewport_metrics = root_computed_values->font_metrics_depend_on_viewport_metrics(),
         .subject_inline_axis_is_horizontal = inline_axis_is_horizontal(computed_values.writing_mode()),
@@ -225,7 +227,7 @@ Length::ResolutionContext Length::ResolutionContext::for_document(DOM::Document 
 {
     auto const& initial_font = document.font_computer().initial_font();
     Gfx::FontPixelMetrics const& initial_font_metrics = initial_font.pixel_metrics();
-    Length::FontMetrics font_metrics { CSSPixels { initial_font.pixel_size() }, initial_font_metrics, InitialValues::line_height() };
+    auto font_metrics = font_metrics_from(CSSPixels { initial_font.pixel_size() }, initial_font_metrics, InitialValues::line_height());
     CSSPixelRect viewport_rect;
 
     if (document.navigable())

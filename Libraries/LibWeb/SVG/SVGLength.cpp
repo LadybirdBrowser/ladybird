@@ -207,7 +207,7 @@ WebIDL::ExceptionOr<float> SVGLength::value() const
         // NB: Values which rely on viewport relative lengths are computationally independent but we still can't resolve
         //    them - we pass a bogus LRC and check if absolutization depends on viewport metrics.
         CSS::ComputationContext computation_context {
-            .length_resolution_context = { .viewport_rect = { 0, 0, 0, 0 }, .font_metrics = { 0, {}, {} }, .root_font_metrics = { 0, {}, {} } },
+            .length_resolution_context = { .viewport_rect = { 0, 0, 0, 0 }, .font_metrics = {}, .root_font_metrics = {} },
         };
 
         auto absolutized_value = style_value->absolutized(computation_context);

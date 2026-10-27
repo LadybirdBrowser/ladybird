@@ -244,7 +244,7 @@ CSS::ComputationContext HTMLCanvasElement::canvas_font_computation_context()
         length_resolution_context = CSS::Length::ResolutionContext::for_element(abstract_element);
     } else {
         // NB: This is similar to the document's LRC but using the default canvas context font size of 10px
-        CSS::Length::FontMetrics font_metrics { 10, Platform::FontPlugin::the().default_font(8)->pixel_metrics(), CSS::InitialValues::line_height() };
+        auto font_metrics = CSS::font_metrics_from(10, Platform::FontPlugin::the().default_font(8)->pixel_metrics(), CSS::InitialValues::line_height());
 
         CSSPixelRect viewport_rect;
         if (auto navigable = this->navigable())

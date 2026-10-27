@@ -546,11 +546,11 @@ static CSS::ComputationContext computation_context_for(CanvasHost& canvas_host, 
         // NB: We lazily initialize the font, so if it hasn't been set yet we generate the font metrics based on the default font
         if (!font.cascade) {
             // When the object implementing the CanvasTextDrawingStyles interface is created, the font of the context must be set to 10px sans-serif.
-            return CSS::Length::FontMetrics { 10, Platform::FontPlugin::the().default_font(8)->pixel_metrics(), CSS::InitialValues::line_height() };
+            return CSS::font_metrics_from(10, Platform::FontPlugin::the().default_font(8)->pixel_metrics(), CSS::InitialValues::line_height());
         }
 
         auto const& first_font = font.cascade->first_available_font();
-        return CSS::Length::FontMetrics { CSSPixels::from_raw(font.font_size), first_font.pixel_metrics(), CSS::InitialValues::line_height() };
+        return CSS::font_metrics_from(CSSPixels::from_raw(font.font_size), first_font.pixel_metrics(), CSS::InitialValues::line_height());
     }();
 
     return {
