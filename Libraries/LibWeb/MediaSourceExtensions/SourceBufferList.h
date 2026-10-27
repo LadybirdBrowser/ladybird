@@ -20,7 +20,7 @@ public:
     void remove_all_buffers(Badge<MediaSource>);
 
     size_t length() const;
-    GC::Ref<SourceBuffer> const& item(u32 index) const;
+    GC::Ptr<SourceBuffer> item(u32 index) const;
 
     void set_onaddsourcebuffer(GC::Ptr<WebIDL::CallbackType>);
     GC::Ptr<WebIDL::CallbackType> onaddsourcebuffer();

@@ -1,0 +1,15 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const mediaSource = new MediaSource();
+        for (const name of ["sourceBuffers", "activeSourceBuffers"]) {
+            const buffers = mediaSource[name];
+            for (const index of [0, 7, 4294967294]) {
+                println(`${name}[${index}] is undefined: ${buffers[index] === undefined}`);
+                println(`${name} has index ${index}: ${index in buffers}`);
+                println(`${name} has an own property at ${index}: ${Object.hasOwn(buffers, index)}`);
+            }
+        }
+    });
+</script>
