@@ -47,6 +47,12 @@ static int memfd_create(char const* name, unsigned int flags)
 extern char** environ;
 #endif
 
+#if defined(AK_OS_MACOS)
+#    include <LibCore/MachPort.h>
+#    include <mach/mach.h>
+#    include <mach/mach_vm.h>
+#endif
+
 #if defined(AK_OS_BSD_GENERIC) && !defined(AK_OS_SOLARIS)
 #    include <sys/sysctl.h>
 #endif
@@ -156,14 +162,27 @@ static int mmap_anonymous_fd([[maybe_unused]] MemoryTag tag)
 
 ErrorOr<void*> reserve_address_space(size_t size, MemoryTag tag)
 {
+#ifdef AK_OS_MACOS
+    // On macOS, reserving address space that may later become accessible costs time in proportion to its size, while
+    // a reservation that can never become accessible costs nothing. Committing memory maps over the reservation, which
+    // replaces its protections, so the reservation itself never needs to become accessible.
+    int flags = VM_FLAGS_ANYWHERE;
+    if (auto tag_flags = mmap_anonymous_fd(tag); tag_flags != -1)
+        flags |= tag_flags;
+    mach_vm_address_t address = 0;
+    if (auto result = mach_vm_map(mach_task_self(), &address, size, 0, flags, MEMORY_OBJECT_NULL, 0, false, VM_PROT_NONE, VM_PROT_NONE, VM_INHERIT_DEFAULT); result != KERN_SUCCESS)
+        return mach_error_to_error(result);
+    return reinterpret_cast<void*>(address);
+#else
     int flags = MAP_PRIVATE | MAP_ANONYMOUS;
-#ifdef MAP_NORESERVE
+#    ifdef MAP_NORESERVE
     flags |= MAP_NORESERVE;
-#endif
+#    endif
     auto* ptr = ::mmap(nullptr, size, PROT_NONE, flags, mmap_anonymous_fd(tag), 0);
     if (ptr == MAP_FAILED)
         return Error::from_syscall("mmap"sv, errno);
     return ptr;
+#endif
 }
 
 ErrorOr<void*> allocate_anonymous_memory(size_t size, MemoryTag tag)
