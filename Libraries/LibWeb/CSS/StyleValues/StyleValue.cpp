@@ -501,6 +501,11 @@ GC::Ref<CSSStyleValue> StyleValue::reify(Utf16FlyString const& associated_proper
         return as_custom_ident().reify(associated_property);
     case Type::Display:
         return as_display().reify(associated_property);
+    case Type::Easing:
+        // NB: Preserve authored step keywords until computation canonicalizes them to steps().
+        if (m_value->easing.is_keyword)
+            return CSSKeywordValue::create(m_value->easing.step_position == to_underlying(StepPosition::Start) ? "step-start"_utf16_fly_string : "step-end"_utf16_fly_string);
+        break;
     case Type::Integer:
         return as_integer().reify(associated_property);
     case Type::Keyword:

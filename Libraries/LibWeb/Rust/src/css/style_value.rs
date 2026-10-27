@@ -2045,6 +2045,7 @@ pub enum StyleValueData {
     Easing {
         kind: u8,
         step_position: u8,
+        is_keyword: bool,
         linear_stops: RetainedLinearEasingStopList,
         x1: RetainedStyleValueData,
         y1: RetainedStyleValueData,
@@ -2802,8 +2803,10 @@ impl StyleValueData {
                 y2,
                 number_of_intervals,
                 step_position,
+                is_keyword,
             } => {
                 hasher.write_u8(*kind);
+                write_bool(hasher, *is_keyword);
                 hasher.write_usize(linear_stops.as_slice().len());
                 for stop in linear_stops.as_slice() {
                     write_value(hasher, &stop.output);

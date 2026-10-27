@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 40 tests
 
-38 Pass
-2 Fail
+40 Pass
 Pass	Can set 'transition-timing-function' to CSS-wide keywords: initial
 Pass	Can set 'transition-timing-function' to CSS-wide keywords: inherit
 Pass	Can set 'transition-timing-function' to CSS-wide keywords: unset
@@ -14,8 +13,8 @@ Pass	Can set 'transition-timing-function' to the 'ease' keyword: ease
 Pass	Can set 'transition-timing-function' to the 'ease-in' keyword: ease-in
 Pass	Can set 'transition-timing-function' to the 'ease-out' keyword: ease-out
 Pass	Can set 'transition-timing-function' to the 'ease-in-out' keyword: ease-in-out
-Fail	Can set 'transition-timing-function' to the 'step-start' keyword: step-start
-Fail	Can set 'transition-timing-function' to the 'step-end' keyword: step-end
+Pass	Can set 'transition-timing-function' to the 'step-start' keyword: step-start
+Pass	Can set 'transition-timing-function' to the 'step-end' keyword: step-end
 Pass	Setting 'transition-timing-function' to a length: 0px throws TypeError
 Pass	Setting 'transition-timing-function' to a length: -3.14em throws TypeError
 Pass	Setting 'transition-timing-function' to a length: 3.14cm throws TypeError

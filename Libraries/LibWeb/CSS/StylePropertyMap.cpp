@@ -90,6 +90,15 @@ static WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_r
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Numeric value does not match the property's grammar"_utf16 };
     }
 
+    // NB: Step easing keywords are custom identifiers outside the property parser. Store the parsed iteration so
+    //     multi-value set() and append() use the easing representation expected by style computation.
+    if (internal_representation->is_custom_ident()
+        && first_is_one_of(property.id(), PropertyID::AnimationTimingFunction, PropertyID::TransitionTimingFunction)) {
+        if (auto parsed_value = parse_css_value(Parser::ParsingParams {}, internal_representation->to_utf16_string(SerializationMode::Normal), property.id());
+            parsed_value && parsed_value->is_value_list() && parsed_value->as_value_list().size() == 1)
+            return parsed_value->as_value_list().value_at(0, false);
+    }
+
     // AD-HOC: Our parser represents a text-indent that is just a length-percentage as a text-indent value, and style
     //         computation expects that.
     if (property.id() == PropertyID::TextIndent

@@ -1369,11 +1369,12 @@ fn absolutize_easing(
         y2,
         number_of_intervals,
         step_position,
+        is_keyword,
     } = value
     else {
         return None;
     };
-    let mut changed = false;
+    let mut changed = *is_keyword;
     let mut stops = Vec::with_capacity(linear_stops.as_slice().len());
     for stop in linear_stops.as_slice() {
         let [output, input] = stop.values();
@@ -1405,6 +1406,7 @@ fn absolutize_easing(
         y2,
         number_of_intervals,
         step_position: *step_position,
+        is_keyword: false,
     })))
 }
 

@@ -1,0 +1,57 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const method of ["set", "append"]) {
+            for (const keyword of ["step-start", "step-end"]) {
+                const target = document.createElement("div");
+                target.style.cssText =
+                    "opacity: 0; width: 10px; transition-property: opacity, width; transition-duration: 1s";
+                document.body.append(target);
+                const map = target.attributeStyleMap;
+                if (method === "set") {
+                    map.set("transition-timing-function", new CSSKeywordValue("linear"), new CSSKeywordValue(keyword));
+                } else {
+                    map.set("transition-timing-function", new CSSKeywordValue("linear"));
+                    map.append("transition-timing-function", new CSSKeywordValue(keyword));
+                }
+                println(
+                    `${method} ${keyword}: ${map
+                        .getAll("transition-timing-function")
+                        .map(value => value.toString())
+                        .join(", ")}`
+                );
+                internals.updateStyle();
+                target.style.width = "20px";
+                internals.updateStyle();
+                const transition = target.getAnimations().find(animation => animation.transitionProperty === "width");
+                transition.pause();
+                transition.currentTime = 500;
+                println(`width halfway: ${getComputedStyle(target).width}`);
+                transition.cancel();
+                target.remove();
+
+                const animation = document.createElement("div");
+                document.body.append(animation);
+                if (method === "set") {
+                    animation.attributeStyleMap.set(
+                        "animation-timing-function",
+                        new CSSKeywordValue("linear"),
+                        new CSSKeywordValue(keyword)
+                    );
+                } else {
+                    animation.attributeStyleMap.set("animation-timing-function", new CSSKeywordValue("linear"));
+                    animation.attributeStyleMap.append("animation-timing-function", new CSSKeywordValue(keyword));
+                }
+                println(
+                    `animation ${keyword}: ${animation
+                        .computedStyleMap()
+                        .getAll("animation-timing-function")
+                        .map(value => value.toString())
+                        .join(", ")}`
+                );
+                animation.remove();
+            }
+        }
+    });
+</script>

@@ -1393,6 +1393,7 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             y2,
             number_of_intervals,
             step_position,
+            ..
         } => {
             use crate::css::css_enums::step_position as step_position_enum;
             match kind {
