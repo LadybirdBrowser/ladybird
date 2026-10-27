@@ -387,10 +387,16 @@ private:
     bool vulkan_window_has_native_focus() const;
     void set_vulkan_window_container_visible(bool);
     void fall_back_to_bitmap_rendering();
+    void vulkan_window_exposure_changed();
+    void remap_unexposed_vulkan_window();
 
     VulkanWindow* m_vulkan_window { nullptr };
     QWidget* m_vulkan_window_container { nullptr };
     Optional<bool> m_vulkan_window_supports_alpha_blending;
+    bool m_remapped_unexposed_vulkan_window { false };
+    QTimer m_unexposed_vulkan_window_timer;
+    // Waits for the browser window to be exposed again, before the page's window is mapped again.
+    QObject* m_top_level_expose_watcher { nullptr };
 
     // The pixels of the frame on screen, read back from GPU memory once for each frame that Qt paints itself.
     struct FrameReadFromGpu {
