@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Opening two notifications with the same tag should close the first one
+Pass	Opening two notifications with the same tag should fire close event before show event
