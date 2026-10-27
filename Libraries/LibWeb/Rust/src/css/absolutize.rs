@@ -1212,10 +1212,26 @@ fn absolutize_basic_shape(
                 *changed = true;
                 retain_new(StyleValueData::Percentage { value: percentage })
             };
+            // NB: Drop resolved position wrappers so positions and explicit coordinate pairs have
+            //     identical computed representations, including implicit and explicit "from origin".
+            let mut resolve_coordinate = |value: &RetainedStyleValueData, changed: &mut bool| {
+                let value = resolve(&keyword_as_percentage(value, changed), changed)?;
+                if let Some(StyleValueData::Edge {
+                    has_edge: false,
+                    offset,
+                    ..
+                }) = value.optional_data()
+                {
+                    *changed = true;
+                    Some(offset.clone_retained())
+                } else {
+                    Some(value)
+                }
+            };
             for point in points.as_slice() {
                 let [x, y] = point.values();
-                let x = resolve(&keyword_as_percentage(x, &mut changed), &mut changed)?;
-                let y = resolve(&keyword_as_percentage(y, &mut changed), &mut changed)?;
+                let x = resolve_coordinate(x, &mut changed)?;
+                let y = resolve_coordinate(y, &mut changed)?;
                 absolutized_points.push(crate::css::style_value::RetainedShapePoint::from_retained_values(x, y));
             }
             if !changed {
