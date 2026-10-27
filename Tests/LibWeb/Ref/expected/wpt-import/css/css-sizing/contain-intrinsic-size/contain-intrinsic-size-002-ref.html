@@ -1,0 +1,21 @@
+<!doctype html>
+<meta charset="utf8">
+<title>CSS contain-intrinsic-size: div with max-content parent</title>
+<link rel="author" title="Vladimir Levin" href="mailto:vmpstr@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-sizing-4/#intrinsic-size-override">
+
+<style>
+#border {
+  width: max-content;
+  border: 1px solid black;
+}
+#target {
+  background: lightblue;
+  width: 111px;
+  height: 222px;
+}
+</style>
+
+<div id=border>
+  <div id=target></div>
+</div>

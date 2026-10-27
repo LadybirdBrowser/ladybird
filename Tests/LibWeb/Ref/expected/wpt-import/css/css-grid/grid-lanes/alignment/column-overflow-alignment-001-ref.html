@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="author" title="Celeste Pan" href="mailto:celestepan@microsoft.com">
+<style>
+.grid {
+    display: grid;
+    background: gray;
+    position: relative;
+    grid-template-columns: 50px;
+    justify-items: unsafe center;
+    width: 50px;
+}
+.overflow-safe {
+    justify-self: safe end;
+    width: 75px;
+    height: 50px;
+    background-color: lightgreen;
+}
+.overflow-unsafe {
+    justify-self: unsafe flex-end;
+    width: 75px;
+    height: 50px;
+    background-color: lightblue;
+}
+.small-center-item {
+    width: 25px;
+    background-color: lightyellow;
+}
+</style>
+<body>
+  <p>Test that overflow safe and unsafe are working as expected.
+  <div class="grid">
+    <div class="overflow-safe">
+      Overflow safe
+    </div>
+    <div style="width: 50px; background-color: lightpink;">
+      Regular item
+    </div>
+    <div class="overflow-unsafe">
+      Overflow unsafe
+    </div>
+    <div class="small-center-item">
+      Small item
+    </div>
+    <div style="width: 150px; background-color: brown">
+      Overflow center
+    </div>
+  </div>
+</body>
+</html>

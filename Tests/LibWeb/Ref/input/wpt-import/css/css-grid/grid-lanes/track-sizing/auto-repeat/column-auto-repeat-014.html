@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<title>Auto repeat tracks with multiple tracks.</title>
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<link rel="match" href="../../../../../../../expected/wpt-import/css/css-grid/grid-lanes/track-sizing/auto-repeat/column-auto-repeat-014-ref.html">
+<style>
+.grid-lanes {
+  display: grid-lanes;
+  border: solid thick;
+  grid-template-columns: 10px 20px repeat(auto-fill, 30px 40px) 50px 60px;
+  width: 300px;
+  background: pink;
+}
+.grid-lanes > :nth-child(2n) {
+  background: sienna;
+}
+.grid-lanes > :nth-child(2n+1) {
+  background: orange;
+}
+.grid-lanes > div {
+  width: 100%;
+  height: 25px;
+}
+.holder {
+  height: 30px;
+  width: 300px;
+  border-bottom: 2px solid #cfbfcf;
+}
+</style>
+<p>The test passes if it has the same visual effect as reference.</p>
+<div class="holder">
+  <div class="grid-lanes">
+    <div></div>
+    <div></div>
+    <div></div>
+    <div></div>
+    <div></div>
+    <div></div>
+  </div>
+</div>
+
+<div class="holder">
+  <div class="grid-lanes">
+    <div></div>
+    <div></div>
+    <div></div>
+    <div></div>
+    <div></div>
+    <div style="grid-column: 7;"></div>
+  </div>
+</div>
+
+<div class="holder">
+  <div class="grid-lanes">
+    <div style="grid-column: 2;"></div>
+    <div></div>
+    <div style="grid-column: 5;"></div>
+    <div></div>
+    <div></div>
+    <div></div>
+  </div>
+</div>

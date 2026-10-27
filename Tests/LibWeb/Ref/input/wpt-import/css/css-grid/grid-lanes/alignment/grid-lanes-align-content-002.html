@@ -1,0 +1,161 @@
+<!DOCTYPE HTML>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html><head>
+  <meta charset="utf-8">
+  <title>CSS Grid Test: Grid Lanes layout with `align-content` in grid-lanes axis (vertical writing mode)</title>
+  <meta name="assert"
+        content="Test passes if align-content shifts content
+                 in the grid-lanes axis of a vertical writing-mode grid-lanes grid container.">
+  <link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
+  <link rel="author" title="Kurt Catti-Schmidt" href="mailto:kschmi@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3/#alignment">
+  <link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/alignment/grid-lanes-align-content-002-ref.html">
+  <style>
+html,body {
+  color:black; background-color:white; font:15px/1 monospace; padding:0; margin:0;
+}
+
+grid {
+  display: inline grid-lanes;
+  gap: 1px 2px;
+  grid-template-columns: repeat(4,20px);
+  color: #444;
+  border: 1px solid;
+  padding: 2px;
+  width: 100px;
+  writing-mode: vertical-lr;
+}
+
+item {
+  background-color: #444;
+  color: #fff;
+}
+
+.safe {
+  width: 10px;
+  margin-right: 50px;
+}
+
+</style>
+</head>
+<body>
+
+<grid style="align-content:start">
+  <item style="padding-right:30px">1</item>
+  <item>2</item>
+  <item>3</item>
+  <item>4</item>
+  <item>5</item>
+  <item>6</item>
+</grid>
+
+<grid style="align-content:start">
+  <item>1</item>
+  <item style="padding-right:30px">2</item>
+  <item>3</item>
+  <item>4</item>
+  <item>5</item>
+  <item>6</item>
+</grid>
+
+<grid style="align-content:safe start" class="safe">
+  <item style="padding-right:30px">1</item>
+  <item>2</item>
+  <item>3</item>
+  <item>4</item>
+  <item>5</item>
+  <item>6</item>
+</grid>
+
+<grid style="align-content:end">
+  <item style="padding-right:30px">1</item>
+  <item>2</item>
+  <item>3</item>
+  <item>4</item>
+  <item>5</item>
+  <item>6</item>
+</grid>
+
+<grid style="align-content:end">
+  <item>1</item>
+  <item style="padding-right:30px">2</item>
+  <item>3</item>
+  <item>4</item>
+  <item>5</item>
+  <item>6</item>
+</grid>
+
+<grid style="align-content:safe end" class="safe">
+  <item style="padding-right:30px">1</item>
+  <item>2</item>
+  <item>3</item>
+  <item>4</item>
+  <item>5</item>
+  <item>6</item>
+</grid>
+
+<grid style="align-content:center">
+  <item style="padding-right:30px">1</item>
+  <item>2</item>
+  <item>3</item>
+  <item>4</item>
+  <item>5</item>
+  <item>6</item>
+</grid>
+
+<grid style="align-content:center">
+  <item>1</item>
+  <item style="padding-right:30px">2</item>
+  <item>3</item>
+  <item>4</item>
+  <item>5</item>
+  <item>6</item>
+</grid>
+
+<grid style="align-content:safe center" class="safe">
+  <item style="padding-right:30px">1</item>
+  <item>2</item>
+  <item>3</item>
+  <item>4</item>
+  <item>5</item>
+  <item>6</item>
+</grid>
+
+<grid style="align-content:stretch">
+  <item style="padding-right:30px">1</item>
+  <item>2</item>
+  <item>3</item>
+  <item>4</item>
+  <item>5</item>
+  <item>6</item>
+</grid>
+
+<grid style="align-content:space-between">
+  <item style="padding-right:30px">1</item>
+  <item>2</item>
+  <item>3</item>
+  <item>4</item>
+  <item>5</item>
+  <item>6</item>
+</grid>
+
+<grid style="align-content:space-around">
+  <item style="padding-right:30px">1</item>
+  <item>2</item>
+  <item>3</item>
+  <item>4</item>
+  <item>5</item>
+  <item>6</item>
+</grid>
+
+<grid style="align-content:space-evenly">
+  <item style="padding-right:30px">1</item>
+  <item>2</item>
+  <item>3</item>
+  <item>4</item>
+  <item>5</item>
+  <item>6</item>
+</grid>

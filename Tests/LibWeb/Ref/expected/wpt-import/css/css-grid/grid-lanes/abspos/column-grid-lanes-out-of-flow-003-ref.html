@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    .container {
+        width: 500px;
+        height: 400px;
+        position: relative;
+        border: 2px solid black;
+        margin: 20px;
+    }
+
+    .grid {
+        display: grid;
+        grid-template-columns: 50px 100px 150px;
+        grid-template-rows: auto;
+        border: 5px solid blue;
+        margin: 20px 30px;
+        padding: 5px 15px;
+        gap: 10px;
+    }
+
+    .grid-item {
+        background: lightgray;
+        padding: 10px;
+        height: 200px;
+    }
+
+    .nested-container {
+        background: lightgreen;
+        padding: 5px;
+        border: 1px solid green;
+    }
+
+    .absolute {
+        position: absolute;
+        background: red;
+        width: 60px;
+        height: 40px;
+        top: 50px;
+        left: 100px;
+        border: 1px solid darkred;
+    }
+
+    .static-pos {
+        position: absolute;
+        background: orange;
+        width: 10px;
+        height: 10px;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="grid">
+    <div class="grid-item">
+      <div class="nested-container">
+        <div class="absolute"></div>
+      </div>
+    </div>
+    <div class="grid-item"></div>
+    <div class="grid-item"></div>
+    <div class="static-pos"></div>
+  </div>
+</div>
+</body>
+</html>

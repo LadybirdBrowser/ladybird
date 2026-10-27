@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CSS Grid Lanes Test: fr row tracks with min/max height constraints need additional pass</title>
+  <link rel="author" title="Yanling Wang" href="mailto:yanlingwang@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3">
+  <link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/track-sizing/grid-lanes-flex-sizing-rows-min-max-height-001-ref.html">
+  <style>
+    .grid-lanes {
+        display: grid-lanes;
+        flow-tolerance: 0;
+        grid-template-rows: minmax(10px, 1fr) minmax(10px, 4fr);
+        row-gap: 33px;
+        float: left;
+        margin: 3px;
+        border: 5px dashed;
+        padding: 2px;
+        width: 50px;
+    }
+    .grid-lanes > div:nth-child(1) { background: purple; width: 100%; }
+    .grid-lanes > div:nth-child(2) { background: blue; width: 100%; }
+  </style>
+</head>
+<body>
+  <!-- max-height constrains the block size -->
+  <div class="grid-lanes" style="max-height: 70px;">
+      <div></div>
+      <div></div>
+  </div>
+
+  <!-- min-height expands the block size -->
+  <div class="grid-lanes" style="min-height: 108px;">
+      <div></div>
+      <div></div>
+  </div>
+
+  <!-- explicit height -->
+  <div class="grid-lanes" style="height: 70px;">
+      <div></div>
+      <div></div>
+  </div>
+</body>
+</html>

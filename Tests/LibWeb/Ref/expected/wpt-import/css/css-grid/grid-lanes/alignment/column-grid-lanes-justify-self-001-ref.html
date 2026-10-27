@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    html,body {
+      color:black; background-color:white; font:15px/1 monospace; padding:0; margin:0;
+    }
+
+    .grid {
+      display: grid;
+      gap: 2px;
+      grid-template-columns: repeat(3, 70px);
+      grid-template-rows: repeat(4, min-content);
+      color: #444;
+      border: 1px solid;
+      padding: 2px;
+      height: 180px;
+      margin: 5px;
+    }
+
+    item {
+      background-color: #444;
+      color: #fff;
+      padding: 2px;
+      height: 30px;
+    }
+
+    .start {
+      justify-self: start;
+      background-color: red;
+    }
+
+    .end {
+      justify-self: end;
+      background-color: blue;
+    }
+
+    .center {
+      justify-self: center;
+      background-color: green;
+    }
+
+    .stretch {
+      justify-self: stretch;
+      background-color: orange;
+    }
+
+    .auto {
+      justify-self: auto;
+      background-color: gray;
+    }
+
+    .narrow {
+      width: 20px;
+    }
+
+    .medium {
+      width: 30px;
+    }
+
+    .wide {
+      width: 45px;
+    }
+  </style>
+</head>
+<body>
+<div class="grid">
+  <item class="start narrow">S1</item>
+  <item class="start medium">S2</item>
+  <item class="start wide">S3</item>
+  <item class="center narrow">C1</item>
+  <item class="center medium">C2</item>
+  <item class="center wide">C3</item>
+  <item class="end narrow">E1</item>
+  <item class="end medium">E2</item>
+  <item class="end wide">E3</item>
+  <item class="stretch">ST1</item>
+  <item class="stretch">ST2</item>
+  <item class="stretch">ST3</item>
+</div>
+
+<div class="grid" style="justify-items: start;">
+  <item class="auto narrow">A1</item>
+  <item class="auto medium">A2</item>
+  <item class="auto wide">A3</item>
+  <item class="center narrow">C1</item>
+  <item class="center medium">C2</item>
+  <item class="center wide">C3</item>
+  <item class="end narrow">E1</item>
+  <item class="end medium">E2</item>
+  <item class="end wide">E3</item>
+  <item class="stretch">ST1</item>
+  <item class="stretch">ST2</item>
+  <item class="stretch">ST3</item>
+</div>
+
+<div class="grid" style="justify-items: center;">
+  <item class="auto narrow">A1</item>
+  <item class="auto medium">A2</item>
+  <item class="auto wide">A3</item>
+  <item class="start narrow">S1</item>
+  <item class="start medium">S2</item>
+  <item class="start wide">S3</item>
+  <item class="end narrow">E1</item>
+  <item class="end medium">E2</item>
+  <item class="end wide">E3</item>
+  <item class="stretch">ST1</item>
+  <item class="stretch">ST2</item>
+  <item class="stretch">ST3</item>
+</div>
+
+<div class="grid" style="justify-items: end;">
+  <item class="auto narrow">A1</item>
+  <item class="auto medium">A2</item>
+  <item class="auto wide">A3</item>
+  <item class="start narrow">S1</item>
+  <item class="start medium">S2</item>
+  <item class="start wide">S3</item>
+  <item class="center narrow">C1</item>
+  <item class="center medium">C2</item>
+  <item class="center wide">C3</item>
+  <item class="stretch">ST1</item>
+  <item class="stretch">ST2</item>
+  <item class="stretch">ST3</item>
+</div>
+</body>
+</html>

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<style>
+.grid {
+    display: grid;
+    grid-template-columns: 10px 10px 20px 15px 5px;
+    grid-auto-flow: dense;
+}
+</style>
+<body>
+  <p>Ensure that dense-packing with multi-span items are placed into tracks with the same used size and the same number of tracks.</p>
+  <div class="grid">
+    <div style="background: yellow; height: 20px; width: 20px; grid-column: 1" >
+      4
+    </div>
+    <div style="background: lightskyblue; height: 20px; grid-column: 3" >
+      1
+    </div>
+    <div style="background: lightblue; height: 20px; grid-column: span 5" >
+      2
+    </div>
+    <div style="background: darkblue; height: 20px; grid-column: span 3;">
+      3
+    </div>
+  </div>
+</body>
+</html>

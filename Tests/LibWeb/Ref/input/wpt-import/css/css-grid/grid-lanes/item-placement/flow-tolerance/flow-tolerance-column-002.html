@@ -1,0 +1,44 @@
+<!DOCTYPE HTML>
+<html><head>
+  <meta charset="utf-8">
+  <title>CSS Grid Test: Grid Lanes layout with flow-tolerance: normal</title>
+  <link rel="author" title="Apple Inc.">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3/#placement-tolerance">
+  <link rel="match" href="../../../../../../../expected/wpt-import/css/css-grid/grid-lanes/item-placement/flow-tolerance/flow-tolerance-column-002-ref.html">
+  <style>
+    html,body {
+      color:black; background-color:white; font:16px/1 monospace; padding:0; margin:0;
+    }
+
+    grid {
+      display: inline grid-lanes;
+      gap: 10px;
+      grid-template-columns: repeat(3, 100px);
+      flow-tolerance: normal; /* Should resolve to 1em (16px) */
+      color: #444;
+      border: 1px solid;
+      padding: 2px;
+    }
+
+    item {
+      background-color: #444;
+      color: #fff;
+      padding: 10px;
+      margin: 3px;
+      border: 2px solid blue;
+    }
+  </style>
+</head>
+<body>
+
+<grid>
+  <item style="height: 70px">1</item>
+  <item style="height: 50px">2</item>
+  <item style="height: 30px">3</item>
+  <item style="height: 70px">4</item>
+  <item style="height: 50px">5</item>
+  <item style="height: 30px">6</item>
+</grid>
+
+</body>
+</html>

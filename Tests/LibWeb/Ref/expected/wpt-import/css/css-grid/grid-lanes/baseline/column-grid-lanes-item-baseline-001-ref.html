@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    .grid {
+      width: 400px;
+      border: solid 5px transparent;
+      gap: 3px;
+      display: grid;
+      grid-template-columns: repeat(3, 120px);
+      grid-template-rows: repeat(2, min-content);
+      background-color: #9f8c8c;
+      border-color: slateblue;
+      text-decoration: underline;
+      font: 16px/1 monospace;
+    }
+
+    .fb {
+      justify-items: baseline;
+    }
+
+    .lb {
+      justify-items: last baseline;
+    }
+
+    .item {
+        height: 35px;
+    }
+
+    #item1 {
+      background-color: #8cffa0;
+      width: 60px;
+      font-size: 24px;
+    }
+
+    #item4 {
+      background-color: #ffff8c;
+      width: 80px;
+      font-size: 24px;
+    }
+
+    #item7 {
+      background-color: #ff8c8c;
+      width: 50px;
+      font-size: 16px;
+    }
+
+    #item2 {
+      background-color: #a0c8ff;
+      width: 70px;
+      font-size: 24px;
+    }
+
+    #item5 {
+      background-color: #ff8cff;
+      width: 90px;
+      font-size: 14px;
+    }
+
+    #item8 {
+      background-color: #c8ffa0;
+      width: 60px;
+      font-size: 22px;
+    }
+
+    #item3 {
+      background-color: #ffa08c;
+      width: 75px;
+      font-size: 24px;
+    }
+
+    #item6 {
+      background-color: #8cffff;
+      width: 55px;
+      font-size: 16px;
+    }
+
+    #item9 {
+      background-color: #a0a0ff;
+      width: 85px;
+      font-size: 26px;
+    }
+  </style>
+</head>
+<body>
+<div class="grid fb">
+  <div id="item1" class="item">AAA</div>
+  <div id="item2" class="item">BBB</div>
+  <div id="item3" class="item">CCC</div>
+  <div id="item4" class="item">DDD</div>
+  <div id="item5" class="item">EEE</div>
+  <div id="item6" class="item">FFF</div>
+  <div id="item7" class="item">GGG</div>
+  <div id="item8" class="item">HHH</div>
+  <div id="item9" class="item">III</div>
+</div>
+<div class="grid lb">
+  <div id="item1" class="item">AAA</div>
+  <div id="item2" class="item">BBB</div>
+  <div id="item3" class="item">CCC</div>
+  <div id="item4" class="item">DDD</div>
+  <div id="item5" class="item">EEE</div>
+  <div id="item6" class="item">FFF</div>
+  <div id="item7" class="item">GGG</div>
+  <div id="item8" class="item">HHH</div>
+  <div id="item9" class="item">III</div>
+</div>
+</body>
+</html>

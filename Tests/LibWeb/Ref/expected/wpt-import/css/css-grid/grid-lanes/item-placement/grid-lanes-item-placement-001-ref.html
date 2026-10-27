@@ -1,0 +1,47 @@
+<!DOCTYPE HTML>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html><head>
+  <meta charset="utf-8">
+  <title>Reference: Grid Lanes layout using `grid-column/row`</title>
+  <link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
+  <style>
+    html,body {
+      color:black; background-color:white; font:25px/1 monospace; padding:0; margin:0;
+    }
+
+    grid {
+      display: inline-grid;
+      gap: 10px 20px;
+      grid-template-columns: repeat(4,80px);
+      grid-auto-flow: dense;
+      color: #444;
+      border: 1px solid;
+      padding: 2px;
+    }
+
+    item {
+      background-color: #444;
+      color: #fff;
+      padding: 20px;
+      margin: 3px;
+      border: 5px solid blue;
+      height: fit-content;
+    }
+  </style>
+</head>
+<body>
+
+<grid>
+  <item style="grid-column:1">1</item>
+  <item>2</item>
+  <item style="margin-top:10px">3</item>
+  <item style="grid-column:span 2; transform: translateY(-7px);">4</item>
+  <item style="grid-area: 1 / 4">5</item>
+  <item style="grid-column:3/span 2">6</item>
+</grid>
+
+</body>
+</html>

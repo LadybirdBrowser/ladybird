@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" type="text/css" href="../../../../fonts/ahem.css" />
+  <style>
+    .inline-grid {
+      display: inline-grid;
+      background-color: grey;
+      position: relative;
+      border: solid;
+      text-orientation: sideways;
+      font: 15px/1 Ahem;
+      justify-items: baseline;
+    }
+
+    .rows { grid-template-rows: 100px 100px; }
+    .fit-content-columns { grid-template-columns: fit-content; }
+
+    .height25  { height: 25px; }
+    .height50  { height: 50px; }
+    .height200 { height: 200px; }
+    .width25   { width: 25px; }
+    .width50   { width: 50px; }
+    .width200  { width: 200px; }
+
+    .height200Percent { height: 200%; }
+    .width200Percent  { width: 200%; }
+
+    .firstRowFirstColumn {
+      background-color: blue;
+      grid-column: 1;
+      grid-row: 1;
+    }
+
+    .secondRowFirstColumn {
+      background-color: purple;
+      grid-column: 1;
+      grid-row: 2;
+    }
+
+    .firstRowSpanning2AutoColumn {
+      background-color: maroon;
+      grid-column: auto;
+      grid-row: 1 / span 2;
+      height: 100%;
+    }
+
+    .verticalLR {
+      writing-mode: vertical-lr;
+    }
+
+    .verticalRL {
+      writing-mode: vertical-rl;
+    }
+  </style>
+</head>
+<body>
+<div style="height: 250px">
+    <pre>auto-sized columns - items with relative width</pre>
+    <div class="inline-grid rows">
+        <div class="firstRowFirstColumn verticalLR width50">ÉÉ É ÉÉ ÉÉÉÉ É ÉÉ ÉÉÉ ÉÉ É</div>
+        <div class="secondRowFirstColumn verticalLR width200Percent">ÉÉÉÉ É ÉÉ</div>
+        <div class="firstRowSpanning2AutoColumn verticalRL width25"></div>
+    </div>
+</div>
+<div style="height: 250px">
+    <pre>fit-content-sized columns - items with relative width</pre>
+    <div class="inline-grid rows fit-content-columns">
+        <div class="firstRowFirstColumn verticalLR">ÉÉ É ÉÉ ÉÉÉÉ É ÉÉ ÉÉÉ ÉÉ É</div>
+        <div class="secondRowFirstColumn verticalLR width200Percent">ÉÉ</div>
+        <div class="firstRowSpanning2AutoColumn verticalRL width25"></div>
+    </div>
+</div>
+</body>
+</html>

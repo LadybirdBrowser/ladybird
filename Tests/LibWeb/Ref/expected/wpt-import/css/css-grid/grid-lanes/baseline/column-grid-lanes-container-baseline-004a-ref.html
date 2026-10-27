@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    .test-section {
+      margin: 10px 0;
+      border: 1px solid #666;
+      padding: 8px;
+      font: 16px/1 monospace;
+    }
+
+    .side-by-side {
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+    }
+
+    .four-column {
+      display: flex;
+      gap: 15px;
+      align-items: flex-start;
+    }
+
+    .test-variant {
+      flex: 1;
+      border: 1px solid #ccc;
+      padding: 8px;
+      background: #fafafa;
+    }
+
+    .container {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      border: 1px solid blue;
+      padding: 5px;
+      margin: 5px 0;
+      background: #f9f9f9;
+      text-decoration: underline;
+    }
+
+    .multicolumn {
+      column-count: 2;
+      column-width: 40px;
+      column-gap: 0px;
+      border: 1px solid red;
+      background: white;
+      display: inline-block;
+    }
+
+    .multicolumn-item {
+      background: lightblue;
+      padding: 4px;
+      border: 1px solid navy;
+      font-size: 12px;
+      text-align: center;
+      break-inside: avoid;
+    }
+
+    .multicolumn-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .text-reference {
+      font-size: 14px;
+      background: yellow;
+      padding: 6px;
+      font-weight: bold;
+    }
+
+    .multicolumn-item:nth-child(1) {
+      height: 25px;
+      background: lightcoral;
+      font-size: 10px;
+      display: flex;
+      align-items: flex-start;
+    }
+
+    .multicolumn-item:nth-child(3) {
+      height: 35px;
+      background: lightgreen;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+    }
+
+    .multicolumn-item:nth-child(2) {
+      height: 30px;
+      background: lightpink;
+      font-size: 12px;
+      display: flex;
+      align-items: flex-end;
+    }
+
+    .multicolumn-item:nth-child(4) {
+      height: 40px;
+      background: lightyellow;
+      font-size: 14px;
+      display: flex;
+      align-items: flex-start;
+    }
+
+    .horizontal-tb { writing-mode: horizontal-tb; }
+    .vertical-rl { writing-mode: vertical-rl; }
+    .vertical-lr { writing-mode: vertical-lr; }
+
+    .ltr { direction: ltr; }
+    .rtl { direction: rtl; }
+
+    .vertical-rl .multicolumn,
+    .vertical-lr .multicolumn {
+      column-count: 2;
+      column-width: 50px;
+      column-gap: 0px;
+      height: 120px;
+    }
+
+    .vertical-rl .multicolumn-item,
+    .vertical-lr .multicolumn-item {
+      width: 40px;
+      height: auto;
+      min-height: 20px;
+    }
+
+    .vertical-rl .text-reference,
+    .vertical-lr .text-reference {
+      writing-mode: inherit;
+      height: 60px;
+      width: 25px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+<div class="test-section">
+  <div class="side-by-side">
+    <div class="test-variant">
+      <h3>Horizontal-LTR</h3>
+      <div class="container horizontal-tb ltr">
+        <div class="text-reference">Ref</div>
+        <div class="multicolumn">
+          <div class="multicolumn-item">A</div>
+          <div class="multicolumn-item">C</div>
+          <div class="multicolumn-item">B</div>
+          <div class="multicolumn-item">D</div>
+        </div>
+        <div class="text-reference">Ref</div>
+      </div>
+    </div>
+
+    <div class="test-variant">
+      <h3>horizontal-RTL</h3>
+      <div class="container horizontal-tb rtl">
+        <div class="text-reference">Ref</div>
+        <div class="multicolumn">
+          <div class="multicolumn-item">A</div>
+          <div class="multicolumn-item">C</div>
+          <div class="multicolumn-item">B</div>
+          <div class="multicolumn-item">D</div>
+        </div>
+        <div class="text-reference">Ref</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="test-section">
+  <div class="four-column">
+    <div class="test-variant">
+      <h3>Vertical RL - LTR</h3>
+      <div class="container vertical-rl ltr">
+        <div class="text-reference">Ref</div>
+        <div class="multicolumn">
+          <div class="multicolumn-item">A</div>
+          <div class="multicolumn-item">C</div>
+          <div class="multicolumn-item">B</div>
+          <div class="multicolumn-item">D</div>
+        </div>
+        <div class="text-reference">Ref</div>
+      </div>
+    </div>
+
+    <div class="test-variant">
+      <h3>Vertical RL - RTL</h3>
+      <div class="container vertical-rl rtl">
+        <div class="text-reference">Ref</div>
+        <div class="multicolumn">
+          <div class="multicolumn-item">A</div>
+          <div class="multicolumn-item">C</div>
+          <div class="multicolumn-item">B</div>
+          <div class="multicolumn-item">D</div>
+        </div>
+        <div class="text-reference">Ref</div>
+      </div>
+    </div>
+
+    <div class="test-variant">
+      <h3>Vertical LR - LTR</h3>
+      <div class="container vertical-lr ltr">
+        <div class="text-reference">Ref</div>
+        <div class="multicolumn">
+          <div class="multicolumn-item">A</div>
+          <div class="multicolumn-item">C</div>
+          <div class="multicolumn-item">B</div>
+          <div class="multicolumn-item">D</div>
+        </div>
+        <div class="text-reference">Ref</div>
+      </div>
+    </div>
+
+    <div class="test-variant">
+      <h3>Vertical LR - RTL</h3>
+      <div class="container vertical-lr rtl">
+        <div class="text-reference">Ref</div>
+        <div class="multicolumn">
+          <div class="multicolumn-item">A</div>
+          <div class="multicolumn-item">C</div>
+          <div class="multicolumn-item">B</div>
+          <div class="multicolumn-item">D</div>
+        </div>
+        <div class="text-reference">Ref</div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    .container {
+      display: flex;
+      gap: 20px;
+      border: 2px solid blue;
+      padding: 10px;
+      font: 16px/1 monospace;
+      width: 600px;
+      text-decoration: underline;
+    }
+
+    .first-baseline { align-items: first baseline; }
+    .last-baseline  { align-items: last baseline; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, 100px);
+      gap: 10px;
+      border: 1px solid red;
+      background: #f0f0f0;
+    }
+
+    .subgrid {
+      display: grid;
+      grid-template-columns: subgrid;
+      grid-column: 1 / -1;
+      row-gap: 10px;
+      margin-block-start: 15px;
+      border: 9px solid green;
+      padding: 6px;
+    }
+
+    .item {
+      background: lightblue;
+      border: 1px solid navy;
+      padding: 8px;
+      margin-block-start: 12px;
+    }
+
+    .item:nth-child(1) { height: 40px; font-size: 20px; }
+    .item:nth-child(2) { height: 80px; font-size: 16px; }
+    .item:nth-child(3) { height: 50px; font-size: 16px; }
+    .item:nth-child(4) { height: 70px; font-size: 22px; }
+
+    .text-reference {
+      background: yellow;
+      padding: 8px;
+    }
+  </style>
+</head>
+<body>
+<div class="container first-baseline">
+  <div class="text-reference">Reference text</div>
+  <div class="grid">
+    <div class="subgrid">
+      <div class="item">A</div>
+      <div class="item">B</div>
+      <div class="item">C</div>
+      <div class="item">D</div>
+    </div>
+  </div>
+  <div class="text-reference">Reference text</div>
+</div>
+<div class="container last-baseline">
+  <div class="text-reference">Reference text</div>
+  <div class="grid">
+    <div class="subgrid">
+      <div class="item">A</div>
+      <div class="item">B</div>
+      <div class="item">C</div>
+      <div class="item">D</div>
+    </div>
+  </div>
+  <div class="text-reference">Reference text</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,39 @@
+<!doctype html>
+<meta charset="utf8">
+<title>CSS contain-intrinsic-size: writing modes</title>
+<link rel="author" title="Celeste Pan" href="mailto:celestepan@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/intrinsic-sizing/../../../css-sizing/contain-intrinsic-size/contain-intrinsic-size-008-ref.html">
+<meta name="assert" content="contain-intrinsic-size specifies physical dimensions, and respects writing modes">
+
+<style>
+.border {
+  border: 1px solid blue;
+  width: max-content;
+  margin: 5px;
+}
+
+.box {
+  display: grid-lanes;
+  background: lightblue;
+  contain-intrinsic-size: 55px 66px;
+  contain: size;
+  border-style: solid;
+  border-color: black;
+  border-width: 2px 3px 5px 7px;
+  padding: 11px 13px 17px 19px;
+}
+.verticalrl {
+  writing-mode: vertical-rl;
+}
+.verticallr {
+  writing-mode: vertical-lr;
+}
+.horizontaltb {
+  writing-mode: horizontal-tb;
+}
+</style>
+
+<div class=border><div class="box verticalrl">Lorem</div></div>
+<div class=border><div class="box verticallr">Ipsum</div></div>
+<div class=border><div class="box horizontaltb">Dolor</div></div>

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<meta charset="utf-8">
+<title>CSS Grid-Lanes Test: min-content calculation should be invalidated after changing block-size when inline-size is dependent on block size</title>
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/intrinsic-sizing/grid-lanes-intrinsic-size-dynamic-block-size-ref.html">
+<link rel="author" title="Celeste Pan" href="mailto:celestepan@microsoft.com">
+<body>
+
+<!-- The masonry container should start with dimensions of 200px by 200px, then when the block size shrinks down to
+ 100px, the min-content value should be invalidated, and we should re-calculate the min-content width to be 100px
+ due to the canvas' 1:1 aspect ratio. -->
+<div id="target" style="height: 200px; width: 600px;">
+  <div style="display: inline-grid-lanes; width: min-content; grid-template-columns: auto; height: 100%; background: green;">
+    <canvas width=60 height=60 style="height: 100%;"></canvas>
+  </div>
+</div>
+
+<script>
+  document.body.offsetTop;
+  document.getElementById('target').style.height = '100px';
+</script>
+
+</body>
+</html>

@@ -1,0 +1,66 @@
+<!doctype html>
+<meta charset="utf8">
+<title>CSS contain-intrinsic-size: grid auto-fit, min- max- size interactions</title>
+<link rel="author" title="Celeste Pan" href="mailto:celestepan@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/intrinsic-sizing/grid-lanes-contain-intrinsic-size-014-ref.html">
+<meta name="assert" content="auto-fit columns, with intrinsic-size interacting with min- and max- width">
+
+<style>
+.grid-lanes {
+  display: grid-lanes;
+  border: 1px solid black;
+  grid-template-columns: repeat(auto-fit, 100px);
+  height: 40px;
+}
+.one {
+  contain-intrinsic-size: 100px;
+  contain: size;
+  min-width: 200px;
+}
+.two {
+  contain-intrinsic-size: 200px;
+  contain: size;
+  min-width: 100px;
+}
+.three {
+  contain-intrinsic-size: 100px;
+  contain: size;
+  min-width: 200px;
+  max-width: 150px;
+}
+.four {
+  contain-intrinsic-size: 200px;
+  contain: size;
+  min-width: 100px;
+  max-width: 150px;
+}
+.item {
+  background: green;
+  height: 20px;
+}
+</style>
+
+<p>min-width larger than contain-intrinsic-width:
+<div class="grid-lanes one">
+  <div class="item">one</div>
+  <div class="item">two</div>
+</div>
+
+<p>min-width smaller than contain-intrinsic-width:
+<div class="grid-lanes two">
+  <div class="item">one</div>
+  <div class="item">two</div>
+</div>
+
+<p>max-width ignored since min-width is larger:
+<div class="grid-lanes three">
+  <div class="item">one</div>
+  <div class="item">two</div>
+</div>
+
+<p>min-width shrinks grid-lanes container since it overrides contain-intrinsic-width:
+<div class="grid-lanes four">
+  <div class="item">one</div>
+  <div class="item">two</div>
+</div>

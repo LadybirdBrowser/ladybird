@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CSS Grid Lanes Layout Test: Grid Lanes positioned item dynamic change.</title>
+  <link rel="author" title="Yanling Wang" href="mailto:yanlingwang@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3/#abspos">
+  <link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/abspos/column-grid-lanes-positioned-item-dynamic-change-ref.html">
+  <style>
+    .grid-lanes {
+        display: grid-lanes;
+        grid-template-columns: 75px 25px;
+        position: relative;
+    }
+
+    .absolute {
+        background: green;
+        position: absolute;
+        grid-column: 2 / 3;
+        top: 0;
+        bottom: 0;
+        right: 0;
+        left: 0;
+    }
+  </style>
+</head>
+<body>
+<div class="grid-lanes">
+  <div id="target" style="background: green; width: 100%; height: 25px;"></div>
+  <div style="background: red; width: 100%; height: 25px;"></div>
+  <div class="absolute"></div>
+</div>
+<script>
+  document.body.offsetTop;
+  document.getElementById('target').style.height = '50px';
+  document.documentElement.classList.remove('reftest-wait');
+</script>
+</body>
+</html>

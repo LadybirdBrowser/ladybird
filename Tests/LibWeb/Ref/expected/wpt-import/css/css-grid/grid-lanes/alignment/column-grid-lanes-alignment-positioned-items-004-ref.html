@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    html,body {
+      color:black; background-color:white; font:8px/1 monospace; padding:0; margin:0;
+    }
+
+    .grid {
+      position: relative;
+      display: grid;
+      grid-template-columns: 80px 80px 80px;
+      grid-template-rows: 200px;
+      width: 290px;
+      gap: 10px;
+      padding: 10px;
+      border: 2px solid black;
+      margin: 10px;
+    }
+
+    .grid > div {
+      position: absolute;
+      border: 1px solid #333;
+      width: 50px;
+      height: 25px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .start-start {
+      grid-column: 1 / 2;
+      align-self: start;
+      justify-self: start;
+      background: red;
+    }
+
+    .start-center {
+      grid-column: 2 / 3;
+      align-self: start;
+      justify-self: center;
+      background: orange;
+    }
+
+    .start-end {
+      grid-column: 3 / 4;
+      align-self: start;
+      justify-self: end;
+      background: yellow;
+    }
+
+    .center-start {
+      grid-column: 1 / 2;
+      align-self: center;
+      justify-self: start;
+      background: green;
+    }
+
+    .center-center {
+      grid-column: 2 / 3;
+      align-self: center;
+      justify-self: center;
+      background: blue;
+    }
+
+    .center-end {
+      grid-column: 3 / 4;
+      align-self: center;
+      justify-self: end;
+      background: indigo;
+    }
+
+    .end-start {
+      grid-column: 1 / 2;
+      align-self: end;
+      justify-self: start;
+      background: violet;
+    }
+
+    .end-center {
+      grid-column: 2 / 3;
+      align-self: end;
+      justify-self: center;
+      background: pink;
+    }
+
+    .end-end {
+      grid-column: 3 / 4;
+      align-self: end;
+      justify-self: end;
+      background: brown;
+    }
+  </style>
+</head>
+<body>
+  <div class="grid">
+    <div class="start-start">SS</div>
+    <div class="start-center">SC</div>
+    <div class="start-end">SE</div>
+    <div class="center-start">CS</div>
+    <div class="center-center">CC</div>
+    <div class="center-end">CE</div>
+    <div class="end-start">ES</div>
+    <div class="end-center">EC</div>
+    <div class="end-end">EE</div>
+  </div>
+
+  <div class="grid" style="direction: rtl;">
+    <div class="start-start">SS</div>
+    <div class="start-center">SC</div>
+    <div class="start-end">SE</div>
+    <div class="center-start">CS</div>
+    <div class="center-center">CC</div>
+    <div class="center-end">CE</div>
+    <div class="end-start">ES</div>
+    <div class="end-center">EC</div>
+    <div class="end-end">EE</div>
+  </div>
+</body>
+</html>

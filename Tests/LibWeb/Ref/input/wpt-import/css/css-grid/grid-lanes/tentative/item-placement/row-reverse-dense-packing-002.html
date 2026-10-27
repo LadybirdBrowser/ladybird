@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="match" href="../../../../../../../expected/wpt-import/css/css-grid/grid-lanes/tentative/item-placement/row-reverse-dense-packing-002-ref.html">
+<link rel="author" title="Celeste Pan" href="mailto:celestepan@microsoft.com">
+<style>
+.grid-lanes {
+    display: grid-lanes;
+    flow-tolerance: 0;
+    grid-template-rows: repeat(4, 50px);
+    gap: 10px;
+    grid-auto-flow: dense;
+    grid-lanes-direction: row track-reverse;
+}
+</style>
+<body>
+<p>Test that we always prioritize the highest position in "open" tracks even if there is a track opening available that is lower.</p>
+<div class="grid-lanes">
+  <div style="background: lavender; width: 60px; grid-row: 3;">
+    1
+  </div>
+  <div style="background: lightpink; grid-row: 1 / span 3; width: 10px;">
+    2
+  </div>
+  <!-- The auto-placement cursor is at line 4 after placing item 2, so item 3 should go into track 4. -->
+  <div style="background: lightgreen; width: 15px;">
+    3
+  </div>
+</div>
+</body>
+</html>

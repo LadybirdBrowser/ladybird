@@ -2,7 +2,7 @@ Harness status: OK
 
 Found 3 tests
 
-3 Fail
-Fail	#gridLanes 1
-Fail	#gridLanes 2
-Fail	#gridLanes 3
+3 Pass
+Pass	#gridLanes 1
+Pass	#gridLanes 2
+Pass	#gridLanes 3

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Lanes Layout Test: Minimum size of grid items</title>
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<link rel="help" href="http://www.w3.org/TR/css-grid-1/#min-size-auto" title="6.5. Implied Minimum Size of Grid Items">
+<link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/items/../../../reference/ref-filled-green-100px-square.xht">
+<meta name="assert" content="Checks that automatic minimum size is clamped even if the track has an 'auto' min track sizing function as the max track sizing function is fixed.">
+<style>
+#reference-overlapped-green {
+    position: absolute;
+    background-color: green;
+    width: 100px;
+    height: 100px;
+    z-index: -1;
+}
+
+#constrained-grid-lanes {
+    display: grid-lanes;
+    width: 10px;
+    height: 10px;
+    grid-template-columns: minmax(auto, 0px);
+}
+
+#test-item-overlapping-red {
+    background-color: red;
+}
+
+#content-100x100 {
+    width: 100px;
+    height: 100px;
+}
+</style>
+
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+
+<div id="reference-overlapped-green"></div>
+<div id="constrained-grid-lanes">
+    <div id="test-item-overlapping-red">
+        <div id="content-100x100"></div>
+    </div>
+</div>

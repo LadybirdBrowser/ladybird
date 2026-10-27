@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="stylesheet" type="text/css" href="../../../../fonts/ahem.css" />
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<style>
+.grid {
+    display: grid;
+    background: gray;
+    grid-template-rows: auto auto auto;
+    grid-template-columns: auto auto auto;
+    width: 870px;
+    gap: 20px;
+    padding: 20px;
+    align-items: start;
+    font: 15px/1 "Ahem";
+}
+
+.grid > div {
+    width: max-content;
+}
+
+.grid-auto-item-1 {
+    background: lightskyblue;
+    padding: 10px;
+}
+
+.grid-auto-item-2 {
+    background: lightcoral;
+    padding: 10px;
+}
+
+.grid-auto-item-3 {
+    background: lightgreen;
+    padding: 10px;
+}
+
+.grid-auto-item-4 {
+    background: lightpink;
+    padding: 10px;
+    grid-row: 1 / 3;
+    align-self: stretch;
+    transform: translateX(-3em);
+}
+</style>
+<body>
+  <p>Test that grid-lanes items with auto placement are correctly positioned within the grid axis.</p>
+  <div class="grid">
+    <div class="grid-auto-item-1" style="grid-row: 1;">This is some text</div>
+    <div class="grid-auto-item-2" style="grid-row: 2;">Some larger words in this sentence</div>
+    <div class="grid-auto-item-3" style="grid-row: 3;">The cat cannot be separated from milk</div>
+    <div class="grid-auto-item-4">The cat still cannot be separated from milk</div>
+    <div class="grid-auto-item-4">The cat still cannot be separated from milk</div>
+  </div>
+</body>
+</html>

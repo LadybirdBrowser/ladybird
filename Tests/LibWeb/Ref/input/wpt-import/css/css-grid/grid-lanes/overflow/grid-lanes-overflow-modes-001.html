@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CSS Grid Lanes Test: overflow modes on row-direction grid-lanes with overflowing items</title>
+  <link rel="author" title="Yanling Wang" href="mailto:yanlingwang@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3">
+  <link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/overflow/grid-lanes-overflow-modes-001-ref.html">
+  <meta name="assert" content="This test checks that overflow visible, hidden, scroll, and auto are handled correctly on a row-direction grid-lanes container whose items overflow in the stacking axis.">
+  <style>
+    .grid-lanes {
+      display: grid-lanes;
+      flow-tolerance: 0;
+      grid-template-rows: auto;
+      background: purple;
+      width: 70px;
+      height: 70px;
+      float: left;
+      margin-right: 40px;
+    }
+    .bigItem {
+      background: blue;
+      width: 50px;
+      height: 200px;
+    }
+    .smallItem {
+      background: teal;
+      width: 50px;
+      height: 50px;
+    }
+    .scroll { overflow: scroll }
+    .auto   { overflow: auto   }
+    .hidden { overflow: hidden }
+  </style>
+</head>
+<body>
+  <div class="grid-lanes">
+    <div class="bigItem"></div>
+    <div class="smallItem"></div>
+  </div>
+  <div class="grid-lanes hidden">
+    <div class="bigItem"></div>
+    <div class="smallItem"></div>
+  </div>
+  <div class="grid-lanes scroll">
+    <div class="bigItem"></div>
+    <div class="smallItem"></div>
+  </div>
+  <div class="grid-lanes auto">
+    <div class="bigItem"></div>
+    <div class="smallItem"></div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<style>
+.grid {
+    display: grid;
+    background: gray;
+    position: relative;
+    grid-template-rows: repeat(3, 50px);
+    grid-auto-flow: dense;
+}
+
+.flex {
+    display: flex;
+    flex-direction: row;
+}
+</style>
+<body>
+  <p>Ensure that dense-packing does not affect the layout when all items are single-spanning.</p>
+  <div class="grid">
+    <div class="flex">
+      <div style="background: lightskyblue; width: 20px;" >
+        1
+      </div>
+      <div style="background: brown; width: 10px;">
+        4
+      </div>
+      <div style="background: red; width: 40px;">
+        5
+      </div>
+    </div>
+    <div class="flex">
+      <div style="background: lightcoral; width: 60px;" >
+        2
+      </div>
+      <div style="background: pink; width: 40px;">
+        6
+      </div>
+    </div>
+    <div class="flex">
+      <div style="background: lightgreen; width: 60px;">
+        3
+      </div>
+      <div style="background: yellow; width: 40px;">
+        7
+      </div>
+    </div>
+  </div>
+</body>
+</html>

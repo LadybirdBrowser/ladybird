@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<link rel="help" href="https://drafts.csswg.org/css-grid-3/#placement-tolerance">
+<link rel="match" href="../../../../../../../expected/wpt-import/css/css-grid/grid-lanes/item-placement/dense-packing/row-dense-packing-flow-tolerance-003-ref.html">
+<link rel="author" title="Celeste Pan" href="mailto:celestepan@microsoft.com">
+<style>
+.grid-lanes {
+    display: grid-lanes;
+    flow-tolerance: 5px;
+    grid-template-rows: repeat(3, 50px);
+    grid-auto-flow: dense;
+    grid-lanes-pack: dense;
+    grid-lanes-direction: row;
+}
+</style>
+<body>
+  <p>Ensure that dense packing does not replace auto-placement with a lower opening within flow tolerance. The yellow item should remain at its auto-placement position in the third row at 0px instead of using the first-row opening at 5px.</p>
+  <div class="grid-lanes">
+    <div style="background: lightskyblue; width: 5px; grid-row: 1;">1</div>
+    <div style="background: lightgreen; width: 10px; grid-row: 2;">2</div>
+    <div style="background: lightsteelblue; width: 10px; grid-row: 1 / span 2;">3</div>
+    <div style="background: yellow; width: 5px;">4</div>
+  </div>
+</body>
+</html>

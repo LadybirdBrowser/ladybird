@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/item-placement/row-auto-placement-001-ref.html">
+<link rel="author" title="Celeste Pan" href="mailto:celestepan@microsoft.com">
+<style>
+.grid-lanes {
+    display: grid-lanes;
+    background: gray;
+    position: relative;
+    flow-tolerance: 0;
+    grid-template-rows: auto auto auto;
+    width: 300px;
+    padding: 10px;
+}
+
+.first-track {
+    background: lightskyblue;
+    grid-row-start: 1;
+}
+
+.second-track {
+    background: lightcoral;
+    grid-row-start: 2;
+}
+
+.third-track {
+    background: lightgreen;
+    grid-row-start: 3;
+}
+
+.square-100x100 {
+    width: 100px;
+    height: 100px;
+}
+</style>
+<body>
+  <p>Test that grid-lanes items with auto placement are correctly positioned when the grid-axis is the block axis. Ensure that margin affects placement.</p>
+  <div class="grid-lanes">
+    <div class="first-track square-100x100" style="margin-right: 40px;">
+      Number 1
+    </div>
+    <div class="second-track square-100x100" style="margin-bottom: 10px;">
+      Number 2
+    </div>
+    <div class="third-track square-100x100" style="margin-right: 40px;">
+      Number 3
+    </div>
+    <div class="square-100x100" style="background-color: lightpink;">
+      Number 4
+    </div>
+    <div class="square-100x100" style="background-color: lightpink; margin-left: -20px;">
+      Number 5
+    </div>
+    <div style="grid-row: span 2; background: brown; width: 100px;">
+      Number 6
+    </div>
+  </div>
+</body>
+</html>

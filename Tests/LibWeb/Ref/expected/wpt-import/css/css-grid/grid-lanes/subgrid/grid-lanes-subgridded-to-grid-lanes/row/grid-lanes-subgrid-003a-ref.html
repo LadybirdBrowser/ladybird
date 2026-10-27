@@ -1,0 +1,51 @@
+<!DOCTYPE HTML>
+<html><head>
+  <meta charset="utf-8">
+  <style>
+    html,body {
+      color:black; background-color:white; font:32px/1 monospace; padding:0; margin:0;
+    }
+
+    grid {
+      display: inline-grid;
+      grid-template-columns: 3ch auto;
+      grid-template-rows: 100px [subgrid-start] 160px [middle] 80px [subgrid-end];
+      grid-auto-flow: column;
+      gap: 4px;
+      padding: 1px 3px 5px 7px;
+      border: solid;
+      border-width: 3px 5px 1px 1px;
+      background: lightgrey content-box;
+    }
+    item {
+      background: grey;
+      width: 3ch;
+      position: relative;
+    }
+    item:nth-child(2n) { background:purple; }
+    item:nth-child(1) {
+      border: solid;
+      border-width: 3px 13px 1px 1px;
+      margin: 7px 1px 5px 3px;
+    }
+    subgrid {
+      display: grid;
+      grid: subgrid / auto;
+      grid-row: 2 / span 2;
+      gap: 4px;
+      background: yellow;
+    }
+  </style>
+</head>
+<body>
+<grid>
+  <item>1</item>
+  <item>2</item>
+  <item>3</item>
+  <subgrid>
+    <item style="grid-row: middle / subgrid-end;">4a</item>
+    <item style="grid-row: subgrid-start / middle; margin-right: 15px;">4b</item>
+  </subgrid>
+</grid>
+</body>
+</html>

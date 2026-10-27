@@ -1,0 +1,159 @@
+<!DOCTYPE HTML>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html><head>
+  <meta charset="utf-8">
+  <title>Reference: Grid Lanes layout with `align-content` in grid-lanes axis</title>
+  <link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
+  <link rel="author" title="Kurt Catti-Schmidt" href="mailto:kschmi@microsoft.com">
+  <style>
+html,body {
+  color:black; background-color:white; font:15px/1 monospace; padding:0; margin:0;
+}
+
+grid {
+  display: inline-grid;
+  gap: 1px 2px;
+  grid-template-columns: repeat(4,20px);
+  grid-template-rows: 1em auto;
+  color: #444;
+  border: 1px solid;
+  padding: 2px;
+  width: 100px;
+  align-items: start;
+  writing-mode: vertical-lr;
+}
+
+item {
+  background-color: #444;
+  color: #fff;
+}
+
+.tall { padding-right:30px; grid-row:span 2; }
+
+.safe {
+  width: 10px;
+  margin-right: 50px;
+}
+</style>
+</head>
+<body>
+
+<grid style="align-content:start">
+  <item style="grid-column:1/2" class="tall">1</item>
+  <item style="grid-column:2/3">2</item>
+  <item style="grid-column:3/4">3</item>
+  <item style="grid-column:4/5">4</item>
+  <item style="grid-column:2/3">5</item>
+  <item style="grid-column:3/4">6</item>
+</grid>
+
+<grid style="align-content:start">
+  <item style="grid-column:1/2">1</item>
+  <item style="grid-column:2/3" class="tall">2</item>
+  <item style="grid-column:3/4">3</item>
+  <item style="grid-column:4/5">4</item>
+  <item style="grid-column:1/2">5</item>
+  <item style="grid-column:3/4">6</item>
+</grid>
+
+<grid style="align-content:safe start" class="safe">
+  <item style="grid-column:1/2" class="tall">1</item>
+  <item style="grid-column:2/3">2</item>
+  <item style="grid-column:3/4">3</item>
+  <item style="grid-column:4/5">4</item>
+  <item style="grid-column:2/3">5</item>
+  <item style="grid-column:3/4">6</item>
+</grid>
+
+<grid style="align-content:end">
+  <item style="grid-column:1/2" class="tall">1</item>
+  <item style="grid-column:2/3">2</item>
+  <item style="grid-column:3/4">3</item>
+  <item style="grid-column:4/5">4</item>
+  <item style="grid-column:2/3">5</item>
+  <item style="grid-column:3/4">6</item>
+</grid>
+
+<grid style="align-content:end">
+  <item style="grid-column:1/2">1</item>
+  <item style="grid-column:2/3" class="tall">2</item>
+  <item style="grid-column:3/4">3</item>
+  <item style="grid-column:4/5">4</item>
+  <item style="grid-column:1/2">5</item>
+  <item style="grid-column:3/4">6</item>
+</grid>
+
+<grid style="align-content:safe end" class="safe">
+  <item style="grid-column:1/2" class="tall">1</item>
+  <item style="grid-column:2/3">2</item>
+  <item style="grid-column:3/4">3</item>
+  <item style="grid-column:4/5">4</item>
+  <item style="grid-column:2/3">5</item>
+  <item style="grid-column:3/4">6</item>
+</grid>
+
+<grid style="align-content:center">
+  <item style="grid-column:1/2" class="tall">1</item>
+  <item style="grid-column:2/3">2</item>
+  <item style="grid-column:3/4">3</item>
+  <item style="grid-column:4/5">4</item>
+  <item style="grid-column:2/3">5</item>
+  <item style="grid-column:3/4">6</item>
+</grid>
+
+<grid style="align-content:center">
+  <item style="grid-column:1/2">1</item>
+  <item style="grid-column:2/3" class="tall">2</item>
+  <item style="grid-column:3/4">3</item>
+  <item style="grid-column:4/5">4</item>
+  <item style="grid-column:1/2">5</item>
+  <item style="grid-column:3/4">6</item>
+</grid>
+
+<grid style="align-content:safe center" class="safe">
+  <item style="grid-column:1/2" class="tall">1</item>
+  <item style="grid-column:2/3">2</item>
+  <item style="grid-column:3/4">3</item>
+  <item style="grid-column:4/5">4</item>
+  <item style="grid-column:2/3">5</item>
+  <item style="grid-column:3/4">6</item>
+</grid>
+
+<grid style="align-content:stretch">
+  <item style="grid-column:1/2" class="tall">1</item>
+  <item style="grid-column:2/3">2</item>
+  <item style="grid-column:3/4">3</item>
+  <item style="grid-column:4/5">4</item>
+  <item style="grid-column:2/3">5</item>
+  <item style="grid-column:3/4">6</item>
+</grid>
+
+<grid style="align-content:start">
+  <item style="grid-column:1/2" class="tall">1</item>
+  <item style="grid-column:2/3">2</item>
+  <item style="grid-column:3/4">3</item>
+  <item style="grid-column:4/5">4</item>
+  <item style="grid-column:2/3">5</item>
+  <item style="grid-column:3/4">6</item>
+</grid>
+
+<grid style="align-content:center">
+  <item style="grid-column:1/2" class="tall">1</item>
+  <item style="grid-column:2/3">2</item>
+  <item style="grid-column:3/4">3</item>
+  <item style="grid-column:4/5">4</item>
+  <item style="grid-column:2/3">5</item>
+  <item style="grid-column:3/4">6</item>
+</grid>
+
+<grid style="align-content:center">
+  <item style="grid-column:1/2" class="tall">1</item>
+  <item style="grid-column:2/3">2</item>
+  <item style="grid-column:3/4">3</item>
+  <item style="grid-column:4/5">4</item>
+  <item style="grid-column:2/3">5</item>
+  <item style="grid-column:3/4">6</item>
+</grid>

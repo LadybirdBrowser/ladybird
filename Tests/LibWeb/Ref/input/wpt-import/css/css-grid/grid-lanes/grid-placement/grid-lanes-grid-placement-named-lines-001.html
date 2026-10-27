@@ -1,0 +1,127 @@
+<!DOCTYPE HTML>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html><head>
+  <meta charset="utf-8">
+  <title>CSS Grid Test: Definite column placement in a grid-lanes grid (single edge)</title>
+  <link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3/#grid-template-masonry">
+  <link rel="help" href="https://drafts.csswg.org/css-grid/#grid-placement-int">
+  <link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/grid-placement/grid-lanes-grid-placement-named-lines-001-ref.html">
+  <style>
+body,html { color:black; background:white; font:15px/1 monospace; padding:0; margin:0; }
+
+.grid {
+  display: grid-lanes;
+  position: relative;
+  border: 1px solid;
+  grid-template-columns: [A-start] 60px 60px 60px;
+  grid-template-areas: "B A";
+  grid-auto-columns: 40px;
+  grid-gap: 1px;
+}
+
+x {
+  background: grey;
+  border: 1px solid;
+}
+y {
+  position: absolute;
+  border-top: 1px solid blue;
+  height:0;left:0;right:0;
+}
+
+  </style>
+</head>
+<body>
+
+<pre>grid-column-start:</pre>
+<div class="grid" style="padding-right:13px; border-right-width:5px">
+<x style="grid-column:1; background:grey">&nbsp;</x>
+<x style="grid-column-start:-1">-1</x>
+<x style="grid-column-start:4">4</x>
+<x style="grid-column-start:-2">-2</x>
+<x style="grid-column-start:-3">-3</x>
+<x style="grid-column-start:-4">-4</x>
+<x style="grid-column-start:-5">-5</x>
+<x style="grid-column-start:A-start -1">A -1</x>
+<x style="grid-column-start:B -1">B -1</x>
+<x style="grid-column-start:A-start -2">A -2</x>
+<x style="grid-column-start:A-start -3">A -3</x>
+<x style="grid-column-start:A-start -4">A -4</x>
+<x style="grid-column-start:A-start -5">A -5</x>
+<x style="grid-column-start:A-start">A</x>
+<x style="grid-column-start:B">B</x>
+<x style="grid-column-start:A-start 1">A 1</x>
+<x style="grid-column-start:A-start 2">A 2</x>
+<x style="grid-column-start:A-start 3">A 3</x>
+<x style="grid-column-start:A-start 4">A 4</x>
+<x style="grid-column-start:A-start 5">A 5</x>
+<y style="grid-column-start:-1; top:0"></y>
+<y style="grid-column-start:4; top:2px"></y>
+<y style="grid-column-start:-2; top:4px"></y>
+<y style="grid-column-start:-3; top:6px"></y>
+<y style="grid-column-start:-4; top:8px"></y>
+<y style="grid-column-start:-5; top:10px"></y>
+<y style="grid-column-start:A-start -1; top:12px"></y>
+<y style="grid-column-start:B -1; top:14px"></y>
+<y style="grid-column-start:A-start -2; top:16px"></y>
+<y style="grid-column-start:A-start -3; top:18px"></y>
+<y style="grid-column-start:A-start -4; top:20px"></y>
+<y style="grid-column-start:A-start -5; top:22px"></y>
+<y style="grid-column-start:A-start; top:24px"></y>
+<y style="grid-column-start:B; top:26px"></y>
+<y style="grid-column-start:A-start 1; top:28px"></y>
+<y style="grid-column-start:A-start 2; top:30px"></y>
+<y style="grid-column-start:A-start 3; top:32px"></y>
+<y style="grid-column-start:A-start 4; top:34px"></y>
+<y style="grid-column-start:A-start 5; top:36px"></y>
+</div>
+
+<pre>grid-column-end:</pre>
+<div class="grid" style="padding-left:13px;">
+<x style="grid-column:1; background:grey">&nbsp;</x>
+<x style="grid-column-end:-1">-1</x>
+<x style="grid-column-end:4">4</x>
+<x style="grid-column-end:-5">-5</x>
+<x style="grid-column-end:-4">-4</x>
+<x style="grid-column-end:-3">-3</x>
+<x style="grid-column-end:-2">-2</x>
+<x style="grid-column-end:A-start -1">A -1</x>
+<x style="grid-column-end:B -1">B -1</x>
+<x style="grid-column-end:A-start -2">A -2</x>
+<x style="grid-column-end:A-start -3">A -3</x>
+<x style="grid-column-end:A-start -4">A -4</x>
+<x style="grid-column-end:A-start -5">A -5</x>
+<x style="grid-column-end:A-start">A</x>
+<x style="grid-column-end:B">B</x>
+<x style="grid-column-end:A-start 1">A 1</x>
+<x style="grid-column-end:A-start 2">A 2</x>
+<x style="grid-column-end:A-start 3">A 3</x>
+<x style="grid-column-end:A-start 4">A 4</x>
+<x style="grid-column-end:A-start 5">A 5</x>
+<y style="grid-column-end:-1; top:0"></y>
+<y style="grid-column-end:4; top:2px"></y>
+<y style="grid-column-end:-5; top:4px"></y>
+<y style="grid-column-end:-4; top:6px"></y>
+<y style="grid-column-end:-3; top:8px"></y>
+<y style="grid-column-end:-2; top:10px"></y>
+<y style="grid-column-end:A-start -1; top:12px"></y>
+<y style="grid-column-end:B -1; top:14px"></y>
+<y style="grid-column-end:A-start -2; top:16px"></y>
+<y style="grid-column-end:A-start -3; top:18px"></y>
+<y style="grid-column-end:A-start -4; top:20px"></y>
+<y style="grid-column-end:A-start -5; top:22px"></y>
+<y style="grid-column-end:A-start; top:24px"></y>
+<y style="grid-column-end:B; top:26px"></y>
+<y style="grid-column-end:A-start 1; top:28px"></y>
+<y style="grid-column-end:A-start 2; top:30px"></y>
+<y style="grid-column-end:A-start 3; top:32px"></y>
+<y style="grid-column-end:A-start 4; top:34px"></y>
+<y style="grid-column-end:A-start 5; top:36px"></y>
+</div>
+
+</body>
+</html>

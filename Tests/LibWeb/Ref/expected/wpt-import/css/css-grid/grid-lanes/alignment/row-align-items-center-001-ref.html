@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<style>
+.grid {
+    display: grid;
+    background: gray;
+    grid-template-rows: repeat(3, 100px);
+    grid-template-columns: 100px auto;
+    width: 300px;
+    align-items: center;
+}
+</style>
+<body>
+  <p>Test that using align-items centers each item to the grid-axis track it is on.</p>
+  <div class="grid">
+    <div style="width: 50px; height: 50px; background-color: lightblue;"></div>
+    <div style="background-color: lightpink; height: 80px; width: 200px; grid-row: span 2;"></div>
+    <div style="width: 100px; height: 15px; background-color: lightsalmon;"></div>
+    <div style="width: 25px; height: 25px; background-color: plum;"></div>
+    <div style="background-color: lightgreen; width: 60px; height: 60px; transform: translateX(-75px);"></div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,39 @@
+<!DOCTYPE HTML>
+<html>
+<meta charset="utf-8">
+<title>CSS Grid Lanes Test: subgrid extra margin enlarges edge track beyond item size (rows)</title>
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-3/#subgrids">
+<link rel="match" href="../../../../../../../../expected/wpt-import/css/css-grid/grid-lanes/subgrid/grid-subgridded-to-grid-lanes/track-sizing/row-subgrid-extra-margin-001-ref.html">
+<style>
+.grid-lanes {
+  display: inline grid-lanes;
+  grid-template-rows: repeat(4, auto);
+  border: 1px solid;
+}
+item {
+  width: 40px;
+  height: 100%;
+  background: grey;
+}
+.subgrid {
+  display: grid;
+  grid: subgrid / auto;
+  grid-row: 1 / span 4;
+  border: 0 solid lightblue;
+  border-bottom-width: 80px;
+  background: yellow;
+}
+.subgrid > item { background: lightgrey; }
+</style>
+<div class="grid-lanes">
+  <item>1</item>
+  <item>2</item>
+  <item>3</item>
+  <item>4</item>
+  <div class="subgrid">
+    <item>a</item>
+    <item>b</item>
+  </div>
+</div>
+</html>

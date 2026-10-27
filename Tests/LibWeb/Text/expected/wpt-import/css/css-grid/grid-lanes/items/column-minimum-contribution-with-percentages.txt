@@ -2,12 +2,12 @@ Harness status: OK
 
 Found 8 tests
 
-8 Fail
-Fail	auto - columns
-Fail	min - columns
-Fail	max - columns
-Fail	size - columns
-Fail	min max - columns
-Fail	min size - columns
-Fail	max size - columns
-Fail	min max size - columns
+8 Pass
+Pass	auto - columns
+Pass	min - columns
+Pass	max - columns
+Pass	size - columns
+Pass	min max - columns
+Pass	min size - columns
+Pass	max size - columns
+Pass	min max size - columns

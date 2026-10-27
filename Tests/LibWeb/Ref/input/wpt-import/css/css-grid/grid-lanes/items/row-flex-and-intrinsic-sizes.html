@@ -1,0 +1,27 @@
+<!doctype html>
+<title>Auto Min Size is Zeroed When Spanning Flexible Tracks</title>
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid/#min-size-auto">
+<link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/items/../../../reference/ref-filled-green-100px-square.xht">
+<meta name="assert" content="An item spanning >1 track, at least one of which is flexible, must have a zero automatic minimum size (and thus, not grow to accommodate its children).">
+
+<style>
+.grid-lanes { display: grid-lanes; position: relative; grid-template-rows: repeat(12, 1fr); height: 100px; width: 100px; }
+.test { grid-row: 1 / span 8; background: red; }
+.over { grid-row: 1 / span 8; height: 100%; background: green; position: absolute; }
+.under { grid-row: 9 / span 4; background: green; }
+.big-child { height: 500px; width: 100px; }
+.grid-lanes > div {
+  width: 100px;
+}
+</style>
+
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+
+<div class="grid-lanes">
+  <div class="under"></div>
+  <div class="test">
+    <div class=big-child></div>
+  </div>
+  <div class="over"></div>
+</div>

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Lanes Test: baseline alignment of an item in a nested subgrid</title>
+<link rel="author" title="Yanling Wang" href="mailto:yanlingwang@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-3/#subgrids">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#subgrid-item-contribution">
+<link rel="match" href="../../../../../../../../expected/wpt-import/css/css-grid/grid-lanes/subgrid/grid-subgridded-to-grid-lanes/baseline/row-grid-lanes-item-baseline-subgrid-004-ref.html">
+<link rel="stylesheet" type="text/css" href="../../../../../../fonts/ahem.css">
+<style>
+  html, body { color: black; background: white; padding: 0; margin: 0; }
+  .grid-lanes {
+    display: inline grid-lanes;
+    grid-template-rows: auto;
+    font: 16px/1 Ahem;
+    border: 1px solid black;
+    align-items: baseline;
+    flow-tolerance: 0;
+  }
+  .subgrid { display: grid; grid: subgrid / auto; align-items: baseline; }
+  .l1 { margin-top: 5px; border: 2px solid blue; }
+  .l2 { border: 2px solid green; padding-top: 5px; }
+  .b { text-decoration: underline; }
+</style>
+<div class="grid-lanes">
+  <div class="b">X</div>
+  <div class="subgrid l1"><div class="subgrid l2"><div class="b">X</div></div></div>
+</div>

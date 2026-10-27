@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<link rel="author" title="Javier Contreras" href="mailto:javiercon@microsoft.com">
+<style>
+  body { margin: 0; }
+  .lanes {
+    display: grid;
+    grid-template-rows: repeat(3, 60px);
+    grid-template-columns: 60px;
+    gap: 20px;
+    width: max-content;
+    background: #cdd5e0;
+  }
+  .lanes > div {
+    width: 60px;
+    background: #5b8def;
+  }
+  .first { grid-row: 1; }
+  .third { grid-row: 3; }
+</style>
+<div class="lanes">
+  <div class="first"></div>
+  <div class="third"></div>
+</div>

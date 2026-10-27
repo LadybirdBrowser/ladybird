@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<style>
+.grid {
+    display: grid;
+    background: gray;
+    grid-template-rows: 70px;
+    grid-template-columns: 75px 50px 75px 100px;
+    align-items: unsafe center;
+    width: 300px;
+    height: 70px;
+}
+.overflow-safe {
+    align-self: safe end;
+    width: 75px;
+    height: 75px;
+    background-color: lightgreen;
+}
+.overflow-unsafe {
+    align-self: unsafe end;
+    width: 75px;
+    height: 75px;
+    background-color: lightblue;
+}
+.small-item {
+    width: 50px;
+    background-color: lightyellow;
+}
+</style>
+<body>
+  <p>Test that overflow safe and unsafe are working as expected.
+  <div class="grid">
+    <div class="overflow-safe">
+      Overflow safe
+    </div>
+    <div style="width: 50px; background-color: lightpink;">
+      Regular item
+    </div>
+    <div class="overflow-unsafe">
+      Overflow unsafe
+    </div>
+    <div style="height: 150px; width: 100px; background-color: brown">
+      Overflow center
+    </div>
+  </div>
+</body>
+</html>

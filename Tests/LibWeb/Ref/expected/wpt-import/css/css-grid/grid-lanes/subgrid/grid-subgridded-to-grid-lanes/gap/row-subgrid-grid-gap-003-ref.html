@@ -1,0 +1,56 @@
+<!DOCTYPE HTML>
+<html><head>
+<meta charset="utf-8">
+<style>
+html,body {
+  color:black; background-color:white; font:12px/1 monospace; padding:0; margin:0;
+}
+
+.grid {
+  display: grid;
+  grid-template-rows: repeat(4, auto);
+  place-content: start;
+  border: 1px solid;
+}
+
+.subgrid {
+  display: grid;
+  grid-template-rows: subgrid;
+  gap: 20% 20%;
+  background: lightgrey;
+  grid-column: 2 / span 5;
+  grid-row: 2 / span 5;
+  min-width:10px;
+  min-height:0;
+  border: 0 solid lightblue;
+  border-bottom-width: 40px;
+  background: grey;
+}
+
+.subgrid > * { background: lightgrey; }
+
+x {
+  min-width:10px;
+  min-height:0px;
+}
+x:nth-child(2n+1) { background: silver; }
+x:nth-child(2n+2) { background: magenta; }
+x:nth-child(2n+3) { background: pink; }
+x:nth-child(2n+4) { background: grey; }
+
+e { display:block; width: 20px; height:15px; background:black; }
+
+  </style>
+</head>
+<body>
+
+<div class="grid">
+<x style="grid-row:1"></x><x style="grid-row:2"></x><x style="grid-row:3"></x><x style="grid-row:4"></x><x style="grid-row:5"></x><x style="grid-row:6"></x>
+<div class="subgrid">
+<c><e></e></c>
+<d><e></e></d>
+<c><e></e></c>
+<d><e></e></d>
+</div>
+</div>
+</body></html>

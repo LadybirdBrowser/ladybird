@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CSS Grid Lanes Test: align-self baseline override</title>
+  <link rel="author" title="Yanling Wang" href="mailto:yanlingwang@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3/#masonry-baseline-alignment">
+  <link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/baseline/row-grid-lanes-item-baseline-002-ref.html">
+  <style>
+    .grid-lanes {
+      width: 500px;
+      border: solid 5px;
+      gap: 3px;
+      display: grid-lanes;
+      grid-template-rows: repeat(3, 100px);
+      background-color: #f0f0f0;
+      border-color: slateblue;
+      align-items: center;
+      margin-bottom: 20px;
+      font: 16px/1 monospace;
+    }
+
+    .item {
+      width: 100px;
+      padding: 5px;
+    }
+
+    #item1 {
+      background-color: #8cffa0;
+      min-height: 30px;
+      grid-row: 1 / 2;
+      align-self: baseline;
+      font-size: 16px;
+    }
+
+    #item2 {
+      background-color: #a0c8ff;
+      min-height: 50px;
+      grid-row: 1 / 2;
+      align-self: baseline;
+      font-size: 24px;
+    }
+
+    #item3 {
+      background-color: #ffa08c;
+      min-height: 40px;
+      grid-row: 1 / 2;
+      align-self: center;
+    }
+
+    #item4 {
+      background-color: #ffff8c;
+      min-height: 60px;
+      grid-row: 1 / 2;
+      align-self: baseline;
+      font-size: 12px;
+    }
+
+    #item5 {
+      background-color: #ff8cff;
+      min-height: 70px;
+      grid-row: 2 / 3;
+      align-self: last baseline;
+    }
+
+    #item6 {
+      background-color: #8cffff;
+      min-height: 50px;
+      grid-row: 2 / 3;
+      align-self: last baseline;
+      font-size: 20px;
+    }
+
+    #item7 {
+      background-color: #ff8c8c;
+      min-height: 45px;
+      grid-row: 2 / 3;
+      align-self: start;
+    }
+
+    #item8 {
+      background-color: #c8ffa0;
+      min-height: 35px;
+      grid-row: 3 / 4;
+      align-self: baseline;
+    }
+
+    #item9 {
+      background-color: #a0a0ff;
+      min-height: 55px;
+      grid-row: 3 / 4;
+      align-self: baseline;
+      font-size: 28px;
+    }
+
+    #item10 {
+      background-color: #ffc88c;
+      min-height: 50px;
+      grid-row: 3 / 4;
+      align-self: end;
+    }
+  </style>
+</head>
+<body>
+<div class="grid-lanes">
+  <div id="item1" class="item">baseline</div>
+  <div id="item2" class="item">baseline</div>
+  <div id="item3" class="item">center</div>
+  <div id="item4" class="item">baseline</div>
+  <div id="item5" class="item">last<br/>baseline</div>
+  <div id="item6" class="item">last<br/>baseline</div>
+  <div id="item7" class="item">start</div>
+  <div id="item8" class="item">baseline</div>
+  <div id="item9" class="item">baseline</div>
+  <div id="item10" class="item">end</div>
+</div>
+</body>
+</html>

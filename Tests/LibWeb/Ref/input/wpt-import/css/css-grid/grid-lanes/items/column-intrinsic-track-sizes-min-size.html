@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Lanes Layout Test: Test that spanning grid-lanes items with auto size that should not have content-based automatic minimum size.</title>
+<link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/items/../../../reference/ref-filled-green-100px-square.xht">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#intrinsic-sizes"/>
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<style>
+.grid-lanes{
+  display: inline grid-lanes;
+  grid-template-columns: minmax(auto,0) minmax(auto,0);
+  background: red;
+  height: 100px;
+}
+.t{
+  grid-column: 1 / span 2;
+  border-inline: 50px solid green;
+  height: 100px;
+  min-width: 0;
+}
+.inner{
+  display: inline-block;
+  width: 100px;
+  height: 10px;
+}
+</style>
+
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div class="grid-lanes">
+  <div class="t"><div class="inner"></div></div>
+</div>

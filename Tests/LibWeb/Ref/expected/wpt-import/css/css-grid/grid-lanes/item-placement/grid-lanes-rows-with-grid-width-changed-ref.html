@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="author" title="Sammy Gill" href="mailto:sammy.gill@apple.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<meta name="assert" content="When the width of the grid-lanes grid changes, items are repositioned with correct offsets and are not overlapping">
+<link rel="stylesheet" type="text/css" href="../../../../fonts/ahem.css">
+<style>
+grid {
+    display: grid;
+    width: 1%;
+    grid-template-columns: auto;
+    grid-gap: 10px;
+    font-family: Ahem;
+    font-size: 40px;
+}
+item {
+    background-color: grey;
+}
+</style>
+</head>
+<body>
+  <grid>
+    <item>Hello, world!</item>
+    <item>2</item>
+  </grid>
+</body>
+</html>

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<meta charset="utf-8">
+<title>Reference: Explicitly-placed items do not move the auto-placement cursor when the grid axis is the block axis</title>
+<link rel="author" title="Sammy Gill" href="mailto:sammy.gill@apple.com">
+<style>
+.grid {
+    display: inline-grid;
+    background: gray;
+    grid-template-rows: repeat(3, 40px);
+    grid-auto-columns: 50px;
+    gap: 10px;
+    padding: 10px;
+    font: 10px/1 monospace;
+}
+
+.item {
+    width: 50px;
+}
+</style>
+<body>
+  <p>Test that an explicitly-placed item does not advance the auto-placement cursor when the
+     grid axis is the block axis. Item 1 is placed in row 2, so the cursor stays in row 1
+     and item 2 takes row 1. The grid is inline, so this also covers intrinsic sizing.</p>
+  <div class="grid">
+    <div class="item" style="grid-row: 2; grid-column: 1; background: lightskyblue">1</div>
+    <div class="item" style="grid-row: 1; grid-column: 1; background: lightcoral">2</div>
+    <div class="item" style="grid-row: 3; grid-column: 1; background: lightgreen">3</div>
+    <div class="item" style="grid-row: 1; grid-column: 2; background: gold">4</div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="author" title="Celeste Pan" href="mailto:celestepan@microsoft.com">
+<style>
+.grid {
+    display: grid;
+    background: gray;
+    grid-template-columns: repeat(3, 100px);
+    width: 400px;
+    gap: 50px;
+    padding: 20px;
+    align-items: start;
+}
+
+.flex {
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+    flex-wrap: nowrap;
+    gap: 10px;
+}
+
+.grid-auto-item-1 {
+    background: lightskyblue;
+    width: 80px;
+    padding: 10px;
+}
+
+.grid-auto-item-2 {
+    background: lightcoral;
+    width: 80px;
+    padding: 10px;
+}
+
+.grid-auto-item-3 {
+    background: lightgreen;
+    width: 80px;
+    padding: 10px;
+}
+
+.grid-auto-item-4 {
+    background: lightpink;
+    padding: 10px;
+    width: calc(200% + 30px);
+    transform: translateX(-150px);
+}
+</style>
+<body>
+  <p>Test that gaps are correctly used within grid-lanes containers.</p>
+  <div class="grid">
+    <div class="flex">
+      <div class="grid-auto-item-1" style="grid-column: 1">This is some text</div>
+    </div>
+    <div class="flex">
+      <div class="grid-auto-item-2" style="grid-column: 2">Some larger words in this sentence</div>
+      <div class="grid-auto-item-4" style="grid-column: 2">The cat still cannot be separated from milk</div>
+      <div class="grid-auto-item-4" style="grid-column: 2">The cat still cannot be separated from milk</div>
+    </div>
+    <div class="flex">
+      <div class="grid-auto-item-3" style="grid-column: 3">The cat cannot be separated from milk</div>
+    </div>
+  </div>
+</body>
+</html>

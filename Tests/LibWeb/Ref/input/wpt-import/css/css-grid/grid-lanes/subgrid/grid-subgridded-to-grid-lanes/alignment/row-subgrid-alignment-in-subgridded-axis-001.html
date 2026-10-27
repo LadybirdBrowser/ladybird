@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Lanes Test: specified self-alignment is ignored in a row-direction subgrid's subgridded (row) axis</title>
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-3/#subgrids">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#subgrid-box-alignment">
+<link rel="match" href="../../../../../../../../expected/wpt-import/css/css-grid/grid-lanes/subgrid/grid-subgridded-to-grid-lanes/alignment/column-subgrid-alignment-in-subgridded-axis-001-ref.html">
+<style>
+body { margin: 0; padding: 0; font-size: 0; line-height: 0 }
+.grid-lanes {
+  background: gray;
+  display: inline grid-lanes;
+  vertical-align: top;
+  grid-template-rows: 100px;
+  width: 100px;
+}
+.subgrid {
+  box-sizing: border-box;
+  margin: 10px;
+  padding: 10px;
+  display: grid;
+  background: orangered;
+  border: blue solid 10px;
+  grid-template-rows: subgrid;
+  width: 80px;
+}
+.subgrid > .item {
+  background: orange;
+  width: 40px;
+  height: 40px;
+}
+.as { align-self: start }
+.ae { align-self: end }
+.ac { align-self: center }
+.ab { align-self: baseline }
+</style>
+<p>Test passes if there are four orange squares in a column.</p>
+<div class="grid-lanes"><div class="subgrid as"><div class="item"></div></div></div><br>
+<div class="grid-lanes"><div class="subgrid ae"><div class="item"></div></div></div><br>
+<div class="grid-lanes"><div class="subgrid ac"><div class="item"></div></div></div><br>
+<div class="grid-lanes"><div class="subgrid ab"><div class="item"></div></div></div>

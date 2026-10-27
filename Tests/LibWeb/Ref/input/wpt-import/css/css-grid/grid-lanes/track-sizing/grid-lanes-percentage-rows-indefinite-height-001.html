@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CSS Grid Lanes Test: percentage rows with indefinite height need additional pass</title>
+  <link rel="author" title="Yanling Wang" href="mailto:yanlingwang@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3">
+  <link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/track-sizing/grid-lanes-percentage-rows-indefinite-height-001-ref.html">
+  <link rel="stylesheet" type="text/css" href="../../../../fonts/ahem.css" />
+  <style>
+    .grid-lanes {
+        display: grid-lanes;
+        flow-tolerance: 0;
+        position: relative;
+        font: 25px/1 Ahem;
+        color: transparent;
+        margin: 20px 0;
+        width: 50px;
+    }
+    .grid-lanes > div {
+        width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <!--
+    First pass: Container intrinsic block size 25px because of item. Keep this value.
+    Second pass: Row is sized to 60% of container = 0.6 x 25 = 15px. Item sized to fit row.
+  -->
+  <div class="grid-lanes" style="grid-template-rows: 60%; background: red;">
+      <div style="background: green;">X</div>
+  </div>
+
+  <!--
+    First pass: Container intrinsic block size 50px (two lines). Keep this value.
+    Second pass: Row is sized to 60% of container = 0.6 x 50 = 30px. Item sized to fit row.
+  -->
+  <div class="grid-lanes" style="grid-template-rows: 60%; background: red;">
+      <div style="background: green;">X<br>X</div>
+  </div>
+
+  <!--
+    First pass: Container intrinsic block size 25px. Keep this value.
+    Second pass: Row is sized to 140% of container = 1.4 x 25 = 35px. Row overflows container.
+  -->
+  <div class="grid-lanes" style="grid-template-rows: 140%; background: gray;">
+      <div style="background: green;">X</div>
+  </div>
+
+  <!--
+    First pass: Container intrinsic block size 25px + 10px border = 35px. Keep this value.
+    Second pass: Row is sized to 60% of content box (25px) = 15px. Item sized to fit row.
+  -->
+  <div class="grid-lanes" style="grid-template-rows: 60%; border: 5px solid; background: red;">
+      <div style="background: green;">X</div>
+  </div>
+</body>
+</html>

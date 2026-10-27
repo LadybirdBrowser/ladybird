@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<title>Auto repeat tracks with multiple tracks and gutters.</title>
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<link rel="match" href="../../../../../../../expected/wpt-import/css/css-grid/grid-lanes/track-sizing/auto-repeat/row-auto-repeat-012-ref.html">
+<style>
+.grid-lanes {
+  display: grid-lanes;
+  border: solid thick;
+  margin: 10px;
+  grid-template-rows: repeat(auto-fill, 50px 50px);
+  grid-row-gap: 100px;
+  height: 300px;
+  width: min-content;
+  background: pink;
+}
+.grid-lanes > div {
+  background: lime;
+  width: 50px;
+  height: 100%;
+}
+</style>
+<p>The test passes if it has the same visual effect as reference.</p>
+<div class="grid-lanes">
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+</div>

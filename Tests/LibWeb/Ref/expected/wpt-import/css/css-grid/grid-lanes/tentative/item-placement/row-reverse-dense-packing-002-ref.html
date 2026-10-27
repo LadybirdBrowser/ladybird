@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<style>
+.grid {
+    display: grid;
+    grid-template-rows: repeat(4, 50px);
+    grid-template-columns: repeat(2, min-content);
+    gap: 10px;
+    grid-auto-flow: dense;
+}
+</style>
+<body>
+<p>Test that we always prioritize the highest position in "open" tracks even if there is a track opening available that is lower.</p>
+<div class="grid">
+  <div style="background: lavender; width: 60px; grid-row: 3;">
+    1
+  </div>
+  <div style="background: lightpink; grid-row: 1 / span 3; width: 10px;">
+    2
+  </div>
+  <!-- APC is at line 4 after placing item 2, so item 3 should go into track 4. -->
+  <div style="background: lightgreen; width: 15px; grid-row: 4;">
+    3
+  </div>
+</div>
+</body>
+</html>

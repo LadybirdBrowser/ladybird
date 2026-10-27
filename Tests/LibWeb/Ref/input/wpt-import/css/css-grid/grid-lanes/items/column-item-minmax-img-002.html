@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Test how images are stretched with different align/justify flags.</title>
+<link rel="author" href="mailto:almaher@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#algo-stretch">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#algo-single-span-items">
+<link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/items/column-item-minmax-img-002-ref.html">
+<style>
+.grid-lanes {
+    display: inline grid-lanes;
+    grid-template-columns: minmax(auto, 0);
+    border: 5px solid goldenrod;
+    vertical-align: top;
+}
+.spacer{
+    height: 10px;
+}
+img {
+    border: 2px solid indigo;
+}
+.stretch {
+    align-self: stretch;
+    justify-self: stretch;
+}
+.start {
+    align-self: start;
+    justify-self: start;
+}
+</style>
+<div class="grid-lanes">
+  <img class="stretch" src="support/100x100-green.png">
+</div>
+<div class="spacer"></div>
+<div class="grid-lanes">
+  <img class="start" src="support/100x100-green.png">
+</div>

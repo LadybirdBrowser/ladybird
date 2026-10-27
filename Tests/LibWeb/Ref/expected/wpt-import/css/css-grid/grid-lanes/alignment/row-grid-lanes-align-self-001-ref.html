@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    html,body {
+      color:black; background-color:white; font:15px/1 monospace; padding:0; margin:0;
+    }
+
+    .grid {
+      display: grid;
+      gap: 2px;
+      grid-template-rows: repeat(3, 40px);
+      grid-template-columns: repeat(4, min-content);
+      color: #444;
+      border: 1px solid;
+      padding: 2px;
+      width: 250px;
+      margin: 5px;
+    }
+
+    item {
+      background-color: #444;
+      color: #fff;
+      padding: 2px;
+      width: 45px;
+    }
+
+    .start {
+      align-self: start;
+      background-color: red;
+    }
+
+    .end {
+      align-self: end;
+      background-color: blue;
+    }
+
+    .center {
+      align-self: center;
+      background-color: green;
+    }
+
+    .stretch {
+      align-self: stretch;
+      background-color: orange;
+    }
+
+    .auto {
+      align-self: auto;
+      background-color: gray;
+    }
+
+    .short {
+      height: 15px;
+    }
+
+    .medium {
+      height: 20px;
+    }
+
+    .tall {
+      height: 30px;
+    }
+  </style>
+</head>
+<body>
+<div class="grid">
+  <item class="start short">S1</item>
+  <item class="center short">C1</item>
+  <item class="end short">E1</item>
+  <item class="stretch">ST1</item>
+  <item class="start medium">S2</item>
+  <item class="center medium">C2</item>
+  <item class="end medium">E2</item>
+  <item class="stretch">ST2</item>
+  <item class="start tall">S3</item>
+  <item class="center tall">C3</item>
+  <item class="end tall">E3</item>
+  <item class="stretch">ST3</item>
+</div>
+
+<div class="grid" style="align-items: start;">
+  <item class="auto short">A1</item>
+  <item class="center short">C1</item>
+  <item class="end short">E1</item>
+  <item class="stretch">ST1</item>
+  <item class="auto medium">A2</item>
+  <item class="center medium">C2</item>
+  <item class="end medium">E2</item>
+  <item class="stretch">ST2</item>
+  <item class="auto tall">A3</item>
+  <item class="center tall">C3</item>
+  <item class="end tall">E3</item>
+  <item class="stretch">ST3</item>
+</div>
+
+<div class="grid" style="align-items: center;">
+  <item class="auto short">A1</item>
+  <item class="start short">S1</item>
+  <item class="end short">E1</item>
+  <item class="stretch">ST1</item>
+  <item class="auto medium">A2</item>
+  <item class="start medium">S2</item>
+  <item class="end medium">E2</item>
+  <item class="stretch">ST2</item>
+  <item class="auto tall">A3</item>
+  <item class="start tall">S3</item>
+  <item class="end tall">E3</item>
+  <item class="stretch">ST3</item>
+</div>
+
+<div class="grid" style="align-items: end;">
+  <item class="auto short">A1</item>
+  <item class="start short">S1</item>
+  <item class="center short">C1</item>
+  <item class="stretch">ST1</item>
+  <item class="auto medium">A2</item>
+  <item class="start medium">S2</item>
+  <item class="center medium">C2</item>
+  <item class="stretch">ST2</item>
+  <item class="auto tall">A3</item>
+  <item class="start tall">S3</item>
+  <item class="center tall">C3</item>
+  <item class="stretch">ST3</item>
+</div>
+</body>
+</html>

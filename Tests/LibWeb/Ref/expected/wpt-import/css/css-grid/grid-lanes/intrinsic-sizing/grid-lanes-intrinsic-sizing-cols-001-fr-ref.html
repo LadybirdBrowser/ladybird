@@ -1,0 +1,103 @@
+<!DOCTYPE HTML>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html>
+  <meta charset="utf-8">
+  <title>Reference: Grid Lanes layout intrinsic sizing</title>
+  <link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
+  <style>
+
+@import "support/grid-lanes-intrinsic-sizing-visual.css";
+
+grid {
+  display: inline-grid;
+  gap: 1px 2px;
+  grid-template-columns: 1fr 2fr 1fr 1fr;
+  grid-auto-rows: auto;
+  border: 1px solid;
+  padding: 0 1px 0 2px;
+  vertical-align: top;
+}
+</style>
+
+<body>
+
+<section class="fr">
+<grid>
+  <item style="width:2ch">1</item>
+  <item>2</item>
+  <item>3</item>
+  <item>4</item>
+  <item>5</item>
+</grid>
+
+<grid>
+  <item>1</item>
+  <item>2</item>
+  <item>3</item>
+  <item>4</item>
+  <item style="width:2ch">5</item>
+</grid>
+
+<grid>
+  <item>1</item>
+  <item>2</item>
+  <item>3</item>
+  <item>4</item>
+  <item style="width:2ch; grid-column:2">5</item>
+</grid>
+
+<grid>
+  <item>1</item>
+  <item>2</item>
+  <item>3</item>
+  <item>4</item>
+  <item style="width:4ch; grid-column:2/span 2">5</item>
+</grid>
+
+<grid>
+  <item>1</item>
+  <item>2</item>
+  <item>3</item>
+  <item>4</item>
+  <item style="grid-column:2/span 2">5</item>
+  <item style="width:5ch; grid-column:span 3/4">6</item>
+</grid>
+
+<grid>
+  <item>1</item>
+  <item>2</item>
+  <item>3</item>
+  <item>4</item>
+  <item style="width:3ch; grid-column:span 2/4">5</item>
+  <item style="width:5ch; grid-column:1/span 3">6</item>
+</grid>
+
+<grid>
+  <item>1</item>
+  <item>2</item>
+  <item>3</item>
+  <item>4</item>
+  <item style="grid-column:span 4">5</item>
+</grid>
+
+<grid>
+  <item>1</item>
+  <item>2</item>
+  <item>3</item>
+  <item>4</item>
+  <item style="width:6ch; grid-column:span 4">5</item>
+</grid>
+
+<grid>
+  <item>1</item>
+  <item>2</item>
+  <item>3</item>
+  <item>4</item>
+  <item style="width:6ch; grid-area: 2/1/3/4">5</item>
+  <item style="width:6ch; grid-area: 2/2/3/5; visibility: hidden">5</item>
+</grid>
+</section>
+</body>

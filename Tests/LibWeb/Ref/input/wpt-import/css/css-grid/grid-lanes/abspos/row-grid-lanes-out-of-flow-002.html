@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CSS Grid Lanes Test: Grid Lanes layout out-of-flow positioning</title>
+  <link rel="author" title="Yanling Wang" href="mailto:yanlingwang@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3/#abspos">
+  <link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/abspos/row-grid-lanes-out-of-flow-002-ref.html">
+  <style>
+    .container {
+        width: 150px;
+        height: 300px;
+        border: 2px solid black;
+        margin: 20px;
+    }
+
+    .grid-lanes {
+        display: grid-lanes;
+        grid-template-rows: repeat(4, 60px);
+        border: 1px solid blue;
+        padding: 10px;
+        gap: 5px;
+        position: relative;
+    }
+
+    .item {
+        background: lightblue;
+        padding: 5px;
+        width: 40px;
+    }
+
+    .wrapper {
+        background: lightgreen;
+        padding: 5px;
+        width: 30px;
+        height: 30px;
+        border: 1px dashed green;
+    }
+
+    .absolute {
+        position: absolute;
+        background: red;
+        grid-row: 1 / 2;
+        left: 20px;
+        width: 20px;
+        height: 20px;
+    }
+
+    .static-pos-with-grid-row {
+        position: absolute;
+        background: yellow;
+        grid-row: 2 / 3;
+        width: 10px;
+        height: 10px;
+    }
+
+    .static-pos {
+        position: absolute;
+        background: orange;
+        width: 10px;
+        height: 10px;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="grid-lanes">
+    <div class="item">
+      <div class="wrapper">
+        <div class="absolute"></div>
+      </div>
+    </div>
+    <div class="item">
+      <div class="wrapper">
+        <div class="static-pos-with-grid-row"></div>
+      </div>
+    </div>
+    <div class="item">
+      <div class="static-pos"></div>
+    </div>
+    <div class="item"></div>
+  </div>
+</div>
+</body>
+</html>

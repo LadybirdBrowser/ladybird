@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Auto-fit repeat tracks with fixed size and auto item placement
+1 Pass
+Pass	Auto-fit repeat tracks with fixed size and auto item placement

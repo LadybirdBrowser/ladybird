@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Image within a grid-lanes with a size that depends on the containing block should stretch, but not size the grid tracks</title>
+<link rel="author" href="mailto:almaher@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#algo-stretch">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#algo-single-span-items">
+<link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/items/../../../reference/ref-filled-green-100px-square.xht">
+<style>
+#grid-lanes {
+    display: inline grid-lanes;
+    grid-template-columns: minmax(auto, 0);
+    width: 200px;
+}
+</style>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div id="grid-lanes">
+  <img id="img" src="support/100x100-green.png">
+  <div style="background-color: red; aspect-ratio: 1;">
+</div>

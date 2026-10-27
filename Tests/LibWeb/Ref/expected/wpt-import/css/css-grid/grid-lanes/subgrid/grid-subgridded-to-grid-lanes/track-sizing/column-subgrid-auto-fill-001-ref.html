@@ -1,0 +1,462 @@
+<!DOCTYPE HTML>
+<html><head>
+  <meta charset="utf-8">
+  <style>
+html,body {
+  color:black; background-color:white; font:10px/1 monospace; padding:0; margin:0;
+}
+
+.grid {
+  display: inline grid;
+  grid-template-columns: repeat(7, 15px);
+  border: 1px solid;
+}
+
+.subgrid {
+  display: grid;
+  grid-column: 3 / span 4;
+  grid-auto-rows: 8px;
+  background: grey;
+}
+
+.fill-0a  { grid-template-columns: subgrid repeat(auto-fill, [y]) [z] [z] [z] [z] [z] }  /* [z] [z] [z] [z] [z] */
+.fill-0b  { grid-template-columns: subgrid [x] repeat(auto-fill, [y]) [z] [z] [z] [z] }  /* [x] [z] [z] [z] [z] */
+.fill-0c  { grid-template-columns: subgrid [x] [x] repeat(auto-fill, [y]) [z] [z] [z] }  /* [x] [x] [z] [z] [z] */
+.fill-0d  { grid-template-columns: subgrid [x] [x] [x] repeat(auto-fill, [y]) [z] [z] }  /* [x] [x] [x] [z] [z] */
+.fill-0e  { grid-template-columns: subgrid [x] [x] [x] [x] repeat(auto-fill, [y]) [z] }  /* [x] [x] [x] [x] [z] */
+.fill-0f  { grid-template-columns: subgrid [x] [x] [x] [x] [x] repeat(auto-fill, [y]) }  /* [x] [x] [x] [x] [x] */
+.fill-0g  { grid-template-columns: subgrid [x] [x] [x] [x] [x] repeat(auto-fill, [y]) [z] [z] }  /* [x] [x] [x] [x] [x] */
+.fill-0h  { grid-template-columns: subgrid [x] [x] [x] [x] [x] [x] [x] repeat(auto-fill, [y]) [z] [z] }  /* [x] [x] [x] [x] [x] */
+.fill-0i  { grid-template-columns: subgrid [x] [x] [x] [x] [x] [x] [x] repeat(auto-fill, [y]) [z] }  /* [x] [x] [x] [x] [x] */
+.fill-0j  { grid-template-columns: subgrid [x] [x] [x] [x] [x] [x] [x] repeat(auto-fill, [y]) }  /* [x] [x] [x] [x] [x] */
+.fill-0k  { grid-template-columns: subgrid repeat(auto-fill, [y]) repeat(100, [z]) }  /* [z] [z] [z] [z] [z] */
+.fill-0l  { grid-template-columns: subgrid [x] repeat(auto-fill, [y]) repeat(100, [z]) }  /* [x] [z] [z] [z] [z] */
+.fill-0m  { grid-template-columns: subgrid  repeat(100, [x]) repeat(auto-fill, [y]) }  /* [x] [x] [x] [x] [x] */
+
+.fill-1a  { grid-template-columns: subgrid repeat(auto-fill, [y]) [z] [z] [z] [z] }  /* [y] [z] [z] [z] [z] */
+.fill-1b  { grid-template-columns: subgrid [x] repeat(auto-fill, [y]) [z] [z] [z] }  /* [x] [y] [z] [z] [z] */
+.fill-1c  { grid-template-columns: subgrid [x] [x] repeat(auto-fill, [y]) [z] [z] }  /* [x] [x] [y] [z] [z] */
+.fill-1d  { grid-template-columns: subgrid [x] [x] [x] repeat(auto-fill, [y]) [z] }  /* [x] [x] [x] [y] [z] */
+.fill-1e  { grid-template-columns: subgrid [x] [x] [x] [x] repeat(auto-fill, [y]) }  /* [x] [x] [x] [x] [y] */
+
+.fill-2a  { grid-template-columns: subgrid repeat(auto-fill, [y]) [z] [z] [z] }  /* [y] [y] [z] [z] [z] */
+.fill-2b  { grid-template-columns: subgrid [x] repeat(auto-fill, [y]) [z] [z] }  /* [x] [y] [y] [z] [z] */
+.fill-2c  { grid-template-columns: subgrid [x] [x] repeat(auto-fill, [y]) [z] }  /* [x] [x] [y] [y] [z] */
+.fill-2d  { grid-template-columns: subgrid [x] [x] [x] repeat(auto-fill, [y]) }  /* [x] [x] [x] [y] [y] */
+
+.fill-3a  { grid-template-columns: subgrid repeat(auto-fill, [y]) [z] [z] }  /* [y] [y] [y] [z] [z] */
+.fill-3b  { grid-template-columns: subgrid [x] repeat(auto-fill, [y]) [z] }  /* [x] [y] [y] [y] [z] */
+.fill-3c  { grid-template-columns: subgrid [x] [x] repeat(auto-fill, [y]) }  /* [x] [x] [y] [y] [y] */
+
+.fill-4a  { grid-template-columns: subgrid repeat(auto-fill, [y]) [z] }  /* [y] [y] [y] [y] [z] */
+.fill-4b  { grid-template-columns: subgrid [x] repeat(auto-fill, [y]) }  /* [x] [y] [y] [y] [y] */
+
+.fill-5   { grid-template-columns: subgrid repeat(auto-fill, [y]) }  /* [y] [y] [y] [y] [y] */
+
+.subgrid > :nth-child(2n)   {  background: black; }
+.subgrid > :nth-child(2n+1) {  background: pink; }
+
+.subgrid-auto {
+  display: grid;
+  grid-column: span 4;
+  grid-auto-rows: 8px;
+  background: grey;
+}
+.subgrid-auto > :nth-child(2n)   {  background: black; }
+.subgrid-auto > :nth-child(2n+1) {  background: pink; }
+
+  </style>
+</head>
+<body>
+
+<div class="grid"><div class="subgrid fill-0a">
+  <div style="grid-column:y 5"></div>
+  <div style="grid-column:y 4"></div>
+  <div style="grid-column:y 3"></div>
+  <div style="grid-column:y 2"></div>
+  <div style="grid-column:y 1"></div>
+  <div style="grid-column:y -1"></div>
+  <div style="grid-column:y -2"></div>
+  <div style="grid-column:y -3"></div>
+  <div style="grid-column:y -4"></div>
+  <div style="grid-column:y -5"></div>
+</div></div>
+
+<div class="grid"><div class="subgrid fill-0b">
+  <div style="grid-column:y 5"></div>
+  <div style="grid-column:y 4"></div>
+  <div style="grid-column:y 3"></div>
+  <div style="grid-column:y 2"></div>
+  <div style="grid-column:y 1"></div>
+  <div style="grid-column:y -1"></div>
+  <div style="grid-column:y -2"></div>
+  <div style="grid-column:y -3"></div>
+  <div style="grid-column:y -4"></div>
+  <div style="grid-column:y -5"></div>
+</div></div>
+
+<div class="grid"><div class="subgrid fill-0c">
+  <div style="grid-column:y 5"></div>
+  <div style="grid-column:y 4"></div>
+  <div style="grid-column:y 3"></div>
+  <div style="grid-column:y 2"></div>
+  <div style="grid-column:y 1"></div>
+  <div style="grid-column:y -1"></div>
+  <div style="grid-column:y -2"></div>
+  <div style="grid-column:y -3"></div>
+  <div style="grid-column:y -4"></div>
+  <div style="grid-column:y -5"></div>
+</div></div>
+
+<div class="grid"><div class="subgrid fill-0d">
+  <div style="grid-column:y 5"></div>
+  <div style="grid-column:y 4"></div>
+  <div style="grid-column:y 3"></div>
+  <div style="grid-column:y 2"></div>
+  <div style="grid-column:y 1"></div>
+  <div style="grid-column:y -1"></div>
+  <div style="grid-column:y -2"></div>
+  <div style="grid-column:y -3"></div>
+  <div style="grid-column:y -4"></div>
+  <div style="grid-column:y -5"></div>
+</div></div>
+
+<div class="grid"><div class="subgrid fill-0e">
+  <div style="grid-column:y 5"></div>
+  <div style="grid-column:y 4"></div>
+  <div style="grid-column:y 3"></div>
+  <div style="grid-column:y 2"></div>
+  <div style="grid-column:y 1"></div>
+  <div style="grid-column:y -1"></div>
+  <div style="grid-column:y -2"></div>
+  <div style="grid-column:y -3"></div>
+  <div style="grid-column:y -4"></div>
+  <div style="grid-column:y -5"></div>
+</div></div>
+
+<div class="grid"><div class="subgrid fill-0f">
+  <div style="grid-column:y 5"></div>
+  <div style="grid-column:y 4"></div>
+  <div style="grid-column:y 3"></div>
+  <div style="grid-column:y 2"></div>
+  <div style="grid-column:y 1"></div>
+  <div style="grid-column:y -1"></div>
+  <div style="grid-column:y -2"></div>
+  <div style="grid-column:y -3"></div>
+  <div style="grid-column:y -4"></div>
+  <div style="grid-column:y -5"></div>
+</div></div>
+
+<div class="grid"><div class="subgrid fill-0g">
+  <div style="grid-column:y 5"></div>
+  <div style="grid-column:y 4"></div>
+  <div style="grid-column:y 3"></div>
+  <div style="grid-column:y 2"></div>
+  <div style="grid-column:y 1"></div>
+  <div style="grid-column:y -1"></div>
+  <div style="grid-column:y -2"></div>
+  <div style="grid-column:y -3"></div>
+  <div style="grid-column:y -4"></div>
+  <div style="grid-column:y -5"></div>
+</div></div>
+
+<div class="grid"><div class="subgrid fill-0h">
+  <div style="grid-column:y 5"></div>
+  <div style="grid-column:y 4"></div>
+  <div style="grid-column:y 3"></div>
+  <div style="grid-column:y 2"></div>
+  <div style="grid-column:y 1"></div>
+  <div style="grid-column:y -1"></div>
+  <div style="grid-column:y -2"></div>
+  <div style="grid-column:y -3"></div>
+  <div style="grid-column:y -4"></div>
+  <div style="grid-column:y -5"></div>
+</div></div>
+
+<div class="grid"><div class="subgrid fill-0i">
+  <div style="grid-column:y 5"></div>
+  <div style="grid-column:y 4"></div>
+  <div style="grid-column:y 3"></div>
+  <div style="grid-column:y 2"></div>
+  <div style="grid-column:y 1"></div>
+  <div style="grid-column:y -1"></div>
+  <div style="grid-column:y -2"></div>
+  <div style="grid-column:y -3"></div>
+  <div style="grid-column:y -4"></div>
+  <div style="grid-column:y -5"></div>
+</div></div>
+
+<div class="grid"><div class="subgrid fill-0j">
+  <div style="grid-column:y 5"></div>
+  <div style="grid-column:y 4"></div>
+  <div style="grid-column:y 3"></div>
+  <div style="grid-column:y 2"></div>
+  <div style="grid-column:y 1"></div>
+  <div style="grid-column:y -1"></div>
+  <div style="grid-column:y -2"></div>
+  <div style="grid-column:y -3"></div>
+  <div style="grid-column:y -4"></div>
+  <div style="grid-column:y -5"></div>
+</div></div>
+
+<div class="grid"><div class="subgrid fill-0k">
+  <div style="grid-column:y 5"></div>
+  <div style="grid-column:y 4"></div>
+  <div style="grid-column:y 3"></div>
+  <div style="grid-column:y 2"></div>
+  <div style="grid-column:y 1"></div>
+  <div style="grid-column:y -1"></div>
+  <div style="grid-column:y -2"></div>
+  <div style="grid-column:y -3"></div>
+  <div style="grid-column:y -4"></div>
+  <div style="grid-column:y -5"></div>
+</div></div>
+
+<div class="grid"><div class="subgrid fill-0l">
+  <div style="grid-column:y 5"></div>
+  <div style="grid-column:y 4"></div>
+  <div style="grid-column:y 3"></div>
+  <div style="grid-column:y 2"></div>
+  <div style="grid-column:y 1"></div>
+  <div style="grid-column:y -1"></div>
+  <div style="grid-column:y -2"></div>
+  <div style="grid-column:y -3"></div>
+  <div style="grid-column:y -4"></div>
+  <div style="grid-column:y -5"></div>
+</div></div>
+
+<div class="grid"><div class="subgrid fill-0m">
+  <div style="grid-column:y 5"></div>
+  <div style="grid-column:y 4"></div>
+  <div style="grid-column:y 3"></div>
+  <div style="grid-column:y 2"></div>
+  <div style="grid-column:y 1"></div>
+  <div style="grid-column:y -1"></div>
+  <div style="grid-column:y -2"></div>
+  <div style="grid-column:y -3"></div>
+  <div style="grid-column:y -4"></div>
+  <div style="grid-column:y -5"></div>
+</div></div>
+
+<div class="grid"><div class="subgrid fill-1a">
+  <div style="grid-column:y 5"></div>
+  <div style="grid-column:y 4"></div>
+  <div style="grid-column:y 3"></div>
+  <div style="grid-column:y 2"></div>
+  <div style="grid-column:y 1"></div>
+  <div style="grid-column:y -1"></div>
+  <div style="grid-column:y -2"></div>
+  <div style="grid-column:y -3"></div>
+  <div style="grid-column:y -4"></div>
+  <div style="grid-column:y -5"></div>
+</div></div>
+
+<div class="grid"><div class="subgrid fill-1b">
+  <div style="grid-column:y 5"></div>
+  <div style="grid-column:y 4"></div>
+  <div style="grid-column:y 3"></div>
+  <div style="grid-column:y 2"></div>
+  <div style="grid-column:y 1"></div>
+  <div style="grid-column:y -1"></div>
+  <div style="grid-column:y -2"></div>
+  <div style="grid-column:y -3"></div>
+  <div style="grid-column:y -4"></div>
+  <div style="grid-column:y -5"></div>
+</div></div>
+
+<div class="grid"><div class="subgrid fill-1c">
+  <div style="grid-column:y 5"></div>
+  <div style="grid-column:y 4"></div>
+  <div style="grid-column:y 3"></div>
+  <div style="grid-column:y 2"></div>
+  <div style="grid-column:y 1"></div>
+  <div style="grid-column:y -1"></div>
+  <div style="grid-column:y -2"></div>
+  <div style="grid-column:y -3"></div>
+  <div style="grid-column:y -4"></div>
+  <div style="grid-column:y -5"></div>
+</div></div>
+
+<div class="grid"><div class="subgrid fill-1d">
+  <div style="grid-column:y 5"></div>
+  <div style="grid-column:y 4"></div>
+  <div style="grid-column:y 3"></div>
+  <div style="grid-column:y 2"></div>
+  <div style="grid-column:y 1"></div>
+  <div style="grid-column:y -1"></div>
+  <div style="grid-column:y -2"></div>
+  <div style="grid-column:y -3"></div>
+  <div style="grid-column:y -4"></div>
+  <div style="grid-column:y -5"></div>
+</div></div>
+
+<div class="grid"><div class="subgrid fill-1e">
+  <div style="grid-column:y 5"></div>
+  <div style="grid-column:y 4"></div>
+  <div style="grid-column:y 3"></div>
+  <div style="grid-column:y 2"></div>
+  <div style="grid-column:y 1"></div>
+  <div style="grid-column:y -1"></div>
+  <div style="grid-column:y -2"></div>
+  <div style="grid-column:y -3"></div>
+  <div style="grid-column:y -4"></div>
+  <div style="grid-column:y -5"></div>
+</div></div>
+
+<div class="grid"><div class="subgrid fill-2a">
+  <div style="grid-column:y 5"></div>
+  <div style="grid-column:y 4"></div>
+  <div style="grid-column:y 3"></div>
+  <div style="grid-column:y 2"></div>
+  <div style="grid-column:y 1"></div>
+  <div style="grid-column:y -1"></div>
+  <div style="grid-column:y -2"></div>
+  <div style="grid-column:y -3"></div>
+  <div style="grid-column:y -4"></div>
+  <div style="grid-column:y -5"></div>
+</div></div>
+
+<div class="grid"><div class="subgrid fill-2b">
+  <div style="grid-column:y 5"></div>
+  <div style="grid-column:y 4"></div>
+  <div style="grid-column:y 3"></div>
+  <div style="grid-column:y 2"></div>
+  <div style="grid-column:y 1"></div>
+  <div style="grid-column:y -1"></div>
+  <div style="grid-column:y -2"></div>
+  <div style="grid-column:y -3"></div>
+  <div style="grid-column:y -4"></div>
+  <div style="grid-column:y -5"></div>
+</div></div>
+
+<div class="grid"><div class="subgrid fill-2c">
+  <div style="grid-column:y 5"></div>
+  <div style="grid-column:y 4"></div>
+  <div style="grid-column:y 3"></div>
+  <div style="grid-column:y 2"></div>
+  <div style="grid-column:y 1"></div>
+  <div style="grid-column:y -1"></div>
+  <div style="grid-column:y -2"></div>
+  <div style="grid-column:y -3"></div>
+  <div style="grid-column:y -4"></div>
+  <div style="grid-column:y -5"></div>
+</div></div>
+
+<div class="grid"><div class="subgrid fill-2d">
+  <div style="grid-column:y 5"></div>
+  <div style="grid-column:y 4"></div>
+  <div style="grid-column:y 3"></div>
+  <div style="grid-column:y 2"></div>
+  <div style="grid-column:y 1"></div>
+  <div style="grid-column:y -1"></div>
+  <div style="grid-column:y -2"></div>
+  <div style="grid-column:y -3"></div>
+  <div style="grid-column:y -4"></div>
+  <div style="grid-column:y -5"></div>
+</div></div>
+
+<div class="grid"><div class="subgrid fill-3a">
+  <div style="grid-column:y 5"></div>
+  <div style="grid-column:y 4"></div>
+  <div style="grid-column:y 3"></div>
+  <div style="grid-column:y 2"></div>
+  <div style="grid-column:y 1"></div>
+  <div style="grid-column:y -1"></div>
+  <div style="grid-column:y -2"></div>
+  <div style="grid-column:y -3"></div>
+  <div style="grid-column:y -4"></div>
+  <div style="grid-column:y -5"></div>
+</div></div>
+
+<div class="grid"><div class="subgrid fill-3b">
+  <div style="grid-column:y 5"></div>
+  <div style="grid-column:y 4"></div>
+  <div style="grid-column:y 3"></div>
+  <div style="grid-column:y 2"></div>
+  <div style="grid-column:y 1"></div>
+  <div style="grid-column:y -1"></div>
+  <div style="grid-column:y -2"></div>
+  <div style="grid-column:y -3"></div>
+  <div style="grid-column:y -4"></div>
+  <div style="grid-column:y -5"></div>
+</div></div>
+
+<div class="grid"><div class="subgrid fill-3c">
+  <div style="grid-column:y 5"></div>
+  <div style="grid-column:y 4"></div>
+  <div style="grid-column:y 3"></div>
+  <div style="grid-column:y 2"></div>
+  <div style="grid-column:y 1"></div>
+  <div style="grid-column:y -1"></div>
+  <div style="grid-column:y -2"></div>
+  <div style="grid-column:y -3"></div>
+  <div style="grid-column:y -4"></div>
+  <div style="grid-column:y -5"></div>
+</div></div>
+
+<div class="grid"><div class="subgrid fill-4a">
+  <div style="grid-column:y 5"></div>
+  <div style="grid-column:y 4"></div>
+  <div style="grid-column:y 3"></div>
+  <div style="grid-column:y 2"></div>
+  <div style="grid-column:y 1"></div>
+  <div style="grid-column:y -1"></div>
+  <div style="grid-column:y -2"></div>
+  <div style="grid-column:y -3"></div>
+  <div style="grid-column:y -4"></div>
+  <div style="grid-column:y -5"></div>
+</div></div>
+
+<div class="grid"><div class="subgrid fill-4b">
+  <div style="grid-column:y 5"></div>
+  <div style="grid-column:y 4"></div>
+  <div style="grid-column:y 3"></div>
+  <div style="grid-column:y 2"></div>
+  <div style="grid-column:y 1"></div>
+  <div style="grid-column:y -1"></div>
+  <div style="grid-column:y -2"></div>
+  <div style="grid-column:y -3"></div>
+  <div style="grid-column:y -4"></div>
+  <div style="grid-column:y -5"></div>
+</div></div>
+
+<div class="grid"><div class="subgrid fill-5">
+  <div style="grid-column:y 5"></div>
+  <div style="grid-column:y 4"></div>
+  <div style="grid-column:y 3"></div>
+  <div style="grid-column:y 2"></div>
+  <div style="grid-column:y 1"></div>
+  <div style="grid-column:y -1"></div>
+  <div style="grid-column:y -2"></div>
+  <div style="grid-column:y -3"></div>
+  <div style="grid-column:y -4"></div>
+  <div style="grid-column:y -5"></div>
+</div></div>
+
+<div class="grid"><div class="subgrid-auto fill-5">
+  <div style="grid-column:y 5"></div>
+  <div style="grid-column:y 4"></div>
+  <div style="grid-column:y 3"></div>
+  <div style="grid-column:y 2"></div>
+  <div style="grid-column:y 1"></div>
+  <div style="grid-column:y -1"></div>
+  <div style="grid-column:y -2"></div>
+  <div style="grid-column:y -3"></div>
+  <div style="grid-column:y -4"></div>
+  <div style="grid-column:y -5"></div>
+</div></div>
+
+<div class="grid"><div class="subgrid-auto fill-1b">
+  <div style="grid-column:y 5"></div>
+  <div style="grid-column:y 4"></div>
+  <div style="grid-column:y 3"></div>
+  <div style="grid-column:y 2"></div>
+  <div style="grid-column:y 1"></div>
+  <div style="grid-column:y -1"></div>
+  <div style="grid-column:y -2"></div>
+  <div style="grid-column:y -3"></div>
+  <div style="grid-column:y -4"></div>
+  <div style="grid-column:y -5"></div>
+</div></div>
+</body>
+</html>

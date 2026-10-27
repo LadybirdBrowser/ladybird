@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<style>
+.grid {
+    display: grid;
+    background: gray;
+    grid-template-rows: repeat(3, 100px);
+    height: 400px;
+    width: 380px;
+    padding: 20px;
+    gap: 50px 10px;
+}
+
+.grid > div {
+    width: 100px;
+    grid-column: 1;
+}
+
+.auto-item {
+    padding: 10px;
+}
+
+.auto-item:nth-of-type(1) {
+    background: lightskyblue;
+}
+
+.auto-item:nth-of-type(2) {
+    background: lightcoral;
+}
+
+.auto-item:nth-of-type(3) {
+    background: lightgreen;
+}
+
+.two-track-spanner {
+    background: lightpink;
+    grid-row: 1 / span 2;
+    padding: 10px;
+}
+</style>
+<body>
+  <p>Test that gaps are correctly used within grid-lanes containers.</p>
+  <div class="grid">
+    <div class="auto-item">This is some text</div>
+    <div class="auto-item">Some larger words in this sentence</div>
+    <div class="auto-item">The cat cannot be separated from milk</div>
+    <div class="two-track-spanner" style="grid-column: 2;">The cat still cannot be separated from milk</div>
+    <div class="two-track-spanner" style="grid-column: 3;">The cat still cannot be separated from milk</div>
+  </div>
+</body>
+</html>

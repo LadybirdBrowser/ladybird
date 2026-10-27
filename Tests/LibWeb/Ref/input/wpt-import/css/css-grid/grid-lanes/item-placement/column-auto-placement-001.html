@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/item-placement/column-auto-placement-001-ref.html">
+<link rel="author" title="Celeste Pan" href="mailto:celestepan@microsoft.com">
+<style>
+.grid-lanes {
+    display: grid-lanes;
+    background: gray;
+    position: relative;
+    flow-tolerance: 0;
+    grid-template-columns: auto auto auto;
+    width: 340px;
+    padding: 20px;
+    gap: 20px;
+}
+
+.auto-item {
+    padding: 10px;
+}
+
+.auto-item:nth-of-type(1) {
+    background: lightskyblue;
+}
+
+.auto-item:nth-of-type(2) {
+    background: lightcoral;
+}
+
+.auto-item:nth-of-type(3) {
+    background: lightgreen;
+}
+
+.two-track-spanner {
+    background: lightpink;
+    grid-column: span 2;
+    padding: 10px;
+}
+</style>
+<body>
+  <p>Test that grid-lanes items with auto placement are correctly positioned within the grid axis.</p>
+  <div class="grid-lanes">
+    <div class="auto-item">This is some text</div>
+    <div class="auto-item">Some larger words in this sentence</div>
+    <div class="auto-item">The cat cannot be separated from milk</div>
+    <div class="two-track-spanner">The cat still cannot be separated from milk</div>
+    <div class="two-track-spanner">The cat still cannot be separated from milk</div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    html,body {
+      color:black; background-color:white; font:10px/1 monospace; padding:0; margin:0;
+    }
+
+    .grid {
+      position: relative;
+      display: grid;
+      grid-template-columns: 100px 150px;
+      grid-template-rows: 200px;
+      width: 300px;
+      background: grey;
+      gap: 10px;
+      padding: 10px;
+    }
+
+    .grid > div {
+      position: absolute;
+    }
+
+    .grid > :nth-child(1) {
+      grid-column: 1/2;
+      align-self: start;
+      background: green;
+    }
+
+    .grid > :nth-child(2) {
+      grid-column: 2/3;
+      align-self: start;
+      background: blue;
+    }
+
+    .grid > :nth-child(3) {
+      grid-column: 1/2;
+      align-self: end;
+      background: yellow;
+    }
+
+    .grid > :nth-child(4) {
+      grid-column: 2/3;
+      align-self: end;
+      background: red;
+    }
+  </style>
+</head>
+<body>
+<div class="grid">
+  <div>X XX X</div>
+  <div>XX X<br>X XXX X<br>XX XXX</div>
+  <div>X XX X</div>
+  <div>XX X<br>X XXX<br>X<br>XX XXX</div>
+</div>
+
+<div class="grid" style="direction: rtl;">
+  <div>X XX X</div>
+  <div>XX X<br>X XXX X<br>XX XXX</div>
+  <div>X XX X</div>
+  <div>XX X<br>X XXX<br>X<br>XX XXX</div>
+</div>
+</body>
+</html>

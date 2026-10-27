@@ -1,0 +1,28 @@
+<!doctype html>
+<meta charset="utf8">
+<title>CSS contain-intrinsic-size: div with border</title>
+<link rel="author" title="Celeste Pan" href="mailto:celestepan@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/intrinsic-sizing/../../../css-sizing/contain-intrinsic-size/contain-intrinsic-size-007-ref.html">
+<meta name="assert" content="contain-intrinsic-size sizes the content box, not the border box">
+
+<style>
+#border {
+  border: 1px solid blue;
+  width: max-content;
+}
+
+#target {
+  display: grid-lanes;
+  background: lightblue;
+  contain-intrinsic-size: 55px 66px;
+  contain: size;
+  border-style: solid;
+  border-color: black;
+  border-width: 2px 3px 5px 7px;
+}
+</style>
+
+<div id=border>
+  <div id=target></div>
+</div>

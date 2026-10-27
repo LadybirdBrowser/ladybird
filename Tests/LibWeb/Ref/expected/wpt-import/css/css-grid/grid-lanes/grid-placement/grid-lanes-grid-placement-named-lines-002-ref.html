@@ -1,0 +1,79 @@
+<!DOCTYPE HTML>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Reference: Definite column placement in a grid-lanes grid (double edge)</title>
+<link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
+<style>
+  body,html { color:black; background:white; font:15px/1 monospace; padding:0; margin:0; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 40px 40px 40px 60px 60px 60px 40px 40px 40px 40px 40px 40px 40px;
+    position: relative;
+    border: 1px solid;
+    grid-auto-flow: dense;
+    column-gap: 1px;
+  }
+
+  x {
+    background: grey;
+  }
+
+  y {
+    position: absolute;
+    border: 1px solid blue;
+    top:0;height:0;left:0;right:0;
+    grid-row-end:span 1!important;
+  }
+</style>
+</head>
+<body>
+<pre>grid-column: / span A-start 2</pre>
+<div class="grid">
+<x style="grid-row:1;  grid-column:4">&nbsp;</x>
+<x style="grid-row:1;  grid-column:7/span 2;">-1</x>
+<x style="grid-row:2;  grid-column:7/span 2;">4</x>
+<x style="grid-row:4;  grid-column:6/span 3;">-2</x>
+<x style="grid-row:5;  grid-column:5/span 4;">-3</x>
+<x style="grid-row:6;  grid-column:4/span 4;">-4</x>
+<x style="grid-row:7;  grid-column:3/span 2;">-5</x>
+<x style="grid-row:7;  grid-column:5/span 4;">A -1</x>
+<x style="grid-row:9;  grid-column:3/span 2;">B -1</x>
+<x style="grid-row:10; grid-column:4/span 4;">A -2</x>
+<x style="grid-row:11; grid-column:3/span 2;">A -3</x>
+<x style="grid-row:12; grid-column:2/span 3;">A -4</x>
+<x style="grid-row:13; grid-column:1/span 4;">A -5</x>
+<x style="grid-row:14; grid-column:4/span 4;">A</x>
+<x style="grid-row:15; grid-column:4/span 4;">B</x>
+<x style="grid-row:16; grid-column:4/span 4;">A 1</x>
+<x style="grid-row:17; grid-column:5/span 4;">A 2</x>
+<x style="grid-row:18; grid-column:8/span 2;">A 3</x>
+<x style="grid-row:19;  grid-column:9/span 2;">A 4</x>
+<x style="grid-row:20;  grid-column:10/span 2;">A 5</x>
+<y style="grid-row:1;  grid-column:7/span 2;"></y>
+<y style="grid-row:2;  grid-column:7/span 2;"></y>
+<y style="grid-row:4;  grid-column:6/span 3;"></y>
+<y style="grid-row:5;  grid-column:5/span 4;"></y>
+<y style="grid-row:6;  grid-column:4/span 4;"></y>
+<y style="grid-row:7;  grid-column:3/span 2;"></y>
+<y style="grid-row:7;  grid-column:5/span 4;"></y>
+<y style="grid-row:9;  grid-column:3/span 2;"></y>
+<y style="grid-row:10; grid-column:4/span 4;"></y>
+<y style="grid-row:11; grid-column:3/span 2;"></y>
+<y style="grid-row:12; grid-column:2/span 3;"></y>
+<y style="grid-row:13; grid-column:1/span 4;"></y>
+<y style="grid-row:14; grid-column:4/span 4;"></y>
+<y style="grid-row:15; grid-column:4/span 4;"></y>
+<y style="grid-row:16; grid-column:4/span 4;"></y>
+<y style="grid-row:17; grid-column:5/span 4;"></y>
+<y style="grid-row:18; grid-column:8/span 2;"></y>
+<y style="grid-row:19;  grid-column:9/span 2;"></y>
+<y style="grid-row:20;  grid-column:10/span 2;"></y>
+</div>
+</body>
+</html>

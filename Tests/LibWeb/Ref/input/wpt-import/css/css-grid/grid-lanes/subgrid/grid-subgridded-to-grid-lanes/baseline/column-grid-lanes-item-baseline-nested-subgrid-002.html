@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Lanes Test: baseline alignment across the root grid-lanes container and every nested subgrid level in the subgridded column axis</title>
+<link rel="author" title="Yanling Wang" href="mailto:yanlingwang@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-3/#subgrids">
+<link rel="match" href="../../../../../../../../expected/wpt-import/css/css-grid/grid-lanes/subgrid/grid-subgridded-to-grid-lanes/baseline/column-grid-lanes-item-baseline-nested-subgrid-002-ref.html">
+<link rel="stylesheet" type="text/css" href="../../../../../../fonts/ahem.css">
+<style>
+  html, body { color: black; background: white; padding: 0; margin: 0; }
+  .grid-lanes {
+    display: grid-lanes;
+    grid-template-columns: repeat(4, 50px);
+    font: 16px/1 Ahem;
+    border: 1px solid black;
+    place-content: start;
+    flow-tolerance: 0;
+    justify-items: baseline;
+  }
+  .subgrid {
+    display: grid;
+    grid-template-columns: subgrid;
+    grid-template-rows: auto auto;
+    grid-column: 1 / span 3;
+    align-items: baseline;
+  }
+  .b { text-decoration: underline; writing-mode: vertical-rl; }
+  .big   { font-size: 40px; }
+  .med   { font-size: 28px; }
+  .small { font-size: 20px; }
+  .tiny  { font-size: 12px; }
+  .c1 { grid-column: 1; }
+  .c2 { grid-column: 2; }
+  .c3 { grid-column: 3; }
+  .r1 { grid-row: 1; }
+  .r2 { grid-row: 2; }
+</style>
+<div class="grid-lanes">
+  <div class="b c1 big">X</div>
+  <div class="subgrid">
+    <div class="b c1 r1 small">X</div>
+    <div class="b c3 r1 med">X</div>
+    <div class="subgrid r2">
+      <div class="b c2 r1 big">X</div>
+      <div class="subgrid r2">
+        <div class="b c1 r1 med">X</div>
+        <div class="b c2 r2 tiny">X</div>
+        <div class="b c3 r2 big">X</div>
+      </div>
+    </div>
+  </div>
+</div>

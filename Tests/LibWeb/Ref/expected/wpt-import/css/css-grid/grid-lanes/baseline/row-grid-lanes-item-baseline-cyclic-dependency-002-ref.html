@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" type="text/css" href="../../../../fonts/ahem.css" />
+  <style>
+    .inline-grid {
+      display: inline-grid;
+      background-color: grey;
+      position: relative;
+      border: solid;
+      text-orientation: sideways;
+      font: 15px/1 Ahem;
+      align-items: baseline;
+    }
+
+    .columns { grid-template-columns: 100px 100px; }
+    .flex-rows        { grid-template-rows: 1fr; }
+    .max-flex-rows    { grid-template-rows: minmax(0px, 1fr); }
+
+    .height25  { height: 25px; }
+    .height50  { height: 50px; }
+    .height200Percent { height: 200%; }
+
+    .firstRowFirstColumn {
+      background-color: blue;
+      grid-column: 1;
+      grid-row: 1;
+    }
+
+    .firstRowSecondColumn {
+      background-color: lime;
+      grid-column: 2;
+      grid-row: 1;
+    }
+
+    .autoRowAutoColumnSpanning2 {
+      background-color: maroon;
+      grid-column: span 2;
+      grid-row: 2;
+    }
+
+</style>
+</head>
+<body>
+<div style="height: 125px">
+    <pre>flexible-sized rows - items with relative height</pre>
+    <div class="inline-grid columns flex-rows">
+        <div class="firstRowFirstColumn height50">ÉÉ É ÉÉ ÉÉÉÉ É ÉÉ ÉÉÉ ÉÉ É</div>
+        <div class="firstRowSecondColumn height200Percent">ÉÉÉÉ É ÉÉ</div>
+        <div class="autoRowAutoColumnSpanning2 height25" style="align-self: last baseline;"></div>
+    </div>
+</div>
+<div style="height: 125px">
+    <pre>flex max-function rows - items with relative height</pre>
+    <div class="inline-grid columns max-flex-rows">
+        <div class="firstRowFirstColumn height50">ÉÉ É ÉÉ ÉÉÉÉ É ÉÉ ÉÉÉ ÉÉ É</div>
+        <div class="firstRowSecondColumn height200Percent">ÉÉÉÉ É ÉÉ</div>
+        <div class="autoRowAutoColumnSpanning2 height25" style="align-self: last baseline;"></div>
+    </div>
+</div>
+</body>
+</html>

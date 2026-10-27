@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<title>Auto repeat tracks with auto track sizes and spanning children with gap</title>
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="match" href="../../../../../../../../expected/wpt-import/css/css-grid/grid-lanes/track-sizing/auto-repeat/intrinsic-auto-repeat/row-auto-repeat-auto-004-ref.html">
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<style>
+.grid-lanes {
+    display: grid-lanes;
+    background: gray;
+    flow-tolerance: 0;
+    grid-template-rows: auto auto auto auto;
+    grid-gap: 20px;
+    width: 260px;
+    height: 400px;
+}
+
+.grid-lanes > div {
+    width: 50px;
+}
+</style>
+<body>
+  <div class="grid-lanes">
+    <div style="background: lightskyblue; grid-row: span 2; height: 200px">
+      Number 1
+    </div>
+    <div style="background: lightcoral; grid-row: span 3; height: 300px;">
+      Number 2
+    </div>
+    <div style="background: lightgreen; grid-row: span 4; height: 400px;">
+      Number 3
+    </div>
+    <div style="background: lightpink; grid-row: span 2; height: 200px;">
+      Number 4
+    </div>
+  </div>
+</body>
+</html>

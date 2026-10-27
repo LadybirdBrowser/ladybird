@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<style>
+.grid {
+    display: grid;
+    grid-template-columns: repeat(3, 50px);
+}
+</style>
+<body>
+  <p>Ensure that dense packing does not replace auto-placement with a lower opening within flow tolerance of the auto-placement position. The yellow item should remain at its auto-placement position in the third column at 0px instead of using the first-column opening at 5px.</p>
+  <div class="grid">
+    <div style="background: lightskyblue; height: 5px; grid-column: 1; grid-row: 1;">1</div>
+    <div style="background: lightgreen; height: 10px; grid-column: 2; grid-row: 1;">2</div>
+    <div style="background: lightsteelblue; height: 10px; grid-column: 1 / span 2; grid-row: 1; transform: translateY(10px);">3</div>
+    <div style="background: yellow; height: 5px; grid-column: 3; grid-row: 1;">4</div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<link rel="author" title="Celeste Pan" href="mailto:celestepan@microsoft.com">
+<style>
+body, html {
+  color:black;
+  font:15px/1 monospace;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(3, 50px);
+}
+.orthogonal {
+    writing-mode: vertical-rl;
+}
+</style>
+<body>
+  <p>Tests that orthogonal items with negative margins are handled correctly in grid-lanes.</p>
+  <div class="grid">
+    <div style="grid-column: 1;">
+      <div style="background: aquamarine; height: 50px;">
+        item 1
+      </div>
+    </div>
+    <div style="grid-column: 2;">
+      <div class="orthogonal" style="background: lightsteelblue; width: 50px; height: 50px; margin-bottom: -30px; margin-top: -20px;">
+        item 2
+      </div>
+      <div class="orthogonal" style="background: lightpink; width: 20px; height: max-content;">
+        item 4
+      </div>
+    </div>
+    <div style="grid-column: 3;">
+      <div style="background: lightblue; height: 20px;">
+        item 3
+      </div>
+      <div class="orthogonal" style="background: yellow; height: 20px; width: 50px; position: relative;">
+        item 5
+      </div>
+    </div>
+  </div>
+</body>
+</html>

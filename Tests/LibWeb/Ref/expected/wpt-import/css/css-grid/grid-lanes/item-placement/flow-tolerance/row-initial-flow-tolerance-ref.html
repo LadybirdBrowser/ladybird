@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<link rel="stylesheet" href="../../../../../fonts/ahem.css">
+<style>
+.grid {
+    display: grid;
+    background: gray;
+    font: 50px/1 Ahem;
+    grid-template-rows: repeat(2, 1fr);
+    gap: 20px;
+    padding: 20px;
+    width: 170px;
+}
+
+.auto-item {
+    padding: 10px;
+    height: 100px;
+}
+
+.auto-item:nth-of-type(1) {
+    background: lightskyblue;
+    grid-column: 1;
+}
+
+.auto-item:nth-of-type(2) {
+    background: lightcoral;
+    grid-column: 1;
+}
+
+.auto-item:nth-of-type(3) {
+    background: palegoldenrod;
+    grid-column: 2;
+    transform: translateX(-50px);
+}
+
+.auto-item:nth-of-type(4) {
+    background: lightgreen;
+    grid-column: 2;
+    grid-row: 1;
+}
+</style>
+<body>
+  <p>Test that the initial tie threshold for grid-lanes is correctly resolved.</p>
+  <div class="grid">
+    <div class="auto-item" style="width: 80px"></div>
+    <div class="auto-item" style="width: 30px"></div>
+    <div class="auto-item" style="width: 80px"></div>
+    <div class="auto-item" style="width: 30px"></div>
+  </div>
+</body>
+</html>

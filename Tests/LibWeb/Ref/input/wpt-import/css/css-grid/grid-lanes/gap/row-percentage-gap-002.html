@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CSS Grid Lanes Test: percentage row gap needs additional pass</title>
+  <link rel="author" title="Yanling Wang" href="mailto:yanlingwang@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3">
+  <link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/gap/row-percentage-gap-002-ref.html">
+  <style>
+    .grid-lanes {
+        display: grid-lanes;
+        flow-tolerance: 0;
+        grid-template-rows: 40px 40px 40px;
+        gap: 10%;
+        min-height: 200px;
+        width: 100px;
+        background: gray;
+    }
+    .grid-lanes > div {
+        width: 100%;
+        height: 100%;
+        background: green;
+    }
+  </style>
+</head>
+<body>
+  <div class="grid-lanes">
+      <div></div>
+      <div></div>
+      <div></div>
+  </div>
+</body>
+</html>

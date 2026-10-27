@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<style>
+.empty-container {
+  display: grid;
+  grid-template-rows: auto;
+}
+</style>
+<body>
+  <p>Test that an empty container that is editable will still have a non-zero block size.</p>
+  <div class="empty-container" style="background: gray;" contenteditable="true"></div>
+  <div class="empty-container" style="background: gray;" contenteditable="false"></div>
+</body>
+</html>

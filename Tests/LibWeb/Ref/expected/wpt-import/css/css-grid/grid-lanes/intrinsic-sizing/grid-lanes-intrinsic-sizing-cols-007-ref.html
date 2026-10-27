@@ -1,0 +1,43 @@
+<!DOCTYPE HTML>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html>
+  <meta charset="utf-8">
+  <title>CSS Grid Test: Grid Lanes layout column sizing - intrinsic</title>
+  <link rel="author" title="Brandon Stewart" href="mailto:brandonstewart@apple.com">
+  <style>
+
+@import "support/grid-lanes-intrinsic-sizing-visual.css";
+
+grid {
+  display: inline-grid;
+  gap: 1px 2px;
+  border: 1px solid;
+  padding: 0 1px 0 2px;
+  vertical-align: top;
+}
+
+.mix grid {
+  grid-template-columns: 1ch auto;
+}
+
+.mix2 grid {
+  grid-template-columns: 1ch auto 1ch;
+}
+</style>
+
+<body>
+
+<section class="mix">
+<grid title="Auto Last Track">
+  <item style="width:5ch; grid-column: span 2;">1</item>
+</grid>
+</section>
+
+<section class="mix2">
+<grid title="Auto Middle Track">
+    <item style="width:5ch; grid-column: span 3;">1</item>
+</grid>
+</section>

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CSS Grid Lanes Test: evaluate how baseline alignment with multi-span items affects intrinsic track sizes</title>
+  <link rel="author" title="Yanling Wang" href="mailto:yanlingwang@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3/#track-sizing-performance">
+  <link rel="match" href="../../../../../../../expected/wpt-import/css/css-grid/grid-lanes/tentative/intrinsic-sizing/grid-lanes-baseline-alignment-affects-intrinsic-size-005-ref.html">
+  <link rel="stylesheet" type="text/css" href="../../../../../fonts/ahem.css">
+  <style>
+    .grid-lanes {
+      display: grid-lanes;
+      width: 200px;
+      margin-bottom: 20px;
+      align-items: baseline;
+      background: lightgray;
+      font-family: Ahem;
+      line-height: 1;
+    }
+  </style>
+</head>
+<body>
+<div class="grid-lanes" style="grid-template-rows: minmax(0px, auto) minmax(0px, auto) minmax(0px, auto);">
+  <div style="font-size: 20px; padding-bottom: 40px; width: 50px; background: lightblue; grid-row: 1;">É</div>
+  <div style="font-size: 20px; padding-top: 60px; width: 50px; background: lightgreen; grid-row: 1 / span 3;">É</div>
+</div>
+
+<div class="grid-lanes" style="writing-mode: vertical-rl; grid-template-rows: minmax(0px, auto) minmax(0px, auto); align-items: last baseline;">
+  <div style="font-size: 20px; padding-right: 40px; height: 50px; background: coral; grid-row: 2;">É</div>
+  <div style="font-size: 20px; padding-left: 50px; height: 50px; background: plum; grid-row: 1 / span 2;">É</div>
+</div>
+
+<div class="grid-lanes" style="grid-template-rows: minmax(0px, auto) minmax(0px, auto);">
+  <div style="font-size: 20px; padding-bottom: 30px; width: 50px; background: gold; grid-row: 1; align-self: baseline;">É</div>
+  <div style="font-size: 20px; padding-top: 40px; width: 50px; background: lightyellow; grid-row: 1 / span 2; align-self: baseline;">É</div>
+  <!-- The pink and lavender items' text are not aligned with each other because they participate in last baseline alignment within different shared
+       alignment contexts: pink aligns in track 1 (its end-most track), while lavender aligns in track 2 (its end-most track).
+       See https://www.w3.org/TR/css-align-3/#baseline-sharing-group -->
+  <div style="font-size: 20px; padding-top: 30px; width: 50px; background: lightpink; grid-row: 1; align-self: last baseline;">É</div>
+  <div style="font-size: 20px; padding-bottom: 40px; width: 50px; background: lavender; grid-row: 1 / span 2; align-self: last baseline;">É</div>
+</div>
+
+
+<div class="grid-lanes" style="writing-mode: vertical-lr; height: 200px; width: auto; grid-template-rows: minmax(0px, auto) minmax(0px, auto) minmax(0px, auto);">
+  <div style="font-size: 20px; padding-right: 30px; height: 50px; background: lightsalmon; grid-row: 1;">É</div>
+  <div style="font-size: 20px; padding-left: 30px; height: 50px; background: palegreen; grid-row: 1 / span 2;">É</div>
+  <div style="font-size: 20px; padding-left: 60px; height: 50px; background: lightcyan; grid-row: 1 / span 3;">É</div>
+</div>
+</body>
+</html>

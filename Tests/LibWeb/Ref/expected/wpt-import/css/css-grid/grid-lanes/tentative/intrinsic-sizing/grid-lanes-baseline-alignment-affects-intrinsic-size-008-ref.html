@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" type="text/css" href="../../../../../fonts/ahem.css">
+  <style>
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(5, 50px);
+      width: 200px;
+      margin-bottom: 20px;
+      align-items: baseline;
+      background: lightgray;
+      font-family: Ahem;
+      line-height: 1;
+    }
+  </style>
+</head>
+<body>
+<div class="grid" style="grid-template-rows: minmax(0px, auto) 30px minmax(0px, auto);">
+  <div style="font-size: 20px; padding-bottom: 20px; width: 50px; background: lightblue; grid-row: 1;">É</div>
+  <div style="font-size: 10px; width: 50px; background: lightyellow; grid-row: 3;">É</div>
+  <div style="font-size: 20px; padding-top: 50px; width: 50px; background: lightgreen; grid-row: 1 / span 3;">É</div>
+</div>
+
+<div class="grid" style="grid-template-rows: minmax(0px, auto) 20px minmax(0px, auto);">
+  <div style="font-size: 10px; width: 50px; background: coral; grid-row: 1;">É</div>
+  <div style="font-size: 10px; width: 50px; background: plum; grid-row: 2;">É</div>
+  <div style="font-size: 10px; width: 50px; background: lightsalmon; grid-row: 3;">É</div>
+  <div style="font-size: 20px; padding-top: 30px; width: 50px; background: gold; grid-row: 1 / span 2;">É</div>
+  <div style="font-size: 20px; padding-top: 25px; width: 50px; background: palegreen; grid-row: 2 / span 2;">É</div>
+</div>
+</body>
+</html>

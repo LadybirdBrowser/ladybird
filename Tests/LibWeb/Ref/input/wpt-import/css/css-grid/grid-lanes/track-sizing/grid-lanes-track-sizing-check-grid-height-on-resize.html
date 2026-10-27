@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+
+<head>
+<meta charset="utf-8">
+<title>CSS Test: Grid Lanes grid container size changes when item sizes change</title>
+<link rel="author" title="Brandon Stewart" href="mailto:brandonstewart@apple.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/track-sizing/grid-lanes-track-sizing-check-grid-height-on-resize-ref.html">
+<meta name="assert" content="Test passes if when the size of an item in the grid-lanes grid changes, the grid container is properly resized">
+</head>
+
+<style>
+  grid {
+    display: inline grid-lanes;
+    grid-template-columns: auto;
+    grid-gap: 10px;
+    border: 10px;
+    border-style: solid;
+  }
+  item {
+    background-color: grey;
+    height: 250px;
+    width: 250px;
+  }
+</style>
+</head>
+<body>
+  <grid>
+    <item>1</item>
+    <item>2</item>
+  </grid>
+</body>
+<script>
+    document.body.offsetHeight; // Force a relayout
+    var gridItem = document.querySelector('item');
+    gridItem.style.height = '125px';
+    gridItem.style.width = '300px';
+    document
+    document.documentElement.className = '';
+</script>
+</html>

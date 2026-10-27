@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<head>
+  <meta charset="utf-8">
+  <title>CSS Grid Lanes Layout Test: Grid Lanes positioned item dynamic change.</title>
+  <link rel="author" title="Yanling Wang" href="mailto:yanlingwang@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3/#abspos">
+  <link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/abspos/../../../reference/ref-filled-green-100px-square-only.html">
+  <style>
+    .grid-lanes {
+        display: grid-lanes;
+        grid-template-rows: 75px 25px;
+        position: relative;
+        width: 100px;
+    }
+
+    .absolute {
+        background: green;
+        position: absolute;
+        grid-row: 1 / 2;
+        top: 0;
+        bottom: 0;
+        right: 0;
+        left: 0;
+    }
+  </style>
+<body>
+<p>Test passes if there is a filled green square.</p>
+<div class="grid-lanes">
+  <div style="background: green; height: 100%; width: 100%"></div>
+  <div style="background: red; height: 100%; width: 100%"></div>
+  <div id="target" class="absolute"></div>
+</div>
+<script>
+  document.body.offsetLeft;
+  document.getElementById('target').style.gridRow = '2 / 3';
+  document.documentElement.classList.remove('reftest-wait');
+</script>
+</body>
+</html>

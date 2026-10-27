@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="author" title="Celeste Pan" href="mailto:celestepan@microsoft.com">
+<style>
+.grid {
+    display: grid;
+    grid-template-rows: 100px 100px 100px;
+    align-items: start;
+    background: gray;
+    width: 300px;
+    height: 100px;
+    padding: 10px;
+}
+
+.flex {
+    display: flex;
+    flex-direction: row;
+    overflow: visible;
+    flex-wrap: nowrap;
+}
+
+.square-100x100 {
+    width: 100px;
+    height: 100px;
+}
+</style>
+<body>
+  <p>Test that the user-defined block size is used over the intrinsic block size when displaying background.</p>
+  <div class="grid">
+    <div class="flex">
+      <div class="square-100x100" style="background: lightskyblue;">
+        Number 1
+    </div>
+      <div class="square-100x100" style="background: lightpink;">
+        Number 4
+    </div>
+    <div style="background: brown; width: 100px; height: 200px;">
+      Number 4
+    </div>
+    </div>
+    <div class="flex">
+      <div class="square-100x100" style="background: lightcoral;">
+        Number 2
+    </div>
+      <div class="square-100x100" style="background: lightpink;">
+        Number 5
+    </div>
+    </div>
+    <div class="flex">
+      <div class="square-100x100" style="background: lightgreen;">
+        Number 3
+    </div>
+    </div>
+  </div>
+</body>
+</html>

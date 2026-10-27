@@ -1,0 +1,137 @@
+<!DOCTYPE HTML>
+<html><head>
+  <meta charset="utf-8">
+  <style>
+html,body {
+  color:black; background-color:white; font:12px/1 monospace;
+}
+
+.grid-lanes {
+  position: relative;
+  display: grid-lanes;
+  grid-template-columns: repeat(10, 30px);
+  border: 1px solid;
+  padding: 1px 2px;
+}
+
+n {
+  height: 20px;
+}
+
+.grid-lanes > div {
+  padding: 4px 0 1px 0;
+  border: 3px solid black;
+  background: grey;
+  margin-left: 30px;
+  width: 54px;
+}
+
+x {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: silver;
+}
+
+.hr { writing-mode: horizontal-tb; direction: rtl; }
+  </style>
+</head>
+<body>
+
+<div class="grid-lanes">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+  <div>
+    <x>x</x>
+  </div>
+</div>
+<br>
+
+<div class="grid-lanes">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+  <div>
+    <x>x</x>
+  </div>
+</div>
+<br>
+
+<div class="grid-lanes">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+  <div style="margin-left:0">
+    <x>x</x>
+  </div>
+</div>
+<br>
+
+<div class="grid-lanes">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+  <div style="width:84px">
+    <x>x</x>
+  </div>
+</div>
+<br>
+
+<div class="grid-lanes">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+  <div style="width:84px">
+    <x>x</x>
+  </div>
+</div>
+<br>
+
+<div class="grid-lanes">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+  <div style="width:174px">
+    <x>x</x>
+  </div>
+</div>
+<br>
+
+<div class="grid-lanes">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+  <div class="hr">
+    <x>x</x>
+  </div>
+</div>
+<br>
+
+<div class="grid-lanes">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+  <div class="hr">
+    <x>x</x>
+  </div>
+</div>
+<br>
+
+<div class="grid-lanes">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+  <div class="hr" style="margin-left:0">
+    <x>x</x>
+  </div>
+</div>
+<br>
+
+<div class="grid-lanes">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+  <div class="hr" style="width:84px">
+    <x>x</x>
+  </div>
+</div>
+<br>
+
+<div class="grid-lanes">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+  <div class="hr" style="width:84px">
+    <x>x</x>
+  </div>
+</div>
+<br>
+
+<div class="grid-lanes">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+  <div class="hr" style="width:174px">
+    <x>x</x>
+  </div>
+</div>
+
+</body>
+</html>

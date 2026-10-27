@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+html,body {
+  color:black; background-color:white; font:16px/1 monospace; padding:0; margin:0;
+}
+
+.grid {
+  display: inline-grid;
+  height: 10px;
+  width: 10px;
+  grid-template-rows: 3px auto 4px;
+  border: solid 1px;
+  margin: 0 20px 20px 0;
+  place-items: start;
+}
+.item {
+  background: cyan;
+  grid-area: 2/2;
+}
+.content {
+  height: 30px;
+  width: 30px;
+}
+.min {
+  min-height: 100%;
+  min-width: 100%;
+}
+.max {
+  max-height: 100%;
+  max-width: 10px;
+}
+.size {
+  height: 100%;
+  width: 10px;
+}
+
+.hl  .item { writing-mode: horizontal-tb; direction:ltr; }
+.hr  .item { writing-mode: horizontal-tb; direction:rtl; }
+.vrl .item { writing-mode: vertical-rl; direction:ltr; }
+.vrr .item { writing-mode: vertical-rl; direction:rtl; }
+.vll .item { writing-mode: vertical-lr; direction:ltr; }
+.vlr .item { writing-mode: vertical-lr; direction:rtl; }
+.sll .item { writing-mode: sideways-lr; direction:ltr; }
+.slr .item { writing-mode: sideways-lr; direction:rtl; }
+
+</style>
+<div class="hl">
+<div class="grid">
+  <div class="item max">
+    <div class="content"></div>
+  </div>
+</div>
+<div class="grid">
+  <div class="item min">
+    <div class="content"></div>
+  </div>
+</div>
+<div class="grid">
+  <div class="item size">
+    <div class="content"></div>
+  </div>
+</div>
+<div class="grid">
+  <div class="item max size">
+    <div class="content"></div>
+  </div>
+</div>
+<div class="grid">
+  <div class="item min size">
+    <div class="content"></div>
+  </div>
+</div>
+<div class="grid">
+  <div class="item min max">
+    <div class="content"></div>
+  </div>
+</div>
+<div class="grid">
+  <div class="item min max size">
+    <div class="content"></div>
+  </div>
+</div>
+</div>
+
+<div class="vrl">
+<div class="grid">
+  <div class="item max">
+    <div class="content"></div>
+  </div>
+</div>
+<div class="grid">
+  <div class="item min">
+    <div class="content"></div>
+  </div>
+</div>
+<div class="grid">
+  <div class="item size">
+    <div class="content"></div>
+  </div>
+</div>
+<div class="grid">
+  <div class="item max size">
+    <div class="content"></div>
+  </div>
+</div>
+<div class="grid">
+  <div class="item min size">
+    <div class="content"></div>
+  </div>
+</div>
+<div class="grid">
+  <div class="item min max">
+    <div class="content"></div>
+  </div>
+</div>
+<div class="grid">
+  <div class="item min max size">
+    <div class="content"></div>
+  </div>
+</div>
+</div>
+
+<div class="vrr">
+<div class="grid">
+  <div class="item max">
+    <div class="content"></div>
+  </div>
+</div>
+<div class="grid">
+  <div class="item min">
+    <div class="content"></div>
+  </div>
+</div>
+<div class="grid">
+  <div class="item size">
+    <div class="content"></div>
+  </div>
+</div>
+<div class="grid">
+  <div class="item max size">
+    <div class="content"></div>
+  </div>
+</div>
+<div class="grid">
+  <div class="item min size">
+    <div class="content"></div>
+  </div>
+</div>
+<div class="grid">
+  <div class="item min max">
+    <div class="content"></div>
+  </div>
+</div>
+<div class="grid">
+  <div class="item min max size">
+    <div class="content"></div>
+  </div>
+</div>
+</div>
+
+<div class="vll">
+<div class="grid">
+  <div class="item max">
+    <div class="content"></div>
+  </div>
+</div>
+<div class="grid">
+  <div class="item min">
+    <div class="content"></div>
+  </div>
+</div>
+<div class="grid">
+  <div class="item size">
+    <div class="content"></div>
+  </div>
+</div>
+<div class="grid">
+  <div class="item max size">
+    <div class="content"></div>
+  </div>
+</div>
+<div class="grid">
+  <div class="item min size">
+    <div class="content"></div>
+  </div>
+</div>
+<div class="grid">
+  <div class="item min max">
+    <div class="content"></div>
+  </div>
+</div>
+<div class="grid">
+  <div class="item min max size">
+    <div class="content"></div>
+  </div>
+</div>
+</div>
+
+<div class="vlr">
+<div class="grid">
+  <div class="item max">
+    <div class="content"></div>
+  </div>
+</div>
+<div class="grid">
+  <div class="item min">
+    <div class="content"></div>
+  </div>
+</div>
+<div class="grid">
+  <div class="item size">
+    <div class="content"></div>
+  </div>
+</div>
+<div class="grid">
+  <div class="item max size">
+    <div class="content"></div>
+  </div>
+</div>
+<div class="grid">
+  <div class="item min size">
+    <div class="content"></div>
+  </div>
+</div>
+<div class="grid">
+  <div class="item min max">
+    <div class="content"></div>
+  </div>
+</div>
+<div class="grid">
+  <div class="item min max size">
+    <div class="content"></div>
+  </div>
+</div>
+</div>
+
+<div class="slr">
+<div class="grid">
+  <div class="item max">
+    <div class="content"></div>
+  </div>
+</div>
+<div class="grid">
+  <div class="item min">
+    <div class="content"></div>
+  </div>
+</div>
+<div class="grid">
+  <div class="item size">
+    <div class="content"></div>
+  </div>
+</div>
+<div class="grid">
+  <div class="item max size">
+    <div class="content"></div>
+  </div>
+</div>
+<div class="grid">
+  <div class="item min size">
+    <div class="content"></div>
+  </div>
+</div>
+<div class="grid">
+  <div class="item min max">
+    <div class="content"></div>
+  </div>
+</div>
+<div class="grid">
+  <div class="item min max size">
+    <div class="content"></div>
+  </div>
+</div>
+</div>
+
+<div class="srl">
+<div class="grid">
+  <div class="item max">
+    <div class="content"></div>
+  </div>
+</div>
+<div class="grid">
+  <div class="item min">
+    <div class="content"></div>
+  </div>
+</div>
+<div class="grid">
+  <div class="item size">
+    <div class="content"></div>
+  </div>
+</div>
+<div class="grid">
+  <div class="item max size">
+    <div class="content"></div>
+  </div>
+</div>
+<div class="grid">
+  <div class="item min size">
+    <div class="content"></div>
+  </div>
+</div>
+<div class="grid">
+  <div class="item min max">
+    <div class="content"></div>
+  </div>
+</div>
+<div class="grid">
+  <div class="item min max size">
+    <div class="content"></div>
+  </div>
+</div>
+</div>

@@ -1,0 +1,43 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>sticky inside subgrid</title>
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1958206">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2">
+<link rel="author" href="mailto:emilio@crisal.io" title="Emilio Cobos Álvarez">
+<link rel="author" href="https://mozilla.com" title="Mozilla">
+<link rel="match" href="sticky-subgrid-item-ref.html">
+<style>
+:root { scrollbar-width: none }
+body { margin: 0 }
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  margin-bottom: 100vh;
+}
+
+.subgrid {
+  border: 10px solid orange;
+  display: grid;
+  grid-template-columns: subgrid;
+  height: 400px;
+  margin-bottom: 100px;
+}
+
+.sticky {
+  background: red;
+  position: sticky;
+  top: 10px;
+  height: 200px;
+}
+</style>
+<div class="grid">
+  <div class="subgrid">
+    <div class="sticky">
+      This should not be visible.
+    </div>
+  </div>
+  <div class="subgrid" id="target"></div>
+</div>
+<script>
+  target.scrollIntoView({ block: "start" });
+</script>

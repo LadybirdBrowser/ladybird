@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<title>CSS Reference: Grid Lanes grid container size changes when item sizes change</title>
+<head>
+<meta charset="utf-8">
+<link rel="author" title="Brandon Stewart" href="mailto:brandonstewart@apple.com">
+</head>
+
+<style>
+  grid {
+    display: inline-grid;
+    grid-template-columns: auto;
+    grid-gap: 10px;
+    border: 10px;
+    border-style: solid;
+  }
+  item1 {
+    background-color: grey;
+    height: 125px;
+    width: 300px;
+  }
+  item2 {
+    background-color: grey;
+    height: 250px;
+    width: 250px;
+  }
+</style>
+</head>
+<body>
+  <grid>
+    <item1>1</item1>
+    <item2>2</item2>
+  </grid>
+</body>
+</html>

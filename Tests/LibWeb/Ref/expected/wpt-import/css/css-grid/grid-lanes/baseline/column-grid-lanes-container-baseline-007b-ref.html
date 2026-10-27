@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    .container {
+      display: flex;
+      gap: 20px;
+      border: 2px solid blue;
+      width: 400px;
+      padding: 10px;
+      font-size: 16px;
+      text-decoration: underline;
+    }
+
+    .first-baseline {
+      align-items: baseline;
+    }
+
+    .last-baseline {
+      align-items: last baseline;
+    }
+
+    .grid-explicit {
+      display: grid;
+      grid-template-columns: repeat(4, 80px);
+      border: 1px solid purple;
+      width: 320px;
+    }
+
+    .grid-explicit .explicit-item1 {
+      grid-column: 1 / 3;
+      background: lightsteelblue;
+      font-size: 12px;
+      height: 30px;
+    }
+
+    .grid-explicit .explicit-item2 {
+      grid-column: 3 / 5;
+      width: auto;
+      background: lightgoldenrodyellow;
+      font-size: 18px;
+      height: 30px;
+    }
+
+    .grid-explicit .explicit-item3 {
+      grid-column: 1;
+      background: lightseagreen;
+      font-size: 12px;
+      height: 20px;
+    }
+
+    .grid-explicit .explicit-item4 {
+      grid-column: 2 / 4;
+      background: lightsalmon;
+      font-size: 20px;
+      height: 35px;
+    }
+
+    .grid-explicit .explicit-item5 {
+      grid-column: 4;
+      background: lightblue;
+      font-size: 14px;
+      height: 22px;
+    }
+
+    .grid-explicit .explicit-item6 {
+      grid-column: 1 / 5;
+      background: lightcyan;
+      font-size: 22px;
+      height: 40px;
+    }
+  </style>
+</head>
+<body>
+<div class="container first-baseline">
+  <div>Ref</div>
+  <div class="grid-explicit">
+    <div class="explicit-item1">Item 1</div>
+    <div class="explicit-item2">Item 2</div>
+    <div class="explicit-item3">Item 3</div>
+    <div class="explicit-item4">Item 4</div>
+    <div class="explicit-item5">Item 5</div>
+    <div class="explicit-item6">Item 6</div>
+  </div>
+</div>
+<div class="container last-baseline">
+  <div>Ref</div>
+  <div class="grid-explicit">
+    <div class="explicit-item1">Item 1</div>
+    <div class="explicit-item2">Item 2</div>
+    <div class="explicit-item3">Item 3</div>
+    <div class="explicit-item4">Item 4</div>
+    <div class="explicit-item5">Item 5</div>
+    <div class="explicit-item6">Item 6</div>
+  </div>
+</div>
+</body>
+</html>

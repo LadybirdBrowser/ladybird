@@ -1,0 +1,31 @@
+<!DOCTYPE HTML>
+<html><head>
+  <meta charset="utf-8">
+  <title>CSS Grid Lanes Test: column-direction subgrid with larger column gap than parent grid-lanes</title>
+  <link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-3/#subgrids">
+  <link rel="match" href="../../../../../../../../expected/wpt-import/css/css-grid/grid-lanes/subgrid/grid-subgridded-to-grid-lanes/gap/column-subgrid-grid-gap-larger-002-ref.html">
+  <style>
+html,body {
+  color:black; background-color:white; font:16px/1 monospace; padding:0; margin:0;
+}
+
+.grid-lanes {
+  display:inline-grid-lanes;
+  grid-template-columns: 100px auto;
+  gap:20px;
+  border:3px solid;
+  background:yellow;
+}
+span { background:lightgrey; }
+span:nth-child(2n+1) { background:grey; }
+</style>
+</head>
+<body>
+<div class="grid-lanes">
+  <div style="display:grid; grid:100px/subgrid; gap:100px; grid-column:span 2">
+    <span>a</span><span>b</span>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<style>
+.grid {
+    display: inline-grid;
+    grid-template-columns: minmax(auto, 0);
+    border: 5px solid goldenrod;
+    vertical-align: top;
+}
+.spacer{
+    height: 10px;
+}
+img {
+    border: 2px solid indigo;
+}
+.stretch {
+    align-self: stretch;
+    justify-self: stretch;
+}
+.start {
+    align-self: start;
+    justify-self: start;
+}
+</style>
+<div class="grid">
+  <img class="stretch" src="support/100x100-green.png">
+</div>
+<div class="spacer"></div>
+<div class="grid">
+  <img class="start" src="support/100x100-green.png">
+</div>

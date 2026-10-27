@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Grid Lanes Test: overflow:hidden does not prohibit a row-axis subgrid of a grid-lanes container</title>
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-3/#subgrids">
+<link rel="help" href="https://drafts.csswg.org/css-overflow-3/#overflow-control">
+<link rel="match" href="../../../../../../../expected/wpt-import/css/css-grid/grid-lanes/subgrid/grid-subgridded-to-grid-lanes/../../../../reference/ref-filled-green-100px-square-only.html">
+<style>
+.grid-lanes {
+  display: inline-grid-lanes;
+  grid-template-rows: auto auto;
+  background-color: green;
+}
+.subgrid {
+    grid-row: span 2;
+    display: grid;
+    grid-template-rows: subgrid;
+    overflow: hidden;
+}
+.item {
+    width: 50px;
+    height: 50px;
+}
+</style>
+</head>
+<body>
+<p>Test passes if there is a filled green square.</p>
+<div class="grid-lanes">
+  <div class="item" style="grid-row: 1;"></div>
+  <div class="subgrid">
+    <div class="item" style="grid-row: 2;"></div>
+  </div>
+</div>
+</body>
+</html>

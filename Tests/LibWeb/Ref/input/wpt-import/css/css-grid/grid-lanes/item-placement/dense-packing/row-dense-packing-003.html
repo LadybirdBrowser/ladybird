@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="match" href="../../../../../../../expected/wpt-import/css/css-grid/grid-lanes/item-placement/dense-packing/row-dense-packing-003-ref.html">
+<link rel="author" title="Celeste Pan" href="mailto:celestepan@microsoft.com">
+<style>
+.grid-lanes {
+    display: grid-lanes;
+    background: gray;
+    flow-tolerance: 0;
+    grid-template-rows: repeat(3, 50px);
+    grid-auto-flow: dense;
+    grid-lanes-pack: dense;
+}
+</style>
+<body>
+  <p>Ensure that dense-packing does not affect the layout when all items are single-spanning.</p>
+  <div class="grid-lanes">
+    <div style="background: lightskyblue; width: 20px;" >
+     1
+    </div>
+    <div style="background: lightcoral; width: 60px;" >
+      2
+    </div>
+    <div style="background: lightgreen; width: 60px;">
+      3
+    </div>
+    <div style="background: brown; width: 10px;">
+      4
+    </div>
+    <div style="background: red; width: 40px;">
+      5
+    </div>
+    <div style="background: pink; width: 40px;">
+      6
+    </div>
+    <div style="background: yellow; width: 40px;">
+      7
+    </div>
+  </div>
+</body>
+</html>

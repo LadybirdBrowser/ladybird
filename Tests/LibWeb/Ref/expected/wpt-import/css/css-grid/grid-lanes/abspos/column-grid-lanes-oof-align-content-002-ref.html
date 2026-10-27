@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    html, body {
+      font: 16px/1 monospace;
+      background: white;
+    }
+
+    .container {
+      width: 200px;
+      height: 200px;
+      outline: 1px solid black;
+      position: relative;
+    }
+
+    .item {
+      position: absolute;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 80px;
+      height: 40px;
+      left: 0;
+      background: lightblue;
+    }
+
+    .oof {
+      position: absolute;
+      width: 20px;
+      background: red;
+      color: white;
+      font-size: 16px;
+      line-height: 1;
+    }
+  </style>
+</head>
+<body>
+  <!-- align-content: end -->
+  <div class="container">
+    <div class="item" style="top: 60px;">1</div>
+    <div class="item" style="top: 110px;">2</div>
+    <div class="item" style="top: 160px;">3</div>
+    <div class="oof" style="top: 0px; left: 0px;">X</div>
+    <div class="oof" style="top: 0px; left: 90px;">X</div>
+    <div class="oof" style="top: 0px; right: 0px;">X</div>
+  </div>
+
+  <!-- align-content: center -->
+  <div class="container">
+    <div class="item" style="top: 30px;">1</div>
+    <div class="item" style="top: 80px;">2</div>
+    <div class="item" style="top: 130px;">3</div>
+    <div class="oof" style="top: 0px; left: 0px;">X</div>
+    <div class="oof" style="top: 0px; left: 90px;">X</div>
+    <div class="oof" style="top: 0px; right: 0px;">X</div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    .grid {
+        display: grid;
+        grid-auto-flow: column;
+        grid-template-rows: minmax(10px, 1fr) minmax(10px, 4fr);
+        row-gap: 33px;
+        float: left;
+        margin: 3px;
+        border: 5px dashed;
+        padding: 2px;
+        width: 50px;
+    }
+    .grid > div:nth-child(1) { background: purple; }
+    .grid > div:nth-child(2) { background: blue; }
+  </style>
+</head>
+<body>
+  <div class="grid" style="max-height: 70px;">
+      <div></div>
+      <div></div>
+  </div>
+
+  <div class="grid" style="min-height: 108px;">
+      <div></div>
+      <div></div>
+  </div>
+
+  <div class="grid" style="height: 70px;">
+      <div></div>
+      <div></div>
+  </div>
+</body>
+</html>

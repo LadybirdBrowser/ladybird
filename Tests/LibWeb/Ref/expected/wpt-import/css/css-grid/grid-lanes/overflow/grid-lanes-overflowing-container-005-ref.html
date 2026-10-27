@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    .container {
+      display: grid;
+      grid-auto-flow: column;
+      grid-template-rows: 50px;
+      width: 100px;
+      height: 100px;
+      border: 2px solid black;
+      overflow: auto;
+    }
+  </style>
+</head>
+<body>
+  <p>Test passes if the container has only a horizontal scrollbar and the three colored items overflow to the right.</p>
+  <div class="container">
+    <div style="width:50px; height:50px; background:rgba(255,127,80,0.6);"></div>
+    <div style="width:50px; height:50px; background:rgba(70,130,180,0.6);"></div>
+    <div style="width:50px; height:50px; background:rgba(60,179,113,0.6);"></div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="stylesheet" type="text/css" href="../../../../../../fonts/ahem.css">
+<style>
+  html, body { color: black; background: white; padding: 0; margin: 0; }
+  .grid {
+    display: inline grid;
+    grid-template-columns: 60px 60px;
+    grid-template-rows: auto auto;
+    font: 16px/1 Ahem;
+    border: 1px solid black;
+    place-content: start;
+    justify-items: baseline;
+  }
+  .subgrid {
+    display: grid;
+    grid-column: 1 / span 2;
+    grid: auto / subgrid;
+    justify-items: baseline;
+  }
+  .b { text-decoration: underline; writing-mode: vertical-rl; }
+  .big   { font-size: 40px; }
+  .med   { font-size: 28px; }
+  .small { font-size: 20px; }
+  .c1 { grid-column: 1; }
+  .c2 { grid-column: 2; }
+</style>
+<div class="grid">
+  <div class="b small c1">X</div>
+  <div class="b small c2">X</div>
+  <div class="subgrid">
+    <div class="b big">X</div>
+    <div class="b med">X</div>
+  </div>
+</div>

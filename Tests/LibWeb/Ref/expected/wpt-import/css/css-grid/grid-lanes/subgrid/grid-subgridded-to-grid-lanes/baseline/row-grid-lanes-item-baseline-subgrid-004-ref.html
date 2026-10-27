@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="stylesheet" type="text/css" href="../../../../../../fonts/ahem.css">
+<style>
+  html, body { color: black; background: white; padding: 0; margin: 0; }
+  .grid {
+    display: inline grid;
+    grid-template-rows: auto;
+    grid-template-columns: auto auto;
+    font: 16px/1 Ahem;
+    border: 1px solid black;
+    align-items: baseline;
+  }
+  .subgrid { display: grid; grid: subgrid / auto; align-items: baseline; }
+  .l1 { margin-top: 5px; border: 2px solid blue; }
+  .l2 { border: 2px solid green; padding-top: 5px; }
+  .b { text-decoration: underline; }
+</style>
+<div class="grid">
+  <div class="b">X</div>
+  <div class="subgrid l1"><div class="subgrid l2"><div class="b">X</div></div></div>
+</div>

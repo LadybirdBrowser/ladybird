@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    .container {
+        width: 300px;
+        height: 150px;
+        border: 2px solid black;
+        margin: 20px;
+    }
+
+    .grid {
+        display: grid;
+        grid-template-columns: repeat(4, 60px);
+        grid-template-rows: auto;
+        border: 1px solid blue;
+        padding: 10px;
+        gap: 5px;
+        position: relative;
+    }
+
+    .item {
+        background: lightblue;
+        padding: 5px;
+        height: 100px;
+    }
+
+    .wrapper {
+        background: lightgreen;
+        padding: 5px;
+        height: 60px;
+        border: 1px dashed green;
+    }
+
+    .absolute {
+        position: absolute;
+        grid-column: 1 / 2;
+        background: red;
+        top: 30px;
+        width: 20px;
+        height: 20px;
+    }
+
+    .static-pos-with-grid-column {
+        position: absolute;
+        background: yellow;
+        grid-column: 2 / 3;
+        width: 10px;
+        height: 10px;
+    }
+
+    .static-pos {
+        position: absolute;
+        background: orange;
+        width: 10px;
+        height: 10px;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="grid">
+    <div class="item">
+      <div class="wrapper">
+        <div class="absolute"></div>
+      </div>
+    </div>
+    <div class="item">
+      <div class="wrapper">
+        <div class="static-pos-with-grid-column"></div>
+      </div>
+    </div>
+    <div class="item">
+      <div class="static-pos"></div>
+    </div>
+    <div class="item"></div>
+  </div>
+</div>
+</body>
+</html>

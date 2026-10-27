@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="help" href="https://drafts.csswg.org/css-grid-3">
+<link rel="author" title="Celeste Pan" href="mailto:celestepan@microsoft.com">
+<link rel="stylesheet" type="text/css" href="../../../../fonts/ahem.css" />
+<link rel="match" href="../../../../../../expected/wpt-import/css/css-grid/grid-lanes/order/row-order-property-auto-placement-002-ref.html">
+<style>
+#grid {
+  display: grid-lanes;
+  font: 50px/1 Ahem;
+  grid-template-rows: auto auto;
+  justify-content: start;
+  align-content: start;
+}
+</style>
+<p>Ensure `order` property affects grid-lanes layout correctly</p>
+<div id="grid">
+  <div id="magenta" style="color: magenta;">M</div>
+  <div id="lime" style="color: lime; order: -1;">L</div>
+  <div id="yellow" style="color: yellow; order: -5;">Y</div>
+  <div id="blue" style="color: blue; order: -10;">B</div>
+</div>

@@ -1,0 +1,31 @@
+<!DOCTYPE HTML>
+<html><head>
+<meta charset="utf-8">
+<link rel="stylesheet" type="text/css" href="../../../../../../fonts/ahem.css">
+<style>
+html,body {
+  color:black; background-color:white; font:24px/1 Ahem; padding:0; margin:0;
+}
+
+.grid {
+  display:inline-grid;
+  grid-template-rows:100px auto;
+  gap:20px;
+  border:3px solid;
+  background:yellow;
+}
+span { background:cyan; }
+span:nth-child(2n+1) { background:grey; }
+</style>
+</head>
+<body>
+<div class="grid">
+  <div style="display:grid; grid-template-rows:subgrid; gap:100px; grid-area:span 2/span 2">
+    <div style="display:grid; grid-template-rows:subgrid; gap:100px; grid-row:span 2">
+      <span>a</span><span>b</span>
+    </div>
+    <span style="grid-area:2/2">c</span>
+  </div>
+</div>
+</body>
+</html>

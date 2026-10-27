@@ -1,0 +1,54 @@
+<!DOCTYPE HTML>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html><head>
+  <meta charset="utf-8">
+  <title>Reference: Grid Lanes layout using `grid-column/row`</title>
+  <link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
+  <style>
+html,body {
+  color:black; background-color:white; font:15px/1 monospace; padding:0; margin:0;
+}
+
+grid {
+  display: inline-grid;
+  gap: 1px 2px;
+  grid-template-columns: repeat(4,20px);
+  grid-template-rows: auto;
+  color: #444;
+  border: 1px solid;
+  padding: 2px;
+}
+
+item {
+  background-color: #444;
+  color: #fff;
+}
+</style>
+</head>
+<body>
+
+<grid>
+  <item style="grid-column:2/span 2">1</item>
+  <item style="grid-column:1/2; grid-row: 1;">2</item>
+  <item style="grid-column:1/span 2">4</item>
+  <item style="grid-column:4/5; grid-row: 1;">3</item>
+  <item style="grid-column:3/4">5</item>
+  <item style="grid-column:4/5">6</item>
+</grid>
+
+<div style="direction:rtl">
+  <grid>
+    <item style="grid-column:2/span 2">1</item>
+    <item style="grid-column:1/2; grid-row: 1;">2</item>
+    <item style="grid-column:1/span 2">4</item>
+    <item style="grid-column:4/5; grid-row: 1;">3</item>
+    <item style="grid-column:3/4">5</item>
+    <item style="grid-column:4/5">6</item>
+  </grid>
+</div>
+
+</body>
+</html>

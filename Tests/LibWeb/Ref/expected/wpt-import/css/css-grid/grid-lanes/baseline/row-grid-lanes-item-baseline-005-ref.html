@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    .container {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    .grid {
+      width: 200px;
+      border: solid 3px;
+      gap: 2px;
+      display: grid;
+      grid-template-columns: repeat(4, min-content);
+      grid-template-rows: repeat(2, 60px);
+      background-color: #f0f0f0;
+      border-color: slateblue;
+      align-items: baseline;
+      font: 16px/1 monospace;
+    }
+
+    .vertical-rl {
+      writing-mode: vertical-rl;
+    }
+
+    .vertical-lr {
+      writing-mode: vertical-lr;
+    }
+
+    .sideways-rl {
+      writing-mode: sideways-rl;
+    }
+
+    .sideways-lr {
+      writing-mode: sideways-lr;
+    }
+
+    .item {
+      height: 60px;
+      padding: 3px;
+      text-decoration: underline;
+    }
+
+    #item1 {
+      background-color: #8cffa0;
+      min-width: 20px;
+      font-size: 12px;
+    }
+
+    #item2 {
+      background-color: #a0c8ff;
+      min-width: 30px;
+      font-size: 16px;
+    }
+
+    #item3 {
+      background-color: #ffa08c;
+      min-width: 25px;
+      font-size: 14px;
+    }
+
+    #item4 {
+      background-color: #ffff8c;
+      min-width: 35px;
+      font-size: 10px;
+    }
+
+    #item5 {
+      background-color: #ff8cff;
+      min-width: 28px;
+      font-size: 14px;
+    }
+
+    #item6 {
+      background-color: #8cffff;
+      min-width: 22px;
+      font-size: 18px;
+    }
+
+    #item7 {
+      background-color: #ff8c8c;
+      min-width: 32px;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="grid vertical-rl">
+    <div id="item1" class="item">AB<br/>CD</div>
+    <div id="item2" class="item">EF<br/>GH</div>
+    <div id="item3" class="item">IJ</div>
+    <div id="item4" class="item">KL</div>
+    <div id="item5" class="item">MN</div>
+    <div id="item6" class="item">OP</div>
+    <div id="item7" class="item">QR<br/>ST</div>
+  </div>
+  <div class="grid vertical-lr">
+    <div id="item1" class="item">AB<br/>CD</div>
+    <div id="item2" class="item">EF<br/>GH</div>
+    <div id="item3" class="item">IJ</div>
+    <div id="item4" class="item">KL</div>
+    <div id="item5" class="item">MN</div>
+    <div id="item6" class="item">OP</div>
+    <div id="item7" class="item">QR<br/>ST</div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="grid sideways-rl">
+    <div id="item1" class="item">AB<br/>CD</div>
+    <div id="item2" class="item">EF<br/>GH</div>
+    <div id="item3" class="item">IJ</div>
+    <div id="item4" class="item">KL</div>
+    <div id="item5" class="item">MN</div>
+    <div id="item6" class="item">OP</div>
+    <div id="item7" class="item">QR<br/>ST</div>
+  </div>
+  <div class="grid sideways-lr">
+    <div id="item1" class="item">AB<br/>CD</div>
+    <div id="item2" class="item">EF<br/>GH</div>
+    <div id="item3" class="item">IJ</div>
+    <div id="item4" class="item">KL</div>
+    <div id="item5" class="item">MN</div>
+    <div id="item6" class="item">OP</div>
+    <div id="item7" class="item">QR<br/>ST</div>
+  </div>
+</div>
+</body>
+</html>

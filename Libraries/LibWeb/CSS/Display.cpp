@@ -58,6 +58,10 @@ Display Display::from_short(Short short_)
         return Display { DisplayOutside::Block, DisplayInside::Grid };
     case Short::InlineGrid:
         return Display { DisplayOutside::Inline, DisplayInside::Grid };
+    case Short::GridLanes:
+        return Display { DisplayOutside::Block, DisplayInside::GridLanes };
+    case Short::InlineGridLanes:
+        return Display { DisplayOutside::Inline, DisplayInside::GridLanes };
     case Short::Ruby:
         return Display { DisplayOutside::Inline, DisplayInside::Ruby };
     case Short::Table:
@@ -111,6 +115,10 @@ Optional<Keyword> Display::to_keyword() const
             return Keyword::Grid;
         if (*this == Display::from_short(Display::Short::InlineGrid))
             return Keyword::InlineGrid;
+        if (*this == Display::from_short(Display::Short::GridLanes))
+            return Keyword::GridLanes;
+        if (*this == Display::from_short(Display::Short::InlineGridLanes))
+            return Keyword::InlineGridLanes;
         if (*this == Display::from_short(Display::Short::Ruby))
             return Keyword::Ruby;
         if (*this == Display::from_short(Display::Short::Table))
