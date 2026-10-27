@@ -1,0 +1,145 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<title>Touch and TouchEvent Constructor Tests</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="support/touch.js"></script>
+</head>
+<body>
+<div id="target0"></div>
+<script>
+test(function() {
+    var testIdentifier = 0;
+    var testTarget = document.getElementById('target0');
+
+    assert_throws_js(TypeError, function() {new Touch();}, "Touch constructor with no argument");
+    assert_throws_js(TypeError, function() {new Touch(null);}, "Touch constructor with null argument");
+    assert_throws_js(TypeError, function() {new Touch(undefined);}, "Touch constructor with undefined argument");
+    assert_throws_js(TypeError, function() {new Touch({});}, "Touch constructor with empty object");
+    assert_throws_js(TypeError, function() {new Touch({
+        identifier: testIdentifier
+    });}, "Touch constructor with only identifier");
+    assert_throws_js(TypeError, function() {new Touch({
+        target: testTarget
+    });}, "Touch constructor with only target");
+}, "Touch constructor with insufficient properties");
+
+test(function() {
+    var testIdentifier = 0;
+    var testTarget = document.getElementById('target0');
+
+    assert_throws_js(TypeError, function() {new Touch({
+        identifier: testIdentifier,
+        target: null
+    });}, "Touch constructor with null target");
+    assert_throws_js(TypeError, function() {new Touch({
+        identifier: testIdentifier,
+        target: undefined
+    });}, "Touch constructor with undefined target");
+    assert_throws_js(TypeError, function() {new Touch({
+        identifier: testIdentifier,
+        target: location
+    });}, "Touch constructor with Location target");
+}, "Touch constructor with non-EventTarget target");
+
+test(function() {
+    var testIdentifier = 74;
+    var testTarget = document.getElementById('target0');
+    var approxEpsilon = 0.00001;
+
+    var touch1 = new Touch({
+        identifier: testIdentifier,
+        target: testTarget,
+    });
+    check_Touch_object(touch1);
+    assert_equals(touch1.target, testTarget, "touch.target is requested value");
+    assert_equals(touch1.identifier, testIdentifier, "touch.identifier is requested value");
+    assert_approx_equals(touch1.pageX, 0, approxEpsilon, "touch.pageX is default value");
+    assert_approx_equals(touch1.pageY, 0, approxEpsilon, "touch.pageY is default value");
+    assert_approx_equals(touch1.screenX, 0, approxEpsilon, "touch.screenX is default value");
+    assert_approx_equals(touch1.screenY, 0, approxEpsilon, "touch.screenY is default value");
+    assert_approx_equals(touch1.clientX, 0, approxEpsilon, "touch.clientX is default value.");
+    assert_approx_equals(touch1.clientY, 0, approxEpsilon, "touch.clientY is default value.");
+}, "Touch constructor exists and creates a Touch object with minimum properties");
+
+test(function() {
+    var testIdentifier = 42;
+    var testTarget = document.getElementById('target0');
+    var testPageX = 15;
+    var testPageY = 20.2;
+    var testScreenX = 35.34;
+    var testScreenY = 40.56;
+    var testClientX = 10.175;
+    var testClientY = 5;
+    var approxEpsilon = 0.00001;
+
+    var touch1 = new Touch({
+        identifier: testIdentifier,
+        target: testTarget,
+        pageX: testPageX,
+        pageY: testPageY,
+        screenX: testScreenX,
+        screenY: testScreenY,
+        clientX: testClientX,
+        clientY: testClientY,
+    });
+    check_Touch_object(touch1);
+    assert_equals(touch1.identifier, testIdentifier, "touch.identifier is requested value");
+    assert_equals(touch1.target, testTarget, "touch.target is requested value");
+    assert_approx_equals(touch1.pageX, testPageX, approxEpsilon, "touch.pageX is requested value");
+    assert_approx_equals(touch1.pageY, testPageY, approxEpsilon, "touch.pageY is requested value");
+    assert_approx_equals(touch1.screenX, testScreenX, approxEpsilon, "touch.screenX is requested value");
+    assert_approx_equals(touch1.screenY, testScreenY, approxEpsilon, "touch.screenY is requested value");
+    assert_approx_equals(touch1.clientX, testClientX, approxEpsilon, "touch.clientX is requested value.");
+    assert_approx_equals(touch1.clientY, testClientY, approxEpsilon, "touch.clientY is requested value.");
+}, "Touch constructor exists and creates a Touch object with requested properties");
+
+
+test(function() {
+    var testTarget = document.getElementById('target0');
+
+    var touch1 = new Touch({
+        identifier: 45,
+        target: testTarget,
+        pageX: 45,
+        pageY: 50,
+        screenX: 65,
+        screenY: 60,
+        clientX: 70,
+        clientY: 75,
+    });
+    var touch2 = new Touch({
+        identifier: 52,
+        target: testTarget,
+        pageX: 15,
+        pageY: 20,
+        screenX: 15,
+        screenY: 20,
+        clientX: 15,
+        clientY: 20,
+    });
+
+    var touchEvent1 = new TouchEvent("ontouchstart", {
+        touches: [touch1, touch2],
+        targetTouches: [touch1],
+        altKey: true,
+        metaKey: false,
+    });
+
+    check_TouchEvent(touchEvent1);
+    assert_equals(touchEvent1.type, "ontouchstart", "touchEvent.type is requested value");
+    assert_equals(touchEvent1.touches.length, 2, "touchEvent.touches.length is requested value");
+    assert_equals(touchEvent1.touches[0], touch1, "touchEvent.touches[0] is requested value");
+    assert_equals(touchEvent1.touches[1], touch2, "touchEvent.touches[1] is requested value");
+    assert_equals(touchEvent1.targetTouches.length, 1, "touchEvent.targetTouches.length is requested value");
+    assert_equals(touchEvent1.targetTouches[0], touch1, "touchEvent.targetTouches[0] is requested value");
+    assert_equals(touchEvent1.changedTouches.length, 0, "touchEvent.changedTouches.length is requested value");
+    assert_equals(touchEvent1.altKey, true, "touchEvent.altKey is requested value");
+    assert_equals(touchEvent1.metaKey, false, "touchEvent.metaKey is requested value");
+    assert_equals(touchEvent1.ctrlKey, false, "touchEvent.ctrlKey is requested value");
+    assert_equals(touchEvent1.shiftKey, false, "touchEvent.shiftKey is requested value.");
+}, "TouchEvent constructor exists and creates a TouchEvent object with requested properties");
+</script>
+</body>
+</html>

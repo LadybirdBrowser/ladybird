@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Fail
+Fail	Touch constructor with insufficient properties
+Fail	Touch constructor with non-EventTarget target
+Fail	Touch constructor exists and creates a Touch object with minimum properties
+Fail	Touch constructor exists and creates a Touch object with requested properties
+Fail	TouchEvent constructor exists and creates a TouchEvent object with requested properties
