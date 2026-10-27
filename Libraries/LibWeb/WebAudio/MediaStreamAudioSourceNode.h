@@ -44,6 +44,8 @@ public:
     // https://webaudio.github.io/web-audio-api/#dom-mediastreamaudiosourcenode-mediastream
     GC::Ref<MediaCapture::MediaStream> media_stream() const { return m_media_stream; }
 
+    bool has_live_input_track() const;
+
 private:
     MediaStreamAudioSourceNode(GC::Ref<AudioContext>, MediaStreamAudioSourceOptions const&);
 

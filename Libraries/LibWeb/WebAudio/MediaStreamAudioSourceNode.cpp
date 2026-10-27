@@ -70,6 +70,7 @@ WebIDL::ExceptionOr<GC::Ref<MediaStreamAudioSourceNode>> MediaStreamAudioSourceN
 
     node->queue_render_node_creation(make<Rendering::MediaStreamSourceRenderNode>(node->node_id(), BaseAudioContext::render_quantum_size()));
     node->attach_input_track();
+    context->add_media_stream_source(*node);
 
     return node;
 }
@@ -132,6 +133,11 @@ void MediaStreamAudioSourceNode::attach_input_track()
         }
     };
     m_input_track->add_audio_sink(*m_sink);
+}
+
+bool MediaStreamAudioSourceNode::has_live_input_track() const
+{
+    return m_input_track && m_input_track->track_ready_state() == MediaCapture::MediaStreamTrackState::Live;
 }
 
 void MediaStreamAudioSourceNode::visit_edges(Cell::Visitor& visitor)
