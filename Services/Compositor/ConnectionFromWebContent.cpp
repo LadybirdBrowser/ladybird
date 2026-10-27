@@ -121,9 +121,11 @@ void ConnectionFromWebContent::create_video_edge(Media::VideoSinkHandle video_si
 {
     if (!m_video_presentation_connection)
         return;
-    m_video_presentation_connection->create_edge(video_sink_handle, [this, video_sink_handle](NonnullRefPtr<Media::DisplayingVideoSink> sink) {
+    auto result = m_video_presentation_connection->create_edge(video_sink_handle, [this, video_sink_handle](NonnullRefPtr<Media::DisplayingVideoSink> sink) {
         m_compositor_state->on_video_sink_ready(*this, video_sink_handle, move(sink));
     });
+    if (result.is_error())
+        dbgln("Compositor: Not showing video sink {}: {}", video_sink_handle.value(), result.error());
 }
 
 void ConnectionFromWebContent::release_video_edge(Media::VideoSinkHandle video_sink_handle)

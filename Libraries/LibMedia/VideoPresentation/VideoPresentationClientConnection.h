@@ -31,12 +31,15 @@ class MEDIA_API VideoPresentationClientConnection final
     C_OBJECT_ABSTRACT(VideoPresentationClientConnection);
 
 public:
+    // Each edge keeps as many buffers mapped here as it has slots, so a client may only have this many edges at once.
+    static constexpr size_t MAX_EDGE_COUNT = 64;
+
     explicit VideoPresentationClientConnection(NonnullOwnPtr<IPC::Transport>);
     virtual ~VideoPresentationClientConnection() override;
 
     // Asks the producer-server to create an edge for the given sink, then invokes on_ready with the built
     // DisplayingVideoSink once it arrives. The edge id correlating the request and reply is allocated and kept here.
-    void create_edge(VideoSinkHandle, Function<void(NonnullRefPtr<DisplayingVideoSink>)> on_ready);
+    ErrorOr<void> create_edge(VideoSinkHandle, Function<void(NonnullRefPtr<DisplayingVideoSink>)> on_ready);
     void release_edge(VideoSinkHandle);
 
 private:
