@@ -361,6 +361,22 @@ pub(super) fn serialize(
                     .iter()
                     .map(|value| text(if count == 1 { value } else { layer(value, entry) }, mode))
                     .collect::<Vec<_>>();
+                if background && mode.is_resolved() {
+                    // NB: Computed backgrounds include every component, with the color on the last layer, in the
+                    //     order: color image repeat attachment position-x position-y / size origin clip.
+                    let mut first = true;
+                    for index in [0, 1, 5, 6, 2, 3, 4, 7, 8] {
+                        if index == 0 && entry + 1 != count {
+                            continue;
+                        }
+                        if !first {
+                            sink.push_ascii(if index == 4 { " / " } else { " " });
+                        }
+                        sink.push_sink(&texts[index]);
+                        first = false;
+                    }
+                    continue;
+                }
                 let initial_at = |index: usize| texts[index].content_equals(&initials[index]);
                 let mut first = true;
                 for index in 0..ids.len() {

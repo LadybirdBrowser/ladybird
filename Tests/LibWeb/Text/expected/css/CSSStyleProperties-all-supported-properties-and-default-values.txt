@@ -231,7 +231,7 @@ All supported properties and their default values exposed from CSSStylePropertie
 'backdrop-filter': 'none'
 'backfaceVisibility': 'visible'
 'backface-visibility': 'visible'
-'background': 'none'
+'background': 'rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box'
 'backgroundAttachment': 'scroll'
 'background-attachment': 'scroll'
 'backgroundBlendMode': 'normal'

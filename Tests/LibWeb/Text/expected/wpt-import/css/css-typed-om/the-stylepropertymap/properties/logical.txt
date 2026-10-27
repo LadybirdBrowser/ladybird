@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1468 tests
 
-1300 Pass
-168 Fail
+1318 Pass
+150 Fail
 Pass	Can set 'margin-block-start' to CSS-wide keywords: initial
 Pass	Can set 'margin-block-start' to CSS-wide keywords: inherit
 Pass	Can set 'margin-block-start' to CSS-wide keywords: unset
@@ -132,7 +132,7 @@ Fail	Can set 'margin-block' to CSS-wide keywords: initial
 Fail	Can set 'margin-block' to CSS-wide keywords: inherit
 Fail	Can set 'margin-block' to CSS-wide keywords: unset
 Fail	Can set 'margin-block' to CSS-wide keywords: revert
-Fail	Can set 'margin-block' to var() references:  var(--A)
+Pass	Can set 'margin-block' to var() references:  var(--A)
 Fail	Can set 'margin-block' to a percent: 0%
 Fail	Can set 'margin-block' to a percent: -3.14%
 Fail	Can set 'margin-block' to a percent: 3.14%
@@ -163,7 +163,7 @@ Fail	Can set 'margin-inline' to CSS-wide keywords: initial
 Fail	Can set 'margin-inline' to CSS-wide keywords: inherit
 Fail	Can set 'margin-inline' to CSS-wide keywords: unset
 Fail	Can set 'margin-inline' to CSS-wide keywords: revert
-Fail	Can set 'margin-inline' to var() references:  var(--A)
+Pass	Can set 'margin-inline' to var() references:  var(--A)
 Fail	Can set 'margin-inline' to a percent: 0%
 Fail	Can set 'margin-inline' to a percent: -3.14%
 Fail	Can set 'margin-inline' to a percent: 3.14%
@@ -318,7 +318,7 @@ Fail	Can set 'padding-block' to CSS-wide keywords: initial
 Fail	Can set 'padding-block' to CSS-wide keywords: inherit
 Fail	Can set 'padding-block' to CSS-wide keywords: unset
 Fail	Can set 'padding-block' to CSS-wide keywords: revert
-Fail	Can set 'padding-block' to var() references:  var(--A)
+Pass	Can set 'padding-block' to var() references:  var(--A)
 Fail	Can set 'padding-block' to a percent: 0%
 Fail	Can set 'padding-block' to a percent: -3.14%
 Fail	Can set 'padding-block' to a percent: 3.14%
@@ -349,7 +349,7 @@ Fail	Can set 'padding-inline' to CSS-wide keywords: initial
 Fail	Can set 'padding-inline' to CSS-wide keywords: inherit
 Fail	Can set 'padding-inline' to CSS-wide keywords: unset
 Fail	Can set 'padding-inline' to CSS-wide keywords: revert
-Fail	Can set 'padding-inline' to var() references:  var(--A)
+Pass	Can set 'padding-inline' to var() references:  var(--A)
 Fail	Can set 'padding-inline' to a percent: 0%
 Fail	Can set 'padding-inline' to a percent: -3.14%
 Fail	Can set 'padding-inline' to a percent: 3.14%
@@ -504,7 +504,7 @@ Fail	Can set 'inset-block' to CSS-wide keywords: initial
 Fail	Can set 'inset-block' to CSS-wide keywords: inherit
 Fail	Can set 'inset-block' to CSS-wide keywords: unset
 Fail	Can set 'inset-block' to CSS-wide keywords: revert
-Fail	Can set 'inset-block' to var() references:  var(--A)
+Pass	Can set 'inset-block' to var() references:  var(--A)
 Fail	Can set 'inset-block' to a percent: 0%
 Fail	Can set 'inset-block' to a percent: -3.14%
 Fail	Can set 'inset-block' to a percent: 3.14%
@@ -535,7 +535,7 @@ Fail	Can set 'inset-inline' to CSS-wide keywords: initial
 Fail	Can set 'inset-inline' to CSS-wide keywords: inherit
 Fail	Can set 'inset-inline' to CSS-wide keywords: unset
 Fail	Can set 'inset-inline' to CSS-wide keywords: revert
-Fail	Can set 'inset-inline' to var() references:  var(--A)
+Pass	Can set 'inset-inline' to var() references:  var(--A)
 Fail	Can set 'inset-inline' to a percent: 0%
 Fail	Can set 'inset-inline' to a percent: -3.14%
 Fail	Can set 'inset-inline' to a percent: 3.14%
@@ -566,7 +566,7 @@ Fail	Can set 'border-block-start' to CSS-wide keywords: initial
 Fail	Can set 'border-block-start' to CSS-wide keywords: inherit
 Fail	Can set 'border-block-start' to CSS-wide keywords: unset
 Fail	Can set 'border-block-start' to CSS-wide keywords: revert
-Fail	Can set 'border-block-start' to var() references:  var(--A)
+Pass	Can set 'border-block-start' to var() references:  var(--A)
 Fail	Can set 'border-block-start' to the 'none' keyword: none
 Pass	Setting 'border-block-start' to a length: 0px throws TypeError
 Pass	Setting 'border-block-start' to a length: -3.14em throws TypeError
@@ -697,7 +697,7 @@ Fail	Can set 'border-block-end' to CSS-wide keywords: initial
 Fail	Can set 'border-block-end' to CSS-wide keywords: inherit
 Fail	Can set 'border-block-end' to CSS-wide keywords: unset
 Fail	Can set 'border-block-end' to CSS-wide keywords: revert
-Fail	Can set 'border-block-end' to var() references:  var(--A)
+Pass	Can set 'border-block-end' to var() references:  var(--A)
 Fail	Can set 'border-block-end' to the 'none' keyword: none
 Pass	Setting 'border-block-end' to a length: 0px throws TypeError
 Pass	Setting 'border-block-end' to a length: -3.14em throws TypeError
@@ -828,7 +828,7 @@ Fail	Can set 'border-inline-start' to CSS-wide keywords: initial
 Fail	Can set 'border-inline-start' to CSS-wide keywords: inherit
 Fail	Can set 'border-inline-start' to CSS-wide keywords: unset
 Fail	Can set 'border-inline-start' to CSS-wide keywords: revert
-Fail	Can set 'border-inline-start' to var() references:  var(--A)
+Pass	Can set 'border-inline-start' to var() references:  var(--A)
 Fail	Can set 'border-inline-start' to the 'none' keyword: none
 Pass	Setting 'border-inline-start' to a length: 0px throws TypeError
 Pass	Setting 'border-inline-start' to a length: -3.14em throws TypeError
@@ -959,7 +959,7 @@ Fail	Can set 'border-inline-end' to CSS-wide keywords: initial
 Fail	Can set 'border-inline-end' to CSS-wide keywords: inherit
 Fail	Can set 'border-inline-end' to CSS-wide keywords: unset
 Fail	Can set 'border-inline-end' to CSS-wide keywords: revert
-Fail	Can set 'border-inline-end' to var() references:  var(--A)
+Pass	Can set 'border-inline-end' to var() references:  var(--A)
 Fail	Can set 'border-inline-end' to the 'none' keyword: none
 Pass	Setting 'border-inline-end' to a length: 0px throws TypeError
 Pass	Setting 'border-inline-end' to a length: -3.14em throws TypeError
@@ -1090,7 +1090,7 @@ Fail	Can set 'border-block' to CSS-wide keywords: initial
 Fail	Can set 'border-block' to CSS-wide keywords: inherit
 Fail	Can set 'border-block' to CSS-wide keywords: unset
 Fail	Can set 'border-block' to CSS-wide keywords: revert
-Fail	Can set 'border-block' to var() references:  var(--A)
+Pass	Can set 'border-block' to var() references:  var(--A)
 Fail	Can set 'border-block' to the 'none' keyword: none
 Pass	Setting 'border-block' to a length: 0px throws TypeError
 Pass	Setting 'border-block' to a length: -3.14em throws TypeError
@@ -1122,7 +1122,7 @@ Fail	Can set 'border-block-width' to CSS-wide keywords: initial
 Fail	Can set 'border-block-width' to CSS-wide keywords: inherit
 Fail	Can set 'border-block-width' to CSS-wide keywords: unset
 Fail	Can set 'border-block-width' to CSS-wide keywords: revert
-Fail	Can set 'border-block-width' to var() references:  var(--A)
+Pass	Can set 'border-block-width' to var() references:  var(--A)
 Fail	Can set 'border-block-width' to the 'thin' keyword: thin
 Fail	Can set 'border-block-width' to the 'medium' keyword: medium
 Fail	Can set 'border-block-width' to the 'thick' keyword: thick
@@ -1156,7 +1156,7 @@ Fail	Can set 'border-block-color' to CSS-wide keywords: initial
 Fail	Can set 'border-block-color' to CSS-wide keywords: inherit
 Fail	Can set 'border-block-color' to CSS-wide keywords: unset
 Fail	Can set 'border-block-color' to CSS-wide keywords: revert
-Fail	Can set 'border-block-color' to var() references:  var(--A)
+Pass	Can set 'border-block-color' to var() references:  var(--A)
 Fail	Can set 'border-block-color' to the 'currentcolor' keyword: currentcolor
 Pass	Setting 'border-block-color' to a length: 0px throws TypeError
 Pass	Setting 'border-block-color' to a length: -3.14em throws TypeError
@@ -1188,7 +1188,7 @@ Fail	Can set 'border-block-style' to CSS-wide keywords: initial
 Fail	Can set 'border-block-style' to CSS-wide keywords: inherit
 Fail	Can set 'border-block-style' to CSS-wide keywords: unset
 Fail	Can set 'border-block-style' to CSS-wide keywords: revert
-Fail	Can set 'border-block-style' to var() references:  var(--A)
+Pass	Can set 'border-block-style' to var() references:  var(--A)
 Fail	Can set 'border-block-style' to the 'none' keyword: none
 Fail	Can set 'border-block-style' to the 'solid' keyword: solid
 Pass	Setting 'border-block-style' to a length: 0px throws TypeError
@@ -1221,7 +1221,7 @@ Fail	Can set 'border-inline' to CSS-wide keywords: initial
 Fail	Can set 'border-inline' to CSS-wide keywords: inherit
 Fail	Can set 'border-inline' to CSS-wide keywords: unset
 Fail	Can set 'border-inline' to CSS-wide keywords: revert
-Fail	Can set 'border-inline' to var() references:  var(--A)
+Pass	Can set 'border-inline' to var() references:  var(--A)
 Fail	Can set 'border-inline' to the 'none' keyword: none
 Pass	Setting 'border-inline' to a length: 0px throws TypeError
 Pass	Setting 'border-inline' to a length: -3.14em throws TypeError
@@ -1253,7 +1253,7 @@ Fail	Can set 'border-inline-width' to CSS-wide keywords: initial
 Fail	Can set 'border-inline-width' to CSS-wide keywords: inherit
 Fail	Can set 'border-inline-width' to CSS-wide keywords: unset
 Fail	Can set 'border-inline-width' to CSS-wide keywords: revert
-Fail	Can set 'border-inline-width' to var() references:  var(--A)
+Pass	Can set 'border-inline-width' to var() references:  var(--A)
 Fail	Can set 'border-inline-width' to the 'thin' keyword: thin
 Fail	Can set 'border-inline-width' to the 'medium' keyword: medium
 Fail	Can set 'border-inline-width' to the 'thick' keyword: thick
@@ -1287,7 +1287,7 @@ Fail	Can set 'border-inline-color' to CSS-wide keywords: initial
 Fail	Can set 'border-inline-color' to CSS-wide keywords: inherit
 Fail	Can set 'border-inline-color' to CSS-wide keywords: unset
 Fail	Can set 'border-inline-color' to CSS-wide keywords: revert
-Fail	Can set 'border-inline-color' to var() references:  var(--A)
+Pass	Can set 'border-inline-color' to var() references:  var(--A)
 Fail	Can set 'border-inline-color' to the 'currentcolor' keyword: currentcolor
 Pass	Setting 'border-inline-color' to a length: 0px throws TypeError
 Pass	Setting 'border-inline-color' to a length: -3.14em throws TypeError
@@ -1319,7 +1319,7 @@ Fail	Can set 'border-inline-style' to CSS-wide keywords: initial
 Fail	Can set 'border-inline-style' to CSS-wide keywords: inherit
 Fail	Can set 'border-inline-style' to CSS-wide keywords: unset
 Fail	Can set 'border-inline-style' to CSS-wide keywords: revert
-Fail	Can set 'border-inline-style' to var() references:  var(--A)
+Pass	Can set 'border-inline-style' to var() references:  var(--A)
 Fail	Can set 'border-inline-style' to the 'none' keyword: none
 Fail	Can set 'border-inline-style' to the 'solid' keyword: solid
 Pass	Setting 'border-inline-style' to a length: 0px throws TypeError

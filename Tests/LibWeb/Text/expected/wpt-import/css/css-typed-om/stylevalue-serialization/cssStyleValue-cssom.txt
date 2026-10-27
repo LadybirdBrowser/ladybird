@@ -2,9 +2,8 @@ Harness status: OK
 
 Found 4 tests
 
-3 Pass
-1 Fail
+4 Pass
 Pass	CSSStyleValue from specified CSSOM serializes correctly
 Pass	CSSStyleValue from computed CSSOM serializes correctly
 Pass	Shorthand CSSStyleValue from inline CSSOM serializes correctly
-Fail	Shorthand CSSStyleValue from computed CSSOM serializes correctly
+Pass	Shorthand CSSStyleValue from computed CSSOM serializes correctly
