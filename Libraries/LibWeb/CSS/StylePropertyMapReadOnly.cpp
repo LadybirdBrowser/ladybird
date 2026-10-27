@@ -16,6 +16,7 @@
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/StyleSheetState.h>
+#include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/Zoom.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -54,6 +55,19 @@ static bool has_computed_style(DOM::AbstractElement const& abstract_element)
     return abstract_element.element().is_connected();
 }
 
+static StyleValueVector subdivide_property_value(StyleValue const& value, PropertyNameAndID const& property, DOM::AbstractElement const* computed_element)
+{
+    // https://drafts.css-houdini.org/css-typed-om-1/#reify-stylevalue
+    // If an internal representation is from a list-valued property, this list defines how to reify a single iteration
+    // of the property; multiple iterations are reflected by returning multiple values from StylePropertyMap.getAll().
+    if (computed_element && property.is_custom_property() && value.is_value_list()) {
+        auto registration = computed_element->document().get_registered_custom_property(property.name());
+        if (registration.has_value() && Parser::ValueParserFFI::rust_syntax_value_is_list(registration->syntax.data(), value.rust_style_value_data()))
+            return value.as_value_list().values();
+    }
+    return value.subdivide_into_iterations(property);
+}
+
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymapreadonly-get
 WebIDL::ExceptionOr<Variant<GC::Ref<CSSStyleValue>, Empty>> StylePropertyMapReadOnly::get(Utf16String property_name)
 {
@@ -71,7 +85,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CSSStyleValue>, Empty>> StylePropertyMapRead
 
     // 4. If props[property] exists, subdivide into iterations props[property], then reify the first item of the result and return it.
     if (auto property_value = get_style_value(props, property.value())) {
-        auto iterations = property_value->subdivide_into_iterations(property.value());
+        auto iterations = subdivide_property_value(*property_value, property.value(), props.get_pointer<DOM::AbstractElement>());
         return iterations.first()->reify(property->name());
     }
 
@@ -98,7 +112,7 @@ WebIDL::ExceptionOr<GC::RootVector<GC::Ref<CSSStyleValue>>> StylePropertyMapRead
 
     // 4. If props[property] exists, subdivide into iterations props[property], then reify each item of the result, and return the list.
     if (auto property_value = get_style_value(props, property.value())) {
-        auto iterations = property_value->subdivide_into_iterations(property.value());
+        auto iterations = subdivide_property_value(*property_value, property.value(), props.get_pointer<DOM::AbstractElement>());
         for (auto const& style_value : iterations)
             results.append(style_value->reify(property->name()));
         return results;

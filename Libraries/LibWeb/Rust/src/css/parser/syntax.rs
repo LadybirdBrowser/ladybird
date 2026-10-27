@@ -459,6 +459,24 @@ pub extern "C" fn rust_syntax_is_single_component(syntax: &SyntaxNode) -> bool {
 }
 
 #[unsafe(no_mangle)]
+pub extern "C" fn rust_syntax_value_is_list(syntax: &SyntaxNode, value: &StyleValueData) -> bool {
+    match syntax {
+        SyntaxNode::Multiplier { .. } => true,
+        SyntaxNode::Alternatives(alternatives) => {
+            // NB: Select the same first matching alternative as parsing. A transform-list is one Typed OM value,
+            //     whereas a multiplier on transform-function produces multiple values.
+            let source = crate::css::serialize::serialize_style_value_to_utf16(value);
+            let context = ParseContext::default();
+            alternatives
+                .iter()
+                .find(|alternative| parse_with_syntax(&context, &source, alternative).is_some())
+                .is_some_and(|alternative| matches!(alternative, SyntaxNode::Multiplier { .. }))
+        }
+        _ => false,
+    }
+}
+
+#[unsafe(no_mangle)]
 pub extern "C" fn rust_syntax_equals(left: &SyntaxNode, right: &SyntaxNode) -> bool {
     left == right
 }
