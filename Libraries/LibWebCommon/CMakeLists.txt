@@ -57,6 +57,7 @@ set(SOURCES
     Page/MediaContextMenu.cpp
     Page/SpellingError.cpp
     Page/WritingSuggestion.cpp
+    Permissions/Permissions.cpp
     PermissionsPolicy/PermissionsPolicy.cpp
     PixelUnits.cpp
     ReferrerPolicy/ReferrerPolicy.cpp
