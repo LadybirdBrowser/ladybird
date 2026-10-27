@@ -85,6 +85,12 @@ if (BUILD_TESTING AND NOT WIN32)
     set_tests_properties(TestWebDriverContentBlockers PROPERTIES TIMEOUT 180)
 
     add_test(
+        NAME TestWebDriverLocationPolicy
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-location-policy.py $<TARGET_FILE:WebDriver>
+    )
+    set_tests_properties(TestWebDriverLocationPolicy PROPERTIES TIMEOUT 120)
+
+    add_test(
         NAME TestWebDriverSearchEngineSettings
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-search-engine-settings.py $<TARGET_FILE:WebDriver>
     )

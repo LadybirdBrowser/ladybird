@@ -10,6 +10,7 @@
 #include <LibWebView/FaviconStore.h>
 #include <LibWebView/HSTSStore.h>
 #include <LibWebView/HistoryStore.h>
+#include <LibWebView/PermissionManager.h>
 #include <LibWebView/SessionStore.h>
 #include <LibWebView/StorageJar.h>
 

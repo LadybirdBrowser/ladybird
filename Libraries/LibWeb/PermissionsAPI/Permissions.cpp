@@ -62,7 +62,7 @@ PermissionState request_permission(PermissionDescriptor const& descriptor)
 
     // 4. If the user gives express permission to use the powerful feature, set current state to "granted"; otherwise to "denied".
     // The user's interaction may provide new information about the user's intent for the origin.
-    if (descriptor.name == "geolocation"_utf16 || HTML::Window::in_test_mode()) {
+    if (HTML::Window::in_test_mode()) {
         current_state = PermissionState::Granted;
     } else {
         current_state = PermissionState::Denied;

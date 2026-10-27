@@ -169,6 +169,10 @@ public:
 
     void background_networking_settings_changed(Badge<ApplicationSettingsObserver>);
 
+    // True unless the user has turned location off, or there's no way to find it.
+    bool sites_can_ask_for_location() const;
+    void location_policy_changed(Badge<ApplicationSettingsObserver>);
+
     bool content_blocking_enabled() const;
     bool has_content_blocking_rules() const;
     void apply_content_blocking_policy(WebContentPage&);
@@ -485,6 +489,7 @@ private:
     void stop_current_content_blocker_list_update_and_continue();
     void finish_current_content_blocker_list_update();
     ErrorOr<NonnullRawPtr<Core::GeolocationProvider>> ensure_geolocation_provider();
+    void update_permission_defaults();
 
     void initialize_actions();
     void update_vertical_tabs_action();

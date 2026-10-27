@@ -87,6 +87,12 @@ struct AutoplaySiteSetting : public SiteSetting {
     Web::HTML::AutoplayPolicy policy { Web::HTML::AutoplayPolicy::BlockAudio };
 };
 
+// Whether sites may ask for the user's location at all.
+enum class LocationPolicy : u8 {
+    Ask,
+    Block,
+};
+
 struct BrowsingDataSettings {
     HTTP::DiskCacheSettings disk_cache_settings;
 };
@@ -219,8 +225,8 @@ public:
     void remove_autoplay_site_filter(String const&);
     void remove_all_autoplay_site_filters();
 
-    bool geolocation_enabled() const { return m_geolocation_enabled; }
-    void set_geolocation_enabled(bool);
+    LocationPolicy location_policy() const { return m_location_policy; }
+    void set_location_policy(LocationPolicy);
 
     static BrowsingDataSettings parse_browsing_data_settings(JsonValue const&);
     BrowsingDataSettings const& browsing_data_settings() const { return m_browsing_data_settings; }
@@ -295,7 +301,7 @@ private:
     Vector<SearchEngine> m_custom_search_engines;
 
     AutoplaySiteSetting m_autoplay;
-    bool m_geolocation_enabled { false };
+    LocationPolicy m_location_policy { LocationPolicy::Ask };
 
     BrowsingDataSettings m_browsing_data_settings;
     GlobalPrivacyControl m_global_privacy_control { GlobalPrivacyControl::No };

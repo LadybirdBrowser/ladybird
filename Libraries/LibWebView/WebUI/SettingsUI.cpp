@@ -143,8 +143,8 @@ void SettingsUI::register_interfaces()
     register_interface("removeAllSiteSettingFilters"sv, [this](auto const& data) {
         remove_all_site_setting_filters(data);
     });
-    register_interface("setGeolocationEnabled"sv, [this](auto const& data) {
-        set_geolocation_enabled(data);
+    register_interface("setLocationPolicy"sv, [this](auto const& data) {
+        set_location_policy(data);
     });
 
     register_interface("estimateBrowsingDataSizes"sv, [this](auto const& data) {
@@ -517,12 +517,15 @@ void SettingsUI::remove_all_site_setting_filters(JsonValue const& site_setting)
     }
 }
 
-void SettingsUI::set_geolocation_enabled(JsonValue const& enabled)
+void SettingsUI::set_location_policy(JsonValue const& policy)
 {
-    if (!enabled.is_bool())
+    if (!policy.is_string())
         return;
 
-    Application::settings().set_geolocation_enabled(enabled.as_bool());
+    if (policy.as_string() == "ask"sv)
+        Application::settings().set_location_policy(LocationPolicy::Ask);
+    else if (policy.as_string() == "block"sv)
+        Application::settings().set_location_policy(LocationPolicy::Block);
 }
 
 void SettingsUI::estimate_browsing_data_sizes(JsonValue const& options)
