@@ -2,7 +2,7 @@ Harness status: OK
 
 Found 3 tests
 
-3 Fail
-Fail	Single flex-grow item fills multi-line column container height
-Fail	flex-grow respects max-height on individual items
-Fail	flex-grow distributes space proportionally
+3 Pass
+Pass	Single flex-grow item fills multi-line column container height
+Pass	flex-grow respects max-height on individual items
+Pass	flex-grow distributes space proportionally
