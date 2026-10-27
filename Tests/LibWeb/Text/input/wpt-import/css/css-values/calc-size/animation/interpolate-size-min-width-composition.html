@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>min-width composition with interpolate-size: allow-keywords</title>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-3/#propdef-min-width">
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#interpolate-size">
+
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../css/support/interpolation-testcommon.js"></script>
+<style>
+:root {
+  interpolate-size: allow-keywords;
+}
+.parent {
+  width: 200px;
+}
+.target {
+  width: 100px;
+  height: 150px;
+}
+.target::before {
+  display: block;
+  content: "";
+  width: 100px;
+  height: 50px;
+}
+</style>
+
+<body>
+<script>
+
+// TODO(https://issues.chromium.org/issues/40339056): The specific
+// syntax details of these expectations probably need further review to
+// check against the calc() simplification rules and other parts of the
+// specification.
+
+test_composition({
+  property: 'min-width',
+  underlying: '100px',
+  addFrom: 'max-content',
+  addTo: '100px',
+}, [
+  {at: -0.3, expect: 'calc-size(max-content, (100px + size) * 1.3 + -60px)'},
+  {at: 0, expect: 'calc-size(max-content, (100px + size) * 1 + 0px)'},
+  {at: 0.5, expect: 'calc-size(max-content, (100px + size) * 0.5 + 100px)'},
+  {at: 1, expect: 'calc-size(max-content, (100px + size) * 0 + 200px)'},
+  {at: 1.5, expect: 'calc-size(max-content, (100px + size) * -0.5 + 300px)'},
+]);
+
+test_composition({
+  property: 'min-width',
+  underlying: 'min-content', /* not compatible */
+  addFrom: 'fit-content', /* not compatible */
+  addTo: 'max-content', /* not compatible */
+}, [
+  {at: -0.3, expect: 'fit-content'},
+  {at: 0, expect: 'fit-content'},
+  {at: 0.5, expect: 'max-content'},
+  {at: 1, expect: 'max-content'},
+  {at: 1.5, expect: 'max-content'},
+]);
+
+test_composition({
+  property: 'min-width',
+  underlying: 'max-content',
+  addFrom: '100px', /* composites to calc-size(max-content, 100px + size) */
+  addTo: 'min-content', /* underlying value ignored when compositing since not compatible */
+  /* min-content and max-content values cannot interpolate, so they animate discretely */
+}, [
+  {at: -0.3, expect: 'calc-size(max-content, 100px + size)'},
+  {at: 0, expect: 'calc-size(max-content, 100px + size)'},
+  {at: 0.5, expect: 'min-content'},
+  {at: 1, expect: 'min-content'},
+  {at: 1.5, expect: 'min-content'},
+]);
+</script>
+</body>

@@ -1,0 +1,36 @@
+Harness status: OK
+
+Found 30 tests
+
+8 Pass
+22 Fail
+Fail	Compositing CSS Animations: property <width> underlying [100px] from add [100px] to add [auto] at (-0.3) should be [170px]
+Pass	Compositing CSS Animations: property <width> underlying [100px] from add [100px] to add [auto] at (0) should be [200px]
+Fail	Compositing CSS Animations: property <width> underlying [100px] from add [100px] to add [auto] at (0.5) should be [250px]
+Fail	Compositing CSS Animations: property <width> underlying [100px] from add [100px] to add [auto] at (1) should be [300px]
+Fail	Compositing CSS Animations: property <width> underlying [100px] from add [100px] to add [auto] at (1.5) should be [350px]
+Fail	Compositing Web Animations: property <width> underlying [100px] from add [100px] to add [auto] at (-0.3) should be [170px]
+Pass	Compositing Web Animations: property <width> underlying [100px] from add [100px] to add [auto] at (0) should be [200px]
+Fail	Compositing Web Animations: property <width> underlying [100px] from add [100px] to add [auto] at (0.5) should be [250px]
+Fail	Compositing Web Animations: property <width> underlying [100px] from add [100px] to add [auto] at (1) should be [300px]
+Fail	Compositing Web Animations: property <width> underlying [100px] from add [100px] to add [auto] at (1.5) should be [350px]
+Fail	Compositing CSS Animations: property <width> underlying [100px] from add [fit-content] to add [auto] at (-0.3) should be [200px]
+Fail	Compositing CSS Animations: property <width> underlying [100px] from add [fit-content] to add [auto] at (0) should be [200px]
+Fail	Compositing CSS Animations: property <width> underlying [100px] from add [fit-content] to add [auto] at (0.5) should be [300px]
+Fail	Compositing CSS Animations: property <width> underlying [100px] from add [fit-content] to add [auto] at (1) should be [300px]
+Fail	Compositing CSS Animations: property <width> underlying [100px] from add [fit-content] to add [auto] at (1.5) should be [300px]
+Fail	Compositing Web Animations: property <width> underlying [100px] from add [fit-content] to add [auto] at (-0.3) should be [200px]
+Fail	Compositing Web Animations: property <width> underlying [100px] from add [fit-content] to add [auto] at (0) should be [200px]
+Fail	Compositing Web Animations: property <width> underlying [100px] from add [fit-content] to add [auto] at (0.5) should be [300px]
+Fail	Compositing Web Animations: property <width> underlying [100px] from add [fit-content] to add [auto] at (1) should be [300px]
+Fail	Compositing Web Animations: property <width> underlying [100px] from add [fit-content] to add [auto] at (1.5) should be [300px]
+Fail	Compositing CSS Animations: property <width> underlying [max-content] from add [200px] to add [auto] at (-0.3) should be [300px]
+Fail	Compositing CSS Animations: property <width> underlying [max-content] from add [200px] to add [auto] at (0) should be [300px]
+Pass	Compositing CSS Animations: property <width> underlying [max-content] from add [200px] to add [auto] at (0.5) should be [200px]
+Pass	Compositing CSS Animations: property <width> underlying [max-content] from add [200px] to add [auto] at (1) should be [200px]
+Pass	Compositing CSS Animations: property <width> underlying [max-content] from add [200px] to add [auto] at (1.5) should be [200px]
+Fail	Compositing Web Animations: property <width> underlying [max-content] from add [200px] to add [auto] at (-0.3) should be [300px]
+Fail	Compositing Web Animations: property <width> underlying [max-content] from add [200px] to add [auto] at (0) should be [300px]
+Pass	Compositing Web Animations: property <width> underlying [max-content] from add [200px] to add [auto] at (0.5) should be [200px]
+Pass	Compositing Web Animations: property <width> underlying [max-content] from add [200px] to add [auto] at (1) should be [200px]
+Pass	Compositing Web Animations: property <width> underlying [max-content] from add [200px] to add [auto] at (1.5) should be [200px]

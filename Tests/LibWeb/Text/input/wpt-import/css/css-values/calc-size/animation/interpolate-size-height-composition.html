@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>height composition with interpolate-size: allow-keywords</title>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-3/#propdef-height">
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#interpolate-size">
+
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../css/support/interpolation-testcommon.js"></script>
+<style>
+:root {
+  interpolate-size: allow-keywords;
+}
+.parent {
+  height: 200px;
+}
+.target {
+  width: 100px;
+  height: 150px;
+}
+.target::before {
+  display: block;
+  content: "";
+  width: 100px;
+  height: 50px;
+}
+</style>
+
+<body>
+<script>
+test_composition({
+  property: 'height',
+  underlying: 'fit-content', /* 50px */
+  addFrom: '100px',
+  addTo: '200px',
+}, [
+  {at: -0.3, expect: '120px'},
+  {at: 0, expect: '150px'},
+  {at: 0.5, expect: '200px'},
+  {at: 1, expect: '250px'},
+  {at: 1.5, expect: '300px'},
+]);
+
+test_composition({
+  property: 'height',
+  underlying: 'fit-content',
+  addFrom: 'min-content', /* min-content is 50px, fit-content is ignored
+                             because min-content and fit-content are not
+                             compatible */
+  addTo: '200px', /* combines with fit-content (50px) to be 250px */
+  /* the composited from value is a min-content size and the composited
+     to value is a fit-content size, so they cannot be interpolated,
+     and the animation is discrete */
+}, [
+  {at: -0.3, expect: '50px'},
+  {at: 0, expect: '50px'},
+  {at: 0.5, expect: '250px'},
+  {at: 1, expect: '250px'},
+  {at: 1.5, expect: '250px'},
+]);
+</script>
+</body>
