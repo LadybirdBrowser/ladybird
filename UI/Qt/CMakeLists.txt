@@ -20,6 +20,8 @@ if (LINUX AND NOT ANDROID)
     pkg_check_modules(GIO REQUIRED IMPORTED_TARGET gio-2.0 gio-unix-2.0)
     # NB: Without the Wayland client library, a tab dragged out of a window does not take a window along with it.
     pkg_check_modules(WAYLAND_CLIENT IMPORTED_TARGET wayland-client)
+    # NB: Without the Wayland scanner, the browser cannot ask the Wayland compositor which GPU it presents on.
+    pkg_check_modules(WAYLAND_SCANNER wayland-scanner)
     pkg_check_modules(XCB_ICCCM REQUIRED IMPORTED_TARGET xcb-icccm)
 endif()
 
@@ -91,6 +93,32 @@ if (LINUX AND NOT ANDROID)
         target_sources(ladybird PRIVATE WaylandWindow.cpp WaylandWindow.h)
         target_link_libraries(ladybird PRIVATE PkgConfig::WAYLAND_CLIENT)
         target_compile_definitions(ladybird PRIVATE LADYBIRD_HAS_WAYLAND_CLIENT)
+    endif()
+    if (WAYLAND_CLIENT_FOUND AND WAYLAND_SCANNER_FOUND)
+        pkg_get_variable(WAYLAND_SCANNER_EXECUTABLE wayland-scanner wayland_scanner)
+        set(LINUX_DMABUF_PROTOCOL "${CMAKE_CURRENT_SOURCE_DIR}/Protocols/linux-dmabuf-v1.xml")
+        set(LINUX_DMABUF_PROTOCOL_HEADER "${CMAKE_CURRENT_BINARY_DIR}/linux-dmabuf-v1-client-protocol.h")
+        set(LINUX_DMABUF_PROTOCOL_CODE "${CMAKE_CURRENT_BINARY_DIR}/linux-dmabuf-v1-protocol.c")
+        add_custom_command(
+            OUTPUT "${LINUX_DMABUF_PROTOCOL_HEADER}"
+            COMMAND "${WAYLAND_SCANNER_EXECUTABLE}" client-header "${LINUX_DMABUF_PROTOCOL}" "${LINUX_DMABUF_PROTOCOL_HEADER}"
+            DEPENDS "${LINUX_DMABUF_PROTOCOL}"
+            VERBATIM
+        )
+        add_custom_command(
+            OUTPUT "${LINUX_DMABUF_PROTOCOL_CODE}"
+            COMMAND "${WAYLAND_SCANNER_EXECUTABLE}" private-code "${LINUX_DMABUF_PROTOCOL}" "${LINUX_DMABUF_PROTOCOL_CODE}"
+            DEPENDS "${LINUX_DMABUF_PROTOCOL}"
+            VERBATIM
+        )
+        target_sources(ladybird PRIVATE
+            WaylandGpu.cpp
+            WaylandGpu.h
+            "${LINUX_DMABUF_PROTOCOL_HEADER}"
+            "${LINUX_DMABUF_PROTOCOL_CODE}"
+        )
+        target_include_directories(ladybird PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
+        target_compile_definitions(ladybird PRIVATE LADYBIRD_HAS_WAYLAND_GPU_QUERY)
     endif()
 endif()
 

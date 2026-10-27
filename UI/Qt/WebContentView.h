@@ -19,6 +19,7 @@
 #endif
 #include <LibGfx/Cursor.h>
 #include <LibGfx/Forward.h>
+#include <LibGfx/GpuDeviceIdentity.h>
 #include <LibGfx/Rect.h>
 #include <LibURL/URL.h>
 #include <LibWebCommon/Forward.h>
@@ -118,6 +119,11 @@ public:
 
     WebContentView(QWidget* window, Optional<WebView::CanonicalTraversable&> traversable = {}, WebContentViewInitialState initial_state = {});
     virtual ~WebContentView() override;
+
+#ifdef LADYBIRD_QT_USE_VULKAN_WINDOW
+    // The GPU that the views present on, when the window system says which one it presents on.
+    static Optional<Gfx::GpuDeviceIdentity> presentation_gpu_device();
+#endif
 
 #if !defined(LADYBIRD_QT_USE_RHI_WIDGET)
     virtual void paintEvent(QPaintEvent*) override;
