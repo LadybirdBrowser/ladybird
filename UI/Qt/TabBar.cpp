@@ -2993,8 +2993,11 @@ bool TabWidget::vertical_tabs_hold_window_controls() const
 
 int TabWidget::vertical_tabs_column_top_margin() const
 {
-    // NB: The open sidebar's top row is level with the toolbar, at the top of the window.
-    return m_vertical_tabs_expanded ? 0 : VERTICAL_TABS_TOP_MARGIN;
+    // The tab bar already leaves room above the first tab for its flare. Only native window controls need an extra row.
+    auto margin = VERTICAL_TABS_TOP_MARGIN - VERTICAL_TAB_FLARE_RADIUS;
+    if (vertical_tabs_hold_window_controls())
+        margin += Tab::toolbar_height(should_show_window_controls_in_tab_toolbar());
+    return margin;
 }
 
 void TabWidget::update_toolbar_placement()
@@ -3049,6 +3052,8 @@ void TabWidget::rebuild_layout()
     clear_layout(*m_page_column_layout);
     clear_layout(*m_vertical_tab_bar_column_layout);
     clear_layout(*m_vertical_tabs_content_layout);
+
+    m_vertical_tabs_toggle_button_layout = nullptr;
 
     m_tab_bar->set_vertical_tabs_position(m_vertical_tabs_position);
     m_tab_bar->set_pinned_tabs_in_rows(m_vertical_tabs_hover_expanded && !m_vertical_tabs_expanded);
@@ -3154,42 +3159,20 @@ void TabWidget::rebuild_layout_for_vertical_tabs()
 
     update_vertical_tabs_button_layout();
 
-    auto* top_row_layout = new QHBoxLayout;
-    top_row_layout->setSpacing(0);
-    if (m_vertical_tabs_expanded) {
-        // The open sidebar runs the full height of the window. Its top row sits beside the toolbar, and holds the window
-        // controls when they are on its side, with the sidebar's toggle at the edge toward the page.
-        auto page_side_margin = vertical_tabs_side_margin(true);
-        top_row_layout->setContentsMargins(vertical_tabs_are_on_right() ? page_side_margin : 0, 0, vertical_tabs_are_on_right() ? 0 : page_side_margin, 0);
-        top_row_layout->addStrut(Tab::toolbar_height(should_show_window_controls_in_tab_toolbar()));
-        if (vertical_tabs_hold_window_controls())
-            top_row_layout->addSpacing(NATIVE_MACOS_WINDOW_CONTROLS_WIDTH);
-        if (!vertical_tabs_are_on_right())
-            top_row_layout->addStretch(1);
-        top_row_layout->addWidget(m_vertical_tabs_toggle_button, 0, Qt::AlignVCenter);
-        if (vertical_tabs_are_on_right())
-            top_row_layout->addStretch(1);
-    } else {
-        // The collapsed sidebar's toggle sits above its tabs, centered on the collapsed sidebar, and stays put while
-        // the sidebar opens on hover.
-        auto collapsed_tab_width = VERTICAL_TABS_COLLAPSED_WIDTH - vertical_tabs_horizontal_margin_width(TabLayout::VerticalCollapsed);
-        auto inset = (collapsed_tab_width - VERTICAL_TABS_TOGGLE_BUTTON_SIZE) / 2;
-        top_row_layout->setContentsMargins(vertical_tabs_are_on_right() ? 0 : inset, 0, vertical_tabs_are_on_right() ? inset : 0, 0);
-        // NB: The tab bar below leaves room above its first tab.
-        top_row_layout->addStrut(VERTICAL_TAB_HEIGHT - VERTICAL_TAB_FLARE_RADIUS);
-        if (vertical_tabs_are_on_right())
-            top_row_layout->addStretch(1);
-        top_row_layout->addWidget(m_vertical_tabs_toggle_button, 0, Qt::AlignVCenter);
-        if (!vertical_tabs_are_on_right())
-            top_row_layout->addStretch(1);
-    }
-    m_vertical_tab_bar_column_layout->addLayout(top_row_layout);
-    if (m_vertical_tabs_expanded)
-        m_vertical_tab_bar_column_layout->addSpacing(VERTICAL_TABS_TOP_MARGIN - VERTICAL_TAB_FLARE_RADIUS);
-
     m_vertical_tab_bar_column_layout->addWidget(m_tab_bar);
     m_vertical_tab_bar_column_layout->addWidget(m_new_tab_button, 0, vertical_tabs_are_on_right() ? Qt::AlignRight : Qt::AlignLeft);
     m_vertical_tab_bar_column_layout->addStretch(1);
+
+    // Keep the toggle at the bottom, centered on the collapsed tab column even while the sidebar opens on hover.
+    m_vertical_tabs_toggle_button_layout = new QHBoxLayout;
+    m_vertical_tabs_toggle_button_layout->setSpacing(0);
+    if (vertical_tabs_are_on_right())
+        m_vertical_tabs_toggle_button_layout->addStretch(1);
+    m_vertical_tabs_toggle_button_layout->addWidget(m_vertical_tabs_toggle_button);
+    if (!vertical_tabs_are_on_right())
+        m_vertical_tabs_toggle_button_layout->addStretch(1);
+    m_vertical_tab_bar_column_layout->addLayout(m_vertical_tabs_toggle_button_layout);
+    update_vertical_tabs_column_margins();
 }
 
 // The collapsed sidebar sits below the toolbar, which flows around its rounded corner beside the page into the frame
@@ -3222,6 +3205,12 @@ void TabWidget::update_vertical_tabs_column_margins()
     auto left = vertical_tabs_are_on_right() ? 0 : side_margin;
     auto right = vertical_tabs_are_on_right() ? side_margin : 0;
     m_vertical_tab_bar_column_layout->setContentsMargins(left, vertical_tabs_column_top_margin(), right, 8);
+
+    // Compensate for the column's changing side margin so the toggle stays fixed relative to the window's edge.
+    if (m_vertical_tabs_toggle_button_layout) {
+        auto inset = (VERTICAL_TABS_COLLAPSED_WIDTH - VERTICAL_TABS_TOGGLE_BUTTON_SIZE) / 2 - side_margin;
+        m_vertical_tabs_toggle_button_layout->setContentsMargins(vertical_tabs_are_on_right() ? 0 : inset, 0, vertical_tabs_are_on_right() ? inset : 0, 0);
+    }
 }
 
 void TabWidget::rebuild_page_column()

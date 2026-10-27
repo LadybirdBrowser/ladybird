@@ -338,6 +338,7 @@ private:
     QBoxLayout* m_tab_bar_row_layout { nullptr };
     QBoxLayout* m_page_column_layout { nullptr };
     QBoxLayout* m_vertical_tab_bar_column_layout { nullptr };
+    QBoxLayout* m_vertical_tabs_toggle_button_layout { nullptr };
     QBoxLayout* m_vertical_tabs_content_layout { nullptr };
     bool m_tab_bar_visible { true };
     bool m_window_controls_visible { true };
