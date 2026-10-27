@@ -692,7 +692,7 @@ struct EcdhKeyDeriveParams : public AlgorithmParams {
     {
     }
 
-    GC::Ref<CryptoKey> public_key;
+    GC::Root<CryptoKey> public_key;
 
     static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::Realm&, JS::Value);
 };
