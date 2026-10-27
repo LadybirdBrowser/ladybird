@@ -10,6 +10,7 @@
 #include <AK/Assertions.h>
 #include <AK/ByteBuffer.h>
 #include <AK/Format.h>
+#include <AK/GenericShorthands.h>
 #include <AK/LexicalPath.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Types.h>
@@ -306,6 +307,9 @@ WebContentView::WebContentView(QWidget* window, Optional<WebView::CanonicalTrave
 #endif
 
     on_ready_to_paint = [this]() {
+        if (m_screenshot_selection_overlay)
+            m_screenshot_selection_overlay->page_did_paint();
+
         // Nothing of the page shows while an overlay covers it, which repaints the page once it goes away.
         if (!is_page_covered_by_overlay()) {
 #ifdef LADYBIRD_QT_USE_RHI_WIDGET
@@ -811,6 +815,8 @@ void WebContentView::keyPressEvent(QKeyEvent* event)
         return;
     }
 
+    if (m_screenshot_selection_overlay)
+        m_screenshot_selection_overlay->page_did_scroll();
     enqueue_native_event(Web::KeyEvent::Type::KeyDown, *event);
 }
 
@@ -938,6 +944,11 @@ void WebContentView::wheelEvent(QWheelEvent* event)
         return;
     }
 
+    // The momentum that remains of a scroll on a touchpad goes on moving the page by a pixel or so for a while after it
+    // looks to have stopped, which a screenshot selection does not wait for.
+    auto is_momentum_running_out = first_is_one_of(event->phase(), Qt::ScrollMomentum, Qt::ScrollEnd) && event->pixelDelta().manhattanLength() <= 1;
+    if (m_screenshot_selection_overlay && !is_momentum_running_out)
+        m_screenshot_selection_overlay->page_did_scroll();
     enqueue_native_event(Web::MouseEvent::Type::MouseWheel, *event);
 }
 
@@ -1478,8 +1489,8 @@ void WebContentView::leave_report_review()
     schedule_repaint();
 }
 
-// The frame and the page's dumps are taken right away, so the report shows the page as it was when the user asked. The
-// user selects what they saw on the page itself, and reviews the report in a tab of its own.
+// The page's dumps are taken right away, so the report describes the page as it was when the user asked. The user
+// selects what they saw on the page itself, and reviews the report in a tab of its own.
 void WebContentView::start_web_compat_report()
 {
     if (m_screenshot_selection_overlay)
@@ -1487,24 +1498,32 @@ void WebContentView::start_web_compat_report()
 
     WebCompatReportCapture capture {
         .page = WebView::WebCompatReport::describe_page(*this),
-        .frame = visible_snapshot(),
         .screenshot = {},
         .page_dumps = WebView::WebCompatReport::request_page_dumps(*this),
     };
-
-    auto review = [this](WebCompatReportCapture capture) {
+    select_web_compat_report_screenshot([this, capture = AK::move(capture)](QImage screenshot) mutable {
+        capture.screenshot = AK::move(screenshot);
         if (on_request_web_compat_report_review)
             on_request_web_compat_report_review(AK::move(capture));
-    };
-    if (capture.frame.isNull()) {
-        review(AK::move(capture));
+    });
+}
+
+// A report's screenshot is selected on the page itself, both when the report starts and when its review takes another.
+// Without a frame to select from, the report goes without one.
+void WebContentView::select_web_compat_report_screenshot(Function<void(QImage)> on_selected, Function<void()> on_close)
+{
+    if (m_screenshot_selection_overlay)
+        return;
+
+    auto frame = visible_snapshot();
+    if (frame.isNull()) {
+        if (on_close)
+            on_close();
+        on_selected({});
         return;
     }
 
-    select_screenshot(capture.frame).on_finished = [review = AK::move(review), capture = AK::move(capture)](QImage screenshot) mutable {
-        capture.screenshot = AK::move(screenshot);
-        review(AK::move(capture));
-    };
+    select_screenshot(frame, AK::move(on_close)).on_finished = AK::move(on_selected);
 }
 
 // The tab was opened only for the review, so no web content runs behind it, and leaving the review closes it.
@@ -1521,15 +1540,15 @@ void WebContentView::review_web_compat_report(WebCompatReportCapture capture)
     column_layout->setContentsMargins(0, 0, 0, 0);
     column_layout->addWidget(review);
 
-    review->on_select_screenshot = [this, review = QPointer { review }, frame = AK::move(capture.frame)] {
-        if (frame.isNull() || m_screenshot_selection_overlay)
+    review->on_select_screenshot = [this, review = QPointer { review }] {
+        if (!on_request_web_compat_report_screenshot)
             return;
-        select_screenshot(frame).on_finished = [review](QImage screenshot) {
+        on_request_web_compat_report_screenshot([review](QImage screenshot) {
             if (!review)
                 return;
             review->set_screenshot(AK::move(screenshot));
             review->setFocus(Qt::OtherFocusReason);
-        };
+        });
     };
     review->on_view_screenshot = [this](QImage const& screenshot) {
         if (screenshot.isNull() || m_screenshot_viewer)
@@ -1568,16 +1587,20 @@ void WebContentView::review_web_compat_report(WebCompatReportCapture capture)
 }
 
 // The selection shows a frame taken earlier, so the user selects what they saw, even while the page underneath changes.
-ScreenshotSelectionOverlay& WebContentView::select_screenshot(QImage const& frame)
+ScreenshotSelectionOverlay& WebContentView::select_screenshot(QImage const& frame, Function<void()> on_close)
 {
     VERIFY(!m_screenshot_selection_overlay);
 
     auto* overlay = new ScreenshotSelectionOverlay(frame, this);
     m_screenshot_selection_overlay = overlay;
     auto focus_to_restore = show_transient_overlay(*overlay);
-    overlay->on_close = [this, overlay, focus_to_restore] {
+    overlay->on_close = [this, overlay, focus_to_restore, on_close = AK::move(on_close)] {
         close_transient_overlay(*overlay, focus_to_restore);
+        if (on_close)
+            on_close();
     };
+    overlay->on_request_page_frame = [this] { return visible_snapshot(); };
+    overlay->on_page_visibility_change = [this] { schedule_repaint(); };
     return *overlay;
 }
 
@@ -1609,7 +1632,7 @@ Array<QWidget*, 4> WebContentView::overlays() const
 bool WebContentView::is_page_covered_by_overlay() const
 {
     for (auto* overlay : overlays()) {
-        if (overlay && !overlay->isHidden())
+        if (overlay && !overlay->isHidden() && !(overlay == m_screenshot_selection_overlay && m_screenshot_selection_overlay->reveals_page()))
             return true;
     }
     return false;

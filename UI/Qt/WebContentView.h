@@ -93,7 +93,6 @@ class SelectDropdown;
 
 struct WebCompatReportCapture {
     WebView::WebCompatReport::Page page;
-    QImage frame;
     QImage screenshot;
     NonnullRefPtr<Core::Promise<String>> page_dumps;
 };
@@ -157,8 +156,10 @@ public:
     void review_hidden_crash_report(ByteString const& report_name);
     void leave_report_review();
     void review_web_compat_report(WebCompatReportCapture);
+    void select_web_compat_report_screenshot(Function<void(QImage)> on_selected, Function<void()> on_close = {});
 
     Function<void(WebCompatReportCapture)> on_request_web_compat_report_review;
+    Function<void(Function<void(QImage)> on_selected)> on_request_web_compat_report_screenshot;
 
     enum class PaletteMode {
         Default,
@@ -237,7 +238,7 @@ private:
     void show_crash_report_review(Optional<ByteString> const& hidden_crash_report_name = {});
 
     void start_web_compat_report();
-    ScreenshotSelectionOverlay& select_screenshot(QImage const& frame);
+    ScreenshotSelectionOverlay& select_screenshot(QImage const& frame, Function<void()> on_close = {});
     QPointer<QWidget> show_transient_overlay(QWidget&);
     void close_transient_overlay(QWidget&, QPointer<QWidget> const& focus_to_restore);
 

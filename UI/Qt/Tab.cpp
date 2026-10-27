@@ -972,6 +972,18 @@ void Tab::initialize(Optional<WebView::CanonicalTraversable&> traversable)
         tab.enter_report_review(this, tr("Report Website Issue"));
     };
 
+    // A review takes its screenshot on the page it reports, in the tab it was opened from, and comes back once done.
+    view().on_request_web_compat_report_screenshot = [this](Function<void(QImage)> on_selected) {
+        auto* reported_tab = m_tab_to_activate_on_close.data();
+        if (!reported_tab)
+            return;
+        m_window->activate_tab(m_window->tab_index(reported_tab));
+        reported_tab->view().select_web_compat_report_screenshot(AK::move(on_selected), [this, review_tab = QPointer { this }] {
+            if (review_tab)
+                m_window->activate_tab(m_window->tab_index(this));
+        });
+    };
+
     view().on_link_hover = [this](auto const& url) {
         m_hover_label->setText(qstring_from_ak_string(url.to_byte_string()));
         update_hover_label();
