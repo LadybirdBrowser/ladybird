@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>width composition with interpolate-size: allow-keywords</title>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-3/#propdef-width">
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#interpolate-size">
+
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../css/support/interpolation-testcommon.js"></script>
+<style>
+:root {
+  interpolate-size: allow-keywords;
+}
+.parent {
+  width: 200px;
+}
+.target {
+  width: 100px;
+  height: 150px;
+}
+.target::before {
+  display: block;
+  content: "";
+  width: 100px;
+  height: 50px;
+}
+</style>
+
+<body>
+<script>
+test_composition({
+  property: 'width',
+  underlying: '100px',
+  addFrom: '100px',
+  addTo: 'auto', /* 200px */
+}, [
+  {at: -0.3, expect: '170px'},
+  {at: 0, expect: '200px'},
+  {at: 0.5, expect: '250px'},
+  {at: 1, expect: '300px'},
+  {at: 1.5, expect: '350px'},
+]);
+
+test_composition({
+  property: 'width',
+  underlying: '100px',
+  addFrom: 'fit-content', /* 100px, not compatible */
+  addTo: 'auto', /* 200px, not compatible */
+}, [
+  {at: -0.3, expect: '200px'},
+  {at: 0, expect: '200px'},
+  {at: 0.5, expect: '300px'},
+  {at: 1, expect: '300px'},
+  {at: 1.5, expect: '300px'},
+]);
+
+test_composition({
+  property: 'width',
+  underlying: 'max-content', /* 100px */
+  addFrom: '200px',
+  addTo: 'auto', /* 200px, max-content underlying is ignored */
+}, [
+  {at: -0.3, expect: '300px'},
+  {at: 0, expect: '300px'},
+  {at: 0.5, expect: '200px'},
+  {at: 1, expect: '200px'},
+  {at: 1.5, expect: '200px'},
+]);
+</script>
+</body>

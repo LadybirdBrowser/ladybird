@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>max-height composition with interpolate-size: allow-keywords</title>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-3/#propdef-max-height">
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#interpolate-size">
+
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../css/support/interpolation-testcommon.js"></script>
+<style>
+:root {
+  interpolate-size: allow-keywords;
+}
+.parent {
+  height: 200px;
+}
+.target {
+  width: 100px;
+  height: 150px;
+}
+.target::before {
+  display: block;
+  content: "";
+  width: 100px;
+  height: 50px;
+}
+</style>
+
+<body>
+<script>
+
+// TODO(https://issues.chromium.org/issues/40339056): The specific
+// syntax details of these expectations probably need further review to
+// check against the calc() simplification rules and other parts of the
+// specification.
+
+test_composition({
+  property: 'max-height',
+  underlying: 'fit-content', /* 50px */
+  addFrom: '100px',
+  addTo: '200px',
+}, [
+  {at: -0.3, expect: 'calc-size(fit-content, (100px + size) * 1.3 + (200px + size) * -0.3)'},
+  {at: 0, expect: 'calc-size(fit-content, (100px + size) * 1 + (200px + size) * 0)'},
+  {at: 0.5, expect: 'calc-size(fit-content, (100px + size) * 0.5 + (200px + size) * 0.5)'},
+  {at: 1, expect: 'calc-size(fit-content, (100px + size) * 0 + (200px + size) * 1)'},
+  {at: 1.5, expect: 'calc-size(fit-content, (100px + size) * -0.5 + (200px + size) * 1.5)'},
+]);
+
+test_composition({
+  property: 'max-height',
+  underlying: 'fit-content', /* 50px */
+  addFrom: 'min-content', /* 50px (fit-content is ignored) */
+  addTo: '200px', /* adds to 250px, can't interpolate with from */
+}, [
+  {at: -0.3, expect: 'min-content'},
+  {at: 0, expect: 'min-content'},
+  {at: 0.5, expect: 'calc-size(fit-content, 200px + size)'},
+  {at: 1, expect: 'calc-size(fit-content, 200px + size)'},
+  {at: 1.5, expect: 'calc-size(fit-content, 200px + size)'},
+]);
+</script>
+</body>

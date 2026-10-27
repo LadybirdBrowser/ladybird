@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>max-width composition with interpolate-size: allow-keywords</title>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-3/#propdef-max-width">
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#interpolate-size">
+
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../css/support/interpolation-testcommon.js"></script>
+<style>
+:root {
+  interpolate-size: allow-keywords;
+}
+.parent {
+  width: 200px;
+}
+.target {
+  width: 100px;
+  height: 150px;
+}
+.target::before {
+  display: block;
+  content: "";
+  width: 100px;
+  height: 50px;
+}
+</style>
+
+<body>
+<script>
+
+// TODO(https://issues.chromium.org/issues/40339056): The specific
+// syntax details of these expectations probably need further review to
+// check against the calc() simplification rules and other parts of the
+// specification.
+
+test_composition({
+  property: 'max-width',
+  underlying: '100px',
+  addFrom: '100px',
+  addTo: 'fit-content',
+}, [
+  {at: -0.3, expect: 'calc-size(fit-content, 260px + (100px + size) * -0.3)'},
+  {at: 0, expect: 'calc-size(fit-content, 200px + (100px + size) * 0)'},
+  {at: 0.5, expect: 'calc-size(fit-content, 100px + (100px + size) * 0.5)'},
+  {at: 1, expect: 'calc-size(fit-content, 0px + (100px + size) * 1)'},
+  {at: 1.5, expect: 'calc-size(fit-content, -100px + (100px + size) * 1.5)'},
+]);
+
+test_composition({
+  property: 'max-width',
+  underlying: '100px',
+  addFrom: 'fit-content', /* not compatible */
+  addTo: 'max-content', /* not compatible */
+}, [
+  {at: -0.3, expect: 'calc-size(fit-content, 100px + size)'},
+  {at: 0, expect: 'calc-size(fit-content, 100px + size)'},
+  {at: 0.5, expect: 'calc-size(max-content, 100px + size)'},
+  {at: 1, expect: 'calc-size(max-content, 100px + size)'},
+  {at: 1.5, expect: 'calc-size(max-content, 100px + size)'},
+]);
+
+test_composition({
+  property: 'max-width',
+  underlying: 'max-content',
+  addFrom: '100px',
+  addTo: 'min-content',
+}, [
+  {at: -0.3, expect: 'calc-size(max-content, 100px + size)'},
+  {at: 0, expect: 'calc-size(max-content, 100px + size)'},
+  {at: 0.5, expect: 'min-content'},
+  {at: 1, expect: 'min-content'},
+  {at: 1.5, expect: 'min-content'},
+]);
+</script>
+</body>
