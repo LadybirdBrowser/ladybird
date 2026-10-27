@@ -1,5 +1,5 @@
 Paused at the start: mediaTime 0, 64x36, presentedFrames positive: true
-Timestamps: presentation before now: true, expected display after now: true
+Timestamps: presentation before callback: true, expected display at or after now: true
 After seeking to 2.05: mediaTime 2, captured second 2, presentedFrames increased: true
 After seeking to 3.05: mediaTime 3, canceled callback ran: false
 After seeking to 1.05 with 4.05 already presented: mediaTime 1

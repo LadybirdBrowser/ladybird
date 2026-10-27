@@ -12,7 +12,7 @@
     }
 
     function nextVideoFrame(video, onFrame = () => {}) {
-        return new Promise(resolve => video.requestVideoFrameCallback((now, metadata) => resolve({ now, metadata, result: onFrame(now, metadata) })));
+        return new Promise(resolve => video.requestVideoFrameCallback((now, metadata) => resolve({ now, callbackNow: performance.now(), metadata, result: onFrame(now, metadata) })));
     }
 
     async function seekAndWait(video, time) {
@@ -30,7 +30,8 @@
 
         const first = await nextVideoFrame(video);
         println(`Paused at the start: mediaTime ${first.metadata.mediaTime}, ${first.metadata.width}x${first.metadata.height}, presentedFrames positive: ${first.metadata.presentedFrames > 0}`);
-        println(`Timestamps: presentation before now: ${first.metadata.presentationTime <= first.now + 1}, expected display after now: ${first.metadata.expectedDisplayTime > first.now}`);
+        // NB: The callback's now is the rendering timestamp shared with rAF, not its execution time.
+        println(`Timestamps: presentation before callback: ${first.metadata.presentationTime <= first.callbackNow + 1}, expected display at or after now: ${first.metadata.expectedDisplayTime >= first.now}`);
 
         // A seek presents a new frame, and a capture in the callback draws the frame that the metadata describes.
         const afterSeek = nextVideoFrame(video, () => grayCapturedFrom(video));
