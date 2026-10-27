@@ -303,17 +303,7 @@ impl LayoutChange {
                 // A style the arena derived is replaced only to be derived again, which decides the relayout itself.
                 let previous_payloads = (arena.slot_is_live(node) && !arena.node_style_record_is_derived(node))
                     .then(|| arena.data(node).style.get());
-                if arena.set_node_style(node, record, payloads) {
-                    arena.refresh_style_flags(node);
-                }
-                arena.publish_new_size_container_geometry(node);
-                arena.enroll_node_for_svg_paint_resources_sync(node);
-                if previous_payloads
-                    .is_some_and(|previous| !arena.style_move_keeps_layout_inputs(node, previous, payloads))
-                {
-                    arena.bump_fragment_cache_epoch_of_self_and_ancestors(node);
-                    arena.reset_cached_intrinsic_sizes_of_self_and_ancestors(node);
-                }
+                arena.install_style_record(node, record, payloads, previous_payloads);
             }
             Self::PinBoundBoxStyleRecordForDetachment {
                 style_node,
