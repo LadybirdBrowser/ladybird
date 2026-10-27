@@ -447,6 +447,8 @@ bool LibJSGCVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl* record)
     // when used as a member of a Cell (checked below for Cell types).
     // However, if they DO have visit_edges, verify it visits all GC members.
     if (!record_is_cell) {
+        validate_gc_members_of_polymorphic_record(*record);
+
         // Check if this non-Cell type has a visit_edges method
         clang::DeclarationName name = &m_context.Idents.get("visit_edges");
         auto const* visit_edges_method = record->lookup(name).find_first<clang::CXXMethodDecl>();
@@ -1069,8 +1071,11 @@ bool LibJSGCVisitor::VisitClassTemplateDecl(clang::ClassTemplateDecl* class_temp
         return true;
 
     for (auto const* specialization : class_template->specializations()) {
-        if (specialization->getSpecializationKind() == clang::TSK_ImplicitInstantiation && specialization->isCompleteDefinition())
-            validate_engine_subclass_is_in_libjs(*specialization);
+        if (specialization->getSpecializationKind() != clang::TSK_ImplicitInstantiation || !specialization->isCompleteDefinition())
+            continue;
+        validate_engine_subclass_is_in_libjs(*specialization);
+        if (!record_inherits_from_cell(*specialization))
+            validate_gc_members_of_polymorphic_record(*specialization);
     }
     return true;
 }
@@ -1195,6 +1200,29 @@ static bool type_holds_gc_pointer(clang::QualType type, std::set<clang::CXXRecor
             return true;
     }
     return false;
+}
+
+void LibJSGCVisitor::validate_gc_members_of_polymorphic_record(clang::CXXRecordDecl const& record)
+{
+    if (record.isDependentContext() || !record.isPolymorphic() || type_has_visit_edges_method(&record))
+        return;
+
+    bool has_polymorphic_base = false;
+    record.forallBases([&](clang::CXXRecordDecl const* base) {
+        has_polymorphic_base |= base->isPolymorphic();
+        return !has_polymorphic_base;
+    });
+    if (!has_polymorphic_base)
+        return;
+
+    auto& diag_engine = m_context.getDiagnostics();
+    auto diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error, "Member %0 of polymorphic class %1 contains GC pointers but %1 has no visit_edges method");
+    auto record_name = name_for_diagnostic(m_context, record);
+    for (auto const* field : record.fields()) {
+        std::set<clang::CXXRecordDecl const*> visited;
+        if (type_holds_gc_pointer(field->getType(), visited))
+            diag_engine.Report(field->getLocation(), diag_id) << field->getName() << record_name;
+    }
 }
 
 static bool is_container_with_heap_storage(std::string const& template_name)
