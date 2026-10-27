@@ -30,6 +30,7 @@ public:
     void broker_unix_socket_connections();
     void allow_pulseaudio_client_file_operations();
     void allow_network();
+    void allow_datagram_network();
     void allow_memory_without_executable_mappings();
     void allow_executable_memory_mappings();
     void allow_writable_executable_memory_mappings();
@@ -48,6 +49,7 @@ public:
 private:
     void append(sock_filter);
     void append_allow_socket_options(u32 syscall_number, u32 level, ReadonlySpan<u32> options);
+    void append_allow_route_netlink_sockets();
     void append_architecture_check();
     void append_load_syscall_number();
     void append_kill();
