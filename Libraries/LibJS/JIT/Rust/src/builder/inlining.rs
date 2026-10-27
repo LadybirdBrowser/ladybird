@@ -295,7 +295,7 @@ impl GraphBuilder<'_> {
     /// `dst` (`Operand::INVALID` if nothing), for the slots live after it.
     pub(super) fn resume_after_frame_state(&mut self, dst: u32) -> FrameStateId {
         let live = self.function.liveness.live_out(self.function.instruction_index);
-        let frame_state = self.new_frame_state(live, ResumeMode::ResumeAfter { dst });
+        let frame_state = self.new_frame_state(&live, ResumeMode::ResumeAfter { dst });
         self.graph.add_frame_state(frame_state)
     }
 
@@ -416,7 +416,7 @@ impl GraphBuilder<'_> {
         let last = instruction_index + self.function.skipped_instructions;
         let frame_state = FrameState {
             pc: self.function.instructions[last].next_pc(),
-            ..self.new_frame_state(self.function.liveness.live_out(last), ResumeMode::ResumeAt)
+            ..self.new_frame_state(&self.function.liveness.live_out(last), ResumeMode::ResumeAt)
         };
         let frame_state = self.graph.add_frame_state(frame_state);
         let guard = self.emit(Op::AssumeLegacyArgumentsUnread, Vec::new(), None);
@@ -1571,7 +1571,7 @@ impl GraphBuilder<'_> {
         let dst = &dst;
 
         // NB: Exits in the callee resume the caller after the call.
-        let mut caller_live = self.function.liveness.live_out(self.function.instruction_index).clone();
+        let mut caller_live = self.function.liveness.live_out(self.function.instruction_index);
         if let Some(slot) = self.function.layout.tracked_index(*dst) {
             caller_live.remove(slot);
         }

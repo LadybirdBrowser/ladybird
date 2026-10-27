@@ -103,7 +103,7 @@ impl GraphBuilder<'_> {
             self.function.instruction_index = index;
             self.function.pc = pc;
             self.function.eager_frame_state = None;
-            let live = self.function.liveness.live_in(index).clone();
+            let live = self.function.liveness.live_in(index);
             for slot in live.iter() {
                 if slot >= RESERVED_REGISTER_COUNT as usize {
                     let operand = self.function.layout.operand_for_tracked_index(slot);
@@ -243,7 +243,7 @@ impl GraphBuilder<'_> {
         self.function.instruction_index = start;
         self.function.pc = pc;
         self.function.eager_frame_state = None;
-        let live = self.function.liveness.live_in(start).clone();
+        let live = self.function.liveness.live_in(start);
         for slot in live.iter() {
             if slot >= RESERVED_REGISTER_COUNT as usize {
                 let operand = self.function.layout.operand_for_tracked_index(slot);

@@ -23,10 +23,35 @@ use super::cfg::BasicBlock;
 use super::cfg::Cfg;
 use crate::bitset::BitSet;
 
+/// The live set after every this many instructions of a block, counted from its end, is kept, and the sets of the
+/// instructions in between are computed again from it when asked for.
+const CHECKPOINT_INTERVAL: usize = 64;
+
+/// The block of instructions in no block.
+const NO_BLOCK: u32 = u32::MAX;
+
 #[derive(Debug, Clone)]
 pub struct Liveness {
-    live_in: Vec<BitSet>,
-    live_out: Vec<BitSet>,
+    transfers: Transfers,
+    /// The block of each instruction, or `NO_BLOCK`.
+    block_of_instruction: Vec<u32>,
+    /// For each instruction, the index into `checkpoints` of the nearest one at or after it in its block, which holds
+    /// the instruction index and the slots live out of it.
+    checkpoint_of_instruction: Vec<u32>,
+    checkpoints: Vec<(usize, BitSet)>,
+}
+
+/// What turns the slots live out of an instruction into those live into it.
+#[derive(Debug, Clone)]
+struct Transfers {
+    always_live: BitSet,
+    block_live_in: Vec<BitSet>,
+    /// The exception handler of each block.
+    exception_handlers: Vec<Option<usize>>,
+    /// The slots each instruction writes and then reads: those of instruction `i` are at
+    /// `slots[slot_starts[i].0..slot_starts[i].1]` and `slots[slot_starts[i].1..slot_starts[i + 1].0]`.
+    slots: Vec<u32>,
+    slot_starts: Vec<(u32, u32)>,
 }
 
 impl Liveness {
@@ -43,18 +68,32 @@ impl Liveness {
             always_live.insert_range(layout.registers_and_locals_count as usize..slot_count);
         }
 
+        let mut slots = Vec::new();
+        let mut slot_starts = Vec::with_capacity(instructions.len() + 1);
+        for instruction in instructions {
+            let start = slots.len() as u32;
+            for_each_written_slot(instruction, layout, |slot| slots.push(slot as u32));
+            let reads_start = slots.len() as u32;
+            for_each_read_slot(instruction, layout, |slot| slots.push(slot as u32));
+            slot_starts.push((start, reads_start));
+        }
+        slot_starts.push((slots.len() as u32, slots.len() as u32));
+
         // Upward exposed uses and definitions of each block.
         let mut block_uses = Vec::with_capacity(cfg.blocks.len());
         let mut block_definitions = Vec::with_capacity(cfg.blocks.len());
         for block in &cfg.blocks {
             let mut uses = BitSet::new(slot_count);
             let mut definitions = BitSet::new(slot_count);
-            for instruction in instructions[block.instructions.clone()].iter().rev() {
-                for_each_written_slot(instruction, layout, |slot| {
-                    uses.remove(slot);
-                    definitions.insert(slot);
-                });
-                for_each_read_slot(instruction, layout, |slot| uses.insert(slot));
+            for index in block.instructions.clone().rev() {
+                let (written, read) = instruction_slots(&slots, &slot_starts, index);
+                for slot in written {
+                    uses.remove(*slot as usize);
+                    definitions.insert(*slot as usize);
+                }
+                for slot in read {
+                    uses.insert(*slot as usize);
+                }
             }
             block_uses.push(uses);
             block_definitions.push(definitions);
@@ -86,38 +125,101 @@ impl Liveness {
             }
         }
 
-        // Expand the block results to every instruction.
-        let empty = BitSet::new(slot_count);
-        let mut live_in = vec![empty.clone(); instructions.len()];
-        let mut live_out = vec![empty; instructions.len()];
-        for block in &cfg.blocks {
-            let handler_live_in = block.exception_handler.map(|handler| &block_live_in[handler]);
-            let mut live = block_live_out(block, &block_live_in, &always_live);
-            for index in block.instructions.clone().rev() {
-                live_out[index] = live.clone();
-                for_each_written_slot(&instructions[index], layout, |slot| live.remove(slot));
-                for_each_read_slot(&instructions[index], layout, |slot| live.insert(slot));
-                if let Some(handler_live_in) = handler_live_in {
-                    live.union_with(handler_live_in);
+        // NB: Keeping the sets of every instruction would take memory (and time) quadratic in the size of code that
+        //     keeps many slots live over many instructions, like a large array literal of arrays.
+        let transfers = Transfers {
+            always_live,
+            block_live_in,
+            exception_handlers: cfg.blocks.iter().map(|block| block.exception_handler).collect(),
+            slots,
+            slot_starts,
+        };
+        let mut block_of_instruction = vec![NO_BLOCK; instructions.len()];
+        let mut checkpoint_of_instruction = vec![0; instructions.len()];
+        let mut checkpoints = Vec::new();
+        for (block_index, block) in cfg.blocks.iter().enumerate() {
+            let mut live = block_live_out(block, &transfers.block_live_in, &transfers.always_live);
+            for (offset, index) in block.instructions.clone().rev().enumerate() {
+                block_of_instruction[index] = block_index as u32;
+                if offset % CHECKPOINT_INTERVAL == 0 {
+                    checkpoints.push((index, live.clone()));
                 }
-                live.union_with(&always_live);
-                live_in[index] = live.clone();
+                checkpoint_of_instruction[index] = (checkpoints.len() - 1) as u32;
+                transfers.transfer(index, block_index, &mut live);
             }
         }
-
-        Self { live_in, live_out }
+        Self {
+            transfers,
+            block_of_instruction,
+            checkpoint_of_instruction,
+            checkpoints,
+        }
     }
 
     /// Slots live before the instruction with the given index executes.
-    pub fn live_in(&self, instruction_index: usize) -> &BitSet {
-        &self.live_in[instruction_index]
+    pub fn live_in(&self, instruction_index: usize) -> BitSet {
+        let mut live = self.live_out(instruction_index);
+        let block = self.block_of_instruction[instruction_index];
+        if block != NO_BLOCK {
+            self.transfers.transfer(instruction_index, block as usize, &mut live);
+        }
+        live
     }
 
     /// Slots live after the instruction with the given index executes,
     /// including slots live into its exception handler.
-    pub fn live_out(&self, instruction_index: usize) -> &BitSet {
-        &self.live_out[instruction_index]
+    pub fn live_out(&self, instruction_index: usize) -> BitSet {
+        let block = self.block_of_instruction[instruction_index];
+        if block == NO_BLOCK {
+            return BitSet::new(self.transfers.always_live.capacity());
+        }
+        let (checkpoint_index, checkpoint) =
+            &self.checkpoints[self.checkpoint_of_instruction[instruction_index] as usize];
+        let mut live = checkpoint.clone();
+        if instruction_index < *checkpoint_index {
+            for index in (instruction_index + 1..=*checkpoint_index).rev() {
+                self.transfers.transfer_slots(index, &mut live);
+            }
+            self.transfers.add_slots_live_throughout(block as usize, &mut live);
+        }
+        live
     }
+}
+
+impl Transfers {
+    /// Turns the slots live out of an instruction into those live into it.
+    fn transfer(&self, index: usize, block: usize, live: &mut BitSet) {
+        self.transfer_slots(index, live);
+        self.add_slots_live_throughout(block, live);
+    }
+
+    fn transfer_slots(&self, index: usize, live: &mut BitSet) {
+        let (written, read) = instruction_slots(&self.slots, &self.slot_starts, index);
+        for slot in written {
+            live.remove(*slot as usize);
+        }
+        for slot in read {
+            live.insert(*slot as usize);
+        }
+    }
+
+    /// Adds the slots live into and out of every instruction of the block: those always live and those live into its
+    /// exception handler. Transfers of several instructions in a row need to add them only once, at the end.
+    fn add_slots_live_throughout(&self, block: usize, live: &mut BitSet) {
+        if let Some(handler) = self.exception_handlers[block] {
+            live.union_with(&self.block_live_in[handler]);
+        }
+        live.union_with(&self.always_live);
+    }
+}
+
+fn instruction_slots<'a>(slots: &'a [u32], slot_starts: &[(u32, u32)], index: usize) -> (&'a [u32], &'a [u32]) {
+    let (start, reads_start) = slot_starts[index];
+    let end = slot_starts[index + 1].0;
+    (
+        &slots[start as usize..reads_start as usize],
+        &slots[reads_start as usize..end as usize],
+    )
 }
 
 fn block_live_out(block: &BasicBlock, block_live_in: &[BitSet], always_live: &BitSet) -> BitSet {
@@ -173,11 +275,11 @@ mod tests {
 
         /// The live in set of an instruction, without the always live reserved registers.
         fn live_in(&self, index: usize) -> Vec<Operand> {
-            self.operands(self.liveness.live_in(index))
+            self.operands(&self.liveness.live_in(index))
         }
 
         fn live_out(&self, index: usize) -> Vec<Operand> {
-            self.operands(self.liveness.live_out(index))
+            self.operands(&self.liveness.live_out(index))
         }
 
         fn operands(&self, set: &BitSet) -> Vec<Operand> {
@@ -216,6 +318,41 @@ mod tests {
         assert_eq!(analysis.live_out(2), [r(6)]);
         assert_eq!(analysis.live_in(3), [r(6)]);
         assert!(analysis.live_out(3).is_empty());
+    }
+
+    #[test]
+    fn long_blocks_match_a_walk_over_every_instruction() {
+        // NB: The sets of most instructions of a block this long are computed again from a checkpoint after them.
+        let slots = [r(5), r(6), r(7), l(0), l(1)];
+        let program = assemble(|_| {
+            (0..3 * CHECKPOINT_INTERVAL + 5)
+                .map(|index| Instruction::Add {
+                    arith_feedback: 0,
+                    dst: slots[index % 5],
+                    lhs: slots[(index * 3 + 1) % 5],
+                    rhs: if index % 7 == 0 {
+                        a(0)
+                    } else {
+                        slots[(index * 2 + 3) % 5]
+                    },
+                })
+                .chain([Instruction::Return { value: r(5) }])
+                .collect()
+        });
+        let analysis = Analysis::new(&program);
+        let instructions = program.instructions();
+        let mut live = BitSet::new(analysis.layout.tracked_slot_count());
+        live.insert_range(0..RESERVED_REGISTER_COUNT as usize);
+        for index in (0..instructions.len()).rev() {
+            assert_eq!(
+                analysis.live_out(index),
+                analysis.operands(&live),
+                "live out of {index}"
+            );
+            for_each_written_slot(&instructions[index], &analysis.layout, |slot| live.remove(slot));
+            for_each_read_slot(&instructions[index], &analysis.layout, |slot| live.insert(slot));
+            assert_eq!(analysis.live_in(index), analysis.operands(&live), "live in of {index}");
+        }
     }
 
     #[test]
