@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>Test Permission garbage collection persistance.</title>
+<link rel="help" href="https://github.com/w3c/permissions/pull/256" />
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+<body>
+  <script>
+    async function createABunchOfGarbage() {
+      const promises = [];
+      for (let i = 0; i < 25; i++) {
+        const promise = new Promise((r) => {
+          const iframe = document.createElement("iframe");
+          iframe.onload = () => r(iframe);
+          iframe.src = "about:blank";
+          document.body.appendChild(iframe);
+        });
+        promises.push(promise);
+      }
+      const iframes = await Promise.all(promises);
+      iframes.forEach((iframe) => iframe.remove());
+    }
+
+    promise_test(async (t) => {
+      t.add_cleanup(() => {
+        return test_driver.set_permission({ name: "geolocation" }, "prompt");
+      });
+
+      const eventPromise = new Promise(
+        async (r) => {
+          // we create the status here, but it goes out of scope
+          // at the end of the function. Thus, we assume it will be
+          // garbage collected.
+          const status = await navigator.permissions.query({
+            name: "geolocation",
+          });
+          status.addEventListener("change", r);
+        },
+        { once: true }
+      );
+
+      // Maybe got garbage collected.
+      await createABunchOfGarbage();
+
+      // Causes event to fire.
+      await test_driver.set_permission({ name: "geolocation" }, "granted");
+      await eventPromise;
+    }, "Events fire even if the status object is garbage collected");
+  </script>
+</body>

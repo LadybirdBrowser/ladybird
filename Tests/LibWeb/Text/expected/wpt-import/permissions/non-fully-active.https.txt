@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Trying to query() a non-fully active document rejects with a InvalidStateError
+Pass	Permission change events shouldn't fire on non-fully active document

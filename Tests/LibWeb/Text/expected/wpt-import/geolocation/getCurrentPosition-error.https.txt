@@ -1,0 +1,6 @@
+Harness status: Error
+
+Found 1 tests
+
+1 Not Run
+Not Run	Tests Geolocation error callback

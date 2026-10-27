@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<meta charset="utf-8"/>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js?feature=bidi"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+
+<script>
+    const latitude = 51.478;
+    const longitude = -0.166;
+    const accuracy = 100;
+
+    promise_setup(async () => {
+        // Ensure permission is granted before proceeding.
+        await test_driver.bidi.permissions.set_permission({
+            descriptor: {name: "geolocation"},
+            state: "granted",
+        });
+    });
+
+    promise_test(async (t) => {
+        t.add_cleanup(async () => {
+            await test_driver.bidi.emulation.set_geolocation_override(
+                {coordinates: null});
+        });
+
+        await test_driver.bidi.emulation.set_geolocation_override({
+            coordinates: {latitude, longitude, accuracy}
+        });
+
+        const position = await new Promise((resolve, reject) => {
+            let calledAsync = false;
+            window.navigator.geolocation.getCurrentPosition(
+                t.step_func((position) => {
+                    assert_true(
+                        calledAsync,
+                        "Expected callback to be called asynchronously"
+                    );
+                    resolve(position.coords.toJSON());
+                }),
+                reject,
+                {timeout: 200}
+            );
+            calledAsync = true;
+        });
+
+        assert_equals(position.latitude, latitude);
+        assert_equals(position.longitude, longitude);
+        assert_equals(position.accuracy, accuracy);
+    }, "getCurrentPosition called with success and error callbacks");
+
+    promise_test(async (t) => {
+        t.add_cleanup(async () => {
+            await test_driver.bidi.emulation.set_geolocation_override(
+                {coordinates: null});
+        });
+
+        await test_driver.bidi.emulation.set_geolocation_override({
+            coordinates: {latitude, longitude, accuracy}
+        });
+
+        const position = await new Promise((resolve, reject) => {
+            let calledAsync = false;
+            try {
+                navigator.geolocation.getCurrentPosition(
+                    t.step_func((position) => {
+                        assert_true(
+                            calledAsync,
+                            "Expected callback to be called asynchronously"
+                        );
+                        resolve(position);
+                    }),
+                    null
+                );
+                calledAsync = true;
+            } catch (err) {
+                reject(err);
+            }
+        });
+        assert_true(
+            position instanceof GeolocationPosition,
+            "Expected GeolocationPosition"
+        );
+        assert_equals(position.coords.latitude, latitude);
+        assert_equals(position.coords.longitude, longitude);
+        assert_equals(position.coords.accuracy, accuracy);
+    }, "Error callback is nullable for getCurrentPosition().");
+</script>
