@@ -33,6 +33,8 @@ struct LibJSCellMacro {
 
 using LibJSCellMacroMap = std::unordered_map<unsigned int, std::vector<LibJSCellMacro>>;
 
+using PolymorphicSubclasses = std::unordered_map<clang::CXXRecordDecl const*, std::vector<clang::CXXRecordDecl const*>>;
+
 class LibJSPPCallbacks : public clang::PPCallbacks {
 public:
     LibJSPPCallbacks(clang::Preprocessor& preprocessor, LibJSCellMacroMap& macro_map)
@@ -68,6 +70,9 @@ public:
     bool VisitCXXForRangeStmt(clang::CXXForRangeStmt*);
     bool VisitFunctionDecl(clang::FunctionDecl*);
     bool VisitLambdaExpr(clang::LambdaExpr*);
+    bool VisitCallExpr(clang::CallExpr*);
+
+    void validate_gc_function_captures();
 
 private:
     struct CellMacroExpectation {
@@ -78,6 +83,7 @@ private:
     void validate_record_macros(clang::CXXRecordDecl const&);
     void validate_engine_subclass_is_in_libjs(clang::CXXRecordDecl const&);
     void validate_gc_members_of_polymorphic_record(clang::CXXRecordDecl const&);
+    void remember_polymorphic_subclass(clang::CXXRecordDecl const&);
     void validate_object_on_stack(clang::VarDecl const&, clang::SourceLocation);
     void validate_type_on_stack(clang::QualType, clang::SourceLocation);
     CellMacroExpectation get_record_cell_macro_expectation(clang::CXXRecordDecl const&);
@@ -85,6 +91,8 @@ private:
     clang::ASTContext& m_context;
     LibJSCellMacroMap const& m_macro_map;
     bool m_detect_invalid_function_members;
+    PolymorphicSubclasses m_polymorphic_subclasses;
+    std::vector<clang::LambdaExpr const*> m_lambdas_in_gc_functions;
 };
 
 class LibJSGCASTConsumer : public clang::ASTConsumer {
