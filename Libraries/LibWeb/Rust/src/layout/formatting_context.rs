@@ -3139,22 +3139,19 @@ pub(crate) fn lay_out_boundary(
 #[derive(Clone, Copy)]
 pub(crate) struct LayoutStageFacts {
     pub(crate) container_length_bases: layout_pass::ContainerLengthBasesQuery,
-    pub(crate) viewport_inline_size_raw: i32,
-    pub(crate) viewport_block_size_raw: i32,
+    pub(crate) viewport_inline_size: CssPixels,
+    pub(crate) viewport_block_size: CssPixels,
     pub(crate) document_in_quirks_mode: bool,
 }
 
 /// What a layout stage computes from: the arena and the layout stage's scratch, borrowed for the
-/// pass, the one question the pass may ask the document, and the facts of the pass. It holds no
-/// main thread token, so nothing the stage calls can reach the rest of the host.
+/// pass, and the facts of the round. It holds no main thread token, so nothing the stage calls can
+/// reach the rest of the host.
 struct LayoutStageInput<'a> {
     arena: &'a LayoutNodeArena,
     scratch: &'a super::run_records::LayoutScratch,
-    container_length_bases: layout_pass::ContainerLengthBasesQuery,
     root: NodeSlotId,
-    viewport_inline_size_raw: i32,
-    viewport_block_size_raw: i32,
-    document_in_quirks_mode: bool,
+    stage: LayoutStageFacts,
 }
 
 /// The fragments a layout stage computed, which its commit consumes, and what the stage found out for the host.
@@ -3187,11 +3184,8 @@ impl LayoutStageJob {
         let input = LayoutStageInput {
             arena: state.arena(),
             scratch: state.layout_scratch(),
-            container_length_bases: stage.container_length_bases,
             root,
-            viewport_inline_size_raw: stage.viewport_inline_size_raw,
-            viewport_block_size_raw: stage.viewport_block_size_raw,
-            document_in_quirks_mode: stage.document_in_quirks_mode,
+            stage,
         };
         let output = match kind {
             LayoutStageKind::Root {
@@ -3239,11 +3233,8 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
     let LayoutStageInput {
         arena,
         scratch,
-        container_length_bases,
         root,
-        viewport_inline_size_raw,
-        viewport_block_size_raw,
-        document_in_quirks_mode,
+        stage,
     } = input;
     arena.begin_active_layout_pass();
     // NB: The tree builder derives the facts of rebuilt subtrees. Unclassified invalidations
@@ -3258,16 +3249,9 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
     }
     arena.mark_flex_and_grid_items_of_nodes_marked_for_layout();
     drop_intrinsic_size_cache_entries_of_released_slots(arena, scratch);
-    let callbacks = LayoutPass::new(
-        arena,
-        scratch,
-        container_length_bases,
-        CssPixels::from_raw(viewport_inline_size_raw),
-        CssPixels::from_raw(viewport_block_size_raw),
-        document_in_quirks_mode,
-    );
-    let viewport_inline_size = CssPixels::from_raw(viewport_inline_size_raw);
-    let viewport_block_size = CssPixels::from_raw(viewport_block_size_raw);
+    let callbacks = LayoutPass::new(arena, scratch, stage);
+    let viewport_inline_size = stage.viewport_inline_size;
+    let viewport_block_size = stage.viewport_block_size;
 
     let root_constraints = ContainingBlockConstraints {
         percentage_basis_inline_size: Some(viewport_inline_size),
@@ -3377,21 +3361,11 @@ fn compute_subtree_layout_fragments(input: LayoutStageInput<'_>, containing_bloc
     let LayoutStageInput {
         arena,
         scratch,
-        container_length_bases,
         root,
-        viewport_inline_size_raw,
-        viewport_block_size_raw,
-        document_in_quirks_mode,
+        stage,
     } = input;
     arena.begin_active_layout_pass();
-    let callbacks = LayoutPass::new(
-        arena,
-        scratch,
-        container_length_bases,
-        CssPixels::from_raw(viewport_inline_size_raw),
-        CssPixels::from_raw(viewport_block_size_raw),
-        document_in_quirks_mode,
-    );
+    let callbacks = LayoutPass::new(arena, scratch, stage);
     // The boundary can be wider than the rebuilt roots that led to it, and laying it out may
     // re-enter intrinsic sizing for descendants outside those roots, including anonymous boxes
     // the incremental tree build created; derive the facts of the whole subtree.
@@ -3559,10 +3533,16 @@ mod baseline_tests {
         let callbacks = LayoutPass::new(
             &arena,
             &scratch,
-            layout_pass::ContainerLengthBasesQuery::new(std::ptr::null_mut(), unused_container_bases).sealed(),
-            CssPixels::from_integer(800),
-            CssPixels::from_integer(600),
-            false,
+            LayoutStageFacts {
+                container_length_bases: layout_pass::ContainerLengthBasesQuery::new(
+                    std::ptr::null_mut(),
+                    unused_container_bases,
+                )
+                .sealed(),
+                viewport_inline_size: CssPixels::from_integer(800),
+                viewport_block_size: CssPixels::from_integer(600),
+                document_in_quirks_mode: false,
+            },
         );
         let parent_used = UsedValues::default();
         RunRecords::with_root(callbacks, parent, Node::INVALID, &parent_used, |records, callbacks| {

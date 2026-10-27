@@ -816,8 +816,8 @@ impl LayoutRoundJob {
         };
         let stage = LayoutStageFacts {
             container_length_bases: self.container_length_bases,
-            viewport_inline_size_raw: facts.viewport_inline_size_raw,
-            viewport_block_size_raw: facts.viewport_block_size_raw,
+            viewport_inline_size: crate::layout::CssPixels::from_raw(facts.viewport_inline_size_raw),
+            viewport_block_size: crate::layout::CssPixels::from_raw(facts.viewport_block_size_raw),
             document_in_quirks_mode: facts.document_in_quirks_mode,
         };
         // The round cannot call the host, which hears of the boxes nodes gain and lose once it is over.
