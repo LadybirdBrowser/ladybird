@@ -252,6 +252,7 @@ fn marker_runtime() -> RuntimeInfo {
         O::ToInt32,
         O::ToObject,
         O::ToLength,
+        O::ToPrimitiveWithStringHint,
     ] {
         set(opcode, marker_scalar as *const () as u64);
     }
@@ -678,6 +679,13 @@ fn unary_operations() {
         } else {
             MARKER
         };
+        let to_primitive = if (value >> 48) as u16 == value::OBJECT_TAG {
+            MARKER
+        } else if value == value::EMPTY {
+            value::UNDEFINED
+        } else {
+            value
+        };
         let (dst, src) = (r(5), argument(0));
         for (instruction, expected) in [
             (
@@ -714,6 +722,7 @@ fn unary_operations() {
             ),
             (Instruction::ToObject { dst, value: src }, to_object),
             (Instruction::ToLength { dst, value: src }, to_length),
+            (Instruction::ToPrimitiveWithStringHint { dst, value: src }, to_primitive),
         ] {
             let (result, _) = run_instruction_with(feedback, instruction.clone(), &[value, value::UNDEFINED]);
             assert_eq!(

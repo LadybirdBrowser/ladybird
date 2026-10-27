@@ -4161,6 +4161,21 @@ asm_handler_ThrowIfNullish:
 asm_handler_ThrowIfNullish_hot_end:
 
 .p2align 6
+asm_handler_ToPrimitiveWithStringHint:
+    mov eax, DWORD PTR [r14 + r13 + 8]
+    mov rax, QWORD PTR [rbx + rax * 8]
+    mov r11, rax
+    shr r11, 48
+    cmp r11w, 65529
+    je .Lasm_ToPrimitiveWithStringHint.ssa_block_1
+    mov r11d, DWORD PTR [r14 + r13 + 4]
+    mov QWORD PTR [rbx + r11 * 8], rax
+    add r13d, 16
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+asm_handler_ToPrimitiveWithStringHint_hot_end:
+
+.p2align 6
 asm_handler_BitwiseNot:
     mov eax, DWORD PTR [r14 + r13 + 8]
     mov rax, QWORD PTR [rbx + rax * 8]
@@ -12209,8 +12224,9 @@ asm_handler_ToString_hot_end:
 asm_handler_ToString_cold:
 asm_handler_ToString_cold_end:
 
-.p2align 4
-asm_handler_ToPrimitiveWithStringHint:
+asm_handler_ToPrimitiveWithStringHint_cold:
+# Cold paths for ToPrimitiveWithStringHint
+.Lasm_ToPrimitiveWithStringHint.ssa_block_1:
     mov DWORD PTR [rbx + -64], r13d
     lea r11, [r14 + r13]
     mov r10d, DWORD PTR [r11 + 8]
@@ -12248,10 +12264,7 @@ asm_handler_ToPrimitiveWithStringHint:
     mov r13d, eax
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
-asm_handler_ToPrimitiveWithStringHint_hot_end:
-asm_handler_ToPrimitiveWithStringHint_cold:
 asm_handler_ToPrimitiveWithStringHint_cold_end:
-
 .p2align 4
 asm_handler_ToObject:
     mov DWORD PTR [rbx + -64], r13d

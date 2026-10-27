@@ -2559,8 +2559,15 @@ handler ToString(
 
 handler ToPrimitiveWithStringHint(
     dst: out Operand,
-    value: Operand
-) @cold = call_slow_path(to_primitive_with_string_hint);
+    value: in Operand
+) {
+    let primitive = load(value);
+    guard primitive is not Value<Object> else @cold {
+        call_slow_path(to_primitive_with_string_hint);
+    };
+    store(dst, primitive);
+    dispatch_next;
+}
 
 handler ToObject(
     dst: out Operand,
