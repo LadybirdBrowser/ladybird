@@ -47,6 +47,9 @@ public:
     // Called as the window is shown, and as its title changes, so the platform can hide the title and place the window
     // controls in the window's title bar.
     Function<void()> on_title_bar_change;
+    // Called as the empty part of the title bar is pressed, where the window's content covers the platform's own title
+    // bar, so the platform can start moving the window. Returns whether it did.
+    Function<bool()> on_title_bar_drag;
 
 private:
     virtual bool event(QEvent*) override;

@@ -28,6 +28,7 @@
 #include <QLocale>
 #include <QMenu>
 #include <QMessageBox>
+#include <QMouseEvent>
 #include <QPainter>
 #include <QPushButton>
 #include <QScrollBar>
@@ -39,6 +40,7 @@
 #include <QTimer>
 #include <QTreeWidget>
 #include <QVBoxLayout>
+#include <QWindow>
 
 #include <errno.h>
 
@@ -290,6 +292,42 @@ bool sorts_before(QTreeWidgetItem const* a, QTreeWidgetItem const* b, int column
     return order == Qt::AscendingOrder ? less(a, b) : less(b, a);
 }
 
+// A window whose content fills its title bar gets no window moving from the platform there, so dragging the title
+// bar's empty parts moves the window, and double-clicking them zooms it, as in the browser window.
+class TitleBarMouseFilter final : public QObject {
+public:
+    TitleBarMouseFilter(QObject* parent, Function<bool()> start_window_move)
+        : QObject(parent)
+        , m_start_window_move(move(start_window_move))
+    {
+    }
+
+private:
+    virtual bool eventFilter(QObject* object, QEvent* event) override
+    {
+        if (event->type() != QEvent::MouseButtonPress && event->type() != QEvent::MouseButtonDblClick)
+            return false;
+        if (static_cast<QMouseEvent*>(event)->button() != Qt::LeftButton)
+            return false;
+        auto* window = static_cast<QWidget*>(object)->window();
+        if (window->isFullScreen())
+            return false;
+        if (event->type() == QEvent::MouseButtonDblClick) {
+            if (window->isMaximized())
+                window->showNormal();
+            else
+                window->showMaximized();
+            return true;
+        }
+        if (m_start_window_move())
+            return true;
+        auto* handle = window->windowHandle();
+        return handle && handle->startSystemMove();
+    }
+
+    Function<bool()> m_start_window_move;
+};
+
 }
 
 ProcessManagerWindow::ProcessManagerWindow(WebView::ProcessManager& process_manager)
@@ -334,6 +372,9 @@ ProcessManagerWindow::ProcessManagerWindow(WebView::ProcessManager& process_mana
     m_search->setFixedSize(220, 28);
     title_bar_layout->addWidget(m_search);
     layout->addWidget(m_title_bar);
+#if defined(AK_OS_MACOS)
+    m_title_bar->installEventFilter(new TitleBarMouseFilter(m_title_bar, [this] { return on_title_bar_drag && on_title_bar_drag(); }));
+#endif
 
     auto* list = new QWidget(content);
     auto* list_layout = new QVBoxLayout(list);
