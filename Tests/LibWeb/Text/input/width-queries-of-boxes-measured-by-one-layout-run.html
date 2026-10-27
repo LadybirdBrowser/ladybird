@@ -1,0 +1,50 @@
+<!doctype html>
+<script src="include.js"></script>
+<script src="layout-test.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../Ref/data/fonts/Ahem.ttf");
+    }
+
+    .wrapper {
+        width: max-content;
+        font: 10px/20px Ahem;
+    }
+</style>
+<template id="fixture">
+    <div class="wrapper"><div id="orthogonal-block" style="writing-mode: vertical-rl; height: 60px">alpha beta gamma</div></div>
+    <div class="wrapper"><div id="orthogonal-inline-block" style="writing-mode: vertical-rl; height: 60px; display: inline-block">alpha beta gamma</div></div>
+    <div class="wrapper"><div id="orthogonal-flex" style="writing-mode: vertical-rl; height: 60px; display: inline-flex; flex-wrap: wrap"><div>alpha beta</div><div>gamma</div></div></div>
+    <div class="wrapper"><div id="orthogonal-grid" style="writing-mode: vertical-rl; height: 60px; display: inline-grid"><div>alpha beta</div><div>gamma</div></div></div>
+</template>
+<script>
+    asyncTest(async done => {
+        await document.fonts.load("10px Ahem");
+        const work = layoutWork(() => {
+            document.body.appendChild(document.getElementById("fixture").content.cloneNode(true));
+        });
+        const ids = ["orthogonal-block", "orthogonal-inline-block", "orthogonal-flex", "orthogonal-grid"];
+        for (const id of ids) {
+            const isTarget = box => box.endsWith(`#${id}`);
+            const answers = new Set();
+            let misses = 0;
+            let runsDirectlyUnderThem = 0;
+            work.events.forEach((measure, start) => {
+                if (measure.event !== "measure" || !isTarget(measure.box) || !measure.size.endsWith("inline")) return;
+                if (measure.cache !== "miss") return;
+                ++misses;
+                answers.add(measure.from);
+                for (const event of work.events.slice(start + 1)) {
+                    if (event.depth <= measure.depth) break;
+                    if (event.event === "run" && event.depth === measure.depth + 1) ++runsDirectlyUnderThem;
+                }
+            });
+            const width = document.getElementById(id).getBoundingClientRect().width;
+            println(
+                `${id}: ${misses} inline misses answered from ${[...answers].join(", ") || "nothing"}, ${runsDirectlyUnderThem} runs directly under them, width ${width}`
+            );
+        }
+        done();
+    });
+</script>
