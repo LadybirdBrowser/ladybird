@@ -93,6 +93,7 @@ private:
     virtual Messages::RequestServer::ExportRequestResponse export_request(u64 request_id) override;
     virtual void import_request(u64 request_id, Requests::ExportedRequest, bool create_transfer_lease) override;
     virtual void ensure_connection(u64 request_id, URL::URL url, ::RequestServer::CacheLevel cache_level) override;
+    virtual void resolve_host(u64 lookup_id, ByteString host) override;
 
     virtual Messages::RequestServer::StoreCacheAssociatedDataResponse store_cache_associated_data(Optional<HTTP::NetworkIsolationKey>, URL::URL, ByteString method, Vector<HTTP::Header> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData, Core::AnonymousBuffer) override;
     virtual Messages::RequestServer::RetrieveCacheAssociatedDataResponse retrieve_cache_associated_data(Optional<HTTP::NetworkIsolationKey>, URL::URL, ByteString method, Vector<HTTP::Header> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData) override;
