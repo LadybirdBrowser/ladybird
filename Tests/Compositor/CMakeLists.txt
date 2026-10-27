@@ -4,6 +4,7 @@ set(TEST_SOURCES
     TestCanvasSurfaceRegistry.cpp
     TestContextState.cpp
     TestScrollbarController.cpp
+    TestVideoFrameHolds.cpp
     TestVSyncScheduler.cpp
 )
 

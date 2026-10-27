@@ -19,6 +19,9 @@ namespace Compositor {
 
 class VideoFrameHolds {
 public:
+    // A hold past this many retained frames keeps no frame.
+    static constexpr size_t MAX_RETAINED_FRAME_COUNT = 64;
+
     void add_sink(Media::VideoSinkHandle, NonnullRefPtr<Compositing::VideoFramePresentationPage>);
     void remove_sink(Media::VideoSinkHandle);
 
@@ -44,6 +47,7 @@ private:
 
     HashMap<Media::VideoSinkHandle, Sink> m_sinks;
     HashMap<Media::VideoSinkHandle, HashMap<u64, RetainedFrame>> m_retained_frames;
+    size_t m_retained_frame_count { 0 };
 };
 
 }

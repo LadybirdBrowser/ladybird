@@ -81,7 +81,16 @@ void VideoFrameHolds::retire_current_generation(Media::VideoSinkHandle handle, S
     if (replaced.hold_count == 0)
         return;
     auto& retained_frames = m_retained_frames.ensure(handle);
-    retained_frames.set(sink.generation, RetainedFrame { .frame = sink.frame, .hold_count = replaced.hold_count });
+    if (auto previous = retained_frames.get(sink.generation); previous.has_value() && previous.value().frame)
+        m_retained_frame_count--;
+    auto frame = sink.frame;
+    if (frame && m_retained_frame_count >= MAX_RETAINED_FRAME_COUNT) {
+        dbgln("Compositor: Not keeping the frame of video sink {} held past its presentation, since {} already are", handle.value(), m_retained_frame_count);
+        frame = nullptr;
+    }
+    if (frame)
+        m_retained_frame_count++;
+    retained_frames.set(sink.generation, RetainedFrame { .frame = move(frame), .hold_count = replaced.hold_count });
 }
 
 ErrorOr<void> VideoFrameHolds::release_hold(Media::VideoSinkHandle handle, u64 generation)
@@ -100,6 +109,8 @@ ErrorOr<void> VideoFrameHolds::release_hold(Media::VideoSinkHandle handle, u64 g
         return Error::from_string_literal("The video frame was not retained");
     if (--retained_frame->hold_count > 0)
         return {};
+    if (retained_frame->frame)
+        m_retained_frame_count--;
     retained_frames->remove(generation);
     if (retained_frames->is_empty())
         m_retained_frames.remove(handle);
