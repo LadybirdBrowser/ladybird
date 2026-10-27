@@ -1901,9 +1901,9 @@ ErrorOr<void> Application::launch_compositor_process()
         compositor_reported_gpu_device_identity(move(identity));
     };
 
+    m_reported_compositor_gpu_presentation_unavailable = false;
     Optional<u64> gpu_presentation_adapter_luid;
 #ifdef USE_DIRECTX
-    m_reported_compositor_gpu_presentation_unavailable = false;
     gpu_presentation_adapter_luid = Gfx::default_dxgi_adapter_luid();
 #endif
     auto presentation_or_error = m_compositor_client->try_create_presentation_connection(!platform_reports_scroll_momentum(), platform_scrolls_elastically(), gpu_presentation_adapter_luid);

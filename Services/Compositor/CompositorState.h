@@ -94,6 +94,8 @@ public:
         bool scrollbar_track_press_jumps { false };
         // LUID of the GPU adapter the presentation can present shared GPU textures on, if any.
         Optional<u64> gpu_presentation_adapter_luid;
+        // Whether the presentation found it cannot present the shared GPU images it was given.
+        bool cannot_present_gpu_images { false };
     };
 
     // Each root context presents to the presentation it is bound to. Unbound contexts keep rendering, but publish nothing.
