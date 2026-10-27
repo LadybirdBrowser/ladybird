@@ -1,16 +1,15 @@
 name: macOS accessibility tests
 
 # The macOS AX tests need an unlocked GUI (Aqua) login session, and an Accessibility grant for the process tree the
-# runner starts. GH-hosted machines have all that, but take a very long time to build Ladybird. Blacksmith's machines
-# build Ladybird quickly, and most of them now boot screen-unlocked too — but a few still boot screen-locked. So, we
-# re-use the Ladybird we already built on Blacksmith: packing it with Meta/package-macos-test-bundle.py, and uploading
-# that to both a GH-hosted machine and a Blacksmith machine. Neither builds; each just runs the tests, which takes a few
-# minutes — and a run that lands on a locked Blacksmith machine still gets results from the GH-hosted one.
+# runner starts. Blacksmith's macOS machines have both, but a few of them still boot screen-locked — so the AX preflight
+# below fails at once on a locked session. The tests don't build Ladybird themselves. Instead, they re-use the Ladybird
+# the Sanitizer build already built: packed with Meta/package-macos-test-bundle.py, and uploaded to a machine of its own
+# that just runs the tests. That takes a few minutes, so a rerun after a locked boot doesn't wait for a rebuild.
 on:
   workflow_call:
     inputs:
       runner_labels:
-        description: 'JSON array of the labels selecting the runner, e.g. ["macos-26"]'
+        description: 'JSON array of the labels selecting the runner, e.g. ["blacksmith-12vcpu-macos-26"]'
         required: true
         type: string
       artifact_name:
