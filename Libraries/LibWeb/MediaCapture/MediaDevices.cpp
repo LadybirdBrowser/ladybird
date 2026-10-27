@@ -823,6 +823,26 @@ void MediaDevices::end_tracks_of_removed_devices()
     end_tracks(move(tracks_to_end));
 }
 
+// https://w3c.github.io/mediacapture-main/#dfn-device-permission-revocation-algorithm
+void MediaDevices::end_tracks_without_permission()
+{
+    // NB: A track's source is the microphone, the one device Ladybird captures from, so every live track ends once the
+    //     document may no longer use it.
+    auto& settings = HTML::relevant_settings_object(*m_window);
+    if (PermissionsAPI::permission_state(PermissionsAPI::PermissionDescriptor { "microphone"_utf16 }, settings) == PermissionsAPI::PermissionState::Granted)
+        return;
+
+    GC::RootVector<GC::Ref<MediaStreamTrack>> tracks_to_end;
+    m_media_stream_track_sources.remove_all_matching([&](GC::Weak<MediaStreamTrack> const& weak_track) {
+        auto track = weak_track.ptr();
+        if (!track || track->track_ready_state() == MediaStreamTrackState::Ended)
+            return true;
+        tracks_to_end.append(*track);
+        return true;
+    });
+    end_tracks(move(tracks_to_end));
+}
+
 void MediaDevices::end_tracks(GC::RootVector<GC::Ref<MediaStreamTrack>> tracks_to_end)
 {
     if (tracks_to_end.is_empty())

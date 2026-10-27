@@ -79,6 +79,7 @@ public:
 
     GC::Ref<MediaCapabilitiesAPI::MediaCapabilities> media_capabilities();
     GC::Ref<MediaCapture::MediaDevices> media_devices();
+    GC::Ptr<MediaCapture::MediaDevices> media_devices_if_created() const { return m_media_devices; }
 
     static WebIDL::Long max_touch_points();
 

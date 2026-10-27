@@ -2968,6 +2968,18 @@ bool Application::sites_can_ask_for_location() const
 
 void Application::permissions_changed(Badge<ApplicationPermissionManagerObserver>, PermissionManager const& manager)
 {
+    // A revoked site loses what it was using before its pages hear of the change.
+    ViewImplementation::for_each_view([&](ViewImplementation& view) {
+        if (view.session().permission_manager.ptr() == &manager)
+            view.revoke_geolocation_without_permission();
+        return IterationDecision::Continue;
+    });
+    WebContentClient::for_each_client([&](WebContentClient& client) {
+        if (client.session().permission_manager.ptr() == &manager)
+            client.update_audio_capture_permission();
+        return IterationDecision::Continue;
+    });
+
     auto snapshot = manager.snapshot();
     WebContentClient::for_each_client([&](WebContentClient& client) {
         if (client.session().permission_manager.ptr() == &manager)
@@ -3012,6 +3024,22 @@ void Application::schedule_permission_expiry()
 void Application::location_policy_changed(Badge<ApplicationSettingsObserver>)
 {
     update_permission_defaults();
+}
+
+void Application::update_os_location_authorization()
+{
+    auto denied = m_geolocation_provider && m_geolocation_provider->authorization() == Core::GeolocationAuthorization::Denied;
+    m_default_session->permission_manager->set_os_denies_geolocation(denied);
+}
+
+Core::GeolocationAuthorization Application::geolocation_authorization()
+{
+    if (!sites_can_ask_for_location())
+        return Core::GeolocationAuthorization::Unknown;
+    auto provider = ensure_geolocation_provider();
+    if (provider.is_error())
+        return Core::GeolocationAuthorization::Unknown;
+    return provider.value()->authorization();
 }
 
 void Application::update_permission_defaults()
@@ -3230,8 +3258,11 @@ void Application::set_spell_checker(OwnPtr<SpellChecker> spell_checker)
 
 ErrorOr<NonnullRawPtr<Core::GeolocationProvider>> Application::ensure_geolocation_provider()
 {
-    if (!m_geolocation_provider)
+    if (!m_geolocation_provider) {
         m_geolocation_provider = TRY(Core::GeolocationProvider::create());
+        m_geolocation_provider->on_authorization_change = [this] { update_os_location_authorization(); };
+        update_os_location_authorization();
+    }
 
     return NonnullRawPtr { *m_geolocation_provider };
 }
