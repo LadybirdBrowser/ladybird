@@ -2,11 +2,11 @@ Harness status: OK
 
 Found 19 tests
 
-1 Pass
-18 Fail
+2 Pass
+17 Fail
 Fail	Query "camera" permission
 Pass	Query "geolocation" permission
-Fail	Query "microphone" permission
+Pass	Query "microphone" permission
 Fail	Query "notifications" permission
 Fail	Query "persistent-storage" permission
 Fail	Query "push" permission

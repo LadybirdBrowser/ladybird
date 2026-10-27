@@ -89,6 +89,7 @@
 #include <LibWeb/Painting/DocumentPaintState.h>
 #include <LibWeb/Painting/FlexboxInspectorOverlay.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
+#include <LibWeb/PermissionsAPI/PermissionStore.h>
 #include <LibWeb/PictureInPicture/PictureInPictureController.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/FontPlugin.h>
@@ -538,6 +539,11 @@ void ConnectionFromClient::set_site_compatibility_data(JsonValue data)
         return;
     }
     Web::set_site_compatibility_data(parsed_data.release_value());
+}
+
+void ConnectionFromClient::set_permission_snapshot(Web::Permissions::PermissionSnapshot snapshot)
+{
+    Web::PermissionsAPI::PermissionStore::the().apply_snapshot(move(snapshot));
 }
 
 void ConnectionFromClient::update_screen_rects(Web::PageId page_id, Vector<Web::DevicePixelRect> rects, Vector<Web::DevicePixelRect> available_rects, u32 main_screen)

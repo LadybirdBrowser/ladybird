@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const query = async name => {
+            try {
+                const status = await navigator.permissions.query({ name });
+                return status.state;
+            } catch (error) {
+                return error.name;
+            }
+        };
+
+        for (const name of ["geolocation", "microphone", "camera", "notifications"])
+            println(`${name}: ${await query(name)}`);
+
+        const childSource = `<!DOCTYPE html><script>
+            (async () => {
+                const states = [];
+                for (const name of ["geolocation", "microphone"]) {
+                    try {
+                        states.push(\`\${name} \${(await navigator.permissions.query({ name })).state}\`);
+                    } catch (error) {
+                        states.push(\`\${name} \${error.name}\`);
+                    }
+                }
+                parent.postMessage(states.join(", "), "*");
+            })();
+        <\/script>`;
+
+        const iframe = document.createElement("iframe");
+        iframe.setAttribute("allow", "geolocation 'none'; microphone 'none'");
+        iframe.srcdoc = childSource;
+        const result = await new Promise(resolve => {
+            addEventListener("message", event => resolve(event.data), { once: true });
+            document.body.appendChild(iframe);
+        });
+        println(`frame without the features: ${result}`);
+
+        done();
+    });
+</script>

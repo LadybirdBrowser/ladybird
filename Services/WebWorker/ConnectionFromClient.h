@@ -59,6 +59,7 @@ private:
     virtual void connect_to_image_decoder(IPC::TransportHandle handle) override;
     virtual void connect_to_compositor(IPC::TransportHandle handle) override;
     virtual void set_site_compatibility_data(JsonValue data) override;
+    virtual void set_permission_snapshot(Web::Permissions::PermissionSnapshot snapshot) override;
     virtual void set_user_agent(String user_agent) override;
     virtual void set_navigator_compatibility_mode(Web::NavigatorCompatibilityMode mode) override;
     virtual void set_preferred_languages(Vector<String> preferred_languages) override;

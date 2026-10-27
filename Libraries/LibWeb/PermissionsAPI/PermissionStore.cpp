@@ -74,4 +74,30 @@ void PermissionStore::set_permission_store_entry(PermissionDescriptor const& des
     m_entries.append(move(new_entry));
 }
 
+void PermissionStore::apply_snapshot(Web::Permissions::PermissionSnapshot snapshot)
+{
+    if (m_snapshot.has_value() && snapshot.revision <= m_snapshot->revision)
+        return;
+    m_snapshot = move(snapshot);
+}
+
+Web::Permissions::EffectiveState PermissionStore::state_for(Web::Permissions::PermissionName name, URL::Origin const& key) const
+{
+    if (!m_snapshot.has_value())
+        return Web::Permissions::EffectiveState::Prompt;
+
+    for (auto const& entry : m_snapshot->entries) {
+        if (entry.name == name && permission_key_comparison_algorithm(entry.top_level_origin, key))
+            return entry.state;
+    }
+
+    switch (name) {
+    case Web::Permissions::PermissionName::Geolocation:
+        return m_snapshot->geolocation_default;
+    case Web::Permissions::PermissionName::Microphone:
+        return m_snapshot->microphone_default;
+    }
+    VERIFY_NOT_REACHED();
+}
+
 }

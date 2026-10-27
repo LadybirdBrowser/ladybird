@@ -13,6 +13,7 @@
 #include <LibWeb/HTML/WorkerAgentParent.h>
 #include <LibWeb/Loader/LoaderConfig.h>
 #include <LibWeb/Loader/ResourceLoader.h>
+#include <LibWeb/PermissionsAPI/PermissionStore.h>
 #include <LibWeb/Platform/FontPlugin.h>
 #include <WebWorker/ConnectionFromClient.h>
 #include <WebWorker/PageHost.h>
@@ -84,6 +85,11 @@ void ConnectionFromClient::set_site_compatibility_data(JsonValue data)
         return;
     }
     Web::set_site_compatibility_data(parsed_data.release_value());
+}
+
+void ConnectionFromClient::set_permission_snapshot(Web::Permissions::PermissionSnapshot snapshot)
+{
+    Web::PermissionsAPI::PermissionStore::the().apply_snapshot(move(snapshot));
 }
 
 void ConnectionFromClient::set_user_agent(String user_agent)

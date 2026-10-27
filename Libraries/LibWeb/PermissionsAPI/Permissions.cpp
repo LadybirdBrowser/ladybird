@@ -23,12 +23,42 @@
 
 namespace Web::PermissionsAPI {
 
+static Optional<Web::Permissions::PermissionName> permission_name_from(Utf16View name)
+{
+    if (name == "geolocation"_utf16)
+        return Web::Permissions::PermissionName::Geolocation;
+    if (name == "microphone"_utf16)
+        return Web::Permissions::PermissionName::Microphone;
+    return {};
+}
+
 bool is_permission_supported(Utf16View name)
 {
-    if (name == "geolocation"_utf16) {
-        return true;
+    return permission_name_from(name).has_value();
+}
+
+static Optional<PermissionsPolicy::PolicyControlledFeature> policy_controlled_feature_for(Web::Permissions::PermissionName name)
+{
+    switch (name) {
+    case Web::Permissions::PermissionName::Geolocation:
+        return PermissionsPolicy::PolicyControlledFeature::Geolocation;
+    case Web::Permissions::PermissionName::Microphone:
+        return PermissionsPolicy::PolicyControlledFeature::Microphone;
     }
-    return false;
+    VERIFY_NOT_REACHED();
+}
+
+static PermissionState permission_state_from(Web::Permissions::EffectiveState state)
+{
+    switch (state) {
+    case Web::Permissions::EffectiveState::Granted:
+        return PermissionState::Granted;
+    case Web::Permissions::EffectiveState::Denied:
+        return PermissionState::Denied;
+    case Web::Permissions::EffectiveState::Prompt:
+        return PermissionState::Prompt;
+    }
+    VERIFY_NOT_REACHED();
 }
 
 // Steps 6 and 7 of https://w3c.github.io/permissions/#dfn-request-permission-to-use
@@ -131,12 +161,17 @@ PermissionState permission_state(PermissionDescriptor descriptor, Optional<HTML:
     if (!HTML::is_secure_context(settings_object))
         return PermissionState::Denied;
 
-    // FIXME: 3. Let feature be descriptor's name.
+    // 3. Let feature be descriptor's name.
+    auto feature = permission_name_from(descriptor.name);
 
-    // FIXME: 4. If there exists a policy-controlled feature for feature and settings' relevant global object has an associated Document run the following step:
-    if (false) {
+    // 4. If there exists a policy-controlled feature for feature and settings' relevant global object has an associated Document run the following step:
+    if (auto* window = HTML::window_from_global_object(settings_object.global_object()); feature.has_value() && window) {
         // 1. Let document be settings' relevant global object's associated Document.
+        auto& document = window->associated_document();
+
         // 2. If document is not allowed to use feature, return "denied".
+        if (!document.is_allowed_to_use_feature(*policy_controlled_feature_for(*feature)))
+            return PermissionState::Denied;
     }
 
     // 5. Let key be the result of generating a permission key for descriptor with settings's top-level origin and settings's origin.
@@ -151,7 +186,9 @@ PermissionState permission_state(PermissionDescriptor descriptor, Optional<HTML:
         return entry.release_value().state;
 
     // 8. Return the PermissionState enum value that represents the permission state of feature, taking into account any permission state constraints for descriptor's name.
-    return PermissionState::Prompt;
+    if (!feature.has_value())
+        return PermissionState::Prompt;
+    return permission_state_from(PermissionStore::the().state_for(*feature, key));
 }
 
 GC_DEFINE_ALLOCATOR(Permissions);

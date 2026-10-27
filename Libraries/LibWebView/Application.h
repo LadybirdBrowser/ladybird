@@ -21,6 +21,7 @@
 #include <LibCore/EventLoop.h>
 #include <LibCore/Forward.h>
 #include <LibCore/GeolocationProvider.h>
+#include <LibCore/Timer.h>
 #include <LibDatabase/Forward.h>
 #include <LibDevTools/DevToolsDelegate.h>
 #include <LibDevTools/Forward.h>
@@ -76,6 +77,7 @@ struct PinchEvent;
 namespace WebView {
 
 struct ApplicationSettingsObserver;
+struct ApplicationPermissionManagerObserver;
 struct ApplicationBookmarkStoreObserver;
 
 class WEBVIEW_API Application : public DevTools::DevToolsDelegate {
@@ -172,6 +174,7 @@ public:
     // True unless the user has turned location off, or there's no way to find it.
     bool sites_can_ask_for_location() const;
     void location_policy_changed(Badge<ApplicationSettingsObserver>);
+    void permissions_changed(Badge<ApplicationPermissionManagerObserver>, PermissionManager const&);
 
     bool content_blocking_enabled() const;
     bool has_content_blocking_rules() const;
@@ -490,6 +493,7 @@ private:
     void finish_current_content_blocker_list_update();
     ErrorOr<NonnullRawPtr<Core::GeolocationProvider>> ensure_geolocation_provider();
     void update_permission_defaults();
+    void schedule_permission_expiry();
 
     void initialize_actions();
     void update_vertical_tabs_action();
@@ -600,6 +604,8 @@ private:
     OwnPtr<BrowserProcess> m_browser_process;
     bool m_should_exit_after_profile_coordination { false };
     OwnPtr<ApplicationSettingsObserver> m_settings_observer;
+    OwnPtr<ApplicationPermissionManagerObserver> m_permission_manager_observer;
+    RefPtr<Core::Timer> m_permission_expiry_timer;
 
     OwnPtr<BookmarkStore> m_bookmark_store;
     OwnPtr<ApplicationBookmarkStoreObserver> m_bookmark_store_observer;
