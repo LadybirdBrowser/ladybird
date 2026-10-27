@@ -16,6 +16,8 @@
 #include <AK/kmalloc.h>
 #include <LibGfx/SharedImageBuffer.h>
 #include <LibGfx/VulkanContext.h>
+#include <LibGfx/VulkanImage.h>
+#include <LibWebView/Application.h>
 #include <UI/Qt/NativeWindowContainer.h>
 #include <UI/Qt/WebContentView.h>
 #ifdef LADYBIRD_HAS_WAYLAND_GPU_QUERY
@@ -145,21 +147,59 @@ Optional<Gfx::GpuDeviceIdentity> WebContentView::presentation_gpu_device()
     return {};
 }
 
+// A device of our own to read frames back from GPU memory with, since a view's window has no device while it is hidden.
+static Gfx::VulkanContext const* readback_vulkan_context()
+{
+    static NeverDestroyed<Optional<Gfx::VulkanContext>> context = []() -> Optional<Gfx::VulkanContext> {
+        auto context = Gfx::create_vulkan_context(WebContentView::presentation_gpu_device());
+        if (context.is_error()) {
+            dbgln("Unable to create a Vulkan context to read frames back with: {}", context.error());
+            return {};
+        }
+        return context.release_value();
+    }();
+    return context->has_value() ? &context->value() : nullptr;
+}
+
+RefPtr<Gfx::Bitmap const> WebContentView::cpu_bitmap_to_paint(Paintable const& paintable) const
+{
+    if (auto bitmap = paintable.shared_image_buffer->bitmap_if_present())
+        return bitmap;
+
+    // NB: Qt repaints this widget at every step of a resize. While the page's window covers the widget, nobody sees
+    //     what it paints, and reading each frame back from GPU memory for it would be slow. The strips that hover-
+    //     expanded chrome punches out of the page's window are the only part of the page that shows through.
+    bool page_window_covers_widget = m_vulkan_window_container && m_vulkan_window_container->isVisible()
+        && m_vertical_tab_overlay_left == 0 && m_vertical_tab_overlay_right == 0 && m_bookmarks_bar_overlay_height == 0;
+    if (page_window_covers_widget)
+        return {};
+    return cpu_bitmap_of(paintable);
+}
+
+RefPtr<Gfx::Bitmap const> WebContentView::cpu_bitmap_of(Paintable const& paintable) const
+{
+    if (auto bitmap = paintable.shared_image_buffer->bitmap_if_present())
+        return bitmap;
+
+    auto const* dmabuf = paintable.shared_image_buffer->linux_dmabuf_handle();
+    if (!dmabuf)
+        return {};
+    if (m_frame_read_from_gpu.shared_image_buffer == paintable.shared_image_buffer)
+        return m_frame_read_from_gpu.bitmap;
+
+    RefPtr<Gfx::Bitmap const> bitmap;
+    if (auto const* context = readback_vulkan_context()) {
+        if (auto result = Gfx::read_linux_dmabuf_into_bitmap(*context, *dmabuf); result.is_error())
+            dbgln("Unable to read a frame back from GPU memory: {}", result.error());
+        else
+            bitmap = result.release_value();
+    }
+    m_frame_read_from_gpu = { paintable.shared_image_buffer, bitmap };
+    return bitmap;
+}
+
 #include <WebContentViewLinuxFragShader.h>
 #include <WebContentViewLinuxVertShader.h>
-
-static Optional<u32> find_memory_type_index(VkPhysicalDevice physical_device, u32 memory_type_bits)
-{
-    VkPhysicalDeviceMemoryProperties memory_properties;
-    vkGetPhysicalDeviceMemoryProperties(physical_device, &memory_properties);
-
-    for (u32 i = 0; i < memory_properties.memoryTypeCount; ++i) {
-        if (memory_type_bits & (1u << i))
-            return i;
-    }
-
-    return {};
-}
 
 static VkFormat vk_format_from_drm_format(u32 drm_format)
 {
@@ -611,113 +651,26 @@ struct WebContentView::VulkanRenderer {
         return imported_texture_for(shared_image_buffer);
     }
 
+    // Whether the device can never import frames like this one, as opposed to failing to now.
+    bool cannot_import_frames_like(Gfx::SharedImageBuffer const& shared_image_buffer) const
+    {
+        auto const* dmabuf = shared_image_buffer.linux_dmabuf_handle();
+        if (!dmabuf)
+            return false;
+        auto vk_format = vk_format_from_drm_format(dmabuf->drm_format);
+        return vk_format == VK_FORMAT_UNDEFINED || !Gfx::can_import_dmabuf_image(physical_device, vk_format, dmabuf->modifier, VK_IMAGE_USAGE_SAMPLED_BIT);
+    }
+
     OwnPtr<ImportedTexture> import_texture(Gfx::LinuxDmaBufHandle const& dmabuf, DmaBufIdentity const& dmabuf_identity)
     {
         auto vk_format = vk_format_from_drm_format(dmabuf.drm_format);
-        if (vk_format == VK_FORMAT_UNDEFINED || dmabuf.modifier != DRM_FORMAT_MOD_LINEAR)
+        if (vk_format == VK_FORMAT_UNDEFINED)
             return {};
-
-        VkImageDrmFormatModifierListCreateInfoEXT modifier_list {
-            .sType = VK_STRUCTURE_TYPE_IMAGE_DRM_FORMAT_MODIFIER_LIST_CREATE_INFO_EXT,
-            .pNext = nullptr,
-            .drmFormatModifierCount = 1,
-            .pDrmFormatModifiers = &dmabuf.modifier,
-        };
-        VkExternalMemoryImageCreateInfo external_memory_image_info {
-            .sType = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
-            .pNext = &modifier_list,
-            .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT,
-        };
-        VkImageCreateInfo image_info {
-            .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-            .pNext = &external_memory_image_info,
-            .flags = 0,
-            .imageType = VK_IMAGE_TYPE_2D,
-            .format = vk_format,
-            .extent = {
-                .width = static_cast<u32>(dmabuf.size.width()),
-                .height = static_cast<u32>(dmabuf.size.height()),
-                .depth = 1,
-            },
-            .mipLevels = 1,
-            .arrayLayers = 1,
-            .samples = VK_SAMPLE_COUNT_1_BIT,
-            .tiling = VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT,
-            .usage = VK_IMAGE_USAGE_SAMPLED_BIT,
-            .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-            .queueFamilyIndexCount = 0,
-            .pQueueFamilyIndices = nullptr,
-            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-        };
-
-        VkImage image { VK_NULL_HANDLE };
-        if (vkCreateImage(device, &image_info, nullptr, &image) != VK_SUCCESS)
+        auto imported = Gfx::import_linux_dmabuf_image(physical_device, device, get_memory_fd_properties, dmabuf, vk_format, VK_IMAGE_USAGE_SAMPLED_BIT);
+        if (imported.is_error())
             return {};
-
-        VkImageSubresource subresource { VK_IMAGE_ASPECT_MEMORY_PLANE_0_BIT_EXT, 0, 0 };
-        VkSubresourceLayout subresource_layout {};
-        vkGetImageSubresourceLayout(device, image, &subresource, &subresource_layout);
-        if (subresource_layout.rowPitch != dmabuf.planes.first().pitch) {
-            vkDestroyImage(device, image, nullptr);
-            return {};
-        }
-
-        VkMemoryRequirements memory_requirements;
-        vkGetImageMemoryRequirements(device, image, &memory_requirements);
-
-        VkMemoryFdPropertiesKHR memory_fd_properties {
-            .sType = VK_STRUCTURE_TYPE_MEMORY_FD_PROPERTIES_KHR,
-            .pNext = nullptr,
-            .memoryTypeBits = 0,
-        };
-        if (get_memory_fd_properties(device, VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT, dmabuf.objects.first().fd(), &memory_fd_properties) != VK_SUCCESS) {
-            vkDestroyImage(device, image, nullptr);
-            return {};
-        }
-
-        auto memory_type_index = find_memory_type_index(physical_device, memory_requirements.memoryTypeBits & memory_fd_properties.memoryTypeBits);
-        if (!memory_type_index.has_value()) {
-            vkDestroyImage(device, image, nullptr);
-            return {};
-        }
-
-        int imported_fd = fcntl(dmabuf.objects.first().fd(), F_DUPFD_CLOEXEC, 0);
-        if (imported_fd < 0) {
-            vkDestroyImage(device, image, nullptr);
-            return {};
-        }
-
-        VkMemoryDedicatedAllocateInfo dedicated_allocate_info {
-            .sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO,
-            .pNext = nullptr,
-            .image = image,
-            .buffer = VK_NULL_HANDLE,
-        };
-        VkImportMemoryFdInfoKHR import_memory_fd_info {
-            .sType = VK_STRUCTURE_TYPE_IMPORT_MEMORY_FD_INFO_KHR,
-            .pNext = &dedicated_allocate_info,
-            .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT,
-            .fd = imported_fd,
-        };
-        VkMemoryAllocateInfo memory_allocate_info {
-            .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-            .pNext = &import_memory_fd_info,
-            .allocationSize = memory_requirements.size,
-            .memoryTypeIndex = *memory_type_index,
-        };
-
-        VkDeviceMemory memory { VK_NULL_HANDLE };
-        if (vkAllocateMemory(device, &memory_allocate_info, nullptr, &memory) != VK_SUCCESS) {
-            ::close(imported_fd);
-            vkDestroyImage(device, image, nullptr);
-            return {};
-        }
-
-        if (vkBindImageMemory(device, image, memory, 0) != VK_SUCCESS) {
-            vkFreeMemory(device, memory, nullptr);
-            vkDestroyImage(device, image, nullptr);
-            return {};
-        }
+        auto image = imported.value().image;
+        auto memory = imported.value().memory;
 
         VkImageViewCreateInfo image_view_info {
             .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
@@ -905,8 +858,15 @@ struct WebContentView::VulkanWindowRenderer final : public QVulkanWindowRenderer
         auto paintable = m_view.current_paintable();
         bool can_render = paintable.has_value()
             && !paintable->bitmap_size.is_empty()
-            && m_renderer.prepare(m_window)
-            && m_renderer.can_render(*paintable->shared_image_buffer);
+            && m_renderer.prepare(m_window);
+        if (can_render && !m_renderer.can_render(*paintable->shared_image_buffer)) {
+            // NB: Reading every frame back from GPU memory would be slow, so a frame in a format or layout we cannot
+            //     import makes the Compositor share its frames as bitmaps instead. A frame kept from backing stores
+            //     that are gone may be from an old allocation, and says nothing about the frames to come.
+            if (!paintable->shared_image_buffer->bitmap_if_present() && paintable->bitmap_id >= 0 && m_renderer.cannot_import_frames_like(*paintable->shared_image_buffer))
+                WebView::Application::the().notify_compositor_gpu_presentation_unavailable();
+            can_render = false;
+        }
         if (!can_render) {
             m_window.frameReady();
             m_view.fall_back_to_bitmap_rendering();

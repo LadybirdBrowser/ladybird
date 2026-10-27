@@ -63,8 +63,11 @@ struct GpuBackingStore {
 static ErrorOr<GpuBackingStore> create_shared_gpu_backing_store(Gfx::IntSize size, Gfx::SkiaBackendContext& skia_backend_context)
 {
     auto const& vulkan_context = skia_backend_context.vulkan_context();
+    // A presentation on another GPU can only import a linear layout. On ours, the driver picks the layout that suits it,
+    // which matters to GPUs such as NVIDIA's that cannot render to a linear one at all.
     static constexpr Array<u64, 1> linear_modifiers = { DRM_FORMAT_MOD_LINEAR };
-    auto image = TRY(Gfx::create_shared_vulkan_image(vulkan_context, size.width(), size.height(), VK_FORMAT_B8G8R8A8_UNORM, linear_modifiers.span()));
+    auto const modifiers = vulkan_context.is_preferred_device ? Gfx::renderable_drm_format_modifiers(vulkan_context, VK_FORMAT_B8G8R8A8_UNORM) : Vector<u64>(linear_modifiers.span());
+    auto image = TRY(Gfx::create_shared_vulkan_image(vulkan_context, size.width(), size.height(), VK_FORMAT_B8G8R8A8_UNORM, modifiers.span()));
     auto shared_image = Gfx::duplicate_shared_image(*image);
 
     return GpuBackingStore {
@@ -173,7 +176,11 @@ Optional<BackingStoreManager::Publication> BackingStoreManager::allocate_backing
         for (size_t i = 0; i < buffer_count; ++i) {
             auto backing_store = create_shared_gpu_backing_store(allocation.size, *skia_backend_context);
             if (backing_store.is_error()) {
-                dbgln("Failed to allocate shared GPU backing store ({}), falling back to shareable bitmaps", backing_store.error());
+                static bool reported_failure = false;
+                if (!reported_failure) {
+                    dbgln("Failed to allocate shared GPU backing store ({}), falling back to shareable bitmaps", backing_store.error());
+                    reported_failure = true;
+                }
                 allocation_succeeded = false;
                 break;
             }

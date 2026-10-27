@@ -228,11 +228,22 @@ ErrorOr<NonnullRefPtr<VulkanImage>> create_shared_vulkan_image(VulkanContext con
         return Error::from_string_literal("image creation failed");
     }
 
+    // NB: The driver picks one of the layouts offered when it creates the image.
+    VkImageDrmFormatModifierPropertiesEXT image_format_mod_props = {};
+    image_format_mod_props.sType = VK_STRUCTURE_TYPE_IMAGE_DRM_FORMAT_MODIFIER_PROPERTIES_EXT;
+    image_format_mod_props.pNext = nullptr;
+    result = context.ext_procs.get_image_drm_format_modifier_properties(context.logical_device, image->image, &image_format_mod_props);
+    if (result != VK_SUCCESS) {
+        dbgln("vkGetImageDrmFormatModifierPropertiesEXT returned {}", to_underlying(result));
+        return Error::from_string_literal("image format modifier retrieval failed");
+    }
+
     VkMemoryRequirements mem_reqs;
     vkGetImageMemoryRequirements(context.logical_device, image->image, &mem_reqs);
     VkPhysicalDeviceMemoryProperties mem_props;
     vkGetPhysicalDeviceMemoryProperties(context.physical_device, &mem_props);
-    bool const is_linear_image = format_mods.size() == 1 && format_mods[0] == DRM_FORMAT_MOD_LINEAR;
+    // NB: The importers map a linear image's memory, so that has to be visible to the CPU.
+    bool const is_linear_image = image_format_mod_props.drmFormatModifier == DRM_FORMAT_MOD_LINEAR;
     uint32_t mem_type_idx = mem_props.memoryTypeCount;
 
     if (is_linear_image) {
@@ -283,15 +294,6 @@ ErrorOr<NonnullRefPtr<VulkanImage>> create_shared_vulkan_image(VulkanContext con
     VkImageSubresource subresource = { VK_IMAGE_ASPECT_MEMORY_PLANE_0_BIT_EXT, 0, 0 };
     VkSubresourceLayout subresource_layout = {};
     vkGetImageSubresourceLayout(context.logical_device, image->image, &subresource, &subresource_layout);
-
-    VkImageDrmFormatModifierPropertiesEXT image_format_mod_props = {};
-    image_format_mod_props.sType = VK_STRUCTURE_TYPE_IMAGE_DRM_FORMAT_MODIFIER_PROPERTIES_EXT;
-    image_format_mod_props.pNext = nullptr;
-    result = context.ext_procs.get_image_drm_format_modifier_properties(context.logical_device, image->image, &image_format_mod_props);
-    if (result != VK_SUCCESS) {
-        dbgln("vkGetImageDrmFormatModifierPropertiesEXT returned {}", to_underlying(result));
-        return Error::from_string_literal("image format modifier retrieval failed");
-    }
 
     // NB: Our dma-bufs name a single plane at the start of its memory, as the importers expect.
     if (subresource_layout.offset != 0)

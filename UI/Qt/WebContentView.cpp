@@ -1127,6 +1127,7 @@ Optional<WebContentView::Paintable> WebContentView::current_paintable() const
 void WebContentView::schedule_repaint()
 {
 #if defined(LADYBIRD_QT_USE_VULKAN_WINDOW)
+    m_frame_read_from_gpu = {};
     schedule_vulkan_window_update();
 #elif defined(LADYBIRD_QT_USE_IOSURFACE_LAYER)
     present_current_paintable_as_layer_contents();
@@ -1180,10 +1181,10 @@ void WebContentView::paintEvent(QPaintEvent*)
     painter.scale(1 / m_device_pixel_ratio, 1 / m_device_pixel_ratio);
 
     auto paintable = current_paintable();
-    Gfx::Bitmap const* bitmap = nullptr;
+    RefPtr<Gfx::Bitmap const> bitmap;
     Gfx::IntSize bitmap_size;
     if (paintable.has_value()) {
-        bitmap = paintable->shared_image_buffer->bitmap().ptr();
+        bitmap = cpu_bitmap_to_paint(*paintable);
         bitmap_size = paintable->bitmap_size;
     }
 
@@ -1228,6 +1229,18 @@ void WebContentView::paintEvent(QPaintEvent*)
 }
 #endif
 
+#if !defined(LADYBIRD_QT_USE_VULKAN_WINDOW)
+RefPtr<Gfx::Bitmap const> WebContentView::cpu_bitmap_of(Paintable const& paintable) const
+{
+    return paintable.shared_image_buffer->bitmap_if_present();
+}
+
+RefPtr<Gfx::Bitmap const> WebContentView::cpu_bitmap_to_paint(Paintable const& paintable) const
+{
+    return cpu_bitmap_of(paintable);
+}
+#endif
+
 // The page as the view currently shows it, in device pixels.
 QImage WebContentView::visible_snapshot() const
 {
@@ -1235,7 +1248,7 @@ QImage WebContentView::visible_snapshot() const
     if (!paintable.has_value())
         return {};
 
-    if (auto bitmap = paintable->shared_image_buffer->bitmap_if_present()) {
+    if (auto bitmap = cpu_bitmap_of(*paintable)) {
         auto width = min(bitmap->width(), paintable->bitmap_size.width());
         auto height = min(bitmap->height(), paintable->bitmap_size.height());
         if (width <= 0 || height <= 0)
