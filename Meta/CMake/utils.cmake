@@ -12,6 +12,17 @@ function(ladybird_generated_sources target_name)
     endif()
 endfunction()
 
+function(ladybird_codesign_command output name entitlements_file)
+    set(${output}
+        "${CMAKE_COMMAND}"
+        "-DLOG=${CMAKE_CURRENT_BINARY_DIR}/${name}-codesign.log"
+        -P "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/run_quiet.cmake"
+        --
+        codesign -s - -f --entitlements "${entitlements_file}" ${ARGN}
+        PARENT_SCOPE
+    )
+endfunction()
+
 function(ladybird_testjs_test test_src sub_dir)
     cmake_parse_arguments(PARSE_ARGV 2 LADYBIRD_TEST "NO_TEST" "CUSTOM_MAIN;NAME" "LIBS")
     if ("${LADYBIRD_TEST_CUSTOM_MAIN}" STREQUAL "")
