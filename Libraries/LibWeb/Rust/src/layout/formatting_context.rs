@@ -2070,10 +2070,6 @@ fn execute_formatting_context_run(
     fragmentainer: Option<std::rc::Rc<fragmentation::FragmentainerContext>>,
 ) -> RunOutputs {
     assert!(!box_.is_invalid());
-    assert_eq!(
-        input.sizing.root_keeps_its_committed_geometry, root_cells.has_content_offset,
-        "only a root that keeps its committed geometry is placed before its run"
-    );
     let parent_owns_root_input_cells = parent_owns_root_input_cells(&callbacks, box_, &input);
     let checks_root_input_cells_its_parent_owns =
         parent_owns_root_input_cells && (cfg!(debug_assertions) || run_repeatability::verification_is_enabled());
@@ -2139,6 +2135,9 @@ fn lay_out_run_root_and_contents<'pass>(
     parent_owns_root_input_cells: bool,
 ) -> RunOutputs {
     let run_is_handed_table_inline_layout_outside_its_key = table_inline_layout.is_some();
+    if input.sizing.root_keeps_its_committed_geometry {
+        records.used_values(box_).seal_own_metrics();
+    }
     let run = FormattingContextRun {
         records,
         box_,
@@ -3461,11 +3460,12 @@ fn compute_subtree_layout_fragments(input: LayoutStageInput<'_>, containing_bloc
 fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
     let root = run.box_;
     let callbacks = &run.callbacks;
-    let root_used = run.records.register(
-        root,
-        used_values::used_values_from_committed_fragment_link(callbacks, root)
-            .expect("partial relayout root must have committed geometry"),
-    );
+    let committed_root = used_values::committed_box_from_fragment_link(callbacks, root)
+        .expect("partial relayout root must have committed geometry");
+    let root_used = run.records.register(root, committed_root.record);
+    // Adopting the committed geometry is the root's placement, final from the moment it is adopted.
+    run.records.set_used_insets(root, committed_root.used_insets);
+    run.records.place_box(root, committed_root.placement);
     let fragments = run.fragments.as_deref().expect("partial relayout must build fragments");
     let mut input = LayoutInput::new(
         AvailableSpace {

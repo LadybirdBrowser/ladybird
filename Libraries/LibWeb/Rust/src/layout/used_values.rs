@@ -375,7 +375,6 @@ pub(crate) struct UsedValues {
     // even where has_content_offset is false.
     pub has_content_offset: SealableCell<bool>,
     pub content_offset: SealableCell<FfiCssPixelPoint>,
-    pub placed_in: Cell<crate::layout::node_data::NodeSlotId>,
 
     // Keep baseline payloads separate so resetting the presence bits does not
     // perturb the payloads observed by the existing derivation flow.
@@ -429,7 +428,6 @@ impl Default for UsedValues {
             hidden_by_collapsed_columns: Cell::new(false),
             has_content_offset: SealableCell::new(false),
             content_offset: SealableCell::new(FfiCssPixelPoint::default()),
-            placed_in: Cell::new(crate::layout::node_data::NodeSlotId::INVALID),
             has_first_baseline: Cell::new(false),
             first_baseline: Cell::new(zero),
             has_last_baseline: Cell::new(false),
@@ -1203,7 +1201,15 @@ pub(crate) fn create_used_values(
     used
 }
 
-pub(crate) fn used_values_from_committed_fragment_link(callbacks: &LayoutPass<'_>, node: Node) -> Option<UsedValues> {
+/// The record, placement and used insets of a box as its committed fragment link has them, which a run adopts as they
+/// are.
+pub(crate) struct CommittedBox {
+    pub(crate) record: UsedValues,
+    pub(crate) placement: super::run_records::BoxPlacement,
+    pub(crate) used_insets: super::run_records::UsedInsets,
+}
+
+pub(crate) fn committed_box_from_fragment_link(callbacks: &LayoutPass<'_>, node: Node) -> Option<CommittedBox> {
     let link = callbacks.committed_fragment_link(node)?;
     let fragment = &link.fragment;
 
@@ -1214,20 +1220,22 @@ pub(crate) fn used_values_from_committed_fragment_link(callbacks: &LayoutPass<'_
     used.set_box_metrics_from_fragment(fragment);
     used.has_definite_inline_size.set(true);
     used.has_definite_block_size.set(true);
-    used.content_offset.set(link.committed_offset);
-    used.placed_in.set(link.containing_block);
     used.table_column_index.set(fragment.table_column_index);
     used.table_column_span.set(fragment.table_column_span);
     used.hidden_by_collapsed_columns
         .set(fragment.hidden_by_collapsed_columns);
-    used.inset_left.set(link.inset_left);
-    used.inset_right.set(link.inset_right);
-    used.inset_top.set(link.inset_top);
-    used.inset_bottom.set(link.inset_bottom);
-    // Materialization is this box's placement: the previously committed
-    // geometry is final from the moment it is adopted.
-    used.has_content_offset.set(true);
-    used.seal_committed_box_metrics();
 
-    Some(used)
+    Some(CommittedBox {
+        record: used,
+        placement: super::run_records::BoxPlacement {
+            content_offset_in_containing_block: link.committed_offset,
+            containing_block: link.containing_block,
+        },
+        used_insets: super::run_records::UsedInsets {
+            left: link.inset_left,
+            right: link.inset_right,
+            top: link.inset_top,
+            bottom: link.inset_bottom,
+        },
+    })
 }
