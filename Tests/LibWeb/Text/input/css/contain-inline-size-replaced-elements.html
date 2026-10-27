@@ -1,0 +1,23 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+.test { display: inline-block; contain: inline-size; contain-intrinsic-size: 100px none; }
+.reference { display: inline-block; contain: size; contain-intrinsic-size: 100px 20px; }
+.zoomed { zoom: 2; aspect-ratio: auto; }
+</style>
+<svg class="test" id="svg" viewBox="0 0 200 100"></svg>
+<canvas class="test zoomed" id="canvas" width="40" height="20"></canvas>
+<canvas class="reference zoomed" id="reference" width="40" height="20"></canvas>
+<script>
+test(() => {
+    const size = id => {
+        const rect = document.getElementById(id).getBoundingClientRect();
+        return `${rect.width}x${rect.height}`;
+    };
+    println(`svg with viewBox: ${size("svg")}`);
+    println(`zoomed canvas: ${size("canvas")}`);
+    println(`zoomed size-contained canvas: ${size("reference")}`);
+    document.getElementById("canvas").style.containIntrinsicWidth = "50px";
+    println(`zoomed canvas with new intrinsic size: ${size("canvas")}`);
+});
+</script>
