@@ -230,6 +230,16 @@ GC::Ptr<Element> ShadowRoot::active_element()
     return calculate_active_element(*this);
 }
 
+Element const* ShadowRoot::element_from_point(double x, double y)
+{
+    return calculate_element_from_point(*this, x, y);
+}
+
+GC::RootVector<GC::Ref<Element>> ShadowRoot::elements_from_point(double x, double y)
+{
+    return calculate_elements_from_point(*this, x, y);
+}
+
 CSS::StyleSheetList& ShadowRoot::style_sheets()
 {
     if (!m_style_sheets)

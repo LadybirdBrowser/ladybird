@@ -1,6 +1,6 @@
 before inert:
 text: text-row / #text
-contents: contents-row / #text
+contents: contents / #text
 pseudo: pseudo / null
 first letter: letter-row / #text
 container inert:
@@ -10,7 +10,7 @@ pseudo: pseudo / null
 first letter: letter-row / null
 container inert removed:
 text: text-row / #text
-contents: contents-row / #text
+contents: contents / #text
 pseudo: pseudo / null
 first letter: letter-row / #text
 display: contents span inert:
@@ -20,6 +20,6 @@ pseudo: pseudo / null
 first letter: letter-row / #text
 display: contents span inert removed:
 text: text-row / #text
-contents: contents-row / #text
+contents: contents / #text
 pseudo: pseudo / null
 first letter: letter-row / #text

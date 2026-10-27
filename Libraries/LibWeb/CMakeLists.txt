@@ -264,6 +264,7 @@ set(SOURCES
     DOM/DocumentLoadEventDelayer.cpp
     DOM/DocumentLoading.cpp
     DOM/DocumentObserver.cpp
+    DOM/DocumentOrShadowRoot.cpp
     DOM/DocumentType.cpp
     DOM/DOMEventListener.cpp
     DOM/DOMImplementation.cpp

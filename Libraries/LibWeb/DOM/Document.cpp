@@ -9658,86 +9658,14 @@ WebIDL::ExceptionOr<void> Document::set_design_mode(Utf16View design_mode)
     return {};
 }
 
-// https://drafts.csswg.org/cssom-view/#dom-document-elementfrompoint
 Element const* Document::element_from_point(double x, double y)
 {
-    Layout::ForcedReadScope read { *this };
-    // 1. If either argument is negative, x is greater than the viewport width excluding the size of a rendered scroll
-    //    bar (if any), or y is greater than the viewport height excluding the size of a rendered scroll bar (if any), or
-    //    there is no viewport associated with the document, return null and terminate these steps.
-    auto viewport_rect = this->viewport_rect();
-    CSSPixelPoint position { x, y };
-    // FIXME: This should account for the size of the scroll bar.
-    if (x < 0 || y < 0 || position.x() > viewport_rect.width() || position.y() > viewport_rect.height())
-        return nullptr;
-
-    // Ensure the layout tree exists prior to hit testing.
-    update_layout(UpdateLayoutReason::DocumentElementFromPoint);
-
-    // 2. If there is a box in the viewport that would be a target for hit testing at coordinates x,y, when applying the transforms
-    //    that apply to the descendants of the viewport, return the associated element and terminate these steps.
-    GC::Ptr<Element> hit_element;
-    (void)hit_test_all(read, position, [&](Painting::HitTestResult result) {
-        if (auto* element = as_if<Element>(result.dom_node())) {
-            hit_element = element;
-            return TraversalDecision::Break;
-        }
-        return TraversalDecision::Continue;
-    });
-    if (hit_element) {
-        // AD-HOC: If element is inside a UA internal shadow root, retarget to the host.
-        return retarget_from_ua_internal_shadow_root(*hit_element);
-    }
-
-    // 3. If the document has a root element, return the root element and terminate these steps.
-    if (auto const* root_element = document_element())
-        return root_element;
-
-    // 4. Return null.
-    return nullptr;
+    return calculate_element_from_point(*this, x, y);
 }
 
-// https://drafts.csswg.org/cssom-view/#dom-document-elementsfrompoint
 GC::RootVector<GC::Ref<Element>> Document::elements_from_point(double x, double y)
 {
-    Layout::ForcedReadScope read { *this };
-    // 1. Let sequence be a new empty sequence.
-    GC::RootVector<GC::Ref<Element>> sequence;
-
-    // 2. If either argument is negative, x is greater than the viewport width excluding the size of a rendered scroll bar (if any),
-    //    or y is greater than the viewport height excluding the size of a rendered scroll bar (if any),
-    //    or there is no viewport associated with the document, return sequence and terminate these steps.
-    auto viewport_rect = this->viewport_rect();
-    CSSPixelPoint position { x, y };
-    // FIXME: This should account for the size of the scroll bar.
-    if (x < 0 || y < 0 || position.x() > viewport_rect.width() || position.y() > viewport_rect.height())
-        return sequence;
-
-    // Ensure the layout tree exists prior to hit testing.
-    update_layout(UpdateLayoutReason::DocumentElementsFromPoint);
-
-    // 3. For each box in the viewport, in paint order, starting with the topmost box, that would be a target for
-    //    hit testing at coordinates x,y even if nothing would be overlapping it, when applying the transforms that
-    //    apply to the descendants of the viewport, append the associated element to sequence.
-    (void)hit_test_all(read, position, [&](Painting::HitTestResult result) {
-        if (auto* element = as_if<Element>(result.dom_node())) {
-            // AD-HOC: If element is inside a UA internal shadow root, retarget to the host.
-            element = retarget_from_ua_internal_shadow_root(*element);
-            // AD-HOC: Avoid adding duplicates when multiple boxes resolve to the same element, or when multiple
-            // internal elements retarget to the same host.
-            if (!sequence.contains_slow(GC::Ref { *element }))
-                sequence.append(*element);
-        }
-        return TraversalDecision::Continue;
-    });
-
-    // 4. If the document has a root element, and the last item in sequence is not the root element,
-    //    append the root element to sequence.
-    if (auto* root_element = document_element(); root_element && (sequence.is_empty() || (sequence.last().ptr() != root_element)))
-        sequence.append(*root_element);
-
-    // 5. Return sequence.
-    return sequence;
+    return calculate_elements_from_point(*this, x, y);
 }
 
 static bool shadow_root_is_allowed_for_caret_position(ShadowRoot const& shadow_root, Document::CaretPositionFromPointOptions const& options)

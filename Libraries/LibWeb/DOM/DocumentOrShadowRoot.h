@@ -19,6 +19,9 @@ namespace Web::DOM {
 template<typename T>
 concept DocumentOrShadowRoot = OneOf<T, Document, ShadowRoot>;
 
+Element const* calculate_element_from_point(Node&, double x, double y);
+GC::RootVector<GC::Ref<Element>> calculate_elements_from_point(Node&, double x, double y);
+
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-documentorshadowroot-activeelement
 template<DocumentOrShadowRoot T>
 GC::Ptr<Element> calculate_active_element(T& self)
