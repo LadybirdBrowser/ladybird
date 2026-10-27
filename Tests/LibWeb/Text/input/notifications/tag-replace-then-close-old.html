@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // close() on a notification that a same-tag one is replacing in the same task fires close exactly once.
+    asyncTest(async done => {
+        await internals.setPermission("notifications", "granted");
+        const a = new Notification("A", { tag: "x" });
+        await new Promise(resolve => (a.onshow = resolve));
+        let closes = 0;
+        a.onclose = () => closes++;
+        const b = new Notification("B", { tag: "x" });
+        a.close();
+        await new Promise(resolve => (b.onshow = resolve));
+        await new Promise(resolve => setTimeout(resolve, 100));
+        println(`close events on a: ${closes}`);
+        b.close();
+        done();
+    });
+</script>

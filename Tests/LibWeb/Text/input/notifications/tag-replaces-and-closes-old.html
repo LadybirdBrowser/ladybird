@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A notification with the same origin and tag takes the earlier one's place: the earlier one gets close.
+    asyncTest(async done => {
+        await internals.setPermission("notifications", "granted");
+        const shown = n => new Promise(resolve => (n.onshow = resolve));
+        const a = new Notification("A", { tag: "x" });
+        await shown(a);
+        const aId = JSON.parse(internals.notificationsStateForTesting()).shown[0].id;
+        const aClosed = new Promise(resolve => (a.onclose = resolve));
+        const b = new Notification("B", { tag: "x" });
+        await shown(b);
+        await aClosed;
+        const state = JSON.parse(internals.notificationsStateForTesting());
+        println(`a closed, shown: ${state.shown.length}`);
+        println(`shown title: ${state.shown[0].title}`);
+        println(`replaces a: ${state.shown[0].replaces === aId}`);
+        b.close();
+        done();
+    });
+</script>
