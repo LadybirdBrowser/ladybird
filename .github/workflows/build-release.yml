@@ -112,17 +112,36 @@ jobs:
           cpack -G TXZ -B packages -D CPACK_COMPONENTS_ALL="ladybird_Runtime;ladybird_Symbols" \
             -D CPACK_ARCHIVE_COMPRESSION_LEVEL=9 -D CPACK_COMPONENT_INCLUDE_TOPLEVEL_DIRECTORY=ON
 
+      - name: Install rpmbuild
+        if: ${{ matrix.os_name == 'Linux' }}
+        run: |
+          apt-get update -o APT::Update::Error-Mode=any
+          apt-get install -y --no-install-recommends rpm
+
+      - name: Package for Linux distributions
+        if: ${{ matrix.os_name == 'Linux' }}
+        working-directory: ${{ github.workspace }}/Build
+        run: |
+          cpack -G "DEB;RPM" -B packages \
+            -D CPACK_COMPONENTS_ALL="ladybird_Runtime;ladybird_SystemIntegration;ladybird_SystemSymbols"
+
       - name: Attest
         if: ${{ inputs.version != '' }}
         uses: actions/attest@v4
         with:
-          subject-path: 'Build/packages/*.tar.xz'
+          subject-path: |
+            Build/packages/*.tar.xz
+            Build/packages/*.deb
+            Build/packages/*.rpm
 
       - name: Upload
         uses: actions/upload-artifact@v7
         with:
           name: ladybird-${{ matrix.os_name }}-${{ matrix.arch }}
-          path: Build/packages/*.tar.xz
+          path: |
+            Build/packages/*.tar.xz
+            Build/packages/*.deb
+            Build/packages/*.rpm
           compression-level: 0
           if-no-files-found: error
 

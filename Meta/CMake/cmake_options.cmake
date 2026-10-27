@@ -42,6 +42,7 @@ option(ENABLE_CI_BASELINE_CPU "Use a common CPU baseline for portable binaries a
 
 set(LADYBIRD_VERSION "" CACHE STRING "Version of a release: year.month.patch, optionally followed by .alpha or .beta")
 set(LADYBIRD_BUNDLE_VERSION "${PROJECT_VERSION}")
+set(LADYBIRD_PACKAGE_VERSION "${PROJECT_VERSION}")
 if (NOT LADYBIRD_VERSION STREQUAL "")
     if (NOT LADYBIRD_VERSION MATCHES "^([0-9][0-9][0-9][0-9]\\.([1-9]|1[0-2])\\.(0|[1-9][0-9]*))(\\.alpha|\\.beta)?$")
         message(FATAL_ERROR "LADYBIRD_VERSION must be year.month.patch, optionally followed by .alpha or .beta: "
@@ -50,7 +51,14 @@ if (NOT LADYBIRD_VERSION STREQUAL "")
 
     # macOS compares bundle versions as numbers, so they leave out the suffix.
     set(LADYBIRD_BUNDLE_VERSION "${CMAKE_MATCH_1}")
+
+    # Debian and RPM sort a tilde before everything else, which puts 2026.12.3~beta before 2026.12.3.
+    string(REPLACE "." "~" package_version_suffix "${CMAKE_MATCH_4}")
+    set(LADYBIRD_PACKAGE_VERSION "${CMAKE_MATCH_1}${package_version_suffix}")
 endif()
+
+# Like other browsers, our Linux packages keep Ladybird in a directory of its own.
+set(LADYBIRD_PACKAGE_INSTALL_PREFIX "/opt/ladybird")
 
 # lto1 uses a crazy amount of RAM in static builds.
 # Disable LTO for static gcc builds unless explicitly asked for.
