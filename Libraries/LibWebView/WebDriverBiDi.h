@@ -15,7 +15,9 @@
 #include <AK/String.h>
 #include <AK/Utf16String.h>
 #include <AK/Vector.h>
+#include <AK/Weakable.h>
 #include <LibGfx/Size.h>
+#include <LibRequests/Forward.h>
 #include <LibURL/URL.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebCommon/WebDriver/BiDi.h>
@@ -30,7 +32,7 @@ class WebDriverBiDiNetwork;
 // https://w3c.github.io/webdriver-bidi/
 // NB: The browser process runs the commands of a BiDi session that involve navigables, and routes those that run in the
 //     process hosting a navigable's document to it. It exists only while WebDriver drives the browser.
-class WebDriverBiDi {
+class WebDriverBiDi : public Weakable<WebDriverBiDi> {
     AK_MAKE_NONCOPYABLE(WebDriverBiDi);
     AK_ALLOC_WITH_KMALLOC;
     AK_MAKE_NONMOVABLE(WebDriverBiDi);
@@ -90,6 +92,11 @@ public:
     void navigation_failed(CanonicalNavigable const&, NavigationStatus const&);
 
     void did_receive_navigation_event(WebContentPage&, Web::HTML::CrossProcessId navigable_id, String const& name, Optional<Utf16String> navigation_id, URL::URL url);
+    void download_response_finished(String const& context,
+        JsonObject const& metadata,
+        u64 decoded_body_size,
+        Requests::RequestTimingInfo const*,
+        Optional<StringView> error);
     void did_receive_event(WebContentPage&, Web::HTML::CrossProcessId navigable_id, String const& name, JsonValue params);
 
 private:

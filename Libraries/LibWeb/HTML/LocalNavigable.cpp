@@ -99,6 +99,7 @@
 #include <LibWeb/UIEvents/InputTypes.h>
 #include <LibWeb/UpgradeInsecureRequests/AbstractOperations.h>
 #include <LibWeb/WebDriver/BiDi/BiDi.h>
+#include <LibWeb/WebDriver/BiDi/Network.h>
 #include <LibWeb/WebIDL/Promise.h>
 #include <LibWeb/XHR/FormData.h>
 #include <LibWebCommon/CSS/SystemColor.h>
@@ -551,10 +552,36 @@ static bool handle_navigation_response_as_download(GC::Ref<NavigationParams> nav
     if (!response || !response->body())
         return true;
 
+    JsonValue network_response = navigation_params->webdriver_bidi_network_response;
+    if (WebDriver::BiDi::g_network_events_enabled && response->request_server_request().has_value() && !network_response.is_object() && navigation_params->request) {
+        RefPtr<Fetch::Infrastructure::FetchTimingInfo> timing_info = navigation_params->fetch_timing_info;
+        if (navigation_params->fetch_controller)
+            timing_info = navigation_params->fetch_controller->timing_info();
+        if (timing_info) {
+            auto metadata = WebDriver::BiDi::network_response_for_navigation(
+                *navigation_params->request, *timing_info, *response);
+            if (metadata.has_value())
+                network_response = metadata.release_value();
+        }
+    }
+    if (auto& state = navigation_params->webdriver_bidi_network_response_state; state) {
+        if (state->owner != NavigationResponseNetworkEventState::Owner::Renderer)
+            network_response = JsonValue {};
+        else
+            state->owner = NavigationResponseNetworkEventState::Owner::Download;
+    }
+    auto report_download_rejected = [&] {
+        if (network_response.is_object() && navigation_params->navigable)
+            WebDriver::BiDi::network_navigation_response_finished(
+                *navigation_params->navigable, network_response.as_object(),
+                *response, nullptr, "Navigation download was rejected"sv);
+    };
+
     // FIXME: Implement the WebDriver BiDi download will begin/end hooks.
     //        uaAllowsDownloading is currently always true.
     auto target_allows_downloading = !has_flag(navigation_params->final_sandboxing_flag_set, SandboxingFlagSet::SandboxedDownloads);
     if (!source_allows_downloading || !target_allows_downloading) {
+        report_download_rejected();
         if (navigation_params->fetch_controller)
             navigation_params->fetch_controller->stop_fetch();
         else
@@ -565,6 +592,7 @@ static bool handle_navigation_response_as_download(GC::Ref<NavigationParams> nav
     VERIFY(navigation_params->navigable);
     auto active_window = navigation_params->navigable->active_window();
     if (!active_window) {
+        report_download_rejected();
         stop_or_resume_response_body_delivery(navigation_params);
         return true;
     }
@@ -577,7 +605,8 @@ static bool handle_navigation_response_as_download(GC::Ref<NavigationParams> nav
         if (initial_data.has_value() && !initial_data->is_empty() && !response_body_will_be_transferred_in_full)
             initial_data_buffer = MUST(ByteBuffer::copy(*initial_data));
 
-        auto download_id = navigation_params->navigable->page().client().page_did_start_download(navigation_params->navigable->id(), navigation_params->id, download_url, suggested_filename, response_content_length(*response->header_list()), request_server_request->client_id, request_server_request->request_id, move(initial_data_buffer));
+        auto download_id = navigation_params->navigable->page().client().page_did_start_download(navigation_params->navigable->id(), navigation_params->id, download_url, suggested_filename, response_content_length(*response->header_list()), request_server_request->client_id, request_server_request->request_id, move(initial_data_buffer),
+            move(network_response));
         if (!download_id.has_value()) {
             if (navigation_params->fetch_controller)
                 navigation_params->fetch_controller->stop_fetch();
@@ -2518,6 +2547,8 @@ static void create_navigation_params_by_fetching(
     request->set_redirect_mode(Fetch::Infrastructure::Request::RedirectMode::Manual);
     request->set_replaces_client_id(active_document.relevant_settings_object().id);
     request->set_mode(Fetch::Infrastructure::Request::Mode::Navigate);
+    if (WebDriver::BiDi::g_network_events_enabled)
+        WebDriver::BiDi::initialize_network_request(*request, navigable, navigation_id);
     request->set_referrer(document_state.request_referrer);
     request->set_referrer_policy(document_state.request_referrer_policy);
     request->set_policy_container(source_snapshot_params->source_policy_container);

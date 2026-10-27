@@ -2292,14 +2292,28 @@ Messages::WebContentClient::DidStartDownloadWithoutRequestResponse WebContentPag
     return { download_id };
 }
 
-Messages::WebContentClient::DidStartDownloadResponse WebContentPage::did_start_download(Web::HTML::CrossProcessId navigable_id, Optional<Utf16String> navigation_id, URL::URL url, ByteString suggested_filename, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ByteBuffer initial_data)
+Messages::WebContentClient::DidStartDownloadResponse WebContentPage::did_start_download(Web::HTML::CrossProcessId navigable_id, Optional<Utf16String> navigation_id, URL::URL url, ByteString suggested_filename, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ByteBuffer initial_data, JsonValue network_response)
 {
     // A download taking over an in-flight population's response body ends that navigation without a document;
     // the reporting process ends its side when its population output says the download was handled. The body
     // identifiers preserve the original RequestServer transfer lease, so only the process and navigation that
     // received that response may claim it, and only while its population is in flight.
+    FileDownloader::ResponseFinished on_response_finished;
     bool matches_in_flight_navigation = false;
     if (auto navigable = population_worker_navigable(navigable_id); navigable.has_value()) {
+        if (auto* bidi = WebDriverBiDi::the();
+            bidi && network_response.is_object()) {
+            on_response_finished = [weak_bidi = bidi->make_weak_ptr(),
+                                       context = WebDriverBiDi::navigable_id(*navigable),
+                                       metadata = network_response.as_object()](
+                                       u64 decoded_size,
+                                       Requests::RequestTimingInfo const* timing,
+                                       Optional<StringView> error) {
+                if (weak_bidi)
+                    weak_bidi->download_response_finished(context, metadata, decoded_size,
+                        timing, error);
+            };
+        }
         auto ongoing_navigation = navigation_id.has_value() ? navigable->navigation_with_id(*navigation_id) : nullptr;
         if (ongoing_navigation
             && (ongoing_navigation->state.has<CanonicalNavigation::CreatingNavigationParams>() || ongoing_navigation->state.has<CanonicalNavigation::Populating>())
@@ -2308,15 +2322,25 @@ Messages::WebContentClient::DidStartDownloadResponse WebContentPage::did_start_d
             navigable->did_cancel_navigation(*navigation_id);
         }
     }
-    if (!matches_in_flight_navigation)
+    if (!matches_in_flight_navigation) {
+        if (on_response_finished)
+            on_response_finished(
+                0, nullptr,
+                "Navigation response is no longer available for download"sv);
         return { Optional<u64> {} };
+    }
 
     auto destination = choose_download_destination_or_report_error(url, suggested_filename);
-    if (!destination.has_value())
+    if (!destination.has_value()) {
+        if (on_response_finished)
+            on_response_finished(0, nullptr,
+                "Download destination was not selected"sv);
         return { Optional<u64> {} };
+    }
 
     auto& file_downloader = Application::the().file_downloader();
-    auto download_id = file_downloader.adopt_download(client().is_private(), url, destination.release_value(), total_size, request_server_client_id, request_server_request_id, initial_data.bytes());
+    auto download_id = file_downloader.adopt_download(client().is_private(), url, destination.release_value(), total_size, request_server_client_id, request_server_request_id, initial_data.bytes(),
+        move(on_response_finished));
     if (!is_download_in_progress(file_downloader, download_id))
         return { Optional<u64> {} };
 

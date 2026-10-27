@@ -19,6 +19,7 @@
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/WebDriver/BiDi/Network.h>
 
 namespace Web::Fetch::Infrastructure {
 
@@ -48,6 +49,17 @@ void Request::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_reserved_client);
     visitor.visit(m_traversable_for_user_prompts);
     visitor.visit(m_pending_responses);
+    visitor.visit(m_webdriver_bidi_network_request);
+}
+
+GC::Ptr<WebDriver::BiDi::NetworkRequest> Request::webdriver_bidi_network_request() const
+{
+    return m_webdriver_bidi_network_request;
+}
+
+void Request::set_webdriver_bidi_network_request(GC::Ptr<WebDriver::BiDi::NetworkRequest> state)
+{
+    m_webdriver_bidi_network_request = state;
 }
 
 // https://fetch.spec.whatwg.org/#concept-request-url

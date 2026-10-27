@@ -9,6 +9,8 @@
 #include <AK/NumericLimits.h>
 #include <AK/QuickSort.h>
 #include <AK/Random.h>
+#include <AK/RefCounted.h>
+#include <AK/ScopeGuard.h>
 #include <LibCore/DirIterator.h>
 #include <LibCore/ElapsedTimer.h>
 #include <LibCore/EventLoop.h>
@@ -67,6 +69,33 @@ struct FileDownloader::Segment {
     }
 };
 
+// NB: An adopted response follows the download across intentional request stops and restarts.
+class AdoptedResponseObserver : public RefCounted<AdoptedResponseObserver> {
+    AK_ALLOC_WITH_KMALLOC;
+
+public:
+    explicit AdoptedResponseObserver(FileDownloader::ResponseFinished on_finish)
+        : m_on_finish(move(on_finish))
+    {
+    }
+
+    void set_timing_info(Requests::RequestTimingInfo const& timing) { m_timing_info = timing; }
+    Requests::RequestTimingInfo const* timing_info() const { return m_timing_info.has_value() ? &*m_timing_info : nullptr; }
+
+    void finish(u64 decoded_size, Requests::RequestTimingInfo const* timing,
+        Optional<StringView> error)
+    {
+        NonnullRefPtr protect { *this };
+        auto on_finish = move(m_on_finish);
+        if (on_finish)
+            on_finish(decoded_size, timing, error);
+    }
+
+private:
+    FileDownloader::ResponseFinished m_on_finish;
+    Optional<Requests::RequestTimingInfo> m_timing_info;
+};
+
 struct FileDownloader::ActiveDownload {
     AK_ALLOC_WITH_KMALLOC;
 
@@ -84,6 +113,7 @@ struct FileDownloader::ActiveDownload {
 
     Vector<Segment> segments;
     Function<void()> on_cancel;
+    RefPtr<AdoptedResponseObserver> response_observer;
     OwnPtr<Core::File> file;
     RefPtr<Core::Timer> stall_timer;
 
@@ -248,8 +278,14 @@ void FileDownloader::follow_download_redirect(u64 download_id, HTTP::HeaderList 
     start_download_request(download_id, redirect_url.release_value());
 }
 
-u64 FileDownloader::adopt_download(IsPrivate is_private, URL::URL const& url, LexicalPath destination, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ReadonlyBytes initial_data)
+u64 FileDownloader::adopt_download(IsPrivate is_private, URL::URL const& url, LexicalPath destination, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ReadonlyBytes initial_data,
+    ResponseFinished on_response_finished)
 {
+    ScopeGuard report_failure = [&] {
+        if (on_response_finished)
+            on_response_finished(0, nullptr,
+                "Unable to adopt the download response"sv);
+    };
     auto download_id = start_download(is_private, url, move(destination), total_size);
     auto* active = active_download(download_id);
     if (!active)
@@ -274,15 +310,26 @@ u64 FileDownloader::adopt_download(IsPrivate is_private, URL::URL const& url, Le
         return download_id;
     }
 
-    attach_request_to_download(download_id, 0, request.release_nonnull());
+    attach_request_to_download(download_id, 0, request.release_nonnull(),
+        move(on_response_finished));
     return download_id;
 }
 
-void FileDownloader::attach_request_to_download(u64 download_id, size_t segment_index, NonnullRefPtr<Requests::Request> request)
+void FileDownloader::attach_request_to_download(u64 download_id, size_t segment_index, NonnullRefPtr<Requests::Request> request,
+    ResponseFinished on_response_finished)
 {
     auto* active = active_download(download_id);
-    if (!active || segment_index >= active->segments.size())
+    if (!active || segment_index >= active->segments.size()) {
+        if (on_response_finished)
+            on_response_finished(
+                0, nullptr, "Download was stopped before adopting its response"sv);
         return;
+    }
+    RefPtr<AdoptedResponseObserver> observer;
+    if (on_response_finished) {
+        observer = adopt_ref(*new AdoptedResponseObserver(move(on_response_finished)));
+        active->response_observer = observer;
+    }
 
     auto& segment = active->segments[segment_index];
     auto request_generation = ++active->last_request_generation;
@@ -305,7 +352,15 @@ void FileDownloader::attach_request_to_download(u64 download_id, size_t segment_
         },
         [](Core::ImmutableBytes) {
         },
-        [this, download_id, segment_index, request_generation](u64 delivered_size, Requests::RequestTimingInfo const&, Optional<Requests::NetworkError> network_error) {
+        [this, download_id, segment_index, request_generation, observer](u64 delivered_size, Requests::RequestTimingInfo const& timing_info, Optional<Requests::NetworkError> network_error) {
+            if (observer) {
+                auto* active = active_download(download_id);
+                // NB: Offsets from a replacement or split request do not share the original fetch's start time.
+                if (active && active->segments.size() == 1 && segment_index == 0
+                    && active->segments[0].request_generation == request_generation
+                    && !active->segments[0].request_is_ranged)
+                    observer->set_timing_info(timing_info);
+            }
             handle_segment_finished(download_id, segment_index, request_generation, delivered_size, network_error);
         });
 }
@@ -1656,8 +1711,23 @@ void FileDownloader::notify_download_added(Download const& download)
 
 void FileDownloader::notify_download_updated(Download const& download)
 {
+    RefPtr<AdoptedResponseObserver> response_observer;
+    Optional<Download> finished_download;
+    if (!status_is_active(download.status)) {
+        if (auto* active = active_download(download.id); active && active->response_observer) {
+            // NB: Take the terminal owner before notifying observers, which may reenter or remove the download.
+            response_observer = move(active->response_observer);
+            finished_download = download;
+        }
+    }
     for (auto& observer : m_observers)
         observer.download_updated(download);
+    if (response_observer) {
+        Optional<StringView> error;
+        if (finished_download->status != DownloadStatus::Completed)
+            error = finished_download->error.has_value() ? finished_download->error->bytes_as_string_view() : "Download was canceled"sv;
+        response_observer->finish(finished_download->downloaded_size, response_observer->timing_info(), error);
+    }
 }
 
 void FileDownloader::notify_download_removed(u64 id, IsPrivate is_private)

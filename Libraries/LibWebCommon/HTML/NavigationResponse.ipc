@@ -1,0 +1,18 @@
+// Copyright (c) 2026-present, the Ladybird developers.
+
+#include <LibWebCommon/HTML/NavigationParamsDescriptor.h>
+
+[ExistingCpp]
+struct Web::HTML::NavigationResponseDescriptor {
+    Vector<URL::URL> url_list;
+    u16 status;
+    ByteString status_message;
+    Vector<HTTP::Header> headers;
+    Optional<String> network_error_message;
+    bool timing_allow_passed;
+    Optional<Web::Fetch::Infrastructure::ResponseCacheState> cache_state;
+    Vector<Vector<String>> navigation_timing_allow_values_list;
+    Web::Fetch::Infrastructure::RedirectTaint redirect_taint;
+    Web::HTML::NavigationResponseBody body;
+    JsonValue webdriver_bidi_network_response;
+}

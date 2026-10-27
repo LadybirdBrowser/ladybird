@@ -75,6 +75,7 @@
 #include <LibWeb/Streams/ReadableStreamDefaultReader.h>
 #include <LibWeb/Streams/TransformStream.h>
 #include <LibWeb/UpgradeInsecureRequests/AbstractOperations.h>
+#include <LibWeb/WebDriver/BiDi/Network.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOrUtils.h>
 #include <LibWebCommon/Fetch/Infrastructure/DataURL.h>
@@ -501,6 +502,9 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
     // 1. Let request be fetchParams’s request.
     auto request = fetch_params.request();
 
+    if (WebDriver::BiDi::g_network_events_enabled)
+        WebDriver::BiDi::initialize_network_request(*request);
+
     // 2. Let response be null.
     GC::Ptr<Infrastructure::Response> response;
 
@@ -888,6 +892,17 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
     // 1. Let timingInfo be fetchParams’s timing info.
     auto timing_info = fetch_params.timing_info();
 
+    if (WebDriver::BiDi::g_network_events_enabled) {
+        if (response.is_network_error())
+            WebDriver::BiDi::network_fetch_error(fetch_params, response.network_error_message().value_or("Network error"_string));
+        else {
+            auto internal_response = response.unsafe_response();
+            WebDriver::BiDi::network_response_started(fetch_params, *internal_response);
+            if (fetch_params.request()->is_navigation_request() && !internal_response->request_server_request().has_value())
+                WebDriver::BiDi::network_response_completed(fetch_params, *internal_response);
+        }
+    }
+
     // 2. If response is not a network error and fetchParams’s request’s client is a secure context, then set
     //    timingInfo’s server-timing headers to the result of getting, decoding, and splitting `Server-Timing` from
     //    response’s internal response’s header list.
@@ -1000,6 +1015,8 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
     auto process_response_end_of_body = [&fetch_params, &response, setup_report_timing_steps, report_timing_if_appropriate] {
         // 1-2. (See setup_report_timing_steps above)
         setup_report_timing_steps();
+        if (WebDriver::BiDi::g_network_events_enabled && !response.is_network_error())
+            WebDriver::BiDi::network_response_completed(fetch_params, *response.unsafe_response());
 
         // 3. Let processResponseEndOfBodyTask be the following steps:
         auto process_response_end_of_body_task = GC::create_function(GC::Heap::the(), [&fetch_params, &response, report_timing_if_appropriate] {
@@ -1032,10 +1049,12 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
 
     // NB: The network can finish while an unread response body still has buffered bytes. Its timing must not
     //     wait for the consumer to drain the stream.
-    if (internal_response->body() && fetch_params.request()->initiator_type().has_value()) {
-        internal_response->body()->when_network_complete(GC::create_function(GC::Heap::the(), [setup_report_timing_steps, report_timing_if_appropriate] {
+    if (internal_response->body() && (fetch_params.request()->initiator_type().has_value() || (WebDriver::BiDi::g_network_events_enabled && !fetch_params.request()->is_navigation_request()))) {
+        internal_response->body()->when_network_complete(GC::create_function(GC::Heap::the(), [&fetch_params, &response, setup_report_timing_steps, report_timing_if_appropriate] {
             setup_report_timing_steps();
             report_timing_if_appropriate();
+            if (WebDriver::BiDi::g_network_events_enabled)
+                WebDriver::BiDi::network_response_completed(fetch_params, *response.unsafe_response());
         }));
     }
 
@@ -1515,6 +1534,8 @@ GC::Ref<PendingResponse> http_fetch(JS::Realm& realm, Infrastructure::FetchParam
     if (request->service_workers_mode() == Infrastructure::Request::ServiceWorkersMode::All) {
         // 1. Let requestForServiceWorker be a clone of request.
         auto request_for_service_worker = request->clone(realm, Infrastructure::Request::BodyCloning::FromSource);
+        if (WebDriver::BiDi::g_network_events_enabled)
+            request_for_service_worker->set_webdriver_bidi_network_request(request->webdriver_bidi_network_request());
 
         // 2. If requestForServiceWorker’s body is non-null, then:
         if (!request_for_service_worker->body().has<Empty>()) {
@@ -1674,6 +1695,8 @@ GC::Ref<PendingResponse> http_fetch(JS::Realm& realm, Infrastructure::FetchParam
 
         // 6. If internalResponse’s status is a redirect status:
         if (Infrastructure::is_redirect_status(internal_response->status())) {
+            if (WebDriver::BiDi::g_network_events_enabled)
+                WebDriver::BiDi::network_response_completed(fetch_params, *internal_response);
             // 1. If request is a navigation request, then append to request's navigation timing allow values list
             //    given request and internalResponse.
             if (request->is_navigation_request())
@@ -1882,6 +1905,9 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
     // 1. Let request be fetchParams’s request.
     auto request = fetch_params.request();
 
+    if (WebDriver::BiDi::g_network_events_enabled)
+        WebDriver::BiDi::initialize_network_request(*request);
+
     // 2. Let httpFetchParams be null.
     GC::Ptr<Infrastructure::FetchParams const> http_fetch_params;
 
@@ -1926,6 +1952,8 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
             //       source is null as only a single body is needed in that case. E.g., when request’s body’s source
             //       is null, redirects and authentication will end up failing the fetch.
             http_request = request->clone(realm, Infrastructure::Request::BodyCloning::FromSource);
+            if (WebDriver::BiDi::g_network_events_enabled)
+                http_request->set_webdriver_bidi_network_request(request->webdriver_bidi_network_request());
 
             // 2. Set httpFetchParams to a copy of fetchParams.
             auto new_http_fetch_params = Infrastructure::FetchParams::copy(fetch_params);
@@ -2179,6 +2207,9 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
         }
     }
 
+    if (WebDriver::BiDi::g_network_events_enabled)
+        WebDriver::BiDi::network_before_request_sent(*http_fetch_params);
+
     // 9. If aborted, then return the appropriate network error for fetchParams.
     if (aborted)
         return PendingResponse::create(request, Infrastructure::Response::appropriate_network_error(fetch_params));
@@ -2204,7 +2235,7 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
 
     auto returned_pending_response = PendingResponse::create(request);
 
-    pending_forward_response->when_loaded([&realm, &fetch_params, request, response, stored_response, http_request, returned_pending_response, is_authentication_fetch, is_new_connection_fetch, include_credentials, response_was_null = !response, http_cache](GC::Ref<Infrastructure::Response> resolved_forward_response) mutable {
+    pending_forward_response->when_loaded([&realm, &fetch_params, request, response, stored_response, http_request, http_fetch_params, returned_pending_response, is_authentication_fetch, is_new_connection_fetch, include_credentials, response_was_null = !response, http_cache](GC::Ref<Infrastructure::Response> resolved_forward_response) mutable {
         dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'HTTP-network-or-cache fetch' pending_forward_response load callback");
         if (response_was_null) {
             auto forward_response = resolved_forward_response;
@@ -2244,6 +2275,9 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
 
         // 11. Set response’s URL list to a clone of httpRequest’s URL list.
         response->set_url_list(http_request->url_list());
+
+        if (WebDriver::BiDi::g_network_events_enabled)
+            WebDriver::BiDi::network_response_started(*http_fetch_params, *response);
 
         // 12. If httpRequest’s header list contains `Range`, then set response’s range-requested flag.
         if (http_request->header_list()->contains("Range"sv))
@@ -2791,6 +2825,14 @@ GC::Ref<PendingResponse> cors_preflight_fetch(JS::Realm& realm, Infrastructure::
 
     preflight_response->when_loaded([&request, returned_pending_response, preflight_controller = fetch_params->controller()](GC::Ref<Infrastructure::Response> response) {
         dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'CORS-preflight fetch' preflight_response load callback");
+
+        if (WebDriver::BiDi::g_network_events_enabled) {
+            auto params = preflight_controller->fetch_params();
+            if (response->is_network_error())
+                WebDriver::BiDi::network_fetch_error(*params, response->network_error_message().value_or("Preflight failed"_string));
+            else
+                WebDriver::BiDi::network_response_completed(*params, *response);
+        }
 
         // NB: Only the preflight response's headers are read.
         preflight_controller->stop_body_transport();

@@ -11,6 +11,7 @@
 #include <LibWeb/Fetch/Infrastructure/FetchParams.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
+#include <LibWeb/WebDriver/BiDi/Network.h>
 
 namespace Web::Fetch::Fetching {
 
@@ -156,6 +157,8 @@ void NetworkBodyPump::handle_network_complete(Optional<u64> encoded_body_size)
 void NetworkBodyPump::handle_network_error(StringView error_message)
 {
     m_network_failed = true;
+    if (WebDriver::BiDi::g_network_events_enabled && m_fetch_params)
+        WebDriver::BiDi::network_fetch_error(*m_fetch_params, error_message);
     // A response that died mid-body must not satisfy a sniff waiter with partial bytes.
     if (m_body)
         m_body->set_sniff_bytes_failed();
