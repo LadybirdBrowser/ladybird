@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>SVG paint servers with :visited don't leak information via getComputedStyle</title>
+<link rel="help" href="https://www.w3.org/TR/css-color-4/#currentcolor-color">
+<link rel="help" href="https://www.w3.org/TR/SVG2/painting.html#SpecifyingFillPaint">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<style>
+a:link { color: red; }
+a:visited { color: green; }
+</style>
+
+<a href="">
+  <svg width="100" height="100">
+    <rect id="target" width="100%" height="100%" fill="currentColor"/>
+  </svg>
+</a>
+<script>
+test_computed_value("fill", "currentColor", "rgb(255, 0, 0)", "should not leak :visited for SVG fill with currentColor");
+</script>

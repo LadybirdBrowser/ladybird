@@ -1,0 +1,28 @@
+block fill: currentcolor
+block inherited fill: currentcolor
+block changed color fill: currentcolor
+block fallback fill: url("#gradient") currentcolor
+block fill rgb(from currentcolor r g b): false
+block fill color-mix(in srgb, currentcolor, white): false
+block none fill: none
+block stroke: currentcolor
+block inherited stroke: currentcolor
+block changed color stroke: currentcolor
+block fallback stroke: url("#gradient") currentcolor
+block stroke rgb(from currentcolor r g b): false
+block stroke color-mix(in srgb, currentcolor, white): false
+block none stroke: none
+none fill: currentcolor
+none inherited fill: currentcolor
+none changed color fill: currentcolor
+none fallback fill: url("#gradient") currentcolor
+none fill rgb(from currentcolor r g b): false
+none fill color-mix(in srgb, currentcolor, white): false
+none none fill: none
+none stroke: currentcolor
+none inherited stroke: currentcolor
+none changed color stroke: currentcolor
+none fallback stroke: url("#gradient") currentcolor
+none stroke rgb(from currentcolor r g b): false
+none stroke color-mix(in srgb, currentcolor, white): false
+none none stroke: none
