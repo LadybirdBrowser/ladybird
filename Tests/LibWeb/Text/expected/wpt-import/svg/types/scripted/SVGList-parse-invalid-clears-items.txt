@@ -2,10 +2,9 @@ Harness status: OK
 
 Found 5 tests
 
-4 Pass
-1 Fail
+5 Pass
 Pass	SVGLengthList clears items when attribute value is invalid
 Pass	SVGNumberList clears items when attribute value is invalid
-Fail	SVGPointList clears items when attribute value is invalid
+Pass	SVGPointList clears items when attribute value is invalid
 Pass	SVGPointList truncates items when y attribute value is missing
 Pass	SVGTransformList clears items when attribute value is invalid

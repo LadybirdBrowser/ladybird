@@ -76,17 +76,23 @@ fn parse_points(input: Input<'_>) -> Vec<[f32; 2]> {
     let mut parser = Parser::new(input);
     parser.parse_whitespace();
     let mut points = Vec::new();
-    loop {
-        let point = match parser.parse_coordinate_pair() {
-            Ok(point) => point,
-            Err(()) if points.is_empty() => return Vec::new(),
-            Err(()) => break,
+    while !parser.done() {
+        let Ok(x) = parser.parse_number() else {
+            return Vec::new();
         };
-        points.push(point);
         parser.parse_optional_comma_whitespace();
-        if !parser.matches_comma_whitespace() && !parser.matches_coordinate() {
+
+        // https://svgwg.org/svg2-draft/shapes.html#PolylineElementPointsAttribute
+        // In such error cases the user agent will drop the last, odd coordinate and otherwise render the shape.
+        if parser.done() {
             break;
         }
+
+        let Ok(y) = parser.parse_number() else {
+            return Vec::new();
+        };
+        points.push([x, y]);
+        parser.parse_optional_comma_whitespace();
     }
     points
 }
