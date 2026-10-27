@@ -1066,6 +1066,10 @@ bool WebContentView::current_paintable_can_use_vulkan_window() const
 
 void WebContentView::schedule_vulkan_window_update()
 {
+    // NB: Qt paints the page itself while something covers it. Reading every frame back from GPU memory for that would
+    //     be slow, so the Compositor shares the frames in CPU memory until the page is uncovered.
+    set_presents_from_cpu_memory(!m_vulkan_window || is_page_covered_by_overlay() || has_floating_surface_over_page());
+
     if (is_page_covered_by_overlay()) {
         QTimer::singleShot(0, this, [this] {
             if (!is_page_covered_by_overlay())

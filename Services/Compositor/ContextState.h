@@ -241,6 +241,9 @@ public:
     double display_refresh_rate() const { return m_display_refresh_rate; }
     bool set_visibility(Compositing::ContextVisibility);
     Compositing::ContextVisibility visibility() const { return m_visibility; }
+    // Whether the presentation shows this context's frames from CPU memory for now, as when the UI paints it itself.
+    bool presents_from_cpu_memory() const { return m_presents_from_cpu_memory; }
+    void set_presents_from_cpu_memory(bool presents_from_cpu_memory) { m_presents_from_cpu_memory = presents_from_cpu_memory; }
 
     bool request_rendering_opportunity(double maximum_frames_per_second) { return m_rendering_opportunity_request.request(maximum_frames_per_second); }
     bool rendering_opportunity_requested() const { return m_rendering_opportunity_request.is_requested(); }
@@ -425,6 +428,7 @@ private:
     Optional<u64> m_display_id;
     double m_display_refresh_rate { 60.0 };
     Compositing::ContextVisibility m_visibility { Compositing::ContextVisibility::Visible };
+    bool m_presents_from_cpu_memory { false };
 
     PacedTickRequest m_rendering_opportunity_request;
     PacedTickRequest m_clock_tick_request;

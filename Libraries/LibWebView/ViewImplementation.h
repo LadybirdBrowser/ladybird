@@ -146,6 +146,10 @@ public:
     void set_window_position(Gfx::IntPoint);
     void set_window_size(Gfx::IntSize);
     void set_system_visibility_state(Web::HTML::VisibilityState);
+    // Whether the view shows its frames from CPU memory for now, so that the Compositor shares them there rather than
+    // in GPU memory that the view would have to read back for every frame.
+    void set_presents_from_cpu_memory(bool);
+    bool presents_from_cpu_memory() const { return m_presents_from_cpu_memory; }
     void set_has_system_focus(bool);
 
     void load(URL::URL const&, Web::Bindings::NavigationHistoryBehavior = Web::Bindings::NavigationHistoryBehavior::Auto);
@@ -774,6 +778,7 @@ protected:
     SharedBitmap m_front_bitmap;
     Vector<SharedBitmap> m_other_bitmaps;
     bool m_has_usable_bitmap { false };
+    bool m_presents_from_cpu_memory { false };
 
     // Set once an assistive technology asked for the page tree; every display page the view shows from then on gets
     // asked for its tree too.

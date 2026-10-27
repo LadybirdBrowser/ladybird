@@ -339,6 +339,15 @@ void ViewImplementation::set_system_visibility_state(Web::HTML::VisibilityState 
     Application::the().update_compositor_context_visibility(page().compositor_context_id(), visibility_state);
 }
 
+void ViewImplementation::set_presents_from_cpu_memory(bool presents_from_cpu_memory)
+{
+    if (m_presents_from_cpu_memory == presents_from_cpu_memory)
+        return;
+
+    m_presents_from_cpu_memory = presents_from_cpu_memory;
+    Application::the().update_compositor_context_presents_from_cpu_memory(page().compositor_context_id(), presents_from_cpu_memory);
+}
+
 void ViewImplementation::set_has_system_focus(bool has_system_focus)
 {
     traversable().set_has_system_focus(has_system_focus, {});
@@ -3280,6 +3289,7 @@ void ViewImplementation::display_page_changed(RefPtr<WebContentPage> previous_pa
     auto compositor_context_id = page.compositor_context_id();
     Application::the().update_compositor_viewport(compositor_context_id, viewport_size().to_type<int>(), m_device_pixel_ratio);
     Application::the().update_compositor_context_visibility(compositor_context_id, traversable().system_visibility_state());
+    Application::the().update_compositor_context_presents_from_cpu_memory(compositor_context_id, m_presents_from_cpu_memory);
     page.async_update_visibility_state(traversable().id(), traversable().system_visibility_state());
 
     // An assistive technology's interest is per-page state in WebContent, and a cross-site navigation moves the display
