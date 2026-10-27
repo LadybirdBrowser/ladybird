@@ -1,0 +1,2 @@
+127.0.0.1: failed, CSP violation: true
+127.0.0.2: failed, CSP violation: true
