@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>Permissions API - Revocation Tests</title>
+<link rel="help" href="https://www.w3.org/TR/permissions/" />
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+
+<body>
+    <script>
+        promise_test(async (t) => {
+            await test_driver.set_permission(
+                { name: "geolocation" },
+                "granted"
+            );
+            const status = await navigator.permissions.query({
+                name: "geolocation",
+            });
+            assert_equals(
+                status.state,
+                "granted",
+                'Initial state is "granted"'
+            );
+
+            const p = new Promise((resolve) => {
+                status.addEventListener("change", resolve, { once: true });
+            });
+
+            await test_driver.set_permission({ name: "geolocation" }, "prompt");
+            await p;
+
+            assert_equals(status.state, "prompt", 'Now in "prompt" state');
+        }, 'Transition "granted" -> "prompt" fires a "change" event');
+
+        promise_test(async (t) => {
+            await test_driver.set_permission(
+                { name: "geolocation" },
+                "granted"
+            );
+            const status = await navigator.permissions.query({
+                name: "geolocation",
+            });
+            assert_equals(
+                status.state,
+                "granted",
+                'Initial state is "granted"'
+            );
+
+            const p = new Promise((resolve) => {
+                status.addEventListener("change", resolve, { once: true });
+            });
+
+            await test_driver.set_permission({ name: "geolocation" }, "denied");
+            await p;
+            assert_equals(status.state, "denied", 'Now in "denied" state');
+        }, 'Transition "granted" -> "denied" fires a "change" event');
+    </script>
+</body>

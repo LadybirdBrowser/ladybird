@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Transition "granted" -> "prompt" fires a "change" event
+Pass	Transition "granted" -> "denied" fires a "change" event

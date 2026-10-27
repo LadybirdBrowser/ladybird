@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 6 tests
+
+2 Pass
+4 Fail
+Fail	Set timeout and maximumAge to 0, check that timeout error raised (getCurrentPosition)
+Fail	Set timeout and maximumAge to 0, check that timeout error raised (watchPosition)
+Fail	Check that a negative timeout and maxAge values are clamped to 0 (getCurrentPosition)
+Fail	Check that a negative timeout and maxAge values are clamped to 0 (watchPosition)
+Pass	Call getCurrentPosition with wrong type for enableHighAccuracy. No exception expected.
+Pass	Call watchPosition with wrong type for enableHighAccuracy. No exception expected.

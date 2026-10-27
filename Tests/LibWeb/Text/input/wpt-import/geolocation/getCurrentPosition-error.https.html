@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<meta charset="utf-8"/>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js?feature=bidi"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+
+<script>
+    promise_setup(async () => {
+        // Ensure permission is granted before proceeding.
+        await test_driver.bidi.permissions.set_permission({
+            descriptor: {name: "geolocation"},
+            state: "granted",
+        });
+    });
+
+    promise_test(async (t) => {
+        t.add_cleanup(async () => {
+            await test_driver.bidi.emulation.set_geolocation_override(
+                {coordinates: null});
+        });
+
+        await test_driver.bidi.emulation.set_geolocation_override({
+            error: {type: "positionUnavailable"}
+        });
+
+        const error = await new Promise(
+            (resolve, reject) =>
+                window.navigator.geolocation.getCurrentPosition(
+                    () => reject("Unexpected success callback"),
+                    error => resolve({
+                        code: error.code,
+                        message: error.message,
+                        PERMISSION_DENIED: error.PERMISSION_DENIED,
+                        POSITION_UNAVAILABLE: error.POSITION_UNAVAILABLE,
+                        TIMEOUT: error.TIMEOUT
+                    }),
+                    {timeout: 1000}
+                ));
+
+        assert_equals(error.code, 2);
+        // The message value is not specified.
+        assert_not_equals(error.message, undefined);
+        assert_equals(error.PERMISSION_DENIED, 1);
+        assert_equals(error.POSITION_UNAVAILABLE, 2);
+        assert_equals(error.TIMEOUT, 3);
+    }, "Tests Geolocation error callback");
+</script>

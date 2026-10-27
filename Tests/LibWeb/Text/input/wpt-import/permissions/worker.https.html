@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>Permissions API in Worker</title>
+<link rel="help" href="https://www.w3.org/TR/permissions/" />
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+
+<script>
+    const workerScript = `
+      async function setup() {
+          const status = await self.navigator.permissions.query({
+              name: "geolocation",
+          });
+          status.addEventListener("change", () => {
+              postMessage({ event: "change", state: status.state });
+          });
+          self.postMessage({ event: "ready", state: status.state });
+      }
+
+      setup();
+    `;
+
+    function messageFrom(worker, message) {
+        const abortController = new AbortController();
+        return new Promise((resolve) => {
+            worker.addEventListener(
+                "message",
+                (event) => {
+                    if (event.data.event == message) {
+                        abortController.abort();
+                        resolve(event.data);
+                    }
+                },
+                { signal: abortController.signal }
+            );
+        });
+    }
+
+    promise_test(async (t) => {
+        await test_driver.set_permission({ name: "geolocation" }, "prompt");
+        const blobUrl = URL.createObjectURL(
+            new Blob([workerScript], { type: "text/javascript" })
+        );
+        const worker = new Worker(blobUrl);
+        const  { state:initialState }  = await messageFrom(worker, "ready");
+        assert_equals(initialState, "prompt", "Worker sees the initial permission state as 'prompt'");
+
+        const setPermissionPromise = test_driver.set_permission({ name: "geolocation" }, "granted");
+        const changePromise = messageFrom(worker, "change");
+        const [{state:changedState}] = await Promise.all([messagePromise, setPermissionPromise]);
+        assert_equals(
+            changedState,
+            "granted",
+            "Worker detects the permission state change to 'granted'"
+        );
+    }, "Worker can query the 'geolocation' permission and detect a transition to 'granted'");
+</script>

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>Geolocation Test: PositionOptions tests</title>
+<link
+  rel="help"
+  href="http://www.w3.org/TR/geolocation-API/#position_options_interface"
+/>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+
+<script>
+  promise_setup(async ()=>{
+    await test_driver.set_permission({ name: "geolocation" }, "granted");
+  });
+
+  const invalidValues = ["boom", 321, -Infinity, { foo: 5 }];
+
+  promise_test(async (t) => {
+    const error = await new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(reject, resolve, {
+        timeout: 0,
+        maxAge: 0,
+      });
+    });
+    assert_equals(error.code, GeolocationPositionError.TIMEOUT);
+  }, "Set timeout and maximumAge to 0, check that timeout error raised (getCurrentPosition)");
+
+  promise_test(async (t) => {
+    let watchId;
+    const error = await new Promise((resolve, reject) => {
+      watchId = navigator.geolocation.watchPosition(reject, resolve, {
+        timeout: 0,
+        maxAge: 0,
+      });
+    });
+    assert_equals(error.code, GeolocationPositionError.TIMEOUT);
+    navigator.geolocation.clearWatch(watchId);
+  }, "Set timeout and maximumAge to 0, check that timeout error raised (watchPosition)");
+
+  promise_test(async (t) => {
+    let watchId;
+    const error = await new Promise((resolve, reject) => {
+      watchId = navigator.geolocation.getCurrentPosition(reject, resolve, {
+        timeout: -100,
+        maxAge: -100,
+      });
+    });
+    assert_equals(error.code, GeolocationPositionError.TIMEOUT);
+    navigator.geolocation.clearWatch(watchId);
+  }, "Check that a negative timeout and maxAge values are clamped to 0 (getCurrentPosition)");
+
+  promise_test(async (t) => {
+    let watchId;
+    const error = await new Promise((resolve, reject) => {
+      watchId = navigator.geolocation.watchPosition(reject, resolve, {
+        timeout: -100,
+        maxAge: -100,
+      });
+    });
+    assert_equals(error.code, GeolocationPositionError.TIMEOUT);
+    navigator.geolocation.clearWatch(watchId);
+  }, "Check that a negative timeout and maxAge values are clamped to 0 (watchPosition)");
+
+  promise_test(async (t) => {
+    for (const enableHighAccuracy of invalidValues) {
+      navigator.geolocation.getCurrentPosition(() => {}, null, {
+        enableHighAccuracy,
+      });
+    }
+  }, "Call getCurrentPosition with wrong type for enableHighAccuracy. No exception expected.");
+
+  promise_test(async (t) => {
+    for (const enableHighAccuracy of invalidValues) {
+      const id = navigator.geolocation.watchPosition(() => {}, null, {
+        enableHighAccuracy,
+      });
+      navigator.geolocation.clearWatch(id);
+    }
+  }, "Call watchPosition with wrong type for enableHighAccuracy. No exception expected.");
+
+</script>

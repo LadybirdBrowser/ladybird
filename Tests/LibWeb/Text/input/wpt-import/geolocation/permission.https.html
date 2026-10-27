@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>Test geolocation is a powerful feature via Permissions API</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+
+<script>
+  promise_test(async (test) => {
+    const status = await navigator.permissions.query({ name: "geolocation" });
+    assert_true(status instanceof PermissionStatus);
+    assert_equals(
+      status.name,
+      "geolocation",
+      `permission's name must be "geolocation"`
+    );
+    const states = ["prompt", "granted", "denied"];
+    assert_true(
+      states.includes(status.state),
+      `permission's state must be one of ${states.join(", ")}`
+    );
+  }, `Query "geolocation" powerful feature`);
+</script>

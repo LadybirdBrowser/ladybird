@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Multiple listeners on a single PermissionStatus should all fire on change
+Pass	Multiple transitions generate multiple "change" events
+Pass	Multiple PermissionStatus objects observe the same transition
+Pass	PermissionStatus out of scope should still fire "change" event

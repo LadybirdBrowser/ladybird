@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>Geolocation Test: getCurrentPosition location access denied</title>
+<link rel="help" href="http://www.w3.org/TR/geolocation-API/#privacy_for_uas" />
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+<script>
+  promise_test(async (t) => {
+    t.add_cleanup(() => {
+      return test_driver.set_permission({ name: "geolocation" }, "prompt");
+    });
+    await test_driver.set_permission({ name: "geolocation" }, "denied");
+    const error = await new Promise((resolve, reject) => {
+      let calledAsync = false;
+      navigator.geolocation.getCurrentPosition(reject, t.step_func((error) => {
+        assert_true(calledAsync, "Expected callback to be called asynchronously");
+        resolve(error);
+      }));
+      calledAsync = true;
+    });
+    assert_true(
+      error instanceof GeolocationPositionError,
+      "should be a GeolocationPositionError"
+    );
+    assert_equals(error.code, error.PERMISSION_DENIED);
+  }, "User denies access, check that error callback is called with correct code");
+</script>
