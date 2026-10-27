@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Fonts Test: Interpolation of system fonts</title>
+<link rel="help" href="https://drafts.csswg.org/css-fonts/#valdef-font-caption">
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com">
+<meta name="assert" content="When interpolating system fonts, they are first resolved and then the font longhands interpolate as usual">
+<link rel="stylesheet" herf="/fonts/ahem.css">
+
+<div id="resolver"></div>
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+<script>
+// The system fonts will probably resolve to something very different.
+const initialFont = "italic 100 small-caps ultra-expanded 100px / 100px Ahem";
+
+const resolver = document.getElementById("resolver");
+const resolvedStyle = getComputedStyle(resolver);
+
+function extractNumber(value, unit) {
+  value = value.trim();
+  if (!value.endsWith(unit))
+    return NaN;
+  value = value.slice(0, -unit.length);
+  if (!value.length || value !== value.trim())
+    return NaN;
+  return Number(value);
+}
+
+const systemFonts = ["caption", "icon", "menu", "message-box", "small-caption", "status-bar"];
+for (const systemFont of systemFonts) {
+  resolver.style.font = systemFont;
+  const expectations = [];
+  const systemFontStyle = resolvedStyle["font-style"];
+  const systemFontWeight = Number(resolvedStyle["font-weight"]);
+  const systemFontVariant = resolvedStyle["font-variant"];
+  const systemFontStretch = extractNumber(resolvedStyle["font-stretch"], "%");
+  const systemFontSize = extractNumber(resolvedStyle["font-size"], "px");
+  const systemLineHeight = resolvedStyle["line-height"];
+  const systemLineHeightNumber = extractNumber(systemLineHeight, "px");
+  const systemFontFamily = resolvedStyle["font-family"];
+
+  for (const at of [-2, -0.5, 0, 0.3, 0.6, 1, 1.5]) {
+    const expect = {};
+    expect["font-style"] = at >= 0.5 ? systemFontStyle : "italic";
+    expect["font-weight"] = `${Math.max(1, at * systemFontWeight + (1 - at) * 100)}`;
+    expect["font-variant"] = at >= 0.5 ? systemFontVariant : "small-caps";
+    expect["font-stretch"] = `${at * systemFontStretch + (1 - at) * 200}%`;
+    expect["font-size"] = `${Math.max(0, at * systemFontSize + (1 - at) * 100)}px`;
+    expect["line-height"] = Number.isNaN(systemLineHeightNumber)
+        ? (at >= 0.5 ? systemLineHeight : "100px")
+        : `${Math.max(0, at * systemLineHeightNumber + (1 - at) * 100)}px`;
+    expect["font-family"] = at >= 0.5 ? systemFontFamily : "Ahem";
+    // There are more font longhands, but they can't be set in the shorthand,
+    // and the system fonts will probably resolve to the initial value,
+    // preventing a noticeable interpolation.
+    expectations.push({at, expect});
+  }
+
+  for (const method of ["CSS Animations", "Web Animations"]) {
+    test_interpolation({
+      method,
+      property: "font",
+      from: initialFont,
+      to: systemFont,
+    }, expectations);
+  }
+}
+</script>

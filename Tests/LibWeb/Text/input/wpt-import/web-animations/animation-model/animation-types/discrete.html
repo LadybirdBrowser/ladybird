@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>Discrete animation type</title>
+<link rel="help" href="https://drafts.csswg.org/web-animations/#discrete-animation-type">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../testcommon.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+test(t => {
+  const div = createDiv(t);
+
+  const anim = div.animate({ fontStyle: [ 'normal', 'italic' ] },
+                           { duration: 1000, fill: 'forwards' });
+
+  assert_equals(getComputedStyle(div).fontStyle, 'normal',
+                'Animation produces \'from\' value at start of interval');
+  anim.currentTime = anim.effect.getComputedTiming().duration / 2 - 1;
+  assert_equals(getComputedStyle(div).fontStyle, 'normal',
+                'Animation produces \'from\' value just before the middle of'
+                + ' the interval');
+  anim.currentTime++;
+  assert_equals(getComputedStyle(div).fontStyle, 'italic',
+                'Animation produces \'to\' value at exact middle of'
+                + ' the interval');
+  anim.finish();
+  assert_equals(getComputedStyle(div).fontStyle, 'italic',
+                'Animation produces \'to\' value during forwards fill');
+}, 'Test animating discrete values');
+
+test(t => {
+  const div = createDiv(t);
+  const originalHeight = getComputedStyle(div).height;
+
+  const anim = div.animate({ height: [ 'auto', '200px' ] },
+                           { duration: 1000, fill: 'forwards' });
+
+  assert_equals(getComputedStyle(div).height, originalHeight,
+                'Animation produces \'from\' value at start of interval');
+  anim.currentTime = anim.effect.getComputedTiming().duration / 2 - 1;
+  assert_equals(getComputedStyle(div).height, originalHeight,
+                'Animation produces \'from\' value just before the middle of'
+                + ' the interval');
+  anim.currentTime++;
+  assert_equals(getComputedStyle(div).height, '200px',
+                'Animation produces \'to\' value at exact middle of'
+                + ' the interval');
+  anim.finish();
+  assert_equals(getComputedStyle(div).height, '200px',
+                'Animation produces \'to\' value during forwards fill');
+}, 'Test discrete animation is used when interpolation fails');
+
+test(t => {
+  const div = createDiv(t);
+  const originalHeight = getComputedStyle(div).height;
+
+  const anim = div.animate({ height: [ 'auto',
+                                       '200px',
+                                       '300px',
+                                       'auto',
+                                       '400px' ] },
+                         { duration: 1000, fill: 'forwards' });
+
+  // There are five values, so there are four pairs to try to interpolate.
+  // We test at the middle of each pair.
+  assert_equals(getComputedStyle(div).height, originalHeight,
+                'Animation produces \'from\' value at start of interval');
+  anim.currentTime = 125;
+  assert_equals(getComputedStyle(div).height, '200px',
+                'First non-interpolable pair uses discrete interpolation');
+  anim.currentTime += 250;
+  assert_equals(getComputedStyle(div).height, '250px',
+                'Second interpolable pair uses linear interpolation');
+  anim.currentTime += 250;
+  assert_equals(getComputedStyle(div).height, originalHeight,
+                'Third non-interpolable pair uses discrete interpolation');
+  anim.currentTime += 250;
+  assert_equals(getComputedStyle(div).height, '400px',
+                'Fourth non-interpolable pair uses discrete interpolation');
+}, 'Test discrete animation is used only for pairs of values that cannot'
+   + ' be interpolated');
+
+test(t => {
+  const div = createDiv(t);
+  const originalHeight = getComputedStyle(div).height;
+
+  // Easing: http://cubic-bezier.com/#.68,0,1,.01
+  // With this curve, we don't reach the 50% point until about 95% of
+  // the time has expired.
+  const anim = div.animate({ fontStyle: [ 'normal', 'italic' ] },
+                           { duration: 1000, fill: 'forwards',
+                             easing: 'cubic-bezier(0.68,0,1,0.01)' });
+
+  assert_equals(getComputedStyle(div).fontStyle, 'normal',
+                'Animation produces \'from\' value at start of interval');
+  anim.currentTime = 940;
+  assert_equals(getComputedStyle(div).fontStyle, 'normal',
+                'Animation produces \'from\' value at 94% of the iteration'
+                + ' time');
+  anim.currentTime = 960;
+  assert_equals(getComputedStyle(div).fontStyle, 'italic',
+                'Animation produces \'to\' value at 96% of the iteration'
+                + ' time');
+}, 'Test the 50% switch point for discrete animation is based on the'
+   + ' effect easing');
+
+test(t => {
+  const div = createDiv(t);
+  const originalHeight = getComputedStyle(div).height;
+
+  // Easing: http://cubic-bezier.com/#.68,0,1,.01
+  // With this curve, we don't reach the 50% point until about 95% of
+  // the time has expired.
+  const anim = div.animate([ { fontStyle: 'normal',
+                               easing: 'cubic-bezier(0.68,0,1,0.01)' },
+                           { fontStyle: 'italic' } ],
+                         { duration: 1000, fill: 'forwards' });
+
+  assert_equals(getComputedStyle(div).fontStyle, 'normal',
+                'Animation produces \'from\' value at start of interval');
+  anim.currentTime = 940;
+  assert_equals(getComputedStyle(div).fontStyle, 'normal',
+                'Animation produces \'from\' value at 94% of the iteration'
+                + ' time');
+  anim.currentTime = 960;
+  assert_equals(getComputedStyle(div).fontStyle, 'italic',
+                'Animation produces \'to\' value at 96% of the iteration'
+                + ' time');
+}, 'Test the 50% switch point for discrete animation is based on the'
+   + ' keyframe easing');
+
+</script>
