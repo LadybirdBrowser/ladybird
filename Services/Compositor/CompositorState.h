@@ -137,6 +137,7 @@ public:
     void set_ui_overlays(Web::CompositorContextId, Compositing::UIOverlays);
     void set_display_metadata(Web::CompositorContextId, Optional<u64> display_id, double refresh_rate);
     void set_context_visibility(Web::CompositorContextId, Compositing::ContextVisibility);
+    void set_context_presents_from_cpu_memory(Web::CompositorContextId, bool);
     void present_frame(Web::CompositorContextId, Gfx::IntRect viewport_rect);
     // Delivers the rendering opportunity a context requested now rather than at the next display tick: a
     // viewport change that arrived while an animation's opportunity was outstanding starts its update at once.

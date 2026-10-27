@@ -266,6 +266,7 @@ public:
     void update_compositor_ui_overlays(Web::CompositorContextId, Compositing::UIOverlays const&);
     void update_compositor_display_metadata(Web::CompositorContextId, Optional<u64> display_id, double refresh_rate);
     void update_compositor_context_visibility(Web::CompositorContextId, Web::HTML::VisibilityState);
+    void update_compositor_context_presents_from_cpu_memory(Web::CompositorContextId, bool);
     bool handle_and_dispatch_key_event_in_compositor(Web::CompositorContextId, Web::KeyEvent const&, bool allow_keyboard_scroll);
     bool handle_and_dispatch_pinch_event_in_compositor(Web::CompositorContextId, Web::PinchEvent const&);
     bool handle_and_dispatch_mouse_event_in_compositor(Web::CompositorContextId, Web::MouseEvent const&);

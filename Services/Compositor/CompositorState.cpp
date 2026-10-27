@@ -1003,6 +1003,22 @@ void CompositorState::set_context_visibility(Web::CompositorContextId context_id
         resume_presentation_after_becoming_visible(context_id, *context);
 }
 
+void CompositorState::set_context_presents_from_cpu_memory(Web::CompositorContextId context_id, bool presents_from_cpu_memory)
+{
+    auto* context = context_if_present(context_id);
+    if (!context || context->presents_from_cpu_memory() == presents_from_cpu_memory)
+        return;
+    auto previous_gpu_sharing = gpu_sharing_for_context(context_id);
+    context->set_presents_from_cpu_memory(presents_from_cpu_memory);
+    // NB: Without a GPU, the backing stores are in CPU memory either way.
+    if (!m_skia_backend_context || gpu_sharing_for_context(context_id) == previous_gpu_sharing)
+        return;
+
+    // NB: Otherwise, the presentation would read every frame back from GPU memory on its main thread.
+    context->presenter().invalidate_backing_stores();
+    resize_backing_stores_if_needed(context_id, *context);
+}
+
 void CompositorState::resume_presentation_after_becoming_visible(Web::CompositorContextId root_context_id, ContextState& root_context)
 {
     for (auto& context_entry : m_contexts) {
@@ -1475,8 +1491,10 @@ void CompositorState::resize_backing_stores_if_needed(Web::CompositorContextId c
     }
 }
 
-BackingStoreManager::GpuSharing CompositorState::gpu_sharing_for_context([[maybe_unused]] Web::CompositorContextId context_id) const
+BackingStoreManager::GpuSharing CompositorState::gpu_sharing_for_context(Web::CompositorContextId context_id) const
 {
+    if (auto const* context = context_if_present(context_id); context && context->presents_from_cpu_memory())
+        return BackingStoreManager::GpuSharing::Disallowed;
 #ifdef USE_DIRECTX
     // Shared Direct3D textures can only be opened by the presentation if it presents on the same adapter.
     auto* presentation = presentation_for_context(context_id);
