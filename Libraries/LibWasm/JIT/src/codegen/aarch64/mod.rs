@@ -588,7 +588,8 @@ impl<'a> CodeGenerator<'a> {
     }
 
     /// Ends the block with a two-way branch on `cond`, which holds for the first successor; inverted where the taken
-    /// successor comes next and needs no moves.
+    /// successor comes next and needs no moves, or is a loop header the edge needs moves into, so that those moves are
+    /// inline rather than in a stub that branches again.
     fn branch_on(&mut self, cond: Cond) {
         let block = self.block;
         let data = self.func.blocks[block as usize];
@@ -597,6 +598,12 @@ impl<'a> CodeGenerator<'a> {
         if taken == block + 1 && self.allocation.edge(data.successors_start).is_empty() {
             let label = self.edge_label(data.successors_start + 1, fallthrough);
             self.asm.b_cond(cond.invert(), label);
+            return;
+        }
+        if self.func.is_loop_header(taken) && !self.allocation.edge(data.successors_start).is_empty() {
+            let label = self.edge_label(data.successors_start + 1, fallthrough);
+            self.asm.b_cond(cond.invert(), label);
+            self.jump(0);
             return;
         }
         let taken_label = self.edge_label(data.successors_start, taken);

@@ -329,8 +329,10 @@ there; a phi in a register with a slot is stored where its block starts.
 
 - **Edges.** A jump moves its values and jumps unless its target comes next. A two-way branch whose
   taken edge needs moves jumps to a stub that moves them; its other edge moves inline. Where the
-  taken target comes next and needs no moves, the condition is inverted. `br_table` is a jump table
-  of 32-bit offsets, with stubs for the edges that need moves.
+  taken target comes next and needs no moves, the condition is inverted. It is also inverted where
+  the taken target is a loop header the edge needs moves into: the exit jumps (to a stub if it needs
+  moves), and the back edge moves inline, so that an iteration takes one jump rather than two.
+  `br_table` is a jump table of 32-bit offsets, with stubs for the edges that need moves.
 - **Traps** jump to one stub per trap code, which puts the code in edi and jumps to
   `RuntimeInfo::trap_exit` with rbp still the trapping frame's fp. Memory accesses rely on guard
   pages: the runtime's fault handler turns faults in compiled code into the same trap exit.

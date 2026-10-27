@@ -539,7 +539,8 @@ impl<'a> CodeGenerator<'a> {
         }
     }
 
-    /// A branch on an integer condition, inverted where the taken successor comes next and needs no moves.
+    /// A branch on an integer condition, inverted where the taken successor comes next and needs no moves, or is a
+    /// loop header the edge needs moves into, so that those moves are inline rather than in a stub that jumps again.
     fn branch_on(&mut self, cond: Cond) {
         let block = self.block;
         let data = self.func.blocks[block as usize];
@@ -548,6 +549,12 @@ impl<'a> CodeGenerator<'a> {
         if taken == block + 1 && self.allocation.edge(data.successors_start).is_empty() {
             let label = self.edge_label(data.successors_start + 1, fallthrough);
             self.asm.jcc(cond.invert(), label);
+            return;
+        }
+        if self.func.is_loop_header(taken) && !self.allocation.edge(data.successors_start).is_empty() {
+            let label = self.edge_label(data.successors_start + 1, fallthrough);
+            self.asm.jcc(cond.invert(), label);
+            self.jump(0);
             return;
         }
         self.branch(|generator, taken, _| generator.asm.jcc(cond, taken));
