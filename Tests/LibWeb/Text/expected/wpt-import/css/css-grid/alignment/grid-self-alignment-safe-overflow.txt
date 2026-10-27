@@ -2,10 +2,10 @@ Harness status: OK
 
 Found 6 tests
 
-6 Fail
-Fail	justify-self: safe end on an item wider than its grid area clamps to the start edge
-Fail	align-self: safe end on an item taller than its grid area clamps to the start edge
-Fail	justify-self: safe center on an item wider than its grid area clamps to the start edge
-Fail	align-self: safe center on an item taller than its grid area clamps to the start edge
-Fail	justify-self: safe end on an item overflowing the second column clamps to that column's start edge
-Fail	align-self: safe end on an item overflowing the second row clamps to that row's start edge
+6 Pass
+Pass	justify-self: safe end on an item wider than its grid area clamps to the start edge
+Pass	align-self: safe end on an item taller than its grid area clamps to the start edge
+Pass	justify-self: safe center on an item wider than its grid area clamps to the start edge
+Pass	align-self: safe center on an item taller than its grid area clamps to the start edge
+Pass	justify-self: safe end on an item overflowing the second column clamps to that column's start edge
+Pass	align-self: safe end on an item overflowing the second row clamps to that row's start edge

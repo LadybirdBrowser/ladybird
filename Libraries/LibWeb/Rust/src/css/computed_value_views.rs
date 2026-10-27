@@ -520,6 +520,8 @@ scalar_accessors! {
         justify_content: u8 => justify_content,
         justify_items: u8 => justify_items,
         justify_self: u8 => justify_self,
+        align_items_overflow: u8 => align_items_overflow,
+        justify_items_overflow: u8 => justify_items_overflow,
         align_self_overflow: u8 => align_self_overflow,
         justify_self_overflow: u8 => justify_self_overflow,
         flex_basis_is_content: bool => flex_basis.is_content,
