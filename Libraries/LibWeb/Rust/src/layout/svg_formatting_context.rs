@@ -296,13 +296,6 @@ impl FfiSvgNumberPercentage {
 
 pub(crate) const PRESERVE_ASPECT_RATIO_NONE: u8 = 0;
 const PRESERVE_ASPECT_RATIO_X_MIN_Y_MIN: u8 = 1;
-const PRESERVE_ASPECT_RATIO_X_MID_Y_MIN: u8 = 2;
-const PRESERVE_ASPECT_RATIO_X_MAX_Y_MIN: u8 = 3;
-const PRESERVE_ASPECT_RATIO_X_MIN_Y_MID: u8 = 4;
-pub(crate) const PRESERVE_ASPECT_RATIO_X_MID_Y_MID: u8 = 5;
-const PRESERVE_ASPECT_RATIO_X_MAX_Y_MID: u8 = 6;
-const PRESERVE_ASPECT_RATIO_X_MIN_Y_MAX: u8 = 7;
-pub(crate) const PRESERVE_ASPECT_RATIO_X_MID_Y_MAX: u8 = 8;
 pub(crate) const PRESERVE_ASPECT_RATIO_X_MAX_Y_MAX: u8 = 9;
 pub(crate) const MEET_OR_SLICE_MEET: u8 = 0;
 pub(crate) const MEET_OR_SLICE_SLICE: u8 = 1;
@@ -422,105 +415,63 @@ fn float_rect_to_css_pixels(rect: FfiFloatRect) -> SvgCssPixelRect {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub(crate) struct ViewBoxTransform {
-    pub(crate) offset: FfiCssPixelPoint,
-    pub(crate) scale_factor_x: f64,
-    pub(crate) scale_factor_y: f64,
-}
-
 // https://svgwg.org/svg2-draft/coords.html#PreserveAspectRatioAttribute
-pub(crate) fn scale_and_align_viewbox_content(
+fn view_box_transform(
     align: u8,
     meet_or_slice: u8,
     view_box: FfiSvgViewBox,
-    viewbox_scale_x: f32,
-    viewbox_scale_y: f32,
-    content_size: (CssPixels, CssPixels),
-    has_definite_inline_size: bool,
-) -> ViewBoxTransform {
-    let viewbox_scale_x = f64::from(viewbox_scale_x);
-    let viewbox_scale_y = f64::from(viewbox_scale_y);
-    if align == PRESERVE_ASPECT_RATIO_NONE {
+    viewport_size: (CssPixels, CssPixels),
+) -> FfiAffineTransform {
+    // NB: The scales pass through f32, as the transform stores them.
+    let scale_x = f64::from((viewport_size.0.to_double() / view_box.width) as f32);
+    let scale_y = f64::from((viewport_size.1.to_double() / view_box.height) as f32);
+    let (scale_x, scale_y, offset) = if align == PRESERVE_ASPECT_RATIO_NONE {
         // Do not force uniform scaling. Scale the graphic content of the given element non-uniformly
         // if necessary such that the element's bounding box exactly matches the SVG viewport rectangle.
-        return ViewBoxTransform {
-            scale_factor_x: viewbox_scale_x,
-            scale_factor_y: viewbox_scale_y,
-            ..Default::default()
+        (scale_x, scale_y, (CssPixels::default(), CssPixels::default()))
+    } else {
+        let scale = match meet_or_slice {
+            // meet (the default) - Scale the graphic such that:
+            // - aspect ratio is preserved
+            // - the entire ‘viewBox’ is visible within the SVG viewport
+            // - the ‘viewBox’ is scaled up as much as possible, while still meeting the other criteria
+            MEET_OR_SLICE_MEET => scale_x.min(scale_y),
+            // slice - Scale the graphic such that:
+            // aspect ratio is preserved
+            // the entire SVG viewport is covered by the ‘viewBox’
+            // the ‘viewBox’ is scaled down as much as possible, while still meeting the other criteria
+            MEET_OR_SLICE_SLICE => scale_x.max(scale_y),
+            _ => panic!("invalid preserveAspectRatio meet-or-slice value"),
         };
-    }
-
-    let scale = match meet_or_slice {
-        // meet (the default) - Scale the graphic such that:
-        // - aspect ratio is preserved
-        // - the entire ‘viewBox’ is visible within the SVG viewport
-        // - the ‘viewBox’ is scaled up as much as possible, while still meeting the other criteria
-        MEET_OR_SLICE_MEET => viewbox_scale_x.min(viewbox_scale_y),
-        // slice - Scale the graphic such that:
-        // aspect ratio is preserved
-        // the entire SVG viewport is covered by the ‘viewBox’
-        // the ‘viewBox’ is scaled down as much as possible, while still meeting the other criteria
-        MEET_OR_SLICE_SLICE => viewbox_scale_x.max(viewbox_scale_y),
-        _ => panic!("invalid preserveAspectRatio meet-or-slice value"),
+        assert!(
+            (PRESERVE_ASPECT_RATIO_X_MIN_Y_MIN..=PRESERVE_ASPECT_RATIO_X_MAX_Y_MAX).contains(&align),
+            "invalid preserveAspectRatio alignment value"
+        );
+        // NB: The alignments count up from xMinYMin through min, mid and max along x, then through min, mid and max
+        //     along y. Each aligns the min, the midpoint or the max of the ‘viewBox’ with that of the SVG viewport, so
+        //     it offsets the content by none, half or all of the space the scaled ‘viewBox’ leaves.
+        let alignment = align - PRESERVE_ASPECT_RATIO_X_MIN_Y_MIN;
+        let offset = |alignment_in_axis: u8, viewport_size: CssPixels, view_box_size: f64| {
+            let free_space = viewport_size - CssPixels::nearest_value_for(view_box_size * scale);
+            match alignment_in_axis {
+                0 => CssPixels::default(),
+                1 => free_space / 2,
+                _ => free_space,
+            }
+        };
+        (
+            scale,
+            scale,
+            (
+                offset(alignment % 3, viewport_size.0, view_box.width),
+                offset(alignment / 3, viewport_size.1, view_box.height),
+            ),
+        )
     };
-    let mut result = ViewBoxTransform {
-        scale_factor_x: scale,
-        scale_factor_y: scale,
-        ..Default::default()
-    };
-
-    // Handle X alignment:
-    if has_definite_inline_size {
-        match align {
-            // Align the <min-x> of the element's ‘viewBox’ with the smallest X value of the SVG viewport.
-            PRESERVE_ASPECT_RATIO_X_MIN_Y_MIN
-            | PRESERVE_ASPECT_RATIO_X_MIN_Y_MID
-            | PRESERVE_ASPECT_RATIO_X_MIN_Y_MAX => {}
-            // Align the midpoint X value of the element's ‘viewBox’ with the midpoint X value of the SVG viewport.
-            PRESERVE_ASPECT_RATIO_X_MID_Y_MIN
-            | PRESERVE_ASPECT_RATIO_X_MID_Y_MID
-            | PRESERVE_ASPECT_RATIO_X_MID_Y_MAX => {
-                result.offset.x =
-                    (content_size.0 - CssPixels::nearest_value_for(view_box.width * result.scale_factor_x)) / 2;
-            }
-            // Align the <min-x>+<width> of the element's ‘viewBox’ with the maximum X value of the SVG viewport.
-            PRESERVE_ASPECT_RATIO_X_MAX_Y_MIN
-            | PRESERVE_ASPECT_RATIO_X_MAX_Y_MID
-            | PRESERVE_ASPECT_RATIO_X_MAX_Y_MAX => {
-                result.offset.x = content_size.0 - CssPixels::nearest_value_for(view_box.width * result.scale_factor_x);
-            }
-            _ => panic!("invalid preserveAspectRatio alignment value"),
-        }
-    }
-
-    // This intentionally checks inline-size definiteness, matching the C++
-    // algorithm being ported.
-    if has_definite_inline_size {
-        match align {
-            // Align the <min-y> of the element's ‘viewBox’ with the smallest Y value of the SVG viewport.
-            PRESERVE_ASPECT_RATIO_X_MIN_Y_MIN
-            | PRESERVE_ASPECT_RATIO_X_MID_Y_MIN
-            | PRESERVE_ASPECT_RATIO_X_MAX_Y_MIN => {}
-            // Align the midpoint Y value of the element's ‘viewBox’ with the midpoint Y value of the SVG viewport.
-            PRESERVE_ASPECT_RATIO_X_MIN_Y_MID
-            | PRESERVE_ASPECT_RATIO_X_MID_Y_MID
-            | PRESERVE_ASPECT_RATIO_X_MAX_Y_MID => {
-                result.offset.y =
-                    (content_size.1 - CssPixels::nearest_value_for(view_box.height * result.scale_factor_y)) / 2;
-            }
-            // Align the <min-y>+<height> of the element's ‘viewBox’ with the maximum Y value of the SVG viewport.
-            PRESERVE_ASPECT_RATIO_X_MIN_Y_MAX
-            | PRESERVE_ASPECT_RATIO_X_MID_Y_MAX
-            | PRESERVE_ASPECT_RATIO_X_MAX_Y_MAX => {
-                result.offset.y =
-                    content_size.1 - CssPixels::nearest_value_for(view_box.height * result.scale_factor_y);
-            }
-            _ => panic!("invalid preserveAspectRatio alignment value"),
-        }
-    }
-
-    result
+    FfiAffineTransform::default()
+        .translated(offset.0.to_float(), offset.1.to_float())
+        .scaled(scale_x as f32, scale_y as f32)
+        .translated(-view_box.min_x as f32, -view_box.min_y as f32)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -1999,61 +1950,26 @@ impl<'pass> SvgFormattingContext<'pass> {
         }
 
         if box_establishes_viewport {
-            let mut viewport_transform = FfiAffineTransform::default();
-            if let Some(view_box) = active_view_box {
-                // FIXME: This should allow just one of width or height to be specified.
-                // E.g. We should be able to layout <svg width="100%"> where height is unspecified/auto.
-                let scale_width = if used.has_definite_inline_size() {
-                    used.content_inline_size.get().to_double() / view_box.width
-                } else {
-                    1.0
-                };
-                let scale_height = if used.has_definite_block_size() {
-                    used.content_block_size.get().to_double() / view_box.height
-                } else {
-                    1.0
-                };
-                // The initial value for preserveAspectRatio is xMidYMid meet.
-                let transform = scale_and_align_viewbox_content(
+            // FIXME: This should allow just one of width or height to be specified.
+            // E.g. We should be able to layout <svg width="100%"> where height is unspecified/auto.
+            // The initial value for preserveAspectRatio is xMidYMid meet.
+            let viewport_transform = active_view_box.map_or_else(FfiAffineTransform::default, |view_box| {
+                view_box_transform(
                     attributes.preserve_aspect_ratio_align,
                     attributes.preserve_aspect_ratio_meet_or_slice,
                     view_box,
-                    scale_width as f32,
-                    scale_height as f32,
                     (used.content_inline_size.get(), used.content_block_size.get()),
-                    used.has_definite_inline_size(),
-                );
-                viewport_transform = viewport_transform
-                    .translated(
-                        transform.offset.x.raw_value() as f32 / 64.0,
-                        transform.offset.y.raw_value() as f32 / 64.0,
-                    )
-                    .scaled(transform.scale_factor_x as f32, transform.scale_factor_y as f32)
-                    .translated(-view_box.min_x as f32, -view_box.min_y as f32);
-            }
+                )
+            });
             self.set_svg_viewport_transform(self.run.box_, viewport_transform);
         }
 
-        self.viewport_width = active_view_box.map_or_else(
-            || {
-                if used.has_definite_inline_size() {
-                    used.content_inline_size.get()
-                } else {
-                    CssPixels::default()
-                }
-            },
-            |view_box| CssPixels::nearest_value_for(view_box.width),
-        );
-        self.viewport_height = active_view_box.map_or_else(
-            || {
-                if used.has_definite_block_size() {
-                    used.content_block_size.get()
-                } else {
-                    CssPixels::default()
-                }
-            },
-            |view_box| CssPixels::nearest_value_for(view_box.height),
-        );
+        self.viewport_width = active_view_box.map_or(used.content_inline_size.get(), |view_box| {
+            CssPixels::nearest_value_for(view_box.width)
+        });
+        self.viewport_height = active_view_box.map_or(used.content_block_size.get(), |view_box| {
+            CssPixels::nearest_value_for(view_box.height)
+        });
         self.viewport_is_committed_viewport = kind == NodeKind::SVGSVGBox
             && self.run.fragments.is_some()
             && crate::painting::paint_read::GeometryRead::with_committed_fragment_link(
