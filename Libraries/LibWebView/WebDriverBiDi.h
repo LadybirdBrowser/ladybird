@@ -46,10 +46,11 @@ public:
     void run_command(u64 command_id, String const& method, JsonValue params);
     void get_top_level_traversables(u64 command_id, Vector<String> const& navigable_ids);
     void run_subscribe_steps(u64 command_id, String const& event_name, Vector<String> const& top_level_traversable_ids);
-    void set_enabled_events(Vector<String> const& event_names);
+    void set_enabled_events(Vector<String> const& event_names, HashMap<String, Optional<Vector<String>>> event_contexts);
 
     bool is_event_enabled(StringView event_name) const { return m_enabled_events.contains(event_name); }
     Web::WebDriver::BiDiSessionState const& session_state() const { return m_session_state; }
+    void push_session_state_for_client(WebContentClient&) const;
 
     // Completes a command that a process hosting a navigable ran, if this object sent it.
     bool did_complete_content_command(u64 command_id, Web::WebDriver::Response&);
@@ -160,9 +161,17 @@ private:
     WebDriverBrowserConnection& m_connection;
 
     HashTable<String> m_enabled_events;
+    HashMap<String, Optional<Vector<String>>> m_enabled_event_contexts;
     Web::WebDriver::BiDiSessionState m_session_state;
 
     OwnPtr<WebDriverBiDiNetwork> m_network;
+    struct BlockedNetworkRequest {
+        RefPtr<WebContentPage> page;
+        Web::HTML::CrossProcessId navigable_id;
+        u64 generation;
+    };
+    u64 m_next_network_interception_generation { 0 };
+    HashMap<String, BlockedNetworkRequest> m_blocked_network_requests;
 
     u64 m_next_content_command_id;
     HashMap<u64, CommandResult> m_pending_content_commands;

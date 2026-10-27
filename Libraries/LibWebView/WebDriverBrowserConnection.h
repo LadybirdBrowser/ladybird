@@ -45,7 +45,7 @@ private:
     virtual void bidi_command(u64 command_id, String method, JsonValue params) override;
     virtual void bidi_get_top_level_traversables(u64 command_id, Vector<String> navigable_ids) override;
     virtual void bidi_run_subscribe_steps(u64 command_id, String event_name, Vector<String> top_level_traversable_ids) override;
-    virtual void set_bidi_enabled_events(Vector<String> event_names) override;
+    virtual void set_bidi_enabled_events(Vector<String> event_names, HashMap<String, Optional<Vector<String>>> event_contexts) override;
 
     NonnullOwnPtr<WebDriverBiDi> m_webdriver_bidi;
 };

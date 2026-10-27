@@ -922,10 +922,10 @@ NonnullRefPtr<Session::WebDriverPromise> Session::run_bidi_subscribe_steps(Strin
     });
 }
 
-void Session::set_bidi_enabled_events(Vector<String> event_names)
+void Session::set_bidi_enabled_events(Vector<String> event_names, HashMap<String, Optional<Vector<String>>> event_contexts)
 {
     if (m_browser_connection)
-        m_browser_connection->async_set_bidi_enabled_events(move(event_names));
+        m_browser_connection->async_set_bidi_enabled_events(move(event_names), move(event_contexts));
 }
 
 ErrorOr<void, Web::WebDriver::Error> Session::ensure_current_window_handle_is_valid() const

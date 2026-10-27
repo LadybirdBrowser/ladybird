@@ -643,8 +643,11 @@ void WebContentPage::close()
     }
     m_needs_beforeunload_check = true;
     m_history_recorded_url_for_current_load.clear();
-    if (m_client)
+    if (m_client) {
         m_client->update_audio_capture_permission();
+        if (auto* bidi = WebDriverBiDi::the())
+            bidi->push_session_state_for_client(*m_client);
+    }
     m_web_ui = nullptr;
     auto owed_replies = move(m_owed_replies);
     for (auto owed : owed_replies)

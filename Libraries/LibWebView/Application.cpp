@@ -1177,7 +1177,7 @@ ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(
 
     // NB: A WebDriver BiDi session gives its state to every process hosting web content when it changes.
     if (auto* webdriver_bidi = WebDriverBiDi::the(); webdriver_bidi && webdriver_bidi->session_state().is_active)
-        client->async_set_webdriver_bidi_session_state(webdriver_bidi->session_state());
+        webdriver_bidi->push_session_state_for_client(*client);
 
     if (m_content_blocker_list_buffer.has_value())
         client->async_set_content_blockers(*m_content_blocker_list_buffer);

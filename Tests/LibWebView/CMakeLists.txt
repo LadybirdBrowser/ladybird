@@ -26,6 +26,7 @@ set(TEST_SOURCES
     TestStorageAreaRegistry.cpp
     TestStorageJar.cpp
     TestTabPerformanceStats.cpp
+    TestWebDriverBiDiNetwork.cpp
     TestWebViewURL.cpp
 )
 

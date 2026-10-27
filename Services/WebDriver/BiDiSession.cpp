@@ -690,19 +690,27 @@ HashTable<String> BiDiSession::set_of_top_level_traversables_for_which_an_event_
 void BiDiSession::update_enabled_events()
 {
     HashTable<String> enabled_events;
+    HashMap<String, Optional<Vector<String>>> event_contexts;
     for (auto const& subscription : m_subscriptions) {
-        for (auto const& event_name : subscription.event_names)
+        for (auto const& event_name : subscription.event_names) {
             enabled_events.set(event_name);
+            auto& contexts = event_contexts.ensure(event_name, [] { return Optional<Vector<String>> { Vector<String> {} }; });
+            if (subscription.is_global() || subscription.user_context_ids.contains("default"_string)) {
+                contexts.clear();
+            } else if (contexts.has_value()) {
+                for (auto const& id : subscription.top_level_traversable_ids) {
+                    if (!contexts->contains_slow(id))
+                        contexts->append(id);
+                }
+            }
+        }
     }
-
-    if (sets_are_equal(enabled_events, m_enabled_events))
-        return;
     m_enabled_events = move(enabled_events);
 
     Vector<String> event_names;
     for (auto const& event_name : m_enabled_events)
         event_names.append(event_name);
-    m_session.set_bidi_enabled_events(move(event_names));
+    m_session.set_bidi_enabled_events(move(event_names), move(event_contexts));
 }
 
 void BiDiSession::did_receive_event(String const& name, JsonValue params, Vector<String> const& top_level_traversable_ids, Vector<String> const& user_context_ids)

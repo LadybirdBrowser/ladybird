@@ -11,6 +11,18 @@
 
 namespace WebView {
 
+Web::WebDriver::BiDiSessionState session_state_for_hosted_traversables(Web::WebDriver::BiDiSessionState const& state, HashTable<String> const& hosted_traversables)
+{
+    auto filtered_state = state;
+    filtered_state.network_navigable_headers.remove_all_matching([&](auto const& key, auto const&) {
+        return !hosted_traversables.contains(key);
+    });
+    filtered_state.network_navigable_cache_behavior.remove_all_matching([&](auto const& key, auto const&) {
+        return !hosted_traversables.contains(key);
+    });
+    return filtered_state;
+}
+
 using Web::WebDriver::as_js_uint;
 using Web::WebDriver::Error;
 using Web::WebDriver::ErrorCode;
@@ -314,7 +326,7 @@ ErrorOr<JsonValue, Error> WebDriverBiDiNetwork::run_command(StringView method, J
             //     "default"
             //         Perform implementation-defined steps to enable any implementation-specific resource caches that
             //         are usually enabled in the current remote end configuration.
-            // FIXME: Apply the cache behavior to Fetch and implementation-specific resource caches.
+            // NB: The updated session state applies this to subsequent fetches.
             // 4. Return success with data null.
             return JsonValue {};
         }
@@ -340,7 +352,7 @@ ErrorOr<JsonValue, Error> WebDriverBiDiNetwork::run_command(StringView method, J
             //         Perform implementation-defined steps to enable any implementation-specific resource caches that
             //         are usually enabled in the current remote end configuration for network requests originating
             //         from any browsing context for which navigable is the top-level browsing context.
-            // FIXME: Apply the cache behavior to Fetch and implementation-specific resource caches.
+            // NB: The updated session state applies this to subsequent fetches.
             // 3. If behavior is equal to default cache behavior:
             if (behavior == m_default_cache_behavior) {
                 // 1. If navigable cache behavior map contains navigable, remove navigable cache behavior map[navigable].
@@ -364,13 +376,35 @@ ErrorOr<JsonValue, Error> WebDriverBiDiNetwork::run_command(StringView method, J
         // 1. Let blocked requests be session's blocked request map.
         // 2. Let request id be command parameters["request"].
         // 3. If blocked requests does not contain request id then return error with error code no such request.
-        // NB: Nothing adds requests to the blocked request map until Fetch supports interception, so it is always
-        //     empty. network.continueResponse and network.provideResponse perform this lookup in update the
-        //     response.
-        // FIXME: Look up blocked requests once Fetch supports interception.
+        // NB: The browser routes known blocked requests to the process that paused them before reaching this lookup.
         return Error::from_code(ErrorCode::NoSuchRequest, "Blocked request not found"sv);
     }
     return Error::from_code(ErrorCode::UnknownCommand, "Command is not supported"sv);
+}
+
+void WebDriverBiDiNetwork::update_session_state(Web::WebDriver::BiDiSessionState& state, Function<String(String const&)> const& context_id) const
+{
+    state.network_intercepts.clear();
+    for (auto const& [id, intercept] : m_intercept_map) {
+        Vector<String> phases;
+        for (auto const& phase : intercept.phases)
+            phases.append(phase);
+        auto contexts = intercept.browsing_contexts;
+        if (contexts.has_value()) {
+            for (auto& context : *contexts)
+                context = context_id(context);
+        }
+        state.network_intercepts.append({ id, intercept.url_patterns, move(phases), move(contexts) });
+    }
+    state.network_default_headers = m_default_headers;
+    state.network_user_context_headers = m_user_context_headers;
+    state.network_navigable_headers.clear();
+    for (auto const& [id, headers] : m_navigable_headers)
+        state.network_navigable_headers.set(context_id(id), headers);
+    state.network_default_cache_behavior = m_default_cache_behavior;
+    state.network_navigable_cache_behavior.clear();
+    for (auto const& [id, behavior] : m_navigable_cache_behavior_map)
+        state.network_navigable_cache_behavior.set(context_id(id), behavior);
 }
 
 void WebDriverBiDiNetwork::context_destroyed(String const& id)
