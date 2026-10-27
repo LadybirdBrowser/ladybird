@@ -972,6 +972,19 @@ pub(crate) fn interpolate_calc_size_calculations(
     combine_calculations_keeping_zero_lengths(from, to, 1.0 - delta as f64, delta as f64, Some(ResolveAs::Base(0)))
 }
 
+/// https://drafts.csswg.org/css-values-4/#combine-math
+/// Addition of math functions, with each other or with numeric values and other numeric-valued functions, is
+/// defined as Vresult = calc(VA + VB).
+pub(crate) fn add_calc_size_calculations(
+    underlying: Arc<CalcNode>,
+    animated: Arc<CalcNode>,
+) -> Option<(Arc<CalcNode>, FfiNumericType)> {
+    simplify_combined_calculation(
+        shared(CalcNode::Sum(vec![underlying, animated])),
+        Some(ResolveAs::Base(0)),
+    )
+}
+
 /// The calculation with each calc-size() size keyword in it replaced by `replacement`, or None where the
 /// calculation holds a kind of node this does not rebuild.
 /// https://drafts.csswg.org/css-values-5/#substitute-into-a-calc-size-calculation
@@ -1128,6 +1141,13 @@ fn combine_calculations_keeping_zero_lengths(
     let to_contribution = shared(CalcNode::Product(vec![to, number(to_multiplier)]));
     let root = shared(CalcNode::Sum(vec![from_contribution, to_contribution]));
 
+    simplify_combined_calculation(root, resolve_as)
+}
+
+fn simplify_combined_calculation(
+    root: Arc<CalcNode>,
+    resolve_as: Option<ResolveAs>,
+) -> Option<(Arc<CalcNode>, FfiNumericType)> {
     let percentage_leaf_type = percentage_leaf_type_for(resolve_as);
     let evaluation_context = CalcEvaluationContext {
         percentage_leaf_type: &percentage_leaf_type,
