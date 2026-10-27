@@ -295,7 +295,10 @@ pub(crate) struct RunRecords<'arena> {
     scratch: &'arena LayoutScratch,
     nonce: u64,
     stack_length_at_start: usize,
-    records_outside_table: RefCell<HashMap<Node, NonNull<UsedValues>>>,
+    records_outside_table: RefCell<HashMap<Node, u32>>,
+    /// Where the root of a run that owns its root record is placed and what insets it uses, which the stack keeps for
+    /// every other record.
+    root_position: Cell<PositionKeptByParent>,
     // Wrapper sizing hands this state to the wrapper's child run, which consumes it while laying
     // out the table box. Keeping it on the run prevents measurement state from escaping a pass.
     table_inline_layouts: RefCell<HashMap<Node, table_formatting_context::TableInlineLayout>>,
@@ -310,6 +313,20 @@ pub(crate) struct RunRecords<'arena> {
 pub(crate) struct BoxPlacement {
     pub(crate) content_offset_in_containing_block: FfiCssPixelPoint,
     pub(crate) containing_block: Node,
+}
+
+/// What the parent of a box keeps about where it put the box, beside the box's record.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+struct PositionKeptByParent {
+    used_insets: UsedInsets,
+    placement: Option<BoxPlacement>,
+}
+
+/// Where a run keeps the record of a box it owns.
+#[derive(Clone, Copy)]
+enum OwnedRecord {
+    Root,
+    OnStack(u32),
 }
 
 /// The used values of a box's inset properties.
@@ -445,6 +462,7 @@ impl<'arena> RunRecords<'arena> {
             nonce: scratch.begin_run(),
             stack_length_at_start: scratch.run_record_stack.length(),
             records_outside_table: RefCell::new(HashMap::default()),
+            root_position: Cell::new(PositionKeptByParent::default()),
             table_inline_layouts: RefCell::new(HashMap::default()),
             content_sizing,
             percentage_block_size_dependencies_in_progress: RefCell::new(smallvec::smallvec![(
@@ -502,7 +520,7 @@ impl<'arena> RunRecords<'arena> {
             RunRecordClaim::Claimed => {}
             RunRecordClaim::AlreadyClaimed => registered_twice(),
             RunRecordClaim::HeldByEnclosingRun => {
-                if self.records_outside_table.borrow_mut().insert(node, record).is_some() {
+                if self.records_outside_table.borrow_mut().insert(node, index).is_some() {
                     registered_twice();
                 }
             }
@@ -533,24 +551,47 @@ impl<'arena> RunRecords<'arena> {
     }
 
     pub(crate) fn used_values_if_owned(&self, node: Node) -> Option<&UsedValues> {
-        if node == self.root
-            && let Some(root_used) = &self.root_used
-        {
-            return Some(root_used);
+        match self.owned_record(node)? {
+            OwnedRecord::Root => self.root_used.as_ref(),
+            // SAFETY: This run registered the record, and it stays on the stack until this run returns.
+            OwnedRecord::OnStack(index) => Some(unsafe { self.scratch.run_record_stack.get(index).as_ref() }),
         }
-        let record = self
-            .scratch
+    }
+
+    fn owned_record(&self, node: Node) -> Option<OwnedRecord> {
+        if node == self.root && self.root_used.is_some() {
+            return Some(OwnedRecord::Root);
+        }
+        self.scratch
             .run_record(node.slot_index(), self.nonce)
-            .map(|index| self.scratch.run_record_stack.get(index))
             .or_else(|| {
                 let records = self.records_outside_table.borrow();
                 if records.is_empty() {
                     return None;
                 }
                 records.get(&node).copied()
-            })?;
-        // SAFETY: This run registered the record, and it stays on the stack until this run returns.
-        Some(unsafe { record.as_ref() })
+            })
+            .map(OwnedRecord::OnStack)
+    }
+
+    fn position_kept_for(&self, node: Node) -> Option<PositionKeptByParent> {
+        Some(match self.owned_record(node)? {
+            OwnedRecord::Root => self.root_position.get(),
+            OwnedRecord::OnStack(index) => self.scratch.run_record_stack.position(index),
+        })
+    }
+
+    #[track_caller]
+    fn keep_position_for(&self, node: Node, position: PositionKeptByParent) {
+        match self.owned_record(node) {
+            Some(OwnedRecord::Root) => self.root_position.set(position),
+            Some(OwnedRecord::OnStack(index)) => self.scratch.run_record_stack.set_position(index, position),
+            None => panic!(
+                "the run rooted at slot {} does not own the record for slot {}",
+                self.root.slot_index(),
+                node.slot_index()
+            ),
+        }
     }
 
     pub(crate) fn root(&self) -> Node {
@@ -558,22 +599,24 @@ impl<'arena> RunRecords<'arena> {
     }
 
     /// Places `node` in `placement`, which is final: the box's metrics are sealed with it.
+    #[track_caller]
     pub(crate) fn place_box(&self, node: Node, placement: BoxPlacement) {
         let used = self.used_values(node);
-        assert!(!used.has_content_offset.get(), "a box is placed once");
-        used.has_content_offset.set(true);
-        used.content_offset.set(placement.content_offset_in_containing_block);
-        used.placed_in.set(placement.containing_block);
-        used.seal_committed_box_metrics();
+        let position = self.position_kept_for(node).unwrap_or_default();
+        assert!(position.placement.is_none(), "a box is placed once");
+        self.keep_position_for(
+            node,
+            PositionKeptByParent {
+                placement: Some(placement),
+                ..position
+            },
+        );
+        used.seal_own_metrics();
     }
 
     /// Where `node` is placed, if this run placed it.
     pub(crate) fn placement_of(&self, node: Node) -> Option<BoxPlacement> {
-        let used = self.used_values_if_owned(node)?;
-        used.has_content_offset.get().then(|| BoxPlacement {
-            content_offset_in_containing_block: used.content_offset.get(),
-            containing_block: used.placed_in.get(),
-        })
+        self.position_kept_for(node)?.placement
     }
 
     pub(crate) fn is_placed(&self, node: Node) -> bool {
@@ -583,28 +626,34 @@ impl<'arena> RunRecords<'arena> {
     /// The offset of the content box of `node` in its containing block, or the origin while the box is not placed.
     #[track_caller]
     pub(crate) fn content_offset_or_origin(&self, node: Node) -> FfiCssPixelPoint {
-        self.used_values(node).content_offset.get()
+        self.used_values(node);
+        self.placement_of(node)
+            .map_or(FfiCssPixelPoint::default(), |placement| {
+                placement.content_offset_in_containing_block
+            })
     }
 
     #[track_caller]
     pub(crate) fn used_insets_of(&self, node: Node) -> UsedInsets {
-        let used = self.used_values(node);
-        UsedInsets {
-            left: used.inset_left.get(),
-            right: used.inset_right.get(),
-            top: used.inset_top.get(),
-            bottom: used.inset_bottom.get(),
-        }
+        self.used_values(node);
+        self.position_kept_for(node).unwrap_or_default().used_insets
     }
 
     /// Sets the used insets of `node`, which cannot change once the box is placed.
     #[track_caller]
     pub(crate) fn set_used_insets(&self, node: Node, insets: UsedInsets) {
-        let used = self.used_values(node);
-        used.inset_left.set(insets.left);
-        used.inset_right.set(insets.right);
-        used.inset_top.set(insets.top);
-        used.inset_bottom.set(insets.bottom);
+        let position = self.position_kept_for(node).unwrap_or_default();
+        assert!(
+            position.placement.is_none(),
+            "the used insets of a placed box are final"
+        );
+        self.keep_position_for(
+            node,
+            PositionKeptByParent {
+                used_insets: insets,
+                ..position
+            },
+        );
     }
 
     /// Tracks the percentage block size dependency of `node` until the returned tracking is dropped, which the layout
@@ -691,6 +740,8 @@ const RECORDS_PER_STACK_CHUNK: usize = 64;
 struct RunRecordStack {
     chunks: RefCell<Vec<NonNull<UsedValues>>>,
     length: Cell<usize>,
+    /// What the parent of each record's box keeps about where it put the box, at the record's index.
+    positions: RefCell<Vec<PositionKeptByParent>>,
 }
 
 // SAFETY: The stack owns its chunks as a Vec owns its buffer, and a record lives only while the run
@@ -725,13 +776,23 @@ impl RunRecordStack {
             slot
         };
         self.length.set(index + 1);
+        self.positions.borrow_mut().push(PositionKeptByParent::default());
         (u32::try_from(index).expect("layout run records fit a u32 index"), slot)
+    }
+
+    fn position(&self, index: u32) -> PositionKeptByParent {
+        self.positions.borrow()[index as usize]
+    }
+
+    fn set_position(&self, index: u32, position: PositionKeptByParent) {
+        self.positions.borrow_mut()[index as usize] = position;
     }
 
     /// # Safety
     ///
     /// No reference to a record at or above `length` may be live.
     unsafe fn truncate(&self, length: usize) {
+        self.positions.borrow_mut().truncate(length);
         let chunks = self.chunks.borrow();
         while self.length.get() > length {
             let index = self.length.get() - 1;
