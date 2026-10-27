@@ -33,9 +33,8 @@ function(create_ladybird_bundle target_name)
             COMMAND "${CMAKE_COMMAND}" -E create_symlink "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}" "${bundle_dir}/Contents/lib"
         )
 
-        add_custom_command(TARGET ${target_name} POST_BUILD
-            COMMAND codesign -s - -v -f --entitlements "${LADYBIRD_ENTITLEMENTS_FILE}" "${bundle_dir}"
-        )
+        ladybird_codesign_command(codesign_command "${target_name}" "${LADYBIRD_ENTITLEMENTS_FILE}" -v "${bundle_dir}")
+        add_custom_command(TARGET ${target_name} POST_BUILD COMMAND ${codesign_command} VERBATIM)
     endif()
 
     if (APPLE)
@@ -116,9 +115,11 @@ if (APPLE)
     # WebDriver and the helpers can link into the bundle after ladybird has signed it — and that leaves the seal stale
     # until something later relinks ladybird. Sign once more with everything in place.
     set(bundle_signed_stamp "${CMAKE_CURRENT_BINARY_DIR}/ladybird_bundle_signed.stamp")
+    ladybird_codesign_command(codesign_command ladybird-bundle "${LADYBIRD_ENTITLEMENTS_FILE}" -v "$<TARGET_BUNDLE_DIR:ladybird>")
+
     add_custom_command(
         OUTPUT "${bundle_signed_stamp}"
-        COMMAND codesign -s - -v -f --entitlements "${LADYBIRD_ENTITLEMENTS_FILE}" "$<TARGET_BUNDLE_DIR:ladybird>"
+        COMMAND ${codesign_command}
         COMMAND "${CMAKE_COMMAND}" -E touch "${bundle_signed_stamp}"
         DEPENDS ladybird WebDriver ${ladybird_helper_processes} "${LADYBIRD_ENTITLEMENTS_FILE}"
         VERBATIM
