@@ -1,0 +1,44 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSSMatrixComponent.toMatrix() returns a new DOMMatrix</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-csstransformcomponent-tomatrix">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script>
+'use strict';
+
+test(() => {
+  const component = new CSSMatrixComponent(new DOMMatrixReadOnly([1, 2, 3, 4, 5, 6]));
+  const matrix = component.toMatrix();
+  assert_not_equals(matrix, component.matrix);
+  assert_not_equals(matrix, component.toMatrix());
+  matrix.m41 = 100;
+  assert_equals(component.matrix.m41, 5);
+  assert_equals(component.toMatrix().m41, 5);
+  assert_equals(component.toString(), 'matrix(1, 2, 3, 4, 5, 6)');
+}, 'Mutating the result of toMatrix() on a 2D CSSMatrixComponent does not change the component');
+
+test(() => {
+  const component = new CSSMatrixComponent(new DOMMatrixReadOnly([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 5, 6, 7, 1]));
+  const matrix = component.toMatrix();
+  assert_not_equals(matrix, component.matrix);
+  assert_not_equals(matrix, component.toMatrix());
+  matrix.m41 = 100;
+  assert_equals(component.matrix.m41, 5);
+  assert_equals(component.toMatrix().m41, 5);
+  assert_equals(component.toString(), 'matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 5, 6, 7, 1)');
+}, 'Mutating the result of toMatrix() on a 3D CSSMatrixComponent does not change the component');
+
+test(() => {
+  const component = new CSSMatrixComponent(new DOMMatrixReadOnly([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 5, 6, 7, 1]));
+  component.toMatrix().translateSelf(10, 20, 30);
+  assert_equals(component.toString(), 'matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 5, 6, 7, 1)');
+}, 'Calling a self-mutating method on the result of toMatrix() on a 3D CSSMatrixComponent does not change the component');
+
+test(() => {
+  const component = new CSSMatrixComponent(new DOMMatrixReadOnly([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 5, 6, 7, 1]));
+  const transform = new CSSTransformValue([component]);
+  component.toMatrix().m42 = 100;
+  assert_equals(transform.toMatrix().m42, 6);
+}, 'Mutating the result of toMatrix() on a 3D CSSMatrixComponent does not change an enclosing CSSTransformValue');
+</script>
