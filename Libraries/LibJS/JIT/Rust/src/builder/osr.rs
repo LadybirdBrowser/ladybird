@@ -75,6 +75,20 @@ pub(crate) fn is_loop_back_edge(opcode: OpCode) -> bool {
 }
 
 impl GraphBuilder<'_> {
+    /// Whether the instruction with the given index is a back edge that an on-stack replacement entry can be built at.
+    pub(super) fn can_build_osr_entry(&self, index: usize) -> bool {
+        let pc = self.function.instructions[index].pc;
+        // NB: Back edges in unreachable code lead to blocks that are
+        //     never built.
+        is_loop_back_edge(self.function.instructions[index].instruction.opcode())
+            && (self.has_run)(pc)
+            && self
+                .function
+                .cfg
+                .block_for_pc(pc)
+                .is_some_and(|block| self.function.cfg.blocks[block].rpo_number.is_some())
+    }
+
     /// Builds an entry block for every reachable loop back edge of the
     /// compiled function that ran, before any of its bytecode blocks is
     /// started.
@@ -82,20 +96,9 @@ impl GraphBuilder<'_> {
         debug_assert!(!self.function.is_virtual());
         for index in 0..self.function.instructions.len() {
             let pc = self.function.instructions[index].pc;
-            if !is_loop_back_edge(self.function.instructions[index].instruction.opcode())
-                || !(self.has_run)(pc)
-                || (self.snapshot.options.osr_pc != Some(pc) && !self.snapshot.options.stress.osr_at_every_loop)
+            if (self.snapshot.options.osr_pc != Some(pc) && !self.snapshot.options.stress.osr_at_every_loop)
+                || !self.can_build_osr_entry(index)
             {
-                continue;
-            }
-            // NB: Back edges in unreachable code lead to blocks that are
-            //     never built.
-            let reachable = self
-                .function
-                .cfg
-                .block_for_pc(pc)
-                .is_some_and(|block| self.function.cfg.blocks[block].rpo_number.is_some());
-            if !reachable {
                 continue;
             }
             let block = self.start_new_block(Vec::new());

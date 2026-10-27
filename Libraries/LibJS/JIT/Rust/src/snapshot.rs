@@ -1570,6 +1570,9 @@ pub struct CompileOptions {
     /// replacement entry: such an entry merges into the loop, which costs
     /// every iteration.
     pub osr_pc: Option<u32>,
+    /// Whether the compiled executable is top-level code, which runs once: no frame of it enters the code at its
+    /// start once a loop triggered the compile.
+    pub runs_once: bool,
     pub inlining: InliningLimits,
     pub stress: StressOptions,
     /// Return what the code contains in `CompiledCode::coverage`.
