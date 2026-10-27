@@ -20,12 +20,12 @@ pub(crate) struct ResolvedAnchorInsets {
 }
 
 impl ResolvedAnchorInsets {
-    pub(crate) fn override_for(&self, field: style_values::InsetField) -> Option<style_values::ResolvedInsetOverride> {
-        match field {
-            style_values::InsetField::Top => self.top,
-            style_values::InsetField::Right => self.right,
-            style_values::InsetField::Bottom => self.bottom,
-            style_values::InsetField::Left => self.left,
+    pub(crate) fn override_for(&self, side: geometry::Side) -> Option<style_values::ResolvedInsetOverride> {
+        match side {
+            geometry::Side::Top => self.top,
+            geometry::Side::Right => self.right,
+            geometry::Side::Bottom => self.bottom,
+            geometry::Side::Left => self.left,
         }
     }
 }
