@@ -211,6 +211,20 @@ target_sources(TestJavaScriptDialog PRIVATE
 add_chrome_style_sources(TestJavaScriptDialog)
 deploy_qt_offscreen_platform_plugin(TestJavaScriptDialog)
 
+ladybird_test("TestPermissionPromptPopover.cpp" UI/Qt
+    CUSTOM_MAIN "$<TARGET_OBJECTS:QtTestMain>"
+    LIBS LibCore LibURL LibWebCommon LibWebView Qt::Core Qt::Gui Qt::Widgets
+)
+target_sources(TestPermissionPromptPopover PRIVATE
+    "${LADYBIRD_SOURCE_DIR}/UI/Qt/ChromeStyle.cpp"
+    "${LADYBIRD_SOURCE_DIR}/UI/Qt/Icon.cpp"
+    "${LADYBIRD_SOURCE_DIR}/UI/Qt/PermissionPromptPopover.cpp"
+    "${LADYBIRD_SOURCE_DIR}/UI/Qt/Popover.cpp"
+    "${LADYBIRD_SOURCE_DIR}/UI/Qt/StringUtils.cpp"
+)
+add_chrome_style_sources(TestPermissionPromptPopover)
+deploy_qt_offscreen_platform_plugin(TestPermissionPromptPopover)
+
 ladybird_test("TestWindowCloseCoordinator.cpp" UI/Qt LIBS Qt::Core)
 target_sources(TestWindowCloseCoordinator PRIVATE "${LADYBIRD_SOURCE_DIR}/UI/Qt/WindowCloseCoordinator.cpp")
 

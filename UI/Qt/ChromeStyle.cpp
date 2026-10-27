@@ -1422,6 +1422,66 @@ QPushButton#LadybirdBookmarkPopoverDone:pressed {{
         style_sheet_color(Theme::selection()), style_sheet_color(Theme::focus_edge()), style_sheet_color(panel.pressed));
 }
 
+// A permission prompt looks like a message popover, its three answers stacked as equal secondary buttons, since the
+// browser recommends none of them.
+QString permission_prompt_style_sheet(QPalette const&)
+{
+    auto const& panel = Theme::panel();
+    return qformatted(R"(
+QFrame#LadybirdPermissionPrompt {{
+    color: {0};
+    background: {1};
+    border: 1px solid {2};
+    border-radius: 12px;
+}}
+
+QLabel#LadybirdPermissionPromptTitle {{
+    color: {0};
+    font-weight: 600;
+}}
+
+QLabel#LadybirdPermissionPromptIcon {{
+    background: {3};
+    border-radius: 8px;
+}}
+
+QLabel#LadybirdPermissionPromptHint {{
+    color: {4};
+    font-size: 12px;
+}}
+
+QPushButton#LadybirdPermissionPromptAllowAlways,
+QPushButton#LadybirdPermissionPromptAllowOnce,
+QPushButton#LadybirdPermissionPromptBlock {{
+    color: {0};
+    background: {5};
+    border: 0;
+    border-radius: 7px;
+    min-height: 28px;
+    padding: 0 14px;
+    font-size: 13px;
+}}
+
+QPushButton#LadybirdPermissionPromptAllowAlways:hover,
+QPushButton#LadybirdPermissionPromptAllowOnce:hover,
+QPushButton#LadybirdPermissionPromptBlock:hover,
+QPushButton#LadybirdPermissionPromptAllowAlways:pressed,
+QPushButton#LadybirdPermissionPromptAllowOnce:pressed,
+QPushButton#LadybirdPermissionPromptBlock:pressed {{
+    background: {6};
+}}
+
+QPushButton#LadybirdPermissionPromptAllowAlways:focus,
+QPushButton#LadybirdPermissionPromptAllowOnce:focus,
+QPushButton#LadybirdPermissionPromptBlock:focus {{
+    border: 2px solid {7};
+    padding: 0 12px;
+}}
+)",
+        style_sheet_color(panel.text), style_sheet_color(panel.surface), style_sheet_color(over(panel.edge, panel.surface)), style_sheet_color(panel.information),
+        style_sheet_color(panel.muted), style_sheet_color(panel.control), style_sheet_color(panel.pressed), style_sheet_color(Theme::focus_ring()));
+}
+
 // The instructions over a screenshot selection look like a message popover, with every action a secondary one.
 QString screenshot_selection_style_sheet(QPalette const&)
 {
