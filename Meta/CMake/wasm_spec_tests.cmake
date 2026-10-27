@@ -21,7 +21,7 @@ if(INCLUDE_WASM_SPEC_TESTS)
        message(FATAL_ERROR "Prettier required to format Wasm spec tests! Install prettier or set WASM_SPEC_TEST_SKIP_FORMATTING to ON")
     endif()
 
-    if(EXISTS ${WASM_SPEC_TEST_GZ_PATH} AND NOT EXISTS ${WASM_SPEC_TEST_PATH}/const_0.wasm)
+    if(EXISTS ${WASM_SPEC_TEST_GZ_PATH} AND NOT EXISTS ${WASM_SPEC_TEST_PATH}/const.0.wasm)
         message(STATUS "Extracting the WebAssembly testsuite from ${WASM_SPEC_TEST_GZ_PATH}...")
         extract_path("${CMAKE_CURRENT_BINARY_DIR}" "${WASM_SPEC_TEST_GZ_PATH}" "testsuite-${WASM_SPEC_TEST_COMMIT}/*.wast" "${WASM_SPEC_TEST_PATH}")
         file(MAKE_DIRECTORY ${WASM_SPEC_TEST_PATH})
