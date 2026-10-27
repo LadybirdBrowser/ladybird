@@ -46,6 +46,8 @@ public:
     // Ends every live track once the document may no longer use the microphone.
     void end_tracks_without_permission();
     void track_was_cloned(Badge<MediaStreamTrack>, MediaStreamTrack& clone);
+    // getUserMedia() waits while the page lacks system focus, and the Window sees no event when that changes.
+    void system_focus_changed();
 
     [[nodiscard]] static GC::Ref<MediaDevices> create(HTML::Window&);
 
