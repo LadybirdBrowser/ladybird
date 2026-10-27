@@ -134,6 +134,9 @@ public:
     void release_held_permission_prompt_for_testing(u32 waiters);
     void reset_permission_prompts_for_testing();
 
+    // Ends every location request and watch whose document the user has since taken the permission away from.
+    void revoke_geolocation_without_permission();
+
     u64 view_id() const { return m_view_id; }
     pid_t web_content_pid() const;
 
@@ -1125,6 +1128,7 @@ protected:
 
     HashMap<GeolocationRequestKey, Core::GeolocationProvider::RequestId> m_geolocation_position_request_ids;
     HashMap<GeolocationRequestKey, Core::GeolocationProvider::WatchId> m_geolocation_watch_ids;
+    HashMap<GeolocationRequestKey, Web::HTML::CrossProcessId> m_geolocation_request_documents;
 
     struct PendingPermissionPrompt {
         PermissionPromptRequest request;

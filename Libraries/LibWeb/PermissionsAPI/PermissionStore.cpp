@@ -5,6 +5,11 @@
  */
 
 #include <LibGC/Root.h>
+#include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/LocalNavigable.h>
+#include <LibWeb/HTML/Navigator.h>
+#include <LibWeb/HTML/Window.h>
+#include <LibWeb/MediaCapture/MediaDevices.h>
 #include <LibWeb/PermissionsAPI/PermissionStatus.h>
 #include <LibWeb/PermissionsAPI/PermissionStore.h>
 
@@ -92,6 +97,17 @@ void PermissionStore::apply_snapshot(Web::Permissions::PermissionSnapshot snapsh
     }
     for (auto const& status : statuses)
         status->update_from_store();
+
+    // A document whose microphone permission went away loses its live microphone tracks.
+    for (auto navigable : HTML::all_local_navigables()) {
+        auto document = navigable->active_document();
+        if (!document || !document->window())
+            continue;
+        if (auto navigator = document->window()->navigator_if_created(); navigator) {
+            if (auto media_devices = navigator->media_devices_if_created())
+                media_devices->end_tracks_without_permission();
+        }
+    }
 }
 
 void PermissionStore::register_status(PermissionStatus& status)

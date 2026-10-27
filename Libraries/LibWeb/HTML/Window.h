@@ -215,6 +215,7 @@ public:
     WebIDL::ExceptionOr<GC::Ptr<WindowProxy>> open(Optional<Utf16String> const& url, Optional<Utf16String> const& target, Optional<Utf16String> const& features);
 
     [[nodiscard]] GC::Ref<Navigator> navigator();
+    GC::Ptr<Navigator> navigator_if_created() const { return m_navigator; }
     [[nodiscard]] GC::Ref<CloseWatcherManager> close_watcher_manager();
     [[nodiscard]] GC::Ref<CookieStore::CookieStore> cookie_store();
     [[nodiscard]] GC::Ref<Speech::SpeechSynthesis> speech_synthesis();

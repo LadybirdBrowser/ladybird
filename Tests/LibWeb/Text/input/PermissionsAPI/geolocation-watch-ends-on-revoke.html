@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        internals.setGeolocationEmulatedPosition(1, 1, 100);
+        const results = [];
+        let wake = null;
+        const record = result => {
+            results.push(result);
+            if (wake)
+                wake();
+        };
+        const next = () => new Promise(resolve => wake = resolve);
+
+        navigator.geolocation.watchPosition(
+            position => record(`position ${position.coords.latitude}`),
+            error => record(`error ${error.code}`));
+        await next();
+
+        await internals.setPermission("geolocation", "denied");
+        internals.setGeolocationEmulatedPosition(2, 2, 100);
+        await next();
+        // A watch that ended doesn't hear of later positions.
+        internals.setGeolocationEmulatedPosition(3, 3, 100);
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        println(results.join(", "));
+        done();
+    });
+</script>
