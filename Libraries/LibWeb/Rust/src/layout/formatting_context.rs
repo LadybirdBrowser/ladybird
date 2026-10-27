@@ -979,19 +979,10 @@ pub(crate) struct ChildLayoutResult {
     /// For a box with a preferred aspect ratio, the block size of its laid out content.
     pub content_block_size_for_aspect_ratio_minimum: Option<CssPixels>,
     pub depends_on_percentage_block_size: bool,
-    pub own_block_size_observation: OwnBlockSizeObservation,
-    pub percentage_inline_basis_observation: PercentageInlineBasisObservation,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) enum OwnBlockSizeObservation {
-    #[default]
-    Observed,
-    Unobserved,
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) enum PercentageInlineBasisObservation {
     #[default]
     Observed,
     Unobserved,
@@ -1058,7 +1049,7 @@ pub(crate) struct RunOutputs {
     pub(crate) result: ChildLayoutResult,
     pub(crate) root: Option<fragment_tree::UnplacedRootFragment>,
     pub(crate) root_outcome: RunRootOutcome,
-    pub(crate) atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above: Option<CssPixels>,
+    pub(crate) inputs_never_observed: fc_run_cache::RunInputsTheStoredRunNeverObserved,
     /// Boxed, as most runs find out nothing for the host.
     pub(crate) host_findings: Option<Box<super::run_records::HostFindings>>,
 }
@@ -1264,7 +1255,7 @@ impl<'pass> FormattingContextRun<'pass> {
         &self,
         result: ChildLayoutResult,
         root: Option<fragment_tree::UnplacedRootFragment>,
-        atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above: Option<CssPixels>,
+        inputs_never_observed: fc_run_cache::RunInputsTheStoredRunNeverObserved,
         parent_owns_root_input_cells: bool,
     ) -> RunOutputs {
         let record = self.records.used_values(self.box_);
@@ -1278,7 +1269,7 @@ impl<'pass> FormattingContextRun<'pass> {
             result,
             root,
             root_outcome,
-            atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above,
+            inputs_never_observed,
             host_findings: self.records.take_host_findings(),
         }
     }
@@ -2273,12 +2264,20 @@ fn execute_formatting_context_run(
                 );
             }
             result.depends_on_percentage_block_size = run.sizing().resolve_percentage_block_size_dependency(run.box_);
-            if !run_is_handed_table_inline_layout_outside_its_key {
-                result.own_block_size_observation =
-                    own_block_size_observation_of_item_run(run, fc_type, &input, &result);
-                result.percentage_inline_basis_observation =
-                    percentage_inline_basis_observation_of_item_run(run, fc_type, &input);
-            }
+            let item_run_observations_are_known = !run_is_handed_table_inline_layout_outside_its_key;
+            let inputs_never_observed = fc_run_cache::RunInputsTheStoredRunNeverObserved {
+                percentage_block_basis_and_block_size_definiteness: !result.depends_on_percentage_block_size,
+                definite_available_inline_sizes_at_or_above:
+                    atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above,
+                percentage_inline_basis: atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above.is_some()
+                    || (item_run_observations_are_known
+                        && item_run_never_observes_percentage_inline_basis(run, fc_type, &input)),
+                own_block_size: if item_run_observations_are_known {
+                    own_block_size_observation_of_item_run(run, fc_type, &input, &result)
+                } else {
+                    OwnBlockSizeObservation::Observed
+                },
+            };
 
             // NB: The root's descendants are laid out in the frame the root establishes.
             let take_run_fragments = || {
@@ -2292,7 +2291,7 @@ fn execute_formatting_context_run(
                 return run.outputs(
                     result,
                     take_run_fragments(),
-                    atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above,
+                    inputs_never_observed,
                     parent_owns_root_input_cells,
                 );
             }
@@ -2320,7 +2319,7 @@ fn execute_formatting_context_run(
                         return run.outputs(
                             result,
                             take_run_fragments(),
-                            atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above,
+                            inputs_never_observed,
                             parent_owns_root_input_cells,
                         );
                     }
@@ -2330,7 +2329,7 @@ fn execute_formatting_context_run(
             run.outputs(
                 result,
                 take_run_fragments(),
-                atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above,
+                inputs_never_observed,
                 parent_owns_root_input_cells,
             )
         },
@@ -2959,20 +2958,15 @@ fn root_content_includes_an_orthogonal_flow_sized_by_the_root_block_size(
     false
 }
 
-fn percentage_inline_basis_observation_of_item_run(
+/// Whether the run is of an item block container whose content resolves percentages against the container itself.
+fn item_run_never_observes_percentage_inline_basis(
     run: &FormattingContextRun,
     fc_type: FormattingContextType,
     input: &LayoutInput,
-) -> PercentageInlineBasisObservation {
-    let item_is_block_container_whose_content_resolves_percentages_against_itself = fc_type
-        == FormattingContextType::Block
+) -> bool {
+    fc_type == FormattingContextType::Block
         && parent_owns_root_input_cells(&run.callbacks, run.box_, input)
-        && !run.sizing().measurement_root_observes_percentage_inline_basis(run.box_);
-    if item_is_block_container_whose_content_resolves_percentages_against_itself {
-        PercentageInlineBasisObservation::Unobserved
-    } else {
-        PercentageInlineBasisObservation::Observed
-    }
+        && !run.sizing().measurement_root_observes_percentage_inline_basis(run.box_)
 }
 
 pub(super) fn content_block_size_adopted_after_run(
@@ -3009,7 +3003,7 @@ fn absorb_run_outputs(
         result,
         root,
         root_outcome,
-        atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above: _,
+        inputs_never_observed: _,
         host_findings,
     } = outputs;
     callbacks.scratch().receive_host_findings(host_findings);
