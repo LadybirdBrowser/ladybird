@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	<a download> without referrerpolicy follows the document's no-referrer policy
+Pass	<a download referrerpolicy=unsafe-url> overrides the document's no-referrer policy
+Pass	<area download> without referrerpolicy follows the document's no-referrer policy
+Pass	<area download referrerpolicy=unsafe-url> overrides the document's no-referrer policy
