@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 31 tests
 
-27 Pass
-4 Fail
+31 Pass
 Pass	Can set 'shape-image-threshold' to CSS-wide keywords: initial
 Pass	Can set 'shape-image-threshold' to CSS-wide keywords: inherit
 Pass	Can set 'shape-image-threshold' to CSS-wide keywords: unset
@@ -17,10 +16,10 @@ Pass	Setting 'shape-image-threshold' to a length: 0px throws TypeError
 Pass	Setting 'shape-image-threshold' to a length: -3.14em throws TypeError
 Pass	Setting 'shape-image-threshold' to a length: 3.14cm throws TypeError
 Pass	Setting 'shape-image-threshold' to a length: calc(0px + 0em) throws TypeError
-Fail	Setting 'shape-image-threshold' to a percent: 0% throws TypeError
-Fail	Setting 'shape-image-threshold' to a percent: -3.14% throws TypeError
-Fail	Setting 'shape-image-threshold' to a percent: 3.14% throws TypeError
-Fail	Setting 'shape-image-threshold' to a percent: calc(0% + 0%) throws TypeError
+Pass	Setting 'shape-image-threshold' to a percent: 0% throws TypeError
+Pass	Setting 'shape-image-threshold' to a percent: -3.14% throws TypeError
+Pass	Setting 'shape-image-threshold' to a percent: 3.14% throws TypeError
+Pass	Setting 'shape-image-threshold' to a percent: calc(0% + 0%) throws TypeError
 Pass	Setting 'shape-image-threshold' to a time: 0s throws TypeError
 Pass	Setting 'shape-image-threshold' to a time: -3.14ms throws TypeError
 Pass	Setting 'shape-image-threshold' to a time: 3.14s throws TypeError
