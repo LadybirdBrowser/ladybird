@@ -35,14 +35,6 @@ jobs:
             runner_labels: '["blacksmith-8vcpu-ubuntu-2404"]'
             container: *ci_container
 
-          - os_name: 'macOS'
-            arch: 'arm64'
-            build_preset: 'Distribution'
-            toolchain: 'Clang'
-            clang_plugins: false
-            runner_labels: '["blacksmith-6vcpu-macos-26"]'
-            container: 'null'
-
           - os_name: 'Linux'
             arch: 'arm64'
             build_preset: 'Distribution'
@@ -70,22 +62,14 @@ jobs:
       clang_plugins: ${{ matrix.clang_plugins }}
       container: ${{ matrix.container }}
 
-  flatpak:
+  Release:
     if: github.repository == 'LadybirdBrowser/ladybird'
-    name: Flatpak ${{ matrix.arch }}
+    name: Build Release
 
-    strategy:
-      fail-fast: false
-      matrix:
-        arch: ['x86_64']
-        runner_labels: ['["blacksmith-8vcpu-ubuntu-2404"]']
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
 
-        include:
-          - arch: 'aarch64'
-            runner_labels: '["blacksmith-8vcpu-ubuntu-2404-arm"]'
-
-    secrets: inherit
-    uses: ./.github/workflows/flatpak-template.yml
-    with:
-      arch: ${{ matrix.arch }}
-      runner_labels: ${{ matrix.runner_labels }}
+    uses: ./.github/workflows/build-release.yml

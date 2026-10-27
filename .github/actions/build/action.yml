@@ -130,7 +130,7 @@ runs:
       shell: bash
       env:
         VCPKG_CACHE_SAS: ${{ github.ref == 'refs/heads/master' && inputs.vcpkg_cache_sas || '' }}
-        VCPKG_CACHE_MODE: ${{ github.ref == 'refs/heads/master' && 'write' || '' }}
+        VCPKG_CACHE_MODE: ${{ github.ref == 'refs/heads/master' && inputs.vcpkg_cache_sas != '' && 'write' || '' }}
         RELEASE_VERSION: ${{ inputs.version }}
       run: |
         cmake --preset ${{ inputs.build_preset }} -B Build \
@@ -146,7 +146,7 @@ runs:
       shell: pwsh
       env:
         VCPKG_CACHE_SAS: ${{ github.ref == 'refs/heads/master' && inputs.vcpkg_cache_sas || '' }}
-        VCPKG_CACHE_MODE: ${{ github.ref == 'refs/heads/master' && 'write' || '' }}
+        VCPKG_CACHE_MODE: ${{ github.ref == 'refs/heads/master' && inputs.vcpkg_cache_sas != '' && 'write' || '' }}
       run: |
         cmake --preset ${{ inputs.build_preset }} -B Build `
           -DENABLE_CI_BASELINE_CPU=ON
@@ -157,7 +157,7 @@ runs:
       shell: bash
       env:
         VCPKG_CACHE_SAS: ${{ github.ref == 'refs/heads/master' && inputs.vcpkg_cache_sas || '' }}
-        VCPKG_CACHE_MODE: ${{ github.ref == 'refs/heads/master' && 'write' || '' }}
+        VCPKG_CACHE_MODE: ${{ github.ref == 'refs/heads/master' && inputs.vcpkg_cache_sas != '' && 'write' || '' }}
       run: |
         cmake --preset ${{ inputs.build_preset }} -B Build \
           ${{ steps.build-parameters.outputs.cmake_options }} \

@@ -9,12 +9,13 @@ on:
         description: 'Version to build, such as 2026.11.1 or 2027.1.4.alpha'
         required: true
         type: string
+  workflow_call:
 
 jobs:
   Build:
     if: github.repository == 'LadybirdBrowser/ladybird'
     name: ${{ matrix.os_name }}, ${{ matrix.arch }}, Distribution, Clang
-    runs-on: ${{ fromJSON(matrix.runner_labels) }}
+    runs-on: ${{ fromJSON(inputs.version && matrix.runner_labels || matrix.snapshot_runner_labels) }}
 
     strategy:
       fail-fast: false
@@ -23,6 +24,7 @@ jobs:
           - os_name: 'macOS'
             arch: 'arm64'
             runner_labels: '{"group": "Distribution build runners", "labels": ["self-hosted", "macos-27", "arm64"]}'
+            snapshot_runner_labels: '["blacksmith-6vcpu-macos-26"]'
 
     permissions:
       contents: read
@@ -56,6 +58,7 @@ jobs:
             -D CPACK_ARCHIVE_COMPRESSION_LEVEL=19 -D CPACK_COMPONENT_INCLUDE_TOPLEVEL_DIRECTORY=ON
 
       - name: Attest
+        if: ${{ inputs.version != '' }}
         uses: actions/attest@v4
         with:
           subject-path: '${{ github.workspace }}/Build/packages/*.tar.zst'
@@ -93,8 +96,8 @@ jobs:
       artifact-metadata: write
 
     env:
-      BUNDLE: ladybird-${{ inputs.version }}-Linux-${{ matrix.arch }}.flatpak
-      DEBUG_BUNDLE: ladybird-${{ inputs.version }}-Linux-${{ matrix.arch }}-debug.flatpak
+      BUNDLE: ladybird-${{ inputs.version && format('{0}-', inputs.version) }}Linux-${{ matrix.arch }}.flatpak
+      DEBUG_BUNDLE: ladybird-${{ inputs.version && format('{0}-', inputs.version) }}Linux-${{ matrix.arch }}-debug.flatpak
 
     steps:
       - uses: actions/checkout@v7.0.1
@@ -111,6 +114,7 @@ jobs:
           mv /var/lib/flatpak.rw /var/lib/flatpak
 
       - name: Set the version in the manifest
+        if: ${{ inputs.version != '' }}
         env:
           RELEASE_VERSION: ${{ inputs.version }}
         run: |
@@ -138,6 +142,7 @@ jobs:
           upload-artifact: false
 
       - name: Attest
+        if: ${{ inputs.version != '' }}
         uses: actions/attest@v4
         with:
           subject-path: |
