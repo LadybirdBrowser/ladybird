@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        internals.setGeolocationEmulatedPosition(1.25, 2.5, 100);
+        const childSource = `<!DOCTYPE html><script>
+            navigator.geolocation.getCurrentPosition(
+                position => parent.postMessage("position", "*"),
+                error => parent.postMessage(\`error \${error.code}\`, "*"));
+        <\/script>`;
+
+        // Each refused request would count as a dismissal if it reached a prompt, and three would embargo the site.
+        internals.setNextPermissionPromptOutcome("geolocation", "dismiss");
+        for (let i = 1; i <= 3; ++i) {
+            const iframe = document.createElement("iframe");
+            iframe.setAttribute("allow", "geolocation 'none'");
+            iframe.srcdoc = childSource;
+            const result = await new Promise(resolve => {
+                addEventListener("message", event => resolve(event.data), { once: true });
+                document.body.appendChild(iframe);
+            });
+            println(`frame ${i}: ${result}`);
+            iframe.remove();
+        }
+
+        // The dismissal set up above was never used, so the site's own request gets it.
+        const own = await new Promise(resolve => navigator.geolocation.getCurrentPosition(
+            () => resolve("position"), error => resolve(`error ${error.code}`)));
+        println(`top level: ${own}, query ${(await navigator.permissions.query({ name: "geolocation" })).state}`);
+        done();
+    });
+</script>

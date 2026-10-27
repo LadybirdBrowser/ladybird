@@ -1,0 +1,4 @@
+frame 1: error 1
+frame 2: error 1
+frame 3: error 1
+top level: error 1, query prompt

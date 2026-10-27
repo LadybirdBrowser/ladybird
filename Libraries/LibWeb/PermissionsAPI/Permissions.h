@@ -26,8 +26,6 @@ bool is_permission_supported(Utf16View);
 
 PermissionState permission_state(PermissionDescriptor descriptor, Optional<HTML::EnvironmentSettingsObject&> settings = {});
 
-PermissionState request_permission(PermissionDescriptor const& descriptor);
-
 // Asks the user when the state is "prompt"; the callback runs once a state other than "prompt" is known.
 using PermissionDecisionCallback = GC::Ref<GC::Function<void(PermissionState)>>;
 void request_permission_with_user_prompt(PermissionDescriptor const&, HTML::EnvironmentSettingsObject&, PermissionDecisionCallback);

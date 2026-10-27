@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        internals.setGeolocationEmulatedPosition(1.25, 2.5, 100);
+        const position = () => new Promise(resolve => navigator.geolocation.getCurrentPosition(
+            position => resolve(`position ${position.coords.latitude}, ${position.coords.longitude}`),
+            error => resolve(`error ${error.code}`)));
+        const query = async () => (await navigator.permissions.query({ name: "geolocation" })).state;
+
+        internals.setNextPermissionPromptOutcome("geolocation", "dismiss");
+        println(`dismissed: ${await position()}, query ${await query()}`);
+
+        internals.setNextPermissionPromptOutcome("geolocation", "block");
+        println(`blocked: ${await position()}, query ${await query()}`);
+
+        // A blocked site isn't asked again, so this answer goes unused.
+        internals.setNextPermissionPromptOutcome("geolocation", "allow");
+        println(`asked again: ${await position()}`);
+
+        await internals.setPermission("geolocation", "prompt");
+        println(`allowed: ${await position()}, query ${await query()}`);
+        done();
+    });
+</script>

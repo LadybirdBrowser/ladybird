@@ -119,6 +119,7 @@ public:
     // Whether a document this page hosts may use the feature. The process hosting the page can act for any of them.
     bool hosts_a_document_allowed_to_use(Web::PermissionsPolicy::PolicyControlledFeature) const;
     RefPtr<CanonicalDocument> hosted_document_with_id(Web::HTML::CrossProcessId) const;
+    bool document_may_use(Web::HTML::CrossProcessId, Web::Permissions::PermissionName) const;
 
     Web::Permissions::PermissionSnapshot set_permission_for_testing(Web::HTML::CrossProcessId document_id, String const& name, String const& state);
     void set_next_permission_prompt_outcome_for_testing(String const& name, String const& outcome, bool held);
@@ -271,9 +272,9 @@ private:
     virtual void did_change_picture_in_picture_player_controls_visibility(bool shown) override;
     virtual void did_request_file(ByteString path, i32 request_id) override;
     virtual void did_request_color_picker(Color current_color) override;
-    virtual void did_request_geolocation_position(u64 request_id) override;
+    virtual void did_request_geolocation_position(u64 request_id, Web::HTML::CrossProcessId document_id) override;
     virtual void did_cancel_geolocation_position_request(u64 request_id) override;
-    virtual void did_start_geolocation_position_watch(u64 request_id) override;
+    virtual void did_start_geolocation_position_watch(u64 request_id, Web::HTML::CrossProcessId document_id) override;
     virtual void did_stop_geolocation_position_watch(u64 request_id) override;
     virtual void did_request_permission(u64 request_id, Web::HTML::CrossProcessId document_id, Utf16String name) override;
     virtual void did_request_file_picker(Web::HTML::FileFilter accepted_file_types, Web::HTML::AllowMultipleFiles allow_multiple_files) override;
@@ -406,6 +407,13 @@ private:
     HashTable<u64> m_renderer_owned_downloads;
     HashTable<OwedReply> m_owed_replies;
     Optional<MonotonicTime> m_last_user_activation;
+
+    // The grants a file: page's documents got, which have no origin to be kept for.
+    struct FilePermissionGrant {
+        Web::HTML::CrossProcessId document_id;
+        Web::Permissions::PermissionName name;
+    };
+    Vector<FilePermissionGrant> m_file_permission_grants;
 };
 
 }

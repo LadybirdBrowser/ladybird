@@ -54,6 +54,7 @@ private:
     HTML::Window& window() const { return m_window; }
 
     void acquire_a_position(GC::Ref<WebIDL::CallbackType>, GC::Ptr<WebIDL::CallbackType>, PositionOptions const&, Optional<WebIDL::UnsignedLong>);
+    void call_back_with_timeout_error(GC::Ptr<WebIDL::CallbackType> error_callback, WebIDL::UnsignedLong timeout);
     void acquire_position_from_page(GC::Ref<WebIDL::CallbackType>, GC::Ptr<WebIDL::CallbackType>, PositionOptions const&, Optional<WebIDL::UnsignedLong>, HighResolutionTime::EpochTimeStamp);
     void call_back_with_error(GC::Ptr<WebIDL::CallbackType>, GeolocationPositionError::ErrorCode) const;
     EmulatedPositionData get_emulated_position_data() const;

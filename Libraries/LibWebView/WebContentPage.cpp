@@ -1599,30 +1599,6 @@ void WebContentPage::did_request_color_picker(Color current_color)
     view().did_request_color_picker({}, *this, current_color);
 }
 
-bool WebContentPage::hosts_a_document_allowed_to_use(Web::PermissionsPolicy::PolicyControlledFeature feature) const
-{
-    auto is_allowed = false;
-    traversable().for_each_in_inclusive_subtree([&](CanonicalNavigable const& navigable) {
-        auto const& document = navigable.active_document();
-        if (document.host() != this)
-            return IterationDecision::Continue;
-        auto value = Web::PermissionsPolicy::check_permissions_policy(document.permissions_policy(), feature, document.origin(), document.origin());
-        is_allowed = value == Web::PermissionsPolicy::FeatureValue::Enabled;
-        return is_allowed ? IterationDecision::Break : IterationDecision::Continue;
-    });
-    return is_allowed;
-}
-
-void WebContentPage::did_request_geolocation_position(u64 request_id)
-{
-    if (!hosts_a_document_allowed_to_use(Web::PermissionsPolicy::PolicyControlledFeature::Geolocation)) {
-        async_geolocation_position_response(request_id, {}, to_underlying(Web::Geolocation::GeolocationPositionErrorCode::PermissionDenied));
-        return;
-    }
-    if (view().on_request_geolocation_position)
-        view().on_request_geolocation_position(*this, request_id);
-}
-
 static Optional<Web::Permissions::PermissionName> permission_name_from(Utf16String const& name)
 {
     if (name == "geolocation"_utf16)
@@ -1641,6 +1617,46 @@ static Web::PermissionsPolicy::PolicyControlledFeature policy_controlled_feature
         return Web::PermissionsPolicy::PolicyControlledFeature::Microphone;
     }
     VERIFY_NOT_REACHED();
+}
+
+bool WebContentPage::hosts_a_document_allowed_to_use(Web::PermissionsPolicy::PolicyControlledFeature feature) const
+{
+    auto is_allowed = false;
+    traversable().for_each_in_inclusive_subtree([&](CanonicalNavigable const& navigable) {
+        auto const& document = navigable.active_document();
+        if (document.host() != this)
+            return IterationDecision::Continue;
+        auto value = Web::PermissionsPolicy::check_permissions_policy(document.permissions_policy(), feature, document.origin(), document.origin());
+        is_allowed = value == Web::PermissionsPolicy::FeatureValue::Enabled;
+        return is_allowed ? IterationDecision::Break : IterationDecision::Continue;
+    });
+    return is_allowed;
+}
+
+bool WebContentPage::document_may_use(Web::HTML::CrossProcessId document_id, Web::Permissions::PermissionName name) const
+{
+    auto document = hosted_document_with_id(document_id);
+    if (!document)
+        return false;
+    auto top_level_origin = document->top_level_origin();
+    if (!top_level_origin.has_value())
+        return false;
+    if (Web::PermissionsPolicy::check_permissions_policy(document->permissions_policy(), policy_controlled_feature_for(name), document->origin(), document->origin()) != Web::PermissionsPolicy::FeatureValue::Enabled)
+        return false;
+    if (top_level_origin->is_opaque())
+        return m_file_permission_grants.find_first_index_if([&](auto const& grant) { return grant.document_id == document_id && grant.name == name; }).has_value();
+    return view().session().permission_manager->effective_state(name, *top_level_origin) == Web::Permissions::EffectiveState::Granted;
+}
+
+void WebContentPage::did_request_geolocation_position(u64 request_id, Web::HTML::CrossProcessId document_id)
+{
+    // The UI process hands out a position only to a document it knows the user let have one.
+    if (!document_may_use(document_id, Web::Permissions::PermissionName::Geolocation)) {
+        async_geolocation_position_response(request_id, {}, to_underlying(Web::Geolocation::GeolocationPositionErrorCode::PermissionDenied));
+        return;
+    }
+    if (view().on_request_geolocation_position)
+        view().on_request_geolocation_position(*this, request_id, document_id);
 }
 
 RefPtr<CanonicalDocument> WebContentPage::hosted_document_with_id(Web::HTML::CrossProcessId document_id) const
@@ -1717,6 +1733,8 @@ void WebContentPage::did_request_permission(u64 request_id, Web::HTML::CrossProc
                 state = Web::Permissions::EffectiveState::Granted;
             else if (outcome == Web::Permissions::PromptOutcome::Block)
                 state = Web::Permissions::EffectiveState::Denied;
+            if (state == Web::Permissions::EffectiveState::Granted)
+                page->m_file_permission_grants.append({ document_id, permission_name });
             if (state == Web::Permissions::EffectiveState::Granted && permission_name == Web::Permissions::PermissionName::Microphone) {
                 if (auto result = page->client().grant_audio_capture_to_file(page->view().url()); result.is_error())
                     warnln("Unable to grant audio capture: {}", result.error());
@@ -1800,10 +1818,14 @@ void WebContentPage::did_cancel_geolocation_position_request(u64 request_id)
         view().on_cancel_geolocation_position_request(*this, request_id);
 }
 
-void WebContentPage::did_start_geolocation_position_watch(u64 request_id)
+void WebContentPage::did_start_geolocation_position_watch(u64 request_id, Web::HTML::CrossProcessId document_id)
 {
+    if (!document_may_use(document_id, Web::Permissions::PermissionName::Geolocation)) {
+        async_geolocation_position_response(request_id, {}, to_underlying(Web::Geolocation::GeolocationPositionErrorCode::PermissionDenied));
+        return;
+    }
     if (view().on_start_geolocation_position_watch)
-        view().on_start_geolocation_position_watch(*this, request_id);
+        view().on_start_geolocation_position_watch(*this, request_id, document_id);
 }
 
 void WebContentPage::did_stop_geolocation_position_watch(u64 request_id)
