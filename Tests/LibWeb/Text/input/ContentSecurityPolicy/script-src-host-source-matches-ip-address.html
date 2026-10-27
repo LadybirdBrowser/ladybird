@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    const port = internals.getEchoServerPort();
+    document.write(`<meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' http://127.0.0.1:${port}">`);
+
+    const violatingURLs = [];
+    document.addEventListener("securitypolicyviolation", event => violatingURLs.push(event.blockedURI));
+
+    async function loadScript(url) {
+        const result = await new Promise(resolve => {
+            const script = document.createElement("script");
+            script.src = url;
+            script.onload = () => resolve("loaded");
+            script.onerror = () => resolve("failed");
+            document.head.appendChild(script);
+        });
+        // NB: The violation event is queued as a task, so let it fire before checking for it.
+        await new Promise(resolve => setTimeout(resolve, 0));
+        return `${result}, CSP violation: ${violatingURLs.includes(url)}`;
+    }
+
+    asyncTest(async done => {
+        const echoURL = new URL(
+            await httpTestServer().createEcho("GET", "/csp-ip-host-source.js", {
+                status: 200,
+                headers: { "Content-Type": "text/javascript" },
+                body: "",
+            })
+        );
+
+        echoURL.hostname = "127.0.0.1";
+        println(`127.0.0.1: ${await loadScript(echoURL.href)}`);
+
+        echoURL.hostname = "127.0.0.2";
+        println(`127.0.0.2: ${await loadScript(echoURL.href)}`);
+
+        done();
+    });
+</script>
