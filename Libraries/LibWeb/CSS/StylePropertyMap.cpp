@@ -83,6 +83,10 @@ static WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_r
 
     if (auto const* css_style_value = value.get_pointer<GC::Ref<CSSStyleValue>>();
         css_style_value && is<CSSNumericValue>(**css_style_value) && !property.is_custom_property()) {
+        // INTEROP: Shape image thresholds accept typed numbers but not typed percentages.
+        if (property.id() == PropertyID::ShapeImageThreshold && !as<CSSNumericValue>(**css_style_value).type().matches_number({}))
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Shape image thresholds require a number"_utf16 };
+
         // https://drafts.css-houdini.org/css-typed-om-1/#create-an-internal-representation
         // If value does not match the grammar of a list-valued property iteration of property, throw a TypeError.
         // NB: A property's component types do not establish that a numeric value alone matches its whole grammar.
