@@ -690,6 +690,7 @@ protected:
 
     void did_update_url();
     void settle_permission_prompt(PermissionPromptRequest const&, Web::Permissions::PromptOutcome);
+    void report_permission_presence();
     void ignore_pending_permission_prompts();
     void set_title(Utf16String);
     void set_favicon(Optional<Gfx::Bitmap const&>);

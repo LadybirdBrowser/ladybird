@@ -37,6 +37,7 @@
 #include <LibWebView/HistoryDebug.h>
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/Menu.h>
+#include <LibWebView/PermissionManager.h>
 #include <LibWebView/TabPerformanceMonitor.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/UserAgent.h>
@@ -114,6 +115,7 @@ ViewImplementation::~ViewImplementation()
     // The frontend may be torn down already, so clearing the ongoing navigation must not report a URL change to it.
     on_url_change = nullptr;
     TabPerformanceMonitor::forget_view(view_id());
+    session().permission_manager->remove_view(view_id());
     if (m_top_level_traversable)
         m_top_level_traversable->clear_ongoing_navigation();
     cancel_all_native_geolocation_requests();
@@ -321,6 +323,7 @@ void ViewImplementation::did_change_active_document(Badge<CanonicalTraversable>)
 {
     // A prompt the document that asked has left behind goes unanswered: the user ignored it.
     ignore_pending_permission_prompts();
+    report_permission_presence();
     set_title(Utf16String::from_utf8(url().serialize()));
     set_favicon({});
     did_update_url();
@@ -451,6 +454,16 @@ void ViewImplementation::set_system_visibility_state(Web::HTML::VisibilityState 
 
     traversable().set_system_visibility_state(visibility_state);
     Application::the().update_compositor_context_visibility(page().compositor_context_id(), visibility_state);
+    report_permission_presence();
+}
+
+// One-time grants last only while some view shows their site, so each view tells the permission manager what it shows.
+void ViewImplementation::report_permission_presence()
+{
+    if (!m_top_level_traversable)
+        return;
+    auto visible = traversable().system_visibility_state() == Web::HTML::VisibilityState::Visible;
+    session().permission_manager->set_view_presence(view_id(), url().origin(), visible);
 }
 
 void ViewImplementation::set_presents_from_cpu_memory(bool presents_from_cpu_memory)
