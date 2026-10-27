@@ -50,6 +50,7 @@ public:
     virtual void cancel_current_position_request(RequestId) override;
     virtual ErrorOr<WatchId, GeolocationError> start_watching_position(SuccessCallback, ErrorCallback) override;
     virtual void stop_watching_position(WatchId) override;
+    virtual GeolocationAuthorization authorization() const override;
 
     void did_update_locations(NSArray<CLLocation*>*);
     void did_fail_with_error(NSError*);
@@ -273,13 +274,33 @@ void GeolocationProviderCoreLocation::did_fail_with_error(NSError* error)
     }
 }
 
+GeolocationAuthorization GeolocationProviderCoreLocation::authorization() const
+{
+    if (![CLLocationManager locationServicesEnabled])
+        return GeolocationAuthorization::Denied;
+    if (m_location_manager.authorizationStatus == kCLAuthorizationStatusNotDetermined)
+        return GeolocationAuthorization::NotDetermined;
+    return location_access_authorized() ? GeolocationAuthorization::Authorized : GeolocationAuthorization::Denied;
+}
+
 void GeolocationProviderCoreLocation::did_change_authorization()
 {
-    if (!location_access_authorized()) {
+    if (on_authorization_change)
+        on_authorization_change();
+
+    // NB: CoreLocation reports the authorization as soon as the location manager exists, before the user has answered
+    //     the system's prompt, so a request made then waits for the answer rather than failing.
+    switch (action_for_authorization(authorization())) {
+    case GeolocationAuthorizationAction::Wait:
+        return;
+    case GeolocationAuthorizationAction::Fail: {
         auto error = location_access_not_authorized_error();
         fail_current_position_requests(error);
         fail_all_watchers(move(error));
         return;
+    }
+    case GeolocationAuthorizationAction::Proceed:
+        break;
     }
 
     if (!m_current_position_requests.is_empty())
