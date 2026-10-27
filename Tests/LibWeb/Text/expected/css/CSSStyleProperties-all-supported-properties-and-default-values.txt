@@ -514,6 +514,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'fillRule': 'nonzero'
 'fill-rule': 'nonzero'
 'filter': 'none'
+'fitTolerance': 'normal'
+'fit-tolerance': 'normal'
 'flex': '0 1 auto'
 'flexBasis': 'auto'
 'flex-basis': 'auto'

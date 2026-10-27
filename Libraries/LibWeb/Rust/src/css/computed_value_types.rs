@@ -662,6 +662,7 @@ pub struct GridValues {
     pub grid_column_end_style_value: ComputedStyleValueHandle,
     pub grid_row_start_style_value: ComputedStyleValueHandle,
     pub grid_row_end_style_value: ComputedStyleValueHandle,
+    pub fit_tolerance_style_value: ComputedStyleValueHandle,
 }
 
 /// Layout of the non-inherited SVG geometry and painting properties.

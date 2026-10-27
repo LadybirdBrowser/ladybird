@@ -2320,6 +2320,22 @@
       "none"
     ]
   },
+  "fit-tolerance": {
+    "style-group": "GridValues",
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "normal",
+    "requires-computation": "cascaded-value",
+    "valid-types": [
+      "length [0,∞]",
+      "percentage [0,∞]"
+    ],
+    "valid-identifiers": [
+      "normal",
+      "infinite"
+    ],
+    "percentages-resolve-to": "length"
+  },
   "flex": {
     "initial": "0 1 auto",
     "valid-identifiers": [

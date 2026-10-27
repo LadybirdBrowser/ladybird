@@ -211,6 +211,7 @@ d: none
 display: block
 field-sizing: fixed
 filter: none
+fit-tolerance: normal
 flex-basis: auto
 flex-direction: row
 flex-grow: 0

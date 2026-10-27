@@ -1075,6 +1075,7 @@ impl_computed_payload_clone_and_eq!(GridValues {
     grid_column_end_style_value,
     grid_row_start_style_value,
     grid_row_end_style_value,
+    fit_tolerance_style_value,
 });
 
 macro_rules! impl_retained_grid_list {
@@ -1187,6 +1188,7 @@ impl GridValues {
             grid_column_end_style_value: ComputedStyleValueHandle::empty(),
             grid_row_start_style_value: ComputedStyleValueHandle::empty(),
             grid_row_end_style_value: ComputedStyleValueHandle::empty(),
+            fit_tolerance_style_value: ComputedStyleValueHandle::empty(),
         }
     }
 

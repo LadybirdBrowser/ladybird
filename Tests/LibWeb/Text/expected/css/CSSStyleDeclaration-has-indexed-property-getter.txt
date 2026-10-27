@@ -213,6 +213,7 @@ All properties associated with getComputedStyle(document.body):
     "display",
     "field-sizing",
     "filter",
+    "fit-tolerance",
     "flex-basis",
     "flex-direction",
     "flex-grow",
