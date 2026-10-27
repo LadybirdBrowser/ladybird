@@ -1198,14 +1198,17 @@ fn is_sizing_property(property_id: u16) -> bool {
     )
 }
 
-/// Interpolates two sizes where one is a sizing keyword or a calc-size(), as calc-size() values, or returns None
-/// where they do not interpolate that way.
-/// https://drafts.csswg.org/css-values-5/#interpolate-calc-size
-fn interpolate_calc_size(
+/// NB: Combines two sizes where one is a sizing keyword or a calc-size(), as calc-size() values, or returns None
+///     where they cannot combine that way.
+/// https://drafts.csswg.org/css-sizing-4/#interpolate-calc-size
+fn combine_calc_size(
     context: Option<&FfiAnimationContext>,
     from: &StyleValueData,
     to: &StyleValueData,
-    delta: f32,
+    combine: impl FnOnce(
+        Arc<crate::css::calc::CalcNode>,
+        Arc<crate::css::calc::CalcNode>,
+    ) -> Option<(Arc<crate::css::calc::CalcNode>, crate::css::calc::FfiNumericType)>,
 ) -> Option<StyleValueData> {
     use crate::css::css_enums::keyword;
 
@@ -1236,7 +1239,7 @@ fn interpolate_calc_size(
     if from_kind == to_kind && from_kind != Kind::CalcSize {
         return None;
     }
-    // https://drafts.csswg.org/css-values-5/#valdef-interpolate-size-allow-keywords
+    // https://drafts.csswg.org/css-sizing-4/#valdef-interpolate-size-allow-keywords
     // Sizing values can also be combined if one of them is an <size-keyword> and the other is a <length-percentage>.
     let keyword_and_length =
         [&from_kind, &to_kind].contains(&&Kind::Keyword) && [&from_kind, &to_kind].contains(&&Kind::LengthPercentage);
@@ -1263,9 +1266,7 @@ fn interpolate_calc_size(
     } else {
         return None;
     };
-    // The result's calc-size calculation is the interpolation of the two input calc-size calculations.
-    let (calculation, resolved_type) =
-        crate::css::calc::interpolate_calc_size_calculations(from_calculation, to_calculation, delta)?;
+    let (calculation, resolved_type) = combine(from_calculation, to_calculation)?;
     let calculation = crate::css::calc::length_percentage_calculated_style_value(calculation, resolved_type);
     Some(crate::css::calc_size::calc_size_function(basis, calculation))
 }
@@ -7552,7 +7553,11 @@ pub(crate) fn interpolate_value(
         return discrete_value(context, from, to, delta);
     }
     if is_sizing_property(property_id)
-        && let Some(value) = interpolate_calc_size(context, from, to, delta)
+        && let Some(value) = combine_calc_size(context, from, to, |from, to| {
+            // https://drafts.csswg.org/css-sizing-4/#interpolate-calc-size
+            // If they can be interpolated, the result’s calc-size calculation is the interpolation of the two input calc-size calculations.
+            crate::css::calc::interpolate_calc_size_calculations(from, to, delta)
+        })
     {
         return owned(value);
     }
@@ -7927,6 +7932,14 @@ fn composite_batch_value<'a>(
         composite_offset_rotate(underlying, animated).map_or_else(handled_without_value, owned)
     } else if property_id == crate::css::property_metadata::property_id::TRANSFORM {
         composite_transform_list(context, underlying, animated, operation).map_or_else(handled_without_value, owned)
+    } else if is_sizing_property(property_id) {
+        combine_calc_size(
+            Some(context),
+            underlying,
+            animated,
+            crate::css::calc::add_calc_size_calculations,
+        )
+        .map_or_else(|| composite_scalar_value(underlying, animated, operation), owned)
     } else {
         composite_scalar_value(underlying, animated, operation)
     };
