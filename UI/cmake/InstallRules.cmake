@@ -172,6 +172,23 @@ if (ENABLE_INSTALL_FREEDESKTOP_FILES)
         OUTPUT_VARIABLE GIT_HASH
         OUTPUT_STRIP_TRAILING_WHITESPACE
     )
+    if (LADYBIRD_VERSION STREQUAL "")
+        set(METAINFO_RELEASE_VERSION "${CMAKE_PROJECT_VERSION}-snapshot-${GIT_HASH}")
+        set(METAINFO_RELEASE_TYPE "snapshot")
+        set(METAINFO_RELEASE_DESCRIPTION "Development snapshot.")
+    elseif (LADYBIRD_VERSION MATCHES "\\.alpha$")
+        set(METAINFO_RELEASE_VERSION "${LADYBIRD_VERSION}")
+        set(METAINFO_RELEASE_TYPE "development")
+        set(METAINFO_RELEASE_DESCRIPTION "Alpha release.")
+    elseif (LADYBIRD_VERSION MATCHES "\\.beta$")
+        set(METAINFO_RELEASE_VERSION "${LADYBIRD_VERSION}")
+        set(METAINFO_RELEASE_TYPE "development")
+        set(METAINFO_RELEASE_DESCRIPTION "Beta release.")
+    else()
+        set(METAINFO_RELEASE_VERSION "${LADYBIRD_VERSION}")
+        set(METAINFO_RELEASE_TYPE "stable")
+        set(METAINFO_RELEASE_DESCRIPTION "Stable release.")
+    endif()
     configure_file("${FREEDESKTOP_RESOURCE_DIR}/org.ladybird.Ladybird.metainfo.xml.in" "${CMAKE_CURRENT_BINARY_DIR}/org.ladybird.Ladybird.metainfo.xml" @ONLY)
     install(FILES
         "${FREEDESKTOP_RESOURCE_DIR}/org.ladybird.Ladybird.svg"

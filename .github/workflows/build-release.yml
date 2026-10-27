@@ -67,3 +67,83 @@ jobs:
           path: Build/packages/*.tar.zst
           compression-level: 0
           if-no-files-found: error
+
+  Flatpak:
+    if: github.repository == 'LadybirdBrowser/ladybird'
+    name: Flatpak, ${{ matrix.arch }}
+    runs-on: ${{ fromJSON(matrix.runner_labels) }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: 'x86_64'
+            runner_labels: '["blacksmith-16vcpu-ubuntu-2404"]'
+          - arch: 'aarch64'
+            runner_labels: '["blacksmith-16vcpu-ubuntu-2404-arm"]'
+
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:kde-6.10
+      options: --privileged
+
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+
+    env:
+      BUNDLE: ladybird-${{ inputs.version }}-Linux-${{ matrix.arch }}.flatpak
+
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      # The image bakes the SDK into a read-only layer, and the action always has flatpak-builder update it from
+      # Flathub. An update renames the old deployment into /var/lib/flatpak/.removed, and overlayfs can't rename a
+      # directory that lives in a lower layer (EXDEV), so whenever Flathub carries a newer SDK than the image, the
+      # build dies before compiling anything. Copying the installation up into the writable layer first (about 5 GB,
+      # some 15 seconds) makes that rename an ordinary one, whatever Flathub has published since the image was built.
+      - name: Make the baked-in Flatpak installation writable
+        run: |
+          cp -a /var/lib/flatpak /var/lib/flatpak.rw
+          rm -rf /var/lib/flatpak
+          mv /var/lib/flatpak.rw /var/lib/flatpak
+
+      - name: Set the version in the manifest
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          python3 - <<'SCRIPT'
+          import json
+          import os
+
+          path = "Meta/CMake/flatpak/org.ladybird.Ladybird.json"
+          with open(path) as file:
+              manifest = json.load(file)
+          ladybird = next(module for module in manifest["modules"] if module["name"] == "Ladybird")
+          ladybird["config-opts"].append(f"-DLADYBIRD_VERSION={os.environ['RELEASE_VERSION']}")
+          with open(path, "w") as file:
+              json.dump(manifest, file, indent=4)
+          SCRIPT
+
+      - name: Build
+        uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        with:
+          bundle: ${{ env.BUNDLE }}
+          manifest-path: Meta/CMake/flatpak/org.ladybird.Ladybird.json
+          arch: ${{ matrix.arch }}
+          save-cache: false
+          upload-artifact: false
+
+      - name: Attest
+        uses: actions/attest@v4
+        with:
+          subject-path: ${{ env.BUNDLE }}
+
+      - name: Upload
+        uses: actions/upload-artifact@v7
+        with:
+          name: ladybird-Flatpak-${{ matrix.arch }}
+          path: ${{ env.BUNDLE }}
+          compression-level: 0
+          if-no-files-found: error
