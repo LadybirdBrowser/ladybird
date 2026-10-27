@@ -334,8 +334,9 @@ void Request::did_finish(Badge<RequestClient>, u64 total_size, RequestTimingInfo
         on_finish(total_size, timing_info, effective_network_error);
 }
 
-void Request::did_receive_headers(Badge<RequestClient>, NonnullRefPtr<HTTP::HeaderList> response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase, Optional<Core::ImmutableBytes> javascript_bytecode, Optional<u64> javascript_bytecode_cache_vary_key, CacheState cache_state)
+void Request::did_receive_headers(Badge<RequestClient>, NonnullRefPtr<HTTP::HeaderList> response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase, Optional<Core::ImmutableBytes> javascript_bytecode, Optional<u64> javascript_bytecode_cache_vary_key, CacheState cache_state, ByteString http_version)
 {
+    m_http_version = move(http_version);
     if (on_headers_received)
         on_headers_received(move(response_headers), response_code, reason_phrase, move(javascript_bytecode), javascript_bytecode_cache_vary_key, cache_state);
 }

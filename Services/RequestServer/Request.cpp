@@ -1969,8 +1969,11 @@ size_t Request::on_header_received(void* buffer, size_t size, size_t nmemb, void
         // We need to extract the HTTP reason phrase since it can be a custom value. Fetching infrastructure needs this
         // value for setting the status message.
         auto space_index = header_line.find(' ');
-        if (space_index.has_value())
+        if (space_index.has_value()) {
+            // NB: Observers need the HTTP version before the response body finishes.
+            request.m_http_version = ByteString(header_line.substring_view(0, *space_index)).to_lowercase();
             space_index = header_line.find(' ', *space_index + 1);
+        }
 
         if (space_index.has_value()) {
             if (auto reason_phrase = HTTP::normalize_header_value(header_line.substring_view(*space_index + 1)); !reason_phrase.is_empty()) {
@@ -2258,7 +2261,7 @@ void Request::send_headers_to_client(Optional<IPC::File> javascript_bytecode, u6
     auto cache_state = Requests::CacheState::NotCached;
     if (m_cache_status == CacheStatus::ReadFromCache)
         cache_state = m_cache_entry_was_revalidated ? Requests::CacheState::Validated : Requests::CacheState::Local;
-    m_client->async_headers_became_available(m_request_id, m_response_headers->headers(), m_status_code, m_reason_phrase, move(javascript_bytecode), javascript_bytecode_size, javascript_bytecode_cache_vary_key, cache_state);
+    m_client->async_headers_became_available(m_request_id, m_response_headers->headers(), m_status_code, m_reason_phrase, move(javascript_bytecode), javascript_bytecode_size, javascript_bytecode_cache_vary_key, cache_state, m_http_version);
 }
 
 ErrorOr<void> Request::write_queued_bytes_without_blocking()

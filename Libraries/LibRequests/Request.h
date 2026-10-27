@@ -93,6 +93,7 @@ public:
     u64 id() const { return m_request_id; }
     int request_server_client_id() const;
     int fd() const { return m_fd; }
+    ByteString const& http_version() const { return m_http_version; }
     bool stop();
     void set_body_delivery_paused(bool);
     void resume_body_delivery();
@@ -128,7 +129,7 @@ public:
     Function<void()> on_teardown;
 
     void did_finish(Badge<RequestClient>, u64 total_size, RequestTimingInfo const& timing_info, Optional<NetworkError> const& network_error);
-    void did_receive_headers(Badge<RequestClient>, NonnullRefPtr<HTTP::HeaderList> response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase, Optional<Core::ImmutableBytes> javascript_bytecode, Optional<u64> javascript_bytecode_cache_vary_key, CacheState cache_state);
+    void did_receive_headers(Badge<RequestClient>, NonnullRefPtr<HTTP::HeaderList> response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase, Optional<Core::ImmutableBytes> javascript_bytecode, Optional<u64> javascript_bytecode_cache_vary_key, CacheState cache_state, ByteString http_version);
     void did_transfer(Badge<RequestClient>);
 
     RefPtr<Core::Notifier>& write_notifier(Badge<RequestClient>) { return m_write_notifier; }
@@ -208,6 +209,7 @@ private:
     Optional<NetworkError> m_body_delivery_error;
     bool m_body_delivery_paused { false };
     bool m_finished { false };
+    ByteString m_http_version;
 };
 
 }

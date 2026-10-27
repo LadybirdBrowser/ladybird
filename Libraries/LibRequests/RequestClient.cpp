@@ -243,7 +243,7 @@ void RequestClient::request_finished(u64 request_id, u64 total_size, RequestTimi
         m_requests.remove(request_id);
 }
 
-void RequestClient::headers_became_available(u64 request_id, Vector<HTTP::Header> response_headers, Optional<u32> status_code, Optional<String> reason_phrase, Optional<IPC::File> javascript_bytecode_file, u64 javascript_bytecode_size, Optional<u64> javascript_bytecode_cache_vary_key, CacheState cache_state)
+void RequestClient::headers_became_available(u64 request_id, Vector<HTTP::Header> response_headers, Optional<u32> status_code, Optional<String> reason_phrase, Optional<IPC::File> javascript_bytecode_file, u64 javascript_bytecode_size, Optional<u64> javascript_bytecode_cache_vary_key, CacheState cache_state, ByteString http_version)
 {
     Optional<Core::ImmutableBytes> javascript_bytecode;
     if (javascript_bytecode_file.has_value())
@@ -251,7 +251,7 @@ void RequestClient::headers_became_available(u64 request_id, Vector<HTTP::Header
 
     RefPtr<Request> request = m_requests.get(request_id).value_or(nullptr);
     if (request)
-        request->did_receive_headers({}, HTTP::HeaderList::create(move(response_headers)), status_code, reason_phrase, move(javascript_bytecode), javascript_bytecode_cache_vary_key, cache_state);
+        request->did_receive_headers({}, HTTP::HeaderList::create(move(response_headers)), status_code, reason_phrase, move(javascript_bytecode), javascript_bytecode_cache_vary_key, cache_state, move(http_version));
     else
         warnln("Received headers for non-existent request {}", request_id);
 }
