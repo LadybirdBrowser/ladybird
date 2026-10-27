@@ -528,6 +528,11 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         if parsed_url.path != self.path:
             recorded_request_headers[parsed_url.path] = recorded_request_headers[self.path]
 
+        # The request's body is read before responding, so closing the connection does not reset it.
+        content_length = int(self.headers.get("Content-Length", 0))
+        if content_length:
+            self.rfile.read(content_length)
+
         is_revalidation_request = "If-Modified-Since" in self.headers
         send_not_modified = is_revalidation_request and "X-Ladybird-Respond-With-Not-Modified" in self.headers
 
