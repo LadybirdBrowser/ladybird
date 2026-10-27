@@ -1,0 +1,23 @@
+pointerover on first: buttons=0, pressure=0
+pointerenter on first: buttons=0, pressure=0
+pointermove on first: buttons=0, pressure=0
+pointerdown on first: buttons=1, pressure=0
+pointerup on first: buttons=0, pressure=0
+pointerout on first: buttons=1, pressure=0
+pointerleave on first: buttons=1, pressure=0
+pointerover on second: buttons=1, pressure=0
+pointerenter on second: buttons=1, pressure=0
+pointerdown on second: buttons=1, pressure=0
+pointerup on second: buttons=0, pressure=0
+pointerout on second: buttons=0, pressure=0
+pointerleave on second: buttons=0, pressure=0
+pointerover on first: buttons=0, pressure=0
+pointerenter on first: buttons=0, pressure=0
+pointermove on first: buttons=0, pressure=0
+pointerout on first: buttons=2, pressure=0
+pointerleave on first: buttons=2, pressure=0
+pointerover on second: buttons=2, pressure=0
+pointerenter on second: buttons=2, pressure=0
+pointerdown on second: buttons=2, pressure=0
+pointerup on second: buttons=0, pressure=0
+Synthetic pointer pressure: 0
