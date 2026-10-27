@@ -6,14 +6,8 @@
 
 #include "NumericType.h"
 #include <AK/HashMap.h>
-#include <LibWeb/CSS/Angle.h>
-#include <LibWeb/CSS/Flex.h>
-#include <LibWeb/CSS/Frequency.h>
-#include <LibWeb/CSS/Length.h>
-#include <LibWeb/CSS/Resolution.h>
-#include <LibWeb/CSS/Time.h>
+#include <LibWeb/CSS/Units.h>
 #include <LibWeb/CSS/ValueType.h>
-#include <LibWeb/StyleValueRustFFI.h>
 
 namespace Web::CSS {
 
@@ -163,40 +157,9 @@ Optional<NumericType> NumericType::create_from_unit_map(UnitMap const& unit_map)
     return result;
 }
 
-static StyleValueFFI::FfiNumericType to_ffi_numeric_type(NumericType const& type)
-{
-    StyleValueFFI::FfiNumericType result {};
-    result.valid = true;
-    type.for_each_type_and_exponent([&](auto base_type, i32 exponent) {
-        result.has_exponent_bits |= 1u << to_underlying(base_type);
-        result.exponents[to_underlying(base_type)] = exponent;
-    });
-    if (auto hint = type.percent_hint(); hint.has_value()) {
-        result.has_percent_hint = true;
-        result.percent_hint = to_underlying(*hint);
-    }
-    return result;
-}
-
-static Optional<NumericType> from_ffi_numeric_type(StyleValueFFI::FfiNumericType const& type)
-{
-    if (!type.valid)
-        return {};
-    NumericType result;
-    for (auto i = 0; i < to_underlying(NumericType::BaseType::__Count); ++i) {
-        if (type.has_exponent_bits & (1u << i))
-            result.set_exponent(static_cast<NumericType::BaseType>(i), type.exponents[i]);
-    }
-    if (type.has_percent_hint)
-        result.set_percent_hint(static_cast<NumericType::BaseType>(type.percent_hint));
-    return result;
-}
-
 static Optional<NumericType> operate(StyleValueFFI::FfiNumericTypeOperation operation, NumericType const& first, NumericType const* second = nullptr)
 {
-    auto ffi_first = to_ffi_numeric_type(first);
-    auto ffi_second = second ? to_ffi_numeric_type(*second) : StyleValueFFI::FfiNumericType {};
-    return from_ffi_numeric_type(StyleValueFFI::rust_numeric_type_operate(operation, &ffi_first, second ? &ffi_second : nullptr));
+    return NumericType::from_ffi(StyleValueFFI::rust_numeric_type_operate(operation, &first.to_ffi(), second ? &second->to_ffi() : nullptr));
 }
 
 Optional<NumericType> NumericType::added_to(NumericType const& other) const
@@ -216,10 +179,9 @@ NumericType NumericType::inverted() const
 
 static bool matches(StyleValueFFI::FfiNumericTypeMatch match_kind, NumericType const& type, NumericType::BaseType base_type, Optional<ValueType> percentages_resolve_as)
 {
-    auto ffi_type = to_ffi_numeric_type(type);
     return StyleValueFFI::rust_numeric_type_matches(
         match_kind,
-        &ffi_type,
+        &type.to_ffi(),
         to_underlying(base_type),
         percentages_resolve_as.has_value(),
         percentages_resolve_as.has_value() ? to_underlying(*percentages_resolve_as) : 0);

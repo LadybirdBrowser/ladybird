@@ -453,7 +453,7 @@ impl CalcNumericValue {
     }
 }
 
-/// The FFI mirror of a numeric type, for the parity test on the C++ side.
+/// The FFI form of a numeric type, which the C++ NumericType stores.
 /// NB: The array dimension is the base type count, spelled literally so the
 ///     generated header does not depend on the crate-private constant.
 #[derive(Clone, Copy, PartialEq)]
