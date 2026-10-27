@@ -15,6 +15,7 @@ set(SOURCES
     Gamepad/GamepadSnapshot.cpp
     Gamepad/GamepadStateBuffer.cpp
     HTML/AutoplayPolicy.cpp
+    NotificationsAPI/NotificationData.cpp
     HTML/BroadcastChannelMessage.cpp
     HTML/BrowsingContext.cpp
     HTML/CrossOrigin/OpenerPolicy.cpp

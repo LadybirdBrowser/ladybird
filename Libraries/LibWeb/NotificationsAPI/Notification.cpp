@@ -9,10 +9,16 @@
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/VM.h>
+#include <LibWeb/DOM/Event.h>
+#include <LibWeb/HTML/EventLoop/EventLoop.h>
+#include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
+#include <LibWeb/HTML/Window.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/NotificationsAPI/Notification.h>
 #include <LibWeb/NotificationsAPI/NotificationPermission.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/ServiceWorker/ServiceWorkerGlobalScope.h>
 
 namespace Web::NotificationsAPI {
@@ -22,6 +28,13 @@ GC_DEFINE_ALLOCATOR(Notification);
 Notification::Notification()
     : DOM::EventTarget()
 {
+}
+
+void Notification::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_relevant_global);
+    visitor.visit(m_page);
 }
 
 WebIDL::ExceptionOr<NotificationOptions> Notification::options_from_bindings(JS::VM& vm, Bindings::NotificationOptions const& options)
@@ -66,7 +79,7 @@ WebIDL::ExceptionOr<GC::Ref<Notification>> Notification::create_for_constructor(
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Options `action` is not empty"_utf16 };
 
     auto title_utf8 = title.to_utf8();
-    return create_with_global_scope(*global_scope, title_utf8, TRY(options_from_bindings(relevant_global_object.shape().realm().vm(), options)));
+    return create_with_global_scope(relevant_global_object, *global_scope, title_utf8, TRY(options_from_bindings(relevant_global_object.shape().realm().vm(), options)));
 }
 
 // https://notifications.spec.whatwg.org/#create-a-notification
@@ -217,6 +230,7 @@ WebIDL::ExceptionOr<ConceptNotification> Notification::create_a_notification_wit
 
 // https://notifications.spec.whatwg.org/#constructors
 WebIDL::ExceptionOr<GC::Ref<Notification>> Notification::create_with_global_scope(
+    JS::Object& relevant_global_object,
     HTML::WindowOrWorkerGlobalScopeMixin& global_scope,
     String const& title,
     NotificationOptions options)
@@ -237,16 +251,198 @@ WebIDL::ExceptionOr<GC::Ref<Notification>> Notification::create_with_global_scop
     // 4. Associate this with notification.
     auto this_notification = GC::Heap::the().allocate<Notification>();
     this_notification->m_notification = notification;
+    this_notification->m_relevant_global = relevant_global_object;
+    if (auto* window = HTML::window_from_global_object(relevant_global_object))
+        this_notification->m_page = window->page();
 
-    // FIXME: 5. Run these steps in parallel:
-
-    // FIXME: 1. If the result of getting the notifications permission state is not "granted",
-    // then queue a task to fire an event named error on this, and abort these steps.
-
-    // FIXME: 2. Run the notification show steps for notification.
+    // 5. Run these steps in parallel:
+    // AD-HOC: The steps run from a task on the relevant global instead of in parallel: Showing crosses to the UI
+    //         process asynchronously anyway, and a task keeps the permission read and the event firing on the main
+    //         thread, after the constructor's caller has had its turn to attach event handlers.
+    HTML::queue_global_task(HTML::Task::Source::Unspecified, relevant_global_object, GC::create_function(GC::Heap::the(), [this_notification] {
+        this_notification->run_steps_in_parallel_after_construction();
+    }));
 
     return this_notification;
 }
+
+// Step 5 of https://notifications.spec.whatwg.org/#constructors
+void Notification::run_steps_in_parallel_after_construction()
+{
+    // 1. If the result of getting the notifications permission state is not "granted", then queue a task to fire an
+    //    event named error on this, and abort these steps.
+    if (get_the_notifications_permission_state(HTML::relevant_settings_object(*m_relevant_global)) != PermissionsAPI::PermissionState::Granted) {
+        queue_task_to_fire_event(HTML::EventNames::error);
+        return;
+    }
+
+    // AD-HOC: The spec lets any document or worker show a notification. We refuse two cases until they're supported:
+    //         A worker has no page to route the notification's events through, and a document whose origin differs
+    //         from its top-level origin would have its notification attributed to the top-level site. Both get an
+    //         error event, as if permission had been denied.
+    auto* window = HTML::window_from_global_object(*m_relevant_global);
+    if (!window || !m_page) {
+        queue_task_to_fire_event(HTML::EventNames::error);
+        return;
+    }
+    auto& settings = HTML::relevant_settings_object(*m_relevant_global);
+    if (!settings.top_level_origin.has_value() || !settings.top_level_origin->is_same_origin(settings.origin())) {
+        queue_task_to_fire_event(HTML::EventNames::error);
+        return;
+    }
+
+    // 2. Run the notification show steps for notification.
+    show_steps();
+}
+
+// https://notifications.spec.whatwg.org/#notification-show-steps
+void Notification::show_steps()
+{
+    // FIXME: 1. Run the fetch steps given notification and settings.
+    // FIXME: 2. Wait for any fetches to complete and notification's image resource, icon resource, and badge resource
+    //           to be set (if any), as well as the icon resources for the notification's actions (if any).
+
+    // 3. Let shown be false.
+    // 4. Let oldNotification be the notification in the list of notifications whose tag is not the empty string and is
+    //    notification's tag, and whose origin is same origin with notification's origin, if any, and null otherwise.
+    // 5. If oldNotification is non-null:
+    //    1. Handle close events with oldNotification.
+    //    2. If the notification platform supports replacement:
+    //       1. Replace oldNotification with notification, in the list of notifications.
+    //       2. Set shown to true.
+    //    3. Otherwise, remove oldNotification from the list of notifications.
+    // 6. If shown is false:
+    //    1. Append notification to the list of notifications.
+    //    2. Display notification on the device (e.g., by calling the appropriate notification platform API).
+    // 7. If shown is false or oldNotification is non-null, and notification's renotify preference is true, then
+    //    optionally alert the end user in a user-agent-defined manner (e.g., by playing a sound).
+    // NB: Steps 4, 5 and 7 are the UI process's: It sees every page's notifications, so it finds oldNotification
+    //     across pages, replaces it on the platform, and reports its close back through notification_closed().
+    //     Here, the notification joins this page's part of the list and is sent off for display.
+    m_id = m_page->allocate_notification_id();
+    m_page->register_showing_notification(m_id, *this);
+    m_state = State::Showing;
+    m_page->client().page_did_request_show_notification(m_id, data(), {});
+
+    // 8. If notification is a non-persistent notification, then queue a task to fire an event named show on the
+    //    Notification object representing notification.
+    // NB: Fired from did_show(), once the platform has shown the notification: Until then the display can still fail,
+    //     and a failure fires error instead.
+}
+
+void Notification::did_show()
+{
+    if (m_state != State::Showing)
+        return;
+    queue_task_to_fire_event(HTML::EventNames::show);
+}
+
+void Notification::did_fail_to_show()
+{
+    if (m_state != State::Showing)
+        return;
+    m_state = State::Closed;
+    m_page->unregister_notification(m_id);
+    queue_task_to_fire_event(HTML::EventNames::error);
+}
+
+// Step 2 of the non-persistent branch of https://notifications.spec.whatwg.org/#activating-a-notification
+void Notification::did_click()
+{
+    if (m_state != State::Showing && m_state != State::Closing)
+        return;
+
+    // Otherwise, queue a task to run these steps:
+    HTML::queue_global_task(HTML::Task::Source::UserInteraction, *m_relevant_global, GC::create_function(GC::Heap::the(), [this] {
+        // 1. Let intoFocus be the result of firing an event named click on the Notification object representing
+        //    notification, with its cancelable attribute initialized to true.
+        // NB: The user activated the notification, so the window gets transient activation first: That's what lets
+        //     focus() work from within the event listener, as the spec encourages.
+        if (auto* window = HTML::window_from_global_object(*m_relevant_global))
+            window->set_last_activation_timestamp(HighResolutionTime::current_high_resolution_time(*m_relevant_global));
+        auto into_focus = dispatch_event(DOM::Event::create(*m_relevant_global, HTML::EventNames::click, { .cancelable = true }));
+
+        // 2. If intoFocus is true, then the user agent should bring the notification's related browsing context's
+        //    viewport into focus.
+        if (m_page)
+            m_page->client().page_did_handle_notification_click(m_id, into_focus);
+    }));
+}
+
+// https://notifications.spec.whatwg.org/#dom-notification-close
+void Notification::close()
+{
+    // The close() method steps are to run the close steps for this's notification.
+    close_steps();
+}
+
+// https://notifications.spec.whatwg.org/#close-steps
+void Notification::close_steps()
+{
+    // 1. If the list of notifications does not contain notification, then abort these steps.
+    // NB: A notification that's already on its way out (Closing) is left to the close the UI process is carrying out.
+    if (m_state != State::Showing)
+        return;
+
+    // 2. Handle close events with notification.
+    // 3. Remove notification from the list of notifications.
+    // NB: Both happen in did_close(), once the UI process has withdrawn the notification from the platform.
+    m_state = State::Closing;
+    m_page->client().page_did_request_close_notification(m_id);
+}
+
+// Steps 2 and 3 of https://notifications.spec.whatwg.org/#close-steps
+void Notification::did_close(bool)
+{
+    if (m_state != State::Showing && m_state != State::Closing)
+        return;
+
+    // 2. Handle close events with notification.
+    // https://notifications.spec.whatwg.org/#handle-close-events
+    // 2. If notification is a non-persistent notification, then queue a task to fire an event named close on the
+    //    Notification object representing notification.
+    queue_task_to_fire_event(HTML::EventNames::close);
+
+    // 3. Remove notification from the list of notifications.
+    m_state = State::Closed;
+    m_page->unregister_notification(m_id);
+}
+
+void Notification::queue_task_to_fire_event(Utf16FlyString const& event_name)
+{
+    HTML::queue_global_task(HTML::Task::Source::Unspecified, *m_relevant_global, GC::create_function(GC::Heap::the(), [this, event_name] {
+        dispatch_event(DOM::Event::create(*m_relevant_global, event_name));
+    }));
+}
+
+NotificationData Notification::data() const
+{
+    return NotificationData {
+        .title = Utf16String::from_utf8(m_notification.title),
+        .body = m_notification.body,
+        .tag = m_notification.tag,
+        .language = m_notification.language,
+        .direction = m_notification.direction,
+        .silent = m_notification.silent_preference,
+        .require_interaction = m_notification.require_interaction_preference,
+        .renotify = m_notification.renotify_preference,
+    };
+}
+
+#define __ENUMERATE(attribute_name, event_name)                           \
+    void Notification::set_##attribute_name(WebIDL::CallbackType* value)  \
+    {                                                                     \
+        set_event_handler_attribute(HTML::EventNames::event_name, value); \
+    }                                                                     \
+    WebIDL::CallbackType* Notification::attribute_name()                  \
+    {                                                                     \
+        return event_handler_attribute(HTML::EventNames::event_name);     \
+    }
+__ENUMERATE(onclick, click)
+__ENUMERATE(onshow, show)
+__ENUMERATE(onerror, error)
+__ENUMERATE(onclose, close)
+#undef __ENUMERATE
 
 // https://notifications.spec.whatwg.org/#dom-notification-permission
 Bindings::NotificationPermission Notification::permission()
