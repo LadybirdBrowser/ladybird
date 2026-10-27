@@ -7,6 +7,7 @@
 
 #include "LibJSGCPluginAction.h"
 #include <array>
+#include <clang/AST/IgnoreExpr.h>
 #include <clang/ASTMatchers/ASTMatchFinder.h>
 #include <clang/ASTMatchers/ASTMatchers.h>
 #include <clang/Basic/SourceManager.h>
@@ -376,6 +377,8 @@ bool LibJSGCVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl* record)
         return true;
 
     validate_engine_subclass_is_in_libjs(*record);
+
+    remember_polymorphic_subclass(*record);
 
     auto& diag_engine = m_context.getDiagnostics();
     std::vector<clang::FieldDecl const*> fields_that_need_visiting;
@@ -1074,6 +1077,7 @@ bool LibJSGCVisitor::VisitClassTemplateDecl(clang::ClassTemplateDecl* class_temp
         if (specialization->getSpecializationKind() != clang::TSK_ImplicitInstantiation || !specialization->isCompleteDefinition())
             continue;
         validate_engine_subclass_is_in_libjs(*specialization);
+        remember_polymorphic_subclass(*specialization);
         if (!record_inherits_from_cell(*specialization))
             validate_gc_members_of_polymorphic_record(*specialization);
     }
@@ -1225,6 +1229,17 @@ void LibJSGCVisitor::validate_gc_members_of_polymorphic_record(clang::CXXRecordD
     }
 }
 
+void LibJSGCVisitor::remember_polymorphic_subclass(clang::CXXRecordDecl const& record)
+{
+    if (record.isDependentContext() || !record.isPolymorphic())
+        return;
+    record.forallBases([&](clang::CXXRecordDecl const* base) {
+        if (base->isPolymorphic())
+            m_polymorphic_subclasses[base->getCanonicalDecl()].push_back(&record);
+        return true;
+    });
+}
+
 static bool is_container_with_heap_storage(std::string const& template_name)
 {
     static std::unordered_set<std::string> const template_names {
@@ -1265,11 +1280,45 @@ static bool is_value_wrapper(std::string const& template_name)
     return template_names.contains(template_name);
 }
 
+static bool is_owning_pointer(std::string const& template_name)
+{
+    return template_name == "AK::NonnullOwnPtr" || template_name == "AK::NonnullRefPtr" || template_name == "AK::OwnPtr" || template_name == "AK::RefPtr";
+}
+
+static std::optional<clang::QualType> find_container_with_unscanned_gc_pointers(clang::QualType, std::set<clang::CXXRecordDecl const*>& visited, PolymorphicSubclasses const* subclasses_of_owned_types = nullptr);
+
+static clang::FieldDecl const* find_owned_member_with_gc_pointers(clang::QualType owned_type, std::set<clang::CXXRecordDecl const*>& visited, PolymorphicSubclasses const& subclasses_of_owned_types)
+{
+    auto const* record = owned_type->getAsCXXRecordDecl();
+    if (!record || !record->getDefinition())
+        return nullptr;
+    record = record->getDefinition();
+    if (record_is_in_ak_or_gc(*record) || record_inherits_from_cell(*record) || !visited.insert(record).second)
+        return nullptr;
+
+    std::vector<clang::CXXRecordDecl const*> records { record };
+    record->forallBases([&](clang::CXXRecordDecl const* base) {
+        records.push_back(base);
+        return true;
+    });
+    if (auto subclasses = subclasses_of_owned_types.find(record->getCanonicalDecl()); subclasses != subclasses_of_owned_types.end())
+        records.insert(records.end(), subclasses->second.begin(), subclasses->second.end());
+
+    for (auto const* candidate : records) {
+        for (auto const* field : candidate->fields()) {
+            std::set<clang::CXXRecordDecl const*> visited_by_field;
+            if (type_holds_gc_pointer(field->getType(), visited_by_field) || find_container_with_unscanned_gc_pointers(field->getType(), visited, &subclasses_of_owned_types))
+                return field;
+        }
+    }
+    return nullptr;
+}
+
 // Conservative stack scanning sees the values stored in a stack object, but not the heap storage of a container in it.
-static std::optional<clang::QualType> find_container_with_unscanned_gc_pointers(clang::QualType type, std::set<clang::CXXRecordDecl const*>& visited)
+static std::optional<clang::QualType> find_container_with_unscanned_gc_pointers(clang::QualType type, std::set<clang::CXXRecordDecl const*>& visited, PolymorphicSubclasses const* subclasses_of_owned_types)
 {
     if (auto const* array = type->getAsArrayTypeUnsafe())
-        return find_container_with_unscanned_gc_pointers(array->getElementType(), visited);
+        return find_container_with_unscanned_gc_pointers(array->getElementType(), visited, subclasses_of_owned_types);
 
     if (type->isPointerType() || type->isReferenceType())
         return {};
@@ -1280,12 +1329,24 @@ static std::optional<clang::QualType> find_container_with_unscanned_gc_pointers(
                 std::set<clang::CXXRecordDecl const*> visited_by_element;
                 if (type_holds_gc_pointer(type_argument, visited_by_element))
                     return type;
+                if (subclasses_of_owned_types && find_container_with_unscanned_gc_pointers(type_argument, visited, subclasses_of_owned_types))
+                    return type;
+            }
+            return {};
+        }
+        if (subclasses_of_owned_types && is_owning_pointer(instance->name)) {
+            for (auto const& type_argument : instance->type_arguments) {
+                std::set<clang::CXXRecordDecl const*> visited_by_object;
+                if (type_holds_gc_pointer(type_argument, visited_by_object) || find_owned_member_with_gc_pointers(type_argument, visited, *subclasses_of_owned_types))
+                    return type;
+                if (find_container_with_unscanned_gc_pointers(type_argument, visited, subclasses_of_owned_types))
+                    return type;
             }
             return {};
         }
         if (is_value_wrapper(instance->name) || is_container_scanned_by_gc(instance->name)) {
             for (auto const& type_argument : instance->type_arguments) {
-                if (auto container = find_container_with_unscanned_gc_pointers(type_argument, visited))
+                if (auto container = find_container_with_unscanned_gc_pointers(type_argument, visited, subclasses_of_owned_types))
                     return container;
             }
             return {};
@@ -1300,11 +1361,11 @@ static std::optional<clang::QualType> find_container_with_unscanned_gc_pointers(
     if (record_is_in_ak_or_gc(*record) || record_inherits_from_cell(*record))
         return {};
     for (auto const& base : record->bases()) {
-        if (auto container = find_container_with_unscanned_gc_pointers(base.getType(), visited))
+        if (auto container = find_container_with_unscanned_gc_pointers(base.getType(), visited, subclasses_of_owned_types))
             return container;
     }
     for (auto const* field : record->fields()) {
-        if (auto container = find_container_with_unscanned_gc_pointers(field->getType(), visited))
+        if (auto container = find_container_with_unscanned_gc_pointers(field->getType(), visited, subclasses_of_owned_types))
             return container;
     }
     return {};
@@ -1391,6 +1452,102 @@ bool LibJSGCVisitor::VisitLambdaExpr(clang::LambdaExpr* lambda)
     return true;
 }
 
+static bool creates_gc_function(clang::FunctionDecl const& function)
+{
+    if (function.getQualifiedNameAsString() == "GC::create_function")
+        return true;
+    auto const* method = llvm::dyn_cast<clang::CXXMethodDecl>(&function);
+    if (!method || !method->getDeclName().isIdentifier() || method->getName() != "create")
+        return false;
+    auto const* specialization = llvm::dyn_cast<clang::ClassTemplateSpecializationDecl>(method->getParent());
+    return specialization && specialization->getSpecializedTemplate()->getQualifiedNameAsString() == "GC::Function";
+}
+
+static bool is_call_to_move(clang::CallExpr const& call)
+{
+    auto const* callee = call.getDirectCallee();
+    return callee && call.getNumArgs() == 1 && callee->getDeclName().isIdentifier() && callee->getName() == "move";
+}
+
+static clang::LambdaExpr const* lambda_passed_by(clang::Expr const* argument)
+{
+    while (argument) {
+        argument = clang::IgnoreExprNodes(argument, clang::IgnoreImplicitSingleStep, clang::IgnoreParensSingleStep);
+        if (auto const* lambda = llvm::dyn_cast<clang::LambdaExpr>(argument))
+            return lambda;
+        if (auto const* cast = llvm::dyn_cast<clang::CXXFunctionalCastExpr>(argument)) {
+            argument = cast->getSubExpr();
+        } else if (auto const* construct = llvm::dyn_cast<clang::CXXConstructExpr>(argument); construct && construct->getNumArgs() == 1) {
+            argument = construct->getArg(0);
+        } else if (auto const* call = llvm::dyn_cast<clang::CallExpr>(argument); call && is_call_to_move(*call)) {
+            argument = call->getArg(0);
+        } else if (auto const* reference = llvm::dyn_cast<clang::DeclRefExpr>(argument)) {
+            auto const* variable = llvm::dyn_cast<clang::VarDecl>(reference->getDecl());
+            if (!variable || !variable->hasLocalStorage() || llvm::isa<clang::ParmVarDecl>(variable))
+                return nullptr;
+            argument = variable->getInit();
+        } else {
+            return nullptr;
+        }
+    }
+    return nullptr;
+}
+
+bool LibJSGCVisitor::VisitCallExpr(clang::CallExpr* call)
+{
+    auto const* callee = call->getDirectCallee();
+    if (!callee || !creates_gc_function(*callee))
+        return true;
+    for (auto const* argument : call->arguments()) {
+        if (auto const* lambda = lambda_passed_by(argument))
+            m_lambdas_in_gc_functions.push_back(lambda);
+    }
+    return true;
+}
+
+void LibJSGCVisitor::validate_gc_function_captures()
+{
+    auto& diag_engine = m_context.getDiagnostics();
+    auto diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error, "Captured %0 keeps GC pointers in heap memory that GC::Function does not scan; hold them in a GC::Root, a GC::RootVector or a GC::Conservative container instead");
+    auto note_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Note, "Member %0 contains GC pointers");
+
+    for (auto const* lambda : m_lambdas_in_gc_functions) {
+        for (auto const& capture : lambda->captures()) {
+            if (!capture.capturesVariable() || capture.getCaptureKind() != clang::LCK_ByCopy)
+                continue;
+            auto const* variable = capture.getCapturedVar();
+            auto type = variable->getType().getNonReferenceType().getUnqualifiedType();
+            // An init-capture of move(x) has the type typename std::remove_reference<T&>::type.
+            while (!llvm::isa<clang::TemplateSpecializationType>(type.getTypePtr())) {
+                auto desugared_type = type.getSingleStepDesugaredType(m_context);
+                if (desugared_type == type)
+                    break;
+                type = desugared_type;
+            }
+
+            // An init-capture is a variable of its own, whose containers the check of objects on the stack reports.
+            if (auto const* init_capture = llvm::dyn_cast<clang::VarDecl>(variable); init_capture && init_capture->isInitCapture()) {
+                std::set<clang::CXXRecordDecl const*> visited_on_stack;
+                if (find_container_with_unscanned_gc_pointers(type, visited_on_stack))
+                    continue;
+            }
+
+            std::set<clang::CXXRecordDecl const*> visited;
+            auto storage = find_container_with_unscanned_gc_pointers(type, visited, &m_polymorphic_subclasses);
+            if (!storage)
+                continue;
+            diag_engine.Report(capture.getLocation(), diag_id) << *storage;
+
+            auto instance = template_instance_of_type(*storage);
+            if (!instance || !is_owning_pointer(instance->name) || instance->type_arguments.empty())
+                continue;
+            std::set<clang::CXXRecordDecl const*> visited_by_object;
+            if (auto const* member = find_owned_member_with_gc_pointers(instance->type_arguments[0], visited_by_object, m_polymorphic_subclasses))
+                diag_engine.Report(member->getLocation(), note_id) << member->getName();
+        }
+    }
+}
+
 LibJSGCASTConsumer::LibJSGCASTConsumer(clang::CompilerInstance& compiler, bool detect_invalid_function_members)
     : m_compiler(compiler)
     , m_detect_invalid_function_members(detect_invalid_function_members)
@@ -1403,6 +1560,7 @@ void LibJSGCASTConsumer::HandleTranslationUnit(clang::ASTContext& context)
 {
     LibJSGCVisitor visitor { context, m_macro_map, m_detect_invalid_function_members };
     visitor.TraverseDecl(context.getTranslationUnitDecl());
+    visitor.validate_gc_function_captures();
 }
 
 char const* LibJSCellMacro::type_name(Type type)
