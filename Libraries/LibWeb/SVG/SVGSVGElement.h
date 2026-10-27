@@ -131,6 +131,8 @@ private:
     mutable Optional<Optional<CSS::Length>> m_cached_width_attribute_length;
     mutable Optional<Optional<CSS::Length>> m_cached_height_attribute_length;
 
+    mutable GC::Ptr<Geometry::DOMPointReadOnly> m_current_translate;
+
     GC::Ptr<SVGViewElement> m_active_view_element;
 
     GC::Ptr<SMILTimeContainer> m_time_container;

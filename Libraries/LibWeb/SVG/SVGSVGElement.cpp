@@ -43,6 +43,7 @@ void SVGSVGElement::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
     SVGFitToViewBox::visit_edges(visitor);
+    visitor.visit(m_current_translate);
     visitor.visit(m_active_view_element);
     visitor.visit(m_time_container);
 }
@@ -213,10 +214,13 @@ void SVGSVGElement::set_current_scale(float)
     dbgln("(STUBBED) SVGSVGElement::set_current_scale(). Called on: {}", debug_description());
 }
 
+// https://svgwg.org/svg2-draft/struct.html#__svg__SVGSVGElement__currentTranslate
+// On getting currentTranslate, the SVGSVGElement object's current translate point object is returned.
 GC::Ref<Geometry::DOMPointReadOnly> SVGSVGElement::current_translate() const
 {
-    dbgln("(STUBBED) SVGSVGElement::current_translate(). Called on: {}", debug_description());
-    return Geometry::DOMPointReadOnly::create();
+    if (!m_current_translate)
+        m_current_translate = Geometry::DOMPointReadOnly::create();
+    return *m_current_translate;
 }
 
 GC::Ref<DOM::NodeList> SVGSVGElement::get_intersection_list(GC::Ref<Geometry::DOMRectReadOnly>, GC::Ptr<SVGElement>) const
