@@ -1610,6 +1610,16 @@ QFrame#ScreenshotSelectionInstructions QPushButton:focus {{
     border: 2px solid {6};
     padding: 4px 11px;
 }}
+
+QFrame#ScreenshotSelectionInstructions QPushButton#ScreenshotSelectionCancelButton {{
+    border-color: transparent;
+    padding: 5px;
+}}
+
+QFrame#ScreenshotSelectionInstructions QPushButton#ScreenshotSelectionCancelButton:focus {{
+    border-color: {6};
+    padding: 4px;
+}}
 )",
         text, surface, border, control_border, hover_surface, pressed_surface, accent);
 }

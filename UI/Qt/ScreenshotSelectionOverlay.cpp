@@ -6,6 +6,7 @@
 
 #include <AK/GenericShorthands.h>
 #include <UI/Qt/ChromeStyle.h>
+#include <UI/Qt/Icon.h>
 #include <UI/Qt/Popover.h>
 #include <UI/Qt/ScreenshotSelectionOverlay.h>
 
@@ -82,32 +83,24 @@ ScreenshotSelectionOverlay::ScreenshotSelectionOverlay(QImage frame, QWidget* pa
     layout->addWidget(new InstructionsLabel(tr("Drag to select the part of the page that shows the problem."), instructions), 1);
     layout->addSpacing(INSTRUCTIONS_TEXT_SPACING - INSTRUCTIONS_BUTTON_SPACING);
 
-    auto* whole_frame_button = new QPushButton(tr("Use Visible Page"), instructions);
-    whole_frame_button->setObjectName("ScreenshotSelectionWholeFrameButton");
-    whole_frame_button->setFocusPolicy(Qt::TabFocus);
-    QObject::connect(whole_frame_button, &QPushButton::clicked, this, [this] { use_whole_frame(); });
-    layout->addWidget(whole_frame_button);
-
-    auto* skip_button = new QPushButton(tr("No Screenshot"), instructions);
-    skip_button->setObjectName("ScreenshotSelectionSkipButton");
-    skip_button->setFocusPolicy(Qt::TabFocus);
-    QObject::connect(skip_button, &QPushButton::clicked, this, [this] { skip(); });
-    layout->addWidget(skip_button);
-
-    auto* cancel_button = new QPushButton(tr("Cancel"), instructions);
-    cancel_button->setObjectName("ScreenshotSelectionCancelButton");
-    cancel_button->setFocusPolicy(Qt::TabFocus);
-    QObject::connect(cancel_button, &QPushButton::clicked, this, [this] { dismiss(); });
-    layout->addWidget(cancel_button);
-
-    m_buttons = { whole_frame_button, skip_button, cancel_button };
-
-    // The macOS style lays out a button by the bezel it would draw, which sits higher in the button than this style
-    // sheet's border does. Laying the buttons out by their whole rect keeps them centered in the card.
-    for (auto* button : m_buttons) {
-        button->setAttribute(Qt::WA_LayoutUsesWidgetRect);
+    auto add_button = [&](QString const& text, char const* object_name, auto on_click) {
+        auto* button = new QPushButton(text, instructions);
+        button->setObjectName(object_name);
+        button->setFocusPolicy(Qt::TabFocus);
         button->setCursor(Qt::ArrowCursor);
-    }
+        // The macOS style lays out a button by the bezel it would draw, which sits higher in the button than this style
+        // sheet's border does. Laying the buttons out by their whole rect keeps them centered in the card.
+        button->setAttribute(Qt::WA_LayoutUsesWidgetRect);
+        QObject::connect(button, &QPushButton::clicked, this, AK::move(on_click));
+        layout->addWidget(button);
+        m_buttons.append(button);
+        return button;
+    };
+    add_button(tr("Use Visible Page"), "ScreenshotSelectionWholeFrameButton", [this] { use_whole_frame(); });
+    add_button(tr("Continue Without Screenshot"), "ScreenshotSelectionSkipButton", [this] { skip(); });
+    m_close_button = add_button({}, "ScreenshotSelectionCancelButton", [this] { dismiss(); });
+    m_close_button->setToolTip(tr("Close"));
+    m_close_button->setAccessibleName(tr("Close"));
 
     m_instructions = instructions;
     update_chrome_style();
@@ -361,6 +354,7 @@ void ScreenshotSelectionOverlay::changeEvent(QEvent* event)
 void ScreenshotSelectionOverlay::update_chrome_style()
 {
     m_instructions->setStyleSheet(ChromeStyle::screenshot_selection_style_sheet(palette()));
+    m_close_button->setIcon(create_chrome_icon(ChromeIcon::Close, palette()));
 }
 
 }
