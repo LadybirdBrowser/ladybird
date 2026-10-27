@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(`maxActions: ${Notification.maxActions}`);
+
+        const attempt = (label, options) => {
+            try {
+                const notification = new Notification("title", options);
+                println(`${label}: created, actions frozen: ${Object.isFrozen(notification.actions)}`);
+            } catch (e) {
+                println(`${label}: ${e.name}`);
+            }
+        };
+        attempt("silent with vibrate", { silent: true, vibrate: [100] });
+        attempt("silent alone", { silent: true });
+        attempt("vibrate alone", { vibrate: [100] });
+        attempt("renotify without tag", { renotify: true });
+        attempt("one action", { actions: [{ action: "a", title: "A" }] });
+    });
+</script>

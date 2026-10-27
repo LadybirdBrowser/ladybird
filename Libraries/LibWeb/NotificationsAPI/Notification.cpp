@@ -46,6 +46,7 @@ WebIDL::ExceptionOr<NotificationOptions> Notification::options_from_bindings(JS:
         .image = options.image,
         .icon = options.icon,
         .badge = options.badge,
+        .vibrate = options.vibrate,
         .timestamp = options.timestamp,
         .renotify = options.renotify,
         .silent = options.silent,
@@ -79,7 +80,9 @@ WebIDL::ExceptionOr<ConceptNotification> Notification::create_a_notification(
     // 1. Let notification be a new notification.
     ConceptNotification notification;
 
-    // FIXME: 2. If options["silent"] is true and options["vibrate"] exists, then throw a TypeError.
+    // 2. If options["silent"] is true and options["vibrate"] exists, then throw a TypeError.
+    if (options.silent == true && options.vibrate.has_value())
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "options[\"vibrate\"] cannot be set when options[\"silent\"] is true."_utf16 };
 
     // 3. If options["renotify"] is true and options["tag"] is the empty string, then throw a TypeError.
     if (options.renotify && options.tag.is_empty())
@@ -158,7 +161,8 @@ WebIDL::ExceptionOr<ConceptNotification> Notification::create_a_notification(
 
     // 21. For each entry in options["actions"], up to the maximum number of actions supported (skip any excess entries):
     for (auto const& entry : options.actions) {
-        // FIXME: stop the loop at the max number of actions supported
+        if (notification.actions.size() >= max_actions())
+            break;
 
         // 1. Let action be a new notification action.
         ConceptNotification::Action action;
@@ -297,7 +301,8 @@ Vector<NotificationAction> Notification::actions() const
         frozen_actions.append(action);
     }
 
-    // FIXME: 3. Return the result of create a frozen array from frozenActions.
+    // 3. Return the result of create a frozen array from frozenActions.
+    // NB: The bindings freeze the array they build from this sequence.
     return frozen_actions;
 }
 
