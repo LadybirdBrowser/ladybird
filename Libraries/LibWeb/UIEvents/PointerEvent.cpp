@@ -56,6 +56,7 @@ WebIDL::ExceptionOr<GC::Ref<PointerEvent>> PointerEvent::create_from_platform_ev
     event_options.pointer_id = mouse_pointer_id;
     event_options.is_primary = true;
     event_options.pointer_type = PointerTypes::Mouse;
+    event_options.pressure = event_name != EventNames::pointerup && buttons ? ACTIVE_PRESSURE_DEFAULT_IN_ACTIVE_BUTTON_STATE : 0;
     if (movement.has_value()) {
         event_options.movement_x = movement.value().x().to_double();
         event_options.movement_y = movement.value().y().to_double();
@@ -85,6 +86,7 @@ WebIDL::ExceptionOr<GC::Ref<PointerEvent>> PointerEvent::create_from_platform_ev
     event_options.pointer_id = mouse_pointer_id;
     event_options.is_primary = true;
     event_options.pointer_type = PointerTypes::Mouse;
+    event_options.pressure = event_name != EventNames::pointerup && buttons ? ACTIVE_PRESSURE_DEFAULT_IN_ACTIVE_BUTTON_STATE : 0;
     if (movement.has_value()) {
         event_options.movement_x = movement->x().to_double();
         event_options.movement_y = movement->y().to_double();
