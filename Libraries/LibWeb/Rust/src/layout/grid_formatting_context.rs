@@ -2444,7 +2444,12 @@ impl<'pass> GridFormattingContext<'pass> {
         let before = contributions(self);
         self.use_row_sizes_for_column_percentages = true;
         if contributions(self) == before {
-            self.use_row_sizes_for_column_percentages = false;
+            // NB: The item's percentage block size can still change its used inline size through its aspect ratio,
+            //     even when its intrinsic contributions do not change the column tracks.
+            for &index in &candidates {
+                self.resolve_metrics_of_item(index, Axis::Column);
+                self.resolve_size_of_item(index, Axis::Column);
+            }
             for (&item, &(inline, block)) in self.items.iter().zip(&item_sizes_were_definite) {
                 let used = self.used(item);
                 used.has_definite_inline_size.set(inline);
