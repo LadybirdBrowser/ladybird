@@ -995,6 +995,8 @@ pub(crate) struct ChildLayoutResult {
     /// For a box with a preferred aspect ratio, the block size of its laid out content.
     pub content_block_size_for_aspect_ratio_minimum: Option<CssPixels>,
     pub depends_on_percentage_block_size: bool,
+    /// For an absolutely positioned box, the used insets its run gave it.
+    pub out_of_flow_root_used_insets: Option<run_records::UsedInsets>,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -2327,6 +2329,7 @@ fn lay_out_run_root_and_contents<'pass>(
                 abspos_inputs,
                 Some(result.automatic_content_block_size),
             );
+            result.out_of_flow_root_used_insets = Some(run.records.used_insets_of(run.box_));
         }
         ParticipationInParentFormattingContext::Item => {
             if run_reads_content_block_size_adopted_after_it(fc_type, &input)

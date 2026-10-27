@@ -2160,8 +2160,7 @@ impl AbsposEngine<'_> {
 
         let used = self.used(node);
         used.set_content_inline_size(auto_px_value(used_inline_size));
-        used.inset_left.set(left);
-        used.inset_right.set(right);
+        self.set_used_inline_insets(node, left, right);
         used.margin_left.set(auto_px_value(margin_left));
         used.margin_right.set(auto_px_value(margin_right));
     }
@@ -2213,11 +2212,22 @@ impl AbsposEngine<'_> {
         );
 
         let used = self.used(node);
-        used.inset_left.set(solution.start);
-        used.inset_right.set(solution.end);
+        self.set_used_inline_insets(node, solution.start, solution.end);
         used.margin_left.set(solution.margin_start);
         used.margin_right.set(solution.margin_end);
         used.set_content_inline_size(inline_size);
+    }
+
+    fn set_used_inline_insets(&self, node: Node, left: CssPixels, right: CssPixels) {
+        let insets = self.records.used_insets_of(node);
+        self.records
+            .set_used_insets(node, run_records::UsedInsets { left, right, ..insets });
+    }
+
+    fn set_used_block_insets(&self, node: Node, top: CssPixels, bottom: CssPixels) {
+        let insets = self.records.used_insets_of(node);
+        self.records
+            .set_used_insets(node, run_records::UsedInsets { top, bottom, ..insets });
     }
 
     fn compute_inline_size(
@@ -2617,8 +2627,7 @@ impl AbsposEngine<'_> {
         if !style.height().is_intrinsic_sizing_constraint() {
             used.has_definite_block_size.set(true);
         }
-        used.inset_top.set(auto_px_value(solution.top));
-        used.inset_bottom.set(auto_px_value(solution.bottom));
+        self.set_used_block_insets(node, auto_px_value(solution.top), auto_px_value(solution.bottom));
         // NOTE: solve_non_replaced_block_once() already resolved these against the bases the C++ layout code used:
         //       the insets against the containing block's block size, but the margins against its inline size.
         used.margin_top.set(auto_px_value(solution.margin_top));
@@ -2721,8 +2730,7 @@ impl AbsposEngine<'_> {
         if !style.height().is_intrinsic_sizing_constraint() {
             used.has_definite_block_size.set(true);
         }
-        used.inset_top.set(solution.start);
-        used.inset_bottom.set(solution.end);
+        self.set_used_block_insets(node, solution.start, solution.end);
         used.margin_top.set(solution.margin_start);
         used.margin_bottom.set(solution.margin_end);
     }
@@ -2950,8 +2958,7 @@ impl<'pass> AbsposEngine<'pass> {
                     margin_box_size,
                     inline_start_is_low_side,
                 );
-                used.inset_left.set(inset);
-                used.inset_right.set(inline_size - inset - margin_box_size);
+                self.set_used_inline_insets(node, inset, inline_size - inset - margin_box_size);
             }
             if inputs.containing_block_info.block_alignment.is_none()
                 && !style.inset_top().is_auto()
@@ -2970,8 +2977,7 @@ impl<'pass> AbsposEngine<'pass> {
                     margin_box_size,
                     true,
                 );
-                used.inset_top.set(inset);
-                used.inset_bottom.set(block_size - inset - margin_box_size);
+                self.set_used_block_insets(node, inset, block_size - inset - margin_box_size);
             }
             if let Some(inline_alignment) = inputs.containing_block_info.inline_alignment
                 && let Some((start_inset, end_inset)) = alignment_insets(
@@ -2998,9 +3004,11 @@ impl<'pass> AbsposEngine<'pass> {
                     _ => None,
                 };
                 if let Some(inset) = inset {
-                    used.inset_left.set(inset);
-                    used.inset_right
-                        .set(containing_block_size.inline_size - inset - margin_box_size);
+                    self.set_used_inline_insets(
+                        node,
+                        inset,
+                        containing_block_size.inline_size - inset - margin_box_size,
+                    );
                 }
             }
             if let Some(block_alignment) = inputs.containing_block_info.block_alignment
@@ -3026,9 +3034,7 @@ impl<'pass> AbsposEngine<'pass> {
                     _ => None,
                 };
                 if let Some(inset) = inset {
-                    used.inset_top.set(inset);
-                    used.inset_bottom
-                        .set(containing_block_size.block_size - inset - margin_box_size);
+                    self.set_used_block_insets(node, inset, containing_block_size.block_size - inset - margin_box_size);
                 }
             }
         }
@@ -3115,17 +3121,19 @@ impl<'pass> AbsposEngine<'pass> {
             false,
         );
         outcome.report_percentage_block_size_dependency_of(run, node);
-        match outcome {
-            ChildLayoutOutcome::Created(_) | ChildLayoutOutcome::Skipped { .. } => {}
+        let mut used_insets = match outcome {
+            ChildLayoutOutcome::Created(result) => result
+                .out_of_flow_root_used_insets
+                .expect("the run of an absolutely positioned box gives it used insets"),
+            ChildLayoutOutcome::Skipped { .. } => self.records.used_insets_of(node),
             ChildLayoutOutcome::ReenterCurrent => {
                 unreachable!("abspos child with contents did not establish a formatting context")
             }
-        }
+        };
 
         let static_offset = self.static_offset(node, inputs.static_position_rect);
         let used = self.used(node);
         let collapsed = used.uses_collapsing_borders_model.get();
-        let mut used_insets = self.records.used_insets_of(node);
         let mut used_offset = geometry::LogicalOffset {
             inline_offset: if inputs.containing_block_info.inline_axis_mode
                 == abspos_inputs::AbsposAxisMode::StaticPosition
@@ -3164,8 +3172,8 @@ impl<'pass> AbsposEngine<'pass> {
                 used_insets.top = style.inset_top().to_px(containing_block_size.block_size);
                 used_insets.bottom = style.inset_bottom().to_px(containing_block_size.block_size);
             }
-            self.records.set_used_insets(node, used_insets);
         }
+        self.records.set_used_insets(node, used_insets);
         if self.fragments.is_some() {
             self.used(node).rare_data_mut().abspos_layout_inputs = Some(inputs);
         }
@@ -3436,7 +3444,7 @@ impl<'pass> AbsposEngine<'pass> {
         // 3. Let el rect be the size and position of abspos's margin box, and cb rect be the size and position of
         //    abspos's inset-modified containing block, when laid out with adjusted styles.
         let (available_space, constraints) = out_of_flow_root_space(inputs);
-        let used = formatting_context::run_root_without_parent_fragments(
+        let laid_out = formatting_context::run_root_without_parent_fragments(
             self.callbacks,
             node,
             used_values::RootInputCells::capture(&used_values::create_used_values(
@@ -3449,9 +3457,12 @@ impl<'pass> AbsposEngine<'pass> {
                 constraints,
                 ParticipationInParentFormattingContext::AbsolutelyPositioned(inputs),
             ),
-        )
-        .root_cells_left_by_run
-        .materialize_record();
+        );
+        let used = laid_out.root_cells_left_by_run.materialize_record();
+        let used_insets = laid_out
+            .result
+            .out_of_flow_root_used_insets
+            .expect("the run of an absolutely positioned box gives it used insets");
         let style = self
             .style(node)
             .with_resolved_insets(inputs.resolved_anchor_insets.as_ref());
@@ -3502,7 +3513,7 @@ impl<'pass> AbsposEngine<'pass> {
                 inputs.containing_block_info.inline_axis_mode,
                 static_offset.inline_offset,
                 containing_block.offset.inline_offset,
-                used.inset_left.get(),
+                used_insets.left,
             ),
             margin_box_size.inline_size,
         ) && axis_is_contained(
@@ -3513,7 +3524,7 @@ impl<'pass> AbsposEngine<'pass> {
                 inputs.containing_block_info.block_axis_mode,
                 static_offset.block_offset,
                 containing_block.offset.block_offset,
-                used.inset_top.get(),
+                used_insets.top,
             ),
             margin_box_size.block_size,
         )
