@@ -772,7 +772,7 @@ pub(super) fn content_sizes_of_math(
         ParticipationInParentFormattingContext::Root,
     );
     let result = formatting_context::run_root_without_parent_fragments(callbacks, node, scope.root(), input);
-    let size = result.automatic_content_inline_size;
+    let size = scope.root().content_inline_size.get();
     let observes_percentage_inline_basis = scope.enter(callbacks, |run| {
         run.sizing().measurement_root_observes_percentage_inline_basis(node)
     });

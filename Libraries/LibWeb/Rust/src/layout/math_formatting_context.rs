@@ -1422,7 +1422,6 @@ pub(super) fn layout_operator(run: &FormattingContextRun<'_>, input: &LayoutInpu
     if sizing_context::is_plain_auto(context.style(operator).width()) {
         used.content_inline_size.set(inline_size);
     }
-    result.automatic_content_inline_size = inline_size;
     result.automatic_content_block_size = ascent + descent;
     result.baselines = DerivedBaselines {
         inline_alignment: None,
@@ -2245,6 +2244,10 @@ impl<'pass> MathFormattingContext<'pass> {
             _ => false,
         };
         let content_box_is_known = root_used.has_definite_inline_size();
+        // NB: A MathML box measured for its content inline sizes takes the inline size of its math content.
+        if !content_box_is_known {
+            root_used.set_content_inline_size(content.inline_size);
+        }
         let is_rtl = root_style.direction() == direction::RTL;
         let mut math_content_line_left = CssPixels::default();
         if content_box_is_known {
@@ -2604,10 +2607,6 @@ impl<'pass> MathFormattingContext<'pass> {
 
     pub(super) fn derived_baselines_of_root_box(&self) -> DerivedBaselines {
         self.derived_baselines_of_root_box
-    }
-
-    pub(super) fn automatic_content_inline_size(&self) -> CssPixels {
-        self.content.inline_size
     }
 
     pub(super) fn automatic_content_block_size(&self) -> CssPixels {

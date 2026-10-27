@@ -969,10 +969,11 @@ pub struct BorderData {
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct ChildLayoutResult {
-    pub automatic_content_inline_size: CssPixels,
     pub automatic_content_block_size: CssPixels,
     pub automatic_line_clamp_max_lines: Option<usize>,
     pub baselines: DerivedBaselines,
+    /// For a table wrapper, the inline size its table box gives it.
+    pub table_wrapper_content_inline_size: Option<CssPixels>,
     pub table_box_in_wrapper_border_box_block_size: Option<CssPixels>,
     /// For a box with a preferred aspect ratio, the block size of its laid out content.
     pub content_block_size_for_aspect_ratio_minimum: Option<CssPixels>,
@@ -1700,11 +1701,8 @@ fn in_flow_children_margin_box_block_extent(
 
 fn finalize_block_level_root(run: &FormattingContextRun, input: &LayoutInput, body_result: &ChildLayoutResult) {
     let node = run.box_;
-    let facts = NodeFacts::new(&run.callbacks, node);
-    if facts.is_table_wrapper() {
-        run.records
-            .used_values(node)
-            .set_content_inline_size(body_result.automatic_content_inline_size);
+    if let Some(inline_size) = body_result.table_wrapper_content_inline_size {
+        run.records.used_values(node).set_content_inline_size(inline_size);
     }
     let style = StyleValues::for_node(&run.callbacks, node);
     if !style.display().is_table_inside() && input.sizing.forced_content_block_size.is_none() {
@@ -1726,10 +1724,8 @@ fn finalize_block_level_root(run: &FormattingContextRun, input: &LayoutInput, bo
 
 fn finalize_float_root(run: &FormattingContextRun, input: &LayoutInput, body_result: &ChildLayoutResult) {
     let node = run.box_;
-    if NodeFacts::new(&run.callbacks, node).is_table_wrapper() {
-        run.records
-            .used_values(node)
-            .set_content_inline_size(body_result.automatic_content_inline_size);
+    if let Some(inline_size) = body_result.table_wrapper_content_inline_size {
+        run.records.used_values(node).set_content_inline_size(inline_size);
     }
     run.sizing().resolve_used_block_size_if_treated_as_auto(
         node,
@@ -2127,10 +2123,10 @@ fn execute_formatting_context_run(
                     FormattingContextImplementation::Block(context) => {
                         context.run(body_run, body_input);
                         let mut result = ChildLayoutResult {
-                            automatic_content_inline_size: context.automatic_content_inline_size(),
                             automatic_content_block_size: context.automatic_content_block_size(),
                             automatic_line_clamp_max_lines: context.automatic_line_clamp_max_lines(),
                             baselines: context.derived_baselines_of_root_box(),
+                            table_wrapper_content_inline_size: context.table_wrapper_content_inline_size(),
                             table_box_in_wrapper_border_box_block_size: context
                                 .table_box_in_wrapper_border_box_block_size(),
                             ..ChildLayoutResult::default()
@@ -2149,7 +2145,6 @@ fn execute_formatting_context_run(
                         let baselines = context.derived_baselines_of_root_box();
                         store_derived_baselines(run.records.used_values(run.box_), baselines);
                         ChildLayoutResult {
-                            automatic_content_inline_size: context.automatic_content_inline_size(),
                             automatic_content_block_size: context.automatic_content_block_size(),
                             baselines,
                             ..ChildLayoutResult::default()
@@ -2160,7 +2155,6 @@ fn execute_formatting_context_run(
                         let baselines = context.derived_baselines_of_root_box();
                         store_derived_baselines(run.records.used_values(run.box_), baselines);
                         ChildLayoutResult {
-                            automatic_content_inline_size: context.automatic_content_inline_size(),
                             automatic_content_block_size: context.automatic_content_block_size(),
                             baselines,
                             ..ChildLayoutResult::default()
@@ -2171,7 +2165,6 @@ fn execute_formatting_context_run(
                         let baselines = context.derived_baselines_of_root_box();
                         store_derived_baselines(run.records.used_values(run.box_), baselines);
                         ChildLayoutResult {
-                            automatic_content_inline_size: context.automatic_content_inline_size(),
                             automatic_content_block_size: context.automatic_content_block_size,
                             baselines,
                             ..ChildLayoutResult::default()
@@ -2186,7 +2179,6 @@ fn execute_formatting_context_run(
                         let baselines = context.derived_baselines_of_root_box();
                         store_derived_baselines(run.records.used_values(run.box_), baselines);
                         ChildLayoutResult {
-                            automatic_content_inline_size: context.automatic_content_inline_size(),
                             automatic_content_block_size: context.automatic_content_block_size(),
                             baselines,
                             ..ChildLayoutResult::default()
@@ -2220,17 +2212,11 @@ fn execute_formatting_context_run(
                 // effects:
                 // 1. The intrinsic sizes of the size containment box are determined as if the element had no content, following
                 //    the same logic as when sizing as if empty.
-                result.automatic_content_inline_size = explicit_intrinsic_inner_inline_size(&containment_facts);
                 result.automatic_content_block_size = if style.contain_intrinsic_height_has_length() {
                     CssPixels::nearest_value_for(style.contain_intrinsic_height_px())
                 } else {
                     CssPixels::default()
                 };
-            } else if lays_out_own_content && containment_facts.node_has_inline_size_containment() {
-                // https://drafts.csswg.org/css-contain-2/#containment-inline-size
-                // "This means the inline-axis intrinsic sizes of the principal box are determined as if the element had
-                //  no content."
-                result.automatic_content_inline_size = explicit_intrinsic_inner_inline_size(&containment_facts);
             }
 
             if containment_facts.has_preferred_aspect_ratio() {
@@ -2507,7 +2493,11 @@ fn leave_own_frame(
         } else if used.orthogonal_flow_baselines().is_some() {
             used.rare_data_mut().orthogonal_flow_baselines = None;
         }
-        result.automatic_content_inline_size = result.automatic_content_block_size;
+        // NB: The inline size of a table wrapper in its parent's frame is the block size of its content in its own
+        //     frame.
+        if result.table_wrapper_content_inline_size.is_some() {
+            result.table_wrapper_content_inline_size = Some(result.automatic_content_block_size);
+        }
         result.automatic_content_block_size = content_inline_size;
         result.baselines = DerivedBaselines::default();
         result.content_block_size_for_aspect_ratio_minimum = None;

@@ -974,8 +974,6 @@ pub(crate) struct InlineFormattingContext<'context> {
     pub(crate) parent: &'context block_formatting_context::BlockFormattingContext<'context>,
     pub(crate) containing_used_values: &'context UsedValues,
     pub(crate) fragmented_inlines_in_pre_order: Vec<Node>,
-    pub(crate) automatic_content_inline_size: CssPixels,
-    pub(crate) automatic_content_block_size: CssPixels,
     pub(crate) current_line_start: Cell<fragmentation::LinePosition>,
     inline_boxes_continued_from_previous_fragment: Vec<Node>,
     inline_boxes_continued_in_next_fragment: RefCell<Vec<Node>>,
@@ -1000,8 +998,6 @@ impl<'context> InlineFormattingContext<'context> {
             parent,
             containing_used_values,
             fragmented_inlines_in_pre_order: Vec::new(),
-            automatic_content_inline_size: CssPixels::default(),
-            automatic_content_block_size: CssPixels::default(),
             current_line_start: Cell::new(fragmentation::LinePosition::default()),
             inline_boxes_continued_from_previous_fragment: Vec::new(),
             inline_boxes_continued_in_next_fragment: RefCell::new(Vec::new()),
@@ -2189,22 +2185,6 @@ impl<'context> InlineFormattingContext<'context> {
             self.compute_inline_box_pieces();
             self.fold_inline_ancestor_relative_insets_into_line_data();
         }
-        self.automatic_content_block_size = {
-            let data = self.line_data();
-            let lines = &data.line_boxes;
-            if lines.iter().any(|line| line.has_block_level_box) {
-                lines
-                    .last()
-                    .map_or(CssPixels::default(), |line| line.physical_vertical_end())
-            } else {
-                lines
-                    .iter()
-                    .fold(CssPixels::default(), |sum, line| sum + line.physical_vertical_extent())
-            }
-        };
-        self.automatic_content_inline_size = self
-            .parent
-            .greatest_child_inline_size_including_floats(self.containing_block);
         let baselines = formatting_context::derive_baselines(self.run.records, &self.callbacks, self.containing_block);
         if self.containing_block == self.parent.root_box() {
             self.parent.record_derived_baselines_of_root_box(baselines);

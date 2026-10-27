@@ -4911,10 +4911,6 @@ impl<'pass> GridFormattingContext<'pass> {
         self.derived_baselines_of_root_box
     }
 
-    pub(crate) fn automatic_content_inline_size(&self) -> CssPixels {
-        self.container_used().content_inline_size.get()
-    }
-
     pub(crate) fn automatic_content_block_size(&self) -> CssPixels {
         self.automatic_content_block_size
     }

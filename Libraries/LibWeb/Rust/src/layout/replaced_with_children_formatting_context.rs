@@ -77,7 +77,6 @@ pub(super) fn layout_replaced_with_children(
     formatting_context::place_child(run, wrapper, used_values::FfiCssPixelPoint::default(), None);
 
     formatting_context::ChildLayoutResult {
-        automatic_content_inline_size: content_inline_size,
         automatic_content_block_size: wrapper_result.automatic_content_block_size,
         baselines: formatting_context::DerivedBaselines::default(),
         ..formatting_context::ChildLayoutResult::default()
