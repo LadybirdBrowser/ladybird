@@ -83,8 +83,8 @@ impl LengthPercentageRef<'_> {
         CssPixels::nearest_value_for(value * ratio)
     }
 
-    /// Matches Percentage::as_fraction(); the multiplication order is
-    /// observable for some f64 inputs.
+    /// Multiplies by 0.01 like the C++ percentage readers; the multiplication
+    /// order is observable for some f64 inputs.
     pub(crate) fn as_fraction(self) -> f64 {
         let StyleValueData::Percentage { value } = self.value else {
             unreachable!("computed length-percentage read as a percentage holds another style value");

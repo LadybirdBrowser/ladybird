@@ -2410,7 +2410,7 @@ static RefPtr<CSS::StyleValue const> parse_current_dimension_value(double value,
 
     // 2. If the code point at position within input is U+0025 (%), then return value as a percentage.
     if (code_unit_at(input, position) == '%')
-        return CSS::PercentageStyleValue::create(CSS::Percentage(value));
+        return CSS::PercentageStyleValue::create(value);
 
     // 3. Return value as a length.
     return CSS::LengthStyleValue::create_px(value);
@@ -2499,7 +2499,7 @@ RefPtr<CSS::StyleValue const> parse_nonzero_dimension_value(Utf16View string)
     // 4. If value is zero, return an error.
     if (value->is_length() && value->as_length().raw_value() == 0)
         return nullptr;
-    if (value->is_percentage() && value->as_percentage().percentage().value() == 0)
+    if (value->is_percentage() && value->as_percentage().raw_value() == 0)
         return nullptr;
 
     // 5. If value is a percentage, return value as a percentage.

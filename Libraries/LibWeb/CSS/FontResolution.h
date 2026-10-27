@@ -35,7 +35,7 @@ struct AK::Traits<Web::CSS::ComputedFontCacheKey> : public AK::DefaultTraits<Web
             hash = pair_int_hash(hash, pair_int_hash(to_underlying(key.font_size_adjust->metric), Traits<double>::hash(key.font_size_adjust->value)));
         hash = pair_int_hash(hash, key.font_slope);
         hash = pair_int_hash(hash, Traits<double>::hash(key.font_weight));
-        hash = pair_int_hash(hash, Traits<double>::hash(key.font_width.value()));
+        hash = pair_int_hash(hash, Traits<double>::hash(key.font_width));
         // NB: Which feature values a request names is enough to tell most requests apart, and equality compares them.
         for (auto const& value : key.feature_values)
             hash = pair_int_hash(hash, value ? 1 : 0);

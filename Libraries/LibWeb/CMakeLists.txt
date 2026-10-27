@@ -168,7 +168,6 @@ set(SOURCES
     CSS/MediaList.cpp
     CSS/MediaQueryList.cpp
     CSS/MediaQueryListEvent.cpp
-    CSS/Number.cpp
     CSS/NumericType.cpp
     CSS/Parser/ErrorReporter.cpp
     CSS/Parser/Helpers.cpp
@@ -178,7 +177,6 @@ set(SOURCES
     CSS/Parser/RustSyntaxParsing.cpp
     CSS/Parser/RuleContext.cpp
     CSS/Parser/SelectorParsing.cpp
-    CSS/Percentage.cpp
     CSS/ResolvedTransform.cpp
     CSS/Screen.cpp
     CSS/ScreenOrientation.cpp

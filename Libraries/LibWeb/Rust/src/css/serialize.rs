@@ -2263,7 +2263,7 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
 }
 
 /// Serializes one numeric calc leaf using the `CalcNumericValue::leaf_parts` encoding:
-/// 0 = number (with the Number::Type in `unit`), 1 = angle, 2 = flex, 3 = frequency,
+/// 0 = number (with the number type in `unit`), 1 = angle, 2 = flex, 3 = frequency,
 /// 4 = length, 5 = percentage, 6 = resolution, 7 = time. Mirrors the piece consumer in
 /// CalculatedStyleValue.cpp.
 fn serialize_numeric_leaf(sink: &mut TextSink, numeric_kind: u8, value: f64, unit: u8, mode: SerializationMode) {
@@ -2313,8 +2313,8 @@ fn serialize_numeric_leaf(sink: &mut TextSink, numeric_kind: u8, value: f64, uni
     }
 }
 
-/// Port of Web::CSS::Number::serialize; `number_type` is the Number::Type discriminant
-/// (0 = number, 1 = integer with explicit sign, 2 = integer).
+/// Serializes a number; `number_type` is 0 = number, 1 = integer with explicit sign,
+/// 2 = integer.
 fn serialize_number_with_type(sink: &mut TextSink, value: f64, number_type: u8, mode: SerializationMode) {
     if number_type == 1 {
         if mode.preserves_numeric_value() && value >= 0.0 && !value.is_sign_negative() {

@@ -631,7 +631,7 @@ double number_from_style_value(NonnullRefPtr<StyleValue const> const& style_valu
     if (style_value->is_percentage()) {
         VERIFY(percentage_basis.has_value());
 
-        return percentage_basis.value() * style_value->as_percentage().percentage().as_fraction();
+        return percentage_basis.value() * (style_value->as_percentage().raw_value() * 0.01);
     }
 
     VERIFY_NOT_REACHED();

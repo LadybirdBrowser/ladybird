@@ -136,7 +136,7 @@ private:
     FontResolutionFeatureValues font_resolution_feature_values() const;
     int math_depth() const;
     double font_weight() const;
-    Percentage font_width() const;
+    double font_width() const;
     int font_slope() const;
     ComputedValuesFFI::FfiComputedStyleMetadata& metadata()
     {

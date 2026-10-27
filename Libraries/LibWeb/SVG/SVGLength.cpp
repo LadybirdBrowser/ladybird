@@ -186,7 +186,7 @@ WebIDL::ExceptionOr<float> SVGLength::value() const
     if (!length_resolution_context.has_value()) {
         if (auto const* scalar = value.get_pointer<SVGLengthValue>()) {
             if (scalar->kind() == SVGLengthValue::Kind::Percentage)
-                return scalar->to_percentage().as_fraction() * viewport_size;
+                return scalar->value() * 0.01 * viewport_size;
 
             // NB: Font-relative and container-relative lengths are not computationally independent; viewport relative
             //     lengths are but we still can't resolve them without an element.
@@ -227,7 +227,7 @@ WebIDL::ExceptionOr<float> SVGLength::value() const
 
     if (auto const* scalar = value.get_pointer<SVGLengthValue>()) {
         if (scalar->kind() == SVGLengthValue::Kind::Percentage)
-            return scalar->to_percentage().as_fraction() * viewport_size;
+            return scalar->value() * 0.01 * viewport_size;
 
         auto absolutized_length = CSS::LengthStyleValue::create(scalar->value(), scalar->unit())->absolutized({ .length_resolution_context = *length_resolution_context, .abstract_element = DOM::AbstractElement { *m_element } });
         return CSS::resolve_absolute_length_in_px(*absolutized_length);

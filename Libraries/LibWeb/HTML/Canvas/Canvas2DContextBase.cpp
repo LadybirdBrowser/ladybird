@@ -489,13 +489,13 @@ static bool resolve_font(CanvasType& canvas_element, Utf16View font, CanvasFontS
     //     context. They select the fonts of the text, so they are applied when the font is resolved.
     // AD-HOC: fontStretch and fontVariantCaps only apply when they are not "normal", so that the font-stretch and
     //         font-variant-caps components of the font still apply when they are.
-    auto computed_font_width_percentage = computed_font_width->as_percentage().percentage();
+    auto computed_font_width_percentage = computed_font_width->as_percentage().raw_value();
     static constexpr Array<CSS::Keyword, 3> font_kerning_keywords { CSS::Keyword::Auto, CSS::Keyword::Normal, CSS::Keyword::None };
     if (font_selection.font_kerning != 0 && font_selection.font_kerning < font_kerning_keywords.size())
         feature_values[to_underlying(CSS::FontResolutionFeatureInput::FontKerning)] = CSS::KeywordStyleValue::create(font_kerning_keywords[font_selection.font_kerning]);
     static constexpr Array<double, 9> font_stretch_percentages { 50, 62.5, 75, 87.5, 100, 112.5, 125, 150, 200 };
     if (font_selection.font_stretch != 4 && font_selection.font_stretch < font_stretch_percentages.size())
-        computed_font_width_percentage = CSS::Percentage { font_stretch_percentages[font_selection.font_stretch] };
+        computed_font_width_percentage = font_stretch_percentages[font_selection.font_stretch];
     static constexpr Array<CSS::Keyword, 7> font_variant_caps_keywords { CSS::Keyword::Normal, CSS::Keyword::SmallCaps, CSS::Keyword::AllSmallCaps, CSS::Keyword::PetiteCaps, CSS::Keyword::AllPetiteCaps, CSS::Keyword::Unicase, CSS::Keyword::TitlingCaps };
     if (font_selection.font_variant_caps != 0 && font_selection.font_variant_caps < font_variant_caps_keywords.size())
         feature_values[to_underlying(CSS::FontResolutionFeatureInput::FontVariantCaps)] = CSS::KeywordStyleValue::create(font_variant_caps_keywords[font_selection.font_variant_caps]);

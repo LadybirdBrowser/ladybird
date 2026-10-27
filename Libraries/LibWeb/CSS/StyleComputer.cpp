@@ -2276,12 +2276,12 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_width(NonnullRefPtr<
     if (result.handled) {
         if (result.unchanged)
             return absolutized_value;
-        return PercentageStyleValue::create(Percentage(result.value));
+        return PercentageStyleValue::create(result.value);
     }
 
     // AD-HOC: We support calculated percentages as well
     VERIFY(absolutized_value->is_calculated());
-    return PercentageStyleValue::create(Percentage(resolve_numeric_style_value(*absolutized_value, StyleValueFFI::CanonicalNumericType::Percentage).value()));
+    return PercentageStyleValue::create(resolve_numeric_style_value(*absolutized_value, StyleValueFFI::CanonicalNumericType::Percentage).value());
 }
 
 }

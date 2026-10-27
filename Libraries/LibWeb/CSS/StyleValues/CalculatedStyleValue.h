@@ -9,10 +9,8 @@
 
 #pragma once
 
-#include <LibWeb/CSS/Number.h>
 #include <LibWeb/CSS/NumericRange.h>
 #include <LibWeb/CSS/NumericType.h>
-#include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {

@@ -29,8 +29,8 @@ pub(crate) fn time_to_milliseconds(value: f64, unit: u8) -> f64 {
 /// opaque codes the style value data uses.
 #[derive(Clone, Copy, PartialEq)]
 pub enum CalcNumericValue {
-    /// The number type mirrors the C++ Number::Type discriminants
-    /// (number, integer with explicit sign, integer), pinned C++-side.
+    /// The number type: 0 = number, 1 = integer with explicit sign,
+    /// 2 = integer.
     Number {
         value: f64,
         number_type: u8,

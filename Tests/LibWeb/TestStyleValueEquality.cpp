@@ -977,13 +977,13 @@ TEST_CASE(rust_expands_omitted_transform_arguments_before_interpolation)
         { TransformationStyleValue::create(
             PropertyID::Transform,
             TransformFunction::Translate,
-            { PercentageStyleValue::create(Percentage { 50 }) }) },
+            { PercentageStyleValue::create(50) }) },
         StyleValueList::Separator::Space);
     auto to = StyleValueList::create(
         { TransformationStyleValue::create(
             PropertyID::Transform,
             TransformFunction::Translate,
-            { PercentageStyleValue::create(Percentage { 100 }), PercentageStyleValue::create(Percentage { 50 }) }) },
+            { PercentageStyleValue::create(100), PercentageStyleValue::create(50) }) },
         StyleValueList::Separator::Space);
 
     auto result = StyleValueFFI::rust_interpolate_scalar_style_value(
@@ -1012,9 +1012,9 @@ TEST_CASE(rust_interpolates_mixed_length_percentage_transform_arguments)
     };
     auto from = make_transform(
         LengthStyleValue::create_px(480),
-        PercentageStyleValue::create(Percentage { 80 }));
+        PercentageStyleValue::create(80));
     auto to = make_transform(
-        PercentageStyleValue::create(Percentage { 240 }),
+        PercentageStyleValue::create(240),
         LengthStyleValue::create_px(400));
 
     auto result = StyleValueFFI::rust_interpolate_scalar_style_value(
@@ -1149,7 +1149,7 @@ TEST_CASE(rust_interpolates_individual_translate_values)
     auto to = TransformationStyleValue::create(
         PropertyID::Translate,
         TransformFunction::Translate,
-        { PercentageStyleValue::create(Percentage { 240 }), PercentageStyleValue::create(Percentage { 160 }) });
+        { PercentageStyleValue::create(240), PercentageStyleValue::create(160) });
 
     auto result = StyleValueFFI::rust_interpolate_scalar_style_value(
         nullptr,

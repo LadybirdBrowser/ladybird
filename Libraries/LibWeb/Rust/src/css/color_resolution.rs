@@ -1850,8 +1850,8 @@ fn extract_channels_and_missing_slots(
     Some((context, missing_slots))
 }
 
-/// Port of Percentage::from_style_value(). The C++ version VERIFYs on the remaining cases;
-/// here they surface as None and invalidate the surrounding color.
+/// A percentage, or a calculation that resolves to one. Anything else surfaces as None and
+/// invalidates the surrounding color.
 pub(crate) fn percentage_from_style_value(value: &StyleValueData) -> Option<f64> {
     match value {
         StyleValueData::Percentage { value } => Some(*value),

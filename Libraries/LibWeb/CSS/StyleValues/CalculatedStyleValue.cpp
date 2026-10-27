@@ -19,7 +19,6 @@
 #include <LibWeb/CSS/CSSNumericArray.h>
 #include <LibWeb/CSS/CSSUnitValue.h>
 #include <LibWeb/CSS/Enums.h>
-#include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
@@ -90,11 +89,6 @@ CalculationContext CalculationContext::for_property(PropertyNameAndID const& pro
         .accepted_ranges_by_type = property_accepted_ranges_by_value_type(property.id()),
     };
 }
-
-// The Number::Type discriminants cross the boundary in the numeric leaf's unit slot; pin them.
-static_assert(to_underlying(Number::Type::Number) == 0);
-static_assert(to_underlying(Number::Type::IntegerWithExplicitSign) == 1);
-static_assert(to_underlying(Number::Type::Integer) == 2);
 
 // The C++ ValueType discriminants mirrored in the Rust range lookup; pin them.
 static_assert(to_underlying(ValueType::Angle) == 2);

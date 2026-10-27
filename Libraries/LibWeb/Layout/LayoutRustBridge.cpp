@@ -426,7 +426,7 @@ static RustFFI::FfiMathLength math_length_attribute(DOM::Element const& element,
     if (!style_value)
         return {};
     if (style_value->is_percentage())
-        return { to_underlying(MathLengthUnit::Percentage), static_cast<float>(style_value->as_percentage().percentage().value()) };
+        return { to_underlying(MathLengthUnit::Percentage), static_cast<float>(style_value->as_percentage().raw_value()) };
     if (!style_value->is_length())
         return {};
     auto const& length = style_value->as_length();

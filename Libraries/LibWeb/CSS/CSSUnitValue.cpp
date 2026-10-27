@@ -292,6 +292,24 @@ Optional<SumValue> CSSUnitValue::create_a_sum_value() const
     return SumValue { SumValueItem { value, { { unit, 1 } } } };
 }
 
+static i32 round_to_nearest_integer(double value)
+{
+    // https://drafts.csswg.org/css-values-4/#css-round-to-the-nearest-integer
+    // Unless otherwise specified, in the CSS specifications rounding to the nearest integer requires rounding in
+    // the direction of +∞ when the fractional portion is exactly 0.5.
+    if (isnan(value))
+        return 0;
+
+    if (isinf(value)) {
+        if (value > 0)
+            return AK::NumericLimits<i32>::max();
+
+        return AK::NumericLimits<i32>::min();
+    }
+
+    return AK::clamp_to<i32>(floor(value + 0.5));
+}
+
 // https://drafts.css-houdini.org/css-typed-om-1/#create-an-internal-representation
 WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSUnitValue::create_an_internal_representation(PropertyNameAndID const& property, PerformTypeCheck perform_type_check) const
 {

@@ -19,7 +19,7 @@ Optional<SVGLengthValue> SVGLengthValue::from_style_value(CSS::StyleValue const&
         return number(style_value.as_number().number());
 
     if (style_value.is_percentage())
-        return percentage(style_value.as_percentage().percentage().value());
+        return percentage(style_value.as_percentage().raw_value());
 
     if (style_value.is_length()) {
         auto const& css_length = style_value.as_length();
@@ -43,8 +43,12 @@ Utf16String SVGLengthValue::to_utf16_string() const
         builder.append(CSS::to_string(m_unit));
         return builder.to_string();
     }
-    case Kind::Percentage:
-        return to_percentage().to_utf16_string();
+    case Kind::Percentage: {
+        Utf16StringBuilder builder;
+        CSS::serialize_a_number(builder, m_value);
+        builder.append_ascii('%');
+        return builder.to_string();
+    }
     }
 
     VERIFY_NOT_REACHED();

@@ -514,7 +514,7 @@ ComputedValuesFFI::FfiFontGroupBuildInputs ComputedStyleWorkingSet::font_group_b
         .first_available_font = &first_available_font,
         .font_cascade_list = font_list.ptr(),
         .font_weight = font_weight(),
-        .font_width = font_width().value(),
+        .font_width = font_width(),
         .math_shift = to_underlying(math_shift),
         .math_style = to_underlying(math_style),
         .math_depth = math_depth(),
@@ -604,9 +604,9 @@ double ComputedStyleWorkingSet::font_weight() const
     return StyleValueFFI::rust_style_value_computed_number(effective_property_data(PropertyID::FontWeight));
 }
 
-Percentage ComputedStyleWorkingSet::font_width() const
+double ComputedStyleWorkingSet::font_width() const
 {
-    return Percentage { StyleValueFFI::rust_style_value_computed_percentage(effective_property_data(PropertyID::FontWidth)) };
+    return StyleValueFFI::rust_style_value_computed_percentage(effective_property_data(PropertyID::FontWidth));
 }
 
 int ComputedStyleWorkingSet::font_slope() const
