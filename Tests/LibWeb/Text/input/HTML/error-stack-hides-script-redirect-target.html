@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const token = "redirect-target-token";
+
+        const target = new URL(await server.createEcho("GET", "/script-redirect-target", {
+            status: 200,
+            headers: { "Content-Type": "text/javascript" },
+            body: `report("script"); setTimeout("report('setTimeout() string')");`,
+        }));
+        target.hostname = "127.0.0.1";
+        target.search = token;
+        const start = await server.createEcho("GET", "/script-redirect-start", {
+            status: 302,
+            headers: { "Location": target.href },
+        });
+
+        function describe(stack) {
+            return stack.includes(token) ? "exposes the redirect target" : "hides the redirect target";
+        }
+
+        function testImportScripts() {
+            const workerSource = `
+                self.report = kind => {
+                    if (kind === "script")
+                        postMessage(new Error().stack);
+                };
+                importScripts(${JSON.stringify(start)});
+            `;
+            const worker = new Worker(URL.createObjectURL(new Blob([workerSource], { type: "text/javascript" })));
+            worker.onmessage = event => {
+                println(`importScripts(): ${describe(event.data)}`);
+                done();
+            };
+        }
+
+        window.report = kind => {
+            println(`${kind === "script" ? "<script src>" : kind}: ${describe(new Error().stack)}`);
+            if (kind !== "script")
+                testImportScripts();
+        };
+
+        const script = document.createElement("script");
+        script.src = start;
+        document.body.appendChild(script);
+    });
+</script>

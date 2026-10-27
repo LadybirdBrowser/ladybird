@@ -901,7 +901,7 @@ WebIDL::ExceptionOr<i32> WindowOrWorkerGlobalScopeMixin::run_timer_initializatio
                 }
 
                 // 6. Let script be the result of creating a classic script given handler, settings object, base URL, and fetch options.
-                auto filename = base_url.to_byte_string();
+                auto filename = initiating_script ? initiating_script->filename() : base_url.to_byte_string();
                 auto script = ClassicScript::create(move(filename), source, settings_object, move(base_url));
                 script->set_fetch_options(move(options));
 
