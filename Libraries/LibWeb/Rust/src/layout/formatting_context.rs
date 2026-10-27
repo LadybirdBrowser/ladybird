@@ -751,10 +751,10 @@ fn box_baseline_for_purpose(
 }
 
 /// First and last baseline sets derived for one box, relative to its content
-/// box. A formatting context derives its own root box's baselines during its
-/// run and records them on the instance; run_formatting_context, the side
-/// that ran the context, stores them into the root's used values. Interior
-/// boxes keep the derive-and-store shortcut.
+/// box. Laying out a box's contents returns them. A formatting context records
+/// its own root box's baselines on the instance, and the side that ran the
+/// context stores them into the root's used values; the layout of an interior
+/// box stores them into that box's used values.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct DerivedBaselines {
     pub(crate) first: Option<CssPixels>,

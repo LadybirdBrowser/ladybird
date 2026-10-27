@@ -2175,7 +2175,7 @@ impl<'context> InlineFormattingContext<'context> {
         self.parent.append_floating_boxes(floating_boxes_after_clamp_point);
     }
 
-    pub(crate) fn run(&mut self) {
+    pub(crate) fn run(&mut self) -> DerivedBaselines {
         assert!(self.facts(self.containing_block).children_are_inline());
         let run = self.run;
         let iterator = match run.fragmentainer.as_deref() {
@@ -2189,12 +2189,7 @@ impl<'context> InlineFormattingContext<'context> {
             self.compute_inline_box_pieces();
             self.fold_inline_ancestor_relative_insets_into_line_data();
         }
-        let baselines = formatting_context::derive_baselines(self.run.records, &self.callbacks, self.containing_block);
-        if self.containing_block == self.parent.root_box() {
-            self.parent.record_derived_baselines_of_root_box(baselines);
-        } else {
-            formatting_context::store_derived_baselines(self.used(self.containing_block), baselines);
-        }
+        formatting_context::derive_baselines(self.run.records, &self.callbacks, self.containing_block)
     }
 
     fn compute_inline_box_pieces(&mut self) {
