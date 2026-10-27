@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use super::node_facts::ReplacedContentFacts;
 use super::*;
 
 /// The one question a layout pass still asks the document while it runs: what the container-relative
@@ -173,7 +174,7 @@ impl<'arena> LayoutPass<'arena> {
         self.arena.style_payloads(node)
     }
 
-    pub(crate) fn replaced_content_facts(&self, node: Node) -> Option<FfiReplacedContentFacts> {
+    pub(crate) fn replaced_content_facts(&self, node: Node) -> Option<ReplacedContentFacts> {
         self.arena.replaced_content_facts(node)
     }
 

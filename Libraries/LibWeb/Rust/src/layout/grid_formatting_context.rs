@@ -3793,8 +3793,10 @@ impl<'pass> GridFormattingContext<'pass> {
         let preferred = self.item_preferred_size(item, axis);
         let alignment = self.item_alignment(item, axis);
         let has_natural = axis.select(
-            facts.has_auto_content_width() || facts.has_auto_content_height() && facts.has_preferred_aspect_ratio(),
-            facts.has_auto_content_height() || facts.has_auto_content_width() && facts.has_preferred_aspect_ratio(),
+            facts.auto_content_size().width.is_some()
+                || facts.auto_content_size().height.is_some() && facts.has_preferred_aspect_ratio(),
+            facts.auto_content_size().height.is_some()
+                || facts.auto_content_size().width.is_some() && facts.has_preferred_aspect_ratio(),
         );
         // https://drafts.csswg.org/css-grid-1/#grid-item-sizing
         // If the grid item has no preferred aspect ratio, and no natural size in the relevant axis (if it is a replaced

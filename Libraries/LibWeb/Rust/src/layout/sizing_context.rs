@@ -313,17 +313,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
     }
 
     fn auto_content_size(&self, node: Node) -> formatting_context::ReplacedIntrinsicSize {
-        let facts = self.facts(node);
-        formatting_context::ReplacedIntrinsicSize {
-            width: facts.has_auto_content_width().then_some(facts.auto_content_width()),
-            height: facts.has_auto_content_height().then_some(facts.auto_content_height()),
-            aspect_ratio: facts
-                .has_auto_content_aspect_ratio()
-                .then_some(formatting_context::PixelFraction {
-                    numerator: facts.auto_content_aspect_ratio_numerator(),
-                    denominator: facts.auto_content_aspect_ratio_denominator(),
-                }),
-        }
+        self.facts(node).auto_content_size()
     }
 
     fn intrinsic_size_for_replaced_sizing(&self, node: Node) -> formatting_context::ReplacedIntrinsicSize {
@@ -341,12 +331,8 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         // An input element whose type attribute is in one of the above states is an element with default preferred size,
         // and user agents are expected to apply the 'field-sizing' CSS property to the element.
         formatting_context::ReplacedIntrinsicSize {
-            width: facts
-                .has_default_preferred_width()
-                .then_some(facts.default_preferred_width()),
-            height: facts
-                .has_default_preferred_height()
-                .then_some(facts.default_preferred_height()),
+            width: facts.default_preferred_width(),
+            height: facts.default_preferred_height(),
             aspect_ratio: None,
         }
     }
@@ -1013,8 +999,8 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             //         size it as a normal box to match other browsers.
             if self.should_treat_inline_size_as_auto(node, available_space)
                 && self.should_treat_block_size_as_auto(node, available_space, constraints)
-                && !facts.has_auto_content_width()
-                && !facts.has_auto_content_height()
+                && !facts.auto_content_size().width.is_some()
+                && !facts.auto_content_size().height.is_some()
             {
                 return false;
             }
@@ -1351,7 +1337,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         // AD-HOC: If the box has a preferred aspect ratio and an intrinsic keyword for width...
         if facts.has_preferred_aspect_ratio() && size.is_intrinsic_sizing_constraint() {
             // If the box has no natural height to resolve the aspect ratio, we treat the width as auto.
-            if !facts.has_auto_content_height() {
+            if !facts.auto_content_size().height.is_some() {
                 return true;
             }
             // If the box has definite height, we can resolve the width through the aspect ratio.
@@ -1451,7 +1437,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         // AD-HOC: If the box has a preferred aspect ratio and an intrinsic keyword for height...
         if facts.has_preferred_aspect_ratio() && size.is_intrinsic_sizing_constraint() {
             // If the box has no natural width to resolve the aspect ratio, we treat the height as auto.
-            if !facts.has_auto_content_width() {
+            if !facts.auto_content_size().width.is_some() {
                 return true;
             }
             // If the box has definite width, we can resolve the height through the aspect ratio.
@@ -2026,12 +2012,13 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             // replaced sizing. That size remains definite when a min/max constraint clamps the automatic preferred
             // height, unless the preferred height is itself an intrinsic sizing constraint.
             let native_control_block_size_constraint_is_active = facts.is_native_form_control_box()
-                && facts.has_auto_content_height()
                 && !style.height().is_intrinsic_sizing_constraint()
-                && ((!is_plain_auto(style.min_height()) && block_size > facts.auto_content_height())
-                    || (!style.max_height().is_auto()
-                        && !self.should_treat_max_block_size_as_none(node, available_space.block_size, constraints)
-                        && block_size < facts.auto_content_height()));
+                && facts.auto_content_size().height.is_some_and(|auto_content_height| {
+                    (!is_plain_auto(style.min_height()) && block_size > auto_content_height)
+                        || (!style.max_height().is_auto()
+                            && !self.should_treat_max_block_size_as_none(node, available_space.block_size, constraints)
+                            && block_size < auto_content_height)
+                });
 
             let block_size_is_automatic = self.preferred_block_size(node, constraints).is_auto()
                 || self.should_treat_block_size_as_auto(node, available_space, constraints);
@@ -2741,7 +2728,9 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         if let Some(transferred) = self.calculate_transferred_inline_size_for_replaced_element(node, constraints) {
             return answered_from_style(transferred);
         }
-        if auto_size.width.is_none() && (facts.has_default_preferred_width() || facts.has_default_preferred_height()) {
+        if auto_size.width.is_none()
+            && (facts.default_preferred_width().is_some() || facts.default_preferred_height().is_some())
+        {
             // https://drafts.csswg.org/css-sizing-3/#cyclic-percentage-contribution
             // "If the box is non-replaced, then the entire value of any max size property or preferred size property
             // ('width'/'max-width'/'height'/'max-height') specified as an expression containing a percentage [...] that is
@@ -2753,12 +2742,8 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             // Elements" section considers non-button-like <input> controls replaced for the percentage-sized replaced
             // element rule, so their cyclic-percentage min-content contribution can still compress toward zero.
             auto_size = formatting_context::ReplacedIntrinsicSize {
-                width: facts
-                    .has_default_preferred_width()
-                    .then_some(facts.default_preferred_width()),
-                height: facts
-                    .has_default_preferred_height()
-                    .then_some(facts.default_preferred_height()),
+                width: facts.default_preferred_width(),
+                height: facts.default_preferred_height(),
                 aspect_ratio: None,
             };
         }

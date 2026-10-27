@@ -2278,18 +2278,16 @@ impl<'pass> SvgFormattingContext<'pass> {
             .replaced_content_facts(image_box)
             .unwrap_or_default();
         let natural = SizeWithAspectRatio {
-            width: facts.has_auto_content_width.then_some(facts.auto_content_width),
-            height: facts.has_auto_content_height.then_some(facts.auto_content_height),
-            aspect_ratio: (facts.auto_content_aspect_ratio_denominator != CssPixels::default()).then(|| {
-                Fraction::of(
-                    facts.auto_content_aspect_ratio_numerator,
-                    facts.auto_content_aspect_ratio_denominator,
-                )
-            }),
+            width: facts.auto_content_size.width,
+            height: facts.auto_content_size.height,
+            aspect_ratio: facts
+                .auto_content_size
+                .aspect_ratio
+                .map(|ratio| Fraction::of(ratio.numerator, ratio.denominator)),
         };
         // The default object size applies only once something has decoded; until then the image
         // has no size at all.
-        let default_size = CssPixelSize::new(facts.default_preferred_width, facts.default_preferred_height);
+        let default_size = facts.svg_image_default_object_size;
 
         let sizing = run_default_sizing_algorithm(specified_width, specified_height, &natural, default_size);
         SvgCssPixelRect {

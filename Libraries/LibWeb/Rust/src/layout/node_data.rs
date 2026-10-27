@@ -57,22 +57,6 @@ pub(crate) unsafe fn style_payloads<'a>(style: StylePayloadsRef) -> Option<&'a F
     (!style.is_null()).then(|| unsafe { style.deref() })
 }
 
-#[derive(Clone, Copy, Default, PartialEq, Eq)]
-#[repr(C)]
-pub struct FfiReplacedContentFacts {
-    pub has_auto_content_width: bool,
-    pub auto_content_width: CssPixels,
-    pub has_auto_content_height: bool,
-    pub auto_content_height: CssPixels,
-    pub auto_content_aspect_ratio_numerator: CssPixels,
-    pub auto_content_aspect_ratio_denominator: CssPixels,
-    pub has_default_preferred_width: bool,
-    pub default_preferred_width: CssPixels,
-    pub has_default_preferred_height: bool,
-    pub default_preferred_height: CssPixels,
-    pub text_entry_content_is_ordinary_box: bool,
-}
-
 impl From<crate::painting::host::FfiNaturalSize> for crate::css::style::NaturalSize {
     fn from(size: crate::painting::host::FfiNaturalSize) -> Self {
         Self {

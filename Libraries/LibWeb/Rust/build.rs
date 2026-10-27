@@ -2876,7 +2876,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         "FfiRenderedTextView".to_string(),
         "FfiRenderedTextOffset".to_string(),
         "FfiRenderedTextWithOffsetsView".to_string(),
-        "FfiReplacedContentFacts".to_string(),
         "FfiStylePayloads".to_string(),
         "FfiUtf16View".to_string(),
         // Lent and handed back through the layout header, which builds on this one.

@@ -24,12 +24,12 @@ use crate::css::style::{
 };
 use crate::layout::ComputedValuesView;
 use crate::layout::CssPixels;
-use crate::layout::FfiReplacedContentFacts;
 use crate::layout::node_data::{
     AncestorFact, DomPaintFact, FfiStylePayloads, GENERATED_FOR_AFTER, GENERATED_FOR_BEFORE,
     GENERATED_FOR_LAST_SYNTHETIC, GENERATED_FOR_MARKER, MAX_NODE_SLOT_COUNT, NodeData, NodeFlag, NodeKind, NodeSlotId,
     StylePayloadsRef, pseudo_kind_of,
 };
+use crate::layout::node_facts::ReplacedContentFacts;
 use crate::layout::tree_mutation::HostCalls;
 use crate::painting::paint_read::{GeometryRead, PaintRead};
 use crate::render_state::DocumentHost;
@@ -651,7 +651,7 @@ impl RowsVersion {
 #[derive(Clone, Default)]
 struct ReplacedContentFactsSlot {
     generation: u8,
-    facts: Option<FfiReplacedContentFacts>,
+    facts: Option<ReplacedContentFacts>,
 }
 
 #[derive(Clone, Copy, Default)]
@@ -5393,7 +5393,7 @@ impl LayoutNodeArena {
                 .is_some_and(|content| content.rendering_key.is_some())
     }
 
-    pub(crate) fn set_replaced_content_facts(&mut self, id: NodeSlotId, facts: FfiReplacedContentFacts) -> bool {
+    pub(crate) fn set_replaced_content_facts(&mut self, id: NodeSlotId, facts: ReplacedContentFacts) -> bool {
         self.data(id);
         let index = id.slot_index() as usize;
         if self.replaced_content_facts.len() <= index {
@@ -5409,7 +5409,7 @@ impl LayoutNodeArena {
         changed
     }
 
-    pub(crate) fn replaced_content_facts(&self, id: NodeSlotId) -> Option<FfiReplacedContentFacts> {
+    pub(crate) fn replaced_content_facts(&self, id: NodeSlotId) -> Option<ReplacedContentFacts> {
         assert!(!id.is_invalid(), "invalid layout node arena slot ID");
         self.replaced_content_facts
             .get(id.slot_index() as usize)
