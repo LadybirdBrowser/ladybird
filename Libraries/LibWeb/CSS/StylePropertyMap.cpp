@@ -6,6 +6,7 @@
 
 #include "StylePropertyMap.h"
 #include <LibGC/Heap.h>
+#include <LibWeb/CSS/CSSNumericValue.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/CSSUnparsedValue.h>
@@ -79,6 +80,16 @@ static WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_r
             // AD-HOC: Result is a CSSStyleValue but we want an internal representation, so... convert it again I guess?
             return result.get<GC::Ref<CSSStyleValue>>()->create_an_internal_representation(property, CSSStyleValue::PerformTypeCheck::Yes);
         }));
+
+    if (auto const* css_style_value = value.get_pointer<GC::Ref<CSSStyleValue>>();
+        css_style_value && is<CSSNumericValue>(**css_style_value) && !property.is_custom_property()) {
+        // https://drafts.css-houdini.org/css-typed-om-1/#create-an-internal-representation
+        // If value does not match the grammar of a list-valued property iteration of property, throw a TypeError.
+        // NB: A property's component types do not establish that a numeric value alone matches its whole grammar.
+        auto parsed_value = parse_css_value(Parser::ParsingParams {}, internal_representation->to_utf16_string(SerializationMode::Normal), property.id());
+        if (!parsed_value)
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Numeric value does not match the property's grammar"_utf16 };
+    }
 
     // AD-HOC: Our parser represents a text-indent that is just a length-percentage as a text-indent value, and style
     //         computation expects that.
