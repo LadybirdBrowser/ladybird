@@ -82,7 +82,6 @@ struct PresentationGpu {
     Gfx::GpuDeviceIdentity identity;
 };
 
-#ifdef LADYBIRD_HAS_WAYLAND_GPU_QUERY
 static bool device_has_extension(VkPhysicalDevice physical_device, char const* extension_name)
 {
     u32 extension_count = 0;
@@ -94,15 +93,33 @@ static bool device_has_extension(VkPhysicalDevice physical_device, char const* e
         return strcmp(extension.extensionName, extension_name) == 0;
     });
 }
+
+// The DRM device that the window system presents on. When it does not say, as on X11, LADYBIRD_RENDER_DEVICE can name
+// one. A device that the window system does not present on would have to copy every frame over to it, which not
+// every driver can do, so the window system's own answer always wins.
+static Optional<dev_t> presentation_drm_device()
+{
+#ifdef LADYBIRD_HAS_WAYLAND_GPU_QUERY
+    if (auto device = wayland_compositor_main_device(); device.has_value())
+        return device;
 #endif
+    if (auto const* path = getenv("LADYBIRD_RENDER_DEVICE"); path && *path) {
+        struct stat device_stat;
+        if (stat(path, &device_stat) < 0 || !S_ISCHR(device_stat.st_mode)) {
+            warnln("LADYBIRD_RENDER_DEVICE does not name a device: {}", path);
+            return {};
+        }
+        return device_stat.st_rdev;
+    }
+    return {};
+}
 
 // The GPU that the window system presents on. Painting there too spares each frame a copy from one GPU to another, and
 // a hybrid laptop its discrete GPU's power while that GPU has nothing else to do.
 static Optional<PresentationGpu> const& presentation_gpu()
 {
     static NeverDestroyed<Optional<PresentationGpu>> presentation_gpu = []() -> Optional<PresentationGpu> {
-#ifdef LADYBIRD_HAS_WAYLAND_GPU_QUERY
-        auto main_device = wayland_compositor_main_device();
+        auto main_device = presentation_drm_device();
         if (!main_device.has_value())
             return {};
 
@@ -128,13 +145,12 @@ static Optional<PresentationGpu> const& presentation_gpu()
             properties.pNext = &drm_properties;
             vkGetPhysicalDeviceProperties2(physical_device, &properties);
 
-            // The compositor may name either of the device's nodes.
+            // The device may be named by either of its nodes.
             auto is_primary_node = drm_properties.hasPrimary && makedev(drm_properties.primaryMajor, drm_properties.primaryMinor) == *main_device;
             auto is_render_node = drm_properties.hasRender && makedev(drm_properties.renderMajor, drm_properties.renderMinor) == *main_device;
             if (is_primary_node || is_render_node)
                 return PresentationGpu { .physical_device_index = static_cast<int>(i), .identity = Gfx::gpu_device_identity_of(physical_device) };
         }
-#endif
         return {};
     }();
     return presentation_gpu.get();
