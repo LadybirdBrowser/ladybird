@@ -105,17 +105,28 @@ pub(crate) fn run_builds_fragments(input: &LayoutInput, parent_collects_fragment
     parent_collects_fragments || input.participation != ParticipationInParentFormattingContext::Root
 }
 
+pub(crate) struct RootLaidOutWithoutParentFragments {
+    pub(crate) result: ChildLayoutResult,
+    pub(crate) root_cells_left_by_run: used_values::RootInputCells,
+}
+
 pub(crate) fn run_root_without_parent_fragments(
     callbacks: LayoutPass<'_>,
     node: Node,
-    root_used: &UsedValues,
+    root_cells: used_values::RootInputCells,
     input: LayoutInput,
-) -> ChildLayoutResult {
+) -> RootLaidOutWithoutParentFragments {
+    debug_assert_ne!(
+        input.participation,
+        ParticipationInParentFormattingContext::Item,
+        "an item run leaves its root's input cells to its parent, so they would come back unchanged"
+    );
     let fc_type = independent_formatting_context_type(node, &callbacks);
     let root_containing_block = callbacks.containing_block_for_child_run(node, &input.participation);
-    run_formatting_context(
+    let root_used = root_cells.materialize_record();
+    let result = run_formatting_context(
         None,
-        root_used,
+        &root_used,
         node,
         root_containing_block,
         None,
@@ -124,7 +135,11 @@ pub(crate) fn run_root_without_parent_fragments(
         callbacks,
         input,
         None,
-    )
+    );
+    RootLaidOutWithoutParentFragments {
+        result,
+        root_cells_left_by_run: used_values::RootInputCells::capture(&root_used),
+    }
 }
 
 pub(crate) fn run_fragmentainer(
