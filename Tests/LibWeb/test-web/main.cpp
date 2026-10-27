@@ -951,7 +951,7 @@ static void run_test(TestWebView& view, TestRunContext& context, size_t test_ind
     view.on_test_finish = {};
 
     promise->when_resolved([&view, test_index, &app, &context](auto) {
-        view.reset_session_history()->when_resolved([&view, test_index, &app, &context](auto) {
+        view.reset_state_for_next_test()->when_resolved([&view, test_index, &app, &context](auto) {
             auto& test = context.tests[test_index];
             test.did_start_test = true;
 

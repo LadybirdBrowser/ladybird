@@ -423,7 +423,7 @@ public:
     Web::HTML::AudioPlayState audio_play_state() const { return m_audio_play_state; }
     void did_change_screen_wake_lock_state(Badge<WebContentPage>, Web::ScreenWakeLockState);
 
-    void did_reset_session_history_for_testing(Badge<WebContentPage>, Web::HTML::SessionHistoryEntryDescriptor);
+    void did_reset_state_for_testing(Badge<WebContentPage>, Web::HTML::SessionHistoryEntryDescriptor);
     bool capture_session_history_snapshot_for_testing(Badge<WebContentPage>);
     bool restore_captured_session_history_snapshot_for_testing(Badge<WebContentPage>);
     bool register_session_store_tab_for_testing(Badge<WebContentPage>);
@@ -674,7 +674,7 @@ protected:
     void dump_session_history(StringView reason, SessionHistoryDumpMode = SessionHistoryDumpMode::IfDebuggingEnabled) const;
     void recover_current_session_history_entry_with_history_operation();
     void reconstruct_current_session_history_entry_with_history_operation(StringView reason);
-    NonnullRefPtr<Core::Promise<Empty>> reset_session_history_for_testing();
+    NonnullRefPtr<Core::Promise<Empty>> reset_state_for_testing();
 
     virtual void update_zoom();
 
@@ -1032,8 +1032,8 @@ protected:
     CanonicalTraversable* m_top_level_traversable { nullptr };
     Optional<SessionTabId> m_session_tab_id;
     Optional<SessionHistorySnapshot> m_captured_session_history_snapshot_for_testing;
-    RefPtr<Core::Promise<Empty>> m_pending_session_history_reset_for_testing;
-    RefPtr<Core::Promise<Empty>> m_pending_session_history_reset_queue_promise;
+    RefPtr<Core::Promise<Empty>> m_pending_test_state_reset;
+    RefPtr<Core::Promise<Empty>> m_pending_test_state_reset_queue_promise;
 
     struct WebDriverNavigationCompletionRequest {
         AK_ALLOC_WITH_KMALLOC;

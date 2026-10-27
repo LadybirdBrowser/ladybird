@@ -57,9 +57,9 @@ void TestWebView::reset_geolocation_emulated_position()
     geolocation_settings_changed();
 }
 
-NonnullRefPtr<Core::Promise<Empty>> TestWebView::reset_session_history()
+NonnullRefPtr<Core::Promise<Empty>> TestWebView::reset_state_for_next_test()
 {
-    return WebView::ViewImplementation::reset_session_history_for_testing();
+    return WebView::ViewImplementation::reset_state_for_testing();
 }
 
 NonnullRefPtr<Core::Promise<RefPtr<Gfx::Bitmap const>>> TestWebView::take_screenshot()

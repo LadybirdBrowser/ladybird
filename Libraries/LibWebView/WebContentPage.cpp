@@ -2911,19 +2911,19 @@ void WebContentPage::did_request_traverse_history_by_delta_for_testing(i32 delta
         view().traverse_the_history_by_delta(delta);
 }
 
-void WebContentPage::reset_session_history_for_testing()
+void WebContentPage::reset_state_for_testing()
 {
     auto* client = routed_connection();
     if (!client || !client->test_connection())
         return;
     client->transport().flush();
-    client->test_connection()->async_reset_session_history_for_testing(m_id);
+    client->test_connection()->async_reset_state_for_testing(m_id);
 }
 
-void WebContentPage::did_reset_session_history_for_testing(Web::HTML::SessionHistoryEntryDescriptor active_entry)
+void WebContentPage::did_reset_state_for_testing(Web::HTML::SessionHistoryEntryDescriptor active_entry)
 {
     if (displays_tab())
-        view().did_reset_session_history_for_testing({}, move(active_entry));
+        view().did_reset_state_for_testing({}, move(active_entry));
 }
 
 Messages::WebContentTestClient::DidRequestCaptureSessionHistorySnapshotForTestingResponse WebContentPage::did_request_capture_session_history_snapshot_for_testing()
