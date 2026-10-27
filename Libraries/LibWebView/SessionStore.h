@@ -58,6 +58,17 @@ struct ClosedSessionUnit {
     Optional<SessionWindowGeometry> geometry;
 };
 
+// A closed tab or window as a list of them shows it: the page its active tab was on, and when it closed.
+struct RecentlyClosedSessionUnit {
+    SessionWindowId id { 0 };
+    URL::URL active_url;
+    size_t tab_count { 0 };
+    bool was_window { false };
+    // Left open by a run that ended without closing it, rather than closed by the user.
+    bool from_startup_recovery { false };
+    UnixDateTime closed_at;
+};
+
 // What startup recovery does with the windows the last run left open.
 enum class SessionLaunchPolicy : u8 {
     // Every leftover window becomes a closed unit on the Reopen Closed Window stack.
@@ -110,9 +121,15 @@ public:
         URL::URL url;
     };
 
+    enum class KeepForReopening : u8 {
+        No,
+        Yes,
+    };
+
     struct TabClosed {
         SessionTabId tab_id { 0 };
         UnixDateTime closed_at;
+        KeepForReopening keep_for_reopening { KeepForReopening::Yes };
     };
 
     struct TabMoved {
@@ -169,6 +186,9 @@ public:
 
     bool has_closed_units() const;
     ErrorOr<Optional<ClosedSessionUnit>> take_most_recently_closed();
+    // The closed units, most recently closed first.
+    Vector<RecentlyClosedSessionUnit> recently_closed_units(size_t limit) const;
+    ErrorOr<Optional<ClosedSessionUnit>> take_closed_unit(SessionWindowId);
     ErrorOr<void> remove_entries_accessed_since(UnixDateTime);
 
     // The windows startup recovery kept open, in activation order with the frontmost last. It's handed over once.
@@ -496,8 +516,8 @@ private:
         bool has_closed_units() const { return !m_closed_units.is_empty(); }
         void set_closed_units(Vector<ClosedUnit>);
         void append_closed_unit(ClosedUnit);
-        ClosedUnit const* last_closed_unit() const;
-        ClosedUnit take_last_closed_unit();
+        Vector<ClosedUnit> const& closed_units() const { return m_closed_units; }
+        Optional<ClosedUnit> take_closed_unit(SessionWindowId);
         void prune_closed_units(UnitKind, u32 max_units);
         Vector<SessionWindowId> remove_closed_units_since(UnixDateTime);
 

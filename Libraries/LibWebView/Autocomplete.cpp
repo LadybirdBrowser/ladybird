@@ -87,6 +87,9 @@ String autocomplete_suggestion_display_text(AutocompleteSuggestion const& sugges
 {
     if (suggestion.source == AutocompleteSuggestionSource::Search)
         return suggestion.text;
+    // NB: Choosing a search engine leaves the query in the field, rather than the address of the settings.
+    if (suggestion.source == AutocompleteSuggestionSource::ChooseSearchEngine)
+        return suggestion.highlight_input.is_empty() ? suggestion.text : suggestion.highlight_input;
 
     auto url = classify_user_input(suggestion.text).url;
     if (!url.has_value())
@@ -186,19 +189,30 @@ static Optional<AutocompleteSuggestion> search_for_query_suggestion(StringView q
     if (query.is_empty())
         return {};
 
-    auto const& search_engine = Application::settings().search_engine_settings().engine;
-    if (!search_engine.has_value())
-        return {};
-
     auto query_string = MUST(String::from_utf8(query));
-    auto subtitle = MUST(String::formatted("Search with {}", search_engine->name));
     auto contains_whitespace = any_of(query, [](auto code_unit) { return is_ascii_space(code_unit); });
+
+    auto const& search_engine = Application::settings().search_engine_settings().engine;
+    if (!search_engine.has_value()) {
+        return AutocompleteSuggestion {
+            .source = AutocompleteSuggestionSource::ChooseSearchEngine,
+            .text = "about:settings#search"_string,
+            .title = "Choose a search engine…"_string,
+            .subtitle = MUST(String::formatted("to search for “{}”", query_string)),
+            .favicon_png = {},
+            .highlight_input = {},
+            .relevance = contains_whitespace ? 1000 : 900,
+            .is_verbatim = true,
+            .can_be_automatically_selected = true,
+            .can_be_inline_completed = false,
+        };
+    }
 
     return AutocompleteSuggestion {
         .source = AutocompleteSuggestionSource::Search,
         .text = query_string,
         .title = query_string,
-        .subtitle = move(subtitle),
+        .subtitle = {},
         .favicon_png = {},
         .highlight_input = {},
         .relevance = contains_whitespace ? 1000 : 900,

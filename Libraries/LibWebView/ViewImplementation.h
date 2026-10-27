@@ -165,8 +165,6 @@ public:
     void reload_for_webdriver_bidi(BypassCache, Utf16String navigation_id);
     void stop_loading();
     bool is_loading() const { return m_is_loading; }
-    // Whether the most recent load ran to completion, rather than being stopped or canceled.
-    bool last_load_finished() const { return m_last_load_finished; }
 
     bool crash_overlay_active() const { return m_crash_state.has_value(); }
     String crash_overlay_failed_url() const;
@@ -210,8 +208,6 @@ public:
     // Sends the display metadata to every page hosting documents of the tab.
     void set_display_metadata(Optional<u64> display_id, double maximum_frames_per_second);
     void set_frame_rate_capped(bool);
-    double viewport_corner_radius() const { return m_viewport_corner_radius; }
-    void set_viewport_corner_radius(double);
 
     struct ScreenRects {
         Vector<Web::DevicePixelRect> rects;
@@ -257,6 +253,8 @@ public:
     }
 
     void set_preferred_color_scheme(Web::CSS::PreferredColorScheme);
+    // Sends the interface theme to the pages showing the browser's own pages, which follow it.
+    void update_interface_color_scheme();
     void set_preferred_contrast(Web::CSS::PreferredContrast);
     void set_preferred_motion(Web::CSS::PreferredMotion);
     // A page created to host documents of the tab in another process takes the preferences the view's page has.
@@ -375,8 +373,8 @@ public:
     void list_style_sheets();
     void request_style_sheet_source(Web::CSS::StyleSheetIdentifier const&);
 
-    void did_block_resource(Badge<WebContentPage>);
-    void reset_blocked_request_count();
+    void did_block_resource(Badge<WebContentPage>, URL::URL const&, StringView kind);
+    void reset_blocked_resources();
     void notify_content_blocking_changed();
     ContentBlockingSnapshot content_blocking_snapshot() const;
 
@@ -708,6 +706,7 @@ protected:
     void set_page_background_color_to_system_canvas(bool dark);
     void set_page_background_color(Gfx::Color);
     Gfx::Color preferred_canvas_background_color() const;
+    Web::CSS::PreferredColorScheme preferred_color_scheme_for_page(WebContentPage const&) const;
 
     void initialize_tab(Web::HTML::VisibilityState, Optional<CanonicalTraversable&> = {});
     void display_traversable(CanonicalTraversable&, Web::HTML::VisibilityState);
@@ -806,7 +805,6 @@ protected:
     Optional<u64> m_display_id;
     double m_maximum_frames_per_second { 60.0 };
     bool m_frame_rate_capped { false };
-    double m_viewport_corner_radius { 0 };
     bool m_scales_frames_to_fit { false };
 
     RefPtr<Menu> m_page_context_menu;
@@ -848,7 +846,6 @@ protected:
     HashMap<u64, NonnullRefPtr<Core::Promise<ByteString>>> m_pending_cut_selected_text_requests;
 
     RefPtr<Action> m_take_screenshot_action;
-    RefPtr<Action> m_report_website_issue_action;
 
     RefPtr<Action> m_open_in_new_tab_action;
     RefPtr<Action> m_open_in_new_window_action;
@@ -954,7 +951,6 @@ protected:
     bool m_can_undo { false };
     bool m_can_redo { false };
     bool m_is_loading { false };
-    bool m_last_load_finished { false };
     // WebDriver's observation of the top-level navigation completion state. The navigation itself is the
     // canonical traversable's ongoing navigation record.
     struct WebDriverNavigationObservation {
@@ -1108,7 +1104,7 @@ protected:
     HashMap<u64, NavigationListener> m_navigation_listeners;
     u64 m_next_navigation_listener_id { 1 };
 
-    u64 m_blocked_request_count { 0 };
+    Vector<BlockedResource> m_blocked_resources;
 
     enum class NodePickerRequestType : u8 {
         Hovered,

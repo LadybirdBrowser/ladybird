@@ -824,6 +824,40 @@ TEST_CASE(retried_closes_keep_reopen_order)
     EXPECT_EQ(older->tabs[0].active_url.serialize(), "https://a.example/"sv);
 }
 
+TEST_CASE(any_recently_closed_unit_can_be_reopened)
+{
+    auto database = create_session_database();
+    auto store = TRY_OR_FAIL(SessionStore::create(*database));
+
+    auto window = TRY_OR_FAIL(store->window_opened());
+    Vector<StringView> urls { "https://a.example/"sv, "https://b.example/"sv, "https://c.example/"sv };
+    for (size_t i = 0; i < urls.size(); ++i) {
+        auto tab = TRY_OR_FAIL(store->tab_opened({ .window_id = window, .initial_url = parse_url("about:blank"sv), .insertion_index = {}, .is_active = SessionStore::IsActive::No }));
+        store->update_tab_state({ .tab_id = tab, .history = make_snapshot({ urls[i] }), .url = parse_url(urls[i]) });
+        TRY_OR_FAIL(store->tab_closed({ .tab_id = tab, .closed_at = UnixDateTime::from_seconds_since_epoch(100 + static_cast<i64>(i)) }));
+    }
+    store->flush_dirty_state();
+
+    auto closed = store->recently_closed_units(10);
+    EXPECT_EQ(closed.size(), 3u);
+    EXPECT_EQ(closed[0].active_url.serialize(), "https://c.example/"sv);
+    EXPECT_EQ(closed[1].active_url.serialize(), "https://b.example/"sv);
+    EXPECT_EQ(closed[2].active_url.serialize(), "https://a.example/"sv);
+    EXPECT_EQ(closed[0].closed_at, UnixDateTime::from_seconds_since_epoch(102));
+    EXPECT_EQ(store->recently_closed_units(2).size(), 2u);
+
+    auto middle = TRY_OR_FAIL(store->take_closed_unit(closed[1].id));
+    EXPECT(middle.has_value());
+    EXPECT_EQ(middle->tabs[0].active_url.serialize(), "https://b.example/"sv);
+    EXPECT(!TRY_OR_FAIL(store->take_closed_unit(closed[1].id)).has_value());
+
+    auto newest = TRY_OR_FAIL(store->take_most_recently_closed());
+    EXPECT_EQ(newest->tabs[0].active_url.serialize(), "https://c.example/"sv);
+    auto oldest = TRY_OR_FAIL(store->take_most_recently_closed());
+    EXPECT_EQ(oldest->tabs[0].active_url.serialize(), "https://a.example/"sv);
+    EXPECT(!store->has_closed_units());
+}
+
 TEST_CASE(crashed_pending_close_recovers_a_contiguous_window)
 {
     auto database = create_session_database();

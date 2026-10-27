@@ -2661,22 +2661,19 @@ void Application::initialize_actions()
     m_zoom_menu->add_action(zoom_out_action());
     m_zoom_menu->add_action(reset_zoom_action());
 
-    auto set_color_scheme = [this](auto color_scheme) {
+    auto set_website_color_scheme = [this](auto color_scheme) {
         return [this, color_scheme]() {
-            m_color_scheme = color_scheme;
-
-            ViewImplementation::for_each_view([&](ViewImplementation& view) {
-                view.set_preferred_color_scheme(m_color_scheme);
-                return IterationDecision::Continue;
-            });
+            auto appearance = m_settings->appearance();
+            appearance.website_color_scheme = color_scheme;
+            m_settings->set_appearance(appearance);
         };
     };
 
     m_color_scheme_menu = Menu::create_group("Color Scheme"sv);
-    m_color_scheme_menu->add_action(Action::create_checkable("Auto"sv, ActionID::PreferredColorScheme, set_color_scheme(Web::CSS::PreferredColorScheme::Auto)));
-    m_color_scheme_menu->add_action(Action::create_checkable("Dark"sv, ActionID::PreferredColorScheme, set_color_scheme(Web::CSS::PreferredColorScheme::Dark)));
-    m_color_scheme_menu->add_action(Action::create_checkable("Light"sv, ActionID::PreferredColorScheme, set_color_scheme(Web::CSS::PreferredColorScheme::Light)));
-    m_color_scheme_menu->items().first().get<NonnullRefPtr<Action>>()->set_checked(true);
+    m_color_scheme_menu->add_action(Action::create_checkable("Auto"sv, ActionID::PreferredColorScheme, set_website_color_scheme(ThemePreference::System)));
+    m_color_scheme_menu->add_action(Action::create_checkable("Dark"sv, ActionID::PreferredColorScheme, set_website_color_scheme(ThemePreference::Dark)));
+    m_color_scheme_menu->add_action(Action::create_checkable("Light"sv, ActionID::PreferredColorScheme, set_website_color_scheme(ThemePreference::Light)));
+    update_website_color_scheme();
 
     auto set_contrast = [this](auto contrast) {
         return [this, contrast]() {
@@ -2747,7 +2744,7 @@ void Application::initialize_actions()
     m_show_bookmarks_bar_menu = Menu::create_group("Show Bookmarks Bar"sv);
     m_show_bookmarks_bar_always_action = add_show_bookmarks_bar_option("Always"sv, ShowBookmarksBar::Always);
     m_show_bookmarks_bar_never_action = add_show_bookmarks_bar_option("Never"sv, ShowBookmarksBar::Never);
-    m_show_bookmarks_bar_on_hover_action = add_show_bookmarks_bar_option("Only when hovering the navigation toolbar"sv, ShowBookmarksBar::OnHover);
+    m_show_bookmarks_bar_on_hover_action = add_show_bookmarks_bar_option("Only When Hovering the Navigation Toolbar"sv, ShowBookmarksBar::OnHover);
     m_bookmarks_menu->add_submenu(*m_show_bookmarks_bar_menu);
     m_bookmarks_menu->add_separator();
 
@@ -2761,7 +2758,7 @@ void Application::initialize_actions()
     m_bookmarks_menu->add_action(*m_toggle_bookmark_action);
     update_bookmark_action_for_current_web_view();
 
-    m_bookmarks_menu->add_action(Action::create("Bookmark All Tabs..."sv, ActionID::AddBookmarkAllTabs, [this]() {
+    m_bookmarks_menu->add_action(Action::create("Bookmark All Tabs…"sv, ActionID::AddBookmarkAllTabs, [this]() {
         auto bookmarks = bookmarks_for_all_tabs_in_current_window();
         if (bookmarks.is_empty())
             return;
@@ -2784,6 +2781,7 @@ void Application::initialize_actions()
             : WebView::ShowBookmarksBar::Always;
         m_settings->set_appearance(appearance);
     });
+    m_toggle_bookmark_bar_action->set_checked(m_settings->appearance().show_bookmarks_bar == ShowBookmarksBar::Always);
 
     m_bookmarks_menu->add_separator();
     m_bookmarks_menu_static_size = m_bookmarks_menu->size();
@@ -2802,7 +2800,7 @@ void Application::initialize_actions()
 
     m_inspect_menu = Menu::create("Inspect"sv);
 
-    m_view_source_action = Action::create("View Source"sv, ActionID::ViewSource, [this]() {
+    m_view_source_action = Action::create("View Page Source"sv, ActionID::ViewSource, [this]() {
         if (auto view = active_web_view(); view.has_value())
             view->get_source();
     });
@@ -2814,7 +2812,7 @@ void Application::initialize_actions()
     });
     m_inspect_menu->add_action(*m_toggle_devtools_action);
 
-    m_report_website_issue_action = Action::create("Report Website Issue..."sv, ActionID::ReportWebsiteIssue, [this]() {
+    m_report_website_issue_action = Action::create("Report Website Issue…"sv, ActionID::ReportWebsiteIssue, [this]() {
         if (auto view = active_web_view(); view.has_value())
             view->report_website_issue();
     });
@@ -2834,7 +2832,7 @@ void Application::initialize_actions()
     m_debug_menu->add_action(Action::create("Dump Cookies"sv, ActionID::DumpCookies, [this]() { m_default_session->cookie_jar->dump_cookies(); }));
     m_debug_menu->add_action(Action::create("Dump Local Storage"sv, ActionID::DumpLocalStorage, debug_request("dump-local-storage"sv)));
     m_debug_menu->add_action(Action::create("Dump Session Storage"sv, ActionID::DumpSessionStorage, debug_request("dump-session-storage"sv)));
-    m_debug_menu->add_action(Action::create("Dump GC graph"sv, ActionID::DumpGCGraph, [this]() {
+    m_debug_menu->add_action(Action::create("Dump GC Graph"sv, ActionID::DumpGCGraph, [this]() {
         if (auto view = active_web_view(); view.has_value()) {
             auto gc_graph_path = view->dump_gc_graph();
             if (gc_graph_path.is_error()) {
@@ -2939,12 +2937,51 @@ void Application::update_vertical_tabs_action()
     auto const& settings = m_settings->tab_settings();
     m_toggle_vertical_tabs_expanded_action->set_visible(settings.vertical_tabs_enabled);
     m_toggle_vertical_tabs_expanded_action->set_engaged(settings.vertical_tabs_expanded);
-    m_toggle_vertical_tabs_expanded_action->set_tooltip(settings.vertical_tabs_expanded ? "Minimize Tabs"sv : "Expand Tabs"sv);
+    m_toggle_vertical_tabs_expanded_action->set_tooltip(settings.vertical_tabs_expanded ? "Hide Sidebar"sv : "Show Sidebar"sv);
+}
+
+static Web::CSS::PreferredColorScheme preferred_color_scheme_for(ThemePreference preference)
+{
+    switch (preference) {
+    case ThemePreference::System:
+        return Web::CSS::PreferredColorScheme::Auto;
+    case ThemePreference::Light:
+        return Web::CSS::PreferredColorScheme::Light;
+    case ThemePreference::Dark:
+        return Web::CSS::PreferredColorScheme::Dark;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+Web::CSS::PreferredColorScheme Application::interface_color_scheme() const
+{
+    return preferred_color_scheme_for(m_settings->appearance().interface_theme);
+}
+
+void Application::update_website_color_scheme()
+{
+    auto preference = m_settings->appearance().website_color_scheme;
+    auto actions = m_color_scheme_menu->items();
+    auto action_index = preference == ThemePreference::System ? 0 : preference == ThemePreference::Dark ? 1
+                                                                                                        : 2;
+    actions[action_index].get<NonnullRefPtr<Action>>()->set_checked(true);
+
+    auto color_scheme = preferred_color_scheme_for(preference);
+    if (color_scheme == m_color_scheme)
+        return;
+    m_color_scheme = color_scheme;
+
+    ViewImplementation::for_each_view([&](ViewImplementation& view) {
+        view.set_preferred_color_scheme(m_color_scheme);
+        return IterationDecision::Continue;
+    });
 }
 
 void Application::appearance_changed(Badge<ApplicationSettingsObserver>)
 {
     m_toggle_menu_bar_action->set_checked(m_settings->appearance().show_menu_bar);
+    m_toggle_bookmark_bar_action->set_checked(m_settings->appearance().show_bookmarks_bar == ShowBookmarksBar::Always);
+    update_website_color_scheme();
 
     switch (m_settings->appearance().show_bookmarks_bar) {
     case ShowBookmarksBar::Always:
@@ -3179,6 +3216,17 @@ void Application::create_bookmark_menu_items(Optional<MenuData> data)
                     .items = folder.children,
                     .target_folder_id = item.id,
                 });
+
+                // A folder's menu ends with a way to open every bookmark in it at once.
+                size_t bookmark_count = 0;
+                for (auto const& child : folder.children)
+                    bookmark_count += child.is_bookmark() ? 1 : 0;
+                if (bookmark_count > 0) {
+                    submenu->add_separator();
+                    submenu->add_action(Action::create(MUST(String::formatted("Open All in Tabs ({})", bookmark_count)), ActionID::OpenAllBookmarksInTabs, [this, folder_id = item.id]() {
+                        open_bookmark_folder_in_new_tabs(folder_id);
+                    }));
+                }
 
                 submenu->add_property("id"sv, item.id);
                 submenu->add_property("type"sv, "folder"_string);

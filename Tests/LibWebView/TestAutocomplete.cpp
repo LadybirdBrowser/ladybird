@@ -228,17 +228,40 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         autocomplete.on_autocomplete_query_complete = [&](auto, auto const& suggestions, WebView::AutocompleteResultKind kind) {
             if (kind != WebView::AutocompleteResultKind::Final)
                 return;
-            VERIFY(!suggestions.is_empty());
-            VERIFY(suggestions.first().text == "https://github.com/LadybirdBrowser/ladybird"sv);
-            VERIFY(suggestions.first().title == "GH"sv);
-            VERIFY(suggestions.first().match_class == WebView::AutocompleteMatchClass::ExactTitle);
-            VERIFY(!suggestions.first().can_be_automatically_selected);
-            VERIFY(!suggestions.first().can_be_inline_completed);
+            // NB: Without a search engine, the offer to choose one comes first, where the search would be.
+            VERIFY(suggestions.size() >= 2);
+            VERIFY(suggestions[0].source == WebView::AutocompleteSuggestionSource::ChooseSearchEngine);
+            auto const& bookmark = suggestions[1];
+            VERIFY(bookmark.text == "https://github.com/LadybirdBrowser/ladybird"sv);
+            VERIFY(bookmark.title == "GH"sv);
+            VERIFY(bookmark.match_class == WebView::AutocompleteMatchClass::ExactTitle);
+            VERIFY(!bookmark.can_be_automatically_selected);
+            VERIFY(!bookmark.can_be_inline_completed);
             autocomplete.cancel_pending_query();
             short_bookmark_query_completed = true;
         };
         autocomplete.query_autocomplete_engine(5, "GH"_string);
         Core::EventLoop::current().spin_until([&]() { return short_bookmark_query_completed; });
+    }
+
+    auto choose_search_engine_query_completed = false;
+    {
+        WebView::Autocomplete autocomplete { WebView::IsPrivate::No };
+        autocomplete.on_autocomplete_query_complete = [&](auto, auto const& suggestions, WebView::AutocompleteResultKind kind) {
+            if (kind != WebView::AutocompleteResultKind::Final)
+                return;
+            VERIFY(!suggestions.is_empty());
+            auto const& suggestion = suggestions.first();
+            VERIFY(suggestion.source == WebView::AutocompleteSuggestionSource::ChooseSearchEngine);
+            VERIFY(suggestion.text == "about:settings#search"sv);
+            VERIFY(suggestion.subtitle == "to search for “ladybird beetle”"sv);
+            VERIFY(suggestion.can_be_automatically_selected);
+            VERIFY(WebView::autocomplete_suggestion_display_text(suggestion) == "ladybird beetle"sv);
+            autocomplete.cancel_pending_query();
+            choose_search_engine_query_completed = true;
+        };
+        autocomplete.query_autocomplete_engine(6, "ladybird beetle"_string);
+        Core::EventLoop::current().spin_until([&]() { return choose_search_engine_query_completed; });
     }
 
     WebView::Application::settings().set_search_engine_settings({

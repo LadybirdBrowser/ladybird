@@ -577,14 +577,13 @@ void SessionStore::TransientStorage::append_closed_unit(ClosedUnit unit)
     m_closed_units.insert(insertion_index, move(unit));
 }
 
-SessionStore::ClosedUnit const* SessionStore::TransientStorage::last_closed_unit() const
+Optional<SessionStore::ClosedUnit> SessionStore::TransientStorage::take_closed_unit(SessionWindowId unit_id)
 {
-    return m_closed_units.is_empty() ? nullptr : &m_closed_units.last();
-}
-
-SessionStore::ClosedUnit SessionStore::TransientStorage::take_last_closed_unit()
-{
-    return m_closed_units.take_last();
+    for (size_t i = 0; i < m_closed_units.size(); ++i) {
+        if (m_closed_units[i].session_id == unit_id)
+            return m_closed_units.take(i);
+    }
+    return {};
 }
 
 void SessionStore::TransientStorage::prune_closed_units(UnitKind kind, u32 max_units)
@@ -1986,6 +1985,9 @@ ErrorOr<void> SessionStore::tab_closed(TabClosed closed)
         return {};
     };
 
+    if (closed.keep_for_reopening == KeepForReopening::No)
+        return discard_without_undo();
+
     auto close_sequence = m_close_sequence_allocator.allocate();
     if (close_sequence.is_error()) {
         auto result = discard_without_undo();
@@ -2220,8 +2222,37 @@ Optional<SessionHistorySnapshot> SessionStore::load_tab_history(SessionTabId tab
 
 ErrorOr<Optional<ClosedSessionUnit>> SessionStore::take_most_recently_closed()
 {
-    auto const* unit = m_transient_storage.last_closed_unit();
-    if (!unit)
+    auto const& closed_units = m_transient_storage.closed_units();
+    if (closed_units.is_empty())
+        return Optional<ClosedSessionUnit> {};
+    return take_closed_unit(closed_units.last().session_id);
+}
+
+Vector<RecentlyClosedSessionUnit> SessionStore::recently_closed_units(size_t limit) const
+{
+    Vector<RecentlyClosedSessionUnit> units;
+    auto const& closed_units = m_transient_storage.closed_units();
+    for (size_t i = closed_units.size(); i > 0 && units.size() < limit; --i) {
+        auto const& unit = closed_units[i - 1];
+        if (unit.tabs.is_empty())
+            continue;
+        auto active_tab_index = clamp(unit.active_tab_index, 0, index_as_i64(unit.tabs.size() - 1));
+        units.append({
+            .id = unit.session_id,
+            .active_url = unit.tabs[active_tab_index].active_url,
+            .tab_count = unit.tabs.size(),
+            .was_window = unit.kind == UnitKind::ClosedWindow,
+            .from_startup_recovery = unit.origin == ClosedSessionUnit::Origin::StartupRecovery,
+            .closed_at = unit.closed_time,
+        });
+    }
+    return units;
+}
+
+ErrorOr<Optional<ClosedSessionUnit>> SessionStore::take_closed_unit(SessionWindowId unit_id)
+{
+    auto unit = m_transient_storage.closed_units().first_matching([&](auto const& unit) { return unit.session_id == unit_id; });
+    if (!unit.has_value())
         return Optional<ClosedSessionUnit> {};
 
     ClosedSessionUnit result {
@@ -2235,10 +2266,10 @@ ErrorOr<Optional<ClosedSessionUnit>> SessionStore::take_most_recently_closed()
     };
 
     if (m_persisted_storage.has_value()) {
-        result.tabs = TRY(m_persisted_storage->take_closed_unit(unit->session_id));
-        (void)m_transient_storage.take_last_closed_unit();
+        result.tabs = TRY(m_persisted_storage->take_closed_unit(unit_id));
+        (void)m_transient_storage.take_closed_unit(unit_id);
     } else {
-        auto taken = m_transient_storage.take_last_closed_unit();
+        auto taken = m_transient_storage.take_closed_unit(unit_id).release_value();
         for (auto& tab : taken.tabs)
             result.tabs.append({ .active_url = move(tab.active_url), .history = move(tab.history), .pinned = tab.pinned });
     }

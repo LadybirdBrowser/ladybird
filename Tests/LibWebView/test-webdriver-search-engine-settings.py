@@ -77,9 +77,8 @@ def run_test(webdriver_binary, graphical):
             def select_engine(name):
                 change_settings(
                     """
-                    const select = document.querySelector('#search-engine');
-                    select.value = parameters[0];
-                    select.dispatchEvent(new Event('change'));
+                    [...document.querySelectorAll('#search-engine input')]
+                        .find(radio => radio.value === parameters[0]).click();
                 """,
                     "(settings.searchEngine.engine || '') === parameters[0]",
                     name,
@@ -107,15 +106,18 @@ def run_test(webdriver_binary, graphical):
                         "script": """
                         const expectedEngine = arguments[0];
                         const done = arguments[1];
-                        const select = document.querySelector('#search-engine');
-                        function ready() { return select.value === expectedEngine && select.options.length > 10; }
+                        const list = document.querySelector('#search-engine');
+                        function ready() {
+                            const radios = list.querySelectorAll('input');
+                            return list.querySelector('input:checked')?.value === expectedEngine && radios.length > 10;
+                        }
                         if (ready()) return done();
                         const observer = new MutationObserver(() => {
                             if (!ready()) return;
                             observer.disconnect();
                             done();
                         });
-                        observer.observe(select, {childList: true});
+                        observer.observe(list, {childList: true});
                     """,
                         "args": [expected_engine],
                     },

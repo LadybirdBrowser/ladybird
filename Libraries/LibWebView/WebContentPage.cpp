@@ -137,6 +137,12 @@ static bool is_download_in_progress(FileDownloader const& file_downloader, u64 d
     return download.has_value() && download->status == FileDownloader::DownloadStatus::InProgress;
 }
 
+// An error page's title is about the failure, not the page it couldn't load, so it's never recorded in history.
+static bool shows_error_page(ViewImplementation const& view)
+{
+    return view.has_traversable() && view.traversable().active_document().creation_url() == URL::about_error();
+}
+
 static Optional<String> history_title(Utf16String const& title, URL::URL const& url)
 {
     if (title.is_empty())
@@ -1221,9 +1227,9 @@ void WebContentPage::did_output_js_console_message(ConsoleOutput console_output)
     }
 }
 
-void WebContentPage::did_block_resource()
+void WebContentPage::did_block_resource(URL::URL url, String kind)
 {
-    view().did_block_resource({});
+    view().did_block_resource({}, url, kind);
 }
 
 void WebContentPage::did_start_network_request(u64 request_id, URL::URL url, ByteString method, Vector<HTTP::Header> request_headers, ByteBuffer request_body, Optional<String> initiator_type, String referrer_policy, bool is_navigation_request, Web::Fetch::Infrastructure::RequestPriority priority)
@@ -2402,7 +2408,7 @@ void WebContentPage::did_finish_loading(Web::HTML::CrossProcessId navigable_id, 
             m_web_ui = nullptr;
         }
 
-        auto title = history_title(view().title(), committed_url);
+        auto title = shows_error_page(view()) ? Optional<String> {} : history_title(view().title(), committed_url);
 
         dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Load finished for page {} at '{}' with title '{}'",
             m_id,
@@ -2433,7 +2439,7 @@ void WebContentPage::did_change_title(Utf16String title)
         process->set_title(title);
 
     if (displays_tab()) {
-        if (!title.is_empty()) {
+        if (!title.is_empty() && !shows_error_page(view())) {
             auto title_utf8 = title.to_utf8();
 
             maybe_record_history_visit_for_current_load(view().url(), title_utf8, "title change"sv);

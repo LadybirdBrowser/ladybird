@@ -31,11 +31,11 @@ String SearchEngine::format_search_query_for_display(StringView query) const
 {
     static constexpr auto MAX_SEARCH_STRING_LENGTH = 32;
 
-    return MUST(String::formatted("Search {} for \"{:.{}}{}\"",
+    return MUST(String::formatted("Search {} for “{:.{}}{}”",
         name,
         query,
         MAX_SEARCH_STRING_LENGTH,
-        query.length() > MAX_SEARCH_STRING_LENGTH ? "..."sv : ""sv));
+        query.length() > MAX_SEARCH_STRING_LENGTH ? "…"sv : ""sv));
 }
 
 String SearchEngine::format_search_query_for_navigation(StringView query) const

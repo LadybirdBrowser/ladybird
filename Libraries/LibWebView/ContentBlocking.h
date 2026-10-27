@@ -9,6 +9,7 @@
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/Types.h>
+#include <AK/Vector.h>
 
 namespace WebView {
 
@@ -20,10 +21,17 @@ enum class ContentBlockingState : u8 {
     NoRules,
 };
 
+// A resource the content blocker kept the page from loading, named by its host and what kind of resource it was, such as
+// a script or an image.
+struct BlockedResource {
+    String host;
+    StringView kind;
+};
+
 struct ContentBlockingSnapshot {
     Optional<String> site;
     ContentBlockingState state { ContentBlockingState::Unavailable };
-    u64 blocked_request_count { 0 };
+    Vector<BlockedResource> blocked_resources;
 
     bool enabled() const { return state == ContentBlockingState::Enabled || state == ContentBlockingState::NoRules; }
     bool can_toggle() const { return site.has_value() && (enabled() || state == ContentBlockingState::SiteDisabled); }

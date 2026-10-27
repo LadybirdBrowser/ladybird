@@ -42,6 +42,8 @@ enum class AutocompleteSuggestionSource {
     Bookmark,
     Adaptive,
     Search,
+    // Without a search engine, a query that would be searched for offers to choose one instead.
+    ChooseSearchEngine,
 };
 
 enum class AutocompleteMatchClass {

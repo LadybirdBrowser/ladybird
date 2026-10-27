@@ -5,6 +5,7 @@
  */
 
 #include <LibCore/File.h>
+#include <LibCore/Promise.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BookmarkStore.h>
 #include <LibWebView/WebUI/BookmarksUI.h>
@@ -18,6 +19,9 @@ void BookmarksUI::register_interfaces()
     });
     register_interface("moveItem"sv, [this](auto const& data) {
         move_item(data);
+    });
+    register_interface("newFolder"sv, [this](auto const& data) {
+        new_folder(data);
     });
     register_interface("showContextMenu"sv, [this](auto const& data) {
         show_context_menu(data);
@@ -53,6 +57,20 @@ void BookmarksUI::move_item(JsonValue const& data)
 
     auto target_folder_id = object.get_string("targetFolderId"sv);
     Application::bookmark_store().move_item(*id, target_folder_id, *index);
+}
+
+void BookmarksUI::new_folder(JsonValue const& data)
+{
+    Optional<String> target_folder_id;
+    if (data.is_object()) {
+        if (auto folder_id = data.as_object().get_string("targetFolderId"sv); folder_id.has_value())
+            target_folder_id = *folder_id;
+    }
+
+    Application::the().display_add_bookmark_folder_dialog({}, target_folder_id)->when_resolved([](Application::BookmarkDialogResult result) {
+        auto& folder = result.data.get<BookmarkItem::Folder>();
+        Application::bookmark_store().add_folder(move(folder.title), result.target_folder_id);
+    });
 }
 
 void BookmarksUI::import_bookmarks(JsonValue const& data)
@@ -102,7 +120,9 @@ void BookmarksUI::show_context_menu(JsonValue const& data)
 
         Application::the().show_bookmark_context_menu({ *client_x, *client_y }, item, target_folder_id, parent_folder_id);
     } else {
-        Application::the().show_bookmark_context_menu({ *client_x, *client_y }, {}, {}, {});
+        // NB: Empty space shows the menu for the folder being shown.
+        auto target_folder_id = object.get_string("targetFolderId"sv);
+        Application::the().show_bookmark_context_menu({ *client_x, *client_y }, {}, target_folder_id, {});
     }
 }
 
