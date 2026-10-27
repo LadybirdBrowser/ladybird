@@ -10,6 +10,7 @@
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/CSS/SerializationMode.h>
 #include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 
 namespace Web::CSS {
@@ -20,7 +21,7 @@ class CSSStyleValue : public Bindings::GCAllocatedWrappable {
     GC_DECLARE_ALLOCATOR(CSSStyleValue);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSStyleValue> create(Utf16FlyString associated_property, StyleValue const&);
+    [[nodiscard]] static GC::Ref<CSSStyleValue> create(Utf16FlyString associated_property, StyleValue const&, SerializationMode = SerializationMode::Normal);
 
     virtual ~CSSStyleValue() override;
 
@@ -53,13 +54,14 @@ protected:
     RefPtr<StyleValue const> source_style_value() const;
 
 private:
-    explicit CSSStyleValue(Utf16FlyString associated_property, StyleValue const& source_value);
+    explicit CSSStyleValue(Utf16FlyString associated_property, StyleValue const& source_value, SerializationMode);
 
     // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssstylevalue-associatedproperty-slot
     Optional<Utf16FlyString> m_associated_property;
 
     // Shared handle to the Rust-owned value data this object was reified from.
     RustStyleValueHandle m_source_value;
+    SerializationMode m_serialization_mode { SerializationMode::Normal };
 };
 
 }

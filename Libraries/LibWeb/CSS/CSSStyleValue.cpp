@@ -16,9 +16,9 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSStyleValue);
 
-GC::Ref<CSSStyleValue> CSSStyleValue::create(Utf16FlyString associated_property, StyleValue const& source_value)
+GC::Ref<CSSStyleValue> CSSStyleValue::create(Utf16FlyString associated_property, StyleValue const& source_value, SerializationMode serialization_mode)
 {
-    return GC::Heap::the().allocate<CSSStyleValue>(move(associated_property), source_value);
+    return GC::Heap::the().allocate<CSSStyleValue>(move(associated_property), source_value, serialization_mode);
 }
 
 CSSStyleValue::CSSStyleValue()
@@ -30,9 +30,10 @@ CSSStyleValue::CSSStyleValue(StyleValue const& source_value)
 {
 }
 
-CSSStyleValue::CSSStyleValue(Utf16FlyString associated_property, StyleValue const& source_value)
+CSSStyleValue::CSSStyleValue(Utf16FlyString associated_property, StyleValue const& source_value, SerializationMode serialization_mode)
     : m_associated_property(move(associated_property))
     , m_source_value(RustStyleValueHandle::retained(source_value.rust_style_value_data()))
+    , m_serialization_mode(serialization_mode)
 {
 }
 
@@ -117,7 +118,7 @@ WebIDL::ExceptionOr<Utf16String> CSSStyleValue::to_string() const
     // FIXME: otherwise, if the value was extracted from the CSSOM
     // NB: For CSSStyleValue itself, we use the source value we were created from.
     if (auto source_value = source_style_value())
-        return source_value->to_utf16_string(SerializationMode::Normal);
+        return source_value->to_utf16_string(m_serialization_mode);
     {
         // the serialization is specified in §6.7 Serialization from CSSOM Values below.
     }
