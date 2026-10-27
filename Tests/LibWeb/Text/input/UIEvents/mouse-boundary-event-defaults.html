@@ -1,0 +1,25 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    #target { position: absolute; left: 10px; top: 10px; width: 100px; height: 100px; }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const events = [];
+        for (const type of ["pointerover", "pointerenter", "pointermove", "pointerout", "pointerleave", "mouseover", "mouseenter", "mousemove", "mouseout", "mouseleave"]) {
+            target.addEventListener(type, event => {
+                events.push(`${event.type}: button=${event.button}, buttons=${event.buttons}, isTrusted=${event.isTrusted}`);
+            });
+        }
+
+        internals.mouseMove(20, 20);
+        internals.mouseLeave();
+
+        for (const event of events)
+            println(event);
+        const syntheticEvent = new PointerEvent("pointerleave");
+        println(`Synthetic pointerleave: button=${syntheticEvent.button}, isTrusted=${syntheticEvent.isTrusted}`);
+    });
+</script>
