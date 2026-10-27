@@ -415,15 +415,22 @@ pub(crate) fn paint_border_image<O: Observer>(
     let frame_id = recorder.register_image_frame(&frame);
     let frame_size = (frame.width(), frame.height());
 
-    let Some(StyleValueData::BorderImageSlice {
-        top: slice_top,
-        right: slice_right,
-        bottom: slice_bottom,
-        left: slice_left,
-        fill,
-    }) = style_queries::handle_value(&border.border_image_slice)
-    else {
-        unreachable!("computed border-image-slice holds a slice value");
+    let slice_value = style_queries::handle_value(&border.border_image_slice)
+        .expect("computed border-image-slice lost its style value");
+    let (slice_values, fill) = match slice_value {
+        StyleValueData::BorderImageSlice {
+            top,
+            right,
+            bottom,
+            left,
+            fill,
+        } => ([top.data(), right.data(), bottom.data(), left.data()], *fill),
+        // NB: Typed OM can supply a single numeric slice directly, without the parser's four-sided wrapper.
+        StyleValueData::Number { .. }
+        | StyleValueData::Integer { .. }
+        | StyleValueData::Percentage { .. }
+        | StyleValueData::Calculated { .. } => ([slice_value; 4], false),
+        _ => unreachable!("computed border-image-slice holds a slice or numeric value"),
     };
     let width_value = style_queries::handle_value(&border.border_image_width)
         .expect("computed border-image-width lost its style value");
@@ -442,12 +449,7 @@ pub(crate) fn paint_border_image<O: Observer>(
     let repeat_y = repeat_keyword(repeat_items[1 % repeat_items.len()]);
 
     let geometry = resolve_border_image_geometry(
-        [
-            slice_top.data(),
-            slice_right.data(),
-            slice_bottom.data(),
-            slice_left.data(),
-        ],
+        slice_values,
         component_items(width_value),
         component_items(outset_value),
         frame_size,
@@ -455,7 +457,6 @@ pub(crate) fn paint_border_image<O: Observer>(
         css_border_widths,
         present_edges,
     );
-    let fill = *fill;
     let source_columns = geometry.source_columns;
     let source_rows = geometry.source_rows;
     let destination_columns = geometry.destination_columns;

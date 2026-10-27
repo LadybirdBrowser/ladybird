@@ -1,0 +1,19 @@
+<!doctype html>
+<link rel="match" href="../../expected/css/typed-om-border-image-slice-ref.html">
+<style>
+    div {
+        width: 40px;
+        height: 40px;
+        margin: 10px;
+        border: 20px solid red;
+        border-image-source: url("../wpt-import/images/green.png");
+    }
+</style>
+<div id="number"></div>
+<div id="percentage"></div>
+<div id="calculation"></div>
+<script>
+    document.getElementById("number").attributeStyleMap.set("border-image-slice", CSS.number(20));
+    document.getElementById("percentage").attributeStyleMap.set("border-image-slice", CSS.percent(25));
+    document.getElementById("calculation").attributeStyleMap.set("border-image-slice", new CSSMathSum(CSS.number(10), CSS.number(10)));
+</script>

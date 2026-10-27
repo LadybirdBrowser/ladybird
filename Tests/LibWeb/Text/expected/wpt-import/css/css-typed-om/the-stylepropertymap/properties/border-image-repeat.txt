@@ -2,17 +2,16 @@ Harness status: OK
 
 Found 37 tests
 
-33 Pass
-4 Fail
+37 Pass
 Pass	Can set 'border-image-repeat' to CSS-wide keywords: initial
 Pass	Can set 'border-image-repeat' to CSS-wide keywords: inherit
 Pass	Can set 'border-image-repeat' to CSS-wide keywords: unset
 Pass	Can set 'border-image-repeat' to CSS-wide keywords: revert
 Pass	Can set 'border-image-repeat' to var() references:  var(--A)
-Fail	Can set 'border-image-repeat' to the 'stretch' keyword: stretch
-Fail	Can set 'border-image-repeat' to the 'repeat' keyword: repeat
-Fail	Can set 'border-image-repeat' to the 'round' keyword: round
-Fail	Can set 'border-image-repeat' to the 'space' keyword: space
+Pass	Can set 'border-image-repeat' to the 'stretch' keyword: stretch
+Pass	Can set 'border-image-repeat' to the 'repeat' keyword: repeat
+Pass	Can set 'border-image-repeat' to the 'round' keyword: round
+Pass	Can set 'border-image-repeat' to the 'space' keyword: space
 Pass	Setting 'border-image-repeat' to a length: 0px throws TypeError
 Pass	Setting 'border-image-repeat' to a length: -3.14em throws TypeError
 Pass	Setting 'border-image-repeat' to a length: 3.14cm throws TypeError

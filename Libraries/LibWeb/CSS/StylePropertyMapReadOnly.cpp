@@ -68,6 +68,15 @@ static StyleValueVector subdivide_property_value(StyleValue const& value, Proper
     return value.subdivide_into_iterations(property);
 }
 
+static GC::Ref<CSSStyleValue> reify_property_value(StyleValue const& value, PropertyNameAndID const& property, bool is_computed)
+{
+    // INTEROP: Computed border-image values represent all four sides or both axes, even when their serialization
+    //          collapses to a single numeric value or keyword.
+    if (is_computed && first_is_one_of(property.id(), PropertyID::BorderImageWidth, PropertyID::BorderImageOutset, PropertyID::BorderImageSlice, PropertyID::BorderImageRepeat))
+        return value.default_reify(property.name());
+    return value.reify(property.name());
+}
+
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymapreadonly-get
 WebIDL::ExceptionOr<Variant<GC::Ref<CSSStyleValue>, Empty>> StylePropertyMapReadOnly::get(Utf16String property_name)
 {
@@ -86,7 +95,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CSSStyleValue>, Empty>> StylePropertyMapRead
     // 4. If props[property] exists, subdivide into iterations props[property], then reify the first item of the result and return it.
     if (auto property_value = get_style_value(props, property.value())) {
         auto iterations = subdivide_property_value(*property_value, property.value(), props.get_pointer<DOM::AbstractElement>());
-        return iterations.first()->reify(property->name());
+        return reify_property_value(*iterations.first(), property.value(), props.has<DOM::AbstractElement>());
     }
 
     // 5. Otherwise, return undefined.
@@ -114,7 +123,7 @@ WebIDL::ExceptionOr<GC::RootVector<GC::Ref<CSSStyleValue>>> StylePropertyMapRead
     if (auto property_value = get_style_value(props, property.value())) {
         auto iterations = subdivide_property_value(*property_value, property.value(), props.get_pointer<DOM::AbstractElement>());
         for (auto const& style_value : iterations)
-            results.append(style_value->reify(property->name()));
+            results.append(reify_property_value(*style_value, property.value(), props.has<DOM::AbstractElement>()));
         return results;
     }
 
