@@ -10,9 +10,9 @@
 #include <AK/Utf16StringBuilder.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/FontFaceSet.h>
+#include <LibWeb/CSS/LengthResolutionContext.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
-#include <LibWeb/CSS/StyleComputeFFI.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleScope.h>
@@ -742,7 +742,7 @@ void StyleScope::build_counter_style_cache(Layout::BegunRead const& read)
             ffi_rules.unchecked_append({ Parser::ffi_utf16_view(rule.name), rule.descriptors.handle(), rule.origin, rule.layer });
         auto const* parent = parent_style_scope();
         auto outer_scopes = parent ? parent->counter_style_lookup_chain(read) : CounterStyleLookupChain {};
-        auto length_resolution_context = to_ffi_length_resolution_context(CSS::Length::ResolutionContext::for_document(document()));
+        auto length_resolution_context = CSS::LengthResolutionContext::for_document(document()).to_ffi();
         counter_styles = Parser::ValueParserFFI::rust_counter_styles_resolve(ffi_rules.data(), ffi_rules.size(), is_document, outer_scopes.data(), outer_scopes.size(), m_counter_styles, &length_resolution_context);
         if (registers_only_user_agent_counter_styles)
             user_agent_counter_styles = Parser::ValueParserFFI::rust_counter_styles_retain(counter_styles);

@@ -10,7 +10,6 @@
 #include <LibWeb/CSS/CSSKeyframesRule.h>
 #include <LibWeb/CSS/CSSRuleList.h>
 #include <LibWeb/CSS/Parser/Parser.h>
-#include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/Dump.h>

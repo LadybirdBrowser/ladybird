@@ -7,8 +7,8 @@
 
 #include <LibGC/Heap.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
+#include <LibWeb/CSS/LengthResolutionContext.h>
 #include <LibWeb/CSS/MediaList.h>
-#include <LibWeb/CSS/StyleComputeFFI.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleSheetInvalidation.h>
 #include <LibWeb/CSS/StyleSheetState.h>
@@ -125,8 +125,7 @@ MediaEnvironmentSnapshot::MediaEnvironmentSnapshot(DOM::Document const& document
     if (!document.window())
         return;
 
-    m_length_resolution_context = to_ffi_length_resolution_context_with_container_bases(
-        Length::ResolutionContext::for_document(document), all_container_relative_length_units_mask);
+    m_length_resolution_context = LengthResolutionContext::for_document(document).to_ffi_with_container_bases(all_container_relative_length_units_mask);
 
     for (size_t index = 0; index < m_values.size(); ++index)
         m_values[index] = document.window()->query_media_feature(static_cast<MediaFeatureID>(index));

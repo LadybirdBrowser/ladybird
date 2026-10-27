@@ -36,6 +36,7 @@
 #include <LibWeb/CSS/StyleValues/FontSourceStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
+#include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/StyleValues/UnicodeRangeStyleValue.h>
@@ -601,10 +602,10 @@ Optional<ComputationContext> FontFaceState::computation_context() const
 {
     if (m_css_font_face_rule_identity.has_value()) {
         if (auto document = m_source_style_sheet->owning_document())
-            return ComputationContext { .length_resolution_context = Length::ResolutionContext::for_document(*document) };
+            return ComputationContext { .length_resolution_context = LengthResolutionContext::for_document(*document) };
     }
     if (auto document = m_environment->responsible_document())
-        return ComputationContext { .length_resolution_context = Length::ResolutionContext::for_document(*document) };
+        return ComputationContext { .length_resolution_context = LengthResolutionContext::for_document(*document) };
     return {};
 }
 

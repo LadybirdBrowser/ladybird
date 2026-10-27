@@ -21,6 +21,7 @@
 #include <LibGfx/FontCascadeList.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/FontFace.h>
+#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/FontFaceSnapshot.h>
 #include <LibWeb/CSS/RustDescriptorBlock.h>

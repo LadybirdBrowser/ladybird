@@ -172,14 +172,13 @@ pub struct FfiSvgLengthValue {
 /// lengths depend on, by style node or 0 for the viewport, and whether a container has no committed
 /// box yet, so the document must evaluate its container queries after layout.
 #[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiContainerLengthBases {
-    pub width: f64,
-    pub height: f64,
-    pub width_query_container: u32,
-    pub height_query_container: u32,
-    pub width_query_container_awaits_layout: bool,
-    pub height_query_container_awaits_layout: bool,
+pub(crate) struct FfiContainerLengthBases {
+    pub(crate) width: f64,
+    pub(crate) height: f64,
+    pub(crate) width_query_container: u32,
+    pub(crate) height_query_container: u32,
+    pub(crate) width_query_container_awaits_layout: bool,
+    pub(crate) height_query_container_awaits_layout: bool,
 }
 
 pub const SVG_LENGTH_KIND_NONE: u8 = 0;
@@ -2517,7 +2516,7 @@ fn font_metrics_for_length_resolution(style: StyleValues<'_>) -> crate::css::sty
     crate::css::style_compute::FfiFontMetrics {
         font_size: style.font_size().to_double(),
         x_height: CssPixels::nearest_value_for_f32(font.font_x_height).to_double(),
-        // FIXME: This is only approximately the cap height, exactly as Length::FontMetrics has it.
+        // FIXME: This is only approximately the cap height, exactly as font_metrics_from() has it.
         cap_height: CssPixels::nearest_value_for_f32(font.font_ascent).to_double(),
         zero_advance: CssPixels::nearest_value_for_f32(font.font_zero_advance).to_double(),
         line_height: style.line_height().to_double(),
@@ -2537,13 +2536,15 @@ fn length_resolution_context(
     let viewport_height = callbacks.initial_containing_block_block_size.to_double();
     // A container unit resolves against the nearest size query container on its axis, or the small viewport size
     // without one. Finding that container is style's business, so it is asked only for a length that needs it. A pass
-    // that cannot ask resolves it to zero, and leaves the node for the host to lay out again.
+    // that leaves container lengths to the host resolves it to zero, and leaves the node for the host to lay out again.
     let container_bases = if crate::css::style_compute::length_unit_is_container_relative(unit) {
         let element = callbacks
             .arena()
             .dom_node_style_node(node)
             .expect("an SVG element's attribute length is resolved for the element's own box");
-        let bases = callbacks.container_length_bases.bases(element);
+        let bases = callbacks
+            .container_length_bases
+            .bases(callbacks.arena(), element, viewport_width, viewport_height);
         callbacks.scratch().note_host_findings(|findings| match &bases {
             Some(bases) => findings.note_container_length_dependencies(element, bases),
             None => findings.note_unresolved_container_lengths(node),

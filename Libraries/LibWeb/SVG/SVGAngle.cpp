@@ -6,7 +6,6 @@
 
 #include <AK/Utf16StringBuilder.h>
 #include <LibGC/Heap.h>
-#include <LibWeb/CSS/Angle.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
@@ -51,7 +50,7 @@ Optional<SVGAngle::Value> SVGAngle::parse(Utf16View input)
         return Value { static_cast<float>(number->as_number().number()), {} };
     // FIXME: Support math functions, which do not parse to a literal number or angle.
     if (auto angle = parse_css_type(parsing_params, input, CSS::ValueType::Angle); angle && angle->is_angle()) {
-        auto value = angle->as_angle().angle();
+        auto const& value = angle->as_angle();
         return Value { static_cast<float>(value.raw_value()), value.unit() };
     }
     return {};
@@ -150,7 +149,7 @@ float SVGAngle::value() const
         return value.factor;
 
     // 3. Return the result of converting value to an angle in degrees.
-    return static_cast<float>(CSS::Angle { value.factor, *value.unit }.to_degrees());
+    return static_cast<float>(CSS::ratio_between_units(*value.unit, CSS::AngleUnit::Deg) * value.factor);
 }
 
 // https://svgwg.org/svg2-draft/types.html#__svg__SVGAngle__value

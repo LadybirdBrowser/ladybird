@@ -21,7 +21,6 @@
 #include <LibWeb/CSS/CSSTranslate.h>
 #include <LibWeb/CSS/CSSUnitValue.h>
 #include <LibWeb/CSS/PropertyID.h>
-#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
@@ -172,23 +171,6 @@ GC::Ptr<CSSTransformComponent> TransformationStyleValue::reify_a_transform_funct
     }
     }
     VERIFY_NOT_REACHED();
-}
-
-Vector<NonnullRefPtr<TransformationStyleValue const>> transformations_for_style_value(StyleValue const& value)
-{
-    if (value.is_keyword() && value.to_keyword() == Keyword::None)
-        return {};
-
-    if (!value.is_value_list())
-        return {};
-
-    auto& list = value.as_value_list();
-    Vector<NonnullRefPtr<TransformationStyleValue const>> transformations;
-    for (auto const& transform_value : list.values()) {
-        VERIFY(transform_value->is_transformation());
-        transformations.append(transform_value->as_transformation());
-    }
-    return transformations;
 }
 
 }

@@ -8,8 +8,7 @@
 
 #include <AK/Optional.h>
 #include <AK/Utf16String.h>
-#include <LibWeb/CSS/Length.h>
-#include <LibWeb/CSS/Percentage.h>
+#include <LibWeb/CSS/Units.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::SVG {
@@ -39,18 +38,6 @@ public:
     {
         VERIFY(m_kind == Kind::Length);
         return m_unit;
-    }
-
-    [[nodiscard]] CSS::Length to_length() const
-    {
-        VERIFY(m_kind == Kind::Length);
-        return CSS::Length { m_value, m_unit };
-    }
-
-    [[nodiscard]] CSS::Percentage to_percentage() const
-    {
-        VERIFY(m_kind == Kind::Percentage);
-        return CSS::Percentage { m_value };
     }
 
     // Serializes exactly as the equivalent number, length or percentage style value would.

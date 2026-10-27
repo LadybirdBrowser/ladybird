@@ -53,7 +53,7 @@ pub struct FfiFontMetrics {
     pub line_height: f64,
 }
 
-/// Mirror of the length resolution parts of Length::ResolutionContext.
+/// Mirror of the length resolution parts of LengthResolutionContext.
 #[repr(C)]
 #[derive(Clone, Copy, PartialEq)]
 pub struct FfiLengthResolutionContext {
@@ -70,7 +70,7 @@ pub struct FfiLengthResolutionContext {
     pub container_width_basis_depends_on_viewport_metrics: bool,
     pub container_height_basis_depends_on_viewport_metrics: bool,
     pub subject_inline_axis_is_horizontal: bool,
-    /// Optional flag owned by Length::ResolutionContext, set to true whenever a
+    /// Optional flag owned by LengthResolutionContext, set to true whenever a
     /// resolution here consumed viewport metrics. Callers that report the
     /// dependency through their return value may leave this null.
     pub resolved_viewport_relative_length: *mut bool,
@@ -108,7 +108,7 @@ fn record_viewport_relative_length_resolution(context: &FfiLengthResolutionConte
     if context.resolved_viewport_relative_length.is_null() {
         return;
     }
-    // SAFETY: The flag belongs to a Length::ResolutionContext that outlives this call.
+    // SAFETY: The flag belongs to a LengthResolutionContext that outlives this call.
     unsafe { *context.resolved_viewport_relative_length = true };
 }
 
@@ -432,7 +432,7 @@ pub(crate) fn absolutize_length(value: f64, unit: usize, context: &FfiLengthReso
     }
 }
 
-/// Absolutizes a length during style computation.
+/// Absolutizes a length against a length resolution context.
 ///
 /// # Safety
 /// `context.resolved_viewport_relative_length` must be null or point to a live flag, which the

@@ -70,8 +70,4 @@ private:
     PropertyID property() const { return static_cast<PropertyID>(m_value->transformation.property); }
 };
 
-// The transform functions of a computed or freshly parsed transform value:
-// empty for the none keyword, the transformation elements otherwise.
-Vector<NonnullRefPtr<TransformationStyleValue const>> transformations_for_style_value(StyleValue const&);
-
 }

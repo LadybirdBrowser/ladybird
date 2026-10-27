@@ -8,8 +8,8 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/SVGLength.h>
 #include <LibWeb/CSS/Parser/Parser.h>
-#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ComputationContext.h>
+#include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/SVG/SVGForeignObjectElement.h>
@@ -128,14 +128,14 @@ static double percentage_resolution_basis_for_attribute_reflecting_length(GC::Pt
     VERIFY_NOT_REACHED();
 }
 
-static Optional<CSS::Length::ResolutionContext> length_resolution_context_for_element(GC::Ptr<SVGElement> element)
+static Optional<CSS::LengthResolutionContext> length_resolution_context_for_element(GC::Ptr<SVGElement> element)
 {
     // AD-HOC: This is defined in the algorithms of both SVGLength::value and SVGLength::convertToSpecifiedUnits so we
     //         factor it out here to avoid duplication.
 
     // - has no associated element
     // AD-HOC: Other browsers also do this for disconnected elements
-    // FIXME: Length::ResolutionContext::for_element doesn't support elements without a navigable so we bail on that
+    // FIXME: LengthResolutionContext::for_element doesn't support elements without a navigable so we bail on that
     //        too which is incorrect
     if (!element || !element->is_connected() || !element->navigable()) {
         // font size is the absolute length of the initial value of the font-size property
@@ -151,7 +151,7 @@ static Optional<CSS::Length::ResolutionContext> length_resolution_context_for_el
         element->document().update_style_for_element(*element, DOM::Document::StyleUpdateMode::OnlyIfNeeded);
 
         // size is the computed value of the associated element's font-size property
-        return CSS::Length::ResolutionContext::for_element(*element);
+        return CSS::LengthResolutionContext::for_element(*element);
     }
 }
 
@@ -172,7 +172,7 @@ WebIDL::ExceptionOr<float> SVGLength::value() const
     auto viewport_size = percentage_resolution_basis_for_attribute_reflecting_length(m_element, m_directionality);
 
     // 4. Let font size be a basis to resolve font size values against, based on the SVGLength's associated element:
-    // AD-HOC: We need a full-fledged Length::ResolutionContext here instead of just the font size so we can resolve all
+    // AD-HOC: We need a full-fledged LengthResolutionContext here instead of just the font size so we can resolve all
     //         relative lengths, not just em (e.g. ch, vw, etc).
     auto length_resolution_context = length_resolution_context_for_element(m_element);
 
@@ -185,16 +185,14 @@ WebIDL::ExceptionOr<float> SVGLength::value() const
     if (!length_resolution_context.has_value()) {
         if (auto const* scalar = value.get_pointer<SVGLengthValue>()) {
             if (scalar->kind() == SVGLengthValue::Kind::Percentage)
-                return CSS::Length::make_px(viewport_size).percentage_of(scalar->to_percentage()).absolute_length_to_px_without_rounding();
-
-            auto length = scalar->to_length();
+                return scalar->value() * 0.01 * viewport_size;
 
             // NB: Font-relative and container-relative lengths are not computationally independent; viewport relative
             //     lengths are but we still can't resolve them without an element.
-            if (!length.is_absolute())
+            if (!CSS::is_absolute(scalar->unit()))
                 return error_value();
 
-            return length.absolute_length_to_px_without_rounding();
+            return CSS::ratio_between_units(scalar->unit(), CSS::LengthUnit::Px) * scalar->value();
         }
 
         auto const& style_value = value.get<NonnullRefPtr<CSS::StyleValue const>>();
@@ -205,7 +203,7 @@ WebIDL::ExceptionOr<float> SVGLength::value() const
         // NB: Values which rely on viewport relative lengths are computationally independent but we still can't resolve
         //    them - we pass a bogus LRC and check if absolutization depends on viewport metrics.
         CSS::ComputationContext computation_context {
-            .length_resolution_context = { .viewport_rect = { 0, 0, 0, 0 }, .font_metrics = { 0, {}, {} }, .root_font_metrics = { 0, {}, {} } },
+            .length_resolution_context = { .viewport_rect = { 0, 0, 0, 0 }, .font_metrics = {}, .root_font_metrics = {} },
         };
 
         auto absolutized_value = style_value->absolutized(computation_context);
@@ -216,10 +214,10 @@ WebIDL::ExceptionOr<float> SVGLength::value() const
         // AD-HOC: We handle literal numbers in step two but calculated values that resolve to numbers haven't been
         //         handled yet (tree counting functions have been filtered out since they aren't computationally
         //         independent).
-        if (absolutized_value->is_calculated() && absolutized_value->as_calculated().resolves_to_number())
+        if (CSS::calculation_resolves_to(*absolutized_value, CSS::StyleValueFFI::CanonicalNumericType::Number))
             return number_from_style_value(*absolutized_value, {});
 
-        return CSS::Length::from_style_value(absolutized_value, CSS::Length::make_px(viewport_size)).absolute_length_to_px_without_rounding();
+        return CSS::resolve_absolute_length_in_px(*absolutized_value, viewport_size);
     }
 
     // NB: Update layout so any container query units are resolved correctly.
@@ -228,9 +226,10 @@ WebIDL::ExceptionOr<float> SVGLength::value() const
 
     if (auto const* scalar = value.get_pointer<SVGLengthValue>()) {
         if (scalar->kind() == SVGLengthValue::Kind::Percentage)
-            return CSS::Length::make_px(viewport_size).percentage_of(scalar->to_percentage()).absolute_length_to_px_without_rounding();
+            return scalar->value() * 0.01 * viewport_size;
 
-        return scalar->to_length().to_px_without_rounding(*length_resolution_context);
+        auto absolutized_length = CSS::LengthStyleValue::create(scalar->value(), scalar->unit())->absolutized({ .length_resolution_context = *length_resolution_context, .abstract_element = DOM::AbstractElement { *m_element } });
+        return CSS::resolve_absolute_length_in_px(*absolutized_length);
     }
 
     auto const& style_value = value.get<NonnullRefPtr<CSS::StyleValue const>>();
@@ -244,10 +243,10 @@ WebIDL::ExceptionOr<float> SVGLength::value() const
 
     // AD-HOC: We handle literal numbers in step two but tree counting functions (which absolutize to NumberStyleValue)
     //         and calculated values that resolve to numbers haven't been handled yet.
-    if (absolutized_value->is_number() || (absolutized_value->is_calculated() && absolutized_value->as_calculated().resolves_to_number()))
+    if (absolutized_value->is_number() || (CSS::calculation_resolves_to(*absolutized_value, CSS::StyleValueFFI::CanonicalNumericType::Number)))
         return number_from_style_value(*absolutized_value, {});
 
-    return CSS::Length::from_style_value(absolutized_value, CSS::Length::make_px(viewport_size)).absolute_length_to_px_without_rounding();
+    return CSS::resolve_absolute_length_in_px(*absolutized_value, viewport_size);
 }
 
 // https://w3c.github.io/svgwg/svg2-draft/types.html#__svg__SVGLength__unitType
@@ -397,13 +396,8 @@ static WebIDL::ExceptionOr<SVGLengthValue> convert_px_to_specified_units(JS::Rea
         if (!length_resolution_context.has_value())
             return WebIDL::NotSupportedError::create(realm, "Cannot convert to relative length without an associated element"_utf16);
 
-        if (CSS::is_font_relative(length_unit))
-            return 1.0 / CSS::ratio_between_font_relative_unit_and_px(length_unit, length_resolution_context->font_metrics, length_resolution_context->root_font_metrics);
-
-        if (CSS::is_viewport_relative(length_unit))
-            return 1.0 / CSS::ratio_between_viewport_relative_unit_and_px(length_unit, length_resolution_context->viewport_rect);
-
-        VERIFY_NOT_REACHED();
+        auto ffi_context = length_resolution_context->to_ffi();
+        return 1.0 / CSS::ComputedValuesFFI::rust_absolutize_length(1.0, to_underlying(length_unit), &ffi_context).px;
     }());
 
     if (!isfinite(ratio))

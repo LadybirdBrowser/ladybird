@@ -23,9 +23,7 @@
 #include <LibWeb/CSS/CSSNumericValue.h>
 #include <LibWeb/CSS/CSSTransition.h>
 #include <LibWeb/CSS/CSSUnitValue.h>
-#include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/Parser/Parser.h>
-#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ComputationContext.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -286,7 +284,7 @@ WebIDL::ExceptionOr<Optional<TimeValue>> Animation::validate_a_css_numberish_tim
     //        window
     auto& document = HTML::relevant_window(relevant_global_object()).associated_document();
     CSS::ComputationContext computation_context {
-        .length_resolution_context = CSS::Length::ResolutionContext::for_document(document),
+        .length_resolution_context = CSS::LengthResolutionContext::for_document(document),
     };
     if (auto const* document_element = document.document_element())
         computation_context.abstract_element = DOM::AbstractElement { *document_element };
@@ -426,7 +424,7 @@ WebIDL::ExceptionOr<TimelineRangeEdge> parse_timeline_range_edge(DOM::Document& 
         // NB: Arbitrary substitution functions and CSS-wide keywords have nothing to substitute or inherit from here.
         if (!parsed || parsed->is_css_wide_keyword() || parsed->is_unresolved() || parsed->is_pending_substitution())
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid timeline range"_utf16 };
-        auto computed = parsed->absolutized(CSS::ComputationContext { .length_resolution_context = CSS::Length::ResolutionContext::for_document(document) });
+        auto computed = parsed->absolutized(CSS::ComputationContext { .length_resolution_context = CSS::LengthResolutionContext::for_document(document) });
         CSS::ComputedValuesFFI::FfiAnimationRangeEdge edge {};
         if (!CSS::ComputedValuesFFI::rust_animation_range_edge(computed->rust_style_value_data(), side == TimelineRangeEdgeSide::End, &edge))
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid timeline range"_utf16 };

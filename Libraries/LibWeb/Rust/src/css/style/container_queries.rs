@@ -64,16 +64,15 @@ impl ContainerVerdict {
     }
 }
 
-/// One physical axis' basis for a subject's container-relative lengths, as
-/// `Length::container_relative_length_to_px_without_rounding` finds it: the content size of the
+/// One physical axis' basis for a subject's container-relative lengths: the content size of the
 /// nearest flat-tree ancestor that accepts size queries on that axis as of the last layout commit,
 /// zero while that container has no box, and the viewport's size when there is no such container.
 #[derive(Clone, Copy)]
-pub(super) struct ContainerUnitBasis {
-    basis: f64,
+pub(crate) struct ContainerUnitBasis {
+    pub(crate) basis: f64,
     /// The container the basis is read from, or none for the viewport.
-    container: Option<StyleNodeID>,
-    container_has_no_box: bool,
+    pub(crate) container: Option<StyleNodeID>,
+    pub(crate) container_has_no_box: bool,
 }
 
 /// The bases of both physical axes, width and height.
@@ -203,7 +202,7 @@ impl RetainedState {
 
     /// The basis of one physical axis for a subject's container-relative lengths. A
     /// pseudo-element's are its originating element's.
-    fn container_unit_basis(&self, subject: StyleNodeID, axis_is_horizontal: bool) -> ContainerUnitBasis {
+    pub(crate) fn container_unit_basis(&self, subject: StyleNodeID, axis_is_horizontal: bool) -> ContainerUnitBasis {
         let mut ancestor = self.tree.flat_tree_parent(subject);
         while let Some(node) = ancestor {
             ancestor = self.tree.flat_tree_parent(node);

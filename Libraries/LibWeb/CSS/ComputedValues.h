@@ -18,22 +18,16 @@
 #include <LibGfx/FontCascadeList.h>
 #include <LibGfx/InterpolationColorSpace.h>
 #include <LibGfx/ScalingMode.h>
-#include <LibWeb/CSS/Angle.h>
-#include <LibWeb/CSS/ColumnCount.h>
 #include <LibWeb/CSS/CountersSet.h>
 #include <LibWeb/CSS/Display.h>
 #include <LibWeb/CSS/EasingFunction.h>
 #include <LibWeb/CSS/Enums.h>
-#include <LibWeb/CSS/LengthBox.h>
-#include <LibWeb/CSS/PercentageOr.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PseudoElement.h>
-#include <LibWeb/CSS/Ratio.h>
 #include <LibWeb/CSS/ResolvedTransform.h>
 #include <LibWeb/CSS/StyleRecordID.h>
 #include <LibWeb/CSS/StyleStructRef.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
-#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CursorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
@@ -41,7 +35,6 @@
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/CSS/StyleValues/URLStyleValue.h>
-#include <LibWeb/CSS/Time.h>
 #include <LibWeb/CSS/URL.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/StyleEngineRustFFI.h>
@@ -97,61 +90,6 @@ class StyleScope;
 
 using ClipRule = FillRule;
 
-struct AspectRatio {
-    bool use_natural_aspect_ratio_if_available;
-    Optional<Ratio> preferred_ratio;
-    bool computed_use_natural_aspect_ratio_if_available;
-    Optional<Ratio> computed_ratio;
-
-    bool operator==(AspectRatio const& other) const
-    {
-        // NB: Ratio's own equality is proportional (1 / 2 equals 0.5 / 1), but these ratios are
-        //     observable through serialization, so compare the components exactly.
-        auto ratios_identical = [](Optional<Ratio> const& a, Optional<Ratio> const& b) {
-            if (a.has_value() != b.has_value())
-                return false;
-            if (!a.has_value())
-                return true;
-            return a->numerator() == b->numerator() && a->denominator() == b->denominator();
-        };
-        return use_natural_aspect_ratio_if_available == other.use_natural_aspect_ratio_if_available
-            && computed_use_natural_aspect_ratio_if_available == other.computed_use_natural_aspect_ratio_if_available
-            && ratios_identical(preferred_ratio, other.preferred_ratio)
-            && ratios_identical(computed_ratio, other.computed_ratio);
-    }
-};
-
-struct GridAutoFlow {
-    bool row { true };
-    bool dense { false };
-
-    bool operator==(GridAutoFlow const&) const = default;
-};
-
-struct NormalGap {
-    bool operator==(NormalGap const&) const = default;
-};
-
-struct Position {
-    PositionEdge edge_x { PositionEdge::Left };
-    LengthPercentage offset_x { Percentage(50) };
-    PositionEdge edge_y { PositionEdge::Top };
-    LengthPercentage offset_y { Percentage(50) };
-
-    bool operator==(Position const&) const = default;
-
-    CSSPixelPoint resolved(CSSPixelRect const& rect) const
-    {
-        CSSPixels x = offset_x.to_px(rect.width());
-        CSSPixels y = offset_y.to_px(rect.height());
-        if (edge_x == PositionEdge::Right)
-            x = rect.width() - x;
-        if (edge_y == PositionEdge::Bottom)
-            y = rect.height() - y;
-        return CSSPixelPoint { rect.x() + x, rect.y() + y };
-    }
-};
-
 // https://drafts.csswg.org/css-contain-2/#containment-types
 struct Containment {
     bool size_containment : 1 { false };
@@ -165,64 +103,18 @@ struct Containment {
     bool operator==(Containment const&) const = default;
 };
 
-struct ContainerType {
-    bool is_size_container : 1 { false };
-    bool is_inline_size_container : 1 { false };
-    bool is_scroll_state_container : 1 { false };
-
-    bool operator==(ContainerType const&) const = default;
-
-    bool is_empty() const { return !(is_size_container || is_inline_size_container || is_scroll_state_container); }
-};
-
-struct ScrollbarColorData {
-    Color thumb_color { Color::Transparent };
-    Color track_color { Color::Transparent };
-    bool is_auto { true };
-
-    bool operator==(ScrollbarColorData const&) const = default;
-};
-
-struct TextIndentData {
-    LengthPercentage length_percentage;
-    bool each_line { false };
-    bool hanging { false };
-
-    bool operator==(TextIndentData const&) const = default;
-};
-
-struct TextUnderlinePosition {
-    TextUnderlinePositionHorizontal horizontal { TextUnderlinePositionHorizontal::Auto };
-    TextUnderlinePositionVertical vertical { TextUnderlinePositionVertical::Auto };
-
-    bool operator==(TextUnderlinePosition const&) const = default;
-};
-
 class InitialValues {
 public:
     static CSSPixels font_size() { return 16; }
     static double font_weight() { return 400; }
     static CSSPixels line_height() { return 0; }
     static CaptionSide caption_side() { return CaptionSide::Top; }
-    static Color caret_color() { return Color::Black; }
-    static CSSPixels text_underline_offset() { return 2; }
-    static Color color() { return Color::Black; }
     static Color stop_color() { return Color::Black; }
     static BorderCollapse border_collapse() { return BorderCollapse::Separate; }
     static EmptyCells empty_cells() { return EmptyCells::Show; }
 
     // https://www.w3.org/TR/SVG/geometry.html
     static int math_depth() { return 0; }
-
-    static ScrollbarColorData scrollbar_color()
-    {
-        return ScrollbarColorData {
-            .thumb_color = Color(Color::NamedColor::DarkGray).with_alpha(192),
-            .track_color = Color(Color::NamedColor::WarmGray).with_alpha(192),
-            .is_auto = true,
-        };
-    }
-    static PaintOrderList paint_order() { return { PaintOrder::Fill, PaintOrder::Stroke, PaintOrder::Markers }; }
 };
 
 struct BorderData {
@@ -234,13 +126,28 @@ public:
     bool operator==(BorderData const&) const = default;
 };
 
-struct TransformOrigin {
-    LengthPercentage x { Percentage(50) };
-    LengthPercentage y { Percentage(50) };
-    // FIXME: We can store this as a CSSPixels since we know it's always an absolute length
-    LengthPercentage z { Percentage(0) };
+inline NonnullRefPtr<StyleValue const> style_value_for_computed_handle(ComputedValuesFFI::ComputedStyleValueHandle const& handle)
+{
+    return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(handle.pointer)));
+}
 
-    bool operator==(TransformOrigin const&) const = default;
+inline CSSPixels length_percentage_to_px(ComputedValuesFFI::ComputedStyleValueHandle const& handle, CSSPixels reference)
+{
+    return CSSPixels::nearest_value_for(ComputedValuesFFI::rust_length_percentage_px(static_cast<StyleValueFFI::StyleValueData const*>(handle.pointer), reference.to_double()));
+}
+
+inline CSSPixels length_percentage_or_auto_to_px_or_zero(ComputedValuesFFI::ComputedLengthPercentageOrAuto const& value, CSSPixels reference)
+{
+    if (value.is_auto)
+        return 0;
+    return length_percentage_to_px(value.value, reference);
+}
+
+struct TransformOrigin {
+    NonnullRefPtr<StyleValue const> x;
+    NonnullRefPtr<StyleValue const> y;
+    // FIXME: We can store this as a CSSPixels since we know it's always an absolute length
+    NonnullRefPtr<StyleValue const> z;
 };
 
 struct ShadowData {
@@ -505,19 +412,9 @@ public:
     // https://drafts.csswg.org/css-viewport/#effective-zoom
     double effective_zoom() const { return m_inherited.box->effective_zoom_value(); }
 
-    ContainerType container_type() const
-    {
-        auto const& box = *m_noninherited.box;
-        return ContainerType {
-            .is_size_container = box.is_size_container,
-            .is_inline_size_container = box.is_inline_size_container,
-            .is_scroll_state_container = box.is_scroll_state_container,
-        };
-    }
     MixBlendMode mix_blend_mode() const { return m_noninherited.effects->mix_blend_mode_value(); }
     Optional<Utf16FlyString> view_transition_name() const { return m_noninherited.misc->view_transition_name_value(); }
 
-    LengthBox inset() const { return length_box(m_noninherited.surround->inset); }
     RefPtr<StyleValue const> anchor_inset(PropertyID property_id) const
     {
         auto const* handle = anchor_inset_handle(property_id);
@@ -526,8 +423,7 @@ public:
         static_assert(sizeof(RustStyleValueHandle) == sizeof(*handle));
         return style_value_from_handle(property_id, reinterpret_cast<RustStyleValueHandle const&>(*handle));
     }
-    LengthBox margin() const { return length_box(m_noninherited.surround->margin); }
-    LengthBox scroll_margin() const { return length_box(m_noninherited.misc->scroll_margin); }
+    ComputedValuesFFI::ComputedLengthBox const& scroll_margin() const { return m_noninherited.misc->scroll_margin; }
 
     BorderData const& border_left() const { return m_noninherited.border->border_left_value(); }
     BorderData const& border_top() const { return m_noninherited.border->border_top_value(); }
@@ -558,8 +454,6 @@ public:
         static_assert(sizeof(RustStyleValueHandle) == sizeof(*handle));
         return style_value_from_handle(PropertyID::D, reinterpret_cast<RustStyleValueHandle const&>(*handle)).release_nonnull();
     }
-    LengthPercentage const& x() const { return LengthPercentage::view(m_noninherited.svg_reset->x); }
-    LengthPercentage const& y() const { return LengthPercentage::view(m_noninherited.svg_reset->y); }
 
     bool has_transformations() const { return m_noninherited.transform->has_transformations(); }
     TransformOrigin transform_origin() const { return m_noninherited.transform->transform_origin_value(); }
@@ -609,23 +503,6 @@ private:
         default:
             return nullptr;
         }
-    }
-
-    static LengthPercentageOrAuto length_percentage_or_auto(ComputedValuesFFI::ComputedLengthPercentageOrAuto const& value)
-    {
-        if (value.is_auto)
-            return LengthPercentageOrAuto::make_auto();
-        return LengthPercentage::view(value.value);
-    }
-
-    static LengthBox length_box(ComputedValuesFFI::ComputedLengthBox const& box)
-    {
-        return {
-            length_percentage_or_auto(box.top),
-            length_percentage_or_auto(box.right),
-            length_percentage_or_auto(box.bottom),
-            length_percentage_or_auto(box.left),
-        };
     }
 
     static Statistics s_statistics;
@@ -874,16 +751,6 @@ public:
 
         bool has_transformations() const { return transformations.pointer; }
         template<typename Callback>
-        void for_each_transformation(Callback callback) const
-        {
-            auto value = style_value(transformations);
-            if (!value)
-                return;
-            for (auto const& transformation : transformations_for_style_value(*value))
-                callback(*transformation);
-        }
-
-        template<typename Callback>
         void for_each_resolved_transform(Callback callback) const
         {
             for (size_t index = 0; index < resolved_transforms.length; ++index) {
@@ -908,9 +775,9 @@ public:
         TransformOrigin transform_origin_value() const
         {
             return {
-                LengthPercentage::view(transform_origin_x),
-                LengthPercentage::view(transform_origin_y),
-                LengthPercentage::view(transform_origin_z),
+                style_value_for_computed_handle(transform_origin_x),
+                style_value_for_computed_handle(transform_origin_y),
+                style_value_for_computed_handle(transform_origin_z),
             };
         }
         TransformStyle transform_style_value() const { return static_cast<TransformStyle>(transform_style); }

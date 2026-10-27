@@ -8,6 +8,7 @@
 #include <AK/HashMap.h>
 #include <AK/QuickSort.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/SourceSet.h>
 #include <LibWeb/Layout/Node.h>
@@ -18,7 +19,7 @@ namespace Web::HTML {
 SourceSet::SourceSet()
     // Note: m_source_size always gets reassigned to its proper value during one of the construction algorithms.
     //       0px is just a fake value here so that we don't have to muddy the type system by using Optional.
-    : m_source_size(CSS::LengthStyleValue::create(CSS::Length::make_px(0)))
+    : m_source_size(CSS::LengthStyleValue::create_px(0))
 {
 }
 
@@ -401,9 +402,9 @@ void SourceSet::normalize_source_densities(DOM::Document const& document)
     // https://drafts.csswg.org/mediaqueries/#units
     // Relative length units in media queries are based on the initial value, which means that units are never based on
     // results of declarations.
-    auto const& length_resolution_context = CSS::Length::ResolutionContext::for_document(document);
+    auto const& length_resolution_context = CSS::LengthResolutionContext::for_document(document);
 
-    auto source_size = CSS::Length::from_style_value(m_source_size->absolutized({ length_resolution_context }), {}).absolute_length_to_px();
+    auto source_size = CSSPixels::nearest_value_for(CSS::resolve_absolute_length_in_px(*m_source_size->absolutized({ length_resolution_context })));
 
     // 2. For each image source in source set:
     for (auto& image_source : m_sources) {

@@ -14,10 +14,8 @@
 #include <LibUnicode/CharacterTypes.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/Display.h>
-#include <LibWeb/CSS/LengthBox.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleComputer.h>
-#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/ValueType.h>
@@ -271,10 +269,10 @@ static RustFFI::FfiSvgAttributeFacts build_svg_attribute_facts(DOM::Element& dom
     RustFFI::FfiSvgLengthValue natural_height { .value = 0, .kind = RustFFI::SVG_LENGTH_KIND_NONE, .unit = 0 };
     Optional<CSSPixelFraction> view_box_aspect_ratio;
     if (auto const* svg_element = as_if<SVG::SVGSVGElement>(dom_node)) {
-        auto to_ffi_length = [](Optional<CSS::Length> const& length) -> RustFFI::FfiSvgLengthValue {
+        auto to_ffi_length = [](Optional<SVG::SVGLengthValue> const& length) -> RustFFI::FfiSvgLengthValue {
             if (!length.has_value())
                 return { .value = 0, .kind = RustFFI::SVG_LENGTH_KIND_NONE, .unit = 0 };
-            return { .value = length->raw_value(), .kind = RustFFI::SVG_LENGTH_KIND_LENGTH, .unit = static_cast<u8>(to_underlying(length->unit())) };
+            return { .value = length->value(), .kind = RustFFI::SVG_LENGTH_KIND_LENGTH, .unit = static_cast<u8>(to_underlying(length->unit())) };
         };
         natural_width = to_ffi_length(svg_element->width_attribute_length());
         natural_height = to_ffi_length(svg_element->height_attribute_length());
@@ -427,12 +425,12 @@ static RustFFI::FfiMathLength math_length_attribute(DOM::Element const& element,
     if (!style_value)
         return {};
     if (style_value->is_percentage())
-        return { to_underlying(MathLengthUnit::Percentage), static_cast<float>(style_value->as_percentage().percentage().value()) };
+        return { to_underlying(MathLengthUnit::Percentage), static_cast<float>(style_value->as_percentage().raw_value()) };
     if (!style_value->is_length())
         return {};
-    auto const& length = style_value->as_length().length();
-    if (length.is_absolute())
-        return { to_underlying(MathLengthUnit::Px), static_cast<float>(length.absolute_length_to_px_without_rounding()) };
+    auto const& length = style_value->as_length();
+    if (CSS::is_absolute(length.unit()))
+        return { to_underlying(MathLengthUnit::Px), static_cast<float>(CSS::resolve_absolute_length_in_px(length)) };
     if (length.unit() == CSS::LengthUnit::Em)
         return { to_underlying(MathLengthUnit::Em), static_cast<float>(length.raw_value()) };
     if (length.unit() == CSS::LengthUnit::Ex)
@@ -537,28 +535,6 @@ void register_layout_host(NodeArena& arena, DOM::Document& document)
                 commit_messages.append(*read, messages[index]);
             // The pass that produced them reads back what they change before it ends.
             commit_messages.apply(*read); },
-        .container_length_bases = [](void* document_pointer, u32 style_node) -> RustFFI::FfiContainerLengthBases {
-            auto& document = *static_cast<DOM::Document*>(document_pointer);
-            auto element = document.style_computer().element_for_style_node(style_node);
-            VERIFY(element);
-            auto context = CSS::Length::ResolutionContext::for_element(DOM::AbstractElement { *element });
-            // Layout writes nothing on the DOM side: the marks these lengths make reach the document as commit
-            // messages, once the layout that resolved them is committed.
-            CSS::Length::DeferredContainerQueryMarks marks;
-            context.defer_container_query_marks(marks);
-            auto width = CSS::Length(100, CSS::LengthUnit::Cqw).to_px_without_rounding(context);
-            auto height = CSS::Length(100, CSS::LengthUnit::Cqh).to_px_without_rounding(context);
-            auto style_node_of = [](GC::Ptr<DOM::Element const> container) -> u32 {
-                return container ? container->style_node_id().value() : 0;
-            };
-            return {
-                .width = width,
-                .height = height,
-                .width_query_container = style_node_of(marks.width_query_container),
-                .height_query_container = style_node_of(marks.height_query_container),
-                .width_query_container_awaits_layout = marks.width_query_container_awaits_layout,
-                .height_query_container_awaits_layout = marks.height_query_container_awaits_layout,
-            }; },
         .take_built_scroll_containers = [](void* context, BegunRead const* read, RustFFI::FfiBuiltScrollContainer const* built, size_t count) {
             auto& document = *static_cast<DOM::Document*>(context);
             for (auto const& scroll_container : ReadonlySpan<RustFFI::FfiBuiltScrollContainer> { built, count })

@@ -26,7 +26,6 @@
 #include <LibURL/URL.h>
 #include <LibWeb/CSS/CalculationResolutionContext.h>
 #include <LibWeb/CSS/Keyword.h>
-#include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/SerializationMode.h>
 #include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/Export.h>
@@ -45,7 +44,7 @@ WEB_API Utf16FlyString css_string_from_rust(StyleValueFFI::CssString const*);
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(BorderImageSlice, border_image_slice, StyleValue)                         \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(BorderRadius, border_radius, StyleValue)                                  \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(BorderRadiusRect, border_radius_rect, StyleValue)                         \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Calculated, calculated, CalculatedStyleValue)                             \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Calculated, calculated, StyleValue)                                       \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(ColorInterpolationMethod, color_interpolation_method, StyleValue)         \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(ColorScheme, color_scheme, ColorSchemeStyleValue)                         \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Color, color, ColorStyleValue)                                            \
@@ -113,7 +112,7 @@ WEB_API Utf16FlyString css_string_from_rust(StyleValueFFI::CssString const*);
 // The facts of the element a value computes for, which Rust asks for only when a value needs them. The pointers in
 // the FFI form point at this, which must outlive their use.
 struct ElementFactsForRust {
-    Length::ResolutionContext const* length_resolution_context { nullptr };
+    LengthResolutionContext const* length_resolution_context { nullptr };
     Optional<DOM::AbstractElement> abstract_element;
 
     StyleValueFFI::FfiElementFacts to_ffi() const;
@@ -249,6 +248,11 @@ struct StyleValueWithDefaultOperators : public StyleValue {
     using Base = StyleValue;
 };
 
+Optional<double> resolve_numeric_style_value(StyleValue const&, StyleValueFFI::CanonicalNumericType, CalculationResolutionContext const& = {});
+bool calculation_resolves_to(StyleValue const&, StyleValueFFI::CanonicalNumericType);
+double resolve_absolute_length_in_px(StyleValue const&, Optional<double> percentage_basis_in_px = {});
+double resolve_angle_in_degrees(StyleValue const&);
+double resolve_resolution_in_dots_per_pixel(StyleValue const&);
 double number_from_style_value(NonnullRefPtr<StyleValue const> const& style_value, Optional<double> percentage_basis);
 Utf16FlyString string_from_style_value(NonnullRefPtr<StyleValue const> const& style_value);
 

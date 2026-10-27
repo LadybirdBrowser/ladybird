@@ -9,33 +9,31 @@
 
 #pragma once
 
-#include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/StyleValues/DimensionStyleValue.h>
 
 namespace Web::CSS {
 
 class PercentageStyleValue final : public DimensionStyleValue {
 public:
-    static ValueComparingNonnullRefPtr<PercentageStyleValue const> create(Percentage percentage)
+    static ValueComparingNonnullRefPtr<PercentageStyleValue const> create(double value)
     {
         // The 0%, 50% and 100% values dominate real-world percentages, so they are interned.
-        if (percentage.value() == 0) {
-            static auto const& zero_instance = adopt_ref(*new (nothrow) PercentageStyleValue(Percentage(0))).leak_ref();
+        if (value == 0) {
+            static auto const& zero_instance = adopt_ref(*new (nothrow) PercentageStyleValue(0.0)).leak_ref();
             return zero_instance;
         }
-        if (percentage.value() == 50) {
-            static auto const& fifty_instance = adopt_ref(*new (nothrow) PercentageStyleValue(Percentage(50))).leak_ref();
+        if (value == 50) {
+            static auto const& fifty_instance = adopt_ref(*new (nothrow) PercentageStyleValue(50.0)).leak_ref();
             return fifty_instance;
         }
-        if (percentage.value() == 100) {
-            static auto const& hundred_instance = adopt_ref(*new (nothrow) PercentageStyleValue(Percentage(100))).leak_ref();
+        if (value == 100) {
+            static auto const& hundred_instance = adopt_ref(*new (nothrow) PercentageStyleValue(100.0)).leak_ref();
             return hundred_instance;
         }
-        return adopt_ref(*new (nothrow) PercentageStyleValue(move(percentage)));
+        return adopt_ref(*new (nothrow) PercentageStyleValue(value));
     }
     virtual ~PercentageStyleValue() override = default;
 
-    Percentage percentage() const { return Percentage(m_value->percentage.value); }
     virtual double raw_value() const override { return m_value->percentage.value; }
     virtual Utf16FlyString unit_name() const override { return "percent"_utf16_fly_string; }
 
@@ -47,8 +45,8 @@ private:
     {
     }
 
-    PercentageStyleValue(Percentage&& percentage)
-        : DimensionStyleValue(Type::Percentage, StyleValueFFI::rust_style_value_create_percentage(percentage.value()))
+    explicit PercentageStyleValue(double value)
+        : DimensionStyleValue(Type::Percentage, StyleValueFFI::rust_style_value_create_percentage(value))
     {
     }
 };

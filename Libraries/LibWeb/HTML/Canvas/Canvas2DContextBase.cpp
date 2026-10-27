@@ -489,13 +489,13 @@ static bool resolve_font(CanvasType& canvas_element, Utf16View font, CanvasFontS
     //     context. They select the fonts of the text, so they are applied when the font is resolved.
     // AD-HOC: fontStretch and fontVariantCaps only apply when they are not "normal", so that the font-stretch and
     //         font-variant-caps components of the font still apply when they are.
-    auto computed_font_width_percentage = computed_font_width->as_percentage().percentage();
+    auto computed_font_width_percentage = computed_font_width->as_percentage().raw_value();
     static constexpr Array<CSS::Keyword, 3> font_kerning_keywords { CSS::Keyword::Auto, CSS::Keyword::Normal, CSS::Keyword::None };
     if (font_selection.font_kerning != 0 && font_selection.font_kerning < font_kerning_keywords.size())
         feature_values[to_underlying(CSS::FontResolutionFeatureInput::FontKerning)] = CSS::KeywordStyleValue::create(font_kerning_keywords[font_selection.font_kerning]);
     static constexpr Array<double, 9> font_stretch_percentages { 50, 62.5, 75, 87.5, 100, 112.5, 125, 150, 200 };
     if (font_selection.font_stretch != 4 && font_selection.font_stretch < font_stretch_percentages.size())
-        computed_font_width_percentage = CSS::Percentage { font_stretch_percentages[font_selection.font_stretch] };
+        computed_font_width_percentage = font_stretch_percentages[font_selection.font_stretch];
     static constexpr Array<CSS::Keyword, 7> font_variant_caps_keywords { CSS::Keyword::Normal, CSS::Keyword::SmallCaps, CSS::Keyword::AllSmallCaps, CSS::Keyword::PetiteCaps, CSS::Keyword::AllPetiteCaps, CSS::Keyword::Unicase, CSS::Keyword::TitlingCaps };
     if (font_selection.font_variant_caps != 0 && font_selection.font_variant_caps < font_variant_caps_keywords.size())
         feature_values[to_underlying(CSS::FontResolutionFeatureInput::FontVariantCaps)] = CSS::KeywordStyleValue::create(font_variant_caps_keywords[font_selection.font_variant_caps]);
@@ -506,7 +506,7 @@ static bool resolve_font(CanvasType& canvas_element, Utf16View font, CanvasFontS
     // https://drafts.csswg.org/css-font-loading/#font-source
     auto& font_computer = canvas_element.canvas_font_computer();
 
-    auto font_size = computed_font_size->as_length().length().absolute_length_to_px();
+    auto font_size = CSSPixels::nearest_value_for(CSS::resolve_absolute_length_in_px(*computed_font_size));
     auto cascade = CSS::resolve_font_for_style_values(font_computer,
         {
             .font_families = CSS::computed_font_families_from_style_value(*font_family),
@@ -546,11 +546,11 @@ static CSS::ComputationContext computation_context_for(CanvasHost& canvas_host, 
         // NB: We lazily initialize the font, so if it hasn't been set yet we generate the font metrics based on the default font
         if (!font.cascade) {
             // When the object implementing the CanvasTextDrawingStyles interface is created, the font of the context must be set to 10px sans-serif.
-            return CSS::Length::FontMetrics { 10, Platform::FontPlugin::the().default_font(8)->pixel_metrics(), CSS::InitialValues::line_height() };
+            return CSS::font_metrics_from(10, Platform::FontPlugin::the().default_font(8)->pixel_metrics(), CSS::InitialValues::line_height());
         }
 
         auto const& first_font = font.cascade->first_available_font();
-        return CSS::Length::FontMetrics { CSSPixels::from_raw(font.font_size), first_font.pixel_metrics(), CSS::InitialValues::line_height() };
+        return CSS::font_metrics_from(CSSPixels::from_raw(font.font_size), first_font.pixel_metrics(), CSS::InitialValues::line_height());
     }();
 
     return {
@@ -600,8 +600,8 @@ void web_canvas_2d_canvas_resolve_color(void* canvas_host, CSS::StyleValue const
 
 float web_canvas_2d_canvas_resolve_length(void* canvas_host, CSS::StyleValue const* length, FontMetricsSource font)
 {
-    auto absolutized_length = CSS::Length::from_style_value(length->absolutized(computation_context_for(host_from(canvas_host), font)), {});
-    return static_cast<float>(absolutized_length.absolute_length_to_px().to_double());
+    auto absolutized_length = length->absolutized(computation_context_for(host_from(canvas_host), font));
+    return static_cast<float>(CSSPixels::nearest_value_for(CSS::resolve_absolute_length_in_px(*absolutized_length)).to_double());
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-filter
@@ -651,10 +651,10 @@ bool web_canvas_2d_canvas_parse_filter(void* canvas_host, FlatPtr filter, FontMe
         case CSS::FilterStyleValue::Kind::DropShadow: {
             auto const& drop_shadow = static_cast<CSS::DropShadowFilterStyleValue const&>(filter_value);
             function.kind = Compositing::RustFFI::FfiFilterFunctionKind::DropShadow;
-            function.offset_x = static_cast<float>(CSS::Length::from_style_value(drop_shadow.offset_x(), {}).absolute_length_to_px());
-            function.offset_y = static_cast<float>(CSS::Length::from_style_value(drop_shadow.offset_y(), {}).absolute_length_to_px());
+            function.offset_x = static_cast<float>(CSSPixels::nearest_value_for(CSS::resolve_absolute_length_in_px(*drop_shadow.offset_x())));
+            function.offset_y = static_cast<float>(CSSPixels::nearest_value_for(CSS::resolve_absolute_length_in_px(*drop_shadow.offset_y())));
             if (drop_shadow.radius())
-                function.amount = static_cast<float>(CSS::Length::from_style_value(*drop_shadow.radius(), {}).absolute_length_to_px());
+                function.amount = static_cast<float>(CSSPixels::nearest_value_for(CSS::resolve_absolute_length_in_px(*drop_shadow.radius())));
             function.color = drop_shadow.color() ? drop_shadow.color()->to_color(host.canvas_color_resolution_style()).value_or(Gfx::Color::Black) : Gfx::Color::Black;
             break;
         }

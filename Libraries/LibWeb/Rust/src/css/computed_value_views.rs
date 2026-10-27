@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Lazy readers over the computed style group payload types, mirroring the
-//! C++ `CSS::Size` / `CSS::LengthPercentage` method surface: every query
+//! Lazy readers over the computed style group payload types: every query
 //! resolves on demand from the stored computed representation, so readers
 //! need no intermediate decoded value.
 
@@ -32,9 +31,8 @@ use std::ffi::c_void;
 
 pub(crate) fn px_calc_resolution_context(percentage_basis: CssPixels) -> calc::FfiCalcResolutionContext {
     calc::FfiCalcResolutionContext {
-        basis_kind: 3,
-        basis_value: percentage_basis.to_double(),
-        basis_unit: crate::css::style_compute::px_length_unit(),
+        has_percentage_basis: true,
+        percentage_basis_px: percentage_basis.to_double(),
         length_resolution_context: std::ptr::null(),
         element_facts: std::ptr::null(),
     }
@@ -59,8 +57,7 @@ pub(crate) fn resolve_calc_to_px(calculated: *const c_void, percentage_basis: Cs
 }
 
 /// A borrowed computed `<length-percentage>`: a retained length, percentage
-/// or calculated style value read in place, the Rust twin of the C++
-/// `LengthPercentage::view` API.
+/// or calculated style value read in place.
 #[derive(Clone, Copy)]
 pub(crate) struct LengthPercentageRef<'a> {
     value: &'a StyleValueData,
@@ -86,8 +83,8 @@ impl LengthPercentageRef<'_> {
         CssPixels::nearest_value_for(value * ratio)
     }
 
-    /// Matches Percentage::as_fraction(); the multiplication order is
-    /// observable for some f64 inputs.
+    /// Multiplies by 0.01 like the C++ percentage readers; the multiplication
+    /// order is observable for some f64 inputs.
     pub(crate) fn as_fraction(self) -> f64 {
         let StyleValueData::Percentage { value } = self.value else {
             unreachable!("computed length-percentage read as a percentage holds another style value");

@@ -7,28 +7,19 @@
 #pragma once
 
 #include <AK/Optional.h>
-#include <LibWeb/CSS/Angle.h>
-#include <LibWeb/CSS/Enums.h>
-#include <LibWeb/CSS/Frequency.h>
-#include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/StyleValues/ComputationContext.h>
-#include <LibWeb/CSS/Time.h>
 #include <LibWeb/Forward.h>
-#include <LibWebCommon/PixelUnits.h>
 
 namespace Web::CSS {
 
 struct CalculationResolutionContext {
-    using PercentageBasis = Variant<Empty, Angle, Frequency, Length, Time>;
-
-    PercentageBasis percentage_basis {};
-    Optional<Length::ResolutionContext> length_resolution_context {};
+    Optional<double> percentage_basis_in_px {};
+    Optional<LengthResolutionContext> length_resolution_context {};
     Optional<DOM::AbstractElement> abstract_element {};
 
-    static CalculationResolutionContext from_computation_context(ComputationContext const& computation_context, PercentageBasis percentage_basis = {})
+    static CalculationResolutionContext from_computation_context(ComputationContext const& computation_context)
     {
         return {
-            .percentage_basis = percentage_basis,
             .length_resolution_context = computation_context.length_resolution_context,
             .abstract_element = computation_context.abstract_element
         };

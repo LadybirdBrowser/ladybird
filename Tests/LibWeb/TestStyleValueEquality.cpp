@@ -5,8 +5,8 @@
  */
 
 #include <LibTest/TestCase.h>
+#include <LibWeb/CSS/NumericType.h>
 #include <LibWeb/CSS/PropertyID.h>
-#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterDefinitionsStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
@@ -128,15 +128,15 @@ TEST_CASE(rust_composites_scalar_style_values)
     auto number = StyleValue::adopt_rust_style_value_data(result.value);
     EXPECT_EQ(number->as_number().number(), 5);
 
-    auto underlying_length = LengthStyleValue::create(Length::make_px(10));
-    auto animated_length = LengthStyleValue::create(Length::make_px(15));
+    auto underlying_length = LengthStyleValue::create_px(10);
+    auto animated_length = LengthStyleValue::create_px(15);
     result = StyleValueFFI::rust_test_composite_style_value(
         underlying_length->rust_style_value_data(),
         animated_length->rust_style_value_data(),
         StyleValueFFI::FfiCompositeOperation::Accumulate);
     EXPECT(result.handled);
     auto length = StyleValue::adopt_rust_style_value_data(result.value);
-    EXPECT_EQ(length->as_length().length().raw_value(), 25);
+    EXPECT_EQ(length->as_length().raw_value(), 25);
 
     result = StyleValueFFI::rust_test_composite_style_value(
         underlying_number->rust_style_value_data(),
@@ -377,10 +377,10 @@ TEST_CASE(rust_pending_substitution_handles_retain_shorthand_data)
 
 TEST_CASE(rust_shadow_handles_retain_child_data)
 {
-    auto offset_x = LengthStyleValue::create(Length::make_px(1));
-    auto offset_y = LengthStyleValue::create(Length::make_px(2));
-    auto blur_radius = LengthStyleValue::create(Length::make_px(3));
-    auto spread_distance = LengthStyleValue::create(Length::make_px(4));
+    auto offset_x = LengthStyleValue::create_px(1);
+    auto offset_y = LengthStyleValue::create_px(2);
+    auto blur_radius = LengthStyleValue::create_px(3);
+    auto spread_distance = LengthStyleValue::create_px(4);
     auto data = StyleValueFFI::rust_style_value_create_shadow(
         to_underlying(ShadowStyleValue::ShadowType::Normal),
         nullptr,
@@ -390,10 +390,10 @@ TEST_CASE(rust_shadow_handles_retain_child_data)
         StyleValueFFI::rust_style_value_retain(spread_distance->rust_style_value_data()),
         to_underlying(ShadowPlacement::Outer));
 
-    offset_x = LengthStyleValue::create(Length::make_px(5));
-    offset_y = LengthStyleValue::create(Length::make_px(6));
-    blur_radius = LengthStyleValue::create(Length::make_px(7));
-    spread_distance = LengthStyleValue::create(Length::make_px(8));
+    offset_x = LengthStyleValue::create_px(5);
+    offset_y = LengthStyleValue::create_px(6);
+    blur_radius = LengthStyleValue::create_px(7);
+    spread_distance = LengthStyleValue::create_px(8);
     auto shadow = StyleValue::adopt_rust_style_value_data(data);
     EXPECT(shadow->is_shadow());
     auto retained_offset_x = shadow->as_shadow().offset_x();
@@ -412,9 +412,9 @@ TEST_CASE(rust_filter_handles_retain_child_data)
     auto shadow = ShadowStyleValue::create(
         ShadowStyleValue::ShadowType::Text,
         nullptr,
-        LengthStyleValue::create(Length::make_px(1)),
-        LengthStyleValue::create(Length::make_px(2)),
-        LengthStyleValue::create(Length::make_px(3)),
+        LengthStyleValue::create_px(1),
+        LengthStyleValue::create_px(2),
+        LengthStyleValue::create_px(3),
         nullptr,
         ShadowPlacement::Outer);
     auto data = StyleValueFFI::rust_style_value_create_filter(
@@ -425,9 +425,9 @@ TEST_CASE(rust_filter_handles_retain_child_data)
     shadow = ShadowStyleValue::create(
         ShadowStyleValue::ShadowType::Text,
         nullptr,
-        LengthStyleValue::create(Length::make_px(4)),
-        LengthStyleValue::create(Length::make_px(5)),
-        LengthStyleValue::create(Length::make_px(6)),
+        LengthStyleValue::create_px(4),
+        LengthStyleValue::create_px(5),
+        LengthStyleValue::create_px(6),
         nullptr,
         ShadowPlacement::Outer);
     auto filter = StyleValue::adopt_rust_style_value_data(data);
@@ -439,13 +439,9 @@ TEST_CASE(rust_filter_handles_retain_child_data)
 
 TEST_CASE(rust_calculated_handles_create_typed_wrappers)
 {
-    StyleValueFFI::FfiNumericType resolved_type {};
-    resolved_type.valid = true;
-    resolved_type.has_exponent_bits |= 1u << to_underlying(NumericType::BaseType::Length);
-    resolved_type.exponents[to_underlying(NumericType::BaseType::Length)] = 1;
     auto data = StyleValueFFI::rust_style_value_create_calculated(
         StyleValueFFI::rust_calc_node_create_numeric_dimension(4, 10, to_underlying(LengthUnit::Px)),
-        resolved_type,
+        NumericType { NumericType::BaseType::Length, 1 }.to_ffi(),
         false,
         false,
         0,
@@ -792,7 +788,7 @@ TEST_CASE(rust_interpolates_perspective_transform_functions)
             { TransformationStyleValue::create(
                 PropertyID::Transform,
                 TransformFunction::Perspective,
-                { LengthStyleValue::create(Length::make_px(depth)) }) },
+                { LengthStyleValue::create_px(depth) }) },
             StyleValueList::Separator::Space);
     };
     auto from = make_transform(400);
@@ -811,8 +807,8 @@ TEST_CASE(rust_interpolates_perspective_transform_functions)
     auto arguments = transformations[0]->as_transformation().values();
     EXPECT_EQ(arguments.size(), 1u);
     EXPECT(arguments[0]->is_length());
-    EXPECT_APPROXIMATE(arguments[0]->as_length().length().raw_value(), 421.0526315789474);
-    EXPECT(arguments[0]->as_length().length().is_px());
+    EXPECT_APPROXIMATE(arguments[0]->as_length().raw_value(), 421.0526315789474);
+    EXPECT(arguments[0]->as_length().unit() == LengthUnit::Px);
 }
 
 TEST_CASE(rust_interpolates_rotate_3d_transform_functions)
@@ -895,7 +891,7 @@ TEST_CASE(rust_extends_transform_lists_with_identity_functions)
             TransformationStyleValue::create(
                 PropertyID::Transform,
                 TransformFunction::TranslateX,
-                { LengthStyleValue::create(Length::make_px(100)) }) },
+                { LengthStyleValue::create_px(100) }) },
         StyleValueList::Separator::Space);
 
     auto result = StyleValueFFI::rust_interpolate_scalar_style_value(
@@ -909,7 +905,7 @@ TEST_CASE(rust_extends_transform_lists_with_identity_functions)
     auto transformations = interpolated->as_value_list().values();
     EXPECT_EQ(transformations.size(), 2u);
     EXPECT_APPROXIMATE(transformations[0]->as_transformation().values()[0]->as_number().number(), 3.0);
-    EXPECT_APPROXIMATE(transformations[1]->as_transformation().values()[0]->as_length().length().raw_value(), 50.0);
+    EXPECT_APPROXIMATE(transformations[1]->as_transformation().values()[0]->as_length().raw_value(), 50.0);
 }
 
 TEST_CASE(rust_extends_transform_lists_with_identity_perspective)
@@ -928,7 +924,7 @@ TEST_CASE(rust_extends_transform_lists_with_identity_perspective)
             TransformationStyleValue::create(
                 PropertyID::Transform,
                 TransformFunction::Perspective,
-                { LengthStyleValue::create(Length::make_px(500)) }) },
+                { LengthStyleValue::create_px(500) }) },
         StyleValueList::Separator::Space);
 
     auto result = StyleValueFFI::rust_interpolate_scalar_style_value(
@@ -943,7 +939,7 @@ TEST_CASE(rust_extends_transform_lists_with_identity_perspective)
     EXPECT_EQ(transformations.size(), 2u);
     auto perspective = transformations[1]->as_transformation().values();
     EXPECT_EQ(perspective.size(), 1u);
-    EXPECT_APPROXIMATE(perspective[0]->as_length().length().raw_value(), 1000.0);
+    EXPECT_APPROXIMATE(perspective[0]->as_length().raw_value(), 1000.0);
 }
 
 TEST_CASE(rust_extends_transform_lists_with_identity_matrices)
@@ -981,13 +977,13 @@ TEST_CASE(rust_expands_omitted_transform_arguments_before_interpolation)
         { TransformationStyleValue::create(
             PropertyID::Transform,
             TransformFunction::Translate,
-            { PercentageStyleValue::create(Percentage { 50 }) }) },
+            { PercentageStyleValue::create(50) }) },
         StyleValueList::Separator::Space);
     auto to = StyleValueList::create(
         { TransformationStyleValue::create(
             PropertyID::Transform,
             TransformFunction::Translate,
-            { PercentageStyleValue::create(Percentage { 100 }), PercentageStyleValue::create(Percentage { 50 }) }) },
+            { PercentageStyleValue::create(100), PercentageStyleValue::create(50) }) },
         StyleValueList::Separator::Space);
 
     auto result = StyleValueFFI::rust_interpolate_scalar_style_value(
@@ -1015,11 +1011,11 @@ TEST_CASE(rust_interpolates_mixed_length_percentage_transform_arguments)
             StyleValueList::Separator::Space);
     };
     auto from = make_transform(
-        LengthStyleValue::create(Length::make_px(480)),
-        PercentageStyleValue::create(Percentage { 80 }));
+        LengthStyleValue::create_px(480),
+        PercentageStyleValue::create(80));
     auto to = make_transform(
-        PercentageStyleValue::create(Percentage { 240 }),
-        LengthStyleValue::create(Length::make_px(400)));
+        PercentageStyleValue::create(240),
+        LengthStyleValue::create_px(400));
 
     auto result = StyleValueFFI::rust_interpolate_scalar_style_value(
         nullptr,
@@ -1037,7 +1033,7 @@ TEST_CASE(rust_interpolates_stroke_dasharray_values)
     auto make_dasharray = [](std::initializer_list<double> lengths) {
         StyleValueVector values;
         for (auto length : lengths)
-            values.append(LengthStyleValue::create(Length::make_px(length)));
+            values.append(LengthStyleValue::create_px(length));
         return StyleValueList::create(move(values), StyleValueList::Separator::Space);
     };
     auto from = make_dasharray({ 20, 40, 10 });
@@ -1149,11 +1145,11 @@ TEST_CASE(rust_interpolates_individual_translate_values)
     auto from = TransformationStyleValue::create(
         PropertyID::Translate,
         TransformFunction::Translate3d,
-        { LengthStyleValue::create(Length::make_px(480)), LengthStyleValue::create(Length::make_px(400)), LengthStyleValue::create(Length::make_px(320)) });
+        { LengthStyleValue::create_px(480), LengthStyleValue::create_px(400), LengthStyleValue::create_px(320) });
     auto to = TransformationStyleValue::create(
         PropertyID::Translate,
         TransformFunction::Translate,
-        { PercentageStyleValue::create(Percentage { 240 }), PercentageStyleValue::create(Percentage { 160 }) });
+        { PercentageStyleValue::create(240), PercentageStyleValue::create(160) });
 
     auto result = StyleValueFFI::rust_interpolate_scalar_style_value(
         nullptr,
@@ -1168,11 +1164,11 @@ TEST_CASE(rust_interpolates_individual_translate_values)
     auto zero = TransformationStyleValue::create(
         PropertyID::Translate,
         TransformFunction::Translate,
-        { LengthStyleValue::create(Length::make_px(0)), LengthStyleValue::create(Length::make_px(0)) });
+        { LengthStyleValue::create_px(0), LengthStyleValue::create_px(0) });
     auto three_dimensions = TransformationStyleValue::create(
         PropertyID::Translate,
         TransformFunction::Translate3d,
-        { LengthStyleValue::create(Length::make_px(-100)), LengthStyleValue::create(Length::make_px(-50)), LengthStyleValue::create(Length::make_px(100)) });
+        { LengthStyleValue::create_px(-100), LengthStyleValue::create_px(-50), LengthStyleValue::create_px(100) });
     result = StyleValueFFI::rust_interpolate_scalar_style_value(
         nullptr,
         to_underlying(PropertyID::Translate),
@@ -1285,7 +1281,7 @@ static NonnullRefPtr<StyleValueList const> make_identity_matrix_and_translate_x(
             TransformationStyleValue::create(
                 PropertyID::Transform,
                 TransformFunction::TranslateX,
-                { LengthStyleValue::create(Length::make_px(translation)) }) },
+                { LengthStyleValue::create_px(translation) }) },
         StyleValueList::Separator::Space);
 }
 
@@ -1333,9 +1329,9 @@ TEST_CASE(rust_interpolates_matrix_pairs_on_their_own)
     EXPECT_EQ(transformations[1]->as_transformation().transform_function(), TransformFunction::Translate);
     auto translation = transformations[1]->as_transformation().values();
     EXPECT_EQ(translation.size(), 2u);
-    EXPECT_APPROXIMATE(translation[0]->as_length().length().raw_value(), 150.0);
-    EXPECT(translation[0]->as_length().length().is_px());
-    EXPECT_APPROXIMATE(translation[1]->as_length().length().raw_value(), 0.0);
+    EXPECT_APPROXIMATE(translation[0]->as_length().raw_value(), 150.0);
+    EXPECT(translation[0]->as_length().unit() == LengthUnit::Px);
+    EXPECT_APPROXIMATE(translation[1]->as_length().raw_value(), 0.0);
 }
 
 TEST_CASE(rust_interpolates_transform_functions_without_a_common_primitive)

@@ -35,12 +35,12 @@ static_assert(to_underlying(Gfx::ColorFilterType::Sepia) == 6);
 
 float BlurFilterStyleValue::resolved_radius() const
 {
-    return Length::from_style_value(radius(), {}).absolute_length_to_px_without_rounding();
+    return resolve_absolute_length_in_px(*radius());
 }
 
 float HueRotateFilterStyleValue::angle_degrees() const
 {
-    return Angle::from_style_value(angle(), {}).to_degrees();
+    return resolve_angle_in_degrees(*angle());
 }
 
 float ColorFilterStyleValue::resolved_amount() const

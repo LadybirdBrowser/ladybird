@@ -96,7 +96,7 @@ static RefPtr<CSS::StyleValue const> parse_coordinate_pair_as_translation(SVGEle
 static NonnullRefPtr<CSS::StyleValue const> translation(Gfx::FloatPoint point)
 {
     return CSS::TransformationStyleValue::create(CSS::PropertyID::Translate, CSS::TransformFunction::Translate,
-        { CSS::LengthStyleValue::create(CSS::Length::make_px(point.x())), CSS::LengthStyleValue::create(CSS::Length::make_px(point.y())) });
+        { CSS::LengthStyleValue::create_px(point.x()), CSS::LengthStyleValue::create_px(point.y()) });
 }
 
 static Optional<Gfx::FloatPoint> translation_in_pixels(CSS::StyleValue const& translation)
@@ -106,11 +106,11 @@ static Optional<Gfx::FloatPoint> translation_in_pixels(CSS::StyleValue const& tr
     auto values = translation.as_transformation().values();
     if (values.size() != 2 || !values[0]->is_length() || !values[1]->is_length())
         return {};
-    auto x = values[0]->as_length().length();
-    auto y = values[1]->as_length().length();
-    if (!x.is_absolute() || !y.is_absolute())
+    auto const& x = values[0]->as_length();
+    auto const& y = values[1]->as_length();
+    if (!CSS::is_absolute(x.unit()) || !CSS::is_absolute(y.unit()))
         return {};
-    return Gfx::FloatPoint { x.absolute_length_to_px_without_rounding(), y.absolute_length_to_px_without_rounding() };
+    return Gfx::FloatPoint { CSS::resolve_absolute_length_in_px(x), CSS::resolve_absolute_length_in_px(y) };
 }
 
 namespace {
@@ -140,7 +140,7 @@ public:
             degrees -= 360 * AK::round((degrees - *m_previous_degrees) / 360);
         m_previous_degrees = degrees;
         return CSS::TransformationStyleValue::create(CSS::PropertyID::Rotate, CSS::TransformFunction::Rotate,
-            { CSS::AngleStyleValue::create(CSS::Angle::make_degrees(degrees)) });
+            { CSS::AngleStyleValue::create(degrees, CSS::AngleUnit::Deg) });
     }
 
 private:

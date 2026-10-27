@@ -54,7 +54,6 @@
 #include <LibWeb/CSS/Parser/SyntaxParsing.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/SelectorMatching.h>
-#include <LibWeb/CSS/StyleComputeFFI.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleEngineEffectTiming.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
@@ -157,7 +156,7 @@ static RustDeclarationBlock const& declaration_of_rule(CSSRule const& rule)
 
 StyleComputer::StyleComputer(DOM::Document& document)
     : m_document(document)
-    , m_default_font_metrics(16, Platform::FontPlugin::the().default_font(16)->pixel_metrics(), InitialValues::line_height())
+    , m_default_font_metrics(font_metrics_from(16, Platform::FontPlugin::the().default_font(16)->pixel_metrics(), InitialValues::line_height()))
     , m_root_element_font_metrics(m_default_font_metrics)
     , m_style_engine(this)
 {
@@ -802,9 +801,7 @@ NonnullOwnPtr<StyleComputer::AnimationSample> StyleComputer::begin_animation_sam
             auto& sample = *static_cast<SampleContext*>(context);
             // Each context is the sampled element's own, built afresh: a batch builds several elements' contexts in one call.
             auto length_context_for = [&](PropertyID property_id) {
-                return to_ffi_length_resolution_context_with_container_bases(
-                    sample.style_computer->make_computation_context_for_property(sample.read, property_id, sample.computed_properties, sample.abstract_element).length_resolution_context,
-                    container_relative_length_unit_mask);
+                return sample.style_computer->make_computation_context_for_property(sample.read, property_id, sample.computed_properties, sample.abstract_element).length_resolution_context.to_ffi_with_container_bases(container_relative_length_unit_mask);
             };
             contexts->font = length_context_for(PropertyID::FontFamily);
             contexts->line_height = length_context_for(PropertyID::LineHeight);
@@ -1870,7 +1867,7 @@ void StyleComputer::sweep_custom_property_environments() const
 
 void StyleComputer::update_root_element_font_metrics(ComputedValues const& values)
 {
-    m_root_element_font_metrics = Length::FontMetrics { values.font_size(), values.font_list().first_available_font().pixel_metrics(), values.line_height() };
+    m_root_element_font_metrics = font_metrics_from(values.font_size(), values.font_list().first_available_font().pixel_metrics(), values.line_height());
     m_root_element_font_metrics_depend_on_viewport_metrics = values.font_metrics_depend_on_viewport_metrics();
     m_root_element_effective_zoom = values.effective_zoom();
 }
@@ -1957,8 +1954,8 @@ ComputationContext StyleComputer::make_computation_context_for_property(Layout::
     case PropertyID::TextRendering: {
         auto inheritance_parent = abstract_element.map([](auto& element) { return element.element_to_inherit_style_from(); }).value_or(OptionalNone {});
         auto length_resolution_context = inheritance_parent.has_value() && inheritance_parent->has_style() && inheritance_parent->element().navigable()
-            ? Length::ResolutionContext::for_element(inheritance_parent.value())
-            : Length::ResolutionContext::for_document(m_document);
+            ? LengthResolutionContext::for_element(inheritance_parent.value())
+            : LengthResolutionContext::for_document(m_document);
         length_resolution_context.subject_inline_axis_is_horizontal = subject_inline_axis_is_horizontal;
         length_resolution_context.subject_element = abstract_element.has_value() ? &abstract_element->element() : nullptr;
 
@@ -1970,11 +1967,10 @@ ComputationContext StyleComputer::make_computation_context_for_property(Layout::
     case PropertyID::LineHeight: {
         auto inheritance_parent = abstract_element.map([](auto& element) { return element.element_to_inherit_style_from(); }).value_or(OptionalNone {});
 
-        auto line_height_font_metrics = Length::FontMetrics {
+        auto line_height_font_metrics = font_metrics_from(
             style.font_size(),
             style.first_available_computed_font(document().font_computer())->pixel_metrics(),
-            inheritance_parent.has_value() && inheritance_parent->has_style() ? inheritance_parent->computed_style()->line_height() : InitialValues::line_height()
-        };
+            inheritance_parent.has_value() && inheritance_parent->has_style() ? inheritance_parent->computed_style()->line_height() : InitialValues::line_height());
 
         return {
             .length_resolution_context = {
@@ -1994,11 +1990,10 @@ ComputationContext StyleComputer::make_computation_context_for_property(Layout::
         };
     }
     default: {
-        auto font_metrics = Length::FontMetrics {
+        auto font_metrics = font_metrics_from(
             style.font_size(),
             style.first_available_computed_font(document().font_computer())->pixel_metrics(),
-            style.line_height(document().font_computer())
-        };
+            style.line_height(document().font_computer()));
         return {
             .length_resolution_context = {
                 .viewport_rect = viewport_rect(),
@@ -2047,7 +2042,7 @@ StyleRecordID StyleComputer::intern_document_style(Layout::BegunRead const& read
         for (auto const& scheme : *document_supported_color_schemes)
             document_supported_color_scheme_codes.unchecked_append(to_underlying(preferred_color_scheme_from_string(scheme)));
     }
-    auto length_resolution_context = CSS::Length::ResolutionContext::for_document(document());
+    auto length_resolution_context = CSS::LengthResolutionContext::for_document(document());
     auto viewport_rect = this->viewport_rect();
     ComputedValuesFFI::FfiDocumentLonghandInput const input {
         .color_scheme_input = {
@@ -2056,7 +2051,7 @@ StyleRecordID StyleComputer::intern_document_style(Layout::BegunRead const& read
             .document_supported_scheme_codes = document_supported_color_scheme_codes.data(),
             .document_supported_scheme_count = document_supported_color_scheme_codes.size(),
         },
-        .length_resolution_context = to_ffi_length_resolution_context(length_resolution_context),
+        .length_resolution_context = length_resolution_context.to_ffi(),
         .device_pixels_per_css_pixel = m_document->page().client().device_pixels_per_css_pixel(),
         .initial_font_size_raw = InitialValues::font_size().raw_value(),
         .default_font_size_raw = default_user_font_size().raw_value(),
@@ -2227,11 +2222,11 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_size(NonnullRefPtr<S
     if (result.handled) {
         if (result.unchanged)
             return absolutized_value;
-        return LengthStyleValue::create(Length::make_px(result.value));
+        return LengthStyleValue::create_px(result.value);
     }
 
     VERIFY(absolutized_value->is_calculated());
-    return LengthStyleValue::create(absolutized_value->as_calculated().resolve_length({ .percentage_basis = Length::make_px(inherited_font_size) }).value());
+    return LengthStyleValue::create_px(resolve_absolute_length_in_px(*absolutized_value, inherited_font_size.to_double()));
 }
 
 // The FontStyleKeyword discriminants cross the boundary as the mapped keyword code; pin them.
@@ -2271,7 +2266,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_weight(NonnullRefPtr
 
     // AD-HOC: Anywhere we support a numbers we should also support calcs
     VERIFY(absolutized_value->is_calculated());
-    return NumberStyleValue::create(absolutized_value->as_calculated().resolve_number({}).value());
+    return NumberStyleValue::create(resolve_numeric_style_value(*absolutized_value, StyleValueFFI::CanonicalNumericType::Number).value());
 }
 
 NonnullRefPtr<StyleValue const> StyleComputer::compute_font_width(NonnullRefPtr<StyleValue const> const& absolutized_value)
@@ -2281,12 +2276,12 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_width(NonnullRefPtr<
     if (result.handled) {
         if (result.unchanged)
             return absolutized_value;
-        return PercentageStyleValue::create(Percentage(result.value));
+        return PercentageStyleValue::create(result.value);
     }
 
     // AD-HOC: We support calculated percentages as well
     VERIFY(absolutized_value->is_calculated());
-    return PercentageStyleValue::create(absolutized_value->as_calculated().resolve_percentage({}).value());
+    return PercentageStyleValue::create(resolve_numeric_style_value(*absolutized_value, StyleValueFFI::CanonicalNumericType::Percentage).value());
 }
 
 }

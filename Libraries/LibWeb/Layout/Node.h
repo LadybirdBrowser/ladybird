@@ -376,23 +376,6 @@ public:
         return *static_cast<StyleGroup const*>(payload);
     }
 
-    static CSS::LengthPercentageOrAuto length_percentage_or_auto(CSS::ComputedValuesFFI::ComputedLengthPercentageOrAuto const& value)
-    {
-        if (value.is_auto)
-            return CSS::LengthPercentageOrAuto::make_auto();
-        return CSS::LengthPercentage::view(value.value);
-    }
-
-    static CSS::LengthBox length_box(CSS::ComputedValuesFFI::ComputedLengthBox const& box)
-    {
-        return {
-            length_percentage_or_auto(box.top),
-            length_percentage_or_auto(box.right),
-            length_percentage_or_auto(box.bottom),
-            length_percentage_or_auto(box.left),
-        };
-    }
-
     CSS::Display display() const { return CSS::display_from_ffi_display(style_group<CSS::ComputedValues::BoxValues>().display); }
     CSS::Float float_() const { return static_cast<CSS::Float>(style_group<CSS::ComputedValues::BoxValues>().float_); }
     CSS::Positioning position() const { return static_cast<CSS::Positioning>(style_group<CSS::ComputedValues::BoxValues>().position); }
@@ -483,15 +466,10 @@ public:
     CSSPixels line_height() const { return style_group<CSS::ComputedValues::FontValues>().line_height_used; }
     CSSPixels font_size() const { return style_group<CSS::ComputedValues::FontValues>().font_size; }
     Gfx::FontCascadeList const& font_list() const { return style_group<CSS::ComputedValues::FontValues>().font_list_value(); }
-    CSS::LengthBox inset() const { return length_box(style_group<CSS::ComputedValues::SurroundValues>().inset); }
-    CSS::LengthBox margin() const { return length_box(style_group<CSS::ComputedValues::SurroundValues>().margin); }
-    CSS::LengthBox padding() const { return length_box(style_group<CSS::ComputedValues::SurroundValues>().padding); }
+    CSS::ComputedValuesFFI::ComputedLengthBox const& inset() const { return style_group<CSS::ComputedValues::SurroundValues>().inset; }
+    CSS::ComputedValuesFFI::ComputedLengthBox const& margin() const { return style_group<CSS::ComputedValues::SurroundValues>().margin; }
+    CSS::ComputedValuesFFI::ComputedLengthBox const& padding() const { return style_group<CSS::ComputedValues::SurroundValues>().padding; }
     bool has_transformations() const { return style_group<CSS::ComputedValues::TransformValues>().has_transformations(); }
-    template<typename Callback>
-    void for_each_transformation(Callback callback) const
-    {
-        style_group<CSS::ComputedValues::TransformValues>().for_each_transformation(callback);
-    }
     template<typename Callback>
     void for_each_resolved_transform(Callback callback) const
     {

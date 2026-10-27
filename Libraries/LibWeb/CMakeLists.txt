@@ -66,7 +66,6 @@ set(SOURCES
     Crypto/CryptoBindings.cpp
     Crypto/CryptoKey.cpp
     Crypto/SubtleCrypto.cpp
-    CSS/Angle.cpp
     CSS/AnimationEvent.cpp
     CSS/ComputedStyleWorkingSet.cpp
     CSS/ComputedValues.cpp
@@ -145,14 +144,12 @@ set(SOURCES
     CSS/Display.cpp
     CSS/EasingFunction.cpp
     CSS/Fetch.cpp
-    CSS/Flex.cpp
     CSS/FontComputer.cpp
     CSS/FontFace.cpp
     CSS/FontLoading.cpp
     CSS/FontResolution.cpp
     CSS/FontFaceSet.cpp
     CSS/FontFaceSetLoadEvent.cpp
-    CSS/Frequency.cpp
     CSS/Highlight.cpp
     CSS/HighlightRegistry.cpp
     CSS/HypotheticalElement.cpp
@@ -167,12 +164,10 @@ set(SOURCES
     CSS/Invalidation/MediaQueryInvalidator.cpp
     CSS/Invalidation/PartInvalidator.cpp
     CSS/Invalidation/PseudoClassInvalidator.cpp
-    CSS/Length.cpp
-    CSS/LengthBox.cpp
+    CSS/LengthResolutionContext.cpp
     CSS/MediaList.cpp
     CSS/MediaQueryList.cpp
     CSS/MediaQueryListEvent.cpp
-    CSS/Number.cpp
     CSS/NumericType.cpp
     CSS/Parser/ErrorReporter.cpp
     CSS/Parser/Helpers.cpp
@@ -182,9 +177,6 @@ set(SOURCES
     CSS/Parser/RustSyntaxParsing.cpp
     CSS/Parser/RuleContext.cpp
     CSS/Parser/SelectorParsing.cpp
-    CSS/Percentage.cpp
-    CSS/Ratio.cpp
-    CSS/Resolution.cpp
     CSS/ResolvedTransform.cpp
     CSS/Screen.cpp
     CSS/ScreenOrientation.cpp
@@ -210,7 +202,7 @@ set(SOURCES
     CSS/StyleSheetState.cpp
     CSS/StyleValues/AbstractImageStyleValue.cpp
     CSS/StyleValues/AngleStyleValue.cpp
-    CSS/StyleValues/CalculatedStyleValue.cpp
+    CSS/StyleValues/CalcNodeRef.cpp
     CSS/StyleValues/ColorFunctionStyleValue.cpp
     CSS/StyleValues/ColorStyleValue.cpp
     CSS/StyleValues/ContentStyleValue.cpp
@@ -220,7 +212,6 @@ set(SOURCES
     CSS/StyleValues/DimensionStyleValue.cpp
     CSS/StyleValues/DisplayStyleValue.cpp
     CSS/StyleValues/FilterStyleValue.cpp
-    CSS/StyleValues/FunctionStyleValue.cpp
     CSS/StyleValues/FontSourceStyleValue.cpp
     CSS/StyleValues/FontStyleStyleValue.cpp
     CSS/StyleValues/ImageSetStyleValue.cpp
@@ -238,7 +229,6 @@ set(SOURCES
     CSS/StyleValues/UnresolvedStyleValue.cpp
     CSS/Supports.cpp
     CSS/SyntaxHighlighter/SyntaxHighlighter.cpp
-    CSS/Time.cpp
     CSS/TransitionEvent.cpp
     CSS/URL.cpp
     CSS/UpdateStyle.cpp

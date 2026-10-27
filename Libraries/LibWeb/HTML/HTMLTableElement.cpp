@@ -112,7 +112,7 @@ void HTMLTableElement::apply_presentational_hints(Vector<CSS::StyleProperty>& pr
                 return;
             auto apply_border_style = [&](CSS::PropertyID style_property, CSS::PropertyID width_property) {
                 properties.append({ .property_id = style_property, .value = CSS::KeywordStyleValue::create(CSS::Keyword::Outset) });
-                properties.append({ .property_id = width_property, .value = CSS::LengthStyleValue::create(CSS::Length::make_px(border)) });
+                properties.append({ .property_id = width_property, .value = CSS::LengthStyleValue::create_px(border) });
             };
             apply_border_style(CSS::PropertyID::BorderLeftStyle, CSS::PropertyID::BorderLeftWidth);
             apply_border_style(CSS::PropertyID::BorderTopStyle, CSS::PropertyID::BorderTopWidth);

@@ -155,7 +155,7 @@ struct MatchingFontCandidate {
 
 // Partial implementation of the font-matching algorithm: https://www.w3.org/TR/css-fonts-4/#font-matching-algorithm
 // FIXME: This should be replaced by the full CSS font selection algorithm.
-static RefPtr<Gfx::FontCascadeList const> font_matching_algorithm(FontFaceSnapshot const& snapshot, Utf16FlyString const& family_name, int weight, Percentage const& font_width, int slope, float font_size_in_pt, Gfx::FontVariationSettings const& variations, Gfx::ShapeFeatures const& shape_features)
+static RefPtr<Gfx::FontCascadeList const> font_matching_algorithm(FontFaceSnapshot const& snapshot, Utf16FlyString const& family_name, int weight, double font_width, int slope, float font_size_in_pt, Gfx::FontVariationSettings const& variations, Gfx::ShapeFeatures const& shape_features)
 {
     // If a font family match occurs, the user agent assembles the set of font faces in that family and then
     // narrows the set to a single face using other font properties in the order given below.
@@ -190,7 +190,7 @@ static RefPtr<Gfx::FontCascadeList const> font_matching_algorithm(FontFaceSnapsh
         weighed_candidates.unchecked_append({ candidate.key.weight.min, candidate.key.weight.max, candidate.key.slope, candidate.width });
     Vector<size_t> order;
     order.resize(matching_family_fonts.size());
-    auto order_length = Parser::ValueParserFFI::rust_font_matching_order(weighed_candidates.span(), weight, font_width_bucket_from_percentage(font_width.value()), slope, order.span());
+    auto order_length = Parser::ValueParserFFI::rust_font_matching_order(weighed_candidates.span(), weight, font_width_bucket_from_percentage(font_width), slope, order.span());
     for (auto index : order.span().trim(order_length)) {
         if (auto found_font = matching_family_fonts[index].font_with_point_size(snapshot, font_size_in_pt, variations, shape_features))
             return found_font;
@@ -280,7 +280,7 @@ NonnullRefPtr<Gfx::FontCascadeList const> resolve_font_cascade(FontFaceSnapshot 
     auto select_fonts_at = [&](float font_size_used_value) {
         variation = {};
         variation.set_weight(font_weight);
-        variation.set_width(font_width.value());
+        variation.set_width(font_width);
 
         // NB: The spec recommends that we use the 'used value' of font-size for 'opsz' when font-optical-sizing is 'auto'.
         // FIXME: User agents must not select a value for the "opsz" axis which is not supported by the font used for
@@ -341,7 +341,7 @@ NonnullRefPtr<Gfx::FontCascadeList const> resolve_font_cascade(FontFaceSnapshot 
 #ifdef AK_OS_MACOS
     auto find_macos_system_ui_font = [&](Gfx::SystemUIFontKind kind, Utf16FlyString const& family) -> RefPtr<Gfx::FontCascadeList const> {
         auto shape_features = shape_features_for(key, &font_feature_values_for_family(family));
-        auto typeface = Gfx::TypefaceCoreText::system_ui({ kind, static_cast<u16>(weight), static_cast<u16>(font_width_bucket_from_percentage(font_width.value())), static_cast<u8>(slope) });
+        auto typeface = Gfx::TypefaceCoreText::system_ui({ kind, static_cast<u16>(weight), static_cast<u16>(font_width_bucket_from_percentage(font_width)), static_cast<u8>(slope) });
         if (!typeface)
             return {};
 
@@ -360,7 +360,7 @@ NonnullRefPtr<Gfx::FontCascadeList const> resolve_font_cascade(FontFaceSnapshot 
             .family_name = family,
             .weight = { weight, weight },
             .slope = slope,
-            .width = static_cast<int>(font_width.value()),
+            .width = static_cast<int>(font_width),
         };
         if (auto const* faces = snapshot.faces(lookup_key)) {
             auto result = Gfx::FontCascadeList::create();
@@ -607,7 +607,7 @@ static StyleEngineFFI::FfiResolvedFont resolve_font_for_style_engine(void const*
         .font_size = CSSPixels::from_raw(request.font_size_raw),
         .font_slope = request.font_slope,
         .font_weight = request.font_weight,
-        .font_width = Percentage(request.font_width),
+        .font_width = request.font_width,
         .feature_values = {},
         .font_feature_values_scope = TreeScopeID { request.font_feature_values_scope },
     };

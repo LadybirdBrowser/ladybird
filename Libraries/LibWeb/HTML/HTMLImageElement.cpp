@@ -266,7 +266,7 @@ void HTMLImageElement::apply_presentational_hints(Vector<CSS::StyleProperty>& pr
             }
         } else if (name == HTML::AttributeNames::border) {
             if (auto parsed_value = parse_non_negative_integer(value); parsed_value.has_value()) {
-                auto width_value = CSS::LengthStyleValue::create(CSS::Length::make_px(*parsed_value));
+                auto width_value = CSS::LengthStyleValue::create_px(*parsed_value);
                 properties.append({ .property_id = CSS::PropertyID::BorderTopWidth, .value = width_value });
                 properties.append({ .property_id = CSS::PropertyID::BorderRightWidth, .value = width_value });
                 properties.append({ .property_id = CSS::PropertyID::BorderBottomWidth, .value = width_value });

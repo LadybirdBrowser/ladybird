@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/Sizing.h>
 #include <LibWeb/Geometry/DOMMatrix.h>
 #include <LibWeb/Geometry/DOMPoint.h>
@@ -18,6 +17,7 @@
 #include <LibWeb/SVG/SVGFitToViewBox.h>
 #include <LibWeb/SVG/SVGGraphicsElement.h>
 #include <LibWeb/SVG/SVGLength.h>
+#include <LibWeb/SVG/SVGLengthValue.h>
 #include <LibWeb/SVG/SVGTransform.h>
 #include <LibWebCommon/WebIDL/Types.h>
 
@@ -100,8 +100,8 @@ public:
 
     // The width/height attributes parsed as the CSS width/height properties, when that yields a
     // plain <length> - the only case the natural size negotiation can use.
-    [[nodiscard]] Optional<CSS::Length> width_attribute_length() const;
-    [[nodiscard]] Optional<CSS::Length> height_attribute_length() const;
+    [[nodiscard]] Optional<SVGLengthValue> width_attribute_length() const;
+    [[nodiscard]] Optional<SVGLengthValue> height_attribute_length() const;
 
     // The natural aspect ratio the active SVG view or the viewBox gives an <svg>, which its natural size negotiation
     // falls back to where its width and height do not both give it one.
@@ -128,8 +128,8 @@ private:
 
     Optional<ViewBox> m_fallback_view_box_for_svg_as_image;
 
-    mutable Optional<Optional<CSS::Length>> m_cached_width_attribute_length;
-    mutable Optional<Optional<CSS::Length>> m_cached_height_attribute_length;
+    mutable Optional<Optional<SVGLengthValue>> m_cached_width_attribute_length;
+    mutable Optional<Optional<SVGLengthValue>> m_cached_height_attribute_length;
 
     mutable GC::Ptr<Geometry::DOMPointReadOnly> m_current_translate;
 

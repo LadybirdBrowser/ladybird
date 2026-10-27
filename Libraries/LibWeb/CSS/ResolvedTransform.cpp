@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/ResolvedTransform.h>
 
 namespace Web::CSS {
@@ -16,7 +15,7 @@ Gfx::FloatMatrix4x4 ResolvedTransform::to_matrix(CSSPixels reference_width, CSSP
         [&](Translate const& translate) {
             auto resolve_axis = [](TranslateAxis const& axis, CSSPixels reference_length) {
                 if (axis.percentage_value)
-                    return Length::from_style_value(*axis.percentage_value, Length::make_px(reference_length)).absolute_length_to_px().to_float();
+                    return CSSPixels::nearest_value_for(resolve_absolute_length_in_px(*axis.percentage_value, reference_length.to_double())).to_float();
                 return axis.px;
             };
             return Gfx::translation_matrix(Vector3 {

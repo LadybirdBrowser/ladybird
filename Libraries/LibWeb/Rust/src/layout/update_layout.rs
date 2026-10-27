@@ -617,8 +617,8 @@ pub(crate) struct SealedRound {
 
 impl SealedRound {
     /// Runs the round over `state` in the frame's flight, where the frame's style left its layout to do, owing the host
-    /// `work` besides what the round owes it. The flight reaches nothing of the host, so a length only the host
-    /// resolves leaves the layout for the host to lay out again.
+    /// `work` besides what the round owes it. The flight leaves container lengths to the host, so one leaves the
+    /// layout for the host to lay out again.
     pub(crate) fn run(self, state: &mut ArenaHandle, work: OwedHostWork) -> Option<FlownRound> {
         if state
             .arena()
@@ -650,8 +650,8 @@ impl FlownRound {
 }
 
 /// The layout round each tick of a clock lane runs once it has shown the samples of the document's animations: the
-/// document's facts, and a container length query that answers nothing, sealed where the clock's plan was, at the end of
-/// a rendering update that left the layout up to date.
+/// document's facts, and a container length query that leaves them to the host, sealed where the clock's plan was, at
+/// the end of a rendering update that left the layout up to date.
 pub(crate) struct ClockRound {
     facts: FfiLayoutUpdateDocumentFacts,
     container_length_bases: super::layout_pass::ContainerLengthBasesQuery,
@@ -660,7 +660,7 @@ pub(crate) struct ClockRound {
 impl ClockRound {
     /// Builds again what the clock frame marked and lays out what it moved, and pushes what the round owes the host to
     /// `owed`, answering it, or nothing where the round laid nothing out. A round declines a build that needs the host
-    /// and a length only the host resolves, after it owes the host what it ran.
+    /// and a container length it leaves to the host, after it owes the host what it ran.
     pub(crate) fn run<'a>(
         &self,
         state: &mut ArenaHandle,
@@ -691,7 +691,7 @@ impl ClockRound {
         };
         owed.push(answer);
         if state.arena().mark_unresolved_container_lengths_for_layout() {
-            return Err(ClockRoundDeclined("a length only the host resolves"));
+            return Err(ClockRoundDeclined("a container length left to the host"));
         }
         match declined {
             Some(reason) => Err(ClockRoundDeclined(reason)),
@@ -770,7 +770,7 @@ impl ClockRound {
 }
 
 /// A clock round whose tree build or layout needs the host: a build that asks for another pass, reconciles list item
-/// counters or owes the host image resources, or a length only the host resolves.
+/// counters or owes the host image resources, or a container length it leaves to the host.
 pub(crate) struct ClockRoundDeclined(pub(crate) &'static str);
 
 /// Seals the round the ticks of a clock lane of `document_host`'s document run, where its layout is up to date in
@@ -783,9 +783,7 @@ fn seal_clock_round(main_thread: &MainThread, document_host: &DocumentHost, read
     }
     Some(ClockRound {
         facts,
-        container_length_bases: FfiLayoutHostCallbacks::of(main_thread)
-            .container_length_bases_query(main_thread)
-            .sealed(),
+        container_length_bases: super::layout_pass::ContainerLengthBasesQuery::SEALED,
     })
 }
 
@@ -1012,7 +1010,6 @@ fn next_round(
     facts: FfiLayoutUpdateDocumentFacts,
     with_document_style: bool,
 ) -> SealedRound {
-    let layout_host = FfiLayoutHostCallbacks::of(main_thread);
     let rebuilds_tree = facts.document_needs_layout_tree_build
         || read_arena(document_host, read, (), |arena, ()| {
             arena.layout_root().is_invalid() || arena.needs_full_layout_tree_update()
@@ -1031,7 +1028,7 @@ fn next_round(
             build,
             layout: RoundLayout::PartialIfPlanned,
             container_query_evaluation_is_pending: host.container_query_evaluation_is_pending(main_thread, read),
-            container_length_bases: layout_host.container_length_bases_query(main_thread),
+            container_length_bases: super::layout_pass::ContainerLengthBasesQuery::RESOLVING,
         },
         rebuilds_tree,
     }
@@ -1061,8 +1058,8 @@ fn sealed_first_round(
         return None;
     }
     let mut round = next_round(main_thread, document_host, read, &host, facts, false);
-    // The round runs beside the host, which it cannot ask.
-    round.job.container_length_bases = round.job.container_length_bases.sealed();
+    // The round runs beside the host, which resolves its container lengths.
+    round.job.container_length_bases = super::layout_pass::ContainerLengthBasesQuery::SEALED;
     Some(round)
 }
 
@@ -1150,7 +1147,6 @@ fn update_layout(
     inputs: &FfiLayoutUpdateInputs,
 ) {
     let host = layout_update_host(document_host);
-    let layout_host = FfiLayoutHostCallbacks::of(main_thread);
     assert!(
         document_host.host_tables().update_layout_running.get(),
         "the layout update runs between document_host_begin_update_layout and its end"
@@ -1245,7 +1241,7 @@ fn update_layout(
                 layout,
                 container_query_evaluation_is_pending: layout == RoundLayout::PartialIfPlanned
                     && host.container_query_evaluation_is_pending(main_thread, read),
-                container_length_bases: layout_host.container_length_bases_query(main_thread),
+                container_length_bases: super::layout_pass::ContainerLengthBasesQuery::RESOLVING,
             });
         };
 

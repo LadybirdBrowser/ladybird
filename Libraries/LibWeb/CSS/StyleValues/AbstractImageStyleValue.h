@@ -9,7 +9,6 @@
 
 #pragma once
 
-#include <LibWeb/CSS/PercentageOr.h>
 #include <LibWeb/CSS/Sizing.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>

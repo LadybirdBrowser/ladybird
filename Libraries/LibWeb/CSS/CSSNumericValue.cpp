@@ -7,6 +7,7 @@
 
 #include <LibGC/ConservativeVector.h>
 #include <LibWeb/Bindings/CSSNumericValue.h>
+#include <LibWeb/CSS/CSSMathClamp.h>
 #include <LibWeb/CSS/CSSMathInvert.h>
 #include <LibWeb/CSS/CSSMathMax.h>
 #include <LibWeb/CSS/CSSMathMin.h>
@@ -447,6 +448,95 @@ WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::parse(JS::VM& vm,
             return reify_a_numeric_value(*value);
     }
     return WebIDL::SyntaxError::create("Input is not a numeric component value."_utf16);
+}
+
+// https://drafts.css-houdini.org/css-typed-om-1/#reify-a-math-expression
+GC::Ptr<CSSNumericValue> reify_calculation(StyleValue const& calculated)
+{
+    struct Reification {
+        StyleValueFFI::FfiCalcReification description;
+        ~Reification() { StyleValueFFI::rust_calc_reification_release(description.storage); }
+    } reification { StyleValueFFI::rust_calc_describe_for_typed_om(calculated.rust_style_value_data()) };
+    if (reification.description.node_count == 0)
+        return nullptr;
+
+    auto nodes = ReadonlySpan<StyleValueFFI::FfiCalcReificationNode> { reification.description.nodes, reification.description.node_count };
+    auto child_indices = ReadonlySpan<size_t> { reification.description.children, reification.description.child_count };
+    GC::RootVector<GC::Ref<CSSNumericValue>> reified_nodes;
+    reified_nodes.ensure_capacity(nodes.size());
+    for (auto const& node : nodes) {
+        auto numeric_type = NumericType::from_ffi(node.numeric_type).release_value();
+        VERIFY(node.child_start + node.child_count <= child_indices.size());
+        auto children = child_indices.slice(node.child_start, node.child_count);
+        auto child = [&](size_t index) -> GC::Ref<CSSNumericValue> {
+            VERIFY(index < children.size());
+            VERIFY(children[index] < reified_nodes.size());
+            return reified_nodes[children[index]];
+        };
+
+        // NB: The reified objects get the types that their constructors would give them, computed from their
+        //     reified children. The internal calculation's type may differ, for example by carrying a percent hint
+        //     from the property that it belongs to.
+        auto combined_type_of_children = [&](auto combine) {
+            Optional<NumericType> type;
+            for (auto index : children) {
+                VERIFY(index < reified_nodes.size());
+                auto const& child_type = reified_nodes[index]->type();
+                type = type.has_value() ? combine(*type, child_type) : child_type;
+                if (!type.has_value())
+                    return numeric_type;
+            }
+            return type.value_or(numeric_type);
+        };
+        auto added_types_of_children = [&]() {
+            return combined_type_of_children([](NumericType const& a, NumericType const& b) { return a.added_to(b); });
+        };
+        auto multiplied_types_of_children = [&]() {
+            return combined_type_of_children([](NumericType const& a, NumericType const& b) { return a.multiplied_by(b); });
+        };
+        auto reify_children = [&]() {
+            GC::RootVector<GC::Ref<CSSNumericValue>> result;
+            result.ensure_capacity(children.size());
+            for (auto index : children) {
+                VERIFY(index < reified_nodes.size());
+                result.append(reified_nodes[index]);
+            }
+            return CSSNumericArray::create(move(result));
+        };
+
+        switch (node.kind) {
+        case 0:
+            reified_nodes.append(CSSUnitValue::create(node.value, NumericLeaf { static_cast<NumericLeaf::Kind>(node.numeric_kind), node.value, node.unit }.typed_om_unit()));
+            break;
+        case 2:
+            reified_nodes.append(CSSMathSum::create(added_types_of_children(), reify_children()));
+            break;
+        case 3:
+            reified_nodes.append(CSSMathProduct::create(multiplied_types_of_children(), reify_children()));
+            break;
+        case 4:
+            VERIFY(children.size() == 1);
+            reified_nodes.append(CSSMathNegate::create(child(0)->type(), child(0)));
+            break;
+        case 5:
+            VERIFY(children.size() == 1);
+            reified_nodes.append(CSSMathInvert::create(child(0)->type().inverted(), child(0)));
+            break;
+        case 6:
+            reified_nodes.append(CSSMathMin::create(added_types_of_children(), reify_children()));
+            break;
+        case 7:
+            reified_nodes.append(CSSMathMax::create(added_types_of_children(), reify_children()));
+            break;
+        case 8:
+            VERIFY(children.size() == 3);
+            reified_nodes.append(CSSMathClamp::create(added_types_of_children(), child(0), child(1), child(2)));
+            break;
+        default:
+            VERIFY_NOT_REACHED();
+        }
+    }
+    return reified_nodes.last();
 }
 
 }

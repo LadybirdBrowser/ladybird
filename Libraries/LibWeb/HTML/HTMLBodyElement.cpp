@@ -93,7 +93,7 @@ void HTMLBodyElement::apply_presentational_hints(Vector<CSS::StyleProperty>& pro
         if (!value.has_value())
             return;
         if (auto parsed_value = parse_non_negative_integer(value.value()); parsed_value.has_value())
-            properties.append({ .property_id = property_id, .value = CSS::LengthStyleValue::create(CSS::Length::make_px(*parsed_value)) });
+            properties.append({ .property_id = property_id, .value = CSS::LengthStyleValue::create_px(*parsed_value) });
     };
 
     apply_margin_value(CSS::PropertyID::MarginTop, margin_top_value);

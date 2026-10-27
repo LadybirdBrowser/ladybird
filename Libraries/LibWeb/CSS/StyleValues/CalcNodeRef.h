@@ -12,11 +12,47 @@
 #include <AK/Vector.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/Keyword.h>
+#include <LibWeb/CSS/NumericRange.h>
 #include <LibWeb/CSS/NumericType.h>
-#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
+#include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/StyleValueRustFFI.h>
 
 namespace Web::CSS {
+
+// https://drafts.csswg.org/css-values-4/#calc-context
+// Contains the context available at parse-time.
+struct CalculationContext {
+    Optional<ValueType> percentages_resolve_as {};
+    bool resolve_numbers_as_integers = false;
+    // FIXME: Once calc() parsing knows the target numeric type, pass a single NumericRange instead of the full accepted range set.
+    NumericRangesByValueType accepted_ranges_by_type {};
+
+    static CalculationContext for_property(PropertyNameAndID const&);
+};
+
+// A numeric leaf of a calculation, with its kind numbered as the Rust core numbers it.
+struct NumericLeaf {
+    enum class Kind : u8 {
+        Number,
+        Angle,
+        Flex,
+        Frequency,
+        Length,
+        Percentage,
+        Resolution,
+        Time,
+    };
+
+    static Optional<NumericLeaf> from_typed_om_unit(double value, Utf16FlyString const& unit);
+
+    Utf16FlyString typed_om_unit() const;
+    ValueType value_type() const;
+    NonnullRefPtr<StyleValue const> to_style_value() const;
+
+    Kind kind;
+    double value;
+    u8 unit_or_number_type { 0 };
+};
 
 // Move-only owner of one strong reference to a Rust calculation node. This is
 // how C++ builds calculation trees: every factory transfers its argument
@@ -26,8 +62,6 @@ class CalcNodeRef {
     AK_MAKE_NONCOPYABLE(CalcNodeRef);
 
 public:
-    using NumericValue = CalculatedStyleValue::NumericValue;
-
     CalcNodeRef(CalcNodeRef&& other)
         : m_node(exchange(other.m_node, nullptr))
     {
@@ -56,7 +90,7 @@ public:
     // simplification entry points.
     static CalcNodeRef adopt(StyleValueFFI::CalcNode const* node) { return CalcNodeRef { node }; }
 
-    static CalcNodeRef numeric(NumericValue const&);
+    static CalcNodeRef numeric(NumericLeaf const&);
 
     static CalcNodeRef sum(Vector<CalcNodeRef>);
     static CalcNodeRef product(Vector<CalcNodeRef>);
@@ -82,5 +116,7 @@ private:
 
     StyleValueFFI::CalcNode const* m_node { nullptr };
 };
+
+ValueComparingNonnullRefPtr<StyleValue const> create_calculated_style_value(CalcNodeRef root, NumericType const& resolved_type, CalculationContext const&);
 
 }

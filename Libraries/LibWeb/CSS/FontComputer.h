@@ -15,8 +15,8 @@
 #include <AK/Utf16FlyString.h>
 #include <LibGC/CellAllocator.h>
 #include <LibGfx/FontCascadeList.h>
+#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/Fetch.h>
-#include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/StyleEngineIdentifiers.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/CSS/URL.h>
@@ -107,7 +107,7 @@ struct ComputedFontCacheKey {
     Optional<FontSizeAdjust> font_size_adjust {};
     int font_slope;
     double font_weight;
-    Percentage font_width;
+    double font_width;
     FontResolutionFeatureValues feature_values;
     // The tree scope whose @font-feature-values the request reads, or the document's when its
     // font-variant-alternates name no feature values, so that alike requests share one answer.

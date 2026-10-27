@@ -413,4 +413,4 @@ The generated code provides:
   - `StringView to_string(FooUnit)` for serializing those units.
   - `bool units_are_compatible(FooUnit, FooUnit)` which returns whether these are compatible - basically whether you can convert from one to the other.
   - `double ratio_between_units(FooUnit, FooUnit)` to get a multiplier for converting the first unit into the second.
-- `bool is_absolute(LengthUnit)`, `bool is_font_relative(LengthUnit)`, `bool is_viewport_relative(LengthUnit)`, and `bool is_relative(LengthUnit)` for checking the category of length units.
+- `bool is_absolute(LengthUnit)` and `bool is_container_relative(LengthUnit)` for checking the category of length units.

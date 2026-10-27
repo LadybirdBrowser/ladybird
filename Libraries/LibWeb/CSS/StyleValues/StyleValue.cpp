@@ -12,15 +12,14 @@
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontStyleMapping.h>
 #include <LibWeb/CSS/CSSKeywordValue.h>
+#include <LibWeb/CSS/CSSNumericValue.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/Parser/Parser.h>
-#include <LibWeb/CSS/StyleComputeFFI.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
-#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
@@ -126,7 +125,7 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::adopt_rust_style_value
     case StyleValueFFI::StyleValueData::Tag::BorderImageSlice:
         return adopt_ref(*new (nothrow) StyleValue(Type::BorderImageSlice, data));
     case StyleValueFFI::StyleValueData::Tag::Calculated:
-        return adopt_ref(*new (nothrow) CalculatedStyleValue(data));
+        return adopt_ref(*new (nothrow) StyleValue(Type::Calculated, data));
     case StyleValueFFI::StyleValueData::Tag::ColorFunction:
         return adopt_ref(*new (nothrow) ColorFunctionStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::ColorInterpolationMethod:
@@ -339,7 +338,7 @@ bool StyleValue::equals(StyleValue const& other) const
     case Type::Calculated:
         // Calculations compare by tree structure alone; the data also carries parse-context
         // fields (resolved type, accepted ranges) that must not affect equality.
-        return as_calculated().equals(other);
+        return other.type() == Type::Calculated && StyleValueFFI::rust_calc_equals(m_value.data(), other.m_value.data());
     default:
         return StyleValueFFI::rust_style_value_equals(m_value.data(), other.m_value.data());
     }
@@ -423,7 +422,7 @@ StyleValueFFI::FfiElementFacts ElementFactsForRust::to_ffi() const
         .callback_context = this,
         .fill_container_bases = [](void const* opaque_facts, u8 unit_mask, void* length) {
             auto const& facts = *static_cast<ElementFactsForRust const*>(opaque_facts);
-            *static_cast<ComputedValuesFFI::FfiLengthResolutionContext*>(length) = to_ffi_length_resolution_context_with_container_bases(*facts.length_resolution_context, unit_mask); },
+            *static_cast<ComputedValuesFFI::FfiLengthResolutionContext*>(length) = facts.length_resolution_context->to_ffi_with_container_bases(unit_mask); },
         .tree_counting = [](void const* opaque_facts, u64* sibling_count, u64* sibling_index) {
             auto const& facts = *static_cast<ElementFactsForRust const*>(opaque_facts);
             if (!facts.abstract_element.has_value())
@@ -450,7 +449,7 @@ StyleValueFFI::FfiElementFacts ElementFactsForRust::to_ffi() const
 
 ValueComparingNonnullRefPtr<StyleValue const> StyleValue::absolutized(ComputationContext const& context) const
 {
-    auto length_context = to_ffi_length_resolution_context(context.length_resolution_context);
+    auto length_context = context.length_resolution_context.to_ffi();
     auto document_base_url = context.abstract_element.has_value() ? context.abstract_element->document().serialized_base_url() : String {};
     ElementFactsForRust element_facts { &context.length_resolution_context, context.abstract_element };
     StyleValueFFI::FfiAbsolutizationContext ffi_context {
@@ -496,7 +495,13 @@ GC::Ref<CSSStyleValue> StyleValue::reify(Utf16FlyString const& associated_proper
             return as_background_size().size_x()->reify(associated_property);
         break;
     case Type::Calculated:
-        return as_calculated().reify(associated_property);
+        // NB: This spec algorithm is incomplete and assumes we do not already have a calculation tree.
+        //     Rust describes the existing tree in one batch instead.
+        if (auto reified = reify_calculation(*this))
+            return *reified;
+        // Some math functions are not reifiable yet. If we contain one, we have to fall back to CSSStyleValue.
+        // https://github.com/w3c/css-houdini-drafts/issues/1090
+        return default_reify(associated_property);
     case Type::CustomIdent:
         return as_custom_ident().reify(associated_property);
     case Type::Display:
@@ -558,21 +563,72 @@ StyleValueVector StyleValue::subdivide_into_iterations(PropertyNameAndID const& 
     return StyleValueVector { *this };
 }
 
+struct CalcResolutionSnapshot {
+    explicit CalcResolutionSnapshot(CalculationResolutionContext const& resolution_context)
+        : element_facts { resolution_context.length_resolution_context.has_value() ? &*resolution_context.length_resolution_context : nullptr, resolution_context.abstract_element }
+        , ffi_element_facts(element_facts.to_ffi())
+    {
+        ffi_context.element_facts = &ffi_element_facts;
+        if (resolution_context.length_resolution_context.has_value()) {
+            length_resolution_context = resolution_context.length_resolution_context->to_ffi();
+            ffi_context.length_resolution_context = &length_resolution_context.value();
+        }
+        if (resolution_context.percentage_basis_in_px.has_value()) {
+            ffi_context.has_percentage_basis = true;
+            ffi_context.percentage_basis_px = *resolution_context.percentage_basis_in_px;
+        }
+    }
+
+    CalcResolutionSnapshot(CalcResolutionSnapshot const&) = delete;
+
+    ElementFactsForRust element_facts;
+    StyleValueFFI::FfiElementFacts ffi_element_facts;
+    Optional<ComputedValuesFFI::FfiLengthResolutionContext> length_resolution_context;
+    StyleValueFFI::FfiCalcResolutionContext ffi_context {};
+};
+
+Optional<double> resolve_numeric_style_value(StyleValue const& style_value, StyleValueFFI::CanonicalNumericType target, CalculationResolutionContext const& resolution_context)
+{
+    CalcResolutionSnapshot resolution_snapshot { resolution_context };
+    auto result = StyleValueFFI::rust_style_value_resolve_numeric(style_value.rust_style_value_data(), target, &resolution_snapshot.ffi_context);
+    if (!result.resolved)
+        return {};
+    return result.value;
+}
+
+bool calculation_resolves_to(StyleValue const& style_value, StyleValueFFI::CanonicalNumericType target)
+{
+    return StyleValueFFI::rust_calculation_resolves_to(style_value.rust_style_value_data(), target);
+}
+
+double resolve_absolute_length_in_px(StyleValue const& style_value, Optional<double> percentage_basis_in_px)
+{
+    return resolve_numeric_style_value(style_value, StyleValueFFI::CanonicalNumericType::Length, { .percentage_basis_in_px = percentage_basis_in_px }).value();
+}
+
+double resolve_angle_in_degrees(StyleValue const& style_value)
+{
+    return resolve_numeric_style_value(style_value, StyleValueFFI::CanonicalNumericType::Angle).value();
+}
+
+double resolve_resolution_in_dots_per_pixel(StyleValue const& style_value)
+{
+    return resolve_numeric_style_value(style_value, StyleValueFFI::CanonicalNumericType::Resolution).value();
+}
+
 double number_from_style_value(NonnullRefPtr<StyleValue const> const& style_value, Optional<double> percentage_basis)
 {
     if (style_value->is_number())
         return style_value->as_number().number();
 
     if (style_value->is_calculated()) {
-        auto const& calculated_style_value = style_value->as_calculated();
+        if (calculation_resolves_to(*style_value, StyleValueFFI::CanonicalNumericType::Number))
+            return resolve_numeric_style_value(*style_value, StyleValueFFI::CanonicalNumericType::Number).value();
 
-        if (calculated_style_value.resolves_to_number())
-            return calculated_style_value.resolve_number({}).value();
-
-        if (calculated_style_value.resolves_to_percentage()) {
+        if (calculation_resolves_to(*style_value, StyleValueFFI::CanonicalNumericType::Percentage)) {
             VERIFY(percentage_basis.has_value());
 
-            return calculated_style_value.resolve_percentage({}).value().as_fraction() * percentage_basis.value();
+            return resolve_numeric_style_value(*style_value, StyleValueFFI::CanonicalNumericType::Percentage).value() * 0.01 * percentage_basis.value();
         }
 
         VERIFY_NOT_REACHED();
@@ -581,7 +637,7 @@ double number_from_style_value(NonnullRefPtr<StyleValue const> const& style_valu
     if (style_value->is_percentage()) {
         VERIFY(percentage_basis.has_value());
 
-        return percentage_basis.value() * style_value->as_percentage().percentage().as_fraction();
+        return percentage_basis.value() * (style_value->as_percentage().raw_value() * 0.01);
     }
 
     VERIFY_NOT_REACHED();

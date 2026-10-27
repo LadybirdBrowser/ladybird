@@ -6,7 +6,7 @@
 
 #include "CSSMathInvert.h"
 #include <LibGC/Heap.h>
-#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CalcNodeRef.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::CSS {
