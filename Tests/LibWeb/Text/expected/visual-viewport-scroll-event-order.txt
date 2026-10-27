@@ -1,0 +1,4 @@
+scale: 2
+window scrolled: true
+visual viewport scrolled: true
+scroll order: window,visualViewport

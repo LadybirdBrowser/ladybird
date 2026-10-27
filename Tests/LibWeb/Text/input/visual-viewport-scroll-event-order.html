@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<div style="width: 200vw; height: 200vh"></div>
+<script>
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+
+        const pinchScrollend = new Promise(resolve => visualViewport.addEventListener("scrollend", resolve, { once: true }));
+        internals.pinch(100, 100, 1.0, 0);
+        await animationFrame();
+        await animationFrame();
+        println(`scale: ${visualViewport.scale}`);
+        await pinchScrollend;
+
+        // https://drafts.csswg.org/cssom-view/#viewport-perform-a-scroll
+        // A scroll of the viewport scrolls the viewport's scrolling box in step 14 and the visual viewport's in step
+        // 15, in that order, which is the order of their scroll events.
+        const scrollOrder = [];
+        const bothScrolls = Promise.all([
+            new Promise(resolve => addEventListener("scroll", () => {
+                scrollOrder.push("window");
+                resolve();
+            }, { once: true })),
+            new Promise(resolve => visualViewport.addEventListener("scroll", () => {
+                scrollOrder.push("visualViewport");
+                resolve();
+            }, { once: true })),
+        ]);
+        const offsetTopBeforeScroll = visualViewport.offsetTop;
+        scrollBy(0, 800);
+        await bothScrolls;
+        println(`window scrolled: ${scrollY > 0}`);
+        println(`visual viewport scrolled: ${visualViewport.offsetTop > offsetTopBeforeScroll}`);
+        println(`scroll order: ${scrollOrder.join(",")}`);
+    });
+</script>
