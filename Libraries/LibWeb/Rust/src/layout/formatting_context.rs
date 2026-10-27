@@ -124,7 +124,6 @@ pub(crate) fn run_root_without_parent_fragments(
         callbacks,
         input,
         None,
-        None,
     )
 }
 
@@ -149,7 +148,6 @@ pub(crate) fn run_fragmentainer(
         outer.should_collect_devtools_layout_data,
         outer.callbacks,
         input,
-        None,
         None,
         None,
         Some(fragmentainer),
@@ -1813,7 +1811,6 @@ pub(super) fn run_formatting_context(
     should_collect_devtools_layout_data: bool,
     callbacks: LayoutPass<'_>,
     input: LayoutInput,
-    parent_block: Option<&block_formatting_context::BlockFormattingContext>,
     table_inline_layout: Option<table_formatting_context::TableInlineLayout>,
 ) -> ChildLayoutResult {
     if let Some(parent_fragments) = parent_fragments {
@@ -1837,7 +1834,6 @@ pub(super) fn run_formatting_context(
             should_collect_devtools_layout_data,
             callbacks,
             input,
-            parent_block,
             None,
             table_inline_layout,
             None,
@@ -1908,7 +1904,6 @@ pub(super) fn run_formatting_context(
             should_collect_devtools_layout_data,
             callbacks,
             input,
-            parent_block,
             None,
             table_inline_layout.clone(),
             None,
@@ -1924,7 +1919,6 @@ pub(super) fn run_formatting_context(
         should_collect_devtools_layout_data,
         callbacks,
         input,
-        parent_block,
         previous_line_data,
         table_inline_layout,
         None,
@@ -1950,7 +1944,6 @@ pub(super) fn run_formatting_context(
                     should_collect_devtools_layout_data,
                     callbacks,
                     other_input,
-                    parent_block,
                     None,
                     None,
                     None,
@@ -2030,7 +2023,6 @@ fn execute_formatting_context_run(
     should_collect_devtools_layout_data: bool,
     callbacks: LayoutPass<'_>,
     input: LayoutInput,
-    parent_block: Option<&block_formatting_context::BlockFormattingContext>,
     previous_line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
     table_inline_layout: Option<table_formatting_context::TableInlineLayout>,
     fragmentainer: Option<std::rc::Rc<fragmentation::FragmentainerContext>>,
@@ -2228,7 +2220,7 @@ fn execute_formatting_context_run(
                     finalize_float_root(run, &input, &result);
                 }
                 ParticipationInParentFormattingContext::AtomicInline => {
-                    finalize_atomic_root_block_size(run, &input, result.automatic_content_block_size, parent_block);
+                    finalize_atomic_root_block_size(run, &input, result.automatic_content_block_size);
                 }
                 ParticipationInParentFormattingContext::AbsolutelyPositioned(abspos_inputs) => {
                     abspos_engine::AbsposEngine::for_run(run).finalize_out_of_flow_root_after_inside_layout(
@@ -2515,7 +2507,6 @@ fn finalize_atomic_root_block_size(
     run: &FormattingContextRun,
     input: &LayoutInput,
     automatic_content_block_size_of_completed_body_run: CssPixels,
-    parent_block: Option<&block_formatting_context::BlockFormattingContext>,
 ) {
     let node = run.box_;
     let available_space = input.available_space;
@@ -2525,28 +2516,25 @@ fn finalize_atomic_root_block_size(
         return;
     }
     if sizing.should_treat_block_size_as_auto(node, available_space, constraints) {
-        sizing.resolve_used_block_size_if_treated_as_auto(node, available_space, constraints, None, || {
-            let available_inner_space = run
-                .records
-                .used_values(node)
-                .available_inner_space_or_constraints_from(available_space);
-            match parent_block {
-                Some(parent) => parent.compute_automatic_block_size_for_block_level_element(
-                    node,
-                    available_inner_space,
-                    constraints,
-                    Some(automatic_content_block_size_of_completed_body_run),
-                ),
-                None => independent_root_automatic_block_size(
-                    run.records,
-                    &run.callbacks,
-                    node,
-                    available_inner_space,
-                    constraints,
-                    Some(automatic_content_block_size_of_completed_body_run),
-                ),
-            }
-        });
+        let parent_lays_out_root_as_math_content =
+            formatting_context_type_created_by_box(NodeFacts::new(&run.callbacks, run.callbacks.parent(node)))
+                == Some(FormattingContextType::Math);
+        let automatic_block_size = if parent_lays_out_root_as_math_content {
+            automatic_content_block_size_of_completed_body_run
+        } else {
+            block_formatting_context::floor_list_item_automatic_block_size_by_marker_line_height(
+                run.callbacks,
+                node,
+                automatic_content_block_size_of_completed_body_run,
+            )
+        };
+        sizing.resolve_used_block_size_if_treated_as_auto(
+            node,
+            available_space,
+            constraints,
+            Some(automatic_block_size),
+            || unreachable!("a completed atomic run always supplies its automatic content block size"),
+        );
     } else {
         sizing.resolve_used_block_size_if_not_treated_as_auto(node, available_space, constraints);
     }
@@ -2679,7 +2667,6 @@ pub(crate) fn layout_inside_child(
         run.should_collect_devtools_layout_data,
         run.callbacks,
         input,
-        parent_block,
         run.records.take_table_inline_layout(child),
     );
     propagate_percentage_block_size_dependency_to_containing_block(
@@ -2845,7 +2832,6 @@ pub(crate) fn lay_out_shape_for_its_result(callbacks: LayoutPass<'_>, shape: Chi
             false,
             callbacks,
             input,
-            None,
             previous_line_data,
             None,
             None,
@@ -3294,7 +3280,6 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
             callbacks,
             input,
             None,
-            None,
         );
         place_child(&entry_run, root_for_layout, FfiCssPixelPoint::default(), None);
         finish_entry_pass(
@@ -3438,7 +3423,6 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
         run.should_collect_devtools_layout_data,
         *callbacks,
         input,
-        None,
         None,
     );
     // The retained offset already includes relative positioning. Publish it directly instead
