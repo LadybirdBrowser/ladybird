@@ -27,6 +27,7 @@
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebCompatReport.h>
+#include <UI/Qt/ScreenshotSelectionOverlay.h>
 
 #include <LibWebCommon/Page/QueuedInputEvent.h>
 #include <QImage>
@@ -87,7 +88,6 @@ using WebContentViewBase = QWidget;
 class CrashOverlayUrlLabel;
 class CrashReportReviewWidget;
 class PageOverlay;
-class ScreenshotSelectionOverlay;
 class ScreenshotViewer;
 class SelectDropdown;
 
@@ -238,7 +238,8 @@ private:
     void show_crash_report_review(Optional<ByteString> const& hidden_crash_report_name = {});
 
     void start_web_compat_report();
-    ScreenshotSelectionOverlay& select_screenshot(QImage const& frame, Function<void()> on_close = {});
+    ScreenshotSelectionOverlay& select_screenshot(QImage const& frame, ScreenshotSelectionOverlay::Purpose, Function<void()> on_close = {});
+    void start_screenshot();
     QPointer<QWidget> show_transient_overlay(QWidget&);
     void close_transient_overlay(QWidget&, QPointer<QWidget> const& focus_to_restore);
 

@@ -4116,7 +4116,7 @@ void ViewImplementation::update_bookmark_action()
     m_toggle_bookmark_action->set_engaged(is_bookmarked);
 }
 
-static ErrorOr<LexicalPath> save_screenshot(Gfx::Bitmap const* bitmap)
+static ErrorOr<LexicalPath> write_screenshot(Gfx::Bitmap const* bitmap)
 {
     if (!bitmap)
         return Error::from_string_literal("Failed to take a screenshot");
@@ -4158,7 +4158,7 @@ NonnullRefPtr<Core::Promise<LexicalPath>> ViewImplementation::take_screenshot(Sc
             visible_bitmap = m_backup_shared_image_buffer->bitmap_if_present();
         }
         if (visible_bitmap) {
-            if (auto result = save_screenshot(visible_bitmap.ptr()); result.is_error())
+            if (auto result = write_screenshot(visible_bitmap.ptr()); result.is_error())
                 promise->reject(result.release_error());
             else
                 promise->resolve(result.release_value());
@@ -4177,6 +4177,30 @@ NonnullRefPtr<Core::Promise<LexicalPath>> ViewImplementation::take_screenshot(Sc
     }
 
     return promise;
+}
+
+void ViewImplementation::take_and_save_screenshot(ScreenshotType type)
+{
+    take_screenshot(type)
+        ->when_resolved([](auto const& path) {
+            Application::the().display_download_confirmation_dialog("Screenshot"sv, path);
+        })
+        .when_rejected([](auto const& error) {
+            if (error.is_errno() && error.code() == ECANCELED)
+                return;
+
+            auto error_message = MUST(String::formatted("{}", error));
+            Application::the().display_error_dialog(error_message);
+        });
+}
+
+// A screenshot the UI took itself, such as of the part of the page the user selected.
+void ViewImplementation::save_screenshot(Gfx::Bitmap const& bitmap)
+{
+    if (auto result = write_screenshot(&bitmap); result.is_error())
+        Application::the().display_error_dialog(MUST(String::formatted("{}", result.error())));
+    else
+        Application::the().display_download_confirmation_dialog("Screenshot"sv, result.value());
 }
 
 NonnullRefPtr<Core::Promise<LexicalPath>> ViewImplementation::take_dom_node_screenshot(Web::UniqueNodeID node_id)
@@ -4204,7 +4228,7 @@ void ViewImplementation::did_receive_screenshot(Badge<WebContentPage>, Gfx::Shar
         return;
     }
 
-    if (auto result = save_screenshot(screenshot.bitmap()); result.is_error())
+    if (auto result = write_screenshot(screenshot.bitmap()); result.is_error())
         m_pending_screenshot->reject(result.release_error());
     else
         m_pending_screenshot->resolve(result.release_value());
@@ -4316,25 +4340,9 @@ void ViewImplementation::initialize_context_menus()
     });
     m_look_up_selected_text_action->set_visible(false);
 
-    auto take_and_save_screenshot = [this](auto type) {
-        take_screenshot(type)
-            ->when_resolved([](auto const& path) {
-                Application::the().display_download_confirmation_dialog("Screenshot"sv, path);
-            })
-            .when_rejected([](auto const& error) {
-                if (error.is_errno() && error.code() == ECANCELED)
-                    return;
-
-                auto error_message = MUST(String::formatted("{}", error));
-                Application::the().display_error_dialog(error_message);
-            });
-    };
-
-    m_take_visible_screenshot_action = Action::create("Take Visible Screenshot"sv, ActionID::TakeVisibleScreenshot, [take_and_save_screenshot]() {
-        take_and_save_screenshot(ScreenshotType::Visible);
-    });
-    m_take_full_screenshot_action = Action::create("Take Full Screenshot"sv, ActionID::TakeFullScreenshot, [take_and_save_screenshot]() {
-        take_and_save_screenshot(ScreenshotType::Full);
+    m_take_screenshot_action = Action::create("Take Screenshot..."sv, ActionID::TakeScreenshot, [this]() {
+        if (on_request_screenshot)
+            on_request_screenshot();
     });
 
     m_report_website_issue_action = Action::create("Report Website Issue..."sv, ActionID::ReportWebsiteIssue, [this]() {
@@ -4492,8 +4500,7 @@ void ViewImplementation::initialize_context_menus()
     m_page_context_menu->add_action(*m_search_selected_text_action);
     m_page_context_menu->add_action(*m_copy_link_to_highlight_action);
     m_page_context_menu->add_separator();
-    m_page_context_menu->add_action(*m_take_visible_screenshot_action);
-    m_page_context_menu->add_action(*m_take_full_screenshot_action);
+    m_page_context_menu->add_action(*m_take_screenshot_action);
     m_page_context_menu->add_separator();
     m_page_context_menu->add_action(application.view_source_action());
     m_page_context_menu->add_action(*m_report_website_issue_action);

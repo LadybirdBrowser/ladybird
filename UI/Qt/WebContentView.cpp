@@ -38,7 +38,6 @@
 #include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/CrashReportReviewWidget.h>
 #include <UI/Qt/ReportReview.h>
-#include <UI/Qt/ScreenshotSelectionOverlay.h>
 #include <UI/Qt/ScreenshotViewer.h>
 #include <UI/Qt/WebCompatReportReview.h>
 #ifdef AK_OS_MACOS
@@ -337,6 +336,10 @@ WebContentView::WebContentView(QWidget* window, Optional<WebView::CanonicalTrave
 
     on_request_website_issue_report = [this] {
         start_web_compat_report();
+    };
+
+    on_request_screenshot = [this] {
+        start_screenshot();
     };
 
 #ifdef AK_OS_MACOS
@@ -1523,7 +1526,7 @@ void WebContentView::select_web_compat_report_screenshot(Function<void(QImage)> 
         return;
     }
 
-    select_screenshot(frame, AK::move(on_close)).on_finished = AK::move(on_selected);
+    select_screenshot(frame, ScreenshotSelectionOverlay::Purpose::ReportIssue, AK::move(on_close)).on_finished = AK::move(on_selected);
 }
 
 // The tab was opened only for the review, so no web content runs behind it, and leaving the review closes it.
@@ -1587,11 +1590,11 @@ void WebContentView::review_web_compat_report(WebCompatReportCapture capture)
 }
 
 // The selection shows a frame taken earlier, so the user selects what they saw, even while the page underneath changes.
-ScreenshotSelectionOverlay& WebContentView::select_screenshot(QImage const& frame, Function<void()> on_close)
+ScreenshotSelectionOverlay& WebContentView::select_screenshot(QImage const& frame, ScreenshotSelectionOverlay::Purpose purpose, Function<void()> on_close)
 {
     VERIFY(!m_screenshot_selection_overlay);
 
-    auto* overlay = new ScreenshotSelectionOverlay(frame, this);
+    auto* overlay = new ScreenshotSelectionOverlay(frame, this, purpose);
     m_screenshot_selection_overlay = overlay;
     auto focus_to_restore = show_transient_overlay(*overlay);
     overlay->on_close = [this, overlay, focus_to_restore, on_close = AK::move(on_close)] {
@@ -1602,6 +1605,30 @@ ScreenshotSelectionOverlay& WebContentView::select_screenshot(QImage const& fram
     overlay->on_request_page_frame = [this] { return visible_snapshot(); };
     overlay->on_page_visibility_change = [this] { schedule_repaint(); };
     return *overlay;
+}
+
+// The user selects the part of the page to save, or saves all of the page they see or the whole page. Without a frame
+// to select from, what the page shows is saved.
+void WebContentView::start_screenshot()
+{
+    if (m_screenshot_selection_overlay)
+        return;
+
+    auto frame = visible_snapshot();
+    if (frame.isNull()) {
+        take_and_save_screenshot(ScreenshotType::Visible);
+        return;
+    }
+
+    auto& overlay = select_screenshot(frame, ScreenshotSelectionOverlay::Purpose::SaveScreenshot);
+    overlay.on_finished = [this](QImage screenshot) {
+        auto image = screenshot.convertToFormat(QImage::Format_ARGB32);
+        auto bitmap = MUST(Gfx::Bitmap::create_wrapper(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Unpremultiplied, { image.width(), image.height() }, image.bytesPerLine(), image.bits()));
+        save_screenshot(*bitmap);
+    };
+    overlay.on_full_page_requested = [this] {
+        take_and_save_screenshot(ScreenshotType::Full);
+    };
 }
 
 // An overlay shown for a moment, such as to select or view a screenshot, hands the focus back once it is done.
