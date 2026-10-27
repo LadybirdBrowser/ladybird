@@ -772,8 +772,8 @@ void FontFaceState::update_font_display_period()
     if (!next_deadline.has_value() || m_font_display_time_for_testing.has_value())
         return;
     if (!m_font_download_timer) {
-        m_font_download_timer = Platform::Timer::create_single_shot(GC::Heap::the(), AK::Duration::from_milliseconds(0), GC::create_function(GC::Heap::the(), [this] {
-            update_font_display_period();
+        m_font_download_timer = Platform::Timer::create_single_shot(GC::Heap::the(), AK::Duration::from_milliseconds(0), GC::create_function(GC::Heap::the(), [font_root = keep_alive_during_load()] {
+            font_root->elements().first()->update_font_display_period();
         }));
     }
     m_font_download_timer->start(AK::Duration::from_milliseconds(static_cast<int>(*next_deadline - elapsed)));
