@@ -637,6 +637,8 @@ impl RetainedState {
         // republishes the record under the new one. A registered name declared here computes
         // against the record's font until a drive settles the font anew.
         let has_registered_declarations = self.declares_registered_custom_property(node, None, &inputs);
+        let initial_registered_context =
+            has_registered_declarations.then(|| self.standing_registered_value_context(node, None));
         // Every installed record is published with an environment; a record without is
         // republished as moved.
         let old_environment = self
@@ -1084,7 +1086,7 @@ impl RetainedState {
                     &inputs,
                     &mut scratch.font_drive,
                     goal,
-                    has_registered_declarations,
+                    initial_registered_context.as_ref(),
                 )?;
                 // The registered custom properties compute against the font the drive settled,
                 // and the winners substitute what they computed to.
@@ -1120,7 +1122,7 @@ impl RetainedState {
                         &inputs,
                         &mut scratch.font_drive,
                         goal,
-                        false,
+                        None,
                     )?;
                 }
                 match driven {
@@ -1513,6 +1515,8 @@ impl RetainedState {
         // A registered name declared here computes provisionally against the parent's font until
         // the drive settles the element's own.
         let has_registered_declarations = self.declares_registered_custom_property(node, None, &inputs);
+        let initial_registered_context =
+            has_registered_declarations.then(|| self.standing_registered_value_context(node, None));
         // A function's container condition the engine cannot decide yet waits, as the row does.
         let mut environment = self
             .engine_custom_property_environment_by_answer(node, parent_environment, &inputs)
@@ -1701,7 +1705,7 @@ impl RetainedState {
             &inputs,
             &mut scratch.font_drive,
             goal,
-            has_registered_declarations,
+            initial_registered_context.as_ref(),
         )?;
         // The registered custom properties compute against the font the drive settled, and the
         // winners substitute what they computed to.
@@ -1724,7 +1728,7 @@ impl RetainedState {
             environment = settled;
             store = std::sync::Arc::new(settled_store);
             self.note_node_substitution(node, scratch, state, environment);
-            driven = self.engine_full_drive(subject, None, &store, &inputs, &mut scratch.font_drive, goal, false)?;
+            driven = self.engine_full_drive(subject, None, &store, &inputs, &mut scratch.font_drive, goal, None)?;
         }
         let DrivenTable {
             table,

@@ -648,7 +648,7 @@ impl RetainedState {
     /// element's font resolved through the document's resolver, line-height and color-scheme
     /// against that font, and the remaining phase with the element facts the box-type
     /// transformation reads. Root-input preparation finishes only the font and line-height
-    /// phases and preserves them for completion, and a drive that `awaits_registered_context`
+    /// phases and preserves them for completion, and a drive with an `initial_registered_context`
     /// stops after the color-scheme phase with the context the registered custom properties it
     /// declares compute against, which it preserves likewise. Monospace default-size recascade
     /// stays in C++.
@@ -661,7 +661,7 @@ impl RetainedState {
         inputs: &bridge::FfiDocumentStyleComputationInputs,
         font_scratch: &mut FontDriveScratch,
         goal: FontDriveGoal,
-        awaits_registered_context: bool,
+        initial_registered_context: Option<&custom_property_cascade::RegisteredValueContext>,
     ) -> Drive<FullDrive> {
         let random_base_values = store
             .drive_random_base_values(self, subject.target.node())
@@ -1122,7 +1122,7 @@ impl RetainedState {
         // A registered custom property computes against the font and color scheme settled now, as
         // the host finalizes one after the line-height phase; the winners the remaining phase reads
         // substitute what it computes to.
-        if awaits_registered_context {
+        if initial_registered_context.is_some() {
             let context = self.registered_value_context(
                 target.node(),
                 FfiLengthResolutionContext {

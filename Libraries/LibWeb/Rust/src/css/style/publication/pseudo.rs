@@ -389,6 +389,8 @@ impl RetainedState {
             // provisionally against the element's font until the drive settles the pseudo-element's
             // own.
             let has_registered_declarations = self.declares_registered_custom_property(node, Some(kind), &inputs);
+            let initial_registered_context =
+                has_registered_declarations.then(|| self.standing_registered_value_context(node, Some(kind)));
             let mut environment =
                 self.engine_custom_property_environment_of(node, Some(kind), element_environment, &inputs, None)?;
             // A store substituting `attr()` or `inherit()` holds the element's attributes or its
@@ -527,7 +529,7 @@ impl RetainedState {
                         &inputs,
                         &mut scratch.font_drive,
                         FontDriveGoal::Complete,
-                        has_registered_declarations,
+                        initial_registered_context.as_ref(),
                     );
                     // The registered custom properties compute against the font the drive
                     // settled, and the winners substitute what they computed to.
@@ -557,7 +559,7 @@ impl RetainedState {
                             &inputs,
                             &mut scratch.font_drive,
                             FontDriveGoal::Complete,
-                            false,
+                            None,
                         );
                     }
                     if let Err(Unanswered::Suspended(_)) = driven {
@@ -1050,6 +1052,9 @@ impl RetainedState {
         let registered_declarations = self
             .declarations_name_a_registered_custom_property(&custom_declarations, &inputs)
             .then(|| custom_declarations.clone());
+        let initial_registered_context = registered_declarations
+            .as_ref()
+            .map(|_| self.standing_registered_value_context(host, None));
         let mut environment = self.engine_custom_property_environment_over(
             host,
             None,
@@ -1077,7 +1082,7 @@ impl RetainedState {
             &inputs,
             &mut scratch.font_drive,
             FontDriveGoal::Complete,
-            registered_declarations.is_some(),
+            initial_registered_context.as_ref(),
         )?;
         if let FullDrive::AwaitsRegisteredContext(registered) = driven
             && let Some(custom_declarations) = registered_declarations
@@ -1105,7 +1110,7 @@ impl RetainedState {
                 &inputs,
                 &mut scratch.font_drive,
                 FontDriveGoal::Complete,
-                false,
+                None,
             )?;
         }
         let FullDrive::Driven(DrivenTable {
