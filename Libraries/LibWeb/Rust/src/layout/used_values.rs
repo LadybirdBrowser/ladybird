@@ -636,6 +636,15 @@ used_values_cells! {
 }
 
 impl RootInputCells {
+    /// The input cells of `node` as its record starts out, before anything sizes the box.
+    pub(crate) fn of_box_before_sizing(
+        callbacks: &LayoutPass<'_>,
+        node: Node,
+        constraints: ContainingBlockConstraints,
+    ) -> Self {
+        Self::capture(&create_used_values(callbacks, node, constraints))
+    }
+
     pub(crate) fn materialize_record(&self) -> UsedValues {
         let record = UsedValues::default();
         self.apply_to_record(&record);

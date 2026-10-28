@@ -3447,11 +3447,11 @@ impl<'pass> AbsposEngine<'pass> {
         let laid_out = formatting_context::run_root_without_parent_fragments(
             self.callbacks,
             node,
-            used_values::RootInputCells::capture(&used_values::create_used_values(
+            used_values::RootInputCells::of_box_before_sizing(
                 &self.callbacks,
                 node,
                 ContainingBlockConstraints::default(),
-            )),
+            ),
             LayoutInput::new(
                 available_space,
                 constraints,
