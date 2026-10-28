@@ -1237,10 +1237,6 @@ impl<'context> InlineFormattingContext<'context> {
     /// The sizes, box sides and baselines of `node`, a box this context lays out or one it keeps for a run of its own
     /// that has not laid it out yet.
     #[track_caller]
-    pub(crate) fn box_metrics(&self, node: Node) -> run_records::BoxMetrics<'context> {
-        self.run.records.box_metrics_of(node)
-    }
-
     pub(crate) fn create_used_values(
         &self,
         node: Node,
@@ -1314,17 +1310,12 @@ impl<'context> InlineFormattingContext<'context> {
         )
     }
 
-    /// Starts holding `node`, an atomic inline-level box: kept for its run where it has a formatting context of its
-    /// own, or with a record where this context lays it out itself. Returns the cells the box starts out with.
+    /// Starts holding `node`, an atomic inline-level box, which a run of its own lays out in the formatting context it
+    /// establishes. Returns the cells the box starts out with.
     pub(crate) fn hold_atomic_inline(&self, node: Node) -> used_values::RootInputCells {
-        let constraints = self.input.containing_block_constraints;
-        if formatting_context::formatting_context_type_created_by_box(self.facts(node)).is_some() {
-            self.run
-                .records
-                .keep_child_for_its_run(&self.callbacks, node, constraints)
-        } else {
-            used_values::RootInputCells::capture(self.create_used_values(node, constraints))
-        }
+        self.run
+            .records
+            .keep_child_for_its_run(&self.callbacks, node, self.input.containing_block_constraints)
     }
 
     pub(crate) fn parent_node(&self, node: Node) -> Node {

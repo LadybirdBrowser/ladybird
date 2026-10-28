@@ -983,11 +983,7 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
         if self.atomic_sizing == AtomicInlineSizing::Contributions {
             self.size_item_by_outer_inline_contributions(&mut item);
         } else {
-            let cells = if self.box_model_node_stack.last().copied() != Some(node) {
-                self.context().hold_atomic_inline(node)
-            } else {
-                self.context().box_metrics(node).cells()
-            };
+            let cells = self.context().hold_atomic_inline(node);
             let (content_baselines, box_cells) = self.context_mut().dimension_box_on_line(node, cells);
             item.content_baselines = content_baselines;
             item.inline_size = box_cells.content_inline_size;
@@ -1005,22 +1001,16 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
     }
 }
 
-/// Registers `node`, an inline box the context enters, resolves its box sides and returns them.
+/// Lays out `node`, a fragmented inline the context enters, in a record of this call, resolves its box sides and
+/// returns them.
 fn record_entered_inline_box(
     context: &inline_formatting_context::InlineFormattingContext<'_>,
     node: Node,
 ) -> used_values::RootInputCells {
     let constraints = context.input.containing_block_constraints;
-    // NB: A box the context enters that is not a fragmented inline is laid out as an atomic inline-level box as well,
-    //     in the record the run keeps for it. A fragmented inline is laid out only here, in a record of this call.
-    let record_of_this_call;
-    let used = if context.facts(node).is_fragmented_inline() {
-        record_of_this_call = used_values::create_used_values(&context.callbacks, node, constraints);
-        context.run.records.keep_box_laid_out_in_record_its_layout_owns(node);
-        &record_of_this_call
-    } else {
-        context.create_used_values(node, constraints)
-    };
+    let record_of_this_call = used_values::create_used_values(&context.callbacks, node, constraints);
+    context.run.records.keep_box_laid_out_in_record_its_layout_owns(node);
+    let used = &record_of_this_call;
     let style = context.style(node);
     let basis = constraints.inline_basis();
     used.resolve_box_model(&style, basis);
