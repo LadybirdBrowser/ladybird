@@ -1446,6 +1446,9 @@ void WebContentView::set_crash_overlay_visible(bool visible)
 
         m_crash_overlay_reload_button = new QPushButton(tr("Reload"), column);
         m_crash_overlay_reload_button->setStyleSheet(ChromeStyle::primary_button_style_sheet());
+        // NB: The style sheet draws the button over all of its widget, so the layout must place the widget itself
+        //     rather than the smaller native button inside it, or the column clips the button's edges.
+        m_crash_overlay_reload_button->setAttribute(Qt::WA_LayoutUsesWidgetRect);
         QObject::connect(m_crash_overlay_reload_button, &QPushButton::clicked, this, [this] {
             reload();
         });
