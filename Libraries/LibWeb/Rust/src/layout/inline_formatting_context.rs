@@ -2212,7 +2212,6 @@ impl<'context> InlineFormattingContext<'context> {
                     },
                     Some(used_values::LineBoxFragmentCoordinate {
                         line_box_index: line_index,
-                        fragment_index,
                     }),
                     fragment_arrival,
                 );
