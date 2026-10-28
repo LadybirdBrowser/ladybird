@@ -3202,7 +3202,7 @@ impl<'pass> AbsposEngine<'pass> {
         let child_box = child.child_box;
         let position_option = self.determine_position_fallback_styles(&child);
         self.records
-            .create_used_values(&self.callbacks, child_box, ContainingBlockConstraints::default());
+            .keep_child_for_its_run(&self.callbacks, child_box, ContainingBlockConstraints::default());
         let (mut inputs, default_scroll_shift) = self.pending_child_layout_inputs(&mut child);
         inputs.position_option = position_option.choice();
         self.records
@@ -3695,10 +3695,10 @@ impl<'pass> AbsposEngine<'pass> {
             inputs.containing_block_info.inline_axis_mode = inline;
             inputs.containing_block_info.block_axis_mode = block;
         }
-        // Partial relayout uses a fresh state and creates the replay root
+        // Partial relayout uses a fresh state and keeps the replay root
         // exactly once.
         self.records
-            .create_used_values(&self.callbacks, node, ContainingBlockConstraints::default());
+            .keep_child_for_its_run(&self.callbacks, node, ContainingBlockConstraints::default());
         self.records.set_default_scroll_shift(
             node,
             self.callbacks
