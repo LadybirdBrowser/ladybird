@@ -2,10 +2,10 @@ Harness status: OK
 
 Found 6 tests
 
-6 Fail
-Fail	3005  IDEOGRAPHIC ITERATION MARK may appear at line start if ja and loose
-Fail	303B  VERTICAL IDEOGRAPHIC ITERATION MARK may appear at line start if ja and loose
-Fail	309D  HIRAGANA ITERATION MARK may appear at line start if ja and loose
-Fail	309E  HIRAGANA VOICED ITERATION MARK may appear at line start if ja and loose
-Fail	30FD  KATAKANA ITERATION MARK may appear at line start if ja and loose
-Fail	30FE  KATAKANA VOICED ITERATION MARK may appear at line start if ja and loose
+6 Pass
+Pass	3005  IDEOGRAPHIC ITERATION MARK may appear at line start if ja and loose
+Pass	303B  VERTICAL IDEOGRAPHIC ITERATION MARK may appear at line start if ja and loose
+Pass	309D  HIRAGANA ITERATION MARK may appear at line start if ja and loose
+Pass	309E  HIRAGANA VOICED ITERATION MARK may appear at line start if ja and loose
+Pass	30FD  KATAKANA ITERATION MARK may appear at line start if ja and loose
+Pass	30FE  KATAKANA VOICED ITERATION MARK may appear at line start if ja and loose
