@@ -8,6 +8,11 @@
 
 pub(crate) type Components = [f32; 4];
 
+// Colors are converted in double precision with the full-precision matrices of CSS Color 4's sample code, since the hue
+// of a color with little chroma is very sensitive to rounding.
+type Color = [f64; 4];
+type Matrix = [[f64; 3]; 3];
+
 pub(crate) const RGB: u8 = 0;
 pub(crate) const A98_RGB: u8 = 1;
 pub(crate) const DISPLAY_P3: u8 = 2;
@@ -27,190 +32,272 @@ pub(crate) const XYZ_D65: u8 = 15;
 // NB: alpha() has no color space of its own; its result is in the color space of its origin color.
 pub(crate) const ALPHA: u8 = 16;
 
-// https://drafts.csswg.org/css-color-4/#predefined-sRGB
 // https://drafts.csswg.org/css-color-4/#color-conversion-code
-fn srgb_to_linear_srgb(srgb: Components) -> Components {
-    let convert = |component: f32| {
-        let sign = if component < 0.0 { -1.0 } else { 1.0 };
-        let absolute = component.abs();
-        if absolute <= 0.04045 {
-            component / 12.92
-        } else {
-            sign * ((absolute + 0.055) / 1.055).powf(2.4)
-        }
-    };
-    [convert(srgb[0]), convert(srgb[1]), convert(srgb[2]), srgb[3]]
+const LINEAR_SRGB_TO_XYZ65: Matrix = [
+    [506752.0 / 1228815.0, 87881.0 / 245763.0, 12673.0 / 70218.0],
+    [87098.0 / 409605.0, 175762.0 / 245763.0, 12673.0 / 175545.0],
+    [7918.0 / 409605.0, 87881.0 / 737289.0, 1001167.0 / 1053270.0],
+];
+const XYZ65_TO_LINEAR_SRGB: Matrix = [
+    [12831.0 / 3959.0, -329.0 / 214.0, -1974.0 / 3959.0],
+    [-851781.0 / 878810.0, 1648619.0 / 878810.0, 36519.0 / 878810.0],
+    [705.0 / 12673.0, -2585.0 / 12673.0, 705.0 / 667.0],
+];
+const LINEAR_DISPLAY_P3_TO_XYZ65: Matrix = [
+    [608311.0 / 1250200.0, 189793.0 / 714400.0, 198249.0 / 1000160.0],
+    [35783.0 / 156275.0, 247089.0 / 357200.0, 198249.0 / 2500400.0],
+    [0.0, 32229.0 / 714400.0, 5220557.0 / 5000800.0],
+];
+const XYZ65_TO_LINEAR_DISPLAY_P3: Matrix = [
+    [446124.0 / 178915.0, -333277.0 / 357830.0, -72051.0 / 178915.0],
+    [-14852.0 / 17905.0, 63121.0 / 35810.0, 423.0 / 17905.0],
+    [11844.0 / 330415.0, -50337.0 / 660830.0, 316169.0 / 330415.0],
+];
+const LINEAR_PROPHOTO_RGB_TO_XYZ50: Matrix = [
+    [0.7977666449006423, 0.13518129740053308, 0.0313477341283922],
+    [0.2880748288194013, 0.711835234241873, 0.00008993693872564],
+    [0.0, 0.0, 0.8251046025104602],
+];
+const XYZ50_TO_LINEAR_PROPHOTO_RGB: Matrix = [
+    [1.3457868816471583, -0.25557208737979464, -0.05110186497554526],
+    [-0.5446307051249019, 1.5082477428451468, 0.02052744743642139],
+    [0.0, 0.0, 1.2119675456389452],
+];
+const LINEAR_A98_RGB_TO_XYZ65: Matrix = [
+    [573536.0 / 994567.0, 263643.0 / 1420810.0, 187206.0 / 994567.0],
+    [591459.0 / 1989134.0, 6239551.0 / 9945670.0, 374412.0 / 4972835.0],
+    [53769.0 / 1989134.0, 351524.0 / 4972835.0, 4929758.0 / 4972835.0],
+];
+const XYZ65_TO_LINEAR_A98_RGB: Matrix = [
+    [1829569.0 / 896150.0, -506331.0 / 896150.0, -308931.0 / 896150.0],
+    [-851781.0 / 878810.0, 1648619.0 / 878810.0, 36519.0 / 878810.0],
+    [16779.0 / 1248040.0, -147721.0 / 1248040.0, 1266979.0 / 1248040.0],
+];
+const LINEAR_REC2020_TO_XYZ65: Matrix = [
+    [
+        63426534.0 / 99577255.0,
+        20160776.0 / 139408157.0,
+        47086771.0 / 278816314.0,
+    ],
+    [
+        26158966.0 / 99577255.0,
+        472592308.0 / 697040785.0,
+        8267143.0 / 139408157.0,
+    ],
+    [0.0, 19567812.0 / 697040785.0, 295819943.0 / 278816314.0],
+];
+const XYZ65_TO_LINEAR_REC2020: Matrix = [
+    [
+        30757411.0 / 17917100.0,
+        -6372589.0 / 17917100.0,
+        -4539589.0 / 17917100.0,
+    ],
+    [-19765991.0 / 29648200.0, 47925759.0 / 29648200.0, 467509.0 / 29648200.0],
+    [792561.0 / 44930125.0, -1921689.0 / 44930125.0, 42328811.0 / 44930125.0],
+];
+const XYZ65_TO_XYZ50: Matrix = [
+    [1.0479297925449969, 0.022946870601609652, -0.05019226628920524],
+    [0.02962780877005599, 0.9904344267538799, -0.017073799063418826],
+    [-0.009243040646204504, 0.015055191490298152, 0.7518742814281371],
+];
+const XYZ50_TO_XYZ65: Matrix = [
+    [0.955473421488075, -0.02309845494876471, 0.06325924320057072],
+    [-0.0283697093338637, 1.0099953980813041, 0.021041441191917323],
+    [0.012314014864481998, -0.020507649298898964, 1.330365926242124],
+];
+const XYZ65_TO_LMS: Matrix = [
+    [0.819022437996703, 0.3619062600528904, -0.1288737815209879],
+    [0.0329836539323885, 0.9292868615863434, 0.0361446663506424],
+    [0.0481771893596242, 0.2642395317527308, 0.6335478284694309],
+];
+const LMS_TO_OKLAB: Matrix = [
+    [0.210454268309314, 0.7936177747023054, -0.0040720430116193],
+    [1.9779985324311684, -2.42859224204858, 0.450593709617411],
+    [0.0259040424655478, 0.7827717124575296, -0.8086757549230774],
+];
+const OKLAB_TO_LMS: Matrix = [
+    [1.0, 0.3963377773761749, 0.2158037573099136],
+    [1.0, -0.1055613458156586, -0.0638541728258133],
+    [1.0, -0.0894841775298119, -1.2914855480194092],
+];
+const LMS_TO_XYZ65: Matrix = [
+    [1.2268798758459243, -0.5578149944602171, 0.2813910456659647],
+    [-0.0405757452148008, 1.112286803280317, -0.0717110580655164],
+    [-0.0763729366746601, -0.4214933324022432, 1.5869240198367816],
+];
+
+// https://drafts.csswg.org/css-color-4/#color-conversion-code
+const D50_WHITE_X: f64 = 0.3457 / 0.3585;
+const D50_WHITE_Z: f64 = (1.0 - 0.3457 - 0.3585) / 0.3585;
+const LAB_KAPPA: f64 = 24389.0 / 27.0;
+const LAB_EPSILON: f64 = 216.0 / 24389.0;
+
+// AD-HOC: CSS Color 4 specifies a pure 2.4 gamma transfer function for rec2020, but all major engines and the WPT
+//         rec2020 reftests use the piecewise OETF from ITU-R BT.2020-2, so we do the same.
+const REC2020_ALPHA: f64 = 1.09929682680944;
+const REC2020_BETA: f64 = 0.018053968510807;
+
+fn widen(color: Components) -> Color {
+    color.map(f64::from)
+}
+
+fn narrow(color: Color) -> Components {
+    color.map(|component| component as f32)
+}
+
+fn multiply(matrix: &Matrix, color: Color) -> Color {
+    let [x, y, z, alpha] = color;
+    let row = |row: &[f64; 3]| row[0] * x + row[1] * y + row[2] * z;
+    [row(&matrix[0]), row(&matrix[1]), row(&matrix[2]), alpha]
+}
+
+fn map_rgb(color: Color, convert: impl Fn(f64) -> f64) -> Color {
+    [convert(color[0]), convert(color[1]), convert(color[2]), color[3]]
 }
 
 // https://drafts.csswg.org/css-color-4/#predefined-sRGB
 // https://drafts.csswg.org/css-color-4/#color-conversion-code
-fn linear_srgb_to_srgb(linear: Components) -> Components {
-    let convert = |component: f32| {
-        let sign = if component < 0.0 { -1.0 } else { 1.0 };
+fn srgb_to_linear_srgb(srgb: Color) -> Color {
+    map_rgb(srgb, |component| {
+        let absolute = component.abs();
+        if absolute <= 0.04045 {
+            component / 12.92
+        } else {
+            component.signum() * ((absolute + 0.055) / 1.055).powf(2.4)
+        }
+    })
+}
+
+// https://drafts.csswg.org/css-color-4/#predefined-sRGB
+// https://drafts.csswg.org/css-color-4/#color-conversion-code
+fn linear_srgb_to_srgb(linear: Color) -> Color {
+    map_rgb(linear, |component| {
         let absolute = component.abs();
         if absolute > 0.0031308 {
-            sign * (1.055 * absolute.powf(1.0 / 2.4) - 0.055)
+            component.signum() * (1.055 * absolute.powf(1.0 / 2.4) - 0.055)
         } else {
             12.92 * component
         }
-    };
-    [convert(linear[0]), convert(linear[1]), convert(linear[2]), linear[3]]
-}
-
-// https://drafts.csswg.org/css-color-4/#predefined-sRGB-linear
-// https://drafts.csswg.org/css-color-4/#color-conversion-code
-fn linear_srgb_to_xyz65(color: Components) -> Components {
-    let [red, green, blue, alpha] = color;
-    [
-        0.4123908 * red + 0.35758433 * green + 0.1804808 * blue,
-        0.212639 * red + 0.71516865 * green + 0.07219232 * blue,
-        0.01933082 * red + 0.11919478 * green + 0.95053214 * blue,
-        alpha,
-    ]
-}
-
-// https://drafts.csswg.org/css-color-4/#predefined-display-p3
-// https://drafts.csswg.org/css-color-4/#color-conversion-code
-fn display_p3_to_xyz65(color: Components, is_linear: bool) -> Components {
-    let convert = |component: f32| {
-        if is_linear {
-            return component;
-        }
-        let sign = if component < 0.0 { -1.0 } else { 1.0 };
-        let absolute = component.abs();
-        if absolute <= 0.04045 {
-            component / 12.92
-        } else {
-            sign * ((absolute + 0.055) / 1.055).powf(2.4)
-        }
-    };
-    let red = convert(color[0]);
-    let green = convert(color[1]);
-    let blue = convert(color[2]);
-    [
-        0.48657095 * red + 0.2656677 * green + 0.19821729 * blue,
-        0.22897457 * red + 0.69173855 * green + 0.07928691 * blue,
-        0.04511338 * green + 1.0439444 * blue,
-        color[3],
-    ]
+    })
 }
 
 // https://drafts.csswg.org/css-color-4/#predefined-a98-rgb
 // https://drafts.csswg.org/css-color-4/#color-conversion-code
-fn a98_rgb_to_xyz65(color: Components) -> Components {
-    let convert = |component: f32| component.signum() * component.abs().powf(563.0 / 256.0);
-    let red = convert(color[0]);
-    let green = convert(color[1]);
-    let blue = convert(color[2]);
-    [
-        0.57666904 * red + 0.18555824 * green + 0.18822865 * blue,
-        0.29734498 * red + 0.62736356 * green + 0.07529146 * blue,
-        0.02703136 * red + 0.07068885 * green + 0.99133754 * blue,
-        color[3],
-    ]
+fn a98_rgb_to_linear_a98_rgb(color: Color) -> Color {
+    map_rgb(color, |component| {
+        component.signum() * component.abs().powf(563.0 / 256.0)
+    })
+}
+
+fn linear_a98_rgb_to_a98_rgb(color: Color) -> Color {
+    map_rgb(color, |component| {
+        component.signum() * component.abs().powf(256.0 / 563.0)
+    })
 }
 
 // https://drafts.csswg.org/css-color-4/#predefined-prophoto-rgb
 // https://drafts.csswg.org/css-color-4/#color-conversion-code
-fn prophoto_rgb_to_xyz50(color: Components) -> Components {
-    let convert = |component: f32| {
+fn prophoto_rgb_to_linear_prophoto_rgb(color: Color) -> Color {
+    map_rgb(color, |component| {
         let absolute = component.abs();
         if absolute <= 16.0 / 512.0 {
             component / 16.0
         } else {
             component.signum() * absolute.powf(1.8)
         }
-    };
-    let red = convert(color[0]);
-    let green = convert(color[1]);
-    let blue = convert(color[2]);
-    [
-        0.7977666 * red + 0.1351813 * green + 0.03134773 * blue,
-        0.28807482 * red + 0.7118352 * green + 0.00008994 * blue,
-        0.8251046 * blue,
-        color[3],
-    ]
+    })
+}
+
+fn linear_prophoto_rgb_to_prophoto_rgb(color: Color) -> Color {
+    map_rgb(color, |component| {
+        let absolute = component.abs();
+        if absolute <= 1.0 / 512.0 {
+            component * 16.0
+        } else {
+            component.signum() * absolute.powf(1.0 / 1.8)
+        }
+    })
 }
 
 // https://drafts.csswg.org/css-color-4/#predefined-rec2020
-fn rec2020_to_xyz65(color: Components) -> Components {
-    let convert = |component: f32| {
-        // AD-HOC: CSS Color 4 specifies a pure 2.4 gamma transfer function for rec2020, but all major engines
-        //         and the WPT rec2020 reftests use the piecewise OETF from ITU-R BT.2020-2, so we do the same.
-        const ALPHA: f32 = 1.0992968;
-        const BETA: f32 = 0.01805397;
+fn rec2020_to_linear_rec2020(color: Color) -> Color {
+    map_rgb(color, |component| {
         let absolute = component.abs();
-        if absolute < BETA * 4.5 {
+        if absolute < REC2020_BETA * 4.5 {
             component / 4.5
         } else {
-            component.signum() * ((absolute + ALPHA - 1.0) / ALPHA).powf(1.0 / 0.45)
+            component.signum() * ((absolute + REC2020_ALPHA - 1.0) / REC2020_ALPHA).powf(1.0 / 0.45)
         }
-    };
-    let red = convert(color[0]);
-    let green = convert(color[1]);
-    let blue = convert(color[2]);
-    [
-        0.63695806 * red + 0.1446169 * green + 0.16888098 * blue,
-        0.2627002 * red + 0.67799807 * green + 0.05930172 * blue,
-        0.02807269 * green + 1.0609851 * blue,
-        color[3],
-    ]
+    })
+}
+
+fn linear_rec2020_to_rec2020(color: Color) -> Color {
+    map_rgb(color, |component| {
+        let absolute = component.abs();
+        if absolute < REC2020_BETA {
+            4.5 * component
+        } else {
+            component.signum() * (REC2020_ALPHA * absolute.powf(0.45) - (REC2020_ALPHA - 1.0))
+        }
+    })
 }
 
 // https://drafts.csswg.org/css-color-4/#color-conversion-code
-fn xyz50_to_xyz65(color: Components) -> Components {
-    let [x, y, z, alpha] = color;
-    [
-        0.9554735 * x - 0.02309854 * y + 0.06325931 * z,
-        -0.02836971 * x + 1.0099955 * y + 0.02104154 * z,
-        0.012314 * x - 0.0205077 * y + 1.3303659 * z,
-        alpha,
-    ]
-}
-
-// https://drafts.csswg.org/css-color-4/#color-conversion-code
-fn xyz65_to_xyz50(color: Components) -> Components {
-    let [x, y, z, alpha] = color;
-    [
-        1.0479298 * x + 0.022946874 * y - 0.05019223 * z,
-        0.029627815 * x + 0.99043447 * y - 0.017073825 * z,
-        -0.009243058 * x + 0.015055145 * y + 0.75187427 * z,
-        alpha,
-    ]
-}
-
-// https://drafts.csswg.org/css-color-4/#color-conversion-code
-fn lab_to_xyz50(color: Components) -> Components {
-    const KAPPA: f32 = 24389.0 / 27.0;
-    const EPSILON: f32 = 216.0 / 24389.0;
+fn lab_to_xyz50(color: Color) -> Color {
     let [lightness, a, b, alpha] = color;
     let f1 = (lightness + 16.0) / 116.0;
     let f0 = a / 500.0 + f1;
     let f2 = f1 - b / 200.0;
-    let compute = |f: f32| {
+    let compute = |f: f64| {
         let cubed = f * f * f;
-        if cubed > EPSILON {
+        if cubed > LAB_EPSILON {
             cubed
         } else {
-            (116.0 * f - 16.0) / KAPPA
+            (116.0 * f - 16.0) / LAB_KAPPA
         }
     };
-    let y = if lightness > KAPPA * EPSILON {
-        ((lightness + 16.0) / 116.0).powi(3)
+    let y = if lightness > LAB_KAPPA * LAB_EPSILON {
+        f1.powi(3)
     } else {
-        lightness / KAPPA
+        lightness / LAB_KAPPA
     };
-    let x_n = 0.3457 / 0.3585;
-    let z_n = (1.0 - 0.3457 - 0.3585) / 0.3585;
-    [x_n * compute(f0), y, z_n * compute(f2), alpha]
+    [D50_WHITE_X * compute(f0), y, D50_WHITE_Z * compute(f2), alpha]
 }
 
-fn polar_to_rectangular(color: Components) -> Components {
+// https://drafts.csswg.org/css-color-4/#color-conversion-code
+fn xyz50_to_lab(color: Color) -> Color {
+    let [x, y, z, alpha] = color;
+    let convert = |value: f64| {
+        if value > LAB_EPSILON {
+            value.cbrt()
+        } else {
+            (LAB_KAPPA * value + 16.0) / 116.0
+        }
+    };
+    let fx = convert(x / D50_WHITE_X);
+    let fy = convert(y);
+    let fz = convert(z / D50_WHITE_Z);
+    [116.0 * fy - 16.0, 500.0 * (fx - fy), 200.0 * (fy - fz), alpha]
+}
+
+// https://drafts.csswg.org/css-color-4/#color-conversion-code
+fn oklab_to_xyz65(color: Color) -> Color {
+    let [long, medium, short, alpha] = multiply(&OKLAB_TO_LMS, color);
+    multiply(&LMS_TO_XYZ65, [long.powi(3), medium.powi(3), short.powi(3), alpha])
+}
+
+// https://drafts.csswg.org/css-color-4/#color-conversion-code
+fn xyz65_to_oklab(color: Color) -> Color {
+    let [long, medium, short, alpha] = multiply(&XYZ65_TO_LMS, color);
+    multiply(&LMS_TO_OKLAB, [long.cbrt(), medium.cbrt(), short.cbrt(), alpha])
+}
+
+fn polar_to_rectangular(color: Color) -> Color {
     let radians = color[2].to_radians();
     [color[0], color[1] * radians.cos(), color[1] * radians.sin(), color[3]]
 }
 
-fn rectangular_to_polar(color: Components) -> Components {
+fn rectangular_to_polar(color: Color) -> Color {
     let chroma = color[1].hypot(color[2]);
     let mut hue = color[2].atan2(color[1]).to_degrees();
     if hue < 0.0 {
@@ -220,26 +307,26 @@ fn rectangular_to_polar(color: Components) -> Components {
 }
 
 // Algorithm from https://drafts.csswg.org/css-color-3/#hsl-color
-pub(crate) fn hsl_to_srgb(color: Components) -> Components {
+fn hsl_color_to_srgb(color: Color) -> Color {
     let mut hue = color[0] % 360.0;
     if hue < 0.0 {
         hue += 360.0;
     }
-    let convert = |offset: f32| {
+    let convert = |offset: f64| {
         let k = (offset + hue / 30.0) % 12.0;
         let a = color[1] * color[2].min(1.0 - color[2]);
-        color[2] - a * (-1.0_f32).max((k - 3.0).min(9.0 - k).min(1.0))
+        color[2] - a * (-1.0_f64).max((k - 3.0).min(9.0 - k).min(1.0))
     };
     [convert(0.0), convert(8.0), convert(4.0), color[3].clamp(0.0, 1.0)]
 }
 
 // https://drafts.csswg.org/css-color-4/#hwb-to-rgb
-pub(crate) fn hwb_to_srgb(color: Components) -> Components {
+fn hwb_color_to_srgb(color: Color) -> Color {
     if color[1] + color[2] >= 1.0 {
         let gray = color[1] / (color[1] + color[2]);
         return [gray, gray, gray, color[3]];
     }
-    let rgb = hsl_to_srgb([color[0], 1.0, 0.5, color[3]]);
+    let rgb = hsl_color_to_srgb([color[0], 1.0, 0.5, color[3]]);
     let scale = 1.0 - color[1] - color[2];
     [
         rgb[0] * scale + color[1],
@@ -249,8 +336,16 @@ pub(crate) fn hwb_to_srgb(color: Components) -> Components {
     ]
 }
 
+pub(crate) fn hsl_to_srgb(color: Components) -> Components {
+    narrow(hsl_color_to_srgb(widen(color)))
+}
+
+pub(crate) fn hwb_to_srgb(color: Components) -> Components {
+    narrow(hwb_color_to_srgb(widen(color)))
+}
+
 // https://drafts.csswg.org/css-color-4/#rgb-to-hsl
-fn srgb_to_hsl(color: Components) -> Components {
+fn srgb_to_hsl(color: Color) -> Color {
     let [red, green, blue, alpha] = color;
     let maximum = red.max(green).max(blue);
     let minimum = red.min(green).min(blue);
@@ -258,9 +353,10 @@ fn srgb_to_hsl(color: Components) -> Components {
     let lightness = (minimum + maximum) / 2.0;
     let mut hue = 0.0;
     let mut saturation = 0.0;
+    let epsilon = 1.0 / 100000.0;
 
     if chroma != 0.0 {
-        if lightness != 0.0 && lightness != 1.0 {
+        if lightness.abs() > epsilon && (1.0 - lightness).abs() >= epsilon {
             saturation = (maximum - lightness) / lightness.min(1.0 - lightness);
         }
         if maximum == red {
@@ -278,12 +374,16 @@ fn srgb_to_hsl(color: Components) -> Components {
         if hue >= 360.0 {
             hue -= 360.0;
         }
+        if saturation <= epsilon {
+            hue = f64::NAN;
+            saturation = 0.0;
+        }
     }
     [hue, saturation, lightness, alpha]
 }
 
 // https://drafts.csswg.org/css-color-4/#rgb-to-hwb
-fn srgb_to_hwb(color: Components) -> Components {
+fn srgb_to_hwb(color: Color) -> Color {
     let [red, green, blue, alpha] = color;
     let maximum = red.max(green).max(blue);
     let minimum = red.min(green).min(blue);
@@ -305,185 +405,75 @@ fn srgb_to_hwb(color: Components) -> Components {
     [hue, minimum, 1.0 - maximum, alpha]
 }
 
-fn xyz65_to_linear_srgb(color: Components) -> Components {
-    let [x, y, z, alpha] = color;
-    [
-        3.240_97 * x - 1.537383 * y - 0.498611 * z,
-        -0.969244 * x + 1.875968 * y + 0.041555 * z,
-        0.055630 * x - 0.203977 * y + 1.056972 * z,
-        alpha,
-    ]
-}
-
-// https://drafts.csswg.org/css-color-4/#color-conversion-code
-fn oklab_to_xyz65(color: Components) -> Components {
-    let [lightness, a, b, alpha] = color;
-    let long = (lightness + 0.39633778 * a + 0.21580376 * b).powi(3);
-    let medium = (lightness - 0.105561346 * a - 0.06385417 * b).powi(3);
-    let short = (lightness - 0.08948418 * a - 1.2914855 * b).powi(3);
-    [
-        1.2268798 * long - 0.557815 * medium + 0.28139105 * short,
-        -0.040575746 * long + 1.1122868 * medium - 0.071711056 * short,
-        -0.07637294 * long - 0.42149332 * medium + 1.586924 * short,
-        alpha,
-    ]
-}
-
-// https://drafts.csswg.org/css-color-4/#color-conversion-code
-fn xyz50_to_lab(color: Components) -> Components {
-    const KAPPA: f32 = 24389.0 / 27.0;
-    const EPSILON: f32 = 216.0 / 24389.0;
-    let [x, y, z, alpha] = color;
-    let x_n = 0.3457 / 0.3585;
-    let z_n = (1.0 - 0.3457 - 0.3585) / 0.3585;
-    let convert = |value: f32| {
-        if value > EPSILON {
-            value.cbrt()
-        } else {
-            (KAPPA * value + 16.0) / 116.0
-        }
-    };
-    let fx = convert(x / x_n);
-    let fy = convert(y);
-    let fz = convert(z / z_n);
-    [116.0 * fy - 16.0, 500.0 * (fx - fy), 200.0 * (fy - fz), alpha]
-}
-
-fn xyz65_to_linear_display_p3(color: Components) -> Components {
-    let [x, y, z, alpha] = color;
-    [
-        2.493497 * x - 0.9313836 * y - 0.4027108 * z,
-        -0.829489 * x + 1.7626641 * y + 0.023624686 * z,
-        0.03584583 * x - 0.07617239 * y + 0.9568845 * z,
-        alpha,
-    ]
-}
-
-fn xyz65_to_linear_a98_rgb(color: Components) -> Components {
-    let [x, y, z, alpha] = color;
-    [
-        (1829569.0 / 896150.0) * x - (506331.0 / 896150.0) * y - (308931.0 / 896150.0) * z,
-        -(851781.0 / 878810.0) * x + (1648619.0 / 878810.0) * y + (36519.0 / 878810.0) * z,
-        (16779.0 / 1248040.0) * x - (147721.0 / 1248040.0) * y + (1266979.0 / 1248040.0) * z,
-        alpha,
-    ]
-}
-
-fn xyz50_to_linear_prophoto_rgb(color: Components) -> Components {
-    let [x, y, z, alpha] = color;
-    [
-        1.345799 * x - 0.25558022 * y - 0.051118854 * z,
-        -0.5446225 * x + 1.5082327 * y + 0.020527447 * z,
-        1.2119676 * z,
-        alpha,
-    ]
-}
-
-fn xyz65_to_linear_rec2020(color: Components) -> Components {
-    let [x, y, z, alpha] = color;
-    [
-        1.7166512 * x - 0.35567078 * y - 0.2533663 * z,
-        -0.6666843 * x + 1.6164812 * y + 0.015768545 * z,
-        0.017639857 * x - 0.042770613 * y + 0.94210315 * z,
-        alpha,
-    ]
-}
-
-fn linear_a98_rgb_to_a98_rgb(color: Components) -> Components {
-    let convert = |component: f32| component.signum() * component.abs().powf(256.0 / 563.0);
-    [convert(color[0]), convert(color[1]), convert(color[2]), color[3]]
-}
-
-fn linear_prophoto_rgb_to_prophoto_rgb(color: Components) -> Components {
-    let convert = |component: f32| {
-        if component.abs() <= 1.0 / 512.0 {
-            component * 16.0
-        } else {
-            component.signum() * component.abs().powf(1.0 / 1.8)
-        }
-    };
-    [convert(color[0]), convert(color[1]), convert(color[2]), color[3]]
-}
-
-fn linear_rec2020_to_rec2020(color: Components) -> Components {
-    let convert = |component: f32| {
-        const ALPHA: f32 = 1.0992968;
-        const BETA: f32 = 0.01805397;
-        if component.abs() < BETA {
-            4.5 * component
-        } else {
-            component.signum() * (ALPHA * component.abs().powf(0.45) - (ALPHA - 1.0))
-        }
-    };
-    [convert(color[0]), convert(color[1]), convert(color[2]), color[3]]
-}
-
-pub(crate) fn legacy_color_to_srgb(color_type: u8, color: Components) -> Option<Components> {
+fn legacy_color_to_srgb_color(color_type: u8, color: Color) -> Option<Color> {
     match color_type {
         RGB => Some(color),
-        HSL => Some(hsl_to_srgb(color)),
-        HWB => Some(hwb_to_srgb(color)),
+        HSL => Some(hsl_color_to_srgb(color)),
+        HWB => Some(hwb_color_to_srgb(color)),
         _ => None,
     }
 }
 
-// https://drafts.csswg.org/css-color-4/#color-conversion-code
-pub(crate) fn xyz65_to_oklab(color: Components) -> Components {
-    let [x, y, z, alpha] = color;
-    let long = (0.8190224 * x + 0.36190626 * y - 0.12887378 * z).cbrt();
-    let medium = (0.03298365 * x + 0.92928684 * y + 0.03614467 * z).cbrt();
-    let short = (0.04817719 * x + 0.26423952 * y + 0.63354784 * z).cbrt();
-    [
-        0.21045427 * long + 0.7936178 * medium - 0.00407204 * short,
-        1.9779985 * long - 2.4285922 * medium + 0.4505937 * short,
-        0.02590404 * long + 0.7827717 * medium - 0.80867577 * short,
-        alpha,
-    ]
+pub(crate) fn legacy_color_to_srgb(color_type: u8, color: Components) -> Option<Components> {
+    legacy_color_to_srgb_color(color_type, widen(color)).map(narrow)
 }
 
-fn to_xyz65(color_type: u8, mut color: Components) -> Option<Components> {
+fn to_xyz65(color_type: u8, mut color: Color) -> Option<Color> {
     match color_type {
         RGB => {
             color[0] = color[0].clamp(0.0, 1.0);
             color[1] = color[1].clamp(0.0, 1.0);
             color[2] = color[2].clamp(0.0, 1.0);
-            Some(linear_srgb_to_xyz65(srgb_to_linear_srgb(color)))
+            Some(multiply(&LINEAR_SRGB_TO_XYZ65, srgb_to_linear_srgb(color)))
         }
-        SRGB => Some(linear_srgb_to_xyz65(srgb_to_linear_srgb(color))),
-        SRGB_LINEAR => Some(linear_srgb_to_xyz65(color)),
-        DISPLAY_P3 => Some(display_p3_to_xyz65(color, false)),
-        DISPLAY_P3_LINEAR => Some(display_p3_to_xyz65(color, true)),
-        A98_RGB => Some(a98_rgb_to_xyz65(color)),
-        PROPHOTO_RGB => Some(xyz50_to_xyz65(prophoto_rgb_to_xyz50(color))),
-        REC2020 => Some(rec2020_to_xyz65(color)),
-        XYZ_D50 => Some(xyz50_to_xyz65(color)),
+        SRGB => Some(multiply(&LINEAR_SRGB_TO_XYZ65, srgb_to_linear_srgb(color))),
+        SRGB_LINEAR => Some(multiply(&LINEAR_SRGB_TO_XYZ65, color)),
+        DISPLAY_P3 => Some(multiply(&LINEAR_DISPLAY_P3_TO_XYZ65, srgb_to_linear_srgb(color))),
+        DISPLAY_P3_LINEAR => Some(multiply(&LINEAR_DISPLAY_P3_TO_XYZ65, color)),
+        A98_RGB => Some(multiply(&LINEAR_A98_RGB_TO_XYZ65, a98_rgb_to_linear_a98_rgb(color))),
+        PROPHOTO_RGB => Some(multiply(
+            &XYZ50_TO_XYZ65,
+            multiply(
+                &LINEAR_PROPHOTO_RGB_TO_XYZ50,
+                prophoto_rgb_to_linear_prophoto_rgb(color),
+            ),
+        )),
+        REC2020 => Some(multiply(&LINEAR_REC2020_TO_XYZ65, rec2020_to_linear_rec2020(color))),
+        XYZ_D50 => Some(multiply(&XYZ50_TO_XYZ65, color)),
         XYZ_D65 => Some(color),
-        LAB => Some(xyz50_to_xyz65(lab_to_xyz50(color))),
-        LCH => Some(xyz50_to_xyz65(lab_to_xyz50(polar_to_rectangular(color)))),
+        LAB => Some(multiply(&XYZ50_TO_XYZ65, lab_to_xyz50(color))),
+        LCH => Some(multiply(&XYZ50_TO_XYZ65, lab_to_xyz50(polar_to_rectangular(color)))),
         OKLAB => Some(oklab_to_xyz65(color)),
         OKLCH => Some(oklab_to_xyz65(polar_to_rectangular(color))),
-        HSL => Some(linear_srgb_to_xyz65(srgb_to_linear_srgb(hsl_to_srgb(color)))),
-        HWB => Some(linear_srgb_to_xyz65(srgb_to_linear_srgb(hwb_to_srgb(color)))),
+        HSL => Some(multiply(
+            &LINEAR_SRGB_TO_XYZ65,
+            srgb_to_linear_srgb(hsl_color_to_srgb(color)),
+        )),
+        HWB => Some(multiply(
+            &LINEAR_SRGB_TO_XYZ65,
+            srgb_to_linear_srgb(hwb_color_to_srgb(color)),
+        )),
         _ => None,
     }
 }
 
-fn from_xyz65(color_type: u8, color: Components) -> Option<Components> {
-    let srgb = || linear_srgb_to_srgb(xyz65_to_linear_srgb(color));
+fn from_xyz65(color_type: u8, color: Color) -> Option<Color> {
+    let srgb = || linear_srgb_to_srgb(multiply(&XYZ65_TO_LINEAR_SRGB, color));
     match color_type {
         RGB | SRGB => Some(srgb()),
-        SRGB_LINEAR => Some(xyz65_to_linear_srgb(color)),
-        DISPLAY_P3 => Some(linear_srgb_to_srgb(xyz65_to_linear_display_p3(color))),
-        DISPLAY_P3_LINEAR => Some(xyz65_to_linear_display_p3(color)),
-        A98_RGB => Some(linear_a98_rgb_to_a98_rgb(xyz65_to_linear_a98_rgb(color))),
-        PROPHOTO_RGB => Some(linear_prophoto_rgb_to_prophoto_rgb(xyz50_to_linear_prophoto_rgb(
-            xyz65_to_xyz50(color),
+        SRGB_LINEAR => Some(multiply(&XYZ65_TO_LINEAR_SRGB, color)),
+        DISPLAY_P3 => Some(linear_srgb_to_srgb(multiply(&XYZ65_TO_LINEAR_DISPLAY_P3, color))),
+        DISPLAY_P3_LINEAR => Some(multiply(&XYZ65_TO_LINEAR_DISPLAY_P3, color)),
+        A98_RGB => Some(linear_a98_rgb_to_a98_rgb(multiply(&XYZ65_TO_LINEAR_A98_RGB, color))),
+        PROPHOTO_RGB => Some(linear_prophoto_rgb_to_prophoto_rgb(multiply(
+            &XYZ50_TO_LINEAR_PROPHOTO_RGB,
+            multiply(&XYZ65_TO_XYZ50, color),
         ))),
-        REC2020 => Some(linear_rec2020_to_rec2020(xyz65_to_linear_rec2020(color))),
-        XYZ_D50 => Some(xyz65_to_xyz50(color)),
+        REC2020 => Some(linear_rec2020_to_rec2020(multiply(&XYZ65_TO_LINEAR_REC2020, color))),
+        XYZ_D50 => Some(multiply(&XYZ65_TO_XYZ50, color)),
         XYZ_D65 => Some(color),
-        LAB => Some(xyz50_to_lab(xyz65_to_xyz50(color))),
-        LCH => Some(rectangular_to_polar(xyz50_to_lab(xyz65_to_xyz50(color)))),
+        LAB => Some(xyz50_to_lab(multiply(&XYZ65_TO_XYZ50, color))),
+        LCH => Some(rectangular_to_polar(xyz50_to_lab(multiply(&XYZ65_TO_XYZ50, color)))),
         OKLAB => Some(xyz65_to_oklab(color)),
         OKLCH => Some(rectangular_to_polar(xyz65_to_oklab(color))),
         HSL => Some(srgb_to_hsl(srgb())),
@@ -492,7 +482,7 @@ fn from_xyz65(color_type: u8, color: Components) -> Option<Components> {
     }
 }
 
-pub(crate) fn convert(color_type: u8, target_type: u8, color: Components) -> Option<Components> {
+fn convert_color(color_type: u8, target_type: u8, color: Color) -> Option<Color> {
     if color_type == target_type || color_type == RGB && target_type == SRGB {
         return Some(color);
     }
@@ -509,9 +499,13 @@ pub(crate) fn convert(color_type: u8, target_type: u8, color: Components) -> Opt
         });
     }
     if (color_type == HSL || color_type == HWB) && target_type == SRGB {
-        return legacy_color_to_srgb(color_type, color);
+        return legacy_color_to_srgb_color(color_type, color);
     }
     from_xyz65(target_type, to_xyz65(color_type, color)?)
+}
+
+pub(crate) fn convert(color_type: u8, target_type: u8, color: Components) -> Option<Components> {
+    convert_color(color_type, target_type, widen(color)).map(narrow)
 }
 
 pub(crate) fn to_oklab(color_type: u8, color: Components) -> Option<Components> {
