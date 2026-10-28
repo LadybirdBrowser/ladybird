@@ -1,0 +1,64 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSSOM: Handling pseudo-elements with arguments</title>
+<script src=../../resources/testharness.js></script>
+<script src=../../resources/testharnessreport.js></script>
+<link rel=help href=https://drafts.csswg.org/cssom/#dom-window-getcomputedstyle>
+<style>
+#pseudo-invalid::highlight(name) {
+  color: rgb(0, 128, 0);
+}
+#pseudo-invalid::view-transition-image-pair(name) {
+  color: rgb(0, 128, 0);
+}
+#pseudo-invalid::view-transition-group(name) {
+  color: rgb(0, 128, 0);
+}
+#pseudo-invalid::view-transition-old(name) {
+  color: rgb(0, 128, 0);
+}
+#pseudo-invalid::view-transition-new(name) {
+  color: rgb(0, 128, 0);
+}
+</style>
+<ul><li id="pseudo-invalid">Item</li></ul>
+<script>
+[
+  "::before(test)",
+  "::highlight",
+  "::highlight(",
+  "::highlight()",
+  "::highlight(1)",
+  "::highlight($)",
+  "::highlight (name)",
+  "::highlight(name)a",
+  ":highlight(name)",
+  "::view-transition-group(*)",
+  "::view-transition-image-pair(*)",
+  "::view-transition-old(*)",
+  "::view-transition-new(*)",
+  ":view-transition-group(name)",
+  ":view-transition-image-pair(name)",
+  ":view-transition-old(name)",
+  ":view-transition-new(name)",
+].forEach(nonParsablePseudoIdentifier => {
+  test(() => {
+    const li = document.querySelector('li');
+    assert_equals(getComputedStyle(li, nonParsablePseudoIdentifier).length, 0);
+  }, `This pseudo-element should not parse: ${nonParsablePseudoIdentifier}`)
+});
+
+[
+  "::highlight(name)",
+  "::highlight(\nname",
+  "::highlight(name\t",
+  "::highlight( name ",
+  "::highlight( n\\61me )"
+].forEach(parsablePseudoIdentifier => {
+  test(() => {
+    const li = document.querySelector('li');
+    assert_true(getComputedStyle(li, parsablePseudoIdentifier).length != 0);
+    assert_equals(getComputedStyle(li, parsablePseudoIdentifier).color, "rgb(0, 128, 0)");
+  }, `This pseudo-element should parse: ${parsablePseudoIdentifier}`);
+});
+</script>

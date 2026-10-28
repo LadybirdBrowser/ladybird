@@ -1,0 +1,29 @@
+Harness status: OK
+
+Found 22 tests
+
+13 Pass
+9 Fail
+Pass	This pseudo-element should not parse: ::before(test)
+Pass	This pseudo-element should not parse: ::highlight
+Pass	This pseudo-element should not parse: ::highlight(
+Pass	This pseudo-element should not parse: ::highlight()
+Pass	This pseudo-element should not parse: ::highlight(1)
+Pass	This pseudo-element should not parse: ::highlight($)
+Pass	This pseudo-element should not parse: ::highlight (name)
+Pass	This pseudo-element should not parse: ::highlight(name)a
+Pass	This pseudo-element should not parse: :highlight(name)
+Fail	This pseudo-element should not parse: ::view-transition-group(*)
+Fail	This pseudo-element should not parse: ::view-transition-image-pair(*)
+Fail	This pseudo-element should not parse: ::view-transition-old(*)
+Fail	This pseudo-element should not parse: ::view-transition-new(*)
+Pass	This pseudo-element should not parse: :view-transition-group(name)
+Pass	This pseudo-element should not parse: :view-transition-image-pair(name)
+Pass	This pseudo-element should not parse: :view-transition-old(name)
+Pass	This pseudo-element should not parse: :view-transition-new(name)
+Fail	This pseudo-element should parse: ::highlight(name)
+Fail	This pseudo-element should parse: ::highlight(
+name
+Fail	This pseudo-element should parse: ::highlight(name	
+Fail	This pseudo-element should parse: ::highlight( name 
+Fail	This pseudo-element should parse: ::highlight( n\61me )
