@@ -458,7 +458,7 @@ def rust_type(idl_type: IDLType, context: GenerationContext, what: str, is_resul
         return f"Option<{rust_type(optional_member, context, what)}>"
     if isinstance(idl_type, IDLUnionType):
         for member_type in union_member_types(idl_type, context):
-            rust_type(member_type, context, what)
+            rust_type(member_type, context, what, is_result)
         return rust_union_path(idl_type, context, what)
     raise UnsupportedByRustBindings(f"{what} has the type {idl_type}, which the Rust bindings do not convert yet")
 
