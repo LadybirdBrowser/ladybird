@@ -1860,8 +1860,19 @@ impl<'context> InlineFormattingContext<'context> {
                 }
                 inline_level_iterator::ItemType::FloatingElement => {
                     line_builder.commit_pending_margin_before_float();
-                    self.create_used_values(item.node, self.input.containing_block_constraints);
-                    self.parent.size_child_ahead_of_its_run(item.node);
+                    if formatting_context::formatting_context_type_created_by_box(NodeFacts::new(
+                        &self.run.callbacks,
+                        item.node,
+                    ))
+                    .is_some()
+                    {
+                        self.parent.keep_child_for_its_run_and_size_it_ahead(
+                            item.node,
+                            self.input.containing_block_constraints,
+                        );
+                    } else {
+                        self.create_used_values(item.node, self.input.containing_block_constraints);
+                    }
                     if state_at_clamp_point.is_some() {
                         self.run.records.hide_for_line_clamp(item.node);
                     }
