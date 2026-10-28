@@ -2723,11 +2723,11 @@ void Tab::show_site_settings_popover()
         };
         // A change reaches every page of the site at once, and the panel shows it right away.
         m_site_settings_popover->on_permission_change = [this](Web::Permissions::PermissionName name, Optional<WebView::PermissionDecision> decision) {
-            view().set_site_permission(view().url().origin(), name, decision);
+            view().set_site_permission(view().permission_origin(), name, decision);
             m_site_settings_popover->set_permissions(view().site_permission_rows());
         };
         m_site_settings_popover->on_reset_permissions = [this] {
-            view().reset_site_permissions(view().url().origin());
+            view().reset_site_permissions(view().permission_origin());
             m_site_settings_popover->set_permissions(view().site_permission_rows());
         };
     }
