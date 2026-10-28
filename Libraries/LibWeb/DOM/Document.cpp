@@ -4707,11 +4707,14 @@ void Document::dispatch_events_for_animation_if_necessary(GC::Ref<Animations::An
         }
         event_init.animation = css_animation;
 
+        auto event = CSS::AnimationEvent::create(
+            name,
+            event_init,
+            HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(owning_element->element())));
+        event->set_is_trusted(true);
+
         append_pending_animation_event({
-            .event = CSS::AnimationEvent::create(
-                name,
-                event_init,
-                HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(owning_element->element()))),
+            .event = event,
             .animation = css_animation,
             .target = owning_element->element(),
             .scheduled_event_time = timeline && timeline->can_convert_a_timeline_time_to_an_origin_relative_time()
