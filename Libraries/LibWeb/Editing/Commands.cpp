@@ -2048,7 +2048,7 @@ bool command_insert_paragraph_action(DOM::Document& document, Utf16View)
         auto new_container = wrap(
             node_list,
             [](auto) { return false; },
-            [&] { return MUST(DOM::create_element(document, tag, Namespace::HTML)); });
+            [&] { return MUST(DOM::create_element(document, tag, Namespace::HTML)); }, PreservePrecedingLineBreak::Yes);
         if (new_container)
             container = new_container;
     }

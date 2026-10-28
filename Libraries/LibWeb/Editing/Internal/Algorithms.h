@@ -153,7 +153,11 @@ Utf16String standard_inline_value(DOM::Document const&, Utf16FlyString const& co
 void toggle_lists(DOM::Document&, Utf16FlyString const&);
 bool values_are_equivalent(Utf16FlyString const&, Optional<Utf16View>, Optional<Utf16View>);
 bool values_are_loosely_equivalent(Utf16FlyString const&, Optional<Utf16View>, Optional<Utf16View>);
-GC::Ptr<DOM::Node> wrap(GC::RootVector<GC::Ref<DOM::Node>>, Function<bool(GC::Ref<DOM::Node>)> sibling_criteria, Function<GC::Ptr<DOM::Node>()> new_parent_instructions);
+enum class PreservePrecedingLineBreak {
+    No,
+    Yes,
+};
+GC::Ptr<DOM::Node> wrap(GC::RootVector<GC::Ref<DOM::Node>>, Function<bool(GC::Ref<DOM::Node>)> sibling_criteria, Function<GC::Ptr<DOM::Node>()> new_parent_instructions, PreservePrecedingLineBreak = PreservePrecedingLineBreak::No);
 
 // Utility methods:
 
