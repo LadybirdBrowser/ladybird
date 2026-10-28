@@ -1,6 +1,6 @@
-ja: text false, generated intrinsic size false
+ja: text true, generated intrinsic size true
 de: text true, generated intrinsic size true
-zh: text false, generated intrinsic size false
-ja-JP: text false, generated intrinsic size false
+zh: text true, generated intrinsic size true
+ja-JP: text true, generated intrinsic size true
 en: text true, generated intrinsic size true
-zh-Hant: text false, generated intrinsic size false
+zh-Hant: text true, generated intrinsic size true

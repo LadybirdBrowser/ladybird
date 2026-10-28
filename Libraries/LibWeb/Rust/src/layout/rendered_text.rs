@@ -113,7 +113,7 @@ fn transform_uses_locale(transform: u8) -> bool {
     )
 }
 
-/// Enrolls the text under `root` whose casing depends on the language it renders with, and answers whether there was
+/// Enrolls the text under `root` whose casing or loose line breaking depends on its language, and answers whether there was
 /// any. This only enrolls text; source views are requested after DOM language invalidation completes.
 pub(crate) fn enroll_text_after_language_change(arena: &LayoutNodeArena, root: NodeSlotId) -> bool {
     let mut changed = false;
@@ -124,7 +124,9 @@ pub(crate) fn enroll_text_after_language_change(arena: &LayoutNodeArena, root: N
         let parent = arena.data(node).parent.get();
         if !parent.is_invalid()
             && arena.style_payloads(parent).is_some_and(|style| {
-                transform_uses_locale(ComputedValuesView::new(&style.groups).inherited_text().text_transform)
+                let values = ComputedValuesView::new(&style.groups);
+                transform_uses_locale(values.inherited_text().text_transform)
+                    || values.line_break() == crate::css::css_enums::line_break::LOOSE
             })
         {
             arena.enroll_text_node_for_content_sync(node);
@@ -149,6 +151,7 @@ pub(crate) struct TextChunkCacheKey {
     pub(crate) white_space_collapse: u8,
     pub(crate) word_break: u8,
     pub(crate) line_break: u8,
+    pub(crate) line_break_language: super::text_chunker::LineBreakLanguage,
     pub(crate) font_variant_emoji: u8,
     pub(crate) frozen_font_list: std::sync::Arc<libgfx_rust::font::FrozenFontList>,
     pub(crate) splits_at_orientation_changes: bool,
@@ -162,6 +165,7 @@ impl PartialEq for TextChunkCacheKey {
             && self.white_space_collapse == other.white_space_collapse
             && self.word_break == other.word_break
             && self.line_break == other.line_break
+            && self.line_break_language == other.line_break_language
             && self.font_variant_emoji == other.font_variant_emoji
             && self.splits_at_orientation_changes == other.splits_at_orientation_changes
             // A frozen cascade is immutable, so naming the same one is the whole of equality.
@@ -433,6 +437,37 @@ mod tests {
     }
 
     #[test]
+    fn text_chunk_cache_tracks_line_break_language_changes() {
+        use crate::layout::text_chunker::LineBreakLanguage;
+        let content = content("文・", 0, 2, Vec::new());
+        let mut key = TextChunkCacheKey {
+            should_wrap_lines: true,
+            should_respect_linebreaks: false,
+            unidirectional_ltr: true,
+            white_space_collapse: 0,
+            word_break: 0,
+            line_break: crate::css::css_enums::line_break::LOOSE,
+            line_break_language: LineBreakLanguage::Japanese,
+            font_variant_emoji: 0,
+            frozen_font_list: std::sync::Arc::new(libgfx_rust::font::FrozenFontList::empty()),
+            splits_at_orientation_changes: false,
+        };
+        let mut previous = content.text_chunks(&key, Vec::new);
+        for language in [
+            LineBreakLanguage::Other,
+            LineBreakLanguage::Chinese,
+            LineBreakLanguage::Japanese,
+        ] {
+            key.line_break_language = language;
+            let chunks = content.text_chunks(&key, Vec::new);
+            assert!(!std::sync::Arc::ptr_eq(&previous, &chunks));
+            let hit = content.text_chunks(&key, || panic!("unchanged language should reuse chunks"));
+            assert!(std::sync::Arc::ptr_eq(&chunks, &hit));
+            previous = chunks;
+        }
+    }
+
+    #[test]
     fn text_chunk_users_survive_cache_and_snapshot_replacement() {
         use super::TextChunkCacheKey;
         use crate::layout::text_chunker::TextChunk;
@@ -448,6 +483,7 @@ mod tests {
             white_space_collapse: 0,
             word_break: 0,
             line_break: crate::css::css_enums::line_break::AUTO,
+            line_break_language: crate::layout::text_chunker::LineBreakLanguage::Other,
             font_variant_emoji: 0,
             frozen_font_list: std::sync::Arc::new(libgfx_rust::font::FrozenFontList::empty()),
             splits_at_orientation_changes: false,
