@@ -1,0 +1,96 @@
+<!doctype html>
+<script src='../../resources/testharness.js'></script>
+<script src='../../resources/testharnessreport.js'></script>
+<link rel='stylesheet' href='./support/base.css' />
+<link rel="help" href="https://drafts.csswg.org/css-tables-3/#bounding-box-assignment">
+<main>
+
+    <h1>Bounding box computation</h1>
+    <p>Checks that all table-internal boxes are positioned correctly</p>
+
+    <hr/>
+    <p>The all table-internal elements of this table shoud be 100px and 100px wide tall:</p>
+    <p>Table size is 120px. There are two 10px borders, one at each side.</p>
+    <x-table style="width: 120px; height: 120px; border: 10px solid transparent; box-sizing: border-box; background: yellow;">
+        <x-colgroup><x-col></x-col></x-colgroup>
+        <x-tbody>
+            <x-tr>
+                <x-td style="padding: 0; background: blue;"></x-td>
+            </x-tr>
+        </x-tbody>
+    </x-table>
+
+</main>
+
+<script>
+    while(true) {
+        var xtd = document.querySelector('x-td[rowspan], x-td[colspan]'); if(!xtd) break;
+        var td = document.createElement('td'); for(var i = xtd.attributes.length; i--;) { td.setAttribute(xtd.attributes[i].name,xtd.attributes[i].value) }
+        xtd.parentNode.replaceChild(td,xtd);
+    }
+
+    var i = 1;
+    generate_tests(assert_equals, [
+        [
+            "Control test: Table width is 120px",
+            document.querySelector("x-table:nth-of-type("+(i++)+")").offsetWidth,
+            120
+        ],
+        [
+            "Control test: Table height is 120px",
+            document.querySelector("x-table:nth-of-type("+(i-1)+")").offsetHeight,
+            120
+        ],
+        [
+            "Table-cell is 100px wide",
+            document.querySelector("x-table:nth-of-type("+(i-1)+") x-td").offsetWidth,
+            100
+        ],
+        [
+            "Table-cell is 100px tall",
+            document.querySelector("x-table:nth-of-type("+(i-1)+") x-td").offsetHeight,
+            100
+        ],
+        [
+            "Table-row is 100px wide",
+            document.querySelector("x-table:nth-of-type("+(i-1)+") x-tr").offsetWidth,
+            100
+        ],
+        [
+            "Table-row is 100px tall",
+            document.querySelector("x-table:nth-of-type("+(i-1)+") x-tr").offsetHeight,
+            100
+        ],
+        [
+            "Table-row-group is 100px wide",
+            document.querySelector("x-table:nth-of-type("+(i-1)+") x-tbody").offsetWidth,
+            100
+        ],
+        [
+            "Table-row-group is 100px tall",
+            document.querySelector("x-table:nth-of-type("+(i-1)+") x-tbody").offsetHeight,
+            100
+        ],
+        [
+            "Table-column is 100px wide",
+            document.querySelector("x-table:nth-of-type("+(i-1)+") x-col").offsetWidth,
+            100
+        ],
+        [
+            "Table-column is 100px tall",
+            document.querySelector("x-table:nth-of-type("+(i-1)+") x-col").offsetHeight,
+            100
+        ],
+        [
+            "Table-column-group is 100px wide",
+            document.querySelector("x-table:nth-of-type("+(i-1)+") x-colgroup").offsetWidth,
+            100
+        ],
+        [
+            "Table-column-group is 100px tall",
+            document.querySelector("x-table:nth-of-type("+(i-1)+") x-colgroup").offsetHeight,
+            100
+        ],
+    ])
+
+</script>
