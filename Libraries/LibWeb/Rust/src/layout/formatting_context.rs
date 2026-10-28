@@ -327,32 +327,14 @@ pub(crate) fn lay_out_pending_abspos_children(
     let engine = abspos_engine::AbsposEngine::for_run(run);
     for entry in batch {
         let containing_block = entry.containing_block();
-        if frame_established_by(&run.callbacks, containing_block) == run.callbacks.frame {
+        let containing_block_frame = frame_established_by(&run.callbacks, containing_block);
+        if containing_block_frame == run.callbacks.frame {
             engine.layout_pending_child(run, entry);
             continue;
         }
-        in_frame_established_by(run, containing_block, |run| {
-            abspos_engine::AbsposEngine::for_run(run).layout_pending_child(run, entry);
-        });
+        let framed_run = run.in_frame_of(containing_block_frame);
+        abspos_engine::AbsposEngine::for_run(&framed_run).layout_pending_child(&framed_run, entry);
     }
-}
-
-/// Runs `body` with a run in the frame `node` establishes, with the box metrics of `node` moved into that frame.
-pub(crate) fn in_frame_established_by<R>(
-    run: &FormattingContextRun,
-    node: Node,
-    body: impl FnOnce(&FormattingContextRun) -> R,
-) -> R {
-    let parent_frame = run.callbacks.frame;
-    let own_frame = frame_established_by(&run.callbacks, node);
-    if own_frame == parent_frame {
-        return body(run);
-    }
-    run.records.move_box_metrics_to_frame(node, parent_frame, own_frame);
-    let framed_run = run.in_frame_of(own_frame);
-    let result = body(&framed_run);
-    run.records.move_box_metrics_to_frame(node, own_frame, parent_frame);
-    result
 }
 
 pub(crate) fn place_child(
@@ -2853,8 +2835,12 @@ pub(crate) fn layout_inside_child_with_input_cells(
         used
     });
     // NB: A child kept without a record that this run lays out itself gets a record of the cells it was handed.
-    let record_for_this_run =
-        || record_kept_by_parent.unwrap_or_else(|| run.records.lay_out_child_in_this_run(child, child_input_cells));
+    let record_for_this_run = || {
+        record_kept_by_parent.unwrap_or_else(|| {
+            run.records
+                .lay_out_child_in_this_run(child, child_input_cells, run.callbacks.frame)
+        })
+    };
     let skipped = || ChildLayoutOutcome::Skipped {
         depends_on_percentage_block_size: run.sizing().skipped_child_depends_on_percentage_block_size(child),
     };

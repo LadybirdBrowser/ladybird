@@ -609,7 +609,7 @@ impl<'arena> RunRecords<'arena> {
         let scratch = callbacks.scratch();
         let records = Self {
             root,
-            root_used: root_cells.map(|cells| cells.materialize_record()),
+            root_used: root_cells.map(|cells| cells.materialize_record(callbacks.frame)),
             scratch,
             nonce: scratch.begin_run(),
             stack_length_at_start: scratch.run_record_stack.length(),
@@ -697,7 +697,12 @@ impl<'arena> RunRecords<'arena> {
     /// Gives `child`, a box this run keeps without a record, a record with the cells `cells`, for this run to lay the
     /// box out itself.
     #[track_caller]
-    pub(crate) fn lay_out_child_in_this_run(&self, child: Node, cells: used_values::RootInputCells) -> &UsedValues {
+    pub(crate) fn lay_out_child_in_this_run(
+        &self,
+        child: Node,
+        cells: used_values::RootInputCells,
+        frame: geometry::Frame,
+    ) -> &UsedValues {
         assert_eq!(
             self.scratch.innermost_run_nonce(),
             Some(self.nonce),
@@ -706,7 +711,7 @@ impl<'arena> RunRecords<'arena> {
         let Some(HeldBox::Kept(index)) = self.held_box(child) else {
             self.panic_for_box_not_held(child)
         };
-        let (record_index, record) = self.scratch.run_record_stack.push(cells.materialize_record());
+        let (record_index, record) = self.scratch.run_record_stack.push(cells.materialize_record(frame));
         let holding = &mut self.scratch.kept_boxes.borrow_mut()[index as usize].holding;
         assert!(
             !matches!(holding, KeptBoxHolding::LaidOutByThisRun { .. }),
@@ -1096,42 +1101,35 @@ impl<'arena> RunRecords<'arena> {
         }))
     }
 
-    /// Moves the sizes, size constraints and box sides this run holds for `node`, if it holds the box, from frame `from`
-    /// to frame `to`.
-    pub(crate) fn move_box_metrics_to_frame(&self, node: Node, from: geometry::Frame, to: geometry::Frame) {
-        let index = match self.held_box(node) {
-            None => return,
-            Some(HeldBox::RootWithRecord) => {
-                if let Some(root_used) = &self.root_used {
-                    root_used.move_box_metrics_to_frame(from, to);
-                }
-                return;
-            }
-            Some(HeldBox::Kept(index)) => index,
+    /// The sizes, size constraints and box sides this run holds for `node`, if it holds the box, read in frame `reader`.
+    pub(crate) fn box_cells_in_frame_if_owned(
+        &self,
+        node: Node,
+        reader: geometry::Frame,
+    ) -> Option<used_values::RootInputCells> {
+        let cells_of_record =
+            |record: &UsedValues| used_values::RootInputCells::capture(record).in_frame(record.frame.get(), reader);
+        let index = match self.held_box(node)? {
+            HeldBox::RootWithRecord => return self.root_used.as_ref().map(cells_of_record),
+            HeldBox::Kept(index) => index,
         };
-        match &mut self.scratch.kept_boxes.borrow_mut()[index as usize].holding {
-            KeptBoxHolding::LaidOutByThisRun { record } => {
-                // SAFETY: This run registered the record, and it stays on the stack until this run returns.
-                unsafe { self.scratch.run_record_stack.get(*record).as_ref() }.move_box_metrics_to_frame(from, to);
-            }
-            KeptBoxHolding::ChildAwaitingItsRun { .. } => {
+        let record = match &self.scratch.kept_boxes.borrow()[index as usize].holding {
+            KeptBoxHolding::LaidOutByThisRun { record } => *record,
+            KeptBoxHolding::ChildAwaitingItsRun { cells_before_its_run } => {
                 debug_assert!(
                     false,
-                    "a child's box moves to another frame only once its run handed it back"
+                    "a child's box is read in another frame only once its run handed it back"
                 );
+                return Some(*cells_before_its_run);
             }
-            KeptBoxHolding::ChildHandedBack(ChildLaidOutByItsOwnRun { laid_out, frame, .. }) => {
-                debug_assert_eq!(*frame, from, "a kept box moves out of the frame it is in");
-                // NB: The baselines stay those of the parent's frame, which every reader of them is in.
-                laid_out.cells = used_values::UsedValuesCellState {
-                    inputs: laid_out.cells,
-                    baselines: laid_out.baselines,
-                }
-                .in_frame(from, to)
-                .inputs;
-                *frame = to;
+            KeptBoxHolding::ChildHandedBack(handed_back) => {
+                return Some(handed_back.laid_out.cells.in_frame(handed_back.frame, reader));
             }
-        }
+        };
+        // SAFETY: This run registered the record, and it stays on the stack until this run returns.
+        Some(cells_of_record(unsafe {
+            self.scratch.run_record_stack.get(record).as_ref()
+        }))
     }
 
     /// The last line laid out in `node`, a box this run holds: by this run, or by the run of a child that handed it back.

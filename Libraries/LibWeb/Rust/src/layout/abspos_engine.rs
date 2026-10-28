@@ -150,7 +150,10 @@ impl<'pass> AbsposEngine<'pass> {
         entry: &abspos_inputs::PendingAbsposChild,
     ) -> ContainingBlockGeometry {
         let containing_block = entry.containing_block();
-        let Some(containing_block_metrics) = self.records.box_metrics_of_if_owned(containing_block) else {
+        let Some(containing_block_cells) = self
+            .records
+            .box_cells_in_frame_if_owned(containing_block, self.callbacks.frame)
+        else {
             panic!(
                 "the run holds no containing block for slot {} (cb slot {})",
                 entry.child_box.slot_index(),
@@ -159,7 +162,7 @@ impl<'pass> AbsposEngine<'pass> {
         };
         let content_origin_in_entry_space =
             self.origin_of_containing_block_in_entry_space(containing_block, entry.coordinate_space_box);
-        ContainingBlockGeometry::from_box_metrics(&containing_block_metrics, content_origin_in_entry_space)
+        ContainingBlockGeometry::from_box_metrics(&containing_block_cells, content_origin_in_entry_space)
     }
 
     fn origin_of_containing_block_in_entry_space(&self, containing_block: Node, entry_space: Node) -> FfiCssPixelPoint {
@@ -3463,7 +3466,7 @@ impl<'pass> AbsposEngine<'pass> {
                 ParticipationInParentFormattingContext::AbsolutelyPositioned(inputs),
             ),
         );
-        let used = laid_out.root_cells_left_by_run.materialize_record();
+        let used = laid_out.root_cells_left_by_run.materialize_record(self.callbacks.frame);
         let used_insets = laid_out
             .result
             .out_of_flow_root_used_insets

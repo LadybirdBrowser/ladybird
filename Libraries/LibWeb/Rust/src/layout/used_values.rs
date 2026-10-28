@@ -219,6 +219,8 @@ pub(crate) struct UsedValues {
     pub inline_alignment_baseline: Cell<Option<CssPixels>>,
 
     pub(crate) line_data: RefCell<LineDataState>,
+    /// The frame the box's sizes, size constraints and box sides are held in.
+    pub(crate) frame: Cell<geometry::Frame>,
     /// The anchor-size() resolutions of an absolutely positioned box, set once as the abspos engine places it.
     pub(crate) anchor_resolved_values: std::cell::OnceCell<Box<style_values::AnchorResolvedValues>>,
 }
@@ -252,6 +254,7 @@ impl Default for UsedValues {
             last_baseline: Cell::new(zero),
             inline_alignment_baseline: Cell::new(None),
             line_data: RefCell::new(LineDataState::Empty),
+            frame: Cell::new(geometry::Frame::PHYSICAL),
             anchor_resolved_values: std::cell::OnceCell::new(),
         }
     }
@@ -340,6 +343,7 @@ impl UsedValues {
         if from == to {
             return;
         }
+        self.frame.set(to);
         let state = UsedValuesCellState::capture(self).in_frame(from, to);
         macro_rules! move_sealable {
             ($($field:ident),+) => {
@@ -473,8 +477,10 @@ impl RootInputCells {
         self.content_block_size = clamp_to_max_dimension_value(value.max(CssPixels::default()));
     }
 
-    pub(crate) fn materialize_record(&self) -> UsedValues {
+    /// A record holding the cells, which hold the box's metrics in `frame`.
+    pub(crate) fn materialize_record(&self, frame: geometry::Frame) -> UsedValues {
         let record = UsedValues::default();
+        record.frame.set(frame);
         self.apply_to_record(&record);
         record
     }
@@ -837,6 +843,7 @@ pub(crate) fn create_used_values(
     // they are assigned through set_content_inline_size() or
     // set_content_block_size().
     let used = UsedValues::default();
+    used.frame.set(callbacks.frame);
 
     #[derive(Clone, Copy)]
     enum Axis {
@@ -1004,6 +1011,7 @@ pub(crate) fn committed_box_from_fragment_link(callbacks: &LayoutPass<'_>, node:
     // percentage bases, and every resulting geometry field is replaced by
     // the previously committed value immediately.
     let used = UsedValues::default();
+    used.frame.set(link.frame);
     used.set_box_metrics_from_fragment(fragment);
     used.has_definite_inline_size.set(true);
     used.has_definite_block_size.set(true);
