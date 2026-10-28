@@ -41,6 +41,7 @@ type Result<T> = std::result::Result<T, CalcParseError>;
 #[derive(Clone, Copy)]
 pub(crate) struct CalcParserContext<'a> {
     pub percentages_resolve_as: Option<u8>,
+    pub allow_percentages: bool,
     pub property: u16,
     pub random_function_index: Option<&'a RandomFunctionIndex>,
     pub allowed_color_channels: u64,
@@ -55,6 +56,7 @@ impl CalcParserContext<'_> {
     fn for_test(percentages_resolve_as: Option<u8>) -> Self {
         Self {
             percentages_resolve_as,
+            allow_percentages: true,
             property: 0,
             random_function_index: None,
             allowed_color_channels: 0,
@@ -180,6 +182,11 @@ impl<'a> CalculationParser<'a> {
                 })))
             }
             ComponentKind::Token(ParserTokenKind::Percentage { value, .. }) => {
+                // https://drafts.csswg.org/css-values-4/#calc-context
+                // Math functions always inherit the calculation context from wherever they’re used.
+                if !self.context.allow_percentages {
+                    return Err(CalcParseError::Invalid);
+                }
                 Ok(Arc::new(CalcNode::Numeric(CalcNumericValue::Percentage(*value))))
             }
             ComponentKind::Token(ParserTokenKind::Dimension { value, unit, .. }) => {
@@ -812,6 +819,7 @@ mod tests {
         let random_function_index = RandomFunctionIndex::new(4);
         let context = CalcParserContext {
             percentages_resolve_as: None,
+            allow_percentages: true,
             property: 1,
             random_function_index: Some(&random_function_index),
             allowed_color_channels: 0,

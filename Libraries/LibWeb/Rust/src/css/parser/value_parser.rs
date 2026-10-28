@@ -1255,6 +1255,17 @@ pub(crate) fn parse_calculated_numeric_value_allowing_size_keyword(
         values,
         crate::css::parser::calc_parser::CalcParserContext {
             percentages_resolve_as,
+            // AD-HOC: Number and length contexts keep accepting percentages, which a later type check can still
+            //         resolve or reject (for example, a ratio of two percentages is a number).
+            allow_percentages: percentages_resolve_as.is_some()
+                || matches!(
+                    value_type,
+                    VALUE_TYPE_NUMBER
+                        | VALUE_TYPE_INTEGER
+                        | VALUE_TYPE_LENGTH
+                        | VALUE_TYPE_PERCENTAGE
+                        | VALUE_TYPE_OPACITY_VALUE
+                ),
             property,
             random_function_index: context.random_function_index,
             allowed_color_channels: 0,

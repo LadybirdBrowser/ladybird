@@ -354,6 +354,7 @@ pub(crate) fn serialize_context_free_calculation(
         values,
         crate::css::parser::calc_parser::CalcParserContext {
             percentages_resolve_as: None,
+            allow_percentages: false,
             property: 0,
             random_function_index: None,
             allowed_color_channels: 0,
