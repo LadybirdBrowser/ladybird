@@ -94,7 +94,8 @@ Vector<ProcessSnapshot> process_snapshots(ProcessManager& manager)
                 .view_id = page->view->view_id(),
                 .url = page->url,
                 .kind = page->kind,
-                .favicon_hash = page->view->favicon_hash(),
+                // NB: The view's favicon is its top-level page's, which an embedded frame of another site does not share.
+                .favicon_hash = page->kind == ProcessPageKind::TopLevel ? page->view->favicon_hash() : Optional<String> {},
             };
         }
         snapshots.append(move(snapshot));
