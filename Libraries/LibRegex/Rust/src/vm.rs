@@ -136,7 +136,7 @@ impl Input for &[u8] {
         if byte > 0x7F {
             return None;
         }
-        let offset = self.get(start..end)?.iter().position(|&c| c == byte)?;
+        let offset = memchr::memchr(byte, self.get(start..end)?)?;
         Some(start + offset)
     }
 
