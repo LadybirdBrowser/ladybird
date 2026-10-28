@@ -83,9 +83,12 @@ static bool query_container_is_eligible_for_axis(DOM::Element const& container, 
     return container_type.is_size_container || container_type.is_inline_size_container;
 }
 
-static DOM::Element const* nearest_query_container_for_axis(DOM::Element const& subject, ContainerRelativeAxis axis)
+static DOM::Element const* nearest_query_container_for_axis(DOM::Element const& subject, ContainerRelativeAxis axis, bool subject_is_pseudo_element)
 {
-    for (auto const* container = subject.flat_tree_parent_element(); container; container = container->flat_tree_parent_element()) {
+    // https://drafts.csswg.org/css-conditional-5/#container-queries
+    // For other pseudo-elements, query containers can be established by inclusive flat tree ancestors
+    // of their originating element.
+    for (auto const* container = subject_is_pseudo_element ? &subject : subject.flat_tree_parent_element(); container; container = container->flat_tree_parent_element()) {
         if (query_container_is_eligible_for_axis(*container, axis))
             return container;
     }
@@ -105,7 +108,7 @@ static GC::Ptr<DOM::Element const> get_or_compute_query_container_for_axis(Lengt
     if (!cached_query_container.has_value()) {
         cached_query_container = nullptr;
         if (context.subject_element)
-            cached_query_container = nearest_query_container_for_axis(*context.subject_element, axis);
+            cached_query_container = nearest_query_container_for_axis(*context.subject_element, axis, context.subject_is_pseudo_element);
     }
     return cached_query_container.value();
 }
@@ -242,6 +245,7 @@ Length::ResolutionContext Length::ResolutionContext::for_element(DOM::AbstractEl
         .font_metrics_depend_on_viewport_metrics = computed_values.font_metrics_depend_on_viewport_metrics(),
         .root_font_metrics_depend_on_viewport_metrics = root_computed_values->font_metrics_depend_on_viewport_metrics(),
         .subject_inline_axis_is_horizontal = inline_axis_is_horizontal(computed_values.writing_mode()),
+        .subject_is_pseudo_element = element.pseudo_element().has_value(),
         .subject_element = &element.element(),
     };
 }
@@ -288,6 +292,7 @@ Length::ResolutionContext Length::ResolutionContext::for_layout_node(Layout::Nod
         .font_metrics = { node.font_size(), node.first_available_font().pixel_metrics(), node.line_height() },
         .root_font_metrics = { root_layout_node->font_size(), root_layout_node->first_available_font().pixel_metrics(), node.line_height() },
         .subject_inline_axis_is_horizontal = inline_axis_is_horizontal(node.writing_mode()),
+        .subject_is_pseudo_element = node.is_generated_for_pseudo_element(),
         .subject_element = subject_element,
     };
 }

@@ -8,7 +8,15 @@ use super::*;
 use crate::css::computed_values::{
     BoxValues, MiscResetValues, clone_group_payload, default_group_payload, release_group_payload,
 };
+use crate::css::custom_properties::{
+    CustomPropertyRegistry, FfiCustomPropertyRegistration, FfiCustomPropertyRegistryContext,
+    rust_custom_property_registry_create, rust_custom_property_registry_update,
+};
+use crate::css::ffi_support::FfiUtf16View;
+use crate::css::parser::syntax::{SyntaxNode, rust_parse_syntax};
+use crate::css::style_value::{RetainedStyleValueData, StyleValueData};
 use crate::css::table_group_builder::group_index;
+use std::sync::Arc;
 
 fn engine_with_containers() -> (StyleEngine, [StyleNodeID; 3]) {
     let mut engine = StyleEngine::new();
@@ -117,6 +125,211 @@ fn set_width(engine: &mut StyleEngine, node: StyleNodeID, width: i32) {
         content_height_raw: 0,
         has_committed_box: true,
     }]);
+}
+
+fn length_registry() -> Arc<CustomPropertyRegistry> {
+    let initial = RetainedStyleValueData::from_owned(StyleValueData::Length {
+        value: 0.0,
+        unit: crate::css::style_compute::px_length_unit(),
+    });
+    let syntax = rust_parse_syntax(FfiUtf16View::from_ascii(b"<length>"), false);
+    let registration = FfiCustomPropertyRegistration {
+        name: FfiUtf16View::from_ascii(b"--width"),
+        syntax,
+        inherits: false,
+        has_initial_value: true,
+        initial_value: FfiUtf16View::from_ascii(b"0px"),
+        computed_initial_value: initial.pointer().cast(),
+    };
+    let context = FfiCustomPropertyRegistryContext {
+        document_url: std::ptr::null(),
+        document_url_length: 0,
+        document_base_url: std::ptr::null(),
+        document_base_url_length: 0,
+    };
+    // SAFETY: The registry, syntax, strings, and initial value are live for the call; update consumes the old registry.
+    let registry = unsafe {
+        rust_custom_property_registry_update(
+            rust_custom_property_registry_create(),
+            &raw const context,
+            &raw const registration,
+            1,
+        )
+    };
+    // SAFETY: Both APIs return one owned Arc reference. The registry copied the parsed syntax.
+    unsafe {
+        drop(Arc::from_raw(syntax.cast::<SyntaxNode>()));
+        Arc::from_raw(registry.cast::<CustomPropertyRegistry>())
+    }
+}
+
+fn resolve_width(
+    engine: &mut StyleEngine,
+    node: StyleNodeID,
+    pseudo: Option<u8>,
+    registry: Option<&CustomPropertyRegistry>,
+    settled: Option<&custom_property_cascade::RegisteredValueContext>,
+) -> (RetainedStyleValueData, Option<container_queries::ContainerVerdict>) {
+    let name: Vec<_> = "--width".encode_utf16().collect();
+    let fly = ak::Utf16FlyString::from_utf16(&name);
+    let atom = engine.intern_atom(fly.raw_identity());
+    // SAFETY: The fly string is live and the engine retains its noted name.
+    unsafe {
+        engine.note_custom_property_name(atom, fly.raw_identity(), &name);
+    }
+    let source: Vec<_> = "10cqw".encode_utf16().collect();
+    let value = RetainedStyleValueData::from_owned(crate::css::parser::value_parser::unresolved_value_from_string(
+        &source,
+        Default::default(),
+    ));
+    let declaration = program::CustomDeclaration {
+        name: atom,
+        important: false,
+        operator: cascade::CascadeOperator::Declared,
+        value: cascade::SpecifiedValueID(value.pointer() as u64),
+    };
+    let inputs = bridge::FfiDocumentStyleComputationInputs {
+        custom_property_registry: registry
+            .map_or_default(|registry| bridge::FfiHostHandle::from_pointer(std::ptr::from_ref(registry).cast())),
+        viewport_width: 800.0,
+        viewport_height: 600.0,
+        ..Default::default()
+    };
+    engine.document_style_computation_inputs = inputs;
+    let environment = engine
+        .engine_custom_property_environment_over(node, pseudo, vec![(declaration, value)], 0, &inputs, settled)
+        .unwrap_or_else(|error| panic!("registered value should resolve: {error:?}"));
+    let value = engine
+        .custom_property_environments
+        .store(environment)
+        .unwrap()
+        .get(fly.raw_identity())
+        .unwrap()
+        .value
+        .clone();
+    let effects = engine.take_container_effects_for_host(node);
+    (value, effects)
+}
+
+fn px(value: &RetainedStyleValueData) -> f64 {
+    match value.data() {
+        StyleValueData::Length { value, unit } if *unit == crate::css::style_compute::px_length_unit() => *value,
+        _ => panic!("expected a computed absolute length"),
+    }
+}
+
+fn uses_container(effects: &Option<container_queries::ContainerVerdict>, expected: StyleNodeID) -> bool {
+    effects.as_ref().is_some_and(|effects| {
+        effects
+            .effects
+            .iter()
+            .any(|(node, kind)| *node == expected && matches!(kind, bridge::FfiContainerEffectKind::SizeContainerUsage))
+    })
+}
+
+#[test]
+fn registered_pseudo_finalization() {
+    let (mut engine, nodes) = engine_with_containers();
+    let registry = length_registry();
+    let (value, effects) = resolve_width(
+        &mut engine,
+        nodes[1],
+        Some(super::publication::pseudo_kind::BEFORE),
+        Some(&registry),
+        None,
+    );
+    assert_eq!(px(&value), 20.0);
+    assert!(uses_container(&effects, nodes[1]));
+}
+
+#[test]
+fn registered_pseudo_resize_and_retarget() {
+    let (mut engine, nodes) = engine_with_containers();
+    let registry = length_registry();
+    set_width(&mut engine, nodes[1], 300);
+    let (value, effects) = resolve_width(
+        &mut engine,
+        nodes[1],
+        Some(super::publication::pseudo_kind::BEFORE),
+        Some(&registry),
+        None,
+    );
+    assert_eq!(px(&value), 30.0);
+    assert!(uses_container(&effects, nodes[1]));
+    publish_box(
+        &mut engine,
+        nodes[1],
+        bridge::ElementBoxKind::FromDisplay,
+        crate::css::display::FfiDisplay::none(),
+        crate::css::css_enums::appearance::AUTO,
+    );
+    let (retargeted, effects) = resolve_width(
+        &mut engine,
+        nodes[1],
+        Some(super::publication::pseudo_kind::BEFORE),
+        Some(&registry),
+        None,
+    );
+    assert_eq!(px(&retargeted), 50.0);
+    assert!(uses_container(&effects, nodes[0]));
+    assert!(!uses_container(&effects, nodes[1]));
+}
+
+#[test]
+fn registered_pseudo_settled_context() {
+    let (mut engine, nodes) = engine_with_containers();
+    let registry = length_registry();
+    let settled = custom_property_cascade::RegisteredValueContext {
+        length: crate::css::style_compute::FfiLengthResolutionContext {
+            container_width_basis: 999.0,
+            has_container_width_basis: true,
+            ..Default::default()
+        },
+        color_scheme: 0,
+    };
+    let (value, effects) = resolve_width(
+        &mut engine,
+        nodes[1],
+        Some(super::publication::pseudo_kind::BEFORE),
+        Some(&registry),
+        Some(&settled),
+    );
+    assert_eq!(px(&value), 20.0);
+    assert!(uses_container(&effects, nodes[1]));
+}
+
+#[test]
+fn unregistered_pseudo_preserves_tokens() {
+    let (mut engine, nodes) = engine_with_containers();
+    let (value, effects) = resolve_width(
+        &mut engine,
+        nodes[1],
+        Some(super::publication::pseudo_kind::BEFORE),
+        None,
+        None,
+    );
+    assert_eq!(
+        String::from_utf16(&crate::css::serialize::serialize_style_value_to_utf16(value.data())).unwrap(),
+        "10cqw"
+    );
+    assert!(effects.is_none());
+}
+
+#[test]
+fn registered_ordinary_ancestor() {
+    let (mut engine, nodes) = engine_with_containers();
+    let registry = length_registry();
+    let (value, effects) = resolve_width(&mut engine, nodes[1], None, Some(&registry), None);
+    assert_eq!(px(&value), 50.0);
+    assert!(uses_container(&effects, nodes[0]));
+}
+
+#[test]
+fn direct_pseudo_origin() {
+    let (engine, nodes) = engine_with_containers();
+    let mut length = crate::css::style_compute::FfiLengthResolutionContext::default();
+    engine.container_unit_bases(nodes[1], true).apply_to(&mut length);
+    assert_eq!(length.container_width_basis, 200.0);
 }
 
 #[test]
@@ -232,7 +445,7 @@ fn no_box_skips_query_container() {
         }]);
         assert!(!engine.container_query_inputs(nodes[1]).unwrap().size_queries_available);
         let mut length = crate::css::style_compute::FfiLengthResolutionContext::default();
-        engine.container_unit_bases(nodes[2]).apply_to(&mut length);
+        engine.container_unit_bases(nodes[2], false).apply_to(&mut length);
         assert_eq!(length.container_width_basis, 500.0);
     }
 }
@@ -373,7 +586,7 @@ fn foreign_object_inline_box_matches_layout_atomicity_and_selection() {
     ));
     let available = engine.container_query_inputs(nodes[1]).unwrap().size_queries_available;
     let mut length = crate::css::style_compute::FfiLengthResolutionContext::default();
-    engine.container_unit_bases(nodes[2]).apply_to(&mut length);
+    engine.container_unit_bases(nodes[2], false).apply_to(&mut length);
     assert_eq!((available, length.container_width_basis), (true, 200.0));
 }
 
@@ -401,7 +614,7 @@ fn foreign_object_eligibility_preserves_display_and_no_box_exclusions() {
             available
         );
         let mut length = crate::css::style_compute::FfiLengthResolutionContext::default();
-        engine.container_unit_bases(nodes[2]).apply_to(&mut length);
+        engine.container_unit_bases(nodes[2], false).apply_to(&mut length);
         assert_eq!(length.container_width_basis, if available { 200.0 } else { 500.0 });
     }
     for display in [
@@ -418,7 +631,7 @@ fn foreign_object_eligibility_preserves_display_and_no_box_exclusions() {
         );
         assert!(!engine.container_query_inputs(nodes[1]).unwrap().size_queries_available);
         let mut length = crate::css::style_compute::FfiLengthResolutionContext::default();
-        engine.container_unit_bases(nodes[2]).apply_to(&mut length);
+        engine.container_unit_bases(nodes[2], false).apply_to(&mut length);
         assert_eq!(length.container_width_basis, 500.0);
     }
 }
@@ -448,7 +661,7 @@ fn other_svg_box_eligibility_keeps_existing_atomic_kinds() {
             "{kind:?}"
         );
         let mut length = crate::css::style_compute::FfiLengthResolutionContext::default();
-        engine.container_unit_bases(nodes[2]).apply_to(&mut length);
+        engine.container_unit_bases(nodes[2], false).apply_to(&mut length);
         assert_eq!(length.container_width_basis, if available { 200.0 } else { 500.0 });
     }
 }

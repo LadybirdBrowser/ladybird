@@ -2006,6 +2006,7 @@ ComputationContext StyleComputer::make_computation_context_for_property(Layout::
             : Length::ResolutionContext::for_document(m_document);
         length_resolution_context.subject_inline_axis_is_horizontal = subject_inline_axis_is_horizontal;
         length_resolution_context.subject_element = abstract_element.has_value() ? &abstract_element->element() : nullptr;
+        length_resolution_context.subject_is_pseudo_element = abstract_element.has_value() && abstract_element->pseudo_element().has_value();
 
         return {
             .length_resolution_context = length_resolution_context,
@@ -2033,6 +2034,7 @@ ComputationContext StyleComputer::make_computation_context_for_property(Layout::
                     ? style.font_metrics_depend_on_viewport_metrics()
                     : m_root_element_font_metrics_depend_on_viewport_metrics,
                 .subject_inline_axis_is_horizontal = subject_inline_axis_is_horizontal,
+                .subject_is_pseudo_element = abstract_element.has_value() && abstract_element->pseudo_element().has_value(),
                 .subject_element = abstract_element.has_value() ? &abstract_element->element() : nullptr,
             },
             .abstract_element = abstract_element
@@ -2052,6 +2054,7 @@ ComputationContext StyleComputer::make_computation_context_for_property(Layout::
                 .font_metrics_depend_on_viewport_metrics = style.font_metrics_depend_on_viewport_metrics(),
                 .root_font_metrics_depend_on_viewport_metrics = is_document_element ? style.font_metrics_depend_on_viewport_metrics() : m_root_element_font_metrics_depend_on_viewport_metrics,
                 .subject_inline_axis_is_horizontal = subject_inline_axis_is_horizontal,
+                .subject_is_pseudo_element = abstract_element.has_value() && abstract_element->pseudo_element().has_value(),
                 .subject_element = abstract_element.has_value() ? &abstract_element->element() : nullptr,
             },
             .abstract_element = abstract_element,

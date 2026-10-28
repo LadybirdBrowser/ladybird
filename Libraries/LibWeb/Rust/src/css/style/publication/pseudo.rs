@@ -1066,10 +1066,10 @@ impl RetainedState {
             .then(|| custom_declarations.clone());
         let initial_registered_context = registered_declarations
             .as_ref()
-            .map(|_| self.standing_registered_value_context(host, None));
+            .map(|_| self.standing_registered_value_context(host, Some(kind)));
         let mut environment = self.engine_custom_property_environment_over(
             host,
-            None,
+            Some(kind),
             custom_declarations,
             parent_environment,
             &inputs,
@@ -1106,7 +1106,7 @@ impl RetainedState {
                 |engine| {
                     engine.engine_custom_property_environment_over(
                         host,
-                        None,
+                        Some(kind),
                         custom_declarations,
                         parent_environment,
                         &inputs,
