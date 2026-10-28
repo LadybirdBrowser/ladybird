@@ -2623,11 +2623,13 @@ impl<'pass> FlexFormattingContext<'pass> {
         let flex_cross_axis_is_reverse = self.cross_axis_is_reverse();
         let wrap_reverse = self.used_flex_wrap() == flex_wrap::WRAP_REVERSE;
         let container_cross_axis_is_reverse = flex_cross_axis_is_reverse != wrap_reverse;
-        let item_cross_axis_is_reverse = if self.inline_axis_is_horizontal(item) == self.cross_axis_is_horizontal() {
-            self.inline_axis_is_reverse(item)
-        } else {
-            self.block_axis_is_reverse(item)
-        };
+        let item_style = self.style(item);
+        let item_cross_axis_is_reverse = !geometry::start_is_low_side_in_frame(
+            self.run.callbacks.frame,
+            item_style.writing_mode(),
+            item_style.direction(),
+            self.cross_axis_is_horizontal(),
+        );
         Some(match alignment {
             align_items::NORMAL | align_items::STRETCH | align_items::FLEX_START => flex_cross_axis_is_reverse,
             align_items::FLEX_END => !flex_cross_axis_is_reverse,
@@ -3127,27 +3129,31 @@ impl<'pass> FlexFormattingContext<'pass> {
         // The cross-axis edges of the static-position rectangle of an absolutely-positioned child
         // of a flex container are the content edges of the flex container.
 
-        let cross_alignment = match self.alignment_for_item(node) {
-            // FIXME: Implement this
-            //  Fallthrough
-            align_items::BASELINE | align_items::FLEX_START | align_items::STRETCH | align_items::NORMAL => {
-                if self.cross_axis_is_reverse() {
-                    StaticPositionAlignment::End
-                } else {
-                    StaticPositionAlignment::Start
-                }
+        let style = self.style(node);
+        let is_last_baseline = if style.align_self() == align_self::AUTO {
+            self.style(self.run.box_).align_items_is_last_baseline()
+        } else {
+            style.align_self_is_last_baseline()
+        };
+        // INTEROP: Chrome and Firefox use the container's start/end edges for baseline fallbacks of abspos flex
+        //          children, rather than the self-start/self-end edges specified by CSS Align.
+        let alignment = if is_last_baseline {
+            align_items::END
+        } else {
+            match self.alignment_for_item(node) {
+                align_items::BASELINE => align_items::START,
+                alignment => alignment,
             }
-            align_items::FLEX_END => {
-                if self.cross_axis_is_reverse() {
-                    StaticPositionAlignment::Start
-                } else {
-                    StaticPositionAlignment::End
-                }
-            }
-            align_items::START | align_items::SELF_START => StaticPositionAlignment::Start,
-            align_items::END | align_items::SELF_END => StaticPositionAlignment::End,
-            align_items::CENTER => StaticPositionAlignment::Center,
-            _ => StaticPositionAlignment::Start,
+        };
+        let cross_alignment = if alignment == align_items::CENTER {
+            StaticPositionAlignment::Center
+        } else if self
+            .cross_alignment_is_at_physical_end(node, alignment)
+            .unwrap_or(false)
+        {
+            StaticPositionAlignment::End
+        } else {
+            StaticPositionAlignment::Start
         };
         // The main-axis edges of the static-position rectangle are where the margin edges of the child
         // would be positioned if it were the sole flex item in the flex container,
