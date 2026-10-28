@@ -159,7 +159,8 @@ static Optional<ByteString> recorded_build_description(int fd)
 // launch that formats and stores it.
 ErrorOr<void> CrashReport::save(int wait_status, ByteString const& path, Optional<UnixDateTime> crashed_at)
 {
-    if ((WIFEXITED(wait_status) && WEXITSTATUS(wait_status) == 0) || (WIFSIGNALED(wait_status) && (WTERMSIG(wait_status) == SIGTERM || WTERMSIG(wait_status) == SIGKILL)))
+    // A process that was interrupted, asked to stop or killed did not crash.
+    if ((WIFEXITED(wait_status) && WEXITSTATUS(wait_status) == 0) || (WIFSIGNALED(wait_status) && (WTERMSIG(wait_status) == SIGINT || WTERMSIG(wait_status) == SIGTERM || WTERMSIG(wait_status) == SIGKILL)))
         return {};
 
     auto crashed_time = crashed_at.value_or(UnixDateTime::now());
