@@ -2,13 +2,29 @@
 # build and the vcpkg build.
 set(EXTRA_VCPKG_VARIABLES "")
 if (NOT WIN32)
-    # Supporting Clang-CL for all our vcpkg ports is an adventure in itself, so let's not
     if (NOT "${CMAKE_C_COMPILER}" STREQUAL "")
         string(APPEND EXTRA_VCPKG_VARIABLES "set(ENV{CC} ${CMAKE_C_COMPILER})\n")
     endif()
     if (NOT "${CMAKE_CXX_COMPILER}" STREQUAL "")
         string(APPEND EXTRA_VCPKG_VARIABLES "set(ENV{CXX} ${CMAKE_CXX_COMPILER})\n")
     endif()
+elseif (CMAKE_C_COMPILER MATCHES "clang-cl")
+    find_program(clang_cl_path "${CMAKE_C_COMPILER}" NO_CACHE REQUIRED)
+    find_program(clang_cl_cxx_path "${CMAKE_CXX_COMPILER}" NO_CACHE REQUIRED)
+    string(APPEND EXTRA_VCPKG_VARIABLES "list(APPEND VCPKG_CMAKE_CONFIGURE_OPTIONS \"-DCMAKE_C_COMPILER=${clang_cl_path}\" \"-DCMAKE_CXX_COMPILER=${clang_cl_cxx_path}\")\n")
+
+    # LLVM's manifest merging produces executables that Windows refuses to load when a port provides its own manifest,
+    # as Qt does: https://github.com/llvm/llvm-project/issues/57715
+    string(APPEND EXTRA_VCPKG_VARIABLES "cmake_path(SET ladybird_msvc_linker_path NORMALIZE \"\$ENV{VCToolsInstallDir}/bin/Hostx64/x64/link.exe\")\n")
+    string(APPEND EXTRA_VCPKG_VARIABLES "cmake_path(SET ladybird_windows_sdk_mt_path NORMALIZE \"\$ENV{WindowsSdkVerBinPath}/x64/mt.exe\")\n")
+    string(APPEND EXTRA_VCPKG_VARIABLES "list(APPEND VCPKG_CMAKE_CONFIGURE_OPTIONS \"-DCMAKE_LINKER=\${ladybird_msvc_linker_path}\" \"-DCMAKE_MT=\${ladybird_windows_sdk_mt_path}\")\n")
+
+    # Meson looks up lld-link by name when it detects clang-cl.
+    cmake_path(GET clang_cl_path PARENT_PATH llvm_bin_directory)
+    string(APPEND EXTRA_VCPKG_VARIABLES "set(ENV{PATH} \"${llvm_bin_directory};\$ENV{PATH}\")\n")
+
+    # Scanning resource files' dependencies passes vcpkg's /c65001 RC flag to clang-cl, which rejects it.
+    string(APPEND EXTRA_VCPKG_VARIABLES "list(APPEND VCPKG_CMAKE_CONFIGURE_OPTIONS -DCMAKE_NINJA_CMCLDEPS_RC=OFF)\n")
 endif()
 
 # Workaround for bad patchelf interaction with binutils 2.43.50
