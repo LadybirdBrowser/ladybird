@@ -3695,7 +3695,7 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
             place_child(
                 &entry_run,
                 root,
-                PlacedChild::read_from_records(&entry_run, root),
+                PlacedChild::of_record(viewport_used, &entry_run),
                 FfiCssPixelPoint::default(),
                 None,
             );
@@ -3714,7 +3714,7 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
         )
         .with_forced_sizes(viewport_inline_size, viewport_block_size);
         let fc_type = independent_formatting_context_type(root_for_layout, &callbacks);
-        let (_, fragment_arrival) = run_formatting_context(
+        let root_outcome = run_formatting_context(
             Some(&entry_fragments),
             root_cells,
             root_for_layout,
@@ -3725,12 +3725,13 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
             callbacks,
             input,
             None,
-        )
-        .hand_box_back_to(&entry_run, root_for_layout);
+        );
+        let placed_root = root_outcome.placed_child_in(&entry_run);
+        let (_, fragment_arrival) = root_outcome.hand_box_back_to(&entry_run, root_for_layout);
         place_laid_out_child(
             &entry_run,
             root_for_layout,
-            PlacedChild::read_from_records(&entry_run, root_for_layout),
+            placed_root,
             FfiCssPixelPoint::default(),
             None,
             fragment_arrival,
