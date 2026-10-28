@@ -1,0 +1,28 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const tag of ["dialog", "div"]) {
+            for (const mode of ["auto", "manual"]) {
+                const inert = document.implementation.createHTMLDocument();
+                const popover = document.createElement(tag);
+                popover.setAttribute("popover", mode);
+                const button = document.createElement("button");
+                button.autofocus = true;
+                let focusHandlerRan = false;
+                button.addEventListener("focus", () => {
+                    focusHandlerRan = true;
+                    inert.body.append(button);
+                });
+                popover.append(button);
+                document.body.append(popover);
+                popover.showPopover();
+                println(
+                    `${tag} ${mode}: focus handler ran=${focusHandlerRan}, button adopted=${button.ownerDocument === inert}, popover open=${popover.matches(":popover-open")}`
+                );
+                popover.hidePopover();
+                popover.remove();
+            }
+        }
+    });
+</script>

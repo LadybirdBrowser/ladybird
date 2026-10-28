@@ -789,6 +789,7 @@ public:
 
     Vector<GC::Ref<Element>>& autofocus_candidates() { return m_autofocus_candidates; }
     bool autofocus_processed_flag() const { return m_autofocus_processed_flag; }
+    void set_autofocus_processed_flag(bool value) { m_autofocus_processed_flag = value; }
     void flush_autofocus_candidates();
 
     Element const* accessibility_focus_target() const { return m_accessibility_focus_target.ptr(); }

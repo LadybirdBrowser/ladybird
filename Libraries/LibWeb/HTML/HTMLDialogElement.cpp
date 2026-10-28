@@ -538,12 +538,24 @@ void HTMLDialogElement::run_dialog_focusing_steps()
     run_focusing_steps(control);
 
     // 7. Let topDocument be control's node navigable's top-level traversable's active document.
+    // NB: A focus event handler can move control into a document without a navigable.
+    auto navigable = control->navigable();
+    if (!navigable)
+        return;
+    auto* top_level_traversable = as_if<LocalNavigable>(*navigable->top_level_traversable());
+    if (!top_level_traversable)
+        return;
+    auto top_document = top_level_traversable->active_document();
+
     // 8. If control's node document's origin is not the same as the origin of topDocument, then return.
-    if (!control->document().origin().is_same_origin(*control->navigable()->top_level_traversable()->active_document_origin()))
+    if (!top_document || !control->document().origin().is_same_origin(top_document->origin()))
         return;
 
-    // FIXME: 9. Empty topDocument's autofocus candidates.
-    // FIXME: 10. Set topDocument's autofocus processed flag to true.
+    // 9. Empty topDocument's autofocus candidates.
+    top_document->autofocus_candidates().clear();
+
+    // 10. Set topDocument's autofocus processed flag to true.
+    top_document->set_autofocus_processed_flag(true);
 }
 
 void HTMLDialogElement::set_is_modal(bool is_modal)

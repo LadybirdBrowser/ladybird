@@ -32,6 +32,7 @@
 #include <LibWeb/HTML/CustomElements/CustomElementRegistry.h>
 #include <LibWeb/HTML/ElementInternals.h>
 #include <LibWeb/HTML/EventHandler.h>
+#include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/HTMLAnchorElement.h>
 #include <LibWeb/HTML/HTMLBRElement.h>
 #include <LibWeb/HTML/HTMLBaseElement.h>
@@ -89,6 +90,9 @@ struct HTMLElement::RareData final
     // https://html.spec.whatwg.org/multipage/popover.html#popover-close-watcher
     GC::Ptr<CloseWatcher> popover_close_watcher;
 
+    // https://html.spec.whatwg.org/multipage/interactive-elements.html#previously-focused-element
+    GC::Ptr<DOM::Node> previously_focused_element;
+
     Optional<Utf16FlyString> opened_in_popover_mode;
 };
 
@@ -100,6 +104,7 @@ void HTMLElement::RareData::visit_edges(Cell::Visitor& visitor)
     visitor.visit(attached_internals);
     visitor.visit(popover_trigger);
     visitor.visit(popover_close_watcher);
+    visitor.visit(previously_focused_element);
 }
 
 OwnPtr<DOM::Node::RareData> HTMLElement::create_rare_data() const
@@ -1840,7 +1845,9 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
             return {};
         }
 
-        // FIXME: 4. If the result of running topmost auto or hint popover on document is null, then set shouldRestoreFocus to true.
+        // 4. If the result of running topmost auto or hint popover on document is null, then set shouldRestoreFocus to true.
+        if (!document.topmost_auto_or_hint_popover())
+            should_restore_focus = FocusPreviousElement::Yes;
 
         // 5. If stackToAppendTo is "auto":
         if (stack_to_append_to == StackToAppendTo::Auto) {
@@ -1888,8 +1895,13 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
         rare_data.popover_close_watcher = CloseWatcher::establish(*document.window(), move(get_enabled_state));
         rare_data.popover_close_watcher->add_event_listener_without_options(HTML::EventNames::close, DOM::IDLEventListener::create(close_callback));
     }
-    // FIXME: 19. Set element's previously focused element to null.
-    // FIXME: 20. Let originallyFocusedElement be document's focused area of the document's DOM anchor.
+    // 19. Set element's previously focused element to null.
+    rare_data.previously_focused_element = nullptr;
+    // 20. Let originallyFocusedElement be document's focused area of the document's DOM anchor.
+    auto originally_focused_element = document.focused_area();
+    // NB: A null focused area represents viewport focus.
+    if (!originally_focused_element)
+        originally_focused_element = &document;
     // 21. Add an element to the top layer given element.
     document.add_an_element_to_the_top_layer(*this);
     // 22. Set element's popover visibility state to showing.
@@ -1897,8 +1909,11 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
     // 23. Set element's popover trigger to source.
     rare_data.popover_trigger = source;
     // FIXME: 24. Set element's implicit anchor element to source.
-    // FIXME: 25. Run the popover focusing steps given element.
-    // FIXME: 26. If shouldRestoreFocus is true and element's popover attribute is not in the No Popover state, then set element's previously focused element to originallyFocusedElement.
+    // 25. Run the popover focusing steps given element.
+    run_popover_focusing_steps(*this);
+    // 26. If shouldRestoreFocus is true and element's popover attribute is not in the No Popover state, then set element's previously focused element to originallyFocusedElement.
+    if (should_restore_focus == FocusPreviousElement::Yes && popover().has_value())
+        rare_data.previously_focused_element = originally_focused_element;
     // 27. Queue a popover toggle event task given element, "closed", "open", and source.
     queue_a_popover_toggle_event_task("closed"_utf16_fly_string, "open"_utf16_fly_string, source);
     // 28. Run cleanupShowingFlag.
@@ -2034,11 +2049,21 @@ WebIDL::ExceptionOr<void> HTMLElement::hide_popover(FocusPreviousElement focus_p
     if (fire_events == FireEvents::Yes)
         queue_a_popover_toggle_event_task("open"_utf16_fly_string, "closed"_utf16_fly_string, source);
 
-    // FIXME: 15. Let previouslyFocusedElement be element's previously focused element.
+    // 15. Let previouslyFocusedElement be element's previously focused element.
+    auto previously_focused_element = rare_data.previously_focused_element;
 
-    // FIXME: 16. If previouslyFocusedElement is not null, then:
-    // FIXME: 16.1. Set element's previously focused element to null.
-    // FIXME: 16.2. If focusPreviousElement is true and document's focused area of the document's DOM anchor is a shadow-including inclusive descendant of element, then run the focusing steps for previouslyFocusedElement; the viewport should not be scrolled by doing this step.
+    // 16. If previouslyFocusedElement is not null, then:
+    if (previously_focused_element) {
+        // 1. Set element's previously focused element to null.
+        rare_data.previously_focused_element = nullptr;
+
+        // 2. If focusPreviousElement is true and document's focused area of the document's DOM anchor is a
+        //    shadow-including inclusive descendant of element, then run the focusing steps for
+        //    previouslyFocusedElement; the viewport should not be scrolled by doing this step.
+        auto focused_element = document.focused_area();
+        if (focus_previous_element == FocusPreviousElement::Yes && focused_element && focused_element->is_shadow_including_inclusive_descendant_of(*this))
+            run_focusing_steps(previously_focused_element, nullptr, FocusTrigger::Other, ScrollIntoView::No);
+    }
 
     // 17. Run cleanupSteps.
     cleanup_steps();
