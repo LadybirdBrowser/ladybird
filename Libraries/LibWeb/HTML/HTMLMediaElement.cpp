@@ -340,6 +340,20 @@ void HTMLMediaElement::visit_edges(Cell::Visitor& visitor)
         m_screen_wake_lock->visit_edges(visitor);
 }
 
+WebIDL::ExceptionOr<void> HTMLMediaElement::cloned(DOM::Node& copy, bool subtree) const
+{
+    TRY(Base::cloned(copy, subtree));
+
+    // https://html.spec.whatwg.org/multipage/media.html#user-interface:attr-media-muted
+    // When a media element is created, if the element has a muted content attribute specified, then the muted IDL
+    // attribute should be set to true.
+    // NB: A clone is created before its content attributes are copied, so this runs once they are present.
+    auto& media_copy = as<HTMLMediaElement>(copy);
+    if (media_copy.has_attribute_ns({}, HTML::AttributeNames::muted))
+        media_copy.set_muted(true);
+    return {};
+}
+
 void HTMLMediaElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);

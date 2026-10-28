@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 51 tests
 
-31 Pass
-20 Fail
+37 Pass
+14 Fail
 Pass	getting audio.muted (parser-created)
 Pass	setting audio.muted (parser-created)
 Pass	getting audio.muted with muted="" (parser-created)
@@ -17,11 +17,11 @@ Pass	getting audio.muted (script-created)
 Pass	setting audio.muted (script-created)
 Fail	getting audio.muted with muted="" (script-created)
 Fail	setting audio.muted with muted="" (script-created)
-Fail	getting audio.muted with muted="" (cloneNode-created)
+Pass	getting audio.muted with muted="" (cloneNode-created)
 Pass	getting audio.muted with muted="" (innerHTML-created)
 Pass	getting audio.muted with muted="" (document.write-created)
-Fail	cloning audio propagates muted (script-created)
-Fail	cloning audio propagates muted (innerHTML-created)
+Pass	cloning audio propagates muted (script-created)
+Pass	cloning audio propagates muted (innerHTML-created)
 Fail	adding/removing muted attribute dynamically affects audio.muted
 Pass	adding muted attribute has no effect on audio.muted after setter
 Pass	removing muted attribute has no effect on audio.muted after setter
@@ -33,11 +33,11 @@ Pass	getting video.muted (script-created)
 Pass	setting video.muted (script-created)
 Fail	getting video.muted with muted="" (script-created)
 Fail	setting video.muted with muted="" (script-created)
-Fail	getting video.muted with muted="" (cloneNode-created)
+Pass	getting video.muted with muted="" (cloneNode-created)
 Pass	getting video.muted with muted="" (innerHTML-created)
 Pass	getting video.muted with muted="" (document.write-created)
-Fail	cloning video propagates muted (script-created)
-Fail	cloning video propagates muted (innerHTML-created)
+Pass	cloning video propagates muted (script-created)
+Pass	cloning video propagates muted (innerHTML-created)
 Fail	adding/removing muted attribute dynamically affects video.muted
 Pass	adding muted attribute has no effect on video.muted after setter
 Pass	removing muted attribute has no effect on video.muted after setter
