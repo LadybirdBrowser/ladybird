@@ -31,9 +31,9 @@
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/WindowEventHandlers.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
-#include <LibWeb/HTML/WindowType.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWebCommon/HTML/UserActivationConsumption.h>
+#include <LibWebCommon/HTML/WindowType.h>
 #include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::HTML {
