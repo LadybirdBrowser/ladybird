@@ -2733,14 +2733,10 @@ impl<'pass> TableFormattingContext<'pass> {
     /// The cell's own 'vertical-align' says where the cell goes in its row, not where its baseline is.
     fn cell_baseline(&self, cell_index: usize, committing_run_baselines: Option<DerivedBaselines>) -> CssPixels {
         let cell_box = &self.cell_box_cells[cell_index];
-        let content_baselines = committing_run_baselines.unwrap_or_else(|| {
-            self.content_baselines_of_handed_back_cells[cell_index].unwrap_or_else(|| {
-                self.run
-                    .records
-                    .box_metrics_of(self.cells[cell_index].box_)
-                    .content_baselines()
-            })
-        });
+        // NB: A cell neither laid out nor handed back has no baselines yet.
+        let content_baselines = committing_run_baselines
+            .or(self.content_baselines_of_handed_back_cells[cell_index])
+            .unwrap_or_default();
         let collapsed = cell_box.uses_collapsing_borders_model;
         cell_box.border_box_top(collapsed) + content_baselines.first.unwrap_or(cell_box.content_block_size)
     }
