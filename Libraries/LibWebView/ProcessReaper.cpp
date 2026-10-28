@@ -41,6 +41,8 @@ ErrorOr<NonnullOwnPtr<ProcessReaper>> ProcessReaper::start(ByteString const& exe
     auto process = TRY(Core::Process::spawn({
         .name = "ProcessReaper"sv,
         .executable = executable_path,
+        // The reaper has to outlive the Browser, so a Ctrl+C meant for the Browser must not end it first.
+        .new_process_group = true,
         .arguments = arguments,
         .environment = Vector<ByteString> {},
         .file_actions = {

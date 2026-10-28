@@ -45,6 +45,10 @@ struct ProcessSpawnOptions {
     bool search_for_executable_in_path { false };
     // On supported platforms, ask the kernel to terminate this process when its parent dies.
     bool die_with_parent { false };
+    // Start this process in a process group of its own, so that the signals a terminal sends to its foreground job,
+    // such as SIGINT for Ctrl+C, do not reach it. SIGTTOU starts out blocked, so that writing to a terminal with tostop
+    // set does not stop it. On Windows, the new process group only keeps Ctrl+C from it.
+    bool new_process_group { false };
     ReadonlySpan<ByteString> arguments {};
     // The child's whole environment, as NAME=value strings. Without it, the child inherits the environment of this
     // process.

@@ -208,6 +208,9 @@ ErrorOr<Process::ProcessAndIPCTransport> Process::spawn_and_connect_to_process([
 
     auto spawn_options = options;
     spawn_options.die_with_parent = true;
+    // Ctrl+C in the terminal that the Browser was started from must reach only the Browser, which ends its helpers once
+    // it has quit. A helper that died of it first would look like a crash to a Browser that is still running.
+    spawn_options.new_process_group = true;
     Vector<ByteString> arguments_with_stats;
     if (auto* stats_log = Core::StatsLog::the()) {
         arguments_with_stats = Vector<ByteString> { options.arguments };
