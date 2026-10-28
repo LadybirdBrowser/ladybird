@@ -52,12 +52,15 @@
 // See also webkit-transform-interpolation-005.html
 //
 
-const cos30 = Math.cos(Math.PI / 6);
-const sin30 = Math.sin(Math.PI / 6);
-const cos45 = Math.cos(Math.PI / 4);
-const sin45 = Math.sin(Math.PI / 4);
-const cos60 = Math.cos(Math.PI / 3);
-const sin60 = Math.sin(Math.PI / 3);
+// NOTE: This is rounded for our import from WPT, since these are printed to the expectation file
+//       as part of the test names and are inconsistent across platforms at full precision.
+const round = value => Number(value.toPrecision(12));
+const cos30 = round(Math.cos(Math.PI / 6));
+const sin30 = round(Math.sin(Math.PI / 6));
+const cos45 = round(Math.cos(Math.PI / 4));
+const sin45 = round(Math.sin(Math.PI / 4));
+const cos60 = round(Math.cos(Math.PI / 3));
+const sin60 = round(Math.sin(Math.PI / 3));
 
 // translateY(-6px) -> translateX(6px) rotate(90deg) scaleX(7)
 test_interpolation({
