@@ -92,7 +92,8 @@ All sizes are in logical pixels.
 
 | Element | Size | Notes |
 |---|---|---|
-| Inactive tab | 28 px tall | 6 px radius, 3 px inset on each side |
+| Inactive tab | No fill at rest | Content laid out in the same 30 px row as the active tab |
+| Hovered tab | 30 px tall | The active tab's exact outline (full slot width, 8 px top radius, flush with the toolbar) in the `hover` fill, without the feet. Hover previews the shape the tab takes when selected; nothing inside it moves. Drawn under the active tab, so a neighboring foot overlaps it cleanly. |
 | Active tab | 30 px tall | 8 px top radius plus an 8 px inverted "foot" on each side where it joins the toolbar. 5 px of strip shows above it. Its contents are vertically centered in it, which puts them on the shared center line. |
 | End insets | Favicon 7 px from the left edge; × glyph 11 px from the right edge | Rule: each end item is as far from the tab's side as it is from the tab's top (the 16 px favicon sits 7 px down, the 8 px × glyph 11 px down). Padding: active 0 6 px 0 7 px; inactive 3 px inset + 0 3 px 0 4 px, so favicons and × never move when a tab becomes active. |
 | Favicon to title | 8 px | |
@@ -426,7 +427,7 @@ Don't invent new shadows. Pick a level.
 | State | Look |
 |---|---|
 | Default | Favicon and title; the close slot is reserved but empty |
-| Hover | `hover` fill; the × fades into its slot |
+| Hover | The active tab's shape in `hover` fill, no feet; the × fades into its slot |
 | Active | Joins the toolbar; title in full `text` color, weight 400 |
 | Dragging | Stays in the strip with a Lift shadow, flat (no tilt), slides sideways only |
 | Loading | Accent ring (24 px) around the favicon. The favicon shrinks to 10 px inside the ring so square icons never touch it. |
