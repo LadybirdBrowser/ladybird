@@ -183,6 +183,10 @@ private:
         int columns { 1 };
         int tile_width { 0 };
         int height { 0 };
+        // While the sidebar opens or closes, the tiles move between their grid in the open sidebar, at 0, and the
+        // collapsed sidebar's one column, at 1, whose rows are this wide.
+        qreal collapsedness { 0 };
+        int collapsed_row_width { 0 };
         // The pinned tabs stay in place only while they fit in half the bar's height. Past that, they scroll with the
         // unpinned tabs, so every tab stays within reach.
         bool scrolls { false };
@@ -321,6 +325,9 @@ public:
     // How strongly the vertical tabs' titles show, which they don't for long once the sidebar starts to collapse.
     qreal vertical_tab_title_opacity() const;
     bool vertical_tabs_are_toggling() const { return m_vertical_tabs_toggling; }
+    qreal vertical_tabs_toggle_collapsedness() const;
+    int vertical_tabs_toggle_open_tab_width() const;
+    int vertical_tabs_toggle_collapsed_tab_width() const;
     void set_vertical_tabs_position(WebView::VerticalTabsPosition);
     bool can_expand_vertical_tabs_on_hover() const;
     void update_tab_button_visibility();
@@ -360,7 +367,6 @@ private:
     void float_sidebar_buttons_while_toggling();
     bool slides_page_with_toggling_sidebar() const;
     void slide_page_with_toggling_sidebar();
-    qreal vertical_tabs_toggle_collapsedness() const;
     QLabel* m_floating_ladybird_button { nullptr };
     QLabel* m_floating_sidebar_toggle { nullptr };
     // Where the toolbar's slot for the buttons ends when the sidebar starts to open, in the window. The slot keeps

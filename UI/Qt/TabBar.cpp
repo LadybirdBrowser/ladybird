@@ -1281,8 +1281,9 @@ void TabBar::paintEvent(QPaintEvent*)
             painter.setPen(Qt::NoPen);
             painter.drawPath(tab_path);
         } else if (selection < 1.0 && is_vertical && !is_collapsed_vertical && is_pinned_tile) {
-            // The pinned tiles at the top of the sidebar are always filled, so they read as a grid of buttons.
-            painter.setBrush(tab_hover_surface(Theme::chrome_palette(*this), 1.0));
+            // The pinned tiles at the top of the sidebar are always filled, so they read as a grid of buttons. The fill
+            // fades as they move into the collapsed sidebar's column, where they are not.
+            painter.setBrush(tab_hover_surface(Theme::chrome_palette(*this), 1.0 - region.collapsedness));
             painter.setPen(Qt::NoPen);
             painter.drawPath(tab_path);
         }
@@ -2669,7 +2670,17 @@ TabBar::PinnedRegion TabBar::pinned_region_for(int pinned_count) const
     }
 
     auto rows = (region.count + region.columns - 1) / region.columns;
-    region.height = (rows * VERTICAL_TAB_HEIGHT) + PINNED_TABS_SEPARATOR_HEIGHT;
+    // NB: The sidebar keeps its open layout while it closes, and takes it at once as it opens, so the tiles move
+    //     between their grid at the open sidebar's width and the column at the collapsed sidebar's width as it toggles.
+    //     A tile that followed the sidebar's width on the way would grow before it shrinks.
+    if (pinned_tabs_are_tiles() && m_tab_widget && m_tab_widget->vertical_tabs_are_toggling()) {
+        region.collapsedness = m_tab_widget->vertical_tabs_toggle_collapsedness();
+        region.tile_width = m_tab_widget->vertical_tabs_toggle_open_tab_width() / region.columns;
+        region.collapsed_row_width = m_tab_widget->vertical_tabs_toggle_collapsed_tab_width();
+        region.height = qRound(((rows + ((region.count - rows) * region.collapsedness)) * VERTICAL_TAB_HEIGHT)) + PINNED_TABS_SEPARATOR_HEIGHT;
+    } else {
+        region.height = (rows * VERTICAL_TAB_HEIGHT) + PINNED_TABS_SEPARATOR_HEIGHT;
+    }
     region.scrolls = region.height > height() / 2;
     return region;
 }
@@ -2695,8 +2706,13 @@ QRect TabBar::vertical_tab_rect(int index, PinnedRegion const& region) const
     if (index < region.count) {
         auto row = index / region.columns;
         auto column = index % region.columns;
-        auto top = VERTICAL_TAB_BAR_END_ROOM + (row * VERTICAL_TAB_HEIGHT) - (region.scrolls ? m_scroll_offset : 0);
-        return { vertical_tabs_left() + (column * region.tile_width), top, region.tile_width, VERTICAL_TAB_HEIGHT };
+        auto scroll_offset = region.scrolls ? m_scroll_offset : 0;
+        QRect tile { vertical_tabs_left() + (column * region.tile_width), VERTICAL_TAB_BAR_END_ROOM + (row * VERTICAL_TAB_HEIGHT) - scroll_offset, region.tile_width, VERTICAL_TAB_HEIGHT };
+        if (region.collapsedness <= 0)
+            return tile;
+        QRect row_in_column { vertical_tabs_left(), VERTICAL_TAB_BAR_END_ROOM + (index * VERTICAL_TAB_HEIGHT) - scroll_offset, region.collapsed_row_width, VERTICAL_TAB_HEIGHT };
+        auto mix = [&](int a, int b) { return qRound(a + ((b - a) * region.collapsedness)); };
+        return { mix(tile.left(), row_in_column.left()), mix(tile.top(), row_in_column.top()), mix(tile.width(), row_in_column.width()), VERTICAL_TAB_HEIGHT };
     }
 
     auto unpinned_index = index - region.count;
@@ -2730,6 +2746,15 @@ int TabBar::tab_index_at(QPoint const& position) const
     if (pinned_y < region.height) {
         if (pinned_y >= region.height - PINNED_TABS_SEPARATOR_HEIGHT)
             return -1;
+        // NB: Tiles on their way between the grid and the column are found by where they are drawn. Where they overlap,
+        //     the later tile is drawn on top, so it is found first.
+        if (region.collapsedness > 0) {
+            for (int index = region.count - 1; index >= 0; --index) {
+                if (vertical_tab_rect(index, region).contains(position))
+                    return index;
+            }
+            return -1;
+        }
         auto x = position.x() - vertical_tabs_left();
         if (x < 0 || x >= region.columns * region.tile_width)
             return -1;
@@ -3481,6 +3506,8 @@ void TabWidget::set_vertical_tabs_expanded(bool expanded)
             m_vertical_tabs_toggle_progress = value.toReal();
             m_vertical_tab_bar_column->update();
             update_tab_layout();
+            // NB: The pinned tiles move with the toggle, even on a step that leaves the tabs' width as it was.
+            m_tab_bar->refresh_tab_layout();
             float_sidebar_buttons_while_toggling();
             slide_page_with_toggling_sidebar();
             update_vertical_tabs_content_overlay();
@@ -4391,6 +4418,19 @@ void TabWidget::place_toolbar_over_page_column()
 
     if (m_vertical_tabs_content_separator->isVisible())
         m_vertical_tabs_content_separator->raise();
+}
+
+// The width of the vertical tabs where the opening or closing sidebar is open, and where it is collapsed.
+int TabWidget::vertical_tabs_toggle_open_tab_width() const
+{
+    auto sidebar_width = m_vertical_tabs_collapse_pending ? m_vertical_tabs_toggle_from_width : m_vertical_tabs_toggle_to_width;
+    return max(0, sidebar_width - vertical_tabs_horizontal_margin_width(m_tab_bar->tab_layout()));
+}
+
+int TabWidget::vertical_tabs_toggle_collapsed_tab_width() const
+{
+    auto sidebar_width = m_vertical_tabs_collapse_pending ? m_vertical_tabs_toggle_to_width : m_vertical_tabs_toggle_from_width;
+    return max(0, sidebar_width - vertical_tabs_horizontal_margin_width(m_tab_bar->tab_layout()));
 }
 
 int TabWidget::current_vertical_tabs_width() const
