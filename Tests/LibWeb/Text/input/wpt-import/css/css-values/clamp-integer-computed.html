@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-values/#funcdef-clamp">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../support/computed-testcommon.js"></script>
+<div id="target"></div>
+<script>
+test_computed_value('z-index', 'clamp(10, 20, 30)', '20');
+test_computed_value('z-index', 'clamp(none, 30, 33)', '30');
+test_computed_value('z-index', 'clamp(none, 33, 30)', '30');
+test_computed_value('z-index', 'clamp(30, 33, none)', '33');
+test_computed_value('z-index', 'clamp(33, 30, none)', '33');
+test_computed_value('z-index', 'clamp(none, 30, none)', '30');
+</script>
