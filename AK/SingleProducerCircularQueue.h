@@ -44,16 +44,8 @@ struct SPCQData {
     alignas(T) Array<T, Size> m_data;
 };
 
-// With counters another process writes, an operation that finds them corrupt fails as if the queue were empty or full.
-enum class SPCQCounterWriters : u8 {
-    ThisProcess,
-    AnotherProcess,
-};
-
-template<typename T, size_t Size, SPCQCounterWriters counter_writers = SPCQCounterWriters::ThisProcess>
+template<typename T, size_t Size>
 class SingleProducerCircularQueueBase {
-    static constexpr bool validates_counters = counter_writers == SPCQCounterWriters::AnotherProcess;
-
 public:
     using ValueType = T;
 
@@ -62,12 +54,6 @@ public:
         Full,
         Empty,
     };
-
-    bool has_seen_corrupt_counters() const
-    requires(validates_counters)
-    {
-        return m_has_seen_corrupt_counters;
-    }
 
     constexpr size_t size() const { return Size; }
 
@@ -87,12 +73,7 @@ public:
     {
         VERIFY(m_data);
         auto tail = m_data->m_tail.load(AK::MemoryOrder::memory_order_relaxed);
-        auto used = tail - m_data->m_head.load(AK::MemoryOrder::memory_order_acquire);
-        if constexpr (validates_counters) {
-            if (used > Size)
-                return note_corrupt_counters();
-        }
-        if (used == Size)
+        if (tail - m_data->m_head.load(AK::MemoryOrder::memory_order_acquire) == Size)
             return QueueStatus::Full;
         write_to_slot(m_data->m_data[tail % Size]);
         m_data->m_tail.store(tail + 1, AK::MemoryOrder::memory_order_release);
@@ -130,7 +111,7 @@ public:
     {
         VERIFY(m_data);
         auto head = m_data->m_head.load(AK::MemoryOrder::memory_order_relaxed);
-        if (!has_items(head, m_data->m_tail.load(AK::MemoryOrder::memory_order_acquire)))
+        if (head == m_data->m_tail.load(AK::MemoryOrder::memory_order_acquire))
             return {};
         return m_data->m_data[head % Size];
     }
@@ -140,7 +121,7 @@ public:
     {
         VERIFY(m_data);
         auto tail = m_data->m_tail.load(AK::MemoryOrder::memory_order_acquire);
-        if (!has_items(m_data->m_head.load(AK::MemoryOrder::memory_order_relaxed), tail))
+        if (m_data->m_head.load(AK::MemoryOrder::memory_order_relaxed) == tail)
             return {};
         return m_data->m_data[(tail - 1) % Size];
     }
@@ -149,12 +130,7 @@ public:
     {
         VERIFY(m_data);
         auto head = m_data->m_head.load(AK::MemoryOrder::memory_order_relaxed);
-        auto tail = m_data->m_tail.load(AK::MemoryOrder::memory_order_acquire);
-        if constexpr (validates_counters) {
-            if (tail - head > Size)
-                return note_corrupt_counters();
-        }
-        if (head == tail)
+        if (head == m_data->m_tail.load(AK::MemoryOrder::memory_order_acquire))
             return QueueStatus::Empty;
         auto data = move(m_data->m_data[head % Size]);
         m_data->m_head.store(head + 1, AK::MemoryOrder::memory_order_release);
@@ -172,37 +148,8 @@ protected:
 
     void set_data(SPCQData<T, Size>* data) { m_data = data; }
 
-    bool has_consistent_counters() const
-    requires(validates_counters)
-    {
-        VERIFY(m_data);
-        auto head = m_data->m_head.load(AK::MemoryOrder::memory_order_relaxed);
-        return m_data->m_tail.load(AK::MemoryOrder::memory_order_acquire) - head <= Size;
-    }
-
 private:
-    QueueStatus note_corrupt_counters() const
-    requires(validates_counters)
-    {
-        m_has_seen_corrupt_counters = true;
-        return QueueStatus::Invalid;
-    }
-
-    bool has_items(size_t head, size_t tail) const
-    {
-        if constexpr (validates_counters) {
-            if (tail - head > Size) {
-                note_corrupt_counters();
-                return false;
-            }
-        }
-        return head != tail;
-    }
-
-    struct NoCorruptCountersFlag { };
-
     SPCQData<T, Size>* m_data { nullptr };
-    [[no_unique_address]] mutable Conditional<validates_counters, bool, NoCorruptCountersFlag> m_has_seen_corrupt_counters {};
 };
 
 // An lock-free SPSC queue that owns its slot storage inline.
@@ -226,6 +173,5 @@ private:
 #if USING_AK_GLOBALLY
 using AK::SingleProducerCircularQueue;
 using AK::SingleProducerCircularQueueBase;
-using AK::SPCQCounterWriters;
 using AK::SPCQData;
 #endif

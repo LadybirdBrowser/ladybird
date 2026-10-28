@@ -8,7 +8,6 @@ set(TEST_SOURCES
     TestLibCoreMappedFile.cpp
     TestLibCoreMimeType.cpp
     TestLibCorePromise.cpp
-    TestLibCoreSharedSingleProducerCircularQueue.cpp
     TestLibCoreStream.cpp
 )
 
@@ -41,7 +40,6 @@ if(NOT WIN32)
 endif()
 
 target_link_libraries(TestLibCoreEventLoop PRIVATE LibThreading)
-target_link_libraries(TestLibCoreSharedSingleProducerCircularQueue PRIVATE LibThreading)
 
 if (APPLE OR LINUX)
     target_link_libraries(TestLibCoreFutex PRIVATE LibThreading)
