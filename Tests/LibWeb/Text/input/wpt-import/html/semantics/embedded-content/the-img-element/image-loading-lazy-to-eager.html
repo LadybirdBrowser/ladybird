@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<head>
+  <title>Below-viewport images with loading='lazy' load when set to
+         loading='eager' or the `loading` attribute is removed</title>
+  <link rel="author" title="Dom Farolino" href="mailto:domfarolino@gmail.com">
+  <link rel="help" href="https://html.spec.whatwg.org/multipage/embedded-content.html#attr-img-loading">
+  <script src="../../../../resources/testharness.js"></script>
+  <script src="../../../../resources/testharnessreport.js"></script>
+</head>
+
+<script>
+  const t = async_test("Below-viewport images with loading='lazy' load when " +
+                       "set to loading='eager' or the `loading` attribute is " +
+                       "removed");
+
+  const img_1_onload = t.unreached_func("#img_1 should not load before the " +
+                                        "window load event");
+  const img_2_onload = t.unreached_func("#img_2 should not load before the " +
+                                        "window load event");
+
+  window.addEventListener("load", t.step_func(() => {
+    const img_1 = document.querySelector('#img_1');
+    const img_2 = document.querySelector('#img_2');
+
+    const img_1_promise = new Promise((resolve, reject) => {
+      img_1.onerror = reject;
+      img_1.onload = resolve;
+    });
+
+    const img_2_promise = new Promise((resolve, reject) => {
+      img_2.onerror = reject;
+      img_2.onload = resolve;
+    });
+
+    Promise.all([img_1_promise, img_2_promise])
+      .then(t.step_func_done())
+      .catch(t.unreached_func("The images should load successfully"));
+
+    // Kick off the requests.
+    img_1.loading = 'eager';
+    img_2.removeAttribute('loading'); // unset the attribute, putting it in
+                                      // the default (eager) state.
+  }));
+
+</script>
+
+<body>
+  <div style="height:1000vh;"></div>
+  <img id="img_1"
+       src="resources/image.png?lazy-to-eager-1"
+       loading="lazy" onload="img_1_onload();">
+  <img id="img_2"
+       src="resources/image.png?lazy-to-eager-2"
+       loading="lazy" onload="img_2_onload();">
+</body>

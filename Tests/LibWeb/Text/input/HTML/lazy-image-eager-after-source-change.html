@@ -1,0 +1,83 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+        for (const change of ["empty", "replacement", "same URL"]) {
+            const token = uniqueID();
+            const original = await server.createEcho("GET", `/lazy-source-${token}.png`, {
+                status: 200,
+                headers: { "Content-Type": "image/png", "Cache-Control": "no-store" },
+                body: png,
+                body_encoding: "base64",
+                wait_for_unblock: token,
+            });
+            const replacement = await server.createEcho("GET", `/lazy-replacement-${token}.png`, {
+                status: 200,
+                headers: { "Content-Type": "image/png", "Cache-Control": "no-store" },
+                body: png,
+                body_encoding: "base64",
+            });
+            const nextSource = change === "empty" ? "" : change === "replacement" ? replacement : original;
+            const frame = document.createElement("iframe");
+            let childLoaded = false;
+            let selectedBeforeChange = false;
+            const loaded = new Promise(resolve => {
+                const onMessage = event => {
+                    if (event.source !== frame.contentWindow || event.data.token !== token) return;
+                    childLoaded = true;
+                    selectedBeforeChange = event.data.selectedBeforeChange;
+                    removeEventListener("message", onMessage);
+                    resolve(event.data);
+                };
+                addEventListener("message", onMessage);
+            });
+            frame.srcdoc = `<!doctype html><body><script>
+                const image = document.createElement("img");
+                const imageSettled = new Promise(resolve => image.onload = image.onerror = resolve);
+                image.style.display = "none";
+                image.loading = "lazy";
+                image.src = ${JSON.stringify(original)};
+                document.body.appendChild(image);
+                let selectedBeforeChange = false;
+                addEventListener("load", async () => {
+                    await imageSettled;
+                    parent.postMessage({
+                    token: ${JSON.stringify(token)},
+                    selectedBeforeChange,
+                    currentSrc: image.currentSrc,
+                    width: image.naturalWidth,
+                    }, "*");
+                }, { once: true });
+                queueMicrotask(() => {
+                    selectedBeforeChange = image.currentSrc === ${JSON.stringify(original)};
+                    image.src = ${JSON.stringify(nextSource)};
+                    image.loading = "eager";
+                });
+            <\/script>`;
+            document.body.appendChild(frame);
+            let requested = false;
+            try {
+                // NB: A fetched obsolete image holds the child load event until its response is released.
+                while (!childLoaded) {
+                    const response = await fetch(server.recordedRequestHeadersURL(original), { cache: "no-store" });
+                    if (response.ok) {
+                        requested = true;
+                        break;
+                    }
+                }
+                await fetch(new URL(`/unblock/${token}`, original));
+                const result = await loaded;
+                println(`${change}: deferred source selected: ${selectedBeforeChange}`);
+                println(`${change}: original URL requested: ${requested}`);
+                println(
+                    `${change}: final source loaded: ${result.currentSrc === nextSource && result.width === (nextSource ? 1 : 0)}`
+                );
+            } finally {
+                await fetch(new URL(`/unblock/${token}`, original));
+                frame.remove();
+            }
+        }
+    });
+</script>

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<head>
+  <title>Below viewport images with loading='lazy' and changed to
+         loading='eager' load and do not block the window load event</title>
+  <link rel="author" title="Rob Buis" href="mailto:rbuis@igalia.com">
+  <link rel="help" href="https://github.com/scott-little/lazyload">
+  <script src="../../../../resources/testharness.js"></script>
+  <script src="../../../../resources/testharnessreport.js"></script>
+</head>
+
+<script>
+  const t = async_test("Test that below viewport images with loading='lazy' " +
+                       "and changed to loading='eager' load and do not block " +
+                       "the window load event.");
+
+  let has_below_viewport_loaded = false;
+  let has_window_loaded = false;
+
+  window.addEventListener("load", t.step_func(function() {
+    assert_false(has_window_loaded,
+                 "The window load event should only fire once.");
+    has_window_loaded = true;
+  }));
+
+  const below_viewport_img_onload = t.step_func_done(function() {
+    assert_false(has_below_viewport_loaded,
+               "The in_viewport element should load only once.");
+    assert_true(has_window_loaded,
+                "The window load event should have fired before " +
+                "below_viewport loaded.");
+    has_below_viewport_loaded = true;
+  });
+</script>
+
+<body>
+  <div style="height:10000px;"></div>
+  <img id="below_viewport" src="resources/image.png?below-viewport-dynamic&pipe=trickle(d2)"
+       loading="lazy" onload="below_viewport_img_onload();">
+  <script>
+    assert_false(has_window_loaded,
+                "The window load event should not fire before " +
+                "changing below_viewport to loading='eager'.");
+    document.getElementById("below_viewport").loading = 'eager';
+  </script>
+</body>

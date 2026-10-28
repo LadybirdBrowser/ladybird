@@ -1,0 +1,3 @@
+Initial source loaded: true
+Retained pending source requested: true
+Replacement became current: true

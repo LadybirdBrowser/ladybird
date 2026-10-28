@@ -1,0 +1,1 @@
+Adopted lazy image loaded: true
