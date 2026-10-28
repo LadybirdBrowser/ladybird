@@ -1,0 +1,28 @@
+"doc" has document: true, Document: true
+"doc" lists document before Document: true
+"Doc" has only names starting with Doc: true
+"document.bo" has body: true
+"completionFix": ["completionFixture"]
+"completionFixture.al": ["alpha","alphabet"]
+"completionFixture.": ["__defineGetter__","__defineSetter__","__lookupGetter__","__lookupSetter__","__proto__","alpha","alphabet","constructor","hasOwnProperty","isPrototypeOf","propertyIsEnumerable","toLocaleString","toString","valueOf","Beta"]
+"completionFixture.b": ["Beta"]
+"completionEmptyKey.b": ["b"]
+"completionHugeTypedArray.leng": ["length"]
+"completionHugeArray.leng": ["length"]
+"[...completionFix": ["completionFixture"]
+"f(...completionFixture.al": ["alpha","alphabet"]
+"....completionFix": null
+"completionEmptyKey." has an empty name: false
+"completionArray." has length: true, has 0: false
+"fo" has for: true
+"document.fo" has for: false
+"completionScriptedGetter.x": null
+scripted getter ran: false
+"completionProxy.": []
+proxy trap ran: false
+"": null
+"f().x": null
+"1.to": null
+"\"doc": null
+"// doc": null
+"missingGlobal.x": null

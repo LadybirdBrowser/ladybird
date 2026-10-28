@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    const completionFixture = { alpha: 1, alphabet: 2, Beta: 3 };
+    const completionArray = [10, 20];
+    const completionEmptyKey = { "": 1, b: 2 };
+    const completionHugeTypedArray = new Uint8Array(200000);
+    const completionHugeArray = new Array(200000).fill(0);
+    var completionProxyTouched = false;
+    var completionProxy = new Proxy({ a: 1 }, {
+        ownKeys(target) {
+            completionProxyTouched = true;
+            return Reflect.ownKeys(target);
+        },
+    });
+    var completionGetterRan = false;
+    Object.defineProperty(window, "completionScriptedGetter", {
+        get() {
+            completionGetterRan = true;
+            return { x: 1 };
+        },
+    });
+
+    test(() => {
+        const complete = input => internals.completeConsoleInput(input);
+        const show = input => println(`${JSON.stringify(input)}: ${JSON.stringify(complete(input))}`);
+
+        const doc = complete("doc");
+        println(`"doc" has document: ${doc.includes("document")}, Document: ${doc.includes("Document")}`);
+        println(`"doc" lists document before Document: ${doc.indexOf("document") < doc.indexOf("Document")}`);
+        println(`"Doc" has only names starting with Doc: ${complete("Doc").every(name => name.startsWith("Doc"))}`);
+        println(`"document.bo" has body: ${complete("document.bo").includes("body")}`);
+
+        show("completionFix");
+        show("completionFixture.al");
+        show("completionFixture.");
+        show("completionFixture.b");
+        show("completionEmptyKey.b");
+        show("completionHugeTypedArray.leng");
+        show("completionHugeArray.leng");
+        show("[...completionFix");
+        show("f(...completionFixture.al");
+        show("....completionFix");
+        println(`"completionEmptyKey." has an empty name: ${complete("completionEmptyKey.").includes("")}`);
+
+        const arrayProperties = complete("completionArray.");
+        println(`"completionArray." has length: ${arrayProperties.includes("length")}, has 0: ${arrayProperties.includes("0")}`);
+
+        println(`"fo" has for: ${complete("fo").includes("for")}`);
+        println(`"document.fo" has for: ${complete("document.fo").includes("for")}`);
+
+        show("completionScriptedGetter.x");
+        println(`scripted getter ran: ${completionGetterRan}`);
+        show("completionProxy.");
+        println(`proxy trap ran: ${completionProxyTouched}`);
+
+        show("");
+        show("f().x");
+        show("1.to");
+        show("\"doc");
+        show("// doc");
+        show("missingGlobal.x");
+    });
+</script>
