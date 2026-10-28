@@ -102,7 +102,15 @@ public:
 
     void did_select_item(Optional<u32> const& id);
 
-    void update_selectedness();
+    // NB: Returns whether the selectedness changed, in which case the select's selectedcontent was also updated.
+    bool update_selectedness();
+
+    // https://html.spec.whatwg.org/multipage/form-elements.html#reset-a-select%27s-selectedness
+    enum class HasChanged : u8 {
+        No,
+        Yes,
+    };
+    void reset_selectedness(HasChanged);
 
     void clone_selected_option_into_select_button();
 

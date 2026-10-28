@@ -56,18 +56,44 @@ void HTMLOptionElement::attribute_changed(Utf16FlyString const& name, Optional<U
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 
+    if (namespace_.has_value())
+        return;
+
     if (name == HTML::AttributeNames::selected) {
-        if (!value.has_value()) {
-            // Whenever an option element's selected attribute is removed, if its dirtiness is false, its selectedness must be set to false.
-            if (!m_dirty)
-                set_selected_internal(false);
-        } else {
-            // Except where otherwise specified, when the element is created, its selectedness must be set to true
-            // if the element has a selected attribute. Whenever an option element's selected attribute is added,
-            // if its dirtiness is false, its selectedness must be set to true.
-            if (!m_dirty)
+        // https://html.spec.whatwg.org/multipage/form-elements.html#attr-option-selected
+        // Whenever an option element option's selected attribute is added or removed:
+        if (old_value.has_value() == value.has_value())
+            return;
+
+        // 1. Let hasChanged be false.
+        auto has_changed = HTMLSelectElement::HasChanged::No;
+
+        // 2. If option's dirtiness is false:
+        if (!m_dirty) {
+            // 1. If the selected attribute was added and option's selectedness is false, then set option's selectedness
+            //    to true and set hasChanged to true.
+            if (value.has_value() && !m_selected) {
                 set_selected_internal(true);
+                has_changed = HTMLSelectElement::HasChanged::Yes;
+            }
+
+            // 2. If the selected attribute was removed and option's selectedness is true, then set option's
+            //    selectedness to false and set hasChanged to true.
+            if (!value.has_value() && m_selected) {
+                set_selected_internal(false);
+                has_changed = HTMLSelectElement::HasChanged::Yes;
+            }
         }
+
+        // 3. Let select be option's cached nearest ancestor select element.
+        auto select = m_cached_nearest_select_element;
+
+        // 4. If select is null, then return.
+        if (!select)
+            return;
+
+        // 5. Reset a select's selectedness given select and hasChanged.
+        select->reset_selectedness(has_changed);
     } else if (name == HTML::AttributeNames::label) {
         update_selection_label();
     }
