@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<title>Nested query containers affecting each other</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#size-container">
+<link rel="help" href="https://drafts.csswg.org/css-contain-2/#containment-size">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/cq-testcommon.js"></script>
+<style>
+  body > section {
+    contain: strict;
+    width: 500px;
+  }
+</style>
+<body>
+<script>
+promise_setup(() => {
+  assert_implements_size_container_queries();
+  return new Promise(resolve => {
+    addEventListener("load", () => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          document.body.className = "run";
+          resolve();
+        });
+      });
+    }, {once: true});
+  });
+});
+
+function booleanTuples(n) {
+  const tuple = new Array(n);
+  function* recursion(i) {
+    if (i == n) {
+      yield tuple.slice();
+      return;
+    }
+    tuple[i] = false;
+    yield* recursion(i + 1);
+    tuple[i] = true;
+    yield* recursion(i + 1);
+  }
+  return recursion(0);
+}
+
+// The following display values evaluate container queries to unknown.
+const testCases = [
+  {
+    display: "inline",
+    expected: {
+      width: depth => depth % 2 ? 0 : 500 - depth,
+      height: depth => 0,
+    },
+  },
+  {
+    display: "contents",
+    expected: {
+      width: depth => depth % 2 ? 0 : 500 - depth,
+      height: depth => 0,
+    },
+  },
+  {
+    display: "table-cell",
+    expected: {
+      width: depth => depth % 2 ? 2 : 0,
+      height: depth => depth % 2 ? 2 : 0,
+    },
+  },
+  {
+    display: "table",
+    expected: {
+      width: depth => depth % 2 ? 4 : 0,
+      height: depth => depth % 2 ? 4 : 0,
+    },
+  },
+];
+
+let testNum = 1;
+for (let testCase of testCases) {
+  for (let tuple of booleanTuples(3)) {
+    const section = document.createElement("section");
+    const id = "test" + testNum;
+    section.id = id;
+    const style = document.createElement("style");
+    style.textContent = `
+      :where(body${tuple[0] ? ".run" : ""}) > #${id} {
+        container-type: size;
+        container-name: name;
+      }
+      :where(body${tuple[1] ? ".run" : ""}) > #${id} div {
+        container-type: size;
+        container-name: name;
+        border: solid;
+        border-width: 1px;
+      }
+      @container name (width >= 0) {
+        :where(body${tuple[2] ? ".run" : ""}) > #${id} div {
+          display: ${testCase.display};
+          border-style: dotted;
+        }
+      }
+    `;
+    section.appendChild(style);
+    section.insertAdjacentHTML(
+      "beforeend",
+      "<div><div><div><div><div><div></div></div></div></div></div></div>"
+    );
+    document.body.appendChild(section);
+    promise_test(async function() {
+      let div = section.querySelector("div");
+      let depth = 1;
+      while (div) {
+        const cs = getComputedStyle(div);
+        assert_equals(cs.display, depth % 2 ? testCase.display : "block");
+        assert_equals(cs.borderStyle, depth % 2 ? "dotted" : "solid", "borderStyle");
+        assert_equals(div.clientWidth, testCase.expected.width(depth), "clientWidth");
+        assert_equals(div.clientHeight, testCase.expected.height(depth), "clientHeight");
+        div = div.firstElementChild;
+        depth += 1;
+      }
+    }, id + " - " + testCase.display + " - 0b" + tuple.map(Number).join(""));
+    testNum += 1;
+  }
+}
+</script>
+</body>
