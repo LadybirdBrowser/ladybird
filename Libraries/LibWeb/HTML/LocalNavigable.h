@@ -44,7 +44,6 @@
 #include <LibWeb/HTML/StructuredSerializeTypes.h>
 #include <LibWeb/HTML/TargetSnapshotParams.h>
 #include <LibWeb/HTML/TokenizedFeatures.h>
-#include <LibWeb/HTML/WindowType.h>
 #include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Painting/ScrollSnap.h>
@@ -61,6 +60,7 @@
 #include <LibWebCommon/HTML/SandboxingFlagSet.h>
 #include <LibWebCommon/HTML/UserAgentInitiated.h>
 #include <LibWebCommon/HTML/VisibilityState.h>
+#include <LibWebCommon/HTML/WindowType.h>
 #include <LibWebCommon/PixelUnits.h>
 
 namespace Web::Painting {
