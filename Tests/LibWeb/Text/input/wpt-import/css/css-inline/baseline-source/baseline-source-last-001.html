@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-inline-3/#baseline-source">
+<style>
+.target {
+  inline-size: 200px;
+  padding: 10px;
+  border: solid 3px;
+  position: relative;
+  line-height: 0;
+  font-size: 20px;
+}
+
+.inner {
+  border: solid 5px;
+  padding: 10px;
+  baseline-source: last;
+  font-size: 30px;
+}
+
+table { border-spacing: 0; }
+tr { vertical-align: baseline; }
+td { padding: 0; }
+caption {
+  margin: 10px;
+  background: lime;
+  block-size: 20px;
+}
+
+span {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  outline: solid cyan 3px;
+  outline-offset: -3px;
+}
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.target > *')">
+
+<div class="target">
+  <span data-offset-y="65"></span>
+  <div class="inner" style="display: inline-block;" data-offset-y="10">
+    <div><span></span></div>
+    <div><span></span></div>
+  </div>
+</div>
+
+<div class="target">
+  <span data-offset-y="65"></span>
+  <div class="inner" style="overflow: hidden; display: inline-block;" data-offset-y="10">
+    <div><span></span></div>
+    <div><span></span></div>
+  </div>
+</div>
+
+<div class="target">
+  <span data-offset-y="65"></span>
+  <div class="inner" style="display: inline-block;" data-offset-y="10">
+    <div style="overflow: hidden;">
+      <div><span></span></div>
+      <div><span></span></div>
+    </div>
+  </div>
+</div>
+
+<div class="target">
+  <span data-offset-y="65"></span>
+  <div class="inner" style="display: inline-block; columns: 2;" data-offset-y="10">
+    <div style="font-size: 20px;"><span></span></div>
+    <div style="font-size: 20px;"><span></span></div>
+    <div><span></span></div>
+    <div><span></span></div>
+  </div>
+</div>
+
+<div class="target">
+  <span data-offset-y="95"></span>
+  <div class="inner" style="overflow: hidden; display: -webkit-inline-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3 no-ellipsis;" data-offset-y="10">
+    <span></span><br>
+    <span></span><br>
+    <span></span><br>
+    <span></span><br>
+  </div>
+</div>
+
+<div class="target">
+  <span data-offset-y="65"></span>
+  <div class="inner" style="display: inline-flex; flex-direction: column;" data-offset-y="10">
+    <div><span></span></div>
+    <div><span></span></div>
+  </div>
+</div>
+
+<div class="target">
+  <span data-offset-y="65"></span>
+  <div class="inner" style="display: inline-grid; grid-auto-flow: columns;" data-offset-y="10">
+    <div><span></span></div>
+    <div><span></span></div>
+  </div>
+</div>
+
+<div class="target">
+  <span data-offset-y="90"></span>
+  <fieldset class="inner" style="display: inline-block;" data-offset-y="10">
+    <span></span><br><span></span>
+    <legend><span></span></legend>
+  </fieldset>
+</div>
+
+<div class="target">
+  <span data-offset-y="90"></span>
+  <fieldset class="inner" style="display: inline-flex; flex-direction: column;" data-offset-y="10">
+    <span></span><br><span></span>
+    <legend><span></span></legend>
+  </fieldset>
+</div>
+
+<div class="target">
+  <span data-offset-y="135"></span>
+  <table class="inner" style="display: inline-table;" data-offset-y="10">
+    <caption></caption>
+    <tr>
+      <td style="font-size: 10px;"><span></span><br><span></span></td>
+      <td><span></span><br><span></span></td>
+    </tr>
+    <tr>
+      <td><span></span><br><span></span></td>
+      <td style="font-size: 10px;"><span></span><br><span></span></td>
+    </tr>
+    <caption style="caption-side: bottom;"></caption>
+  </table>
+</div>
+
+<div class="target">
+  <span data-offset-y="135"></span>
+  <div class="inner" style="display: inline-block;" data-offset-y="10">
+    <table>
+      <caption></caption>
+      <tr>
+        <td style="font-size: 10px;"><span></span><br><span></span></td>
+        <td><span></span><br><span></span></td>
+      </tr>
+      <tr>
+        <td><span></span><br><span></span></td>
+        <td style="font-size: 10px;"><span></span><br><span></span></td>
+      </tr>
+      <caption style="caption-side: bottom;"></caption>
+    </table>
+  </div>
+</div>
