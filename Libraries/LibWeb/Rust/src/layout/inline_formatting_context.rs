@@ -2899,7 +2899,12 @@ impl LinesWithoutLineBoxes {
         self.inline_size += border_box_inline_size;
         self.has_fragments = true;
         self.ends_in_whitespace = ends_in_whitespace;
-        self.trailing_whitespace_inline_size = trailing_whitespace_inline_size;
+        // NB: Adjacent all-space chunks form one trailing sequence, including across inline boundaries.
+        if ends_in_whitespace && border_box_inline_size == trailing_whitespace_inline_size {
+            self.trailing_whitespace_inline_size += trailing_whitespace_inline_size;
+        } else {
+            self.trailing_whitespace_inline_size = trailing_whitespace_inline_size;
+        }
     }
 
     fn note_line(&mut self, inline_size: CssPixels) {
@@ -3041,10 +3046,17 @@ impl ContentSizingLines {
             }
             inline_level_iterator::ItemType::Text => {
                 let style = context.style(context.parent_node(item.node));
+                // https://drafts.csswg.org/css-text-3/#hanging
+                // Glyphs that conditionally hang are not taken into account when computing min-content sizes
+                // and any sizes derived thereof, but they are taken into account for max-content sizes and any sizes
+                // derived thereof.
                 let trailing_whitespace_inline_size = if matches!(
                     style.white_space_collapse(),
                     white_space_collapse::COLLAPSE | white_space_collapse::PRESERVE_BREAKS
-                ) {
+                ) || (self.measures_min_content()
+                    && style.white_space_collapse() == white_space_collapse::PRESERVE
+                    && style.text_wrap_mode() == text_wrap_mode::WRAP)
+                {
                     item.trailing_whitespace.inline_size
                 } else {
                     CssPixels::default()

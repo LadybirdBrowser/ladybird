@@ -6,7 +6,7 @@ inline edges before break: 50x40, 50x40, 50x40, 50x40
 inline edges before absolute: 50x20, 50x20, 50x20, 50x20
 nowrap: 170x20, 170x20, 170x20, 170x20
 pre: 135x40, 135x40, 135x40, 135x40
-pre-wrap: 140x40, 70x60, 140x40, 120x60
+pre-wrap: 140x40, 50x100, 140x40, 120x60
 pre-line: 100x40, 50x60, 100x40, 100x40
 break-spaces: 130x40, 60x60, 130x40, 120x40
 mixed whitespace: 230x40, 110x40, 230x40, 120x40
@@ -133,7 +133,7 @@ words, fit-content: [200,30]
 collapsing spaces, min-content: [40,60]
 collapsing spaces, max-content: [100,30]
 collapsing spaces, fit-content: [100,30]
-preserved wrapping spaces, min-content: [100,60]
+preserved wrapping spaces, min-content: [40,90]
 preserved wrapping spaces, max-content: [220,30]
 preserved wrapping spaces, fit-content: [220,30]
 preserved newlines, min-content: [40,90]
