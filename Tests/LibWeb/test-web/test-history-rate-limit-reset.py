@@ -29,8 +29,9 @@ def main():
                 (root / directory / kind).mkdir(parents=True)
         (root / "Crash").mkdir()
         (root / "TestConfig.ini").write_text("")
-        (root / "Fixtures").symlink_to(source / "Tests/LibWeb/Fixtures", target_is_directory=True)
-        (root / "test-web").symlink_to(source / "Tests/LibWeb/test-web", target_is_directory=True)
+        for file in ("Fixtures/http-test-server.py", "test-web/results-index.html"):
+            (root / file).parent.mkdir()
+            shutil.copyfile(source / "Tests/LibWeb" / file, root / file)
         (root / "Text/input/wpt-import").mkdir()
         shutil.copyfile(source / "Tests/LibWeb/Text/input/include.js", root / "Text/input/include.js")
         # More history updates than a navigable may make in one rate-limit window.
@@ -41,7 +42,8 @@ def main():
             'println("flooded"); done();'
             "});</script>"
         )
-        (root / "Text/expected/flood.txt").write_text("flooded\n")
+        with (root / "Text/expected/flood.txt").open("w", newline="\n") as file:
+            file.write("flooded\n")
         # Text tests precede reference tests. At -j1 these two files use the same view, without relying on directory
         # order. The page turns green only if its own history update goes through.
         (root / "Ref/input/consumer.html").write_text(
