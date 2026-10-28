@@ -6,6 +6,7 @@
         <string>NSApplication</string>
         <key>CFBundleIconFile</key>
         <string>app_icon.icns</string>
+        ${LADYBIRD_ICON_COMPOSER_PLIST_ENTRY}
         <key>CFBundlePackageType</key>
         <string>APPL</string>
         <key>CFBundleGetInfoString</key>
