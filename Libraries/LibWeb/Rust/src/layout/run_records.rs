@@ -1177,6 +1177,25 @@ impl<'arena> RunRecords<'arena> {
         }
     }
 
+    /// The last line laid out in `node`, a box this run holds: by this run, or by the run of a child that handed it back.
+    #[track_caller]
+    pub(crate) fn last_line_of(&self, node: Node) -> Option<inline_content::LineRecord> {
+        if let Some(used) = self.used_values_if_owned(node) {
+            return used.line_data_ref().and_then(|data| data.last_line());
+        }
+        let Some(HeldBox::Kept(index)) = self.held_box(node) else {
+            self.panic_for_box_not_held(node)
+        };
+        match &self.scratch.kept_boxes.borrow()[index as usize].holding {
+            KeptBoxHolding::ChildAwaitingItsRun { .. } => None,
+            KeptBoxHolding::ChildLaidOutByItsOwnRun(handed_back) => handed_back
+                .line_data
+                .as_ref()
+                .and_then(|content| content.lines.last().copied()),
+            KeptBoxHolding::Record { .. } => unreachable!("a box with a record has its lines in the record"),
+        }
+    }
+
     /// What the fragment of `node` shows of the box's own layout, which finishes the lines this run laid out in it.
     #[track_caller]
     pub(crate) fn fragment_geometry_of(

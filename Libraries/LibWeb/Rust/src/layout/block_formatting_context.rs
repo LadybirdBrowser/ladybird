@@ -546,10 +546,13 @@ impl<'pass> BlockFormattingContext<'pass> {
             .with_children_sized_in_parent_cells(self)
     }
 
-    /// Keeps sizing `node`, a child with a formatting context of its own whose record was just created, in cells of
-    /// this block formatting context until it is handed to its run.
-    pub(crate) fn size_child_ahead_of_its_run(&self, node: Node) {
-        let cells = used_values::RootInputCells::capture(self.used(node));
+    /// Keeps `node`, a child with a formatting context of its own, for its run, and sizes it in cells of this block
+    /// formatting context, starting out from the cells it was kept with, until it is handed to its run.
+    pub(crate) fn keep_child_for_its_run_and_size_it_ahead(&self, node: Node, constraints: ContainingBlockConstraints) {
+        let cells = self
+            .run
+            .records
+            .keep_child_for_its_run(&self.run.callbacks, node, constraints);
         self.cells_of_children_sized_ahead_of_their_runs
             .borrow_mut()
             .insert(node, cells);
@@ -564,11 +567,11 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 
     /// The sizes, size constraints and box sides of `node`, a box this block formatting context sizes: from the cells it
-    /// sizes a child in ahead of its run, or from the record of a box it lays out itself.
+    /// sizes a child in ahead of its run, or as this run holds the box otherwise.
     fn child_metrics(&self, node: Node) -> run_records::BoxMetrics<'pass> {
         match self.cells_of_child_sized_ahead_of_its_run(node) {
             Some(cells) => run_records::BoxMetrics::BeingSizedByItsParent(cells),
-            None => run_records::BoxMetrics::LaidOutByThisRun(self.used(node)),
+            None => self.run.records.box_metrics_of(node),
         }
     }
 
@@ -592,18 +595,21 @@ impl<'pass> BlockFormattingContext<'pass> {
             .cells_of_children_sized_ahead_of_their_runs
             .borrow_mut()
             .remove(&node);
-        handed_over.unwrap_or_else(|| used_values::RootInputCells::capture(self.used(node)))
+        handed_over.unwrap_or_else(|| self.run.records.box_metrics_of(node).input_cells())
     }
 
-    /// Gives the record of `node` the cells it was sized in, where this block formatting context stops sizing it without
+    /// Gives `node` a record of the cells it was sized in, where this block formatting context stops sizing it without
     /// handing it to its run.
     fn stop_sizing_child_ahead_of_its_run(&self, node: Node) {
+        if std::thread::panicking() {
+            return;
+        }
         let cells = self
             .cells_of_children_sized_ahead_of_their_runs
             .borrow_mut()
             .remove(&node);
         if let Some(cells) = cells {
-            cells.apply_to_record(self.used(node));
+            self.run.records.lay_out_child_in_this_run(node, cells);
         }
     }
 
@@ -1992,14 +1998,14 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
 
         let block_container_inline_size = self.used(block_container).content_inline_size.get();
-        self.create_used_values(node, input.containing_block_constraints);
         // NB: A child with a formatting context of its own is sized in cells of this block formatting context, which its
-        //     run takes. Its record takes them where it is never handed to a run.
+        //     run takes. It gets a record of them where it is never handed to a run.
         if formatting_context::formatting_context_type_created_by_box(facts).is_some() {
-            self.size_child_ahead_of_its_run(node);
+            self.keep_child_for_its_run_and_size_it_ahead(node, input.containing_block_constraints);
+        } else {
+            self.create_used_values(node, input.containing_block_constraints);
         }
-        let _record_takes_the_cells_of_a_child_never_handed_to_its_run =
-            RecordTakesCellsOfChildNeverHandedToItsRun { context: self, node };
+        let _record_for_a_child_never_handed_to_its_run = RecordForChildNeverHandedToItsRun { context: self, node };
         let _percentage_block_size_dependency_tracking = self
             .run
             .records
@@ -4291,8 +4297,7 @@ impl<'pass> BlockFormattingContext<'pass> {
     ) {
         let available_space = input.available_space;
         assert!(self.facts(node).is_floating());
-        let _record_takes_the_cells_of_a_child_never_handed_to_its_run =
-            RecordTakesCellsOfChildNeverHandedToItsRun { context: self, node };
+        let _record_for_a_child_never_handed_to_its_run = RecordForChildNeverHandedToItsRun { context: self, node };
         let block_container = self.containing_block(node);
         let mut float_input = LayoutInput {
             available_space,
@@ -4527,25 +4532,21 @@ impl<'pass> BlockFormattingContext<'pass> {
 
         // The element's block size is the distance from its block-start content edge to the first applicable edge below.
         // 1. the bottom edge of the last line box, if the box establishes a inline formatting context with one or more lines
-        if facts.children_are_inline() {
-            let node_used = self.used(node);
-            let line_data = node_used.line_data_ref();
-            if let Some(last_line) = line_data.as_deref().and_then(|data| data.last_line()) {
-                let mut block_size = last_line.physical_vertical_end();
-                if last_line.has_block_level_box {
-                    let mut margin_state = self.margin_state.borrow_mut();
-                    let mut margin_bottom = margin_state.current_collapsed_margin();
-                    let used = self.used(node);
-                    if used.padding_bottom.get() == CssPixels::default()
-                        && used.border_bottom.get() == CssPixels::default()
-                    {
-                        margin_state.box_last_in_flow_child_margin_bottom_collapsed = true;
-                        margin_bottom = CssPixels::default();
-                    }
-                    block_size = (block_size + margin_bottom).max(CssPixels::default());
+        if facts.children_are_inline()
+            && let Some(last_line) = self.run.records.last_line_of(node)
+        {
+            let mut block_size = last_line.physical_vertical_end();
+            if last_line.has_block_level_box {
+                let mut margin_state = self.margin_state.borrow_mut();
+                let mut margin_bottom = margin_state.current_collapsed_margin();
+                let metrics = self.child_metrics(node);
+                if metrics.padding_bottom() == CssPixels::default() && metrics.border_bottom() == CssPixels::default() {
+                    margin_state.box_last_in_flow_child_margin_bottom_collapsed = true;
+                    margin_bottom = CssPixels::default();
                 }
-                return block_size;
+                block_size = (block_size + margin_bottom).max(CssPixels::default());
             }
+            return block_size;
         }
 
         // 2. the bottom edge of the bottom (possibly collapsed) margin of its last in-flow child, if the child's bottom margin does not collapse with the element's bottom margin
@@ -4918,14 +4919,14 @@ pub(crate) fn automatic_block_size_for_bfc_root(
     bottom.unwrap_or_default().max(CssPixels::default())
 }
 
-/// Gives the record of a child its block formatting context sized in cells of its own the cells it was sized in, when
-/// the context stops laying out the child without handing it to its run.
-struct RecordTakesCellsOfChildNeverHandedToItsRun<'context, 'pass> {
+/// Gives a child its block formatting context sized in cells of its own a record of those cells, when the context stops
+/// laying out the child without handing it to its run.
+struct RecordForChildNeverHandedToItsRun<'context, 'pass> {
     context: &'context BlockFormattingContext<'pass>,
     node: Node,
 }
 
-impl Drop for RecordTakesCellsOfChildNeverHandedToItsRun<'_, '_> {
+impl Drop for RecordForChildNeverHandedToItsRun<'_, '_> {
     fn drop(&mut self) {
         self.context.stop_sizing_child_ahead_of_its_run(self.node);
     }
