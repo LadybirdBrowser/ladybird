@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS basic box model: getComputedStyle().margin</title>
+<link rel="help" href="https://drafts.csswg.org/css-box-3/#propdef-margin">
+<meta name="assert" content="margin computed value has absolute lengths.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<style>
+  #parent {
+    width: 200px;
+  }
+  #target {
+    width: 0px;
+    font-size: 40px;
+  }
+</style>
+</head>
+<body>
+<div id="parent">
+  <div id="target"></div>
+</div>
+<script>
+const target = document.getElementById("target");
+
+test_computed_value("margin", "10px");
+test_computed_value("margin", "10px 20px 30px 40px");
+test_computed_value("margin", "calc(0.5em + 10px)", "30px");
+test_computed_value("margin", "30%", "60px");
+
+// Since what should the margin be in presence of other margins is a bit
+// unclear (https://github.com/w3c/csswg-drafts/issues/2328), reset the margin
+// before testing.
+target.style.margin = "0";
+test_computed_value("margin-top", "10px");
+target.style.margin = "0";
+test_computed_value("margin-right", "20px");
+target.style.margin = "0";
+test_computed_value("margin-bottom", "30px");
+target.style.margin = "0";
+test_computed_value("margin-left", "40px");
+</script>
+</body>
+</html>

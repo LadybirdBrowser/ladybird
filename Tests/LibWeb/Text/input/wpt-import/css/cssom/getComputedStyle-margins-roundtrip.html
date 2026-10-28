@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<title>Chromium bug: getComputedStyle() fixed-length inset values don't roundtrip</title>
+<link rel="help" href="https://drafts.csswg.org/cssom/#resolved-value">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1482703">
+<link rel="help" href="mailto:xiaochengh@chromium.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<div id="target1" style="margin-left: 20.7px"></div>
+<script>
+test(() => {
+  assert_equals(getComputedStyle(target1).marginLeft, '20.7px');
+}, 'Fixed-length margin-left property value should roundtrip');
+</script>
+
+<div id="target2" style="margin-right: 20.7px"></div>
+<script>
+test(() => {
+  assert_equals(getComputedStyle(target2).marginRight, '20.7px');
+}, 'Fixed-length margin-right property value should roundtrip');
+</script>
+
+<div id="target3" style="margin-top: 20.7px"></div>
+<script>
+test(() => {
+  assert_equals(getComputedStyle(target3).marginTop, '20.7px');
+}, 'Fixed-length margin-top property value should roundtrip');
+</script>
+
+<div id="target4" style="margin-bottom: 20.7px"></div>
+<script>
+test(() => {
+  assert_equals(getComputedStyle(target4).marginBottom, '20.7px');
+}, 'Fixed-length margin-bottom property value should roundtrip');
+</script>
