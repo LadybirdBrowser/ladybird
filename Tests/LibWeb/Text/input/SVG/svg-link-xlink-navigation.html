@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const base = document.createElement("base");
+        base.href = "../wpt-import/common/blank.html";
+        document.head.append(base);
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        document.body.append(svg);
+        for (const href of [null, "#modern", ""]) {
+            const frame = document.createElement("iframe");
+            frame.name = "destination";
+            const initiallyLoaded = new Promise(resolve => frame.onload = resolve);
+            document.body.append(frame);
+            await initiallyLoaded;
+            const link = document.createElementNS(svg.namespaceURI, "a");
+            link.setAttributeNS("http://www.w3.org/1999/xlink", "xlink:href", "#legacy");
+            if (href !== null)
+                link.setAttribute("href", href);
+            link.setAttribute("target", frame.name);
+            const child = document.createElement("span");
+            link.append(child);
+            svg.append(link);
+            const navigated = new Promise(resolve => frame.onload = resolve);
+            child.click();
+            await navigated;
+            println(`href=${JSON.stringify(href)}: ${frame.contentWindow.location.hash}`);
+            link.remove();
+            frame.remove();
+        }
+        done();
+    });
+</script>
