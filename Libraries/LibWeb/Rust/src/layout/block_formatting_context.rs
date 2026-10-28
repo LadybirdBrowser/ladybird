@@ -609,7 +609,9 @@ impl<'pass> BlockFormattingContext<'pass> {
             .borrow_mut()
             .remove(&node);
         if let Some(cells) = cells {
-            self.run.records.lay_out_child_in_this_run(node, cells);
+            self.run
+                .records
+                .lay_out_child_in_this_run(node, cells, self.run.callbacks.frame);
         }
     }
 
