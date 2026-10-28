@@ -29,6 +29,14 @@ pub(super) struct SizeContainerQueryFacts {
 }
 
 impl SizeContainerQueryFacts {
+    pub(super) fn is_queried_container(&self, node: StyleNodeID) -> bool {
+        self.queried_containers.contains(&node)
+    }
+
+    pub(super) fn note_font_input_change(&mut self, node: StyleNodeID) {
+        self.needing_evaluation_after_layout.insert(node);
+    }
+
     pub(super) fn note_availability_change(&mut self, node: StyleNodeID) {
         self.availability_changed.insert(node);
     }
