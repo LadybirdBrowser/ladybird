@@ -3394,6 +3394,18 @@ void ConnectionFromClient::js_console_input(Web::PageId page_id, String js_sourc
     page->js_console_input(js_source);
 }
 
+void ConnectionFromClient::complete_js_console_input(Web::PageId page_id, u64 request_id, String input)
+{
+    auto page = this->page(page_id);
+    auto completion = page.has_value() ? page->complete_js_console_input(input) : OptionalNone {};
+    if (!completion.has_value()) {
+        async_did_complete_js_console_input(page_id, request_id, OptionalNone {}, String {});
+        return;
+    }
+
+    async_did_complete_js_console_input(page_id, request_id, move(completion->matches), move(completion->match_prop));
+}
+
 void ConnectionFromClient::run_javascript(Web::PageId page_id, String js_source)
 {
     if (auto page = this->page(page_id); page.has_value())

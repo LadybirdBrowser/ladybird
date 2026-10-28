@@ -153,6 +153,14 @@ public:
     using OnResolvedURLReceived = Function<void(ErrorOr<String>)>;
     virtual void resolve_dom_node_url(TabDescription const&, Optional<Web::UniqueNodeID>, String const&, OnResolvedURLReceived) const { }
 
+    struct ConsoleInputCompletion {
+        // No matches at all, rather than an empty list, means the input doesn't end in a name to complete.
+        Optional<Vector<String>> matches;
+        String match_prop;
+    };
+    using OnConsoleInputCompleted = Function<void(ErrorOr<ConsoleInputCompletion>)>;
+    virtual void complete_console_input(TabDescription const&, String const&, OnConsoleInputCompleted on_complete) const { on_complete(ConsoleInputCompletion {}); }
+
     using OnStyleSheetsReceived = Function<void(ErrorOr<Vector<Web::CSS::StyleSheetIdentifier>>)>;
     using OnStyleSheetSourceReceived = Function<void(Web::CSS::StyleSheetIdentifier const&, Utf16String)>;
     virtual void retrieve_style_sheets(TabDescription const&, OnStyleSheetsReceived) const { }

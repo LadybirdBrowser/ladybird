@@ -116,6 +116,7 @@ ViewImplementation::~ViewImplementation()
     // cancelling the view's location requests that the location is no longer in use.
     on_url_change = nullptr;
     on_location_in_use_change = nullptr;
+    answer_pending_console_input_completions();
     TabPerformanceMonitor::forget_view(view_id());
     // Leave the views before the permission manager hears: a one-time grant that ends with this view has it revoke
     // location in every view that shows the site, and this one is on its way out.
@@ -2453,6 +2454,22 @@ void ViewImplementation::retrieve_debugger_source_positions(Web::HTML::ScriptReg
     page().async_get_debugger_source_positions(request_id, source_id);
 }
 
+// A DevTools client waits for the answer to each console input completion request before the next, so a request that
+// its page can no longer answer gets no completions instead.
+void ViewImplementation::answer_pending_console_input_completions()
+{
+    auto pending_console_input_completions = move(on_completed_js_console_input);
+    for (auto& pending : pending_console_input_completions)
+        pending.value(DevTools::DevToolsDelegate::ConsoleInputCompletion {});
+}
+
+void ViewImplementation::complete_js_console_input(String const& input, DevTools::DevToolsDelegate::OnConsoleInputCompleted on_complete)
+{
+    auto request_id = m_next_js_console_completion_request_id++;
+    on_completed_js_console_input.set(request_id, move(on_complete));
+    page().async_complete_js_console_input(request_id, input);
+}
+
 void ViewImplementation::resolve_dom_node_url(Optional<Web::UniqueNodeID> node_id, String const& url, DevTools::DevToolsDelegate::OnResolvedURLReceived on_complete)
 {
     auto request_id = m_next_resolve_dom_node_url_request_id++;
@@ -3476,6 +3493,9 @@ void ViewImplementation::display_page_changed(RefPtr<WebContentPage> previous_pa
         pending_screenshot->reject(Error::from_string_literal("The displayed page changed before taking the screenshot"));
     if (auto pending_info_request = move(m_pending_info_request))
         pending_info_request->reject(Error::from_string_literal("The displayed page changed before sending its info"));
+
+    // So did console input completion requests.
+    answer_pending_console_input_completions();
 
     auto& page = this->page();
     if (previous_page) {

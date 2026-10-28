@@ -12,6 +12,7 @@
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HTML/Scripting/ConsoleInputCompletion.h>
 #include <WebContent/Forward.h>
 
 namespace WebContent {
@@ -24,6 +25,7 @@ public:
     virtual ~WebContentConsoleClient() override;
 
     void handle_input(StringView js_source);
+    Optional<Web::HTML::ConsoleInputCompletion> complete_input(StringView input);
 
     virtual void handle_result(JS::Value) = 0;
 

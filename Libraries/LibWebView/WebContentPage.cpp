@@ -2195,6 +2195,15 @@ void WebContentPage::did_resolve_dom_node_url(u64 request_id, String resolved_ur
     }
 }
 
+void WebContentPage::did_complete_js_console_input(u64 request_id, Optional<Vector<String>> matches, String match_prop)
+{
+    if (displays_tab()) {
+        auto handler = view().on_completed_js_console_input.take(request_id);
+        if (handler.has_value())
+            (*handler)(DevTools::DevToolsDelegate::ConsoleInputCompletion { move(matches), move(match_prop) });
+    }
+}
+
 void WebContentPage::did_receive_network_response_headers(u64 request_id, u32 status_code, Optional<String> reason_phrase, Vector<HTTP::Header> response_headers, Requests::CacheState cache_state)
 {
     if (displays_tab()) {

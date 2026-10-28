@@ -18,6 +18,7 @@
 #include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/SameDocumentNavigationEntry.h>
+#include <LibWeb/HTML/Scripting/ConsoleInputCompletion.h>
 #include <LibWeb/HTML/Scripting/ScriptRegistry.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/Page/Page.h>
@@ -122,6 +123,7 @@ public:
 
     void initialize_js_console(Web::DOM::Document& document);
     void js_console_input(StringView js_source);
+    Optional<Web::HTML::ConsoleInputCompletion> complete_js_console_input(StringView input);
     void did_execute_js_console_input(WebView::DebuggerValue const&);
     ErrorOr<WebView::DebuggerObjectProperties> console_object_properties(u64 object_id);
     void run_javascript(StringView js_source);

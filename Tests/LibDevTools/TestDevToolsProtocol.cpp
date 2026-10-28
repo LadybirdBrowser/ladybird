@@ -1339,6 +1339,12 @@ public:
         on_complete(move(properties));
     }
 
+    virtual void complete_console_input(DevTools::TabDescription const&, String const& input, OnConsoleInputCompleted callback) const override
+    {
+        last_console_input_to_complete = input;
+        callback(console_input_completion);
+    }
+
     virtual void resolve_dom_node_url(DevTools::TabDescription const&, Optional<Web::UniqueNodeID> node_id, String const& url, OnResolvedURLReceived callback) const override
     {
         ++resolve_dom_node_url_call_count;
@@ -1763,6 +1769,8 @@ public:
     mutable size_t last_attribute_count { 0 };
     mutable Optional<Web::UniqueNodeID> last_resolved_url_node;
     mutable Optional<String> last_url_to_resolve;
+    mutable Optional<String> last_console_input_to_complete;
+    DevToolsDelegate::ConsoleInputCompletion console_input_completion;
     mutable String resolved_dom_node_url { "https://example.test/scripts/app.js"_string };
     mutable Optional<String> last_navigated_url;
     mutable Optional<bool> last_reload_bypass_cache;
@@ -4707,6 +4715,42 @@ TEST_CASE(console_evaluation_result_object_grips)
     EXPECT_EQ(session->delegate.last_debugger_object_id.value(), 8u);
     EXPECT_EQ(session->delegate.last_debugger_object_scope.value(), WebView::DebuggerObjectScope::Console);
     EXPECT(properties.get_object("ownProperties"sv)->has("answer"sv));
+}
+
+TEST_CASE(console_autocomplete)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    auto target = get_frame_target(client, actor_from(get_tab(client), "actor"sv));
+    auto console_actor = actor_from(target, "consoleActor"sv);
+
+    auto autocomplete = [&](StringView text, Optional<size_t> cursor) {
+        JsonObject request;
+        request.set("to"sv, console_actor);
+        request.set("type"sv, "autocomplete"sv);
+        request.set("text"sv, text);
+        if (cursor.has_value())
+            request.set("cursor"sv, *cursor);
+        return client.request(move(request));
+    };
+
+    session->delegate.console_input_completion = { .matches = Vector { "body"_string, "bodyText"_string }, .match_prop = "bo"_string };
+
+    auto response = autocomplete("document.bo"sv, {});
+    EXPECT_EQ(session->delegate.last_console_input_to_complete.value(), "document.bo"sv);
+    EXPECT_EQ(response.get_array("matches"sv)->size(), 2u);
+    EXPECT_EQ(response.get_array("matches"sv)->at(0).as_string(), "body"sv);
+    EXPECT_EQ(response.get_string("matchProp"sv).value(), "bo"sv);
+    EXPECT_EQ(response.get_bool("isElementAccess"sv).value(), false);
+
+    // Only the text before the cursor is completed.
+    (void)autocomplete("document.bo + 1"sv, 11);
+    EXPECT_EQ(session->delegate.last_console_input_to_complete.value(), "document.bo"sv);
+
+    session->delegate.console_input_completion = {};
+    EXPECT(autocomplete("f().x"sv, {}).get("matches"sv)->is_null());
 }
 
 TEST_CASE(inspector_walker_navigation_reloads_root)

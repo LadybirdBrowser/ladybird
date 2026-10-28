@@ -2395,6 +2395,13 @@ void PageClient::js_console_input(StringView js_source)
         m_top_level_document_console_client->handle_input(js_source);
 }
 
+Optional<Web::HTML::ConsoleInputCompletion> PageClient::complete_js_console_input(StringView input)
+{
+    if (!m_top_level_document_console_client)
+        return {};
+    return m_top_level_document_console_client->complete_input(input);
+}
+
 void PageClient::run_javascript(StringView js_source)
 {
     auto active_document = page().local_traversable()->active_document();

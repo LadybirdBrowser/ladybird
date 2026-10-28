@@ -191,6 +191,7 @@ endpoint WebContentServer routed by Web::PageId page_id
     get_node_id_at_position(Web::PageId page_id, u64 request_id, Web::DevicePixelPoint position) =|
 
     js_console_input(Web::PageId page_id, String js_source) =|
+    complete_js_console_input(Web::PageId page_id, u64 request_id, String input) =|
     run_javascript(Web::PageId page_id, String js_source) =|
 
     list_style_sheets(Web::PageId page_id) =|
