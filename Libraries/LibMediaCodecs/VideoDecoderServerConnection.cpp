@@ -290,16 +290,13 @@ private:
     void send_frame(NonnullRefPtr<VideoFrame> frame)
     {
         auto metadata = VideoFrameMetadata::for_frame(*frame);
-        auto surface = frame->surface();
-        Core::AnonymousBuffer pixel_buffer;
-        if (!surface)
-            pixel_buffer = frame->pixel_buffer();
+        auto pixels = frame->storage()->pixels();
 
         auto should_close_connection = false;
         m_connection.with_target([&](auto& connection) {
             // The frame is held before the client hears of it, so that its release cannot arrive first.
             auto frame_id = connection.hold_frame_until_released(move(frame));
-            connection.async_frame_decoded(m_decoder_id, m_generation, frame_id, metadata, move(pixel_buffer), move(surface));
+            connection.async_frame_decoded(m_decoder_id, m_generation, frame_id, metadata, move(pixels));
             should_close_connection = connection.should_close_after_decoding_frame();
         });
         if (should_close_connection)

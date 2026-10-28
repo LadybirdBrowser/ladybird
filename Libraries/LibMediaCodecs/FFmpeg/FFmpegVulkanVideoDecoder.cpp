@@ -417,12 +417,8 @@ DecoderErrorOr<NonnullOwnPtr<FFmpegVulkanVideoDecoder>> FFmpegVulkanVideoDecoder
     if (frame == nullptr)
         return DecoderError::with_description(DecoderErrorCategory::Memory, "Failed to allocate FFmpeg frame"sv);
 
-    auto surface_pool = VideoFrameSurfacePool::create();
-    if (surface_pool.is_error())
-        return DecoderError::format(DecoderErrorCategory::Memory, "Failed to create a video surface pool: {}", surface_pool.release_error());
-
     memory_guard.disarm();
-    auto decoder = DECODER_TRY_ALLOC(adopt_nonnull_own_or_enomem(new (nothrow) FFmpegVulkanVideoDecoder(functions, *device, codec_context, packet, frame, surface_pool.release_value())));
+    auto decoder = DECODER_TRY_ALLOC(adopt_nonnull_own_or_enomem(new (nothrow) FFmpegVulkanVideoDecoder(functions, *device, codec_context, packet, frame)));
     codec_context->opaque = decoder.ptr();
 
     decoder->m_completion_thread = DECODER_TRY_ALLOC(Threading::Thread::try_create("VulkanDecode"sv, [decoder = decoder.ptr()] -> intptr_t {
@@ -433,13 +429,12 @@ DecoderErrorOr<NonnullOwnPtr<FFmpegVulkanVideoDecoder>> FFmpegVulkanVideoDecoder
     return decoder;
 }
 
-FFmpegVulkanVideoDecoder::FFmpegVulkanVideoDecoder(FFmpegFunctions const& functions, VulkanVideoDevice& device, AVCodecContext* codec_context, AVPacket* packet, AVFrame* received_frame, NonnullRefPtr<VideoFrameSurfacePool> surface_pool)
+FFmpegVulkanVideoDecoder::FFmpegVulkanVideoDecoder(FFmpegFunctions const& functions, VulkanVideoDevice& device, AVCodecContext* codec_context, AVPacket* packet, AVFrame* received_frame)
     : m_functions(functions)
     , m_device(device)
     , m_codec_context(codec_context)
     , m_packet(packet)
     , m_received_frame(received_frame)
-    , m_surface_pool(move(surface_pool))
 {
 }
 
@@ -458,7 +453,6 @@ FFmpegVulkanVideoDecoder::~FFmpegVulkanVideoDecoder()
     free_decoding_frames(decoding_frames);
     m_outputs.clear();
 
-    m_surface_pool->shed_storage();
     m_functions.av_packet_free(&m_packet);
     m_functions.av_frame_free(&m_received_frame);
     m_functions.avcodec_free_context(&m_codec_context);
@@ -751,15 +745,12 @@ DecoderErrorOr<NonnullRefPtr<VideoFrame>> FFmpegVulkanVideoDecoder::take_next_ou
     }
 
     auto const& output = m_outputs.first();
-    auto acquired_slot = m_surface_pool->try_acquire(output.surface, output.contents);
-    if (!acquired_slot.has_value())
-        return DecoderError::with_description(DecoderErrorCategory::TryAgain, "Every video frame slot is held elsewhere"sv);
-    auto pool_slot = m_surface_pool->try_adopt_acquired_slot(*acquired_slot);
-    if (pool_slot.is_error())
-        return DecoderError::with_description(DecoderErrorCategory::Memory, "Failed to allocate a pooled frame slot reference"sv);
+    auto storage = m_surface_budget->try_hold(output.surface, output.contents);
+    if (!storage)
+        return DecoderError::with_description(DecoderErrorCategory::TryAgain, "Every video surface the decoder may hand out is held elsewhere"sv);
 
     auto cicp = coding_independent_code_points_of(m_functions, *m_codec_context, container_cicp);
-    auto frame = DECODER_TRY_ALLOC(try_make_ref_counted<VideoFrame>(output.timing.timestamp, output.timing.duration, output.size, output.bit_depth, Subsampling::yuv420(), cicp, pool_slot.release_value()));
+    auto frame = DECODER_TRY_ALLOC(try_make_ref_counted<VideoFrame>(output.timing.timestamp, output.timing.duration, output.size, output.bit_depth, Subsampling::yuv420(), cicp, storage.release_nonnull()));
     m_outputs.take_first();
     return frame;
 }

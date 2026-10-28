@@ -73,7 +73,7 @@ void VideoPresentationServerConnection::create_registered_video_edge(VideoSinkHa
     RemoteVideoSink::Delegates delegates;
     delegates.send_frame = [weak_connection, edge_id](RemoteVideoSink::LentFrame lent_frame) {
         weak_connection.with_target([&](auto& connection) {
-            connection.async_lend_frame(edge_id, lent_frame.lend_id, lent_frame.seek_id, lent_frame.metadata, move(lent_frame.pixel_buffer), move(lent_frame.surface));
+            connection.async_lend_frame(edge_id, lent_frame.lend_id, lent_frame.seek_id, lent_frame.metadata, move(lent_frame.pixels));
         });
     };
     delegates.send_status = [weak_connection, edge_id](PipelineStatus status, u32 seek_id) {

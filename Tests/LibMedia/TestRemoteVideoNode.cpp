@@ -163,7 +163,7 @@ struct VideoEdgeTestHarness
                         if (auto harness = weak.strong_ref())
                             harness->sink->release_frame(lend_id);
                     };
-                    auto frame = MUST(create_received_video_frame(lent_frame.metadata, move(lent_frame.pixel_buffer), move(lent_frame.surface), 1, move(release)));
+                    auto frame = MUST(create_received_video_frame(lent_frame.metadata, move(lent_frame.pixels), 1, move(release)));
                     consumer->receive_frame(lent_frame.lend_id, lent_frame.seek_id, move(frame));
                 },
                 [&](StatusMessage const& status) {
@@ -213,16 +213,14 @@ NonnullRefPtr<VideoFrame> create_pooled_frame(VideoFramePool& pool, AK::Duration
 
     auto layout = MUST(frame_plane_layout(frame_size, bit_depth, subsampling));
     auto acquired = pool.try_acquire(layout.total_byte_count).release_value();
-    auto slot = MUST(pool.try_adopt_acquired_slot(acquired));
-
-    return make_ref_counted<VideoFrame>(timestamp, duration, Gfx::Size<u32>(frame_size), bit_depth, subsampling, CodingIndependentCodePoints {}, move(slot));
+    return make_ref_counted<VideoFrame>(timestamp, duration, Gfx::Size<u32>(frame_size), bit_depth, subsampling, CodingIndependentCodePoints {}, move(acquired.storage));
 }
 
 // A frame as the consumer receives it, which counts its release.
 NonnullRefPtr<VideoFrame> create_received_frame(VideoFramePool& pool, AK::Duration timestamp, Function<void()> on_release = [] { })
 {
     auto frame = create_pooled_frame(pool, timestamp, AK::Duration::from_milliseconds(100));
-    return MUST(create_received_video_frame(VideoFrameMetadata::for_frame(*frame), frame->pixel_buffer(), nullptr, 1, move(on_release)));
+    return MUST(create_received_video_frame(VideoFrameMetadata::for_frame(*frame), frame->pixel_buffer(), 1, move(on_release)));
 }
 
 RemoteVideoProducer::Delegates make_consumer_delegates(size_t& upstream_seeks)

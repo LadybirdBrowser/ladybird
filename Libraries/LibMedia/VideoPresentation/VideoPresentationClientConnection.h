@@ -46,7 +46,7 @@ private:
 
     virtual void video_edge_ready(u64 edge_id, Media::MediaTimeReader time_reader) override;
     virtual void update_edge_time_reader(u64 edge_id, Media::MediaTimeReader time_reader) override;
-    virtual void lend_frame(u64 edge_id, u64 lend_id, u32 seek_id, Media::VideoFrameMetadata metadata, Core::AnonymousBuffer pixel_buffer, RefPtr<Media::VideoSurface> surface) override;
+    virtual void lend_frame(u64 edge_id, u64 lend_id, u32 seek_id, Media::VideoFrameMetadata metadata, Media::VideoFramePixels pixels) override;
     virtual void edge_status_changed(u64 edge_id, Media::PipelineStatus status, u32 seek_id) override;
     virtual void notify_clock_resumed(u64 edge_id) override;
     virtual void seek_sink(u64 edge_id, u32 requested_seek_id, InvalidateHeldData) override;
@@ -57,7 +57,6 @@ private:
         RefPtr<RemoteVideoProducer> consumer;
         RefPtr<DisplayingVideoSink> sink;
         Optional<MediaTimeReader> time_reader;
-        // Tells the frames lent over this edge apart from those of every other edge in this process.
         u64 sender_id { 0 };
         u32 expected_requested_seek_id { 0 };
     };

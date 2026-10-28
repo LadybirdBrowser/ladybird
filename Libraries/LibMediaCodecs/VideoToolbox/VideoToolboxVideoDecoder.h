@@ -38,7 +38,7 @@ public:
 
     virtual ~VideoToolboxVideoDecoder() override;
 
-    virtual void set_storage_freed_callback(Function<void()> callback) override { m_surface_pool->set_slot_freed_callback(move(callback)); }
+    virtual void set_storage_freed_callback(Function<void()> callback) override { m_surface_budget->set_storage_freed_callback(move(callback)); }
     virtual void set_output_arrived_callback(Function<void()> callback) override { m_output_arrived_callback = move(callback); }
 
     virtual DecoderErrorOr<void> receive_coded_data(CodedFrame const&, DecodeIntent) override;
@@ -50,8 +50,8 @@ private:
     struct Session;
     struct DecodedOutput {
         NonnullRefPtr<VideoSurface> surface;
-        // Keeps the media engine from decoding over the surface, from the reorder window until the slot the frame
-        // goes out in is released.
+        // Keeps the media engine from decoding over the surface, from the reorder window until the frame it goes out
+        // in is released.
         NonnullRefPtr<VideoSurfaceContents> contents;
         AK::Duration timestamp;
         AK::Duration duration;
@@ -61,7 +61,7 @@ private:
         CodingIndependentCodePoints cicp;
     };
 
-    VideoToolboxVideoDecoder(CodecID, NonnullRefPtr<VideoFrameSurfacePool>, NonnullOwnPtr<FormatState>);
+    VideoToolboxVideoDecoder(CodecID, NonnullOwnPtr<FormatState>);
 
     DecoderErrorOr<void> ensure_session_for_frame(CodedFrame const&);
 
@@ -76,7 +76,7 @@ private:
     DecoderErrorOr<NonnullRefPtr<VideoFrame>> adopt_output_while_locked(CodingIndependentCodePoints const& container_cicp, size_t index);
 
     CodecID const m_codec_id;
-    NonnullRefPtr<VideoFrameSurfacePool> m_surface_pool;
+    NonnullRefPtr<VideoSurfaceBudget> m_surface_budget { make_ref_counted<VideoSurfaceBudget>() };
     NonnullOwnPtr<FormatState> m_format_state;
     OwnPtr<Session> m_session;
     bool m_reached_end_of_stream { false };

@@ -201,13 +201,10 @@ public:
         auto acquired_slot = m_frame_pool->try_acquire(byte_count);
         if (!acquired_slot.has_value())
             return Media::DecoderError::with_description(Media::DecoderErrorCategory::TryAgain, "Every video frame slot is held elsewhere"sv);
-        auto pool_slot = m_frame_pool->try_adopt_acquired_slot(*acquired_slot);
-        if (pool_slot.is_error())
-            return Media::DecoderError::with_description(Media::DecoderErrorCategory::Memory, "Failed to adopt a pooled frame slot"sv);
 
         auto output = m_withheld_outputs->m_released.take_first();
         m_withheld_outputs->m_handed_out_count++;
-        return make_ref_counted<Media::VideoFrame>(output.timestamp, output.duration, FRAME_SIZE, 8, Media::Subsampling::yuv420(), container_cicp, pool_slot.release_value());
+        return make_ref_counted<Media::VideoFrame>(output.timestamp, output.duration, FRAME_SIZE, 8, Media::Subsampling::yuv420(), container_cicp, move(acquired_slot->storage));
     }
 
     virtual void flush() override

@@ -394,7 +394,7 @@ private:
         shutdown();
     }
 
-    virtual void frame_decoded(u64 decoder_id, u32 generation, u64 frame_id, VideoFrameMetadata metadata, Core::AnonymousBuffer pixel_buffer, RefPtr<VideoSurface> surface) override
+    virtual void frame_decoded(u64 decoder_id, u32 generation, u64 frame_id, VideoFrameMetadata metadata, VideoFramePixels pixels) override
     {
         auto state = find_decoder(decoder_id);
         if (!state) {
@@ -414,7 +414,7 @@ private:
             if (server_was_waiting_for_storage && state->storage_freed_callback)
                 state->storage_freed_callback();
         };
-        auto frame_or_error = create_received_video_frame(metadata, move(pixel_buffer), move(surface), 0, move(release_to_server));
+        auto frame_or_error = create_received_video_frame(metadata, move(pixels), 0, move(release_to_server));
         if (frame_or_error.is_error()) {
             disconnect_misbehaving_server("unusable frame"sv, frame_or_error.release_error());
             return;
@@ -740,7 +740,7 @@ DecoderErrorOr<NonnullRefPtr<VideoFrame>> RemoteVideoDecoder::take_next_output(C
     cicp.adopt_specified_values(frame->cicp());
     return DECODER_TRY_ALLOC(try_make_ref_counted<VideoFrame>(
         frame->timestamp(), frame->duration(), frame->size(),
-        frame->bit_depth(), frame->subsampling(), cicp, frame->backing_storage()));
+        frame->bit_depth(), frame->subsampling(), cicp, frame->storage()));
 }
 
 void RemoteVideoDecoder::flush()

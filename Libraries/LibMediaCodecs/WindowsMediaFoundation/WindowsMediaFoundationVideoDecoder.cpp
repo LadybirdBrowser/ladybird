@@ -605,9 +605,6 @@ DecoderErrorOr<NonnullRefPtr<VideoFrame>> WindowsMediaFoundationVideoDecoder::co
     auto acquired_slot = m_frame_pool->try_acquire(layout.total_byte_count);
     if (!acquired_slot.has_value())
         return DecoderError::with_description(DecoderErrorCategory::TryAgain, "Every video frame slot is held elsewhere"sv);
-    auto pool_slot_result = m_frame_pool->try_adopt_acquired_slot(*acquired_slot);
-    if (pool_slot_result.is_error())
-        return DecoderError::with_description(DecoderErrorCategory::Memory, "Failed to allocate a pooled frame slot reference"sv);
 
     ComPtr<IMFMediaBuffer> buffer;
     if (FAILED(output.sample->ConvertToContiguousBuffer(&buffer)))
@@ -685,7 +682,7 @@ DecoderErrorOr<NonnullRefPtr<VideoFrame>> WindowsMediaFoundationVideoDecoder::co
         }
     }
 
-    return DECODER_TRY_ALLOC(try_make_ref_counted<VideoFrame>(output.timestamp, output.duration, format.aperture_size, format.bit_depth, subsampling, container_cicp, pool_slot_result.release_value()));
+    return DECODER_TRY_ALLOC(try_make_ref_counted<VideoFrame>(output.timestamp, output.duration, format.aperture_size, format.bit_depth, subsampling, container_cicp, acquired_slot->storage));
 }
 
 void WindowsMediaFoundationVideoDecoder::flush()

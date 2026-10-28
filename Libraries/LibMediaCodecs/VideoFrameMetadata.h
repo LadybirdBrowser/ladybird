@@ -17,13 +17,10 @@
 
 namespace Media {
 
-// Everything about a decoded frame that a consumer in another process needs to present it, apart from its pixels.
 struct MEDIACODECS_API VideoFrameMetadata {
     static VideoFrameMetadata for_frame(VideoFrame const&);
 
     bool is_valid() const;
-
-    AK::Duration conservative_end() const { return VideoFrame::conservative_end_of(timestamp, duration); }
 
     AK::Duration timestamp;
     AK::Duration duration;
