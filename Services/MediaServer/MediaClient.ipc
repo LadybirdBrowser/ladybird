@@ -11,7 +11,7 @@
 #include <LibMedia/PlaybackStates/PlaybackState.h>
 #include <LibMedia/TimeRanges.h>
 #include <LibMedia/Track.h>
-#include <LibMediaCodecs/VideoFrameHandle.h>
+#include <LibMediaCodecs/VideoFrameMetadata.h>
 #include <LibMedia/VideoSinkHandle.h>
 
 endpoint MediaClient

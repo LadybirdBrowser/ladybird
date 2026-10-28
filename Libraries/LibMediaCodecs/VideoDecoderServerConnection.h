@@ -17,7 +17,7 @@
 #include <LibMediaCodecs/VideoDecoderClientEndpoint.h>
 #include <LibMediaCodecs/VideoDecoderRegistry.h>
 #include <LibMediaCodecs/VideoDecoderServerEndpoint.h>
-#include <LibMediaCodecs/VideoFrameHandle.h>
+#include <LibMediaCodecs/VideoFrameMetadata.h>
 
 namespace Media {
 

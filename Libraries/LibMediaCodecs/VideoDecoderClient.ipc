@@ -1,6 +1,6 @@
 #include <LibCore/AnonymousBuffer.h>
 #include <LibMediaCodecs/DecoderError.h>
-#include <LibMediaCodecs/VideoFrameHandle.h>
+#include <LibMediaCodecs/VideoFrameMetadata.h>
 #include <LibMediaCodecs/VideoSurface.h>
 
 endpoint VideoDecoderClient

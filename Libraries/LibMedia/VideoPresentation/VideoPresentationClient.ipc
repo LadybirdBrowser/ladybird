@@ -1,7 +1,7 @@
 #include <LibMedia/InvalidateHeldData.h>
 #include <LibMedia/MediaTime.h>
 #include <LibMedia/PipelineStatus.h>
-#include <LibMediaCodecs/VideoFrameHandle.h>
+#include <LibMediaCodecs/VideoFrameMetadata.h>
 #include <LibMediaCodecs/VideoSurface.h>
 
 endpoint VideoPresentationClient {

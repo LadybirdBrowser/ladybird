@@ -18,7 +18,7 @@
 #include <LibMediaCodecs/Codecs/NALUnit.h>
 #include <LibMediaCodecs/CodedFrame.h>
 #include <LibMediaCodecs/VideoFrame.h>
-#include <LibMediaCodecs/VideoFrameHandle.h>
+#include <LibMediaCodecs/VideoFrameMetadata.h>
 #include <LibMediaCodecs/WindowsMediaFoundation/WindowsMediaFoundation.h>
 #include <LibMediaCodecs/WindowsMediaFoundation/WindowsMediaFoundationVideoDecoder.h>
 #include <LibThreading/Thread.h>

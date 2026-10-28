@@ -33,7 +33,7 @@
 #include <LibMedia/Track.h>
 #include <LibMedia/VideoSinkHandle.h>
 #include <LibMediaCodecs/DecoderError.h>
-#include <LibMediaCodecs/VideoFrameHandle.h>
+#include <LibMediaCodecs/VideoFrameMetadata.h>
 
 namespace Media {
 

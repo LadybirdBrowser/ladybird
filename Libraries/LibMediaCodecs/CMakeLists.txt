@@ -18,7 +18,7 @@ set(SOURCES
     VideoDecoderRegistry.cpp
     VideoDecoderServerConnection.cpp
     VideoFrame.cpp
-    VideoFrameHandle.cpp
+    VideoFrameMetadata.cpp
     VideoFramePool.cpp
     VideoSurface.cpp
 )
