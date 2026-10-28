@@ -64,7 +64,7 @@ struct RecentlyClosedSessionUnit {
     URL::URL active_url;
     size_t tab_count { 0 };
     bool was_window { false };
-    // Left open by a run that ended without closing it, rather than closed by the user.
+    // Left open by the last run, which ended without closing it, rather than closed by the user.
     bool from_startup_recovery { false };
     UnixDateTime closed_at;
 };
@@ -252,6 +252,7 @@ private:
         Database::StatementID select_open_sessions;
         Database::StatementID select_restore_at_launch_session;
         Database::StatementID clear_restore_at_launch;
+        Database::StatementID clear_startup_recovery_origin;
         Database::StatementID reopen_closed_session;
         Database::StatementID recover_open_session;
         Database::StatementID delete_empty_open_sessions;
@@ -427,6 +428,7 @@ private:
         ErrorOr<void> clear_closed_units(ClearClosedUnitsWrite const&);
         ErrorOr<RecoveryResult> recover_open_windows(RecoveryWrite const&, IdAllocator& session_id_allocator, IdAllocator& close_sequence_allocator);
         ErrorOr<void> clear_restore_at_launch();
+        ErrorOr<void> clear_startup_recovery_origin();
         ErrorOr<void> delete_session_rows(SessionWindowId);
         ErrorOr<void> prune_closed_units(UnitKind, u32 max_units);
         ErrorOr<void> write_lifecycle(bool clean_exit, u32 consecutive_unclean_exits);
