@@ -838,6 +838,7 @@ dependencies = [
  "cbindgen",
  "ladybird_allocator",
  "libunicode_rust",
+ "memchr",
  "rustc-demangle",
 ]
 
