@@ -1797,7 +1797,7 @@ impl<'context> InlineFormattingContext<'context> {
                 }
                 inline_level_iterator::ItemType::Element => {
                     line_builder.prepare_to_append_inline_content();
-                    if shares_items && self.run.records.used_values_if_owned(item.node).is_none() {
+                    if shares_items && !self.run.records.holds_box(item.node) {
                         self.create_used_values(item.node, self.input.containing_block_constraints);
                         self.dimension_box_on_line(item.node);
                     }

@@ -712,6 +712,21 @@ impl<'arena> RunRecords<'arena> {
         }
     }
 
+    /// Whether this run holds `node`: lays it out itself, or keeps a child laid out by a run of its own.
+    pub(crate) fn holds_box(&self, node: Node) -> bool {
+        self.held_box(node).is_some()
+    }
+
+    #[track_caller]
+    fn panic_for_box_not_held(&self, node: Node) -> ! {
+        panic!(
+            "the run rooted at slot {} does not hold slot {} (read at {})",
+            self.root.slot_index(),
+            node.slot_index(),
+            std::panic::Location::caller(),
+        )
+    }
+
     fn held_box(&self, node: Node) -> Option<HeldBox> {
         if node == self.root && self.root_used.is_some() {
             return Some(HeldBox::RootWithRecord);
@@ -742,11 +757,7 @@ impl<'arena> RunRecords<'arena> {
             Some(HeldBox::Kept(index)) => {
                 self.scratch.kept_boxes.borrow_mut()[index as usize].facts_decided_by_parent = facts;
             }
-            None => panic!(
-                "the run rooted at slot {} does not own the record for slot {}",
-                self.root.slot_index(),
-                node.slot_index()
-            ),
+            None => self.panic_for_box_not_held(node),
         }
     }
 
@@ -757,8 +768,7 @@ impl<'arena> RunRecords<'arena> {
     /// Places `node` in `placement`, which is final: the box's metrics are sealed with it.
     #[track_caller]
     pub(crate) fn place_box(&self, node: Node, placement: BoxPlacement) {
-        let used = self.used_values(node);
-        let facts = self.kept_facts_decided_by_parent_of(node).unwrap_or_default();
+        let facts = self.facts_decided_by_parent_of(node);
         assert!(facts.placement.is_none(), "a box is placed once");
         self.keep_facts_decided_by_parent_of(
             node,
@@ -767,19 +777,22 @@ impl<'arena> RunRecords<'arena> {
                 ..facts
             },
         );
-        used.seal_own_metrics();
+        if let Some(used) = self.used_values_if_owned(node) {
+            used.seal_own_metrics();
+        }
     }
 
     /// Adopts for `node` what its parent decided about it in the layout that committed `facts`, placing the box there.
     #[track_caller]
     pub(crate) fn adopt_committed_facts_decided_by_parent(&self, node: Node, facts: FactsDecidedByParent) {
-        let used = self.used_values(node);
         assert!(
-            facts.placement.is_some() && self.placement_of(node).is_none(),
+            facts.placement.is_some() && self.facts_decided_by_parent_of(node).placement.is_none(),
             "a box adopts the placement it committed once"
         );
         self.keep_facts_decided_by_parent_of(node, facts);
-        used.seal_own_metrics();
+        if let Some(used) = self.used_values_if_owned(node) {
+            used.seal_own_metrics();
+        }
     }
 
     #[track_caller]
@@ -797,8 +810,10 @@ impl<'arena> RunRecords<'arena> {
     /// What the parent of `node` has decided about it so far.
     #[track_caller]
     pub(crate) fn facts_decided_by_parent_of(&self, node: Node) -> FactsDecidedByParent {
-        self.used_values(node);
-        self.kept_facts_decided_by_parent_of(node).unwrap_or_default()
+        match self.kept_facts_decided_by_parent_of(node) {
+            Some(facts) => facts,
+            None => self.panic_for_box_not_held(node),
+        }
     }
 
     #[track_caller]
@@ -871,8 +886,8 @@ impl<'arena> RunRecords<'arena> {
     /// The offset of the content box of `node` in its containing block, or the origin while the box is not placed.
     #[track_caller]
     pub(crate) fn content_offset_or_origin(&self, node: Node) -> FfiCssPixelPoint {
-        self.used_values(node);
-        self.placement_of(node)
+        self.facts_decided_by_parent_of(node)
+            .placement
             .map_or(FfiCssPixelPoint::default(), |placement| {
                 placement.content_offset_in_containing_block
             })
@@ -880,10 +895,7 @@ impl<'arena> RunRecords<'arena> {
 
     #[track_caller]
     pub(crate) fn used_insets_of(&self, node: Node) -> UsedInsets {
-        self.used_values(node);
-        self.kept_facts_decided_by_parent_of(node)
-            .unwrap_or_default()
-            .used_insets
+        self.facts_decided_by_parent_of(node).used_insets
     }
 
     /// Sets the used insets of `node`, which cannot change once the box is placed.
@@ -963,13 +975,8 @@ impl<'arena> RunRecords<'arena> {
     /// Keeps what the run of `child`, a box this run holds the record of, handed back once it returned.
     #[track_caller]
     pub(crate) fn receive_laid_out_child_box(&self, child: Node, laid_out: LaidOutChildBox) {
-        let caller = std::panic::Location::caller();
         let Some(HeldBox::Kept(index)) = self.held_box(child) else {
-            panic!(
-                "the run rooted at slot {} does not hold a child box for slot {} (received at {caller})",
-                self.root.slot_index(),
-                child.slot_index(),
-            )
+            self.panic_for_box_not_held(child)
         };
         let KeptBoxHolding::Record {
             handed_back_by_its_run, ..
@@ -981,14 +988,10 @@ impl<'arena> RunRecords<'arena> {
     /// out by a run of its own.
     #[track_caller]
     pub(crate) fn box_metrics_of(&self, node: Node) -> BoxMetrics<'_> {
-        let caller = std::panic::Location::caller();
-        self.box_metrics_of_if_owned(node).unwrap_or_else(|| {
-            panic!(
-                "the run rooted at slot {} does not hold slot {} (read at {caller})",
-                self.root.slot_index(),
-                node.slot_index(),
-            )
-        })
+        match self.box_metrics_of_if_owned(node) {
+            Some(metrics) => metrics,
+            None => self.panic_for_box_not_held(node),
+        }
     }
 
     /// The sizes, size constraints, box sides and baselines of `node`, if this run lays it out or holds a child it laid
