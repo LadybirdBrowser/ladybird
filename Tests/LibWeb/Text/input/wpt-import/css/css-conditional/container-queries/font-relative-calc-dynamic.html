@@ -1,0 +1,35 @@
+<!doctype html>
+<title>CSS Container Queries Test: font-relative calc - dynamic</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#size-container">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/cq-testcommon.js"></script>
+<style>
+  body { font-size: 10px; }
+  body.larger { font-size: 20px; }
+  #container {
+    container-type: inline-size;
+    width: 100px;
+    color: red;
+  }
+  #intermediate {
+    font-size: 8px;
+  }
+  @container (width: calc(1em + 80px)) {
+    #target { color: green; }
+  }
+</style>
+<div id="container">
+  <div id=intermediate>
+    <div id="target"></div>
+  </div>
+</div>
+<script>
+  setup(() => assert_implements_size_container_queries());
+
+  test(() => {
+    assert_equals(getComputedStyle(target).color, 'rgb(255, 0, 0)');
+    document.body.className = 'larger';
+    assert_equals(getComputedStyle(target).color, 'rgb(0, 128, 0)');
+  }, 'font-relative calc() is responsive to container font-size changes');
+</script>
