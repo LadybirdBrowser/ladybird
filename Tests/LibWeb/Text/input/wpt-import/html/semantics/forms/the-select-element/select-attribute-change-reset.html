@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>Changing size, multiple, disabled, or selected resets a select's selectedness</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<div id=log></div>
+
+<!-- A non-multiple select whose display size is 1 and which has an enabled
+     option must always have a selected option. Every attribute that could
+     otherwise leave it without one resets a select's selectedness. -->
+
+<select id=select1 size=2>
+  <option id=option1>A</option>
+</select>
+
+<script>
+test(() => {
+  const select = document.getElementById('select1');
+  const option = document.getElementById('option1');
+
+  assert_equals(select.value, '',
+    'No option should be selected while the display size is greater than 1.');
+
+  select.size = 1;
+
+  assert_true(option.selected,
+    'Reducing the display size to 1 should select the first enabled option.');
+  assert_equals(select.value, 'A',
+    'select.value should reflect the newly selected option.');
+}, 'Reducing a select\'s size to 1 selects the first enabled option.');
+</script>
+
+<select id=select2 multiple size=1>
+  <option id=option2>B</option>
+</select>
+
+<script>
+test(() => {
+  const select = document.getElementById('select2');
+  const option = document.getElementById('option2');
+
+  assert_equals(select.value, '',
+    'No option should be selected while the select is multiple.');
+
+  select.removeAttribute('multiple');
+
+  assert_true(option.selected,
+    'Removing the multiple attribute should select the first enabled option.');
+  assert_equals(select.value, 'B',
+    'select.value should reflect the newly selected option.');
+}, 'Removing a select\'s multiple attribute selects the first enabled option.');
+</script>
+
+<select id=select3>
+  <option id=option3a disabled>C</option>
+  <option id=option3b disabled>D</option>
+</select>
+
+<script>
+test(() => {
+  const select = document.getElementById('select3');
+  const optionA = document.getElementById('option3a');
+
+  assert_equals(select.value, '',
+    'No option should be selected while every option is disabled.');
+
+  optionA.disabled = false;
+
+  assert_true(optionA.selected,
+    'Enabling an option should select it when nothing else is selected.');
+  assert_equals(select.value, 'C',
+    'select.value should reflect the newly selected option.');
+}, 'Removing an option\'s disabled attribute selects it.');
+</script>
+
+<select id=select4>
+  <optgroup id=optgroup4 disabled>
+    <option id=option4>E</option>
+  </optgroup>
+</select>
+
+<script>
+// An option's disabledness also depends on its nearest ancestor optgroup, so
+// the optgroup's disabled attribute needs the same treatment.
+test(() => {
+  const select = document.getElementById('select4');
+  const optgroup = document.getElementById('optgroup4');
+  const option = document.getElementById('option4');
+
+  assert_equals(select.value, '',
+    'No option should be selected while the optgroup is disabled.');
+
+  optgroup.disabled = false;
+
+  assert_true(option.selected,
+    'Enabling an optgroup should select the option inside it.');
+  assert_equals(select.value, 'E',
+    'select.value should reflect the newly selected option.');
+}, 'Removing an optgroup\'s disabled attribute selects the option inside it.');
+</script>
+
+<select id=select5>
+  <option id=option5a>F</option>
+  <option id=option5b>G</option>
+</select>
+
+<script>
+// Setting the selected content attribute sets selectedness without going
+// through the selected setter, so it can leave two options selected in a
+// non-multiple select unless it also resets the select's selectedness.
+test(() => {
+  const select = document.getElementById('select5');
+  const optionA = document.getElementById('option5a');
+  const optionB = document.getElementById('option5b');
+
+  assert_true(optionA.selected,
+    'The first option should be selected at the start of the test.');
+
+  optionB.setAttribute('selected', '');
+
+  assert_true(optionB.selected,
+    'Adding the selected attribute should select the option.');
+  assert_false(optionA.selected,
+    'The previously selected option should be deselected.');
+  assert_equals(select.value, 'G',
+    'select.value should reflect the newly selected option.');
+}, 'Adding an option\'s selected attribute deselects the other options.');
+</script>
+
+<select id=select6>
+  <option id=option6a>H</option>
+  <option id=option6b selected>I</option>
+</select>
+
+<script>
+test(() => {
+  const select = document.getElementById('select6');
+  const optionA = document.getElementById('option6a');
+  const optionB = document.getElementById('option6b');
+
+  assert_true(optionB.selected,
+    'The option with the selected attribute should be selected.');
+
+  optionB.removeAttribute('selected');
+
+  assert_false(optionB.selected,
+    'Removing the selected attribute should deselect the option.');
+  assert_true(optionA.selected,
+    'The first enabled option should be selected instead.');
+  assert_equals(select.value, 'H',
+    'select.value should reflect the newly selected option.');
+}, 'Removing an option\'s selected attribute falls back to the first enabled option.');
+</script>
+
+<select id=select7>
+  <option id=option7a selected>J</option>
+  <option id=option7b>K</option>
+</select>
+
+<script>
+// Dirtiness makes the content attribute stop affecting selectedness. The reset
+// still runs, but finds nothing to change.
+test(() => {
+  const select = document.getElementById('select7');
+  const optionA = document.getElementById('option7a');
+  const optionB = document.getElementById('option7b');
+
+  // Setting the IDL attribute sets dirtiness, without changing selectedness.
+  optionA.selected = true;
+  assert_equals(select.value, 'J', 'Precondition: first option selected.');
+
+  optionA.removeAttribute('selected');
+
+  assert_true(optionA.selected,
+    'A dirty option\'s selectedness is not changed by removing the content attribute.');
+  assert_false(optionB.selected,
+    'The second option should not be selected.');
+  assert_equals(select.value, 'J',
+    'select.value should be unchanged.');
+}, 'Removing the selected attribute from a dirty option does not change selectedness.');
+</script>
+
+<select id=select8 multiple>
+  <option id=option8a selected>L</option>
+  <option id=option8b selected>M</option>
+</select>
+
+<script>
+// Once the select is no longer multiple only one option can stay selected, and
+// it is the first one in tree order.
+test(() => {
+  const select = document.getElementById('select8');
+  const optionA = document.getElementById('option8a');
+  const optionB = document.getElementById('option8b');
+
+  select.removeAttribute('multiple');
+
+  assert_true(optionA.selected,
+    'The first selected option should stay selected.');
+  assert_false(optionB.selected,
+    'The other selected option should be deselected.');
+  assert_equals(select.value, 'L',
+    'select.value should reflect the first selected option.');
+}, 'Removing a select\'s multiple attribute keeps the first selected option.');
+</script>

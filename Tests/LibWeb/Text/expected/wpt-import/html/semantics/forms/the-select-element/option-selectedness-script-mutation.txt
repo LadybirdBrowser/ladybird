@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 5 tests
+
+3 Pass
+2 Fail
+Fail	single-select responds to setting selected attribute from script
+Fail	single-select responds to removing selected attribute from script
+Pass	multi-select keeps multiple selected options when selected attribute changes from script
+Pass	single-select responds to setting option.selected from script
+Pass	multi-select responds to option.selected without selected attribute reflection
