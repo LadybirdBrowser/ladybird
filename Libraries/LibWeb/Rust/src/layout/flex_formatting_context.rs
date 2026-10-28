@@ -3029,18 +3029,23 @@ impl<'pass> FlexFormattingContext<'pass> {
         )
     }
 
+    /// Lays out the contents of the item at `index`, and returns the fragments and what placing the item takes.
     fn layout_inside_item(
         &mut self,
         run: &FormattingContextRun<'pass>,
         index: usize,
-    ) -> Option<fragment_tree::ChildFragmentArrival> {
+    ) -> (
+        Option<fragment_tree::ChildFragmentArrival>,
+        formatting_context::PlacedChild,
+    ) {
         let node = self.flex_items[index].box_;
         let cells = self.flex_items[index].cells;
         let input = self.item_layout_input(index, &cells, self.available_space_for_items.unwrap().space);
         let formatting_context::ChildLayout {
             outcome,
             fragment_arrival,
-            ..
+            laid_out_box,
+            line_data,
         } = formatting_context::layout_inside_child_with_input_cells(run, None, None, node, input, cells, false);
         self.flex_items[index].cells = run.records.box_metrics_of(node).input_cells();
         outcome.report_percentage_block_size_dependency_of(run, node);
@@ -3051,6 +3056,13 @@ impl<'pass> FlexFormattingContext<'pass> {
                 run.records.box_metrics_of(node).content_baselines()
             }
             ChildLayoutOutcome::Skipped { .. } => run.records.box_metrics_of(node).content_baselines(),
+        };
+        let placed_item = match laid_out_box {
+            Some(laid_out_box) => {
+                formatting_context::PlacedChild::of_laid_out_box(&laid_out_box, line_data, run.callbacks.frame)
+            }
+            // NB: The item was laid out by this flex container's run, in the record it keeps.
+            None => formatting_context::PlacedChild::of_record(run.records.used_values(node), run),
         };
 
         let container_used = self.container_used();
@@ -3064,7 +3076,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             },
         );
         run.records.keep_in_flow_box_insets(node, insets);
-        fragment_arrival
+        (fragment_arrival, placed_item.with_in_flow_box_insets(insets))
     }
 
     // https://drafts.csswg.org/css-flexbox-1/#abspos-items
@@ -3915,11 +3927,11 @@ impl<'pass> FlexFormattingContext<'pass> {
     // AD-HOC: Layout the inside of all flex items after resolving their dimensions.
     fn layout_items_and_derive_baselines(&mut self, run: &FormattingContextRun<'pass>) {
         self.copy_dimensions_from_flex_items_to_boxes();
-        let fragment_arrivals_of_items: Vec<_> = (0..self.flex_items.len())
+        let laid_out_items: Vec<_> = (0..self.flex_items.len())
             .map(|index| self.layout_inside_item(run, index))
             .collect();
         self.resolve_baseline_aligned_items();
-        for (index, fragment_arrival) in fragment_arrivals_of_items.into_iter().enumerate() {
+        for (index, (fragment_arrival, placed_item)) in laid_out_items.into_iter().enumerate() {
             let item = &self.flex_items[index];
             let offset = if self.main_axis_is_horizontal() {
                 FfiCssPixelPoint {
@@ -3932,14 +3944,7 @@ impl<'pass> FlexFormattingContext<'pass> {
                     y: item.main_offset,
                 }
             };
-            formatting_context::place_laid_out_child(
-                &self.run,
-                item.box_,
-                formatting_context::PlacedChild::read_from_records(&self.run, item.box_),
-                offset,
-                None,
-                fragment_arrival,
-            );
+            formatting_context::place_laid_out_child(&self.run, item.box_, placed_item, offset, None, fragment_arrival);
         }
         self.derived_baselines_of_root_box = DerivedBaselines {
             inline_alignment: self.flex_lines.len().checked_sub(1).and_then(|line_index| {
