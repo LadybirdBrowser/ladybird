@@ -775,11 +775,14 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         // 10.4 Minimum and maximum widths: 'min-width' and 'max-width'
         // https://www.w3.org/TR/CSS22/visudet.html#min-max-widths
         let style = self.style(node);
-        // NB: With no natural ratio, auto uses the specified fallback ratio. Transfer the tentative inline
-        //     size before applying constraints so the tentative dimensions follow that ratio.
-        let input_block_size = if style.aspect_ratio_uses_natural_when_available()
-            && self.facts(node).has_preferred_aspect_ratio()
-            && (self.facts(node).node_has_size_containment()
+        // https://drafts.csswg.org/css-sizing-4/#valdef-aspect-ratio-ratio
+        // The box’s preferred aspect ratio is the specified ratio of width / height.
+        // NB: The natural dimensions can describe a different ratio. Transfer the tentative inline size through
+        //     the specified ratio before resolving constraints on either dimension. This also applies to an auto
+        //     fallback ratio when no natural ratio is available, including under size containment.
+        let input_block_size = if self.facts(node).has_preferred_aspect_ratio()
+            && (!style.aspect_ratio_uses_natural_when_available()
+                || self.facts(node).node_has_size_containment()
                 || self.auto_content_size(node).aspect_ratio.is_none())
         {
             self.content_block_size_from_aspect_ratio(sized, input_inline_size)
