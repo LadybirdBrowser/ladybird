@@ -3271,12 +3271,14 @@ void TabWidget::insert_tab(int index, Tab* widget, QString const& label)
         widget->view().installEventFilter(this);
         widget->bookmarks_bar().installEventFilter(this);
     } else {
-        // A tab that hasn't loaded gets the filters for its view and bookmarks bar once it has them.
-        auto install_event_filters = [this, widget] {
+        // A tab that hasn't loaded gets the filters for its view and bookmarks bar once it has them, and the collapsed
+        // sidebar's buttons once it has a toolbar to hold them.
+        auto did_load = [this, widget] {
             widget->view().installEventFilter(this);
             widget->bookmarks_bar().installEventFilter(this);
+            place_collapsed_sidebar_buttons();
         };
-        connect(widget, &Tab::loaded, this, install_event_filters, Qt::SingleShotConnection);
+        connect(widget, &Tab::loaded, this, did_load, Qt::SingleShotConnection);
     }
 
     m_stacked_widget->insertWidget(index, widget);
@@ -3471,7 +3473,7 @@ void TabWidget::set_vertical_tabs_expanded(bool expanded)
 void TabWidget::float_sidebar_buttons_while_toggling()
 {
     auto* current = as_if<Tab>(m_stacked_widget->currentWidget());
-    auto floats = m_vertical_tabs_toggling && !vertical_tabs_are_on_right() && current;
+    auto floats = m_vertical_tabs_toggling && !vertical_tabs_are_on_right() && current && current->is_loaded();
     if (!floats) {
         for (auto* image : { m_floating_ladybird_button, m_floating_sidebar_toggle }) {
             if (image)
@@ -4196,11 +4198,12 @@ void TabWidget::place_collapsed_sidebar_buttons()
 {
     auto collapsed = m_tab_bar_visible && m_tab_bar->tab_layout() != TabLayout::Horizontal && !m_vertical_tabs_expanded;
     auto* current = as_if<Tab>(m_stacked_widget->currentWidget());
+    // A tab that hasn't loaded has no toolbar yet, so there's no slot of its own to hide or to fill.
     for (int index = 0; index < m_stacked_widget->count(); ++index) {
-        if (auto* tab = this->tab(index); tab && (tab != current || !collapsed))
+        if (auto* tab = this->tab(index); tab && tab->is_loaded() && (tab != current || !collapsed))
             tab->toolbar_sidebar_slot().hide();
     }
-    if (!current || !collapsed)
+    if (!current || !current->is_loaded() || !collapsed)
         return;
 
     auto& slot = current->toolbar_sidebar_slot();
