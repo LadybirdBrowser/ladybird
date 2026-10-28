@@ -256,7 +256,8 @@ interface Internals {
     undefined pumpGamepadEvents();
 
     undefined setEnvironmentsTopLevelURL(USVString url);
-    undefined setGeolocationEmulatedPosition(double latitude, double longitude, optional double accuracy = 100);
+    undefined setGeolocationEmulatedPosition(double latitude, double longitude, optional double accuracy = 100, optional double? altitude = null, optional double? altitudeAccuracy = null, optional double? heading = null, optional double? speed = null);
+    undefined setGeolocationEmulatedPositionUnavailable();
 
     Promise<DOMString> requestPermission(DOMString name);
     Promise<undefined> setPermission(DOMString name, DOMString state);

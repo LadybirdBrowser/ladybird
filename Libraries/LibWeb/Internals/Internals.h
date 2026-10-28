@@ -254,7 +254,8 @@ public:
 
     void clear_element(HTML::HTMLElement&);
     void set_environments_top_level_url(Utf16String const& url);
-    void set_geolocation_emulated_position(double latitude, double longitude, double accuracy);
+    void set_geolocation_emulated_position(double latitude, double longitude, double accuracy, Optional<double> altitude, Optional<double> altitude_accuracy, Optional<double> heading, Optional<double> speed);
+    void set_geolocation_emulated_position_unavailable();
 
     GC::Ref<WebIDL::Promise> request_permission(Utf16String const& name);
     GC::Ref<WebIDL::Promise> set_permission(Utf16String const& name, Utf16String const& state);
