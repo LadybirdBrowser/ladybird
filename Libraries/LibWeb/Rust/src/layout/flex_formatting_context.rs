@@ -44,6 +44,8 @@ enum UsedFlexBasis<'pass> {
 
 struct FlexItem<'pass> {
     box_: Node,
+    /// The item's input cells as this flex container sizes it, which its run takes.
+    cells: used_values::RootInputCells,
     used_flex_basis: UsedFlexBasis<'pass>,
     used_flex_basis_is_definite: bool,
     main_size_was_resolved_from_aspect_ratio: bool,
@@ -77,9 +79,10 @@ struct FlexItem<'pass> {
 }
 
 impl FlexItem<'_> {
-    fn new(box_: Node) -> Self {
+    fn new(box_: Node, cells: used_values::RootInputCells) -> Self {
         Self {
             box_,
+            cells,
             used_flex_basis: UsedFlexBasis::Content,
             used_flex_basis_is_definite: false,
             main_size_was_resolved_from_aspect_ratio: false,
@@ -204,6 +207,15 @@ pub(super) struct FlexFormattingContext<'pass> {
     next_flex_item_lookup_start: Cell<usize>,
 }
 
+impl formatting_context::ChildrenSizedInParentCells for FlexFormattingContext<'_> {
+    fn child_input_cells(&self, node: Node) -> Option<used_values::RootInputCells> {
+        if self.run.callbacks.parent(node) != self.run.box_ {
+            return None;
+        }
+        Some(self.flex_items[self.index_of_flex_item(node)?].cells)
+    }
+}
+
 impl formatting_context::ChildRunShapes for FlexFormattingContext<'_> {
     fn child_run_shape_at(
         &self,
@@ -250,8 +262,13 @@ impl<'pass> FlexFormattingContext<'pass> {
         }
     }
 
-    fn item_used(&self, index: usize) -> &'pass UsedValues {
-        self.run.records.used_values(self.flex_items[index].box_)
+    /// The sizes, size constraints and box sides of `node`, read from the cells this container sizes it in where it is
+    /// an item.
+    fn box_metrics(&self, node: Node) -> run_records::BoxMetrics<'pass> {
+        match formatting_context::ChildrenSizedInParentCells::child_input_cells(self, node) {
+            Some(cells) => run_records::BoxMetrics::BeingSizedByItsParent(cells),
+            None => self.run.records.box_metrics_of(node),
+        }
     }
 
     fn container_used(&self) -> &'pass UsedValues {
@@ -269,7 +286,9 @@ impl<'pass> FlexFormattingContext<'pass> {
 
     #[inline]
     fn sizing(&self) -> sizing_context::SizingContext<'pass, '_> {
-        sizing_context::SizingContext::new(self.run.records, self.run.callbacks).with_child_run_shapes(self)
+        sizing_context::SizingContext::new(self.run.records, self.run.callbacks)
+            .with_child_run_shapes(self)
+            .with_children_sized_in_parent_cells(self)
     }
 
     fn create_used_values(&self, node: Node) -> &'pass UsedValues {
@@ -484,32 +503,32 @@ impl<'pass> FlexFormattingContext<'pass> {
         if style.box_sizing() != box_sizing::BORDER_BOX {
             return value;
         }
-        let used = self.run.records.used_values(node);
+        let metrics = self.box_metrics(node);
         if horizontal {
             formatting_context::subtract_border_box_adjustment(
                 value,
                 style.border_left_width(),
-                used.padding_left.get(),
+                metrics.padding_left(),
                 style.border_right_width(),
-                used.padding_right.get(),
+                metrics.padding_right(),
             )
         } else {
             formatting_context::subtract_border_box_adjustment(
                 value,
                 style.border_top_width(),
-                used.padding_top.get(),
+                metrics.padding_top(),
                 style.border_bottom_width(),
-                used.padding_bottom.get(),
+                metrics.padding_bottom(),
             )
         }
     }
 
-    fn has_definite_main_size_used(&self, used: &UsedValues) -> bool {
-        self.select_main(used.has_definite_inline_size(), used.has_definite_block_size())
+    fn has_definite_main_size_used(&self, metrics: &impl BoxMetricCells) -> bool {
+        self.select_main(metrics.has_definite_inline_size(), metrics.has_definite_block_size())
     }
 
-    fn has_definite_cross_size_used(&self, used: &UsedValues) -> bool {
-        self.select_cross(used.has_definite_inline_size(), used.has_definite_block_size())
+    fn has_definite_cross_size_used(&self, metrics: &impl BoxMetricCells) -> bool {
+        self.select_cross(metrics.has_definite_inline_size(), metrics.has_definite_block_size())
     }
 
     fn container_cross_size_is_known_for_layout(&self) -> bool {
@@ -523,47 +542,65 @@ impl<'pass> FlexFormattingContext<'pass> {
     }
 
     fn has_definite_main_size(&self, index: usize) -> bool {
-        self.has_definite_main_size_used(self.item_used(index))
+        self.has_definite_main_size_used(&self.flex_items[index].cells)
     }
 
     fn has_definite_cross_size(&self, index: usize) -> bool {
-        self.has_definite_cross_size_used(self.item_used(index))
+        self.has_definite_cross_size_used(&self.flex_items[index].cells)
     }
 
-    fn inner_main_size_used(&self, used: &UsedValues) -> CssPixels {
-        self.select_main(used.content_inline_size.get(), used.content_block_size.get())
+    fn inner_main_size_used(&self, metrics: &impl BoxMetricCells) -> CssPixels {
+        self.select_main(metrics.content_inline_size(), metrics.content_block_size())
     }
 
-    fn inner_cross_size_used(&self, used: &UsedValues) -> CssPixels {
-        self.select_cross(used.content_inline_size.get(), used.content_block_size.get())
+    fn inner_cross_size_used(&self, metrics: &impl BoxMetricCells) -> CssPixels {
+        self.select_cross(metrics.content_inline_size(), metrics.content_block_size())
     }
 
     fn inner_main_size(&self, index: usize) -> CssPixels {
-        self.inner_main_size_used(self.item_used(index))
+        self.inner_main_size_used(&self.flex_items[index].cells)
     }
 
     fn inner_cross_size(&self, index: usize) -> CssPixels {
-        self.inner_cross_size_used(self.item_used(index))
+        self.inner_cross_size_used(&self.flex_items[index].cells)
     }
 
     fn set_has_definite_main_size(&mut self, index: usize) {
-        let used = self.item_used(index);
-        self.select_main(&used.has_definite_inline_size, &used.has_definite_block_size)
-            .set(true);
+        let main_axis_is_horizontal = self.main_axis_is_horizontal();
+        let cells = &mut self.flex_items[index].cells;
+        if main_axis_is_horizontal {
+            cells.has_definite_inline_size = true;
+        } else {
+            cells.has_definite_block_size = true;
+        }
     }
 
     fn set_has_definite_cross_size(&mut self, index: usize) {
-        let used = self.item_used(index);
-        self.select_cross(&used.has_definite_inline_size, &used.has_definite_block_size)
-            .set(true);
+        let cross_axis_is_horizontal = self.cross_axis_is_horizontal();
+        let cells = &mut self.flex_items[index].cells;
+        if cross_axis_is_horizontal {
+            cells.has_definite_inline_size = true;
+        } else {
+            cells.has_definite_block_size = true;
+        }
     }
 
     fn set_main_size(&mut self, index: usize, size: CssPixels) {
-        self.set_main_size_used(self.item_used(index), size);
+        let main_axis_is_horizontal = self.main_axis_is_horizontal();
+        Self::set_size_of_item_cells(&mut self.flex_items[index].cells, main_axis_is_horizontal, size);
     }
 
     fn set_cross_size(&mut self, index: usize, size: CssPixels) {
-        self.set_cross_size_used(self.item_used(index), size);
+        let cross_axis_is_horizontal = self.cross_axis_is_horizontal();
+        Self::set_size_of_item_cells(&mut self.flex_items[index].cells, cross_axis_is_horizontal, size);
+    }
+
+    fn set_size_of_item_cells(cells: &mut used_values::RootInputCells, axis_is_horizontal: bool, size: CssPixels) {
+        if axis_is_horizontal {
+            cells.set_content_inline_size(size);
+        } else {
+            cells.set_content_block_size(size);
+        }
     }
 
     fn set_container_main_size(&mut self, size: CssPixels) {
@@ -833,11 +870,11 @@ impl<'pass> FlexFormattingContext<'pass> {
         let padding_top = style.padding_top().to_px(basis);
         let padding_bottom = style.padding_bottom().to_px(basis);
         {
-            let used = self.item_used(index);
-            used.padding_left.set(padding_left);
-            used.padding_right.set(padding_right);
-            used.padding_top.set(padding_top);
-            used.padding_bottom.set(padding_bottom);
+            let cells = &mut self.flex_items[index].cells;
+            cells.padding_left = padding_left;
+            cells.padding_right = padding_right;
+            cells.padding_top = padding_top;
+            cells.padding_bottom = padding_bottom;
         }
 
         let main_axis_is_horizontal = self.main_axis_is_horizontal();
@@ -887,7 +924,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         // calculations that could change that.
         // This is particularly important since we take references to the items stored in flex_items
         // later, whose addresses won't be stable if we added or removed any items.
-        let mut buckets: HashMap<i32, Vec<Node>> = HashMap::default();
+        let mut buckets: HashMap<i32, Vec<(Node, used_values::RootInputCells)>> = HashMap::default();
         for child in self.run.callbacks.children(self.run.box_) {
             let facts = self.facts(child);
             if facts.is_box() {
@@ -899,8 +936,11 @@ impl<'pass> FlexFormattingContext<'pass> {
                         node_facts::has_flag(facts.data(), NodeFlag::IsFlexItem),
                         "the facts of a flex item are derived before layout"
                     );
-                    self.create_used_values(child);
-                    buckets.entry(self.style(child).order()).or_default().push(child);
+                    let cells = used_values::RootInputCells::capture(self.create_used_values(child));
+                    buckets
+                        .entry(self.style(child).order())
+                        .or_default()
+                        .push((child, cells));
                 }
             }
         }
@@ -908,8 +948,13 @@ impl<'pass> FlexFormattingContext<'pass> {
         self.flex_items.reserve_exact(buckets.values().map(Vec::len).sum());
         let keys = order_modified_keys(&buckets, self.is_direction_reverse());
         for key in keys {
-            self.flex_items
-                .extend(buckets.remove(&key).unwrap().into_iter().map(FlexItem::new));
+            self.flex_items.extend(
+                buckets
+                    .remove(&key)
+                    .unwrap()
+                    .into_iter()
+                    .map(|(node, cells)| FlexItem::new(node, cells)),
+            );
         }
         for index in 0..self.flex_items.len() {
             self.populate_specified_margins(index);
@@ -1000,13 +1045,9 @@ impl<'pass> FlexFormattingContext<'pass> {
         let sizing = self.sizing();
         let node = self.flex_items[index].box_;
         let constraints = self.item_containing_block_constraints();
-        let used = self.item_used(index);
-        if used.has_definite_block_size() {
-            sizing.calculate_min_content_inline_size_at_definite_block_size(
-                node,
-                constraints,
-                used.content_block_size.get(),
-            )
+        let cells = &self.flex_items[index].cells;
+        if cells.has_definite_block_size {
+            sizing.calculate_min_content_inline_size_at_definite_block_size(node, constraints, cells.content_block_size)
         } else {
             sizing.calculate_min_content_inline_size(node, constraints)
         }
@@ -1016,13 +1057,9 @@ impl<'pass> FlexFormattingContext<'pass> {
         let sizing = self.sizing();
         let node = self.flex_items[index].box_;
         let constraints = self.item_containing_block_constraints();
-        let used = self.item_used(index);
-        if used.has_definite_block_size() {
-            sizing.calculate_max_content_inline_size_at_definite_block_size(
-                node,
-                constraints,
-                used.content_block_size.get(),
-            )
+        let cells = &self.flex_items[index].cells;
+        if cells.has_definite_block_size {
+            sizing.calculate_max_content_inline_size_at_definite_block_size(node, constraints, cells.content_block_size)
         } else {
             sizing.calculate_max_content_inline_size(node, constraints)
         }
@@ -1098,8 +1135,8 @@ impl<'pass> FlexFormattingContext<'pass> {
     }
 
     fn intrinsic_block_inline_size(&self, index: usize) -> CssPixels {
-        let mut available = self
-            .item_used(index)
+        let mut available = self.flex_items[index]
+            .cells
             .available_inner_space_or_constraints_from(self.available_space_for_items.unwrap().space);
         if available.inline_size == AvailableSize::Indefinite {
             available.inline_size = AvailableSize::definite(self.calculate_inline_size_for_intrinsic_block_size(index));
@@ -2291,15 +2328,25 @@ impl<'pass> FlexFormattingContext<'pass> {
     }
 
     fn set_main_axis_first_margin(&mut self, index: usize, margin: CssPixels) {
-        self.flex_items[index].margins.main_before = margin;
-        let used = self.item_used(index);
-        self.select_main(&used.margin_left, &used.margin_top).set(margin);
+        let main_axis_is_horizontal = self.main_axis_is_horizontal();
+        let item = &mut self.flex_items[index];
+        item.margins.main_before = margin;
+        if main_axis_is_horizontal {
+            item.cells.margin_left = margin;
+        } else {
+            item.cells.margin_top = margin;
+        }
     }
 
     fn set_main_axis_second_margin(&mut self, index: usize, margin: CssPixels) {
-        self.flex_items[index].margins.main_after = margin;
-        let used = self.item_used(index);
-        self.select_main(&used.margin_right, &used.margin_bottom).set(margin);
+        let main_axis_is_horizontal = self.main_axis_is_horizontal();
+        let item = &mut self.flex_items[index];
+        item.margins.main_after = margin;
+        if main_axis_is_horizontal {
+            item.cells.margin_right = margin;
+        } else {
+            item.cells.margin_bottom = margin;
+        }
     }
 
     // https://www.w3.org/TR/css-flexbox-1/#algo-main-align
@@ -2819,44 +2866,48 @@ impl<'pass> FlexFormattingContext<'pass> {
             } else {
                 self.flex_items[index].cross_size.unwrap()
             };
-            self.prepare_item_record(
-                index,
-                self.item_used(index),
-                self.flex_items[index].main_size,
-                Some(cross_size),
-            );
+            let mut cells = self.flex_items[index].cells;
+            self.size_item_cells_for_its_run(index, &mut cells, self.flex_items[index].main_size, Some(cross_size));
+            self.flex_items[index].cells = cells;
         }
     }
 
-    fn prepare_item_record(
+    /// Gives `cells`, the cells of the item at `index`, the margins and borders its run takes and the main and cross
+    /// sizes it is laid out at.
+    fn size_item_cells_for_its_run(
         &self,
         index: usize,
-        used: &UsedValues,
+        cells: &mut used_values::RootInputCells,
         main_size: Option<CssPixels>,
         cross_size: Option<CssPixels>,
     ) {
         let reference = self.container_used().content_inline_size.get();
         let style = self.style(self.flex_items[index].box_);
-        used.margin_left.set(style.margin_left().to_px(reference));
-        used.margin_right.set(style.margin_right().to_px(reference));
-        used.margin_top.set(style.margin_top().to_px(reference));
-        used.margin_bottom.set(style.margin_bottom().to_px(reference));
-        used.border_left.set(style.border_left_width());
-        used.border_right.set(style.border_right_width());
-        used.border_top.set(style.border_top_width());
-        used.border_bottom.set(style.border_bottom_width());
+        cells.margin_left = style.margin_left().to_px(reference);
+        cells.margin_right = style.margin_right().to_px(reference);
+        cells.margin_top = style.margin_top().to_px(reference);
+        cells.margin_bottom = style.margin_bottom().to_px(reference);
+        cells.border_left = style.border_left_width();
+        cells.border_right = style.border_right_width();
+        cells.border_top = style.border_top_width();
+        cells.border_bottom = style.border_bottom_width();
         if let Some(main_size) = main_size {
-            self.set_main_size_used(used, main_size);
+            Self::set_size_of_item_cells(cells, self.main_axis_is_horizontal(), main_size);
         }
         if let Some(cross_size) = cross_size {
-            self.set_cross_size_used(used, cross_size);
+            Self::set_size_of_item_cells(cells, self.cross_axis_is_horizontal(), cross_size);
         }
     }
 
-    fn item_layout_input(&self, index: usize, used: &UsedValues, space_for_items: AvailableSpace) -> LayoutInput {
+    fn item_layout_input(
+        &self,
+        index: usize,
+        cells: &used_values::RootInputCells,
+        space_for_items: AvailableSpace,
+    ) -> LayoutInput {
         let node = self.flex_items[index].box_;
         let mut input = LayoutInput {
-            available_space: used.available_inner_space_or_constraints_from(space_for_items),
+            available_space: cells.available_inner_space_or_constraints_from(space_for_items),
             containing_block_constraints: self.item_containing_block_constraints(),
             sizing: RootSizingDirectives::default(),
             participation: ParticipationInParentFormattingContext::Item,
@@ -2952,23 +3003,23 @@ impl<'pass> FlexFormattingContext<'pass> {
         } else {
             (None, Some(measured_inline_size))
         };
-        let record = used_values::RootInputCells::capture(self.item_used(index)).materialize_record();
-        self.prepare_item_record(index, &record, main_size, cross_size);
-        let input = self.item_layout_input(index, &record, space_for_items);
+        let mut cells = self.flex_items[index].cells;
+        self.size_item_cells_for_its_run(index, &mut cells, main_size, cross_size);
+        let input = self.item_layout_input(index, &cells, space_for_items);
         let plan = formatting_context::child_run_plan(&self.run, node, input, false)?;
         debug_assert_eq!(plan.fc_type, formatting_context::FormattingContextType::Block);
         Some(formatting_context::ChildRunShape {
             node,
             fc_type: plan.fc_type,
             input: plan.input,
-            root_cells: used_values::RootInputCells::capture(&record),
+            root_cells: cells,
             root_containing_block: plan.root_containing_block,
         })
     }
 
     fn measure_table_wrapper_block_sizes(&self, index: usize) -> sizing_context::TableWrapperBlockSizes {
-        let mut intrinsic_space = self
-            .item_used(index)
+        let mut intrinsic_space = self.flex_items[index]
+            .cells
             .available_inner_space_or_constraints_from(self.available_space_for_items.unwrap().space);
         intrinsic_space.block_size = AvailableSize::Indefinite;
         self.sizing().measure_table_box_block_size_inside_wrapper(
@@ -2984,15 +3035,13 @@ impl<'pass> FlexFormattingContext<'pass> {
         index: usize,
     ) -> Option<fragment_tree::ChildFragmentArrival> {
         let node = self.flex_items[index].box_;
-        let input = self.item_layout_input(
-            index,
-            self.item_used(index),
-            self.available_space_for_items.unwrap().space,
-        );
+        let cells = self.flex_items[index].cells;
+        let input = self.item_layout_input(index, &cells, self.available_space_for_items.unwrap().space);
         let formatting_context::ChildLayout {
             outcome,
             fragment_arrival,
-        } = formatting_context::layout_inside_child(run, None, None, node, input, false);
+        } = formatting_context::layout_inside_child_with_input_cells(run, None, None, node, input, cells, false);
+        self.flex_items[index].cells = run.records.box_metrics_of(node).input_cells();
         outcome.report_percentage_block_size_dependency_of(run, node);
         self.flex_items[index].content_baselines = match outcome {
             ChildLayoutOutcome::Created(result) => result.baselines,
