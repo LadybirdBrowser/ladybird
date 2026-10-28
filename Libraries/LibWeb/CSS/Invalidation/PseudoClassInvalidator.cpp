@@ -46,7 +46,7 @@ void invalidate_style_after_pseudo_class_state_change(CSS::PseudoClass pseudo_cl
         if (propagates) {
             for_each_inclusive_ancestor_element(*start, traversal, [&](DOM::Element& element) {
                 chain.set(&element);
-                return TraversalDecision::Continue;
+                return element.rendered_in_top_layer() ? TraversalDecision::Break : TraversalDecision::Continue;
             });
         } else if (auto* element = as_if<DOM::Element>(*start)) {
             chain.set(element);
@@ -79,7 +79,7 @@ void invalidate_style_after_pseudo_class_state_change(CSS::PseudoClass pseudo_cl
                 if (other_chain.contains(&element))
                     return TraversalDecision::Break;
                 visit(element);
-                return TraversalDecision::Continue;
+                return element.rendered_in_top_layer() ? TraversalDecision::Break : TraversalDecision::Continue;
             });
         } else if (auto* element = as_if<DOM::Element>(*start)) {
             if (!other_chain.contains(element))
@@ -112,6 +112,8 @@ static bool subtree_holds_propagating_state_source(DOM::Node const& subtree, CSS
                 return true;
             if (is<DOM::ShadowRoot>(subtree) && node->parent() == &subtree)
                 return true;
+            if (auto const* element = as_if<DOM::Element>(*node); element && element->rendered_in_top_layer())
+                break;
         }
         return false;
     }
@@ -139,7 +141,7 @@ void invalidate_style_after_subtree_place_changed(DOM::Node& subtree, GC::Ptr<DO
             return;
         for_each_inclusive_ancestor_element(*from, ancestor_traversal_for_pseudo_class(pseudo_class), [&](DOM::Element& element) {
             record_element_state_changed(element, pseudo_class, element.matches_focus_within_pseudo_class());
-            return TraversalDecision::Continue;
+            return element.rendered_in_top_layer() ? TraversalDecision::Break : TraversalDecision::Continue;
         });
     };
 

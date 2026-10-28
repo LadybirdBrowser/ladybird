@@ -124,8 +124,11 @@ void run_focus_update_steps(Vector<GC::Root<DOM::Node>> old_chain, Vector<GC::Ro
     auto build_focus_within_chain = [](GC::Ptr<DOM::Node> source) {
         Vector<GC::Root<DOM::Element>> chain;
         for (auto* node = source.ptr(); node; node = node->flat_tree_parent()) {
-            if (auto* element = as_if<DOM::Element>(*node))
+            if (auto* element = as_if<DOM::Element>(*node)) {
                 chain.append(*element);
+                if (element->rendered_in_top_layer())
+                    break;
+            }
         }
         return chain;
     };
