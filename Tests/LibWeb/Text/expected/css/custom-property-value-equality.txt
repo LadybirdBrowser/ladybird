@@ -1,0 +1,6 @@
+token kind: ["1.0","7"]
+token kind: ["1","1"]
+numeric spelling: ["1.0","1"]
+numeric spelling: ["1e0","1"]
+identifier spelling: ["a","a"]
+identifier spelling: ["\\61","a"]

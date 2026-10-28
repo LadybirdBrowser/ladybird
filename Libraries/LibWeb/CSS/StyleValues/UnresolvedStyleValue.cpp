@@ -32,14 +32,6 @@ static StyleValueFFI::StyleValueData const* create_rust_style_value_from_source(
         parsed_value ? StyleValueFFI::rust_style_value_retain(parsed_value->rust_style_value_data()) : nullptr);
 }
 
-Utf16String UnresolvedStyleValue::comparison_text() const
-{
-    auto value_comparison_text = this->value_comparison_text();
-    if (!value_comparison_text.is_empty())
-        return value_comparison_text;
-    return source_text().trim_ascii_whitespace();
-}
-
 ValueComparingNonnullRefPtr<UnresolvedStyleValue const> UnresolvedStyleValue::create_internal(Utf16String token_source, Parser::SubstitutionFunctionsPresence substitution_presence, SourceTextMode source_text_mode, bool contains_attr_tainted_values, RefPtr<StyleValue const> parsed_value)
 {
     auto* data = create_rust_style_value_from_source(token_source, substitution_presence, source_text_mode, contains_attr_tainted_values, parsed_value.ptr());
@@ -55,16 +47,6 @@ ValueComparingNonnullRefPtr<UnresolvedStyleValue const> UnresolvedStyleValue::cr
 {
     VERIFY(!parsed_value->is_unresolved());
     return create_internal(move(token_source), substitution_presence, source_text_mode, true, move(parsed_value));
-}
-
-bool UnresolvedStyleValue::equals(StyleValue const& other) const
-{
-    if (type() != other.type())
-        return false;
-
-    auto const& other_unresolved = other.as_unresolved();
-    return contains_attr_tainted_values() == other_unresolved.contains_attr_tainted_values()
-        && comparison_text() == other_unresolved.comparison_text();
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-a-list-of-component-values

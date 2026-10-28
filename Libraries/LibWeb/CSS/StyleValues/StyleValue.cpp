@@ -332,10 +332,6 @@ bool StyleValue::equals(StyleValue const& other) const
         // The value of a pending-substitution value is unknown, so they never compare equal
         // (not even to themselves).
         return false;
-    case Type::Unresolved:
-        // Unresolved values compare by their normalized comparison text (and attr taint), not
-        // by the raw source text and cached parse state the data also carries.
-        return as_unresolved().equals(other);
     case Type::Calculated:
         // Calculations compare by tree structure alone; the data also carries parse-context
         // fields (resolved type, accepted ranges) that must not affect equality.
