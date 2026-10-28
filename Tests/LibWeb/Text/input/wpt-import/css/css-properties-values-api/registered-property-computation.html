@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.css-houdini.org/css-properties-values-api/#calculation-of-computed-values" />
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="./resources/utils.js"></script>
+
+<style>
+#divWithFontSizeSet, #parentDiv {
+    font-size: 10px;
+    line-height: 20px;
+    color: blue;
+}
+</style>
+
+<div id=divWithFontSizeSet></div>
+<div id=parentDiv>
+    <div id=divWithFontSizeInherited></div>
+</div>
+<div id="ref"></div>
+
+<script>
+
+// Generate a property and temporarily set its value. Then call 'fn' with
+// the name of the generated property.
+function with_custom_property(element, reg, value, fn) {
+    if (element.id.length == 0)
+        throw 'The specified element must have an ID';
+
+    let name = generate_property(reg);
+
+    // Because we want to include the parsing step, insert a stylesheet
+    // node with textContent.
+    let node = document.createElement('style');
+    node.textContent = `#${element.id} { ${name}:${value}; }`;
+    document.body.append(node);
+
+    try {
+        fn(name);
+    } finally {
+        node.remove();
+    }
+}
+
+function assert_computed_value(element, syntax, value, expected) {
+    with_custom_property(element, syntax, value, (name) => {
+        let actual = getComputedStyle(element).getPropertyValue(name);
+        assert_equals(actual, expected);
+    });
+}
+
+// Computes an absolute reference value for some length.
+//
+// E.g. to figure out how many pixels '10vh' is, do length_ref('10vh').
+function length_ref(value, refnode = ref) {
+    try {
+        // The reference property 'min-height' is chosen arbitrarily, but
+        // avoid properties with "resolved value is used value"-behavior
+        // [1], as it may affect rounding, and custom properties do not
+        // have this behavior.
+        //
+        // [1] https://drafts.csswg.org/cssom/#resolved-values
+        const ref_property = 'min-height';
+        refnode.style = `${ref_property}: ${value}`;
+        return getComputedStyle(refnode).getPropertyValue(ref_property);
+    } finally {
+        refnode.style = '';
+    }
+}
+
+function test_computed_value(syntax, value, expected) {
+    test(function() {
+        assert_computed_value(divWithFontSizeSet, syntax, value, expected);
+    }, `${syntax} values are computed correctly [${value}]`);
+}
+
+test(function(){
+    const element = divWithFontSizeSet;
+    with_custom_property(element, '<length>', '14em', (name) => {
+        assert_computed_value(element, '<length>', `var(${name})`, '140px');
+    });
+}, '<length> values computed are correctly via var()-reference');
+
+test(function(){
+    const element = divWithFontSizeInherited;
+    with_custom_property(element, '<length>', '14em', (name) => {
+        assert_computed_value(element, '<length>', `var(${name})`, '140px');
+    });
+}, '<length> values computed are correctly via var()-reference when font-size is inherited');
+
+test(function(){
+    const element = divWithFontSizeInherited;
+    assert_computed_value(element, '<length>', '14em', '140px');
+}, '<length> values are computed correctly when font-size is inherited [14em]');
+
+test(function(){
+    const element = divWithFontSizeInherited;
+    assert_computed_value(element, '<length>', 'calc(14em + 10px)', '150px');
+}, '<length> values are computed correctly when font-size is inherited [calc(14em + 10px)]');
+
+test_computed_value('<length>', '12px', '12px');
+test_computed_value('<length>', '13vw', length_ref('13vw'));
+test_computed_value('<length>', '14em', '140px');
+test_computed_value('<length>', '15vmin', length_ref('15vmin'));
+test_computed_value('<length>', 'calc(16px - 7em + 10vh)', length_ref('calc(10vh - 54px)'));
+
+test_computed_value('<length>', '1in', '96px');
+test_computed_value('<length>', '2.54cm', '96px');
+test_computed_value('<length>', '25.4mm', '96px');
+test_computed_value('<length>', '6pc', '96px');
+test_computed_value('<length>', '72pt', '96px');
+
+test_computed_value('<length>', '10lh', '200px');
+
+test_computed_value('<length-percentage>', '17em', '170px');
+test_computed_value('<length-percentage>', '18%', '18%');
+test_computed_value('<length-percentage>', 'calc(19em - 2%)', 'calc(-2% + 190px)');
+
+test_computed_value('<length>#', '10px, 3em', '10px, 30px');
+test_computed_value('<length>#', '4em ,9px', '40px, 9px');
+test_computed_value('<length>#', '8em', '80px');
+
+test_computed_value('<length-percentage>#', '3% , 10vmax  , 22px', ['3%', length_ref('10vmax'), '22px'].join(', '));
+test_computed_value('<length-percentage>#', 'calc(50% + 1em), 4px', 'calc(50% + 10px), 4px');
+test_computed_value('<length-percentage>#', 'calc(13% + 37px)', 'calc(13% + 37px)');
+
+test_computed_value('<length>+', '10px 3em', '10px 30px');
+test_computed_value('<length>+', '4em 9px', '40px 9px');
+
+test_computed_value('<length-percentage>+', '3% 10vmax 22px', ['3%', length_ref('10vmax'), '22px'].join(' '));
+test_computed_value('<length-percentage>+', 'calc(50% + 1em) 4px', 'calc(50% + 10px) 4px');
+
+test_computed_value('<transform-function>', 'translateX(2px)', 'translateX(2px)');
+test_computed_value('<transform-function>', 'translateX(10em)', 'translateX(100px)');
+test_computed_value('<transform-function>', 'translateX(calc(11em + 10%))', 'translateX(calc(10% + 110px))');
+test_computed_value('<transform-function>+', 'translateX(10%) scale(2)', 'translateX(10%) scale(2)');
+
+test_computed_value('<integer>', '15', '15');
+test_computed_value('<integer>', 'calc(15 + 15)', '30');
+test_computed_value('<integer>', 'calc(2.4)', '2');
+test_computed_value('<integer>', 'calc(2.6)', '3');
+test_computed_value('<integer>', 'calc(2.6 + 3.1)', '6');
+
+test_computed_value('<integer>+', '15 calc(2.4) calc(2.6)', '15 2 3');
+
+test_computed_value('<number>', '15', '15');
+test_computed_value('<number>', 'calc(15 + 15)', '30');
+test_computed_value('<number>', 'calc(24 / 10)', '2.4');
+
+test_computed_value('<number>+', '15 calc(15 + 15) calc(24 / 10)', '15 30 2.4');
+
+test_computed_value('<color>', '#ff0000', 'rgb(255, 0, 0)');
+test_computed_value('<color>', '#000f00', 'rgb(0, 15, 0)');
+test_computed_value('<color>', '#00000a', 'rgb(0, 0, 10)');
+test_computed_value('<color>', '#badbee', 'rgb(186, 219, 238)');
+test_computed_value('<color>', '#badbee33', 'rgba(186, 219, 238, 0.2)');
+test_computed_value('<color>', 'tomato', 'rgb(255, 99, 71)');
+test_computed_value('<color>', 'plum', 'rgb(221, 160, 221)');
+test_computed_value('<color>', 'currentcolor', 'rgb(0, 0, 255)');
+test_computed_value('<color>', 'color-mix(in srgb, black, white)', 'color(srgb 0.5 0.5 0.5)');
+test_computed_value('<color>', 'color-mix(in srgb, currentcolor, red)', 'color(srgb 0.5 0 0.5)');
+test_computed_value('<color>', 'color-mix(in srgb, currentcolor, #ffffff 70%)', 'color(srgb 0.7 0.7 1)');
+test_computed_value('<color>', 'color-mix(in srgb, currentcolor 20%, #ffffff 20%)', 'color(srgb 0.5 0.5 1 / 0.4)');
+test_computed_value('<color>', 'light-dark(currentcolor, red)', 'rgb(0, 0, 255)');
+test_computed_value('<color>', 'light-dark(lime, red)', 'rgb(0, 255, 0)');
+test_computed_value('<color>', 'color(from lime srgb g g g)', 'color(srgb 1 1 1)');
+test_computed_value('<color>', 'color(from currentcolor srgb b g r)', 'color(srgb 1 0 0)');
+test_computed_value('<color>', 'color(srgb 1 1 1 / calc(NaN))', 'color(srgb 1 1 1 / 0)');
+
+// Custom ident values that look like color keywords should not be converted.
+test_computed_value('*', 'tomato', 'tomato');
+test_computed_value('tomato | plum', 'plum', 'plum');
+test_computed_value('tomato | plum | <color>', 'plum', 'plum');
+
+test_computed_value('*', '-50grad', '-50grad');
+test_computed_value('<angle>', '180deg', '180deg');
+test_computed_value('<angle>', '400grad', '360deg');
+test_computed_value('<angle>', 'calc(360deg + 400grad)', '720deg');
+
+test_computed_value('*', '50s', '50s');
+test_computed_value('<time>', '1s', '1s');
+test_computed_value('<time>', '1000ms', '1s');
+test_computed_value('<time>', 'calc(1000ms + 1s)', '2s');
+
+test_computed_value('*', '50dpi', '50dpi');
+test_computed_value('<resolution>', '1dppx', '1dppx');
+test_computed_value('<resolution>', '96dpi', '1dppx');
+test_computed_value('<resolution>', 'calc(1dppx + 96dpi)', '2dppx');
+
+test_computed_value('*', 'url(why)', 'url(why)');
+
+</script>
