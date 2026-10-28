@@ -52,6 +52,10 @@ public:
 
     BackingStoreManager() = default;
 
+    // The layouts that the presentation can import shared GPU backing stores in. Any layout the GPU renders to goes
+    // while this is empty.
+    static void set_presentation_drm_format_modifiers(Vector<u64>);
+
     Optional<Allocation> resize_backing_stores_if_needed(
         Gfx::IntSize viewport_size, Compositing::WindowResizingInProgress, bool should_publish);
     Optional<Publication> allocate_backing_stores(Allocation const&, RefPtr<Gfx::SkiaBackendContext> const&, bool should_publish, GpuSharing);

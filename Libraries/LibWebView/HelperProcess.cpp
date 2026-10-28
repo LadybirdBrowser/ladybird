@@ -7,6 +7,7 @@
 #include <AK/Enumerate.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/ScopeGuard.h>
+#include <AK/StringBuilder.h>
 #include <LibCore/ElapsedTimer.h>
 #include <LibCore/File.h>
 #include <LibCore/Process.h>
@@ -540,6 +541,16 @@ ErrorOr<NonnullRefPtr<WebView::CompositorClient>> launch_compositor_process()
     if (auto gpu_device = WebView::Application::the().platform_presentation_gpu_device(); gpu_device.has_value()) {
         arguments.append("--gpu-device"sv);
         arguments.append(gpu_device->to_byte_string());
+    }
+    if (auto modifiers = WebView::Application::the().platform_presentation_drm_format_modifiers(); !modifiers.is_empty()) {
+        StringBuilder builder;
+        for (auto modifier : modifiers) {
+            if (!builder.is_empty())
+                builder.append(',');
+            builder.appendff("{:x}", modifier);
+        }
+        arguments.append("--drm-format-modifiers"sv);
+        arguments.append(builder.to_byte_string());
     }
     if (auto server = mach_server_name(); server.has_value()) {
         arguments.append("--mach-server-name"sv);

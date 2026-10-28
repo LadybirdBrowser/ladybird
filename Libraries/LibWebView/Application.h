@@ -148,6 +148,9 @@ public:
     virtual Vector<String> platform_preferred_languages() const { return {}; }
     // The GPU the platform presents on, which the compositor paints on too, so that it can share its frames without a copy.
     virtual Optional<Gfx::GpuDeviceIdentity> platform_presentation_gpu_device() const { return {}; }
+    // The DRM format modifiers the platform can present frames in that are shared from that GPU, or empty if it does
+    // not say.
+    virtual Vector<u64> platform_presentation_drm_format_modifiers() const { return {}; }
 
     virtual OwnPtr<PictureInPictureWindow> create_picture_in_picture_window(WebContentPage& requesting_page, CanonicalTraversable&, Gfx::IntSize video_size);
 

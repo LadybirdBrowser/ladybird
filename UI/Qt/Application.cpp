@@ -720,6 +720,15 @@ Optional<Gfx::GpuDeviceIdentity> Application::platform_presentation_gpu_device()
 #endif
 }
 
+Vector<u64> Application::platform_presentation_drm_format_modifiers() const
+{
+#ifdef LADYBIRD_QT_USE_VULKAN_WINDOW
+    return WebContentView::presentation_drm_format_modifiers();
+#else
+    return {};
+#endif
+}
+
 #if !defined(AK_OS_MACOS)
 // On macOS, WebContent resolves system-ui with CoreText, so the system font family is not sent there.
 Optional<String> Application::system_font_family() const
