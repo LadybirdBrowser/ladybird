@@ -462,7 +462,42 @@ pub(crate) fn parse_a_calc_function_node(
                 },
             })
         }
-        MathFunction::Clamp | MathFunction::Progress => {
+        MathFunction::Clamp => {
+            if arguments.len() != 3 {
+                return Err(CalcParseError::Invalid);
+            }
+            // https://drafts.csswg.org/css-values-4/#funcdef-clamp
+            // Either the min or max calculations (or even both) can instead be the keyword none, which indicates
+            // the value is not clamped from that side.
+            let parse_bound = |values: &[ComponentValue]| {
+                let mut significant = values.iter().filter(|value| !value.is_whitespace());
+                if significant
+                    .next()
+                    .and_then(ComponentValue::ident)
+                    .is_some_and(|ident| equals_ascii_case_insensitive(ident, b"none"))
+                    && significant.next().is_none()
+                {
+                    Ok(None)
+                } else {
+                    parse_argument(values, context).map(Some)
+                }
+            };
+            let min = parse_bound(arguments[0])?;
+            let center = parse_argument(arguments[1], context)?;
+            let max = parse_bound(arguments[2])?;
+            let types = min
+                .iter()
+                .chain(std::iter::once(&center))
+                .chain(max.iter())
+                .map(|node| argument_type(node, percentages_resolve_as))
+                .collect::<Result<Vec<_>>>()?;
+            if !types.iter().all(accepts_dimension_or_percentage) {
+                return Err(CalcParseError::Invalid);
+            }
+            require_consistent(&types)?;
+            Arc::new(CalcNode::Clamp { min, center, max })
+        }
+        MathFunction::Progress => {
             let nodes = parse_fixed_arguments(&arguments, 3, context)?;
             let types = nodes
                 .iter()
@@ -472,19 +507,11 @@ pub(crate) fn parse_a_calc_function_node(
                 return Err(CalcParseError::Invalid);
             }
             require_consistent(&types)?;
-            Arc::new(if function == MathFunction::Clamp {
-                CalcNode::Clamp {
-                    min: nodes[0].clone(),
-                    center: nodes[1].clone(),
-                    max: nodes[2].clone(),
-                }
-            } else {
-                CalcNode::Progress {
-                    no_clamp: progress_no_clamp,
-                    progress: nodes[0].clone(),
-                    from: nodes[1].clone(),
-                    to: nodes[2].clone(),
-                }
+            Arc::new(CalcNode::Progress {
+                no_clamp: progress_no_clamp,
+                progress: nodes[0].clone(),
+                from: nodes[1].clone(),
+                to: nodes[2].clone(),
             })
         }
         MathFunction::Log => {

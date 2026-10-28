@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 50 tests
 
-44 Pass
-6 Fail
+50 Pass
 Pass	e.style['margin-top'] = "clamp(1px, 2px, 3px)" should set the property value
 Pass	e.style['margin-top'] = "calc(clamp(1px, 2px, 3px))" should set the property value
 Pass	e.style['margin-top'] = "clamp(1px, 2px, clamp(2px, 3px, 4px))" should set the property value
@@ -48,9 +47,9 @@ Pass	e.style['margin-top'] = "calc(0px + clamp(1px, 1em, 1vh))" should set the p
 Pass	e.style['margin-top'] = "calc(calc(0px + clamp(1px, 1em, 1vh)))" should set the property value
 Pass	e.style['margin-top'] = "calc(0px - clamp(1px, 1em, 1vh))" should set the property value
 Pass	e.style['margin-top'] = "calc(calc(0px - clamp(1px, 1em, 1vh)))" should set the property value
-Fail	e.style['margin-top'] = "clamp(none, 33px, 30px)" should set the property value
-Fail	e.style['margin-top'] = "calc(clamp(none, 33px, 30px))" should set the property value
-Fail	e.style['margin-top'] = "clamp(33px, 30px, none)" should set the property value
-Fail	e.style['margin-top'] = "calc(clamp(33px, 30px, none))" should set the property value
-Fail	e.style['margin-top'] = "clamp(none, 30px, none)" should set the property value
-Fail	e.style['margin-top'] = "calc(clamp(none, 30px, none))" should set the property value
+Pass	e.style['margin-top'] = "clamp(none, 33px, 30px)" should set the property value
+Pass	e.style['margin-top'] = "calc(clamp(none, 33px, 30px))" should set the property value
+Pass	e.style['margin-top'] = "clamp(33px, 30px, none)" should set the property value
+Pass	e.style['margin-top'] = "calc(clamp(33px, 30px, none))" should set the property value
+Pass	e.style['margin-top'] = "clamp(none, 30px, none)" should set the property value
+Pass	e.style['margin-top'] = "calc(clamp(none, 30px, none))" should set the property value
