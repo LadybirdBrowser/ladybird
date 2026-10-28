@@ -1980,6 +1980,16 @@ impl AbsposEngine<'_> {
             right = solve_for_right(left, inline_size, margin_left, margin_right);
         }
 
+        // https://drafts.csswg.org/css-position-3/#abspos-auto-size
+        // For the purpose of computing these sizes, any auto margins are treated as zero.
+        if inline_size.is_none()
+            && !computed_left.is_auto()
+            && !computed_right.is_auto()
+            && self.self_alignment_sizes_to_fit_content(sized, true)
+        {
+            inline_size = Some(shrink_to_fit(left, margin_left, margin_right, right));
+        }
+
         if !computed_left.is_auto() && inline_size.is_some() && !computed_right.is_auto() {
             let available_for_margins = containing_block_inline_size
                 - border_left
@@ -2025,14 +2035,7 @@ impl AbsposEngine<'_> {
         } else if computed_left.is_auto() && inline_size.is_some() && !computed_right.is_auto() {
             left = solve_for_left(inline_size, margin_left, margin_right, right);
         } else if inline_size.is_none() && !computed_left.is_auto() && !computed_right.is_auto() {
-            // https://drafts.csswg.org/css-position-3/#abspos-auto-size
-            // NB: A box aligned within its inset-modified containing block takes its fit-content size there, while
-            //     normal and stretch alignment fill it.
-            inline_size = Some(if self.self_alignment_sizes_to_fit_content(sized, true) {
-                shrink_to_fit(left, margin_left, margin_right, right)
-            } else {
-                solve_for_inline_size(left, margin_left, margin_right, right)
-            });
+            inline_size = Some(solve_for_inline_size(left, margin_left, margin_right, right));
         } else if computed_right.is_auto() && !computed_left.is_auto() && inline_size.is_some() {
             right = solve_for_right(left, inline_size, margin_left, margin_right);
         }
@@ -2426,6 +2429,25 @@ impl AbsposEngine<'_> {
             )
         };
 
+        // https://drafts.csswg.org/css-position-3/#abspos-auto-size
+        // For the purpose of computing these sizes, any auto margins are treated as zero.
+        if solution.block_size.is_none()
+            && solution.top.is_some()
+            && solution.bottom.is_some()
+            && self.self_alignment_sizes_to_fit_content(sized, false)
+        {
+            let Some(automatic) = self.automatic_block_size(
+                sized,
+                available_space,
+                constraints,
+                pass,
+                solve_for(solution.block_size, true, solution),
+            ) else {
+                return solution;
+            };
+            solution.block_size = Some(automatic);
+        }
+
         if solution.top.is_none() && solution.block_size.is_none() && solution.bottom.is_none() {
             solution.zero_out_auto_margins();
             let Some(automatic) = self.automatic_block_size(
@@ -2494,21 +2516,6 @@ impl AbsposEngine<'_> {
                 solution.bottom = Some(solve_for(solution.bottom, false, solution));
             } else if solution.top.is_none() && solution.block_size.is_some() && solution.bottom.is_some() {
                 solution.top = Some(solve_for(solution.top, false, solution));
-            } else if solution.block_size.is_none()
-                && solution.top.is_some()
-                && solution.bottom.is_some()
-                && self.self_alignment_sizes_to_fit_content(sized, false)
-            {
-                let Some(automatic) = self.automatic_block_size(
-                    sized,
-                    available_space,
-                    constraints,
-                    pass,
-                    solve_for(solution.block_size, true, solution),
-                ) else {
-                    return solution;
-                };
-                solution.block_size = Some(automatic);
             } else if solution.block_size.is_none() && solution.top.is_some() && solution.bottom.is_some() {
                 solution.block_size = Some(solve_for(solution.block_size, true, solution));
             } else if solution.bottom.is_none() && solution.top.is_some() && solution.block_size.is_some() {
@@ -3116,20 +3123,15 @@ impl<'pass> AbsposEngine<'pass> {
     /// within its inset-modified containing block, rather than fill it.
     fn self_alignment_sizes_to_fit_content(&self, sized: sizing_context::SizedRecord<'_>, inline_axis: bool) -> bool {
         let style = self.style_of(sized);
-        let (value, margin_start, margin_end) = if inline_axis {
-            (style.justify_self(), style.margin_left(), style.margin_right())
+        let value = if inline_axis {
+            style.justify_self()
         } else {
-            (
-                justify_self_value_for_align_self(style.align_self()),
-                style.margin_top(),
-                style.margin_bottom(),
-            )
+            justify_self_value_for_align_self(style.align_self())
         };
         !matches!(
             value,
             justify_self::AUTO | justify_self::NORMAL | justify_self::STRETCH | justify_self::ANCHOR_CENTER
-        ) && !margin_start.is_auto()
-            && !margin_end.is_auto()
+        )
     }
 
     /// Lays out and places `node`, kept with the cells `cells` for its run, with the inputs `inputs`, where its insets
