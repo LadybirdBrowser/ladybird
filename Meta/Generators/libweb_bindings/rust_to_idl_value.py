@@ -49,6 +49,7 @@ from Utils.webidl_parser import Enumeration
 from Utils.webidl_parser import IDLParameterizedType
 from Utils.webidl_parser import IDLType
 from Utils.webidl_parser import IDLUnionType
+from Utils.webidl_parser import Interface
 from Utils.webidl_parser import OperationParameter
 
 STRING_TYPES = ("DOMString", "USVString")
@@ -154,10 +155,7 @@ def rust_to_idl_value(
     interface = rust_interface(idl_type, context)
     if interface is not None:
         if inheriting_interfaces(interface, context):
-            raise UnsupportedByRustBindings(
-                f"{what} has the type {idl_type}, an interface that others inherit from, which the Rust bindings only "
-                "convert to as a member of a union yet"
-            )
+            return f"<{rust_any_interface_path(interface)}>::from_js(vm, {value})"
         return f"to_interface::<{rust_interface_path(interface)}>(vm, {value})"
     interface = cpp_interface(idl_type, context)
     if interface is not None:
@@ -443,6 +441,36 @@ def write_enumeration_from_js(out: TextIO, context: GenerationContext, enumerati
             Ok(match to_enumeration_value(vm, value, "{enumeration.name}", &[{values}])? {{
 {arms}                _ => unreachable!("the value is one of the values of the enumeration"),
             }})
+        }}
+    }}
+"""
+    )
+
+
+def write_any_interface_from_js(out: TextIO, interface: Interface, context: GenerationContext) -> None:
+    """The conversion of a JS value to the enum of an object of an interface that others inherit from,
+    rust_any_interface_path(), whose variant is the interface of the object."""
+    interface_path = rust_interface_path(interface)
+    arms = "".join(
+        f"""                if let Some(object) = implementation_if::<{rust_interface_path(implementing)}>(value.as_object()) {{
+                    return Ok(Self::{implementing.name}(object));
+                }}
+"""
+        for implementing in [interface] + inheriting_interfaces(interface, context)
+    )
+    out.write(
+        f"""
+    /// The conversion of a JS value to an object of the interface {interface.name} or of one that inherits from it,
+    /// https://webidl.spec.whatwg.org/#js-interface
+    impl FromJs for {rust_any_interface_path(interface)} {{
+        fn from_js(vm: &Vm, value: Value) -> ThrowCompletionOr<Self> {{
+            // 1. If V implements I, then return the IDL interface type value that represents a reference to that
+            //    platform object.
+            if value.is_object() && is_host_instance_of(&value.as_object(), <{interface_path} as Interface>::wrapper_class()) {{
+{arms}                unreachable!("a wrapper of the interface wraps an object of it or of an interface that inherits from it");
+            }}
+            // 2. Throw a TypeError.
+            vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAnObjectOfType, &[&"{interface.name}"])
         }}
     }}
 """

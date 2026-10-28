@@ -40,6 +40,7 @@ from Generators.libweb_bindings.rust_overloads import write_constructor_overload
 from Generators.libweb_bindings.rust_overloads import write_operation_overload_resolution
 from Generators.libweb_bindings.rust_to_idl_value import rust_default_value
 from Generators.libweb_bindings.rust_to_idl_value import rust_to_idl_value
+from Generators.libweb_bindings.rust_to_idl_value import write_any_interface_from_js
 from Generators.libweb_bindings.rust_to_idl_value import write_dictionary_from_js
 from Generators.libweb_bindings.rust_to_idl_value import write_enumeration_from_js
 from Generators.libweb_bindings.rust_to_idl_value import write_union_from_js
@@ -1765,7 +1766,12 @@ pub(crate) mod cpp_interface_names {
 def write_rust_definitions(out: TextIO, context: GenerationContext, usage: DefinitionUsage) -> None:
     """The conversions of the dictionaries and unions that the interfaces implemented in Rust name, each written once,
     whichever interfaces name it."""
-    if not usage.rust_dictionaries and not usage.rust_unions and not usage.rust_enumerations:
+    if (
+        not usage.rust_dictionaries
+        and not usage.rust_unions
+        and not usage.rust_enumerations
+        and not usage.rust_any_interfaces
+    ):
         return
     out.write(
         """
@@ -1817,6 +1823,8 @@ pub(crate) mod definitions {
             write_enumeration_from_js(out, context, enumeration)
         if directions.to_js:
             write_enumeration_to_js(out, context, enumeration)
+    for interface in usage.rust_any_interfaces.values():
+        write_any_interface_from_js(out, interface, context)
     for union_type, directions in usage.rust_unions.items():
         if directions.from_js:
             write_union_from_js(out, context, union_type)
