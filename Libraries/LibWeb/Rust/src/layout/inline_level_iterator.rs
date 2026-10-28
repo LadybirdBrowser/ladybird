@@ -983,11 +983,13 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
         if self.atomic_sizing == AtomicInlineSizing::Contributions {
             self.size_item_by_outer_inline_contributions(&mut item);
         } else {
-            if self.box_model_node_stack.last().copied() != Some(node) {
-                self.context().hold_atomic_inline(node);
-            }
-            item.content_baselines = self.context_mut().dimension_box_on_line(node);
-            let box_cells = self.context().box_metrics(node).input_cells();
+            let cells = if self.box_model_node_stack.last().copied() != Some(node) {
+                self.context().hold_atomic_inline(node)
+            } else {
+                self.context().box_metrics(node).input_cells()
+            };
+            let (content_baselines, box_cells) = self.context_mut().dimension_box_on_line(node, cells);
+            item.content_baselines = content_baselines;
             item.inline_size = box_cells.content_inline_size;
             item.padding_start = box_cells.padding_left;
             item.padding_end = box_cells.padding_right;

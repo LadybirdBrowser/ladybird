@@ -1317,15 +1317,15 @@ impl<'context> InlineFormattingContext<'context> {
     }
 
     /// Starts holding `node`, an atomic inline-level box: kept for its run where it has a formatting context of its
-    /// own, or with a record where this context lays it out itself.
-    pub(crate) fn hold_atomic_inline(&self, node: Node) {
+    /// own, or with a record where this context lays it out itself. Returns the cells the box starts out with.
+    pub(crate) fn hold_atomic_inline(&self, node: Node) -> used_values::RootInputCells {
         let constraints = self.input.containing_block_constraints;
         if formatting_context::formatting_context_type_created_by_box(self.facts(node)).is_some() {
             self.run
                 .records
-                .keep_child_for_its_run(&self.callbacks, node, constraints);
+                .keep_child_for_its_run(&self.callbacks, node, constraints)
         } else {
-            self.create_used_values(node, constraints);
+            used_values::RecordInFrame::in_its_own_frame(self.create_used_values(node, constraints)).cells()
         }
     }
 
@@ -1472,7 +1472,14 @@ impl<'context> InlineFormattingContext<'context> {
         next.map(|next| next - containing_block_offset_in_root)
     }
 
-    fn layout_inside(&self, node: Node, available_space: AvailableSpace) -> DerivedBaselines {
+    /// Lays out the contents of `node`, which starts out with the cells `cells`, and returns the baselines of its
+    /// contents and the cells its layout left it with.
+    fn layout_inside(
+        &self,
+        node: Node,
+        available_space: AvailableSpace,
+        cells: used_values::RootInputCells,
+    ) -> (DerivedBaselines, used_values::RootInputCells) {
         let input = LayoutInput::new(
             available_space,
             self.input.containing_block_constraints,
@@ -1483,12 +1490,13 @@ impl<'context> InlineFormattingContext<'context> {
             fragment_arrival,
             laid_out_box,
             line_data,
-        } = formatting_context::layout_inside_child(
+        } = formatting_context::layout_inside_child_with_input_cells(
             self.run,
             Some(self.parent),
             None,
             node,
             input,
+            cells,
             false,
             self.block_container.percentage_block_insets_have_definite_basis,
         );
@@ -1502,31 +1510,44 @@ impl<'context> InlineFormattingContext<'context> {
             }
             ChildLayoutOutcome::Skipped { .. } => self.box_metrics(node).content_baselines(),
         };
-        let placed_child = match laid_out_box {
-            Some(laid_out_box) => {
-                formatting_context::PlacedChild::of_laid_out_box(&laid_out_box, line_data, self.callbacks.frame)
-            }
+        let (placed_child, laid_out_cells) = match laid_out_box {
+            Some(laid_out_box) => (
+                formatting_context::PlacedChild::of_laid_out_box(&laid_out_box, line_data, self.callbacks.frame),
+                laid_out_box.cells,
+            ),
             // NB: The box was laid out by this context's parent flow, in the record it keeps here.
-            None => formatting_context::PlacedChild::of_record(self.run.records.used_values(node), self.run),
+            None => {
+                let record = self.run.records.used_values(node);
+                (
+                    formatting_context::PlacedChild::of_record(record, self.run),
+                    used_values::RecordInFrame::in_its_own_frame(record).cells(),
+                )
+            }
         };
         self.keep_placed_atomic_inline(node, placed_child);
-        baselines
+        (baselines, laid_out_cells)
     }
 
-    pub(crate) fn dimension_box_on_line(&self, node: Node) -> DerivedBaselines {
+    /// Lays out `node`, an atomic inline-level box on a line that starts out with the cells `cells`, and returns the
+    /// baselines of its contents and the cells its layout left it with.
+    pub(crate) fn dimension_box_on_line(
+        &self,
+        node: Node,
+        cells: used_values::RootInputCells,
+    ) -> (DerivedBaselines, used_values::RootInputCells) {
         let available_space = self.input.available_space;
         let facts = self.facts(node);
         // Any fragmented inline box should have generated line box fragments already.
         if facts.is_fragmented_inline() {
-            return DerivedBaselines::default();
+            return (DerivedBaselines::default(), cells);
         }
 
-        let content_baselines = self.layout_inside(node, available_space);
+        let (content_baselines, laid_out_cells) = self.layout_inside(node, available_space, cells);
         debug_assert!(
-            self.box_metrics(node).has_definite_inline_size(),
+            laid_out_cells.has_definite_inline_size(),
             "atomic inline-level run left its root's inline size unresolved"
         );
-        content_baselines
+        (content_baselines, laid_out_cells)
     }
 
     #[inline]
@@ -1981,9 +2002,9 @@ impl<'context> InlineFormattingContext<'context> {
                     line_builder.prepare_to_append_inline_content();
                     if shares_items && !self.laid_out_atomic_inline(item.node) {
                         // NB: The box is laid out again in this run, and keeps the content baselines it had.
-                        self.hold_atomic_inline(item.node);
-                        self.dimension_box_on_line(item.node);
-                        item.box_cells = Some(Box::new(self.box_metrics(item.node).input_cells()));
+                        let cells = self.hold_atomic_inline(item.node);
+                        let (_, laid_out_cells) = self.dimension_box_on_line(item.node, cells);
+                        item.box_cells = Some(Box::new(laid_out_cells));
                     }
                     let insets = self.compute_inset(item.node);
                     self.update_placed_atomic_inline(item.node, |placed_child| {
