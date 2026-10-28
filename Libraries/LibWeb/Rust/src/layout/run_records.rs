@@ -1096,25 +1096,21 @@ impl<'arena> RunRecords<'arena> {
         let Some(handed_back) = handed_back else {
             return geometry_of_record;
         };
+        let geometry = fragment_tree::FragmentGeometry {
+            cells: handed_back.laid_out.cells,
+            line_data: handed_back.line_data,
+        };
         if checks_kept_boxes_against_records() {
             assert_eq!(
                 handed_back.frame, callbacks.frame,
                 "the fragment of {node:?} is built in another frame than the one its box is kept in"
             );
             assert!(
-                handed_back.laid_out.cells == geometry_of_record.cells
-                    && match (&handed_back.line_data, &geometry_of_record.line_data) {
-                        (None, None) => true,
-                        (Some(kept), Some(recorded)) => std::sync::Arc::ptr_eq(kept, recorded),
-                        _ => false,
-                    },
+                geometry.is_identical_to(&geometry_of_record),
                 "the parent's record of {node:?} changed after its run handed the box back"
             );
         }
-        fragment_tree::FragmentGeometry {
-            cells: handed_back.laid_out.cells,
-            line_data: handed_back.line_data,
-        }
+        geometry
     }
 
     pub(crate) fn store_table_inline_layout(&self, table: Node, layout: table_formatting_context::TableInlineLayout) {

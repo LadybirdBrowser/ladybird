@@ -467,6 +467,33 @@ pub(crate) struct FragmentGeometry {
     pub(crate) line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
 }
 
+impl FragmentGeometry {
+    /// Whether `other` has the same cells and the same lines, as the same allocation.
+    pub(crate) fn is_identical_to(&self, other: &Self) -> bool {
+        self.cells == other.cells && same_allocation(self.line_data.as_ref(), other.line_data.as_ref())
+    }
+
+    pub(crate) fn shows_box_of_fragment(&self, fragment: &Fragment) -> bool {
+        let cells = &self.cells;
+        same_allocation(self.line_data.as_ref(), fragment.line_data.as_ref())
+            && fragment.content_inline_size == cells.content_inline_size
+            && fragment.content_block_size == cells.content_block_size
+            && fragment.margin_left == cells.margin_left
+            && fragment.margin_right == cells.margin_right
+            && fragment.margin_top == cells.margin_top
+            && fragment.margin_bottom == cells.margin_bottom
+            && fragment.border_left == cells.border_left
+            && fragment.border_right == cells.border_right
+            && fragment.border_top == cells.border_top
+            && fragment.border_bottom == cells.border_bottom
+            && fragment.padding_left == cells.padding_left
+            && fragment.padding_right == cells.padding_right
+            && fragment.padding_top == cells.padding_top
+            && fragment.padding_bottom == cells.padding_bottom
+            && fragment.uses_collapsing_borders_model == cells.uses_collapsing_borders_model
+    }
+}
+
 /// The committed fragment `fragment` of `node`, or a fragment of the box's `geometry` around the committed children
 /// where the box is now hidden or shown for line clamping unlike the committed fragment.
 pub(crate) fn committed_fragment_showing_box(

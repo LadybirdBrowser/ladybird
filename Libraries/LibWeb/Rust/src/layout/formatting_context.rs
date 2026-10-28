@@ -2170,10 +2170,9 @@ pub(super) fn run_formatting_context(
     )
 }
 
-/// Takes a committing run of `box_` from the cache hit `hit` with nothing replayed: its root record gets what the
-/// stored run left, and the run's placement attaches the box's committed fragment as it is. That is exact where the
-/// committed subtree is the one the stored run produced, the box is plain, and nothing from the stored run reaches
-/// past its root.
+/// Takes a committing run of `box_` from the cache hit `hit` with nothing replayed: the box gets what the stored run
+/// left, and the run's placement attaches the box's committed fragment as it is. That is exact where the committed
+/// subtree is the one the stored run produced, the box is plain, and nothing from the stored run reaches past its root.
 #[expect(clippy::too_many_arguments)]
 fn reuse_committed_subtree_as_it_is(
     parent_fragments: Option<&fragment_tree::RunFragmentBuilder>,
@@ -2186,7 +2185,6 @@ fn reuse_committed_subtree_as_it_is(
     hit: &fc_run_cache::FcRunCacheHit,
 ) -> Option<ChildRunOutcome> {
     parent_fragments?;
-    let root_used = root_used.expect("a parent that builds fragments keeps a record of its child");
     let entry = &*hit.entry;
     if !hit.reuses_committed_subtree
         || !cache_key.has_no_table_cell_intrinsic_block_padding()
@@ -2205,13 +2203,24 @@ fn reuse_committed_subtree_as_it_is(
         .flatten()?;
     let content_block_size_adopted_after_run =
         content_block_size_adopted_after_run(input, entry.outputs.result.automatic_content_block_size);
-    entry
-        .outputs
-        .root_outcome
-        .clone()
-        .apply_to_record(root_used, content_block_size_adopted_after_run);
-    if !root_used.shows_box_of_fragment(&fragment) {
+    let laid_out_box = entry.outputs.root_outcome.laid_out_child_box(
+        root_cells,
+        &entry.outputs.result,
+        content_block_size_adopted_after_run,
+    );
+    let geometry = fragment_tree::FragmentGeometry {
+        cells: laid_out_box.cells,
+        line_data: entry.outputs.root_outcome.line_data.clone(),
+    };
+    if !geometry.shows_box_of_fragment(&fragment) {
         return None;
+    }
+    if let Some(root_used) = root_used {
+        entry
+            .outputs
+            .root_outcome
+            .clone()
+            .apply_to_record(root_used, content_block_size_adopted_after_run);
     }
     let _trace = callbacks
         .arena()
@@ -2220,15 +2229,10 @@ fn reuse_committed_subtree_as_it_is(
     callbacks
         .scratch()
         .receive_host_findings(entry.outputs.host_findings.clone());
-    let laid_out_box = entry.outputs.root_outcome.laid_out_child_box(
-        root_cells,
-        &entry.outputs.result,
-        content_block_size_adopted_after_run,
-    );
     Some(ChildRunOutcome {
         result: entry.outputs.result,
         laid_out_box,
-        line_data: entry.outputs.root_outcome.line_data.clone(),
+        line_data: geometry.line_data,
         fragment_arrival: Some(fragment_tree::ChildFragmentArrival::CommittedFragment {
             fragment,
             reuses_subtree: true,
