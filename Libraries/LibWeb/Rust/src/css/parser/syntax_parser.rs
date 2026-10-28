@@ -1806,7 +1806,10 @@ impl Parser {
         if is_custom_property && name.as_ref().len() == 2 {
             return None;
         }
-        if !is_custom_property {
+        // INTEROP: The initial-value descriptor accepts arbitrary component values, including mixed curly blocks.
+        let is_initial_value_descriptor = self.rule_context.last() == Some(&RuleContext::AtProperty)
+            && equals_ascii_case_insensitive(name.as_ref(), b"initial-value");
+        if !is_custom_property && !is_initial_value_descriptor {
             let mut contains_curly = false;
             let mut contains_non_whitespace = false;
             for component in &value {
