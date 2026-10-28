@@ -582,20 +582,6 @@ impl<'arena> RunRecords<'arena> {
         );
     }
 
-    /// Whether this run keeps `child` without a record, for runs of its own: before the first of them returns, or once
-    /// the last one handed it back.
-    pub(crate) fn keeps_child_without_record(&self, child: Node) -> bool {
-        if self.is_root_with_record(child) {
-            return false;
-        }
-        self.held_boxes.borrow().get(&child).is_some_and(|kept| {
-            !matches!(
-                kept.holding,
-                KeptBoxHolding::LaidOutByThisRun { .. } | KeptBoxHolding::LaidOutInRecordItsLayoutOwns
-            )
-        })
-    }
-
     /// Gives `child`, a box this run keeps without a record, a record with the cells `cells`, for this run to lay the
     /// box out itself.
     #[track_caller]

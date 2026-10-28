@@ -1928,14 +1928,16 @@ fn size_skipped_independent_root(
     run: &FormattingContextRun,
     parent_block: Option<&block_formatting_context::BlockFormattingContext>,
     child: Node,
+    record: &UsedValues,
     input: &LayoutInput,
 ) {
     match input.participation {
         ParticipationInParentFormattingContext::Float { .. } => {
             let parent = parent_block.expect("a float requires an enclosing block formatting context");
-            parent.resolve_float_root_block_size_in_parent(child, input);
+            let sized_float = block_formatting_context::ChildSizedHere::laid_out_in(child, record);
+            parent.resolve_float_root_block_size_in_parent(sized_float, input);
             parent.resolve_used_block_size_if_treated_as_auto(
-                block_formatting_context::ChildSizedHere::kept_by_its_run(child),
+                sized_float,
                 input.available_space,
                 input.containing_block_constraints,
                 None,
@@ -2796,8 +2798,8 @@ impl ChildLayout {
     }
 }
 
-/// Lays out `child` with the input cells its parent sized it to: hands them to the child's run, or gives them to the
-/// child's record where the parent lays the child out itself.
+/// Lays out `child` with the input cells its parent sized it to: hands them to the child's run, or gives them to
+/// `record_kept_by_parent`, the record of the call laying the child out, where the parent lays the child out itself.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn layout_inside_child_with_input_cells(
     run: &FormattingContextRun,
@@ -2806,6 +2808,7 @@ pub(crate) fn layout_inside_child_with_input_cells(
     child: Node,
     input: LayoutInput,
     mut child_input_cells: used_values::RootInputCells,
+    record_kept_by_parent: Option<&UsedValues>,
     force_independent_context_run: bool,
     percentage_block_insets_of_containing_block_have_definite_basis: bool,
 ) -> ChildLayout {
@@ -2820,11 +2823,9 @@ pub(crate) fn layout_inside_child_with_input_cells(
         child_input_cells.padding_top += padding_top;
         child_input_cells.padding_bottom += padding_bottom;
     }
-    let record_kept_by_parent = (!run.records.keeps_child_without_record(child)).then(|| {
-        let used = run.records.used_values(child);
+    if let Some(used) = record_kept_by_parent {
         child_input_cells.apply_to_record(used);
-        used
-    });
+    }
     // NB: A child kept without a record that this run lays out itself gets a record of the cells it was handed.
     let record_for_this_run = || {
         record_kept_by_parent.unwrap_or_else(|| {
@@ -2899,7 +2900,7 @@ pub(crate) fn layout_inside_child_with_input_cells(
             return ChildLayout::of_child_sized_in_parent_run(skipped(), &record_of_this_layout);
         }
         let used = record_for_this_run();
-        size_skipped_independent_root(run, parent_block, child, &input);
+        size_skipped_independent_root(run, parent_block, child, used, &input);
         return ChildLayout::of_child_sized_in_parent_run(skipped(), used);
     }
 

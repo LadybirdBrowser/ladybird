@@ -2168,6 +2168,7 @@ impl<'pass> MathFormattingContext<'pass> {
             child,
             input,
             child_cells,
+            None,
             true,
             run.percentage_block_insets_of_root_children_have_definite_basis(),
         );
