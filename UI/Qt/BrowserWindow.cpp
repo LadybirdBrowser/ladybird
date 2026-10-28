@@ -669,7 +669,7 @@ void BrowserWindow::open_new_tab()
     tab.focus_location_editor(focus_ring_transition);
 }
 
-void BrowserWindow::duplicate_tab(Tab& source_tab)
+void BrowserWindow::duplicate_tab(Tab& source_tab, Web::HTML::ActivateTab activate_tab, Optional<i32> history_step)
 {
     // A tab that hasn't loaded keeps its history in the session store.
     Optional<WebView::SessionHistorySnapshot> history;
@@ -677,23 +677,33 @@ void BrowserWindow::duplicate_tab(Tab& source_tab)
         history = source_tab.view().session_history_snapshot();
     else if (auto session_tab_id = source_tab.session_tab_id(); session_tab_id.has_value())
         history = m_session->session_store->load_tab_history(*session_tab_id);
-    auto source_url = source_tab.url();
+    auto fallback_url = source_tab.url();
 
-    auto& duplicate = create_new_tab(Web::HTML::ActivateTab::Yes, TabLocation::after_tab(source_tab));
+    if (history.has_value() && history_step.has_value()) {
+        auto step_index = history->used_steps.find_first_index(*history_step);
+        if (!step_index.has_value())
+            return;
+        history->current_used_step_index = *step_index;
+
+        auto top_level_entry = history->entries.last_matching([&](auto const& entry) { return entry.step <= *history_step; });
+        if (top_level_entry.has_value())
+            fallback_url = WebView::display_url_for_session_history_entry(*top_level_entry);
+    }
+
+    auto& duplicate = create_new_tab(activate_tab, TabLocation::after_tab(source_tab));
     if (!history.has_value() || duplicate.view().restore_session_history_from_snapshot(history.release_value()).is_error())
-        duplicate.navigate(source_url);
+        duplicate.navigate(fallback_url);
 }
 
-void BrowserWindow::open_history_entry_in_new_tab(Tab& source_tab, int delta)
+void BrowserWindow::open_history_entry_in_new_tab(Tab& source_tab, int delta, Web::HTML::ActivateTab activate_tab)
 {
-    auto& view = source_tab.view();
-    auto history = view.session_history_snapshot();
-    history.current_used_step_index = view.traversable().effective_current_session_history_step_index() + delta;
-    if (history.current_used_step_index >= history.used_steps.size())
+    auto const& traversable = source_tab.view().traversable();
+    auto used_steps = traversable.session_history().used_steps();
+    auto step_index = traversable.effective_current_session_history_step_index() + delta;
+    if (step_index >= used_steps.size())
         return;
 
-    auto& tab = create_new_tab(Web::HTML::ActivateTab::No, TabLocation::after_tab(source_tab));
-    (void)tab.view().restore_session_history_from_snapshot(AK::move(history));
+    duplicate_tab(source_tab, activate_tab, used_steps[step_index]);
 }
 
 void BrowserWindow::restore_tabs(Vector<WebView::RestoredSessionTab> const& tabs, i64 active_tab_index)

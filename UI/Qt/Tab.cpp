@@ -73,6 +73,11 @@ namespace Ladybird {
 static constexpr auto WINDOW_DRAG_REGION_PROPERTY = "LadybirdWindowDragRegion";
 static constexpr int BOOKMARKS_BAR_HOVER_COLLAPSE_POLL_INTERVAL_MS = 250;
 
+static Web::HTML::ActivateTab activate_tab_for_modifiers(Qt::KeyboardModifiers modifiers)
+{
+    return modifiers.testFlag(Qt::ShiftModifier) ? Web::HTML::ActivateTab::Yes : Web::HTML::ActivateTab::No;
+}
+
 class ToolbarButton : public QToolButton {
 public:
     AK_ALLOC_WITH_KMALLOC;
@@ -84,7 +89,12 @@ public:
         QObject::connect(&m_icon_motion_animation, &QVariantAnimation::finished, this, [this] { update(); });
     }
 
-    Function<void()> on_middle_click;
+    Function<void(Web::HTML::ActivateTab)> on_open_in_new_tab;
+
+    bool click_opens_in_new_tab() const
+    {
+        return can_open_in_new_tab() && QApplication::keyboardModifiers().testFlag(Qt::ControlModifier);
+    }
 
     // A click or a change of state moves the icon a little: back and forward nudge their way, and the downloads arrow
     // drops into place as the button appears and bobs once as a download finishes.
@@ -122,6 +132,8 @@ public:
     }
 
 protected:
+    virtual bool can_open_in_new_tab() const { return static_cast<bool>(on_open_in_new_tab); }
+
     QRect icon_rect() const
     {
         return QRect(QPoint((width() - iconSize().width()) / 2, (height() - iconSize().height()) / 2), iconSize());
@@ -179,7 +191,7 @@ protected:
 
     virtual void mousePressEvent(QMouseEvent* event) override
     {
-        if (event->button() == Qt::MiddleButton && on_middle_click)
+        if (event->button() == Qt::MiddleButton && can_open_in_new_tab())
             event->accept();
         else
             QToolButton::mousePressEvent(event);
@@ -187,13 +199,23 @@ protected:
 
     virtual void mouseReleaseEvent(QMouseEvent* event) override
     {
-        if (event->button() == Qt::MiddleButton && on_middle_click) {
+        if (event->button() == Qt::MiddleButton && can_open_in_new_tab()) {
             if (rect().contains(event->position().toPoint()))
-                on_middle_click();
+                on_open_in_new_tab(activate_tab_for_modifiers(event->modifiers()));
             event->accept();
         } else {
             QToolButton::mouseReleaseEvent(event);
         }
+    }
+
+    // QToolButton triggers its default action from here, once a click has completed.
+    virtual void nextCheckState() override
+    {
+        if (click_opens_in_new_tab()) {
+            on_open_in_new_tab(activate_tab_for_modifiers(QApplication::keyboardModifiers()));
+            return;
+        }
+        QToolButton::nextCheckState();
     }
 
 private:
@@ -260,6 +282,11 @@ public:
     }
 
 protected:
+    virtual bool can_open_in_new_tab() const override
+    {
+        return m_visible_mode == Mode::Reload && ToolbarButton::can_open_in_new_tab();
+    }
+
     virtual void leaveEvent(QEvent* event) override
     {
         ToolbarButton::leaveEvent(event);
@@ -267,12 +294,12 @@ protected:
     }
 
     // A Shift-click on the reload button reloads bypassing the HTTP cache, and one on the stop button stops the load as
-    // any other click there does. QToolButton triggers its default action from here, once a click has completed.
+    // any other click there does.
     virtual void nextCheckState() override
     {
         if (m_visible_mode == Mode::Stop && m_double_click_timer.isActive())
             return;
-        if (m_visible_mode == Mode::Reload && QApplication::keyboardModifiers().testFlag(Qt::ShiftModifier)) {
+        if (m_visible_mode == Mode::Reload && !click_opens_in_new_tab() && QApplication::keyboardModifiers().testFlag(Qt::ShiftModifier)) {
             m_reload_bypassing_cache_action->trigger();
             return;
         }
@@ -522,17 +549,25 @@ QToolButton* Tab::create_navigation_history_toolbar_button(QWidget& parent, QAct
 {
     auto& view = this->view();
     auto* button = create_toolbar_button(parent, action);
-    button->on_middle_click = [this, direction] {
-        m_window->open_history_entry_in_new_tab(*this, direction);
+    button->on_open_in_new_tab = [this, direction](auto activate_tab) {
+        m_window->open_history_entry_in_new_tab(*this, direction, activate_tab);
     };
     auto* menu = new QMenu(button);
     QObject::connect(menu, &QMenu::aboutToShow, button, [menu, &view, direction] {
         populate_session_history_traversal_menu(*menu, view, direction);
     });
+    QObject::connect(menu, &QMenu::triggered, button, [this, &view](QAction* action) {
+        auto step = action->data().toInt();
+        if (auto modifiers = QApplication::keyboardModifiers(); modifiers.testFlag(Qt::ControlModifier))
+            m_window->duplicate_tab(*this, activate_tab_for_modifiers(modifiers), step);
+        else
+            view.traverse_the_history_to_step(step);
+    });
     button->setMenu(menu);
     button->setPopupMode(QToolButton::DelayedPopup);
     QObject::connect(button, &QToolButton::clicked, button, [button, direction] {
-        button->play_icon_motion(direction < 0 ? ToolbarButton::IconMotion::NudgeLeft : ToolbarButton::IconMotion::NudgeRight);
+        if (!button->click_opens_in_new_tab())
+            button->play_icon_motion(direction < 0 ? ToolbarButton::IconMotion::NudgeLeft : ToolbarButton::IconMotion::NudgeRight);
     });
     button->setContextMenuPolicy(Qt::CustomContextMenu);
     QObject::connect(button, &QToolButton::customContextMenuRequested, button, [button, menu, &view, direction](QPoint const&) {
@@ -1242,6 +1277,9 @@ void Tab::initialize(Optional<WebView::CanonicalTraversable&> traversable)
     navigation_button_layout->addWidget(create_navigation_history_toolbar_button(*navigation_button_cluster, *m_navigate_forward_action, 1));
     m_reload_button = create_toolbar_button<ReloadButton>(*navigation_button_cluster, *m_reload_action);
     m_reload_button->set_actions(*m_reload_action, *m_reload_bypassing_cache_action, *m_stop_action);
+    m_reload_button->on_open_in_new_tab = [this](auto activate_tab) {
+        m_window->duplicate_tab(*this, activate_tab);
+    };
     navigation_button_layout->addWidget(m_reload_button);
 
     auto* location_edit_container = new QWidget(m_toolbar);
