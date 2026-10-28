@@ -1717,7 +1717,9 @@ fn dimension_block_level_root(
     let constraints = input.containing_block_constraints;
     let sizing = run.sizing();
     let style = StyleValues::for_node(&run.callbacks, node);
+    let flex_self_resolution_space = size_block_level_root_ahead_of_its_contents(run, input);
     let mut body_input = body_input_with_inner_available_space(run, input);
+    body_input.sizing.flex_self_block_size_resolution_space = flex_self_resolution_space;
     if let Some(block_size) = input.sizing.forced_content_block_size {
         let used = run.records.used_values(node);
         used.set_content_block_size(block_size);
@@ -1740,6 +1742,46 @@ fn dimension_block_level_root(
     }
     sizing.make_form_control_content_box_definite(node, available_space, constraints, measured_content_block_size);
     body_input
+}
+
+/// Gives the root of a block-level run the inline size its block formatting context resolved for it, and resolves its
+/// block size where that follows without laying out its contents. Answers the space a flex root resolves its own
+/// automatic block size in, if it does.
+fn size_block_level_root_ahead_of_its_contents(
+    run: &FormattingContextRun,
+    input: &LayoutInput,
+) -> Option<AvailableSpace> {
+    let node = run.box_;
+    let root = run.records.used_values(node);
+    let constraints = input.containing_block_constraints;
+    let sizing = run.sizing();
+    let facts = NodeFacts::new(&run.callbacks, node);
+    if let Some(content_inline_size) = input.sizing.block_parent_resolved_content_inline_size {
+        root.set_content_inline_size(content_inline_size);
+    }
+    let flex_self_resolution_space =
+        flex_self_block_size_resolution_space(&sizing, node, input.available_space, constraints);
+    let resolution_space = sizing.available_space_for_block_size_resolution(node, input.available_space, constraints);
+    sizing.resolve_used_block_size_if_not_treated_as_auto(node, resolution_space, constraints);
+    let block_size_is_definite_from_aspect_ratio = root.has_definite_inline_size()
+        && facts.has_preferred_aspect_ratio()
+        && sizing.box_is_sized_as_replaced_element(node, resolution_space, constraints);
+    if facts.has_auto_content_box_size()
+        || block_size_is_definite_from_aspect_ratio
+        || (StyleValues::for_node(&run.callbacks, node).display().is_flex_inside()
+            && flex_self_resolution_space.is_none())
+    {
+        sizing.resolve_used_block_size_if_treated_as_auto(node, resolution_space, constraints, None, || {
+            block_formatting_context::automatic_block_size_of_independent_root_ahead_of_its_contents(
+                run.records,
+                run.callbacks,
+                node,
+                root.available_inner_space_or_constraints_from(resolution_space),
+                constraints,
+            )
+        });
+    }
+    flex_self_resolution_space
 }
 
 /// Whether a block-level root with an automatic block size lays out its content against its min-height where its
@@ -1856,12 +1898,13 @@ fn dimension_root_in_parent_scope(
             .flatten()
     };
     match input.participation {
+        // NB: The run of a block-level root sizes its root itself, see size_block_level_root_ahead_of_its_contents().
+        ParticipationInParentFormattingContext::BlockLevel if child_run_follows => None,
         ParticipationInParentFormattingContext::BlockLevel => {
-            let parent = parent_block.expect("a block-level run requires an enclosing block formatting context");
+            let parent = parent_block.expect("a block-level box requires an enclosing block formatting context");
             parent.commit_block_level_root_inline_size(child, input);
-            let flex_self_resolution_space = flex_self_resolution_space_of_following_run(parent);
-            parent.resolve_block_level_root_block_size_before_body(child, input, flex_self_resolution_space.is_some());
-            flex_self_resolution_space
+            parent.resolve_block_level_root_block_size_before_body(child, input, false);
+            None
         }
         ParticipationInParentFormattingContext::Float { .. } => {
             let parent = parent_block.expect("a floating run requires an enclosing block formatting context");
