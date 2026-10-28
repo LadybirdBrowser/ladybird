@@ -986,7 +986,7 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
             let cells = if self.box_model_node_stack.last().copied() != Some(node) {
                 self.context().hold_atomic_inline(node)
             } else {
-                self.context().box_metrics(node).input_cells()
+                self.context().box_metrics(node).cells()
             };
             let (content_baselines, box_cells) = self.context_mut().dimension_box_on_line(node, cells);
             item.content_baselines = content_baselines;

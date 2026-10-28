@@ -782,7 +782,7 @@ impl<'pass> BlockFormattingContext<'pass> {
     fn child_metrics(&self, node: Node) -> used_values::RootInputCells {
         match self.cells_of_child_sized_ahead_of_its_run(node) {
             Some(cells) => cells,
-            None => self.run.records.box_metrics_of(node).input_cells(),
+            None => self.run.records.box_metrics_of(node).cells(),
         }
     }
 
@@ -844,7 +844,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             .cells_of_children_sized_ahead_of_their_runs
             .borrow_mut()
             .remove(&node);
-        handed_over.unwrap_or_else(|| self.run.records.box_metrics_of(node).input_cells())
+        handed_over.unwrap_or_else(|| self.run.records.box_metrics_of(node).cells())
     }
 
     fn register_contained_abspos_child(&self, node: Node, block_offset: CssPixels, coordinate_space_box: Node) {
@@ -2317,7 +2317,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             None => {
                 let metrics = self.run.records.box_metrics_of(node);
                 (
-                    metrics.input_cells(),
+                    metrics.cells(),
                     metrics.content_baselines(),
                     formatting_context::baselines_child_gives_container(self.run.records, &self.run.callbacks, node),
                 )

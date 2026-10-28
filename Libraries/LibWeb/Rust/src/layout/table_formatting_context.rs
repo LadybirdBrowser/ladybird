@@ -2727,7 +2727,7 @@ impl<'pass> TableFormattingContext<'pass> {
         self.cell_box_cells[cell_index] = match &laid_out_box {
             Some(laid_out_box) => laid_out_box.cells,
             // NB: The cell was laid out by this table's run, in the record it keeps.
-            None => run.records.box_metrics_of(cell.box_).input_cells(),
+            None => run.records.box_metrics_of(cell.box_).cells(),
         };
         // NB: A cell this table lays out in the record it keeps hands nothing back.
         self.content_baselines_of_handed_back_cells[cell_index] =

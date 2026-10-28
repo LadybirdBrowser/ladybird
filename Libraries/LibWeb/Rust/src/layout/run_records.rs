@@ -354,13 +354,6 @@ pub(crate) enum BoxMetrics<'records> {
 }
 
 impl BoxMetrics<'_> {
-    pub(crate) fn input_cells(&self) -> used_values::RootInputCells {
-        match self {
-            Self::LaidOutByThisRun(record) => record.cells(),
-            Self::NotYetLaidOut(cells) => *cells,
-        }
-    }
-
     pub(crate) fn content_baselines(&self) -> DerivedBaselines {
         match self {
             Self::LaidOutByThisRun(record) => record.record().content_baselines_from_cells(),
@@ -369,49 +362,21 @@ impl BoxMetrics<'_> {
     }
 }
 
-macro_rules! box_metrics_getters {
-    ($($name:ident: $value:ty,)+) => {
-        impl BoxMetricCells for BoxMetrics<'_> {
-            $(
-                #[inline]
-                fn $name(&self) -> $value {
-                    match self {
-                        Self::LaidOutByThisRun(record) => record.$name(),
-                        Self::NotYetLaidOut(cells) => cells.$name(),
-                    }
-                }
-            )+
-
-            fn record_viewed(&self) -> Option<&UsedValues> {
-                match self {
-                    Self::LaidOutByThisRun(record) => Some(record.record()),
-                    _ => None,
-                }
-            }
+impl BoxMetricCells for BoxMetrics<'_> {
+    #[inline]
+    fn cells(&self) -> used_values::RootInputCells {
+        match self {
+            Self::LaidOutByThisRun(record) => record.cells(),
+            Self::NotYetLaidOut(cells) => *cells,
         }
-    };
-}
+    }
 
-box_metrics_getters! {
-    content_inline_size: CssPixels,
-    content_block_size: CssPixels,
-    margin_left: CssPixels,
-    margin_right: CssPixels,
-    margin_top: CssPixels,
-    margin_bottom: CssPixels,
-    border_left: CssPixels,
-    border_right: CssPixels,
-    border_top: CssPixels,
-    border_bottom: CssPixels,
-    padding_left: CssPixels,
-    padding_right: CssPixels,
-    padding_top: CssPixels,
-    padding_bottom: CssPixels,
-    has_definite_inline_size: bool,
-    has_definite_block_size: bool,
-    has_definite_block_size_only_for_button_content_alignment: bool,
-    uses_collapsing_borders_model: bool,
-    is_collapsed_borders_table_box: bool,
+    fn record_viewed(&self) -> Option<&UsedValues> {
+        match self {
+            Self::LaidOutByThisRun(record) => Some(record.record()),
+            Self::NotYetLaidOut(_) => None,
+        }
+    }
 }
 
 /// The used values of a box's inset properties.

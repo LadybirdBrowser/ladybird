@@ -330,6 +330,7 @@ macro_rules! used_values_cells {
         }
 
         impl $name {
+            #[inline]
             pub(crate) fn capture(used: &UsedValues) -> Self {
                 Self {
                     $($field: used.$field.get(),)+
@@ -419,6 +420,7 @@ impl RootInputCells {
     }
 
     /// The cells, with the sizes, size constraints and box sides they hold in frame `from` read in frame `to` instead.
+    #[inline]
     pub(crate) fn in_frame(mut self, from: geometry::Frame, to: geometry::Frame) -> Self {
         if from == to {
             return self;
@@ -574,26 +576,42 @@ impl UsedValues {
 
 /// The sizes, size constraints and box sides of a box, with what derives from them, whether a run holds them in the box's
 /// record or its parent holds them as a value.
+macro_rules! box_metric_getters {
+    ($($name:ident: $value:ty,)+) => {
+        $(
+            #[inline]
+            fn $name(&self) -> $value {
+                self.cells().$name
+            }
+        )+
+    };
+}
+
 pub(crate) trait BoxMetricCells {
-    fn content_inline_size(&self) -> CssPixels;
-    fn content_block_size(&self) -> CssPixels;
-    fn margin_left(&self) -> CssPixels;
-    fn margin_right(&self) -> CssPixels;
-    fn margin_top(&self) -> CssPixels;
-    fn margin_bottom(&self) -> CssPixels;
-    fn border_left(&self) -> CssPixels;
-    fn border_right(&self) -> CssPixels;
-    fn border_top(&self) -> CssPixels;
-    fn border_bottom(&self) -> CssPixels;
-    fn padding_left(&self) -> CssPixels;
-    fn padding_right(&self) -> CssPixels;
-    fn padding_top(&self) -> CssPixels;
-    fn padding_bottom(&self) -> CssPixels;
-    fn has_definite_inline_size(&self) -> bool;
-    fn has_definite_block_size(&self) -> bool;
-    fn has_definite_block_size_only_for_button_content_alignment(&self) -> bool;
-    fn uses_collapsing_borders_model(&self) -> bool;
-    fn is_collapsed_borders_table_box(&self) -> bool;
+    /// The sizes, size constraints and box sides these metrics hold.
+    fn cells(&self) -> RootInputCells;
+
+    box_metric_getters! {
+        content_inline_size: CssPixels,
+        content_block_size: CssPixels,
+        margin_left: CssPixels,
+        margin_right: CssPixels,
+        margin_top: CssPixels,
+        margin_bottom: CssPixels,
+        border_left: CssPixels,
+        border_right: CssPixels,
+        border_top: CssPixels,
+        border_bottom: CssPixels,
+        padding_left: CssPixels,
+        padding_right: CssPixels,
+        padding_top: CssPixels,
+        padding_bottom: CssPixels,
+        has_definite_inline_size: bool,
+        has_definite_block_size: bool,
+        has_definite_block_size_only_for_button_content_alignment: bool,
+        uses_collapsing_borders_model: bool,
+        is_collapsed_borders_table_box: bool,
+    }
 
     /// The record these metrics view, if they view one, which a reader in another frame views in its own.
     fn record_viewed(&self) -> Option<&UsedValues> {
@@ -711,52 +729,19 @@ pub(crate) trait BoxMetricCells {
     }
 }
 
-macro_rules! impl_box_metric_cells {
-    ($type:ty, $read:ident) => {
-        impl BoxMetricCells for $type {
-            impl_box_metric_cells!(@getters $read;
-                content_inline_size: CssPixels,
-                content_block_size: CssPixels,
-                margin_left: CssPixels,
-                margin_right: CssPixels,
-                margin_top: CssPixels,
-                margin_bottom: CssPixels,
-                border_left: CssPixels,
-                border_right: CssPixels,
-                border_top: CssPixels,
-                border_bottom: CssPixels,
-                padding_left: CssPixels,
-                padding_right: CssPixels,
-                padding_top: CssPixels,
-                padding_bottom: CssPixels,
-                has_definite_inline_size: bool,
-                has_definite_block_size: bool,
-                has_definite_block_size_only_for_button_content_alignment: bool,
-                uses_collapsing_borders_model: bool,
-                is_collapsed_borders_table_box: bool,
-            );
-        }
-    };
-    (@getters cell; $($name:ident: $value:ty,)+) => {
-        $(
-            #[inline]
-            fn $name(&self) -> $value {
-                self.$name.get()
-            }
-        )+
-    };
-    (@getters value; $($name:ident: $value:ty,)+) => {
-        $(
-            #[inline]
-            fn $name(&self) -> $value {
-                self.$name
-            }
-        )+
-    };
+impl BoxMetricCells for UsedValues {
+    #[inline]
+    fn cells(&self) -> RootInputCells {
+        RootInputCells::capture(self)
+    }
 }
 
-impl_box_metric_cells!(UsedValues, cell);
-impl_box_metric_cells!(RootInputCells, value);
+impl BoxMetricCells for RootInputCells {
+    #[inline]
+    fn cells(&self) -> RootInputCells {
+        *self
+    }
+}
 
 /// A record as a reader in frame `reader` sees it: the sizes, size constraints and box sides the record holds in its own
 /// frame, read and written in the reader's frame.
@@ -801,11 +786,6 @@ impl<'record> RecordInFrame<'record> {
             return side;
         }
         self.reader.side_in(side, record_frame)
-    }
-
-    /// The record's input cells, read in the reader's frame.
-    pub(crate) fn cells(self) -> RootInputCells {
-        RootInputCells::capture(self.record).in_frame(self.record.frame.get(), self.reader)
     }
 
     pub(crate) fn set_content_inline_size(self, value: CssPixels) {
@@ -899,116 +879,8 @@ impl<'record> RecordInFrame<'record> {
 
 impl BoxMetricCells for RecordInFrame<'_> {
     #[inline]
-    fn content_inline_size(&self) -> CssPixels {
-        if self.sizes_swap_axes() {
-            self.record.content_block_size.get()
-        } else {
-            self.record.content_inline_size.get()
-        }
-    }
-
-    #[inline]
-    fn content_block_size(&self) -> CssPixels {
-        if self.sizes_swap_axes() {
-            self.record.content_inline_size.get()
-        } else {
-            self.record.content_block_size.get()
-        }
-    }
-
-    #[inline]
-    fn margin_left(&self) -> CssPixels {
-        self.record.margin_cell(self.stored_side(geometry::Side::Left)).get()
-    }
-
-    #[inline]
-    fn margin_right(&self) -> CssPixels {
-        self.record.margin_cell(self.stored_side(geometry::Side::Right)).get()
-    }
-
-    #[inline]
-    fn margin_top(&self) -> CssPixels {
-        self.record.margin_cell(self.stored_side(geometry::Side::Top)).get()
-    }
-
-    #[inline]
-    fn margin_bottom(&self) -> CssPixels {
-        self.record.margin_cell(self.stored_side(geometry::Side::Bottom)).get()
-    }
-
-    #[inline]
-    fn border_left(&self) -> CssPixels {
-        self.record.border_cell(self.stored_side(geometry::Side::Left)).get()
-    }
-
-    #[inline]
-    fn border_right(&self) -> CssPixels {
-        self.record.border_cell(self.stored_side(geometry::Side::Right)).get()
-    }
-
-    #[inline]
-    fn border_top(&self) -> CssPixels {
-        self.record.border_cell(self.stored_side(geometry::Side::Top)).get()
-    }
-
-    #[inline]
-    fn border_bottom(&self) -> CssPixels {
-        self.record.border_cell(self.stored_side(geometry::Side::Bottom)).get()
-    }
-
-    #[inline]
-    fn padding_left(&self) -> CssPixels {
-        self.record.padding_cell(self.stored_side(geometry::Side::Left)).get()
-    }
-
-    #[inline]
-    fn padding_right(&self) -> CssPixels {
-        self.record.padding_cell(self.stored_side(geometry::Side::Right)).get()
-    }
-
-    #[inline]
-    fn padding_top(&self) -> CssPixels {
-        self.record.padding_cell(self.stored_side(geometry::Side::Top)).get()
-    }
-
-    #[inline]
-    fn padding_bottom(&self) -> CssPixels {
-        self.record.padding_cell(self.stored_side(geometry::Side::Bottom)).get()
-    }
-
-    #[inline]
-    fn has_definite_inline_size(&self) -> bool {
-        if self.sizes_swap_axes() {
-            self.record.has_definite_block_size.get()
-        } else {
-            self.record.has_definite_inline_size.get()
-        }
-    }
-
-    #[inline]
-    fn has_definite_block_size(&self) -> bool {
-        if self.sizes_swap_axes() {
-            self.record.has_definite_inline_size.get()
-        } else {
-            self.record.has_definite_block_size.get()
-        }
-    }
-
-    #[inline]
-    fn has_definite_block_size_only_for_button_content_alignment(&self) -> bool {
-        self.record
-            .has_definite_block_size_only_for_button_content_alignment
-            .get()
-    }
-
-    #[inline]
-    fn uses_collapsing_borders_model(&self) -> bool {
-        self.record.uses_collapsing_borders_model.get()
-    }
-
-    #[inline]
-    fn is_collapsed_borders_table_box(&self) -> bool {
-        self.record.is_collapsed_borders_table_box.get()
+    fn cells(&self) -> RootInputCells {
+        RootInputCells::capture(self.record).in_frame(self.record.frame.get(), self.reader)
     }
 
     fn record_viewed(&self) -> Option<&UsedValues> {
