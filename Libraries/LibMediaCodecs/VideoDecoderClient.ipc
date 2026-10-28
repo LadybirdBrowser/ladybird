@@ -5,10 +5,7 @@
 
 endpoint VideoDecoderClient
 {
-    // Each new buffer backing a slot is announced once, before the first frame that refers to it.
-    video_frame_slot_announced(u64 decoder_id, Media::VideoFramePoolID pool_id, u32 slot_index, Core::AnonymousBuffer slot_buffer, RefPtr<Media::VideoSurface> surface) =|
-    // The decoder keeps the frame's slot until the client releases it.
-    frame_decoded(u64 decoder_id, u32 generation, Media::VideoFrameHandle handle) =|
+    frame_decoded(u64 decoder_id, u32 generation, u64 frame_id, Media::VideoFrameMetadata metadata, Core::AnonymousBuffer pixel_buffer, RefPtr<Media::VideoSurface> surface) =|
     coded_frame_consumed(u64 decoder_id) =|
     decoder_failed(u64 decoder_id, u32 generation, Media::DecoderError error) =|
     decoder_drained(u64 decoder_id, u32 generation) =|

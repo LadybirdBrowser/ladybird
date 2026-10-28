@@ -24,8 +24,7 @@ namespace Media {
 // Decodes in the VideoDecoderServer. Coded frames are written to a shared-memory ring and submitted without waiting,
 // and the server answers each one once it has consumed it. Output is waited for once the current generation's frames
 // the server has yet to answer reach the maximum in flight, unless the server waits for one of its slots to be
-// released here, which is answered with TryAgain. Decoded frames stay in the server's slots, which this process holds
-// and lends onward until it releases them.
+// released here, which is answered with TryAgain.
 //
 // If the server is lost, or answers nothing for too long while it is waited on, the next call reports
 // NeedsResubmission, and the coded frames submitted after it, starting from a keyframe, go to a new server. A decoder

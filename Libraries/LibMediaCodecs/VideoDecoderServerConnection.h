@@ -22,8 +22,7 @@
 namespace Media {
 
 // The decoding end of the connection between a VideoDecoderServer and its client, hosting the decoders it is given in
-// priority order. Each decoder the client creates runs on a thread of its own, reading the coded frames submitted to
-// it out of a shared-memory ring. Every frame handed out of a slot stays held here until the client releases it.
+// priority order.
 class MEDIACODECS_API VideoDecoderServerConnection final
     : public IPC::ConnectionFromClient<VideoDecoderClientEndpoint, VideoDecoderServerEndpoint>
     , public ThreadSafeWeakable<VideoDecoderServerConnection> {
@@ -52,28 +51,19 @@ private:
     virtual void submit_coded_frame(u64 decoder_id, u32 generation, u64 ring_offset, u64 size, AK::Duration presentation_timestamp, AK::Duration decode_timestamp, AK::Duration duration, FrameFlags flags, Optional<ByteBuffer> new_codec_configuration, DecodeIntent intent, Optional<AK::Duration> output_target) override;
     virtual void signal_end_of_stream(u64 decoder_id, u32 generation) override;
     virtual void flush(u64 decoder_id, u32 generation) override;
-    virtual void release_frame(VideoFramePoolID pool_id, u32 slot_index) override;
+    virtual void release_frame(u64 frame_id) override;
 
-    // Called from the decoder threads.
-    void hold_frame_until_released(NonnullRefPtr<VideoFrame>);
+    // Callable from the decoder threads.
+    u64 hold_frame_until_released(NonnullRefPtr<VideoFrame>);
     bool should_close_after_decoding_frame();
-
-    struct HeldSlot {
-        VideoFramePoolID pool_id;
-        u32 slot_index { 0 };
-
-        bool operator==(HeldSlot const&) const = default;
-    };
-    struct HeldSlotTraits : public DefaultTraits<HeldSlot> {
-        static unsigned hash(HeldSlot const& slot) { return pair_int_hash(u64_hash(slot.pool_id.value()), slot.slot_index); }
-    };
 
     Core::EventLoop& m_event_loop;
     ReadonlySpan<VideoDecoderRegistration> const m_hosted_decoders;
     HashMap<u64, NonnullRefPtr<DecoderSession>> m_sessions;
 
     Mutex m_held_frames_mutex;
-    HashMap<HeldSlot, Vector<NonnullRefPtr<VideoFrame>>, HeldSlotTraits> m_held_frames_by_slot;
+    HashMap<u64, NonnullRefPtr<VideoFrame>> m_held_frames;
+    u64 m_next_held_frame_id { 1 };
 
     Atomic<u32> m_frames_until_close { 0 };
 };

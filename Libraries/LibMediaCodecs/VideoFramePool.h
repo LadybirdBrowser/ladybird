@@ -69,8 +69,6 @@ protected:
     Optional<u32> try_grow_while_locked();
 
     virtual void drop_slot_storage_while_locked(Slot&) = 0;
-    // Runs after the slot freed callback, from the same thread.
-    virtual void did_free_slot(u32) { }
 
     u32 held_slot_count_while_locked() const;
     void publish_acquisition_while_locked(Slot&);
@@ -148,35 +146,6 @@ private:
     void drop_slot_storage_while_locked(Slot&) override;
 
     HashMap<u32, u32> m_slot_indices_by_surface_id;
-};
-
-// Mirrors a pool in another process, whose frames this process holds and lends onward as its own. The other process
-// publishes each acquisition in the slot's buffer and holds the slot once for each frame it hands out of it, until
-// this pool releases that hold, so this pool tracks holds without publishing anything. Holds taken here beyond the
-// adoptions, by lending a frame onward, are this process's own, so they are not released to the other process.
-class MEDIACODECS_API VideoFrameRelayPool final : public VideoFrameEntryLedger {
-public:
-    static constexpr u32 MAX_SLOT_COUNT = max(VideoFramePool::MAX_SLOT_COUNT, VideoFrameSurfacePool::MAX_SLOT_COUNT);
-
-    // Called once for each adoption of a slot, once the slot is no longer held here at all.
-    using AdoptionReleasedCallback = Function<void(u32 slot_index)>;
-    static ErrorOr<NonnullRefPtr<VideoFrameRelayPool>> create(AdoptionReleasedCallback);
-
-    // Takes a new buffer for a slot, as the other process announces it. Fails if the slot is still held.
-    ErrorOr<void> set_slot_storage(u32 slot_index, Core::AnonymousBuffer, RefPtr<VideoSurface>);
-    // Holds a slot for an acquisition the other process published in the slot's buffer, or holds it once more for
-    // the acquisition it is already held for.
-    ErrorOr<NonnullRefPtr<PooledVideoFrameSlot>> try_adopt_published_slot(u32 slot_index, u64 slot_acquisition_id);
-
-private:
-    explicit VideoFrameRelayPool(AdoptionReleasedCallback);
-
-    virtual void drop_slot_storage_while_locked(Slot&) override;
-    virtual void did_free_slot(u32 slot_index) override;
-
-    AdoptionReleasedCallback m_adoption_released_callback;
-    // How many times each slot was adopted since it was last free, indexed like the slots.
-    Vector<u32> m_adoption_counts_by_slot;
 };
 
 // A strong reference to a slot in a frame pool to be used within a single process.
