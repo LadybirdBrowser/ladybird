@@ -728,13 +728,13 @@ fn parse_grid_track_placement(
                 return None;
             }
             tokens.discard_a_token();
+            tokens.discard_whitespace();
             // NB: span may follow the integer or name only when it is the final token, not when it
             //     separates the two.
             if tokens.has_next_token() && (parsed_name.is_some() || parsed_integer.is_some()) {
                 return None;
             }
             is_span = true;
-            tokens.discard_whitespace();
             continue;
         }
         if let Some(identifier) = tokens.next_token().ident()
