@@ -28,6 +28,8 @@ download_exclude_list = {
     "/resources/testdriver-vendor.js",
     # Modified to use a relative path, which the importer can't rewrite.
     "/fonts/ahem.css",
+    # Modified to round the results of Math functions that appear in test names, since they differ between platforms.
+    "/css/css-transforms/animation/transform-interpolation-005.html",
 }
 visited_destinations = set()
 
