@@ -427,7 +427,7 @@ fn parse_value_type(
             Some(value_list(parsed, 0, false))
         }
         DescriptorValueType::OptionalDeclarationValue => {
-            if !declaration_value_is_valid(values) {
+            if !values.is_empty() && !declaration_value_is_valid(values) {
                 return None;
             }
             Some(unresolved_value(

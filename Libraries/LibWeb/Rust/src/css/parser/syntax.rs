@@ -401,7 +401,7 @@ pub(crate) fn parse_with_syntax_component_values(
     original_source: Option<&[u16]>,
 ) -> Option<StyleValueData> {
     if matches!(syntax, SyntaxNode::Universal) {
-        if !declaration_value_is_valid(values) {
+        if !values.is_empty() && !declaration_value_is_valid(values) {
             return None;
         }
 
