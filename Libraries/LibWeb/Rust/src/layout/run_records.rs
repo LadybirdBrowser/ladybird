@@ -109,13 +109,6 @@ const _: () = {
     assert_send::<LayoutScratch>();
 };
 
-/// What a run keeps for a box it holds: what the box's parent decided about it, and how the run
-/// holds the box.
-struct KeptBox {
-    facts_decided_by_parent: FactsDecidedByParent,
-    holding: KeptBoxHolding,
-}
-
 enum KeptBoxHolding {
     /// A box this run lays out itself, in a record the run keeps for it until the run is dropped.
     LaidOutByThisRun { record: NonNull<UsedValues> },
@@ -270,10 +263,7 @@ pub(crate) struct RunRecords<'arena> {
     /// How many runs are in progress with this one, which only the innermost of them may register boxes with.
     runs_in_progress_with_it: usize,
     /// What the run keeps of each box it holds but its root.
-    held_boxes: RefCell<HashMap<Node, KeptBox>>,
-    /// What the parent of the root of a run that owns its root record decides about it, which the run keeps with every
-    /// other box it holds.
-    root_facts_decided_by_parent: Cell<FactsDecidedByParent>,
+    held_boxes: RefCell<HashMap<Node, KeptBoxHolding>>,
     // Wrapper sizing hands this state to the wrapper's child run, which consumes it while laying
     // out the table box. Keeping it on the run prevents measurement state from escaping a pass.
     table_inline_layouts: RefCell<HashMap<Node, table_formatting_context::TableInlineLayout>>,
@@ -471,7 +461,6 @@ impl<'arena> RunRecords<'arena> {
             scratch,
             runs_in_progress_with_it: scratch.begin_run(),
             held_boxes: RefCell::new(HashMap::default()),
-            root_facts_decided_by_parent: Cell::new(FactsDecidedByParent::default()),
             table_inline_layouts: RefCell::new(HashMap::default()),
             content_sizing,
             percentage_block_size_dependencies_in_progress: RefCell::new(smallvec::smallvec![(
@@ -569,13 +558,7 @@ impl<'arena> RunRecords<'arena> {
         if held_boxes.contains_key(&node) {
             self.panic_for_box_registered_twice(node);
         }
-        held_boxes.insert(
-            node,
-            KeptBox {
-                facts_decided_by_parent: FactsDecidedByParent::default(),
-                holding,
-            },
-        );
+        held_boxes.insert(node, holding);
     }
 
     pub(crate) fn create_used_values(
@@ -610,7 +593,7 @@ impl<'arena> RunRecords<'arena> {
 
     /// The record this run keeps for `node`, a box it holds but its root, where it keeps one.
     fn record_this_run_keeps(&self, node: Node) -> Option<NonNull<UsedValues>> {
-        match self.held_boxes.borrow().get(&node)?.holding {
+        match *self.held_boxes.borrow().get(&node)? {
             KeptBoxHolding::LaidOutByThisRun { record } => Some(record),
             KeptBoxHolding::LaidOutInRecordItsLayoutOwns
             | KeptBoxHolding::ChildNotYetLaidOut
@@ -633,65 +616,8 @@ impl<'arena> RunRecords<'arena> {
         )
     }
 
-    fn kept_facts_decided_by_parent_of(&self, node: Node) -> Option<FactsDecidedByParent> {
-        if self.is_root_with_record(node) {
-            return Some(self.root_facts_decided_by_parent.get());
-        }
-        Some(self.held_boxes.borrow().get(&node)?.facts_decided_by_parent)
-    }
-
-    #[track_caller]
-    fn keep_facts_decided_by_parent_of(&self, node: Node, facts: FactsDecidedByParent) {
-        if self.is_root_with_record(node) {
-            return self.root_facts_decided_by_parent.set(facts);
-        }
-        match self.held_boxes.borrow_mut().get_mut(&node) {
-            Some(kept) => kept.facts_decided_by_parent = facts,
-            None => self.panic_for_box_not_held(node),
-        }
-    }
-
     pub(crate) fn root(&self) -> Node {
         self.root
-    }
-
-    /// Places `node` in `placement`, which is final: the box's metrics are sealed with it.
-    #[track_caller]
-    pub(crate) fn place_box(&self, node: Node, placement: BoxPlacement) {
-        let facts = self.facts_decided_by_parent_of(node);
-        assert!(facts.placement.is_none(), "a box is placed once");
-        self.keep_facts_decided_by_parent_of(
-            node,
-            FactsDecidedByParent {
-                placement: Some(placement),
-                ..facts
-            },
-        );
-        if let Some(used) = self.used_values_if_owned(node) {
-            used.seal_own_metrics();
-        }
-    }
-
-    /// Adopts for `node` what its parent decided about it in the layout that committed `facts`, placing the box there.
-    #[track_caller]
-    pub(crate) fn adopt_committed_facts_decided_by_parent(&self, node: Node, facts: FactsDecidedByParent) {
-        assert!(
-            facts.placement.is_some() && self.facts_decided_by_parent_of(node).placement.is_none(),
-            "a box adopts the placement it committed once"
-        );
-        self.keep_facts_decided_by_parent_of(node, facts);
-        if let Some(used) = self.used_values_if_owned(node) {
-            used.seal_own_metrics();
-        }
-    }
-
-    /// What the parent of `node` has decided about it so far.
-    #[track_caller]
-    pub(crate) fn facts_decided_by_parent_of(&self, node: Node) -> FactsDecidedByParent {
-        match self.kept_facts_decided_by_parent_of(node) {
-            Some(facts) => facts,
-            None => self.panic_for_box_not_held(node),
-        }
     }
 
     /// Tracks the percentage block size dependency of `node` until the returned tracking is dropped, which the layout
@@ -767,12 +693,12 @@ impl<'arena> RunRecords<'arena> {
         };
         assert!(
             !matches!(
-                kept.holding,
+                kept,
                 KeptBoxHolding::LaidOutByThisRun { .. } | KeptBoxHolding::LaidOutInRecordItsLayoutOwns
             ),
             "{child:?} is handed back by a run of its own to a parent that lays it out itself"
         );
-        kept.holding = KeptBoxHolding::ChildHandedBack;
+        *kept = KeptBoxHolding::ChildHandedBack;
     }
 
     pub(crate) fn store_table_inline_layout(&self, table: Node, layout: table_formatting_context::TableInlineLayout) {
@@ -787,7 +713,7 @@ impl<'arena> RunRecords<'arena> {
 impl Drop for RunRecords<'_> {
     fn drop(&mut self) {
         for kept in self.held_boxes.get_mut().values() {
-            if let KeptBoxHolding::LaidOutByThisRun { record } = kept.holding {
+            if let KeptBoxHolding::LaidOutByThisRun { record } = *kept {
                 // SAFETY: The run leaked the record into its keeping, and nothing borrows it once the run is dropped.
                 drop(unsafe { Box::from_raw(record.as_ptr()) });
             }

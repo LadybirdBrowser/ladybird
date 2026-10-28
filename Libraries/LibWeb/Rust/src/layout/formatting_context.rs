@@ -433,13 +433,11 @@ pub(crate) fn place_child(
         || run.callbacks.in_flow_containing_block(node),
         |inputs| inputs.containing_block,
     );
-    let records = run.records;
     let callbacks = &run.callbacks;
     let placement = run_records::BoxPlacement {
         content_offset_in_containing_block: offset,
         containing_block,
     };
-    records.place_box(node, placement);
     let Some(fragments) = run.fragments.as_deref() else {
         debug_assert!(
             fragment_arrival.is_none(),
@@ -3672,9 +3670,6 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
         .expect("partial relayout root must have committed geometry");
     let root_cells = committed_root.cells;
     run.records.hold_child_for_its_run(root);
-    // Adopting the committed geometry is the root's placement, final from the moment it is adopted.
-    run.records
-        .adopt_committed_facts_decided_by_parent(root, committed_root.facts_decided_by_parent);
     let fragments = run.fragments.as_deref().expect("partial relayout must build fragments");
     let mut input = LayoutInput::new(
         AvailableSpace {
