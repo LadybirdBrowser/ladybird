@@ -666,10 +666,7 @@ fn absolutize_color_function(value: &StyleValueData, context: &AbsolutizationCon
         } else {
             absolutize_child(origin_color, context, &mut changed)?
         };
-        if !changed {
-            return Some(Absolutized::Unchanged);
-        }
-        return Some(Absolutized::Changed(retain_new(StyleValueData::ColorFunction {
+        let rebuilt = StyleValueData::ColorFunction {
             color_base: *color_base,
             channel_0: absolutized_c1,
             channel_1: absolutized_c2,
@@ -678,7 +675,20 @@ fn absolutize_color_function(value: &StyleValueData, context: &AbsolutizationCon
             has_name: *has_name,
             name: name.clone(),
             origin_color: absolutized_origin,
-        })));
+        };
+        // NB: Other properties keep currentcolor unresolved until the element's own color is available.
+        if !(context.current_color.is_none() && value_depends_on_current_color(&rebuilt))
+            && let Some(resolved) = resolve_relative_form(&rebuilt, &color_resolution_input(context))
+        {
+            return Some(Absolutized::Changed(retain_new(
+                crate::css::color_resolution::relative_color_computed_value_form(resolved),
+            )));
+        }
+        return Some(if changed {
+            Absolutized::Changed(retain_new(rebuilt))
+        } else {
+            Absolutized::Unchanged
+        });
     }
 
     let descriptor = descriptor_for_color_type(color_base.color_type);
