@@ -38,7 +38,21 @@ test("basic parseInt() functionality", () => {
     expect(parseInt(1000000000000100000000, 10)).toBe(1);
     expect(parseInt(123000000000010000000000, 10)).toBe(1);
     expect(parseInt(1e21, 10)).toBe(1);
-    // FIXME: expect(parseInt('900719925474099267n')).toBe(900719925474099300)
+    expect(parseInt("900719925474099267n")).toBe(900719925474099300);
+    expect(parseInt("18446462598732840000")).toBe(0xffff000000000000);
+});
+
+test("parseInt() rounds long digit runs correctly", () => {
+    expect(parseInt("-900719925474099267")).toBe(-900719925474099300);
+    expect(parseInt("0000000000000000900719925474099267")).toBe(900719925474099300);
+    expect(parseInt("9".repeat(400))).toBe(Infinity);
+
+    expect(parseInt("200000000000011", 16)).toBe(2 ** 57 + 32);
+    expect(parseInt("fffffffffffffc", 16)).toBe(2 ** 56);
+    expect(parseInt("1" + "0".repeat(52) + "11", 2)).toBe(2 ** 54 + 4);
+    expect(parseInt("7".repeat(31), 8)).toBe(2 ** 93);
+    expect(parseInt("v".repeat(20), 32)).toBe(2 ** 100);
+    expect(parseInt("f".repeat(300), 16)).toBe(Infinity);
 });
 
 test("parseInt() radix is coerced to a number", () => {
