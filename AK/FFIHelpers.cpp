@@ -201,6 +201,11 @@ extern "C" void ladybird_dealloc(void* pointer, size_t alignment)
     ak_kfree(pointer);
 }
 
+extern "C" void ladybird_release_unused_allocator_memory()
+{
+    ak_kmalloc_collect();
+}
+
 extern "C" void* ladybird_realloc(void* pointer, size_t old_size, size_t new_size, size_t alignment)
 {
     if (alignment <= alignof(max_align_t))

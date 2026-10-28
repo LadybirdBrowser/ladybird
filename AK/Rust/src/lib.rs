@@ -73,6 +73,7 @@ unsafe extern "C" {
         read: *mut usize,
     ) -> u8;
     fn ladybird_encode_base64_to_utf16(data: *const u8, length: usize, url: bool, omit_padding: bool) -> usize;
+    fn ladybird_release_unused_allocator_memory();
     fn ladybird_convert_to_decimal_exponential_form(
         value: f64,
         sign: *mut bool,
@@ -415,6 +416,13 @@ impl Utf16String {
         // SAFETY: The constructor transfers one ownership reference.
         unsafe { Self::from_raw_owned(raw) }
     }
+}
+
+/// Gives the memory the calling thread freed back to the system. The allocator otherwise keeps it until the thread
+/// allocates again, so a thread that made large transient allocations calls this once it goes idle.
+pub fn release_unused_allocator_memory() {
+    // SAFETY: Takes no arguments, and any thread may call it.
+    unsafe { ladybird_release_unused_allocator_memory() }
 }
 
 pub fn validate_utf16(string: &[u16]) -> bool {

@@ -6,14 +6,19 @@
 
 //! The compile threads. Only snapshots go to them and only compile results come back: the compiler never sees the heap.
 
-use std::sync::mpsc::{Receiver, Sender, channel};
-use std::sync::{Arc, Mutex};
+use std::collections::VecDeque;
+use std::sync::mpsc::{Receiver, channel};
+use std::sync::{Arc, Condvar, Mutex};
+use std::time::Duration;
 
 use libjs_jit::CompileFailure;
 use libjs_jit::code::{CompiledCode, Site};
 use libjs_jit::snapshot::Snapshot;
 
 pub type CompileResult = Result<CompiledCode, CompileFailure>;
+
+/// How long a compile thread waits for another job before it gives the memory its jobs freed back to the system.
+const IDLE_MEMORY_RELEASE_DELAY: Duration = Duration::from_secs(1);
 
 /// What the compile threads do: compile a snapshot, or drop what dead code no longer needs.
 enum Job {
@@ -23,38 +28,61 @@ enum Job {
     Drop(Vec<Site>),
 }
 
+struct Jobs {
+    queue: VecDeque<Job>,
+    /// Set once the queue is dropped, which ends the threads.
+    closed: bool,
+}
+
+struct SharedJobs {
+    jobs: Mutex<Jobs>,
+    job_available: Condvar,
+}
+
 /// Threads that compile the snapshots they are sent, each taking the oldest job no other thread took yet. Jobs finish
 /// in any order. Dropping the queue lets the threads end once they are done with the jobs they compile; the results of
 /// abandoned jobs are dropped.
 pub struct CompileQueue {
-    jobs: Sender<Job>,
+    jobs: Arc<SharedJobs>,
     results: Receiver<(u64, CompileResult)>,
 }
 
 impl CompileQueue {
     pub fn start(thread_count: usize) -> Self {
-        let (jobs, job_receiver) = channel::<Job>();
-        let job_receiver = Arc::new(Mutex::new(job_receiver));
+        let jobs = Arc::new(SharedJobs {
+            jobs: Mutex::new(Jobs {
+                queue: VecDeque::new(),
+                closed: false,
+            }),
+            job_available: Condvar::new(),
+        });
         let (result_sender, results) = channel();
         for index in 0..thread_count.max(1) {
-            let job_receiver = Arc::clone(&job_receiver);
+            let jobs = Arc::clone(&jobs);
             let result_sender = result_sender.clone();
             let spawned = std::thread::Builder::new()
                 .name("LibJS JIT".to_string())
                 .spawn(move || {
+                    let mut released_memory_since_last_job = true;
                     loop {
-                        // NB: The lock is held only while waiting for a job, so the other threads compile meanwhile.
-                        let job = job_receiver
-                            .lock()
-                            .expect("no compile thread panics while waiting")
-                            .recv();
+                        let job = match next_job(&jobs, released_memory_since_last_job) {
+                            NextJob::Job(job) => job,
+                            NextJob::Idle => {
+                                // NB: A compile can allocate a lot for a while, and the allocator keeps the memory a
+                                //     thread freed until the thread allocates again, which an idle thread may never do.
+                                ak::release_unused_allocator_memory();
+                                released_memory_since_last_job = true;
+                                continue;
+                            }
+                            NextJob::Closed => return,
+                        };
+                        released_memory_since_last_job = false;
                         let (id, snapshot) = match job {
-                            Ok(Job::Compile(id, snapshot)) => (id, snapshot),
-                            Ok(Job::Drop(sites)) => {
+                            Job::Compile(id, snapshot) => (id, snapshot),
+                            Job::Drop(sites) => {
                                 drop(sites);
                                 continue;
                             }
-                            Err(_) => return,
                         };
                         let result = libjs_jit::compile(&snapshot);
                         if result_sender.send((id, result)).is_err() {
@@ -73,16 +101,22 @@ impl CompileQueue {
     }
 
     pub fn submit(&self, id: u64, snapshot: Box<Snapshot>) {
-        self.jobs
-            .send(Job::Compile(id, snapshot))
-            .expect("the compile threads run while the queue lives");
+        self.enqueue(Job::Compile(id, snapshot));
     }
 
     /// Has a compile thread drop the sites of code that died.
     pub fn drop_sites(&self, sites: Vec<Site>) {
+        self.enqueue(Job::Drop(sites));
+    }
+
+    fn enqueue(&self, job: Job) {
         self.jobs
-            .send(Job::Drop(sites))
-            .expect("the compile threads run while the queue lives");
+            .jobs
+            .lock()
+            .expect("no compile thread panics while holding the jobs")
+            .queue
+            .push_back(job);
+        self.jobs.job_available.notify_one();
     }
 
     /// The results of the jobs that finished since the last call, waiting for one to finish if none has. The queue must
@@ -100,5 +134,63 @@ impl CompileQueue {
     /// The results of the jobs that finished since the last call.
     pub fn take_finished(&self) -> Vec<(u64, CompileResult)> {
         self.results.try_iter().collect()
+    }
+}
+
+impl Drop for CompileQueue {
+    fn drop(&mut self) {
+        self.jobs
+            .jobs
+            .lock()
+            .expect("no compile thread panics while holding the jobs")
+            .closed = true;
+        self.jobs.job_available.notify_all();
+    }
+}
+
+enum NextJob {
+    Job(Job),
+    /// No job came within IDLE_MEMORY_RELEASE_DELAY.
+    Idle,
+    /// The queue was dropped.
+    Closed,
+}
+
+/// The next job, waiting for one. A thread that has not released its memory since its last job only waits
+/// IDLE_MEMORY_RELEASE_DELAY.
+fn next_job(jobs: &SharedJobs, released_memory_since_last_job: bool) -> NextJob {
+    let mut guard = jobs
+        .jobs
+        .lock()
+        .expect("no compile thread panics while holding the jobs");
+    loop {
+        if guard.closed {
+            // NB: Sites still waiting to be dropped are dropped here too, by the threads that allocated them. The
+            //     snapshots of abandoned compiles go with the queue.
+            while let Some(job) = guard.queue.pop_front() {
+                if let Job::Drop(_) = job {
+                    return NextJob::Job(job);
+                }
+            }
+            return NextJob::Closed;
+        }
+        if let Some(job) = guard.queue.pop_front() {
+            return NextJob::Job(job);
+        }
+        if released_memory_since_last_job {
+            guard = jobs
+                .job_available
+                .wait(guard)
+                .expect("no compile thread panics while holding the jobs");
+            continue;
+        }
+        let (next_guard, wait) = jobs
+            .job_available
+            .wait_timeout(guard, IDLE_MEMORY_RELEASE_DELAY)
+            .expect("no compile thread panics while holding the jobs");
+        guard = next_guard;
+        if wait.timed_out() && guard.queue.is_empty() && !guard.closed {
+            return NextJob::Idle;
+        }
     }
 }
