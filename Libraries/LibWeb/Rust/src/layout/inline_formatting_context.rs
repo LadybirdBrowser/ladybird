@@ -1020,7 +1020,7 @@ impl<'context> InlineFormattingContext<'context> {
         if let Some(fragments) = self.run.fragments.as_deref() {
             fragments.discard_unplaced_subtree(node, self.used(node));
         }
-        self.used(node).is_invisible_for_line_clamp.set(true);
+        self.run.records.hide_for_line_clamp(node);
     }
 
     fn stops_at_line_clamp_point<'builder>(
@@ -1822,9 +1822,10 @@ impl<'context> InlineFormattingContext<'context> {
                 }
                 inline_level_iterator::ItemType::FloatingElement => {
                     line_builder.commit_pending_margin_before_float();
-                    self.create_used_values(item.node, self.input.containing_block_constraints)
-                        .is_invisible_for_line_clamp
-                        .set(state_at_clamp_point.is_some());
+                    self.create_used_values(item.node, self.input.containing_block_constraints);
+                    if state_at_clamp_point.is_some() {
+                        self.run.records.hide_for_line_clamp(item.node);
+                    }
                     self.clear_floating_boxes(item.node);
                     line_builder.set_unbreakable_run_inline_size_interrupted_by_float(
                         iterator.next_unbreakable_run_inline_size(self),
@@ -1955,7 +1956,7 @@ impl<'context> InlineFormattingContext<'context> {
                 .parent
                 .take_floating_boxes_from(state_at_clamp_point.floating_box_count);
             for (node, position) in atomic_inlines_after_clamp_point {
-                self.used(node).is_invisible_for_line_clamp.set(true);
+                self.run.records.hide_for_line_clamp(node);
                 formatting_context::place_child(self.run, node, position, None);
             }
         }

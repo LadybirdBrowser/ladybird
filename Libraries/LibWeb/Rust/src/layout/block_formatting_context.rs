@@ -1895,8 +1895,9 @@ impl<'pass> BlockFormattingContext<'pass> {
             .run
             .records
             .track_percentage_block_size_dependency_while_laying_out(node);
-        used.is_invisible_for_line_clamp
-            .set(self.laying_out_invisible_line_clamp_content.get());
+        if self.laying_out_invisible_line_clamp_content.get() {
+            self.run.records.hide_for_line_clamp(node);
+        }
         if facts.is_anonymous_button_content_wrapper() {
             used.has_definite_block_size_only_for_button_content_alignment.set(
                 self.used(block_container)
@@ -3179,11 +3180,8 @@ impl<'pass> BlockFormattingContext<'pass> {
             !child_facts.is_absolutely_positioned()
                 && !child_facts.is_floating()
                 && !child_facts.is_list_item_marker_box()
-                && self
-                    .run
-                    .records
-                    .used_values_if_owned(child)
-                    .is_some_and(|used| !used.is_invisible_for_line_clamp.get())
+                && self.run.records.used_values_if_owned(child).is_some()
+                && !self.run.records.is_invisible_for_line_clamp(child)
                 && !self.margins_collapse_through(child)
         })
     }
@@ -4423,7 +4421,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 // https://drafts.csswg.org/css-overflow-4/#line-clamp-containers
                 // If a block container contains a clamp point, within itself or in any of its descendants, its
                 // automatic block size will not take into account any invisible boxes, nor any clipped float.
-                if child_used.is_invisible_for_line_clamp.get() {
+                if self.run.records.is_invisible_for_line_clamp(child) {
                     continue;
                 }
                 if self.margins_collapse_through(child) {
@@ -4738,7 +4736,7 @@ pub(crate) fn automatic_block_size_for_bfc_root(
             let Some(child_used) = records.used_values_if_owned(child) else {
                 continue;
             };
-            if child_used.is_invisible_for_line_clamp.get() {
+            if records.is_invisible_for_line_clamp(child) {
                 continue;
             }
             // Margins cannot collapse out of a BFC root: below the last real in-flow
