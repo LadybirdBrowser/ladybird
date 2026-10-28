@@ -67,7 +67,7 @@ public:
 
     GC::Ref<AudioDestinationNode> destination() const { return *m_destination; }
     float sample_rate() const { return m_sample_rate; }
-    virtual double current_time() const { return m_current_time; }
+    virtual double current_time() const { return 0; }
     GC::Ref<AudioListener> listener() const
     {
         VERIFY(m_listener);
@@ -132,8 +132,6 @@ public:
     void add_script_processor_node(ScriptProcessorNode&);
     void handle_ended_sources(ReadonlySpan<NodeID>);
 
-    void set_current_time(double current_time) { m_current_time = current_time; }
-
     NodeID next_node_id(Badge<AudioNode>) { return ++m_next_node_id; }
 
 protected:
@@ -159,7 +157,6 @@ private:
     u64 m_next_node_id { 0 };
 
     float m_sample_rate { 0 };
-    double m_current_time { 0 };
 
     GC::Ptr<AudioListener> m_listener;
     GC::Ref<DOM::EventTarget> m_global_object;

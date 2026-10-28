@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const context = new OfflineAudioContext(1, 2048, 44100);
+        const node = context.createScriptProcessor(256, 0, 1);
+        node.connect(context.destination);
+
+        const frames = [];
+        let scheduledFrame;
+        node.onaudioprocess = () => {
+            const frame = Math.round(context.currentTime * context.sampleRate);
+            frames.push(frame);
+            if (frames.length === 3) {
+                const source = new ConstantSourceNode(context);
+                source.connect(context.destination);
+                source.start(context.currentTime + 512 / context.sampleRate);
+                scheduledFrame = frame + 512;
+            }
+        };
+
+        const rendered = (await context.startRendering()).getChannelData(0);
+        println(`currentTime in each event, in frames: ${frames.join(", ")}`);
+        println(`source started relative to currentTime begins at the scheduled frame: ${rendered.findIndex(sample => sample !== 0) === scheduledFrame}`);
+        done();
+    });
+</script>

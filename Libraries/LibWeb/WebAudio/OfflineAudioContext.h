@@ -42,6 +42,8 @@ public:
 
     WebIDL::UnsignedLong length() const;
 
+    virtual double current_time() const override;
+
     GC::Ptr<WebIDL::CallbackType> oncomplete();
     void set_oncomplete(GC::Ptr<WebIDL::CallbackType>);
 
