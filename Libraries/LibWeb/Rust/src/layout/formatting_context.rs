@@ -417,8 +417,8 @@ pub(crate) fn place_child_in_containing_block(
     debug_assert!(
         fragment_arrival
             .as_ref()
-            .is_none_or(|arrival| arrival.node() == node && !fragments.holds_fragment_arrival_of(node, used)),
-        "a box is placed with fragments handed to it for another box, or handed to it twice"
+            .is_none_or(|arrival| arrival.node() == node && !fragments.left_child_unplaced(node)),
+        "a box is placed with fragments handed to it for another box, or after it was left unplaced"
     );
     let mut child_run_root = None;
     let committed_fragment = match fragment_arrival {
@@ -442,7 +442,7 @@ pub(crate) fn place_child_in_containing_block(
             child_run_root = Some((root, reuses_committed_subtree));
             None
         }
-        None => fragments.take_reused_committed_fragment(callbacks, node, used, facts_decided_by_parent.fragment_facts),
+        None => None,
     };
     if let Some((fragment, reuses_subtree)) = committed_fragment {
         fragments.attach_committed_fragment(
@@ -469,7 +469,7 @@ pub(crate) fn place_child_in_containing_block(
         Some((root, reuses_committed_subtree)) => {
             fragments.take_in_child_root_at_placement(node, root, reuses_committed_subtree, callbacks);
         }
-        None => fragments.normalize_arrivals_for_placement(node, callbacks),
+        None => fragments.open_fragment_of_placed_box(node),
     }
     loop {
         let batch = fragments.take_drainable_abspos(node, records, callbacks);
@@ -1938,10 +1938,6 @@ pub(super) fn run_formatting_context(
     input: LayoutInput,
     table_inline_layout: Option<table_formatting_context::TableInlineLayout>,
 ) -> ChildRunOutcome {
-    if let Some(parent_fragments) = parent_fragments {
-        // A later run for this root supersedes a hit recorded earlier in the same pass.
-        parent_fragments.clear_reused_subtree_root(box_, parent_used);
-    }
     let root_cells = used_values::RootInputCells::capture(parent_used);
     let builds_fragments = run_builds_fragments(&input, parent_fragments.is_some());
     assert!(
@@ -2791,8 +2787,6 @@ pub(crate) fn layout_inside_child(
     {
         // OPTIMIZATION: An empty atomic block has no formatting-context body output. Size it in the
         // parent run, which will also construct its fragment when placing the box.
-        // A fragment held by an earlier sizing of the box in this run may no longer match the record.
-        used.held_committed_fragment.take();
         let committed_fragment = run.sizing().dimension_empty_atomic_root(
             child,
             input.available_space,
@@ -2861,18 +2855,17 @@ pub(crate) fn layout_inside_child(
     }
 }
 
-/// Hands what the layout of the child `node` handed its placement to the run's fragment builder, where the child is
-/// laid out but not placed.
+/// Hands what the layout of a child handed its placement to the run's fragment builder, where the child is laid out
+/// but not placed.
 pub(crate) fn leave_child_unplaced(
     run: &FormattingContextRun,
-    node: Node,
     fragment_arrival: Option<fragment_tree::ChildFragmentArrival>,
 ) {
     if let Some(arrival) = fragment_arrival {
         run.fragments
             .as_deref()
             .expect("only a run that builds fragments is handed a child's fragments")
-            .hold_child_fragment_arrival(node, run.records.used_values(node), arrival);
+            .leave_child_unplaced(arrival);
     }
 }
 
