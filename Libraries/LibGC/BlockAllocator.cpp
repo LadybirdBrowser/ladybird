@@ -151,11 +151,15 @@ static HeapRegion& heap_region()
 static void madvise_block_for_decommit(void* block)
 {
 #if defined(AK_OS_WINDOWS)
-    DWORD ret = DiscardVirtualMemory(block, HeapBlock::BLOCK_SIZE);
-    if (ret != ERROR_SUCCESS) {
-        warnln("{}", Error::from_windows_error(ret));
+    // NB: DiscardVirtualMemory() validates its range with VirtualQuery(), which makes the kernel check every page in
+    //     the run of identical pages that starts at the block. All chunks are committed back to back in one
+    //     reservation, so that run is the whole committed heap. MEM_RESET drops the contents without that walk, and
+    //     VirtualUnlock() on pages that are not locked takes them out of the working set right away.
+    if (!VirtualAlloc(block, HeapBlock::BLOCK_SIZE, MEM_RESET, PAGE_READWRITE)) {
+        warnln("{}", Error::from_windows_error());
         VERIFY_NOT_REACHED();
     }
+    (void)VirtualUnlock(block, HeapBlock::BLOCK_SIZE);
 #elif defined(MADV_FREE_REUSE) && defined(MADV_FREE_REUSABLE)
     // macOS uses the FREE_REUSABLE/FREE_REUSE paired protocol, which integrates
     // with its RSS accounting properly.
