@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Module script descendants use the referrer policy on their ancestor, if one exists</title>
+<link rel=help href="https://github.com/whatwg/html/pull/9210">
+<meta name="referrer" content="no-referrer">
+<script src="../../../../../resources/testharness.js"></script>
+<script src="../../../../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<script type="module">
+
+// "name" parameter is necessary for bypassing the module map.
+//
+// The case where the parent module script is sent with no referrer policy at
+// all is covered in `referrer-no-referrer.sub.html` (and others like it). In
+// that case, the parent module inherits its referencing document's referrer
+// policy for use in descendant imports.
+
+import { referrer as parentWithNoReferrerWhenDowngrade } from
+    "./resources/import-referrer-checker.sub.js?name=same_same&pipe=header(Referrer-Policy,no-referrer-when-downgrade)";
+
+import { referrer as parentWithOrigin} from
+    "./resources/import-referrer-checker.sub.js?name=same_remote&pipe=header(Referrer-Policy,origin)";
+
+import { referrer as parentWithSameOrigin} from
+    "./resources/import-referrer-checker.sub.js?name=same_remote_so&pipe=header(Referrer-Policy,same-origin)";
+
+import { referrer as parentWithOriginWhenCrossOriginRemoteDescendant} from
+    "./resources/import-remote-origin-referrer-checker.sub.js?name=same_remote_owco&pipe=header(Referrer-Policy,origin-when-cross-origin)";
+
+import { referrer as remoteParentWithOriginWhenCrossOriginSameOriginDescendant} from
+    "http://{{domains[www1]}}:{{ports[http][0]}}/html/semantics/scripting-1/the-script-element/module/resources/import-referrer-checker.sub.js?name=remote_same&pipe=header(Referrer-Policy,origin-when-cross-origin)";
+
+import { referrer as remoteParentWithSameOriginWhenCrossOriginSameOriginDescendant} from
+    "http://{{domains[www1]}}:{{ports[http][0]}}/html/semantics/scripting-1/the-script-element/module/resources/import-referrer-checker.sub.js?name=remote_same_so&pipe=header(Referrer-Policy,same-origin)";
+
+import { referrer as remoteParentWithOriginWhenCrossOriginRemoteDescendant} from
+    "http://{{domains[www1]}}:{{ports[http][0]}}/html/semantics/scripting-1/the-script-element/module/resources/import-same-origin-referrer-checker-from-remote-origin.sub.js?name=remote_remote&pipe=header(Referrer-Policy,origin-when-cross-origin)";
+
+import { referrer as remoteParentWithSameOriginWhenCrossOriginRemoteDescendant} from
+    "http://{{domains[www1]}}:{{ports[http][0]}}/html/semantics/scripting-1/the-script-element/module/resources/import-same-origin-referrer-checker-from-remote-origin.sub.js?name=remote_remote_so&pipe=header(Referrer-Policy,same-origin)";
+
+import { referrer as parentWithInvalidPolicy } from
+    "http://{{domains[www1]}}:{{ports[http][0]}}/html/semantics/scripting-1/the-script-element/module/resources/import-referrer-checker.sub.js?name=remote_same_invalid&pipe=header(Referrer-Policy,invalid-policy)";
+
+test(t => {
+  const expected_url =
+      new URL("html/semantics/scripting-1/the-script-element/module/resources/import-referrer-checker.sub.js?name=same_same&pipe=header(Referrer-Policy,no-referrer-when-downgrade)",
+              window.origin);
+  assert_equals(
+      parentWithNoReferrerWhenDowngrade, expected_url.toString(),
+      "Descendant referrer should be the parent's full URL.");
+}, "Parent module delivered with `no-referrer-when-downgrade` policy importing a same-origin descendant script.");
+
+test(t => {
+  assert_equals(
+      parentWithOrigin, window.origin + "/",
+      "Descendant referrer should be the parent's origin.");
+}, "Parent module delivered with `origin` policy importing a same-origin descendant script.");
+
+test(t => {
+  const expected_url =
+      new URL("html/semantics/scripting-1/the-script-element/module/resources/import-referrer-checker.sub.js?name=same_remote_so&pipe=header(Referrer-Policy,same-origin)",
+              window.origin);
+  assert_equals(
+      parentWithSameOrigin, expected_url.toString(),
+      "Descendant referrer should be the parent's full URL.");
+}, "Parent module delivered with `same-origin` policy importing a same-origin descendant script.");
+
+test(t => {
+  assert_equals(
+      parentWithOriginWhenCrossOriginRemoteDescendant, window.origin + "/",
+      "Remote descendant referrer should be the parent's origin.");
+}, "Parent module delivered with `origin-when-cross-origin` policy importing a cross-origin descendant script.");
+
+test(t => {
+  const expected_url =
+      new URL("/html/semantics/scripting-1/the-script-element/module/resources/import-referrer-checker.sub.js?name=remote_same&pipe=header(Referrer-Policy,origin-when-cross-origin)",
+              "http://{{domains[www1]}}:{{ports[http][0]}}/");
+  assert_equals(
+      remoteParentWithOriginWhenCrossOriginSameOriginDescendant, expected_url.toString(),
+      "Same-origin descendant referrer should be the parent's full URL.");
+}, "Remote parent module delivered with `origin-when-cross-origin` policy importing a same-origin-to-parent-module descendant script.");
+
+test(t => {
+  const expected_url =
+      new URL("/html/semantics/scripting-1/the-script-element/module/resources/import-referrer-checker.sub.js?name=remote_same_so&pipe=header(Referrer-Policy,same-origin)",
+              "http://{{domains[www1]}}:{{ports[http][0]}}/");
+  assert_equals(
+      remoteParentWithSameOriginWhenCrossOriginSameOriginDescendant, expected_url.toString(),
+      "Same-origin descendant referrer should be the parent's full URL.");
+}, "Remote parent module delivered with `same-origin` policy importing a same-origin-to-parent-module descendant script.");
+
+test(t => {
+  assert_equals(
+      remoteParentWithOriginWhenCrossOriginRemoteDescendant, "http://{{domains[www1]}}:{{ports[http][0]}}/",
+      "Remote-origin descendant referrer should be the parent's origin.");
+}, "Remote parent module delivered with `origin-when-cross-origin` policy importing a cross-origin-to-parent-module descendant script.");
+
+test(t => {
+  assert_equals(
+      remoteParentWithSameOriginWhenCrossOriginRemoteDescendant, "");
+}, "Remote parent module delivered with `same-origin` policy importing a cross-origin-to-parent-module descendant script.");
+
+// This tests the following spec line:
+//
+// "If referrerPolicy is not the empty string, set options's referrer policy to
+//  referrerPolicy."
+//
+// In other words, invalid referrer policies are ignored, so the referrer policy
+// from the referencing document is inherited as usual, which is `no-referrer`
+// in this case.
+test(t => {
+  assert_equals(
+      parentWithInvalidPolicy, "",
+      "Descendant referrer should be empty.");
+}, "Parent module delivered with invalid policy importing a same-origin descendant script.");
+
+</script>
+</body>
+</html>
