@@ -104,10 +104,6 @@ impl<T: Copy> SealableCell<T> {
     pub(crate) fn set_ignoring_seal(&self, value: T) {
         self.value.set(value);
     }
-
-    pub(crate) fn is_sealed(&self) -> bool {
-        self.sealed.get()
-    }
 }
 
 #[derive(Clone, Default, PartialEq)]
@@ -369,10 +365,6 @@ impl UsedValues {
         self.has_definite_inline_size.set(state.inputs.has_definite_inline_size);
         self.has_definite_block_size.set(state.inputs.has_definite_block_size);
         formatting_context::store_derived_baselines(self, state.baselines);
-    }
-
-    pub(crate) fn own_metrics_are_sealed(&self) -> bool {
-        self.content_inline_size.is_sealed()
     }
 
     pub(crate) fn seal_own_metrics(&self) {

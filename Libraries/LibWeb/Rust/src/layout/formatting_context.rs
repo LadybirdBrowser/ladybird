@@ -130,7 +130,6 @@ pub(crate) fn run_root_without_parent_fragments(
         ..
     } = run_formatting_context(
         None,
-        None,
         root_cells,
         node,
         root_containing_block,
@@ -1070,7 +1069,6 @@ pub(crate) enum OwnBlockSizeObservation {
 pub(crate) struct RunRootOutcome {
     /// The input cells the run left its root, unless its parent owns them.
     pub(super) input_cells_left_by_run: Option<used_values::RootInputCells>,
-    pub(super) own_metrics_sealed: bool,
     pub(super) line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
 }
 
@@ -1094,23 +1092,6 @@ impl RunRootOutcome {
             cells,
             baselines: result.baselines,
             orthogonal_flow_baselines: result.orthogonal_flow_baselines,
-        }
-    }
-
-    fn apply_to_record(self, record: &UsedValues, content_block_size_adopted_after_run: Option<CssPixels>) {
-        if let Some(cells) = self.input_cells_left_by_run {
-            cells.apply_to_record(record);
-        }
-        if let Some(block_size) = content_block_size_adopted_after_run
-            && record.content_block_size.get() != clamp_to_max_dimension_value(block_size.max(CssPixels::default()))
-        {
-            record.set_content_block_size(block_size);
-        }
-        if let Some(line_data) = self.line_data {
-            record.set_finished_line_data(line_data);
-        }
-        if self.own_metrics_sealed {
-            record.seal_own_metrics();
         }
     }
 }
@@ -1370,7 +1351,6 @@ impl<'pass> FormattingContextRun<'pass> {
         let root_outcome = RunRootOutcome {
             input_cells_left_by_run: (!parent_owns_root_input_cells)
                 .then(|| used_values::RootInputCells::capture(record)),
-            own_metrics_sealed: record.own_metrics_are_sealed(),
             line_data: record.finish_line_data(&self.callbacks),
         };
         RunOutputs {
@@ -1995,11 +1975,9 @@ impl ChildRunOutcome {
 }
 
 #[expect(clippy::too_many_arguments)]
-/// Runs the formatting context of `box_` with the input cells `root_cells` its parent sized it in. A parent that still
-/// keeps a record of the box hands it as `parent_used`, which takes the cells and what the run hands back.
+/// Runs the formatting context of `box_` with the input cells `root_cells` its parent sized it in.
 pub(super) fn run_formatting_context(
     parent_fragments: Option<&fragment_tree::RunFragmentBuilder>,
-    parent_used: Option<&UsedValues>,
     root_cells: used_values::RootInputCells,
     box_: Node,
     root_containing_block: Node,
@@ -2010,9 +1988,6 @@ pub(super) fn run_formatting_context(
     input: LayoutInput,
     table_inline_layout: Option<table_formatting_context::TableInlineLayout>,
 ) -> ChildRunOutcome {
-    if let Some(parent_used) = parent_used {
-        root_cells.apply_to_record(parent_used);
-    }
     let builds_fragments = run_builds_fragments(&input, parent_fragments.is_some());
     assert!(
         parent_fragments.is_none() || builds_fragments,
@@ -2033,16 +2008,7 @@ pub(super) fn run_formatting_context(
             table_inline_layout,
             None,
         );
-        return absorb_run_outputs(
-            &callbacks,
-            parent_fragments,
-            parent_used,
-            box_,
-            &input,
-            root_cells,
-            outputs,
-            false,
-        );
+        return child_run_outcome_from_outputs(&callbacks, parent_fragments, box_, &input, root_cells, outputs, false);
     }
     let cache_key = fc_run_cache::FcRunCacheKey::new(fc_type, input, root_cells);
     let cache_attempt = match fc_run_cache::FcRunCacheAttempt::probe(
@@ -2058,7 +2024,6 @@ pub(super) fn run_formatting_context(
         Err(hit) => {
             if let Some(outcome) = reuse_committed_subtree_as_it_is(
                 parent_fragments,
-                parent_used,
                 box_,
                 &input,
                 root_cells,
@@ -2082,10 +2047,9 @@ pub(super) fn run_formatting_context(
             } else {
                 hit.entry.outputs_without_fragments()
             };
-            return absorb_run_outputs(
+            return child_run_outcome_from_outputs(
                 &callbacks,
                 parent_fragments,
-                parent_used,
                 box_,
                 &input,
                 root_cells,
@@ -2158,25 +2122,14 @@ pub(super) fn run_formatting_context(
         );
     }
     cache_attempt.conclude(&callbacks, box_, cache_key, &input, &outputs);
-    absorb_run_outputs(
-        &callbacks,
-        parent_fragments,
-        parent_used,
-        box_,
-        &input,
-        root_cells,
-        outputs,
-        false,
-    )
+    child_run_outcome_from_outputs(&callbacks, parent_fragments, box_, &input, root_cells, outputs, false)
 }
 
 /// Takes a committing run of `box_` from the cache hit `hit` with nothing replayed: the box gets what the stored run
 /// left, and the run's placement attaches the box's committed fragment as it is. That is exact where the committed
 /// subtree is the one the stored run produced, the box is plain, and nothing from the stored run reaches past its root.
-#[expect(clippy::too_many_arguments)]
 fn reuse_committed_subtree_as_it_is(
     parent_fragments: Option<&fragment_tree::RunFragmentBuilder>,
-    root_used: Option<&UsedValues>,
     box_: Node,
     input: &LayoutInput,
     root_cells: used_values::RootInputCells,
@@ -2214,13 +2167,6 @@ fn reuse_committed_subtree_as_it_is(
     };
     if !geometry.shows_box_of_fragment(&fragment) {
         return None;
-    }
-    if let Some(root_used) = root_used {
-        entry
-            .outputs
-            .root_outcome
-            .clone()
-            .apply_to_record(root_used, content_block_size_adopted_after_run);
     }
     let _trace = callbacks
         .arena()
@@ -2879,8 +2825,8 @@ pub(crate) fn layout_inside_child(
     )
 }
 
-/// Lays out `child` with the input cells its parent sized it to, which its record takes until the parent no longer
-/// keeps one for the child.
+/// Lays out `child` with the input cells its parent sized it to: hands them to the child's run, or gives them to the
+/// child's record where the parent lays the child out itself.
 pub(crate) fn layout_inside_child_with_input_cells(
     run: &FormattingContextRun,
     parent_block: Option<&block_formatting_context::BlockFormattingContext>,
@@ -2971,9 +2917,12 @@ pub(crate) fn layout_inside_child_with_input_cells(
         }
         return ChildLayout::without_fragments(ChildLayoutOutcome::ReenterCurrent);
     };
+    assert!(
+        record_kept_by_parent.is_none(),
+        "{child:?} is handed to a run of its own by a parent that lays it out itself"
+    );
     let (result, fragment_arrival) = run_formatting_context(
         run.fragments.as_deref(),
-        record_kept_by_parent,
         child_input_cells,
         child,
         root_containing_block,
@@ -3311,11 +3260,9 @@ pub(super) fn run_reads_content_block_size_adopted_after_it(
         && fc_type.registers_abspos_children_against_its_final_block_size()
 }
 
-#[expect(clippy::too_many_arguments)]
-fn absorb_run_outputs(
+fn child_run_outcome_from_outputs(
     callbacks: &LayoutPass<'_>,
     parent_fragments: Option<&fragment_tree::RunFragmentBuilder>,
-    parent_used: Option<&UsedValues>,
     child: Node,
     input: &LayoutInput,
     root_cells: used_values::RootInputCells,
@@ -3333,10 +3280,7 @@ fn absorb_run_outputs(
     let content_block_size_adopted_after_run =
         content_block_size_adopted_after_run(input, result.automatic_content_block_size);
     let laid_out_box = root_outcome.laid_out_child_box(root_cells, &result, content_block_size_adopted_after_run);
-    let line_data = root_outcome.line_data.clone();
-    if let Some(parent_used) = parent_used {
-        root_outcome.apply_to_record(parent_used, content_block_size_adopted_after_run);
-    }
+    let line_data = root_outcome.line_data;
     let fragment_arrival = parent_fragments.and(root).map(|root| {
         debug_assert!(root.node == child, "a child run returned a root for a different box");
         fragment_tree::ChildFragmentArrival::RunRoot {
@@ -3617,7 +3561,6 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
         let fc_type = independent_formatting_context_type(root_for_layout, &callbacks);
         let (_, fragment_arrival) = run_formatting_context(
             Some(&entry_fragments),
-            None,
             root_cells,
             root_for_layout,
             callbacks.in_flow_containing_block(root_for_layout),
@@ -3772,7 +3715,6 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
         .expect("partial relayout root must establish an independent formatting context");
     let (_, fragment_arrival) = run_formatting_context(
         Some(fragments),
-        None,
         root_cells,
         root,
         callbacks.in_flow_containing_block(root),

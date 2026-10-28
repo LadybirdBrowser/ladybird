@@ -468,11 +468,6 @@ pub(crate) struct FragmentGeometry {
 }
 
 impl FragmentGeometry {
-    /// Whether `other` has the same cells and the same lines, as the same allocation.
-    pub(crate) fn is_identical_to(&self, other: &Self) -> bool {
-        self.cells == other.cells && same_allocation(self.line_data.as_ref(), other.line_data.as_ref())
-    }
-
     pub(crate) fn shows_box_of_fragment(&self, fragment: &Fragment) -> bool {
         let cells = &self.cells;
         same_allocation(self.line_data.as_ref(), fragment.line_data.as_ref())
