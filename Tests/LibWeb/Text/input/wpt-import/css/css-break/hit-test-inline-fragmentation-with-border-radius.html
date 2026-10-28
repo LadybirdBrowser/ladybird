@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<link rel="help" href="https://www.w3.org/TR/css-break-3/#break-decoration"/>
+<style>
+div {
+  margin: 20px;
+}
+
+span.round {
+  padding: 20px;
+  line-height: 100px;
+  font-size: 40px;
+  border-radius: 40px;
+  background-color: yellow;
+}
+</style>
+
+<div>
+<span id="horizontal" class="round">FOO<br>BAR</span>
+</div>
+
+<div style="writing-mode:vertical-lr">
+<span id="vertical-lr" class="round">FOO<br>BAR</span>
+</div>
+
+<div style="writing-mode:vertical-rl">
+<span id="vertical-rl" class="round">FOO<br>BAR</span>
+</div>
+
+<script>
+// Hit test horizontal span with border radius
+const horizontalSpan = document.getElementById('horizontal');
+const horizontalDiv = horizontalSpan.parentNode;
+const horizontalRects = horizontalSpan.getClientRects();
+const horizontalLine1 = horizontalRects[0];
+const horizontalLine2 = horizontalRects[1];
+
+test(() => {
+  const x = horizontalLine1.left + 5;
+  const y = horizontalLine1.top + 5;
+  assert_equals(document.elementFromPoint(x, y), horizontalDiv);
+}, 'Horizontal line 1, hit test outside top-left rounded corner');
+
+test(() => {
+  const x = horizontalLine1.left + 20;
+  const y = horizontalLine1.top + 20;
+  assert_equals(document.elementFromPoint(x, y), horizontalSpan);
+}, 'Horizontal line 1, hit test inside top-left rounded corner');
+
+test(() => {
+  const x = horizontalLine1.left + 5;
+  const y = horizontalLine1.bottom - 5;
+  assert_equals(document.elementFromPoint(x, y), horizontalDiv);
+}, 'Horizontal line 1, hit test outside bottom-left rounded corner');
+
+test(() => {
+  const x = horizontalLine1.left + 20;
+  const y = horizontalLine1.bottom - 20;
+  assert_equals(document.elementFromPoint(x, y), horizontalSpan);
+}, 'Horizontal line 1, hit test inside bottom-left rounded corner');
+
+test(() => {
+  const x = horizontalLine1.right - 5;
+  const y = horizontalLine1.top + 5;
+  assert_equals(document.elementFromPoint(x, y), horizontalSpan);
+}, 'Horizontal line 1, hit test inside top-right right-angled corner')
+
+test(() => {
+  const x = horizontalLine1.right - 5;
+  const y = horizontalLine1.bottom - 5;
+  assert_equals(document.elementFromPoint(x, y), horizontalSpan);
+}, 'Horizontal line 1, hit test inside bottom-right right-angled corner')
+
+test(() => {
+  const x = horizontalLine2.right - 5;
+  const y = horizontalLine2.top + 5;
+  assert_equals(document.elementFromPoint(x, y), horizontalDiv);
+}, 'Horizontal line 2, hit test outside top-right rounded corner');
+
+test(() => {
+  const x = horizontalLine2.right - 20;
+  const y = horizontalLine2.top + 20;
+  assert_equals(document.elementFromPoint(x, y), horizontalSpan);
+}, 'Horizontal line 2, hit test inside top-right rounded corner');
+
+test(() => {
+  const x = horizontalLine2.right - 5;
+  const y = horizontalLine2.bottom - 5;
+  assert_equals(document.elementFromPoint(x, y), horizontalDiv);
+}, 'Horizontal line 2, hit test outside bottom-right rounded corner');
+
+test(() => {
+  const x = horizontalLine2.right - 20;
+  const y = horizontalLine2.bottom - 20;
+  assert_equals(document.elementFromPoint(x, y), horizontalSpan);
+}, 'Horizontal line 2, hit test inside bottom-right rounded corner');
+
+test(() => {
+  const x = horizontalLine2.left + 5;
+  const y = horizontalLine2.top + 5;
+  assert_equals(document.elementFromPoint(x, y), horizontalSpan);
+}, 'Horizontal line 2, hit test inside top-left right-angled corner')
+
+test(() => {
+  const x = horizontalLine2.left + 5;
+  const y = horizontalLine2.bottom - 5;
+  assert_equals(document.elementFromPoint(x, y), horizontalSpan);
+}, 'Horizontal line 2, hit test inside bottom-left right-angled corner')
+
+// Hit test vertical-lr span with border radius
+const verticalLRSpan = document.getElementById('vertical-lr');
+const verticalLRDiv = verticalLRSpan.parentNode;
+const verticalLRRects = verticalLRSpan.getClientRects();
+const verticalLRLine1 = verticalLRRects[0];
+const verticalLRLine2 = verticalLRRects[1];
+
+test(() => {
+  const x = verticalLRLine1.left + 5;
+  const y = verticalLRLine1.top + 5;
+  assert_equals(document.elementFromPoint(x, y), verticalLRDiv);
+}, 'Vertical LR line 1, hit test outside top-left rounded corner');
+
+test(() => {
+  const x = verticalLRLine1.left + 20;
+  const y = verticalLRLine1.top + 20;
+  assert_equals(document.elementFromPoint(x, y), verticalLRSpan);
+}, 'Vertical LR line 1, hit test inside top-left rounded corner');
+
+test(() => {
+  const x = verticalLRLine1.right - 5;
+  const y = verticalLRLine1.top + 5;
+  assert_equals(document.elementFromPoint(x, y), verticalLRDiv);
+}, 'Vertical LR line 1, hit test outside top-right rounded corner');
+
+test(() => {
+  const x = verticalLRLine1.right - 20;
+  const y = verticalLRLine1.top + 20;
+  assert_equals(document.elementFromPoint(x, y), verticalLRSpan);
+}, 'Vertical LR line 1, hit test inside top-right rounded corner');
+
+test(() => {
+  const x = verticalLRLine1.left + 5;
+  const y = verticalLRLine1.bottom - 5;
+  assert_equals(document.elementFromPoint(x, y), verticalLRSpan);
+}, 'Vertical LR line 1, hit test inside bottom-left right-angled corner')
+
+test(() => {
+  const x = verticalLRLine1.right - 5;
+  const y = verticalLRLine1.bottom - 5;
+  assert_equals(document.elementFromPoint(x, y), verticalLRSpan);
+}, 'Vertical LR line 1, hit test inside bottom-right right-angled corner')
+
+test(() => {
+  const x = verticalLRLine2.left + 5;
+  const y = verticalLRLine2.bottom - 5;
+  assert_equals(document.elementFromPoint(x, y), verticalLRDiv);
+}, 'Vertical LR line 2, hit test outside bottom-left rounded corner');
+
+test(() => {
+  const x = verticalLRLine2.left + 20;
+  const y = verticalLRLine2.bottom - 20;
+  assert_equals(document.elementFromPoint(x, y), verticalLRSpan);
+}, 'Vertical LR line 2, hit test inside bottom-left rounded corner');
+
+test(() => {
+  const x = verticalLRLine2.right - 5;
+  const y = verticalLRLine2.bottom - 5;
+  assert_equals(document.elementFromPoint(x, y), verticalLRDiv);
+}, 'Vertical LR line 2, hit test outside bottom-right rounded corner');
+
+test(() => {
+  const x = verticalLRLine2.right - 20;
+  const y = verticalLRLine2.bottom - 20;
+  assert_equals(document.elementFromPoint(x, y), verticalLRSpan);
+}, 'Vertical LR line 2, hit test inside bottom-right rounded corner');
+
+test(() => {
+  const x = verticalLRLine2.left + 5;
+  const y = verticalLRLine2.top + 5;
+  assert_equals(document.elementFromPoint(x, y), verticalLRSpan);
+}, 'Vertical LR line 2, hit test inside top-left right-angled corner')
+
+test(() => {
+  const x = verticalLRLine2.right - 5;
+  const y = verticalLRLine2.top + 5;
+  assert_equals(document.elementFromPoint(x, y), verticalLRSpan);
+}, 'Vertical LR line 2, hit test inside top-right right-angled corner')
+
+// Hit test vertical-rl span with border radius
+const verticalRLSpan = document.getElementById('vertical-rl');
+const verticalRLDiv = verticalRLSpan.parentNode;
+const verticalRLRects = verticalRLSpan.getClientRects();
+const verticalRLLine1 = verticalRLRects[0].left > verticalRLRects[1].left ? verticalRLRects[0] : verticalRLRects[1];
+const verticalRLLine2 = verticalRLRects[0].left > verticalRLRects[1].left ? verticalRLRects[1] : verticalRLRects[0];
+
+test(() => {
+  const x = verticalRLLine1.left + 5;
+  const y = verticalRLLine1.top + 5;
+  assert_equals(document.elementFromPoint(x, y), verticalRLDiv);
+}, 'Vertical RL line 1, hit test outside top-left rounded corner');
+
+test(() => {
+  const x = verticalRLLine1.left + 20;
+  const y = verticalRLLine1.top + 20;
+  assert_equals(document.elementFromPoint(x, y), verticalRLSpan);
+}, 'Vertical RL line 1, hit test inside top-left rounded corner');
+
+test(() => {
+  const x = verticalRLLine1.right - 5;
+  const y = verticalRLLine1.top + 5;
+  assert_equals(document.elementFromPoint(x, y), verticalRLDiv);
+}, 'Vertical RL line 1, hit test outside top-right rounded corner');
+
+test(() => {
+  const x = verticalRLLine1.right - 20;
+  const y = verticalRLLine1.top + 20;
+  assert_equals(document.elementFromPoint(x, y), verticalRLSpan);
+}, 'Vertical RL line 1, hit test inside top-right rounded corner');
+
+test(() => {
+  const x = verticalRLLine1.left + 5;
+  const y = verticalRLLine1.bottom - 5;
+  assert_equals(document.elementFromPoint(x, y), verticalRLSpan);
+}, 'Vertical RL line 1, hit test inside bottom-left right-angled corner')
+
+test(() => {
+  const x = verticalRLLine1.right - 5;
+  const y = verticalRLLine1.bottom - 5;
+  assert_equals(document.elementFromPoint(x, y), verticalRLSpan);
+}, 'Vertical RL line 1, hit test inside bottom-right right-angled corner')
+
+test(() => {
+  const x = verticalRLLine2.left + 5;
+  const y = verticalRLLine2.bottom - 5;
+  assert_equals(document.elementFromPoint(x, y), verticalRLDiv);
+}, 'Vertical RL line 2, hit test outside bottom-left rounded corner');
+
+test(() => {
+  const x = verticalRLLine2.left + 20;
+  const y = verticalRLLine2.bottom - 20;
+  assert_equals(document.elementFromPoint(x, y), verticalRLSpan);
+}, 'Vertical RL line 2, hit test inside bottom-left rounded corner');
+
+test(() => {
+  const x = verticalRLLine2.right - 5;
+  const y = verticalRLLine2.bottom - 5;
+  assert_equals(document.elementFromPoint(x, y), verticalRLDiv);
+}, 'Vertical RL line 2, hit test outside bottom-right rounded corner');
+
+test(() => {
+  const x = verticalRLLine2.right - 20;
+  const y = verticalRLLine2.bottom - 20;
+  assert_equals(document.elementFromPoint(x, y), verticalRLSpan);
+}, 'Vertical RL line 2, hit test inside bottom-right rounded corner');
+
+test(() => {
+  const x = verticalRLLine2.left + 5;
+  const y = verticalRLLine2.top + 5;
+  assert_equals(document.elementFromPoint(x, y), verticalRLSpan);
+}, 'Vertical RL line 2, hit test inside top-left right-angled corner')
+
+test(() => {
+  const x = verticalRLLine2.right - 5;
+  const y = verticalRLLine2.top + 5;
+  assert_equals(document.elementFromPoint(x, y), verticalRLSpan);
+}, 'Vertical RL line 2, hit test inside top-right right-angled corner')
+</script>
