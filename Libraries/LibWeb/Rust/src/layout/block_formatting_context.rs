@@ -340,6 +340,17 @@ pub(crate) struct FloatingBox {
     percentage_basis_inline_size: Option<CssPixels>,
 }
 
+impl FloatingBox {
+    fn margin_box_left_in_root_coordinate_space(&self) -> CssPixels {
+        let containing_block_rect = self.containing_block_rect_in_root_coordinate_space;
+        if self.side == FloatSide::Left {
+            containing_block_rect.x + self.offset_from_edge - self.left_margin_edge_to_content_edge
+        } else {
+            containing_block_rect.right() - self.offset_from_edge - self.left_margin_edge_to_content_edge
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct FloatBand {
     pub(crate) block_start: CssPixels,
@@ -1615,21 +1626,6 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
         self.update_lowest_floating_descendant_bottom_margin_edge();
         self.rebuild_float_bands();
-    }
-
-    fn margin_box_left_of_float_in_root(
-        &self,
-        floating_box: FloatingBox,
-        containing_block_rect_in_root: CssPixelRect,
-    ) -> CssPixels {
-        if floating_box.side == FloatSide::Left {
-            containing_block_rect_in_root.x + floating_box.offset_from_edge
-                - floating_box.left_margin_edge_to_content_edge
-        } else {
-            containing_block_rect_in_root.right()
-                - floating_box.offset_from_edge
-                - floating_box.left_margin_edge_to_content_edge
-        }
     }
 
     fn border_box_left_of_box_avoiding_floats(
@@ -4355,13 +4351,6 @@ impl<'pass> BlockFormattingContext<'pass> {
         outcome.is_none_or(|outcome| outcome.collapses_through)
     }
 
-    fn margin_box_left_of_float_record(&self, floating_box: FloatingBox) -> CssPixels {
-        self.margin_box_left_of_float_in_root(
-            floating_box,
-            floating_box.containing_block_rect_in_root_coordinate_space,
-        )
-    }
-
     // Run-prelude inline sizing for a block-level root: commits the result of the parent's winning
     // float-avoidance probe, or reproduces that probe when it did not resolve an inline size.
     pub(crate) fn commit_block_level_root_inline_size(&self, node: Node, input: &LayoutInput) {
@@ -4568,7 +4557,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             containing_block_rect_in_root_coordinate_space: containing_block_rect,
             percentage_basis_inline_size: input.containing_block_constraints.percentage_basis_inline_size,
         };
-        margin_box_rect.x = self.margin_box_left_of_float_record(floating_box);
+        margin_box_rect.x = floating_box.margin_box_left_in_root_coordinate_space();
         let mut floating_box = floating_box;
         floating_box.margin_box_rect_in_root_coordinate_space = margin_box_rect;
         self.floats.borrow_mut().push(floating_box);
