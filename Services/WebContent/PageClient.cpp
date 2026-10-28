@@ -1598,13 +1598,13 @@ void PageClient::page_did_update_resource_count(i32 count_waiting)
     client().async_did_update_resource_count(m_id, count_waiting);
 }
 
-PageClient::NewWebViewResult PageClient::page_did_request_new_web_view(Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints, Optional<Web::HTML::CrossProcessId> opener_navigable_id, Optional<URL::URL> opener_base_url, Utf16String const& target_name, Web::HTML::SandboxingFlagSet popup_sandboxing_flag_set)
+PageClient::NewWebViewResult PageClient::page_did_request_new_web_view(Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints, Web::HTML::CrossProcessId current_navigable_id, Utf16String const& name, Web::HTML::TokenizedFeature::NoOpener no_opener, Optional<URL::URL> current_document_base_url)
 {
     // FIXME: Create an abstraction to let this WebContent process know about a new process we create?
     // FIXME: For now, just create a new page in the same process anyway
     // FIXME: Proper agent-cluster separation must also cover same-process
     // COOP/noopener popups before they receive distinct main-world cells.
-    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestNewWebView>(m_id, activate_tab, hints, opener_navigable_id, move(opener_base_url), target_name, popup_sandboxing_flag_set);
+    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestNewWebView>(m_id, activate_tab, hints, current_navigable_id, name, no_opener == Web::HTML::TokenizedFeature::NoOpener::Yes, move(current_document_base_url));
     if (!response) {
         dbgln("WebContent client disconnected during DidRequestNewWebView. Exiting peacefully.");
         Core::Process::terminate_immediately(0);
@@ -1619,7 +1619,7 @@ PageClient::NewWebViewResult PageClient::page_did_request_new_web_view(Web::HTML
 
     auto& new_client = m_owner.create_page(*response->new_page_id(), *response->root_navigable_id());
     new_client.page().set_system_visibility_state(response->system_visibility_state());
-    return { &new_client.page(), response->take_handle(), response->take_initial_history_entry(), response->take_initial_environment_id(), response->initial_document_id(), response->browsing_context_group_id() };
+    return { &new_client.page(), response->take_handle(), response->take_initial_history_entry(), response->take_initial_environment_id(), response->initial_document_id(), response->browsing_context_group_id(), response->window_type() };
 }
 
 void PageClient::page_did_close()

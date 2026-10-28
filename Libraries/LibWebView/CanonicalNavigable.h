@@ -30,6 +30,7 @@
 #include <LibWebCommon/HTML/ReplicatedNavigableState.h>
 #include <LibWebCommon/HTML/SameDocumentNavigationEntry.h>
 #include <LibWebCommon/HTML/SessionHistoryEntryDescriptor.h>
+#include <LibWebCommon/HTML/WindowType.h>
 #include <LibWebCommon/Page/PageId.h>
 #include <LibWebCommon/PermissionsPolicy/PermissionsPolicy.h>
 #include <LibWebCommon/PixelUnits.h>
@@ -129,6 +130,12 @@ public:
     bool is_ancestor_of(CanonicalNavigable const&) const;
     bool allowed_by_sandboxing_to_navigate(CanonicalNavigable const& target, Web::InitiatorSourceSnapshot const& source_snapshot_params) const;
     bool is_familiar_with(CanonicalNavigable const&) const;
+    // https://html.spec.whatwg.org/multipage/document-sequences.html#the-rules-for-choosing-a-navigable
+    struct ChosenTopLevelTraversable {
+        CanonicalTraversable& traversable;
+        Web::HTML::WindowType window_type;
+    };
+    ChosenTopLevelTraversable choose_a_new_top_level_traversable(WebContentPage& current_page, Utf16View name, bool no_opener, Optional<URL::URL> current_document_base_url, Web::HTML::CrossProcessId id, Web::HTML::CrossProcessId document_id);
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#snapshotting-target-snapshot-params
     Web::HTML::TargetSnapshotParams snapshot_target_snapshot_params() const;
 

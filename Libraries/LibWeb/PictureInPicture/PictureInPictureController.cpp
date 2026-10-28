@@ -186,7 +186,7 @@ void PictureInPictureController::run_request_steps(Request const& request)
             .navigable_id = navigable->id(),
             .video_size = Gfx::Size<u32> { video.video_width(), video.video_height() }.to_type<int>(),
         };
-        new_web_view = m_page->client().page_did_request_new_web_view(HTML::ActivateTab::No, hints, {}, {}, {}, {});
+        new_web_view = m_page->client().page_did_request_new_web_view(HTML::ActivateTab::No, hints, navigable->id(), {}, HTML::TokenizedFeature::NoOpener::Yes, {});
     }
 
     // 3. If the previous step failed:

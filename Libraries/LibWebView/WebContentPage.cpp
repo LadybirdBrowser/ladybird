@@ -2668,57 +2668,43 @@ void WebContentPage::did_request_delete_all_cookies(u64 request_id, URL::URL url
     async_did_delete_all_cookies(request_id);
 }
 
-Messages::WebContentClient::DidRequestNewWebViewResponse WebContentPage::did_request_new_web_view(Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints, Optional<Web::HTML::CrossProcessId> opener_navigable_id, Optional<URL::URL> opener_base_url, Utf16String target_name, Web::HTML::SandboxingFlagSet popup_sandboxing_flag_set)
+Messages::WebContentClient::DidRequestNewWebViewResponse WebContentPage::did_request_new_web_view(Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints, Web::HTML::CrossProcessId current_navigable_id, Utf16String name, bool no_opener, Optional<URL::URL> current_document_base_url)
 {
-    // The opener is a navigable the requesting page hosts. A request naming one it does not is refused before the
+    // The requesting navigable is one the requesting page hosts. A request naming one it does not is refused before the
     // chrome is asked for a view, so nothing is created for a traversable that never will be.
-    Optional<CanonicalNavigable&> opener;
-    if (opener_navigable_id.has_value()) {
-        opener = hosted_navigable(*opener_navigable_id);
-        if (!opener.has_value())
-            return { {}, {}, {}, {}, {}, {}, Web::HTML::VisibilityState::Hidden, {} };
-    }
+    auto current_navigable = hosted_navigable(current_navigable_id);
+    if (!current_navigable.has_value())
+        return { {}, {}, {}, {}, {}, {}, {}, Web::HTML::VisibilityState::Hidden, {} };
 
     Optional<CanonicalNavigable&> picture_in_picture_navigable;
     if (hints.picture_in_picture_window.has_value()) {
         picture_in_picture_navigable = hosted_navigable(hints.picture_in_picture_window->navigable_id);
         if (!picture_in_picture_navigable.has_value())
-            return { {}, {}, {}, {}, {}, {}, Web::HTML::VisibilityState::Hidden, {} };
+            return { {}, {}, {}, {}, {}, {}, {}, Web::HTML::VisibilityState::Hidden, {} };
 
         // https://w3c.github.io/picture-in-picture/#request-picture-in-picture
         // A window needs and consumes the activation of the user's input, which the renderer checks, unless the document
         // asking for it has one open. A compromised renderer skips that check, so whatever the popup setting, the UI
         // process checks the activation of input it delivered, and the window it opened for the navigable's document.
         if (!PictureInPictureManager::the().document_has_open_window(*picture_in_picture_navigable) && !consume_transient_user_activation())
-            return { {}, {}, {}, {}, {}, {}, Web::HTML::VisibilityState::Hidden, {} };
+            return { {}, {}, {}, {}, {}, {}, {}, Web::HTML::VisibilityState::Hidden, {} };
     } else {
-        // The popup blocker runs in the renderer, which a compromised renderer skips. Each popup takes the activation of
-        // input the UI process delivered to the page, as the renderer's popup consumes the activation of its window.
-        if (Application::the().blocks_pop_ups() && !consume_transient_user_activation())
-            return { {}, {}, {}, {}, {}, {}, Web::HTML::VisibilityState::Hidden, {} };
+        // https://html.spec.whatwg.org/multipage/document-sequences.html#the-rules-for-choosing-a-navigable
+        // --> If currentNavigable's active window does not have transient activation and the user agent has been
+        //     configured to not show popups
+        // NB: The popup blocker runs in the renderer, which a compromised renderer skips, so the UI process checks the
+        //     activation of the input it delivered to the page.
+        if (Application::the().blocks_pop_ups() && !has_transient_user_activation())
+            return { {}, {}, {}, {}, {}, {}, {}, Web::HTML::VisibilityState::Hidden, {} };
     }
 
     auto root_navigable_id = Application::the().allocate_ui_process_cross_process_id();
-    auto initial_history_entry = Web::HTML::create_initial_session_history_entry_descriptor(
-        Application::the().allocate_ui_process_cross_process_id(), move(opener_base_url), move(target_name));
     auto document_id = Application::the().allocate_ui_process_cross_process_id();
-    auto& traversable = CanonicalTraversable::create_a_new_top_level_traversable(root_navigable_id, opener, move(initial_history_entry), document_id);
 
-    // https://html.spec.whatwg.org/multipage/document-sequences.html#the-rules-for-choosing-a-navigable
-    // If sandboxingFlagSet's sandbox propagates to auxiliary browsing contexts flag is set, then all the flags that are
-    // set in sandboxingFlagSet must be set in chosen's active browsing context's popup sandboxing flag set.
-    // NB: sandboxingFlagSet is currentNavigable's active document's active sandboxing flag set, which the UI process
-    //     holds for an opener. The requesting process gives it for a popup without one.
-    if (opener.has_value()) {
-        auto sandboxing_flag_set = opener->active_document().active_sandboxing_flag_set();
-        if (has_flag(sandboxing_flag_set, Web::HTML::SandboxingFlagSet::SandboxPropagatesToAuxiliaryBrowsingContexts))
-            popup_sandboxing_flag_set |= sandboxing_flag_set;
-    }
-    traversable.active_browsing_context().set_popup_sandboxing_flag_set(popup_sandboxing_flag_set);
-
-    // 10. Set chosen's is created by web content to true.
-    if (!picture_in_picture_navigable.has_value())
-        traversable.set_is_created_by_web_content(true);
+    // A Picture-in-Picture window is not chosen by web content, so it skips the rules for choosing a navigable.
+    auto [traversable, window_type] = picture_in_picture_navigable.has_value()
+        ? CanonicalNavigable::ChosenTopLevelTraversable { CanonicalTraversable::create_a_new_top_level_traversable(root_navigable_id, {}, Web::HTML::create_initial_session_history_entry_descriptor(Application::the().allocate_ui_process_cross_process_id(), {}, {}), document_id), Web::HTML::WindowType::NewAndUnrestricted }
+        : current_navigable->choose_a_new_top_level_traversable(*this, name, no_opener, move(current_document_base_url), root_navigable_id, document_id);
 
     auto new_page_id = Application::the().allocate_page_id();
     client().open_page_for_new_top_level_traversable(new_page_id, traversable);
@@ -2733,13 +2719,13 @@ Messages::WebContentClient::DidRequestNewWebViewResponse WebContentPage::did_req
     if (!traversable.view().has_value()) {
         client().discard_page_of_undisplayed_top_level_traversable(new_page_id);
         CanonicalTraversable::remove_from_user_agent_top_level_traversable_set(traversable);
-        return { {}, {}, {}, {}, {}, {}, Web::HTML::VisibilityState::Hidden, move(window_handle) };
+        return { {}, {}, {}, {}, {}, {}, {}, Web::HTML::VisibilityState::Hidden, move(window_handle) };
     }
     traversable.represent_group_everywhere();
 
     auto environment_id = traversable.active_document().relevant_global_object().relevant_settings_object().id();
     Optional<u64> browsing_context_group_id = traversable.active_browsing_context().group()->id();
-    return { new_page_id, root_navigable_id, traversable.active_session_history_entry()->descriptor(), move(environment_id), document_id, browsing_context_group_id, traversable.system_visibility_state(), move(window_handle) };
+    return { new_page_id, root_navigable_id, traversable.active_session_history_entry()->descriptor(), move(environment_id), document_id, browsing_context_group_id, window_type, traversable.system_visibility_state(), move(window_handle) };
 }
 
 void WebContentPage::did_close_browsing_context()

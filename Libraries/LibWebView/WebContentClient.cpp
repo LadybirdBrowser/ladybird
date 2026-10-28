@@ -769,12 +769,12 @@ Messages::WebContentClient::DidStartDownloadResponse WebContentClient::did_start
     return Optional<u64> {};
 }
 
-Messages::WebContentClient::DidRequestNewWebViewResponse WebContentClient::did_request_new_web_view(Web::PageId page_id, Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints, Optional<Web::HTML::CrossProcessId> opener_navigable_id, Optional<URL::URL> opener_base_url, Utf16String target_name, Web::HTML::SandboxingFlagSet popup_sandboxing_flag_set)
+Messages::WebContentClient::DidRequestNewWebViewResponse WebContentClient::did_request_new_web_view(Web::PageId page_id, Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints, Web::HTML::CrossProcessId current_navigable_id, Utf16String name, bool no_opener, Optional<URL::URL> current_document_base_url)
 {
     if (auto* page = this->page(page_id))
-        return page->did_request_new_web_view(activate_tab, hints, opener_navigable_id, move(opener_base_url), move(target_name), popup_sandboxing_flag_set);
+        return page->did_request_new_web_view(activate_tab, hints, current_navigable_id, move(name), no_opener, move(current_document_base_url));
 
-    return { Optional<Web::PageId> {}, Optional<Web::HTML::CrossProcessId> {}, Optional<Web::HTML::SessionHistoryEntryDescriptor> {}, Optional<Web::HTML::EnvironmentId> {}, Optional<Web::HTML::CrossProcessId> {}, Optional<u64> {}, Web::HTML::VisibilityState::Hidden, String {} };
+    return { Optional<Web::PageId> {}, Optional<Web::HTML::CrossProcessId> {}, Optional<Web::HTML::SessionHistoryEntryDescriptor> {}, Optional<Web::HTML::EnvironmentId> {}, Optional<Web::HTML::CrossProcessId> {}, Optional<u64> {}, Web::HTML::WindowType::ExistingOrNone, Web::HTML::VisibilityState::Hidden, String {} };
 }
 
 Messages::WebContentClient::StartWorkerAgentResponse WebContentClient::start_worker_agent(Web::PageId page_id, Web::HTML::WorkerAgentStartRequest request)
