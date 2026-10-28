@@ -1,4 +1,4 @@
-Computed URL before base change: url("../wpt-import/images/anim-gr.gif")
-Computed URL after base change: url("../wpt-import/images/anim-gr.gif")
+Computed URL before base change: url("[image-url]")
+Computed URL after base change: url("[image-url]")
 timer active before base change: true
 timer active after base change: true

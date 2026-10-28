@@ -2,9 +2,10 @@ Harness status: OK
 
 Found 18 tests
 
-18 Fail
-Fail	Unregistered property resolves against document (URL token)
-Fail	Unregistered property resolves against document (URL function)
+2 Pass
+16 Fail
+Pass	Unregistered property resolves against document (URL token)
+Pass	Unregistered property resolves against document (URL function)
 Fail	Registered non-inherited <url> resolves against sheet (URL token)
 Fail	Registered non-inherited <url> resolves against sheet (URL function)
 Fail	Registered inherited <url> resolves against sheet (URL token)

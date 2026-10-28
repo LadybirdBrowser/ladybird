@@ -17,11 +17,11 @@
             const timerActiveBeforeBaseChange =
                 internals.imageAnimationStateForURL(imageURL).timerActive;
 
-            const beforeBaseChange = getComputedStyle(target).backgroundImage;
+            const beforeBaseChange = getComputedStyle(target).backgroundImage.replace(imageURL, "[image-url]");
             const base = document.createElement("base");
             base.href = "../wpt-import/";
             document.head.append(base);
-            const afterBaseChange = getComputedStyle(target).backgroundImage;
+            const afterBaseChange = getComputedStyle(target).backgroundImage.replace(imageURL, "[image-url]");
 
             internals.dumpLayoutTree(document);
             const timerActiveAfterBaseChange =
