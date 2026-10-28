@@ -60,7 +60,7 @@ impl InFlowBlockKey {
 pub(super) struct InFlowBlockEntry {
     pub(super) key: InFlowBlockKey,
     pub(super) validity: fc_run_cache::FcRunCacheValidity,
-    /// The child's record as it was before its placement.
+    /// The child's record as its layout left it.
     pub(super) cells: used_values::UsedValuesCellState,
     pub(super) offset_from_flow_position: FfiCssPixelPoint,
     pub(super) flow_position_advance: CssPixels,
