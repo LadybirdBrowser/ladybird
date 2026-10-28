@@ -17,6 +17,9 @@ jobs:
     name: Source
     runs-on: blacksmith-2vcpu-ubuntu-2404
 
+    outputs:
+      artifact-id: ${{ steps.upload.outputs.artifact-id }}
+
     permissions:
       contents: read
       id-token: write
@@ -42,6 +45,7 @@ jobs:
           subject-path: '*-source.tar.xz'
 
       - name: Upload
+        id: upload
         uses: actions/upload-artifact@v7
         with:
           path: '*-source.tar.xz'
@@ -51,6 +55,7 @@ jobs:
   Build:
     if: github.repository == 'LadybirdBrowser/ladybird'
     name: ${{ matrix.os_name }}, ${{ matrix.arch }}, Distribution, Clang
+    needs: Source
     runs-on: ${{ fromJSON(!inputs.version && matrix.snapshot_runner_labels || matrix.runner_labels) }}
     container: ${{ fromJSON(matrix.container) }}
 
@@ -79,7 +84,15 @@ jobs:
       artifact-metadata: write
 
     steps:
-      - uses: actions/checkout@v7.0.1
+      - name: Download the source
+        uses: actions/download-artifact@v8
+        with:
+          artifact-ids: ${{ needs.Source.outputs.artifact-id }}
+
+      - name: Unpack the source
+        run: |
+          tar -xf ./*-source.tar.xz --strip-components=1
+          rm ./*-source.tar.xz
 
       - name: Build
         uses: ./.github/actions/build
@@ -147,6 +160,7 @@ jobs:
   Flatpak:
     if: github.repository == 'LadybirdBrowser/ladybird'
     name: Flatpak, ${{ matrix.arch }}
+    needs: Source
     runs-on: ${{ fromJSON(matrix.runner_labels) }}
 
     strategy:
@@ -173,7 +187,15 @@ jobs:
       DEBUG_BUNDLE: ladybird-${{ inputs.version && format('{0}-', inputs.version) }}Linux-${{ matrix.arch }}-debug.flatpak
 
     steps:
-      - uses: actions/checkout@v7.0.1
+      - name: Download the source
+        uses: actions/download-artifact@v8
+        with:
+          artifact-ids: ${{ needs.Source.outputs.artifact-id }}
+
+      - name: Unpack the source
+        run: |
+          tar -xf ./*-source.tar.xz --strip-components=1
+          rm ./*-source.tar.xz
 
       # The image bakes the SDK into a read-only layer, and the action always has flatpak-builder update it from
       # Flathub. An update renames the old deployment into /var/lib/flatpak/.removed, and overlayfs can't rename a
