@@ -2868,16 +2868,6 @@ pub(crate) fn leave_child_unplaced(
     node: Node,
     fragment_arrival: Option<fragment_tree::ChildFragmentArrival>,
 ) {
-    hold_fragment_arrival_until_placement(run, node, fragment_arrival);
-}
-
-/// Keeps what the layout of the child `node` handed its placement in the run's fragment builder until the placement
-/// takes it.
-pub(crate) fn hold_fragment_arrival_until_placement(
-    run: &FormattingContextRun,
-    node: Node,
-    fragment_arrival: Option<fragment_tree::ChildFragmentArrival>,
-) {
     if let Some(arrival) = fragment_arrival {
         run.fragments
             .as_deref()

@@ -979,6 +979,8 @@ pub(crate) struct InlineFormattingContext<'context> {
     inline_boxes_continued_from_previous_fragment: Vec<Node>,
     inline_boxes_continued_in_next_fragment: RefCell<Vec<Node>>,
     block_axis_float_clearance: Cell<CssPixels>,
+    /// What the layout of each atomic inline hands its placement, which places it once its line is final.
+    atomic_inline_fragment_arrivals: RefCell<HashMap<Node, fragment_tree::ChildFragmentArrival>>,
 }
 
 impl<'context> InlineFormattingContext<'context> {
@@ -1005,6 +1007,34 @@ impl<'context> InlineFormattingContext<'context> {
             inline_boxes_continued_from_previous_fragment: Vec::new(),
             inline_boxes_continued_in_next_fragment: RefCell::new(Vec::new()),
             block_axis_float_clearance: Cell::new(CssPixels::default()),
+            atomic_inline_fragment_arrivals: RefCell::new(HashMap::default()),
+        }
+    }
+
+    fn keep_atomic_inline_fragment_arrival(
+        &self,
+        node: Node,
+        fragment_arrival: Option<fragment_tree::ChildFragmentArrival>,
+    ) {
+        let mut arrivals = self.atomic_inline_fragment_arrivals.borrow_mut();
+        let previous = match fragment_arrival {
+            Some(fragment_arrival) => arrivals.insert(node, fragment_arrival),
+            None => arrivals.remove(&node),
+        };
+        debug_assert!(
+            !matches!(previous, Some(fragment_tree::ChildFragmentArrival::RunRoot { .. })),
+            "an atomic inline is laid out once by a run before its placement"
+        );
+    }
+
+    fn take_atomic_inline_fragment_arrival(&self, node: Node) -> Option<fragment_tree::ChildFragmentArrival> {
+        self.atomic_inline_fragment_arrivals.borrow_mut().remove(&node)
+    }
+
+    fn discard_unplaced_atomic_inline(&self, node: Node) {
+        let fragment_arrival = self.take_atomic_inline_fragment_arrival(node);
+        if let Some(fragments) = self.run.fragments.as_deref() {
+            fragments.discard_unplaced_subtree(node, self.used(node), fragment_arrival);
         }
     }
 
@@ -1017,9 +1047,7 @@ impl<'context> InlineFormattingContext<'context> {
     }
 
     fn hide_atomic_inline_for_line_clamp(&self, node: Node) {
-        if let Some(fragments) = self.run.fragments.as_deref() {
-            fragments.discard_unplaced_subtree(node, self.used(node));
-        }
+        self.discard_unplaced_atomic_inline(node);
         self.run.records.hide_for_line_clamp(node);
     }
 
@@ -1287,7 +1315,7 @@ impl<'context> InlineFormattingContext<'context> {
             outcome,
             fragment_arrival,
         } = formatting_context::layout_inside_child(self.run, Some(self.parent), None, node, input, false);
-        formatting_context::hold_fragment_arrival_until_placement(self.run, node, fragment_arrival);
+        self.keep_atomic_inline_fragment_arrival(node, fragment_arrival);
         outcome.report_percentage_block_size_dependency_of(self.run, node);
         match outcome {
             ChildLayoutOutcome::Created(result) => result.baselines,
@@ -1961,7 +1989,8 @@ impl<'context> InlineFormattingContext<'context> {
                 .take_floating_boxes_from(state_at_clamp_point.floating_box_count);
             for (node, position) in atomic_inlines_after_clamp_point {
                 self.run.records.hide_for_line_clamp(node);
-                formatting_context::place_child(self.run, node, position, None);
+                let fragment_arrival = self.take_atomic_inline_fragment_arrival(node);
+                formatting_context::place_laid_out_child(self.run, node, position, None, fragment_arrival);
             }
         }
         if self.parent.line_clamp_reached() {
@@ -2061,12 +2090,12 @@ impl<'context> InlineFormattingContext<'context> {
             } else {
                 Vec::new()
             };
-            if let Some(fragments) = self.run.fragments.as_deref() {
-                for node in &skipped_atomic_inlines {
-                    fragments.discard_unplaced_subtree(*node, self.used(*node));
+            if self.run.fragments.is_some() {
+                for &node in &skipped_atomic_inlines {
+                    self.discard_unplaced_atomic_inline(node);
                 }
                 for node in dropped_atomic_inlines.into_iter().chain(unconsumed_atomic_inlines) {
-                    fragments.discard_unplaced_subtree(node, self.used(node));
+                    self.discard_unplaced_atomic_inline(node);
                 }
             }
         }
@@ -2108,7 +2137,8 @@ impl<'context> InlineFormattingContext<'context> {
                     self.callbacks.parent(fragment.layout_node),
                     self.containing_block,
                 );
-                formatting_context::place_child(
+                let fragment_arrival = self.take_atomic_inline_fragment_arrival(fragment.layout_node);
+                formatting_context::place_laid_out_child(
                     self.run,
                     fragment.layout_node,
                     FfiCssPixelPoint {
@@ -2119,6 +2149,7 @@ impl<'context> InlineFormattingContext<'context> {
                         line_box_index: line_index,
                         fragment_index,
                     }),
+                    fragment_arrival,
                 );
             }
         }
@@ -2196,7 +2227,22 @@ impl<'context> InlineFormattingContext<'context> {
             self.compute_inline_box_pieces();
             self.fold_inline_ancestor_relative_insets_into_line_data();
         }
+        self.leave_atomic_inlines_without_a_line_unplaced();
         formatting_context::derive_baselines(self.run.records, &self.callbacks, self.containing_block)
+    }
+
+    fn leave_atomic_inlines_without_a_line_unplaced(&self) {
+        let mut unplaced: Vec<_> = self.atomic_inline_fragment_arrivals.take().into_iter().collect();
+        unplaced.sort_by(|(left, _), (right, _)| {
+            if self.callbacks.is_before(*left, *right) {
+                std::cmp::Ordering::Less
+            } else {
+                std::cmp::Ordering::Greater
+            }
+        });
+        for (node, fragment_arrival) in unplaced {
+            formatting_context::leave_child_unplaced(self.run, node, Some(fragment_arrival));
+        }
     }
 
     fn compute_inline_box_pieces(&mut self) {
