@@ -1047,6 +1047,11 @@ void WebContentView::create_vulkan_window()
     // lets us punch transparent holes for hover-expanded vertical tabs, which this native window would otherwise occlude.
     auto surface_format = m_vulkan_window->requestedFormat();
     surface_format.setAlphaBufferSize(8);
+    // NB: With a swap interval, Qt on Wayland blocks the UI thread before every present until the compositor sends a
+    //     frame callback for the previous one, for up to 100 ms. Updates are still paced by frame callbacks without it,
+    //     as QWindow::requestUpdate() waits for them without blocking.
+    if (QGuiApplication::platformName() == "wayland")
+        surface_format.setSwapInterval(0);
     m_vulkan_window->setFormat(surface_format);
 
     m_vulkan_window->setPreferredColorFormats({
