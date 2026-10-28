@@ -400,6 +400,7 @@ pub(crate) fn place_child_in_containing_block(
         );
         return None;
     };
+    fragments.note_placed_box(node, placement);
     let facts_decided_by_parent = records.facts_decided_by_parent_of(node);
     debug_assert!(
         fragment_arrival
@@ -439,7 +440,6 @@ pub(crate) fn place_child_in_containing_block(
             (!containing_block.is_invalid()).then_some(containing_block),
             facts_decided_by_parent,
             abspos_layout_inputs,
-            containing_block_is_placed_or_outside_run(records, containing_block),
             resolve_containing_line_box_index(callbacks, node, containing_line_box_fragment),
             point_add(
                 offset,
@@ -461,7 +461,7 @@ pub(crate) fn place_child_in_containing_block(
     }
     let mut abspos_boxes_placed_with_it = Vec::new();
     loop {
-        let batch = fragments.take_drainable_abspos(node, records, callbacks);
+        let batch = fragments.take_drainable_abspos(node, callbacks);
         if batch.is_empty() {
             break;
         }
@@ -485,7 +485,6 @@ pub(crate) fn place_child_in_containing_block(
         records.fragment_geometry_of(node, callbacks),
         records.facts_decided_by_parent_of(node),
         abspos_layout_inputs,
-        containing_block_is_placed_or_outside_run(records, containing_block),
         resolve_containing_line_box_index(callbacks, node, containing_line_box_fragment),
         point_add(
             offset,
@@ -519,6 +518,7 @@ pub(crate) fn place_reused_child(
         .fragments
         .as_deref()
         .expect("a reused subtree is placed by a run that builds fragments");
+    fragments.note_placed_box(node, placement);
     fragments.attach_committed_fragment(
         node,
         fragment,
@@ -526,7 +526,6 @@ pub(crate) fn place_reused_child(
         (!containing_block.is_invalid()).then_some(containing_block),
         records.facts_decided_by_parent_of(node),
         None,
-        containing_block_is_placed_or_outside_run(records, containing_block),
         None,
         point_add(
             offset,
@@ -534,10 +533,6 @@ pub(crate) fn place_reused_child(
         ),
         callbacks.frame,
     );
-}
-
-fn containing_block_is_placed_or_outside_run(records: &RunRecords, containing_block: Node) -> bool {
-    !containing_block.is_invalid() && (!records.holds_box(containing_block) || records.is_placed(containing_block))
 }
 
 /// The index of the line box that `node` is placed on. Both callers that place a box on a line name one that exists:
@@ -610,13 +605,8 @@ pub(crate) fn register_contained_abspos_child(
     fragments.register_pending_abspos(coordinate_space_box, entry);
 }
 
-pub(crate) fn placement_containing_block(records: &RunRecords, callbacks: &LayoutPass<'_>, node: Node) -> Node {
-    let placed_in = records
-        .placement_of(node)
-        .map_or(NodeSlotId::INVALID, |placement| placement.containing_block);
-    if !placed_in.is_invalid() {
-        return placed_in;
-    }
+/// The containing block `node` is laid out in, within the run rooted at `run_root`.
+pub(crate) fn containing_block_laid_out_in(callbacks: &LayoutPass<'_>, node: Node, run_root: Node) -> Node {
     let facts = NodeFacts::new(callbacks, node);
     if !facts.is_absolutely_positioned() {
         return callbacks.in_flow_containing_block(node);
@@ -624,7 +614,7 @@ pub(crate) fn placement_containing_block(records: &RunRecords, callbacks: &Layou
     let mut search = abspos_inputs::ContainingBlockSearch::starting_at(node, facts.is_fixed_position());
     callbacks
         .arena()
-        .continue_containing_block_search(&mut search, records.root());
+        .continue_containing_block_search(&mut search, run_root);
     search.containing_block
 }
 
@@ -3705,6 +3695,11 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
         line_data: root_outcome.line_data.clone(),
     };
     let (_, fragment_arrival) = root_outcome.hand_box_back_to(run, root);
+    let facts_decided_by_parent = committed_root.facts_decided_by_parent;
+    let placement = facts_decided_by_parent
+        .placement
+        .expect("the root of a partial relayout keeps the placement it committed");
+    fragments.note_placed_box(root, placement);
     // The retained offset already includes relative positioning. Publish it directly instead
     // of applying placement adjustments a second time.
     let Some(fragment_tree::ChildFragmentArrival::RunRoot {
@@ -3715,10 +3710,6 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
         panic!("the root of a partial relayout is laid out by a run of its own");
     };
     fragments.take_in_child_root_at_placement(root, unplaced_root, reuses_committed_subtree, callbacks);
-    let facts_decided_by_parent = committed_root.facts_decided_by_parent;
-    let placement = facts_decided_by_parent
-        .placement
-        .expect("the root of a partial relayout keeps the placement it committed");
     fragments.build_fragment_for_placed_box(
         callbacks,
         root,
@@ -3726,7 +3717,6 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
         root_geometry,
         facts_decided_by_parent,
         None,
-        false,
         None,
         placement.content_offset_in_containing_block,
         None,

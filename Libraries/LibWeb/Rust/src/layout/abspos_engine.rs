@@ -174,7 +174,7 @@ impl<'pass> AbsposEngine<'pass> {
         let mut origin = FfiCssPixelPoint::default();
         loop {
             origins_by_chain_box.push((chain_box, origin));
-            let Some(placement) = self.records.placement_of(chain_box) else {
+            let Some(placement) = self.placement_of(chain_box) else {
                 break;
             };
             origin = formatting_context::point_add(origin, placement.content_offset_in_containing_block);
@@ -192,7 +192,7 @@ impl<'pass> AbsposEngine<'pass> {
             {
                 return formatting_context::point_sub(*origin, space_origin);
             }
-            let placement = self.records.placement_of(space_box).unwrap_or_else(|| {
+            let placement = self.placement_of(space_box).unwrap_or_else(|| {
                 panic!(
                     "an entry's space chain crossed an unplaced or foreign record before meeting its containing block's chain (slot {})",
                     space_box.slot_index()
@@ -220,12 +220,12 @@ impl<'pass> AbsposEngine<'pass> {
             let mut offset = FfiCssPixelPoint::default();
             let mut current = descendant;
             while current != merge_point {
-                assert!(
-                    self.records.holds_box(current),
-                    "a payload resting space's chain crossed a box this run does not hold (slot {})",
-                    current.slot_index()
-                );
-                offset = formatting_context::point_add(offset, self.records.content_offset_or_origin(current));
+                let content_offset = self
+                    .placement_of(current)
+                    .map_or(FfiCssPixelPoint::default(), |placement| {
+                        placement.content_offset_in_containing_block
+                    });
+                offset = formatting_context::point_add(offset, content_offset);
                 current = self.placement_containing_block(current);
                 assert!(!current.is_invalid());
             }
@@ -237,8 +237,21 @@ impl<'pass> AbsposEngine<'pass> {
         )
     }
 
+    /// The fragments of the run this engine lays out boxes in, where its placements are kept.
+    fn placed_box_fragments(&self) -> &fragment_tree::RunFragmentBuilder {
+        self.fragments
+            .as_deref()
+            .expect("absolutely positioned boxes are laid out in runs that build fragments")
+    }
+
+    /// Where the run placed `node`, if it placed the box.
+    fn placement_of(&self, node: Node) -> Option<run_records::BoxPlacement> {
+        self.placed_box_fragments().placement_of(node)
+    }
+
     fn placement_containing_block(&self, node: Node) -> Node {
-        formatting_context::placement_containing_block(self.records, &self.callbacks, node)
+        self.placed_box_fragments()
+            .placement_containing_block(&self.callbacks, node)
     }
 
     #[inline]
@@ -3811,7 +3824,7 @@ pub(crate) fn drain_abspos_with_placed_containing_blocks(
         fragmentainer: None,
     };
     loop {
-        let batch = entry_fragments.take_drainable_abspos(accumulator_root, records, &callbacks);
+        let batch = entry_fragments.take_drainable_abspos(accumulator_root, &callbacks);
         if batch.is_empty() {
             break;
         }
