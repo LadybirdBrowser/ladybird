@@ -346,6 +346,7 @@ public:
     };
     u64 request_geolocation_position(HTML::CrossProcessId requesting_document_id, GeolocationPositionCallback, GeolocationRequestType = GeolocationRequestType::OneShot);
     void cancel_geolocation_position_request(u64 request_id);
+    void start_next_geolocation_position_request();
     void receive_geolocation_position(u64 request_id, GeolocationPositionResult);
 
     // The browser-process bridge for the Permissions spec's "ask the user for express permission" step.
