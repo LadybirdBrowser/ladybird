@@ -824,6 +824,8 @@ pub struct RetainedState {
     /// computed half of the eventual base style record; custom properties and metadata remain
     /// separate inputs until that record is complete.
     computed_group_sets: crate::fork::ForkShared<ComputedGroupSets>,
+    /// How many epochs of style record views the host has open. No computed record is reclaimed while one is.
+    style_record_view_epoch_depth: u32,
     /// The stores behind the custom-property environments live records are published with.
     custom_property_environments: crate::fork::ForkShared<custom_property_environments::CustomPropertyEnvironments>,
     /// The nodes whose engine-computed record substituted a custom property into a winner: what

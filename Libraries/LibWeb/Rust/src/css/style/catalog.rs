@@ -1016,8 +1016,8 @@ impl AnswerEffects {
 
     pub(super) fn release_pending_all(
         self,
-        catalog: &mut MatchAnswerCatalog,
-        winners: &mut super::cascade::WinnerGroups,
+        catalog: &mut crate::fork::ForkShared<MatchAnswerCatalog>,
+        winners: &mut crate::fork::ForkShared<super::cascade::WinnerGroups>,
     ) {
         self.winners.release_pending_all(winners);
         for (_, entry) in self.entries {

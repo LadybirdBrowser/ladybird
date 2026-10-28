@@ -912,7 +912,6 @@ pub struct ComputedGroupSets {
     pseudo_rows_by_node: crate::fork::ForkShared<HashMap<StyleNodeID, Box<[PseudoComputedRow]>>>,
     style_records_interned_since_reclamation: usize,
     next_reclamation_after: usize,
-    style_record_view_epoch_depth: u32,
 }
 
 impl Default for ComputedGroupSets {
@@ -944,19 +943,11 @@ impl Default for ComputedGroupSets {
 
             style_records_interned_since_reclamation: 0,
             next_reclamation_after: 1024,
-            style_record_view_epoch_depth: 0,
         }
     }
 }
 
 impl ComputedGroupSets {
-    pub(crate) fn begin_style_record_view_epoch(&mut self) {
-        self.style_record_view_epoch_depth = self
-            .style_record_view_epoch_depth
-            .checked_add(1)
-            .expect("style-record view epoch depth overflow");
-    }
-
     pub(crate) fn lease_style_records(&self) -> StyleRecordLease {
         self.leases.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         StyleRecordLease {
@@ -1033,14 +1024,6 @@ impl ComputedGroupSets {
 
     pub(super) fn take_released_animation_overlay_records(&mut self) -> ReleasedAnimationOverlayRecords {
         std::mem::take(&mut self.released_animation_overlay_records)
-    }
-
-    pub(crate) fn end_style_record_view_epoch(&mut self) {
-        assert!(
-            self.style_record_view_epoch_depth > 0,
-            "style-record view epoch underflow"
-        );
-        self.style_record_view_epoch_depth -= 1;
     }
 
     fn group_identities(&self, set: ComputedGroupSetID) -> impl Iterator<Item = ComputedGroupID> {
@@ -3675,9 +3658,9 @@ impl ComputedGroupSets {
         self.identity_mints
     }
 
-    pub(super) fn reclaim_unreachable_if_needed(&mut self) -> Option<ComputedGroupRetention> {
+    pub(super) fn reclaim_unreachable_if_needed(&mut self, records_are_viewed: bool) -> Option<ComputedGroupRetention> {
         self.free_retired_animation_overlays();
-        if self.style_record_view_epoch_depth != 0 || self.style_records_are_leased() {
+        if records_are_viewed || self.style_records_are_leased() {
             return None;
         }
         if self.style_records_interned_since_reclamation < self.next_reclamation_after {
@@ -3868,7 +3851,6 @@ impl Clone for ComputedGroupSets {
             pseudo_rows_by_node: self.pseudo_rows_by_node.clone(),
             style_records_interned_since_reclamation: self.style_records_interned_since_reclamation,
             next_reclamation_after: self.next_reclamation_after,
-            style_record_view_epoch_depth: self.style_record_view_epoch_depth,
         };
         for identity in copy.groups.live_identities() {
             let group = copy.groups.get(identity);
