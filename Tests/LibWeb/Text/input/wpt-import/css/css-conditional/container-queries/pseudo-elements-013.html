@@ -1,0 +1,42 @@
+<!doctype html>
+<title>@container: originating element container for highlight pseudo elements</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#container-queries">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/cq-testcommon.js"></script>
+<style>
+  #target { container-type: inline-size; }
+  #target::highlight(foo) {
+    text-decoration-line: underline;
+    text-decoration-thickness: 0px;
+  }
+  @container (width >= 300px) {
+    #target::highlight(foo) {
+      text-decoration-line: underline;
+      text-decoration-thickness: 10cqw;
+    }
+    #target::highlight(bar) {
+      text-decoration-line: underline;
+      text-decoration-thickness: 10cqw;
+    }
+  }
+</style>
+<div id="outer" style="width: 200px">
+  <div id="target"></div>
+</div>
+<script>
+  setup(() => assert_implements_size_container_queries());
+
+  test(() => {
+    assert_equals(getComputedStyle(target, "::highlight(foo)").textDecorationThickness, "0px");
+  }, `Initial text-decoration-thickness for highlight pseudo`);
+
+  outer.style.width = "300px";
+
+  test(() => {
+    assert_equals(getComputedStyle(target, "::highlight(foo)").textDecorationThickness, "30px");
+  }, `text-decoration-thickness for highlight pseudo depending on container`);
+  test(() => {
+    assert_equals(getComputedStyle(target, "::highlight(bar)").textDecorationThickness, "30px");
+  }, `text-decoration-thickness for highlight pseudo depending on container only defined in a query`);
+</script>

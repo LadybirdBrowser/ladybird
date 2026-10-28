@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Fail
+Fail	Originating element container for ::before
+Fail	Originating element container for ::after
+Fail	Originating element container for ::marker
+Fail	Originating element container for ::first-line
+Fail	Originating element container for ::first-letter
+Fail	Originating element container  for ::highlight
+Fail	Originating element container for outer ::first-line
+Fail	Originating element container for outer ::first-letter
+Fail	Originating element container for ::backdrop
