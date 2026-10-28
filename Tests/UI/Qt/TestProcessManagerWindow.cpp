@@ -320,6 +320,9 @@ TEST_CASE(pressing_the_title_bar_moves_the_window)
 TEST_CASE(site_labels_handle_urls_without_hosts)
 {
     EXPECT_EQ(Ladybird::task_manager_site_label(URL::Parser::basic_parse("https://google.com/search?q=test"sv).value()), QString("google.com"));
+    EXPECT_EQ(Ladybird::task_manager_site_label(URL::Parser::basic_parse("https://www.reddit.com/r/ladybird"sv).value()), QString("reddit.com"));
+    EXPECT_EQ(Ladybird::task_manager_site_label(URL::Parser::basic_parse("https://reddit.com"sv).value()), QString("reddit.com"));
+    EXPECT_EQ(Ladybird::task_manager_site_label(URL::Parser::basic_parse("http://localhost:8000/"sv).value()), QString("localhost"));
     EXPECT_EQ(Ladybird::task_manager_site_label(URL::Parser::basic_parse("about:blank"sv).value()), QString {});
     EXPECT_EQ(Ladybird::task_manager_site_label(URL::Parser::basic_parse("file:///tmp/report.html"sv).value()), QString("report.html"));
     EXPECT_EQ(Ladybird::task_manager_site_label(URL::Parser::basic_parse("data:text/plain,hello"sv).value()), QString("data:"));
