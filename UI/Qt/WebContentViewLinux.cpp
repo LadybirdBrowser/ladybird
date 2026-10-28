@@ -1039,6 +1039,9 @@ void WebContentView::create_vulkan_window()
     if (auto const& gpu = presentation_gpu(); gpu.has_value())
         m_vulkan_window->setPhysicalDeviceIndex(gpu->physical_device_index);
     m_vulkan_window->setDeviceExtensions(vulkan_dmabuf_device_extensions());
+    // NB: Without this, QVulkanWindow destroys its device every time the window is unexposed, which on Wayland happens
+    //     whenever the compositor is late with a frame callback, as it often is during a resize.
+    m_vulkan_window->setFlags(QVulkanWindow::PersistentResources);
 
     // Request an alpha channel so QVulkanWindow builds a blending swapchain (pre/post-multiplied composite alpha). This
     // lets us punch transparent holes for hover-expanded vertical tabs, which this native window would otherwise occlude.
