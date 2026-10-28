@@ -85,6 +85,7 @@
 #include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
+#include <LibWeb/HTML/Scripting/ConsoleInputCompletion.h>
 #include <LibWeb/HTML/Scripting/DevToolsObjectTable.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -1177,6 +1178,14 @@ Utf16String Internals::devtools_properties(JS::Value value)
     if (auto const& prototype = properties.value().prototype; prototype.has_value())
         result.set("prototype"sv, prototype->type == WebView::DebuggerValueType::Object ? JsonValue { prototype->object_class } : JsonValue {});
     return Utf16String::from_utf8(result.serialized());
+}
+
+Optional<Vector<String>> Internals::complete_console_input(Utf16String const& input)
+{
+    auto completion = HTML::complete_console_input(HTML::relevant_realm(window()), input.to_utf8_but_should_be_ported_to_utf16());
+    if (!completion.has_value())
+        return {};
+    return move(completion->matches);
 }
 
 void Internals::set_marked_text_from_input_method(Utf16String const& text)

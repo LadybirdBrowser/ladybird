@@ -137,6 +137,7 @@ public:
     Optional<Utf16String> generate_text_fragment_url(DOM::Range&, Utf16String const& current_url);
     Utf16String devtools_grip(JS::Value);
     Utf16String devtools_properties(JS::Value);
+    Optional<Vector<String>> complete_console_input(Utf16String const& input);
 
     void find_in_page(Utf16String const& query, bool highlight_all);
     void find_in_page_next_match();
