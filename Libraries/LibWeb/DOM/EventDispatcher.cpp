@@ -26,6 +26,7 @@
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/HTMLAnchorElement.h>
 #include <LibWeb/HTML/HTMLButtonElement.h>
+#include <LibWeb/HTML/HTMLLabelElement.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
@@ -266,6 +267,9 @@ bool EventDispatcher::dispatch(GC::Ref<EventTarget> target, Event& event, bool l
 
     // 3. Let activationTarget be null.
     GC::Ptr<EventTarget> activation_target;
+    // NB: Labels need the click target relative to their tree, even after dispatch retargets or clears event.target.
+    GC::Ptr<EventTarget> activation_event_target;
+    bool activation_target_is_interactive_label_descendant = false;
 
     // 4. Let relatedTarget be the result of retargeting event’s relatedTarget against target.
     GC::Ptr<EventTarget> related_target = retarget(event.related_target().ptr(), target.ptr());
@@ -305,8 +309,10 @@ bool EventDispatcher::dispatch(GC::Ref<EventTarget> target, Event& event, bool l
         // NB: Step 4 is executed above as part of an optimization.
 
         // 5. If isActivationEvent is true and target has activation behavior, then set activationTarget to target.
-        if (is_activation_event && target->has_activation_behavior())
+        if (is_activation_event && target->has_activation_behavior()) {
             activation_target = target;
+            activation_event_target = target;
+        }
 
         // 6. Let slottable be target, if target is a slottable and is assigned, and null otherwise.
         GC::Ptr<EventTarget> slottable;
@@ -360,8 +366,10 @@ bool EventDispatcher::dispatch(GC::Ref<EventTarget> target, Event& event, bool l
                 || !is<Node>(parent)
                 || (is<Node>(parent) && as<Node>(*target).root().is_shadow_including_inclusive_ancestor_of(as<Node>(*parent)))) {
                 // 1. If isActivationEvent is true, event’s bubbles attribute is true, activationTarget is null, and parent has activation behavior, then set activationTarget to parent.
-                if (is_activation_event && event.bubbles() && !activation_target && parent->has_activation_behavior())
+                if (is_activation_event && event.bubbles() && !activation_target && parent->has_activation_behavior()) {
                     activation_target = parent;
+                    activation_event_target = target;
+                }
 
                 // 2. Append to an event path with event, parent, null, relatedTarget, touchTargets, and slot-in-closed-tree.
                 event.append_to_path(*parent, nullptr, related_target, touch_targets, slot_in_closed_tree);
@@ -376,8 +384,10 @@ bool EventDispatcher::dispatch(GC::Ref<EventTarget> target, Event& event, bool l
                 target = *parent;
 
                 // 1. If isActivationEvent is true, activationTarget is null, and target has activation behavior, then set activationTarget to target.
-                if (is_activation_event && !activation_target && target->has_activation_behavior())
+                if (is_activation_event && !activation_target && target->has_activation_behavior()) {
                     activation_target = target;
+                    activation_event_target = target;
+                }
 
                 // 2. Append to an event path with event, parent, target, relatedTarget, touchTargets, and slot-in-closed-tree.
                 event.append_to_path(*parent, target, related_target, touch_targets, slot_in_closed_tree);
@@ -425,6 +435,10 @@ bool EventDispatcher::dispatch(GC::Ref<EventTarget> target, Event& event, bool l
                 }
             }
         }
+
+        // NB: Keep the original interactive ancestry if listeners remove or reparent the clicked node.
+        if (auto* label = as_if<HTML::HTMLLabelElement>(activation_target.ptr()))
+            activation_target_is_interactive_label_descendant = label->is_interactive_descendant_event_target(activation_event_target.ptr());
 
         // 12. If activationTarget is non-null and activationTarget has legacy-pre-activation behavior, then run activationTarget’s legacy-pre-activation behavior.
         if (activation_target)
@@ -534,7 +548,10 @@ bool EventDispatcher::dispatch(GC::Ref<EventTarget> target, Event& event, bool l
     if (activation_target) {
         // 1. If event’s canceled flag is unset, then run activationTarget’s activation behavior with event.
         if (!event.cancelled()) {
-            activation_target->activation_behavior(event);
+            if (auto* label = as_if<HTML::HTMLLabelElement>(*activation_target))
+                label->activation_behavior(event, activation_target_is_interactive_label_descendant);
+            else
+                activation_target->activation_behavior(event);
             activation_target->legacy_cancelled_activation_behavior_was_not_called();
         }
         // 2. Otherwise, if activationTarget has legacy-canceled-activation behavior, then run activationTarget’s legacy-canceled-activation behavior.

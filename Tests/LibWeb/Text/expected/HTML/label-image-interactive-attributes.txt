@@ -1,0 +1,6 @@
+plain image image: control activated=true
+plain image descendant: control activated=true
+usemap image: control activated=false
+usemap descendant: control activated=false
+controls image: control activated=false
+controls descendant: control activated=false

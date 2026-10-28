@@ -8,9 +8,11 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
+#include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLLabelElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/TagNames.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Painting/BoxViews.h>
@@ -43,10 +45,38 @@ bool HTMLLabelElement::has_activation_behavior() const
 // https://html.spec.whatwg.org/multipage/forms.html#the-label-element:activation-behaviour
 void HTMLLabelElement::activation_behavior(DOM::Event const& event)
 {
+    activation_behavior(event, is_interactive_descendant_event_target(event.target().ptr()));
+}
+
+bool HTMLLabelElement::is_interactive_descendant_event_target(DOM::EventTarget* click_target) const
+{
+    if (auto* target = as_if<DOM::Node>(click_target); target && target->is_descendant_of(*this)) {
+        for (; target != this; target = target->parent()) {
+            auto const* element = as_if<HTMLElement>(*target);
+            if (!element)
+                continue;
+            auto const& name = element->local_name();
+            if (name.is_one_of(TagNames::button, TagNames::details, TagNames::embed, TagNames::iframe, TagNames::label, TagNames::select, TagNames::textarea)
+                || (name == TagNames::a && element->has_attribute(AttributeNames::href))
+                || (name.is_one_of(TagNames::audio, TagNames::video) && element->has_attribute(AttributeNames::controls))
+                || (name == TagNames::img && (element->has_attribute(AttributeNames::usemap) || element->has_attribute(AttributeNames::controls))))
+                return true;
+            if (auto const* input = as_if<HTMLInputElement>(*element); input && input->type_state() != HTMLInputElement::TypeAttributeState::Hidden)
+                return true;
+        }
+    }
+
+    return false;
+}
+
+void HTMLLabelElement::activation_behavior(DOM::Event const& event, bool is_interactive_descendant)
+{
     // The label element's exact default presentation and behavior, in particular what its activation behavior might be,
     // if anything, should match the platform's label behavior. The activation behavior of a label element for events
     // targeted at interactive content descendants of a label element, and any descendants of those interactive content
     // descendants, must be to do nothing.
+    if (is_interactive_descendant)
+        return;
 
     // AD-HOC: Click and focus the control, matching typical platform behavior.
     //         This matches the behavior of HTMLElement::click(), but the original event properties are preserved.
@@ -117,11 +147,10 @@ GC::Ptr<HTMLElement> HTMLLabelElement::control() const
     // and the first such element in tree order is a labelable element, then that element is the
     // label element's labeled control.
     if (auto for_attribute = for_(); for_attribute.has_value()) {
-        root().for_each_in_inclusive_subtree_of_type<HTMLElement>([&](auto& element) {
-            if (element.id().has_value()
-                && element.id()->view() == for_attribute->utf16_view()
-                && element.is_labelable()) {
-                control = &const_cast<HTMLElement&>(element);
+        root().for_each_in_inclusive_subtree_of_type<DOM::Element>([&](auto& element) {
+            if (element.id().has_value() && element.id()->view() == for_attribute->utf16_view()) {
+                if (auto const* html_element = as_if<HTMLElement>(element); html_element && html_element->is_labelable())
+                    control = &const_cast<HTMLElement&>(*html_element);
                 return TraversalDecision::Break;
             }
             return TraversalDecision::Continue;

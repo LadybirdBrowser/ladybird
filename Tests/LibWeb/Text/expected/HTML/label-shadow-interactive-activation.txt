@@ -1,0 +1,24 @@
+open composed=true plain image: activated=true, target=host, forwarded target=host
+open composed=true plain descendant: activated=true, target=host, forwarded target=host
+open composed=true usemap image: activated=false, target=host, forwarded target=not forwarded
+open composed=true usemap descendant: activated=false, target=host, forwarded target=not forwarded
+open composed=true controls image: activated=false, target=host, forwarded target=not forwarded
+open composed=true controls descendant: activated=false, target=host, forwarded target=not forwarded
+open composed=false plain image: activated=true, target=null, forwarded target=null
+open composed=false plain descendant: activated=true, target=null, forwarded target=null
+open composed=false usemap image: activated=false, target=null, forwarded target=not forwarded
+open composed=false usemap descendant: activated=false, target=null, forwarded target=not forwarded
+open composed=false controls image: activated=false, target=null, forwarded target=not forwarded
+open composed=false controls descendant: activated=false, target=null, forwarded target=not forwarded
+closed composed=true plain image: activated=true, target=host, forwarded target=host
+closed composed=true plain descendant: activated=true, target=host, forwarded target=host
+closed composed=true usemap image: activated=false, target=host, forwarded target=not forwarded
+closed composed=true usemap descendant: activated=false, target=host, forwarded target=not forwarded
+closed composed=true controls image: activated=false, target=host, forwarded target=not forwarded
+closed composed=true controls descendant: activated=false, target=host, forwarded target=not forwarded
+closed composed=false plain image: activated=true, target=null, forwarded target=null
+closed composed=false plain descendant: activated=true, target=null, forwarded target=null
+closed composed=false usemap image: activated=false, target=null, forwarded target=not forwarded
+closed composed=false usemap descendant: activated=false, target=null, forwarded target=not forwarded
+closed composed=false controls image: activated=false, target=null, forwarded target=not forwarded
+closed composed=false controls descendant: activated=false, target=null, forwarded target=not forwarded
