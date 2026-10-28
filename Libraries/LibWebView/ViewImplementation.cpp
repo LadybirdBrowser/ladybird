@@ -4433,6 +4433,7 @@ void ViewImplementation::geolocation_settings_changed()
             Application::the().stop_watching_geolocation_position(watch.value);
             watch.key.page->async_geolocation_position_response(watch.key.request_id, {}, to_underlying(ErrorCode::PermissionDenied));
         }
+        m_geolocation_request_documents.clear();
     }
 
     send_geolocation_emulated_position(page());
