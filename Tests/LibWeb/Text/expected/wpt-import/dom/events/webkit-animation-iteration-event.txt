@@ -2,18 +2,17 @@ Harness status: OK
 
 Found 13 tests
 
-9 Pass
-4 Fail
+13 Pass
 Pass	onanimationiteration and onwebkitanimationiteration are not aliases
 Pass	dispatchEvent of a webkitAnimationIteration event does trigger a prefixed event handler or listener
 Pass	dispatchEvent of a webkitAnimationIteration event does not trigger an unprefixed event handler or listener
 Pass	dispatchEvent of an animationiteration event does not trigger a prefixed event handler or listener
-Fail	onwebkitanimationiteration event handler should trigger for an animation
+Pass	onwebkitanimationiteration event handler should trigger for an animation
 Pass	onwebkitanimationiteration event handler should not trigger if an unprefixed event handler also exists
 Pass	onwebkitanimationiteration event handler should not trigger if an unprefixed listener also exists
-Fail	event types for prefixed and unprefixed animationiteration event handlers should be named appropriately
-Fail	webkitAnimationIteration event listener should trigger for an animation
+Pass	event types for prefixed and unprefixed animationiteration event handlers should be named appropriately
+Pass	webkitAnimationIteration event listener should trigger for an animation
 Pass	webkitAnimationIteration event listener should not trigger if an unprefixed listener also exists
 Pass	webkitAnimationIteration event listener should not trigger if an unprefixed event handler also exists
-Fail	event types for prefixed and unprefixed animationiteration event listeners should be named appropriately
+Pass	event types for prefixed and unprefixed animationiteration event listeners should be named appropriately
 Pass	webkitAnimationIteration event listener is case sensitive
