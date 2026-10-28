@@ -2,14 +2,14 @@ Harness status: OK
 
 Found 9 tests
 
-2 Pass
-7 Fail
+7 Pass
+2 Fail
 Fail	Parent module delivered with `no-referrer-when-downgrade` policy importing a same-origin descendant script.
-Fail	Parent module delivered with `origin` policy importing a same-origin descendant script.
+Pass	Parent module delivered with `origin` policy importing a same-origin descendant script.
 Fail	Parent module delivered with `same-origin` policy importing a same-origin descendant script.
-Fail	Parent module delivered with `origin-when-cross-origin` policy importing a cross-origin descendant script.
-Fail	Remote parent module delivered with `origin-when-cross-origin` policy importing a same-origin-to-parent-module descendant script.
-Fail	Remote parent module delivered with `same-origin` policy importing a same-origin-to-parent-module descendant script.
-Fail	Remote parent module delivered with `origin-when-cross-origin` policy importing a cross-origin-to-parent-module descendant script.
+Pass	Parent module delivered with `origin-when-cross-origin` policy importing a cross-origin descendant script.
+Pass	Remote parent module delivered with `origin-when-cross-origin` policy importing a same-origin-to-parent-module descendant script.
+Pass	Remote parent module delivered with `same-origin` policy importing a same-origin-to-parent-module descendant script.
+Pass	Remote parent module delivered with `origin-when-cross-origin` policy importing a cross-origin-to-parent-module descendant script.
 Pass	Remote parent module delivered with `same-origin` policy importing a cross-origin-to-parent-module descendant script.
 Pass	Parent module delivered with invalid policy importing a same-origin descendant script.

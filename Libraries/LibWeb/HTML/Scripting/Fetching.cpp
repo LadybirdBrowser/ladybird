@@ -46,6 +46,7 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/Loader/ResourceLoader.h>
+#include <LibWeb/ReferrerPolicy/AbstractOperations.h>
 #include <LibWebCommon/Fetch/Infrastructure/URL.h>
 #include <LibWebCommon/Infra/Strings.h>
 #include <LibWebCommon/MimeSniff/MimeType.h>
@@ -1097,7 +1098,7 @@ void fetch_single_module_script(JS::Realm& realm,
     // 13. If performFetch was given, run performFetch with request, isTopLevel, and with processResponseConsumeBody as defined below.
     //     Otherwise, fetch request with processResponseConsumeBody set to processResponseConsumeBody as defined below.
     //     In both cases, let processResponseConsumeBody given response response and null, failure, or a byte sequence bodyBytes be the following algorithm:
-    auto process_response_consume_body = [request, &module_map, url, module_type, &settings_object, options](GC::Ref<Fetch::Infrastructure::Response> response, Fetch::Infrastructure::FetchAlgorithms::BodyBytes body_bytes) {
+    auto process_response_consume_body = [request, &module_map, url, module_type, &settings_object, options = options](GC::Ref<Fetch::Infrastructure::Response> response, Fetch::Infrastructure::FetchAlgorithms::BodyBytes body_bytes) mutable {
         auto internal_response = response->unsafe_response();
 
         // 1. If any of the following are true:
@@ -1119,8 +1120,15 @@ void fetch_single_module_script(JS::Realm& realm,
         // 3. Let moduleScript be null.
         GC::Ptr<ModuleScript> module_script;
 
-        // FIXME: 4. Let referrerPolicy be the result of parsing the `Referrer-Policy` header given response. [REFERRERPOLICY]
-        // FIXME: 5. If referrerPolicy is not the empty string, set options's referrer policy to referrerPolicy.
+        // 4. Let referrerPolicy be the result of parsing the `Referrer-Policy` header given response. [REFERRERPOLICY]
+        // INTEROP: Other browsers also honor the header of a CORS cross-origin response, whose filtered header list
+        //          hides it. The policy only applies to the fetches of this module's descendants, whose referrer is
+        //          this module's own URL.
+        auto referrer_policy = ReferrerPolicy::parse_a_referrer_policy_from_a_referrer_policy_header(*internal_response);
+
+        // 5. If referrerPolicy is not the empty string, set options's referrer policy to referrerPolicy.
+        if (referrer_policy != ReferrerPolicy::ReferrerPolicy::EmptyString)
+            options.referrer_policy = referrer_policy;
 
         //  6. If mimeType's essence is "application/wasm" and moduleType is "javascript-or-wasm", then set moduleScript
         //     to the result of creating a WebAssembly module script given bodyBytes, settingsObject, response's URL, and
