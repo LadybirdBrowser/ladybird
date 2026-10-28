@@ -2,17 +2,16 @@ Harness status: OK
 
 Found 12 tests
 
-6 Pass
-6 Fail
+12 Pass
 Pass	Initial font-size for ::before
 Pass	Initial font-size for ::after
 Pass	Initial font-size for ::marker
 Pass	Initial font-size for ::first-line
 Pass	Initial font-size for ::first-letter
 Pass	Initial font-size for ::backdrop
-Fail	font-size for ::before depending on container
-Fail	font-size for ::after depending on container
-Fail	font-size for ::marker depending on container
-Fail	font-size for ::first-line depending on container
-Fail	font-size for ::first-letter depending on container
-Fail	font-size for ::backdrop depending on container
+Pass	font-size for ::before depending on container
+Pass	font-size for ::after depending on container
+Pass	font-size for ::marker depending on container
+Pass	font-size for ::first-line depending on container
+Pass	font-size for ::first-letter depending on container
+Pass	font-size for ::backdrop depending on container

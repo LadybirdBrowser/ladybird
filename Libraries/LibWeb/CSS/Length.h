@@ -79,6 +79,7 @@ public:
         bool font_metrics_depend_on_viewport_metrics { false };
         bool root_font_metrics_depend_on_viewport_metrics { false };
         bool subject_inline_axis_is_horizontal { true };
+        bool subject_is_pseudo_element { false };
         GC::Ptr<DOM::Element const> subject_element { nullptr };
         mutable Optional<GC::Ptr<DOM::Element const>> cached_width_query_container {};
         mutable Optional<GC::Ptr<DOM::Element const>> cached_height_query_container {};

@@ -1308,8 +1308,10 @@ impl RetainedState {
         node: StyleNodeID,
         mut length: crate::css::style_compute::FfiLengthResolutionContext,
         color_scheme: u8,
+        subject_is_pseudo_element: bool,
     ) -> RegisteredValueContext {
-        self.container_unit_bases(node).apply_to(&mut length);
+        self.container_unit_bases(node, subject_is_pseudo_element)
+            .apply_to(&mut length);
         RegisteredValueContext { length, color_scheme }
     }
 
@@ -1319,13 +1321,14 @@ impl RetainedState {
         &self,
         node: StyleNodeID,
         record: computed::FinalStyleRecordID,
+        subject_is_pseudo_element: bool,
     ) -> Option<RegisteredValueContext> {
         let view = self.computed_group_sets.style_record_view(record.raw())?;
         let length = self.record_length_resolution_context(&view)?;
         let table = view.longhand_table?;
         let color_scheme = u8::try_from(table.effective_color_scheme())
             .unwrap_or(self.document_style_computation_inputs.preferred_color_scheme);
-        Some(self.registered_value_context(node, length, color_scheme))
+        Some(self.registered_value_context(node, length, color_scheme, subject_is_pseudo_element))
     }
 
     /// What a registered custom property computes against where the caller brings nothing
@@ -1347,7 +1350,9 @@ impl RetainedState {
                     .and_then(|parent| self.computed_group_sets.assigned_style_record(parent))
             }),
         };
-        if let Some(context) = record.and_then(|record| self.record_registered_value_context(node, record)) {
+        if let Some(context) =
+            record.and_then(|record| self.record_registered_value_context(node, record, pseudo.is_some()))
+        {
             return context;
         }
         use crate::css::style_compute::{FfiFontMetrics, FfiLengthResolutionContext};
@@ -1379,6 +1384,7 @@ impl RetainedState {
                 zoom: 1.0,
             },
             inputs.preferred_color_scheme,
+            pseudo.is_some(),
         )
     }
 
@@ -1698,7 +1704,14 @@ impl RetainedState {
             .then(|| {
                 registered
                     // A backing element supplies its font; query containers belong to its originating element.
-                    .map(|registered| self.registered_value_context(node, registered.length, registered.color_scheme))
+                    .map(|registered| {
+                        self.registered_value_context(
+                            node,
+                            registered.length,
+                            registered.color_scheme,
+                            pseudo.is_some(),
+                        )
+                    })
                     .unwrap_or_else(|| self.standing_registered_value_context(node, pseudo))
             });
         // A custom function call reads the definitions its scope sees, with the blocks of
@@ -1856,6 +1869,7 @@ impl RetainedState {
                 node,
                 reads.container_unit_mask,
                 length.subject_inline_axis_is_horizontal,
+                pseudo.is_some(),
             );
         }
         if let Some(effects) = container_effects {

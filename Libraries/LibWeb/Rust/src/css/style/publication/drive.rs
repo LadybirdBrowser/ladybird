@@ -345,7 +345,7 @@ impl RetainedState {
                 zoom: if applies_zoom { zoom } else { 1.0 },
             };
             // The ancestor's container-relative font size resolves against its own containers.
-            self.container_unit_bases(*ancestor_node).apply_to(&mut context);
+            self.container_unit_bases(*ancestor_node, false).apply_to(&mut context);
             batch = recascade_font_size_batch(
                 views.len(),
                 value_at,
@@ -497,7 +497,7 @@ impl RetainedState {
             zoom: 1.0,
         };
         if reads_container_units {
-            self.container_unit_bases(node).apply_to(&mut length);
+            self.container_unit_bases(node, false).apply_to(&mut length);
         }
         // NB: Remaining-phase computation uses the current box-type inputs and compares its
         //     required driver outputs with the retained record below. Font-phase and line-height
@@ -701,11 +701,10 @@ impl RetainedState {
             .or_refused()
             .inspect_err(|_| self.counters.bump(Counter::EngineComputedRecordBailValue))?;
         let resource_contexts = store.drive_resource_contexts(self);
-        // A pseudo-element's container-relative lengths resolve against its originating
-        // element's query containers.
+        // NB: Include the originating element when selecting a pseudo-element's query containers.
         let container_unit_bases = store
             .reads_container_units(self)
-            .then(|| self.container_unit_bases(subject.target.node()));
+            .then(|| self.container_unit_bases(subject.target.node(), subject.target.is_pseudo()));
         let document_base_url = &self.document_resource_contexts.document_base_url;
         let store = store.view(self);
         use crate::css::computed_value_types::{STYLE_GROUP_INDEX_FONT, STYLE_GROUP_INDEX_INHERITED_BOX};
@@ -1166,6 +1165,7 @@ impl RetainedState {
                     ..remaining_length
                 },
                 u8::try_from(effective_color_scheme).unwrap_or(inputs.preferred_color_scheme),
+                target.is_pseudo(),
             );
 
             // The initial environment already used this context. Resolve again only if

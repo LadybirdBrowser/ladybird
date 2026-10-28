@@ -901,7 +901,7 @@ impl StyleEngine {
             // NB: The drive zooms the lengths by the effective zoom of the element itself.
             zoom: 1.0,
         };
-        self.container_unit_bases(node).apply_to(&mut length);
+        self.container_unit_bases(node, false).apply_to(&mut length);
         let environment = FfiStyleComputationEnvironment {
             box_type_input: self.box_type_transformation_input(
                 self.computed_group_sets.adjustment_facts(node),

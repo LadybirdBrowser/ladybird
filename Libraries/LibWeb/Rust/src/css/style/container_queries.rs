@@ -201,10 +201,21 @@ impl RetainedState {
         to_color(value, &input)
     }
 
-    /// The basis of one physical axis for a subject's container-relative lengths. A
-    /// pseudo-element's are its originating element's.
-    fn container_unit_basis(&self, subject: StyleNodeID, axis_is_horizontal: bool) -> ContainerUnitBasis {
-        let mut ancestor = self.tree.flat_tree_parent(subject);
+    /// The basis of one physical axis for a subject's container-relative lengths.
+    fn container_unit_basis(
+        &self,
+        subject: StyleNodeID,
+        axis_is_horizontal: bool,
+        subject_is_pseudo_element: bool,
+    ) -> ContainerUnitBasis {
+        // https://drafts.csswg.org/css-conditional-5/#container-queries
+        // For other pseudo-elements, query containers can be established by inclusive flat tree ancestors
+        // of their originating element.
+        let mut ancestor = if subject_is_pseudo_element {
+            Some(subject)
+        } else {
+            self.tree.flat_tree_parent(subject)
+        };
         while let Some(node) = ancestor {
             ancestor = self.tree.flat_tree_parent(node);
             let Some(inputs) = self.container_query_inputs(node) else {
@@ -251,10 +262,14 @@ impl RetainedState {
     }
 
     /// The bases of both physical axes for a subject's container-relative lengths.
-    pub(super) fn container_unit_bases(&self, subject: StyleNodeID) -> ContainerUnitBases {
+    pub(super) fn container_unit_bases(
+        &self,
+        subject: StyleNodeID,
+        subject_is_pseudo_element: bool,
+    ) -> ContainerUnitBases {
         ContainerUnitBases([
-            self.container_unit_basis(subject, true),
-            self.container_unit_basis(subject, false),
+            self.container_unit_basis(subject, true, subject_is_pseudo_element),
+            self.container_unit_basis(subject, false, subject_is_pseudo_element),
         ])
     }
 
@@ -304,6 +319,7 @@ impl RetainedState {
             node,
             self.state_container_unit_mask(node, state) | substituted_units,
             inline_axis_is_horizontal,
+            pseudo,
         );
     }
 
@@ -315,6 +331,7 @@ impl RetainedState {
         node: StyleNodeID,
         unit_mask: u8,
         inline_axis_is_horizontal: bool,
+        subject_is_pseudo_element: bool,
     ) {
         let (reads_width, reads_height) =
             crate::css::style_compute::container_relative_axes_read(unit_mask, inline_axis_is_horizontal);
@@ -326,7 +343,7 @@ impl RetainedState {
             if !reads {
                 continue;
             }
-            let basis = self.container_unit_basis(node, axis_is_horizontal);
+            let basis = self.container_unit_basis(node, axis_is_horizontal, subject_is_pseudo_element);
             match basis.container {
                 Some(container) => {
                     verdict
@@ -480,7 +497,7 @@ impl RetainedState {
             let mut length = self.record_length_resolution_context(&view)?;
             // A container-relative length in the query resolves against the container's own query
             // container, the nearest above it eligible for the axis, or the viewport.
-            let bases = self.container_unit_bases(candidate);
+            let bases = self.container_unit_bases(candidate, false);
             bases.apply_to(&mut length);
             let mut resolved_viewport_relative_length = false;
             length.subject_inline_axis_is_horizontal = inline_axis_horizontal;
