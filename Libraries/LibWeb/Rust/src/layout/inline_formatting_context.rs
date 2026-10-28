@@ -982,6 +982,9 @@ pub(crate) struct InlineFormattingContext<'context> {
     block_axis_float_clearance: Cell<CssPixels>,
     /// What the layout of each atomic inline hands its placement, which places it once its line is final.
     atomic_inline_fragment_arrivals: RefCell<HashMap<Node, fragment_tree::ChildFragmentArrival>>,
+    /// The break token of the containing block, once the fragmentainer stops before one of its lines.
+    fragmentainer_stop_token: RefCell<Option<std::rc::Rc<fragmentation::BlockBreakToken>>>,
+    lines_are_unbreakable: Cell<bool>,
 }
 
 impl<'context> InlineFormattingContext<'context> {
@@ -1008,6 +1011,8 @@ impl<'context> InlineFormattingContext<'context> {
             inline_boxes_continued_in_next_fragment: RefCell::new(Vec::new()),
             block_axis_float_clearance: Cell::new(CssPixels::default()),
             atomic_inline_fragment_arrivals: RefCell::new(HashMap::default()),
+            fragmentainer_stop_token: RefCell::new(None),
+            lines_are_unbreakable: Cell::new(false),
         }
     }
 
@@ -2109,6 +2114,7 @@ impl<'context> InlineFormattingContext<'context> {
                         .map_or(CssPixels::default(), |line| line.block_end);
                 self.parent
                     .note_unbreakable_line_root(self.containing_block, lines_block_end_in_root);
+                self.lines_are_unbreakable.set(true);
                 Vec::new()
             };
             let unconsumed_atomic_inlines: Vec<Node> = if stopped_at_line_limit && !shares_items {
@@ -2244,7 +2250,7 @@ impl<'context> InlineFormattingContext<'context> {
         self.parent.append_floating_boxes(floating_boxes_after_clamp_point);
     }
 
-    pub(crate) fn run(&mut self) -> DerivedBaselines {
+    pub(crate) fn run(&mut self) -> block_formatting_context::ChildrenSummary {
         assert!(self.facts(self.containing_block).children_are_inline());
         let run = self.run;
         let containing_used = self.containing_used();
@@ -2263,7 +2269,11 @@ impl<'context> InlineFormattingContext<'context> {
         }
         self.leave_atomic_inlines_without_a_line_unplaced();
         containing_used.set_building_line_data(std::mem::take(self.line_data.get_mut()));
-        formatting_context::derive_baselines(self.run.records, &self.callbacks, self.containing_block)
+        block_formatting_context::ChildrenSummary {
+            baselines: formatting_context::derive_baselines(self.run.records, &self.callbacks, self.containing_block),
+            fragmentainer_stop_token: self.fragmentainer_stop_token.take(),
+            lines_are_unbreakable: self.lines_are_unbreakable.get(),
+        }
     }
 
     fn leave_atomic_inlines_without_a_line_unplaced(&self) {
@@ -2425,8 +2435,10 @@ impl<'context> InlineFormattingContext<'context> {
         data.line_boxes.truncate(stop);
         drop(data);
         if let Some(next_line_start) = next_line_start {
-            self.parent
+            let stop_token = self
+                .parent
                 .break_line_root_before_line(self.containing_block, next_line_start);
+            self.fragmentainer_stop_token.replace(stop_token);
         }
         (dropped_atomic_inlines, next_line_start)
     }

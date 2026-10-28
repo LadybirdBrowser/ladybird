@@ -38,8 +38,20 @@ enum ColumnLayoutUse {
     ContainerContent,
 }
 
+/// What laying out the children of a block container hands back to the layout of the container.
+#[derive(Default)]
+pub(crate) struct ChildrenSummary {
+    pub(crate) baselines: DerivedBaselines,
+    /// The break token of the container, where the fragmentainer stopped while its children were laid out.
+    pub(crate) fragmentainer_stop_token: Option<std::rc::Rc<fragmentation::BlockBreakToken>>,
+    /// Whether the lines of the container are kept together in one fragmentainer.
+    pub(crate) lines_are_unbreakable: bool,
+}
+
 struct FragmentationState {
     container_content_box_block_start_in_root: CssPixels,
+    /// The break token of the container, once the fragmentainer stops inside it.
+    container_stop_token: Option<std::rc::Rc<fragmentation::BlockBreakToken>>,
     resume: Option<fragmentation::BlockResume>,
     fragmentainer_had_content_before_container: bool,
     fragmentainer_had_content_before_child: bool,
@@ -66,6 +78,7 @@ impl FragmentationState {
             );
         Self {
             container_content_box_block_start_in_root,
+            container_stop_token: None,
             resume: incoming.map(|token| token.resume.clone()),
             fragmentainer_had_content_before_container,
             fragmentainer_had_content_before_child: false,
@@ -2308,6 +2321,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             self.break_mode.set(BreakMode::ForcedBreaksOnly);
         }
         let mut baselines_of_contents_laid_out_in_this_flow = None;
+        let mut summary_of_children_laid_out_in_this_flow = None;
         let mut fragment_arrival_of_child_with_own_formatting_context = None;
         let child_layout = if has_independent_formatting_context {
             // Margins of elements that establish new formatting contexts do not collapse with their in-flow children
@@ -2399,7 +2413,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 y: containing_block_position_in_root.y + content_block_offset,
             };
             self.incoming_container_token.replace(continuation.clone());
-            let content_baselines = if facts.children_are_inline() {
+            let children_summary = if facts.children_are_inline() {
                 self.layout_inline_children(
                     run,
                     node,
@@ -2416,8 +2430,9 @@ impl<'pass> BlockFormattingContext<'pass> {
                     space_available_for_children,
                 )
             };
-            formatting_context::store_derived_baselines(self.used(node), content_baselines);
-            baselines_of_contents_laid_out_in_this_flow = Some(content_baselines);
+            formatting_context::store_derived_baselines(self.used(node), children_summary.baselines);
+            baselines_of_contents_laid_out_in_this_flow = Some(children_summary.baselines);
+            summary_of_children_laid_out_in_this_flow = Some(children_summary);
             if is_in_flow_candidate {
                 self.discard_block_start_margin_of_next_child.set(false);
             }
@@ -2500,14 +2515,19 @@ impl<'pass> BlockFormattingContext<'pass> {
                     + self.block_offset_adjustment_from_pending_ancestor_block_start_margins(node)
                     + position.y
             });
-            let broken_child_token = self.broken_child_token.borrow_mut().take_if(|token| token.node == node);
-            let broken_token = broken_child_token.or_else(|| {
+            let lines_are_unbreakable = summary_of_children_laid_out_in_this_flow
+                .as_ref()
+                .is_some_and(|summary| summary.lines_are_unbreakable);
+            let stop_token_of_children = summary_of_children_laid_out_in_this_flow
+                .as_mut()
+                .and_then(|summary| summary.fragmentainer_stop_token.take());
+            let broken_token = stop_token_of_children.or_else(|| {
                 if !self.allows_unforced_breaks() {
                     return None;
                 }
                 let block_size = fragmentainer.block_size?;
                 let content_block_start_in_root = content_block_start_in_root?;
-                let can_break_after_block_start_edges = self.box_can_break_inside(node)
+                let can_break_after_block_start_edges = self.box_can_break_inside(node, lines_are_unbreakable)
                     && content_block_start_in_root - self.used(node).border_box_top(false) < block_size;
                 if can_break_after_block_start_edges && content_block_start_in_root > block_size {
                     fragmentainer.note_space_shortage(content_block_start_in_root);
@@ -2833,7 +2853,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         input: LayoutInput,
         containing_block_position_in_root: FfiCssPixelPoint,
         available_space_for_children: AvailableSpace,
-    ) -> DerivedBaselines {
+    ) -> ChildrenSummary {
         assert!(!self.facts(block_container).children_are_inline());
         debug_assert!(
             !self.facts(block_container).is_table_wrapper(),
@@ -2914,7 +2934,11 @@ impl<'pass> BlockFormattingContext<'pass> {
                 .remove(&block_container);
         }
         self.block_offset_of_current_block_container.set(saved);
-        self.derive_baselines_of_laid_out_contents(block_container)
+        ChildrenSummary {
+            baselines: self.derive_baselines_of_laid_out_contents(block_container),
+            fragmentainer_stop_token: fragmentation_state.and_then(|state| state.container_stop_token),
+            lines_are_unbreakable: false,
+        }
     }
 
     fn fragmentation_step_before_child(
@@ -3013,7 +3037,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 }
             }
             self.fragmentainer_has_content.set(true);
-            self.stop_fragmentainer(
+            state.container_stop_token = self.stop_fragmentainer(
                 fragmentainer,
                 block_container,
                 fragmentation::BlockResume::InsideChild(token),
@@ -3277,20 +3301,23 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
     }
 
-    pub(crate) fn break_line_root_before_line(&self, line_root: Node, line_start: fragmentation::LinePosition) {
-        let Some(fragmentainer) = self.run.fragmentainer.as_deref() else {
-            return;
-        };
-        self.stop_fragmentainer(fragmentainer, line_root, fragmentation::BlockResume::AtLine(line_start));
+    /// Stops the fragmentainer before the line of `line_root` that starts at `line_start`. The break token of a line
+    /// root other than the root is returned, for the layout of the line root to break it with.
+    #[must_use]
+    pub(crate) fn break_line_root_before_line(
+        &self,
+        line_root: Node,
+        line_start: fragmentation::LinePosition,
+    ) -> Option<std::rc::Rc<fragmentation::BlockBreakToken>> {
+        let fragmentainer = self.run.fragmentainer.as_deref()?;
+        self.stop_fragmentainer(fragmentainer, line_root, fragmentation::BlockResume::AtLine(line_start))
     }
 
-    fn box_can_break_inside(&self, node: Node) -> bool {
+    fn box_can_break_inside(&self, node: Node, lines_are_unbreakable: bool) -> bool {
         let facts = self.facts(node);
         facts.is_block_container()
             && formatting_context::formatting_context_type_created_by_box(facts).is_none()
-            && (!facts.children_are_inline()
-                || !self.has_lines(node)
-                || !self.unbreakable_line_roots.borrow().contains(&node))
+            && (!facts.children_are_inline() || !self.has_lines(node) || !lines_are_unbreakable)
             && !facts.is_fieldset_box()
             && !facts.is_table_wrapper()
             && !facts.node_has_size_containment()
@@ -3300,7 +3327,8 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 
     fn child_is_breakable(&self, child: Node) -> bool {
-        self.box_can_break_inside(child) && !fragmentation::avoids_column_break_inside(self.style(child).break_inside())
+        self.box_can_break_inside(child, self.unbreakable_line_roots.borrow().contains(&child))
+            && !fragmentation::avoids_column_break_inside(self.style(child).break_inside())
     }
 
     fn unbreakable_content_floor(&self, node: Node) -> CssPixels {
@@ -3360,7 +3388,7 @@ impl<'pass> BlockFormattingContext<'pass> {
     fn break_before_child(
         &self,
         fragmentainer: &fragmentation::FragmentainerContext,
-        state: &FragmentationState,
+        state: &mut FragmentationState,
         block_container: Node,
         child: Node,
         after_forced_break: bool,
@@ -3373,7 +3401,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         {
             return;
         }
-        self.stop_fragmentainer(
+        state.container_stop_token = self.stop_fragmentainer(
             fragmentainer,
             block_container,
             fragmentation::BlockResume::BeforeChild {
@@ -3383,12 +3411,15 @@ impl<'pass> BlockFormattingContext<'pass> {
         );
     }
 
+    /// Stops the fragmentainer inside `block_container`. The break token of a container other than the root is
+    /// returned, for the layout of the container to break the container with.
+    #[must_use]
     fn stop_fragmentainer(
         &self,
         fragmentainer: &fragmentation::FragmentainerContext,
         block_container: Node,
         resume: fragmentation::BlockResume,
-    ) {
+    ) -> Option<std::rc::Rc<fragmentation::BlockBreakToken>> {
         let token = std::rc::Rc::new(fragmentation::BlockBreakToken {
             node: block_container,
             consumed_block_size: CssPixels::default(),
@@ -3396,9 +3427,9 @@ impl<'pass> BlockFormattingContext<'pass> {
         });
         if block_container == self.run.box_ {
             fragmentainer.outcome_mut().outgoing = Some(token);
-        } else {
-            self.broken_child_token.replace(Some(token));
+            return None;
         }
+        Some(token)
     }
 
     fn is_multicol_container(&self) -> bool {
@@ -4078,6 +4109,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 FfiCssPixelPoint::default(),
                 available_space,
             )
+            .baselines
         } else {
             self.layout_block_level_children(
                 run,
@@ -4086,6 +4118,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 FfiCssPixelPoint::default(),
                 available_space,
             )
+            .baselines
         };
         self.record_derived_baselines_of_root_box(baselines);
 
@@ -4451,7 +4484,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         input: LayoutInput,
         containing_block_position_in_root: FfiCssPixelPoint,
         available_space_for_children: AvailableSpace,
-    ) -> DerivedBaselines {
+    ) -> ChildrenSummary {
         assert!(self.facts(block_container).children_are_inline());
         debug_assert!(
             self.used(block_container).has_definite_inline_size(),
