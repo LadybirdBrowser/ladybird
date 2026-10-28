@@ -272,9 +272,10 @@ fn filter_code_points(input: TokenizerInput<'_>) -> FilteredTokenizerInput<'_> {
         last_was_carriage_return = false;
     }
 
-    // NB: The former C++ RustTokenizer::normalize_input() did not flush a
-    // trailing carriage return. Keep that observable behavior while moving
-    // filtering across the FFI boundary.
+    if last_was_carriage_return {
+        output.push(u16::from(b'\n'));
+    }
+
     FilteredTokenizerInput::Owned(output)
 }
 
@@ -2334,13 +2335,13 @@ mod tests {
     }
 
     #[test]
-    fn filtering_preserves_trailing_carriage_return_oracle_behavior() {
+    fn filtering_converts_a_trailing_carriage_return_to_a_newline() {
         let FilteredTokenizerInput::Owned(filtered) =
             filter_code_points(TokenizerInput::Utf16(&[b'a' as u16, b'\r' as u16]))
         else {
             panic!("a carriage return should require filtering");
         };
-        assert_eq!(filtered, vec![b'a' as u16]);
+        assert_eq!(filtered, vec![b'a' as u16, b'\n' as u16]);
     }
 
     #[test]

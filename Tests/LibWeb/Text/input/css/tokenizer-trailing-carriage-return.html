@@ -1,0 +1,13 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(`unterminated string: ${CSS.supports("content", '"hello\r')}`);
+        try {
+            document.querySelector(".a\\\r");
+            println("selector: accepted");
+        } catch (error) {
+            println(`selector: ${error.name}`);
+        }
+    });
+</script>

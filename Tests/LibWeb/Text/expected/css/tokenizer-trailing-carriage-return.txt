@@ -1,0 +1,2 @@
+unterminated string: false
+selector: SyntaxError
