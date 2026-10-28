@@ -954,6 +954,8 @@ pub(super) struct TableFormattingContext<'pass> {
     cell_pre_layout_content_block_sizes: Vec<CssPixels>,
     deferred_cell_inside_layouts: Vec<bool>,
     cell_measurements: Vec<Option<TableCellMeasurement>>,
+    /// What the layout of each cell hands its placement, which places every cell once the rows are positioned.
+    cell_fragment_arrivals: Vec<Option<fragment_tree::ChildFragmentArrival>>,
     columns: Vec<Column>,
     rows: Vec<Row>,
     collapsed_border_grid: Option<CollapsedBorderGrid>,
@@ -1059,6 +1061,7 @@ impl<'pass> TableFormattingContext<'pass> {
             cell_pre_layout_content_block_sizes: Vec::new(),
             deferred_cell_inside_layouts: Vec::new(),
             cell_measurements: Vec::new(),
+            cell_fragment_arrivals: Vec::new(),
             columns: Vec::new(),
             rows: Vec::new(),
             collapsed_border_grid: None,
@@ -1106,6 +1109,7 @@ impl<'pass> TableFormattingContext<'pass> {
         self.cell_pre_layout_content_block_sizes = vec![CssPixels::default(); self.cells.len()];
         self.deferred_cell_inside_layouts = vec![false; self.cells.len()];
         self.cell_measurements = vec![None; self.cells.len()];
+        self.cell_fragment_arrivals = std::iter::repeat_with(|| None).take(self.cells.len()).collect();
         self.needs_fixed_mode_row_measurement = false;
         self.prepare_table_participants(TableParticipantPreparation::CreateUsedValues);
         self.border_conflict_resolution();
@@ -2492,6 +2496,7 @@ impl<'pass> TableFormattingContext<'pass> {
         self.cell_pre_layout_content_block_sizes = vec![CssPixels::default(); self.cells.len()];
         self.deferred_cell_inside_layouts = vec![false; self.cells.len()];
         self.cell_measurements = vec![None; self.cells.len()];
+        self.cell_fragment_arrivals = std::iter::repeat_with(|| None).take(self.cells.len()).collect();
         self.rows = table_grid.rows;
         self.columns = vec![Column::default(); table_grid.column_count];
         for cell in &self.cells {
@@ -2571,7 +2576,7 @@ impl<'pass> TableFormattingContext<'pass> {
         input: AvailableSpace,
         adopt_automatic_content_block_size: bool,
         intrinsic_block_padding: Option<(CssPixels, CssPixels)>,
-    ) -> DerivedBaselines {
+    ) -> (DerivedBaselines, Option<fragment_tree::ChildFragmentArrival>) {
         let layout_input = LayoutInput {
             available_space: input,
             containing_block_constraints: ContainingBlockConstraints::default(),
@@ -2586,16 +2591,28 @@ impl<'pass> TableFormattingContext<'pass> {
             outcome,
             fragment_arrival,
         } = formatting_context::layout_inside_child(run, None, None, cell.box_, layout_input, false);
-        formatting_context::hold_fragment_arrival_until_placement(run, cell.box_, fragment_arrival);
         outcome.report_percentage_block_size_dependency_of(run, cell.box_);
-        match outcome {
+        let baselines = match outcome {
             ChildLayoutOutcome::Created(result) => result.baselines,
             ChildLayoutOutcome::ReenterCurrent => {
                 self.run(run, layout_input, None);
                 self.used_values(cell.box_).content_baselines_from_cells()
             }
             ChildLayoutOutcome::Skipped { .. } => self.used_values(cell.box_).content_baselines_from_cells(),
-        }
+        };
+        (baselines, fragment_arrival)
+    }
+
+    fn keep_fragment_arrival_of_cell(
+        &mut self,
+        cell_index: usize,
+        fragment_arrival: Option<fragment_tree::ChildFragmentArrival>,
+    ) {
+        debug_assert!(
+            self.cell_fragment_arrivals[cell_index].is_none(),
+            "a cell is laid out once before its placement"
+        );
+        self.cell_fragment_arrivals[cell_index] = fragment_arrival;
     }
 
     /// The baseline of a cell, from the top of its border box: "The baseline of a cell is the baseline of the first
@@ -2772,7 +2789,9 @@ impl<'pass> TableFormattingContext<'pass> {
                     content_baselines = Some(measured.baselines);
                 }
             } else {
-                content_baselines = Some(self.layout_inside_cell(run, cell, inner, true, None));
+                let (baselines, fragment_arrival) = self.layout_inside_cell(run, cell, inner, true, None);
+                self.keep_fragment_arrival_of_cell(cell_index, fragment_arrival);
+                content_baselines = Some(baselines);
             }
             if self.needs_fixed_mode_row_measurement {
                 let min_size = style.min_height().to_px(participant_block_basis);
@@ -3117,13 +3136,14 @@ impl<'pass> TableFormattingContext<'pass> {
             // the same basis the measurement saw.
             used.set_content_block_size(self.cell_pre_layout_content_block_sizes[cell_index]);
             let inner = self.cell_inside_layout_inputs[cell_index];
-            self.layout_inside_cell(
+            let (_, fragment_arrival) = self.layout_inside_cell(
                 run,
                 cell,
                 inner,
                 adopt_automatic_content_block_size,
                 Some(intrinsic_block_padding),
             );
+            self.keep_fragment_arrival_of_cell(cell_index, fragment_arrival);
             if adopt_automatic_content_block_size {
                 debug_assert_eq!(
                     used.content_block_size.get(),
@@ -3241,7 +3261,14 @@ impl<'pass> TableFormattingContext<'pass> {
             let x =
                 row_content_offset.x + used.border_box_left(collapsed) + self.columns[cell.column_index].inline_offset;
             let y = row_content_offset.y + used.border_box_top(collapsed);
-            self.place_child(cell.box_, x, y);
+            let fragment_arrival = self.cell_fragment_arrivals[cell_index].take();
+            formatting_context::place_laid_out_child(
+                &self.run,
+                cell.box_,
+                FfiCssPixelPoint { x, y },
+                None,
+                fragment_arrival,
+            );
         }
     }
 
