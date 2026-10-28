@@ -159,7 +159,7 @@ ErrorOr<Process> Process::spawn(ProcessSpawnOptions const& options)
         NULL, // process security attributes
         NULL, // primary thread security attributes
         !inherited_handles.is_empty(),
-        EXTENDED_STARTUPINFO_PRESENT,
+        EXTENDED_STARTUPINFO_PRESENT | (options.new_process_group ? CREATE_NEW_PROCESS_GROUP : 0),
         NULL, // use parent's environment
         NULL, // working directory
         &startup_info.StartupInfo,

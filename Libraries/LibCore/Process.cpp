@@ -271,6 +271,7 @@ struct SpawnedChildContext {
     ReadonlySpan<int> descriptors_to_keep;
     pid_t parent_pid { 0 };
     sigset_t parent_signal_mask;
+    sigset_t child_signal_mask;
 
     // Written by the child, which shares our memory until it calls exec().
     int child_errno { 0 };
@@ -311,12 +312,15 @@ NO_SANITIZE_ADDRESS static int spawned_child_main(void* argument)
             _exit(127);
     }
 
+    if (context.options.new_process_group && setpgid(0, 0) < 0)
+        report_errno_and_exit(errno);
+
     if (auto error = run_file_actions_in_child(context.options.file_actions); error.has_value())
         report_errno_and_exit(error.value());
     if (auto error = close_undeclared_descriptors(context.descriptors_to_keep); error.has_value())
         report_errno_and_exit(error.value());
 
-    if (syscall(SYS_rt_sigprocmask, SIG_SETMASK, &context.parent_signal_mask, nullptr, kernel_signal_set_size) < 0)
+    if (syscall(SYS_rt_sigprocmask, SIG_SETMASK, &context.child_signal_mask, nullptr, kernel_signal_set_size) < 0)
         report_errno_and_exit(errno);
 
     if (context.options.search_for_executable_in_path)
@@ -342,6 +346,7 @@ static ErrorOr<pid_t> fork_and_exec(ProcessSpawnOptions const& options, Span<cha
         .descriptors_to_keep = descriptors_to_keep,
         .parent_pid = getpid(),
         .parent_signal_mask = {},
+        .child_signal_mask = {},
     };
 
     // execvpe() builds another argv array on the stack when falling back to /bin/sh after ENOEXEC.
@@ -368,6 +373,10 @@ static ErrorOr<pid_t> fork_and_exec(ProcessSpawnOptions const& options, Span<cha
     sigfillset(&all_signals);
     if (auto result = pthread_sigmask(SIG_SETMASK, &all_signals, &context.parent_signal_mask); result != 0)
         return Error::from_syscall("pthread_sigmask"sv, result);
+
+    context.child_signal_mask = context.parent_signal_mask;
+    if (options.new_process_group)
+        sigaddset(&context.child_signal_mask, SIGTTOU);
 
     // CLONE_VFORK suspends this thread until the child calls exec() or exits.
     auto* child_stack_top = static_cast<u8*>(child_stack) + mapping_size;
@@ -410,18 +419,27 @@ ErrorOr<Process> Process::spawn(ProcessSpawnOptions const& options)
         posix_spawn_file_actions_destroy(&spawn_actions);
     };
 
-    posix_spawnattr_t* spawn_attributes_pointer = nullptr;
-#if defined(AK_OS_MACOS)
-    // A descriptor that is not close-on-exec at the moment of the spawn would otherwise reach the child, including one
-    // that another thread has just received or duplicated. Only pass the standard streams and the descriptors that the
-    // file actions name.
     posix_spawnattr_t spawn_attributes;
     CHECK(posix_spawnattr_init(&spawn_attributes));
     ScopeGuard cleanup_spawn_attributes = [&] {
         posix_spawnattr_destroy(&spawn_attributes);
     };
-    CHECK(posix_spawnattr_setflags(&spawn_attributes, POSIX_SPAWN_CLOEXEC_DEFAULT));
-    spawn_attributes_pointer = &spawn_attributes;
+    short spawn_flags = 0;
+
+    // The process group defaults to 0, which makes a new one, named after the child.
+    if (options.new_process_group) {
+        spawn_flags |= POSIX_SPAWN_SETPGROUP | POSIX_SPAWN_SETSIGMASK;
+        sigset_t signal_mask;
+        CHECK(pthread_sigmask(SIG_SETMASK, nullptr, &signal_mask));
+        sigaddset(&signal_mask, SIGTTOU);
+        CHECK(posix_spawnattr_setsigmask(&spawn_attributes, &signal_mask));
+    }
+
+#if defined(AK_OS_MACOS)
+    // A descriptor that is not close-on-exec at the moment of the spawn would otherwise reach the child, including one
+    // that another thread has just received or duplicated. Only pass the standard streams and the descriptors that the
+    // file actions name.
+    spawn_flags |= POSIX_SPAWN_CLOEXEC_DEFAULT;
 
     // The inherit actions must come before the file actions, which may replace the same descriptors.
     for (int fd : { STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO }) {
@@ -430,6 +448,8 @@ ErrorOr<Process> Process::spawn(ProcessSpawnOptions const& options)
             CHECK(posix_spawn_file_actions_addinherit_np(&spawn_actions, fd));
     }
 #endif
+
+    CHECK(posix_spawnattr_setflags(&spawn_attributes, spawn_flags));
 
     for (auto const& file_action : options.file_actions) {
         TRY(file_action.visit(
@@ -465,9 +485,9 @@ ErrorOr<Process> Process::spawn(ProcessSpawnOptions const& options)
     auto environment = environment_for_child(options);
     pid_t pid;
     if (options.search_for_executable_in_path) {
-        pid = TRY(System::posix_spawnp(options.executable.view(), &spawn_actions, spawn_attributes_pointer, const_cast<char**>(argv_list.get().data()), environment_pointer(environment)));
+        pid = TRY(System::posix_spawnp(options.executable.view(), &spawn_actions, &spawn_attributes, const_cast<char**>(argv_list.get().data()), environment_pointer(environment)));
     } else {
-        pid = TRY(System::posix_spawn(options.executable.view(), &spawn_actions, spawn_attributes_pointer, const_cast<char**>(argv_list.get().data()), environment_pointer(environment)));
+        pid = TRY(System::posix_spawn(options.executable.view(), &spawn_actions, &spawn_attributes, const_cast<char**>(argv_list.get().data()), environment_pointer(environment)));
     }
     return Process { pid };
 }

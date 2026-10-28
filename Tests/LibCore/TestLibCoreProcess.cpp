@@ -19,8 +19,9 @@
 #    include <sys/resource.h>
 #    include <sys/stat.h>
 #    include <sys/syscall.h>
-#    include <sys/wait.h>
 #endif
+#include <signal.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 static ByteString run_and_read_output(Core::ProcessSpawnOptions options)
@@ -241,6 +242,30 @@ TEST_CASE(spawned_process_gets_only_the_given_descriptors_without_close_range)
 
     int status = 0;
     VERIFY(waitpid(child, &status, 0) == child);
+    EXPECT(WIFEXITED(status));
+    if (WIFEXITED(status))
+        EXPECT_EQ(WEXITSTATUS(status), 0);
+}
+#endif
+
+#if defined(AK_OS_MACOS) || defined(AK_OS_LINUX)
+TEST_CASE(spawned_process_in_a_new_process_group_is_not_stopped_by_sigttou)
+{
+    Vector<ByteString> arguments { "-c"sv, "kill -TTOU $$"sv };
+    auto process = MUST(Core::Process::spawn({
+        .executable = "/bin/sh"sv,
+        .new_process_group = true,
+        .arguments = arguments,
+    }));
+
+    int status = 0;
+    EXPECT_EQ(waitpid(process.pid(), &status, WUNTRACED), process.pid());
+    if (WIFSTOPPED(status)) {
+        (void)kill(process.pid(), SIGKILL);
+        (void)waitpid(process.pid(), &status, 0);
+        FAIL("The child was stopped by SIGTTOU");
+        return;
+    }
     EXPECT(WIFEXITED(status));
     if (WIFEXITED(status))
         EXPECT_EQ(WEXITSTATUS(status), 0);
