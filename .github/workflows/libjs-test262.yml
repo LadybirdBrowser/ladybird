@@ -88,6 +88,7 @@ jobs:
           cmake --preset Release -B libjs-test262/Build \
             -DCMAKE_C_COMPILER=clang \
             -DCMAKE_CXX_COMPILER=clang++ \
+            -DENABLE_CI_BASELINE_CPU=ON \
             -DWASM_SPEC_TEST_SKIP_FORMATTING=ON \
             -DINCLUDE_WASM_SPEC_TESTS=ON \
             -DENABLE_GUI_TARGETS=OFF
