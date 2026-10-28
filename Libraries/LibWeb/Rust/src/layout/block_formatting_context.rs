@@ -849,16 +849,32 @@ impl<'pass> BlockFormattingContext<'pass> {
         )
     }
 
-    fn register_contained_abspos_child(&self, node: Node, block_offset: CssPixels, coordinate_space_box: Node) {
+    fn register_contained_abspos_child(
+        &self,
+        node: Node,
+        block_offset: CssPixels,
+        block_container: BlockContainer<'pass>,
+    ) {
+        let coordinate_space_box = block_container.node;
+        // https://drafts.csswg.org/css-position-3/#staticpos-rect
+        // The static-position rectangle is a zero-thickness rectangle spanning between the inline-axis sides of the
+        // box’s static-position containing block and positioned at its block-start static position (see CSS2§10.6.4).
         let static_position = abspos_inputs::StaticPositionRect {
             rect: geometry::LogicalRect {
                 offset: geometry::LogicalOffset {
                     inline_offset: CssPixels::default(),
                     block_offset,
                 },
-                size: geometry::LogicalSize::default(),
+                size: geometry::LogicalSize {
+                    inline_size: block_container.used.content_inline_size.get(),
+                    block_size: CssPixels::default(),
+                },
             },
-            inline_alignment: StaticPositionAlignment::Start,
+            inline_alignment: if self.style(coordinate_space_box).direction() == direction::RTL {
+                StaticPositionAlignment::End
+            } else {
+                StaticPositionAlignment::Start
+            },
             block_alignment: StaticPositionAlignment::Start,
             alignment_derives_from_own_computed_values: false,
             is_known: true,
@@ -2333,7 +2349,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                         .block_offset_of_current_block_container
                         .get()
                         .expect("a block container flow cursor is active"),
-                block_container.node,
+                block_container,
             );
             return None;
         }
