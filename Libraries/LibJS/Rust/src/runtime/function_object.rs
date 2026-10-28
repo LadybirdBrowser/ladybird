@@ -94,6 +94,7 @@ impl FunctionObject {
             base: object,
             builtin: Cell::new(0),
             has_builtin: Cell::new(false),
+            flags: Cell::new(0),
         }
     }
 
