@@ -8,12 +8,19 @@ use super::*;
 
 use libgfx_rust::font::{EmojiPresentation, FontHandle, FrozenFontList, emoji_presentation_for_code_point};
 
+#[repr(u8)]
+enum LineBreakMode {
+    Strict,
+    Normal,
+    Loose,
+}
+
 unsafe extern "C" {
     fn unicode_layout_grapheme_segmenter_create(text: *const u16, length_in_code_units: usize) -> *mut c_void;
     fn unicode_layout_line_segmenter_create(
         text: *const u16,
         length_in_code_units: usize,
-        allow_conditional_japanese_starters: bool,
+        mode: LineBreakMode,
     ) -> *mut c_void;
     fn unicode_layout_segmenter_next_boundary(handle: *mut c_void, index: usize, inclusive: bool) -> i64;
     fn unicode_layout_segmenter_destroy(handle: *mut c_void);
@@ -106,7 +113,7 @@ mod unicode_test_stubs {
     extern "C" fn unicode_layout_line_segmenter_create(
         _text: *const u16,
         _length_in_code_units: usize,
-        _allow_conditional_japanese_starters: bool,
+        _mode: super::LineBreakMode,
     ) -> *mut c_void {
         unreachable!("no unit test segments text");
     }
@@ -338,12 +345,15 @@ struct LineSegmenter<'text> {
 }
 
 impl<'text> LineSegmenter<'text> {
-    fn new(text: &'text [u16], allow_conditional_japanese_starters: bool) -> Self {
+    fn new(text: &'text [u16], line_break: u8) -> Self {
+        let mode = match line_break {
+            line_break::LOOSE => LineBreakMode::Loose,
+            line_break::NORMAL => LineBreakMode::Normal,
+            _ => LineBreakMode::Strict,
+        };
         // SAFETY: See GraphemeSegmenter::new; the same lifetime contract holds,
         // and the C++ side picks the ASCII line-breaking fast path internally.
-        let raw = unsafe {
-            unicode_layout_line_segmenter_create(text.as_ptr(), text.len(), allow_conditional_japanese_starters)
-        };
+        let raw = unsafe { unicode_layout_line_segmenter_create(text.as_ptr(), text.len(), mode) };
         Self {
             handle: IcuSegmenterHandle { raw },
             text,
@@ -527,7 +537,7 @@ impl<'text> TextChunker<'text> {
             text: inputs.text,
             frozen_font_list: inputs.frozen_font_list,
             grapheme_segmenter: GraphemeSegmenter::new(inputs.text),
-            line_segmenter: LineSegmenter::new(inputs.text, allow_conditional_japanese_starters),
+            line_segmenter: LineSegmenter::new(inputs.text, inputs.line_break),
             word_break: inputs.word_break,
             allow_conditional_japanese_starters,
             font_variant_emoji: inputs.font_variant_emoji,
