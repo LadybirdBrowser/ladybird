@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 4 tests
+
+1 Pass
+3 Fail
+Fail	start of scroll container
+Fail	right before the in-flow position of the sticky box
+Fail	right after the in-flow position the sticky box
+Pass	end of scroll container
