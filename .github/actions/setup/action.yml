@@ -208,7 +208,7 @@ runs:
     # Saved right after the install rather than by actions/cache's post-job step, which runs only if the whole job
     # succeeds — so a flaky test would keep the cache from ever being saved.
     - name: 'Save wasm-tools'
-      if: ${{ inputs.type == 'build' && inputs.os != 'Linux' && steps.wasm-tools-cache.outputs.cache-hit != 'true' }}
+      if: ${{ github.ref == 'refs/heads/master' && inputs.type == 'build' && inputs.os != 'Linux' && steps.wasm-tools-cache.outputs.cache-hit != 'true' }}
       uses: actions/cache/save@v6
       with:
         path: ${{ github.workspace }}/wasm-tools
@@ -275,7 +275,7 @@ runs:
     # Saved right after the install rather than by actions/cache's post-job step, which runs only if the whole job
     # succeeds — so a flaky test would keep the cache from ever being saved.
     - name: 'Save sccache'
-      if: ${{ inputs.type == 'build' && steps.sccache-cache.outputs.cache-hit != 'true' }}
+      if: ${{ github.ref == 'refs/heads/master' && inputs.type == 'build' && steps.sccache-cache.outputs.cache-hit != 'true' }}
       uses: actions/cache/save@v6
       with:
         path: ${{ github.workspace }}/sccache
@@ -312,7 +312,7 @@ runs:
     # Saved right after the fetch rather than by actions/cache's post-job step, which runs only if the whole job
     # succeeds — so a flaky test would keep the cache from ever being saved.
     - name: 'Save cargo registry'
-      if: ${{ steps.cargo-registry.outputs.cache-hit != 'true' }}
+      if: ${{ github.ref == 'refs/heads/master' && steps.cargo-registry.outputs.cache-hit != 'true' }}
       uses: actions/cache/save@v6
       with:
         path: |

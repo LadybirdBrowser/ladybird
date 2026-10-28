@@ -109,11 +109,12 @@ runs:
         sccache_path: ${{ steps.setup.outputs.sccache_path }}
         vcpkg_cache_path: ${{ steps.setup.outputs.vcpkg_cache_path }}
 
-    - name: Cache the WebAssembly spec test suite
+    - name: Restore the WebAssembly spec test suite
+      id: 'wasm-spec-tests-cache'
       if: ${{ inputs.os != 'Windows' }}
-      uses: actions/cache@v6
+      uses: actions/cache/restore@v6
       with:
-        path: ${{ github.workspace }}/caches/WasmSpecTests
+        path: ${{ github.workspace }}/Build/caches/WasmSpecTests
         key: wasm-spec-test-suite | ${{ hashFiles('Meta/CMake/wasm_spec_tests.cmake') }}
 
     - name: Set dynamic environment variables
@@ -176,6 +177,13 @@ runs:
       working-directory: ${{ github.workspace }}/Build
       shell: bash
       run: cmake --install . --strip --prefix "${{ github.workspace }}/Install"
+
+    - name: Save the WebAssembly spec test suite
+      if: ${{ github.ref == 'refs/heads/master' && inputs.os != 'Windows' && steps.wasm-spec-tests-cache.outputs.cache-hit != 'true' }}
+      uses: actions/cache/save@v6
+      with:
+        path: ${{ github.workspace }}/Build/caches/WasmSpecTests
+        key: ${{ steps.wasm-spec-tests-cache.outputs.cache-primary-key }}
 
     - name: Save Caches
       uses: ./.github/actions/cache-save
