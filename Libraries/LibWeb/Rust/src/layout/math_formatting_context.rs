@@ -2131,7 +2131,7 @@ impl<'pass> MathFormattingContext<'pass> {
         stretch_size_constraint: Option<MathStretchSizeConstraint>,
     ) -> Child {
         let run = &self.run;
-        run.records.create_used_values(&run.callbacks, child, constraints);
+        let child_cells = run.records.keep_child_for_its_run(&run.callbacks, child, constraints);
         // NB: MathML layout does not break lines, so each child is laid out at its max-content inline size, as an
         //     atomic box whose block size follows from its content.
         let mut input = LayoutInput::new(
@@ -2146,7 +2146,7 @@ impl<'pass> MathFormattingContext<'pass> {
         let formatting_context::ChildLayout {
             outcome,
             fragment_arrival,
-        } = formatting_context::layout_inside_child(run, None, None, child, input, true);
+        } = formatting_context::layout_inside_child_with_input_cells(run, None, None, child, input, child_cells, true);
         if let Some(fragment_arrival) = fragment_arrival {
             self.fragment_arrivals_of_children.borrow_mut().push(fragment_arrival);
         }
