@@ -22,5 +22,5 @@ endpoint VideoDecoderServer
     signal_end_of_stream(u64 decoder_id, u32 generation) =|
     flush(u64 decoder_id, u32 generation) =|
 
-    release_frame(Media::VideoFramePoolID pool_id, u32 slot_index) =|
+    release_frame(u64 frame_id) =|
 }

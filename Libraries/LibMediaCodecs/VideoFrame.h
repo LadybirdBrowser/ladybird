@@ -69,6 +69,7 @@ public:
     // Converts the pixels to RGBA in memory, wherever they are, if this process can read them.
     ErrorOr<NonnullRefPtr<Gfx::Bitmap>> to_bitmap() const;
 
+    BackingStorage const& backing_storage() const { return m_backing_storage; }
     PooledVideoFrameSlot const* pool_slot() const;
     ReceivedVideoFrameStorage const* received_storage() const;
 

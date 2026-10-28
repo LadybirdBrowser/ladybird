@@ -429,32 +429,6 @@ TEST_CASE(handles_that_could_not_have_been_decoded_are_refused_over_ipc)
     EXPECT(decoder.decode<Media::VideoFrameHandle>().is_error());
 }
 
-// A frame shown a second time arrives as a second hold on the acquisition its slot is already held for, which must
-// not be mistaken for a slot given away while held.
-TEST_CASE(relay_pool_holds_a_slot_again_for_the_acquisition_it_already_holds)
-{
-    auto source_pool = MUST(Media::VideoFramePool::create());
-    auto acquired = source_pool->try_acquire(resolved_frame_byte_count()).release_value();
-
-    auto release_count = 0u;
-    auto relay_pool = MUST(Media::VideoFrameRelayPool::create([&](u32) { release_count++; }));
-    MUST(relay_pool->set_slot_storage(acquired.index, source_pool->slot_buffer(acquired.index), nullptr));
-
-    RefPtr<Media::PooledVideoFrameSlot> first_hold = MUST(relay_pool->try_adopt_published_slot(acquired.index, acquired.slot_acquisition_id));
-    RefPtr<Media::PooledVideoFrameSlot> second_hold = MUST(relay_pool->try_adopt_published_slot(acquired.index, acquired.slot_acquisition_id));
-    EXPECT(relay_pool->try_adopt_published_slot(acquired.index, acquired.slot_acquisition_id + 1).is_error());
-    // A frame lent onward holds the slot as well, which the other process never hears of.
-    relay_pool->add_hold(acquired.index);
-
-    first_hold = nullptr;
-    EXPECT_EQ(release_count, 0u);
-    second_hold = nullptr;
-    EXPECT_EQ(release_count, 0u);
-    // The other process holds the slot once per frame, so each of those holds is released to it once the slot is free.
-    relay_pool->release_hold(acquired.index);
-    EXPECT_EQ(release_count, 2u);
-}
-
 #if defined(AK_OS_MACOS) || defined(AK_OS_LINUX)
 
 // Stands in for what a decoder gives with a surface to keep its pixels in place, counting how many are alive.

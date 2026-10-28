@@ -289,24 +289,17 @@ private:
 
     void send_frame(NonnullRefPtr<VideoFrame> frame)
     {
-        auto const* pool_slot = frame->pool_slot();
-        VERIFY(pool_slot != nullptr);
-        auto& ledger = pool_slot->ledger();
-        auto slot_index = pool_slot->slot_index();
-        auto handle = VideoFrameHandle::for_frame(*frame);
-
-        auto& announced_buffer_ids = m_announced_buffer_ids_by_pool.ensure(ledger.id());
-        auto announced_buffer_id = announced_buffer_ids.get(slot_index);
-        auto needs_announcement = !announced_buffer_id.has_value() || *announced_buffer_id != pool_slot->allocated_buffer_id();
-        announced_buffer_ids.set(slot_index, pool_slot->allocated_buffer_id());
+        auto metadata = VideoFrameMetadata::for_frame(*frame);
+        auto surface = frame->surface();
+        Core::AnonymousBuffer pixel_buffer;
+        if (!surface)
+            pixel_buffer = frame->pixel_buffer();
 
         auto should_close_connection = false;
         m_connection.with_target([&](auto& connection) {
-            if (needs_announcement)
-                connection.async_video_frame_slot_announced(m_decoder_id, ledger.id(), slot_index, ledger.slot_buffer(slot_index), ledger.slot_surface(slot_index));
             // The frame is held before the client hears of it, so that its release cannot arrive first.
-            connection.hold_frame_until_released(move(frame));
-            connection.async_frame_decoded(m_decoder_id, m_generation, handle);
+            auto frame_id = connection.hold_frame_until_released(move(frame));
+            connection.async_frame_decoded(m_decoder_id, m_generation, frame_id, metadata, move(pixel_buffer), move(surface));
             should_close_connection = connection.should_close_after_decoding_frame();
         });
         if (should_close_connection)
@@ -346,7 +339,6 @@ private:
     // The latest submission's, which output the decoder finishes later is taken with as well.
     Optional<AK::Duration> m_output_target;
     Core::AnonymousBuffer m_ring;
-    HashMap<VideoFramePoolID, HashMap<u32, u64>> m_announced_buffer_ids_by_pool;
 };
 
 VideoDecoderServerConnection::VideoDecoderServerConnection(NonnullOwnPtr<IPC::Transport> transport, ReadonlySpan<VideoDecoderRegistration> hosted_decoders)
@@ -369,12 +361,12 @@ void VideoDecoderServerConnection::die()
         entry.value->exit_and_join();
     m_sessions.clear();
 
-    HashMap<HeldSlot, Vector<NonnullRefPtr<VideoFrame>>, HeldSlotTraits> held_frames_by_slot;
+    HashMap<u64, NonnullRefPtr<VideoFrame>> held_frames;
     {
         MutexLocker locker { m_held_frames_mutex };
-        held_frames_by_slot = move(m_held_frames_by_slot);
+        held_frames = move(m_held_frames);
     }
-    held_frames_by_slot.clear();
+    held_frames.clear();
 
     if (on_death)
         on_death();
@@ -453,28 +445,22 @@ void VideoDecoderServerConnection::flush(u64 decoder_id, u32 generation)
         (*session)->enqueue(DecoderSession::Flush { generation });
 }
 
-void VideoDecoderServerConnection::release_frame(VideoFramePoolID pool_id, u32 slot_index)
+void VideoDecoderServerConnection::release_frame(u64 frame_id)
 {
     // The frame is dropped outside the lock, since freeing its slot wakes the decoder thread that may be taking it.
-    RefPtr<VideoFrame> frame;
+    Optional<NonnullRefPtr<VideoFrame>> frame;
     {
         MutexLocker locker { m_held_frames_mutex };
-        auto held_frames = m_held_frames_by_slot.find({ pool_id, slot_index });
-        if (held_frames == m_held_frames_by_slot.end())
-            return;
-        frame = held_frames->value.take_last();
-        if (held_frames->value.is_empty())
-            m_held_frames_by_slot.remove(held_frames);
+        frame = m_held_frames.take(frame_id);
     }
 }
 
-void VideoDecoderServerConnection::hold_frame_until_released(NonnullRefPtr<VideoFrame> frame)
+u64 VideoDecoderServerConnection::hold_frame_until_released(NonnullRefPtr<VideoFrame> frame)
 {
-    auto const* pool_slot = frame->pool_slot();
-    VERIFY(pool_slot != nullptr);
-    HeldSlot slot { pool_slot->ledger().id(), pool_slot->slot_index() };
     MutexLocker locker { m_held_frames_mutex };
-    m_held_frames_by_slot.ensure(slot).append(move(frame));
+    auto frame_id = m_next_held_frame_id++;
+    m_held_frames.set(frame_id, move(frame));
+    return frame_id;
 }
 
 bool VideoDecoderServerConnection::should_close_after_decoding_frame()
