@@ -997,6 +997,17 @@ impl<'arena> RunRecords<'arena> {
         );
     }
 
+    /// Keeps for `node`, an in-flow box, what its insets resolved to.
+    #[track_caller]
+    pub(crate) fn keep_in_flow_box_insets(&self, node: Node, insets: abspos_engine::InFlowBoxInsets) {
+        if let Some(default_scroll_shift) = insets.default_scroll_shift {
+            self.set_default_scroll_shift(node, Some(default_scroll_shift));
+        }
+        if let Some(used_insets) = insets.used_insets {
+            self.set_used_insets(node, used_insets);
+        }
+    }
+
     /// Tracks the percentage block size dependency of `node` until the returned tracking is dropped, which the layout
     /// of `node` holds while it is in progress.
     pub(crate) fn track_percentage_block_size_dependency_while_laying_out(
