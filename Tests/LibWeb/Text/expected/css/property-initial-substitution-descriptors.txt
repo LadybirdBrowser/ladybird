@@ -1,5 +1,28 @@
-substitution: 1
+substitution: 0
 later valid: 1
-later substitution: 1
+later substitution: 0
 important substitution: 1
 later important: 1
+var fallback env: 0
+env fallback var: 0
+var then env: 0
+env then var: 0
+later mixed: 0
+mixed then valid: 1
+mixed then valid initial value: value
+malformed var: 1
+malformed var initial value: value
+malformed env: 1
+malformed env initial value: value
+env only: 1
+env only initial value: value
+nested malformed var: 1
+nested malformed var initial value: value
+mixed important: 1
+mixed important initial value: value
+typed later mixed: 0
+typed later nested: 0
+typed malformed env: 1
+typed malformed env initial value: 1px
+typed later valid: 1
+typed later valid initial value: 1px

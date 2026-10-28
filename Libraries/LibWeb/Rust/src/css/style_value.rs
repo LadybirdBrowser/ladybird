@@ -117,7 +117,7 @@ pub(crate) fn utf16_equals_ascii_case_insensitive(value: &[u16], expected: &[u8]
             .all(|(&left, &right)| u8::try_from(left).is_ok_and(|left| left.eq_ignore_ascii_case(&right)))
 }
 
-fn split_var_arguments(values: &[ComponentValue]) -> Option<(&[u16], Option<&[ComponentValue]>)> {
+pub(crate) fn split_var_arguments(values: &[ComponentValue]) -> Option<(&[u16], Option<&[ComponentValue]>)> {
     if !crate::css::parser::arbitrary_substitution::arguments_are_valid_for_ffi(5, values) {
         return None;
     }
