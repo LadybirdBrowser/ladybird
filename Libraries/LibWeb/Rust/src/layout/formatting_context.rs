@@ -639,10 +639,11 @@ fn cells_kept_for_contained_abspos(
 }
 
 /// Places an in-flow child whose committed subtree is reused as it is, with the committed fragment it was laid out
-/// to. The child's record must already hold what its layout left in it.
+/// to, and the sizes and box sides `cells_in_run_frame` its layout left it with.
 pub(crate) fn place_reused_child(
     run: &FormattingContextRun,
     node: Node,
+    cells_in_run_frame: used_values::RootInputCells,
     facts_decided_by_parent: run_records::FactsDecidedByParent,
     offset: FfiCssPixelPoint,
     fragment: std::sync::Arc<fragment_tree::Fragment>,
@@ -662,11 +663,7 @@ pub(crate) fn place_reused_child(
     fragments.note_placed_box(
         node,
         placement,
-        cells_kept_for_contained_abspos(run, node, || {
-            records
-                .box_cells_in_frame_if_owned(node, callbacks.frame)
-                .expect("a reused child is placed in the record its run left")
-        }),
+        cells_kept_for_contained_abspos(run, node, || cells_in_run_frame),
     );
     debug_assert!(
         facts_decided_by_parent.placement.is_none(),
@@ -2113,7 +2110,7 @@ fn size_skipped_independent_root(
         ParticipationInParentFormattingContext::Float { .. } => {
             let parent = parent_block.expect("a floating run requires an enclosing block formatting context");
             parent.resolve_used_block_size_if_treated_as_auto(
-                child,
+                block_formatting_context::ChildSizedHere::kept_by_its_run(child),
                 input.available_space,
                 input.containing_block_constraints,
                 None,

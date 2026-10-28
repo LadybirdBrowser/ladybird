@@ -1199,39 +1199,6 @@ impl<'arena> RunRecords<'arena> {
         })
     }
 
-    /// The sizes, size constraints and box sides this run holds for `node`, if it holds the box, read in frame `reader`.
-    #[track_caller]
-    pub(crate) fn box_cells_in_frame_if_owned(
-        &self,
-        node: Node,
-        reader: geometry::Frame,
-    ) -> Option<used_values::RootInputCells> {
-        let cells_of_record =
-            |record: &UsedValues| used_values::RootInputCells::capture(record).in_frame(record.frame.get(), reader);
-        let index = match self.held_box(node)? {
-            HeldBox::RootWithRecord => return self.root_used.as_ref().map(cells_of_record),
-            HeldBox::Kept(index) => index,
-        };
-        let record = match &self.scratch.kept_boxes.borrow()[index as usize].holding {
-            KeptBoxHolding::LaidOutByThisRun { record } => *record,
-            KeptBoxHolding::ChildNotYetLaidOut { cells_before_its_run } => {
-                debug_assert!(
-                    false,
-                    "a child's box is read in another frame only once its run handed it back"
-                );
-                return Some(*cells_before_its_run);
-            }
-            KeptBoxHolding::ChildHandedBack => self.panic_for_child_read_after_its_run_handed_it_back(node),
-            KeptBoxHolding::LaidOutInRecordItsLayoutOwns => {
-                self.panic_for_box_read_outside_the_layout_owning_its_record(node)
-            }
-        };
-        // SAFETY: This run registered the record, and it stays on the stack until this run returns.
-        Some(cells_of_record(unsafe {
-            self.scratch.run_record_stack.get(record).as_ref()
-        }))
-    }
-
     /// What the fragment of `node` shows of the box's own layout, which finishes the lines this run laid out in it.
     #[track_caller]
     pub(crate) fn fragment_geometry_of(
