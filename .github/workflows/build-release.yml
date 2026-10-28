@@ -147,12 +147,51 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v7
         with:
-          name: ladybird-${{ matrix.os_name }}-${{ matrix.arch }}
           path: |
-            Build/packages/*.tar.xz
-            Build/packages/*.deb
-            Build/packages/*.rpm
-          compression-level: 0
+            Build/packages/ladybird-*.tar.xz
+            !Build/packages/ladybird-symbols-*.tar.xz
+          archive: false
+          if-no-files-found: error
+
+      - name: Upload debug symbols
+        uses: actions/upload-artifact@v7
+        with:
+          path: Build/packages/ladybird-symbols-*.tar.xz
+          archive: false
+          if-no-files-found: error
+
+      - name: Upload the Debian package
+        if: ${{ matrix.os_name == 'Linux' }}
+        uses: actions/upload-artifact@v7
+        with:
+          path: Build/packages/ladybird_*.deb
+          archive: false
+          if-no-files-found: error
+
+      - name: Upload the Debian debug symbols
+        if: ${{ matrix.os_name == 'Linux' }}
+        uses: actions/upload-artifact@v7
+        with:
+          path: Build/packages/ladybird-dbgsym_*.deb
+          archive: false
+          if-no-files-found: error
+
+      - name: Upload the RPM package
+        if: ${{ matrix.os_name == 'Linux' }}
+        uses: actions/upload-artifact@v7
+        with:
+          path: |
+            Build/packages/ladybird-*.rpm
+            !Build/packages/ladybird-debuginfo-*.rpm
+          archive: false
+          if-no-files-found: error
+
+      - name: Upload the RPM debug symbols
+        if: ${{ matrix.os_name == 'Linux' }}
+        uses: actions/upload-artifact@v7
+        with:
+          path: Build/packages/ladybird-debuginfo-*.rpm
+          archive: false
           if-no-files-found: error
 
   Flatpak:
