@@ -2,13 +2,12 @@ Harness status: OK
 
 Found 8 tests
 
-4 Pass
-4 Fail
+8 Pass
 Pass	.test 1
 Pass	.test 2
 Pass	.test 3
 Pass	.test 4
-Fail	.test 5
-Fail	.test 6
-Fail	.test 7
-Fail	.test 8
+Pass	.test 5
+Pass	.test 6
+Pass	.test 7
+Pass	.test 8
