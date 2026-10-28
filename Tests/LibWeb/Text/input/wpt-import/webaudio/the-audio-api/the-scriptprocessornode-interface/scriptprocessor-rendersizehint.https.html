@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<title>Test ScriptProcessorNode with renderSizeHint</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../webaudio/resources/rendersizehint-robustness-helper.js"></script>
+<script>
+for (const config of ROBUSTNESS_TEST_CONFIGS) {
+  const {sampleRate, renderSizeHint} = config;
+
+  // Find the nearest valid ScriptProcessor buffer size (power of two
+  // between 256 and 16384) using log2 and clamping.
+  const nearestPowerOf2 = Math.pow(2, Math.round(Math.log2(renderSizeHint)));
+  const bufferSize = Math.min(16384, Math.max(256, nearestPowerOf2));
+
+  const state = {processCalled: false};
+
+  runQuantumRobustnessTest(
+      config,
+      (audioContext, t) => {
+        const renderQuantumSize = audioContext.renderQuantumSize;
+        const isSupported =
+            renderQuantumSize > 0 && (bufferSize % renderQuantumSize === 0);
+
+        if (!isSupported) {
+          assert_throws_dom('NotSupportedError', () => {
+            audioContext.createScriptProcessor(bufferSize, 1, 1);
+          });
+          return null;
+        }
+
+        const scriptProcessor =
+            audioContext.createScriptProcessor(bufferSize, 1, 1);
+        scriptProcessor.onaudioprocess = t.step_func((e) => {
+          state.processCalled = true;
+          assert_equals(
+              e.inputBuffer.length, scriptProcessor.bufferSize,
+              'Expected input buffer length to match ' +
+                  'ScriptProcessor buffer size');
+        });
+        return scriptProcessor;
+      },
+      `ScriptProcessor handles block size with renderSizeHint ` +
+      `${renderSizeHint} & bufferSize ${bufferSize}`,
+      () => {
+        assert_true(state.processCalled,
+            'onaudioprocess should have been called');
+      }
+  );
+}
+</script>
