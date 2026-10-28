@@ -1,0 +1,22 @@
+#target {
+    --unreg-url: url(foo.jpg);
+    --unreg-func: url("foo.jpg");
+
+    --reg-inherited-url: url(foo.jpg);
+    --reg-non-inherited-url: url(foo.jpg);
+
+    --reg-inherited-func: url("foo.jpg");
+    --reg-non-inherited-func: url("foo.jpg");
+
+    --reg-ref-to-unreg-url: var(--unreg-url);
+    --reg-ref-to-unreg-func: var(--unreg-func);
+
+    --reg-ref-to-reg-url: var(--reg-alt-non-inherited-url);
+    --reg-ref-to-reg-func: var(--reg-alt-non-inherited-func);
+
+    --unreg-ref-to-reg-url: var(--reg-alt-non-inherited-url);
+    --unreg-ref-to-reg-func: var(--reg-alt-non-inherited-func);
+
+    --unreg-multi-ref-to-reg-urls: var(--reg-non-inherited-url), var(--reg-alt-non-inherited-url);
+    --unreg-multi-ref-to-reg-funcs: var(--reg-non-inherited-func), var(--reg-alt-non-inherited-func);
+}

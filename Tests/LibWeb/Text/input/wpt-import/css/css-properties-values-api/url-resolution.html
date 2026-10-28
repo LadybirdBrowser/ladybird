@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.css-houdini.org/css-properties-values-api-1/#relative-urls" />
+<meta name="assert" content="This test verifies that relative URLs in registered properties resolve correctly" />
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<script src="support/main/main.js"></script>
+<script src="support/alt/alt.js"></script>
+<link id="main" rel="stylesheet" type="text/css" href="support/main/main.css" />
+<link id="main_utf16be" rel="stylesheet" type="text/css" href="support/main/main.utf16be.css" />
+<link id="alt" rel="stylesheet" type="text/css" href="support/alt/alt.css" />
+<div id=target>
+    <div id=inner></div>
+</div>
+<script>
+function parse_url(urlstr) {
+    urlstr = urlstr.trim();
+    if (!urlstr.startsWith('url("') || !urlstr.endsWith('")'))
+        throw 'Unknown url format: ' + urlstr;
+    return urlstr.slice(5, -2);
+}
+
+function get_bg_url(element) {
+    return parse_url(getComputedStyle(element)['background-image']);
+}
+
+function get_bg_urls(element) {
+    return getComputedStyle(element)['background-image']
+            .split(',')
+            .map(x => x.trim())
+            .map(x => parse_url(x));
+}
+
+function assert_base_path_equal(actual, expected) {
+    let actual_base = new URL(actual).pathname.split('/').slice(0, -1);
+    let expected_base = new URL(expected).pathname.split('/').slice(0, -1);
+    assert_equals(actual_base.join('/'), expected_base.join('/'));
+}
+
+function assert_base_paths_equal(actual, expected) {
+    assert_equals(actual.length, expected.length);
+    for (let i = 0; i < actual.length; i++) {
+        assert_base_path_equal(actual[i], expected[i]);
+    }
+}
+
+test(function() {
+    target.style = 'background-image: var(--unreg-url);';
+    assert_base_path_equal(get_bg_url(target), document.baseURI);
+}, 'Unregistered property resolves against document (URL token)');
+
+test(function() {
+    target.style = 'background-image: var(--unreg-func);';
+    assert_base_path_equal(get_bg_url(target), document.baseURI);
+}, 'Unregistered property resolves against document (URL function)');
+
+test(function() {
+    target.style = 'background-image: var(--reg-non-inherited-url);';
+    assert_base_path_equal(get_bg_url(target), main.sheet.href);
+}, 'Registered non-inherited <url> resolves against sheet (URL token)');
+
+test(function() {
+    target.style = 'background-image: var(--reg-non-inherited-func);';
+    assert_base_path_equal(get_bg_url(target), main.sheet.href);
+}, 'Registered non-inherited <url> resolves against sheet (URL function)');
+
+test(function() {
+    target.style = 'background-image: var(--reg-inherited-url);';
+    assert_base_path_equal(get_bg_url(target), main.sheet.href);
+}, 'Registered inherited <url> resolves against sheet (URL token)');
+
+test(function() {
+    target.style = 'background-image: var(--reg-inherited-func);';
+    assert_base_path_equal(get_bg_url(target), main.sheet.href);
+}, 'Registered inherited <url> resolves against sheet (URL function)');
+
+test(function() {
+    inner.style = 'background-image: var(--reg-inherited-url);';
+    assert_base_path_equal(get_bg_url(inner), main.sheet.href);
+}, 'Registered inherited <url> resolves against sheet (Child node, URL token)');
+
+test(function() {
+    inner.style = 'background-image: var(--reg-inherited-func);';
+    assert_base_path_equal(get_bg_url(inner), main.sheet.href);
+}, 'Registered inherited <url> resolves against sheet (Child node, URL function)');
+
+test(function() {
+    target.style = 'background-image: var(--reg-ref-to-unreg-url);';
+    assert_base_path_equal(get_bg_url(target), main.sheet.href);
+}, 'Registered property with unregistered var reference resolves against sheet (URL token)');
+
+test(function() {
+    target.style = 'background-image: var(--reg-ref-to-unreg-func);';
+    assert_base_path_equal(get_bg_url(target), main.sheet.href);
+}, 'Registered property with unregistered var reference resolves against sheet. (URL function)');
+
+test(function() {
+    target.style = 'background-image: var(--reg-ref-to-reg-url);';
+    assert_base_path_equal(get_bg_url(target), alt.sheet.href);
+}, 'Registered property with registered var reference resolves against sheet of referenced property (URL token)');
+
+test(function() {
+    target.style = 'background-image: var(--reg-ref-to-reg-func);';
+    assert_base_path_equal(get_bg_url(target), alt.sheet.href);
+}, 'Registered property with registered var reference resolves against sheet of referenced property (URL function)');
+
+test(function() {
+    target.style = 'background-image: var(--unreg-ref-to-reg-url);';
+    assert_base_path_equal(get_bg_url(target), alt.sheet.href);
+}, 'Unregistered property with registered var reference resolves against sheet of referenced property (URL token)');
+
+test(function() {
+    target.style = 'background-image: var(--unreg-ref-to-reg-func);';
+    assert_base_path_equal(get_bg_url(target), alt.sheet.href);
+}, 'Unregistered property with registered var reference resolves against sheet of referenced property (URL function)');
+
+test(function() {
+    target.style = 'background-image: var(--unreg-multi-ref-to-reg-urls);';
+    assert_base_paths_equal(get_bg_urls(target), [main.sheet.href, alt.sheet.href]);
+}, 'Multiple (registered) var reference resolve against respective sheets (URL token)');
+
+test(function() {
+    target.style = 'background-image: var(--unreg-multi-ref-to-reg-funcs);';
+    assert_base_paths_equal(get_bg_urls(target), [main.sheet.href, alt.sheet.href]);
+}, 'Multiple (registered) var reference resolve against respective sheets (URL function)');
+
+test(function() {
+    target.style = 'background-image: var(--reg-utf16be-url);';
+    assert_base_path_equal(get_bg_url(target), main_utf16be.sheet.href);
+}, 'Registered UTF16BE-encoded var reference resolve against sheet (URL token)');
+
+test(function() {
+    target.style = 'background-image: var(--reg-utf16be-func);';
+    assert_base_path_equal(get_bg_url(target), main_utf16be.sheet.href);
+}, 'Registered UTF16BE-encoded var reference resolve against sheet (URL function)');
+
+</script>
