@@ -28,6 +28,7 @@
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/SelectorMatching.h>
+#include <LibWeb/CSS/Sizing.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
@@ -2713,11 +2714,13 @@ WebIDL::UnsignedLong HTMLInputElement::height() const
             return *height;
     }
 
-    // ...or else the natural height and height of the image, in CSS pixels, if an image is available but not being rendered
-    if (auto height = intrinsic_height(); height.has_value() && *height > 0)
-        return height->to_int();
+    // https://html.spec.whatwg.org/multipage/input.html#input-img-dimensions
+    // If an image is available, then set naturalDimensions to the result of applying the default sizing algorithm
+    // with that image's natural width, natural height, and natural aspect ratio, if any, using a default object size
+    // of 300 by 150.
+    if (is_image_available())
+        return CSS::run_default_sizing_algorithm({}, {}, { intrinsic_width(), intrinsic_height(), intrinsic_aspect_ratio() }, { 300, 150 }).height().to_int();
 
-    // ...or else 0, if the image is not available or does not have intrinsic dimensions.
     return 0;
 }
 
@@ -2749,11 +2752,13 @@ WebIDL::UnsignedLong HTMLInputElement::width() const
             return *width;
     }
 
-    // ...or else the natural width and height of the image, in CSS pixels, if an image is available but not being rendered
-    if (auto width = intrinsic_width(); width.has_value() && *width > 0)
-        return width->to_int();
+    // https://html.spec.whatwg.org/multipage/input.html#input-img-dimensions
+    // If an image is available, then set naturalDimensions to the result of applying the default sizing algorithm
+    // with that image's natural width, natural height, and natural aspect ratio, if any, using a default object size
+    // of 300 by 150.
+    if (is_image_available())
+        return CSS::run_default_sizing_algorithm({}, {}, { intrinsic_width(), intrinsic_height(), intrinsic_aspect_ratio() }, { 300, 150 }).width().to_int();
 
-    // ...or else 0, if the image is not available or does not have intrinsic dimensions.
     return 0;
 }
 

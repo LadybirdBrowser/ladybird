@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 32 tests
 
-27 Pass
-5 Fail
+32 Pass
 Pass	no width/height attributes
 Pass	width and height attributes
 Pass	width attribute only
@@ -11,11 +10,11 @@ Pass	height attribute only
 Pass	unparseable width attribute
 Pass	no src, with width/height attributes
 Pass	not in the Image Button state
-Fail	SVG image with neither a natural width nor a natural height
-Fail	SVG image with a natural aspect ratio only
-Fail	SVG image with a natural aspect ratio only, and a width attribute
-Fail	SVG image with a natural width only
-Fail	SVG image with a natural height only
+Pass	SVG image with neither a natural width nor a natural height
+Pass	SVG image with a natural aspect ratio only
+Pass	SVG image with a natural aspect ratio only, and a width attribute
+Pass	SVG image with a natural width only
+Pass	SVG image with a natural height only
 Pass	width and height attribute value "10" when not rendered
 Pass	width and height attribute value "0" when not rendered
 Pass	width and height attribute value "010" when not rendered
