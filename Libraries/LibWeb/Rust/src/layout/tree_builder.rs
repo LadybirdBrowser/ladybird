@@ -2269,11 +2269,9 @@ fn update_principal_node_descendants(
 
             if node_facts::kind_is_block_container(host.data(layout_node).kind.get())
                 && host.has_first_letter_style(layout_node)
+                && let FirstLetterSearch::Found(target) = find_first_letter_in_block(host, layout_node)
             {
-                let target = find_first_letter_in_block(host, layout_node);
-                if target.found {
-                    create_first_letter_boxes(host, update.mirror_identity, target);
-                }
+                create_first_letter_boxes(host, update.mirror_identity, target);
             }
 
             create_writing_suggestion_boxes(host, update.mirror_identity, layout_node);
@@ -3477,6 +3475,7 @@ pub struct FirstLetterTarget {
     pub letter_end: usize,
     pub source_length: usize,
     pub found: bool,
+    blocked_by_preserved_line_break: bool,
 }
 
 impl FirstLetterTarget {
@@ -3486,6 +3485,7 @@ impl FirstLetterTarget {
             letter_end: 0,
             source_length: 0,
             found: false,
+            blocked_by_preserved_line_break: false,
         }
     }
 }
@@ -4439,7 +4439,10 @@ pub(crate) fn find_first_letter_in_text(
         // When white-space preserves segment breaks, a newline before any letter puts the letter on a later line, so
         // the first formatted line is empty and ::first-letter must not match.
         if preserves_segment_breaks && (starting_code_point == b'\n' as u32 || starting_code_point == b'\r' as u32) {
-            return FirstLetterTarget::not_found();
+            return FirstLetterTarget {
+                blocked_by_preserved_line_break: true,
+                ..FirstLetterTarget::not_found()
+            };
         }
 
         let starting_facts = code_point_facts(starting_code_point);
@@ -4474,6 +4477,7 @@ pub(crate) fn find_first_letter_in_text(
                 letter_end: cursor,
                 source_length: code_units,
                 found: true,
+                blocked_by_preserved_line_break: false,
             };
         }
         let letter_facts = code_point_facts(code_point_at(text, cursor));
@@ -4510,6 +4514,7 @@ pub(crate) fn find_first_letter_in_text(
             letter_end,
             source_length: code_units,
             found: true,
+            blocked_by_preserved_line_break: false,
         };
     }
     FirstLetterTarget::not_found()
@@ -4708,12 +4713,18 @@ fn is_marker_content(data: &NodeData) -> bool {
     data.kind.get() == NodeKind::ListItemMarkerBox || data.generated_for.get() == GENERATED_FOR_MARKER
 }
 
+enum FirstLetterSearch {
+    NotFound,
+    Blocked,
+    Found(FirstLetterTarget),
+}
+
 // https://drafts.csswg.org/css-pseudo-4/#first-letter-application
-fn find_first_letter_in_block(host: &mut TreeBuilderHost<'_>, block: LayoutNode) -> FirstLetterTarget {
+fn find_first_letter_in_block(host: &mut TreeBuilderHost<'_>, block: LayoutNode) -> FirstLetterSearch {
     // NB: This walks a block container's inline descendants looking for the first-letter text. If the block has block
     //     children instead of inline, recurses into each in-flow block child in turn.
     if node_facts::has_flag(host.data(block), NodeFlag::ChildrenAreInline) {
-        let mut result = FirstLetterTarget::not_found();
+        let mut result = FirstLetterSearch::NotFound;
         let mut is_root = true;
         host.for_each_in_inclusive_subtree(block, |host, node| {
             if is_root {
@@ -4725,16 +4736,24 @@ fn find_first_letter_in_block(host: &mut TreeBuilderHost<'_>, block: LayoutNode)
                 return TraversalDecision::SkipChildrenAndContinue;
             }
             if node_facts::kind_is_text(data.kind.get()) {
-                result = find_first_letter_in_layout_text(host, node);
-                return if result.found {
-                    TraversalDecision::Break
-                } else {
-                    TraversalDecision::Continue
-                };
+                let target = find_first_letter_in_layout_text(host, node);
+                if target.blocked_by_preserved_line_break {
+                    result = FirstLetterSearch::Blocked;
+                    return TraversalDecision::Break;
+                }
+                if target.found {
+                    result = FirstLetterSearch::Found(target);
+                    return TraversalDecision::Break;
+                }
+                return TraversalDecision::Continue;
             }
             if node_is_fragmented_inline(host, node) {
                 return TraversalDecision::Continue;
             }
+            // https://drafts.csswg.org/css-pseudo-4/#first-letter-application
+            // if it is not preceded by any other in-flow content (such as images or inline tables) on its line.
+            // NB: An atomic inline occupies the first formatted line even when it supplies no first-letter text.
+            result = FirstLetterSearch::Blocked;
             TraversalDecision::Break
         });
         return result;
@@ -4758,16 +4777,16 @@ fn find_first_letter_in_block(host: &mut TreeBuilderHost<'_>, block: LayoutNode)
         if !is_anonymous && host.has_first_letter_style(child) {
             break;
         }
-        let target = find_first_letter_in_block(host, child);
-        if target.found {
-            return target;
+        match find_first_letter_in_block(host, child) {
+            FirstLetterSearch::NotFound => {}
+            result => return result,
         }
         if !is_anonymous {
             break;
         }
         child = host.next_sibling(child);
     }
-    FirstLetterTarget::not_found()
+    FirstLetterSearch::NotFound
 }
 
 fn wrap_button_contents_if_needed(host: &mut TreeBuilderHost<'_>, layout_node: LayoutNode) {
@@ -5694,6 +5713,69 @@ mod tests {
             adjusted_table_display_for_replaced_element(false, false, false, false),
             FfiReplacedElementDisplayAdjustment::None
         );
+    }
+
+    #[test]
+    fn preserved_break_in_an_earlier_text_node_blocks_first_letter_search() {
+        use crate::css::computed_value_types::InheritedTextValues;
+        use crate::css::computed_values::{GroupPayloadRef, clone_group_payload, release_group_payload};
+        use crate::css::css_enums::white_space_collapse;
+        use crate::css::table_group_builder::group_index;
+        use crate::layout::layout_node_arena::LayoutNodeArena;
+        use crate::layout::node_data::{FfiStylePayloads, NodeFlag, NodeKind, StylePayloadsRef};
+        use crate::layout::tree_mutation::OwedHostWork;
+
+        for (prefix, collapse, blocked) in [
+            ("\n", white_space_collapse::PRESERVE, true),
+            ("  \n", white_space_collapse::PRESERVE_BREAKS, true),
+            ("\r", white_space_collapse::BREAK_SPACES, true),
+            ("  ", white_space_collapse::PRESERVE, false),
+            ("\n", white_space_collapse::COLLAPSE, false),
+        ] {
+            let mut style = FfiStylePayloads {
+                groups: std::array::from_fn(|index| GroupPayloadRef::default_payload(index).as_ptr()),
+            };
+            // SAFETY: This private clone has the inherited text group layout, and has no readers yet.
+            let text_group =
+                unsafe { clone_group_payload(group_index::INHERITED_TEXT, style.groups[group_index::INHERITED_TEXT]) };
+            unsafe { (*text_group.cast::<InheritedTextValues>()).white_space_collapse = collapse };
+            style.groups[group_index::INHERITED_TEXT] = text_group;
+            let mut arena = LayoutNodeArena::new();
+            let block = arena.allocate_for_test().slot;
+            arena.write_shape(block).set_kind(NodeKind::BlockContainer);
+            arena.set_node_flag(block, NodeFlag::ChildrenAreInline, true);
+            arena.set_node_style(block, 0, StylePayloadsRef::new(&style));
+            let first = arena.allocate_unbound();
+            let second = arena.allocate_unbound();
+            arena.stamp_generated_text_row(
+                first,
+                ak::Utf16String::from_utf16(&prefix.encode_utf16().collect::<Vec<_>>()),
+            );
+            arena.stamp_generated_text_row(
+                second,
+                ak::Utf16String::from_utf16(&"Text".encode_utf16().collect::<Vec<_>>()),
+            );
+            arena.insert_child(block, first, NodeSlotId::INVALID);
+            arena.insert_child(block, second, NodeSlotId::INVALID);
+            let work = OwedHostWork::default();
+            let mut host = super::TreeBuilderHost {
+                arena: &mut arena,
+                work: &work,
+            };
+            let result = super::find_first_letter_in_block(&mut host, block);
+            if blocked {
+                assert!(
+                    matches!(result, super::FirstLetterSearch::Blocked),
+                    "preserved break must stop the actual subtree walk"
+                );
+            } else {
+                assert!(matches!(result, super::FirstLetterSearch::Found(target) if target.text_layout_node == second));
+            }
+            arena
+                .free_subtree(block)
+                .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
+            release_group_payload(group_index::INHERITED_TEXT, text_group);
+        }
     }
 
     #[test]

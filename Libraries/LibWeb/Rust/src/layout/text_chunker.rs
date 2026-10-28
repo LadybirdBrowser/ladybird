@@ -129,9 +129,19 @@ mod unicode_test_stubs {
 
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_layout_code_point_category_facts(
-        _code_point: u32,
+        code_point: u32,
     ) -> crate::layout::tree_builder::FfiCodePointCategoryFacts {
-        unreachable!("no unit test segments text");
+        let code_point = u8::try_from(code_point).expect("unit tests only match ASCII first-letter text");
+        assert!(code_point.is_ascii_alphanumeric() || code_point.is_ascii_whitespace());
+        crate::layout::tree_builder::FfiCodePointCategoryFacts {
+            is_space_separator: code_point == b' ',
+            is_punctuation: false,
+            is_letter: code_point.is_ascii_alphabetic(),
+            is_number: code_point.is_ascii_digit(),
+            is_symbol: false,
+            is_open_punctuation: false,
+            is_dash_punctuation: false,
+        }
     }
 
     #[unsafe(no_mangle)]
