@@ -1017,7 +1017,13 @@ fn record_entered_inline_box(
     let sides = used_values::RootInputCells::capture(used);
     context.keep_entered_inline_box(node, sides, insets);
     if context.run.fragments.is_some() && context.run.fragmentainer.is_none() {
-        formatting_context::place_child(context.run, node, FfiCssPixelPoint::default(), None);
+        formatting_context::place_child(
+            context.run,
+            node,
+            formatting_context::PlacedChild::read_from_records(context.run, node),
+            FfiCssPixelPoint::default(),
+            None,
+        );
     }
     sides
 }

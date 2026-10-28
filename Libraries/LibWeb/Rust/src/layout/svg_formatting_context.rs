@@ -1880,7 +1880,14 @@ impl<'pass> SvgFormattingContext<'pass> {
         y: CssPixels,
         fragment_arrival: Option<fragment_tree::ChildFragmentArrival>,
     ) {
-        formatting_context::place_laid_out_child(&self.run, node, FfiCssPixelPoint { x, y }, None, fragment_arrival);
+        formatting_context::place_laid_out_child(
+            &self.run,
+            node,
+            formatting_context::PlacedChild::read_from_records(&self.run, node),
+            FfiCssPixelPoint { x, y },
+            None,
+            fragment_arrival,
+        );
     }
 
     /// Gives `node` a content size that is definite in both axes.

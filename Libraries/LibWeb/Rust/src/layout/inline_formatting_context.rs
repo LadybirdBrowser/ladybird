@@ -2111,7 +2111,14 @@ impl<'context> InlineFormattingContext<'context> {
             for (node, position) in atomic_inlines_after_clamp_point {
                 self.run.records.hide_for_line_clamp(node);
                 let fragment_arrival = self.take_atomic_inline_fragment_arrival(node);
-                formatting_context::place_laid_out_child(self.run, node, position, None, fragment_arrival);
+                formatting_context::place_laid_out_child(
+                    self.run,
+                    node,
+                    formatting_context::PlacedChild::read_from_records(self.run, node),
+                    position,
+                    None,
+                    fragment_arrival,
+                );
             }
         }
         if self.parent.line_clamp_reached() {
@@ -2235,7 +2242,13 @@ impl<'context> InlineFormattingContext<'context> {
                     .as_ref()
                     .is_none_or(|present| present.contains(&node))
                 {
-                    formatting_context::place_child(self.run, node, FfiCssPixelPoint::default(), None);
+                    formatting_context::place_child(
+                        self.run,
+                        node,
+                        formatting_context::PlacedChild::read_from_records(self.run, node),
+                        FfiCssPixelPoint::default(),
+                        None,
+                    );
                 }
             }
         }
@@ -2259,6 +2272,7 @@ impl<'context> InlineFormattingContext<'context> {
                 formatting_context::place_laid_out_child(
                     self.run,
                     fragment.layout_node,
+                    formatting_context::PlacedChild::read_from_records(self.run, fragment.layout_node),
                     FfiCssPixelPoint {
                         x: x + relative_insets.offset_x,
                         y: y + relative_insets.offset_y,

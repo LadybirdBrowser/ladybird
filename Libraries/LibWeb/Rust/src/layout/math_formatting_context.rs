@@ -2292,7 +2292,14 @@ impl<'pass> MathFormattingContext<'pass> {
                 y: margin_box_top + metrics.margin_box_top(collapsed),
             };
             let fragment_arrival = self.take_fragment_arrival_of_child(child.node);
-            formatting_context::place_laid_out_child(run, child.node, offset, None, fragment_arrival);
+            formatting_context::place_laid_out_child(
+                run,
+                child.node,
+                formatting_context::PlacedChild::read_from_records(run, child.node),
+                offset,
+                None,
+                fragment_arrival,
+            );
         }
         for fragment_arrival in self.fragment_arrivals_of_children.take() {
             formatting_context::leave_child_unplaced(run, Some(fragment_arrival));

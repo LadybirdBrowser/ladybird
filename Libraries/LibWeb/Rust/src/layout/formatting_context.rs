@@ -347,19 +347,52 @@ pub(crate) fn lay_out_pending_abspos_children(
     placed
 }
 
+/// What placing a child takes from its layout and from its parent: what the child's fragment shows of the box's own
+/// layout, in the frame its sizes are in, and what the parent decided about the child besides where it goes.
+#[derive(Clone)]
+pub(crate) struct PlacedChild {
+    pub(crate) geometry: fragment_tree::FragmentGeometry,
+    pub(crate) frame: geometry::Frame,
+    /// What the parent decided about the child before placing it, which placing it adds the placement to.
+    pub(crate) facts_decided_by_parent: run_records::FactsDecidedByParent,
+}
+
+impl PlacedChild {
+    // FIXME: Remove this adapter once every caller hands placement the values it holds.
+    pub(crate) fn read_from_records(run: &FormattingContextRun, node: Node) -> Self {
+        let records = run.records;
+        // NB: A run that builds no fragments reads no geometry of the boxes it places.
+        let geometry = if run.fragments.is_some() {
+            records.fragment_geometry_of(node, &run.callbacks)
+        } else {
+            fragment_tree::FragmentGeometry {
+                cells: records.box_metrics_of(node).input_cells(),
+                line_data: None,
+            }
+        };
+        Self {
+            geometry,
+            frame: run.callbacks.frame,
+            facts_decided_by_parent: records.facts_decided_by_parent_of(node),
+        }
+    }
+}
+
 pub(crate) fn place_child(
     run: &FormattingContextRun,
     node: Node,
+    placed_child: PlacedChild,
     offset: FfiCssPixelPoint,
     containing_line_box_fragment: Option<used_values::LineBoxFragmentCoordinate>,
 ) -> Option<fragment_tree::PlacedFragment> {
-    place_laid_out_child(run, node, offset, containing_line_box_fragment, None)
+    place_laid_out_child(run, node, placed_child, offset, containing_line_box_fragment, None)
 }
 
 /// Places `node`, taking in what the layout of the box handed its placement.
 pub(crate) fn place_laid_out_child(
     run: &FormattingContextRun,
     node: Node,
+    placed_child: PlacedChild,
     offset: FfiCssPixelPoint,
     containing_line_box_fragment: Option<used_values::LineBoxFragmentCoordinate>,
     fragment_arrival: Option<fragment_tree::ChildFragmentArrival>,
@@ -368,6 +401,7 @@ pub(crate) fn place_laid_out_child(
     place_child_in_containing_block(
         run,
         node,
+        placed_child,
         containing_block,
         offset,
         containing_line_box_fragment,
@@ -377,9 +411,11 @@ pub(crate) fn place_laid_out_child(
 }
 
 /// Places `node` in `containing_block`. An absolutely positioned box hands its link the inputs it was laid out with.
+#[expect(clippy::too_many_arguments)]
 pub(crate) fn place_child_in_containing_block(
     run: &FormattingContextRun,
     node: Node,
+    placed_child: PlacedChild,
     containing_block: Node,
     offset: FfiCssPixelPoint,
     containing_line_box_fragment: Option<used_values::LineBoxFragmentCoordinate>,
@@ -401,7 +437,25 @@ pub(crate) fn place_child_in_containing_block(
         return None;
     };
     fragments.note_placed_box(node, placement, cells_kept_for_contained_abspos(run, node));
-    let facts_decided_by_parent = records.facts_decided_by_parent_of(node);
+    let PlacedChild {
+        geometry,
+        frame,
+        facts_decided_by_parent,
+    } = placed_child;
+    if cfg!(debug_assertions) || run_repeatability::verification_is_enabled() {
+        assert_eq!(
+            frame, callbacks.frame,
+            "{node:?} is placed in another frame than the one its box is kept in"
+        );
+    }
+    debug_assert!(
+        facts_decided_by_parent.placement.is_none(),
+        "a child is handed to placement before it is placed"
+    );
+    let facts_decided_by_parent = run_records::FactsDecidedByParent {
+        placement: Some(placement),
+        ..facts_decided_by_parent
+    };
     debug_assert!(
         fragment_arrival
             .as_ref()
@@ -417,7 +471,7 @@ pub(crate) fn place_child_in_containing_block(
             fragment_tree::committed_fragment_showing_box(
                 callbacks,
                 node,
-                || records.fragment_geometry_of(node, callbacks),
+                || geometry.clone(),
                 facts_decided_by_parent.fragment_facts,
                 fragment,
             ),
@@ -443,7 +497,13 @@ pub(crate) fn place_child_in_containing_block(
             resolve_containing_line_box_index(callbacks, node, containing_line_box_fragment),
             point_add(
                 offset,
-                committed_offset_delta_at_placement(records, callbacks, node, containing_block),
+                committed_offset_delta_at_placement(
+                    records,
+                    callbacks,
+                    node,
+                    facts_decided_by_parent.used_insets,
+                    containing_block,
+                ),
             ),
             callbacks.frame,
         );
@@ -469,7 +529,7 @@ pub(crate) fn place_child_in_containing_block(
     }
     let node_facts = NodeFacts::new(callbacks, node);
     let own_anchor_candidate_border_box_rect = (node_facts.is_box() && node_facts.has_anchor_names()).then(|| {
-        let metrics = records.box_metrics_of(node);
+        let metrics = &geometry.cells;
         let collapsed = metrics.uses_collapsing_borders_model();
         CssPixelRect {
             x: offset.x - metrics.border_box_left(collapsed),
@@ -482,13 +542,19 @@ pub(crate) fn place_child_in_containing_block(
         callbacks,
         node,
         (!containing_block.is_invalid()).then_some(containing_block),
-        records.fragment_geometry_of(node, callbacks),
-        records.facts_decided_by_parent_of(node),
+        geometry,
+        facts_decided_by_parent,
         abspos_layout_inputs,
         resolve_containing_line_box_index(callbacks, node, containing_line_box_fragment),
         point_add(
             offset,
-            committed_offset_delta_at_placement(records, callbacks, node, containing_block),
+            committed_offset_delta_at_placement(
+                records,
+                callbacks,
+                node,
+                facts_decided_by_parent.used_insets,
+                containing_block,
+            ),
         ),
         own_anchor_candidate_border_box_rect,
     );
@@ -519,6 +585,7 @@ fn cells_kept_for_contained_abspos(run: &FormattingContextRun, node: Node) -> Op
 pub(crate) fn place_reused_child(
     run: &FormattingContextRun,
     node: Node,
+    facts_decided_by_parent: run_records::FactsDecidedByParent,
     offset: FfiCssPixelPoint,
     fragment: std::sync::Arc<fragment_tree::Fragment>,
 ) {
@@ -535,17 +602,31 @@ pub(crate) fn place_reused_child(
         .as_deref()
         .expect("a reused subtree is placed by a run that builds fragments");
     fragments.note_placed_box(node, placement, cells_kept_for_contained_abspos(run, node));
+    debug_assert!(
+        facts_decided_by_parent.placement.is_none(),
+        "a child is handed to placement before it is placed"
+    );
+    let facts_decided_by_parent = run_records::FactsDecidedByParent {
+        placement: Some(placement),
+        ..facts_decided_by_parent
+    };
     fragments.attach_committed_fragment(
         node,
         fragment,
         true,
         (!containing_block.is_invalid()).then_some(containing_block),
-        records.facts_decided_by_parent_of(node),
+        facts_decided_by_parent,
         None,
         None,
         point_add(
             offset,
-            committed_offset_delta_at_placement(records, callbacks, node, containing_block),
+            committed_offset_delta_at_placement(
+                records,
+                callbacks,
+                node,
+                facts_decided_by_parent.used_insets,
+                containing_block,
+            ),
         ),
         callbacks.frame,
     );
@@ -569,6 +650,7 @@ fn committed_offset_delta_at_placement(
     records: &RunRecords,
     callbacks: &LayoutPass<'_>,
     node: Node,
+    used_insets: run_records::UsedInsets,
     containing_block: Node,
 ) -> FfiCssPixelPoint {
     let mut delta = FfiCssPixelPoint::default();
@@ -577,7 +659,7 @@ fn committed_offset_delta_at_placement(
         return delta;
     }
     if facts.is_relatively_positioned() {
-        let insets = records.used_insets_of(node);
+        let insets = used_insets;
         delta.x += insets.left;
         delta.y += insets.top;
     }
@@ -3524,7 +3606,13 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
             let viewport_used = entry_records.create_used_values(&callbacks, root, root_constraints);
             viewport_used.set_content_inline_size(viewport_inline_size);
             viewport_used.set_content_block_size(viewport_block_size);
-            place_child(&entry_run, root, FfiCssPixelPoint::default(), None);
+            place_child(
+                &entry_run,
+                root,
+                PlacedChild::read_from_records(&entry_run, root),
+                FfiCssPixelPoint::default(),
+                None,
+            );
             first_child
         } else {
             root
@@ -3556,6 +3644,7 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
         place_laid_out_child(
             &entry_run,
             root_for_layout,
+            PlacedChild::read_from_records(&entry_run, root_for_layout),
             FfiCssPixelPoint::default(),
             None,
             fragment_arrival,

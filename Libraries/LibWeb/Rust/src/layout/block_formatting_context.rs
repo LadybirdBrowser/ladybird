@@ -764,6 +764,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         formatting_context::place_laid_out_child(
             &self.run,
             node,
+            formatting_context::PlacedChild::read_from_records(&self.run, node),
             offset,
             containing_line_box_fragment,
             fragment_arrival,
@@ -2979,6 +2980,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         formatting_context::place_reused_child(
             &self.run,
             node,
+            self.run.records.facts_decided_by_parent_of(node),
             FfiCssPixelPoint {
                 x: entry.offset_from_flow_position.x,
                 y: entry.offset_from_flow_position.y + flow_position,

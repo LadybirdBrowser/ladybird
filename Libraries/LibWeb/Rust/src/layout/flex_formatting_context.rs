@@ -3932,7 +3932,14 @@ impl<'pass> FlexFormattingContext<'pass> {
                     y: item.main_offset,
                 }
             };
-            formatting_context::place_laid_out_child(&self.run, item.box_, offset, None, fragment_arrival);
+            formatting_context::place_laid_out_child(
+                &self.run,
+                item.box_,
+                formatting_context::PlacedChild::read_from_records(&self.run, item.box_),
+                offset,
+                None,
+                fragment_arrival,
+            );
         }
         self.derived_baselines_of_root_box = DerivedBaselines {
             inline_alignment: self.flex_lines.len().checked_sub(1).and_then(|line_index| {
