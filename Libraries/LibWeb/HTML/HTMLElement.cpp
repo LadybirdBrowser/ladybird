@@ -1132,7 +1132,7 @@ void HTMLElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16St
             MUST(hide_popover(FocusPreviousElement::Yes, FireEvents::Yes, ThrowExceptions::No, IgnoreDomState::Yes, nullptr));
     }();
 
-    if (is_form_associated_element()) {
+    if (!namespace_.has_value() && is_form_associated_element()) {
         form_node_attribute_changed(name, value);
         form_associated_element_attribute_changed(name, old_value, value, namespace_);
         if (name == HTML::AttributeNames::disabled) {

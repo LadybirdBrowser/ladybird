@@ -56,6 +56,9 @@ void HTMLOptionElement::attribute_changed(Utf16FlyString const& name, Optional<U
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 
+    if (namespace_.has_value())
+        return;
+
     if (name == HTML::AttributeNames::selected) {
         if (!value.has_value()) {
             // Whenever an option element's selected attribute is removed, if its dirtiness is false, its selectedness must be set to false.
