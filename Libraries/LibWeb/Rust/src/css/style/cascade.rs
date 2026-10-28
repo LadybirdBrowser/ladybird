@@ -1073,7 +1073,7 @@ impl WinnerEffects {
         Some(1 + pseudos.len())
     }
 
-    pub(super) fn release_pending_all(self, groups: &mut WinnerGroups) {
+    pub(super) fn release_pending_all(self, groups: &mut crate::fork::ForkShared<WinnerGroups>) {
         for write in self.writes {
             if let WinnerNodeWrite::Set { state, .. } = write {
                 groups.release_pending(state);

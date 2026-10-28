@@ -4163,7 +4163,10 @@ impl RetainedState {
     }
 
     pub(crate) fn begin_style_record_view_epoch(&mut self) {
-        self.computed_group_sets.begin_style_record_view_epoch();
+        self.style_record_view_epoch_depth = self
+            .style_record_view_epoch_depth
+            .checked_add(1)
+            .expect("style-record view epoch depth overflow");
     }
 
     /// Publishes how many identities each catalog has minted. These count the sharing partition
@@ -4379,7 +4382,12 @@ impl StyleEngine {
 
     /// Reclaims the unreachable computed records, if they are due and nothing views them, and answers whether it did.
     pub(super) fn reclaim_unreachable_computed_records(&mut self) -> bool {
-        let Some(retention) = self.retained.computed_group_sets.reclaim_unreachable_if_needed() else {
+        let records_are_viewed = self.retained.style_record_view_epoch_depth != 0;
+        let Some(retention) = self
+            .retained
+            .computed_group_sets
+            .reclaim_unreachable_if_needed(records_are_viewed)
+        else {
             return false;
         };
         self.retained
@@ -5991,7 +5999,11 @@ mod tests {
 
 impl StyleEngine {
     pub(crate) fn end_style_record_view_epoch(&mut self) {
-        self.retained.computed_group_sets.end_style_record_view_epoch();
+        assert!(
+            self.retained.style_record_view_epoch_depth > 0,
+            "style-record view epoch underflow"
+        );
+        self.retained.style_record_view_epoch_depth -= 1;
         self.reclaim_unreachable_computed_records();
     }
 }
