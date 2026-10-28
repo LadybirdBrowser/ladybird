@@ -3253,17 +3253,16 @@ impl<'pass> AbsposEngine<'pass> {
         let mut placed_child = formatting_context::PlacedChild::of_laid_out_box(&laid_out_box, line_data);
         placed_child.facts_decided_by_parent.used_insets = used_insets;
         placed_child.facts_decided_by_parent.default_scroll_shift = default_scroll_shift;
-        formatting_context::place_child_in_containing_block(
+        placed_child.abspos_layout_inputs = Some(inputs);
+        formatting_context::place_child(
             run,
             node,
             placed_child,
-            inputs.containing_block,
             FfiCssPixelPoint {
                 x: used_offset.inline_offset,
                 y: used_offset.block_offset,
             },
             None,
-            Some(inputs),
             fragment_arrival,
         );
         used_offset.block_offset + metrics.content_block_size() + metrics.border_box_bottom(collapsed)

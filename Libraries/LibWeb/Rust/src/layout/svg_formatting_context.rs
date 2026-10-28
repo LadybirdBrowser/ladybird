@@ -1898,7 +1898,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         y: CssPixels,
         fragment_arrival: Option<fragment_tree::ChildFragmentArrival>,
     ) {
-        formatting_context::place_laid_out_child(
+        formatting_context::place_child(
             &self.run,
             node,
             placed_child,

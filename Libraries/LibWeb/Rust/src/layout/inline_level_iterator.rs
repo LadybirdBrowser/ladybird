@@ -1034,6 +1034,7 @@ fn record_entered_inline_box(
             formatting_context::PlacedChild::of_record(used, context.run).with_in_flow_box_insets(insets),
             FfiCssPixelPoint::default(),
             None,
+            None,
         );
     }
     sides

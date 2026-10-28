@@ -847,34 +847,6 @@ impl<'pass> BlockFormattingContext<'pass> {
         handed_over.unwrap_or_else(|| self.run.records.box_metrics_of(node).input_cells())
     }
 
-    fn place_laid_out_child(
-        &self,
-        node: Node,
-        placed_child: formatting_context::PlacedChild,
-        offset: FfiCssPixelPoint,
-        fragment_arrival: Option<fragment_tree::ChildFragmentArrival>,
-    ) {
-        self.place_laid_out_child_on_line(node, placed_child, offset, None, fragment_arrival);
-    }
-
-    fn place_laid_out_child_on_line(
-        &self,
-        node: Node,
-        placed_child: formatting_context::PlacedChild,
-        offset: FfiCssPixelPoint,
-        containing_line_box_fragment: Option<used_values::LineBoxFragmentCoordinate>,
-        fragment_arrival: Option<fragment_tree::ChildFragmentArrival>,
-    ) -> Option<fragment_tree::PlacedFragment> {
-        formatting_context::place_laid_out_child(
-            &self.run,
-            node,
-            placed_child,
-            offset,
-            containing_line_box_fragment,
-            fragment_arrival,
-        )
-    }
-
     fn register_contained_abspos_child(&self, node: Node, block_offset: CssPixels, coordinate_space_box: Node) {
         let static_position = abspos_inputs::StaticPositionRect {
             rect: geometry::LogicalRect {
@@ -2208,13 +2180,15 @@ impl<'pass> BlockFormattingContext<'pass> {
             ))
         };
 
-        self.place_laid_out_child(
+        formatting_context::place_child(
+            &self.run,
             marker,
             formatting_context::PlacedChild::of_laid_out_box(&marker_box, marker_line_data),
             FfiCssPixelPoint {
                 x: round_css_pixels(marker_inline_offset),
                 y: marker_block_offset,
             },
+            None,
             fragment_arrival,
         );
         Some(
@@ -3066,7 +3040,8 @@ impl<'pass> BlockFormattingContext<'pass> {
             );
         let mut placed = match pending_position {
             Some(position) => {
-                let placed = self.place_laid_out_child_on_line(
+                let placed = formatting_context::place_child(
+                    &self.run,
                     node,
                     placed_child,
                     position,
@@ -3261,20 +3236,23 @@ impl<'pass> BlockFormattingContext<'pass> {
             entry.depends_on_percentage_block_size,
         );
         let insets = self.compute_inset(&self.run, node, block_container);
-        formatting_context::place_reused_child(
+        formatting_context::place_child(
             &self.run,
             node,
-            used_values::RecordInFrame::new(used, self.run.callbacks.frame).cells(),
-            run_records::FactsDecidedByParent {
-                used_insets: insets.used_insets.unwrap_or_default(),
-                default_scroll_shift: insets.default_scroll_shift,
-                ..run_records::FactsDecidedByParent::default()
-            },
+            formatting_context::PlacedChild::new(fragment_tree::FragmentGeometry {
+                cells: used_values::RecordInFrame::new(used, self.run.callbacks.frame).cells(),
+                line_data: None,
+            })
+            .with_in_flow_box_insets(insets),
             FfiCssPixelPoint {
                 x: entry.offset_from_flow_position.x,
                 y: entry.offset_from_flow_position.y + flow_position,
             },
-            fragment,
+            None,
+            Some(fragment_tree::ChildFragmentArrival::CommittedFragment {
+                fragment,
+                reuses_subtree: true,
+            }),
         );
         used.seal_own_metrics();
         self.block_offset_of_current_block_container
@@ -4486,13 +4464,15 @@ impl<'pass> BlockFormattingContext<'pass> {
         let legend_fragment_arrival = self.pending_legend_fragment_arrival.take();
         let placed_legend = self.pending_legend_placed_child.take();
         if let Some(legend_flow_position) = self.pending_legend_flow_position.take() {
-            self.place_laid_out_child(
+            formatting_context::place_child(
+                &self.run,
                 legend,
                 placed_legend.expect("the rendered legend is laid out before the fieldset places it"),
                 FfiCssPixelPoint {
                     x: legend_flow_position.inline_offset,
                     y: legend_content_block_offset,
                 },
+                None,
                 legend_fragment_arrival,
             );
             if let Some(index) = index_of_legend_in_root_flow_children
@@ -4967,7 +4947,8 @@ impl<'pass> BlockFormattingContext<'pass> {
         } else {
             floating_box.percentage_basis_inline_size.unwrap_or_default() - floating_box.offset_from_edge
         };
-        self.place_laid_out_child(
+        formatting_context::place_child(
+            &self.run,
             node,
             float_handed_back_by_its_run
                 .unwrap_or_else(|| formatting_context::PlacedChild::of_record(self.used(node), &self.run))
@@ -4977,6 +4958,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 x: inline_offset,
                 y: content_block_offset,
             },
+            None,
             fragment_arrival,
         );
         (insets, laid_out_float_handed_back_by_its_run)

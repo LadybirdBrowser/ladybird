@@ -4704,7 +4704,7 @@ impl<'pass> GridFormattingContext<'pass> {
         offset: FfiCssPixelPoint,
         fragment_arrival: Option<fragment_tree::ChildFragmentArrival>,
     ) {
-        formatting_context::place_laid_out_child(&self.run, item.box_, placed_item, offset, None, fragment_arrival);
+        formatting_context::place_child(&self.run, item.box_, placed_item, offset, None, fragment_arrival);
         self.laid_out_items
             .borrow_mut()
             .get_mut(&item.box_)

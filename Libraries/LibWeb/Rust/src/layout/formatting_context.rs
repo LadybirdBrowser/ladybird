@@ -354,6 +354,9 @@ pub(crate) struct PlacedChild {
     /// The offset the relative positioning of the fragmented inline boxes a block-level child interrupts gives the
     /// child's committed fragment.
     pub(crate) offset_from_relatively_positioned_inline_ancestors: FfiCssPixelPoint,
+    /// For an absolutely positioned child, the inputs it was laid out with, which name the containing block it is
+    /// placed in.
+    pub(crate) abspos_layout_inputs: Option<abspos_inputs::AbsposLayoutInputs>,
 }
 
 impl PlacedChild {
@@ -363,6 +366,7 @@ impl PlacedChild {
             geometry,
             facts_decided_by_parent: run_records::FactsDecidedByParent::default(),
             offset_from_relatively_positioned_inline_ancestors: FfiCssPixelPoint::default(),
+            abspos_layout_inputs: None,
         }
     }
 
@@ -417,50 +421,22 @@ impl PlacedChild {
     }
 }
 
+/// Places `node` at `offset` in its containing block, taking in what the layout of the box handed its placement. An
+/// absolutely positioned child is placed in the containing block its layout inputs name, and hands its link those
+/// inputs.
 pub(crate) fn place_child(
     run: &FormattingContextRun,
     node: Node,
     placed_child: PlacedChild,
     offset: FfiCssPixelPoint,
     containing_line_box_fragment: Option<used_values::LineBoxFragmentCoordinate>,
-) -> Option<fragment_tree::PlacedFragment> {
-    place_laid_out_child(run, node, placed_child, offset, containing_line_box_fragment, None)
-}
-
-/// Places `node`, taking in what the layout of the box handed its placement.
-pub(crate) fn place_laid_out_child(
-    run: &FormattingContextRun,
-    node: Node,
-    placed_child: PlacedChild,
-    offset: FfiCssPixelPoint,
-    containing_line_box_fragment: Option<used_values::LineBoxFragmentCoordinate>,
     fragment_arrival: Option<fragment_tree::ChildFragmentArrival>,
 ) -> Option<fragment_tree::PlacedFragment> {
-    let containing_block = run.callbacks.in_flow_containing_block(node);
-    place_child_in_containing_block(
-        run,
-        node,
-        placed_child,
-        containing_block,
-        offset,
-        containing_line_box_fragment,
-        None,
-        fragment_arrival,
-    )
-}
-
-/// Places `node` in `containing_block`. An absolutely positioned box hands its link the inputs it was laid out with.
-#[expect(clippy::too_many_arguments)]
-pub(crate) fn place_child_in_containing_block(
-    run: &FormattingContextRun,
-    node: Node,
-    placed_child: PlacedChild,
-    containing_block: Node,
-    offset: FfiCssPixelPoint,
-    containing_line_box_fragment: Option<used_values::LineBoxFragmentCoordinate>,
-    abspos_layout_inputs: Option<abspos_inputs::AbsposLayoutInputs>,
-    fragment_arrival: Option<fragment_tree::ChildFragmentArrival>,
-) -> Option<fragment_tree::PlacedFragment> {
+    let abspos_layout_inputs = placed_child.abspos_layout_inputs;
+    let containing_block = abspos_layout_inputs.map_or_else(
+        || run.callbacks.in_flow_containing_block(node),
+        |inputs| inputs.containing_block,
+    );
     let records = run.records;
     let callbacks = &run.callbacks;
     let placement = run_records::BoxPlacement {
@@ -484,6 +460,7 @@ pub(crate) fn place_child_in_containing_block(
         geometry,
         facts_decided_by_parent,
         offset_from_relatively_positioned_inline_ancestors,
+        ..
     } = placed_child;
     debug_assert!(
         facts_decided_by_parent.placement.is_none(),
@@ -614,62 +591,6 @@ fn cells_kept_for_contained_abspos(
         cells: cells_in_run_frame(),
         frame: run.callbacks.frame,
     })
-}
-
-/// Places an in-flow child whose committed subtree is reused as it is, with the committed fragment it was laid out
-/// to, and the sizes and box sides `cells_in_run_frame` its layout left it with.
-pub(crate) fn place_reused_child(
-    run: &FormattingContextRun,
-    node: Node,
-    cells_in_run_frame: used_values::RootInputCells,
-    facts_decided_by_parent: run_records::FactsDecidedByParent,
-    offset: FfiCssPixelPoint,
-    fragment: std::sync::Arc<fragment_tree::Fragment>,
-) {
-    let records = run.records;
-    let callbacks = &run.callbacks;
-    let containing_block = callbacks.in_flow_containing_block(node);
-    let placement = run_records::BoxPlacement {
-        content_offset_in_containing_block: offset,
-        containing_block,
-    };
-    records.place_box(node, placement);
-    let fragments = run
-        .fragments
-        .as_deref()
-        .expect("a reused subtree is placed by a run that builds fragments");
-    fragments.note_placed_box(
-        node,
-        placement,
-        cells_kept_for_contained_abspos(run, node, || cells_in_run_frame),
-    );
-    debug_assert!(
-        facts_decided_by_parent.placement.is_none(),
-        "a child is handed to placement before it is placed"
-    );
-    let facts_decided_by_parent = run_records::FactsDecidedByParent {
-        placement: Some(placement),
-        ..facts_decided_by_parent
-    };
-    fragments.attach_committed_fragment(
-        node,
-        fragment,
-        true,
-        (!containing_block.is_invalid()).then_some(containing_block),
-        facts_decided_by_parent,
-        None,
-        None,
-        point_add(
-            offset,
-            committed_offset_delta_at_placement(
-                callbacks,
-                node,
-                facts_decided_by_parent.used_insets,
-                FfiCssPixelPoint::default(),
-            ),
-        ),
-        callbacks.frame,
-    );
 }
 
 /// The index of the line box that `node` is placed on. Both callers that place a box on a line name one that exists:
@@ -3692,6 +3613,7 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
                 PlacedChild::of_record(viewport_used, &entry_run),
                 FfiCssPixelPoint::default(),
                 None,
+                None,
             );
             first_child
         } else {
@@ -3721,7 +3643,7 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
             None,
         );
         let root_outcome = root_outcome.hand_box_back_to(&entry_run, root_for_layout);
-        place_laid_out_child(
+        place_child(
             &entry_run,
             root_for_layout,
             root_outcome.placed_child(),
