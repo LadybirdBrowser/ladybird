@@ -342,8 +342,8 @@ void WebDriverBrowserConnection::set_permission(u64 command_id, String window_ha
     else if (state != "prompt"sv)
         return invalid_argument("The state must be granted, denied, or prompt"sv);
 
-    // NB: A permission is kept for the top-level origin, whichever frame the session is in.
-    view->set_site_permission(view->url().origin(), **name, decision);
+    // NB: A permission is kept for the top-level document's origin, whichever frame the session is in.
+    view->set_site_permission(view->permission_origin(), **name, decision);
     async_command_complete(command_id, JsonValue {});
 }
 
