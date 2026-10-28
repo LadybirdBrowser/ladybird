@@ -401,7 +401,6 @@ pub(crate) fn place_child_in_containing_block(
 ) -> Option<fragment_tree::PlacedFragment> {
     let records = run.records;
     let callbacks = &run.callbacks;
-    let used = records.used_values(node);
     let placement = run_records::BoxPlacement {
         content_offset_in_containing_block: offset,
         containing_block,
@@ -430,7 +429,7 @@ pub(crate) fn place_child_in_containing_block(
             fragment_tree::committed_fragment_showing_box(
                 callbacks,
                 node,
-                used,
+                || records.fragment_geometry_of(node, callbacks),
                 facts_decided_by_parent.fragment_facts,
                 fragment,
             ),
@@ -481,19 +480,20 @@ pub(crate) fn place_child_in_containing_block(
     }
     let node_facts = NodeFacts::new(callbacks, node);
     let own_anchor_candidate_border_box_rect = (node_facts.is_box() && node_facts.has_anchor_names()).then(|| {
-        let collapsed = used.uses_collapsing_borders_model.get();
+        let metrics = records.box_metrics_of(node);
+        let collapsed = metrics.uses_collapsing_borders_model();
         CssPixelRect {
-            x: offset.x - used.border_box_left(collapsed),
-            y: offset.y - used.border_box_top(collapsed),
-            width: used.border_box_inline_size(collapsed),
-            height: used.border_box_block_size(collapsed),
+            x: offset.x - metrics.border_box_left(collapsed),
+            y: offset.y - metrics.border_box_top(collapsed),
+            width: metrics.border_box_inline_size(collapsed),
+            height: metrics.border_box_block_size(collapsed),
         }
     });
     Some(fragments.build_fragment_for_placed_box(
         callbacks,
         node,
         (!containing_block.is_invalid()).then_some(containing_block),
-        used,
+        records.fragment_geometry_of(node, callbacks),
         records.facts_decided_by_parent_of(node),
         abspos_layout_inputs,
         containing_block_is_placed_or_outside_run(records, containing_block),
@@ -3775,7 +3775,7 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
         callbacks,
         root,
         None,
-        root_used,
+        run.records.fragment_geometry_of(root, callbacks),
         facts_decided_by_parent,
         None,
         false,
