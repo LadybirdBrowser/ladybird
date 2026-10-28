@@ -1,0 +1,91 @@
+<!-- No DOCTYPE: this test must run in quirks mode. -->
+<meta charset="utf-8">
+<title>link: MIME type quirk with CORS in quirks mode</title>
+<link rel="help" href="https://html.spec.whatwg.org/#link-type-stylesheet">
+<link rel="author" title="Simon Pieters" href="mailto:zcorpan@gmail.com">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../common/get-host-info.sub.js"></script>
+<div id="log"></div>
+<script>
+assert_equals(document.compatMode, "BackCompat", "must be in quirks mode");
+
+const CSS_PY = "/html/semantics/document-metadata/the-link-element/resources/css.py";
+const SAME_ORIGIN_CSS_PY = new URL(CSS_PY, location).href;
+const CROSS_ORIGIN_CSS_PY = get_host_info().REMOTE_ORIGIN + CSS_PY;
+
+function redirectTo(origin, target, enableCors) {
+  return origin + "/common/redirect.py?" + (enableCors ? "enable-cors&" : "") +
+    "location=" + encodeURIComponent(target);
+}
+
+function loadStylesheet(href, crossOrigin) {
+  return new Promise(resolve => {
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    if (crossOrigin !== undefined) {
+      link.crossOrigin = crossOrigin;
+    }
+    link.href = href;
+    link.onload = () => resolve({ link, event: "load" });
+    link.onerror = () => resolve({ link, event: "error" });
+    document.head.appendChild(link);
+  });
+}
+
+// css.py serves "body { background:red }".
+function sheetApplied() {
+  return getComputedStyle(document.body).backgroundColor == "rgb(255, 0, 0)";
+}
+
+promise_test(async t => {
+  const { link, event } = await loadStylesheet(SAME_ORIGIN_CSS_PY + "?content_type=text/plain");
+  t.add_cleanup(() => link.remove());
+  assert_equals(event, "load", "same-origin with wrong MIME type should fire load");
+  assert_true(sheetApplied(), "styles should apply");
+}, "Same-origin stylesheet with wrong MIME type, no CORS");
+
+promise_test(async t => {
+  const { link, event } =
+    await loadStylesheet(SAME_ORIGIN_CSS_PY + "?cors&content_type=text/plain", "anonymous");
+  t.add_cleanup(() => link.remove());
+  assert_equals(event, "load", "same-origin with wrong MIME type should fire load");
+  assert_true(sheetApplied(), "styles should apply");
+}, "Same-origin stylesheet with wrong MIME type, with CORS");
+
+promise_test(async t => {
+  const { link, event } =
+    await loadStylesheet(CROSS_ORIGIN_CSS_PY + "?cors&content_type=text/css", "anonymous");
+  t.add_cleanup(() => link.remove());
+  assert_equals(event, "load", "cross-origin with text/css should fire load");
+  assert_true(sheetApplied(), "styles should apply");
+}, "Cross-origin stylesheet with text/css, with CORS");
+
+promise_test(async t => {
+  const { link, event } =
+    await loadStylesheet(CROSS_ORIGIN_CSS_PY + "?cors&content_type=text/plain", "anonymous");
+  t.add_cleanup(() => link.remove());
+  assert_equals(event, "error", "cross-origin with wrong MIME type should fire error");
+  assert_false(sheetApplied(), "styles should not apply");
+}, "Cross-origin stylesheet with wrong MIME type, with CORS");
+
+// The quirk is evaluated against the response's URL, so a redirect decides
+// whether it applies.
+promise_test(async t => {
+  const href = redirectTo(get_host_info().REMOTE_ORIGIN,
+                          SAME_ORIGIN_CSS_PY + "?cors&content_type=text/plain", true);
+  const { link, event } = await loadStylesheet(href, "anonymous");
+  t.add_cleanup(() => link.remove());
+  assert_equals(event, "load", "redirect to same-origin with wrong MIME type should fire load");
+  assert_true(sheetApplied(), "styles should apply");
+}, "Cross-origin redirect to same-origin stylesheet with wrong MIME type, with CORS");
+
+promise_test(async t => {
+  const href = redirectTo(location.origin,
+                          CROSS_ORIGIN_CSS_PY + "?cors&content_type=text/plain", false);
+  const { link, event } = await loadStylesheet(href, "anonymous");
+  t.add_cleanup(() => link.remove());
+  assert_equals(event, "error", "redirect to cross-origin with wrong MIME type should fire error");
+  assert_false(sheetApplied(), "styles should not apply");
+}, "Same-origin redirect to cross-origin stylesheet with wrong MIME type, with CORS");
+</script>
