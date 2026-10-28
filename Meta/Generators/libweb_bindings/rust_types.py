@@ -50,7 +50,14 @@ SUPPORTED_TYPE_EXTENDED_ATTRIBUTES = {
 }
 
 # The integer types, with the Rust type of their values.
-INTEGER_TYPES = {"short": "i16", "long": "i32", "unsigned long": "u32", "long long": "i64", "unsigned long long": "u64"}
+INTEGER_TYPES = {
+    "short": "i16",
+    "unsigned short": "u16",
+    "long": "i32",
+    "unsigned long": "u32",
+    "long long": "i64",
+    "unsigned long long": "u64",
+}
 
 # The floating point types, with the Rust type of their values.
 FLOATING_POINT_TYPES = {"float": "f32", "unrestricted float": "f32", "double": "f64", "unrestricted double": "f64"}
