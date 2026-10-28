@@ -2755,7 +2755,11 @@ impl<'pass> FlexFormattingContext<'pass> {
             let used = self.item_used(index);
             let collapsed = used.uses_collapsing_borders_model.get();
             let margin_box_left = used.margin_left.get() + used.border_box_left(collapsed);
-            return match used.orthogonal_flow_baselines().and_then(|baselines| baselines.first) {
+            return match used
+                .orthogonal_flow_baselines
+                .get()
+                .and_then(|baselines| baselines.first)
+            {
                 Some(baseline) => margin_box_left + baseline,
                 None => margin_box_left + used.content_inline_size.get() + used.border_box_right(collapsed),
             };

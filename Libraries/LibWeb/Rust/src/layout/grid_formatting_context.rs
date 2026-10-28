@@ -4479,7 +4479,11 @@ impl<'pass> GridFormattingContext<'pass> {
         let baseline = self
             .sizing()
             .establishes_orthogonal_flow(item.box_)
-            .then(|| used.orthogonal_flow_baselines().and_then(|baselines| baselines.first))
+            .then(|| {
+                used.orthogonal_flow_baselines
+                    .get()
+                    .and_then(|baselines| baselines.first)
+            })
             .flatten();
         match baseline {
             Some(baseline) => margin_box_left + baseline,

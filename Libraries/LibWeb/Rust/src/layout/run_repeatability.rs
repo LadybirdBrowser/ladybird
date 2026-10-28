@@ -308,7 +308,6 @@ fn rare_payloads_match(
         math_paint_data,
         used_grid_tracks,
         collapsed_table_borders,
-        orthogonal_flow_baselines,
     } = left;
     computed_svg_path.as_deref() == right.computed_svg_path.as_deref()
         && svg_text_character_cells.as_deref() == right.svg_text_character_cells.as_deref()
@@ -319,7 +318,6 @@ fn rare_payloads_match(
         && math_paint_data.as_deref() == right.math_paint_data.as_deref()
         && used_grid_tracks.as_deref() == right.used_grid_tracks.as_deref()
         && collapsed_table_borders.as_deref() == right.collapsed_table_borders.as_deref()
-        && *orthogonal_flow_baselines == right.orthogonal_flow_baselines
 }
 
 fn collect_nodes_of_fragment_subtrees(links: &[fragment_tree::FragmentLink], nodes: &mut HashSet<u32>) {

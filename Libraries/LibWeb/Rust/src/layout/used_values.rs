@@ -246,9 +246,6 @@ pub(crate) struct UsedValuesRareData {
     pub(crate) math_paint_data: Option<std::sync::Arc<math_formatting_context::MathPaintData>>,
     pub(crate) used_grid_tracks: Option<std::sync::Arc<grid_formatting_context::OwnedUsedGridTracks>>,
     pub(crate) collapsed_table_borders: Option<std::sync::Arc<table_formatting_context::OwnedCollapsedTableBorders>>,
-    /// For a box that establishes an orthogonal flow, its baselines as distances along the horizontal axis of the frame
-    /// it is laid out in, from the left edge of its content box.
-    pub(crate) orthogonal_flow_baselines: Option<DerivedBaselines>,
 }
 
 impl UsedValuesRareData {
@@ -263,7 +260,6 @@ impl UsedValuesRareData {
             math_paint_data,
             used_grid_tracks,
             collapsed_table_borders,
-            orthogonal_flow_baselines,
         } = self;
         if computed_svg_path.is_none()
             && svg_text_character_cells.is_none()
@@ -274,7 +270,6 @@ impl UsedValuesRareData {
             && math_paint_data.is_none()
             && used_grid_tracks.is_none()
             && collapsed_table_borders.is_none()
-            && orthogonal_flow_baselines.is_none()
         {
             return;
         }
@@ -303,9 +298,6 @@ impl UsedValuesRareData {
         }
         if let Some(borders) = collapsed_table_borders {
             rare.collapsed_table_borders = Some(borders);
-        }
-        if let Some(baselines) = orthogonal_flow_baselines {
-            rare.orthogonal_flow_baselines = Some(baselines);
         }
     }
 }
@@ -352,6 +344,9 @@ pub(crate) struct UsedValues {
     pub has_last_baseline: Cell<bool>,
     pub last_baseline: Cell<CssPixels>,
     pub inline_alignment_baseline: Cell<Option<CssPixels>>,
+    /// For a box that establishes an orthogonal flow, its baselines as distances along the horizontal axis of the frame
+    /// it is laid out in, from the left edge of its content box.
+    pub orthogonal_flow_baselines: Cell<Option<DerivedBaselines>>,
 
     pub(crate) line_data: RefCell<LineDataState>,
     pub(crate) rare_data: LazyRefCell<UsedValuesRareData>,
@@ -390,6 +385,7 @@ impl Default for UsedValues {
             has_last_baseline: Cell::new(false),
             last_baseline: Cell::new(zero),
             inline_alignment_baseline: Cell::new(None),
+            orthogonal_flow_baselines: Cell::new(None),
             line_data: RefCell::new(LineDataState::Empty),
             rare_data: LazyRefCell::new(),
             anchor_resolved_values: std::cell::OnceCell::new(),
@@ -399,10 +395,6 @@ impl Default for UsedValues {
 }
 
 impl UsedValues {
-    pub(crate) fn orthogonal_flow_baselines(&self) -> Option<DerivedBaselines> {
-        self.rare_data.get()?.borrow().orthogonal_flow_baselines
-    }
-
     /// Resolves the left and right margins, borders and padding of `style`, with percentages against `basis`.
     pub(crate) fn resolve_horizontal_box_model(&self, style: &StyleValues<'_>, basis: CssPixels) {
         self.margin_left.set(style.margin_left().to_px(basis));
@@ -599,6 +591,7 @@ used_values_cells! {
         has_last_baseline: bool,
         last_baseline: CssPixels,
         inline_alignment_baseline: Option<CssPixels>,
+        orthogonal_flow_baselines: Option<DerivedBaselines>,
     }
 }
 
