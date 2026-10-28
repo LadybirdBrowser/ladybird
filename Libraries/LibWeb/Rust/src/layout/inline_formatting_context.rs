@@ -1304,9 +1304,7 @@ impl<'context> InlineFormattingContext<'context> {
     /// Starts holding `node`, an atomic inline-level box, which a run of its own lays out in the formatting context it
     /// establishes. Returns the cells the box starts out with.
     pub(crate) fn hold_atomic_inline(&self, node: Node) -> used_values::RootInputCells {
-        self.run
-            .records
-            .keep_child_for_its_run(&self.callbacks, node, self.input.containing_block_constraints)
+        used_values::cells_before_sizing(&self.callbacks, node, self.input.containing_block_constraints)
     }
 
     pub(crate) fn parent_node(&self, node: Node) -> Node {
@@ -2041,7 +2039,7 @@ impl<'context> InlineFormattingContext<'context> {
                     ))
                     .is_some()
                     {
-                        cells_of_float_ahead_of_its_run = Cell::new(self.run.records.keep_child_for_its_run(
+                        cells_of_float_ahead_of_its_run = Cell::new(used_values::cells_before_sizing(
                             &self.callbacks,
                             item.node,
                             constraints,
@@ -2053,7 +2051,6 @@ impl<'context> InlineFormattingContext<'context> {
                     } else {
                         record_of_float_without_formatting_context_of_its_own =
                             used_values::create_used_values(&self.callbacks, item.node, constraints);
-                        self.run.records.keep_box_laid_out_in_record_its_layout_owns(item.node);
                         block_formatting_context::ChildSizedHere::laid_out_in(
                             item.node,
                             &record_of_float_without_formatting_context_of_its_own,

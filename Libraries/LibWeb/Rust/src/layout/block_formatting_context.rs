@@ -2088,9 +2088,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 .then(|| list_item_used.content_block_size.get()),
             ..ContainingBlockConstraints::default()
         };
-        self.run
-            .records
-            .keep_child_for_its_run(&self.run.callbacks, marker, marker_constraints)
+        used_values::cells_before_sizing(&self.run.callbacks, marker, marker_constraints)
     }
 
     /// Lays out and places the outside marker of `list_item`, and returns the block end of the marker's border box in
@@ -2358,7 +2356,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let cells_of_child_ahead_of_its_run;
         let record_of_box_without_formatting_context_of_its_own;
         let sized_child = if formatting_context::formatting_context_type_created_by_box(facts).is_some() {
-            cells_of_child_ahead_of_its_run = Cell::new(self.run.records.keep_child_for_its_run(
+            cells_of_child_ahead_of_its_run = Cell::new(used_values::cells_before_sizing(
                 &self.run.callbacks,
                 node,
                 input.containing_block_constraints,
@@ -2367,7 +2365,6 @@ impl<'pass> BlockFormattingContext<'pass> {
         } else {
             record_of_box_without_formatting_context_of_its_own =
                 used_values::create_used_values(&self.run.callbacks, node, input.containing_block_constraints);
-            self.run.records.keep_box_laid_out_in_record_its_layout_owns(node);
             ChildSizedHere::laid_out_in(node, &record_of_box_without_formatting_context_of_its_own)
         };
         let _percentage_block_size_dependency_tracking = self

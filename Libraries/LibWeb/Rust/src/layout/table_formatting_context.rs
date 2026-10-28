@@ -1515,9 +1515,6 @@ impl<'pass> TableFormattingContext<'pass> {
         let participant_box = |participant| {
             let record =
                 used_values::create_used_values(&self.run.callbacks, participant, self.participant_constraints);
-            self.run
-                .records
-                .keep_box_laid_out_in_record_its_layout_owns(participant);
             TableParticipantBox {
                 record,
                 content_offset: Cell::new(FfiCssPixelPoint::default()),
@@ -1543,11 +1540,8 @@ impl<'pass> TableFormattingContext<'pass> {
             .cells
             .iter()
             .map(|cell| {
-                let cells = self.run.records.keep_child_for_its_run(
-                    &self.run.callbacks,
-                    cell.box_,
-                    self.participant_constraints,
-                );
+                let cells =
+                    used_values::cells_before_sizing(&self.run.callbacks, cell.box_, self.participant_constraints);
                 note_percentage_block_size_dependency_of(cell.box_);
                 cells
             })
@@ -3269,7 +3263,6 @@ impl<'pass> TableFormattingContext<'pass> {
                 };
                 self.placed_cells[cell_index] = Some(formatting_context::PlacedChild::of_laid_out_box(&laid_out));
                 self.content_baselines_of_handed_back_cells[cell_index] = Some(laid_out.baselines);
-                run.records.note_child_handed_back(cell.box_);
                 formatting_context::propagate_percentage_block_size_dependency_to_containing_block(
                     run.records,
                     &run.callbacks,

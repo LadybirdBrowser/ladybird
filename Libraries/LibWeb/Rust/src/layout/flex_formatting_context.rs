@@ -291,9 +291,7 @@ impl<'pass> FlexFormattingContext<'pass> {
 
     fn keep_item_for_its_run(&self, node: Node) -> used_values::RootInputCells {
         let constraints = self.item_percentage_bases;
-        self.run
-            .records
-            .keep_child_for_its_run(&self.run.callbacks, node, constraints)
+        used_values::cells_before_sizing(&self.run.callbacks, node, constraints)
     }
 
     /// The constraints the children of the container are laid out with, where the container is laid out with the

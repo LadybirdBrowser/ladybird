@@ -1969,13 +1969,6 @@ pub(crate) struct ChildRunOutcome {
 }
 
 impl ChildRunOutcome {
-    /// Hands the laid out box back to the formatting context of `run`, the run that holds `child`, which keeps what it
-    /// reads of the box.
-    pub(crate) fn hand_box_back_to(self, run: &FormattingContextRun, child: Node) -> Self {
-        run.records.note_child_handed_back(child);
-        self
-    }
-
     /// What placing the child takes of the box its run handed back.
     pub(crate) fn placed_child(&self) -> PlacedChild {
         PlacedChild::of_laid_out_box(&self.laid_out_box)
@@ -2869,9 +2862,6 @@ pub(crate) fn layout_inside_child_with_input_cells(
             });
         store_derived_baselines(used, DerivedBaselines::default());
         let laid_out_box = run_records::LaidOutChildBox::sized_in_parent_run(used);
-        if record_kept_by_parent.is_none() {
-            run.records.note_child_handed_back(child);
-        }
         return ChildLayout {
             outcome: skipped(None),
             fragment_arrival,
@@ -2890,7 +2880,6 @@ pub(crate) fn layout_inside_child_with_input_cells(
             Some(used) => used,
             None => {
                 record_of_this_layout = child_input_cells.materialize_record(run.callbacks.frame);
-                run.records.note_child_handed_back(child);
                 &record_of_this_layout
             }
         };
@@ -2936,7 +2925,7 @@ pub(crate) fn layout_inside_child_with_input_cells(
         result,
         laid_out_box,
         fragment_arrival,
-    } = child_run_outcome.hand_box_back_to(run, child);
+    } = child_run_outcome;
     ChildLayout {
         outcome: ChildLayoutOutcome::Created(result),
         fragment_arrival,
@@ -3516,13 +3505,16 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
 
         let first_child = callbacks.first_child(root);
         let root_for_layout = if !first_child.is_invalid() && NodeFacts::new(&callbacks, first_child).is_svg_svg_box() {
-            let viewport_used = entry_records.create_used_values(&callbacks, root, root_constraints);
-            viewport_used.set_content_inline_size(viewport_inline_size);
-            viewport_used.set_content_block_size(viewport_block_size);
+            let mut viewport_cells = used_values::cells_before_sizing(&callbacks, root, root_constraints);
+            viewport_cells.set_content_inline_size(viewport_inline_size);
+            viewport_cells.set_content_block_size(viewport_block_size);
             place_child(
                 &entry_run,
                 root,
-                PlacedChild::of_record(viewport_used, &entry_run),
+                PlacedChild::new(fragment_tree::FragmentGeometry {
+                    cells: viewport_cells,
+                    line_data: None,
+                }),
                 FfiCssPixelPoint::default(),
                 None,
                 None,
@@ -3531,7 +3523,7 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
         } else {
             root
         };
-        let root_cells = entry_records.keep_child_for_its_run(&callbacks, root_for_layout, root_constraints);
+        let root_cells = used_values::cells_before_sizing(&callbacks, root_for_layout, root_constraints);
         let input = LayoutInput::new(
             AvailableSpace {
                 inline_size: AvailableSize::definite(viewport_inline_size),
@@ -3554,7 +3546,6 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
             input,
             None,
         );
-        let root_outcome = root_outcome.hand_box_back_to(&entry_run, root_for_layout);
         place_child(
             &entry_run,
             root_for_layout,
@@ -3676,7 +3667,6 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
     let committed_root = used_values::committed_box_from_fragment_link(callbacks, root)
         .expect("partial relayout root must have committed geometry");
     let root_cells = committed_root.cells;
-    run.records.hold_child_for_its_run(root);
     let fragments = run.fragments.as_deref().expect("partial relayout must build fragments");
     let mut input = LayoutInput::new(
         AvailableSpace {
@@ -3710,7 +3700,7 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
         laid_out_box: root_box,
         fragment_arrival,
         ..
-    } = root_outcome.hand_box_back_to(run, root);
+    } = root_outcome;
     let root_geometry = fragment_tree::FragmentGeometry {
         cells: root_box.cells,
         line_data: root_box.line_data,
