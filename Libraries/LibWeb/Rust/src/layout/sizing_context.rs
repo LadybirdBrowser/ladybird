@@ -400,6 +400,12 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         self.facts(node).auto_content_size()
     }
 
+    fn default_replaced_size(&self, axis: SizingAxis) -> CssPixels {
+        // NB: The 300px by 150px default object size is physical, while sizing uses the current frame's axes.
+        let physical_width = matches!(axis, SizingAxis::Inline) != self.callbacks.frame.is_transposed();
+        CssPixels::from_integer(if physical_width { 300 } else { 150 })
+    }
+
     fn intrinsic_size_for_replaced_sizing(&self, node: Node) -> formatting_context::ReplacedIntrinsicSize {
         let auto_size = self.auto_content_size(node);
         if auto_size.width.is_some() || auto_size.height.is_some() || auto_size.aspect_ratio.is_some() {
@@ -554,7 +560,11 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             return Some(min_size.to_px(CssPixels::default()));
         }
         // Otherwise, use 300px for the width and/or 150px for the height as needed.
-        Some(CssPixels::from_integer(if is_inline_axis { 300 } else { 150 }))
+        Some(self.default_replaced_size(if is_inline_axis {
+            SizingAxis::Inline
+        } else {
+            SizingAxis::Block
+        }))
     }
 
     fn tentative_inline_size_for_replaced_element(
@@ -684,7 +694,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             if let Some(width) = intrinsic.width {
                 return width;
             }
-            return CssPixels::from_integer(300);
+            return self.default_replaced_size(SizingAxis::Inline);
         }
         used_inline_size
     }
@@ -757,7 +767,9 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         // then the used value of 'height' must be set to the height of the largest rectangle that has a 2:1 ratio, has a height not greater than 150px,
         // and has a width not greater than the device width.
         if computed_block_size.is_auto() {
-            return intrinsic.height.unwrap_or_else(|| CssPixels::from_integer(150));
+            return intrinsic
+                .height
+                .unwrap_or_else(|| self.default_replaced_size(SizingAxis::Block));
         }
         // FIXME: Handle cases when available_space is not definite.
         self.calculate_inner_block_size(sized, available_space, computed_block_size, constraints)
@@ -4182,7 +4194,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
                 _ if facts.has_preferred_aspect_ratio() => {
                     Some(self.content_block_size_from_aspect_ratio(sized, sized.metrics().content_inline_size()))
                 }
-                height => Some(height.unwrap_or_else(|| CssPixels::from_integer(150))),
+                height => Some(height.unwrap_or_else(|| self.default_replaced_size(SizingAxis::Block))),
             }
         } else if preferred_size.is_fit_content() {
             Some(self.calculate_fit_content_size(sized, SizingAxis::Block, available_space, constraints))
