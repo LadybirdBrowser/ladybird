@@ -3544,18 +3544,18 @@ impl<'pass> GridFormattingContext<'pass> {
     }
 
     fn item_margin_box_start(&self, item: GridItem, axis: Axis) -> CssPixels {
-        let used = self.used(item);
+        let metrics = self.run.records.box_metrics_of(item.box_);
         axis.select(
-            used.margin_left.get() + used.border_left.get() + used.padding_left.get() + item.extra_margin_left,
-            used.margin_top.get() + used.border_top.get() + used.padding_top.get() + item.extra_margin_top,
+            metrics.margin_left() + metrics.border_left() + metrics.padding_left() + item.extra_margin_left,
+            metrics.margin_top() + metrics.border_top() + metrics.padding_top() + item.extra_margin_top,
         )
     }
 
     fn item_margin_box_end(&self, item: GridItem, axis: Axis) -> CssPixels {
-        let used = self.used(item);
+        let metrics = self.run.records.box_metrics_of(item.box_);
         axis.select(
-            used.padding_right.get() + used.border_right.get() + used.margin_right.get() + item.extra_margin_right,
-            used.padding_bottom.get() + used.border_bottom.get() + used.margin_bottom.get() + item.extra_margin_bottom,
+            metrics.padding_right() + metrics.border_right() + metrics.margin_right() + item.extra_margin_right,
+            metrics.padding_bottom() + metrics.border_bottom() + metrics.margin_bottom() + item.extra_margin_bottom,
         )
     }
 
@@ -4476,42 +4476,42 @@ impl<'pass> GridFormattingContext<'pass> {
     /// The distance from the start of the item's grid area to its alignment baseline in the Column axis, as the item is
     /// laid out at the start of its area.
     fn item_column_baseline(&self, item: GridItem) -> CssPixels {
-        let used = self.used(item);
-        let collapsed = used.uses_collapsing_borders_model.get();
-        let margin_box_left = used.margin_left.get() + used.border_box_left(collapsed);
+        let metrics = self.run.records.box_metrics_of(item.box_);
+        let collapsed = metrics.uses_collapsing_borders_model();
+        let margin_box_left = metrics.margin_left() + metrics.border_box_left(collapsed);
         let baseline = self
             .sizing()
             .establishes_orthogonal_flow(item.box_)
             .then(|| {
-                used.orthogonal_flow_baselines
-                    .get()
+                metrics
+                    .orthogonal_flow_baselines()
                     .and_then(|baselines| baselines.first)
             })
             .flatten();
         match baseline {
             Some(baseline) => margin_box_left + baseline,
             // https://drafts.csswg.org/css-align-3/#synthesize-baseline
-            None => margin_box_left + used.content_inline_size.get() + used.border_box_right(collapsed),
+            None => margin_box_left + metrics.content_inline_size() + metrics.border_box_right(collapsed),
         }
     }
 
     /// The distance from the start of the item's grid area to its alignment baseline, as the item is laid out at the
     /// start of its area.
     fn item_row_baseline(&self, item: GridItem) -> CssPixels {
-        let used = self.used(item);
-        let collapsed = used.uses_collapsing_borders_model.get();
+        let metrics = self.run.records.box_metrics_of(item.box_);
+        let collapsed = metrics.uses_collapsing_borders_model();
         let distance_from_margin_box_top =
-            if !self.sizing().establishes_orthogonal_flow(item.box_) && used.has_first_baseline.get() {
+            if !self.sizing().establishes_orthogonal_flow(item.box_) && metrics.content_baselines().first.is_some() {
                 formatting_context::box_baseline(
                     &self.run.callbacks,
                     item.box_,
-                    used,
+                    &metrics,
                     formatting_context::BaselineSet::First,
                 )
             } else {
                 // https://drafts.csswg.org/css-align-3/#synthesize-baseline
                 // NB: The alphabetic baseline is synthesized from the line-under edge of the border box.
-                used.margin_box_top(collapsed) + used.content_block_size.get() + used.border_box_bottom(collapsed)
+                metrics.margin_box_top(collapsed) + metrics.content_block_size() + metrics.border_box_bottom(collapsed)
             };
         item.extra_margin_top + distance_from_margin_box_top
     }
