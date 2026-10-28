@@ -972,8 +972,7 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
             self.size_item_by_outer_inline_contributions(&mut item);
         } else {
             if self.box_model_node_stack.last().copied() != Some(node) {
-                self.context()
-                    .create_used_values(node, self.context().input.containing_block_constraints);
+                self.context().hold_atomic_inline(node);
             }
             item.content_baselines = self.context_mut().dimension_box_on_line(node);
             let atomic_inline = self.context().box_metrics(node);

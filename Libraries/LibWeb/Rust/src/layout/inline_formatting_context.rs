@@ -1175,6 +1175,19 @@ impl<'context> InlineFormattingContext<'context> {
         self.run.records.create_used_values(&self.callbacks, node, constraints)
     }
 
+    /// Starts holding `node`, an atomic inline-level box: kept for its run where it has a formatting context of its
+    /// own, or with a record where this context lays it out itself.
+    pub(crate) fn hold_atomic_inline(&self, node: Node) {
+        let constraints = self.input.containing_block_constraints;
+        if formatting_context::formatting_context_type_created_by_box(self.facts(node)).is_some() {
+            self.run
+                .records
+                .keep_child_for_its_run(&self.callbacks, node, constraints);
+        } else {
+            self.create_used_values(node, constraints);
+        }
+    }
+
     pub(crate) fn parent_node(&self, node: Node) -> Node {
         self.callbacks.parent(node)
     }
@@ -1798,7 +1811,7 @@ impl<'context> InlineFormattingContext<'context> {
                 inline_level_iterator::ItemType::Element => {
                     line_builder.prepare_to_append_inline_content();
                     if shares_items && !self.run.records.holds_box(item.node) {
-                        self.create_used_values(item.node, self.input.containing_block_constraints);
+                        self.hold_atomic_inline(item.node);
                         self.dimension_box_on_line(item.node);
                     }
                     self.compute_inset(item.node);
