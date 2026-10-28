@@ -3117,7 +3117,7 @@ impl<'pass> FlexFormattingContext<'pass> {
                 self.run(run, input);
                 run.records.box_metrics_of(node).content_baselines()
             }
-            ChildLayoutOutcome::Skipped { .. } => run.records.box_metrics_of(node).content_baselines(),
+            ChildLayoutOutcome::Skipped { .. } => laid_out_box.expect("a skipped item leaves its box").baselines,
         };
         let placed_item = match laid_out_box {
             Some(laid_out_box) => {

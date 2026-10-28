@@ -2089,6 +2089,19 @@ fn size_skipped_root_in_parent_scope(
     }
 }
 
+/// Whether size_skipped_independent_root() sizes a child that participates in its parent's formatting context as
+/// `participation`, which it does in the record its parent holds for the child.
+fn parent_sizes_skipped_root_in_its_record(participation: &ParticipationInParentFormattingContext) -> bool {
+    match participation {
+        ParticipationInParentFormattingContext::BlockLevel
+        | ParticipationInParentFormattingContext::Float { .. }
+        | ParticipationInParentFormattingContext::AbsolutelyPositioned(_) => true,
+        ParticipationInParentFormattingContext::AtomicInline
+        | ParticipationInParentFormattingContext::Item
+        | ParticipationInParentFormattingContext::Root => false,
+    }
+}
+
 fn size_skipped_independent_root(
     run: &FormattingContextRun,
     parent_block: Option<&block_formatting_context::BlockFormattingContext>,
@@ -3025,7 +3038,16 @@ pub(crate) fn layout_inside_child_with_input_cells(
     {
         // OPTIMIZATION: An empty atomic block has no formatting-context body output. Size it in the
         // parent run, which will also construct its fragment when placing the box.
-        let used = record_for_this_run();
+        // NB: A child kept without a record is sized in a record of this layout's own, and handed back like a child
+        //     its own run laid out.
+        let record_of_this_layout;
+        let used = match record_kept_by_parent {
+            Some(used) => used,
+            None => {
+                record_of_this_layout = child_input_cells.materialize_record(run.callbacks.frame);
+                &record_of_this_layout
+            }
+        };
         let committed_fragment = run.sizing().dimension_empty_atomic_root(
             sizing_context::SizedRecord::new(child, used_values::RecordInFrame::new(used, run.callbacks.frame)),
             input.available_space,
@@ -3046,10 +3068,14 @@ pub(crate) fn layout_inside_child_with_input_cells(
                 reuses_subtree: false,
             });
         store_derived_baselines(used, DerivedBaselines::default());
+        let laid_out_box = run_records::LaidOutChildBox::sized_in_parent_run(used);
+        if record_kept_by_parent.is_none() {
+            run.records.note_child_handed_back(child);
+        }
         return ChildLayout {
             outcome: skipped(),
             fragment_arrival,
-            laid_out_box: Some(run_records::LaidOutChildBox::sized_in_parent_run(used)),
+            laid_out_box: Some(laid_out_box),
             line_data: None,
         };
     }
@@ -3058,6 +3084,13 @@ pub(crate) fn layout_inside_child_with_input_cells(
         Some(FormattingContextType::InternalReplaced | FormattingContextType::ReplacedWithChildren)
     );
     if !facts.can_have_children() && !creates_replaced_context {
+        if record_kept_by_parent.is_none() && !parent_sizes_skipped_root_in_its_record(&input.participation) {
+            // NB: A child kept without a record that nothing sizes further keeps the cells it was handed, in a record
+            //     of this layout's own, and is handed back like a child its own run laid out.
+            let record_of_this_layout = child_input_cells.materialize_record(run.callbacks.frame);
+            run.records.note_child_handed_back(child);
+            return ChildLayout::of_child_sized_in_parent_run(skipped(), &record_of_this_layout);
+        }
         let used = record_for_this_run();
         size_skipped_independent_root(run, parent_block, child, &input);
         return ChildLayout::of_child_sized_in_parent_run(skipped(), used);

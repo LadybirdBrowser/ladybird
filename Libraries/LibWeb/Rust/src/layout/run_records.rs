@@ -823,7 +823,7 @@ impl<'arena> RunRecords<'arena> {
     #[track_caller]
     fn panic_for_child_read_after_its_run_handed_it_back(&self, node: Node) -> ! {
         panic!(
-            "the run rooted at slot {} reads slot {}, which its parent keeps once its run handed it back (read at {})",
+            "the run rooted at slot {} reads slot {}, which its parent keeps once its layout handed it back (read at {})",
             self.root.slot_index(),
             node.slot_index(),
             std::panic::Location::caller(),
