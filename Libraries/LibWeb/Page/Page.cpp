@@ -1559,6 +1559,11 @@ void Page::cancel_geolocation_position_request(u64 request_id)
 
     client().page_did_cancel_geolocation_position_request(request_id);
     m_active_geolocation_request_id = {};
+    start_next_geolocation_position_request();
+}
+
+void Page::start_next_geolocation_position_request()
+{
     for (auto const& entry : m_pending_geolocation_requests) {
         if (entry.value.type == GeolocationRequestType::OneShot) {
             m_active_geolocation_request_id = entry.key;
@@ -1588,10 +1593,18 @@ void Page::receive_geolocation_position(u64 request_id, GeolocationPositionResul
 
     m_active_geolocation_request_id = {};
 
+    // A position, or a failure to get one, is the same answer for every document on the page, so the queued requests
+    // complete with it too. A denial is the answer for the requesting document alone, so the others stay queued, and
+    // the next of them is sent.
+    auto denied = result.has<Geolocation::GeolocationPositionError::ErrorCode>()
+        && result.get<Geolocation::GeolocationPositionError::ErrorCode>() == Geolocation::GeolocationPositionError::ErrorCode::PermissionDenied;
+
     GC::RootVector<GeolocationPositionCallback> callbacks;
     Vector<u64> completed_request_ids;
     for (auto const& entry : m_pending_geolocation_requests) {
         if (entry.value.type != GeolocationRequestType::OneShot)
+            continue;
+        if (denied && entry.value.requesting_document_id != request->requesting_document_id)
             continue;
         callbacks.append(entry.value.callback);
         completed_request_ids.append(entry.key);
@@ -1599,6 +1612,9 @@ void Page::receive_geolocation_position(u64 request_id, GeolocationPositionResul
 
     for (auto completed_request_id : completed_request_ids)
         m_pending_geolocation_requests.remove(completed_request_id);
+
+    if (denied)
+        start_next_geolocation_position_request();
 
     for (auto const& callback : callbacks)
         callback->function()(result);
