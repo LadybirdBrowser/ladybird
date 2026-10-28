@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face {
+        font-family: Mplus;
+        src: url("../wpt-import/fonts/mplus-1p-regular.woff");
+    }
+    .fixture, .reference, .measure, #generated {
+        font: 30px/1 Mplus;
+    }
+    .fixture, .reference {
+        width: 185px;
+    }
+    .fixture, #generated {
+        line-break: loose;
+    }
+    #generated {
+        display: inline-block;
+        width: min-content;
+    }
+    #generated::before {
+        content: "文・";
+    }
+    .measure {
+        display: inline-block;
+        white-space: nowrap;
+    }
+</style>
+<div id="scope" lang="ja">
+    <div id="fixture" class="fixture">文文文文文文・字<span id="tail">字</span></div>
+    <span id="generated"></span>
+</div>
+<div class="reference">文文文文文文<br>・字<span id="allowed">字</span></div>
+<div class="reference">文文文文文<br>文・字<span id="forbidden">字</span></div>
+<span id="one" class="measure">文</span><span id="two" class="measure">文・</span>
+<script>
+    promiseTest(async () => {
+        await document.fonts.load("30px Mplus");
+        const offset = node => node.getBoundingClientRect().left - node.parentElement.getBoundingClientRect().left;
+        const close = (a, b) => Math.abs(a - b) < 0.01;
+        const allowedOffset = offset(document.getElementById("allowed"));
+        const forbiddenOffset = offset(document.getElementById("forbidden"));
+        const oneWidth = document.getElementById("one").getBoundingClientRect().width;
+        const twoWidth = document.getElementById("two").getBoundingClientRect().width;
+        const scope = document.getElementById("scope");
+        for (const language of ["ja", "de", "zh", "ja-JP", "en", "zh-Hant"]) {
+            scope.lang = language;
+            const cjk = language.startsWith("ja") || language.startsWith("zh");
+            const textMatches = close(offset(document.getElementById("tail")), cjk ? allowedOffset : forbiddenOffset);
+            const generatedMatches = close(document.getElementById("generated").getBoundingClientRect().width, cjk ? oneWidth : twoWidth);
+            println(`${language}: text ${textMatches}, generated intrinsic size ${generatedMatches}`);
+        }
+    });
+</script>
