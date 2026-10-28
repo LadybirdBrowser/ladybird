@@ -4818,6 +4818,45 @@ pub(crate) fn automatic_block_size_for_bfc_root(
     bottom.unwrap_or_default().max(CssPixels::default())
 }
 
+/// The automatic block size a block formatting context gives a box with a formatting context of its own ahead of the
+/// box's run, while none of the box's contents are laid out.
+pub(crate) fn automatic_block_size_of_independent_root_ahead_of_its_contents(
+    records: &RunRecords<'_>,
+    callbacks: LayoutPass<'_>,
+    node: Node,
+    available_space: AvailableSpace,
+    constraints: ContainingBlockConstraints,
+) -> CssPixels {
+    let facts = NodeFacts::new(&callbacks, node);
+    let style = StyleValues::for_node(&callbacks, node);
+    let display = style.display();
+    let automatic_content_block_size = if facts.node_has_size_containment() {
+        if style.contain_intrinsic_height_has_length() {
+            CssPixels::nearest_value_for(style.contain_intrinsic_height_px())
+        } else {
+            CssPixels::default()
+        }
+    } else if facts.creates_block_formatting_context()
+        || display.is_flex_inside()
+        || display.is_grid_inside()
+        || display.is_table_inside()
+    {
+        formatting_context::independent_root_automatic_block_size(
+            records,
+            &callbacks,
+            node,
+            available_space,
+            constraints,
+            None,
+        )
+    } else if facts.is_editing_host() {
+        style.line_height()
+    } else {
+        CssPixels::default()
+    };
+    floor_list_item_automatic_block_size_by_marker_line_height(callbacks, node, automatic_content_block_size)
+}
+
 pub(crate) fn floor_list_item_automatic_block_size_by_marker_line_height(
     callbacks: LayoutPass<'_>,
     node: Node,
