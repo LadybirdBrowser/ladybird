@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#trig-funcs">
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#angles">
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#calc-type-checking">
+<link rel="author" title="Apple Inc">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../support/parsing-testcommon.js"></script>
+<script>
+function test_invalid_angle(value) {
+  test_invalid_value('transform', `rotate(${value})`);
+}
+
+// Syntax checking
+test_invalid_angle('asin()');
+test_invalid_angle('asin( )');
+test_invalid_angle('asin(,)');
+test_invalid_angle('asin(1dag)');
+test_invalid_angle('asin(1deg, )');
+test_invalid_angle('asin(, 1deg)');
+test_invalid_angle('asin(1deg + )');
+test_invalid_angle('asin(1deg - )');
+test_invalid_angle('asin(1deg * )');
+test_invalid_angle('asin(1deg / )');
+test_invalid_angle('asin(1deg 2deg)');
+test_invalid_angle('asin(1deg, , 2deg)');
+test_invalid_angle('acos()');
+test_invalid_angle('acos( )');
+test_invalid_angle('acos(,)');
+test_invalid_angle('acos(1dag)');
+test_invalid_angle('acos(1deg, )');
+test_invalid_angle('acos(, 1deg)');
+test_invalid_angle('acos(1deg + )');
+test_invalid_angle('acos(1deg - )');
+test_invalid_angle('acos(1deg * )');
+test_invalid_angle('acos(1deg / )');
+test_invalid_angle('acos(1deg 2deg)');
+test_invalid_angle('acos(1deg, , 2deg)');
+test_invalid_angle('atan()');
+test_invalid_angle('atan( )');
+test_invalid_angle('atan(,)');
+test_invalid_angle('atan(1dag)');
+test_invalid_angle('atan(1deg, )');
+test_invalid_angle('atan(, 1deg)');
+test_invalid_angle('atan(1deg + )');
+test_invalid_angle('atan(1deg - )');
+test_invalid_angle('atan(1deg * )');
+test_invalid_angle('atan(1deg / )');
+test_invalid_angle('atan(1deg 2deg)');
+test_invalid_angle('atan(1deg, , 2deg)');
+test_invalid_angle('asin(90px)');
+test_invalid_angle('asin(30deg + 1.0471967rad, 0)');
+test_invalid_angle('acos( 0 ,)');
+test_invalid_angle('acos( () 30deg - 0.523599rad )');
+test_invalid_angle('atan(45deg )');
+test_invalid_angle('atan(30deg, + 0.261799rad)');
+test_invalid_angle('atan2()');
+test_invalid_angle('atan2( )');
+test_invalid_angle('atan2(,)');
+test_invalid_angle('atan2(1dag)');
+test_invalid_angle('atan2(1deg, )');
+test_invalid_angle('atan2(, 1deg)');
+test_invalid_angle('atan2(1deg + )');
+test_invalid_angle('atan2(1deg - )');
+test_invalid_angle('atan2(1deg * )');
+test_invalid_angle('atan2(1deg / )');
+test_invalid_angle('atan2(1deg 2deg)');
+test_invalid_angle('atan2(1deg, , 2deg)');
+test_invalid_angle('atan2(90px)');
+test_invalid_angle('atan2(90px, 100%)');
+
+test_invalid_angle('atan2(30deg + 1.0471967rad, 0)');
+test_invalid_angle('atan2( 0 ,)');
+test_invalid_angle('atan2( () 30deg - 0.523599rad )');
+test_invalid_angle('atan2(45deg )');
+test_invalid_angle('atan2(30deg, + 0.261799rad)');
+test_invalid_angle('atan2(2, 1px)');
+test_invalid_angle('atan2(2, 1%)');
+</script>
