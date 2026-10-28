@@ -539,6 +539,9 @@ pub(crate) struct BlockFormattingContext<'pass> {
     trailing_collapsed_margin: Cell<Option<(usize, CssPixels)>>,
     table_box_in_wrapper_border_box_inline_size: Cell<Option<CssPixels>>,
     table_box_in_wrapper_border_box_block_size: Cell<Option<CssPixels>>,
+    /// The inline layout of the table box inside a table wrapper child, as sizing the wrapper last found it, which the
+    /// child's run can reuse.
+    table_inline_layout_of_child: Cell<Option<(Node, table_formatting_context::TableInlineLayout)>>,
     is_line_clamp_container: bool,
     clamped_content_is_scrollable_overflow: bool,
     max_lines: Cell<Option<usize>>,
@@ -659,6 +662,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             trailing_collapsed_margin: Cell::new(None),
             table_box_in_wrapper_border_box_inline_size: Cell::new(None),
             table_box_in_wrapper_border_box_block_size: Cell::new(None),
+            table_inline_layout_of_child: Cell::new(None),
             is_line_clamp_container,
             clamped_content_is_scrollable_overflow,
             // NB: Measurements at a definite inline size need the clamped block size, just like committed layout.
@@ -762,6 +766,19 @@ impl<'pass> BlockFormattingContext<'pass> {
     #[track_caller]
     fn used(&self, node: Node) -> &'pass UsedValues {
         self.run.records.used_values(node)
+    }
+
+    /// Keeps `layout`, the inline layout of the table box inside `child`, for the run of `child`.
+    pub(crate) fn keep_table_inline_layout_of(&self, child: Node, layout: table_formatting_context::TableInlineLayout) {
+        self.table_inline_layout_of_child.set(Some((child, layout)));
+    }
+
+    /// The inline layout of the table box inside `child` this formatting context keeps for the run of `child`, if any.
+    pub(crate) fn take_table_inline_layout_of(
+        &self,
+        child: Node,
+    ) -> Option<table_formatting_context::TableInlineLayout> {
+        take_table_inline_layout_kept_for(&self.table_inline_layout_of_child, child)
     }
 
     /// The run's root, as the block container of the boxes laid out in it.
@@ -1252,13 +1269,17 @@ impl<'pass> BlockFormattingContext<'pass> {
             //     so clamp it against the containing block instead. That way a table which is too wide for the space
             //     next to floats reports its real size and gets placed below the floats.
             let table_has_specified_inline_size = !self.style(sizing.table_box_inside_wrapper(node)).width().is_auto();
-            Some(sizing.compute_table_box_inline_size_inside_wrapper(
+            let (inline_size, table_inline_layout) = sizing.compute_table_box_inline_size_inside_wrapper(
                 node,
                 remaining_available_space,
                 constraints,
                 table_has_specified_inline_size.then_some(available_inline_size),
                 formatting_context::TableWrapperInlineSizeMode::ClampToAvailableInlineSize,
-            ))
+            );
+            if node != self.run.box_ {
+                self.keep_table_inline_layout_of(node, table_inline_layout);
+            }
+            Some(inline_size)
         } else if facts.uses_button_layout() && style.width().is_auto() {
             // https://html.spec.whatwg.org/multipage/rendering.html#button-layout
             // If the computed value of 'inline-size' is 'auto', then the used value is the fit-content inline size.
@@ -5412,4 +5433,18 @@ pub(crate) fn floor_list_item_automatic_block_size_by_marker_line_height(
         return automatic_content_block_size;
     }
     automatic_content_block_size.max(StyleValues::for_node(&callbacks, marker).line_height())
+}
+
+/// The inline layout of the table box inside `child` that `kept` holds for the run of `child`, which stays kept for
+/// another child.
+pub(crate) fn take_table_inline_layout_kept_for(
+    kept: &Cell<Option<(Node, table_formatting_context::TableInlineLayout)>>,
+    child: Node,
+) -> Option<table_formatting_context::TableInlineLayout> {
+    let (kept_for, layout) = kept.take()?;
+    if kept_for != child {
+        kept.set(Some((kept_for, layout)));
+        return None;
+    }
+    Some(layout)
 }

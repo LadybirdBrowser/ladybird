@@ -3593,6 +3593,8 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
 
     // 17.5.2 Table width algorithms: the 'table-layout' property
     // https://www.w3.org/TR/CSS22/tables.html#width-layout
+    /// Returns the inline size of the wrapper and the inline layout of the table box it found, which the run of the
+    /// table box can reuse.
     pub(crate) fn compute_table_box_inline_size_inside_wrapper(
         &self,
         wrapper: Node,
@@ -3600,7 +3602,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         table_wrapper_constraints: ContainingBlockConstraints,
         table_wrapper_containing_block_inline_size: Option<CssPixels>,
         table_wrapper_inline_size_mode: formatting_context::TableWrapperInlineSizeMode,
-    ) -> CssPixels {
+    ) -> (CssPixels, table_formatting_context::TableInlineLayout) {
         // CSS 2 says the table wrapper inline size is the border-edge inline size of the table grid box inside it.
 
         let style = self.style(wrapper);
@@ -3635,19 +3637,17 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             );
 
             let table_used_inline_size = table_used.border_box_inline_size(table_used.uses_collapsing_borders_model());
-            self.records
-                .store_table_inline_layout(wrapper, table.take_inline_layout());
-            if table_wrapper_inline_size_mode
+            let inline_size = if table_wrapper_inline_size_mode
                 == formatting_context::TableWrapperInlineSizeMode::UseTableUsedInlineSizeIfNotAuto
                 && !self.style(table_run.box_).width().is_auto()
             {
-                return table_used_inline_size;
-            }
-            if matches!(available_space.inline_size, AvailableSize::Definite(_)) {
+                table_used_inline_size
+            } else if matches!(available_space.inline_size, AvailableSize::Definite(_)) {
                 table_used_inline_size.min(available_inline_size)
             } else {
                 table_used_inline_size
-            }
+            };
+            (inline_size, table.take_inline_layout())
         })
     }
 
