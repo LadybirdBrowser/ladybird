@@ -48,6 +48,8 @@ pub(crate) struct LineBoxFragmentData {
     pub(crate) trailing_whitespace: TrailingWhitespace,
     pub(crate) text_utf16: *const u16,
     pub(crate) text_length_in_code_units: usize,
+    /// For the fragment of an element item, the sizes and box sides of its box, as the item carries them.
+    pub(crate) box_cells: Option<used_values::RootInputCells>,
 }
 
 #[derive(Clone, Copy)]
@@ -133,6 +135,7 @@ impl LineBoxFragmentData {
             trailing_whitespace: TrailingWhitespace::default(),
             text_utf16: std::ptr::null(),
             text_length_in_code_units: 0,
+            box_cells: None,
         };
         if let Some(glyphs) = &fragment.glyphs {
             fragment.current_insert_direction = fragment.resolve_glyph_run_direction(glyphs.text_type);
@@ -141,6 +144,13 @@ impl LineBoxFragmentData {
             }
         }
         fragment
+    }
+
+    /// The sizes and box sides of the box of the fragment of an element item.
+    #[track_caller]
+    pub(crate) fn box_cells(&self) -> used_values::RootInputCells {
+        self.box_cells
+            .expect("the fragment of an element item carries the cells of its box")
     }
 
     pub(crate) fn text(&self) -> &[u16] {

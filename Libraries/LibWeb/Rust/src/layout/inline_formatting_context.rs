@@ -523,9 +523,9 @@ pub(crate) fn compute(
             let block_length = size.1;
 
             if !interrupting && fragment.is_atomic_inline {
-                let atomic_inline = context.box_metrics(fragment.layout_node);
-                inline_start -= atomic_inline.margin_left() + atomic_inline.border_box_left(false);
-                inline_end += atomic_inline.margin_right() + atomic_inline.border_box_right(false);
+                let atomic_inline = fragment.box_cells();
+                inline_start -= atomic_inline.margin_left + atomic_inline.border_box_left(false);
+                inline_end += atomic_inline.margin_right + atomic_inline.border_box_right(false);
             }
 
             let interrupting_block = if interrupting {
@@ -1441,7 +1441,7 @@ impl<'context> InlineFormattingContext<'context> {
                 break;
             }
             let fragment_end = fragment_start + retained_line.fragment_count as usize;
-            let line = line_box::LineBoxData {
+            let mut line = line_box::LineBoxData {
                 start: fragmentation::LinePosition::default(),
                 record: *retained_line,
                 fragments: previous.fragments[fragment_start..fragment_end]
@@ -1457,25 +1457,26 @@ impl<'context> InlineFormattingContext<'context> {
             let line_item_start = item_index;
             let mut running_inline_length = CssPixels::default();
             let mut matched = true;
-            for fragment in &line.fragments {
+            for fragment in &mut line.fragments {
                 let Some(item) = iterator.items().get(item_index) else {
                     matched = false;
                     break;
                 };
-                let atomic_inline = self.box_metrics(item.node);
+                let atomic_inline = item.box_cells();
                 let expected_inline_offset =
                     running_inline_length + item.margin_start + item.border_start + item.padding_start;
                 if !fragment.is_atomic_inline
                     || fragment.layout_node != item.node
                     || fragment.inline_offset != expected_inline_offset
                     || fragment.inline_length != item.inline_size
-                    || fragment.block_length != atomic_inline.content_block_size()
+                    || fragment.block_length != atomic_inline.content_block_size
                     || fragment.content_baselines != Some(item.content_baselines)
                     || fragment.border_box_block_start != atomic_inline.border_box_top(false)
                 {
                     matched = false;
                     break;
                 }
+                fragment.box_cells = Some(atomic_inline);
                 running_inline_length += item.margin_start
                     + item.border_start
                     + item.padding_start
@@ -1845,8 +1846,10 @@ impl<'context> InlineFormattingContext<'context> {
                 inline_level_iterator::ItemType::Element => {
                     line_builder.prepare_to_append_inline_content();
                     if shares_items && !self.run.records.holds_box(item.node) {
+                        // NB: The box is laid out again in this run, and keeps the content baselines it had.
                         self.hold_atomic_inline(item.node);
                         self.dimension_box_on_line(item.node);
+                        item.box_cells = Some(Box::new(self.box_metrics(item.node).input_cells()));
                     }
                     self.compute_inset(item.node);
                     if self.style(self.containing_block).text_wrap_mode() == text_wrap_mode::WRAP {
@@ -1863,14 +1866,7 @@ impl<'context> InlineFormattingContext<'context> {
                     if self.stops_at_line_clamp_point(&line_builder, &mut state_at_clamp_point) {
                         break;
                     }
-                    line_builder.append_box(
-                        item.node,
-                        item.border_start + item.padding_start,
-                        item.padding_end + item.border_end,
-                        item.margin_start,
-                        item.margin_end,
-                        item.content_baselines,
-                    );
+                    line_builder.append_box(&item);
                 }
                 inline_level_iterator::ItemType::BlockLevelBox => {
                     leading_margin += item.margin_start;
