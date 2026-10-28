@@ -258,6 +258,7 @@ void ViewImplementation::ignore_pending_permission_prompts()
 {
     auto pending_prompts = move(m_pending_permission_prompts);
     m_held_permission_prompt_for_testing.clear();
+    m_held_permission_prompt_release_waiters_for_testing.clear();
     for (auto& pending : pending_prompts) {
         if (on_cancel_permission_prompt)
             on_cancel_permission_prompt(pending.request);
