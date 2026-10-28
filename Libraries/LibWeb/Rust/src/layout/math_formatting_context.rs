@@ -1458,6 +1458,8 @@ pub(super) struct MathFormattingContext<'pass> {
     derived_baselines_of_root_box: DerivedBaselines,
     /// What the layout of each child hands its placement, which places the children once their positions are known.
     fragment_arrivals_of_children: RefCell<Vec<fragment_tree::ChildFragmentArrival>>,
+    /// What placing each child takes of the box its latest layout handed back.
+    placed_children: RefCell<HashMap<Node, formatting_context::PlacedChild>>,
 }
 
 impl<'pass> MathFormattingContext<'pass> {
@@ -1473,6 +1475,7 @@ impl<'pass> MathFormattingContext<'pass> {
             content: MathContent::default(),
             derived_baselines_of_root_box: DerivedBaselines::default(),
             fragment_arrivals_of_children: RefCell::new(Vec::new()),
+            placed_children: RefCell::new(HashMap::default()),
         }
     }
 
@@ -2146,11 +2149,20 @@ impl<'pass> MathFormattingContext<'pass> {
         let formatting_context::ChildLayout {
             outcome,
             fragment_arrival,
-            ..
+            laid_out_box,
+            line_data,
         } = formatting_context::layout_inside_child_with_input_cells(run, None, None, child, input, child_cells, true);
         if let Some(fragment_arrival) = fragment_arrival {
             self.fragment_arrivals_of_children.borrow_mut().push(fragment_arrival);
         }
+        self.placed_children.borrow_mut().insert(
+            child,
+            formatting_context::PlacedChild::of_laid_out_box(
+                &laid_out_box.expect("the layout of a math child leaves its box"),
+                line_data,
+                run.callbacks.frame,
+            ),
+        );
         outcome.report_percentage_block_size_dependency_of(run, child);
         let metrics = run.records.box_metrics_of(child);
         let baselines = match outcome {
@@ -2292,14 +2304,12 @@ impl<'pass> MathFormattingContext<'pass> {
                 y: margin_box_top + metrics.margin_box_top(collapsed),
             };
             let fragment_arrival = self.take_fragment_arrival_of_child(child.node);
-            formatting_context::place_laid_out_child(
-                run,
-                child.node,
-                formatting_context::PlacedChild::read_from_records(run, child.node),
-                offset,
-                None,
-                fragment_arrival,
-            );
+            let placed_child = self
+                .placed_children
+                .borrow_mut()
+                .remove(&child.node)
+                .expect("a math child is laid out before it is placed");
+            formatting_context::place_laid_out_child(run, child.node, placed_child, offset, None, fragment_arrival);
         }
         for fragment_arrival in self.fragment_arrivals_of_children.take() {
             formatting_context::leave_child_unplaced(run, Some(fragment_arrival));
