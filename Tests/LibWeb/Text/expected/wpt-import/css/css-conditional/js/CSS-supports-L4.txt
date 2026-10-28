@@ -1,0 +1,24 @@
+Harness status: OK
+
+Found 18 tests
+
+14 Pass
+4 Fail
+Pass	selector() function accepts a selector
+Pass	selector() function doesn't accept a selector list
+Pass	selector() function rejects unknown webkit pseudo-elements.
+Pass	selector() function accepts known pseudo-elements
+Pass	selector() with simple combinators
+Pass	selector() with unknown combinators
+Fail	selector() with forgiving :is, 1 arg
+Fail	selector() with forgiving :is, multiple args
+Fail	selector() with forgiving :where, 1 arg
+Fail	selector() with forgiving :where, multiple args
+Pass	selector() with forgiving :has, 1 arg
+Pass	selector() with forgiving :has, multiple args
+Pass	selector() with unforgiving :nth-child, 1 arg
+Pass	selector() with unforgiving :nth-last-child, 1 arg
+Pass	selector() with unforgiving :nth-child, multiple args
+Pass	selector() with unforgiving :nth-last-child, multiple args
+Pass	selector() with a non-identifier after :nth-child's An+B index
+Pass	selector() with a non-identifier after :nth-last-child's An+B index
