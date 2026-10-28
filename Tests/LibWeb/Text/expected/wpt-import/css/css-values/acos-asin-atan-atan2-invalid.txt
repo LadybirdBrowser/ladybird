@@ -1,0 +1,69 @@
+Harness status: OK
+
+Found 63 tests
+
+62 Pass
+1 Fail
+Pass	e.style['transform'] = "rotate(asin())" should not set the property value
+Pass	e.style['transform'] = "rotate(asin( ))" should not set the property value
+Pass	e.style['transform'] = "rotate(asin(,))" should not set the property value
+Pass	e.style['transform'] = "rotate(asin(1dag))" should not set the property value
+Pass	e.style['transform'] = "rotate(asin(1deg, ))" should not set the property value
+Pass	e.style['transform'] = "rotate(asin(, 1deg))" should not set the property value
+Pass	e.style['transform'] = "rotate(asin(1deg + ))" should not set the property value
+Pass	e.style['transform'] = "rotate(asin(1deg - ))" should not set the property value
+Pass	e.style['transform'] = "rotate(asin(1deg * ))" should not set the property value
+Pass	e.style['transform'] = "rotate(asin(1deg / ))" should not set the property value
+Pass	e.style['transform'] = "rotate(asin(1deg 2deg))" should not set the property value
+Pass	e.style['transform'] = "rotate(asin(1deg, , 2deg))" should not set the property value
+Pass	e.style['transform'] = "rotate(acos())" should not set the property value
+Pass	e.style['transform'] = "rotate(acos( ))" should not set the property value
+Pass	e.style['transform'] = "rotate(acos(,))" should not set the property value
+Pass	e.style['transform'] = "rotate(acos(1dag))" should not set the property value
+Pass	e.style['transform'] = "rotate(acos(1deg, ))" should not set the property value
+Pass	e.style['transform'] = "rotate(acos(, 1deg))" should not set the property value
+Pass	e.style['transform'] = "rotate(acos(1deg + ))" should not set the property value
+Pass	e.style['transform'] = "rotate(acos(1deg - ))" should not set the property value
+Pass	e.style['transform'] = "rotate(acos(1deg * ))" should not set the property value
+Pass	e.style['transform'] = "rotate(acos(1deg / ))" should not set the property value
+Pass	e.style['transform'] = "rotate(acos(1deg 2deg))" should not set the property value
+Pass	e.style['transform'] = "rotate(acos(1deg, , 2deg))" should not set the property value
+Pass	e.style['transform'] = "rotate(atan())" should not set the property value
+Pass	e.style['transform'] = "rotate(atan( ))" should not set the property value
+Pass	e.style['transform'] = "rotate(atan(,))" should not set the property value
+Pass	e.style['transform'] = "rotate(atan(1dag))" should not set the property value
+Pass	e.style['transform'] = "rotate(atan(1deg, ))" should not set the property value
+Pass	e.style['transform'] = "rotate(atan(, 1deg))" should not set the property value
+Pass	e.style['transform'] = "rotate(atan(1deg + ))" should not set the property value
+Pass	e.style['transform'] = "rotate(atan(1deg - ))" should not set the property value
+Pass	e.style['transform'] = "rotate(atan(1deg * ))" should not set the property value
+Pass	e.style['transform'] = "rotate(atan(1deg / ))" should not set the property value
+Pass	e.style['transform'] = "rotate(atan(1deg 2deg))" should not set the property value
+Pass	e.style['transform'] = "rotate(atan(1deg, , 2deg))" should not set the property value
+Pass	e.style['transform'] = "rotate(asin(90px))" should not set the property value
+Pass	e.style['transform'] = "rotate(asin(30deg + 1.0471967rad, 0))" should not set the property value
+Pass	e.style['transform'] = "rotate(acos( 0 ,))" should not set the property value
+Pass	e.style['transform'] = "rotate(acos( () 30deg - 0.523599rad ))" should not set the property value
+Pass	e.style['transform'] = "rotate(atan(45deg ))" should not set the property value
+Pass	e.style['transform'] = "rotate(atan(30deg, + 0.261799rad))" should not set the property value
+Pass	e.style['transform'] = "rotate(atan2())" should not set the property value
+Pass	e.style['transform'] = "rotate(atan2( ))" should not set the property value
+Pass	e.style['transform'] = "rotate(atan2(,))" should not set the property value
+Pass	e.style['transform'] = "rotate(atan2(1dag))" should not set the property value
+Pass	e.style['transform'] = "rotate(atan2(1deg, ))" should not set the property value
+Pass	e.style['transform'] = "rotate(atan2(, 1deg))" should not set the property value
+Pass	e.style['transform'] = "rotate(atan2(1deg + ))" should not set the property value
+Pass	e.style['transform'] = "rotate(atan2(1deg - ))" should not set the property value
+Pass	e.style['transform'] = "rotate(atan2(1deg * ))" should not set the property value
+Pass	e.style['transform'] = "rotate(atan2(1deg / ))" should not set the property value
+Pass	e.style['transform'] = "rotate(atan2(1deg 2deg))" should not set the property value
+Pass	e.style['transform'] = "rotate(atan2(1deg, , 2deg))" should not set the property value
+Pass	e.style['transform'] = "rotate(atan2(90px))" should not set the property value
+Fail	e.style['transform'] = "rotate(atan2(90px, 100%))" should not set the property value
+Pass	e.style['transform'] = "rotate(atan2(30deg + 1.0471967rad, 0))" should not set the property value
+Pass	e.style['transform'] = "rotate(atan2( 0 ,))" should not set the property value
+Pass	e.style['transform'] = "rotate(atan2( () 30deg - 0.523599rad ))" should not set the property value
+Pass	e.style['transform'] = "rotate(atan2(45deg ))" should not set the property value
+Pass	e.style['transform'] = "rotate(atan2(30deg, + 0.261799rad))" should not set the property value
+Pass	e.style['transform'] = "rotate(atan2(2, 1px))" should not set the property value
+Pass	e.style['transform'] = "rotate(atan2(2, 1%))" should not set the property value
