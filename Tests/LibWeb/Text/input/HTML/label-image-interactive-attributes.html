@@ -1,0 +1,26 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const attribute of [null, "usemap", "controls"]) {
+            for (const target of ["image", "descendant"]) {
+                const label = document.createElement("label");
+                const checkbox = document.createElement("input");
+                checkbox.type = "checkbox";
+                checkbox.id = "control";
+                label.htmlFor = checkbox.id;
+                const image = document.createElement("img");
+                image.alt = "Diagram";
+                if (attribute !== null) image.setAttribute(attribute, "");
+                const span = document.createElement("span");
+                image.append(span);
+                label.append(image);
+                document.body.append(label, checkbox);
+                (target === "image" ? image : span).click();
+                println(`${attribute ?? "plain image"} ${target}: control activated=${checkbox.checked}`);
+                label.remove();
+                checkbox.remove();
+            }
+        }
+    });
+</script>

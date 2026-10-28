@@ -1,0 +1,39 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const mode of ["open", "closed"]) {
+            for (const composed of [true, false]) {
+                for (const attribute of [null, "usemap", "controls"]) {
+                    for (const target of ["image", "descendant"]) {
+                        const host = document.createElement("div");
+                        const root = host.attachShadow({ mode });
+                        const label = document.createElement("label");
+                        label.htmlFor = "control";
+                        const checkbox = document.createElement("input");
+                        checkbox.type = "checkbox";
+                        checkbox.id = "control";
+                        const image = document.createElement("img");
+                        image.alt = "Diagram";
+                        if (attribute !== null) image.setAttribute(attribute, "");
+                        const span = document.createElement("span");
+                        image.append(span);
+                        label.append(image);
+                        root.append(label, checkbox);
+                        document.body.append(host);
+                        const event = new MouseEvent("click", { bubbles: true, composed });
+                        const visibleTarget = () =>
+                            event.target === host ? "host" : event.target === null ? "null" : "other";
+                        let targetDuringForwardedClick = "not forwarded";
+                        checkbox.addEventListener("click", () => (targetDuringForwardedClick = visibleTarget()));
+                        (target === "image" ? image : span).dispatchEvent(event);
+                        println(
+                            `${mode} composed=${composed} ${attribute ?? "plain"} ${target}: activated=${checkbox.checked}, target=${visibleTarget()}, forwarded target=${targetDuringForwardedClick}`
+                        );
+                        host.remove();
+                    }
+                }
+            }
+        }
+    });
+</script>

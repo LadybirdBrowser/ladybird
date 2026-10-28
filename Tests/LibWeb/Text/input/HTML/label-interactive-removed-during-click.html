@@ -1,0 +1,46 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const mode of ["light", "open", "closed"]) {
+            for (const composed of [true, false]) {
+                for (const attribute of [null, "usemap", "controls"]) {
+                    for (const targetName of ["image", "descendant"]) {
+                        for (const mutation of ["remove", "reparent"]) {
+                            const host = document.createElement("div");
+                            const root = mode === "light" ? host : host.attachShadow({ mode });
+                            const label = document.createElement("label");
+                            label.htmlFor = "control";
+                            const checkbox = document.createElement("input");
+                            checkbox.type = "checkbox";
+                            checkbox.id = "control";
+                            const image = document.createElement("img");
+                            image.alt = "Diagram";
+                            if (attribute !== null) image.setAttribute(attribute, "");
+                            const span = document.createElement("span");
+                            const otherParent = document.createElement("div");
+                            image.append(span);
+                            label.append(image);
+                            root.append(label, checkbox, otherParent);
+                            document.body.append(host);
+                            const target = targetName === "image" ? image : span;
+                            target.addEventListener(
+                                "click",
+                                () => {
+                                    if (mutation === "remove") image.remove();
+                                    else otherParent.append(image);
+                                },
+                                { once: true }
+                            );
+                            target.dispatchEvent(new MouseEvent("click", { bubbles: true, composed }));
+                            println(
+                                `${mode} composed=${composed} ${attribute ?? "plain"} ${targetName} ${mutation}: activated=${checkbox.checked}`
+                            );
+                            host.remove();
+                        }
+                    }
+                }
+            }
+        }
+    });
+</script>

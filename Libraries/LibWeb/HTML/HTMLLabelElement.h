@@ -8,6 +8,12 @@
 
 #include <LibWeb/HTML/HTMLElement.h>
 
+namespace Web::DOM {
+
+class EventDispatcher;
+
+}
+
 namespace Web::HTML {
 
 class HTMLLabelElement final : public HTMLElement {
@@ -27,10 +33,14 @@ public:
     virtual bool is_html_label_element() const override { return true; }
 
 private:
+    friend class DOM::EventDispatcher;
+
     HTMLLabelElement(DOM::Document&, DOM::QualifiedName);
 
     virtual bool has_activation_behavior() const override;
     virtual void activation_behavior(DOM::Event const&) override;
+    bool is_interactive_descendant_event_target(DOM::EventTarget*) const;
+    void activation_behavior(DOM::Event const&, bool is_interactive_descendant);
 
     bool m_click_in_progress { false };
 };
