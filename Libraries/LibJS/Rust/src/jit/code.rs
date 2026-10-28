@@ -9,7 +9,7 @@
 use core::cell::{Cell, OnceCell, RefCell};
 use core::ffi::c_void;
 use core::ops::ControlFlow;
-use core::ptr::NonNull;
+use std::collections::HashMap;
 
 use libjs_jit::bytecode::{EnvironmentCoordinate, decode_instruction};
 pub use libjs_jit::code::INLINED_CALL_SITE_BIT;
@@ -136,8 +136,11 @@ pub struct JitCode {
     exit_count: Cell<u32>,
     /// The frames of the executable running in the interpreter after the code exited into them or was installed
     /// in them, and how many more tier-up checks each may make at back edges from where it reaches no on-stack
-    /// replacement entry before the code is discarded. Frame addresses are identities only, never dereferenced.
-    interpreted_frames: RefCell<Vec<(usize, u32)>>,
+    /// replacement entry before the code is discarded, by frame id (see Vm::frame_id_of()). Unlike frame addresses,
+    /// ids are never reused by later frames.
+    interpreted_frames: RefCell<HashMap<u64, u32>>,
+    /// How many frames `interpreted_frames` holds before forget_inactive_interpreted_frames() looks for returned ones.
+    interpreted_frame_count_to_forget_at: Cell<usize>,
     memory: ExecutableMemory,
     entry: JitEntry,
     sites: Vec<Site>,
@@ -208,7 +211,8 @@ impl JitCode {
             .collect();
         Self {
             exit_count: Cell::new(0),
-            interpreted_frames: RefCell::new(Vec::new()),
+            interpreted_frames: RefCell::new(HashMap::new()),
+            interpreted_frame_count_to_forget_at: Cell::new(MIN_INTERPRETED_FRAME_COUNT_TO_FORGET_AT),
             memory,
             entry,
             sites,
@@ -370,41 +374,43 @@ impl JitCode {
     /// Notes that `frame`, a frame of the code's executable, runs in the interpreter after the code exited into it or
     /// was installed in it, and may make `checks` tier-up checks at back edges from where it reaches no on-stack
     /// replacement entry before the code is discarded.
-    pub fn note_interpreted_frame(&self, frame: NonNull<ExecutionContext>, checks: u32) {
-        let identity = frame.as_ptr() as usize;
-        let mut frames = self.interpreted_frames.borrow_mut();
-        if let Some((_, left)) = frames.iter_mut().find(|(frame, _)| *frame == identity) {
-            *left = checks;
-        } else {
-            frames.push((identity, checks));
-        }
+    pub fn note_interpreted_frame(&self, vm: &Vm, frame: &ExecutionContext, checks: u32) {
+        self.interpreted_frames
+            .borrow_mut()
+            .insert(vm.frame_id_of(frame), checks);
     }
 
-    /// Forgets returned frames before an exit records another one, so a long-lived callee's code cannot accumulate
-    /// identities of frames materialized by exits from many different inlined callers.
+    /// Forgets frames that returned, so that a long-lived callee's code cannot accumulate the ids of frames
+    /// materialized by exits from many different inlined callers. Finding the live frames walks the stack, so it
+    /// only happens once the code remembers twice as many frames as were live the last time: unwinding a deep
+    /// recursion exits in every frame, and a walk at each exit made that quadratic in the depth.
     pub fn forget_inactive_interpreted_frames(&self, vm: &Vm) {
-        self.interpreted_frames.borrow_mut().retain(|(identity, _)| {
-            let mut live = false;
-            vm.for_each_live_execution_context(|frame| {
-                if core::ptr::from_ref(frame) as usize == *identity {
-                    live = true;
-                    ControlFlow::Break(())
-                } else {
-                    ControlFlow::Continue(())
-                }
-            });
-            live
+        let mut frames = self.interpreted_frames.borrow_mut();
+        if frames.len() < self.interpreted_frame_count_to_forget_at.get() {
+            return;
+        }
+        let mut live_frames = HashMap::new();
+        vm.for_each_live_execution_context(|frame| {
+            if let Some(checks) = frames.remove(&frame.frame_id.get()) {
+                live_frames.insert(frame.frame_id.get(), checks);
+            }
+            if frames.is_empty() {
+                ControlFlow::Break(())
+            } else {
+                ControlFlow::Continue(())
+            }
         });
+        *frames = live_frames;
+        self.interpreted_frame_count_to_forget_at
+            .set((frames.len() * 2).max(MIN_INTERPRETED_FRAME_COUNT_TO_FORGET_AT));
     }
 
     /// Counts a tier-up check of `frame` at a back edge from where it reaches no on-stack replacement entry, and
     /// returns whether the frame made all it may. Other frames that run in the interpreter finish there like before.
-    pub fn count_fruitless_loop_check(&self, frame: NonNull<ExecutionContext>) -> bool {
+    pub fn count_fruitless_loop_check(&self, frame: &ExecutionContext) -> bool {
         let mut frames = self.interpreted_frames.borrow_mut();
-        let Some((_, left)) = frames
-            .iter_mut()
-            .find(|(identity, _)| *identity == frame.as_ptr() as usize)
-        else {
+        // NB: Frames without an id were never noted.
+        let Some(left) = frames.get_mut(&frame.frame_id.get()) else {
             return false;
         };
         *left = left.saturating_sub(1);
@@ -481,6 +487,9 @@ pub const FRUITLESS_LOOP_CHECKS_AFTER_EXIT: u32 = 8;
 /// that moved on from the loop its compile was for may soon return, and later calls enter the code at its start
 /// rather than at a loop nested in others, where the code optimizes less.
 pub const FRUITLESS_LOOP_CHECKS_AFTER_INSTALL: u32 = 256;
+
+/// How many frames JIT code remembers running in the interpreter at least before it looks for returned ones to forget.
+const MIN_INTERPRETED_FRAME_COUNT_TO_FORGET_AT: usize = 64;
 
 /// An executable whose code was discarded this often in a row without its exits teaching it anything is not compiled
 /// again. Discards after exits at sites the code did not know of make progress: each site is recorded once, and

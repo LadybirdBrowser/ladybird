@@ -667,7 +667,7 @@ pub(super) fn exit(vm: &Vm, root: NonNull<ExecutionContext>, code: &JitCode, ind
     loop {
         if let Some(frame_code) = executable_of(frame_of(frame)).jit_code(vm) {
             frame_code.forget_inactive_interpreted_frames(vm);
-            frame_code.note_interpreted_frame(frame, FRUITLESS_LOOP_CHECKS_AFTER_EXIT);
+            frame_code.note_interpreted_frame(vm, frame_of(frame), FRUITLESS_LOOP_CHECKS_AFTER_EXIT);
         }
         if frame == root {
             break;
