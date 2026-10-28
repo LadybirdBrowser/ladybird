@@ -319,12 +319,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_text_document(HTML::Navi
 
             // 5. User agents may add content to the head element of document, e.g., linking to a style sheet, providing
             //    script, or giving the document a title.
-            auto title_basename = LexicalPath::basename(url.to_byte_string());
-            auto title = utf16_string_from_url_ascii(title_basename.view());
-            auto title_element = MUST(DOM::create_element(document, HTML::TagNames::title, Namespace::HTML));
-            MUST(document->head()->append_child(title_element));
-            auto title_text = DOM::Text::create(document, move(title));
-            MUST(title_element->append_child(*title_text));
+            // NB: Leave the head empty so the document text consists only of the response body.
         };
         if (document->ready_to_run_scripts()) {
             run_text_parser();
