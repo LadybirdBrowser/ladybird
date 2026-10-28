@@ -133,7 +133,7 @@ private:
         Visible,
     };
 
-    PermissionManager(Optional<ByteString> persistence_path, PermissionManager* ordinary_session);
+    PermissionManager(Optional<ByteString> persistence_path, WeakPtr<PermissionManager> ordinary_session);
 
     virtual void permissions_changed(PermissionManager const&) override;
 
@@ -156,7 +156,9 @@ private:
     void persist() const;
 
     Optional<ByteString> m_persistence_path;
-    PermissionManager* m_ordinary_session { nullptr };
+    // The ordinary session's manager, which a private session's reads its inherited blocks and defaults from. Weak,
+    // since the two sessions are torn down in no set order.
+    WeakPtr<PermissionManager> m_ordinary_session;
 
     Vector<Entry> m_entries;
     HashMap<u64, ViewPresence> m_views;

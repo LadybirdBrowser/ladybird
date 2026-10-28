@@ -55,7 +55,7 @@ static Optional<URL::Origin> origin_from_string(StringView serialized_origin)
 
 NonnullOwnPtr<PermissionManager> PermissionManager::create_for_ordinary_session(ByteString persistence_path)
 {
-    auto manager = adopt_own(*new PermissionManager(move(persistence_path), nullptr));
+    auto manager = adopt_own(*new PermissionManager(move(persistence_path), {}));
     manager->load();
     return manager;
 }
@@ -63,14 +63,14 @@ NonnullOwnPtr<PermissionManager> PermissionManager::create_for_ordinary_session(
 NonnullOwnPtr<PermissionManager> PermissionManager::create_for_private_session(PermissionManager& ordinary_session)
 {
     VERIFY(!ordinary_session.m_ordinary_session);
-    auto manager = adopt_own(*new PermissionManager({}, &ordinary_session));
+    auto manager = adopt_own(*new PermissionManager({}, ordinary_session.make_weak_ptr<PermissionManager>()));
     ordinary_session.register_observer(*manager);
     return manager;
 }
 
-PermissionManager::PermissionManager(Optional<ByteString> persistence_path, PermissionManager* ordinary_session)
+PermissionManager::PermissionManager(Optional<ByteString> persistence_path, WeakPtr<PermissionManager> ordinary_session)
     : m_persistence_path(move(persistence_path))
-    , m_ordinary_session(ordinary_session)
+    , m_ordinary_session(move(ordinary_session))
 {
 }
 
