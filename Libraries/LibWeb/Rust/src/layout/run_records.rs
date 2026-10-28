@@ -136,7 +136,7 @@ enum KeptBoxHolding {
     /// A box this run lays out itself, with its record on the record stack.
     LaidOutByThisRun { record: u32 },
     /// A child this run hands to a run of its own, with the cells it starts out with, until that run returns.
-    ChildAwaitingItsRun {
+    ChildNotYetLaidOut {
         cells_before_its_run: used_values::RootInputCells,
     },
     /// A child laid out by a run of its own, as that run handed it back.
@@ -413,13 +413,14 @@ pub(crate) struct ChildLaidOutByItsOwnRun {
 }
 
 /// The sizes, size constraints, box sides and baselines of a box as a run sees them: kept as a value for a child laid
-/// out by a run of its own, or read from the record of a box the run lays out itself.
+/// out by a run of its own or awaiting that run, or read from the record of a box the run lays out itself.
 #[derive(Clone, Copy)]
 pub(crate) enum BoxMetrics<'records> {
     LaidOutByItsOwnRun(LaidOutChildBox),
     LaidOutByThisRun(used_values::RecordInFrame<'records>),
-    /// A child this run sizes in cells of its own before laying it out by a run of its own.
-    BeingSizedByItsParent(used_values::RootInputCells),
+    /// A child this run keeps for a run of its own that has not laid it out yet, with the cells it is to be handed to
+    /// that run with.
+    NotYetLaidOut(used_values::RootInputCells),
 }
 
 impl BoxMetrics<'_> {
@@ -427,7 +428,7 @@ impl BoxMetrics<'_> {
         match self {
             Self::LaidOutByItsOwnRun(laid_out) => laid_out.cells,
             Self::LaidOutByThisRun(record) => record.cells(),
-            Self::BeingSizedByItsParent(cells) => *cells,
+            Self::NotYetLaidOut(cells) => *cells,
         }
     }
 
@@ -435,7 +436,7 @@ impl BoxMetrics<'_> {
         match self {
             Self::LaidOutByItsOwnRun(laid_out) => laid_out.baselines,
             Self::LaidOutByThisRun(record) => record.record().content_baselines_from_cells(),
-            Self::BeingSizedByItsParent(_) => DerivedBaselines::default(),
+            Self::NotYetLaidOut(_) => DerivedBaselines::default(),
         }
     }
 
@@ -443,7 +444,7 @@ impl BoxMetrics<'_> {
         match self {
             Self::LaidOutByItsOwnRun(laid_out) => laid_out.orthogonal_flow_baselines,
             // NB: A box that establishes an orthogonal flow is laid out by a run of its own.
-            Self::LaidOutByThisRun(_) | Self::BeingSizedByItsParent(_) => None,
+            Self::LaidOutByThisRun(_) | Self::NotYetLaidOut(_) => None,
         }
     }
 }
@@ -457,7 +458,7 @@ macro_rules! box_metrics_getters {
                     match self {
                         Self::LaidOutByItsOwnRun(laid_out) => laid_out.cells.$name(),
                         Self::LaidOutByThisRun(record) => record.$name(),
-                        Self::BeingSizedByItsParent(cells) => cells.$name(),
+                        Self::NotYetLaidOut(cells) => cells.$name(),
                     }
                 }
             )+
@@ -698,7 +699,7 @@ impl<'arena> RunRecords<'arena> {
         self.assert_registers_in_innermost_run(child);
         self.keep(
             child,
-            KeptBoxHolding::ChildAwaitingItsRun {
+            KeptBoxHolding::ChildNotYetLaidOut {
                 cells_before_its_run: cells,
             },
         );
@@ -812,7 +813,7 @@ impl<'arena> RunRecords<'arena> {
                 KeptBoxHolding::LaidOutByThisRun { record } => {
                     Some(unsafe { self.scratch.run_record_stack.get(record).as_ref() })
                 }
-                KeptBoxHolding::ChildAwaitingItsRun { .. } | KeptBoxHolding::ChildHandedBack(_) => None,
+                KeptBoxHolding::ChildNotYetLaidOut { .. } | KeptBoxHolding::ChildHandedBack(_) => None,
             },
         }
     }
@@ -1126,8 +1127,8 @@ impl<'arena> RunRecords<'arena> {
         };
         let record = match &self.scratch.kept_boxes.borrow()[index as usize].holding {
             KeptBoxHolding::LaidOutByThisRun { record } => *record,
-            KeptBoxHolding::ChildAwaitingItsRun { cells_before_its_run } => {
-                return Some(BoxMetrics::BeingSizedByItsParent(*cells_before_its_run));
+            KeptBoxHolding::ChildNotYetLaidOut { cells_before_its_run } => {
+                return Some(BoxMetrics::NotYetLaidOut(*cells_before_its_run));
             }
             KeptBoxHolding::ChildHandedBack(handed_back) => {
                 return Some(BoxMetrics::LaidOutByItsOwnRun(handed_back.laid_out));
@@ -1174,7 +1175,7 @@ impl<'arena> RunRecords<'arena> {
         };
         let record = match &self.scratch.kept_boxes.borrow()[index as usize].holding {
             KeptBoxHolding::LaidOutByThisRun { record } => *record,
-            KeptBoxHolding::ChildAwaitingItsRun { cells_before_its_run } => {
+            KeptBoxHolding::ChildNotYetLaidOut { cells_before_its_run } => {
                 debug_assert!(
                     false,
                     "a child's box is read in another frame only once its run handed it back"
@@ -1215,7 +1216,7 @@ impl<'arena> RunRecords<'arena> {
                 // SAFETY: This run registered the record, and it stays on the stack until this run returns.
                 return geometry_of_record(unsafe { self.scratch.run_record_stack.get(*record).as_ref() });
             }
-            KeptBoxHolding::ChildAwaitingItsRun { .. } => {
+            KeptBoxHolding::ChildNotYetLaidOut { .. } => {
                 panic!("the fragment of {node:?} is built before its run handed the box back")
             }
             KeptBoxHolding::ChildHandedBack(handed_back) => handed_back.clone(),
