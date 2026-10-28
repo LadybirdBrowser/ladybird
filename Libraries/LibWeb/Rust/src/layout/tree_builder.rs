@@ -3968,7 +3968,7 @@ impl<'a> TreeBuilderHost<'a> {
         self.attach_child(parent, wrapper, nearest_sibling);
         // The wrapper takes the place of the run in its parent. A table-row, table-cell or table box is block-level,
         // so a parent whose inline content it replaced entirely (a table-row-group or table around text, a table-row
-        // around text or inline boxes) no longer has inline children. A stale flag would make derive_baselines() look
+        // around text or inline boxes) no longer has inline children. A stale flag would make baseline derivation look
         // for line boxes the parent does not have, leaving it and every box that derives its baseline from it (a cell
         // around a nested table, an inline-table in a line) without a baseline. A parent that keeps inline-level
         // children next to the wrapper (text around an anonymous table generated for out-of-flow row groups, which

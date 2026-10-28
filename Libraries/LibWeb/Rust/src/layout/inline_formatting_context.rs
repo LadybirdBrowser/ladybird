@@ -2270,7 +2270,11 @@ impl<'context> InlineFormattingContext<'context> {
         self.leave_atomic_inlines_without_a_line_unplaced();
         containing_used.set_building_line_data(std::mem::take(self.line_data.get_mut()));
         block_formatting_context::ChildrenSummary {
-            baselines: formatting_context::derive_baselines(self.run.records, &self.callbacks, self.containing_block),
+            baselines: formatting_context::derive_baselines_from_lines(
+                self.run.records,
+                &self.callbacks,
+                self.containing_block,
+            ),
             fragmentainer_stop_token: self.fragmentainer_stop_token.take(),
             lines_are_unbreakable: self.lines_are_unbreakable.get(),
         }
