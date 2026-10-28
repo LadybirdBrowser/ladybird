@@ -303,6 +303,20 @@ GC::Ptr<Navigable> BrowsingContext::opener_navigable() const
     return navigable;
 }
 
+Optional<CrossProcessId> BrowsingContext::one_permitted_sandboxed_navigator_navigable_id() const
+{
+    if (auto navigable = one_permitted_sandboxed_navigator_navigable())
+        return navigable->id();
+    return {};
+}
+
+GC::Ptr<Navigable> BrowsingContext::one_permitted_sandboxed_navigator_navigable() const
+{
+    if (!m_the_one_permitted_sandboxed_navigator || !m_the_one_permitted_sandboxed_navigator->active_document())
+        return nullptr;
+    return m_the_one_permitted_sandboxed_navigator->active_document()->navigable();
+}
+
 void BrowsingContext::set_opener_browsing_context(GC::Ptr<BrowsingContext> opener)
 {
     m_opener_browsing_context_window_proxy = opener ? opener->window_proxy() : nullptr;

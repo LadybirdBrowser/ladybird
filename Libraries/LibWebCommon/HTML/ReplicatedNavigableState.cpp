@@ -83,6 +83,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::ReplicatedNavigableState const
     TRY(encoder.encode(state.opener_policy));
     TRY(encoder.encode(state.active_browsing_context_is_auxiliary));
     TRY(encoder.encode(state.opener_navigable_id));
+    TRY(encoder.encode(state.one_permitted_sandboxed_navigator_navigable_id));
     TRY(encoder.encode(state.active_document_is_completely_loaded));
     TRY(encoder.encode(state.is_closing));
     TRY(encoder.encode(state.container));
@@ -109,6 +110,7 @@ ErrorOr<Web::HTML::ReplicatedNavigableState> decode(Decoder& decoder)
         .opener_policy = TRY(decoder.decode<Web::HTML::OpenerPolicy>()),
         .active_browsing_context_is_auxiliary = TRY(decoder.decode<bool>()),
         .opener_navigable_id = TRY(decoder.decode<Optional<Web::HTML::CrossProcessId>>()),
+        .one_permitted_sandboxed_navigator_navigable_id = TRY(decoder.decode<Optional<Web::HTML::CrossProcessId>>()),
         .active_document_is_completely_loaded = TRY(decoder.decode<bool>()),
         .is_closing = TRY(decoder.decode<bool>()),
         .container = TRY(decoder.decode<Web::HTML::ReplicatedContainerState>()),

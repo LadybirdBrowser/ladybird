@@ -126,6 +126,13 @@ GC::Ptr<Navigable> RemoteNavigable::active_browsing_context_opener_navigable() c
     return navigable_with_id_in_any_page(page(), *m_replicated_state.opener_navigable_id);
 }
 
+GC::Ptr<Navigable> RemoteNavigable::active_browsing_context_one_permitted_sandboxed_navigator() const
+{
+    if (!m_replicated_state.one_permitted_sandboxed_navigator_navigable_id.has_value())
+        return nullptr;
+    return navigable_with_id_in_any_page(page(), *m_replicated_state.one_permitted_sandboxed_navigator_navigable_id);
+}
+
 GC::Ref<RemoteWindow> RemoteNavigable::active_window()
 {
     if (!m_active_window)
