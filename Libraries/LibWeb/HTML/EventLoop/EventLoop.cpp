@@ -28,6 +28,7 @@
 #include <LibWeb/HTML/EventLoop/ClockPlan.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventLoop/FrameCompletion.h>
+#include <LibWeb/HTML/EventLoop/RenderingSchedulerCounters.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/ListOfAvailableImages.h>
@@ -233,7 +234,7 @@ void EventLoop::process()
 
     if (oldest_task && oldest_task->source() != Task::Source::Rendering) {
         auto task_duration = task_end_time - task_start_time;
-        auto task_duration_microseconds = static_cast<u64>(task_duration * 1000.0);
+        auto task_duration_microseconds = rendering_scheduler_duration_microseconds(task_duration);
         ++m_rendering_scheduler_counters.tasks_between_updates;
         m_rendering_scheduler_counters.task_microseconds_between_updates += task_duration_microseconds;
         switch (oldest_task->source()) {
@@ -590,7 +591,7 @@ struct EventLoop::RenderingUpdateInFlight {
 void EventLoop::finish_rendering_update(double update_start_time)
 {
     auto update_end_time = HighResolutionTime::unsafe_shared_current_time();
-    m_rendering_scheduler_counters.update_microseconds += static_cast<u64>((update_end_time - update_start_time) * 1000.0);
+    m_rendering_scheduler_counters.update_microseconds += rendering_scheduler_duration_microseconds(update_end_time - update_start_time);
     m_running_rendering_task = false;
 
     for (auto const& page : pages_of_local_roots())
