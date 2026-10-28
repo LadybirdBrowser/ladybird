@@ -626,16 +626,16 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
     }
 
-    fn margin_box_rect(used: &UsedValues) -> CssPixelRect {
-        let left = (used.margin_left.get() + used.border_box_left(false)).max(CssPixels::default());
-        let right = (used.margin_right.get() + used.border_box_right(false)).max(CssPixels::default());
-        let top = used.margin_box_top(false).max(CssPixels::default());
-        let bottom = used.margin_box_bottom(false).max(CssPixels::default());
+    fn margin_box_rect(metrics: &impl BoxMetricCells) -> CssPixelRect {
+        let left = (metrics.margin_left() + metrics.border_box_left(false)).max(CssPixels::default());
+        let right = (metrics.margin_right() + metrics.border_box_right(false)).max(CssPixels::default());
+        let top = metrics.margin_box_top(false).max(CssPixels::default());
+        let bottom = metrics.margin_box_bottom(false).max(CssPixels::default());
         CssPixelRect {
             x: -left,
             y: -top,
-            width: left + used.content_inline_size.get() + right,
-            height: top + used.content_block_size.get() + bottom,
+            width: left + metrics.content_inline_size() + right,
+            height: top + metrics.content_block_size() + bottom,
         }
     }
 
@@ -1229,12 +1229,12 @@ impl<'pass> BlockFormattingContext<'pass> {
     fn place_float(
         &self,
         side: FloatSide,
-        used: &UsedValues,
+        float_box: &impl BoxMetricCells,
         available_space: AvailableSpace,
         containing_block_rect_in_root: CssPixelRect,
         ceiling_in_root: CssPixels,
     ) -> FloatPlacement {
-        let margin_box_inline_size = used.margin_box_inline_size(false);
+        let margin_box_inline_size = float_box.margin_box_inline_size(false);
         let mut candidate_block_start = ceiling_in_root;
         loop {
             let band = self.band_at(candidate_block_start);
@@ -1250,12 +1250,12 @@ impl<'pass> BlockFormattingContext<'pass> {
                 continue;
             }
             let offset_from_edge = if side == FloatSide::Left {
-                intrusions.left + used.margin_left.get() + used.border_box_left(false)
+                intrusions.left + float_box.margin_left() + float_box.border_box_left(false)
             } else {
                 intrusions.right
-                    + used.content_inline_size.get()
-                    + used.margin_right.get()
-                    + used.border_box_right(false)
+                    + float_box.content_inline_size()
+                    + float_box.margin_right()
+                    + float_box.border_box_right(false)
             };
             return FloatPlacement {
                 block_start: candidate_block_start,
@@ -1291,7 +1291,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let pending_adjustment =
             self.block_offset_adjustment_from_pending_ancestor_block_start_margins(floating_box.box_);
         containing_block_rect_in_root.y += pending_adjustment;
-        let used = self.used(floating_box.box_);
+        let float_box = self.run.records.box_metrics_of(floating_box.box_);
         let root_content_inline_size = self.used(self.run.box_).content_inline_size.get();
         let margin_box_rect = floating_box
             .margin_box_rect_in_root_coordinate_space
@@ -1318,14 +1318,14 @@ impl<'pass> BlockFormattingContext<'pass> {
         let intrusion = if floating_box.side == FloatSide::Left {
             containing_block_rect_in_root.x
                 + floating_box.offset_from_edge
-                + used.content_inline_size.get()
-                + used.margin_right.get()
-                + used.border_box_right(false)
+                + float_box.content_inline_size()
+                + float_box.margin_right()
+                + float_box.border_box_right(false)
         } else {
             (root_content_inline_size - containing_block_rect_in_root.right())
                 + floating_box.offset_from_edge
-                + used.margin_left.get()
-                + used.border_box_left(false)
+                + float_box.margin_left()
+                + float_box.border_box_left(false)
         };
         for band in self.bands.borrow_mut().iter_mut() {
             if band.block_start < block_start {
@@ -1398,16 +1398,16 @@ impl<'pass> BlockFormattingContext<'pass> {
         floating_box: FloatingBox,
         containing_block_rect_in_root: CssPixelRect,
     ) -> CssPixels {
-        let used = self.used(floating_box.box_);
+        let float_box = self.run.records.box_metrics_of(floating_box.box_);
         if floating_box.side == FloatSide::Left {
             containing_block_rect_in_root.x + floating_box.offset_from_edge
-                - used.margin_left.get()
-                - used.border_box_left(false)
+                - float_box.margin_left()
+                - float_box.border_box_left(false)
         } else {
             containing_block_rect_in_root.right()
                 - floating_box.offset_from_edge
-                - used.margin_left.get()
-                - used.border_box_left(false)
+                - float_box.margin_left()
+                - float_box.border_box_left(false)
         }
     }
 
@@ -4253,17 +4253,18 @@ impl<'pass> BlockFormattingContext<'pass> {
                     + self.block_offset_adjustment_from_pending_ancestor_block_start_margins(last.box_),
             );
         }
+        let float_box = self.run.records.box_metrics_of(node);
         let placement = self.place_float(
             side,
-            self.used(node),
+            &float_box,
             available_space,
             containing_block_rect_now,
             ceiling_in_root,
         );
         let content_block_offset = placement.block_start - containing_block_rect_now.y
-            + self.used(node).margin_top.get()
-            + self.used(node).border_box_top(false);
-        let mut margin_box_rect = Self::margin_box_rect(self.used(node))
+            + float_box.margin_top()
+            + float_box.border_box_top(false);
+        let mut margin_box_rect = Self::margin_box_rect(&float_box)
             .translated(CssPixels::default(), content_block_offset)
             .translated(containing_block_rect.x, containing_block_rect.y);
         let floating_box = FloatingBox {
@@ -4271,8 +4272,8 @@ impl<'pass> BlockFormattingContext<'pass> {
             side,
             offset_from_edge: placement.offset_from_edge,
             bottom_margin_edge: content_block_offset
-                + self.used(node).content_block_size.get()
-                + self.used(node).margin_box_bottom(false),
+                + float_box.content_block_size()
+                + float_box.margin_box_bottom(false),
             margin_box_rect_in_root_coordinate_space: margin_box_rect,
             containing_block_rect_in_root_coordinate_space: containing_block_rect,
             percentage_basis_inline_size: input.containing_block_constraints.percentage_basis_inline_size,
