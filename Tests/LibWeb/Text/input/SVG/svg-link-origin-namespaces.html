@@ -1,0 +1,70 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const base = document.createElement("base");
+        base.href = "https://base.example/path/";
+        document.head.appendChild(base);
+        const foreign = "urn:foreign";
+        const xlink = "http://www.w3.org/1999/xlink";
+        const cases = [
+            ["modern href only", [[null, "href", "https://modern.example/"]], "https://modern.example/"],
+            ["legacy href only", [[xlink, "xlink:href", "https://legacy.example/"]], "https://legacy.example/"],
+            ["foreign href only", [[foreign, "href", "https://foreign.example/"]], null],
+            [
+                "foreign before legacy href",
+                [
+                    [foreign, "href", "https://foreign.example/"],
+                    [xlink, "xlink:href", "https://legacy.example/"],
+                ],
+                "https://legacy.example/",
+            ],
+            [
+                "foreign before modern href",
+                [
+                    [foreign, "href", "https://foreign.example/"],
+                    [null, "href", "https://modern.example/"],
+                ],
+                "https://modern.example/",
+            ],
+            [
+                "foreign after modern href",
+                [
+                    [null, "href", "https://modern.example/"],
+                    [foreign, "href", "https://foreign.example/"],
+                ],
+                "https://modern.example/",
+            ],
+            [
+                "empty modern href before legacy",
+                [
+                    [foreign, "href", "https://foreign.example/"],
+                    [null, "href", ""],
+                    [xlink, "xlink:href", "https://legacy.example/"],
+                ],
+                "https://base.example/",
+            ],
+            [
+                "modern href overrides legacy",
+                [
+                    [xlink, "xlink:href", "https://legacy.example/"],
+                    [null, "href", "https://modern.example/"],
+                ],
+                "https://modern.example/",
+            ],
+        ];
+        for (const [label, attributes, expectedURL] of cases) {
+            const link = document.createElementNS("http://www.w3.org/2000/svg", "a");
+            for (const [namespace, name, value] of attributes) link.setAttributeNS(namespace, name, value);
+            try {
+                const origin = Origin.from(link);
+                println(
+                    `${label}: ${expectedURL === null ? "accepted" : origin.isSameOrigin(Origin.from(expectedURL))}`
+                );
+            } catch (error) {
+                println(`${label}: ${error.name}`);
+            }
+        }
+        base.remove();
+    });
+</script>

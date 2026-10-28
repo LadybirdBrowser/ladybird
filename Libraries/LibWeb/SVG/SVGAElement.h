@@ -27,6 +27,8 @@ public:
 
     GC::Ref<DOM::DOMTokenList> rel_list();
 
+    virtual Optional<URL::Origin> extract_an_origin() const override { return hyperlink_element_utils_extract_an_origin(); }
+
     virtual CSS::ElementBoxKind box_kind() const override;
 
 private:

@@ -1,0 +1,8 @@
+modern href only: true
+legacy href only: true
+foreign href only: TypeError
+foreign before legacy href: true
+foreign before modern href: true
+foreign after modern href: true
+empty modern href before legacy: true
+modern href overrides legacy: true
