@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 89 tests
 
-80 Pass
-9 Fail
+87 Pass
+2 Fail
 Pass	<img data-expect="">
 Pass	<img src="" data-expect="">
 Pass	<img src="data:,a" data-expect="data:,a">
@@ -50,14 +50,14 @@ Pass	<picture><source srcset="data:,b" media="all, !"><img src="data:,a" data-ex
 Pass	<picture><source srcset="data:,b" media=","><img src="data:,a" data-expect="data:,a"></picture>
 Pass	<picture><source srcset="data:,b" media=", all"><img src="data:,a" data-expect="data:,b"></picture>
 Pass	<picture><source srcset="data:,b" type=""><img src="data:,a" data-expect="data:,b"></picture>
-Fail	<picture><source srcset="data:,b" type=" "><img src="data:,a" data-expect="data:,b"></picture>
+Pass	<picture><source srcset="data:,b" type=" "><img src="data:,a" data-expect="data:,b"></picture>
 Pass	<picture><source srcset="data:,b" type="image/gif"><img src="data:,a" data-expect="data:,b"></picture>
-Fail	<picture><source srcset="data:,b" type=" image/gif"><img src="data:,a" data-expect="data:,b"></picture>
-Fail	<picture><source srcset="data:,b" type="image/gif "><img src="data:,a" data-expect="data:,b"></picture>
-Fail	<picture><source srcset="data:,b" type="image/gif;"><img src="data:,a" data-expect="data:,b"></picture>
-Fail	<picture><source srcset="data:,b" type="image/gif;encodings"><img src="data:,a" data-expect="data:,b"></picture>
-Fail	<picture><source srcset="data:,b" type="image/gif;encodings="><img src="data:,a" data-expect="data:,b"></picture>
-Fail	<picture><source srcset="data:,b" type="image/gif;encodings=foobar"><img src="data:,a" data-expect="data:,b"></picture>
+Pass	<picture><source srcset="data:,b" type=" image/gif"><img src="data:,a" data-expect="data:,b"></picture>
+Pass	<picture><source srcset="data:,b" type="image/gif "><img src="data:,a" data-expect="data:,b"></picture>
+Pass	<picture><source srcset="data:,b" type="image/gif;"><img src="data:,a" data-expect="data:,b"></picture>
+Pass	<picture><source srcset="data:,b" type="image/gif;encodings"><img src="data:,a" data-expect="data:,b"></picture>
+Pass	<picture><source srcset="data:,b" type="image/gif;encodings="><img src="data:,a" data-expect="data:,b"></picture>
+Pass	<picture><source srcset="data:,b" type="image/gif;encodings=foobar"><img src="data:,a" data-expect="data:,b"></picture>
 Pass	<picture><source srcset="data:,b" type="image/png"><img src="data:,a" data-expect="data:,b"></picture>
 Pass	<picture><source srcset="data:,b" type="image/jpeg"><img src="data:,a" data-expect="data:,b"></picture>
 Pass	<picture><source srcset="data:,b" type="image/svg+xml"><img src="data:,a" data-expect="data:,b"></picture>
