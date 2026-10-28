@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 19 tests
 
-14 Pass
-5 Fail
+19 Pass
 Pass	"::slotted(bar)" should be a valid selector
 Pass	"::slotted([attr=\"foo\"])" should be a valid selector
 Pass	"::slotted(*)" should be a valid selector
@@ -17,9 +16,9 @@ Pass	"::slotted" should be an invalid selector
 Pass	"::slotted()" should be an invalid selector
 Pass	"::slotted(0)" should be an invalid selector
 Pass	":slotted(foo)" should be an invalid selector
-Fail	"::slotted(foo):first-child" should be an invalid selector
-Fail	"::slotted(foo):hover" should be an invalid selector
-Fail	"::slotted(foo):focus" should be an invalid selector
-Fail	"::slotted(foo):lang(en)" should be an invalid selector
-Fail	"::slotted(foo):dir(ltr)" should be an invalid selector
+Pass	"::slotted(foo):first-child" should be an invalid selector
+Pass	"::slotted(foo):hover" should be an invalid selector
+Pass	"::slotted(foo):focus" should be an invalid selector
+Pass	"::slotted(foo):lang(en)" should be an invalid selector
+Pass	"::slotted(foo):dir(ltr)" should be an invalid selector
 Pass	"::slotted(foo) + ::slotted(bar)" should be an invalid selector
