@@ -6,6 +6,16 @@ if (APPLE)
     else()
         set(LADYBIRD_ENTITLEMENTS_FILE "${LADYBIRD_SOURCE_DIR}/Meta/Entitlements.plist")
     endif()
+
+    # Icon Composer icons need the asset catalog compiler from Xcode 26 or later.
+    execute_process(COMMAND xcrun actool --version OUTPUT_VARIABLE actool_version ERROR_QUIET)
+    if (actool_version MATCHES "<key>short-bundle-version</key>[ \t\r\n]*<string>([0-9]+)" AND CMAKE_MATCH_1 GREATER_EQUAL 26)
+        set(LADYBIRD_COMPILE_ICON_COMPOSER_ICON TRUE)
+        set(LADYBIRD_ICON_COMPOSER_PLIST_ENTRY "<key>CFBundleIconName</key>\n        <string>AppIcon</string>")
+    else()
+        set(LADYBIRD_ICON_COMPOSER_PLIST_ENTRY "")
+        message(STATUS "actool is older than Xcode 26, so the app bundle only gets the flat icon")
+    endif()
 endif()
 
 function(create_ladybird_bundle target_name)
@@ -37,6 +47,30 @@ function(create_ladybird_bundle target_name)
             COMMAND "${CMAKE_COMMAND}" -E make_directory "${bundle_dir}/Contents/Resources"
             COMMAND "iconutil" --convert icns "${LADYBIRD_SOURCE_DIR}/UI/Icons/macos/app_icon.iconset" --output "${bundle_dir}/Contents/Resources/app_icon.icns"
         )
+
+        # macOS 26 and later show the Icon Composer icon from the asset catalog, which adapts to the system's icon
+        # styles. Earlier versions show the flat app_icon.icns.
+        if (LADYBIRD_COMPILE_ICON_COMPOSER_ICON)
+            set(icon_composer_icon "${LADYBIRD_SOURCE_DIR}/UI/Icons/macos/AppIcon.icon")
+            set_property(TARGET ${target_name} APPEND PROPERTY LINK_DEPENDS
+                "${icon_composer_icon}/icon.json"
+                "${icon_composer_icon}/Assets/mark.svg"
+                "${icon_composer_icon}/Assets/mark-dark.svg"
+                "${icon_composer_icon}/Assets/mark-mono.svg"
+            )
+
+            set(asset_catalog_dir "${CMAKE_CURRENT_BINARY_DIR}/${target_name}_asset_catalog")
+            add_custom_command(TARGET ${target_name} POST_BUILD
+                COMMAND "${CMAKE_COMMAND}" -E make_directory "${asset_catalog_dir}"
+                COMMAND xcrun actool "${icon_composer_icon}" --compile "${asset_catalog_dir}"
+                    --app-icon AppIcon --platform macosx --target-device mac
+                    --minimum-deployment-target "${CMAKE_OSX_DEPLOYMENT_TARGET}"
+                    --output-partial-info-plist "${asset_catalog_dir}/partial.plist"
+                    --errors --warnings --output-format human-readable-text
+                COMMAND "${CMAKE_COMMAND}" -E copy "${asset_catalog_dir}/Assets.car" "${bundle_dir}/Contents/Resources/Assets.car"
+                VERBATIM
+            )
+        endif()
 
         # Note: This symlink is removed in the install commands
         # This makes the bundle in the build directory *NOT* relocatable
