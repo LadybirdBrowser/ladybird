@@ -1,0 +1,302 @@
+<!doctype html>
+<html>
+<head>
+  <title>Testing accessibility of display: contents</title>
+  <link rel="help" href="https://drafts.csswg.org/css-display-4/#box-generation">
+  <script src="../../../resources/testharness.js"></script>
+  <script src="../../../resources/testharnessreport.js"></script>
+  <script src="../../../resources/testdriver.js"></script>
+  <script src="../../../resources/testdriver-vendor.js"></script>
+  <script src="../../../resources/testdriver-actions.js"></script>
+  <script src="../../../wai-aria/scripts/aria-utils.js"></script>
+</head>
+<body>
+
+  <!-- Dec 2023 notes for "display: contents" testing:
+  - Per CSS spec, setting "display: contents" must not alter an element's semantics (https://www.w3.org/TR/css-display-3/#valdef-display-contents):
+  "As only the box tree is affected, any semantics based on the document tree, such as selector-matching, event handling, and
+  property inheritance, are not affected."
+
+   - As of December 2023, the current state of cross-browser, automated web accessibility testing is limited to retrieving the following
+  accessibility object properties with planned future enhancements (https://github.com/WICG/aom/issues/203):
+      - computedRole
+      - computedLabel
+  -->
+
+  <h1>Testing accessibility of display: contents</h1>
+
+  <p>Verifies accessibility behavior of the <a href="https://www.w3.org/TR/css-display-3/#box-generation">contents</a> keyword for the CSS display property</p>
+
+  <h2>Accname</h2>
+
+  <button aria-labelledby="b2" style="display: contents;" data-expectedlabel="hidden label" data-expectedrole="button" data-testname="button with display: contents is labelled via referenced hidden span" class="ex-role-and-label">
+      <span aria-hidden="true" id="b2">hidden label</span>
+      <span hidden>hidden from all users</span>
+      <span>visible to all users</span>
+  </button>
+
+  <span id="a1">label</span>
+  <a href="#" aria-labelledby="a1" style="display: contents;" data-expectedlabel="label" data-expectedrole="link" data-testname="link with display: contents is labelled via aria-labelledby" class="ex-role-and-label">x</a>
+  <nav aria-labelledby="a1" style="display: contents;" data-expectedlabel="label" data-expectedrole="navigation" data-testname="nav with display: contents is labelled via aria-labelledby" class="ex-role-and-label">x</nav>
+
+  <button aria-label="label" style="display: contents;" data-expectedlabel="label" data-expectedrole="button" data-testname="button with display: contents is labelled via aria-label" class="ex-role-and-label">x</button>
+  <div role="group" aria-label="label" style="display: contents;" data-expectedlabel="label" data-expectedrole="group" data-testname="div with role group with display: contents is labelled via aria-label" class="ex-role-and-label">x</div>
+
+  <!-- <img> renders "display: contents" the same as "display:none", see: https://www.w3.org/TR/css-display-3/#unbox-html-->
+  <label for="label-for-button">label</label>
+  <button id="label-for-button" style="display: contents;" data-expectedlabel="label" data-expectedrole="button" data-testname="button with display: contents is labelled via label for/id association" class="ex-role-and-label">x</button>
+  <!-- SVG and display: contents behavior: https://github.com/w3c/svgwg/issues/305-->
+  <svg viewbox="0 0 100 50">
+    <g style="display: contents;" fill="silver" stroke="blue" data-expectedlabel="group label" data-expectedrole="group" data-testname="g element with display: contents, as child of svg, is labelled via title element" class="ex-role-and-label">
+      <title>group label</title>
+      <circle cx="20" cy="20" r="10" />
+      <circle cx="20" cy="20" r="10" />
+    </g>
+  </svg>
+
+  <a href="#" style="display: contents;" data-expectedlabel="label" data-expectedrole="link" data-testname="link with display: contents is labelled via name from contents" class="ex-role-and-label">label</a>
+  <button style="display: contents;" data-expectedlabel="label" data-expectedrole="button" data-testname="button with display: contents is labelled via name from contents" class="ex-role-and-label">label</button>
+  <h3 style="display: contents;" data-expectedlabel="label" data-expectedrole="heading" data-testname="h3 with display: contents is labelled via name from contents" class="ex-role-and-label">label</h3>
+
+  <h2>Accessibility roles</h2>
+  <!-- Buttons -->
+  <button style="display: contents;" data-expectedrole="button" data-expectedlabel="x" data-testname="button with display: contents has button role" class="ex-role-and-label">x</button>
+  <button role="button" style="display: contents;" data-expectedrole="button" data-expectedlabel="x" data-testname="button with explicit button role and display: contents has button role" class="ex-role-and-label">x</button>
+  <div role="button" style="display: contents;" data-expectedrole="button" data-expectedlabel="x" data-testname="div with button role and display: contents has button role" class="ex-role-and-label">x</div>
+  <div role="button" tabindex="0" style="display: contents;" data-expectedrole="button" data-expectedlabel="x" data-testname="div with button role, tabindex=0 and display: contents has button role" class="ex-role-and-label">x</div>
+
+  <!-- Display: Flex -->
+  <table style="display: flex; flex-flow: column nowrap;" data-expectedrole="table">
+    <thead>
+      <tr style="display: contents;" data-expectedrole="row" data-testname="tr with display: contents, within table with display: flex, has row role" class="ex-role">
+        <th data-expectedrole="columnheader" data-testname="th as child of tr with display: contents, within table with display: flex, has columnheader role" class="ex-role=">x</th>
+        <th>x</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr style="display: contents;">
+        <td data-expectedrole="cell" data-testname="td as child of tr with display: contents, within table with display: flex, has cell role" class="ex-role">x</td>
+        <td>x</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <table role="table" style="display: flex; flex-flow: column nowrap;" data-expectedrole="table">
+    <thead>
+      <tr style="display: contents;" data-expectedrole="row" data-testname="tr with display: contents, within table with role=table with display: flex, has row role" class="ex-role">
+        <th data-expectedrole="columnheader" data-testname="th as child of tr with display: contents, within table with role=table with display: flex, has columnheader role" class="ex-role">x</th>
+        <th>x</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr style="display: contents;">
+        <td data-expectedrole="cell" data-testname="td as child of tr with display: contents, within table with role=table with display: flex, has cell role" class="ex-role">x</td>
+        <td>x</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <table role="grid" style="display: flex; flex-flow: column nowrap;" data-expectedrole="grid">
+    <thead>
+      <tr style="display: contents;" data-expectedrole="row" data-testname="tr with display: contents, within table with role=grid with display: flex, has row role" class="ex-role">
+        <th data-expectedrole="columnheader" data-testname="th as child of tr with display: contents, within table with role=grid with display: flex, has columnheader role" class="ex-role">x</th>
+        <th>x</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr style="display: contents;">
+        <td data-expectedrole="gridcell" data-testname="td (no explicit role) as child of tr with display: contents, within table with role=grid with display: flex, has gridcell role" class="ex-role">x</td>
+        <td>x</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Display: Grid -->
+  <div style="display: grid; grid-template-columns: 1fr 100px; grid-gap: 1em;">
+    <h2>x</h2>
+    <ul style="display: contents" data-expectedrole="list" data-testname="ul with display: contents, as child of div with display: grid, has list role" class="ex-role">
+      <li>x</li>
+      <li data-expectedrole="listitem" data-testname="listitem within ul with display: contents, as child of div with display: grid, has listitem role" class="ex-role">x</li>
+    </ul>
+  </div>
+
+  <!-- Generics -->
+  <div style="display: contents;" data-testname="div with display: contents has generic role" class="ex-generic">x</div>
+  <span style="display: contents;" data-testname="span with display: contents has generic role" class="ex-generic">x</span>
+
+  <!-- Headings -->
+  <h3 style="display: contents;" data-expectedrole="heading" data-expectedlabel="x" data-testname="h3 with display: contents has heading role" class="ex-role-and-label">x</h3>
+  <div role="heading" aria-level="3" style="display: contents;" data-expectedrole="heading" data-expectedlabel="x" data-testname="div with heading role, aria-level=3 and display: contents has heading role" class="ex-role-and-label">x</div>
+  <span role="heading" aria-level="1" style="display: contents;" data-expectedrole="heading" data-expectedlabel="x" data-testname="span with heading role, aria-level=1 and display: contents has heading role" class="ex-role-and-label">x</span>
+
+  <!-- Landmarks and regions -->
+  <header style="display: contents;" data-expectedrole="banner" data-testname="header with display: contents has banner role" class="ex-role">x</header>
+  <nav style="display: contents;" aria-label="label" data-expectedrole="navigation" data-expectedlabel="label" data-testname="nav with display: contents and aria-label has navigation role" class="ex-role-and-label">x</nav>
+  <aside style="display: contents;" aria-label="label" data-expectedrole="complementary" data-expectedlabel="label" data-testname="aside with display: contents and aria-label has complementary role" class="ex-role-and-label">x</aside>
+  <main style="display: contents;" data-expectedrole="main" data-testname="main with display: contents has main role" class="ex-role">x</main>
+  <footer style="display: contents;" data-expectedrole="contentinfo" data-testname="footer with display: contents has contentinfo role" class="ex-role">x</footer>
+  <form aria-label="label" style="display: contents;" data-expectedrole="form" data-expectedlabel="label" data-testname="form with display: contents has form role" class="ex-role-and-label">x</form>
+  <search style="display: contents;" data-expectedrole="search" data-testname="search with display: contents has search role" class="ex-role">x</search>
+  <section aria-label="label" style="display: contents;" data-expectedrole="region" data-expectedlabel="label" data-testname="section with aria-label and display: contents has region role" class="ex-role-and-label"></section>
+
+  <div role="banner" style="display: contents;" data-expectedrole="banner" data-testname="div with role banner and display: contents has banner role" class="ex-role">x</div>
+  <div role="navigation" aria-label="label" style="display: contents;" data-expectedrole="navigation" data-expectedlabel="label" data-testname="div with role navigation, aria-label and display: contents has navigation role" class="ex-role-and-label">x</div>
+  <div role="complementary" aria-label="label" style="display: contents;" data-expectedrole="complementary" data-expectedlabel="label" data-testname="div with role complementary, aria-label and display: contents has complementary role" class="ex-role-and-label">x</div>
+  <div role="main" style="display: contents;" data-expectedrole="main" data-testname="div with role main and display: contents has main role" class="ex-role">x</div>
+  <div role="contentinfo" style="display: contents;" data-expectedrole="contentinfo" data-testname="div with role contentinfo and display: contents has contentinfo role" class="ex-role">x</div>
+  <div role="form" aria-label="label" style="display: contents;" data-expectedrole="form" data-expectedlabel="label" data-testname="div with role form, aria-label and display: contents has form role" class="ex-role-and-label">x</div>
+  <div role="search" aria-label="label" style="display: contents;" data-expectedrole="search" data-expectedlabel="label" data-testname="div with role search and display: contents has search role" class="ex-role-and-label">x</div>
+  <div role="region" aria-label="label" style="display: contents;" data-expectedrole="region" data-expectedlabel="label" data-testname="div with role region, aria-label and display: contents has region role" class="ex-role-and-label">x</div>
+
+  <!-- Links -->
+  <a href="#" style="display: contents;" data-expectedrole="link" data-expectedlabel="x" data-testname="link with display: contents has link role" class="ex-role-and-label">x</a>
+  <a href="#" role="link" style="display: contents;" data-expectedrole="link" data-expectedlabel="x" data-testname="link with explicit link role and display: contents has link role" class="ex-role-and-label">x</a>
+  <div role="link" style="display: contents;" data-expectedrole="link" data-expectedlabel="x" data-testname="div with link role and display: contents has link role" class="ex-role-and-label">x</div>
+  <div role="link" tabindex="0" style="display: contents;" data-expectedrole="link" data-expectedlabel="x" data-testname="div with link role, tabindex=0 and display: contents has link role" class="ex-role-and-label">x</div>
+
+  <!-- Lists -->
+  <ul role="list" style="display: contents;" data-expectedrole="list" data-testname="ul with role list and display: contents (child li has display: contents) has list role" class="ex-role">
+    <li style="display: contents;" data-expectedrole="listitem" data-testname="li as child of ul with role list, both with display: contents, has listitem role" class="ex-role">x</li>
+    <li>y</li>
+  </ul>
+
+  <ul role="list" style="display: contents;" data-expectedrole="list" data-testname="ul with role list and display: contents has list role" class="ex-role">
+    <li>x</li>
+    <li data-expectedrole="listitem" data-testname="li, as child of ul with role list and display: contents, has listitem role" class="ex-role">y</li>
+  </ul>
+
+  <ul role="list">
+    <li>x</li>
+    <li style="display: contents;" data-expectedrole="listitem" data-testname="li with display: contents, as child of ul with role list, has listitem role" class="ex-role">y</li>
+  </ul>
+
+  <ol role="list" style="display: contents;" data-expectedrole="list" data-testname="ol with role list and display: contents has list role (child li has display: contents)" class="ex-role">
+    <li style="display: contents;" data-expectedrole="listitem" data-testname="li as child of ol with role list, both with display: contents, has listitem role" class="ex-role">x</li>
+    <li>y</li>
+  </ol>
+
+  <ol role="list" style="display: contents;" data-expectedrole="list" data-testname="ol with role list and display: contents has list role" class="ex-role">
+    <li>x</li>
+    <li data-expectedrole="listitem" data-testname="li, as child of ol with role list and display: contents, has listitem role" class="ex-role">y</li>
+  </ol>
+
+  <ol role="list">
+    <li>x</li>
+    <li style="display: contents;" data-expectedrole="listitem" data-testname="li with display: contents, as child of ol with role list, has listitem role" class="ex-role">y</li>
+  </ol>
+
+  <div role="list" style="display: contents;" data-expectedrole="list" data-testname="div with list role and display: contents has list role" class="ex-role">
+    <div role="listitem" data-expectedrole="listitem" data-testname="div with listitem role, as child of div with display: contents, has listitem role" class="ex-role">x</div>
+    <div>y</div>
+  </div>
+
+  <div role="list" style="display: contents;" data-expectedrole="list" data-testname="div with list role and display: contents has list role (child div with listitem role has display: contents)" class="ex-role">
+    <div>x</div>
+    <div role="listitem" style="display: contents;" data-expectedrole="listitem" data-testname="div with listitem role (as child of div with list role), both with display: contents, has listitem role" class="ex-role">y</div>
+  </div>
+
+  <div role="list">
+    <div>x</div>
+    <div role="listitem" style="display: contents;" data-expectedrole="listitem"  data-testname="div with listitem role with display: contents, as child of div with list role, has listitem role" class="ex-role">y</div>
+  </div>
+
+  <!-- Lists: description/definition lists -> wpt/html-aam/roles.html -->
+
+  <!-- Tables (including grids/treegrids) -->
+  <table role="table" style="display: contents;" data-expectedrole="table" data-testname="table with role table and display: contents has table role" class="ex-role">
+    <thead>
+      <tr style="display: contents;" data-expectedrole="row" data-testname="tr in table with role table and display: contents has row role" class="ex-role">
+        <th style="display: contents;" data-expectedrole="columnheader" data-testname="td within tr both with display: contents, in table with role table and display: contents, has columnheader role" class="ex-role">x</th>
+        <th>x</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="display: contents;" data-expectedrole="cell" data-testname="td within tr in table with role table, all with display: contents, has cell role" class="ex-role">x</td>
+        <td>x</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div role="table" style="display: contents;" data-expectedrole="table" data-testname="div with role table with display: contents has table role" class="ex-role">
+    <div role="rowgroup" style="display: contents;" data-expectedrole="rowgroup" data-testname="div with role rowgroup in div with role table, both with display: contents, has rowgroup role" class="ex-role">
+      <div role="row">
+        <div role="columnheader" style="display: contents;" data-expectedrole="columnheader" data-testname="div with role columnheader with display: contents, in div with role rowgroup within div with table role both with display: contents, has columnheader role" class="ex-role">x</div>
+        <div role="columnheader">x</div>
+      </div>
+    </div>
+    <div role="rowgroup">
+      <div role="row">
+        <div role="cell">x</div>
+        <div role="cell">x</div>
+      </div>
+    </div>
+  </div>
+
+  <table role="grid" style="display: contents;" data-expectedrole="grid" data-testname="table with role grid and display: contents has grid role">
+    <thead>
+      <tr style="display: contents;" data-expectedrole="row" data-testname="tr within table with role grid, both with display: contents, has row role">
+        <th style="display: contents;" data-expectedrole="columnheader" data-testname="th within table with role grid, both with display: contents, has columnheader role" class="ex-role">x</th>
+        <th>x</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="display: contents;" data-expectedrole="gridcell" data-testname="td within table with role grid, both with display: contents, has gridcell role" class="ex-role">x</td>
+        <td>x</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div role="grid" style="display: contents;" data-expectedrole="grid" data-testname="div with role grid with display: contents has grid role" class="ex-role">
+    <div role="rowgroup" style="display: contents;" data-expectedrole="rowgroup" data-testname="div with role rowgroup in div with role grid, both with display: contents, has rowgroup role" class="ex-role">
+      <div role="row">
+        <div role="columnheader" style="display: contents;" data-expectedrole="columnheader" data-testname="div with role columnheader with display: contents, in div with role rowgroup within div with grid role both with display: contents, has rowgroup role" class="ex-role">x</div>
+        <div role="columnheader">x</div>
+      </div>
+    </div>
+    <div role="rowgroup">
+      <div role="row">
+        <div role="gridcell"></div>
+        <div role="gridcell" style="display: contents;" data-expectedrole="gridcell" data-testname="div with gridcell role and display: contents, within div with role row contained in a div with role grid both with display: contents, has gridcell role" class="ex-role">x</div>
+      </div>
+    </div>
+  </div>
+
+  <table role="grid" tabindex="0" style="display: contents;" data-expectedrole="grid" data-testname="div with role grid, tabindex=0 and display: contents has grid role" >
+    <thead>
+      <tr>
+        <th>x</th>
+        <th>x</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>x</td>
+        <td>x</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <table role="treegrid" style="display: contents;" data-expectedrole="treegrid" data-testname="table with role treegrid and display: contents has treegrid role" class="ex-role"></table>
+  <div role="treegrid" style="display: contents;" data-expectedrole="treegrid" data-testname="div with role treegrid and display: contents has treegrid role" class="ex-role"></div>
+
+  <ul role="tree" style="display: contents;" data-expectedrole="tree" data-testname="ul with role tree and display: contents has tree role" class="ex-role">
+    <li role="treeitem" aria-expanded="true" style="display: contents;" data-expectedrole="treeitem" data-testname="li with role treeitem and display: contents, within ul with role tree and display: contents, has treeitem role" class="ex-role">
+      <span>x</span>
+      <ul role="group">
+        <li role="treeitem" aria-expanded="false" style="display: contents;" data-expectedrole="treeitem" data-testname="li with role treeitem and display: contents, within ul with role=group (within ul with role tree and display: contents), has treeitem role" class="ex-role">
+          <span>x</span>
+        </li>
+      </ul>
+    </li>
+  </ul>
+
+<script>
+  AriaUtils.verifyRolesBySelector(".ex-role");
+  AriaUtils.verifyRolesAndLabelsBySelector(".ex-role-and-label");
+  AriaUtils.verifyGenericRolesBySelector(".ex-generic");
+</script>
+
+</body>
+</html>
