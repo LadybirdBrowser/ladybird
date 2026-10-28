@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 62 tests
 
-56 Pass
-6 Fail
+62 Pass
 Pass	multipart/form-data: Basic test (normal form)
 Pass	multipart/form-data: Basic test (formdata event)
 Pass	multipart/form-data: Basic File test (normal form)
@@ -60,9 +59,9 @@ Pass	multipart/form-data: non-ASCII in name and value (normal form)
 Pass	multipart/form-data: non-ASCII in name and value (formdata event)
 Pass	multipart/form-data: non-ASCII in filename (normal form)
 Pass	multipart/form-data: non-ASCII in filename (formdata event)
-Fail	multipart/form-data: characters not in encoding in name and value (normal form)
-Fail	multipart/form-data: characters not in encoding in name and value (formdata event)
-Fail	multipart/form-data: character not in encoding in filename (normal form)
-Fail	multipart/form-data: character not in encoding in filename (formdata event)
-Fail	multipart/form-data: lone surrogate in name and value (normal form)
-Fail	multipart/form-data: lone surrogate in name and value (formdata event)
+Pass	multipart/form-data: characters not in encoding in name and value (normal form)
+Pass	multipart/form-data: characters not in encoding in name and value (formdata event)
+Pass	multipart/form-data: character not in encoding in filename (normal form)
+Pass	multipart/form-data: character not in encoding in filename (formdata event)
+Pass	multipart/form-data: lone surrogate in name and value (normal form)
+Pass	multipart/form-data: lone surrogate in name and value (formdata event)

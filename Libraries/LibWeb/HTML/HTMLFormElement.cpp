@@ -923,7 +923,7 @@ ErrorOr<void> HTMLFormElement::mutate_action_url(URL::URL parsed_action, GC::Con
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#submit-body
-ErrorOr<void> HTMLFormElement::submit_as_entity_body(URL::URL parsed_action, GC::ConservativeVector<XHR::FormDataEntry> entry_list, EncodingTypeAttributeState encoding_type, [[maybe_unused]] Utf16String encoding, GC::Ref<Navigable> target_navigable, NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement, GC::Ref<HTMLElement> submitter)
+ErrorOr<void> HTMLFormElement::submit_as_entity_body(URL::URL parsed_action, GC::ConservativeVector<XHR::FormDataEntry> entry_list, EncodingTypeAttributeState encoding_type, Utf16String encoding, GC::Ref<Navigable> target_navigable, NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement, GC::Ref<HTMLElement> submitter)
 {
     // 1. Assert: method is POST.
 
@@ -952,7 +952,7 @@ ErrorOr<void> HTMLFormElement::submit_as_entity_body(URL::URL parsed_action, GC:
     case EncodingTypeAttributeState::FormData: {
         // -> multipart/form-data
         // 1. Let body be the result of running the multipart/form-data encoding algorithm with entry list and encoding.
-        auto body_and_mime_type = TRY(serialize_to_multipart_form_data(entry_list));
+        auto body_and_mime_type = TRY(serialize_to_multipart_form_data(entry_list, form_encoding_label_for_byte_serialization(encoding)));
         body = move(body_and_mime_type.serialized_data);
 
         // 2. Let mimeType be the isomorphic encoding of the concatenation of "multipart/form-data; boundary=" and the multipart/form-data
@@ -968,10 +968,9 @@ ErrorOr<void> HTMLFormElement::submit_as_entity_body(URL::URL parsed_action, GC:
 
         // 2. Let body be the result of running the text/plain encoding algorithm with pairs.
         auto serialized_body = TRY(plain_text_encode(pairs));
-        auto serialized_body_utf8 = serialized_body.to_utf8();
-        body = TRY(ByteBuffer::copy(serialized_body_utf8.bytes()));
 
-        // FIXME: 3. Set body to the result of encoding body using encoding.
+        // 3. Set body to the result of encoding body using encoding.
+        body = TRY(encode(serialized_body.utf16_view(), form_encoding_label_for_byte_serialization(encoding)));
 
         // 4. Let mimeType be `text/plain`.
         mime_type = POSTResource::RequestContentType::TextPlain;

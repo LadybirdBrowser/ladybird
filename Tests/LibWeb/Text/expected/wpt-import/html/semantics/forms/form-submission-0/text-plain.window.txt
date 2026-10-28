@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 62 tests
 
-56 Pass
-6 Fail
+62 Pass
 Pass	text/plain: Basic test (normal form)
 Pass	text/plain: Basic test (formdata event)
 Pass	text/plain: Basic File test (normal form)
@@ -60,9 +59,9 @@ Pass	text/plain: non-ASCII in name and value (normal form)
 Pass	text/plain: non-ASCII in name and value (formdata event)
 Pass	text/plain: non-ASCII in filename (normal form)
 Pass	text/plain: non-ASCII in filename (formdata event)
-Fail	text/plain: characters not in encoding in name and value (normal form)
-Fail	text/plain: characters not in encoding in name and value (formdata event)
-Fail	text/plain: character not in encoding in filename (normal form)
-Fail	text/plain: character not in encoding in filename (formdata event)
-Fail	text/plain: lone surrogate in name and value (normal form)
-Fail	text/plain: lone surrogate in name and value (formdata event)
+Pass	text/plain: characters not in encoding in name and value (normal form)
+Pass	text/plain: characters not in encoding in name and value (formdata event)
+Pass	text/plain: character not in encoding in filename (normal form)
+Pass	text/plain: character not in encoding in filename (formdata event)
+Pass	text/plain: lone surrogate in name and value (normal form)
+Pass	text/plain: lone surrogate in name and value (formdata event)
