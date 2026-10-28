@@ -1969,6 +1969,13 @@ void Tab::set_pinned(bool pinned)
 void Tab::set_vertical_tabs_enabled(bool enabled)
 {
     m_vertical_tabs_enabled = enabled;
+
+    // The page's separator supplies the bottom border, leaving the toolbar open above the sidebar.
+    m_toolbar_container->setProperty("verticalTabs", enabled);
+    m_toolbar_container->style()->unpolish(m_toolbar_container);
+    m_toolbar_container->style()->polish(m_toolbar_container);
+    m_toolbar_container->update();
+
     if (!is_loaded())
         return;
 
@@ -2153,14 +2160,13 @@ void Tab::update_tab_title()
 
 void Tab::tab_settings_changed()
 {
+    auto const& tab_settings = WebView::Application::settings().tab_settings();
+    set_vertical_tabs_enabled(tab_settings.vertical_tabs_enabled);
+
     if (!is_loaded())
         return;
 
-    auto const& tab_settings = WebView::Application::settings().tab_settings();
-    m_vertical_tabs_enabled = tab_settings.vertical_tabs_enabled;
     recreate_toolbar_icons();
-    update_bookmarks_bar_visibility();
-    m_toolbar->layout()->invalidate();
 }
 
 void Tab::config_variable_changed(WebView::ConfigVariableID variable)

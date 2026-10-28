@@ -259,7 +259,8 @@ QWidget#LadybirdToolbarContainer {{
     border-bottom: 1px solid {3};
 }}
 
-QWidget#LadybirdToolbarContainer[bookmarksBarBelow="true"] {{
+QWidget#LadybirdToolbarContainer[bookmarksBarBelow="true"],
+QWidget#LadybirdToolbarContainer[verticalTabs="true"] {{
     border-bottom-color: transparent;
 }}
 
@@ -1131,9 +1132,6 @@ QWidget#LadybirdVerticalTabBar[verticalTabsPosition="right"] {{
     border-left-color: transparent;
 }}
 
-QWidget#LadybirdVerticalTabsContentSeparator {{
-    background: transparent;
-}}
 )"
 #endif
         ,
