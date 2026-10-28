@@ -3204,7 +3204,6 @@ impl<'pass> AbsposEngine<'pass> {
         inputs.position_option = position_option.choice();
         self.records
             .set_default_scroll_shift(child_box, Some(default_scroll_shift));
-        self.install_resolved_anchor_sizes(child_box, &inputs);
         self.layout_element(run, child_box, inputs);
         drop(position_option);
     }
