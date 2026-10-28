@@ -25,6 +25,7 @@
 #include <LibWeb/CSS/VisualViewport.h>
 #include <LibWeb/Clipboard/ClipboardEvent.h>
 #include <LibWeb/Compositor/NavigablePresenter.h>
+#include <LibWeb/DOM/DOMEventListener.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Range.h>
@@ -4515,6 +4516,25 @@ bool EventHandler::dispatch_touch_event(PointerState& pointer, DOM::Node& target
     }
     event_init.changed_touches.append(*pointer.touch);
     auto event = UIEvents::TouchEvent::create(name.to_utf16_string(), event_init, HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(target)));
+
+    // https://w3c.github.io/touch-events/#cancelability
+    // In particular, a user agent should generate only uncancelable touch events when it observes that there are no
+    // non-passive listeners for the event.
+    if (name.is_one_of(UIEvents::EventNames::touchstart, UIEvents::EventNames::touchmove)) {
+        bool has_non_passive_listener = false;
+        for (auto* event_target = static_cast<DOM::EventTarget*>(&target); event_target; event_target = event_target->get_parent(*event)) {
+            for (auto const& listener : event_target->event_listener_list_matching(name, {})) {
+                if (!listener->removed && listener->passive != true) {
+                    has_non_passive_listener = true;
+                    break;
+                }
+            }
+            if (has_non_passive_listener)
+                break;
+        }
+        event->set_cancelable(has_non_passive_listener);
+    }
+
     event->set_is_trusted(true);
     return original_target->dispatch_event(event);
 }
