@@ -1839,30 +1839,34 @@ impl<'pass> SvgFormattingContext<'pass> {
     }
 
     fn set_svg_viewport_transform(&self, node: Node, transform: FfiAffineTransform) {
-        self.used_values(node).rare_data_mut().svg.viewport_transform = Some(transform);
+        self.run
+            .update_fragment_payloads_of(node, |payloads| payloads.svg.viewport_transform = Some(transform));
     }
 
     fn set_svg_viewport_size(&self, node: Node, viewport_size: FfiCssPixelSize) {
-        self.used_values(node).rare_data_mut().svg.viewport_size = Some(viewport_size);
+        self.run
+            .update_fragment_payloads_of(node, |payloads| payloads.svg.viewport_size = Some(viewport_size));
     }
 
     fn commit_svg_element_facts(&self, node: Node, facts: SvgElementFacts, attributes: FfiSvgAttributeFacts) {
-        let used = self.used_values(node);
-        let mut rare = used.rare_data_mut();
-        rare.svg.view_box = attributes.has_active_view_box.then_some(attributes.active_view_box);
-        rare.svg.element_transform = (!facts.element_transform.is_identity()).then_some(facts.element_transform);
-        rare.svg.additional_element_transform =
-            (!facts.additional_element_transform.is_identity()).then_some(facts.additional_element_transform);
-        rare.svg.mask_area_facts = (self.node_kind(node) == NodeKind::SVGMaskBox).then_some(SvgMaskAreaFacts {
+        let mask_area_facts = (self.node_kind(node) == NodeKind::SVGMaskBox).then_some(SvgMaskAreaFacts {
             units_are_object_bounding_box: attributes.mask_units == SVG_UNITS_OBJECT_BOUNDING_BOX,
             x: attributes.mask_x,
             y: attributes.mask_y,
             width: attributes.mask_width,
             height: attributes.mask_height,
         });
-        rare.svg.viewport_percentage_basis = facts.viewport_percentage_basis;
-        rare.svg.resource_content_units_are_object_bounding_box =
-            attributes.content_units == SVG_UNITS_OBJECT_BOUNDING_BOX;
+        self.run.update_fragment_payloads_of(node, |payloads| {
+            let svg = &mut payloads.svg;
+            svg.view_box = attributes.has_active_view_box.then_some(attributes.active_view_box);
+            svg.element_transform = (!facts.element_transform.is_identity()).then_some(facts.element_transform);
+            svg.additional_element_transform =
+                (!facts.additional_element_transform.is_identity()).then_some(facts.additional_element_transform);
+            svg.mask_area_facts = mask_area_facts;
+            svg.viewport_percentage_basis = facts.viewport_percentage_basis;
+            svg.resource_content_units_are_object_bounding_box =
+                attributes.content_units == SVG_UNITS_OBJECT_BOUNDING_BOX;
+        });
     }
 
     fn place_child(&self, node: Node, x: CssPixels, y: CssPixels) {
@@ -2247,11 +2251,10 @@ impl<'pass> SvgFormattingContext<'pass> {
             }
         }
 
-        {
-            let mut rare_data = self.used_values(graphics_box).rare_data_mut();
-            rare_data.computed_svg_path = Some(std::sync::Arc::new(path));
-            rare_data.svg_text_character_cells = character_cells.map(std::sync::Arc::new);
-        }
+        self.run.update_fragment_payloads_of(graphics_box, |payloads| {
+            payloads.computed_svg_path = Some(std::sync::Arc::new(path));
+            payloads.svg_text_character_cells = character_cells.map(std::sync::Arc::new);
+        });
         self.set_content_rect(graphics_box, bounding_box);
     }
 

@@ -1041,8 +1041,6 @@ pub(crate) struct RunRootOutcome {
     pub(super) cells: RootCellsOutcome,
     pub(super) own_metrics_sealed: bool,
     pub(super) line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
-    /// Boxed, as most roots have none and a cached run holds its outcome for as long as it is reusable.
-    pub(super) rare: Option<Box<used_values::UsedValuesRareData>>,
 }
 
 impl RunRootOutcome {
@@ -1055,9 +1053,6 @@ impl RunRootOutcome {
         }
         if let Some(line_data) = self.line_data {
             record.set_finished_line_data(line_data);
-        }
-        if let Some(rare) = self.rare {
-            (*rare).install_present_payloads_into(record);
         }
         if self.own_metrics_sealed {
             record.seal_own_metrics();
@@ -1297,6 +1292,18 @@ impl<'pass> FormattingContextRun<'pass> {
         sizing_context::SizingContext::new(self.records, self.callbacks)
     }
 
+    /// Hands what the layout of `node` produced besides its geometry to the box's fragment, where this run builds
+    /// fragments.
+    pub(crate) fn update_fragment_payloads_of(
+        &self,
+        node: Node,
+        update: impl FnOnce(&mut fragment_tree::FragmentPayloads),
+    ) {
+        if let Some(fragments) = self.fragments.as_deref() {
+            fragments.update_fragment_payloads_of(node, update);
+        }
+    }
+
     pub(crate) fn outputs(
         &self,
         result: ChildLayoutResult,
@@ -1309,7 +1316,6 @@ impl<'pass> FormattingContextRun<'pass> {
             cells: RootCellsOutcome::capture(record, parent_owns_root_input_cells),
             own_metrics_sealed: record.own_metrics_are_sealed(),
             line_data: record.finish_line_data(&self.callbacks),
-            rare: record.rare_data.get().map(|rare| Box::new(rare.take())),
         };
         RunOutputs {
             result,

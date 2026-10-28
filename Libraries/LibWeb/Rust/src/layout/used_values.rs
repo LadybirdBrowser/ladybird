@@ -68,35 +68,6 @@ pub(crate) struct SealableCell<T> {
     sealed: Cell<bool>,
 }
 
-/// Lazily owns interior-mutable data without reserving space for `T` in every
-/// `UsedValues` entry.
-pub(crate) struct LazyRefCell<T> {
-    value: OnceCell<Box<RefCell<T>>>,
-}
-
-impl<T> LazyRefCell<T> {
-    pub(crate) const fn new() -> Self {
-        Self { value: OnceCell::new() }
-    }
-
-    pub(crate) fn get(&self) -> Option<&RefCell<T>> {
-        self.value.get().map(Box::as_ref)
-    }
-
-    pub(crate) fn get_or_init(&self, initialize: impl FnOnce() -> T) -> &RefCell<T> {
-        self.value.get_or_init(|| Box::new(RefCell::new(initialize()))).as_ref()
-    }
-}
-
-impl<T> std::fmt::Debug for LazyRefCell<T> {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("LazyRefCell")
-            .field("initialized", &self.value.get().is_some())
-            .finish()
-    }
-}
-
 impl<T: Copy + std::fmt::Debug> std::fmt::Debug for SealableCell<T> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.value.get().fmt(formatter)
@@ -210,98 +181,6 @@ pub(crate) struct CommittedSvgFacts {
     pub(crate) resource_content_units_are_object_bounding_box: bool,
 }
 
-impl CommittedSvgFacts {
-    fn install_present_into(self, target: &mut Self) {
-        if let Some(transform) = self.viewport_transform {
-            target.viewport_transform = Some(transform);
-        }
-        if let Some(size) = self.viewport_size {
-            target.viewport_size = Some(size);
-        }
-        if let Some(view_box) = self.view_box {
-            target.view_box = Some(view_box);
-        }
-        if let Some(transform) = self.element_transform {
-            target.element_transform = Some(transform);
-        }
-        if let Some(transform) = self.additional_element_transform {
-            target.additional_element_transform = Some(transform);
-        }
-        if let Some(facts) = self.mask_area_facts {
-            target.mask_area_facts = Some(facts);
-        }
-        target.viewport_percentage_basis = self.viewport_percentage_basis;
-        target.resource_content_units_are_object_bounding_box = self.resource_content_units_are_object_bounding_box;
-    }
-}
-
-#[derive(Clone, Default)]
-pub(crate) struct UsedValuesRareData {
-    pub(crate) computed_svg_path: Option<std::sync::Arc<libgfx_rust::path::Path>>,
-    pub(crate) svg_text_character_cells: Option<std::sync::Arc<Vec<svg_formatting_context::FfiSvgTextCharacterCell>>>,
-    pub(crate) svg: CommittedSvgFacts,
-    pub(crate) grid_layout_data: Option<std::sync::Arc<grid_formatting_context::GridLayoutData>>,
-    pub(crate) flex_layout_data: Option<std::sync::Arc<formatting_context::FlexLayoutData>>,
-    pub(crate) multicol_layout_data: Option<std::sync::Arc<fragmentation::MulticolLayoutData>>,
-    pub(crate) math_paint_data: Option<std::sync::Arc<math_formatting_context::MathPaintData>>,
-    pub(crate) used_grid_tracks: Option<std::sync::Arc<grid_formatting_context::OwnedUsedGridTracks>>,
-    pub(crate) collapsed_table_borders: Option<std::sync::Arc<table_formatting_context::OwnedCollapsedTableBorders>>,
-}
-
-impl UsedValuesRareData {
-    pub(crate) fn install_present_payloads_into(self, record: &UsedValues) {
-        let Self {
-            computed_svg_path,
-            svg_text_character_cells,
-            svg,
-            grid_layout_data,
-            flex_layout_data,
-            multicol_layout_data,
-            math_paint_data,
-            used_grid_tracks,
-            collapsed_table_borders,
-        } = self;
-        if computed_svg_path.is_none()
-            && svg_text_character_cells.is_none()
-            && svg == CommittedSvgFacts::default()
-            && grid_layout_data.is_none()
-            && flex_layout_data.is_none()
-            && multicol_layout_data.is_none()
-            && math_paint_data.is_none()
-            && used_grid_tracks.is_none()
-            && collapsed_table_borders.is_none()
-        {
-            return;
-        }
-        let mut rare = record.rare_data_mut();
-        if let Some(path) = computed_svg_path {
-            rare.computed_svg_path = Some(path);
-        }
-        if let Some(cells) = svg_text_character_cells {
-            rare.svg_text_character_cells = Some(cells);
-        }
-        svg.install_present_into(&mut rare.svg);
-        if let Some(data) = grid_layout_data {
-            rare.grid_layout_data = Some(data);
-        }
-        if let Some(data) = flex_layout_data {
-            rare.flex_layout_data = Some(data);
-        }
-        if let Some(data) = multicol_layout_data {
-            rare.multicol_layout_data = Some(data);
-        }
-        if let Some(data) = math_paint_data {
-            rare.math_paint_data = Some(data);
-        }
-        if let Some(tracks) = used_grid_tracks {
-            rare.used_grid_tracks = Some(tracks);
-        }
-        if let Some(borders) = collapsed_table_borders {
-            rare.collapsed_table_borders = Some(borders);
-        }
-    }
-}
-
 /// The per-box geometry stored in a Rust-owned layout pass.
 #[derive(Debug)]
 pub(crate) struct UsedValues {
@@ -349,7 +228,6 @@ pub(crate) struct UsedValues {
     pub orthogonal_flow_baselines: Cell<Option<DerivedBaselines>>,
 
     pub(crate) line_data: RefCell<LineDataState>,
-    pub(crate) rare_data: LazyRefCell<UsedValuesRareData>,
     /// The anchor-size() resolutions of an absolutely positioned box, set once as the abspos engine places it.
     pub(crate) anchor_resolved_values: std::cell::OnceCell<Box<style_values::AnchorResolvedValues>>,
     pub(crate) held_committed_fragment: fragment_tree::HeldCommittedFragmentCell,
@@ -387,7 +265,6 @@ impl Default for UsedValues {
             inline_alignment_baseline: Cell::new(None),
             orthogonal_flow_baselines: Cell::new(None),
             line_data: RefCell::new(LineDataState::Empty),
-            rare_data: LazyRefCell::new(),
             anchor_resolved_values: std::cell::OnceCell::new(),
             held_committed_fragment: fragment_tree::HeldCommittedFragmentCell::default(),
         }
@@ -419,10 +296,6 @@ impl UsedValues {
     pub(crate) fn resolve_box_model(&self, style: &StyleValues<'_>, basis: CssPixels) {
         self.resolve_horizontal_box_model(style, basis);
         self.resolve_vertical_box_model(style, basis);
-    }
-
-    pub(crate) fn rare_data_mut(&self) -> RefMut<'_, UsedValuesRareData> {
-        self.rare_data.get_or_init(UsedValuesRareData::default).borrow_mut()
     }
 
     pub(crate) fn line_data_ref(&self) -> Option<Ref<'_, LineDataState>> {

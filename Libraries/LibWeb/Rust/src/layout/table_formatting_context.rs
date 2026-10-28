@@ -1425,13 +1425,15 @@ impl<'pass> TableFormattingContext<'pass> {
             }
         }));
         let (horizontal_edges, vertical_edges) = grid.take_edges();
-        self.used_values(self.run.box_).rare_data_mut().collapsed_table_borders =
-            Some(std::sync::Arc::new(OwnedCollapsedTableBorders {
-                row_offsets,
-                column_offsets,
-                horizontal_edges,
-                vertical_edges,
-            }));
+        let collapsed_table_borders = std::sync::Arc::new(OwnedCollapsedTableBorders {
+            row_offsets,
+            column_offsets,
+            horizontal_edges,
+            vertical_edges,
+        });
+        self.run.update_fragment_payloads_of(self.run.box_, |payloads| {
+            payloads.collapsed_table_borders = Some(collapsed_table_borders);
+        });
     }
 
     // Participants resolve percentages against the table's input basis inside this context, so

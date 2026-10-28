@@ -456,6 +456,7 @@ fn outputs_without_descendant_fragments(outputs: &formatting_context::RunOutputs
         propagated_anchor_candidates: root.propagated_anchor_candidates.clone(),
         propagated_inline_containing_block_rects: root.propagated_inline_containing_block_rects.clone(),
         propagated_abspos_containing_block_info: root.propagated_abspos_containing_block_info.clone(),
+        root_payloads: root.root_payloads.clone(),
     });
     formatting_context::RunOutputs {
         result: outputs.result,
@@ -1053,6 +1054,7 @@ mod tests {
             propagated_anchor_candidates: Vec::new(),
             propagated_inline_containing_block_rects: Vec::new(),
             propagated_abspos_containing_block_info: Vec::new(),
+            root_payloads: None,
         }
     }
 
@@ -1077,7 +1079,6 @@ mod tests {
                     )),
                     own_metrics_sealed: false,
                     line_data: None,
-                    rare: None,
                 },
                 // NB: As a run whose result depends on no percentage block size proves.
                 inputs_never_observed: RunInputsTheStoredRunNeverObserved {
