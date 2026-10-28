@@ -194,6 +194,7 @@ public:
     void update_downloads_button();
     void show_private_session_popover();
     void show_site_settings_popover();
+    void refresh_site_settings_popover();
     void show_zoom_popover();
     void show_bookmark_popover();
     void close_popovers();
