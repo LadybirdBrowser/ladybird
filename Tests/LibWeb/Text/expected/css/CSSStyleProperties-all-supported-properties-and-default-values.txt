@@ -555,6 +555,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'font-stretch': '100%'
 'fontStyle': 'normal'
 'font-style': 'normal'
+'fontSynthesis': 'weight style small-caps'
+'font-synthesis': 'weight style small-caps'
 'fontSynthesisPosition': 'auto'
 'font-synthesis-position': 'auto'
 'fontSynthesisSmallCaps': 'auto'

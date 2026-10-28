@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 359 tests
+Found 362 tests
 
-340 Pass
+343 Pass
 19 Fail
 Pass	Setup
 Pass	alignment-baseline (type: discrete) has testAddition function
@@ -293,6 +293,9 @@ Pass	font-kerning: "auto" onto "normal"
 Pass	font-language-override (type: discrete) has testAddition function
 Pass	font-language-override: "normal" onto ""eng""
 Pass	font-language-override: ""eng"" onto "normal"
+Pass	font-synthesis (type: discrete) has testAddition function
+Pass	font-synthesis: "weight style" onto "none"
+Pass	font-synthesis: "none" onto "weight style"
 Pass	font-variant-alternates (type: discrete) has testAddition function
 Pass	font-variant-alternates: "stylistic(unknown)" onto "swash(unknown)"
 Pass	font-variant-alternates: "swash(unknown)" onto "stylistic(unknown)"
