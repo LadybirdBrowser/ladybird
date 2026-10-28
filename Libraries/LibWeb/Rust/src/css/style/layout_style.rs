@@ -306,6 +306,7 @@ impl LayoutStyle {
             target.has_z_index = box_values.has_z_index;
             target.z_index = box_values.z_index;
             target.vertical_align = box_values.vertical_align.clone();
+            target.baseline_source = box_values.baseline_source;
         });
         let misc_reset = source.group::<MiscResetValues>();
         self.edit::<MiscResetValues>(|target| {
@@ -385,6 +386,7 @@ impl LayoutStyle {
             target.has_z_index = initial.has_z_index;
             target.z_index = initial.z_index;
             target.vertical_align = initial.vertical_align.clone();
+            target.baseline_source = initial.baseline_source;
         });
         self.copy_table_properties(&defaults);
     }
