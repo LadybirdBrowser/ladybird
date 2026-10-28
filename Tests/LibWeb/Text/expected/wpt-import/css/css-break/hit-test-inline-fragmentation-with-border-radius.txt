@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 36 tests
 
-28 Pass
-8 Fail
+36 Pass
 Pass	Horizontal line 1, hit test outside top-left rounded corner
 Pass	Horizontal line 1, hit test inside top-left rounded corner
 Pass	Horizontal line 1, hit test outside bottom-left rounded corner
@@ -18,25 +17,25 @@ Pass	Horizontal line 2, hit test inside top-left right-angled corner
 Pass	Horizontal line 2, hit test inside bottom-left right-angled corner
 Pass	Vertical LR line 1, hit test outside top-left rounded corner
 Pass	Vertical LR line 1, hit test inside top-left rounded corner
-Fail	Vertical LR line 1, hit test outside top-right rounded corner
+Pass	Vertical LR line 1, hit test outside top-right rounded corner
 Pass	Vertical LR line 1, hit test inside top-right rounded corner
-Fail	Vertical LR line 1, hit test inside bottom-left right-angled corner
+Pass	Vertical LR line 1, hit test inside bottom-left right-angled corner
 Pass	Vertical LR line 1, hit test inside bottom-right right-angled corner
-Fail	Vertical LR line 2, hit test outside bottom-left rounded corner
+Pass	Vertical LR line 2, hit test outside bottom-left rounded corner
 Pass	Vertical LR line 2, hit test inside bottom-left rounded corner
 Pass	Vertical LR line 2, hit test outside bottom-right rounded corner
 Pass	Vertical LR line 2, hit test inside bottom-right rounded corner
 Pass	Vertical LR line 2, hit test inside top-left right-angled corner
-Fail	Vertical LR line 2, hit test inside top-right right-angled corner
+Pass	Vertical LR line 2, hit test inside top-right right-angled corner
 Pass	Vertical RL line 1, hit test outside top-left rounded corner
 Pass	Vertical RL line 1, hit test inside top-left rounded corner
-Fail	Vertical RL line 1, hit test outside top-right rounded corner
+Pass	Vertical RL line 1, hit test outside top-right rounded corner
 Pass	Vertical RL line 1, hit test inside top-right rounded corner
-Fail	Vertical RL line 1, hit test inside bottom-left right-angled corner
+Pass	Vertical RL line 1, hit test inside bottom-left right-angled corner
 Pass	Vertical RL line 1, hit test inside bottom-right right-angled corner
-Fail	Vertical RL line 2, hit test outside bottom-left rounded corner
+Pass	Vertical RL line 2, hit test outside bottom-left rounded corner
 Pass	Vertical RL line 2, hit test inside bottom-left rounded corner
 Pass	Vertical RL line 2, hit test outside bottom-right rounded corner
 Pass	Vertical RL line 2, hit test inside bottom-right rounded corner
 Pass	Vertical RL line 2, hit test inside top-left right-angled corner
-Fail	Vertical RL line 2, hit test inside top-right right-angled corner
+Pass	Vertical RL line 2, hit test inside top-right right-angled corner
