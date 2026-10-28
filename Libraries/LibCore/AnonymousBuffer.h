@@ -52,6 +52,9 @@ public:
     // the backing store against shrinking where the peer could still shrink it.
     ErrorOr<void> validate_backing_size() const;
 
+    // Worth calling only on a buffer about to be read in full.
+    void populate_for_reading() const;
+
     int fd() const { return m_impl ? m_impl->fd() : -1; }
     size_t size() const { return m_impl ? m_impl->size() : 0; }
 

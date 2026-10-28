@@ -136,7 +136,10 @@ void VideoPresentationClientConnection::lend_frame(u64 edge_id, u64 lend_id, u32
         dbgln("VideoPresentation: Dropping a lent frame that does not fit its storage: {}", frame_or_error.error());
         return;
     }
-    edge_state->consumer->receive_frame(lend_id, seek_id, frame_or_error.release_value());
+    auto frame = frame_or_error.release_value();
+    // Every frame comes with a fresh mapping of its buffer, which is read in full to upload it.
+    frame->pixel_buffer().populate_for_reading();
+    edge_state->consumer->receive_frame(lend_id, seek_id, move(frame));
 }
 
 void VideoPresentationClientConnection::edge_status_changed(u64 edge_id, PipelineStatus status, u32 seek_id)

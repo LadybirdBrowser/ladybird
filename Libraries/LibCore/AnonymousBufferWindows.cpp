@@ -95,4 +95,12 @@ ErrorOr<void> AnonymousBuffer::validate_backing_size() const
     return {};
 }
 
+void AnonymousBuffer::populate_for_reading() const
+{
+    if (!is_valid() || size() == 0)
+        return;
+    WIN32_MEMORY_RANGE_ENTRY range { const_cast<void*>(m_impl->data()), size() };
+    (void)PrefetchVirtualMemory(GetCurrentProcess(), 1, &range, 0);
+}
+
 }
