@@ -1,0 +1,2 @@
+allowed this time: granted
+after the popup closed itself: prompt

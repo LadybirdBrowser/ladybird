@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A one-time grant ends when the last page showing the site goes away, a page that closes itself included: the
+    // popup that got it closes, and the next popup on the site is asked again.
+    asyncTest(async done => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+        const htmlHeaders = { "Content-Type": "text/html" };
+        const site = uniqueLocalhostHostname("allow-once-closed-site");
+
+        const echo = async (name, body) => {
+            const url = new URL(await httpServer.createEcho("GET", `/${name}-${runId}`, {
+                status: 200,
+                headers: htmlHeaders,
+                body: `<!DOCTYPE html><script>${body}<\/script>`,
+            }));
+            url.hostname = site;
+            return url.href;
+        };
+        const report = `const report = message => opener.postMessage(message, "*");
+            const state = async () => (await navigator.permissions.query({ name: "microphone" })).state;`;
+
+        const firstPageUrl = await echo("first", `${report}
+            internals.setNextPermissionPromptOutcome("microphone", "allow-once");
+            internals.requestPermission("microphone").then(value => {
+                report(\`allowed this time: \${value}\`);
+                window.close();
+            });`);
+        const returnUrl = await echo("return", `${report}
+            state().then(value => report(\`after the popup closed itself: \${value}\`));`);
+
+        const popups = [];
+        addEventListener("message", event => {
+            println(event.data);
+            if (event.data.startsWith("allowed this time")) {
+                const closing = popups[0];
+                const poll = setInterval(() => {
+                    if (!closing.closed)
+                        return;
+                    clearInterval(poll);
+                    popups.push(window.open(returnUrl));
+                }, 10);
+                return;
+            }
+            popups.forEach(popup => popup.close());
+            done();
+        });
+        popups.push(window.open(firstPageUrl));
+    });
+</script>
