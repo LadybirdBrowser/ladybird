@@ -1,0 +1,28 @@
+diff --git a/BUILD.gn b/BUILD.gn
+index 11eb26aa93..051b1da05e 100644
+--- a/BUILD.gn
++++ b/BUILD.gn
+@@ -2009,7 +2009,9 @@ skia_component("skia") {
+     if (is_ios) {
+       sources += [ "src/ports/SkOSFile_ios.h" ]
+     }
+-    libs += [ "dl" ]
++    if (skia_vcpkg_has_lib_dl) {
++      libs += [ "dl" ]
++    }
+   }
+ 
+   if (is_android) {
+diff --git a/gn/skia.gni b/gn/skia.gni
+index 442a4b4ba7..cd92ea657a 100644
+--- a/gn/skia.gni
++++ b/gn/skia.gni
+@@ -113,6 +113,8 @@ declare_args() {
+ 
+   skia_build_rust_targets = false
+ 
++  skia_vcpkg_has_lib_dl = true
++
+   # PartitionAlloc is Chrome's memory allocator.
+   #
+   # This is useful to:

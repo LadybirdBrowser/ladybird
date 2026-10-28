@@ -1,0 +1,12 @@
+diff --git a/BUILD.gn b/BUILD.gn
+index 051b1da05e..9ed770cd94 100644
+--- a/BUILD.gn
++++ b/BUILD.gn
+@@ -1903,6 +1903,7 @@ skia_component("skia") {
+     ":gpu",
+     ":graphite",
+     ":jpeg_encode",
++    ":pathops",
+     ":pdf",
+     ":pdf_jpeg_helpers",
+     ":png_decode_libpng",
