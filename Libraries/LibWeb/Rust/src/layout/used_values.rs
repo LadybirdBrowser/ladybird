@@ -640,6 +640,7 @@ pub(crate) trait BoxMetricCells {
     fn padding_bottom(&self) -> CssPixels;
     fn has_definite_inline_size(&self) -> bool;
     fn has_definite_block_size(&self) -> bool;
+    fn has_definite_block_size_only_for_button_content_alignment(&self) -> bool;
     fn uses_collapsing_borders_model(&self) -> bool;
     fn is_collapsed_borders_table_box(&self) -> bool;
 
@@ -774,6 +775,7 @@ macro_rules! impl_box_metric_cells {
                 padding_bottom: CssPixels,
                 has_definite_inline_size: bool,
                 has_definite_block_size: bool,
+                has_definite_block_size_only_for_button_content_alignment: bool,
                 uses_collapsing_borders_model: bool,
                 is_collapsed_borders_table_box: bool,
             );
