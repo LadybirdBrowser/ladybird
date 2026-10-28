@@ -429,6 +429,22 @@ TEST_CASE(every_explicit_change_moves_the_decision_generation)
     EXPECT(manager->decision_generation(PermissionName::Microphone, talk) != after_reset);
 }
 
+// The sessions are torn down in no set order, so a private session's manager may outlive the ordinary session's it
+// reads from: it then stops reading from it, and dies without touching it.
+TEST_CASE(private_session_manager_outlives_the_ordinary_sessions)
+{
+    FakeClock clock;
+    OwnPtr<PermissionManager> ordinary = create_manager(clock, "private-outlives-ordinary"sv);
+    ordinary->set_global_default(PermissionName::Geolocation, EffectiveState::Denied);
+    ordinary->set_decision(PermissionName::Geolocation, maps, PermissionDecision::Block);
+    OwnPtr<PermissionManager> private_manager = PermissionManager::create_for_private_session(*ordinary);
+    EXPECT_EQ(private_manager->effective_state(PermissionName::Geolocation, maps), EffectiveState::Denied);
+
+    ordinary = nullptr;
+    EXPECT_EQ(private_manager->effective_state(PermissionName::Geolocation, maps), EffectiveState::Prompt);
+    private_manager = nullptr;
+}
+
 TEST_CASE(snapshot_for_lists_only_the_given_origins)
 {
     FakeClock clock;
