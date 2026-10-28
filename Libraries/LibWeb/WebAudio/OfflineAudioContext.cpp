@@ -168,8 +168,6 @@ void OfflineAudioContext::finish_rendering(GC::Ref<WebIDL::Promise> promise)
         channel_data->viewed_array_buffer()->overwrite(channel_data->byte_offset(), samples.data(), samples.size() * sizeof(float));
     }
 
-    set_current_time(m_renderer->frames_rendered() / static_cast<double>(sample_rate()));
-
     // AD-HOC: Other engines transition the context to "closed" once rendering completes.
     set_control_state(Bindings::AudioContextState::Closed);
     set_rendering_state(Bindings::AudioContextState::Closed);
@@ -206,7 +204,6 @@ void OfflineAudioContext::handle_suspended(double suspend_time)
 {
     set_control_state(Bindings::AudioContextState::Suspended);
     set_rendering_state(Bindings::AudioContextState::Suspended);
-    set_current_time(suspend_time);
 
     auto frame = static_cast<u64>(AK::round(suspend_time * sample_rate()));
     // Suspensions take effect at the beginning of the first render quantum at
@@ -278,6 +275,16 @@ WebIDL::ExceptionOr<void> OfflineAudioContext::suspend(double suspend_time, GC::
         return WebIDL::InvalidStateError::create("The rendering thread has already passed the requested suspend time"_utf16);
     }
     return {};
+}
+
+// https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-currenttime
+double OfflineAudioContext::current_time() const
+{
+    // This is the time in seconds of the sample frame immediately following the last sample-frame in the block of
+    // audio most recently processed by the context's rendering graph.
+    if (m_renderer)
+        return m_renderer->frames_rendered() / static_cast<double>(sample_rate());
+    return Base::current_time();
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-offlineaudiocontext-length

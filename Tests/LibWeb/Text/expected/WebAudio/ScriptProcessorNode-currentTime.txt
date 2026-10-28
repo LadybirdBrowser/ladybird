@@ -1,0 +1,2 @@
+currentTime in each event, in frames: 128, 384, 640, 896, 1152, 1408, 1664, 1920
+source started relative to currentTime begins at the scheduled frame: true
