@@ -944,7 +944,9 @@ WebIDL::ExceptionOr<bool> Cache::batch_cache_operations(JS::Realm& realm, GC::Re
         // 1. Remove all the items from the relevant request response list.
         // 2. For each requestResponse of backupCache:
         //     1. Append requestResponse to the relevant request response list.
-        m_request_response_list = backup_cache;
+        // NB: The list is shared with every other Cache object for this cache, so restore it in place.
+        cache->elements().clear();
+        cache->elements().extend(backup_cache->elements());
 
         // 3. Throw the exception.
         return result.release_error();
