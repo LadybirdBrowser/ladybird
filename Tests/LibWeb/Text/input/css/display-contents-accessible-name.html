@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="ancestor"><div id="target" role="button" style="display: contents">label</div></div>
+<script>
+    test(() => {
+        const ancestor = document.getElementById("ancestor");
+        const target = document.getElementById("target");
+        const label = () => internals.getComputedLabel(target);
+        println(`visible: ${label()}`);
+        target.style.visibility = "hidden";
+        println(`visibility hidden: ${label()}`);
+        target.style.visibility = "visible";
+        ancestor.style.display = "none";
+        println(`ancestor display none: ${label()}`);
+        ancestor.style.display = "block";
+        ancestor.style.contentVisibility = "hidden";
+        println(`ancestor content visibility hidden: ${label()}`);
+        ancestor.style.contentVisibility = "visible";
+        target.setAttribute("aria-hidden", "true");
+        println(`aria hidden: ${label()}`);
+        target.removeAttribute("aria-hidden");
+        println(`visible again: ${label()}`);
+    });
+</script>
