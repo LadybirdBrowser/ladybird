@@ -2108,6 +2108,11 @@ pub(crate) struct ChildRunOutcome {
 }
 
 impl ChildRunOutcome {
+    /// What placing the child in `run` takes of the box its run hands back.
+    pub(crate) fn placed_child_in(&self, run: &FormattingContextRun) -> PlacedChild {
+        PlacedChild::of_laid_out_box(&self.laid_out_box, self.line_data.clone(), run.callbacks.frame)
+    }
+
     /// Hands the laid out box to `run`, the run that holds `child`, and returns the rest of the outcome.
     pub(crate) fn hand_box_back_to(
         self,
