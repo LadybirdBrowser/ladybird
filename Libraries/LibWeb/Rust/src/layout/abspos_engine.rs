@@ -3200,7 +3200,8 @@ impl<'pass> AbsposEngine<'pass> {
             .create_used_values(&self.callbacks, child_box, ContainingBlockConstraints::default());
         let (mut inputs, default_scroll_shift) = self.pending_child_layout_inputs(&mut child);
         inputs.position_option = position_option.choice();
-        self.used(child_box).rare_data_mut().default_scroll_shift = Some(default_scroll_shift);
+        self.records
+            .set_default_scroll_shift(child_box, Some(default_scroll_shift));
         self.install_resolved_anchor_sizes(child_box, &inputs);
         self.layout_element(run, child_box, inputs);
         drop(position_option);
@@ -3694,10 +3695,12 @@ impl<'pass> AbsposEngine<'pass> {
         // exactly once.
         self.records
             .create_used_values(&self.callbacks, node, ContainingBlockConstraints::default());
-        self.used(node).rare_data_mut().default_scroll_shift = self
-            .callbacks
-            .committed_fragment_link(node)
-            .and_then(|link| link.default_scroll_shift);
+        self.records.set_default_scroll_shift(
+            node,
+            self.callbacks
+                .committed_fragment_link(node)
+                .and_then(|link| link.default_scroll_shift),
+        );
         self.layout_element(run, node, inputs);
     }
 
@@ -3729,7 +3732,7 @@ impl<'pass> AbsposEngine<'pass> {
                 NodeSlotId::INVALID,
                 None,
             );
-            self.used(node).rare_data_mut().default_scroll_shift = Some(default_scroll_shift);
+            self.records.set_default_scroll_shift(node, Some(default_scroll_shift));
             resolved
         } else {
             None

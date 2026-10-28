@@ -545,8 +545,7 @@ pub(crate) struct PlacementData {
 impl PlacementData {
     fn of_box(
         used: &UsedValues,
-        containing_block: crate::layout::node_data::NodeSlotId,
-        used_insets: run_records::UsedInsets,
+        facts: &run_records::FactsDecidedByParent,
         containing_line_box_index: Option<usize>,
         committed_offset: FfiCssPixelPoint,
         frame: geometry::Frame,
@@ -555,14 +554,18 @@ impl PlacementData {
         Self {
             frame,
             committed_offset,
-            inset_left: used_insets.left,
-            inset_right: used_insets.right,
-            inset_top: used_insets.top,
-            inset_bottom: used_insets.bottom,
+            inset_left: facts.used_insets.left,
+            inset_right: facts.used_insets.right,
+            inset_top: facts.used_insets.top,
+            inset_bottom: facts.used_insets.bottom,
             containing_line_box_index,
             abspos_layout_inputs: rare.as_ref().and_then(|rare| rare.abspos_layout_inputs),
-            default_scroll_shift: rare.as_ref().and_then(|rare| rare.default_scroll_shift),
-            containing_block,
+            default_scroll_shift: facts.default_scroll_shift,
+            containing_block: facts
+                .placement
+                .map_or(crate::layout::node_data::NodeSlotId::INVALID, |placement| {
+                    placement.containing_block
+                }),
         }
     }
 
@@ -574,12 +577,7 @@ impl PlacementData {
     ) -> Self {
         Self::of_box(
             records.used_values(node),
-            records
-                .placement_of(node)
-                .map_or(crate::layout::node_data::NodeSlotId::INVALID, |placement| {
-                    placement.containing_block
-                }),
-            records.used_insets_of(node),
+            &records.facts_decided_by_parent_of(node),
             None,
             records.content_offset_or_origin(node),
             frame,
@@ -1284,8 +1282,7 @@ impl RunFragmentBuilder {
             fragment.clone(),
             PlacementData::of_box(
                 used,
-                placement.containing_block,
-                facts.used_insets,
+                &facts,
                 containing_line_box_index,
                 committed_offset,
                 callbacks.frame,
@@ -1377,9 +1374,10 @@ impl RunFragmentBuilder {
         committed_offset: FfiCssPixelPoint,
         frame: geometry::Frame,
     ) {
-        let placement = facts
-            .placement
-            .expect("a box is placed before its fragment is attached");
+        assert!(
+            facts.placement.is_some(),
+            "a box is placed before its fragment is attached"
+        );
         let mut inner = self.inner.borrow_mut();
         let slot = node.slot_index();
         debug_assert!(
@@ -1388,14 +1386,7 @@ impl RunFragmentBuilder {
         );
         let link = link_fragment(
             fragment,
-            PlacementData::of_box(
-                used,
-                placement.containing_block,
-                facts.used_insets,
-                containing_line_box_index,
-                committed_offset,
-                frame,
-            ),
+            PlacementData::of_box(used, &facts, containing_line_box_index, committed_offset, frame),
         );
         self.attach(&mut inner, link, containing_block, containing_block_is_sealed);
         if reuses_subtree {

@@ -309,7 +309,6 @@ fn rare_payloads_match(
         used_grid_tracks,
         collapsed_table_borders,
         abspos_layout_inputs,
-        default_scroll_shift,
         orthogonal_flow_baselines,
     } = left;
     computed_svg_path.as_deref() == right.computed_svg_path.as_deref()
@@ -322,7 +321,6 @@ fn rare_payloads_match(
         && used_grid_tracks.as_deref() == right.used_grid_tracks.as_deref()
         && collapsed_table_borders.as_deref() == right.collapsed_table_borders.as_deref()
         && *abspos_layout_inputs == right.abspos_layout_inputs
-        && *default_scroll_shift == right.default_scroll_shift
         && *orthogonal_flow_baselines == right.orthogonal_flow_baselines
 }
 

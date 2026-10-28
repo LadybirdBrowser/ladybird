@@ -247,9 +247,6 @@ pub(crate) struct UsedValuesRareData {
     pub(crate) used_grid_tracks: Option<std::sync::Arc<grid_formatting_context::OwnedUsedGridTracks>>,
     pub(crate) collapsed_table_borders: Option<std::sync::Arc<table_formatting_context::OwnedCollapsedTableBorders>>,
     pub(crate) abspos_layout_inputs: Option<abspos_inputs::AbsposLayoutInputs>,
-    /// The default scroll shift the run that resolved the box's anchor insets found, which its placement carries to
-    /// the commit.
-    pub(crate) default_scroll_shift: Option<abspos_inputs::DefaultScrollShift>,
     /// For a box that establishes an orthogonal flow, its baselines as distances along the horizontal axis of the frame
     /// it is laid out in, from the left edge of its content box.
     pub(crate) orthogonal_flow_baselines: Option<DerivedBaselines>,
@@ -268,11 +265,10 @@ impl UsedValuesRareData {
             used_grid_tracks,
             collapsed_table_borders,
             abspos_layout_inputs,
-            default_scroll_shift,
             orthogonal_flow_baselines,
         } = self;
         debug_assert!(
-            abspos_layout_inputs.is_none() && default_scroll_shift.is_none(),
+            abspos_layout_inputs.is_none(),
             "a run authored a parent-owned rare payload on its root record"
         );
         if computed_svg_path.is_none()
@@ -1148,6 +1144,7 @@ pub(crate) fn committed_box_from_fragment_link(callbacks: &LayoutPass<'_>, node:
                 top: link.inset_top,
                 bottom: link.inset_bottom,
             },
+            default_scroll_shift: None,
             fragment_facts: super::run_records::FragmentFactsDecidedByParent {
                 table_column_index: fragment.table_column_index,
                 table_column_span: fragment.table_column_span,

@@ -338,6 +338,8 @@ pub(crate) struct FragmentFactsDecidedByParent {
 pub(crate) struct FactsDecidedByParent {
     pub(crate) placement: Option<BoxPlacement>,
     pub(crate) used_insets: UsedInsets,
+    /// The scroll shift the anchor positioning of the box's insets compensates for.
+    pub(crate) default_scroll_shift: Option<abspos_inputs::DefaultScrollShift>,
     pub(crate) fragment_facts: FragmentFactsDecidedByParent,
 }
 
@@ -645,6 +647,18 @@ impl<'arena> RunRecords<'arena> {
         );
         self.keep_facts_decided_by_parent_of(node, facts);
         used.seal_own_metrics();
+    }
+
+    #[track_caller]
+    pub(crate) fn set_default_scroll_shift(&self, node: Node, shift: Option<abspos_inputs::DefaultScrollShift>) {
+        let facts = self.facts_decided_by_parent_of(node);
+        self.keep_facts_decided_by_parent_of(
+            node,
+            FactsDecidedByParent {
+                default_scroll_shift: shift,
+                ..facts
+            },
+        );
     }
 
     /// What the parent of `node` has decided about it so far.
