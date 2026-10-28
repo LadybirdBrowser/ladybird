@@ -3999,7 +3999,16 @@ void push_down_values(Utf16FlyString const& command, GC::Ref<DOM::Node> node, Op
 
     // 10. If the effective command value of command is not loosely equivalent to new value on the parent of the last
     //     member of ancestor list, and new value is not null, abort this algorithm.
-    if (new_value.has_value() && ancestor_list.last()->parent()
+    // INTEROP: Replace simple inline font size wrappers even when no ancestor already has the requested size.
+    //          Keep container styles intact.
+    auto can_replace_inline_font_size = command == CommandNames::fontSize
+        && all_of(ancestor_list, [](auto const& ancestor) {
+               if (!is_simple_modifiable_element(ancestor))
+                   return false;
+               auto display = resolved_display(ancestor);
+               return display.has_value() && display->is_inline_outside() && display->is_flow_inside();
+           });
+    if (!can_replace_inline_font_size && new_value.has_value() && ancestor_list.last()->parent()
         && !values_are_loosely_equivalent(command, optional_utf16_view(effective_command_value(ancestor_list.last()->parent(), command)), new_value))
         return;
 
