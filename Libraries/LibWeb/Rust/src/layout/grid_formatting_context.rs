@@ -1165,8 +1165,7 @@ impl formatting_context::ChildRunShapes for GridFormattingContext<'_> {
         {
             return None;
         }
-        self.item_run_shape(item)
-            .filter(|shape| shape.lays_out_at(inline_size, constraints))
+        Some(self.item_run_shape(item)).filter(|shape| shape.lays_out_at(inline_size, constraints))
     }
 }
 
@@ -4387,7 +4386,7 @@ impl<'pass> GridFormattingContext<'pass> {
         Some(index)
     }
 
-    fn item_run_shape(&self, item: GridItem) -> Option<formatting_context::ChildRunShape> {
+    fn item_run_shape(&self, item: GridItem) -> formatting_context::ChildRunShape {
         let mut cells = self.cells_of(item);
         self.prepare_item_cells(item, &mut cells, ItemRowArea::NotYetSized);
         let input = self.item_layout_input(item, &cells, ItemRowArea::NotYetSized);
@@ -4397,14 +4396,14 @@ impl<'pass> GridFormattingContext<'pass> {
             input,
             false,
             self.run.percentage_block_insets_of_root_children_have_definite_basis(),
-        )?;
-        Some(formatting_context::ChildRunShape {
+        );
+        formatting_context::ChildRunShape {
             node: item.box_,
             fc_type: plan.fc_type,
             input: plan.input,
             root_cells: cells,
             root_containing_block: plan.root_containing_block,
-        })
+        }
     }
 
     fn layout_items(&mut self, run: &FormattingContextRun<'pass>) {
@@ -4472,38 +4471,17 @@ impl<'pass> GridFormattingContext<'pass> {
                 false,
                 run.percentage_block_insets_of_root_children_have_definite_basis(),
             );
-            let laid_out_cells = match &laid_out_box {
-                Some(laid_out_box) => laid_out_box.cells,
-                // NB: The item was laid out by this grid container's run, in the record it keeps.
-                None => run.records.box_metrics_of(item.box_).cells(),
-            };
-            self.update_cells_of(item, |item_cells| *item_cells = laid_out_cells);
+            self.update_cells_of(item, |item_cells| *item_cells = laid_out_box.cells);
             outcome.report_percentage_block_size_dependency_of(run, item.box_);
-            match outcome {
-                ChildLayoutOutcome::Created(_) | ChildLayoutOutcome::Skipped { .. } => {}
-                ChildLayoutOutcome::ReenterCurrent => {
-                    self.run(run, input);
-                }
-            };
-            let laid_out_item = match &laid_out_box {
-                Some(laid_out_box) => LaidOutGridItem {
+            self.laid_out_items.borrow_mut().insert(
+                item.box_,
+                LaidOutGridItem {
                     content_baselines: laid_out_box.baselines,
                     orthogonal_flow_baselines: laid_out_box.orthogonal_flow_baselines,
                     content_offset: None,
                 },
-                None => LaidOutGridItem {
-                    content_baselines: run.records.box_metrics_of(item.box_).content_baselines(),
-                    // NB: A box that establishes an orthogonal flow is laid out by a run of its own.
-                    orthogonal_flow_baselines: None,
-                    content_offset: None,
-                },
-            };
-            self.laid_out_items.borrow_mut().insert(item.box_, laid_out_item);
-            let placed_item = match laid_out_box {
-                Some(laid_out_box) => formatting_context::PlacedChild::of_laid_out_box(&laid_out_box, line_data),
-                // NB: The item was laid out by this grid container's run, in the record it keeps.
-                None => formatting_context::PlacedChild::of_record(run.records.used_values(item.box_), run),
-            };
+            );
+            let placed_item = formatting_context::PlacedChild::of_laid_out_box(&laid_out_box, line_data);
             let offset = FfiCssPixelPoint {
                 x: area.offset.inline_offset + self.item_margin_box_start(item, Axis::Column),
                 y: area.offset.block_offset + self.item_margin_box_start(item, Axis::Row),

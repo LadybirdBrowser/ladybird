@@ -1502,33 +1502,13 @@ impl<'context> InlineFormattingContext<'context> {
         outcome.report_percentage_block_size_dependency_of(self.run, node);
         let baselines = match outcome {
             ChildLayoutOutcome::Created(result) => result.baselines,
-            ChildLayoutOutcome::ReenterCurrent => {
-                self.parent.run(self.run, input);
-                self.box_metrics(node).content_baselines()
-            }
-            ChildLayoutOutcome::Skipped { .. } => {
-                laid_out_box
-                    .as_ref()
-                    .expect("a skipped atomic inline leaves its box")
-                    .baselines
-            }
+            ChildLayoutOutcome::Skipped { .. } => laid_out_box.baselines,
         };
-        let (placed_child, laid_out_cells) = match laid_out_box {
-            Some(laid_out_box) => (
-                formatting_context::PlacedChild::of_laid_out_box(&laid_out_box, line_data),
-                laid_out_box.cells,
-            ),
-            // NB: The box was laid out by this context's parent flow, in the record it keeps here.
-            None => {
-                let record = self.run.records.used_values(node);
-                (
-                    formatting_context::PlacedChild::of_record(record, self.run),
-                    used_values::RootInputCells::capture(record),
-                )
-            }
-        };
-        self.keep_placed_atomic_inline(node, placed_child);
-        (baselines, laid_out_cells)
+        self.keep_placed_atomic_inline(
+            node,
+            formatting_context::PlacedChild::of_laid_out_box(&laid_out_box, line_data),
+        );
+        (baselines, laid_out_box.cells)
     }
 
     /// Lays out `node`, an atomic inline-level box on a line that starts out with the cells `cells`, and returns the

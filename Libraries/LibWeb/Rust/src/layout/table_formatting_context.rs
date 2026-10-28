@@ -2724,30 +2724,17 @@ impl<'pass> TableFormattingContext<'pass> {
             // NB: A table cell is a containing block of its own to the percentage block insets of its descendants.
             run.percentage_block_insets_of_root_children_have_definite_basis(),
         );
-        self.cell_box_cells[cell_index] = match &laid_out_box {
-            Some(laid_out_box) => laid_out_box.cells,
-            // NB: The cell was laid out by this table's run, in the record it keeps.
-            None => run.records.box_metrics_of(cell.box_).cells(),
-        };
-        // NB: A cell this table lays out in the record it keeps hands nothing back.
-        self.content_baselines_of_handed_back_cells[cell_index] =
-            laid_out_box.as_ref().map(|laid_out_box| laid_out_box.baselines);
+        self.cell_box_cells[cell_index] = laid_out_box.cells;
+        self.content_baselines_of_handed_back_cells[cell_index] = Some(laid_out_box.baselines);
         outcome.report_percentage_block_size_dependency_of(run, cell.box_);
         let baselines = match outcome {
             ChildLayoutOutcome::Created(result) => result.baselines,
-            ChildLayoutOutcome::ReenterCurrent => {
-                self.run(run, layout_input, None);
-                run.records.box_metrics_of(cell.box_).content_baselines()
-            }
-            ChildLayoutOutcome::Skipped { .. } => {
-                laid_out_box.as_ref().expect("a skipped cell leaves its box").baselines
-            }
+            ChildLayoutOutcome::Skipped { .. } => laid_out_box.baselines,
         };
-        self.placed_cells[cell_index] = Some(match laid_out_box {
-            Some(laid_out_box) => formatting_context::PlacedChild::of_laid_out_box(&laid_out_box, line_data),
-            // NB: The cell was laid out by this table's run, in the record it keeps.
-            None => formatting_context::PlacedChild::of_record(run.records.used_values(cell.box_), run),
-        });
+        self.placed_cells[cell_index] = Some(formatting_context::PlacedChild::of_laid_out_box(
+            &laid_out_box,
+            line_data,
+        ));
         (baselines, fragment_arrival)
     }
 
@@ -2847,7 +2834,7 @@ impl<'pass> TableFormattingContext<'pass> {
                 },
                 participation: ParticipationInParentFormattingContext::Item,
             },
-        )?;
+        );
         let result = formatting_context::lay_out_shape_for_its_result(run.callbacks, shape);
         Some(TableCellMeasurement {
             automatic_content_block_size: result.automatic_content_block_size,
