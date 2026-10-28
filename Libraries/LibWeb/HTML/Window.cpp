@@ -1787,7 +1787,7 @@ GC::Ref<CSS::CSSStyleProperties> Window::get_computed_style(DOM::Element& elemen
     // 3. If pseudoElt is provided, is not the empty string, and starts with a colon, then:
     if (pseudo_element.has_value() && pseudo_element.value().starts_with(u":"sv)) {
         // 1. Parse pseudoElt as a <pseudo-element-selector>, and let type be the result.
-        auto type = parse_pseudo_element_selector(CSS::Parser::ParsingParams(associated_document()), pseudo_element.value());
+        auto type = parse_pseudo_element_selector(CSS::Parser::ParsingParams(associated_document()), pseudo_element.value(), CSS::Parser::PseudoElementParsingMode::ComputedStyle);
 
         // 2. If type is failure, or is a ::slotted() or ::part() pseudo-element, let obj be null.
         // NB: A ::-webkit- pseudo-element parses so that selectors naming it stay valid, but it is no pseudo-element

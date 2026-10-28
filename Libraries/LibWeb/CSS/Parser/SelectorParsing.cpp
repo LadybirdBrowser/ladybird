@@ -16,13 +16,14 @@ Optional<SelectorList> Parser::parse_as_selector(Utf16View source, SelectorParsi
     return parse_selector_list_in_rust(source, m_declared_namespaces, false, mode == SelectorParsingMode::Forgiving);
 }
 
-Optional<Selector::PseudoElementSelector> Parser::parse_as_pseudo_element_selector(Utf16View input_view)
+Optional<Selector::PseudoElementSelector> Parser::parse_as_pseudo_element_selector(Utf16View input_view, PseudoElementParsingMode mode)
 {
-    auto parsed = SelectorFFI::rust_selector_parse_pseudo_element({
+    SelectorFFI::FfiUtf16View input {
         .ascii = input_view.has_ascii_storage() ? reinterpret_cast<u8 const*>(input_view.ascii_span().data()) : nullptr,
         .utf16 = input_view.has_ascii_storage() ? nullptr : reinterpret_cast<u16 const*>(input_view.utf16_span().data()),
         .length = input_view.length_in_code_units(),
-    });
+    };
+    auto parsed = SelectorFFI::rust_selector_parse_pseudo_element(input, mode == PseudoElementParsingMode::ComputedStyle);
     if (!parsed.selector)
         return {};
     auto selector = Selector::create(parsed.selector);

@@ -91,9 +91,9 @@ Optional<CSS::SelectorList> parse_selector(CSS::Parser::ParsingParams const& con
     return CSS::Parser::Parser { context }.parse_as_selector(selector_text);
 }
 
-Optional<CSS::Selector::PseudoElementSelector> parse_pseudo_element_selector(CSS::Parser::ParsingParams const& context, Utf16View selector_text)
+Optional<CSS::Selector::PseudoElementSelector> parse_pseudo_element_selector(CSS::Parser::ParsingParams const& context, Utf16View selector_text, CSS::Parser::PseudoElementParsingMode mode)
 {
-    return CSS::Parser::Parser { context }.parse_as_pseudo_element_selector(selector_text);
+    return CSS::Parser::Parser { context }.parse_as_pseudo_element_selector(selector_text, mode);
 }
 
 Optional<CSS::RustQueryHandle> parse_css_supports(CSS::Parser::ParsingParams const& context, Utf16View string)
