@@ -4384,7 +4384,6 @@ impl<'pass> GridFormattingContext<'pass> {
                 outcome,
                 fragment_arrival,
             } = formatting_context::layout_inside_child(run, None, Some(self), item.box_, input, false);
-            formatting_context::hold_fragment_arrival_until_placement(run, item.box_, fragment_arrival);
             outcome.report_percentage_block_size_dependency_of(run, item.box_);
             match outcome {
                 ChildLayoutOutcome::Created(_) | ChildLayoutOutcome::Skipped { .. } => {}
@@ -4403,12 +4402,12 @@ impl<'pass> GridFormattingContext<'pass> {
                 || self.item_participates_in_column_baseline_alignment(item)
             {
                 // NB: Baseline-aligned items are placed once every item in their baseline-sharing group is laid out.
-                baseline_aligned_items.push((item_index, offset));
+                baseline_aligned_items.push((item_index, offset, fragment_arrival));
                 continue;
             }
-            formatting_context::place_child(&self.run, item.box_, offset, None);
+            formatting_context::place_laid_out_child(&self.run, item.box_, offset, None, fragment_arrival);
         }
-        self.place_baseline_aligned_items(&baseline_aligned_items);
+        self.place_baseline_aligned_items(baseline_aligned_items);
         self.derived_baselines_of_root_box = DerivedBaselines {
             inline_alignment: None,
             first: self.baseline_of_items(formatting_context::BaselineSet::First),
@@ -4524,7 +4523,10 @@ impl<'pass> GridFormattingContext<'pass> {
     // Position the aligned baseline-sharing group within the alignment container according to its fallback alignment.
     // NB: The fallback alignment is start, so the item with the largest distance from the start of its grid area to its
     //     baseline is placed at the start of its area, and the other items are moved down to line up with it.
-    fn place_baseline_aligned_items(&self, items: &[(usize, FfiCssPixelPoint)]) {
+    fn place_baseline_aligned_items(
+        &self,
+        items: Vec<(usize, FfiCssPixelPoint, Option<fragment_tree::ChildFragmentArrival>)>,
+    ) {
         if items.is_empty() {
             return;
         }
@@ -4535,7 +4537,7 @@ impl<'pass> GridFormattingContext<'pass> {
         // first row that it spans [...]
         let mut shared_baselines = HashMap::<i32, CssPixels>::default();
         let mut shared_column_baselines = HashMap::<i32, CssPixels>::default();
-        for &(item_index, _) in items {
+        for &(item_index, _, _) in &items {
             let item = self.items[item_index];
             if self.item_participates_in_row_baseline_alignment(item) {
                 let baseline = self.item_row_baseline(item);
@@ -4552,7 +4554,7 @@ impl<'pass> GridFormattingContext<'pass> {
                     .or_insert(baseline);
             }
         }
-        for &(item_index, mut offset) in items {
+        for (item_index, mut offset, fragment_arrival) in items {
             let item = self.items[item_index];
             if self.item_participates_in_row_baseline_alignment(item) {
                 offset.y += shared_baselines[&item.row] - self.item_row_baseline(item);
@@ -4560,7 +4562,7 @@ impl<'pass> GridFormattingContext<'pass> {
             if self.item_participates_in_column_baseline_alignment(item) {
                 offset.x += shared_column_baselines[&item.column] - self.item_column_baseline(item);
             }
-            formatting_context::place_child(&self.run, item.box_, offset, None);
+            formatting_context::place_laid_out_child(&self.run, item.box_, offset, None, fragment_arrival);
         }
     }
 
