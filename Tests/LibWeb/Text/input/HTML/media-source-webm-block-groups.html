@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<video id="video"></video>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const video = document.getElementById("video");
+        const mediaSource = new MediaSource();
+        video.src = URL.createObjectURL(mediaSource);
+        await new Promise(resolve => mediaSource.addEventListener("sourceopen", resolve, { once: true }));
+
+        const sourceBuffer = mediaSource.addSourceBuffer('video/webm; codecs="vp9"');
+        const response = await fetch("../../../Assets/vp9-alpha-64x36.webm");
+        sourceBuffer.appendBuffer(await response.arrayBuffer());
+        await new Promise(resolve => sourceBuffer.addEventListener("updateend", resolve, { once: true }));
+
+        const buffered = sourceBuffer.buffered;
+        println(`buffered ranges: ${buffered.length}`);
+        if (buffered.length > 0)
+            println(`buffered: ${buffered.start(0)} to ${buffered.end(0)}`);
+    });
+</script>

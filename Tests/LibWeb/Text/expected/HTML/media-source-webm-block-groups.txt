@@ -1,0 +1,2 @@
+buffered ranges: 1
+buffered: 0 to 1

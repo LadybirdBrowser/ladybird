@@ -82,6 +82,7 @@ constexpr u32 TIMESTAMP_ID = 0xE7;
 constexpr u32 BLOCK_GROUP_ID = 0xA0;
 constexpr u32 BLOCK_ID = 0xA1;
 constexpr u32 BLOCK_DURATION_ID = 0x9B;
+constexpr u32 REFERENCE_BLOCK_ID = 0xFB;
 
 // Cues
 constexpr u32 CUES_ID = 0x1C53BB6B;
