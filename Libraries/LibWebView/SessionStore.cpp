@@ -331,6 +331,7 @@ ErrorOr<SessionStore::PersistedStorage> SessionStore::PersistedStorage::create(D
     statements.select_open_sessions = TRY(database.prepare_statement("SELECT id, active_tab_index, activation_sequence, x, y, width, height, maximized FROM Sessions WHERE kind = :open_window_kind ORDER BY activation_sequence, id;"sv));
     statements.select_restore_at_launch_session = TRY(database.prepare_statement("SELECT id, active_tab_index, activation_sequence, x, y, width, height, maximized FROM Sessions WHERE kind = :closed_window_kind AND restore_at_launch != 0 ORDER BY close_sequence DESC, id DESC LIMIT 1;"sv));
     statements.clear_restore_at_launch = TRY(database.prepare_statement("UPDATE Sessions SET restore_at_launch = 0 WHERE restore_at_launch != 0;"sv));
+    statements.clear_startup_recovery_origin = TRY(database.prepare_statement("UPDATE Sessions SET origin = :close_action_origin WHERE origin = :startup_recovery_origin;"sv));
     statements.reopen_closed_session = TRY(database.prepare_statement("UPDATE Sessions SET kind = :open_window_kind, closed_time = 0, close_sequence = 0, source_window_id = NULL, source_tab_index = NULL, origin = :origin WHERE id = :id;"sv));
     statements.recover_open_session = TRY(database.prepare_statement("UPDATE Sessions SET kind = :closed_window_kind, closed_time = :closed_time, close_sequence = :close_sequence, source_window_id = NULL, source_tab_index = NULL, origin = :origin WHERE id = :id;"sv));
     statements.delete_empty_open_sessions = TRY(database.prepare_statement("DELETE FROM Sessions WHERE kind = :open_window_kind AND NOT EXISTS (SELECT 1 FROM SessionTabs WHERE session_id = Sessions.id);"sv));
@@ -873,6 +874,15 @@ ErrorOr<void> SessionStore::PersistedStorage::clear_restore_at_launch()
     return database->try_execute_bound_statement(statements.clear_restore_at_launch, [](auto&) -> ErrorOr<void> { return {}; });
 }
 
+ErrorOr<void> SessionStore::PersistedStorage::clear_startup_recovery_origin()
+{
+    return database->try_execute_bound_statement(statements.clear_startup_recovery_origin, [](auto& bind) -> ErrorOr<void> {
+        TRY(bind("close_action_origin"sv, to_underlying(ClosedSessionUnit::Origin::CloseAction)));
+        TRY(bind("startup_recovery_origin"sv, to_underlying(ClosedSessionUnit::Origin::StartupRecovery)));
+        return {};
+    });
+}
+
 ErrorOr<void> SessionStore::PersistedStorage::demote_to_startup_recovery_unit(SessionWindowId window_id, UnixDateTime recovered_at, IdAllocator& close_sequence_allocator)
 {
     auto close_sequence = TRY(close_sequence_allocator.allocate());
@@ -956,6 +966,10 @@ ErrorOr<SessionStore::RecoveryResult> SessionStore::PersistedStorage::recover_op
     TRY(database->transaction([&]() -> ErrorOr<void> {
         result.consecutive_unclean_exits = TRY(record_run_start());
         auto policy = result.consecutive_unclean_exits >= UNCLEAN_EXITS_THAT_STOP_LAUNCH_RESTORE ? SessionLaunchPolicy::None : write.policy;
+
+        // Only the windows that the last run left open count as left open. Those of the runs before it were already
+        // offered back, so they are ordinary closed windows now.
+        TRY(clear_startup_recovery_origin());
 
         TRY(database->try_execute_bound_statement(statements.delete_empty_open_sessions, [&](auto& bind) -> ErrorOr<void> {
             return bind("open_window_kind"sv, to_underlying(UnitKind::OpenWindow));

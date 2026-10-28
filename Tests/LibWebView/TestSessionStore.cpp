@@ -1710,6 +1710,25 @@ TEST_CASE(a_second_unclean_exit_in_a_row_stops_launch_restore)
     EXPECT_EQ(unit->origin, ClosedSessionUnit::Origin::StartupRecovery);
 }
 
+TEST_CASE(only_the_last_run_counts_as_leaving_windows_open)
+{
+    auto database = create_session_database();
+    // Two crashes in a row, each with a window of its own.
+    for (auto url : { "https://a.example/"sv, "https://b.example/"sv }) {
+        auto store = TRY_OR_FAIL(SessionStore::create(*database));
+        auto window = TRY_OR_FAIL(store->window_opened());
+        (void)open_tab(*store, window, url);
+    }
+
+    auto store = TRY_OR_FAIL(SessionStore::create(*database));
+    auto units = store->recently_closed_units(10);
+    EXPECT_EQ(units.size(), 2uz);
+    EXPECT_EQ(units[0].active_url.serialize(), "https://b.example/"sv);
+    EXPECT(units[0].from_startup_recovery);
+    EXPECT_EQ(units[1].active_url.serialize(), "https://a.example/"sv);
+    EXPECT(!units[1].from_startup_recovery);
+}
+
 TEST_CASE(a_clean_exit_resumes_launch_restore)
 {
     auto database = create_session_database();
