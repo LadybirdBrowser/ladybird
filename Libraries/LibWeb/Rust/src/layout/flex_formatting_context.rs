@@ -74,6 +74,9 @@ struct FlexItem<'pass> {
     is_min_violation: bool,
     is_max_violation: bool,
     content_baselines: DerivedBaselines,
+    /// For an item that establishes an orthogonal flow, its baselines along the horizontal axis of the container's
+    /// frame, as its run handed them back.
+    orthogonal_flow_baselines: Option<DerivedBaselines>,
     // For a table wrapper stretched in the block axis, its measured table box and content block sizes.
     stretched_table_wrapper_block_sizes: Option<sizing_context::TableWrapperBlockSizes>,
 }
@@ -107,6 +110,7 @@ impl FlexItem<'_> {
             is_min_violation: false,
             is_max_violation: false,
             content_baselines: DerivedBaselines::default(),
+            orthogonal_flow_baselines: None,
             stretched_table_wrapper_block_sizes: None,
         }
     }
@@ -2837,18 +2841,15 @@ impl<'pass> FlexFormattingContext<'pass> {
         if self.run.callbacks.frame.is_transposed() && self.cross_axis_is_horizontal() {
             // NB: The cross axis is the horizontal axis of the frame, along which an item in an orthogonal flow
             //     has its baselines.
-            let metrics = self.run.records.box_metrics_of(item.box_);
+            let metrics = &item.cells;
             let collapsed = metrics.uses_collapsing_borders_model();
             let margin_box_left = metrics.margin_left() + metrics.border_box_left(collapsed);
-            return match metrics
-                .orthogonal_flow_baselines()
-                .and_then(|baselines| baselines.first)
-            {
+            return match item.orthogonal_flow_baselines.and_then(|baselines| baselines.first) {
                 Some(baseline) => margin_box_left + baseline,
                 None => margin_box_left + metrics.content_inline_size() + metrics.border_box_right(collapsed),
             };
         }
-        let metrics = self.run.records.box_metrics_of(item.box_);
+        let metrics = &item.cells;
         if self.item_baseline_is_synthesized(index) {
             let collapsed = metrics.uses_collapsing_borders_model();
             return metrics.margin_box_top(collapsed)
@@ -2858,7 +2859,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         formatting_context::box_baseline_with_content_baselines(
             &self.run.callbacks,
             item.box_,
-            &metrics,
+            metrics,
             formatting_context::BaselineSet::First,
             item.content_baselines,
         )
@@ -3100,7 +3101,13 @@ impl<'pass> FlexFormattingContext<'pass> {
             false,
             run.percentage_block_insets_of_root_children_have_definite_basis(),
         );
-        self.flex_items[index].cells = run.records.box_metrics_of(node).input_cells();
+        self.flex_items[index].cells = match &laid_out_box {
+            Some(laid_out_box) => laid_out_box.cells,
+            // NB: The item was laid out by this flex container's run, in the record it keeps.
+            None => run.records.box_metrics_of(node).input_cells(),
+        };
+        self.flex_items[index].orthogonal_flow_baselines =
+            laid_out_box.and_then(|laid_out_box| laid_out_box.orthogonal_flow_baselines);
         outcome.report_percentage_block_size_dependency_of(run, node);
         self.flex_items[index].content_baselines = match outcome {
             ChildLayoutOutcome::Created(result) => result.baselines,
@@ -3986,19 +3993,14 @@ impl<'pass> FlexFormattingContext<'pass> {
             .collect();
         self.resolve_baseline_aligned_items();
         for (index, (fragment_arrival, placed_item)) in laid_out_items.into_iter().enumerate() {
-            let item = &self.flex_items[index];
-            let offset = if self.main_axis_is_horizontal() {
-                FfiCssPixelPoint {
-                    x: item.main_offset,
-                    y: item.cross_offset,
-                }
-            } else {
-                FfiCssPixelPoint {
-                    x: item.cross_offset,
-                    y: item.main_offset,
-                }
-            };
-            formatting_context::place_laid_out_child(&self.run, item.box_, placed_item, offset, None, fragment_arrival);
+            formatting_context::place_laid_out_child(
+                &self.run,
+                self.flex_items[index].box_,
+                placed_item,
+                self.item_content_offset(index),
+                None,
+                fragment_arrival,
+            );
         }
         self.derived_baselines_of_root_box = DerivedBaselines {
             inline_alignment: self.flex_lines.len().checked_sub(1).and_then(|line_index| {
@@ -4015,6 +4017,22 @@ impl<'pass> FlexFormattingContext<'pass> {
                 .checked_sub(1)
                 .and_then(|line_index| self.baseline_of_line(line_index, formatting_context::BaselineSet::Last)),
         };
+    }
+
+    /// The offset of the content box of the item at `index` in the container, where it is placed.
+    fn item_content_offset(&self, index: usize) -> FfiCssPixelPoint {
+        let item = &self.flex_items[index];
+        if self.main_axis_is_horizontal() {
+            FfiCssPixelPoint {
+                x: item.main_offset,
+                y: item.cross_offset,
+            }
+        } else {
+            FfiCssPixelPoint {
+                x: item.cross_offset,
+                y: item.main_offset,
+            }
+        }
     }
 
     // https://drafts.csswg.org/css-flexbox-1/#flex-baselines
@@ -4054,10 +4072,15 @@ impl<'pass> FlexFormattingContext<'pass> {
                 .max_by_key(|&index| self.flex_items[index].main_offset),
         })?;
         let source = self.baseline_source_for_item(item);
-        formatting_context::baseline_of_child_for_purpose(
-            self.run.records,
+        let laid_out_item = &self.flex_items[item];
+        formatting_context::baseline_of_laid_out_child_for_purpose(
             &self.run.callbacks,
-            self.flex_items[item].box_,
+            formatting_context::LaidOutChild {
+                node: laid_out_item.box_,
+                metrics: &laid_out_item.cells,
+                content_baselines: laid_out_item.content_baselines,
+                content_offset: self.item_content_offset(item),
+            },
             baseline_set,
             source,
             purpose,
