@@ -1,3 +1,11 @@
+if (BUILD_BROWSER_TESTS_ONLY)
+    if (ENABLE_GUI_TARGETS)
+        add_subdirectory(LibWeb)
+        add_subdirectory(LibWebView)
+    endif()
+    return()
+endif()
+
 add_subdirectory(AK)
 add_subdirectory(LibCompress)
 add_subdirectory(LibCore)

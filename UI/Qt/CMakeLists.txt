@@ -197,7 +197,7 @@ qt_deploy_runtime_dependencies(
     )
 endif()
 
-if (BUILD_TESTING)
+if (BUILD_TESTING AND NOT BUILD_BROWSER_TESTS_ONLY)
     if (APPLE)
         add_library(NativeTextEditingTestMain OBJECT
             ${LADYBIRD_SOURCE_DIR}/Tests/UI/Qt/NativeTextEditingTestMain.mm
