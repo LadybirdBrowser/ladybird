@@ -2,17 +2,16 @@ Harness status: OK
 
 Found 12 tests
 
-7 Pass
-5 Fail
+12 Pass
 Pass	Control test: Table width is 120px
 Pass	Control test: Table height is 120px
 Pass	Table-cell is 100px wide
-Fail	Table-cell is 100px tall
+Pass	Table-cell is 100px tall
 Pass	Table-row is 100px wide
-Fail	Table-row is 100px tall
+Pass	Table-row is 100px tall
 Pass	Table-row-group is 100px wide
-Fail	Table-row-group is 100px tall
+Pass	Table-row-group is 100px tall
 Pass	Table-column is 100px wide
-Fail	Table-column is 100px tall
+Pass	Table-column is 100px tall
 Pass	Table-column-group is 100px wide
-Fail	Table-column-group is 100px tall
+Pass	Table-column-group is 100px tall

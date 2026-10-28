@@ -2943,10 +2943,19 @@ impl<'pass> TableFormattingContext<'pass> {
             .rows
             .iter()
             .fold(CssPixels::default(), |sum, row| sum + row.base_block_size);
+        // https://drafts.csswg.org/css-tables-3/#computing-the-table-height
+        // The height of a table is the sum of the row heights plus any cell spacing or borders.
+        let visible_rows = self.rows.iter().filter(|row| !row.is_collapsed).count();
+        let row_spacing = if visible_rows == 0 {
+            CssPixels::default()
+        } else {
+            self.border_spacing_block() * (visible_rows + 1)
+        };
         if let Some(minimum) = self.min_border_box_block_size_from_flex_item {
             let used = self.used_values(self.run.box_);
             let collapsed = used.uses_collapsing_borders_model.get();
-            let content_min = minimum - used.border_box_top(collapsed) - used.border_box_bottom(collapsed);
+            let content_min =
+                minimum - used.border_box_top(collapsed) - used.border_box_bottom(collapsed) - row_spacing;
             self.table_block_size = self.table_block_size.max(content_min);
         }
         let table_style = self.style(self.run.box_);
@@ -2959,8 +2968,9 @@ impl<'pass> TableFormattingContext<'pass> {
                 let collapsed = used.uses_collapsing_borders_model.get();
                 specified -= used.border_box_top(collapsed) + used.border_box_bottom(collapsed);
             }
-            self.table_block_size = self.table_block_size.max(specified);
+            self.table_block_size = self.table_block_size.max(specified - row_spacing);
         }
+        let table_percentage_basis = self.table_block_size + row_spacing;
         for row in &mut self.rows {
             // Reference size is the largest of
             // - its initial base block size and
@@ -2981,7 +2991,7 @@ impl<'pass> TableFormattingContext<'pass> {
             }
             let style = self.style(self.rows[row_index].box_);
             if style.height().is_percentage() {
-                let used = style.height().to_px(self.table_block_size);
+                let used = style.height().to_px(table_percentage_basis);
                 self.rows[row_index].reference_block_size = self.rows[row_index].reference_block_size.max(used);
             }
         }
@@ -2998,7 +3008,7 @@ impl<'pass> TableFormattingContext<'pass> {
             let cell_size = self.cell_specified_outer_block_size(
                 cell.box_,
                 &style,
-                style.height().to_px(self.table_block_size),
+                style.height().to_px(table_percentage_basis),
                 offsets,
             );
             cell_box.set_content_block_size(cell_size - offsets);
@@ -3113,13 +3123,13 @@ impl<'pass> TableFormattingContext<'pass> {
             .iter()
             .fold(CssPixels::default(), |sum, row| sum + row.reference_block_size);
         let visible = self.rows.iter().filter(|row| !row.is_collapsed).count();
-        if sum == CssPixels::default() {
+        if visible == 0 {
             return;
         }
         let auto_rows = (0..self.rows.len())
             .filter(|index| !self.rows[*index].is_collapsed && self.style(self.rows[*index].box_).height().is_auto())
             .collect::<Vec<_>>();
-        if self.table_block_size <= sum {
+        if self.table_block_size <= sum && sum != CssPixels::default() {
             // If the table block size is no larger than the sum of reference sizes, each final row block size is the
             // weighted mean of the base and reference sizes that yields the correct total block size.
 

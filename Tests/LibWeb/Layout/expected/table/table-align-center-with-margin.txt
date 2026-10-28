@@ -1,14 +1,14 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 404 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,100] [8+0+0 784 0+0+8] [8+0+0 204 0+0+8] children: not-inline
-      TableWrapper <(anonymous)> at [108,100] [100+0+0 89.34375 0+0+594.65625] [100+0+0 204 0+0+100] [BFC] children: not-inline
-        Box <table> at [109,101] table-box [0+1+0 87.34375 0+1+0] [0+1+0 202 0+1+0] [TFC] children: not-inline
-          Box <tbody> at [111,103] table-row-group [0+0+0 83.34375 0+0+0] [0+0+0 198 0+0+0] children: not-inline
-            Box <tr> at [111,103] table-row [0+0+0 83.34375 0+0+0] [0+0+0 198 0+0+0] children: not-inline
-              BlockContainer <td> at [112,194] table-cell [0+0+1 81.34375 1+0+0] [0+0+91 16 91+0+0] [BFC] children: inline
-                frag 0 from TextNode start: 0, length: 10, rect: [112,194 81.34375x16] baseline: 12.796875
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 400 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,100] [8+0+0 784 0+0+8] [8+0+0 200 0+0+8] children: not-inline
+      TableWrapper <(anonymous)> at [108,100] [100+0+0 89.34375 0+0+594.65625] [100+0+0 200 0+0+100] [BFC] children: not-inline
+        Box <table> at [109,101] table-box [0+1+0 87.34375 0+1+0] [0+1+0 198 0+1+0] [TFC] children: not-inline
+          Box <tbody> at [111,103] table-row-group [0+0+0 83.34375 0+0+0] [0+0+0 194 0+0+0] children: not-inline
+            Box <tr> at [111,103] table-row [0+0+0 83.34375 0+0+0] [0+0+0 194 0+0+0] children: not-inline
+              BlockContainer <td> at [112,192] table-cell [0+0+1 81.34375 1+0+0] [0+0+89 16 89+0+0] [BFC] children: inline
+                frag 0 from TextNode start: 0, length: 10, rect: [112,192 81.34375x16] baseline: 12.796875
                     "off-center"
                 TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x404] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x400] (z-index: auto)
