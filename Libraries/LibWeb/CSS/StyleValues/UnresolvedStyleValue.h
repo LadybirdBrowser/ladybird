@@ -25,8 +25,8 @@ public:
         Preserve,
     };
 
-    static ValueComparingNonnullRefPtr<UnresolvedStyleValue const> create(Utf16String token_source, Parser::SubstitutionFunctionsPresence, Optional<Utf16String> original_source_text = {}, SourceTextMode = SourceTextMode::Trim, bool contains_attr_tainted_values = false);
-    static ValueComparingNonnullRefPtr<UnresolvedStyleValue const> create_attr_tainted_with_parsed_value(Utf16String token_source, Parser::SubstitutionFunctionsPresence, Optional<Utf16String> original_source_text, SourceTextMode, NonnullRefPtr<StyleValue const> parsed_value);
+    static ValueComparingNonnullRefPtr<UnresolvedStyleValue const> create(Utf16String token_source, Parser::SubstitutionFunctionsPresence, SourceTextMode = SourceTextMode::Trim, bool contains_attr_tainted_values = false);
+    static ValueComparingNonnullRefPtr<UnresolvedStyleValue const> create_attr_tainted_with_parsed_value(Utf16String token_source, Parser::SubstitutionFunctionsPresence, SourceTextMode, NonnullRefPtr<StyleValue const> parsed_value);
     virtual ~UnresolvedStyleValue() override = default;
 
     bool contains_attr_tainted_values() const { return m_value->unresolved.contains_attr_tainted_values; }
@@ -44,7 +44,7 @@ private:
     {
     }
 
-    static ValueComparingNonnullRefPtr<UnresolvedStyleValue const> create_internal(Utf16String token_source, Parser::SubstitutionFunctionsPresence, Optional<Utf16String> original_source_text, SourceTextMode, bool contains_attr_tainted_values, RefPtr<StyleValue const> parsed_value);
+    static ValueComparingNonnullRefPtr<UnresolvedStyleValue const> create_internal(Utf16String token_source, Parser::SubstitutionFunctionsPresence, SourceTextMode, bool contains_attr_tainted_values, RefPtr<StyleValue const> parsed_value);
 
     Utf16String comparison_text() const;
 

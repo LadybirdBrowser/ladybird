@@ -543,7 +543,6 @@ impl CustomPropertyRegistry {
         let source = crate::css::serialize::serialize_resolved_style_value_to_utf16(computed.data());
         let mut wrapped = crate::css::parser::value_parser::unresolved_value_from_string(
             &source,
-            &[],
             crate::css::parser::arbitrary_substitution::SubstitutionFunctionsPresence::default(),
         );
         let StyleValueData::Unresolved {
