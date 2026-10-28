@@ -1631,6 +1631,9 @@ void Tab::initialize(Optional<WebView::CanonicalTraversable&> traversable)
     };
 
     view().on_request_permission = [this](WebView::PermissionPromptRequest const& request, WebView::PermissionPromptCallback on_outcome) {
+        // A tab opened in the background has never been shown, so no hideEvent has suspended its prompts yet.
+        if (!isVisible())
+            m_permission_prompts.suspend();
         m_permission_prompts.enqueue(request, AK::move(on_outcome));
     };
 
