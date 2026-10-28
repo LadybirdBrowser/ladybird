@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 106 tests
 
-103 Pass
-3 Fail
+105 Pass
+1 Fail
 Pass	Attribute 'syntax' returns expected value for ["<color>"]
 Pass	Attribute 'syntax' returns expected value for ["<color> | none"]
 Pass	Attribute 'syntax' returns expected value for ["<color># | <image> | none"]
@@ -39,7 +39,7 @@ Pass	Attribute 'initial-value' returns expected value for [10px]
 Pass	Attribute 'initial-value' returns expected value for [rgb(1, 2, 3)]
 Pass	Attribute 'initial-value' returns expected value for [red]
 Pass	Attribute 'initial-value' returns expected value for [foo]
-Fail	Attribute 'initial-value' returns expected value for [foo(){}]
+Pass	Attribute 'initial-value' returns expected value for [foo(){}]
 Pass	Attribute 'initial-value' makes the @property rule invalid for [3em]
 Fail	Attribute 'initial-value' makes the @property rule invalid for [var(--x)]
 Pass	Attribute 'inherits' returns expected value for [true]
@@ -52,7 +52,7 @@ Pass	Attribute 'inherits' makes the @property rule invalid for ["false"]
 Pass	Attribute 'inherits' makes the @property rule invalid for [calc(0)]
 Pass	Invalid property name does not parse [foo]
 Pass	Invalid property name does not parse [-foo]
-Fail	Rule applied [*, foo(){}, false]
+Pass	Rule applied [*, foo(){}, false]
 Pass	Rule applied [<angle>, 42deg, false]
 Pass	Rule applied [<angle>, 1turn, false]
 Pass	Rule applied [<color>, green, false]
