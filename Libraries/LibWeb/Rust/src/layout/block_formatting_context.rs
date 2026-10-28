@@ -3910,11 +3910,13 @@ impl<'pass> BlockFormattingContext<'pass> {
 
     pub(crate) fn run(&self, run: &FormattingContextRun<'pass>, input: LayoutInput) {
         self.lay_out_root_contents(run, input);
-        let root_used = self.used(self.run.box_);
-        root_used.has_line_clamp_point.set(self.line_clamp_point_found.get());
-        root_used
-            .clamped_content_is_scrollable_overflow
-            .set(self.clamped_content_is_scrollable_overflow);
+        let has_line_clamp_point = self.line_clamp_point_found.get();
+        if has_line_clamp_point || self.clamped_content_is_scrollable_overflow {
+            run.update_fragment_payloads_of(self.run.box_, |payloads| {
+                payloads.has_line_clamp_point = has_line_clamp_point;
+                payloads.clamped_content_is_scrollable_overflow = self.clamped_content_is_scrollable_overflow;
+            });
+        }
     }
 
     fn lay_out_root_contents(&self, run: &FormattingContextRun<'pass>, input: LayoutInput) {

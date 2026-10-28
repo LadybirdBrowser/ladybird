@@ -435,6 +435,10 @@ pub(crate) struct FragmentPayloads {
     pub(crate) svg: CommittedSvgFacts,
     pub(crate) computed_svg_path: Option<std::sync::Arc<libgfx_rust::path::Path>>,
     pub(crate) svg_text_character_cells: Option<std::sync::Arc<Vec<svg_formatting_context::FfiSvgTextCharacterCell>>>,
+    /// For a line-clamp container: whether its contents hold the clamp point, and whether what follows the clamp
+    /// point still counts as scrollable overflow.
+    pub(crate) has_line_clamp_point: bool,
+    pub(crate) clamped_content_is_scrollable_overflow: bool,
 }
 
 impl FragmentPayloads {
@@ -449,6 +453,8 @@ impl FragmentPayloads {
             svg: fragment.svg.as_deref().copied().unwrap_or_default(),
             computed_svg_path: fragment.computed_svg_path.clone(),
             svg_text_character_cells: fragment.svg_text_character_cells.clone(),
+            has_line_clamp_point: fragment.has_line_clamp_point,
+            clamped_content_is_scrollable_overflow: fragment.clamped_content_is_scrollable_overflow,
         }
     }
 }
@@ -495,6 +501,8 @@ fn snapshot_fragment(
         svg,
         computed_svg_path,
         svg_text_character_cells,
+        has_line_clamp_point,
+        clamped_content_is_scrollable_overflow,
     } = payloads.map(|payloads| *payloads).unwrap_or_default();
     let mut fragment = Fragment {
         identity: 0,
@@ -528,9 +536,9 @@ fn snapshot_fragment(
         svg: (svg != CommittedSvgFacts::default()).then(|| Box::new(svg)),
         computed_svg_path,
         svg_text_character_cells,
-        has_line_clamp_point: used.has_line_clamp_point.get(),
+        has_line_clamp_point,
         is_invisible_for_line_clamp: fragment_facts.is_invisible_for_line_clamp,
-        clamped_content_is_scrollable_overflow: used.clamped_content_is_scrollable_overflow.get(),
+        clamped_content_is_scrollable_overflow,
         continues_from_previous_fragment: fragment_facts.continues_from_previous_fragment,
         continues_in_next_fragment: fragment_facts.continues_in_next_fragment,
         children,

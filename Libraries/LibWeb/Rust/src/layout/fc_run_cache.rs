@@ -1349,8 +1349,6 @@ mod tests {
 
         record.has_first_baseline.set(true);
         record.first_baseline.set(px(12));
-        record.has_line_clamp_point.set(true);
-        record.clamped_content_is_scrollable_overflow.set(true);
         let mut adopting_input = item_input;
         adopting_input.sizing.adopt_automatic_content_block_size = true;
         adopting_input.sizing.content_block_size_after_inside_layout = Some(px(40));

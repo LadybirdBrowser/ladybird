@@ -213,8 +213,6 @@ pub(crate) struct UsedValues {
     /// and friends): the table's border area lies outside the grid, so it owns the part of an outer border on the far
     /// side of the first or last grid line, while a cell owns the part on the inner side of its grid lines.
     pub is_collapsed_borders_table_box: Cell<bool>,
-    pub has_line_clamp_point: Cell<bool>,
-    pub clamped_content_is_scrollable_overflow: Cell<bool>,
 
     // Keep baseline payloads separate so resetting the presence bits does not
     // perturb the payloads observed by the existing derivation flow.
@@ -255,8 +253,6 @@ impl Default for UsedValues {
             has_definite_block_size_only_for_button_content_alignment: Cell::new(false),
             uses_collapsing_borders_model: Cell::new(false),
             is_collapsed_borders_table_box: Cell::new(false),
-            has_line_clamp_point: Cell::new(false),
-            clamped_content_is_scrollable_overflow: Cell::new(false),
             has_first_baseline: Cell::new(false),
             first_baseline: Cell::new(zero),
             has_last_baseline: Cell::new(false),
@@ -455,8 +451,6 @@ used_values_cells! {
 
 used_values_cells! {
     RootOutputCells {
-        has_line_clamp_point: bool,
-        clamped_content_is_scrollable_overflow: bool,
         has_first_baseline: bool,
         first_baseline: CssPixels,
         has_last_baseline: bool,
