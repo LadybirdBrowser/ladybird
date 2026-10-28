@@ -11,7 +11,7 @@
         await animationFrame();
         await animationFrame();
 
-        internals.wheelThroughUIProcess(50, 50, 0, 0, true, "began");
+        await internals.wheelThroughUIProcess(50, 50, 0, 0, true, "ongoing");
         await internals.wheelThroughUIProcess(50, 50, 0, 50, true, "ongoing");
         await internals.wheelThroughUIProcess(50, 50, 0, 40, true, "momentum");
         await animationFrame();
@@ -29,7 +29,7 @@
         println(`scrollY after the fling: ${window.scrollY}`);
 
         // The next gesture scrolls as usual.
-        internals.wheelThroughUIProcess(50, 50, 0, 0, true, "began");
+        await internals.wheelThroughUIProcess(50, 50, 0, 0, true, "ongoing");
         await internals.wheelThroughUIProcess(50, 50, 0, 50, true, "ongoing");
         await internals.wheelThroughUIProcess(50, 50, 0, 0, true, "ended");
         for (let frame = 0; frame < 4; frame++)

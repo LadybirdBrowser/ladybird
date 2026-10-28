@@ -25,7 +25,7 @@
 
         // The compositor pans the zoomed visual viewport by 50 while the main thread is busy, so the main thread has not
         // heard of it when the page scrolls itself by 30. The visual viewport takes that from where the pan left it.
-        internals.wheelThroughUIProcess(50, 50, 0, 0, true, "began");
+        await internals.wheelThroughUIProcess(50, 50, 0, 0, true, "ongoing");
         await animationFrame();
         await animationFrame();
         internals.wheelThroughUIProcess(50, 50, 0, 100, true, "ongoing");

@@ -29,7 +29,7 @@
         await animationFrame();
         await animationFrame();
 
-        internals.wheelThroughUIProcess(50, 50, 0, 0, true, "began");
+        await internals.wheelThroughUIProcess(50, 50, 0, 0, true, "ongoing");
         for (let step = 0; step < 3; step++)
             await internals.wheelThroughUIProcess(50, 50, 0, 50, true, "ongoing");
         for (let step = 0; step < 5; step++) {
