@@ -41,15 +41,14 @@ pub(super) fn layout_replaced_with_children(
     let wrapper_constraints = run
         .sizing()
         .constraints_for_child_context(run.box_, layout_input.containing_block_constraints);
-    let wrapper_record = run
+    let mut wrapper_cells = run
         .records
-        .create_used_values(&run.callbacks, wrapper, wrapper_constraints);
-    let mut wrapper_cells = used_values::RootInputCells::capture(wrapper_record);
+        .keep_child_for_its_run(&run.callbacks, wrapper, wrapper_constraints);
     wrapper_cells.set_content_inline_size(content_inline_size);
 
     let (wrapper_result, fragment_arrival) = formatting_context::run_formatting_context(
         run.fragments.as_deref(),
-        Some(wrapper_record),
+        None,
         wrapper_cells,
         wrapper,
         run.callbacks.in_flow_containing_block(wrapper),
