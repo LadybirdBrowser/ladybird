@@ -959,8 +959,11 @@ struct WebContentView::VulkanWindowRenderer final : public QVulkanWindowRenderer
 
         vkCmdEndRenderPass(command_buffer);
         m_window.frameReady();
-        if (!rendered)
+        if (!rendered) {
             m_view.fall_back_to_bitmap_rendering();
+            return;
+        }
+        m_view.m_presented_page_window_size = target_size;
     }
 
     WebContentView& m_view;
@@ -1080,8 +1083,20 @@ bool WebContentView::vulkan_window_has_native_focus() const
 
 void WebContentView::set_vulkan_window_container_visible(bool visible)
 {
+    if (!visible)
+        m_presented_page_window_size = {};
     if (m_vulkan_window_container)
         set_native_window_container_visible(*this, *m_vulkan_window_container, visible);
+}
+
+QRect WebContentView::rect_covered_by_page_window() const
+{
+    // NB: Hover-expanded chrome punches strips out of the page's window, and the page shows through them.
+    if (!m_vulkan_window_container || !m_vulkan_window_container->isVisible())
+        return {};
+    if (m_vertical_tab_overlay_left != 0 || m_vertical_tab_overlay_right != 0 || m_bookmarks_bar_overlay_height != 0)
+        return {};
+    return { QPoint { 0, 0 }, m_presented_page_window_size };
 }
 
 void WebContentView::vulkan_window_exposure_changed()
