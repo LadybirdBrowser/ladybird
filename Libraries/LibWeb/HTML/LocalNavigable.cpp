@@ -1524,6 +1524,7 @@ ReplicatedNavigableState LocalNavigable::replicated_state() const
         .opener_policy = m_active_document->opener_policy(),
         .active_browsing_context_is_auxiliary = active_browsing_context_is_auxiliary(),
         .opener_navigable_id = browsing_context.opener_navigable_id(),
+        .one_permitted_sandboxed_navigator_navigable_id = browsing_context.one_permitted_sandboxed_navigator_navigable_id(),
         .active_document_is_completely_loaded = m_active_document->is_completely_loaded(),
         .is_closing = m_closing,
         .container = container_state(),
@@ -1543,6 +1544,13 @@ GC::Ptr<Navigable> LocalNavigable::active_browsing_context_opener_navigable() co
     if (!m_active_document || !m_active_document->browsing_context())
         return nullptr;
     return m_active_document->browsing_context()->opener_navigable();
+}
+
+GC::Ptr<Navigable> LocalNavigable::active_browsing_context_one_permitted_sandboxed_navigator() const
+{
+    if (!m_active_document || !m_active_document->browsing_context())
+        return nullptr;
+    return m_active_document->browsing_context()->one_permitted_sandboxed_navigator_navigable();
 }
 
 ReplicatedContainerState LocalNavigable::container_state() const

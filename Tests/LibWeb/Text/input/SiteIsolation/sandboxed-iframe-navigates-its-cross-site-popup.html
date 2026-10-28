@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    iframe {
+        display: block;
+        width: 200px;
+        height: 100px;
+        border: 0;
+    }
+</style>
+<script>
+    // A sandboxed iframe is the one permitted sandboxed navigator of a popup it opens. Once the popup has navigated
+    // cross-site, the iframe's process holds it as a remote navigable, and the iframe still navigates it by name rather
+    // than opening another popup.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+        const popupName = `sandboxed-popup-${runId}`;
+        const channel = new BroadcastChannel(popupName);
+        const navigated = new Promise(resolve => channel.addEventListener("message", event => resolve(event.data), { once: true }));
+
+        const sameSiteUrl = await httpServer.createEcho("GET", `/sandboxed-popup-same-site-${runId}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><script>
+                new BroadcastChannel(${JSON.stringify(popupName)}).postMessage(\`popup history.length: \${history.length}\`);
+                window.close();
+            <\/script>`,
+        });
+
+        const crossSiteUrl = new URL(
+            await httpServer.createEcho("GET", `/sandboxed-popup-cross-site-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>opener.postMessage("the popup loaded cross-site", "*");<\/script>`,
+            })
+        );
+        crossSiteUrl.hostname = uniqueLocalhostHostname("sandboxed-popup-cross-site");
+
+        const iframe = document.createElement("iframe");
+        iframe.sandbox = "allow-popups allow-same-origin allow-scripts";
+        iframe.srcdoc = `<!DOCTYPE html><script>
+            addEventListener("mousedown", () => window.open(${JSON.stringify(crossSiteUrl.href)}, ${JSON.stringify(popupName)}));
+            addEventListener("message", event => {
+                parent.postMessage(event.data, "*");
+                window.open(${JSON.stringify(sameSiteUrl)}, ${JSON.stringify(popupName)});
+            });
+        <\/script>`;
+        const loaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        document.body.appendChild(iframe);
+        await loaded;
+
+        const popupLoaded = new Promise(resolve => addEventListener("message", event => resolve(event.data), { once: true }));
+        const rect = iframe.getBoundingClientRect();
+        internals.clickThroughUIProcess(rect.left + 30, rect.top + 20);
+        println(await popupLoaded);
+        println(await navigated);
+    });
+</script>

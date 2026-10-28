@@ -653,6 +653,11 @@ CanonicalNavigable::ChosenTopLevelTraversable CanonicalNavigable::choose_a_new_t
     auto initial_history_entry = Web::HTML::create_initial_session_history_entry_descriptor(Application::the().allocate_ui_process_cross_process_id(), opener.has_value() ? move(current_document_base_url) : Optional<URL::URL> {}, move(target_name));
     auto& chosen = CanonicalTraversable::create_a_new_top_level_traversable(id, opener, move(initial_history_entry), document_id);
 
+    //    2. If sandboxingFlagSet's sandboxed navigation browsing context flag is set, then set chosen's active browsing
+    //       context's one permitted sandboxed navigator to currentNavigable's active browsing context.
+    if (opener.has_value() && has_flag(sandboxing_flag_set, Web::HTML::SandboxingFlagSet::SandboxedNavigation))
+        chosen.active_browsing_context().set_the_one_permitted_sandboxed_navigator(current_navigable.active_browsing_context());
+
     // 9. If sandboxingFlagSet's sandbox propagates to auxiliary browsing contexts flag is set, then all the flags that are
     //    set in sandboxingFlagSet must be set in chosen's active browsing context's popup sandboxing flag set.
     if (has_flag(sandboxing_flag_set, Web::HTML::SandboxingFlagSet::SandboxPropagatesToAuxiliaryBrowsingContexts))
@@ -701,7 +706,9 @@ bool CanonicalNavigable::allowed_by_sandboxing_to_navigate(CanonicalNavigable co
 
     // 4. If target is a top-level traversable:
     if (target.is_top_level_traversable()) {
-        // FIXME: 1. If source is the one permitted sandboxed navigator of target, then return true.
+        // 1. If source is the one permitted sandboxed navigator of target, then return true.
+        if (target.active_browsing_context().the_one_permitted_sandboxed_navigator() == &source.active_browsing_context())
+            return true;
 
         // 2. If sourceSnapshotParams's sandboxing flags's sandboxed navigation browsing context flag is set, then return false.
         if (has_flag(source_snapshot_params.sandboxing_flags, Web::HTML::SandboxingFlagSet::SandboxedNavigation))
@@ -1238,6 +1245,13 @@ Optional<Web::HTML::ReplicatedNavigableState> CanonicalNavigable::replicated_sta
             opener_navigable_id = opener->id();
     }
 
+    // So is the one permitted sandboxed navigator.
+    Optional<Web::HTML::CrossProcessId> one_permitted_sandboxed_navigator_navigable_id;
+    if (auto const* navigator_browsing_context = browsing_context.the_one_permitted_sandboxed_navigator()) {
+        if (auto const* navigator = CanonicalTraversable::navigable_with_active_browsing_context(*navigator_browsing_context))
+            one_permitted_sandboxed_navigator_navigable_id = navigator->id();
+    }
+
     Optional<u64> browsing_context_group_id;
     if (auto group = traversable.active_browsing_context().group())
         browsing_context_group_id = group->id();
@@ -1256,6 +1270,7 @@ Optional<Web::HTML::ReplicatedNavigableState> CanonicalNavigable::replicated_sta
         .opener_policy = active_document().opener_policy(),
         .active_browsing_context_is_auxiliary = browsing_context.is_auxiliary(),
         .opener_navigable_id = opener_navigable_id,
+        .one_permitted_sandboxed_navigator_navigable_id = one_permitted_sandboxed_navigator_navigable_id,
         .active_document_is_completely_loaded = active_document().is_completely_loaded(),
         .is_closing = hosted_state.is_closing,
         .container = hosted_state.container,

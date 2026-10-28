@@ -1,0 +1,2 @@
+the popup loaded cross-site
+popup history.length: 2

@@ -76,6 +76,7 @@ public:
     virtual bool active_browsing_context_is_auxiliary() const override { return m_replicated_state.active_browsing_context_is_auxiliary; }
     GC::Ptr<WindowProxy> active_browsing_context_opener_window_proxy() const;
     virtual GC::Ptr<Navigable> active_browsing_context_opener_navigable() const override;
+    virtual GC::Ptr<Navigable> active_browsing_context_one_permitted_sandboxed_navigator() const override;
     virtual ReplicatedContainerState container_state() const override;
 
     virtual bool has_session_history_entry_and_ready_for_navigation() const override;

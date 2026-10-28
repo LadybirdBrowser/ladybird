@@ -58,6 +58,10 @@ public:
     // https://html.spec.whatwg.org/multipage/document-sequences.html#virtual-browsing-context-group-id
     u64 virtual_browsing_context_group_id() const { return m_virtual_browsing_context_group_id; }
 
+    // https://html.spec.whatwg.org/multipage/browsers.html#one-permitted-sandboxed-navigator
+    CanonicalBrowsingContext const* the_one_permitted_sandboxed_navigator() const { return m_the_one_permitted_sandboxed_navigator; }
+    void set_the_one_permitted_sandboxed_navigator(CanonicalBrowsingContext const& browsing_context) { m_the_one_permitted_sandboxed_navigator = browsing_context; }
+
     // https://html.spec.whatwg.org/multipage/browsers.html#popup-sandboxing-flag-set
     Web::HTML::SandboxingFlagSet popup_sandboxing_flag_set() const { return m_popup_sandboxing_flag_set; }
     void set_popup_sandboxing_flag_set(Web::HTML::SandboxingFlagSet flags) { m_popup_sandboxing_flag_set = flags; }
@@ -89,6 +93,8 @@ private:
     Optional<URL::Origin> m_opener_origin_at_creation;
 
     u64 m_virtual_browsing_context_group_id { 0 };
+
+    RefPtr<CanonicalBrowsingContext const> m_the_one_permitted_sandboxed_navigator;
 
     Web::HTML::SandboxingFlagSet m_popup_sandboxing_flag_set {};
 

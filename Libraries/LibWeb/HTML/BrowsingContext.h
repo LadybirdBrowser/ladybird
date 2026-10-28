@@ -65,6 +65,8 @@ public:
     // https://html.spec.whatwg.org/multipage/browsers.html#one-permitted-sandboxed-navigator
     GC::Ptr<BrowsingContext const> the_one_permitted_sandboxed_navigator() const { return m_the_one_permitted_sandboxed_navigator; }
     void set_the_one_permitted_sandboxed_navigator(BrowsingContext const* browsing_context) { m_the_one_permitted_sandboxed_navigator = browsing_context; }
+    Optional<CrossProcessId> one_permitted_sandboxed_navigator_navigable_id() const;
+    GC::Ptr<Navigable> one_permitted_sandboxed_navigator_navigable() const;
 
     bool has_navigable_been_destroyed() const;
 
