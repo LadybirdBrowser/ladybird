@@ -358,14 +358,6 @@ pub(crate) struct UsedValues {
     pub continues_from_previous_fragment: Cell<bool>,
     pub continues_in_next_fragment: Cell<bool>,
 
-    // For table cells and table-column(-group) boxes: the first grid column the box occupies and the number of grid
-    // columns it spans, so painting can find the cells that originate in a column (CSS 2.2 §17.5.1).
-    pub table_column_index: Cell<u32>,
-    pub table_column_span: Cell<u32>,
-    // For table cells: whether every column the cell spans has 'visibility: collapse', which removes the cell from
-    // the display along with the columns (CSS 2.2 §17.5.5).
-    pub hidden_by_collapsed_columns: Cell<bool>,
-
     // Keep baseline payloads separate so resetting the presence bits does not
     // perturb the payloads observed by the existing derivation flow.
     pub has_first_baseline: Cell<bool>,
@@ -409,9 +401,6 @@ impl Default for UsedValues {
             continues_from_previous_fragment: Cell::new(false),
             continues_in_next_fragment: Cell::new(false),
             clamped_content_is_scrollable_overflow: Cell::new(false),
-            table_column_index: Cell::new(0),
-            table_column_span: Cell::new(0),
-            hidden_by_collapsed_columns: Cell::new(false),
             has_first_baseline: Cell::new(false),
             first_baseline: Cell::new(zero),
             has_last_baseline: Cell::new(false),
@@ -617,9 +606,6 @@ used_values_cells! {
         is_invisible_for_line_clamp: bool,
         continues_from_previous_fragment: bool,
         continues_in_next_fragment: bool,
-        table_column_index: u32,
-        table_column_span: u32,
-        hidden_by_collapsed_columns: bool,
     }
 }
 
@@ -1139,12 +1125,11 @@ pub(crate) fn create_used_values(
     used
 }
 
-/// The record, placement and used insets of a box as its committed fragment link has them, which a run adopts as they
-/// are.
+/// The record of a box and what its parent decided about it, as its committed fragment link has them, which a run
+/// adopts as they are.
 pub(crate) struct CommittedBox {
     pub(crate) record: UsedValues,
-    pub(crate) placement: super::run_records::BoxPlacement,
-    pub(crate) used_insets: super::run_records::UsedInsets,
+    pub(crate) facts_decided_by_parent: super::run_records::FactsDecidedByParent,
 }
 
 pub(crate) fn committed_box_from_fragment_link(callbacks: &LayoutPass<'_>, node: Node) -> Option<CommittedBox> {
@@ -1158,22 +1143,25 @@ pub(crate) fn committed_box_from_fragment_link(callbacks: &LayoutPass<'_>, node:
     used.set_box_metrics_from_fragment(fragment);
     used.has_definite_inline_size.set(true);
     used.has_definite_block_size.set(true);
-    used.table_column_index.set(fragment.table_column_index);
-    used.table_column_span.set(fragment.table_column_span);
-    used.hidden_by_collapsed_columns
-        .set(fragment.hidden_by_collapsed_columns);
 
     Some(CommittedBox {
         record: used,
-        placement: super::run_records::BoxPlacement {
-            content_offset_in_containing_block: link.committed_offset,
-            containing_block: link.containing_block,
-        },
-        used_insets: super::run_records::UsedInsets {
-            left: link.inset_left,
-            right: link.inset_right,
-            top: link.inset_top,
-            bottom: link.inset_bottom,
+        facts_decided_by_parent: super::run_records::FactsDecidedByParent {
+            placement: Some(super::run_records::BoxPlacement {
+                content_offset_in_containing_block: link.committed_offset,
+                containing_block: link.containing_block,
+            }),
+            used_insets: super::run_records::UsedInsets {
+                left: link.inset_left,
+                right: link.inset_right,
+                top: link.inset_top,
+                bottom: link.inset_bottom,
+            },
+            fragment_facts: super::run_records::FragmentFactsDecidedByParent {
+                table_column_index: fragment.table_column_index,
+                table_column_span: fragment.table_column_span,
+                hidden_by_collapsed_columns: fragment.hidden_by_collapsed_columns,
+            },
         },
     })
 }

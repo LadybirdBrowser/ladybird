@@ -296,9 +296,9 @@ pub(crate) struct RunRecords<'arena> {
     nonce: u64,
     stack_length_at_start: usize,
     records_outside_table: RefCell<HashMap<Node, u32>>,
-    /// Where the root of a run that owns its root record is placed and what insets it uses, which the stack keeps for
-    /// every other record.
-    root_position: Cell<PositionKeptByParent>,
+    /// What the parent of the root of a run that owns its root record decides about it, which the stack keeps for every
+    /// other record.
+    root_facts_decided_by_parent: Cell<FactsDecidedByParent>,
     // Wrapper sizing hands this state to the wrapper's child run, which consumes it while laying
     // out the table box. Keeping it on the run prevents measurement state from escaping a pass.
     table_inline_layouts: RefCell<HashMap<Node, table_formatting_context::TableInlineLayout>>,
@@ -315,11 +315,24 @@ pub(crate) struct BoxPlacement {
     pub(crate) containing_block: Node,
 }
 
-/// What the parent of a box keeps about where it put the box, beside the box's record.
+/// What a box's fragment shows of the layout of its parent, which decides it.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-struct PositionKeptByParent {
-    used_insets: UsedInsets,
-    placement: Option<BoxPlacement>,
+pub(crate) struct FragmentFactsDecidedByParent {
+    /// For table cells and table-column(-group) boxes: the first grid column the box occupies and the number of grid
+    /// columns it spans, so painting can find the cells that originate in a column (CSS 2.2 §17.5.1).
+    pub(crate) table_column_index: u32,
+    pub(crate) table_column_span: u32,
+    /// For table cells: whether every column the cell spans has 'visibility: collapse', which removes the cell from
+    /// the display along with the columns (CSS 2.2 §17.5.5).
+    pub(crate) hidden_by_collapsed_columns: bool,
+}
+
+/// What the parent of a box decides about the box, kept beside the box's record.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct FactsDecidedByParent {
+    pub(crate) placement: Option<BoxPlacement>,
+    pub(crate) used_insets: UsedInsets,
+    pub(crate) fragment_facts: FragmentFactsDecidedByParent,
 }
 
 /// Where a run keeps the record of a box it owns.
@@ -462,7 +475,7 @@ impl<'arena> RunRecords<'arena> {
             nonce: scratch.begin_run(),
             stack_length_at_start: scratch.run_record_stack.length(),
             records_outside_table: RefCell::new(HashMap::default()),
-            root_position: Cell::new(PositionKeptByParent::default()),
+            root_facts_decided_by_parent: Cell::new(FactsDecidedByParent::default()),
             table_inline_layouts: RefCell::new(HashMap::default()),
             content_sizing,
             percentage_block_size_dependencies_in_progress: RefCell::new(smallvec::smallvec![(
@@ -574,18 +587,20 @@ impl<'arena> RunRecords<'arena> {
             .map(OwnedRecord::OnStack)
     }
 
-    fn position_kept_for(&self, node: Node) -> Option<PositionKeptByParent> {
+    fn kept_facts_decided_by_parent_of(&self, node: Node) -> Option<FactsDecidedByParent> {
         Some(match self.owned_record(node)? {
-            OwnedRecord::Root => self.root_position.get(),
-            OwnedRecord::OnStack(index) => self.scratch.run_record_stack.position(index),
+            OwnedRecord::Root => self.root_facts_decided_by_parent.get(),
+            OwnedRecord::OnStack(index) => self.scratch.run_record_stack.facts_decided_by_parent(index),
         })
     }
 
     #[track_caller]
-    fn keep_position_for(&self, node: Node, position: PositionKeptByParent) {
+    fn keep_facts_decided_by_parent_of(&self, node: Node, facts: FactsDecidedByParent) {
         match self.owned_record(node) {
-            Some(OwnedRecord::Root) => self.root_position.set(position),
-            Some(OwnedRecord::OnStack(index)) => self.scratch.run_record_stack.set_position(index, position),
+            Some(OwnedRecord::Root) => self.root_facts_decided_by_parent.set(facts),
+            Some(OwnedRecord::OnStack(index)) => {
+                self.scratch.run_record_stack.set_facts_decided_by_parent(index, facts);
+            }
             None => panic!(
                 "the run rooted at slot {} does not own the record for slot {}",
                 self.root.slot_index(),
@@ -602,21 +617,69 @@ impl<'arena> RunRecords<'arena> {
     #[track_caller]
     pub(crate) fn place_box(&self, node: Node, placement: BoxPlacement) {
         let used = self.used_values(node);
-        let position = self.position_kept_for(node).unwrap_or_default();
-        assert!(position.placement.is_none(), "a box is placed once");
-        self.keep_position_for(
+        let facts = self.kept_facts_decided_by_parent_of(node).unwrap_or_default();
+        assert!(facts.placement.is_none(), "a box is placed once");
+        self.keep_facts_decided_by_parent_of(
             node,
-            PositionKeptByParent {
+            FactsDecidedByParent {
                 placement: Some(placement),
-                ..position
+                ..facts
             },
         );
         used.seal_own_metrics();
     }
 
+    /// Adopts for `node` what its parent decided about it in the layout that committed `facts`, placing the box there.
+    #[track_caller]
+    pub(crate) fn adopt_committed_facts_decided_by_parent(&self, node: Node, facts: FactsDecidedByParent) {
+        let used = self.used_values(node);
+        assert!(
+            facts.placement.is_some() && self.placement_of(node).is_none(),
+            "a box adopts the placement it committed once"
+        );
+        self.keep_facts_decided_by_parent_of(node, facts);
+        used.seal_own_metrics();
+    }
+
+    /// What the parent of `node` has decided about it so far.
+    #[track_caller]
+    pub(crate) fn facts_decided_by_parent_of(&self, node: Node) -> FactsDecidedByParent {
+        self.used_values(node);
+        self.kept_facts_decided_by_parent_of(node).unwrap_or_default()
+    }
+
+    #[track_caller]
+    fn update_fragment_facts_decided_by_parent_of(
+        &self,
+        node: Node,
+        update: impl FnOnce(&mut FragmentFactsDecidedByParent),
+    ) {
+        assert!(
+            !matches!(self.owned_record(node), Some(OwnedRecord::Root)),
+            "what a box's fragment shows of its parent's layout is decided by the run of that parent"
+        );
+        let mut facts = self.facts_decided_by_parent_of(node);
+        update(&mut facts.fragment_facts);
+        self.keep_facts_decided_by_parent_of(node, facts);
+    }
+
+    /// Places `node` in the table grid columns starting at `first_column_index`.
+    #[track_caller]
+    pub(crate) fn place_in_table_columns(&self, node: Node, first_column_index: u32, column_span: u32) {
+        self.update_fragment_facts_decided_by_parent_of(node, |facts| {
+            facts.table_column_index = first_column_index;
+            facts.table_column_span = column_span;
+        });
+    }
+
+    #[track_caller]
+    pub(crate) fn set_hidden_by_collapsed_columns(&self, node: Node, hidden: bool) {
+        self.update_fragment_facts_decided_by_parent_of(node, |facts| facts.hidden_by_collapsed_columns = hidden);
+    }
+
     /// Where `node` is placed, if this run placed it.
     pub(crate) fn placement_of(&self, node: Node) -> Option<BoxPlacement> {
-        self.position_kept_for(node)?.placement
+        self.kept_facts_decided_by_parent_of(node)?.placement
     }
 
     pub(crate) fn is_placed(&self, node: Node) -> bool {
@@ -636,22 +699,21 @@ impl<'arena> RunRecords<'arena> {
     #[track_caller]
     pub(crate) fn used_insets_of(&self, node: Node) -> UsedInsets {
         self.used_values(node);
-        self.position_kept_for(node).unwrap_or_default().used_insets
+        self.kept_facts_decided_by_parent_of(node)
+            .unwrap_or_default()
+            .used_insets
     }
 
     /// Sets the used insets of `node`, which cannot change once the box is placed.
     #[track_caller]
     pub(crate) fn set_used_insets(&self, node: Node, insets: UsedInsets) {
-        let position = self.position_kept_for(node).unwrap_or_default();
-        assert!(
-            position.placement.is_none(),
-            "the used insets of a placed box are final"
-        );
-        self.keep_position_for(
+        let facts = self.kept_facts_decided_by_parent_of(node).unwrap_or_default();
+        assert!(facts.placement.is_none(), "the used insets of a placed box are final");
+        self.keep_facts_decided_by_parent_of(
             node,
-            PositionKeptByParent {
+            FactsDecidedByParent {
                 used_insets: insets,
-                ..position
+                ..facts
             },
         );
     }
@@ -740,8 +802,8 @@ const RECORDS_PER_STACK_CHUNK: usize = 64;
 struct RunRecordStack {
     chunks: RefCell<Vec<NonNull<UsedValues>>>,
     length: Cell<usize>,
-    /// What the parent of each record's box keeps about where it put the box, at the record's index.
-    positions: RefCell<Vec<PositionKeptByParent>>,
+    /// What the parent of each record's box decides about the box, at the record's index.
+    facts_decided_by_parent: RefCell<Vec<FactsDecidedByParent>>,
 }
 
 // SAFETY: The stack owns its chunks as a Vec owns its buffer, and a record lives only while the run
@@ -776,23 +838,25 @@ impl RunRecordStack {
             slot
         };
         self.length.set(index + 1);
-        self.positions.borrow_mut().push(PositionKeptByParent::default());
+        self.facts_decided_by_parent
+            .borrow_mut()
+            .push(FactsDecidedByParent::default());
         (u32::try_from(index).expect("layout run records fit a u32 index"), slot)
     }
 
-    fn position(&self, index: u32) -> PositionKeptByParent {
-        self.positions.borrow()[index as usize]
+    fn facts_decided_by_parent(&self, index: u32) -> FactsDecidedByParent {
+        self.facts_decided_by_parent.borrow()[index as usize]
     }
 
-    fn set_position(&self, index: u32, position: PositionKeptByParent) {
-        self.positions.borrow_mut()[index as usize] = position;
+    fn set_facts_decided_by_parent(&self, index: u32, facts: FactsDecidedByParent) {
+        self.facts_decided_by_parent.borrow_mut()[index as usize] = facts;
     }
 
     /// # Safety
     ///
     /// No reference to a record at or above `length` may be live.
     unsafe fn truncate(&self, length: usize) {
-        self.positions.borrow_mut().truncate(length);
+        self.facts_decided_by_parent.borrow_mut().truncate(length);
         let chunks = self.chunks.borrow();
         while self.length.get() > length {
             let index = self.length.get() - 1;
