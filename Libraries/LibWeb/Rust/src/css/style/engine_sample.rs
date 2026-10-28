@@ -955,8 +955,9 @@ impl super::StyleEngine {
             | RENDERED_IN_TOP_LAYER
             | IS_SHADOW_HOST_PSEUDO_ELEMENT
             | HAS_ANIMATIONS;
-        let is_container =
-            |record: super::computed::FinalStyleRecordID| self.container_query_input_row(record.raw(), false).is_some();
+        let is_container = |record: super::computed::FinalStyleRecordID| {
+            self.container_query_input_row(node, record.raw(), false).is_some()
+        };
         let generates_pseudo_boxes = [AFTER, BACKDROP, BEFORE, FIRST_LETTER, FIRST_LINE, MARKER]
             .iter()
             .any(|&kind| {

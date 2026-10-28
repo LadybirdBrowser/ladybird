@@ -727,7 +727,13 @@ impl RetainedState {
 
     /// Record which principal box the element asks for.
     pub fn set_element_box_kind(&mut self, node: StyleNodeID, box_kind: super::bridge::ElementBoxKind) {
+        if self.element_box_kind(node) == box_kind {
+            return;
+        }
         self.computed_group_sets.set_box_kind(node, box_kind);
+        if let Some(&style_record) = self.held_style_records.get(&node) {
+            self.set_element_container_query_inputs(node, style_record);
+        }
     }
 
     /// Which principal box the element asks for. A text node and a retired identity ask for
@@ -1491,9 +1497,18 @@ impl RetainedState {
     /// with. A record without its box group makes it none, and so does one naming no container
     /// type or name: such an element holds no row.
     pub(super) fn set_element_container_query_inputs(&mut self, node: StyleNodeID, style_record: u64) {
-        match self.container_query_input_row(style_record, false) {
+        let supports_size_queries = |row: &tree::ContainerQueryInputRow| {
+            row.size_queries_available && (row.is_size_container || row.is_inline_size_container)
+        };
+        let was_available = self.container_query_inputs(node).is_some_and(supports_size_queries);
+        let row = self.container_query_input_row(node, style_record, false);
+        let is_available = row.as_ref().is_some_and(supports_size_queries);
+        match row {
             Some(row) => self.container_query_inputs.set(node, row),
             None => self.container_query_inputs.clear(node),
+        }
+        if was_available != is_available {
+            self.size_container_queries.note_availability_change(node);
         }
     }
 
@@ -1502,6 +1517,7 @@ impl RetainedState {
     /// or name.
     pub(super) fn container_query_input_row(
         &self,
+        node: StyleNodeID,
         style_record: u64,
         any_element: bool,
     ) -> Option<tree::ContainerQueryInputRow> {
@@ -1529,8 +1545,48 @@ impl RetainedState {
                 ak::Utf16StringUnits::Utf16(units) => units.to_vec(),
             })
             .collect();
+        use super::bridge::ElementBoxKind;
+        let display = values.display();
+        let box_kind = self.element_box_kind(node);
+        let native_box_is_suppressed = values.appearance() == crate::css::css_enums::appearance::NONE
+            && box_kind.is_suppressed_by_appearance_none();
+        let has_atomic_principal_box = self.element_construction_facts(node)
+            & super::bridge::element_construction_fact::IS_HTML_INPUT_ELEMENT
+            != 0
+            || (!native_box_is_suppressed
+                && matches!(
+                    box_kind,
+                    ElementBoxKind::FieldSet
+                        | ElementBoxKind::Legend
+                        | ElementBoxKind::Audio
+                        | ElementBoxKind::Video
+                        | ElementBoxKind::Canvas
+                        | ElementBoxKind::NavigableContainerViewport
+                        | ElementBoxKind::TextArea
+                        | ElementBoxKind::Image
+                        | ElementBoxKind::SvgSvg
+                        | ElementBoxKind::SvgForeignObject
+                        | ElementBoxKind::InputButton
+                        | ElementBoxKind::InputCheckBox
+                        | ElementBoxKind::InputRadioButton
+                        | ElementBoxKind::InputRange
+                        | ElementBoxKind::InputText
+                ));
+        let non_atomic_inline = display.is_inline_outside()
+            && (display.is_ruby_inside() || (display.is_flow_inside() && !has_atomic_principal_box));
+        // https://drafts.csswg.org/css-conditional-5/#size-container
+        // If the query container does not have a principal box, or the principal box is not a layout containment box,
+        // or the query container does not support container size queries on the relevant axes,
+        // then the result of evaluating the size feature is unknown.
+        let size_queries_available = box_kind != ElementBoxKind::NoBox
+            && !display.is_none()
+            && !display.is_contents()
+            && !display.is_table_inside()
+            && !(display.is_internal() && !display.is_table_caption())
+            && !non_atomic_inline;
         Some(tree::ContainerQueryInputRow {
             style_record,
+            size_queries_available,
             names,
             is_size_container: box_values.is_size_container,
             is_inline_size_container: box_values.is_inline_size_container,

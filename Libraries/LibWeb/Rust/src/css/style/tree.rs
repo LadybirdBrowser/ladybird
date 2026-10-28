@@ -43,6 +43,7 @@ pub(super) struct ContainerQueryInputRow {
     pub(super) style_record: u64,
     pub(super) names: Vec<Vec<u16>>,
     pub(super) is_size_container: bool,
+    pub(super) size_queries_available: bool,
     pub(super) is_inline_size_container: bool,
     pub(super) is_scroll_state_container: bool,
     pub(super) writing_mode: u8,

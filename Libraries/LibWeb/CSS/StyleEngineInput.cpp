@@ -903,7 +903,7 @@ void record_element_associated_with_animation(DOM::Element& element)
 }
 
 // The box the element asks layout for.
-static CSS::ElementBoxKind box_kind_for_layout(DOM::Element const& element)
+CSS::ElementBoxKind box_kind_for_layout(DOM::Element const& element)
 {
     // https://svgwg.org/svg2-draft/struct.html#ConditionalProcessing
     // NB: An element whose conditional processing attributes evaluate to false, and its children, are skipped and thus

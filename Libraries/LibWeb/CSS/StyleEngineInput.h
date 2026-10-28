@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Function.h>
+#include <LibWeb/CSS/ElementBoxKind.h>
 #include <LibWeb/CSS/PseudoClass.h>
 #include <LibWeb/CSS/StyleProperty.h>
 #include <LibWeb/Export.h>
@@ -23,6 +24,9 @@ namespace Web::CSS {
 
 class RustRule;
 class StyleEngine;
+
+// The requested principal box, with SVG conditional processing applied.
+ElementBoxKind box_kind_for_layout(DOM::Element const&);
 
 // Settle a style-change boundary deferred by a geometry read before mutating a rule's declaration
 // block. Constructed sheets can have copies in multiple document engines.
