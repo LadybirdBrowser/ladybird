@@ -1791,12 +1791,12 @@ pub(crate) fn solve_replaced_axis(
 
 impl AbsposEngine<'_> {
     fn static_offset(&self, node: Node, rect: abspos_inputs::StaticPositionRect) -> geometry::LogicalOffset {
-        let used = self.used(node);
-        let collapsed = used.uses_collapsing_borders_model.get();
+        let metrics = self.records.box_metrics_of(node);
+        let collapsed = metrics.uses_collapsing_borders_model();
         aligned_static_offset(
             rect,
-            used.margin_box_inline_size(collapsed),
-            used.margin_box_block_size(collapsed),
+            metrics.margin_box_inline_size(collapsed),
+            metrics.margin_box_block_size(collapsed),
         )
     }
 
@@ -3135,8 +3135,8 @@ impl<'pass> AbsposEngine<'pass> {
         };
 
         let static_offset = self.static_offset(node, inputs.static_position_rect);
-        let used = self.used(node);
-        let collapsed = used.uses_collapsing_borders_model.get();
+        let metrics = self.records.box_metrics_of(node);
+        let collapsed = metrics.uses_collapsing_borders_model();
         let mut used_offset = geometry::LogicalOffset {
             inline_offset: if inputs.containing_block_info.inline_axis_mode
                 == abspos_inputs::AbsposAxisMode::StaticPosition
@@ -3153,8 +3153,8 @@ impl<'pass> AbsposEngine<'pass> {
                 inputs.containing_block_info.rect.offset.block_offset + used_insets.top
             },
         };
-        used_offset.inline_offset += used.margin_left.get() + used.border_box_left(collapsed);
-        used_offset.block_offset += used.margin_top.get() + used.border_box_top(collapsed);
+        used_offset.inline_offset += metrics.margin_left() + metrics.border_box_left(collapsed);
+        used_offset.block_offset += metrics.margin_top() + metrics.border_box_top(collapsed);
         // https://drafts.csswg.org/css-anchor-position-1/#position-area
         // The used value of any auto inset properties and auto margin properties resolves to 0.
         // https://drafts.csswg.org/css-anchor-position-1/#anchor-center
