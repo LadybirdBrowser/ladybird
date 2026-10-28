@@ -2200,6 +2200,9 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
     if (!new_shadow_root || moved_subtree_has_slot || new_shadow_root->slot_assignment() == SlotAssignmentMode::Manual)
         assign_slottables_for_a_tree(new_root);
 
+    // NB: Refresh lookup caches before moving steps can query the completed tree change.
+    document().subtree_was_moved({}, *this, old_parent_root);
+
     CSS::Invalidation::invalidate_style_after_subtree_place_changed(*this, moved_from_parent);
 
     // 25. For each shadow-including inclusive descendant inclusiveDescendant of node, in shadow-including tree order:

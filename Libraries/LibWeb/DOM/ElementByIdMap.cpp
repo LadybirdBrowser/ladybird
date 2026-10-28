@@ -13,8 +13,12 @@ void ElementByIdMap::add(Utf16FlyString const& element_id, Element& element)
     auto& entry = m_map.ensure(element_id, [] { return MapEntry {}; });
 
     for (auto const& existing : entry.elements) {
-        if (existing.ptr().ptr() == &element)
+        if (existing.ptr().ptr() == &element) {
+            // NB: Re-registering after a move can change which duplicate is first.
+            if (entry.elements.size() > 1)
+                entry.cached_first_element = {};
             return;
+        }
     }
 
     entry.elements.append(element);

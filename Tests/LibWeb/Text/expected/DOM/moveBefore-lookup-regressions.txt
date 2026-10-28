@@ -1,0 +1,14 @@
+Initial named order: move-name-first,move-name-second,move-name-third
+Named order after moving first: move-name-third,move-name-first,move-name-second
+Named order after moving last: move-name-first,move-name-second,move-name-third
+Named order after moving middle: move-name-second,move-name-first,move-name-third
+Initial named subtree order: move-subtree-first,move-subtree-second,move-subtree-last
+Named subtree order after moving last: move-subtree-last,move-subtree-first,move-subtree-second
+Named subtree order after moving first: move-subtree-first,move-subtree-second,move-subtree-last
+Named subtree order after internal reorder and move: move-subtree-last,move-subtree-second,move-subtree-first
+ID-less control initially unassociated: true
+ID-less control gains shadow form: true
+Shadow form includes moved control: true
+ID-less control changes shadow form: true
+ID-less control releases shadow form: true
+ID-less control regains shadow form: true
