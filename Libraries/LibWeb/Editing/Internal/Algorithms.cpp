@@ -4061,11 +4061,9 @@ Vector<RecordedOverride> record_current_overrides(DOM::Document const& document)
 
     // 3. For each command in the list "bold", "italic", "strikethrough", "subscript", "superscript", "underline", in
     //    order: if there is a state override for command, add (command, command's state override) to overrides.
-    for (auto const& command : { CommandNames::bold, CommandNames::italic, CommandNames::strikethrough,
-             CommandNames::subscript, CommandNames::superscript, CommandNames::underline }) {
-        if (auto override = document.command_state_override(command); override.has_value())
-            overrides.empend(command, override.release_value());
-    }
+    // INTEROP: Preserve the order in which inline styles were enabled so reconstructed typing style has the same nesting.
+    for (auto const& entry : document.command_state_overrides())
+        overrides.empend(entry.key, entry.value);
 
     // 4. For each command in the list "fontName", "fontSize", "foreColor", "hiliteColor", in order: if there is a value
     //    override for command, add (command, command's value override) to overrides.
@@ -4289,8 +4287,20 @@ void restore_states_and_values(DOM::Document& document, Vector<RecordedOverride>
 
     // 2. If node is not null,
     if (node) {
+        // INTEROP: Applying a state wraps the previously styled content. Reconstruct the innermost state first so
+        //          earlier enabled styles remain outside later ones, while font values keep their existing order.
+        Vector<RecordedOverride, 6> state_overrides;
+        for (auto const& override : overrides) {
+            if (override.value.has<bool>())
+                state_overrides.append(override);
+        }
+        auto remaining_state_overrides = state_overrides.size();
+
         // then for each (command, override) pair in overrides, in order:
         for (auto override : overrides) {
+            if (override.value.has<bool>())
+                override = state_overrides[--remaining_state_overrides];
+
             // 1. If override is a boolean, and queryCommandState(command) returns something different from override,
             //    take the action for command, with value equal to the empty string.
             if (override.value.has<bool>() && MUST(document.query_command_state(override.command)) != override.value.get<bool>()) {

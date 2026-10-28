@@ -1636,7 +1636,12 @@ public:
 
     // https://w3c.github.io/editing/docs/execCommand/#state-override
     Optional<bool> command_state_override(Utf16FlyString const& command) const { return m_command_state_override.get(command); }
-    void set_command_state_override(Utf16FlyString const& command, bool state) { m_command_state_override.set(command, state); }
+    OrderedHashMap<Utf16FlyString, bool> const& command_state_overrides() const { return m_command_state_override; }
+    void set_command_state_override(Utf16FlyString const& command, bool state)
+    {
+        m_command_state_override.remove(command);
+        m_command_state_override.set(command, state);
+    }
     void clear_command_state_override(Utf16FlyString const& command) { m_command_state_override.remove(command); }
     void reset_command_state_overrides() { m_command_state_override.clear(); }
 
@@ -2406,7 +2411,7 @@ private:
     bool m_css_styling_flag { false };
 
     // https://w3c.github.io/editing/docs/execCommand/#state-override
-    HashMap<Utf16FlyString, bool> m_command_state_override;
+    OrderedHashMap<Utf16FlyString, bool> m_command_state_override;
 
     // https://w3c.github.io/editing/docs/execCommand/#value-override
     HashMap<Utf16FlyString, Utf16String> m_command_value_override;
