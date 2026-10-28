@@ -640,7 +640,12 @@ void Element::follow_the_hyperlink(Optional<Utf16String> hyperlink_suffix, HTML:
         target_attribute_value = get_an_elements_target();
 
     // 4. Let urlRecord be the result of encoding-parsing a URL given subject's href attribute value, relative to subject's node document.
-    auto url_record = document().encoding_parse_url(attribute(HTML::AttributeNames::href).value_or({}));
+    auto href = get_attribute_ns({}, HTML::AttributeNames::href);
+    // https://svgwg.org/svg2-draft/linking.html#XLinkRefAttrs
+    // NB: SVG links use xlink:href when the unnamespaced href attribute is absent.
+    if (!href.has_value() && is_svg_a_element())
+        href = get_attribute_ns(Namespace::XLink, HTML::AttributeNames::href);
+    auto url_record = document().encoding_parse_url(href.value_or({}));
 
     // 5. If urlRecord is failure, then return.
     if (!url_record.has_value())
