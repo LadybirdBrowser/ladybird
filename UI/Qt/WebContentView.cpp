@@ -1216,7 +1216,14 @@ void WebContentView::paintEvent(QPaintEvent*)
     }
 
     auto background_color = page_background_color();
-    painter.fillRect(QRect(0, 0, m_viewport_size.width(), m_viewport_size.height()), QColor(background_color.red(), background_color.green(), background_color.blue()));
+    QRegion background { QRect(0, 0, m_viewport_size.width(), m_viewport_size.height()) };
+#    ifdef LADYBIRD_QT_USE_VULKAN_WINDOW
+    // NB: Filling the part of the widget under the page's window would only touch memory that nobody sees. During a
+    //     resize, that is most of a window-sized buffer at every step.
+    background -= rect_covered_by_page_window();
+#    endif
+    for (auto const& rect : background)
+        painter.fillRect(rect, QColor(background_color.red(), background_color.green(), background_color.blue()));
 }
 #endif
 

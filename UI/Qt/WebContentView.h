@@ -388,6 +388,7 @@ private:
     void set_vulkan_window_container_visible(bool);
     void fall_back_to_bitmap_rendering();
     void vulkan_window_exposure_changed();
+    QRect rect_covered_by_page_window() const;
     void remap_unexposed_vulkan_window();
 
     VulkanWindow* m_vulkan_window { nullptr };
@@ -397,6 +398,8 @@ private:
     QTimer m_unexposed_vulkan_window_timer;
     // Waits for the browser window to be exposed again, before the page's window is mapped again.
     QObject* m_top_level_expose_watcher { nullptr };
+    // The size of the page's last frame on screen, in device pixels.
+    QSize m_presented_page_window_size;
 
     // The pixels of the frame on screen, read back from GPU memory once for each frame that Qt paints itself.
     struct FrameReadFromGpu {
