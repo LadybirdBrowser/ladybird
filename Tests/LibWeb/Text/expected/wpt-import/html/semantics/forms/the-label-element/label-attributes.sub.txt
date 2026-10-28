@@ -2,13 +2,13 @@ Harness status: OK
 
 Found 20 tests
 
-16 Pass
-4 Fail
+17 Pass
+3 Fail
 Pass	A label element with a 'for' attribute should only be associated with a labelable element.
 Pass	A label element not in a document can not label any element in the document.
 Pass	The labeled control for a label element that has no 'for' attribute is the first labelable element which is a descendant of that label element.
 Pass	The 'for' attribute points to an inexistent id.
-Fail	A non-control follows by a control with same ID.
+Pass	A non-control follows by a control with same ID.
 Pass	The 'for' attribute is an empty string.
 Pass	A form control has multiple labels.
 Pass	A labelable element is moved to outside of nested associated labels.
