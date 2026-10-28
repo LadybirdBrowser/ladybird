@@ -821,58 +821,59 @@ pub(crate) fn store_derived_baselines(used: &UsedValues, baselines: DerivedBasel
     }
 }
 
-/// The baselines of the lines laid out in `box_`, relative to its content box.
-pub(crate) fn derive_baselines_from_lines(
-    records: &RunRecords,
+/// The first, last and inline-alignment baselines of a line, relative to the content box of its block container.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct LineBaselines {
+    pub(crate) first: CssPixels,
+    pub(crate) last: CssPixels,
+    pub(crate) inline_alignment: CssPixels,
+}
+
+/// The baselines a line gives its block container where it holds `box_`, a block-level box with `cells` and
+/// `content_baselines` whose content box sits `content_block_offset` into the container's content box.
+pub(crate) fn baselines_of_block_level_box_on_line(
     callbacks: &LayoutPass<'_>,
     box_: Node,
-) -> DerivedBaselines {
-    let own_used = records.used_values(box_);
-    let own_line_data = own_used.line_data_ref();
-    let mut lines = own_line_data.iter().flat_map(|data| data.lines());
-    let first = lines
-        .find(|line| !line.is_empty)
-        .or_else(|| own_line_data.as_ref()?.lines().next());
+    cells: &used_values::RootInputCells,
+    content_baselines: DerivedBaselines,
+    content_block_offset: CssPixels,
+) -> LineBaselines {
+    let offset_from_margin_edge = content_block_offset - cells.margin_box_top(cells.uses_collapsing_borders_model);
+    let baseline = |baseline_set, purpose| {
+        offset_from_margin_edge
+            + box_baseline_for_purpose(callbacks, box_, cells, baseline_set, content_baselines, purpose)
+    };
+    LineBaselines {
+        first: baseline(BaselineSet::First, BaselinePurpose::Container),
+        last: baseline(BaselineSet::Last, BaselinePurpose::Container),
+        inline_alignment: baseline(BaselineSet::Last, BaselinePurpose::InlineAlignment),
+    }
+}
+
+/// The baselines of `lines`, relative to the content box of the block container that holds them.
+pub(crate) fn derive_baselines_from_lines(lines: &[line_box::LineBoxData]) -> DerivedBaselines {
+    let mut remaining_lines = lines.iter();
+    let first = remaining_lines.find(|line| !line.is_empty()).or_else(|| lines.first());
     if let Some(first) = first {
-        let last = lines.rfind(|line| !line.is_empty).unwrap_or(first);
-        let baseline_for_line_box =
-            |line: inline_content::LineRecord, baseline_set: BaselineSet, purpose: BaselinePurpose| -> CssPixels {
-                if !line.has_block_level_box {
-                    return line.physical_vertical_end() - line.block_length + line.baseline;
-                }
-                assert_eq!(line.layout_fragment_count, 1);
-                let fragment_node = line
-                    .first_fragment_node
-                    .expect("block-level line must have one fragment");
-                let block_child = records.box_metrics_of(fragment_node);
-                let child_offset_from_margin_edge = records.content_offset_or_origin(fragment_node).y
-                    - block_child.margin_box_top(block_child.uses_collapsing_borders_model());
-                child_offset_from_margin_edge
-                    + box_baseline_for_purpose(
-                        callbacks,
-                        fragment_node,
-                        &block_child,
-                        baseline_set,
-                        block_child.content_baselines(),
-                        purpose,
-                    )
-            };
+        let last = remaining_lines.rfind(|line| !line.is_empty()).unwrap_or(first);
+        let baselines_of_line = |line: &line_box::LineBoxData| {
+            if !line.has_block_level_box {
+                let baseline = line.physical_vertical_end() - line.block_length + line.baseline;
+                return LineBaselines {
+                    first: baseline,
+                    last: baseline,
+                    inline_alignment: baseline,
+                };
+            }
+            assert_eq!(line.fragments.len(), 1);
+            line.block_level_box
+                .expect("a line interrupted for a block-level box keeps the box")
+                .baselines
+        };
         return DerivedBaselines {
-            first: Some(baseline_for_line_box(
-                first,
-                BaselineSet::First,
-                BaselinePurpose::Container,
-            )),
-            last: Some(baseline_for_line_box(
-                last,
-                BaselineSet::Last,
-                BaselinePurpose::Container,
-            )),
-            inline_alignment: Some(baseline_for_line_box(
-                last,
-                BaselineSet::Last,
-                BaselinePurpose::InlineAlignment,
-            )),
+            first: Some(baselines_of_line(first).first),
+            last: Some(baselines_of_line(last).last),
+            inline_alignment: Some(baselines_of_line(last).inline_alignment),
         };
     }
 

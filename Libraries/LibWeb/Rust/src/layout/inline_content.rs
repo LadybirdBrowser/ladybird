@@ -46,8 +46,6 @@ impl PartialEq for GlyphRunRecord {
 pub struct LineRecord {
     pub rect: used_values::FfiCssPixelRect,
     pub fragment_count: u32,
-    pub(crate) layout_fragment_count: usize,
-    pub(crate) first_fragment_node: Option<NodeSlotId>,
     pub(crate) is_empty: bool,
     pub(crate) horizontal_extent: CssPixels,
     pub(crate) reusable_atomic_prefix: bool,
