@@ -533,19 +533,21 @@ enum RunKeptBoxClaim {
 }
 
 impl<'arena> RunRecords<'arena> {
-    /// Runs `run` with the records of a run rooted at `root`, and the pass as that run sees it.
+    /// Runs `run` with the records of a run rooted at `root`, and the pass as that run sees it. The root's record holds
+    /// `root_cells`, which hold its metrics in `root_frame`, the frame it lays its contents out in.
     pub(crate) fn with_root<R>(
         callbacks: LayoutPass<'arena>,
         root: Node,
         root_containing_block: Node,
         root_cells: used_values::RootInputCells,
+        root_frame: geometry::Frame,
         run: impl FnOnce(&Self, LayoutPass<'arena>) -> R,
     ) -> R {
         Self::enter(
             callbacks,
             root,
             root_containing_block,
-            Some(root_cells),
+            Some((root_cells, root_frame)),
             ContentSizing::Layout,
             run,
         )
@@ -562,7 +564,7 @@ impl<'arena> RunRecords<'arena> {
             callbacks,
             root,
             root_containing_block,
-            Some(root_cells),
+            Some((root_cells, callbacks.frame)),
             ContentSizing::RootContributions,
             run,
         )
@@ -579,7 +581,7 @@ impl<'arena> RunRecords<'arena> {
             callbacks,
             root,
             root_containing_block,
-            Some(root_cells),
+            Some((root_cells, callbacks.frame)),
             ContentSizing::RootContentInlineSizes,
             run,
         )
@@ -598,7 +600,7 @@ impl<'arena> RunRecords<'arena> {
         callbacks: LayoutPass<'arena>,
         root: Node,
         root_containing_block: Node,
-        root_cells: Option<used_values::RootInputCells>,
+        root_cells: Option<(used_values::RootInputCells, geometry::Frame)>,
         content_sizing: ContentSizing,
         run: impl FnOnce(&Self, LayoutPass<'arena>) -> R,
     ) -> R {
@@ -609,7 +611,7 @@ impl<'arena> RunRecords<'arena> {
         let scratch = callbacks.scratch();
         let records = Self {
             root,
-            root_used: root_cells.map(|cells| cells.materialize_record(callbacks.frame)),
+            root_used: root_cells.map(|(cells, frame)| cells.materialize_record(frame)),
             scratch,
             nonce: scratch.begin_run(),
             stack_length_at_start: scratch.run_record_stack.length(),
@@ -1187,7 +1189,7 @@ impl<'arena> RunRecords<'arena> {
         let geometry_of_record = |used: &UsedValues| {
             let line_data = used.finish_line_data(callbacks);
             fragment_tree::FragmentGeometry {
-                cells: used_values::RootInputCells::capture(used),
+                cells: used_values::RecordInFrame::new(used, callbacks.frame).cells(),
                 line_data,
             }
         };
@@ -1353,6 +1355,7 @@ mod tests {
             root,
             NodeSlotId::INVALID,
             default_root_cells(),
+            geometry::Frame::PHYSICAL,
             |parent, _| {
                 let root_used: *const UsedValues = parent.used_values(root);
                 let child_used: *const UsedValues = parent.register(child, UsedValues::default());
@@ -1361,6 +1364,7 @@ mod tests {
                     child,
                     root,
                     default_root_cells(),
+                    geometry::Frame::PHYSICAL,
                     |nested, _| {
                         let nested_used: *const UsedValues = nested.used_values(child);
                         assert!(!std::ptr::eq(nested_used, child_used));
@@ -1403,6 +1407,7 @@ mod tests {
             root,
             NodeSlotId::INVALID,
             default_root_cells(),
+            geometry::Frame::PHYSICAL,
             |records, _| {
                 let used = records.register(child, UsedValues::default());
                 used.set_finished_line_data(lines);
@@ -1415,6 +1420,7 @@ mod tests {
             root,
             NodeSlotId::INVALID,
             default_root_cells(),
+            geometry::Frame::PHYSICAL,
             |records, _| std::ptr::from_ref(records.register(child, UsedValues::default())),
         );
         assert_eq!(first_record, second_record);
@@ -1448,6 +1454,7 @@ mod tests {
             root,
             NodeSlotId::INVALID,
             default_root_cells(),
+            geometry::Frame::PHYSICAL,
             |records, _| {
                 records.register(child, UsedValues::default());
             },
@@ -1466,6 +1473,7 @@ mod tests {
             root,
             NodeSlotId::INVALID,
             default_root_cells(),
+            geometry::Frame::PHYSICAL,
             |records, _| {
                 records.register(root, UsedValues::default());
             },
@@ -1489,6 +1497,7 @@ mod tests {
                     root,
                     NodeSlotId::INVALID,
                     default_root_cells(),
+                    geometry::Frame::PHYSICAL,
                     |_, _| {
                         parent.register(child, UsedValues::default());
                     },
@@ -1508,6 +1517,7 @@ mod tests {
             root,
             NodeSlotId::INVALID,
             default_root_cells(),
+            geometry::Frame::PHYSICAL,
             |parent, _| {
                 let root_used: *const UsedValues = parent.used_values(root);
                 let child_used: *const UsedValues = parent.register(child, UsedValues::default());
@@ -1517,6 +1527,7 @@ mod tests {
                         child,
                         root,
                         default_root_cells(),
+                        geometry::Frame::PHYSICAL,
                         |nested, _| {
                             nested.register(root, UsedValues::default());
                             panic!("abort the nested measurement");
