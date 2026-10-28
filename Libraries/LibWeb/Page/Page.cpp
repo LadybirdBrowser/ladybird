@@ -525,7 +525,11 @@ bool Page::select_word_for_dictionary_lookup(DevicePixelPoint position)
 
 UniqueNodeID Page::node_id_at_position(DevicePixelPoint position)
 {
-    auto node = local_traversable()->event_handler().target_node_for_mouse_position(device_to_css_point(position));
+    // DevTools selects only elements, and its DOM tree leaves out whitespace-only text, so a hit on text resolves to
+    // the element around it here.
+    GC::Ptr<DOM::Node> node = local_traversable()->event_handler().target_node_for_mouse_position(device_to_css_point(position));
+    while (node && !is<DOM::Element>(*node))
+        node = node->parent_or_shadow_host();
     if (!node)
         return 0;
 
