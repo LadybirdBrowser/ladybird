@@ -601,11 +601,6 @@ impl<'arena> RunRecords<'arena> {
         }
     }
 
-    /// Whether this run holds `node`: lays it out itself, or keeps a child laid out by a run of its own.
-    pub(crate) fn holds_box(&self, node: Node) -> bool {
-        self.is_root_with_record(node) || self.held_boxes.borrow().contains_key(&node)
-    }
-
     #[track_caller]
     fn panic_for_box_not_held(&self, node: Node) -> ! {
         panic!(
@@ -653,6 +648,15 @@ impl<'arena> RunRecords<'arena> {
         self.update_percentage_block_size_dependency_of(node, |dependency| {
             dependency.depends_on_percentage_block_size = true;
         });
+    }
+
+    /// Whether this run resolves the percentage block size dependency of `node`: the run root, or a box whose layout is
+    /// in progress.
+    pub(crate) fn resolves_percentage_block_size_dependency_of(&self, node: Node) -> bool {
+        self.percentage_block_size_dependencies_in_progress
+            .borrow()
+            .iter()
+            .any(|(tracked, _)| *tracked == node)
     }
 
     /// Notes that a box `containing_block` contains depends on the block size its percentages resolve against.
