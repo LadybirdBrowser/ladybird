@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 24 tests
 
-16 Pass
-8 Fail
+22 Pass
+2 Fail
 Pass	Stylesheet loading using <link> with no Content-Type, same-origin, and no nosniff
 Pass	Stylesheet loading using <link> with no Content-Type, same-origin, and nosniff
 Pass	Stylesheet loading using <link> with wrong Content-Type, same-origin, and no nosniff
@@ -17,14 +17,14 @@ Pass	Stylesheet loading using <link> with wrong Content-Type, cross-origin, and 
 Pass	Stylesheet loading using <link> with broken Content-Type, cross-origin, and no nosniff
 Pass	Stylesheet loading using <link> with broken Content-Type, cross-origin, and nosniff
 Pass	Stylesheet loading using @import with no Content-Type, same-origin, and no nosniff
-Fail	Stylesheet loading using @import with no Content-Type, same-origin, and nosniff
+Pass	Stylesheet loading using @import with no Content-Type, same-origin, and nosniff
 Fail	Stylesheet loading using @import with wrong Content-Type, same-origin, and no nosniff
-Fail	Stylesheet loading using @import with wrong Content-Type, same-origin, and nosniff
+Pass	Stylesheet loading using @import with wrong Content-Type, same-origin, and nosniff
 Pass	Stylesheet loading using @import with broken Content-Type, same-origin, and no nosniff
-Fail	Stylesheet loading using @import with broken Content-Type, same-origin, and nosniff
+Pass	Stylesheet loading using @import with broken Content-Type, same-origin, and nosniff
 Pass	Stylesheet loading using @import with no Content-Type, cross-origin, and no nosniff
-Fail	Stylesheet loading using @import with no Content-Type, cross-origin, and nosniff
+Pass	Stylesheet loading using @import with no Content-Type, cross-origin, and nosniff
 Fail	Stylesheet loading using @import with wrong Content-Type, cross-origin, and no nosniff
-Fail	Stylesheet loading using @import with wrong Content-Type, cross-origin, and nosniff
+Pass	Stylesheet loading using @import with wrong Content-Type, cross-origin, and nosniff
 Pass	Stylesheet loading using @import with broken Content-Type, cross-origin, and no nosniff
-Fail	Stylesheet loading using @import with broken Content-Type, cross-origin, and nosniff
+Pass	Stylesheet loading using @import with broken Content-Type, cross-origin, and nosniff
