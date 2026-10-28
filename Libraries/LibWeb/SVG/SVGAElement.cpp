@@ -119,7 +119,7 @@ void SVGAElement::set_the_url()
     m_url = {};
 
     // 2. If this element's href content attribute is absent, then return.
-    auto href = attribute(AttributeNames::href);
+    auto href = get_attribute_ns({}, AttributeNames::href);
     if (!href.has_value())
         href = get_attribute_ns(Namespace::XLink, AttributeNames::href);
     if (!href.has_value())
