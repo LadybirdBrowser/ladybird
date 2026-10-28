@@ -2752,27 +2752,28 @@ impl<'pass> FlexFormattingContext<'pass> {
         if self.run.callbacks.frame.is_transposed() && self.cross_axis_is_horizontal() {
             // NB: The cross axis is the horizontal axis of the frame, along which an item in an orthogonal flow
             //     has its baselines.
-            let used = self.item_used(index);
-            let collapsed = used.uses_collapsing_borders_model.get();
-            let margin_box_left = used.margin_left.get() + used.border_box_left(collapsed);
-            return match used
-                .orthogonal_flow_baselines
-                .get()
+            let metrics = self.run.records.box_metrics_of(item.box_);
+            let collapsed = metrics.uses_collapsing_borders_model();
+            let margin_box_left = metrics.margin_left() + metrics.border_box_left(collapsed);
+            return match metrics
+                .orthogonal_flow_baselines()
                 .and_then(|baselines| baselines.first)
             {
                 Some(baseline) => margin_box_left + baseline,
-                None => margin_box_left + used.content_inline_size.get() + used.border_box_right(collapsed),
+                None => margin_box_left + metrics.content_inline_size() + metrics.border_box_right(collapsed),
             };
         }
+        let metrics = self.run.records.box_metrics_of(item.box_);
         if self.item_baseline_is_synthesized(index) {
-            let used = self.item_used(index);
-            let collapsed = used.uses_collapsing_borders_model.get();
-            return used.margin_box_top(collapsed) + used.content_block_size.get() + used.border_box_bottom(collapsed);
+            let collapsed = metrics.uses_collapsing_borders_model();
+            return metrics.margin_box_top(collapsed)
+                + metrics.content_block_size()
+                + metrics.border_box_bottom(collapsed);
         }
         formatting_context::box_baseline_with_content_baselines(
             &self.run.callbacks,
             item.box_,
-            self.item_used(index),
+            &metrics,
             formatting_context::BaselineSet::First,
             item.content_baselines,
         )
@@ -2997,9 +2998,9 @@ impl<'pass> FlexFormattingContext<'pass> {
             ChildLayoutOutcome::Created(result) => result.baselines,
             ChildLayoutOutcome::ReenterCurrent => {
                 self.run(run, input);
-                self.item_used(index).content_baselines_from_cells()
+                run.records.box_metrics_of(node).content_baselines()
             }
-            ChildLayoutOutcome::Skipped { .. } => self.item_used(index).content_baselines_from_cells(),
+            ChildLayoutOutcome::Skipped { .. } => run.records.box_metrics_of(node).content_baselines(),
         };
 
         let container_inline_size = self.container_used().content_inline_size.get();

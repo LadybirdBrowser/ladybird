@@ -676,36 +676,36 @@ pub(crate) fn box_baseline(
 pub(crate) fn box_baseline_with_content_baselines(
     callbacks: &LayoutPass<'_>,
     box_: Node,
-    used: &UsedValues,
+    metrics: &impl BoxMetricCells,
     baseline_set: BaselineSet,
     content_baselines: DerivedBaselines,
 ) -> CssPixels {
     let facts = NodeFacts::new(callbacks, box_);
     let style = StyleValues::for_node(callbacks, box_);
-    let collapsed = used.uses_collapsing_borders_model.get();
+    let collapsed = metrics.uses_collapsing_borders_model();
 
     // https://drafts.csswg.org/css2/#propdef-vertical-align
     if facts.vertical_align_applies() && style.vertical_align_is_keyword() {
         match style.vertical_align_keyword() {
             vertical_align::TOP => {
                 // Top: Align the top of the aligned subtree with the top of the line box.
-                return used.border_box_top(collapsed);
+                return metrics.border_box_top(collapsed);
             }
             vertical_align::MIDDLE => {
                 // Middle: Align the vertical midpoint of the box with the baseline of the parent box plus half the x-height of the parent.
                 let containing_block = callbacks.in_flow_containing_block(box_);
                 assert!(!containing_block.is_invalid());
                 let containing_style = StyleValues::for_node(callbacks, containing_block);
-                return used.margin_box_block_size(collapsed) / 2
+                return metrics.margin_box_block_size(collapsed) / 2
                     + CssPixels::nearest_value_for_f32(containing_style.font_x_height() / 2.0);
             }
             vertical_align::_LIBWEB_BASELINE_MIDDLE => {
                 // NB: The vertical midpoint of the box is aligned with the baseline of the parent box.
-                return used.margin_box_block_size(collapsed) / 2;
+                return metrics.margin_box_block_size(collapsed) / 2;
             }
             vertical_align::BOTTOM => {
                 // Bottom: Align the bottom of the aligned subtree with the bottom of the line box.
-                return used.content_block_size.get() + used.margin_box_top(collapsed);
+                return metrics.content_block_size() + metrics.margin_box_top(collapsed);
             }
             vertical_align::TEXT_TOP => {
                 // TextTop: Align the top of the box with the top of the parent's content area (see 10.6.1).
@@ -716,7 +716,7 @@ pub(crate) fn box_baseline_with_content_baselines(
                 let containing_block = callbacks.in_flow_containing_block(box_);
                 assert!(!containing_block.is_invalid());
                 let containing_style = StyleValues::for_node(callbacks, containing_block);
-                return used.margin_box_block_size(collapsed)
+                return metrics.margin_box_block_size(collapsed)
                     - CssPixels::nearest_value_for_f32(containing_style.font_descent());
             }
             _ => {}
@@ -725,7 +725,7 @@ pub(crate) fn box_baseline_with_content_baselines(
 
     // INTEROP: A range input's baseline is its bottom border edge in Chrome, whatever its internal layout.
     if facts.is_range_input_box() {
-        return used.margin_box_top(collapsed) + used.content_block_size.get() + used.border_box_bottom(collapsed);
+        return metrics.margin_box_top(collapsed) + metrics.content_block_size() + metrics.border_box_bottom(collapsed);
     }
 
     let display = facts.display();
@@ -758,17 +758,17 @@ pub(crate) fn box_baseline_with_content_baselines(
     if let Some(content_baseline) = content_baseline
         && (derive_baseline_from_content || input_derives_from_children)
     {
-        return used.margin_box_top(collapsed) + content_baseline;
+        return metrics.margin_box_top(collapsed) + content_baseline;
     }
 
     // AD-HOC: Inline buttons without a content baseline synthesize one from their content-box bottom edge in
     //         Chromium and Firefox, rather than the margin-box edge used by ordinary inline-blocks.
     if facts.uses_button_layout() && display.is_inline_outside() && content_baseline.is_none() {
-        return used.margin_box_top(collapsed) + used.content_block_size.get();
+        return metrics.margin_box_top(collapsed) + metrics.content_block_size();
     }
 
-    // If the box has no baseline set, the bottom margin edge of the box is used.
-    used.margin_box_block_size(collapsed)
+    // If the box has no baseline set, the bottom margin edge of the box is metrics.
+    metrics.margin_box_block_size(collapsed)
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -780,13 +780,13 @@ pub(crate) enum BaselinePurpose {
 pub(crate) fn inline_box_baseline(
     callbacks: &LayoutPass<'_>,
     box_: Node,
-    used: &UsedValues,
+    metrics: &impl BoxMetricCells,
     content_baselines: DerivedBaselines,
 ) -> CssPixels {
     box_baseline_for_purpose(
         callbacks,
         box_,
-        used,
+        metrics,
         BaselineSet::Last,
         content_baselines,
         BaselinePurpose::InlineAlignment,
@@ -796,7 +796,7 @@ pub(crate) fn inline_box_baseline(
 fn box_baseline_for_purpose(
     callbacks: &LayoutPass<'_>,
     box_: Node,
-    used: &UsedValues,
+    metrics: &impl BoxMetricCells,
     mut baseline_set: BaselineSet,
     mut content_baselines: DerivedBaselines,
     purpose: BaselinePurpose,
@@ -819,7 +819,7 @@ fn box_baseline_for_purpose(
             content_baselines.last = content_baselines.inline_alignment.or(content_baselines.last);
         }
     }
-    box_baseline_with_content_baselines(callbacks, box_, used, baseline_set, content_baselines)
+    box_baseline_with_content_baselines(callbacks, box_, metrics, baseline_set, content_baselines)
 }
 
 /// First and last baseline sets derived for one box, relative to its content
@@ -992,12 +992,13 @@ pub(crate) fn baseline_of_child_for_purpose(
     source: ChildBaselineSource,
     purpose: BaselinePurpose,
 ) -> Option<CssPixels> {
-    let child_state = records.used_values_if_owned(child)?;
+    let child_metrics = records.box_metrics_of_if_owned(child)?;
+    let content_baselines = child_metrics.content_baselines();
     let has_baseline = match baseline_set {
-        BaselineSet::First => child_state.has_first_baseline.get(),
-        BaselineSet::Last => child_state.has_last_baseline.get(),
+        BaselineSet::First => content_baselines.first.is_some(),
+        BaselineSet::Last => content_baselines.last.is_some(),
     };
-    let collapsed = child_state.uses_collapsing_borders_model.get();
+    let collapsed = child_metrics.uses_collapsing_borders_model();
     if !has_baseline || source == ChildBaselineSource::Synthesized {
         if source == ChildBaselineSource::Own {
             return None;
@@ -1006,20 +1007,20 @@ pub(crate) fn baseline_of_child_for_purpose(
         // The alphabetic baseline is synthesized from the line-under edge of the border box.
         return Some(
             records.content_offset_or_origin(child).y
-                + child_state.content_block_size.get()
-                + child_state.border_box_bottom(collapsed),
+                + child_metrics.content_block_size()
+                + child_metrics.border_box_bottom(collapsed),
         );
     }
     let child_offset_from_margin_edge =
-        records.content_offset_or_origin(child).y - child_state.margin_box_top(collapsed);
+        records.content_offset_or_origin(child).y - child_metrics.margin_box_top(collapsed);
     Some(
         child_offset_from_margin_edge
             + box_baseline_for_purpose(
                 callbacks,
                 child,
-                child_state,
+                &child_metrics,
                 baseline_set,
-                child_state.content_baselines_from_cells(),
+                content_baselines,
                 purpose,
             ),
     )
@@ -1819,12 +1820,12 @@ fn in_flow_children_margin_box_block_extent(
     for child in callbacks.children(node) {
         let facts = NodeFacts::new(callbacks, child);
         if facts.is_box() && !facts.is_absolutely_positioned() {
-            let used = records.used_values_if_owned(child)?;
+            let metrics = records.box_metrics_of_if_owned(child)?;
             let content_block_offset = records.placement_of(child)?.content_offset_in_containing_block.y;
-            let collapsed = used.uses_collapsing_borders_model.get();
-            block_start = block_start.min(content_block_offset - used.margin_box_top(collapsed));
-            block_end =
-                block_end.max(content_block_offset + used.content_block_size.get() + used.margin_box_bottom(collapsed));
+            let collapsed = metrics.uses_collapsing_borders_model();
+            block_start = block_start.min(content_block_offset - metrics.margin_box_top(collapsed));
+            block_end = block_end
+                .max(content_block_offset + metrics.content_block_size() + metrics.margin_box_bottom(collapsed));
         }
     }
     Some(block_end - block_start)

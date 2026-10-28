@@ -381,6 +381,13 @@ impl BoxMetrics<'_> {
             Self::LaidOutByThisRun(record) => record.content_baselines_from_cells(),
         }
     }
+
+    pub(crate) fn orthogonal_flow_baselines(&self) -> Option<DerivedBaselines> {
+        match self {
+            Self::LaidOutByItsOwnRun(laid_out) => laid_out.orthogonal_flow_baselines,
+            Self::LaidOutByThisRun(record) => record.orthogonal_flow_baselines.get(),
+        }
+    }
 }
 
 macro_rules! box_metrics_getters {
@@ -917,7 +924,20 @@ impl<'arena> RunRecords<'arena> {
     /// out by a run of its own.
     #[track_caller]
     pub(crate) fn box_metrics_of(&self, node: Node) -> BoxMetrics<'_> {
-        let record = self.used_values(node);
+        self.box_metrics_given_record(node, self.used_values(node))
+    }
+
+    /// The sizes, size constraints, box sides and baselines of `node`, if this run lays it out or holds the record of
+    /// a child it laid out by a run of its own.
+    pub(crate) fn box_metrics_of_if_owned(&self, node: Node) -> Option<BoxMetrics<'_>> {
+        Some(self.box_metrics_given_record(node, self.used_values_if_owned(node)?))
+    }
+
+    fn box_metrics_given_record<'records>(
+        &'records self,
+        node: Node,
+        record: &'records UsedValues,
+    ) -> BoxMetrics<'records> {
         let laid_out = {
             let laid_out_child_boxes = self.laid_out_child_boxes.borrow();
             if laid_out_child_boxes.is_empty() {
