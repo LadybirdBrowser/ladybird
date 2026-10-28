@@ -24,7 +24,9 @@ There are some optional features that can be enabled during compilation that are
 - `ENABLE_MEMORY_SANITIZER`: enables runtime checks for uninitialized memory accesses in Lagom test cases.
 - `ENABLE_UNDEFINED_SANITIZER`: builds in runtime checks for [undefined behavior](https://en.wikipedia.org/wiki/Undefined_behavior) (like null pointer dereferences and signed integer overflows) in Lagom and Ladybird.
 - `UNDEFINED_BEHAVIOR_IS_FATAL`: makes all undefined behavior sanitizer errors non-recoverable. This option reduces the performance overhead of `ENABLE_UNDEFINED_SANITIZER`.
-- `ENABLE_COMPILER_EXPLORER_BUILD`: Skip building non-library entities in Lagom (this only applies to Lagom).
+- `ENABLE_THREAD_SANITIZER`: enables runtime checks for data races. It cannot be combined with `ENABLE_ADDRESS_SANITIZER` or `ENABLE_MEMORY_SANITIZER`.
+- `ENABLE_LAGOM_COVERAGE_COLLECTION`: instruments the code for Clang's source-based code coverage. Requires Clang, and cannot be combined with the fuzzers.
+- `ENABLE_COMPILER_EXPLORER_BUILD`: skips building the utilities and tests.
 - `ENABLE_FUZZERS`: builds [fuzzers](../Meta/Fuzzers/README.md) for various parts of the system.
 - `ENABLE_FUZZERS_LIBFUZZER`: builds Clang libFuzzer-based [fuzzers](../Meta/Fuzzers/README.md) for various parts of the system.
 - `ENABLE_FUZZERS_OSSFUZZ`: builds OSS-Fuzz compatible [fuzzers](../Meta/Fuzzers/README.md) for various parts of the system.
@@ -33,11 +35,23 @@ There are some optional features that can be enabled during compilation that are
 - `ENABLE_JS_JIT`: builds the optimizing JIT for JavaScript. Enabled by default on x86-64 and AArch64 Linux and macOS, the platforms it generates code for. Without it, LibJS runs JavaScript in its interpreter alone, and the interpreter is built without the feedback collection and tier-up checks that only the JIT needs. See [the configuration of the JIT](../Libraries/LibJS/JIT/ARCHITECTURE.md#13-configuration).
 - `ENABLE_CI_BASELINE_CPU`: builds C++ and Rust for a common CPU target instead of the build machine. Disabled by default; explicitly set `-DENABLE_CI_BASELINE_CPU=ON` when packaging binaries for older machines. On x86-64 this is x86-64-v2 (SSE4.2 and POPCNT), so distributed binaries run without AVX, AVX2, BMI or LZCNT. Both the JavaScript and WebAssembly JITs remain available; WebAssembly selects newer instructions at runtime when supported.
 - `INCLUDE_WASM_SPEC_TESTS`: downloads and includes the WebAssembly spec testsuite tests. In order to use this option, you will need to install `prettier` and `wasm-tools`.
-- `INCLUDE_FLAC_SPEC_TESTS`: downloads and includes the xiph.org FLAC test suite.
 - `BUILD_BROWSER_TESTS_ONLY`: only builds the tests that run the browser's own executables, such as the LibWeb test suite and the WebDriver tests, and leaves out the test programs for individual libraries. Enabled by the `Distribution` preset.
 - `LADYBIRD_CACHE_DIR`: sets the location of a shared cache of downloaded files. Should not need to be set manually unless managing a distribution package.
 - `ENABLE_NETWORK_DOWNLOADS`: allows downloading files from the internet during the build. Default on, turning off enables offline builds. For offline builds, the structure of the LADYBIRD_CACHE_DIR must be set up the way that the build expects.
 - `ENABLE_CLANG_PLUGINS`: enables Clang plugins which analyze the code for programming mistakes. See [Clang Plugins](#clang-plugins) below.
+- `ENABLE_CLANG_PLUGINS_INVALID_FUNCTION_MEMBERS`: makes the Clang plugins also detect invalid function types as members of GC-allocated objects. Only applies with `ENABLE_CLANG_PLUGINS`.
+- `BUILD_SHARED_LIBS`: builds shared libraries instead of static ones. Enabled by default, and disabled by the `Distribution` preset.
+- `ENABLE_GUI_TARGETS`: builds the browser, its helper processes and the tests that need them. Enabled by default.
+- `ENABLE_LAGOM_CCACHE`: compiles through ccache when it is installed. Enabled by default.
+- `LAGOM_USE_LINKER`: sets the linker to use, such as `lld` or `mold`, instead of the compiler's default. On Linux and the BSDs, LLD or mold is picked automatically when one of them is installed.
+- `LAGOM_LINK_POOL_SIZE`: sets the maximum number of link jobs that run at once.
+- `ENABLE_LTO_FOR_RELEASE`: enables link-time optimization in Release builds. Enabled by default, except for static builds with GCC.
+- `LADYBIRD_ENABLE_CPPTRACE`: uses cpptrace for stack traces when it is available, and `backtrace.h` otherwise. Enabled by default.
+- `LADYBIRD_GENERATE_SYMBOL_FILES`: builds with debug information and writes the symbols of the installed executables to separate files. Enabled by the `Distribution` preset. Not supported with MSVC-style toolchains.
+- `LADYBIRD_GENERATE_DSYM`: generates dSYM bundles for executables and libraries on macOS.
+- `LADYBIRD_VERSION`: sets the version of a release, as year.month.patch optionally followed by `.alpha` or `.beta`, such as `2026.11.1`. Empty for development builds.
+- `ENABLE_INSTALL_HEADERS`: installs the headers of the libraries. Enabled by default.
+- `ENABLE_INSTALL_FREEDESKTOP_FILES`: installs the desktop entry, D-Bus service, icon and AppStream metainfo files. Enabled by default on Linux and the BSDs.
 
 Many parts of the codebase have debug functionality, mostly consisting of additional messages printed to the debug console. This is done via the `<component_name>_DEBUG` macros, which can be enabled individually at build time. They are listed in [this file](../Meta/CMake/all_the_debug_macros.cmake).
 
