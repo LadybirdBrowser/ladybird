@@ -1436,6 +1436,18 @@ impl RetainedState {
         } else {
             self.held_style_records.insert(node, style_record)
         };
+        // NB: Font-relative size queries can change even when the container's box keeps the same dimensions.
+        let font_inputs_changed = self.size_container_queries.is_queried_container(node)
+            && previous.is_some_and(|previous| {
+                let Some(previous) = self.computed_group_sets.style_record_payloads(previous) else {
+                    return false;
+                };
+                let Some(current) = self.computed_group_sets.style_record_payloads(style_record) else {
+                    return false;
+                };
+                let font_group = crate::css::computed_value_types::STYLE_GROUP_INDEX_FONT;
+                previous.get(font_group) != current.get(font_group)
+            });
         if previous != Some(style_record) {
             if style_record != 0 {
                 self.computed_group_sets.pin_style_record(style_record);
@@ -1445,6 +1457,9 @@ impl RetainedState {
             }
         }
         self.set_element_container_query_inputs(node, style_record);
+        if font_inputs_changed {
+            self.size_container_queries.note_font_input_change(node);
+        }
         // A `rem` the host resolves reads the font of the record it holds for the document element,
         // which it can install in the middle of a style update.
         if self.computed_group_sets.adjustment_facts(node) & bridge::element_adjustment_fact::IS_DOCUMENT_ELEMENT != 0 {

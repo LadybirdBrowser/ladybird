@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	font-relative calc() is responsive to container font-size changes
+1 Pass
+Pass	font-relative calc() is responsive to container font-size changes
