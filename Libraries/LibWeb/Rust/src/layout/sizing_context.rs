@@ -20,7 +20,7 @@ pub(crate) struct ResolvedBlockSize {
 }
 
 impl ResolvedBlockSize {
-    pub(crate) fn apply_to_record(self, used: &UsedValues) {
+    pub(crate) fn apply_to_record(self, used: used_values::RecordInFrame<'_>) {
         used.set_content_block_size(self.content_block_size);
         if self.makes_block_size_definite {
             used.set_has_definite_block_size(true);
@@ -251,9 +251,10 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         style.with_anchor_resolved_values(anchor_resolved_values)
     }
 
+    /// The record of `node`, read in the frame this context sizes in.
     #[track_caller]
-    fn used(&self, node: Node) -> &'pass UsedValues {
-        self.records.used_values(node)
+    fn used(&self, node: Node) -> used_values::RecordInFrame<'pass> {
+        used_values::RecordInFrame::new(self.records.used_values(node), self.callbacks.frame)
     }
 
     /// The sizes, size constraints and box sides of `node` as this context sizes it.
@@ -264,7 +265,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         {
             return run_records::BoxMetrics::BeingSizedByItsParent(cells);
         }
-        self.records.box_metrics_of(node)
+        self.records.box_metrics_in_frame(node, self.callbacks.frame)
     }
 
     /// The sizes, size constraints and box sides of `node` as this context sizes it, if its run holds them.
@@ -274,7 +275,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         {
             return Some(run_records::BoxMetrics::BeingSizedByItsParent(cells));
         }
-        self.records.box_metrics_of_if_owned(node)
+        self.records.box_metrics_in_frame_if_owned(node, self.callbacks.frame)
     }
 
     fn first_child(&self, node: Node) -> Node {
