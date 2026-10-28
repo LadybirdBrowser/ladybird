@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<title>Viewport units are responsive to writing-mode changes</title>
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#viewport-relative-lengths">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<style>
+  iframe {
+    width: 200px;
+    height: 100px;
+  }
+</style>
+
+<iframe id=iframe></iframe>
+
+<script>
+
+const doc = iframe.contentDocument;
+const win = iframe.contentWindow;
+
+function test_writing_mode(value, expected_pre, expected_post) {
+  test((t) => {
+    t.add_cleanup(() => { doc.body.innerHTML = ''; });
+    doc.body.innerHTML = `
+      <style>
+        div {
+          writing-mode: initial;
+          height: ${value};
+        }
+        .vertical {
+          writing-mode: vertical-rl;
+        }
+      </style>
+      <div></div>
+    `;
+    let div = doc.querySelector('div');
+    assert_equals(win.getComputedStyle(div).height, expected_pre);
+
+    // The writing-mode of the document element does not matter.
+    t.add_cleanup(() => { doc.documentElement.classList.remove('vertical'); })
+    doc.documentElement.classList.add('vertical');
+    assert_equals(win.getComputedStyle(div).height, expected_pre);
+
+    // The writing-mode of the target element is what matters.
+    div.classList.add('vertical');
+    assert_equals(win.getComputedStyle(div).height, expected_post);
+  }, `${value} computes to ${expected_post} with vertical writing-mode`);
+}
+
+test_writing_mode('100vi', '200px', '100px');
+test_writing_mode('100svi', '200px', '100px');
+test_writing_mode('100lvi', '200px', '100px');
+test_writing_mode('100dvi', '200px', '100px');
+
+test_writing_mode('100vb', '100px', '200px');
+test_writing_mode('100svb', '100px', '200px');
+test_writing_mode('100lvb', '100px', '200px');
+test_writing_mode('100dvb', '100px', '200px');
+
+</script>
