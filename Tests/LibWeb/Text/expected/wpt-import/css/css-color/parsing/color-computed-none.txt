@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 678 tests
 
-677 Pass
-1 Fail
+678 Pass
 Pass	Property color value 'hsl(from hsl(none 50% 50%) h s l)'
 Pass	Property color value 'hsl(from hsl(180 none 50%) h s l)'
 Pass	Property color value 'hsl(from hsl(180 50% none) h s l)'
@@ -100,7 +99,7 @@ Pass	Property color value 'color-mix(in hsl, hsl(180 none none))'
 Pass	Property color value 'color-mix(in hsl, hsl(none 50% none))'
 Pass	Property color value 'color-mix(in hsl, hsl(none none none))'
 Pass	Property color value 'color-mix(in hsl, hwb(none 25% 25%))'
-Fail	Property color value 'color-mix(in hsl, hwb(180 none 25%))'
+Pass	Property color value 'color-mix(in hsl, hwb(180 none 25%))'
 Pass	Property color value 'color-mix(in hsl, hwb(180 25% none))'
 Pass	Property color value 'color-mix(in hsl, hwb(none none 25%))'
 Pass	Property color value 'color-mix(in hsl, hwb(180 none none))'

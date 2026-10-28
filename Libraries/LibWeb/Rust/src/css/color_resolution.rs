@@ -67,17 +67,8 @@ pub(crate) fn srgb_color_in_predefined_color_space(color: [u8; 4], predefined_co
         .map(quantize)
 }
 
-/// The wide-gamut Gfx::Color::from_*() constructors funnel through color_from_linear_srgb().
-/// This reuses color_conversion::convert() instead of duplicating its matrices. Routing
-/// differences against the C++ code, all below u8 quantization error:
-/// - C++ from_xyz50/from_lab/from_pro_photo_rgb multiply a direct XYZ-D50-to-linear-sRGB
-///   matrix; convert() hops through XYZ-D65 instead.
-/// - C++ from_oklab uses the bottosson.github.io OKLab-to-linear-sRGB matrix; convert()
-///   composes the CSS Color 4 OKLab-to-XYZ-D65 and XYZ-D65-to-linear-sRGB matrices.
-/// - C++ from_linear_srgb gamma-encodes directly; convert() round-trips through XYZ-D65.
-/// - Two literals disagree with LibGfx by one f32 ulp: the display-p3 X-row green
-///   coefficient (0.26566769f vs 0.2656677) and xyz50_to_xyz65's first coefficient
-///   (0.9554734528f vs 0.9554735).
+/// Converts a color in the color space of `color_type` to an 8-bit sRGB color, like the Gfx::Color::from_*()
+/// constructors, but with more precise color space conversions.
 fn from_converted(color_type: u8, components: Components) -> Rgba {
     let srgb =
         color_conversion::convert(color_type, color_conversion::SRGB, components).expect("color type converts to sRGB");
