@@ -1167,7 +1167,7 @@ void WebContentPage::did_get_hovered_node_id(Web::UniqueNodeID node_id)
 void WebContentPage::did_get_node_id_at_position(u64 request_id, Web::UniqueNodeID node_id)
 {
     if (displays_tab()) {
-        view().did_receive_node_picker_hit_test(request_id, node_id);
+        view().did_receive_node_hit_test(request_id, node_id);
     }
 }
 
