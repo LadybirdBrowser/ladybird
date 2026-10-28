@@ -418,7 +418,7 @@ pub(crate) fn parse_with_syntax_component_values(
         collect_arbitrary_substitution_function_presence(values, &mut presence).ok()?;
 
         return Some(match original_source {
-            Some(source) => unresolved_value(source, &[], values.to_vec(), presence),
+            Some(source) => unresolved_value(source, values.to_vec(), presence),
             None => unresolved_value_from_component_values(values.to_vec(), presence),
         });
     }

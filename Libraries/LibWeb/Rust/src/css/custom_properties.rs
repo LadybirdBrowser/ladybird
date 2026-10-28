@@ -3804,7 +3804,6 @@ mod tests {
                         crate::css::property_metadata::property_id::CUSTOM,
                         &values,
                         &source,
-                        &source,
                     )
                 else {
                     panic!("custom property value should parse");

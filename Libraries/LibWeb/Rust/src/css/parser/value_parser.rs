@@ -4018,7 +4018,7 @@ pub(crate) fn parse_initial_value(property: u16) -> Option<Arc<StyleValueData>> 
     };
     let values = component_values_from_source(property_initial_value(property).as_bytes()).ok()?;
     let presence = SubstitutionFunctionsPresence::default();
-    match parse_css_value_after_substitution_scan(&context, property, &values, &[], &[], presence) {
+    match parse_css_value_after_substitution_scan(&context, property, &values, &[], presence) {
         // A keyword is the shared value of that keyword, which C++ keyword values hold too.
         ParseOutcome::Parsed(value) => match *value {
             StyleValueData::Keyword { keyword } => Some(shared_style_value(StyleValueData::Keyword { keyword })),
@@ -5807,12 +5807,11 @@ pub(crate) fn unresolved_value_from_string(
     presence: SubstitutionFunctionsPresence,
 ) -> StyleValueData {
     let values = consume_a_counted_list_of_component_values(tokenize_for_parser(unresolved_source)).unwrap_or_default();
-    unresolved_value(unresolved_source, &[], values, presence)
+    unresolved_value(unresolved_source, values, presence)
 }
 
 pub(crate) fn unresolved_value(
     unresolved_source: &[u16],
-    comparison_source: &[u16],
     values: impl Into<ComponentValueList>,
     presence: SubstitutionFunctionsPresence,
 ) -> StyleValueData {
@@ -5824,7 +5823,6 @@ pub(crate) fn unresolved_value(
     StyleValueData::Unresolved {
         components,
         source_text: CssString::from_utf16(source_text),
-        value_comparison_text: CssString::from_utf16(comparison_source),
         presence_attr: presence.attr,
         presence_dashed_function: presence.dashed_function,
         presence_env: presence.env,
@@ -5844,7 +5842,7 @@ pub(crate) fn unresolved_value_from_component_values(
         &values,
         crate::css::parser::component_value::ComponentSerializationMode::Retokenize,
     );
-    unresolved_value(&source, &[], values, presence)
+    unresolved_value(&source, values, presence)
 }
 
 pub(crate) fn parse_css_value_with_source(
@@ -5852,7 +5850,6 @@ pub(crate) fn parse_css_value_with_source(
     property_id: u16,
     values: &[ComponentValue],
     unresolved_source: &[u16],
-    comparison_source: &[u16],
 ) -> ParseOutcome {
     if values
         .iter()
@@ -5865,14 +5862,7 @@ pub(crate) fn parse_css_value_with_source(
     if collect_arbitrary_substitution_function_presence(values, &mut substitution_presence).is_err() {
         return ParseOutcome::Invalid;
     }
-    parse_css_value_after_substitution_scan(
-        context,
-        property_id,
-        values,
-        unresolved_source,
-        comparison_source,
-        substitution_presence,
-    )
+    parse_css_value_after_substitution_scan(context, property_id, values, unresolved_source, substitution_presence)
 }
 
 fn parse_css_value_after_substitution_scan(
@@ -5880,7 +5870,6 @@ fn parse_css_value_after_substitution_scan(
     property_id: u16,
     values: &[ComponentValue],
     unresolved_source: &[u16],
-    comparison_source: &[u16],
     substitution_presence: SubstitutionFunctionsPresence,
 ) -> ParseOutcome {
     if let Some(value) = parse_builtin_value(values) {
@@ -5894,12 +5883,7 @@ fn parse_css_value_after_substitution_scan(
         if !declaration_values.is_empty() && !declaration_value_is_valid(declaration_values) {
             return ParseOutcome::Invalid;
         }
-        let mut unresolved = unresolved_value(
-            unresolved_source,
-            comparison_source,
-            values.to_vec(),
-            substitution_presence,
-        );
+        let mut unresolved = unresolved_value(unresolved_source, values.to_vec(), substitution_presence);
         if let StyleValueData::Unresolved {
             source_text,
             contains_attr_tainted_values,
@@ -6246,18 +6230,7 @@ pub(crate) fn parse_css_value_with_utf16_source(
         return ParseOutcome::Invalid;
     }
     if property_id == property_id::CUSTOM {
-        let comparison_source = crate::css::serialize::serialize_component_values_to_utf16(
-            values,
-            crate::css::parser::component_value::ComponentSerializationMode::Normalized,
-        );
-        return parse_css_value_after_substitution_scan(
-            context,
-            property_id,
-            values,
-            source,
-            &comparison_source,
-            substitution_presence,
-        );
+        return parse_css_value_after_substitution_scan(context, property_id, values, source, substitution_presence);
     }
     if substitution_presence.has_any() {
         let unresolved_source = crate::css::serialize::serialize_component_values_to_utf16(
@@ -6269,11 +6242,10 @@ pub(crate) fn parse_css_value_with_utf16_source(
             property_id,
             values,
             &unresolved_source,
-            &[],
             substitution_presence,
         );
     }
-    parse_css_value_after_substitution_scan(context, property_id, values, &[], &[], substitution_presence)
+    parse_css_value_after_substitution_scan(context, property_id, values, &[], substitution_presence)
 }
 
 /// Parse a property value using the grammars which have been ported to Rust.
@@ -6282,7 +6254,7 @@ pub(crate) fn parse_css_value(context: &ParseContext, property_id: u16, values: 
         .iter()
         .flat_map(|value| value.original_source_text.iter())
         .collect::<Vec<_>>();
-    parse_css_value_with_source(context, property_id, values, &source, &[])
+    parse_css_value_with_source(context, property_id, values, &source)
 }
 
 fn component_values_from_source<'a>(
@@ -6294,7 +6266,7 @@ fn component_values_from_source<'a>(
 /// Parses a UTF-16 property value whose component-value source is already serialized.
 pub(crate) fn parse_css_value_from_source(context: &ParseContext, property_id: u16, source: &[u16]) -> ParseOutcome {
     match component_values_from_source(source) {
-        Ok(values) => parse_css_value_with_source(context, property_id, &values, source, &[]),
+        Ok(values) => parse_css_value_with_source(context, property_id, &values, source),
         Err(()) => ParseOutcome::NotHandled,
     }
 }
@@ -6344,7 +6316,7 @@ pub unsafe extern "C" fn rust_parse_css_value(
                     Err(()) => ParseOutcome::NotHandled,
                 }
             } else {
-                parse_css_value_after_substitution_scan(context, property_id, &values, &[], &[], Default::default())
+                parse_css_value_after_substitution_scan(context, property_id, &values, &[], Default::default())
             }
         }
         Err(()) => ParseOutcome::NotHandled,
@@ -7722,7 +7694,6 @@ mod tests {
             };
             let StyleValueData::Unresolved {
                 source_text,
-                value_comparison_text,
                 presence_attr,
                 presence_var,
                 ..
@@ -7731,7 +7702,6 @@ mod tests {
                 panic!("substitution function should produce an unresolved value: {source}");
             };
             assert_eq!(retained_utf16(source_text), utf16(source));
-            assert!(value_comparison_text.units().is_empty());
             assert_eq!(*presence_attr, expected_attr);
             assert_eq!(*presence_var, expected_var);
         }
@@ -7754,46 +7724,36 @@ mod tests {
         else {
             panic!("attr() should parse");
         };
-        let StyleValueData::Unresolved {
-            source_text,
-            value_comparison_text,
-            ..
-        } = &*value
-        else {
+        let StyleValueData::Unresolved { source_text, .. } = &*value else {
             panic!("attr() should remain unresolved");
         };
         assert_eq!(retained_utf16(source_text), utf16("attr( foo )"));
-        assert!(value_comparison_text.units().is_empty());
     }
 
     #[test]
     fn parses_custom_properties_as_unresolved_values() {
         let source = utf16(" 10\\70 x ");
-        let comparison = utf16("10px");
         let values = consume_a_list_of_component_values(tokenize_for_parser(&source)).unwrap();
         let ParseOutcome::Parsed(value) =
-            parse_css_value_with_source(&context(), property_id::CUSTOM, &values, &source, &comparison)
+            parse_css_value_with_source(&context(), property_id::CUSTOM, &values, &source)
         else {
             panic!("custom property should parse");
         };
         let StyleValueData::Unresolved {
             components,
             source_text,
-            value_comparison_text,
             ..
         } = &*value
         else {
             panic!("custom property should produce an unresolved value");
         };
         assert_eq!(retained_utf16(source_text), utf16("10\\70 x"));
-        assert_eq!(retained_utf16(value_comparison_text), comparison);
         assert_eq!(components.as_slice(), values.as_slice());
 
         let source = utf16("a/* comment */");
-        let comparison = utf16("a");
         let values = consume_a_list_of_component_values(tokenize_for_parser(&source)).unwrap();
         let ParseOutcome::Parsed(value) =
-            parse_css_value_with_source(&context(), property_id::CUSTOM, &values, &source, &comparison)
+            parse_css_value_with_source(&context(), property_id::CUSTOM, &values, &source)
         else {
             panic!("custom property should parse");
         };

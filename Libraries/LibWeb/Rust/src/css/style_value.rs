@@ -2174,14 +2174,11 @@ pub enum StyleValueData {
         scheme_codes: RetainedByteList,
         only: bool,
     },
-    /// An unresolved value containing arbitrary substitution functions, kept as its retained
-    /// source text, an optional normalized comparison text (empty when absent), the presence
-    /// flags of each substitution function, the attr-taint flag, and an optional parsed value
-    /// cached for an attr()-tainted registered custom property.
+    /// An unresolved value with retained source text and components, flags for substitution functions,
+    /// attr taint, and an optional parsed value cached for an attr()-tainted registered custom property.
     Unresolved {
         components: RetainedComponentValueList,
         source_text: CssString,
-        value_comparison_text: CssString,
         presence_attr: bool,
         presence_dashed_function: bool,
         presence_env: bool,
@@ -2975,7 +2972,6 @@ impl StyleValueData {
             Self::Unresolved {
                 components: _,
                 source_text,
-                value_comparison_text,
                 presence_attr,
                 presence_dashed_function,
                 presence_env,
@@ -2986,7 +2982,6 @@ impl StyleValueData {
                 parsed_value: _,
             } => {
                 hash_string_units(hasher, TokenizerInput::from(source_text));
-                hash_string_units(hasher, TokenizerInput::from(value_comparison_text));
                 write_bool(hasher, *presence_attr);
                 write_bool(hasher, *presence_dashed_function);
                 write_bool(hasher, *presence_env);
@@ -3408,7 +3403,6 @@ pub unsafe extern "C" fn rust_style_value_create_unresolved_from_source(
     Arc::into_raw(Arc::new(StyleValueData::Unresolved {
         components,
         source_text: CssString::from_utf16(source_text),
-        value_comparison_text: CssString::from_utf16(&[]),
         presence_attr,
         presence_dashed_function,
         presence_env,
@@ -3732,7 +3726,7 @@ mod equality_tests {
     fn unresolved(source: &str) -> StyleValueData {
         let values = consume_a_list_of_component_values(tokenize_for_parser(source.as_bytes())).unwrap();
         let serialized = serialize_component_values_to_utf16(&values, ComponentSerializationMode::Normalized);
-        unresolved_value(&serialized, &[], values, Default::default())
+        unresolved_value(&serialized, values, Default::default())
     }
 
     #[test]
