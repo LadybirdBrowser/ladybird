@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 162 tests
 
-156 Pass
-6 Fail
+160 Pass
+2 Fail
 Pass	sign(calc(-0)) should be used-value-equivalent to 0
 Pass	clamp(-1, 1 / sign(calc(-0)), 1) should be used-value-equivalent to -1
 Pass	sign(calc( 0)) should be used-value-equivalent to 0
@@ -43,9 +43,9 @@ Pass	clamp(-1, 1 / sign(calc( 0 -  0)), 1) should be used-value-equivalent to 1
 Pass	sign(min(-0,  0)) should be used-value-equivalent to 0
 Pass	clamp(-1, 1 / sign(min(-0,  0)), 1) should be used-value-equivalent to -1
 Pass	sign(min( 0, -0)) should be used-value-equivalent to 0
-Fail	clamp(-1, 1 / sign(min( 0, -0)), 1) should be used-value-equivalent to -1
+Pass	clamp(-1, 1 / sign(min( 0, -0)), 1) should be used-value-equivalent to -1
 Pass	sign(max(-0,  0)) should be used-value-equivalent to 0
-Fail	clamp(-1, 1 / sign(max(-0,  0)), 1) should be used-value-equivalent to 1
+Pass	clamp(-1, 1 / sign(max(-0,  0)), 1) should be used-value-equivalent to 1
 Pass	sign(max( 0, -0)) should be used-value-equivalent to 0
 Pass	clamp(-1, 1 / sign(max( 0, -0)), 1) should be used-value-equivalent to 1
 Pass	sign(clamp(-0, -1, -0)) should be used-value-equivalent to 0
@@ -61,9 +61,9 @@ Pass	clamp(-1, 1 / sign(clamp(-0, -1, 0)), 1) should be used-value-equivalent to
 Pass	sign(clamp(-0, -0, 0)) should be used-value-equivalent to 0
 Pass	clamp(-1, 1 / sign(clamp(-0, -0, 0)), 1) should be used-value-equivalent to -1
 Pass	sign(clamp(-0,  0, 0)) should be used-value-equivalent to 0
-Fail	clamp(-1, 1 / sign(clamp(-0,  0, 0)), 1) should be used-value-equivalent to 1
+Pass	clamp(-1, 1 / sign(clamp(-0,  0, 0)), 1) should be used-value-equivalent to 1
 Pass	sign(clamp(-0,  1, 0)) should be used-value-equivalent to 0
-Fail	clamp(-1, 1 / sign(clamp(-0,  1, 0)), 1) should be used-value-equivalent to 1
+Pass	clamp(-1, 1 / sign(clamp(-0,  1, 0)), 1) should be used-value-equivalent to 1
 Pass	sign(clamp(0, -1, -0)) should be used-value-equivalent to 0
 Pass	clamp(-1, 1 / sign(clamp(0, -1, -0)), 1) should be used-value-equivalent to 1
 Pass	sign(clamp(0, -0, -0)) should be used-value-equivalent to 0

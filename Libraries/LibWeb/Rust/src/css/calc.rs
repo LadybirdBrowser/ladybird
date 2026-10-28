@@ -1435,11 +1435,12 @@ impl CalcNode {
                     None => result = Some(child_value),
                     Some(previous) => {
                         let consistent_type = previous.numeric_type?.added_to(&child_value.numeric_type?)?;
-                        // Strict comparisons, so ties (including 0 vs -0) keep the earlier child.
+                        // https://drafts.csswg.org/css-values-4/#calc-ieee
+                        // When comparing 0⁺ and 0⁻, 0⁻ is less than 0⁺.
                         let replace = if is_min {
-                            child_value.value < previous.value
+                            child_value.value.total_cmp(&previous.value).is_lt()
                         } else {
-                            child_value.value > previous.value
+                            child_value.value.total_cmp(&previous.value).is_gt()
                         };
                         let value = if child_value.value.is_nan() || previous.value.is_nan() {
                             f64::NAN
@@ -1487,14 +1488,12 @@ impl CalcNode {
                 let value = if min_result.value.is_nan() || center_result.value.is_nan() || max_result.value.is_nan() {
                     f64::NAN
                 } else {
-                    // Branch-based min/max, so ties (including 0 vs -0) keep the first
-                    // operand; f64::min and f64::max may lose the zero sign on ties.
-                    let inner = if max_result.value < center_result.value {
+                    let inner = if max_result.value.total_cmp(&center_result.value).is_lt() {
                         max_result.value
                     } else {
                         center_result.value
                     };
-                    if min_result.value < inner {
+                    if min_result.value.total_cmp(&inner).is_lt() {
                         inner
                     } else {
                         min_result.value
@@ -2239,11 +2238,13 @@ impl CalcNode {
                                     let CalcNode::Numeric(existing_value) = &**existing else {
                                         unreachable!();
                                     };
-                                    let replace = if is_min {
-                                        child_value.raw() < existing_value.raw()
-                                    } else {
-                                        child_value.raw() > existing_value.raw()
-                                    };
+                                    let replace = !existing_value.raw().is_nan()
+                                        && (child_value.raw().is_nan()
+                                            || if is_min {
+                                                child_value.raw().total_cmp(&existing_value.raw()).is_lt()
+                                            } else {
+                                                child_value.raw().total_cmp(&existing_value.raw()).is_gt()
+                                            });
                                     if replace {
                                         *existing = child.clone();
                                     }
