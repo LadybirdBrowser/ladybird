@@ -2000,6 +2000,10 @@ impl<'context> InlineFormattingContext<'context> {
                         self.containing_block_position_in_bfc_root,
                         CssPixels::default(),
                         Some(&mut line_builder),
+                        run_records::FragmentFactsDecidedByParent {
+                            is_invisible_for_line_clamp: state_at_clamp_point.is_some(),
+                            ..run_records::FragmentFactsDecidedByParent::default()
+                        },
                     );
                     self.used_insets_of_floats
                         .borrow_mut()

@@ -1978,7 +1978,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             outcome: marker_outcome,
             fragment_arrival,
             laid_out_box: marker_box,
-            ..
+            line_data: marker_line_data,
         } = formatting_context::layout_inside_child_with_input_cells(
             run,
             None,
@@ -2028,7 +2028,7 @@ impl<'pass> BlockFormattingContext<'pass> {
 
         self.place_laid_out_child(
             marker,
-            formatting_context::PlacedChild::read_from_records(&self.run, marker),
+            formatting_context::PlacedChild::of_laid_out_box(&marker_box, marker_line_data, self.run.callbacks.frame),
             FfiCssPixelPoint {
                 x: round_css_pixels(marker_inline_offset),
                 y: marker_block_offset,
@@ -2275,6 +2275,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 containing_block_position_in_root,
                 margin_top + block_offset,
                 None,
+                fragment_facts,
             );
             if let Some(floating_box) = self.floats.borrow().last() {
                 *bottom_of_lowest_margin_box = (*bottom_of_lowest_margin_box).max(floating_box.bottom_margin_edge);
@@ -4530,6 +4531,7 @@ impl<'pass> BlockFormattingContext<'pass> {
 
     /// Lays out and places `node`, a float, and returns what its insets resolved to, which is nothing for a float it
     /// leaves unplaced.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn layout_floating_box(
         &self,
         run: &FormattingContextRun<'pass>,
@@ -4538,6 +4540,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         containing_block_position_in_root: FfiCssPixelPoint,
         block_offset: CssPixels,
         mut line_builder: Option<&mut line_builder::LineBuilder<'_, '_>>,
+        fragment_facts: run_records::FragmentFactsDecidedByParent,
     ) -> abspos_engine::InFlowBoxInsets {
         let available_space = input.available_space;
         assert!(self.facts(node).is_floating());
@@ -4561,7 +4564,12 @@ impl<'pass> BlockFormattingContext<'pass> {
                 input.containing_block_constraints,
             );
         self.dimension_float_root_inline_size(node, &float_input);
-        let (_, fragment_arrival, float_box, _) = self.layout_inside(run, node, float_input, false);
+        let (float_layout, fragment_arrival, float_box, float_line_data) =
+            self.layout_inside(run, node, float_input, false);
+        // NB: A float its own run laid out is placed as that run handed it back, and any other with its record here.
+        let float_handed_back_by_its_run = float_layout.is_some().then(|| {
+            formatting_context::PlacedChild::of_laid_out_box(&float_box, float_line_data, self.run.callbacks.frame)
+        });
         let containing_block_rect = self.containing_block_rect(block_container, containing_block_position_in_root);
         let containing_block_rect_now = containing_block_rect.translated(
             CssPixels::default(),
@@ -4666,7 +4674,10 @@ impl<'pass> BlockFormattingContext<'pass> {
         };
         self.place_laid_out_child(
             node,
-            formatting_context::PlacedChild::read_from_records(&self.run, node),
+            float_handed_back_by_its_run
+                .unwrap_or_else(|| formatting_context::PlacedChild::of_record(self.used(node), &self.run))
+                .with_in_flow_box_insets(insets)
+                .with_fragment_facts(fragment_facts),
             FfiCssPixelPoint {
                 x: inline_offset,
                 y: content_block_offset,
