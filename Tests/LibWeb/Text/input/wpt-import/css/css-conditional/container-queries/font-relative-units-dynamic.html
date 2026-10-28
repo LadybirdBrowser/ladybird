@@ -1,0 +1,335 @@
+<!doctype html>
+<title>CSS Container Queries Test: font-relative units - dynamic</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#size-container">
+<link rel="stylesheet" href="../../../fonts/ahem.css">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/cq-testcommon.js"></script>
+<script>
+
+setup(() => assert_implements_size_container_queries(), { explicit_done: true });
+
+// Inflate a <template> subtree into #main, run the test function,
+// then clean up.
+function test_template(template_element, test_fn, description) {
+  test((t) => {
+    assert_equals(template_element.tagName, "TEMPLATE");
+    t.add_cleanup(() => main.replaceChildren());
+    main.append(template_element.content.cloneNode(true));
+    test_fn(t);
+  }, description);
+}
+
+const green = "rgb(0, 128, 0)";
+const red = "rgb(255, 0, 0)";
+
+</script>
+
+<style>
+  main {
+    color: red;
+  }
+  #container {
+    container-type: inline-size;
+    width: 100px;
+  }
+  #container > div {
+    font-size: 16px;
+  }
+</style>
+
+<main id=main>
+</main>
+
+<template id="t1">
+  <style>
+    main { font-size: 10px; }
+    main.larger { font-size: 20px; }
+    @container (width: 5em) {
+      #test { color: green }
+    }
+  </style>
+  <div id="container">
+    <div>
+      <div id="test"></div>
+    </div>
+  </div>
+</template>
+<script>
+test_template(t1, (t) => {
+  t.add_cleanup(() => main.classList.remove("larger"));
+  assert_equals(getComputedStyle(main.querySelector("#test")).color, red);
+  main.classList.add("larger");
+  assert_equals(getComputedStyle(main.querySelector("#test")).color, green);
+}, 'em units respond to changes');
+</script>
+
+<template id="t2">
+  <style>
+    :root { font-size: 10px; }
+    :root.larger { font-size: 50px; }
+    @container (width: 2rem) {
+      #test { color: green }
+    }
+  </style>
+  <div id="container">
+    <div>
+      <div id="test"></div>
+    </div>
+  </div>
+</template>
+<script>
+test_template(t2, (t) => {
+  t.add_cleanup(() => document.documentElement.classList.remove("larger"));
+  assert_equals(getComputedStyle(main.querySelector("#test")).color, red);
+  document.documentElement.classList.add("larger");
+  assert_equals(getComputedStyle(main.querySelector("#test")).color, green);
+}, 'rem units respond to changes');
+</script>
+
+<template id="t3">
+  <style>
+    main { font-size: 10px; }
+    main.larger { font-size: 20px; }
+    @container (width <= 15ex) {
+      #test { color: green }
+    }
+  </style>
+  <div id="container">
+    <div>
+      <div id="test"></div>
+    </div>
+  </div>
+</template>
+<script>
+test_template(t3, (t) => {
+  t.add_cleanup(() => main.classList.remove("larger"));
+  assert_equals(getComputedStyle(main.querySelector("#test")).color, red);
+  main.classList.add("larger");
+  assert_equals(getComputedStyle(main.querySelector("#test")).color, green);
+}, 'ex units respond to changes');
+</script>
+
+<template id="t4">
+  <style>
+    :root { font-size: 10px; }
+    :root.larger { font-size: 20px; }
+    @container (width <= 12rex) {
+      #test { color: green }
+    }
+  </style>
+  <div id="container">
+    <div>
+      <div id="test"></div>
+    </div>
+  </div>
+</template>
+<script>
+test_template(t4, (t) => {
+  t.add_cleanup(() => document.documentElement.classList.remove("larger"));
+  assert_equals(getComputedStyle(main.querySelector("#test")).color, red);
+  document.documentElement.classList.add("larger");
+  assert_equals(getComputedStyle(main.querySelector("#test")).color, green);
+}, 'rex units respond to changes');
+</script>
+
+<template id="t5">
+  <style>
+    main { font-size: 10px; }
+    main.larger { font-size: 20px; }
+    @container (width <= 15ch) {
+      #test { color: green }
+    }
+  </style>
+  <div id="container">
+    <div>
+      <div id="test"></div>
+    </div>
+  </div>
+</template>
+<script>
+test_template(t5, (t) => {
+  t.add_cleanup(() => main.classList.remove("larger"));
+  assert_equals(getComputedStyle(main.querySelector("#test")).color, red);
+  main.classList.add("larger");
+  assert_equals(getComputedStyle(main.querySelector("#test")).color, green);
+}, 'ch units respond to changes');
+</script>
+
+<link rel="stylesheet" href="../../../fonts/ahem.css">
+
+<template id="t6">
+  <style>
+    main { font-family: 'Ahem'; font-size: 10px; }
+    main.larger { font-size: 20px; }
+    @container (width <= 7cap) {
+      #test { color: green }
+    }
+  </style>
+  <div id="container">
+    <div>
+      <div id="test"></div>
+    </div>
+  </div>
+</template>
+<script>
+document.fonts.load("10px Ahem").then(() => {
+  test_template(t6, (t) => {
+    t.add_cleanup(() => main.classList.remove("larger"));
+    assert_equals(getComputedStyle(main.querySelector("#test")).color, red);
+    main.classList.add("larger");
+    assert_equals(getComputedStyle(main.querySelector("#test")).color, green);
+  }, 'cap units respond to changes');
+})
+</script>
+
+<template id="t7">
+  <style>
+    :root { font-size: 10px; }
+    :root.larger { font-size: 20px; }
+    @container (width <= 15rch) {
+      #test { color: green }
+    }
+  </style>
+  <div id="container">
+    <div>
+      <div id="test"></div>
+    </div>
+  </div>
+</template>
+<script>
+test_template(t7, (t) => {
+  t.add_cleanup(() => document.documentElement.classList.remove("larger"));
+  assert_equals(getComputedStyle(main.querySelector("#test")).color, red);
+  document.documentElement.classList.add("larger");
+  assert_equals(getComputedStyle(main.querySelector("#test")).color, green);
+}, 'rch units respond to changes');
+</script>
+
+<template id="t8">
+  <style>
+    main {
+      font-size: 10px;
+      line-height: 5;
+    }
+    main.larger { font-size: 20px; }
+    @container (width <= 1lh) {
+      #test { color: green }
+    }
+  </style>
+  <div id="container">
+    <div>
+      <div id="test"></div>
+    </div>
+  </div>
+</template>
+<script>
+test_template(t8, (t) => {
+  t.add_cleanup(() => main.classList.remove("larger"));
+  assert_equals(getComputedStyle(main.querySelector("#test")).color, red);
+  main.classList.add("larger");
+  assert_equals(getComputedStyle(main.querySelector("#test")).color, green);
+}, 'lh units respond to changes');
+</script>
+
+<template id="t9">
+  <style>
+    :root {
+      font-size: 10px;
+      line-height: 5;
+    }
+    :root.larger {
+      font-size: 20px;
+    }
+    @container (width <= 1rlh) {
+      #test { color: green }
+    }
+  </style>
+  <div id="container">
+    <div>
+      <div id="test"></div>
+    </div>
+  </div>
+</template>
+<script>
+test_template(t9, (t) => {
+  t.add_cleanup(() => document.documentElement.classList.remove("larger"));
+  assert_equals(getComputedStyle(main.querySelector("#test")).color, red);
+  document.documentElement.classList.add("larger");
+  assert_equals(getComputedStyle(main.querySelector("#test")).color, green);
+}, 'rlh units respond to changes');
+</script>
+
+<template id="t10">
+  <style>
+    main { font-size: 10px; }
+    main.larger { font-size: 20px; }
+    @container (width <= 8ic) {
+      #test { color: green }
+    }
+  </style>
+  <div id="container">
+    <div>
+      <div id="test"></div>
+    </div>
+  </div>
+</template>
+<script>
+test_template(t10, (t) => {
+  t.add_cleanup(() => main.classList.remove("larger"));
+  assert_equals(getComputedStyle(main.querySelector("#test")).color, red);
+  main.classList.add("larger");
+  assert_equals(getComputedStyle(main.querySelector("#test")).color, green);
+}, 'ic units respond to changes');
+</script>
+
+
+<template id="t11">
+  <style>
+    :root { font-size: 10px; }
+    :root.larger { font-size: 20px; }
+    @container (width <= 8ric) {
+      #test { color: green }
+    }
+  </style>
+  <div id="container">
+    <div>
+      <div id="test"></div>
+    </div>
+  </div>
+</template>
+<script>
+test_template(t11, (t) => {
+  t.add_cleanup(() => document.documentElement.classList.remove("larger"));
+  assert_equals(getComputedStyle(main.querySelector("#test")).color, red);
+  document.documentElement.classList.add("larger");
+  assert_equals(getComputedStyle(main.querySelector("#test")).color, green);
+}, 'ric units respond to changes');
+</script>
+
+<template id="t12">
+  <style>
+    :root { font-family: 'Ahem'; font-size: 10px; }
+    :root.larger { font-size: 20px; }
+    @container (width <= 7rcap) {
+      #test { color: green }
+    }
+  </style>
+  <div id="container">
+    <div style="font-family: monospace;">
+      <div id="test"></div>
+    </div>
+  </div>
+</template>
+<script>
+document.fonts.load("10px Ahem").then(() => {
+  test_template(t12, (t) => {
+    t.add_cleanup(() => document.documentElement.classList.remove("larger"));
+    assert_equals(getComputedStyle(main.querySelector("#test")).color, red);
+    document.documentElement.classList.add("larger");
+    assert_equals(getComputedStyle(main.querySelector("#test")).color, green);
+  }, 'rcap units respond to changes');
+
+  done();
+})
+</script>
