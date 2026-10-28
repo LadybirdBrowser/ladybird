@@ -1934,6 +1934,7 @@ impl<'context> InlineFormattingContext<'context> {
                     if self.stops_at_line_clamp_point(&line_builder, &mut state_at_clamp_point) {
                         break;
                     }
+                    let relative_insets = self.relative_insets_of_inline_ancestors(self.callbacks.parent(item.node));
                     let collapses_through = self.parent.layout_interrupting_block_inside_inline_context(
                         self.run,
                         item.node,
@@ -1942,6 +1943,14 @@ impl<'context> InlineFormattingContext<'context> {
                         self.containing_block_position_in_bfc_root,
                         &mut line_builder,
                         state_at_clamp_point.is_some(),
+                        if relative_insets.found_fragmented_inline_node {
+                            FfiCssPixelPoint {
+                                x: relative_insets.offset_x,
+                                y: relative_insets.offset_y,
+                            }
+                        } else {
+                            FfiCssPixelPoint::default()
+                        },
                     );
                     self.margins_collapse_through_interrupting_blocks
                         .borrow_mut()
