@@ -421,6 +421,7 @@ scalar_accessors! {
         clear: u8 => clear,
         box_sizing: u8 => box_sizing,
         field_sizing: u8 => field_sizing,
+        baseline_source: u8 => baseline_source,
         overflow_x: u8 => overflow_x,
         overflow_y: u8 => overflow_y,
         text_overflow: u8 => text_overflow,

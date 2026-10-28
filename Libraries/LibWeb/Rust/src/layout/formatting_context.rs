@@ -741,8 +741,10 @@ pub(crate) fn box_baseline_with_content_baselines(
     // baseline sets always derive from content; so do flex and grid containers, which are not block containers.
     // FIXME: Per CSS Align, a scroll container's content-derived baseline position should be clamped to its border
     //        edge.
-    let derive_baseline_from_content =
-        baseline_set == BaselineSet::First || is_flex_or_grid_container || !facts.is_scroll_container();
+    let derive_baseline_from_content = baseline_set == BaselineSet::First
+        || style.baseline_source() != crate::css::css_enums::baseline_source::AUTO
+        || is_flex_or_grid_container
+        || !facts.is_scroll_container();
 
     // AD-HOC: We also use the content-derived baseline for <input> elements with block children, even when their
     //         overflow makes them scroll containers. The internal shadow tree baseline should determine the control's
@@ -812,10 +814,15 @@ fn box_baseline_for_purpose(
         // https://www.w3.org/TR/CSS22/tables.html#height-layout
         // The baseline of an 'inline-table' is the baseline of the first row of the table.
         let inline_table_baseline = display.is_inline_outside() && facts.is_table_wrapper();
-        if flex_or_grid_baseline || inline_table_baseline {
-            baseline_set = BaselineSet::First;
-        } else {
-            content_baselines.last = content_baselines.inline_alignment.or(content_baselines.last);
+        use crate::css::css_enums::baseline_source;
+        match StyleValues::for_node(callbacks, box_).baseline_source() {
+            // https://drafts.csswg.org/css-inline-3/#baseline-source
+            // Specifies first-baseline alignment.
+            baseline_source::FIRST => baseline_set = BaselineSet::First,
+            // Specifies last-baseline alignment.
+            baseline_source::LAST => baseline_set = BaselineSet::Last,
+            _ if flex_or_grid_baseline || inline_table_baseline => baseline_set = BaselineSet::First,
+            _ => content_baselines.last = content_baselines.inline_alignment.or(content_baselines.last),
         }
     }
     box_baseline_with_content_baselines(callbacks, box_, metrics, baseline_set, content_baselines)

@@ -143,6 +143,11 @@
     "hanging",
     "text-top"
   ],
+  "baseline-source": [
+    "auto",
+    "first",
+    "last"
+  ],
   "border-collapse": [
     "separate",
     "collapse"

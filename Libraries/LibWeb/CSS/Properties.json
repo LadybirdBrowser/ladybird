@@ -753,6 +753,8 @@
     ]
   },
   "baseline-source": {
+    "style-group": "BoxValues",
+    "affects-layout": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
