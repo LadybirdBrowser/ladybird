@@ -1647,41 +1647,19 @@ impl<'pass> TableFormattingContext<'pass> {
         }
     }
 
-    /// The metrics this run holds of `node`, a table participant, if it holds any.
-    fn participant_metrics(&self, node: Node) -> Option<run_records::BoxMetrics<'pass>> {
-        self.run
-            .records
-            .box_metrics_in_frame_if_owned(node, self.run.callbacks.frame)
+    fn calculate_min_content_inline_size_of_caption(&self, caption: Node) -> CssPixels {
+        self.sizing()
+            .calculate_min_content_inline_size(sizing_context::SizedBox::unheld(caption), self.participant_constraints)
     }
 
-    fn calculate_min_content_inline_size(&self, node: Node) -> CssPixels {
-        self.sizing().calculate_min_content_inline_size(
-            sizing_context::SizedBox::held_if_any(node, self.participant_metrics(node).as_ref()),
-            self.participant_constraints,
-        )
+    fn calculate_max_content_inline_size_of_caption(&self, caption: Node) -> CssPixels {
+        self.sizing()
+            .calculate_max_content_inline_size(sizing_context::SizedBox::unheld(caption), self.participant_constraints)
     }
 
-    fn calculate_max_content_inline_size(&self, node: Node) -> CssPixels {
-        self.sizing().calculate_max_content_inline_size(
-            sizing_context::SizedBox::held_if_any(node, self.participant_metrics(node).as_ref()),
-            self.participant_constraints,
-        )
-    }
-
-    fn calculate_min_content_block_size(&self, node: Node, inline_size: CssPixels) -> CssPixels {
-        self.sizing().calculate_min_content_block_size(
-            sizing_context::SizedBox::held_if_any(node, self.participant_metrics(node).as_ref()),
-            inline_size,
-            self.participant_constraints,
-        )
-    }
-
-    fn calculate_max_content_block_size(&self, node: Node, inline_size: CssPixels) -> CssPixels {
-        self.sizing().calculate_max_content_block_size(
-            sizing_context::SizedBox::held_if_any(node, self.participant_metrics(node).as_ref()),
-            inline_size,
-            self.participant_constraints,
-        )
+    /// The box of the cell at `cell_index`, sized in the cells this table keeps of it.
+    fn sized_cell(&self, cell_index: usize) -> sizing_context::SizedBox<'_> {
+        sizing_context::SizedBox::new(self.cells[cell_index].box_, &self.cell_box_cells[cell_index])
     }
 
     fn compute_cell_measures(&mut self, include_rows: bool) {
@@ -1770,11 +1748,7 @@ impl<'pass> TableFormattingContext<'pass> {
             } else {
                 let content_sizes = self
                     .sizing()
-                    .content_inline_sizes(
-                        sizing_context::SizedBox::held_if_any(cell.box_, self.participant_metrics(cell.box_).as_ref()),
-                        self.participant_constraints,
-                        None,
-                    )
+                    .content_inline_sizes(self.sized_cell(cell_index), self.participant_constraints, None)
                     .sizes;
                 (content_sizes.min, content_sizes.max)
             };
@@ -1783,8 +1757,16 @@ impl<'pass> TableFormattingContext<'pass> {
             self.cells[cell_index].max_content_inline_size = (!fixed).then_some(max_content_inline);
 
             if include_rows {
-                let min_content_block = self.calculate_min_content_block_size(cell.box_, max_content_inline);
-                let max_content_block = self.calculate_max_content_block_size(cell.box_, min_content_inline);
+                let min_content_block = self.sizing().calculate_min_content_block_size(
+                    self.sized_cell(cell_index),
+                    max_content_inline,
+                    self.participant_constraints,
+                );
+                let max_content_block = self.sizing().calculate_max_content_block_size(
+                    self.sized_cell(cell_index),
+                    min_content_inline,
+                    self.participant_constraints,
+                );
                 let block_offsets = padding_block_start + padding_block_end + border_block_start + border_block_end;
                 let mut min_block = style.min_height().to_px(block_basis);
                 if style.box_sizing() == box_sizing::BORDER_BOX {
@@ -2297,7 +2279,7 @@ impl<'pass> TableFormattingContext<'pass> {
                     + style.border_right_width()
                     + style.margin_right().to_px(basis)
             };
-            let mut contribution = outer(self.calculate_min_content_inline_size(caption));
+            let mut contribution = outer(self.calculate_min_content_inline_size_of_caption(caption));
             let width = style.width();
             if width.is_length_percentage() && !width.contains_percentage() {
                 let mut preferred = width.to_px(basis);
@@ -2312,7 +2294,7 @@ impl<'pass> TableFormattingContext<'pass> {
                 }
                 contribution = contribution.max(outer(preferred));
             } else if width.is_max_content() {
-                contribution = contribution.max(outer(self.calculate_max_content_inline_size(caption)));
+                contribution = contribution.max(outer(self.calculate_max_content_inline_size_of_caption(caption)));
             }
             capmin = capmin.max(contribution);
         }

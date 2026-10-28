@@ -150,6 +150,11 @@ impl<'metrics> SizedBox<'metrics> {
         }
     }
 
+    /// `node`, of which its caller holds no metrics.
+    pub(crate) fn unheld(node: Node) -> Self {
+        Self { node, metrics: None }
+    }
+
     /// `node`, with the metrics its caller holds of it, if any.
     pub(crate) fn held_if_any(node: Node, metrics: Option<&'metrics impl BoxMetricCells>) -> Self {
         Self {
