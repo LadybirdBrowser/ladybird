@@ -848,15 +848,10 @@ WebIDL::ExceptionOr<bool> Cache::batch_cache_operations(JS::Realm& realm, GC::Re
     auto cache = m_request_response_list;
 
     // 2. Let backupCache be a new request response list that is a copy of cache.
+    // NB: This copies the list, not its items. The operations below only add and remove items, so restoring the list
+    //     undoes them, and cloning the responses would tee the body of every cached response on every operation.
     auto backup_cache = GC::Heap::the().allocate<RequestResponseList>();
-
-    for (auto request_response : cache->elements()) {
-        auto backup_request = request_response->request->clone();
-        auto backup_response = request_response->response->clone(realm);
-
-        auto backup_request_response = GC::Heap::the().allocate<RequestResponse>(backup_request, backup_response);
-        backup_cache->elements().append(backup_request_response);
-    }
+    backup_cache->elements().extend(cache->elements());
 
     // 3. Let addedItems be an empty list.
     auto added_items = GC::Heap::the().allocate<RequestResponseList>();
