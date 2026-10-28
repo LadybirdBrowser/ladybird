@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 4 tests
 
-4 Fail
-Fail	Fixed-length margin-left property value should roundtrip
-Fail	Fixed-length margin-right property value should roundtrip
-Fail	Fixed-length margin-top property value should roundtrip
-Fail	Fixed-length margin-bottom property value should roundtrip
+4 Pass
+Pass	Fixed-length margin-left property value should roundtrip
+Pass	Fixed-length margin-right property value should roundtrip
+Pass	Fixed-length margin-top property value should roundtrip
+Pass	Fixed-length margin-bottom property value should roundtrip

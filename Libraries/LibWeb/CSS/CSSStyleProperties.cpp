@@ -1197,6 +1197,42 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
         return {};
     };
 
+    // https://drafts.csswg.org/cssom/#resolved-value-special-case-property-like-height
+    // If the property applies to the element or pseudo-element and the resolved value of the display property is not
+    // none or contents, then the resolved value is the used value. Otherwise the resolved value is the computed value.
+    auto resolved_value_for_margin = [&layout_node, &used_value_for_property](LengthPercentageOrAuto const& margin, Function<CSSPixels(Layout::Node const&)>&& used_value_getter) -> NonnullRefPtr<StyleValue const> {
+        auto computed_value = [&] { return style_value_for_length_percentage_or_auto(margin); };
+        auto maybe_used_value = used_value_for_property(move(used_value_getter));
+        if (!maybe_used_value.has_value())
+            return computed_value();
+        auto const* containing_block = layout_node.containing_block();
+        // NB: Positioned boxes can have position-try overrides, and grid/flex items can use a specialized basis.
+        if (!layout_node.display().is_block_outside() || layout_node.is_absolutely_positioned()
+            || (containing_block && (containing_block->display().is_grid_inside() || containing_block->display().is_flex_inside())))
+            return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
+        auto resolved_length = [](double pixels) -> NonnullRefPtr<StyleValue const> {
+            // NB: Retain fractional precision within the layout range, and preserve saturation outside it.
+            if (pixels < CSSPixels::min_integer_value || pixels > CSSPixels::max_integer_value)
+                pixels = CSSPixels::nearest_value_for(pixels).to_double();
+            return LengthStyleValue::create(Length::make_px(pixels));
+        };
+        // INTEROP: Chrome and Safari exclude the adjustment that satisfies an over-constrained block's inline-size equation.
+        if (margin.is_length())
+            return resolved_length(margin.length().absolute_length_to_px_without_rounding());
+        if (!margin.is_auto()) {
+            if (containing_block && Painting::has_committed_box(*containing_block)) {
+                auto size = Painting::content_size(*containing_block);
+                auto basis = containing_block->writing_mode() == WritingMode::HorizontalTb ? size.width() : size.height();
+                auto const& length_percentage = margin.length_percentage();
+                if (length_percentage.is_percentage())
+                    return resolved_length(basis.to_double() * length_percentage.percentage().as_fraction());
+                if (auto resolved = length_percentage.calculated()->resolve_length({ .percentage_basis = Length::make_px(basis) }); resolved.has_value())
+                    return resolved_length(resolved->absolute_length_to_px_without_rounding());
+            }
+        }
+        return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
+    };
+
     auto used_size_for_property = [&layout_node, &used_value_for_property]<typename ContentBoxGetter, typename BorderBoxGetter>(ContentBoxGetter content_box_getter, BorderBoxGetter border_box_getter) -> Optional<CSSPixels> {
         return used_value_for_property([&layout_node, content_box_getter, border_box_getter](Layout::Node const& box_layout_node) {
             if (layout_node.box_sizing() == BoxSizing::BorderBox)
@@ -1397,21 +1433,13 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
         return get_computed_value(property_id);
     }
     case PropertyID::MarginBottom:
-        if (auto maybe_used_value = used_value_for_property([](auto const& box_layout_node) { return Painting::box_model(box_layout_node).margin.bottom; }); maybe_used_value.has_value())
-            return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
-        return style_value_for_length_percentage_or_auto(layout_node.margin().bottom());
+        return resolved_value_for_margin(layout_node.margin().bottom(), [](auto const& box_layout_node) { return Painting::box_model(box_layout_node).margin.bottom; });
     case PropertyID::MarginLeft:
-        if (auto maybe_used_value = used_value_for_property([](auto const& box_layout_node) { return Painting::box_model(box_layout_node).margin.left; }); maybe_used_value.has_value())
-            return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
-        return style_value_for_length_percentage_or_auto(layout_node.margin().left());
+        return resolved_value_for_margin(layout_node.margin().left(), [](auto const& box_layout_node) { return Painting::box_model(box_layout_node).margin.left; });
     case PropertyID::MarginRight:
-        if (auto maybe_used_value = used_value_for_property([](auto const& box_layout_node) { return Painting::box_model(box_layout_node).margin.right; }); maybe_used_value.has_value())
-            return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
-        return style_value_for_length_percentage_or_auto(layout_node.margin().right());
+        return resolved_value_for_margin(layout_node.margin().right(), [](auto const& box_layout_node) { return Painting::box_model(box_layout_node).margin.right; });
     case PropertyID::MarginTop:
-        if (auto maybe_used_value = used_value_for_property([](auto const& box_layout_node) { return Painting::box_model(box_layout_node).margin.top; }); maybe_used_value.has_value())
-            return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
-        return style_value_for_length_percentage_or_auto(layout_node.margin().top());
+        return resolved_value_for_margin(layout_node.margin().top(), [](auto const& box_layout_node) { return Painting::box_model(box_layout_node).margin.top; });
     case PropertyID::PaddingBottom:
         if (auto maybe_used_value = used_value_for_property([](auto const& box_layout_node) { return Painting::box_model(box_layout_node).padding.bottom; }); maybe_used_value.has_value())
             return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
