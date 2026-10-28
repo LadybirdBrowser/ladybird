@@ -411,24 +411,29 @@ impl RootInputCells {
     /// The sizes and box sides `fragment` shows, with both sizes definite.
     pub(crate) fn of_committed_fragment(fragment: &fragment_tree::Fragment) -> Self {
         let mut cells = Self {
-            margin_left: fragment.margin_left,
-            margin_right: fragment.margin_right,
-            margin_top: fragment.margin_top,
-            margin_bottom: fragment.margin_bottom,
-            border_left: fragment.border_left,
-            border_right: fragment.border_right,
-            border_top: fragment.border_top,
-            border_bottom: fragment.border_bottom,
-            padding_left: fragment.padding_left,
-            padding_right: fragment.padding_right,
-            padding_top: fragment.padding_top,
-            padding_bottom: fragment.padding_bottom,
             has_definite_block_size: true,
             ..Self::default()
         };
-        cells.set_content_inline_size(fragment.content_inline_size);
-        cells.set_content_block_size(fragment.content_block_size);
+        cells.take_box_metrics_of_fragment(fragment);
         cells
+    }
+
+    /// Takes the sizes and box sides `fragment` shows.
+    pub(crate) fn take_box_metrics_of_fragment(&mut self, fragment: &fragment_tree::Fragment) {
+        self.set_content_inline_size(fragment.content_inline_size);
+        self.set_content_block_size(fragment.content_block_size);
+        self.margin_left = fragment.margin_left;
+        self.margin_right = fragment.margin_right;
+        self.margin_top = fragment.margin_top;
+        self.margin_bottom = fragment.margin_bottom;
+        self.border_left = fragment.border_left;
+        self.border_right = fragment.border_right;
+        self.border_top = fragment.border_top;
+        self.border_bottom = fragment.border_bottom;
+        self.padding_left = fragment.padding_left;
+        self.padding_right = fragment.padding_right;
+        self.padding_top = fragment.padding_top;
+        self.padding_bottom = fragment.padding_bottom;
     }
 
     /// A record holding the cells, which hold the box's metrics in `frame`.
@@ -507,61 +512,6 @@ impl UsedValues {
         // Negative block sizes are not allowed in CSS. We have a bug somewhere! Clamp to 0 to avoid doing too much damage.
         self.content_block_size
             .set(clamp_to_max_dimension_value(value.max(CssPixels::default())));
-    }
-
-    fn margin_cell(&self, side: geometry::Side) -> &SealableCell<CssPixels> {
-        match side {
-            geometry::Side::Top => &self.margin_top,
-            geometry::Side::Right => &self.margin_right,
-            geometry::Side::Bottom => &self.margin_bottom,
-            geometry::Side::Left => &self.margin_left,
-        }
-    }
-
-    fn border_cell(&self, side: geometry::Side) -> &SealableCell<CssPixels> {
-        match side {
-            geometry::Side::Top => &self.border_top,
-            geometry::Side::Right => &self.border_right,
-            geometry::Side::Bottom => &self.border_bottom,
-            geometry::Side::Left => &self.border_left,
-        }
-    }
-
-    fn padding_cell(&self, side: geometry::Side) -> &SealableCell<CssPixels> {
-        match side {
-            geometry::Side::Top => &self.padding_top,
-            geometry::Side::Right => &self.padding_right,
-            geometry::Side::Bottom => &self.padding_bottom,
-            geometry::Side::Left => &self.padding_left,
-        }
-    }
-
-    #[track_caller]
-    pub(crate) fn set_margin(&self, side: geometry::Side, value: CssPixels) {
-        self.margin_cell(side).set(value);
-    }
-
-    #[track_caller]
-    pub(crate) fn set_border(&self, side: geometry::Side, value: CssPixels) {
-        self.border_cell(side).set(value);
-    }
-
-    #[track_caller]
-    pub(crate) fn set_padding(&self, side: geometry::Side, value: CssPixels) {
-        self.padding_cell(side).set(value);
-    }
-
-    pub(crate) fn set_has_definite_inline_size(&self, value: bool) {
-        self.has_definite_inline_size.set(value);
-    }
-
-    pub(crate) fn set_has_definite_block_size(&self, value: bool) {
-        self.has_definite_block_size.set(value);
-    }
-
-    pub(crate) fn set_has_definite_block_size_only_for_button_content_alignment(&self, value: bool) {
-        self.has_definite_block_size_only_for_button_content_alignment
-            .set(value);
     }
 
     pub(crate) fn set_box_metrics_from_fragment(&self, fragment: &fragment_tree::Fragment) {
@@ -793,107 +743,30 @@ impl<'record> RecordInFrame<'record> {
         self.record
     }
 
-    #[inline]
-    fn sizes_swap_axes(self) -> bool {
-        self.record.frame.get().is_orthogonal_to(self.reader)
-    }
-
-    /// The side the record holds the given side of the reader's frame on.
-    #[inline]
-    fn stored_side(self, side: geometry::Side) -> geometry::Side {
-        let record_frame = self.record.frame.get();
-        if record_frame == self.reader {
-            return side;
-        }
-        self.reader.side_in(side, record_frame)
+    /// Writes the record's metrics, which `write` sees and changes as the reader's frame has them.
+    pub(crate) fn update(self, write: impl FnOnce(&mut RootInputCells)) {
+        let mut cells = self.cells();
+        write(&mut cells);
+        cells
+            .in_frame(self.reader, self.record.frame.get())
+            .apply_to_record(self.record);
     }
 
     pub(crate) fn set_content_inline_size(self, value: CssPixels) {
-        if self.sizes_swap_axes() {
-            self.record.set_content_block_size(value);
-            self.record.set_has_definite_block_size(true);
-        } else {
-            self.record.set_content_inline_size(value);
-        }
+        self.update(|cells| cells.set_content_inline_size(value));
     }
 
     pub(crate) fn set_content_block_size(self, value: CssPixels) {
-        if self.sizes_swap_axes() {
-            self.record
-                .content_inline_size
-                .set(clamp_to_max_dimension_value(value.max(CssPixels::default())));
-        } else {
-            self.record.set_content_block_size(value);
-        }
-    }
-
-    #[track_caller]
-    pub(crate) fn set_margin(self, side: geometry::Side, value: CssPixels) {
-        self.record.set_margin(self.stored_side(side), value);
-    }
-
-    #[track_caller]
-    pub(crate) fn set_border(self, side: geometry::Side, value: CssPixels) {
-        self.record.set_border(self.stored_side(side), value);
-    }
-
-    #[track_caller]
-    pub(crate) fn set_padding(self, side: geometry::Side, value: CssPixels) {
-        self.record.set_padding(self.stored_side(side), value);
-    }
-
-    pub(crate) fn set_has_definite_inline_size(self, value: bool) {
-        if self.sizes_swap_axes() {
-            self.record.set_has_definite_block_size(value);
-        } else {
-            self.record.set_has_definite_inline_size(value);
-        }
-    }
-
-    pub(crate) fn set_has_definite_block_size(self, value: bool) {
-        if self.sizes_swap_axes() {
-            self.record.set_has_definite_inline_size(value);
-        } else {
-            self.record.set_has_definite_block_size(value);
-        }
-    }
-
-    pub(crate) fn set_has_definite_block_size_only_for_button_content_alignment(self, value: bool) {
-        self.record
-            .set_has_definite_block_size_only_for_button_content_alignment(value);
+        self.update(|cells| cells.set_content_block_size(value));
     }
 
     /// Resolves every margin, border and padding of `style`, with percentages against `basis`.
     pub(crate) fn resolve_box_model(self, style: &StyleValues<'_>, basis: CssPixels) {
-        self.set_margin(geometry::Side::Left, style.margin_left().to_px(basis));
-        self.set_margin(geometry::Side::Right, style.margin_right().to_px(basis));
-        self.set_border(geometry::Side::Left, style.border_left_width());
-        self.set_border(geometry::Side::Right, style.border_right_width());
-        self.set_padding(geometry::Side::Left, style.padding_left().to_px(basis));
-        self.set_padding(geometry::Side::Right, style.padding_right().to_px(basis));
-        self.set_margin(geometry::Side::Top, style.margin_top().to_px(basis));
-        self.set_margin(geometry::Side::Bottom, style.margin_bottom().to_px(basis));
-        self.set_border(geometry::Side::Top, style.border_top_width());
-        self.set_border(geometry::Side::Bottom, style.border_bottom_width());
-        self.set_padding(geometry::Side::Top, style.padding_top().to_px(basis));
-        self.set_padding(geometry::Side::Bottom, style.padding_bottom().to_px(basis));
+        self.update(|cells| cells.resolve_box_model(style, basis));
     }
 
     pub(crate) fn set_box_metrics_from_fragment(self, fragment: &fragment_tree::Fragment) {
-        self.set_content_inline_size(fragment.content_inline_size);
-        self.set_content_block_size(fragment.content_block_size);
-        self.set_margin(geometry::Side::Left, fragment.margin_left);
-        self.set_margin(geometry::Side::Right, fragment.margin_right);
-        self.set_margin(geometry::Side::Top, fragment.margin_top);
-        self.set_margin(geometry::Side::Bottom, fragment.margin_bottom);
-        self.set_border(geometry::Side::Left, fragment.border_left);
-        self.set_border(geometry::Side::Right, fragment.border_right);
-        self.set_border(geometry::Side::Top, fragment.border_top);
-        self.set_border(geometry::Side::Bottom, fragment.border_bottom);
-        self.set_padding(geometry::Side::Left, fragment.padding_left);
-        self.set_padding(geometry::Side::Right, fragment.padding_right);
-        self.set_padding(geometry::Side::Top, fragment.padding_top);
-        self.set_padding(geometry::Side::Bottom, fragment.padding_bottom);
+        self.update(|cells| cells.take_box_metrics_of_fragment(fragment));
     }
 }
 
