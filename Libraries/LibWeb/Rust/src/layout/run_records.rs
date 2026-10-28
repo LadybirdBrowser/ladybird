@@ -1020,6 +1020,37 @@ impl<'arena> RunRecords<'arena> {
         Some(BoxMetrics::LaidOutByItsOwnRun(laid_out))
     }
 
+    /// Moves the sizes, size constraints and box sides this run holds for `node`, if it holds the box, from frame `from`
+    /// to frame `to`.
+    pub(crate) fn move_box_metrics_to_frame(&self, node: Node, from: geometry::Frame, to: geometry::Frame) {
+        let index = match self.held_box(node) {
+            None => return,
+            Some(HeldBox::RootWithRecord) => {
+                if let Some(root_used) = &self.root_used {
+                    root_used.move_box_metrics_to_frame(from, to);
+                }
+                return;
+            }
+            Some(HeldBox::Kept(index)) => index,
+        };
+        let mut kept_boxes = self.scratch.kept_boxes.borrow_mut();
+        let KeptBoxHolding::Record {
+            record,
+            handed_back_by_its_run,
+        } = &mut kept_boxes[index as usize].holding;
+        // SAFETY: This run registered the record, and it stays on the stack until this run returns.
+        unsafe { self.scratch.run_record_stack.get(*record).as_ref() }.move_box_metrics_to_frame(from, to);
+        if let Some(laid_out) = handed_back_by_its_run {
+            // NB: The baselines stay those of the parent's frame, which every reader of them is in.
+            laid_out.cells = used_values::UsedValuesCellState {
+                inputs: laid_out.cells,
+                baselines: laid_out.baselines,
+            }
+            .in_frame(from, to)
+            .inputs;
+        }
+    }
+
     /// What the fragment of `node` shows of the box's own layout, which finishes the lines this run laid out in it.
     #[track_caller]
     pub(crate) fn fragment_geometry_of(
