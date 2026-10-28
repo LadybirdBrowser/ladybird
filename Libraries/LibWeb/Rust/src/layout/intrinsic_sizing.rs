@@ -361,8 +361,8 @@ pub(super) fn content_sizes_of_block_container(
                 );
                 continue;
             }
-            let child_metrics = run.records.box_metrics_in_frame_if_owned(child, run.callbacks.frame);
-            let sized_child = sizing_context::SizedBox::held_if_any(child, child_metrics.as_ref());
+            // NB: A measuring run holds only its root.
+            let sized_child = sizing_context::SizedBox::unheld(child);
             let contributions = if child_facts.is_table_wrapper() {
                 sizing.block_level_table_wrapper_outer_inline_contributions(sized_child, child_constraints)
             } else if legend_sized_to_fit_its_content == Some(child) {
