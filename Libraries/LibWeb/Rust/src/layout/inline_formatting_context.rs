@@ -975,6 +975,8 @@ impl FragmentainerLineLimit {
 pub(crate) struct InlineFormattingContext<'context> {
     pub(crate) run: &'context FormattingContextRun<'context>,
     pub(crate) containing_block: Node,
+    /// The containing block, with the record it lays out its lines in.
+    block_container: block_formatting_context::BlockContainer<'context>,
     pub(crate) input: LayoutInput,
     containing_block_position_in_bfc_root: FfiCssPixelPoint,
     pub(crate) callbacks: LayoutPass<'context>,
@@ -1014,16 +1016,17 @@ struct EnteredInlineBox {
 impl<'context> InlineFormattingContext<'context> {
     pub(crate) fn new_with_rust_parent(
         run: &'context FormattingContextRun<'context>,
-        containing_block: Node,
+        block_container: block_formatting_context::BlockContainer<'context>,
         input: LayoutInput,
         containing_block_position_in_bfc_root: FfiCssPixelPoint,
         callbacks: LayoutPass<'context>,
         parent: &'context block_formatting_context::BlockFormattingContext<'context>,
     ) -> Self {
-        run.records.used_values(containing_block).ensure_line_data();
+        block_container.used.ensure_line_data();
         Self {
             run,
-            containing_block,
+            containing_block: block_container.node,
+            block_container,
             input,
             containing_block_position_in_bfc_root,
             callbacks,
@@ -1219,10 +1222,6 @@ impl<'context> InlineFormattingContext<'context> {
         self.line_data.borrow_mut()
     }
 
-    pub(crate) fn containing_used(&self) -> &'context UsedValues {
-        self.used(self.containing_block)
-    }
-
     fn inline_size_of_block_container_holding_lines(&self) -> CssPixels {
         self.input
             .containing_block_constraints
@@ -1387,7 +1386,7 @@ impl<'context> InlineFormattingContext<'context> {
 
     /// Resolves the insets of `node`, an in-flow box in this context's lines, and keeps them for the box.
     pub(crate) fn compute_inset(&self, node: Node) -> abspos_engine::InFlowBoxInsets {
-        let used = self.containing_used();
+        let used = self.block_container.used;
         let insets = abspos_engine::compute_inset_native(
             self.run,
             node,
@@ -1426,7 +1425,7 @@ impl<'context> InlineFormattingContext<'context> {
             x: content_box_position_in_bfc_root.x,
             y: content_box_position_in_bfc_root.y,
             width: self.inline_size_of_block_container_holding_lines(),
-            height: self.containing_used().content_block_size.get(),
+            height: self.block_container.used.content_block_size.get(),
         };
         self.parent.intrusion_by_floats_into_rect(rect, block_start, block_end)
     }
@@ -2009,7 +2008,7 @@ impl<'context> InlineFormattingContext<'context> {
                     let collapses_through = self.parent.layout_interrupting_block_inside_inline_context(
                         self.run,
                         item.node,
-                        self.containing_block,
+                        self.block_container,
                         self.input,
                         self.containing_block_position_in_bfc_root,
                         &mut line_builder,
@@ -2067,6 +2066,7 @@ impl<'context> InlineFormattingContext<'context> {
                     let insets = self.parent.layout_floating_box(
                         self.run,
                         item.node,
+                        self.block_container,
                         self.input,
                         self.containing_block_position_in_bfc_root,
                         CssPixels::default(),
@@ -2431,7 +2431,7 @@ impl<'context> InlineFormattingContext<'context> {
     pub(crate) fn run(&mut self) -> block_formatting_context::ChildrenSummary {
         assert!(self.facts(self.containing_block).children_are_inline());
         let run = self.run;
-        let containing_used = self.containing_used();
+        let containing_used = self.block_container.used;
         *self.line_data.get_mut() = containing_used.take_building_line_data();
         let iterator = match run.fragmentainer.as_deref() {
             Some(fragmentainer) => {
