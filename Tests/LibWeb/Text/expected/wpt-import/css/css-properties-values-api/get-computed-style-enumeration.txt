@@ -2,10 +2,9 @@ Harness status: OK
 
 Found 5 tests
 
-2 Pass
-3 Fail
-Fail	Custom properties specified on the node exposed when enumerating computed style.
-Fail	Inherited custom properties specified on the parent exposed when enumerating computed style.
-Fail	Unspecified properties with initial values exposed when enumerating computed style.
+5 Pass
+Pass	Custom properties specified on the node exposed when enumerating computed style.
+Pass	Inherited custom properties specified on the parent exposed when enumerating computed style.
+Pass	Unspecified properties with initial values exposed when enumerating computed style.
 Pass	Non-inherited custom properties specified on the parent without initial values not exposed when enumerating computed style.
 Pass	Unspecified properties without initial values not exposed when enumerating computed style.

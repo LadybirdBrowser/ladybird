@@ -10,6 +10,7 @@
 #include <AK/OwnPtr.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
+#include <LibGC/Weak.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/GeneratedCSSStyleProperties.h>
 #include <LibWeb/CSS/RustDeclarationBlock.h>
@@ -31,7 +32,7 @@ public:
     [[nodiscard]] static GC::Ref<CSSStyleProperties> create_element_inline_style(DOM::AbstractElement);
     [[nodiscard]] static GC::Ref<CSSStyleProperties> create_element_inline_style(DOM::AbstractElement, RustDeclarationBlock);
 
-    virtual ~CSSStyleProperties() override = default;
+    virtual ~CSSStyleProperties() override;
 
     virtual size_t length() const override;
     virtual Utf16String item(size_t index) const override;
@@ -91,7 +92,13 @@ private:
 
     void invalidate_owners();
 
+    Vector<Utf16FlyString> const& computed_custom_property_names() const;
+
     RustDeclarationBlock m_declarations;
+    mutable Vector<Utf16FlyString> m_cached_computed_custom_property_names;
+    mutable GC::Weak<DOM::Document> m_cached_computed_custom_property_document;
+    mutable RefPtr<CustomPropertyData const> m_cached_computed_custom_property_data;
+    mutable u64 m_cached_custom_property_registration_generation { 0 };
 };
 
 #undef ENUMERATE_GENERATED_CSS_STYLE_PROPERTIES
