@@ -1,0 +1,2 @@
+#image: image-set(url("#image") 1dppx)
+image.svg#image: image-set(url("[absolute-image-url]") 1dppx)

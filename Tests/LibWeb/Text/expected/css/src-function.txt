@@ -1,5 +1,5 @@
 Before: none
-Using url('cool.png'): url("cool.png")
+Using url('cool.png'): url("[test-directory]/cool.png")
 Using url(var(--some-url)): none
-Using src('cool.png'): src("cool.png")
-Using src(var(--some-url)): src("awesome.png")
+Using src('cool.png'): src("[test-directory]/cool.png")
+Using src(var(--some-url)): src("[test-directory]/awesome.png")

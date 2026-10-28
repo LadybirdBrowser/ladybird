@@ -1124,10 +1124,27 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             url,
             url_type,
             url_modifiers,
-            ..
+            resource_context,
         } => {
             sink.push_ascii(if *url_type == 0 { "url(" } else { "src(" });
-            serialize_url_text(sink, url);
+            // NB: Image values retain their base URL separately from their source text. CSSOM exposes the resolved URL.
+            let resolved_url = if mode.is_resolved()
+                && resource_context.has_base_url
+                && !url.is_empty()
+                && !url.is_fragment()
+                && liburl_rust::basic_parse(url.url_input(), liburl_rust::BasicParseOptions::new()).is_none()
+            {
+                std::str::from_utf8(resource_context.base_url.ascii_bytes())
+                    .ok()
+                    .and_then(|base| liburl_rust::basic_parse(base, liburl_rust::BasicParseOptions::new()))
+                    .and_then(|base| {
+                        liburl_rust::basic_parse(url.url_input(), liburl_rust::BasicParseOptions::new().base_url(&base))
+                    })
+                    .map(|url| RetainedString::from_ascii(url.into()))
+            } else {
+                None
+            };
+            serialize_url_text(sink, resolved_url.as_ref().unwrap_or(url));
             for modifier in url_modifiers.as_slice() {
                 sink.push_ascii(" ");
                 serialize_request_url_modifier(sink, modifier);

@@ -1,0 +1,14 @@
+<!doctype html>
+<script src="../include.js"></script>
+<div id="target"></div>
+<script>
+    test(() => {
+        for (const url of ["#image", "image.svg#image"]) {
+            target.style.backgroundImage = `image-set("${url}" 1x)`;
+            const computed = getComputedStyle(target).backgroundImage;
+            println(
+                `${url}: ${computed.replace(new URL("image.svg#image", document.baseURI).href, "[absolute-image-url]")}`
+            );
+        }
+    });
+</script>
