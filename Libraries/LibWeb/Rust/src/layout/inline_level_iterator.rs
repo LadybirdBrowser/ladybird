@@ -971,20 +971,19 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
         if self.atomic_sizing == AtomicInlineSizing::Contributions {
             self.size_item_by_outer_inline_contributions(&mut item);
         } else {
-            let used = if self.box_model_node_stack.last().copied() == Some(node) {
-                self.context().used(node)
-            } else {
+            if self.box_model_node_stack.last().copied() != Some(node) {
                 self.context()
-                    .create_used_values(node, self.context().input.containing_block_constraints)
-            };
+                    .create_used_values(node, self.context().input.containing_block_constraints);
+            }
             item.content_baselines = self.context_mut().dimension_box_on_line(node);
-            item.inline_size = used.content_inline_size.get();
-            item.padding_start = used.padding_left.get();
-            item.padding_end = used.padding_right.get();
-            item.border_start = used.border_left.get();
-            item.border_end = used.border_right.get();
-            item.margin_start = used.margin_left.get();
-            item.margin_end = used.margin_right.get();
+            let atomic_inline = self.context().box_metrics(node);
+            item.inline_size = atomic_inline.content_inline_size();
+            item.padding_start = atomic_inline.padding_left();
+            item.padding_end = atomic_inline.padding_right();
+            item.border_start = atomic_inline.border_left();
+            item.border_end = atomic_inline.border_right();
+            item.margin_start = atomic_inline.margin_left();
+            item.margin_end = atomic_inline.margin_right();
         }
         self.add_extra_box_model_metrics_to_item(&mut item, true, true);
         self.skip_to_next();

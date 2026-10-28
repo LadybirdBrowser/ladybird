@@ -523,19 +523,19 @@ pub(crate) fn compute(
             let block_length = size.1;
 
             if !interrupting && fragment.is_atomic_inline {
-                let used = context.used(fragment.layout_node);
-                inline_start -= used.margin_left.get() + used.border_box_left(false);
-                inline_end += used.margin_right.get() + used.border_box_right(false);
+                let atomic_inline = context.box_metrics(fragment.layout_node);
+                inline_start -= atomic_inline.margin_left() + atomic_inline.border_box_left(false);
+                inline_end += atomic_inline.margin_right() + atomic_inline.border_box_right(false);
             }
 
             let interrupting_block = if interrupting {
-                let block_used = context.used(fragment.layout_node);
-                let collapsed = block_used.uses_collapsing_borders_model.get();
+                let block = context.box_metrics(fragment.layout_node);
+                let collapsed = block.uses_collapsing_borders_model();
                 let (border_box_inline_low, border_box_block_low, border_box_inline_size, border_box_block_size) = (
-                    block_used.border_box_left(collapsed),
-                    block_used.border_box_top(collapsed),
-                    block_used.border_box_inline_size(collapsed),
-                    block_used.border_box_block_size(collapsed),
+                    block.border_box_left(collapsed),
+                    block.border_box_top(collapsed),
+                    block.border_box_inline_size(collapsed),
+                    block.border_box_block_size(collapsed),
                 );
                 let extent_inline_start = inline_start - border_box_inline_low;
                 let extent_block_start = block_start - border_box_block_low;
@@ -1161,6 +1161,12 @@ impl<'context> InlineFormattingContext<'context> {
         self.run.records.used_values(node)
     }
 
+    /// The sizes, box sides and baselines of `node`, a box this context lays out or one laid out by a run of its own.
+    #[track_caller]
+    pub(crate) fn box_metrics(&self, node: Node) -> run_records::BoxMetrics<'context> {
+        self.run.records.box_metrics_of(node)
+    }
+
     pub(crate) fn create_used_values(
         &self,
         node: Node,
@@ -1321,9 +1327,9 @@ impl<'context> InlineFormattingContext<'context> {
             ChildLayoutOutcome::Created(result) => result.baselines,
             ChildLayoutOutcome::ReenterCurrent => {
                 self.parent.run(self.run, input);
-                self.used(node).content_baselines_from_cells()
+                self.box_metrics(node).content_baselines()
             }
-            ChildLayoutOutcome::Skipped { .. } => self.used(node).content_baselines_from_cells(),
+            ChildLayoutOutcome::Skipped { .. } => self.box_metrics(node).content_baselines(),
         }
     }
 
@@ -1337,7 +1343,7 @@ impl<'context> InlineFormattingContext<'context> {
 
         let content_baselines = self.layout_inside(node, available_space);
         debug_assert!(
-            self.used(node).has_definite_inline_size.get(),
+            self.box_metrics(node).has_definite_inline_size(),
             "atomic inline-level run left its root's inline size unresolved"
         );
         content_baselines
@@ -1409,16 +1415,16 @@ impl<'context> InlineFormattingContext<'context> {
                     matched = false;
                     break;
                 };
-                let used = self.used(item.node);
+                let atomic_inline = self.box_metrics(item.node);
                 let expected_inline_offset =
                     running_inline_length + item.margin_start + item.border_start + item.padding_start;
                 if !fragment.is_atomic_inline
                     || fragment.layout_node != item.node
                     || fragment.inline_offset != expected_inline_offset
                     || fragment.inline_length != item.inline_size
-                    || fragment.block_length != used.content_block_size.get()
+                    || fragment.block_length != atomic_inline.content_block_size()
                     || fragment.content_baselines != Some(item.content_baselines)
-                    || fragment.border_box_block_start != used.border_box_top(false)
+                    || fragment.border_box_block_start != atomic_inline.border_box_top(false)
                 {
                     matched = false;
                     break;
