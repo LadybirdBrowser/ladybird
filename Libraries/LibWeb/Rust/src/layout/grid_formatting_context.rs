@@ -1920,13 +1920,12 @@ impl<'pass> GridFormattingContext<'pass> {
                             child_grid_style.names.raws(),
                         ),
                     });
-                    let record = self.run.records.create_used_values(
+                    let cells = self.run.records.keep_child_for_its_run(
                         &self.run.callbacks,
                         child,
                         ContainingBlockConstraints::default(),
                     );
-                    self.cells_of_items
-                        .insert(child, Cell::new(used_values::RootInputCells::capture(record)));
+                    self.cells_of_items.insert(child, Cell::new(cells));
                     nodes.push(child);
                 }
             }
