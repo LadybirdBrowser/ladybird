@@ -507,7 +507,7 @@ fn snapshot_fragment(
         computed_svg_path,
         svg_text_character_cells,
         has_line_clamp_point: used.has_line_clamp_point.get(),
-        is_invisible_for_line_clamp: used.is_invisible_for_line_clamp.get(),
+        is_invisible_for_line_clamp: fragment_facts.is_invisible_for_line_clamp,
         clamped_content_is_scrollable_overflow: used.clamped_content_is_scrollable_overflow.get(),
         continues_from_previous_fragment: used.continues_from_previous_fragment.get(),
         continues_in_next_fragment: used.continues_in_next_fragment.get(),
@@ -1185,7 +1185,7 @@ impl RunFragmentBuilder {
         fragment_facts: run_records::FragmentFactsDecidedByParent,
     ) -> Option<(std::sync::Arc<Fragment>, bool)> {
         let held = used.held_committed_fragment.take()?;
-        let fragment = if used.is_invisible_for_line_clamp.get() == held.fragment.is_invisible_for_line_clamp {
+        let fragment = if fragment_facts.is_invisible_for_line_clamp == held.fragment.is_invisible_for_line_clamp {
             held.fragment
         } else {
             snapshot_fragment(callbacks, node, held.fragment.children.clone(), used, fragment_facts)

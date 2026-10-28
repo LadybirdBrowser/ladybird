@@ -325,6 +325,8 @@ pub(crate) struct FragmentFactsDecidedByParent {
     /// For table cells: whether every column the cell spans has 'visibility: collapse', which removes the cell from
     /// the display along with the columns (CSS 2.2 §17.5.5).
     pub(crate) hidden_by_collapsed_columns: bool,
+    /// Whether the box lies after the clamp point of a line-clamp container, which hides it.
+    pub(crate) is_invisible_for_line_clamp: bool,
 }
 
 /// What the parent of a box decides about the box, kept beside the box's record.
@@ -675,6 +677,18 @@ impl<'arena> RunRecords<'arena> {
     #[track_caller]
     pub(crate) fn set_hidden_by_collapsed_columns(&self, node: Node, hidden: bool) {
         self.update_fragment_facts_decided_by_parent_of(node, |facts| facts.hidden_by_collapsed_columns = hidden);
+    }
+
+    #[track_caller]
+    pub(crate) fn hide_for_line_clamp(&self, node: Node) {
+        self.update_fragment_facts_decided_by_parent_of(node, |facts| facts.is_invisible_for_line_clamp = true);
+    }
+
+    #[track_caller]
+    pub(crate) fn is_invisible_for_line_clamp(&self, node: Node) -> bool {
+        self.facts_decided_by_parent_of(node)
+            .fragment_facts
+            .is_invisible_for_line_clamp
     }
 
     /// Where `node` is placed, if this run placed it.

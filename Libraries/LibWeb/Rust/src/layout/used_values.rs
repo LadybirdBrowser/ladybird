@@ -353,7 +353,6 @@ pub(crate) struct UsedValues {
     /// side of the first or last grid line, while a cell owns the part on the inner side of its grid lines.
     pub is_collapsed_borders_table_box: Cell<bool>,
     pub has_line_clamp_point: Cell<bool>,
-    pub is_invisible_for_line_clamp: Cell<bool>,
     pub clamped_content_is_scrollable_overflow: Cell<bool>,
     pub continues_from_previous_fragment: Cell<bool>,
     pub continues_in_next_fragment: Cell<bool>,
@@ -397,7 +396,6 @@ impl Default for UsedValues {
             uses_collapsing_borders_model: Cell::new(false),
             is_collapsed_borders_table_box: Cell::new(false),
             has_line_clamp_point: Cell::new(false),
-            is_invisible_for_line_clamp: Cell::new(false),
             continues_from_previous_fragment: Cell::new(false),
             continues_in_next_fragment: Cell::new(false),
             clamped_content_is_scrollable_overflow: Cell::new(false),
@@ -603,7 +601,6 @@ used_values_cells! {
         has_definite_block_size_only_for_button_content_alignment: bool,
         uses_collapsing_borders_model: bool,
         is_collapsed_borders_table_box: bool,
-        is_invisible_for_line_clamp: bool,
         continues_from_previous_fragment: bool,
         continues_in_next_fragment: bool,
     }
@@ -1161,6 +1158,7 @@ pub(crate) fn committed_box_from_fragment_link(callbacks: &LayoutPass<'_>, node:
                 table_column_index: fragment.table_column_index,
                 table_column_span: fragment.table_column_span,
                 hidden_by_collapsed_columns: fragment.hidden_by_collapsed_columns,
+                ..super::run_records::FragmentFactsDecidedByParent::default()
             },
         },
     })
