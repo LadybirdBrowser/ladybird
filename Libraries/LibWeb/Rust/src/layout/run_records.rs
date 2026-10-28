@@ -390,6 +390,19 @@ pub(crate) struct LaidOutChildBox {
     pub(crate) orthogonal_flow_baselines: Option<DerivedBaselines>,
 }
 
+impl LaidOutChildBox {
+    /// A child as the run of its parent left it in `record`, where that run sizes the child itself instead of handing
+    /// it to a run of its own.
+    pub(crate) fn sized_in_parent_run(record: &UsedValues) -> Self {
+        Self {
+            cells: used_values::RecordInFrame::in_its_own_frame(record).cells(),
+            baselines: record.content_baselines_from_cells(),
+            // NB: A box that establishes an orthogonal flow is laid out by a run of its own.
+            orthogonal_flow_baselines: None,
+        }
+    }
+}
+
 /// What the parent of a box laid out by a run of its own keeps of it once that run returns: the box, the lines the run
 /// laid out in it, and the frame the box's metrics are in.
 #[derive(Clone)]

@@ -1966,6 +1966,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let formatting_context::ChildLayout {
             outcome: marker_outcome,
             fragment_arrival,
+            laid_out_box: marker_box,
         } = formatting_context::layout_inside_child_with_input_cells(
             run,
             None,
@@ -1991,7 +1992,8 @@ impl<'pass> BlockFormattingContext<'pass> {
             }
         }
 
-        let marker_metrics = self.run.records.box_metrics_of(marker);
+        let marker_box = marker_box.expect("a marker's layout leaves its box to the list item");
+        let marker_metrics = marker_box.cells;
         let marker_block_size = marker_metrics.content_block_size();
         let marker_inline_size = marker_metrics.content_inline_size();
         let list_item_style = self.style(list_item);
@@ -2002,7 +2004,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             list_item_used.content_inline_size.get() - inline_space_used_before_list_item_elements_formatted.right
         };
         let marker_block_offset = if let Some(list_item_first_baseline) = list_item_first_baseline
-            && let Some(marker_first_baseline) = marker_metrics.content_baselines().first
+            && let Some(marker_first_baseline) = marker_box.baselines.first
         {
             list_item_first_baseline - marker_first_baseline
         } else {
@@ -2027,6 +2029,8 @@ impl<'pass> BlockFormattingContext<'pass> {
         )
     }
 
+    /// Lays out the contents of `node`, a child with a formatting context of its own, and returns its result where a
+    /// run of its own laid it out, the fragments its placement takes, and the child's box as its layout left it.
     fn layout_inside(
         &self,
         run: &FormattingContextRun<'pass>,
@@ -2036,10 +2040,12 @@ impl<'pass> BlockFormattingContext<'pass> {
     ) -> (
         Option<formatting_context::ChildLayoutResult>,
         Option<fragment_tree::ChildFragmentArrival>,
+        run_records::LaidOutChildBox,
     ) {
         let formatting_context::ChildLayout {
             outcome,
             fragment_arrival,
+            laid_out_box,
         } = formatting_context::layout_inside_child_with_input_cells(
             run,
             Some(self),
@@ -2050,14 +2056,22 @@ impl<'pass> BlockFormattingContext<'pass> {
             force_independent_context_run,
         );
         outcome.report_percentage_block_size_dependency_of(run, node);
-        match outcome {
-            ChildLayoutOutcome::Skipped { .. } => (None, fragment_arrival),
-            ChildLayoutOutcome::Created(child_layout) => (Some(child_layout), fragment_arrival),
+        let (child_layout, laid_out_box) = match outcome {
+            ChildLayoutOutcome::Skipped { .. } => (None, laid_out_box),
+            ChildLayoutOutcome::Created(child_layout) => (Some(child_layout), laid_out_box),
             ChildLayoutOutcome::ReenterCurrent => {
                 self.run(run, input);
-                (None, fragment_arrival)
+                (
+                    None,
+                    Some(run_records::LaidOutChildBox::sized_in_parent_run(self.used(node))),
+                )
             }
-        }
+        };
+        (
+            child_layout,
+            fragment_arrival,
+            laid_out_box.expect("the layout of a child with a formatting context of its own leaves its box"),
+        )
     }
 
     fn child_layout_input(
@@ -2526,10 +2540,11 @@ impl<'pass> BlockFormattingContext<'pass> {
                 let metrics = self.child_metrics(node);
                 (metrics.border_box_left(false), metrics.border_box_top(false))
             });
-            let (child_layout, fragment_arrival) = self.layout_inside(run, node, inside_layout_input, true);
+            let (child_layout, fragment_arrival, laid_out_box) =
+                self.layout_inside(run, node, inside_layout_input, true);
             fragment_arrival_of_child_with_own_formatting_context = fragment_arrival;
             if container_facts.is_table_wrapper() && style.display().is_table_inside() && child_layout.is_some() {
-                let table_box = self.run.records.box_metrics_of(node);
+                let table_box = laid_out_box.cells;
                 self.table_box_in_wrapper_border_box_inline_size.set(Some(
                     table_box.border_box_inline_size(table_box.uses_collapsing_borders_model()),
                 ));
@@ -4496,7 +4511,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 input.containing_block_constraints,
             );
         self.dimension_float_root_inline_size(node, &float_input);
-        let (_, fragment_arrival) = self.layout_inside(run, node, float_input, false);
+        let (_, fragment_arrival, float_box) = self.layout_inside(run, node, float_input, false);
         let containing_block_rect = self.containing_block_rect(block_container, containing_block_position_in_root);
         let containing_block_rect_now = containing_block_rect.translated(
             CssPixels::default(),
@@ -4517,7 +4532,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             formatting_context::leave_child_unplaced(run, fragment_arrival);
             return abspos_engine::InFlowBoxInsets::default();
         };
-        let float_box = self.run.records.box_metrics_of(node);
+        let float_box = float_box.cells;
         let mut margin_box_ceiling = if let Some(line_builder) = line_builder.as_deref_mut() {
             line_builder.ceiling_for_float_to_be_inserted_here(float_box.margin_box_inline_size(false))
         } else {

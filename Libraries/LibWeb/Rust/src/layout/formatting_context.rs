@@ -2751,17 +2751,20 @@ pub(crate) fn propagate_percentage_block_size_dependency_to_containing_block(
     records.note_descendant_depends_on_percentage_block_size(containing_block_or_run_root_that_forwarded_the_basis);
 }
 
-/// The layout of a child: its outcome, and the fragments its placement takes.
+/// The layout of a child: its outcome, the fragments its placement takes, and the child's box as its layout left it,
+/// unless the parent lays out the child's contents itself.
 pub(crate) struct ChildLayout {
     pub(crate) outcome: ChildLayoutOutcome,
     pub(crate) fragment_arrival: Option<fragment_tree::ChildFragmentArrival>,
+    pub(crate) laid_out_box: Option<run_records::LaidOutChildBox>,
 }
 
 impl ChildLayout {
-    fn without_fragments(outcome: ChildLayoutOutcome) -> Self {
+    fn of_child_sized_in_parent_run(outcome: ChildLayoutOutcome, record: &UsedValues) -> Self {
         Self {
             outcome,
             fragment_arrival: None,
+            laid_out_box: Some(run_records::LaidOutChildBox::sized_in_parent_run(record)),
         }
     }
 }
@@ -2858,6 +2861,7 @@ pub(crate) fn layout_inside_child_with_input_cells(
         return ChildLayout {
             outcome: skipped(),
             fragment_arrival,
+            laid_out_box: Some(run_records::LaidOutChildBox::sized_in_parent_run(used)),
         };
     }
     let creates_replaced_context = matches!(
@@ -2865,9 +2869,9 @@ pub(crate) fn layout_inside_child_with_input_cells(
         Some(FormattingContextType::InternalReplaced | FormattingContextType::ReplacedWithChildren)
     );
     if !facts.can_have_children() && !creates_replaced_context {
-        record_for_this_run();
+        let used = record_for_this_run();
         size_skipped_independent_root(run, parent_block, child, &input);
-        return ChildLayout::without_fragments(skipped());
+        return ChildLayout::of_child_sized_in_parent_run(skipped(), used);
     }
 
     let Some(ChildRunPlan {
@@ -2876,17 +2880,21 @@ pub(crate) fn layout_inside_child_with_input_cells(
         input,
     }) = child_run_plan(run, child, input, force_independent_context_run)
     else {
-        record_for_this_run();
+        let used = record_for_this_run();
         if force_independent_context_run {
-            return ChildLayout::without_fragments(skipped());
+            return ChildLayout::of_child_sized_in_parent_run(skipped(), used);
         }
-        return ChildLayout::without_fragments(ChildLayoutOutcome::ReenterCurrent);
+        return ChildLayout {
+            outcome: ChildLayoutOutcome::ReenterCurrent,
+            fragment_arrival: None,
+            laid_out_box: None,
+        };
     };
     assert!(
         record_kept_by_parent.is_none(),
         "{child:?} is handed to a run of its own by a parent that lays it out itself"
     );
-    let (result, fragment_arrival) = run_formatting_context(
+    let child_run_outcome = run_formatting_context(
         run.fragments.as_deref(),
         child_input_cells,
         child,
@@ -2897,11 +2905,13 @@ pub(crate) fn layout_inside_child_with_input_cells(
         run.callbacks,
         input,
         run.records.take_table_inline_layout(child),
-    )
-    .hand_box_back_to(run, child);
+    );
+    let laid_out_box = child_run_outcome.laid_out_box;
+    let (result, fragment_arrival) = child_run_outcome.hand_box_back_to(run, child);
     ChildLayout {
         outcome: ChildLayoutOutcome::Created(result),
         fragment_arrival,
+        laid_out_box: Some(laid_out_box),
     }
 }
 
