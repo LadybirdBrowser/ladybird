@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 24 tests
 
-20 Pass
-4 Fail
+24 Pass
 Pass	append a namespaced style attribute preserves HTML inline style
 Pass	append a namespaced event handler attribute preserves an HTML event handler
 Pass	change a namespaced style attribute preserves HTML inline style
@@ -21,10 +20,10 @@ Pass	remove a namespaced event handler attribute preserves an SVG event handler
 Pass	replace a namespaced style attribute preserves SVG inline style
 Pass	replace a namespaced event handler attribute preserves an SVG event handler
 Pass	A namespaced slot attribute does not assign a slot
-Fail	A namespaced open attribute does not fire a toggle event
-Fail	A namespaced src attribute does not navigate an iframe
+Pass	A namespaced open attribute does not fire a toggle event
+Pass	A namespaced src attribute does not navigate an iframe
 Pass	A namespaced src attribute does not prepare a script
-Fail	A namespaced type attribute does not change an input's state
-Fail	A namespaced selected attribute does not change an option's selectedness
+Pass	A namespaced type attribute does not change an input's state
+Pass	A namespaced selected attribute does not change an option's selectedness
 Pass	A namespaced multiple attribute does not reset a select
 Pass	A namespaced size attribute does not reset a select

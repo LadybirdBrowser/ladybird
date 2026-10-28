@@ -383,7 +383,7 @@ def write_attribute_getter(
     // If a reflected IDL attribute has the type boolean:
     // 1. Let contentAttributeValue be the result of running this's get the content attribute.
     // 2. If contentAttributeValue is null, then return false.
-    auto R = idl_object->has_attribute(content_attribute);"""
+    auto R = idl_object->has_attribute_ns({{}}, content_attribute);"""
     elif is_non_nullable_reflected and attribute.type.name == "long":
         includes.add("LibWeb/HTML/Numbers.h")
         getter_steps = f"""{content_attribute_declaration}
@@ -394,7 +394,7 @@ def write_attribute_getter(
     //    1. Let parsedValue be the result of integer parsing contentAttributeValue.
     //    2. If parsedValue is not an error and is within the long range, then return parsedValue.
     i32 R = 0;
-    auto content_attribute_value = idl_object->get_attribute(content_attribute);
+    auto content_attribute_value = idl_object->get_attribute_ns({{}}, content_attribute);
     if (content_attribute_value.has_value()) {{
         auto maybe_parsed_value = Web::HTML::parse_integer(*content_attribute_value);
         if (maybe_parsed_value.has_value())
@@ -414,7 +414,7 @@ def write_attribute_getter(
     //    1. Let parsedValue be the result of non-negative integer parsing contentAttributeValue.
     //    2. If parsedValue is not an error and is in the range minimum to maximum, inclusive, then return parsedValue.
     u32 R = 0;
-    auto content_attribute_value = idl_object->get_attribute(content_attribute);
+    auto content_attribute_value = idl_object->get_attribute_ns({{}}, content_attribute);
     u32 minimum = 0;
     u32 maximum = 2147483647;
     if (content_attribute_value.has_value()) {{
@@ -432,7 +432,7 @@ def write_attribute_getter(
     // If a reflected IDL attribute has the type USVString:
     // 1. Let element be the result of running this's get the element.
     // 2. Let contentAttributeValue be the result of running this's get the content attribute.
-    auto content_attribute_value = idl_object->attribute(content_attribute);
+    auto content_attribute_value = idl_object->get_attribute_ns({{}}, content_attribute);
 
     // 3. Let attributeDefinition be the attribute definition of element's content attribute whose namespace is null and local name is the reflected content attribute name.
 
@@ -447,7 +447,7 @@ def write_attribute_getter(
     // If a reflected IDL attribute has the type USVString:
     // 1. Let element be the result of running this's get the element.
     // 2. Let contentAttributeValue be the result of running this's get the content attribute.
-    auto content_attribute_value = idl_object->attribute(content_attribute);
+    auto content_attribute_value = idl_object->get_attribute_ns({{}}, content_attribute);
 
     // 3. Let attributeDefinition be the attribute definition of element's content attribute whose namespace is null and local name is the reflected content attribute name.
 
@@ -478,7 +478,7 @@ def write_attribute_getter(
 
     // If a reflected IDL attribute is an enumerated attribute:
     // 1. Let contentAttributeValue be the result of running this's get the content attribute.
-    auto R = idl_object->attribute(content_attribute);
+    auto R = idl_object->get_attribute_ns({{}}, content_attribute);
 
     // 3. If contentAttributeValue is an ASCII case-insensitive match for one of the keywords, then return that keyword's canonical keyword.
     Array valid_values {{ {valid_values} }};
@@ -501,7 +501,7 @@ def write_attribute_getter(
 
     // If a reflected IDL attribute is an enumerated attribute:
     // 1. Let contentAttributeValue be the result of running this's get the content attribute.
-    auto content_attribute_value = idl_object->attribute(content_attribute);
+    auto content_attribute_value = idl_object->get_attribute_ns({{}}, content_attribute);
 
     // 2. If contentAttributeValue is null, then set contentAttributeValue to the missing value default.
     auto R = content_attribute_value.value_or("{missing_value_default}"_utf16);
@@ -812,6 +812,13 @@ def write_attribute_setter(
         static_utf16_fly_string("content_attribute", reflected_attribute_name(attribute)) if is_reflected else ""
     )
 
+    # ElementInternals deletes entries from its internal content attribute map.
+    delete_content_attribute = (
+        "idl_object->remove_attribute(content_attribute);"
+        if interface.name == "ElementInternals"
+        else "idl_object->remove_attribute_ns({}, content_attribute);"
+    )
+
     def as_utf16_string_expression(value: str) -> str:
         return value
 
@@ -819,7 +826,7 @@ def write_attribute_setter(
         setter_steps = f"""{content_attribute_declaration}
 
     if (!idl_value)
-        idl_object->remove_attribute(content_attribute);
+        {delete_content_attribute}
     else
         idl_object->set_attribute_value(content_attribute, Utf16String {{}});
     return {{}};"""
@@ -849,7 +856,7 @@ def write_attribute_setter(
         setter_steps = f"""{content_attribute_declaration}
 
     if (!idl_value.has_value())
-        idl_object->remove_attribute(content_attribute);
+        {delete_content_attribute}
     else
         idl_object->set_attribute_value(content_attribute, {as_utf16_string_expression("*idl_value")});
     return {{}};"""
@@ -859,7 +866,7 @@ def write_attribute_setter(
 
     if (!idl_value) {{
         idl_object->set_{idl_implementation_cpp_name(attribute)}({{}});
-        idl_object->remove_attribute(content_attribute);
+        {delete_content_attribute}
         return {{}};
     }}
 
@@ -879,7 +886,7 @@ def write_attribute_setter(
 
     if (!idl_value.has_value()) {{
         idl_object->set_{idl_implementation_cpp_name(attribute)}({{}});
-        idl_object->remove_attribute(content_attribute);
+        {delete_content_attribute}
         return {{}};
     }}
 

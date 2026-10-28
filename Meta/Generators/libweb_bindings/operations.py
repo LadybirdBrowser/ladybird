@@ -706,9 +706,7 @@ def default_to_json_getter_steps(
 ) -> str:
     is_reflected = "Reflect" in attribute.extended_attributes
     if is_reflected and attribute.type.name == "boolean":
-        return (
-            f'auto {value_name} = idl_object->has_attribute("{reflected_attribute_name(attribute)}"_utf16_fly_string);'
-        )
+        return f'auto {value_name} = idl_object->has_attribute_ns({{}}, "{reflected_attribute_name(attribute)}"_utf16_fly_string);'
     return f"auto {value_name} = TRY(WebIDL::throw_dom_exception_if_needed(vm, this_object_realm, [&] {{ return idl_object->{idl_implementation_cpp_name(attribute)}(); }}));"
 
 

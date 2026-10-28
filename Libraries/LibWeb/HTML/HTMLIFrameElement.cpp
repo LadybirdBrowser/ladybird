@@ -52,6 +52,9 @@ void HTMLIFrameElement::attribute_changed(Utf16FlyString const& name, Optional<U
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 
+    if (namespace_.has_value())
+        return;
+
     if (name == HTML::AttributeNames::sandbox) {
         if (m_sandbox)
             m_sandbox->associated_attribute_changed(value.has_value() ? value->utf16_view() : u""sv);

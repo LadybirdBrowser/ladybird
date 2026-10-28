@@ -1294,7 +1294,7 @@ GC::Ptr<DOM::Element> Element::get_the_attribute_associated_element(Utf16FlyStri
     auto const& element = *this;
 
     // 2. Let contentAttributeValue be the result of running reflectedTarget's get the content attribute.
-    auto content_attribute_value = element.get_attribute(content_attribute);
+    auto content_attribute_value = element.get_attribute_ns({}, content_attribute);
 
     return DOM::get_the_attribute_associated_element(element, content_attribute_value, explicitly_set_attribute_element);
 }
@@ -1355,7 +1355,7 @@ Optional<GC::RootVector<GC::Ref<DOM::Element>>> Element::get_the_attribute_assoc
     auto const& element = *this;
 
     return DOM::get_the_attribute_associated_elements(
-        element, [&] { return element.get_attribute(content_attribute); }, explicitly_set_attribute_elements);
+        element, [&] { return element.get_attribute_ns({}, content_attribute); }, explicitly_set_attribute_elements);
 }
 
 CSS::ElementBoxKind Element::box_kind() const
