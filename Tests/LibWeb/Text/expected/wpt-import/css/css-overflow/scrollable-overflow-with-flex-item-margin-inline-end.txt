@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	Check scrollWidth with overflow: auto
+Pass	Check scrollWidth with overflow: scroll
+Pass	Check scrollWidth with overflow: hidden
+Pass	Check scrollWidth with overflow: clip
+Pass	Check scrollWidth with overflow: visible
+Pass	Check scrollWidth with overflowX: visible, overflowY: clip
+Pass	Check scrollWidth with overflowX: visible, overflowY: hidden
+Pass	Check scrollWidth with overflowX: visible, overflowY: auto
