@@ -107,10 +107,9 @@ ParsedProgram::~ParsedProgram()
     js_compile_parsed_program_destroy(parsed_program_to_abi(m_program));
 }
 
-ParsedProgram ParsedProgram::parse(ReadonlySpan<u16> source_text, ProgramType program_type, size_t line_number_offset)
+ParsedProgram ParsedProgram::parse(Utf16View source_text, ProgramType program_type, size_t line_number_offset)
 {
-    JSUtf16View source { source_text.data(), source_text.size(), false };
-    return ParsedProgram { parsed_program_from_abi(js_compile_parse(source, program_type_to_abi(program_type), line_number_offset)) };
+    return ParsedProgram { parsed_program_from_abi(js_compile_parse(utf16_view_to_abi(source_text), program_type_to_abi(program_type), line_number_offset)) };
 }
 
 bool ParsedProgram::has_errors() const

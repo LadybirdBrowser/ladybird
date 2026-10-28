@@ -37,9 +37,6 @@ public:
     Utf16String const& code() const;
     size_t length_in_code_units() const;
 
-    // The code as UTF-16 code units, which stay valid while the source code lives, so another thread may read them.
-    u16 const* utf16_data() const;
-
     Utf16String source_text_from_offsets(size_t start_offset, size_t length) const;
 
     void ref() const;
