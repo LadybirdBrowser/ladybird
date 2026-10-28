@@ -1160,7 +1160,8 @@ static void update_style_and_layout_for_rendering(DOM::Document& document)
     if (animations_changed_timeline)
         requires_style_and_layout_update = true;
 
-    for (auto const& timeline : document.associated_animation_timelines()) {
+    GC::RootVector timelines = { document.associated_animation_timelines().values() };
+    for (auto const& timeline : timelines) {
         auto* scroll_timeline = as_if<Animations::ScrollTimeline>(*timeline);
 
         if (!scroll_timeline)
@@ -1193,7 +1194,8 @@ void EventLoop::update_the_rendering_after_style_and_layout(Vector<GC::Root<DOM:
     for (auto& document : docs) {
         // NB: A play task resolves the animation's ready promise.
         TemporaryExecutionContext execution_context { document->relevant_settings_object() };
-        for (auto const& timeline : document->associated_animation_timelines()) {
+        GC::RootVector timelines = { document->associated_animation_timelines().values() };
+        for (auto const& timeline : timelines) {
             GC::RootVector<GC::Ref<Animations::Animation>> pending_css_animations;
             for (auto& animation : timeline->associated_animations()) {
                 if (rendering_update_makes_ready(animation))
