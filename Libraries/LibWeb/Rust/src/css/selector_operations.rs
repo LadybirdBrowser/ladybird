@@ -85,15 +85,22 @@ fn any_simple(selector: &CompiledSelector, predicate: &impl Fn(&SimpleSelector) 
         .any(|compound| compound.simple_selectors.iter().any(predicate))
 }
 
-pub(crate) fn contains_unknown_webkit(selector: &CompiledSelector) -> bool {
+// https://drafts.csswg.org/css-conditional-4/#support-definition
+// A CSS processor is considered to support a CSS selector if it accepts that all aspects of that selector,
+// recursively, (rather than considering any of its syntax to be unknown or invalid) and that selector doesn’t
+// contain unknown -webkit- pseudo-elements.
+pub(crate) fn contains_unsupported_selector(selector: &CompiledSelector) -> bool {
     any_simple(selector, &|simple| match simple {
+        SimpleSelector::Invalid(..) => true,
         SimpleSelector::PseudoElement(pseudo_element) => {
             pseudo_element.pseudo_element == PseudoElementType::UnknownWebKit
+                || matches!(&pseudo_element.value, PseudoElementValue::CompoundSelector(selector)
+                    if contains_unsupported_selector(selector))
         }
         SimpleSelector::PseudoClass(pseudo_class) => pseudo_class
             .argument_selector_list
             .iter()
-            .any(|selector| contains_unknown_webkit(selector)),
+            .any(|selector| contains_unsupported_selector(selector)),
         _ => false,
     })
 }
