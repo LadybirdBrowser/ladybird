@@ -2663,6 +2663,8 @@ fn result_in_parent_frame(
         };
         result.orthogonal_flow_baselines =
             (orthogonal_flow_baselines != DerivedBaselines::default()).then_some(orthogonal_flow_baselines);
+        // NB: The wrapper's content inline size in its own frame is the border box inline size of its table box.
+        let table_box_border_box_inline_size = result.table_wrapper_content_inline_size;
         // NB: The inline size of a table wrapper in its parent's frame is the block size of its content in its own
         //     frame.
         if result.table_wrapper_content_inline_size.is_some() {
@@ -2673,11 +2675,7 @@ fn result_in_parent_frame(
         result.content_block_size_for_aspect_ratio_minimum = None;
         // NB: The block size of a table box in its parent's frame is its inline size in the frame of its wrapper.
         if result.table_box_in_wrapper_border_box_block_size.is_some() {
-            let table_box = run
-                .records
-                .box_metrics_of(body_run.sizing().table_box_inside_wrapper(run.box_));
-            result.table_box_in_wrapper_border_box_block_size =
-                Some(table_box.border_box_inline_size(table_box.uses_collapsing_borders_model()));
+            result.table_box_in_wrapper_border_box_block_size = table_box_border_box_inline_size;
         }
     }
     result
