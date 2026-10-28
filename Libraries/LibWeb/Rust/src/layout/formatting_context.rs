@@ -1579,7 +1579,7 @@ pub(crate) fn independent_root_automatic_block_size(
     CssPixels::default()
 }
 
-fn flex_self_block_size_resolution_space(
+pub(crate) fn flex_self_block_size_resolution_space(
     sizing: &sizing_context::SizingContext,
     node: Node,
     resolution_space: AvailableSpace,
@@ -1912,45 +1912,25 @@ fn finalize_float_root(run: &FormattingContextRun, input: &LayoutInput, body_res
     );
 }
 
-fn dimension_root_in_parent_scope(
+/// Sizes a child with a formatting context of its own that has no run, which its block formatting context lays out
+/// itself. The run of such a child sizes it otherwise: see size_block_level_root_ahead_of_its_contents() and
+/// resolve_float_root_block_size_ahead_of_its_contents().
+fn size_skipped_root_in_parent_scope(
     parent_block: Option<&block_formatting_context::BlockFormattingContext>,
     child: Node,
     input: &LayoutInput,
-    child_run_follows: bool,
-) -> Option<AvailableSpace> {
-    let flex_self_resolution_space_of_following_run = |parent: &block_formatting_context::BlockFormattingContext| {
-        child_run_follows
-            .then(|| {
-                flex_self_block_size_resolution_space(
-                    &parent.sizing(),
-                    child,
-                    input.available_space,
-                    input.containing_block_constraints,
-                )
-            })
-            .flatten()
-    };
+) {
     match input.participation {
-        // NB: The run of a block-level root sizes its root itself, see size_block_level_root_ahead_of_its_contents().
-        ParticipationInParentFormattingContext::BlockLevel if child_run_follows => None,
         ParticipationInParentFormattingContext::BlockLevel => {
             let parent = parent_block.expect("a block-level box requires an enclosing block formatting context");
             parent.commit_block_level_root_inline_size(child, input);
             parent.resolve_block_level_root_block_size_before_body(child, input, false);
-            None
         }
         ParticipationInParentFormattingContext::Float { .. } => {
             let parent = parent_block.expect("a float requires an enclosing block formatting context");
-            let flex_self_resolution_space = flex_self_resolution_space_of_following_run(parent);
-            if child_run_follows {
-                // NB: The float's run resolves its block size, see resolve_float_root_block_size_ahead_of_its_contents().
-                parent.dimension_float_root_inline_size(child, input);
-            } else {
-                parent.dimension_float_root(child, input, false);
-            }
-            flex_self_resolution_space
+            parent.resolve_float_root_block_size_in_parent(child, input);
         }
-        _ => None,
+        _ => {}
     }
 }
 
@@ -1960,7 +1940,7 @@ fn size_skipped_independent_root(
     child: Node,
     input: &LayoutInput,
 ) {
-    dimension_root_in_parent_scope(parent_block, child, input, false);
+    size_skipped_root_in_parent_scope(parent_block, child, input);
     match input.participation {
         ParticipationInParentFormattingContext::Float { .. } => {
             let parent = parent_block.expect("a floating run requires an enclosing block formatting context");
@@ -2961,7 +2941,7 @@ pub(crate) fn layout_inside_child_with_input_cells(
     let Some(ChildRunPlan {
         fc_type,
         root_containing_block,
-        mut input,
+        input,
     }) = child_run_plan(run, child, input, force_independent_context_run)
     else {
         if force_independent_context_run {
@@ -2969,8 +2949,6 @@ pub(crate) fn layout_inside_child_with_input_cells(
         }
         return ChildLayout::without_fragments(ChildLayoutOutcome::ReenterCurrent);
     };
-    input.sizing.flex_self_block_size_resolution_space =
-        dimension_root_in_parent_scope(parent_block, child, &input, true);
     let ChildRunOutcome {
         result,
         laid_out_box,
