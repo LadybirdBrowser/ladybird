@@ -1456,14 +1456,23 @@ pub(super) struct MathFormattingContext<'pass> {
     run: FormattingContextRun<'pass>,
     content: MathContent,
     derived_baselines_of_root_box: DerivedBaselines,
+    /// What the layout of each child hands its placement, which places the children once their positions are known.
+    fragment_arrivals_of_children: RefCell<Vec<fragment_tree::ChildFragmentArrival>>,
 }
 
 impl<'pass> MathFormattingContext<'pass> {
+    fn take_fragment_arrival_of_child(&self, child: Node) -> Option<fragment_tree::ChildFragmentArrival> {
+        let mut arrivals = self.fragment_arrivals_of_children.borrow_mut();
+        let index = arrivals.iter().position(|arrival| arrival.node() == child)?;
+        Some(arrivals.swap_remove(index))
+    }
+
     pub(super) fn new(run: &FormattingContextRun<'pass>) -> Self {
         Self {
             run: run.clone(),
             content: MathContent::default(),
             derived_baselines_of_root_box: DerivedBaselines::default(),
+            fragment_arrivals_of_children: RefCell::new(Vec::new()),
         }
     }
 
@@ -2139,7 +2148,9 @@ impl<'pass> MathFormattingContext<'pass> {
             outcome,
             fragment_arrival,
         } = formatting_context::layout_inside_child(run, None, None, child, input, true);
-        formatting_context::hold_fragment_arrival_until_placement(run, child, fragment_arrival);
+        if let Some(fragment_arrival) = fragment_arrival {
+            self.fragment_arrivals_of_children.borrow_mut().push(fragment_arrival);
+        }
         outcome.report_percentage_block_size_dependency_of(run, child);
         let baselines = match outcome {
             ChildLayoutOutcome::Created(result) => result.baselines,
@@ -2278,7 +2289,11 @@ impl<'pass> MathFormattingContext<'pass> {
                 x: math_content_line_left + line_left_offset + used.margin_left.get() + used.border_box_left(collapsed),
                 y: margin_box_top + used.margin_box_top(collapsed),
             };
-            formatting_context::place_child(run, child.node, offset, None);
+            let fragment_arrival = self.take_fragment_arrival_of_child(child.node);
+            formatting_context::place_laid_out_child(run, child.node, offset, None, fragment_arrival);
+        }
+        for fragment_arrival in self.fragment_arrivals_of_children.take() {
+            formatting_context::leave_child_unplaced(run, fragment_arrival.node(), Some(fragment_arrival));
         }
 
         if run.fragments.is_some() && (!content.rules.is_empty() || !content.glyph_runs.is_empty()) {
