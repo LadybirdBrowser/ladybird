@@ -5589,8 +5589,11 @@ void Element::replace_style_record(CSS::StyleRecordID style_record_identity)
         CSS::record_waiting_children_may_be_revealed(*this);
     // The resources an SVG graphics element's `mask`, `clip-path`, `fill` and `stroke` name are published beside its
     // attributes for the layout tree build to resolve, so they follow every record the element takes.
-    if (is<SVG::SVGGraphicsElement>(*this) && !!style_record_identity)
+    if (is<SVG::SVGGraphicsElement>(*this) && !!style_record_identity) {
         Layout::publish_svg_style_references(*this);
+        if (held_before && Layout::svg_style_references_differ(held_before, m_installed_style))
+            set_needs_layout_tree_rebuild(read, SetNeedsLayoutTreeUpdateReason::SVGResourceReferenceChange, CSS::LayoutTreeRebuildRoot::Self);
+    }
     if (timeline_declarations_changed)
         document().did_change_timeline_declarations();
 }

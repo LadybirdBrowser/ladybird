@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../../expected/svg/green-square-100-ref.html" />
+<svg width="100" height="100">
+    <mask id="hide">
+        <rect width="100" height="100" fill="black" />
+    </mask>
+    <mask id="show">
+        <rect width="100" height="100" fill="white" />
+    </mask>
+    <pattern id="red" patternUnits="userSpaceOnUse" width="100" height="100">
+        <rect width="100" height="100" fill="red" />
+    </pattern>
+    <pattern id="green" patternUnits="userSpaceOnUse" width="100" height="100">
+        <rect width="100" height="100" fill="green" />
+    </pattern>
+    <rect width="100" height="100" fill="red" />
+    <rect id="masked" width="100" height="33" fill="green" mask="url(#hide)" />
+    <rect id="filled" y="33" width="100" height="33" fill="url(#red)" />
+    <line id="stroked" x1="0" y1="83" x2="100" y2="83" stroke-width="34" stroke="url(#red)" />
+</svg>
+<script>
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.getElementById("masked").setAttribute("mask", "url(#show)");
+            document.getElementById("filled").setAttribute("fill", "url(#green)");
+            document.getElementById("stroked").setAttribute("stroke", "url(#green)");
+            requestAnimationFrame(() => {
+                document.documentElement.classList.remove("reftest-wait");
+            });
+        });
+    });
+</script>
+</html>

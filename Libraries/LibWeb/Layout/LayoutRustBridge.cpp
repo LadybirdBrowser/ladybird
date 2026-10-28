@@ -14,6 +14,7 @@
 #include <LibUnicode/CharacterTypes.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/Display.h>
+#include <LibWeb/CSS/InstalledStyle.h>
 #include <LibWeb/CSS/LengthBox.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleComputer.h>
@@ -143,11 +144,9 @@ static CSS::StyleAtomID svg_style_reference_fragment_atom(DOM::Element& element,
 // The four resources `mask`, `clip-path`, `fill` and `stroke` name. Read from the record's group payloads rather than
 // through a materialized view: this runs for every SVG graphics element whose style record is replaced, and pinning a
 // record to look at four properties is most of the cost of looking at them.
-static Array<CSS::StyleAtomID, 4> svg_style_reference_atoms(DOM::Element& element)
+static Array<Optional<CSS::URL>, 4> svg_style_reference_urls(void const* record_payloads)
 {
-    if (!is<SVG::SVGGraphicsElement>(element))
-        return {};
-    auto const* payloads = static_cast<void const* const*>(element.style_record_payloads());
+    auto const* payloads = static_cast<void const* const*>(record_payloads);
     if (!payloads)
         return {};
     auto const* mask_payload = static_cast<CSS::ComputedValues::MaskValues const*>(payloads[CSS::ComputedValues::MaskValues::style_group_index]);
@@ -155,11 +154,44 @@ static Array<CSS::StyleAtomID, 4> svg_style_reference_atoms(DOM::Element& elemen
     if (!mask_payload || !svg_payload)
         return {};
     return {
-        svg_style_reference_fragment_atom(element, mask_payload->mask_url_value()),
-        svg_style_reference_fragment_atom(element, mask_payload->clip_path_value()),
-        svg_style_reference_fragment_atom(element, svg_payload->fill_url_value()),
-        svg_style_reference_fragment_atom(element, svg_payload->stroke_url_value()),
+        mask_payload->mask_url_value(),
+        mask_payload->clip_path_value(),
+        svg_payload->fill_url_value(),
+        svg_payload->stroke_url_value(),
     };
+}
+
+static Array<CSS::StyleAtomID, 4> svg_style_reference_atoms(DOM::Element& element)
+{
+    if (!is<SVG::SVGGraphicsElement>(element))
+        return {};
+    auto urls = svg_style_reference_urls(element.style_record_payloads());
+    return {
+        svg_style_reference_fragment_atom(element, urls[0]),
+        svg_style_reference_fragment_atom(element, urls[1]),
+        svg_style_reference_fragment_atom(element, urls[2]),
+        svg_style_reference_fragment_atom(element, urls[3]),
+    };
+}
+
+bool svg_style_references_differ(CSS::InstalledStyle const& old_style, CSS::InstalledStyle const& new_style)
+{
+    auto const* old_payloads = static_cast<void const* const*>(old_style.payloads());
+    auto const* new_payloads = static_cast<void const* const*>(new_style.payloads());
+    if (old_payloads && new_payloads
+        && old_payloads[CSS::ComputedValues::MaskValues::style_group_index] == new_payloads[CSS::ComputedValues::MaskValues::style_group_index]
+        && old_payloads[CSS::ComputedValues::InheritedSVGValues::style_group_index] == new_payloads[CSS::ComputedValues::InheritedSVGValues::style_group_index])
+        return false;
+
+    auto old_urls = svg_style_reference_urls(old_payloads);
+    auto new_urls = svg_style_reference_urls(new_payloads);
+    for (size_t i = 0; i < old_urls.size(); ++i) {
+        if (old_urls[i].has_value() != new_urls[i].has_value())
+            return true;
+        if (old_urls[i].has_value() && old_urls[i]->url() != new_urls[i]->url())
+            return true;
+    }
+    return false;
 }
 
 RustFFI::FfiSvgAttributeFacts svg_geometry_facts(DOM::Element const& element)
