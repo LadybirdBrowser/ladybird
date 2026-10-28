@@ -1,0 +1,36 @@
+Harness status: OK
+
+Found 30 tests
+
+1 Pass
+29 Fail
+Fail	Popover focus test: default behavior - popover is not focused
+Fail	Popover button click focus test: default behavior - popover is not focused
+Pass	Popover corner cases test: default behavior - popover is not focused
+Fail	Popover focus test: autofocus popover
+Fail	Popover button click focus test: autofocus popover
+Fail	Popover corner cases test: autofocus popover
+Fail	Popover focus test: autofocus empty popover
+Fail	Popover button click focus test: autofocus empty popover
+Fail	Popover corner cases test: autofocus empty popover
+Fail	Popover focus test: autofocus popover with button
+Fail	Popover button click focus test: autofocus popover with button
+Fail	Popover corner cases test: autofocus popover with button
+Fail	Popover focus test: autofocus child
+Fail	Popover button click focus test: autofocus child
+Fail	Popover corner cases test: autofocus child
+Fail	Popover focus test: autofocus on tabindex=0 element
+Fail	Popover button click focus test: autofocus on tabindex=0 element
+Fail	Popover corner cases test: autofocus on tabindex=0 element
+Fail	Popover focus test: autofocus multiple children
+Fail	Popover button click focus test: autofocus multiple children
+Fail	Popover corner cases test: autofocus multiple children
+Fail	Popover focus test: autofocus popover and multiple autofocus children
+Fail	Popover button click focus test: autofocus popover and multiple autofocus children
+Fail	Popover corner cases test: autofocus popover and multiple autofocus children
+Fail	Popover focus test: Opening dialogs as popovers should use dialog initial focus algorithm.
+Fail	Popover button click focus test: Opening dialogs as popovers should use dialog initial focus algorithm.
+Fail	Popover corner cases test: Opening dialogs as popovers should use dialog initial focus algorithm.
+Fail	Popover focus test: Opening dialogs as popovers which have autofocus should focus the dialog.
+Fail	Popover button click focus test: Opening dialogs as popovers which have autofocus should focus the dialog.
+Fail	Popover corner cases test: Opening dialogs as popovers which have autofocus should focus the dialog.
