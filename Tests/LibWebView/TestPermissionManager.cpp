@@ -293,7 +293,14 @@ TEST_CASE(private_session_inherits_ordinary_block_live)
     EXPECT(private_session->snapshot().revision > revision_before);
     // The site settings panel shows the inherited block as the private session's own decision.
     EXPECT(private_session->decision(PermissionName::Geolocation, maps) == PermissionDecision::Block);
+
     VERIFY(private_session->snapshot().entries.size() == 1);
+
+    // An answer a private prompt collected before the block is stale now, and stays so once the block is lifted.
+    auto generation_before_reset = private_session->decision_generation(PermissionName::Geolocation, maps);
+    EXPECT(generation_before_reset > 0);
+    ordinary->set_decision(PermissionName::Geolocation, maps, {});
+    EXPECT(private_session->decision_generation(PermissionName::Geolocation, maps) > generation_before_reset);
 }
 
 TEST_CASE(private_session_does_not_inherit_allow)

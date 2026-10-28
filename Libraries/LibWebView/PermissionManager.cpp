@@ -180,9 +180,14 @@ static String generation_key(PermissionName name, URL::Origin const& origin)
     return MUST(String::formatted("{} {}", Web::Permissions::to_string(name), origin.serialize()));
 }
 
+// A private session's generation moves with the ordinary session's for the same site too, so an answer given while the
+// ordinary session blocked the site (and even unblocked it again) is stale.
 u64 PermissionManager::decision_generation(PermissionName name, URL::Origin const& origin) const
 {
-    return m_generations.get(generation_key(name, origin)).value_or(0);
+    auto generation = m_generations.get(generation_key(name, origin)).value_or(0);
+    if (m_ordinary_session)
+        generation += m_ordinary_session->decision_generation(name, origin);
+    return generation;
 }
 
 void PermissionManager::bump_generation(PermissionName name, URL::Origin const& origin)
