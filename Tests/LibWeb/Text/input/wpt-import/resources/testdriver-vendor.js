@@ -155,3 +155,28 @@ window.test_driver_internal.action_sequence = async function(actions, context) {
 window.test_driver_internal.set_permission = function(permission_params, context) {
     return window.internals.setPermission(permission_params.descriptor.name, permission_params.state);
 };
+
+// The WebDriver BiDi forms of the same, which the geolocation tests use.
+window.test_driver_internal.bidi.permissions.set_permission = function(params) {
+    return window.internals.setPermission(params.descriptor.name, params.state);
+};
+
+// An error override makes every request fail with POSITION_UNAVAILABLE, the one error WebDriver BiDi can emulate.
+// Clearing the override (coordinates: null) puts back the position the harness emulates for every test.
+window.test_driver_internal.bidi.emulation.set_geolocation_override = function(params) {
+    if (params.error) {
+        window.internals.setGeolocationEmulatedPositionUnavailable();
+        return Promise.resolve();
+    }
+    const coordinates = params.coordinates ?? { latitude: 37.7647658, longitude: -122.4345892, accuracy: 100 };
+    window.internals.setGeolocationEmulatedPosition(
+        coordinates.latitude,
+        coordinates.longitude,
+        coordinates.accuracy ?? 100,
+        coordinates.altitude ?? null,
+        coordinates.altitudeAccuracy ?? null,
+        coordinates.heading ?? null,
+        coordinates.speed ?? null
+    );
+    return Promise.resolve();
+};

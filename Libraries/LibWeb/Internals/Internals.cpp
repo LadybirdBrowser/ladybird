@@ -2096,13 +2096,23 @@ void Internals::set_environments_top_level_url(Utf16String const& url)
     window().associated_document().relevant_settings_object().top_level_creation_url = URL::Parser::basic_parse(url.utf16_view());
 }
 
-void Internals::set_geolocation_emulated_position(double latitude, double longitude, double accuracy)
+void Internals::set_geolocation_emulated_position(double latitude, double longitude, double accuracy, Optional<double> altitude, Optional<double> altitude_accuracy, Optional<double> heading, Optional<double> speed)
 {
     page().set_emulated_position_data(Geolocation::CoordinatesData {
         .accuracy = accuracy,
         .latitude = latitude,
         .longitude = longitude,
+        .altitude = altitude,
+        .altitude_accuracy = altitude_accuracy,
+        .heading = heading,
+        .speed = speed,
     });
+}
+
+// Every position request then fails with POSITION_UNAVAILABLE, as it does when no position can be found.
+void Internals::set_geolocation_emulated_position_unavailable()
+{
+    page().set_emulated_position_data(Geolocation::GeolocationPositionError::ErrorCode::PositionUnavailable);
 }
 
 GC::Ref<WebIDL::Promise> Internals::request_permission(Utf16String const& name)
