@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Values and Units Test: using lh and rlh units on the root element</title>
+<link rel="author" title="Florian Rivoal" href="https://florian.rivoal.net/">
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#font-relative-lengths">
+<style>
+#measure_me { position: absolute; }
+</style>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<div id=measure_me>&nbsp;</div>
+
+<script>
+  function get_root_font_size() {
+    return parseFloat(window.getComputedStyle(window.document.documentElement).fontSize);
+  }
+  function get_root_line_height() {
+    /* getComputedStyle returns the computed value (not the used value) for the line-height property,
+       and the computed value of line-height:normal is normal,
+       so we cannot just query the value fo the proerty directly on the root element.
+       However the height of an abspos that only contains a single character from the first available font
+       and doesn't have any ancestor that changes the font-size or line-height property
+       gives us an indirect way to measure the root line-height in px.
+    */
+    return parseFloat(window.getComputedStyle(document.getElementById("measure_me")).height);
+  }
+
+  window.document.documentElement.style="font-size: initial; line-height:initial;";
+  initial_f_s = get_root_font_size();
+  initial_l_h = get_root_line_height();
+
+  test(function() {
+    window.document.documentElement.style="font-size: 142px; line-height: 1lh;";
+    l_h = get_root_line_height();
+    assert_approx_equals( l_h, initial_l_h, 1, "the lh unit on the root element's line-height property uses font metrics corresponding to the initial values of the font or line-height properties");
+  }, "lh in line-height on root");
+
+  test(function() {
+    window.document.documentElement.style="font-size: 142px; line-height: 1rlh;";
+    l_h = get_root_line_height();
+    assert_approx_equals( l_h, initial_l_h, 1, "the rlh unit on the root element's line-height property uses font metrics corresponding to the initial values of the font or line-height properties");
+  }, "rlh in line-height on root");
+
+  test(function() {
+    window.document.documentElement.style="font-size: 1lh; line-height: 142px;";
+    f_s = get_root_font_size();
+    assert_approx_equals( f_s, initial_l_h, 1, "the lh unit on the root element's font-size property uses font metrics corresponding to the initial values of the font or line-height properties");
+  }, "lh in font-size on root");
+
+  test(function() {
+    window.document.documentElement.style="font-size: 1rlh; line-height: 142px;";
+    f_s = get_root_font_size();
+    assert_approx_equals( f_s, initial_l_h, 1, "the rlh unit on the root element's font-size property uses font metrics corresponding to the initial values of the font or line-height properties");
+
+  }, "rlh in font-size on root");
+
+
+  test(function() {
+    window.document.documentElement.style="font-size: 142px; line-height: 2lh;";
+    l_h = get_root_line_height();
+    assert_approx_equals( l_h, initial_l_h * 2, 1, "the lh unit on the root element's line-height property actually works as a unit and doesn't merely cause a fallback that doesn't take the number of units into account");
+  }, "2lh in line-height on root");
+
+  test(function() {
+    window.document.documentElement.style="font-size: 142px; line-height: 2rlh;";
+    l_h = get_root_line_height();
+    assert_approx_equals( l_h, initial_l_h * 2, 1, "the rlh unit on the root element's line-height property actually works as a unit and doesn't merely cause a fallback that doesn't take the number of units into account");
+  }, "2rlh in line-height on root");
+
+  test(function() {
+    window.document.documentElement.style="font-size: 2lh; line-height: 142px;";
+    f_s = get_root_font_size();
+    assert_approx_equals( f_s, initial_l_h * 2, 1, "the lh unit on the root element's font-size property actually works as a unit and doesn't merely cause a fallback that doesn't take the number of units into account");
+  }, "2lh in font-size on root");
+
+  test(function() {
+    window.document.documentElement.style="font-size: 2rlh; line-height: 142px;";
+    f_s = get_root_font_size();
+    assert_approx_equals( f_s, initial_l_h * 2, 1, "the rlh unit on the root element's font-size property actually works as a unit and doesn't merely cause a fallback that doesn't take the number of units into account");
+
+  }, "2rlh in font-size on root");
+
+  /*make the test result page readable again*/
+  window.document.documentElement.style="font-size: initial; line-height: initial;";
+</script>
