@@ -1708,7 +1708,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         ((marker_line_height - marker_block_size) / 2).max(CssPixels::default())
     }
 
-    fn create_marker_used_values(&self, list_item: Node, marker: Node) {
+    fn create_marker_used_values(&self, list_item: Node, marker: Node) -> used_values::RootInputCells {
         let list_item_used = self.used(list_item);
         let marker_constraints = ContainingBlockConstraints {
             percentage_basis_inline_size: list_item_used
@@ -1719,7 +1719,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 .then(|| list_item_used.content_block_size.get()),
             ..ContainingBlockConstraints::default()
         };
-        self.create_used_values(marker, marker_constraints);
+        used_values::RootInputCells::capture(self.create_used_values(marker, marker_constraints))
     }
 
     fn layout_list_item_marker(
@@ -1743,7 +1743,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         if marker_facts.is_floating() || marker_facts.is_absolutely_positioned() {
             return;
         }
-        self.create_marker_used_values(list_item, marker);
+        let mut marker_cells = self.create_marker_used_values(list_item, marker);
         let marker_style = self.style(marker);
         let marker_constraints = ContainingBlockConstraints {
             percentage_basis_inline_size: Some(self.used(list_item).content_inline_size.get()),
@@ -1752,9 +1752,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let max_content_inline_size = self
             .sizing()
             .calculate_max_content_inline_size(marker, marker_constraints);
-        let marker_used = self.used(marker);
-        marker_used.set_content_inline_size(max_content_inline_size);
-        marker_used.has_definite_inline_size.set(true);
+        marker_cells.set_content_inline_size(max_content_inline_size);
         let inner_available_space = AvailableSpace {
             inline_size: AvailableSize::definite(max_content_inline_size),
             block_size: AvailableSize::Indefinite,
@@ -1762,7 +1760,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let formatting_context::ChildLayout {
             outcome: marker_outcome,
             fragment_arrival,
-        } = formatting_context::layout_inside_child(
+        } = formatting_context::layout_inside_child_with_input_cells(
             run,
             None,
             None,
@@ -1776,6 +1774,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 },
                 participation: ParticipationInParentFormattingContext::Item,
             },
+            marker_cells,
             true,
         );
         marker_outcome.report_percentage_block_size_dependency_of(run, marker);
