@@ -32,6 +32,8 @@ public:
     IntSize size() const { return m_size; }
 
     ErrorOr<IPC::File> clone_handle() const { return IPC::File::clone_fd(m_shared_handle.fd()); }
+    // The NT handle itself, for opening the texture on another device in this process.
+    void* shared_handle() const { return to_handle(m_shared_handle.fd()); }
 
 private:
     D3DSharedTexture(ID3D12Resource*, IPC::File shared_handle, IntSize);

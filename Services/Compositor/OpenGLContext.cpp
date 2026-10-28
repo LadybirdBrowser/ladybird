@@ -37,6 +37,13 @@ extern "C" {
 #include <core/SkCanvas.h>
 #include <core/SkImage.h>
 
+#ifdef USE_DIRECTX
+#    include <LibGfx/D3DSharedTexture.h>
+#    include <LibGfx/Direct3DContext.h>
+#    include <d3d11_1.h>
+#    include <wrl/client.h>
+#endif
+
 // Enable WebGL if we're on macOS and can use Metal, if Linux can use ANGLE's OpenGL backend for CPU-painting tests,
 // if Windows can use ANGLE's Direct3D 11 backend, or if we can use shareable Vulkan images.
 #if defined(ENABLE_WEBGL_CPU_PAINTING_SURFACE) || defined(USE_VULKAN_DMABUF_IMAGES)
@@ -53,7 +60,7 @@ struct OpenGLContext::ColorBuffer {
     OwnPtr<Gfx::SharedImageBuffer> shared_image_buffer;
 #endif
     EGLSurface surface { EGL_NO_SURFACE };
-#ifdef USE_VULKAN_DMABUF_IMAGES
+#if defined(USE_VULKAN_DMABUF_IMAGES) || defined(USE_DIRECTX)
     EGLImage egl_image { EGL_NO_IMAGE };
 #endif
     GLuint texture { 0 };
@@ -143,7 +150,7 @@ void OpenGLContext::free_color_buffer([[maybe_unused]] ColorBuffer& color_buffer
         color_buffer.texture = 0;
     }
 
-#    ifdef USE_VULKAN_DMABUF_IMAGES
+#    if defined(USE_VULKAN_DMABUF_IMAGES) || defined(USE_DIRECTX)
     if (color_buffer.egl_image != EGL_NO_IMAGE) {
         eglDestroyImage(m_impl->display, color_buffer.egl_image);
         color_buffer.egl_image = EGL_NO_IMAGE;
@@ -189,32 +196,47 @@ static EGLConfig get_egl_config(EGLDisplay display)
     eglChooseConfig(display, config_attribs, configs.data(), number_of_configs, &number_of_configs);
     return number_of_configs > 0 ? configs[0] : EGL_NO_CONFIG_KHR;
 }
+
+static bool extension_list_contains(GLenum list, StringView extension)
+{
+    auto const* extensions = reinterpret_cast<char const*>(glGetString(list));
+    return extensions && StringView { extensions, strlen(extensions) }.split_view(' ').contains_slow(extension);
+}
+#endif
+
+#ifdef USE_DIRECTX
+static Microsoft::WRL::ComPtr<ID3D11Device1> get_d3d11_device(EGLDisplay display)
+{
+    EGLAttrib device = 0;
+    if (!eglQueryDisplayAttribEXT(display, EGL_DEVICE_EXT, &device))
+        return {};
+    EGLAttrib d3d11_device = 0;
+    if (!eglQueryDeviceAttribEXT(reinterpret_cast<EGLDeviceEXT>(device), EGL_D3D11_DEVICE_ANGLE, &d3d11_device))
+        return {};
+    Microsoft::WRL::ComPtr<ID3D11Device1> d3d11_device1;
+    if (FAILED(reinterpret_cast<ID3D11Device*>(d3d11_device)->QueryInterface(IID_PPV_ARGS(&d3d11_device1))))
+        return {};
+    return d3d11_device1;
+}
 #endif
 
 OwnPtr<OpenGLContext> OpenGLContext::create(RefPtr<Gfx::SkiaBackendContext> skia_backend_context, WebGLVersion webgl_version, [[maybe_unused]] DrawingBufferOptions drawing_buffer_options)
 {
 #ifdef ENABLE_WEBGL
-#    if defined(AK_OS_MACOS) || (defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID))
+#    ifdef ENABLE_WEBGL_CPU_PAINTING_SURFACE
     bool use_cpu_painting_surface = !skia_backend_context;
-#    elif defined(AK_OS_WINDOWS)
-    // FIXME: Share the drawing buffer with Skia's Direct3D 12 device (via an NT shared handle opened on ANGLE's
-    //        Direct3D 11 device) instead of reading it back to the CPU every frame.
-    bool use_cpu_painting_surface = true;
 #    else
+    if (!skia_backend_context)
+        return {};
     bool use_cpu_painting_surface = false;
 #    endif
 
-#    if defined(AK_OS_MACOS) || defined(USE_VULKAN_DMABUF_IMAGES)
-    if (!use_cpu_painting_surface && !skia_backend_context)
-        return {};
-#    endif
-
-#    if !defined(AK_OS_MACOS) && !defined(USE_VULKAN_DMABUF_IMAGES)
+#    if !defined(AK_OS_MACOS) && !defined(USE_VULKAN_DMABUF_IMAGES) && !defined(USE_DIRECTX)
     if (!use_cpu_painting_surface)
         return {};
 #    endif
 
-    EGLAttrib display_attributes[] = {
+    Vector<EGLAttrib, 8> display_attributes {
         EGL_PLATFORM_ANGLE_TYPE_ANGLE,
 #    if defined(AK_OS_MACOS)
         EGL_PLATFORM_ANGLE_TYPE_METAL_ANGLE,
@@ -225,10 +247,20 @@ OwnPtr<OpenGLContext> OpenGLContext::create(RefPtr<Gfx::SkiaBackendContext> skia
 #    elif defined(AK_OS_WINDOWS)
         EGL_PLATFORM_ANGLE_TYPE_D3D11_ANGLE,
 #    endif
-        EGL_NONE,
     };
+#    ifdef USE_DIRECTX
+    // ANGLE can only open the textures that Skia composites if its device is on the same adapter as Skia's.
+    if (!use_cpu_painting_surface) {
+        auto adapter_luid = skia_backend_context->direct3d_context().adapter_luid();
+        display_attributes.append(EGL_PLATFORM_ANGLE_D3D_LUID_HIGH_ANGLE);
+        display_attributes.append(static_cast<i32>(adapter_luid >> 32));
+        display_attributes.append(EGL_PLATFORM_ANGLE_D3D_LUID_LOW_ANGLE);
+        display_attributes.append(static_cast<u32>(adapter_luid));
+    }
+#    endif
+    display_attributes.append(EGL_NONE);
 
-    auto display = eglGetPlatformDisplay(EGL_PLATFORM_ANGLE_ANGLE, reinterpret_cast<void*>(EGL_DEFAULT_DISPLAY), display_attributes);
+    auto display = eglGetPlatformDisplay(EGL_PLATFORM_ANGLE_ANGLE, reinterpret_cast<void*>(EGL_DEFAULT_DISPLAY), display_attributes.data());
     if (display == EGL_NO_DISPLAY) {
         dbgln("Failed to get EGL display");
         return {};
@@ -296,6 +328,19 @@ OwnPtr<OpenGLContext> OpenGLContext::create(RefPtr<Gfx::SkiaBackendContext> skia
         if (!pfn_egl_query_dma_buf_modifiers_ext) {
             dbgln("eglQueryDmaBufModifiersEXT unavailable");
             return {};
+        }
+    }
+#    endif
+
+#    ifdef USE_DIRECTX
+    if (!use_cpu_painting_surface) {
+        eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, context);
+        // Drawing buffers are imported as EGL images, which a WebGL context leaves disabled.
+        if (extension_list_contains(GL_REQUESTABLE_EXTENSIONS_ANGLE, "GL_OES_EGL_image"sv)) {
+            glRequestExtensionANGLE("GL_OES_EGL_image");
+        } else {
+            dbgln("Compositor: ANGLE cannot import EGL images; falling back to a CPU painting surface");
+            use_cpu_painting_surface = true;
         }
     }
 #    endif
@@ -423,6 +468,61 @@ void OpenGLContext::allocate_iosurface_color_buffer(ColorBuffer& color_buffer, G
 }
 #endif
 
+#if defined(USE_VULKAN_DMABUF_IMAGES) || defined(USE_DIRECTX)
+void OpenGLContext::create_texture_from_egl_image(ColorBuffer& color_buffer)
+{
+    eglMakeCurrent(m_impl->display, EGL_NO_SURFACE, EGL_NO_SURFACE, m_impl->context);
+
+    glGenTextures(1, &color_buffer.texture);
+    with_texture_bound(GL_TEXTURE_2D, color_buffer.texture, [&] {
+        glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, color_buffer.egl_image);
+    });
+}
+#endif
+
+#ifdef USE_DIRECTX
+bool OpenGLContext::allocate_d3d_color_buffer(ColorBuffer& color_buffer, Gfx::IntSize size, Gfx::PaintingSurface::Origin origin)
+{
+    auto d3d11_device = get_d3d11_device(m_impl->display);
+    if (!d3d11_device) {
+        dbgln("Compositor: ANGLE's Direct3D 11 device is unavailable");
+        return false;
+    }
+
+    auto texture = Gfx::D3DSharedTexture::create(m_skia_backend_context->direct3d_context(), size);
+    if (texture.is_error()) {
+        dbgln("Compositor: Failed to allocate a shared Direct3D texture for WebGL: {}", texture.error());
+        return false;
+    }
+
+    // Skia composites the texture from its Direct3D 12 device, and ANGLE draws into it from its own Direct3D 11
+    // device, which opens it through its shared handle. The EGL image keeps a reference to what ANGLE opened.
+    Microsoft::WRL::ComPtr<ID3D11Texture2D> d3d11_texture;
+    auto result = d3d11_device->OpenSharedResource1(texture.value()->shared_handle(), IID_PPV_ARGS(&d3d11_texture));
+    if (FAILED(result)) {
+        dbgln("Compositor: ANGLE failed to open a shared Direct3D texture: {}", Error::from_windows_error(result));
+        return false;
+    }
+
+    color_buffer.egl_image = eglCreateImage(m_impl->display, EGL_NO_CONTEXT, EGL_D3D11_TEXTURE_ANGLE, static_cast<EGLClientBuffer>(d3d11_texture.Get()), nullptr);
+    if (color_buffer.egl_image == EGL_NO_IMAGE) {
+        dbgln("Compositor: eglCreateImage for a shared Direct3D texture failed: {:#x}", eglGetError());
+        return false;
+    }
+
+    auto painting_surface = Gfx::PaintingSurface::create_from_d3d_texture(*m_skia_backend_context, texture.release_value(), origin);
+    if (painting_surface.is_error()) {
+        dbgln("Compositor: {}", painting_surface.error());
+        free_color_buffer(color_buffer);
+        return false;
+    }
+    color_buffer.painting_surface = painting_surface.release_value();
+
+    create_texture_from_egl_image(color_buffer);
+    return true;
+}
+#endif
+
 #ifdef USE_VULKAN_DMABUF_IMAGES
 bool OpenGLContext::allocate_vkimage_color_buffer(ColorBuffer& color_buffer, Gfx::IntSize size, Gfx::PaintingSurface::Origin origin)
 {
@@ -491,13 +591,7 @@ bool OpenGLContext::allocate_vkimage_color_buffer(ColorBuffer& color_buffer, Gfx
         return false;
     }
 
-    eglMakeCurrent(m_impl->display, EGL_NO_SURFACE, EGL_NO_SURFACE, m_impl->context);
-
-    glGenTextures(1, &color_buffer.texture);
-    with_texture_bound(GL_TEXTURE_2D, color_buffer.texture, [&] {
-        glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, color_buffer.egl_image);
-    });
-
+    create_texture_from_egl_image(color_buffer);
     return true;
 }
 #endif
@@ -616,28 +710,17 @@ void OpenGLContext::allocate_painting_surface_if_needed()
     VERIFY(!m_size.is_empty());
 
     auto& color_buffer = m_impl->color_buffers[m_impl->drawing_color_buffer_index];
-#    if defined(AK_OS_MACOS)
-    if (m_impl->uses_cpu_painting_surface) {
-        allocate_cpu_painting_surface(color_buffer);
-    } else {
-        allocate_iosurface_color_buffer(color_buffer, m_size, Gfx::PaintingSurface::Origin::BottomLeft);
-    }
-#    elif defined(USE_VULKAN_DMABUF_IMAGES)
-#        if defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID)
-    if (m_impl->uses_cpu_painting_surface) {
-        allocate_cpu_painting_surface(color_buffer);
-    } else if (!allocate_vkimage_color_buffer(color_buffer, m_size, Gfx::PaintingSurface::Origin::BottomLeft)) {
-        // This driver advertises the DMABUF EGL extensions but can't actually allocate a Vulkan/DMABUF painting surface
-        // (unsupported format, modifier, or image import). Fall back to a CPU painting surface.
+#    if defined(ENABLE_WEBGL_CPU_PAINTING_SURFACE)
+    // A driver can offer to share a drawing buffer with Skia and still fail to allocate one (an unsupported format or
+    // modifier, or a failed import), so the context falls back to a CPU painting surface.
+    if (!m_impl->uses_cpu_painting_surface && !allocate_color_buffer(color_buffer)) {
         m_impl->uses_cpu_painting_surface = true;
         free_surface_resources();
-        allocate_cpu_painting_surface(color_buffer);
     }
-#        else
-    (void)allocate_vkimage_color_buffer(color_buffer, m_size, Gfx::PaintingSurface::Origin::BottomLeft);
-#        endif
-#    elif (defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID)) || defined(AK_OS_WINDOWS)
-    allocate_cpu_painting_surface(color_buffer);
+    if (m_impl->uses_cpu_painting_surface)
+        allocate_cpu_painting_surface(color_buffer);
+#    else
+    (void)allocate_color_buffer(color_buffer);
 #    endif
     VERIFY(color_buffer.is_allocated());
     VERIFY(eglGetCurrentContext() == m_impl->context);
@@ -698,10 +781,9 @@ void OpenGLContext::flush_drawing_buffer()
         glFinish();
     else
         eglWaitUntilWorkScheduledANGLE(m_impl->display);
-#    elif defined(USE_VULKAN_DMABUF_IMAGES)
-    // FIXME: CPU sync for now, but it would be better to export a fence and have Skia wait for it before reading from the surface
-    glFinish();
-#    elif (defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID)) || defined(AK_OS_WINDOWS)
+#    else
+    // FIXME: CPU sync for now, but it would be better to export a fence and have Skia wait for it before reading from a
+    //        shared surface
     glFinish();
 #    endif
 
@@ -757,6 +839,8 @@ bool OpenGLContext::allocate_shared_color_buffer([[maybe_unused]] ColorBuffer& c
     return true;
 #    elif defined(USE_VULKAN_DMABUF_IMAGES)
     return allocate_vkimage_color_buffer(color_buffer, size, origin);
+#    elif defined(USE_DIRECTX)
+    return allocate_d3d_color_buffer(color_buffer, size, origin);
 #    else
     return false;
 #    endif
@@ -781,10 +865,8 @@ void OpenGLContext::attach_color_buffer_to_default_framebuffer(ColorBuffer const
 
 bool OpenGLContext::supports_copy_texture()
 {
-    if (!m_impl->supports_copy_texture.has_value()) {
-        auto const* extensions = reinterpret_cast<char const*>(glGetString(GL_EXTENSIONS));
-        m_impl->supports_copy_texture = extensions && StringView { extensions, strlen(extensions) }.split_view(' ').contains_slow("GL_CHROMIUM_copy_texture"sv);
-    }
+    if (!m_impl->supports_copy_texture.has_value())
+        m_impl->supports_copy_texture = extension_list_contains(GL_EXTENSIONS, "GL_CHROMIUM_copy_texture"sv);
     return *m_impl->supports_copy_texture;
 }
 #endif
@@ -818,6 +900,8 @@ bool OpenGLContext::can_copy_images_into_textures()
 #if defined(AK_OS_MACOS) || defined(USE_VULKAN_DMABUF_IMAGES)
     return m_skia_backend_context && !m_impl->uses_cpu_painting_surface && supports_copy_texture();
 #else
+    // FIXME: Windows shares color buffers too, but ANGLE's Direct3D 11 device may not have run a copy out of the upload
+    //        buffer yet when Skia's Direct3D 12 device draws the next upload into it.
     return false;
 #endif
 }
