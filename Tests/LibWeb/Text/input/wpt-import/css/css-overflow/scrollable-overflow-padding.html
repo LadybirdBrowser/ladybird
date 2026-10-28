@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-overflow-3/#scrollable">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/129">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+scrollable-container {
+  display: block;
+  width: 100px;
+  height: 100px;
+  overflow: scroll;
+  padding: 10px 5px;
+  line-height: 0;
+}
+
+scrollable-container > div {
+  position: relative;
+  writing-mode: horizontal-tb;
+  direction: ltr;
+  outline: solid red 2px;
+}
+</style>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('scrollable-container')">
+
+<!--
+  All of these tests have a child which contributes to the "alignment rectangle" ("infow-bounds" in Blink).
+  However doesn't directly contribute to the scrollable-overflow as it is relative-positioned before the
+  "scroll origin" edge(s).
+
+  All of these tests have an inline/block end margin (wrt. the parent writing-mode + direction).
+-->
+
+<!-- HTB + LTR -->
+<div style="writing-mode: horizontal-tb; direction: ltr;">
+  <scrollable-container data-expected-scroll-height="270">
+    <div style="width: 0; height: 200px; margin-bottom: 50px; top: -1000px;"></div>
+  </scrollable-container>
+
+  <scrollable-container data-expected-scroll-width="260">
+    <div style="width: 200px; height: 0; margin-right: 50px; left: -1000px;"></div>
+  </scrollable-container>
+
+  <scrollable-container data-expected-scroll-height="270">
+    <div style="width: 0; height: 200px; margin-bottom: 50px; top: -1000px; display: inline-block;"></div>
+  </scrollable-container>
+
+  <scrollable-container data-expected-scroll-width="260">
+    <div style="width: 200px; height: 0; margin-right: 50px; left: -1000px; display: inline-block;"></div>
+  </scrollable-container>
+
+  <!-- For this specific case collapsed-margins affect the size of the alignment rectangle. -->
+  <scrollable-container data-expected-scroll-height="270">
+    <div style="width: 0; margin-bottom: 100px; top: -1000px;">
+      <div style="height: 200px; margin-bottom: -50px;"></div>
+    </div>
+  </scrollable-container>
+</div>
+
+<!-- HTB + RTL -->
+<div style="writing-mode: horizontal-tb; direction: rtl;">
+  <scrollable-container data-expected-scroll-height="270">
+    <div style="width: 0; height: 200px; margin-bottom: 50px; top: -1000px;"></div>
+  </scrollable-container>
+
+  <scrollable-container data-expected-scroll-width="260">
+    <div style="width: 200px; height: 0; margin-left: 50px; right: -1000px;"></div>
+  </scrollable-container>
+
+  <scrollable-container data-expected-scroll-height="270">
+    <div style="width: 0; height: 200px; margin-bottom: 50px; top: -1000px; display: inline-block;"></div>
+  </scrollable-container>
+
+  <scrollable-container data-expected-scroll-width="260">
+    <div style="width: 200px; height: 0; margin-left: 50px; right: -1000px; display: inline-block;"></div>
+  </scrollable-container>
+
+  <scrollable-container data-expected-scroll-height="270">
+    <div style="width: 0; margin-bottom: 100px; top: -1000px;">
+      <div style="height: 200px; margin-bottom: -50px;"></div>
+    </div>
+  </scrollable-container>
+</div>
+
+<!-- VRL + LTR -->
+<div style="writing-mode: vertical-rl; direction: ltr;">
+  <scrollable-container data-expected-scroll-width="260">
+    <div style="width: 200px; height: 0; margin-left: 50px; right: -1000px;"></div>
+  </scrollable-container>
+
+  <scrollable-container data-expected-scroll-height="270">
+    <div style="width: 0; height: 200px; margin-bottom: 50px; top: -1000px;"></div>
+  </scrollable-container>
+
+  <scrollable-container data-expected-scroll-width="260">
+    <div style="width: 200px; height: 0; margin-left: 50px; right: -1000px; display: inline-block;"></div>
+  </scrollable-container>
+
+  <scrollable-container data-expected-scroll-height="270">
+    <div style="width: 0; height: 200px; margin-bottom: 50px; top: -1000px; display: inline-block;"></div>
+  </scrollable-container>
+
+  <scrollable-container data-expected-scroll-width="260">
+    <div style="height: 0; margin-left: 100px; right: -1000px;">
+      <div style="width: 200px; margin-left: -50px;"></div>
+    </div>
+  </scrollable-container>
+</div>
+
+<!-- VRL + RTL -->
+<div style="writing-mode: vertical-rl; direction: rtl;">
+  <scrollable-container data-expected-scroll-width="260">
+    <div style="width: 200px; height: 0; margin-left: 50px; right: -1000px;"></div>
+  </scrollable-container>
+
+  <scrollable-container data-expected-scroll-height="270">
+    <div style="width: 0; height: 200px; margin-top: 50px; bottom: -1000px;"></div>
+  </scrollable-container>
+
+  <scrollable-container data-expected-scroll-width="260">
+    <div style="width: 200px; height: 0; margin-left: 50px; right: -1000px; display: inline-block;"></div>
+  </scrollable-container>
+
+  <scrollable-container data-expected-scroll-height="270">
+    <div style="width: 0; height: 200px; margin-top: 50px; bottom: -1000px; display: inline-block;"></div>
+  </scrollable-container>
+
+  <scrollable-container data-expected-scroll-width="260">
+    <div style="height: 0; margin-left: 100px; right: -1000px;">
+      <div style="width: 200px; margin-left: -50px;"></div>
+    </div>
+  </scrollable-container>
+</div>
+
+<!-- VLR + LTR -->
+<div style="writing-mode: vertical-lr; direction: ltr;">
+  <scrollable-container data-expected-scroll-width="260">
+    <div style="width: 200px; height: 0; margin-right: 50px; left: -1000px;"></div>
+  </scrollable-container>
+
+  <scrollable-container data-expected-scroll-height="270">
+    <div style="width: 0; height: 200px; margin-bottom: 50px; top: -1000px;"></div>
+  </scrollable-container>
+
+  <scrollable-container data-expected-scroll-width="260">
+    <div style="width: 200px; height: 0; margin-right: 50px; left: -1000px; display: inline-block;"></div>
+  </scrollable-container>
+
+  <scrollable-container data-expected-scroll-height="270">
+    <div style="width: 0; height: 200px; margin-bottom: 50px; top: -1000px; display: inline-block;"></div>
+  </scrollable-container>
+
+  <scrollable-container data-expected-scroll-width="260">
+    <div style="height: 0; margin-right: 100px; left: -1000px;">
+      <div style="width: 200px; margin-right: -50px;"></div>
+    </div>
+  </scrollable-container>
+</div>
+
+<!-- VLR + RTL -->
+<div style="writing-mode: vertical-rl; direction: rtl;">
+  <scrollable-container data-expected-scroll-width="260">
+    <div style="width: 200px; height: 0; margin-right: 50px; left: -1000px;"></div>
+  </scrollable-container>
+
+  <scrollable-container data-expected-scroll-height="270">
+    <div style="width: 0; height: 200px; margin-top: 50px; bottom: -1000px;"></div>
+  </scrollable-container>
+
+  <scrollable-container data-expected-scroll-width="260">
+    <div style="width: 200px; height: 0; margin-right: 50px; left: -1000px; display: inline-block;"></div>
+  </scrollable-container>
+
+  <scrollable-container data-expected-scroll-height="270">
+    <div style="width: 0; height: 200px; margin-top: 50px; bottom: -1000px; display: inline-block;"></div>
+  </scrollable-container>
+
+  <scrollable-container data-expected-scroll-width="260">
+    <div style="height: 0; margin-right: 100px; left: -1000px;">
+      <div style="width: 200px; margin-right: -50px;"></div>
+    </div>
+  </scrollable-container>
+</div>
