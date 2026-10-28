@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<link rel="author" title="David Shin" href="mailto:dshin@mozilla.com">
+<link rel="help" href="https://drafts.csswg.org/css-position-3/#abspos-auto-size">
+<link rel="help" href="https://drafts.csswg.org/css-position-3/#abspos-margins">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1983756">
+<meta name="assert" content="Checks that automatic margins are computed correctly for size auto abspos boxes.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<style>
+.container {
+  width: 40px;
+  height: 40px;
+  border: 1px solid;
+  position: relative;
+}
+
+.abspos {
+  inset: 0;
+  margin: auto;
+  background: orange;
+  position: absolute;
+}
+
+:is(.vrl, .vlr) .abspos {
+  writing-mode: horizontal-tb;
+}
+
+.vrl {
+  writing-mode: vertical-rl;
+}
+
+.vlr {
+  writing-mode: vertical-lr;
+}
+
+.content {
+  width: 20px;
+  height: 20px;
+}
+</style>
+<!-- Tests with .container's writing-mode: horizontal-tb. -->
+<template id=outerHtb>
+  <div class=container>
+    <div class=abspos style="align-self: start;" data-offset-y=10 data-expected-height=20><div class=content></div></div>
+    <div class=abspos style="justify-self: start;" data-offset-x=10 data-expected-width=20><div class=content></div></div>
+    <div class=abspos style="display: table;" data-offset-y=10 data-expected-height=20><div class=content></div></div>
+  </div>
+  <div class=container>
+    <div class=abspos style="margin-top: 0; align-self: start;" data-offset-y=0 data-expected-height=20><div class=content></div></div>
+    <div class=abspos style="margin-left: 0; justify-self: start;" data-offset-x=0 data-expected-width=20><div class=content></div></div>
+    <div class=abspos style="margin-top: 0; margin-left: 0; display: table;" data-offset-y=0 data-expected-height=20><div class=content></div></div>
+  </div>
+  <div class=container>
+    <div class=abspos style="margin-bottom: 0; align-self: start;" data-offset-y=20 data-expected-height=20><div class=content></div></div>
+    <div class=abspos style="margin-right: 0; justify-self: start;" data-offset-x=20 data-expected-width=20><div class=content></div></div>
+    <div class=abspos style="margin-bottom: 0; margin-right: 0; display: table;" data-offset-y=20 data-expected-height=20><div class=content></div></div>
+  </div>
+</template>
+<!-- Tests with .abspos' writing-mode: horizontal-tb. -->
+<template id=innerHtb>
+  <div class=container>
+    <div class=abspos style="align-self: start;" data-offset-y=0 data-expected-width=20><div class=content></div></div>
+    <div class=abspos style="justify-self: start;" data-offset-x=0 data-expected-height=20><div class=content></div></div>
+    <div class=abspos style="display: table;" data-offset-y=10 data-expected-width=20><div class=content></div></div>
+  </div>
+  <div class=container>
+    <div class=abspos style="margin-top: 0; align-self: start;" data-offset-y=0 data-expected-width=20><div class=content></div></div>
+    <div class=abspos style="margin-left: 0; justify-self: start;" data-offset-x=0 data-expected-height=20><div class=content></div></div>
+    <div class=abspos style="margin-top: 0; margin-left: 0; display: table;" data-offset-y=0 data-expected-width=20><div class=content></div></div>
+  </div>
+  <div class=container>
+    <div class=abspos style="margin-bottom: 0; align-self: start;" data-offset-y=0 data-expected-width=20><div class=content></div></div>
+    <div class=abspos style="margin-right: 0; justify-self: start;" data-offset-x=0 data-expected-height=20><div class=content></div></div>
+    <div class=abspos style="margin-bottom: 0; margin-right: 0; display: table;" data-offset-y=20 data-expected-width=20><div class=content></div></div>
+  </div>
+</template>
+<div id=tests></div>
+<div id=log></div>
+</body>
+<script>
+function add_tests(template, query, for_each_queried) {
+  const t = template.content.cloneNode(true);
+  for(const q of t.querySelectorAll(query)) {
+    for_each_queried(q);
+  }
+  tests.append(t);
+}
+add_tests(outerHtb, '.abspos', a => {});
+add_tests(outerHtb, '.abspos', a => a.classList.add('vlr'));
+add_tests(outerHtb, '.abspos', a => a.classList.add('vrl'));
+add_tests(innerHtb, '.container', a => a.classList.add('vlr'));
+add_tests(innerHtb, '.container', a => a.classList.add('vrl'));
+document.body.offsetTop;
+checkLayout('#tests .abspos')
+</script>
