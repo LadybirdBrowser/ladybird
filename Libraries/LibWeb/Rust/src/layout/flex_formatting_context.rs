@@ -291,11 +291,11 @@ impl<'pass> FlexFormattingContext<'pass> {
             .with_children_sized_in_parent_cells(self)
     }
 
-    fn create_used_values(&self, node: Node) -> &'pass UsedValues {
+    fn keep_item_for_its_run(&self, node: Node) -> used_values::RootInputCells {
         let constraints = self.item_percentage_bases;
         self.run
             .records
-            .create_used_values(&self.run.callbacks, node, constraints)
+            .keep_child_for_its_run(&self.run.callbacks, node, constraints)
     }
 
     fn constraints_for_child_context(
@@ -936,7 +936,7 @@ impl<'pass> FlexFormattingContext<'pass> {
                         node_facts::has_flag(facts.data(), NodeFlag::IsFlexItem),
                         "the facts of a flex item are derived before layout"
                     );
-                    let cells = used_values::RootInputCells::capture(self.create_used_values(child));
+                    let cells = self.keep_item_for_its_run(child);
                     buckets
                         .entry(self.style(child).order())
                         .or_default()
