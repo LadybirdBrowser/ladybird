@@ -2582,7 +2582,11 @@ impl<'pass> TableFormattingContext<'pass> {
             },
             participation: ParticipationInParentFormattingContext::Item,
         };
-        let outcome = formatting_context::layout_inside_child(run, None, None, cell.box_, layout_input, false);
+        let formatting_context::ChildLayout {
+            outcome,
+            fragment_arrival,
+        } = formatting_context::layout_inside_child(run, None, None, cell.box_, layout_input, false);
+        formatting_context::hold_fragment_arrival_until_placement(run, cell.box_, fragment_arrival);
         outcome.report_percentage_block_size_dependency_of(run, cell.box_);
         match outcome {
             ChildLayoutOutcome::Created(result) => result.baselines,

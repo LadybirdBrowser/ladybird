@@ -623,6 +623,29 @@ impl UnplacedRootFragment {
     }
 }
 
+/// What the layout of a child hands the child's placement: the unplaced root fragment of the child's run, or a
+/// committed fragment the child is placed with as it is.
+#[must_use = "a child's fragments are lost unless its placement takes them"]
+pub(crate) enum ChildFragmentArrival {
+    RunRoot {
+        root: UnplacedRootFragment,
+        reuses_committed_subtree: bool,
+    },
+    CommittedFragment {
+        fragment: std::sync::Arc<Fragment>,
+        reuses_subtree: bool,
+    },
+}
+
+impl ChildFragmentArrival {
+    pub(crate) fn node(&self) -> crate::layout::node_data::NodeSlotId {
+        match self {
+            Self::RunRoot { root, .. } => root.node,
+            Self::CommittedFragment { fragment, .. } => fragment.node,
+        }
+    }
+}
+
 #[derive(Clone, Copy)]
 pub(crate) struct SlotFragment<'tree> {
     pub(crate) link: &'tree FragmentLink,
@@ -1099,7 +1122,39 @@ impl RunFragmentBuilder {
         taken
     }
 
-    pub(crate) fn hold_unplaced_root(&self, root: UnplacedRootFragment) {
+    /// Keeps what the layout of the child `node` handed its placement until the placement takes it.
+    pub(crate) fn hold_child_fragment_arrival(
+        &self,
+        node: crate::layout::node_data::NodeSlotId,
+        used: &UsedValues,
+        arrival: ChildFragmentArrival,
+    ) {
+        debug_assert!(
+            arrival.node() == node,
+            "a child's fragments arrived for a different box"
+        );
+        match arrival {
+            ChildFragmentArrival::RunRoot {
+                root,
+                reuses_committed_subtree,
+            } => {
+                if reuses_committed_subtree {
+                    self.note_reused_subtree_root(node);
+                }
+                self.hold_unplaced_root(root);
+            }
+            ChildFragmentArrival::CommittedFragment {
+                fragment,
+                reuses_subtree: true,
+            } => self.hold_reused_committed_fragment(node, used, fragment),
+            ChildFragmentArrival::CommittedFragment {
+                fragment,
+                reuses_subtree: false,
+            } => self.hold_committed_fragment_of_empty_box(used, fragment),
+        }
+    }
+
+    fn hold_unplaced_root(&self, root: UnplacedRootFragment) {
         let slot = root.node.slot_index();
         let mut inner = self.inner.borrow_mut();
         inner

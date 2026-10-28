@@ -1745,7 +1745,10 @@ impl<'pass> BlockFormattingContext<'pass> {
             inline_size: AvailableSize::definite(max_content_inline_size),
             block_size: AvailableSize::Indefinite,
         };
-        let marker_outcome = formatting_context::layout_inside_child(
+        let formatting_context::ChildLayout {
+            outcome: marker_outcome,
+            fragment_arrival,
+        } = formatting_context::layout_inside_child(
             run,
             None,
             None,
@@ -1761,6 +1764,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             },
             true,
         );
+        formatting_context::hold_fragment_arrival_until_placement(run, marker, fragment_arrival);
         marker_outcome.report_percentage_block_size_dependency_of(run, marker);
         match marker_outcome {
             ChildLayoutOutcome::Created(_) | ChildLayoutOutcome::Skipped { .. } => {}
@@ -1806,8 +1810,11 @@ impl<'pass> BlockFormattingContext<'pass> {
         input: LayoutInput,
         force_independent_context_run: bool,
     ) -> Option<formatting_context::ChildLayoutResult> {
-        let outcome =
-            formatting_context::layout_inside_child(run, Some(self), None, node, input, force_independent_context_run);
+        let formatting_context::ChildLayout {
+            outcome,
+            fragment_arrival,
+        } = formatting_context::layout_inside_child(run, Some(self), None, node, input, force_independent_context_run);
+        formatting_context::hold_fragment_arrival_until_placement(run, node, fragment_arrival);
         outcome.report_percentage_block_size_dependency_of(run, node);
         match outcome {
             ChildLayoutOutcome::Skipped { .. } => None,

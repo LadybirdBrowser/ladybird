@@ -1283,7 +1283,11 @@ impl<'context> InlineFormattingContext<'context> {
             self.input.containing_block_constraints,
             ParticipationInParentFormattingContext::AtomicInline,
         );
-        let outcome = formatting_context::layout_inside_child(self.run, Some(self.parent), None, node, input, false);
+        let formatting_context::ChildLayout {
+            outcome,
+            fragment_arrival,
+        } = formatting_context::layout_inside_child(self.run, Some(self.parent), None, node, input, false);
+        formatting_context::hold_fragment_arrival_until_placement(self.run, node, fragment_arrival);
         outcome.report_percentage_block_size_dependency_of(self.run, node);
         match outcome {
             ChildLayoutOutcome::Created(result) => result.baselines,

@@ -2039,7 +2039,11 @@ impl<'pass> SvgFormattingContext<'pass> {
                 },
                 ..self.nested_layout_input()
             };
-            let outcome = formatting_context::layout_inside_child(run, None, None, child, child_input, true);
+            let formatting_context::ChildLayout {
+                outcome,
+                fragment_arrival,
+            } = formatting_context::layout_inside_child(run, None, None, child, child_input, true);
+            formatting_context::hold_fragment_arrival_until_placement(run, child, fragment_arrival);
             outcome.report_percentage_block_size_dependency_of(run, child);
             match outcome {
                 ChildLayoutOutcome::Created(_) => {}
