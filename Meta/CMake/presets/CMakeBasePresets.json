@@ -82,6 +82,7 @@
       "description": "Distribution build with static libraries",
       "binaryDir": "$env{LADYBIRD_SOURCE_DIR}/Build/distribution",
       "cacheVariables": {
+        "BUILD_BROWSER_TESTS_ONLY": "ON",
         "BUILD_SHARED_LIBS": "OFF",
         "CMAKE_BUILD_TYPE": "Release",
         "LADYBIRD_GENERATE_SYMBOL_FILES": "ON",

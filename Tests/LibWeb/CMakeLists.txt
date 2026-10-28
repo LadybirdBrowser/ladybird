@@ -1,3 +1,17 @@
+add_subdirectory("test-web")
+
+if (BUILD_TESTING AND NOT WIN32)
+    add_test(
+        NAME TestWebDriverHTTPErrorResponses
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-http-error-responses.py $<TARGET_FILE:WebDriver>
+    )
+    set_tests_properties(TestWebDriverHTTPErrorResponses PROPERTIES TIMEOUT 120)
+endif()
+
+if (BUILD_BROWSER_TESTS_ONLY)
+    return()
+endif()
+
 set(TEST_SOURCES
     BenchmarkDisplayListRecording.cpp
     TestAudioWorkletPipe.cpp
@@ -103,16 +117,6 @@ target_sources(TestWindowProxyWorld PRIVATE
     ${ladybird_SOURCE_DIR}/Libraries/LibWeb/WebIDL/CallbackType.cpp
 )
 target_link_libraries(TestWindowProxyWorld PRIVATE LibGC LibJS LibWeb)
-
-add_subdirectory("test-web")
-
-if (BUILD_TESTING AND NOT WIN32)
-    add_test(
-        NAME TestWebDriverHTTPErrorResponses
-        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-http-error-responses.py $<TARGET_FILE:WebDriver>
-    )
-    set_tests_properties(TestWebDriverHTTPErrorResponses PROPERTIES TIMEOUT 120)
-endif()
 
 # The check reads the symbols of the build's objects with nm, which can't see into an LTO build's bitcode objects and
 # isn't the toolchain's symbol reader on Windows.

@@ -7,6 +7,7 @@ option(UNDEFINED_BEHAVIOR_IS_FATAL "Make undefined behavior sanitizer errors non
 option(ENABLE_ALL_THE_DEBUG_MACROS "Enable all debug macros to validate they still compile" OFF)
 
 option(INCLUDE_WASM_SPEC_TESTS "Download and include the WebAssembly spec testsuite" OFF)
+option(BUILD_BROWSER_TESTS_ONLY "Only build the tests that run the browser's own executables" OFF)
 
 # The optimizing JIT for JavaScript generates code for x86-64 and AArch64 with the calling conventions of Linux and
 # macOS. Elsewhere, LibJS runs JavaScript in its interpreter alone.

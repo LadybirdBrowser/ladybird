@@ -34,6 +34,7 @@ There are some optional features that can be enabled during compilation that are
 - `ENABLE_CI_BASELINE_CPU`: builds C++ and Rust for a common CPU target instead of the build machine. Disabled by default; explicitly set `-DENABLE_CI_BASELINE_CPU=ON` when packaging binaries for older machines. On x86-64 this is x86-64-v2 (SSE4.2 and POPCNT), so distributed binaries run without AVX, AVX2, BMI or LZCNT. Both the JavaScript and WebAssembly JITs remain available; WebAssembly selects newer instructions at runtime when supported.
 - `INCLUDE_WASM_SPEC_TESTS`: downloads and includes the WebAssembly spec testsuite tests. In order to use this option, you will need to install `prettier` and `wasm-tools`.
 - `INCLUDE_FLAC_SPEC_TESTS`: downloads and includes the xiph.org FLAC test suite.
+- `BUILD_BROWSER_TESTS_ONLY`: only builds the tests that run the browser's own executables, such as the LibWeb test suite and the WebDriver tests, and leaves out the test programs for individual libraries. Enabled by the `Distribution` preset.
 - `LADYBIRD_CACHE_DIR`: sets the location of a shared cache of downloaded files. Should not need to be set manually unless managing a distribution package.
 - `ENABLE_NETWORK_DOWNLOADS`: allows downloading files from the internet during the build. Default on, turning off enables offline builds. For offline builds, the structure of the LADYBIRD_CACHE_DIR must be set up the way that the build expects.
 - `ENABLE_CLANG_PLUGINS`: enables Clang plugins which analyze the code for programming mistakes. See [Clang Plugins](#clang-plugins) below.
