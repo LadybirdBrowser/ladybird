@@ -4467,6 +4467,7 @@ impl<'pass> GridFormattingContext<'pass> {
                 item.box_,
                 input,
                 cells,
+                None,
                 false,
                 run.percentage_block_insets_of_root_children_have_definite_basis(),
             );

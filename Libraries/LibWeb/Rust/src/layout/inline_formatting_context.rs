@@ -1237,14 +1237,6 @@ impl<'context> InlineFormattingContext<'context> {
     /// The sizes, box sides and baselines of `node`, a box this context lays out or one it keeps for a run of its own
     /// that has not laid it out yet.
     #[track_caller]
-    pub(crate) fn create_used_values(
-        &self,
-        node: Node,
-        constraints: ContainingBlockConstraints,
-    ) -> &'context UsedValues {
-        self.run.records.create_used_values(&self.callbacks, node, constraints)
-    }
-
     /// Keeps the sizes and box sides `sides` and the used insets `insets` this context resolved for `node`, an inline
     /// box it entered.
     pub(crate) fn keep_entered_inline_box(
@@ -1485,6 +1477,7 @@ impl<'context> InlineFormattingContext<'context> {
             node,
             input,
             cells,
+            None,
             false,
             self.block_container.percentage_block_insets_have_definite_basis,
         );
@@ -2040,19 +2033,35 @@ impl<'context> InlineFormattingContext<'context> {
                 }
                 inline_level_iterator::ItemType::FloatingElement => {
                     line_builder.commit_pending_margin_before_float();
-                    if formatting_context::formatting_context_type_created_by_box(NodeFacts::new(
+                    let constraints = self.input.containing_block_constraints;
+                    // NB: A float with a formatting context of its own is sized ahead of its run, and any other is
+                    //     laid out in a record of this call.
+                    let cells_of_float_ahead_of_its_run;
+                    let record_of_float_without_formatting_context_of_its_own;
+                    let sized_float = if formatting_context::formatting_context_type_created_by_box(NodeFacts::new(
                         &self.run.callbacks,
                         item.node,
                     ))
                     .is_some()
                     {
-                        self.parent.keep_child_for_its_run_and_size_it_ahead(
+                        cells_of_float_ahead_of_its_run = Cell::new(self.run.records.keep_child_for_its_run(
+                            &self.callbacks,
                             item.node,
-                            self.input.containing_block_constraints,
-                        );
+                            constraints,
+                        ));
+                        block_formatting_context::ChildSizedHere::ahead_of_its_run(
+                            item.node,
+                            &cells_of_float_ahead_of_its_run,
+                        )
                     } else {
-                        self.create_used_values(item.node, self.input.containing_block_constraints);
-                    }
+                        record_of_float_without_formatting_context_of_its_own =
+                            used_values::create_used_values(&self.callbacks, item.node, constraints);
+                        self.run.records.keep_box_laid_out_in_record_its_layout_owns(item.node);
+                        block_formatting_context::ChildSizedHere::laid_out_in(
+                            item.node,
+                            &record_of_float_without_formatting_context_of_its_own,
+                        )
+                    };
                     if state_at_clamp_point.is_some() {
                         self.run.records.hide_for_line_clamp(item.node);
                     }
@@ -2062,7 +2071,7 @@ impl<'context> InlineFormattingContext<'context> {
                     );
                     let (insets, _) = self.parent.layout_floating_box(
                         self.run,
-                        item.node,
+                        sized_float,
                         self.block_container,
                         self.input,
                         self.containing_block_position_in_bfc_root,
