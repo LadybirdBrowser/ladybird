@@ -1386,16 +1386,17 @@ impl GraphBuilder<'_> {
         }
     }
 
-    /// Whether calls of `callee_executable` may be inlined here at all: it is
-    /// no executable being inlined already, the inlined frames are not as
-    /// deep as they may be, and no inlined call exited here before.
+    /// Whether calls of `callee_executable` may be inlined here at all: it runs in at most two of the frames being
+    /// compiled already, the inlined frames are not as deep as they may be, and no inlined call exited here before.
+    /// This lets recursive functions inline their own calls twice over, and lets functions that share one executable
+    /// inline each other, like the constructors that `Class.create()` returns in Prototype-style code.
     fn may_inline_calls_of(&self, callee_executable: &crate::snapshot::ExecutableSnapshot) -> bool {
-        let recursive = self.function.executable.cell == callee_executable.cell
-            || self
-                .callers
-                .iter()
-                .any(|caller| caller.executable.cell == callee_executable.cell);
-        !recursive
+        const MAX_RECURSION_DEPTH: usize = 2;
+        let recursion_depth = core::iter::once(&self.function)
+            .chain(&self.callers)
+            .filter(|function| function.executable.cell == callee_executable.cell)
+            .count();
+        recursion_depth <= MAX_RECURSION_DEPTH
             && self.callers.len() < self.snapshot.options.inlining.max_depth as usize
             && self.may_speculate(ExitKind::BadCallTarget)
     }

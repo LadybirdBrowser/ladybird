@@ -2154,6 +2154,33 @@ pub(crate) mod inlining {
     }
 
     #[test]
+    fn distinct_closures_share_the_executable_recursion_limit() {
+        let mut snapshot = snapshot_with_callee(&caller(), &caller(), function(true, false));
+        snapshot.options.inlining.max_depth = 10;
+        snapshot.executables[1].cell = snapshot.executables[0].cell;
+        for index in 1..=3 {
+            if index > 1 {
+                snapshot.executables.push(snapshot.executables[1].clone());
+            }
+            let executable = &mut snapshot.executables[index];
+            let function = executable.function.as_mut().unwrap();
+            function.function = CellId(CALLEE_FUNCTION + (index as u64 - 1) * 0x100);
+            executable.environment = Some(CellId(ENVIRONMENT + (index as u64 - 1) * 0x100));
+            executable.feedback.call = vec![CallFeedbackSnapshot {
+                target: Some(CellId(CALLEE_FUNCTION + (index as u64 % 3) * 0x100)),
+                inline_executable: Some((index % 3 + 1) as u32),
+                ..CallFeedbackSnapshot::default()
+            }];
+        }
+        let text = dump(&optimized_graph(&snapshot), &test_layout());
+        assert_eq!(text.matches("CallSlowPath Call").count(), 1, "{text}");
+        assert!(text.contains("CallSlowPath Call @e2:"), "{text}");
+        assert!(text.contains("CheckValue 0xfff9000000005000"), "{text}");
+        assert!(text.contains("CheckValue 0xfff9000000005100"), "{text}");
+        assert!(!text.contains("CheckValue 0xfff9000000005200"), "{text}");
+    }
+
+    #[test]
     fn calls_that_cannot_be_inlined_stay_generic() {
         let identity = assemble(|_| vec![Instruction::Enter, Instruction::Return { value: a(0) }]);
         let is_inlined = |snapshot: &Snapshot| {
@@ -2171,10 +2198,35 @@ pub(crate) mod inlining {
         snapshot.executables[0].exit_sites = vec![(caller().offsets[1], ExitKind::BadCallTarget)];
         assert!(!is_inlined(&snapshot));
 
-        // Recursion.
+        // Recursion, which inlines two levels deep.
         let mut snapshot = snapshot_with_callee(&caller(), &identity, function(true, false));
         snapshot.executables[1].cell = snapshot.executables[0].cell;
-        assert!(!is_inlined(&snapshot));
+        assert!(is_inlined(&snapshot));
+        let mut snapshot = snapshot_with_callee(&caller(), &caller(), function(true, false));
+        snapshot.executables[1].cell = snapshot.executables[0].cell;
+        snapshot.executables[1].feedback.call = snapshot.executables[0].feedback.call.clone();
+        let recursive = dump(&optimized_graph(&snapshot), &test_layout());
+        assert_eq!(recursive.matches("CallSlowPath Call").count(), 1, "{recursive}");
+        // One check of the call target for each inlined level.
+        assert_eq!(
+            recursive.matches("CheckValue 0xfff9000000005000").count(),
+            2,
+            "{recursive}"
+        );
+
+        // Mutual recursion of f and g, which inline each other until each runs in three frames.
+        let mut snapshot = snapshot_with_callee(&caller(), &caller(), function(true, false));
+        snapshot.options.inlining.max_depth = 10;
+        snapshot.executables[1].feedback.call = snapshot.executables[0].feedback.call.clone();
+        let mut g = snapshot.executables[1].clone();
+        g.cell = CellId(0x300);
+        snapshot.executables[1].feedback.call[0].inline_executable = Some(2);
+        snapshot.executables.push(g);
+        let mutual = dump(&optimized_graph(&snapshot), &test_layout());
+        assert_eq!(mutual.matches("CallSlowPath Call").count(), 1, "{mutual}");
+        assert!(mutual.contains("CallSlowPath Call @e2:"), "{mutual}");
+        assert_eq!(mutual.matches("e1 pc 8 after").count(), 3, "{mutual}");
+        assert_eq!(mutual.matches("e2 pc 8 after").count(), 3, "{mutual}");
 
         // A callee too big to inline.
         let big = assemble(|_| {
