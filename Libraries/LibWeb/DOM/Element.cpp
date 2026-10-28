@@ -4995,13 +4995,27 @@ ENUMERATE_ARIA_ATTRIBUTES
 
 bool Element::is_hidden(Layout::BegunRead const& read) const
 {
-    if (layout_node(read) == nullptr)
+    // https://drafts.csswg.org/css-display-3/#valdef-display-contents
+    // The element itself does not generate any boxes, but its children and pseudo-elements still generate boxes and text sequences as normal.
+    if (!layout_node(read) && !has_display_contents())
         return true;
-    if (layout_node(read)->visibility() == CSS::Visibility::Hidden || layout_node(read)->visibility() == CSS::Visibility::Collapse || layout_node(read)->content_visibility() == CSS::ContentVisibility::Hidden)
+    auto const* inherited_box_values = style_group<CSS::ComputedValues::InheritedBoxValues>();
+    if (inherited_box_values
+        && (static_cast<CSS::Visibility>(inherited_box_values->visibility) != CSS::Visibility::Visible
+            || static_cast<CSS::ContentVisibility>(inherited_box_values->content_visibility) == CSS::ContentVisibility::Hidden))
         return true;
     for (ParentNode const* self_or_ancestor = this; self_or_ancestor; self_or_ancestor = self_or_ancestor->parent_or_shadow_host()) {
         if (self_or_ancestor->is_element()) {
-            auto aria_hidden = static_cast<DOM::Element const*>(self_or_ancestor)->aria_hidden();
+            auto const& element = static_cast<DOM::Element const&>(*self_or_ancestor);
+            // NB: A boxless display:contents element can also be inside an undisplayed subtree.
+            auto const* box_values = element.style_group<CSS::ComputedValues::BoxValues>();
+            if (box_values && CSS::display_from_ffi_display(box_values->display).is_none())
+                return true;
+            auto const* ancestor_inherited_box_values = element.style_group<CSS::ComputedValues::InheritedBoxValues>();
+            if (ancestor_inherited_box_values
+                && static_cast<CSS::ContentVisibility>(ancestor_inherited_box_values->content_visibility) == CSS::ContentVisibility::Hidden)
+                return true;
+            auto aria_hidden = element.aria_hidden();
             if (aria_hidden.has_value() && aria_hidden->utf16_view() == u"true"sv)
                 return true;
         }

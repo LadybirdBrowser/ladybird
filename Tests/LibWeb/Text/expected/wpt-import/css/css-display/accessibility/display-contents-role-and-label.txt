@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 112 tests
 
-98 Pass
-14 Fail
+112 Pass
 Pass	tr with display: contents, within table with display: flex, has row role
 Pass	td as child of tr with display: contents, within table with display: flex, has cell role
 Pass	tr with display: contents, within table with role=table with display: flex, has row role
@@ -61,16 +60,16 @@ Pass	Label: button with display: contents is labelled via aria-label
 Pass	Label: div with role group with display: contents is labelled via aria-label
 Pass	Label: button with display: contents is labelled via label for/id association
 Pass	Label: g element with display: contents, as child of svg, is labelled via title element
-Fail	Label: link with display: contents is labelled via name from contents
-Fail	Label: button with display: contents is labelled via name from contents
-Fail	Label: h3 with display: contents is labelled via name from contents
-Fail	Label: button with display: contents has button role
-Fail	Label: button with explicit button role and display: contents has button role
-Fail	Label: div with button role and display: contents has button role
-Fail	Label: div with button role, tabindex=0 and display: contents has button role
-Fail	Label: h3 with display: contents has heading role
-Fail	Label: div with heading role, aria-level=3 and display: contents has heading role
-Fail	Label: span with heading role, aria-level=1 and display: contents has heading role
+Pass	Label: link with display: contents is labelled via name from contents
+Pass	Label: button with display: contents is labelled via name from contents
+Pass	Label: h3 with display: contents is labelled via name from contents
+Pass	Label: button with display: contents has button role
+Pass	Label: button with explicit button role and display: contents has button role
+Pass	Label: div with button role and display: contents has button role
+Pass	Label: div with button role, tabindex=0 and display: contents has button role
+Pass	Label: h3 with display: contents has heading role
+Pass	Label: div with heading role, aria-level=3 and display: contents has heading role
+Pass	Label: span with heading role, aria-level=1 and display: contents has heading role
 Pass	Label: nav with display: contents and aria-label has navigation role
 Pass	Label: aside with display: contents and aria-label has complementary role
 Pass	Label: form with display: contents has form role
@@ -80,10 +79,10 @@ Pass	Label: div with role complementary, aria-label and display: contents has co
 Pass	Label: div with role form, aria-label and display: contents has form role
 Pass	Label: div with role search and display: contents has search role
 Pass	Label: div with role region, aria-label and display: contents has region role
-Fail	Label: link with display: contents has link role
-Fail	Label: link with explicit link role and display: contents has link role
-Fail	Label: div with link role and display: contents has link role
-Fail	Label: div with link role, tabindex=0 and display: contents has link role
+Pass	Label: link with display: contents has link role
+Pass	Label: link with explicit link role and display: contents has link role
+Pass	Label: div with link role and display: contents has link role
+Pass	Label: div with link role, tabindex=0 and display: contents has link role
 Pass	Role: button with display: contents is labelled via referenced hidden span
 Pass	Role: link with display: contents is labelled via aria-labelledby
 Pass	Role: nav with display: contents is labelled via aria-labelledby
