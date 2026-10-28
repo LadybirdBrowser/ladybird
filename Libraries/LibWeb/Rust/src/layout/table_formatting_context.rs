@@ -3585,54 +3585,28 @@ impl<'pass> TableFormattingContext<'pass> {
             })
     }
 
-    /// Stores the baselines of the rows, the row groups and the table box, which are what the table exports to
-    /// outside consumers (e.g. an inline-table participating in a line box): "The baseline of an 'inline-table' is the
-    /// baseline of the first row of the table." (https://www.w3.org/TR/CSS22/tables.html#height-layout) and its last
-    /// baseline is that of its last row. Rows and row groups are positioned in the coordinate space of the table
-    /// wrapper (see position_row_boxes), so each baseline is made relative to the content box it is stored on here.
-    fn store_table_part_baselines(&self) {
+    /// Derives the baselines of the table box, which are what the table exports to outside consumers (e.g. an
+    /// inline-table participating in a line box): "The baseline of an 'inline-table' is the baseline of the first row of
+    /// the table." (https://www.w3.org/TR/CSS22/tables.html#height-layout) and its last baseline is that of its last row.
+    /// Rows are positioned in the coordinate space of the table wrapper (see position_row_boxes), so the baselines are
+    /// made relative to the content box of the table box here.
+    fn derive_table_box_baselines(&self) {
         let baseline_in_wrapper =
             |row_index: usize| self.row_boxes[row_index].content_offset.get().y + self.row_baseline(row_index);
-        let baselines_of_rows = |rows: &[usize], content_block_offset: CssPixels| DerivedBaselines {
-            inline_alignment: None,
-            first: rows
-                .first()
-                .map(|&row_index| baseline_in_wrapper(row_index) - content_block_offset),
-            last: rows
-                .last()
-                .map(|&row_index| baseline_in_wrapper(row_index) - content_block_offset),
-        };
-        for row_index in 0..self.rows.len() {
-            let baseline = Some(self.row_baseline(row_index));
-            formatting_context::store_derived_baselines(
-                &self.row_boxes[row_index].record,
-                DerivedBaselines {
-                    inline_alignment: None,
-                    first: baseline,
-                    last: baseline,
-                },
-            );
-        }
         // Collapsed rows are removed from the display (https://www.w3.org/TR/CSS22/tables.html#dynamic-effects).
         let visible_rows = (0..self.rows.len())
             .filter(|&row_index| !self.rows[row_index].is_collapsed)
             .collect::<Vec<_>>();
-        for group in self.row_groups_in_layout_order() {
-            let rows_in_group = visible_rows
-                .iter()
-                .copied()
-                .filter(|&row_index| self.parent(self.rows[row_index].box_) == group)
-                .collect::<Vec<_>>();
-            let group_box = self.row_group_or_column_box(group);
-            formatting_context::store_derived_baselines(
-                &group_box.record,
-                baselines_of_rows(&rows_in_group, group_box.content_offset.get().y),
-            );
-        }
-        self.derived_baselines_of_root_box.set(baselines_of_rows(
-            &visible_rows,
-            self.table_box_content_block_offset_in_wrapper,
-        ));
+        let content_block_offset = self.table_box_content_block_offset_in_wrapper;
+        self.derived_baselines_of_root_box.set(DerivedBaselines {
+            inline_alignment: None,
+            first: visible_rows
+                .first()
+                .map(|&row_index| baseline_in_wrapper(row_index) - content_block_offset),
+            last: visible_rows
+                .last()
+                .map(|&row_index| baseline_in_wrapper(row_index) - content_block_offset),
+        });
     }
 
     pub(super) fn run(
@@ -3683,7 +3657,7 @@ impl<'pass> TableFormattingContext<'pass> {
         self.position_column_boxes();
         self.materialize_collapsed_table_borders();
         table_used.set_content_block_size(self.table_block_size);
-        self.store_table_part_baselines();
+        self.derive_table_box_baselines();
         self.automatic_content_block_size = self.table_block_size;
     }
 
