@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 46 tests
 
-44 Pass
-2 Fail
+46 Pass
 Pass	[data-expected-width] 1
 Pass	[data-expected-width] 2
 Pass	[data-expected-width] 3
@@ -24,7 +23,7 @@ Pass	[data-expected-width] 17
 Pass	[data-expected-width] 18
 Pass	[data-expected-width] 19
 Pass	[data-expected-width] 20
-Fail	[data-expected-width] 21
+Pass	[data-expected-width] 21
 Pass	[data-expected-width] 22
 Pass	[data-expected-width] 23
 Pass	[data-expected-width] 24
@@ -47,6 +46,6 @@ Pass	[data-expected-width] 40
 Pass	[data-expected-width] 41
 Pass	[data-expected-width] 42
 Pass	[data-expected-width] 43
-Fail	[data-expected-width] 44
+Pass	[data-expected-width] 44
 Pass	[data-expected-width] 45
 Pass	[data-expected-width] 46

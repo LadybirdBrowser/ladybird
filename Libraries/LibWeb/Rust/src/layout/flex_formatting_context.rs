@@ -57,6 +57,7 @@ struct FlexItem<'pass> {
     automatic_minimum_size_before_flexing: Option<CssPixels>,
     hypothetical_main_size: CssPixels,
     hypothetical_cross_size: CssPixels,
+    hypothetical_cross_size_before_clamp: CssPixels,
     target_main_size: CssPixels,
     frozen: bool,
     flex_factor: f64,
@@ -95,6 +96,7 @@ impl FlexItem<'_> {
             automatic_minimum_size_before_flexing: None,
             hypothetical_main_size: CssPixels::default(),
             hypothetical_cross_size: CssPixels::default(),
+            hypothetical_cross_size_before_clamp: CssPixels::default(),
             target_main_size: CssPixels::default(),
             frozen: false,
             flex_factor: 0.0,
@@ -2052,6 +2054,11 @@ impl<'pass> FlexFormattingContext<'pass> {
         (min, max)
     }
 
+    fn set_hypothetical_cross_size(&mut self, index: usize, size: CssPixels, min: CssPixels, max: CssPixels) {
+        self.flex_items[index].hypothetical_cross_size_before_clamp = size;
+        self.flex_items[index].hypothetical_cross_size = css_clamp(size, min, max);
+    }
+
     // https://drafts.csswg.org/css-flexbox/#hypothetical-cross-size
     fn determine_hypothetical_cross_size_of_item(&mut self, index: usize) {
         // Determine the hypothetical cross size of each item by performing layout as if it were an in-flow block-level box
@@ -2062,8 +2069,17 @@ impl<'pass> FlexFormattingContext<'pass> {
 
         // If we have a definite cross size, this is easy! No need to perform layout, we can just use it as-is.
         if self.has_definite_cross_size(index) {
-            self.flex_items[index].hypothetical_cross_size =
-                css_clamp(self.inner_cross_size(index), clamp_min, clamp_max);
+            let (preferred, property) = self.computed_cross_size(node);
+            let min_or_max_is_stretch =
+                self.computed_cross_min_size(node).0.is_stretch() || self.computed_cross_max_size(node).0.is_stretch();
+            // NB: Initial cells can already contain a provisional min/max clamp. Keep the preferred size so a
+            //     stretch maximum that grows with the final line can restore it.
+            let size = if min_or_max_is_stretch && !preferred.is_auto() && !preferred.is_stretch() {
+                self.resolve_size_for_axis(index, self.cross_axis_is_horizontal(), preferred, property)
+            } else {
+                self.inner_cross_size(index)
+            };
+            self.set_hypothetical_cross_size(index, size, clamp_min, clamp_max);
             return;
         }
 
@@ -2078,8 +2094,12 @@ impl<'pass> FlexFormattingContext<'pass> {
                 && !self.flex_items[index].used_flex_basis_is_definite
                 && self.has_definite_cross_size_used(self.container_used())
             {
-                self.flex_items[index].hypothetical_cross_size =
-                    css_clamp(self.inner_cross_size_used(self.container_used()), clamp_min, clamp_max);
+                self.set_hypothetical_cross_size(
+                    index,
+                    self.inner_cross_size_used(self.container_used()),
+                    clamp_min,
+                    clamp_max,
+                );
                 return;
             }
             // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-automatic
@@ -2105,7 +2125,12 @@ impl<'pass> FlexFormattingContext<'pass> {
                 .filter(|&minimum| minimum > transferred)
                 .map(|_| transferred);
             let clamp_min = automatic_minimum.unwrap_or(clamp_min);
-            self.flex_items[index].hypothetical_cross_size = css_clamp(transferred_cross_size, clamp_min, clamp_max);
+            self.set_hypothetical_cross_size(
+                index,
+                transferred_cross_size.max(automatic_minimum.unwrap_or_default()),
+                clamp_min,
+                clamp_max,
+            );
             self.flex_items[index].cross_size_was_resolved_from_aspect_ratio = self.has_definite_main_size(index);
             return;
         }
@@ -2116,18 +2141,30 @@ impl<'pass> FlexFormattingContext<'pass> {
         if computed.is_stretch()
             && let Some(basis) = self.cross_axis_stretch_basis()
         {
-            self.flex_items[index].hypothetical_cross_size =
-                css_clamp(self.stretch_fit_inner_cross_size(index, basis), clamp_min, clamp_max);
+            self.set_hypothetical_cross_size(
+                index,
+                self.stretch_fit_inner_cross_size(index, basis),
+                clamp_min,
+                clamp_max,
+            );
             return;
         }
         if computed.is_min_content() {
-            self.flex_items[index].hypothetical_cross_size =
-                css_clamp(self.calculate_min_content_cross_size(index), clamp_min, clamp_max);
+            self.set_hypothetical_cross_size(
+                index,
+                self.calculate_min_content_cross_size(index),
+                clamp_min,
+                clamp_max,
+            );
             return;
         }
         if computed.is_max_content() {
-            self.flex_items[index].hypothetical_cross_size =
-                css_clamp(self.calculate_max_content_cross_size(index), clamp_min, clamp_max);
+            self.set_hypothetical_cross_size(
+                index,
+                self.calculate_max_content_cross_size(index),
+                clamp_min,
+                clamp_max,
+            );
             return;
         }
 
@@ -2155,7 +2192,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         } else {
             fit_content
         };
-        self.flex_items[index].hypothetical_cross_size = css_clamp(fit_content, clamp_min, clamp_max);
+        self.set_hypothetical_cross_size(index, fit_content, clamp_min, clamp_max);
     }
 
     // The cross size that a cross size property given as calc-size() with an auto basis gives the item, when auto
@@ -2367,6 +2404,68 @@ impl<'pass> FlexFormattingContext<'pass> {
             self.flex_items[index].cross_size = Some(size);
             self.set_cross_size(index, size);
             self.set_has_definite_cross_size(index);
+        }
+        // https://drafts.csswg.org/css-flexbox-1/#algo-stretch
+        // If a flex item’s cross size depends on the available space in the cross axis, recalculate its cross
+        // size using the flex line’s cross size (rather than the flex container’s) as the available space.
+        // NB: A stretch minimum or maximum also depends on this final available space, even for a non-auto item.
+        for line_index in 0..self.flex_lines.len() {
+            let line_cross_size = self.flex_lines[line_index].cross_size;
+            for item_position in 0..self.flex_lines[line_index].items.len() {
+                let index = self.flex_lines[line_index].items[item_position];
+                let node = self.flex_items[index].box_;
+                let min_size = self.computed_cross_min_size(node).0;
+                let max_size = self.computed_cross_max_size(node).0;
+                if !min_size.is_stretch() && !max_size.is_stretch() {
+                    continue;
+                }
+                if self.flex_items[index].cross_size.is_none() {
+                    continue;
+                }
+                let (mut min, mut max) = self.cross_size_limits(index);
+                let sizing = self.sizing();
+                let constraints = self.item_containing_block_constraints();
+                let sized = sizing_context::SizedBox::new(node, &self.flex_items[index].cells);
+                for (size, limit) in [(min_size, &mut min), (max_size, &mut max)] {
+                    if size.is_stretch() {
+                        let stretched = sizing.stretch_fit_inner_size(
+                            sized,
+                            self.cross_sizing_axis(),
+                            line_cross_size,
+                            constraints,
+                        );
+                        *limit = sizing.resolve_calc_size(
+                            sized,
+                            self.cross_sizing_axis(),
+                            size,
+                            stretched,
+                            self.cross_axis_stretch_basis(),
+                        );
+                    }
+                }
+                let preferred_cross_size = if self.flex_item_is_stretched(index) {
+                    let item = &self.flex_items[index];
+                    let size = line_cross_size
+                        - item.margins.cross_before
+                        - item.margins.cross_after
+                        - item.padding.cross_before
+                        - item.padding.cross_after
+                        - item.borders.cross_before
+                        - item.borders.cross_after;
+                    // NB: Keep the content minimum used by the earlier stretched-table pass.
+                    if let Some(sizes) = item.stretched_table_wrapper_block_sizes {
+                        min = min.max(sizes.wrapper_content_block_size);
+                    }
+                    self.resolve_calc_size_cross_size(index, size)
+                } else if self.computed_cross_size(node).0.is_stretch() && self.cross_axis_stretch_basis().is_some() {
+                    self.stretch_fit_inner_cross_size(index, line_cross_size)
+                } else {
+                    self.flex_items[index].hypothetical_cross_size_before_clamp
+                };
+                let cross_size = css_clamp(preferred_cross_size, min, max);
+                self.flex_items[index].cross_size = Some(cross_size);
+                self.set_cross_size(index, cross_size);
+            }
         }
     }
 
@@ -4191,4 +4290,328 @@ pub(crate) fn order_modified_keys<T>(buckets: &HashMap<i32, Vec<T>>, reverse: bo
         keys.sort_unstable();
     }
     keys
+}
+
+#[cfg(test)]
+mod stretch_cross_limit_tests {
+    use super::*;
+    use crate::css::computed_values::{GroupPayloadRef, clone_group_payload, release_group_payload};
+    use crate::css::style_value::{RetainedStyleValueData, StyleValueData};
+    use crate::css::table_group_builder::group_index;
+    use crate::layout::node_data::{NodeConstructionFacts, StylePayloadsRef};
+    use crate::layout::run_records::LayoutScratch;
+
+    fn length(value: i32) -> ComputedSize {
+        ComputedSize::from_data(&RetainedStyleValueData::from_owned(StyleValueData::Length {
+            value: f64::from(value),
+            unit: crate::css::style_compute::px_length_unit(),
+        }))
+    }
+
+    #[test]
+    fn wrapping_rows_recalculate_stretch_cross_limits_from_preferred_size() {
+        check_stretch_limit(false, false, 80, 80, 80);
+        check_stretch_limit(false, false, 150, 100, 150);
+        check_stretch_limit(false, false, 250, 100, 200);
+        check_stretch_limit(false, true, 50, 100, 200);
+    }
+
+    #[test]
+    fn wrapping_columns_recalculate_stretch_cross_limits_from_preferred_size() {
+        check_stretch_limit(true, false, 80, 80, 80);
+        check_stretch_limit(true, false, 150, 100, 150);
+        check_stretch_limit(true, false, 250, 100, 200);
+        check_stretch_limit(true, true, 50, 100, 200);
+    }
+
+    #[test]
+    fn auto_stretched_rows_and_columns_use_the_final_line_cross_size() {
+        check_stretch_limit_impl(false, false, 0, 0, 200, true, CrossSpace::Definite);
+        check_stretch_limit_impl(true, false, 0, 0, 200, true, CrossSpace::Definite);
+    }
+
+    #[test]
+    fn auto_height_wrapping_rows_resolve_stretch_minimum_against_the_final_line() {
+        check_stretch_limit_impl(false, true, 50, 50, 200, false, CrossSpace::Auto);
+    }
+
+    #[test]
+    fn auto_height_wrapping_rows_keep_preferred_size_below_the_final_stretch_maximum() {
+        check_stretch_limit_impl(false, false, 150, 150, 150, false, CrossSpace::Auto);
+    }
+
+    #[test]
+    fn auto_height_nowrap_rows_resolve_stretch_minimum_after_container_maximum_clamps_the_line() {
+        check_stretch_limit_impl(false, true, 0, 0, 80, false, CrossSpace::MaxConstrained);
+    }
+
+    #[test]
+    fn auto_height_nowrap_rows_resolve_stretch_maximum_after_container_maximum_clamps_the_line() {
+        check_stretch_limit_impl(false, false, 500, 500, 80, false, CrossSpace::MaxConstrained);
+    }
+
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    enum CrossSpace {
+        Definite,
+        Auto,
+        MaxConstrained,
+    }
+
+    fn check_stretch_limit(column: bool, minimum: bool, preferred: i32, provisional: i32, final_size: i32) {
+        check_stretch_limit_impl(
+            column,
+            minimum,
+            preferred,
+            provisional,
+            final_size,
+            false,
+            CrossSpace::Definite,
+        );
+    }
+
+    fn check_stretch_limit_impl(
+        column: bool,
+        minimum: bool,
+        preferred: i32,
+        provisional: i32,
+        final_size: i32,
+        auto: bool,
+        cross_space: CrossSpace,
+    ) {
+        let definite_cross_basis = cross_space == CrossSpace::Definite;
+        let max_constrained = cross_space == CrossSpace::MaxConstrained;
+        let mut arena = LayoutNodeArena::new();
+        let scratch = LayoutScratch::default();
+        let defaults = FfiStylePayloads {
+            groups: std::array::from_fn(|index| GroupPayloadRef::default_payload(index).as_ptr()),
+        };
+        let mut styles = [defaults; 3];
+        let mut clones = Vec::new();
+        for style in &mut styles {
+            for group in [
+                group_index::BOX,
+                group_index::SIZING,
+                group_index::ALIGNMENT,
+                group_index::SURROUND,
+                group_index::BORDER,
+            ] {
+                // SAFETY: The source is the immortal default payload for this group.
+                let payload = unsafe { clone_group_payload(group, style.groups[group]) };
+                style.groups[group] = payload;
+                clones.push((group, payload));
+            }
+        }
+        for (index, style) in styles.iter().enumerate() {
+            // SAFETY: These private clones have the selected group's layout and no readers yet.
+            unsafe {
+                let box_values = &mut *style.groups[group_index::BOX].cast_mut().cast::<BoxValues>();
+                box_values.display = if index == 0 {
+                    FfiDisplay::from_single_keyword(keyword::FLEX).unwrap()
+                } else {
+                    FfiDisplay::block()
+                };
+                let alignment = &mut *style.groups[group_index::ALIGNMENT]
+                    .cast_mut()
+                    .cast::<AlignmentValues>();
+                if index == 0 {
+                    alignment.flex_direction = if column {
+                        flex_direction::COLUMN
+                    } else {
+                        flex_direction::ROW
+                    };
+                    alignment.flex_wrap = if max_constrained {
+                        flex_wrap::NOWRAP
+                    } else {
+                        flex_wrap::WRAP
+                    };
+                    alignment.align_items = if auto {
+                        align_items::STRETCH
+                    } else if max_constrained {
+                        align_items::NORMAL
+                    } else {
+                        align_items::FLEX_START
+                    };
+                }
+                let sizing = &mut *style.groups[group_index::SIZING].cast_mut().cast::<SizingValues>();
+                let cross = if index == 0 {
+                    100
+                } else if index == 1 {
+                    preferred
+                } else {
+                    200
+                };
+                let main = if index == 0 { 100 } else { 50 };
+                sizing.width = length(if column { cross } else { main });
+                sizing.height = length(if column { main } else { cross });
+                if index == 0 && !definite_cross_basis {
+                    let cross_size = if column { &mut sizing.width } else { &mut sizing.height };
+                    *cross_size = ComputedSize::keyword(ComputedSizeKind::Auto);
+                    if max_constrained {
+                        assert!(!column);
+                        sizing.max_height = length(100);
+                    }
+                }
+                if index == 1 && max_constrained {
+                    let surround = &mut *style.groups[group_index::SURROUND].cast_mut().cast::<SurroundValues>();
+                    for side in [&mut surround.margin.top, &mut surround.margin.bottom] {
+                        *side = ComputedLengthPercentageOrAuto {
+                            is_auto: false,
+                            value: crate::css::computed_values::ComputedStyleValueHandle::length(5.0),
+                        };
+                    }
+                    for side in [&mut surround.padding.top, &mut surround.padding.bottom] {
+                        *side = ComputedLengthPercentageOrAuto {
+                            is_auto: false,
+                            value: crate::css::computed_values::ComputedStyleValueHandle::length(2.0),
+                        };
+                    }
+                    let border = &mut *style.groups[group_index::BORDER].cast_mut().cast::<BorderValues>();
+                    for side in [&mut border.border_top, &mut border.border_bottom] {
+                        side.line_style = line_style::SOLID;
+                        side.width = CssPixels::from_integer(3);
+                    }
+                    border.border_top_computed_width = CssPixels::from_integer(3);
+                    border.border_bottom_computed_width = CssPixels::from_integer(3);
+                }
+                if index == 1 {
+                    if auto {
+                        let preferred_size = if column { &mut sizing.width } else { &mut sizing.height };
+                        *preferred_size = ComputedSize::keyword(ComputedSizeKind::Auto);
+                    }
+                    let limit = if column {
+                        if minimum {
+                            &mut sizing.min_width
+                        } else {
+                            &mut sizing.max_width
+                        }
+                    } else if minimum {
+                        &mut sizing.min_height
+                    } else {
+                        &mut sizing.max_height
+                    };
+                    *limit = ComputedSize::keyword(ComputedSizeKind::Stretch);
+                }
+            }
+        }
+        let facts = NodeConstructionFacts {
+            kind: NodeKind::BlockContainer,
+            is_anonymous: false,
+            is_html_input_element: false,
+            is_html_html_element: false,
+            is_document_element: false,
+            is_in_user_agent_shadow_tree: false,
+            uses_button_layout: false,
+            is_editing_host: false,
+            is_body: false,
+            dom_paint_facts: 0,
+            style_node: 0,
+        };
+        let container = arena.allocate(facts);
+        let target = arena.allocate(facts);
+        let peer = arena.allocate(facts);
+        for (node, style) in [container, target, peer].into_iter().zip(&styles) {
+            arena.set_node_style(node, 0, StylePayloadsRef::new(style));
+        }
+        for child in [target, peer] {
+            arena.set_node_flag(child, NodeFlag::IsFlexItem, true);
+            arena.insert_child(container, child, Node::INVALID);
+        }
+        let callbacks = LayoutPass::for_test(&arena, &scratch);
+        let px = |value: i32| CssPixels::from_integer(i64::from(value));
+        let constraints = ContainingBlockConstraints {
+            percentage_basis_inline_size: (!column || definite_cross_basis).then_some(px(100)),
+            percentage_basis_block_size: (column || definite_cross_basis).then_some(px(100)),
+            ..ContainingBlockConstraints::default()
+        };
+        let container_cells = used_values::cells_before_sizing(&callbacks, container, constraints);
+        RunRecords::with_root(
+            callbacks,
+            container,
+            Node::INVALID,
+            container_cells,
+            callbacks.frame,
+            |records, callbacks| {
+                let run = FormattingContextRun {
+                    records,
+                    box_: container,
+                    callbacks,
+                    should_collect_devtools_layout_data: false,
+                    treat_block_axis_percentage_insets_as_auto_beyond_root: false,
+                    fragments: None,
+                    fragmentainer: None,
+                };
+                let mut flex = FlexFormattingContext::new(&run);
+                let available = AvailableSpace {
+                    inline_size: if column && !definite_cross_basis {
+                        AvailableSize::Indefinite
+                    } else {
+                        AvailableSize::definite(px(100))
+                    },
+                    block_size: if column || definite_cross_basis {
+                        AvailableSize::definite(px(100))
+                    } else {
+                        AvailableSize::Indefinite
+                    },
+                };
+                flex.generate_items_and_determine_available_space(LayoutInput::new(
+                    available,
+                    constraints,
+                    ParticipationInParentFormattingContext::Root,
+                ));
+                assert_eq!(flex.flex_items.len(), 2);
+                assert_eq!(flex.cross_axis_stretch_basis().is_some(), definite_cross_basis);
+                if !definite_cross_basis {
+                    assert_eq!(flex.cross_axis_stretch_basis(), None);
+                    assert_eq!(flex.cross_size_limits(0), (px(0), CssPixels::from_raw(i32::MAX)));
+                }
+                // Initial cells have already applied the container-sized stretch limit. The preferred size must
+                // survive this clamp so the final, larger line maximum can restore it.
+                assert_eq!(flex.inner_cross_size(0), px(provisional));
+                for index in 0..2 {
+                    flex.flex_items[index].main_size = Some(px(50));
+                    flex.determine_hypothetical_cross_size_of_item(index);
+                }
+                assert_eq!(flex.flex_items[0].hypothetical_cross_size, px(provisional));
+                flex.flex_lines.push(FlexLine {
+                    items: vec![0, 1],
+                    ..FlexLine::default()
+                });
+                flex.calculate_cross_size_of_each_flex_line();
+                assert_eq!(
+                    flex.flex_lines[0].cross_size,
+                    px(if max_constrained { 100 } else { 200 })
+                );
+                // The initial containing-block basis stays indefinite. Step 11 still resolves stretch limits
+                // against the completed line below.
+                assert_eq!(flex.cross_axis_stretch_basis().is_some(), definite_cross_basis);
+                if !definite_cross_basis {
+                    assert_eq!(flex.cross_axis_stretch_basis(), None);
+                    assert_eq!(flex.cross_size_limits(0), (px(0), CssPixels::from_raw(i32::MAX)));
+                }
+                flex.determine_used_cross_size_of_each_flex_item();
+                assert_eq!(flex.flex_items[0].cross_size, Some(px(final_size)));
+                assert_eq!(flex.inner_cross_size(0), px(final_size));
+                if max_constrained {
+                    // Match the immutable keyword-sizes-on-flex-item-001.html cases60–65 oracle.
+                    let item = &flex.flex_items[0];
+                    let border_box = item.cross_size.unwrap()
+                        + item.borders.cross_before
+                        + item.borders.cross_after
+                        + item.padding.cross_before
+                        + item.padding.cross_after;
+                    assert_eq!(border_box, px(90));
+                }
+                if auto {
+                    assert!(flex.has_definite_cross_size(0));
+                }
+                assert_eq!(flex.flex_items[1].cross_size, Some(px(200)));
+            },
+        );
+        arena
+            .free_subtree(container)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
+        for (group, payload) in clones {
+            release_group_payload(group, payload);
+        }
+    }
 }

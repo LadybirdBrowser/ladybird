@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 46 tests
 
-44 Pass
-2 Fail
+46 Pass
 Pass	[data-expected-height] 1
 Pass	[data-expected-height] 2
 Pass	[data-expected-height] 3
@@ -24,7 +23,7 @@ Pass	[data-expected-height] 17
 Pass	[data-expected-height] 18
 Pass	[data-expected-height] 19
 Pass	[data-expected-height] 20
-Fail	[data-expected-height] 21
+Pass	[data-expected-height] 21
 Pass	[data-expected-height] 22
 Pass	[data-expected-height] 23
 Pass	[data-expected-height] 24
@@ -47,6 +46,6 @@ Pass	[data-expected-height] 40
 Pass	[data-expected-height] 41
 Pass	[data-expected-height] 42
 Pass	[data-expected-height] 43
-Fail	[data-expected-height] 44
+Pass	[data-expected-height] 44
 Pass	[data-expected-height] 45
 Pass	[data-expected-height] 46
