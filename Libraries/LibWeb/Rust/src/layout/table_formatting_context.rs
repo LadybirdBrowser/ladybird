@@ -2596,9 +2596,9 @@ impl<'pass> TableFormattingContext<'pass> {
             ChildLayoutOutcome::Created(result) => result.baselines,
             ChildLayoutOutcome::ReenterCurrent => {
                 self.run(run, layout_input, None);
-                self.used_values(cell.box_).content_baselines_from_cells()
+                run.records.box_metrics_of(cell.box_).content_baselines()
             }
-            ChildLayoutOutcome::Skipped { .. } => self.used_values(cell.box_).content_baselines_from_cells(),
+            ChildLayoutOutcome::Skipped { .. } => run.records.box_metrics_of(cell.box_).content_baselines(),
         };
         (baselines, fragment_arrival)
     }
@@ -2621,10 +2621,10 @@ impl<'pass> TableFormattingContext<'pass> {
     /// https://www.w3.org/TR/CSS22/tables.html#height-layout
     /// The cell's own 'vertical-align' says where the cell goes in its row, not where its baseline is.
     fn cell_baseline(&self, cell_box: Node, committing_run_baselines: Option<DerivedBaselines>) -> CssPixels {
-        let used = self.used_values(cell_box);
-        let content_baselines = committing_run_baselines.unwrap_or_else(|| used.content_baselines_from_cells());
-        let collapsed = used.uses_collapsing_borders_model.get();
-        used.border_box_top(collapsed) + content_baselines.first.unwrap_or_else(|| used.content_block_size.get())
+        let metrics = self.run.records.box_metrics_of(cell_box);
+        let content_baselines = committing_run_baselines.unwrap_or_else(|| metrics.content_baselines());
+        let collapsed = metrics.uses_collapsing_borders_model();
+        metrics.border_box_top(collapsed) + content_baselines.first.unwrap_or_else(|| metrics.content_block_size())
     }
 
     /// Whether a cell is aligned at the baseline of its row. Of the 'vertical-align' values, "the following values
@@ -2643,10 +2643,10 @@ impl<'pass> TableFormattingContext<'pass> {
     /// grow_rows_to_aligned_cells).
     fn note_cell_in_row_baseline(&mut self, cell_index: usize, style: &StyleValues<'_>) {
         let cell = self.cells[cell_index];
-        let used = self.used_values(cell.box_);
-        let collapsed = used.uses_collapsing_borders_model.get();
-        let block_end_offset = used.border_box_bottom(collapsed);
-        let block_size = used.border_box_block_size(collapsed);
+        let metrics = self.run.records.box_metrics_of(cell.box_);
+        let collapsed = metrics.uses_collapsing_borders_model();
+        let block_end_offset = metrics.border_box_bottom(collapsed);
+        let block_size = metrics.border_box_block_size(collapsed);
         let row = &mut self.rows[cell.row_index];
         if Self::cell_is_baseline_aligned(style) {
             row.baseline = Some(
@@ -2793,10 +2793,11 @@ impl<'pass> TableFormattingContext<'pass> {
                 self.keep_fragment_arrival_of_cell(cell_index, fragment_arrival);
                 content_baselines = Some(baselines);
             }
+            let metrics = self.run.records.box_metrics_of(cell.box_);
             if self.needs_fixed_mode_row_measurement {
                 let min_size = style.min_height().to_px(participant_block_basis);
-                let offsets = used.border_box_top(collapsed) + used.border_box_bottom(collapsed);
-                let measured = used.border_box_block_size(collapsed).max(min_size + offsets);
+                let offsets = metrics.border_box_top(collapsed) + metrics.border_box_bottom(collapsed);
+                let measured = metrics.border_box_block_size(collapsed).max(min_size + offsets);
                 self.cells[cell_index].outer_min_block_size = measured;
                 self.cells[cell_index].outer_max_block_size = measured;
             }
@@ -2811,7 +2812,7 @@ impl<'pass> TableFormattingContext<'pass> {
             // Note that we've already applied the first rule at the top of the method.
             if !self.rows[cell.row_index].is_collapsed {
                 if cell.row_span == 1 {
-                    let size = used.border_box_block_size(collapsed);
+                    let size = metrics.border_box_block_size(collapsed);
                     self.rows[cell.row_index].base_block_size = self.rows[cell.row_index].base_block_size.max(size);
                 }
                 if !self.needs_fixed_mode_row_measurement {
@@ -3146,7 +3147,7 @@ impl<'pass> TableFormattingContext<'pass> {
             self.keep_fragment_arrival_of_cell(cell_index, fragment_arrival);
             if adopt_automatic_content_block_size {
                 debug_assert_eq!(
-                    used.content_block_size.get(),
+                    run.records.box_metrics_of(cell.box_).content_block_size(),
                     measured_content_block_size,
                     "measured and committed automatic block sizes diverged"
                 );
@@ -3248,7 +3249,7 @@ impl<'pass> TableFormattingContext<'pass> {
         let collapsed = self.style(self.run.box_).border_collapse() != BORDER_COLLAPSE_SEPARATE;
         for cell_index in 0..self.cells.len() {
             let cell = self.cells[cell_index];
-            let used = self.used_values(cell.box_);
+            let metrics = self.run.records.box_metrics_of(cell.box_);
             let row_content_offset = self
                 .run
                 .records
@@ -3258,9 +3259,10 @@ impl<'pass> TableFormattingContext<'pass> {
             // - for top: the height reserved for top captions (including margins), if any
             // - the padding-left/padding-top and border-left-width/border-top-width of the table
             // - the border spacing after each visible column before the cell (in its column's inline_offset)
-            let x =
-                row_content_offset.x + used.border_box_left(collapsed) + self.columns[cell.column_index].inline_offset;
-            let y = row_content_offset.y + used.border_box_top(collapsed);
+            let x = row_content_offset.x
+                + metrics.border_box_left(collapsed)
+                + self.columns[cell.column_index].inline_offset;
+            let y = row_content_offset.y + metrics.border_box_top(collapsed);
             let fragment_arrival = self.cell_fragment_arrivals[cell_index].take();
             formatting_context::place_laid_out_child(
                 &self.run,

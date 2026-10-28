@@ -2719,11 +2719,11 @@ fn leave_own_frame(
         result.content_block_size_for_aspect_ratio_minimum = None;
         // NB: The block size of a table box in its parent's frame is its inline size in the frame of its wrapper.
         if result.table_box_in_wrapper_border_box_block_size.is_some() {
-            let table_used = run
+            let table_box = run
                 .records
-                .used_values(body_run.sizing().table_box_inside_wrapper(run.box_));
+                .box_metrics_of(body_run.sizing().table_box_inside_wrapper(run.box_));
             result.table_box_in_wrapper_border_box_block_size =
-                Some(table_used.border_box_inline_size(table_used.uses_collapsing_borders_model.get()));
+                Some(table_box.border_box_inline_size(table_box.uses_collapsing_borders_model()));
         }
     }
     used.move_box_metrics_to_frame(own_frame, parent_frame);
