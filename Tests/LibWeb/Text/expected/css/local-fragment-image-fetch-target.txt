@@ -1,0 +1,3 @@
+Fragment fetch uses document URL: true
+URL request modifier preserved: true
+Stylesheet referrer context preserved: true
