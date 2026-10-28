@@ -181,7 +181,7 @@ RefPtr<CSS::StyleSheetState> HTMLLinkElement::sheet() const
     return m_loaded_style_sheet;
 }
 
-void HTMLLinkElement::finished_loading_critical_style_subresources(AnyFailed)
+void HTMLLinkElement::finished_loading_critical_style_subresources(AnyFailed any_failed)
 {
     // NB: The style sheet of an older fetch stays associated until a newer fetch's response is processed. That newer
     //     fetch owns the document load event delayer, so the old sheet's imports must not release it.
@@ -194,12 +194,14 @@ void HTMLLinkElement::finished_loading_critical_style_subresources(AnyFailed)
     if (!fetch_generation.has_value())
         return;
 
-    queue_an_element_task(Task::Source::Networking, [link = GC::Ref { *this }, fetch_generation = *fetch_generation] {
+    queue_an_element_task(Task::Source::Networking, [link = GC::Ref { *this }, fetch_generation = *fetch_generation, any_failed] {
         if (fetch_generation != link->m_current_fetch_generation || !link->m_stylesheet_processing_pending)
             return;
 
         // 2. Fire an event named load at el.
-        link->dispatch_event(create_event_for_element(*link, HTML::EventNames::load));
+        // INTEROP: Other browsers fire error instead when an import failed.
+        auto event_name = any_failed == AnyFailed::Yes ? HTML::EventNames::error : HTML::EventNames::load;
+        link->dispatch_event(create_event_for_element(*link, event_name));
         link->finish_processing_stylesheet_resource(fetch_generation);
     });
 }
@@ -1524,7 +1526,10 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
                             }
 
                             // 2. Fire an event named load at el.
-                            link->dispatch_event(create_event_for_element(*link, HTML::EventNames::load));
+                            // INTEROP: Other browsers fire error instead when an import failed, including before the
+                            //          sheet was associated with the link.
+                            auto event_name = sheet->loading_state() == CSS::StyleSheetState::LoadingState::Error ? HTML::EventNames::error : HTML::EventNames::load;
+                            link->dispatch_event(create_event_for_element(*link, event_name));
                             link->finish_processing_stylesheet_resource(fetch_generation);
                         });
                 });
