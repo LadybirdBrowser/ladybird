@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Text level 4 Test: intrinsic sizes of block containers with various 'white-space' values</title>
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-text-4/#white-space-property">
+<link rel="help" href="https://drafts.csswg.org/css-sizing-3/#intrinsic-sizes">
+
+<link rel="stylesheet" href="../../../fonts/ahem.css">
+<style>
+.container {
+  font: 10px / 1 Ahem;
+  color: gray;
+}
+.container.narrow {
+  float: left;
+  width: 0;
+  margin-right: 50px;
+}
+.container.wide {
+  width: 800px;
+}
+.container > div {
+  display: inline-block;
+  border: solid black;
+}
+hr {
+  clear: both;
+}
+x-br::before {
+  content: "\a";
+  white-space: preserve-breaks;
+}
+.collapse.wrap {
+  white-space: normal;
+}
+.collapse.nowrap {
+  white-space: nowrap;
+}
+.preserve.wrap {
+  white-space: pre-wrap;
+}
+.preserve.nowrap {
+  white-space: pre;
+}
+.preserve-breaks.wrap {
+  white-space: preserve-breaks;
+}
+.preserve-breaks.nowrap {
+  white-space: preserve-breaks nowrap;
+}
+.break-spaces.wrap {
+  white-space: break-spaces;
+}
+.break-spaces.nowrap {
+  white-space: break-spaces nowrap;
+}
+</style>
+
+<div class="container narrow">
+  <div class="collapse wrap"          data-expected-client-width= "0" data-expected-client-height= "0"></div>
+  <div class="collapse nowrap"        data-expected-client-width= "0" data-expected-client-height= "0"></div>
+  <div class="preserve wrap"          data-expected-client-width= "0" data-expected-client-height= "0"></div>
+  <div class="preserve nowrap"        data-expected-client-width= "0" data-expected-client-height= "0"></div>
+  <div class="preserve-breaks wrap"   data-expected-client-width= "0" data-expected-client-height= "0"></div>
+  <div class="preserve-breaks nowrap" data-expected-client-width= "0" data-expected-client-height= "0"></div>
+  <div class="break-spaces wrap"      data-expected-client-width= "0" data-expected-client-height= "0"></div>
+  <div class="break-spaces nowrap"    data-expected-client-width= "0" data-expected-client-height= "0"></div>
+</div>
+<div class="container narrow">
+  <div class="collapse wrap"          data-expected-client-width= "0" data-expected-client-height= "0"> </div>
+  <div class="collapse nowrap"        data-expected-client-width= "0" data-expected-client-height= "0"> </div>
+  <div class="preserve wrap"          data-expected-client-width= "0" data-expected-client-height="10"> </div>
+  <div class="preserve nowrap"        data-expected-client-width="10" data-expected-client-height="10"> </div>
+  <div class="preserve-breaks wrap"   data-expected-client-width= "0" data-expected-client-height= "0"> </div>
+  <div class="preserve-breaks nowrap" data-expected-client-width= "0" data-expected-client-height= "0"> </div>
+  <div class="break-spaces wrap"      data-expected-client-width="10" data-expected-client-height="10"> </div>
+  <div class="break-spaces nowrap"    data-expected-client-width="10" data-expected-client-height="10"> </div>
+</div>
+<div class="container narrow">
+  <div class="collapse wrap"          data-expected-client-width= "0" data-expected-client-height= "0">  </div>
+  <div class="collapse nowrap"        data-expected-client-width= "0" data-expected-client-height= "0">  </div>
+  <div class="preserve wrap"          data-expected-client-width= "0" data-expected-client-height="10">  </div>
+  <div class="preserve nowrap"        data-expected-client-width="20" data-expected-client-height="10">  </div>
+  <div class="preserve-breaks wrap"   data-expected-client-width= "0" data-expected-client-height= "0">  </div>
+  <div class="preserve-breaks nowrap" data-expected-client-width= "0" data-expected-client-height= "0">  </div>
+  <div class="break-spaces wrap"      data-expected-client-width="10" data-expected-client-height="20">  </div>
+  <div class="break-spaces nowrap"    data-expected-client-width="20" data-expected-client-height="10">  </div>
+</div>
+<div class="container narrow">
+  <div class="collapse wrap"          data-expected-client-width="10" data-expected-client-height="10">X</div>
+  <div class="collapse nowrap"        data-expected-client-width="10" data-expected-client-height="10">X</div>
+  <div class="preserve wrap"          data-expected-client-width="10" data-expected-client-height="10">X</div>
+  <div class="preserve nowrap"        data-expected-client-width="10" data-expected-client-height="10">X</div>
+  <div class="preserve-breaks wrap"   data-expected-client-width="10" data-expected-client-height="10">X</div>
+  <div class="preserve-breaks nowrap" data-expected-client-width="10" data-expected-client-height="10">X</div>
+  <div class="break-spaces wrap"      data-expected-client-width="10" data-expected-client-height="10">X</div>
+  <div class="break-spaces nowrap"    data-expected-client-width="10" data-expected-client-height="10">X</div>
+</div>
+<div class="container narrow">
+  <div class="collapse wrap"          data-expected-client-width="10" data-expected-client-height="10"> X</div>
+  <div class="collapse nowrap"        data-expected-client-width="10" data-expected-client-height="10"> X</div>
+  <div class="preserve wrap"          data-expected-client-width="10" data-expected-client-height="20"> X</div>
+  <div class="preserve nowrap"        data-expected-client-width="20" data-expected-client-height="10"> X</div>
+  <div class="preserve-breaks wrap"   data-expected-client-width="10" data-expected-client-height="10"> X</div>
+  <div class="preserve-breaks nowrap" data-expected-client-width="10" data-expected-client-height="10"> X</div>
+  <div class="break-spaces wrap"      data-expected-client-width="10" data-expected-client-height="20"> X</div>
+  <div class="break-spaces nowrap"    data-expected-client-width="20" data-expected-client-height="10"> X</div>
+</div>
+<div class="container narrow">
+  <div class="collapse wrap"          data-expected-client-width="10" data-expected-client-height="10">  X</div>
+  <div class="collapse nowrap"        data-expected-client-width="10" data-expected-client-height="10">  X</div>
+  <div class="preserve wrap"          data-expected-client-width="10" data-expected-client-height="20">  X</div>
+  <div class="preserve nowrap"        data-expected-client-width="30" data-expected-client-height="10">  X</div>
+  <div class="preserve-breaks wrap"   data-expected-client-width="10" data-expected-client-height="10">  X</div>
+  <div class="preserve-breaks nowrap" data-expected-client-width="10" data-expected-client-height="10">  X</div>
+  <div class="break-spaces wrap"      data-expected-client-width="10" data-expected-client-height="30">  X</div>
+  <div class="break-spaces nowrap"    data-expected-client-width="30" data-expected-client-height="10">  X</div>
+</div>
+<div class="container narrow">
+  <div class="collapse wrap"          data-expected-client-width="10" data-expected-client-height="10">X </div>
+  <div class="collapse nowrap"        data-expected-client-width="10" data-expected-client-height="10">X </div>
+  <div class="preserve wrap"          data-expected-client-width="10" data-expected-client-height="10">X </div>
+  <div class="preserve nowrap"        data-expected-client-width="20" data-expected-client-height="10">X </div>
+  <div class="preserve-breaks wrap"   data-expected-client-width="10" data-expected-client-height="10">X </div>
+  <div class="preserve-breaks nowrap" data-expected-client-width="10" data-expected-client-height="10">X </div>
+  <div class="break-spaces wrap"      data-expected-client-width="20" data-expected-client-height="10">X </div>
+  <div class="break-spaces nowrap"    data-expected-client-width="20" data-expected-client-height="10">X </div>
+</div>
+<div class="container narrow">
+  <div class="collapse wrap"          data-expected-client-width="10" data-expected-client-height="10">X  </div>
+  <div class="collapse nowrap"        data-expected-client-width="10" data-expected-client-height="10">X  </div>
+  <div class="preserve wrap"          data-expected-client-width="10" data-expected-client-height="10">X  </div>
+  <div class="preserve nowrap"        data-expected-client-width="30" data-expected-client-height="10">X  </div>
+  <div class="preserve-breaks wrap"   data-expected-client-width="10" data-expected-client-height="10">X  </div>
+  <div class="preserve-breaks nowrap" data-expected-client-width="10" data-expected-client-height="10">X  </div>
+  <div class="break-spaces wrap"      data-expected-client-width="20" data-expected-client-height="20">X  </div>
+  <div class="break-spaces nowrap"    data-expected-client-width="30" data-expected-client-height="10">X  </div>
+</div>
+<div class="container narrow">
+  <div class="collapse wrap"          data-expected-client-width="10" data-expected-client-height="20">X É</div>
+  <div class="collapse nowrap"        data-expected-client-width="30" data-expected-client-height="10">X É</div>
+  <div class="preserve wrap"          data-expected-client-width="10" data-expected-client-height="20">X É</div>
+  <div class="preserve nowrap"        data-expected-client-width="30" data-expected-client-height="10">X É</div>
+  <div class="preserve-breaks wrap"   data-expected-client-width="10" data-expected-client-height="20">X É</div>
+  <div class="preserve-breaks nowrap" data-expected-client-width="30" data-expected-client-height="10">X É</div>
+  <div class="break-spaces wrap"      data-expected-client-width="20" data-expected-client-height="20">X É</div>
+  <div class="break-spaces nowrap"    data-expected-client-width="30" data-expected-client-height="10">X É</div>
+</div>
+<div class="container narrow">
+  <div class="collapse wrap"          data-expected-client-width="10" data-expected-client-height="20">X  É</div>
+  <div class="collapse nowrap"        data-expected-client-width="30" data-expected-client-height="10">X  É</div>
+  <div class="preserve wrap"          data-expected-client-width="10" data-expected-client-height="20">X  É</div>
+  <div class="preserve nowrap"        data-expected-client-width="40" data-expected-client-height="10">X  É</div>
+  <div class="preserve-breaks wrap"   data-expected-client-width="10" data-expected-client-height="20">X  É</div>
+  <div class="preserve-breaks nowrap" data-expected-client-width="30" data-expected-client-height="10">X  É</div>
+  <div class="break-spaces wrap"      data-expected-client-width="20" data-expected-client-height="20">X  É</div>
+  <div class="break-spaces nowrap"    data-expected-client-width="40" data-expected-client-height="10">X  É</div>
+</div>
+<div class="container narrow">
+  <div class="collapse wrap"          data-expected-client-width="10" data-expected-client-height="20">X <x-br></x-br>É</div>
+  <div class="collapse nowrap"        data-expected-client-width="10" data-expected-client-height="20">X <x-br></x-br>É</div>
+  <div class="preserve wrap"          data-expected-client-width="10" data-expected-client-height="20">X <x-br></x-br>É</div>
+  <div class="preserve nowrap"        data-expected-client-width="20" data-expected-client-height="20">X <x-br></x-br>É</div>
+  <div class="preserve-breaks wrap"   data-expected-client-width="10" data-expected-client-height="20">X <x-br></x-br>É</div>
+  <div class="preserve-breaks nowrap" data-expected-client-width="10" data-expected-client-height="20">X <x-br></x-br>É</div>
+  <div class="break-spaces wrap"      data-expected-client-width="20" data-expected-client-height="20">X <x-br></x-br>É</div>
+  <div class="break-spaces nowrap"    data-expected-client-width="20" data-expected-client-height="20">X <x-br></x-br>É</div>
+</div>
+<div class="container narrow">
+  <div class="collapse wrap"          data-expected-client-width="10" data-expected-client-height="20">X <a>É</a></div>
+  <div class="collapse nowrap"        data-expected-client-width="30" data-expected-client-height="10">X <a>É</a></div>
+  <div class="preserve wrap"          data-expected-client-width="10" data-expected-client-height="20">X <a>É</a></div>
+  <div class="preserve nowrap"        data-expected-client-width="30" data-expected-client-height="10">X <a>É</a></div>
+  <div class="preserve-breaks wrap"   data-expected-client-width="10" data-expected-client-height="20">X <a>É</a></div>
+  <div class="preserve-breaks nowrap" data-expected-client-width="30" data-expected-client-height="10">X <a>É</a></div>
+  <div class="break-spaces wrap"      data-expected-client-width="20" data-expected-client-height="20">X <a>É</a></div>
+  <div class="break-spaces nowrap"    data-expected-client-width="30" data-expected-client-height="10">X <a>É</a></div>
+</div>
+
+<hr>
+
+<div class="container wide">
+  <div class="collapse wrap"          data-expected-client-width= "0" data-expected-client-height= "0"></div>
+  <div class="collapse nowrap"        data-expected-client-width= "0" data-expected-client-height= "0"></div>
+  <div class="preserve wrap"          data-expected-client-width= "0" data-expected-client-height= "0"></div>
+  <div class="preserve nowrap"        data-expected-client-width= "0" data-expected-client-height= "0"></div>
+  <div class="preserve-breaks wrap"   data-expected-client-width= "0" data-expected-client-height= "0"></div>
+  <div class="preserve-breaks nowrap" data-expected-client-width= "0" data-expected-client-height= "0"></div>
+  <div class="break-spaces wrap"      data-expected-client-width= "0" data-expected-client-height= "0"></div>
+  <div class="break-spaces nowrap"    data-expected-client-width= "0" data-expected-client-height= "0"></div>
+</div>
+<div class="container wide">
+  <div class="collapse wrap"          data-expected-client-width= "0" data-expected-client-height= "0"> </div>
+  <div class="collapse nowrap"        data-expected-client-width= "0" data-expected-client-height= "0"> </div>
+  <div class="preserve wrap"          data-expected-client-width="10" data-expected-client-height="10"> </div>
+  <div class="preserve nowrap"        data-expected-client-width="10" data-expected-client-height="10"> </div>
+  <div class="preserve-breaks wrap"   data-expected-client-width= "0" data-expected-client-height= "0"> </div>
+  <div class="preserve-breaks nowrap" data-expected-client-width= "0" data-expected-client-height= "0"> </div>
+  <div class="break-spaces wrap"      data-expected-client-width="10" data-expected-client-height="10"> </div>
+  <div class="break-spaces nowrap"    data-expected-client-width="10" data-expected-client-height="10"> </div>
+</div>
+<div class="container wide">
+  <div class="collapse wrap"          data-expected-client-width= "0" data-expected-client-height= "0">  </div>
+  <div class="collapse nowrap"        data-expected-client-width= "0" data-expected-client-height= "0">  </div>
+  <div class="preserve wrap"          data-expected-client-width="20" data-expected-client-height="10">  </div>
+  <div class="preserve nowrap"        data-expected-client-width="20" data-expected-client-height="10">  </div>
+  <div class="preserve-breaks wrap"   data-expected-client-width= "0" data-expected-client-height= "0">  </div>
+  <div class="preserve-breaks nowrap" data-expected-client-width= "0" data-expected-client-height= "0">  </div>
+  <div class="break-spaces wrap"      data-expected-client-width="20" data-expected-client-height="10">  </div>
+  <div class="break-spaces nowrap"    data-expected-client-width="20" data-expected-client-height="10">  </div>
+</div>
+<div class="container wide">
+  <div class="collapse wrap"          data-expected-client-width="10" data-expected-client-height="10">X</div>
+  <div class="collapse nowrap"        data-expected-client-width="10" data-expected-client-height="10">X</div>
+  <div class="preserve wrap"          data-expected-client-width="10" data-expected-client-height="10">X</div>
+  <div class="preserve nowrap"        data-expected-client-width="10" data-expected-client-height="10">X</div>
+  <div class="preserve-breaks wrap"   data-expected-client-width="10" data-expected-client-height="10">X</div>
+  <div class="preserve-breaks nowrap" data-expected-client-width="10" data-expected-client-height="10">X</div>
+  <div class="break-spaces wrap"      data-expected-client-width="10" data-expected-client-height="10">X</div>
+  <div class="break-spaces nowrap"    data-expected-client-width="10" data-expected-client-height="10">X</div>
+</div>
+<div class="container wide">
+  <div class="collapse wrap"          data-expected-client-width="10" data-expected-client-height="10"> X</div>
+  <div class="collapse nowrap"        data-expected-client-width="10" data-expected-client-height="10"> X</div>
+  <div class="preserve wrap"          data-expected-client-width="20" data-expected-client-height="10"> X</div>
+  <div class="preserve nowrap"        data-expected-client-width="20" data-expected-client-height="10"> X</div>
+  <div class="preserve-breaks wrap"   data-expected-client-width="10" data-expected-client-height="10"> X</div>
+  <div class="preserve-breaks nowrap" data-expected-client-width="10" data-expected-client-height="10"> X</div>
+  <div class="break-spaces wrap"      data-expected-client-width="20" data-expected-client-height="10"> X</div>
+  <div class="break-spaces nowrap"    data-expected-client-width="20" data-expected-client-height="10"> X</div>
+</div>
+<div class="container wide">
+  <div class="collapse wrap"          data-expected-client-width="10" data-expected-client-height="10">  X</div>
+  <div class="collapse nowrap"        data-expected-client-width="10" data-expected-client-height="10">  X</div>
+  <div class="preserve wrap"          data-expected-client-width="30" data-expected-client-height="10">  X</div>
+  <div class="preserve nowrap"        data-expected-client-width="30" data-expected-client-height="10">  X</div>
+  <div class="preserve-breaks wrap"   data-expected-client-width="10" data-expected-client-height="10">  X</div>
+  <div class="preserve-breaks nowrap" data-expected-client-width="10" data-expected-client-height="10">  X</div>
+  <div class="break-spaces wrap"      data-expected-client-width="30" data-expected-client-height="10">  X</div>
+  <div class="break-spaces nowrap"    data-expected-client-width="30" data-expected-client-height="10">  X</div>
+</div>
+<div class="container wide">
+  <div class="collapse wrap"          data-expected-client-width="10" data-expected-client-height="10">X </div>
+  <div class="collapse nowrap"        data-expected-client-width="10" data-expected-client-height="10">X </div>
+  <div class="preserve wrap"          data-expected-client-width="20" data-expected-client-height="10">X </div>
+  <div class="preserve nowrap"        data-expected-client-width="20" data-expected-client-height="10">X </div>
+  <div class="preserve-breaks wrap"   data-expected-client-width="10" data-expected-client-height="10">X </div>
+  <div class="preserve-breaks nowrap" data-expected-client-width="10" data-expected-client-height="10">X </div>
+  <div class="break-spaces wrap"      data-expected-client-width="20" data-expected-client-height="10">X </div>
+  <div class="break-spaces nowrap"    data-expected-client-width="20" data-expected-client-height="10">X </div>
+</div>
+<div class="container wide">
+  <div class="collapse wrap"          data-expected-client-width="10" data-expected-client-height="10">X  </div>
+  <div class="collapse nowrap"        data-expected-client-width="10" data-expected-client-height="10">X  </div>
+  <div class="preserve wrap"          data-expected-client-width="30" data-expected-client-height="10">X  </div>
+  <div class="preserve nowrap"        data-expected-client-width="30" data-expected-client-height="10">X  </div>
+  <div class="preserve-breaks wrap"   data-expected-client-width="10" data-expected-client-height="10">X  </div>
+  <div class="preserve-breaks nowrap" data-expected-client-width="10" data-expected-client-height="10">X  </div>
+  <div class="break-spaces wrap"      data-expected-client-width="30" data-expected-client-height="10">X  </div>
+  <div class="break-spaces nowrap"    data-expected-client-width="30" data-expected-client-height="10">X  </div>
+</div>
+<div class="container wide">
+  <div class="collapse wrap"          data-expected-client-width="30" data-expected-client-height="10">X É</div>
+  <div class="collapse nowrap"        data-expected-client-width="30" data-expected-client-height="10">X É</div>
+  <div class="preserve wrap"          data-expected-client-width="30" data-expected-client-height="10">X É</div>
+  <div class="preserve nowrap"        data-expected-client-width="30" data-expected-client-height="10">X É</div>
+  <div class="preserve-breaks wrap"   data-expected-client-width="30" data-expected-client-height="10">X É</div>
+  <div class="preserve-breaks nowrap" data-expected-client-width="30" data-expected-client-height="10">X É</div>
+  <div class="break-spaces wrap"      data-expected-client-width="30" data-expected-client-height="10">X É</div>
+  <div class="break-spaces nowrap"    data-expected-client-width="30" data-expected-client-height="10">X É</div>
+</div>
+<div class="container wide">
+  <div class="collapse wrap"          data-expected-client-width="30" data-expected-client-height="10">X  É</div>
+  <div class="collapse nowrap"        data-expected-client-width="30" data-expected-client-height="10">X  É</div>
+  <div class="preserve wrap"          data-expected-client-width="40" data-expected-client-height="10">X  É</div>
+  <div class="preserve nowrap"        data-expected-client-width="40" data-expected-client-height="10">X  É</div>
+  <div class="preserve-breaks wrap"   data-expected-client-width="30" data-expected-client-height="10">X  É</div>
+  <div class="preserve-breaks nowrap" data-expected-client-width="30" data-expected-client-height="10">X  É</div>
+  <div class="break-spaces wrap"      data-expected-client-width="40" data-expected-client-height="10">X  É</div>
+  <div class="break-spaces nowrap"    data-expected-client-width="40" data-expected-client-height="10">X  É</div>
+</div>
+<div class="container wide">
+  <div class="collapse wrap"          data-expected-client-width="10" data-expected-client-height="20">X <x-br></x-br>É</div>
+  <div class="collapse nowrap"        data-expected-client-width="10" data-expected-client-height="20">X <x-br></x-br>É</div>
+  <div class="preserve wrap"          data-expected-client-width="20" data-expected-client-height="20">X <x-br></x-br>É</div>
+  <div class="preserve nowrap"        data-expected-client-width="20" data-expected-client-height="20">X <x-br></x-br>É</div>
+  <div class="preserve-breaks wrap"   data-expected-client-width="10" data-expected-client-height="20">X <x-br></x-br>É</div>
+  <div class="preserve-breaks nowrap" data-expected-client-width="10" data-expected-client-height="20">X <x-br></x-br>É</div>
+  <div class="break-spaces wrap"      data-expected-client-width="20" data-expected-client-height="20">X <x-br></x-br>É</div>
+  <div class="break-spaces nowrap"    data-expected-client-width="20" data-expected-client-height="20">X <x-br></x-br>É</div>
+</div>
+<div class="container wide">
+  <div class="collapse wrap"          data-expected-client-width="30" data-expected-client-height="10">X <a>É</a></div>
+  <div class="collapse nowrap"        data-expected-client-width="30" data-expected-client-height="10">X <a>É</a></div>
+  <div class="preserve wrap"          data-expected-client-width="30" data-expected-client-height="10">X <a>É</a></div>
+  <div class="preserve nowrap"        data-expected-client-width="30" data-expected-client-height="10">X <a>É</a></div>
+  <div class="preserve-breaks wrap"   data-expected-client-width="30" data-expected-client-height="10">X <a>É</a></div>
+  <div class="preserve-breaks nowrap" data-expected-client-width="30" data-expected-client-height="10">X <a>É</a></div>
+  <div class="break-spaces wrap"      data-expected-client-width="30" data-expected-client-height="10">X <a>É</a></div>
+  <div class="break-spaces nowrap"    data-expected-client-width="30" data-expected-client-height="10">X <a>É</a></div>
+</div>
+
+<hr>
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<script>
+document.fonts.ready.then(() => checkLayout(".container > div"));
+</script>
