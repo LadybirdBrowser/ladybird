@@ -54,6 +54,19 @@ struct BlockLevelBoxOutcome {
     broken_inside: Option<BrokenInside>,
     /// The baselines the box gives its containing block, relative to the containing block's content box.
     baselines_in_containing_block: DerivedBaselines,
+    /// The block end of the margin box in the containing block, where the layout of the box found it.
+    margin_box_block_end: Option<CssPixels>,
+    /// A rendered legend, which its fieldset places once it knows the fieldset's block-start border. Boxed, as the
+    /// outcome of every block-level box carries it through deeply nested layout.
+    deferred_legend: Option<Box<DeferredLegend>>,
+}
+
+/// A rendered legend laid out in its fieldset's flow, which the fieldset places later: where the flow would put the
+/// legend's content box, and what placing it takes.
+struct DeferredLegend {
+    flow_position: geometry::LogicalOffset,
+    placed_child: formatting_context::PlacedChild,
+    fragment_arrival: Option<fragment_tree::ChildFragmentArrival>,
 }
 
 impl BlockLevelBoxOutcome {
@@ -146,11 +159,16 @@ struct LaidOutBlockLevelBox {
     laid_out_box: run_records::LaidOutChildBox,
     /// What this flow decided the box's fragment shows of it.
     fragment_facts: run_records::FragmentFactsDecidedByParent,
+    /// The offset of the content box in the containing block, where this flow placed the box.
+    content_offset: Option<FfiCssPixelPoint>,
+    /// The block end of the margin box in the containing block, where this flow found it.
+    margin_box_block_end: Option<CssPixels>,
+    deferred_legend: Option<Box<DeferredLegend>>,
 }
 
 impl LaidOutBlockLevelBox {
     /// A box laid out as `laid_out_box` with `fragment_facts`, which neither broke inside nor let margins collapse
-    /// through it.
+    /// through it, and which this flow did not place.
     fn of_box(
         laid_out_box: run_records::LaidOutChildBox,
         fragment_facts: run_records::FragmentFactsDecidedByParent,
@@ -161,6 +179,9 @@ impl LaidOutBlockLevelBox {
             collapses_through: false,
             laid_out_box,
             fragment_facts,
+            content_offset: None,
+            margin_box_block_end: None,
+            deferred_legend: None,
         }
     }
 }
@@ -507,10 +528,6 @@ pub(crate) struct BlockFormattingContext<'pass> {
     /// The lines the stored run of the root laid out, which inline layout of the root's own lines may reuse a prefix of.
     pub(super) previous_line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
     block_offset_of_current_block_container: Cell<Option<CssPixels>>,
-    pending_legend_flow_position: Cell<Option<geometry::LogicalOffset>>,
-    pending_legend_fragment_arrival: Cell<Option<fragment_tree::ChildFragmentArrival>>,
-    /// What placing the rendered legend takes from its layout, which the fieldset places after its other children.
-    pending_legend_placed_child: Cell<Option<formatting_context::PlacedChild>>,
     margin_state: RefCell<BlockMarginState>,
     floats: RefCell<Vec<FloatingBox>>,
     bands: RefCell<SmallVec<[FloatBand; 4]>>,
@@ -632,9 +649,6 @@ impl<'pass> BlockFormattingContext<'pass> {
             run: run.clone(),
             previous_line_data,
             block_offset_of_current_block_container: Cell::new(None),
-            pending_legend_flow_position: Cell::new(None),
-            pending_legend_fragment_arrival: Cell::new(None),
-            pending_legend_placed_child: Cell::new(None),
             margin_state: RefCell::new(BlockMarginState::default()),
             floats: RefCell::new(Vec::new()),
             bands: RefCell::new(smallvec![FloatBand::default()]),
@@ -2232,7 +2246,6 @@ impl<'pass> BlockFormattingContext<'pass> {
         run: &FormattingContextRun<'pass>,
         node: Node,
         block_container: BlockContainer<'pass>,
-        bottom_of_lowest_margin_box: &mut CssPixels,
         input: LayoutInput,
         containing_block_position_in_root: FfiCssPixelPoint,
         interrupted_inline_content: Option<InterruptedInlineContent>,
@@ -2241,12 +2254,11 @@ impl<'pass> BlockFormattingContext<'pass> {
             run,
             node,
             block_container,
-            bottom_of_lowest_margin_box,
             input,
             containing_block_position_in_root,
             interrupted_inline_content,
         )?;
-        let content_offset = self.run.records.content_offset_or_origin(node);
+        let content_offset = laid_out.content_offset.unwrap_or_default();
         let laid_out_box = laid_out.laid_out_box;
         let cells = laid_out_box.cells;
         let content_baselines = laid_out_box.baselines;
@@ -2261,7 +2273,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         );
         Some(BlockLevelBoxOutcome {
             content_offset,
-            is_placed: self.run.records.is_placed(node),
+            is_placed: laid_out.content_offset.is_some(),
             cells,
             content_baselines,
             collapses_through: laid_out.collapses_through,
@@ -2269,6 +2281,8 @@ impl<'pass> BlockFormattingContext<'pass> {
             can_break_inside: self.box_can_break_inside(node, laid_out.has_unbreakable_lines),
             broken_inside: laid_out.broken_inside,
             baselines_in_containing_block,
+            margin_box_block_end: laid_out.margin_box_block_end,
+            deferred_legend: laid_out.deferred_legend,
         })
     }
 
@@ -2278,7 +2292,6 @@ impl<'pass> BlockFormattingContext<'pass> {
         run: &FormattingContextRun<'pass>,
         node: Node,
         block_container: BlockContainer<'pass>,
-        bottom_of_lowest_margin_box: &mut CssPixels,
         input: LayoutInput,
         containing_block_position_in_root: FfiCssPixelPoint,
         interrupted_inline_content: Option<InterruptedInlineContent>,
@@ -2390,7 +2403,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 .get()
                 .expect("a block container flow cursor is active");
             let margin_top = self.margin_state.borrow().pending_margin_for_next_box();
-            let (_, float_handed_back_by_its_run) = self.layout_floating_box(
+            let (_, float_handed_back_by_its_run, float_content_offset) = self.layout_floating_box(
                 run,
                 sized_child,
                 block_container,
@@ -2400,14 +2413,19 @@ impl<'pass> BlockFormattingContext<'pass> {
                 None,
                 fragment_facts,
             );
-            if let Some(floating_box) = self.floats.borrow().last() {
-                *bottom_of_lowest_margin_box = (*bottom_of_lowest_margin_box).max(floating_box.bottom_margin_edge);
-            }
-            return Some(LaidOutBlockLevelBox::of_box(
-                float_handed_back_by_its_run
-                    .expect("a floating box of a block formatting context is laid out by a run of its own"),
-                fragment_facts,
-            ));
+            return Some(LaidOutBlockLevelBox {
+                content_offset: float_content_offset,
+                margin_box_block_end: self
+                    .floats
+                    .borrow()
+                    .last()
+                    .map(|floating_box| floating_box.bottom_margin_edge),
+                ..LaidOutBlockLevelBox::of_box(
+                    float_handed_back_by_its_run
+                        .expect("a floating box of a block formatting context is laid out by a run of its own"),
+                    fragment_facts,
+                )
+            });
         }
 
         let in_flow_reuse = match self.probe_in_flow_reuse(
@@ -2418,17 +2436,16 @@ impl<'pass> BlockFormattingContext<'pass> {
             containing_line_box_fragment,
         ) {
             InFlowReuse::Hit { entry, fragment } => {
-                self.reuse_in_flow_child(
-                    sized_child,
-                    block_container,
-                    &entry,
-                    fragment,
-                    bottom_of_lowest_margin_box,
-                );
-                return Some(LaidOutBlockLevelBox::of_box(
-                    Self::laid_out_box_in_record_its_layout_owns(sized_child),
-                    fragment_facts,
-                ));
+                let (content_offset, margin_box_block_end) =
+                    self.reuse_in_flow_child(sized_child, block_container, &entry, fragment);
+                return Some(LaidOutBlockLevelBox {
+                    content_offset: Some(content_offset),
+                    margin_box_block_end: Some(margin_box_block_end),
+                    ..LaidOutBlockLevelBox::of_box(
+                        Self::laid_out_box_in_record_its_layout_owns(sized_child),
+                        fragment_facts,
+                    )
+                });
             }
             attempt => attempt,
         };
@@ -2568,11 +2585,12 @@ impl<'pass> BlockFormattingContext<'pass> {
 
         let is_table_formatting_context = independent_type == Some(formatting_context::FormattingContextType::Table);
         let mut pending_position = None;
+        let mut legend_flow_position = None;
         if box_is_positioned_by_fieldset_layout {
-            self.pending_legend_flow_position.set(Some(geometry::LogicalOffset {
+            legend_flow_position = Some(geometry::LogicalOffset {
                 inline_offset: content_inline_offset,
                 block_offset: content_block_offset,
-            }));
+            });
         } else if !box_opens_top_margin_group {
             pending_position = Some(FfiCssPixelPoint {
                 x: content_inline_offset,
@@ -2793,10 +2811,10 @@ impl<'pass> BlockFormattingContext<'pass> {
                     block_offset + resolved_margin_top + self.record_of(sized_child).border_box_top(false)
                 };
                 if box_is_positioned_by_fieldset_layout {
-                    self.pending_legend_flow_position.set(Some(geometry::LogicalOffset {
+                    legend_flow_position = Some(geometry::LogicalOffset {
                         inline_offset: content_inline_offset,
                         block_offset: final_content_block_offset,
-                    }));
+                    });
                 } else {
                     pending_position = Some(FfiCssPixelPoint {
                         x: content_inline_offset,
@@ -2974,6 +2992,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                     interrupted.offset_from_relatively_positioned_inline_ancestors
                 }),
             );
+        let mut deferred_legend = None;
         let mut placed = match pending_position {
             Some(position) => {
                 let placed = formatting_context::place_child(
@@ -2990,13 +3009,11 @@ impl<'pass> BlockFormattingContext<'pass> {
                 placed
             }
             None => {
-                debug_assert!(
-                    box_is_positioned_by_fieldset_layout,
-                    "only a rendered legend waits for its position"
-                );
-                self.pending_legend_fragment_arrival
-                    .set(fragment_arrival_of_child_with_own_formatting_context);
-                self.pending_legend_placed_child.set(Some(placed_child));
+                deferred_legend = Some(Box::new(DeferredLegend {
+                    flow_position: legend_flow_position.expect("only a rendered legend waits for its position"),
+                    placed_child,
+                    fragment_arrival: fragment_arrival_of_child_with_own_formatting_context,
+                }));
                 None
             }
         };
@@ -3025,7 +3042,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             }
             drop(margin_state);
             self.block_offset_of_current_block_container.set(Some(
-                self.run.records.content_offset_or_origin(node).y
+                pending_position.unwrap_or_default().y
                     + metrics.content_block_size()
                     + metrics.border_box_bottom(metrics.uses_collapsing_borders_model()),
             ));
@@ -3036,12 +3053,16 @@ impl<'pass> BlockFormattingContext<'pass> {
         self.margin_state.borrow_mut().add_margin(metrics.margin_bottom());
         self.margin_state.borrow_mut().update_open_top_margin_group();
 
-        *bottom_of_lowest_margin_box = (*bottom_of_lowest_margin_box).max(
-            self.run.records.content_offset_or_origin(node).y
-                + metrics.content_block_size()
-                + metrics.margin_box_bottom(metrics.uses_collapsing_borders_model()),
+        let content_offset = pending_position.unwrap_or_default();
+        let margin_box_block_end = content_offset.y
+            + metrics.content_block_size()
+            + metrics.margin_box_bottom(metrics.uses_collapsing_borders_model());
+        self.conclude_in_flow_reuse(
+            in_flow_reuse,
+            sized_child,
+            placed.map(|placed| (content_offset, placed)),
+            depends_on_percentage_block_size,
         );
-        self.conclude_in_flow_reuse(in_flow_reuse, sized_child, placed, depends_on_percentage_block_size);
         let broken_inside = broken_token_of_box.map(|token| BrokenInside {
             token,
             block_end_of_content: summary_of_children_laid_out_in_this_flow
@@ -3056,6 +3077,9 @@ impl<'pass> BlockFormattingContext<'pass> {
             laid_out_box: laid_out_box_handed_back_by_its_run
                 .unwrap_or_else(|| Self::laid_out_box_in_record_its_layout_owns(sized_child)),
             fragment_facts,
+            content_offset: pending_position,
+            margin_box_block_end: Some(margin_box_block_end),
+            deferred_legend,
         })
     }
 
@@ -3159,8 +3183,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         block_container: BlockContainer<'pass>,
         entry: &in_flow_block_cache::InFlowBlockEntry,
         fragment: std::sync::Arc<fragment_tree::Fragment>,
-        bottom_of_lowest_margin_box: &mut CssPixels,
-    ) {
+    ) -> (FfiCssPixelPoint, CssPixels) {
         let node = sized_child.node;
         self.run.callbacks.arena().layout_trace.reused_in_flow_subtree(node);
         let used = self.record_of(sized_child);
@@ -3174,6 +3197,10 @@ impl<'pass> BlockFormattingContext<'pass> {
             entry.depends_on_percentage_block_size,
         );
         let insets = self.compute_inset(&self.run, node, block_container);
+        let content_offset = FfiCssPixelPoint {
+            x: entry.offset_from_flow_position.x,
+            y: entry.offset_from_flow_position.y + flow_position,
+        };
         formatting_context::place_child(
             &self.run,
             node,
@@ -3182,10 +3209,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 line_data: None,
             })
             .with_in_flow_box_insets(insets),
-            FfiCssPixelPoint {
-                x: entry.offset_from_flow_position.x,
-                y: entry.offset_from_flow_position.y + flow_position,
-            },
+            content_offset,
             None,
             Some(fragment_tree::ChildFragmentArrival::CommittedFragment {
                 fragment,
@@ -3195,15 +3219,17 @@ impl<'pass> BlockFormattingContext<'pass> {
         used.seal_own_metrics();
         self.block_offset_of_current_block_container
             .set(Some(flow_position + entry.flow_position_advance));
-        *bottom_of_lowest_margin_box =
-            (*bottom_of_lowest_margin_box).max(flow_position + entry.margin_box_bottom_from_flow_position);
+        (
+            content_offset,
+            flow_position + entry.margin_box_bottom_from_flow_position,
+        )
     }
 
     fn conclude_in_flow_reuse(
         &self,
         attempt: InFlowReuse,
         sized_child: ChildSizedHere<'_>,
-        placed: Option<fragment_tree::PlacedFragment>,
+        placed: Option<(FfiCssPixelPoint, fragment_tree::PlacedFragment)>,
         depends_on_percentage_block_size: bool,
     ) {
         let node = sized_child.node;
@@ -3217,7 +3243,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             return;
         };
         let arena = self.run.callbacks.arena();
-        let Some(placed) = placed else {
+        let Some((content_offset, placed)) = placed else {
             return;
         };
         let used = self.record_of(sized_child);
@@ -3232,7 +3258,6 @@ impl<'pass> BlockFormattingContext<'pass> {
             return;
         }
         let cells = used_values::UsedValuesCellState::capture(used);
-        let content_offset = self.run.records.content_offset_or_origin(node);
         let entry = in_flow_block_cache::InFlowBlockEntry {
             key,
             validity,
@@ -3270,7 +3295,6 @@ impl<'pass> BlockFormattingContext<'pass> {
             "table wrappers are laid out by layout_table_wrapper_children"
         );
         let child_input = self.child_layout_input(block_container, input, available_space_for_children);
-        let mut dummy_bottom = CssPixels::default();
         let saved = self
             .block_offset_of_current_block_container
             .replace(Some(CssPixels::default()));
@@ -3320,7 +3344,6 @@ impl<'pass> BlockFormattingContext<'pass> {
                 run,
                 child,
                 block_container,
-                &mut dummy_bottom,
                 child_input,
                 containing_block_position_in_root,
                 None,
@@ -3936,17 +3959,16 @@ impl<'pass> BlockFormattingContext<'pass> {
                 self.block_offset_of_current_block_container.set(Some(row_block_offset));
             }
             follows_spanner = true;
-            let mut bottom_of_spanner_margin_box = row_block_offset;
-            let spanner_baselines = self
-                .layout_block_level_box(
-                    run,
-                    spanner,
-                    self.root_block_container(),
-                    &mut bottom_of_spanner_margin_box,
-                    spanner_input,
-                    FfiCssPixelPoint::default(),
-                    None,
-                )
+            let spanner_outcome = self.layout_block_level_box(
+                run,
+                spanner,
+                self.root_block_container(),
+                spanner_input,
+                FfiCssPixelPoint::default(),
+                None,
+            );
+            let spanner_baselines = spanner_outcome
+                .as_ref()
                 .map_or_else(DerivedBaselines::default, |outcome| {
                     outcome.baselines_in_containing_block
                 });
@@ -3955,7 +3977,9 @@ impl<'pass> BlockFormattingContext<'pass> {
                 spanner_baselines.last,
                 spanner_baselines.inline_alignment,
             );
-            row_block_offset = row_block_offset.max(bottom_of_spanner_margin_box);
+            if let Some(margin_box_block_end) = spanner_outcome.and_then(|outcome| outcome.margin_box_block_end) {
+                row_block_offset = row_block_offset.max(margin_box_block_end);
+            }
             let Some(next) = self.sibling_boxes_from(self.next_sibling(spanner)).next() else {
                 break;
             };
@@ -4267,7 +4291,6 @@ impl<'pass> BlockFormattingContext<'pass> {
             ..input
         };
         let caption_input = self.child_layout_input(wrapper_block_container, input, available_space_for_children);
-        let mut dummy_bottom = CssPixels::default();
         let saved = self
             .block_offset_of_current_block_container
             .replace(Some(CssPixels::default()));
@@ -4287,7 +4310,6 @@ impl<'pass> BlockFormattingContext<'pass> {
                 run,
                 child,
                 wrapper_block_container,
-                &mut dummy_bottom,
                 child_input,
                 FfiCssPixelPoint::default(),
                 None,
@@ -4314,9 +4336,8 @@ impl<'pass> BlockFormattingContext<'pass> {
         let legend = self.facts(fieldset).rendered_legend();
         assert!(!legend.is_invalid());
 
-        let mut dummy_bottom = CssPixels::default();
         // Lay out the legend to determine its dimensions.
-        let legend_outcome = {
+        let mut legend_outcome = {
             let saved = self
                 .block_offset_of_current_block_container
                 .replace(Some(CssPixels::default()));
@@ -4324,7 +4345,6 @@ impl<'pass> BlockFormattingContext<'pass> {
                 run,
                 legend,
                 fieldset_block_container,
-                &mut dummy_bottom,
                 child_input,
                 FfiCssPixelPoint::default(),
                 None,
@@ -4376,7 +4396,6 @@ impl<'pass> BlockFormattingContext<'pass> {
                         run,
                         child,
                         fieldset_block_container,
-                        &mut dummy_bottom,
                         child_input,
                         FfiCssPixelPoint::default(),
                         None,
@@ -4399,13 +4418,19 @@ impl<'pass> BlockFormattingContext<'pass> {
         let legend_content_block_offset = fieldset_border_box_block_start_in_content
             + legend_border_box_centering_offset
             + legend_cells.border_box_top(false);
-        let legend_fragment_arrival = self.pending_legend_fragment_arrival.take();
-        let placed_legend = self.pending_legend_placed_child.take();
-        if let Some(legend_flow_position) = self.pending_legend_flow_position.take() {
+        if let Some(DeferredLegend {
+            flow_position: legend_flow_position,
+            placed_child: placed_legend,
+            fragment_arrival: legend_fragment_arrival,
+        }) = legend_outcome
+            .as_mut()
+            .and_then(|outcome| outcome.deferred_legend.take())
+            .map(|deferred_legend| *deferred_legend)
+        {
             formatting_context::place_child(
                 &self.run,
                 legend,
-                placed_legend.expect("the rendered legend is laid out before the fieldset places it"),
+                placed_legend,
                 FfiCssPixelPoint {
                     x: legend_flow_position.inline_offset,
                     y: legend_content_block_offset,
@@ -4562,7 +4587,6 @@ impl<'pass> BlockFormattingContext<'pass> {
         let saved = self
             .block_offset_of_current_block_container
             .replace(Some(current_block_offset));
-        let mut dummy_bottom = CssPixels::default();
         if is_after_clamp_point {
             self.laying_out_invisible_line_clamp_content.set(true);
         }
@@ -4571,7 +4595,6 @@ impl<'pass> BlockFormattingContext<'pass> {
             run,
             node,
             containing_block,
-            &mut dummy_bottom,
             input,
             containing_block_position_in_root,
             Some(InterruptedInlineContent {
@@ -4681,7 +4704,8 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 
     /// Lays out and places `node`, a float, and returns what its insets resolved to, which is nothing for a float it
-    /// leaves unplaced, and the box a run of its own handed back where one laid it out.
+    /// leaves unplaced, the box a run of its own handed back where one laid it out, and the offset of its content box
+    /// in its containing block where it placed the float.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn layout_floating_box(
         &self,
@@ -4693,7 +4717,11 @@ impl<'pass> BlockFormattingContext<'pass> {
         block_offset: CssPixels,
         mut line_builder: Option<&mut line_builder::LineBuilder<'_, '_>>,
         fragment_facts: run_records::FragmentFactsDecidedByParent,
-    ) -> (abspos_engine::InFlowBoxInsets, Option<run_records::LaidOutChildBox>) {
+    ) -> (
+        abspos_engine::InFlowBoxInsets,
+        Option<run_records::LaidOutChildBox>,
+        Option<FfiCssPixelPoint>,
+    ) {
         let node = sized_float.node;
         let available_space = input.available_space;
         assert!(self.facts(node).is_floating());
@@ -4752,6 +4780,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             return (
                 abspos_engine::InFlowBoxInsets::default(),
                 laid_out_float_handed_back_by_its_run,
+                None,
             );
         };
         let float_box = float_box_cells;
@@ -4836,6 +4865,10 @@ impl<'pass> BlockFormattingContext<'pass> {
         } else {
             floating_box.percentage_basis_inline_size.unwrap_or_default() - floating_box.offset_from_edge
         };
+        let content_offset = FfiCssPixelPoint {
+            x: inline_offset,
+            y: content_block_offset,
+        };
         formatting_context::place_child(
             &self.run,
             node,
@@ -4843,14 +4876,11 @@ impl<'pass> BlockFormattingContext<'pass> {
                 .unwrap_or_else(|| formatting_context::PlacedChild::of_record(self.record_of(sized_float), &self.run))
                 .with_in_flow_box_insets(insets)
                 .with_fragment_facts(fragment_facts),
-            FfiCssPixelPoint {
-                x: inline_offset,
-                y: content_block_offset,
-            },
+            content_offset,
             None,
             fragment_arrival,
         );
-        (insets, laid_out_float_handed_back_by_its_run)
+        (insets, laid_out_float_handed_back_by_its_run, Some(content_offset))
     }
 
     fn layout_inline_children(
