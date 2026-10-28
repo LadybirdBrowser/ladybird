@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1000 tests
 
-987 Pass
-13 Fail
+994 Pass
+6 Fail
 Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div class=a id=x><div class=b id=y>[]foo</div></div>" queryCommandIndeterm("insertparagraph") before
 Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div class=a id=x><div class=b id=y>[]foo</div></div>" queryCommandState("insertparagraph") before
 Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div class=a id=x><div class=b id=y>[]foo</div></div>" queryCommandValue("insertparagraph") before
@@ -978,29 +978,29 @@ Pass	[["insertparagraph",""]] "<p><span contenteditable=false>abc</span>[X]</p>"
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>bar[]<br><span contenteditable=\"false\">baz</span>": execCommand("defaultparagraphseparator", false, "div") return value
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>bar[]<br><span contenteditable=\"false\">baz</span>": execCommand("insertparagraph", false, "") return value
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>bar[]<br><span contenteditable=\"false\">baz</span>" checks for modifications to non-editable content
-Fail	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>bar[]<br><span contenteditable=\"false\">baz</span>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>bar[]<br><span contenteditable=\"false\">baz</span>" compare innerHTML
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>bar[]<br><span>baz</span>": execCommand("defaultparagraphseparator", false, "div") return value
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>bar[]<br><span>baz</span>": execCommand("insertparagraph", false, "") return value
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>bar[]<br><span>baz</span>" checks for modifications to non-editable content
-Fail	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>bar[]<br><span>baz</span>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>bar[]<br><span>baz</span>" compare innerHTML
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>bar[]<br><span contenteditable=\"false\">baz</span>qux": execCommand("defaultparagraphseparator", false, "div") return value
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>bar[]<br><span contenteditable=\"false\">baz</span>qux": execCommand("insertparagraph", false, "") return value
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>bar[]<br><span contenteditable=\"false\">baz</span>qux" checks for modifications to non-editable content
-Fail	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>bar[]<br><span contenteditable=\"false\">baz</span>qux" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>bar[]<br><span contenteditable=\"false\">baz</span>qux" compare innerHTML
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>ba[]r<br><span contenteditable=\"false\">baz</span>": execCommand("defaultparagraphseparator", false, "div") return value
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>ba[]r<br><span contenteditable=\"false\">baz</span>": execCommand("insertparagraph", false, "") return value
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>ba[]r<br><span contenteditable=\"false\">baz</span>" checks for modifications to non-editable content
-Fail	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>ba[]r<br><span contenteditable=\"false\">baz</span>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>ba[]r<br><span contenteditable=\"false\">baz</span>" compare innerHTML
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>ba[]r<br><span>baz</span>": execCommand("defaultparagraphseparator", false, "div") return value
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>ba[]r<br><span>baz</span>": execCommand("insertparagraph", false, "") return value
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>ba[]r<br><span>baz</span>" checks for modifications to non-editable content
-Fail	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>ba[]r<br><span>baz</span>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>ba[]r<br><span>baz</span>" compare innerHTML
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>ba[]r<br><span contenteditable=\"false\">baz</span>qux": execCommand("defaultparagraphseparator", false, "div") return value
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>ba[]r<br><span contenteditable=\"false\">baz</span>qux": execCommand("insertparagraph", false, "") return value
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>ba[]r<br><span contenteditable=\"false\">baz</span>qux" checks for modifications to non-editable content
-Fail	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>ba[]r<br><span contenteditable=\"false\">baz</span>qux" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>ba[]r<br><span contenteditable=\"false\">baz</span>qux" compare innerHTML
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>[]bar<br><span contenteditable=\"false\">baz</span>": execCommand("defaultparagraphseparator", false, "div") return value
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>[]bar<br><span contenteditable=\"false\">baz</span>": execCommand("insertparagraph", false, "") return value
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>[]bar<br><span contenteditable=\"false\">baz</span>" checks for modifications to non-editable content
-Fail	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>[]bar<br><span contenteditable=\"false\">baz</span>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>[]bar<br><span contenteditable=\"false\">baz</span>" compare innerHTML
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>[]bar<br><span>baz</span>": execCommand("defaultparagraphseparator", false, "div") return value
