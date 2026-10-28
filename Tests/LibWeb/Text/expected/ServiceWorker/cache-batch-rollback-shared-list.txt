@@ -1,5 +1,5 @@
 addAll rejected: InvalidStateError
-Entries seen by the other Cache after rollback: 2
+Entries seen by the other Cache after rollback: 1
 Original /a entry restored: true
-Batch URL absent: false
+Batch URL absent: true
 Entries seen by the other Cache after put: 2
