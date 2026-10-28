@@ -1,0 +1,57 @@
+Harness status: OK
+
+Found 51 tests
+
+31 Pass
+20 Fail
+Pass	getting audio.muted (parser-created)
+Pass	setting audio.muted (parser-created)
+Pass	getting audio.muted with muted="" (parser-created)
+Pass	setting audio.muted with muted="" (parser-created)
+Pass	getting video.muted (parser-created)
+Pass	setting video.muted (parser-created)
+Pass	getting video.muted with muted="" (parser-created)
+Pass	setting video.muted with muted="" (parser-created)
+Pass	getting video.muted with muted="" after load (parser-created)
+Pass	getting audio.muted (script-created)
+Pass	setting audio.muted (script-created)
+Fail	getting audio.muted with muted="" (script-created)
+Fail	setting audio.muted with muted="" (script-created)
+Fail	getting audio.muted with muted="" (cloneNode-created)
+Pass	getting audio.muted with muted="" (innerHTML-created)
+Pass	getting audio.muted with muted="" (document.write-created)
+Fail	cloning audio propagates muted (script-created)
+Fail	cloning audio propagates muted (innerHTML-created)
+Fail	adding/removing muted attribute dynamically affects audio.muted
+Pass	adding muted attribute has no effect on audio.muted after setter
+Pass	removing muted attribute has no effect on audio.muted after setter
+Fail	toggling audio.defaultMuted affects muted (script-created)
+Pass	audio.defaultMuted reflects a muted attribute added via markup
+Pass	toggling audio.muted does not change defaultMuted
+Pass	defaultMuted does not affect audio.muted after the setter
+Pass	getting video.muted (script-created)
+Pass	setting video.muted (script-created)
+Fail	getting video.muted with muted="" (script-created)
+Fail	setting video.muted with muted="" (script-created)
+Fail	getting video.muted with muted="" (cloneNode-created)
+Pass	getting video.muted with muted="" (innerHTML-created)
+Pass	getting video.muted with muted="" (document.write-created)
+Fail	cloning video propagates muted (script-created)
+Fail	cloning video propagates muted (innerHTML-created)
+Fail	adding/removing muted attribute dynamically affects video.muted
+Pass	adding muted attribute has no effect on video.muted after setter
+Pass	removing muted attribute has no effect on video.muted after setter
+Fail	toggling video.defaultMuted affects muted (script-created)
+Pass	video.defaultMuted reflects a muted attribute added via markup
+Pass	toggling video.muted does not change defaultMuted
+Pass	defaultMuted does not affect video.muted after the setter
+Fail	adding muted="" at runtime on a connected audio affects muted
+Fail	adding/removing muted attribute at runtime on a connected audio affects muted
+Fail	audio muted="" is honored regardless of connectedness
+Pass	adding muted attribute has no effect on a connected audio after the setter
+Pass	removing muted attribute has no effect on a connected audio after the setter
+Fail	adding muted="" at runtime on a connected video affects muted
+Fail	adding/removing muted attribute at runtime on a connected video affects muted
+Fail	video muted="" is honored regardless of connectedness
+Pass	adding muted attribute has no effect on a connected video after the setter
+Pass	removing muted attribute has no effect on a connected video after the setter
