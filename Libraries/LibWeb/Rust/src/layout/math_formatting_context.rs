@@ -2175,7 +2175,6 @@ impl<'pass> MathFormattingContext<'pass> {
         if let Some(fragment_arrival) = fragment_arrival {
             self.fragment_arrivals_of_children.borrow_mut().push(fragment_arrival);
         }
-        let laid_out_box = laid_out_box.expect("the layout of a math child leaves its box");
         self.placed_children.borrow_mut().insert(
             child,
             formatting_context::PlacedChild::of_laid_out_box(&laid_out_box, line_data),
@@ -2184,7 +2183,7 @@ impl<'pass> MathFormattingContext<'pass> {
         let metrics = laid_out_box.cells;
         let baselines = match outcome {
             ChildLayoutOutcome::Created(result) => result.baselines,
-            ChildLayoutOutcome::ReenterCurrent | ChildLayoutOutcome::Skipped { .. } => laid_out_box.baselines,
+            ChildLayoutOutcome::Skipped { .. } => laid_out_box.baselines,
         };
         let collapsed = metrics.uses_collapsing_borders_model();
         let block_size = metrics.margin_box_block_size(collapsed);

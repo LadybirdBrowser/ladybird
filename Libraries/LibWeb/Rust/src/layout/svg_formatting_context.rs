@@ -2098,14 +2098,10 @@ impl<'pass> SvgFormattingContext<'pass> {
                 run.percentage_block_insets_of_root_children_have_definite_basis(),
             );
             outcome.report_percentage_block_size_dependency_of(run, child);
-            match outcome {
-                ChildLayoutOutcome::Created(_) => {}
-                ChildLayoutOutcome::Skipped { .. } | ChildLayoutOutcome::ReenterCurrent => {
-                    panic!("SVG foreign object did not create an independent formatting context")
-                }
-            };
-
-            let laid_out_box = laid_out_box.expect("a foreign object's child is laid out by a run of its own");
+            assert!(
+                matches!(outcome, ChildLayoutOutcome::Created(_)),
+                "SVG foreign object did not create an independent formatting context"
+            );
             // Masks and clips may use this offset for objectBoundingBox units.
             self.place_laid_out_child(
                 child,

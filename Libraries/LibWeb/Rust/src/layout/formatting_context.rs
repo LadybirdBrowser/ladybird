@@ -1167,7 +1167,6 @@ pub(crate) struct RunOutputs {
 pub(crate) enum ChildLayoutOutcome {
     Skipped { depends_on_percentage_block_size: bool },
     Created(ChildLayoutResult),
-    ReenterCurrent,
 }
 
 impl ChildLayoutOutcome {
@@ -1179,7 +1178,6 @@ impl ChildLayoutOutcome {
                 depends_on_percentage_block_size,
             } => *depends_on_percentage_block_size,
             Self::Created(result) => result.depends_on_percentage_block_size,
-            Self::ReenterCurrent => false,
         }
     }
 
@@ -2857,7 +2855,7 @@ pub(crate) fn propagate_percentage_block_size_dependency_to_containing_block(
 pub(crate) struct ChildLayout {
     pub(crate) outcome: ChildLayoutOutcome,
     pub(crate) fragment_arrival: Option<fragment_tree::ChildFragmentArrival>,
-    pub(crate) laid_out_box: Option<run_records::LaidOutChildBox>,
+    pub(crate) laid_out_box: run_records::LaidOutChildBox,
     /// The lines a run of the child's own laid out in it.
     pub(crate) line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
 }
@@ -2867,7 +2865,7 @@ impl ChildLayout {
         Self {
             outcome,
             fragment_arrival: None,
-            laid_out_box: Some(run_records::LaidOutChildBox::sized_in_parent_run(record)),
+            laid_out_box: run_records::LaidOutChildBox::sized_in_parent_run(record),
             line_data: None,
         }
     }
@@ -2960,7 +2958,7 @@ pub(crate) fn layout_inside_child_with_input_cells(
         return ChildLayout {
             outcome: skipped(),
             fragment_arrival,
-            laid_out_box: Some(laid_out_box),
+            laid_out_box,
             line_data: None,
         };
     }
@@ -2981,29 +2979,17 @@ pub(crate) fn layout_inside_child_with_input_cells(
         return ChildLayout::of_child_sized_in_parent_run(skipped(), used);
     }
 
-    let Some(ChildRunPlan {
+    let ChildRunPlan {
         fc_type,
         root_containing_block,
         input,
-    }) = child_run_plan(
+    } = child_run_plan(
         run,
         child,
         input,
         force_independent_context_run,
         percentage_block_insets_of_containing_block_have_definite_basis,
-    )
-    else {
-        let used = record_for_this_run();
-        if force_independent_context_run {
-            return ChildLayout::of_child_sized_in_parent_run(skipped(), used);
-        }
-        return ChildLayout {
-            outcome: ChildLayoutOutcome::ReenterCurrent,
-            fragment_arrival: None,
-            laid_out_box: None,
-            line_data: None,
-        };
-    };
+    );
     assert!(
         record_kept_by_parent.is_none(),
         "{child:?} is handed to a run of its own by a parent that lays it out itself"
@@ -3029,7 +3015,7 @@ pub(crate) fn layout_inside_child_with_input_cells(
     ChildLayout {
         outcome: ChildLayoutOutcome::Created(result),
         fragment_arrival,
-        laid_out_box: Some(laid_out_box),
+        laid_out_box,
         line_data,
     }
 }
@@ -3058,7 +3044,7 @@ pub(crate) fn table_cell_run_shape_ahead_of_its_intrinsic_block_padding(
     cell: Node,
     cell_input_cells: used_values::RootInputCells,
     mut input: LayoutInput,
-) -> Option<ChildRunShape> {
+) -> ChildRunShape {
     debug_assert!(matches!(
         input.participation,
         ParticipationInParentFormattingContext::Item
@@ -3071,14 +3057,14 @@ pub(crate) fn table_cell_run_shape_ahead_of_its_intrinsic_block_padding(
         input,
         false,
         run.percentage_block_insets_of_root_children_have_definite_basis(),
-    )?;
-    Some(ChildRunShape {
+    );
+    ChildRunShape {
         node: cell,
         fc_type: plan.fc_type,
         input: plan.input,
         root_cells: cell_input_cells,
         root_containing_block: plan.root_containing_block,
-    })
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -3154,10 +3140,14 @@ pub(crate) fn child_run_plan(
     mut input: LayoutInput,
     force_independent_context_run: bool,
     percentage_block_insets_of_containing_block_have_definite_basis: bool,
-) -> Option<ChildRunPlan> {
-    let fc_type = formatting_context_type_created_by_box(NodeFacts::new(&run.callbacks, child)).or_else(|| {
-        force_independent_context_run.then(|| independent_formatting_context_type(child, &run.callbacks))
-    })?;
+) -> ChildRunPlan {
+    let fc_type = formatting_context_type_created_by_box(NodeFacts::new(&run.callbacks, child)).unwrap_or_else(|| {
+        assert!(
+            force_independent_context_run,
+            "{child:?} is handed to a run of its own without a formatting context of its own"
+        );
+        independent_formatting_context_type(child, &run.callbacks)
+    });
     let root_containing_block = run
         .callbacks
         .containing_block_for_child_run(child, &input.participation);
@@ -3166,11 +3156,11 @@ pub(crate) fn child_run_plan(
     input.sizing.treat_block_axis_percentage_insets_as_auto_beyond_root = child_facts.is_anonymous()
         && !child_facts.is_table_cell()
         && !percentage_block_insets_of_containing_block_have_definite_basis;
-    Some(ChildRunPlan {
+    ChildRunPlan {
         fc_type,
         root_containing_block,
         input,
-    })
+    }
 }
 
 pub(crate) fn lay_out_measurement_root_for_its_result(

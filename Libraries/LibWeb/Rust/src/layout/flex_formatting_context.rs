@@ -3053,7 +3053,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             input,
             false,
             self.run.percentage_block_insets_of_root_children_have_definite_basis(),
-        )?;
+        );
         debug_assert_eq!(plan.fc_type, formatting_context::FormattingContextType::Block);
         Some(formatting_context::ChildRunShape {
             node,
@@ -3103,27 +3103,14 @@ impl<'pass> FlexFormattingContext<'pass> {
             false,
             run.percentage_block_insets_of_root_children_have_definite_basis(),
         );
-        self.flex_items[index].cells = match &laid_out_box {
-            Some(laid_out_box) => laid_out_box.cells,
-            // NB: The item was laid out by this flex container's run, in the record it keeps.
-            None => run.records.box_metrics_of(node).cells(),
-        };
-        self.flex_items[index].orthogonal_flow_baselines =
-            laid_out_box.and_then(|laid_out_box| laid_out_box.orthogonal_flow_baselines);
+        self.flex_items[index].cells = laid_out_box.cells;
+        self.flex_items[index].orthogonal_flow_baselines = laid_out_box.orthogonal_flow_baselines;
         outcome.report_percentage_block_size_dependency_of(run, node);
         self.flex_items[index].content_baselines = match outcome {
             ChildLayoutOutcome::Created(result) => result.baselines,
-            ChildLayoutOutcome::ReenterCurrent => {
-                self.run(run, input);
-                run.records.box_metrics_of(node).content_baselines()
-            }
-            ChildLayoutOutcome::Skipped { .. } => laid_out_box.expect("a skipped item leaves its box").baselines,
+            ChildLayoutOutcome::Skipped { .. } => laid_out_box.baselines,
         };
-        let placed_item = match laid_out_box {
-            Some(laid_out_box) => formatting_context::PlacedChild::of_laid_out_box(&laid_out_box, line_data),
-            // NB: The item was laid out by this flex container's run, in the record it keeps.
-            None => formatting_context::PlacedChild::of_record(run.records.used_values(node), run),
-        };
+        let placed_item = formatting_context::PlacedChild::of_laid_out_box(&laid_out_box, line_data);
 
         let container_used = self.container_used();
         let insets = abspos_engine::compute_inset_native(

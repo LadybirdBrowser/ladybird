@@ -3197,12 +3197,8 @@ impl<'pass> AbsposEngine<'pass> {
                 .out_of_flow_root_used_insets
                 .expect("the run of an absolutely positioned box gives it used insets"),
             ChildLayoutOutcome::Skipped { .. } => self.records.used_insets_of(node),
-            ChildLayoutOutcome::ReenterCurrent => {
-                unreachable!("abspos child with contents did not establish a formatting context")
-            }
         };
 
-        let laid_out_box = laid_out_box.expect("the layout of an absolutely positioned box leaves its box");
         let metrics = laid_out_box.cells;
         let collapsed = metrics.uses_collapsing_borders_model();
         let static_offset = aligned_static_offset(

@@ -2151,14 +2151,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             list_item.percentage_block_insets_have_definite_basis,
         );
         marker_outcome.report_percentage_block_size_dependency_of(run, marker);
-        match marker_outcome {
-            ChildLayoutOutcome::Created(_) | ChildLayoutOutcome::Skipped { .. } => {}
-            ChildLayoutOutcome::ReenterCurrent => {
-                unreachable!("marker inside layout did not establish a formatting context")
-            }
-        }
 
-        let marker_box = marker_box.expect("a marker's layout leaves its box to the list item");
         let marker_metrics = marker_box.cells;
         let marker_block_size = marker_metrics.content_block_size();
         let marker_inline_size = marker_metrics.content_inline_size();
@@ -2230,23 +2223,11 @@ impl<'pass> BlockFormattingContext<'pass> {
             block_container.percentage_block_insets_have_definite_basis,
         );
         outcome.report_percentage_block_size_dependency_of(run, node);
-        let (child_layout, laid_out_box) = match outcome {
-            ChildLayoutOutcome::Skipped { .. } => (None, laid_out_box),
-            ChildLayoutOutcome::Created(child_layout) => (Some(child_layout), laid_out_box),
-            ChildLayoutOutcome::ReenterCurrent => {
-                self.run(run, input);
-                (
-                    None,
-                    Some(run_records::LaidOutChildBox::sized_in_parent_run(self.used(node))),
-                )
-            }
+        let child_layout = match outcome {
+            ChildLayoutOutcome::Skipped { .. } => None,
+            ChildLayoutOutcome::Created(child_layout) => Some(child_layout),
         };
-        (
-            child_layout,
-            fragment_arrival,
-            laid_out_box.expect("the layout of a child with a formatting context of its own leaves its box"),
-            line_data,
-        )
+        (child_layout, fragment_arrival, laid_out_box, line_data)
     }
 
     fn child_layout_input(
