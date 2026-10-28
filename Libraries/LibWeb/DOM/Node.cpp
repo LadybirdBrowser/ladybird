@@ -3363,6 +3363,7 @@ void Node::serialize_tree_as_json(JsonObjectSerializer<Utf16StringBuilder>& obje
     Layout::ForcedReadScope read { document() };
     MUST(object.add("name"sv, node_name().view()));
     MUST(object.add("id"sv, unique_id().value()));
+    bool serialized_content_document = false;
     if (is_document()) {
         MUST(object.add("type"sv, "document"));
     } else if (is_element()) {
@@ -3381,14 +3382,17 @@ void Node::serialize_tree_as_json(JsonObjectSerializer<Utf16StringBuilder>& obje
             MUST(attributes.finish());
         }
 
+        // DevTools shows the document of a nested navigable in this process whatever its origin, as the only child of its
+        // container: The container's own child nodes are fallback content that isn't rendered.
         if (element->is_navigable_container()) {
             auto const* container = static_cast<HTML::NavigableContainer const*>(element);
-            if (auto const* content_document = container->content_document()) {
+            if (auto const* content_document = container->content_document_without_origin_check()) {
                 auto children = MUST(object.add_array("children"sv));
                 JsonObjectSerializer<Utf16StringBuilder> content_document_object = MUST(children.add_object());
                 content_document->serialize_tree_as_json(content_document_object);
                 MUST(content_document_object.finish());
                 MUST(children.finish());
+                serialized_content_document = true;
             }
         }
 
@@ -3421,7 +3425,8 @@ void Node::serialize_tree_as_json(JsonObjectSerializer<Utf16StringBuilder>& obje
     MUST((object.add("visible"sv, !!layout_node(read))));
 
     if (auto const* element = as_if<Element>(this)) {
-        element->serialize_children_as_json(read, object);
+        if (!serialized_content_document)
+            element->serialize_children_as_json(read, object);
     } else if (has_child_nodes()) {
         auto children = MUST(object.add_array("children"sv));
         auto add_child = [this, &children](Node const& child) {
