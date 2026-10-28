@@ -8,14 +8,16 @@ use super::*;
 use std::mem::MaybeUninit;
 use std::ptr::NonNull;
 
-/// What the layout stage keeps for itself: the slot-indexed table the runs of a layout pass lend
-/// their records through, and the stack the records live on. They are the stage's scratch rather
-/// than arena columns: nothing outside a running pass reads them, and every run releases its
-/// records before it ends, so between passes they hold no live record.
+/// What the layout stage keeps for itself: the slot-indexed table the runs of a layout pass find
+/// the boxes they hold through, the stack of what they keep for those boxes, and the stack their
+/// records live on. They are the stage's scratch rather than arena columns: nothing outside a
+/// running pass reads them, and every run releases what it keeps before it ends, so between passes
+/// they hold no live record.
 pub(crate) struct LayoutScratch {
-    run_used_records: RefCell<Vec<RunRecordSlot>>,
+    run_kept_boxes: RefCell<Vec<RunKeptBoxSlot>>,
     next_run_nonce: Cell<u64>,
     live_run_nonces: RefCell<Vec<u64>>,
+    kept_boxes: RefCell<Vec<KeptBox>>,
     run_record_stack: RunRecordStack,
     /// The intrinsic sizes passes measured, kept for the passes after them.
     pub(crate) intrinsic_size_caches: super::layout_node_arena::IntrinsicSizeCaches,
@@ -115,20 +117,37 @@ const _: () = {
     assert_send::<LayoutScratch>();
 };
 
-/// Which run holds a slot's record, and where on the record stack it is. The records stay on the
-/// stack, so the table holds no reference.
+/// Which run holds a slot's box, and where on the kept box stack it keeps it. The records stay on
+/// the record stack, so the table holds no reference.
 #[derive(Clone, Copy, Default)]
-struct RunRecordSlot {
+struct RunKeptBoxSlot {
     nonce: u64, // 0 = vacant
-    record: u32,
+    kept_box: u32,
+}
+
+/// What a run keeps for a box it holds: what the box's parent decided about it, and how the run
+/// holds the box.
+struct KeptBox {
+    facts_decided_by_parent: FactsDecidedByParent,
+    holding: KeptBoxHolding,
+}
+
+enum KeptBoxHolding {
+    /// The box's record on the record stack, and what the run of the box handed back once it
+    /// returned, for a child laid out by a run of its own.
+    Record {
+        record: u32,
+        handed_back_by_its_run: Option<LaidOutChildBox>,
+    },
 }
 
 impl Default for LayoutScratch {
     fn default() -> Self {
         Self {
-            run_used_records: RefCell::new(Vec::new()),
+            run_kept_boxes: RefCell::new(Vec::new()),
             next_run_nonce: Cell::new(1),
             live_run_nonces: RefCell::new(Vec::new()),
+            kept_boxes: RefCell::new(Vec::new()),
             run_record_stack: RunRecordStack::default(),
             intrinsic_size_caches: Default::default(),
             inline_item_stashes: RefCell::new(HashMap::default()),
@@ -230,6 +249,10 @@ impl LayoutScratch {
     /// Lets go of what the pass that just committed kept for itself.
     pub(crate) fn end_layout_pass(&self) {
         self.inline_item_stashes.borrow_mut().clear();
+        assert!(
+            self.kept_boxes.borrow().is_empty(),
+            "boxes kept by layout runs outlived their pass"
+        );
         self.run_record_stack.release_spare_chunks();
     }
 
@@ -254,53 +277,62 @@ impl LayoutScratch {
         self.live_run_nonces.borrow().last().copied()
     }
 
-    fn run_record(&self, slot_index: u32, run_nonce: u64) -> Option<u32> {
-        let records = self.run_used_records.borrow();
-        let slot = records.get(slot_index as usize)?;
-        (slot.nonce == run_nonce).then_some(slot.record)
+    fn run_kept_box(&self, slot_index: u32, run_nonce: u64) -> Option<u32> {
+        let slots = self.run_kept_boxes.borrow();
+        let slot = slots.get(slot_index as usize)?;
+        (slot.nonce == run_nonce).then_some(slot.kept_box)
     }
 
-    fn claim_run_record(&self, slot_index: u32, run_nonce: u64, record: u32) -> RunRecordClaim {
-        let mut records = self.run_used_records.borrow_mut();
+    fn claim_run_kept_box(&self, slot_index: u32, run_nonce: u64, kept_box: u32) -> RunKeptBoxClaim {
+        let mut slots = self.run_kept_boxes.borrow_mut();
         // The table grows with the slot space: nearly every slot gets a run record each layout
         // pass, and the table outlives the pass, so this resizes rarely.
-        if records.len() <= slot_index as usize {
-            records.resize_with(slot_index as usize + 1, RunRecordSlot::default);
+        if slots.len() <= slot_index as usize {
+            slots.resize_with(slot_index as usize + 1, RunKeptBoxSlot::default);
         }
-        let slot = &mut records[slot_index as usize];
+        let slot = &mut slots[slot_index as usize];
         if slot.nonce == run_nonce {
-            return RunRecordClaim::AlreadyClaimed;
+            return RunKeptBoxClaim::AlreadyClaimed;
         }
         // Runs nest, so the nonces of the runs in progress ascend. An entry left by a run that
         // returned is free.
         if slot.nonce != 0 && self.live_run_nonces.borrow().binary_search(&slot.nonce).is_ok() {
-            return RunRecordClaim::HeldByEnclosingRun;
+            return RunKeptBoxClaim::HeldByEnclosingRun;
         }
-        *slot = RunRecordSlot {
+        *slot = RunKeptBoxSlot {
             nonce: run_nonce,
-            record,
+            kept_box,
         };
-        RunRecordClaim::Claimed
+        RunKeptBoxClaim::Claimed
+    }
+
+    fn keep_box(&self, holding: KeptBoxHolding) -> u32 {
+        let mut kept_boxes = self.kept_boxes.borrow_mut();
+        let index = u32::try_from(kept_boxes.len()).expect("boxes kept by layout runs fit a u32 index");
+        kept_boxes.push(KeptBox {
+            facts_decided_by_parent: FactsDecidedByParent::default(),
+            holding,
+        });
+        index
     }
 }
 
-/// The per-run registry of UsedValues records, found through the slot-indexed side table in the
+/// The per-run registry of the boxes a run holds, found through the slot-indexed side table in the
 /// layout stage's scratch. A run owns its root's record, built from the input cells its caller
-/// hands it, and allocates every other record on the scratch's record stack, which releases them
-/// when the run returns. The scoped constructors lend records to the run, so callers cannot extend
-/// the registry's lifetime.
+/// hands it, and keeps every other box it holds on the scratch's kept box stack, with its record on
+/// the record stack; both release them when the run returns. The scoped constructors lend records
+/// to the run, so callers cannot extend the registry's lifetime.
 pub(crate) struct RunRecords<'arena> {
     root: Node,
     root_used: Option<UsedValues>,
     scratch: &'arena LayoutScratch,
     nonce: u64,
     stack_length_at_start: usize,
-    records_outside_table: RefCell<HashMap<Node, u32>>,
-    /// What the parent of the root of a run that owns its root record decides about it, which the stack keeps for every
-    /// other record.
+    kept_box_stack_length_at_start: usize,
+    kept_boxes_outside_table: RefCell<HashMap<Node, u32>>,
+    /// What the parent of the root of a run that owns its root record decides about it, which the kept box stack keeps
+    /// for every other box.
     root_facts_decided_by_parent: Cell<FactsDecidedByParent>,
-    /// What this run keeps of the children laid out by runs of their own, as those runs handed them back.
-    laid_out_child_boxes: RefCell<HashMap<Node, LaidOutChildBox>>,
     // Wrapper sizing hands this state to the wrapper's child run, which consumes it while laying
     // out the table box. Keeping it on the run prevents measurement state from escaping a pass.
     table_inline_layouts: RefCell<HashMap<Node, table_formatting_context::TableInlineLayout>>,
@@ -430,11 +462,11 @@ box_metrics_getters! {
     is_collapsed_borders_table_box: bool,
 }
 
-/// Where a run keeps the record of a box it owns.
+/// Where a run keeps a box it holds.
 #[derive(Clone, Copy)]
-enum OwnedRecord {
-    Root,
-    OnStack(u32),
+enum HeldBox {
+    RootWithRecord,
+    Kept(u32),
 }
 
 /// The used values of a box's inset properties.
@@ -482,7 +514,7 @@ enum ContentSizing {
     RootContentInlineSizes,
 }
 
-enum RunRecordClaim {
+enum RunKeptBoxClaim {
     Claimed,
     AlreadyClaimed,
     HeldByEnclosingRun,
@@ -569,9 +601,9 @@ impl<'arena> RunRecords<'arena> {
             scratch,
             nonce: scratch.begin_run(),
             stack_length_at_start: scratch.run_record_stack.length(),
-            records_outside_table: RefCell::new(HashMap::default()),
+            kept_box_stack_length_at_start: scratch.kept_boxes.borrow().len(),
+            kept_boxes_outside_table: RefCell::new(HashMap::default()),
             root_facts_decided_by_parent: Cell::new(FactsDecidedByParent::default()),
-            laid_out_child_boxes: RefCell::new(HashMap::default()),
             table_inline_layouts: RefCell::new(HashMap::default()),
             content_sizing,
             percentage_block_size_dependencies_in_progress: RefCell::new(smallvec::smallvec![(
@@ -625,11 +657,20 @@ impl<'arena> RunRecords<'arena> {
             "only the innermost layout run may register records"
         );
         let (index, record) = self.scratch.run_record_stack.push(used);
-        match self.scratch.claim_run_record(slot_index, self.nonce, index) {
-            RunRecordClaim::Claimed => {}
-            RunRecordClaim::AlreadyClaimed => registered_twice(),
-            RunRecordClaim::HeldByEnclosingRun => {
-                if self.records_outside_table.borrow_mut().insert(node, index).is_some() {
+        let kept_box = self.scratch.keep_box(KeptBoxHolding::Record {
+            record: index,
+            handed_back_by_its_run: None,
+        });
+        match self.scratch.claim_run_kept_box(slot_index, self.nonce, kept_box) {
+            RunKeptBoxClaim::Claimed => {}
+            RunKeptBoxClaim::AlreadyClaimed => registered_twice(),
+            RunKeptBoxClaim::HeldByEnclosingRun => {
+                if self
+                    .kept_boxes_outside_table
+                    .borrow_mut()
+                    .insert(node, kept_box)
+                    .is_some()
+                {
                     registered_twice();
                 }
             }
@@ -660,42 +701,46 @@ impl<'arena> RunRecords<'arena> {
     }
 
     pub(crate) fn used_values_if_owned(&self, node: Node) -> Option<&UsedValues> {
-        match self.owned_record(node)? {
-            OwnedRecord::Root => self.root_used.as_ref(),
-            // SAFETY: This run registered the record, and it stays on the stack until this run returns.
-            OwnedRecord::OnStack(index) => Some(unsafe { self.scratch.run_record_stack.get(index).as_ref() }),
+        match self.held_box(node)? {
+            HeldBox::RootWithRecord => self.root_used.as_ref(),
+            HeldBox::Kept(index) => match self.scratch.kept_boxes.borrow()[index as usize].holding {
+                // SAFETY: This run registered the record, and it stays on the stack until this run returns.
+                KeptBoxHolding::Record { record, .. } => {
+                    Some(unsafe { self.scratch.run_record_stack.get(record).as_ref() })
+                }
+            },
         }
     }
 
-    fn owned_record(&self, node: Node) -> Option<OwnedRecord> {
+    fn held_box(&self, node: Node) -> Option<HeldBox> {
         if node == self.root && self.root_used.is_some() {
-            return Some(OwnedRecord::Root);
+            return Some(HeldBox::RootWithRecord);
         }
         self.scratch
-            .run_record(node.slot_index(), self.nonce)
+            .run_kept_box(node.slot_index(), self.nonce)
             .or_else(|| {
-                let records = self.records_outside_table.borrow();
-                if records.is_empty() {
+                let kept_boxes = self.kept_boxes_outside_table.borrow();
+                if kept_boxes.is_empty() {
                     return None;
                 }
-                records.get(&node).copied()
+                kept_boxes.get(&node).copied()
             })
-            .map(OwnedRecord::OnStack)
+            .map(HeldBox::Kept)
     }
 
     fn kept_facts_decided_by_parent_of(&self, node: Node) -> Option<FactsDecidedByParent> {
-        Some(match self.owned_record(node)? {
-            OwnedRecord::Root => self.root_facts_decided_by_parent.get(),
-            OwnedRecord::OnStack(index) => self.scratch.run_record_stack.facts_decided_by_parent(index),
+        Some(match self.held_box(node)? {
+            HeldBox::RootWithRecord => self.root_facts_decided_by_parent.get(),
+            HeldBox::Kept(index) => self.scratch.kept_boxes.borrow()[index as usize].facts_decided_by_parent,
         })
     }
 
     #[track_caller]
     fn keep_facts_decided_by_parent_of(&self, node: Node, facts: FactsDecidedByParent) {
-        match self.owned_record(node) {
-            Some(OwnedRecord::Root) => self.root_facts_decided_by_parent.set(facts),
-            Some(OwnedRecord::OnStack(index)) => {
-                self.scratch.run_record_stack.set_facts_decided_by_parent(index, facts);
+        match self.held_box(node) {
+            Some(HeldBox::RootWithRecord) => self.root_facts_decided_by_parent.set(facts),
+            Some(HeldBox::Kept(index)) => {
+                self.scratch.kept_boxes.borrow_mut()[index as usize].facts_decided_by_parent = facts;
             }
             None => panic!(
                 "the run rooted at slot {} does not own the record for slot {}",
@@ -763,7 +808,7 @@ impl<'arena> RunRecords<'arena> {
         update: impl FnOnce(&mut FragmentFactsDecidedByParent),
     ) {
         assert!(
-            !matches!(self.owned_record(node), Some(OwnedRecord::Root)),
+            !matches!(self.held_box(node), Some(HeldBox::RootWithRecord)),
             "what a box's fragment shows of its parent's layout is decided by the run of that parent"
         );
         let mut facts = self.facts_decided_by_parent_of(node);
@@ -918,39 +963,49 @@ impl<'arena> RunRecords<'arena> {
     /// Keeps what the run of `child`, a box this run holds the record of, handed back once it returned.
     #[track_caller]
     pub(crate) fn receive_laid_out_child_box(&self, child: Node, laid_out: LaidOutChildBox) {
-        assert_ne!(child, self.root, "a run lays out its own root");
-        self.used_values(child);
-        self.laid_out_child_boxes.borrow_mut().insert(child, laid_out);
+        let caller = std::panic::Location::caller();
+        let Some(HeldBox::Kept(index)) = self.held_box(child) else {
+            panic!(
+                "the run rooted at slot {} does not hold a child box for slot {} (received at {caller})",
+                self.root.slot_index(),
+                child.slot_index(),
+            )
+        };
+        let KeptBoxHolding::Record {
+            handed_back_by_its_run, ..
+        } = &mut self.scratch.kept_boxes.borrow_mut()[index as usize].holding;
+        *handed_back_by_its_run = Some(laid_out);
     }
 
     /// The sizes, size constraints, box sides and baselines of `node`, a box this run lays out or a child of one laid
     /// out by a run of its own.
     #[track_caller]
     pub(crate) fn box_metrics_of(&self, node: Node) -> BoxMetrics<'_> {
-        self.box_metrics_given_record(node, self.used_values(node))
+        let caller = std::panic::Location::caller();
+        self.box_metrics_of_if_owned(node).unwrap_or_else(|| {
+            panic!(
+                "the run rooted at slot {} does not hold slot {} (read at {caller})",
+                self.root.slot_index(),
+                node.slot_index(),
+            )
+        })
     }
 
-    /// The sizes, size constraints, box sides and baselines of `node`, if this run lays it out or holds the record of
-    /// a child it laid out by a run of its own.
+    /// The sizes, size constraints, box sides and baselines of `node`, if this run lays it out or holds a child it laid
+    /// out by a run of its own.
     pub(crate) fn box_metrics_of_if_owned(&self, node: Node) -> Option<BoxMetrics<'_>> {
-        Some(self.box_metrics_given_record(node, self.used_values_if_owned(node)?))
-    }
-
-    fn box_metrics_given_record<'records>(
-        &'records self,
-        node: Node,
-        record: &'records UsedValues,
-    ) -> BoxMetrics<'records> {
-        let laid_out = {
-            let laid_out_child_boxes = self.laid_out_child_boxes.borrow();
-            if laid_out_child_boxes.is_empty() {
-                None
-            } else {
-                laid_out_child_boxes.get(&node).copied()
-            }
+        let index = match self.held_box(node)? {
+            HeldBox::RootWithRecord => return self.root_used.as_ref().map(BoxMetrics::LaidOutByThisRun),
+            HeldBox::Kept(index) => index,
         };
-        let Some(laid_out) = laid_out else {
-            return BoxMetrics::LaidOutByThisRun(record);
+        let KeptBoxHolding::Record {
+            record,
+            handed_back_by_its_run,
+        } = self.scratch.kept_boxes.borrow()[index as usize].holding;
+        // SAFETY: This run registered the record, and it stays on the stack until this run returns.
+        let record = unsafe { self.scratch.run_record_stack.get(record).as_ref() };
+        let Some(laid_out) = handed_back_by_its_run else {
+            return Some(BoxMetrics::LaidOutByThisRun(record));
         };
         if cfg!(debug_assertions) || super::run_repeatability::verification_is_enabled() {
             assert_eq!(
@@ -959,7 +1014,7 @@ impl<'arena> RunRecords<'arena> {
                 "the parent's record of {node:?} changed after its run handed the box back"
             );
         }
-        BoxMetrics::LaidOutByItsOwnRun(laid_out)
+        Some(BoxMetrics::LaidOutByItsOwnRun(laid_out))
     }
 
     pub(crate) fn store_table_inline_layout(&self, table: Node, layout: table_formatting_context::TableInlineLayout) {
@@ -976,6 +1031,10 @@ impl Drop for RunRecords<'_> {
         // SAFETY: Only the innermost run registers records, so every record above this run's start is its own.
         //         References to them borrow this run, which is being dropped.
         unsafe { self.scratch.run_record_stack.truncate(self.stack_length_at_start) };
+        self.scratch
+            .kept_boxes
+            .borrow_mut()
+            .truncate(self.kept_box_stack_length_at_start);
         self.scratch.end_run(self.nonce);
     }
 }
@@ -986,8 +1045,6 @@ const RECORDS_PER_STACK_CHUNK: usize = 64;
 struct RunRecordStack {
     chunks: RefCell<Vec<NonNull<UsedValues>>>,
     length: Cell<usize>,
-    /// What the parent of each record's box decides about the box, at the record's index.
-    facts_decided_by_parent: RefCell<Vec<FactsDecidedByParent>>,
 }
 
 // SAFETY: The stack owns its chunks as a Vec owns its buffer, and a record lives only while the run
@@ -1022,25 +1079,13 @@ impl RunRecordStack {
             slot
         };
         self.length.set(index + 1);
-        self.facts_decided_by_parent
-            .borrow_mut()
-            .push(FactsDecidedByParent::default());
         (u32::try_from(index).expect("layout run records fit a u32 index"), slot)
-    }
-
-    fn facts_decided_by_parent(&self, index: u32) -> FactsDecidedByParent {
-        self.facts_decided_by_parent.borrow()[index as usize]
-    }
-
-    fn set_facts_decided_by_parent(&self, index: u32, facts: FactsDecidedByParent) {
-        self.facts_decided_by_parent.borrow_mut()[index as usize] = facts;
     }
 
     /// # Safety
     ///
     /// No reference to a record at or above `length` may be live.
     unsafe fn truncate(&self, length: usize) {
-        self.facts_decided_by_parent.borrow_mut().truncate(length);
         let chunks = self.chunks.borrow();
         while self.length.get() > length {
             let index = self.length.get() - 1;
@@ -1139,8 +1184,9 @@ mod tests {
                 parent.nonce
             },
         );
-        assert!(scratch.run_record(root.slot_index(), parent_nonce).is_none());
+        assert!(scratch.run_kept_box(root.slot_index(), parent_nonce).is_none());
         assert_eq!(scratch.run_record_stack.length(), 0);
+        assert!(scratch.kept_boxes.borrow().is_empty());
     }
 
     #[test]
