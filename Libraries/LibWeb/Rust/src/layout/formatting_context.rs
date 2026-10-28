@@ -370,15 +370,11 @@ impl PlacedChild {
         }
     }
 
-    /// A child whose run handed back the box `laid_out` with the lines `line_data`, before its parent decided anything
-    /// about it.
-    pub(crate) fn of_laid_out_box(
-        laid_out: &run_records::LaidOutChildBox,
-        line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
-    ) -> Self {
+    /// A child whose run handed back the box `laid_out`, before its parent decided anything about it.
+    pub(crate) fn of_laid_out_box(laid_out: &run_records::LaidOutChildBox) -> Self {
         Self::new(fragment_tree::FragmentGeometry {
             cells: laid_out.cells,
-            line_data,
+            line_data: laid_out.line_data.clone(),
         })
     }
 
@@ -1103,6 +1099,7 @@ impl RunRootOutcome {
             cells,
             baselines: result.baselines,
             orthogonal_flow_baselines: result.orthogonal_flow_baselines,
+            line_data: self.line_data.clone(),
         }
     }
 }
@@ -1974,7 +1971,6 @@ fn body_input_with_inner_available_space(run: &FormattingContextRun, input: &Lay
 pub(crate) struct ChildRunOutcome {
     pub(crate) result: ChildLayoutResult,
     pub(crate) laid_out_box: run_records::LaidOutChildBox,
-    pub(crate) line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
     pub(crate) fragment_arrival: Option<fragment_tree::ChildFragmentArrival>,
 }
 
@@ -1988,7 +1984,7 @@ impl ChildRunOutcome {
 
     /// What placing the child takes of the box its run handed back.
     pub(crate) fn placed_child(&self) -> PlacedChild {
-        PlacedChild::of_laid_out_box(&self.laid_out_box, self.line_data.clone())
+        PlacedChild::of_laid_out_box(&self.laid_out_box)
     }
 }
 
@@ -2181,7 +2177,7 @@ fn reuse_committed_subtree_as_it_is(
     );
     let geometry = fragment_tree::FragmentGeometry {
         cells: laid_out_box.cells,
-        line_data: entry.outputs.root_outcome.line_data.clone(),
+        line_data: laid_out_box.line_data.clone(),
     };
     if !geometry.shows_box_of_fragment(&fragment) {
         return None;
@@ -2196,7 +2192,6 @@ fn reuse_committed_subtree_as_it_is(
     Some(ChildRunOutcome {
         result: entry.outputs.result,
         laid_out_box,
-        line_data: geometry.line_data,
         fragment_arrival: Some(fragment_tree::ChildFragmentArrival::CommittedFragment {
             fragment,
             reuses_subtree: true,
@@ -2789,8 +2784,6 @@ pub(crate) struct ChildLayout {
     pub(crate) outcome: ChildLayoutOutcome,
     pub(crate) fragment_arrival: Option<fragment_tree::ChildFragmentArrival>,
     pub(crate) laid_out_box: run_records::LaidOutChildBox,
-    /// The lines a run of the child's own laid out in it.
-    pub(crate) line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
 }
 
 impl ChildLayout {
@@ -2799,7 +2792,6 @@ impl ChildLayout {
             outcome,
             fragment_arrival: None,
             laid_out_box: run_records::LaidOutChildBox::sized_in_parent_run(record),
-            line_data: None,
         }
     }
 }
@@ -2892,7 +2884,6 @@ pub(crate) fn layout_inside_child_with_input_cells(
             outcome: skipped(),
             fragment_arrival,
             laid_out_box,
-            line_data: None,
         };
     }
     let creates_replaced_context = matches!(
@@ -2942,14 +2933,12 @@ pub(crate) fn layout_inside_child_with_input_cells(
     let ChildRunOutcome {
         result,
         laid_out_box,
-        line_data,
         fragment_arrival,
     } = child_run_outcome.hand_box_back_to(run, child);
     ChildLayout {
         outcome: ChildLayoutOutcome::Created(result),
         fragment_arrival,
         laid_out_box,
-        line_data,
     }
 }
 
@@ -3293,7 +3282,6 @@ fn child_run_outcome_from_outputs(
     let content_block_size_adopted_after_run =
         content_block_size_adopted_after_run(input, result.automatic_content_block_size);
     let laid_out_box = root_outcome.laid_out_child_box(root_cells, &result, content_block_size_adopted_after_run);
-    let line_data = root_outcome.line_data;
     let fragment_arrival = parent_fragments.and(root).map(|root| {
         debug_assert!(root.node == child, "a child run returned a root for a different box");
         fragment_tree::ChildFragmentArrival::RunRoot {
@@ -3304,7 +3292,6 @@ fn child_run_outcome_from_outputs(
     ChildRunOutcome {
         result,
         laid_out_box,
-        line_data,
         fragment_arrival,
     }
 }
@@ -3722,13 +3709,12 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
     );
     let ChildRunOutcome {
         laid_out_box: root_box,
-        line_data: root_line_data,
         fragment_arrival,
         ..
     } = root_outcome.hand_box_back_to(run, root);
     let root_geometry = fragment_tree::FragmentGeometry {
         cells: root_box.cells,
-        line_data: root_line_data,
+        line_data: root_box.line_data,
     };
     let facts_decided_by_parent = committed_root.facts_decided_by_parent;
     let placement = facts_decided_by_parent

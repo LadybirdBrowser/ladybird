@@ -2161,7 +2161,6 @@ impl<'pass> MathFormattingContext<'pass> {
             outcome,
             fragment_arrival,
             laid_out_box,
-            line_data,
         } = formatting_context::layout_inside_child_with_input_cells(
             run,
             None,
@@ -2175,16 +2174,12 @@ impl<'pass> MathFormattingContext<'pass> {
         if let Some(fragment_arrival) = fragment_arrival {
             self.fragment_arrivals_of_children.borrow_mut().push(fragment_arrival);
         }
-        self.placed_children.borrow_mut().insert(
-            child,
-            formatting_context::PlacedChild::of_laid_out_box(&laid_out_box, line_data),
-        );
+        self.placed_children
+            .borrow_mut()
+            .insert(child, formatting_context::PlacedChild::of_laid_out_box(&laid_out_box));
         outcome.report_percentage_block_size_dependency_of(run, child);
         let metrics = laid_out_box.cells;
-        let baselines = match outcome {
-            ChildLayoutOutcome::Created(result) => result.baselines,
-            ChildLayoutOutcome::Skipped { .. } => laid_out_box.baselines,
-        };
+        let baselines = laid_out_box.baselines;
         let collapsed = metrics.uses_collapsing_borders_model();
         let block_size = metrics.margin_box_block_size(collapsed);
         // NB: A box without a baseline is aligned by its line-under margin edge.

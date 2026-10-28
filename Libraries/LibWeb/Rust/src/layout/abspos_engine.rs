@@ -3173,7 +3173,6 @@ impl<'pass> AbsposEngine<'pass> {
             outcome,
             fragment_arrival,
             laid_out_box,
-            line_data,
         } = formatting_context::layout_inside_child_with_input_cells(
             run,
             None,
@@ -3246,7 +3245,7 @@ impl<'pass> AbsposEngine<'pass> {
             }
         }
         self.records.set_used_insets(node, used_insets);
-        let mut placed_child = formatting_context::PlacedChild::of_laid_out_box(&laid_out_box, line_data);
+        let mut placed_child = formatting_context::PlacedChild::of_laid_out_box(&laid_out_box);
         placed_child.facts_decided_by_parent.used_insets = used_insets;
         placed_child.facts_decided_by_parent.default_scroll_shift = default_scroll_shift;
         placed_child.abspos_layout_inputs = Some(inputs);

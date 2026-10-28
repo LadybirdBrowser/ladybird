@@ -3092,7 +3092,6 @@ impl<'pass> FlexFormattingContext<'pass> {
             outcome,
             fragment_arrival,
             laid_out_box,
-            line_data,
         } = formatting_context::layout_inside_child_with_input_cells(
             run,
             None,
@@ -3106,11 +3105,8 @@ impl<'pass> FlexFormattingContext<'pass> {
         self.flex_items[index].cells = laid_out_box.cells;
         self.flex_items[index].orthogonal_flow_baselines = laid_out_box.orthogonal_flow_baselines;
         outcome.report_percentage_block_size_dependency_of(run, node);
-        self.flex_items[index].content_baselines = match outcome {
-            ChildLayoutOutcome::Created(result) => result.baselines,
-            ChildLayoutOutcome::Skipped { .. } => laid_out_box.baselines,
-        };
-        let placed_item = formatting_context::PlacedChild::of_laid_out_box(&laid_out_box, line_data);
+        self.flex_items[index].content_baselines = laid_out_box.baselines;
+        let placed_item = formatting_context::PlacedChild::of_laid_out_box(&laid_out_box);
 
         let container_used = self.container_used();
         let insets = abspos_engine::compute_inset_native(

@@ -321,24 +321,26 @@ pub(crate) struct FactsDecidedByParent {
 }
 
 /// What the parent of a box laid out by a run of its own keeps of the box once that run returns: its sizes, size
-/// constraints and box sides in the parent's frame, and its baselines.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// constraints and box sides in the parent's frame, its baselines, and the lines the run laid out in it.
+#[derive(Clone)]
 pub(crate) struct LaidOutChildBox {
     pub(crate) cells: used_values::RootInputCells,
     pub(crate) baselines: DerivedBaselines,
     /// For a box that establishes an orthogonal flow, its baselines along the horizontal axis of the parent's frame.
     pub(crate) orthogonal_flow_baselines: Option<DerivedBaselines>,
+    pub(crate) line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
 }
 
 impl LaidOutChildBox {
     /// A child as the run of its parent left it in `record`, where that run sizes the child itself instead of handing
-    /// it to a run of its own.
+    /// it to a run of its own. The record keeps any lines the parent's run laid out in it.
     pub(crate) fn sized_in_parent_run(record: &UsedValues) -> Self {
         Self {
             cells: used_values::RootInputCells::capture(record),
             baselines: record.content_baselines_from_cells(),
             // NB: A box that establishes an orthogonal flow is laid out by a run of its own.
             orthogonal_flow_baselines: None,
+            line_data: None,
         }
     }
 }

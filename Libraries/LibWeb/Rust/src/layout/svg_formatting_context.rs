@@ -2086,7 +2086,6 @@ impl<'pass> SvgFormattingContext<'pass> {
                 outcome,
                 fragment_arrival,
                 laid_out_box,
-                line_data,
             } = formatting_context::layout_inside_child_with_input_cells(
                 run,
                 None,
@@ -2105,7 +2104,7 @@ impl<'pass> SvgFormattingContext<'pass> {
             // Masks and clips may use this offset for objectBoundingBox units.
             self.place_laid_out_child(
                 child,
-                formatting_context::PlacedChild::of_laid_out_box(&laid_out_box, line_data),
+                formatting_context::PlacedChild::of_laid_out_box(&laid_out_box),
                 rect.x,
                 rect.y,
                 fragment_arrival,
