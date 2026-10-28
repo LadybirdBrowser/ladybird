@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	Test that calling clearWatch with invalid watch ID (NaN) does not cause an exception
+Pass	Test that calling clearWatch with invalid watch ID (-1) does not cause an exception
+Pass	Test that calling clearWatch with invalid watch ID (0) does not cause an exception
+Pass	Test that calling clearWatch with invalid watch ID (1) does not cause an exception
+Pass	Test that calling clearWatch with invalid watch ID (2147483648) does not cause an exception
+Pass	Test that calling clearWatch with invalid watch ID (Infinity) does not cause an exception
+Pass	Test that calling clearWatch with invalid watch ID (-Infinity) does not cause an exception

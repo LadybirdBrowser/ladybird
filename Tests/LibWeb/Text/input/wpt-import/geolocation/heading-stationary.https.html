@@ -1,0 +1,79 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>Geolocation Test: heading is null when stationary</title>
+<link rel="help" href="https://www.w3.org/TR/geolocation/#c9" />
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js?feature=bidi"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+
+<script>
+  const latitude = 51.478;
+  const longitude = -0.166;
+  const accuracy = 100;
+
+  promise_setup(async () => {
+    await test_driver.set_permission({ name: "geolocation" }, "granted");
+  });
+
+  promise_test(async (t) => {
+    t.add_cleanup(async () => {
+      await test_driver.bidi.emulation.set_geolocation_override({
+        coordinates: null,
+      });
+    });
+
+    // Set geolocation with speed = 0 (stationary)
+    await test_driver.bidi.emulation.set_geolocation_override({
+      coordinates: {
+        latitude,
+        longitude,
+        accuracy,
+        speed: 0,
+      },
+    });
+
+    const position = await new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject);
+    });
+
+    // When stationary (speed is 0), heading must be null, not NaN
+    assert_equals(
+      position.coords.heading,
+      null,
+      "heading must be null when device is stationary (speed is 0)",
+    );
+    assert_equals(position.coords.speed, 0, "speed should be 0");
+  }, "heading is null when stationary (speed is 0)");
+
+  promise_test(async (t) => {
+    t.add_cleanup(async () => {
+      await test_driver.bidi.emulation.set_geolocation_override({
+        coordinates: null,
+      });
+    });
+
+    // Set geolocation with speed > 0 (moving) and a heading
+    await test_driver.bidi.emulation.set_geolocation_override({
+      coordinates: {
+        latitude,
+        longitude,
+        accuracy,
+        speed: 10,
+        heading: 90,
+      },
+    });
+
+    const position = await new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject);
+    });
+
+    // When moving (speed > 0), heading should be the specified value
+    assert_equals(
+      position.coords.heading,
+      90,
+      "heading should be 90 when moving",
+    );
+    assert_equals(position.coords.speed, 10, "speed should be 10");
+  }, "heading has a value when moving (speed > 0)");
+</script>

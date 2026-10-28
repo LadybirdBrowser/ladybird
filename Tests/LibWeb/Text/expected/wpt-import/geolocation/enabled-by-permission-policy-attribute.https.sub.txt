@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Permissions policy "geolocation" can be enabled in same-origin iframe using allow="geolocation" attribute
+Pass	Permissions policy "geolocation" can be enabled in cross-origin iframe using allow="geolocation" attribute

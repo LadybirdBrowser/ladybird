@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	Call getCurrentPosition without arguments, check that exception is thrown
+Pass	Call getCurrentPosition with null success callback, check that exception is thrown
+Pass	Call getCurrentPosition with null success and error callbacks, check that exception is thrown
+Pass	Call getCurrentPosition() with wrong type for first argument. Exception expected.
+Pass	Call getCurrentPosition() with wrong type for second argument. Exception expected.
+Pass	Call getCurrentPosition() with wrong type for third argument. Exception expected.
+Pass	Calling getCurrentPosition() with a legacy event handler objects.

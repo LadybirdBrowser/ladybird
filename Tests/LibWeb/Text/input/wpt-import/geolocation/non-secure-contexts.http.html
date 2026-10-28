@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>Geolocation Test: non-secure contexts</title>
+<link rel="help" href="https://github.com/w3c/geolocation-api/pull/34" />
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script>
+  promise_test(() => {
+    return new Promise(resolve => {
+      let isAsync = true;
+      const successCallback = () => {
+        assert_unreached(
+          "successCallback must never be invoked in non-secure contexts."
+        );
+      };
+      const errorCallBack = () => {
+        isAsync = false;
+        resolve();
+      };
+      navigator.geolocation.getCurrentPosition(successCallback, errorCallBack);
+      assert_true(
+        isAsync,
+        "Expected the errorCallback to be called asynchronously."
+      );
+    });
+  }, "When in a non-secure context, getCurrentPosition()'s errorCallback is asynchronously called.");
+
+  promise_test(async () => {
+    return new Promise(resolve => {
+      let isAsync = true;
+      const successCallback = () => {
+        assert_unreached(
+          "successCallback must never be invoked in non-secure contexts."
+        );
+      };
+      const errorCallBack = () => {
+        isAsync = false;
+        resolve();
+      };
+      navigator.geolocation.watchPosition(successCallback, errorCallBack);
+      assert_true(isAsync, "errorCallback must be called asynchronously.");
+    });
+  }, "When in a non-secure context, watchPosition()'s errorCallback is asynchronously called.");
+
+  promise_test(async () => {
+    const positionErrorPromise = new Promise(errorCallBack => {
+      const successCallback = () => {
+        assert_unreached(
+          "successCallback must never be invoked in non-secure contexts."
+        );
+      };
+      navigator.geolocation.getCurrentPosition(successCallback, errorCallBack);
+    });
+    const positionError = await positionErrorPromise;
+    assert_equals(
+      positionError.code,
+      1,
+      "Expected the value for PERMISSION_DENIED, which is 1."
+    );
+  }, "When in a non-secure context, the getCurrentPosition() errorCallBack gets a GeolocationPositionError with the correct error code.");
+
+  promise_test(async () => {
+    const positionErrorPromise = new Promise(errorCallBack => {
+      const successCallback = () => {
+        assert_unreached(
+          "successCallback must never be invoked in non-secure contexts."
+        );
+      };
+      const id = navigator.geolocation.watchPosition(
+        successCallback,
+        errorCallBack
+      );
+      assert_true(Number.isInteger(id), "Must return an identifier.");
+    });
+    const positionError = await positionErrorPromise;
+    assert_equals(
+      positionError.code,
+      1,
+      "Expected the value for PERMISSION_DENIED, which is 1."
+    );
+  }, "When in a non-secure context, the watchPosition() errorCallBack gets a GeolocationPositionError with the correct error code.");
+</script>

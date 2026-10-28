@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	A cached approximate position is not reused for a precise request
+Pass	A cached precise position is not reused for an approximate request

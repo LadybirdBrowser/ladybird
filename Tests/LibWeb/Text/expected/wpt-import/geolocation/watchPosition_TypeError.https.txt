@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	Call watchPosition without arguments, check that exception is thrown
+Pass	Call watchPosition with null success callback, check that exception is thrown
+Pass	Call watchPosition with null success and error callbacks, check that exception is thrown
+Pass	Call watchPosition() with wrong type for first argument. Exception expected.
+Pass	Call watchPosition() with wrong type for second argument. Exception expected.
+Pass	Call watchPosition() with wrong type for third argument. Exception expected.
+Pass	Calling watchPosition() with a legacy event handler object.

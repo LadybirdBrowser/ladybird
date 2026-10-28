@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<meta charset="utf-8"/>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js?feature=bidi"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+
+<script>
+    const latitude = 51.478;
+    const longitude = -0.166;
+    const accuracy = 100;
+    const altitude = 53;
+    const altitudeAccuracy = 30;
+    const heading = 10.4;
+    const speed = 20.7;
+
+    async function override_geolocation(t) {
+        t.add_cleanup(async () => {
+            await test_driver.bidi.emulation.set_geolocation_override(
+                {coordinates: null});
+        });
+
+        await test_driver.bidi.emulation.set_geolocation_override({
+            coordinates: {latitude, longitude, accuracy, altitude,
+                          altitudeAccuracy, heading, speed}
+        });
+    }
+
+    promise_setup(async () => {
+        // Ensure permission is granted before proceeding.
+        await test_driver.bidi.permissions.set_permission({
+            descriptor: {name: "geolocation"},
+            state: "granted",
+        });
+    });
+
+  promise_test(async (t) => {
+        await override_geolocation(t);
+
+        const position = await new Promise((resolve, reject) => {
+            window.navigator.geolocation.getCurrentPosition(
+                position => resolve(position.coords.toJSON()),
+                reject,
+                {accuracyMode: "approximate"}
+            );
+        });
+
+        // The coordinates are not compared to the emulated values: an approximate position is "coarsened
+        // to a larger area", and "What constitutes a coarsened area is left to the underlying system,
+        // which in turn can vary per jurisdiction", so an implementation that coarsens cannot be
+        // required to return them unchanged. They must still be present.
+        assert_equals(typeof position.latitude, "number", "latitude must be a number");
+        assert_equals(typeof position.longitude, "number", "longitude must be a number");
+        assert_equals(typeof position.accuracy, "number", "accuracy must be a number");
+        assert_equals(position.altitude, null);
+        assert_equals(position.altitudeAccuracy, null);
+        assert_equals(position.heading, null);
+        assert_equals(position.speed, null);
+    }, 'getCurrentPosition with accuracyMode: "approximate"');
+
+    promise_test(async (t) => {
+        await override_geolocation(t);
+
+        const position = await new Promise((resolve, reject) => {
+            window.navigator.geolocation.getCurrentPosition(
+                position => resolve(position.coords.toJSON()),
+                reject,
+                {accuracyMode: "precise", enableHighAccuracy: true}
+            );
+        });
+
+        assert_equals(position.latitude, latitude);
+        assert_equals(position.longitude, longitude);
+        assert_equals(position.accuracy, accuracy);
+        assert_equals(position.altitude, altitude);
+        assert_equals(position.altitudeAccuracy, altitudeAccuracy);
+        assert_equals(position.heading, heading);
+        assert_equals(position.speed, speed);
+    }, 'getCurrentPosition with accuracyMode: "precise"');
+</script>

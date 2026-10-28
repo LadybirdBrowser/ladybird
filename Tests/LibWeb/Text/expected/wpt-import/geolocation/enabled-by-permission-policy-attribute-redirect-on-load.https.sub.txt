@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Permissions-Policy allow="geolocation" allows same-origin redirection
+Pass	Permissions-Policy allow="geolocation" disallows cross-origin redirection

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<body>
+  <script src="../resources/testharness.js"></script>
+  <script src="../resources/testharnessreport.js"></script>
+  <script src="../resources/testdriver.js"></script>
+  <script src="../resources/testdriver-vendor.js"></script>
+  <script src="../permissions-policy/resources/permissions-policy.js"></script>
+  <script>
+    "use strict";
+
+    const same_origin_src =
+      "/permissions-policy/resources/permissions-policy-geolocation.html";
+    const cross_origin_src =
+      "https://{{hosts[alt][]}}:{{ports[https][0]}}" + same_origin_src;
+
+    // Grant permission to outer frame
+    promise_setup(async () => {
+      await test_driver.set_permission({ name: "geolocation" }, "granted");
+    });
+
+    promise_test(async (test) => {
+      await test_feature_availability(
+        "Geolocation",
+        test,
+        same_origin_src,
+        expect_feature_available_default,
+        "geolocation"
+      );
+    }, 'Permissions policy "geolocation" can be enabled in same-origin iframe using allow="geolocation" attribute');
+
+    promise_test(async (test) => {
+      await test_feature_availability(
+        "Geolocation",
+        test,
+        cross_origin_src,
+        expect_feature_available_default,
+        "geolocation"
+      );
+    }, 'Permissions policy "geolocation" can be enabled in cross-origin iframe using allow="geolocation" attribute');
+  </script>
+</body>

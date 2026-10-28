@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<body>
+<script>
+// Automatically redirects the page to a new URL on load.
+// Load this document with a URL like:
+//     "permissions-policy/resources/redirect-on-load.html#https://www.example.com/"
+window.onload = function () {
+  document.location = document.location.hash.substring(1);
+}
+</script>
+</body>

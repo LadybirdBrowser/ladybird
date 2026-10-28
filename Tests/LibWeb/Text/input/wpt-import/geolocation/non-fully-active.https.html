@@ -1,0 +1,161 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>Geolocation Test: non-fully active document</title>
+<link rel="help" href="https://github.com/w3c/geolocation-api/pull/97" />
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js?feature=bidi"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+<script src="support.js"></script>
+<body></body>
+<script>
+  promise_setup(async () => {
+    await test_driver.bidi.permissions.set_permission({
+      descriptor: { name: "geolocation" },
+      state: "granted",
+    });
+    await test_driver.bidi.emulation.set_geolocation_override({
+      coordinates: { latitude: 51.478, longitude: -0.166, accuracy: 100 },
+    });
+  });
+
+  promise_test(async (t) => {
+    const iframe = document.createElement("iframe");
+    await new Promise((resolve) => {
+      iframe.src = "resources/iframe.html";
+      iframe.allow = "geolocation";
+      iframe.addEventListener("load", resolve, { once: true });
+      document.body.appendChild(iframe);
+    });
+
+    const geo = iframe.contentWindow.navigator.geolocation;
+    iframe.remove();
+
+    const watchId = geo.watchPosition(
+      () => {},
+      () => {},
+    );
+    assert_equals(watchId, 0, "watchId is 0 when document is not fully-active");
+
+    const watchId2 = geo.watchPosition(
+      () => {},
+      () => {},
+    );
+    assert_equals(
+      watchId2,
+      0,
+      "watchId remains 0 when document is not fully-active",
+    );
+  }, "watchPosition returns 0 for non-fully-active document");
+
+  promise_test(async (t) => {
+    const iframe = document.createElement("iframe");
+    await new Promise((resolve) => {
+      iframe.src = "resources/iframe.html";
+      iframe.allow = "geolocation";
+      iframe.addEventListener("load", resolve, { once: true });
+      document.body.appendChild(iframe);
+    });
+
+    const geo = iframe.contentWindow.navigator.geolocation;
+    iframe.remove();
+
+    const result = await new Promise((resolve) => {
+      const timeoutId = t.step_timeout(() => {
+        resolve({ timedOut: true });
+      }, 100);
+
+      geo.watchPosition(
+        () => resolve({ success: true }),
+        (error) => {
+          clearTimeout(timeoutId);
+          resolve({ error });
+        },
+      );
+    });
+
+    assert_false(result.timedOut, "errorCallback should be called");
+    assert_false(result.success, "successCallback should not be called");
+    assert_equals(
+      result.error.code,
+      GeolocationPositionError.POSITION_UNAVAILABLE,
+      "errorCallback receives POSITION_UNAVAILABLE",
+    );
+  }, "watchPosition calls errorCallback with POSITION_UNAVAILABLE for non-fully-active document");
+
+  promise_test(async (t) => {
+    const iframe = document.createElement("iframe");
+    await new Promise((resolve) => {
+      iframe.src = "resources/iframe.html";
+      iframe.allow = "geolocation";
+      iframe.addEventListener("load", resolve, { once: true });
+      document.body.appendChild(iframe);
+    });
+
+    const geo = iframe.contentWindow.navigator.geolocation;
+    iframe.remove();
+
+    const result = await new Promise((resolve) => {
+      const timeoutId = t.step_timeout(() => {
+        resolve({ timedOut: true });
+      }, 100);
+
+      geo.getCurrentPosition(
+        () => resolve({ success: true }),
+        (error) => {
+          clearTimeout(timeoutId);
+          resolve({ error });
+        },
+      );
+    });
+
+    assert_false(result.timedOut, "errorCallback should be called");
+    assert_false(result.success, "successCallback should not be called");
+    assert_equals(
+      result.error.code,
+      GeolocationPositionError.POSITION_UNAVAILABLE,
+      "errorCallback receives POSITION_UNAVAILABLE",
+    );
+  }, "getCurrentPosition calls errorCallback with POSITION_UNAVAILABLE for non-fully-active document");
+
+  promise_test(async (t) => {
+    t.add_cleanup(async () => {
+      await test_driver.bidi.emulation.set_geolocation_override({
+        coordinates: null,
+      });
+    });
+
+    const iframe = document.createElement("iframe");
+    await new Promise((resolve) => {
+      iframe.src = "resources/iframe.html";
+      iframe.allow = "geolocation";
+      iframe.addEventListener("load", resolve, { once: true });
+      document.body.appendChild(iframe);
+    });
+
+    iframe.remove();
+    document.body.appendChild(iframe);
+    await new Promise((resolve) =>
+      iframe.addEventListener("load", resolve, { once: true }),
+    );
+
+    let watchId;
+    let position = await new Promise((resolve, reject) => {
+      watchId = iframe.contentWindow.navigator.geolocation.watchPosition(
+        resolve,
+        reject,
+      );
+    });
+    assert_true(Number.isInteger(watchId), "Expected integer watchId");
+    assert_true(Boolean(position), "Expected a position");
+
+    position = await new Promise((resolve, reject) => {
+      iframe.contentWindow.navigator.geolocation.getCurrentPosition(
+        resolve,
+        reject,
+      );
+    });
+    assert_true(Boolean(position), "Expected a position");
+    iframe.contentWindow.navigator.geolocation.clearWatch(watchId);
+  }, "re-attached document restores geolocation functionality");
+</script>

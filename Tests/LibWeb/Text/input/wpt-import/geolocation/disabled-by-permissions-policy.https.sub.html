@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<body>
+  <script src="../resources/testharness.js"></script>
+  <script src="../resources/testharnessreport.js"></script>
+  <script src="../resources/testdriver.js"></script>
+  <script src="../resources/testdriver-vendor.js"></script>
+  <script src="../permissions-policy/resources/permissions-policy.js"></script>
+  <script>
+    "use strict";
+
+    const same_origin_src =
+      "/permissions-policy/resources/permissions-policy-geolocation.html";
+    const cross_origin_src =
+      "https://{{hosts[alt][]}}:{{ports[https][0]}}" + same_origin_src;
+
+    promise_setup(async () => {
+      await test_driver.set_permission({ name: "geolocation" }, "granted");
+    });
+
+    promise_test(async (test) => {
+      // These operations are slow, so let's do them in parallel.
+      const getCurrentPositionPromise = new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(reject, resolve);
+      });
+      const watchPositionPromise = new Promise((resolve, reject) => {
+        navigator.geolocation.watchPosition(reject, resolve);
+      });
+      const posError = await getCurrentPositionPromise;
+
+      assert_true(
+        posError instanceof GeolocationPositionError,
+        "Expected instance of GeolocationPositionError"
+      );
+
+      assert_equals(
+        posError.code,
+        GeolocationPositionError.prototype.PERMISSION_DENIED,
+        "Expected PERMISSION_DENIED"
+      );
+
+      const watchError = await watchPositionPromise;
+      assert_true(
+        watchError instanceof GeolocationPositionError,
+        "Expected instance of GeolocationPositionError"
+      );
+      assert_equals(
+        watchError.code,
+        GeolocationPositionError.prototype.PERMISSION_DENIED,
+        "Expected PERMISSION_DENIED"
+      );
+    }, "Permissions-Policy header geolocation=() disallows the top-level document.");
+
+    promise_test(async (test) => {
+      await test_feature_availability({
+        feature_description: "Geolocation API",
+        test,
+        src: same_origin_src,
+        expect_feature_available: expect_feature_unavailable_default,
+        is_promise_test: true,
+      });
+    }, "Permissions-Policy header geolocation=() disallows same-origin iframes.");
+
+    promise_test(async (test) => {
+      await test_feature_availability({
+        feature_description: "Geolocation API",
+        test,
+        src: cross_origin_src,
+        expect_feature_available: expect_feature_unavailable_default,
+        feature_name: "geolocation",
+        is_promise_test: true,
+      });
+    }, "Permissions-Policy header geolocation=() disallows cross-origin iframes.");
+  </script>
+</body>

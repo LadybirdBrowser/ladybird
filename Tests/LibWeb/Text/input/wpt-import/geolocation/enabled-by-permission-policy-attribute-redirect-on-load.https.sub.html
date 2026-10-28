@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<meta name="timeout" content="long">
+<body>
+  <script src="../resources/testharness.js"></script>
+  <script src="../resources/testharnessreport.js"></script>
+  <script src="../resources/testdriver.js?feature=bidi"></script>
+  <script src="../resources/testdriver-vendor.js"></script>
+  <script src="../permissions-policy/resources/permissions-policy.js"></script>
+  <script>
+    "use strict";
+
+    const relative_path =
+      "/permissions-policy/resources/permissions-policy-geolocation.html";
+    const base_src = "/permissions-policy/resources/redirect-on-load.html#";
+    const same_origin_src = base_src + relative_path;
+    const cross_origin_src = `${base_src}https://{{hosts[alt][]}}:{{ports[https][0]}}${relative_path}`;
+
+    // Grant permission to outer frame
+    promise_setup(async () => {
+      await test_driver.bidi.permissions.set_permission({
+        descriptor: { name: "geolocation" }, state: "granted"
+      });
+      await test_driver.bidi.emulation.set_geolocation_override({
+          coordinates: {
+          latitude: 52.51,
+          longitude: 13.39,
+          accuracy: 0.5,
+          altitude: 34,
+          altitudeAccuracy: 0.75,
+          heading: 180,
+          speed: 2.77
+      }
+      });
+    });
+
+    promise_test(async (test) => {
+      await test_feature_availability({
+        feature_description: "Geolocation",
+        test,
+        src: same_origin_src,
+        expect_feature_available: expect_feature_available_default,
+        is_promise_test: true,
+        feature_name: "geolocation",
+      });
+    }, 'Permissions-Policy allow="geolocation" allows same-origin redirection');
+
+    promise_test(async (test) => {
+      await test_feature_availability({
+        feature_description: "Geolocation",
+        test,
+        src: cross_origin_src,
+        expect_feature_available: expect_feature_unavailable_default,
+        is_promise_test: true,
+        feature_name: "geolocation",
+      });
+    }, 'Permissions-Policy allow="geolocation" disallows cross-origin redirection');
+  </script>
+</body>
