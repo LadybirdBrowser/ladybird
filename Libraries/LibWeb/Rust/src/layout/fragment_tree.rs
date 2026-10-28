@@ -390,20 +390,50 @@ fn propagate_payload_into_containing_block_space<Payload: PropagatedPayload>(
 fn propagate_payload_toward_run_root_space<Payload: PropagatedPayload>(
     payload: &mut Payload,
     run_root: crate::layout::node_data::NodeSlotId,
-    records: &RunRecords,
+    placed_boxes: &PlacedBoxes,
     callbacks: &LayoutPass<'_>,
 ) {
     while payload.coordinate_space_box() != run_root {
-        let Some(placement) = records.placement_of(payload.coordinate_space_box()) else {
+        let Some(placement) = placed_boxes.placement_of(payload.coordinate_space_box()) else {
             break;
         };
         payload.translate_by(placement.content_offset_in_containing_block);
         let containing_block =
-            formatting_context::placement_containing_block(records, callbacks, payload.coordinate_space_box());
+            placed_boxes.placement_containing_block(callbacks, payload.coordinate_space_box(), run_root);
         if containing_block.is_invalid() {
             break;
         }
         payload.set_coordinate_space_box(containing_block);
+    }
+}
+
+/// Where a run placed each box it placed so far, keyed by slot.
+#[derive(Default)]
+pub(crate) struct PlacedBoxes {
+    placements: HashMap<u32, run_records::BoxPlacement>,
+}
+
+impl PlacedBoxes {
+    pub(crate) fn placement_of(&self, node: crate::layout::node_data::NodeSlotId) -> Option<run_records::BoxPlacement> {
+        self.placements.get(&node.slot_index()).copied()
+    }
+
+    pub(crate) fn is_placed(&self, node: crate::layout::node_data::NodeSlotId) -> bool {
+        self.placements.contains_key(&node.slot_index())
+    }
+
+    /// The containing block `node` is placed in, or for a box not placed in one yet, the containing block it is laid
+    /// out in, within the run rooted at `run_root`.
+    pub(crate) fn placement_containing_block(
+        &self,
+        callbacks: &LayoutPass<'_>,
+        node: crate::layout::node_data::NodeSlotId,
+        run_root: crate::layout::node_data::NodeSlotId,
+    ) -> crate::layout::node_data::NodeSlotId {
+        match self.placement_of(node) {
+            Some(placement) if !placement.containing_block.is_invalid() => placement.containing_block,
+            _ => formatting_context::containing_block_laid_out_in(callbacks, node, run_root),
+        }
     }
 }
 
@@ -897,6 +927,9 @@ struct RunFragmentBuilderInner {
     children_left_unplaced: Vec<ChildFragmentArrival>,
     /// What the run's layout of its root hands the root's fragment.
     root_payloads: Option<Box<FragmentPayloads>>,
+    /// Where the run placed each box it placed so far, from the moment it places the box, before the placement drains
+    /// the absolutely positioned boxes the box contains.
+    placed_boxes: PlacedBoxes,
 }
 
 impl RunFragmentBuilderInner {
@@ -953,6 +986,39 @@ impl RunFragmentBuilder {
 
     pub(crate) fn root_node(&self) -> crate::layout::node_data::NodeSlotId {
         self.root_node
+    }
+
+    /// Notes that the run placed `node` in `placement`, which is final.
+    pub(crate) fn note_placed_box(
+        &self,
+        node: crate::layout::node_data::NodeSlotId,
+        placement: run_records::BoxPlacement,
+    ) {
+        let previous = self
+            .inner
+            .borrow_mut()
+            .placed_boxes
+            .placements
+            .insert(node.slot_index(), placement);
+        debug_assert!(previous.is_none(), "a box is placed once");
+    }
+
+    /// Where the run placed `node`, if it placed the box.
+    pub(crate) fn placement_of(&self, node: crate::layout::node_data::NodeSlotId) -> Option<run_records::BoxPlacement> {
+        self.inner.borrow().placed_boxes.placement_of(node)
+    }
+
+    /// The containing block `node` is placed in, or for a box the run did not place yet, the containing block it is
+    /// laid out in.
+    pub(crate) fn placement_containing_block(
+        &self,
+        callbacks: &LayoutPass<'_>,
+        node: crate::layout::node_data::NodeSlotId,
+    ) -> crate::layout::node_data::NodeSlotId {
+        self.inner
+            .borrow()
+            .placed_boxes
+            .placement_containing_block(callbacks, node, self.root_node)
     }
 
     pub(crate) fn register_pending_abspos(
@@ -1153,21 +1219,25 @@ impl RunFragmentBuilder {
     pub(crate) fn take_drainable_abspos(
         &self,
         placed: crate::layout::node_data::NodeSlotId,
-        records: &RunRecords,
         callbacks: &LayoutPass<'_>,
     ) -> Vec<abspos_inputs::PendingAbsposChild> {
         let mut inner = self.inner.borrow_mut();
+        let RunFragmentBuilderInner {
+            pending_fragments,
+            pending_abspos_at_root,
+            placed_boxes,
+            ..
+        } = &mut *inner;
         let containing_block_is_owned_and_placed = |entry: &abspos_inputs::PendingAbsposChild| {
             let containing_block = entry.containing_block();
             !containing_block.is_invalid()
                 && (self.is_entry_accumulator || containing_block != self.root_node)
-                && records.is_placed(containing_block)
+                && placed_boxes.is_placed(containing_block)
         };
-        let mut taken: Vec<abspos_inputs::PendingAbsposChild> = inner
-            .pending_abspos_at_root
+        let mut taken: Vec<abspos_inputs::PendingAbsposChild> = pending_abspos_at_root
             .extract_if(.., |entry| containing_block_is_owned_and_placed(entry))
             .collect();
-        if let Some(pending_fragment) = inner.pending_fragments.get_mut(&placed.slot_index()) {
+        if let Some(pending_fragment) = pending_fragments.get_mut(&placed.slot_index()) {
             taken.extend(
                 pending_fragment
                     .pending_abspos
@@ -1386,7 +1456,6 @@ impl RunFragmentBuilder {
         geometry: FragmentGeometry,
         facts: run_records::FactsDecidedByParent,
         abspos_layout_inputs: Option<abspos_inputs::AbsposLayoutInputs>,
-        containing_block_is_sealed: bool,
         containing_line_box_index: Option<usize>,
         committed_offset: FfiCssPixelPoint,
         own_anchor_candidate_border_box_rect: Option<CssPixelRect>,
@@ -1417,7 +1486,7 @@ impl RunFragmentBuilder {
                 callbacks.frame,
             ),
         );
-        self.attach(&mut inner, link, containing_block, containing_block_is_sealed);
+        self.attach(&mut inner, link, containing_block);
         let exports_payloads = !pending_abspos_from_placed_box.is_empty()
             || !anchor_candidates_from_placed_box.is_empty()
             || !inline_containing_block_rects_from_placed_box.is_empty()
@@ -1497,7 +1566,6 @@ impl RunFragmentBuilder {
         containing_block: Option<crate::layout::node_data::NodeSlotId>,
         facts: run_records::FactsDecidedByParent,
         abspos_layout_inputs: Option<abspos_inputs::AbsposLayoutInputs>,
-        containing_block_is_sealed: bool,
         containing_line_box_index: Option<usize>,
         committed_offset: FfiCssPixelPoint,
         frame: geometry::Frame,
@@ -1522,7 +1590,7 @@ impl RunFragmentBuilder {
                 frame,
             ),
         );
-        self.attach(&mut inner, link, containing_block, containing_block_is_sealed);
+        self.attach(&mut inner, link, containing_block);
         if reuses_subtree {
             inner.reused_subtree_roots.insert(slot);
         }
@@ -1539,7 +1607,6 @@ impl RunFragmentBuilder {
         inner: &mut RunFragmentBuilderInner,
         link: FragmentLink,
         containing_block: Option<crate::layout::node_data::NodeSlotId>,
-        containing_block_is_sealed: bool,
     ) {
         let Some(containing_block) = containing_block else {
             inner.top_scope_links.push(link);
@@ -1554,7 +1621,8 @@ impl RunFragmentBuilder {
             pending_fragment.children.push(link);
             return;
         }
-        if self.is_entry_accumulator || containing_block_is_sealed {
+        // NB: A containing block the run placed already is sealed, so the box goes to the top of the run's fragments.
+        if self.is_entry_accumulator || inner.placed_boxes.is_placed(containing_block) {
             inner.top_scope_links.push(link);
             return;
         }
@@ -1669,25 +1737,25 @@ impl RunFragmentBuilder {
                 PlacementData::of_box_as_this_run_left_it(records, root.node, callbacks.frame),
             ));
         }
+        let placed_boxes = &inner.placed_boxes;
         for entry in &mut propagated_pending_abspos {
-            #[cfg(debug_assertions)]
-            {
-                let containing_block = entry.containing_block();
-                debug_assert!(
+            debug_assert!(
+                {
+                    let containing_block = entry.containing_block();
                     containing_block.is_invalid()
                         || containing_block == self.root_node
-                        || !records.is_placed(containing_block),
-                    "a drainable abspos registration survived its containing block's run (slot {})",
-                    entry.child_box.slot_index()
-                );
-            }
-            propagate_payload_toward_run_root_space(entry, self.root_node, records, callbacks);
+                        || !placed_boxes.is_placed(containing_block)
+                },
+                "a drainable abspos registration survived its containing block's run (slot {})",
+                entry.child_box.slot_index()
+            );
+            propagate_payload_toward_run_root_space(entry, self.root_node, placed_boxes, callbacks);
         }
         for candidate in &mut propagated_anchor_candidates {
-            propagate_payload_toward_run_root_space(candidate, self.root_node, records, callbacks);
+            propagate_payload_toward_run_root_space(candidate, self.root_node, placed_boxes, callbacks);
         }
         for payload in &mut propagated_inline_containing_block_rects {
-            propagate_payload_toward_run_root_space(payload, self.root_node, records, callbacks);
+            propagate_payload_toward_run_root_space(payload, self.root_node, placed_boxes, callbacks);
         }
         UnplacedRootFragment {
             node: self.root_node,
