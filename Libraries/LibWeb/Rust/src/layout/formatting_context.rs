@@ -3688,7 +3688,7 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
     debug_assert!(facts.is_svg_svg_box());
     let fc_type = formatting_context_type_created_by_box(facts)
         .expect("partial relayout root must establish an independent formatting context");
-    let (_, fragment_arrival) = run_formatting_context(
+    let root_outcome = run_formatting_context(
         Some(fragments),
         root_cells,
         root,
@@ -3699,8 +3699,12 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
         *callbacks,
         input,
         None,
-    )
-    .hand_box_back_to(run, root);
+    );
+    let root_geometry = fragment_tree::FragmentGeometry {
+        cells: root_outcome.laid_out_box.cells,
+        line_data: root_outcome.line_data.clone(),
+    };
+    let (_, fragment_arrival) = root_outcome.hand_box_back_to(run, root);
     // The retained offset already includes relative positioning. Publish it directly instead
     // of applying placement adjustments a second time.
     let Some(fragment_tree::ChildFragmentArrival::RunRoot {
@@ -3711,7 +3715,7 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
         panic!("the root of a partial relayout is laid out by a run of its own");
     };
     fragments.take_in_child_root_at_placement(root, unplaced_root, reuses_committed_subtree, callbacks);
-    let facts_decided_by_parent = run.records.facts_decided_by_parent_of(root);
+    let facts_decided_by_parent = committed_root.facts_decided_by_parent;
     let placement = facts_decided_by_parent
         .placement
         .expect("the root of a partial relayout keeps the placement it committed");
@@ -3719,7 +3723,7 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
         callbacks,
         root,
         None,
-        run.records.fragment_geometry_of(root, callbacks),
+        root_geometry,
         facts_decided_by_parent,
         None,
         false,
