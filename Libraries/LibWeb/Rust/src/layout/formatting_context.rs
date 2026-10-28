@@ -337,7 +337,7 @@ pub(crate) fn lay_out_pending_abspos_children(
     }
 }
 
-/// Runs `body` with a run in the frame `node` establishes, with the record of `node` moved into that frame.
+/// Runs `body` with a run in the frame `node` establishes, with the box metrics of `node` moved into that frame.
 pub(crate) fn in_frame_established_by<R>(
     run: &FormattingContextRun,
     node: Node,
@@ -348,15 +348,10 @@ pub(crate) fn in_frame_established_by<R>(
     if own_frame == parent_frame {
         return body(run);
     }
-    let used = run.records.used_values_if_owned(node);
-    if let Some(used) = used {
-        used.move_box_metrics_to_frame(parent_frame, own_frame);
-    }
+    run.records.move_box_metrics_to_frame(node, parent_frame, own_frame);
     let framed_run = run.in_frame_of(own_frame);
     let result = body(&framed_run);
-    if let Some(used) = used {
-        used.move_box_metrics_to_frame(own_frame, parent_frame);
-    }
+    run.records.move_box_metrics_to_frame(node, own_frame, parent_frame);
     result
 }
 

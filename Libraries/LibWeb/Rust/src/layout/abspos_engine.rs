@@ -106,15 +106,18 @@ pub(crate) struct ContainingBlockGeometry {
 }
 
 impl ContainingBlockGeometry {
-    pub(crate) fn from_used_values(used: &UsedValues, content_origin_in_entry_space: FfiCssPixelPoint) -> Self {
+    pub(crate) fn from_box_metrics(
+        metrics: &impl BoxMetricCells,
+        content_origin_in_entry_space: FfiCssPixelPoint,
+    ) -> Self {
         Self {
             content_origin_in_entry_space,
-            padding_left: used.padding_left.get(),
-            padding_right: used.padding_right.get(),
-            padding_top: used.padding_top.get(),
-            padding_bottom: used.padding_bottom.get(),
-            content_inline_size: used.content_inline_size.get(),
-            content_block_size: used.content_block_size.get(),
+            padding_left: metrics.padding_left(),
+            padding_right: metrics.padding_right(),
+            padding_top: metrics.padding_top(),
+            padding_bottom: metrics.padding_bottom(),
+            content_inline_size: metrics.content_inline_size(),
+            content_block_size: metrics.content_block_size(),
         }
     }
 
@@ -147,16 +150,16 @@ impl<'pass> AbsposEngine<'pass> {
         entry: &abspos_inputs::PendingAbsposChild,
     ) -> ContainingBlockGeometry {
         let containing_block = entry.containing_block();
-        let Some(containing_block_used) = self.records.used_values_if_owned(containing_block) else {
+        let Some(containing_block_metrics) = self.records.box_metrics_of_if_owned(containing_block) else {
             panic!(
-                "no owned record for the containing block of slot {} (cb slot {})",
+                "the run holds no containing block for slot {} (cb slot {})",
                 entry.child_box.slot_index(),
                 containing_block.slot_index()
             );
         };
         let content_origin_in_entry_space =
             self.origin_of_containing_block_in_entry_space(containing_block, entry.coordinate_space_box);
-        ContainingBlockGeometry::from_used_values(containing_block_used, content_origin_in_entry_space)
+        ContainingBlockGeometry::from_box_metrics(&containing_block_metrics, content_origin_in_entry_space)
     }
 
     fn origin_of_containing_block_in_entry_space(&self, containing_block: Node, entry_space: Node) -> FfiCssPixelPoint {
@@ -784,7 +787,7 @@ impl AbsposEngine<'_> {
         }
         let containing_block_geometry = match entry_containing_block_geometry {
             Some(geometry) => *geometry,
-            None => ContainingBlockGeometry::from_used_values(self.used(containing_block), FfiCssPixelPoint::default()),
+            None => ContainingBlockGeometry::from_box_metrics(self.used(containing_block), FfiCssPixelPoint::default()),
         };
         let default_anchor_box = if style.has_position_anchor() {
             self.anchor_lookup(node, style.position_anchor_name())
