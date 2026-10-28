@@ -1011,7 +1011,8 @@ impl<'text> TextChunker<'text> {
                     return Some(chunk);
                 }
 
-                if self.should_wrap_lines {
+                // NB: Leading collapsible whitespace must be a separate chunk even when wrapping is disabled.
+                if self.should_wrap_lines || (self.should_collapse_whitespace && self.current_index == pending.start) {
                     if code_point_is_ascii_space(code_point) {
                         // Whitespace encountered, and we're allowed to break on whitespace.
                         // If we have accumulated some code points in the current chunk, commit them now and continue
