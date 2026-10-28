@@ -2145,7 +2145,7 @@ impl<'pass> MathFormattingContext<'pass> {
         stretch_size_constraint: Option<MathStretchSizeConstraint>,
     ) -> Child {
         let run = &self.run;
-        let child_cells = run.records.keep_child_for_its_run(&run.callbacks, child, constraints);
+        let child_cells = used_values::cells_before_sizing(&run.callbacks, child, constraints);
         // NB: MathML layout does not break lines, so each child is laid out at its max-content inline size, as an
         //     atomic box whose block size follows from its content.
         let mut input = LayoutInput::new(

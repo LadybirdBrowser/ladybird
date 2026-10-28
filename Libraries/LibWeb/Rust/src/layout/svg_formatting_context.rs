@@ -1837,14 +1837,12 @@ impl<'pass> SvgFormattingContext<'pass> {
         self.run.records.used_values(node)
     }
 
-    /// A record for `node`, a box this context lays out in it, which the run keeps the box for without.
+    /// A record for `node`, a box this context lays out in it.
     fn create_used_values(&self, node: Node) -> UsedValues {
         // SVG descendants deliberately carry no percentage basis.
         // SVG layout resolves percentages against the SVG viewport, not a CSS containing
         // block, so boxes inside the SVG subtree carry no percentage basis.
-        let record = used_values::create_used_values(&self.run.callbacks, node, ContainingBlockConstraints::default());
-        self.run.records.keep_box_laid_out_in_record_its_layout_owns(node);
-        record
+        used_values::create_used_values(&self.run.callbacks, node, ContainingBlockConstraints::default())
     }
 
     fn set_svg_viewport_transform(&self, node: Node, transform: FfiAffineTransform) {
@@ -2060,11 +2058,8 @@ impl<'pass> SvgFormattingContext<'pass> {
             return Some(self.layout_nested_viewport(run, child));
         } else if kind == NodeKind::SVGForeignObjectBox {
             // SVG descendants carry no percentage basis, as `create_used_values` explains.
-            let mut child_cells = self.run.records.keep_child_for_its_run(
-                &self.run.callbacks,
-                child,
-                ContainingBlockConstraints::default(),
-            );
+            let mut child_cells =
+                used_values::cells_before_sizing(&self.run.callbacks, child, ContainingBlockConstraints::default());
             let style = self.style(child);
             let rect = SvgCssPixelRect {
                 x: style.x().to_px(self.viewport_width),

@@ -3255,9 +3255,7 @@ impl<'pass> AbsposEngine<'pass> {
     ) -> CssPixels {
         let child_box = child.child_box;
         let position_option = self.determine_position_fallback_styles(&child);
-        let cells =
-            self.records
-                .keep_child_for_its_run(&self.callbacks, child_box, ContainingBlockConstraints::default());
+        let cells = used_values::cells_before_sizing(&self.callbacks, child_box, ContainingBlockConstraints::default());
         let (mut inputs, default_scroll_shift) = self.pending_child_layout_inputs(&mut child);
         inputs.position_option = position_option.choice();
         let border_box_block_end = self.layout_element(run, child_box, cells, inputs, Some(default_scroll_shift));
@@ -3746,9 +3744,7 @@ impl<'pass> AbsposEngine<'pass> {
         }
         // Partial relayout uses a fresh state and keeps the replay root
         // exactly once.
-        let cells = self
-            .records
-            .keep_child_for_its_run(&self.callbacks, node, ContainingBlockConstraints::default());
+        let cells = used_values::cells_before_sizing(&self.callbacks, node, ContainingBlockConstraints::default());
         let default_scroll_shift = self
             .callbacks
             .committed_fragment_link(node)

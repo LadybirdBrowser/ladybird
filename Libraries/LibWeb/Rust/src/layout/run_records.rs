@@ -5,7 +5,6 @@
  */
 
 use super::*;
-use std::ptr::NonNull;
 
 /// What the layout stage keeps for itself besides what each of its runs keeps: what the runs of a layout pass share and
 /// what the runs in progress found out for the host. It is the stage's scratch rather than arena columns: nothing
@@ -108,20 +107,6 @@ const _: () = {
     const fn assert_send<T: Send>() {}
     assert_send::<LayoutScratch>();
 };
-
-enum KeptBoxHolding {
-    /// A box this run lays out itself, in a record the run keeps for it until the run is dropped.
-    LaidOutByThisRun { record: NonNull<UsedValues> },
-    /// A box this run lays out itself, in a record that the layout of the box owns: the call laying it out, or the
-    /// formatting context it lays the box out for.
-    LaidOutInRecordItsLayoutOwns,
-    /// A child this run keeps for a layout of its own, a run of its own or a record the call laying it out owns,
-    /// until that layout returns.
-    ChildNotYetLaidOut,
-    /// A child whose own layout handed the box back to the formatting context of this run, which keeps what it reads
-    /// of the box.
-    ChildHandedBack,
-}
 
 impl Default for LayoutScratch {
     fn default() -> Self {
@@ -250,20 +235,16 @@ impl LayoutScratch {
     }
 }
 
-/// The per-run registry of the boxes a run holds. A run owns its root's record, built from the input cells its caller
-/// hands it, and keeps what it holds of every other box: what the box's parent decides about it, with the record of a
-/// box it lays out in a record it keeps, or with the cells a child it keeps for a layout of its own starts out with,
-/// until that layout hands the box back to the run's formatting context. A box whose layout owns its record keeps it
-/// there. The run releases what it keeps when it returns. The scoped constructors lend records to the run, so callers cannot extend
-/// the registry's lifetime.
+/// What a run keeps while it is in progress: the record of its root, built from the input cells its caller hands it, and
+/// the percentage block size dependencies it resolves. Every other box the run lays out is laid out in a record the
+/// call laying it out owns, or handed to a run of its own. The scoped constructors lend the records to the run, so
+/// callers cannot extend their lifetime.
 pub(crate) struct RunRecords<'arena> {
     root: Node,
     root_used: Option<UsedValues>,
     scratch: &'arena LayoutScratch,
-    /// How many runs are in progress with this one, which only the innermost of them may register boxes with.
+    /// How many runs are in progress with this one, of which only the innermost hands over what it found out.
     runs_in_progress_with_it: usize,
-    /// What the run keeps of each box it holds but its root.
-    held_boxes: RefCell<HashMap<Node, KeptBoxHolding>>,
     content_sizing: ContentSizing,
     /// What the run found so far about the percentage block size dependency of its root and of the boxes whose
     /// layout in it is in progress, the innermost last. Only these boxes have their dependency resolved.
@@ -457,7 +438,6 @@ impl<'arena> RunRecords<'arena> {
             root_used: root_cells.map(|(cells, frame)| cells.materialize_record(frame)),
             scratch,
             runs_in_progress_with_it: scratch.begin_run(),
-            held_boxes: RefCell::new(HashMap::default()),
             content_sizing,
             percentage_block_size_dependencies_in_progress: RefCell::new(smallvec::smallvec![(
                 root,
@@ -491,79 +471,8 @@ impl<'arena> RunRecords<'arena> {
         self.content_sizing == ContentSizing::RootContentInlineSizes && node == self.root
     }
 
-    pub(crate) fn register(&self, node: Node, used: UsedValues) -> &UsedValues {
-        self.assert_registers_in_innermost_run(node);
-        let record = NonNull::from(Box::leak(Box::new(used)));
-        self.keep(node, KeptBoxHolding::LaidOutByThisRun { record });
-        // SAFETY: The run keeps the record until it is dropped, which ends this borrow of the run.
-        unsafe { record.as_ref() }
-    }
-
-    /// Keeps `node`, a box this run lays out in a record that the layout of the box owns, for what the box's parent
-    /// decides about it.
-    pub(crate) fn keep_box_laid_out_in_record_its_layout_owns(&self, node: Node) {
-        self.assert_registers_in_innermost_run(node);
-        self.keep(node, KeptBoxHolding::LaidOutInRecordItsLayoutOwns);
-    }
-
-    /// Keeps `child`, which this run hands to a run of its own, and returns the cells it starts out with.
-    pub(crate) fn keep_child_for_its_run(
-        &self,
-        callbacks: &LayoutPass<'_>,
-        child: Node,
-        constraints: ContainingBlockConstraints,
-    ) -> used_values::RootInputCells {
-        self.hold_child_for_its_run(child);
-        used_values::cells_before_sizing(callbacks, child, constraints)
-    }
-
-    /// Keeps `child`, which this run hands to a run of its own.
-    pub(crate) fn hold_child_for_its_run(&self, child: Node) {
-        self.assert_registers_in_innermost_run(child);
-        self.keep(child, KeptBoxHolding::ChildNotYetLaidOut);
-    }
-
-    fn assert_registers_in_innermost_run(&self, node: Node) {
-        if self.is_root_with_record(node) {
-            self.panic_for_box_registered_twice(node);
-        }
-        assert!(
-            self.is_innermost_run(),
-            "only the innermost layout run may register records"
-        );
-    }
-
     fn is_innermost_run(&self) -> bool {
         self.scratch.runs_in_progress() == self.runs_in_progress_with_it
-    }
-
-    fn is_root_with_record(&self, node: Node) -> bool {
-        node == self.root && self.root_used.is_some()
-    }
-
-    fn panic_for_box_registered_twice(&self, node: Node) -> ! {
-        panic!(
-            "slot {} registered twice in the run rooted at slot {}",
-            node.slot_index(),
-            self.root.slot_index()
-        )
-    }
-
-    fn keep(&self, node: Node, holding: KeptBoxHolding) {
-        let mut held_boxes = self.held_boxes.borrow_mut();
-        if held_boxes.contains_key(&node) {
-            self.panic_for_box_registered_twice(node);
-        }
-        held_boxes.insert(node, holding);
-    }
-
-    pub(crate) fn create_used_values(
-        &self,
-        callbacks: &LayoutPass<'_>,
-        node: Node,
-        constraints: ContainingBlockConstraints,
-    ) -> &UsedValues {
-        self.register(node, used_values::create_used_values(callbacks, node, constraints))
     }
 
     #[track_caller]
@@ -578,33 +487,12 @@ impl<'arena> RunRecords<'arena> {
         })
     }
 
+    /// The record of `node` where it is the run's root, the only box a run keeps a record of.
     pub(crate) fn used_values_if_owned(&self, node: Node) -> Option<&UsedValues> {
-        if self.is_root_with_record(node) {
-            return self.root_used.as_ref();
+        if node != self.root {
+            return None;
         }
-        let record = self.record_this_run_keeps(node)?;
-        // SAFETY: The run keeps the record until it is dropped, which ends this borrow of the run.
-        Some(unsafe { record.as_ref() })
-    }
-
-    /// The record this run keeps for `node`, a box it holds but its root, where it keeps one.
-    fn record_this_run_keeps(&self, node: Node) -> Option<NonNull<UsedValues>> {
-        match *self.held_boxes.borrow().get(&node)? {
-            KeptBoxHolding::LaidOutByThisRun { record } => Some(record),
-            KeptBoxHolding::LaidOutInRecordItsLayoutOwns
-            | KeptBoxHolding::ChildNotYetLaidOut
-            | KeptBoxHolding::ChildHandedBack => None,
-        }
-    }
-
-    #[track_caller]
-    fn panic_for_box_not_held(&self, node: Node) -> ! {
-        panic!(
-            "the run rooted at slot {} does not hold slot {} (read at {})",
-            self.root.slot_index(),
-            node.slot_index(),
-            std::panic::Location::caller(),
-        )
+        self.root_used.as_ref()
     }
 
     pub(crate) fn root(&self) -> Node {
@@ -679,37 +567,10 @@ impl<'arena> RunRecords<'arena> {
             update(dependency);
         }
     }
-
-    /// Notes that the layout of `child`, a box this run keeps for a layout of its own, handed the box back once it
-    /// returned.
-    #[track_caller]
-    pub(crate) fn note_child_handed_back(&self, child: Node) {
-        if self.is_root_with_record(child) {
-            self.panic_for_box_not_held(child)
-        }
-        let mut held_boxes = self.held_boxes.borrow_mut();
-        let Some(kept) = held_boxes.get_mut(&child) else {
-            self.panic_for_box_not_held(child)
-        };
-        assert!(
-            !matches!(
-                kept,
-                KeptBoxHolding::LaidOutByThisRun { .. } | KeptBoxHolding::LaidOutInRecordItsLayoutOwns
-            ),
-            "{child:?} is handed back by a run of its own to a parent that lays it out itself"
-        );
-        *kept = KeptBoxHolding::ChildHandedBack;
-    }
 }
 
 impl Drop for RunRecords<'_> {
     fn drop(&mut self) {
-        for kept in self.held_boxes.get_mut().values() {
-            if let KeptBoxHolding::LaidOutByThisRun { record } = *kept {
-                // SAFETY: The run leaked the record into its keeping, and nothing borrows it once the run is dropped.
-                drop(unsafe { Box::from_raw(record.as_ptr()) });
-            }
-        }
         self.scratch.end_run(self.runs_in_progress_with_it);
     }
 }
@@ -718,12 +579,8 @@ impl Drop for RunRecords<'_> {
 mod tests {
     use super::*;
 
-    fn default_root_cells() -> used_values::RootInputCells {
-        used_values::RootInputCells::default()
-    }
-
     #[test]
-    fn nested_runs_leave_their_parents_records_in_place() {
+    fn a_nested_run_keeps_its_own_root_record() {
         let mut arena = LayoutNodeArena::new();
         let scratch = LayoutScratch::default();
         let root = arena.allocate_for_test().slot;
@@ -732,126 +589,34 @@ mod tests {
             LayoutPass::for_test(&arena, &scratch),
             root,
             NodeSlotId::INVALID,
-            default_root_cells(),
+            used_values::RootInputCells::default(),
             geometry::Frame::PHYSICAL,
             |parent, _| {
                 let root_used: *const UsedValues = parent.used_values(root);
-                let child_used: *const UsedValues = parent.register(child, UsedValues::default());
                 RunRecords::with_root(
                     LayoutPass::for_test(&arena, &scratch),
                     child,
                     root,
-                    default_root_cells(),
+                    used_values::RootInputCells::default(),
                     geometry::Frame::PHYSICAL,
                     |nested, _| {
-                        let nested_used: *const UsedValues = nested.used_values(child);
-                        assert!(!std::ptr::eq(nested_used, child_used));
-                        assert!(std::ptr::eq(parent.used_values(child), child_used));
-                        assert!(std::ptr::eq(parent.used_values(root), root_used));
                         assert!(nested.used_values_if_owned(root).is_none());
+                        assert!(nested.used_values_if_owned(child).is_some());
+                        assert!(parent.used_values_if_owned(child).is_none());
                         RunRecords::with_unrooted(
                             LayoutPass::for_test(&arena, &scratch),
                             child,
                             root,
-                            |measurement, _| {
-                                let measured: *const UsedValues = measurement.register(child, UsedValues::default());
-                                assert!(std::ptr::eq(measurement.used_values(child), measured));
-                                assert!(std::ptr::eq(parent.used_values(child), child_used));
-                                assert!(std::ptr::eq(nested.used_values(child), nested_used));
+                            |unrooted, _| {
+                                assert!(unrooted.used_values_if_owned(child).is_none());
                             },
                         );
-                        assert!(std::ptr::eq(parent.used_values(child), child_used));
                     },
                 );
-                assert!(std::ptr::eq(parent.used_values(child), child_used));
+                assert!(std::ptr::eq(parent.used_values(root), root_used));
             },
         );
         assert_eq!(scratch.runs_in_progress(), 0);
-    }
-
-    #[test]
-    fn returning_runs_release_their_records() {
-        let mut arena = LayoutNodeArena::new();
-        let scratch = LayoutScratch::default();
-        let root = arena.allocate_for_test().slot;
-        let child = arena.allocate_for_test().slot;
-        let lines = std::sync::Arc::new(crate::layout::inline_content::InlineContent::default());
-        let weak_lines = std::sync::Arc::downgrade(&lines);
-        RunRecords::with_root(
-            LayoutPass::for_test(&arena, &scratch),
-            root,
-            NodeSlotId::INVALID,
-            default_root_cells(),
-            geometry::Frame::PHYSICAL,
-            |records, _| {
-                let used = records.register(child, UsedValues::default());
-                used.set_finished_line_data(lines);
-            },
-        );
-        assert!(weak_lines.upgrade().is_none());
-    }
-
-    #[test]
-    fn a_box_registered_by_a_returned_run_can_be_freed() {
-        let mut arena = LayoutNodeArena::new();
-        let scratch = LayoutScratch::default();
-        let root = arena.allocate_for_test().slot;
-        let child = arena.allocate_for_test().slot;
-        RunRecords::with_root(
-            LayoutPass::for_test(&arena, &scratch),
-            root,
-            NodeSlotId::INVALID,
-            default_root_cells(),
-            geometry::Frame::PHYSICAL,
-            |records, _| {
-                records.register(child, UsedValues::default());
-            },
-        );
-        let _ = arena.free_subtree(child);
-    }
-
-    #[test]
-    #[should_panic(expected = "registered twice")]
-    fn registering_the_root_of_a_rooted_run_panics() {
-        let mut arena = LayoutNodeArena::new();
-        let scratch = LayoutScratch::default();
-        let root = arena.allocate_for_test().slot;
-        RunRecords::with_root(
-            LayoutPass::for_test(&arena, &scratch),
-            root,
-            NodeSlotId::INVALID,
-            default_root_cells(),
-            geometry::Frame::PHYSICAL,
-            |records, _| {
-                records.register(root, UsedValues::default());
-            },
-        );
-    }
-
-    #[test]
-    #[should_panic(expected = "only the innermost layout run may register records")]
-    fn an_enclosing_run_cannot_register_while_a_nested_run_is_in_progress() {
-        let mut arena = LayoutNodeArena::new();
-        let scratch = LayoutScratch::default();
-        let root = arena.allocate_for_test().slot;
-        let child = arena.allocate_for_test().slot;
-        RunRecords::with_unrooted(
-            LayoutPass::for_test(&arena, &scratch),
-            root,
-            NodeSlotId::INVALID,
-            |parent, _| {
-                RunRecords::with_root(
-                    LayoutPass::for_test(&arena, &scratch),
-                    root,
-                    NodeSlotId::INVALID,
-                    default_root_cells(),
-                    geometry::Frame::PHYSICAL,
-                    |_, _| {
-                        parent.register(child, UsedValues::default());
-                    },
-                );
-            },
-        );
     }
 
     #[test]
@@ -864,27 +629,23 @@ mod tests {
             LayoutPass::for_test(&arena, &scratch),
             root,
             NodeSlotId::INVALID,
-            default_root_cells(),
+            used_values::RootInputCells::default(),
             geometry::Frame::PHYSICAL,
             |parent, _| {
                 let root_used: *const UsedValues = parent.used_values(root);
-                let child_used: *const UsedValues = parent.register(child, UsedValues::default());
                 let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                     RunRecords::with_root(
                         LayoutPass::for_test(&arena, &scratch),
                         child,
                         root,
-                        default_root_cells(),
+                        used_values::RootInputCells::default(),
                         geometry::Frame::PHYSICAL,
-                        |nested, _| {
-                            nested.register(root, UsedValues::default());
-                            panic!("abort the nested measurement");
-                        },
+                        |_, _| panic!("abort the nested measurement"),
                     );
                 }));
                 assert!(result.is_err());
                 assert!(std::ptr::eq(parent.used_values(root), root_used));
-                assert!(std::ptr::eq(parent.used_values(child), child_used));
+                assert_eq!(scratch.runs_in_progress(), 1);
             },
         );
     }

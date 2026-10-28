@@ -1931,7 +1931,7 @@ impl<'pass> GridFormattingContext<'pass> {
                             child_grid_style.names.raws(),
                         ),
                     });
-                    let cells = self.run.records.keep_child_for_its_run(
+                    let cells = used_values::cells_before_sizing(
                         &self.run.callbacks,
                         child,
                         ContainingBlockConstraints::default(),

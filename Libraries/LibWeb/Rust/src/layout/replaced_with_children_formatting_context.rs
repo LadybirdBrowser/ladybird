@@ -43,9 +43,7 @@ pub(super) fn layout_replaced_with_children(
         &run.root_record(),
         layout_input.containing_block_constraints,
     );
-    let mut wrapper_cells = run
-        .records
-        .keep_child_for_its_run(&run.callbacks, wrapper, wrapper_constraints);
+    let mut wrapper_cells = used_values::cells_before_sizing(&run.callbacks, wrapper, wrapper_constraints);
     wrapper_cells.set_content_inline_size(content_inline_size);
 
     let wrapper_outcome = formatting_context::run_formatting_context(
@@ -68,7 +66,6 @@ pub(super) fn layout_replaced_with_children(
         },
         None,
     );
-    let wrapper_outcome = wrapper_outcome.hand_box_back_to(run, wrapper);
     let wrapper_result = wrapper_outcome.result;
     formatting_context::propagate_percentage_block_size_dependency_to_containing_block(
         run.records,

@@ -1009,7 +1009,6 @@ fn record_entered_inline_box(
 ) -> used_values::RootInputCells {
     let constraints = context.input.containing_block_constraints;
     let record_of_this_call = used_values::create_used_values(&context.callbacks, node, constraints);
-    context.run.records.keep_box_laid_out_in_record_its_layout_owns(node);
     let used = &record_of_this_call;
     let style = context.style(node);
     let basis = constraints.inline_basis();
