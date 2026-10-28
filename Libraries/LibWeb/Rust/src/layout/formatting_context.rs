@@ -359,15 +359,17 @@ pub(crate) fn place_child(
     containing_line_box_fragment: Option<used_values::LineBoxFragmentCoordinate>,
 ) -> Option<fragment_tree::PlacedFragment> {
     let containing_block = run.callbacks.in_flow_containing_block(node);
-    place_child_in_containing_block(run, node, containing_block, offset, containing_line_box_fragment)
+    place_child_in_containing_block(run, node, containing_block, offset, containing_line_box_fragment, None)
 }
 
+/// Places `node` in `containing_block`. An absolutely positioned box hands its link the inputs it was laid out with.
 pub(crate) fn place_child_in_containing_block(
     run: &FormattingContextRun,
     node: Node,
     containing_block: Node,
     offset: FfiCssPixelPoint,
     containing_line_box_fragment: Option<used_values::LineBoxFragmentCoordinate>,
+    abspos_layout_inputs: Option<abspos_inputs::AbsposLayoutInputs>,
 ) -> Option<fragment_tree::PlacedFragment> {
     let records = run.records;
     let callbacks = &run.callbacks;
@@ -387,8 +389,8 @@ pub(crate) fn place_child_in_containing_block(
             fragment.clone(),
             reuses_subtree,
             (!containing_block.is_invalid()).then_some(containing_block),
-            used,
             facts_decided_by_parent,
+            abspos_layout_inputs,
             containing_block_is_placed_or_outside_run(records, containing_block),
             resolve_containing_line_box_index(records, callbacks, node, containing_block, containing_line_box_fragment),
             point_add(
@@ -426,6 +428,7 @@ pub(crate) fn place_child_in_containing_block(
         (!containing_block.is_invalid()).then_some(containing_block),
         used,
         records.facts_decided_by_parent_of(node),
+        abspos_layout_inputs,
         containing_block_is_placed_or_outside_run(records, containing_block),
         resolve_containing_line_box_index(records, callbacks, node, containing_block, containing_line_box_fragment),
         point_add(
@@ -461,8 +464,8 @@ pub(crate) fn place_reused_child(
         fragment,
         true,
         (!containing_block.is_invalid()).then_some(containing_block),
-        records.used_values(node),
         records.facts_decided_by_parent_of(node),
+        None,
         containing_block_is_placed_or_outside_run(records, containing_block),
         None,
         point_add(
@@ -3513,6 +3516,7 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
         None,
         root_used,
         facts_decided_by_parent,
+        None,
         false,
         None,
         placement.content_offset_in_containing_block,
