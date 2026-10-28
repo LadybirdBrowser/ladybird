@@ -430,7 +430,7 @@ pub(crate) fn place_child_in_containing_block(
             facts_decided_by_parent,
             abspos_layout_inputs,
             containing_block_is_placed_or_outside_run(records, containing_block),
-            resolve_containing_line_box_index(records, callbacks, node, containing_block, containing_line_box_fragment),
+            resolve_containing_line_box_index(callbacks, node, containing_line_box_fragment),
             point_add(
                 offset,
                 committed_offset_delta_at_placement(records, callbacks, node, containing_block),
@@ -474,7 +474,7 @@ pub(crate) fn place_child_in_containing_block(
         records.facts_decided_by_parent_of(node),
         abspos_layout_inputs,
         containing_block_is_placed_or_outside_run(records, containing_block),
-        resolve_containing_line_box_index(records, callbacks, node, containing_block, containing_line_box_fragment),
+        resolve_containing_line_box_index(callbacks, node, containing_line_box_fragment),
         point_add(
             offset,
             committed_offset_delta_at_placement(records, callbacks, node, containing_block),
@@ -524,33 +524,18 @@ fn containing_block_is_placed_or_outside_run(records: &RunRecords, containing_bl
     !containing_block.is_invalid() && (!records.holds_box(containing_block) || records.is_placed(containing_block))
 }
 
-/// The line box index to record for atomic inlines whose containing line
-/// survived line post-processing.
+/// The index of the line box that `node` is placed on. Both callers that place a box on a line name one that exists:
+/// atomic inlines are placed while walking the laid-out lines, and an interrupting block gets its line before it is
+/// laid out.
 fn resolve_containing_line_box_index(
-    records: &RunRecords,
     callbacks: &LayoutPass<'_>,
     node: Node,
-    containing_block: Node,
     coordinate: Option<used_values::LineBoxFragmentCoordinate>,
 ) -> Option<usize> {
     let coordinate = coordinate?;
-    if !NodeFacts::new(callbacks, node).is_non_fragmented_box() {
-        return None;
-    }
-    assert!(!containing_block.is_invalid());
-    let containing_block_used = records.used_values(containing_block);
-    let data = containing_block_used.line_data_ref()?;
-    let line = data.building().line_boxes.get(coordinate.line_box_index)?;
-    // The placed offset is not the fragment's offset: atomic inlines are placed shifted by their inline ancestors'
-    // relative insets, which the line data only folds in after placement. An interrupting block is placed before
-    // its line gets its fragment.
-    debug_assert!(
-        line.fragments
-            .get(coordinate.fragment_index)
-            .is_none_or(|fragment| fragment.layout_node == node),
-        "a line box fragment coordinate must name the placed box's own fragment"
-    );
-    Some(coordinate.line_box_index)
+    NodeFacts::new(callbacks, node)
+        .is_non_fragmented_box()
+        .then_some(coordinate.line_box_index)
 }
 
 fn committed_offset_delta_at_placement(
