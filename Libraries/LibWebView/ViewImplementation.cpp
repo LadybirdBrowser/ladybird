@@ -112,9 +112,14 @@ ViewImplementation::ViewImplementation(IsPrivate is_private)
 
 ViewImplementation::~ViewImplementation()
 {
-    // The frontend may be torn down already, so clearing the ongoing navigation must not report a URL change to it.
+    // The frontend may be torn down already, so clearing the ongoing navigation must not report a URL change to it, nor
+    // cancelling the view's location requests that the location is no longer in use.
     on_url_change = nullptr;
+    on_location_in_use_change = nullptr;
     TabPerformanceMonitor::forget_view(view_id());
+    // Leave the views before the permission manager hears: a one-time grant that ends with this view has it revoke
+    // location in every view that shows the site, and this one is on its way out.
+    all_views().remove(m_view_id);
     session().permission_manager->remove_view(view_id());
     if (m_top_level_traversable)
         m_top_level_traversable->clear_ongoing_navigation();
@@ -124,7 +129,6 @@ ViewImplementation::~ViewImplementation()
         Application::the().notify_webdriver_window_closed(m_window_handle);
 
     reset_spell_checking();
-    all_views().remove(m_view_id);
 
     // NB: WebDriver BiDi may activate another top-level traversable, which must not be this one that is going away.
     if (!m_window_handle.is_empty() && !m_owner_view_id.has_value()) {
