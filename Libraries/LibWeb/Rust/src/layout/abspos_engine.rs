@@ -536,8 +536,8 @@ impl AbsposEngine<'_> {
             None => {
                 let containing_block_used = self.used(containing_block);
                 CssPixelRect {
-                    x: rect.x + containing_block_used.padding_left.get(),
-                    y: rect.y + containing_block_used.padding_top.get(),
+                    x: rect.x + containing_block_used.padding_left(),
+                    y: rect.y + containing_block_used.padding_top(),
                     width: rect.width,
                     height: rect.height,
                 }
@@ -1911,8 +1911,8 @@ impl AbsposEngine<'_> {
         let used = self.used(node);
         let border_left = style.border_left_width();
         let border_right = style.border_right_width();
-        let padding_left = used.padding_left.get();
-        let padding_right = used.padding_right.get();
+        let padding_left = used.padding_left();
+        let padding_right = used.padding_right();
         let computed_left = style.inset_left();
         let computed_right = style.inset_right();
         let mut left = style.inset_left().to_px(containing_block_inline_size);
@@ -2167,8 +2167,8 @@ impl AbsposEngine<'_> {
         let used = self.used(node);
         used.set_content_inline_size(auto_px_value(used_inline_size));
         self.set_used_inline_insets(node, left, right);
-        used.margin_left.set(auto_px_value(margin_left));
-        used.margin_right.set(auto_px_value(margin_right));
+        used.set_margin(geometry::Side::Left, auto_px_value(margin_left));
+        used.set_margin(geometry::Side::Right, auto_px_value(margin_right));
     }
 
     fn compute_inline_size_for_replaced(
@@ -2201,8 +2201,8 @@ impl AbsposEngine<'_> {
         let available = containing_block_inline_size
             - inline_size
             - style.border_left_width()
-            - used.padding_left.get()
-            - used.padding_right.get()
+            - used.padding_left()
+            - used.padding_right()
             - style.border_right_width();
         let solution = solve_replaced_axis(
             available,
@@ -2219,8 +2219,8 @@ impl AbsposEngine<'_> {
 
         let used = self.used(node);
         self.set_used_inline_insets(node, solution.start, solution.end);
-        used.margin_left.set(solution.margin_start);
-        used.margin_right.set(solution.margin_end);
+        used.set_margin(geometry::Side::Left, solution.margin_start);
+        used.set_margin(geometry::Side::Right, solution.margin_end);
         used.set_content_inline_size(inline_size);
     }
 
@@ -2330,9 +2330,9 @@ impl AbsposEngine<'_> {
             // NB: That makes the automatic block size the shrink-to-fit size of the box's own inline axis, within the
             //     inset-modified containing block, as it is in the inline axis of a box in the frame's writing mode.
             if let BlockSizePass::AfterInsideLayout { .. } = pass {
-                return Some(self.used(node).content_block_size.get());
+                return Some(self.used(node).content_block_size());
             }
-            let inline_size = self.used(node).content_inline_size.get();
+            let inline_size = self.used(node).content_inline_size();
             let preferred = sizing.calculate_max_content_block_size(node, inline_size, constraints);
             let size = if preferred <= stretch_fit_block_size {
                 preferred
@@ -2377,8 +2377,8 @@ impl AbsposEngine<'_> {
         let containing_block_inline_size = available_space.inline_size.to_px_or_zero();
         let containing_block_block_size = available_space.block_size.to_px_or_zero();
         let used = self.used(node);
-        let padding_top = used.padding_top.get();
-        let padding_bottom = used.padding_bottom.get();
+        let padding_top = used.padding_top();
+        let padding_bottom = used.padding_bottom();
         let mut solution = BlockAxisSolution {
             block_size,
             top: resolve_or_auto(style.inset_top(), containing_block_block_size),
@@ -2509,7 +2509,7 @@ impl AbsposEngine<'_> {
     ) {
         let style = self.style(node);
         let mut intrinsic_available_space = available_space;
-        intrinsic_available_space.inline_size = AvailableSize::definite(self.used(node).content_inline_size.get());
+        intrinsic_available_space.inline_size = AvailableSize::definite(self.used(node).content_inline_size());
         let initial = if self.facts(node).is_table_wrapper() {
             Some(
                 self.sizing()
@@ -2626,18 +2626,18 @@ impl AbsposEngine<'_> {
             // NB: A box that establishes an orthogonal flow is sized in this axis before its contents are laid out,
             //     which they are at that size.
             if solution.block_size.is_some() && self.sizing().establishes_orthogonal_flow(node) {
-                used.has_definite_block_size.set(true);
+                used.set_has_definite_block_size(true);
             }
             return;
         }
         if !style.height().is_intrinsic_sizing_constraint() {
-            used.has_definite_block_size.set(true);
+            used.set_has_definite_block_size(true);
         }
         self.set_used_block_insets(node, auto_px_value(solution.top), auto_px_value(solution.bottom));
         // NOTE: solve_non_replaced_block_once() already resolved these against the bases the C++ layout code used:
         //       the insets against the containing block's block size, but the margins against its inline size.
-        used.margin_top.set(auto_px_value(solution.margin_top));
-        used.margin_bottom.set(auto_px_value(solution.margin_bottom));
+        used.set_margin(geometry::Side::Top, auto_px_value(solution.margin_top));
+        used.set_margin(geometry::Side::Bottom, auto_px_value(solution.margin_bottom));
     }
 
     fn compute_block_size_for_replaced(
@@ -2686,7 +2686,7 @@ impl AbsposEngine<'_> {
             if let Some(minimum) = self.sizing().automatic_minimum_size_from_aspect_ratio(
                 node,
                 SizingAxis::Block,
-                self.used(node).content_inline_size.get(),
+                self.used(node).content_inline_size(),
                 block_size,
                 available_space,
                 constraints,
@@ -2701,8 +2701,8 @@ impl AbsposEngine<'_> {
         let available = containing_block_block_size
             - block_size
             - style.border_top_width()
-            - used.padding_top.get()
-            - used.padding_bottom.get()
+            - used.padding_top()
+            - used.padding_bottom()
             - style.border_bottom_width();
         // Deliberately pass false for `clear_auto_margins_if_start_is_auto`:
         // this matches the C++ condition, which tests only the end inset.
@@ -2729,16 +2729,16 @@ impl AbsposEngine<'_> {
                 .sizing()
                 .should_treat_block_size_as_auto(node, available_space, constraints)
             {
-                used.has_definite_block_size.set(true);
+                used.set_has_definite_block_size(true);
             }
             return;
         }
         if !style.height().is_intrinsic_sizing_constraint() {
-            used.has_definite_block_size.set(true);
+            used.set_has_definite_block_size(true);
         }
         self.set_used_block_insets(node, solution.start, solution.end);
-        used.margin_top.set(solution.margin_start);
-        used.margin_bottom.set(solution.margin_end);
+        used.set_margin(geometry::Side::Top, solution.margin_start);
+        used.set_margin(geometry::Side::Bottom, solution.margin_end);
     }
 
     fn compute_block_size(
@@ -2795,18 +2795,26 @@ impl<'pass> AbsposEngine<'pass> {
         let style = self.style(node).with_resolved_insets(resolved);
         {
             let used = self.used(node);
-            used.border_left.set(style.border_left_width());
-            used.border_right.set(style.border_right_width());
-            used.border_top.set(style.border_top_width());
-            used.border_bottom.set(style.border_bottom_width());
-            used.padding_left
-                .set(style.padding_left().to_px(containing_block_inline_size));
-            used.padding_right
-                .set(style.padding_right().to_px(containing_block_inline_size));
-            used.padding_top
-                .set(style.padding_top().to_px(containing_block_inline_size));
-            used.padding_bottom
-                .set(style.padding_bottom().to_px(containing_block_inline_size));
+            used.set_border(geometry::Side::Left, style.border_left_width());
+            used.set_border(geometry::Side::Right, style.border_right_width());
+            used.set_border(geometry::Side::Top, style.border_top_width());
+            used.set_border(geometry::Side::Bottom, style.border_bottom_width());
+            used.set_padding(
+                geometry::Side::Left,
+                style.padding_left().to_px(containing_block_inline_size),
+            );
+            used.set_padding(
+                geometry::Side::Right,
+                style.padding_right().to_px(containing_block_inline_size),
+            );
+            used.set_padding(
+                geometry::Side::Top,
+                style.padding_top().to_px(containing_block_inline_size),
+            );
+            used.set_padding(
+                geometry::Side::Bottom,
+                style.padding_bottom().to_px(containing_block_inline_size),
+            );
         }
 
         self.compute_inline_size(
@@ -2828,13 +2836,13 @@ impl<'pass> AbsposEngine<'pass> {
         {
             let used = self.used(node);
             if !style.inset_left().is_auto() && !style.inset_right().is_auto() {
-                used.has_definite_inline_size.set(true);
+                used.set_has_definite_inline_size(true);
             }
             if !style.inset_top().is_auto()
                 && !style.inset_bottom().is_auto()
                 && (style.height().is_auto() || !style.height().is_intrinsic_sizing_constraint())
             {
-                used.has_definite_block_size.set(true);
+                used.set_has_definite_block_size(true);
             }
         }
         if !self.facts(node).creates_block_formatting_context() {
@@ -2842,11 +2850,11 @@ impl<'pass> AbsposEngine<'pass> {
                 && self.facts(node).has_preferred_aspect_ratio()
                 && self.used(node).has_definite_inline_size();
             let used = self.used(node);
-            used.has_definite_inline_size.set(true);
+            used.set_has_definite_inline_size(true);
             if (!style.height().is_auto() && !style.height().is_intrinsic_sizing_constraint())
                 || block_size_resolved_from_aspect_ratio
             {
-                used.has_definite_block_size.set(true);
+                used.set_has_definite_block_size(true);
             }
         }
 
@@ -2883,7 +2891,7 @@ impl<'pass> AbsposEngine<'pass> {
 
         {
             let used = self.used(node);
-            let collapsed = used.uses_collapsing_borders_model.get();
+            let collapsed = used.uses_collapsing_borders_model();
             // https://drafts.csswg.org/css-anchor-position-1/#position-area-alignment
             // NB: A position area aligns the box within its inset-modified containing block even when both insets
             //     in an axis are specified.
@@ -3474,7 +3482,7 @@ impl<'pass> AbsposEngine<'pass> {
         let style = self
             .style(node)
             .with_resolved_insets(inputs.resolved_anchor_insets.as_ref());
-        let collapsed = used.uses_collapsing_borders_model.get();
+        let collapsed = used.uses_collapsing_borders_model();
         let margin_box_size = geometry::LogicalSize {
             inline_size: used.margin_box_inline_size(collapsed),
             block_size: used.margin_box_block_size(collapsed),

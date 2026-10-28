@@ -563,6 +563,61 @@ impl UsedValues {
             .set(clamp_to_max_dimension_value(value.max(CssPixels::default())));
     }
 
+    fn margin_cell(&self, side: geometry::Side) -> &SealableCell<CssPixels> {
+        match side {
+            geometry::Side::Top => &self.margin_top,
+            geometry::Side::Right => &self.margin_right,
+            geometry::Side::Bottom => &self.margin_bottom,
+            geometry::Side::Left => &self.margin_left,
+        }
+    }
+
+    fn border_cell(&self, side: geometry::Side) -> &SealableCell<CssPixels> {
+        match side {
+            geometry::Side::Top => &self.border_top,
+            geometry::Side::Right => &self.border_right,
+            geometry::Side::Bottom => &self.border_bottom,
+            geometry::Side::Left => &self.border_left,
+        }
+    }
+
+    fn padding_cell(&self, side: geometry::Side) -> &SealableCell<CssPixels> {
+        match side {
+            geometry::Side::Top => &self.padding_top,
+            geometry::Side::Right => &self.padding_right,
+            geometry::Side::Bottom => &self.padding_bottom,
+            geometry::Side::Left => &self.padding_left,
+        }
+    }
+
+    #[track_caller]
+    pub(crate) fn set_margin(&self, side: geometry::Side, value: CssPixels) {
+        self.margin_cell(side).set(value);
+    }
+
+    #[track_caller]
+    pub(crate) fn set_border(&self, side: geometry::Side, value: CssPixels) {
+        self.border_cell(side).set(value);
+    }
+
+    #[track_caller]
+    pub(crate) fn set_padding(&self, side: geometry::Side, value: CssPixels) {
+        self.padding_cell(side).set(value);
+    }
+
+    pub(crate) fn set_has_definite_inline_size(&self, value: bool) {
+        self.has_definite_inline_size.set(value);
+    }
+
+    pub(crate) fn set_has_definite_block_size(&self, value: bool) {
+        self.has_definite_block_size.set(value);
+    }
+
+    pub(crate) fn set_has_definite_block_size_only_for_button_content_alignment(&self, value: bool) {
+        self.has_definite_block_size_only_for_button_content_alignment
+            .set(value);
+    }
+
     pub(crate) fn set_box_metrics_from_fragment(&self, fragment: &fragment_tree::Fragment) {
         self.set_content_inline_size(fragment.content_inline_size);
         self.set_content_block_size(fragment.content_block_size);
