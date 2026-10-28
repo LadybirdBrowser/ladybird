@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 3 tests
+
+2 Pass
+1 Fail
+Pass	Timeout test: timeout set to expiring value after load fires, original timeout at 5000, reset at 4000 to 1000
+Fail	Timeout test: timeout set to expired value before load fires, original timeout at 5000, reset at 2000 to 1100
+Pass	Timeout test: timeout set to non-expiring value after timeout fires, original timeout at 1000, reset at 2000 to 500

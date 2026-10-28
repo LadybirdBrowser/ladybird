@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Timeout test: timeout disabled after initially set, original timeout at 5000, reset at 2000 to 0
