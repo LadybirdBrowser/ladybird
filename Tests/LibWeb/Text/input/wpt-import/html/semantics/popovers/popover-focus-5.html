@@ -1,0 +1,279 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>Popover focus behaviors in slot elements</title>
+<meta name="timeout" content="long" />
+<link rel="author" title="Keith Cirkel" href="mailto:wpt@keithcirkel.co.uk" />
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/testdriver.js"></script>
+<script src="../../../resources/testdriver-actions.js"></script>
+<script src="../../../resources/testdriver-vendor.js"></script>
+<script src="resources/popover-utils.js"></script>
+
+<meta name="variant" content="?commandforelement" />
+<meta name="variant" content="?popovertargetelement" />
+<meta name="variant" content="?commandfor" />
+<meta name="variant" content="?imperative" />
+
+<div data-candidate="form controls inside" data-count="2">
+  <button tabindex="0" command="toggle-popover">Toggle popover</button>
+  <div popover id="popover1">
+    <input tabindex="0" type="text" data-expected="1" />
+    <input tabindex="0" type="text" data-expected="2" />
+    <button tabindex="0" command="hide-popover" data-expected="close">
+      Close popover
+    </button>
+  </div>
+</div>
+<button tabindex="0" data-expected="after">
+  This button is where focus should land after traversing this popover
+</button>
+
+<div data-candidate="a details element inside" data-count="1">
+  <button tabindex="0" command="toggle-popover">Toggle popover</button>
+  <div popover id="popover2">
+    <details>
+      <summary tabindex="0" data-expected="1">A details element</summary>
+    </details>
+    <button tabindex="0" command="hide-popover" data-expected="close">
+      Close popover
+    </button>
+  </div>
+</div>
+<button tabindex="0" data-expected="after">
+  This button is where focus should land after traversing this popover
+</button>
+
+<div
+  data-candidate="a details element inside, and the after button adjacent to invoker"
+  data-count="1"
+>
+  <button tabindex="0" command="toggle-popover">Toggle popover</button>
+  <button tabindex="0" data-expected="after">
+    This button is where focus should land after traversing this popover
+  </button>
+  <div popover id="popover3">
+    <details data-expected="1">A details element</details>
+    <button tabindex="0" command="hide-popover" data-expected="close">
+      Close popover
+    </button>
+  </div>
+</div>
+
+<div
+  data-candidate="a custom-element with delegatesfocus inside"
+  data-count="1"
+>
+  <button tabindex="0" command="toggle-popover">Toggle popover</button>
+  <div popover id="popover4">
+    <my-element data-expected="1">
+      <template shadowrootmode="open" shadowrootdelegatesfocus>
+        <button tabindex="0" data-expected="shadow-1"></button>
+      </template>
+    </my-element>
+    <button tabindex="0" command="hide-popover" data-expected="close">
+      Close popover
+    </button>
+  </div>
+</div>
+<button tabindex="0" data-expected="after">
+  This button is where focus should land after traversing popover
+</button>
+
+<div
+  data-candidate="a custom-element with a slotted button inside"
+  data-count="1"
+>
+  <button tabindex="0" command="toggle-popover">Toggle popover</button>
+  <div popover id="popover5">
+    <my-element>
+      <template shadowrootmode="open">
+        <slot></slot>
+      </template>
+      <button tabindex="0" data-expected="1"></button>
+    </my-element>
+    <button tabindex="0" command="hide-popover" data-expected="close">
+      Close popover
+    </button>
+  </div>
+</div>
+<button tabindex="0" data-expected="after">
+  This button is where focus should land after traversing popover
+</button>
+
+<div
+  data-candidate="custom-element with a slotted button, followed by a details element, where the after button is adjacent to the invoker"
+  data-count="2"
+>
+  <button tabindex="0" command="toggle-popover">Toggle popover</button>
+  <button tabindex="0" data-expected="after">
+    This button is where focus should land after traversing popover
+  </button>
+  <div popover id="popover6">
+    <my-element data-expected="2">
+      <template shadowrootmode="open">
+        <slot></slot>
+        <details>
+          <summary tabindex="0" data-expected="shadow-2">A details element</summary>
+        </details>
+      </template>
+      <button tabindex="0" data-expected="1"></button>
+    </my-element>
+    <button tabindex="0" command="hide-popover" data-expected="close">
+      Close popover
+    </button>
+  </div>
+</div>
+
+<script>
+  // The active element might be an element within the expected focus candidate,e.g. a summary
+  // inside a details, we should traverse the tree to find the nearest `[data-expected]` element
+  // to ensure we're not failing a test for chosing to focus an interior element.
+  function getExpectedValue()  {
+    return document.activeElement?.closest('[data-expected]')?.getAttribute("data-expected")
+  }
+
+  async function testCandidate(el, style, signal) {
+    const count = parseInt(el.getAttribute("data-count"));
+    const invoker = el.querySelector("button:first-child");
+    const popover = el.querySelector("[popover]");
+    const popoverClose = el.querySelector('[data-expected="close"]');
+    assert_greater_than_equal(count, 0, "test candidate had an invalid count");
+    assert_not_equals(
+      invoker,
+      null,
+      "could not find invoker in test candidate",
+    );
+    assert_not_equals(
+      popover,
+      null,
+      "could not find popover in test candidate",
+    );
+    assert_not_equals(
+      popoverClose,
+      null,
+      "could not find popover close button in test candidate",
+    );
+    switch (style) {
+      case "popovertarget":
+        invoker.setAttribute("popovertarget", popover.id);
+        popoverClose.setAttribute("popovertarget", popover.id);
+        break;
+      case "popovertargetelement":
+        invoker.popoverTargetElement = popover;
+        popoverClose.popoverTargetElement = popover;
+        break;
+      case "commandfor":
+        invoker.setAttribute("commandfor", popover.id);
+        popoverClose.setAttribute("commandfor", popover.id);
+        break;
+      case "commandforelement":
+        invoker.commandForElement = popover;
+        popoverClose.commandForElement = popover;
+        break;
+      case "imperative":
+        invoker.addEventListener(
+          "click",
+          () => {
+            popover.togglePopover({ source: invoker });
+          },
+          { signal },
+        );
+        popoverClose.addEventListener(
+          "click",
+          () => {
+            popover.hidePopover({ source: invoker });
+          },
+          { signal },
+        );
+        break;
+      default:
+        assert_unreached();
+    }
+    invoker.focus();
+    assert_equals(document.activeElement, invoker);
+    invoker.click();
+    assert_true(
+      popover.matches(":popover-open"),
+      "popover should be invoked by invoker",
+    );
+    assert_equals(
+      document.activeElement,
+      invoker,
+      "invoker should still be focused",
+    );
+    for (let i = 1; i <= count; i += 1) {
+      await sendTab();
+      assert_equals(
+        getExpectedValue(),
+        String(i),
+        `tab press should move to active element ${i}`,
+      );
+      const shadowActive = document.activeElement?.shadowRoot?.activeElement;
+      if (shadowActive) {
+        const expected = `shadow-${i}`;
+        assert_equals(
+          shadowActive.getAttribute("data-expected"),
+          expected,
+          `tab press should move to active element ${expected} in shadow dom`,
+        );
+      }
+    }
+    await sendTab();
+    assert_equals(
+      getExpectedValue(),
+      "close",
+      "tab press should move to close popover button",
+    );
+    await sendShiftTab();
+    assert_equals(
+      getExpectedValue(),
+      String(count),
+      "shift+tab should move back to last active element",
+    );
+    await sendTab();
+    assert_equals(
+      document.activeElement,
+      popoverClose,
+      "tab should move forward to re-land on close popover again",
+    );
+    await sendTab();
+    assert_equals(
+      getExpectedValue(),
+      "after",
+      "tab should move forward to land on the button after the popover contents",
+    );
+    await sendShiftTab();
+    popoverClose.click();
+    assert_equals(
+      document.activeElement,
+      invoker,
+      "popover now closed - focus should have returned to initial invoker",
+    );
+  }
+
+  const style = window.location.search.substring(1) || "popovertarget";
+  for (const candidate of document.querySelectorAll("[data-candidate]")) {
+    promise_test(
+      async (t) => {
+        const controller = new AbortController();
+        t.add_cleanup(() => {
+          controller.abort();
+          for (const el of document.querySelectorAll(
+            ":is([popovertarget],[commandfor],[disabled],[tabindex])",
+          )) {
+            el.removeAttribute("popovertarget");
+            el.removeAttribute("commandfor");
+            el.removeAttribute("disabled");
+            el.removeAttribute("tabindex");
+          }
+          for (const el of document.querySelectorAll(":popover-open")) {
+            el.hidePopover();
+          }
+        });
+        await testCandidate(candidate, style);
+      },
+      `Focusing elements inside a popover with ${candidate.getAttribute("data-candidate")}, using ${style}`,
+    );
+  }
+</script>

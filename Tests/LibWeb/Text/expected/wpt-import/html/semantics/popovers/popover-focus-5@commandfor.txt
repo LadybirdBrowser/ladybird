@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Fail
+Fail	Focusing elements inside a popover with form controls inside, using commandfor
+Fail	Focusing elements inside a popover with a details element inside, using commandfor
+Fail	Focusing elements inside a popover with a details element inside, and the after button adjacent to invoker, using commandfor
+Fail	Focusing elements inside a popover with a custom-element with delegatesfocus inside, using commandfor
+Fail	Focusing elements inside a popover with a custom-element with a slotted button inside, using commandfor
+Fail	Focusing elements inside a popover with custom-element with a slotted button, followed by a details element, where the after button is adjacent to the invoker, using commandfor

@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 9 tests
+
+3 Pass
+6 Fail
+Fail	Circular reference tab navigation with popovertarget invocation
+Fail	Circular reference tab navigation with command/commandfor invocation
+Fail	Circular reference tab navigation with imperative invocation
+Fail	Popover focus returns when popover is hidden by invoker with popovertarget invocation
+Fail	Popover focus returns when popover is hidden by invoker with commandfor invocation
+Fail	Popover focus returns when popover is hidden by invoker with imperative invocation
+Pass	Popover focus only returns to invoker when focus is within the popover with popovertarget invocation
+Pass	Popover focus only returns to invoker when focus is within the popover with command/commandfor invocation
+Pass	Popover focus only returns to invoker when focus is within the popover with imperative invocation

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<link rel=author href="mailto:jarhar@chromium.org">
+<link rel=help href="https://github.com/whatwg/html/issues/8994">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<div popover=auto tabindex=0 data-test="autofocus=true, delegatesfocus=false" autofocus class=should-be-focused>
+  <template shadowrootmode=open>
+    <button autofocus>autofocus button</button>
+  </template>
+</div>
+
+<!-- The autofocus popover is what focus() gets called on, but since it has a
+  delegatesFocus shadowroot, focus() itself goes into the shadowroot. -->
+<div popover=auto tabindex=0 data-test="autofocus=true, delegatesfocus=true" autofocus>
+  <template shadowrootmode=open shadowrootdelegatesfocus>
+    <button autofocus class=should-be-focused>autofocus button</button>
+  </template>
+</div>
+
+<div popover=auto tabindex=0 data-test="autofocus=false, delegatesfocus=false">
+  <template shadowrootmode=open>
+    <button autofocus>autofocus button</button>
+  </template>
+</div>
+
+<div popover=auto tabindex=0 data-test="autofocus=false, delegatesfocus=true">
+  <template shadowrootmode=open shadowrootdelegatesfocus>
+    <button autofocus>autofocus button</button>
+  </template>
+</div>
+
+<script>
+document.querySelectorAll('body > [popover]').forEach(popover => {
+  promise_test(async () => {
+    const expectedFocusedElement = (popover.matches('.should-be-focused') ? popover : null)
+      || popover.querySelector('.should-be-focused')
+      || popover.shadowRoot.querySelector('.should-be-focused')
+      || document.body;
+
+    popover.showPopover();
+
+    let actualFocusedElement = document.activeElement;
+    if (actualFocusedElement.shadowRoot && actualFocusedElement.shadowRoot.activeElement) {
+      actualFocusedElement = actualFocusedElement.shadowRoot.activeElement;
+    }
+
+    popover.hidePopover();
+
+    // Resetting focus may happen asynchronously
+    await new Promise(resolve => requestAnimationFrame(resolve));
+
+    assert_equals(actualFocusedElement, expectedFocusedElement);
+  }, popover.getAttribute('data-test'));
+});
+</script>
