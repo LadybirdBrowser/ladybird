@@ -805,8 +805,12 @@ pub(crate) fn store_derived_baselines(used: &UsedValues, baselines: DerivedBasel
     }
 }
 
-pub(crate) fn derive_baselines(records: &RunRecords, callbacks: &LayoutPass<'_>, box_: Node) -> DerivedBaselines {
-    let facts = NodeFacts::new(callbacks, box_);
+/// The baselines of the lines laid out in `box_`, relative to its content box.
+pub(crate) fn derive_baselines_from_lines(
+    records: &RunRecords,
+    callbacks: &LayoutPass<'_>,
+    box_: Node,
+) -> DerivedBaselines {
     let own_used = records.used_values(box_);
     let own_line_data = own_used.line_data_ref();
     let mut lines = own_line_data.iter().flat_map(|data| data.lines());
@@ -856,57 +860,55 @@ pub(crate) fn derive_baselines(records: &RunRecords, callbacks: &LayoutPass<'_>,
         };
     }
 
-    if callbacks.first_child(box_).is_invalid() || facts.children_are_inline() {
-        return DerivedBaselines::default();
-    }
+    DerivedBaselines::default()
+}
 
-    // Derive baselines from the first/last in-flow child that has a baseline set of its own.
+impl DerivedBaselines {
+    /// Folds in the baselines a child laid out after the children folded in so far gives its container. A block
+    /// container with block-level children takes its first baseline from the first in-flow child that has one, and its
+    /// last baselines from the last.
+    pub(crate) fn fold_in_later_child(&mut self, child: DerivedBaselines) {
+        self.first = self.first.or(child.first);
+        self.last = child.last.or(self.last);
+        self.inline_alignment = child.inline_alignment.or(self.inline_alignment);
+    }
+}
+
+/// Whether `container`, a block container with block-level children, derives its baselines from those of `child`.
+pub(crate) fn child_gives_container_baselines(callbacks: &LayoutPass<'_>, container: Node, child: Node) -> bool {
+    let facts = NodeFacts::new(callbacks, container);
+    let child_facts = NodeFacts::new(callbacks, child);
     // NB: Flex and grid containers derive their baselines from their items instead.
-    let container_display = facts.display();
-    let baseline_from_children = |baseline_set: BaselineSet, purpose: BaselinePurpose| -> Option<CssPixels> {
-        let mut next_child = match baseline_set {
-            BaselineSet::First => callbacks.first_child(box_),
-            BaselineSet::Last => callbacks.last_child(box_),
-        };
-        while !next_child.is_invalid() {
-            let child = next_child;
-            next_child = match baseline_set {
-                BaselineSet::First => callbacks.next_sibling(child),
-                BaselineSet::Last => callbacks.previous_sibling(child),
-            };
-            let child_facts = NodeFacts::new(callbacks, child);
-            if !child_facts.is_flow_layout_participant() || child_facts.is_floating() {
-                continue;
-            }
-            if facts.is_fieldset_box() && facts.rendered_legend() == child {
-                continue;
-            }
-            if !table_formatting_context::child_participates_in_table_run(container_display, &child_facts) {
-                continue;
-            }
-            // A table wrapper box has the baselines of its table box, not of a caption above it: "The baseline of an
-            // 'inline-table' is the baseline of the first row of the table."
-            // https://www.w3.org/TR/CSS22/tables.html#height-layout
-            if facts.is_table_wrapper() && !child_facts.display().is_table_inside() {
-                continue;
-            }
-            if let Some(baseline) = baseline_of_child_for_purpose(
-                records,
-                callbacks,
-                child,
-                baseline_set,
-                ChildBaselineSource::Own,
-                purpose,
-            ) {
-                return Some(baseline);
-            }
-        }
-        None
+    child_facts.is_flow_layout_participant()
+        && !child_facts.is_floating()
+        && !(facts.is_fieldset_box() && facts.rendered_legend() == child)
+        && table_formatting_context::child_participates_in_table_run(facts.display(), &child_facts)
+        // A table wrapper box has the baselines of its table box, not of a caption above it: "The baseline of an
+        // 'inline-table' is the baseline of the first row of the table."
+        // https://www.w3.org/TR/CSS22/tables.html#height-layout
+        && !(facts.is_table_wrapper() && !child_facts.display().is_table_inside())
+}
+
+/// The baselines a laid out child gives its container, relative to the container's content box.
+pub(crate) fn baselines_child_gives_container(
+    records: &RunRecords,
+    callbacks: &LayoutPass<'_>,
+    child: Node,
+) -> DerivedBaselines {
+    let baseline = |baseline_set, purpose| {
+        baseline_of_child_for_purpose(
+            records,
+            callbacks,
+            child,
+            baseline_set,
+            ChildBaselineSource::Own,
+            purpose,
+        )
     };
     DerivedBaselines {
-        first: baseline_from_children(BaselineSet::First, BaselinePurpose::Container),
-        last: baseline_from_children(BaselineSet::Last, BaselinePurpose::Container),
-        inline_alignment: baseline_from_children(BaselineSet::Last, BaselinePurpose::InlineAlignment),
+        first: baseline(BaselineSet::First, BaselinePurpose::Container),
+        last: baseline(BaselineSet::Last, BaselinePurpose::Container),
+        inline_alignment: baseline(BaselineSet::Last, BaselinePurpose::InlineAlignment),
     }
 }
 
@@ -3795,7 +3797,9 @@ mod baseline_tests {
                         inline_alignment: None,
                     },
                 );
-                let baselines = derive_baselines(records, &callbacks, parent);
+                assert!(child_gives_container_baselines(&callbacks, parent, child));
+                let mut baselines = DerivedBaselines::default();
+                baselines.fold_in_later_child(baselines_child_gives_container(records, &callbacks, child));
                 assert_eq!(baselines.first, Some(CssPixels::from_integer(10)));
                 assert_eq!(baselines.last, Some(CssPixels::from_integer(30)));
                 assert_eq!(baselines.inline_alignment, Some(CssPixels::from_integer(10)));

@@ -49,6 +49,8 @@ struct BlockLevelBoxOutcome {
     collapses_through: bool,
     can_break_inside: bool,
     broken_inside: Option<BrokenInside>,
+    /// The baselines the box gives its containing block, relative to the containing block's content box.
+    baselines_in_containing_block: DerivedBaselines,
 }
 
 /// A block-level box that continues in the next fragmentainer.
@@ -708,8 +710,22 @@ impl<'pass> BlockFormattingContext<'pass> {
         );
     }
 
-    fn derive_baselines_of_laid_out_contents(&self, block_container: Node) -> DerivedBaselines {
-        formatting_context::derive_baselines(self.run.records, &self.run.callbacks, block_container)
+    /// Folds what `block_container` takes from `child` into the summary of the children laid out before it.
+    fn fold_in_child(
+        &self,
+        summary: &mut ChildrenSummary,
+        block_container: Node,
+        child: Node,
+        outcome: Option<&BlockLevelBoxOutcome>,
+    ) {
+        let Some(outcome) = outcome else {
+            return;
+        };
+        if formatting_context::child_gives_container_baselines(&self.run.callbacks, block_container, child) {
+            summary
+                .baselines
+                .fold_in_later_child(outcome.baselines_in_containing_block);
+        }
     }
 
     fn record_derived_baselines_of_root_box(&self, baselines: DerivedBaselines) {
@@ -2027,6 +2043,11 @@ impl<'pass> BlockFormattingContext<'pass> {
                 token,
                 block_end_of_content: self.block_end_of_content(node),
             }),
+            baselines_in_containing_block: formatting_context::baselines_child_gives_container(
+                self.run.records,
+                &self.run.callbacks,
+                node,
+            ),
         })
     }
 
@@ -2954,6 +2975,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             .and_then(|state| state.resume.as_ref()?.resume_child())
             .unwrap_or_else(|| self.run.callbacks.first_child(block_container));
         let mut laid_out_children: Option<(Node, Node)> = None;
+        let mut summary = ChildrenSummary::default();
         for child in self
             .run
             .callbacks
@@ -2983,6 +3005,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             if invisible {
                 self.laying_out_invisible_line_clamp_content.set(false);
             }
+            self.fold_in_child(&mut summary, block_container, child, outcome.as_ref());
             if let (Some(fragmentainer), Some(state)) = (fragmentainer.as_deref(), fragmentation_state.as_mut())
                 && self.fragmentation_step_after_child(fragmentainer, state, block_container, child, outcome.as_ref())
                     == FragmentationStep::Stop
@@ -3001,11 +3024,8 @@ impl<'pass> BlockFormattingContext<'pass> {
                 .remove(&block_container);
         }
         self.block_offset_of_current_block_container.set(saved);
-        ChildrenSummary {
-            baselines: self.derive_baselines_of_laid_out_contents(block_container),
-            fragmentainer_stop_token: fragmentation_state.and_then(|state| state.container_stop_token),
-            lines_are_unbreakable: false,
-        }
+        summary.fragmentainer_stop_token = fragmentation_state.and_then(|state| state.container_stop_token);
+        summary
     }
 
     fn fragmentation_step_before_child(
@@ -3960,7 +3980,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         run: &FormattingContextRun<'pass>,
         input: LayoutInput,
         available_space_for_children: AvailableSpace,
-    ) -> DerivedBaselines {
+    ) -> ChildrenSummary {
         let wrapper = self.run.box_;
         // The table wrapper is invisible to percentage resolution: percentages on the table root
         // resolve against the wrapper's containing block, so the wrapper's own constraints pass
@@ -3974,6 +3994,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let saved = self
             .block_offset_of_current_block_container
             .replace(Some(CssPixels::default()));
+        let mut summary = ChildrenSummary::default();
         for child in table_wrapper_flow_children(self.run.callbacks, wrapper) {
             let child_input = if self.style(child).display().is_table_inside() {
                 table_box_input
@@ -3984,7 +4005,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             if invisible {
                 self.laying_out_invisible_line_clamp_content.set(true);
             }
-            self.layout_block_level_box(
+            let outcome = self.layout_block_level_box(
                 run,
                 child,
                 wrapper,
@@ -3996,9 +4017,10 @@ impl<'pass> BlockFormattingContext<'pass> {
             if invisible {
                 self.laying_out_invisible_line_clamp_content.set(false);
             }
+            self.fold_in_child(&mut summary, wrapper, child, outcome.as_ref());
         }
         self.block_offset_of_current_block_container.set(saved);
-        self.derive_baselines_of_laid_out_contents(wrapper)
+        summary
     }
 
     // https://html.spec.whatwg.org/multipage/rendering.html#the-fieldset-and-legend-elements
@@ -4007,7 +4029,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         run: &FormattingContextRun<'pass>,
         fieldset: Node,
         input: LayoutInput,
-    ) -> DerivedBaselines {
+    ) -> ChildrenSummary {
         let available_space = input.available_space;
         let child_input = self.child_layout_input(fieldset, input, available_space);
         let legend = self.facts(fieldset).rendered_legend();
@@ -4043,6 +4065,7 @@ impl<'pass> BlockFormattingContext<'pass> {
 
         // Lay out non-legend children below the legend accommodation.
         self.margin_state.borrow_mut().reset();
+        let mut summary = ChildrenSummary::default();
         {
             let saved = self.block_offset_of_current_block_container.replace(Some(extra_top));
             for child in self.children(fieldset) {
@@ -4051,7 +4074,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                     if invisible {
                         self.laying_out_invisible_line_clamp_content.set(true);
                     }
-                    self.layout_block_level_box(
+                    let outcome = self.layout_block_level_box(
                         run,
                         child,
                         fieldset,
@@ -4063,6 +4086,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                     if invisible {
                         self.laying_out_invisible_line_clamp_content.set(false);
                     }
+                    self.fold_in_child(&mut summary, fieldset, child, outcome.as_ref());
                 }
             }
             self.block_offset_of_current_block_container.set(saved);
@@ -4096,7 +4120,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 },
             );
         }
-        self.derive_baselines_of_laid_out_contents(fieldset)
+        summary
     }
 
     pub(crate) fn run(&self, run: &FormattingContextRun<'pass>, input: LayoutInput) {
@@ -4152,11 +4176,13 @@ impl<'pass> BlockFormattingContext<'pass> {
         let root_input = input;
         let root_facts = self.facts(self.run.box_);
         if root_facts.is_fieldset_box() && !root_facts.rendered_legend().is_invalid() {
-            let baselines = self.layout_fieldset_with_rendered_legend(run, self.run.box_, root_input);
+            let baselines = self
+                .layout_fieldset_with_rendered_legend(run, self.run.box_, root_input)
+                .baselines;
             self.record_derived_baselines_of_root_box(baselines);
             return;
         }
-        let baselines = if root_facts.is_table_wrapper() {
+        let children_summary = if root_facts.is_table_wrapper() {
             self.layout_table_wrapper_children(run, root_input, available_space)
         } else if root_facts.children_are_inline() {
             self.layout_inline_children(
@@ -4166,7 +4192,6 @@ impl<'pass> BlockFormattingContext<'pass> {
                 FfiCssPixelPoint::default(),
                 available_space,
             )
-            .baselines
         } else {
             self.layout_block_level_children(
                 run,
@@ -4175,8 +4200,8 @@ impl<'pass> BlockFormattingContext<'pass> {
                 FfiCssPixelPoint::default(),
                 available_space,
             )
-            .baselines
         };
+        let baselines = children_summary.baselines;
         self.record_derived_baselines_of_root_box(baselines);
 
         // Fieldsets without a rendered legend skip collapsed margin assignment.
