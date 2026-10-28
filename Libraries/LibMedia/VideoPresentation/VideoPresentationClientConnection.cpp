@@ -4,13 +4,20 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Atomic.h>
 #include <LibGfx/Size.h>
 #include <LibMedia/MediaTime.h>
 #include <LibMedia/PipelineStatus.h>
-#include <LibMedia/VideoEdgeQueue.h>
 #include <LibMedia/VideoPresentation/VideoPresentationClientConnection.h>
+#include <LibMediaCodecs/VideoFramePool.h>
 
 namespace Media {
+
+static u64 allocate_sender_id()
+{
+    static Atomic<u64> s_next_sender_id { 1 };
+    return s_next_sender_id.fetch_add(1, AK::MemoryOrder::memory_order_relaxed);
+}
 
 VideoPresentationClientConnection::VideoPresentationClientConnection(NonnullOwnPtr<IPC::Transport> transport)
     : IPC::ConnectionToServer<VideoPresentationClientEndpoint, VideoPresentationServerEndpoint>(*this, move(transport))
@@ -33,7 +40,7 @@ ErrorOr<void> VideoPresentationClientConnection::create_edge(VideoSinkHandle han
     if (m_edge_states.size() >= MAX_EDGE_COUNT)
         return Error::from_string_literal("Too many video edges");
     auto edge_id = m_next_edge_id++;
-    m_edge_states.set(edge_id, EdgeState { handle, move(on_ready), nullptr, nullptr, {} });
+    m_edge_states.set(edge_id, EdgeState { .handle = handle, .on_ready = move(on_ready), .consumer = nullptr, .sink = nullptr, .time_reader = {}, .sender_id = allocate_sender_id(), .expected_requested_seek_id = 0 });
     async_create_video_edge(handle, edge_id);
     return {};
 }
@@ -55,7 +62,7 @@ void VideoPresentationClientConnection::release_edge(VideoSinkHandle handle)
     async_release_video_edge(*edge_id_to_release);
 }
 
-void VideoPresentationClientConnection::video_edge_ready(u64 edge_id, VideoEdgeQueue edge, MediaTimeReader time_reader)
+void VideoPresentationClientConnection::video_edge_ready(u64 edge_id, MediaTimeReader time_reader)
 {
     auto edge_state = m_edge_states.get(edge_id);
     if (!edge_state.has_value())
@@ -68,22 +75,12 @@ void VideoPresentationClientConnection::video_edge_ready(u64 edge_id, VideoEdgeQ
             connection.async_request_start(edge_id);
         });
     };
-    consumer_delegates.request_seek = [weak_connection, edge_id](AK::Duration timestamp, InvalidateHeldData invalidate_held_data) {
+    consumer_delegates.request_seek = [weak_connection, edge_id](AK::Duration timestamp, InvalidateHeldData invalidate_held_data, u64 newest_received_lend_id) {
         weak_connection.with_target([&](auto& connection) {
-            connection.async_request_seek(edge_id, timestamp, invalidate_held_data);
+            connection.async_request_seek(edge_id, timestamp, invalidate_held_data, newest_received_lend_id);
         });
     };
-    consumer_delegates.release_slot = [weak_connection, edge_id](VideoFramePoolID pool_id, u32 slot_index) {
-        weak_connection.with_target([&](auto& connection) {
-            connection.async_release_slot(edge_id, pool_id, slot_index);
-        });
-    };
-    consumer_delegates.notify_space_available = [weak_connection, edge_id] {
-        weak_connection.with_target([&](auto& connection) {
-            connection.async_notify_space_available(edge_id);
-        });
-    };
-    auto consumer = RemoteVideoProducer::create(move(edge), edge_state->slot_directory, move(consumer_delegates));
+    auto consumer = RemoteVideoProducer::create(move(consumer_delegates));
 
     auto sink = MUST(DisplayingVideoSink::try_create(time_reader));
     edge_state->time_reader = time_reader;
@@ -120,22 +117,38 @@ void VideoPresentationClientConnection::update_edge_time_reader(u64 edge_id, Med
         edge_state->sink->set_time_reader(move(time_reader));
 }
 
-void VideoPresentationClientConnection::announce_video_frame_slot(u64 edge_id, VideoFramePoolID pool_id, u32 slot_index, Core::AnonymousBuffer slot_buffer, RefPtr<VideoSurface> surface)
+void VideoPresentationClientConnection::lend_frame(u64 edge_id, u64 lend_id, u32 seek_id, VideoFrameMetadata metadata, Core::AnonymousBuffer pixel_buffer, RefPtr<VideoSurface> surface)
 {
-    if (auto edge_state = m_edge_states.get(edge_id); edge_state.has_value())
-        edge_state->slot_directory->notify_slot_announced(pool_id, slot_index, move(slot_buffer), move(surface));
+    // The frame may be dropped on any thread.
+    auto release = [weak_connection = make_weak_ref(), edge_id, lend_id] {
+        weak_connection.with_target([&](auto& connection) {
+            connection.async_release_frame(edge_id, lend_id);
+        });
+    };
+
+    auto edge_state = m_edge_states.get(edge_id);
+    if (!edge_state.has_value() || !edge_state->consumer) {
+        release();
+        return;
+    }
+    auto frame_or_error = create_received_video_frame(metadata, move(pixel_buffer), move(surface), edge_state->sender_id, move(release));
+    if (frame_or_error.is_error()) {
+        dbgln("VideoPresentation: Dropping a lent frame that does not fit its storage: {}", frame_or_error.error());
+        return;
+    }
+    edge_state->consumer->receive_frame(lend_id, seek_id, frame_or_error.release_value());
 }
 
-void VideoPresentationClientConnection::retire_video_frame_pool(u64 edge_id, VideoFramePoolID pool_id)
-{
-    if (auto edge_state = m_edge_states.get(edge_id); edge_state.has_value())
-        edge_state->slot_directory->notify_pool_retired(pool_id);
-}
-
-void VideoPresentationClientConnection::notify_data_available(u64 edge_id)
+void VideoPresentationClientConnection::edge_status_changed(u64 edge_id, PipelineStatus status, u32 seek_id)
 {
     if (auto edge_state = m_edge_states.get(edge_id); edge_state.has_value() && edge_state->consumer)
-        edge_state->consumer->notify_data_available();
+        edge_state->consumer->receive_status(status, seek_id);
+}
+
+void VideoPresentationClientConnection::notify_clock_resumed(u64 edge_id)
+{
+    if (auto edge_state = m_edge_states.get(edge_id); edge_state.has_value() && edge_state->consumer)
+        edge_state->consumer->notify_clock_resumed();
 }
 
 void VideoPresentationClientConnection::seek_sink(u64 edge_id, u32 requested_seek_id, InvalidateHeldData invalidate_held_data)

@@ -9,11 +9,12 @@
 #include <Compositor/SkiaBackendContext.h>
 #include <Compositor/SkiaUtils.h>
 #include <Compositor/VideoFrameSkia.h>
+#include <LibCore/Timer.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/YUVData.h>
 #include <LibMediaCodecs/VideoFrame.h>
-#include <LibMediaCodecs/VideoFrameHandle.h>
+#include <LibMediaCodecs/VideoFramePool.h>
 #include <LibMediaCodecs/VideoSurface.h>
 
 #include <core/SkCanvas.h>
@@ -162,8 +163,8 @@ SkYUVAPixmaps make_yuva_pixmaps(Gfx::YUVData const& yuv_data)
     return SkYUVAPixmaps::FromExternalPixmaps(yuva_info, plane_pixmaps);
 }
 
-// A surface-backed image samples the surface where it lies, so it stays valid for every frame decoded into that
-// surface. A decoder recycles a bounded set of surfaces, so each one's image is kept for as long as the surface is.
+// Kept for a while after it was last drawn in case its surface comes back, but no longer, since the image keeps the
+// surface's memory alive after the decoder has let go of it.
 struct VideoSurfaceImage {
     AK_ALLOC_WITH_KMALLOC;
 
@@ -171,49 +172,125 @@ struct VideoSurfaceImage {
     NonnullRefPtr<Gfx::SkiaBackendContext> skia_backend_context;
     Media::CodingIndependentCodePoints cicp;
     sk_sp<SkImage> image;
-    Media::VideoFramePoolID shown_pool_id { 0 };
-    u32 shown_slot_index { 0 };
-    u64 shown_slot_acquisition_id { 0 };
+    u64 shown_frame_id { 0 };
+    MonotonicTime last_drawn_time { MonotonicTime() };
 };
 
-static HashMap<u32, NonnullOwnPtr<VideoSurfaceImage>>& video_surface_images()
+// Surface IDs are chosen by whoever sent the surface, so images are kept apart per sender.
+struct VideoSurfaceImageKey {
+    u64 sender_id { 0 };
+    u64 surface_id { 0 };
+
+    bool operator==(VideoSurfaceImageKey const&) const = default;
+};
+
+}
+
+template<>
+struct AK::Traits<Compositor::VideoSurfaceImageKey> : public DefaultTraits<Compositor::VideoSurfaceImageKey> {
+    static unsigned hash(Compositor::VideoSurfaceImageKey const& key) { return pair_int_hash(u64_hash(key.sender_id), u64_hash(key.surface_id)); }
+};
+
+namespace Compositor {
+
+static constexpr auto UNDRAWN_VIDEO_SURFACE_IMAGE_LIFETIME = AK::Duration::from_seconds(1);
+// A sender may send a new surface with every frame, so only this many of each sender's images are kept.
+static constexpr size_t MAX_VIDEO_SURFACE_IMAGES_PER_SENDER = 32;
+
+static HashMap<VideoSurfaceImageKey, NonnullOwnPtr<VideoSurfaceImage>>& video_surface_images()
 {
     // Leaked so that no image outlives the GPU context at exit.
-    static auto& images = *new HashMap<u32, NonnullOwnPtr<VideoSurfaceImage>>;
+    static auto& images = *new HashMap<VideoSurfaceImageKey, NonnullOwnPtr<VideoSurfaceImage>>;
     return images;
+}
+
+static void expire_undrawn_video_surface_images();
+
+static Core::Timer& video_surface_image_expiry_timer()
+{
+    static auto& timer = Core::Timer::create_single_shot(AK::Duration::zero(), [] { expire_undrawn_video_surface_images(); }).leak_ref();
+    return timer;
+}
+
+static void schedule_video_surface_image_expiry()
+{
+    auto& timer = video_surface_image_expiry_timer();
+    if (timer.is_active())
+        return;
+    auto const& images = video_surface_images();
+    if (images.is_empty())
+        return;
+    auto oldest_drawn_time = MonotonicTime::now();
+    for (auto const& entry : images)
+        oldest_drawn_time = min(oldest_drawn_time, entry.value->last_drawn_time);
+    auto delay = max(AK::Duration::zero(), oldest_drawn_time + UNDRAWN_VIDEO_SURFACE_IMAGE_LIFETIME - MonotonicTime::now());
+    timer.set_interval(delay);
+    timer.start();
+}
+
+static void expire_undrawn_video_surface_images()
+{
+    auto expiry_time = MonotonicTime::now() - UNDRAWN_VIDEO_SURFACE_IMAGE_LIFETIME;
+    video_surface_images().remove_all_matching([&](auto const&, auto const& image) {
+        return image->last_drawn_time <= expiry_time;
+    });
+    schedule_video_surface_image_expiry();
+}
+
+static void make_room_for_video_surface_image(u64 sender_id)
+{
+    auto& images = video_surface_images();
+    size_t sender_image_count = 0;
+    Optional<VideoSurfaceImageKey> least_recently_drawn_key;
+    MonotonicTime least_recently_drawn_time = MonotonicTime::now();
+    for (auto const& [key, image] : images) {
+        if (key.sender_id != sender_id)
+            continue;
+        sender_image_count++;
+        if (!least_recently_drawn_key.has_value() || image->last_drawn_time < least_recently_drawn_time) {
+            least_recently_drawn_key = key;
+            least_recently_drawn_time = image->last_drawn_time;
+        }
+    }
+    if (sender_image_count >= MAX_VIDEO_SURFACE_IMAGES_PER_SENDER)
+        images.remove(least_recently_drawn_key.value());
 }
 
 static sk_sp<SkImage> image_for_video_surface(Media::VideoFrame const& frame, Media::VideoSurface const& surface, Gfx::SkiaBackendContext& skia_backend_context)
 {
+    u64 sender_id = 0;
+    if (auto const* storage = frame.received_storage())
+        sender_id = storage->sender_id();
+    VideoSurfaceImageKey key { sender_id, surface.id() };
+
     auto& images = video_surface_images();
     auto* cached_image = [&]() -> VideoSurfaceImage* {
-        auto cached = images.get(surface.id());
+        auto cached = images.get(key);
         if (!cached.has_value())
             return nullptr;
-        auto& image = **cached;
-        if (image.surface.ptr() != &surface || image.skia_backend_context.ptr() != &skia_backend_context || image.cicp != frame.cicp())
+        auto& image = *cached.value();
+        if (image.skia_backend_context.ptr() != &skia_backend_context || image.cicp != frame.cicp())
             return nullptr;
         return &image;
     }();
 
     if (!cached_image) {
-        // A surface that only this cache still holds will not be handed out again.
-        images.remove_all_matching([](auto, auto const& image) { return image->surface->ref_count() == 1; });
-
+        images.remove(key);
         auto image = sk_image_from_video_surface(surface, frame.cicp(), skia_backend_context);
         if (!image)
             return nullptr;
+        make_room_for_video_surface_image(sender_id);
         auto new_image = make<VideoSurfaceImage>(surface, skia_backend_context, frame.cicp(), move(image));
         cached_image = new_image.ptr();
-        images.set(surface.id(), move(new_image));
+        images.set(key, move(new_image));
     }
 
-    auto handle = Media::VideoFrameHandle::for_frame(frame);
-    if (cached_image->shown_pool_id != handle.pool_id || cached_image->shown_slot_index != handle.slot_index || cached_image->shown_slot_acquisition_id != handle.slot_acquisition_id) {
+    cached_image->last_drawn_time = MonotonicTime::now();
+    schedule_video_surface_image_expiry();
+
+    if (cached_image->shown_frame_id != frame.id()) {
         video_surface_image_will_show_new_frame(*cached_image->image);
-        cached_image->shown_pool_id = handle.pool_id;
-        cached_image->shown_slot_index = handle.slot_index;
-        cached_image->shown_slot_acquisition_id = handle.slot_acquisition_id;
+        cached_image->shown_frame_id = frame.id();
     }
     return cached_image->image;
 }

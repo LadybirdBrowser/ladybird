@@ -11,35 +11,34 @@
 #include <AK/RefPtr.h>
 #include <AK/ThreadSafeWeakable.h>
 #include <AK/Time.h>
+#include <AK/Vector.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
 #include <LibMedia/Producers/VideoProducer.h>
 #include <LibMedia/SynchronizedWakeHandler.h>
-#include <LibMedia/VideoEdgeQueue.h>
-#include <LibMediaCodecs/VideoFrameHandle.h>
-#include <LibMediaCodecs/VideoFramePool.h>
 
 namespace Media {
 
-// The consumer end of a cross-process video edge: reads frame handles through a shared memory VideoEdgeQueue, resolves
-// them through the edge's VideoFrameSlotDirectory, and presents them through the VideoProducer interface, so a
-// DisplayingVideoSink consumes it exactly as it would a local producer. Communication crosses the process boundary
-// through delegates that relay messages over IPC.
+// The consumer end of a cross-process video edge.
 class MEDIA_API RemoteVideoProducer final
     : public VideoProducer
     , public ThreadSafeWeakable<RemoteVideoProducer> {
 public:
+    // A frame arriving past this is released.
+    static constexpr size_t MAX_QUEUED_FRAME_COUNT = 32;
+
     struct Delegates {
         Function<void()> request_start;
-        Function<void(AK::Duration, InvalidateHeldData)> request_seek;
-        Function<void(VideoFramePoolID, u32 slot_index)> release_slot;
-        Function<void()> notify_space_available;
+        Function<void(AK::Duration, InvalidateHeldData, u64 newest_received_lend_id)> request_seek;
     };
 
-    static NonnullRefPtr<RemoteVideoProducer> create(VideoEdgeQueue, NonnullRefPtr<VideoFrameSlotDirectory>, Delegates);
+    static NonnullRefPtr<RemoteVideoProducer> create(Delegates);
     virtual ~RemoteVideoProducer() override;
 
-    void notify_data_available();
+    // Dropping the frame releases it back to the sink.
+    void receive_frame(u64 lend_id, u32 seek_id, NonnullRefPtr<VideoFrame>);
+    void receive_status(PipelineStatus, u32 seek_id);
+    void notify_clock_resumed();
 
     void stop_consuming();
 
@@ -50,26 +49,24 @@ public:
     virtual void seek(AK::Duration timestamp, InvalidateHeldData = InvalidateHeldData::No) override;
 
 private:
-    RemoteVideoProducer(VideoEdgeQueue, NonnullRefPtr<VideoFrameSlotDirectory>, Delegates);
+    explicit RemoteVideoProducer(Delegates);
 
-    RefPtr<VideoFrame> resolve(VideoFrameHandle const&);
-    void release_lent_slot(VideoFramePoolID, u32 slot_index) const;
+    struct ReceivedStatus {
+        PipelineStatus status { PipelineStatus::Pending };
+        u32 seek_id { 0 };
+    };
+
     bool can_satisfy_seek_locally(AK::Duration timestamp) const;
-    void release_ring_contents_if_suspended();
-    void discard_ring_head(VideoEdgeItem const&);
-    void discard_stale_ring_heads();
-    void release_all_ring_frames();
+    bool has_end_of_stream_status() const;
 
-    struct LentSlotReleaser;
-
-    VideoEdgeQueue m_edge;
-    NonnullRefPtr<VideoFrameSlotDirectory> m_slot_directory;
     Delegates m_delegates;
-    NonnullRefPtr<LentSlotReleaser> m_lent_slot_releaser;
     bool m_has_stopped_consuming { false };
 
     u32 m_expected_seek_id { 0 };
-    RefPtr<VideoFrame> m_current_frame;
+    u64 m_newest_received_lend_id { 0 };
+    // Received under the expected seek, oldest first.
+    Vector<NonnullRefPtr<VideoFrame>> m_queued_frames;
+    Optional<ReceivedStatus> m_status;
     SynchronizedWakeHandler m_wake_handler;
 };
 

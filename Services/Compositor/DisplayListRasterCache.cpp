@@ -19,7 +19,6 @@
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/YUVData.h>
 #include <LibMediaCodecs/VideoFrame.h>
-#include <LibMediaCodecs/VideoFrameHandle.h>
 #include <LibMediaCodecs/VideoSurface.h>
 
 #include <core/SkFont.h>
@@ -73,9 +72,7 @@ struct DisplayListRasterCache::ImageFrameImage {
 struct DisplayListRasterCache::VideoSinkImage {
     AK_ALLOC_WITH_KMALLOC;
 
-    Media::VideoFramePoolID pool_id { 0 };
-    u32 slot_index { 0 };
-    u64 slot_acquisition_id { 0 };
+    u64 frame_id { 0 };
     // Drawing is recorded here but read by the GPU afterwards, so the frame stays held, and its surface's pixels
     // with it, until a different frame is drawn in its place.
     RefPtr<Media::VideoFrame const> drawn_frame;
@@ -259,21 +256,13 @@ sk_sp<SkImage> DisplayListRasterCache::image_for_video_sink(DisplayListResourceS
     if (!frame)
         return nullptr;
 
-    auto handle = Media::VideoFrameHandle::for_frame(*frame);
-    auto surface = frame->surface();
     auto& cached_image = *m_video_sink_images.ensure(id.value(), [] { return make<VideoSinkImage>(); });
     auto cached_image_matches = [&] {
         if (!cached_image.image)
             return false;
         if (cached_image.skia_backend_context != skia_backend_context)
             return false;
-        if (cached_image.pool_id != handle.pool_id)
-            return false;
-        if (cached_image.slot_index != handle.slot_index)
-            return false;
-        if (cached_image.slot_acquisition_id != handle.slot_acquisition_id)
-            return false;
-        return true;
+        return cached_image.frame_id == frame->id();
     }();
     if (cached_image_matches) {
         cached_image.drawn_frame = frame;
@@ -282,16 +271,10 @@ sk_sp<SkImage> DisplayListRasterCache::image_for_video_sink(DisplayListResourceS
     }
 
     auto image = sk_image_from_video_frame(*frame, skia_backend_context);
-
-    if (!frame->revalidate_backing())
-        return nullptr;
-
     if (!image)
         return nullptr;
 
-    cached_image.pool_id = handle.pool_id;
-    cached_image.slot_index = handle.slot_index;
-    cached_image.slot_acquisition_id = handle.slot_acquisition_id;
+    cached_image.frame_id = frame->id();
     cached_image.drawn_frame = frame;
     cached_image.skia_backend_context = skia_backend_context;
     cached_image.image = image;

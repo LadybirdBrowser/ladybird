@@ -9,6 +9,7 @@
 #include <AK/Mutex.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/ThreadSafeWeakable.h>
+#include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
@@ -26,7 +27,6 @@
 #include <LibMedia/Sinks/AudioOutputFactory.h>
 #include <LibMedia/Sinks/RemoteVideoSink.h>
 #include <LibMedia/Track.h>
-#include <LibMedia/VideoEdgeQueue.h>
 #include <LibMedia/VideoPresentation/VideoPresentationClientConnection.h>
 #include <LibMedia/VideoPresentation/VideoPresentationServerConnection.h>
 #include <LibMediaCodecs/VideoFrame.h>
@@ -102,28 +102,39 @@ Vector<AK::Duration> decode_reference_timestamps(StringView path)
     return timestamps;
 }
 
-// Bridges the two ends of the edge the way the IPC connection eventually will. The sink's pump-thread
-// delegates hand slot announcements and wake-ups to the consumer's draining thread; the consumer's
-// delegates drive the sink. RemoteVideoProducer is single-threaded, so the pump's delegates only queue
-// announcements and signal the draining thread, which is where the consumer is touched.
+// Bridges the two ends of the edge the way the IPC connection does. The sink's pump thread queues its messages, which
+// the consumer's thread delivers in order, since RemoteVideoProducer is single-threaded; the consumer's delegates
+// drive the sink directly.
 struct VideoEdgeTestHarness
     : public AtomicRefCounted<VideoEdgeTestHarness>
     , public ThreadSafeWeakable<VideoEdgeTestHarness> {
-    struct SlotAnnouncement {
-        VideoFramePoolID pool_id;
-        u32 slot_index { 0 };
-        Core::AnonymousBuffer slot_buffer;
-        RefPtr<VideoSurface> surface;
+    struct StatusMessage {
+        PipelineStatus status { PipelineStatus::Pending };
+        u32 seek_id { 0 };
+    };
+    using Message = Variant<RemoteVideoSink::LentFrame, StatusMessage>;
+    struct PostedMessage {
+        Message message;
+        MonotonicTime post_time;
     };
 
     RefPtr<RemoteVideoSink> sink;
-    NonnullRefPtr<VideoFrameSlotDirectory> slot_directory { VideoFrameSlotDirectory::create() };
     RefPtr<RemoteVideoProducer> consumer;
 
     Mutex mutex;
     ConditionVariable signal { mutex };
-    Vector<SlotAnnouncement> pending_announces;
+    Vector<PostedMessage> pending_messages;
     bool signaled { false };
+    // Messages are delivered only once they are this old, the way they take a while to cross between processes.
+    AK::Duration delivery_delay;
+
+    void post(Message message)
+    {
+        MutexLocker locker { mutex };
+        pending_messages.append({ move(message), MonotonicTime::now() });
+        signaled = true;
+        signal.broadcast();
+    }
 
     void wake()
     {
@@ -132,17 +143,33 @@ struct VideoEdgeTestHarness
         signal.broadcast();
     }
 
-    void drain_announces()
+    void deliver_messages()
     {
-        Vector<SlotAnnouncement> announces;
+        Vector<Message> messages;
         {
             MutexLocker locker { mutex };
-            announces = move(pending_announces);
+            auto deliverable_count = 0uz;
+            auto now = MonotonicTime::now();
+            while (deliverable_count < pending_messages.size() && now - pending_messages[deliverable_count].post_time >= delivery_delay)
+                deliverable_count++;
+            for (size_t i = 0; i < deliverable_count; i++)
+                messages.append(move(pending_messages[i].message));
+            pending_messages.remove(0, deliverable_count);
         }
-        for (auto& announcement : announces)
-            slot_directory->notify_slot_announced(announcement.pool_id, announcement.slot_index, move(announcement.slot_buffer), move(announcement.surface));
-        // The pump's delegates only wake this thread; the consumer is single-threaded, so it is notified here.
-        consumer->notify_data_available();
+        for (auto& message : messages) {
+            message.visit(
+                [&](RemoteVideoSink::LentFrame& lent_frame) {
+                    auto release = [weak = make_weak_ref(), lend_id = lent_frame.lend_id] {
+                        if (auto harness = weak.strong_ref())
+                            harness->sink->release_frame(lend_id);
+                    };
+                    auto frame = MUST(create_received_video_frame(lent_frame.metadata, move(lent_frame.pixel_buffer), move(lent_frame.surface), 1, move(release)));
+                    consumer->receive_frame(lent_frame.lend_id, lent_frame.seek_id, move(frame));
+                },
+                [&](StatusMessage const& status) {
+                    consumer->receive_status(status.status, status.seek_id);
+                });
+        }
     }
 };
 
@@ -151,70 +178,108 @@ void wire_full_node(VideoEdgeTestHarness& harness, NonnullRefPtr<VideoProducer> 
     // The detached pump thread can invoke these delegates while the test scope is being torn down,
     // so they promote a weak reference to keep the harness alive for the duration of the call.
     RemoteVideoSink::Delegates sink_delegates;
-    sink_delegates.ring_data_available = [weak = harness.make_weak_ref()] {
+    sink_delegates.send_frame = [weak = harness.make_weak_ref()](RemoteVideoSink::LentFrame lent_frame) {
         if (auto harness = weak.strong_ref())
-            harness->wake();
+            harness->post(move(lent_frame));
     };
+    sink_delegates.send_status = [weak = harness.make_weak_ref()](PipelineStatus status, u32 seek_id) {
+        if (auto harness = weak.strong_ref())
+            harness->post(VideoEdgeTestHarness::StatusMessage { status, seek_id });
+    };
+    sink_delegates.notify_clock_resumed = [] { };
     sink_delegates.transmit_seek = [](InvalidateHeldData) { };
     sink_delegates.transmit_time_reader = [](MediaTimeReader const&) { };
-    sink_delegates.announce_slot = [weak = harness.make_weak_ref()](VideoFramePoolID pool_id, u32 slot_index, Core::AnonymousBuffer slot_buffer, RefPtr<VideoSurface> surface) {
-        auto harness = weak.strong_ref();
-        if (!harness)
-            return;
-        {
-            MutexLocker locker { harness->mutex };
-            harness->pending_announces.append({ pool_id, slot_index, move(slot_buffer), move(surface) });
-        }
-        harness->wake();
-    };
-    sink_delegates.retire_pool = [](VideoFramePoolID) { };
     harness.sink = MUST(RemoteVideoSink::create(move(sink_delegates)));
 
-    auto ring_fd = MUST(Core::System::dup(harness.sink->edge().ring_fd()));
-    auto consumer_edge = MUST(VideoEdgeQueue::create(ring_fd, harness.sink->edge().header_buffer()));
     RemoteVideoProducer::Delegates consumer_delegates;
     consumer_delegates.request_start = [&harness] { harness.sink->start_input(); };
-    consumer_delegates.request_seek = [&harness](AK::Duration timestamp, InvalidateHeldData invalidate_held_data) { harness.sink->seek_upstream(timestamp, invalidate_held_data); };
-    consumer_delegates.release_slot = [&harness](VideoFramePoolID pool_id, u32 slot_index) { harness.sink->release_slot(pool_id, slot_index); };
-    consumer_delegates.notify_space_available = [&harness] { harness.sink->notify_space_available(); };
-    harness.consumer = RemoteVideoProducer::create(move(consumer_edge), harness.slot_directory, move(consumer_delegates));
+    consumer_delegates.request_seek = [&harness](AK::Duration timestamp, InvalidateHeldData invalidate_held_data, u64 newest_received_lend_id) {
+        harness.sink->seek_upstream(timestamp, invalidate_held_data, newest_received_lend_id);
+    };
+    harness.consumer = RemoteVideoProducer::create(move(consumer_delegates));
     harness.consumer->set_wake_handler([&harness] { harness.wake(); });
 
     // harness.consumer is set before connect_input, whose lock publishes it to the pump before the
-    // pump can ring the consumer.
+    // pump can send anything to the consumer.
     MUST(harness.sink->connect_input(decoder));
     harness.consumer->start();
 }
 
-// The consumer drops handles that describe a frame no decoder produces, so give the edge's items a real frame's format.
-VideoFrameHandle make_decodable_handle()
+NonnullRefPtr<VideoFrame> create_pooled_frame(VideoFramePool& pool, AK::Duration timestamp, AK::Duration duration = AK::Duration::from_milliseconds(33))
 {
-    VideoFrameHandle handle;
-    handle.size = { 2, 2 };
-    handle.bit_depth = 8;
-    return handle;
+    static constexpr Gfx::IntSize frame_size { 2, 2 };
+    static constexpr u8 bit_depth = 8;
+    auto subsampling = Subsampling(true, true);
+
+    auto layout = MUST(frame_plane_layout(frame_size, bit_depth, subsampling));
+    auto acquired = pool.try_acquire(layout.total_byte_count).release_value();
+    auto slot = MUST(pool.try_adopt_acquired_slot(acquired));
+
+    return make_ref_counted<VideoFrame>(timestamp, duration, Gfx::Size<u32>(frame_size), bit_depth, subsampling, CodingIndependentCodePoints {}, move(slot));
 }
 
-// Builds a consumer over a controlled edge pre-filled with four frames at 1.0s..1.3s under seek_id 0,
-// to exercise the seek fast path deterministically.
-NonnullRefPtr<RemoteVideoProducer> make_lookahead_consumer(VideoEdgeQueue& producer_edge, size_t& upstream_seeks)
+// A frame as the consumer receives it, which counts its release.
+NonnullRefPtr<VideoFrame> create_received_frame(VideoFramePool& pool, AK::Duration timestamp, Function<void()> on_release = [] { })
 {
-    auto ring_fd = MUST(Core::System::dup(producer_edge.ring_fd()));
-    auto consumer_edge = MUST(VideoEdgeQueue::create(ring_fd, producer_edge.header_buffer()));
+    auto frame = create_pooled_frame(pool, timestamp, AK::Duration::from_milliseconds(100));
+    return MUST(create_received_video_frame(VideoFrameMetadata::for_frame(*frame), frame->pixel_buffer(), nullptr, 1, move(on_release)));
+}
+
+RemoteVideoProducer::Delegates make_consumer_delegates(size_t& upstream_seeks)
+{
     RemoteVideoProducer::Delegates delegates;
     delegates.request_start = [] { };
-    delegates.request_seek = [&upstream_seeks](AK::Duration, InvalidateHeldData) { upstream_seeks++; };
-    delegates.release_slot = [](VideoFramePoolID, u32) { };
-    delegates.notify_space_available = [] { };
-    auto consumer = RemoteVideoProducer::create(move(consumer_edge), VideoFrameSlotDirectory::create(), move(delegates));
+    delegates.request_seek = [&upstream_seeks](AK::Duration, InvalidateHeldData, u64) { upstream_seeks++; };
+    return delegates;
+}
 
-    for (int i = 0; i < 4; i++) {
-        auto handle = make_decodable_handle();
-        handle.timestamp = AK::Duration::from_milliseconds(1000 + (i * 100));
-        handle.duration = AK::Duration::from_milliseconds(100);
-        MUST(producer_edge.enqueue(handle, 0));
+// Gives a consumer four frames at 1.0s..1.3s under seek 0, to exercise the seek fast path deterministically. Each frame
+// runs the given callback, which must outlive them, once it is released.
+void give_lookahead(RemoteVideoProducer& consumer, VideoFramePool& pool, Function<void()> const* on_release = nullptr)
+{
+    for (u64 i = 0; i < 4; i++) {
+        consumer.receive_frame(i + 1, 0, create_received_frame(pool, AK::Duration::from_milliseconds(1000 + (i * 100)), [on_release] {
+            if (on_release)
+                (*on_release)();
+        }));
     }
-    return consumer;
+}
+
+// Records what a sink lends, from its pump thread.
+struct LentFrameRecorder : public AtomicRefCounted<LentFrameRecorder> {
+    Mutex mutex;
+    Vector<RemoteVideoSink::LentFrame> lent_frames;
+
+    size_t count()
+    {
+        MutexLocker locker { mutex };
+        return lent_frames.size();
+    }
+
+    RemoteVideoSink::LentFrame at(size_t index)
+    {
+        MutexLocker locker { mutex };
+        return lent_frames[index];
+    }
+};
+
+NonnullRefPtr<RemoteVideoSink> make_recorded_sink(LentFrameRecorder& recorder)
+{
+    RemoteVideoSink::Delegates delegates;
+    delegates.send_frame = [recorder = NonnullRefPtr { recorder }](RemoteVideoSink::LentFrame lent_frame) {
+        MutexLocker locker { recorder->mutex };
+        recorder->lent_frames.append(move(lent_frame));
+    };
+    delegates.send_status = [](PipelineStatus, u32) { };
+    delegates.notify_clock_resumed = [] { };
+    delegates.transmit_seek = [](InvalidateHeldData) { };
+    delegates.transmit_time_reader = [](MediaTimeReader const&) { };
+    return MUST(RemoteVideoSink::create(move(delegates)));
+}
+
+NonnullRefPtr<RemoteVideoSink> make_sink_with_inert_delegates()
+{
+    return make_recorded_sink(*make_ref_counted<LentFrameRecorder>());
 }
 
 }
@@ -235,7 +300,7 @@ TEST_CASE(remote_video_node_delivers_every_frame_in_order)
     auto deadline = MonotonicTime::now_coarse() + AK::Duration::from_seconds(10);
     while (MonotonicTime::now_coarse() < deadline) {
         loop.pump(Core::EventLoop::WaitMode::PollForEvents);
-        harness->drain_announces();
+        harness->deliver_messages();
         auto output = harness->consumer->peek();
         if (output.status == PipelineStatus::HaveData) {
             delivered.append(output.frame->timestamp());
@@ -283,7 +348,7 @@ TEST_CASE(remote_video_node_streams_and_seeks_under_concurrency)
         };
 
         while (!stop.load(AK::MemoryOrder::memory_order_relaxed)) {
-            harness->drain_announces();
+            harness->deliver_messages();
 
             auto output = harness->consumer->peek();
             if (output.status == PipelineStatus::HaveData) {
@@ -299,8 +364,7 @@ TEST_CASE(remote_video_node_streams_and_seeks_under_concurrency)
                 }
 
                 if (have_consumed && ++since_seek >= 20) {
-                    // Seek with this frame still cached (peeked, not consumed) so the drop exercises both
-                    // the cached head and the unconsumed edge items.
+                    // Seek with this frame still queued, so the drop covers it as well as the frames behind it.
                     seek_to(last_consumed > seek_step ? last_consumed - seek_step : AK::Duration::zero());
                     continue;
                 }
@@ -317,7 +381,7 @@ TEST_CASE(remote_video_node_streams_and_seeks_under_concurrency)
                 seek_to(AK::Duration::zero());
 
             MutexLocker locker { harness->mutex };
-            while (!harness->signaled && !stop.load(AK::MemoryOrder::memory_order_relaxed) && harness->pending_announces.is_empty())
+            while (!harness->signaled && !stop.load(AK::MemoryOrder::memory_order_relaxed) && harness->pending_messages.is_empty())
                 harness->signal.wait();
             harness->signaled = false;
         }
@@ -339,6 +403,102 @@ TEST_CASE(remote_video_node_streams_and_seeks_under_concurrency)
             stale_pre_seek_ms.load(AK::MemoryOrder::memory_order_relaxed))));
     }
     EXPECT(frames_pulled.load(AK::MemoryOrder::memory_order_relaxed) > 0);
+}
+
+// Seeks in both directions, many of them landing in frames that are still on their way to the consumer, which the sink
+// has to lend again. Whichever way a seek is resolved, the first frame after it must hold the target or come just
+// before it, and the frames after that must follow in order, or a frame was skipped or a stale one delivered.
+TEST_CASE(remote_video_node_resolves_seeks_into_frames_on_their_way)
+{
+    auto& loop = never_destroyed_event_loop();
+    auto decoder = make_decoder(loop, TEST_CLIP);
+    IGNORE_USE_IN_ESCAPING_LAMBDA auto harness = make_ref_counted<VideoEdgeTestHarness>();
+    harness->delivery_delay = AK::Duration::from_milliseconds(3);
+    wire_full_node(*harness, decoder);
+
+    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> stop { false };
+    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<size_t> seek_count { 0 };
+    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> failure_detected { false };
+    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<i64> failure_target_ms { 0 };
+    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<i64> failure_frame_ms { 0 };
+
+    auto drainer = Threading::Thread::construct("Consumer Drainer"sv, [&]() -> intptr_t {
+        u32 random_state = 0x9e3779b9;
+        auto next_random = [&](u32 bound) {
+            random_state ^= random_state << 13;
+            random_state ^= random_state >> 17;
+            random_state ^= random_state << 5;
+            return random_state % bound;
+        };
+
+        Optional<AK::Duration> seek_target;
+        Optional<AK::Duration> last_timestamp;
+        size_t frames_since_seek = 0;
+        auto fail = [&](AK::Duration target, AK::Duration frame_timestamp) {
+            failure_target_ms.store(target.to_milliseconds(), AK::MemoryOrder::memory_order_relaxed);
+            failure_frame_ms.store(frame_timestamp.to_milliseconds(), AK::MemoryOrder::memory_order_relaxed);
+            failure_detected.store(true, AK::MemoryOrder::memory_order_relaxed);
+        };
+        auto seek_to = [&](AK::Duration target) {
+            harness->consumer->seek(target);
+            seek_target = target;
+            last_timestamp = {};
+            frames_since_seek = 0;
+            seek_count.fetch_add(1, AK::MemoryOrder::memory_order_relaxed);
+        };
+
+        while (!stop.load(AK::MemoryOrder::memory_order_relaxed)) {
+            harness->deliver_messages();
+
+            auto output = harness->consumer->peek();
+            if (output.status == PipelineStatus::HaveData) {
+                auto timestamp = output.frame->timestamp();
+                if (seek_target.has_value() && !last_timestamp.has_value() && timestamp > seek_target.value())
+                    fail(seek_target.value(), timestamp);
+                if (last_timestamp.has_value() && timestamp <= last_timestamp.value())
+                    fail(seek_target.value_or(AK::Duration::zero()), timestamp);
+                last_timestamp = timestamp;
+                harness->consumer->consume();
+
+                if (++frames_since_seek >= 4 + next_random(8)) {
+                    // Mostly short hops forward, which land in the frames still on their way, and some jumps anywhere.
+                    if (next_random(4) != 0)
+                        seek_to(timestamp + AK::Duration::from_milliseconds(10 + next_random(120)));
+                    else
+                        seek_to(AK::Duration::from_milliseconds(next_random(4500)));
+                }
+                continue;
+            }
+            if (output.status == PipelineStatus::EndOfStream) {
+                seek_to(AK::Duration::from_milliseconds(next_random(2000)));
+                continue;
+            }
+
+            MutexLocker locker { harness->mutex };
+            if (harness->pending_messages.is_empty()) {
+                while (!harness->signaled && !stop.load(AK::MemoryOrder::memory_order_relaxed) && harness->pending_messages.is_empty())
+                    harness->signal.wait();
+            }
+            harness->signaled = false;
+        }
+        return 0;
+    });
+    drainer->start();
+
+    auto deadline = MonotonicTime::now_coarse() + AK::Duration::from_milliseconds(1500);
+    while (MonotonicTime::now_coarse() < deadline)
+        loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+
+    stop.store(true, AK::MemoryOrder::memory_order_relaxed);
+    harness->wake();
+    (void)drainer->join();
+
+    if (failure_detected.load(AK::MemoryOrder::memory_order_relaxed)) {
+        FAIL(MUST(String::formatted("Frame at {}ms delivered out of place after seeking to {}ms",
+            failure_frame_ms.load(AK::MemoryOrder::memory_order_relaxed),
+            failure_target_ms.load(AK::MemoryOrder::memory_order_relaxed))));
+    }
+    EXPECT(seek_count.load(AK::MemoryOrder::memory_order_relaxed) > 10);
 }
 
 TEST_CASE(video_presentation_server_releases_playback_edge_when_connection_dies)
@@ -379,8 +539,8 @@ TEST_CASE(video_presentation_server_releases_playback_edge_when_connection_dies)
     EXPECT(!manager->track_is_enabled(track));
 }
 
-// Each edge keeps buffers mapped in the Compositor, so a client that asks for edges without end is refused past the
-// limit, until it releases one.
+// Each edge keeps the frames it is lent, so a client that asks for edges without end is refused past the limit, until
+// it releases one.
 TEST_CASE(video_presentation_client_limits_its_edges)
 {
     auto paired = MUST(IPC::Transport::create_paired());
@@ -398,12 +558,13 @@ TEST_CASE(video_presentation_client_limits_its_edges)
     EXPECT(!client->create_edge(allocate_video_sink_handle(), [](NonnullRefPtr<DisplayingVideoSink>) { }).is_error());
 }
 
-// A forward seek landing inside the buffered lookahead is resolved locally; a seek past it re-fetches.
+// A forward seek landing inside the received lookahead is resolved locally; a seek past it re-fetches.
 TEST_CASE(consumer_resolves_forward_seeks_within_the_lookahead)
 {
-    auto producer_edge = MUST(VideoEdgeQueue::create());
+    auto pool = MUST(VideoFramePool::create());
     size_t upstream_seeks = 0;
-    auto consumer = make_lookahead_consumer(producer_edge, upstream_seeks);
+    auto consumer = RemoteVideoProducer::create(make_consumer_delegates(upstream_seeks));
+    give_lookahead(*consumer, *pool);
 
     consumer->seek(AK::Duration::from_milliseconds(1200));
     EXPECT_EQ(upstream_seeks, 0u);
@@ -415,64 +576,52 @@ TEST_CASE(consumer_resolves_forward_seeks_within_the_lookahead)
 // A backward seek leaves the lookahead behind, so it must re-fetch upstream.
 TEST_CASE(consumer_sends_backward_seeks_upstream)
 {
-    auto producer_edge = MUST(VideoEdgeQueue::create());
+    auto pool = MUST(VideoFramePool::create());
     size_t upstream_seeks = 0;
-    auto consumer = make_lookahead_consumer(producer_edge, upstream_seeks);
+    auto consumer = RemoteVideoProducer::create(make_consumer_delegates(upstream_seeks));
+    give_lookahead(*consumer, *pool);
 
     consumer->seek(AK::Duration::from_milliseconds(500));
     EXPECT_EQ(upstream_seeks, 1u);
 }
 
-// The seek must reach upstream before the stale frames' slots are released, and a frame of the new seek that arrives
-// in between must stay in the ring.
+// The seek must reach upstream before the stale frames are released, naming the newest frame received so far, and a
+// frame of the new seek that arrives in between must be kept.
 TEST_CASE(consumer_requests_seeks_before_releasing_stale_frames)
 {
-    auto producer_edge = MUST(VideoEdgeQueue::create());
-    auto ring_fd = MUST(Core::System::dup(producer_edge.ring_fd()));
-    auto consumer_edge = MUST(VideoEdgeQueue::create(ring_fd, producer_edge.header_buffer()));
-
+    auto pool = MUST(VideoFramePool::create());
     Vector<StringView> events;
-    Vector<u32> released_slot_indices;
+    Optional<u64> requested_newest_received_lend_id;
+    RefPtr<RemoteVideoProducer> consumer;
     RemoteVideoProducer::Delegates delegates;
     delegates.request_start = [] { };
-    delegates.request_seek = [&](AK::Duration, InvalidateHeldData) {
+    delegates.request_seek = [&](AK::Duration, InvalidateHeldData, u64 newest_received_lend_id) {
         events.append("seek"sv);
-        auto handle = make_decodable_handle();
-        handle.timestamp = AK::Duration::from_milliseconds(500);
-        handle.duration = AK::Duration::from_milliseconds(100);
-        handle.slot_index = 4;
-        MUST(producer_edge.enqueue(handle, 1));
+        requested_newest_received_lend_id = newest_received_lend_id;
+        consumer->receive_frame(5, 1, create_received_frame(*pool, AK::Duration::from_milliseconds(500)));
     };
-    delegates.release_slot = [&](VideoFramePoolID, u32 slot_index) {
-        events.append("release"sv);
-        released_slot_indices.append(slot_index);
-    };
-    delegates.notify_space_available = [] { };
-    auto consumer = RemoteVideoProducer::create(move(consumer_edge), VideoFrameSlotDirectory::create(), move(delegates));
-
-    for (u32 i = 0; i < 4; i++) {
-        auto handle = make_decodable_handle();
-        handle.timestamp = AK::Duration::from_milliseconds(1000 + (i * 100));
-        handle.duration = AK::Duration::from_milliseconds(100);
-        handle.slot_index = i;
-        MUST(producer_edge.enqueue(handle, 0));
-    }
+    consumer = RemoteVideoProducer::create(move(delegates));
+    Function<void()> on_release = [&] { events.append("release"sv); };
+    give_lookahead(*consumer, *pool, &on_release);
 
     consumer->seek(AK::Duration::from_milliseconds(500));
 
-    EXPECT_EQ(events.size(), 5u);
-    EXPECT_EQ(events.first(), "seek"sv);
-    EXPECT_EQ(released_slot_indices, (Vector<u32> { 0, 1, 2, 3 }));
+    EXPECT_EQ(events, (Vector<StringView> { "seek"sv, "release"sv, "release"sv, "release"sv, "release"sv }));
+    EXPECT_EQ(requested_newest_received_lend_id, 4u);
+    auto output = consumer->peek();
+    EXPECT_EQ(output.status, PipelineStatus::HaveData);
+    EXPECT_EQ(output.frame->timestamp(), AK::Duration::from_milliseconds(500));
 }
 
-// With the end of stream published, no frames exist beyond the lookahead for the producer to
+// With the end of stream received, no frames exist beyond the lookahead for the producer to
 // re-emit, so a seek past the end must resolve locally instead of discarding the queued tail.
 TEST_CASE(consumer_resolves_seeks_past_the_end_of_stream_locally)
 {
-    auto producer_edge = MUST(VideoEdgeQueue::create());
+    auto pool = MUST(VideoFramePool::create());
     size_t upstream_seeks = 0;
-    auto consumer = make_lookahead_consumer(producer_edge, upstream_seeks);
-    producer_edge.set_status(PipelineStatus::EndOfStream, 0);
+    auto consumer = RemoteVideoProducer::create(make_consumer_delegates(upstream_seeks));
+    give_lookahead(*consumer, *pool);
+    consumer->receive_status(PipelineStatus::EndOfStream, 0);
 
     consumer->seek(AK::Duration::from_milliseconds(3000));
     EXPECT_EQ(upstream_seeks, 0u);
@@ -482,128 +631,99 @@ TEST_CASE(consumer_resolves_seeks_past_the_end_of_stream_locally)
     EXPECT_EQ(upstream_seeks, 1u);
 }
 
-// Observing a suspended edge must release every undelivered frame's lend, so that the suspended
-// producer's pool memory is actually reclaimed; resuming demand-seeks past those frames anyway.
-TEST_CASE(consumer_releases_ring_contents_on_suspension)
+// Observing a suspended edge must release every queued frame, so that the suspended producer's storage is actually
+// reclaimed; resuming demand-seeks past those frames anyway.
+TEST_CASE(consumer_releases_queued_frames_on_suspension)
 {
-    auto producer_edge = MUST(VideoEdgeQueue::create());
-    auto ring_fd = MUST(Core::System::dup(producer_edge.ring_fd()));
-    auto consumer_edge = MUST(VideoEdgeQueue::create(ring_fd, producer_edge.header_buffer()));
+    auto pool = MUST(VideoFramePool::create());
+    size_t upstream_seeks = 0;
+    size_t released_frames = 0;
+    Function<void()> on_release = [&] { released_frames++; };
+    auto consumer = RemoteVideoProducer::create(make_consumer_delegates(upstream_seeks));
+    give_lookahead(*consumer, *pool, &on_release);
 
-    size_t released_slots = 0;
-    size_t space_notifications = 0;
-    RemoteVideoProducer::Delegates delegates;
-    delegates.request_start = [] { };
-    delegates.request_seek = [](AK::Duration, InvalidateHeldData) { };
-    delegates.release_slot = [&released_slots](VideoFramePoolID, u32) { released_slots++; };
-    delegates.notify_space_available = [&space_notifications] { space_notifications++; };
-    auto consumer = RemoteVideoProducer::create(move(consumer_edge), VideoFrameSlotDirectory::create(), move(delegates));
+    consumer->receive_status(PipelineStatus::Suspended, 0);
 
-    for (u32 i = 0; i < 4; i++) {
-        auto handle = make_decodable_handle();
-        handle.timestamp = AK::Duration::from_milliseconds(1000 + (i * 100));
-        handle.duration = AK::Duration::from_milliseconds(100);
-        handle.slot_index = i;
-        MUST(producer_edge.enqueue(handle, 0));
-    }
-    producer_edge.set_status(PipelineStatus::Suspended, 0);
-
-    consumer->notify_data_available();
-
-    EXPECT_EQ(released_slots, 4u);
-    EXPECT_EQ(space_notifications, 1u);
+    EXPECT_EQ(released_frames, 4u);
     auto output = consumer->peek();
     EXPECT(output.frame == nullptr);
     EXPECT_EQ(output.status, PipelineStatus::Suspended);
 }
 
-// A ring item's times are raw words the peer wrote; one that is not a canonical Duration must not reach Duration
-// arithmetic, which would abort the consumer's process.
-TEST_CASE(consumer_reads_forged_frame_times_without_aborting)
+// Frames lent under a seek the consumer has moved past are released as they arrive, and so are frames past the
+// queue's limit, so that a peer cannot make the consumer hold its storage without end.
+TEST_CASE(consumer_releases_frames_it_does_not_queue)
 {
-    auto producer_edge = MUST(VideoEdgeQueue::create());
+    auto pool = MUST(VideoFramePool::create());
     size_t upstream_seeks = 0;
-    auto consumer = make_lookahead_consumer(producer_edge, upstream_seeks);
+    size_t released_frames = 0;
+    auto consumer = RemoteVideoProducer::create(make_consumer_delegates(upstream_seeks));
 
-    auto handle = make_decodable_handle();
-    handle.duration = AK::Duration::from_milliseconds(100);
-    SharedMemoryCodec<AK::Duration>::Representation forged_timestamp { 1, 2'000'000'000 };
-    __builtin_memcpy(&handle.timestamp, &forged_timestamp, sizeof(forged_timestamp));
-    MUST(producer_edge.enqueue(handle, 0));
+    consumer->seek(AK::Duration::from_seconds(5));
+    consumer->receive_frame(1, 0, create_received_frame(*pool, AK::Duration::zero(), [&] { released_frames++; }));
+    EXPECT_EQ(released_frames, 1u);
+    EXPECT_EQ(consumer->peek().status, PipelineStatus::Pending);
 
-    consumer->seek(AK::Duration::from_milliseconds(1450));
-    EXPECT_EQ(upstream_seeks, 1u);
+    for (u64 i = 0; i < RemoteVideoProducer::MAX_QUEUED_FRAME_COUNT + 2; i++)
+        consumer->receive_frame(i + 2, 1, create_received_frame(*pool, AK::Duration::from_milliseconds(5000 + i), [&] { released_frames++; }));
+    EXPECT_EQ(released_frames, 3u);
 }
 
-namespace {
-
-NonnullRefPtr<VideoFrame> create_pooled_frame(VideoFramePool& pool, AK::Duration timestamp)
-{
-    static constexpr Gfx::IntSize frame_size { 2, 2 };
-    static constexpr u8 bit_depth = 8;
-    auto subsampling = Subsampling(true, true);
-
-    auto layout = MUST(frame_plane_layout(frame_size, bit_depth, subsampling));
-    auto acquired = pool.try_acquire(layout.total_byte_count).release_value();
-    auto slot = MUST(pool.try_adopt_acquired_slot(acquired));
-
-    return make_ref_counted<VideoFrame>(timestamp, AK::Duration::from_milliseconds(33), Gfx::Size<u32>(frame_size), bit_depth, subsampling, CodingIndependentCodePoints {}, move(slot));
-}
-
-}
-
-// While a seek request is in flight, the pump must leave the producer's frames where the seek can still find
-// them, instead of moving them into the ring under a stamp the consumer has already superseded.
-TEST_CASE(pump_holds_off_while_a_seek_request_is_in_flight)
+// The sink's input has moved past the frames on their way to the consumer when the consumer asks for a seek. If those
+// frames hold the target, they are lent again under the seek's stamp instead of seeking the input back.
+TEST_CASE(sink_lends_frames_on_their_way_again_for_a_seek_into_them)
 {
     auto& loop = never_destroyed_event_loop();
-
-    RemoteVideoSink::Delegates delegates;
-    delegates.ring_data_available = [] { };
-    delegates.transmit_seek = [](InvalidateHeldData) { };
-    delegates.transmit_time_reader = [](MediaTimeReader const&) { };
-    delegates.announce_slot = [](VideoFramePoolID, u32, Core::AnonymousBuffer, RefPtr<VideoSurface>) { };
-    delegates.retire_pool = [](VideoFramePoolID) { };
-    auto sink = MUST(RemoteVideoSink::create(move(delegates)));
+    auto recorder = make_ref_counted<LentFrameRecorder>();
+    auto sink = make_recorded_sink(*recorder);
 
     auto pool = MUST(VideoFramePool::create());
     auto producer = ScriptedVideoProducer::create();
-    producer->append_frame(create_pooled_frame(*pool, AK::Duration::zero()));
-    producer->append_frame(create_pooled_frame(*pool, AK::Duration::from_milliseconds(33)));
-
-    auto ring_fd = MUST(Core::System::dup(sink->edge().ring_fd()));
-    auto consumer_edge = MUST(VideoEdgeQueue::create(ring_fd, sink->edge().header_buffer()));
-
-    // The consumer has requested a seek the pump has not applied yet.
-    consumer_edge.set_requested_seek_id(1);
+    for (int i = 0; i < 4; i++)
+        producer->append_frame(create_pooled_frame(*pool, AK::Duration::from_milliseconds(i * 33)));
     MUST(sink->connect_input(producer));
     sink->start_input();
+    EXPECT(spin_until(loop, [&] { return recorder->count() == 4; }));
 
-    auto hold_off_deadline = MonotonicTime::now_coarse() + AK::Duration::from_milliseconds(100);
-    while (MonotonicTime::now_coarse() < hold_off_deadline) {
-        EXPECT(!consumer_edge.peek().has_value());
-        loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    // The consumer had received only the first frame.
+    auto newest_received_lend_id = recorder->at(0).lend_id;
+    sink->seek_upstream(AK::Duration::from_milliseconds(70), InvalidateHeldData::No, newest_received_lend_id);
+    EXPECT_EQ(producer->seek_count(), 0u);
+
+    if (!spin_until(loop, [&] { return recorder->count() == 6; })) {
+        FAIL("The frames on their way were not lent again");
+        return;
     }
-
-    // Applying the seek lets pumping resume, with the frames stamped for the request.
-    sink->seek_upstream(AK::Duration::zero());
-    EXPECT(spin_until(loop, [&] { return consumer_edge.peek().has_value(); }));
-    EXPECT_EQ(consumer_edge.peek()->seek_id, 1u);
+    EXPECT_EQ(recorder->at(4).seek_id, 1u);
+    EXPECT_EQ(recorder->at(4).metadata.timestamp, AK::Duration::from_milliseconds(66));
+    EXPECT_EQ(recorder->at(5).metadata.timestamp, AK::Duration::from_milliseconds(99));
+    EXPECT(recorder->at(5).lend_id > recorder->at(3).lend_id);
 }
 
-namespace {
-
-NonnullRefPtr<RemoteVideoSink> make_sink_with_inert_delegates()
+// A seek outside the frames on their way to the consumer goes to the input, whether those frames end before the target
+// or the consumer had received them all.
+TEST_CASE(sink_seeks_its_input_for_seeks_outside_the_frames_on_their_way)
 {
-    RemoteVideoSink::Delegates delegates;
-    delegates.ring_data_available = [] { };
-    delegates.transmit_seek = [](InvalidateHeldData) { };
-    delegates.transmit_time_reader = [](MediaTimeReader const&) { };
-    delegates.announce_slot = [](VideoFramePoolID, u32, Core::AnonymousBuffer, RefPtr<VideoSurface>) { };
-    delegates.retire_pool = [](VideoFramePoolID) { };
-    return MUST(RemoteVideoSink::create(move(delegates)));
-}
+    auto& loop = never_destroyed_event_loop();
+    auto recorder = make_ref_counted<LentFrameRecorder>();
+    auto sink = make_recorded_sink(*recorder);
 
+    auto pool = MUST(VideoFramePool::create());
+    auto producer = ScriptedVideoProducer::create();
+    for (int i = 0; i < 4; i++)
+        producer->append_frame(create_pooled_frame(*pool, AK::Duration::from_milliseconds(i * 33)));
+    MUST(sink->connect_input(producer));
+    sink->start_input();
+    EXPECT(spin_until(loop, [&] { return recorder->count() == 4; }));
+
+    sink->seek_upstream(AK::Duration::from_seconds(5), InvalidateHeldData::No, recorder->at(0).lend_id);
+    EXPECT_EQ(producer->seek_count(), 1u);
+
+    sink->seek_upstream(AK::Duration::from_milliseconds(70), InvalidateHeldData::No, recorder->at(3).lend_id);
+    EXPECT_EQ(producer->seek_count(), 2u);
+
+    sink->seek_upstream(AK::Duration::from_milliseconds(70), InvalidateHeldData::Yes, recorder->at(0).lend_id);
+    EXPECT_EQ(producer->seek_count(), 3u);
 }
 
 // A seek the consumer holds nothing for goes to the input right away, and the consumer's request for it, which
@@ -616,31 +736,10 @@ TEST_CASE(sink_seeks_its_input_directly_when_the_consumer_holds_nothing_for_the_
 
     sink->seek(AK::Duration::from_seconds(1));
     EXPECT_EQ(producer->seek_count(), 1u);
-    sink->seek_upstream(AK::Duration::from_seconds(1));
+    sink->seek_upstream(AK::Duration::from_seconds(1), InvalidateHeldData::No, 0);
     EXPECT_EQ(producer->seek_count(), 1u);
 
-    sink->seek_upstream(AK::Duration::from_seconds(2));
-    EXPECT_EQ(producer->seek_count(), 2u);
-}
-
-// A request the consumer has already made will seek the input to its own target, so a seek that arrives while the
-// request is on its way is left to the consumer.
-TEST_CASE(sink_leaves_a_seek_to_the_consumer_while_its_request_is_on_its_way)
-{
-    auto sink = make_sink_with_inert_delegates();
-    auto producer = ScriptedVideoProducer::create();
-    auto ring_fd = MUST(Core::System::dup(sink->edge().ring_fd()));
-    auto consumer_edge = MUST(VideoEdgeQueue::create(ring_fd, sink->edge().header_buffer()));
-    MUST(sink->connect_input(producer));
-
-    consumer_edge.set_requested_seek_id(1);
-    sink->seek(AK::Duration::from_seconds(2));
-    EXPECT_EQ(producer->seek_count(), 0u);
-
-    sink->seek_upstream(AK::Duration::from_seconds(1));
-    EXPECT_EQ(producer->seek_count(), 1u);
-    consumer_edge.set_requested_seek_id(2);
-    sink->seek_upstream(AK::Duration::from_seconds(2));
+    sink->seek_upstream(AK::Duration::from_seconds(2), InvalidateHeldData::No, 0);
     EXPECT_EQ(producer->seek_count(), 2u);
 }
 
@@ -650,12 +749,11 @@ TEST_CASE(sink_leaves_a_seek_to_the_consumer_while_its_request_is_on_its_way)
 TEST_CASE(a_request_for_another_seek_supersedes_the_direct_seek)
 {
     auto& loop = never_destroyed_event_loop();
-    auto sink = make_sink_with_inert_delegates();
+    auto recorder = make_ref_counted<LentFrameRecorder>();
+    auto sink = make_recorded_sink(*recorder);
 
     auto pool = MUST(VideoFramePool::create());
     auto producer = ScriptedVideoProducer::create();
-    auto ring_fd = MUST(Core::System::dup(sink->edge().ring_fd()));
-    auto consumer_edge = MUST(VideoEdgeQueue::create(ring_fd, sink->edge().header_buffer()));
     MUST(sink->connect_input(producer));
     sink->start_input();
 
@@ -663,14 +761,12 @@ TEST_CASE(a_request_for_another_seek_supersedes_the_direct_seek)
     EXPECT_EQ(producer->seek_count(), 1u);
 
     producer->append_frame(create_pooled_frame(*pool, AK::Duration::from_seconds(2)));
-    consumer_edge.set_requested_seek_id(1);
-    sink->seek_upstream(AK::Duration::from_seconds(2));
+    sink->seek_upstream(AK::Duration::from_seconds(2), InvalidateHeldData::No, 0);
     EXPECT_EQ(producer->seek_count(), 2u);
-    EXPECT(spin_until(loop, [&] { return consumer_edge.peek().has_value(); }));
-    EXPECT_EQ(consumer_edge.peek()->seek_id, 1u);
+    EXPECT(spin_until(loop, [&] { return recorder->count() == 1; }));
+    EXPECT_EQ(recorder->at(0).seek_id, 1u);
 
-    consumer_edge.set_requested_seek_id(2);
-    sink->seek_upstream(AK::Duration::from_seconds(1));
+    sink->seek_upstream(AK::Duration::from_seconds(1), InvalidateHeldData::No, recorder->at(0).lend_id);
     EXPECT_EQ(producer->seek_count(), 3u);
 }
 
@@ -679,23 +775,20 @@ TEST_CASE(a_request_for_another_seek_supersedes_the_direct_seek)
 TEST_CASE(sink_leaves_seeks_within_the_lent_frames_to_the_consumer)
 {
     auto& loop = never_destroyed_event_loop();
-    auto sink = make_sink_with_inert_delegates();
+    auto recorder = make_ref_counted<LentFrameRecorder>();
+    auto sink = make_recorded_sink(*recorder);
 
     auto pool = MUST(VideoFramePool::create());
     auto producer = ScriptedVideoProducer::create();
     producer->append_frame(create_pooled_frame(*pool, AK::Duration::zero()));
     producer->append_frame(create_pooled_frame(*pool, AK::Duration::from_milliseconds(33)));
-
-    auto ring_fd = MUST(Core::System::dup(sink->edge().ring_fd()));
-    auto consumer_edge = MUST(VideoEdgeQueue::create(ring_fd, sink->edge().header_buffer()));
     MUST(sink->connect_input(producer));
     sink->start_input();
-    EXPECT(spin_until(loop, [&] { return consumer_edge.peek_newest().has_value() && consumer_edge.peek_newest()->handle.timestamp == AK::Duration::from_milliseconds(33); }));
+    EXPECT(spin_until(loop, [&] { return recorder->count() == 2; }));
 
     sink->seek(AK::Duration::from_milliseconds(20));
     EXPECT_EQ(producer->seek_count(), 0u);
-    consumer_edge.set_requested_seek_id(1);
-    sink->seek_upstream(AK::Duration::from_milliseconds(20));
+    sink->seek_upstream(AK::Duration::from_milliseconds(20), InvalidateHeldData::No, recorder->at(1).lend_id);
     EXPECT_EQ(producer->seek_count(), 1u);
 
     sink->seek(AK::Duration::from_milliseconds(500));
@@ -707,13 +800,11 @@ TEST_CASE(sink_leaves_seeks_within_the_lent_frames_to_the_consumer)
 TEST_CASE(pump_holds_off_after_a_direct_seek_until_the_consumer_requests_it)
 {
     auto& loop = never_destroyed_event_loop();
-    auto sink = make_sink_with_inert_delegates();
+    auto recorder = make_ref_counted<LentFrameRecorder>();
+    auto sink = make_recorded_sink(*recorder);
 
     auto pool = MUST(VideoFramePool::create());
     auto producer = ScriptedVideoProducer::create();
-
-    auto ring_fd = MUST(Core::System::dup(sink->edge().ring_fd()));
-    auto consumer_edge = MUST(VideoEdgeQueue::create(ring_fd, sink->edge().header_buffer()));
     MUST(sink->connect_input(producer));
     sink->seek(AK::Duration::from_seconds(1));
     EXPECT_EQ(producer->seek_count(), 1u);
@@ -724,123 +815,62 @@ TEST_CASE(pump_holds_off_after_a_direct_seek_until_the_consumer_requests_it)
 
     auto hold_off_deadline = MonotonicTime::now_coarse() + AK::Duration::from_milliseconds(100);
     while (MonotonicTime::now_coarse() < hold_off_deadline) {
-        EXPECT(!consumer_edge.peek().has_value());
+        EXPECT_EQ(recorder->count(), 0u);
         loop.pump(Core::EventLoop::WaitMode::PollForEvents);
     }
 
-    consumer_edge.set_requested_seek_id(1);
-    sink->seek_upstream(AK::Duration::from_seconds(1));
+    sink->seek_upstream(AK::Duration::from_seconds(1), InvalidateHeldData::No, 0);
     EXPECT_EQ(producer->seek_count(), 1u);
-    EXPECT(spin_until(loop, [&] { return consumer_edge.peek().has_value(); }));
-    EXPECT_EQ(consumer_edge.peek()->seek_id, 1u);
+    EXPECT(spin_until(loop, [&] { return recorder->count() > 0; }));
+    EXPECT_EQ(recorder->at(0).seek_id, 1u);
 }
 
-// A request the consumer withdraws, having resolved the seek locally after all, must let pumping resume under the
-// unchanged stamp once the consumer's next consume wakes the pump.
-TEST_CASE(pump_resumes_after_a_withdrawn_seek_request)
+// The pump stops taking frames from its input once the limit of frames lent at once is reached, until one comes back.
+TEST_CASE(pump_waits_for_a_release_once_it_has_lent_its_limit)
 {
     auto& loop = never_destroyed_event_loop();
+    auto recorder = make_ref_counted<LentFrameRecorder>();
+    auto sink = make_recorded_sink(*recorder);
 
-    RemoteVideoSink::Delegates delegates;
-    delegates.ring_data_available = [] { };
-    delegates.transmit_seek = [](InvalidateHeldData) { };
-    delegates.transmit_time_reader = [](MediaTimeReader const&) { };
-    delegates.announce_slot = [](VideoFramePoolID, u32, Core::AnonymousBuffer, RefPtr<VideoSurface>) { };
-    delegates.retire_pool = [](VideoFramePoolID) { };
-    auto sink = MUST(RemoteVideoSink::create(move(delegates)));
-
-    auto pool = MUST(VideoFramePool::create());
+    auto pool = MUST(VideoFramePool::create(VideoFramePool::DEFAULT_BYTE_BUDGET));
     auto producer = ScriptedVideoProducer::create();
-    producer->append_frame(create_pooled_frame(*pool, AK::Duration::zero()));
-    producer->append_frame(create_pooled_frame(*pool, AK::Duration::from_milliseconds(33)));
-
-    auto ring_fd = MUST(Core::System::dup(sink->edge().ring_fd()));
-    auto consumer_edge = MUST(VideoEdgeQueue::create(ring_fd, sink->edge().header_buffer()));
-
-    consumer_edge.set_requested_seek_id(1);
+    auto frame = create_pooled_frame(*pool, AK::Duration::zero());
+    for (size_t i = 0; i < RemoteVideoSink::MAX_LENT_FRAME_COUNT + 1; i++)
+        producer->append_frame(frame);
     MUST(sink->connect_input(producer));
     sink->start_input();
 
+    EXPECT(spin_until(loop, [&] { return recorder->count() == RemoteVideoSink::MAX_LENT_FRAME_COUNT; }));
     auto hold_off_deadline = MonotonicTime::now_coarse() + AK::Duration::from_milliseconds(100);
     while (MonotonicTime::now_coarse() < hold_off_deadline) {
-        EXPECT(!consumer_edge.peek().has_value());
+        EXPECT_EQ(recorder->count(), RemoteVideoSink::MAX_LENT_FRAME_COUNT);
         loop.pump(Core::EventLoop::WaitMode::PollForEvents);
     }
 
-    consumer_edge.set_requested_seek_id(0);
-    sink->notify_space_available();
-    EXPECT(spin_until(loop, [&] { return consumer_edge.peek().has_value(); }));
-    EXPECT_EQ(consumer_edge.peek()->seek_id, 0u);
+    sink->release_frame(recorder->at(0).lend_id);
+    EXPECT(spin_until(loop, [&] { return recorder->count() == RemoteVideoSink::MAX_LENT_FRAME_COUNT + 1; }));
 }
 
-TEST_CASE(stopped_pump_reclaims_only_the_frames_left_in_the_ring)
+// A stopped pump lends nothing more, but the frames it lent stay lent until the consumer releases them.
+TEST_CASE(stopped_pump_keeps_its_lent_frames_until_they_are_released)
 {
     auto& loop = never_destroyed_event_loop();
-
-    auto retired_pool_count = 0;
-    RemoteVideoSink::Delegates delegates;
-    delegates.ring_data_available = [] { };
-    delegates.transmit_seek = [](InvalidateHeldData) { };
-    delegates.transmit_time_reader = [](MediaTimeReader const&) { };
-    delegates.announce_slot = [](VideoFramePoolID, u32, Core::AnonymousBuffer, RefPtr<VideoSurface>) { };
-    delegates.retire_pool = [&](VideoFramePoolID) { retired_pool_count++; };
-    auto sink = MUST(RemoteVideoSink::create(move(delegates)));
+    auto recorder = make_ref_counted<LentFrameRecorder>();
+    auto sink = make_recorded_sink(*recorder);
 
     auto pool = MUST(VideoFramePool::create());
     auto producer = ScriptedVideoProducer::create();
     producer->append_frame(create_pooled_frame(*pool, AK::Duration::zero()));
     producer->append_frame(create_pooled_frame(*pool, AK::Duration::from_milliseconds(33)));
-
-    auto ring_fd = MUST(Core::System::dup(sink->edge().ring_fd()));
-    auto consumer_edge = MUST(VideoEdgeQueue::create(ring_fd, sink->edge().header_buffer()));
-
     MUST(sink->connect_input(producer));
     sink->start_input();
+    EXPECT(spin_until(loop, [&] { return recorder->count() == 2; }));
 
-    EXPECT(spin_until(loop, [&] {
-        auto newest = consumer_edge.peek_newest();
-        return newest.has_value() && newest->handle.timestamp == AK::Duration::from_milliseconds(33);
-    }));
-    auto taken_handle = consumer_edge.peek()->handle;
-    consumer_edge.consume();
+    sink->stop();
+    EXPECT(sink->has_lent_frames());
 
-    sink->stop_and_reclaim_unconsumed_frames();
-    EXPECT(sink->has_lent_slots());
-    EXPECT_EQ(retired_pool_count, 0);
-
-    sink->release_slot(taken_handle.pool_id, taken_handle.slot_index);
-    EXPECT(!sink->has_lent_slots());
-    EXPECT_EQ(retired_pool_count, 1);
-}
-
-TEST_CASE(consumer_forgets_announced_slots_on_suspension)
-{
-    auto producer_edge = MUST(VideoEdgeQueue::create());
-    auto ring_fd = MUST(Core::System::dup(producer_edge.ring_fd()));
-    auto consumer_edge = MUST(VideoEdgeQueue::create(ring_fd, producer_edge.header_buffer()));
-
-    auto pool = MUST(VideoFramePool::create());
-    auto frame = create_pooled_frame(*pool, AK::Duration::from_milliseconds(1000));
-    auto handle = VideoFrameHandle::for_frame(*frame);
-
-    auto directory = VideoFrameSlotDirectory::create();
-    directory->notify_slot_announced(pool->id(), handle.slot_index, pool->slot_buffer(handle.slot_index), nullptr);
-
-    RemoteVideoProducer::Delegates delegates;
-    delegates.request_start = [] { };
-    delegates.request_seek = [](AK::Duration, InvalidateHeldData) { };
-    delegates.release_slot = [](VideoFramePoolID, u32) { };
-    delegates.notify_space_available = [] { };
-    auto consumer = RemoteVideoProducer::create(move(consumer_edge), directory, move(delegates));
-
-    auto resolved_before_suspension = directory->resolve_frame(handle, [] { });
-    EXPECT(resolved_before_suspension != nullptr);
-
-    producer_edge.set_status(PipelineStatus::Suspended, 0);
-    consumer->notify_data_available();
-
-    // The decoder that announced this slot is gone, so nothing more resolves against it, while the frame that
-    // already did keeps reading what it holds.
-    EXPECT(directory->resolve_frame(handle, [] { }) == nullptr);
-    EXPECT(resolved_before_suspension->revalidate_backing());
+    sink->release_frame(recorder->at(0).lend_id);
+    EXPECT(sink->has_lent_frames());
+    sink->release_frame(recorder->at(1).lend_id);
+    EXPECT(!sink->has_lent_frames());
 }

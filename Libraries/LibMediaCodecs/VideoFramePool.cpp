@@ -39,11 +39,6 @@ SlotHeader& slot_header(Core::AnonymousBuffer& buffer)
     return *reinterpret_cast<SlotHeader*>(buffer.data<u8>());
 }
 
-SlotHeader const& slot_header(Core::AnonymousBuffer const& buffer)
-{
-    return *reinterpret_cast<SlotHeader const*>(buffer.data<u8 const>());
-}
-
 }
 
 ErrorOr<NonnullRefPtr<VideoFramePool>> VideoFramePool::create(size_t byte_budget)
@@ -428,26 +423,18 @@ void VideoFrameRelayPool::did_free_slot(u32 slot_index)
         m_adoption_released_callback(slot_index);
 }
 
-ResolvedVideoFrameSlot::ResolvedVideoFrameSlot(Core::AnonymousBuffer slot_buffer, RefPtr<VideoSurface> surface, VideoFramePoolID pool_id, u32 slot_index, u64 slot_acquisition_id, Function<void()> on_release)
-    : m_slot_buffer(move(slot_buffer))
+ReceivedVideoFrameStorage::ReceivedVideoFrameStorage(Core::AnonymousBuffer pixel_buffer, RefPtr<VideoSurface> surface, u64 sender_id, Function<void()> on_release)
+    : m_pixel_buffer(move(pixel_buffer))
     , m_surface(move(surface))
-    , m_pool_id(pool_id)
-    , m_slot_index(slot_index)
-    , m_slot_acquisition_id(slot_acquisition_id)
+    , m_sender_id(sender_id)
     , m_on_release(move(on_release))
 {
 }
 
-ResolvedVideoFrameSlot::~ResolvedVideoFrameSlot()
+ReceivedVideoFrameStorage::~ReceivedVideoFrameStorage()
 {
     if (m_on_release)
         m_on_release();
-}
-
-bool ResolvedVideoFrameSlot::revalidate() const
-{
-    AK::atomic_thread_fence(AK::MemoryOrder::memory_order_acquire);
-    return slot_header(m_slot_buffer).slot_acquisition_id.load() == m_slot_acquisition_id;
 }
 
 ErrorOr<Gfx::YUVData> yuv_data_in_slot_buffer(Core::AnonymousBuffer const& slot_buffer, Gfx::IntSize size, u8 bit_depth, Subsampling subsampling, CodingIndependentCodePoints const& cicp)
@@ -464,81 +451,30 @@ ErrorOr<Gfx::YUVData> yuv_data_in_slot_buffer(Core::AnonymousBuffer const& slot_
     return Gfx::YUVData::create(size, bit_depth, subsampling, cicp, bytes.slice(0, layout.y_size), bytes.slice(layout.u_offset, layout.u_size), bytes.slice(layout.v_offset, layout.v_size));
 }
 
-ErrorOr<NonnullRefPtr<VideoFrame>> resolve_frame_from_slot(Core::AnonymousBuffer const& slot_buffer, RefPtr<VideoSurface> surface, VideoFrameHandle const& handle, Function<void()> on_release)
+ErrorOr<NonnullRefPtr<VideoFrame>> create_received_video_frame(VideoFrameMetadata const& metadata, Core::AnonymousBuffer pixel_buffer, RefPtr<VideoSurface> surface, u64 sender_id, Function<void()> on_release)
 {
-    if (!slot_buffer.is_valid() || slot_buffer.size() < slot_data_offset())
-        return Error::from_string_literal("Invalid video frame slot buffer");
-    if (!handle.is_valid())
-        return Error::from_string_literal("Video frame handle describes a frame that could not have been decoded");
+    auto storage_or_error = try_make_ref_counted<ReceivedVideoFrameStorage>(move(pixel_buffer), move(surface), sender_id, move(on_release));
+    if (storage_or_error.is_error()) {
+        if (on_release)
+            on_release();
+        return storage_or_error.release_error();
+    }
+    auto storage = storage_or_error.release_value();
 
-    // A surface holds the pixels itself, so only an inline framebuffer has a plane layout to validate.
-    if (surface == nullptr) {
-        TRY(yuv_data_in_slot_buffer(slot_buffer, handle.size, handle.bit_depth, handle.subsampling, handle.cicp));
+    if (!metadata.is_valid())
+        return Error::from_string_literal("Video frame metadata describes a frame that could not have been decoded");
+
+    if (auto const& received_surface = storage->surface()) {
+        if (storage->pixel_buffer().is_valid())
+            return Error::from_string_literal("Video frame was sent with both a surface and a pixel buffer");
+        auto surface_size = received_surface->size();
+        if (metadata.subsampling != Subsampling::yuv420() || metadata.size.width() > surface_size.width() || metadata.size.height() > surface_size.height())
+            return Error::from_string_literal("Video frame metadata does not match its surface");
     } else {
-        auto surface_size = surface->size();
-        if (handle.subsampling.value() != Subsampling::yuv420() || handle.size.width() > surface_size.width() || handle.size.height() > surface_size.height())
-            return Error::from_string_literal("Video frame handle does not match its surface");
+        TRY(yuv_data_in_slot_buffer(storage->pixel_buffer(), metadata.size, metadata.bit_depth, metadata.subsampling, metadata.cicp));
     }
 
-    if (slot_header(slot_buffer).slot_acquisition_id.load(AK::MemoryOrder::memory_order_acquire) != handle.slot_acquisition_id)
-        return Error::from_string_literal("VideoFrameHandle refers to a recycled slot");
-
-    auto resolved_slot = TRY(try_make_ref_counted<ResolvedVideoFrameSlot>(slot_buffer, move(surface), handle.pool_id, handle.slot_index, handle.slot_acquisition_id, move(on_release)));
-    return try_make_ref_counted<VideoFrame>(handle.timestamp, handle.duration, handle.size.to_type<u32>(), handle.bit_depth, handle.subsampling, handle.cicp, move(resolved_slot));
-}
-
-NonnullRefPtr<VideoFrameSlotDirectory> VideoFrameSlotDirectory::create()
-{
-    return adopt_ref(*new VideoFrameSlotDirectory());
-}
-
-VideoFrameSlotDirectory::~VideoFrameSlotDirectory() = default;
-
-void VideoFrameSlotDirectory::set_on_slots_changed(Function<void()> on_slots_changed)
-{
-    m_on_slots_changed = move(on_slots_changed);
-}
-
-void VideoFrameSlotDirectory::notify_slot_announced(VideoFramePoolID pool_id, u32 slot_index, Core::AnonymousBuffer slot_buffer, RefPtr<VideoSurface> surface)
-{
-    if (!slot_buffer.is_valid() || slot_buffer.size() < slot_data_offset())
-        return;
-    m_slots_by_pool_id.ensure(pool_id).set(slot_index, AnnouncedSlot { move(slot_buffer), move(surface) });
-    if (m_on_slots_changed)
-        m_on_slots_changed();
-}
-
-void VideoFrameSlotDirectory::notify_pool_retired(VideoFramePoolID pool_id)
-{
-    m_slots_by_pool_id.remove(pool_id);
-}
-
-void VideoFrameSlotDirectory::notify_all_pools_retired()
-{
-    m_slots_by_pool_id.clear();
-}
-
-RefPtr<VideoFrame> VideoFrameSlotDirectory::resolve_frame(VideoFrameHandle const& handle, Function<void()> on_release) const
-{
-    auto slots = m_slots_by_pool_id.get(handle.pool_id);
-    if (!slots.has_value())
-        return nullptr;
-    auto slot = slots->get(handle.slot_index);
-    if (!slot.has_value())
-        return nullptr;
-
-    // A frame's handle reaches us through the frame ring while the buffer it was written into is announced by
-    // message, so a handle can arrive before the buffer it belongs to. Acquisition IDs count up per slot across
-    // every buffer it is given, so one running ahead of the announced buffer's is that wait rather than a loss.
-    if (slot_header(slot->buffer).slot_acquisition_id.load(AK::MemoryOrder::memory_order_acquire) < handle.slot_acquisition_id)
-        return nullptr;
-
-    auto frame_or_error = resolve_frame_from_slot(slot->buffer, slot->surface, handle, move(on_release));
-    if (frame_or_error.is_error()) {
-        dbgln("VideoFrameSlotDirectory: Slot {} of pool {} was announced but did not resolve: {}", handle.slot_index, handle.pool_id, frame_or_error.error());
-        return nullptr;
-    }
-    return frame_or_error.release_value();
+    return try_make_ref_counted<VideoFrame>(metadata.timestamp, metadata.duration, metadata.size.to_type<u32>(), metadata.bit_depth, metadata.subsampling, metadata.cicp, move(storage));
 }
 
 }
