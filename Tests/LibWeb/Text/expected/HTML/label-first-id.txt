@@ -1,0 +1,4 @@
+First matching element blocks association (http://www.w3.org/1999/xhtml): false
+Removing the first match exposes the control (http://www.w3.org/1999/xhtml): true
+First matching element blocks association (http://www.w3.org/2000/svg): false
+Removing the first match exposes the control (http://www.w3.org/2000/svg): true

@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const namespace of ["http://www.w3.org/1999/xhtml", "http://www.w3.org/2000/svg"]) {
+            const root = document.createElement("div");
+            const blocker = document.createElementNS(namespace, namespace.endsWith("svg") ? "svg" : "div");
+            blocker.id = "target";
+            const input = document.createElement("input");
+            input.id = "target";
+            const label = document.createElement("label");
+            label.htmlFor = "target";
+            root.append(blocker, input, label);
+            println(`First matching element blocks association (${namespace}): ${label.control === null && input.labels.length === 0}`);
+            blocker.remove();
+            println(`Removing the first match exposes the control (${namespace}): ${label.control === input && input.labels[0] === label}`);
+        }
+    });
+</script>
