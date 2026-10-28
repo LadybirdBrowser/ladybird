@@ -372,12 +372,20 @@ fn transform_value_is_invertible(property: u16, values: ComputedValuesView<'_>) 
         let StyleValueData::Transformation {
             transform_function,
             values,
+            matrix_values,
             ..
         } = value
         else {
             return None;
         };
-        let matrix = crate::css::table_group_builder::transformation_to_matrix(*transform_function, values.as_slice());
+        let matrix = crate::css::table_group_builder::transformation_to_matrix(
+            *transform_function,
+            if matrix_values.as_slice().is_empty() {
+                values.as_slice()
+            } else {
+                matrix_values.as_slice()
+            },
+        );
         let mut elements = [[0.0; 4]; 4];
         for (index, value) in matrix.into_iter().enumerate() {
             elements[index / 4][index % 4] = value;

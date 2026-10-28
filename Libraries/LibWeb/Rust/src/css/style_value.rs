@@ -578,6 +578,31 @@ impl RetainedStyleValueDataList {
     }
 }
 
+/// Preserve matrix-only literal angles only while their canonical argument is unchanged.
+/// All other slots come from the newly mapped values, so lengths and rotation axes cannot become stale.
+pub(crate) fn map_transform_matrix_values(
+    previous: &[RetainedStyleValueData],
+    values: &[RetainedStyleValueData],
+    matrix_values: &[RetainedStyleValueData],
+) -> RetainedStyleValueDataList {
+    let mut mapped = Vec::new();
+    for (index, matrix_value) in matrix_values.iter().enumerate() {
+        let (Some(previous), Some(value)) = (previous.get(index), values.get(index)) else {
+            continue;
+        };
+        if matches!(matrix_value.data(), StyleValueData::Angle { .. })
+            && previous.data() == value.data()
+            && matrix_value.data() != value.data()
+        {
+            if mapped.is_empty() {
+                mapped = values.to_vec();
+            }
+            mapped[index] = matrix_value.clone_retained();
+        }
+    }
+    RetainedStyleValueDataList::from_retained_values(mapped)
+}
+
 impl Clone for RetainedStyleValueDataList {
     fn clone(&self) -> Self {
         let mut cloned_by_pointer = Vec::new();
@@ -2225,6 +2250,9 @@ pub enum StyleValueData {
         property: u16,
         transform_function: u8,
         values: RetainedStyleValueDataList,
+        /// Matrix-only arguments preserving literal angle precision across canonicalization.
+        /// Empty when the canonical arguments lower to the same matrix inputs.
+        matrix_values: RetainedStyleValueDataList,
     },
     /// A shorthand property value: the shorthand id, its longhand ids (both C++
     /// `enum class PropertyID : u16`, opaque to Rust) and their values.
@@ -3037,10 +3065,12 @@ impl StyleValueData {
                 property,
                 transform_function,
                 values,
+                matrix_values,
             } => {
                 hasher.write_u16(*property);
                 hasher.write_u8(*transform_function);
                 write_values(hasher, values);
+                write_values(hasher, matrix_values);
             }
             Self::Shorthand {
                 shorthand_property,
@@ -3332,6 +3362,7 @@ pub unsafe extern "C" fn rust_style_value_create_transformation(
         property,
         transform_function,
         values: unsafe { RetainedStyleValueDataList::from_retained_pointers(values, length) },
+        matrix_values: crate::css::style_value::RetainedStyleValueDataList::from_retained_values(Vec::new()),
     }))
 }
 
