@@ -2178,7 +2178,7 @@ impl<'pass> MathFormattingContext<'pass> {
         let laid_out_box = laid_out_box.expect("the layout of a math child leaves its box");
         self.placed_children.borrow_mut().insert(
             child,
-            formatting_context::PlacedChild::of_laid_out_box(&laid_out_box, line_data, run.callbacks.frame),
+            formatting_context::PlacedChild::of_laid_out_box(&laid_out_box, line_data),
         );
         outcome.report_percentage_block_size_dependency_of(run, child);
         let metrics = laid_out_box.cells;

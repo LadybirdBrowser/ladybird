@@ -1284,13 +1284,10 @@ impl<'context> InlineFormattingContext<'context> {
             .borrow()
             .get(&node)
             .expect("the inline formatting context entered the inline box");
-        formatting_context::PlacedChild::new(
-            fragment_tree::FragmentGeometry {
-                cells: entered.sides,
-                line_data: None,
-            },
-            self.callbacks.frame,
-        )
+        formatting_context::PlacedChild::new(fragment_tree::FragmentGeometry {
+            cells: entered.sides,
+            line_data: None,
+        })
         .with_in_flow_box_insets(entered.insets)
     }
 
@@ -1518,7 +1515,7 @@ impl<'context> InlineFormattingContext<'context> {
         };
         let (placed_child, laid_out_cells) = match laid_out_box {
             Some(laid_out_box) => (
-                formatting_context::PlacedChild::of_laid_out_box(&laid_out_box, line_data, self.callbacks.frame),
+                formatting_context::PlacedChild::of_laid_out_box(&laid_out_box, line_data),
                 laid_out_box.cells,
             ),
             // NB: The box was laid out by this context's parent flow, in the record it keeps here.

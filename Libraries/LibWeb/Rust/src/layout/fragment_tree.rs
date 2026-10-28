@@ -676,19 +676,11 @@ impl PlacementData {
         }
     }
 
-    /// The placement data of `node`, a child the run left unplaced, which `close()` hands on as `unplaced_child`
-    /// shows it.
+    /// The placement data of a child the run left unplaced, which `close()` hands on as `unplaced_child` shows it.
     fn of_unplaced_child(
         unplaced_child: &crate::layout::formatting_context::PlacedChild,
-        node: crate::layout::node_data::NodeSlotId,
         frame: geometry::Frame,
     ) -> Self {
-        if cfg!(debug_assertions) || crate::layout::run_repeatability::verification_is_enabled() {
-            assert_eq!(
-                unplaced_child.frame, frame,
-                "{node:?} is left unplaced in another frame than the one its box is kept in"
-            );
-        }
         Self::of_box(
             &unplaced_child.facts_decided_by_parent,
             None,
@@ -1766,7 +1758,7 @@ impl RunFragmentBuilder {
                 } => {
                     let node = fragment.node;
                     inner.reused_subtree_roots.insert(node.slot_index());
-                    let placement = PlacementData::of_unplaced_child(&unplaced_child, node, callbacks.frame);
+                    let placement = PlacementData::of_unplaced_child(&unplaced_child, callbacks.frame);
                     inner.top_scope_links.push(link_fragment(
                         snapshot_fragment(
                             callbacks,
@@ -1795,7 +1787,7 @@ impl RunFragmentBuilder {
             if reuses_committed_subtree {
                 inner.reused_subtree_roots.insert(root.node.slot_index());
             }
-            let placement = PlacementData::of_unplaced_child(&unplaced_child, root.node, callbacks.frame);
+            let placement = PlacementData::of_unplaced_child(&unplaced_child, callbacks.frame);
             inner.top_scope_links.push(link_fragment(
                 snapshot_fragment(
                     callbacks,

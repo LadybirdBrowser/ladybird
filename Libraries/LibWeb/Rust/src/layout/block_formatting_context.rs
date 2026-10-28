@@ -2210,7 +2210,7 @@ impl<'pass> BlockFormattingContext<'pass> {
 
         self.place_laid_out_child(
             marker,
-            formatting_context::PlacedChild::of_laid_out_box(&marker_box, marker_line_data, self.run.callbacks.frame),
+            formatting_context::PlacedChild::of_laid_out_box(&marker_box, marker_line_data),
             FfiCssPixelPoint {
                 x: round_css_pixels(marker_inline_offset),
                 y: marker_block_offset,
@@ -2795,7 +2795,6 @@ impl<'pass> BlockFormattingContext<'pass> {
                 child_handed_back_by_its_run = Some(formatting_context::PlacedChild::of_laid_out_box(
                     &laid_out_box,
                     line_data,
-                    self.run.callbacks.frame,
                 ));
                 laid_out_box_handed_back_by_its_run = Some(laid_out_box);
             }
@@ -4853,9 +4852,9 @@ impl<'pass> BlockFormattingContext<'pass> {
         let (float_layout, fragment_arrival, float_box, float_line_data) =
             self.layout_inside(run, node, block_container, float_input, false);
         // NB: A float its own run laid out is placed as that run handed it back, and any other with its record here.
-        let float_handed_back_by_its_run = float_layout.is_some().then(|| {
-            formatting_context::PlacedChild::of_laid_out_box(&float_box, float_line_data, self.run.callbacks.frame)
-        });
+        let float_handed_back_by_its_run = float_layout
+            .is_some()
+            .then(|| formatting_context::PlacedChild::of_laid_out_box(&float_box, float_line_data));
         let laid_out_float_handed_back_by_its_run = float_layout.is_some().then_some(float_box);
         let containing_block_rect = self.containing_block_rect(block_container, containing_block_position_in_root);
         let containing_block_rect_now = containing_block_rect.translated(
