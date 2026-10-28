@@ -13,6 +13,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HTML/Scripting/DevToolsObjectTable.h>
 #include <LibWeb/Internals/InternalAnimationTimeline.h>
 #include <LibWeb/Internals/InternalsBase.h>
 #include <LibWeb/Painting/Forward.h>
@@ -134,6 +135,8 @@ public:
 
     Utf16String selected_text_for_clipboard();
     Optional<Utf16String> generate_text_fragment_url(DOM::Range&, Utf16String const& current_url);
+    Utf16String devtools_grip(JS::Value);
+    Utf16String devtools_properties(JS::Value);
 
     void find_in_page(Utf16String const& query, bool highlight_all);
     void find_in_page_next_match();
@@ -355,6 +358,7 @@ private:
     bool m_actions_running { false };
     Optional<Utf16String> m_pending_action_test_result;
     Vector<GC::Ref<InternalGamepad>> m_gamepads;
+    Optional<HTML::DevToolsObjectTable> m_devtools_object_table;
 };
 
 }

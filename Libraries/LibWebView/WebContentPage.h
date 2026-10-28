@@ -240,7 +240,7 @@ private:
     virtual void did_get_selected_text_for_lookup(u64 request_id, Optional<DictionaryLookup> lookup) override;
     virtual void did_select_word_for_dictionary_lookup(u64 request_id, bool selected) override;
     virtual void did_cut_selected_text(u64 request_id, ByteString selection) override;
-    virtual void did_execute_js_console_input(JsonValue result) override;
+    virtual void did_execute_js_console_input(DebuggerValue result) override;
     virtual void did_output_js_console_message(ConsoleOutput console_output) override;
     virtual void did_block_resource(URL::URL url, String kind) override;
     virtual void did_start_network_request(u64 request_id, URL::URL url, ByteString method, Vector<HTTP::Header> request_headers, ByteBuffer request_body, Optional<String> initiator_type, String referrer_policy, bool is_navigation_request, Web::Fetch::Infrastructure::RequestPriority priority) override;

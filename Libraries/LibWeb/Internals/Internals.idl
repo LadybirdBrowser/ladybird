@@ -127,6 +127,8 @@ interface Internals {
 
     // Test-only entry point for the browser's "Copy Link to Highlight" generator.
     DOMString? generateTextFragmentURL(Range range, USVString currentURL);
+    DOMString devtoolsGrip(any value);
+    DOMString devtoolsProperties(any value);
 
     // Drive marked/preedit-text composition via the same path platform input methods use. setMarkedTextFromInputMethod
     // updates the inline preedit — replacing any previous preedit. commitText finalizes the composition with the given

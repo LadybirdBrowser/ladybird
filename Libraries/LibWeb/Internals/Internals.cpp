@@ -85,6 +85,7 @@
 #include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
+#include <LibWeb/HTML/Scripting/DevToolsObjectTable.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
@@ -180,6 +181,8 @@ void Internals::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_gamepads);
+    if (m_devtools_object_table.has_value())
+        m_devtools_object_table->visit_edges(visitor);
 }
 
 void Internals::signal_test_is_done(Utf16String const& text)
@@ -1144,6 +1147,36 @@ Optional<Utf16String> Internals::generate_text_fragment_url(DOM::Range& range, U
     if (!generated_url.has_value())
         return {};
     return Utf16String::from_utf8(generated_url->serialize());
+}
+
+// The grip that the DevTools console shows for a value, from a new table.
+Utf16String Internals::devtools_grip(JS::Value value)
+{
+    m_devtools_object_table.emplace(HTML::DevToolsObjectTable::RootObjects::No);
+    return Utf16String::from_utf8(m_devtools_object_table->serialize_value_as_grip(value).serialized());
+}
+
+// What DevTools lists when an object is expanded: the names of its own properties, and the class of its prototype.
+Utf16String Internals::devtools_properties(JS::Value value)
+{
+    m_devtools_object_table.emplace(HTML::DevToolsObjectTable::RootObjects::No);
+    auto serialized = m_devtools_object_table->serialize_value(value);
+    if (serialized.type != WebView::DebuggerValueType::Object)
+        return "not an object"_utf16;
+
+    auto properties = m_devtools_object_table->properties_for_object(serialized.object_id);
+    if (properties.is_error())
+        return Utf16String::from_utf8(properties.error().string_literal());
+
+    JsonArray names;
+    for (auto const& property : properties.value().properties)
+        names.must_append(property.name.to_utf8());
+
+    JsonObject result;
+    result.set("properties"sv, move(names));
+    if (auto const& prototype = properties.value().prototype; prototype.has_value())
+        result.set("prototype"sv, prototype->type == WebView::DebuggerValueType::Object ? JsonValue { prototype->object_class } : JsonValue {});
+    return Utf16String::from_utf8(result.serialized());
 }
 
 void Internals::set_marked_text_from_input_method(Utf16String const& text)

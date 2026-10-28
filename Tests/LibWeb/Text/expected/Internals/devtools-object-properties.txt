@@ -1,0 +1,5 @@
+object: {"properties":["a","b"],"prototype":"Object"}
+array: {"properties":["0","1","length"],"prototype":"Array"}
+null prototype: {"properties":[],"prototype":null}
+proxy: {"properties":[]}
+proxy traps run: []

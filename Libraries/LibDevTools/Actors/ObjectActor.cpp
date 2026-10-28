@@ -10,16 +10,17 @@
 
 namespace DevTools {
 
-NonnullRefPtr<ObjectActor> ObjectActor::create(DevToolsServer& devtools, String name, WeakPtr<ThreadActor> thread, u64 object_id, String class_name)
+NonnullRefPtr<ObjectActor> ObjectActor::create(DevToolsServer& devtools, String name, WeakPtr<ThreadActor> thread, u64 object_id, String class_name, WebView::DebuggerObjectScope scope)
 {
-    return adopt_ref(*new ObjectActor(devtools, move(name), move(thread), object_id, move(class_name)));
+    return adopt_ref(*new ObjectActor(devtools, move(name), move(thread), object_id, move(class_name), scope));
 }
 
-ObjectActor::ObjectActor(DevToolsServer& devtools, String name, WeakPtr<ThreadActor> thread, u64 object_id, String class_name)
+ObjectActor::ObjectActor(DevToolsServer& devtools, String name, WeakPtr<ThreadActor> thread, u64 object_id, String class_name, WebView::DebuggerObjectScope scope)
     : Actor(devtools, move(name))
     , m_thread(move(thread))
     , m_object_id(object_id)
     , m_class_name(move(class_name))
+    , m_scope(scope)
 {
 }
 

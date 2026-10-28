@@ -4208,14 +4208,14 @@ void Application::evaluate_javascript_in_debugger_frame(DevTools::TabDescription
     view->evaluate_javascript_in_debugger_frame(frame_id, source_text, move(on_complete));
 }
 
-void Application::retrieve_debugger_object_properties(DevTools::TabDescription const& description, u64 object_id, OnDebuggerObjectPropertiesReceived on_complete) const
+void Application::retrieve_debugger_object_properties(DevTools::TabDescription const& description, u64 object_id, DebuggerObjectScope scope, OnDebuggerObjectPropertiesReceived on_complete) const
 {
     auto view = ViewImplementation::find_view_by_id(description.id);
     if (!view.has_value()) {
         on_complete("Unable to locate tab"_string);
         return;
     }
-    view->retrieve_debugger_object_properties(object_id, move(on_complete));
+    view->retrieve_debugger_object_properties(object_id, scope, move(on_complete));
 }
 
 void Application::set_debugger_breakpoint(DevTools::TabDescription const& description, DebuggerBreakpointLocation location, DebuggerBreakpointOptions options, OnDebuggerBreakpointOperationComplete on_complete) const
@@ -4267,7 +4267,7 @@ void Application::evaluate_javascript(DevTools::TabDescription const& descriptio
         return;
     }
 
-    view->on_received_js_console_result = [&view = *view, on_complete = move(on_complete)](JsonValue result) {
+    view->on_received_js_console_result = [&view = *view, on_complete = move(on_complete)](DebuggerValue result) {
         view.on_received_js_console_result = nullptr;
         on_complete(move(result));
     };

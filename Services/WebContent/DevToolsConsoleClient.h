@@ -11,6 +11,7 @@
 #include <LibJS/Console.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HTML/Scripting/DevToolsObjectTable.h>
 #include <LibWebCommon/WebView/ConsoleOutput.h>
 #include <WebContent/Forward.h>
 #include <WebContent/WebContentConsoleClient.h>
@@ -26,6 +27,8 @@ public:
     static JsonValue serialize_value(JS::Realm&, JS::Value);
     virtual ~DevToolsConsoleClient() override;
 
+    ErrorOr<WebView::DebuggerObjectProperties> properties_for_object(u64 object_id);
+
 private:
     DevToolsConsoleClient(JS::Console&, PageClient&, ConsoleGlobalEnvironmentExtensions&);
 
@@ -36,7 +39,12 @@ private:
 
     virtual JS::ThrowCompletionOr<JS::Value> printer(JS::Console::LogLevel, PrinterArguments) override;
 
+    virtual void visit_edges(JS::Cell::Visitor&) override;
+
     void send_console_output(WebView::ConsoleOutput);
+
+    // The objects that the console's results hold, which DevTools may expand for as long as the document is shown.
+    Web::HTML::DevToolsObjectTable m_object_table { Web::HTML::DevToolsObjectTable::RootObjects::No };
 };
 
 }

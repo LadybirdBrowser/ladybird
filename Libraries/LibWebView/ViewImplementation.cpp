@@ -2439,11 +2439,11 @@ void ViewImplementation::evaluate_javascript_in_debugger_frame(u64 frame_id, Str
     page().async_evaluate_javascript_in_debugger_frame(request_id, frame_id, Utf16String::from_utf8(source_text));
 }
 
-void ViewImplementation::retrieve_debugger_object_properties(u64 object_id, DevTools::DevToolsDelegate::OnDebuggerObjectPropertiesReceived on_complete)
+void ViewImplementation::retrieve_debugger_object_properties(u64 object_id, DebuggerObjectScope scope, DevTools::DevToolsDelegate::OnDebuggerObjectPropertiesReceived on_complete)
 {
     auto request_id = m_next_debugger_object_properties_request_id++;
     m_pending_debugger_object_properties_requests.set(request_id, move(on_complete));
-    page().async_get_debugger_object_properties(request_id, object_id);
+    page().async_get_debugger_object_properties(request_id, object_id, scope);
 }
 
 void ViewImplementation::retrieve_debugger_source_positions(Web::HTML::ScriptRegistryIdentifier source_id, DevTools::DevToolsDelegate::OnDebuggerSourcePositionsReceived on_complete)

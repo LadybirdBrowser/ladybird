@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(`object: ${internals.devtoolsProperties({ a: 1, b: 2 })}`);
+        println(`array: ${internals.devtoolsProperties([10, 20])}`);
+        println(`null prototype: ${internals.devtoolsProperties(Object.create(null))}`);
+
+        // Expanding a proxy must not run any of its traps, which are page script.
+        const trapsRun = [];
+        const handler = {};
+        for (const trap of ["getPrototypeOf", "ownKeys", "getOwnPropertyDescriptor", "get", "has"]) {
+            handler[trap] = (...args) => {
+                trapsRun.push(trap);
+                return Reflect[trap](...args);
+            };
+        }
+        println(`proxy: ${internals.devtoolsProperties(new Proxy({ secret: 1 }, handler))}`);
+        println(`proxy traps run: ${JSON.stringify(trapsRun)}`);
+    });
+</script>
