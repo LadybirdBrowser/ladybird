@@ -895,6 +895,7 @@ DecoderErrorOr<Block> Reader::parse_block_group(Streamer& streamer, AK::Duration
     Optional<u64> raw_block_duration;
 
     auto parsed_a_block = false;
+    auto has_reference_block = false;
     TRY(Reader::parse_master_element(streamer, "BlockGroup"sv, [&](u64 element_id) -> DecoderErrorOr<ElementIterationDecision> {
         switch (element_id) {
         case BLOCK_ID: {
@@ -927,6 +928,11 @@ DecoderErrorOr<Block> Reader::parse_block_group(Streamer& streamer, AK::Duration
             raw_block_duration = TRY(streamer.read_u64());
             break;
         }
+        case REFERENCE_BLOCK_ID: {
+            has_reference_block = true;
+            TRY(streamer.read_unknown_element());
+            break;
+        }
         default:
             TRY(streamer.read_unknown_element());
             break;
@@ -934,6 +940,11 @@ DecoderErrorOr<Block> Reader::parse_block_group(Streamer& streamer, AK::Duration
 
         return ElementIterationDecision::Continue;
     }));
+
+    // https://www.matroska.org/technical/elements.html
+    // If the BlockGroup doesn't have a ReferenceBlock element, then the Block it contains can be decoded without using
+    // any other Block data.
+    block.set_only_keyframes(!has_reference_block);
 
     auto maybe_context = contexts.get(block.track_number());
     if (maybe_context.has_value()) {
