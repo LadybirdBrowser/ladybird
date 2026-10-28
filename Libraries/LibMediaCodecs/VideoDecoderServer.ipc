@@ -6,7 +6,7 @@
 #include <LibMediaCodecs/DecoderCapabilities.h>
 #include <LibMediaCodecs/FrameFlags.h>
 #include <LibMediaCodecs/VideoDecoder.h>
-#include <LibMediaCodecs/VideoFrameHandle.h>
+#include <LibMediaCodecs/VideoFrameMetadata.h>
 
 endpoint VideoDecoderServer
 {

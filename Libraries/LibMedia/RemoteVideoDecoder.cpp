@@ -19,7 +19,7 @@
 #include <LibMediaCodecs/VideoDecoderClientEndpoint.h>
 #include <LibMediaCodecs/VideoDecoderServerEndpoint.h>
 #include <LibMediaCodecs/VideoFrame.h>
-#include <LibMediaCodecs/VideoFrameHandle.h>
+#include <LibMediaCodecs/VideoFrameMetadata.h>
 #include <LibMediaCodecs/VideoFramePool.h>
 #include <LibThreading/Thread.h>
 

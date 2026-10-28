@@ -12,7 +12,7 @@
 #include <LibMediaCodecs/VideoFrame.h>
 #include <LibMediaCodecs/VideoFramePool.h>
 
-#include "VideoFrameHandle.h"
+#include "VideoFrameMetadata.h"
 
 namespace Media {
 
@@ -66,41 +66,6 @@ VideoFrameMetadata VideoFrameMetadata::for_frame(VideoFrame const& frame)
     };
 }
 
-bool VideoFrameHandle::is_valid() const
-{
-    return metadata().is_valid();
-}
-
-VideoFrameMetadata VideoFrameHandle::metadata() const
-{
-    return VideoFrameMetadata {
-        .timestamp = timestamp.value(),
-        .duration = duration.value(),
-        .size = size,
-        .bit_depth = bit_depth,
-        .subsampling = subsampling.value(),
-        .cicp = cicp,
-    };
-}
-
-VideoFrameHandle VideoFrameHandle::for_frame(VideoFrame const& frame)
-{
-    auto const* pool_slot = frame.pool_slot();
-    VERIFY(pool_slot != nullptr);
-
-    return VideoFrameHandle {
-        .pool_id = pool_slot->ledger().id(),
-        .slot_index = pool_slot->slot_index(),
-        .slot_acquisition_id = pool_slot->slot_acquisition_id(),
-        .timestamp = frame.timestamp(),
-        .duration = frame.duration(),
-        .size = frame.size().to_type<int>(),
-        .bit_depth = frame.bit_depth(),
-        .subsampling = frame.subsampling(),
-        .cicp = frame.cicp(),
-    };
-}
-
 }
 
 namespace IPC {
@@ -134,43 +99,6 @@ ErrorOr<Media::VideoFrameMetadata> decode(Decoder& decoder)
     if (!metadata.is_valid())
         return Error::from_string_literal("Video frame metadata describes a frame that could not have been decoded");
     return metadata;
-}
-
-template<>
-ErrorOr<void> encode(Encoder& encoder, Media::VideoFrameHandle const& handle)
-{
-    TRY(encoder.encode(handle.pool_id));
-    TRY(encoder.encode(handle.slot_index));
-    TRY(encoder.encode(handle.slot_acquisition_id));
-    TRY(encoder.encode(handle.timestamp.value()));
-    TRY(encoder.encode(handle.duration.value()));
-    TRY(encoder.encode(handle.size));
-    TRY(encoder.encode(handle.bit_depth));
-    TRY(encoder.encode(handle.subsampling.value().x()));
-    TRY(encoder.encode(handle.subsampling.value().y()));
-    TRY(encoder.encode(handle.cicp));
-    return {};
-}
-
-template<>
-ErrorOr<Media::VideoFrameHandle> decode(Decoder& decoder)
-{
-    Media::VideoFrameHandle handle;
-    handle.pool_id = TRY(decoder.decode<Media::VideoFramePoolID>());
-    handle.slot_index = TRY(decoder.decode<u32>());
-    handle.slot_acquisition_id = TRY(decoder.decode<u64>());
-    handle.timestamp = TRY(decoder.decode<AK::Duration>());
-    handle.duration = TRY(decoder.decode<AK::Duration>());
-    handle.size = TRY(decoder.decode<Gfx::IntSize>());
-    handle.bit_depth = TRY(decoder.decode<u8>());
-    handle.subsampling = Media::Subsampling {
-        TRY(decoder.decode<bool>()),
-        TRY(decoder.decode<bool>()),
-    };
-    handle.cicp = TRY(decoder.decode<Media::CodingIndependentCodePoints>());
-    if (!handle.is_valid())
-        return Error::from_string_literal("Video frame handle describes a frame that could not have been decoded");
-    return handle;
 }
 
 }

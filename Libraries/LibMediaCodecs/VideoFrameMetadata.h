@@ -6,8 +6,6 @@
 
 #pragma once
 
-#include <AK/DistinctNumeric.h>
-#include <AK/SharedMemoryValue.h>
 #include <AK/Time.h>
 #include <LibGfx/Size.h>
 #include <LibIPC/Forward.h>
@@ -18,8 +16,6 @@
 #include <LibMediaCodecs/VideoFrame.h>
 
 namespace Media {
-
-AK_TYPEDEF_DISTINCT_ORDERED_ID(u64, VideoFramePoolID);
 
 // Everything about a decoded frame that a consumer in another process needs to present it, apart from its pixels.
 struct MEDIACODECS_API VideoFrameMetadata {
@@ -37,30 +33,9 @@ struct MEDIACODECS_API VideoFrameMetadata {
     CodingIndependentCodePoints cicp;
 };
 
-// References a frame in a previously-announced pool slot buffer, along with the metadata needed
-// to present it. The receiving process resolves it against its mapping of that slot's buffer,
-// validating the slot acquisition ID.
-struct MEDIACODECS_API VideoFrameHandle {
-    static VideoFrameHandle for_frame(VideoFrame const&);
-
-    bool is_valid() const;
-
-    VideoFrameMetadata metadata() const;
-
-    VideoFramePoolID pool_id { 0 };
-    u32 slot_index { 0 };
-    u64 slot_acquisition_id { 0 };
-    SharedMemoryValue<AK::Duration> timestamp;
-    SharedMemoryValue<AK::Duration> duration;
-    Gfx::IntSize size;
-    u8 bit_depth { 0 };
-    SharedMemoryValue<Subsampling> subsampling;
-    CodingIndependentCodePoints cicp;
-};
-
 // How a frame's planes lay out within a pool slot's bytes, aligned for cache- and
 // SIMD-friendly plane bases. Both the producer writing a decoded frame into a slot and a
-// consumer resolving a handle against the slot's buffer derive the same layout.
+// consumer reading the frame from the slot's buffer derive the same layout.
 struct FramePlaneLayout {
     size_t y_size { 0 };
     size_t u_offset { 0 };
@@ -81,11 +56,5 @@ MEDIACODECS_API ErrorOr<void> encode(Encoder&, Media::VideoFrameMetadata const&)
 
 template<>
 MEDIACODECS_API ErrorOr<Media::VideoFrameMetadata> decode(Decoder&);
-
-template<>
-MEDIACODECS_API ErrorOr<void> encode(Encoder&, Media::VideoFrameHandle const&);
-
-template<>
-MEDIACODECS_API ErrorOr<Media::VideoFrameHandle> decode(Decoder&);
 
 }

@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Atomic.h>
-#include <AK/Checked.h>
 #include <AK/Debug.h>
 #include <LibGfx/YUVData.h>
 #include <LibMediaCodecs/VideoFrame.h>
@@ -15,40 +13,9 @@
 
 namespace Media {
 
-namespace {
-
-constexpr size_t SLOT_DATA_ALIGNMENT = 64;
-
-VideoFramePoolID allocate_pool_id()
-{
-    static Atomic<u64> s_next_id { 1 };
-    return VideoFramePoolID { s_next_id.fetch_add(1, AK::MemoryOrder::memory_order_relaxed) };
-}
-
-struct SlotHeader {
-    Atomic<u64, AK::MemoryOrder::memory_order_relaxed> slot_acquisition_id { 0 };
-};
-
-constexpr size_t slot_data_offset()
-{
-    return align_up_to(sizeof(SlotHeader), SLOT_DATA_ALIGNMENT);
-}
-
-SlotHeader& slot_header(Core::AnonymousBuffer& buffer)
-{
-    return *reinterpret_cast<SlotHeader*>(buffer.data<u8>());
-}
-
-}
-
 ErrorOr<NonnullRefPtr<VideoFramePool>> VideoFramePool::create(size_t byte_budget)
 {
     return adopt_nonnull_ref_or_enomem(new (nothrow) VideoFramePool(byte_budget));
-}
-
-VideoFrameEntryLedger::VideoFrameEntryLedger()
-    : m_id(allocate_pool_id())
-{
 }
 
 VideoFrameEntryLedger::~VideoFrameEntryLedger() = default;
@@ -79,7 +46,7 @@ Optional<VideoFramePool::AcquiredSlot> VideoFramePool::try_acquire(size_t byte_c
             continue;
         if (!free_slot_index.has_value())
             free_slot_index = index;
-        if (slot.buffer.is_valid() && slot.buffer.size() - slot_data_offset() == byte_count) {
+        if (slot.buffer.is_valid() && slot.buffer.size() == byte_count) {
             reusable_slot_index = index;
             break;
         }
@@ -99,12 +66,7 @@ Optional<VideoFramePool::AcquiredSlot> VideoFramePool::try_acquire(size_t byte_c
         }
         chosen_slot = &m_slots[*free_slot_index];
 
-        Checked<size_t> checked_buffer_size = byte_count;
-        checked_buffer_size += slot_data_offset();
-        if (checked_buffer_size.has_overflow())
-            return {};
-        auto buffer_size = checked_buffer_size.value();
-
+        auto buffer_size = byte_count;
         auto allocated_bytes_after = m_allocated_bytes - chosen_slot->buffer.size() + buffer_size;
         if (allocated_bytes_after > m_byte_budget) {
             if (held_slot_count_while_locked() >= MIN_SLOT_COUNT) {
@@ -119,41 +81,29 @@ Optional<VideoFramePool::AcquiredSlot> VideoFramePool::try_acquire(size_t byte_c
             return {};
         drop_slot_storage_while_locked(*chosen_slot);
         chosen_slot->buffer = buffer_result.release_value();
-        chosen_slot->allocated_buffer_id++;
-        new (chosen_slot->buffer.data<void>()) SlotHeader;
         m_allocated_bytes += chosen_slot->buffer.size();
     }
 
-    publish_acquisition_while_locked(*chosen_slot);
+    begin_hold_while_locked(*chosen_slot);
 
     free_excess_buffers_while_locked();
 
     auto slot_index = static_cast<u32>(chosen_slot - m_slots.data());
     return AcquiredSlot {
         .index = slot_index,
-        .slot_acquisition_id = chosen_slot->last_slot_acquisition_id,
-        .allocated_buffer_id = chosen_slot->allocated_buffer_id,
-        .bytes = { chosen_slot->buffer.data<u8>() + slot_data_offset(), byte_count },
+        .bytes = { chosen_slot->buffer.data<u8>(), byte_count },
     };
 }
 
 ErrorOr<NonnullRefPtr<PooledVideoFrameSlot>> VideoFramePool::try_adopt_acquired_slot(AcquiredSlot const& acquired_slot)
 {
-    return try_adopt_slot(acquired_slot.index, acquired_slot.slot_acquisition_id, acquired_slot.allocated_buffer_id);
+    return try_adopt_slot(acquired_slot.index);
 }
 
-void VideoFrameEntryLedger::begin_hold_while_locked(Slot& slot, u64 slot_acquisition_id)
+void VideoFrameEntryLedger::begin_hold_while_locked(Slot& slot)
 {
     m_shed_storage_on_release = false;
     slot.hold_count = 1;
-    slot.last_slot_acquisition_id = slot_acquisition_id;
-}
-
-void VideoFrameEntryLedger::publish_acquisition_while_locked(Slot& slot)
-{
-    begin_hold_while_locked(slot, slot.last_slot_acquisition_id + 1);
-    slot_header(slot.buffer).slot_acquisition_id.store(slot.last_slot_acquisition_id);
-    AK::atomic_thread_fence(AK::MemoryOrder::memory_order_seq_cst);
 }
 
 Optional<u32> VideoFrameEntryLedger::try_grow_while_locked()
@@ -170,9 +120,9 @@ RefPtr<VideoSurface> VideoFrameEntryLedger::slot_surface(u32 slot_index) const
     return m_slots[slot_index].surface;
 }
 
-ErrorOr<NonnullRefPtr<PooledVideoFrameSlot>> VideoFrameEntryLedger::try_adopt_slot(u32 slot_index, u64 slot_acquisition_id, u64 allocated_buffer_id)
+ErrorOr<NonnullRefPtr<PooledVideoFrameSlot>> VideoFrameEntryLedger::try_adopt_slot(u32 slot_index)
 {
-    auto slot_result = try_make_ref_counted<PooledVideoFrameSlot>(*this, slot_index, slot_acquisition_id, allocated_buffer_id);
+    auto slot_result = try_make_ref_counted<PooledVideoFrameSlot>(*this, slot_index);
     if (slot_result.is_error())
         release_hold(slot_index);
     return slot_result;
@@ -229,8 +179,9 @@ void VideoFrameEntryLedger::add_hold(u32 slot_index)
 
 void VideoFrameEntryLedger::release_hold(u32 slot_index)
 {
-    // The contents go outside the lock, and before the decoder hears that the slot is free, so that it finds the
-    // surface free to decode into again by the time it looks.
+    // The surface and its contents go outside the lock, and before the decoder hears that the slot is free, so that it
+    // finds the surface free to decode into again by the time it looks.
+    RefPtr<VideoSurface> released_surface;
     RefPtr<VideoSurfaceContents> released_contents;
     {
         MutexLocker locker { m_mutex };
@@ -238,12 +189,13 @@ void VideoFrameEntryLedger::release_hold(u32 slot_index)
         VERIFY(slot.hold_count > 0);
         if (--slot.hold_count > 0)
             return;
-        // The slot keeps the surface itself, to recognize it by when the decoder hands it back.
+        released_surface = move(slot.surface);
         released_contents = move(slot.contents);
         if (m_shed_storage_on_release)
             drop_slot_storage_while_locked(slot);
     }
     released_contents = nullptr;
+    released_surface = nullptr;
 
     if (m_slot_freed_callback)
         m_slot_freed_callback();
@@ -271,82 +223,31 @@ Optional<VideoFrameSurfacePool::AcquiredSlot> VideoFrameSurfacePool::try_acquire
 {
     MutexLocker locker { m_mutex };
 
-    auto slot_index = m_slot_indices_by_surface_id.get(surface->id()).copy();
-
-    if (slot_index.has_value() && m_slots[*slot_index].hold_count != 0) {
-        // The surface's pixels have not changed while it was held, so the contents already held are the same ones.
-        auto& held_slot = m_slots[*slot_index];
-        held_slot.hold_count++;
-        return AcquiredSlot {
-            .index = *slot_index,
-            .slot_acquisition_id = held_slot.last_slot_acquisition_id,
-            .allocated_buffer_id = held_slot.allocated_buffer_id,
-        };
-    }
-
-    if (held_slot_count_while_locked() >= MAX_HELD_SLOT_COUNT)
-        return {};
-
-    if (!slot_index.has_value()) {
-        Optional<u32> unused_slot_index;
-        Optional<u32> evictable_slot_index;
-        for (u32 index = 0; index < m_slots.size(); index++) {
-            auto const& slot = m_slots[index];
-            if (slot.hold_count != 0)
-                continue;
-            if (slot.surface == nullptr) {
-                unused_slot_index = index;
-                break;
-            }
-            if (!evictable_slot_index.has_value() || slot.last_slot_acquisition_id < m_slots[*evictable_slot_index].last_slot_acquisition_id)
-                evictable_slot_index = index;
+    Optional<u32> free_slot_index;
+    for (u32 index = 0; index < m_slots.size(); index++) {
+        if (m_slots[index].hold_count == 0) {
+            free_slot_index = index;
+            break;
         }
-
-        if (!unused_slot_index.has_value() && m_slots.size() < MAX_SLOT_COUNT)
-            unused_slot_index = try_grow_while_locked();
-        // A full pool gives up the surface identity it is least likely to be handed again.
-        if (!unused_slot_index.has_value())
-            unused_slot_index = evictable_slot_index;
-        if (!unused_slot_index.has_value())
+    }
+    if (!free_slot_index.has_value()) {
+        if (m_slots.size() >= MAX_HELD_SLOT_COUNT)
             return {};
-
-        auto buffer_result = Core::AnonymousBuffer::create_with_size(slot_data_offset());
-        if (buffer_result.is_error())
+        free_slot_index = try_grow_while_locked();
+        if (!free_slot_index.has_value())
             return {};
-        if (m_slot_indices_by_surface_id.try_set(surface->id(), *unused_slot_index).is_error())
-            return {};
-
-        auto& unused_slot = m_slots[*unused_slot_index];
-        drop_slot_storage_while_locked(unused_slot);
-        unused_slot.buffer = buffer_result.release_value();
-        new (unused_slot.buffer.data<void>()) SlotHeader;
-        unused_slot.allocated_buffer_id++;
-        slot_index = unused_slot_index;
     }
 
-    auto& slot = m_slots[*slot_index];
+    auto& slot = m_slots[free_slot_index.value()];
     slot.surface = surface;
     slot.contents = move(contents);
-    publish_acquisition_while_locked(slot);
-
-    return AcquiredSlot {
-        .index = *slot_index,
-        .slot_acquisition_id = slot.last_slot_acquisition_id,
-        .allocated_buffer_id = slot.allocated_buffer_id,
-    };
-}
-
-void VideoFrameSurfacePool::drop_slot_storage_while_locked(Slot& slot)
-{
-    if (slot.surface == nullptr)
-        return;
-    m_slot_indices_by_surface_id.remove(slot.surface->id());
-    slot.surface = nullptr;
+    begin_hold_while_locked(slot);
+    return AcquiredSlot { .index = free_slot_index.value() };
 }
 
 ErrorOr<NonnullRefPtr<PooledVideoFrameSlot>> VideoFrameSurfacePool::try_adopt_acquired_slot(AcquiredSlot const& acquired_slot)
 {
-    return try_adopt_slot(acquired_slot.index, acquired_slot.slot_acquisition_id, acquired_slot.allocated_buffer_id);
+    return try_adopt_slot(acquired_slot.index);
 }
 
 ReceivedVideoFrameStorage::ReceivedVideoFrameStorage(Core::AnonymousBuffer pixel_buffer, RefPtr<VideoSurface> surface, u64 sender_id, Function<void()> on_release)
@@ -365,15 +266,14 @@ ReceivedVideoFrameStorage::~ReceivedVideoFrameStorage()
 
 ErrorOr<Gfx::YUVData> yuv_data_in_slot_buffer(Core::AnonymousBuffer const& slot_buffer, Gfx::IntSize size, u8 bit_depth, Subsampling subsampling, CodingIndependentCodePoints const& cicp)
 {
-    if (!slot_buffer.is_valid() || slot_buffer.size() <= slot_data_offset())
-        return Error::from_string_literal("Invalid video frame slot buffer");
+    if (!slot_buffer.is_valid() || slot_buffer.size() == 0)
+        return Error::from_string_literal("Invalid video frame buffer");
 
     auto layout = TRY(frame_plane_layout(size, bit_depth, subsampling));
-    auto capacity = slot_buffer.size() - slot_data_offset();
-    if (layout.total_byte_count > capacity)
-        return Error::from_string_literal("Video frame format does not fit its slot");
+    if (layout.total_byte_count > slot_buffer.size())
+        return Error::from_string_literal("Video frame format does not fit its buffer");
 
-    auto bytes = Bytes { const_cast<u8*>(slot_buffer.data<u8 const>()) + slot_data_offset(), capacity };
+    auto bytes = Bytes { const_cast<u8*>(slot_buffer.data<u8 const>()), slot_buffer.size() };
     return Gfx::YUVData::create(size, bit_depth, subsampling, cicp, bytes.slice(0, layout.y_size), bytes.slice(layout.u_offset, layout.u_size), bytes.slice(layout.v_offset, layout.v_size));
 }
 

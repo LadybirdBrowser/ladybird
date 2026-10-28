@@ -15,7 +15,7 @@
 #include <LibMedia/Forward.h>
 #include <LibMedia/MediaTime.h>
 #include <LibMedia/Sinks/VideoSink.h>
-#include <LibMediaCodecs/VideoFrameHandle.h>
+#include <LibMediaCodecs/VideoFrameMetadata.h>
 #include <LibMediaCodecs/VideoSurface.h>
 #include <LibThreading/Forward.h>
 

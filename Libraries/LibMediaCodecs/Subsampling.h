@@ -6,8 +6,6 @@
 
 #pragma once
 
-#include <AK/Optional.h>
-#include <AK/SharedMemoryValue.h>
 #include <LibGfx/Size.h>
 
 namespace Media {
@@ -52,19 +50,3 @@ private:
 };
 
 }
-
-template<>
-struct AK::SharedMemoryCodec<Media::Subsampling> {
-    struct Representation {
-        u8 x { 0 };
-        u8 y { 0 };
-    };
-
-    static constexpr Representation encode(Media::Subsampling value) { return { value.x(), value.y() }; }
-    static constexpr Optional<Media::Subsampling> decode(Representation representation)
-    {
-        if (representation.x > 1 || representation.y > 1)
-            return {};
-        return Media::Subsampling { representation.x == 1, representation.y == 1 };
-    }
-};
