@@ -8,6 +8,7 @@ use super::scroll_state::{NO_SCROLL_STATE_SLOT, ScrollState, ScrollStateSlot};
 use super::{SpatialData, StickyData, VisualContextTree};
 use crate::css::computed_value_types::ComputedLengthPercentageOrAuto;
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixelSize, CssPixels};
+use crate::layout::geometry::{Frame, Side};
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::host::FfiVisualContextTreeInputs;
 use crate::painting::paintable_data::FfiPixelBox;
@@ -51,6 +52,7 @@ fn resolve_sticky_insets_in_css_pixels(
     layout_arena: &impl PaintableRowsRead,
     slot: NodeSlotId,
     scrollport_size: CssPixelSize,
+    border_box_size: CssPixelSize,
 ) -> ResolvedStickyInsets {
     let Some(style) = layout_arena.node_style_if_live(slot) else {
         return ResolvedStickyInsets::default();
@@ -59,11 +61,42 @@ fn resolve_sticky_insets_in_css_pixels(
         (!side.is_auto()).then(|| side.to_px(scrollport_extent))
     };
     let inset = &style.surround().inset;
+    let mut insets = [
+        resolve_side(&inset.top, scrollport_size.height),
+        resolve_side(&inset.right, scrollport_size.width),
+        resolve_side(&inset.bottom, scrollport_size.height),
+        resolve_side(&inset.left, scrollport_size.width),
+    ];
+    // https://drafts.csswg.org/css-position-3/#sticky-pos
+    // If this results in a sticky view rectangle size in any axis less than the size of the border box of the sticky
+    // box in that axis, then the effective end-edge inset in the affected axis is reduced (possibly becoming negative)
+    // to bring the sticky view rectangle’s size up to the size of the border box in that axis (where end is
+    // interpreted relative to the writing mode of the containing block).
+    let containing_block = layout_arena.paintable_data(slot).containing_block;
+    let containing_style = layout_arena.node_style_if_live(containing_block);
+    let frame = containing_style.map_or(Frame::PHYSICAL, |style| Frame::of(style.writing_mode()));
+    let inline_end = if containing_style.is_some_and(|style| style.direction() == crate::css::css_enums::direction::RTL)
+    {
+        Side::Left
+    } else {
+        Side::Right
+    };
+    for end in [frame.physical_side(inline_end), frame.physical_side(Side::Bottom)] {
+        let (first, second, extent, border_extent) = match end {
+            Side::Top | Side::Bottom => (Side::Top, Side::Bottom, scrollport_size.height, border_box_size.height),
+            Side::Left | Side::Right => (Side::Left, Side::Right, scrollport_size.width, border_box_size.width),
+        };
+        let view_extent =
+            extent - insets[first as usize].unwrap_or_default() - insets[second as usize].unwrap_or_default();
+        if let Some(inset) = insets[end as usize].as_mut() {
+            *inset -= (border_extent - view_extent).max(CssPixels::default());
+        }
+    }
     ResolvedStickyInsets {
-        top: resolve_side(&inset.top, scrollport_size.height),
-        right: resolve_side(&inset.right, scrollport_size.width),
-        bottom: resolve_side(&inset.bottom, scrollport_size.height),
-        left: resolve_side(&inset.left, scrollport_size.width),
+        top: insets[Side::Top as usize],
+        right: insets[Side::Right as usize],
+        bottom: insets[Side::Bottom as usize],
+        left: insets[Side::Left as usize],
     }
 }
 
@@ -187,7 +220,12 @@ pub(crate) fn compute_sticky_data(
         height: size.height.to_float() * scale,
     };
     let device_inset = |inset: Option<CssPixels>| inset.map(|inset| inset.to_float() * scale);
-    let insets = resolve_sticky_insets_in_css_pixels(layout_arena, paintable, scroller_rect.size());
+    let insets = resolve_sticky_insets_in_css_pixels(
+        layout_arena,
+        paintable,
+        scroller_rect.size(),
+        sticky_border_box_rect.size(),
+    );
     let region_location = device_point(containing_block_region.location());
     let region_size = device_size(containing_block_region.size());
 
