@@ -62,7 +62,11 @@ function(create_ladybird_bundle target_name)
             set(asset_catalog_dir "${CMAKE_CURRENT_BINARY_DIR}/${target_name}_asset_catalog")
             add_custom_command(TARGET ${target_name} POST_BUILD
                 COMMAND "${CMAKE_COMMAND}" -E make_directory "${asset_catalog_dir}"
-                COMMAND xcrun actool "${icon_composer_icon}" --compile "${asset_catalog_dir}"
+                COMMAND "${CMAKE_COMMAND}"
+                    "-DLOG=${CMAKE_CURRENT_BINARY_DIR}/${target_name}-actool.log"
+                    -P "${LADYBIRD_SOURCE_DIR}/Meta/CMake/run_quiet.cmake"
+                    --
+                    xcrun actool "${icon_composer_icon}" --compile "${asset_catalog_dir}"
                     --app-icon AppIcon --platform macosx --target-device mac
                     --minimum-deployment-target "${CMAKE_OSX_DEPLOYMENT_TARGET}"
                     --output-partial-info-plist "${asset_catalog_dir}/partial.plist"
