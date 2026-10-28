@@ -12,6 +12,7 @@
 #include <LibDevTools/Actors/ThreadActor.h>
 #include <LibDevTools/DevToolsDelegate.h>
 #include <LibDevTools/DevToolsServer.h>
+#include <LibWebCommon/DOM/NodeType.h>
 
 namespace DevTools {
 
@@ -60,6 +61,34 @@ ConsoleActor::ConsoleActor(DevToolsServer& devtools, String name, WeakPtr<TabAct
 }
 
 ConsoleActor::~ConsoleActor() = default;
+
+// The client selects the element of an inspectObject event's grip in its Inspector, resolving the grip's
+// contentDomReference to a node actor through the walker's getNodeActorFromContentDomReference request.
+void ConsoleActor::inspect_element(Web::UniqueNodeID node_id)
+{
+    auto tab = m_tab.strong_ref();
+    if (!tab)
+        return;
+
+    JsonObject preview;
+    preview.set("kind"sv, "DOMNode"sv);
+    preview.set("nodeType"sv, to_underlying(Web::DOM::NodeType::ELEMENT_NODE));
+
+    JsonObject content_dom_reference;
+    content_dom_reference.set("browsingContextId"sv, tab->description().id);
+    content_dom_reference.set("id"sv, node_id.value());
+
+    JsonObject grip;
+    grip.set("type"sv, "object"sv);
+    grip.set("preview"sv, move(preview));
+    grip.set("contentDomReference"sv, move(content_dom_reference));
+
+    JsonObject message;
+    message.set("type"sv, "inspectObject"sv);
+    message.set("objectActor"sv, move(grip));
+    message.set("inspectFromAnnotation"sv, "browser-context-menu"sv);
+    send_message(move(message));
+}
 
 void ConsoleActor::handle_message(Message const& message)
 {
