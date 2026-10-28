@@ -25,6 +25,7 @@ pub use url::State;
 pub use url::Url;
 pub use url::basic_parse;
 pub use url::basic_parse_with_state_override;
+pub use url::create_with_data;
 
 // LibURL's C++ is not linked into Rust unit tests.
 #[cfg(test)]

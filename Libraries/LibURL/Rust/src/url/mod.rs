@@ -55,6 +55,23 @@ pub fn basic_parse<'a>(input: impl Into<UrlInput<'a>>, options: BasicParseOption
     parser::basic_parse(input.into(), options.base_url, options.encoding)
 }
 
+pub fn create_with_data(mime_type: &str, payload: &str, is_base64: bool) -> Url {
+    let mut builder = String::from(mime_type);
+    if is_base64 {
+        builder.push_str(";base64");
+    }
+    builder.push(',');
+    builder.push_str(payload);
+    let mut url = String::from("data:");
+    percent_encoding::percent_encode_input_into(
+        UrlInput::from(builder.as_str()),
+        percent_encoding::PercentEncodeSet::Path,
+        false,
+        &mut url,
+    );
+    basic_parse(url.as_str(), BasicParseOptions::new()).expect("a data: URL parses")
+}
+
 // https://url.spec.whatwg.org/#concept-basic-url-parser
 pub fn basic_parse_with_state_override<'a>(
     input: impl Into<UrlInput<'a>>,
