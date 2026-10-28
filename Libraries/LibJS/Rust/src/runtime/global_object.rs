@@ -369,6 +369,26 @@ fn is_ascii_alphanumeric(code_unit: u16) -> bool {
     u8::try_from(code_unit).is_ok_and(|byte| byte.is_ascii_alphanumeric())
 }
 
+// Accumulates the digits exactly in a u64 and rounds once at the end. Once the u64 is full, later digits only scale the
+// value, and any nonzero bits among them are folded into the lowest bit, which lies below the rounding position.
+fn power_of_two_radix_digits_to_f64(digits: impl Iterator<Item = u32>, bits_per_digit: u32) -> f64 {
+    let mut mantissa = 0u64;
+    let mut exponent = 0i32;
+    let mut sticky = false;
+    for digit in digits {
+        if mantissa >> (64 - bits_per_digit) == 0 {
+            mantissa = (mantissa << bits_per_digit) | u64::from(digit);
+        } else {
+            exponent = exponent.saturating_add(bits_per_digit as i32);
+            sticky |= digit != 0;
+        }
+    }
+    if sticky {
+        mantissa |= 1;
+    }
+    mantissa as f64 * 2f64.powi(exponent)
+}
+
 fn is_ascii_hex_digit(code_unit: u16) -> bool {
     u8::try_from(code_unit).is_ok_and(|byte| byte.is_ascii_hexdigit())
 }
@@ -559,22 +579,33 @@ impl GlobalObject {
             Some(digit)
         };
 
-        let mut had_digits = false;
-        let mut number = 0.0;
         // NB: Only ASCII code units are digits, so going through the code units stops where going through the code
         //     points does.
-        for code_unit in trimmed_view.code_units() {
-            let Some(digit) = parse_digit(code_unit) else {
-                break;
-            };
-            had_digits = true;
-            number *= f64::from(radix);
-            number += f64::from(digit);
-        }
-
-        if !had_digits {
+        let digit_count = trimmed_view
+            .code_units()
+            .take_while(|&code_unit| parse_digit(code_unit).is_some())
+            .count();
+        if digit_count == 0 {
             return Ok(js_nan());
         }
+        let digits = trimmed_view
+            .code_units()
+            .take(digit_count)
+            .map(|code_unit| parse_digit(code_unit).expect("the first digit_count code units are digits"));
+
+        let radix = radix as u32;
+        let number = if radix.is_power_of_two() {
+            power_of_two_radix_digits_to_f64(digits, radix.trailing_zeros())
+        } else if radix == 10 && digit_count > 15 {
+            // NB: Accumulating decimal digits in a double rounds at every step once the value no longer fits in 53
+            //     bits, so parse long digit runs as a whole to get the correctly rounded value.
+            let digits: String = digits
+                .map(|digit| char::from_digit(digit, 10).expect("a decimal digit"))
+                .collect();
+            digits.parse::<f64>().expect("a run of decimal digits parses as f64")
+        } else {
+            digits.fold(0.0, |number, digit| number * f64::from(radix) + f64::from(digit))
+        };
 
         // 15. If mathInt = 0, then
         // a. If sign = -1, return -0𝔽.
