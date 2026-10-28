@@ -1,0 +1,36 @@
+Harness status: OK
+
+Found 30 tests
+
+6 Pass
+24 Fail
+Pass	.abspos 1
+Fail	.abspos 2
+Fail	.abspos 3
+Fail	.abspos 4
+Pass	.abspos 5
+Fail	.abspos 6
+Fail	.abspos 7
+Fail	.abspos 8
+Fail	.abspos 9
+Fail	.abspos 10
+Fail	.abspos 11
+Fail	.abspos 12
+Fail	.abspos 13
+Fail	.abspos 14
+Fail	.abspos 15
+Fail	.abspos 16
+Fail	.abspos 17
+Fail	.abspos 18
+Fail	.abspos 19
+Fail	.abspos 20
+Pass	.abspos 21
+Pass	.abspos 22
+Fail	.abspos 23
+Fail	.abspos 24
+Fail	.abspos 25
+Pass	.abspos 26
+Pass	.abspos 27
+Fail	.abspos 28
+Fail	.abspos 29
+Fail	.abspos 30

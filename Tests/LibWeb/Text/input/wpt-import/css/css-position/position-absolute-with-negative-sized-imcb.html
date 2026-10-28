@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-position-3/#abspos-insets">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/11478">
+<meta name="assert" content="
+  If the insets of an abspos are big enough that would make the inset-modified
+  containing block (IMCB) have a negative size, the weaker inset is adjusted
+  so that the IMCB size becomes zero instead.
+">
+
+<style>
+.rtl {
+  direction: rtl;
+}
+.container {
+  display: inline-block;
+  margin: 8px;
+  border: 1px solid;
+  position: relative;
+  width: 20px;
+  height: 20px;
+}
+.abspos {
+  position: absolute;
+  background: orange;
+}
+.abspos.case1 {
+  margin: auto;
+  width: 18px;
+  height: 18px;
+}
+.abspos.case2 {
+  inset: 18px;
+  margin: auto;
+}
+.abspos.case3 {
+  inset: 18px;
+  margin: -10px;
+}
+.abspos.case4 {
+  width: 10px;
+  height: 10px;
+  place-self: unsafe center;
+}
+</style>
+
+
+<!-- Case 1: Auto margins, fixed size, varying insets -->
+<div class="container">
+  <div class="abspos case1" style="inset: 0px"
+       data-expected-width="18" data-expected-height="18"
+       data-offset-x="1" data-offset-y="1"></div>
+</div>
+<div class="container">
+  <div class="abspos case1" style="inset: 8px"
+       data-expected-width="18" data-expected-height="18"
+       data-offset-x="8" data-offset-y="1"></div>
+</div>
+<div class="container">
+  <div class="abspos case1" style="inset: 12px"
+       data-expected-width="18" data-expected-height="18"
+       data-offset-x="12" data-offset-y="3"></div>
+</div>
+<div class="container">
+  <div class="abspos case1" style="inset: 18px"
+       data-expected-width="18" data-expected-height="18"
+       data-offset-x="18" data-offset-y="9"></div>
+</div>
+
+<br>
+
+<!-- Case 1, but RTL -->
+<div class="container rtl">
+  <div class="abspos case1" style="inset: 0px"
+       data-expected-width="18" data-expected-height="18"
+       data-offset-x="1" data-offset-y="1"></div>
+</div>
+<div class="container rtl">
+  <div class="abspos case1" style="inset: 8px"
+       data-expected-width="18" data-expected-height="18"
+       data-offset-x="-6" data-offset-y="1"></div>
+</div>
+<div class="container rtl">
+  <div class="abspos case1" style="inset: 12px"
+       data-expected-width="18" data-expected-height="18"
+       data-offset-x="-10" data-offset-y="3"></div>
+</div>
+<div class="container rtl">
+  <div class="abspos case1" style="inset: 18px"
+       data-expected-width="18" data-expected-height="18"
+       data-offset-x="-16" data-offset-y="9"></div>
+</div>
+
+<hr>
+
+<!-- Case 2: Auto margins, fixed insets, varying sizes -->
+<div class="container">
+  <div class="abspos case2" style="border: solid orange 6px;"
+       data-expected-width="12" data-expected-height="12"
+       data-offset-x="18" data-offset-y="12"></div>
+</div>
+<div class="container">
+  <div class="abspos case2" style="width: 12px; height: 12px;"
+       data-expected-width="12" data-expected-height="12"
+       data-offset-x="18" data-offset-y="12"></div>
+</div>
+<div class="container">
+  <div class="abspos case2" style="min-width: 12px; min-height: 12px;"
+       data-expected-width="12" data-expected-height="12"
+       data-offset-x="18" data-offset-y="12"></div>
+</div>
+<div class="container">
+  <div class="abspos case2" style="width: min-content; height: min-content;"
+       data-expected-width="12" data-expected-height="12"
+       data-offset-x="18" data-offset-y="12">
+    <div style="width: 12px; height: 12px"></div>
+  </div>
+</div>
+<div class="container">
+  <div class="abspos case2" style="display: table;"
+       data-expected-width="12" data-expected-height="12"
+       data-offset-x="18" data-offset-y="12">
+    <div style="width: 12px; height: 12px"></div>
+  </div>
+</div>
+
+<br>
+
+<!-- Case 2, but RTL -->
+<div class="container rtl">
+  <div class="abspos case2" style="border: solid orange 6px;"
+       data-expected-width="12" data-expected-height="12"
+       data-offset-x="-10" data-offset-y="12"></div>
+</div>
+<div class="container rtl">
+  <div class="abspos case2" style="width: 12px; height: 12px;"
+       data-expected-width="12" data-expected-height="12"
+       data-offset-x="-10" data-offset-y="12"></div>
+</div>
+<div class="container rtl">
+  <div class="abspos case2" style="min-width: 12px; min-height: 12px;"
+       data-expected-width="12" data-expected-height="12"
+       data-offset-x="-10" data-offset-y="12"></div>
+</div>
+<div class="container rtl">
+  <div class="abspos case2" style="width: min-content; height: min-content;"
+       data-expected-width="12" data-expected-height="12"
+       data-offset-x="-10" data-offset-y="12">
+    <div style="width: 12px; height: 12px"></div>
+  </div>
+</div>
+<div class="container rtl">
+  <div class="abspos case2" style="display: table;"
+       data-expected-width="12" data-expected-height="12"
+       data-offset-x="-10" data-offset-y="12">
+    <div style="width: 12px; height: 12px"></div>
+  </div>
+</div>
+
+<hr>
+
+<!-- Case 3: No margins, fixed insets, auto sizes -->
+<div class="container">
+  <div class="abspos case3"
+       data-expected-width="20" data-expected-height="20"
+       data-offset-x="8" data-offset-y="8"></div>
+</div>
+<div class="container rtl">
+  <div class="abspos case3"
+       data-expected-width="20" data-expected-height="20"
+       data-offset-x="-8" data-offset-y="8"></div>
+</div>
+
+<hr>
+
+<!-- Case 4: Fixed size, unsafe center alignment, varying insets -->
+<div class="container">
+  <div class="abspos case4" style="inset: 5px"
+       data-expected-width="10" data-expected-height="10"
+       data-offset-x="5" data-offset-y="5"></div>
+</div>
+<div class="container">
+  <div class="abspos case4" style="inset: 10px"
+       data-expected-width="10" data-expected-height="10"
+       data-offset-x="5" data-offset-y="5"></div>
+</div>
+<div class="container">
+  <div class="abspos case4" style="inset: 15px"
+       data-expected-width="10" data-expected-height="10"
+       data-offset-x="10" data-offset-y="10"></div>
+</div>
+<div class="container">
+  <div class="abspos case4" style="inset: 20px"
+       data-expected-width="10" data-expected-height="10"
+       data-offset-x="15" data-offset-y="15"></div>
+</div>
+<div class="container">
+  <div class="abspos case4" style="inset: 25px"
+       data-expected-width="10" data-expected-height="10"
+       data-offset-x="20" data-offset-y="20"></div>
+</div>
+
+<br>
+
+<!-- Case 4, but RTL -->
+<div class="container rtl">
+  <div class="abspos case4" style="inset: 5px"
+       data-expected-width="10" data-expected-height="10"
+       data-offset-x="5" data-offset-y="5"></div>
+</div>
+<div class="container rtl">
+  <div class="abspos case4" style="inset: 10px"
+       data-expected-width="10" data-expected-height="10"
+       data-offset-x="5" data-offset-y="5"></div>
+</div>
+<div class="container rtl">
+  <div class="abspos case4" style="inset: 15px"
+       data-expected-width="10" data-expected-height="10"
+       data-offset-x="0" data-offset-y="10"></div>
+</div>
+<div class="container rtl">
+  <div class="abspos case4" style="inset: 20px"
+       data-expected-width="10" data-expected-height="10"
+       data-offset-x="-5" data-offset-y="15"></div>
+</div>
+<div class="container rtl">
+  <div class="abspos case4" style="inset: 25px"
+       data-expected-width="10" data-expected-height="10"
+       data-offset-x="-10" data-offset-y="20"></div>
+</div>
+
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<script>
+checkLayout(".abspos");
+</script>
