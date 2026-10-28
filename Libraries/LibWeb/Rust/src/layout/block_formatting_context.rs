@@ -205,6 +205,12 @@ pub(crate) struct FloatingBox {
     // Offset from left/right edge to the left content edge of `box`.
     offset_from_edge: CssPixels,
 
+    // Distance from the left margin edge of `box` to its left content edge.
+    left_margin_edge_to_content_edge: CssPixels,
+
+    // Distance from the left content edge of `box` to its right margin edge.
+    left_content_edge_to_right_margin_edge: CssPixels,
+
     // Bottom margin edge of `box`.
     bottom_margin_edge: CssPixels,
 
@@ -1369,7 +1375,6 @@ impl<'pass> BlockFormattingContext<'pass> {
         let pending_adjustment =
             self.block_offset_adjustment_from_pending_ancestor_block_start_margins(floating_box.box_);
         containing_block_rect_in_root.y += pending_adjustment;
-        let float_box = self.run.records.box_metrics_of(floating_box.box_);
         let root_content_inline_size = self.used(self.run.box_).content_inline_size.get();
         let margin_box_rect = floating_box
             .margin_box_rect_in_root_coordinate_space
@@ -1396,14 +1401,11 @@ impl<'pass> BlockFormattingContext<'pass> {
         let intrusion = if floating_box.side == FloatSide::Left {
             containing_block_rect_in_root.x
                 + floating_box.offset_from_edge
-                + float_box.content_inline_size()
-                + float_box.margin_right()
-                + float_box.border_box_right(false)
+                + floating_box.left_content_edge_to_right_margin_edge
         } else {
             (root_content_inline_size - containing_block_rect_in_root.right())
                 + floating_box.offset_from_edge
-                + float_box.margin_left()
-                + float_box.border_box_left(false)
+                + floating_box.left_margin_edge_to_content_edge
         };
         for band in self.bands.borrow_mut().iter_mut() {
             if band.block_start < block_start {
@@ -1476,16 +1478,13 @@ impl<'pass> BlockFormattingContext<'pass> {
         floating_box: FloatingBox,
         containing_block_rect_in_root: CssPixelRect,
     ) -> CssPixels {
-        let float_box = self.run.records.box_metrics_of(floating_box.box_);
         if floating_box.side == FloatSide::Left {
             containing_block_rect_in_root.x + floating_box.offset_from_edge
-                - float_box.margin_left()
-                - float_box.border_box_left(false)
+                - floating_box.left_margin_edge_to_content_edge
         } else {
             containing_block_rect_in_root.right()
                 - floating_box.offset_from_edge
-                - float_box.margin_left()
-                - float_box.border_box_left(false)
+                - floating_box.left_margin_edge_to_content_edge
         }
     }
 
@@ -4378,6 +4377,10 @@ impl<'pass> BlockFormattingContext<'pass> {
             box_: node,
             side,
             offset_from_edge: placement.offset_from_edge,
+            left_margin_edge_to_content_edge: float_box.margin_left() + float_box.border_box_left(false),
+            left_content_edge_to_right_margin_edge: float_box.content_inline_size()
+                + float_box.margin_right()
+                + float_box.border_box_right(false),
             bottom_margin_edge: content_block_offset
                 + float_box.content_block_size()
                 + float_box.margin_box_bottom(false),
