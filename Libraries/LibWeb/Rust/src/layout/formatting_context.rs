@@ -544,8 +544,7 @@ pub(crate) fn place_reused_child(
 }
 
 fn containing_block_is_placed_or_outside_run(records: &RunRecords, containing_block: Node) -> bool {
-    !containing_block.is_invalid()
-        && (records.used_values_if_owned(containing_block).is_none() || records.is_placed(containing_block))
+    !containing_block.is_invalid() && (!records.holds_box(containing_block) || records.is_placed(containing_block))
 }
 
 /// The line box index to record for atomic inlines whose containing line
@@ -2820,7 +2819,7 @@ pub(crate) fn propagate_percentage_block_size_dependency_to_containing_block(
     }
     let containing_block = callbacks.in_flow_containing_block(child);
     let containing_block_or_run_root_that_forwarded_the_basis =
-        if !containing_block.is_invalid() && records.used_values_if_owned(containing_block).is_some() {
+        if !containing_block.is_invalid() && records.holds_box(containing_block) {
             containing_block
         } else {
             records.root()

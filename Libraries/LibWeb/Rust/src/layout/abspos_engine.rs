@@ -215,8 +215,8 @@ impl<'pass> AbsposEngine<'pass> {
             let mut current = descendant;
             while current != merge_point {
                 assert!(
-                    self.records.used_values_if_owned(current).is_some(),
-                    "a payload resting space's chain crossed a record this run does not own (slot {})",
+                    self.records.holds_box(current),
+                    "a payload resting space's chain crossed a box this run does not hold (slot {})",
                     current.slot_index()
                 );
                 offset = formatting_context::point_add(offset, self.records.content_offset_or_origin(current));

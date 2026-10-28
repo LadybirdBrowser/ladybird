@@ -1596,7 +1596,7 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 
     fn margins_collapse_through(&self, node: Node) -> bool {
-        if self.run.records.used_values_if_owned(node).is_none() {
+        if !self.run.records.holds_box(node) {
             return true;
         }
         let facts = self.facts(node);
@@ -2976,13 +2976,13 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
         self.discard_block_start_margin_of_next_child.set(false);
         state.truncate_next_block_start_margin &=
-            self.run.records.used_values_if_owned(child).is_some() && self.margins_collapse_through(child);
+            self.run.records.holds_box(child) && self.margins_collapse_through(child);
         let broken_child_token = self
             .broken_child_token
             .borrow_mut()
             .take_if(|token| token.node == child);
         if let Some(token) = broken_child_token {
-            if self.allows_unforced_breaks() && self.run.records.used_values_if_owned(child).is_some() {
+            if self.allows_unforced_breaks() && self.run.records.holds_box(child) {
                 let content_block_end = state.container_content_box_block_start_in_root
                     + self.block_offset_adjustment_from_pending_ancestor_block_start_margins(block_container)
                     + self.run.records.content_offset_or_origin(child).y
@@ -3307,7 +3307,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             !child_facts.is_absolutely_positioned()
                 && !child_facts.is_floating()
                 && !child_facts.is_list_item_marker_box()
-                && self.run.records.used_values_if_owned(child).is_some()
+                && self.run.records.holds_box(child)
                 && !self.run.records.is_invisible_for_line_clamp(child)
                 && !self.margins_collapse_through(child)
         })
