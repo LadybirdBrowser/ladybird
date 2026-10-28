@@ -491,6 +491,14 @@ void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, O
                 auto& realm = WebIDL::promise_realm(*promise);
                 HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
+                // AD-HOC: The user may have taken the permission away while the device list was fetched, and no track
+                //         is created for a document that may no longer capture.
+                auto& document = media_devices->m_window->associated_document();
+                if (!document.is_fully_active() || PermissionsAPI::permission_state(PermissionsAPI::PermissionDescriptor { "microphone"_utf16 }, HTML::relevant_settings_object(*media_devices->m_window)) != PermissionsAPI::PermissionState::Granted) {
+                    WebIDL::reject_promise(*promise, WebIDL::NotAllowedError::create("Permission denied"_utf16));
+                    return;
+                }
+
                 Vector<Audio::AudioDeviceInfo> final_set;
                 for (auto const& device : Audio::AudioDevices::the().input_devices()) {
                     auto device_id = Utf16String::from_utf8_with_replacement_character(device.dom_device_id.view());
