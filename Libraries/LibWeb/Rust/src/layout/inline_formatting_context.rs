@@ -1509,7 +1509,12 @@ impl<'context> InlineFormattingContext<'context> {
                 self.parent.run(self.run, input);
                 self.box_metrics(node).content_baselines()
             }
-            ChildLayoutOutcome::Skipped { .. } => self.box_metrics(node).content_baselines(),
+            ChildLayoutOutcome::Skipped { .. } => {
+                laid_out_box
+                    .as_ref()
+                    .expect("a skipped atomic inline leaves its box")
+                    .baselines
+            }
         };
         let (placed_child, laid_out_cells) = match laid_out_box {
             Some(laid_out_box) => (

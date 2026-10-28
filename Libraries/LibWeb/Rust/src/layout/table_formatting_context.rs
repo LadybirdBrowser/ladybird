@@ -2686,10 +2686,9 @@ impl<'pass> TableFormattingContext<'pass> {
             // NB: The cell was laid out by this table's run, in the record it keeps.
             None => run.records.box_metrics_of(cell.box_).input_cells(),
         };
-        if matches!(outcome, ChildLayoutOutcome::Created(_)) {
-            self.content_baselines_of_handed_back_cells[cell_index] =
-                laid_out_box.as_ref().map(|laid_out_box| laid_out_box.baselines);
-        }
+        // NB: A cell this table lays out in the record it keeps hands nothing back.
+        self.content_baselines_of_handed_back_cells[cell_index] =
+            laid_out_box.as_ref().map(|laid_out_box| laid_out_box.baselines);
         outcome.report_percentage_block_size_dependency_of(run, cell.box_);
         let baselines = match outcome {
             ChildLayoutOutcome::Created(result) => result.baselines,
@@ -2697,7 +2696,9 @@ impl<'pass> TableFormattingContext<'pass> {
                 self.run(run, layout_input, None);
                 run.records.box_metrics_of(cell.box_).content_baselines()
             }
-            ChildLayoutOutcome::Skipped { .. } => run.records.box_metrics_of(cell.box_).content_baselines(),
+            ChildLayoutOutcome::Skipped { .. } => {
+                laid_out_box.as_ref().expect("a skipped cell leaves its box").baselines
+            }
         };
         self.placed_cells[cell_index] = Some(match laid_out_box {
             Some(laid_out_box) => {
