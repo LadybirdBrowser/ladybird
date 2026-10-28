@@ -15,19 +15,18 @@
         const { sourceBuffer } = await openColoredStreamSource(video);
 
         await appendWithinWindow(sourceBuffer, red);
-        await seekAndWait(video, 5.55);
+        await seekAndWait(video, 0.55);
         println(`before replacing: ${await samplePresentedFrameOnceItMatches(video, "red 0")}`);
         await timeout(500);
 
-        // Frames are at multiples of 0.1, so this keeps the presented frame at 5.5 and the next at 5.6.
-        await appendWithinWindow(sourceBuffer, blue, 5.65, 8);
+        // Frames are at multiples of 0.1, so this keeps the presented frame at 0.5 and the next at 0.6. Reads that skip
+        // the replacement go on to the red frames from 11.
+        await appendWithinWindow(sourceBuffer, blue, 0.65, 11);
         println(`after replacing ahead: ${samplePresentedFrame(video)}`);
 
+        const firstReplacedFrameColor = presentedColorOfFirstFrameFrom(video, 0.65);
         await video.play();
-        await waitForCondition(() => video.currentTime >= 6.05, 200, 10);
-        // Only the stream is printed, since whether stale frames get presented is timing-dependent.
-        const sample = await samplePresentedFrameOnceItMatches(video, "blue 1");
-        println(`playing past 6: ${sample.split(" ")[0]}`);
+        println(`first frame presented past 0.65: ${await firstReplacedFrameColor}`);
         video.pause();
     });
 </script>

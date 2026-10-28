@@ -7,17 +7,19 @@
     // video is only updated on the display's vsync, so that paint must start it for the presented frame to advance.
     promiseTest(async () => {
         const red = await fetchColoredStream("red");
+        const blue = await fetchColoredStream("blue");
 
         const video = document.createElement("video");
         video.muted = true;
         document.body.append(video);
         const { sourceBuffer } = await openColoredStreamSource(video);
 
-        await appendWithinWindow(sourceBuffer, red);
+        await appendWithinWindow(sourceBuffer, red, 0, 6);
+        await appendWithinWindow(sourceBuffer, blue, 6);
         await seekAndWait(video, 5.55);
         await video.play();
         await waitForCondition(() => video.currentTime >= 6.2, 200, 10);
-        println(`playing past 6.2: ${await samplePresentedFrameOnceItMatches(video, "red 1")}`);
+        println(`playing past 6.2: ${await samplePresentedColorOnceItMatches(video, "blue")}`);
         video.pause();
     });
 </script>

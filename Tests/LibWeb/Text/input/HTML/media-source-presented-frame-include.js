@@ -56,3 +56,22 @@ async function samplePresentedFrameOnceItMatches(video, expected) {
     await waitForCondition(() => samplePresentedFrame(video) === expected, 40, 25);
     return samplePresentedFrame(video);
 }
+
+async function samplePresentedColorOnceItMatches(video, expected) {
+    const presentedColor = () => samplePresentedFrame(video).split(" ")[0];
+    await waitForCondition(() => presentedColor() === expected, 40, 25);
+    return presentedColor();
+}
+
+function presentedColorOfFirstFrameFrom(video, time) {
+    return new Promise(resolve => {
+        const onFrame = (now, metadata) => {
+            if (metadata.mediaTime < time) {
+                video.requestVideoFrameCallback(onFrame);
+                return;
+            }
+            resolve(samplePresentedFrame(video).split(" ")[0]);
+        };
+        video.requestVideoFrameCallback(onFrame);
+    });
+}
