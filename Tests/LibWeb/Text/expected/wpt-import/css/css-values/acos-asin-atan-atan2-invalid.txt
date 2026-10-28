@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 63 tests
 
-62 Pass
-1 Fail
+63 Pass
 Pass	e.style['transform'] = "rotate(asin())" should not set the property value
 Pass	e.style['transform'] = "rotate(asin( ))" should not set the property value
 Pass	e.style['transform'] = "rotate(asin(,))" should not set the property value
@@ -59,7 +58,7 @@ Pass	e.style['transform'] = "rotate(atan2(1deg / ))" should not set the property
 Pass	e.style['transform'] = "rotate(atan2(1deg 2deg))" should not set the property value
 Pass	e.style['transform'] = "rotate(atan2(1deg, , 2deg))" should not set the property value
 Pass	e.style['transform'] = "rotate(atan2(90px))" should not set the property value
-Fail	e.style['transform'] = "rotate(atan2(90px, 100%))" should not set the property value
+Pass	e.style['transform'] = "rotate(atan2(90px, 100%))" should not set the property value
 Pass	e.style['transform'] = "rotate(atan2(30deg + 1.0471967rad, 0))" should not set the property value
 Pass	e.style['transform'] = "rotate(atan2( 0 ,))" should not set the property value
 Pass	e.style['transform'] = "rotate(atan2( () 30deg - 0.523599rad ))" should not set the property value

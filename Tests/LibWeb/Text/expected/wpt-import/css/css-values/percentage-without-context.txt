@@ -2,16 +2,16 @@ Harness status: OK
 
 Found 12 tests
 
-12 Fail
-Fail	e.style['font-style'] = "oblique calc(sign(50%) * 1deg)" should not set the property value
-Fail	e.style['background'] = "linear-gradient(calc(sign(50%) * 1turn), #3f87a6, #ebf8e1, #f69d3c)" should not set the property value
-Fail	e.style['background'] = "conic-gradient(from calc(sign(50%) * 1rad) at 10% 50%, #e66465, #9198e5)" should not set the property value
-Fail	e.style['filter'] = "hue-rotate(calc(sign(50%) * 1deg))" should not set the property value
-Fail	e.style['offset-rotate'] = "calc(sign(50%) * 1deg)" should not set the property value
-Fail	e.style['offset-path'] = "ray(calc(sign(50%) * 1deg))" should not set the property value
-Fail	e.style['color'] = "hsl(calc(sign(50%) * 1deg) 82% 43%)" should not set the property value
-Fail	e.style['transform'] = "rotate(calc(sign(50%) * 1deg))" should not set the property value
-Fail	e.style['animation-duration'] = "calc(sign(50%) * 1s)" should not set the property value
-Fail	e.style['animation-delay'] = "calc(sign(50%) * 1s)" should not set the property value
-Fail	e.style['transition-duration'] = "calc(sign(50%) * 1s)" should not set the property value
-Fail	e.style['transition-delay'] = "calc(sign(50%) * 1s)" should not set the property value
+12 Pass
+Pass	e.style['font-style'] = "oblique calc(sign(50%) * 1deg)" should not set the property value
+Pass	e.style['background'] = "linear-gradient(calc(sign(50%) * 1turn), #3f87a6, #ebf8e1, #f69d3c)" should not set the property value
+Pass	e.style['background'] = "conic-gradient(from calc(sign(50%) * 1rad) at 10% 50%, #e66465, #9198e5)" should not set the property value
+Pass	e.style['filter'] = "hue-rotate(calc(sign(50%) * 1deg))" should not set the property value
+Pass	e.style['offset-rotate'] = "calc(sign(50%) * 1deg)" should not set the property value
+Pass	e.style['offset-path'] = "ray(calc(sign(50%) * 1deg))" should not set the property value
+Pass	e.style['color'] = "hsl(calc(sign(50%) * 1deg) 82% 43%)" should not set the property value
+Pass	e.style['transform'] = "rotate(calc(sign(50%) * 1deg))" should not set the property value
+Pass	e.style['animation-duration'] = "calc(sign(50%) * 1s)" should not set the property value
+Pass	e.style['animation-delay'] = "calc(sign(50%) * 1s)" should not set the property value
+Pass	e.style['transition-duration'] = "calc(sign(50%) * 1s)" should not set the property value
+Pass	e.style['transition-delay'] = "calc(sign(50%) * 1s)" should not set the property value

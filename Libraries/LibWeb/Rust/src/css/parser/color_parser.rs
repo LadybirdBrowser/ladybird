@@ -373,6 +373,7 @@ fn parse_calculated_numeric(
         values,
         CalcParserContext {
             percentages_resolve_as: None,
+            allow_percentages: accepted.contains(&NumericKind::Percentage),
             property,
             random_function_index: context.random_function_index,
             allowed_color_channels,
