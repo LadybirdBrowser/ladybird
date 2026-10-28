@@ -3123,7 +3123,6 @@ impl<'pass> AbsposEngine<'pass> {
             ),
             false,
         );
-        formatting_context::hold_fragment_arrival_until_placement(run, node, fragment_arrival);
         outcome.report_percentage_block_size_dependency_of(run, node);
         let mut used_insets = match outcome {
             ChildLayoutOutcome::Created(result) => result
@@ -3188,6 +3187,7 @@ impl<'pass> AbsposEngine<'pass> {
             },
             None,
             Some(inputs),
+            fragment_arrival,
         );
     }
 
