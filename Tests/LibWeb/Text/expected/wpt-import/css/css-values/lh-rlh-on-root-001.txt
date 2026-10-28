@@ -2,12 +2,12 @@ Harness status: OK
 
 Found 8 tests
 
-8 Fail
-Fail	lh in line-height on root
-Fail	rlh in line-height on root
-Fail	lh in font-size on root
-Fail	rlh in font-size on root
-Fail	2lh in line-height on root
-Fail	2rlh in line-height on root
-Fail	2lh in font-size on root
-Fail	2rlh in font-size on root
+8 Pass
+Pass	lh in line-height on root
+Pass	rlh in line-height on root
+Pass	lh in font-size on root
+Pass	rlh in font-size on root
+Pass	2lh in line-height on root
+Pass	2rlh in line-height on root
+Pass	2lh in font-size on root
+Pass	2rlh in font-size on root

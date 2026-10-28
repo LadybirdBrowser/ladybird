@@ -7,6 +7,7 @@
 #include <AK/HashTable.h>
 #include <AK/StdLibExtras.h>
 #include <AK/Time.h>
+#include <LibWeb/CSS/ComputedStyleWorkingSet.h>
 #include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/FontResolution.h>
 #include <LibWeb/CSS/RustDeclarationBlock.h>
@@ -608,7 +609,7 @@ void StyleEngine::gather_computation_inputs(LentComputationInputs& lent)
     }
     auto const& root_font_metrics = m_style_computer->root_element_font_metrics();
     auto const& initial_font = m_style_computer->document().font_computer().initial_font();
-    Length::FontMetrics const initial_font_metrics { CSSPixels { initial_font.pixel_size() }, initial_font.pixel_metrics(), InitialValues::line_height() };
+    Length::FontMetrics const initial_font_metrics { CSSPixels { initial_font.pixel_size() }, initial_font.pixel_metrics(), normal_line_height(initial_font.pixel_metrics()) };
     lent.inputs = {
         .in_quirks_mode = m_style_computer->document().in_quirks_mode(),
         .viewport_width = viewport_rect.width().to_double(),
@@ -624,6 +625,7 @@ void StyleEngine::gather_computation_inputs(LentComputationInputs& lent)
         .initial_font_x_height = initial_font_metrics.x_height.to_double(),
         .initial_font_cap_height = initial_font_metrics.cap_height.to_double(),
         .initial_font_zero_advance = initial_font_metrics.zero_advance.to_double(),
+        .initial_line_height = initial_font_metrics.line_height.to_double(),
         .initial_font_size_raw = InitialValues::font_size().raw_value(),
         .default_font_size_raw = StyleComputer::default_user_font_size().raw_value(),
         .device_pixels_per_css_pixel = m_style_computer->document().page().client().device_pixels_per_css_pixel(),
