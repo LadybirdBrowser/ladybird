@@ -2,10 +2,9 @@ Harness status: OK
 
 Found 4 tests
 
-1 Pass
-2 Fail
+3 Pass
 1 Optional Feature Unsupported
-Fail	User action pseudo-classes on dialog (modal)
+Pass	User action pseudo-classes on dialog (modal)
 Pass	User action pseudo-classes on dialog (non-modal)
-Fail	User action pseudo-classes on popover (popover)
+Pass	User action pseudo-classes on popover (popover)
 Optional Feature Unsupported	User action pseudo-classes on customizable-select (open)

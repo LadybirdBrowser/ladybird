@@ -2,6 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-2 Fail
-Fail	:focus-within should be adjusted on ancestors when popover enters/exits top layer.
-Fail	:hover should be adjusted on ancestors when popover enters/exits top layer.
+2 Pass
+Pass	:focus-within should be adjusted on ancestors when popover enters/exits top layer.
+Pass	:hover should be adjusted on ancestors when popover enters/exits top layer.

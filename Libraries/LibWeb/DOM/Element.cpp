@@ -45,6 +45,7 @@
 #include <LibWeb/CSS/Invalidation/ElementStateInvalidator.h>
 #include <LibWeb/CSS/Invalidation/LanguageInvalidator.h>
 #include <LibWeb/CSS/Invalidation/PartInvalidator.h>
+#include <LibWeb/CSS/Invalidation/PseudoClassInvalidator.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/SelectorMatching.h>
@@ -3487,6 +3488,17 @@ void Element::set_rendered_in_top_layer(bool rendered_in_top_layer)
         return;
     m_rendered_in_top_layer = rendered_in_top_layer;
     CSS::record_element_adjustment_facts(*this);
+    // NB: Changing the top layer boundary moves ancestor state even when focus and the pointer stay put.
+    CSS::Invalidation::invalidate_style_after_subtree_place_changed(*this, flat_tree_parent());
+    if (is_being_activated()) {
+        for (auto* node = flat_tree_parent(); node; node = node->flat_tree_parent()) {
+            if (auto* element = as_if<Element>(*node)) {
+                element->set_being_activated(!rendered_in_top_layer);
+                if (element->rendered_in_top_layer())
+                    break;
+            }
+        }
+    }
 }
 
 Layout::NodeWithStyle* Element::pseudo_element_layout_node(Layout::BegunRead const& read, CSS::PseudoElement pseudo_element) const
@@ -3650,9 +3662,14 @@ bool Element::matches_focus_within_pseudo_class() const
     if (!focused_area)
         return false;
 
+    // https://drafts.csswg.org/selectors-4/#useraction-pseudos
+    // Specifically, if these match on a given element, they also match on the element's flat tree ancestors, up to and
+    // including the first top layer element or the root element, whichever is encountered first.
     for (auto const* node = focused_area.ptr(); node; node = node->flat_tree_parent()) {
         if (node == this)
             return true;
+        if (auto const* element = as_if<Element>(*node); element && element->rendered_in_top_layer())
+            break;
     }
     return false;
 }

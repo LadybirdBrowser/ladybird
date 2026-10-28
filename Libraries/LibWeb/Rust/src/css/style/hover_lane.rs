@@ -180,17 +180,24 @@ impl StyleEngine {
         relations.parent.or_else(|| tree.host_of(node))
     }
 
-    /// The elements that match `:hover` while `hovered` is hovered: the element and its shadow-including ancestor
-    /// elements, short of the document at the root of the tree, as the tree changes recorded so far leave it.
+    /// The elements that match `:hover` while `hovered` is hovered, up to the first top layer element or the root,
+    /// as the tree changes recorded so far leave it.
     fn hover_chain(&self, hovered: Option<StyleNodeID>) -> HoverChain {
         let tree = self.tree();
-        std::iter::successors(hovered, |&node| self.recorded_parent_or_shadow_host(node))
-            .filter(|&node| {
-                node.element_index().is_some()
-                    && tree.host_of(node).is_none()
-                    && self.recorded_parent_or_shadow_host(node).is_some()
-            })
-            .collect()
+        // https://drafts.csswg.org/selectors-4/#useraction-pseudos
+        std::iter::successors(hovered, |&node| {
+            if self.computed_group_sets.adjustment_facts(node) & element_adjustment_fact::RENDERED_IN_TOP_LAYER != 0 {
+                None
+            } else {
+                self.recorded_parent_or_shadow_host(node)
+            }
+        })
+        .filter(|&node| {
+            node.element_index().is_some()
+                && tree.host_of(node).is_none()
+                && self.recorded_parent_or_shadow_host(node).is_some()
+        })
+        .collect()
     }
 
     /// How the move of the element `row` restyles builds the element's boxes again, where `boxed` says whether it has a

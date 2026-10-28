@@ -278,7 +278,13 @@ style_boundary! {
         note_style_reaction_applied => NoteStyleReactionApplied {
             node: StyleNodeID, reaction: u8, inherited_style_groups_changed: u8, changed_non_inherited_style_groups: u32, facts: u32
         };
-        set_element_adjustment_facts => SetElementAdjustmentFacts { node: StyleNodeID, facts: u32 };
+        set_element_adjustment_facts => SetElementAdjustmentFacts { node: StyleNodeID, facts: u32 } => {
+            let changed = engine.element_adjustment_facts(node) ^ facts;
+            engine.set_element_adjustment_facts(node, facts);
+            if changed & super::bridge::element_adjustment_fact::RENDERED_IN_TOP_LAYER != 0 {
+                engine.set_hover(engine.hover_target());
+            }
+        };
         set_element_construction_facts => SetElementConstructionFacts { node: StyleNodeID, facts: u32 };
         set_element_box_kind => SetElementBoxKind { node: StyleNodeID, box_kind: ElementBoxKind };
         set_element_replaced_content_input => SetElementReplacedContentInput {

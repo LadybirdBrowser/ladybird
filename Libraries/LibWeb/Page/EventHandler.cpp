@@ -5175,9 +5175,13 @@ static void light_dismiss_activities(UIEvents::PointerEvent const& event, GC::Re
 
 static void set_node_and_ancestors_being_activated(GC::Ptr<DOM::Node> node, bool activated)
 {
-    for (auto ancestor = node; ancestor; ancestor = ancestor->parent()) {
-        if (auto* element = as_if<DOM::Element>(*ancestor))
+    // https://drafts.csswg.org/selectors-4/#useraction-pseudos
+    for (auto ancestor = node; ancestor; ancestor = ancestor->flat_tree_parent()) {
+        if (auto* element = as_if<DOM::Element>(*ancestor)) {
             element->set_being_activated(activated);
+            if (element->rendered_in_top_layer())
+                break;
+        }
     }
 }
 
