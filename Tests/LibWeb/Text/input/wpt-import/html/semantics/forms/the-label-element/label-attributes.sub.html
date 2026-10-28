@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>HTML Test: The label element</title>
+<link rel="author" title="Intel" href="http://www.intel.com/">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<div id="log"></div>
+<form id="fm" style="display:none">
+  <label id="lbl0" for="test0"></label>
+  <b id="test0"></b>
+
+  <input id="test1">
+
+  <label id="lbl1">
+    <a id="test2"></a>
+    <div><input id="test3"></div>
+    <input id="test4">
+  </label>
+
+  <label id="lbl2" for="testx">
+    <input id="test5">
+  </label>
+
+  <label id="lbl3" for="test6">
+    <b id="test6"></b>
+    <input id="test6" class="class1">
+  </label>
+
+  <label id="lbl4" for="">
+    <input id="" class="class2">
+  </label>
+
+  <label id="lbl5" for="test7"></label>
+  <input id="test7">
+
+  <label id="lbl7">
+    <label id="lbl8">
+      <div id="div1">
+        <input id="test8">
+      </div>
+    </label>
+  </label>
+  <div id="div2"></div>
+
+ <label id="lbl9">
+   <label id="lbl10" for="test10">
+    <div id="div3">
+      <input id="test9">
+    </div>
+  </label>
+ </label>
+ <div id="div4"><input id="test10"></div>
+
+  <label id="lbl11">
+    <object id="obj">
+      <input id="test11">
+      <input id="test12">
+    </object>
+  </label>
+  <label id="lbl12" for="test12"><div id="div5"></div></label>
+
+  <label id="lbl13">
+    <p id="p1">
+      <input id="test13">
+    </p>
+  </label>
+
+  <div id="div6">
+    <div id="div7">
+      <label id="lbl14">
+        <label id="lbl15" for="test15">
+          <input id="test14">
+        </label>
+      </label>
+    </div>
+  </div>
+  <input id="test15">
+</form>
+
+<label id="lbl6" for="test7"></label>
+<div id="content" style="display: none">
+<script>
+
+  //control attribute
+  test(function () {
+    assert_not_equals(document.getElementById("lbl0").control, document.getElementById("test0"),
+                      "An element that's not a labelable element can't be a label element's labeled control.");
+    assert_equals(document.getElementById("lbl0").control, null,
+                  "A label element whose 'for' attribute doesn't reference any labelable element shouldn't have any labeled control.");
+  }, "A label element with a 'for' attribute should only be associated with a labelable element.");
+
+  test(function () {
+    var label = document.createElement("label");
+    label.htmlFor = "test1";
+    assert_not_equals(label.control, document.getElementById("test1"),
+                      "A label element not in a document should not label an element in a document.");
+    document.body.appendChild(label);
+    assert_equals(label.control, document.getElementById("test1"));
+    label.remove();
+  }, "A label element not in a document can not label any element in the document.");
+
+  test(function () {
+    var labels = document.getElementById("test3").labels;
+    assert_equals(document.getElementById("lbl1").control, document.getElementById("test3"),
+                  "The first labelable descendant of a label element should be its labeled control.");
+
+    var input = document.createElement("input");
+    document.getElementById("lbl1").insertBefore(input, document.getElementById("test2"));
+    assert_equals(document.getElementById("lbl1").control, input,
+                  "The first labelable descendant of a label element in tree order should be its labeled control.");
+    assert_equals(input.labels.length, 1,
+                  "The form control has an ancestor with no explicit associated label, and is the first labelable descendant.");
+    assert_equals(labels.length, 0,
+                  "The number of labels should be 0 if it's not the first labelable descendant of a label element.");
+    input.remove();
+  }, "The labeled control for a label element that has no 'for' attribute is the first labelable element which is a descendant of that label element.");
+
+  test(function () {
+    assert_equals(document.getElementById("lbl2").control, null,
+                  "The label's 'control' property should return null if its 'for' attribute points to an inexistent element.");
+  }, "The 'for' attribute points to an inexistent id.");
+
+  test(function () {
+    assert_equals(document.getElementById("lbl3").control, null, "The label should have no control associated.");
+    assert_equals(document.querySelector(".class1").labels.length, 0);
+  }, "A non-control follows by a control with same ID.");
+
+  test(function () {
+    assert_equals(document.getElementById("lbl4").control, null,
+                  "A label element with an empty 'for' attribute should not associate with anything.");
+  }, "The 'for' attribute is an empty string.");
+
+  //labels attribute
+  test(function () {
+    var labels = document.getElementById("test7").labels;
+    assert_true(labels instanceof NodeList,
+                "A form control's 'labels' property should be an instance of a NodeList.");
+    assert_equals(labels.length, 2,
+                  "The number of labels associated with a form control should be the number of label elements for which it is a labeled control.");
+    assert_array_equals(labels, [document.getElementById("lbl5"), document.getElementById("lbl6")],
+                        "The labels for a form control should be returned in tree order.");
+
+    var newLabel = document.createElement("label");
+    newLabel.htmlFor = "test7";
+    document.getElementById("fm").insertBefore(newLabel, document.getElementById("lbl0"));
+    assert_array_equals(document.getElementById("test7").labels, [newLabel, document.getElementById("lbl5"), document.getElementById("lbl6")],
+                        "The labels for a form control should be returned in tree order.");
+    newLabel.remove();
+  }, "A form control has multiple labels.");
+
+  test(function () {
+    var labels = document.getElementById("test8").labels;
+    assert_true(labels instanceof NodeList,
+                "A form control's 'labels' property should be an instance of a NodeList.");
+    assert_equals(labels.length, 2,
+                  "The form control has two ancestors with no explicit associated label, and is the first labelable descendant.");
+    assert_array_equals(labels, [document.getElementById("lbl7"), document.getElementById("lbl8")],
+                        "The labels for a form control should be returned in tree order.");
+
+    document.getElementById('div2').insertBefore(document.getElementById('div1'), document.getElementById('div2').firstChild);
+    assert_equals(labels.length, 0,
+                  "The number of labels should be 0 after the labelable element is moved to outside of nested associated labels.");
+  }, "A labelable element is moved to outside of nested associated labels.");
+
+  test(function () {
+    var labels1 = document.getElementById("test9").labels;
+    var labels2 = document.getElementById("test10").labels;
+    assert_true(labels1 instanceof NodeList,
+                "A form control's 'labels' property should be an instance of a NodeList.");
+    assert_true(labels2 instanceof NodeList,
+                "A form control's 'labels' property should be an instance of a NodeList.");
+    assert_equals(labels1.length, 1,
+                  "The form control has an ancestor with no explicit associated label, and is the first labelable descendant.");
+    assert_equals(labels2.length, 1,
+                  "The number of labels associated with a form control should be the number of label elements for which it is a labeled control.");
+    assert_array_equals(labels1, [document.getElementById("lbl9")],
+                        "The labels for a form control should be returned in tree order.");
+    assert_array_equals(labels2, [document.getElementById("lbl10")],
+                        "The labels for a form control should be returned in tree order.");
+    document.getElementById('div3').insertBefore(document.getElementById('div4'), document.getElementById('div3').firstChild);
+    assert_equals(labels1.length, 0,
+                  "The number of labels should be 0 if it's not the first labelable descendant of a label element.");
+    assert_equals(labels2.length, 2,
+                  "The form control has an ancestor with an explicit associated label, and is the first labelable descendant.");
+  }, "A labelable element is moved to inside of nested associated labels.");
+
+  test(function () {
+    var labels1 = document.getElementById("test11").labels;
+    var labels2 = document.getElementById("test12").labels;
+    assert_true(labels1 instanceof NodeList,
+                "A form control's 'labels' property should be an instance of a NodeList.");
+    assert_true(labels2 instanceof NodeList,
+                "A form control's 'labels' property should be an instance of a NodeList.");
+    assert_equals(labels1.length, 1,
+                  "The form control has an ancestor with no explicit associated label, and it is the first labelable descendant.");
+    assert_equals(labels2.length, 1,
+                  "The number of labels should be 1 since there is a label with a 'for' attribute associated with this labelable element.");
+    assert_array_equals(labels1, [document.getElementById("lbl11")],
+                        "The labels for a form control should be returned in tree order.");
+    assert_array_equals(labels2, [document.getElementById("lbl12")],
+                        "The labels for a form control should be returned in tree order.");
+    document.getElementById('div5').appendChild(document.getElementById('obj'));
+    assert_equals(labels1.length, 0,
+                  "The number of labels should be 0 after the labelable element is moved to outside of associated label.");
+    assert_equals(labels2.length, 1,
+                  "The number of labels should be 1 after the labelable element is moved to outside of associated label.");
+  }, "A labelable element which is a descendant of non-labelable element is moved to outside of associated label.");
+
+  async_test(function () {
+    var labels = document.getElementById("test13").labels;
+    assert_true(labels instanceof NodeList,
+                "A form control's 'labels' property should be an instance of a NodeList.");
+    assert_equals(labels.length, 1,
+                  "The form control has an ancestor with no explicit associated label, and is the first labelable descendant.");
+    assert_array_equals(labels, [document.getElementById("lbl13")],
+                        "The labels for a form control should be returned in tree order.");
+    let iframe = document.createElement('iframe');
+
+    iframe.onload = this.step_func_done(() => {
+      iframe.contentWindow.document.getElementById("div1").appendChild(document.getElementById("p1"));
+      assert_equals(labels.length, 2,
+                    "The number of labels should be 2 after the labelable element is moved to iframe.");
+    });
+
+    iframe.setAttribute('src', 'http://{{domains[]}}:{{ports[http][0]}}/html/semantics/forms/the-label-element/iframe-label-attributes.html');
+    document.body.appendChild(iframe);
+  }, "A labelable element is moved to iframe.");
+
+  test(function () {
+    var test14 = document.getElementById("test14");
+    var labels1 = test14.labels;
+    var labels2 = document.getElementById("test15").labels;
+    assert_true(labels1 instanceof NodeList,
+                "A form control's 'labels' property should be an instance of a NodeList.");
+    assert_equals(labels1.length, 1,
+                  "The form control has an ancestor with no explicit associated label, and is the first labelable descendant.");
+    assert_equals(labels2.length, 1,
+                  "The number of labels associated with a form control should be the number of label elements for which it is a labeled control.");
+    assert_array_equals(labels1, [document.getElementById("lbl14")],
+                        "The labels for a form control should be returned in tree order.");
+    assert_array_equals(labels2, [document.getElementById("lbl15")],
+                        "The labels for a form control should be returned in tree order.");
+
+    document.getElementById('div6').removeChild(document.getElementById('div7'));
+    assert_equals(labels1.length, 1,
+                  "The number of labels should be 1 after the labelable element is removed but label element is still in the same tree.");
+    assert_equals(labels2.length, 0,
+                  "The number of labels should be 0 since there is no label with a 'for' attribute associated with this labelable element.");
+    test14.remove();
+    assert_equals(labels1.length, 0,
+                  "The number of labels should be 0 after the labelable element is removed.");
+  }, "A div element which contains labelable element is removed.");
+
+  test(function () {
+    // <label><input id="test16"><label for="test16"></label></label>
+    var label1 = document.createElement('label');
+    label1.innerHTML = "<input id='test16'>";
+    var label2 = document.createElement('label');
+    label2.htmlFor = "test16";
+    label1.appendChild(label2);
+
+    var input = label1.firstChild;
+    var labels = input.labels;
+
+    assert_equals(labels.length, 2,
+                  "The number of labels associated with a form control should be the number of label elements for which it is a labeled control.");
+    assert_true(labels instanceof NodeList,
+                "A form control's 'labels' property should be an instance of a NodeList.");
+    assert_equals(label1.control, input, "The first labelable descendant of a label element should be its labeled control.");
+    assert_equals(label2.control, input, "The labeled cotrol should be associated with the control whose ID is equal to the value of the 'for' attribute.");
+  }, "A labelable element not in a document can label element in the same tree.");
+
+  test(function () {
+    var root1 = document.getElementById('content').attachShadow({mode: 'open'});
+    assert_true(root1 instanceof DocumentFragment,
+                "ShadowRoot should be an instance of DocumentFragment.");
+    // <label><input id="shadow1"/></label><div id="div1"></div>
+    var label1 = document.createElement('label');
+    var input1 = document.createElement('input');
+    input1.setAttribute("id", "shadow1");
+    label1.appendChild(input1);
+    root1.appendChild(label1);
+
+    var div1 = document.createElement('div');
+    label1.appendChild(div1);
+    // <label for="shadow2"></label><input id="shadow2"/>
+    var root2 = div1.attachShadow({mode: 'open'});
+
+    assert_true(root2 instanceof DocumentFragment,
+                "ShadowRoot should be an instance of DocumentFragment.");
+    var label2 = document.createElement('label');
+    label2.setAttribute("for", "shadow2");
+
+    var input2 = document.createElement('input');
+    input2.setAttribute("id", "shadow2");
+    root2.appendChild(label2);
+    root2.appendChild(input2);
+
+    assert_equals(root1.getElementById("shadow1").labels.length, 1,
+                  "The form control has an ancestor with no explicit associated label, and it is the first labelable descendant.");
+    assert_equals(root2.getElementById("shadow2").labels.length, 1,
+                  "The number of labels should be 1 since there is a label with a 'for' attribute associated with this labelable element.");
+  }, "A labelable element inside the shadow DOM.");
+
+  test(function () {
+    var labels = document.getElementById("test3").labels;
+    assert_true(labels instanceof NodeList, "A form control's 'labels' property should be an instance of a NodeList.");
+    assert_equals(labels.length, 1, "The form control has an ancestor with no explicit associated label, and is the first labelable descendant.");
+  }, "A form control has an implicit label.");
+
+  test(function () {
+    var labels = document.getElementById("test4").labels;
+    assert_true(labels instanceof NodeList, "A form control's 'labels' property should be an instance of a NodeList.");
+    assert_equals(labels.length, 0, "The form control has an ancestor with no explicit associated label, but is *not* the first labelable descendant");
+  }, "A form control has no label 1.");
+
+  test(function () {
+    assert_equals(document.getElementById("test5").labels.length, 0,
+                  "The number of labels should be 0 if the form control has an ancestor label element that the for attribute points to another control.");
+    assert_equals(document.getElementById("lbl2").control, null,
+                  "The labeled cotrol should be associated with the control whose ID is equal to the value of the 'for' attribute.");
+  }, "A form control has no label 2.");
+
+  // form attribute
+  test(function () {
+    assert_equals(document.getElementById("lbl0").form, null,
+                  "The 'form' property for a label should return null if label.control is null.");
+  }, "A label in a form without a control");
+
+  test(function () {
+    assert_equals(document.getElementById("lbl6").form, document.getElementById("fm"),
+                  "The 'form' property for a label should return label.control.form.");
+  }, "A label outside a form with a control inside the form");
+
+  // htmlFor attribute
+  test(function () {
+    assert_equals(document.getElementById("lbl2").htmlFor, "testx");
+  }, "A label's htmlFor attribute must reflect the for content attribute");
+</script>

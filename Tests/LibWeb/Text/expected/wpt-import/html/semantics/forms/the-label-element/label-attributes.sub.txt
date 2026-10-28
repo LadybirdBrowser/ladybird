@@ -1,0 +1,26 @@
+Harness status: OK
+
+Found 20 tests
+
+16 Pass
+4 Fail
+Pass	A label element with a 'for' attribute should only be associated with a labelable element.
+Pass	A label element not in a document can not label any element in the document.
+Pass	The labeled control for a label element that has no 'for' attribute is the first labelable element which is a descendant of that label element.
+Pass	The 'for' attribute points to an inexistent id.
+Fail	A non-control follows by a control with same ID.
+Pass	The 'for' attribute is an empty string.
+Pass	A form control has multiple labels.
+Pass	A labelable element is moved to outside of nested associated labels.
+Pass	A labelable element is moved to inside of nested associated labels.
+Pass	A labelable element which is a descendant of non-labelable element is moved to outside of associated label.
+Fail	A labelable element is moved to iframe.
+Fail	A div element which contains labelable element is removed.
+Fail	A labelable element not in a document can label element in the same tree.
+Pass	A labelable element inside the shadow DOM.
+Pass	A form control has an implicit label.
+Pass	A form control has no label 1.
+Pass	A form control has no label 2.
+Pass	A label in a form without a control
+Pass	A label outside a form with a control inside the form
+Pass	A label's htmlFor attribute must reflect the for content attribute
