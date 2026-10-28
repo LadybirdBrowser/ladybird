@@ -409,6 +409,8 @@ pub(crate) struct BlockFormattingContext<'pass> {
     block_offset_of_current_block_container: Cell<Option<CssPixels>>,
     pending_legend_flow_position: Cell<Option<geometry::LogicalOffset>>,
     pending_legend_fragment_arrival: Cell<Option<fragment_tree::ChildFragmentArrival>>,
+    /// What placing the rendered legend takes from its layout, which the fieldset places after its other children.
+    pending_legend_placed_child: Cell<Option<formatting_context::PlacedChild>>,
     margin_state: RefCell<BlockMarginState>,
     floats: RefCell<Vec<FloatingBox>>,
     bands: RefCell<SmallVec<[FloatBand; 4]>>,
@@ -533,6 +535,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             block_offset_of_current_block_container: Cell::new(None),
             pending_legend_flow_position: Cell::new(None),
             pending_legend_fragment_arrival: Cell::new(None),
+            pending_legend_placed_child: Cell::new(None),
             margin_state: RefCell::new(BlockMarginState::default()),
             floats: RefCell::new(Vec::new()),
             bands: RefCell::new(smallvec![FloatBand::default()]),
@@ -2829,18 +2832,19 @@ impl<'pass> BlockFormattingContext<'pass> {
 
         let insets = self.compute_inset(run, node, block_container);
 
+        let placed_child = child_handed_back_by_its_run
+            .unwrap_or_else(|| formatting_context::PlacedChild::of_record(self.used(node), &self.run))
+            .with_in_flow_box_insets(insets)
+            .with_fragment_facts(fragment_facts)
+            .with_offset_from_relatively_positioned_inline_ancestors(
+                interrupted_inline_content.map_or(FfiCssPixelPoint::default(), |interrupted| {
+                    interrupted.offset_from_relatively_positioned_inline_ancestors
+                }),
+            );
         let mut placed = match pending_position {
             Some(position) => self.place_laid_out_child_on_line(
                 node,
-                child_handed_back_by_its_run
-                    .unwrap_or_else(|| formatting_context::PlacedChild::of_record(self.used(node), &self.run))
-                    .with_in_flow_box_insets(insets)
-                    .with_fragment_facts(fragment_facts)
-                    .with_offset_from_relatively_positioned_inline_ancestors(
-                        interrupted_inline_content.map_or(FfiCssPixelPoint::default(), |interrupted| {
-                            interrupted.offset_from_relatively_positioned_inline_ancestors
-                        }),
-                    ),
+                placed_child,
                 position,
                 containing_line_box_fragment,
                 fragment_arrival_of_child_with_own_formatting_context,
@@ -2852,6 +2856,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 );
                 self.pending_legend_fragment_arrival
                     .set(fragment_arrival_of_child_with_own_formatting_context);
+                self.pending_legend_placed_child.set(Some(placed_child));
                 None
             }
         };
@@ -4211,10 +4216,11 @@ impl<'pass> BlockFormattingContext<'pass> {
             + legend_border_box_centering_offset
             + legend_metrics.border_box_top(false);
         let legend_fragment_arrival = self.pending_legend_fragment_arrival.take();
+        let placed_legend = self.pending_legend_placed_child.take();
         if let Some(legend_flow_position) = self.pending_legend_flow_position.take() {
             self.place_laid_out_child(
                 legend,
-                formatting_context::PlacedChild::read_from_records(&self.run, legend),
+                placed_legend.expect("the rendered legend is laid out before the fieldset places it"),
                 FfiCssPixelPoint {
                     x: legend_flow_position.inline_offset,
                     y: legend_content_block_offset,

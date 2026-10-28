@@ -427,43 +427,6 @@ impl PlacedChild {
         self.offset_from_relatively_positioned_inline_ancestors = offset;
         self
     }
-
-    // FIXME: Remove this adapter once every caller hands placement the values it holds.
-    pub(crate) fn read_from_records(run: &FormattingContextRun, node: Node) -> Self {
-        let records = run.records;
-        // NB: A run that builds no fragments reads no geometry of the boxes it places.
-        let geometry = if run.fragments.is_some() {
-            records.fragment_geometry_of(node, &run.callbacks)
-        } else {
-            fragment_tree::FragmentGeometry {
-                cells: records.box_metrics_of(node).input_cells(),
-                line_data: None,
-            }
-        };
-        let callbacks = &run.callbacks;
-        let facts = NodeFacts::new(callbacks, node);
-        let mut offset_from_relatively_positioned_inline_ancestors = FfiCssPixelPoint::default();
-        if facts.is_in_flow() && facts.display().is_block_outside() {
-            let chain = inline_formatting_context::accumulated_relative_insets_from_inline_ancestor_chain(
-                callbacks,
-                callbacks.parent(node),
-                callbacks.in_flow_containing_block(node),
-                |ancestor| records.used_insets_of(ancestor),
-            );
-            if chain.found_fragmented_inline_node {
-                offset_from_relatively_positioned_inline_ancestors = FfiCssPixelPoint {
-                    x: chain.offset_x,
-                    y: chain.offset_y,
-                };
-            }
-        }
-        Self {
-            geometry,
-            frame: run.callbacks.frame,
-            facts_decided_by_parent: records.facts_decided_by_parent_of(node),
-            offset_from_relatively_positioned_inline_ancestors,
-        }
-    }
 }
 
 pub(crate) fn place_child(
