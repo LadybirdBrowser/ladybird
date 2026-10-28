@@ -4655,7 +4655,7 @@ void ViewImplementation::initialize_context_menus()
     m_bookmarks_bar_context_menu->add_action(add_bookmark_action);
     m_bookmarks_bar_context_menu->add_action(add_bookmark_folder_action);
     m_bookmarks_bar_context_menu->add_separator();
-    m_bookmarks_bar_context_menu->add_action(application.toggle_bookmark_bar_action());
+    m_bookmarks_bar_context_menu->add_submenu(application.show_bookmarks_bar_menu());
 
     m_bookmark_context_menu = Menu::create("Bookmark Context Menu"sv);
     m_bookmark_context_menu->add_action(Action::create("Open in New Tab"sv, ActionID::OpenInNewTab, []() {
@@ -4721,7 +4721,7 @@ void ViewImplementation::initialize_context_menus()
     m_bookmark_context_menu->add_separator();
     m_bookmark_context_menu->add_action(add_bookmark_folder_action);
     m_bookmark_context_menu->add_separator();
-    m_bookmark_context_menu->add_action(application.toggle_bookmark_bar_action());
+    m_bookmark_context_menu->add_submenu(application.show_bookmarks_bar_menu());
 
     m_bookmark_folder_context_menu = Menu::create("Bookmark Folder Context Menu"sv);
     m_bookmark_folder_context_menu->add_action(Action::create("Open All in Tabs"sv, ActionID::OpenAllBookmarksInTabs, []() {
@@ -4759,7 +4759,7 @@ void ViewImplementation::initialize_context_menus()
     m_bookmark_folder_context_menu->add_action(add_bookmark_action);
     m_bookmark_folder_context_menu->add_action(add_bookmark_folder_action);
     m_bookmark_folder_context_menu->add_separator();
-    m_bookmark_folder_context_menu->add_action(application.toggle_bookmark_bar_action());
+    m_bookmark_folder_context_menu->add_submenu(application.show_bookmarks_bar_menu());
 }
 
 void ViewImplementation::update_look_up_selected_text_action(Optional<DictionaryLookup> const& lookup, Gfx::IntPoint content_position)
