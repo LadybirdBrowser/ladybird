@@ -1,5 +1,5 @@
 the popup's tab plays audio heard in another process
 plays audio once navigated to this site: true
 stops playing audio a while later: true
-about three seconds after navigating: true
+went on playing audio for at least two and a half seconds after navigating: true
 changed whether it plays audio once: true

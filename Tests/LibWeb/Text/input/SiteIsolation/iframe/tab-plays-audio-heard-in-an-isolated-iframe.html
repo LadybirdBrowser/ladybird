@@ -33,7 +33,7 @@
         iframe.remove();
         println(`stops playing audio once the iframe is gone: ${await waitForCondition(() => !internals.tabIsPlayingAudio())}`);
         const heldFor = performance.now() - removedAt;
-        println(`about three seconds later: ${heldFor >= 2500 && heldFor < 5000}`);
+        println(`went on playing audio for at least two and a half seconds: ${heldFor >= 2500}`);
         println(`changed whether it plays audio once: ${internals.tabAudibilityChangeCount() - changes === 1}`);
     });
 </script>

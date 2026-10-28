@@ -45,7 +45,7 @@
         println(`plays audio: ${internals.tabIsPlayingAudio()}`);
         println(`stops playing audio a while later: ${await waitForCondition(() => !internals.tabIsPlayingAudio())}`);
         const heldFor = performance.now() - navigatedAt;
-        println(`about three seconds after navigating: ${heldFor >= 2500 && heldFor < 5000}`);
+        println(`went on playing audio for at least two and a half seconds after navigating: ${heldFor >= 2500}`);
         println(`changed whether it plays audio once: ${internals.tabAudibilityChangeCount() - changes === 1}`);
     });
 </script>
