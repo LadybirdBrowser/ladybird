@@ -6,6 +6,7 @@
 
 #include <AK/LexicalPath.h>
 #include <AK/Time.h>
+#include <LibCore/Directory.h>
 #include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
 #include <LibFileSystem/FileSystem.h>
@@ -28,8 +29,7 @@ static URL::Origin origin_of(StringView url)
 static ByteString persistence_path(StringView name)
 {
     auto directory = LexicalPath::join(Core::StandardPaths::tempfile_directory(), ByteString::formatted("test-permission-manager-{}", Core::System::getpid())).string();
-    if (auto result = Core::System::mkdir(directory, 0700); result.is_error() && result.error().code() != EEXIST)
-        VERIFY_NOT_REACHED();
+    MUST(Core::Directory::create(directory, Core::Directory::CreateDirectories::Yes));
     auto path = LexicalPath::join(directory, ByteString::formatted("{}.json", name)).string();
     if (FileSystem::exists(path))
         MUST(FileSystem::remove(path, FileSystem::RecursionMode::Disallowed));
