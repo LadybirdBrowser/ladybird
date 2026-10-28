@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="help" href="https://www.w3.org/TR/selectors-4/#useraction-pseudos">
+<meta name="author" href="mailto:masonf@chromium.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-actions.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../../html/semantics/interestfor/resources/invoker-utils.js"></script>
+
+<style>
+/* Make elements large enough to click and separate them to prevent overlap */
+#container * {
+  min-width: 50px;
+  min-height: 50px;
+}
+/* Ensure top layer elements do not overlap with body or container when clicked */
+dialog,
+[popover] {
+  top: 100px;
+  left: 100px;
+  margin: 0;
+}
+select,
+::picker(select) {
+  appearance: base-select;
+}
+</style>
+
+<div id="container"></div>
+
+<script>
+function createTestElement(type, state) {
+  const container = document.getElementById('container');
+
+  let topLayerElement = undefined;
+  let selectElement = undefined;
+  let button;
+
+  if (type === 'popover') {
+    topLayerElement = document.createElement('div');
+    topLayerElement.setAttribute('popover', 'auto');
+    button = document.createElement('button');
+    button.textContent = 'Button';
+    topLayerElement.appendChild(button);
+    container.appendChild(topLayerElement);
+    topLayerElement.showPopover();
+  } else if (type === 'customizable-select') {
+    selectElement = document.createElement('select');
+    button = document.createElement('option');
+    button.textContent = 'Option';
+    selectElement.appendChild(button);
+    container.appendChild(selectElement);
+    // topLayerElement remains undefined because the top layer element
+    // is the select picker pseudo-element which we cannot query directly.
+  } else {
+    topLayerElement = document.createElement('dialog');
+    button = document.createElement('button');
+    button.textContent = 'Button';
+    topLayerElement.appendChild(button);
+    container.appendChild(topLayerElement);
+    if (state === 'modal') {
+      topLayerElement.showModal();
+    } else {
+      topLayerElement.show();
+    }
+  }
+
+  return { container, topLayerElement, selectElement, button };
+}
+
+function cleanUp() {
+  document.getElementById('container').innerHTML = '';
+  // Reset mouse position to avoid state leaking between tests
+  return new test_driver.Actions().pointerMove(0, 0).send();
+}
+
+const tests = [
+  { type: 'dialog', state: 'modal', topLayer: true },
+  { type: 'dialog', state: 'non-modal', topLayer: false },
+  { type: 'popover', state: 'popover', topLayer: true },
+  { type: 'customizable-select', state: 'open', topLayer: true },
+];
+
+tests.forEach(({ type, state, topLayer }) => {
+  promise_test(async (t) => {
+    t.add_cleanup(cleanUp);
+    const { container, topLayerElement, selectElement, button } = createTestElement(type, state);
+
+    if (type === 'customizable-select') {
+      const style = getComputedStyle(selectElement);
+      assert_implements_optional(style.appearance === 'base-select',
+              "appearance: base-select is not supported on this browser");
+
+      await test_driver.bless('open picker');
+      selectElement.showPicker();
+      await waitForRender();
+      assert_true(selectElement.matches(':open'), 'select should be open');
+    }
+
+    await waitForRender();
+
+    // Focus test
+    button.focus();
+    assert_true(button.matches(':focus-within'), 'button has :focus-within');
+    if (topLayerElement) {
+      assert_true(topLayerElement.matches(':focus-within'), `${type} should match :focus-within`);
+    }
+
+    if (topLayer) {
+      assert_false(
+        container.matches(':focus-within'),
+        'container should not have :focus-within for top layer elements',
+      );
+      assert_false(
+        document.body.matches(':focus-within'),
+        'body should not have :focus-within for top layer elements',
+      );
+    } else {
+      assert_true(
+        container.matches(':focus-within'),
+        'container should have :focus-within for non-top layer elements',
+      );
+      assert_true(
+        document.body.matches(':focus-within'),
+        'body should have :focus-within for non-top layer elements',
+      );
+    }
+    button.blur();
+
+    // Hover test
+    await hoverOver(button);
+
+    assert_true(button.matches(':hover'), 'button has :hover');
+    if (topLayerElement) {
+      assert_true(topLayerElement.matches(':hover'), `${type} should match :hover`);
+    }
+
+    if (topLayer) {
+      assert_false(container.matches(':hover'), 'container should not have :hover for top layer elements');
+      assert_false(document.body.matches(':hover'), 'body should not have :hover for top layer elements');
+    } else {
+      assert_true(container.matches(':hover'), 'container should have :hover for non-top layer elements');
+      assert_true(document.body.matches(':hover'), 'body should have :hover for non-top layer elements');
+    }
+
+    // Active test requires monitoring inside event listener because pointerDown might auto-pointerUp
+    let buttonMatchedActive = false;
+    let topLayerMatchedActive = false;
+    let containerMatchedActive = false;
+    let bodyMatchedActive = false;
+    button.addEventListener('mousedown', () => {
+      buttonMatchedActive = button.matches(':active');
+      if (topLayerElement) {
+        topLayerMatchedActive = topLayerElement.matches(':active');
+      }
+      containerMatchedActive = container.matches(':active');
+      bodyMatchedActive = document.body.matches(':active');
+    });
+
+    await clickOn(button);
+
+    assert_true(buttonMatchedActive, 'button has :active');
+    if (topLayerElement) {
+      assert_true(topLayerMatchedActive, `${type} should match :active`);
+    }
+
+    if (topLayer) {
+      assert_false(containerMatchedActive, 'container should not have :active for top layer elements');
+      assert_false(bodyMatchedActive, 'body should not have :active for top layer elements');
+    } else {
+      assert_true(containerMatchedActive, 'container should have :active for non-top layer elements');
+      assert_true(bodyMatchedActive, 'body should have :active for non-top layer elements');
+    }
+  }, `User action pseudo-classes on ${type} (${state})`);
+});
+</script>

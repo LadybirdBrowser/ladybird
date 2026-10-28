@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Selectors: :active should not propagate past top layer elements</title>
+<link rel="help" href="https://drafts.csswg.org/selectors/#the-active-pseudo">
+<link rel="help" href="https://drafts.csswg.org/css-position-4/#top-layer">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-actions.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<style>
+  dialog::backdrop {
+    background: transparent;
+  }
+</style>
+
+<div id="outer">
+  <dialog id="dialog">
+    <div id="inner">click target</div>
+  </dialog>
+</div>
+
+<div id="popoverOuter">
+  <div id="popover" popover>
+    <div id="popoverInner">click target</div>
+  </div>
+</div>
+
+<div id="nestOuter">
+  <dialog id="nestDialog">
+    <div id="nestPopover" popover>
+      <div id="nestInner">click target</div>
+    </div>
+  </dialog>
+</div>
+
+<script>
+function captureActiveState(elements, target) {
+  return new Promise(resolve => {
+    target.addEventListener('mousedown', () => {
+      const result = {};
+      for (const [name, el] of Object.entries(elements)) {
+        result[name] = el.matches(':active');
+      }
+      resolve(result);
+    }, {once: true});
+  });
+}
+
+promise_test(async t => {
+  const dialog = document.getElementById('dialog');
+  dialog.showModal();
+  t.add_cleanup(() => dialog.close());
+
+  const inner = document.getElementById('inner');
+  const outer = document.getElementById('outer');
+
+  const statePromise = captureActiveState({
+    inner, dialog, outer, body: document.body
+  }, inner);
+
+  await new test_driver.Actions()
+    .pointerMove(1, 1, {origin: inner})
+    .pointerDown()
+    .pointerUp()
+    .send();
+
+  const state = await statePromise;
+  assert_true(state.inner, 'inner element should match :active');
+  assert_true(state.dialog, 'dialog (top layer) should match :active');
+  assert_false(state.outer, 'ancestor outside top layer should not match :active');
+  assert_false(state.body, 'body should not match :active');
+}, 'Clicking inside a modal dialog should not propagate :active beyond the dialog.');
+
+promise_test(async t => {
+  const popover = document.getElementById('popover');
+  popover.showPopover();
+  t.add_cleanup(() => popover.hidePopover());
+
+  const popoverInner = document.getElementById('popoverInner');
+  const popoverOuter = document.getElementById('popoverOuter');
+
+  const statePromise = captureActiveState({
+    popoverInner, popover, popoverOuter, body: document.body
+  }, popoverInner);
+
+  await new test_driver.Actions()
+    .pointerMove(1, 1, {origin: popoverInner})
+    .pointerDown()
+    .pointerUp()
+    .send();
+
+  const state = await statePromise;
+  assert_true(state.popoverInner, 'inner element should match :active');
+  assert_true(state.popover, 'popover (top layer) should match :active');
+  assert_false(state.popoverOuter, 'ancestor outside top layer should not match :active');
+  assert_false(state.body, 'body should not match :active');
+}, 'Clicking inside a popover should not propagate :active beyond the popover.');
+
+promise_test(async t => {
+  const nestDialog = document.getElementById('nestDialog');
+  nestDialog.showModal();
+  t.add_cleanup(() => nestDialog.close());
+
+  const nestPopover = document.getElementById('nestPopover');
+  nestPopover.showPopover();
+  t.add_cleanup(() => nestPopover.hidePopover());
+
+  const nestInner = document.getElementById('nestInner');
+  const nestOuter = document.getElementById('nestOuter');
+
+  const statePromise = captureActiveState({
+    nestInner, nestPopover, nestDialog, nestOuter, body: document.body
+  }, nestInner);
+
+  await new test_driver.Actions()
+    .pointerMove(1, 1, {origin: nestInner})
+    .pointerDown()
+    .pointerUp()
+    .send();
+
+  const state = await statePromise;
+  assert_true(state.nestInner, 'inner element should match :active');
+  assert_true(state.nestPopover, 'popover (innermost top layer) should match :active');
+  assert_false(state.nestDialog, 'dialog (outer top layer) should not match :active');
+  assert_false(state.nestOuter, 'ancestor outside both top layers should not match :active');
+}, 'With nested top layer elements, :active should stop at the innermost top layer boundary.');
+</script>

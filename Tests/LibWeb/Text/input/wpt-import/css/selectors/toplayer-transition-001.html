@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Selectors: top layer transitions should adjust pseudo-classes on ancestors</title>
+<link rel="help" href="https://drafts.csswg.org/selectors/#the-hover-pseudo">
+<link rel="help" href="https://drafts.csswg.org/selectors/#the-focus-within-pseudo">
+<link rel="help" href="https://drafts.csswg.org/css-position-4/#top-layer">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-actions.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<style>
+  [popover] { display: block; }
+</style>
+
+<div id="container">
+  <div id="popover" popover="manual">
+    <input id="input">
+    <div id="hoverTarget">hover here</div>
+  </div>
+</div>
+
+<script>
+promise_test(async t => {
+  t.add_cleanup(() => { if (popover.matches(':popover-open')) popover.hidePopover(); });
+
+  input.focus();
+  assert_true(input.matches(':focus'), 'input should be focused');
+  assert_true(container.matches(':focus-within'), 'container should match :focus-within before showPopover');
+
+  popover.showPopover();
+  assert_true(input.matches(':focus'), 'input should still be focused after showPopover');
+  assert_true(popover.matches(':focus-within'), 'popover should match :focus-within after showPopover');
+  assert_false(container.matches(':focus-within'), 'container should not match :focus-within after showPopover');
+  assert_false(document.body.matches(':focus-within'), 'body should not match :focus-within after showPopover');
+
+  popover.hidePopover();
+  await new Promise(requestAnimationFrame);
+  assert_true(input.matches(':focus'), 'input should still be focused after hidePopover');
+  assert_true(container.matches(':focus-within'), 'container should match :focus-within after hidePopover');
+  assert_true(document.body.matches(':focus-within'), 'body should match :focus-within after hidePopover');
+}, ':focus-within should be adjusted on ancestors when popover enters/exits top layer.');
+
+promise_test(async t => {
+  t.add_cleanup(() => { if (popover.matches(':popover-open')) popover.hidePopover(); });
+
+  await new test_driver.Actions()
+    .pointerMove(1, 1, {origin: hoverTarget})
+    .send();
+  await new Promise(requestAnimationFrame);
+
+  assert_true(hoverTarget.matches(':hover'), 'hoverTarget should match :hover');
+  assert_true(container.matches(':hover'), 'container should match :hover before showPopover');
+
+  popover.showPopover();
+  assert_true(hoverTarget.matches(':hover'), 'hoverTarget should still match :hover after showPopover');
+  assert_true(popover.matches(':hover'), 'popover should match :hover after showPopover');
+  assert_false(container.matches(':hover'), 'container should not match :hover after showPopover');
+  assert_false(document.body.matches(':hover'), 'body should not match :hover after showPopover');
+
+  popover.hidePopover();
+  await new Promise(requestAnimationFrame);
+  assert_true(hoverTarget.matches(':hover'), 'hoverTarget should still match :hover after hidePopover');
+  assert_true(container.matches(':hover'), 'container should match :hover after hidePopover');
+  assert_true(document.body.matches(':hover'), 'body should match :hover after hidePopover');
+}, ':hover should be adjusted on ancestors when popover enters/exits top layer.');
+</script>
