@@ -2030,7 +2030,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         if self.svg_attributes(child).is_fit_to_view_box {
             self.layout_nested_viewport(run, child);
         } else if kind == NodeKind::SVGForeignObjectBox {
-            let child_used_pointer = self.create_used_values(child);
+            let mut child_cells = used_values::RootInputCells::capture(self.create_used_values(child));
             let style = self.style(child);
             let rect = SvgCssPixelRect {
                 x: style.x().to_px(self.viewport_width),
@@ -2038,21 +2038,28 @@ impl<'pass> SvgFormattingContext<'pass> {
                 width: style.width().to_px(self.viewport_width),
                 height: style.height().to_px(self.viewport_height),
             };
-            let child_used = child_used_pointer;
-            child_used.set_content_inline_size(rect.width);
-            child_used.set_content_block_size(rect.height);
+            child_cells.set_content_inline_size(rect.width);
+            child_cells.set_content_block_size(rect.height);
 
             let child_input = LayoutInput {
                 available_space: AvailableSpace {
-                    inline_size: AvailableSize::definite(child_used.content_inline_size.get()),
-                    block_size: AvailableSize::definite(child_used.content_block_size.get()),
+                    inline_size: AvailableSize::definite(child_cells.content_inline_size),
+                    block_size: AvailableSize::definite(child_cells.content_block_size),
                 },
                 ..self.nested_layout_input()
             };
             let formatting_context::ChildLayout {
                 outcome,
                 fragment_arrival,
-            } = formatting_context::layout_inside_child(run, None, None, child, child_input, true);
+            } = formatting_context::layout_inside_child_with_input_cells(
+                run,
+                None,
+                None,
+                child,
+                child_input,
+                child_cells,
+                true,
+            );
             outcome.report_percentage_block_size_dependency_of(run, child);
             match outcome {
                 ChildLayoutOutcome::Created(_) => {}
@@ -2352,23 +2359,23 @@ impl<'pass> SvgFormattingContext<'pass> {
             } else {
                 let parent = self.parent(resource);
                 assert!(!parent.is_invalid());
-                let parent_used = self.used_values(parent);
+                let parent_metrics = run.records.box_metrics_of(parent);
                 (
                     CssPixels::nearest_value_for(
-                        attributes.pattern_width.value as f64 * parent_used.content_inline_size.get().to_double(),
+                        attributes.pattern_width.value as f64 * parent_metrics.content_inline_size().to_double(),
                     ),
                     CssPixels::nearest_value_for(
-                        attributes.pattern_height.value as f64 * parent_used.content_block_size.get().to_double(),
+                        attributes.pattern_height.value as f64 * parent_metrics.content_block_size().to_double(),
                     ),
                 )
             }
         } else if attributes.content_units == SVG_UNITS_OBJECT_BOUNDING_BOX {
             let parent = self.parent(resource);
             assert!(!parent.is_invalid());
-            let parent_used = self.used_values(parent);
+            let parent_metrics = run.records.box_metrics_of(parent);
             (
-                parent_used.content_inline_size.get(),
-                parent_used.content_block_size.get(),
+                parent_metrics.content_inline_size(),
+                parent_metrics.content_block_size(),
             )
         } else {
             (self.viewport_width, self.viewport_height)
