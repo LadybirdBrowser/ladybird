@@ -4648,7 +4648,9 @@ impl<'pass> GridFormattingContext<'pass> {
                 self.track_sum(Axis::Row),
             ),
         };
-        self.container_used().rare_data_mut().used_grid_tracks = Some(std::sync::Arc::new(tracks));
+        self.run.update_fragment_payloads_of(self.run.box_, |payloads| {
+            payloads.used_grid_tracks = Some(std::sync::Arc::new(tracks));
+        });
     }
 
     fn save_devtools_data(&self, grid_style: &GridValues) {
@@ -4754,7 +4756,9 @@ impl<'pass> GridFormattingContext<'pass> {
             is_subgrid: self.is_subgridded(Axis::Column, grid_style) || self.is_subgridded(Axis::Row, grid_style),
             fragments: vec![fragment],
         };
-        self.container_used().rare_data_mut().grid_layout_data = Some(std::sync::Arc::new(data));
+        self.run.update_fragment_payloads_of(self.run.box_, |payloads| {
+            payloads.grid_layout_data = Some(std::sync::Arc::new(data));
+        });
     }
 
     pub(crate) fn content_inline_size(&mut self, input: LayoutInput) -> CssPixels {

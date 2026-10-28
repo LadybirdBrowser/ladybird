@@ -205,13 +205,6 @@ impl ComparedLayouts<'_> {
             checked_outputs.root_outcome.line_data.as_deref() == reference_outputs.root_outcome.line_data.as_deref(),
             "{checked} left line data {reference} does not"
         );
-        assert!(
-            rare_payloads_match(
-                checked_outputs.root_outcome.rare.as_deref(),
-                reference_outputs.root_outcome.rare.as_deref()
-            ),
-            "{checked} left rare payloads {reference} does not"
-        );
         assert_eq!(
             checked_outputs.inputs_never_observed, reference_outputs.inputs_never_observed,
             "{checked} claims to have never observed inputs {reference} does not"
@@ -231,6 +224,10 @@ impl ComparedLayouts<'_> {
         assert!(
             reference_root.reused_subtree_roots.is_empty(),
             "{checked}: {reference} reused a subtree"
+        );
+        assert!(
+            checked_root.root_payloads == reference_root.root_payloads,
+            "{checked} hands its root's fragment payloads {reference} does not"
         );
         assert!(
             same_elements_in_any_order(
@@ -289,35 +286,6 @@ fn host_findings_match(left: Option<&run_records::HostFindings>, right: Option<&
         &right.nodes_with_unresolved_container_lengths,
     ) && same_elements_in_any_order(&left.messages, &right.messages)
         && left.document_svg_root_natural_size == right.document_svg_root_natural_size
-}
-
-fn rare_payloads_match(
-    left: Option<&used_values::UsedValuesRareData>,
-    right: Option<&used_values::UsedValuesRareData>,
-) -> bool {
-    let none = used_values::UsedValuesRareData::default();
-    let left = left.unwrap_or(&none);
-    let right = right.unwrap_or(&none);
-    let used_values::UsedValuesRareData {
-        computed_svg_path,
-        svg_text_character_cells,
-        svg,
-        grid_layout_data,
-        flex_layout_data,
-        multicol_layout_data,
-        math_paint_data,
-        used_grid_tracks,
-        collapsed_table_borders,
-    } = left;
-    computed_svg_path.as_deref() == right.computed_svg_path.as_deref()
-        && svg_text_character_cells.as_deref() == right.svg_text_character_cells.as_deref()
-        && *svg == right.svg
-        && grid_layout_data.as_deref() == right.grid_layout_data.as_deref()
-        && flex_layout_data.as_deref() == right.flex_layout_data.as_deref()
-        && multicol_layout_data.as_deref() == right.multicol_layout_data.as_deref()
-        && math_paint_data.as_deref() == right.math_paint_data.as_deref()
-        && used_grid_tracks.as_deref() == right.used_grid_tracks.as_deref()
-        && collapsed_table_borders.as_deref() == right.collapsed_table_borders.as_deref()
 }
 
 fn collect_nodes_of_fragment_subtrees(links: &[fragment_tree::FragmentLink], nodes: &mut HashSet<u32>) {

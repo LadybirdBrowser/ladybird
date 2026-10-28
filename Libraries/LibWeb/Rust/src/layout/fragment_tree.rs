@@ -423,17 +423,34 @@ fn previously_committed_fragment_matching(
         })
 }
 
-#[derive(Default)]
-struct CommittedRarePayloads {
-    collapsed_table_borders: Option<std::sync::Arc<table_formatting_context::OwnedCollapsedTableBorders>>,
-    grid_layout_data: Option<std::sync::Arc<grid_formatting_context::GridLayoutData>>,
-    flex_layout_data: Option<std::sync::Arc<formatting_context::FlexLayoutData>>,
-    multicol_layout_data: Option<std::sync::Arc<fragmentation::MulticolLayoutData>>,
-    math_paint_data: Option<std::sync::Arc<math_formatting_context::MathPaintData>>,
-    used_grid_tracks: Option<std::sync::Arc<grid_formatting_context::OwnedUsedGridTracks>>,
-    svg: CommittedSvgFacts,
-    computed_svg_path: Option<std::sync::Arc<libgfx_rust::path::Path>>,
-    svg_text_character_cells: Option<std::sync::Arc<Vec<svg_formatting_context::FfiSvgTextCharacterCell>>>,
+/// What the layout of a box hands its fragment for painting and the devtools besides its geometry.
+#[derive(Clone, Default, PartialEq)]
+pub(crate) struct FragmentPayloads {
+    pub(crate) collapsed_table_borders: Option<std::sync::Arc<table_formatting_context::OwnedCollapsedTableBorders>>,
+    pub(crate) grid_layout_data: Option<std::sync::Arc<grid_formatting_context::GridLayoutData>>,
+    pub(crate) flex_layout_data: Option<std::sync::Arc<formatting_context::FlexLayoutData>>,
+    pub(crate) multicol_layout_data: Option<std::sync::Arc<fragmentation::MulticolLayoutData>>,
+    pub(crate) math_paint_data: Option<std::sync::Arc<math_formatting_context::MathPaintData>>,
+    pub(crate) used_grid_tracks: Option<std::sync::Arc<grid_formatting_context::OwnedUsedGridTracks>>,
+    pub(crate) svg: CommittedSvgFacts,
+    pub(crate) computed_svg_path: Option<std::sync::Arc<libgfx_rust::path::Path>>,
+    pub(crate) svg_text_character_cells: Option<std::sync::Arc<Vec<svg_formatting_context::FfiSvgTextCharacterCell>>>,
+}
+
+impl FragmentPayloads {
+    fn of_fragment(fragment: &Fragment) -> Self {
+        Self {
+            collapsed_table_borders: fragment.collapsed_table_borders.clone(),
+            grid_layout_data: fragment.grid_layout_data.clone(),
+            flex_layout_data: fragment.flex_layout_data.clone(),
+            multicol_layout_data: fragment.multicol_layout_data.clone(),
+            math_paint_data: fragment.math_paint_data.clone(),
+            used_grid_tracks: fragment.used_grid_tracks.clone(),
+            svg: fragment.svg.as_deref().copied().unwrap_or_default(),
+            computed_svg_path: fragment.computed_svg_path.clone(),
+            svg_text_character_cells: fragment.svg_text_character_cells.clone(),
+        }
+    }
 }
 
 fn snapshot_fragment(
@@ -442,28 +459,11 @@ fn snapshot_fragment(
     children: Vec<FragmentLink>,
     used: &UsedValues,
     fragment_facts: run_records::FragmentFactsDecidedByParent,
+    payloads: Option<Box<FragmentPayloads>>,
 ) -> std::sync::Arc<Fragment> {
     static NEXT_IDENTITY: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
     let line_data = used.finish_line_data(callbacks);
-    let rare_payloads = used
-        .rare_data
-        .get()
-        .map(|cell| {
-            let mut rare = cell.borrow_mut();
-            CommittedRarePayloads {
-                collapsed_table_borders: rare.collapsed_table_borders.take(),
-                grid_layout_data: rare.grid_layout_data.take(),
-                flex_layout_data: rare.flex_layout_data.take(),
-                multicol_layout_data: rare.multicol_layout_data.take(),
-                math_paint_data: rare.math_paint_data.take(),
-                used_grid_tracks: rare.used_grid_tracks.take(),
-                svg: rare.svg,
-                computed_svg_path: rare.computed_svg_path.take(),
-                svg_text_character_cells: rare.svg_text_character_cells.take(),
-            }
-        })
-        .unwrap_or_default();
-    let CommittedRarePayloads {
+    let FragmentPayloads {
         collapsed_table_borders,
         grid_layout_data,
         flex_layout_data,
@@ -473,7 +473,7 @@ fn snapshot_fragment(
         svg,
         computed_svg_path,
         svg_text_character_cells,
-    } = rare_payloads;
+    } = payloads.map(|payloads| *payloads).unwrap_or_default();
     let mut fragment = Fragment {
         identity: 0,
         node,
@@ -609,6 +609,8 @@ pub(crate) struct UnplacedRootFragment {
     pub(crate) propagated_anchor_candidates: Vec<AnchorCandidate>,
     pub(crate) propagated_inline_containing_block_rects: Vec<InlineContainingBlockRect>,
     pub(crate) propagated_abspos_containing_block_info: Vec<AbsposContainingBlockInfoContribution>,
+    /// What the run's layout of its root hands the root's fragment.
+    pub(crate) root_payloads: Option<Box<FragmentPayloads>>,
 }
 
 impl UnplacedRootFragment {
@@ -764,6 +766,7 @@ struct PendingFragment {
     pending_abspos: Vec<abspos_inputs::PendingAbsposChild>,
     anchor_candidates: Vec<AnchorCandidate>,
     inline_containing_block_rects: Vec<InlineContainingBlockRect>,
+    payloads: Option<Box<FragmentPayloads>>,
 }
 
 impl PendingFragment {
@@ -774,6 +777,7 @@ impl PendingFragment {
             pending_abspos: Vec::new(),
             anchor_candidates: Vec::new(),
             inline_containing_block_rects: Vec::new(),
+            payloads: None,
         }
     }
 }
@@ -800,6 +804,8 @@ struct RunFragmentBuilderInner {
     /// The reused subtree roots whose runs this run took from the cache, whose records hold their committed fragments
     /// until placement.
     reused_subtree_roots_holding_fragments: Vec<crate::layout::node_data::NodeSlotId>,
+    /// What the run's layout of its root hands the root's fragment.
+    root_payloads: Option<Box<FragmentPayloads>>,
 }
 
 impl RunFragmentBuilderInner {
@@ -1185,22 +1191,66 @@ impl RunFragmentBuilder {
         let fragment = if fragment_facts.is_invisible_for_line_clamp == held.fragment.is_invisible_for_line_clamp {
             held.fragment
         } else {
-            snapshot_fragment(callbacks, node, held.fragment.children.clone(), used, fragment_facts)
+            snapshot_fragment(
+                callbacks,
+                node,
+                held.fragment.children.clone(),
+                used,
+                fragment_facts,
+                Some(Box::new(FragmentPayloads::of_fragment(&held.fragment))),
+            )
         };
         Some((fragment, held.reuses_subtree))
     }
 
+    /// Drops the fragments laid out inside `node`. What the box's own layout handed its fragment stays for the box,
+    /// which may still be placed.
     pub(crate) fn discard_unplaced_subtree(&self, node: crate::layout::node_data::NodeSlotId, used: &UsedValues) {
-        used.held_committed_fragment.take();
+        let held_payloads = used
+            .held_committed_fragment
+            .take()
+            .map(|held| Box::new(FragmentPayloads::of_fragment(&held.fragment)));
         let mut inner = self.inner.borrow_mut();
         let slot = node.slot_index();
+        let mut payloads_of_box = held_payloads;
         if let Some(root) = inner.child_roots_awaiting_placement.remove(&slot) {
             for reused_subtree_root in root.reused_subtree_roots {
                 inner.reused_subtree_roots.remove(&reused_subtree_root);
             }
+            payloads_of_box = root.root_payloads.or(payloads_of_box);
         }
         inner.reused_subtree_roots.remove(&slot);
-        inner.pending_fragments.remove(&slot);
+        if let Some(pending_fragment) = inner.pending_fragments.remove(&slot) {
+            payloads_of_box = payloads_of_box.or(pending_fragment.payloads);
+        }
+        if payloads_of_box.is_some() {
+            inner.pending_fragments.insert(
+                slot,
+                PendingFragment {
+                    payloads: payloads_of_box,
+                    ..PendingFragment::new(node)
+                },
+            );
+        }
+    }
+
+    /// Hands what the layout of `node` produced besides its geometry to the box's fragment.
+    pub(crate) fn update_fragment_payloads_of(
+        &self,
+        node: crate::layout::node_data::NodeSlotId,
+        update: impl FnOnce(&mut FragmentPayloads),
+    ) {
+        let mut inner = self.inner.borrow_mut();
+        let payloads = if node == self.root_node && !self.is_entry_accumulator {
+            &mut inner.root_payloads
+        } else {
+            &mut inner
+                .pending_fragments
+                .entry(node.slot_index())
+                .or_insert_with(|| PendingFragment::new(node))
+                .payloads
+        };
+        update(payloads.get_or_insert_with(Default::default));
     }
 
     pub(crate) fn normalize_arrivals_for_placement(
@@ -1243,6 +1293,7 @@ impl RunFragmentBuilder {
         pending_fragment
             .inline_containing_block_rects
             .extend(root.propagated_inline_containing_block_rects);
+        pending_fragment.payloads = root.root_payloads;
         inner.receive_abspos_containing_block_info(root.propagated_abspos_containing_block_info);
     }
 
@@ -1273,11 +1324,12 @@ impl RunFragmentBuilder {
             pending_abspos: pending_abspos_from_placed_box,
             anchor_candidates: anchor_candidates_from_placed_box,
             inline_containing_block_rects: inline_containing_block_rects_from_placed_box,
+            payloads,
         } = inner
             .pending_fragments
             .remove(&slot)
             .unwrap_or_else(|| PendingFragment::new(node));
-        let fragment = snapshot_fragment(callbacks, node, children, used, facts.fragment_facts);
+        let fragment = snapshot_fragment(callbacks, node, children, used, facts.fragment_facts, payloads);
         let link = link_fragment(
             fragment.clone(),
             PlacementData::of_box(
@@ -1485,6 +1537,7 @@ impl RunFragmentBuilder {
                     pending_fragment.children,
                     used,
                     records.facts_decided_by_parent_of(pending_fragment.node).fragment_facts,
+                    pending_fragment.payloads,
                 ),
                 PlacementData::of_box_as_this_run_left_it(records, pending_fragment.node, callbacks.frame),
             ));
@@ -1495,13 +1548,9 @@ impl RunFragmentBuilder {
         let held_nodes = std::mem::take(&mut inner.reused_subtree_roots_holding_fragments);
         for node in held_nodes {
             let used = records.used_values(node);
-            if !used
-                .held_committed_fragment
-                .take()
-                .is_some_and(|held| held.reuses_subtree)
-            {
+            let Some(held) = used.held_committed_fragment.take().filter(|held| held.reuses_subtree) else {
                 continue;
-            }
+            };
             inner.top_scope_links.push(link_fragment(
                 snapshot_fragment(
                     callbacks,
@@ -1509,6 +1558,7 @@ impl RunFragmentBuilder {
                     Vec::new(),
                     used,
                     records.facts_decided_by_parent_of(node).fragment_facts,
+                    Some(Box::new(FragmentPayloads::of_fragment(&held.fragment))),
                 ),
                 PlacementData::of_box_as_this_run_left_it(records, node, callbacks.frame),
             ));
@@ -1523,6 +1573,7 @@ impl RunFragmentBuilder {
                     root.scoped_descendants,
                     used,
                     records.facts_decided_by_parent_of(root.node).fragment_facts,
+                    root.root_payloads,
                 ),
                 PlacementData::of_box_as_this_run_left_it(records, root.node, callbacks.frame),
             ));
@@ -1555,6 +1606,7 @@ impl RunFragmentBuilder {
             propagated_anchor_candidates,
             propagated_inline_containing_block_rects,
             propagated_abspos_containing_block_info,
+            root_payloads: inner.root_payloads,
         }
     }
 }

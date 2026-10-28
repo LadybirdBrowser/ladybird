@@ -1447,7 +1447,9 @@ pub(super) fn layout_operator(run: &FormattingContextRun<'_>, input: &LayoutInpu
         replaces_text: true,
         ..content.paint_data(CssPixels::default(), inline_size, is_rtl)
     };
-    used.rare_data_mut().math_paint_data = Some(std::sync::Arc::new(paint_data));
+    run.update_fragment_payloads_of(operator, |payloads| {
+        payloads.math_paint_data = Some(std::sync::Arc::new(paint_data));
+    });
 }
 
 pub(super) struct MathFormattingContext<'pass> {
@@ -2282,7 +2284,9 @@ impl<'pass> MathFormattingContext<'pass> {
                 content.inline_size
             };
             let paint_data = content.paint_data(math_content_line_left, bar_inline_size, is_rtl);
-            root_used.rare_data_mut().math_paint_data = Some(std::sync::Arc::new(paint_data));
+            run.update_fragment_payloads_of(run.box_, |payloads| {
+                payloads.math_paint_data = Some(std::sync::Arc::new(paint_data));
+            });
         }
 
         self.derived_baselines_of_root_box = DerivedBaselines {

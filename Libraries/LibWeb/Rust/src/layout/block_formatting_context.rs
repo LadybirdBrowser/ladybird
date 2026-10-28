@@ -3461,10 +3461,10 @@ impl<'pass> BlockFormattingContext<'pass> {
                 &root_line_data_of_columns,
             ));
         }
-        root_used.rare_data_mut().multicol_layout_data = Some(std::sync::Arc::new(fragmentation::MulticolLayoutData {
-            geometry,
-            rows,
-        }));
+        let multicol_layout_data = std::sync::Arc::new(fragmentation::MulticolLayoutData { geometry, rows });
+        self.run.update_fragment_payloads_of(self.run.box_, |payloads| {
+            payloads.multicol_layout_data = Some(multicol_layout_data);
+        });
         self.multicol_automatic_content_block_size.set(Some(row_block_offset));
         self.record_derived_baselines_of_root_box(baselines);
     }
