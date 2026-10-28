@@ -1,0 +1,140 @@
+<!doctype html>
+<title>img update the source set</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script>
+setup({explicit_done:true});
+
+function check(p) {
+  var img = p.querySelector('[data-expect]');
+  test(function() {
+    var expect = img.dataset.expect;
+    if ('resolve' in img.dataset) {
+      var a = document.createElement('a');
+      a.href = expect;
+      expect = a.href;
+    }
+    assert_equals(img.currentSrc, expect);
+  }, p.innerHTML);
+}
+
+onload = function() {
+  [].forEach.call(document.querySelectorAll('div:not([id])'), check);
+  done();
+};
+
+</script>
+<div id=log></div>
+<div><img data-expect=''></div>
+<div><img src data-expect=''></div>
+<div><img src='data:,a' data-expect='data:,a'></div>
+<div><img srcset src='data:,a' data-expect='data:,a'></div>
+<div><img srcset='data:,b' src='data:,a' data-expect='data:,b'></div>
+<div><img src='data:,a' srcset='data:,b' data-expect='data:,b'><!-- srcset after src --></div>
+<div><img src='data:,a' srcset='data:,b 1x' data-expect='data:,b'></div>
+<div><img src='data:,a' srcset='data:,b 1.0x' data-expect='data:,b'></div>
+<div><img src='data:,a' srcset='data:,b 1e0x' data-expect='data:,b'></div>
+<div><img src='data:,a' srcset='data:,b 10000w' sizes='1px' data-expect='data:,b'></div>
+<div><img src='data:,a' srcset='data:,b 10000w, data:,c 10000x' sizes='1px' data-expect='data:,b'></div>
+<div><img src='data:,a' srcset='data:,b 10000x, data:,c 10000w' sizes='1px' data-expect='data:,b'></div>
+<div><img src='data:,a' srcset='data:,b 1w' sizes='10000px' data-expect='data:,b'></div>
+<div><img src='data:,a' srcset='data:,b 1w, data:,c 0.0001x' sizes='10000px' data-expect='data:,b'></div>
+<div><img src='data:,a' srcset='data:,b 0.0001x, data:,c 1w' sizes='10000px' data-expect='data:,b'></div>
+<div><img srcset='data:,a' data-expect='data:,a'></div>
+
+<!-- child is not a <source> -->
+
+<div><picture>foo<img src='data:,a' data-expect='data:,a'></picture></div>
+<div><picture><!--foo--><img src='data:,a' data-expect='data:,a'></picture></div>
+<div><picture><br><img src='data:,a' data-expect='data:,a'></picture></div>
+<div><picture><p></p><img src='data:,a' data-expect='data:,a'></picture></div>
+<div><picture><video><source srcset='data:,b'></video><img src='data:,a' data-expect='data:,a'></picture></div>
+<div><picture><span><source srcset='data:,b'></span><img src='data:,a' data-expect='data:,a'></picture></div>
+<div><picture><svg><source srcset='data:,b'/></svg><img src='data:,a' data-expect='data:,a'></picture></div>
+<div><picture><svg/><source srcset='data:,b'/><img src='data:,a' data-expect='data:,b'></picture></div>
+<div><picture><svg><font/><source srcset='data:,b'/></svg><img src='data:,a' data-expect='data:,a'></picture></div>
+<div><picture><svg><!--<font face> tag breaks out of svg--><font face></font><source srcset='data:,b'/></svg><img src='data:,a' data-expect='data:,b'></picture></div>
+<div><picture><img src='data:,a'><img src='data:,b' data-expect='data:,b'></picture></div>
+
+<!-- <source> has no srcset -->
+
+<div><picture><source><img src='data:,a' data-expect='data:,a'></picture></div>
+<div><picture><source src='data:,b'><img src='data:,a' data-expect='data:,a'></picture></div>
+
+<!-- <source srcset> has zero candidates -->
+
+<div><picture><source srcset><img src='data:,a' data-expect='data:,a'></picture></div>
+<div><picture><source srcset=', ,'><img src='data:,a' data-expect='data:,a'></picture></div>
+<div><picture><source srcset='data:,b 1x 1x'><img src='data:,a' data-expect='data:,a'></picture></div>
+
+<!-- <source media> -->
+
+<div><picture><source srcset='data:,b' media><img src='data:,a' data-expect='data:,b'></picture></div>
+<div><picture><source srcset='data:,b' media='all'><img src='data:,a' data-expect='data:,b'></picture></div>
+<div><picture><source srcset='data:,b' media='all and (min-width:0)'><img src='data:,a' data-expect='data:,b'></picture></div>
+<div><picture><source srcset='data:,b' media='all and !'><img src='data:,a' data-expect='data:,a'></picture></div>
+<div><picture><source srcset='data:,b' media='all and (!)'><img src='data:,a' data-expect='data:,a'></picture></div>
+<div><picture><source srcset='data:,b' media='not all'><img src='data:,a' data-expect='data:,a'></picture></div>
+<div><picture><source srcset='data:,b' media='not all and (min-width:0)'><img src='data:,a' data-expect='data:,a'></picture></div>
+<div><picture><source srcset='data:,b' media='not all and (max-width:0)'><img src='data:,a' data-expect='data:,b'></picture></div>
+<div><picture><source srcset='data:,b' media='not all and !'><img src='data:,a' data-expect='data:,a'></picture></div>
+<div><picture><source srcset='data:,b' media='not all and (!)'><img src='data:,a' data-expect='data:,a'></picture></div>
+<div><picture><source srcset='data:,b' media='all, !'><img src='data:,a' data-expect='data:,b'></picture></div>
+<div><picture><source srcset='data:,b' media=','><img src='data:,a' data-expect='data:,a'></picture></div>
+<div><picture><source srcset='data:,b' media=', all'><img src='data:,a' data-expect='data:,b'></picture></div>
+
+<!-- <source type> assume support for gif, png, jpg, svg, ico -->
+
+<div><picture><source srcset='data:,b' type><img src='data:,a' data-expect='data:,b'></picture></div>
+<div><picture><source srcset='data:,b' type=' '><img src='data:,a' data-expect='data:,b'></picture></div>
+<div><picture><source srcset='data:,b' type='image/gif'><img src='data:,a' data-expect='data:,b'></picture></div>
+<div><picture><source srcset='data:,b' type=' image/gif'><img src='data:,a' data-expect='data:,b'></picture></div>
+<div><picture><source srcset='data:,b' type='image/gif '><img src='data:,a' data-expect='data:,b'></picture></div>
+<div><picture><source srcset='data:,b' type='image/gif;'><img src='data:,a' data-expect='data:,b'></picture></div>
+<div><picture><source srcset='data:,b' type='image/gif;encodings'><img src='data:,a' data-expect='data:,b'></picture></div>
+<div><picture><source srcset='data:,b' type='image/gif;encodings='><img src='data:,a' data-expect='data:,b'></picture></div>
+<div><picture><source srcset='data:,b' type='image/gif;encodings=foobar'><img src='data:,a' data-expect='data:,b'></picture></div>
+<div><picture><source srcset='data:,b' type='image/png'><img src='data:,a' data-expect='data:,b'></picture></div>
+<div><picture><source srcset='data:,b' type='image/jpeg'><img src='data:,a' data-expect='data:,b'></picture></div>
+<div><picture><source srcset='data:,b' type='image/svg+xml'><img src='data:,a' data-expect='data:,b'></picture></div>
+<div><picture><source srcset='data:,b' type='image/x-icon'><img src='data:,a' data-expect='data:,b'></picture></div>
+<div><picture><source srcset='data:,b' type='text/xml'><img src='data:,a' data-expect='data:,a'></picture></div>
+<div><picture><source srcset='data:,b' type='text/html'><img src='data:,a' data-expect='data:,a'></picture></div>
+<div><picture><source srcset='data:,b' type='text/plain'><img src='data:,a' data-expect='data:,a'></picture></div>
+<div><picture><source srcset='data:,b' type='text/css'><img src='data:,a' data-expect='data:,a'></picture></div>
+<div><picture><source srcset='data:,b' type='video/mp4'><img src='data:,a' data-expect='data:,a'></picture></div>
+<div><picture><source srcset='data:,b' type='video/ogg'><img src='data:,a' data-expect='data:,a'></picture></div>
+<div><picture><source srcset='data:,b' type='video/webm'><img src='data:,a' data-expect='data:,a'></picture></div>
+<div><picture><source srcset='data:,b' type='unknown/unknown'><img src='data:,a' data-expect='data:,a'></picture></div>
+<div><picture><source srcset='data:,b' type='application/octet-stream'><img src='data:,a' data-expect='data:,a'></picture></div>
+<div><picture><source srcset='data:,b' type='application/x-shockwave-flash'><img src='data:,a' data-expect='data:,a'></picture></div>
+<div><picture><source srcset='data:,b' type='image\gif'><img src='data:,a' data-expect='data:,a'></picture></div>
+<div><picture><source srcset='data:,b' type='gif'><img src='data:,a' data-expect='data:,a'></picture></div>
+<div><picture><source srcset='data:,b' type='.gif'><img src='data:,a' data-expect='data:,a'></picture></div>
+<div><picture><source srcset='data:,b' type='*'><img src='data:,a' data-expect='data:,a'></picture></div>
+<div><picture><source srcset='data:,b' type='*/*'><img src='data:,a' data-expect='data:,a'></picture></div>
+<div><picture><source srcset='data:,b' type='image/*'><img src='data:,a' data-expect='data:,a'></picture></div>
+<div><picture><source srcset='data:,b' type=','><img src='data:,a' data-expect='data:,a'></picture></div>
+<div><picture><source srcset='data:,b' type='image/gif, image/png'><img src='data:,a' data-expect='data:,a'></picture></div>
+<div><picture><source srcset='data:,b' type='image/gif image/png'><img src='data:,a' data-expect='data:,a'></picture></div>
+<div><picture><source srcset='data:,b' type='image/foobarbaz'><img src='data:,a' data-expect='data:,a'></picture></div>
+
+<!-- trailing garbage -->
+
+<div><picture><img src='data:,a' data-expect='data:,a'>foo</picture></div>
+<div><picture><img src='data:,a' data-expect='data:,a'><br></picture></div>
+<div><picture><img src='data:,a' data-expect='data:,a'><!--foo--></picture></div>
+<div><picture><img src='data:,a' data-expect='data:,a'><img src='data:,b'></picture></div>
+<div><picture><img data-expect=''><img src='data:,b'></picture></div>
+<div><picture><img src='data:,a' data-expect='data:,a'><source srcset='data:,b'></picture></div>
+<div><picture><img data-expect=''><source srcset='data:,b'></picture></div>
+
+<!-- parent not picture -->
+
+<div><picture><span><source srcset='data:,b'><img data-expect=''></span></picture></div>
+<div><picture><span><source srcset='data:,b'><img src='data:,a' data-expect='data:,a'></span></picture></div>
+<div><picture><source srcset='data:,b'><span><img src='data:,a' data-expect='data:,a'></span></picture></div>
+
+<!-- no src -->
+
+<div><picture><source srcset='data:,b'><img data-expect='data:,b'></picture></div>

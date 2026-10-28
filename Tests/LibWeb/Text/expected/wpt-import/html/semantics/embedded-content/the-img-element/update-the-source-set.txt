@@ -1,0 +1,95 @@
+Harness status: OK
+
+Found 89 tests
+
+80 Pass
+9 Fail
+Pass	<img data-expect="">
+Pass	<img src="" data-expect="">
+Pass	<img src="data:,a" data-expect="data:,a">
+Pass	<img srcset="" src="data:,a" data-expect="data:,a">
+Pass	<img srcset="data:,b" src="data:,a" data-expect="data:,b">
+Pass	<img src="data:,a" srcset="data:,b" data-expect="data:,b"><!-- srcset after src -->
+Pass	<img src="data:,a" srcset="data:,b 1x" data-expect="data:,b">
+Pass	<img src="data:,a" srcset="data:,b 1.0x" data-expect="data:,b">
+Pass	<img src="data:,a" srcset="data:,b 1e0x" data-expect="data:,b">
+Pass	<img src="data:,a" srcset="data:,b 10000w" sizes="1px" data-expect="data:,b">
+Pass	<img src="data:,a" srcset="data:,b 10000w, data:,c 10000x" sizes="1px" data-expect="data:,b">
+Pass	<img src="data:,a" srcset="data:,b 10000x, data:,c 10000w" sizes="1px" data-expect="data:,b">
+Pass	<img src="data:,a" srcset="data:,b 1w" sizes="10000px" data-expect="data:,b">
+Pass	<img src="data:,a" srcset="data:,b 1w, data:,c 0.0001x" sizes="10000px" data-expect="data:,b">
+Fail	<img src="data:,a" srcset="data:,b 0.0001x, data:,c 1w" sizes="10000px" data-expect="data:,b">
+Pass	<img srcset="data:,a" data-expect="data:,a">
+Pass	<picture>foo<img src="data:,a" data-expect="data:,a"></picture>
+Pass	<picture><!--foo--><img src="data:,a" data-expect="data:,a"></picture>
+Pass	<picture><br><img src="data:,a" data-expect="data:,a"></picture>
+Pass	<picture><p></p><img src="data:,a" data-expect="data:,a"></picture>
+Pass	<picture><video><source srcset="data:,b"></video><img src="data:,a" data-expect="data:,a"></picture>
+Pass	<picture><span><source srcset="data:,b"></span><img src="data:,a" data-expect="data:,a"></picture>
+Pass	<picture><svg><source srcset="data:,b"></svg><img src="data:,a" data-expect="data:,a"></picture>
+Pass	<picture><svg></svg><source srcset="data:,b"><img src="data:,a" data-expect="data:,b"></picture>
+Pass	<picture><svg><font></font><source srcset="data:,b"></svg><img src="data:,a" data-expect="data:,a"></picture>
+Pass	<picture><svg><!--<font face> tag breaks out of svg--></svg><font face=""></font><source srcset="data:,b"><img src="data:,a" data-expect="data:,b"></picture>
+Pass	<picture><img src="data:,a"><img src="data:,b" data-expect="data:,b"></picture>
+Pass	<picture><source><img src="data:,a" data-expect="data:,a"></picture>
+Pass	<picture><source src="data:,b"><img src="data:,a" data-expect="data:,a"></picture>
+Pass	<picture><source srcset=""><img src="data:,a" data-expect="data:,a"></picture>
+Pass	<picture><source srcset=", ,"><img src="data:,a" data-expect="data:,a"></picture>
+Pass	<picture><source srcset="data:,b 1x 1x"><img src="data:,a" data-expect="data:,a"></picture>
+Pass	<picture><source srcset="data:,b" media=""><img src="data:,a" data-expect="data:,b"></picture>
+Pass	<picture><source srcset="data:,b" media="all"><img src="data:,a" data-expect="data:,b"></picture>
+Pass	<picture><source srcset="data:,b" media="all and (min-width:0)"><img src="data:,a" data-expect="data:,b"></picture>
+Pass	<picture><source srcset="data:,b" media="all and !"><img src="data:,a" data-expect="data:,a"></picture>
+Pass	<picture><source srcset="data:,b" media="all and (!)"><img src="data:,a" data-expect="data:,a"></picture>
+Pass	<picture><source srcset="data:,b" media="not all"><img src="data:,a" data-expect="data:,a"></picture>
+Pass	<picture><source srcset="data:,b" media="not all and (min-width:0)"><img src="data:,a" data-expect="data:,a"></picture>
+Pass	<picture><source srcset="data:,b" media="not all and (max-width:0)"><img src="data:,a" data-expect="data:,b"></picture>
+Pass	<picture><source srcset="data:,b" media="not all and !"><img src="data:,a" data-expect="data:,a"></picture>
+Pass	<picture><source srcset="data:,b" media="not all and (!)"><img src="data:,a" data-expect="data:,a"></picture>
+Pass	<picture><source srcset="data:,b" media="all, !"><img src="data:,a" data-expect="data:,b"></picture>
+Pass	<picture><source srcset="data:,b" media=","><img src="data:,a" data-expect="data:,a"></picture>
+Pass	<picture><source srcset="data:,b" media=", all"><img src="data:,a" data-expect="data:,b"></picture>
+Pass	<picture><source srcset="data:,b" type=""><img src="data:,a" data-expect="data:,b"></picture>
+Fail	<picture><source srcset="data:,b" type=" "><img src="data:,a" data-expect="data:,b"></picture>
+Pass	<picture><source srcset="data:,b" type="image/gif"><img src="data:,a" data-expect="data:,b"></picture>
+Fail	<picture><source srcset="data:,b" type=" image/gif"><img src="data:,a" data-expect="data:,b"></picture>
+Fail	<picture><source srcset="data:,b" type="image/gif "><img src="data:,a" data-expect="data:,b"></picture>
+Fail	<picture><source srcset="data:,b" type="image/gif;"><img src="data:,a" data-expect="data:,b"></picture>
+Fail	<picture><source srcset="data:,b" type="image/gif;encodings"><img src="data:,a" data-expect="data:,b"></picture>
+Fail	<picture><source srcset="data:,b" type="image/gif;encodings="><img src="data:,a" data-expect="data:,b"></picture>
+Fail	<picture><source srcset="data:,b" type="image/gif;encodings=foobar"><img src="data:,a" data-expect="data:,b"></picture>
+Pass	<picture><source srcset="data:,b" type="image/png"><img src="data:,a" data-expect="data:,b"></picture>
+Pass	<picture><source srcset="data:,b" type="image/jpeg"><img src="data:,a" data-expect="data:,b"></picture>
+Pass	<picture><source srcset="data:,b" type="image/svg+xml"><img src="data:,a" data-expect="data:,b"></picture>
+Pass	<picture><source srcset="data:,b" type="image/x-icon"><img src="data:,a" data-expect="data:,b"></picture>
+Pass	<picture><source srcset="data:,b" type="text/xml"><img src="data:,a" data-expect="data:,a"></picture>
+Pass	<picture><source srcset="data:,b" type="text/html"><img src="data:,a" data-expect="data:,a"></picture>
+Pass	<picture><source srcset="data:,b" type="text/plain"><img src="data:,a" data-expect="data:,a"></picture>
+Pass	<picture><source srcset="data:,b" type="text/css"><img src="data:,a" data-expect="data:,a"></picture>
+Pass	<picture><source srcset="data:,b" type="video/mp4"><img src="data:,a" data-expect="data:,a"></picture>
+Pass	<picture><source srcset="data:,b" type="video/ogg"><img src="data:,a" data-expect="data:,a"></picture>
+Pass	<picture><source srcset="data:,b" type="video/webm"><img src="data:,a" data-expect="data:,a"></picture>
+Pass	<picture><source srcset="data:,b" type="unknown/unknown"><img src="data:,a" data-expect="data:,a"></picture>
+Pass	<picture><source srcset="data:,b" type="application/octet-stream"><img src="data:,a" data-expect="data:,a"></picture>
+Pass	<picture><source srcset="data:,b" type="application/x-shockwave-flash"><img src="data:,a" data-expect="data:,a"></picture>
+Pass	<picture><source srcset="data:,b" type="image\gif"><img src="data:,a" data-expect="data:,a"></picture>
+Pass	<picture><source srcset="data:,b" type="gif"><img src="data:,a" data-expect="data:,a"></picture>
+Pass	<picture><source srcset="data:,b" type=".gif"><img src="data:,a" data-expect="data:,a"></picture>
+Pass	<picture><source srcset="data:,b" type="*"><img src="data:,a" data-expect="data:,a"></picture>
+Pass	<picture><source srcset="data:,b" type="*/*"><img src="data:,a" data-expect="data:,a"></picture>
+Pass	<picture><source srcset="data:,b" type="image/*"><img src="data:,a" data-expect="data:,a"></picture>
+Pass	<picture><source srcset="data:,b" type=","><img src="data:,a" data-expect="data:,a"></picture>
+Pass	<picture><source srcset="data:,b" type="image/gif, image/png"><img src="data:,a" data-expect="data:,a"></picture>
+Pass	<picture><source srcset="data:,b" type="image/gif image/png"><img src="data:,a" data-expect="data:,a"></picture>
+Pass	<picture><source srcset="data:,b" type="image/foobarbaz"><img src="data:,a" data-expect="data:,a"></picture>
+Pass	<picture><img src="data:,a" data-expect="data:,a">foo</picture>
+Pass	<picture><img src="data:,a" data-expect="data:,a"><br></picture>
+Pass	<picture><img src="data:,a" data-expect="data:,a"><!--foo--></picture>
+Pass	<picture><img src="data:,a" data-expect="data:,a"><img src="data:,b"></picture>
+Pass	<picture><img data-expect=""><img src="data:,b"></picture>
+Pass	<picture><img src="data:,a" data-expect="data:,a"><source srcset="data:,b"></picture>
+Pass	<picture><img data-expect=""><source srcset="data:,b"></picture>
+Pass	<picture><span><source srcset="data:,b"><img data-expect=""></span></picture>
+Pass	<picture><span><source srcset="data:,b"><img src="data:,a" data-expect="data:,a"></span></picture>
+Pass	<picture><source srcset="data:,b"><span><img src="data:,a" data-expect="data:,a"></span></picture>
+Fail	<picture><source srcset="data:,b"><img data-expect="data:,b"></picture>
