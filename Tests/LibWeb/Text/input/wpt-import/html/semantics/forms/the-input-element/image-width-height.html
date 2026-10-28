@@ -1,0 +1,226 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>HTMLInputElement width and height for the Image Button state</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/input.html#dom-input-width">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/input.html#image-button-state-(type=image)">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/embedded-content-other.html#dimension-attributes">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<style>
+input {
+  /* Avoid any UA border/padding affecting the content box we measure. */
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+</style>
+<div id="container"></div>
+<div id="hiddenContainer" style="display: none"></div>
+<div id="log"></div>
+<script>
+const container = document.getElementById("container");
+const hiddenContainer = document.getElementById("hiddenContainer");
+
+const SRC = "/images/blue-100x100.png";
+const NATURAL = 100;
+
+// SVG images whose natural dimensions are not a width and a height. Applying the
+// default sizing algorithm with a default object size of 300x150 is expected to
+// fill in whatever is missing.
+const SVG_NEITHER = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'></svg>";
+const SVG_RATIO = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 200'></svg>";
+const SVG_WIDTH = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='60'></svg>";
+const SVG_HEIGHT = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' height='60'></svg>";
+
+// "cases" test how the rendered size, the width/height content attributes, and
+// the image's natural dimensions combine, and "rendered" is optional there.
+// "attributeValues" test how a single attribute value is parsed; the img element
+// has the same list in the-img-element/width-height-attribute-parsing.html.
+const cases = [
+  {
+    title: "no width/height attributes",
+    attrs: { type: "image", src: SRC },
+    rendered: [NATURAL, NATURAL],
+    notRendered: [NATURAL, NATURAL],
+  },
+  {
+    title: "width and height attributes",
+    attrs: { type: "image", src: SRC, width: "10", height: "20" },
+    rendered: [10, 20],
+    notRendered: [10, 20],
+  },
+  {
+    title: "width attribute only",
+    attrs: { type: "image", src: SRC, width: "10" },
+    rendered: [10, 10],
+    notRendered: [10, NATURAL],
+  },
+  {
+    title: "height attribute only",
+    attrs: { type: "image", src: SRC, height: "20" },
+    rendered: [20, 20],
+    notRendered: [NATURAL, 20],
+  },
+  {
+    title: "unparseable width attribute",
+    attrs: { type: "image", src: SRC, width: "abc" },
+    rendered: [NATURAL, NATURAL],
+    notRendered: [NATURAL, NATURAL],
+  },
+  {
+    title: "no src, with width/height attributes",
+    attrs: { type: "image", width: "10", height: "20" },
+    rendered: [10, 20],
+    notRendered: [10, 20],
+  },
+  {
+    title: "not in the Image Button state",
+    attrs: { type: "text", src: SRC, width: "10", height: "20" },
+    rendered: [0, 0],
+    notRendered: [0, 0],
+  },
+  {
+    title: "SVG image with neither a natural width nor a natural height",
+    attrs: { type: "image", src: SVG_NEITHER },
+    rendered: [300, 150],
+    notRendered: [300, 150],
+  },
+  {
+    title: "SVG image with a natural aspect ratio only",
+    attrs: { type: "image", src: SVG_RATIO },
+    // Omitting check for "rendered", which will fill the containing block.
+    notRendered: [300, 100],
+  },
+  {
+    title: "SVG image with a natural aspect ratio only, and a width attribute",
+    attrs: { type: "image", src: SVG_RATIO, width: "30" },
+    rendered: [30, 10],
+    notRendered: [30, 100],
+  },
+  {
+    title: "SVG image with a natural width only",
+    attrs: { type: "image", src: SVG_WIDTH },
+    rendered: [60, 150],
+    notRendered: [60, 150],
+  },
+  {
+    title: "SVG image with a natural height only",
+    attrs: { type: "image", src: SVG_HEIGHT },
+    rendered: [300, 60],
+    notRendered: [300, 60],
+  },
+];
+
+// Only the value when not being rendered is checked, as when the input is being
+// rendered these attributes are instead mapped to the width and height CSS
+// properties, which uses different parsing rules.
+const attributeValues = [
+  { value: "10", expected: 10 },
+  { value: "0", expected: 0 },
+  { value: "010", expected: 10 },
+  { value: "+10", expected: 10 },
+  { value: " 10 ", expected: 10 },
+  { value: "\n10", expected: 10 },
+  { value: "10px", expected: 10 },
+  { value: "50%", expected: 50 },
+  { value: "1.9", expected: 1 },
+  { value: "0.5", expected: 0 },
+  // A minus sign is only an error if the resulting integer is negative.
+  { value: "-0", expected: 0 },
+  { value: "-0.5", expected: 0 },
+  { value: "2147483647", expected: 2147483647 },
+  { value: "-10", expected: NATURAL },
+  { value: "", expected: NATURAL },
+  { value: "abc", expected: NATURAL },
+];
+
+function insert(attrs, parent) {
+  const input = document.createElement("input");
+  for (const [name, value] of Object.entries(attrs)) {
+    input.setAttribute(name, value);
+  }
+
+  const willLoad = attrs.type === "image" && "src" in attrs;
+  const loaded = willLoad ? new Promise(resolve => {
+    input.addEventListener("load", resolve, { once: true });
+    input.addEventListener("error", resolve, { once: true });
+  }) : Promise.resolve();
+
+  parent.appendChild(input);
+  return { input, loaded };
+}
+
+for (const testCase of cases) {
+  promise_test(async t => {
+    const { input, loaded } = insert(testCase.attrs, container);
+    t.add_cleanup(() => input.remove());
+    await loaded;
+
+    if (testCase.rendered) {
+      assert_array_equals([input.width, input.height], testCase.rendered,
+                          "width and height when rendered");
+    }
+
+    input.style.display = "none";
+    assert_array_equals([input.width, input.height], testCase.notRendered,
+                        "width and height when not rendered");
+  }, testCase.title);
+}
+
+for (const { value, expected } of attributeValues) {
+  promise_test(async t => {
+    const { input, loaded } =
+        insert({ type: "image", src: SRC, width: value, height: value }, container);
+    t.add_cleanup(() => input.remove());
+    await loaded;
+
+    input.style.display = "none";
+    assert_array_equals([input.width, input.height], [expected, expected]);
+  }, `width and height attribute value ${JSON.stringify(value)} when not rendered`);
+}
+
+promise_test(async t => {
+  // Preload, so that the image below is available from the cache.
+  await new Promise(resolve => {
+    const preload = new Image();
+    preload.addEventListener("load", resolve, { once: true });
+    preload.addEventListener("error", resolve, { once: true });
+    preload.src = SRC;
+  });
+
+  const { input, loaded } = insert({ type: "image", src: SRC }, hiddenContainer);
+  t.add_cleanup(() => input.remove());
+  // Give the load event a chance to fire, but do not hang the rest of this file
+  // if a user agent never loads the image for an input that is not rendered.
+  await Promise.race([loaded, new Promise(resolve => t.step_timeout(resolve, 5000))]);
+
+  assert_array_equals([input.width, input.height], [NATURAL, NATURAL]);
+}, "never rendered, no width/height attributes");
+
+test(t => {
+  // No image is needed here, as the attributes take precedence.
+  const input = document.createElement("input");
+  input.setAttribute("type", "image");
+  input.setAttribute("src", SRC);
+  input.setAttribute("width", "10");
+  input.setAttribute("height", "20");
+  hiddenContainer.appendChild(input);
+  t.add_cleanup(() => input.remove());
+
+  assert_array_equals([input.width, input.height], [10, 20]);
+}, "never rendered, with width/height attributes");
+
+test(() => {
+  const input = document.createElement("input");
+  input.setAttribute("type", "image");
+  input.setAttribute("width", "10");
+  input.setAttribute("height", "20");
+  assert_array_equals([input.width, input.height], [10, 20]);
+}, "detached input, with width/height attributes");
+
+test(() => {
+  const input = document.createElement("input");
+  input.setAttribute("type", "image");
+  assert_array_equals([input.width, input.height], [0, 0]);
+}, "detached input, no attributes and no image");
+</script>
