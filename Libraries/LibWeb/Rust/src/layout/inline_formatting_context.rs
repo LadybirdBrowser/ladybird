@@ -985,6 +985,9 @@ pub(crate) struct InlineFormattingContext<'context> {
     /// The break token of the containing block, once the fragmentainer stops before one of its lines.
     fragmentainer_stop_token: RefCell<Option<std::rc::Rc<fragmentation::BlockBreakToken>>>,
     lines_are_unbreakable: Cell<bool>,
+    /// Whether margins collapse through each block-level box this context interrupted its lines for, as the layout of
+    /// the box found.
+    margins_collapse_through_interrupting_blocks: RefCell<HashMap<Node, bool>>,
 }
 
 impl<'context> InlineFormattingContext<'context> {
@@ -1013,6 +1016,7 @@ impl<'context> InlineFormattingContext<'context> {
             atomic_inline_fragment_arrivals: RefCell::new(HashMap::default()),
             fragmentainer_stop_token: RefCell::new(None),
             lines_are_unbreakable: Cell::new(false),
+            margins_collapse_through_interrupting_blocks: RefCell::new(HashMap::default()),
         }
     }
 
@@ -1851,7 +1855,7 @@ impl<'context> InlineFormattingContext<'context> {
                     if self.stops_at_line_clamp_point(&line_builder, &mut state_at_clamp_point) {
                         break;
                     }
-                    self.parent.layout_interrupting_block_inside_inline_context(
+                    let collapses_through = self.parent.layout_interrupting_block_inside_inline_context(
                         self.run,
                         item.node,
                         self.containing_block,
@@ -1860,6 +1864,9 @@ impl<'context> InlineFormattingContext<'context> {
                         &mut line_builder,
                         state_at_clamp_point.is_some(),
                     );
+                    self.margins_collapse_through_interrupting_blocks
+                        .borrow_mut()
+                        .insert(item.node, collapses_through);
                 }
                 inline_level_iterator::ItemType::AbsolutelyPositionedElement => {
                     if !self.facts(item.node).is_box() {
@@ -2284,8 +2291,35 @@ impl<'context> InlineFormattingContext<'context> {
             fragmentainer_stop_token: self.fragmentainer_stop_token.take(),
             lines_are_unbreakable: self.lines_are_unbreakable.get(),
             last_line,
+            has_child_whose_margins_do_not_collapse_through: !self
+                .children_let_margins_collapse_through(self.containing_block),
             ..Default::default()
         }
+    }
+
+    /// Whether margins collapse through the children of `node`, the containing block or an inline box in it: through
+    /// each inline-level box this context holds, and through each block-level box it interrupted its lines for.
+    fn children_let_margins_collapse_through(&self, node: Node) -> bool {
+        self.callbacks.children(node).all(|child| {
+            let facts = self.facts(child);
+            if !facts.is_box() || facts.is_absolutely_positioned() || facts.is_floating() {
+                return true;
+            }
+            let interrupting_block_collapses_through = self
+                .margins_collapse_through_interrupting_blocks
+                .borrow()
+                .get(&child)
+                .copied();
+            if let Some(collapses_through) = interrupting_block_collapses_through {
+                return collapses_through;
+            }
+            if !self.run.records.holds_box(child) {
+                return true;
+            }
+            block_formatting_context::margins_can_collapse_through_box_itself(facts, self.style(child), || {
+                self.used(child).border_box_block_size(false)
+            }) && self.children_let_margins_collapse_through(child)
+        })
     }
 
     fn leave_atomic_inlines_without_a_line_unplaced(&self) {

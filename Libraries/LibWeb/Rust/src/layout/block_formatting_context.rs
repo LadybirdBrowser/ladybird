@@ -74,6 +74,7 @@ struct BrokenInside {
 struct LaidOutBlockLevelBox {
     broken_inside: Option<BrokenInside>,
     has_unbreakable_lines: bool,
+    collapses_through: bool,
 }
 
 /// What laying out the children of a block container hands back to the layout of the container.
@@ -93,6 +94,9 @@ pub(crate) struct ChildrenSummary {
     /// Whether the children laid out include the outside marker of the container, which the container places after
     /// them.
     pub(crate) includes_list_item_marker: bool,
+    /// Whether margins do not collapse through one of the children laid out, which keeps them from collapsing through
+    /// the container.
+    pub(crate) has_child_whose_margins_do_not_collapse_through: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -1726,40 +1730,14 @@ impl<'pass> BlockFormattingContext<'pass> {
         if !self.run.records.holds_box(node) {
             return true;
         }
-        let facts = self.facts(node);
-        let style = self.style(node);
-        // https://drafts.csswg.org/css2/#adjoining-margins
-        // Two margins are adjoining if and only if:
-        // - both belong to in-flow block-level boxes that participate in the same block formatting context
-        //   NB: Yes, we're dealing with one and the same box here.
+        margins_can_collapse_through_box_itself(self.facts(node), self.style(node), || {
+            self.used(node).border_box_block_size(false)
+        }) && self.children_let_margins_collapse_through(node)
+    }
 
-        // - no line boxes, no clearance, no padding and no border separate them (Note that certain zero-height line boxes
-        //   (see 9.4.2) are ignored for this purpose.)
-        // NB: Border and padding are handled further down.
-        if style.clear() != clear::NONE {
-            return false;
-        }
-        // - both belong to vertically-adjacent box edges, i.e. form one of the following pairs:
-        //   - top and bottom margins of a box that does not establish a new block formatting context and that has zero
-        //     computed 'min-height', zero or 'auto' computed 'height', and no in-flow children
-        if facts.creates_block_formatting_context() {
-            return false;
-        }
-        // https://drafts.csswg.org/css-display-3/#independent-formatting-context
-        // NOTE: [..] margins do not collapse across formatting context boundaries.
-        if formatting_context::formatting_context_type_created_by_box(facts).is_some() {
-            return false;
-        }
-        // NB: This should take care of the height and min-height constraints.
-        //     ( also see https://github.com/w3c/csswg-drafts/pull/13699#issuecomment-4103045370 for spec ambiguity )
-        if self.used(node).border_box_block_size(false) != CssPixels::default() {
-            return false;
-        }
-        // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-margin-collapse
-        // FIXME: For the purpose of margin collapsing (CSS 2 §8.3.1 Collapsing margins), if the block axis is the
-        //        ratio-dependent axis, it is not considered to have a computed block-size of auto.
-
-        // AD-HOC: The "and no in-flow children" above is wrong. (see https://github.com/w3c/csswg-drafts/pull/13699 )
+    fn children_let_margins_collapse_through(&self, node: Node) -> bool {
+        // AD-HOC: The "and no in-flow children" of the margin collapsing rules is wrong.
+        //         (see https://github.com/w3c/csswg-drafts/pull/13699 )
         for child in self.children(node) {
             let child_facts = self.facts(child);
             if child_facts.is_absolutely_positioned() || child_facts.is_floating() {
@@ -1770,6 +1748,25 @@ impl<'pass> BlockFormattingContext<'pass> {
             }
         }
         true
+    }
+
+    /// Whether margins collapse through `node`, a box without a formatting context of its own that this flow laid out,
+    /// where `children` sums up the children laid out in its flow.
+    fn margins_collapse_through_box_laid_out_in_this_flow(
+        &self,
+        node: Node,
+        children: Option<&ChildrenSummary>,
+    ) -> bool {
+        let facts = self.facts(node);
+        if !margins_can_collapse_through_box_itself(facts, self.style(node), || {
+            self.used(node).border_box_block_size(false)
+        }) {
+            return false;
+        }
+        match children {
+            Some(children) if facts.children_are_inline() => !children.has_child_whose_margins_do_not_collapse_through,
+            _ => self.children_let_margins_collapse_through(node),
+        }
     }
 
     pub(crate) fn commit_pending_margin_before_inline_content(&self) -> CssPixels {
@@ -2112,7 +2109,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             border_box_bottom: metrics.border_box_bottom(collapsed),
             border_box_block_size: metrics.border_box_block_size(collapsed),
             margin_bottom: metrics.margin_bottom(),
-            collapses_through: self.margins_collapse_through(node),
+            collapses_through: laid_out.collapses_through,
             is_invisible_for_line_clamp: self.run.records.is_invisible_for_line_clamp(node),
             can_break_inside: self.box_can_break_inside(node, laid_out.has_unbreakable_lines),
             broken_inside: laid_out.broken_inside,
@@ -2317,7 +2314,10 @@ impl<'pass> BlockFormattingContext<'pass> {
                 node,
                 self.sizing().resolve_percentage_block_size_dependency(node),
             );
-            return Some(LaidOutBlockLevelBox::default());
+            return Some(LaidOutBlockLevelBox {
+                collapses_through: self.margins_collapse_through_box_laid_out_in_this_flow(node, None),
+                ..LaidOutBlockLevelBox::default()
+            });
         }
         // If first child margin top will collapse with margin-top of containing block then margin-top of child is 0
         let margin_top = self.margin_state.borrow().pending_margin_for_next_box();
@@ -2751,10 +2751,15 @@ impl<'pass> BlockFormattingContext<'pass> {
                 list_item_first_baseline,
             );
             if let Some(summary) = summary_of_children_laid_out_in_this_flow.as_mut()
-                && summary.includes_list_item_marker
                 && let Some(marker_border_box_block_end) = marker_border_box_block_end
             {
-                summary.include_placed_child(marker_border_box_block_end);
+                if summary.includes_list_item_marker {
+                    summary.include_placed_child(marker_border_box_block_end);
+                }
+                // NB: The laid-out marker has a formatting context of its own, so margins do not collapse through it.
+                if self.run.callbacks.parent(marker) == node {
+                    summary.has_child_whose_margins_do_not_collapse_through = true;
+                }
             }
         }
 
@@ -2807,7 +2812,12 @@ impl<'pass> BlockFormattingContext<'pass> {
             }
         }
 
-        if has_independent_formatting_context || !self.margins_collapse_through(node) {
+        let collapses_through = !has_independent_formatting_context
+            && self.margins_collapse_through_box_laid_out_in_this_flow(
+                node,
+                summary_of_children_laid_out_in_this_flow.as_ref(),
+            );
+        if !collapses_through {
             let mut margin_state = self.margin_state.borrow_mut();
             if !margin_state.box_last_in_flow_child_margin_bottom_collapsed
                 || self.run.records.continues_in_next_fragment(node)
@@ -2845,6 +2855,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         Some(LaidOutBlockLevelBox {
             broken_inside,
             has_unbreakable_lines,
+            collapses_through,
         })
     }
 
@@ -4304,6 +4315,8 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
     }
 
+    /// Lays out `node`, a block-level box that interrupts the lines of `containing_block`, and returns whether margins
+    /// collapse through it.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn layout_interrupting_block_inside_inline_context(
         &self,
@@ -4314,7 +4327,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         containing_block_position_in_root: FfiCssPixelPoint,
         line_builder: &mut line_builder::LineBuilder<'_, '_>,
         is_after_clamp_point: bool,
-    ) {
+    ) -> bool {
         let line_index = line_builder.line_index_for_block_level_box();
         let current_block_offset = line_builder.current_block_offset();
         let saved = self
@@ -4325,7 +4338,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             self.laying_out_invisible_line_clamp_content.set(true);
         }
         let break_mode_outside = self.break_mode.replace(BreakMode::NoBreaks);
-        self.layout_block_level_box(
+        let outcome = self.layout_block_level_box(
             run,
             node,
             containing_block,
@@ -4353,6 +4366,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             block_bottom,
             self.margin_state.borrow().current_collapsed_margin(),
         );
+        outcome.is_none_or(|outcome| outcome.collapses_through)
     }
 
     fn margin_box_left_of_float_record(&self, floating_box: FloatingBox) -> CssPixels {
@@ -4983,6 +4997,43 @@ pub(crate) fn table_wrapper_flow_children(callbacks: LayoutPass<'_>, wrapper: No
     flow_children.push(table_box);
     flow_children.extend(bottom_captions);
     flow_children
+}
+
+/// Whether margins can collapse through `node` as far as the box itself goes, before its children are considered. The
+/// block size of its border box is read only where nothing else keeps margins from collapsing through it.
+pub(crate) fn margins_can_collapse_through_box_itself(
+    facts: NodeFacts<'_>,
+    style: StyleValues<'_>,
+    border_box_block_size: impl FnOnce() -> CssPixels,
+) -> bool {
+    // https://drafts.csswg.org/css2/#adjoining-margins
+    // Two margins are adjoining if and only if:
+    // - both belong to in-flow block-level boxes that participate in the same block formatting context
+    //   NB: Yes, we're dealing with one and the same box here.
+
+    // - no line boxes, no clearance, no padding and no border separate them (Note that certain zero-height line boxes
+    //   (see 9.4.2) are ignored for this purpose.)
+    // NB: Border and padding are handled further down.
+    if style.clear() != clear::NONE {
+        return false;
+    }
+    // - both belong to vertically-adjacent box edges, i.e. form one of the following pairs:
+    //   - top and bottom margins of a box that does not establish a new block formatting context and that has zero
+    //     computed 'min-height', zero or 'auto' computed 'height', and no in-flow children
+    if facts.creates_block_formatting_context() {
+        return false;
+    }
+    // https://drafts.csswg.org/css-display-3/#independent-formatting-context
+    // NOTE: [..] margins do not collapse across formatting context boundaries.
+    if formatting_context::formatting_context_type_created_by_box(facts).is_some() {
+        return false;
+    }
+    // NB: This should take care of the height and min-height constraints.
+    //     ( also see https://github.com/w3c/csswg-drafts/pull/13699#issuecomment-4103045370 for spec ambiguity )
+    // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-margin-collapse
+    // FIXME: For the purpose of margin collapsing (CSS 2 §8.3.1 Collapsing margins), if the block axis is the
+    //        ratio-dependent axis, it is not considered to have a computed block-size of auto.
+    border_box_block_size() == CssPixels::default()
 }
 
 // https://www.w3.org/TR/CSS22/visudet.html#root-height
