@@ -1455,30 +1455,40 @@ impl<'pass> TableFormattingContext<'pass> {
         let participants = row_groups
             .into_iter()
             .chain(column_boxes)
-            .chain(self.rows.iter().map(|row| row.box_))
-            .map(|participant| (participant, create_row_used_values))
-            .chain(self.cells.iter().map(|cell| (cell.box_, true)));
+            .chain(self.rows.iter().map(|row| row.box_));
         let sizing = self.sizing();
-        for (participant, create_used_values) in participants {
-            if create_used_values {
-                self.create_used_values(participant, self.participant_constraints);
-            }
+        let note_percentage_block_size_dependency_of = |participant| {
             if sizing.own_style_depends_on_percentage_block_size(participant) {
                 self.run
                     .records
                     .note_descendant_depends_on_percentage_block_size(self.run.box_);
             }
+        };
+        for participant in participants {
+            if create_row_used_values {
+                self.create_used_values(participant, self.participant_constraints);
+            }
+            note_percentage_block_size_dependency_of(participant);
         }
+        let cell_box_cells = self
+            .cells
+            .iter()
+            .map(|cell| {
+                let cells = self.run.records.keep_child_for_its_run(
+                    &self.run.callbacks,
+                    cell.box_,
+                    self.participant_constraints,
+                );
+                note_percentage_block_size_dependency_of(cell.box_);
+                cells
+            })
+            .collect();
         for cell in &self.cells {
             self.run
                 .records
                 .place_in_table_columns(cell.box_, cell.column_index as u32, cell.column_span as u32);
         }
-        self.cell_box_cells = self
-            .cells
-            .iter()
-            .map(|cell| used_values::RootInputCells::capture(self.used_values(cell.box_)))
-            .collect();
+        self.cell_box_cells = cell_box_cells;
     }
 
     /// Whether a length or percentage `height` on a cell sizes its border box rather than its content box. CSS 2
@@ -3164,9 +3174,18 @@ impl<'pass> TableFormattingContext<'pass> {
                 let cell_box = &mut self.cell_box_cells[cell_index];
                 cell_box.padding_top += intrinsic_block_padding.0;
                 cell_box.padding_bottom += intrinsic_block_padding.1;
-                let used = self.used_values(cell.box_);
-                self.cell_box_cells[cell_index].apply_to_record(used);
-                formatting_context::store_derived_baselines(used, measurement.baselines);
+                run.records.receive_laid_out_child_box(
+                    cell.box_,
+                    run_records::ChildLaidOutByItsOwnRun {
+                        laid_out: run_records::LaidOutChildBox {
+                            cells: *cell_box,
+                            baselines: measurement.baselines,
+                            orthogonal_flow_baselines: None,
+                        },
+                        line_data: None,
+                        frame: run.callbacks.frame,
+                    },
+                );
                 formatting_context::propagate_percentage_block_size_dependency_to_containing_block(
                     run.records,
                     &run.callbacks,
