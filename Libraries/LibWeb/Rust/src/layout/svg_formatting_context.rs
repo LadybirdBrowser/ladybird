@@ -2035,7 +2035,13 @@ impl<'pass> SvgFormattingContext<'pass> {
         }
     }
 
-    fn layout_svg_element(&mut self, run: &FormattingContextRun<'pass>, child: Node) {
+    /// Lays out and places `child`, and returns its sizes and box sides where a run of its own laid it out, as that
+    /// run handed them back.
+    fn layout_svg_element(
+        &mut self,
+        run: &FormattingContextRun<'pass>,
+        child: Node,
+    ) -> Option<used_values::RootInputCells> {
         let kind = self.node_kind(child);
         if self.svg_attributes(child).is_fit_to_view_box {
             self.layout_nested_viewport(run, child);
@@ -2086,27 +2092,26 @@ impl<'pass> SvgFormattingContext<'pass> {
                 }
             };
 
+            let laid_out_box = laid_out_box.expect("a foreign object's child is laid out by a run of its own");
             // Masks and clips may use this offset for objectBoundingBox units.
             self.place_laid_out_child(
                 child,
-                formatting_context::PlacedChild::of_laid_out_box(
-                    &laid_out_box.expect("a foreign object's child is laid out by a run of its own"),
-                    line_data,
-                    run.callbacks.frame,
-                ),
+                formatting_context::PlacedChild::of_laid_out_box(&laid_out_box, line_data, run.callbacks.frame),
                 rect.x,
                 rect.y,
                 fragment_arrival,
             );
             if let Some(mask) = self.first_child_of_kind(child, NodeKind::SVGMaskBox) {
-                self.layout_mask_or_clip(run, mask);
+                self.layout_mask_or_clip(run, mask, &laid_out_box.cells);
             }
             if let Some(clip) = self.first_child_of_kind(child, NodeKind::SVGClipBox) {
-                self.layout_mask_or_clip(run, clip);
+                self.layout_mask_or_clip(run, clip, &laid_out_box.cells);
             }
+            return Some(laid_out_box.cells);
         } else if kind_is_svg_graphics_box(kind) {
             self.layout_graphics_element(run, child);
         }
+        None
     }
 
     fn layout_nested_viewport(&mut self, run: &FormattingContextRun<'pass>, viewport: Node) {
@@ -2168,15 +2173,17 @@ impl<'pass> SvgFormattingContext<'pass> {
             self.layout_path_like_element(run, graphics_box, facts);
         }
 
+        // NB: The graphics element is laid out by this run, in the record it keeps.
+        let graphics_box_metrics = || run.records.box_metrics_of(graphics_box).input_cells();
         if let Some(mask) = self.first_child_of_kind(graphics_box, NodeKind::SVGMaskBox) {
-            self.layout_mask_or_clip(run, mask);
+            self.layout_mask_or_clip(run, mask, &graphics_box_metrics());
         }
         if let Some(clip) = self.first_child_of_kind(graphics_box, NodeKind::SVGClipBox) {
-            self.layout_mask_or_clip(run, clip);
+            self.layout_mask_or_clip(run, clip, &graphics_box_metrics());
         }
         for child in self.run.callbacks.children(graphics_box) {
             if self.node_kind(child) == NodeKind::SVGPatternBox {
-                self.layout_mask_or_clip(run, child);
+                self.layout_mask_or_clip(run, child, &graphics_box_metrics());
             }
         }
     }
@@ -2362,7 +2369,13 @@ impl<'pass> SvgFormattingContext<'pass> {
         self.set_content_rect(image_box, self.svg_image_bounding_box(image_box));
     }
 
-    fn layout_mask_or_clip(&mut self, run: &FormattingContextRun<'pass>, resource: Node) {
+    /// Lays out `resource`, a mask, clip or pattern of a box whose sizes and box sides are `parent_metrics`.
+    fn layout_mask_or_clip(
+        &mut self,
+        run: &FormattingContextRun<'pass>,
+        resource: Node,
+        parent_metrics: &used_values::RootInputCells,
+    ) {
         let kind = self.node_kind(resource);
         let facts = self.svg_facts(resource);
         let attributes = self.svg_attributes(resource);
@@ -2388,7 +2401,6 @@ impl<'pass> SvgFormattingContext<'pass> {
             } else {
                 let parent = self.parent(resource);
                 assert!(!parent.is_invalid());
-                let parent_metrics = run.records.box_metrics_of(parent);
                 (
                     CssPixels::nearest_value_for(
                         attributes.pattern_width.value as f64 * parent_metrics.content_inline_size().to_double(),
@@ -2401,7 +2413,6 @@ impl<'pass> SvgFormattingContext<'pass> {
         } else if attributes.content_units == SVG_UNITS_OBJECT_BOUNDING_BOX {
             let parent = self.parent(resource);
             assert!(!parent.is_invalid());
-            let parent_metrics = run.records.box_metrics_of(parent);
             (
                 parent_metrics.content_inline_size(),
                 parent_metrics.content_block_size(),
@@ -2428,8 +2439,11 @@ impl<'pass> SvgFormattingContext<'pass> {
             if NodeFacts::new(&self.run.callbacks, child).is_box()
                 && !node_facts::kind_is_svg_resource_box(self.node_kind(child))
             {
-                self.layout_svg_element(run, child);
-                let child_metrics = self.run.records.box_metrics_of(child);
+                let child_handed_back_by_its_run = self.layout_svg_element(run, child);
+                // NB: A child its own run laid out has the metrics that run handed back, and any other those of its
+                //     record here.
+                let child_metrics = child_handed_back_by_its_run
+                    .unwrap_or_else(|| self.run.records.box_metrics_of(child).input_cells());
                 // The container's bounding box includes descendants' transforms; children lay out
                 // untransformed, so each child rect maps through the child's own transform here.
                 let child_content_offset = self.run.records.content_offset_or_origin(child);
