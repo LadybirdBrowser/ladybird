@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<title>position:sticky elements with height larger than the space available between top and bottom</title>
+<link rel="help" href="https://www.w3.org/TR/css-position-3/#sticky-pos" />
+<meta name="assert" content="This test checks that the end edge is adjusted when the sticky view rectangle height ends up smaller than the height of the sticky element border box" />
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<style>
+
+.scroller {
+  height: 100px;
+  overflow: auto;
+  position: relative;
+}
+.padding {
+  height: 200px;
+}
+.sticky {
+  position: sticky;
+  background: green;
+  top: 20px;
+  bottom: 0;
+  height: 200px;
+}
+</style>
+
+<body>
+  <div class="scroller">
+    <div class="padding"></div>
+    <div class="sticky"></div>
+    <div class="padding"></div>
+  </div>
+</body>
+
+<script>
+test(() => {
+  const scroller = document.querySelector('.scroller');
+  const element = document.querySelector('.sticky');
+  scroller.scrollTop = 0;
+  assert_equals(element.offsetTop, 20);
+}, 'start of scroll container');
+
+test(() => {
+    const scroller = document.querySelector('.scroller');
+    const element = document.querySelector('.sticky');
+    scroller.scrollTop = 160;
+    assert_equals(element.offsetTop, 180);
+}, 'right before the in-flow position of the sticky box');
+
+test(() => {
+    const scroller = document.querySelector('.scroller');
+    const element = document.querySelector('.sticky');
+    scroller.scrollTop = 220;
+    assert_equals(element.offsetTop, 240);
+}, 'right after the in-flow position the sticky box');
+
+test(() => {
+  const scroller = document.querySelector('.scroller');
+  const element = document.querySelector('.sticky');
+  scroller.scrollTop = 500;
+  assert_equals(element.offsetTop, 400);
+}, 'end of scroll container');
+</script>

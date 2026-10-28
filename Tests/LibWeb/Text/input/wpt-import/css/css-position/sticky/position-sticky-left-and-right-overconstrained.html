@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<title>position:sticky elements with width larger than the space available between left and right</title>
+<link rel="help" href="https://www.w3.org/TR/css-position-3/#sticky-pos" />
+<meta name="assert" content="This test checks that the end edge is adjusted when the sticky view rectangle width ends up smaller than the width of the sticky element border box" />
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<style>
+
+.scroller {
+  width: 100px;
+  height: 100px;
+  overflow: auto;
+  position: relative;
+  display: flex;
+}
+.padding {
+  width: 200px;
+  height: 100px;
+  flex: none;
+}
+.sticky {
+  position: sticky;
+  background: green;
+  left: 20px;
+  right: 0;
+  width: 200px;
+  height: 100px;
+  flex: none;
+}
+</style>
+
+<body>
+  <div class="scroller">
+    <div class="padding"></div>
+    <div class="sticky"></div>
+    <div class="padding"></div>
+  </div>
+</body>
+
+<script>
+test(() => {
+  const scroller = document.querySelector('.scroller');
+  const element = document.querySelector('.sticky');
+  scroller.scrollLeft = 0;
+  assert_equals(element.offsetLeft, 20);
+}, 'start of scroll container');
+
+test(() => {
+    const scroller = document.querySelector('.scroller');
+    const element = document.querySelector('.sticky');
+    scroller.scrollLeft = 160;
+    assert_equals(element.offsetLeft, 180);
+}, 'right before the in-flow position of the sticky box');
+
+test(() => {
+    const scroller = document.querySelector('.scroller');
+    const element = document.querySelector('.sticky');
+    scroller.scrollLeft = 220;
+    assert_equals(element.offsetLeft, 240);
+}, 'right after the in-flow position the sticky box');
+
+test(() => {
+  const scroller = document.querySelector('.scroller');
+  const element = document.querySelector('.sticky');
+  scroller.scrollLeft = 500;
+  assert_equals(element.offsetLeft, 400);
+}, 'end of scroll container');
+</script>
