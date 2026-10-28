@@ -238,6 +238,9 @@ enum BreakMode {
 // https://www.w3.org/TR/css-display/#block-formatting-context
 pub(crate) struct BlockFormattingContext<'pass> {
     run: FormattingContextRun<'pass>,
+    /// The input cells of the children that establish formatting contexts of their own, as this block formatting
+    /// context sizes them until it hands each to its run.
+    cells_of_children_sized_ahead_of_their_runs: RefCell<HashMap<Node, used_values::RootInputCells>>,
     /// The lines the stored run of the root laid out, which inline layout of the root's own lines may reuse a prefix of.
     pub(super) previous_line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
     block_offset_of_current_block_container: Cell<Option<CssPixels>>,
@@ -361,6 +364,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             is_line_clamp_container && computed_continue == continue_value::_WEBKIT_LEGACY;
         Self {
             run: run.clone(),
+            cells_of_children_sized_ahead_of_their_runs: RefCell::new(HashMap::default()),
             previous_line_data,
             block_offset_of_current_block_container: Cell::new(None),
             pending_legend_flow_position: Cell::new(None),
@@ -537,8 +541,70 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 
     #[inline]
-    pub(crate) fn sizing(&self) -> sizing_context::SizingContext<'pass, 'static> {
+    pub(crate) fn sizing(&self) -> sizing_context::SizingContext<'pass, '_> {
         sizing_context::SizingContext::new(self.run.records, self.run.callbacks)
+            .with_children_sized_in_parent_cells(self)
+    }
+
+    /// Keeps sizing `node`, a child with a formatting context of its own whose record was just created, in cells of
+    /// this block formatting context until it is handed to its run.
+    pub(crate) fn size_child_ahead_of_its_run(&self, node: Node) {
+        let cells = used_values::RootInputCells::capture(self.used(node));
+        self.cells_of_children_sized_ahead_of_their_runs
+            .borrow_mut()
+            .insert(node, cells);
+    }
+
+    fn cells_of_child_sized_ahead_of_its_run(&self, node: Node) -> Option<used_values::RootInputCells> {
+        let cells = self.cells_of_children_sized_ahead_of_their_runs.borrow();
+        if cells.is_empty() {
+            return None;
+        }
+        cells.get(&node).copied()
+    }
+
+    /// The sizes, size constraints and box sides of `node`, a box this block formatting context sizes: from the cells it
+    /// sizes a child in ahead of its run, or from the record of a box it lays out itself.
+    fn child_metrics(&self, node: Node) -> run_records::BoxMetrics<'pass> {
+        match self.cells_of_child_sized_ahead_of_its_run(node) {
+            Some(cells) => run_records::BoxMetrics::BeingSizedByItsParent(cells),
+            None => run_records::BoxMetrics::LaidOutByThisRun(self.used(node)),
+        }
+    }
+
+    fn update_child_cells(&self, node: Node, update: impl FnOnce(&mut used_values::RootInputCells)) {
+        {
+            let mut cells = self.cells_of_children_sized_ahead_of_their_runs.borrow_mut();
+            if let Some(child_cells) = cells.get_mut(&node) {
+                update(child_cells);
+                return;
+            }
+        }
+        let used = self.used(node);
+        let mut cells = used_values::RootInputCells::capture(used);
+        update(&mut cells);
+        cells.apply_to_record(used);
+    }
+
+    /// The cells `node` is handed to its run with.
+    fn hand_over_child_cells(&self, node: Node) -> used_values::RootInputCells {
+        let handed_over = self
+            .cells_of_children_sized_ahead_of_their_runs
+            .borrow_mut()
+            .remove(&node);
+        handed_over.unwrap_or_else(|| used_values::RootInputCells::capture(self.used(node)))
+    }
+
+    /// Gives the record of `node` the cells it was sized in, where this block formatting context stops sizing it without
+    /// handing it to its run.
+    fn stop_sizing_child_ahead_of_its_run(&self, node: Node) {
+        let cells = self
+            .cells_of_children_sized_ahead_of_their_runs
+            .borrow_mut()
+            .remove(&node);
+        if let Some(cells) = cells {
+            cells.apply_to_record(self.used(node));
+        }
     }
 
     fn place_laid_out_child(
@@ -641,8 +707,9 @@ impl<'pass> BlockFormattingContext<'pass> {
 
     fn resolve_vertical_box_model_metrics(&self, node: Node, containing_block_inline_size: CssPixels) {
         let style = self.style(node);
-        let used = self.used(node);
-        used.resolve_vertical_box_model(&style, containing_block_inline_size);
+        self.update_child_cells(node, |cells| {
+            cells.resolve_vertical_box_model(&style, containing_block_inline_size);
+        });
     }
 
     fn box_should_avoid_floats_because_it_establishes_fc(&self, node: Node) -> bool {
@@ -671,7 +738,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             x: content_position_in_root.x,
             y: content_position_in_root.y,
             width: available_inline_size,
-            height: self.used(node).content_block_size.get(),
+            height: self.child_metrics(node).content_block_size(),
         };
         // NB: The box avoids every float beside it, so this takes the deepest intrusions over its block size.
         let band = self.merged_band(box_in_root_rect.y, box_in_root_rect.bottom());
@@ -709,7 +776,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             float_avoidance_inline_size,
         );
         if let Some(content_inline_size) = content_inline_size {
-            self.used(node).set_content_inline_size(content_inline_size);
+            self.update_child_cells(node, |cells| cells.set_content_inline_size(content_inline_size));
         }
     }
 
@@ -755,10 +822,9 @@ impl<'pass> BlockFormattingContext<'pass> {
             // elements; the non-replaced rules below then resolve the
             // margins. Replaced sizing consults the box's own used metrics,
             // so they are written first.
-            {
-                let used = self.used(node);
-                used.resolve_horizontal_box_model(&style, available_inline_size);
-            }
+            self.update_child_cells(node, |cells| {
+                cells.resolve_horizontal_box_model(&style, available_inline_size);
+            });
             // NB: Replaced element sizing does not know about the floats a stretch inline size avoids.
             if style.width().is_stretch() && float_avoidance_inline_size.is_some() {
                 return calculate_inner_inline_size(style.width());
@@ -785,15 +851,14 @@ impl<'pass> BlockFormattingContext<'pass> {
         let padding_right = style.padding_right().to_px(available_inline_size);
         let border_left_width = style.border_left_width();
         let border_right_width = style.border_right_width();
-        {
-            let used = self.used(node);
-            used.margin_left.set(margin_left);
-            used.margin_right.set(margin_right);
-            used.border_left.set(border_left_width);
-            used.border_right.set(border_right_width);
-            used.padding_left.set(padding_left);
-            used.padding_right.set(padding_right);
-        }
+        self.update_child_cells(node, |cells| {
+            cells.margin_left = margin_left;
+            cells.margin_right = margin_right;
+            cells.border_left = border_left_width;
+            cells.border_right = border_right_width;
+            cells.padding_left = padding_left;
+            cells.padding_right = padding_right;
+        });
         // https://html.spec.whatwg.org/multipage/rendering.html#the-fieldset-and-legend-elements
         // A rendered legend with a computed inline size of auto uses the
         // fit-content size, resolved here so the legend's children are laid
@@ -1007,11 +1072,10 @@ impl<'pass> BlockFormattingContext<'pass> {
             }
         }
 
-        {
-            let used = self.used(node);
-            used.margin_left.set(margin_left);
-            used.margin_right.set(margin_right);
-        }
+        self.update_child_cells(node, |cells| {
+            cells.margin_left = margin_left;
+            cells.margin_right = margin_right;
+        });
         if sized_as_replaced {
             replaced_inline_size
         } else {
@@ -1034,15 +1098,14 @@ impl<'pass> BlockFormattingContext<'pass> {
         let margin_right = style.margin_right().to_px(containing_block_inline_size);
         let padding_left = style.padding_left().to_px(containing_block_inline_size);
         let padding_right = style.padding_right().to_px(containing_block_inline_size);
-        {
-            let used = self.used(node);
-            used.padding_left.set(padding_left);
-            used.padding_right.set(padding_right);
-            used.margin_left.set(margin_left);
-            used.margin_right.set(margin_right);
-            used.border_left.set(style.border_left_width());
-            used.border_right.set(style.border_right_width());
-        }
+        self.update_child_cells(node, |cells| {
+            cells.padding_left = padding_left;
+            cells.padding_right = padding_right;
+            cells.margin_left = margin_left;
+            cells.margin_right = margin_right;
+            cells.border_left = style.border_left_width();
+            cells.border_right = style.border_right_width();
+        });
         let sizing = self.sizing();
         let compute = |input: Option<CssPixels>| -> CssPixels {
             if let Some(value) = input {
@@ -1117,8 +1180,12 @@ impl<'pass> BlockFormattingContext<'pass> {
         available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
     ) {
-        self.sizing()
-            .resolve_used_block_size_if_not_treated_as_auto(node, available_space, constraints);
+        let resolved = self
+            .sizing()
+            .used_block_size_if_not_treated_as_auto(node, available_space, constraints);
+        if let Some(resolved) = resolved {
+            self.update_child_cells(node, |cells| resolved.apply_to_cells(cells));
+        }
     }
 
     pub(crate) fn resolve_used_block_size_if_treated_as_auto(
@@ -1128,7 +1195,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         constraints: ContainingBlockConstraints,
         child_automatic_block_size: Option<CssPixels>,
     ) {
-        self.sizing().resolve_used_block_size_if_treated_as_auto(
+        let resolved = self.sizing().used_block_size_if_treated_as_auto(
             node,
             available_space,
             constraints,
@@ -1136,13 +1203,16 @@ impl<'pass> BlockFormattingContext<'pass> {
             || {
                 self.compute_automatic_block_size_for_block_level_element(
                     node,
-                    self.used(node)
+                    self.child_metrics(node)
                         .available_inner_space_or_constraints_from(available_space),
                     constraints,
                     None,
                 )
             },
         );
+        if let Some(resolved) = resolved {
+            self.update_child_cells(node, |cells| resolved.apply_to_cells(cells));
+        }
     }
 
     fn band_index_at(&self, block_offset: CssPixels) -> usize {
@@ -1414,19 +1484,19 @@ impl<'pass> BlockFormattingContext<'pass> {
     fn border_box_left_of_box_avoiding_floats(
         &self,
         node: Node,
-        used: &UsedValues,
+        metrics: &impl BoxMetricCells,
         space_used_by_floats: inline_formatting_context::SpaceUsedByFloats,
     ) -> CssPixels {
         if self.style(node).margin_left().is_auto() {
-            return space_used_by_floats.left + used.margin_left.get();
+            return space_used_by_floats.left + metrics.margin_left();
         }
-        if used.margin_left.get() >= CssPixels::default() {
-            return space_used_by_floats.left.max(used.margin_left.get());
+        if metrics.margin_left() >= CssPixels::default() {
+            return space_used_by_floats.left.max(metrics.margin_left());
         }
         if space_used_by_floats.left > CssPixels::default() || space_used_by_floats.right > CssPixels::default() {
             return space_used_by_floats.left;
         }
-        space_used_by_floats.left + used.margin_left.get()
+        space_used_by_floats.left + metrics.margin_left()
     }
 
     fn avoid_float_intrusions(
@@ -1447,17 +1517,17 @@ impl<'pass> BlockFormattingContext<'pass> {
         // If necessary, implementations should clear the said element by placing it below any preceding floats, but may
         // place it adjacent to such floats if there is sufficient space.
         loop {
-            let used = self.used(node);
+            let metrics = self.child_metrics(node);
             let candidate_border_box_inline_size = probe
                 .content_inline_size
-                .unwrap_or_else(|| used.content_inline_size.get())
-                + used.border_box_left(false)
-                + used.border_box_right(false);
+                .unwrap_or_else(|| metrics.content_inline_size())
+                + metrics.border_box_left(false)
+                + metrics.border_box_right(false);
             let border_box_block_offset_in_root =
-                containing_block_rect_in_root.y + content_block_offset - used.border_box_top(false);
+                containing_block_rect_in_root.y + content_block_offset - metrics.border_box_top(false);
             let band_rect = CssPixelRect {
                 y: border_box_block_offset_in_root,
-                height: used.border_box_block_size(false),
+                height: metrics.border_box_block_size(false),
                 ..containing_block_rect_in_root
             };
             let space = self.intrusions_for_band_into_rect(
@@ -1465,7 +1535,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 band_rect,
             );
             let constrained = space.left > CssPixels::default() || space.right > CssPixels::default();
-            let border_box_left = self.border_box_left_of_box_avoiding_floats(node, used, space);
+            let border_box_left = self.border_box_left_of_box_avoiding_floats(node, &metrics, space);
             let mut must_clear = constrained
                 && border_box_left + candidate_border_box_inline_size
                     > available_space.inline_size.to_px_or_zero() - space.right;
@@ -1474,7 +1544,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                     x: band_rect.x + border_box_left,
                     y: border_box_block_offset_in_root,
                     width: candidate_border_box_inline_size,
-                    height: used.border_box_block_size(false),
+                    height: metrics.border_box_block_size(false),
                 };
                 must_clear = self.floats.borrow().iter().any(|floating_box| {
                     let adjustment =
@@ -1668,7 +1738,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         content_position_in_root: FfiCssPixelPoint,
         content_inline_size: CssPixels,
     ) -> CssPixels {
-        let used = self.used(node);
+        let metrics = self.child_metrics(node);
         let mut inline_offset = CssPixels::default();
         let mut available_inline_size_within_containing_block = available_space.inline_size.to_px_or_zero();
         if self.box_should_avoid_floats_because_it_establishes_fc(node) {
@@ -1677,15 +1747,15 @@ impl<'pass> BlockFormattingContext<'pass> {
                     x: content_position_in_root.x,
                     y: content_position_in_root.y,
                     width: content_inline_size,
-                    height: used.content_block_size.get(),
+                    height: metrics.content_block_size(),
                 }
                 .into(),
                 CssPixels::default(),
-                used.content_block_size.get(),
+                metrics.content_block_size(),
             );
             available_inline_size_within_containing_block -= space.left + space.right;
             // Subtracting the left margin here because it is applied again when the margin box offset is added below.
-            inline_offset = self.border_box_left_of_box_avoiding_floats(node, used, space) - used.margin_left.get();
+            inline_offset = self.border_box_left_of_box_avoiding_floats(node, &metrics, space) - metrics.margin_left();
         }
 
         let containing_block = self.containing_block(node);
@@ -1696,10 +1766,10 @@ impl<'pass> BlockFormattingContext<'pass> {
             // Subtracting the left margin here because left and right margins need to be swapped when aligning to the right
             inline_offset += available_inline_size_within_containing_block
                 - content_inline_size
-                - used.margin_left.get()
-                - used.border_box_left(false);
+                - metrics.margin_left()
+                - metrics.border_box_left(false);
         } else {
-            inline_offset += used.margin_left.get() + used.border_box_left(false);
+            inline_offset += metrics.margin_left() + metrics.border_box_left(false);
         }
         inline_offset
     }
@@ -1829,7 +1899,15 @@ impl<'pass> BlockFormattingContext<'pass> {
         let formatting_context::ChildLayout {
             outcome,
             fragment_arrival,
-        } = formatting_context::layout_inside_child(run, Some(self), None, node, input, force_independent_context_run);
+        } = formatting_context::layout_inside_child_with_input_cells(
+            run,
+            Some(self),
+            None,
+            node,
+            input,
+            self.hand_over_child_cells(node),
+            force_independent_context_run,
+        );
         outcome.report_percentage_block_size_dependency_of(run, node);
         match outcome {
             ChildLayoutOutcome::Skipped { .. } => (None, fragment_arrival),
@@ -1912,7 +1990,14 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
 
         let block_container_inline_size = self.used(block_container).content_inline_size.get();
-        let used = self.create_used_values(node, input.containing_block_constraints);
+        self.create_used_values(node, input.containing_block_constraints);
+        // NB: A child with a formatting context of its own is sized in cells of this block formatting context, which its
+        //     run takes. Its record takes them where it is never handed to a run.
+        if formatting_context::formatting_context_type_created_by_box(facts).is_some() {
+            self.size_child_ahead_of_its_run(node);
+        }
+        let _record_takes_the_cells_of_a_child_never_handed_to_its_run =
+            RecordTakesCellsOfChildNeverHandedToItsRun { context: self, node };
         let _percentage_block_size_dependency_tracking = self
             .run
             .records
@@ -1921,11 +2006,13 @@ impl<'pass> BlockFormattingContext<'pass> {
             self.run.records.hide_for_line_clamp(node);
         }
         if facts.is_anonymous_button_content_wrapper() {
-            used.has_definite_block_size_only_for_button_content_alignment.set(
-                self.used(block_container)
-                    .has_definite_block_size_only_for_button_content_alignment
-                    .get(),
-            );
+            let only_for_button_content_alignment = self
+                .used(block_container)
+                .has_definite_block_size_only_for_button_content_alignment
+                .get();
+            self.update_child_cells(node, |cells| {
+                cells.has_definite_block_size_only_for_button_content_alignment = only_for_button_content_alignment;
+            });
         }
 
         self.resolve_vertical_box_model_metrics(node, block_container_inline_size);
@@ -1949,10 +2036,12 @@ impl<'pass> BlockFormattingContext<'pass> {
             && self.fragmentainer_has_content.get();
         let mut continuation_padding_top = CssPixels::default();
         if continuation.is_some() {
-            continuation_padding_top = used.padding_top.get();
-            used.margin_top.set(CssPixels::default());
-            used.border_top.set(CssPixels::default());
-            used.padding_top.set(CssPixels::default());
+            continuation_padding_top = self.child_metrics(node).padding_top();
+            self.update_child_cells(node, |cells| {
+                cells.margin_top = CssPixels::default();
+                cells.border_top = CssPixels::default();
+                cells.padding_top = CssPixels::default();
+            });
             self.run.records.note_continues_from_previous_fragment(node);
         }
 
@@ -1996,7 +2085,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         if !discards_block_start_margin {
             self.margin_state
                 .borrow_mut()
-                .add_margin(self.used(node).margin_top.get());
+                .add_margin(self.child_metrics(node).margin_top());
         }
         let introduced_clearance = self.clear_floating_boxes(node, None, containing_block_position_in_root);
         if introduced_clearance {
@@ -2013,7 +2102,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let box_is_html_element_in_quirks_mode = facts.document_in_quirks_mode()
             && facts.is_html_html_element()
             && crate::layout::sizing_context::is_plain_auto(style.height());
-        let block_size_is_definite_from_aspect_ratio = self.used(node).has_definite_inline_size()
+        let block_size_is_definite_from_aspect_ratio = self.child_metrics(node).has_definite_inline_size()
             && facts.has_preferred_aspect_ratio()
             && self.sizing().box_is_sized_as_replaced_element(
                 node,
@@ -2022,7 +2111,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             );
 
         // NOTE: In quirks mode, the html element's block size matches the viewport so it can be treated as definite.
-        if self.used(node).has_definite_block_size()
+        if self.child_metrics(node).has_definite_block_size()
             || box_is_html_element_in_quirks_mode
             || block_size_is_definite_from_aspect_ratio
         {
@@ -2065,7 +2154,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         // Earlier sibling placement may have invalidated cached float bands.
         self.rebuild_float_bands();
 
-        let mut content_block_offset = block_offset + margin_top + self.used(node).border_box_top(false);
+        let mut content_block_offset = block_offset + margin_top + self.child_metrics(node).border_box_top(false);
         let containing_block_rect_in_root =
             self.containing_block_rect(block_container, containing_block_position_in_root);
         let containing_block_rect_in_root_now = containing_block_rect_in_root.translated(
@@ -2105,7 +2194,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
         let content_inline_size_now = probe
             .content_inline_size
-            .unwrap_or_else(|| self.used(node).content_inline_size.get());
+            .unwrap_or_else(|| self.child_metrics(node).content_inline_size());
         let content_inline_offset = self.compute_normal_flow_inline_offset(
             node,
             available_space,
@@ -2186,13 +2275,13 @@ impl<'pass> BlockFormattingContext<'pass> {
                 let estimated_block_size = line_builder::normal_line_height(marker_style);
                 let marker_block_offset =
                     Self::marker_centered_block_offset(marker_style.line_height(), estimated_block_size);
-                let list_item_used = self.used(node);
+                let list_item_block_size = self.child_metrics(node).content_block_size();
                 inline_space_used_before_children_formatted = self.intrusion_by_floats_into_rect(
                     CssPixelRect {
                         x: content_position_in_root_now(content_block_offset).x + content_inline_offset,
                         y: content_position_in_root_now(content_block_offset).y,
                         width: content_inline_size_now,
-                        height: list_item_used.content_block_size.get(),
+                        height: list_item_block_size,
                     }
                     .into(),
                     marker_block_offset,
@@ -2223,10 +2312,11 @@ impl<'pass> BlockFormattingContext<'pass> {
                 sizing: RootSizingDirectives {
                     forced_content_block_size: definite_content_block_size_of_fieldset_to_fill.map(
                         |fieldset_content_block_size| {
+                            let metrics = self.child_metrics(node);
                             (fieldset_content_block_size
                                 - content_block_offset
-                                - self.used(node).border_box_bottom(false)
-                                - self.used(node).margin_bottom.get())
+                                - metrics.border_box_bottom(false)
+                                - metrics.margin_bottom())
                             .max(CssPixels::default())
                         },
                     ),
@@ -2245,8 +2335,8 @@ impl<'pass> BlockFormattingContext<'pass> {
                 participation: ParticipationInParentFormattingContext::BlockLevel,
             };
             let pre_run_table_border_box = is_table_formatting_context.then(|| {
-                let used = self.used(node);
-                (used.border_box_left(false), used.border_box_top(false))
+                let metrics = self.child_metrics(node);
+                (metrics.border_box_left(false), metrics.border_box_top(false))
             });
             let (child_layout, fragment_arrival) = self.layout_inside(run, node, inside_layout_input, true);
             fragment_arrival_of_child_with_own_formatting_context = fragment_arrival;
@@ -4199,6 +4289,8 @@ impl<'pass> BlockFormattingContext<'pass> {
     ) {
         let available_space = input.available_space;
         assert!(self.facts(node).is_floating());
+        let _record_takes_the_cells_of_a_child_never_handed_to_its_run =
+            RecordTakesCellsOfChildNeverHandedToItsRun { context: self, node };
         let block_container = self.containing_block(node);
         let mut float_input = LayoutInput {
             available_space,
@@ -4416,8 +4508,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             || style.display().is_table_inside()
         {
             return formatting_context::independent_root_automatic_block_size(
-                self.run.records,
-                &self.run.callbacks,
+                &self.sizing(),
                 node,
                 available_space,
                 constraints,
@@ -4825,15 +4916,34 @@ pub(crate) fn automatic_block_size_for_bfc_root(
     bottom.unwrap_or_default().max(CssPixels::default())
 }
 
+/// Gives the record of a child its block formatting context sized in cells of its own the cells it was sized in, when
+/// the context stops laying out the child without handing it to its run.
+struct RecordTakesCellsOfChildNeverHandedToItsRun<'context, 'pass> {
+    context: &'context BlockFormattingContext<'pass>,
+    node: Node,
+}
+
+impl Drop for RecordTakesCellsOfChildNeverHandedToItsRun<'_, '_> {
+    fn drop(&mut self) {
+        self.context.stop_sizing_child_ahead_of_its_run(self.node);
+    }
+}
+
+impl formatting_context::ChildrenSizedInParentCells for BlockFormattingContext<'_> {
+    fn child_input_cells(&self, node: Node) -> Option<used_values::RootInputCells> {
+        self.cells_of_child_sized_ahead_of_its_run(node)
+    }
+}
+
 /// The automatic block size a block formatting context gives a box with a formatting context of its own ahead of the
 /// box's run, while none of the box's contents are laid out.
 pub(crate) fn automatic_block_size_of_independent_root_ahead_of_its_contents(
-    records: &RunRecords<'_>,
-    callbacks: LayoutPass<'_>,
+    sizing: &sizing_context::SizingContext<'_, '_>,
     node: Node,
     available_space: AvailableSpace,
     constraints: ContainingBlockConstraints,
 ) -> CssPixels {
+    let callbacks = *sizing.callbacks();
     let facts = NodeFacts::new(&callbacks, node);
     let style = StyleValues::for_node(&callbacks, node);
     let display = style.display();
@@ -4848,14 +4958,7 @@ pub(crate) fn automatic_block_size_of_independent_root_ahead_of_its_contents(
         || display.is_grid_inside()
         || display.is_table_inside()
     {
-        formatting_context::independent_root_automatic_block_size(
-            records,
-            &callbacks,
-            node,
-            available_space,
-            constraints,
-            None,
-        )
+        formatting_context::independent_root_automatic_block_size(sizing, node, available_space, constraints, None)
     } else if facts.is_editing_host() {
         style.line_height()
     } else {
