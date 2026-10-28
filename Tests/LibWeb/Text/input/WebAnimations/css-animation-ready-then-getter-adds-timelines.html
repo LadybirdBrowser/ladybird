@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<style>
+    @keyframes grow {
+        from { width: 10px; }
+        to { width: 100px; }
+    }
+</style>
+<script src="../include.js"></script>
+<div id="target"></div>
+<script>
+    promiseTest(async () => {
+        const target = document.getElementById("target");
+        const timelines = [];
+
+        let thenGetterRan = false;
+        function thenGetter() {
+            if (thenGetterRan)
+                return;
+            thenGetterRan = true;
+            for (let i = 0; i < 256; ++i)
+                timelines.push(new DocumentTimeline());
+        }
+
+        for (let i = 0; i < 100; ++i)
+            timelines.push(new DocumentTimeline());
+
+        await animationFrame();
+        target.style.animation = "grow 1s";
+        const animation = target.getAnimations()[0];
+        Object.defineProperty(animation, "then", { get: thenGetter });
+        await animation.ready;
+        println(`then getter ran: ${thenGetterRan}`);
+    });
+</script>

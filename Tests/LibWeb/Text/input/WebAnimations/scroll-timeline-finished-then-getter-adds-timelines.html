@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<style>
+    .scroller {
+        width: 100px;
+        height: 100px;
+        overflow: scroll;
+        scrollbar-width: none;
+    }
+    .content {
+        height: 1000px;
+    }
+</style>
+<script src="../include.js"></script>
+<div class="scroller"><div class="content"></div></div>
+<div class="scroller"><div class="content"></div></div>
+<div id="target"></div>
+<script>
+    promiseTest(async () => {
+        const target = document.getElementById("target");
+        const timelines = [];
+
+        let thenGetterRan = false;
+        function thenGetter() {
+            if (thenGetterRan)
+                return;
+            thenGetterRan = true;
+            for (let i = 0; i < 256; ++i)
+                timelines.push(new DocumentTimeline());
+        }
+
+        const animations = [];
+        for (const scroller of document.querySelectorAll(".scroller")) {
+            scroller.scrollTop = 50;
+            const timeline = new ScrollTimeline({ source: scroller });
+            animations.push(target.animate({ width: ["10px", "100px"] }, { timeline }));
+        }
+        await animationFrame();
+        await animationFrame();
+        for (const animation of animations)
+            Object.defineProperty(animation, "then", { get: thenGetter });
+        const finished = animations.map(animation => animation.finished);
+        for (const content of document.querySelectorAll(".content"))
+            content.style.height = "150px";
+        await Promise.all(finished);
+        println(`then getter ran: ${thenGetterRan}`);
+    });
+</script>
