@@ -18,19 +18,16 @@ impl ContentSizingScope {
         constraints: ContainingBlockConstraints,
         block_size: Option<CssPixels>,
     ) -> Self {
-        let root = used_values::create_used_values(callbacks, node, constraints);
+        let mut root_cells = used_values::cells_before_sizing(callbacks, node, constraints);
         // NB: A parent layout can assign a definite block size that is not present in computed style,
         //     such as the stretched cross size of a flex item. Preserve it so descendant percentages
         //     resolve against the same size during intrinsic measurement.
         if let Some(block_size) = block_size {
-            root.set_content_block_size(block_size);
-            root.has_definite_block_size.set(true);
+            root_cells.set_content_block_size(block_size);
+            root_cells.has_definite_block_size = true;
         }
-        root.has_definite_inline_size.set(false);
-        Self {
-            node,
-            root_cells: used_values::RootInputCells::capture(&root),
-        }
+        root_cells.has_definite_inline_size = false;
+        Self { node, root_cells }
     }
 
     pub(super) fn root_cells(&self) -> used_values::RootInputCells {
