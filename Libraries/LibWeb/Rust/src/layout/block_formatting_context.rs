@@ -795,6 +795,9 @@ impl<'pass> BlockFormattingContext<'pass> {
             summary.include_placed_child(outcome.border_box_block_end());
         }
         let child_facts = self.facts(child);
+        if !child_facts.is_floating_or_absolutely_positioned() && !outcome.collapses_through {
+            summary.has_child_whose_margins_do_not_collapse_through = true;
+        }
         // https://drafts.csswg.org/css-overflow-4/#line-clamp-containers
         // If a block container contains a clamp point, within itself or in any of its descendants, its automatic block
         // size will not take into account any invisible boxes, nor any clipped float.
@@ -1743,47 +1746,15 @@ impl<'pass> BlockFormattingContext<'pass> {
         adjustment
     }
 
-    fn margins_collapse_through(&self, node: Node) -> bool {
-        if !self.run.records.holds_box(node) {
-            return true;
-        }
-        margins_can_collapse_through_box_itself(self.facts(node), self.style(node), || {
-            self.used(node).border_box_block_size(false)
-        }) && self.children_let_margins_collapse_through(node)
-    }
-
-    fn children_let_margins_collapse_through(&self, node: Node) -> bool {
-        // AD-HOC: The "and no in-flow children" of the margin collapsing rules is wrong.
-        //         (see https://github.com/w3c/csswg-drafts/pull/13699 )
-        for child in self.children(node) {
-            let child_facts = self.facts(child);
-            if child_facts.is_absolutely_positioned() || child_facts.is_floating() {
-                continue;
-            }
-            if !self.margins_collapse_through(child) {
-                return false;
-            }
-        }
-        true
-    }
-
     /// Whether margins collapse through `node`, a box without a formatting context of its own that this flow laid out,
     /// where `children` sums up the children laid out in its flow.
-    fn margins_collapse_through_box_laid_out_in_this_flow(
-        &self,
-        node: Node,
-        children: Option<&ChildrenSummary>,
-    ) -> bool {
-        let facts = self.facts(node);
-        if !margins_can_collapse_through_box_itself(facts, self.style(node), || {
+    fn margins_collapse_through(&self, node: Node, children: Option<&ChildrenSummary>) -> bool {
+        // AD-HOC: The "and no in-flow children" of the margin collapsing rules is wrong, so margins collapse through a
+        //         box with in-flow children where they collapse through each of them.
+        //         (see https://github.com/w3c/csswg-drafts/pull/13699 )
+        margins_can_collapse_through_box_itself(self.facts(node), self.style(node), || {
             self.used(node).border_box_block_size(false)
-        }) {
-            return false;
-        }
-        match children {
-            Some(children) if facts.children_are_inline() => !children.has_child_whose_margins_do_not_collapse_through,
-            _ => self.children_let_margins_collapse_through(node),
-        }
+        }) && children.is_none_or(|children| !children.has_child_whose_margins_do_not_collapse_through)
     }
 
     pub(crate) fn commit_pending_margin_before_inline_content(&self) -> CssPixels {
@@ -2332,7 +2303,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 self.sizing().resolve_percentage_block_size_dependency(node),
             );
             return Some(LaidOutBlockLevelBox {
-                collapses_through: self.margins_collapse_through_box_laid_out_in_this_flow(node, None),
+                collapses_through: self.margins_collapse_through(node, None),
                 ..LaidOutBlockLevelBox::default()
             });
         }
@@ -2830,10 +2801,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
 
         let collapses_through = !has_independent_formatting_context
-            && self.margins_collapse_through_box_laid_out_in_this_flow(
-                node,
-                summary_of_children_laid_out_in_this_flow.as_ref(),
-            );
+            && self.margins_collapse_through(node, summary_of_children_laid_out_in_this_flow.as_ref());
         if !collapses_through {
             let mut margin_state = self.margin_state.borrow_mut();
             if !margin_state.box_last_in_flow_child_margin_bottom_collapsed
@@ -3028,8 +2996,8 @@ impl<'pass> BlockFormattingContext<'pass> {
             return;
         };
         let used = self.used(node);
-        // NB: A child whose border box has no block size may let margins collapse through it, which its parent
-        //     decides by looking at the child's own children.
+        // NB: A reused child tells its parent that margins do not collapse through it, which holds only for a child
+        //     whose border box has a block size.
         let reusable = !placed.exports_payloads
             && self.floats.borrow().is_empty()
             && self.abspos_containing_block_info_contributions_received()
