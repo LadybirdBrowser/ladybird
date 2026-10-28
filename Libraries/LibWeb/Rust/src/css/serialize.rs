@@ -330,15 +330,6 @@ pub(crate) fn original_component_values_source(
     Some(source)
 }
 
-pub(crate) fn trim_ascii_whitespace(value: &[u16]) -> &[u16] {
-    let value = trim_ascii_whitespace_start(value);
-    let end = value
-        .iter()
-        .rposition(|unit| !matches!(*unit, 0x09 | 0x0a | 0x0c | 0x0d | 0x20))
-        .map_or(0, |position| position + 1);
-    &value[..end]
-}
-
 pub(crate) fn trim_ascii_whitespace_start(value: &[u16]) -> &[u16] {
     let start = value
         .iter()

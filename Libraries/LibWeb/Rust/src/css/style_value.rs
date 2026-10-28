@@ -15,13 +15,14 @@ use crate::css::ffi_support::OwnedArc;
 use std::ffi::c_void;
 use std::sync::Arc;
 
-use crate::css::css_tokenizer::{ParserSource, ParserTokenKind, SourcePosition, TokenizerInput};
+use crate::css::css_tokenizer::{
+    ParserSource, ParserTokenKind, SourcePosition, TokenizerInput, trim_component_value_boundary_whitespace,
+};
 use crate::css::parser::component_value::{
     ComponentKind, ComponentSerializationMode, ComponentValue, ComponentValueList, ComponentValueSlice,
 };
 use crate::css::serialize::{
-    original_component_values_source, serialize_component_values_to_utf16, trim_ascii_whitespace,
-    trim_ascii_whitespace_start,
+    original_component_values_source, serialize_component_values_to_utf16, trim_ascii_whitespace_start,
 };
 
 pub(crate) use crate::css::css_string::{CssString, CssStringList};
@@ -3360,7 +3361,7 @@ pub unsafe extern "C" fn rust_style_value_create_unresolved_from_source(
         _ => unreachable!("unknown unresolved source text mode"),
     };
     let source_text = if source_text_mode == 0 {
-        trim_ascii_whitespace(&source_text)
+        trim_component_value_boundary_whitespace(&source_text)
     } else if source_text_mode == 1 {
         trim_ascii_whitespace_start(&source_text)
     } else {
