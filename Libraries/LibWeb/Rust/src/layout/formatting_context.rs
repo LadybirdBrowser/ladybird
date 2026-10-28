@@ -2974,29 +2974,6 @@ impl ChildLayout {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn layout_inside_child(
-    run: &FormattingContextRun,
-    parent_block: Option<&block_formatting_context::BlockFormattingContext>,
-    parent_grid: Option<&grid_formatting_context::GridFormattingContext>,
-    child: Node,
-    input: LayoutInput,
-    force_independent_context_run: bool,
-    percentage_block_insets_of_containing_block_have_definite_basis: bool,
-) -> ChildLayout {
-    let child_input_cells = run.records.box_metrics_of(child).input_cells();
-    layout_inside_child_with_input_cells(
-        run,
-        parent_block,
-        parent_grid,
-        child,
-        input,
-        child_input_cells,
-        force_independent_context_run,
-        percentage_block_insets_of_containing_block_have_definite_basis,
-    )
-}
-
 /// Lays out `child` with the input cells its parent sized it to: hands them to the child's run, or gives them to the
 /// child's record where the parent lays the child out itself.
 #[allow(clippy::too_many_arguments)]
@@ -3150,9 +3127,9 @@ pub(crate) fn leave_child_unplaced(
     }
 }
 
-/// The run a table cell's committing run will be (see layout_inside_child), but for the intrinsic block padding that
-/// its table hands it once rows are sized. Laid out ahead of that padding, its outputs stay in the run cache, and the
-/// committing run replays them unless they show that the run observed the root's block padding (see
+/// The run a table cell's committing run will be (see layout_inside_child_with_input_cells), but for the intrinsic
+/// block padding that its table hands it once rows are sized. Laid out ahead of that padding, its outputs stay in the
+/// run cache, and the committing run replays them unless they show that the run observed the root's block padding (see
 /// fc_run_cache::run_observes_root_block_padding).
 pub(crate) fn table_cell_run_shape_ahead_of_its_intrinsic_block_padding(
     run: &FormattingContextRun,
