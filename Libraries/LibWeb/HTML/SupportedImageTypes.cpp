@@ -6,29 +6,33 @@
 
 #include <AK/Utf16View.h>
 #include <LibWeb/HTML/SupportedImageTypes.h>
+#include <LibWebCommon/MimeSniff/MimeType.h>
 
 namespace Web::HTML {
 
 bool is_supported_image_type(Utf16View type)
 {
+    type = type.trim(u" \t\n\r\f"sv);
     if (type.is_empty())
         return true;
-    if (type.length_in_code_units() < 6 || !type.substring_view(0, 6).equals_ignoring_ascii_case(u"image/"sv))
+    auto mime_type = MimeSniff::MimeType::parse(type);
+    if (!mime_type.has_value())
         return false;
-    return type.equals_ignoring_ascii_case(u"image/avif"sv)
-        || type.equals_ignoring_ascii_case(u"image/bmp"sv)
-        || type.equals_ignoring_ascii_case(u"image/gif"sv)
-        || type.equals_ignoring_ascii_case(u"image/vnd.microsoft.icon"sv)
-        || type.equals_ignoring_ascii_case(u"image/x-icon"sv)
-        || type.equals_ignoring_ascii_case(u"image/jpeg"sv)
-        || type.equals_ignoring_ascii_case(u"image/jpg"sv)
-        || type.equals_ignoring_ascii_case(u"image/pjpeg"sv)
-        || type.equals_ignoring_ascii_case(u"image/jxl"sv)
-        || type.equals_ignoring_ascii_case(u"image/png"sv)
-        || type.equals_ignoring_ascii_case(u"image/apng"sv)
-        || type.equals_ignoring_ascii_case(u"image/x-png"sv)
-        || type.equals_ignoring_ascii_case(u"image/webp"sv)
-        || type.equals_ignoring_ascii_case(u"image/svg+xml"sv);
+    auto const& essence = mime_type->essence();
+    return essence == "image/avif"sv
+        || essence == "image/bmp"sv
+        || essence == "image/gif"sv
+        || essence == "image/vnd.microsoft.icon"sv
+        || essence == "image/x-icon"sv
+        || essence == "image/jpeg"sv
+        || essence == "image/jpg"sv
+        || essence == "image/pjpeg"sv
+        || essence == "image/jxl"sv
+        || essence == "image/png"sv
+        || essence == "image/apng"sv
+        || essence == "image/x-png"sv
+        || essence == "image/webp"sv
+        || essence == "image/svg+xml"sv;
 }
 
 }
