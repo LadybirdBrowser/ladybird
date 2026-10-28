@@ -1,0 +1,4 @@
+Viewport initially focused: true
+Popover focused when shown: true
+Viewport focused after hiding: true
+Late autofocus took focus: false

@@ -1,0 +1,4 @@
+dialog auto: focus handler ran=true, button adopted=true, popover open=true
+dialog manual: focus handler ran=true, button adopted=true, popover open=true
+div auto: focus handler ran=true, button adopted=true, popover open=true
+div manual: focus handler ran=true, button adopted=true, popover open=true

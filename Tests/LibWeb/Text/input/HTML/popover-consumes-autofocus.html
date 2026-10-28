@@ -1,0 +1,25 @@
+<!doctype html>
+<meta name="variant" content="?dialog" />
+<meta name="variant" content="?div" />
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const tag = location.search.slice(1) || "dialog";
+        println(`Viewport initially focused: ${document.activeElement === document.body}`);
+        const popover = document.createElement(tag);
+        popover.setAttribute("popover", "auto");
+        popover.tabIndex = -1;
+        popover.autofocus = true;
+        document.body.append(popover);
+        popover.showPopover();
+        println(`Popover focused when shown: ${document.activeElement === popover}`);
+        popover.hidePopover();
+        println(`Viewport focused after hiding: ${document.activeElement === document.body}`);
+        const late = document.createElement("input");
+        late.autofocus = true;
+        document.body.append(late);
+        await animationFrame();
+        println(`Late autofocus took focus: ${document.activeElement === late}`);
+        done();
+    });
+</script>

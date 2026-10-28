@@ -484,6 +484,53 @@ GC::Ptr<DOM::Node> focus_delegate(DOM::Node& focus_target, FocusTrigger focus_tr
     return nullptr;
 }
 
+// https://html.spec.whatwg.org/multipage/popover.html#popover-focusing-steps
+void run_popover_focusing_steps(HTMLElement& subject)
+{
+    // 1. If the allow focus steps given subject's node document return false, then return.
+    if (!subject.document().allow_focus())
+        return;
+
+    // 2. If subject is a dialog element, then run the dialog focusing steps given subject and return.
+    if (auto* dialog = as_if<HTMLDialogElement>(subject)) {
+        dialog->run_dialog_focusing_steps();
+        return;
+    }
+
+    // 3. If subject has the autofocus attribute, then let control be subject.
+    // 4. Otherwise, let control be the autofocus delegate for subject given "other".
+    GC::Ptr<DOM::Node> control = subject.has_attribute(AttributeNames::autofocus)
+        ? GC::Ptr<DOM::Node> { subject }
+        : autofocus_delegate(subject, FocusTrigger::Other);
+
+    // 5. If control is null, then return.
+    if (!control)
+        return;
+
+    // 6. Run the focusing steps given control.
+    run_focusing_steps(control);
+
+    // 7. Let topDocument be control's node navigable's top-level traversable's active document.
+    // NB: Focus event handlers can detach the document from its navigable.
+    auto navigable = control->navigable();
+    if (!navigable)
+        return;
+    auto* top_level_traversable = as_if<LocalNavigable>(*navigable->top_level_traversable());
+    if (!top_level_traversable)
+        return;
+    auto top_document = top_level_traversable->active_document();
+
+    // 8. If control's node document's origin is not the same as the origin of topDocument, then return.
+    if (!top_document || !control->document().origin().is_same_origin(top_document->origin()))
+        return;
+
+    // 9. Empty topDocument's autofocus candidates.
+    top_document->autofocus_candidates().clear();
+
+    // 10. Set topDocument's autofocus processed flag to true.
+    top_document->set_autofocus_processed_flag(true);
+}
+
 static GC::Ptr<DOM::Node> get_focusable_area(DOM::Node& focus_target, FocusTrigger focus_trigger)
 {
     // FIXME: Implement the rest of the get the focusable area algorithm.

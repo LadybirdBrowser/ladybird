@@ -51,6 +51,7 @@ public:
 
     bool is_modal() const { return m_is_modal; }
     void set_is_modal(bool);
+    void run_dialog_focusing_steps();
 
     bool is_valid_command(Utf16View) override;
     void command_steps(DOM::Element&, Utf16View) override;
@@ -66,7 +67,6 @@ private:
 
     void run_dialog_setup_steps();
     void run_dialog_cleanup_steps();
-    void run_dialog_focusing_steps();
 
     void set_close_watcher();
 
