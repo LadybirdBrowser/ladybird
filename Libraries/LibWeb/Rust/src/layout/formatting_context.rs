@@ -1115,7 +1115,11 @@ pub(crate) struct RunOutputs {
 }
 
 pub(crate) enum ChildLayoutOutcome {
-    Skipped { depends_on_percentage_block_size: bool },
+    Skipped {
+        depends_on_percentage_block_size: bool,
+        /// For an absolutely positioned child, the used values of its inset properties.
+        out_of_flow_root_used_insets: Option<run_records::UsedInsets>,
+    },
     Created(ChildLayoutResult),
 }
 
@@ -1126,6 +1130,7 @@ impl ChildLayoutOutcome {
         match self {
             Self::Skipped {
                 depends_on_percentage_block_size,
+                ..
             } => *depends_on_percentage_block_size,
             Self::Created(result) => result.depends_on_percentage_block_size,
         }
@@ -2478,7 +2483,7 @@ fn lay_out_run_root_and_contents<'pass>(
                     content_block_size_for_aspect_ratio_minimum: result.content_block_size_for_aspect_ratio_minimum,
                 }),
             );
-            result.out_of_flow_root_used_insets = Some(run.records.used_insets_of(run.box_));
+            result.out_of_flow_root_used_insets = Some(run.root_record().record().used_insets.get());
         }
         ParticipationInParentFormattingContext::Item => {
             if run_reads_content_block_size_adopted_after_it(fc_type, &input)
@@ -2815,8 +2820,9 @@ pub(crate) fn layout_inside_child_with_input_cells(
     if let Some(used) = record_kept_by_parent {
         child_input_cells.apply_to_record(used);
     }
-    let skipped = || ChildLayoutOutcome::Skipped {
+    let skipped = |out_of_flow_root_used_insets| ChildLayoutOutcome::Skipped {
         depends_on_percentage_block_size: run.sizing().skipped_child_depends_on_percentage_block_size(child),
+        out_of_flow_root_used_insets,
     };
     if !force_independent_context_run
         && !facts.node_has_size_containment()
@@ -2864,7 +2870,7 @@ pub(crate) fn layout_inside_child_with_input_cells(
             run.records.note_child_handed_back(child);
         }
         return ChildLayout {
-            outcome: skipped(),
+            outcome: skipped(None),
             fragment_arrival,
             laid_out_box,
         };
@@ -2886,7 +2892,12 @@ pub(crate) fn layout_inside_child_with_input_cells(
             }
         };
         size_skipped_independent_root(run, parent_block, child, used, &input);
-        return ChildLayout::of_child_sized_in_parent_run(skipped(), used);
+        let out_of_flow_root_used_insets = matches!(
+            input.participation,
+            ParticipationInParentFormattingContext::AbsolutelyPositioned(_)
+        )
+        .then(|| used.used_insets.get());
+        return ChildLayout::of_child_sized_in_parent_run(skipped(out_of_flow_root_used_insets), used);
     }
 
     let ChildRunPlan {

@@ -3121,7 +3121,6 @@ impl<'pass> FlexFormattingContext<'pass> {
             },
             run.percentage_block_insets_of_root_children_have_definite_basis(),
         );
-        run.records.keep_in_flow_box_insets(node, insets);
         (fragment_arrival, placed_item.with_in_flow_box_insets(insets))
     }
 

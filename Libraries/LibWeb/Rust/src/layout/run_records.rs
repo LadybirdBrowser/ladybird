@@ -695,18 +695,6 @@ impl<'arena> RunRecords<'arena> {
         }
     }
 
-    #[track_caller]
-    pub(crate) fn set_default_scroll_shift(&self, node: Node, shift: Option<abspos_inputs::DefaultScrollShift>) {
-        let facts = self.facts_decided_by_parent_of(node);
-        self.keep_facts_decided_by_parent_of(
-            node,
-            FactsDecidedByParent {
-                default_scroll_shift: shift,
-                ..facts
-            },
-        );
-    }
-
     /// What the parent of `node` has decided about it so far.
     #[track_caller]
     pub(crate) fn facts_decided_by_parent_of(&self, node: Node) -> FactsDecidedByParent {
@@ -733,36 +721,6 @@ impl<'arena> RunRecords<'arena> {
             .map_or(FfiCssPixelPoint::default(), |placement| {
                 placement.content_offset_in_containing_block
             })
-    }
-
-    #[track_caller]
-    pub(crate) fn used_insets_of(&self, node: Node) -> UsedInsets {
-        self.facts_decided_by_parent_of(node).used_insets
-    }
-
-    /// Sets the used insets of `node`, which cannot change once the box is placed.
-    #[track_caller]
-    pub(crate) fn set_used_insets(&self, node: Node, insets: UsedInsets) {
-        let facts = self.kept_facts_decided_by_parent_of(node).unwrap_or_default();
-        assert!(facts.placement.is_none(), "the used insets of a placed box are final");
-        self.keep_facts_decided_by_parent_of(
-            node,
-            FactsDecidedByParent {
-                used_insets: insets,
-                ..facts
-            },
-        );
-    }
-
-    /// Keeps for `node`, an in-flow box, what its insets resolved to.
-    #[track_caller]
-    pub(crate) fn keep_in_flow_box_insets(&self, node: Node, insets: abspos_engine::InFlowBoxInsets) {
-        if let Some(default_scroll_shift) = insets.default_scroll_shift {
-            self.set_default_scroll_shift(node, Some(default_scroll_shift));
-        }
-        if let Some(used_insets) = insets.used_insets {
-            self.set_used_insets(node, used_insets);
-        }
     }
 
     /// Tracks the percentage block size dependency of `node` until the returned tracking is dropped, which the layout
