@@ -2984,7 +2984,11 @@ impl<'pass> FlexFormattingContext<'pass> {
             self.item_used(index),
             self.available_space_for_items.unwrap().space,
         );
-        let outcome = formatting_context::layout_inside_child(run, None, None, node, input, false);
+        let formatting_context::ChildLayout {
+            outcome,
+            fragment_arrival,
+        } = formatting_context::layout_inside_child(run, None, None, node, input, false);
+        formatting_context::hold_fragment_arrival_until_placement(run, node, fragment_arrival);
         outcome.report_percentage_block_size_dependency_of(run, node);
         self.flex_items[index].content_baselines = match outcome {
             ChildLayoutOutcome::Created(result) => result.baselines,

@@ -3108,7 +3108,10 @@ impl<'pass> AbsposEngine<'pass> {
         assert!(!self.facts(node).is_svg_box());
         let (available_space, constraints) = out_of_flow_root_space(inputs);
 
-        let outcome = formatting_context::layout_inside_child(
+        let formatting_context::ChildLayout {
+            outcome,
+            fragment_arrival,
+        } = formatting_context::layout_inside_child(
             run,
             None,
             None,
@@ -3120,6 +3123,7 @@ impl<'pass> AbsposEngine<'pass> {
             ),
             false,
         );
+        formatting_context::hold_fragment_arrival_until_placement(run, node, fragment_arrival);
         outcome.report_percentage_block_size_dependency_of(run, node);
         let mut used_insets = match outcome {
             ChildLayoutOutcome::Created(result) => result

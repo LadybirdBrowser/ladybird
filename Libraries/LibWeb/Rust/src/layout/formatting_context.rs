@@ -124,7 +124,10 @@ pub(crate) fn run_root_without_parent_fragments(
     let fc_type = independent_formatting_context_type(node, &callbacks);
     let root_containing_block = callbacks.containing_block_for_child_run(node, &input.participation);
     let root_used = root_cells.materialize_record();
-    let result = run_formatting_context(
+    let ChildRunOutcome {
+        result,
+        fragment_arrival,
+    } = run_formatting_context(
         None,
         &root_used,
         node,
@@ -135,6 +138,10 @@ pub(crate) fn run_root_without_parent_fragments(
         callbacks,
         input,
         None,
+    );
+    debug_assert!(
+        fragment_arrival.is_none(),
+        "a run without parent fragments hands its placement nothing"
     );
     RootLaidOutWithoutParentFragments {
         result,
@@ -1851,6 +1858,14 @@ fn body_input_with_inner_available_space(run: &FormattingContextRun, input: &Lay
     body_input
 }
 
+/// What a child's run gives its parent: its result, and the fragments its placement takes where the parent builds
+/// fragments.
+#[must_use]
+pub(crate) struct ChildRunOutcome {
+    pub(crate) result: ChildLayoutResult,
+    pub(crate) fragment_arrival: Option<fragment_tree::ChildFragmentArrival>,
+}
+
 #[expect(clippy::too_many_arguments)]
 pub(super) fn run_formatting_context(
     parent_fragments: Option<&fragment_tree::RunFragmentBuilder>,
@@ -1863,7 +1878,7 @@ pub(super) fn run_formatting_context(
     callbacks: LayoutPass<'_>,
     input: LayoutInput,
     table_inline_layout: Option<table_formatting_context::TableInlineLayout>,
-) -> ChildLayoutResult {
+) -> ChildRunOutcome {
     if let Some(parent_fragments) = parent_fragments {
         // A later run for this root supersedes a hit recorded earlier in the same pass.
         parent_fragments.clear_reused_subtree_root(box_, parent_used);
@@ -1903,7 +1918,7 @@ pub(super) fn run_formatting_context(
     ) {
         Ok(attempt) => attempt,
         Err(hit) => {
-            if let Some(result) = reuse_committed_subtree_as_it_is(
+            if let Some((result, fragment)) = reuse_committed_subtree_as_it_is(
                 parent_fragments,
                 parent_used,
                 box_,
@@ -1912,7 +1927,13 @@ pub(super) fn run_formatting_context(
                 &cache_key,
                 &hit,
             ) {
-                return result;
+                return ChildRunOutcome {
+                    result,
+                    fragment_arrival: Some(fragment_tree::ChildFragmentArrival::CommittedFragment {
+                        fragment,
+                        reuses_subtree: true,
+                    }),
+                };
             }
             let reuses_committed_subtree = hit.reuses_committed_subtree;
             let action = if !builds_fragments {
@@ -2018,8 +2039,8 @@ fn reuse_committed_subtree_as_it_is(
     callbacks: &LayoutPass<'_>,
     cache_key: &fc_run_cache::FcRunCacheKey,
     hit: &fc_run_cache::FcRunCacheHit,
-) -> Option<ChildLayoutResult> {
-    let fragments = parent_fragments?;
+) -> Option<(ChildLayoutResult, std::sync::Arc<fragment_tree::Fragment>)> {
+    parent_fragments?;
     let entry = &*hit.entry;
     if !hit.reuses_committed_subtree
         || !cache_key.has_no_table_cell_intrinsic_block_padding()
@@ -2047,11 +2068,10 @@ fn reuse_committed_subtree_as_it_is(
         .arena()
         .layout_trace
         .run(box_, cache_key.fc_type(), || "REUSE SUBTREE");
-    fragments.hold_reused_committed_fragment(box_, root_used, fragment);
     callbacks
         .scratch()
         .receive_host_findings(entry.outputs.host_findings.clone());
-    Some(entry.outputs.result)
+    Some((entry.outputs.result, fragment))
 }
 
 pub(crate) fn explicit_intrinsic_inner_inline_size(facts: &NodeFacts<'_>) -> CssPixels {
@@ -2663,6 +2683,21 @@ pub(crate) fn propagate_percentage_block_size_dependency_to_containing_block(
     records.note_descendant_depends_on_percentage_block_size(containing_block_or_run_root_that_forwarded_the_basis);
 }
 
+/// The layout of a child: its outcome, and the fragments its placement takes.
+pub(crate) struct ChildLayout {
+    pub(crate) outcome: ChildLayoutOutcome,
+    pub(crate) fragment_arrival: Option<fragment_tree::ChildFragmentArrival>,
+}
+
+impl ChildLayout {
+    fn without_fragments(outcome: ChildLayoutOutcome) -> Self {
+        Self {
+            outcome,
+            fragment_arrival: None,
+        }
+    }
+}
+
 pub(crate) fn layout_inside_child(
     run: &FormattingContextRun,
     parent_block: Option<&block_formatting_context::BlockFormattingContext>,
@@ -2670,7 +2705,7 @@ pub(crate) fn layout_inside_child(
     child: Node,
     input: LayoutInput,
     force_independent_context_run: bool,
-) -> ChildLayoutOutcome {
+) -> ChildLayout {
     let facts = NodeFacts::new(&run.callbacks, child);
     let used = run.records.used_values(child);
     let child_run_builds_fragments = run_builds_fragments(&input, run.fragments.is_some());
@@ -2707,16 +2742,22 @@ pub(crate) fn layout_inside_child(
         );
         // OPTIMIZATION: A box that took its metrics from its committed fragment is placed with that fragment, where
         // it shows the box as the record holds it.
-        if let Some(fragment) = committed_fragment
-            && let Some(fragments) = run.fragments.as_deref()
-            && fragment.is_plain_box()
-            && used.shows_box_of_fragment(&fragment)
-            && !facts.has_anchor_names()
-        {
-            fragments.hold_committed_fragment_of_empty_box(used, fragment);
-        }
+        let fragment_arrival = committed_fragment
+            .filter(|fragment| {
+                run.fragments.is_some()
+                    && fragment.is_plain_box()
+                    && used.shows_box_of_fragment(fragment)
+                    && !facts.has_anchor_names()
+            })
+            .map(|fragment| fragment_tree::ChildFragmentArrival::CommittedFragment {
+                fragment,
+                reuses_subtree: false,
+            });
         store_derived_baselines(used, DerivedBaselines::default());
-        return skipped();
+        return ChildLayout {
+            outcome: skipped(),
+            fragment_arrival,
+        };
     }
     let creates_replaced_context = matches!(
         formatting_context_type_created_by_box(facts),
@@ -2724,7 +2765,7 @@ pub(crate) fn layout_inside_child(
     );
     if !facts.can_have_children() && !creates_replaced_context {
         size_skipped_independent_root(run, parent_block, child, &input);
-        return skipped();
+        return ChildLayout::without_fragments(skipped());
     }
 
     let Some(ChildRunPlan {
@@ -2734,13 +2775,16 @@ pub(crate) fn layout_inside_child(
     }) = child_run_plan(run, child, input, force_independent_context_run)
     else {
         if force_independent_context_run {
-            return skipped();
+            return ChildLayout::without_fragments(skipped());
         }
-        return ChildLayoutOutcome::ReenterCurrent;
+        return ChildLayout::without_fragments(ChildLayoutOutcome::ReenterCurrent);
     };
     input.sizing.flex_self_block_size_resolution_space =
         dimension_root_in_parent_scope(parent_block, child, &input, true);
-    let result = run_formatting_context(
+    let ChildRunOutcome {
+        result,
+        fragment_arrival,
+    } = run_formatting_context(
         run.fragments.as_deref(),
         used,
         child,
@@ -2752,7 +2796,25 @@ pub(crate) fn layout_inside_child(
         input,
         run.records.take_table_inline_layout(child),
     );
-    ChildLayoutOutcome::Created(result)
+    ChildLayout {
+        outcome: ChildLayoutOutcome::Created(result),
+        fragment_arrival,
+    }
+}
+
+/// Keeps what the layout of the child `node` handed its placement in the run's fragment builder until the placement
+/// takes it.
+pub(crate) fn hold_fragment_arrival_until_placement(
+    run: &FormattingContextRun,
+    node: Node,
+    fragment_arrival: Option<fragment_tree::ChildFragmentArrival>,
+) {
+    if let Some(arrival) = fragment_arrival {
+        run.fragments
+            .as_deref()
+            .expect("only a run that builds fragments is handed a child's fragments")
+            .hold_child_fragment_arrival(node, run.records.used_values(node), arrival);
+    }
 }
 
 /// The run a table cell's committing run will be (see layout_inside_child), but for the intrinsic block padding that
@@ -3062,7 +3124,7 @@ fn absorb_run_outputs(
     input: &LayoutInput,
     outputs: RunOutputs,
     reuses_committed_subtree: bool,
-) -> ChildLayoutResult {
+) -> ChildRunOutcome {
     let RunOutputs {
         result,
         root,
@@ -3075,14 +3137,17 @@ fn absorb_run_outputs(
         parent_used,
         content_block_size_adopted_after_run(input, result.automatic_content_block_size),
     );
-    if let (Some(fragments), Some(root)) = (parent_fragments, root) {
+    let fragment_arrival = parent_fragments.and(root).map(|root| {
         debug_assert!(root.node == child, "a child run returned a root for a different box");
-        if reuses_committed_subtree {
-            fragments.note_reused_subtree_root(child);
+        fragment_tree::ChildFragmentArrival::RunRoot {
+            root,
+            reuses_committed_subtree,
         }
-        fragments.hold_unplaced_root(root);
+    });
+    ChildRunOutcome {
+        result,
+        fragment_arrival,
     }
-    result
 }
 
 pub(super) fn independent_formatting_context_type(box_: Node, callbacks: &LayoutPass<'_>) -> FormattingContextType {
@@ -3348,7 +3413,7 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
         )
         .with_forced_sizes(viewport_inline_size, viewport_block_size);
         let fc_type = independent_formatting_context_type(root_for_layout, &callbacks);
-        run_formatting_context(
+        let root_outcome = run_formatting_context(
             Some(&entry_fragments),
             root_for_layout_used,
             root_for_layout,
@@ -3360,6 +3425,7 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
             input,
             None,
         );
+        hold_fragment_arrival_until_placement(&entry_run, root_for_layout, root_outcome.fragment_arrival);
         place_child(&entry_run, root_for_layout, FfiCssPixelPoint::default(), None);
         finish_entry_pass(
             entry_records,
@@ -3494,7 +3560,7 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
     debug_assert!(facts.is_svg_svg_box());
     let fc_type = formatting_context_type_created_by_box(facts)
         .expect("partial relayout root must establish an independent formatting context");
-    run_formatting_context(
+    let root_outcome = run_formatting_context(
         Some(fragments),
         root_used,
         root,
@@ -3506,6 +3572,7 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
         input,
         None,
     );
+    hold_fragment_arrival_until_placement(run, root, root_outcome.fragment_arrival);
     // The retained offset already includes relative positioning. Publish it directly instead
     // of applying placement adjustments a second time.
     fragments.normalize_arrivals_for_placement(root, callbacks);

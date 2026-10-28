@@ -46,7 +46,10 @@ pub(super) fn layout_replaced_with_children(
         .create_used_values(&run.callbacks, wrapper, wrapper_constraints);
     wrapper_state.set_content_inline_size(content_inline_size);
 
-    let wrapper_result = formatting_context::run_formatting_context(
+    let formatting_context::ChildRunOutcome {
+        result: wrapper_result,
+        fragment_arrival,
+    } = formatting_context::run_formatting_context(
         run.fragments.as_deref(),
         wrapper_state,
         wrapper,
@@ -66,6 +69,7 @@ pub(super) fn layout_replaced_with_children(
         },
         None,
     );
+    formatting_context::hold_fragment_arrival_until_placement(run, wrapper, fragment_arrival);
     formatting_context::propagate_percentage_block_size_dependency_to_containing_block(
         run.records,
         &run.callbacks,
