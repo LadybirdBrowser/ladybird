@@ -527,7 +527,8 @@ fn measure_scrollable_overflow_impl(
         if !child_is_absolutely_positioned {
             child_border_box = clip_in_flow(child_border_box);
         }
-        // NOTE: Only boxes that are not wholly in the unreachable scrollable overflow region contribute.
+        // INTEROP: Chrome and Firefox retain reachable overflow in each axis independently, even when
+        //          the border box lies wholly in the other axis's unreachable region.
         let wholly_in_unreachable_horizontal_axis = if overflow_directions.horizontal_axis_is_positive {
             child_border_box.right() < paintable_absolute_padding_box.x
         } else {
@@ -538,13 +539,18 @@ fn measure_scrollable_overflow_impl(
         } else {
             child_border_box.y > paintable_absolute_padding_box.bottom()
         };
-        if wholly_in_unreachable_horizontal_axis || wholly_in_unreachable_vertical_axis {
+        if wholly_in_unreachable_horizontal_axis && wholly_in_unreachable_vertical_axis {
             continue;
         }
 
         // Border boxes with zero area do not affect the scrollable overflow area.
         if !child_border_box.is_empty() {
-            scrollable_overflow_rect.unite(child_border_box);
+            if !wholly_in_unreachable_horizontal_axis {
+                scrollable_overflow_rect.unite_horizontally(child_border_box);
+            }
+            if !wholly_in_unreachable_vertical_axis {
+                scrollable_overflow_rect.unite_vertically(child_border_box);
+            }
         }
 
         // - The scrollable overflow areas of all of the above boxes (including zero-area boxes and accounting for
@@ -578,10 +584,10 @@ fn measure_scrollable_overflow_impl(
                 child_scrollable_overflow = clip_in_flow(child_scrollable_overflow);
             }
             if !child_scrollable_overflow.is_empty() {
-                if child_overflow_x == overflow::VISIBLE {
+                if child_overflow_x == overflow::VISIBLE && !wholly_in_unreachable_horizontal_axis {
                     scrollable_overflow_rect.unite_horizontally(child_scrollable_overflow);
                 }
-                if child_overflow_y == overflow::VISIBLE {
+                if child_overflow_y == overflow::VISIBLE && !wholly_in_unreachable_vertical_axis {
                     scrollable_overflow_rect.unite_vertically(child_scrollable_overflow);
                 }
             }

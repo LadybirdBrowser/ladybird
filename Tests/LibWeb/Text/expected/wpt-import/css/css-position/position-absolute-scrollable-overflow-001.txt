@@ -2,19 +2,18 @@ Harness status: OK
 
 Found 14 tests
 
-6 Pass
-8 Fail
-Fail	.containing-block 1
-Fail	.containing-block 2
-Fail	.containing-block 3
-Fail	.containing-block 4
+14 Pass
+Pass	.containing-block 1
+Pass	.containing-block 2
+Pass	.containing-block 3
+Pass	.containing-block 4
 Pass	.containing-block 5
 Pass	.containing-block 6
 Pass	.containing-block 7
-Fail	.containing-block 8
-Fail	.containing-block 9
-Fail	.containing-block 10
-Fail	.containing-block 11
+Pass	.containing-block 8
+Pass	.containing-block 9
+Pass	.containing-block 10
+Pass	.containing-block 11
 Pass	.containing-block 12
 Pass	.containing-block 13
 Pass	.containing-block 14
