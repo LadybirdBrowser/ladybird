@@ -2565,11 +2565,8 @@ fn leave_own_frame(
             first: along_parent_horizontal_axis(result.baselines.first),
             last: along_parent_horizontal_axis(result.baselines.last),
         };
-        if orthogonal_flow_baselines != DerivedBaselines::default() {
-            used.rare_data_mut().orthogonal_flow_baselines = Some(orthogonal_flow_baselines);
-        } else if used.orthogonal_flow_baselines().is_some() {
-            used.rare_data_mut().orthogonal_flow_baselines = None;
-        }
+        used.orthogonal_flow_baselines
+            .set((orthogonal_flow_baselines != DerivedBaselines::default()).then_some(orthogonal_flow_baselines));
         // NB: The inline size of a table wrapper in its parent's frame is the block size of its content in its own
         //     frame.
         if result.table_wrapper_content_inline_size.is_some() {
