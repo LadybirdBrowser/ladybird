@@ -157,6 +157,15 @@ fn discard_whitespace(values: &[ComponentValue], position: &mut usize) {
     }
 }
 
+// https://drafts.css-houdini.org/css-properties-values-api/#consume-data-type-name
+// NB: Data type names are consumed as literal code points, unlike custom identifiers, which allow escapes.
+fn data_type_name(value: &ComponentValue) -> Option<&[u16]> {
+    if value.original_source_text.iter().any(|unit| unit == u16::from(b'\\')) {
+        return None;
+    }
+    value.ident()
+}
+
 fn parse_single_component(
     values: &[ComponentValue],
     position: &mut usize,
@@ -179,7 +188,7 @@ fn parse_single_component(
 
     if values.get(*position).is_some_and(|value| value.is_delim(b'<')) {
         *position += 1;
-        let name = values.get(*position).and_then(ComponentValue::ident);
+        let name = values.get(*position).and_then(data_type_name);
         *position += usize::from(name.is_some());
         if let Some(name) = name
             && values.get(*position).is_some_and(|value| value.is_delim(b'>'))
@@ -205,7 +214,7 @@ fn parse_component(
     if values.get(*position).is_some_and(|value| value.is_delim(b'<'))
         && values
             .get(*position + 1)
-            .and_then(ComponentValue::ident)
+            .and_then(data_type_name)
             .is_some_and(|name| equals_ascii(name, b"transform-list"))
         && values.get(*position + 2).is_some_and(|value| value.is_delim(b'>'))
     {
