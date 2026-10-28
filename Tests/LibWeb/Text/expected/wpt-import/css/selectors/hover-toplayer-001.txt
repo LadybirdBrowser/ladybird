@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Fail
+Fail	Hovering inside a modal dialog should not propagate :hover beyond the dialog.
+Fail	Hovering inside a popover should not propagate :hover beyond the popover.
+Fail	With nested top layer elements, :hover should stop at the innermost top layer boundary.

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Selectors: :hover should not propagate past top layer elements</title>
+<link rel="help" href="https://drafts.csswg.org/selectors/#the-hover-pseudo">
+<link rel="help" href="https://drafts.csswg.org/css-position-4/#top-layer">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-actions.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<style>
+  dialog::backdrop {
+    background: transparent;
+  }
+</style>
+
+<div id="outer">
+  <dialog id="dialog">
+    <div id="inner">hover target</div>
+  </dialog>
+</div>
+
+<div id="popoverOuter">
+  <div id="popover" popover>
+    <div id="popoverInner">hover target</div>
+  </div>
+</div>
+
+<div id="nestOuter">
+  <dialog id="nestDialog">
+    <div id="nestPopover" popover>
+      <div id="nestInner">hover target</div>
+    </div>
+  </dialog>
+</div>
+
+<script>
+promise_test(async t => {
+  const dialog = document.getElementById('dialog');
+  dialog.showModal();
+  t.add_cleanup(() => dialog.close());
+
+  const inner = document.getElementById('inner');
+  const outer = document.getElementById('outer');
+
+  await new test_driver.Actions()
+    .pointerMove(1, 1, {origin: inner})
+    .send();
+  await new Promise(requestAnimationFrame);
+
+  assert_true(inner.matches(':hover'), 'inner element should match :hover');
+  assert_true(dialog.matches(':hover'), 'dialog (top layer) should match :hover');
+  assert_false(outer.matches(':hover'), 'ancestor outside top layer should not match :hover');
+  assert_false(document.body.matches(':hover'), 'body should not match :hover');
+}, 'Hovering inside a modal dialog should not propagate :hover beyond the dialog.');
+
+promise_test(async t => {
+  const popover = document.getElementById('popover');
+  popover.showPopover();
+  t.add_cleanup(() => popover.hidePopover());
+
+  const popoverInner = document.getElementById('popoverInner');
+  const popoverOuter = document.getElementById('popoverOuter');
+
+  await new test_driver.Actions()
+    .pointerMove(1, 1, {origin: popoverInner})
+    .send();
+  await new Promise(requestAnimationFrame);
+
+  assert_true(popoverInner.matches(':hover'), 'inner element should match :hover');
+  assert_true(popover.matches(':hover'), 'popover (top layer) should match :hover');
+  assert_false(popoverOuter.matches(':hover'), 'ancestor outside top layer should not match :hover');
+  assert_false(document.body.matches(':hover'), 'body should not match :hover');
+}, 'Hovering inside a popover should not propagate :hover beyond the popover.');
+
+promise_test(async t => {
+  const nestDialog = document.getElementById('nestDialog');
+  nestDialog.showModal();
+  t.add_cleanup(() => nestDialog.close());
+
+  const nestPopover = document.getElementById('nestPopover');
+  nestPopover.showPopover();
+  t.add_cleanup(() => nestPopover.hidePopover());
+
+  const nestInner = document.getElementById('nestInner');
+  const nestOuter = document.getElementById('nestOuter');
+
+  await new test_driver.Actions()
+    .pointerMove(1, 1, {origin: nestInner})
+    .send();
+  await new Promise(requestAnimationFrame);
+
+  assert_true(nestInner.matches(':hover'), 'inner element should match :hover');
+  assert_true(nestPopover.matches(':hover'), 'popover (innermost top layer) should match :hover');
+  assert_false(nestDialog.matches(':hover'), 'dialog (outer top layer) should not match :hover');
+  assert_false(nestOuter.matches(':hover'), 'ancestor outside both top layers should not match :hover');
+}, 'With nested top layer elements, :hover should stop at the innermost top layer boundary.');
+</script>

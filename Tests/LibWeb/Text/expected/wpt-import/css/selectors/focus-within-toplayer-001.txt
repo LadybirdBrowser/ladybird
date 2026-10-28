@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Fail
+Fail	Focusing inside a modal dialog should not propagate :focus-within beyond the dialog.
+Fail	Focusing inside a popover should not propagate :focus-within beyond the popover.
+Fail	With nested top layer elements, :focus-within should stop at the innermost top layer boundary.
