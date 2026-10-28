@@ -1088,6 +1088,11 @@ impl<'context> InlineFormattingContext<'context> {
         }
     }
 
+    /// Whether this context laid out `node` as an atomic inline-level box.
+    fn laid_out_atomic_inline(&self, node: Node) -> bool {
+        self.placed_atomic_inlines.borrow().contains_key(&node)
+    }
+
     #[track_caller]
     fn placed_atomic_inline(&self, node: Node) -> formatting_context::PlacedChild {
         self.placed_atomic_inlines
@@ -1227,11 +1232,6 @@ impl<'context> InlineFormattingContext<'context> {
             .containing_block_constraints
             .percentage_basis_inline_size
             .expect("lines are laid out in a block container of definite inline size")
-    }
-
-    #[track_caller]
-    pub(crate) fn used(&self, node: Node) -> &'context UsedValues {
-        self.run.records.used_values(node)
     }
 
     /// The sizes, box sides and baselines of `node`, a box this context lays out or one laid out by a run of its own.
@@ -1970,7 +1970,7 @@ impl<'context> InlineFormattingContext<'context> {
                 }
                 inline_level_iterator::ItemType::Element => {
                     line_builder.prepare_to_append_inline_content();
-                    if shares_items && !self.run.records.holds_box(item.node) {
+                    if shares_items && !self.laid_out_atomic_inline(item.node) {
                         // NB: The box is laid out again in this run, and keeps the content baselines it had.
                         self.hold_atomic_inline(item.node);
                         self.dimension_box_on_line(item.node);
@@ -2482,15 +2482,16 @@ impl<'context> InlineFormattingContext<'context> {
                 return collapses_through;
             }
             let entered_inline_box = self.entered_inline_box(child);
-            if entered_inline_box.is_none() && !self.run.records.holds_box(child) {
+            if entered_inline_box.is_none() && !self.laid_out_atomic_inline(child) {
                 return true;
             }
             block_formatting_context::margins_can_collapse_through_box_itself(facts, self.style(child), || {
                 match entered_inline_box {
                     Some(sides) => sides.border_box_block_size(false),
-                    // NB: A box this context holds as an atomic inline-level box, which has a record where it has no
-                    //     formatting context of its own.
-                    None => self.used(child).border_box_block_size(false),
+                    None => {
+                        let atomic_inline = self.placed_atomic_inline(child).geometry.cells;
+                        atomic_inline.border_box_block_size(false)
+                    }
                 }
             }) && self.children_let_margins_collapse_through(child)
         })
