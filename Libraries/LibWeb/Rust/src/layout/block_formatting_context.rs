@@ -260,6 +260,7 @@ pub(crate) struct BlockFormattingContext<'pass> {
     lowest_floating_descendant_bottom_margin_edge: Cell<Option<CssPixels>>,
     derived_baselines_of_root_box: Cell<DerivedBaselines>,
     trailing_collapsed_margin: Cell<Option<(Node, CssPixels)>>,
+    table_box_in_wrapper_border_box_inline_size: Cell<Option<CssPixels>>,
     table_box_in_wrapper_border_box_block_size: Cell<Option<CssPixels>>,
     is_line_clamp_container: bool,
     clamped_content_is_scrollable_overflow: bool,
@@ -383,6 +384,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             lowest_floating_descendant_bottom_margin_edge: Cell::new(None),
             derived_baselines_of_root_box: Cell::new(DerivedBaselines::default()),
             trailing_collapsed_margin: Cell::new(None),
+            table_box_in_wrapper_border_box_inline_size: Cell::new(None),
             table_box_in_wrapper_border_box_block_size: Cell::new(None),
             is_line_clamp_container,
             clamped_content_is_scrollable_overflow,
@@ -2351,6 +2353,9 @@ impl<'pass> BlockFormattingContext<'pass> {
             fragment_arrival_of_child_with_own_formatting_context = fragment_arrival;
             if container_facts.is_table_wrapper() && style.display().is_table_inside() && child_layout.is_some() {
                 let table_box = self.run.records.box_metrics_of(node);
+                self.table_box_in_wrapper_border_box_inline_size.set(Some(
+                    table_box.border_box_inline_size(table_box.uses_collapsing_borders_model()),
+                ));
                 self.table_box_in_wrapper_border_box_block_size.set(Some(
                     table_box.border_box_block_size(table_box.uses_collapsing_borders_model()),
                 ));
@@ -4608,14 +4613,7 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 
     pub(crate) fn table_wrapper_content_inline_size(&self) -> Option<CssPixels> {
-        if !self.facts(self.run.box_).is_table_wrapper() {
-            return None;
-        }
-        let table_box = self
-            .run
-            .records
-            .box_metrics_of(self.sizing().table_box_inside_wrapper(self.run.box_));
-        Some(table_box.border_box_inline_size(table_box.uses_collapsing_borders_model()))
+        self.table_box_in_wrapper_border_box_inline_size.get()
     }
 
     fn resolve_automatic_line_clamp_block_size(&self, input: LayoutInput) -> Option<CssPixels> {
