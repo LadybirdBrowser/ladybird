@@ -560,8 +560,10 @@ fn active_text(dark: bool) -> Rgba {
     if dark { rgb(213, 97, 82) } else { rgb(255, 0, 0) }
 }
 
+// https://drafts.csswg.org/css-color-4/#css-system-colors
+// The base border color for push buttons.
 fn button_border(dark: bool) -> Rgba {
-    if dark { rgb(255, 255, 255) } else { rgb(0, 0, 0) }
+    if dark { rgb(133, 133, 133) } else { rgb(118, 118, 118) }
 }
 
 fn button_face(dark: bool) -> Rgba {
