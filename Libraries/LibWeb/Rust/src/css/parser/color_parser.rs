@@ -444,6 +444,15 @@ fn parse_numeric(
             });
         }
     }
+    if accepted.contains(&NumericKind::Number)
+        && let Some(value) = super::value_parser::parse_tree_counting_value(context, value, 0)
+    {
+        stream.discard_a_token();
+        return Some(ParsedNumeric {
+            value,
+            kind: NumericKind::Number,
+        });
+    }
     let parsed = match &value.kind {
         ComponentKind::Token(ParserTokenKind::Number { value, .. }) if accepted.contains(&NumericKind::Number) => {
             Some(ParsedNumeric {
