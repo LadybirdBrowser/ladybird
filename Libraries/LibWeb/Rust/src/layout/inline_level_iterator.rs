@@ -36,6 +36,8 @@ pub(crate) struct Item {
     pub(crate) preceded_by_unattached_inline_start_edges: bool,
     pub(crate) content_baselines: DerivedBaselines,
     pub(crate) trailing_whitespace: line_box_fragment::TrailingWhitespace,
+    /// For an element item laid out on a line, the sizes and box sides of its box, as its layout left them.
+    pub(crate) box_cells: Option<Box<used_values::RootInputCells>>,
 }
 
 fn shape_glyph_data(
@@ -134,7 +136,17 @@ impl Item {
             preceded_by_unattached_inline_start_edges: false,
             content_baselines: DerivedBaselines::default(),
             trailing_whitespace: line_box_fragment::TrailingWhitespace::default(),
+            box_cells: None,
         }
+    }
+
+    /// The sizes and box sides of the box of an element item laid out on a line.
+    #[track_caller]
+    pub(crate) fn box_cells(&self) -> used_values::RootInputCells {
+        *self
+            .box_cells
+            .as_deref()
+            .expect("an element item laid out on a line carries the cells of its box")
     }
 
     pub(crate) fn border_box_inline_size(&self) -> CssPixels {
@@ -975,14 +987,15 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
                 self.context().hold_atomic_inline(node);
             }
             item.content_baselines = self.context_mut().dimension_box_on_line(node);
-            let atomic_inline = self.context().box_metrics(node);
-            item.inline_size = atomic_inline.content_inline_size();
-            item.padding_start = atomic_inline.padding_left();
-            item.padding_end = atomic_inline.padding_right();
-            item.border_start = atomic_inline.border_left();
-            item.border_end = atomic_inline.border_right();
-            item.margin_start = atomic_inline.margin_left();
-            item.margin_end = atomic_inline.margin_right();
+            let box_cells = self.context().box_metrics(node).input_cells();
+            item.inline_size = box_cells.content_inline_size;
+            item.padding_start = box_cells.padding_left;
+            item.padding_end = box_cells.padding_right;
+            item.border_start = box_cells.border_left;
+            item.border_end = box_cells.border_right;
+            item.margin_start = box_cells.margin_left;
+            item.margin_end = box_cells.margin_right;
+            item.box_cells = Some(Box::new(box_cells));
         }
         self.add_extra_box_model_metrics_to_item(&mut item, true, true);
         self.skip_to_next();
