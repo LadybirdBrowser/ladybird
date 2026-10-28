@@ -2,15 +2,15 @@ Harness status: OK
 
 Found 62 tests
 
-54 Pass
-8 Fail
-Fail	Property color value 'ButtonBorder' resolves to the same color as the border-color of a button (light)
+60 Pass
+2 Fail
+Pass	Property color value 'ButtonBorder' resolves to the same color as the border-color of a button (light)
 Pass	Property color value 'ButtonFace' resolves to the same color as the background-color of a button (light)
 Pass	Property color value 'ButtonText' resolves to the same color as text on a button (light)
-Fail	Property color value 'ButtonBorder' resolves to the same color as the border-color of a submit button (light)
+Pass	Property color value 'ButtonBorder' resolves to the same color as the border-color of a submit button (light)
 Pass	Property color value 'ButtonFace' resolves to the same color as the background-color of a submit button (light)
 Pass	Property color value 'ButtonText' resolves to the same color as text on a submit button (light)
-Fail	Property color value 'ButtonBorder' resolves to the same color as the border-color of a reset button (light)
+Pass	Property color value 'ButtonBorder' resolves to the same color as the border-color of a reset button (light)
 Pass	Property color value 'ButtonFace' resolves to the same color as the background-color of a reset button (light)
 Pass	Property color value 'ButtonText' resolves to the same color as text on a reset button (light)
 Pass	Property color value 'ButtonBorder' resolves to the same color as the border-color of a color picker (light)
@@ -35,13 +35,13 @@ Pass	Property color value 'LinkText' has the same color as the color of an ancho
 Pass	LinkText should not match Canvas in light mode
 Pass	ActiveText should not match Canvas in light mode
 Pass	VisitedText should not match Canvas in light mode
-Fail	Property color value 'ButtonBorder' resolves to the same color as the border-color of a button (dark)
+Pass	Property color value 'ButtonBorder' resolves to the same color as the border-color of a button (dark)
 Pass	Property color value 'ButtonFace' resolves to the same color as the background-color of a button (dark)
 Pass	Property color value 'ButtonText' resolves to the same color as text on a button (dark)
-Fail	Property color value 'ButtonBorder' resolves to the same color as the border-color of a submit button (dark)
+Pass	Property color value 'ButtonBorder' resolves to the same color as the border-color of a submit button (dark)
 Pass	Property color value 'ButtonFace' resolves to the same color as the background-color of a submit button (dark)
 Pass	Property color value 'ButtonText' resolves to the same color as text on a submit button (dark)
-Fail	Property color value 'ButtonBorder' resolves to the same color as the border-color of a reset button (dark)
+Pass	Property color value 'ButtonBorder' resolves to the same color as the border-color of a reset button (dark)
 Pass	Property color value 'ButtonFace' resolves to the same color as the background-color of a reset button (dark)
 Pass	Property color value 'ButtonText' resolves to the same color as text on a reset button (dark)
 Pass	Property color value 'ButtonBorder' resolves to the same color as the border-color of a color picker (dark)

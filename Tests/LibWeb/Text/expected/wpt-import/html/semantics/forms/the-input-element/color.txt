@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 27 tests
 
-26 Pass
-1 Fail
+27 Pass
 Pass	Empty value should return #000000
 Pass	Missing value should return #000000
 Pass	Valid simple color: should return #ffffff
@@ -30,4 +29,4 @@ Pass	Invalid color: PILE OF POO (U+1F4A9)
 Pass	Valid color: hsl(150deg 100 53.5)
 Pass	Valid color: color(display-p3 .5 0 0)
 Pass	Valid color: color(display-p3 1 0 0)
-Fail	System colors are parsed
+Pass	System colors are parsed
