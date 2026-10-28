@@ -516,6 +516,8 @@ scalar_accessors! {
         order: i32 => order,
         align_items: u8 => align_items,
         align_self: u8 => align_self,
+        align_items_is_last_baseline: bool => align_items_is_last_baseline,
+        align_self_is_last_baseline: bool => align_self_is_last_baseline,
         align_content: u8 => align_content,
         justify_content: u8 => justify_content,
         justify_items: u8 => justify_items,

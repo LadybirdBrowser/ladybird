@@ -80,6 +80,8 @@ pub struct AlignmentValues {
     pub align_content: u8,
     pub align_items: u8,
     pub align_self: u8,
+    pub align_items_is_last_baseline: bool,
+    pub align_self_is_last_baseline: bool,
     pub justify_content: u8,
     pub justify_items: u8,
     pub justify_self: u8,
