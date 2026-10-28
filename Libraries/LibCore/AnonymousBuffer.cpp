@@ -120,6 +120,19 @@ ErrorOr<void> AnonymousBuffer::validate_backing_size() const
     return {};
 }
 
+void AnonymousBuffer::populate_for_reading() const
+{
+    if (!is_valid() || size() == 0)
+        return;
+    auto* data = const_cast<void*>(m_impl->data());
+#if defined(AK_OS_LINUX) && defined(MADV_POPULATE_READ)
+    // Kernels before 5.14 refuse this advice.
+    (void)madvise(data, size(), MADV_POPULATE_READ);
+#else
+    (void)madvise(data, size(), MADV_WILLNEED);
+#endif
+}
+
 ErrorOr<NonnullRefPtr<AnonymousBufferImpl>> AnonymousBufferImpl::create(int fd, size_t size)
 {
     void* data = nullptr;
