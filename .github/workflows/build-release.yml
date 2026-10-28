@@ -225,9 +225,13 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v7
         with:
-          name: ladybird-Flatpak-${{ matrix.arch }}
-          path: |
-            ${{ env.BUNDLE }}
-            ${{ env.DEBUG_BUNDLE }}
-          compression-level: 0
+          path: ${{ env.BUNDLE }}
+          archive: false
+          if-no-files-found: error
+
+      - name: Upload debug symbols
+        uses: actions/upload-artifact@v7
+        with:
+          path: ${{ env.DEBUG_BUNDLE }}
+          archive: false
           if-no-files-found: error
