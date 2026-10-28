@@ -1,0 +1,58 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS.supports() detecting invalid in logical combinations</title>
+<link rel="help" href="https://www.w3.org/TR/css-conditional-4/#the-css-namespace">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script>
+  test(function() {
+    assert_equals(CSS.supports("selector(:has(:foo))"), false);
+    assert_equals(CSS.supports("selector(:has(.a, :foo))"), false);
+    assert_equals(CSS.supports("selector(:has(:foo, .a))"), false);
+    assert_equals(CSS.supports("selector(:not(:foo))"), false);
+    assert_equals(CSS.supports("selector(:not(.a, :foo))"), false);
+    assert_equals(CSS.supports("selector(:not(:foo, .a))"), false);
+  }, "Invalid selector can be detected with CSS.supports()");
+
+  test(function() {
+    assert_equals(CSS.supports("selector(:is(:foo))"), false);
+    assert_equals(CSS.supports("selector(:is(.a, :foo))"), false);
+    assert_equals(CSS.supports("selector(:is(:foo, .a))"), false);
+    assert_equals(CSS.supports("selector(:is(:has(:foo, a), .b))"), false);
+    assert_equals(CSS.supports("selector(:where(:foo))"), false);
+    assert_equals(CSS.supports("selector(:where(.a, :foo))"), false);
+    assert_equals(CSS.supports("selector(:where(:foo, .a))"), false);
+    assert_equals(CSS.supports("selector(:where(:is(:foo, a), .b))"), false);
+    assert_equals(CSS.supports("selector(:has(:where(:foo, a), .b))"), false);
+  }, "Invalid selector can be detected with CSS.supports() even if it is dropped by forgiving parsing");
+
+  test(function() {
+    assert_equals(CSS.supports("selector(:is())"), false);
+    assert_equals(CSS.supports("selector(:where())"), false);
+    assert_equals(CSS.supports("selector(:has())"), false);
+  }, ":is(), :where() or :has() always fails without argument");
+
+  test(function() {
+    assert_equals(CSS.supports("selector(:has(:has(.a)))"), false);
+    assert_equals(CSS.supports("selector(:has(:has(.a), b))"), false);
+    assert_equals(CSS.supports("selector(.a, :has(:has(.b)))"), false);
+    assert_equals(CSS.supports("selector(:has(:is(:has(.a))))"), false);
+    assert_equals(CSS.supports("selector(:has(:is(:has(.a), .b)))"), false);
+    assert_equals(CSS.supports("selector(:has(:is(.a, :has(.b))))"), false);
+  }, ":has() always fails inside :has()");
+
+  test(function() {
+    assert_equals(CSS.supports("selector(:is(::after)"), false);
+    assert_equals(CSS.supports("selector(:is(::before)"), false);
+    assert_equals(CSS.supports("selector(:is(::first-letter)"), false);
+    assert_equals(CSS.supports("selector(:is(::first-line)"), false);
+    assert_equals(CSS.supports("selector(:where(::after)"), false);
+    assert_equals(CSS.supports("selector(:where(::before)"), false);
+    assert_equals(CSS.supports("selector(:where(::first-letter)"), false);
+    assert_equals(CSS.supports("selector(:where(::first-line)"), false);
+    assert_equals(CSS.supports("selector(:has(::after)"), false);
+    assert_equals(CSS.supports("selector(:has(::before)"), false);
+    assert_equals(CSS.supports("selector(:has(::first-letter)"), false);
+    assert_equals(CSS.supports("selector(:has(::first-line)"), false);
+  }, "Some pseudo elements always fail inside :is(), :where(), :has()");
+</script>

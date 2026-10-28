@@ -1,0 +1,79 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS.supports() Level 4</title>
+<link rel="help" href="https://www.w3.org/TR/css-conditional-4/#the-css-namespace">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script>
+  test(function() {
+    assert_equals(CSS.supports("selector(div)"), true);
+  }, "selector() function accepts a selector");
+
+  test(function() {
+    assert_equals(CSS.supports("selector(div, div)"), false);
+  }, "selector() function doesn't accept a selector list");
+
+  test(function() {
+    assert_equals(CSS.supports("selector(::-webkit-unknown-pseudo-element)"), false);
+  }, "selector() function rejects unknown webkit pseudo-elements.");
+
+  test(function() {
+    assert_equals(CSS.supports("selector(::before)"), true);
+  }, "selector() function accepts known pseudo-elements");
+
+  test(function() {
+    assert_equals(CSS.supports("selector(div + .c)"), true);
+  }, "selector() with simple combinators");
+
+  test(function() {
+    assert_equals(CSS.supports("selector(div | .c)"), false);
+  }, "selector() with unknown combinators");
+
+  test(function() {
+    assert_equals(CSS.supports("selector(:is(:foo))"), false);
+  }, "selector() with forgiving :is, 1 arg");
+
+  test(function() {
+    assert_equals(CSS.supports("selector(:is(:foo, div))"), false);
+  }, "selector() with forgiving :is, multiple args");
+
+  test(function() {
+    assert_equals(CSS.supports("selector(:where(:foo))"), false);
+  }, "selector() with forgiving :where, 1 arg");
+
+  test(function() {
+    assert_equals(CSS.supports("selector(:where(:foo, div))"), false);
+  }, "selector() with forgiving :where, multiple args");
+
+  test(function() {
+    assert_equals(CSS.supports("selector(:has(:foo))"), false);
+  }, "selector() with forgiving :has, 1 arg");
+
+  test(function() {
+    assert_equals(CSS.supports("selector(:has(:foo, div))"), false);
+  }, "selector() with forgiving :has, multiple args");
+
+  test(function() {
+      assert_equals(CSS.supports("selector(:nth-child(2n + 3 of :foo))"), false);
+  }, "selector() with unforgiving :nth-child, 1 arg");
+
+  test(function() {
+      assert_equals(CSS.supports("selector(:nth-last-child(2n + 3 of :foo))"), false);
+  }, "selector() with unforgiving :nth-last-child, 1 arg");
+
+  test(function() {
+      assert_equals(CSS.supports("selector(:nth-child(2n + 3 of :foo, div))"), false);
+  }, "selector() with unforgiving :nth-child, multiple args");
+
+  test(function() {
+      assert_equals(CSS.supports("selector(:nth-last-child(2n + 3 of :foo, div))"), false);
+  }, "selector() with unforgiving :nth-last-child, multiple args");
+
+  test(function() {
+      assert_equals(CSS.supports("selector(:nth-child(2n 4))"), false);
+  }, "selector() with a non-identifier after :nth-child's An+B index");
+
+  test(function() {
+      assert_equals(CSS.supports("selector(:nth-last-child(2n 4))"), false);
+  }, "selector() with a non-identifier after :nth-last-child's An+B index");
+</script>
