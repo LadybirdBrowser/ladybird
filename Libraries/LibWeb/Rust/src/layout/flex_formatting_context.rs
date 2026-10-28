@@ -259,15 +259,16 @@ impl<'pass> FlexFormattingContext<'pass> {
         }
     }
 
-    /// The sizes, size constraints and box sides of `node`, read from the cells this container sizes it in where it is
-    /// an item.
+    /// The sizes, size constraints and box sides of `node`, the container or an item read from the cells this container
+    /// sizes it in.
     fn box_metrics(&self, node: Node) -> used_values::RootInputCells {
-        if self.run.callbacks.parent(node) == self.run.box_
-            && let Some(index) = self.index_of_flex_item(node)
-        {
-            return self.flex_items[index].cells;
+        if node == self.run.box_ {
+            return used_values::RootInputCells::capture(self.container_used());
         }
-        self.run.records.box_metrics_of(node).cells()
+        let index = self
+            .index_of_flex_item(node)
+            .expect("a flex container reads the metrics of itself and its items");
+        self.flex_items[index].cells
     }
 
     fn container_used(&self) -> &'pass UsedValues {

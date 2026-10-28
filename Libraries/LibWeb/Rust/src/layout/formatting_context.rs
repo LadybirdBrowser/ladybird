@@ -3660,7 +3660,7 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
     let committed_root = used_values::committed_box_from_fragment_link(callbacks, root)
         .expect("partial relayout root must have committed geometry");
     let root_cells = committed_root.cells;
-    run.records.keep_child_for_its_run_with_cells(root, root_cells);
+    run.records.hold_child_for_its_run(root);
     // Adopting the committed geometry is the root's placement, final from the moment it is adopted.
     run.records
         .adopt_committed_facts_decided_by_parent(root, committed_root.facts_decided_by_parent);
