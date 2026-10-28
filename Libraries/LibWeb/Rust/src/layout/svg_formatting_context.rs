@@ -1869,13 +1869,16 @@ impl<'pass> SvgFormattingContext<'pass> {
         });
     }
 
+    /// Places `node`, a box this context lays out in its record.
     fn place_child(&self, node: Node, x: CssPixels, y: CssPixels) {
-        self.place_laid_out_child(node, x, y, None);
+        let placed_child = formatting_context::PlacedChild::of_record(self.used_values(node), &self.run);
+        self.place_laid_out_child(node, placed_child, x, y, None);
     }
 
     fn place_laid_out_child(
         &self,
         node: Node,
+        placed_child: formatting_context::PlacedChild,
         x: CssPixels,
         y: CssPixels,
         fragment_arrival: Option<fragment_tree::ChildFragmentArrival>,
@@ -1883,7 +1886,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         formatting_context::place_laid_out_child(
             &self.run,
             node,
-            formatting_context::PlacedChild::read_from_records(&self.run, node),
+            placed_child,
             FfiCssPixelPoint { x, y },
             None,
             fragment_arrival,
@@ -2063,7 +2066,8 @@ impl<'pass> SvgFormattingContext<'pass> {
             let formatting_context::ChildLayout {
                 outcome,
                 fragment_arrival,
-                ..
+                laid_out_box,
+                line_data,
             } = formatting_context::layout_inside_child_with_input_cells(
                 run,
                 None,
@@ -2082,7 +2086,17 @@ impl<'pass> SvgFormattingContext<'pass> {
             };
 
             // Masks and clips may use this offset for objectBoundingBox units.
-            self.place_laid_out_child(child, rect.x, rect.y, fragment_arrival);
+            self.place_laid_out_child(
+                child,
+                formatting_context::PlacedChild::of_laid_out_box(
+                    &laid_out_box.expect("a foreign object's child is laid out by a run of its own"),
+                    line_data,
+                    run.callbacks.frame,
+                ),
+                rect.x,
+                rect.y,
+                fragment_arrival,
+            );
             if let Some(mask) = self.first_child_of_kind(child, NodeKind::SVGMaskBox) {
                 self.layout_mask_or_clip(run, mask);
             }
@@ -2223,6 +2237,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         used.has_definite_block_size.set(true);
         self.place_laid_out_child(
             shape,
+            formatting_context::PlacedChild::of_record(used, &self.run),
             committed_offset.x,
             committed_offset.y,
             Some(fragment_tree::ChildFragmentArrival::CommittedFragment {
