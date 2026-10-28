@@ -2252,16 +2252,16 @@ impl<'pass> BlockFormattingContext<'pass> {
             let (child_layout, fragment_arrival) = self.layout_inside(run, node, inside_layout_input, true);
             fragment_arrival_of_child_with_own_formatting_context = fragment_arrival;
             if container_facts.is_table_wrapper() && style.display().is_table_inside() && child_layout.is_some() {
-                let used = self.used(node);
+                let table_box = self.run.records.box_metrics_of(node);
                 self.table_box_in_wrapper_border_box_block_size.set(Some(
-                    used.border_box_block_size(used.uses_collapsing_borders_model.get()),
+                    table_box.border_box_block_size(table_box.uses_collapsing_borders_model()),
                 ));
-                if used.uses_collapsing_borders_model.get()
+                if table_box.uses_collapsing_borders_model()
                     && let Some(position) = pending_position.as_mut()
                     && let Some((pre_run_border_box_left, pre_run_border_box_top)) = pre_run_table_border_box
                 {
-                    position.x += used.border_box_left(true) - pre_run_border_box_left;
-                    position.y += used.border_box_top(true) - pre_run_border_box_top;
+                    position.x += table_box.border_box_left(true) - pre_run_border_box_left;
+                    position.y += table_box.border_box_top(true) - pre_run_border_box_top;
                 }
             }
             child_layout
@@ -4505,8 +4505,11 @@ impl<'pass> BlockFormattingContext<'pass> {
         if !self.facts(self.run.box_).is_table_wrapper() {
             return None;
         }
-        let table_used = self.used(self.sizing().table_box_inside_wrapper(self.run.box_));
-        Some(table_used.border_box_inline_size(table_used.uses_collapsing_borders_model.get()))
+        let table_box = self
+            .run
+            .records
+            .box_metrics_of(self.sizing().table_box_inside_wrapper(self.run.box_));
+        Some(table_box.border_box_inline_size(table_box.uses_collapsing_borders_model()))
     }
 
     fn resolve_automatic_line_clamp_block_size(&self, input: LayoutInput) -> Option<CssPixels> {
