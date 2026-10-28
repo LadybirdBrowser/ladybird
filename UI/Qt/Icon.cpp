@@ -431,9 +431,6 @@ static Optional<PixelSnappedChromeIcon> pixel_snapped_chrome_icon(ChromeIcon ico
         return PixelSnappedChromeIcon { "M2.5 5.5H5l3.5-3v11L5 10.5H2.5zM10.9 5.3Q12.6 6.4 12.6 8T10.9 10.7"sv };
     case ChromeIcon::VolumeMuted:
         return PixelSnappedChromeIcon { "M2.5 5.5H5l3.5-3v11L5 10.5H2.5zM10 6l4 4M14 6l-4 4"sv };
-    case ChromeIcon::Sidebar:
-    case ChromeIcon::SidebarRight:
-        return PixelSnappedChromeIcon { "M3.5 3.5h9a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1zM6.5 3.5v9"sv };
     case ChromeIcon::Download:
         return PixelSnappedChromeIcon { "M7.5 2v7.5M4.5 6.5l3 3 3-3M2.5 12.5h10"sv };
     default:
@@ -497,9 +494,20 @@ static QPixmap create_chrome_icon_pixmap(ChromeIcon icon, QPainterPath const& pa
         else if (design_size == TOOLBAR_ICON_SIZE)
             stroke_width = TOOLBAR_ICON_STROKE_WIDTH;
 
-        painter.setPen(QPen(opaque_color, stroke_width, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
-        painter.setBrush(icon == ChromeIcon::StarFilled ? QBrush(opaque_color) : QBrush(Qt::NoBrush));
-        painter.drawPath(path);
+        if (icon == ChromeIcon::Sidebar || icon == ChromeIcon::SidebarRight) {
+            // Fill the combined outline once so antialiased edges do not accumulate where the divider meets the frame.
+            QPainterPathStroker stroker;
+            stroker.setWidth(stroke_width);
+            stroker.setCapStyle(Qt::RoundCap);
+            stroker.setJoinStyle(Qt::RoundJoin);
+            auto stroke = stroker.createStroke(path);
+            stroke.setFillRule(Qt::WindingFill);
+            painter.fillPath(stroke.simplified(), opaque_color);
+        } else {
+            painter.setPen(QPen(opaque_color, stroke_width, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+            painter.setBrush(icon == ChromeIcon::StarFilled ? QBrush(opaque_color) : QBrush(Qt::NoBrush));
+            painter.drawPath(path);
+        }
     }
 
     if (color.alpha() != 255) {
