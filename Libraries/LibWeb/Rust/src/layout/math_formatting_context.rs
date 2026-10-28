@@ -613,6 +613,8 @@ fn intrinsic_stretch_axis(code_point: u32) -> StretchAxis {
 #[derive(Clone, Copy)]
 struct Child {
     node: Node,
+    /// The sizes and box sides of the child, as its layout left them.
+    cells: used_values::RootInputCells,
     inline_size: CssPixels,
     ascent: CssPixels,
     descent: CssPixels,
@@ -2173,19 +2175,16 @@ impl<'pass> MathFormattingContext<'pass> {
         if let Some(fragment_arrival) = fragment_arrival {
             self.fragment_arrivals_of_children.borrow_mut().push(fragment_arrival);
         }
+        let laid_out_box = laid_out_box.expect("the layout of a math child leaves its box");
         self.placed_children.borrow_mut().insert(
             child,
-            formatting_context::PlacedChild::of_laid_out_box(
-                &laid_out_box.expect("the layout of a math child leaves its box"),
-                line_data,
-                run.callbacks.frame,
-            ),
+            formatting_context::PlacedChild::of_laid_out_box(&laid_out_box, line_data, run.callbacks.frame),
         );
         outcome.report_percentage_block_size_dependency_of(run, child);
-        let metrics = run.records.box_metrics_of(child);
+        let metrics = laid_out_box.cells;
         let baselines = match outcome {
             ChildLayoutOutcome::Created(result) => result.baselines,
-            ChildLayoutOutcome::ReenterCurrent | ChildLayoutOutcome::Skipped { .. } => metrics.content_baselines(),
+            ChildLayoutOutcome::ReenterCurrent | ChildLayoutOutcome::Skipped { .. } => laid_out_box.baselines,
         };
         let collapsed = metrics.uses_collapsing_borders_model();
         let block_size = metrics.margin_box_block_size(collapsed);
@@ -2195,6 +2194,7 @@ impl<'pass> MathFormattingContext<'pass> {
             .map_or(block_size, |baseline| metrics.margin_box_top(collapsed) + baseline);
         Child {
             node: child,
+            cells: metrics,
             inline_size: metrics.margin_box_inline_size(collapsed),
             ascent,
             descent: block_size - ascent,
@@ -2308,7 +2308,7 @@ impl<'pass> MathFormattingContext<'pass> {
         }
 
         for (child, position) in children.iter().zip(content.positions.iter()) {
-            let metrics = run.records.box_metrics_of(child.node);
+            let metrics = child.cells;
             let collapsed = metrics.uses_collapsing_borders_model();
             let line_left_offset = if is_rtl {
                 content.inline_size - position.line_left_offset - child.inline_size
