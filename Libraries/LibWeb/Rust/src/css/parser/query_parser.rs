@@ -21,7 +21,7 @@ use crate::css::parser::value_parser::{
     parse_ratio_value_with_context, parse_resolution_from_stream,
 };
 use crate::css::property_metadata::property_id_from_name;
-use crate::css::selector_operations::contains_unknown_webkit;
+use crate::css::selector_operations::contains_unsupported_selector;
 use crate::css::selector_parser::{SelectorParsingMode, SelectorType, parse_selector_list};
 use crate::css::serialize::{StringUnits, TextSink, serialize_an_identifier, serialize_component_values_to_utf16};
 use crate::css::style_compute::{FfiLengthResolutionContext, LENGTH_UNIT_NAMES, px_length_unit};
@@ -1064,8 +1064,6 @@ pub(crate) fn supports_feature_matches(
     match kind {
         SupportsFeatureKind::Declaration => supports_declaration_matches(context, value),
         SupportsFeatureKind::Selector => {
-            // NB: Mirrors the selector acceptance of the C++ supports evaluator that this series
-            //     removed from Libraries/LibWeb/CSS/Parser/RustQueryParsing.cpp.
             let Ok(selectors) = parse_selector_list(
                 value,
                 declared_namespaces,
@@ -1074,7 +1072,7 @@ pub(crate) fn supports_feature_matches(
             ) else {
                 return false;
             };
-            selectors.len() == 1 && !contains_unknown_webkit(&selectors[0])
+            selectors.len() == 1 && !contains_unsupported_selector(&selectors[0])
         }
         SupportsFeatureKind::FontTech => font_tech_name_is_supported(value),
         SupportsFeatureKind::FontFormat => font_format_is_supported(value),
