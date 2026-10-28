@@ -11,7 +11,6 @@ use super::environment::{DeclarativeEnvironment, Environment, PrivateEnvironment
 use super::executable::ExecutableHead;
 use super::execution_context::ScriptOrModule;
 use super::object::Object;
-use super::primitive_string::PrimitiveString;
 use super::realm::Realm;
 use crate::layout_forward::{
     EcmascriptFunctionObjectStorage, FlyStringSlot, RawNativeFunctionPointer, SharedFunctionInstanceDataStorage,
@@ -23,7 +22,12 @@ pub struct FunctionObject {
     /// The interpreter reads the builtin and whether there is one as two separate bytes, like Optional<Builtin>.
     pub builtin: Cell<u8>,
     pub has_builtin: Cell<bool>,
+    /// Flags of the classes extending FunctionObject, in what would otherwise be padding (see
+    /// ecmascript_function_flags).
+    pub flags: Cell<u8>,
 }
+
+const _: () = assert!(size_of::<FunctionObject>() == 80);
 
 #[repr(C)]
 pub struct NativeFunction {
@@ -73,12 +77,16 @@ pub struct EcmascriptFunctionObject {
     pub base: FunctionObject,
     pub shared_data: Cell<Gc<SharedFunctionInstanceData>>,
     pub name: FlyStringSlot,
-    pub name_string: Cell<Option<Gc<PrimitiveString>>>,
     pub environment: Cell<Option<Gc<Environment>>>,
     pub private_environment: Cell<Option<Gc<PrivateEnvironment>>>,
     pub script_or_module: Cell<ScriptOrModule>,
-    pub home_object: Cell<Option<Gc<Object>>>,
     pub storage: EcmascriptFunctionObjectStorage,
+}
+
+/// The bits of FunctionObject::flags of an ECMAScript function object.
+pub mod ecmascript_function_flags {
+    pub const MAY_NEED_LAZY_PROTOTYPE_INSTANTIATION: u8 = 1 << 0;
+    pub const IS_METHOD: u8 = 1 << 1;
 }
 
 /// Bits of SharedFunctionInstanceData::asm_call_metadata above the formal parameter count in its low 32 bits.

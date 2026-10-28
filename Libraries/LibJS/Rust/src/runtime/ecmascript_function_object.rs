@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use core::cell::Cell;
+use core::cell::{Cell, OnceCell};
 use core::ops::{ControlFlow, Deref};
 use core::ptr::NonNull;
 use std::rc::Rc;
@@ -24,6 +24,7 @@ use crate::layout::cell::Gc;
 use crate::layout::environment::{Environment, PrivateEnvironment};
 use crate::layout::execution_context::{ExecutionContext, ScriptOrModule};
 pub use crate::layout::function_object::EcmascriptFunctionObject;
+use crate::layout::function_object::ecmascript_function_flags;
 use crate::layout::object::{IndexedStorageKind, Object};
 use crate::layout::value::Value;
 use crate::layout_forward::FlyStringSlot;
@@ -60,12 +61,29 @@ struct ClassData {
     private_methods: Vec<PrivateElement>, // [[PrivateMethods]]
 }
 
-/// The parts of an ECMAScript function object the interpreter does not read.
+/// The parts of an ECMAScript function object that only methods and class constructors have.
 #[derive(Default, Trace)]
+struct RareData {
+    home_object: Cell<Option<Gc<Object>>>, // [[HomeObject]]
+    class_data: GcRefCell<ClassData>,
+}
+
+/// The parts of an ECMAScript function object the interpreter does not read.
+#[derive(Default)]
 pub struct EcmascriptFunctionObjectStorage {
-    class_data: GcRefCell<Option<Box<ClassData>>>,
-    may_need_lazy_prototype_instantiation: Cell<bool>,
-    is_method: Cell<bool>,
+    rare_data: OnceCell<Box<RareData>>,
+}
+
+// NB: Every ECMAScript function has these bytes, so keep what only some functions need in the rare data.
+const _: () = assert!(size_of::<EcmascriptFunctionObject>() == 136);
+
+// SAFETY: Visits the cells of the rare data, if there is any.
+unsafe impl Trace for EcmascriptFunctionObjectStorage {
+    fn trace(&self, visitor: &mut Visitor) {
+        if let Some(rare_data) = self.rare_data.get() {
+            rare_data.trace(visitor);
+        }
+    }
 }
 
 pub static ECMASCRIPT_FUNCTION_OBJECT_METHODS: ObjectMethods = ObjectMethods {
@@ -100,8 +118,6 @@ unsafe impl Trace for EcmascriptFunctionObject {
         self.base.trace(visitor);
         self.environment.trace(visitor);
         self.private_environment.trace(visitor);
-        self.home_object.trace(visitor);
-        self.name_string.trace(visitor);
         self.shared_data.trace(visitor);
         self.storage.trace(visitor);
         match self.script_or_module.get() {
@@ -225,11 +241,9 @@ impl EcmascriptFunctionObject {
             base,
             shared_data: Cell::new(shared_data),
             name: FlyStringSlot::new(None),
-            name_string: Cell::new(None),
             environment: Cell::new(parent_environment),
             private_environment: Cell::new(private_environment),
             script_or_module: Cell::new(script_or_module),
-            home_object: Cell::new(None),
             storage: EcmascriptFunctionObjectStorage::default(),
         }
     }
@@ -242,7 +256,6 @@ impl EcmascriptFunctionObject {
         //       are defined in the spec.
 
         let name_string = PrimitiveString::create_from_fly_string(vm, &self.name());
-        self.name_string.set(Some(name_string));
 
         // NOTE: The constructor gave us a premade shape with "length" and "name" (and "prototype" for generator kinds) at
         //       these offsets, with the attributes the spec requires, so we only have to store the values.
@@ -255,7 +268,7 @@ impl EcmascriptFunctionObject {
         match self.kind() {
             FunctionKind::Normal => {
                 if !self.is_arrow_function() {
-                    self.storage.may_need_lazy_prototype_instantiation.set(true);
+                    self.set_flag(ecmascript_function_flags::MAY_NEED_LAZY_PROTOTYPE_INSTANTIATION, true);
                 }
             }
             FunctionKind::Generator => {
@@ -476,9 +489,9 @@ impl EcmascriptFunctionObject {
     // 10.2.7 MakeMethod ( F, homeObject ), https://tc39.es/ecma262/#sec-makemethod
     pub fn make_method(&self, home_object: Gc<Object>) {
         // 1. Set F.[[HomeObject]] to homeObject.
-        self.home_object.set(Some(home_object));
-        self.storage.is_method.set(true);
-        self.storage.may_need_lazy_prototype_instantiation.set(false);
+        self.rare_data().home_object.set(Some(home_object));
+        self.set_flag(ecmascript_function_flags::IS_METHOD, true);
+        self.set_flag(ecmascript_function_flags::MAY_NEED_LAZY_PROTOTYPE_INSTANTIATION, false);
 
         // 2. Return unused.
     }
@@ -685,7 +698,6 @@ impl EcmascriptFunctionObject {
     pub fn set_name(&self, vm: &Vm, name: &Utf16FlyString) {
         self.name.set(Some(name.clone()));
         let name_string = PrimitiveString::create_from_fly_string(vm, name);
-        self.name_string.set(Some(name_string));
         let mut descriptor = PropertyDescriptor {
             value: Some(Value::from_string(name_string)),
             writable: Some(false),
@@ -703,10 +715,7 @@ impl EcmascriptFunctionObject {
     }
 
     pub fn name_for_call_stack(&self) -> Utf16String {
-        self.name_string
-            .get()
-            .expect("an ECMAScript function has its name string once initialized")
-            .utf16_string()
+        Utf16String::from(self.name())
     }
 
     /// Whether a copy of the function's bytes is a function of its own: it has no name of its own, no class data,
@@ -714,7 +723,7 @@ impl EcmascriptFunctionObject {
     pub fn can_be_copied(&self) -> bool {
         let object = &self.base.base;
         self.name.get().is_none()
-            && self.storage.class_data.borrow().is_none()
+            && self.storage.rare_data.get().is_none()
             && object.owns_nothing_outside_the_heap()
             && object.named_storage_is_inline()
             && object.indexed_storage_kind() == IndexedStorageKind::None
@@ -724,75 +733,70 @@ impl EcmascriptFunctionObject {
         self.name.get().unwrap_or_else(|| self.shared_data().name())
     }
 
-    fn ensure_class_data(&self, vm: &Vm) {
-        let mut class_data = self.storage.class_data.borrow_mut(vm);
-        if class_data.is_none() {
-            *class_data = Some(Box::default());
-        }
+    fn has_flag(&self, flag: u8) -> bool {
+        self.base.flags.get() & flag != 0
+    }
+
+    fn set_flag(&self, flag: u8, value: bool) {
+        let flags = self.base.flags.get();
+        self.base.flags.set(if value { flags | flag } else { flags & !flag });
+    }
+
+    fn rare_data(&self) -> &RareData {
+        self.storage.rare_data.get_or_init(Box::default)
     }
 
     pub fn has_class_data(&self) -> bool {
-        self.storage.class_data.borrow().is_some()
+        self.storage.rare_data.get().is_some_and(|rare_data| {
+            let class_data = rare_data.class_data.borrow();
+            !class_data.fields.is_empty() || !class_data.private_methods.is_empty()
+        })
     }
 
     pub fn fields_count(&self) -> usize {
         self.storage
-            .class_data
-            .borrow()
-            .as_ref()
-            .map_or(0, |class_data| class_data.fields.len())
+            .rare_data
+            .get()
+            .map_or(0, |rare_data| rare_data.class_data.borrow().fields.len())
     }
 
     /// A copy of the field record at `index` of [[Fields]].
     pub fn field(&self, index: usize) -> ClassFieldDefinition {
         self.storage
+            .rare_data
+            .get()
+            .expect("the function has class data")
             .class_data
             .borrow()
-            .as_ref()
-            .expect("the function has class data")
             .fields[index]
             .clone()
     }
 
     pub fn add_field(&self, vm: &Vm, field: ClassFieldDefinition) {
-        self.ensure_class_data(vm);
-        self.storage
-            .class_data
-            .borrow_mut(vm)
-            .as_mut()
-            .expect("the function has class data")
-            .fields
-            .push(field);
+        self.rare_data().class_data.borrow_mut(vm).fields.push(field);
     }
 
     pub fn private_methods_count(&self) -> usize {
         self.storage
-            .class_data
-            .borrow()
-            .as_ref()
-            .map_or(0, |class_data| class_data.private_methods.len())
+            .rare_data
+            .get()
+            .map_or(0, |rare_data| rare_data.class_data.borrow().private_methods.len())
     }
 
     /// A copy of the element at `index` of [[PrivateMethods]].
     pub fn private_method(&self, index: usize) -> PrivateElement {
         self.storage
+            .rare_data
+            .get()
+            .expect("the function has class data")
             .class_data
             .borrow()
-            .as_ref()
-            .expect("the function has class data")
             .private_methods[index]
             .clone()
     }
 
     pub fn add_private_method(&self, vm: &Vm, method: PrivateElement) {
-        self.ensure_class_data(vm);
-        self.storage
-            .class_data
-            .borrow_mut(vm)
-            .as_mut()
-            .expect("the function has class data")
-            .private_methods
-            .push(method);
+        self.rare_data().class_data.borrow_mut(vm).private_methods.push(method);
     }
 
     pub fn shared_data(&self) -> Gc<SharedFunctionInstanceData> {
@@ -884,11 +888,14 @@ impl EcmascriptFunctionObject {
     }
 
     pub fn home_object(&self) -> Option<Gc<Object>> {
-        self.home_object.get()
+        self.storage.rare_data.get()?.home_object.get()
     }
 
     pub fn set_home_object(&self, home_object: Option<Gc<Object>>) {
-        self.home_object.set(home_object);
+        if home_object.is_none() && self.storage.rare_data.get().is_none() {
+            return;
+        }
+        self.rare_data().home_object.set(home_object);
     }
 
     pub fn source_text(&self) -> Utf16String {
@@ -916,7 +923,9 @@ impl EcmascriptFunctionObject {
 
     // Equivalent to absence of [[Construct]]
     pub fn has_constructor(&self) -> bool {
-        self.kind() == FunctionKind::Normal && !self.is_arrow_function() && !self.storage.is_method.get()
+        self.kind() == FunctionKind::Normal
+            && !self.is_arrow_function()
+            && !self.has_flag(ecmascript_function_flags::IS_METHOD)
     }
 
     pub fn kind(&self) -> FunctionKind {
@@ -956,7 +965,7 @@ impl EcmascriptFunctionObject {
         self.kind() == FunctionKind::Normal
             && !self.is_arrow_function()
             && !self.is_class_constructor()
-            && !self.storage.is_method.get()
+            && !self.has_flag(ecmascript_function_flags::IS_METHOD)
             && !self.is_strict_mode()
     }
 
@@ -1084,7 +1093,9 @@ impl EcmascriptFunctionObject {
             }
         }
 
-        if function.storage.may_need_lazy_prototype_instantiation.get() && *property_key == vm.names.prototype {
+        if function.has_flag(ecmascript_function_flags::MAY_NEED_LAZY_PROTOTYPE_INSTANTIATION)
+            && *property_key == vm.names.prototype
+        {
             let realm = function.realm().expect("an ECMAScript function has a realm");
             let metadata = object.shape().lookup(property_key);
             if metadata.is_none() {
@@ -1100,7 +1111,7 @@ impl EcmascriptFunctionObject {
                     PropertyAttributes::new(Attribute::WRITABLE),
                 );
             }
-            function.storage.may_need_lazy_prototype_instantiation.set(false);
+            function.set_flag(ecmascript_function_flags::MAY_NEED_LAZY_PROTOTYPE_INSTANTIATION, false);
         }
 
         object.ordinary_get_own_property(vm, property_key)
@@ -1109,7 +1120,7 @@ impl EcmascriptFunctionObject {
     fn internal_own_property_keys<'vm>(object: &Object, vm: &'vm Vm) -> ThrowCompletionOr<MarkedVec<'vm, Value>> {
         let function = as_ecmascript_function(object);
 
-        if function.storage.may_need_lazy_prototype_instantiation.get() {
+        if function.has_flag(ecmascript_function_flags::MAY_NEED_LAZY_PROTOTYPE_INSTANTIATION) {
             Self::internal_get_own_property(object, vm, &vm.names.prototype)?;
         }
 
