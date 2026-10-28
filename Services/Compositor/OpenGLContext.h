@@ -98,6 +98,12 @@ private:
 #if defined(USE_VULKAN_DMABUF_IMAGES)
     bool allocate_vkimage_color_buffer(ColorBuffer&, Gfx::IntSize, Gfx::PaintingSurface::Origin);
 #endif
+#if defined(USE_DIRECTX)
+    bool allocate_d3d_color_buffer(ColorBuffer&, Gfx::IntSize, Gfx::PaintingSurface::Origin);
+#endif
+#if defined(USE_VULKAN_DMABUF_IMAGES) || defined(USE_DIRECTX)
+    void create_texture_from_egl_image(ColorBuffer&);
+#endif
 #if defined(ENABLE_WEBGL_CPU_PAINTING_SURFACE)
     void allocate_cpu_painting_surface(ColorBuffer&);
     void copy_default_framebuffer_to_cpu_painting_surface();
