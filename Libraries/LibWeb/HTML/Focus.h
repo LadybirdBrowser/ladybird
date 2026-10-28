@@ -8,8 +8,8 @@
 
 #include <AK/Variant.h>
 #include <AK/Vector.h>
-#include <LibGC/ConservativeVector.h>
 #include <LibGC/Root.h>
+#include <LibGC/RootVector.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWebCommon/HTML/FocusTrigger.h>
@@ -39,7 +39,7 @@ enum class SelectionMechanism : u8 {
     Sequential,
 };
 
-WEB_API GC::ConservativeVector<GC::Ref<DOM::Element>> sequential_focus_navigation_order(DOM::Document&);
+WEB_API GC::RootVector<GC::Ref<DOM::Element>> sequential_focus_navigation_order(DOM::Document&);
 WEB_API GC::Ptr<DOM::Element> sequential_navigation_search(Variant<GC::Ref<LocalNavigable>, GC::Ref<DOM::Node>> starting_point, SequentialFocusDirection, SelectionMechanism);
 
 }

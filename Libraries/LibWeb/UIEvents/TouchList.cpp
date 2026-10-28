@@ -5,18 +5,19 @@
  */
 
 #include <LibGC/Heap.h>
+#include <LibGC/RootVector.h>
 #include <LibWeb/UIEvents/TouchList.h>
 
 namespace Web::UIEvents {
 
 GC_DEFINE_ALLOCATOR(TouchList);
 
-GC::Ref<TouchList> TouchList::create(GC::ConservativeVector<GC::Ref<Touch>> touches)
+GC::Ref<TouchList> TouchList::create(GC::RootVector<GC::Ref<Touch>> touches)
 {
     return GC::Heap::the().allocate<TouchList>(move(touches));
 }
 
-TouchList::TouchList(GC::ConservativeVector<GC::Ref<Touch>> touches)
+TouchList::TouchList(GC::RootVector<GC::Ref<Touch>> touches)
     : m_touches(move(touches))
 {
 }

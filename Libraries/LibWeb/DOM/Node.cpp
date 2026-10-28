@@ -17,6 +17,7 @@
 #include <LibGC/ConservativeVector.h>
 #include <LibGC/DeferGC.h>
 #include <LibGC/Heap.h>
+#include <LibGC/RootVector.h>
 #include <LibJS/Runtime/ExternalMemory.h>
 #include <LibWeb/Animations/Animation.h>
 #include <LibWeb/Bindings/Node.h>
@@ -1053,7 +1054,7 @@ static void run_post_connection_steps(Nodes const& nodes)
     //       post-connection steps while we’re traversing the node tree. This is because the post-connection steps can
     //       modify the tree’s structure, making live traversal unsafe, possibly leading to the post-connection steps
     //       being called multiple times on the same node.
-    GC::ConservativeVector<GC::Ref<Node>, 1> static_node_list;
+    GC::RootVector<GC::Ref<Node>, 1> static_node_list;
 
     // 11. For each node of nodes, in tree order:
     for (auto& node : nodes) {

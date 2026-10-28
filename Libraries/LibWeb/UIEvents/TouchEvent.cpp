@@ -5,7 +5,6 @@
  */
 
 #include <LibGC/ConservativeHashMap.h>
-#include <LibGC/ConservativeVector.h>
 #include <LibGC/Heap.h>
 #include <LibGC/RootVector.h>
 #include <LibWeb/UIEvents/TouchEvent.h>
@@ -57,7 +56,7 @@ void TouchEvent::retarget_touch_lists()
     GC::RootVector<GC::Ref<Touch>> cloned_touches;
     size_t offset = 0;
     auto retarget = [&](GC::Ref<TouchList> original) {
-        GC::ConservativeVector<GC::Ref<Touch>> touches;
+        GC::RootVector<GC::Ref<Touch>> touches;
         bool changed = false;
         for (u32 index = 0; index < original->length(); ++index) {
             auto touch = original->item(index);

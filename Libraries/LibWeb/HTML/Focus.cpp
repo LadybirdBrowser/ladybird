@@ -9,7 +9,9 @@
 #include <AK/QuickSort.h>
 #include <AK/TypeCasts.h>
 #include <AK/Vector.h>
+#include <LibGC/ConservativeVector.h>
 #include <LibGC/Root.h>
+#include <LibGC/RootVector.h>
 #include <LibWeb/Bindings/CSS.h>
 #include <LibWeb/CSS/Invalidation/PseudoClassInvalidator.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
@@ -777,13 +779,13 @@ static void append_focus_navigation_scope_descendants(DOM::Node& parent, Vector<
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#focus-navigation-scope
-static GC::ConservativeVector<GC::Ref<DOM::Element>> focus_navigation_scope(DOM::Node& owner)
+static GC::RootVector<GC::Ref<DOM::Element>> focus_navigation_scope(DOM::Node& owner)
 {
     // The contents of a given focus navigation scope owner owner's focus navigation scope are all elements whose
     // associated focus navigation owner is owner.
     // NB: We collect them in tree order by walking down from owner, instead of computing the associated focus
     //     navigation owner of every element.
-    GC::ConservativeVector<GC::Ref<DOM::Element>> scope;
+    GC::RootVector<GC::Ref<DOM::Element>> scope;
 
     if (auto* document = as_if<DOM::Document>(owner)) {
         // NB: We treat the document element as being in its document's scope.
@@ -852,7 +854,7 @@ static bool is_sequentially_focusable(DOM::Node const& node)
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#tabindex-ordered-focus-navigation-scope
-static GC::ConservativeVector<GC::Ref<DOM::Element>> tabindex_ordered_focus_navigation_scope(DOM::Node& owner)
+static GC::RootVector<GC::Ref<DOM::Element>> tabindex_ordered_focus_navigation_scope(DOM::Node& owner)
 {
     // A tabindex-ordered focus navigation scope is a list of focusable areas and focus navigation scope owners.
     // Every focus navigation scope owner owner has tabindex-ordered focus navigation scope, whose contents are
@@ -870,7 +872,7 @@ static GC::ConservativeVector<GC::Ref<DOM::Element>> tabindex_ordered_focus_navi
         size_t tree_index;
     };
     GC::ConservativeVector<Item> positive_items;
-    GC::ConservativeVector<GC::Ref<DOM::Element>> result;
+    GC::RootVector<GC::Ref<DOM::Element>> result;
 
     for (auto const& element : focus_navigation_scope(owner)) {
         if (!is_focus_navigation_scope_owner(*element) && !is_sequential_focus_navigation_focusable_area(*element))
@@ -893,7 +895,7 @@ static GC::ConservativeVector<GC::Ref<DOM::Element>> tabindex_ordered_focus_navi
         return a.tree_index < b.tree_index;
     });
 
-    GC::ConservativeVector<GC::Ref<DOM::Element>> ordered;
+    GC::RootVector<GC::Ref<DOM::Element>> ordered;
     ordered.ensure_capacity(positive_items.size() + result.size());
     for (auto const& item : positive_items)
         ordered.unchecked_append(item.element);
@@ -927,12 +929,12 @@ static void append_flattened_tabindex_ordered_focus_navigation_scope(DOM::Node& 
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#sequential-focus-navigation-order
-GC::ConservativeVector<GC::Ref<DOM::Element>> sequential_focus_navigation_order(DOM::Document& document)
+GC::RootVector<GC::Ref<DOM::Element>> sequential_focus_navigation_order(DOM::Document& document)
 {
     // Each Document has a sequential focus navigation order, which orders some or all of the focusable areas in the
     // Document relative to each other. Its contents and ordering are given by the flattened tabindex-ordered focus
     // navigation scope of the Document.
-    GC::ConservativeVector<GC::Ref<DOM::Element>> order;
+    GC::RootVector<GC::Ref<DOM::Element>> order;
     append_flattened_tabindex_ordered_focus_navigation_scope(document, order);
     return order;
 }

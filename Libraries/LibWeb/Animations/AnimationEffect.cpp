@@ -5,6 +5,8 @@
  */
 
 #include <AK/ScopeGuard.h>
+#include <LibGC/ConservativeVector.h>
+#include <LibGC/RootVector.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Animations/Animation.h>
 #include <LibWeb/Animations/AnimationEffect.h>
@@ -856,7 +858,7 @@ void AnimationUpdateContext::publish()
     struct Sample {
         DOM::AbstractElement element;
         ElementData const& data;
-        GC::ConservativeVector<GC::Ref<KeyframeEffect>> effects;
+        GC::RootVector<GC::Ref<KeyframeEffect>> effects;
     };
     GC::ConservativeVector<Sample> samples;
     for (auto& it : elements) {
@@ -872,7 +874,7 @@ void AnimationUpdateContext::publish()
         // never among the collected effects, but their values are already part of the published
         // style. Collect them first, in composite order below every associated effect, or this
         // update would rebuild the style without them.
-        GC::ConservativeVector<GC::Ref<KeyframeEffect>> effects_to_collect;
+        GC::RootVector<GC::Ref<KeyframeEffect>> effects_to_collect;
         target->document().style_computer().for_each_provisional_transition_effect(element, [&](KeyframeEffect& effect) {
             effects_to_collect.append(effect);
         });
