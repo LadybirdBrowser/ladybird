@@ -1,0 +1,42 @@
+Harness status: OK
+
+Found 36 tests
+
+27 Pass
+9 Fail
+Pass	interactive content <a href="about:blank" onclick="event.preventDefault()"></a> as first child of <label>
+Pass	interactive content <a href="about:blank" onclick="event.preventDefault()"></a> deeply nested under <label>
+Pass	interactive content <a href="about:blank" onclick="event.preventDefault()"></a> as second child under <label>
+Pass	interactive content <audio controls=""></audio> as first child of <label>
+Pass	interactive content <audio controls=""></audio> deeply nested under <label>
+Fail	interactive content <audio controls=""></audio> as second child under <label>
+Pass	interactive content <button></button> as first child of <label>
+Pass	interactive content <button></button> deeply nested under <label>
+Pass	interactive content <button></button> as second child under <label>
+Pass	interactive content <details></details> as first child of <label>
+Pass	interactive content <details></details> deeply nested under <label>
+Fail	interactive content <details></details> as second child under <label>
+Pass	interactive content <embed> as first child of <label>
+Pass	interactive content <embed> deeply nested under <label>
+Fail	interactive content <embed> as second child under <label>
+Pass	interactive content <iframe></iframe> as first child of <label>
+Pass	interactive content <iframe></iframe> deeply nested under <label>
+Fail	interactive content <iframe></iframe> as second child under <label>
+Pass	interactive content <img usemap=""> as first child of <label>
+Pass	interactive content <img usemap=""> deeply nested under <label>
+Fail	interactive content <img usemap=""> as second child under <label>
+Pass	interactive content <input> as first child of <label>
+Pass	interactive content <input> deeply nested under <label>
+Pass	interactive content <input> as second child under <label>
+Pass	interactive content <label>label</label> as first child of <label>
+Pass	interactive content <label>label</label> deeply nested under <label>
+Pass	interactive content <label>label</label> as second child under <label>
+Pass	interactive content <select></select> as first child of <label>
+Pass	interactive content <select></select> deeply nested under <label>
+Pass	interactive content <select></select> as second child under <label>
+Fail	interactive content <textarea></textarea> as first child of <label>
+Fail	interactive content <textarea></textarea> deeply nested under <label>
+Fail	interactive content <textarea></textarea> as second child under <label>
+Pass	interactive content <video controls=""></video> as first child of <label>
+Pass	interactive content <video controls=""></video> deeply nested under <label>
+Fail	interactive content <video controls=""></video> as second child under <label>
