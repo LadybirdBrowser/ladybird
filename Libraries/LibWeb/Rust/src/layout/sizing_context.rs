@@ -3233,7 +3233,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         formatting_context::lay_out_measurement_root_for_its_result(
             self.callbacks,
             node,
-            used_values::RootInputCells::capture(&used_values::create_used_values(&self.callbacks, node, constraints)),
+            used_values::RootInputCells::of_box_before_sizing(&self.callbacks, node, constraints),
             LayoutInput::new(
                 inner_available_space,
                 constraints,
