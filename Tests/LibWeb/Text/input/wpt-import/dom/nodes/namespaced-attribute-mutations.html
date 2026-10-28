@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Namespaced attributes do not trigger null-namespace attribute behavior</title>
+<link rel="help" href="https://dom.spec.whatwg.org/#dom-element-setattributens">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<body>
+<script>
+"use strict";
+
+const namespace = "https://example.com/attributes";
+const svgNamespace = "http://www.w3.org/2000/svg";
+
+function mutateNamespacedAttribute(element, name, operation, beforeMutation) {
+  if (operation !== "append") {
+    element.setAttributeNS(namespace, name, "before");
+  }
+
+  beforeMutation();
+
+  if (operation === "append" || operation === "change") {
+    element.setAttributeNS(namespace, name, "after");
+  } else if (operation === "remove") {
+    element.removeAttributeNS(namespace, name);
+  } else {
+    const attribute = document.createAttributeNS(namespace, name);
+    attribute.value = "after";
+    element.setAttributeNodeNS(attribute);
+  }
+}
+
+for (const elementNamespace of ["HTML", "SVG"]) {
+  for (const operation of ["append", "change", "remove", "replace"]) {
+    test(() => {
+      const element = elementNamespace === "HTML" ?
+        document.createElement("div") :
+        document.createElementNS(svgNamespace, "g");
+
+      mutateNamespacedAttribute(element, "style", operation, () => {
+        element.setAttributeNS(null, "style", "color: green");
+      });
+
+      assert_equals(element.getAttributeNS(null, "style"), "color: green");
+      assert_equals(element.style.color, "green");
+    }, `${operation} a namespaced style attribute preserves ${elementNamespace} inline style`);
+
+    test(() => {
+      const element = elementNamespace === "HTML" ?
+        document.createElement("div") :
+        document.createElementNS(svgNamespace, "g");
+      let callCount = 0;
+      function handler() {
+        ++callCount;
+      }
+
+      mutateNamespacedAttribute(element, "onclick", operation, () => {
+        element.onclick = handler;
+      });
+
+      assert_equals(element.onclick, handler);
+      element.dispatchEvent(new Event("click"));
+      assert_equals(callCount, 1);
+    }, `${operation} a namespaced event handler attribute preserves an ${elementNamespace} event handler`);
+  }
+}
+
+test(() => {
+  const host = document.createElement("div");
+  const slot = document.createElement("slot");
+  slot.name = "target";
+  host.attachShadow({ mode: "open" }).append(slot);
+
+  const child = document.createElement("span");
+  child.setAttributeNS(namespace, "slot", "target");
+  host.append(child);
+
+  assert_equals(child.slot, "");
+  assert_equals(child.assignedSlot, null);
+  assert_array_equals(slot.assignedNodes(), []);
+}, "A namespaced slot attribute does not assign a slot");
+
+promise_test(async t => {
+  const details = document.createElement("details");
+  let toggleCount = 0;
+  details.addEventListener("toggle", () => {
+    ++toggleCount;
+  });
+
+  details.setAttributeNS(namespace, "open", "");
+  await new Promise(resolve => {
+    t.step_timeout(resolve, 0);
+  });
+
+  assert_false(details.open);
+  assert_equals(toggleCount, 0);
+}, "A namespaced open attribute does not fire a toggle event");
+
+test(t => {
+  const iframe = document.createElement("iframe");
+  t.add_cleanup(() => iframe.remove());
+  document.body.append(iframe);
+  const { contentDocument } = iframe;
+
+  iframe.setAttributeNS(namespace, "src", "data:text/html,namespaced");
+
+  assert_equals(iframe.src, "");
+  assert_equals(iframe.contentDocument, contentDocument);
+}, "A namespaced src attribute does not navigate an iframe");
+
+test(t => {
+  const script = document.createElement("script");
+  t.add_cleanup(() => {
+    script.remove();
+    delete window.namespacedScriptRan;
+  });
+  document.body.append(script);
+
+  script.setAttributeNS(namespace, "src", "data:text/javascript,window.namespacedScriptRan=true");
+
+  assert_false("namespacedScriptRan" in window);
+}, "A namespaced src attribute does not prepare a script");
+
+test(() => {
+  const input = document.createElement("input");
+  input.value = "value";
+
+  input.setAttributeNS(namespace, "type", "file");
+
+  assert_equals(input.type, "text");
+  assert_equals(input.value, "value");
+}, "A namespaced type attribute does not change an input's state");
+
+test(() => {
+  const select = document.createElement("select");
+  select.innerHTML = "<option selected>one</option><option>two</option>";
+  select.selectedIndex = -1;
+
+  select.options[0].setAttributeNS(namespace, "selected", "");
+
+  assert_equals(select.selectedIndex, -1);
+}, "A namespaced selected attribute does not change an option's selectedness");
+
+for (const name of ["multiple", "size"]) {
+  test(() => {
+    const select = document.createElement("select");
+    select.innerHTML = "<option>one</option><option>two</option>";
+    select.selectedIndex = -1;
+
+    select.setAttributeNS(namespace, name, "");
+
+    assert_equals(select.selectedIndex, -1);
+  }, `A namespaced ${name} attribute does not reset a select`);
+}
+</script>

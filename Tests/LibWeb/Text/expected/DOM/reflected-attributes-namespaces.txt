@@ -1,0 +1,26 @@
+Foreign boolean (false): false
+Boolean setter preserves foreign attribute (false): false
+Foreign integer (false): false
+Integer setter uses null namespace (false): false
+Foreign unsigned integer (false): false
+Unsigned setter uses null namespace (false): false
+Foreign enumerated reflection (false): false
+Nullable setter preserves foreign attribute (false): false
+Foreign URL (false): false
+URL setter uses null namespace (false): false
+Foreign enumerated attribute (false): false
+Foreign element reflection (false): false
+Foreign selected attribute (false): false
+Foreign boolean (true): true
+Boolean setter preserves foreign attribute (true): true
+Foreign integer (true): true
+Integer setter uses null namespace (true): true
+Foreign unsigned integer (true): true
+Unsigned setter uses null namespace (true): true
+Foreign enumerated reflection (true): true
+Nullable setter preserves foreign attribute (true): true
+Foreign URL (true): true
+URL setter uses null namespace (true): true
+Foreign enumerated attribute (true): false
+Foreign element reflection (true): true
+Foreign selected attribute (true): false

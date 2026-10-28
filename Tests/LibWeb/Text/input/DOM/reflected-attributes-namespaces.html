@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const namespace = "https://example.com/attributes";
+        for (const qualified of [false, true]) {
+            const name = local => qualified ? `foreign:${local}` : local;
+            const details = document.createElement("details");
+            details.setAttributeNS(namespace, name("open"), "");
+            println(`Foreign boolean (${qualified}): ${details.open === false}`);
+            details.open = true;
+            details.open = false;
+            println(`Boolean setter preserves foreign attribute (${qualified}): ${details.hasAttributeNS(namespace, "open") && !details.hasAttributeNS(null, "open")}`);
+
+            const pre = document.createElement("pre");
+            pre.setAttributeNS(namespace, name("width"), "17");
+            println(`Foreign integer (${qualified}): ${pre.width === 0}`);
+            pre.width = 5;
+            println(`Integer setter uses null namespace (${qualified}): ${pre.width === 5 && pre.getAttributeNS(namespace, "width") === "17"}`);
+
+            const source = document.createElement("source");
+            source.setAttributeNS(namespace, name("width"), "17");
+            println(`Foreign unsigned integer (${qualified}): ${source.width === 0}`);
+            source.width = 5;
+            println(`Unsigned setter uses null namespace (${qualified}): ${source.width === 5 && source.getAttributeNS(namespace, "width") === "17"}`);
+
+            const image = document.createElement("img");
+            image.setAttributeNS(namespace, name("decoding"), "sync");
+            image.setAttributeNS(namespace, name("crossorigin"), "anonymous");
+            println(`Foreign enumerated reflection (${qualified}): ${image.decoding === "auto" && image.crossOrigin === null}`);
+            image.crossOrigin = null;
+            println(`Nullable setter preserves foreign attribute (${qualified}): ${image.hasAttributeNS(namespace, "crossorigin") && !image.hasAttributeNS(null, "crossorigin")}`);
+
+            const iframe = document.createElement("iframe");
+            iframe.setAttributeNS(namespace, name("src"), "https://example.com/foreign");
+            println(`Foreign URL (${qualified}): ${iframe.src === ""}`);
+            iframe.src = "https://example.com/real";
+            println(`URL setter uses null namespace (${qualified}): ${iframe.src === "https://example.com/real" && iframe.getAttributeNS(namespace, "src") === "https://example.com/foreign"}`);
+
+            const input = document.createElement("input");
+            input.value = "retained";
+            input.setAttributeNS(namespace, name("type"), "file");
+            println(`Foreign enumerated attribute (${qualified}): ${input.type === "text" && input.value === "retained"}`);
+
+            const root = document.createElement("div");
+            const target = document.createElement("span");
+            target.id = "reference";
+            const controller = document.createElement("button");
+            root.append(target, controller);
+            controller.setAttributeNS(namespace, name("aria-activedescendant"), "reference");
+            controller.setAttributeNS(namespace, name("aria-controls"), "reference");
+            println(`Foreign element reflection (${qualified}): ${controller.ariaActiveDescendantElement === null && controller.ariaControlsElements === null}`);
+
+            const option = document.createElement("option");
+            option.setAttributeNS(namespace, name("selected"), "");
+            println(`Foreign selected attribute (${qualified}): ${option.selected === false}`);
+        }
+    });
+</script>
