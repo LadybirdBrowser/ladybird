@@ -1,0 +1,66 @@
+<!doctype html>
+<title>@container: originating element container for pseudo elements</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#container-queries">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/cq-testcommon.js"></script>
+<style>
+  .container { container-type: inline-size; }
+  #target { display: list-item; }
+  @container (max-width: 200px) {
+    #target::before { content: "PASS"; font-size: 10cqw; }
+    #target::after { font-size: 10cqw; }
+    #target::marker { font-size: 10cqw; }
+    #target::first-line { font-size: 10cqw; }
+    #target::first-letter { font-size: 10cqw; }
+  }
+  @container ((min-width: 300px) and (max-width: 350px)) {
+    #outer::first-line { font-size: 10cqw; }
+    #outer::first-letter { font-size: 10cqw; }
+  }
+  dialog::backdrop { font-size: 0px; }
+  @container (max-width: 100px) {
+    dialog::backdrop { font-size: 10cqw; }
+  }
+</style>
+<div style="width: 400px" class="container">
+  <div style="width: 300px" class="container">
+    <div id="target" class="container" style="width: 200px">First-line</div>
+    <dialog id="dialog" class="container" style="width: 100px"></dialog>
+  </div>
+  <div style="width: 400px" class="container">
+    <div id="outer" style="width: 300px" class="container">
+      <div class="container" style="width: 200px">First-line</div>
+  </div>
+</div>
+<script>
+  setup(() => assert_implements_size_container_queries());
+
+  test(() => {
+    assert_equals(getComputedStyle(target, "::before").fontSize, "20px");
+  }, "Originating element container for ::before");
+  test(() => {
+    assert_equals(getComputedStyle(target, "::after").fontSize, "20px");
+  }, "Originating element container for ::after");
+  test(() => {
+    assert_equals(getComputedStyle(target, "::marker").fontSize, "20px");
+  }, "Originating element container for ::marker");
+  test(() => {
+    assert_equals(getComputedStyle(target, "::first-line").fontSize, "20px");
+  }, "Originating element container for ::first-line");
+  test(() => {
+    assert_equals(getComputedStyle(target, "::first-letter").fontSize, "20px");
+  }, "Originating element container for ::first-letter");
+  test(() => {
+    assert_equals(getComputedStyle(outer, "::first-line").fontSize, "30px");
+  }, "Originating element container for outer ::first-line");
+  test(() => {
+    assert_equals(getComputedStyle(outer, "::first-letter").fontSize, "30px");
+  }, "Originating element container for outer ::first-letter");
+  test((t) => {
+    t.add_cleanup(() => dialog.close());
+    assert_equals(getComputedStyle(dialog, "::backdrop").fontSize, "0px", "::backdrop not rendered");
+    dialog.showModal();
+    assert_equals(getComputedStyle(dialog, "::backdrop").fontSize, "10px", "::backdrop rendered");
+  }, "Originating element container for ::backdrop");
+</script>

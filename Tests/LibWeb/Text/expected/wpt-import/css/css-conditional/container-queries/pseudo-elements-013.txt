@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Fail
+Fail	Initial text-decoration-thickness for highlight pseudo
+Fail	text-decoration-thickness for highlight pseudo depending on container
+Fail	text-decoration-thickness for highlight pseudo depending on container only defined in a query

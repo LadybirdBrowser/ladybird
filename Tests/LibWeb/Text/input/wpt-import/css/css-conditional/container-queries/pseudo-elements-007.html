@@ -1,0 +1,49 @@
+<!doctype html>
+<title>@container: originating element container for pseudo elements</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#container-queries">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/cq-testcommon.js"></script>
+<style>
+  #target { container-type: inline-size; }
+  #target::before,
+  #target::after,
+  #target::marker,
+  #target::first-line,
+  #target::first-letter,
+  #target::backdrop {
+    font-size: 0px;
+  }
+  @container (width >= 300px) {
+    #target::before,
+    #target::after,
+    #target::marker,
+    #target::first-line,
+    #target::first-letter,
+    #target::backdrop {
+      font-size: 10cqw;
+    }
+  }
+</style>
+<div id="outer" style="width: 200px">
+  <div id="target"></div>
+</div>
+<script>
+  setup(() => assert_implements_size_container_queries());
+
+  const pseudo_elements = ["::before", "::after", "::marker", "::first-line", "::first-letter", "::backdrop"];
+
+  pseudo_elements.forEach((pseudo_element) => {
+    test(() => {
+      assert_equals(getComputedStyle(target, pseudo_element).fontSize, "0px");
+    }, `Initial font-size for ${pseudo_element}`);
+  });
+
+  outer.style.width = "300px";
+
+  pseudo_elements.forEach((pseudo_element) => {
+    test(() => {
+      assert_equals(getComputedStyle(target, pseudo_element).fontSize, "30px");
+    }, `font-size for ${pseudo_element} depending on container`);
+  });
+</script>

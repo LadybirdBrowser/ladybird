@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<title>CSS Container Queries Test: Container for elements with pseudo elements</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#query-container">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/cq-testcommon.js"></script>
+<style>
+  :root {
+    color: black;
+  }
+
+  .container {
+    container-type: size;
+    width: 200px;
+    height: 40px;
+  }
+
+  @container (min-width: 300px) {
+    #container1 div::before { content: "before"; }
+    #container1 div::after { content: "after"; }
+    #container2 li::marker { color: green; }
+  }
+</style>
+<main id=container1 class=container>
+  <div>test</div>
+</main>
+<main id=container2 class=container>
+  <ol>
+    <li>One</li>
+  </ol>
+</main>
+<script>
+  setup(() => assert_implements_size_container_queries());
+
+  test(function() {
+    let div = document.querySelector('#container1 > div');
+    assert_equals(getComputedStyle(div, '::before').content, 'none');
+    assert_equals(getComputedStyle(div, '::after').content, 'none');
+
+    container1.style.width = '300px';
+    assert_equals(getComputedStyle(div, '::before').content, '"before"');
+    assert_equals(getComputedStyle(div, '::after').content, '"after"');
+
+    container1.style = '';
+    assert_equals(getComputedStyle(div, '::before').content, 'none');
+    assert_equals(getComputedStyle(div, '::after').content, 'none');
+  }, 'Pseudo-elements ::before and ::after respond to container size changes');
+
+  test(function() {
+    let li = document.querySelector('#container2 li');
+    assert_equals(getComputedStyle(li, '::marker').color, 'rgb(0, 0, 0)');
+
+    container2.style.width = '300px';
+    assert_equals(getComputedStyle(li, '::marker').color, 'rgb(0, 128, 0)');
+
+    container2.style = '';
+    assert_equals(getComputedStyle(li, '::marker').color, 'rgb(0, 0, 0)');
+  }, 'Pseudo-element ::marker responds to container size changes');
+</script>
