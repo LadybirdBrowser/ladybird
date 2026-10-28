@@ -260,7 +260,11 @@ void SharedResourceRequest::handle_successful_fetch(URL::URL const& url_string, 
         return;
     }
 
-    auto handle_successful_bitmap_decode = [strong_this = GC::Root(*this), image_data_is_cors_cross_origin](Web::Platform::DecodedImage& result) -> ErrorOr<void> {
+    // NB: Keeping the encoded data lets the decoded image data discard its frame while it is not in use. The decode
+    //     request copies the bytes before it returns, so the handler can own the buffer they are read from.
+    auto encoded_data = make<ByteBuffer>(move(data));
+    auto encoded_bytes = encoded_data->bytes();
+    auto handle_successful_bitmap_decode = [strong_this = GC::Root(*this), image_data_is_cors_cross_origin, encoded_data = move(encoded_data)](Web::Platform::DecodedImage& result) mutable -> ErrorOr<void> {
         if (result.session_id != 0) {
             // Streaming animated decode: create AnimatedBitmapDecodedImageData.
             Vector<NonnullRefPtr<Gfx::Bitmap>> initial_bitmaps;
@@ -289,7 +293,7 @@ void SharedResourceRequest::handle_successful_fetch(URL::URL const& url_string, 
                     .duration = static_cast<int>(frame.duration),
                 });
             }
-            strong_this->m_image_data = BitmapDecodedImageData::create(move(frames), result.loop_count, result.is_animated).release_value_but_fixme_should_propagate_errors();
+            strong_this->m_image_data = BitmapDecodedImageData::create(move(frames), result.loop_count, result.is_animated, move(*encoded_data)).release_value_but_fixme_should_propagate_errors();
         }
         strong_this->m_image_data->set_is_cors_cross_origin(image_data_is_cors_cross_origin);
         strong_this->handle_successful_resource_load();
@@ -300,7 +304,7 @@ void SharedResourceRequest::handle_successful_fetch(URL::URL const& url_string, 
         strong_this->handle_failed_fetch();
     };
 
-    (void)Web::Platform::ImageCodecPlugin::the().decode_image(data.bytes(), move(handle_successful_bitmap_decode), move(handle_failed_decode));
+    (void)Web::Platform::ImageCodecPlugin::the().decode_image(encoded_bytes, move(handle_successful_bitmap_decode), move(handle_failed_decode));
 }
 
 void SharedResourceRequest::handle_failed_fetch()

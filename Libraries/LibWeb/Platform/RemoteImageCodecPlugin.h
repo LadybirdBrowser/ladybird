@@ -23,6 +23,8 @@ public:
 
     virtual NonnullRefPtr<Core::Promise<DecodedImage>> decode_image(ReadonlyBytes, Function<ErrorOr<void>(DecodedImage&)> on_resolved, Function<void(Error&)> on_rejected) override;
 
+    virtual ErrorOr<DecodedFirstFrame> decode_first_frame_synchronously(ReadonlyBytes) override;
+
     virtual void request_animation_frames(i64 session_id, u32 start_frame_index, u32 count) override;
     virtual void stop_animation_decode(i64 session_id) override;
 

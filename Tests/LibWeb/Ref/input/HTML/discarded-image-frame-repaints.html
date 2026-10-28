@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../../expected/HTML/discarded-image-frame-repaints-ref.html" />
+<style>
+    body { margin: 0; }
+    img { position: relative; left: 0; }
+</style>
+<img id="image" src="../../../Assets/120.png">
+<script>
+    // An image that is painted again after its decoded frame was discarded is decoded again for the paint.
+    const nextFrame = () => new Promise(resolve => requestAnimationFrame(resolve));
+    window.onload = async () => {
+        await nextFrame();
+        await nextFrame();
+        internals.discardDecodedImageFrames();
+        document.getElementById("image").style.left = "10px";
+        await nextFrame();
+        await nextFrame();
+        document.documentElement.classList.remove("reftest-wait");
+    };
+</script>

@@ -77,6 +77,14 @@ NonnullRefPtr<Core::Promise<DecodedImage>> RemoteImageCodecPlugin::decode_image(
     return promise;
 }
 
+ErrorOr<DecodedFirstFrame> RemoteImageCodecPlugin::decode_first_frame_synchronously(ReadonlyBytes bytes)
+{
+    if (!m_client)
+        return Error::from_string_literal("ImageDecoderClient is disconnected");
+    auto result = TRY(m_client->decode_first_frame_synchronously(bytes));
+    return DecodedFirstFrame { move(result.bitmap), move(result.color_space) };
+}
+
 void RemoteImageCodecPlugin::request_animation_frames(i64 session_id, u32 start_frame_index, u32 count)
 {
     if (m_client)

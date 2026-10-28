@@ -169,6 +169,7 @@ private:
     void record_box_kind();
 
     virtual void decoded_image_data_did_update() override;
+    virtual bool decoded_image_data_may_be_rendered() const override { return has_layout_box(); }
 
     Optional<DOM::DocumentLoadEventDelayer> m_load_event_delayer;
 

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body>
+<script>
+    // A decoded image frame that is discarded to save memory is decoded again, with the same pixels, when it is used.
+    promiseTest(async () => {
+        const source = document.createElement("canvas");
+        // NB: Only frames of at least 32 KiB can be discarded.
+        source.width = 128;
+        source.height = 64;
+        const sourceContext = source.getContext("2d");
+        sourceContext.fillStyle = "rgb(255, 0, 0)";
+        sourceContext.fillRect(0, 0, 64, 64);
+        sourceContext.fillStyle = "rgb(0, 0, 255)";
+        sourceContext.fillRect(64, 0, 64, 64);
+
+        const image = document.createElement("img");
+        image.src = source.toDataURL("image/png");
+        document.body.appendChild(image);
+        await new Promise((resolve, reject) => {
+            image.onload = resolve;
+            image.onerror = () => reject(new Error("Failed to load image"));
+        });
+
+        println(`discarded at least one frame: ${internals.discardDecodedImageFrames() > 0}`);
+        println(`natural size after discard: ${image.naturalWidth}x${image.naturalHeight}`);
+
+        const target = document.createElement("canvas");
+        target.width = 128;
+        target.height = 64;
+        const targetContext = target.getContext("2d");
+        targetContext.drawImage(image, 0, 0);
+        const left = targetContext.getImageData(0, 0, 1, 1).data;
+        const right = targetContext.getImageData(127, 63, 1, 1).data;
+        println(`left pixel: ${left[0]},${left[1]},${left[2]},${left[3]}`);
+        println(`right pixel: ${right[0]},${right[1]},${right[2]},${right[3]}`);
+
+        println(`frame decoded again can be discarded again: ${internals.discardDecodedImageFrames() > 0}`);
+    });
+</script>

@@ -34,6 +34,14 @@ public:
     {
     }
 
+    // For the same pixels decoded again, which caches keyed by the id of a frame may still hold.
+    static DecodedImageFrame with_id(u64 id, NonnullRefPtr<Bitmap const> bitmap, ColorSpace color_space = {})
+    {
+        DecodedImageFrame frame { move(bitmap), move(color_space) };
+        frame.m_id = id;
+        return frame;
+    }
+
     DecodedImageFrame(Bitmap const& bitmap, AlphaType alpha_type, ColorSpace color_space = {})
         : DecodedImageFrame(bitmap_with_alpha_type(bitmap, alpha_type), move(color_space))
     {

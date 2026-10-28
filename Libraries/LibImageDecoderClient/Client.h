@@ -32,6 +32,11 @@ struct DecodedImage {
     i64 session_id { 0 };
 };
 
+struct DecodedFirstFrame {
+    NonnullRefPtr<Gfx::Bitmap> bitmap;
+    Gfx::ColorSpace color_space;
+};
+
 class Client final
     : public IPC::ConnectionToServer<ImageDecoderClientEndpoint, ImageDecoderServerEndpoint>
     , public ImageDecoderClientEndpoint {
@@ -41,6 +46,8 @@ public:
     Client(NonnullOwnPtr<IPC::Transport>);
 
     NonnullRefPtr<Core::Promise<DecodedImage>> decode_image(ReadonlyBytes, Function<ErrorOr<void>(DecodedImage&)> on_resolved, Function<void(Error&)> on_rejected, Optional<Gfx::IntSize> ideal_size = {}, Optional<ByteString> mime_type = {});
+
+    ErrorOr<DecodedFirstFrame> decode_first_frame_synchronously(ReadonlyBytes, Optional<ByteString> mime_type = {});
 
     void request_animation_frames(i64 session_id, u32 start_frame_index, u32 count);
     void stop_animation_decode(i64 session_id);

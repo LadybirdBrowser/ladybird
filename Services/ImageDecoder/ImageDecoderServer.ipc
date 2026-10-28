@@ -1,10 +1,13 @@
 #include <LibCore/AnonymousBuffer.h>
+#include <LibGfx/BitmapSequence.h>
+#include <LibGfx/ColorSpace.h>
 #include <LibGfx/Size.h>
 
 endpoint ImageDecoderServer
 {
     decode_image(Core::AnonymousBuffer data, Optional<Gfx::IntSize> ideal_size, Optional<ByteString> mime_type, i64 request_id) =|
     cancel_decoding(i64 request_id) =|
+    decode_first_frame_synchronously(Core::AnonymousBuffer data, Optional<ByteString> mime_type) => (Gfx::BitmapSequence bitmaps, Gfx::ColorSpace color_profile)
 
     request_animation_frames(i64 session_id, u32 start_frame_index, u32 count) =|
     stop_animation_decode(i64 session_id) =|

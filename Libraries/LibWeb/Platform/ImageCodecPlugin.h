@@ -31,6 +31,11 @@ struct DecodedImage {
     i64 session_id { 0 };
 };
 
+struct DecodedFirstFrame {
+    NonnullRefPtr<Gfx::Bitmap> bitmap;
+    Gfx::ColorSpace color_space;
+};
+
 class WEB_API ImageCodecPlugin {
 public:
     static ImageCodecPlugin& the();
@@ -40,6 +45,10 @@ public:
     virtual ~ImageCodecPlugin();
 
     virtual NonnullRefPtr<Core::Promise<DecodedImage>> decode_image(ReadonlyBytes, ESCAPING Function<ErrorOr<void>(DecodedImage&)> on_resolved, ESCAPING Function<void(Error&)> on_rejected) = 0;
+
+    // Decodes the first frame of an image while the caller waits, for a caller that needs the pixels of an image it
+    // decoded before and has since discarded.
+    virtual ErrorOr<DecodedFirstFrame> decode_first_frame_synchronously(ReadonlyBytes) = 0;
 
     virtual void request_animation_frames(i64 session_id, u32 start_frame_index, u32 count) = 0;
     virtual void stop_animation_decode(i64 session_id) = 0;

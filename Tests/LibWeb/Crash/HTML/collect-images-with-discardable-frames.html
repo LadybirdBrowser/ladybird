@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<body>
+<script>
+    // Image data whose decoded frame can be discarded is collected while that frame is still decoded.
+    (async () => {
+        const canvas = document.createElement("canvas");
+        // NB: Only frames of at least 32 KiB can be discarded.
+        canvas.width = 128;
+        canvas.height = 64;
+        const context = canvas.getContext("2d");
+        for (let round = 0; round < 3; ++round) {
+            const iframe = document.createElement("iframe");
+            document.body.appendChild(iframe);
+            const childDocument = iframe.contentDocument;
+            const loads = [];
+            for (let i = 0; i < 8; ++i) {
+                context.fillStyle = `rgb(${round}, ${i}, 0)`;
+                context.fillRect(0, 0, 128, 64);
+                const image = childDocument.createElement("img");
+                image.src = canvas.toDataURL();
+                childDocument.body.appendChild(image);
+                loads.push(new Promise(resolve => {
+                    image.onload = resolve;
+                    image.onerror = resolve;
+                }));
+            }
+            await Promise.all(loads);
+            iframe.remove();
+        }
+        internals.gc();
+        // A collection first finishes the sweep of the one before it, which destroys the image data.
+        internals.gc();
+        document.documentElement.classList.remove("test-wait");
+    })();
+</script>
