@@ -4134,13 +4134,9 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
     }
 
-    pub(crate) fn dimension_float_root(
-        &self,
-        node: Node,
-        input: &LayoutInput,
-        flex_root_resolves_own_auto_block_size: bool,
-    ) {
-        self.dimension_float_root_inline_size(node, input);
+    /// Resolves the block size of a float that has no run of its own, sized at the inline size its block formatting
+    /// context gave it, where that follows without laying out its contents.
+    pub(crate) fn resolve_float_root_block_size_in_parent(&self, node: Node, input: &LayoutInput) {
         let available_space = input.available_space;
         self.resolve_used_block_size_if_not_treated_as_auto(node, available_space, input.containing_block_constraints);
         let block_size_is_definite_from_aspect_ratio = self.used(node).has_definite_inline_size()
@@ -4152,7 +4148,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             );
         if self.facts(node).has_auto_content_box_size()
             || block_size_is_definite_from_aspect_ratio
-            || (self.style(node).display().is_flex_inside() && !flex_root_resolves_own_auto_block_size)
+            || self.style(node).display().is_flex_inside()
         {
             self.resolve_used_block_size_if_treated_as_auto(
                 node,
@@ -4204,21 +4200,25 @@ impl<'pass> BlockFormattingContext<'pass> {
         let available_space = input.available_space;
         assert!(self.facts(node).is_floating());
         let block_container = self.containing_block(node);
-        let (_, fragment_arrival) = self.layout_inside(
-            run,
-            node,
-            LayoutInput {
-                available_space,
-                containing_block_constraints: input.containing_block_constraints,
-                sizing: RootSizingDirectives {
-                    ..RootSizingDirectives::default()
-                },
-                participation: ParticipationInParentFormattingContext::Float {
-                    containing_block_position_in_bfc_root: containing_block_position_in_root,
-                },
+        let mut float_input = LayoutInput {
+            available_space,
+            containing_block_constraints: input.containing_block_constraints,
+            sizing: RootSizingDirectives::default(),
+            participation: ParticipationInParentFormattingContext::Float {
+                containing_block_position_in_bfc_root: containing_block_position_in_root,
             },
-            false,
-        );
+        };
+        // NB: The space is found ahead of the float's inline size, which can make its block size transfer through its
+        //     aspect ratio.
+        float_input.sizing.flex_self_block_size_resolution_space =
+            formatting_context::flex_self_block_size_resolution_space(
+                &self.sizing(),
+                node,
+                available_space,
+                input.containing_block_constraints,
+            );
+        self.dimension_float_root_inline_size(node, &float_input);
+        let (_, fragment_arrival) = self.layout_inside(run, node, float_input, false);
         let containing_block_rect = self.containing_block_rect(block_container, containing_block_position_in_root);
         let containing_block_rect_now = containing_block_rect.translated(
             CssPixels::default(),
