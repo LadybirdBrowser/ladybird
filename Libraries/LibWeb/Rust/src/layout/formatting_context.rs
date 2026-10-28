@@ -943,29 +943,6 @@ pub(crate) fn child_gives_container_baselines(callbacks: &LayoutPass<'_>, contai
         && !(facts.is_table_wrapper() && !child_facts.display().is_table_inside())
 }
 
-/// The baselines a laid out child gives its container, relative to the container's content box.
-pub(crate) fn baselines_child_gives_container(
-    records: &RunRecords,
-    callbacks: &LayoutPass<'_>,
-    child: Node,
-) -> DerivedBaselines {
-    let baseline = |baseline_set, purpose| {
-        baseline_of_child_for_purpose(
-            records,
-            callbacks,
-            child,
-            baseline_set,
-            ChildBaselineSource::Own,
-            purpose,
-        )
-    };
-    DerivedBaselines {
-        first: baseline(BaselineSet::First, BaselinePurpose::Container),
-        last: baseline(BaselineSet::Last, BaselinePurpose::Container),
-        inline_alignment: baseline(BaselineSet::Last, BaselinePurpose::InlineAlignment),
-    }
-}
-
 /// The baselines `child` gives its container, relative to the container's content box.
 pub(crate) fn baselines_laid_out_child_gives_container(
     callbacks: &LayoutPass<'_>,
@@ -986,30 +963,6 @@ pub(crate) enum ChildBaselineSource {
     Own,
     OwnOrSynthesized,
     Synthesized,
-}
-
-/// The baseline of `child`, a box `records` holds, relative to its container's margin edge.
-fn baseline_of_child_for_purpose(
-    records: &RunRecords,
-    callbacks: &LayoutPass<'_>,
-    child: Node,
-    baseline_set: BaselineSet,
-    source: ChildBaselineSource,
-    purpose: BaselinePurpose,
-) -> Option<CssPixels> {
-    let child_metrics = records.box_metrics_of_if_owned(child)?;
-    baseline_of_laid_out_child_for_purpose(
-        callbacks,
-        LaidOutChild {
-            node: child,
-            metrics: &child_metrics,
-            content_baselines: child_metrics.content_baselines(),
-            content_offset: records.content_offset_or_origin(child),
-        },
-        baseline_set,
-        source,
-        purpose,
-    )
 }
 
 /// A child its parent laid out: its sizes and box sides, the baselines of its contents, and the offset of its content
@@ -1961,28 +1914,6 @@ fn finalize_float_root(run: &FormattingContextRun, input: &LayoutInput, body_res
     );
 }
 
-/// Sizes a child with a formatting context of its own that has no run, which its block formatting context lays out
-/// itself. The run of such a child sizes it otherwise: see size_block_level_root_ahead_of_its_contents() and
-/// resolve_float_root_block_size_ahead_of_its_contents().
-fn size_skipped_root_in_parent_scope(
-    parent_block: Option<&block_formatting_context::BlockFormattingContext>,
-    child: Node,
-    input: &LayoutInput,
-) {
-    match input.participation {
-        ParticipationInParentFormattingContext::BlockLevel => {
-            let parent = parent_block.expect("a block-level box requires an enclosing block formatting context");
-            parent.commit_block_level_root_inline_size(child, input);
-            parent.resolve_block_level_root_block_size_before_body(child, input, false);
-        }
-        ParticipationInParentFormattingContext::Float { .. } => {
-            let parent = parent_block.expect("a float requires an enclosing block formatting context");
-            parent.resolve_float_root_block_size_in_parent(child, input);
-        }
-        _ => {}
-    }
-}
-
 /// Whether size_skipped_independent_root() sizes a child that participates in its parent's formatting context as
 /// `participation`, which it does in the record its parent holds for the child.
 fn parent_sizes_skipped_root_in_its_record(participation: &ParticipationInParentFormattingContext) -> bool {
@@ -2002,10 +1933,10 @@ fn size_skipped_independent_root(
     child: Node,
     input: &LayoutInput,
 ) {
-    size_skipped_root_in_parent_scope(parent_block, child, input);
     match input.participation {
         ParticipationInParentFormattingContext::Float { .. } => {
-            let parent = parent_block.expect("a floating run requires an enclosing block formatting context");
+            let parent = parent_block.expect("a float requires an enclosing block formatting context");
+            parent.resolve_float_root_block_size_in_parent(child, input);
             parent.resolve_used_block_size_if_treated_as_auto(
                 block_formatting_context::ChildSizedHere::kept_by_its_run(child),
                 input.available_space,
@@ -2019,8 +1950,10 @@ fn size_skipped_independent_root(
             engine.dimension_out_of_flow_root(child, abspos_inputs);
             engine.finalize_out_of_flow_root_after_inside_layout(child, abspos_inputs, None);
         }
-        ParticipationInParentFormattingContext::BlockLevel
-        | ParticipationInParentFormattingContext::AtomicInline
+        ParticipationInParentFormattingContext::BlockLevel => {
+            unreachable!("a block formatting context lays out only boxes, and every block-level box can have children")
+        }
+        ParticipationInParentFormattingContext::AtomicInline
         | ParticipationInParentFormattingContext::Item
         | ParticipationInParentFormattingContext::Root => {}
     }
@@ -3913,19 +3846,23 @@ mod baseline_tests {
             Node::INVALID,
             parent_cells,
             callbacks.frame,
-            |records, callbacks| {
-                let child_used = records.register(child, UsedValues::default());
-                store_derived_baselines(
-                    child_used,
-                    DerivedBaselines {
-                        first: Some(CssPixels::from_integer(10)),
-                        last: Some(CssPixels::from_integer(30)),
-                        inline_alignment: None,
-                    },
-                );
+            |_, callbacks| {
+                let child_cells = used_values::RootInputCells::default();
                 assert!(child_gives_container_baselines(&callbacks, parent, child));
                 let mut baselines = DerivedBaselines::default();
-                baselines.fold_in_later_child(baselines_child_gives_container(records, &callbacks, child));
+                baselines.fold_in_later_child(baselines_laid_out_child_gives_container(
+                    &callbacks,
+                    LaidOutChild {
+                        node: child,
+                        metrics: &child_cells,
+                        content_baselines: DerivedBaselines {
+                            first: Some(CssPixels::from_integer(10)),
+                            last: Some(CssPixels::from_integer(30)),
+                            inline_alignment: None,
+                        },
+                        content_offset: FfiCssPixelPoint::default(),
+                    },
+                ));
                 assert_eq!(baselines.first, Some(CssPixels::from_integer(10)));
                 assert_eq!(baselines.last, Some(CssPixels::from_integer(30)));
                 assert_eq!(baselines.inline_alignment, Some(CssPixels::from_integer(10)));

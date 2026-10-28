@@ -137,14 +137,25 @@ impl<'pass> BlockContainer<'pass> {
 }
 
 /// What the layout of a block-level box the parent flow holds leaves for its outcome.
-#[derive(Default)]
 struct LaidOutBlockLevelBox {
     broken_inside: Option<BrokenInside>,
     has_unbreakable_lines: bool,
     collapses_through: bool,
     /// The box as its layout left it: as a run of its own handed it back, or as this flow laid it out in a record its
-    /// layout owns. Nothing for a box laid out in the record the run keeps for it.
-    laid_out_box: Option<run_records::LaidOutChildBox>,
+    /// layout owns.
+    laid_out_box: run_records::LaidOutChildBox,
+}
+
+impl LaidOutBlockLevelBox {
+    /// A box laid out as `laid_out_box`, which neither broke inside nor let margins collapse through it.
+    fn of_box(laid_out_box: run_records::LaidOutChildBox) -> Self {
+        Self {
+            broken_inside: None,
+            has_unbreakable_lines: false,
+            collapses_through: false,
+            laid_out_box,
+        }
+    }
 }
 
 /// A box a block formatting context sizes, with the record the context lays the box out in where the layout of the box
@@ -2280,30 +2291,18 @@ impl<'pass> BlockFormattingContext<'pass> {
             interrupted_inline_content,
         )?;
         let content_offset = self.run.records.content_offset_or_origin(node);
-        let (cells, content_baselines, baselines_in_containing_block) = match laid_out.laid_out_box {
-            Some(handed_back) => (
-                handed_back.cells,
-                handed_back.baselines,
-                formatting_context::baselines_laid_out_child_gives_container(
-                    &self.run.callbacks,
-                    formatting_context::LaidOutChild {
-                        node,
-                        metrics: &handed_back.cells,
-                        content_baselines: handed_back.baselines,
-                        content_offset,
-                    },
-                ),
-            ),
-            // NB: The box was laid out by this run, in the record it keeps for it.
-            None => {
-                let metrics = self.run.records.box_metrics_of(node);
-                (
-                    metrics.cells(),
-                    metrics.content_baselines(),
-                    formatting_context::baselines_child_gives_container(self.run.records, &self.run.callbacks, node),
-                )
-            }
-        };
+        let laid_out_box = laid_out.laid_out_box;
+        let cells = laid_out_box.cells;
+        let content_baselines = laid_out_box.baselines;
+        let baselines_in_containing_block = formatting_context::baselines_laid_out_child_gives_container(
+            &self.run.callbacks,
+            formatting_context::LaidOutChild {
+                node,
+                metrics: &cells,
+                content_baselines,
+                content_offset,
+            },
+        );
         Some(BlockLevelBoxOutcome {
             content_offset,
             is_placed: self.run.records.is_placed(node),
@@ -2445,10 +2444,9 @@ impl<'pass> BlockFormattingContext<'pass> {
             if let Some(floating_box) = self.floats.borrow().last() {
                 *bottom_of_lowest_margin_box = (*bottom_of_lowest_margin_box).max(floating_box.bottom_margin_edge);
             }
-            return Some(LaidOutBlockLevelBox {
-                laid_out_box: float_handed_back_by_its_run,
-                ..LaidOutBlockLevelBox::default()
-            });
+            return Some(LaidOutBlockLevelBox::of_box(float_handed_back_by_its_run.expect(
+                "a floating box of a block formatting context is laid out by a run of its own",
+            )));
         }
 
         let in_flow_reuse = match self.probe_in_flow_reuse(
@@ -2466,10 +2464,9 @@ impl<'pass> BlockFormattingContext<'pass> {
                     fragment,
                     bottom_of_lowest_margin_box,
                 );
-                return Some(LaidOutBlockLevelBox {
-                    laid_out_box: Self::laid_out_box_in_record_its_layout_owns(sized_child),
-                    ..LaidOutBlockLevelBox::default()
-                });
+                return Some(LaidOutBlockLevelBox::of_box(
+                    Self::laid_out_box_in_record_its_layout_owns(sized_child),
+                ));
             }
             attempt => attempt,
         };
@@ -2534,8 +2531,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             );
             return Some(LaidOutBlockLevelBox {
                 collapses_through: self.margins_collapse_through(sized_child, None),
-                laid_out_box: Self::laid_out_box_in_record_its_layout_owns(sized_child),
-                ..LaidOutBlockLevelBox::default()
+                ..LaidOutBlockLevelBox::of_box(Self::laid_out_box_in_record_its_layout_owns(sized_child))
             });
         }
         // If first child margin top will collapse with margin-top of containing block then margin-top of child is 0
@@ -2703,7 +2699,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         // NB: A child its own run laid out is placed as that run handed it back, and any other with its record here.
         let mut child_handed_back_by_its_run = None;
         let mut laid_out_box_handed_back_by_its_run = None;
-        let child_layout = if has_independent_formatting_context {
+        if has_independent_formatting_context {
             // Margins of elements that establish new formatting contexts do not collapse with their in-flow children
             self.margin_state.borrow_mut().reset();
 
@@ -2745,15 +2741,17 @@ impl<'pass> BlockFormattingContext<'pass> {
             });
             let (child_layout, fragment_arrival, laid_out_box, line_data) =
                 self.layout_inside(run, node, block_container, inside_layout_input, true);
+            assert!(
+                child_layout.is_some(),
+                "a block-level box with a formatting context of its own is laid out by its run"
+            );
             fragment_arrival_of_child_with_own_formatting_context = fragment_arrival;
-            if child_layout.is_some() {
-                child_handed_back_by_its_run = Some(formatting_context::PlacedChild::of_laid_out_box(
-                    &laid_out_box,
-                    line_data,
-                ));
-                laid_out_box_handed_back_by_its_run = Some(laid_out_box);
-            }
-            if container_facts.is_table_wrapper() && style.display().is_table_inside() && child_layout.is_some() {
+            child_handed_back_by_its_run = Some(formatting_context::PlacedChild::of_laid_out_box(
+                &laid_out_box,
+                line_data,
+            ));
+            laid_out_box_handed_back_by_its_run = Some(laid_out_box);
+            if container_facts.is_table_wrapper() && style.display().is_table_inside() {
                 let table_box = laid_out_box.cells;
                 self.table_box_in_wrapper_border_box_inline_size.set(Some(
                     table_box.border_box_inline_size(table_box.uses_collapsing_borders_model()),
@@ -2769,7 +2767,6 @@ impl<'pass> BlockFormattingContext<'pass> {
                     position.y += table_box.border_box_top(true) - pre_run_border_box_top;
                 }
             }
-            child_layout
         } else {
             // This box participates in the current block container's flow.
             let space_available_for_children = if facts.is_anonymous() {
@@ -2852,14 +2849,11 @@ impl<'pass> BlockFormattingContext<'pass> {
                     },
                 );
             }
-            None
-        };
+        }
 
-        // An independent run that actually executed resolved its automatic
-        // block size in its own epilogue; same-flow children and skipped
-        // inside layouts still resolve here. Tables set their block size
-        // during their run in every case.
-        if child_layout.is_none() && !style.display().is_table_inside() {
+        // An independent run resolved its automatic block size in its own epilogue; same-flow children still resolve
+        // here. Tables set their block size during their run in every case.
+        if !has_independent_formatting_context && !style.display().is_table_inside() {
             self.resolve_used_block_size_if_treated_as_auto(
                 sized_child,
                 available_space_for_block_size_resolution,
@@ -3100,15 +3094,17 @@ impl<'pass> BlockFormattingContext<'pass> {
             has_unbreakable_lines,
             collapses_through,
             laid_out_box: laid_out_box_handed_back_by_its_run
-                .or_else(|| Self::laid_out_box_in_record_its_layout_owns(sized_child)),
+                .unwrap_or_else(|| Self::laid_out_box_in_record_its_layout_owns(sized_child)),
         })
     }
 
-    /// The box `child` as this flow laid it out, where it laid it out in a record its layout owns.
-    fn laid_out_box_in_record_its_layout_owns(child: ChildSizedHere<'_>) -> Option<run_records::LaidOutChildBox> {
-        child
-            .record_its_layout_owns
-            .map(run_records::LaidOutChildBox::sized_in_parent_run)
+    /// The box `child` as this flow laid it out in a record its layout owns.
+    fn laid_out_box_in_record_its_layout_owns(child: ChildSizedHere<'_>) -> run_records::LaidOutChildBox {
+        run_records::LaidOutChildBox::sized_in_parent_run(
+            child
+                .record_its_layout_owns
+                .expect("a box laid out in this flow is laid out in a record its layout owns"),
+        )
     }
 
     /// Whether the layout of an in-flow child can be stored and reused by `InFlowBlockKey`: only a block container
@@ -4657,60 +4653,6 @@ impl<'pass> BlockFormattingContext<'pass> {
             },
         );
         outcome.collapses_through
-    }
-
-    // Run-prelude inline sizing for a block-level root: commits the result of the parent's winning
-    // float-avoidance probe, or reproduces that probe when it did not resolve an inline size.
-    pub(crate) fn commit_block_level_root_inline_size(&self, node: Node, input: &LayoutInput) {
-        if let Some(content_inline_size) = input.sizing.block_parent_resolved_content_inline_size {
-            self.used(node).set_content_inline_size(content_inline_size);
-            return;
-        }
-        if let Some(content_inline_size) = self.resolve_root_inline_metrics_and_content_size(
-            ChildSizedHere::kept_by_its_run(node),
-            input.available_space,
-            input.containing_block_constraints,
-            input.sizing.float_avoidance_inline_size,
-        ) {
-            self.used(node).set_content_inline_size(content_inline_size);
-        }
-    }
-
-    pub(crate) fn resolve_block_level_root_block_size_before_body(
-        &self,
-        node: Node,
-        input: &LayoutInput,
-        flex_root_resolves_own_auto_block_size: bool,
-    ) {
-        let resolution_space = self.sizing().available_space_for_block_size_resolution(
-            node,
-            input.available_space,
-            input.containing_block_constraints,
-        );
-        self.resolve_used_block_size_if_not_treated_as_auto(
-            ChildSizedHere::kept_by_its_run(node),
-            resolution_space,
-            input.containing_block_constraints,
-        );
-        let block_size_is_definite_from_aspect_ratio = self.used(node).has_definite_inline_size()
-            && self.facts(node).has_preferred_aspect_ratio()
-            && self.sizing().box_is_sized_as_replaced_element(
-                sizing_context::SizedBox::new(node, &self.child_metrics(node)),
-                resolution_space,
-                input.containing_block_constraints,
-            );
-        if self.facts(node).has_auto_content_box_size()
-            || block_size_is_definite_from_aspect_ratio
-            || (self.style(node).display().is_flex_inside() && !flex_root_resolves_own_auto_block_size)
-        {
-            self.resolve_used_block_size_if_treated_as_auto(
-                ChildSizedHere::kept_by_its_run(node),
-                resolution_space,
-                input.containing_block_constraints,
-                None,
-                None,
-            );
-        }
     }
 
     /// Resolves the block size of a float that has no run of its own, sized at the inline size its block formatting
