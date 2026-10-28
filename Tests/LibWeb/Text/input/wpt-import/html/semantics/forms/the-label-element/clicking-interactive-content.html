@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Label event handling when a descendant interactive content is clicked</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<body>
+<label id=label></label>
+<template id=interactive-content>
+  <a href="about:blank" onclick="event.preventDefault()"></a>
+  <audio controls></audio>
+  <button></button>
+  <details></details>
+  <embed>
+  <iframe></iframe>
+  <img usemap="">
+  <input>
+  <label>label</label>
+  <select></select>
+  <textarea></textarea>
+  <video controls></video>
+</template>
+
+<script>
+"use strict";
+
+const interactiveContent = document.getElementById("interactive-content");
+const interactiveElements = Array.from(interactiveContent.content.children);
+const label = document.getElementById("label");
+
+for (const srcInteractiveElement of interactiveElements) {
+  test(t => {
+    t.add_cleanup(() => {
+      label.innerHTML = "";
+    });
+
+    const interactiveElement = srcInteractiveElement.cloneNode();
+    label.appendChild(interactiveElement);
+
+    let clicked = 0;
+    interactiveElement.addEventListener("click", () => {
+      clicked++;
+    });
+    interactiveElement.click();
+    assert_equals(clicked, 1, "clicking interactive content");
+
+    clicked = 0;
+    const span = document.createElement("span");
+    interactiveElement.appendChild(span);
+    span.click();
+    assert_equals(clicked, 1, "clicking descendant of interactive content");
+  }, `interactive content ${srcInteractiveElement.outerHTML} as first child of <label>`);
+
+  test(t => {
+    t.add_cleanup(() => {
+      label.innerHTML = "";
+    });
+
+    const interactiveElement = srcInteractiveElement.cloneNode();
+    const div = document.createElement("div");
+    div.appendChild(interactiveElement);
+    label.appendChild(div);
+
+    let clicked = 0;
+    interactiveElement.addEventListener("click", () => {
+      clicked++;
+    });
+    interactiveElement.click();
+    assert_equals(clicked, 1, "clicking nested interactive content");
+
+    clicked = 0;
+    const span = document.createElement("span");
+    interactiveElement.appendChild(span);
+    span.click();
+    assert_equals(clicked, 1, "clicking descendant of nested interactive content");
+  }, `interactive content ${srcInteractiveElement.outerHTML} deeply nested under <label>`);
+
+  test(t => {
+    t.add_cleanup(() => {
+      label.innerHTML = "";
+    });
+
+    const button = document.createElement("button");
+    label.appendChild(button);
+
+    const interactiveElement = srcInteractiveElement.cloneNode();
+    label.appendChild(interactiveElement);
+
+    let buttonClicked = 0;
+    button.addEventListener("click", () => {
+      buttonClicked++;
+    });
+
+    let clicked = 0;
+    interactiveElement.addEventListener("click", () => {
+      clicked++;
+    });
+    interactiveElement.click();
+    assert_equals(clicked, 1, "clicking nested interactive content");
+    assert_equals(buttonClicked, 0, "clicking nested interactive content should not click button");
+
+    clicked = 0;
+    const span = document.createElement("span");
+    interactiveElement.appendChild(span);
+    span.click();
+    assert_equals(clicked, 1, "clicking descendant of nested interactive content");
+    assert_equals(buttonClicked, 0, "clicking descendant of nested interactive content should not click button");
+  }, `interactive content ${srcInteractiveElement.outerHTML} as second child under <label>`);
+}
+
+</script>
+</body>
