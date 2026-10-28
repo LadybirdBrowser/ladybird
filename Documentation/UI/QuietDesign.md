@@ -121,7 +121,7 @@ All sizes are in logical pixels.
 | Rest | No fill, 1 px inside hairline: black 14% in light, white 16% in dark and private, 45% in increased contrast. Never a gray fill at rest (it reads as stuck hover) and never a colored ring (it reads as focus). |
 | Hover | Hover fill (black 9% / white 12%) plus the hairline |
 | Menu open | Pressed fill (black 12% / white 16%) plus the hairline |
-| Clear space | 28 px to the traffic lights and 28 px to the first favicon |
+| Clear space | 24 px on both sides: from the traffic lights to the button, and from the button to the first tab's straight left edge (the active tab's foot reaches 8 px closer). On Windows and Linux, where the button comes first, 24 px to the first tab. |
 | Purpose | Opens the Ladybird menu. Belongs to the window, not to a tab, so it lives in the tab strip (or the sidebar header). |
 
 ### Sidebar (vertical tabs)

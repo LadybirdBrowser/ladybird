@@ -180,9 +180,8 @@ static constexpr int HORIZONTAL_TAB_STRIP_DRAG_SPACE = 44;
 // The new tab button's slot starts this far after the last tab, not counting the last tab's room for its foot, which
 // puts its fill 8 px after the tab, just clear of a selected tab's foot.
 static constexpr int HORIZONTAL_NEW_TAB_BUTTON_GAP = 7;
-// NB: With the room at the strip's end and the first tab's inset and padding, this keeps the first favicon 28 px from
-//     the Ladybird button.
-static constexpr int LADYBIRD_BUTTON_TRAILING_GAP = 16;
+// The Ladybird button keeps 24 px clear to the first tab's straight side after it. That tab's foot reaches into the gap.
+static constexpr int LADYBIRD_BUTTON_TRAILING_GAP = 24;
 // In the open sidebar, the Ladybird button sits just before the sidebar's toggle, and the toggle a little further from
 // the page than the tabs below it.
 // NB: The gap matches the toolbar's spacing, so the two keep their distance as they move between the sidebar's header

@@ -16,9 +16,9 @@ static constexpr int NATIVE_MACOS_WINDOW_CONTROLS_INSET = 12;
 // The three traffic lights, with the room after the last one.
 static constexpr int NATIVE_MACOS_WINDOW_CONTROLS_WIDTH = 56;
 static constexpr int NATIVE_MACOS_WINDOW_CONTROLS_GAP = 14;
-// The Ladybird button keeps 28 px clear to the traffic lights before it.
-// NB: The traffic lights reach a little past the room kept for them.
-static constexpr int LADYBIRD_BUTTON_TRAFFIC_LIGHTS_GAP = 30;
+// The Ladybird button keeps 24 px clear to the traffic lights before it.
+// NB: The traffic lights reach 3 px past the room kept for them.
+static constexpr int LADYBIRD_BUTTON_TRAFFIC_LIGHTS_GAP = 27;
 
 static constexpr bool use_native_macos_window_controls()
 {
