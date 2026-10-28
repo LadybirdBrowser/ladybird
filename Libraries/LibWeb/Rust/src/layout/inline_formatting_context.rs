@@ -1323,7 +1323,7 @@ impl<'context> InlineFormattingContext<'context> {
                 .records
                 .keep_child_for_its_run(&self.callbacks, node, constraints)
         } else {
-            used_values::RecordInFrame::in_its_own_frame(self.create_used_values(node, constraints)).cells()
+            used_values::RootInputCells::capture(self.create_used_values(node, constraints))
         }
     }
 
@@ -1523,7 +1523,7 @@ impl<'context> InlineFormattingContext<'context> {
                 let record = self.run.records.used_values(node);
                 (
                     formatting_context::PlacedChild::of_record(record, self.run),
-                    used_values::RecordInFrame::in_its_own_frame(record).cells(),
+                    used_values::RootInputCells::capture(record),
                 )
             }
         };

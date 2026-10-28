@@ -1865,14 +1865,14 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             }
             return self.measure_intrinsic_block_size(content_box, other_axis_size, content_constraints);
         }
-        let root = used_values::create_used_values(&self.callbacks, node, constraints);
+        let mut root = used_values::cells_before_sizing(&self.callbacks, node, constraints);
         root.set_content_inline_size(other_axis_size);
         root.set_content_block_size(transferred_size);
-        root.set_has_definite_block_size(true);
+        root.has_definite_block_size = true;
         let result = formatting_context::lay_out_measurement_root_for_its_result(
             self.callbacks,
             node,
-            used_values::RootInputCells::capture(&root),
+            root,
             LayoutInput::new(
                 AvailableSpace {
                     inline_size: AvailableSize::definite(other_axis_size),
@@ -2375,7 +2375,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         available_block_size: AvailableSize,
         constraints: ContainingBlockConstraints,
     ) -> OuterInlineContributions {
-        let root = used_values::create_used_values(&self.callbacks, node, constraints);
+        let mut root = used_values::cells_before_sizing(&self.callbacks, node, constraints);
         let indefinite_inline_basis = CssPixels::default();
         root.resolve_box_model(&self.style(node), indefinite_inline_basis);
         let (contributions, percentage_block_size_dependency_its_layout_would_report) =
@@ -2383,7 +2383,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
                 self.callbacks,
                 node,
                 self.callbacks.in_flow_containing_block(node),
-                used_values::RootInputCells::capture(&root),
+                root,
                 |records, callbacks| {
                     let sizing = SizingContext::new(records, callbacks);
                     let root_record = used_values::RecordInFrame::new(records.used_values(node), callbacks.frame);
@@ -3260,8 +3260,8 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         inline_size: CssPixels,
         constraints: ContainingBlockConstraints,
     ) -> formatting_context::ChildLayoutResult {
-        let root = used_values::create_used_values(&self.callbacks, node, constraints);
-        root.set_has_definite_block_size(false);
+        let mut root = used_values::cells_before_sizing(&self.callbacks, node, constraints);
+        root.has_definite_block_size = false;
         root.set_content_inline_size(inline_size);
         let mut input = LayoutInput::new(
             AvailableSpace {
@@ -3275,12 +3275,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             formatting_context::independent_formatting_context_type(node, &self.callbacks),
             formatting_context::FormattingContextType::Flex | formatting_context::FormattingContextType::Grid
         );
-        formatting_context::lay_out_measurement_root_for_its_result(
-            self.callbacks,
-            node,
-            used_values::RootInputCells::capture(&root),
-            input,
-        )
+        formatting_context::lay_out_measurement_root_for_its_result(self.callbacks, node, root, input)
     }
 
     /// The min-content or max-content block size of a box that establishes an orthogonal flow: its block axis here is
@@ -3441,7 +3436,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         formatting_context::lay_out_measurement_root_for_its_result(
             self.callbacks,
             node,
-            used_values::RootInputCells::of_box_before_sizing(&self.callbacks, node, constraints),
+            used_values::cells_before_sizing(&self.callbacks, node, constraints),
             LayoutInput::new(
                 inner_available_space,
                 constraints,
@@ -3568,24 +3563,18 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         size_table: impl FnOnce(&FormattingContextRun<'_>) -> R,
     ) -> R {
         let table_box = self.table_box_inside_wrapper(wrapper);
-        let table_used = used_values::create_used_values(&self.callbacks, table_box, table_constraints);
+        let mut table_cells = used_values::cells_before_sizing(&self.callbacks, table_box, table_constraints);
         let table_style = self.style(table_box);
-        table_used.set_border(geometry::Side::Left, table_style.border_left_width());
-        table_used.set_border(geometry::Side::Right, table_style.border_right_width());
-        table_used.set_padding(
-            geometry::Side::Left,
-            table_style.padding_left().to_px(containing_block_inline_size),
-        );
-        table_used.set_padding(
-            geometry::Side::Right,
-            table_style.padding_right().to_px(containing_block_inline_size),
-        );
+        table_cells.border_left = table_style.border_left_width();
+        table_cells.border_right = table_style.border_right_width();
+        table_cells.padding_left = table_style.padding_left().to_px(containing_block_inline_size);
+        table_cells.padding_right = table_style.padding_right().to_px(containing_block_inline_size);
 
         RunRecords::with_content_sizing_root(
             self.callbacks,
             table_box,
             self.callbacks.in_flow_containing_block(table_box),
-            used_values::RootInputCells::capture(&table_used),
+            table_cells,
             |records, callbacks| {
                 let table_run = FormattingContextRun {
                     records,
@@ -3739,19 +3728,19 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         let wrapper_inner_space = sized
             .metrics()
             .available_inner_space_or_constraints_from(available_space);
-        let wrapper_used = used_values::create_used_values(&self.callbacks, wrapper, table_wrapper_constraints);
+        let mut wrapper_cells = used_values::cells_before_sizing(&self.callbacks, wrapper, table_wrapper_constraints);
         if let AvailableSize::Definite(inline_size) = wrapper_inner_space.inline_size {
-            wrapper_used.set_content_inline_size(inline_size);
+            wrapper_cells.set_content_inline_size(inline_size);
         }
         if let AvailableSize::Definite(block_size) = wrapper_inner_space.block_size {
-            wrapper_used.set_content_block_size(block_size);
+            wrapper_cells.set_content_block_size(block_size);
         } else {
-            wrapper_used.set_has_definite_block_size(false);
+            wrapper_cells.has_definite_block_size = false;
         }
         let wrapper_outputs = formatting_context::lay_out_measurement_root_for_its_result(
             self.callbacks,
             wrapper,
-            used_values::RootInputCells::capture(&wrapper_used),
+            wrapper_cells,
             LayoutInput::new(
                 wrapper_inner_space,
                 table_wrapper_constraints,

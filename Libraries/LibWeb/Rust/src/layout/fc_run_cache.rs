@@ -1023,7 +1023,7 @@ mod tests {
                 },
                 ParticipationInParentFormattingContext::AtomicInline,
             ),
-            root_cells: used_values::RootInputCells::capture(&UsedValues::default()),
+            root_cells: used_values::RootInputCells::default(),
         }
     }
 
@@ -1072,7 +1072,7 @@ mod tests {
                 result: formatting_context::ChildLayoutResult::default(),
                 root,
                 root_outcome: formatting_context::RunRootOutcome {
-                    input_cells_left_by_run: Some(used_values::RootInputCells::capture(&UsedValues::default())),
+                    input_cells_left_by_run: Some(used_values::RootInputCells::default()),
                     line_data: None,
                 },
                 // NB: As a run whose result depends on no percentage block size proves.

@@ -335,7 +335,7 @@ impl LaidOutChildBox {
     /// it to a run of its own.
     pub(crate) fn sized_in_parent_run(record: &UsedValues) -> Self {
         Self {
-            cells: used_values::RecordInFrame::in_its_own_frame(record).cells(),
+            cells: used_values::RootInputCells::capture(record),
             baselines: record.content_baselines_from_cells(),
             // NB: A box that establishes an orthogonal flow is laid out by a run of its own.
             orthogonal_flow_baselines: None,
@@ -564,7 +564,7 @@ impl<'arena> RunRecords<'arena> {
         child: Node,
         constraints: ContainingBlockConstraints,
     ) -> used_values::RootInputCells {
-        let cells = used_values::RootInputCells::of_box_before_sizing(callbacks, child, constraints);
+        let cells = used_values::cells_before_sizing(callbacks, child, constraints);
         self.keep_child_for_its_run_with_cells(child, cells);
         cells
     }
@@ -1124,7 +1124,7 @@ mod tests {
     use super::*;
 
     fn default_root_cells() -> used_values::RootInputCells {
-        used_values::RootInputCells::capture(&UsedValues::default())
+        used_values::RootInputCells::default()
     }
 
     #[test]

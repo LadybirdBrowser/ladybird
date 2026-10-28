@@ -324,7 +324,7 @@ impl UsedValues {
 
 macro_rules! used_values_cells {
     ($name:ident { $($field:ident: $type:ty,)+ }) => {
-        #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+        #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
         pub(crate) struct $name {
             $(pub(crate) $field: $type,)+
         }
@@ -373,15 +373,6 @@ used_values_cells! {
 }
 
 impl RootInputCells {
-    /// The input cells of `node` as its record starts out, before anything sizes the box.
-    pub(crate) fn of_box_before_sizing(
-        callbacks: &LayoutPass<'_>,
-        node: Node,
-        constraints: ContainingBlockConstraints,
-    ) -> Self {
-        Self::capture(&create_used_values(callbacks, node, constraints))
-    }
-
     /// Resolves the left and right margins, borders and padding of `style`, with percentages against `basis`.
     pub(crate) fn resolve_horizontal_box_model(&mut self, style: &StyleValues<'_>, basis: CssPixels) {
         self.margin_left = style.margin_left().to_px(basis);
@@ -409,6 +400,35 @@ impl RootInputCells {
 
     pub(crate) fn set_content_block_size(&mut self, value: CssPixels) {
         self.content_block_size = clamp_to_max_dimension_value(value.max(CssPixels::default()));
+    }
+
+    /// Resolves every margin, border and padding of `style`, with percentages against `basis`.
+    pub(crate) fn resolve_box_model(&mut self, style: &StyleValues<'_>, basis: CssPixels) {
+        self.resolve_horizontal_box_model(style, basis);
+        self.resolve_vertical_box_model(style, basis);
+    }
+
+    /// The sizes and box sides `fragment` shows, with both sizes definite.
+    pub(crate) fn of_committed_fragment(fragment: &fragment_tree::Fragment) -> Self {
+        let mut cells = Self {
+            margin_left: fragment.margin_left,
+            margin_right: fragment.margin_right,
+            margin_top: fragment.margin_top,
+            margin_bottom: fragment.margin_bottom,
+            border_left: fragment.border_left,
+            border_right: fragment.border_right,
+            border_top: fragment.border_top,
+            border_bottom: fragment.border_bottom,
+            padding_left: fragment.padding_left,
+            padding_right: fragment.padding_right,
+            padding_top: fragment.padding_top,
+            padding_bottom: fragment.padding_bottom,
+            has_definite_block_size: true,
+            ..Self::default()
+        };
+        cells.set_content_inline_size(fragment.content_inline_size);
+        cells.set_content_block_size(fragment.content_block_size);
+        cells
     }
 
     /// A record holding the cells, which hold the box's metrics in `frame`.
@@ -921,11 +941,21 @@ pub(crate) fn collapsed_border_share(width: CssPixels, start_edge: bool, is_tabl
     }
 }
 
+/// A record of `node` holding the cells it starts out with in the pass's frame, before anything sizes the box.
 pub(crate) fn create_used_values(
     callbacks: &LayoutPass<'_>,
     node: Node,
     constraints: ContainingBlockConstraints,
 ) -> UsedValues {
+    cells_before_sizing(callbacks, node, constraints).materialize_record(callbacks.frame)
+}
+
+/// The input cells of `node` before anything sizes the box: the sizes its style makes definite without layout.
+pub(crate) fn cells_before_sizing(
+    callbacks: &LayoutPass<'_>,
+    node: Node,
+    constraints: ContainingBlockConstraints,
+) -> RootInputCells {
     assert!(!node.is_invalid());
     let facts = NodeFacts::new(callbacks, node);
 
@@ -943,8 +973,7 @@ pub(crate) fn create_used_values(
     // definite. We model all of those by considering sizes definite once
     // they are assigned through set_content_inline_size() or
     // set_content_block_size().
-    let used = UsedValues::default();
-    used.frame.set(callbacks.frame);
+    let mut cells = RootInputCells::default();
 
     #[derive(Clone, Copy)]
     enum Axis {
@@ -1009,7 +1038,7 @@ pub(crate) fn create_used_values(
             {
                 let available = containing_block_size_for_axis(Axis::Inline);
                 return Some(clamp_to_max_dimension_value(
-                    available - used.horizontal_margin_border_padding(),
+                    available - cells.horizontal_margin_border_padding(),
                 ));
             }
             return None;
@@ -1073,8 +1102,8 @@ pub(crate) fn create_used_values(
     let mut content_inline_size = is_definite_size(style.width(), Axis::Inline);
     let mut content_block_size = is_definite_size(style.height(), Axis::Block);
 
-    used.has_definite_inline_size.set(content_inline_size.is_some());
-    used.has_definite_block_size.set(content_block_size.is_some());
+    cells.has_definite_inline_size = content_inline_size.is_some();
+    cells.has_definite_block_size = content_block_size.is_some();
     if let Some(size) = content_inline_size.as_mut() {
         if let Some(minimum) = min_inline_size {
             *size = clamp_to_max_dimension_value((*size).max(minimum));
@@ -1091,16 +1120,16 @@ pub(crate) fn create_used_values(
             *size = clamp_to_max_dimension_value((*size).min(maximum));
         }
     }
-    used.content_inline_size.set(content_inline_size.unwrap_or_default());
-    used.content_block_size.set(content_block_size.unwrap_or_default());
+    cells.content_inline_size = content_inline_size.unwrap_or_default();
+    cells.content_block_size = content_block_size.unwrap_or_default();
 
-    used
+    cells
 }
 
-/// The record of a box and what its parent decided about it, as its committed fragment link has them, which a run
-/// adopts as they are.
+/// The input cells of a box and what its parent decided about it, as its committed fragment link has them in the frame
+/// of the link, which a run adopts as they are.
 pub(crate) struct CommittedBox {
-    pub(crate) record: UsedValues,
+    pub(crate) cells: RootInputCells,
     pub(crate) facts_decided_by_parent: super::run_records::FactsDecidedByParent,
 }
 
@@ -1108,17 +1137,8 @@ pub(crate) fn committed_box_from_fragment_link(callbacks: &LayoutPass<'_>, node:
     let link = callbacks.committed_fragment_link(node)?;
     let fragment = &link.fragment;
 
-    // Skip normal node initialization: resolving computed sizes requires
-    // percentage bases, and every resulting geometry field is replaced by
-    // the previously committed value immediately.
-    let used = UsedValues::default();
-    used.frame.set(link.frame);
-    used.set_box_metrics_from_fragment(fragment);
-    used.has_definite_inline_size.set(true);
-    used.has_definite_block_size.set(true);
-
     Some(CommittedBox {
-        record: used,
+        cells: RootInputCells::of_committed_fragment(fragment),
         facts_decided_by_parent: super::run_records::FactsDecidedByParent {
             placement: Some(super::run_records::BoxPlacement {
                 content_offset_in_containing_block: link.committed_offset,

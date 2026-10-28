@@ -789,7 +789,7 @@ impl<'pass> BlockFormattingContext<'pass> {
     /// The sizes, size constraints and box sides of `child`, a box this block formatting context sizes.
     fn metrics_of(&self, child: ChildSizedHere<'_>) -> used_values::RootInputCells {
         match child.record_its_layout_owns {
-            Some(record) => used_values::RecordInFrame::in_its_own_frame(record).cells(),
+            Some(record) => used_values::RootInputCells::capture(record),
             None => self.child_metrics(child.node),
         }
     }
