@@ -1317,14 +1317,25 @@ impl RunFragmentBuilder {
 
     /// Drops the fragments laid out inside `node`. What the box's own layout handed its fragment stays for the box,
     /// which may still be placed.
-    pub(crate) fn discard_unplaced_subtree(&self, node: crate::layout::node_data::NodeSlotId, used: &UsedValues) {
+    pub(crate) fn discard_unplaced_subtree(
+        &self,
+        node: crate::layout::node_data::NodeSlotId,
+        used: &UsedValues,
+        fragment_arrival: Option<ChildFragmentArrival>,
+    ) {
         let held_payloads = used
             .held_committed_fragment
             .take()
             .map(|held| Box::new(FragmentPayloads::of_fragment(&held.fragment)));
+        let arrived_payloads = fragment_arrival.and_then(|arrival| match arrival {
+            ChildFragmentArrival::RunRoot { root, .. } => root.root_payloads,
+            ChildFragmentArrival::CommittedFragment { fragment, .. } => {
+                Some(Box::new(FragmentPayloads::of_fragment(&fragment)))
+            }
+        });
         let mut inner = self.inner.borrow_mut();
         let slot = node.slot_index();
-        let mut payloads_of_box = held_payloads;
+        let mut payloads_of_box = arrived_payloads.or(held_payloads);
         if let Some(root) = inner.child_roots_awaiting_placement.remove(&slot) {
             for reused_subtree_root in root.reused_subtree_roots {
                 inner.reused_subtree_roots.remove(&reused_subtree_root);
