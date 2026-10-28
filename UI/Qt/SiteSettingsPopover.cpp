@@ -347,9 +347,13 @@ void SiteSettingsPopover::set_site(Site site)
 // A permission the user never decided and the page never asked for has no row.
 void SiteSettingsPopover::set_permissions(Vector<WebView::SitePermissionRow> const& permissions)
 {
+    // The rows go once the event loop is back: a change made from a row's menu arrives from a button in that row.
     auto* rows_layout = m_permission_rows->layout();
     while (auto* item = rows_layout->takeAt(0)) {
-        delete item->widget();
+        if (auto* widget = item->widget()) {
+            widget->hide();
+            widget->deleteLater();
+        }
         delete item;
     }
     m_permissions.clear();
