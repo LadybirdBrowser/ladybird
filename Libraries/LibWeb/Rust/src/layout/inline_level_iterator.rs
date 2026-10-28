@@ -1011,7 +1011,16 @@ fn record_entered_inline_box(
     node: Node,
 ) -> used_values::RootInputCells {
     let constraints = context.input.containing_block_constraints;
-    let used = context.create_used_values(node, constraints);
+    // NB: A box the context enters that is not a fragmented inline is laid out as an atomic inline-level box as well,
+    //     in the record the run keeps for it. A fragmented inline is laid out only here, in a record of this call.
+    let record_of_this_call;
+    let used = if context.facts(node).is_fragmented_inline() {
+        record_of_this_call = used_values::create_used_values(&context.callbacks, node, constraints);
+        context.run.records.keep_box_laid_out_in_record_its_layout_owns(node);
+        &record_of_this_call
+    } else {
+        context.create_used_values(node, constraints)
+    };
     let style = context.style(node);
     let basis = constraints.inline_basis();
     used.resolve_box_model(&style, basis);
