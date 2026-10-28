@@ -407,10 +407,19 @@ fn propagate_payload_toward_run_root_space<Payload: PropagatedPayload>(
     }
 }
 
-/// Where a run placed each box it placed so far, keyed by slot.
+/// The sizes and box sides of a box, in the frame `frame`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct CellsInFrame {
+    pub(crate) cells: used_values::RootInputCells,
+    pub(crate) frame: geometry::Frame,
+}
+
+/// Where a run placed each box it placed so far, and the sizes and box sides of each placed box that may be the
+/// containing block of absolutely positioned boxes, as the run placed it. Both are keyed by slot.
 #[derive(Default)]
 pub(crate) struct PlacedBoxes {
     placements: HashMap<u32, run_records::BoxPlacement>,
+    cells_of_abspos_containing_blocks: HashMap<u32, CellsInFrame>,
 }
 
 impl PlacedBoxes {
@@ -988,19 +997,38 @@ impl RunFragmentBuilder {
         self.root_node
     }
 
-    /// Notes that the run placed `node` in `placement`, which is final.
+    /// Notes that the run placed `node` in `placement`, which is final, with the sizes and box sides
+    /// `cells_for_contained_abspos` of a box that may be the containing block of absolutely positioned boxes.
     pub(crate) fn note_placed_box(
         &self,
         node: crate::layout::node_data::NodeSlotId,
         placement: run_records::BoxPlacement,
+        cells_for_contained_abspos: Option<CellsInFrame>,
     ) {
-        let previous = self
-            .inner
-            .borrow_mut()
-            .placed_boxes
-            .placements
-            .insert(node.slot_index(), placement);
+        let placed_boxes = &mut self.inner.borrow_mut().placed_boxes;
+        let previous = placed_boxes.placements.insert(node.slot_index(), placement);
         debug_assert!(previous.is_none(), "a box is placed once");
+        if let Some(cells) = cells_for_contained_abspos {
+            placed_boxes
+                .cells_of_abspos_containing_blocks
+                .insert(node.slot_index(), cells);
+        }
+    }
+
+    /// The sizes and box sides of `containing_block`, a box the run placed that may be the containing block of
+    /// absolutely positioned boxes, read in frame `reader`.
+    pub(crate) fn cells_of_placed_containing_block(
+        &self,
+        containing_block: crate::layout::node_data::NodeSlotId,
+        reader: geometry::Frame,
+    ) -> Option<used_values::RootInputCells> {
+        let kept = *self
+            .inner
+            .borrow()
+            .placed_boxes
+            .cells_of_abspos_containing_blocks
+            .get(&containing_block.slot_index())?;
+        Some(kept.cells.in_frame(kept.frame, reader))
     }
 
     /// Where the run placed `node`, if it placed the box.

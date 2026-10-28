@@ -151,11 +151,11 @@ impl<'pass> AbsposEngine<'pass> {
     ) -> ContainingBlockGeometry {
         let containing_block = entry.containing_block();
         let Some(containing_block_cells) = self
-            .records
-            .box_cells_in_frame_if_owned(containing_block, self.callbacks.frame)
+            .placed_box_fragments()
+            .cells_of_placed_containing_block(containing_block, self.callbacks.frame)
         else {
             panic!(
-                "the run holds no containing block for slot {} (cb slot {})",
+                "the run placed no containing block for slot {} (cb slot {})",
                 entry.child_box.slot_index(),
                 containing_block.slot_index()
             );
