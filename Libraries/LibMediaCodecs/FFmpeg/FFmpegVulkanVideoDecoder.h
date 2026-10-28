@@ -37,7 +37,7 @@ public:
     static DecoderErrorOr<NonnullOwnPtr<FFmpegVulkanVideoDecoder>> try_create(CodecID, ReadonlyBytes codec_initialization_data);
     virtual ~FFmpegVulkanVideoDecoder() override;
 
-    virtual void set_storage_freed_callback(Function<void()> callback) override { m_surface_pool->set_slot_freed_callback(move(callback)); }
+    virtual void set_storage_freed_callback(Function<void()> callback) override { m_surface_budget->set_storage_freed_callback(move(callback)); }
     virtual void set_output_arrived_callback(Function<void()> callback) override
     {
         MutexLocker locker { m_mutex };
@@ -63,14 +63,14 @@ private:
 
     struct DecodedOutput {
         NonnullRefPtr<VideoSurface> surface;
-        // Holds the decoded image out of FFmpeg's pool until the slot the frame goes out in is released.
+        // Holds the decoded image out of FFmpeg's pool until the frame it goes out in is released.
         NonnullRefPtr<VideoSurfaceContents> contents;
         VideoFramesAwaitingOutput::Frame timing;
         Gfx::Size<u32> size;
         u8 bit_depth { 0 };
     };
 
-    FFmpegVulkanVideoDecoder(FFmpegFunctions const&, VulkanVideoDevice&, AVCodecContext*, AVPacket*, AVFrame*, NonnullRefPtr<VideoFrameSurfacePool>);
+    FFmpegVulkanVideoDecoder(FFmpegFunctions const&, VulkanVideoDevice&, AVCodecContext*, AVPacket*, AVFrame*);
 
     static AVPixelFormat negotiate_pixel_format(AVCodecContext*, AVPixelFormat const*);
     static int get_buffer(AVCodecContext*, AVFrame*, int flags);
@@ -89,7 +89,7 @@ private:
     AVCodecContext* m_codec_context { nullptr };
     AVPacket* m_packet { nullptr };
     AVFrame* m_received_frame { nullptr };
-    NonnullRefPtr<VideoFrameSurfacePool> m_surface_pool;
+    NonnullRefPtr<VideoSurfaceBudget> m_surface_budget { make_ref_counted<VideoSurfaceBudget>() };
 
     // Only the caller's thread uses these.
     VideoFramesAwaitingOutput m_frames_awaiting_output;

@@ -12,7 +12,7 @@
 #include <LibMedia/Producers/VideoProducer.h>
 #include <LibMedia/Sinks/RemoteVideoSink.h>
 #include <LibMediaCodecs/VideoFrame.h>
-#include <LibMediaCodecs/VideoSurface.h>
+#include <LibMediaCodecs/VideoFramePool.h>
 #include <LibThreading/Thread.h>
 
 namespace Media {
@@ -354,16 +354,12 @@ void RemoteVideoSink::ThreadData::lend_frame(NonnullRefPtr<VideoFrame> const& fr
         m_lent_frames.set(lend_id, frame);
     }
 
-    LentFrame lent_frame {
+    m_delegates.send_frame({
         .lend_id = lend_id,
         .seek_id = seek_id,
         .metadata = VideoFrameMetadata::for_frame(*frame),
-        .pixel_buffer = {},
-        .surface = frame->surface(),
-    };
-    if (!lent_frame.surface)
-        lent_frame.pixel_buffer = frame->pixel_buffer();
-    m_delegates.send_frame(move(lent_frame));
+        .pixels = frame->storage()->pixels(),
+    });
 }
 
 void RemoteVideoSink::ThreadData::pump_thread_loop()

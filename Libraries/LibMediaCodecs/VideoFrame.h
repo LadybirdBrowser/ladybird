@@ -20,15 +20,14 @@
 
 namespace Media {
 
-class PooledVideoFrameSlot;
-class ReceivedVideoFrameStorage;
+class VideoFrameStorage;
 class VideoSurface;
+
+using VideoFramePixels = Variant<Core::AnonymousBuffer, NonnullRefPtr<VideoSurface>>;
 
 class MEDIACODECS_API VideoFrame final : public AtomicRefCounted<VideoFrame> {
 
 public:
-    using BackingStorage = Variant<NonnullRefPtr<PooledVideoFrameSlot>, NonnullRefPtr<ReceivedVideoFrameStorage>>;
-
     VideoFrame(
         AK::Duration timestamp,
         AK::Duration duration,
@@ -36,7 +35,7 @@ public:
         u8 bit_depth,
         Subsampling subsampling,
         CodingIndependentCodePoints cicp,
-        BackingStorage backing_storage);
+        NonnullRefPtr<VideoFrameStorage>);
     ~VideoFrame();
 
     // Tells this frame apart from every other frame in this process, including ones whose storage it shares.
@@ -57,21 +56,19 @@ public:
     Subsampling subsampling() const { return m_subsampling; }
     CodingIndependentCodePoints const& cicp() const { return m_cicp; }
 
-    // A view of the planes in the backing slot's buffer, absent when a platform surface holds them instead.
+    // A view of the planes in the frame's buffer, absent when a surface holds them instead.
     Optional<Gfx::YUVData> yuv_data() const;
 
-    // The platform surface holding the frame's pixels, null when they live in the backing slot's buffer.
+    // The surface holding the frame's pixels, null when they are in a buffer instead.
     RefPtr<VideoSurface> surface() const;
 
-    // The shared memory holding the frame's pixels, invalid when a surface holds them instead.
+    // The buffer holding the frame's pixels, invalid when a surface holds them instead.
     Core::AnonymousBuffer pixel_buffer() const;
 
     // Converts the pixels to RGBA in memory, wherever they are, if this process can read them.
     ErrorOr<NonnullRefPtr<Gfx::Bitmap>> to_bitmap() const;
 
-    BackingStorage const& backing_storage() const { return m_backing_storage; }
-    PooledVideoFrameSlot const* pool_slot() const;
-    ReceivedVideoFrameStorage const* received_storage() const;
+    NonnullRefPtr<VideoFrameStorage> const& storage() const { return m_storage; }
 
 private:
     u64 m_id { 0 };
@@ -81,7 +78,7 @@ private:
     u8 m_bit_depth;
     Subsampling m_subsampling;
     CodingIndependentCodePoints m_cicp;
-    BackingStorage m_backing_storage;
+    NonnullRefPtr<VideoFrameStorage> m_storage;
 };
 
 }

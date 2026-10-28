@@ -1,13 +1,14 @@
 #include <LibMedia/InvalidateHeldData.h>
 #include <LibMedia/MediaTime.h>
 #include <LibMedia/PipelineStatus.h>
+#include <LibMediaCodecs/VideoFrame.h>
 #include <LibMediaCodecs/VideoFrameMetadata.h>
 #include <LibMediaCodecs/VideoSurface.h>
 
 endpoint VideoPresentationClient {
     video_edge_ready(u64 edge_id, Media::MediaTimeReader time_reader) =|
     update_edge_time_reader(u64 edge_id, Media::MediaTimeReader time_reader) =|
-    lend_frame(u64 edge_id, u64 lend_id, u32 seek_id, Media::VideoFrameMetadata metadata, Core::AnonymousBuffer pixel_buffer, RefPtr<Media::VideoSurface> surface) =|
+    lend_frame(u64 edge_id, u64 lend_id, u32 seek_id, Media::VideoFrameMetadata metadata, Media::VideoFramePixels pixels) =|
     // The status the consumer reaches once every frame lent under the same seek has been taken.
     edge_status_changed(u64 edge_id, Media::PipelineStatus status, u32 seek_id) =|
     notify_clock_resumed(u64 edge_id) =|

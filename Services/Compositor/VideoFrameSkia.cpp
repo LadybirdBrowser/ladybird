@@ -194,7 +194,6 @@ struct AK::Traits<Compositor::VideoSurfaceImageKey> : public DefaultTraits<Compo
 namespace Compositor {
 
 static constexpr auto UNDRAWN_VIDEO_SURFACE_IMAGE_LIFETIME = AK::Duration::from_seconds(1);
-// A sender may send a new surface with every frame, so only this many of each sender's images are kept.
 static constexpr size_t MAX_VIDEO_SURFACE_IMAGES_PER_SENDER = 32;
 
 static HashMap<VideoSurfaceImageKey, NonnullOwnPtr<VideoSurfaceImage>>& video_surface_images()
@@ -258,9 +257,7 @@ static void make_room_for_video_surface_image(u64 sender_id)
 
 static sk_sp<SkImage> image_for_video_surface(Media::VideoFrame const& frame, Media::VideoSurface const& surface, Gfx::SkiaBackendContext& skia_backend_context)
 {
-    u64 sender_id = 0;
-    if (auto const* storage = frame.received_storage())
-        sender_id = storage->sender_id();
+    auto sender_id = frame.storage()->sender_id();
     VideoSurfaceImageKey key { sender_id, surface.id() };
 
     auto& images = video_surface_images();

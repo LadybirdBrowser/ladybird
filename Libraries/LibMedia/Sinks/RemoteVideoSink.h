@@ -15,8 +15,8 @@
 #include <LibMedia/Forward.h>
 #include <LibMedia/MediaTime.h>
 #include <LibMedia/Sinks/VideoSink.h>
+#include <LibMediaCodecs/VideoFrame.h>
 #include <LibMediaCodecs/VideoFrameMetadata.h>
-#include <LibMediaCodecs/VideoSurface.h>
 #include <LibThreading/Forward.h>
 
 namespace Media {
@@ -30,9 +30,7 @@ public:
         u64 lend_id { 0 };
         u32 seek_id { 0 };
         VideoFrameMetadata metadata;
-        // Exactly one of these holds the frame's pixels.
-        Core::AnonymousBuffer pixel_buffer;
-        RefPtr<VideoSurface> surface;
+        VideoFramePixels pixels;
     };
 
     struct Delegates {

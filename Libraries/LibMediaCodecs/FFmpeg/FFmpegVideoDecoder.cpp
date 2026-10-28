@@ -193,18 +193,13 @@ DecoderErrorOr<NonnullRefPtr<VideoFrame>> FFmpegVideoDecoder::take_next_output(C
     if (!acquired_slot.has_value())
         return DecoderError::with_description(DecoderErrorCategory::TryAgain, "Every video frame slot is held elsewhere"sv);
 
-    auto pool_slot_result = m_frame_pool->try_adopt_acquired_slot(*acquired_slot);
-    if (pool_slot_result.is_error())
-        return DecoderError::with_description(DecoderErrorCategory::Memory, "Failed to allocate a pooled frame slot reference"sv);
-    auto pool_slot = pool_slot_result.release_value();
-
     auto yuv_data = DECODER_TRY_ALLOC(Gfx::YUVData::create(size, *bit_depth, subsampling, cicp,
         acquired_slot->bytes.slice(0, layout.y_size),
         acquired_slot->bytes.slice(layout.u_offset, layout.u_size),
         acquired_slot->bytes.slice(layout.v_offset, layout.v_size)));
     TRY(copy_pending_frame_into(yuv_data));
 
-    auto frame = DECODER_TRY_ALLOC(try_make_ref_counted<VideoFrame>(m_pending_frame->timestamp, m_pending_frame->duration, size.to_type<u32>(), *bit_depth, subsampling, cicp, move(pool_slot)));
+    auto frame = DECODER_TRY_ALLOC(try_make_ref_counted<VideoFrame>(m_pending_frame->timestamp, m_pending_frame->duration, size.to_type<u32>(), *bit_depth, subsampling, cicp, acquired_slot->storage));
     m_pending_frame.clear();
     return frame;
 }

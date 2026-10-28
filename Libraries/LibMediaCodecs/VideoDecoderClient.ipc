@@ -1,11 +1,11 @@
-#include <LibCore/AnonymousBuffer.h>
 #include <LibMediaCodecs/DecoderError.h>
+#include <LibMediaCodecs/VideoFrame.h>
 #include <LibMediaCodecs/VideoFrameMetadata.h>
 #include <LibMediaCodecs/VideoSurface.h>
 
 endpoint VideoDecoderClient
 {
-    frame_decoded(u64 decoder_id, u32 generation, u64 frame_id, Media::VideoFrameMetadata metadata, Core::AnonymousBuffer pixel_buffer, RefPtr<Media::VideoSurface> surface) =|
+    frame_decoded(u64 decoder_id, u32 generation, u64 frame_id, Media::VideoFrameMetadata metadata, Media::VideoFramePixels pixels) =|
     coded_frame_consumed(u64 decoder_id) =|
     decoder_failed(u64 decoder_id, u32 generation, Media::DecoderError error) =|
     decoder_drained(u64 decoder_id, u32 generation) =|

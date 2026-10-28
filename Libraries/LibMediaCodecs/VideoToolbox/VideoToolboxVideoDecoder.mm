@@ -667,17 +667,12 @@ DecoderErrorOr<NonnullOwnPtr<VideoToolboxVideoDecoder>> VideoToolboxVideoDecoder
     if (codec_type_from_codec_id(codec_id) == 0)
         return DecoderError::format(DecoderErrorCategory::NotImplemented, "VideoToolbox has no decoder for codec {}", codec_id);
 
-    auto surface_pool_result = VideoFrameSurfacePool::create();
-    if (surface_pool_result.is_error())
-        return DecoderError::format(DecoderErrorCategory::Memory, "Failed to create a video surface pool: {}", surface_pool_result.release_error());
-
     auto format_state = TRY(create_format_state(codec_id, codec_initialization_data));
-    return DECODER_TRY_ALLOC(adopt_nonnull_own_or_enomem(new (nothrow) VideoToolboxVideoDecoder(codec_id, surface_pool_result.release_value(), move(format_state))));
+    return DECODER_TRY_ALLOC(adopt_nonnull_own_or_enomem(new (nothrow) VideoToolboxVideoDecoder(codec_id, move(format_state))));
 }
 
-VideoToolboxVideoDecoder::VideoToolboxVideoDecoder(CodecID codec_id, NonnullRefPtr<VideoFrameSurfacePool> surface_pool, NonnullOwnPtr<FormatState> format_state)
+VideoToolboxVideoDecoder::VideoToolboxVideoDecoder(CodecID codec_id, NonnullOwnPtr<FormatState> format_state)
     : m_codec_id(codec_id)
-    , m_surface_pool(move(surface_pool))
     , m_format_state(move(format_state))
 {
 }
@@ -687,8 +682,6 @@ VideoToolboxVideoDecoder::~VideoToolboxVideoDecoder()
     // Tearing down the session hands the media engine's remaining frames to the output callback, which touches
     // members that would otherwise already be gone by the time the session is destroyed.
     m_session.clear();
-
-    m_surface_pool->shed_storage();
 }
 
 DecoderErrorOr<void> VideoToolboxVideoDecoder::ensure_session_for_frame(CodedFrame const& coded_frame)
@@ -944,20 +937,16 @@ DecoderErrorOr<NonnullRefPtr<VideoFrame>> VideoToolboxVideoDecoder::adopt_output
 {
     auto const& output = m_outputs[index];
 
-    auto acquired_slot = m_surface_pool->try_acquire(output.surface, output.contents);
-    if (!acquired_slot.has_value())
-        return DecoderError::with_description(DecoderErrorCategory::TryAgain, "Every video frame slot is held elsewhere"sv);
-
-    auto pool_slot_result = m_surface_pool->try_adopt_acquired_slot(*acquired_slot);
-    if (pool_slot_result.is_error())
-        return DecoderError::with_description(DecoderErrorCategory::Memory, "Failed to allocate a pooled frame slot reference"sv);
+    auto storage = m_surface_budget->try_hold(output.surface, output.contents);
+    if (!storage)
+        return DecoderError::with_description(DecoderErrorCategory::TryAgain, "Every video surface the decoder may hand out is held elsewhere"sv);
 
     auto cicp = container_cicp;
     cicp.adopt_specified_values(output.cicp);
 
     return DECODER_TRY_ALLOC(try_make_ref_counted<VideoFrame>(
         output.timestamp, output.duration, output.size.to_type<u32>(),
-        output.bit_depth, output.subsampling, cicp, pool_slot_result.release_value()));
+        output.bit_depth, output.subsampling, cicp, storage.release_nonnull()));
 }
 
 void VideoToolboxVideoDecoder::flush()

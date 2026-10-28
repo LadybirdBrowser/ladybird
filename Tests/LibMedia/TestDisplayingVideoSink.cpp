@@ -26,9 +26,7 @@ NonnullRefPtr<Media::VideoFrame> create_test_frame(Media::VideoFramePool& pool, 
 
     auto plane_sizes = MUST(Gfx::YUVData::plane_sizes(frame_size, bit_depth, subsampling));
     auto acquired = pool.try_acquire(plane_sizes.total).release_value();
-    auto slot = MUST(pool.try_adopt_acquired_slot(acquired));
-
-    return make_ref_counted<Media::VideoFrame>(timestamp, duration, Gfx::Size<u32>(frame_size), bit_depth, subsampling, Media::CodingIndependentCodePoints {}, move(slot));
+    return make_ref_counted<Media::VideoFrame>(timestamp, duration, Gfx::Size<u32>(frame_size), bit_depth, subsampling, Media::CodingIndependentCodePoints {}, move(acquired.storage));
 }
 
 }

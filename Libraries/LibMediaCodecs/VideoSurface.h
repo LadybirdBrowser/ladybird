@@ -33,8 +33,7 @@ public:
 };
 
 // A frame's pixels in memory that a GPU can sample without a copy. Hardware decoders allocate these and recycle a
-// bounded set of them, so each carries the identity its recycling is recognized by. The hold on the frame slot a
-// surface was handed out in is what keeps its pixels from being decoded over, wherever they are shown.
+// bounded set of them, so each carries the identity its recycling is recognized by.
 class MEDIACODECS_API VideoSurface : public AtomicRefCounted<VideoSurface> {
 public:
     ~VideoSurface();
@@ -90,9 +89,9 @@ private:
 namespace IPC {
 
 template<>
-MEDIACODECS_API ErrorOr<void> encode(Encoder&, RefPtr<Media::VideoSurface> const&);
+MEDIACODECS_API ErrorOr<void> encode(Encoder&, NonnullRefPtr<Media::VideoSurface> const&);
 
 template<>
-MEDIACODECS_API ErrorOr<RefPtr<Media::VideoSurface>> decode(Decoder&);
+MEDIACODECS_API ErrorOr<NonnullRefPtr<Media::VideoSurface>> decode(Decoder&);
 
 }

@@ -125,7 +125,7 @@ TEST_CASE(surfaces_are_not_reused_while_their_frames_are_held)
     // one in use. Were that claim missing, these frames would be a handful of surfaces overwriting one another.
     Vector<NonnullRefPtr<Media::VideoFrame>> held_frames;
     HashTable<u32> held_surface_ids;
-    while (held_frames.size() < Media::VideoFrameSurfacePool::MAX_HELD_SLOT_COUNT) {
+    while (held_frames.size() < Media::VideoSurfaceBudget::MAX_HELD_SURFACE_COUNT) {
         auto frame_result = decoding.next_frame();
         if (frame_result.is_error() && decoding_is_unavailable(frame_result.error()))
             return;
@@ -143,7 +143,7 @@ TEST_CASE(storage_runs_out_while_every_frame_is_held)
     auto decoding = open_decoding("./vp9_in_webm.webm"sv, Media::CodecID::VP9);
 
     Vector<NonnullRefPtr<Media::VideoFrame>> held_frames;
-    while (held_frames.size() < Media::VideoFrameSurfacePool::MAX_HELD_SLOT_COUNT) {
+    while (held_frames.size() < Media::VideoSurfaceBudget::MAX_HELD_SURFACE_COUNT) {
         auto frame_result = decoding.next_frame();
         if (frame_result.is_error() && decoding_is_unavailable(frame_result.error()))
             return;
@@ -154,7 +154,7 @@ TEST_CASE(storage_runs_out_while_every_frame_is_held)
     EXPECT(exhausted_result.is_error());
     EXPECT_EQ(exhausted_result.error().category(), Media::DecoderErrorCategory::TryAgain);
 
-    // Letting the first frame go returns its slot to the pool.
+    // Letting the first frame go makes room for another.
     held_frames.remove(0);
     EXPECT(!decoding.next_frame().is_error());
 }

@@ -18,8 +18,7 @@ static NonnullRefPtr<Media::VideoFrame> create_pooled_frame(Media::VideoFramePoo
     auto subsampling = Media::Subsampling::yuv420();
     auto layout = MUST(Media::frame_plane_layout(frame_size, 8, subsampling));
     auto acquired = pool.try_acquire(layout.total_byte_count).release_value();
-    auto slot = MUST(pool.try_adopt_acquired_slot(acquired));
-    return make_ref_counted<Media::VideoFrame>(AK::Duration::zero(), AK::Duration::from_milliseconds(33), Gfx::Size<u32>(frame_size), 8, subsampling, Media::CodingIndependentCodePoints {}, move(slot));
+    return make_ref_counted<Media::VideoFrame>(AK::Duration::zero(), AK::Duration::from_milliseconds(33), Gfx::Size<u32>(frame_size), 8, subsampling, Media::CodingIndependentCodePoints {}, move(acquired.storage));
 }
 
 // Every frame kept for a hold keeps its buffer open in the Compositor, so a WebContent holding one frame after another

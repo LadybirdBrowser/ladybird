@@ -68,12 +68,8 @@ ErrorOr<NonnullRefPtr<VideoSurface>> VideoSurface::create_from_dma_buf(u64 id, G
 namespace IPC {
 
 template<>
-ErrorOr<void> encode(Encoder& encoder, RefPtr<Media::VideoSurface> const& surface)
+ErrorOr<void> encode([[maybe_unused]] Encoder& encoder, [[maybe_unused]] NonnullRefPtr<Media::VideoSurface> const& surface)
 {
-    TRY(encoder.encode(surface != nullptr));
-    if (surface == nullptr)
-        return {};
-
 #if defined(AK_OS_MACOS)
     TRY(encoder.append_attachment(Attachment::from_mach_port(surface->create_mach_port(), Core::MachPort::MessageRight::MoveSend)));
     return {};
@@ -87,11 +83,8 @@ ErrorOr<void> encode(Encoder& encoder, RefPtr<Media::VideoSurface> const& surfac
 }
 
 template<>
-ErrorOr<RefPtr<Media::VideoSurface>> decode(Decoder& decoder)
+ErrorOr<NonnullRefPtr<Media::VideoSurface>> decode([[maybe_unused]] Decoder& decoder)
 {
-    if (!TRY(decoder.decode<bool>()))
-        return RefPtr<Media::VideoSurface> {};
-
 #if defined(AK_OS_MACOS)
     auto attachment = TRY(decoder.attachments().try_dequeue());
     if (attachment.message_right() != Core::MachPort::MessageRight::MoveSend)

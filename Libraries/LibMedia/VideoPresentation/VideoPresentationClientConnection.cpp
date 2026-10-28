@@ -117,7 +117,7 @@ void VideoPresentationClientConnection::update_edge_time_reader(u64 edge_id, Med
         edge_state->sink->set_time_reader(move(time_reader));
 }
 
-void VideoPresentationClientConnection::lend_frame(u64 edge_id, u64 lend_id, u32 seek_id, VideoFrameMetadata metadata, Core::AnonymousBuffer pixel_buffer, RefPtr<VideoSurface> surface)
+void VideoPresentationClientConnection::lend_frame(u64 edge_id, u64 lend_id, u32 seek_id, VideoFrameMetadata metadata, VideoFramePixels pixels)
 {
     // The frame may be dropped on any thread.
     auto release = [weak_connection = make_weak_ref(), edge_id, lend_id] {
@@ -131,7 +131,7 @@ void VideoPresentationClientConnection::lend_frame(u64 edge_id, u64 lend_id, u32
         release();
         return;
     }
-    auto frame_or_error = create_received_video_frame(metadata, move(pixel_buffer), move(surface), edge_state->sender_id, move(release));
+    auto frame_or_error = create_received_video_frame(metadata, move(pixels), edge_state->sender_id, move(release));
     if (frame_or_error.is_error()) {
         dbgln("VideoPresentation: Dropping a lent frame that does not fit its storage: {}", frame_or_error.error());
         return;
