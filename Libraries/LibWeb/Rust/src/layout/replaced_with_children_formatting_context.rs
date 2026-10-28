@@ -38,9 +38,11 @@ pub(super) fn layout_replaced_with_children(
         return formatting_context::ChildLayoutResult::default();
     };
 
-    let wrapper_constraints = run
-        .sizing()
-        .constraints_for_child_context(run.box_, layout_input.containing_block_constraints);
+    let wrapper_constraints = run.sizing().constraints_for_child_context(
+        run.box_,
+        &run.root_record(),
+        layout_input.containing_block_constraints,
+    );
     let mut wrapper_cells = run
         .records
         .keep_child_for_its_run(&run.callbacks, wrapper, wrapper_constraints);
