@@ -373,7 +373,7 @@ fn install(
     //     past the loop the code has an on-stack replacement entry at.
     vm.for_each_live_execution_context(|frame| {
         if !frame.runs_jit_code.get() && frame.executable.get().is_some() && executable_of(frame) == executable {
-            code.note_interpreted_frame(NonNull::from(frame), FRUITLESS_LOOP_CHECKS_AFTER_INSTALL);
+            code.note_interpreted_frame(vm, frame, FRUITLESS_LOOP_CHECKS_AFTER_INSTALL);
         }
         ControlFlow::Continue(())
     });

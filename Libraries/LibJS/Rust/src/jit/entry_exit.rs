@@ -97,7 +97,7 @@ pub fn enter_jit_code_at_loop(vm: &Vm, frame: NonNull<ExecutionContext>, pc: u32
         } else if !code.may_reach_osr_entry_from(pc)
             && (runs_once
                 || code.exit_count() >= EXIT_COUNT_BEFORE_DISCARD_FROM_LOOP
-                || code.count_fruitless_loop_check(frame))
+                || code.count_fruitless_loop_check(frame_ref))
         {
             // NB: The frame may have exited into this loop, and no later iteration of a loop it is in reaches an entry.
             //     Once the code is detached, a later check here compiles the executable again, with what the exits
