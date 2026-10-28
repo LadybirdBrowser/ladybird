@@ -3993,7 +3993,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             .collect();
         self.resolve_baseline_aligned_items();
         for (index, (fragment_arrival, placed_item)) in laid_out_items.into_iter().enumerate() {
-            formatting_context::place_laid_out_child(
+            formatting_context::place_child(
                 &self.run,
                 self.flex_items[index].box_,
                 placed_item,

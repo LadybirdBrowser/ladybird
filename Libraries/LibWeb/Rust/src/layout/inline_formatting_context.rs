@@ -2228,7 +2228,7 @@ impl<'context> InlineFormattingContext<'context> {
             for (node, position) in atomic_inlines_after_clamp_point {
                 self.hide_placed_atomic_inline_for_line_clamp(node);
                 let fragment_arrival = self.take_atomic_inline_fragment_arrival(node);
-                formatting_context::place_laid_out_child(
+                formatting_context::place_child(
                     self.run,
                     node,
                     self.placed_atomic_inline(node),
@@ -2365,6 +2365,7 @@ impl<'context> InlineFormattingContext<'context> {
                         self.placed_entered_inline_box(node),
                         FfiCssPixelPoint::default(),
                         None,
+                        None,
                     );
                 }
             }
@@ -2386,7 +2387,7 @@ impl<'context> InlineFormattingContext<'context> {
                 let relative_insets =
                     self.relative_insets_of_inline_ancestors(self.callbacks.parent(fragment.layout_node));
                 let fragment_arrival = self.take_atomic_inline_fragment_arrival(fragment.layout_node);
-                formatting_context::place_laid_out_child(
+                formatting_context::place_child(
                     self.run,
                     fragment.layout_node,
                     self.placed_atomic_inline(fragment.layout_node),

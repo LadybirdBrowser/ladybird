@@ -76,7 +76,7 @@ pub(super) fn layout_replaced_with_children(
         wrapper,
         wrapper_result.depends_on_percentage_block_size,
     );
-    formatting_context::place_laid_out_child(
+    formatting_context::place_child(
         run,
         wrapper,
         wrapper_outcome.placed_child(),

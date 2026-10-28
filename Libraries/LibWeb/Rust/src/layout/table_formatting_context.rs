@@ -1274,6 +1274,7 @@ impl<'pass> TableFormattingContext<'pass> {
             formatting_context::PlacedChild::of_record(record, &self.run).with_fragment_facts(fragment_facts),
             content_offset,
             None,
+            None,
         );
         record.seal_own_metrics();
         participant_box.content_offset.set(content_offset);
@@ -3459,7 +3460,7 @@ impl<'pass> TableFormattingContext<'pass> {
                 .take()
                 .expect("a cell is laid out before it is placed")
                 .with_fragment_facts(self.cell_fragment_facts[cell_index]);
-            formatting_context::place_laid_out_child(
+            formatting_context::place_child(
                 &self.run,
                 cell.box_,
                 placed_cell,
