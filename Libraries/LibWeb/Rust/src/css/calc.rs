@@ -593,9 +593,9 @@ pub enum CalcNode {
     Min(Vec<Arc<CalcNode>>),
     Max(Vec<Arc<CalcNode>>),
     Clamp {
-        min: Arc<CalcNode>,
+        min: Option<Arc<CalcNode>>,
         center: Arc<CalcNode>,
-        max: Arc<CalcNode>,
+        max: Option<Arc<CalcNode>>,
     },
     /// https://drafts.csswg.org/css-values-5/#progress-func
     Progress {
@@ -684,9 +684,13 @@ impl CalcNode {
             | CalcNode::Sqrt(child)
             | CalcNode::Exp(child) => f(child),
             CalcNode::Clamp { min, center, max } => {
-                f(min);
+                if let Some(min) = min {
+                    f(min);
+                }
                 f(center);
-                f(max);
+                if let Some(max) = max {
+                    f(max);
+                }
             }
             CalcNode::Progress { progress, from, to, .. } => {
                 f(progress);
@@ -782,7 +786,13 @@ impl CalcNode {
             // NOTE: `- foo` doesn't change the type, and neither does abs().
             CalcNode::Negate(child) | CalcNode::Abs(child) => child.numeric_type(percentage_leaf_type),
             CalcNode::Invert(child) => Some(child.numeric_type(percentage_leaf_type)?.inverted()),
-            CalcNode::Clamp { min, center, max } => add_children(&[min, center, max]),
+            CalcNode::Clamp { min, center, max } => {
+                let mut numeric_type = center.numeric_type(percentage_leaf_type)?;
+                for bound in min.iter().chain(max.iter()) {
+                    numeric_type = numeric_type.added_to(&bound.numeric_type(percentage_leaf_type)?)?;
+                }
+                Some(numeric_type)
+            }
             CalcNode::Progress { progress, from, to, .. } => {
                 let sum = add_children(&[progress, from, to])?;
                 CalcNumericType::default().made_consistent_with(&sum)
@@ -1051,9 +1061,13 @@ pub(crate) fn map_calc_size_leaves(
         CalcNode::Negate(child) => shared(CalcNode::Negate(map_calc_size_leaves(child, replace)?)),
         CalcNode::Invert(child) => shared(CalcNode::Invert(map_calc_size_leaves(child, replace)?)),
         CalcNode::Clamp { min, center, max } => shared(CalcNode::Clamp {
-            min: map_calc_size_leaves(min, replace)?,
+            min: min
+                .as_ref()
+                .map_or(Some(None), |min| map_calc_size_leaves(min, replace).map(Some))?,
             center: map_calc_size_leaves(center, replace)?,
-            max: map_calc_size_leaves(max, replace)?,
+            max: max
+                .as_ref()
+                .map_or(Some(None), |max| map_calc_size_leaves(max, replace).map(Some))?,
         }),
         _ => {
             let mut needs_replacement = false;
@@ -1285,9 +1299,9 @@ pub extern "C" fn rust_calc_node_create_clamp(
     max: OwnedArc<CalcNode>,
 ) -> *const CalcNode {
     handle(CalcNode::Clamp {
-        min: min.into_arc(),
+        min: Some(min.into_arc()),
         center: center.into_arc(),
-        max: max.into_arc(),
+        max: Some(max.into_arc()),
     })
 }
 
@@ -1450,9 +1464,21 @@ impl CalcNode {
             CalcNode::Max(children) => fold_min_or_max(children, false),
             // https://drafts.csswg.org/css-values-4/#funcdef-clamp
             CalcNode::Clamp { min, center, max } => {
-                let min_result = min.try_canonical_result(context)?;
                 let center_result = center.try_canonical_result(context)?;
-                let max_result = max.try_canonical_result(context)?;
+                let min_result = match min {
+                    Some(min) => min.try_canonical_result(context)?,
+                    None => CalcResult {
+                        value: f64::NEG_INFINITY,
+                        numeric_type: center_result.numeric_type,
+                    },
+                };
+                let max_result = match max {
+                    Some(max) => max.try_canonical_result(context)?,
+                    None => CalcResult {
+                        value: f64::INFINITY,
+                        numeric_type: center_result.numeric_type,
+                    },
+                };
                 // The first consistency must hold; the second stays part of the
                 // result, exactly as in the C++ implementation.
                 let first = min_result.numeric_type?.added_to(&center_result.numeric_type?)?;
@@ -2505,9 +2531,9 @@ impl CalcNode {
             CalcNode::Sqrt(child) => CalcNode::Sqrt(simplify_child(child, &mut changed)),
             CalcNode::Exp(child) => CalcNode::Exp(simplify_child(child, &mut changed)),
             CalcNode::Clamp { min, center, max } => CalcNode::Clamp {
-                min: simplify_child(min, &mut changed),
+                min: min.as_ref().map(|min| simplify_child(min, &mut changed)),
                 center: simplify_child(center, &mut changed),
-                max: simplify_child(max, &mut changed),
+                max: max.as_ref().map(|max| simplify_child(max, &mut changed)),
             },
             CalcNode::Progress {
                 no_clamp,
@@ -3893,6 +3919,21 @@ impl CalcSerializer<'_> {
             return;
         }
 
+        if let CalcNode::Clamp { min, center, max } = &**node {
+            self.literal("clamp(");
+            for (index, child) in [min.as_ref(), Some(center), max.as_ref()].into_iter().enumerate() {
+                if index != 0 {
+                    self.literal(", ");
+                }
+                match child {
+                    Some(child) => self.serialize_tree(child, false),
+                    None => self.literal("none"),
+                }
+            }
+            self.literal(")");
+            return;
+        }
+
         // AD-HOC: A non-math function has no calc() wrapper; serialize it directly.
         if matches!(&**node, CalcNode::NonMathFunction { .. }) {
             self.serialize_tree(node, false);
@@ -4763,9 +4804,12 @@ impl CalcNode {
                     max: b_max,
                 },
             ) => {
-                a_min.structurally_equals(b_min)
-                    && a_center.structurally_equals(b_center)
-                    && a_max.structurally_equals(b_max)
+                let bounds_equal = |a: &Option<Arc<CalcNode>>, b: &Option<Arc<CalcNode>>| match (a, b) {
+                    (Some(a), Some(b)) => a.structurally_equals(b),
+                    (None, None) => true,
+                    _ => false,
+                };
+                bounds_equal(a_min, b_min) && a_center.structurally_equals(b_center) && bounds_equal(a_max, b_max)
             }
             (
                 CalcNode::Progress {
@@ -4986,7 +5030,11 @@ fn append_reification_node(
             | CalcNode::Invert(..)
             | CalcNode::Min(..)
             | CalcNode::Max(..)
-            | CalcNode::Clamp { .. }
+            | CalcNode::Clamp {
+                min: Some(_),
+                max: Some(_),
+                ..
+            }
     ) {
         return None;
     }
