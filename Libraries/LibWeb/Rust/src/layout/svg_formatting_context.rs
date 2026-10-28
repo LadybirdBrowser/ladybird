@@ -2076,6 +2076,7 @@ impl<'pass> SvgFormattingContext<'pass> {
                 child_input,
                 child_cells,
                 true,
+                run.percentage_block_insets_of_root_children_have_definite_basis(),
             );
             outcome.report_percentage_block_size_dependency_of(run, child);
             match outcome {

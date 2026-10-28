@@ -1395,6 +1395,7 @@ impl<'context> InlineFormattingContext<'context> {
                 inline_size: used.content_inline_size.get(),
                 block_size: used.content_block_size.get(),
             },
+            self.block_container.percentage_block_insets_have_definite_basis,
         );
         self.run.records.keep_in_flow_box_insets(node, insets);
         insets
@@ -1482,7 +1483,15 @@ impl<'context> InlineFormattingContext<'context> {
             fragment_arrival,
             laid_out_box,
             line_data,
-        } = formatting_context::layout_inside_child(self.run, Some(self.parent), None, node, input, false);
+        } = formatting_context::layout_inside_child(
+            self.run,
+            Some(self.parent),
+            None,
+            node,
+            input,
+            false,
+            self.block_container.percentage_block_insets_have_definite_basis,
+        );
         self.keep_atomic_inline_fragment_arrival(node, fragment_arrival);
         outcome.report_percentage_block_size_dependency_of(self.run, node);
         let baselines = match outcome {

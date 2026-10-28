@@ -4362,7 +4362,13 @@ impl<'pass> GridFormattingContext<'pass> {
         let mut cells = self.cells_of(item);
         self.prepare_item_cells(item, &mut cells, ItemRowArea::NotYetSized);
         let input = self.item_layout_input(item, &cells, ItemRowArea::NotYetSized);
-        let plan = formatting_context::child_run_plan(&self.run, item.box_, input, false)?;
+        let plan = formatting_context::child_run_plan(
+            &self.run,
+            item.box_,
+            input,
+            false,
+            self.run.percentage_block_insets_of_root_children_have_definite_basis(),
+        )?;
         Some(formatting_context::ChildRunShape {
             node: item.box_,
             fc_type: plan.fc_type,
@@ -4435,6 +4441,7 @@ impl<'pass> GridFormattingContext<'pass> {
                 input,
                 cells,
                 false,
+                run.percentage_block_insets_of_root_children_have_definite_basis(),
             );
             let handed_back = run.records.box_metrics_of(item.box_).input_cells();
             self.update_cells_of(item, |item_cells| *item_cells = handed_back);
@@ -4458,7 +4465,13 @@ impl<'pass> GridFormattingContext<'pass> {
             };
             // Resolve relative-position insets before placement seals the
             // item's committed metrics.
-            let insets = abspos_engine::compute_inset_native(run, item.box_, self.container_used(), area.size);
+            let insets = abspos_engine::compute_inset_native(
+                run,
+                item.box_,
+                self.container_used(),
+                area.size,
+                run.percentage_block_insets_of_root_children_have_definite_basis(),
+            );
             run.records.keep_in_flow_box_insets(item.box_, insets);
             let placed_item = placed_item.with_in_flow_box_insets(insets);
             if self.item_participates_in_row_baseline_alignment(item)

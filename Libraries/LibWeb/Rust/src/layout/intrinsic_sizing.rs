@@ -137,10 +137,7 @@ pub(super) fn content_sizes_of_inline_content(
             let parent = block_formatting_context::BlockFormattingContext::new(run, None);
             let mut context = inline_formatting_context::InlineFormattingContext::new_with_rust_parent(
                 run,
-                block_formatting_context::BlockContainer {
-                    node: run.box_,
-                    used: run.records.used_values(run.box_),
-                },
+                block_formatting_context::BlockContainer::root_of(run),
                 input,
                 FfiCssPixelPoint::default(),
                 run.callbacks,
