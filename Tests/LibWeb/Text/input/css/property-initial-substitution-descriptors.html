@@ -1,0 +1,20 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const cases = [
+            ["substitution", "initial-value: var(--missing)"],
+            ["later valid", "initial-value: var(--missing); initial-value: value"],
+            ["later substitution", "initial-value: value; initial-value: var(--missing)"],
+            ["important substitution", "initial-value: var(--missing) !important"],
+            ["later important", "initial-value: var(--missing); initial-value: value !important"],
+        ];
+        for (const [index, [label, descriptors]] of cases.entries()) {
+            const style = document.createElement("style");
+            style.textContent = `@property --initial-${index} { syntax: "*"; inherits: false; ${descriptors}; }`;
+            document.head.appendChild(style);
+            println(`${label}: ${style.sheet.cssRules.length}`);
+            style.remove();
+        }
+    });
+</script>
