@@ -6,13 +6,13 @@
 1 break-spaces: l'\u{e9}t\u{e9}  | (voir  | p.  | 12)  | \u{bf}Qu\u{e9}?  | \u{a1}Hola!
 2: (   | \u{e9}t\u{e9}  | [  | \u{e9}t\u{e9}  | {  | \u{e9}t\u{e9}  | \u{a1}  | \u{e9}t\u{e9}  | \u{bf}  | \u{e9}t\u{e9}
 2 pre-wrap: (   | \u{e9}t\u{e9}  | [  | \u{e9}t\u{e9}  | {  | \u{e9}t\u{e9}  | \u{a1}  | \u{e9}t\u{e9}  | \u{bf}  | \u{e9}t\u{e9}
-2 break-spaces: (   | \u{e9}t\u{e9}  | [  | \u{e9}t\u{e9}  | {  | \u{e9}t\u{e9}  | \u{a1}  | \u{e9}t\u{e9}  | \u{bf}  | \u{e9}t\u{e9}
+2 break-spaces: (  |   | \u{e9}t\u{e9}  | [  | \u{e9}t\u{e9}  | {  | \u{e9}t\u{e9}  | \u{a1}  | \u{e9}t\u{e9}  | \u{bf}  | \u{e9}t\u{e9}
 3: \u{ab}\u{a0}Oui\u{a0}\u{bb}  | dit- | il,  | \u{ab}  | non\u{a0}\u{bb}.
 3 pre-wrap: \u{ab}\u{a0}Oui\u{a0}\u{bb}  | dit- | il,  | \u{ab}  | non\u{a0}\u{bb}.
 3 break-spaces: \u{ab}\u{a0}Oui\u{a0}\u{bb}  | dit- | il,  | \u{ab}  | non\u{a0}\u{bb}.
 4: \u{ab}   | Oui   | \u{bb}  | dit- | il  | \u{ab}\u{a0}  | \u{e9}
 4 pre-wrap: \u{ab}   | Oui   | \u{bb}  | dit- | il  | \u{ab}\u{a0}  | \u{e9}
-4 break-spaces: \u{ab}   | Oui   | \u{bb}  | dit- | il  | \u{ab}\u{a0}  | \u{e9}
+4 break-spaces: \u{ab}  |   | Oui  |   | \u{bb}  | dit- | il  | \u{ab}\u{a0}  | \u{e9}
 5: caf\u{e9},  | th\u{e9};  | \u{e9}t\u{e9}:  | l\u{e0}!  | o\u{f9}?  | \u{e7}a)  | \u{e7}\u{e0}]  | \u{e7}a}
 5 pre-wrap: caf\u{e9},  | th\u{e9};  | \u{e9}t\u{e9}:  | l\u{e0}!  | o\u{f9}?  | \u{e7}a)  | \u{e7}\u{e0}]  | \u{e7}a}
 5 break-spaces: caf\u{e9},  | th\u{e9};  | \u{e9}t\u{e9}:  | l\u{e0}!  | o\u{f9}?  | \u{e7}a)  | \u{e7}\u{e0}]  | \u{e7}a}
@@ -45,7 +45,7 @@
 14 break-spaces: \u{e9}\u{301}e\u{301}  | o\u{308}  | \u{e7}\u{327}
 15: \u{e9}   | ! | \u{e9}  | \u{e9}  | )  | \u{e9}  | \u{e9}  | ,  | \u{e9}
 15 pre-wrap: \u{e9}   | ! | \u{e9}  | \u{e9}  | )  | \u{e9}  | \u{e9}  | ,  | \u{e9}
-15 break-spaces: \u{e9}   | ! | \u{e9}  | \u{e9}  | )  | \u{e9}  | \u{e9}  | ,  | \u{e9}
+15 break-spaces: \u{e9}  |   | ! | \u{e9}  | \u{e9}  | )  | \u{e9}  | \u{e9}  | ,  | \u{e9}
 16: \u{e9}/ | \u{e9}  | \u{e9}/  | \u{e9}  | \u{e9}  | / | \u{e9}
 16 pre-wrap: \u{e9}/ | \u{e9}  | \u{e9}/  | \u{e9}  | \u{e9}  | / | \u{e9}
 16 break-spaces: \u{e9}/ | \u{e9}  | \u{e9}/  | \u{e9}  | \u{e9}  | / | \u{e9}
