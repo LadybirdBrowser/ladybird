@@ -651,6 +651,7 @@ struct TextChunker<'text> {
     allow_conditional_japanese_starters: bool,
     font_variant_emoji: u8,
     should_collapse_whitespace: bool,
+    break_after_preserved_tabs: bool,
     should_wrap_lines: bool,
     should_respect_linebreaks: bool,
     unidirectional_ltr: bool,
@@ -675,6 +676,8 @@ impl<'text> TextChunker<'text> {
                 inputs.white_space_collapse,
                 white_space_collapse::COLLAPSE | white_space_collapse::PRESERVE_BREAKS
             ),
+            break_after_preserved_tabs: inputs.white_space_collapse == white_space_collapse::BREAK_SPACES
+                && inputs.should_wrap_lines,
             should_wrap_lines: inputs.should_wrap_lines,
             should_respect_linebreaks: inputs.should_respect_linebreaks,
             unidirectional_ltr: inputs.unidirectional_ltr,
@@ -936,10 +939,7 @@ impl<'text> TextChunker<'text> {
                     }
 
                     pending.broken_on_tab = true;
-                    // consume any consecutive tabs
-                    while self.current_index < self.text.len() && self.current_code_point() == '\t' as u32 {
-                        self.current_index = self.next_grapheme_boundary();
-                    }
+                    self.current_index = tab_chunk_end(self.text, self.current_index, self.break_after_preserved_tabs);
                     can_break_at_current_position = self.is_at_line_break_opportunity();
                 }
 
@@ -1125,4 +1125,30 @@ pub(crate) fn text_chunks(
             splits_at_orientation_changes: key.splits_at_orientation_changes,
         })
     })
+}
+
+// Tabs occupy one UTF-16 code unit each. Other preserved whitespace is split below by next_chunk().
+fn tab_chunk_end(text: &[u16], start: usize, break_after_each_tab: bool) -> usize {
+    let mut end = start + 1;
+    while !break_after_each_tab && text.get(end) == Some(&u16::from(b'\t')) {
+        end += 1;
+    }
+    end
+}
+
+#[cfg(test)]
+mod tests {
+    use super::tab_chunk_end;
+
+    #[test]
+    fn preserved_tab_chunk_boundaries_respect_break_spaces() {
+        let text: Vec<_> = "\t\t\tX".encode_utf16().collect();
+        assert_eq!(tab_chunk_end(&text, 0, true), 1);
+        assert_eq!(tab_chunk_end(&text, 1, true), 2);
+        assert_eq!(tab_chunk_end(&text, 2, true), 3);
+        // pre/pre-wrap and nowrap retain the existing tab-run grouping.
+        assert_eq!(tab_chunk_end(&text, 0, false), 3);
+        assert_eq!(tab_chunk_end(&text, 2, false), 3);
+        assert_eq!(tab_chunk_end(&[u16::from(b'\t')], 0, true), 1);
+    }
 }

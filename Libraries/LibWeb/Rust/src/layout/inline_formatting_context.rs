@@ -1669,6 +1669,16 @@ impl<'context> InlineFormattingContext<'context> {
             return TextItemWrapOpportunity::None;
         }
         if is_whitespace {
+            if style.white_space_collapse() == white_space_collapse::BREAK_SPACES {
+                // https://drafts.csswg.org/css-text-4/#valdef-white-space-collapse-break-spaces
+                // A soft wrap opportunity exists after every preserved white space character and after every other
+                // space separator (including between adjacent spaces).
+                return if line_ends_in_whitespace {
+                    TextItemWrapOpportunity::BeforeText
+                } else {
+                    TextItemWrapOpportunity::None
+                };
+            }
             let next_inline_size =
                 inline_level_iterator::sequence_inline_size(self, remaining_items, false).unwrap_or_default();
             return if next_inline_size > CssPixels::default() {
@@ -3082,6 +3092,9 @@ impl ContentSizingLines {
                         if matches!(opportunity, TextItemWrapOpportunity::BeforeWhitespaceSequence(_)) {
                             self.lines.finish();
                             return;
+                        }
+                        if opportunity == TextItemWrapOpportunity::BeforeText {
+                            self.lines.finish();
                         }
                         self.lines
                             .append(border_box_inline_size, true, trailing_whitespace_inline_size);
