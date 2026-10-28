@@ -2743,9 +2743,7 @@ impl<'pass> TableFormattingContext<'pass> {
             }
         };
         self.placed_cells[cell_index] = Some(match laid_out_box {
-            Some(laid_out_box) => {
-                formatting_context::PlacedChild::of_laid_out_box(&laid_out_box, line_data, run.callbacks.frame)
-            }
+            Some(laid_out_box) => formatting_context::PlacedChild::of_laid_out_box(&laid_out_box, line_data),
             // NB: The cell was laid out by this table's run, in the record it keeps.
             None => formatting_context::PlacedChild::of_record(run.records.used_values(cell.box_), run),
         });
@@ -3316,11 +3314,7 @@ impl<'pass> TableFormattingContext<'pass> {
                     baselines: measurement.baselines,
                     orthogonal_flow_baselines: None,
                 };
-                self.placed_cells[cell_index] = Some(formatting_context::PlacedChild::of_laid_out_box(
-                    &laid_out,
-                    None,
-                    run.callbacks.frame,
-                ));
+                self.placed_cells[cell_index] = Some(formatting_context::PlacedChild::of_laid_out_box(&laid_out, None));
                 self.content_baselines_of_handed_back_cells[cell_index] = Some(laid_out.baselines);
                 run.records.note_child_handed_back(cell.box_);
                 formatting_context::propagate_percentage_block_size_dependency_to_containing_block(

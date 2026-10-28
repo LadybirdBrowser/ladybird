@@ -3120,9 +3120,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             ChildLayoutOutcome::Skipped { .. } => laid_out_box.expect("a skipped item leaves its box").baselines,
         };
         let placed_item = match laid_out_box {
-            Some(laid_out_box) => {
-                formatting_context::PlacedChild::of_laid_out_box(&laid_out_box, line_data, run.callbacks.frame)
-            }
+            Some(laid_out_box) => formatting_context::PlacedChild::of_laid_out_box(&laid_out_box, line_data),
             // NB: The item was laid out by this flex container's run, in the record it keeps.
             None => formatting_context::PlacedChild::of_record(run.records.used_values(node), run),
         };

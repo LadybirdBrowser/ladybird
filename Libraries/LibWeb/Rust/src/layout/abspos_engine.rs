@@ -3250,8 +3250,7 @@ impl<'pass> AbsposEngine<'pass> {
             }
         }
         self.records.set_used_insets(node, used_insets);
-        let mut placed_child =
-            formatting_context::PlacedChild::of_laid_out_box(&laid_out_box, line_data, run.callbacks.frame);
+        let mut placed_child = formatting_context::PlacedChild::of_laid_out_box(&laid_out_box, line_data);
         placed_child.facts_decided_by_parent.used_insets = used_insets;
         placed_child.facts_decided_by_parent.default_scroll_shift = default_scroll_shift;
         formatting_context::place_child_in_containing_block(

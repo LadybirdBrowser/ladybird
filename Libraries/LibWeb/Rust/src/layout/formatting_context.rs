@@ -345,11 +345,10 @@ pub(crate) fn lay_out_pending_abspos_children(
 }
 
 /// What placing a child takes from its layout and from its parent: what the child's fragment shows of the box's own
-/// layout, in the frame its sizes are in, and what the parent decided about the child besides where it goes.
+/// layout, in the frame of the run placing it, and what the parent decided about the child besides where it goes.
 #[derive(Clone)]
 pub(crate) struct PlacedChild {
     pub(crate) geometry: fragment_tree::FragmentGeometry,
-    pub(crate) frame: geometry::Frame,
     /// What the parent decided about the child before placing it, which placing it adds the placement to.
     pub(crate) facts_decided_by_parent: run_records::FactsDecidedByParent,
     /// The offset the relative positioning of the fragmented inline boxes a block-level child interrupts gives the
@@ -358,47 +357,39 @@ pub(crate) struct PlacedChild {
 }
 
 impl PlacedChild {
-    /// A child whose fragment shows `geometry`, in `frame`, before its parent decided anything about it.
-    pub(crate) fn new(geometry: fragment_tree::FragmentGeometry, frame: geometry::Frame) -> Self {
+    /// A child whose fragment shows `geometry` before its parent decided anything about it.
+    pub(crate) fn new(geometry: fragment_tree::FragmentGeometry) -> Self {
         Self {
             geometry,
-            frame,
             facts_decided_by_parent: run_records::FactsDecidedByParent::default(),
             offset_from_relatively_positioned_inline_ancestors: FfiCssPixelPoint::default(),
         }
     }
 
-    /// A child whose run handed back the box `laid_out` with the lines `line_data`, in `frame`, before its parent
-    /// decided anything about it.
+    /// A child whose run handed back the box `laid_out` with the lines `line_data`, before its parent decided anything
+    /// about it.
     pub(crate) fn of_laid_out_box(
         laid_out: &run_records::LaidOutChildBox,
         line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
-        frame: geometry::Frame,
     ) -> Self {
-        Self::new(
-            fragment_tree::FragmentGeometry {
-                cells: laid_out.cells,
-                line_data,
-            },
-            frame,
-        )
+        Self::new(fragment_tree::FragmentGeometry {
+            cells: laid_out.cells,
+            line_data,
+        })
     }
 
     /// A box that `run` lays out in `record`, before its parent decided anything about it.
     pub(crate) fn of_record(record: &UsedValues, run: &FormattingContextRun) -> Self {
         let callbacks = &run.callbacks;
-        Self::new(
-            fragment_tree::FragmentGeometry {
-                cells: used_values::RecordInFrame::new(record, callbacks.frame).cells(),
-                // NB: Only a run that builds fragments shows the lines it laid out in the boxes it places.
-                line_data: run
-                    .fragments
-                    .is_some()
-                    .then(|| record.finish_line_data(callbacks))
-                    .flatten(),
-            },
-            callbacks.frame,
-        )
+        Self::new(fragment_tree::FragmentGeometry {
+            cells: used_values::RecordInFrame::new(record, callbacks.frame).cells(),
+            // NB: Only a run that builds fragments shows the lines it laid out in the boxes it places.
+            line_data: run
+                .fragments
+                .is_some()
+                .then(|| record.finish_line_data(callbacks))
+                .flatten(),
+        })
     }
 
     /// The child with the insets its parent resolved for it as an in-flow box.
@@ -484,29 +475,16 @@ pub(crate) fn place_child_in_containing_block(
         );
         return None;
     };
-    let placed_child_cells_in_run_frame = || {
-        placed_child
-            .geometry
-            .cells
-            .in_frame(placed_child.frame, callbacks.frame)
-    };
     fragments.note_placed_box(
         node,
         placement,
-        cells_kept_for_contained_abspos(run, node, placed_child_cells_in_run_frame),
+        cells_kept_for_contained_abspos(run, node, || placed_child.geometry.cells),
     );
     let PlacedChild {
         geometry,
-        frame,
         facts_decided_by_parent,
         offset_from_relatively_positioned_inline_ancestors,
     } = placed_child;
-    if cfg!(debug_assertions) || run_repeatability::verification_is_enabled() {
-        assert_eq!(
-            frame, callbacks.frame,
-            "{node:?} is placed in another frame than the one its box is kept in"
-        );
-    }
     debug_assert!(
         facts_decided_by_parent.placement.is_none(),
         "a child is handed to placement before it is placed"
@@ -2150,26 +2128,15 @@ pub(crate) struct ChildRunOutcome {
 
 impl ChildRunOutcome {
     /// Hands the laid out box back to the formatting context of `run`, the run that holds `child`, which keeps what it
-    /// reads of the box: returns the run's result, the box, and the fragments its placement takes.
-    pub(crate) fn hand_box_back_to(
-        self,
-        run: &FormattingContextRun,
-        child: Node,
-    ) -> (
-        ChildLayoutResult,
-        run_records::ChildLaidOutByItsOwnRun,
-        Option<fragment_tree::ChildFragmentArrival>,
-    ) {
+    /// reads of the box.
+    pub(crate) fn hand_box_back_to(self, run: &FormattingContextRun, child: Node) -> Self {
         run.records.note_child_handed_back(child);
-        (
-            self.result,
-            run_records::ChildLaidOutByItsOwnRun {
-                laid_out: self.laid_out_box,
-                line_data: self.line_data,
-                frame: run.callbacks.frame,
-            },
-            self.fragment_arrival,
-        )
+        self
+    }
+
+    /// What placing the child takes of the box its run handed back.
+    pub(crate) fn placed_child(&self) -> PlacedChild {
+        PlacedChild::of_laid_out_box(&self.laid_out_box, self.line_data.clone())
     }
 }
 
@@ -3132,12 +3099,17 @@ pub(crate) fn layout_inside_child_with_input_cells(
         input,
         run.records.take_table_inline_layout(child),
     );
-    let (result, handed_back, fragment_arrival) = child_run_outcome.hand_box_back_to(run, child);
+    let ChildRunOutcome {
+        result,
+        laid_out_box,
+        line_data,
+        fragment_arrival,
+    } = child_run_outcome.hand_box_back_to(run, child);
     ChildLayout {
         outcome: ChildLayoutOutcome::Created(result),
         fragment_arrival,
-        laid_out_box: Some(handed_back.laid_out),
-        line_data: handed_back.line_data,
+        laid_out_box: Some(laid_out_box),
+        line_data,
     }
 }
 
@@ -3748,14 +3720,14 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
             input,
             None,
         );
-        let (_, handed_back_root, fragment_arrival) = root_outcome.hand_box_back_to(&entry_run, root_for_layout);
+        let root_outcome = root_outcome.hand_box_back_to(&entry_run, root_for_layout);
         place_laid_out_child(
             &entry_run,
             root_for_layout,
-            handed_back_root.placed_child(),
+            root_outcome.placed_child(),
             FfiCssPixelPoint::default(),
             None,
-            fragment_arrival,
+            root_outcome.fragment_arrival,
         );
         finish_entry_pass(
             entry_records,
@@ -3903,10 +3875,15 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
         input,
         None,
     );
-    let (_, handed_back_root, fragment_arrival) = root_outcome.hand_box_back_to(run, root);
+    let ChildRunOutcome {
+        laid_out_box: root_box,
+        line_data: root_line_data,
+        fragment_arrival,
+        ..
+    } = root_outcome.hand_box_back_to(run, root);
     let root_geometry = fragment_tree::FragmentGeometry {
-        cells: handed_back_root.laid_out.cells,
-        line_data: handed_back_root.line_data,
+        cells: root_box.cells,
+        line_data: root_line_data,
     };
     let facts_decided_by_parent = committed_root.facts_decided_by_parent;
     let placement = facts_decided_by_parent

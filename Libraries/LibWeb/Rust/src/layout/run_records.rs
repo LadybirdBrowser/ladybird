@@ -343,22 +343,6 @@ impl LaidOutChildBox {
     }
 }
 
-/// What the parent of a box laid out by a run of its own keeps of it once that run returns: the box, the lines the run
-/// laid out in it, and the frame the box's metrics are in.
-#[derive(Clone)]
-pub(crate) struct ChildLaidOutByItsOwnRun {
-    pub(crate) laid_out: LaidOutChildBox,
-    pub(crate) line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
-    pub(crate) frame: geometry::Frame,
-}
-
-impl ChildLaidOutByItsOwnRun {
-    /// What placing the child takes of the box its run handed back.
-    pub(crate) fn placed_child(&self) -> formatting_context::PlacedChild {
-        formatting_context::PlacedChild::of_laid_out_box(&self.laid_out, self.line_data.clone(), self.frame)
-    }
-}
-
 /// The sizes, size constraints, box sides and baselines of a box as a run sees them: kept as a value for a child
 /// awaiting the run of its own, or read from the record of a box the run lays out itself.
 #[derive(Clone, Copy)]
