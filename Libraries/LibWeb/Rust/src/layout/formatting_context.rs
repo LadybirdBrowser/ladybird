@@ -1617,7 +1617,7 @@ fn apply_root_sizing_directives(
             );
             let mut body_input = body_input_with_inner_available_space(run, input);
             let inline_definite_space = AvailableSpace {
-                inline_size: AvailableSize::definite(run.records.used_values(run.box_).content_inline_size.get()),
+                inline_size: AvailableSize::definite(run.records.used_values(run.box_).content_inline_size()),
                 block_size: AvailableSize::Indefinite,
             };
             let flex_self_resolution_space = flex_self_block_size_resolution_space(
@@ -1639,7 +1639,7 @@ fn apply_root_sizing_directives(
         ParticipationInParentFormattingContext::Item => {
             if cfg!(debug_assertions) && run.fragments.is_some() {
                 debug_assert!(
-                    run.records.used_values(run.box_).has_definite_inline_size.get(),
+                    run.records.used_values(run.box_).has_definite_inline_size(),
                     "container-internal run root must arrive with a container-assigned inline size"
                 );
             }
@@ -1654,7 +1654,7 @@ fn apply_root_sizing_directives(
                 }
                 if let Some(block_size) = directives.forced_content_block_size {
                     used.set_content_block_size(block_size);
-                    used.has_definite_block_size.set(true);
+                    used.set_has_definite_block_size(true);
                 }
             }
             *input
@@ -1682,7 +1682,7 @@ fn dimension_block_level_root(
     if let Some(block_size) = input.sizing.forced_content_block_size {
         let used = run.records.used_values(node);
         used.set_content_block_size(block_size);
-        used.has_definite_block_size.set(true);
+        used.set_has_definite_block_size(true);
         body_input.available_space.block_size = AvailableSize::definite(block_size);
         return body_input;
     }

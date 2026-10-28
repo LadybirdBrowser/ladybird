@@ -23,7 +23,7 @@ impl ResolvedBlockSize {
     pub(crate) fn apply_to_record(self, used: &UsedValues) {
         used.set_content_block_size(self.content_block_size);
         if self.makes_block_size_definite {
-            used.has_definite_block_size.set(true);
+            used.set_has_definite_block_size(true);
         }
     }
 
@@ -1800,7 +1800,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         let root = used_values::create_used_values(&self.callbacks, node, constraints);
         root.set_content_inline_size(other_axis_size);
         root.set_content_block_size(transferred_size);
-        root.has_definite_block_size.set(true);
+        root.set_has_definite_block_size(true);
         let result = formatting_context::lay_out_measurement_root_for_its_result(
             self.callbacks,
             node,
@@ -1846,8 +1846,8 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         let Some(minimum) = self.automatic_minimum_size_from_aspect_ratio(
             node,
             SizingAxis::Block,
-            self.used(node).content_inline_size.get(),
-            self.used(node).content_block_size.get(),
+            self.used(node).content_inline_size(),
+            self.used(node).content_block_size(),
             available_space,
             constraints,
             content_block_size,
@@ -1855,7 +1855,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             return;
         };
         let used = self.used(node);
-        if used.content_block_size.get() < minimum {
+        if used.content_block_size() < minimum {
             used.set_content_block_size(minimum);
         }
     }
@@ -2113,7 +2113,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
                 && block_size_is_automatic;
 
             if native_control_block_size_constraint_is_active || block_size_is_definite_from_aspect_ratio {
-                self.used(node).has_definite_block_size.set(true);
+                self.used(node).set_has_definite_block_size(true);
             }
             return None;
         }
@@ -2313,12 +2313,12 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
                         OuterInlineContributions {
                             min_content_inline_size,
                             max_content_inline_size,
-                            margin_start: root_used.margin_left.get(),
-                            border_start: root_used.border_left.get(),
-                            padding_start: root_used.padding_left.get(),
-                            padding_end: root_used.padding_right.get(),
-                            border_end: root_used.border_right.get(),
-                            margin_end: root_used.margin_right.get(),
+                            margin_start: root_used.margin_left(),
+                            border_start: root_used.border_left(),
+                            padding_start: root_used.padding_left(),
+                            padding_end: root_used.padding_right(),
+                            border_end: root_used.border_right(),
+                            margin_end: root_used.margin_right(),
                         },
                         records
                             .percentage_block_size_dependency_of(node)
@@ -3161,7 +3161,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         constraints: ContainingBlockConstraints,
     ) -> formatting_context::ChildLayoutResult {
         let root = used_values::create_used_values(&self.callbacks, node, constraints);
-        root.has_definite_block_size.set(false);
+        root.set_has_definite_block_size(false);
         root.set_content_inline_size(inline_size);
         let mut input = LayoutInput::new(
             AvailableSpace {
@@ -3419,9 +3419,10 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         }
         let used = self.used(node);
         used.set_content_block_size(used_block_size);
-        used.has_definite_block_size.set(true);
-        used.has_definite_block_size_only_for_button_content_alignment
-            .set(block_size_is_automatic && facts.uses_button_layout());
+        used.set_has_definite_block_size(true);
+        used.set_has_definite_block_size_only_for_button_content_alignment(
+            block_size_is_automatic && facts.uses_button_layout(),
+        );
     }
 
     pub(crate) fn table_box_inside_wrapper(&self, wrapper: Node) -> Node {
@@ -3448,14 +3449,16 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         let table_box = self.table_box_inside_wrapper(wrapper);
         let table_used = used_values::create_used_values(&self.callbacks, table_box, table_constraints);
         let table_style = self.style(table_box);
-        table_used.border_left.set(table_style.border_left_width());
-        table_used.border_right.set(table_style.border_right_width());
-        table_used
-            .padding_left
-            .set(table_style.padding_left().to_px(containing_block_inline_size));
-        table_used
-            .padding_right
-            .set(table_style.padding_right().to_px(containing_block_inline_size));
+        table_used.set_border(geometry::Side::Left, table_style.border_left_width());
+        table_used.set_border(geometry::Side::Right, table_style.border_right_width());
+        table_used.set_padding(
+            geometry::Side::Left,
+            table_style.padding_left().to_px(containing_block_inline_size),
+        );
+        table_used.set_padding(
+            geometry::Side::Right,
+            table_style.padding_right().to_px(containing_block_inline_size),
+        );
 
         RunRecords::with_content_sizing_root(
             self.callbacks,
@@ -3520,8 +3523,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
                 true,
             );
 
-            let table_used_inline_size =
-                table_used.border_box_inline_size(table_used.uses_collapsing_borders_model.get());
+            let table_used_inline_size = table_used.border_box_inline_size(table_used.uses_collapsing_borders_model());
             self.records
                 .store_table_inline_layout(wrapper, table.take_inline_layout());
             if table_wrapper_inline_size_mode
@@ -3622,7 +3624,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         if let AvailableSize::Definite(block_size) = wrapper_inner_space.block_size {
             wrapper_used.set_content_block_size(block_size);
         } else {
-            wrapper_used.has_definite_block_size.set(false);
+            wrapper_used.set_has_definite_block_size(false);
         }
         let wrapper_outputs = formatting_context::lay_out_measurement_root_for_its_result(
             self.callbacks,
