@@ -2,12 +2,12 @@ Harness status: OK
 
 Found 8 tests
 
-8 Fail
-Fail	100vi computes to 100px with vertical writing-mode
-Fail	100svi computes to 100px with vertical writing-mode
-Fail	100lvi computes to 100px with vertical writing-mode
-Fail	100dvi computes to 100px with vertical writing-mode
-Fail	100vb computes to 200px with vertical writing-mode
-Fail	100svb computes to 200px with vertical writing-mode
-Fail	100lvb computes to 200px with vertical writing-mode
-Fail	100dvb computes to 200px with vertical writing-mode
+8 Pass
+Pass	100vi computes to 100px with vertical writing-mode
+Pass	100svi computes to 100px with vertical writing-mode
+Pass	100lvi computes to 100px with vertical writing-mode
+Pass	100dvi computes to 100px with vertical writing-mode
+Pass	100vb computes to 200px with vertical writing-mode
+Pass	100svb computes to 200px with vertical writing-mode
+Pass	100lvb computes to 200px with vertical writing-mode
+Pass	100dvb computes to 200px with vertical writing-mode
