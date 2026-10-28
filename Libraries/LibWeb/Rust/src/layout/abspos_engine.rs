@@ -2165,7 +2165,7 @@ impl AbsposEngine<'_> {
 
         let used = sized.record;
         used.set_content_inline_size(auto_px_value(used_inline_size));
-        self.set_used_inline_insets(node, left, right);
+        Self::set_used_inline_insets(sized, left, right);
         used.update(|cells| {
             cells.margin_left = auto_px_value(margin_left);
             cells.margin_right = auto_px_value(margin_right);
@@ -2180,7 +2180,6 @@ impl AbsposEngine<'_> {
         static_position_rect: abspos_inputs::StaticPositionRect,
         resolved_anchor_insets: Option<&formatting_context::ResolvedAnchorInsets>,
     ) {
-        let node = sized.node;
         let sizing = self.sizing();
         // NB: A stretch inline size fills the inset-modified containing block, which replaced element sizing does not
         //     know about.
@@ -2220,7 +2219,7 @@ impl AbsposEngine<'_> {
         );
 
         let used = sized.record;
-        self.set_used_inline_insets(node, solution.start, solution.end);
+        Self::set_used_inline_insets(sized, solution.start, solution.end);
         used.update(|cells| {
             cells.margin_left = solution.margin_start;
             cells.margin_right = solution.margin_end;
@@ -2228,16 +2227,22 @@ impl AbsposEngine<'_> {
         used.set_content_inline_size(inline_size);
     }
 
-    fn set_used_inline_insets(&self, node: Node, left: CssPixels, right: CssPixels) {
-        let insets = self.records.used_insets_of(node);
-        self.records
-            .set_used_insets(node, run_records::UsedInsets { left, right, ..insets });
+    fn set_used_inline_insets(sized: sizing_context::SizedRecord<'_>, left: CssPixels, right: CssPixels) {
+        let insets = &sized.record.record().used_insets;
+        insets.set(run_records::UsedInsets {
+            left,
+            right,
+            ..insets.get()
+        });
     }
 
-    fn set_used_block_insets(&self, node: Node, top: CssPixels, bottom: CssPixels) {
-        let insets = self.records.used_insets_of(node);
-        self.records
-            .set_used_insets(node, run_records::UsedInsets { top, bottom, ..insets });
+    fn set_used_block_insets(sized: sizing_context::SizedRecord<'_>, top: CssPixels, bottom: CssPixels) {
+        let insets = &sized.record.record().used_insets;
+        insets.set(run_records::UsedInsets {
+            top,
+            bottom,
+            ..insets.get()
+        });
     }
 
     fn compute_inline_size(
@@ -2646,7 +2651,7 @@ impl AbsposEngine<'_> {
         if !style.height().is_intrinsic_sizing_constraint() {
             used.update(|cells| cells.has_definite_block_size = true);
         }
-        self.set_used_block_insets(node, auto_px_value(solution.top), auto_px_value(solution.bottom));
+        Self::set_used_block_insets(sized, auto_px_value(solution.top), auto_px_value(solution.bottom));
         // NOTE: solve_non_replaced_block_once() already resolved these against the bases the C++ layout code used:
         //       the insets against the containing block's block size, but the margins against its inline size.
         used.update(|cells| {
@@ -2664,7 +2669,6 @@ impl AbsposEngine<'_> {
         pass: BlockSizePass,
         resolved_anchor_insets: Option<&formatting_context::ResolvedAnchorInsets>,
     ) {
-        let node = sized.node;
         // NB: As for the inline axis, a stretch block size fills the inset-modified containing block.
         let mut block_size = if self.style_of(sized).height().is_stretch() {
             self.calculate_inner_size(
@@ -2744,7 +2748,7 @@ impl AbsposEngine<'_> {
         if !style.height().is_intrinsic_sizing_constraint() {
             used.update(|cells| cells.has_definite_block_size = true);
         }
-        self.set_used_block_insets(node, solution.start, solution.end);
+        Self::set_used_block_insets(sized, solution.start, solution.end);
         used.update(|cells| {
             cells.margin_top = solution.margin_start;
             cells.margin_bottom = solution.margin_end;
@@ -2870,7 +2874,6 @@ impl<'pass> AbsposEngine<'pass> {
         inputs: abspos_inputs::AbsposLayoutInputs,
         inside_layout: Option<InsideLayoutBlockSizes>,
     ) {
-        let node = sized.node;
         self.install_resolved_anchor_sizes(sized, &inputs);
         let (available_space, constraints) = out_of_flow_root_space(inputs);
         let containing_block_size = geometry::LogicalSize {
@@ -2973,7 +2976,7 @@ impl<'pass> AbsposEngine<'pass> {
                     margin_box_size,
                     inline_start_is_low_side,
                 );
-                self.set_used_inline_insets(node, inset, inline_size - inset - margin_box_size);
+                Self::set_used_inline_insets(sized, inset, inline_size - inset - margin_box_size);
             }
             if inputs.containing_block_info.block_alignment.is_none()
                 && !style.inset_top().is_auto()
@@ -2992,7 +2995,7 @@ impl<'pass> AbsposEngine<'pass> {
                     margin_box_size,
                     true,
                 );
-                self.set_used_block_insets(node, inset, block_size - inset - margin_box_size);
+                Self::set_used_block_insets(sized, inset, block_size - inset - margin_box_size);
             }
             if let Some(inline_alignment) = inputs.containing_block_info.inline_alignment
                 && let Some((start_inset, end_inset)) = alignment_insets(
@@ -3019,8 +3022,8 @@ impl<'pass> AbsposEngine<'pass> {
                     _ => None,
                 };
                 if let Some(inset) = inset {
-                    self.set_used_inline_insets(
-                        node,
+                    Self::set_used_inline_insets(
+                        sized,
                         inset,
                         containing_block_size.inline_size - inset - margin_box_size,
                     );
@@ -3049,7 +3052,11 @@ impl<'pass> AbsposEngine<'pass> {
                     _ => None,
                 };
                 if let Some(inset) = inset {
-                    self.set_used_block_insets(node, inset, containing_block_size.block_size - inset - margin_box_size);
+                    Self::set_used_block_insets(
+                        sized,
+                        inset,
+                        containing_block_size.block_size - inset - margin_box_size,
+                    );
                 }
             }
         }
@@ -3165,7 +3172,11 @@ impl<'pass> AbsposEngine<'pass> {
             ChildLayoutOutcome::Created(result) => result
                 .out_of_flow_root_used_insets
                 .expect("the run of an absolutely positioned box gives it used insets"),
-            ChildLayoutOutcome::Skipped { .. } => self.records.used_insets_of(node),
+            ChildLayoutOutcome::Skipped {
+                out_of_flow_root_used_insets,
+                ..
+            } => out_of_flow_root_used_insets
+                .expect("the layout of a skipped absolutely positioned box gives it used insets"),
         };
 
         let metrics = laid_out_box.cells;
@@ -3214,7 +3225,6 @@ impl<'pass> AbsposEngine<'pass> {
                 used_insets.bottom = style.inset_bottom().to_px(containing_block_size.block_size);
             }
         }
-        self.records.set_used_insets(node, used_insets);
         let mut placed_child = formatting_context::PlacedChild::of_laid_out_box(&laid_out_box);
         placed_child.facts_decided_by_parent.used_insets = used_insets;
         placed_child.facts_decided_by_parent.default_scroll_shift = default_scroll_shift;
@@ -3246,8 +3256,6 @@ impl<'pass> AbsposEngine<'pass> {
                 .keep_child_for_its_run(&self.callbacks, child_box, ContainingBlockConstraints::default());
         let (mut inputs, default_scroll_shift) = self.pending_child_layout_inputs(&mut child);
         inputs.position_option = position_option.choice();
-        self.records
-            .set_default_scroll_shift(child_box, Some(default_scroll_shift));
         let border_box_block_end = self.layout_element(run, child_box, cells, inputs, Some(default_scroll_shift));
         drop(position_option);
         border_box_block_end
@@ -3741,7 +3749,6 @@ impl<'pass> AbsposEngine<'pass> {
             .callbacks
             .committed_fragment_link(node)
             .and_then(|link| link.default_scroll_shift);
-        self.records.set_default_scroll_shift(node, default_scroll_shift);
         self.layout_element(run, node, cells, inputs, default_scroll_shift);
     }
 

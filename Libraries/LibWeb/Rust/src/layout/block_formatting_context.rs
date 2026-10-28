@@ -906,7 +906,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         block_container: BlockContainer<'pass>,
     ) -> abspos_engine::InFlowBoxInsets {
         let block_container_used = block_container.used;
-        let insets = abspos_engine::compute_inset_native(
+        abspos_engine::compute_inset_native(
             run,
             node,
             block_container_used,
@@ -915,9 +915,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 block_size: block_container_used.content_block_size.get(),
             },
             block_container.percentage_block_insets_have_definite_basis,
-        );
-        run.records.keep_in_flow_box_insets(node, insets);
-        insets
+        )
     }
 
     fn containing_block_rect(

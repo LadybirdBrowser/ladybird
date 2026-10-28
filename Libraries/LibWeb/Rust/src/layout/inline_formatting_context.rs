@@ -1367,7 +1367,7 @@ impl<'context> InlineFormattingContext<'context> {
     /// Resolves the insets of `node`, an in-flow box in this context's lines, and keeps them for the box.
     pub(crate) fn compute_inset(&self, node: Node) -> abspos_engine::InFlowBoxInsets {
         let used = self.block_container.used;
-        let insets = abspos_engine::compute_inset_native(
+        abspos_engine::compute_inset_native(
             self.run,
             node,
             used,
@@ -1376,9 +1376,7 @@ impl<'context> InlineFormattingContext<'context> {
                 block_size: used.content_block_size.get(),
             },
             self.block_container.percentage_block_insets_have_definite_basis,
-        );
-        self.run.records.keep_in_flow_box_insets(node, insets);
-        insets
+        )
     }
 
     pub(crate) fn parent_commit_pending_margin_before_inline_content(&self) -> CssPixels {

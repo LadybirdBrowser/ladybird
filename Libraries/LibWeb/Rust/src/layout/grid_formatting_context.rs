@@ -4495,7 +4495,6 @@ impl<'pass> GridFormattingContext<'pass> {
                 area.size,
                 run.percentage_block_insets_of_root_children_have_definite_basis(),
             );
-            run.records.keep_in_flow_box_insets(item.box_, insets);
             let placed_item = placed_item.with_in_flow_box_insets(insets);
             if self.item_participates_in_row_baseline_alignment(item)
                 || self.item_participates_in_column_baseline_alignment(item)
