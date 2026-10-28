@@ -12,6 +12,22 @@ pub(crate) struct AtomicRootInlineSizeResolution {
     pub(crate) max_content_size_that_fit_the_definite_available_inner_space: Option<CssPixels>,
 }
 
+/// A block size a sizing step resolves for a box, and whether it makes the box's block size definite.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct ResolvedBlockSize {
+    pub(crate) content_block_size: CssPixels,
+    pub(crate) makes_block_size_definite: bool,
+}
+
+impl ResolvedBlockSize {
+    pub(crate) fn apply_to_record(self, used: &UsedValues) {
+        used.set_content_block_size(self.content_block_size);
+        if self.makes_block_size_definite {
+            used.has_definite_block_size.set(true);
+        }
+    }
+}
+
 #[derive(Clone, Copy)]
 pub(crate) struct OuterInlineContributions {
     pub(crate) min_content_inline_size: CssPixels,
@@ -1843,8 +1859,20 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
     ) {
+        if let Some(resolved) = self.used_block_size_if_not_treated_as_auto(node, available_space, constraints) {
+            resolved.apply_to_record(self.used(node));
+        }
+    }
+
+    /// The block size of `node` where its preferred block size is not treated as auto.
+    pub(crate) fn used_block_size_if_not_treated_as_auto(
+        &self,
+        node: Node,
+        available_space: AvailableSpace,
+        constraints: ContainingBlockConstraints,
+    ) -> Option<ResolvedBlockSize> {
         if self.should_treat_block_size_as_auto(node, available_space, constraints) {
-            return;
+            return None;
         }
         let style = self.style(node);
         let block_size = self.calculate_inner_block_size(
@@ -1853,12 +1881,10 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             self.preferred_block_size(node, constraints),
             constraints,
         );
-        let block_size = self.clamp_block_size_to_min_max(node, block_size, available_space, constraints);
-        let used = self.used(node);
-        used.set_content_block_size(block_size);
-        if !style.height().is_intrinsic_sizing_constraint() {
-            used.has_definite_block_size.set(true);
-        }
+        Some(ResolvedBlockSize {
+            content_block_size: self.clamp_block_size_to_min_max(node, block_size, available_space, constraints),
+            makes_block_size_definite: !style.height().is_intrinsic_sizing_constraint(),
+        })
     }
 
     pub(crate) fn resolve_used_block_size_if_treated_as_auto(
@@ -1869,14 +1895,35 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         child_automatic_block_size: Option<CssPixels>,
         automatic_block_size_fallback: impl FnOnce() -> CssPixels,
     ) {
+        if let Some(resolved) = self.used_block_size_if_treated_as_auto(
+            node,
+            available_space,
+            constraints,
+            child_automatic_block_size,
+            automatic_block_size_fallback,
+        ) {
+            resolved.apply_to_record(self.used(node));
+        }
+    }
+
+    /// The block size of `node` where its preferred block size is treated as auto: its automatic block size, given as
+    /// `child_automatic_block_size` or found by `automatic_block_size_fallback`, unless it is sized as a replaced box.
+    pub(crate) fn used_block_size_if_treated_as_auto(
+        &self,
+        node: Node,
+        available_space: AvailableSpace,
+        constraints: ContainingBlockConstraints,
+        child_automatic_block_size: Option<CssPixels>,
+        automatic_block_size_fallback: impl FnOnce() -> CssPixels,
+    ) -> Option<ResolvedBlockSize> {
         if !self.should_treat_block_size_as_auto(node, available_space, constraints) {
-            return;
+            return None;
         }
         let style = self.style(node);
         let facts = self.facts(node);
         let box_is_sized_as_replaced_element =
             self.box_is_sized_as_replaced_element(node, available_space, constraints);
-        let block_size_is_definite_from_aspect_ratio = self.used(node).has_definite_inline_size()
+        let mut makes_block_size_definite = self.box_metrics(node).has_definite_inline_size()
             && facts.has_preferred_aspect_ratio()
             && box_is_sized_as_replaced_element;
         // NB: Replaced sizing resolves a calc-size() itself.
@@ -1901,16 +1948,16 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             // 1. Let margins be sum of the used values of the margin-left and margin-right properties of element
             //    if element has a vertical writing mode, otherwise let margins be the sum of the used values of
             //    the margin-top and margin-bottom properties of element.
-            let used = self.used(node);
-            let margins = used.margin_top.get() + used.margin_bottom.get();
+            let metrics = self.box_metrics(node);
+            let margins = metrics.margin_top() + metrics.margin_bottom();
             // 2. Let size be the size of the initial containing block in the block flow direction minus margins.
             let size = constraints.block_basis() - margins;
             // 3. Return the bigger value of size and the normal border box size the element would have
             //    according to the CSS specification.
             // NB: block_size is a content box size, so this takes the border and padding off size.
-            block_size = block_size.max(size - used.border_box_top(false) - used.border_box_bottom(false));
+            block_size = block_size.max(size - metrics.border_box_top(false) - metrics.border_box_bottom(false));
             // NOTE: The block size of the root element when affected by this quirk is considered to be definite.
-            self.used(node).has_definite_block_size.set(true);
+            makes_block_size_definite = true;
         }
 
         if facts.document_in_quirks_mode() && facts.is_html_body_element() && is_plain_auto(style.height()) {
@@ -1928,21 +1975,20 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
                 // 1. Let margins be sum of the used values of the margin-left and margin-right properties of element
                 //    if element has a vertical writing mode, otherwise let margins be the sum of the used values of
                 //    the margin-top and margin-bottom properties of element.
-                let used = self.used(node);
-                let margins = used.margin_top.get() + used.margin_bottom.get();
+                let metrics = self.box_metrics(node);
+                let margins = metrics.margin_top() + metrics.margin_bottom();
                 // 2. Let size be the size of element's parent element's content box in the block flow direction minus margins.
                 let size = constraints.block_basis() - margins;
                 // 3. Return the bigger value of size and the normal border box size the element would have
                 //    according to the CSS specification.
                 // NB: block_size is a content box size, so this takes the border and padding off size.
-                block_size = block_size.max(size - used.border_box_top(false) - used.border_box_bottom(false));
+                block_size = block_size.max(size - metrics.border_box_top(false) - metrics.border_box_bottom(false));
             }
         }
-        let used = self.used(node);
-        used.set_content_block_size(block_size);
-        if block_size_is_definite_from_aspect_ratio {
-            used.has_definite_block_size.set(true);
-        }
+        Some(ResolvedBlockSize {
+            content_block_size: block_size,
+            makes_block_size_definite,
+        })
     }
 
     pub(crate) fn resolve_box_model_metrics_against_inline_basis(&self, node: Node, containing_inline_size: CssPixels) {
