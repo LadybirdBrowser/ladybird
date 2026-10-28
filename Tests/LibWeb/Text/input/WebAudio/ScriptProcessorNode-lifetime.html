@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const context = new OfflineAudioContext(1, 4096, 44100);
+
+        const generator = new WeakRef((() => {
+            const node = context.createScriptProcessor(256, 0, 1);
+            node.onaudioprocess = event => event.outputBuffer.getChannelData(0).fill(1);
+            node.connect(context.destination);
+            return node;
+        })());
+
+        const withoutListener = new WeakRef((() => {
+            const node = context.createScriptProcessor(256, 0, 1);
+            node.connect(context.destination);
+            return node;
+        })());
+
+        await internals.gcAsync();
+        await internals.gcAsync();
+        println(`generator with an audioprocess listener is kept alive: ${generator.deref() !== undefined}`);
+        println(`node without an audioprocess listener is collected: ${withoutListener.deref() === undefined}`);
+
+        const buffer = await context.startRendering();
+        println(`generator output reaches the destination: ${buffer.getChannelData(0)[4095] === 1}`);
+
+        await internals.gcAsync();
+        await internals.gcAsync();
+        println(`generator is collected once its context is closed: ${generator.deref() === undefined}`);
+        done();
+    });
+</script>

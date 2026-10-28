@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const context = new OfflineAudioContext(1, 4096, 44100);
+        const counts = {};
+        const createCountingNode = name => {
+            counts[name] = 0;
+            const node = context.createScriptProcessor(256, 1, 1);
+            node.onaudioprocess = () => ++counts[name];
+            return node;
+        };
+
+        const neverConnected = createCountingNode("never connected");
+
+        const outputConnected = createCountingNode("output connected");
+        outputConnected.connect(context.destination);
+
+        const inputConnected = createCountingNode("input connected");
+        const source = new ConstantSourceNode(context);
+        source.connect(inputConnected);
+        source.start();
+
+        const disconnectedInHandler = createCountingNode("disconnected in its first handler");
+        disconnectedInHandler.connect(context.destination);
+        disconnectedInHandler.addEventListener("audioprocess", () => disconnectedInHandler.disconnect());
+
+        await context.startRendering();
+        for (const [name, count] of Object.entries(counts))
+            println(`audioprocess events for the node ${name}: ${count}`);
+        done();
+    });
+</script>

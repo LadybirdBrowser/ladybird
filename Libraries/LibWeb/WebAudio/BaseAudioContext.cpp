@@ -98,11 +98,26 @@ void BaseAudioContext::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_document_observer);
     visitor.visit(m_audio_worklet);
     visitor.visit(m_playing_sources);
+
+    // INTEROP: Blink keeps a ScriptProcessorNode with audioprocess listeners alive until its context is cleared
+    //          (ScriptProcessorNode::HasPendingActivity()), whether it is connected or not, so that a node script only
+    //          reaches through its listener keeps producing audio.
+    if (state() != AudioContextState::Closed) {
+        for (auto& node : m_script_processor_nodes) {
+            if (node.has_event_listener(HTML::EventNames::audioprocess))
+                visitor.visit(node);
+        }
+    }
 }
 
 void BaseAudioContext::add_playing_source(GC::Ref<AudioNode> node)
 {
     m_playing_sources.set(node->node_id(), node);
+}
+
+void BaseAudioContext::add_script_processor_node(ScriptProcessorNode& node)
+{
+    m_script_processor_nodes.set(node);
 }
 
 void BaseAudioContext::handle_ended_sources(ReadonlySpan<NodeID> ended_nodes)

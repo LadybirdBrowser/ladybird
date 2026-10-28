@@ -10,6 +10,7 @@
 
 #include <AK/ByteBuffer.h>
 #include <AK/Function.h>
+#include <LibGC/WeakHashSet.h>
 #include <LibWeb/Bindings/BaseAudioContext.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/WebAudio/AnalyserNode.h>
@@ -128,6 +129,7 @@ public:
     NonnullRefPtr<ControlMessageQueue> control_message_queue() const { return m_control_message_queue; }
 
     void add_playing_source(GC::Ref<AudioNode>);
+    void add_script_processor_node(ScriptProcessorNode&);
     void handle_ended_sources(ReadonlySpan<NodeID>);
 
     void set_current_time(double current_time) { m_current_time = current_time; }
@@ -174,6 +176,7 @@ private:
     NonnullRefPtr<ControlMessageQueue> m_control_message_queue;
 
     HashMap<NodeID, GC::Ref<AudioNode>> m_playing_sources;
+    GC::WeakHashSet<ScriptProcessorNode> m_script_processor_nodes;
 };
 
 void resolve_audio_buffer_promise(JS::Realm&, WebIDL::Promise const&, AudioBuffer&);

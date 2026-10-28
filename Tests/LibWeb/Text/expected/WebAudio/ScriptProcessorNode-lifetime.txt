@@ -1,0 +1,4 @@
+generator with an audioprocess listener is kept alive: true
+node without an audioprocess listener is collected: true
+generator output reaches the destination: true
+generator is collected once its context is closed: true

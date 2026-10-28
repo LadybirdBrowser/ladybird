@@ -1037,6 +1037,8 @@ set(SOURCES
     WebAudio/Rendering/RenderGraph.cpp
     WebAudio/Rendering/RenderNode.cpp
     WebAudio/Rendering/RenderNodes.cpp
+    WebAudio/Rendering/ScriptProcessorPipe.cpp
+    WebAudio/Rendering/ScriptProcessorRenderNode.cpp
     WebAudio/ScriptProcessorNode.cpp
     WebAudio/StereoPannerNode.cpp
     WebAudio/WaveShaperNode.cpp

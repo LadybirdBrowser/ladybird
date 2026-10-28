@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	ScriptProcessor with stopped input source
+1 Pass
+Pass	ScriptProcessor with stopped input source
