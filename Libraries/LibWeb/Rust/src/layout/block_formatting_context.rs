@@ -142,6 +142,8 @@ struct LaidOutBlockLevelBox {
     broken_inside: Option<BrokenInside>,
     has_unbreakable_lines: bool,
     collapses_through: bool,
+    /// The box, where a run of its own laid it out, as that run handed it back.
+    handed_back_by_its_run: Option<run_records::LaidOutChildBox>,
 }
 
 /// What laying out the children of a block container hands back to the layout of the container.
@@ -2277,21 +2279,41 @@ impl<'pass> BlockFormattingContext<'pass> {
             containing_block_position_in_root,
             interrupted_inline_content,
         )?;
-        let metrics = self.run.records.box_metrics_of(node);
+        let content_offset = self.run.records.content_offset_or_origin(node);
+        let (cells, content_baselines, baselines_in_containing_block) = match laid_out.handed_back_by_its_run {
+            Some(handed_back) => (
+                handed_back.cells,
+                handed_back.baselines,
+                formatting_context::baselines_laid_out_child_gives_container(
+                    &self.run.callbacks,
+                    formatting_context::LaidOutChild {
+                        node,
+                        metrics: &handed_back.cells,
+                        content_baselines: handed_back.baselines,
+                        content_offset,
+                    },
+                ),
+            ),
+            // NB: The box was laid out by this run, in the record it keeps.
+            None => {
+                let metrics = self.run.records.box_metrics_of(node);
+                (
+                    metrics.input_cells(),
+                    metrics.content_baselines(),
+                    formatting_context::baselines_child_gives_container(self.run.records, &self.run.callbacks, node),
+                )
+            }
+        };
         Some(BlockLevelBoxOutcome {
-            content_offset: self.run.records.content_offset_or_origin(node),
+            content_offset,
             is_placed: self.run.records.is_placed(node),
-            cells: metrics.input_cells(),
-            content_baselines: metrics.content_baselines(),
+            cells,
+            content_baselines,
             collapses_through: laid_out.collapses_through,
             is_invisible_for_line_clamp: self.run.records.is_invisible_for_line_clamp(node),
             can_break_inside: self.box_can_break_inside(node, laid_out.has_unbreakable_lines),
             broken_inside: laid_out.broken_inside,
-            baselines_in_containing_block: formatting_context::baselines_child_gives_container(
-                self.run.records,
-                &self.run.callbacks,
-                node,
-            ),
+            baselines_in_containing_block,
         })
     }
 
@@ -2406,7 +2428,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 .get()
                 .expect("a block container flow cursor is active");
             let margin_top = self.margin_state.borrow().pending_margin_for_next_box();
-            self.layout_floating_box(
+            let (_, float_handed_back_by_its_run) = self.layout_floating_box(
                 run,
                 node,
                 block_container,
@@ -2419,7 +2441,10 @@ impl<'pass> BlockFormattingContext<'pass> {
             if let Some(floating_box) = self.floats.borrow().last() {
                 *bottom_of_lowest_margin_box = (*bottom_of_lowest_margin_box).max(floating_box.bottom_margin_edge);
             }
-            return Some(LaidOutBlockLevelBox::default());
+            return Some(LaidOutBlockLevelBox {
+                handed_back_by_its_run: float_handed_back_by_its_run,
+                ..LaidOutBlockLevelBox::default()
+            });
         }
 
         let in_flow_reuse = match self.probe_in_flow_reuse(
@@ -2663,6 +2688,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let mut fragment_arrival_of_child_with_own_formatting_context = None;
         // NB: A child its own run laid out is placed as that run handed it back, and any other with its record here.
         let mut child_handed_back_by_its_run = None;
+        let mut laid_out_box_handed_back_by_its_run = None;
         let child_layout = if has_independent_formatting_context {
             // Margins of elements that establish new formatting contexts do not collapse with their in-flow children
             self.margin_state.borrow_mut().reset();
@@ -2712,6 +2738,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                     line_data,
                     self.run.callbacks.frame,
                 ));
+                laid_out_box_handed_back_by_its_run = Some(laid_out_box);
             }
             if container_facts.is_table_wrapper() && style.display().is_table_inside() && child_layout.is_some() {
                 let table_box = laid_out_box.cells;
@@ -3010,6 +3037,11 @@ impl<'pass> BlockFormattingContext<'pass> {
 
         let collapses_through = !has_independent_formatting_context
             && self.margins_collapse_through(node, summary_of_children_laid_out_in_this_flow.as_ref());
+        // NB: A child its own run laid out has the metrics that run handed back, and any other those of its record here.
+        let metrics = match laid_out_box_handed_back_by_its_run {
+            Some(handed_back) => handed_back.cells,
+            None => self.run.records.box_metrics_of(node).input_cells(),
+        };
         if !collapses_through {
             let mut margin_state = self.margin_state.borrow_mut();
             if !margin_state.box_last_in_flow_child_margin_bottom_collapsed
@@ -3018,14 +3050,12 @@ impl<'pass> BlockFormattingContext<'pass> {
                 margin_state.reset();
             }
             drop(margin_state);
-            let metrics = self.run.records.box_metrics_of(node);
             self.block_offset_of_current_block_container.set(Some(
                 self.run.records.content_offset_or_origin(node).y
                     + metrics.content_block_size()
                     + metrics.border_box_bottom(metrics.uses_collapsing_borders_model()),
             ));
         }
-        let metrics = self.run.records.box_metrics_of(node);
         self.margin_state
             .borrow_mut()
             .box_last_in_flow_child_margin_bottom_collapsed = false;
@@ -3049,6 +3079,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             broken_inside,
             has_unbreakable_lines,
             collapses_through,
+            handed_back_by_its_run: laid_out_box_handed_back_by_its_run,
         })
     }
 
@@ -4315,11 +4346,15 @@ impl<'pass> BlockFormattingContext<'pass> {
         // The space allocated for the element's border on the block-start side is expected to be the element's
         // 'border-block-start-width' or the rendered legend's margin box size in the fieldset's block-flow direction,
         // whichever is greater.
+        let legend_cells = legend_outcome
+            .as_ref()
+            .expect("the rendered legend is laid out in its fieldset")
+            .cells;
         let effective_border = fieldset_block_container
             .used
             .border_top
             .get()
-            .max(self.run.records.box_metrics_of(legend).margin_box_block_size(false));
+            .max(legend_cells.margin_box_block_size(false));
         let extra_top = effective_border - fieldset_block_container.used.border_top.get();
 
         // Lay out non-legend children below the legend accommodation.
@@ -4368,13 +4403,12 @@ impl<'pass> BlockFormattingContext<'pass> {
         // The element is expected to be positioned in the block-flow direction such that its border box is centered over
         // the border on the block-start side of the fieldset element.
         // FIXME: Take writing modes into consideration.
-        let legend_metrics = self.run.records.box_metrics_of(legend);
-        let legend_border_box_centering_offset = (effective_border - legend_metrics.border_box_block_size(false)) / 2;
+        let legend_border_box_centering_offset = (effective_border - legend_cells.border_box_block_size(false)) / 2;
         let fieldset_border_box_block_start_in_content =
             -(fieldset_block_container.used.border_top.get() + fieldset_block_container.used.padding_top.get());
         let legend_content_block_offset = fieldset_border_box_block_start_in_content
             + legend_border_box_centering_offset
-            + legend_metrics.border_box_top(false);
+            + legend_cells.border_box_top(false);
         let legend_fragment_arrival = self.pending_legend_fragment_arrival.take();
         let placed_legend = self.pending_legend_placed_child.take();
         if let Some(legend_flow_position) = self.pending_legend_flow_position.take() {
@@ -4700,7 +4734,7 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 
     /// Lays out and places `node`, a float, and returns what its insets resolved to, which is nothing for a float it
-    /// leaves unplaced.
+    /// leaves unplaced, and the box a run of its own handed back where one laid it out.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn layout_floating_box(
         &self,
@@ -4712,7 +4746,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         block_offset: CssPixels,
         mut line_builder: Option<&mut line_builder::LineBuilder<'_, '_>>,
         fragment_facts: run_records::FragmentFactsDecidedByParent,
-    ) -> abspos_engine::InFlowBoxInsets {
+    ) -> (abspos_engine::InFlowBoxInsets, Option<run_records::LaidOutChildBox>) {
         let available_space = input.available_space;
         assert!(self.facts(node).is_floating());
         let _record_for_a_child_never_handed_to_its_run = RecordForChildNeverHandedToItsRun { context: self, node };
@@ -4740,6 +4774,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let float_handed_back_by_its_run = float_layout.is_some().then(|| {
             formatting_context::PlacedChild::of_laid_out_box(&float_box, float_line_data, self.run.callbacks.frame)
         });
+        let laid_out_float_handed_back_by_its_run = float_layout.is_some().then_some(float_box);
         let containing_block_rect = self.containing_block_rect(block_container, containing_block_position_in_root);
         let containing_block_rect_now = containing_block_rect.translated(
             CssPixels::default(),
@@ -4764,7 +4799,10 @@ impl<'pass> BlockFormattingContext<'pass> {
                     .with_fragment_facts(fragment_facts),
                 fragment_arrival,
             );
-            return abspos_engine::InFlowBoxInsets::default();
+            return (
+                abspos_engine::InFlowBoxInsets::default(),
+                laid_out_float_handed_back_by_its_run,
+            );
         };
         let float_box = float_box.cells;
         let mut margin_box_ceiling = if let Some(line_builder) = line_builder.as_deref_mut() {
@@ -4860,7 +4898,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             },
             fragment_arrival,
         );
-        insets
+        (insets, laid_out_float_handed_back_by_its_run)
     }
 
     fn layout_inline_children(
