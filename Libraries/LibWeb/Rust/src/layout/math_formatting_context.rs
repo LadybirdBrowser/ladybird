@@ -2143,7 +2143,6 @@ impl<'pass> MathFormattingContext<'pass> {
             ParticipationInParentFormattingContext::AtomicInline,
         );
         input.sizing.math_stretch_size_constraint = stretch_size_constraint;
-        let used = run.records.used_values(child);
         let formatting_context::ChildLayout {
             outcome,
             fragment_arrival,
@@ -2152,21 +2151,20 @@ impl<'pass> MathFormattingContext<'pass> {
             self.fragment_arrivals_of_children.borrow_mut().push(fragment_arrival);
         }
         outcome.report_percentage_block_size_dependency_of(run, child);
+        let metrics = run.records.box_metrics_of(child);
         let baselines = match outcome {
             ChildLayoutOutcome::Created(result) => result.baselines,
-            ChildLayoutOutcome::ReenterCurrent | ChildLayoutOutcome::Skipped { .. } => {
-                used.content_baselines_from_cells()
-            }
+            ChildLayoutOutcome::ReenterCurrent | ChildLayoutOutcome::Skipped { .. } => metrics.content_baselines(),
         };
-        let collapsed = used.uses_collapsing_borders_model.get();
-        let block_size = used.margin_box_block_size(collapsed);
+        let collapsed = metrics.uses_collapsing_borders_model();
+        let block_size = metrics.margin_box_block_size(collapsed);
         // NB: A box without a baseline is aligned by its line-under margin edge.
         let ascent = baselines
             .first
-            .map_or(block_size, |baseline| used.margin_box_top(collapsed) + baseline);
+            .map_or(block_size, |baseline| metrics.margin_box_top(collapsed) + baseline);
         Child {
             node: child,
-            inline_size: used.margin_box_inline_size(collapsed),
+            inline_size: metrics.margin_box_inline_size(collapsed),
             ascent,
             descent: block_size - ascent,
         }
@@ -2277,8 +2275,8 @@ impl<'pass> MathFormattingContext<'pass> {
         }
 
         for (child, position) in children.iter().zip(content.positions.iter()) {
-            let used = run.records.used_values(child.node);
-            let collapsed = used.uses_collapsing_borders_model.get();
+            let metrics = run.records.box_metrics_of(child.node);
+            let collapsed = metrics.uses_collapsing_borders_model();
             let line_left_offset = if is_rtl {
                 content.inline_size - position.line_left_offset - child.inline_size
             } else {
@@ -2286,8 +2284,11 @@ impl<'pass> MathFormattingContext<'pass> {
             };
             let margin_box_top = content.ascent + position.baseline_shift - child.ascent;
             let offset = FfiCssPixelPoint {
-                x: math_content_line_left + line_left_offset + used.margin_left.get() + used.border_box_left(collapsed),
-                y: margin_box_top + used.margin_box_top(collapsed),
+                x: math_content_line_left
+                    + line_left_offset
+                    + metrics.margin_left()
+                    + metrics.border_box_left(collapsed),
+                y: margin_box_top + metrics.margin_box_top(collapsed),
             };
             let fragment_arrival = self.take_fragment_arrival_of_child(child.node);
             formatting_context::place_laid_out_child(run, child.node, offset, None, fragment_arrival);

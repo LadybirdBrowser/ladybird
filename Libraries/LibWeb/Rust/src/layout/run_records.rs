@@ -299,6 +299,8 @@ pub(crate) struct RunRecords<'arena> {
     /// What the parent of the root of a run that owns its root record decides about it, which the stack keeps for every
     /// other record.
     root_facts_decided_by_parent: Cell<FactsDecidedByParent>,
+    /// What this run keeps of the children laid out by runs of their own, as those runs handed them back.
+    laid_out_child_boxes: RefCell<HashMap<Node, LaidOutChildBox>>,
     // Wrapper sizing hands this state to the wrapper's child run, which consumes it while laying
     // out the table box. Keeping it on the run prevents measurement state from escaping a pass.
     table_inline_layouts: RefCell<HashMap<Node, table_formatting_context::TableInlineLayout>>,
@@ -341,6 +343,81 @@ pub(crate) struct FactsDecidedByParent {
     /// The scroll shift the anchor positioning of the box's insets compensates for.
     pub(crate) default_scroll_shift: Option<abspos_inputs::DefaultScrollShift>,
     pub(crate) fragment_facts: FragmentFactsDecidedByParent,
+}
+
+/// What the parent of a box laid out by a run of its own keeps of the box once that run returns: its sizes, size
+/// constraints and box sides in the parent's frame, and its baselines.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct LaidOutChildBox {
+    pub(crate) cells: used_values::RootInputCells,
+    pub(crate) baselines: DerivedBaselines,
+    /// For a box that establishes an orthogonal flow, its baselines along the horizontal axis of the parent's frame.
+    pub(crate) orthogonal_flow_baselines: Option<DerivedBaselines>,
+}
+
+impl LaidOutChildBox {
+    /// The box as `record` holds it.
+    pub(crate) fn as_record_holds_it(record: &UsedValues) -> Self {
+        Self {
+            cells: used_values::RootInputCells::capture(record),
+            baselines: record.content_baselines_from_cells(),
+            orthogonal_flow_baselines: record.orthogonal_flow_baselines.get(),
+        }
+    }
+}
+
+/// The sizes, size constraints, box sides and baselines of a box as a run sees them: kept as a value for a child laid
+/// out by a run of its own, or read from the record of a box the run lays out itself.
+#[derive(Clone, Copy)]
+pub(crate) enum BoxMetrics<'records> {
+    LaidOutByItsOwnRun(LaidOutChildBox),
+    LaidOutByThisRun(&'records UsedValues),
+}
+
+impl BoxMetrics<'_> {
+    pub(crate) fn content_baselines(&self) -> DerivedBaselines {
+        match self {
+            Self::LaidOutByItsOwnRun(laid_out) => laid_out.baselines,
+            Self::LaidOutByThisRun(record) => record.content_baselines_from_cells(),
+        }
+    }
+}
+
+macro_rules! box_metrics_getters {
+    ($($name:ident: $value:ty,)+) => {
+        impl BoxMetricCells for BoxMetrics<'_> {
+            $(
+                #[inline]
+                fn $name(&self) -> $value {
+                    match self {
+                        Self::LaidOutByItsOwnRun(laid_out) => laid_out.cells.$name(),
+                        Self::LaidOutByThisRun(record) => record.$name(),
+                    }
+                }
+            )+
+        }
+    };
+}
+
+box_metrics_getters! {
+    content_inline_size: CssPixels,
+    content_block_size: CssPixels,
+    margin_left: CssPixels,
+    margin_right: CssPixels,
+    margin_top: CssPixels,
+    margin_bottom: CssPixels,
+    border_left: CssPixels,
+    border_right: CssPixels,
+    border_top: CssPixels,
+    border_bottom: CssPixels,
+    padding_left: CssPixels,
+    padding_right: CssPixels,
+    padding_top: CssPixels,
+    padding_bottom: CssPixels,
+    has_definite_inline_size: bool,
+    has_definite_block_size: bool,
+    uses_collapsing_borders_model: bool,
+    is_collapsed_borders_table_box: bool,
 }
 
 /// Where a run keeps the record of a box it owns.
@@ -484,6 +561,7 @@ impl<'arena> RunRecords<'arena> {
             stack_length_at_start: scratch.run_record_stack.length(),
             records_outside_table: RefCell::new(HashMap::default()),
             root_facts_decided_by_parent: Cell::new(FactsDecidedByParent::default()),
+            laid_out_child_boxes: RefCell::new(HashMap::default()),
             table_inline_layouts: RefCell::new(HashMap::default()),
             content_sizing,
             percentage_block_size_dependencies_in_progress: RefCell::new(smallvec::smallvec![(
@@ -825,6 +903,40 @@ impl<'arena> RunRecords<'arena> {
         {
             update(dependency);
         }
+    }
+
+    /// Keeps what the run of `child`, a box this run holds the record of, handed back once it returned.
+    #[track_caller]
+    pub(crate) fn receive_laid_out_child_box(&self, child: Node, laid_out: LaidOutChildBox) {
+        assert_ne!(child, self.root, "a run lays out its own root");
+        self.used_values(child);
+        self.laid_out_child_boxes.borrow_mut().insert(child, laid_out);
+    }
+
+    /// The sizes, size constraints, box sides and baselines of `node`, a box this run lays out or a child of one laid
+    /// out by a run of its own.
+    #[track_caller]
+    pub(crate) fn box_metrics_of(&self, node: Node) -> BoxMetrics<'_> {
+        let record = self.used_values(node);
+        let laid_out = {
+            let laid_out_child_boxes = self.laid_out_child_boxes.borrow();
+            if laid_out_child_boxes.is_empty() {
+                None
+            } else {
+                laid_out_child_boxes.get(&node).copied()
+            }
+        };
+        let Some(laid_out) = laid_out else {
+            return BoxMetrics::LaidOutByThisRun(record);
+        };
+        if cfg!(debug_assertions) || super::run_repeatability::verification_is_enabled() {
+            assert_eq!(
+                laid_out,
+                LaidOutChildBox::as_record_holds_it(record),
+                "the parent's record of {node:?} changed after its run handed the box back"
+            );
+        }
+        BoxMetrics::LaidOutByItsOwnRun(laid_out)
     }
 
     pub(crate) fn store_table_inline_layout(&self, table: Node, layout: table_formatting_context::TableInlineLayout) {
