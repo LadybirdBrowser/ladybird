@@ -694,25 +694,6 @@ impl<'arena> RunRecords<'arena> {
         }
     }
 
-    /// Where `node` is placed, if this run placed it.
-    pub(crate) fn placement_of(&self, node: Node) -> Option<BoxPlacement> {
-        self.kept_facts_decided_by_parent_of(node)?.placement
-    }
-
-    pub(crate) fn is_placed(&self, node: Node) -> bool {
-        self.placement_of(node).is_some()
-    }
-
-    /// The offset of the content box of `node` in its containing block, or the origin while the box is not placed.
-    #[track_caller]
-    pub(crate) fn content_offset_or_origin(&self, node: Node) -> FfiCssPixelPoint {
-        self.facts_decided_by_parent_of(node)
-            .placement
-            .map_or(FfiCssPixelPoint::default(), |placement| {
-                placement.content_offset_in_containing_block
-            })
-    }
-
     /// Tracks the percentage block size dependency of `node` until the returned tracking is dropped, which the layout
     /// of `node` holds while it is in progress.
     pub(crate) fn track_percentage_block_size_dependency_while_laying_out(
