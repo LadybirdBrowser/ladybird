@@ -5340,6 +5340,20 @@ impl LayoutNodeArena {
         })
     }
 
+    pub(crate) fn text_line_break_language(&self, id: NodeSlotId) -> super::text_chunker::LineBreakLanguage {
+        use super::text_chunker::LineBreakLanguage;
+        if self.data(id).kind.get() == NodeKind::GeneratedTextNode {
+            return self
+                .generated_text_language_tag(id)
+                .as_deref()
+                .map_or(LineBreakLanguage::Other, LineBreakLanguage::from_tag);
+        }
+        let Some(node) = self.node_style_node(id).filter(|node| node.text_index().is_some()) else {
+            return LineBreakLanguage::Other;
+        };
+        self.with_style_store(|engine| LineBreakLanguage::from_tag(engine.text_line_break_language_tag(node)))
+    }
+
     pub(crate) fn set_text_content(&mut self, id: NodeSlotId, content: TextContent) {
         let mut state = self.text_node_state_mut(id);
         if let Some(previous) = state.content.as_mut()

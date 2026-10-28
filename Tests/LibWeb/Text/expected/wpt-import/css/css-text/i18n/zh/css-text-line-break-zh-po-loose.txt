@@ -2,14 +2,14 @@ Harness status: OK
 
 Found 10 tests
 
-10 Fail
-Fail	00B0  DEGREE SIGN may appear at line start if zh and loose
-Fail	2030  PER MILLE SIGN may appear at line start if zh and loose
-Fail	2032  PRIME may appear at line start if zh and loose
-Fail	2033  DOUBLE PRIME may appear at line start if zh and loose
-Fail	2035  REVERSED PRIME may appear at line start if zh and loose
-Fail	2103  DEGREE CELSIUS may appear at line start if zh and loose
-Fail	2109  DEGREE FAHRENHEIT may appear at line start if zh and loose
-Fail	FE6A  SMALL PERCENT SIGN may appear at line start if zh and loose
-Fail	FF05  FULLWIDTH PERCENT SIGN may appear at line start if zh and loose
-Fail	FFE0  FULLWIDTH CENT SIGN may appear at line start if zh and loose
+10 Pass
+Pass	00B0  DEGREE SIGN may appear at line start if zh and loose
+Pass	2030  PER MILLE SIGN may appear at line start if zh and loose
+Pass	2032  PRIME may appear at line start if zh and loose
+Pass	2033  DOUBLE PRIME may appear at line start if zh and loose
+Pass	2035  REVERSED PRIME may appear at line start if zh and loose
+Pass	2103  DEGREE CELSIUS may appear at line start if zh and loose
+Pass	2109  DEGREE FAHRENHEIT may appear at line start if zh and loose
+Pass	FE6A  SMALL PERCENT SIGN may appear at line start if zh and loose
+Pass	FF05  FULLWIDTH PERCENT SIGN may appear at line start if zh and loose
+Pass	FFE0  FULLWIDTH CENT SIGN may appear at line start if zh and loose

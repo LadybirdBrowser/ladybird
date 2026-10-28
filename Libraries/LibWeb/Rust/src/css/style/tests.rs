@@ -12219,3 +12219,71 @@ fn a_document_with_other_routes_routes_user_agent_rules_itself() {
     );
     assert!(first.routing.has_routes_of(&routing_built_from(&first, &[first_sheet])));
 }
+
+#[test]
+fn shadow_text_line_break_language_follows_host_mutation() {
+    use crate::layout::text_chunker::LineBreakLanguage;
+
+    let mut engine = StyleEngine::new();
+    let mut raw = [0_u32; 4];
+    engine.allocate_style_nodes(&mut raw);
+    let [document, host, shadow_root, wrapper] = raw.map(|raw| StyleNodeID::from_raw(raw).unwrap());
+    engine.record_tree_delta(document, None, Some(relations(None, None, None)));
+    engine.record_tree_delta(host, None, Some(relations(Some(document.raw()), None, None)));
+    engine.record_tree_delta(shadow_root, None, Some(TreeRelations::detached(TreeScopeID(1))));
+    engine.record_tree_delta(wrapper, None, Some(relations(Some(shadow_root.raw()), None, None)));
+    engine.set_shadow_root(host, shadow_root);
+    engine.apply_staged_tree_deltas();
+    let mut raw_text = [0_u32; 5];
+    engine.allocate_text_style_nodes(&mut raw_text);
+    let [direct, wrapped, light, under_document, detached] = raw_text.map(|raw| StyleNodeID::from_raw(raw).unwrap());
+    engine.link_style_nodes_in_dom_order(&[
+        direct.raw(),
+        shadow_root.raw(),
+        0,
+        wrapped.raw(),
+        wrapper.raw(),
+        0,
+        light.raw(),
+        host.raw(),
+        0,
+        under_document.raw(),
+        document.raw(),
+        0,
+    ]);
+    let german = engine.intern_atom(0x13393);
+    engine.set_element_language_text(german, &"de".encode_utf16().collect::<Vec<_>>());
+    engine.set_element_language(wrapper, german);
+
+    for (index, (tag, language)) in [
+        ("ja", LineBreakLanguage::Japanese),
+        ("de", LineBreakLanguage::Other),
+        ("zh-Hant", LineBreakLanguage::Chinese),
+        ("JA-jp", LineBreakLanguage::Japanese),
+        ("ko-Hani", LineBreakLanguage::Chinese),
+        ("ja-Latn", LineBreakLanguage::Other),
+        ("zh-Hira", LineBreakLanguage::Japanese),
+        ("", LineBreakLanguage::Other),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let atom = engine.intern_atom(0x14000 + index);
+        let units = tag.encode_utf16().collect::<Vec<_>>();
+        engine.set_element_language_text(atom, &units);
+        engine.set_element_language(host, atom);
+        discard_transaction(&mut engine);
+        let retained = &engine.retained;
+        assert_eq!(retained.text_line_break_language_tag(direct), units, "{tag}");
+        assert_eq!(retained.text_line_break_language_tag(light), units, "{tag}");
+        assert!(LineBreakLanguage::from_tag(retained.text_line_break_language_tag(direct)) == language);
+        assert_eq!(
+            retained.text_line_break_language_tag(wrapped),
+            "de".encode_utf16().collect::<Vec<_>>()
+        );
+        assert!(retained.text_line_break_language_tag(under_document).is_empty());
+        assert!(retained.text_line_break_language_tag(detached).is_empty());
+        // The existing casing resolver keeps its separate DOM-parent contract.
+        assert!(retained.text_language_tag(direct).is_empty());
+    }
+}

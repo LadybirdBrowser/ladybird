@@ -13,6 +13,133 @@ enum LineBreakMode {
     Strict,
     Normal,
     Loose,
+    LooseJapanese,
+    LooseChinese,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum LineBreakLanguage {
+    Other,
+    Japanese,
+    Chinese,
+}
+
+impl LineBreakLanguage {
+    pub(crate) fn from_tag(tag: &[u16]) -> Self {
+        let is_alpha = |subtag: &[u16]| {
+            subtag
+                .iter()
+                .all(|&unit| u8::try_from(unit).is_ok_and(|unit| unit.is_ascii_alphabetic()))
+        };
+        let matches = |subtag: &[u16], expected: &[u8]| {
+            subtag.len() == expected.len()
+                && subtag
+                    .iter()
+                    .zip(expected)
+                    .all(|(&unit, &expected)| (unit | 0x20) == u16::from(expected))
+        };
+        let mut subtags = tag.split(|&unit| unit == u16::from(b'-'));
+        let primary = subtags.next().unwrap_or_default();
+        if !(2..=8).contains(&primary.len()) || !is_alpha(primary) {
+            return Self::Other;
+        }
+        let mut candidate = subtags.next();
+        // BCP47 permits up to three extlang subtags, only after a two- or three-letter primary language.
+        if primary.len() <= 3 {
+            for _ in 0..3 {
+                if !candidate.is_some_and(|subtag| subtag.len() == 3 && is_alpha(subtag)) {
+                    break;
+                }
+                candidate = subtags.next();
+            }
+        }
+        // https://drafts.csswg.org/css-text-4/#script-tagging
+        // Only this position can name a script. Region, variant, extension and private-use subtags cannot override it.
+        if let Some(script) = candidate.filter(|subtag| subtag.len() == 4 && is_alpha(subtag)) {
+            if [b"hant", b"hans", b"hani", b"hanb", b"bopo"]
+                .iter()
+                .any(|name| matches(script, *name))
+            {
+                return Self::Chinese;
+            }
+            if [b"jpan", b"hrkt", b"hira", b"kana"]
+                .iter()
+                .any(|name| matches(script, *name))
+            {
+                return Self::Japanese;
+            }
+            return Self::Other;
+        }
+        if matches(primary, b"ja") {
+            Self::Japanese
+        } else if matches(primary, b"zh") {
+            Self::Chinese
+        } else {
+            Self::Other
+        }
+    }
+}
+
+#[cfg(test)]
+mod language_tests {
+    use super::LineBreakLanguage::{self, Chinese, Japanese, Other};
+
+    #[test]
+    fn explicit_script_overrides_line_break_language() {
+        for (tag, expected) in [
+            ("ko-Hani", Chinese),
+            ("ja-Latn", Other),
+            ("zh-Latn", Other),
+            ("ja-Hans", Chinese),
+            ("zh-Hira", Japanese),
+            ("en-Jpan", Japanese),
+            ("en-Hant", Chinese),
+            ("en-Hans", Chinese),
+            ("en-Hani", Chinese),
+            ("en-Hanb", Chinese),
+            ("en-Bopo", Chinese),
+            ("en-Hrkt", Japanese),
+            ("en-Hira", Japanese),
+            ("en-Kana", Japanese),
+            ("ja-Hang", Other),
+            ("ja-Kore", Other),
+            ("zh-Jamo", Other),
+            ("zh-Zzzz", Other),
+            ("JA-hAnS", Chinese),
+            ("zh-cmn-Jpan", Japanese),
+            ("ja-abc-def-ghi-Hans", Chinese),
+            ("yue-Hant", Chinese),
+        ] {
+            let units: Vec<_> = tag.encode_utf16().collect();
+            assert!(LineBreakLanguage::from_tag(&units) == expected, "{tag}");
+        }
+    }
+
+    #[test]
+    fn only_the_script_position_changes_line_break_language() {
+        for (tag, expected) in [
+            ("ja", Japanese),
+            ("ja-JP", Japanese),
+            ("JA-jp", Japanese),
+            ("zh", Chinese),
+            ("zh-Hant-TW", Chinese),
+            ("ja-x-Latn", Japanese),
+            ("ja-u-ca-hans", Japanese),
+            ("ja-JP-Latn", Japanese),
+            ("ja-1996-Latn", Japanese),
+            ("ja-fonipa-Latn", Japanese),
+            ("en-x-Jpan", Other),
+            ("en-u-ca-jpan", Other),
+            ("abcd-xyz-Jpan", Other),
+            ("x-Jpan", Other),
+            ("jあ-Jpan", Other),
+            ("japanesee-Jpan", Other),
+            ("", Other),
+        ] {
+            let units: Vec<_> = tag.encode_utf16().collect();
+            assert!(LineBreakLanguage::from_tag(&units) == expected, "{tag}");
+        }
+    }
 }
 
 unsafe extern "C" {
@@ -175,6 +302,7 @@ pub(crate) struct TextChunkInputs<'text> {
     pub white_space_collapse: u8,
     pub word_break: u8,
     pub line_break: u8,
+    pub line_break_language: LineBreakLanguage,
     pub font_variant_emoji: u8,
     pub should_wrap_lines: bool,
     pub should_respect_linebreaks: bool,
@@ -345,10 +473,12 @@ struct LineSegmenter<'text> {
 }
 
 impl<'text> LineSegmenter<'text> {
-    fn new(text: &'text [u16], line_break: u8) -> Self {
-        let mode = match line_break {
-            line_break::LOOSE => LineBreakMode::Loose,
-            line_break::NORMAL => LineBreakMode::Normal,
+    fn new(text: &'text [u16], line_break: u8, language: LineBreakLanguage) -> Self {
+        let mode = match (line_break, language) {
+            (line_break::LOOSE, LineBreakLanguage::Japanese) => LineBreakMode::LooseJapanese,
+            (line_break::LOOSE, LineBreakLanguage::Chinese) => LineBreakMode::LooseChinese,
+            (line_break::LOOSE, LineBreakLanguage::Other) => LineBreakMode::Loose,
+            (line_break::NORMAL, _) => LineBreakMode::Normal,
             _ => LineBreakMode::Strict,
         };
         // SAFETY: See GraphemeSegmenter::new; the same lifetime contract holds,
@@ -537,7 +667,7 @@ impl<'text> TextChunker<'text> {
             text: inputs.text,
             frozen_font_list: inputs.frozen_font_list,
             grapheme_segmenter: GraphemeSegmenter::new(inputs.text),
-            line_segmenter: LineSegmenter::new(inputs.text, inputs.line_break),
+            line_segmenter: LineSegmenter::new(inputs.text, inputs.line_break, inputs.line_break_language),
             word_break: inputs.word_break,
             allow_conditional_japanese_starters,
             font_variant_emoji: inputs.font_variant_emoji,
@@ -967,6 +1097,11 @@ pub(crate) fn text_chunks(
         white_space_collapse: parent_style.white_space_collapse(),
         word_break: parent_style.word_break(),
         line_break: parent_style.line_break(),
+        line_break_language: if parent_style.line_break() == line_break::LOOSE {
+            callbacks.arena().text_line_break_language(node)
+        } else {
+            LineBreakLanguage::Other
+        },
         font_variant_emoji: parent_style.font_variant_emoji(),
         frozen_font_list: parent_style.frozen_font_list_ref(),
         splits_at_orientation_changes: matches!(
@@ -982,6 +1117,7 @@ pub(crate) fn text_chunks(
             white_space_collapse: key.white_space_collapse,
             word_break: key.word_break,
             line_break: key.line_break,
+            line_break_language: key.line_break_language,
             font_variant_emoji: key.font_variant_emoji,
             should_wrap_lines,
             should_respect_linebreaks,
