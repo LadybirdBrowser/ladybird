@@ -143,6 +143,9 @@ public:
     void release_held_permission_prompt_for_testing(u32 waiters);
     void reset_permission_prompts_for_testing();
 
+    // The origin the view's permissions are kept for: its top-level document's, which an inherited about:blank keeps
+    // while the URL's origin is opaque.
+    URL::Origin permission_origin() const;
     // The site information panel's view of, and changes to, the permissions of the site this view shows.
     Vector<SitePermissionRow> site_permission_rows() const;
     // These act on the site given, which a panel showing it keeps even after the view moves on to another site.

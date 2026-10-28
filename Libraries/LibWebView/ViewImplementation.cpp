@@ -465,7 +465,16 @@ void ViewImplementation::report_permission_presence()
     if (!m_top_level_traversable)
         return;
     auto visible = traversable().system_visibility_state() == Web::HTML::VisibilityState::Visible;
-    session().permission_manager->set_view_presence(view_id(), url().origin(), visible);
+    session().permission_manager->set_view_presence(view_id(), permission_origin(), visible);
+}
+
+URL::Origin ViewImplementation::permission_origin() const
+{
+    if (m_top_level_traversable) {
+        if (auto origin = traversable().active_document().top_level_origin(); origin.has_value())
+            return origin.release_value();
+    }
+    return url().origin();
 }
 
 void ViewImplementation::set_presents_from_cpu_memory(bool presents_from_cpu_memory)
@@ -4350,7 +4359,7 @@ void ViewImplementation::global_privacy_control_changed()
 
 Vector<SitePermissionRow> ViewImplementation::site_permission_rows() const
 {
-    auto origin = url().origin();
+    auto origin = permission_origin();
     auto const& manager = *session().permission_manager;
 
     Vector<SitePermissionRow> rows;
