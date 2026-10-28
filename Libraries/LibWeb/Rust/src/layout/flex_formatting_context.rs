@@ -207,15 +207,6 @@ pub(super) struct FlexFormattingContext<'pass> {
     next_flex_item_lookup_start: Cell<usize>,
 }
 
-impl formatting_context::ChildrenSizedInParentCells for FlexFormattingContext<'_> {
-    fn child_input_cells(&self, node: Node) -> Option<used_values::RootInputCells> {
-        if self.run.callbacks.parent(node) != self.run.box_ {
-            return None;
-        }
-        Some(self.flex_items[self.index_of_flex_item(node)?].cells)
-    }
-}
-
 impl formatting_context::ChildRunShapes for FlexFormattingContext<'_> {
     fn child_run_shape_at(
         &self,
@@ -264,11 +255,13 @@ impl<'pass> FlexFormattingContext<'pass> {
 
     /// The sizes, size constraints and box sides of `node`, read from the cells this container sizes it in where it is
     /// an item.
-    fn box_metrics(&self, node: Node) -> run_records::BoxMetrics<'pass> {
-        match formatting_context::ChildrenSizedInParentCells::child_input_cells(self, node) {
-            Some(cells) => run_records::BoxMetrics::BeingSizedByItsParent(cells),
-            None => self.run.records.box_metrics_of(node),
+    fn box_metrics(&self, node: Node) -> used_values::RootInputCells {
+        if self.run.callbacks.parent(node) == self.run.box_
+            && let Some(index) = self.index_of_flex_item(node)
+        {
+            return self.flex_items[index].cells;
         }
+        self.run.records.box_metrics_of(node).input_cells()
     }
 
     fn container_used(&self) -> &'pass UsedValues {
@@ -286,9 +279,7 @@ impl<'pass> FlexFormattingContext<'pass> {
 
     #[inline]
     fn sizing(&self) -> sizing_context::SizingContext<'pass, '_> {
-        sizing_context::SizingContext::new(self.run.records, self.run.callbacks)
-            .with_child_run_shapes(self)
-            .with_children_sized_in_parent_cells(self)
+        sizing_context::SizingContext::new(self.run.records, self.run.callbacks).with_child_run_shapes(self)
     }
 
     fn keep_item_for_its_run(&self, node: Node) -> used_values::RootInputCells {
@@ -474,17 +465,29 @@ impl<'pass> FlexFormattingContext<'pass> {
     // Both sizes are content sizes; the ratio applies to the border box under box-sizing: border-box.
     fn main_size_from_cross_size_and_aspect_ratio(&self, node: Node, cross_size: CssPixels) -> CssPixels {
         if self.main_axis_is_horizontal() {
-            self.sizing().content_inline_size_from_aspect_ratio(node, cross_size)
+            self.sizing().content_inline_size_from_aspect_ratio(
+                sizing_context::SizedBox::new(node, &self.box_metrics(node)),
+                cross_size,
+            )
         } else {
-            self.sizing().content_block_size_from_aspect_ratio(node, cross_size)
+            self.sizing().content_block_size_from_aspect_ratio(
+                sizing_context::SizedBox::new(node, &self.box_metrics(node)),
+                cross_size,
+            )
         }
     }
 
     fn cross_size_from_main_size_and_aspect_ratio(&self, node: Node, main_size: CssPixels) -> CssPixels {
         if self.main_axis_is_horizontal() {
-            self.sizing().content_block_size_from_aspect_ratio(node, main_size)
+            self.sizing().content_block_size_from_aspect_ratio(
+                sizing_context::SizedBox::new(node, &self.box_metrics(node)),
+                main_size,
+            )
         } else {
-            self.sizing().content_inline_size_from_aspect_ratio(node, main_size)
+            self.sizing().content_inline_size_from_aspect_ratio(
+                sizing_context::SizedBox::new(node, &self.box_metrics(node)),
+                main_size,
+            )
         }
     }
 
@@ -697,8 +700,13 @@ impl<'pass> FlexFormattingContext<'pass> {
         available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
     ) -> CssPixels {
-        self.sizing()
-            .calculate_inner_size_for_property(node, axis, property, available_space, constraints)
+        self.sizing().calculate_inner_size_for_property(
+            sizing_context::SizedBox::new(node, &self.box_metrics(node)),
+            axis,
+            property,
+            available_space,
+            constraints,
+        )
     }
 
     fn resolve_inner_inline_size(&self, index: usize, property: SizingProperty) -> CssPixels {
@@ -751,7 +759,7 @@ impl<'pass> FlexFormattingContext<'pass> {
 
     fn calculate_fit_content_size(&self, index: usize, axis: SizingAxis, space: AvailableSpace) -> CssPixels {
         self.sizing().calculate_fit_content_size(
-            self.flex_items[index].box_,
+            sizing_context::SizedBox::new(self.flex_items[index].box_, &self.flex_items[index].cells),
             axis,
             space,
             self.item_containing_block_constraints(),
@@ -760,7 +768,7 @@ impl<'pass> FlexFormattingContext<'pass> {
 
     fn should_treat_size_as_auto(&self, node: Node, axis: SizingAxis) -> bool {
         self.sizing().should_treat_size_as_auto(
-            node,
+            sizing_context::SizedBox::new(node, &self.box_metrics(node)),
             axis,
             self.available_space_for_items.unwrap().space,
             self.item_containing_block_constraints(),
@@ -1045,9 +1053,16 @@ impl<'pass> FlexFormattingContext<'pass> {
         let constraints = self.item_containing_block_constraints();
         let cells = &self.flex_items[index].cells;
         if cells.has_definite_block_size {
-            sizing.calculate_min_content_inline_size_at_definite_block_size(node, constraints, cells.content_block_size)
+            sizing.calculate_min_content_inline_size_at_definite_block_size(
+                sizing_context::SizedBox::new(node, &self.flex_items[index].cells),
+                constraints,
+                cells.content_block_size,
+            )
         } else {
-            sizing.calculate_min_content_inline_size(node, constraints)
+            sizing.calculate_min_content_inline_size(
+                sizing_context::SizedBox::new(node, &self.flex_items[index].cells),
+                constraints,
+            )
         }
     }
 
@@ -1057,15 +1072,22 @@ impl<'pass> FlexFormattingContext<'pass> {
         let constraints = self.item_containing_block_constraints();
         let cells = &self.flex_items[index].cells;
         if cells.has_definite_block_size {
-            sizing.calculate_max_content_inline_size_at_definite_block_size(node, constraints, cells.content_block_size)
+            sizing.calculate_max_content_inline_size_at_definite_block_size(
+                sizing_context::SizedBox::new(node, &self.flex_items[index].cells),
+                constraints,
+                cells.content_block_size,
+            )
         } else {
-            sizing.calculate_max_content_inline_size(node, constraints)
+            sizing.calculate_max_content_inline_size(
+                sizing_context::SizedBox::new(node, &self.flex_items[index].cells),
+                constraints,
+            )
         }
     }
 
     fn calculate_min_content_block_size(&self, index: usize, inline_size: CssPixels) -> CssPixels {
         self.sizing().calculate_min_content_block_size(
-            self.flex_items[index].box_,
+            sizing_context::SizedBox::new(self.flex_items[index].box_, &self.flex_items[index].cells),
             inline_size,
             self.item_containing_block_constraints(),
         )
@@ -1073,7 +1095,7 @@ impl<'pass> FlexFormattingContext<'pass> {
 
     fn calculate_max_content_block_size(&self, index: usize, inline_size: CssPixels) -> CssPixels {
         self.sizing().calculate_max_content_block_size(
-            self.flex_items[index].box_,
+            sizing_context::SizedBox::new(self.flex_items[index].box_, &self.flex_items[index].cells),
             inline_size,
             self.item_containing_block_constraints(),
         )
@@ -1314,14 +1336,22 @@ impl<'pass> FlexFormattingContext<'pass> {
             let basis_retrieves_main_size = !style.flex_basis_is_content() && flex_basis.is_auto();
             let (main_size, _) = self.computed_main_size(node);
             if basis_retrieves_main_size && has_keyword_basis(main_size) {
-                flex_base_size =
-                    self.sizing()
-                        .resolve_calc_size(node, main_axis, main_size, flex_base_size, percentage_basis);
+                flex_base_size = self.sizing().resolve_calc_size(
+                    sizing_context::SizedBox::new(node, &self.flex_items[index].cells),
+                    main_axis,
+                    main_size,
+                    flex_base_size,
+                    percentage_basis,
+                );
             }
             if has_keyword_basis(flex_basis) {
-                flex_base_size =
-                    self.sizing()
-                        .resolve_calc_size(node, main_axis, flex_basis, flex_base_size, percentage_basis);
+                flex_base_size = self.sizing().resolve_calc_size(
+                    sizing_context::SizedBox::new(node, &self.flex_items[index].cells),
+                    main_axis,
+                    flex_basis,
+                    flex_base_size,
+                    percentage_basis,
+                );
             }
         }
 
@@ -1385,8 +1415,13 @@ impl<'pass> FlexFormattingContext<'pass> {
         let percentage_basis = self
             .has_definite_main_size_used(container)
             .then(|| self.inner_main_size_used(container));
-        self.sizing()
-            .resolve_calc_size(node, axis, min_size, size, percentage_basis)
+        self.sizing().resolve_calc_size(
+            sizing_context::SizedBox::new(node, &self.flex_items[index].cells),
+            axis,
+            min_size,
+            size,
+            percentage_basis,
+        )
     }
 
     fn automatic_minimum_size_for_clamping(
@@ -1938,9 +1973,14 @@ impl<'pass> FlexFormattingContext<'pass> {
         let axis = self.cross_sizing_axis();
         let constraints = self.item_containing_block_constraints();
         let sizing = self.sizing();
-        let stretch_fit_size = sizing.stretch_fit_inner_size(node, axis, basis, constraints);
+        let stretch_fit_size = sizing.stretch_fit_inner_size(
+            sizing_context::SizedBox::new(node, &self.flex_items[index].cells),
+            axis,
+            basis,
+            constraints,
+        );
         sizing.resolve_calc_size(
-            node,
+            sizing_context::SizedBox::new(node, &self.flex_items[index].cells),
             axis,
             self.computed_cross_size(node).0,
             stretch_fit_size,
@@ -2047,7 +2087,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             let transferred_cross_size = self.cross_size_from_main_size_and_aspect_ratio(node, main_size);
             // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-minimum
             let automatic_minimum = self.sizing().automatic_minimum_size_from_aspect_ratio(
-                node,
+                sizing_context::SizedBox::new(node, &self.flex_items[index].cells),
                 self.cross_sizing_axis(),
                 main_size,
                 transferred_cross_size,
@@ -2122,7 +2162,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             .has_definite_cross_size_used(container)
             .then(|| self.inner_cross_size_used(container));
         self.sizing().resolve_calc_size(
-            node,
+            sizing_context::SizedBox::new(node, &self.flex_items[index].cells),
             self.cross_sizing_axis(),
             self.computed_cross_size(node).0,
             auto_size,
@@ -3027,7 +3067,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             .available_inner_space_or_constraints_from(self.available_space_for_items.unwrap().space);
         intrinsic_space.block_size = AvailableSize::Indefinite;
         self.sizing().measure_table_box_block_size_inside_wrapper(
-            self.flex_items[index].box_,
+            sizing_context::SizedBox::new(self.flex_items[index].box_, &self.flex_items[index].cells),
             intrinsic_space,
             self.item_containing_block_constraints(),
         )
@@ -3331,9 +3371,10 @@ impl<'pass> FlexFormattingContext<'pass> {
         // size contributions only as that property's initial value.
         !self.cross_axis_is_horizontal()
             && self.computed_cross_size(node).0.contains_percentage()
-            && self
-                .sizing()
-                .block_size_transfers_through_aspect_ratio(node, self.item_containing_block_constraints())
+            && self.sizing().block_size_transfers_through_aspect_ratio(
+                sizing_context::SizedBox::new(node, &self.flex_items[index].cells),
+                self.item_containing_block_constraints(),
+            )
     }
 
     fn calculate_cross_content_contribution(
@@ -3510,7 +3551,7 @@ impl<'pass> FlexFormattingContext<'pass> {
 
     fn resolve_own_auto_block_size(&self, automatic_block_size: CssPixels, resolution_space: AvailableSpace) {
         self.sizing().resolve_used_block_size_if_treated_as_auto(
-            self.run.box_,
+            self.run.sized_root(),
             resolution_space,
             self.layout_input.unwrap().containing_block_constraints,
             Some(automatic_block_size),

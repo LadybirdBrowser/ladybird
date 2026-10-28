@@ -1450,6 +1450,12 @@ impl<'pass> FormattingContextRun<'pass> {
         )
     }
 
+    /// The run's root, as a box its sizing steps size in its record.
+    #[track_caller]
+    pub(crate) fn sized_root(&self) -> sizing_context::SizedRecord<'pass> {
+        sizing_context::SizedRecord::new(self.box_, self.root_record())
+    }
+
     /// The record of the run's root, read in the frame this run lays out in.
     #[track_caller]
     pub(crate) fn root_record(&self) -> used_values::RecordInFrame<'pass> {
@@ -1647,11 +1653,12 @@ fn register_table_abspos_descendants(run: &FormattingContextRun, parent: Node) {
 
 pub(crate) fn independent_root_automatic_block_size(
     sizing: &sizing_context::SizingContext<'_, '_>,
-    node: Node,
+    sized: sizing_context::SizedBox<'_>,
     available_inner_space: AvailableSpace,
     constraints: ContainingBlockConstraints,
     automatic_content_block_size_of_completed_run: Option<CssPixels>,
 ) -> CssPixels {
+    let node = sized.node;
     if let Some(automatic_content_block_size_reported_by_completed_run) = automatic_content_block_size_of_completed_run
     {
         return automatic_content_block_size_reported_by_completed_run;
@@ -1672,7 +1679,7 @@ pub(crate) fn independent_root_automatic_block_size(
         // https://drafts.csswg.org/css-flexbox-1/#algo-main-container
         // https://www.w3.org/TR/css-grid-2/#intrinsic-sizes
         return sizing.calculate_max_content_block_size(
-            node,
+            sized,
             available_inner_space.inline_size.to_px_or_zero(),
             constraints,
         );
@@ -1683,10 +1690,11 @@ pub(crate) fn independent_root_automatic_block_size(
 
 pub(crate) fn flex_self_block_size_resolution_space(
     sizing: &sizing_context::SizingContext,
-    node: Node,
+    sized: sizing_context::SizedBox<'_>,
     resolution_space: AvailableSpace,
     constraints: ContainingBlockConstraints,
 ) -> Option<AvailableSpace> {
+    let node = sized.node;
     let style = sizing.style(node);
     if !style.display().is_flex_inside() || !crate::layout::sizing_context::is_plain_auto(style.min_height()) {
         return None;
@@ -1694,8 +1702,8 @@ pub(crate) fn flex_self_block_size_resolution_space(
     if sizing.facts(node).document_in_quirks_mode() {
         return None;
     }
-    if !sizing.should_treat_block_size_as_auto(node, resolution_space, constraints)
-        || sizing.box_is_sized_as_replaced_element(node, resolution_space, constraints)
+    if !sizing.should_treat_block_size_as_auto(sized, resolution_space, constraints)
+        || sizing.box_is_sized_as_replaced_element(sized, resolution_space, constraints)
     {
         return None;
     }
@@ -1708,22 +1716,27 @@ fn eagerly_resolve_atomic_flex_root_auto_block_size(
     input: &LayoutInput,
     inline_definite_space: AvailableSpace,
 ) {
+    let sized_root = run.sized_root();
     let node = run.box_;
     let sizing = run.sizing();
     if !StyleValues::for_node(&run.callbacks, node).display().is_flex_inside()
-        || sizing.box_is_sized_as_replaced_element(node, input.available_space, input.containing_block_constraints)
+        || sizing.box_is_sized_as_replaced_element(
+            sized_root.sized_box(),
+            input.available_space,
+            input.containing_block_constraints,
+        )
     {
         return;
     }
     sizing.resolve_used_block_size_if_treated_as_auto(
-        node,
+        sized_root,
         inline_definite_space,
         input.containing_block_constraints,
         None,
         || {
             independent_root_automatic_block_size(
                 &sizing,
-                node,
+                sized_root.sized_box(),
                 run.root_record()
                     .available_inner_space_or_constraints_from(inline_definite_space),
                 input.containing_block_constraints,
@@ -1743,6 +1756,7 @@ fn apply_root_sizing_directives(
     input: &LayoutInput,
     fc_type: FormattingContextType,
 ) -> RootSizingOutcome {
+    let sized_root = run.sized_root();
     let mut atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above = None;
     let body_input = match input.participation {
         ParticipationInParentFormattingContext::BlockLevel => dimension_block_level_root(run, input, fc_type),
@@ -1754,7 +1768,7 @@ fn apply_root_sizing_directives(
             let run_cache_may_reuse_this_run_at_other_available_inline_sizes =
                 fc_type == FormattingContextType::Block && run.fragments.is_some();
             atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above = run.sizing().dimension_atomic_root(
-                run.box_,
+                sized_root,
                 input.available_space,
                 input.containing_block_constraints,
                 run_cache_may_reuse_this_run_at_other_available_inline_sizes,
@@ -1766,7 +1780,7 @@ fn apply_root_sizing_directives(
             };
             let flex_self_resolution_space = flex_self_block_size_resolution_space(
                 &run.sizing(),
-                run.box_,
+                sized_root.sized_box(),
                 inline_definite_space,
                 input.containing_block_constraints,
             );
@@ -1815,6 +1829,7 @@ fn dimension_block_level_root(
     input: &LayoutInput,
     fc_type: FormattingContextType,
 ) -> LayoutInput {
+    let sized_root = run.sized_root();
     let node = run.box_;
     let available_space = input.available_space;
     let constraints = input.containing_block_constraints;
@@ -1831,19 +1846,28 @@ fn dimension_block_level_root(
         return body_input;
     }
     let mut measured_content_block_size = None;
-    if sizing.should_treat_block_size_as_auto(node, available_space, constraints)
+    if sizing.should_treat_block_size_as_auto(sized_root.sized_box(), available_space, constraints)
         && !crate::layout::sizing_context::is_plain_auto(style.min_height())
         && lays_out_content_against_min_block_size(NodeFacts::new(&run.callbacks, node), fc_type)
     {
-        let content_block_size =
-            sizing.measure_automatic_content_block_size(node, body_input.available_space, constraints);
+        let content_block_size = sizing.measure_automatic_content_block_size(
+            sized_root.sized_box(),
+            body_input.available_space,
+            constraints,
+        );
         measured_content_block_size = Some(content_block_size);
-        let min_block_size = sizing.calculate_inner_block_size(node, available_space, style.min_height(), constraints);
+        let min_block_size =
+            sizing.calculate_inner_block_size(sized_root.sized_box(), available_space, style.min_height(), constraints);
         if content_block_size < min_block_size {
             body_input.available_space.block_size = AvailableSize::definite(min_block_size);
         }
     }
-    sizing.make_form_control_content_box_definite(node, available_space, constraints, measured_content_block_size);
+    sizing.make_form_control_content_box_definite(
+        sized_root,
+        available_space,
+        constraints,
+        measured_content_block_size,
+    );
     body_input
 }
 
@@ -1854,6 +1878,7 @@ fn size_block_level_root_ahead_of_its_contents(
     run: &FormattingContextRun,
     input: &LayoutInput,
 ) -> Option<AvailableSpace> {
+    let sized_root = run.sized_root();
     let node = run.box_;
     let root = run.root_record();
     let constraints = input.containing_block_constraints;
@@ -1863,21 +1888,21 @@ fn size_block_level_root_ahead_of_its_contents(
         root.set_content_inline_size(content_inline_size);
     }
     let flex_self_resolution_space =
-        flex_self_block_size_resolution_space(&sizing, node, input.available_space, constraints);
+        flex_self_block_size_resolution_space(&sizing, sized_root.sized_box(), input.available_space, constraints);
     let resolution_space = sizing.available_space_for_block_size_resolution(node, input.available_space, constraints);
-    sizing.resolve_used_block_size_if_not_treated_as_auto(node, resolution_space, constraints);
+    sizing.resolve_used_block_size_if_not_treated_as_auto(sized_root, resolution_space, constraints);
     let block_size_is_definite_from_aspect_ratio = root.has_definite_inline_size()
         && facts.has_preferred_aspect_ratio()
-        && sizing.box_is_sized_as_replaced_element(node, resolution_space, constraints);
+        && sizing.box_is_sized_as_replaced_element(sized_root.sized_box(), resolution_space, constraints);
     if facts.has_auto_content_box_size()
         || block_size_is_definite_from_aspect_ratio
         || (StyleValues::for_node(&run.callbacks, node).display().is_flex_inside()
             && flex_self_resolution_space.is_none())
     {
-        sizing.resolve_used_block_size_if_treated_as_auto(node, resolution_space, constraints, None, || {
+        sizing.resolve_used_block_size_if_treated_as_auto(sized_root, resolution_space, constraints, None, || {
             block_formatting_context::automatic_block_size_of_independent_root_ahead_of_its_contents(
                 &sizing,
-                node,
+                sized_root.sized_box(),
                 root.available_inner_space_or_constraints_from(resolution_space),
                 constraints,
             )
@@ -1889,25 +1914,26 @@ fn size_block_level_root_ahead_of_its_contents(
 /// Resolves the block size of the root of a float's run where that follows without laying out its contents, in the
 /// inline size its block formatting context gave it.
 fn resolve_float_root_block_size_ahead_of_its_contents(run: &FormattingContextRun, input: &LayoutInput) {
+    let sized_root = run.sized_root();
     let node = run.box_;
     let root = run.root_record();
     let available_space = input.available_space;
     let constraints = input.containing_block_constraints;
     let sizing = run.sizing();
     let facts = NodeFacts::new(&run.callbacks, node);
-    sizing.resolve_used_block_size_if_not_treated_as_auto(node, available_space, constraints);
+    sizing.resolve_used_block_size_if_not_treated_as_auto(sized_root, available_space, constraints);
     let block_size_is_definite_from_aspect_ratio = root.has_definite_inline_size()
         && facts.has_preferred_aspect_ratio()
-        && sizing.box_is_sized_as_replaced_element(node, available_space, constraints);
+        && sizing.box_is_sized_as_replaced_element(sized_root.sized_box(), available_space, constraints);
     if facts.has_auto_content_box_size()
         || block_size_is_definite_from_aspect_ratio
         || (StyleValues::for_node(&run.callbacks, node).display().is_flex_inside()
             && input.sizing.flex_self_block_size_resolution_space.is_none())
     {
-        sizing.resolve_used_block_size_if_treated_as_auto(node, available_space, constraints, None, || {
+        sizing.resolve_used_block_size_if_treated_as_auto(sized_root, available_space, constraints, None, || {
             block_formatting_context::automatic_block_size_of_independent_root_ahead_of_its_contents(
                 &sizing,
-                node,
+                sized_root.sized_box(),
                 root.available_inner_space_or_constraints_from(available_space),
                 constraints,
             )
@@ -1974,6 +2000,7 @@ fn in_flow_children_margin_box_block_extent(
 }
 
 fn finalize_block_level_root(run: &FormattingContextRun, input: &LayoutInput, body_result: &ChildLayoutResult) {
+    let sized_root = run.sized_root();
     let node = run.box_;
     if let Some(inline_size) = body_result.table_wrapper_content_inline_size {
         run.root_record().set_content_inline_size(inline_size);
@@ -1987,7 +2014,7 @@ fn finalize_block_level_root(run: &FormattingContextRun, input: &LayoutInput, bo
             input.containing_block_constraints,
         );
         sizing.resolve_used_block_size_if_treated_as_auto(
-            node,
+            sized_root,
             resolution_space,
             input.containing_block_constraints,
             Some(body_result.automatic_content_block_size),
@@ -1997,12 +2024,12 @@ fn finalize_block_level_root(run: &FormattingContextRun, input: &LayoutInput, bo
 }
 
 fn finalize_float_root(run: &FormattingContextRun, input: &LayoutInput, body_result: &ChildLayoutResult) {
-    let node = run.box_;
+    let sized_root = run.sized_root();
     if let Some(inline_size) = body_result.table_wrapper_content_inline_size {
         run.root_record().set_content_inline_size(inline_size);
     }
     run.sizing().resolve_used_block_size_if_treated_as_auto(
-        node,
+        sized_root,
         input.available_space,
         input.containing_block_constraints,
         Some(body_result.automatic_content_block_size),
@@ -2624,7 +2651,7 @@ fn lay_out_run_root_and_contents<'pass>(
     ) {
         let sizing = run.sizing();
         sizing.apply_automatic_minimum_block_size_from_aspect_ratio(
-            run.box_,
+            run.sized_root(),
             sizing.available_space_for_block_size_resolution(
                 run.box_,
                 input.available_space,
@@ -2751,9 +2778,11 @@ fn body_input_in_own_frame(
         {
             used.content_inline_size()
         } else {
-            body_run
-                .sizing()
-                .orthogonal_flow_inline_size(node, available_space, constraints)
+            body_run.sizing().orthogonal_flow_inline_size(
+                sizing_context::SizedBox::new(node, &used),
+                available_space,
+                constraints,
+            )
         };
         used.set_content_inline_size(inline_size);
     }
@@ -2828,14 +2857,15 @@ fn finalize_atomic_root_block_size(
     input: &LayoutInput,
     automatic_content_block_size_of_completed_body_run: CssPixels,
 ) {
+    let sized_root = run.sized_root();
     let node = run.box_;
     let available_space = input.available_space;
     let constraints = input.containing_block_constraints;
     let sizing = run.sizing();
-    if sizing.box_is_sized_as_replaced_element(node, available_space, constraints) {
+    if sizing.box_is_sized_as_replaced_element(sized_root.sized_box(), available_space, constraints) {
         return;
     }
-    if sizing.should_treat_block_size_as_auto(node, available_space, constraints) {
+    if sizing.should_treat_block_size_as_auto(sized_root.sized_box(), available_space, constraints) {
         let parent_lays_out_root_as_math_content =
             formatting_context_type_created_by_box(NodeFacts::new(&run.callbacks, run.callbacks.parent(node)))
                 == Some(FormattingContextType::Math);
@@ -2849,14 +2879,14 @@ fn finalize_atomic_root_block_size(
             )
         };
         sizing.resolve_used_block_size_if_treated_as_auto(
-            node,
+            sized_root,
             available_space,
             constraints,
             Some(automatic_block_size),
             || unreachable!("a completed atomic run always supplies its automatic content block size"),
         );
     } else {
-        sizing.resolve_used_block_size_if_not_treated_as_auto(node, available_space, constraints);
+        sizing.resolve_used_block_size_if_not_treated_as_auto(sized_root, available_space, constraints);
     }
 }
 
@@ -2988,7 +3018,7 @@ pub(crate) fn layout_inside_child_with_input_cells(
         // parent run, which will also construct its fragment when placing the box.
         let used = record_for_this_run();
         let committed_fragment = run.sizing().dimension_empty_atomic_root(
-            child,
+            sizing_context::SizedRecord::new(child, used_values::RecordInFrame::new(used, run.callbacks.frame)),
             input.available_space,
             input.containing_block_constraints,
             child_run_builds_fragments,
@@ -3134,12 +3164,6 @@ impl ChildRunShape {
     pub(crate) fn lays_out_at(&self, inline_size: CssPixels, constraints: ContainingBlockConstraints) -> bool {
         self.root_cells.content_inline_size == inline_size && self.input.containing_block_constraints == constraints
     }
-}
-
-/// A formatting context that sizes its children in cells of its own before laying them out by runs of their own.
-pub(crate) trait ChildrenSizedInParentCells {
-    /// The cells this context sizes `node` in, if it is one of those children.
-    fn child_input_cells(&self, node: Node) -> Option<used_values::RootInputCells>;
 }
 
 pub(crate) trait ChildRunShapes {
