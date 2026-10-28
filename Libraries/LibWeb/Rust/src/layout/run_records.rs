@@ -355,17 +355,6 @@ pub(crate) struct LaidOutChildBox {
     pub(crate) orthogonal_flow_baselines: Option<DerivedBaselines>,
 }
 
-impl LaidOutChildBox {
-    /// The box as `record` holds it.
-    pub(crate) fn as_record_holds_it(record: &UsedValues) -> Self {
-        Self {
-            cells: used_values::RootInputCells::capture(record),
-            baselines: record.content_baselines_from_cells(),
-            orthogonal_flow_baselines: record.orthogonal_flow_baselines.get(),
-        }
-    }
-}
-
 /// The sizes, size constraints, box sides and baselines of a box as a run sees them: kept as a value for a child laid
 /// out by a run of its own, or read from the record of a box the run lays out itself.
 #[derive(Clone, Copy)]
@@ -385,7 +374,8 @@ impl BoxMetrics<'_> {
     pub(crate) fn orthogonal_flow_baselines(&self) -> Option<DerivedBaselines> {
         match self {
             Self::LaidOutByItsOwnRun(laid_out) => laid_out.orthogonal_flow_baselines,
-            Self::LaidOutByThisRun(record) => record.orthogonal_flow_baselines.get(),
+            // NB: A box that establishes an orthogonal flow is laid out by a run of its own.
+            Self::LaidOutByThisRun(_) => None,
         }
     }
 }
@@ -951,8 +941,8 @@ impl<'arena> RunRecords<'arena> {
         };
         if cfg!(debug_assertions) || super::run_repeatability::verification_is_enabled() {
             assert_eq!(
-                laid_out,
-                LaidOutChildBox::as_record_holds_it(record),
+                laid_out.cells,
+                used_values::RootInputCells::capture(record),
                 "the parent's record of {node:?} changed after its run handed the box back"
             );
         }

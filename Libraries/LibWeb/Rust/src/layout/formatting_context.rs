@@ -1068,6 +1068,9 @@ pub(crate) struct ChildLayoutResult {
     pub depends_on_percentage_block_size: bool,
     /// For an absolutely positioned box, the used insets its run gave it.
     pub out_of_flow_root_used_insets: Option<run_records::UsedInsets>,
+    /// For a box that establishes an orthogonal flow, its baselines along the horizontal axis of its parent's frame,
+    /// from the left edge of its content box.
+    pub orthogonal_flow_baselines: Option<DerivedBaselines>,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -1077,67 +1080,41 @@ pub(crate) enum OwnBlockSizeObservation {
     Unobserved,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum RootCellsOutcome {
-    AllCells(used_values::UsedValuesCellState),
-    OutputCellsOnly(used_values::RootOutputCells),
-}
-
-impl RootCellsOutcome {
-    fn capture(record: &UsedValues, parent_owns_root_input_cells: bool) -> Self {
-        if parent_owns_root_input_cells {
-            Self::OutputCellsOnly(used_values::RootOutputCells::capture(record))
-        } else {
-            Self::AllCells(used_values::UsedValuesCellState::capture(record))
-        }
-    }
-
-    fn apply_to_record(&self, record: &UsedValues) {
-        match self {
-            Self::AllCells(cells) => cells.apply_to_record(record),
-            Self::OutputCellsOnly(output_cells) => output_cells.apply_to_record(record),
-        }
-    }
-
-    pub(super) fn parent_owns_root_input_cells(&self) -> bool {
-        matches!(self, Self::OutputCellsOnly(_))
-    }
-}
-
 #[derive(Clone)]
 pub(crate) struct RunRootOutcome {
-    pub(super) cells: RootCellsOutcome,
+    /// The input cells the run left its root, unless its parent owns them.
+    pub(super) input_cells_left_by_run: Option<used_values::RootInputCells>,
     pub(super) own_metrics_sealed: bool,
     pub(super) line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
 }
 
 impl RunRootOutcome {
-    /// What the parent keeps of the root once its run returns, given the input cells it handed the run.
+    pub(super) fn parent_owns_root_input_cells(&self) -> bool {
+        self.input_cells_left_by_run.is_none()
+    }
+
+    /// What the parent keeps of the root once its run returned `result`, given the input cells it handed the run.
     fn laid_out_child_box(
         &self,
         root_cells: used_values::RootInputCells,
+        result: &ChildLayoutResult,
         content_block_size_adopted_after_run: Option<CssPixels>,
     ) -> run_records::LaidOutChildBox {
-        let (mut cells, outputs) = match self.cells {
-            RootCellsOutcome::AllCells(state) => (state.inputs, state.outputs),
-            RootCellsOutcome::OutputCellsOnly(outputs) => (root_cells, outputs),
-        };
+        let mut cells = self.input_cells_left_by_run.unwrap_or(root_cells);
         if let Some(block_size) = content_block_size_adopted_after_run {
             cells.content_block_size = clamp_to_max_dimension_value(block_size.max(CssPixels::default()));
         }
         run_records::LaidOutChildBox {
             cells,
-            baselines: DerivedBaselines {
-                inline_alignment: outputs.inline_alignment_baseline,
-                first: outputs.has_first_baseline.then_some(outputs.first_baseline),
-                last: outputs.has_last_baseline.then_some(outputs.last_baseline),
-            },
-            orthogonal_flow_baselines: outputs.orthogonal_flow_baselines,
+            baselines: result.baselines,
+            orthogonal_flow_baselines: result.orthogonal_flow_baselines,
         }
     }
 
     fn apply_to_record(self, record: &UsedValues, content_block_size_adopted_after_run: Option<CssPixels>) {
-        self.cells.apply_to_record(record);
+        if let Some(cells) = self.input_cells_left_by_run {
+            cells.apply_to_record(record);
+        }
         if let Some(block_size) = content_block_size_adopted_after_run
             && record.content_block_size.get() != clamp_to_max_dimension_value(block_size.max(CssPixels::default()))
         {
@@ -1405,7 +1382,8 @@ impl<'pass> FormattingContextRun<'pass> {
     ) -> RunOutputs {
         let record = self.records.used_values(self.box_);
         let root_outcome = RunRootOutcome {
-            cells: RootCellsOutcome::capture(record, parent_owns_root_input_cells),
+            input_cells_left_by_run: (!parent_owns_root_input_cells)
+                .then(|| used_values::RootInputCells::capture(record)),
             own_metrics_sealed: record.own_metrics_are_sealed(),
             line_data: record.finish_line_data(&self.callbacks),
         };
@@ -2183,10 +2161,11 @@ fn reuse_committed_subtree_as_it_is(
     callbacks
         .scratch()
         .receive_host_findings(entry.outputs.host_findings.clone());
-    let laid_out_box = entry
-        .outputs
-        .root_outcome
-        .laid_out_child_box(root_cells, content_block_size_adopted_after_run);
+    let laid_out_box = entry.outputs.root_outcome.laid_out_child_box(
+        root_cells,
+        &entry.outputs.result,
+        content_block_size_adopted_after_run,
+    );
     Some((entry.outputs.result, laid_out_box, fragment))
 }
 
@@ -2369,13 +2348,11 @@ fn lay_out_run_root_and_contents<'pass>(
                 if NodeFacts::new(&body_run.callbacks, box_).display().is_math_inside() {
                     math_formatting_context::layout_operator(body_run, &input, &mut result);
                 }
-                store_derived_baselines(run.records.used_values(run.box_), result.baselines);
                 result
             }
             FormattingContextImplementation::Flex(context) => {
                 context.run(body_run, body_input);
                 let baselines = context.derived_baselines_of_root_box();
-                store_derived_baselines(run.records.used_values(run.box_), baselines);
                 ChildLayoutResult {
                     automatic_content_block_size: context.automatic_content_block_size(),
                     baselines,
@@ -2385,7 +2362,6 @@ fn lay_out_run_root_and_contents<'pass>(
             FormattingContextImplementation::Grid(context) => {
                 context.run(body_run, body_input);
                 let baselines = context.derived_baselines_of_root_box();
-                store_derived_baselines(run.records.used_values(run.box_), baselines);
                 ChildLayoutResult {
                     automatic_content_block_size: context.automatic_content_block_size(),
                     baselines,
@@ -2395,7 +2371,6 @@ fn lay_out_run_root_and_contents<'pass>(
             FormattingContextImplementation::Table(context) => {
                 context.run(body_run, body_input, inline_layout_of_root_table_box.take());
                 let baselines = context.derived_baselines_of_root_box();
-                store_derived_baselines(run.records.used_values(run.box_), baselines);
                 ChildLayoutResult {
                     automatic_content_block_size: context.automatic_content_block_size,
                     baselines,
@@ -2409,7 +2384,6 @@ fn lay_out_run_root_and_contents<'pass>(
             FormattingContextImplementation::Math(context) => {
                 context.run(body_run, body_input);
                 let baselines = context.derived_baselines_of_root_box();
-                store_derived_baselines(run.records.used_values(run.box_), baselines);
                 ChildLayoutResult {
                     automatic_content_block_size: context.automatic_content_block_size(),
                     baselines,
@@ -2707,8 +2681,8 @@ fn leave_own_frame(
             first: along_parent_horizontal_axis(result.baselines.first),
             last: along_parent_horizontal_axis(result.baselines.last),
         };
-        used.orthogonal_flow_baselines
-            .set((orthogonal_flow_baselines != DerivedBaselines::default()).then_some(orthogonal_flow_baselines));
+        result.orthogonal_flow_baselines =
+            (orthogonal_flow_baselines != DerivedBaselines::default()).then_some(orthogonal_flow_baselines);
         // NB: The inline size of a table wrapper in its parent's frame is the block size of its content in its own
         //     frame.
         if result.table_wrapper_content_inline_size.is_some() {
@@ -3252,7 +3226,7 @@ fn absorb_run_outputs(
     callbacks.scratch().receive_host_findings(host_findings);
     let content_block_size_adopted_after_run =
         content_block_size_adopted_after_run(input, result.automatic_content_block_size);
-    let laid_out_box = root_outcome.laid_out_child_box(root_cells, content_block_size_adopted_after_run);
+    let laid_out_box = root_outcome.laid_out_child_box(root_cells, &result, content_block_size_adopted_after_run);
     root_outcome.apply_to_record(parent_used, content_block_size_adopted_after_run);
     let fragment_arrival = parent_fragments.and(root).map(|root| {
         debug_assert!(root.node == child, "a child run returned a root for a different box");
