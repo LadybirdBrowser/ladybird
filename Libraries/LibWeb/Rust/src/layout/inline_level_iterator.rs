@@ -552,20 +552,20 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
 
     fn enter_node_with_box_model_metrics(&mut self, node: Node) {
         self.entered_box_model_nodes.push(node);
-        let used = record_entered_inline_box(self.context, node);
+        let sides = record_entered_inline_box(self.context, node);
         let leading = self.extra_leading_metrics.get_or_insert_default();
-        leading.margin += used.margin_left.get();
-        leading.border += used.border_left.get();
-        leading.padding += used.padding_left.get();
+        leading.margin += sides.margin_left;
+        leading.border += sides.border_left;
+        leading.padding += sides.padding_left;
         self.box_model_node_stack.push(node);
     }
 
     fn exit_node_with_box_model_metrics(&mut self) {
         let node = self.box_model_node_stack.pop().unwrap();
-        let used = self.context().used(node);
-        let margin = used.margin_right.get();
-        let border = used.border_right.get();
-        let padding = used.padding_right.get();
+        let sides = self.context().sides_of_entered_inline_box(node);
+        let margin = sides.margin_right;
+        let border = sides.border_right;
+        let padding = sides.padding_right;
         let trailing = self.extra_trailing_metrics.get_or_insert_default();
         trailing.margin += margin;
         trailing.border += border;
@@ -990,20 +990,23 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
     }
 }
 
-fn record_entered_inline_box<'context>(
-    context: &inline_formatting_context::InlineFormattingContext<'context>,
+/// Registers `node`, an inline box the context enters, resolves its box sides and returns them.
+fn record_entered_inline_box(
+    context: &inline_formatting_context::InlineFormattingContext<'_>,
     node: Node,
-) -> &'context UsedValues {
+) -> used_values::RootInputCells {
     let constraints = context.input.containing_block_constraints;
     let used = context.create_used_values(node, constraints);
     let style = context.style(node);
     let basis = constraints.inline_basis();
     used.resolve_box_model(&style, basis);
     context.compute_inset(node);
+    let sides = used_values::RootInputCells::capture(used);
+    context.keep_sides_of_entered_inline_box(node, sides);
     if context.run.fragments.is_some() && context.run.fragmentainer.is_none() {
         formatting_context::place_child(context.run, node, FfiCssPixelPoint::default(), None);
     }
-    used
+    sides
 }
 
 /// The inline items a block container generated, kept for the later runs of the container in the same pass. Their
