@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Atomic.h>
 #include <AK/Diagnostics.h>
 #include <AK/HashMap.h>
 #include <AK/NeverDestroyed.h>
+#include <AK/Random.h>
 #include <AK/ScopeGuard.h>
 #include <LibIPC/File.h>
 #include <LibMediaCodecs/CodedFrame.h>
@@ -40,9 +40,6 @@ constexpr u32 DRM_FORMAT_NV12 = drm_fourcc('N', 'V', '1', '2');
 constexpr u32 DRM_FORMAT_P010 = drm_fourcc('P', '0', '1', '0');
 
 constexpr AK::Duration DEVICE_WORK_STALL_UNTIL_TREATED_AS_FAILED = AK::Duration::from_seconds(5);
-
-// Surfaces are told apart by ID in every process that sees them, and each decoder's images are distinct.
-Atomic<u32> s_next_surface_id { 1 };
 
 char const* decoder_name_for(CodecID codec_id)
 {
@@ -726,7 +723,7 @@ DecoderErrorOr<NonnullRefPtr<VideoSurface>> FFmpegVulkanVideoDecoder::surface_fo
         }
     }
 
-    auto surface = VideoSurface::create_from_dma_buf(s_next_surface_id.fetch_add(1, AK::MemoryOrder::memory_order_relaxed), move(dma_buf));
+    auto surface = VideoSurface::create_from_dma_buf(get_random<u64>(), move(dma_buf));
     if (surface.is_error())
         return DecoderError::format(DecoderErrorCategory::Memory, "Could not create a surface for a decoded image: {}", surface.error());
     DECODER_TRY_ALLOC(m_surfaces_by_image.try_set(image_key, surface.value()));

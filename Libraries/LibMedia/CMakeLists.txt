@@ -66,7 +66,6 @@ set(SOURCES
     Sinks/RemoteVideoSink.cpp
     TimeRanges.cpp
     Track.cpp
-    VideoEdgeQueue.cpp
     VideoPresentation/VideoPresentationClientConnection.cpp
     VideoPresentation/VideoPresentationServerConnection.cpp
 )

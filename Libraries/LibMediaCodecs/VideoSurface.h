@@ -39,7 +39,8 @@ class MEDIACODECS_API VideoSurface : public AtomicRefCounted<VideoSurface> {
 public:
     ~VideoSurface();
 
-    u32 id() const { return m_id; }
+    // Tells the surface apart from every other its sender has handed out, including from an earlier decoder process.
+    u64 id() const { return m_id; }
     Gfx::IntSize size() const;
 
     // Reads the pixels back into memory, which works only where the platform lets this process map the surface.
@@ -55,14 +56,14 @@ public:
 #ifdef AK_OS_LINUX
     // The decoder assigns the ID, since the memory behind an image can be exported as any number of file
     // descriptors. The size is the image's, which can exceed the frames decoded into it.
-    static ErrorOr<NonnullRefPtr<VideoSurface>> create_from_dma_buf(u32 id, Gfx::LinuxDmaBufHandle);
+    static ErrorOr<NonnullRefPtr<VideoSurface>> create_from_dma_buf(u64 id, Gfx::LinuxDmaBufHandle);
 
     Gfx::LinuxDmaBufHandle const& dma_buf() const { return m_dma_buf; }
 #endif
 
 private:
 #ifdef AK_OS_MACOS
-    VideoSurface(Core::IOSurfaceHandle io_surface, u32 id)
+    VideoSurface(Core::IOSurfaceHandle io_surface, u64 id)
         : m_io_surface(move(io_surface))
         , m_id(id)
     {
@@ -72,7 +73,7 @@ private:
 #endif
 
 #ifdef AK_OS_LINUX
-    VideoSurface(u32 id, Gfx::LinuxDmaBufHandle dma_buf)
+    VideoSurface(u64 id, Gfx::LinuxDmaBufHandle dma_buf)
         : m_dma_buf(move(dma_buf))
         , m_id(id)
     {
@@ -81,7 +82,7 @@ private:
     Gfx::LinuxDmaBufHandle m_dma_buf;
 #endif
 
-    u32 m_id { 0 };
+    u64 m_id { 0 };
 };
 
 }

@@ -207,61 +207,30 @@ private:
     u64 m_allocated_buffer_id { 0 };
 };
 
-// A strong reference to a slot in a frame pool resolved on the remote side.
-class MEDIACODECS_API ResolvedVideoFrameSlot : public AtomicRefCounted<ResolvedVideoFrameSlot> {
+// The storage a frame received from another process arrived with, held until the frame is released. Exactly one of the
+// pixel buffer and the surface holds the frame's pixels.
+class MEDIACODECS_API ReceivedVideoFrameStorage : public AtomicRefCounted<ReceivedVideoFrameStorage> {
 public:
-    ResolvedVideoFrameSlot(Core::AnonymousBuffer slot_buffer, RefPtr<VideoSurface> surface, VideoFramePoolID pool_id, u32 slot_index, u64 slot_acquisition_id, Function<void()> on_release);
-    ~ResolvedVideoFrameSlot();
+    ReceivedVideoFrameStorage(Core::AnonymousBuffer pixel_buffer, RefPtr<VideoSurface> surface, u64 sender_id, Function<void()> on_release);
+    ~ReceivedVideoFrameStorage();
 
-    bool revalidate() const;
-
-    Core::AnonymousBuffer slot_buffer() const { return m_slot_buffer; }
+    Core::AnonymousBuffer const& pixel_buffer() const { return m_pixel_buffer; }
     RefPtr<VideoSurface> const& surface() const { return m_surface; }
-    VideoFramePoolID pool_id() const { return m_pool_id; }
-    u32 slot_index() const { return m_slot_index; }
-    u64 slot_acquisition_id() const { return m_slot_acquisition_id; }
+    // Names the peer the frame came from, so that anything kept by an ID the peer chose is never shared with another.
+    u64 sender_id() const { return m_sender_id; }
 
 private:
-    Core::AnonymousBuffer m_slot_buffer;
+    Core::AnonymousBuffer m_pixel_buffer;
     RefPtr<VideoSurface> m_surface;
-    VideoFramePoolID m_pool_id { 0 };
-    u32 m_slot_index { 0 };
-    u64 m_slot_acquisition_id { 0 };
+    u64 m_sender_id { 0 };
     Function<void()> m_on_release;
 };
 
 // Views the planes laid out within a slot's buffer, failing if they do not fit its capacity.
 MEDIACODECS_API ErrorOr<Gfx::YUVData> yuv_data_in_slot_buffer(Core::AnonymousBuffer const&, Gfx::IntSize, u8 bit_depth, Subsampling, CodingIndependentCodePoints const&);
 
-// Resolves a frame handle against the slot framebuffer it refers to, validating the slot's acquisition ID against the
-// handle's. The resolved frame revalidates it again after its pixels are consumed, seqlock-style, discarding reads of
-// recycled slots.
-MEDIACODECS_API ErrorOr<NonnullRefPtr<VideoFrame>> resolve_frame_from_slot(Core::AnonymousBuffer const& slot_buffer, RefPtr<VideoSurface> surface, VideoFrameHandle const&, Function<void()> on_release);
-
-// Tracks all the active slot framebuffers from a VideoFramePool via announcement and retirement notifications. Used to
-// resolve frames on a remote process. Resolved frames' lifetimes are guaranteed until they are released.
-class MEDIACODECS_API VideoFrameSlotDirectory : public AtomicRefCounted<VideoFrameSlotDirectory> {
-public:
-    static NonnullRefPtr<VideoFrameSlotDirectory> create();
-    ~VideoFrameSlotDirectory();
-
-    void set_on_slots_changed(Function<void()>);
-
-    void notify_slot_announced(VideoFramePoolID, u32 slot_index, Core::AnonymousBuffer slot_buffer, RefPtr<VideoSurface> surface);
-    void notify_pool_retired(VideoFramePoolID);
-    void notify_all_pools_retired();
-
-    RefPtr<VideoFrame> resolve_frame(VideoFrameHandle const&, Function<void()> on_release) const;
-
-private:
-    VideoFrameSlotDirectory() = default;
-
-    struct AnnouncedSlot {
-        Core::AnonymousBuffer buffer;
-        RefPtr<VideoSurface> surface;
-    };
-    HashMap<VideoFramePoolID, HashMap<u32, AnnouncedSlot>> m_slots_by_pool_id;
-    Function<void()> m_on_slots_changed;
-};
+// Builds a frame from the storage another process sent along with its metadata, checking that the storage can hold
+// such a frame. The release callback runs once the frame is dropped, or right away if it cannot be built.
+MEDIACODECS_API ErrorOr<NonnullRefPtr<VideoFrame>> create_received_video_frame(VideoFrameMetadata const&, Core::AnonymousBuffer pixel_buffer, RefPtr<VideoSurface>, u64 sender_id, Function<void()> on_release);
 
 }

@@ -21,13 +21,13 @@
 namespace Media {
 
 class PooledVideoFrameSlot;
-class ResolvedVideoFrameSlot;
+class ReceivedVideoFrameStorage;
 class VideoSurface;
 
 class MEDIACODECS_API VideoFrame final : public AtomicRefCounted<VideoFrame> {
 
 public:
-    using BackingStorage = Variant<NonnullRefPtr<PooledVideoFrameSlot>, NonnullRefPtr<ResolvedVideoFrameSlot>>;
+    using BackingStorage = Variant<NonnullRefPtr<PooledVideoFrameSlot>, NonnullRefPtr<ReceivedVideoFrameStorage>>;
 
     VideoFrame(
         AK::Duration timestamp,
@@ -38,6 +38,9 @@ public:
         CodingIndependentCodePoints cicp,
         BackingStorage backing_storage);
     ~VideoFrame();
+
+    // Tells this frame apart from every other frame in this process, including ones whose storage it shares.
+    u64 id() const { return m_id; }
 
     AK::Duration timestamp() const { return m_timestamp; }
     AK::Duration duration() const { return m_duration; }
@@ -60,17 +63,17 @@ public:
     // The platform surface holding the frame's pixels, null when they live in the backing slot's buffer.
     RefPtr<VideoSurface> surface() const;
 
+    // The shared memory holding the frame's pixels, invalid when a surface holds them instead.
+    Core::AnonymousBuffer pixel_buffer() const;
+
     // Converts the pixels to RGBA in memory, wherever they are, if this process can read them.
     ErrorOr<NonnullRefPtr<Gfx::Bitmap>> to_bitmap() const;
 
     PooledVideoFrameSlot const* pool_slot() const;
-    ResolvedVideoFrameSlot const* resolved_slot() const;
-
-    // Confirms the viewed pixels were not recycled while being consumed. Only frames resolved
-    // from a VideoFrameHandle can fail this.
-    bool revalidate_backing() const;
+    ReceivedVideoFrameStorage const* received_storage() const;
 
 private:
+    u64 m_id { 0 };
     AK::Duration m_timestamp;
     AK::Duration m_duration;
     Gfx::Size<u32> m_size;

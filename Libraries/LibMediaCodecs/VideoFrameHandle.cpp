@@ -39,9 +39,9 @@ ErrorOr<FramePlaneLayout> frame_plane_layout(Gfx::IntSize size, u8 bit_depth, Su
     };
 }
 
-bool VideoFrameHandle::is_valid() const
+bool VideoFrameMetadata::is_valid() const
 {
-    if (duration.value().is_negative())
+    if (duration.is_negative())
         return false;
     if (bit_depth != 8 && bit_depth != 10 && bit_depth != 12)
         return false;
@@ -54,28 +54,44 @@ bool VideoFrameHandle::is_valid() const
     return cicp.is_valid_or_unspecified();
 }
 
+VideoFrameMetadata VideoFrameMetadata::for_frame(VideoFrame const& frame)
+{
+    return VideoFrameMetadata {
+        .timestamp = frame.timestamp(),
+        .duration = frame.duration(),
+        .size = frame.size().to_type<int>(),
+        .bit_depth = frame.bit_depth(),
+        .subsampling = frame.subsampling(),
+        .cicp = frame.cicp(),
+    };
+}
+
+bool VideoFrameHandle::is_valid() const
+{
+    return metadata().is_valid();
+}
+
+VideoFrameMetadata VideoFrameHandle::metadata() const
+{
+    return VideoFrameMetadata {
+        .timestamp = timestamp.value(),
+        .duration = duration.value(),
+        .size = size,
+        .bit_depth = bit_depth,
+        .subsampling = subsampling.value(),
+        .cicp = cicp,
+    };
+}
+
 VideoFrameHandle VideoFrameHandle::for_frame(VideoFrame const& frame)
 {
-    // Owner-backed (a held pool slot) or consumer-backed (resolved from a handle); both carry the slot identity.
-    VideoFramePoolID pool_id { 0 };
-    u32 slot_index = 0;
-    u64 slot_acquisition_id = 0;
-    if (auto const* pool_slot = frame.pool_slot()) {
-        pool_id = pool_slot->ledger().id();
-        slot_index = pool_slot->slot_index();
-        slot_acquisition_id = pool_slot->slot_acquisition_id();
-    } else {
-        auto const* resolved_slot = frame.resolved_slot();
-        VERIFY(resolved_slot != nullptr);
-        pool_id = resolved_slot->pool_id();
-        slot_index = resolved_slot->slot_index();
-        slot_acquisition_id = resolved_slot->slot_acquisition_id();
-    }
+    auto const* pool_slot = frame.pool_slot();
+    VERIFY(pool_slot != nullptr);
 
     return VideoFrameHandle {
-        .pool_id = pool_id,
-        .slot_index = slot_index,
-        .slot_acquisition_id = slot_acquisition_id,
+        .pool_id = pool_slot->ledger().id(),
+        .slot_index = pool_slot->slot_index(),
+        .slot_acquisition_id = pool_slot->slot_acquisition_id(),
         .timestamp = frame.timestamp(),
         .duration = frame.duration(),
         .size = frame.size().to_type<int>(),
@@ -88,6 +104,37 @@ VideoFrameHandle VideoFrameHandle::for_frame(VideoFrame const& frame)
 }
 
 namespace IPC {
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Media::VideoFrameMetadata const& metadata)
+{
+    TRY(encoder.encode(metadata.timestamp));
+    TRY(encoder.encode(metadata.duration));
+    TRY(encoder.encode(metadata.size));
+    TRY(encoder.encode(metadata.bit_depth));
+    TRY(encoder.encode(metadata.subsampling.x()));
+    TRY(encoder.encode(metadata.subsampling.y()));
+    TRY(encoder.encode(metadata.cicp));
+    return {};
+}
+
+template<>
+ErrorOr<Media::VideoFrameMetadata> decode(Decoder& decoder)
+{
+    Media::VideoFrameMetadata metadata;
+    metadata.timestamp = TRY(decoder.decode<AK::Duration>());
+    metadata.duration = TRY(decoder.decode<AK::Duration>());
+    metadata.size = TRY(decoder.decode<Gfx::IntSize>());
+    metadata.bit_depth = TRY(decoder.decode<u8>());
+    metadata.subsampling = Media::Subsampling {
+        TRY(decoder.decode<bool>()),
+        TRY(decoder.decode<bool>()),
+    };
+    metadata.cicp = TRY(decoder.decode<Media::CodingIndependentCodePoints>());
+    if (!metadata.is_valid())
+        return Error::from_string_literal("Video frame metadata describes a frame that could not have been decoded");
+    return metadata;
+}
 
 template<>
 ErrorOr<void> encode(Encoder& encoder, Media::VideoFrameHandle const& handle)

@@ -56,7 +56,7 @@ ErrorOr<NonnullRefPtr<VideoSurface>> VideoSurface::create_from_mach_port(Core::M
 
 #ifdef AK_OS_LINUX
 
-ErrorOr<NonnullRefPtr<VideoSurface>> VideoSurface::create_from_dma_buf(u32 id, Gfx::LinuxDmaBufHandle dma_buf)
+ErrorOr<NonnullRefPtr<VideoSurface>> VideoSurface::create_from_dma_buf(u64 id, Gfx::LinuxDmaBufHandle dma_buf)
 {
     return adopt_nonnull_ref_or_enomem(new (nothrow) VideoSurface(id, move(dma_buf)));
 }
@@ -98,7 +98,7 @@ ErrorOr<RefPtr<Media::VideoSurface>> decode(Decoder& decoder)
         return Error::from_string_literal("VideoSurface attachment is not a moved send right");
     return TRY(Media::VideoSurface::create_from_mach_port(attachment.release_mach_port()));
 #elif defined(AK_OS_LINUX)
-    auto id = TRY(decoder.decode<u32>());
+    auto id = TRY(decoder.decode<u64>());
     auto dma_buf = TRY(decoder.decode<Gfx::LinuxDmaBufHandle>());
     return TRY(Media::VideoSurface::create_from_dma_buf(id, move(dma_buf)));
 #else

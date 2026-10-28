@@ -21,6 +21,22 @@ namespace Media {
 
 AK_TYPEDEF_DISTINCT_ORDERED_ID(u64, VideoFramePoolID);
 
+// Everything about a decoded frame that a consumer in another process needs to present it, apart from its pixels.
+struct MEDIACODECS_API VideoFrameMetadata {
+    static VideoFrameMetadata for_frame(VideoFrame const&);
+
+    bool is_valid() const;
+
+    AK::Duration conservative_end() const { return VideoFrame::conservative_end_of(timestamp, duration); }
+
+    AK::Duration timestamp;
+    AK::Duration duration;
+    Gfx::IntSize size;
+    u8 bit_depth { 0 };
+    Subsampling subsampling;
+    CodingIndependentCodePoints cicp;
+};
+
 // References a frame in a previously-announced pool slot buffer, along with the metadata needed
 // to present it. The receiving process resolves it against its mapping of that slot's buffer,
 // validating the slot acquisition ID.
@@ -29,7 +45,7 @@ struct MEDIACODECS_API VideoFrameHandle {
 
     bool is_valid() const;
 
-    AK::Duration conservative_end() const { return VideoFrame::conservative_end_of(timestamp, duration); }
+    VideoFrameMetadata metadata() const;
 
     VideoFramePoolID pool_id { 0 };
     u32 slot_index { 0 };
@@ -59,6 +75,12 @@ MEDIACODECS_API ErrorOr<FramePlaneLayout> frame_plane_layout(Gfx::IntSize, u8 bi
 }
 
 namespace IPC {
+
+template<>
+MEDIACODECS_API ErrorOr<void> encode(Encoder&, Media::VideoFrameMetadata const&);
+
+template<>
+MEDIACODECS_API ErrorOr<Media::VideoFrameMetadata> decode(Decoder&);
 
 template<>
 MEDIACODECS_API ErrorOr<void> encode(Encoder&, Media::VideoFrameHandle const&);

@@ -38,7 +38,6 @@ set(TEST_SOURCES
     TestRemoteVideoNode.cpp
     TestSourceBufferDemuxer.cpp
     TestTimeRanges.cpp
-    TestVideoEdgeQueue.cpp
     TestVideoFramePool.cpp
     TestVorbisDecode.cpp
     TestVP9Decode.cpp

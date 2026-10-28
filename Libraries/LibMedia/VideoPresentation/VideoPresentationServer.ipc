@@ -1,7 +1,6 @@
 #include <AK/Time.h>
 #include <LibMedia/InvalidateHeldData.h>
 #include <LibMedia/PipelineStatus.h>
-#include <LibMediaCodecs/VideoFramePool.h>
 #include <LibMedia/VideoSinkHandle.h>
 
 endpoint VideoPresentationServer {
@@ -9,9 +8,8 @@ endpoint VideoPresentationServer {
     release_video_edge(u64 edge_id) =|
 
     request_start(u64 edge_id) =|
-    request_seek(u64 edge_id, AK::Duration timestamp, Media::InvalidateHeldData invalidate_held_data) =|
-    release_slot(u64 edge_id, Media::VideoFramePoolID pool_id, u32 slot_index) =|
-    notify_space_available(u64 edge_id) =|
+    request_seek(u64 edge_id, AK::Duration timestamp, Media::InvalidateHeldData invalidate_held_data, u64 newest_received_lend_id) =|
+    release_frame(u64 edge_id, u64 lend_id) =|
 
     notify_sink_status(u64 edge_id, Media::PipelineStatus status, u32 requested_seek_id) =|
     notify_sink_resize(u64 edge_id, u32 width, u32 height) =|

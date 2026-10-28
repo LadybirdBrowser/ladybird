@@ -31,7 +31,6 @@ class MEDIA_API VideoPresentationClientConnection final
     C_OBJECT_ABSTRACT(VideoPresentationClientConnection);
 
 public:
-    // Each edge keeps as many buffers mapped here as it has slots, so a client may only have this many edges at once.
     static constexpr size_t MAX_EDGE_COUNT = 64;
 
     explicit VideoPresentationClientConnection(NonnullOwnPtr<IPC::Transport>);
@@ -45,11 +44,11 @@ public:
 private:
     virtual void die() override;
 
-    virtual void video_edge_ready(u64 edge_id, Media::VideoEdgeQueue edge, Media::MediaTimeReader time_reader) override;
+    virtual void video_edge_ready(u64 edge_id, Media::MediaTimeReader time_reader) override;
     virtual void update_edge_time_reader(u64 edge_id, Media::MediaTimeReader time_reader) override;
-    virtual void announce_video_frame_slot(u64 edge_id, Media::VideoFramePoolID pool_id, u32 slot_index, Core::AnonymousBuffer slot_buffer, RefPtr<Media::VideoSurface> surface) override;
-    virtual void retire_video_frame_pool(u64 edge_id, Media::VideoFramePoolID pool_id) override;
-    virtual void notify_data_available(u64 edge_id) override;
+    virtual void lend_frame(u64 edge_id, u64 lend_id, u32 seek_id, Media::VideoFrameMetadata metadata, Core::AnonymousBuffer pixel_buffer, RefPtr<Media::VideoSurface> surface) override;
+    virtual void edge_status_changed(u64 edge_id, Media::PipelineStatus status, u32 seek_id) override;
+    virtual void notify_clock_resumed(u64 edge_id) override;
     virtual void seek_sink(u64 edge_id, u32 requested_seek_id, InvalidateHeldData) override;
 
     struct EdgeState {
@@ -58,7 +57,8 @@ private:
         RefPtr<RemoteVideoProducer> consumer;
         RefPtr<DisplayingVideoSink> sink;
         Optional<MediaTimeReader> time_reader;
-        NonnullRefPtr<VideoFrameSlotDirectory> slot_directory { VideoFrameSlotDirectory::create() };
+        // Tells the frames lent over this edge apart from those of every other edge in this process.
+        u64 sender_id { 0 };
         u32 expected_requested_seek_id { 0 };
     };
 
