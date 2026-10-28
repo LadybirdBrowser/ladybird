@@ -1786,9 +1786,9 @@ impl<'pass> BlockFormattingContext<'pass> {
             }
         }
 
-        let marker_used = self.used(marker);
-        let marker_block_size = marker_used.content_block_size.get();
-        let marker_inline_size = marker_used.content_inline_size.get();
+        let marker_metrics = self.run.records.box_metrics_of(marker);
+        let marker_block_size = marker_metrics.content_block_size();
+        let marker_inline_size = marker_metrics.content_inline_size();
         let list_item_style = self.style(list_item);
         let list_item_used = self.used(list_item);
         let marker_inline_offset = if list_item_style.direction() == direction::LTR {
@@ -1797,9 +1797,9 @@ impl<'pass> BlockFormattingContext<'pass> {
             list_item_used.content_inline_size.get() - inline_space_used_before_list_item_elements_formatted.right
         };
         let marker_block_offset = if let Some(list_item_first_baseline) = list_item_first_baseline
-            && marker_used.has_first_baseline.get()
+            && let Some(marker_first_baseline) = marker_metrics.content_baselines().first
         {
-            list_item_first_baseline - marker_used.first_baseline.get()
+            list_item_first_baseline - marker_first_baseline
         } else {
             round_css_pixels(Self::marker_centered_block_offset(
                 marker_style.line_height(),
@@ -2514,26 +2514,24 @@ impl<'pass> BlockFormattingContext<'pass> {
                 margin_state.reset();
             }
             drop(margin_state);
-            let used = self.used(node);
+            let metrics = self.run.records.box_metrics_of(node);
             self.block_offset_of_current_block_container.set(Some(
                 self.run.records.content_offset_or_origin(node).y
-                    + used.content_block_size.get()
-                    + used.border_box_bottom(used.uses_collapsing_borders_model.get()),
+                    + metrics.content_block_size()
+                    + metrics.border_box_bottom(metrics.uses_collapsing_borders_model()),
             ));
         }
+        let metrics = self.run.records.box_metrics_of(node);
         self.margin_state
             .borrow_mut()
             .box_last_in_flow_child_margin_bottom_collapsed = false;
-        self.margin_state
-            .borrow_mut()
-            .add_margin(self.used(node).margin_bottom.get());
+        self.margin_state.borrow_mut().add_margin(metrics.margin_bottom());
         self.margin_state.borrow_mut().update_open_top_margin_group();
 
-        let used = self.used(node);
         *bottom_of_lowest_margin_box = (*bottom_of_lowest_margin_box).max(
             self.run.records.content_offset_or_origin(node).y
-                + used.content_block_size.get()
-                + used.margin_box_bottom(used.uses_collapsing_borders_model.get()),
+                + metrics.content_block_size()
+                + metrics.margin_box_bottom(metrics.uses_collapsing_borders_model()),
         );
         self.conclude_in_flow_reuse(in_flow_reuse, node, placed, depends_on_percentage_block_size);
     }
@@ -2919,22 +2917,22 @@ impl<'pass> BlockFormattingContext<'pass> {
             );
             return FragmentationStep::Stop;
         }
-        let Some(used) = self.run.records.used_values_if_owned(child) else {
+        let Some(metrics) = self.run.records.box_metrics_of_if_owned(child) else {
             return FragmentationStep::LayOut;
         };
         let break_before_is_avoided = self.break_between_is_avoided(state, child);
-        let collapsed = used.uses_collapsing_borders_model.get();
-        let border_box_block_size = used.border_box_block_size(collapsed);
+        let collapsed = metrics.uses_collapsing_borders_model();
+        let border_box_block_size = metrics.border_box_block_size(collapsed);
         if self.allows_unforced_breaks() {
             let content_block_end = state.container_content_box_block_start_in_root
                 + self.block_offset_adjustment_from_pending_ancestor_block_start_margins(block_container)
                 + self.run.records.content_offset_or_origin(child).y
-                + used.content_block_size.get();
+                + metrics.content_block_size();
             let is_breakable = self.child_is_breakable(child);
             if !is_breakable {
                 fragmentainer.note_unbreakable_block_size(border_box_block_size);
             }
-            let block_end = content_block_end + used.border_box_bottom(collapsed);
+            let block_end = content_block_end + metrics.border_box_bottom(collapsed);
             if fragmentainer.exceeds(block_end) {
                 fragmentainer.note_space_shortage(block_end);
                 if state.fragmentainer_had_content_before_child
@@ -3237,12 +3235,12 @@ impl<'pass> BlockFormattingContext<'pass> {
         self.laid_out_children(node)
             .filter_map(|child| {
                 let placement = self.run.records.placement_of(child)?;
-                Some((placement, self.run.records.used_values(child)))
+                Some((placement, self.run.records.box_metrics_of(child)))
             })
-            .map(|(placement, used)| {
+            .map(|(placement, metrics)| {
                 placement.content_offset_in_containing_block.y
-                    + used.content_block_size.get()
-                    + used.border_box_bottom(used.uses_collapsing_borders_model.get())
+                    + metrics.content_block_size()
+                    + metrics.border_box_bottom(metrics.uses_collapsing_borders_model())
             })
             .max()
             .unwrap_or_default()
@@ -3849,7 +3847,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             .used(fieldset)
             .border_top
             .get()
-            .max(self.used(legend).margin_box_block_size(false));
+            .max(self.run.records.box_metrics_of(legend).margin_box_block_size(false));
         let extra_top = effective_border - self.used(fieldset).border_top.get();
 
         // Lay out non-legend children below the legend accommodation.
@@ -3882,13 +3880,13 @@ impl<'pass> BlockFormattingContext<'pass> {
         // The element is expected to be positioned in the block-flow direction such that its border box is centered over
         // the border on the block-start side of the fieldset element.
         // FIXME: Take writing modes into consideration.
-        let legend_border_box_centering_offset =
-            (effective_border - self.used(legend).border_box_block_size(false)) / 2;
+        let legend_metrics = self.run.records.box_metrics_of(legend);
+        let legend_border_box_centering_offset = (effective_border - legend_metrics.border_box_block_size(false)) / 2;
         let fieldset_border_box_block_start_in_content =
             -(self.used(fieldset).border_top.get() + self.used(fieldset).padding_top.get());
         let legend_content_block_offset = fieldset_border_box_block_start_in_content
             + legend_border_box_centering_offset
-            + self.used(legend).border_box_top(false);
+            + legend_metrics.border_box_top(false);
         let legend_fragment_arrival = self.pending_legend_fragment_arrival.take();
         if let Some(legend_flow_position) = self.pending_legend_flow_position.take() {
             self.place_laid_out_child(
@@ -4460,7 +4458,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 if child_facts.is_list_item_marker_box() {
                     continue;
                 }
-                let Some(child_used) = self.run.records.used_values_if_owned(child) else {
+                let Some(child_metrics) = self.run.records.box_metrics_of_if_owned(child) else {
                     continue;
                 };
                 // https://drafts.csswg.org/css-overflow-4/#line-clamp-containers
@@ -4474,7 +4472,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 }
                 let mut margin_state = self.margin_state.borrow_mut();
                 let mut margin_bottom = if self.line_clamp_reached() {
-                    child_used.margin_bottom.get()
+                    child_metrics.margin_bottom()
                 } else {
                     margin_state.current_collapsed_margin()
                 };
@@ -4485,8 +4483,8 @@ impl<'pass> BlockFormattingContext<'pass> {
                     margin_bottom = CssPixels::default();
                 }
                 return (self.run.records.content_offset_or_origin(child).y
-                    + child_used.content_block_size.get()
-                    + child_used.border_box_bottom(child_used.uses_collapsing_borders_model.get())
+                    + child_metrics.content_block_size()
+                    + child_metrics.border_box_bottom(child_metrics.uses_collapsing_borders_model())
                     + margin_bottom)
                     .max(CssPixels::default());
             }
@@ -4781,7 +4779,7 @@ pub(crate) fn automatic_block_size_for_bfc_root(
             if !participates(child) {
                 continue;
             }
-            let Some(child_used) = records.used_values_if_owned(child) else {
+            let Some(child_metrics) = records.box_metrics_of_if_owned(child) else {
                 continue;
             };
             if records.is_invisible_for_line_clamp(child) {
@@ -4790,22 +4788,22 @@ pub(crate) fn automatic_block_size_for_bfc_root(
             // Margins cannot collapse out of a BFC root: below the last real in-flow
             // child, the run's trailing collapsed margin (which folds in any trailing
             // collapse-through siblings) replaces that child's own bottom margin.
-            let collapsed = child_used.uses_collapsing_borders_model.get();
+            let collapsed = child_metrics.uses_collapsing_borders_model();
             let margin_bottom = match trailing_collapsed_margin {
                 Some((last_real_child, aggregate)) if last_real_child == child => aggregate,
                 // NB: The margins of an empty box collapse through it into those of the boxes after it, which
                 //     are placed past them, so its own bottom margin reaches no further than theirs.
                 _ if Some(child) != last_participant
-                    && child_used.border_box_block_size(collapsed) == CssPixels::default()
+                    && child_metrics.border_box_block_size(collapsed) == CssPixels::default()
                     && formatting_context::formatting_context_type_created_by_box(child_facts).is_none() =>
                 {
                     CssPixels::default()
                 }
-                _ => child_used.margin_bottom.get(),
+                _ => child_metrics.margin_bottom(),
             };
             let child_bottom = records.content_offset_or_origin(child).y
-                + child_used.content_block_size.get()
-                + child_used.border_box_bottom(collapsed)
+                + child_metrics.content_block_size()
+                + child_metrics.border_box_bottom(collapsed)
                 + margin_bottom;
             bottom = Some(bottom.map_or(child_bottom, |value: CssPixels| value.max(child_bottom)));
         }
