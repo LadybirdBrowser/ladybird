@@ -69,14 +69,19 @@ pub(super) fn layout_replaced_with_children(
         },
         None,
     );
-    formatting_context::hold_fragment_arrival_until_placement(run, wrapper, fragment_arrival);
     formatting_context::propagate_percentage_block_size_dependency_to_containing_block(
         run.records,
         &run.callbacks,
         wrapper,
         wrapper_result.depends_on_percentage_block_size,
     );
-    formatting_context::place_child(run, wrapper, used_values::FfiCssPixelPoint::default(), None);
+    formatting_context::place_laid_out_child(
+        run,
+        wrapper,
+        used_values::FfiCssPixelPoint::default(),
+        None,
+        fragment_arrival,
+    );
 
     formatting_context::ChildLayoutResult {
         automatic_content_block_size: wrapper_result.automatic_content_block_size,

@@ -365,8 +365,27 @@ pub(crate) fn place_child(
     offset: FfiCssPixelPoint,
     containing_line_box_fragment: Option<used_values::LineBoxFragmentCoordinate>,
 ) -> Option<fragment_tree::PlacedFragment> {
+    place_laid_out_child(run, node, offset, containing_line_box_fragment, None)
+}
+
+/// Places `node`, taking in what the layout of the box handed its placement.
+pub(crate) fn place_laid_out_child(
+    run: &FormattingContextRun,
+    node: Node,
+    offset: FfiCssPixelPoint,
+    containing_line_box_fragment: Option<used_values::LineBoxFragmentCoordinate>,
+    fragment_arrival: Option<fragment_tree::ChildFragmentArrival>,
+) -> Option<fragment_tree::PlacedFragment> {
     let containing_block = run.callbacks.in_flow_containing_block(node);
-    place_child_in_containing_block(run, node, containing_block, offset, containing_line_box_fragment, None)
+    place_child_in_containing_block(
+        run,
+        node,
+        containing_block,
+        offset,
+        containing_line_box_fragment,
+        None,
+        fragment_arrival,
+    )
 }
 
 /// Places `node` in `containing_block`. An absolutely positioned box hands its link the inputs it was laid out with.
@@ -377,6 +396,7 @@ pub(crate) fn place_child_in_containing_block(
     offset: FfiCssPixelPoint,
     containing_line_box_fragment: Option<used_values::LineBoxFragmentCoordinate>,
     abspos_layout_inputs: Option<abspos_inputs::AbsposLayoutInputs>,
+    fragment_arrival: Option<fragment_tree::ChildFragmentArrival>,
 ) -> Option<fragment_tree::PlacedFragment> {
     let records = run.records;
     let callbacks = &run.callbacks;
@@ -386,11 +406,45 @@ pub(crate) fn place_child_in_containing_block(
         containing_block,
     };
     records.place_box(node, placement);
-    let fragments = run.fragments.as_deref()?;
+    let Some(fragments) = run.fragments.as_deref() else {
+        debug_assert!(
+            fragment_arrival.is_none(),
+            "a run that builds no fragments is handed none"
+        );
+        return None;
+    };
     let facts_decided_by_parent = records.facts_decided_by_parent_of(node);
-    if let Some((fragment, reuses_subtree)) =
-        fragments.take_reused_committed_fragment(callbacks, node, used, facts_decided_by_parent.fragment_facts)
-    {
+    debug_assert!(
+        fragment_arrival
+            .as_ref()
+            .is_none_or(|arrival| arrival.node() == node && !fragments.holds_fragment_arrival_of(node, used)),
+        "a box is placed with fragments handed to it for another box, or handed to it twice"
+    );
+    let mut child_run_root = None;
+    let committed_fragment = match fragment_arrival {
+        Some(fragment_tree::ChildFragmentArrival::CommittedFragment {
+            fragment,
+            reuses_subtree,
+        }) => Some((
+            fragment_tree::committed_fragment_showing_box(
+                callbacks,
+                node,
+                used,
+                facts_decided_by_parent.fragment_facts,
+                fragment,
+            ),
+            reuses_subtree,
+        )),
+        Some(fragment_tree::ChildFragmentArrival::RunRoot {
+            root,
+            reuses_committed_subtree,
+        }) => {
+            child_run_root = Some((root, reuses_committed_subtree));
+            None
+        }
+        None => fragments.take_reused_committed_fragment(callbacks, node, used, facts_decided_by_parent.fragment_facts),
+    };
+    if let Some((fragment, reuses_subtree)) = committed_fragment {
         fragments.attach_committed_fragment(
             node,
             fragment.clone(),
@@ -411,7 +465,12 @@ pub(crate) fn place_child_in_containing_block(
             exports_payloads: false,
         });
     }
-    fragments.normalize_arrivals_for_placement(node, callbacks);
+    match child_run_root {
+        Some((root, reuses_committed_subtree)) => {
+            fragments.take_in_child_root_at_placement(node, root, reuses_committed_subtree, callbacks);
+        }
+        None => fragments.normalize_arrivals_for_placement(node, callbacks),
+    }
     loop {
         let batch = fragments.take_drainable_abspos(node, records, callbacks);
         if batch.is_empty() {
@@ -3425,8 +3484,13 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
             input,
             None,
         );
-        hold_fragment_arrival_until_placement(&entry_run, root_for_layout, root_outcome.fragment_arrival);
-        place_child(&entry_run, root_for_layout, FfiCssPixelPoint::default(), None);
+        place_laid_out_child(
+            &entry_run,
+            root_for_layout,
+            FfiCssPixelPoint::default(),
+            None,
+            root_outcome.fragment_arrival,
+        );
         finish_entry_pass(
             entry_records,
             &entry_fragments,
@@ -3572,10 +3636,16 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
         input,
         None,
     );
-    hold_fragment_arrival_until_placement(run, root, root_outcome.fragment_arrival);
     // The retained offset already includes relative positioning. Publish it directly instead
     // of applying placement adjustments a second time.
-    fragments.normalize_arrivals_for_placement(root, callbacks);
+    let Some(fragment_tree::ChildFragmentArrival::RunRoot {
+        root: unplaced_root,
+        reuses_committed_subtree,
+    }) = root_outcome.fragment_arrival
+    else {
+        panic!("the root of a partial relayout is laid out by a run of its own");
+    };
+    fragments.take_in_child_root_at_placement(root, unplaced_root, reuses_committed_subtree, callbacks);
     let facts_decided_by_parent = run.records.facts_decided_by_parent_of(root);
     let placement = facts_decided_by_parent
         .placement

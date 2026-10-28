@@ -1870,7 +1870,17 @@ impl<'pass> SvgFormattingContext<'pass> {
     }
 
     fn place_child(&self, node: Node, x: CssPixels, y: CssPixels) {
-        formatting_context::place_child(&self.run, node, FfiCssPixelPoint { x, y }, None);
+        self.place_laid_out_child(node, x, y, None);
+    }
+
+    fn place_laid_out_child(
+        &self,
+        node: Node,
+        x: CssPixels,
+        y: CssPixels,
+        fragment_arrival: Option<fragment_tree::ChildFragmentArrival>,
+    ) {
+        formatting_context::place_laid_out_child(&self.run, node, FfiCssPixelPoint { x, y }, None, fragment_arrival);
     }
 
     /// Gives `node` a content size that is definite in both axes.
@@ -2043,7 +2053,6 @@ impl<'pass> SvgFormattingContext<'pass> {
                 outcome,
                 fragment_arrival,
             } = formatting_context::layout_inside_child(run, None, None, child, child_input, true);
-            formatting_context::hold_fragment_arrival_until_placement(run, child, fragment_arrival);
             outcome.report_percentage_block_size_dependency_of(run, child);
             match outcome {
                 ChildLayoutOutcome::Created(_) => {}
@@ -2053,7 +2062,7 @@ impl<'pass> SvgFormattingContext<'pass> {
             };
 
             // Masks and clips may use this offset for objectBoundingBox units.
-            self.place_child(child, rect.x, rect.y);
+            self.place_laid_out_child(child, rect.x, rect.y, fragment_arrival);
             if let Some(mask) = self.first_child_of_kind(child, NodeKind::SVGMaskBox) {
                 self.layout_mask_or_clip(run, mask);
             }
@@ -2157,9 +2166,9 @@ impl<'pass> SvgFormattingContext<'pass> {
         if self.svg_attributes(shape).geometry_kind == SVG_GEOMETRY_KIND_LINE {
             return false;
         }
-        let Some(fragments) = self.run.fragments.as_deref() else {
+        if self.run.fragments.is_none() {
             return false;
-        };
+        }
         // A committed fragment stops being current when something marks its box for layout.
         let Some(fragment) = self
             .run
@@ -2192,8 +2201,15 @@ impl<'pass> SvgFormattingContext<'pass> {
         let used = self.used_values(shape);
         used.set_box_metrics_from_fragment(&fragment);
         used.has_definite_block_size.set(true);
-        fragments.hold_committed_fragment_of_empty_box(used, fragment);
-        self.place_child(shape, committed_offset.x, committed_offset.y);
+        self.place_laid_out_child(
+            shape,
+            committed_offset.x,
+            committed_offset.y,
+            Some(fragment_tree::ChildFragmentArrival::CommittedFragment {
+                fragment,
+                reuses_subtree: false,
+            }),
+        );
         true
     }
 

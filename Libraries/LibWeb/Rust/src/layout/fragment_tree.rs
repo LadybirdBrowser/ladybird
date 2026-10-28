@@ -453,6 +453,28 @@ impl FragmentPayloads {
     }
 }
 
+/// The committed fragment `fragment` of `node`, or a fragment of its record around the committed children where the box
+/// is now hidden or shown for line clamping unlike the committed fragment.
+pub(crate) fn committed_fragment_showing_box(
+    callbacks: &LayoutPass<'_>,
+    node: crate::layout::node_data::NodeSlotId,
+    used: &UsedValues,
+    fragment_facts: run_records::FragmentFactsDecidedByParent,
+    fragment: std::sync::Arc<Fragment>,
+) -> std::sync::Arc<Fragment> {
+    if fragment_facts.is_invisible_for_line_clamp == fragment.is_invisible_for_line_clamp {
+        return fragment;
+    }
+    snapshot_fragment(
+        callbacks,
+        node,
+        fragment.children.clone(),
+        used,
+        fragment_facts,
+        Some(Box::new(FragmentPayloads::of_fragment(&fragment))),
+    )
+}
+
 fn snapshot_fragment(
     callbacks: &LayoutPass<'_>,
     node: crate::layout::node_data::NodeSlotId,
@@ -850,6 +872,13 @@ pub(crate) struct HeldCommittedFragment {
 pub(crate) struct HeldCommittedFragmentCell(std::cell::Cell<Option<HeldCommittedFragment>>);
 
 impl HeldCommittedFragmentCell {
+    fn holds(&self) -> bool {
+        let held = self.0.take();
+        let holds = held.is_some();
+        self.0.set(held);
+        holds
+    }
+
     fn hold(&self, fragment: std::sync::Arc<Fragment>, reuses_subtree: bool) {
         self.0.set(Some(HeldCommittedFragment {
             fragment,
@@ -1243,19 +1272,47 @@ impl RunFragmentBuilder {
         fragment_facts: run_records::FragmentFactsDecidedByParent,
     ) -> Option<(std::sync::Arc<Fragment>, bool)> {
         let held = used.held_committed_fragment.take()?;
-        let fragment = if fragment_facts.is_invisible_for_line_clamp == held.fragment.is_invisible_for_line_clamp {
-            held.fragment
-        } else {
-            snapshot_fragment(
-                callbacks,
-                node,
-                held.fragment.children.clone(),
-                used,
-                fragment_facts,
-                Some(Box::new(FragmentPayloads::of_fragment(&held.fragment))),
-            )
-        };
-        Some((fragment, held.reuses_subtree))
+        Some((
+            committed_fragment_showing_box(callbacks, node, used, fragment_facts, held.fragment),
+            held.reuses_subtree,
+        ))
+    }
+
+    /// Whether the run keeps fragments the layout of `node` handed its placement.
+    pub(crate) fn holds_fragment_arrival_of(
+        &self,
+        node: crate::layout::node_data::NodeSlotId,
+        used: &UsedValues,
+    ) -> bool {
+        used.held_committed_fragment.holds()
+            || self
+                .inner
+                .borrow()
+                .child_roots_awaiting_placement
+                .contains_key(&node.slot_index())
+    }
+
+    /// Takes in the unplaced root of the run that laid out `node`, which is being placed, so that its fragment is built
+    /// around the root's descendants.
+    pub(crate) fn take_in_child_root_at_placement(
+        &self,
+        node: crate::layout::node_data::NodeSlotId,
+        root: UnplacedRootFragment,
+        reuses_committed_subtree: bool,
+        callbacks: &LayoutPass<'_>,
+    ) {
+        {
+            let mut inner = self.inner.borrow_mut();
+            inner
+                .reused_subtree_roots
+                .extend(root.reused_subtree_roots.iter().copied());
+            if reuses_committed_subtree {
+                inner.reused_subtree_roots.insert(node.slot_index());
+            } else {
+                inner.reused_subtree_roots.remove(&node.slot_index());
+            }
+        }
+        self.merge_child_root_into_pending_fragment(node, Some(root), callbacks);
     }
 
     /// Drops the fragments laid out inside `node`. What the box's own layout handed its fragment stays for the box,
@@ -1313,9 +1370,22 @@ impl RunFragmentBuilder {
         node: crate::layout::node_data::NodeSlotId,
         callbacks: &LayoutPass<'_>,
     ) {
+        let root = self
+            .inner
+            .borrow_mut()
+            .child_roots_awaiting_placement
+            .remove(&node.slot_index());
+        self.merge_child_root_into_pending_fragment(node, root, callbacks);
+    }
+
+    fn merge_child_root_into_pending_fragment(
+        &self,
+        node: crate::layout::node_data::NodeSlotId,
+        root: Option<UnplacedRootFragment>,
+        callbacks: &LayoutPass<'_>,
+    ) {
         let mut inner = self.inner.borrow_mut();
         let slot = node.slot_index();
-        let root = inner.child_roots_awaiting_placement.remove(&slot);
         let pending_fragment = inner
             .pending_fragments
             .entry(slot)
