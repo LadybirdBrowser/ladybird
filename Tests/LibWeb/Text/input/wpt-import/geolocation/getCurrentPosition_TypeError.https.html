@@ -1,0 +1,61 @@
+<!DOCTYPE HTML>
+<meta charset='utf-8'>
+<title>Geolocation Test: getCurrentPosition TypeError tests</title>
+<link rel='help' href='http://www.w3.org/TR/geolocation-API/'>
+<script src='../resources/testharness.js'></script>
+<script src='../resources/testharnessreport.js'></script>
+
+<script>
+// Rewrite http://dev.w3.org/geo/api/test-suite/t.html?00027
+test(function() {
+  assert_throws_js(TypeError, function() {
+    navigator.geolocation.getCurrentPosition();
+  });
+}, 'Call getCurrentPosition without arguments, check that exception is thrown');
+
+// Rewrite http://dev.w3.org/geo/api/test-suite/t.html?00011
+test(function() {
+  assert_throws_js(TypeError, function() {
+    navigator.geolocation.getCurrentPosition(null);
+  });
+}, 'Call getCurrentPosition with null success callback, check that exception is thrown');
+
+// Rewrite http://dev.w3.org/geo/api/test-suite/t.html?00013
+test(function() {
+  assert_throws_js(TypeError, function() {
+    navigator.geolocation.getCurrentPosition(null, null);
+  });
+}, 'Call getCurrentPosition with null success and error callbacks, check that exception is thrown');
+
+// Rewrite http://dev.w3.org/geo/api/test-suite/t.html?00028
+test(function() {
+  assert_throws_js(TypeError, function() {
+    navigator.geolocation.getCurrentPosition(3);
+  });
+}, 'Call getCurrentPosition() with wrong type for first argument. Exception expected.');
+
+// Rewrite http://dev.w3.org/geo/api/test-suite/t.html?00029
+test(function() {
+  assert_throws_js(TypeError, function() {
+    navigator.geolocation.getCurrentPosition(()=>{}, 4);
+  });
+}, 'Call getCurrentPosition() with wrong type for second argument. Exception expected.');
+
+// Rewrite http://dev.w3.org/geo/api/test-suite/t.html?00030
+test(function() {
+  assert_throws_js(TypeError, function() {
+    navigator.geolocation.getCurrentPosition(()=>{}, ()=>{}, 4);
+  });
+}, 'Call getCurrentPosition() with wrong type for third argument. Exception expected.');
+
+test(function () {
+  const handleEvent = ()=>{};
+  assert_throws_js(TypeError, function () {
+    navigator.geolocation.getCurrentPosition({ handleEvent });
+  });
+
+  assert_throws_js(TypeError, function () {
+    navigator.geolocation.getCurrentPosition(()=>{}, { handleEvent });
+  });
+}, "Calling getCurrentPosition() with a legacy event handler objects.");
+</script>

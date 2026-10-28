@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Permissions-Policy header geolocation=(self) allows the top-level document.
+Pass	Permissions-Policy header geolocation=(self) allows same-origin iframes.
+Pass	Permissions-Policy header geolocation=(self) disallows cross-origin iframes.

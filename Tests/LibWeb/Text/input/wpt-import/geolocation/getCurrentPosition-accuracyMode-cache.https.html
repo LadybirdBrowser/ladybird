@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<meta charset="utf-8"/>
+<title>Cached positions are only reused for a matching accuracyMode</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js?feature=bidi"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+
+<script>
+    const firstLatitude = 51.478;
+    const firstLongitude = -0.166;
+    const firstAccuracy = 100;
+
+    // Deliberately far from the first position, so that a reused cached
+    // position and a freshly acquired one are distinguishable even after
+    // coarsening: no coarsening of one yields the other.
+    const secondLatitude = -33.865;
+    const secondLongitude = 151.209;
+    const secondAccuracy = 120;
+
+    async function setPosition(t, latitude, longitude, accuracy) {
+        t.add_cleanup(async () => {
+            await test_driver.bidi.emulation.set_geolocation_override(
+                {coordinates: null});
+        });
+        await test_driver.bidi.emulation.set_geolocation_override({
+            coordinates: {latitude, longitude, accuracy}
+        });
+    }
+
+    function getPosition(options) {
+        return new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, options);
+        });
+    }
+
+    promise_setup(async () => {
+        await test_driver.bidi.permissions.set_permission({
+            descriptor: {name: "geolocation"},
+            state: "granted",
+        });
+    });
+
+    // A cached position records the accuracyMode it was acquired with, and may
+    // only be reused by a request asking for that same mode.
+    //
+    // Both tests move the underlying position between the two requests and
+    // compare timestamps. A reused cached position keeps the timestamp it was
+    // acquired with, so a newer timestamp means a fresh acquisition. That
+    // holds regardless of how much an implementation coarsens, which
+    // comparing coordinates would not: a wrongly reused precise position that
+    // is then coarsened on delivery also differs from the one that was cached.
+
+    promise_test(async (t) => {
+        await setPosition(t, firstLatitude, firstLongitude, firstAccuracy);
+        const cached = await getPosition({accuracyMode: "approximate"});
+
+        // Ensure any newly acquired position has a distinguishable timestamp,
+        // even where timestamp resolution is coarse.
+        await new Promise(resolve => t.step_timeout(resolve, 100));
+
+        await setPosition(t, secondLatitude, secondLongitude, secondAccuracy);
+        const position = await getPosition({
+            accuracyMode: "precise",
+            maximumAge: 600000,
+        });
+
+        assert_greater_than(position.timestamp, cached.timestamp,
+            "the approximate position in the cache must not satisfy a precise request");
+        assert_equals(position.coords.latitude, secondLatitude);
+        assert_equals(position.coords.longitude, secondLongitude);
+        assert_equals(position.coords.accuracy, secondAccuracy);
+    }, "A cached approximate position is not reused for a precise request");
+
+    promise_test(async (t) => {
+        await setPosition(t, firstLatitude, firstLongitude, firstAccuracy);
+        const cached = await getPosition({accuracyMode: "precise"});
+
+        await new Promise(resolve => t.step_timeout(resolve, 100));
+
+        await setPosition(t, secondLatitude, secondLongitude, secondAccuracy);
+        const position = await getPosition({
+            accuracyMode: "approximate",
+            maximumAge: 600000,
+        });
+
+        // The coordinates are not compared to the emulated values here: an
+        // approximate position is coarsened by an amount left to the
+        // implementation. The timestamp is what shows the cache was not used.
+        assert_greater_than(position.timestamp, cached.timestamp,
+            "the precise position in the cache must not satisfy an approximate request");
+        assert_equals(position.coords.altitude, null);
+        assert_equals(position.coords.altitudeAccuracy, null);
+        assert_equals(position.coords.heading, null);
+        assert_equals(position.coords.speed, null);
+    }, "A cached precise position is not reused for an approximate request");
+</script>

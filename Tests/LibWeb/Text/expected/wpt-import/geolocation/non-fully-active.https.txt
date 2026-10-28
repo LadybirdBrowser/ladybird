@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 4 tests
+
+2 Pass
+2 Fail
+Pass	watchPosition returns 0 for non-fully-active document
+Fail	watchPosition calls errorCallback with POSITION_UNAVAILABLE for non-fully-active document
+Fail	getCurrentPosition calls errorCallback with POSITION_UNAVAILABLE for non-fully-active document
+Pass	re-attached document restores geolocation functionality

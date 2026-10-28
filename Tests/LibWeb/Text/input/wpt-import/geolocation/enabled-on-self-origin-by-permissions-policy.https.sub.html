@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<body>
+  <script src="../resources/testharness.js"></script>
+  <script src="../resources/testharnessreport.js"></script>
+  <script src="../resources/testdriver.js?feature=bidi"></script>
+  <script src="../resources/testdriver-vendor.js"></script>
+  <script src="../permissions-policy/resources/permissions-policy.js"></script>
+
+  <script>
+    "use strict";
+
+    const same_origin_src =
+      "/permissions-policy/resources/permissions-policy-geolocation.html";
+    const cross_origin_src =
+      "https://{{hosts[alt][]}}:{{ports[https][0]}}" + same_origin_src;
+
+
+    promise_setup(async () => {
+      // Grant site-level permission for the top-level document's origin.
+      await test_driver.bidi.permissions.set_permission({
+        descriptor: {
+          name: "geolocation"
+        },
+        state: "granted"
+      });
+
+      // Set a default position.
+      await test_driver.bidi.emulation.set_geolocation_override({
+        coordinates: {
+          latitude: 0,
+          longitude: 0,
+          accuracy: 0
+        }
+      });
+    });
+
+    promise_test(async (t) => {
+      const position = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject);
+      });
+      assert_true(
+        position instanceof GeolocationPosition,
+        "Expected a GeolocationPosition"
+      );
+    }, "Permissions-Policy header geolocation=(self) allows the top-level document.");
+
+    promise_test(async (test) => {
+      await test_feature_availability({
+        feature_description: "Geolocation API",
+        test,
+        src: same_origin_src,
+        expect_feature_available: expect_feature_available_default,
+        is_promise_test: true,
+      });
+    }, "Permissions-Policy header geolocation=(self) allows same-origin iframes.");
+
+    promise_test(async (test) => {
+      // This is to ensure that the rejection is due to permission policy
+      // instead of site-level permission.
+      await test_driver.bidi.permissions.set_permission({
+        descriptor: {
+          name: "geolocation"
+        },
+        state: "granted",
+        origin: cross_origin_src
+      });
+
+      await test_feature_availability({
+        feature_description: "Geolocation API",
+        test,
+        src: cross_origin_src,
+        expect_feature_available: expect_feature_unavailable_default,
+        feature_name: "geolocation",
+        is_promise_test: true,
+      });
+    }, "Permissions-Policy header geolocation=(self) disallows cross-origin iframes.");
+  </script>
+</body>

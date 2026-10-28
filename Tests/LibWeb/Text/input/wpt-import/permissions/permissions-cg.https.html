@@ -1,0 +1,36 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>Test PermissionStatus's name attribute.</title>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+<script src="../common/gc.js"></script>
+
+<script>
+promise_test(async () => {
+  const { state: initialState } = await navigator.permissions.query({
+    name: "geolocation",
+  });
+
+  const pass = new Promise(async (resolve) => {
+    let status = await navigator.permissions.query({
+      name: "geolocation",
+    });
+    status.addEventListener("change", resolve, { once: true });
+
+    status = null;
+    await garbageCollect();
+
+    // Will cause change event to be dispatched.
+    await test_driver.set_permission({ name: "geolocation" }, "granted");
+  });
+
+  // Wait for the change event to be dispatched.
+  await pass;
+
+  // Reset the permission to its default value.
+  await test_driver.set_permission({ name: "geolocation" }, initialState);
+}, "status is not garbage collected when it goes out of scope");
+
+</script>

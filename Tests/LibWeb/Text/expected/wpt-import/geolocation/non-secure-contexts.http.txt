@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	When in a non-secure context, getCurrentPosition()'s errorCallback is asynchronously called.
+Pass	When in a non-secure context, watchPosition()'s errorCallback is asynchronously called.
+Pass	When in a non-secure context, the getCurrentPosition() errorCallBack gets a GeolocationPositionError with the correct error code.
+Pass	When in a non-secure context, the watchPosition() errorCallBack gets a GeolocationPositionError with the correct error code.

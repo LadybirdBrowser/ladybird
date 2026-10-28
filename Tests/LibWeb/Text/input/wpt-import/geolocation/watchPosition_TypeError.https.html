@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>Geolocation Test: watchPosition TypeError tests</title>
+<link rel="help" href="http://www.w3.org/TR/geolocation-API/" />
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+
+<script>
+  // Rewrite http://dev.w3.org/geo/api/test-suite/t.html?00058
+  test(() => {
+    assert_throws_js(TypeError, () => {
+      navigator.geolocation.watchPosition();
+    });
+  }, "Call watchPosition without arguments, check that exception is thrown");
+
+  // Rewrite http://dev.w3.org/geo/api/test-suite/t.html?00015
+  test(() => {
+    assert_throws_js(TypeError, () => {
+      navigator.geolocation.watchPosition(null);
+    });
+  }, "Call watchPosition with null success callback, check that exception is thrown");
+
+  // Rewrite http://dev.w3.org/geo/api/test-suite/t.html?00017
+  test(() => {
+    assert_throws_js(TypeError, () => {
+      navigator.geolocation.watchPosition(null, null);
+    });
+  }, "Call watchPosition with null success and error callbacks, check that exception is thrown");
+
+  // Rewrite http://dev.w3.org/geo/api/test-suite/t.html?00059
+  test(() => {
+    assert_throws_js(TypeError, () => {
+      navigator.geolocation.watchPosition(3);
+    });
+  }, "Call watchPosition() with wrong type for first argument. Exception expected.");
+
+  // Rewrite http://dev.w3.org/geo/api/test-suite/t.html?00060
+  test(() => {
+    assert_throws_js(TypeError, () => {
+      navigator.geolocation.watchPosition(() => {}, 4);
+    });
+  }, "Call watchPosition() with wrong type for second argument. Exception expected.");
+
+  // Rewrite http://dev.w3.org/geo/api/test-suite/t.html?00061
+  test(() => {
+    assert_throws_js(TypeError, () => {
+      navigator.geolocation.watchPosition(
+        () => {},
+        () => {},
+        4
+      );
+    });
+  }, "Call watchPosition() with wrong type for third argument. Exception expected.");
+
+  test(function () {
+    const handleEvent = function(){};
+    assert_throws_js(TypeError, function () {
+      navigator.geolocation.watchPosition({ handleEvent });
+    });
+
+    assert_throws_js(TypeError, function () {
+      navigator.geolocation.watchPosition(()=>{}, { handleEvent });
+    });
+  }, "Calling watchPosition() with a legacy event handler object.");
+</script>

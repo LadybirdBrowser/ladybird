@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	heading is null when stationary (speed is 0)
+Pass	heading has a value when moving (speed > 0)
