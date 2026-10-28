@@ -378,15 +378,17 @@ pub(crate) fn place_child_in_containing_block(
     };
     records.place_box(node, placement);
     let fragments = run.fragments.as_deref()?;
-    if let Some((fragment, reuses_subtree)) = fragments.take_reused_committed_fragment(callbacks, node, used) {
+    let facts_decided_by_parent = records.facts_decided_by_parent_of(node);
+    if let Some((fragment, reuses_subtree)) =
+        fragments.take_reused_committed_fragment(callbacks, node, used, facts_decided_by_parent.fragment_facts)
+    {
         fragments.attach_committed_fragment(
             node,
             fragment.clone(),
             reuses_subtree,
             (!containing_block.is_invalid()).then_some(containing_block),
             used,
-            placement,
-            records.used_insets_of(node),
+            facts_decided_by_parent,
             containing_block_is_placed_or_outside_run(records, containing_block),
             resolve_containing_line_box_index(records, callbacks, node, containing_block, containing_line_box_fragment),
             point_add(
@@ -423,8 +425,7 @@ pub(crate) fn place_child_in_containing_block(
         node,
         (!containing_block.is_invalid()).then_some(containing_block),
         used,
-        placement,
-        records.used_insets_of(node),
+        records.facts_decided_by_parent_of(node),
         containing_block_is_placed_or_outside_run(records, containing_block),
         resolve_containing_line_box_index(records, callbacks, node, containing_block, containing_line_box_fragment),
         point_add(
@@ -461,8 +462,7 @@ pub(crate) fn place_reused_child(
         true,
         (!containing_block.is_invalid()).then_some(containing_block),
         records.used_values(node),
-        placement,
-        records.used_insets_of(node),
+        records.facts_decided_by_parent_of(node),
         containing_block_is_placed_or_outside_run(records, containing_block),
         None,
         point_add(
@@ -3469,8 +3469,8 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
         .expect("partial relayout root must have committed geometry");
     let root_used = run.records.register(root, committed_root.record);
     // Adopting the committed geometry is the root's placement, final from the moment it is adopted.
-    run.records.set_used_insets(root, committed_root.used_insets);
-    run.records.place_box(root, committed_root.placement);
+    run.records
+        .adopt_committed_facts_decided_by_parent(root, committed_root.facts_decided_by_parent);
     let fragments = run.fragments.as_deref().expect("partial relayout must build fragments");
     let mut input = LayoutInput::new(
         AvailableSpace {
@@ -3503,17 +3503,16 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
     // The retained offset already includes relative positioning. Publish it directly instead
     // of applying placement adjustments a second time.
     fragments.normalize_arrivals_for_placement(root, callbacks);
-    let placement = run
-        .records
-        .placement_of(root)
+    let facts_decided_by_parent = run.records.facts_decided_by_parent_of(root);
+    let placement = facts_decided_by_parent
+        .placement
         .expect("the root of a partial relayout keeps the placement it committed");
     fragments.build_fragment_for_placed_box(
         callbacks,
         root,
         None,
         root_used,
-        placement,
-        run.records.used_insets_of(root),
+        facts_decided_by_parent,
         false,
         None,
         placement.content_offset_in_containing_block,

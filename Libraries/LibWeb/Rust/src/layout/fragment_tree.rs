@@ -441,6 +441,7 @@ fn snapshot_fragment(
     node: crate::layout::node_data::NodeSlotId,
     children: Vec<FragmentLink>,
     used: &UsedValues,
+    fragment_facts: run_records::FragmentFactsDecidedByParent,
 ) -> std::sync::Arc<Fragment> {
     static NEXT_IDENTITY: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
     let line_data = used.finish_line_data(callbacks);
@@ -492,9 +493,9 @@ fn snapshot_fragment(
         padding_bottom: used.padding_bottom.get(),
         uses_collapsing_borders_model: used.uses_collapsing_borders_model.get(),
         is_collapsed_borders_table_box: used.is_collapsed_borders_table_box.get(),
-        table_column_index: used.table_column_index.get(),
-        table_column_span: used.table_column_span.get(),
-        hidden_by_collapsed_columns: used.hidden_by_collapsed_columns.get(),
+        table_column_index: fragment_facts.table_column_index,
+        table_column_span: fragment_facts.table_column_span,
+        hidden_by_collapsed_columns: fragment_facts.hidden_by_collapsed_columns,
         collapsed_table_borders,
         line_data,
         grid_layout_data,
@@ -1181,12 +1182,13 @@ impl RunFragmentBuilder {
         callbacks: &LayoutPass<'_>,
         node: crate::layout::node_data::NodeSlotId,
         used: &UsedValues,
+        fragment_facts: run_records::FragmentFactsDecidedByParent,
     ) -> Option<(std::sync::Arc<Fragment>, bool)> {
         let held = used.held_committed_fragment.take()?;
         let fragment = if used.is_invisible_for_line_clamp.get() == held.fragment.is_invisible_for_line_clamp {
             held.fragment
         } else {
-            snapshot_fragment(callbacks, node, held.fragment.children.clone(), used)
+            snapshot_fragment(callbacks, node, held.fragment.children.clone(), used, fragment_facts)
         };
         Some((fragment, held.reuses_subtree))
     }
@@ -1254,13 +1256,13 @@ impl RunFragmentBuilder {
         node: crate::layout::node_data::NodeSlotId,
         containing_block: Option<crate::layout::node_data::NodeSlotId>,
         used: &UsedValues,
-        placement: run_records::BoxPlacement,
-        used_insets: run_records::UsedInsets,
+        facts: run_records::FactsDecidedByParent,
         containing_block_is_sealed: bool,
         containing_line_box_index: Option<usize>,
         committed_offset: FfiCssPixelPoint,
         own_anchor_candidate_border_box_rect: Option<CssPixelRect>,
     ) -> PlacedFragment {
+        let placement = facts.placement.expect("a box is placed before its fragment is built");
         let mut inner = self.inner.borrow_mut();
         let slot = node.slot_index();
         debug_assert!(
@@ -1277,13 +1279,13 @@ impl RunFragmentBuilder {
             .pending_fragments
             .remove(&slot)
             .unwrap_or_else(|| PendingFragment::new(node));
-        let fragment = snapshot_fragment(callbacks, node, children, used);
+        let fragment = snapshot_fragment(callbacks, node, children, used, facts.fragment_facts);
         let link = link_fragment(
             fragment.clone(),
             PlacementData::of_box(
                 used,
                 placement.containing_block,
-                used_insets,
+                facts.used_insets,
                 containing_line_box_index,
                 committed_offset,
                 callbacks.frame,
@@ -1369,13 +1371,15 @@ impl RunFragmentBuilder {
         reuses_subtree: bool,
         containing_block: Option<crate::layout::node_data::NodeSlotId>,
         used: &UsedValues,
-        placement: run_records::BoxPlacement,
-        used_insets: run_records::UsedInsets,
+        facts: run_records::FactsDecidedByParent,
         containing_block_is_sealed: bool,
         containing_line_box_index: Option<usize>,
         committed_offset: FfiCssPixelPoint,
         frame: geometry::Frame,
     ) {
+        let placement = facts
+            .placement
+            .expect("a box is placed before its fragment is attached");
         let mut inner = self.inner.borrow_mut();
         let slot = node.slot_index();
         debug_assert!(
@@ -1387,7 +1391,7 @@ impl RunFragmentBuilder {
             PlacementData::of_box(
                 used,
                 placement.containing_block,
-                used_insets,
+                facts.used_insets,
                 containing_line_box_index,
                 committed_offset,
                 frame,
@@ -1478,7 +1482,13 @@ impl RunFragmentBuilder {
             }
             let used = records.used_values(pending_fragment.node);
             inner.top_scope_links.push(link_fragment(
-                snapshot_fragment(callbacks, pending_fragment.node, pending_fragment.children, used),
+                snapshot_fragment(
+                    callbacks,
+                    pending_fragment.node,
+                    pending_fragment.children,
+                    used,
+                    records.facts_decided_by_parent_of(pending_fragment.node).fragment_facts,
+                ),
                 PlacementData::of_box_as_this_run_left_it(records, pending_fragment.node, callbacks.frame),
             ));
         }
@@ -1496,7 +1506,13 @@ impl RunFragmentBuilder {
                 continue;
             }
             inner.top_scope_links.push(link_fragment(
-                snapshot_fragment(callbacks, node, Vec::new(), used),
+                snapshot_fragment(
+                    callbacks,
+                    node,
+                    Vec::new(),
+                    used,
+                    records.facts_decided_by_parent_of(node).fragment_facts,
+                ),
                 PlacementData::of_box_as_this_run_left_it(records, node, callbacks.frame),
             ));
         }
@@ -1504,7 +1520,13 @@ impl RunFragmentBuilder {
         for (_, root) in child_roots_awaiting_placement {
             let used = records.used_values(root.node);
             inner.top_scope_links.push(link_fragment(
-                snapshot_fragment(callbacks, root.node, root.scoped_descendants, used),
+                snapshot_fragment(
+                    callbacks,
+                    root.node,
+                    root.scoped_descendants,
+                    used,
+                    records.facts_decided_by_parent_of(root.node).fragment_facts,
+                ),
                 PlacementData::of_box_as_this_run_left_it(records, root.node, callbacks.frame),
             ));
         }

@@ -1460,9 +1460,9 @@ impl<'pass> TableFormattingContext<'pass> {
             }
         }
         for cell in &self.cells {
-            let used = self.used_values(cell.box_);
-            used.table_column_index.set(cell.column_index as u32);
-            used.table_column_span.set(cell.column_span as u32);
+            self.run
+                .records
+                .place_in_table_columns(cell.box_, cell.column_index as u32, cell.column_span as u32);
         }
     }
 
@@ -2717,8 +2717,9 @@ impl<'pass> TableFormattingContext<'pass> {
             // other engines: "This value causes the entire row or column to be removed from the display". It is laid
             // out like any other cell (with no inline size, see remove_collapsed_columns), and painting skips it.
             // https://www.w3.org/TR/CSS22/tables.html#dynamic-effects
-            used.hidden_by_collapsed_columns
-                .set(self.visible_spanned_columns(cell) == 0);
+            self.run
+                .records
+                .set_hidden_by_collapsed_columns(cell.box_, self.visible_spanned_columns(cell) == 0);
             let height = style.height();
             if !self.rows[cell.row_index].is_collapsed && height.is_length() {
                 let offsets = used.border_box_top(collapsed) + used.border_box_bottom(collapsed);
@@ -3308,9 +3309,10 @@ impl<'pass> TableFormattingContext<'pass> {
             } else {
                 CssPixels::default()
             };
+            self.run
+                .records
+                .place_in_table_columns(node, start as u32, (end - start) as u32);
             let used = self.used_values(node);
-            used.table_column_index.set(start as u32);
-            used.table_column_span.set((end - start) as u32);
             used.set_content_inline_size(inline_size);
             used.set_content_block_size(block_size);
             let mut x = inline_offset + column_offsets[start];
