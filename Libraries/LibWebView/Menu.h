@@ -76,6 +76,7 @@ enum class ActionID {
     OpenSettingsPage,
     ToggleDevTools,
     ViewSource,
+    InspectElement,
 
     OpenInNewTab,
     OpenInNewWindow,

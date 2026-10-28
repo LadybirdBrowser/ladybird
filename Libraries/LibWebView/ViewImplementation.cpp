@@ -1766,9 +1766,25 @@ void ViewImplementation::request_node_picker_hit_test(NodePickerRequestType type
     if (!m_node_picker_active)
         return;
 
-    auto request_id = m_next_node_picker_request_id++;
+    auto request_id = m_next_node_hit_test_request_id++;
     m_pending_node_picker_requests.set(request_id, type);
     page().async_get_node_id_at_position(request_id, position);
+}
+
+void ViewImplementation::did_receive_node_hit_test(u64 request_id, Web::UniqueNodeID node_id)
+{
+    if (request_id == m_inspect_element_hit_test_request_id) {
+        m_inspect_element_hit_test_request_id.clear();
+        if (node_id != 0)
+            m_inspect_element_node_id = node_id;
+
+        // The user chose Inspect Element before the hit test came back.
+        if (exchange(m_inspect_element_activated_before_hit_test, false) && m_inspect_element_node_id.has_value() && on_inspect_element_request)
+            on_inspect_element_request(*m_inspect_element_node_id);
+        return;
+    }
+
+    did_receive_node_picker_hit_test(request_id, node_id);
 }
 
 void ViewImplementation::did_receive_node_picker_hit_test(u64 request_id, Web::UniqueNodeID node_id)
@@ -4406,6 +4422,16 @@ void ViewImplementation::initialize_context_menus()
             on_request_screenshot();
     });
 
+    // Shown only while a DevTools client is attached to this tab — the element is the one under the cursor when the
+    // context menu opened, so a page that changes while the menu is open still has the element the user clicked on.
+    m_inspect_element_action = Action::create("Inspect Element"sv, ActionID::InspectElement, [this]() {
+        if (m_inspect_element_hit_test_request_id.has_value())
+            m_inspect_element_activated_before_hit_test = true;
+        else if (m_inspect_element_node_id.has_value() && on_inspect_element_request)
+            on_inspect_element_request(*m_inspect_element_node_id);
+    });
+    m_inspect_element_action->set_visible(false);
+
     // A URL from the context menu is the page's — a link's or an image's — so it's navigated to from the page, unless
     // the user selected it as text. Blink also starts a selected URL with no initiator (IDC_CONTENT_CONTEXT_GOTOURL).
     m_open_in_new_tab_action = Action::create("Open in New Tab"sv, ActionID::OpenInNewTab, [this]() {
@@ -4560,6 +4586,8 @@ void ViewImplementation::initialize_context_menus()
     m_page_context_menu->add_action(application.report_website_issue_action());
     m_page_context_menu->add_separator();
     m_page_context_menu->add_action(*m_take_screenshot_action);
+    m_page_context_menu->add_separator();
+    m_page_context_menu->add_action(*m_inspect_element_action);
 
     m_link_context_menu = Menu::create("Link Context Menu"sv);
     add_open_url_actions(*m_link_context_menu);
@@ -4568,6 +4596,8 @@ void ViewImplementation::initialize_context_menus()
     m_link_context_menu->add_action(*m_download_linked_file_action);
     m_link_context_menu->add_action(*m_download_linked_file_as_action);
     m_link_context_menu->add_action(*m_copy_link_to_highlight_action);
+    m_link_context_menu->add_separator();
+    m_link_context_menu->add_action(*m_inspect_element_action);
 
     m_selected_text_link_context_menu = Menu::create("Selected Text Link Context Menu"sv);
     m_selected_text_link_context_menu->add_action(*m_look_up_selected_text_action);
@@ -4577,6 +4607,8 @@ void ViewImplementation::initialize_context_menus()
     m_selected_text_link_context_menu->add_separator();
     m_selected_text_link_context_menu->add_action(*m_search_selected_text_action);
     m_selected_text_link_context_menu->add_action(*m_copy_link_to_highlight_action);
+    m_selected_text_link_context_menu->add_separator();
+    m_selected_text_link_context_menu->add_action(*m_inspect_element_action);
 
     m_image_context_menu = Menu::create("Image Context Menu"sv);
     m_image_context_menu->add_action(*m_open_in_new_tab_action);
@@ -4585,6 +4617,8 @@ void ViewImplementation::initialize_context_menus()
     m_image_context_menu->add_action(*m_copy_image_action);
     m_image_context_menu->add_action(*m_copy_url_action);
     m_image_context_menu->add_action(*m_save_image_action);
+    m_image_context_menu->add_separator();
+    m_image_context_menu->add_action(*m_inspect_element_action);
 
     m_media_context_menu = Menu::create("Media Context Menu"sv);
     m_media_context_menu->add_action(*m_media_play_action);
@@ -4604,6 +4638,8 @@ void ViewImplementation::initialize_context_menus()
     m_media_context_menu->add_action(*m_open_audio_action);
     m_media_context_menu->add_action(*m_open_video_action);
     m_media_context_menu->add_action(*m_copy_url_action);
+    m_media_context_menu->add_separator();
+    m_media_context_menu->add_action(*m_inspect_element_action);
 
     auto add_bookmark_action = Action::create("Add Bookmark…"sv, ActionID::AddBookmark, []() {
         auto& application = Application::the();
@@ -4956,9 +4992,25 @@ void ViewImplementation::did_generate_text_fragment_url(u64 request_id, Optional
     m_copy_link_to_highlight_action->set_enabled(m_text_fragment_url.has_value());
 }
 
+void ViewImplementation::prepare_inspect_element_action(Gfx::IntPoint content_position)
+{
+    m_inspect_element_node_id.clear();
+    m_inspect_element_hit_test_request_id.clear();
+    m_inspect_element_activated_before_hit_test = false;
+
+    m_inspect_element_action->set_visible(static_cast<bool>(on_inspect_element_request));
+    if (!on_inspect_element_request)
+        return;
+
+    auto request_id = m_next_node_hit_test_request_id++;
+    m_inspect_element_hit_test_request_id = request_id;
+    page().async_get_node_id_at_position(request_id, { content_position.x(), content_position.y() });
+}
+
 void ViewImplementation::did_request_page_context_menu(Badge<WebContentPage>, WebContentPage& requesting_page, Gfx::IntPoint content_position, Web::ContextMenuForInputEventsTarget for_input_events_target, Optional<Utf16String> misspelled_word, Optional<u64> text_fragment_generation_id)
 {
     request_text_fragment_url(text_fragment_generation_id);
+    prepare_inspect_element_action(content_position);
     m_spelling_context_menu_page = requesting_page;
     update_spelling_menu_actions(move(misspelled_word));
 
@@ -5043,6 +5095,7 @@ void ViewImplementation::did_request_page_context_menu(Badge<WebContentPage>, We
 void ViewImplementation::did_request_link_context_menu(Badge<WebContentPage>, Gfx::IntPoint content_position, Web::HTML::PreparedNavigationDescriptor navigation, Optional<u64> text_fragment_generation_id)
 {
     request_text_fragment_url(text_fragment_generation_id);
+    prepare_inspect_element_action(content_position);
     ++m_context_menu_request_id;
 
     set_context_menu_url_actions_enabled(true);
@@ -5087,6 +5140,7 @@ void ViewImplementation::download_context_menu_url(PromptForPath prompt_for_path
 
 void ViewImplementation::did_request_image_context_menu(Badge<WebContentPage>, Gfx::IntPoint content_position, Web::HTML::PreparedNavigationDescriptor navigation, Optional<Gfx::ShareableBitmap> bitmap)
 {
+    prepare_inspect_element_action(content_position);
     ++m_context_menu_request_id;
 
     set_context_menu_url_actions_enabled(true);
@@ -5122,6 +5176,7 @@ void ViewImplementation::set_context_menu_url_actions_enabled(bool enabled)
 void ViewImplementation::did_request_media_context_menu(Badge<WebContentPage>, WebContentPage& requesting_page, Gfx::IntPoint content_position, Web::MediaContextMenu menu, Optional<Web::HTML::PreparedNavigationDescriptor> navigation)
 {
     m_media_context_menu_page = requesting_page;
+    prepare_inspect_element_action(content_position);
     ++m_context_menu_request_id;
 
     set_context_menu_url_actions_enabled(menu.media_url.has_value());

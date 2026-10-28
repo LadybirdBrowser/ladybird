@@ -544,6 +544,7 @@ public:
     DevTools::DevToolsDelegate::OnDebuggerResumed on_debugger_resumed;
     Function<void(JsonValue)> on_received_js_console_result;
     Function<void(ConsoleOutput)> on_console_message;
+    Function<void(Web::UniqueNodeID)> on_inspect_element_request;
     Function<void(u64 request_id, URL::URL const&, ByteString const&, Vector<HTTP::Header> const&, ByteBuffer, Optional<String>, String, bool, Web::Fetch::Infrastructure::RequestPriority)> on_network_request_started;
     Function<void(u64 request_id, u32 status_code, Optional<String> const&, Vector<HTTP::Header> const&, Requests::CacheState)> on_network_response_headers_received;
     Function<void(u64 request_id, ByteBuffer)> on_network_response_body_received;
@@ -849,6 +850,12 @@ protected:
 
     RefPtr<Action> m_take_screenshot_action;
 
+    void prepare_inspect_element_action(Gfx::IntPoint content_position);
+    RefPtr<Action> m_inspect_element_action;
+    Optional<u64> m_inspect_element_hit_test_request_id;
+    Optional<Web::UniqueNodeID> m_inspect_element_node_id;
+    bool m_inspect_element_activated_before_hit_test { false };
+
     RefPtr<Action> m_open_in_new_tab_action;
     RefPtr<Action> m_open_in_new_window_action;
     RefPtr<Action> m_open_in_new_private_window_action;
@@ -1115,12 +1122,13 @@ protected:
         Previewed,
     };
     void request_node_picker_hit_test(NodePickerRequestType, Web::DevicePixelPoint);
+    void did_receive_node_hit_test(u64 request_id, Web::UniqueNodeID);
     void did_receive_node_picker_hit_test(u64 request_id, Web::UniqueNodeID);
     void did_receive_indexed_database_inspection(u64 request_id, JsonObject);
 
     bool m_node_picker_active { false };
     Optional<Web::UniqueNodeID> m_node_picker_hovered_node_id;
-    u64 m_next_node_picker_request_id { 1 };
+    u64 m_next_node_hit_test_request_id { 1 };
     HashMap<u64, NodePickerRequestType> m_pending_node_picker_requests;
     DevTools::DevToolsDelegate::OnNodePickerEvent m_on_node_picker_event;
 
