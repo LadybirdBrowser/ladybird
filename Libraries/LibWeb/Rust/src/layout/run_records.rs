@@ -139,6 +139,12 @@ enum KeptBoxHolding {
         record: u32,
         handed_back_by_its_run: Option<ChildLaidOutByItsOwnRun>,
     },
+    /// A child this run hands to a run of its own, with the cells it starts out with, until that run returns.
+    ChildAwaitingItsRun {
+        cells_before_its_run: used_values::RootInputCells,
+    },
+    /// A child laid out by a run of its own, as that run handed it back.
+    ChildLaidOutByItsOwnRun(ChildLaidOutByItsOwnRun),
 }
 
 /// Whether a run checks the boxes it keeps for its children against their records, which it keeps as well for now.
@@ -324,9 +330,10 @@ impl LayoutScratch {
 
 /// The per-run registry of the boxes a run holds, found through the slot-indexed side table in the
 /// layout stage's scratch. A run owns its root's record, built from the input cells its caller
-/// hands it, and keeps every other box it holds on the scratch's kept box stack, with its record on
-/// the record stack; both release them when the run returns. The scoped constructors lend records
-/// to the run, so callers cannot extend the registry's lifetime.
+/// hands it, and keeps every other box it holds on the scratch's kept box stack: with a record on
+/// the record stack for a box it lays out itself, or as a value for a child it hands to a run of
+/// its own. Both stacks release them when the run returns. The scoped constructors lend records to
+/// the run, so callers cannot extend the registry's lifetime.
 pub(crate) struct RunRecords<'arena> {
     root: Node,
     root_used: Option<UsedValues>,
@@ -372,7 +379,7 @@ pub(crate) struct FragmentFactsDecidedByParent {
     pub(crate) continues_in_next_fragment: bool,
 }
 
-/// What the parent of a box decides about the box, kept beside the box's record.
+/// What the parent of a box decides about the box, kept with the box by the run that holds it.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct FactsDecidedByParent {
     pub(crate) placement: Option<BoxPlacement>,
@@ -654,30 +661,66 @@ impl<'arena> RunRecords<'arena> {
     }
 
     pub(crate) fn register(&self, node: Node, used: UsedValues) -> &UsedValues {
-        let slot_index = node.slot_index();
-        let registered_twice = || -> ! {
-            panic!(
-                "slot {} registered twice in the run rooted at slot {}",
-                slot_index,
-                self.root.slot_index()
-            )
-        };
+        self.assert_registers_in_innermost_run(node);
+        let (index, record) = self.scratch.run_record_stack.push(used);
+        self.keep(
+            node,
+            KeptBoxHolding::Record {
+                record: index,
+                handed_back_by_its_run: None,
+            },
+        );
+        // SAFETY: The record stays on the stack until this run returns, which ends this borrow of the run.
+        unsafe { record.as_ref() }
+    }
+
+    /// Keeps `child`, which this run hands to a run of its own, with the cells it starts out with, which it returns.
+    pub(crate) fn keep_child_for_its_run(
+        &self,
+        callbacks: &LayoutPass<'_>,
+        child: Node,
+        constraints: ContainingBlockConstraints,
+    ) -> used_values::RootInputCells {
+        let cells = used_values::RootInputCells::of_box_before_sizing(callbacks, child, constraints);
+        self.keep_child_for_its_run_with_cells(child, cells);
+        cells
+    }
+
+    /// Keeps `child`, which this run hands to a run of its own, with the cells `cells` it starts out with.
+    pub(crate) fn keep_child_for_its_run_with_cells(&self, child: Node, cells: used_values::RootInputCells) {
+        self.assert_registers_in_innermost_run(child);
+        self.keep(
+            child,
+            KeptBoxHolding::ChildAwaitingItsRun {
+                cells_before_its_run: cells,
+            },
+        );
+    }
+
+    fn assert_registers_in_innermost_run(&self, node: Node) {
         if node == self.root && self.root_used.is_some() {
-            registered_twice();
+            self.panic_for_box_registered_twice(node);
         }
         assert_eq!(
             self.scratch.innermost_run_nonce(),
             Some(self.nonce),
             "only the innermost layout run may register records"
         );
-        let (index, record) = self.scratch.run_record_stack.push(used);
-        let kept_box = self.scratch.keep_box(KeptBoxHolding::Record {
-            record: index,
-            handed_back_by_its_run: None,
-        });
-        match self.scratch.claim_run_kept_box(slot_index, self.nonce, kept_box) {
+    }
+
+    fn panic_for_box_registered_twice(&self, node: Node) -> ! {
+        panic!(
+            "slot {} registered twice in the run rooted at slot {}",
+            node.slot_index(),
+            self.root.slot_index()
+        )
+    }
+
+    fn keep(&self, node: Node, holding: KeptBoxHolding) {
+        let kept_box = self.scratch.keep_box(holding);
+        match self.scratch.claim_run_kept_box(node.slot_index(), self.nonce, kept_box) {
             RunKeptBoxClaim::Claimed => {}
-            RunKeptBoxClaim::AlreadyClaimed => registered_twice(),
+            RunKeptBoxClaim::AlreadyClaimed => self.panic_for_box_registered_twice(node),
             RunKeptBoxClaim::HeldByEnclosingRun => {
                 if self
                     .kept_boxes_outside_table
@@ -685,12 +728,10 @@ impl<'arena> RunRecords<'arena> {
                     .insert(node, kept_box)
                     .is_some()
                 {
-                    registered_twice();
+                    self.panic_for_box_registered_twice(node);
                 }
             }
         }
-        // SAFETY: The record stays on the stack until this run returns, which ends this borrow of the run.
-        unsafe { record.as_ref() }
     }
 
     pub(crate) fn create_used_values(
@@ -722,6 +763,7 @@ impl<'arena> RunRecords<'arena> {
                 KeptBoxHolding::Record { record, .. } => {
                     Some(unsafe { self.scratch.run_record_stack.get(record).as_ref() })
                 }
+                KeptBoxHolding::ChildAwaitingItsRun { .. } | KeptBoxHolding::ChildLaidOutByItsOwnRun(_) => None,
             },
         }
     }
@@ -992,10 +1034,15 @@ impl<'arena> RunRecords<'arena> {
         let Some(HeldBox::Kept(index)) = self.held_box(child) else {
             self.panic_for_box_not_held(child)
         };
-        let KeptBoxHolding::Record {
-            handed_back_by_its_run, ..
-        } = &mut self.scratch.kept_boxes.borrow_mut()[index as usize].holding;
-        *handed_back_by_its_run = Some(handed_back);
+        let holding = &mut self.scratch.kept_boxes.borrow_mut()[index as usize].holding;
+        match holding {
+            KeptBoxHolding::Record {
+                handed_back_by_its_run, ..
+            } => *handed_back_by_its_run = Some(handed_back),
+            KeptBoxHolding::ChildAwaitingItsRun { .. } | KeptBoxHolding::ChildLaidOutByItsOwnRun(_) => {
+                *holding = KeptBoxHolding::ChildLaidOutByItsOwnRun(handed_back);
+            }
+        }
     }
 
     /// The sizes, size constraints, box sides and baselines of `node`, a box this run lays out or a child of one laid
@@ -1023,6 +1070,12 @@ impl<'arena> RunRecords<'arena> {
                 *record,
                 handed_back_by_its_run.as_ref().map(|handed_back| handed_back.laid_out),
             ),
+            KeptBoxHolding::ChildAwaitingItsRun { cells_before_its_run } => {
+                return Some(BoxMetrics::BeingSizedByItsParent(*cells_before_its_run));
+            }
+            KeptBoxHolding::ChildLaidOutByItsOwnRun(handed_back) => {
+                return Some(BoxMetrics::LaidOutByItsOwnRun(handed_back.laid_out));
+            }
         };
         // SAFETY: This run registered the record, and it stays on the stack until this run returns.
         let record = unsafe { self.scratch.run_record_stack.get(record).as_ref() };
@@ -1053,12 +1106,24 @@ impl<'arena> RunRecords<'arena> {
             Some(HeldBox::Kept(index)) => index,
         };
         let mut kept_boxes = self.scratch.kept_boxes.borrow_mut();
-        let KeptBoxHolding::Record {
-            record,
-            handed_back_by_its_run,
-        } = &mut kept_boxes[index as usize].holding;
-        // SAFETY: This run registered the record, and it stays on the stack until this run returns.
-        unsafe { self.scratch.run_record_stack.get(*record).as_ref() }.move_box_metrics_to_frame(from, to);
+        let handed_back_by_its_run = match &mut kept_boxes[index as usize].holding {
+            KeptBoxHolding::Record {
+                record,
+                handed_back_by_its_run,
+            } => {
+                // SAFETY: This run registered the record, and it stays on the stack until this run returns.
+                unsafe { self.scratch.run_record_stack.get(*record).as_ref() }.move_box_metrics_to_frame(from, to);
+                handed_back_by_its_run.as_mut()
+            }
+            KeptBoxHolding::ChildAwaitingItsRun { .. } => {
+                debug_assert!(
+                    false,
+                    "a child's box moves to another frame only once its run handed it back"
+                );
+                None
+            }
+            KeptBoxHolding::ChildLaidOutByItsOwnRun(handed_back) => Some(handed_back),
+        };
         if let Some(ChildLaidOutByItsOwnRun { laid_out, frame, .. }) = handed_back_by_its_run {
             debug_assert_eq!(*frame, from, "a kept box moves out of the frame it is in");
             // NB: The baselines stay those of the parent's frame, which every reader of them is in.
@@ -1079,34 +1144,48 @@ impl<'arena> RunRecords<'arena> {
         node: Node,
         callbacks: &LayoutPass<'_>,
     ) -> fragment_tree::FragmentGeometry {
-        let used = self.used_values(node);
-        let line_data = used.finish_line_data(callbacks);
-        let geometry_of_record = fragment_tree::FragmentGeometry {
-            cells: used_values::RootInputCells::capture(used),
-            line_data,
+        let geometry_of_record = |used: &UsedValues| {
+            let line_data = used.finish_line_data(callbacks);
+            fragment_tree::FragmentGeometry {
+                cells: used_values::RootInputCells::capture(used),
+                line_data,
+            }
         };
-        let Some(HeldBox::Kept(index)) = self.held_box(node) else {
-            return geometry_of_record;
+        let index = match self.held_box(node) {
+            Some(HeldBox::RootWithRecord) => return geometry_of_record(self.used_values(node)),
+            Some(HeldBox::Kept(index)) => index,
+            None => self.panic_for_box_not_held(node),
         };
-        let handed_back = match &self.scratch.kept_boxes.borrow()[index as usize].holding {
+        let (record, handed_back) = match &self.scratch.kept_boxes.borrow()[index as usize].holding {
             KeptBoxHolding::Record {
-                handed_back_by_its_run, ..
-            } => handed_back_by_its_run.clone(),
+                record,
+                handed_back_by_its_run,
+            } => (Some(*record), handed_back_by_its_run.clone()),
+            KeptBoxHolding::ChildAwaitingItsRun { .. } => {
+                panic!("the fragment of {node:?} is built before its run handed the box back")
+            }
+            KeptBoxHolding::ChildLaidOutByItsOwnRun(handed_back) => (None, Some(handed_back.clone())),
         };
+        // SAFETY: This run registered the record, and it stays on the stack until this run returns.
+        let record = record.map(|record| unsafe { self.scratch.run_record_stack.get(record).as_ref() });
         let Some(handed_back) = handed_back else {
-            return geometry_of_record;
-        };
-        let geometry = fragment_tree::FragmentGeometry {
-            cells: handed_back.laid_out.cells,
-            line_data: handed_back.line_data,
+            return geometry_of_record(record.expect("a kept box without a handed back box has a record"));
         };
         if checks_kept_boxes_against_records() {
             assert_eq!(
                 handed_back.frame, callbacks.frame,
                 "the fragment of {node:?} is built in another frame than the one its box is kept in"
             );
+        }
+        let geometry = fragment_tree::FragmentGeometry {
+            cells: handed_back.laid_out.cells,
+            line_data: handed_back.line_data,
+        };
+        if let Some(record) = record
+            && checks_kept_boxes_against_records()
+        {
             assert!(
-                geometry.is_identical_to(&geometry_of_record),
+                geometry.is_identical_to(&geometry_of_record(record)),
                 "the parent's record of {node:?} changed after its run handed the box back"
             );
         }

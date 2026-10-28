@@ -3574,7 +3574,6 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
     };
     RunRecords::with_unrooted(callbacks, root, NodeSlotId::INVALID, |entry_records, callbacks| {
         let _trace = arena.layout_trace.pass(None);
-        let viewport_used = entry_records.create_used_values(&callbacks, root, root_constraints);
         let entry_fragments = std::rc::Rc::new(fragment_tree::RunFragmentBuilder::new_entry_accumulator(root));
         let entry_run = FormattingContextRun {
             records: entry_records,
@@ -3586,16 +3585,17 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
             fragmentainer: None,
         };
 
-        let mut root_for_layout = root;
-        let mut root_for_layout_used = viewport_used;
         let first_child = callbacks.first_child(root);
-        if !first_child.is_invalid() && NodeFacts::new(&callbacks, first_child).is_svg_svg_box() {
+        let root_for_layout = if !first_child.is_invalid() && NodeFacts::new(&callbacks, first_child).is_svg_svg_box() {
+            let viewport_used = entry_records.create_used_values(&callbacks, root, root_constraints);
             viewport_used.set_content_inline_size(viewport_inline_size);
             viewport_used.set_content_block_size(viewport_block_size);
             place_child(&entry_run, root, FfiCssPixelPoint::default(), None);
-            root_for_layout_used = entry_records.create_used_values(&callbacks, first_child, root_constraints);
-            root_for_layout = first_child;
-        }
+            first_child
+        } else {
+            root
+        };
+        let root_cells = entry_records.keep_child_for_its_run(&callbacks, root_for_layout, root_constraints);
         let input = LayoutInput::new(
             AvailableSpace {
                 inline_size: AvailableSize::definite(viewport_inline_size),
@@ -3608,8 +3608,8 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
         let fc_type = independent_formatting_context_type(root_for_layout, &callbacks);
         let (_, fragment_arrival) = run_formatting_context(
             Some(&entry_fragments),
-            Some(root_for_layout_used),
-            used_values::RootInputCells::capture(root_for_layout_used),
+            None,
+            root_cells,
             root_for_layout,
             callbacks.in_flow_containing_block(root_for_layout),
             None,
@@ -3739,15 +3739,16 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
     let callbacks = &run.callbacks;
     let committed_root = used_values::committed_box_from_fragment_link(callbacks, root)
         .expect("partial relayout root must have committed geometry");
-    let root_used = run.records.register(root, committed_root.record);
+    let root_cells = used_values::RootInputCells::capture(&committed_root.record);
+    run.records.keep_child_for_its_run_with_cells(root, root_cells);
     // Adopting the committed geometry is the root's placement, final from the moment it is adopted.
     run.records
         .adopt_committed_facts_decided_by_parent(root, committed_root.facts_decided_by_parent);
     let fragments = run.fragments.as_deref().expect("partial relayout must build fragments");
     let mut input = LayoutInput::new(
         AvailableSpace {
-            inline_size: AvailableSize::definite(root_used.content_inline_size.get()),
-            block_size: AvailableSize::definite(root_used.content_block_size.get()),
+            inline_size: AvailableSize::definite(root_cells.content_inline_size),
+            block_size: AvailableSize::definite(root_cells.content_block_size),
         },
         // The subtree root has definite sizes in both axes, so boxes
         // below it do not need inherited percentage constraints.
@@ -3762,8 +3763,8 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
         .expect("partial relayout root must establish an independent formatting context");
     let (_, fragment_arrival) = run_formatting_context(
         Some(fragments),
-        Some(root_used),
-        used_values::RootInputCells::capture(root_used),
+        None,
+        root_cells,
         root,
         callbacks.in_flow_containing_block(root),
         None,
