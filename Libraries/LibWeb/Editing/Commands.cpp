@@ -2157,7 +2157,9 @@ bool command_insert_paragraph_action(DOM::Document& document, Utf16View)
     // 15. While new line range's start offset is zero and its start node is not a prohibited paragraph child, set its
     //     start to (parent of start node, index of start node).
     GC::Ptr<DOM::Node> start_container = new_line_range->start_container();
-    while (start_container->parent() && new_line_range->start_offset() == 0 && !is_prohibited_paragraph_child(*start_container)) {
+    // INTEROP: Keep the split boundary inside the paragraph container, so that the caret at the end of e.g. a flex or
+    //          grid item does not move the new paragraph outside of it.
+    while (start_container != container && start_container->parent() && new_line_range->start_offset() == 0 && !is_prohibited_paragraph_child(*start_container)) {
         MUST(new_line_range->set_start(*start_container->parent(), start_container->index()));
         start_container = start_container->parent();
     }
@@ -2165,7 +2167,7 @@ bool command_insert_paragraph_action(DOM::Document& document, Utf16View)
     // 16. While new line range's start offset is the length of its start node and its start node is not a prohibited
     //     paragraph child, set its start to (parent of start node, 1 + index of start node).
     start_container = new_line_range->start_container();
-    while (start_container->parent() && new_line_range->start_offset() == start_container->length()
+    while (start_container != container && start_container->parent() && new_line_range->start_offset() == start_container->length()
         && !is_prohibited_paragraph_child(*start_container)) {
         MUST(new_line_range->set_start(*start_container->parent(), start_container->index() + 1));
         start_container = start_container->parent();
