@@ -15,9 +15,11 @@ from typing import Set
 from Generators.libweb_bindings.context import GenerationContext
 from Generators.libweb_bindings.rust_members import rust_members
 from Generators.libweb_bindings.rust_types import cpp_interface
+from Generators.libweb_bindings.rust_types import inheriting_interfaces
 from Generators.libweb_bindings.rust_types import is_implemented_in_rust
 from Generators.libweb_bindings.rust_types import is_named_union
 from Generators.libweb_bindings.rust_types import runtime_union_type
+from Generators.libweb_bindings.rust_types import rust_interface
 from Utils.webidl_parser import Dictionary
 from Utils.webidl_parser import IDLType
 from Utils.webidl_parser import IDLUnionType
@@ -93,6 +95,9 @@ class DefinitionUsage:
         self.cpp_dictionary_names: Set[str] = set()
         # The interfaces implemented in Rust that the C++ bindings convert objects of, and so need a C++ class for.
         self.rust_interfaces_named_by_cpp: Dict[str, Interface] = {}
+        # The interfaces implemented in Rust that others inherit from and that the interfaces implemented in Rust
+        # convert JS values to.
+        self.rust_any_interfaces: Dict[str, Interface] = {}
         self._collect_rust_dictionaries()
         self._collect_cpp_dictionaries()
         self._collect_rust_interfaces_named_by_cpp()
@@ -159,6 +164,11 @@ class DefinitionUsage:
         named_cpp_interface = cpp_interface(idl_type, self.context)
         if named_cpp_interface is not None:
             self.cpp_interfaces_named_by_rust[named_cpp_interface.name] = named_cpp_interface
+            return
+        named_rust_interface = rust_interface(idl_type, self.context)
+        if named_rust_interface is not None:
+            if from_js and inheriting_interfaces(named_rust_interface, self.context):
+                self.rust_any_interfaces[named_rust_interface.name] = named_rust_interface
             return
         if idl_type.name in self.context.enumerations:
             directions = self.rust_enumerations.setdefault(idl_type.name, ConversionDirections())
