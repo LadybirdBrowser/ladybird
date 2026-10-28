@@ -1931,7 +1931,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             used.margin_top.set(CssPixels::default());
             used.border_top.set(CssPixels::default());
             used.padding_top.set(CssPixels::default());
-            used.continues_from_previous_fragment.set(true);
+            self.run.records.note_continues_from_previous_fragment(node);
         }
 
         if facts.is_floating() {
@@ -2417,7 +2417,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 used.padding_bottom.set(CssPixels::default());
                 used.border_bottom.set(CssPixels::default());
                 used.margin_bottom.set(CssPixels::default());
-                used.continues_in_next_fragment.set(true);
+                self.run.records.note_continues_in_next_fragment(node);
                 std::rc::Rc::make_mut(&mut token).consumed_block_size = continuation
                     .as_ref()
                     .map_or(CssPixels::default(), |continuation| continuation.consumed_block_size)
@@ -2469,7 +2469,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         if has_independent_formatting_context || !self.margins_collapse_through(node) {
             let mut margin_state = self.margin_state.borrow_mut();
             if !margin_state.box_last_in_flow_child_margin_bottom_collapsed
-                || self.used(node).continues_in_next_fragment.get()
+                || self.run.records.continues_in_next_fragment(node)
             {
                 margin_state.reset();
             }

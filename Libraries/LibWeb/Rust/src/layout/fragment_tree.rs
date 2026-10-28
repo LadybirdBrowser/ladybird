@@ -509,8 +509,8 @@ fn snapshot_fragment(
         has_line_clamp_point: used.has_line_clamp_point.get(),
         is_invisible_for_line_clamp: fragment_facts.is_invisible_for_line_clamp,
         clamped_content_is_scrollable_overflow: used.clamped_content_is_scrollable_overflow.get(),
-        continues_from_previous_fragment: used.continues_from_previous_fragment.get(),
-        continues_in_next_fragment: used.continues_in_next_fragment.get(),
+        continues_from_previous_fragment: fragment_facts.continues_from_previous_fragment,
+        continues_in_next_fragment: fragment_facts.continues_in_next_fragment,
         children,
     };
     if !fragment.continues_from_previous_fragment

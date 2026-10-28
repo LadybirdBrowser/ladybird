@@ -327,6 +327,10 @@ pub(crate) struct FragmentFactsDecidedByParent {
     pub(crate) hidden_by_collapsed_columns: bool,
     /// Whether the box lies after the clamp point of a line-clamp container, which hides it.
     pub(crate) is_invisible_for_line_clamp: bool,
+    /// Whether fragmentation broke the box, so that this fragment continues one in an earlier fragmentainer, or
+    /// continues in a later one.
+    pub(crate) continues_from_previous_fragment: bool,
+    pub(crate) continues_in_next_fragment: bool,
 }
 
 /// What the parent of a box decides about the box, kept beside the box's record.
@@ -689,6 +693,23 @@ impl<'arena> RunRecords<'arena> {
         self.facts_decided_by_parent_of(node)
             .fragment_facts
             .is_invisible_for_line_clamp
+    }
+
+    #[track_caller]
+    pub(crate) fn note_continues_from_previous_fragment(&self, node: Node) {
+        self.update_fragment_facts_decided_by_parent_of(node, |facts| facts.continues_from_previous_fragment = true);
+    }
+
+    #[track_caller]
+    pub(crate) fn note_continues_in_next_fragment(&self, node: Node) {
+        self.update_fragment_facts_decided_by_parent_of(node, |facts| facts.continues_in_next_fragment = true);
+    }
+
+    #[track_caller]
+    pub(crate) fn continues_in_next_fragment(&self, node: Node) -> bool {
+        self.facts_decided_by_parent_of(node)
+            .fragment_facts
+            .continues_in_next_fragment
     }
 
     /// Where `node` is placed, if this run placed it.
