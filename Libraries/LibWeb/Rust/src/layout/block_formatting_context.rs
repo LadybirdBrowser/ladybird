@@ -4140,6 +4140,32 @@ impl<'pass> BlockFormattingContext<'pass> {
         input: &LayoutInput,
         flex_root_resolves_own_auto_block_size: bool,
     ) {
+        self.dimension_float_root_inline_size(node, input);
+        let available_space = input.available_space;
+        self.resolve_used_block_size_if_not_treated_as_auto(node, available_space, input.containing_block_constraints);
+        let block_size_is_definite_from_aspect_ratio = self.used(node).has_definite_inline_size()
+            && self.facts(node).has_preferred_aspect_ratio()
+            && self.sizing().box_is_sized_as_replaced_element(
+                node,
+                available_space,
+                input.containing_block_constraints,
+            );
+        if self.facts(node).has_auto_content_box_size()
+            || block_size_is_definite_from_aspect_ratio
+            || (self.style(node).display().is_flex_inside() && !flex_root_resolves_own_auto_block_size)
+        {
+            self.resolve_used_block_size_if_treated_as_auto(
+                node,
+                available_space,
+                input.containing_block_constraints,
+                None,
+            );
+        }
+    }
+
+    /// Resolves the vertical box model and the inline size of a float, which depends on the floats placed beside it
+    /// before.
+    pub(crate) fn dimension_float_root_inline_size(&self, node: Node, input: &LayoutInput) {
         let available_space = input.available_space;
         let block_container = self.containing_block(node);
         let block_container_inline_size = self.used(block_container).content_inline_size.get();
@@ -4164,25 +4190,6 @@ impl<'pass> BlockFormattingContext<'pass> {
                 y: containing_block_rect_now.y,
             },
         );
-        self.resolve_used_block_size_if_not_treated_as_auto(node, available_space, input.containing_block_constraints);
-        let block_size_is_definite_from_aspect_ratio = self.used(node).has_definite_inline_size()
-            && self.facts(node).has_preferred_aspect_ratio()
-            && self.sizing().box_is_sized_as_replaced_element(
-                node,
-                available_space,
-                input.containing_block_constraints,
-            );
-        if self.facts(node).has_auto_content_box_size()
-            || block_size_is_definite_from_aspect_ratio
-            || (self.style(node).display().is_flex_inside() && !flex_root_resolves_own_auto_block_size)
-        {
-            self.resolve_used_block_size_if_treated_as_auto(
-                node,
-                available_space,
-                input.containing_block_constraints,
-                None,
-            );
-        }
     }
 
     pub(crate) fn layout_floating_box(

@@ -1646,7 +1646,10 @@ fn apply_root_sizing_directives(
     let mut atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above = None;
     let body_input = match input.participation {
         ParticipationInParentFormattingContext::BlockLevel => dimension_block_level_root(run, input, fc_type),
-        ParticipationInParentFormattingContext::Float { .. } => body_input_with_inner_available_space(run, input),
+        ParticipationInParentFormattingContext::Float { .. } => {
+            resolve_float_root_block_size_ahead_of_its_contents(run, input);
+            body_input_with_inner_available_space(run, input)
+        }
         ParticipationInParentFormattingContext::AtomicInline => {
             let run_cache_may_reuse_this_run_at_other_available_inline_sizes =
                 fc_type == FormattingContextType::Block && run.fragments.is_some();
@@ -1784,6 +1787,36 @@ fn size_block_level_root_ahead_of_its_contents(
     flex_self_resolution_space
 }
 
+/// Resolves the block size of the root of a float's run where that follows without laying out its contents, in the
+/// inline size its block formatting context gave it.
+fn resolve_float_root_block_size_ahead_of_its_contents(run: &FormattingContextRun, input: &LayoutInput) {
+    let node = run.box_;
+    let root = run.records.used_values(node);
+    let available_space = input.available_space;
+    let constraints = input.containing_block_constraints;
+    let sizing = run.sizing();
+    let facts = NodeFacts::new(&run.callbacks, node);
+    sizing.resolve_used_block_size_if_not_treated_as_auto(node, available_space, constraints);
+    let block_size_is_definite_from_aspect_ratio = root.has_definite_inline_size()
+        && facts.has_preferred_aspect_ratio()
+        && sizing.box_is_sized_as_replaced_element(node, available_space, constraints);
+    if facts.has_auto_content_box_size()
+        || block_size_is_definite_from_aspect_ratio
+        || (StyleValues::for_node(&run.callbacks, node).display().is_flex_inside()
+            && input.sizing.flex_self_block_size_resolution_space.is_none())
+    {
+        sizing.resolve_used_block_size_if_treated_as_auto(node, available_space, constraints, None, || {
+            block_formatting_context::automatic_block_size_of_independent_root_ahead_of_its_contents(
+                run.records,
+                run.callbacks,
+                node,
+                root.available_inner_space_or_constraints_from(available_space),
+                constraints,
+            )
+        });
+    }
+}
+
 /// Whether a block-level root with an automatic block size lays out its content against its min-height where its
 /// content is shorter, which then has to be measured first. A block container's content never reads that size: Its
 /// min-height only clamps its block size once its content is laid out, so measuring first would just lay out the
@@ -1907,9 +1940,14 @@ fn dimension_root_in_parent_scope(
             None
         }
         ParticipationInParentFormattingContext::Float { .. } => {
-            let parent = parent_block.expect("a floating run requires an enclosing block formatting context");
+            let parent = parent_block.expect("a float requires an enclosing block formatting context");
             let flex_self_resolution_space = flex_self_resolution_space_of_following_run(parent);
-            parent.dimension_float_root(child, input, flex_self_resolution_space.is_some());
+            if child_run_follows {
+                // NB: The float's run resolves its block size, see resolve_float_root_block_size_ahead_of_its_contents().
+                parent.dimension_float_root_inline_size(child, input);
+            } else {
+                parent.dimension_float_root(child, input, false);
+            }
             flex_self_resolution_space
         }
         _ => None,
