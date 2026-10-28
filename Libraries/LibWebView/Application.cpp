@@ -2782,14 +2782,13 @@ void Application::initialize_actions()
             });
     }));
 
-    m_toggle_bookmark_bar_action = Action::create_checkable("Show Bookmarks Bar"sv, ActionID::ToggleBookmarksBar, [this]() {
+    m_toggle_bookmark_bar_action = Action::create("Show Bookmarks Bar"sv, ActionID::ToggleBookmarksBar, [this]() {
         auto appearance = m_settings->appearance();
         appearance.show_bookmarks_bar = appearance.show_bookmarks_bar == WebView::ShowBookmarksBar::Always
             ? WebView::ShowBookmarksBar::Never
             : WebView::ShowBookmarksBar::Always;
         m_settings->set_appearance(appearance);
     });
-    m_toggle_bookmark_bar_action->set_checked(m_settings->appearance().show_bookmarks_bar == ShowBookmarksBar::Always);
 
     m_bookmarks_menu->add_separator();
     m_bookmarks_menu_static_size = m_bookmarks_menu->size();
@@ -2988,7 +2987,6 @@ void Application::update_website_color_scheme()
 void Application::appearance_changed(Badge<ApplicationSettingsObserver>)
 {
     m_toggle_menu_bar_action->set_checked(m_settings->appearance().show_menu_bar);
-    m_toggle_bookmark_bar_action->set_checked(m_settings->appearance().show_bookmarks_bar == ShowBookmarksBar::Always);
     update_website_color_scheme();
 
     switch (m_settings->appearance().show_bookmarks_bar) {
