@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Fail
+Fail	301C WAVE DASH may appear at line start if ja and loose
+Fail	30A0 KATAKANA-HIRAGANA DOUBLE HYPHEN may appear at line start if ja and loose

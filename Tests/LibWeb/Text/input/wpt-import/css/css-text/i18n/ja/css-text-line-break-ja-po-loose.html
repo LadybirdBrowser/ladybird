@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html  lang="en" >
+<head>
+<meta charset="utf-8"/>
+<title>CSS text, linebreaks: PO AFW (loose,ja)</title>
+<link rel="author" title="Richard Ishida" href="mailto:ishida@w3.org">
+<link rel="help" href="https://drafts.csswg.org/css-text-3/#line-break-property">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<meta name="assert" content="When the language is Japanese, and line-break:loose, a browser allows a break before a PO character with East Asian Width of A, F, or W.">
+<style type="text/css">
+@font-face {
+    font-family: 'mplus-1p-regular';
+    src: url('../../../../fonts/mplus-1p-regular.woff') format('woff');
+    }
+#wrapper { position: relative; }
+.test { color: red; }
+.test, .ref { font-size: 30px; font-family: mplus-1p-regular, sans-serif; width: 185px; padding: 0; border: 1px solid orange; line-height: 1em; }
+</style>
+<style>
+.test { line-break: loose; }
+</style>
+<script>
+var charlist = `00B0  DEGREE SIGN
+2030  PER MILLE SIGN
+2032  PRIME
+2033  DOUBLE PRIME
+2035  REVERSED PRIME
+2103  DEGREE CELSIUS
+2109  DEGREE FAHRENHEIT
+FE6A  SMALL PERCENT SIGN
+FF05  FULLWIDTH PERCENT SIGN
+FFE0  FULLWIDTH CENT SIGN`
+</script>
+</head>
+<body>
+<script>
+var lines = charlist.split('\n')
+var out = '<div id="log"></div>\n'
+for (var i=0;i<lines.length;i++) {
+	// get the data
+	var firstSpace = lines[i].indexOf(' ')
+	var hex = lines[i].substr(0,firstSpace)
+	var name = lines[i].substr(firstSpace)
+	// make a test
+	out +=  '<div class="wrapper"><div>'+hex+'</div>' +
+	'<div class="test" id="test'+i+'" lang="ja">文文文文文文&#x'+hex+';字<span id="testSpan'+i+'">字</span></div>' +
+	 '<div class="ref" id="ref'+i+'" lang="ja">文文文文文文<br/>&#x'+hex+';字<span id="refSpan'+i+'">字</span></div>' +
+	 '</div>'
+	}
+
+document.querySelector('body').innerHTML = out
+setup({explicit_done: true});
+
+document.fonts.ready.then(validate);
+
+function validate() {
+  for (i=0;i<lines.length;i++) {
+    test(function() {
+      assert_approx_equals(
+        document.getElementById('testSpan'+i).getBoundingClientRect().left,
+        document.getElementById('refSpan'+i).getBoundingClientRect().left, 1);
+      // Hide successful tests.
+      document.getElementById('test'+i).parentNode.style.display = 'none';
+    }, lines[i]+' may appear at line start if ja and loose');
+  }
+  done();
+}
+</script>
+<!--Notes:
+The test creates a box with room for 6 characters, causing wrapping to occur either between the 6th and the 7th character, or before the 6th if the breaks after the 6th or before the 7th are prohibited.
+
+It also creates the expected behaviour with a ref instance, using <br/>. Each line ends with a span. The test then checks whether the left edge of the span is in the same place in test and ref instance.
+-->
+</body>
+</html>

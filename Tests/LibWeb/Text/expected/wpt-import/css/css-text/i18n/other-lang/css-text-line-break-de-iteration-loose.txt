@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Fail
+Fail	3005  IDEOGRAPHIC ITERATION MARK may appear at line start if de and loose
+Fail	303B  VERTICAL IDEOGRAPHIC ITERATION MARK may appear at line start if de and loose
+Fail	309D  HIRAGANA ITERATION MARK may appear at line start if de and loose
+Fail	309E  HIRAGANA VOICED ITERATION MARK may appear at line start if de and loose
+Fail	30FD  KATAKANA ITERATION MARK may appear at line start if de and loose
+Fail	30FE  KATAKANA VOICED ITERATION MARK may appear at line start if de and loose
