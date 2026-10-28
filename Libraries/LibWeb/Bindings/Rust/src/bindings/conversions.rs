@@ -1017,6 +1017,13 @@ impl ToJs for i16 {
     }
 }
 
+/// https://webidl.spec.whatwg.org/#js-unsigned-short
+impl ToJs for u16 {
+    fn to_js(self, _: &CallContext) -> ThrowCompletionOr<Value> {
+        Ok(Value::from_i32(i32::from(self)))
+    }
+}
+
 /// https://webidl.spec.whatwg.org/#js-long
 impl ToJs for i32 {
     fn to_js(self, _: &CallContext) -> ThrowCompletionOr<Value> {
