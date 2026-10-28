@@ -264,9 +264,6 @@ pub(crate) struct RunRecords<'arena> {
     runs_in_progress_with_it: usize,
     /// What the run keeps of each box it holds but its root.
     held_boxes: RefCell<HashMap<Node, KeptBoxHolding>>,
-    // Wrapper sizing hands this state to the wrapper's child run, which consumes it while laying
-    // out the table box. Keeping it on the run prevents measurement state from escaping a pass.
-    table_inline_layouts: RefCell<HashMap<Node, table_formatting_context::TableInlineLayout>>,
     content_sizing: ContentSizing,
     /// What the run found so far about the percentage block size dependency of its root and of the boxes whose
     /// layout in it is in progress, the innermost last. Only these boxes have their dependency resolved.
@@ -461,7 +458,6 @@ impl<'arena> RunRecords<'arena> {
             scratch,
             runs_in_progress_with_it: scratch.begin_run(),
             held_boxes: RefCell::new(HashMap::default()),
-            table_inline_layouts: RefCell::new(HashMap::default()),
             content_sizing,
             percentage_block_size_dependencies_in_progress: RefCell::new(smallvec::smallvec![(
                 root,
@@ -703,14 +699,6 @@ impl<'arena> RunRecords<'arena> {
             "{child:?} is handed back by a run of its own to a parent that lays it out itself"
         );
         *kept = KeptBoxHolding::ChildHandedBack;
-    }
-
-    pub(crate) fn store_table_inline_layout(&self, table: Node, layout: table_formatting_context::TableInlineLayout) {
-        self.table_inline_layouts.borrow_mut().insert(table, layout);
-    }
-
-    pub(crate) fn take_table_inline_layout(&self, table: Node) -> Option<table_formatting_context::TableInlineLayout> {
-        self.table_inline_layouts.borrow_mut().remove(&table)
     }
 }
 

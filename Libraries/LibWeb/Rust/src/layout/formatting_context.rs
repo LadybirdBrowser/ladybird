@@ -2319,15 +2319,11 @@ fn lay_out_run_root_and_contents<'pass>(
     } else {
         run
     };
-    let mut inline_layout_of_root_table_box = None;
-    if let Some(table_inline_layout) = table_inline_layout {
-        if table_inline_layout.table_box() == box_ {
-            inline_layout_of_root_table_box = Some(table_inline_layout);
-        } else {
-            run.records
-                .store_table_inline_layout(table_inline_layout.table_box(), table_inline_layout);
-        }
-    }
+    // NB: A table wrapper's run hands the inline layout of its table box to the run of that box.
+    let (mut inline_layout_of_root_table_box, inline_layout_of_child_table_box) = match table_inline_layout {
+        Some(table_inline_layout) if table_inline_layout.table_box() == box_ => (Some(table_inline_layout), None),
+        table_inline_layout => (None, table_inline_layout),
+    };
     let RootSizingOutcome {
         body_input,
         atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above,
@@ -2359,6 +2355,11 @@ fn lay_out_run_root_and_contents<'pass>(
     } else {
         let mut context_implementation =
             create_formatting_context_implementation(body_run, parent_grid, fc_type, previous_line_data);
+        if let (Some(layout), FormattingContextImplementation::Block(context)) =
+            (inline_layout_of_child_table_box, &context_implementation)
+        {
+            context.keep_table_inline_layout_of(layout.table_box(), layout);
+        }
         let result = match &mut context_implementation {
             FormattingContextImplementation::Block(context) => {
                 context.run(body_run, body_input);
@@ -2927,7 +2928,9 @@ pub(crate) fn layout_inside_child_with_input_cells(
         run.should_collect_devtools_layout_data,
         run.callbacks,
         input,
-        run.records.take_table_inline_layout(child),
+        parent_block
+            .and_then(|block| block.take_table_inline_layout_of(child))
+            .or_else(|| parent_grid.and_then(|grid| grid.take_table_inline_layout_of(child))),
     );
     let ChildRunOutcome {
         result,

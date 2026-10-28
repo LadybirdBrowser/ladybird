@@ -1095,6 +1095,9 @@ type SubgridBlockSizeMemo = std::rc::Rc<std::cell::RefCell<std::collections::Has
 
 pub(crate) struct GridFormattingContext<'pass> {
     run: FormattingContextRun<'pass>,
+    /// The inline layout of the table box inside a table wrapper item, as resolving the wrapper's inline size last
+    /// found it, which the item's run can reuse.
+    table_inline_layout_of_item: Cell<Option<(Node, table_formatting_context::TableInlineLayout)>>,
     derived_baselines_of_root_box: DerivedBaselines,
     parent_grid: Option<ParentGridData<'pass>>,
     available_space: Option<AvailableSpace>,
@@ -1297,6 +1300,7 @@ impl<'pass> GridFormattingContext<'pass> {
             next_item_lookup_start: Cell::new(0),
             cells_of_items: HashMap::default(),
             laid_out_items: RefCell::new(HashMap::default()),
+            table_inline_layout_of_item: Cell::new(None),
             in_flow_items_margin_box_block_extent: None,
             lanes: None,
         }
@@ -3604,6 +3608,14 @@ impl<'pass> GridFormattingContext<'pass> {
         )
     }
 
+    /// The inline layout of the table box inside `item` this grid keeps for the run of `item`, if any.
+    pub(crate) fn take_table_inline_layout_of(
+        &self,
+        item: Node,
+    ) -> Option<table_formatting_context::TableInlineLayout> {
+        block_formatting_context::take_table_inline_layout_kept_for(&self.table_inline_layout_of_item, item)
+    }
+
     fn resolve_table_wrapper_inline_size(&self, item: GridItem, containing_for_wrapper: CssPixels) -> ItemAlignment {
         let containing_block = self.containing_block_size(item, Axis::Row);
         let available = AvailableSpace {
@@ -3613,13 +3625,15 @@ impl<'pass> GridFormattingContext<'pass> {
         let mut constraints = self.container_constraints();
         constraints.percentage_basis_inline_size = Some(containing_for_wrapper);
 
-        let mut wrapper_size = self.sizing().compute_table_box_inline_size_inside_wrapper(
+        let (mut wrapper_size, table_inline_layout) = self.sizing().compute_table_box_inline_size_inside_wrapper(
             item.box_,
             available,
             constraints,
             Some(containing_for_wrapper),
             formatting_context::TableWrapperInlineSizeMode::UseTableUsedInlineSizeIfNotAuto,
         );
+        self.table_inline_layout_of_item
+            .set(Some((item.box_, table_inline_layout)));
         let wrapper_style = self.style(item.box_);
         let table_box = self.sizing().table_box_inside_wrapper(item.box_);
         let table_style = self.style(table_box);

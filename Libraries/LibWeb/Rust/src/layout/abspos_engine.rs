@@ -2052,13 +2052,17 @@ impl AbsposEngine<'_> {
         let style = self.style_of(sized);
         let sizing = self.sizing();
         let initial = if self.facts(node).is_table_wrapper() {
-            Some(sizing.compute_table_box_inline_size_inside_wrapper(
-                node,
-                available_space,
-                constraints,
-                None,
-                formatting_context::TableWrapperInlineSizeMode::ClampToAvailableInlineSize,
-            ))
+            Some(
+                sizing
+                    .compute_table_box_inline_size_inside_wrapper(
+                        node,
+                        available_space,
+                        constraints,
+                        None,
+                        formatting_context::TableWrapperInlineSizeMode::ClampToAvailableInlineSize,
+                    )
+                    .0,
+            )
         } else if style.width().is_auto() {
             None
         } else {
