@@ -76,6 +76,7 @@ pub(super) fn layout_replaced_with_children(
     formatting_context::place_laid_out_child(
         run,
         wrapper,
+        formatting_context::PlacedChild::read_from_records(run, wrapper),
         used_values::FfiCssPixelPoint::default(),
         None,
         fragment_arrival,

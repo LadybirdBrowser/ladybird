@@ -3187,6 +3187,7 @@ impl<'pass> AbsposEngine<'pass> {
         formatting_context::place_child_in_containing_block(
             run,
             node,
+            formatting_context::PlacedChild::read_from_records(run, node),
             inputs.containing_block,
             FfiCssPixelPoint {
                 x: used_offset.inline_offset,

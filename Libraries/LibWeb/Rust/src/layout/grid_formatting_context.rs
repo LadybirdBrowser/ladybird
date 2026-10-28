@@ -4456,7 +4456,14 @@ impl<'pass> GridFormattingContext<'pass> {
                 baseline_aligned_items.push((item_index, offset, fragment_arrival));
                 continue;
             }
-            formatting_context::place_laid_out_child(&self.run, item.box_, offset, None, fragment_arrival);
+            formatting_context::place_laid_out_child(
+                &self.run,
+                item.box_,
+                formatting_context::PlacedChild::read_from_records(&self.run, item.box_),
+                offset,
+                None,
+                fragment_arrival,
+            );
         }
         self.place_baseline_aligned_items(baseline_aligned_items);
         self.derived_baselines_of_root_box = DerivedBaselines {
@@ -4617,7 +4624,14 @@ impl<'pass> GridFormattingContext<'pass> {
             if self.item_participates_in_column_baseline_alignment(item) {
                 offset.x += shared_column_baselines[&item.column] - self.item_column_baseline(item);
             }
-            formatting_context::place_laid_out_child(&self.run, item.box_, offset, None, fragment_arrival);
+            formatting_context::place_laid_out_child(
+                &self.run,
+                item.box_,
+                formatting_context::PlacedChild::read_from_records(&self.run, item.box_),
+                offset,
+                None,
+                fragment_arrival,
+            );
         }
     }
 

@@ -1225,7 +1225,13 @@ impl<'pass> TableFormattingContext<'pass> {
     }
 
     fn place_child(&self, node: Node, x: CssPixels, y: CssPixels) {
-        formatting_context::place_child(&self.run, node, FfiCssPixelPoint { x, y }, None);
+        formatting_context::place_child(
+            &self.run,
+            node,
+            formatting_context::PlacedChild::read_from_records(&self.run, node),
+            FfiCssPixelPoint { x, y },
+            None,
+        );
     }
 
     fn border_spacing_inline(&mut self) -> CssPixels {
@@ -3331,6 +3337,7 @@ impl<'pass> TableFormattingContext<'pass> {
             formatting_context::place_laid_out_child(
                 &self.run,
                 cell.box_,
+                formatting_context::PlacedChild::read_from_records(&self.run, cell.box_),
                 FfiCssPixelPoint { x, y },
                 None,
                 fragment_arrival,
