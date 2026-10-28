@@ -572,10 +572,10 @@ fn committed_offset_delta_at_placement(
     }
     if facts.is_in_flow() && facts.display().is_block_outside() {
         let chain = inline_formatting_context::accumulated_relative_insets_from_inline_ancestor_chain(
-            records,
             callbacks,
             callbacks.parent(node),
             containing_block,
+            |ancestor| records.used_insets_of(ancestor),
         );
         if chain.found_fragmented_inline_node {
             delta.x += chain.offset_x;

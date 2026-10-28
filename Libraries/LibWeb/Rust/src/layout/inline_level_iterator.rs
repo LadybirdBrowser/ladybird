@@ -1013,9 +1013,9 @@ fn record_entered_inline_box(
     let style = context.style(node);
     let basis = constraints.inline_basis();
     used.resolve_box_model(&style, basis);
-    context.compute_inset(node);
+    let insets = context.compute_inset(node);
     let sides = used_values::RootInputCells::capture(used);
-    context.keep_sides_of_entered_inline_box(node, sides);
+    context.keep_entered_inline_box(node, sides, insets);
     if context.run.fragments.is_some() && context.run.fragmentainer.is_none() {
         formatting_context::place_child(context.run, node, FfiCssPixelPoint::default(), None);
     }

@@ -850,8 +850,13 @@ impl<'pass> BlockFormattingContext<'pass> {
         self.derived_baselines_of_root_box.get()
     }
 
-    /// Resolves the insets of `node`, an in-flow child of `block_container`, and keeps them for the box.
-    fn compute_inset(&self, run: &FormattingContextRun<'pass>, node: Node, block_container: Node) {
+    /// Resolves the insets of `node`, an in-flow child of `block_container`, keeps them for the box and returns them.
+    fn compute_inset(
+        &self,
+        run: &FormattingContextRun<'pass>,
+        node: Node,
+        block_container: Node,
+    ) -> abspos_engine::InFlowBoxInsets {
         let block_container_used = self.used(block_container);
         let insets = abspos_engine::compute_inset_native(
             run,
@@ -863,6 +868,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             },
         );
         run.records.keep_in_flow_box_insets(node, insets);
+        insets
     }
 
     fn containing_block_rect(&self, node: Node, position: FfiCssPixelPoint) -> CssPixelRect {
@@ -4472,6 +4478,8 @@ impl<'pass> BlockFormattingContext<'pass> {
         );
     }
 
+    /// Lays out and places `node`, a float, and returns what its insets resolved to, which is nothing for a float it
+    /// leaves unplaced.
     pub(crate) fn layout_floating_box(
         &self,
         run: &FormattingContextRun<'pass>,
@@ -4480,7 +4488,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         containing_block_position_in_root: FfiCssPixelPoint,
         block_offset: CssPixels,
         mut line_builder: Option<&mut line_builder::LineBuilder<'_, '_>>,
-    ) {
+    ) -> abspos_engine::InFlowBoxInsets {
         let available_space = input.available_space;
         assert!(self.facts(node).is_floating());
         let _record_for_a_child_never_handed_to_its_run = RecordForChildNeverHandedToItsRun { context: self, node };
@@ -4522,7 +4530,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         };
         let Some(side) = side else {
             formatting_context::leave_child_unplaced(run, fragment_arrival);
-            return;
+            return abspos_engine::InFlowBoxInsets::default();
         };
         let float_box = self.run.records.box_metrics_of(node);
         let mut margin_box_ceiling = if let Some(line_builder) = line_builder.as_deref_mut() {
@@ -4599,7 +4607,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         if let Some(line_builder) = line_builder {
             line_builder.recalculate_available_space();
         }
-        self.compute_inset(run, node, block_container);
+        let insets = self.compute_inset(run, node, block_container);
 
         let inline_offset = if side == FloatSide::Left {
             floating_box.offset_from_edge
@@ -4614,6 +4622,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             },
             fragment_arrival,
         );
+        insets
     }
 
     fn layout_inline_children(

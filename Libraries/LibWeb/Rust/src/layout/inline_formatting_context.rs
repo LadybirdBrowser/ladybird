@@ -899,12 +899,13 @@ pub(crate) struct InlineAncestorChainRelativeOffset {
 
 /// Accumulates relative-position insets from a chain of inline-flow
 /// ancestors, starting at first_ancestor and walking up until stop_at or
-/// the first ancestor that is not inline-flow.
+/// the first ancestor that is not inline-flow. `used_insets_of` gives the
+/// used insets of a relatively positioned ancestor in the chain.
 pub(crate) fn accumulated_relative_insets_from_inline_ancestor_chain(
-    records: &RunRecords,
     callbacks: &LayoutPass<'_>,
     first_ancestor: Node,
     stop_at: Node,
+    used_insets_of: impl Fn(Node) -> run_records::UsedInsets,
 ) -> InlineAncestorChainRelativeOffset {
     let mut result = InlineAncestorChainRelativeOffset::default();
     let mut ancestor = first_ancestor;
@@ -921,9 +922,8 @@ pub(crate) fn accumulated_relative_insets_from_inline_ancestor_chain(
         if facts.is_relatively_positioned() {
             // A relatively positioned inline-flow ancestor reachable from a
             // committed fragment or piece was entered by its inline
-            // formatting context this pass, which created its used values
-            // and resolved its insets.
-            let insets = records.used_insets_of(ancestor);
+            // formatting context this pass, which resolved its insets.
+            let insets = used_insets_of(ancestor);
             result.offset_x += insets.left;
             result.offset_y += insets.top;
         }
@@ -994,8 +994,19 @@ pub(crate) struct InlineFormattingContext<'context> {
     /// Whether margins collapse through each block-level box this context interrupted its lines for, as the layout of
     /// the box found.
     margins_collapse_through_interrupting_blocks: RefCell<HashMap<Node, bool>>,
-    /// The sizes and box sides of each inline box this context entered, as it resolved them on entering the box.
-    sides_of_entered_inline_boxes: RefCell<HashMap<Node, used_values::RootInputCells>>,
+    /// Each inline box this context entered, as it resolved the box on entering it.
+    entered_inline_boxes: RefCell<HashMap<Node, EnteredInlineBox>>,
+    /// The used insets of each float this context laid out among its lines, as the float's layout resolved them.
+    used_insets_of_floats: RefCell<HashMap<Node, run_records::UsedInsets>>,
+}
+
+/// What an inline formatting context resolved of an inline box on entering it.
+#[derive(Clone, Copy)]
+struct EnteredInlineBox {
+    /// The sizes and box sides of the box.
+    sides: used_values::RootInputCells,
+    /// The used insets of the box, which are zero unless it is relatively positioned.
+    used_insets: run_records::UsedInsets,
 }
 
 impl<'context> InlineFormattingContext<'context> {
@@ -1025,7 +1036,8 @@ impl<'context> InlineFormattingContext<'context> {
             fragmentainer_stop_token: RefCell::new(None),
             lines_are_unbreakable: Cell::new(false),
             margins_collapse_through_interrupting_blocks: RefCell::new(HashMap::default()),
-            sides_of_entered_inline_boxes: RefCell::new(HashMap::default()),
+            entered_inline_boxes: RefCell::new(HashMap::default()),
+            used_insets_of_floats: RefCell::new(HashMap::default()),
         }
     }
 
@@ -1193,12 +1205,28 @@ impl<'context> InlineFormattingContext<'context> {
         self.run.records.create_used_values(&self.callbacks, node, constraints)
     }
 
-    pub(crate) fn keep_sides_of_entered_inline_box(&self, node: Node, sides: used_values::RootInputCells) {
-        self.sides_of_entered_inline_boxes.borrow_mut().insert(node, sides);
+    /// Keeps the sizes and box sides `sides` and the used insets `insets` this context resolved for `node`, an inline
+    /// box it entered.
+    pub(crate) fn keep_entered_inline_box(
+        &self,
+        node: Node,
+        sides: used_values::RootInputCells,
+        insets: abspos_engine::InFlowBoxInsets,
+    ) {
+        self.entered_inline_boxes.borrow_mut().insert(
+            node,
+            EnteredInlineBox {
+                sides,
+                used_insets: insets.used_insets.unwrap_or_default(),
+            },
+        );
     }
 
     fn entered_inline_box(&self, node: Node) -> Option<used_values::RootInputCells> {
-        self.sides_of_entered_inline_boxes.borrow().get(&node).copied()
+        self.entered_inline_boxes
+            .borrow()
+            .get(&node)
+            .map(|entered| entered.sides)
     }
 
     /// The sizes and box sides of `node`, an inline box this context entered.
@@ -1206,6 +1234,29 @@ impl<'context> InlineFormattingContext<'context> {
     pub(crate) fn sides_of_entered_inline_box(&self, node: Node) -> used_values::RootInputCells {
         self.entered_inline_box(node)
             .expect("the inline formatting context entered the inline box")
+    }
+
+    /// The relative-position insets of the inline boxes this context entered from `first_ancestor` up to its
+    /// containing block, summed.
+    fn relative_insets_of_inline_ancestors(&self, first_ancestor: Node) -> InlineAncestorChainRelativeOffset {
+        let used_insets_of_entered_inline_box = |ancestor| {
+            if let Some(entered) = self.entered_inline_boxes.borrow().get(&ancestor) {
+                return entered.used_insets;
+            }
+            // NB: A floated inline node can hold inline content this context lays out among its lines, while its
+            //     float's own layout resolves its insets.
+            *self
+                .used_insets_of_floats
+                .borrow()
+                .get(&ancestor)
+                .expect("a relatively positioned inline ancestor in the chain is a box the context laid out")
+        };
+        accumulated_relative_insets_from_inline_ancestor_chain(
+            &self.callbacks,
+            first_ancestor,
+            self.containing_block,
+            used_insets_of_entered_inline_box,
+        )
     }
 
     /// Starts holding `node`, an atomic inline-level box: kept for its run where it has a formatting context of its
@@ -1932,7 +1983,7 @@ impl<'context> InlineFormattingContext<'context> {
                     line_builder.set_unbreakable_run_inline_size_interrupted_by_float(
                         iterator.next_unbreakable_run_inline_size(self),
                     );
-                    self.parent.layout_floating_box(
+                    let insets = self.parent.layout_floating_box(
                         self.run,
                         item.node,
                         self.input,
@@ -1940,6 +1991,9 @@ impl<'context> InlineFormattingContext<'context> {
                         CssPixels::default(),
                         Some(&mut line_builder),
                     );
+                    self.used_insets_of_floats
+                        .borrow_mut()
+                        .insert(item.node, insets.used_insets.unwrap_or_default());
                 }
                 inline_level_iterator::ItemType::Text => {
                     line_builder.prepare_to_append_inline_content();
@@ -2028,12 +2082,8 @@ impl<'context> InlineFormattingContext<'context> {
                 lines_after_clamp_point_rect.unite(line_rect(line, content_inline_size).into());
                 for fragment in line.visible_fragments() {
                     let (x, y) = fragment.offset();
-                    let relative_insets = accumulated_relative_insets_from_inline_ancestor_chain(
-                        self.run.records,
-                        &self.callbacks,
-                        self.callbacks.parent(fragment.layout_node),
-                        self.containing_block,
-                    );
+                    let relative_insets =
+                        self.relative_insets_of_inline_ancestors(self.callbacks.parent(fragment.layout_node));
                     let position = FfiCssPixelPoint {
                         x: x + relative_insets.offset_x,
                         y: y + relative_insets.offset_y,
@@ -2202,12 +2252,8 @@ impl<'context> InlineFormattingContext<'context> {
                 let (x, y) = fragment.offset();
                 // Atomic boxes are painted independently of their line fragments. Apply the inline ancestors'
                 // relative insets to their placement as well as to the line data folded below.
-                let relative_insets = accumulated_relative_insets_from_inline_ancestor_chain(
-                    self.run.records,
-                    &self.callbacks,
-                    self.callbacks.parent(fragment.layout_node),
-                    self.containing_block,
-                );
+                let relative_insets =
+                    self.relative_insets_of_inline_ancestors(self.callbacks.parent(fragment.layout_node));
                 let fragment_arrival = self.take_atomic_inline_fragment_arrival(fragment.layout_node);
                 formatting_context::place_laid_out_child(
                     self.run,
@@ -2369,12 +2415,7 @@ impl<'context> InlineFormattingContext<'context> {
         let (pieces, inline_containing_block_rect_candidates) = compute(self);
         self.line_data_mut().inline_box_pieces = pieces;
         for candidate in inline_containing_block_rect_candidates {
-            let relative_inset_chain = accumulated_relative_insets_from_inline_ancestor_chain(
-                self.run.records,
-                &self.callbacks,
-                candidate.inline_containing_block,
-                self.containing_block,
-            );
+            let relative_inset_chain = self.relative_insets_of_inline_ancestors(candidate.inline_containing_block);
             let mut rect = candidate.rect;
             rect.x += relative_inset_chain.offset_x;
             rect.y += relative_inset_chain.offset_y;
@@ -2580,12 +2621,7 @@ impl<'context> InlineFormattingContext<'context> {
             *accumulated_relative_offset_by_chain_start
                 .entry(first_ancestor)
                 .or_insert_with(|| {
-                    let chain = accumulated_relative_insets_from_inline_ancestor_chain(
-                        self.run.records,
-                        &self.callbacks,
-                        first_ancestor,
-                        self.containing_block,
-                    );
+                    let chain = self.relative_insets_of_inline_ancestors(first_ancestor);
                     FfiCssPixelPoint {
                         x: chain.offset_x,
                         y: chain.offset_y,
