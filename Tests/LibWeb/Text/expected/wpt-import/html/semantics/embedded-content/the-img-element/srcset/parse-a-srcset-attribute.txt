@@ -1,0 +1,242 @@
+Harness status: OK
+
+Found 236 tests
+
+227 Pass
+9 Fail
+Pass	""
+Pass	","
+Pass	",,,"
+Pass	"  data:,a  1x  "
+Pass	"\t\tdata:,a\t\t1x\t\t"
+Pass	"\n\ndata:,a\n\n1x\n\n"
+Pass	"\v\vdata:,a\v\v1x\v\v"
+Pass	"\f\fdata:,a\f\f1x\f\f"
+Pass	"\r\rdata:,a\r\r1x\r\r"
+Pass	"\x0e\x0edata:,a\x0e\x0e1x\x0e\x0e"
+Pass	"\x0f\x0fdata:,a\x0f\x0f1x\x0f\x0f"
+Pass	"\x10\x10data:,a\x10\x101x\x10\x10"
+Pass	"data:,a"
+Pass	"data:,a "
+Pass	"data:,a ,"
+Pass	"data:,a,"
+Pass	"data:,a, "
+Pass	"data:,a,,,"
+Pass	"data:,a,, , "
+Pass	" data:,a"
+Pass	",,,data:,a"
+Pass	" , ,,data:,a"
+Pass	" data:,a"
+Pass	"data:,a "
+Pass	"data:,a 1x"
+Pass	"data:,a 1x "
+Pass	"data:,a 1x,"
+Pass	"data:,a ( , data:,b 1x, ), data:,c"
+Pass	"data:,a ((( , data:,b 1x, ), data:,c"
+Pass	"data:,a [ , data:,b 1x, ], data:,c"
+Pass	"data:,a { , data:,b 1x, }, data:,c"
+Pass	"data:,a \" , data:,b 1x, \", data:,c"
+Pass	"data:,a \\,data:;\\,b, data:,c"
+Pass	"data:,a, data:,b ("
+Pass	"data:,a, data:,b (  "
+Pass	"data:,a, data:,b (,"
+Pass	"data:,a, data:,b (x"
+Pass	"data:,a, data:,b ()"
+Pass	"data:,a (, data:,b"
+Pass	"data:,a /*, data:,b, data:,c */"
+Pass	"data:,a //, data:,b"
+Pass	"data:,a foo"
+Pass	"data:,a foo foo"
+Pass	"data:,a foo 1x"
+Pass	"data:,a foo 1x foo"
+Pass	"data:,a foo 1w"
+Pass	"data:,a foo 1w foo"
+Pass	"data:,a 1x 1x"
+Pass	"data:,a 1w 1w"
+Pass	"data:,a 1w 1x"
+Pass	"data:,a 1x 1w"
+Pass	"data:,a 1w 1h"
+Pass	"data:,a 1h 1w"
+Pass	"data:,a 1h 1h"
+Pass	"data:,a 1h 1x"
+Pass	"data:,a 1h 1w 1x"
+Pass	"data:,a 1x 1w 1h"
+Pass	"data:,a 1w"
+Pass	"data:,a 1h"
+Pass	"data:,a 1h foo"
+Pass	"data:,a foo 1h"
+Fail	"data:,a 0w"
+Fail	"data:,a -1w"
+Pass	"data:,a 1w -1w"
+Pass	"data:,a 1.0w"
+Pass	"data:,a 1w 1.0w"
+Pass	"data:,a 1e0w"
+Pass	"data:,a 1w 1e0w"
+Pass	"data:,a 1www"
+Pass	"data:,a 1w 1www"
+Fail	"data:,a +1w"
+Pass	"data:,a 1w +1w"
+Pass	"data:,a 1W"
+Pass	"data:,a 1w 1W"
+Pass	"data:,a Infinityw"
+Pass	"data:,a 1w Infinityw"
+Pass	"data:,a NaNw"
+Pass	"data:,a 1w NaNw"
+Pass	"data:,a 0x1w"
+Pass	"data:,a 0X1w"
+Pass	"data:,a 1\x01w" (trailing U+0001)
+Pass	"data:,a 1 w" (trailing U+00A0)
+Pass	"data:,a 1 w" (trailing U+1680)
+Pass	"data:,a 1 w" (trailing U+2000)
+Pass	"data:,a 1 w" (trailing U+2001)
+Pass	"data:,a 1 w" (trailing U+2002)
+Pass	"data:,a 1 w" (trailing U+2003)
+Pass	"data:,a 1 w" (trailing U+2004)
+Pass	"data:,a 1 w" (trailing U+2005)
+Pass	"data:,a 1 w" (trailing U+2006)
+Pass	"data:,a 1 w" (trailing U+2007)
+Pass	"data:,a 1 w" (trailing U+2008)
+Pass	"data:,a 1 w" (trailing U+2009)
+Pass	"data:,a 1 w" (trailing U+200A)
+Pass	"data:,a 1‌w" (trailing U+200C)
+Pass	"data:,a 1‍w" (trailing U+200D)
+Pass	"data:,a 1 w" (trailing U+202F)
+Pass	"data:,a 1 w" (trailing U+205F)
+Pass	"data:,a 1　w" (trailing U+3000)
+Pass	"data:,a 1﻿w" (trailing U+FEFF)
+Pass	"data:,a \x011w" (leading U+0001)
+Pass	"data:,a  1w" (leading U+00A0)
+Pass	"data:,a  1w" (leading U+1680)
+Pass	"data:,a  1w" (leading U+2000)
+Pass	"data:,a  1w" (leading U+2001)
+Pass	"data:,a  1w" (leading U+2002)
+Pass	"data:,a  1w" (leading U+2003)
+Pass	"data:,a  1w" (leading U+2004)
+Pass	"data:,a  1w" (leading U+2005)
+Pass	"data:,a  1w" (leading U+2006)
+Pass	"data:,a  1w" (leading U+2007)
+Pass	"data:,a  1w" (leading U+2008)
+Pass	"data:,a  1w" (leading U+2009)
+Pass	"data:,a  1w" (leading U+200A)
+Pass	"data:,a ‌1w" (leading U+200C)
+Pass	"data:,a ‍1w" (leading U+200D)
+Pass	"data:,a  1w" (leading U+202F)
+Pass	"data:,a  1w" (leading U+205F)
+Pass	"data:,a 　1w" (leading U+3000)
+Pass	"data:,a ﻿1w" (leading U+FEFF)
+Pass	"data:,a 0x"
+Pass	"data:,a -0x"
+Pass	"data:,a 1x -0x"
+Fail	"data:,a -1x"
+Pass	"data:,a 1x -1x"
+Pass	"data:,a 1e0x"
+Pass	"data:,a 1E0x"
+Pass	"data:,a 1e-1x"
+Pass	"data:,a 1.5e1x"
+Pass	"data:,a -x"
+Pass	"data:,a .x"
+Pass	"data:,a -.x"
+Fail	"data:,a 1.x"
+Pass	"data:,a .5x"
+Pass	"data:,a .5e1x"
+Pass	"data:,a 1x 1.5e1x"
+Pass	"data:,a 1x 1e1.5x"
+Pass	"data:,a 1.0x"
+Pass	"data:,a 1x 1.0x"
+Fail	"data:,a +1x"
+Pass	"data:,a 1X"
+Pass	"data:,a Infinityx"
+Pass	"data:,a NaNx"
+Pass	"data:,a 0x1x"
+Pass	"data:,a 0X1x"
+Pass	"data:,a 1\x01x" (trailing U+0001)
+Pass	"data:,a 1 x" (trailing U+00A0)
+Pass	"data:,a 1 x" (trailing U+1680)
+Pass	"data:,a 1 x" (trailing U+2000)
+Pass	"data:,a 1 x" (trailing U+2001)
+Pass	"data:,a 1 x" (trailing U+2002)
+Pass	"data:,a 1 x" (trailing U+2003)
+Pass	"data:,a 1 x" (trailing U+2004)
+Pass	"data:,a 1 x" (trailing U+2005)
+Pass	"data:,a 1 x" (trailing U+2006)
+Pass	"data:,a 1 x" (trailing U+2007)
+Pass	"data:,a 1 x" (trailing U+2008)
+Pass	"data:,a 1 x" (trailing U+2009)
+Pass	"data:,a 1 x" (trailing U+200A)
+Pass	"data:,a 1‌x" (trailing U+200C)
+Pass	"data:,a 1‍x" (trailing U+200D)
+Pass	"data:,a 1 x" (trailing U+202F)
+Pass	"data:,a 1 x" (trailing U+205F)
+Pass	"data:,a 1　x" (trailing U+3000)
+Pass	"data:,a 1﻿x" (trailing U+FEFF)
+Pass	"data:,a \x011x" (leading U+0001)
+Pass	"data:,a  1x" (leading U+00A0)
+Pass	"data:,a  1x" (leading U+1680)
+Pass	"data:,a  1x" (leading U+2000)
+Pass	"data:,a  1x" (leading U+2001)
+Pass	"data:,a  1x" (leading U+2002)
+Pass	"data:,a  1x" (leading U+2003)
+Pass	"data:,a  1x" (leading U+2004)
+Pass	"data:,a  1x" (leading U+2005)
+Pass	"data:,a  1x" (leading U+2006)
+Pass	"data:,a  1x" (leading U+2007)
+Pass	"data:,a  1x" (leading U+2008)
+Pass	"data:,a  1x" (leading U+2009)
+Pass	"data:,a  1x" (leading U+200A)
+Pass	"data:,a ‌1x" (leading U+200C)
+Pass	"data:,a ‍1x" (leading U+200D)
+Pass	"data:,a  1x" (leading U+202F)
+Pass	"data:,a  1x" (leading U+205F)
+Pass	"data:,a 　1x" (leading U+3000)
+Pass	"data:,a ﻿1x" (leading U+FEFF)
+Fail	"data:,a 1w 0h"
+Fail	"data:,a 1w -1h"
+Pass	"data:,a 1w 1.0h"
+Pass	"data:,a 1w 1e0h"
+Pass	"data:,a 1w 1hhh"
+Fail	"data:,a 1w +1h"
+Pass	"data:,a 1w 1H"
+Pass	"data:,a 1w Infinityh"
+Pass	"data:,a 1w NaNh"
+Pass	"data:,a 0x1h"
+Pass	"data:,a 0X1h"
+Pass	"data:,a 1w 1\x01h" (trailing U+0001)
+Pass	"data:,a 1w 1 h" (trailing U+00A0)
+Pass	"data:,a 1w 1 h" (trailing U+1680)
+Pass	"data:,a 1w 1 h" (trailing U+2000)
+Pass	"data:,a 1w 1 h" (trailing U+2001)
+Pass	"data:,a 1w 1 h" (trailing U+2002)
+Pass	"data:,a 1w 1 h" (trailing U+2003)
+Pass	"data:,a 1w 1 h" (trailing U+2004)
+Pass	"data:,a 1w 1 h" (trailing U+2005)
+Pass	"data:,a 1w 1 h" (trailing U+2006)
+Pass	"data:,a 1w 1 h" (trailing U+2007)
+Pass	"data:,a 1w 1 h" (trailing U+2008)
+Pass	"data:,a 1w 1 h" (trailing U+2009)
+Pass	"data:,a 1w 1 h" (trailing U+200A)
+Pass	"data:,a 1w 1‌h" (trailing U+200C)
+Pass	"data:,a 1w 1‍h" (trailing U+200D)
+Pass	"data:,a 1w 1 h" (trailing U+202F)
+Pass	"data:,a 1w 1 h" (trailing U+205F)
+Pass	"data:,a 1w 1　h" (trailing U+3000)
+Pass	"data:,a 1w 1﻿h" (trailing U+FEFF)
+Pass	"data:,a 1w \x011h" (leading U+0001)
+Pass	"data:,a 1w  1h" (leading U+00A0)
+Pass	"data:,a 1w  1h" (leading U+1680)
+Pass	"data:,a 1w  1h" (leading U+2000)
+Pass	"data:,a 1w  1h" (leading U+2001)
+Pass	"data:,a 1w  1h" (leading U+2002)
+Pass	"data:,a 1w  1h" (leading U+2003)
+Pass	"data:,a 1w  1h" (leading U+2004)
+Pass	"data:,a 1w  1h" (leading U+2005)
+Pass	"data:,a 1w  1h" (leading U+2006)
+Pass	"data:,a 1w  1h" (leading U+2007)
+Pass	"data:,a 1w  1h" (leading U+2008)
+Pass	"data:,a 1w  1h" (leading U+2009)
+Pass	"data:,a 1w  1h" (leading U+200A)
+Pass	"data:,a 1w ‌1h" (leading U+200C)
+Pass	"data:,a 1w ‍1h" (leading U+200D)
+Pass	"data:,a 1w  1h" (leading U+202F)
+Pass	"data:,a 1w  1h" (leading U+205F)
+Pass	"data:,a 1w 　1h" (leading U+3000)
+Pass	"data:,a 1w ﻿1h" (leading U+FEFF)
