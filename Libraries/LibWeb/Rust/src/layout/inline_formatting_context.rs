@@ -2257,6 +2257,7 @@ impl<'context> InlineFormattingContext<'context> {
         if self.run.fragments.is_some() {
             self.compute_inline_box_pieces();
             self.fold_inline_ancestor_relative_insets_into_line_data();
+            self.register_inline_anchor_candidates();
         }
         self.leave_atomic_inlines_without_a_line_unplaced();
         formatting_context::derive_baselines(self.run.records, &self.callbacks, self.containing_block)
@@ -2296,6 +2297,31 @@ impl<'context> InlineFormattingContext<'context> {
                     self.containing_block,
                 );
             }
+        }
+    }
+
+    fn register_inline_anchor_candidates(&self) {
+        let Some(fragments) = self.run.fragments.as_deref() else {
+            return;
+        };
+        // An inline anchor's border box is the union of its line fragments, including relative positioning.
+        // Keep discovery order so that repeated layout runs produce the same propagated candidates.
+        let mut candidates = Vec::<(Node, CssPixelRect)>::new();
+        let mut indices = HashMap::<Node, usize>::default();
+        for piece in &self.line_data().inline_box_pieces {
+            if !self.facts(piece.node).has_anchor_names() {
+                continue;
+            }
+            let rect = CssPixelRect::from(piece.border_box_rect).translated_by(piece.relpos_delta.into());
+            if let Some(&index) = indices.get(&piece.node) {
+                candidates[index].1.unite(rect);
+            } else {
+                indices.insert(piece.node, candidates.len());
+                candidates.push((piece.node, rect));
+            }
+        }
+        for (node, rect) in candidates {
+            fragments.register_inline_anchor_candidate(node, rect, self.containing_block);
         }
     }
 

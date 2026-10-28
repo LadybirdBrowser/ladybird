@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face { font-family: Ahem; src: url(../../../Ref/data/fonts/Ahem.ttf); }
+    body { margin: 0; }
+    #columns {
+        columns: 2;
+        column-gap: 20px;
+        column-fill: auto;
+        width: 220px;
+        height: 40px;
+        margin: 40px 60px;
+        font: 20px/20px Ahem;
+    }
+    #anchor { anchor-name: --a; }
+    #target {
+        position: fixed;
+        position-anchor: --a;
+        left: anchor(left);
+        top: anchor(bottom);
+        width: anchor-size(width);
+        height: anchor-size(height);
+    }
+</style>
+<div id="columns"><div id="nested"><span id="anchor">aa<br>bbb<br>cccc<br>d</span></div></div>
+<div id="target"></div>
+<script>
+    promiseTest(async () => {
+        await document.fonts.ready;
+        const columns = document.getElementById("columns");
+        const anchor = document.getElementById("anchor");
+        const target = document.getElementById("target");
+        function check(label) {
+            const a = anchor.getBoundingClientRect();
+            const t = target.getBoundingClientRect();
+            println(`${label}: anchor=${a.width}x${a.height}, left=${t.left === a.left}, top=${t.top === a.bottom}, width=${t.width === a.width}, height=${t.height === a.height}`);
+        }
+
+        check("Two columns");
+        columns.style.direction = "rtl";
+        check("Right-to-left columns");
+        columns.style.direction = "ltr";
+        document.getElementById("nested").style.marginLeft = "10px";
+        anchor.style.position = "relative";
+        anchor.style.left = "5px";
+        anchor.style.top = "3px";
+        check("Offset nested inline");
+        target.style.position = "absolute";
+        check("Absolute target outside columns");
+    });
+</script>

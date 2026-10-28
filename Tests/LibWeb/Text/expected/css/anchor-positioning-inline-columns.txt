@@ -1,0 +1,4 @@
+Two columns: anchor=200x40, left=true, top=true, width=true, height=true
+Right-to-left columns: anchor=200x40, left=true, top=true, width=true, height=true
+Offset nested inline: anchor=200x40, left=true, top=true, width=true, height=true
+Absolute target outside columns: anchor=200x40, left=true, top=true, width=true, height=true
