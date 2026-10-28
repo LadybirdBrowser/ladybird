@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Resolved <color> value with sibling-index()
+1 Pass
+Pass	Resolved <color> value with sibling-index()

@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 45 tests
 
-43 Pass
-2 Fail
+45 Pass
 Pass	e.style['color'] = "alpha(from red / 0.5)" should set the property value
 Pass	e.style['color'] = "alpha(from blue / 1)" should set the property value
 Pass	e.style['color'] = "alpha(from green / 0)" should set the property value
@@ -35,8 +34,8 @@ Pass	e.style['color'] = "alpha(from lch(50% 20 30) / 0.5)" should set the proper
 Pass	e.style['color'] = "alpha(from hsl(120 50% 50%) / 0.5)" should set the property value
 Pass	e.style['color'] = "alpha(from hwb(120 0% 0%) / 0.5)" should set the property value
 Pass	e.style['color'] = "alpha(from ActiveText / 0.5)" should set the property value
-Fail	e.style['color'] = "alpha(from green / sibling-index())" should set the property value
-Fail	e.style['color'] = "alpha(from green / sibling-count())" should set the property value
+Pass	e.style['color'] = "alpha(from green / sibling-index())" should set the property value
+Pass	e.style['color'] = "alpha(from green / sibling-count())" should set the property value
 Pass	e.style['color'] = "alpha(from green / calc(sibling-index() * 0.2))" should set the property value
 Pass	e.style['color'] = "alpha(from red / var(--alpha))" should set the property value
 Pass	e.style['color'] = "alpha(from alpha(from currentcolor / 0.5) / alpha)" should set the property value
