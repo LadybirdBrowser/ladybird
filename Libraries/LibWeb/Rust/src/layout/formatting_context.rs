@@ -1197,6 +1197,9 @@ pub(crate) struct ChildLayoutResult {
     pub table_box_in_wrapper_border_box_block_size: Option<CssPixels>,
     /// For a box with a preferred aspect ratio, the block size of its laid out content.
     pub content_block_size_for_aspect_ratio_minimum: Option<CssPixels>,
+    /// For a flex or grid container with a preferred aspect ratio, the block size of the margin boxes of its in-flow
+    /// children once they are placed, unless one of them is not an item.
+    pub in_flow_children_margin_box_block_extent: Option<CssPixels>,
     pub depends_on_percentage_block_size: bool,
     /// For an absolutely positioned box, the used insets its run gave it.
     pub out_of_flow_root_used_insets: Option<run_records::UsedInsets>,
@@ -1990,11 +1993,11 @@ fn lays_out_content_against_min_block_size(facts: NodeFacts<'_>, fc_type: Format
 /// The content block size of a laid out box, for growing a block size transferred through its aspect ratio. Chrome
 /// derives it from the layout at the transferred size, so percentages inside resolve against that size.
 pub(crate) fn content_block_size_for_aspect_ratio_minimum(
-    records: &RunRecords<'_>,
     callbacks: &LayoutPass<'_>,
     node: Node,
-    automatic_content_block_size: CssPixels,
+    result: &ChildLayoutResult,
 ) -> Option<CssPixels> {
+    let automatic_content_block_size = result.automatic_content_block_size;
     let facts = NodeFacts::new(callbacks, node);
     if facts.node_has_size_containment() {
         // NB: The automatic content block size of a size containment box already ignores its content.
@@ -2008,31 +2011,10 @@ pub(crate) fn content_block_size_for_aspect_ratio_minimum(
         Some(FormattingContextType::Block) => Some(automatic_content_block_size),
         // NB: These report their own block size, so take the extent of their laid out children instead.
         Some(FormattingContextType::Flex | FormattingContextType::Grid) => {
-            in_flow_children_margin_box_block_extent(records, callbacks, node)
+            result.in_flow_children_margin_box_block_extent
         }
         _ => None,
     }
-}
-
-fn in_flow_children_margin_box_block_extent(
-    records: &RunRecords<'_>,
-    callbacks: &LayoutPass<'_>,
-    node: Node,
-) -> Option<CssPixels> {
-    let mut block_start = CssPixels::default();
-    let mut block_end = CssPixels::default();
-    for child in callbacks.children(node) {
-        let facts = NodeFacts::new(callbacks, child);
-        if facts.is_box() && !facts.is_absolutely_positioned() {
-            let metrics = records.box_metrics_of_if_owned(child)?;
-            let content_block_offset = records.placement_of(child)?.content_offset_in_containing_block.y;
-            let collapsed = metrics.uses_collapsing_borders_model();
-            block_start = block_start.min(content_block_offset - metrics.margin_box_top(collapsed));
-            block_end = block_end
-                .max(content_block_offset + metrics.content_block_size() + metrics.margin_box_bottom(collapsed));
-        }
-    }
-    Some(block_end - block_start)
 }
 
 fn finalize_block_level_root(run: &FormattingContextRun, input: &LayoutInput, body_result: &ChildLayoutResult) {
@@ -2571,6 +2553,7 @@ fn lay_out_run_root_and_contents<'pass>(
                 ChildLayoutResult {
                     automatic_content_block_size: context.automatic_content_block_size(),
                     baselines,
+                    in_flow_children_margin_box_block_extent: context.in_flow_items_margin_box_block_extent(),
                     ..ChildLayoutResult::default()
                 }
             }
@@ -2580,6 +2563,7 @@ fn lay_out_run_root_and_contents<'pass>(
                 ChildLayoutResult {
                     automatic_content_block_size: context.automatic_content_block_size(),
                     baselines,
+                    in_flow_children_margin_box_block_extent: context.in_flow_items_margin_box_block_extent(),
                     ..ChildLayoutResult::default()
                 }
             }
@@ -2643,12 +2627,8 @@ fn lay_out_run_root_and_contents<'pass>(
     }
 
     if containment_facts.has_preferred_aspect_ratio() {
-        result.content_block_size_for_aspect_ratio_minimum = content_block_size_for_aspect_ratio_minimum(
-            run.records,
-            &run.callbacks,
-            run.box_,
-            result.automatic_content_block_size,
-        );
+        result.content_block_size_for_aspect_ratio_minimum =
+            content_block_size_for_aspect_ratio_minimum(&run.callbacks, run.box_, &result);
     }
 
     match input.participation {
@@ -2665,7 +2645,10 @@ fn lay_out_run_root_and_contents<'pass>(
             abspos_engine::AbsposEngine::for_run(run).finalize_out_of_flow_root_after_inside_layout(
                 run.box_,
                 abspos_inputs,
-                Some(result.automatic_content_block_size),
+                Some(abspos_engine::InsideLayoutBlockSizes {
+                    automatic_content_block_size: result.automatic_content_block_size,
+                    content_block_size_for_aspect_ratio_minimum: result.content_block_size_for_aspect_ratio_minimum,
+                }),
             );
             result.out_of_flow_root_used_insets = Some(run.records.used_insets_of(run.box_));
         }

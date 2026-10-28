@@ -209,6 +209,7 @@ pub(super) struct FlexFormattingContext<'pass> {
     item_percentage_bases: ContainingBlockConstraints,
     item_runs_offered_to_block_size_measurements: Option<ItemRunsOfferedToBlockSizeMeasurements>,
     next_flex_item_lookup_start: Cell<usize>,
+    in_flow_items_margin_box_block_extent: Option<CssPixels>,
 }
 
 impl formatting_context::ChildRunShapes for FlexFormattingContext<'_> {
@@ -254,6 +255,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             item_percentage_bases: ContainingBlockConstraints::default(),
             item_runs_offered_to_block_size_measurements: None,
             next_flex_item_lookup_start: Cell::new(0),
+            in_flow_items_margin_box_block_extent: None,
         }
     }
 
@@ -4002,6 +4004,9 @@ impl<'pass> FlexFormattingContext<'pass> {
                 fragment_arrival,
             );
         }
+        if self.facts(self.run.box_).has_preferred_aspect_ratio() {
+            self.in_flow_items_margin_box_block_extent = self.margin_box_block_extent_of_placed_in_flow_items();
+        }
         self.derived_baselines_of_root_box = DerivedBaselines {
             inline_alignment: self.flex_lines.len().checked_sub(1).and_then(|line_index| {
                 self.baseline_of_line_for_purpose(
@@ -4033,6 +4038,31 @@ impl<'pass> FlexFormattingContext<'pass> {
                 y: item.main_offset,
             }
         }
+    }
+
+    /// The block size of the margin boxes of the container's in-flow children, once its items are placed, unless a box
+    /// among them is not an item.
+    fn margin_box_block_extent_of_placed_in_flow_items(&self) -> Option<CssPixels> {
+        let mut block_start = CssPixels::default();
+        let mut block_end = CssPixels::default();
+        for child in self.run.callbacks.children(self.run.box_) {
+            let facts = self.facts(child);
+            if facts.is_box() && !facts.is_absolutely_positioned() {
+                let index = self.index_of_flex_item(child)?;
+                let metrics = &self.flex_items[index].cells;
+                let content_block_offset = self.item_content_offset(index).y;
+                let collapsed = metrics.uses_collapsing_borders_model();
+                block_start = block_start.min(content_block_offset - metrics.margin_box_top(collapsed));
+                block_end = block_end
+                    .max(content_block_offset + metrics.content_block_size() + metrics.margin_box_bottom(collapsed));
+            }
+        }
+        Some(block_end - block_start)
+    }
+
+    /// For a container with a preferred aspect ratio, the block size of the margin boxes of its in-flow children.
+    pub(super) fn in_flow_items_margin_box_block_extent(&self) -> Option<CssPixels> {
+        self.in_flow_items_margin_box_block_extent
     }
 
     // https://drafts.csswg.org/css-flexbox-1/#flex-baselines

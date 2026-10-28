@@ -1110,6 +1110,7 @@ pub(crate) struct GridFormattingContext<'pass> {
     cells_of_items: HashMap<Node, Cell<used_values::RootInputCells>>,
     /// What this grid keeps of each item it laid out.
     laid_out_items: RefCell<HashMap<Node, LaidOutGridItem>>,
+    in_flow_items_margin_box_block_extent: Option<CssPixels>,
     explicit_column_line_count: usize,
     explicit_row_line_count: usize,
     explicit_column_start: usize,
@@ -1297,6 +1298,7 @@ impl<'pass> GridFormattingContext<'pass> {
             next_item_lookup_start: Cell::new(0),
             cells_of_items: HashMap::default(),
             laid_out_items: RefCell::new(HashMap::default()),
+            in_flow_items_margin_box_block_extent: None,
             lanes: None,
         }
     }
@@ -4529,6 +4531,9 @@ impl<'pass> GridFormattingContext<'pass> {
             self.place_item(item, placed_item, offset, fragment_arrival);
         }
         self.place_baseline_aligned_items(baseline_aligned_items);
+        if self.facts(self.run.box_).has_preferred_aspect_ratio() {
+            self.in_flow_items_margin_box_block_extent = self.margin_box_block_extent_of_placed_in_flow_items();
+        }
         self.derived_baselines_of_root_box = DerivedBaselines {
             inline_alignment: None,
             first: self.baseline_of_items(formatting_context::BaselineSet::First),
@@ -4738,6 +4743,30 @@ impl<'pass> GridFormattingContext<'pass> {
             source,
             formatting_context::BaselinePurpose::Container,
         )
+    }
+
+    /// The block size of the margin boxes of the container's in-flow children, once its items are placed, unless a box
+    /// among them is not an item.
+    fn margin_box_block_extent_of_placed_in_flow_items(&self) -> Option<CssPixels> {
+        let mut block_start = CssPixels::default();
+        let mut block_end = CssPixels::default();
+        for child in self.run.callbacks.children(self.run.box_) {
+            let facts = self.facts(child);
+            if facts.is_box() && !facts.is_absolutely_positioned() {
+                let metrics = self.cells_of_items.get(&child)?.get();
+                let content_block_offset = self.laid_out_items.borrow().get(&child)?.content_offset?.y;
+                let collapsed = metrics.uses_collapsing_borders_model();
+                block_start = block_start.min(content_block_offset - metrics.margin_box_top(collapsed));
+                block_end = block_end
+                    .max(content_block_offset + metrics.content_block_size() + metrics.margin_box_bottom(collapsed));
+            }
+        }
+        Some(block_end - block_start)
+    }
+
+    /// For a container with a preferred aspect ratio, the block size of the margin boxes of its in-flow children.
+    pub(crate) fn in_flow_items_margin_box_block_extent(&self) -> Option<CssPixels> {
+        self.in_flow_items_margin_box_block_extent
     }
 
     // https://drafts.csswg.org/css-grid-2/#grid-baselines

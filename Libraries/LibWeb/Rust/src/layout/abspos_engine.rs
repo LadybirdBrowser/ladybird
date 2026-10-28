@@ -2287,11 +2287,19 @@ impl AbsposEngine<'_> {
     }
 }
 
+/// The block sizes the run of an absolutely positioned box found for its contents.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct InsideLayoutBlockSizes {
+    pub(crate) automatic_content_block_size: CssPixels,
+    /// For a box with a preferred aspect ratio, the block size of its laid out content.
+    pub(crate) content_block_size_for_aspect_ratio_minimum: Option<CssPixels>,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum BlockSizePass {
     BeforeInsideLayout,
     AfterInsideLayout {
-        automatic_content_block_size_of_inside_layout: Option<CssPixels>,
+        inside_layout: Option<InsideLayoutBlockSizes>,
     },
 }
 
@@ -2366,10 +2374,10 @@ impl AbsposEngine<'_> {
             return Some(size);
         }
         if let BlockSizePass::AfterInsideLayout {
-            automatic_content_block_size_of_inside_layout: Some(automatic_content_block_size_of_inside_layout),
+            inside_layout: Some(inside_layout),
         } = pass
         {
-            return Some(automatic_content_block_size_of_inside_layout);
+            return Some(inside_layout.automatic_content_block_size);
         }
         if self.facts(node).creates_block_formatting_context() {
             return match pass {
@@ -2695,9 +2703,7 @@ impl AbsposEngine<'_> {
                 constraints,
             )
         };
-        if let BlockSizePass::AfterInsideLayout {
-            automatic_content_block_size_of_inside_layout,
-        } = pass
+        if let BlockSizePass::AfterInsideLayout { inside_layout } = pass
             && self.sizing().block_size_is_ratio_dependent(
                 self.sized_record(node).sized_box(),
                 available_space,
@@ -2708,14 +2714,8 @@ impl AbsposEngine<'_> {
             // NB: A box that is only sized like a replaced element through its aspect ratio grows to fit its content.
             // INTEROP: CSS Positioned Layout says "The automatic minimum size of an absolutely-positioned box is always
             //          zero", but Chrome applies the aspect-ratio minimum to absolutely positioned boxes too.
-            let content_block_size = automatic_content_block_size_of_inside_layout.and_then(|size| {
-                formatting_context::content_block_size_for_aspect_ratio_minimum(
-                    self.records,
-                    &self.callbacks,
-                    node,
-                    size,
-                )
-            });
+            let content_block_size =
+                inside_layout.and_then(|inside_layout| inside_layout.content_block_size_for_aspect_ratio_minimum);
             if let Some(minimum) = self.sizing().automatic_minimum_size_from_aspect_ratio(
                 self.sized_record(node).sized_box(),
                 SizingAxis::Block,
@@ -2905,7 +2905,7 @@ impl<'pass> AbsposEngine<'pass> {
         &self,
         node: Node,
         inputs: abspos_inputs::AbsposLayoutInputs,
-        automatic_content_block_size_of_inside_layout: Option<CssPixels>,
+        inside_layout: Option<InsideLayoutBlockSizes>,
     ) {
         self.install_resolved_anchor_sizes(node, &inputs);
         let (available_space, constraints) = out_of_flow_root_space(inputs);
@@ -2921,9 +2921,7 @@ impl<'pass> AbsposEngine<'pass> {
                 available_space,
                 constraints,
                 static_position_rect_for_sizing(&inputs),
-                BlockSizePass::AfterInsideLayout {
-                    automatic_content_block_size_of_inside_layout,
-                },
+                BlockSizePass::AfterInsideLayout { inside_layout },
                 resolved,
             );
         }
