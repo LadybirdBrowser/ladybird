@@ -3003,9 +3003,12 @@ fn parse_attr_syntax(tokens: &[ComponentValue]) -> Result<(Vec<u16>, AttrSyntax)
     let Some(name) = tokens.first().and_then(ComponentValue::ident) else {
         return Err(AttrSyntaxParseFailure::SyntaxOmitted);
     };
-    let rest = trim_whitespace(&tokens[1..]);
+    Ok((name.to_vec(), parse_attr_type(trim_whitespace(&tokens[1..]))?))
+}
+
+fn parse_attr_type(rest: &[ComponentValue]) -> Result<AttrSyntax, AttrSyntaxParseFailure> {
     if rest.is_empty() {
-        return Ok((name.to_vec(), AttrSyntax::Omitted));
+        return Ok(AttrSyntax::Omitted);
     }
     if let Some(syntax) = rest[0].ident() {
         let syntax = if syntax.eq_ignore_ascii_case("raw-string") {
@@ -3020,13 +3023,13 @@ fn parse_attr_syntax(tokens: &[ComponentValue]) -> Result<(Vec<u16>, AttrSyntax)
         if rest.len() != 1 {
             return Err(AttrSyntaxParseFailure::SyntaxSpecified);
         }
-        return Ok((name.to_vec(), syntax));
+        return Ok(syntax);
     }
     if rest[0].is_delim(b'%') {
         if rest.len() != 1 {
             return Err(AttrSyntaxParseFailure::SyntaxSpecified);
         }
-        return Ok((name.to_vec(), AttrSyntax::Unit(vec![u16::from(b'%')])));
+        return Ok(AttrSyntax::Unit(vec![u16::from(b'%')]));
     }
     if let Some((function, values)) = rest[0].function()
         && function.eq_ignore_ascii_case("type")
@@ -3037,9 +3040,42 @@ fn parse_attr_syntax(tokens: &[ComponentValue]) -> Result<(Vec<u16>, AttrSyntax)
         if rest.len() != 1 {
             return Err(AttrSyntaxParseFailure::SyntaxSpecified);
         }
-        return Ok((name.to_vec(), AttrSyntax::Syntax(syntax)));
+        return Ok(AttrSyntax::Syntax(syntax));
     }
     Err(AttrSyntaxParseFailure::SyntaxOmitted)
+}
+
+pub(crate) fn literal_attr_arguments_are_valid(values: &[ComponentValue]) -> bool {
+    let comma = values.iter().position(ComponentValue::is_comma).unwrap_or(values.len());
+    let first_argument = trim_whitespace(&values[..comma]);
+    if contains_arbitrary_substitution_function(first_argument) {
+        return true;
+    }
+    // https://drafts.csswg.org/css-values-5/#attr-notation
+    // INTEROP: Chrome and Firefox reject malformed literal names and types at parse time,
+    //          rather than using the replacement algorithm's fallback. Defer substituted arguments.
+    // NB: Namespace components cannot contain intervening whitespace.
+    let name_end = if first_argument.first().is_some_and(|value| value.is_delim(b'|')) {
+        2
+    } else if first_argument.first().and_then(ComponentValue::ident).is_some() {
+        if first_argument.get(1).is_some_and(|value| value.is_delim(b'|')) {
+            3
+        } else {
+            1
+        }
+    } else {
+        return false;
+    };
+    if first_argument
+        .get(name_end - 1)
+        .and_then(ComponentValue::ident)
+        .is_none()
+    {
+        return false;
+    }
+    let attr_type = trim_whitespace(&first_argument[name_end..]);
+    // NB: An unknown unit identifier is grammatically valid and uses the computed-value fallback.
+    (attr_type.len() == 1 && attr_type[0].ident().is_some()) || parse_attr_type(attr_type).is_ok()
 }
 
 fn parse_attr_value_with_syntax(
