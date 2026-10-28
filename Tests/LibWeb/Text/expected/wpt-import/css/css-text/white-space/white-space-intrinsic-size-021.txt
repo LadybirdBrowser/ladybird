@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 192 tests
 
-188 Pass
-4 Fail
+192 Pass
 Pass	.container > div 1
 Pass	.container > div 2
 Pass	.container > div 3
@@ -37,11 +36,11 @@ Pass	.container > div 30
 Pass	.container > div 31
 Pass	.container > div 32
 Pass	.container > div 33
-Fail	.container > div 34
+Pass	.container > div 34
 Pass	.container > div 35
 Pass	.container > div 36
 Pass	.container > div 37
-Fail	.container > div 38
+Pass	.container > div 38
 Pass	.container > div 39
 Pass	.container > div 40
 Pass	.container > div 41
@@ -133,11 +132,11 @@ Pass	.container > div 126
 Pass	.container > div 127
 Pass	.container > div 128
 Pass	.container > div 129
-Fail	.container > div 130
+Pass	.container > div 130
 Pass	.container > div 131
 Pass	.container > div 132
 Pass	.container > div 133
-Fail	.container > div 134
+Pass	.container > div 134
 Pass	.container > div 135
 Pass	.container > div 136
 Pass	.container > div 137
