@@ -3300,7 +3300,23 @@ GC::Ptr<DOM::Node> EventHandler::target_node_for_mouse_position(CSSPixelPoint po
     if (!target.has_value())
         return {};
 
-    return target->dom_node();
+    auto node = target->dom_node();
+
+    // Over a same-process nested navigable, the node is the one under the position in its content. Content that another
+    // process hosts isn't here, so its container stays the node.
+    auto document = m_navigable->active_document();
+    if (!document)
+        return node;
+    Layout::ForcedReadScope read { *document };
+    if (auto* layout_node = target->layout_node(read)) {
+        if (auto nested_navigable = local_nested_navigable_at(*layout_node, node)) {
+            auto nested_position = Painting::transform_to_local_coordinates(*layout_node, position) - Painting::absolute_rect(*layout_node).location();
+            if (auto nested_node = nested_navigable->event_handler().target_node_for_mouse_position(nested_position))
+                return nested_node;
+        }
+    }
+
+    return node;
 }
 
 GC::Ptr<DOM::Node> EventHandler::focus_candidate_for_position(Layout::BegunRead const& read, CSSPixelPoint visual_viewport_position) const
