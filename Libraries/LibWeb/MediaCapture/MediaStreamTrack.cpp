@@ -14,6 +14,7 @@
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
+#include <LibWeb/MediaCapture/MediaDevices.h>
 #include <LibWeb/MediaCapture/MediaStreamTrack.h>
 #include <LibWeb/WebIDL/Promise.h>
 
@@ -198,10 +199,21 @@ GC::Ref<MediaStreamTrack> MediaStreamTrack::clone() const
     track_clone->update_audio_silence_state();
     track_clone->m_provider_id = s_next_provider_id.fetch_add(1, AK::MemoryOrder::memory_order_relaxed);
 
-    // FIXME: 8. Run source MediaStreamTrack source-specific clone steps with track and trackClone as parameters.
+    // 8. Run source MediaStreamTrack source-specific clone steps with track and trackClone as parameters.
+    // NB: The one source Ladybird captures from is the microphone, whose tracks end when the permission is taken away;
+    //     the clone of such a track ends with it.
+    if (auto media_devices = m_media_devices.ptr()) {
+        media_devices->track_was_cloned({}, track_clone);
+        track_clone->m_media_devices = m_media_devices;
+    }
 
     // 9. Return trackClone.
     return track_clone;
+}
+
+void MediaStreamTrack::set_media_devices(Badge<MediaDevices>, MediaDevices& media_devices)
+{
+    m_media_devices = media_devices;
 }
 
 bool MediaStreamTrack::is_audio() const
