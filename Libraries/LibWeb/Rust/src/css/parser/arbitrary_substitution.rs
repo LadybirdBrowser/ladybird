@@ -197,8 +197,12 @@ fn parse_dashed_function_argument(values: &[ComponentValue], position: &mut usiz
 pub(crate) fn arguments_are_valid(function: ArbitrarySubstitutionFunction, values: &[ComponentValue]) -> bool {
     let mut position = 0;
     match function {
-        ArbitrarySubstitutionFunction::Attr
-        | ArbitrarySubstitutionFunction::Env
+        ArbitrarySubstitutionFunction::Attr => {
+            parse_declaration_value_then_optional_declaration_value(values, &mut position, EndToken::Comma)
+                && position == values.len()
+                && crate::css::custom_properties::literal_attr_arguments_are_valid(values)
+        }
+        ArbitrarySubstitutionFunction::Env
         | ArbitrarySubstitutionFunction::Inherit
         | ArbitrarySubstitutionFunction::Var => {
             parse_declaration_value_then_optional_declaration_value(values, &mut position, EndToken::Comma)
