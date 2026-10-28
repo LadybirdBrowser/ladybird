@@ -3004,7 +3004,13 @@ impl<'pass> FlexFormattingContext<'pass> {
         let mut cells = self.flex_items[index].cells;
         self.size_item_cells_for_its_run(index, &mut cells, main_size, cross_size);
         let input = self.item_layout_input(index, &cells, space_for_items);
-        let plan = formatting_context::child_run_plan(&self.run, node, input, false)?;
+        let plan = formatting_context::child_run_plan(
+            &self.run,
+            node,
+            input,
+            false,
+            self.run.percentage_block_insets_of_root_children_have_definite_basis(),
+        )?;
         debug_assert_eq!(plan.fc_type, formatting_context::FormattingContextType::Block);
         Some(formatting_context::ChildRunShape {
             node,
@@ -3044,7 +3050,16 @@ impl<'pass> FlexFormattingContext<'pass> {
             fragment_arrival,
             laid_out_box,
             line_data,
-        } = formatting_context::layout_inside_child_with_input_cells(run, None, None, node, input, cells, false);
+        } = formatting_context::layout_inside_child_with_input_cells(
+            run,
+            None,
+            None,
+            node,
+            input,
+            cells,
+            false,
+            run.percentage_block_insets_of_root_children_have_definite_basis(),
+        );
         self.flex_items[index].cells = run.records.box_metrics_of(node).input_cells();
         outcome.report_percentage_block_size_dependency_of(run, node);
         self.flex_items[index].content_baselines = match outcome {
@@ -3072,6 +3087,7 @@ impl<'pass> FlexFormattingContext<'pass> {
                 inline_size: container_used.content_inline_size.get(),
                 block_size: container_used.content_block_size.get(),
             },
+            run.percentage_block_insets_of_root_children_have_definite_basis(),
         );
         run.records.keep_in_flow_box_insets(node, insets);
         (fragment_arrival, placed_item.with_in_flow_box_insets(insets))

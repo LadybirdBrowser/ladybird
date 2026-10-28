@@ -2652,6 +2652,8 @@ impl<'pass> TableFormattingContext<'pass> {
             layout_input,
             self.cell_box_cells[cell_index],
             false,
+            // NB: A table cell is a containing block of its own to the percentage block insets of its descendants.
+            run.percentage_block_insets_of_root_children_have_definite_basis(),
         );
         self.cell_box_cells[cell_index] = run.records.box_metrics_of(cell.box_).input_cells();
         outcome.report_percentage_block_size_dependency_of(run, cell.box_);

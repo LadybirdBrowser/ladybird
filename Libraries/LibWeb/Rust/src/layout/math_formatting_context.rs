@@ -2160,7 +2160,16 @@ impl<'pass> MathFormattingContext<'pass> {
             fragment_arrival,
             laid_out_box,
             line_data,
-        } = formatting_context::layout_inside_child_with_input_cells(run, None, None, child, input, child_cells, true);
+        } = formatting_context::layout_inside_child_with_input_cells(
+            run,
+            None,
+            None,
+            child,
+            input,
+            child_cells,
+            true,
+            run.percentage_block_insets_of_root_children_have_definite_basis(),
+        );
         if let Some(fragment_arrival) = fragment_arrival {
             self.fragment_arrivals_of_children.borrow_mut().push(fragment_arrival);
         }

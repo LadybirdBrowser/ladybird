@@ -3138,6 +3138,10 @@ impl<'pass> AbsposEngine<'pass> {
                 ParticipationInParentFormattingContext::AbsolutelyPositioned(inputs),
             ),
             false,
+            // https://drafts.csswg.org/css-sizing-3/#definite
+            // "Additionally, the size of the containing block of an absolutely positioned element is always definite
+            //  with respect to that element."
+            true,
         );
         outcome.report_percentage_block_size_dependency_of(run, node);
         let mut used_insets = match outcome {
@@ -3732,8 +3736,7 @@ impl<'pass> AbsposEngine<'pass> {
         node: Node,
         containing_block: &impl BoxMetricCells,
         percentage_basis: geometry::LogicalSize,
-        formatting_context_root: Node,
-        treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
+        percentage_block_insets_have_definite_basis: bool,
     ) -> InFlowBoxInsets {
         // Most boxes are neither relatively positioned nor carry anchor()
         // insets, and both facts come straight from the node's style payload.
@@ -3791,13 +3794,7 @@ impl<'pass> AbsposEngine<'pass> {
 
         let treat_block_axis_percentage_insets_as_auto = (style.inset_top().contains_percentage()
             || style.inset_bottom().contains_percentage())
-            && !formatting_context::resolve_block_axis_percentage_inset_basis_is_definite(
-                self.records,
-                &self.callbacks,
-                self.callbacks.in_flow_containing_block(node),
-                formatting_context_root,
-                treat_block_axis_percentage_insets_as_auto_beyond_root,
-            );
+            && !percentage_block_insets_have_definite_basis;
         fn block_axis_inset_value(
             value: style_values::InsetValue<'_>,
             treat_percentage_as_auto: bool,
@@ -3857,19 +3854,20 @@ pub(crate) struct InFlowBoxInsets {
 }
 
 /// Resolves the insets of `node`, an in-flow box whose containing block has the metrics `containing_block`, with
-/// percentages against `percentage_basis`.
+/// percentages against `percentage_basis`, where block-axis percentages resolve against a definite block size if
+/// `percentage_block_insets_have_definite_basis`.
 pub(crate) fn compute_inset_native(
     run: &FormattingContextRun<'_>,
     node: Node,
     containing_block: &impl BoxMetricCells,
     percentage_basis: geometry::LogicalSize,
+    percentage_block_insets_have_definite_basis: bool,
 ) -> InFlowBoxInsets {
     AbsposEngine::for_run(run).compute_inset(
         node,
         containing_block,
         percentage_basis,
-        run.box_,
-        run.treat_block_axis_percentage_insets_as_auto_beyond_root,
+        percentage_block_insets_have_definite_basis,
     )
 }
 

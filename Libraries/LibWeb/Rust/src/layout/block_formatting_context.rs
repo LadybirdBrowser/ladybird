@@ -99,6 +99,41 @@ pub(crate) struct InterruptedInlineContent {
 pub(crate) struct BlockContainer<'pass> {
     pub(crate) node: Node,
     pub(crate) used: &'pass UsedValues,
+    /// Whether the block-axis percentage insets of the boxes laid out in the container resolve against a definite
+    /// block size.
+    pub(crate) percentage_block_insets_have_definite_basis: bool,
+}
+
+impl<'pass> BlockContainer<'pass> {
+    /// The run's root, as the block container of the boxes laid out in it.
+    pub(crate) fn root_of(run: &FormattingContextRun<'pass>) -> Self {
+        Self {
+            node: run.box_,
+            used: run.records.used_values(run.box_),
+            percentage_block_insets_have_definite_basis: run
+                .percentage_block_insets_of_root_children_have_definite_basis(),
+        }
+    }
+
+    /// `node`, laid out in `used` in `containing_block`, as the block container of the boxes laid out in it.
+    fn laid_out_in(
+        callbacks: &LayoutPass<'_>,
+        node: Node,
+        used: &'pass UsedValues,
+        containing_block: BlockContainer<'_>,
+    ) -> Self {
+        Self {
+            node,
+            used,
+            percentage_block_insets_have_definite_basis:
+                formatting_context::percentage_block_insets_have_definite_basis_in(
+                    callbacks,
+                    node,
+                    || used.has_definite_block_size(),
+                    containing_block.percentage_block_insets_have_definite_basis,
+                ),
+        }
+    }
 }
 
 /// What the layout of a block-level box the parent flow holds leaves for its outcome.
@@ -666,10 +701,7 @@ impl<'pass> BlockFormattingContext<'pass> {
 
     /// The run's root, as the block container of the boxes laid out in it.
     fn root_block_container(&self) -> BlockContainer<'pass> {
-        BlockContainer {
-            node: self.run.box_,
-            used: self.used(self.run.box_),
-        }
+        BlockContainer::root_of(&self.run)
     }
 
     fn next_sibling(&self, node: Node) -> Node {
@@ -895,6 +927,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 inline_size: block_container_used.content_inline_size.get(),
                 block_size: block_container_used.content_block_size.get(),
             },
+            block_container.percentage_block_insets_have_definite_basis,
         );
         run.records.keep_in_flow_box_insets(node, insets);
         insets
@@ -2017,6 +2050,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             },
             marker_cells,
             true,
+            list_item.percentage_block_insets_have_definite_basis,
         );
         marker_outcome.report_percentage_block_size_dependency_of(run, marker);
         match marker_outcome {
@@ -2071,6 +2105,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         &self,
         run: &FormattingContextRun<'pass>,
         node: Node,
+        block_container: BlockContainer<'pass>,
         input: LayoutInput,
         force_independent_context_run: bool,
     ) -> (
@@ -2092,6 +2127,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             input,
             self.hand_over_child_cells(node),
             force_independent_context_run,
+            block_container.percentage_block_insets_have_definite_basis,
         );
         outcome.report_percentage_block_size_dependency_of(run, node);
         let (child_layout, laid_out_box) = match outcome {
@@ -2591,7 +2627,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 (metrics.border_box_left(false), metrics.border_box_top(false))
             });
             let (child_layout, fragment_arrival, laid_out_box, line_data) =
-                self.layout_inside(run, node, inside_layout_input, true);
+                self.layout_inside(run, node, block_container, inside_layout_input, true);
             fragment_arrival_of_child_with_own_formatting_context = fragment_arrival;
             if child_layout.is_some() {
                 child_handed_back_by_its_run = Some(formatting_context::PlacedChild::of_laid_out_box(
@@ -2648,10 +2684,8 @@ impl<'pass> BlockFormattingContext<'pass> {
                 y: containing_block_position_in_root.y + content_block_offset,
             };
             self.incoming_container_token.replace(continuation.clone());
-            let node_as_block_container = BlockContainer {
-                node,
-                used: self.used(node),
-            };
+            let node_as_block_container =
+                BlockContainer::laid_out_in(&self.run.callbacks, node, self.used(node), block_container);
             let children_summary = if facts.children_are_inline() {
                 self.layout_inline_children(
                     run,
@@ -2828,10 +2862,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 .first;
             let marker_border_box_block_end = self.layout_list_item_marker(
                 run,
-                BlockContainer {
-                    node,
-                    used: self.used(node),
-                },
+                BlockContainer::laid_out_in(&self.run.callbacks, node, self.used(node), block_container),
                 inline_space_used_before_children_formatted,
                 list_item_first_baseline,
             );
@@ -4612,7 +4643,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             );
         self.dimension_float_root_inline_size(node, block_container, &float_input);
         let (float_layout, fragment_arrival, float_box, float_line_data) =
-            self.layout_inside(run, node, float_input, false);
+            self.layout_inside(run, node, block_container, float_input, false);
         // NB: A float its own run laid out is placed as that run handed it back, and any other with its record here.
         let float_handed_back_by_its_run = float_layout.is_some().then(|| {
             formatting_context::PlacedChild::of_laid_out_box(&float_box, float_line_data, self.run.callbacks.frame)

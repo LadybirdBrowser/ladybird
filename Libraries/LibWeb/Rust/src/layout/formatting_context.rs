@@ -1439,6 +1439,17 @@ impl<'pass> FormattingContextRun<'pass> {
         sizing_context::SizingContext::new(self.records, self.callbacks)
     }
 
+    /// Whether the block-axis percentage insets of the boxes whose containing block is the run's root resolve against a
+    /// definite block size.
+    pub(crate) fn percentage_block_insets_of_root_children_have_definite_basis(&self) -> bool {
+        percentage_block_insets_have_definite_basis_in(
+            &self.callbacks,
+            self.box_,
+            || self.records.used_values(self.box_).has_definite_block_size(),
+            !self.treat_block_axis_percentage_insets_as_auto_beyond_root,
+        )
+    }
+
     /// The record of the run's root, read in the frame this run lays out in.
     #[track_caller]
     pub(crate) fn root_record(&self) -> used_values::RecordInFrame<'pass> {
@@ -2902,6 +2913,7 @@ impl ChildLayout {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn layout_inside_child(
     run: &FormattingContextRun,
     parent_block: Option<&block_formatting_context::BlockFormattingContext>,
@@ -2909,6 +2921,7 @@ pub(crate) fn layout_inside_child(
     child: Node,
     input: LayoutInput,
     force_independent_context_run: bool,
+    percentage_block_insets_of_containing_block_have_definite_basis: bool,
 ) -> ChildLayout {
     let child_input_cells = run.records.box_metrics_of(child).input_cells();
     layout_inside_child_with_input_cells(
@@ -2919,11 +2932,13 @@ pub(crate) fn layout_inside_child(
         input,
         child_input_cells,
         force_independent_context_run,
+        percentage_block_insets_of_containing_block_have_definite_basis,
     )
 }
 
 /// Lays out `child` with the input cells its parent sized it to: hands them to the child's run, or gives them to the
 /// child's record where the parent lays the child out itself.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn layout_inside_child_with_input_cells(
     run: &FormattingContextRun,
     parent_block: Option<&block_formatting_context::BlockFormattingContext>,
@@ -2932,6 +2947,7 @@ pub(crate) fn layout_inside_child_with_input_cells(
     input: LayoutInput,
     mut child_input_cells: used_values::RootInputCells,
     force_independent_context_run: bool,
+    percentage_block_insets_of_containing_block_have_definite_basis: bool,
 ) -> ChildLayout {
     let facts = NodeFacts::new(&run.callbacks, child);
     let child_run_builds_fragments = run_builds_fragments(&input, run.fragments.is_some());
@@ -3012,7 +3028,13 @@ pub(crate) fn layout_inside_child_with_input_cells(
         fc_type,
         root_containing_block,
         input,
-    }) = child_run_plan(run, child, input, force_independent_context_run)
+    }) = child_run_plan(
+        run,
+        child,
+        input,
+        force_independent_context_run,
+        percentage_block_insets_of_containing_block_have_definite_basis,
+    )
     else {
         let used = record_for_this_run();
         if force_independent_context_run {
@@ -3082,7 +3104,14 @@ pub(crate) fn table_cell_run_shape_ahead_of_its_intrinsic_block_padding(
         ParticipationInParentFormattingContext::Item
     ));
     input.sizing.table_cell_intrinsic_block_padding = Some((CssPixels::default(), CssPixels::default()));
-    let plan = child_run_plan(run, cell, input, false)?;
+    // NB: A table cell is a containing block of its own to the percentage block insets of its descendants.
+    let plan = child_run_plan(
+        run,
+        cell,
+        input,
+        false,
+        run.percentage_block_insets_of_root_children_have_definite_basis(),
+    )?;
     Some(ChildRunShape {
         node: cell,
         fc_type: plan.fc_type,
@@ -3162,11 +3191,15 @@ pub(crate) struct ChildRunPlan {
     pub(crate) input: LayoutInput,
 }
 
+/// How `child` is laid out by a run of its own, where the block-axis percentage insets of the boxes in the child's
+/// containing block resolve against a definite block size if
+/// `percentage_block_insets_of_containing_block_have_definite_basis`.
 pub(crate) fn child_run_plan(
     run: &FormattingContextRun,
     child: Node,
     mut input: LayoutInput,
     force_independent_context_run: bool,
+    percentage_block_insets_of_containing_block_have_definite_basis: bool,
 ) -> Option<ChildRunPlan> {
     let fc_type = formatting_context_type_created_by_box(NodeFacts::new(&run.callbacks, child)).or_else(|| {
         force_independent_context_run.then(|| independent_formatting_context_type(child, &run.callbacks))
@@ -3174,21 +3207,11 @@ pub(crate) fn child_run_plan(
     let root_containing_block = run
         .callbacks
         .containing_block_for_child_run(child, &input.participation);
-    // https://drafts.csswg.org/css-sizing-3/#definite
-    // "Additionally, the size of the containing block of an absolutely positioned element is always definite with
-    //  respect to that element."
-    // NB: That containing block may also have been laid out by a run other than this one, which holds no record of it.
-    input.sizing.treat_block_axis_percentage_insets_as_auto_beyond_root = match input.participation {
-        ParticipationInParentFormattingContext::AbsolutelyPositioned(_) => false,
-        _ => treat_block_axis_percentage_insets_as_auto_beyond_anonymous_child_root(
-            run.records,
-            &run.callbacks,
-            child,
-            root_containing_block,
-            run.box_,
-            run.treat_block_axis_percentage_insets_as_auto_beyond_root,
-        ),
-    };
+    // NB: Percentages see through an anonymous root to the block size of its containing block.
+    let child_facts = NodeFacts::new(&run.callbacks, child);
+    input.sizing.treat_block_axis_percentage_insets_as_auto_beyond_root = child_facts.is_anonymous()
+        && !child_facts.is_table_cell()
+        && !percentage_block_insets_of_containing_block_have_definite_basis;
     Some(ChildRunPlan {
         fc_type,
         root_containing_block,
@@ -3421,46 +3444,20 @@ pub(super) fn independent_formatting_context_type(box_: Node, callbacks: &Layout
     FormattingContextType::Block
 }
 
-pub(crate) fn resolve_block_axis_percentage_inset_basis_is_definite(
-    records: &RunRecords,
+/// Whether the block-axis percentage insets of the boxes whose containing block is `containing_block` resolve against a
+/// definite block size: whether the box has a definite block size, or, where it is an anonymous box percentages see
+/// through, whether `basis_beyond_it_is_definite`.
+pub(crate) fn percentage_block_insets_have_definite_basis_in(
     callbacks: &LayoutPass<'_>,
     containing_block: Node,
-    formatting_context_root: Node,
-    treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
+    containing_block_has_definite_block_size: impl FnOnce() -> bool,
+    basis_beyond_it_is_definite: bool,
 ) -> bool {
-    let mut candidate = containing_block;
-    while !candidate.is_invalid() {
-        let facts = NodeFacts::new(callbacks, candidate);
-        if !facts.is_anonymous() || facts.is_table_cell() {
-            return records.used_values(candidate).has_definite_block_size();
-        }
-        if candidate == formatting_context_root {
-            return !treat_block_axis_percentage_insets_as_auto_beyond_root;
-        }
-        candidate = callbacks.in_flow_containing_block(candidate);
+    let facts = NodeFacts::new(callbacks, containing_block);
+    if !facts.is_anonymous() || facts.is_table_cell() {
+        return containing_block_has_definite_block_size();
     }
-    true
-}
-
-pub(crate) fn treat_block_axis_percentage_insets_as_auto_beyond_anonymous_child_root(
-    records: &RunRecords,
-    callbacks: &LayoutPass<'_>,
-    child_root: Node,
-    child_root_containing_block: Node,
-    formatting_context_root: Node,
-    treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
-) -> bool {
-    let child_root_facts = NodeFacts::new(callbacks, child_root);
-    if !child_root_facts.is_anonymous() || child_root_facts.is_table_cell() {
-        return false;
-    }
-    !resolve_block_axis_percentage_inset_basis_is_definite(
-        records,
-        callbacks,
-        child_root_containing_block,
-        formatting_context_root,
-        treat_block_axis_percentage_insets_as_auto_beyond_root,
-    )
+    basis_beyond_it_is_definite
 }
 
 /// Lays the document out from its viewport over the arena and layout scratch of `state`:
