@@ -472,6 +472,12 @@ impl<'a> SelectorParser<'a> {
             let Some(SimpleSelector::PseudoElement(pseudo_element)) = compound.simple_selectors.first() else {
                 continue;
             };
+            // https://drafts.csswg.org/css-shadow-1/#slotted-pseudo
+            // INTEROP: Selectors 4 permits logical and user action pseudo-classes after pseudo-elements, but
+            //          browsers require these tests inside the ::slotted() argument.
+            if pseudo_element.pseudo_element == PseudoElementType::Slotted && compound.simple_selectors.len() > 1 {
+                return Err(());
+            }
             // https://drafts.csswg.org/css-pseudo-4/#highlight-selectors
             // INTEROP: Selectors 4 allows logical combination and user action pseudo-classes after any
             //          pseudo-element, but browsers reject every simple selector after a highlight pseudo-element.

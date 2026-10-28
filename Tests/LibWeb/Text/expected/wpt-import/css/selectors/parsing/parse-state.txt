@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 24 tests
 
-19 Pass
-5 Fail
+20 Pass
+4 Fail
 Pass	":state(--foo)" should be a valid selector
 Pass	":state(bar)" should be a valid selector
 Pass	":state(--)" should be a valid selector
@@ -27,4 +27,4 @@ Fail	"my-input::after:state(foo)" should be an invalid selector
 Fail	"::part(inner):state(bar)::before:state(foo)" should be an invalid selector
 Fail	"::part(inner):state(bar)::after:state(foo)" should be an invalid selector
 Fail	"my-input::first-letter:state(foo)" should be an invalid selector
-Fail	"::slotted(foo):state(foo)" should be an invalid selector
+Pass	"::slotted(foo):state(foo)" should be an invalid selector
