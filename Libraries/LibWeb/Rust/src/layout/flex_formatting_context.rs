@@ -3052,9 +3052,17 @@ impl<'pass> FlexFormattingContext<'pass> {
             ChildLayoutOutcome::Skipped { .. } => run.records.box_metrics_of(node).content_baselines(),
         };
 
-        let container_inline_size = self.container_used().content_inline_size.get();
-        let container_block_size = self.container_used().content_block_size.get();
-        abspos_engine::compute_inset_native(run, node, container_inline_size, container_block_size);
+        let container_used = self.container_used();
+        let insets = abspos_engine::compute_inset_native(
+            run,
+            node,
+            container_used,
+            geometry::LogicalSize {
+                inline_size: container_used.content_inline_size.get(),
+                block_size: container_used.content_block_size.get(),
+            },
+        );
+        run.records.keep_in_flow_box_insets(node, insets);
         fragment_arrival
     }
 

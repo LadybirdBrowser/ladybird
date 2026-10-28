@@ -4446,7 +4446,8 @@ impl<'pass> GridFormattingContext<'pass> {
             };
             // Resolve relative-position insets before placement seals the
             // item's committed metrics.
-            abspos_engine::compute_inset_native(run, item.box_, area.size.inline_size, area.size.block_size);
+            let insets = abspos_engine::compute_inset_native(run, item.box_, self.container_used(), area.size);
+            run.records.keep_in_flow_box_insets(item.box_, insets);
             if self.item_participates_in_row_baseline_alignment(item)
                 || self.item_participates_in_column_baseline_alignment(item)
             {

@@ -850,18 +850,19 @@ impl<'pass> BlockFormattingContext<'pass> {
         self.derived_baselines_of_root_box.get()
     }
 
-    fn compute_inset(
-        &self,
-        run: &FormattingContextRun<'pass>,
-        node: Node,
-        containing_block_size: geometry::LogicalSize,
-    ) {
-        abspos_engine::compute_inset_native(
+    /// Resolves the insets of `node`, an in-flow child of `block_container`, and keeps them for the box.
+    fn compute_inset(&self, run: &FormattingContextRun<'pass>, node: Node, block_container: Node) {
+        let block_container_used = self.used(block_container);
+        let insets = abspos_engine::compute_inset_native(
             run,
             node,
-            containing_block_size.inline_size,
-            containing_block_size.block_size,
+            block_container_used,
+            geometry::LogicalSize {
+                inline_size: block_container_used.content_inline_size.get(),
+                block_size: block_container_used.content_block_size.get(),
+            },
         );
+        run.records.keep_in_flow_box_insets(node, insets);
     }
 
     fn containing_block_rect(&self, node: Node, position: FfiCssPixelPoint) -> CssPixelRect {
@@ -2773,15 +2774,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             );
         }
 
-        let block_container_used = self.used(block_container);
-        self.compute_inset(
-            run,
-            node,
-            geometry::LogicalSize {
-                inline_size: block_container_used.content_inline_size.get(),
-                block_size: block_container_used.content_block_size.get(),
-            },
-        );
+        self.compute_inset(run, node, block_container);
 
         let mut placed = match pending_position {
             Some(position) => self.place_laid_out_child_on_line(
@@ -2961,15 +2954,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             node,
             entry.depends_on_percentage_block_size,
         );
-        let block_container_used = self.used(block_container);
-        self.compute_inset(
-            &self.run,
-            node,
-            geometry::LogicalSize {
-                inline_size: block_container_used.content_inline_size.get(),
-                block_size: block_container_used.content_block_size.get(),
-            },
-        );
+        self.compute_inset(&self.run, node, block_container);
         formatting_context::place_reused_child(
             &self.run,
             node,
@@ -4614,15 +4599,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         if let Some(line_builder) = line_builder {
             line_builder.recalculate_available_space();
         }
-        let block_container_used = self.used(block_container);
-        self.compute_inset(
-            run,
-            node,
-            geometry::LogicalSize {
-                inline_size: block_container_used.content_inline_size.get(),
-                block_size: block_container_used.content_block_size.get(),
-            },
-        );
+        self.compute_inset(run, node, block_container);
 
         let inline_offset = if side == FloatSide::Left {
             floating_box.offset_from_edge
