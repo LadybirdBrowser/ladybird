@@ -1,0 +1,245 @@
+<!doctype html>
+<title>img parse a srcset attribute</title>
+<script src="../../../../../resources/testharness.js"></script>
+<script src="../../../../../resources/testharnessreport.js"></script>
+<script src=common.js></script>
+<div id=log></div>
+<!-- splitting loop -->
+<img srcset='' data-expect=''>
+<img srcset=',' data-expect=''>
+<img srcset=',,,' data-expect=''>
+<img srcset='  data:,a  1x  ' data-expect='data:,a'>
+<img srcset='&#x9;&#x9;data:,a&#x9;&#x9;1x&#x9;&#x9;' data-expect='data:,a'>
+<img srcset='&#xA;&#xA;data:,a&#xA;&#xA;1x&#xA;&#xA;' data-expect='data:,a'>
+<img srcset='&#xB;&#xB;data:,a&#xB;&#xB;1x&#xB;&#xB;' data-expect='&#xB;&#xB;data:,a&#xB;&#xB;1x&#xB;&#xB;' data-resolve>
+<img srcset='&#xC;&#xC;data:,a&#xC;&#xC;1x&#xC;&#xC;' data-expect='data:,a'>
+<img srcset='&#xD;&#xD;data:,a&#xD;&#xD;1x&#xD;&#xD;' data-expect='data:,a'>
+<img srcset='&#xE;&#xE;data:,a&#xE;&#xE;1x&#xE;&#xE;' data-expect='&#xE;&#xE;data:,a&#xE;&#xE;1x&#xE;&#xE;' data-resolve>
+<img srcset='&#xF;&#xF;data:,a&#xF;&#xF;1x&#xF;&#xF;' data-expect='&#xF;&#xF;data:,a&#xF;&#xF;1x&#xF;&#xF;' data-resolve>
+<img srcset='&#x10;&#x10;data:,a&#x10;&#x10;1x&#x10;&#x10;' data-expect='&#x10;&#x10;data:,a&#x10;&#x10;1x&#x10;&#x10;' data-resolve>
+<img srcset='data:,a' data-expect='data:,a'>
+<img srcset='data:,a ' data-expect='data:,a'>
+<img srcset='data:,a ,' data-expect='data:,a'>
+<img srcset='data:,a,' data-expect='data:,a'>
+<img srcset='data:,a, ' data-expect='data:,a'>
+<img srcset='data:,a,,,' data-expect='data:,a'>
+<img srcset='data:,a,, , ' data-expect='data:,a'>
+<img srcset=' data:,a' data-expect='data:,a'>
+<img srcset=',,,data:,a' data-expect='data:,a'>
+<img srcset=' , ,,data:,a' data-expect='data:,a'>
+<img srcset='&nbsp;data:,a' data-expect='&nbsp;data:,a' data-resolve>
+<img srcset='data:,a&nbsp;' data-expect='data:,a&nbsp;' data-resolve>
+<!-- descriptor tokenizer -->
+<img srcset='data:,a 1x' data-expect='data:,a'>
+<img srcset='data:,a 1x ' data-expect='data:,a'>
+<img srcset='data:,a 1x,' data-expect='data:,a'>
+<img srcset='data:,a ( , data:,b 1x, ), data:,c' data-expect='data:,c'>
+<img srcset='data:,a ((( , data:,b 1x, ), data:,c' data-expect='data:,c'>
+<img srcset='data:,a [ , data:,b 1x, ], data:,c' data-expect='data:,b'>
+<img srcset='data:,a { , data:,b 1x, }, data:,c' data-expect='data:,b'>
+<img srcset='data:,a " , data:,b 1x, ", data:,c' data-expect='data:,b'>
+<img srcset='data:,a \,data:;\,b, data:,c' data-expect='data:;\,b'>
+<img srcset='data:,a, data:,b (' data-expect='data:,a'>
+<img srcset='data:,a, data:,b (  ' data-expect='data:,a'>
+<img srcset='data:,a, data:,b (,' data-expect='data:,a'>
+<img srcset='data:,a, data:,b (x' data-expect='data:,a'>
+<img srcset='data:,a, data:,b ()' data-expect='data:,a'>
+<img srcset='data:,a (, data:,b' data-expect=''>
+<img srcset='data:,a /*, data:,b, data:,c */' data-expect='data:,b'>
+<img srcset='data:,a //, data:,b' data-expect='data:,b'>
+<!-- descriptor parser -->
+<img srcset='data:,a foo' data-expect=''>
+<img srcset='data:,a foo foo' data-expect=''>
+<img srcset='data:,a foo 1x' data-expect=''>
+<img srcset='data:,a foo 1x foo' data-expect=''>
+<img srcset='data:,a foo 1w' data-expect=''>
+<img srcset='data:,a foo 1w foo' data-expect=''>
+<img srcset='data:,a 1x 1x' data-expect=''>
+<img srcset='data:,a 1w 1w' data-expect=''>
+<img srcset='data:,a 1w 1x' data-expect=''>
+<img srcset='data:,a 1x 1w' data-expect=''>
+<img srcset='data:,a 1w 1h' data-expect='data:,a'><!-- should fail for x-only impl -->
+<img srcset='data:,a 1h 1w' data-expect='data:,a'><!-- should fail for x-only impl -->
+<img srcset='data:,a 1h 1h' data-expect=''>
+<img srcset='data:,a 1h 1x' data-expect=''>
+<img srcset='data:,a 1h 1w 1x' data-expect=''>
+<img srcset='data:,a 1x 1w 1h' data-expect=''>
+<img srcset='data:,a 1w' data-expect='data:,a'><!-- should fail for x-only impl -->
+<img srcset='data:,a 1h' data-expect=''>
+<img srcset='data:,a 1h foo' data-expect=''>
+<img srcset='data:,a foo 1h' data-expect=''>
+<img srcset='data:,a 0w' data-expect=''>
+<img srcset='data:,a -1w' data-expect=''>
+<img srcset='data:,a 1w -1w' data-expect=''>
+<img srcset='data:,a 1.0w' data-expect=''>
+<img srcset='data:,a 1w 1.0w' data-expect=''>
+<img srcset='data:,a 1e0w' data-expect=''>
+<img srcset='data:,a 1w 1e0w' data-expect=''>
+<img srcset='data:,a 1www' data-expect=''>
+<img srcset='data:,a 1w 1www' data-expect=''>
+<img srcset='data:,a +1w' data-expect=''>
+<img srcset='data:,a 1w +1w' data-expect=''>
+<img srcset='data:,a 1W' data-expect=''>
+<img srcset='data:,a 1w 1W' data-expect=''>
+<img srcset='data:,a Infinityw' data-expect=''>
+<img srcset='data:,a 1w Infinityw' data-expect=''>
+<img srcset='data:,a NaNw' data-expect=''>
+<img srcset='data:,a 1w NaNw' data-expect=''>
+<img srcset='data:,a 0x1w' data-expect=''>
+<img srcset='data:,a 0X1w' data-expect=''>
+<img srcset='data:,a 1&#x1;w' data-expect='' data-desc='trailing U+0001'>
+<img srcset='data:,a 1&nbsp;w' data-expect='' data-desc='trailing U+00A0'>
+<img srcset='data:,a 1&#x1680;w' data-expect='' data-desc='trailing U+1680'>
+<img srcset='data:,a 1&#x2000;w' data-expect='' data-desc='trailing U+2000'>
+<img srcset='data:,a 1&#x2001;w' data-expect='' data-desc='trailing U+2001'>
+<img srcset='data:,a 1&#x2002;w' data-expect='' data-desc='trailing U+2002'>
+<img srcset='data:,a 1&#x2003;w' data-expect='' data-desc='trailing U+2003'>
+<img srcset='data:,a 1&#x2004;w' data-expect='' data-desc='trailing U+2004'>
+<img srcset='data:,a 1&#x2005;w' data-expect='' data-desc='trailing U+2005'>
+<img srcset='data:,a 1&#x2006;w' data-expect='' data-desc='trailing U+2006'>
+<img srcset='data:,a 1&#x2007;w' data-expect='' data-desc='trailing U+2007'>
+<img srcset='data:,a 1&#x2008;w' data-expect='' data-desc='trailing U+2008'>
+<img srcset='data:,a 1&#x2009;w' data-expect='' data-desc='trailing U+2009'>
+<img srcset='data:,a 1&#x200A;w' data-expect='' data-desc='trailing U+200A'>
+<img srcset='data:,a 1&#x200C;w' data-expect='' data-desc='trailing U+200C'>
+<img srcset='data:,a 1&#x200D;w' data-expect='' data-desc='trailing U+200D'>
+<img srcset='data:,a 1&#x202F;w' data-expect='' data-desc='trailing U+202F'>
+<img srcset='data:,a 1&#x205F;w' data-expect='' data-desc='trailing U+205F'>
+<img srcset='data:,a 1&#x3000;w' data-expect='' data-desc='trailing U+3000'>
+<img srcset='data:,a 1&#xFEFF;w' data-expect='' data-desc='trailing U+FEFF'>
+<img srcset='data:,a &#x1;1w' data-expect='' data-desc='leading U+0001'>
+<img srcset='data:,a &nbsp;1w' data-expect='' data-desc='leading U+00A0'>
+<img srcset='data:,a &#x1680;1w' data-expect='' data-desc='leading U+1680'>
+<img srcset='data:,a &#x2000;1w' data-expect='' data-desc='leading U+2000'>
+<img srcset='data:,a &#x2001;1w' data-expect='' data-desc='leading U+2001'>
+<img srcset='data:,a &#x2002;1w' data-expect='' data-desc='leading U+2002'>
+<img srcset='data:,a &#x2003;1w' data-expect='' data-desc='leading U+2003'>
+<img srcset='data:,a &#x2004;1w' data-expect='' data-desc='leading U+2004'>
+<img srcset='data:,a &#x2005;1w' data-expect='' data-desc='leading U+2005'>
+<img srcset='data:,a &#x2006;1w' data-expect='' data-desc='leading U+2006'>
+<img srcset='data:,a &#x2007;1w' data-expect='' data-desc='leading U+2007'>
+<img srcset='data:,a &#x2008;1w' data-expect='' data-desc='leading U+2008'>
+<img srcset='data:,a &#x2009;1w' data-expect='' data-desc='leading U+2009'>
+<img srcset='data:,a &#x200A;1w' data-expect='' data-desc='leading U+200A'>
+<img srcset='data:,a &#x200C;1w' data-expect='' data-desc='leading U+200C'>
+<img srcset='data:,a &#x200D;1w' data-expect='' data-desc='leading U+200D'>
+<img srcset='data:,a &#x202F;1w' data-expect='' data-desc='leading U+202F'>
+<img srcset='data:,a &#x205F;1w' data-expect='' data-desc='leading U+205F'>
+<img srcset='data:,a &#x3000;1w' data-expect='' data-desc='leading U+3000'>
+<img srcset='data:,a &#xFEFF;1w' data-expect='' data-desc='leading U+FEFF'>
+<img srcset='data:,a 0x' data-expect='data:,a'>
+<img srcset='data:,a -0x' data-expect='data:,a'>
+<img srcset='data:,a 1x -0x' data-expect=''>
+<img srcset='data:,a -1x' data-expect=''>
+<img srcset='data:,a 1x -1x' data-expect=''>
+<img srcset='data:,a 1e0x' data-expect='data:,a'>
+<img srcset='data:,a 1E0x' data-expect='data:,a'>
+<img srcset='data:,a 1e-1x' data-expect='data:,a'>
+<img srcset='data:,a 1.5e1x' data-expect='data:,a'>
+<img srcset='data:,a -x' data-expect=''>
+<img srcset='data:,a .x' data-expect=''>
+<img srcset='data:,a -.x' data-expect=''>
+<img srcset='data:,a 1.x' data-expect=''>
+<img srcset='data:,a .5x' data-expect='data:,a'>
+<img srcset='data:,a .5e1x' data-expect='data:,a'>
+<img srcset='data:,a 1x 1.5e1x' data-expect=''>
+<img srcset='data:,a 1x 1e1.5x' data-expect=''>
+<img srcset='data:,a 1.0x' data-expect='data:,a'>
+<img srcset='data:,a 1x 1.0x' data-expect=''>
+<img srcset='data:,a +1x' data-expect=''>
+<img srcset='data:,a 1X' data-expect=''>
+<img srcset='data:,a Infinityx' data-expect=''>
+<img srcset='data:,a NaNx' data-expect=''>
+<img srcset='data:,a 0x1x' data-expect=''>
+<img srcset='data:,a 0X1x' data-expect=''>
+<img srcset='data:,a 1&#x1;x' data-expect='' data-desc='trailing U+0001'>
+<img srcset='data:,a 1&nbsp;x' data-expect='' data-desc='trailing U+00A0'>
+<img srcset='data:,a 1&#x1680;x' data-expect='' data-desc='trailing U+1680'>
+<img srcset='data:,a 1&#x2000;x' data-expect='' data-desc='trailing U+2000'>
+<img srcset='data:,a 1&#x2001;x' data-expect='' data-desc='trailing U+2001'>
+<img srcset='data:,a 1&#x2002;x' data-expect='' data-desc='trailing U+2002'>
+<img srcset='data:,a 1&#x2003;x' data-expect='' data-desc='trailing U+2003'>
+<img srcset='data:,a 1&#x2004;x' data-expect='' data-desc='trailing U+2004'>
+<img srcset='data:,a 1&#x2005;x' data-expect='' data-desc='trailing U+2005'>
+<img srcset='data:,a 1&#x2006;x' data-expect='' data-desc='trailing U+2006'>
+<img srcset='data:,a 1&#x2007;x' data-expect='' data-desc='trailing U+2007'>
+<img srcset='data:,a 1&#x2008;x' data-expect='' data-desc='trailing U+2008'>
+<img srcset='data:,a 1&#x2009;x' data-expect='' data-desc='trailing U+2009'>
+<img srcset='data:,a 1&#x200A;x' data-expect='' data-desc='trailing U+200A'>
+<img srcset='data:,a 1&#x200C;x' data-expect='' data-desc='trailing U+200C'>
+<img srcset='data:,a 1&#x200D;x' data-expect='' data-desc='trailing U+200D'>
+<img srcset='data:,a 1&#x202F;x' data-expect='' data-desc='trailing U+202F'>
+<img srcset='data:,a 1&#x205F;x' data-expect='' data-desc='trailing U+205F'>
+<img srcset='data:,a 1&#x3000;x' data-expect='' data-desc='trailing U+3000'>
+<img srcset='data:,a 1&#xFEFF;x' data-expect='' data-desc='trailing U+FEFF'>
+<img srcset='data:,a &#x1;1x' data-expect='' data-desc='leading U+0001'>
+<img srcset='data:,a &nbsp;1x' data-expect='' data-desc='leading U+00A0'>
+<img srcset='data:,a &#x1680;1x' data-expect='' data-desc='leading U+1680'>
+<img srcset='data:,a &#x2000;1x' data-expect='' data-desc='leading U+2000'>
+<img srcset='data:,a &#x2001;1x' data-expect='' data-desc='leading U+2001'>
+<img srcset='data:,a &#x2002;1x' data-expect='' data-desc='leading U+2002'>
+<img srcset='data:,a &#x2003;1x' data-expect='' data-desc='leading U+2003'>
+<img srcset='data:,a &#x2004;1x' data-expect='' data-desc='leading U+2004'>
+<img srcset='data:,a &#x2005;1x' data-expect='' data-desc='leading U+2005'>
+<img srcset='data:,a &#x2006;1x' data-expect='' data-desc='leading U+2006'>
+<img srcset='data:,a &#x2007;1x' data-expect='' data-desc='leading U+2007'>
+<img srcset='data:,a &#x2008;1x' data-expect='' data-desc='leading U+2008'>
+<img srcset='data:,a &#x2009;1x' data-expect='' data-desc='leading U+2009'>
+<img srcset='data:,a &#x200A;1x' data-expect='' data-desc='leading U+200A'>
+<img srcset='data:,a &#x200C;1x' data-expect='' data-desc='leading U+200C'>
+<img srcset='data:,a &#x200D;1x' data-expect='' data-desc='leading U+200D'>
+<img srcset='data:,a &#x202F;1x' data-expect='' data-desc='leading U+202F'>
+<img srcset='data:,a &#x205F;1x' data-expect='' data-desc='leading U+205F'>
+<img srcset='data:,a &#x3000;1x' data-expect='' data-desc='leading U+3000'>
+<img srcset='data:,a &#xFEFF;1x' data-expect='' data-desc='leading U+FEFF'>
+<img srcset='data:,a 1w 0h' data-expect=''>
+<img srcset='data:,a 1w -1h' data-expect=''>
+<img srcset='data:,a 1w 1.0h' data-expect=''>
+<img srcset='data:,a 1w 1e0h' data-expect=''>
+<img srcset='data:,a 1w 1hhh' data-expect=''>
+<img srcset='data:,a 1w +1h' data-expect=''>
+<img srcset='data:,a 1w 1H' data-expect=''>
+<img srcset='data:,a 1w Infinityh' data-expect=''>
+<img srcset='data:,a 1w NaNh' data-expect=''>
+<img srcset='data:,a 0x1h' data-expect=''>
+<img srcset='data:,a 0X1h' data-expect=''>
+<img srcset='data:,a 1w 1&#x1;h' data-expect='' data-desc='trailing U+0001'>
+<img srcset='data:,a 1w 1&nbsp;h' data-expect='' data-desc='trailing U+00A0'>
+<img srcset='data:,a 1w 1&#x1680;h' data-expect='' data-desc='trailing U+1680'>
+<img srcset='data:,a 1w 1&#x2000;h' data-expect='' data-desc='trailing U+2000'>
+<img srcset='data:,a 1w 1&#x2001;h' data-expect='' data-desc='trailing U+2001'>
+<img srcset='data:,a 1w 1&#x2002;h' data-expect='' data-desc='trailing U+2002'>
+<img srcset='data:,a 1w 1&#x2003;h' data-expect='' data-desc='trailing U+2003'>
+<img srcset='data:,a 1w 1&#x2004;h' data-expect='' data-desc='trailing U+2004'>
+<img srcset='data:,a 1w 1&#x2005;h' data-expect='' data-desc='trailing U+2005'>
+<img srcset='data:,a 1w 1&#x2006;h' data-expect='' data-desc='trailing U+2006'>
+<img srcset='data:,a 1w 1&#x2007;h' data-expect='' data-desc='trailing U+2007'>
+<img srcset='data:,a 1w 1&#x2008;h' data-expect='' data-desc='trailing U+2008'>
+<img srcset='data:,a 1w 1&#x2009;h' data-expect='' data-desc='trailing U+2009'>
+<img srcset='data:,a 1w 1&#x200A;h' data-expect='' data-desc='trailing U+200A'>
+<img srcset='data:,a 1w 1&#x200C;h' data-expect='' data-desc='trailing U+200C'>
+<img srcset='data:,a 1w 1&#x200D;h' data-expect='' data-desc='trailing U+200D'>
+<img srcset='data:,a 1w 1&#x202F;h' data-expect='' data-desc='trailing U+202F'>
+<img srcset='data:,a 1w 1&#x205F;h' data-expect='' data-desc='trailing U+205F'>
+<img srcset='data:,a 1w 1&#x3000;h' data-expect='' data-desc='trailing U+3000'>
+<img srcset='data:,a 1w 1&#xFEFF;h' data-expect='' data-desc='trailing U+FEFF'>
+<img srcset='data:,a 1w &#x1;1h' data-expect='' data-desc='leading U+0001'>
+<img srcset='data:,a 1w &nbsp;1h' data-expect='' data-desc='leading U+00A0'>
+<img srcset='data:,a 1w &#x1680;1h' data-expect='' data-desc='leading U+1680'>
+<img srcset='data:,a 1w &#x2000;1h' data-expect='' data-desc='leading U+2000'>
+<img srcset='data:,a 1w &#x2001;1h' data-expect='' data-desc='leading U+2001'>
+<img srcset='data:,a 1w &#x2002;1h' data-expect='' data-desc='leading U+2002'>
+<img srcset='data:,a 1w &#x2003;1h' data-expect='' data-desc='leading U+2003'>
+<img srcset='data:,a 1w &#x2004;1h' data-expect='' data-desc='leading U+2004'>
+<img srcset='data:,a 1w &#x2005;1h' data-expect='' data-desc='leading U+2005'>
+<img srcset='data:,a 1w &#x2006;1h' data-expect='' data-desc='leading U+2006'>
+<img srcset='data:,a 1w &#x2007;1h' data-expect='' data-desc='leading U+2007'>
+<img srcset='data:,a 1w &#x2008;1h' data-expect='' data-desc='leading U+2008'>
+<img srcset='data:,a 1w &#x2009;1h' data-expect='' data-desc='leading U+2009'>
+<img srcset='data:,a 1w &#x200A;1h' data-expect='' data-desc='leading U+200A'>
+<img srcset='data:,a 1w &#x200C;1h' data-expect='' data-desc='leading U+200C'>
+<img srcset='data:,a 1w &#x200D;1h' data-expect='' data-desc='leading U+200D'>
+<img srcset='data:,a 1w &#x202F;1h' data-expect='' data-desc='leading U+202F'>
+<img srcset='data:,a 1w &#x205F;1h' data-expect='' data-desc='leading U+205F'>
+<img srcset='data:,a 1w &#x3000;1h' data-expect='' data-desc='leading U+3000'>
+<img srcset='data:,a 1w &#xFEFF;1h' data-expect='' data-desc='leading U+FEFF'>
