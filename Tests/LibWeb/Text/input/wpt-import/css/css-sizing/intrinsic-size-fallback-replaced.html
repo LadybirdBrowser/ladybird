@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html>
+<meta charset="utf-8">
+<title>CSS Sizing Test: Testing intrinsic size fallback 300x150 for some replaced elements.</title>
+<link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+<link rel="author" title="Mozilla" href="https://www.mozilla.org/">
+<link rel="help" href="https://drafts.csswg.org/css-sizing-3/#intrinsic">
+<meta name="assert"
+  content="This test verifies that the intrinsic size fallback is 300px width and 150px height for replaced elements with no intrinsic size and no intrinsic ratio, regardless of the writing-mode.">
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+
+<style>
+  .test {
+    border: 0;
+    padding: 0;
+    background-color: blue;
+  }
+
+  .vertical {
+    writing-mode: vertical-rl;
+  }
+</style>
+
+<body onload="checkLayout('.test')">
+  <!-- horizontal writing-mode -->
+  <iframe class="test" data-expected-width="300" data-expected-height="150"></iframe>
+  <video class="test" data-expected-width="300" data-expected-height="150"></video>
+  <svg class="test" data-expected-bounding-client-rect-width="300"
+    data-expected-bounding-client-rect-height="150"></svg>
+  <img src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'></svg>" class="test" data-expected-width="300"
+    data-expected-height="150">
+
+  <!-- vertical writing-mode -->
+  <iframe class="test vertical" data-expected-width="300" data-expected-height="150"></iframe>
+  <video class="test vertical" data-expected-width="300" data-expected-height="150"></video>
+  <svg class="test vertical" data-expected-bounding-client-rect-width="300"
+    data-expected-bounding-client-rect-height="150"></svg>
+  <img src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'></svg>" class="test vertical"
+    data-expected-width="300" data-expected-height="150">
+</body>
+
+</html>
