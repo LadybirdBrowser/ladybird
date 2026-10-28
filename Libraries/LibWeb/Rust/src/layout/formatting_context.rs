@@ -1544,8 +1544,7 @@ fn register_table_abspos_descendants(run: &FormattingContextRun, parent: Node) {
 }
 
 pub(crate) fn independent_root_automatic_block_size(
-    records: &RunRecords<'_>,
-    callbacks: &LayoutPass<'_>,
+    sizing: &sizing_context::SizingContext<'_, '_>,
     node: Node,
     available_inner_space: AvailableSpace,
     constraints: ContainingBlockConstraints,
@@ -1555,6 +1554,7 @@ pub(crate) fn independent_root_automatic_block_size(
     {
         return automatic_content_block_size_reported_by_completed_run;
     }
+    let callbacks = sizing.callbacks();
     if NodeFacts::new(callbacks, node).creates_block_formatting_context() {
         return CssPixels::default();
     }
@@ -1569,7 +1569,7 @@ pub(crate) fn independent_root_automatic_block_size(
         // max-content size.
         // https://drafts.csswg.org/css-flexbox-1/#algo-main-container
         // https://www.w3.org/TR/css-grid-2/#intrinsic-sizes
-        return sizing_context::SizingContext::new(records, *callbacks).calculate_max_content_block_size(
+        return sizing.calculate_max_content_block_size(
             node,
             available_inner_space.inline_size.to_px_or_zero(),
             constraints,
@@ -1620,8 +1620,7 @@ fn eagerly_resolve_atomic_flex_root_auto_block_size(
         None,
         || {
             independent_root_automatic_block_size(
-                run.records,
-                &run.callbacks,
+                &sizing,
                 node,
                 run.records
                     .used_values(node)
@@ -1776,8 +1775,7 @@ fn size_block_level_root_ahead_of_its_contents(
     {
         sizing.resolve_used_block_size_if_treated_as_auto(node, resolution_space, constraints, None, || {
             block_formatting_context::automatic_block_size_of_independent_root_ahead_of_its_contents(
-                run.records,
-                run.callbacks,
+                &sizing,
                 node,
                 root.available_inner_space_or_constraints_from(resolution_space),
                 constraints,
@@ -1807,8 +1805,7 @@ fn resolve_float_root_block_size_ahead_of_its_contents(run: &FormattingContextRu
     {
         sizing.resolve_used_block_size_if_treated_as_auto(node, available_space, constraints, None, || {
             block_formatting_context::automatic_block_size_of_independent_root_ahead_of_its_contents(
-                run.records,
-                run.callbacks,
+                &sizing,
                 node,
                 root.available_inner_space_or_constraints_from(available_space),
                 constraints,

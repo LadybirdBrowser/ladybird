@@ -1350,7 +1350,7 @@ impl<'context> InlineFormattingContext<'context> {
     }
 
     #[inline]
-    pub(crate) fn sizing(&self) -> sizing_context::SizingContext<'context, 'static> {
+    pub(crate) fn sizing(&self) -> sizing_context::SizingContext<'context, 'context> {
         self.parent.sizing()
     }
 
@@ -1861,6 +1861,7 @@ impl<'context> InlineFormattingContext<'context> {
                 inline_level_iterator::ItemType::FloatingElement => {
                     line_builder.commit_pending_margin_before_float();
                     self.create_used_values(item.node, self.input.containing_block_constraints);
+                    self.parent.size_child_ahead_of_its_run(item.node);
                     if state_at_clamp_point.is_some() {
                         self.run.records.hide_for_line_clamp(item.node);
                     }

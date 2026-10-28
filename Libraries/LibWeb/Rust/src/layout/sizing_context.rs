@@ -26,6 +26,13 @@ impl ResolvedBlockSize {
             used.has_definite_block_size.set(true);
         }
     }
+
+    pub(crate) fn apply_to_cells(self, cells: &mut used_values::RootInputCells) {
+        cells.set_content_block_size(self.content_block_size);
+        if self.makes_block_size_definite {
+            cells.has_definite_block_size = true;
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
