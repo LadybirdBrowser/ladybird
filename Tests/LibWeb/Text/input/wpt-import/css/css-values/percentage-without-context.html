@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<title>CSS Values: percentages without calculation context</title>
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#calc-context">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/parsing-testcommon.js"></script>
+<div id="target"></div>
+<script>
+test_invalid_value("font-style", "oblique calc(sign(50%) * 1deg)");
+test_invalid_value("background", "linear-gradient(calc(sign(50%) * 1turn), #3f87a6, #ebf8e1, #f69d3c)");
+test_invalid_value("background", "conic-gradient(from calc(sign(50%) * 1rad) at 10% 50%, #e66465, #9198e5)");
+test_invalid_value("filter", "hue-rotate(calc(sign(50%) * 1deg))");
+test_invalid_value("offset-rotate", "calc(sign(50%) * 1deg)");
+test_invalid_value("offset-path", "ray(calc(sign(50%) * 1deg))");
+test_invalid_value("color", "hsl(calc(sign(50%) * 1deg) 82% 43%)");
+test_invalid_value("transform", "rotate(calc(sign(50%) * 1deg))");
+test_invalid_value("animation-duration", "calc(sign(50%) * 1s)");
+test_invalid_value("animation-delay", "calc(sign(50%) * 1s)");
+test_invalid_value("transition-duration", "calc(sign(50%) * 1s)");
+test_invalid_value("transition-delay", "calc(sign(50%) * 1s)");
+</script>
