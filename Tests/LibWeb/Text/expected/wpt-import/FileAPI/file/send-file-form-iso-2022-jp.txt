@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 6 tests
+
+1 Pass
+5 Fail
+Pass	Upload file-for-upload-in-form.txt (ASCII) in ISO-2022-JP form
+Fail	Upload file-for-upload-in-form-.txt (x-user-defined) in ISO-2022-JP form
+Fail	Upload file-for-upload-in-form-â˜ºðŸ˜‚.txt (windows-1252) in ISO-2022-JP form
+Fail	Upload file-for-upload-in-form-★星★.txt (JIS X 0201 and JIS X 0208) in ISO-2022-JP form
+Fail	Upload file-for-upload-in-form-☺😂.txt (Unicode) in ISO-2022-JP form
+Fail	Upload file-for-upload-in-form-ABC~‾¥≈¤･・•∙·☼★星🌟星★☼·∙•・･¤≈¥‾~XYZ.txt (Unicode) in ISO-2022-JP form
