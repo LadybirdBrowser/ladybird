@@ -354,8 +354,6 @@ pub(crate) struct UsedValues {
     pub is_collapsed_borders_table_box: Cell<bool>,
     pub has_line_clamp_point: Cell<bool>,
     pub clamped_content_is_scrollable_overflow: Cell<bool>,
-    pub continues_from_previous_fragment: Cell<bool>,
-    pub continues_in_next_fragment: Cell<bool>,
 
     // Keep baseline payloads separate so resetting the presence bits does not
     // perturb the payloads observed by the existing derivation flow.
@@ -396,8 +394,6 @@ impl Default for UsedValues {
             uses_collapsing_borders_model: Cell::new(false),
             is_collapsed_borders_table_box: Cell::new(false),
             has_line_clamp_point: Cell::new(false),
-            continues_from_previous_fragment: Cell::new(false),
-            continues_in_next_fragment: Cell::new(false),
             clamped_content_is_scrollable_overflow: Cell::new(false),
             has_first_baseline: Cell::new(false),
             first_baseline: Cell::new(zero),
@@ -601,8 +597,6 @@ used_values_cells! {
         has_definite_block_size_only_for_button_content_alignment: bool,
         uses_collapsing_borders_model: bool,
         is_collapsed_borders_table_box: bool,
-        continues_from_previous_fragment: bool,
-        continues_in_next_fragment: bool,
     }
 }
 
