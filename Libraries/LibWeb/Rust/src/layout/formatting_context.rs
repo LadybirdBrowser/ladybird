@@ -1080,25 +1080,6 @@ pub(crate) enum ChildBaselineSource {
     Synthesized,
 }
 
-/// The baseline of a laid out child, relative to its container's margin edge. A synthesized baseline comes from the
-/// child's border box.
-pub(crate) fn baseline_of_child(
-    records: &RunRecords,
-    callbacks: &LayoutPass<'_>,
-    child: Node,
-    baseline_set: BaselineSet,
-    source: ChildBaselineSource,
-) -> Option<CssPixels> {
-    baseline_of_child_for_purpose(
-        records,
-        callbacks,
-        child,
-        baseline_set,
-        source,
-        BaselinePurpose::Container,
-    )
-}
-
 /// The baseline of `child`, a box `records` holds, relative to its container's margin edge.
 fn baseline_of_child_for_purpose(
     records: &RunRecords,
