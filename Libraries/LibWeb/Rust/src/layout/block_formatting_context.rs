@@ -3704,38 +3704,23 @@ impl<'pass> BlockFormattingContext<'pass> {
             }
             follows_spanner = true;
             let mut bottom_of_spanner_margin_box = row_block_offset;
-            self.layout_block_level_box(
-                run,
-                spanner,
-                root,
-                &mut bottom_of_spanner_margin_box,
-                spanner_input,
-                FfiCssPixelPoint::default(),
-                None,
-            );
+            let spanner_baselines = self
+                .layout_block_level_box(
+                    run,
+                    spanner,
+                    root,
+                    &mut bottom_of_spanner_margin_box,
+                    spanner_input,
+                    FfiCssPixelPoint::default(),
+                    None,
+                )
+                .map_or_else(DerivedBaselines::default, |outcome| {
+                    outcome.baselines_in_containing_block
+                });
             note_baselines(
-                formatting_context::baseline_of_child(
-                    self.run.records,
-                    &self.run.callbacks,
-                    spanner,
-                    formatting_context::BaselineSet::First,
-                    formatting_context::ChildBaselineSource::Own,
-                ),
-                formatting_context::baseline_of_child(
-                    self.run.records,
-                    &self.run.callbacks,
-                    spanner,
-                    formatting_context::BaselineSet::Last,
-                    formatting_context::ChildBaselineSource::Own,
-                ),
-                formatting_context::baseline_of_child_for_purpose(
-                    self.run.records,
-                    &self.run.callbacks,
-                    spanner,
-                    formatting_context::BaselineSet::Last,
-                    formatting_context::ChildBaselineSource::Own,
-                    formatting_context::BaselinePurpose::InlineAlignment,
-                ),
+                spanner_baselines.first,
+                spanner_baselines.last,
+                spanner_baselines.inline_alignment,
             );
             row_block_offset = row_block_offset.max(bottom_of_spanner_margin_box);
             let Some(next) = self.sibling_boxes_from(self.next_sibling(spanner)).next() else {
