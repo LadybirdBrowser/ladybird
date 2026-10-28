@@ -852,9 +852,17 @@ void MediaDevices::end_tracks_without_permission()
     end_tracks(move(tracks_to_end));
 }
 
-// A clone of a microphone track captures from the microphone too, so it ends with the permission like its original.
+// A clone of a microphone track captures from the microphone too, so it ends with the permission like its original. A
+// clone made once the permission is gone (from an ended listener of another track, e.g.) ends at once.
 void MediaDevices::track_was_cloned(Badge<MediaStreamTrack>, MediaStreamTrack& clone)
 {
+    auto& settings = HTML::relevant_settings_object(*m_window);
+    if (PermissionsAPI::permission_state(PermissionsAPI::PermissionDescriptor { "microphone"_utf16 }, settings) != PermissionsAPI::PermissionState::Granted) {
+        GC::RootVector<GC::Ref<MediaStreamTrack>> tracks_to_end;
+        tracks_to_end.append(clone);
+        end_tracks(move(tracks_to_end));
+        return;
+    }
     m_media_stream_track_sources.append(clone);
 }
 
