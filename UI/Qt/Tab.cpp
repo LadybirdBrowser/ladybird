@@ -2698,7 +2698,9 @@ void Tab::close_popovers()
 void Tab::show_site_settings_popover()
 {
     auto url = view().url();
-    if (!url.host().has_value())
+    // A page on an inherited about:blank has its opener's origin and no host of its own; the panel is for it too.
+    auto origin = view().permission_origin();
+    if (!url.host().has_value() && origin.is_opaque())
         return;
 
     if (!m_site_settings_popover) {
@@ -2721,29 +2723,33 @@ void Tab::show_site_settings_popover()
         m_site_settings_popover->on_open_filter_lists = [this] {
             m_window->new_tab_from_url(URL::Parser::basic_parse("about:settings#blocking"sv).release_value(), Web::HTML::ActivateTab::Yes, BrowserWindow::TabLocation::after_current_tab());
         };
-        // A change reaches every page of the site at once, and the panel shows it right away.
+        // A change reaches every page of the site at once, and the panel shows it right away. It applies to the site
+        // the panel was opened for: its menu runs a nested event loop, during which the tab may move on to another.
         m_site_settings_popover->on_permission_change = [this](Web::Permissions::PermissionName name, Optional<WebView::PermissionDecision> decision) {
-            view().set_site_permission(view().permission_origin(), name, decision);
+            view().set_site_permission(*m_site_settings_popover_origin, name, decision);
             m_site_settings_popover->set_permissions(view().site_permission_rows());
         };
         m_site_settings_popover->on_reset_permissions = [this] {
-            view().reset_site_permissions(view().permission_origin());
+            view().reset_site_permissions(*m_site_settings_popover_origin);
             m_site_settings_popover->set_permissions(view().site_permission_rows());
         };
     }
 
+    m_site_settings_popover_origin = origin;
     m_site_settings_popover->update_chrome_style(palette());
     m_site_settings_popover->set_site({
-        .host = MUST(String::from_utf8(url.serialized_host())),
-        .is_secure = url.scheme() == "https"sv,
+        .host = url.host().has_value() ? MUST(String::from_utf8(url.serialized_host())) : origin.host().serialize(),
+        .is_secure = (url.host().has_value() ? url.scheme() : origin.scheme().value_or({})) == "https"sv,
         .favicon = m_favicon,
         .content_blocking = view().content_blocking_snapshot(),
         .permissions = view().site_permission_rows(),
     });
+    // The site settings button is hidden for a page with no host, so the popover hangs from the field then.
     auto& anchor = m_location_edit->site_settings_button();
-    move_popover_below(*m_site_settings_popover, anchor, PopoverAlignment::Leading);
+    QWidget& anchor_or_field = anchor.isVisible() ? anchor : static_cast<QWidget&>(*m_location_edit);
+    move_popover_below(*m_site_settings_popover, anchor_or_field, PopoverAlignment::Leading);
     m_site_settings_popover->show();
-    move_popover_below(*m_site_settings_popover, anchor, PopoverAlignment::Leading);
+    move_popover_below(*m_site_settings_popover, anchor_or_field, PopoverAlignment::Leading);
     m_site_settings_popover->raise();
 }
 

@@ -271,6 +271,8 @@ private:
     QPointer<DownloadsPopover> m_downloads_popover;
     QPointer<MessagePopover> m_private_session_popover;
     QPointer<SiteSettingsPopover> m_site_settings_popover;
+    // The site the open popover shows, which its changes apply to whatever the tab shows by then.
+    Optional<URL::Origin> m_site_settings_popover_origin;
     QTimer* m_content_blocking_update_timer { nullptr };
     QPointer<Popover> m_zoom_popover;
     QPointer<BookmarkPopover> m_bookmark_popover;
