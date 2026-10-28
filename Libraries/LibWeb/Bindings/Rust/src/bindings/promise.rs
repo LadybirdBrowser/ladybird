@@ -44,6 +44,22 @@ unsafe extern "C" {
         cell: *mut c_void,
         steps: unsafe extern "C" fn(*mut c_void, *mut c_void),
     );
+
+    /// Queues a global task on the task source, an HTML::Task::Source, with the global object of the realm, that calls
+    /// the steps with the VM and the cell, as HTML::queue_global_task() queues one. The cell lives until then. Returns
+    /// the task's HTML::TaskID.
+    fn web_bindings_queue_a_global_task(
+        realm: *mut c_void,
+        task_source: u8,
+        cell: *mut c_void,
+        steps: unsafe extern "C" fn(*mut c_void, *mut c_void),
+    ) -> u64;
+
+    /// Removes the tasks with the HTML::TaskIDs from the task queue of the event loop of the realm's agent.
+    fn web_bindings_remove_tasks(realm: *mut c_void, task_ids: ak::Span<'_, u64>);
+
+    /// The HTML::TaskID of the task that the event loop of the realm's agent is running.
+    fn web_bindings_currently_running_task(realm: *mut c_void) -> u64;
 }
 
 /// The task sources of HTML::Task::Source that the bindings queue tasks on.
@@ -52,12 +68,17 @@ unsafe extern "C" {
 pub(crate) enum TaskSource {
     Unspecified = 0,
     Networking = 3,
+    FileReading = 13,
 }
 
 // SAFETY: A task source holds no cells.
 unsafe impl Trace for TaskSource {
     fn trace(&self, _: &mut Visitor) {}
 }
+
+/// A task that queue_a_global_task() queued, an HTML::TaskID.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) struct TaskId(u64);
 
 /// The promise that LibWeb's C++ code returns, a WebIDL::Promise.
 ///
@@ -572,6 +593,36 @@ pub(crate) fn queue_a_task<C: Trace + Copy + 'static>(
     let cell = pending_steps(vm, captures, steps);
     // SAFETY: The realm and the cell are live.
     unsafe { web_bindings_queue_a_task(realm.as_ptr().cast(), task_source as u8, cell, run_pending_steps) };
+}
+
+/// Queues a global task on the task source, given the global object of the realm, that performs the steps with the
+/// captures, https://html.spec.whatwg.org/multipage/webappapis.html#queue-a-global-task. Unlike queue_a_task(), the
+/// steps run with no execution context of their own on the stack.
+pub(crate) fn queue_a_global_task<C: Trace + Copy + 'static>(
+    vm: &Vm,
+    realm: Gc<Realm>,
+    task_source: TaskSource,
+    captures: C,
+    steps: fn(&Vm, C),
+) -> TaskId {
+    let cell = pending_steps(vm, captures, steps);
+    // SAFETY: The realm and the cell are live.
+    TaskId(unsafe {
+        web_bindings_queue_a_global_task(realm.as_ptr().cast(), task_source as u8, cell, run_pending_steps)
+    })
+}
+
+/// Removes the tasks from the task queue of the event loop of the realm's agent.
+pub(crate) fn remove_tasks(realm: Gc<Realm>, tasks: &[TaskId]) {
+    let task_ids: Vec<u64> = tasks.iter().map(|task| task.0).collect();
+    // SAFETY: The realm is live, and the task IDs are lent for the call.
+    unsafe { web_bindings_remove_tasks(realm.as_ptr().cast(), ak::Span::new(&task_ids)) };
+}
+
+/// The task that the event loop of the realm's agent is running.
+pub(crate) fn currently_running_task(realm: Gc<Realm>) -> TaskId {
+    // SAFETY: The realm is live.
+    TaskId(unsafe { web_bindings_currently_running_task(realm.as_ptr().cast()) })
 }
 
 /// The [[Promise]] of a promise capability that LibWeb created, which is a Promise.

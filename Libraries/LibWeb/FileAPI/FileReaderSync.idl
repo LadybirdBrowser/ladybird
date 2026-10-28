@@ -1,5 +1,5 @@
 // https://w3c.github.io/FileAPI/#FileReaderSync
-[Exposed=(DedicatedWorker,SharedWorker)]
+[Exposed=(DedicatedWorker,SharedWorker), ImplementedIn=Rust]
 interface FileReaderSync {
     constructor();
     // Synchronously return strings
