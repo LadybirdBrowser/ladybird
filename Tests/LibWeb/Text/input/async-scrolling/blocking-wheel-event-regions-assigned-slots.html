@@ -1,0 +1,82 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+    #host,
+    #target {
+        display: block;
+        width: 100px;
+        height: 100px;
+    }
+</style>
+<div id="host">
+    <div id="target"><div style="width: 100px; height: 100px"></div></div>
+</div>
+<script>
+    test(() => {
+        const host = document.getElementById("host");
+        const target = document.getElementById("target");
+        const shadow = host.attachShadow({ mode: "closed" });
+        const blocking = document.createElement("slot");
+        const plain = document.createElement("slot");
+        plain.name = "plain";
+        blocking.style.display = plain.style.display = "contents";
+        shadow.append(blocking, plain);
+        const listener = event => event.preventDefault();
+        const printBlocks = label => {
+            internals.recordDisplayListForTesting();
+            println(`${label}: ${internals.recordedDisplayListBlocksWheelEventAt(50, 50)}`);
+        };
+        printBlocks("before listener");
+        blocking.addEventListener("mousewheel", listener, { passive: false });
+        printBlocks("legacy slot listener added");
+        blocking.removeEventListener("mousewheel", listener);
+        printBlocks("legacy slot listener removed");
+        blocking.addEventListener("wheel", listener, { passive: false });
+        printBlocks("standard slot listener added");
+        target.slot = "plain";
+        printBlocks("reassigned away from blocking slot");
+        target.slot = "";
+        printBlocks("reassigned to blocking slot");
+        target.replaceChildren(document.createTextNode("assigned text"));
+        printBlocks("descendant inserted under assigned node");
+        blocking.removeEventListener("wheel", listener);
+        printBlocks("all slot listeners removed");
+
+        host.remove();
+        const insertedHost = document.createElement("div");
+        insertedHost.style.cssText = "position: absolute; left: 0; top: 0";
+        const insertedTarget = document.createElement("div");
+        insertedTarget.style.cssText = "width: 100px; height: 100px";
+        insertedHost.append(insertedTarget);
+        document.body.append(insertedHost);
+        const insertedShadow = insertedHost.attachShadow({ mode: "closed" });
+        const ancestor = document.createElement("div");
+        ancestor.style.display = "contents";
+        insertedShadow.append(ancestor);
+        ancestor.addEventListener("wheel", listener, { passive: false });
+        const wrapper = document.createElement("div");
+        wrapper.style.display = "contents";
+        const insertedSlot = document.createElement("slot");
+        insertedSlot.style.display = "contents";
+        wrapper.append(insertedSlot);
+        ancestor.append(wrapper);
+        printBlocks("slot wrapper inserted under blocking ancestor");
+
+        insertedHost.remove();
+        const pendingHost = document.createElement("div");
+        pendingHost.style.cssText = "position: absolute; left: 0; top: 0";
+        const pendingShadow = pendingHost.attachShadow({ mode: "closed" });
+        const pendingSlot = document.createElement("slot");
+        pendingSlot.style.display = "contents";
+        pendingShadow.append(pendingSlot);
+        document.body.append(pendingHost);
+        const pendingTarget = document.createElement("div");
+        pendingTarget.style.cssText = "width: 100px; height: 100px";
+        pendingHost.append(pendingTarget);
+        pendingSlot.addEventListener("mousewheel", listener, { passive: false });
+        printBlocks("listener added before pending assignment resolves");
+    });
+</script>

@@ -1,0 +1,10 @@
+before listener: false
+legacy slot listener added: true
+legacy slot listener removed: false
+standard slot listener added: true
+reassigned away from blocking slot: false
+reassigned to blocking slot: true
+descendant inserted under assigned node: true
+all slot listeners removed: false
+slot wrapper inserted under blocking ancestor: true
+listener added before pending assignment resolves: true

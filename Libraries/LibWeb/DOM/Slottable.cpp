@@ -62,9 +62,11 @@ void SlottableMixin::set_assigned_slot(GC::Ptr<HTML::HTMLSlotElement> assigned_s
     if (!assigned_slot) {
         if (auto* rare_data = slottable_rare_data())
             rare_data->assigned_slot = nullptr;
-        return;
+    } else {
+        ensure_slottable_rare_data().assigned_slot = assigned_slot;
     }
-    ensure_slottable_rare_data().assigned_slot = assigned_slot;
+    if (node.document().may_have_blocking_wheel_event_listener())
+        node.update_inside_blocking_wheel_event_handler_state_for_subtree();
 }
 
 GC::Ptr<HTML::HTMLSlotElement> SlottableMixin::manual_slot_assignment()

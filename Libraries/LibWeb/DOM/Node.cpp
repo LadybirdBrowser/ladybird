@@ -2789,7 +2789,10 @@ static void derive_inside_blocking_wheel_event_handler_state_after_tree_change(N
 {
     if (!node.document().may_have_blocking_wheel_event_listener())
         return;
-    (void)node.update_inside_blocking_wheel_event_handler_state();
+    if (is<HTML::HTMLSlotElement>(node))
+        node.update_inside_blocking_wheel_event_handler_state_for_subtree();
+    else
+        (void)node.update_inside_blocking_wheel_event_handler_state();
 }
 
 void Node::inserted()
@@ -2901,9 +2904,11 @@ bool Node::update_inside_blocking_wheel_event_handler_state()
 {
     bool const was_inside_blocking_wheel_event_handler = m_inside_blocking_wheel_event_handler;
     m_inside_blocking_wheel_event_handler = false;
-    if (auto* parent = parent_or_shadow_host()) {
-        // A shadow root may not have derived its state since its host's changed, so it derives it first.
-        if (is<ShadowRoot>(*parent))
+    auto assigned_slot = assigned_slot_for_node(*this);
+    auto* parent = assigned_slot ? static_cast<Node*>(assigned_slot.ptr()) : parent_or_shadow_host();
+    if (parent) {
+        // A shadow root or assigned slot may not have derived its inherited state yet.
+        if (assigned_slot || is<ShadowRoot>(*parent))
             parent->update_inside_blocking_wheel_event_handler_state();
         m_inside_blocking_wheel_event_handler = parent->inside_blocking_wheel_event_handler();
     }
@@ -2932,7 +2937,17 @@ void Node::update_inside_blocking_wheel_event_handler_state_for_subtree()
     top_layer_marks.repaint_backdrop = true;
     bool any_descendant_flipped_blocking_wheel_state = false;
     for_each_shadow_including_inclusive_descendant([&](Node& node) {
-        if (!node.update_inside_blocking_wheel_event_handler_state())
+        auto flipped = node.update_inside_blocking_wheel_event_handler_state();
+        // Assigned nodes are outside the slot's DOM subtree, but their wheel events pass through it.
+        if (auto* slot = as_if<HTML::HTMLSlotElement>(node); slot && flipped) {
+            slot->assign_slottables_if_needed();
+            for (auto const& assigned : slot->assigned_nodes_internal()) {
+                assigned.visit([](auto const& assigned_node) {
+                    assigned_node->update_inside_blocking_wheel_event_handler_state_for_subtree();
+                });
+            }
+        }
+        if (!flipped)
             return TraversalDecision::Continue;
         any_descendant_flipped_blocking_wheel_state = true;
         if (auto* element = as_if<Element>(node); element && element->rendered_in_top_layer())

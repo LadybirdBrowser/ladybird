@@ -1,0 +1,62 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+    #host,
+    #target {
+        display: block;
+        width: 120px;
+        height: 120px;
+    }
+</style>
+<div id="host"><div id="target"></div></div>
+<script>
+    promiseTest(async () => {
+        const host = document.getElementById("host");
+        const target = document.getElementById("target");
+        const shadow = host.attachShadow({ mode: "closed" });
+        const slot = document.createElement("slot");
+        shadow.append(slot);
+        const events = [];
+        const legacyCapture = event => events.push(`capture ${event.type} trusted=${event.isTrusted}`);
+        const legacyBubble = event => events.push(`bubble ${event.type} trusted=${event.isTrusted}`);
+        slot.addEventListener("mousewheel", legacyCapture, { capture: true, passive: false });
+        slot.addEventListener("mousewheel", legacyBubble, { passive: false });
+        await internals.wheel(50, 50, 0, 10);
+        println(`slot-only legacy: ${events.join(", ")}`);
+
+        events.length = 0;
+        const standardCapture = event => events.push(`capture ${event.type}`);
+        const standardBubble = event => events.push(`bubble ${event.type}`);
+        slot.addEventListener("wheel", standardCapture, { capture: true, passive: false });
+        slot.addEventListener("wheel", standardBubble, { passive: false });
+        await internals.wheel(50, 50, 0, 10);
+        println(`standard takes priority: ${events.join(", ")}`);
+
+        events.length = 0;
+        slot.removeEventListener("mousewheel", legacyCapture, true);
+        slot.removeEventListener("mousewheel", legacyBubble);
+        host.addEventListener("mousewheel", legacyBubble, { passive: false });
+        await internals.wheel(50, 50, 0, 10);
+        println(`fallback remains per target: ${events.join(", ")}`);
+
+        events.length = 0;
+        target.dispatchEvent(new WheelEvent("wheel", { bubbles: true, composed: true }));
+        println(`untrusted wheel: ${events.join(", ")}`);
+
+        events.length = 0;
+        target.dispatchEvent(new WheelEvent("wheel", { bubbles: true }));
+        println(`non-composed slotted wheel: ${events.join(", ")}`);
+
+        const inner = document.createElement("div");
+        shadow.append(inner);
+        let escaped = false;
+        host.addEventListener("private-event", () => {
+            escaped = true;
+        });
+        inner.dispatchEvent(new Event("private-event", { bubbles: true }));
+        println(`non-composed event stays in shadow: ${!escaped}`);
+    });
+</script>

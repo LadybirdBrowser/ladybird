@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	passive mousewheel event listener on body
+1 Pass
+Pass	passive mousewheel event listener on body
