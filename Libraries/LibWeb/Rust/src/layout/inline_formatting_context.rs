@@ -973,7 +973,8 @@ pub(crate) struct InlineFormattingContext<'context> {
     containing_block_position_in_bfc_root: FfiCssPixelPoint,
     pub(crate) callbacks: LayoutPass<'context>,
     pub(crate) parent: &'context block_formatting_context::BlockFormattingContext<'context>,
-    pub(crate) containing_used_values: &'context UsedValues,
+    /// The lines this context lays out, which its containing block's record keeps once they are laid out.
+    line_data: RefCell<used_values::LineData>,
     pub(crate) fragmented_inlines_in_pre_order: Vec<Node>,
     pub(crate) current_line_start: Cell<fragmentation::LinePosition>,
     inline_boxes_continued_from_previous_fragment: Vec<Node>,
@@ -992,8 +993,7 @@ impl<'context> InlineFormattingContext<'context> {
         callbacks: LayoutPass<'context>,
         parent: &'context block_formatting_context::BlockFormattingContext<'context>,
     ) -> Self {
-        let containing_used_values = run.records.used_values(containing_block);
-        containing_used_values.ensure_line_data();
+        run.records.used_values(containing_block).ensure_line_data();
         Self {
             run,
             containing_block,
@@ -1001,7 +1001,7 @@ impl<'context> InlineFormattingContext<'context> {
             containing_block_position_in_bfc_root,
             callbacks,
             parent,
-            containing_used_values,
+            line_data: RefCell::new(used_values::LineData::default()),
             fragmented_inlines_in_pre_order: Vec::new(),
             current_line_start: Cell::new(fragmentation::LinePosition::default()),
             inline_boxes_continued_from_previous_fragment: Vec::new(),
@@ -1138,15 +1138,15 @@ impl<'context> InlineFormattingContext<'context> {
     }
 
     pub(crate) fn line_data(&self) -> Ref<'_, used_values::LineData> {
-        self.containing_used_values.building_line_data()
+        self.line_data.borrow()
     }
 
     pub(crate) fn line_data_mut(&self) -> RefMut<'_, used_values::LineData> {
-        self.containing_used_values.building_line_data_mut()
+        self.line_data.borrow_mut()
     }
 
     pub(crate) fn containing_used(&self) -> &'context UsedValues {
-        self.containing_used_values
+        self.used(self.containing_block)
     }
 
     fn inline_size_of_block_container_holding_lines(&self) -> CssPixels {
@@ -2247,6 +2247,8 @@ impl<'context> InlineFormattingContext<'context> {
     pub(crate) fn run(&mut self) -> DerivedBaselines {
         assert!(self.facts(self.containing_block).children_are_inline());
         let run = self.run;
+        let containing_used = self.containing_used();
+        *self.line_data.get_mut() = containing_used.take_building_line_data();
         let iterator = match run.fragmentainer.as_deref() {
             Some(fragmentainer) => {
                 inline_level_iterator::InlineLevelIterator::new_sharing_items(self, &fragmentainer.inline_items)
@@ -2260,6 +2262,7 @@ impl<'context> InlineFormattingContext<'context> {
             self.register_inline_anchor_candidates();
         }
         self.leave_atomic_inlines_without_a_line_unplaced();
+        containing_used.set_building_line_data(std::mem::take(self.line_data.get_mut()));
         formatting_context::derive_baselines(self.run.records, &self.callbacks, self.containing_block)
     }
 
