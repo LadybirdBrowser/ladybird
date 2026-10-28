@@ -3,8 +3,8 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 0 0+0+8] children: inline
       TableWrapper <(anonymous)> at [8,8] positioned [0+0+0 200 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
         Box <div#outer> at [8,8] table-box [0+0+0 200 0+0+0] [0+0+0 100 0+0+0] [TFC] children: not-inline
-          Box <(anonymous)> at [8,8] table-row [0+0+0 200 0+0+0] [0+0+0 0 0+0+0] children: not-inline
-            BlockContainer <(anonymous)> at [8,8] table-cell [0+0+0 200 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
+          Box <(anonymous)> at [8,8] table-row [0+0+0 200 0+0+0] [0+0+0 100 0+0+0] children: not-inline
+            BlockContainer <(anonymous)> at [8,8] table-cell [0+0+0 200 0+0+0] [0+0+0 0 100+0+0] [BFC] children: not-inline
               TableWrapper <(anonymous)> at [58,18] positioned [0+0+0 9.703125 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
                 Box <div#inner> at [58,18] table-box [0+0+0 9.703125 0+0+0] [0+0+0 16 0+0+0] [TFC] children: not-inline
                   Box <(anonymous)> at [58,18] table-row [0+0+0 9.703125 0+0+0] [0+0+0 16 0+0+0] children: not-inline
