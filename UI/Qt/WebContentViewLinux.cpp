@@ -18,10 +18,12 @@
 #include <LibGfx/VulkanContext.h>
 #include <LibGfx/VulkanImage.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/WebContentClient.h>
 #include <UI/Qt/NativeWindowContainer.h>
 #include <UI/Qt/WebContentView.h>
 #ifdef LADYBIRD_HAS_WAYLAND_GPU_QUERY
 #    include <UI/Qt/WaylandGpu.h>
+#    include <UI/Qt/WaylandPageSurface.h>
 #endif
 
 #include <QByteArrayList>
@@ -80,6 +82,13 @@ static QVulkanInstance* vulkan_instance()
 struct PresentationGpu {
     int physical_device_index { 0 };
     Gfx::GpuDeviceIdentity identity;
+    // The layouts the window system can import frames in, or empty if it does not say.
+    Vector<u64> drm_format_modifiers;
+};
+
+struct PresentationDrmDevice {
+    dev_t device { 0 };
+    Vector<u64> drm_format_modifiers;
 };
 
 static bool device_has_extension(VkPhysicalDevice physical_device, char const* extension_name)
@@ -97,11 +106,11 @@ static bool device_has_extension(VkPhysicalDevice physical_device, char const* e
 // The DRM device that the window system presents on. When it does not say, as on X11, LADYBIRD_RENDER_DEVICE can name
 // one. A device that the window system does not present on would have to copy every frame over to it, which not
 // every driver can do, so the window system's own answer always wins.
-static Optional<dev_t> presentation_drm_device()
+static Optional<PresentationDrmDevice> presentation_drm_device()
 {
 #ifdef LADYBIRD_HAS_WAYLAND_GPU_QUERY
     if (auto device = wayland_compositor_main_device(); device.has_value())
-        return device;
+        return PresentationDrmDevice { .device = device->device, .drm_format_modifiers = move(device->xrgb8888_modifiers) };
 #endif
     if (auto const* path = getenv("LADYBIRD_RENDER_DEVICE"); path && *path) {
         struct stat device_stat;
@@ -109,7 +118,7 @@ static Optional<dev_t> presentation_drm_device()
             warnln("LADYBIRD_RENDER_DEVICE does not name a device: {}", path);
             return {};
         }
-        return device_stat.st_rdev;
+        return PresentationDrmDevice { .device = device_stat.st_rdev, .drm_format_modifiers = {} };
     }
     return {};
 }
@@ -146,10 +155,15 @@ static Optional<PresentationGpu> const& presentation_gpu()
             vkGetPhysicalDeviceProperties2(physical_device, &properties);
 
             // The device may be named by either of its nodes.
-            auto is_primary_node = drm_properties.hasPrimary && makedev(drm_properties.primaryMajor, drm_properties.primaryMinor) == *main_device;
-            auto is_render_node = drm_properties.hasRender && makedev(drm_properties.renderMajor, drm_properties.renderMinor) == *main_device;
-            if (is_primary_node || is_render_node)
-                return PresentationGpu { .physical_device_index = static_cast<int>(i), .identity = Gfx::gpu_device_identity_of(physical_device) };
+            auto is_primary_node = drm_properties.hasPrimary && makedev(drm_properties.primaryMajor, drm_properties.primaryMinor) == main_device->device;
+            auto is_render_node = drm_properties.hasRender && makedev(drm_properties.renderMajor, drm_properties.renderMinor) == main_device->device;
+            if (is_primary_node || is_render_node) {
+                return PresentationGpu {
+                    .physical_device_index = static_cast<int>(i),
+                    .identity = Gfx::gpu_device_identity_of(physical_device),
+                    .drm_format_modifiers = main_device->drm_format_modifiers,
+                };
+            }
         }
         return {};
     }();
@@ -160,6 +174,13 @@ Optional<Gfx::GpuDeviceIdentity> WebContentView::presentation_gpu_device()
 {
     if (auto const& gpu = presentation_gpu(); gpu.has_value())
         return gpu->identity;
+    return {};
+}
+
+Vector<u64> WebContentView::presentation_drm_format_modifiers()
+{
+    if (auto const& gpu = presentation_gpu(); gpu.has_value())
+        return gpu->drm_format_modifiers;
     return {};
 }
 
@@ -179,15 +200,12 @@ static Gfx::VulkanContext const* readback_vulkan_context()
 
 RefPtr<Gfx::Bitmap const> WebContentView::cpu_bitmap_to_paint(Paintable const& paintable) const
 {
-    if (auto bitmap = paintable.shared_image_buffer->bitmap_if_present())
-        return bitmap;
-
     // NB: Qt repaints this widget at every step of a resize. While the page's window covers the widget, nobody sees
-    //     what it paints, and reading each frame back from GPU memory for it would be slow. The strips that hover-
-    //     expanded chrome punches out of the page's window are the only part of the page that shows through.
-    bool page_window_covers_widget = m_vulkan_window_container && m_vulkan_window_container->isVisible()
-        && m_vertical_tab_overlay_left == 0 && m_vertical_tab_overlay_right == 0 && m_bookmarks_bar_overlay_height == 0;
-    if (page_window_covers_widget)
+    //     what it paints, and painting the frame there would be slow: from GPU memory it has to be read back, and a
+    //     linear frame is mapped from memory that is slow to read.
+    QRect visible_frame { 0, 0, paintable.bitmap_size.width(), paintable.bitmap_size.height() };
+    visible_frame &= QRect { QPoint { 0, 0 }, size() * m_device_pixel_ratio };
+    if (visible_frame.isEmpty() || rect_covered_by_page_window().contains(visible_frame))
         return {};
     return cpu_bitmap_of(paintable);
 }
@@ -878,10 +896,12 @@ struct WebContentView::VulkanWindowRenderer final : public QVulkanWindowRenderer
             && m_renderer.prepare(m_window);
         if (can_render && !m_renderer.can_render(*paintable->shared_image_buffer)) {
             // NB: Reading every frame back from GPU memory would be slow, so a frame in a format or layout we cannot
-            //     import makes the Compositor share its frames as bitmaps instead. A frame kept from backing stores
-            //     that are gone may be from an old allocation, and says nothing about the frames to come.
-            if (!paintable->shared_image_buffer->bitmap_if_present() && paintable->bitmap_id >= 0 && m_renderer.cannot_import_frames_like(*paintable->shared_image_buffer))
-                WebView::Application::the().notify_compositor_gpu_presentation_unavailable();
+            //     import makes the Compositor share this view's frames as bitmaps instead. A frame kept from backing
+            //     stores that are gone may be from an old allocation, and says nothing about the frames to come.
+            if (!paintable->shared_image_buffer->bitmap_if_present() && paintable->bitmap_id >= 0 && m_renderer.cannot_import_frames_like(*paintable->shared_image_buffer)) {
+                m_view.m_vulkan_window_cannot_import_frames = true;
+                m_view.set_presents_from_cpu_memory(true);
+            }
             can_render = false;
         }
         if (!can_render) {
@@ -1113,10 +1133,12 @@ bool WebContentView::vulkan_window_update_would_only_resize() const
 
 QRect WebContentView::rect_covered_by_page_window() const
 {
-    // NB: Hover-expanded chrome punches strips out of the page's window, and the page shows through them.
+#ifdef LADYBIRD_HAS_WAYLAND_GPU_QUERY
+    if (m_page_surface)
+        return m_page_surface_rect;
+#endif
+    // NB: Hover-expanded chrome punches strips out of the page's window, but it covers them itself.
     if (!m_vulkan_window_container || !m_vulkan_window_container->isVisible())
-        return {};
-    if (m_vertical_tab_overlay_left != 0 || m_vertical_tab_overlay_right != 0 || m_bookmarks_bar_overlay_height != 0)
         return {};
     return { QPoint { 0, 0 }, m_presented_page_window_size };
 }
@@ -1199,9 +1221,21 @@ bool WebContentView::current_paintable_can_use_vulkan_window() const
 
 void WebContentView::schedule_vulkan_window_update()
 {
+#ifdef LADYBIRD_HAS_WAYLAND_GPU_QUERY
+    if (m_page_surface) {
+        // NB: Qt paints the page itself while an overlay covers it, which is fastest from CPU memory. Switching costs
+        //     the page all its backing stores, so a hidden view keeps them, and so does one under a floating surface
+        //     such as a hover card, which comes and goes quickly. Qt reads the frame back from GPU memory then.
+        if (isVisible())
+            set_presents_from_cpu_memory(is_page_covered_by_overlay());
+        update_page_surface();
+        return;
+    }
+#endif
+
     // NB: Qt paints the page itself while something covers it. Reading every frame back from GPU memory for that would
     //     be slow, so the Compositor shares the frames in CPU memory until the page is uncovered.
-    set_presents_from_cpu_memory(!m_vulkan_window || is_page_covered_by_overlay() || has_floating_surface_over_page());
+    set_presents_from_cpu_memory(!m_vulkan_window || m_vulkan_window_cannot_import_frames || is_page_covered_by_overlay());
 
     if (is_page_covered_by_overlay()) {
         QTimer::singleShot(0, this, [this] {
@@ -1228,6 +1262,247 @@ void WebContentView::schedule_vulkan_window_update()
 
     update();
 }
+
+void WebContentView::release_backing_store(i32 bitmap_id)
+{
+#ifdef LADYBIRD_HAS_WAYLAND_GPU_QUERY
+    if (auto index = m_retired_backing_stores.find_first_index_if([&](auto const& store) { return store.page_id == page().id().value() && store.bitmap_id == bitmap_id; }); index.has_value()) {
+        auto& release = *m_retired_backing_stores[*index].release;
+        auto handled = release.view_finished_reading();
+        if (release.is_released())
+            m_retired_backing_stores.remove(*index);
+        if (handled)
+            return;
+    }
+    // NB: The compositor of the desktop may read a frame until it releases its buffer, which it does once another frame
+    //     replaced it on screen. The Compositor must not paint into the backing store until then.
+    if (m_page_surface && m_page_surface->holds_backing_store(page().id().value(), bitmap_id)) {
+        auto& page = this->page();
+        if (!m_backing_stores_waiting_for_release.contains([&](auto const& store) { return store.page.ptr() == &page && store.bitmap_id == bitmap_id; }))
+            m_backing_stores_waiting_for_release.append({ page, bitmap_id });
+        return;
+    }
+#endif
+    WebView::ViewImplementation::release_backing_store(bitmap_id);
+}
+
+#ifdef LADYBIRD_HAS_WAYLAND_GPU_QUERY
+bool WebContentView::create_page_surface()
+{
+    m_page_surface = WaylandPageSurface::create();
+    if (!m_page_surface)
+        return false;
+
+    m_page_surface->on_backing_store_released = [this](u64 page_id, i32 bitmap_id) {
+        auto index = m_backing_stores_waiting_for_release.find_first_index_if([&](auto const& store) {
+            return store.page->id().value() == page_id && store.bitmap_id == bitmap_id;
+        });
+        if (!index.has_value())
+            return;
+        auto store = m_backing_stores_waiting_for_release.take(*index);
+        store.page->release_presented_bitmap(store.bitmap_id);
+    };
+    m_page_surface->on_ready_to_present = [this] {
+        schedule_vulkan_window_update();
+    };
+    return true;
+}
+
+bool WebContentView::page_surface_can_show_frames() const
+{
+    if (!m_page_surface || m_page_surface_failed || !isVisible())
+        return false;
+    // NB: Whatever Qt paints over the page has to be under the page surface, so Qt paints the page then.
+    if (is_page_covered_by_overlay() || has_floating_surface_over_page())
+        return false;
+    // NB: The page surface leaves the strips that hover-expanded chrome covers to Qt, except for a frame scaled to fit.
+    auto has_hover_expanded_chrome = m_vertical_tab_overlay_left != 0 || m_vertical_tab_overlay_right != 0 || m_bookmarks_bar_overlay_height != 0;
+    return !m_scales_frames_to_fit || !has_hover_expanded_chrome;
+}
+
+void WebContentView::hide_page_surface()
+{
+    m_page_surface->hide();
+    if (!m_page_surface_rect.isEmpty()) {
+        m_page_surface_rect = {};
+        update();
+    }
+}
+
+void WebContentView::update_page_surface()
+{
+    auto paintable = current_paintable();
+    auto const* dmabuf = paintable.has_value() ? paintable->shared_image_buffer->linux_dmabuf_handle() : nullptr;
+    auto* parent = window()->windowHandle();
+    if (!page_surface_can_show_frames() || !dmabuf || !parent || paintable->bitmap_size.is_empty() || m_viewport_size.is_empty()) {
+        hide_page_surface();
+        update();
+        return;
+    }
+
+    // The frame is shown one dma-buf pixel per device pixel from the top left of the view, unless frames are scaled to
+    // fit. A frame can be smaller than the view while it catches up with a resize, and the view paints the rest.
+    // Where the frame goes in the view, in device pixels, and the part of the frame that the page surface shows.
+    auto bitmap_size = paintable->bitmap_size;
+    QRect frame_rect;
+    QRect source;
+    QRect target;
+    if (m_scales_frames_to_fit) {
+        auto fitted = rect_fitting_frame(bitmap_size, m_viewport_size);
+        frame_rect = { fitted.x(), fitted.y(), fitted.width(), fitted.height() };
+        source = { 0, 0, bitmap_size.width(), bitmap_size.height() };
+        target = frame_rect;
+    } else {
+        // NB: The view can already be smaller than the viewport the page has, and the compositor doesn't clip the
+        //     page surface to the browser window.
+        auto view_size = size() * m_device_pixel_ratio;
+        frame_rect = { 0, 0, min(min(bitmap_size.width(), m_viewport_size.width()), view_size.width()), min(min(bitmap_size.height(), m_viewport_size.height()), view_size.height()) };
+        // NB: Hover-expanded chrome paints in the view over strips of the page, which the page surface would cover.
+        auto left = qRound(m_vertical_tab_overlay_left * m_device_pixel_ratio);
+        auto right = qRound(m_vertical_tab_overlay_right * m_device_pixel_ratio);
+        auto top = qRound(m_bookmarks_bar_overlay_height * m_device_pixel_ratio);
+        source = frame_rect.intersected({ left, top, view_size.width() - left - right, view_size.height() - top });
+        // NB: Qt clips the view to the widgets it is in, such as while the page slides along with a toggling sidebar,
+        //     but the compositor clips the page surface to nothing.
+        auto shown = rect_shown_in_window();
+        source &= QRect { qRound(shown.x() * m_device_pixel_ratio), qRound(shown.y() * m_device_pixel_ratio), qRound(shown.width() * m_device_pixel_ratio), qRound(shown.height() * m_device_pixel_ratio) };
+        target = source;
+    }
+
+    auto to_logical = [&](int device_pixels) { return max(1, qRound(device_pixels / m_device_pixel_ratio)); };
+    auto view_position = mapTo(window(), QPoint { 0, 0 });
+    WaylandPageSurface::Frame frame {
+        .shared_image_buffer = *paintable->shared_image_buffer,
+        .dmabuf = *dmabuf,
+        .page_id = paintable->page_id,
+        .bitmap_id = paintable->bitmap_id,
+        .source = source,
+        .position = view_position + QPoint { qRound(target.x() / m_device_pixel_ratio), qRound(target.y() / m_device_pixel_ratio) },
+        .destination = { to_logical(target.width()), to_logical(target.height()) },
+    };
+
+    // NB: The position of the page surface changes when the browser window commits next, so whatever else changes in
+    //     the frame waits for that commit too.
+    if (m_page_surface->is_showing() && frame.position != m_page_surface_position)
+        m_page_surface->set_synchronized(true);
+
+    m_page_surface->forget_buffers_except(backing_stores());
+    auto result = m_page_surface->present(*parent, frame);
+    if (result == WaylandPageSurface::PresentResult::Failed) {
+        m_page_surface_failed = true;
+        hide_page_surface();
+        update();
+        // NB: This may run in a callback of the page surface, which cannot be destroyed until that returns.
+        QTimer::singleShot(0, this, [this] { fall_back_from_page_surface(); });
+        return;
+    }
+
+    // NB: The view paints what the page surface leaves bare, which only grows when the surface shows less. The strips
+    //     that the surface leaves to hover-expanded chrome are covered by that chrome.
+    QRect covered_rect;
+    if (m_page_surface->is_showing())
+        covered_rect = result == WaylandPageSurface::PresentResult::Presented ? frame_rect : m_page_surface_rect;
+    if (!covered_rect.contains(m_page_surface_rect))
+        update();
+    // NB: Nothing else may make the browser window commit, so have Qt repaint a pixel of it.
+    else if (result == WaylandPageSurface::PresentResult::Presented && m_page_surface->needs_parent_commit())
+        update(0, 0, 1, 1);
+    m_page_surface_rect = covered_rect;
+    if (result == WaylandPageSurface::PresentResult::Presented)
+        m_page_surface_position = frame.position;
+}
+
+// The part of the view that the widgets it is in do not clip away, in its coordinates.
+QRect WebContentView::rect_shown_in_window() const
+{
+    auto shown = rect();
+    for (auto* ancestor = parentWidget(); ancestor && !ancestor->isWindow(); ancestor = ancestor->parentWidget())
+        shown &= QRect { mapFrom(ancestor, QPoint { 0, 0 }), ancestor->size() };
+    return shown;
+}
+
+Vector<Gfx::SharedImageBuffer const*> WebContentView::backing_stores() const
+{
+    Vector<Gfx::SharedImageBuffer const*> backing_stores;
+    if (m_front_bitmap.shared_image_buffer)
+        backing_stores.append(m_front_bitmap.shared_image_buffer.ptr());
+    for (auto const& bitmap : m_other_bitmaps) {
+        if (bitmap.shared_image_buffer)
+            backing_stores.append(bitmap.shared_image_buffer.ptr());
+    }
+    if (m_backup_shared_image_buffer)
+        backing_stores.append(m_backup_shared_image_buffer.ptr());
+    return backing_stores;
+}
+
+void WebContentView::destroy_page_surface()
+{
+    m_page_surface->retire_buffers([this](WaylandPageSurface::HeldBackingStore const& held) -> Function<void()> {
+        RefPtr<WebView::WebContentPage> owner;
+        bool view_finished_reading = false;
+        if (auto index = m_backing_stores_waiting_for_release.find_first_index_if([&](auto const& store) { return store.page->id().value() == held.page_id && store.bitmap_id == held.bitmap_id; }); index.has_value()) {
+            owner = m_backing_stores_waiting_for_release.take(*index).page;
+            view_finished_reading = true;
+        } else if (auto client = WebView::WebContentClient::client_for_compositor_context_id(Web::compositor_context_id_for_page(Web::PageId { held.page_id })); client.has_value()) {
+            owner = client->page(Web::PageId { held.page_id });
+        }
+        if (!owner || held.bitmap_id < 0)
+            return {};
+        auto release = make_ref_counted<BackingStoreRelease>([owner = owner.release_nonnull(), bitmap_id = held.bitmap_id] { owner->release_presented_bitmap(bitmap_id); });
+        if (view_finished_reading)
+            release->view_finished_reading();
+        else
+            m_retired_backing_stores.append({ held.page_id, held.bitmap_id, static_cast<u64>(held.device), static_cast<u64>(held.inode), release });
+        return [release = AK::move(release)] { release->compositor_finished_reading(); };
+    });
+    m_page_surface = nullptr;
+    m_page_surface_rect = {};
+    // NB: Unheld stores do not need to wait for a Wayland release. Held stores moved their acknowledgements above.
+    for (auto& store : exchange(m_backing_stores_waiting_for_release, {}))
+        store.page->release_presented_bitmap(store.bitmap_id);
+    release_retired_backing_stores_no_longer_painted();
+}
+
+void WebContentView::release_retired_backing_stores_no_longer_painted()
+{
+    // NB: A completed lease must not intercept the release of a later presentation of the same backing store.
+    m_retired_backing_stores.remove_all_matching([](auto const& store) { return store.release->is_released(); });
+    // NB: A backup frame has no page/bitmap IDs in Paintable. Its dma-buf identity still identifies the old page's
+    //     store, which the view may read after it has switched pages and while the Vulkan fallback shows the backup.
+    auto paintable = current_paintable();
+    auto const* dmabuf = paintable.has_value() ? paintable->shared_image_buffer->linux_dmabuf_handle() : nullptr;
+    struct stat object_stat {};
+    bool has_identity = dmabuf && !dmabuf->objects.is_empty() && fstat(dmabuf->objects.first().fd(), &object_stat) == 0;
+    if (dmabuf && !has_identity)
+        return;
+    for (size_t i = m_retired_backing_stores.size(); i-- > 0;) {
+        auto const& store = m_retired_backing_stores[i];
+        if (has_identity && store.device == static_cast<u64>(object_stat.st_dev) && store.inode == static_cast<u64>(object_stat.st_ino))
+            continue;
+        store.release->view_finished_reading();
+        if (store.release->is_released())
+            m_retired_backing_stores.remove(i);
+    }
+}
+
+void WebContentView::release_all_retired_backing_stores()
+{
+    for (auto& store : exchange(m_retired_backing_stores, {}))
+        store.release->view_finished_reading();
+}
+
+// The page's window can still show frames that the compositor of the desktop cannot import itself, by drawing them in
+// a swap chain of its own.
+void WebContentView::fall_back_from_page_surface()
+{
+    if (!m_page_surface)
+        return;
+    destroy_page_surface();
+    create_vulkan_window();
+    schedule_vulkan_window_update();
+    update();
+}
+#endif
 
 void WebContentView::update_vulkan_window_geometry()
 {

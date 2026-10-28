@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <Compositor/BackingStoreManager.h>
 #include <Compositor/ConnectionFromClient.h>
 #include <Compositor/FontSkia.h>
 #include <Compositor/Sandbox.h>
@@ -50,6 +51,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(force_fontconfig, "Force using fontconfig for font loading", "force-fontconfig");
     args_parser.add_option(disable_sandbox, "Disable process sandboxing", "disable-sandbox");
     args_parser.add_option(gpu_device, "The GPU to paint on, as the presentation identifies it", "gpu-device", 0, "identity");
+    StringView drm_format_modifiers;
+    args_parser.add_option(drm_format_modifiers, "The DRM format modifiers the presentation can import from that GPU", "drm-format-modifiers", 0, "hex,...");
     args_parser.parse(arguments);
 
     auto stats_log = TRY(Core::StatsLog::create(stats_log_directory, "Compositor"sv));
@@ -62,6 +65,17 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         preferred_gpu_device = Gfx::GpuDeviceIdentity::from_string(gpu_device);
         if (!preferred_gpu_device.has_value())
             return Error::from_string_literal("Malformed GPU device identity");
+    }
+
+    if (!drm_format_modifiers.is_empty()) {
+        Vector<u64> modifiers;
+        for (auto modifier : drm_format_modifiers.split_view(',')) {
+            auto value = modifier.to_number<u64>(TrimWhitespace::No, 16);
+            if (!value.has_value())
+                return Error::from_string_literal("Malformed DRM format modifier");
+            modifiers.append(*value);
+        }
+        Compositor::BackingStoreManager::set_presentation_drm_format_modifiers(move(modifiers));
     }
 
     if (crash_report_fd >= 0) {

@@ -94,28 +94,33 @@ if (LINUX AND NOT ANDROID)
         target_link_libraries(ladybird PRIVATE PkgConfig::WAYLAND_CLIENT)
         target_compile_definitions(ladybird PRIVATE LADYBIRD_HAS_WAYLAND_CLIENT)
     endif()
-    if (WAYLAND_CLIENT_FOUND AND WAYLAND_SCANNER_FOUND)
+    if (WAYLAND_CLIENT_FOUND AND WAYLAND_SCANNER_FOUND AND USE_VULKAN_DMABUF_IMAGES)
         pkg_get_variable(WAYLAND_SCANNER_EXECUTABLE wayland-scanner wayland_scanner)
-        set(LINUX_DMABUF_PROTOCOL "${CMAKE_CURRENT_SOURCE_DIR}/Protocols/linux-dmabuf-v1.xml")
-        set(LINUX_DMABUF_PROTOCOL_HEADER "${CMAKE_CURRENT_BINARY_DIR}/linux-dmabuf-v1-client-protocol.h")
-        set(LINUX_DMABUF_PROTOCOL_CODE "${CMAKE_CURRENT_BINARY_DIR}/linux-dmabuf-v1-protocol.c")
-        add_custom_command(
-            OUTPUT "${LINUX_DMABUF_PROTOCOL_HEADER}"
-            COMMAND "${WAYLAND_SCANNER_EXECUTABLE}" client-header "${LINUX_DMABUF_PROTOCOL}" "${LINUX_DMABUF_PROTOCOL_HEADER}"
-            DEPENDS "${LINUX_DMABUF_PROTOCOL}"
-            VERBATIM
-        )
-        add_custom_command(
-            OUTPUT "${LINUX_DMABUF_PROTOCOL_CODE}"
-            COMMAND "${WAYLAND_SCANNER_EXECUTABLE}" private-code "${LINUX_DMABUF_PROTOCOL}" "${LINUX_DMABUF_PROTOCOL_CODE}"
-            DEPENDS "${LINUX_DMABUF_PROTOCOL}"
-            VERBATIM
-        )
+        foreach(protocol linux-dmabuf-v1 viewporter)
+            set(protocol_xml "${CMAKE_CURRENT_SOURCE_DIR}/Protocols/${protocol}.xml")
+            set(protocol_header "${CMAKE_CURRENT_BINARY_DIR}/${protocol}-client-protocol.h")
+            set(protocol_code "${CMAKE_CURRENT_BINARY_DIR}/${protocol}-protocol.c")
+            add_custom_command(
+                OUTPUT "${protocol_header}"
+                COMMAND "${WAYLAND_SCANNER_EXECUTABLE}" client-header "${protocol_xml}" "${protocol_header}"
+                DEPENDS "${protocol_xml}"
+                VERBATIM
+            )
+            add_custom_command(
+                OUTPUT "${protocol_code}"
+                COMMAND "${WAYLAND_SCANNER_EXECUTABLE}" private-code "${protocol_xml}" "${protocol_code}"
+                DEPENDS "${protocol_xml}"
+                VERBATIM
+            )
+            target_sources(ladybird PRIVATE "${protocol_header}" "${protocol_code}")
+        endforeach()
         target_sources(ladybird PRIVATE
             WaylandGpu.cpp
             WaylandGpu.h
-            "${LINUX_DMABUF_PROTOCOL_HEADER}"
-            "${LINUX_DMABUF_PROTOCOL_CODE}"
+            WaylandPageSurface.cpp
+            WaylandPageSurface.h
+            WaylandRegistry.cpp
+            WaylandRegistry.h
         )
         target_include_directories(ladybird PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
         target_compile_definitions(ladybird PRIVATE LADYBIRD_HAS_WAYLAND_GPU_QUERY)

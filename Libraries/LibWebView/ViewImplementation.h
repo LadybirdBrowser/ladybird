@@ -635,7 +635,9 @@ protected:
     virtual void insert_clipboard_item(Web::Clipboard::SystemClipboardItem);
 
     virtual void did_accept_presented_backing_store(i32, Gfx::IntRect) { }
-    void release_backing_store(i32 bitmap_id);
+    // Lets the Compositor paint into a backing store again. A view whose frames something else still reads may wait
+    // for that to finish first.
+    virtual void release_backing_store(i32 bitmap_id);
     static Gfx::IntRect rect_fitting_frame(Gfx::IntSize frame_size, Gfx::IntSize target_size);
 
     static constexpr auto ZOOM_STEP = 0.1;

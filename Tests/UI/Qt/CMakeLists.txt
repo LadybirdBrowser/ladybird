@@ -3,6 +3,8 @@ if (NOT Qt6_FOUND)
     return()
 endif()
 
+ladybird_test("TestBackingStoreRelease.cpp" UI/Qt)
+
 # The chrome's styles take their colors from the theme, which follows the system's appearance.
 function(add_chrome_style_sources target)
     target_sources(${target} PRIVATE
