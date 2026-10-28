@@ -1,0 +1,37 @@
+<!doctype html>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const [name, syntax, initialValue] of [
+            ["--identifier", "<custom-ident>", "fallback"],
+            ["--string", "<string>", '"fallback"'],
+        ]) {
+            CSS.registerProperty({ name, syntax, inherits: false, initialValue });
+        }
+
+        for (const [label, name, source] of [
+            ["escaped space", "--identifier", " \r\n\ta\\ \r\n\t "],
+            ["delimiter newline", "--identifier", "a" + String.fromCharCode(92, 10) + " "],
+            ["delimiter CR", "--identifier", "a" + String.fromCharCode(92, 13) + " "],
+            ["EOF string", "--string", ' \t"a '],
+        ]) {
+            target.style.setProperty(name, source);
+            const values = () => JSON.stringify([
+                target.style.getPropertyValue(name),
+                getComputedStyle(target).getPropertyValue(name),
+            ]);
+            println(`${label}: ${values()}`);
+            target.style.setProperty(name, target.style.getPropertyValue(name));
+            println(`${label} roundtrip: ${values()}`);
+        }
+
+        for (const [label, source] of [
+            ["EOF function", " f(a "],
+            ["EOF URL", " url(a\\ "],
+        ]) {
+            target.style.setProperty("--raw", source);
+            println(`${label}: ${JSON.stringify(target.style.getPropertyValue("--raw"))}`);
+        }
+    });
+</script>

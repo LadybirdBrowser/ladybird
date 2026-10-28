@@ -16,6 +16,7 @@ use crate::css::css_pixels::CssPixels;
 use crate::css::css_string::{CssString, CssStringList};
 use crate::css::css_tokenizer::{
     CssNumberType, ParserTokenKind, TokenizerInput, tokenize_for_parser, tokenize_for_parser_without_source,
+    trim_component_value_boundary_whitespace,
 };
 use crate::css::display::FfiDisplay;
 use crate::css::ffi_support::FfiUtf16View;
@@ -5801,26 +5802,12 @@ fn parse_animation_transition_shorthand(
     ParseOutcome::Parsed(shared_style_value(shorthand_value(property, sub_properties, output)))
 }
 
-fn trim_ascii_whitespace(code_units: &[u16]) -> &[u16] {
-    let is_ascii_whitespace = |unit: &u16| matches!(*unit, 0x09 | 0x0a | 0x0c | 0x0d | 0x20);
-    let start = code_units
-        .iter()
-        .position(|unit| !is_ascii_whitespace(unit))
-        .unwrap_or(code_units.len());
-    let end = code_units
-        .iter()
-        .rposition(|unit| !is_ascii_whitespace(unit))
-        .map_or(start, |position| position + 1);
-    &code_units[start..end]
-}
-
 pub(crate) fn unresolved_value_from_string(
     unresolved_source: &[u16],
     presence: SubstitutionFunctionsPresence,
 ) -> StyleValueData {
-    let source_text = trim_ascii_whitespace(unresolved_source);
-    let values = consume_a_counted_list_of_component_values(tokenize_for_parser(source_text)).unwrap_or_default();
-    unresolved_value(source_text, &[], values, presence)
+    let values = consume_a_counted_list_of_component_values(tokenize_for_parser(unresolved_source)).unwrap_or_default();
+    unresolved_value(unresolved_source, &[], values, presence)
 }
 
 pub(crate) fn unresolved_value(
@@ -5829,7 +5816,7 @@ pub(crate) fn unresolved_value(
     values: impl Into<ComponentValueList>,
     presence: SubstitutionFunctionsPresence,
 ) -> StyleValueData {
-    let source_text = trim_ascii_whitespace(unresolved_source);
+    let source_text = trim_component_value_boundary_whitespace(unresolved_source);
     let components = RetainedComponentValueList::from_values(values);
     if presence.attr {
         crate::css::parser::arbitrary_substitution::note_attr_names_read_by(components.as_slice());

@@ -1,0 +1,10 @@
+escaped space: ["a\\ ","a\\ "]
+escaped space roundtrip: ["a\\ ","a\\ "]
+delimiter newline: ["a\\\n","fallback"]
+delimiter newline roundtrip: ["a\\\n","fallback"]
+delimiter CR: ["a\\\r","fallback"]
+delimiter CR roundtrip: ["a\\\r","fallback"]
+EOF string: ["\"a ","\"a \""]
+EOF string roundtrip: ["\"a ","\"a \""]
+EOF function: "f(a "
+EOF URL: "url(a\\ "
