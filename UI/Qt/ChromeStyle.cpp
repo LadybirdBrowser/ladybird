@@ -199,6 +199,7 @@ QString style_sheet_color(QColor const& color)
 QString application_style_sheet(QPalette const&)
 {
     auto const& panel = Theme::panel();
+    auto button_background = over(panel.control, panel.surface);
 
     // NB: Menus drawn by Qt are drawn by the application style, so that their rows line up on one right edge, which the
     //     style sheet cannot do. Only the widgets put into menus are styled here.
@@ -233,8 +234,8 @@ QWidget#LadybirdMenuZoomRow QPushButton:pressed {{
     background: {3};
 }}
 )",
-        style_sheet_color(panel.text), style_sheet_color(panel.control), style_sheet_color(over(panel.control, panel.control)),
-        style_sheet_color(panel.pressed));
+        style_sheet_color(panel.text), style_sheet_color(button_background), style_sheet_color(over(panel.pressed, panel.surface)),
+        style_sheet_color(over(panel.pressed, button_background)));
 }
 
 QString toolbar_container_style_sheet(QPalette const& palette)
