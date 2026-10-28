@@ -4230,7 +4230,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             None
         };
         let Some(side) = side else {
-            formatting_context::leave_child_unplaced(run, node, fragment_arrival);
+            formatting_context::leave_child_unplaced(run, fragment_arrival);
             return;
         };
         let mut margin_box_ceiling = if let Some(line_builder) = line_builder.as_deref_mut() {

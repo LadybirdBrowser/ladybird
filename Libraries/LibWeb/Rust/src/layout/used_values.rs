@@ -230,7 +230,6 @@ pub(crate) struct UsedValues {
     pub(crate) line_data: RefCell<LineDataState>,
     /// The anchor-size() resolutions of an absolutely positioned box, set once as the abspos engine places it.
     pub(crate) anchor_resolved_values: std::cell::OnceCell<Box<style_values::AnchorResolvedValues>>,
-    pub(crate) held_committed_fragment: fragment_tree::HeldCommittedFragmentCell,
 }
 
 impl Default for UsedValues {
@@ -266,7 +265,6 @@ impl Default for UsedValues {
             orthogonal_flow_baselines: Cell::new(None),
             line_data: RefCell::new(LineDataState::Empty),
             anchor_resolved_values: std::cell::OnceCell::new(),
-            held_committed_fragment: fragment_tree::HeldCommittedFragmentCell::default(),
         }
     }
 }

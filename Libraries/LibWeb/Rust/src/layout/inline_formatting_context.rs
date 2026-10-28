@@ -1034,7 +1034,7 @@ impl<'context> InlineFormattingContext<'context> {
     fn discard_unplaced_atomic_inline(&self, node: Node) {
         let fragment_arrival = self.take_atomic_inline_fragment_arrival(node);
         if let Some(fragments) = self.run.fragments.as_deref() {
-            fragments.discard_unplaced_subtree(node, self.used(node), fragment_arrival);
+            fragments.discard_unplaced_subtree(node, fragment_arrival);
         }
     }
 
@@ -2240,8 +2240,8 @@ impl<'context> InlineFormattingContext<'context> {
                 std::cmp::Ordering::Greater
             }
         });
-        for (node, fragment_arrival) in unplaced {
-            formatting_context::leave_child_unplaced(self.run, node, Some(fragment_arrival));
+        for (_, fragment_arrival) in unplaced {
+            formatting_context::leave_child_unplaced(self.run, Some(fragment_arrival));
         }
     }
 
