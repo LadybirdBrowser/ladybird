@@ -958,6 +958,8 @@ pub(super) struct TableFormattingContext<'pass> {
     cell_fragment_arrivals: Vec<Option<fragment_tree::ChildFragmentArrival>>,
     /// What placing each cell takes of the box its committing layout handed back.
     placed_cells: Vec<Option<formatting_context::PlacedChild>>,
+    /// The baselines of the contents of each cell whose layout handed the box back to this table, which keeps them.
+    content_baselines_of_handed_back_cells: Vec<Option<DerivedBaselines>>,
     /// What each cell's fragment shows of the table's layout.
     cell_fragment_facts: Vec<run_records::FragmentFactsDecidedByParent>,
     /// The input cells of each cell's box as this table sizes it, from the box's starting cells through the borders
@@ -1070,6 +1072,7 @@ impl<'pass> TableFormattingContext<'pass> {
             cell_measurements: Vec::new(),
             cell_fragment_arrivals: Vec::new(),
             placed_cells: Vec::new(),
+            content_baselines_of_handed_back_cells: Vec::new(),
             cell_fragment_facts: Vec::new(),
             cell_box_cells: Vec::new(),
             columns: Vec::new(),
@@ -1121,6 +1124,7 @@ impl<'pass> TableFormattingContext<'pass> {
         self.cell_measurements = vec![None; self.cells.len()];
         self.cell_fragment_arrivals = std::iter::repeat_with(|| None).take(self.cells.len()).collect();
         self.placed_cells = vec![None; self.cells.len()];
+        self.content_baselines_of_handed_back_cells = vec![None; self.cells.len()];
         self.needs_fixed_mode_row_measurement = false;
         self.prepare_table_participants(TableParticipantPreparation::CreateUsedValues);
         self.border_conflict_resolution();
@@ -2569,6 +2573,7 @@ impl<'pass> TableFormattingContext<'pass> {
         self.cell_measurements = vec![None; self.cells.len()];
         self.cell_fragment_arrivals = std::iter::repeat_with(|| None).take(self.cells.len()).collect();
         self.placed_cells = vec![None; self.cells.len()];
+        self.content_baselines_of_handed_back_cells = vec![None; self.cells.len()];
         self.rows = table_grid.rows;
         self.columns = vec![Column::default(); table_grid.column_count];
         for cell in &self.cells {
@@ -2676,7 +2681,15 @@ impl<'pass> TableFormattingContext<'pass> {
             // NB: A table cell is a containing block of its own to the percentage block insets of its descendants.
             run.percentage_block_insets_of_root_children_have_definite_basis(),
         );
-        self.cell_box_cells[cell_index] = run.records.box_metrics_of(cell.box_).input_cells();
+        self.cell_box_cells[cell_index] = match &laid_out_box {
+            Some(laid_out_box) => laid_out_box.cells,
+            // NB: The cell was laid out by this table's run, in the record it keeps.
+            None => run.records.box_metrics_of(cell.box_).input_cells(),
+        };
+        if matches!(outcome, ChildLayoutOutcome::Created(_)) {
+            self.content_baselines_of_handed_back_cells[cell_index] =
+                laid_out_box.as_ref().map(|laid_out_box| laid_out_box.baselines);
+        }
         outcome.report_percentage_block_size_dependency_of(run, cell.box_);
         let baselines = match outcome {
             ChildLayoutOutcome::Created(result) => result.baselines,
@@ -2716,10 +2729,12 @@ impl<'pass> TableFormattingContext<'pass> {
     fn cell_baseline(&self, cell_index: usize, committing_run_baselines: Option<DerivedBaselines>) -> CssPixels {
         let cell_box = &self.cell_box_cells[cell_index];
         let content_baselines = committing_run_baselines.unwrap_or_else(|| {
-            self.run
-                .records
-                .box_metrics_of(self.cells[cell_index].box_)
-                .content_baselines()
+            self.content_baselines_of_handed_back_cells[cell_index].unwrap_or_else(|| {
+                self.run
+                    .records
+                    .box_metrics_of(self.cells[cell_index].box_)
+                    .content_baselines()
+            })
         });
         let collapsed = cell_box.uses_collapsing_borders_model;
         cell_box.border_box_top(collapsed) + content_baselines.first.unwrap_or(cell_box.content_block_size)
@@ -3262,6 +3277,7 @@ impl<'pass> TableFormattingContext<'pass> {
                     None,
                     run.callbacks.frame,
                 ));
+                self.content_baselines_of_handed_back_cells[cell_index] = Some(laid_out.baselines);
                 run.records.receive_laid_out_child_box(
                     cell.box_,
                     run_records::ChildLaidOutByItsOwnRun {
