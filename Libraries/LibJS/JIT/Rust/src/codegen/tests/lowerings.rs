@@ -1338,8 +1338,8 @@ fn fake_object_layout() -> RuntimeLayout {
         property_lookup_cache_entry_new_shape: 16,
         property_lookup_cache_megamorphic_tag: 2,
         property_lookup_cache_megamorphic_primary_entries: 64,
-        property_lookup_cache_megamorphic_secondary_entries: 64 + 64 * 64,
-        property_lookup_cache_megamorphic_index_bits: 6,
+        property_lookup_cache_megamorphic_secondary_entries: 64 + 16 * 64,
+        property_lookup_cache_megamorphic_index_bits: 4,
         property_lookup_cache_megamorphic_hash_multiplier: 0x9e37_79b9,
         try_get_by_id_cache: fake_try_get_by_id_cache as *const () as u64,
         try_put_by_id_cache: fake_try_put_by_id_cache as *const () as u64,
@@ -3264,7 +3264,7 @@ fn put_by_id_adds_properties_through_property_caches() {
 /// megamorphic_primary_index()` and `megamorphic_secondary_index()`.
 fn megamorphic_indices(shape: u64, key: u64) -> (usize, usize) {
     let hash = ((shape ^ key) as u32).wrapping_mul(0x9e37_79b9);
-    ((hash >> 26) as usize, ((hash >> 20) & 63) as usize)
+    ((hash >> 28) as usize, ((hash >> 24) & 15) as usize)
 }
 
 #[test]
@@ -3277,7 +3277,7 @@ fn get_by_id_through_megamorphic_property_caches() {
         let shape = fake.shape.as_ptr() as u64;
         let (primary_index, secondary_index) = megamorphic_indices(shape, 0);
         // The most recently used entry, then the primary and the secondary table.
-        let mut data = vec![0u64; ENTRY_WORDS * (1 + 2 * 64)];
+        let mut data = vec![0u64; ENTRY_WORDS * (1 + 2 * 16)];
         let entry_at = |data: &mut Vec<u64>, index: usize, offset: u32| {
             let entry = &mut data[index * ENTRY_WORDS..(index + 1) * ENTRY_WORDS];
             entry[0] = 2 | u64::from(offset) << 32;
@@ -3285,7 +3285,7 @@ fn get_by_id_through_megamorphic_property_caches() {
             entry[3] = shape;
         };
         let primary = 1 + primary_index;
-        let secondary = 1 + 64 + secondary_index;
+        let secondary = 1 + 16 + secondary_index;
         data[3] = 8;
         fake.caches[1] = data.as_ptr() as u64 | 2;
         // Not in either table: the probe, then the slow path.
@@ -4084,9 +4084,9 @@ fn get_by_value_through_megamorphic_property_caches() {
         let key = u64::from(STRING_TAG) << 48 | 0x5000;
         let other_key = u64::from(STRING_TAG) << 48 | 0x6000;
         let (primary_index, secondary_index) = megamorphic_indices(shape, key);
-        let mut data = vec![0u64; ENTRY_WORDS * (1 + 2 * 64)];
+        let mut data = vec![0u64; ENTRY_WORDS * (1 + 2 * 16)];
         let primary = 1 + primary_index;
-        let secondary = 1 + 64 + secondary_index;
+        let secondary = 1 + 16 + secondary_index;
         let entry = &mut data[secondary * ENTRY_WORDS..(secondary + 1) * ENTRY_WORDS];
         entry[0] = 2 | 1 << 32;
         entry[1] = 5;
@@ -4233,7 +4233,7 @@ fn get_by_id_of_strings_through_megamorphic_property_caches() {
     let shape = string_prototype.shape.as_ptr() as u64;
     // An entry in the primary table, which the lookup finds after the most
     // recently used entry missed.
-    let mut data = vec![0u64; ENTRY_WORDS * (1 + 2 * 64)];
+    let mut data = vec![0u64; ENTRY_WORDS * (1 + 2 * 16)];
     let primary = 1 + megamorphic_indices(shape, 0).0;
     data[3] = 8;
     data[primary * ENTRY_WORDS] = 2 | 1 << 32;
@@ -4270,7 +4270,7 @@ fn keyed_accesses_of_missing_and_added_properties_through_property_caches() {
     let key = u64::from(STRING_TAG) << 48 | 0x5000;
     let other_key = u64::from(STRING_TAG) << 48 | 0x6000;
     // A megamorphic cache whose most recently used entry is the one tested.
-    let mut data = vec![0u64; ENTRY_WORDS * (1 + 2 * 64)];
+    let mut data = vec![0u64; ENTRY_WORDS * (1 + 2 * 16)];
     fake.caches[1] = data.as_ptr() as u64 | 2;
     let set_entry = |data: &mut Vec<u64>, entry_type: u64, offset: u64, new_shape: u64, shape: u64| {
         data[..ENTRY_WORDS].fill(0);

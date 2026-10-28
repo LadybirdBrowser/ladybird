@@ -210,7 +210,7 @@ impl Default for PropertyLookupCacheEntry {
 pub const MAX_NUMBER_OF_SHAPES_TO_REMEMBER: usize = 4;
 // NB: GetById probes the entries of polymorphic caches unrolled.
 const _: () = assert!(MAX_NUMBER_OF_SHAPES_TO_REMEMBER == 4);
-pub const MEGAMORPHIC_INDEX_BITS: u32 = 6;
+pub const MEGAMORPHIC_INDEX_BITS: u32 = 4;
 pub const MEGAMORPHIC_PRIMARY_CACHE_SIZE: usize = 1 << MEGAMORPHIC_INDEX_BITS;
 pub const MEGAMORPHIC_SECONDARY_CACHE_SIZE: usize = 1 << MEGAMORPHIC_INDEX_BITS;
 /// Fibonacci hashing (see megamorphic_hash()).
@@ -544,8 +544,8 @@ impl PropertyLookupCache {
         entries[0].set(new_entry);
     }
 
-    /// Boxing a MegamorphicData builds it on the stack first, in a frame of about 12 KB that is probed page by page on
-    /// every entry to the function holding it, so this stays out of line from update(), which runs on every miss.
+    /// Boxing a MegamorphicData builds it on the stack first, in a frame of a few KB, so this stays out of line from
+    /// update(), which runs on every miss.
     #[cold]
     #[inline(never)]
     fn move_full_polymorphic_entries_to_megamorphic_tier(&self, new_entry: &PropertyLookupCacheEntryData) {
