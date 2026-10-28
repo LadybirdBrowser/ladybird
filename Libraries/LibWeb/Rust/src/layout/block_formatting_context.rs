@@ -2101,8 +2101,11 @@ impl<'pass> BlockFormattingContext<'pass> {
         available_space: AvailableSpace,
     ) -> LayoutInput {
         let sizing = self.sizing();
-        let containing_block_constraints =
-            sizing.constraints_for_child_context(containing_block, containing_input.containing_block_constraints);
+        let containing_block_constraints = sizing.constraints_for_child_context(
+            containing_block,
+            &used_values::RecordInFrame::new(self.used(containing_block), self.run.callbacks.frame),
+            containing_input.containing_block_constraints,
+        );
         let mut available_space = available_space;
         if self.facts(containing_block).is_anonymous_button_content_box()
             && let Some(block_size) = containing_block_constraints.percentage_basis_block_size

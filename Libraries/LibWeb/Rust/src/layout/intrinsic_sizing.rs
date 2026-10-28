@@ -106,7 +106,9 @@ pub(super) fn content_sizes_of_inline_content(
     let facts = NodeFacts::new(&callbacks, node);
     let style = StyleValues::for_node(&callbacks, node);
     scope.enter(callbacks, |run| {
-        let child_constraints = run.sizing().constraints_for_child_context(node, constraints);
+        let child_constraints = run
+            .sizing()
+            .constraints_for_child_context(node, &run.root_record(), constraints);
         let sizes = if inline_content_has_no_in_flow_content(&callbacks, node) {
             let sizing = run.sizing();
             let mut contributions_of_floats = BlockLevelContributions::default();
@@ -338,7 +340,7 @@ pub(super) fn content_sizes_of_block_container(
     let style = StyleValues::for_node(&callbacks, node);
     scope.measure(callbacks, depends_on_block_size, |run| {
         let sizing = run.sizing();
-        let child_constraints = sizing.constraints_for_child_context(node, constraints);
+        let child_constraints = sizing.constraints_for_child_context(node, &run.root_record(), constraints);
         let collects_column_spanners = facts.lays_out_in_columns();
         let legend_sized_to_fit_its_content = rendered_legend_with_automatic_inline_size(&callbacks, node);
         let mut contributions_of_children = BlockLevelContributions::default();

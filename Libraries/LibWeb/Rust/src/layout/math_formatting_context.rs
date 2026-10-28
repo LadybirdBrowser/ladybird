@@ -2195,9 +2195,11 @@ impl<'pass> MathFormattingContext<'pass> {
     pub(super) fn run(&mut self, run: &FormattingContextRun<'pass>, layout_input: LayoutInput) {
         let root = run.box_;
         let kind = self.kind(root);
-        let constraints = run
-            .sizing()
-            .constraints_for_child_context(root, layout_input.containing_block_constraints);
+        let constraints = run.sizing().constraints_for_child_context(
+            root,
+            &run.root_record(),
+            layout_input.containing_block_constraints,
+        );
         let nodes = self.in_flow_children();
         let children = self.layout_children(
             &nodes,

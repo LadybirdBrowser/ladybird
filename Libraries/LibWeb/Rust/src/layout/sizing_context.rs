@@ -1107,14 +1107,16 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             )
     }
 
+    /// The constraints the children of `containing_block` are laid out with, where the box has the metrics `metrics`
+    /// and is laid out with the constraints `constraints`.
     pub(crate) fn constraints_for_child_context(
         &self,
         containing_block: Node,
+        metrics: &impl BoxMetricCells,
         constraints: ContainingBlockConstraints,
     ) -> ContainingBlockConstraints {
         let facts = self.facts(containing_block);
         let style = self.style(containing_block);
-        let metrics = self.box_metrics(containing_block);
         // Anonymous boxes are invisible to percentage resolution: their children resolve percentages
         // against the closest non-anonymous ancestor, so an anonymous containing block without a
         // definite size of its own passes the constraints it was given through. Anonymous table

@@ -298,17 +298,15 @@ impl<'pass> FlexFormattingContext<'pass> {
             .keep_child_for_its_run(&self.run.callbacks, node, constraints)
     }
 
-    fn constraints_for_child_context(
-        &self,
-        node: Node,
-        constraints: ContainingBlockConstraints,
-    ) -> ContainingBlockConstraints {
-        self.sizing().constraints_for_child_context(node, constraints)
+    /// The constraints the children of the container are laid out with, where the container is laid out with the
+    /// constraints `constraints`.
+    fn constraints_for_children(&self, constraints: ContainingBlockConstraints) -> ContainingBlockConstraints {
+        self.sizing()
+            .constraints_for_child_context(self.run.box_, &self.run.root_record(), constraints)
     }
 
     fn item_containing_block_constraints(&self) -> ContainingBlockConstraints {
-        let mut constraints =
-            self.constraints_for_child_context(self.run.box_, self.layout_input.unwrap().containing_block_constraints);
+        let mut constraints = self.constraints_for_children(self.layout_input.unwrap().containing_block_constraints);
         constraints.percentage_basis_inline_size = self.item_percentage_bases.percentage_basis_inline_size;
         constraints.percentage_basis_block_size = self.item_percentage_bases.percentage_basis_block_size;
         let block_axis_is_cross_axis = self.is_row_layout();
@@ -3752,8 +3750,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         self.available_space = Some(available_space);
         self.layout_input = Some(layout_input);
         self.item_runs_offered_to_block_size_measurements = None;
-        self.item_percentage_bases =
-            self.constraints_for_child_context(self.run.box_, layout_input.containing_block_constraints);
+        self.item_percentage_bases = self.constraints_for_children(layout_input.containing_block_constraints);
         // 1. Generate anonymous flex items
         self.generate_anonymous_flex_items();
         // 2. Determine the available main and cross space for the flex items

@@ -2354,8 +2354,11 @@ impl<'pass> GridFormattingContext<'pass> {
     }
 
     fn container_constraints(&self) -> ContainingBlockConstraints {
-        self.sizing()
-            .constraints_for_child_context(self.run.box_, self.layout_input.unwrap().containing_block_constraints)
+        self.sizing().constraints_for_child_context(
+            self.run.box_,
+            &self.run.root_record(),
+            self.layout_input.unwrap().containing_block_constraints,
+        )
     }
 
     // The sum of the max track sizing functions of the tracks the item spans in the axis, and the gutters between them,
