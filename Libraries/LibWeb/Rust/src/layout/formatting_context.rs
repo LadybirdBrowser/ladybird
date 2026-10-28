@@ -1310,6 +1310,12 @@ impl<'pass> FormattingContextRun<'pass> {
         sizing_context::SizingContext::new(self.records, self.callbacks)
     }
 
+    /// The record of the run's root, read in the frame this run lays out in.
+    #[track_caller]
+    pub(crate) fn root_record(&self) -> used_values::RecordInFrame<'pass> {
+        used_values::RecordInFrame::new(self.records.used_values(self.box_), self.callbacks.frame)
+    }
+
     /// Hands what the layout of `node` produced besides its geometry to the box's fragment, where this run builds
     /// fragments.
     pub(crate) fn update_fragment_payloads_of(
@@ -1329,11 +1335,10 @@ impl<'pass> FormattingContextRun<'pass> {
         inputs_never_observed: fc_run_cache::RunInputsTheStoredRunNeverObserved,
         parent_owns_root_input_cells: bool,
     ) -> RunOutputs {
-        let record = self.records.used_values(self.box_);
+        let record = self.root_record();
         let root_outcome = RunRootOutcome {
-            input_cells_left_by_run: (!parent_owns_root_input_cells)
-                .then(|| used_values::RootInputCells::capture(record)),
-            line_data: record.finish_line_data(&self.callbacks),
+            input_cells_left_by_run: (!parent_owns_root_input_cells).then(|| record.cells()),
+            line_data: record.record().finish_line_data(&self.callbacks),
         };
         RunOutputs {
             result,
@@ -1579,8 +1584,7 @@ fn eagerly_resolve_atomic_flex_root_auto_block_size(
             independent_root_automatic_block_size(
                 &sizing,
                 node,
-                run.records
-                    .used_values(node)
+                run.root_record()
                     .available_inner_space_or_constraints_from(inline_definite_space),
                 input.containing_block_constraints,
                 None,
@@ -1617,7 +1621,7 @@ fn apply_root_sizing_directives(
             );
             let mut body_input = body_input_with_inner_available_space(run, input);
             let inline_definite_space = AvailableSpace {
-                inline_size: AvailableSize::definite(run.records.used_values(run.box_).content_inline_size()),
+                inline_size: AvailableSize::definite(run.root_record().content_inline_size()),
                 block_size: AvailableSize::Indefinite,
             };
             let flex_self_resolution_space = flex_self_block_size_resolution_space(
@@ -1639,7 +1643,7 @@ fn apply_root_sizing_directives(
         ParticipationInParentFormattingContext::Item => {
             if cfg!(debug_assertions) && run.fragments.is_some() {
                 debug_assert!(
-                    run.records.used_values(run.box_).has_definite_inline_size(),
+                    run.root_record().has_definite_inline_size(),
                     "container-internal run root must arrive with a container-assigned inline size"
                 );
             }
@@ -1648,7 +1652,7 @@ fn apply_root_sizing_directives(
         ParticipationInParentFormattingContext::Root => {
             let directives = input.sizing;
             if directives.forced_content_inline_size.is_some() || directives.forced_content_block_size.is_some() {
-                let used = run.records.used_values(run.box_);
+                let used = run.root_record();
                 if let Some(inline_size) = directives.forced_content_inline_size {
                     used.set_content_inline_size(inline_size);
                 }
@@ -1680,7 +1684,7 @@ fn dimension_block_level_root(
     let mut body_input = body_input_with_inner_available_space(run, input);
     body_input.sizing.flex_self_block_size_resolution_space = flex_self_resolution_space;
     if let Some(block_size) = input.sizing.forced_content_block_size {
-        let used = run.records.used_values(node);
+        let used = run.root_record();
         used.set_content_block_size(block_size);
         used.set_has_definite_block_size(true);
         body_input.available_space.block_size = AvailableSize::definite(block_size);
@@ -1711,7 +1715,7 @@ fn size_block_level_root_ahead_of_its_contents(
     input: &LayoutInput,
 ) -> Option<AvailableSpace> {
     let node = run.box_;
-    let root = run.records.used_values(node);
+    let root = run.root_record();
     let constraints = input.containing_block_constraints;
     let sizing = run.sizing();
     let facts = NodeFacts::new(&run.callbacks, node);
@@ -1746,7 +1750,7 @@ fn size_block_level_root_ahead_of_its_contents(
 /// inline size its block formatting context gave it.
 fn resolve_float_root_block_size_ahead_of_its_contents(run: &FormattingContextRun, input: &LayoutInput) {
     let node = run.box_;
-    let root = run.records.used_values(node);
+    let root = run.root_record();
     let available_space = input.available_space;
     let constraints = input.containing_block_constraints;
     let sizing = run.sizing();
@@ -1832,7 +1836,7 @@ fn in_flow_children_margin_box_block_extent(
 fn finalize_block_level_root(run: &FormattingContextRun, input: &LayoutInput, body_result: &ChildLayoutResult) {
     let node = run.box_;
     if let Some(inline_size) = body_result.table_wrapper_content_inline_size {
-        run.records.used_values(node).set_content_inline_size(inline_size);
+        run.root_record().set_content_inline_size(inline_size);
     }
     let style = StyleValues::for_node(&run.callbacks, node);
     if !style.display().is_table_inside() && input.sizing.forced_content_block_size.is_none() {
@@ -1855,7 +1859,7 @@ fn finalize_block_level_root(run: &FormattingContextRun, input: &LayoutInput, bo
 fn finalize_float_root(run: &FormattingContextRun, input: &LayoutInput, body_result: &ChildLayoutResult) {
     let node = run.box_;
     if let Some(inline_size) = body_result.table_wrapper_content_inline_size {
-        run.records.used_values(node).set_content_inline_size(inline_size);
+        run.root_record().set_content_inline_size(inline_size);
     }
     run.sizing().resolve_used_block_size_if_treated_as_auto(
         node,
@@ -1919,8 +1923,7 @@ fn size_skipped_independent_root(
 
 fn body_input_with_inner_available_space(run: &FormattingContextRun, input: &LayoutInput) -> LayoutInput {
     let inner_available_space = run
-        .records
-        .used_values(run.box_)
+        .root_record()
         .available_inner_space_or_constraints_from(input.available_space);
     let mut body_input = *input;
     body_input.available_space = inner_available_space;
@@ -2218,7 +2221,7 @@ fn execute_formatting_context_run(
                 parent_owns_root_input_cells,
             );
             let root_cells_left_by_run = checks_root_input_cells_its_parent_owns
-                .then(|| used_values::RootInputCells::capture(records.used_values(box_)));
+                .then(|| used_values::RecordInFrame::new(records.used_values(box_), callbacks.frame).cells());
             (outputs, root_cells_left_by_run)
         },
     );
@@ -2458,7 +2461,7 @@ fn lay_out_run_root_and_contents<'pass>(
                 && let Some(block_size) =
                     content_block_size_adopted_after_run(&input, result.automatic_content_block_size)
             {
-                run.records.used_values(run.box_).set_content_block_size(block_size);
+                run.root_record().set_content_block_size(block_size);
             }
         }
         ParticipationInParentFormattingContext::Root => {}

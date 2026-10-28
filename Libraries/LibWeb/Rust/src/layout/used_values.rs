@@ -261,30 +261,9 @@ impl Default for UsedValues {
 }
 
 impl UsedValues {
-    /// Resolves the left and right margins, borders and padding of `style`, with percentages against `basis`.
-    pub(crate) fn resolve_horizontal_box_model(&self, style: &StyleValues<'_>, basis: CssPixels) {
-        self.margin_left.set(style.margin_left().to_px(basis));
-        self.margin_right.set(style.margin_right().to_px(basis));
-        self.border_left.set(style.border_left_width());
-        self.border_right.set(style.border_right_width());
-        self.padding_left.set(style.padding_left().to_px(basis));
-        self.padding_right.set(style.padding_right().to_px(basis));
-    }
-
-    /// Resolves the top and bottom margins, borders and padding of `style`, with percentages against `basis`.
-    pub(crate) fn resolve_vertical_box_model(&self, style: &StyleValues<'_>, basis: CssPixels) {
-        self.margin_top.set(style.margin_top().to_px(basis));
-        self.margin_bottom.set(style.margin_bottom().to_px(basis));
-        self.border_top.set(style.border_top_width());
-        self.border_bottom.set(style.border_bottom_width());
-        self.padding_top.set(style.padding_top().to_px(basis));
-        self.padding_bottom.set(style.padding_bottom().to_px(basis));
-    }
-
     /// Resolves every margin, border and padding of `style`, with percentages against `basis`.
     pub(crate) fn resolve_box_model(&self, style: &StyleValues<'_>, basis: CssPixels) {
-        self.resolve_horizontal_box_model(style, basis);
-        self.resolve_vertical_box_model(style, basis);
+        RecordInFrame::in_its_own_frame(self).resolve_box_model(style, basis);
     }
 
     pub(crate) fn line_data_ref(&self) -> Option<Ref<'_, LineDataState>> {
@@ -619,20 +598,7 @@ impl UsedValues {
     }
 
     pub(crate) fn set_box_metrics_from_fragment(&self, fragment: &fragment_tree::Fragment) {
-        self.set_content_inline_size(fragment.content_inline_size);
-        self.set_content_block_size(fragment.content_block_size);
-        self.margin_left.set(fragment.margin_left);
-        self.margin_right.set(fragment.margin_right);
-        self.margin_top.set(fragment.margin_top);
-        self.margin_bottom.set(fragment.margin_bottom);
-        self.border_left.set(fragment.border_left);
-        self.border_right.set(fragment.border_right);
-        self.border_top.set(fragment.border_top);
-        self.border_bottom.set(fragment.border_bottom);
-        self.padding_left.set(fragment.padding_left);
-        self.padding_right.set(fragment.padding_right);
-        self.padding_top.set(fragment.padding_top);
-        self.padding_bottom.set(fragment.padding_bottom);
+        RecordInFrame::in_its_own_frame(self).set_box_metrics_from_fragment(fragment);
     }
 
     /// Whether `fragment` shows this record's box as it stands: its metrics, and the very line data it holds.
@@ -841,6 +807,260 @@ macro_rules! impl_box_metric_cells {
 
 impl_box_metric_cells!(UsedValues, cell);
 impl_box_metric_cells!(RootInputCells, value);
+
+/// A record as a reader in frame `reader` sees it: the sizes, size constraints and box sides the record holds in its own
+/// frame, read and written in the reader's frame.
+#[derive(Clone, Copy)]
+pub(crate) struct RecordInFrame<'record> {
+    record: &'record UsedValues,
+    reader: geometry::Frame,
+}
+
+impl<'record> RecordInFrame<'record> {
+    /// The record, read in frame `reader`.
+    #[inline]
+    pub(crate) fn new(record: &'record UsedValues, reader: geometry::Frame) -> Self {
+        Self { record, reader }
+    }
+
+    /// The record, read in the frame it holds its metrics in.
+    #[inline]
+    pub(crate) fn in_its_own_frame(record: &'record UsedValues) -> Self {
+        Self {
+            record,
+            reader: record.frame.get(),
+        }
+    }
+
+    /// The record, for what it holds besides the metrics this view projects.
+    #[inline]
+    pub(crate) fn record(self) -> &'record UsedValues {
+        self.record
+    }
+
+    #[inline]
+    fn sizes_swap_axes(self) -> bool {
+        self.record.frame.get().is_orthogonal_to(self.reader)
+    }
+
+    /// The side the record holds the given side of the reader's frame on.
+    #[inline]
+    fn stored_side(self, side: geometry::Side) -> geometry::Side {
+        let record_frame = self.record.frame.get();
+        if record_frame == self.reader {
+            return side;
+        }
+        self.reader.side_in(side, record_frame)
+    }
+
+    /// The record's input cells, read in the reader's frame.
+    pub(crate) fn cells(self) -> RootInputCells {
+        RootInputCells::capture(self.record).in_frame(self.record.frame.get(), self.reader)
+    }
+
+    pub(crate) fn set_content_inline_size(self, value: CssPixels) {
+        if self.sizes_swap_axes() {
+            self.record.set_content_block_size(value);
+            self.record.set_has_definite_block_size(true);
+        } else {
+            self.record.set_content_inline_size(value);
+        }
+    }
+
+    pub(crate) fn set_content_block_size(self, value: CssPixels) {
+        if self.sizes_swap_axes() {
+            self.record
+                .content_inline_size
+                .set(clamp_to_max_dimension_value(value.max(CssPixels::default())));
+        } else {
+            self.record.set_content_block_size(value);
+        }
+    }
+
+    #[track_caller]
+    pub(crate) fn set_margin(self, side: geometry::Side, value: CssPixels) {
+        self.record.set_margin(self.stored_side(side), value);
+    }
+
+    #[track_caller]
+    pub(crate) fn set_border(self, side: geometry::Side, value: CssPixels) {
+        self.record.set_border(self.stored_side(side), value);
+    }
+
+    #[track_caller]
+    pub(crate) fn set_padding(self, side: geometry::Side, value: CssPixels) {
+        self.record.set_padding(self.stored_side(side), value);
+    }
+
+    pub(crate) fn set_has_definite_inline_size(self, value: bool) {
+        if self.sizes_swap_axes() {
+            self.record.set_has_definite_block_size(value);
+        } else {
+            self.record.set_has_definite_inline_size(value);
+        }
+    }
+
+    pub(crate) fn set_has_definite_block_size(self, value: bool) {
+        if self.sizes_swap_axes() {
+            self.record.set_has_definite_inline_size(value);
+        } else {
+            self.record.set_has_definite_block_size(value);
+        }
+    }
+
+    pub(crate) fn set_has_definite_block_size_only_for_button_content_alignment(self, value: bool) {
+        self.record
+            .set_has_definite_block_size_only_for_button_content_alignment(value);
+    }
+
+    /// Resolves every margin, border and padding of `style`, with percentages against `basis`.
+    pub(crate) fn resolve_box_model(self, style: &StyleValues<'_>, basis: CssPixels) {
+        self.set_margin(geometry::Side::Left, style.margin_left().to_px(basis));
+        self.set_margin(geometry::Side::Right, style.margin_right().to_px(basis));
+        self.set_border(geometry::Side::Left, style.border_left_width());
+        self.set_border(geometry::Side::Right, style.border_right_width());
+        self.set_padding(geometry::Side::Left, style.padding_left().to_px(basis));
+        self.set_padding(geometry::Side::Right, style.padding_right().to_px(basis));
+        self.set_margin(geometry::Side::Top, style.margin_top().to_px(basis));
+        self.set_margin(geometry::Side::Bottom, style.margin_bottom().to_px(basis));
+        self.set_border(geometry::Side::Top, style.border_top_width());
+        self.set_border(geometry::Side::Bottom, style.border_bottom_width());
+        self.set_padding(geometry::Side::Top, style.padding_top().to_px(basis));
+        self.set_padding(geometry::Side::Bottom, style.padding_bottom().to_px(basis));
+    }
+
+    pub(crate) fn set_box_metrics_from_fragment(self, fragment: &fragment_tree::Fragment) {
+        self.set_content_inline_size(fragment.content_inline_size);
+        self.set_content_block_size(fragment.content_block_size);
+        self.set_margin(geometry::Side::Left, fragment.margin_left);
+        self.set_margin(geometry::Side::Right, fragment.margin_right);
+        self.set_margin(geometry::Side::Top, fragment.margin_top);
+        self.set_margin(geometry::Side::Bottom, fragment.margin_bottom);
+        self.set_border(geometry::Side::Left, fragment.border_left);
+        self.set_border(geometry::Side::Right, fragment.border_right);
+        self.set_border(geometry::Side::Top, fragment.border_top);
+        self.set_border(geometry::Side::Bottom, fragment.border_bottom);
+        self.set_padding(geometry::Side::Left, fragment.padding_left);
+        self.set_padding(geometry::Side::Right, fragment.padding_right);
+        self.set_padding(geometry::Side::Top, fragment.padding_top);
+        self.set_padding(geometry::Side::Bottom, fragment.padding_bottom);
+    }
+}
+
+impl BoxMetricCells for RecordInFrame<'_> {
+    #[inline]
+    fn content_inline_size(&self) -> CssPixels {
+        if self.sizes_swap_axes() {
+            self.record.content_block_size.get()
+        } else {
+            self.record.content_inline_size.get()
+        }
+    }
+
+    #[inline]
+    fn content_block_size(&self) -> CssPixels {
+        if self.sizes_swap_axes() {
+            self.record.content_inline_size.get()
+        } else {
+            self.record.content_block_size.get()
+        }
+    }
+
+    #[inline]
+    fn margin_left(&self) -> CssPixels {
+        self.record.margin_cell(self.stored_side(geometry::Side::Left)).get()
+    }
+
+    #[inline]
+    fn margin_right(&self) -> CssPixels {
+        self.record.margin_cell(self.stored_side(geometry::Side::Right)).get()
+    }
+
+    #[inline]
+    fn margin_top(&self) -> CssPixels {
+        self.record.margin_cell(self.stored_side(geometry::Side::Top)).get()
+    }
+
+    #[inline]
+    fn margin_bottom(&self) -> CssPixels {
+        self.record.margin_cell(self.stored_side(geometry::Side::Bottom)).get()
+    }
+
+    #[inline]
+    fn border_left(&self) -> CssPixels {
+        self.record.border_cell(self.stored_side(geometry::Side::Left)).get()
+    }
+
+    #[inline]
+    fn border_right(&self) -> CssPixels {
+        self.record.border_cell(self.stored_side(geometry::Side::Right)).get()
+    }
+
+    #[inline]
+    fn border_top(&self) -> CssPixels {
+        self.record.border_cell(self.stored_side(geometry::Side::Top)).get()
+    }
+
+    #[inline]
+    fn border_bottom(&self) -> CssPixels {
+        self.record.border_cell(self.stored_side(geometry::Side::Bottom)).get()
+    }
+
+    #[inline]
+    fn padding_left(&self) -> CssPixels {
+        self.record.padding_cell(self.stored_side(geometry::Side::Left)).get()
+    }
+
+    #[inline]
+    fn padding_right(&self) -> CssPixels {
+        self.record.padding_cell(self.stored_side(geometry::Side::Right)).get()
+    }
+
+    #[inline]
+    fn padding_top(&self) -> CssPixels {
+        self.record.padding_cell(self.stored_side(geometry::Side::Top)).get()
+    }
+
+    #[inline]
+    fn padding_bottom(&self) -> CssPixels {
+        self.record.padding_cell(self.stored_side(geometry::Side::Bottom)).get()
+    }
+
+    #[inline]
+    fn has_definite_inline_size(&self) -> bool {
+        if self.sizes_swap_axes() {
+            self.record.has_definite_block_size.get()
+        } else {
+            self.record.has_definite_inline_size.get()
+        }
+    }
+
+    #[inline]
+    fn has_definite_block_size(&self) -> bool {
+        if self.sizes_swap_axes() {
+            self.record.has_definite_inline_size.get()
+        } else {
+            self.record.has_definite_block_size.get()
+        }
+    }
+
+    #[inline]
+    fn has_definite_block_size_only_for_button_content_alignment(&self) -> bool {
+        self.record
+            .has_definite_block_size_only_for_button_content_alignment
+            .get()
+    }
+
+    #[inline]
+    fn uses_collapsing_borders_model(&self) -> bool {
+        self.record.uses_collapsing_borders_model.get()
+    }
+
+    #[inline]
+    fn is_collapsed_borders_table_box(&self) -> bool {
+        self.record.is_collapsed_borders_table_box.get()
+    }
+}
 
 /// The part of a collapsed border that lies after its grid line (below or right of it), the rest lying before it.
 /// A collapsed border "is centered on the grid line" (CSS 2.2 §17.6.2), but layout keeps box edges on whole CSS

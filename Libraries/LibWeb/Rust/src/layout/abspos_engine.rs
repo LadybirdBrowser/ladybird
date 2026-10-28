@@ -265,9 +265,17 @@ impl<'pass> AbsposEngine<'pass> {
         NodeFacts::new(&self.callbacks, node)
     }
 
+    /// The record of `node`, read in the frame this engine places boxes in.
     #[track_caller]
-    fn used(&self, node: Node) -> &'pass UsedValues {
-        self.records.used_values(node)
+    fn used(&self, node: Node) -> used_values::RecordInFrame<'pass> {
+        used_values::RecordInFrame::new(self.records.used_values(node), self.callbacks.frame)
+    }
+
+    /// The sizes, size constraints and box sides of `node`, with its record read in the frame this engine places boxes
+    /// in.
+    #[track_caller]
+    fn box_metrics(&self, node: Node) -> run_records::BoxMetrics<'pass> {
+        self.records.box_metrics_in_frame(node, self.callbacks.frame)
     }
 
     fn base_containing_block_info(
@@ -790,7 +798,9 @@ impl AbsposEngine<'_> {
         }
         let containing_block_geometry = match entry_containing_block_geometry {
             Some(geometry) => *geometry,
-            None => ContainingBlockGeometry::from_box_metrics(self.used(containing_block), FfiCssPixelPoint::default()),
+            None => {
+                ContainingBlockGeometry::from_box_metrics(&self.used(containing_block), FfiCssPixelPoint::default())
+            }
         };
         let default_anchor_box = if style.has_position_anchor() {
             self.anchor_lookup(node, style.position_anchor_name())
@@ -976,7 +986,7 @@ impl AbsposEngine<'_> {
         if inputs.resolved_anchor_sizes.is_empty() {
             return;
         }
-        let used = self.used(node);
+        let used = self.used(node).record();
         if used.anchor_resolved_values.get().is_none() {
             let _ = used
                 .anchor_resolved_values
@@ -1797,7 +1807,7 @@ pub(crate) fn solve_replaced_axis(
 
 impl AbsposEngine<'_> {
     fn static_offset(&self, node: Node, rect: abspos_inputs::StaticPositionRect) -> geometry::LogicalOffset {
-        let metrics = self.records.box_metrics_of(node);
+        let metrics = self.box_metrics(node);
         let collapsed = metrics.uses_collapsing_borders_model();
         aligned_static_offset(
             rect,
@@ -3149,7 +3159,7 @@ impl<'pass> AbsposEngine<'pass> {
         };
 
         let static_offset = self.static_offset(node, inputs.static_position_rect);
-        let metrics = self.records.box_metrics_of(node);
+        let metrics = self.box_metrics(node);
         let collapsed = metrics.uses_collapsing_borders_model();
         let mut used_offset = geometry::LogicalOffset {
             inline_offset: if inputs.containing_block_info.inline_axis_mode

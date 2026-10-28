@@ -404,7 +404,7 @@ pub(crate) struct ChildLaidOutByItsOwnRun {
 #[derive(Clone, Copy)]
 pub(crate) enum BoxMetrics<'records> {
     LaidOutByItsOwnRun(LaidOutChildBox),
-    LaidOutByThisRun(&'records UsedValues),
+    LaidOutByThisRun(used_values::RecordInFrame<'records>),
     /// A child this run sizes in cells of its own before laying it out by a run of its own.
     BeingSizedByItsParent(used_values::RootInputCells),
 }
@@ -413,7 +413,7 @@ impl BoxMetrics<'_> {
     pub(crate) fn input_cells(&self) -> used_values::RootInputCells {
         match self {
             Self::LaidOutByItsOwnRun(laid_out) => laid_out.cells,
-            Self::LaidOutByThisRun(record) => used_values::RootInputCells::capture(record),
+            Self::LaidOutByThisRun(record) => record.cells(),
             Self::BeingSizedByItsParent(cells) => *cells,
         }
     }
@@ -421,7 +421,7 @@ impl BoxMetrics<'_> {
     pub(crate) fn content_baselines(&self) -> DerivedBaselines {
         match self {
             Self::LaidOutByItsOwnRun(laid_out) => laid_out.baselines,
-            Self::LaidOutByThisRun(record) => record.content_baselines_from_cells(),
+            Self::LaidOutByThisRun(record) => record.record().content_baselines_from_cells(),
             Self::BeingSizedByItsParent(_) => DerivedBaselines::default(),
         }
     }
@@ -1083,7 +1083,12 @@ impl<'arena> RunRecords<'arena> {
     /// out by a run of its own.
     pub(crate) fn box_metrics_of_if_owned(&self, node: Node) -> Option<BoxMetrics<'_>> {
         let index = match self.held_box(node)? {
-            HeldBox::RootWithRecord => return self.root_used.as_ref().map(BoxMetrics::LaidOutByThisRun),
+            HeldBox::RootWithRecord => {
+                return self
+                    .root_used
+                    .as_ref()
+                    .map(|record| BoxMetrics::LaidOutByThisRun(used_values::RecordInFrame::in_its_own_frame(record)));
+            }
             HeldBox::Kept(index) => index,
         };
         let record = match &self.scratch.kept_boxes.borrow()[index as usize].holding {
@@ -1096,9 +1101,30 @@ impl<'arena> RunRecords<'arena> {
             }
         };
         // SAFETY: This run registered the record, and it stays on the stack until this run returns.
-        Some(BoxMetrics::LaidOutByThisRun(unsafe {
-            self.scratch.run_record_stack.get(record).as_ref()
-        }))
+        Some(BoxMetrics::LaidOutByThisRun(
+            used_values::RecordInFrame::in_its_own_frame(unsafe { self.scratch.run_record_stack.get(record).as_ref() }),
+        ))
+    }
+
+    /// The sizes, size constraints, box sides and baselines of `node` as box_metrics_of() has them, with the record of a
+    /// box this run lays out read in frame `reader`.
+    #[track_caller]
+    pub(crate) fn box_metrics_in_frame(&self, node: Node, reader: geometry::Frame) -> BoxMetrics<'_> {
+        match self.box_metrics_in_frame_if_owned(node, reader) {
+            Some(metrics) => metrics,
+            None => self.panic_for_box_not_held(node),
+        }
+    }
+
+    /// The sizes, size constraints, box sides and baselines of `node` as box_metrics_of_if_owned() has them, with the
+    /// record of a box this run lays out read in frame `reader`.
+    pub(crate) fn box_metrics_in_frame_if_owned(&self, node: Node, reader: geometry::Frame) -> Option<BoxMetrics<'_>> {
+        Some(match self.box_metrics_of_if_owned(node)? {
+            BoxMetrics::LaidOutByThisRun(record) => {
+                BoxMetrics::LaidOutByThisRun(used_values::RecordInFrame::new(record.record(), reader))
+            }
+            metrics_kept_as_a_value => metrics_kept_as_a_value,
+        })
     }
 
     /// The sizes, size constraints and box sides this run holds for `node`, if it holds the box, read in frame `reader`.
