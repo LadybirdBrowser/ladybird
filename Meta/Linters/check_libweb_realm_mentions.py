@@ -49,7 +49,7 @@ ALLOWED_REALM_MENTIONS = {
         "BodyStreamPullSource creates body streams and materializes their pulls and errors on the consumer side, each in "
         "its stream's realm",
     ),
-    "FileAPI": (4, 11, "File/Blob/FileReader algorithms still create streams, buffers, and events in selected realms"),
+    "FileAPI": (4, 11, "Blob/FileList glue still creates streams, buffers, and lists in selected realms"),
     "HTML": (
         64,
         198,

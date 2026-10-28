@@ -1,5 +1,5 @@
 // https://w3c.github.io/FileAPI/#dfn-filereader
-[Exposed=(Window,Worker)]
+[Exposed=(Window,Worker), ImplementedIn=Rust]
 interface FileReader : EventTarget {
     constructor();
     // async read methods
@@ -18,9 +18,9 @@ interface FileReader : EventTarget {
     readonly attribute unsigned short readyState;
 
     // File or Blob data
-    [ReturnsJSValue] readonly attribute (DOMString or ArrayBuffer)? result;
+    readonly attribute (DOMString or ArrayBuffer)? result;
 
-    [DirectGetter] readonly attribute DOMException? error;
+    readonly attribute DOMException? error;
 
     // event handler content attributes
     attribute EventHandler onloadstart;
