@@ -21,6 +21,7 @@ AudioListener
 AudioNode
 AudioParam
 AudioParamMap
+AudioProcessingEvent
 AudioScheduledSourceNode
 AudioTrack
 AudioTrackList

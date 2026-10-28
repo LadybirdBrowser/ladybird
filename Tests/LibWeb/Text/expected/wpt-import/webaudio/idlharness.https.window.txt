@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1163 tests
 
-1077 Pass
-86 Fail
+1091 Pass
+72 Fail
 Fail	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Element: member names are unique
@@ -459,28 +459,28 @@ Pass	AudioListener interface: context.listener must inherit property "setPositio
 Pass	AudioListener interface: calling setPosition(float, float, float) on context.listener with too few arguments must throw TypeError
 Pass	AudioListener interface: context.listener must inherit property "setOrientation(float, float, float, float, float, float)" with the proper type
 Pass	AudioListener interface: calling setOrientation(float, float, float, float, float, float) on context.listener with too few arguments must throw TypeError
-Fail	AudioProcessingEvent interface: existence and properties of interface object
-Fail	AudioProcessingEvent interface object length
-Fail	AudioProcessingEvent interface object name
-Fail	AudioProcessingEvent interface: existence and properties of interface prototype object
-Fail	AudioProcessingEvent interface: existence and properties of interface prototype object's "constructor" property
-Fail	AudioProcessingEvent interface: existence and properties of interface prototype object's @@unscopables property
-Fail	AudioProcessingEvent interface: attribute playbackTime
-Fail	AudioProcessingEvent interface: attribute inputBuffer
-Fail	AudioProcessingEvent interface: attribute outputBuffer
-Fail	AudioProcessingEvent must be primary interface of new AudioProcessingEvent('', {
+Pass	AudioProcessingEvent interface: existence and properties of interface object
+Pass	AudioProcessingEvent interface object length
+Pass	AudioProcessingEvent interface object name
+Pass	AudioProcessingEvent interface: existence and properties of interface prototype object
+Pass	AudioProcessingEvent interface: existence and properties of interface prototype object's "constructor" property
+Pass	AudioProcessingEvent interface: existence and properties of interface prototype object's @@unscopables property
+Pass	AudioProcessingEvent interface: attribute playbackTime
+Pass	AudioProcessingEvent interface: attribute inputBuffer
+Pass	AudioProcessingEvent interface: attribute outputBuffer
+Pass	AudioProcessingEvent must be primary interface of new AudioProcessingEvent('', {
         playbackTime: 0, inputBuffer: buffer, outputBuffer: buffer
       })
-Fail	Stringification of new AudioProcessingEvent('', {
+Pass	Stringification of new AudioProcessingEvent('', {
         playbackTime: 0, inputBuffer: buffer, outputBuffer: buffer
       })
-Fail	AudioProcessingEvent interface: new AudioProcessingEvent('', {
+Pass	AudioProcessingEvent interface: new AudioProcessingEvent('', {
         playbackTime: 0, inputBuffer: buffer, outputBuffer: buffer
       }) must inherit property "playbackTime" with the proper type
-Fail	AudioProcessingEvent interface: new AudioProcessingEvent('', {
+Pass	AudioProcessingEvent interface: new AudioProcessingEvent('', {
         playbackTime: 0, inputBuffer: buffer, outputBuffer: buffer
       }) must inherit property "inputBuffer" with the proper type
-Fail	AudioProcessingEvent interface: new AudioProcessingEvent('', {
+Pass	AudioProcessingEvent interface: new AudioProcessingEvent('', {
         playbackTime: 0, inputBuffer: buffer, outputBuffer: buffer
       }) must inherit property "outputBuffer" with the proper type
 Pass	BiquadFilterNode interface: existence and properties of interface object
