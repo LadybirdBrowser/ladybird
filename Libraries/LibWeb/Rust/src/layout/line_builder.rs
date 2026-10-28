@@ -368,12 +368,12 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         content_baselines: DerivedBaselines,
     ) {
         self.prepare_to_append_inline_content();
-        let used = self.context().used(node);
-        let content_inline = used.content_inline_size.get();
-        let content_block = used.content_block_size.get();
-        let border_start = used.border_box_top(false);
-        let border_end = used.border_box_bottom(false);
-        let margin_block_size = used.margin_box_block_size(false);
+        let atomic_inline = self.context().box_metrics(node);
+        let content_inline = atomic_inline.content_inline_size();
+        let content_block = atomic_inline.content_block_size();
+        let border_start = atomic_inline.border_box_top(false);
+        let border_end = atomic_inline.border_box_bottom(false);
+        let margin_block_size = atomic_inline.margin_box_block_size(false);
         let line_index = self.ensure_last_line_index();
         let fragment_index = self.line(line_index).fragments.len();
         let fragment_facts = self.fragment_facts(node);
@@ -526,7 +526,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         block_end: CssPixels,
         block_end_margin: CssPixels,
     ) {
-        let used = self.context().used(node);
+        let block = self.context().box_metrics(node);
         let content_offset = self
             .context()
             .run
@@ -536,10 +536,10 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             .content_offset_in_containing_block;
         let inline_offset = content_offset.x;
         let block_offset = content_offset.y;
-        let inline_length = used.content_inline_size.get();
-        let block_length = used.content_block_size.get();
-        let border_start = used.border_box_top(false);
-        let line_inline_length = used.margin_box_inline_size(false);
+        let inline_length = block.content_inline_size();
+        let block_length = block.content_block_size();
+        let border_start = block.border_box_top(false);
+        let line_inline_length = block.margin_box_inline_size(false);
         let ensured_line_index = self.ensure_last_line_index();
         assert_eq!(line_index, ensured_line_index);
         assert!(self.line(line_index).fragments.is_empty());
@@ -584,7 +584,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
     }
 
     pub(crate) fn ceiling_for_float_to_be_inserted_here(&mut self, node: Node) -> CssPixels {
-        let float_inline_size = self.context().used(node).margin_box_inline_size(false);
+        let float_inline_size = self.context().box_metrics(node).margin_box_inline_size(false);
         let mut candidate = self.current_block_offset;
         let line_index = self.ensure_last_line_index();
         let mut line = self.line_mut(line_index);
@@ -791,7 +791,9 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                 .visible_fragments()
                 .map(|fragment| {
                     if fragment.is_atomic_inline {
-                        self.context().used(fragment.layout_node).margin_box_block_size(false)
+                        self.context()
+                            .box_metrics(fragment.layout_node)
+                            .margin_box_block_size(false)
                     } else {
                         fragment.block_length
                     }
@@ -854,11 +856,12 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             let fragment_baseline = if is_block_ellipsis || self.facts(node).is_text_node() {
                 Self::baseline_for_style(style, style.line_height())
             } else {
+                let metrics = self.context().box_metrics(node);
                 formatting_context::inline_box_baseline(
                     &self.context().callbacks,
                     node,
-                    self.context().used(node),
-                    content_baselines.unwrap_or_else(|| self.context().used(node).content_baselines_from_cells()),
+                    &metrics,
+                    content_baselines.unwrap_or_else(|| metrics.content_baselines()),
                 )
             };
             self.line_mut(line_index).fragments[fragment_index].baseline = fragment_baseline;
@@ -927,9 +930,11 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                 line_height: style.line_height(),
             };
             if snapshot.is_atomic_inline {
-                let used = self.context().used(snapshot.layout_node);
-                metrics.effective_box_block_start_offset = used.margin_top.get() + used.border_box_top(false);
-                metrics.effective_box_block_end_offset = used.margin_bottom.get() + used.border_box_bottom(false);
+                let atomic_inline = self.context().box_metrics(snapshot.layout_node);
+                metrics.effective_box_block_start_offset =
+                    atomic_inline.margin_top() + atomic_inline.border_box_top(false);
+                metrics.effective_box_block_end_offset =
+                    atomic_inline.margin_bottom() + atomic_inline.border_box_bottom(false);
             }
             let containing_block = self.context().containing_block;
             let new_inline_offset = inline_offset + snapshot.inline_offset;
@@ -1021,13 +1026,13 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             }
 
             let (inline_box_start, mut inline_box_end) = if snapshot.is_atomic_inline {
-                let used = self.context().used(snapshot.layout_node);
+                let atomic_inline = self.context().box_metrics(snapshot.layout_node);
                 (
-                    snapshot.block_offset - (used.margin_top.get() + used.border_box_top(false)),
+                    snapshot.block_offset - (atomic_inline.margin_top() + atomic_inline.border_box_top(false)),
                     snapshot.block_offset
-                        + used.content_block_size.get()
-                        + used.margin_bottom.get()
-                        + used.border_box_bottom(false),
+                        + atomic_inline.content_block_size()
+                        + atomic_inline.margin_bottom()
+                        + atomic_inline.border_box_bottom(false),
                 )
             } else {
                 let typographic = CssPixels::nearest_value_for_f32(style.font_ascent() + style.font_descent());
