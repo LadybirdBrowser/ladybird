@@ -1,0 +1,44 @@
+<!doctype html>
+<title>CSS Container Queries Test: @container querying size of elements without layout containment</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#size-container">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/cq-testcommon.js"></script>
+<script>
+  setup(() => assert_implements_size_container_queries());
+</script>
+<style>
+  #outer-container {
+    width: 100px;
+    container-type: inline-size;
+  }
+  #container-inline, #svg-container {
+    width: 100px;
+    container-type: inline-size;
+  }
+  @container (width >= 0px) {
+    #inner { color: red; }
+    #svg-inner { fill: red; }
+  }
+</style>
+<div id="outer-container">
+  <span id="container-inline">
+    <span id="inner">Not red</span>
+  </span>
+  <svg>
+    <g id="svg-container">
+      <text x="0" y="20" id="svg-inner">Not red</text>
+    </g>
+  </svg>
+</div>
+<script>
+  const red = "rgb(255, 0, 0)";
+
+  test(() => {
+    assert_not_equals(getComputedStyle(inner).color, red);
+  }, "Size @container query against inline box never matches");
+
+  test(() => {
+    assert_not_equals(getComputedStyle(document.querySelector("#svg-inner")).fill, red);
+  }, "Size @container query against svg element never matches");
+</script>

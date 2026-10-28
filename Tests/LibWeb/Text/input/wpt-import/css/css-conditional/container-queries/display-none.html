@@ -1,0 +1,393 @@
+<!doctype html>
+<title>@container in display:none</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#size-container">
+<link rel="help" href="https://drafts.csswg.org/css-contain-2/#containment-size">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/cq-testcommon.js"></script>
+<script>
+  setup(() => assert_implements_size_container_queries());
+</script>
+<style>
+  .container {
+    container-type: size;
+    width: 30px;
+    height: 30px;
+    background: tomato;
+  }
+  .small {
+    width: 10px;
+    height: 10px;
+  }
+  .big {
+    width: 50px;
+    height: 50px;
+    background: skyblue;
+  }
+  .auto {
+    width: auto;
+  }
+  .none {
+    display: none;
+  }
+  .pseudo::before {
+    content: "foo";
+  }
+  .pseudo_none::before {
+    content: "foo";
+    display: none;
+  }
+
+  @container (width: 30px) {
+    .target { --x:30; }
+  }
+
+  @container (width: 50px) {
+    .target { --x:50; }
+  }
+
+  main {
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+</style>
+
+<main>
+  <!-- Target element is display:none -->
+  <div class="container">
+    <div>
+      <div>
+        <div class="target none" id=target1></div>
+      </div>
+    </div>
+  </div>
+  <script>
+    test(function() {
+      let s = getComputedStyle(target1);
+      assert_equals(s.getPropertyValue('--x'), '30');
+    }, 'getComputedStyle when element is display:none');
+  </script>
+
+  <!-- Parent is display:none -->
+  <div class="container">
+    <div>
+      <div class="none">
+        <div class="target" id=target2></div>
+      </div>
+    </div>
+  </div>
+  <script>
+    test(function() {
+      let s = getComputedStyle(target2);
+      assert_equals(s.getPropertyValue('--x'), '30');
+    }, 'getComputedStyle when parent is display:none');
+  </script>
+
+  <!-- Ancestor is display:none -->
+  <div class="container">
+    <div class="none">
+      <div>
+        <div class="target" id=target3></div>
+      </div>
+    </div>
+  </div>
+  <script>
+    test(function() {
+      let s = getComputedStyle(target3);
+      assert_equals(s.getPropertyValue('--x'), '30');
+    }, 'getComputedStyle when ancestor is display:none');
+  </script>
+
+  <!-- Container is display:none -->
+  <div class="container none">
+    <div>
+      <div>
+        <div class="target" id=target4></div>
+      </div>
+    </div>
+  </div>
+  <script>
+    test(function() {
+      let s = getComputedStyle(target4);
+      assert_equals(s.getPropertyValue('--x'), '');
+    }, 'getComputedStyle when container is display:none');
+  </script>
+
+  <!-- Target element is display:none in nested container -->
+  <div class="container big">
+    <div>
+      <div>
+        <div class="container">
+          <div>
+            <div>
+              <div class="target none" id=target5></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    test(function() {
+      let s = getComputedStyle(target5);
+      assert_equals(s.getPropertyValue('--x'), '30');
+    }, 'getComputedStyle when element in nested container is display:none');
+  </script>
+
+  <!-- Inner container is display:none -->
+  <div class="container big">
+    <div>
+      <div>
+        <div class="container none">
+          <div>
+            <div>
+              <div class="target" id=target6></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    test(function() {
+      let s = getComputedStyle(target6);
+      assert_equals(s.getPropertyValue('--x'), '');
+    }, 'getComputedStyle when inner container is display:none');
+  </script>
+
+  <!-- Intermediate ancestor is display:none -->
+  <div class="container big">
+    <div class="none">
+      <div>
+        <div class="container">
+          <div>
+            <div>
+              <div class="target" id=target7></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    test(function() {
+      let s = getComputedStyle(target7);
+      assert_equals(s.getPropertyValue('--x'), '');
+    }, 'getComputedStyle when intermediate ancestor is display:none');
+  </script>
+
+  <!-- Outer container is display:none -->
+  <div class="container big none">
+    <div>
+      <div>
+        <div class="container">
+          <div>
+            <div>
+              <div class="target" id=target8></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    test(function() {
+      let s = getComputedStyle(target8);
+      assert_equals(s.getPropertyValue('--x'), '');
+    }, 'getComputedStyle when outer container is display:none');
+  </script>
+
+  <!-- Nothing is display:none initially, but target becomes display:none -->
+  <div class="container">
+    <div>
+      <div>
+        <div class="target" id=target9></div>
+      </div>
+    </div>
+  </div>
+  <script>
+    test(function() {
+      let s = getComputedStyle(target9);
+      assert_equals(s.getPropertyValue('--x'), '30');
+      target9.classList.add('none');
+      assert_equals(s.getPropertyValue('--x'), '30');
+    }, 'getComputedStyle when element becomes display:none');
+  </script>
+
+  <!-- Nothing is display:none initially, but parent becomes display:none -->
+  <div class="container">
+    <div>
+      <div id=parent10>
+        <div class="target" id=target10></div>
+      </div>
+    </div>
+  </div>
+  <script>
+    test(function() {
+      let s = getComputedStyle(target10);
+      assert_equals(s.getPropertyValue('--x'), '30');
+      parent10.classList.add('none');
+      assert_equals(s.getPropertyValue('--x'), '30');
+    }, 'getComputedStyle when parent becomes display:none');
+  </script>
+
+  <!-- Nothing is display:none initially, but ancestor becomes display:none -->
+  <div class="container">
+    <div id=ancestor11>
+      <div>
+        <div class="target" id=target11></div>
+      </div>
+    </div>
+  </div>
+  <script>
+    test(function() {
+      let s = getComputedStyle(target11);
+      assert_equals(s.getPropertyValue('--x'), '30');
+      ancestor11.classList.add('none');
+      assert_equals(s.getPropertyValue('--x'), '30');
+    }, 'getComputedStyle when ancestor becomes display:none');
+  </script>
+
+  <!-- Nothing is display:none initially, but container becomes display:none -->
+  <div class="container" id=container12>
+    <div>
+      <div>
+        <div class="target" id=target12></div>
+      </div>
+    </div>
+  </div>
+  <script>
+    test(function() {
+      let s = getComputedStyle(target12);
+      assert_equals(s.getPropertyValue('--x'), '30');
+      container12.classList.add('none');
+      assert_equals(s.getPropertyValue('--x'), '');
+    }, 'getComputedStyle when container becomes display:none');
+  </script>
+
+  <!-- Intermediate container becomes display:none -->
+  <div class="container big">
+    <div>
+      <div>
+        <div class="container" id=container13>
+          <div>
+            <div>
+              <div class="target" id=target13></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    test(function() {
+      let s = getComputedStyle(target13);
+      assert_equals(s.getPropertyValue('--x'), '30');
+      container13.classList.add('none');
+      assert_equals(s.getPropertyValue('--x'), '');
+    }, 'getComputedStyle when intermediate container becomes display:none');
+  </script>
+
+  <!-- Pseudo-element is display:none -->
+  <div class="container">
+    <div>
+      <div>
+        <div class="target pseudo_none" id=target14></div>
+      </div>
+    </div>
+  </div>
+  <script>
+    test(function() {
+      let s = getComputedStyle(target14, '::before');
+      assert_equals(s.getPropertyValue('content'), '"foo"');
+      assert_equals(s.getPropertyValue('--x'), '30');
+    }, 'getComputedStyle when ::before is display:none');
+  </script>
+
+  <!-- Pseudo-element with display:none originating element -->
+  <div class="container">
+    <div>
+      <div>
+        <div class="target pseudo none" id=target15></div>
+      </div>
+    </div>
+  </div>
+  <script>
+    test(function() {
+      let s = getComputedStyle(target15, '::before');
+      assert_equals(s.getPropertyValue('content'), '"foo"');
+      assert_equals(s.getPropertyValue('--x'), '30');
+    }, 'getComputedStyle when originating element is display:none');
+  </script>
+
+  <!-- Pseudo-element with display:none ancestor -->
+  <div class="container">
+    <div class="none">
+      <div>
+        <div class="target pseudo" id=target16></div>
+      </div>
+    </div>
+  </div>
+  <script>
+    test(function() {
+      let s = getComputedStyle(target16, '::before');
+      assert_equals(s.getPropertyValue('content'), '"foo"');
+      assert_equals(s.getPropertyValue('--x'), '30');
+    }, 'getComputedStyle on ::before when ancestor element is display:none');
+  </script>
+
+  <!-- Pseudo-element with in display:none container -->
+  <div class="container none">
+    <div>
+      <div>
+        <div class="target pseudo" id=target17></div>
+      </div>
+    </div>
+  </div>
+  <script>
+    test(function() {
+      let s = getComputedStyle(target17, '::before');
+      assert_equals(s.getPropertyValue('content'), '"foo"');
+      assert_equals(s.getPropertyValue('--x'), '');
+    }, 'getComputedStyle on ::before when container is display:none');
+  </script>
+
+  <!-- Target in display:none with layout dirty outer element -->
+  <div class=small id="outer18">
+    <div class="container auto">
+      <div class="none">
+        <div>
+          <div class="target" id=target18></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    test(function() {
+      target18.offsetTop;
+      let s = getComputedStyle(target18);
+      assert_equals(s.getPropertyValue('--x'), '');
+
+      outer18.classList.remove('small');
+      outer18.classList.add('big');
+      assert_equals(s.getPropertyValue('--x'), '50');
+    }, 'getComputedStyle when in display:none with layout dirty outer element');
+  </script>
+
+  <!-- Intermediate container has forced style -->
+  <div class="container">
+    <div class="none">
+      <div id="inner19" class="container">
+        <div id="target19" class="target"></div>
+      </div>
+    </div>
+  </div>
+  <script>
+    test(function() {
+      getComputedStyle(inner19).getPropertyValue('--x');
+      let s = getComputedStyle(target19);
+      assert_equals(s.getPropertyValue('--x'), '');
+    }, 'getComputedStyle when display:none inner container has forced style');
+  </script>
+</main>

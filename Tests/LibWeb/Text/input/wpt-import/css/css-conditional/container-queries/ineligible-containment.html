@@ -1,0 +1,51 @@
+<!doctype html>
+<title>Containers ineligible for containment</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#size-container">
+<link rel="help" href="https://drafts.csswg.org/css-contain-2/#containment-size">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/cq-testcommon.js"></script>
+<style>
+  #outer, #inner1, #inner2 {
+    width: 200px;
+    container-type: inline-size;
+  }
+  #inner1 {
+    display: table;
+  }
+  p {
+    color: green;
+  }
+  @container (min-width: 1px) {
+    p { color: red; }
+  }
+</style>
+<div id=outer>
+  <div id=inner1>
+    <p id=p1>Test1</p>
+  </div>
+  <div id=inner2>
+    <p id=p2>Test1</p>
+  </div>
+</main>
+<script>
+  setup(() => assert_implements_size_container_queries());
+
+  test(function(t) {
+    // #inner1 is the container, but it does not satisfy the containment
+    // requirements, hence the query should fail.
+    assert_equals(getComputedStyle(p1).color, 'rgb(0, 128, 0)');
+  }, 'Container ineligible for containment');
+
+  test(function(t) {
+    t.add_cleanup(() => { inner2.style = ''; });
+
+    assert_equals(getComputedStyle(p2).color, 'rgb(255, 0, 0)');
+
+    inner2.style = 'display:table';
+
+    // #inner2 is still the container, but it no longer satisfies the
+    // containment requirements.
+    assert_equals(getComputedStyle(p2).color, 'rgb(0, 128, 0)');
+  }, 'Changing containment eligibility invalidates style');
+</script>

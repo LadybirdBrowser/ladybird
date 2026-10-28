@@ -1,0 +1,24 @@
+Harness status: OK
+
+Found 19 tests
+
+19 Pass
+Pass	getComputedStyle when element is display:none
+Pass	getComputedStyle when parent is display:none
+Pass	getComputedStyle when ancestor is display:none
+Pass	getComputedStyle when container is display:none
+Pass	getComputedStyle when element in nested container is display:none
+Pass	getComputedStyle when inner container is display:none
+Pass	getComputedStyle when intermediate ancestor is display:none
+Pass	getComputedStyle when outer container is display:none
+Pass	getComputedStyle when element becomes display:none
+Pass	getComputedStyle when parent becomes display:none
+Pass	getComputedStyle when ancestor becomes display:none
+Pass	getComputedStyle when container becomes display:none
+Pass	getComputedStyle when intermediate container becomes display:none
+Pass	getComputedStyle when ::before is display:none
+Pass	getComputedStyle when originating element is display:none
+Pass	getComputedStyle on ::before when ancestor element is display:none
+Pass	getComputedStyle on ::before when container is display:none
+Pass	getComputedStyle when in display:none with layout dirty outer element
+Pass	getComputedStyle when display:none inner container has forced style

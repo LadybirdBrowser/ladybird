@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Size @container query against inline box never matches
+Pass	Size @container query against svg element never matches

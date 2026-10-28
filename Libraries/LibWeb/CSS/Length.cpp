@@ -15,6 +15,7 @@
 #include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/Percentage.h>
+#include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/DOM/AbstractElement.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
@@ -53,6 +54,20 @@ static bool query_container_is_eligible_for_axis(DOM::Element const& container, 
     auto style = container.computed_style();
     if (!style)
         return false;
+    if (box_kind_for_layout(container) == ElementBoxKind::NoBox)
+        return false;
+
+    auto display = style->display();
+    if (display.is_none() || display.is_contents() || display.is_table_inside() || (display.is_internal() && !display.is_table_caption()))
+        return false;
+    if (display.is_inline_outside() && display.inside() == DisplayInside::Ruby)
+        return false;
+    if (display.is_inline_outside() && display.is_flow_inside()) {
+        Layout::ForcedReadScope read { container.document() };
+        auto const* node = container.unsafe_layout_node(read);
+        if (!node || !node->is_atomic_inline())
+            return false;
+    }
 
     auto container_type = style->container_type();
     auto container_inline_axis_is_horizontal = inline_axis_is_horizontal(style->writing_mode());

@@ -219,7 +219,7 @@ impl RetainedState {
                 } else {
                     inputs.is_size_container
                 };
-            if !eligible {
+            if !eligible || !inputs.size_queries_available {
                 continue;
             }
             let snapshot = self.layout_style_snapshot(node).unwrap_or_default();
@@ -443,7 +443,7 @@ impl RetainedState {
                         .assigned_style_record(candidate)
                         .map(|record| record.raw())
                         .or_else(|| self.held_style_records.get(&candidate).copied())?;
-                    any_element_row = self.container_query_input_row(style_record, true);
+                    any_element_row = self.container_query_input_row(candidate, style_record, true);
                     any_element_row.as_ref()?
                 }
                 None => continue,
@@ -534,7 +534,7 @@ impl RetainedState {
             }
             let facts = FfiContainerFacts {
                 container_available: true,
-                size_available: snapshot.has_committed_box,
+                size_available: snapshot.has_committed_box && inputs.size_queries_available,
                 width: crate::css::css_pixels::CssPixels::from_raw(snapshot.content_width_raw).to_double(),
                 height: crate::css::css_pixels::CssPixels::from_raw(snapshot.content_height_raw).to_double(),
                 // The host applies the container's new style to its box before its descendants are

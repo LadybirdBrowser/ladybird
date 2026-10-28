@@ -22,15 +22,22 @@ pub(super) struct SizeContainerQueryFacts {
     /// Containers a style computation asked about before they had a committed box. The layout
     /// that gives them one is where their dependents move.
     needing_evaluation_after_layout: HashSet<StyleNodeID>,
+    /// A container's eligibility changed, so units can newly select it even when it was not queried before.
+    availability_changed: HashSet<StyleNodeID>,
     /// Elements the dependent walks have visited, for the style invalidation counters.
     scan_visits: u64,
 }
 
 impl SizeContainerQueryFacts {
+    pub(super) fn note_availability_change(&mut self, node: StyleNodeID) {
+        self.availability_changed.insert(node);
+    }
+
     pub(super) fn retire(&mut self, node: StyleNodeID) {
         self.queried_containers.remove(&node);
         self.dependents.remove(&node);
         self.needing_evaluation_after_layout.remove(&node);
+        self.availability_changed.remove(&node);
     }
 }
 
@@ -70,6 +77,7 @@ impl StyleEngine {
             .size_container_queries
             .needing_evaluation_after_layout
             .is_empty()
+            || !self.retained.size_container_queries.availability_changed.is_empty()
     }
 
     /// The elements the dependent walks have visited, optionally starting the count again.
@@ -81,11 +89,16 @@ impl StyleEngine {
     /// A layout gave the containers that had no box when they were asked about one; their
     /// dependents are computed again against it.
     pub fn evaluate_size_containers_needing_evaluation_after_layout(&mut self) {
-        let containers = std::mem::take(&mut self.retained.size_container_queries.needing_evaluation_after_layout);
+        let mut containers = std::mem::take(&mut self.retained.size_container_queries.needing_evaluation_after_layout);
+        let availability_changed = std::mem::take(&mut self.retained.size_container_queries.availability_changed);
+        containers.extend(availability_changed.iter().copied());
         for container in containers {
             // A container that has left the document has no dependents left to move.
             if self.retained.tree.is_live(container) {
-                self.record_size_container_query_dependents(container);
+                self.record_size_container_query_dependents_after_input_change(
+                    container,
+                    availability_changed.contains(&container),
+                );
             }
         }
     }
@@ -95,7 +108,19 @@ impl StyleEngine {
     /// size query or container-relative unit decided below it, and the container itself for its
     /// own pseudo-elements, is recorded to compute again.
     pub fn record_size_container_query_dependents(&mut self, container: StyleNodeID) {
-        let (changed, visits) = self.retained.size_container_query_dependents(container);
+        self.record_size_container_query_dependents_after_input_change(container, false);
+    }
+
+    fn record_size_container_query_dependents_after_input_change(
+        &mut self,
+        container: StyleNodeID,
+        availability_changed: bool,
+    ) {
+        let (changed, visits) = if availability_changed {
+            self.retained.size_container_query_dependents_in_subtree(container)
+        } else {
+            self.retained.size_container_query_dependents(container)
+        };
         self.retained.size_container_queries.scan_visits += visits;
         for node in changed {
             self.record_container_query_input(node);
@@ -108,11 +133,17 @@ impl RetainedState {
     /// itself for its own pseudo-elements, with the number of elements the walk for them visited. None where nothing
     /// resolved against the container.
     pub(super) fn size_container_query_dependents(&self, container: StyleNodeID) -> (Vec<StyleNodeID>, u64) {
-        let facts = &self.size_container_queries;
-        if !facts.queried_containers.contains(&container) {
+        if !self.size_container_queries.queried_containers.contains(&container) {
             return (Vec::new(), 0);
         }
+        self.size_container_query_dependents_in_subtree(container)
+    }
 
+    fn size_container_query_dependents_in_subtree(&self, container: StyleNodeID) -> (Vec<StyleNodeID>, u64) {
+        let facts = &self.size_container_queries;
+        if facts.dependents.is_empty() {
+            return (Vec::new(), 0);
+        }
         let mut changed = Vec::new();
         // The container's own pseudo-elements select it as their query container too, and their
         // styles are computed again with the element's.
