@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Values: clamp() accepts whitespace around a 'none' argument</title>
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#funcdef-clamp">
+<meta name="assert" content="clamp( [ <calc-sum> | none ], <calc-sum>, [ <calc-sum> | none ] ) must accept optional whitespace around the 'none' keyword, including before the following comma and after a trailing 'none', exactly as it does for a <calc-sum> argument.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+// Returns the serialized specified value of 'width' for the given declaration,
+// or "" if the declaration was rejected as invalid.
+function serializeWidth(value) {
+  const el = document.createElement("div");
+  el.style.width = value;
+  return el.style.width;
+}
+
+// The 'none' argument with insignificant whitespace must parse identically to
+// the same value without that whitespace. Comparing against the no-whitespace
+// control avoids hard-coding clamp()'s canonical serialization.
+test(() => {
+  const control = serializeWidth("clamp(none, 5px, 10px)");
+  assert_not_equals(control, "", "clamp() with 'none' as the min argument is supported");
+  assert_equals(serializeWidth("clamp(none , 5px, 10px)"), control,
+    "whitespace between 'none' and the following comma");
+}, "clamp() accepts whitespace between a 'none' min argument and the following comma");
+
+test(() => {
+  const control = serializeWidth("clamp(5px, 6px, none)");
+  assert_not_equals(control, "", "clamp() with 'none' as the max argument is supported");
+  assert_equals(serializeWidth("clamp(5px, 6px, none )"), control,
+    "whitespace after a trailing 'none'");
+}, "clamp() accepts whitespace after a trailing 'none' max argument");
+
+test(() => {
+  const control = serializeWidth("clamp(none, 5px, none)");
+  assert_not_equals(control, "", "clamp() with 'none' as both bounds is supported");
+  assert_equals(serializeWidth("clamp( none , 5px , none )"), control,
+    "whitespace around both 'none' bounds");
+}, "clamp() accepts whitespace around 'none' for both bounds");
+</script>

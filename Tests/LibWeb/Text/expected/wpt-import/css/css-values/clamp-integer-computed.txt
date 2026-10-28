@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 6 tests
+
+1 Pass
+5 Fail
+Pass	Property z-index value 'clamp(10, 20, 30)'
+Fail	Property z-index value 'clamp(none, 30, 33)'
+Fail	Property z-index value 'clamp(none, 33, 30)'
+Fail	Property z-index value 'clamp(30, 33, none)'
+Fail	Property z-index value 'clamp(33, 30, none)'
+Fail	Property z-index value 'clamp(none, 30, none)'

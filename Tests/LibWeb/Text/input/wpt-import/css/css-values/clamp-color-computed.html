@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-values/#funcdef-clamp">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../support/computed-testcommon.js"></script>
+<div id="target"></div>
+<script>
+test_computed_value('color', 'rgb(clamp(10, 20, 30) 0 0)', 'rgb(20, 0, 0)');
+test_computed_value('color', 'rgb(clamp(none, 30, 33) 0 0)', 'rgb(30, 0, 0)');
+test_computed_value('color', 'rgb(clamp(none, 33, 30) 0 0)', 'rgb(30, 0, 0)');
+test_computed_value('color', 'rgb(clamp(30, 33, none) 0 0)', 'rgb(33, 0, 0)');
+test_computed_value('color', 'rgb(clamp(33, 30, none) 0 0)', 'rgb(33, 0, 0)');
+test_computed_value('color', 'rgb(clamp(none, 30, none) 0 0)', 'rgb(30, 0, 0)');
+
+// Relative colors
+test_computed_value('color', 'rgb(from red clamp(r, 30, 300) g b)', 'color(srgb 1 0 0)');
+test_computed_value('color', 'rgb(from red clamp(30, 300, r) g b)', 'color(srgb 1 0 0)');
+test_computed_value('color', 'rgb(from red clamp(3, r, 300) g b)', 'color(srgb 1 0 0)');
+test_computed_value('color', 'rgb(from red clamp(3, r, r + 30) g b)', 'color(srgb 1 0 0)');
+test_computed_value('color', 'rgb(from red clamp(r - 30, r, 300) g b)', 'color(srgb 1 0 0)');
+test_computed_value('color', 'rgb(from red clamp(3, r, none) g b)', 'color(srgb 1 0 0)');
+test_computed_value('color', 'rgb(from red clamp(r, 30, none) g b)', 'color(srgb 1 0 0)');
+test_computed_value('color', 'rgb(from red clamp(none, r, 300) g b)', 'color(srgb 1 0 0)');
+test_computed_value('color', 'rgb(from red clamp(none, r, r + 30) g b)', 'color(srgb 1 0 0)');
+</script>

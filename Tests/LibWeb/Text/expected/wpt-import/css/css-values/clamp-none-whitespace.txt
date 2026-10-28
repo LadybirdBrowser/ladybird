@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Fail
+Fail	clamp() accepts whitespace between a 'none' min argument and the following comma
+Fail	clamp() accepts whitespace after a trailing 'none' max argument
+Fail	clamp() accepts whitespace around 'none' for both bounds

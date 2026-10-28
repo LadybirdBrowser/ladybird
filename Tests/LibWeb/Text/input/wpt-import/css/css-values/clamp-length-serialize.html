@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#comp-func">
+<link rel="author" title="Xiaocheng Hu" href="mailto:xiaochengh@chromium.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../support/parsing-testcommon.js"></script>
+<script>
+function test_valid_length(value, expected) {
+  test_valid_value('margin-top', value, expected);
+  test_valid_value('margin-top', `calc(${value})`, expected);
+}
+
+test_valid_length('clamp(1px, 2px, 3px)', 'calc(2px)');
+test_valid_length('clamp(1px, 2px, clamp(2px, 3px, 4px))', 'calc(2px)');
+
+test_valid_length('clamp(10px, 5px, 30px)', 'calc(10px)');
+test_valid_length('clamp(10px, 35px, 30px)', 'calc(30px)');
+test_valid_length('clamp(10px, 35px , 30px)', 'calc(30px)');
+test_valid_length('clamp(10px, 35px /*foo*/, 30px)', 'calc(30px)');
+test_valid_length('clamp(10px /* foo */ , 35px, 30px)', 'calc(30px)');
+test_valid_length('clamp(10px , 35px, 30px)', 'calc(30px)');
+
+// clamp(MIN, VAL, MAX) is identical to max(MIN, min(VAL, MAX)),
+// so MIN wins over MAX if they are in the wrong order.
+test_valid_length('clamp(30px, 100px, 20px)', 'calc(30px)');
+
+// also test with negative values
+test_valid_length('clamp(-30px, -20px, -10px)', 'calc(-20px)');
+test_valid_length('clamp(-30px, -100px, -10px)', 'calc(-30px)');
+test_valid_length('clamp(-30px, 100px, -10px)', 'calc(-10px)');
+test_valid_length('clamp(-10px, 100px, -30px)', 'calc(-10px)');
+test_valid_length('clamp(-10px, -100px, -30px)', 'calc(-10px)');
+
+// and negating the result of clamp
+test_valid_length('calc(0px + clamp(10px, 20px, 30px))', 'calc(20px)');
+test_valid_length('calc(0px - clamp(10px, 20px, 30px))', 'calc(-20px)');
+test_valid_length('calc(0px + clamp(30px, 100px, 20px))', 'calc(30px)');
+test_valid_length('calc(0px - clamp(30px, 100px, 20px))', 'calc(-30px)');
+
+// mixed units that can't be resolved until computed-value time
+test_valid_length('clamp(1px, 1em, 1vh)', 'clamp(1px, 1em, 1vh)');
+test_valid_length('clamp(-18px, 3vw, -3vw)', 'clamp(-18px, 3vw, -3vw)', 'clamp(-18px, 3vw, -3vw)');
+test_valid_length('calc(0px + clamp(1px, 1em, 1vh))', 'calc(0px + clamp(1px, 1em, 1vh))');
+test_valid_length('calc(0px - clamp(1px, 1em, 1vh))', 'calc(0px - clamp(1px, 1em, 1vh))');
+
+// "none" values
+test_valid_length('clamp(none, 33px, 30px)', 'calc(30px)');
+test_valid_length('clamp(33px, 30px, none)', 'calc(33px)');
+test_valid_length('clamp(none, 30px, none)', 'calc(30px)');
+
+</script>
