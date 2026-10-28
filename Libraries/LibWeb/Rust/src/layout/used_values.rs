@@ -595,6 +595,11 @@ pub(crate) trait BoxMetricCells {
     fn uses_collapsing_borders_model(&self) -> bool;
     fn is_collapsed_borders_table_box(&self) -> bool;
 
+    /// The record these metrics view, if they view one, which a reader in another frame views in its own.
+    fn record_viewed(&self) -> Option<&UsedValues> {
+        None
+    }
+
     fn border_left_collapsed(&self, collapsed: bool) -> CssPixels {
         if collapsed {
             collapsed_border_share(self.border_left(), true, self.is_collapsed_borders_table_box())
@@ -1004,6 +1009,10 @@ impl BoxMetricCells for RecordInFrame<'_> {
     #[inline]
     fn is_collapsed_borders_table_box(&self) -> bool {
         self.record.is_collapsed_borders_table_box.get()
+    }
+
+    fn record_viewed(&self) -> Option<&UsedValues> {
+        Some(self.record)
     }
 }
 

@@ -364,11 +364,13 @@ pub(super) fn content_sizes_of_block_container(
                 );
                 continue;
             }
+            let child_metrics = run.records.box_metrics_in_frame_if_owned(child, run.callbacks.frame);
+            let sized_child = sizing_context::SizedBox::held_if_any(child, child_metrics.as_ref());
             let contributions = if child_facts.is_table_wrapper() {
-                sizing.block_level_table_wrapper_outer_inline_contributions(child, child_constraints)
+                sizing.block_level_table_wrapper_outer_inline_contributions(sized_child, child_constraints)
             } else if legend_sized_to_fit_its_content == Some(child) {
                 sizing.outer_inline_contributions_of_legend_whose_fit_content_size_ignores_its_limits(
-                    child,
+                    sized_child,
                     scope.available_block_size(),
                     child_constraints,
                 )
@@ -400,7 +402,7 @@ pub(super) fn content_sizes_of_block_container(
                     + floats.line_insets_of_box_avoiding_them(contributions.margin_start, contributions.margin_end)
             } else if !floats.is_empty() && is_anonymous_wrapper_of_inline_content(child_facts) {
                 let first_line_max_content = sizing
-                    .content_inline_sizes(child, child_constraints, None)
+                    .content_inline_sizes(sized_child, child_constraints, None)
                     .first_line_max_content;
                 margin_box_contributions
                     .max
@@ -553,7 +555,7 @@ fn content_sizes_of_container_under_each_inline_size_constraint(
                 input.sizing.maximum_inline_size_resolved_by_caller =
                     content_size_named_by_maximum.map(|content_size| {
                         sizing.apply_transferred_limits_to_intrinsic_inline_size(
-                            node,
+                            sizing_context::SizedBox::new(node, &run.root_record()),
                             clamp_to_max_dimension_value(content_size),
                             available_inline_size_under_content_size_named_by_maximum(
                                 content_size_named_by_maximum_inline_size,
@@ -649,7 +651,7 @@ pub(super) fn content_sizes_of_orthogonal_flow(
         let scope_in_own_frame = ContentSizingScope { node, root_cells };
         scope_in_own_frame.enter(callbacks_in_own_frame, |run| {
             run.sizing().orthogonal_flow_inline_size(
-                node,
+                sizing_context::SizedBox::new(node, &run.root_record()),
                 AvailableSpace {
                     inline_size: available_inline_size_in_own_frame,
                     block_size: AvailableSize::Indefinite,

@@ -1600,24 +1600,41 @@ impl<'pass> TableFormattingContext<'pass> {
         }
     }
 
+    /// The metrics this run holds of `node`, a table participant, if it holds any.
+    fn participant_metrics(&self, node: Node) -> Option<run_records::BoxMetrics<'pass>> {
+        self.run
+            .records
+            .box_metrics_in_frame_if_owned(node, self.run.callbacks.frame)
+    }
+
     fn calculate_min_content_inline_size(&self, node: Node) -> CssPixels {
-        self.sizing()
-            .calculate_min_content_inline_size(node, self.participant_constraints)
+        self.sizing().calculate_min_content_inline_size(
+            sizing_context::SizedBox::held_if_any(node, self.participant_metrics(node).as_ref()),
+            self.participant_constraints,
+        )
     }
 
     fn calculate_max_content_inline_size(&self, node: Node) -> CssPixels {
-        self.sizing()
-            .calculate_max_content_inline_size(node, self.participant_constraints)
+        self.sizing().calculate_max_content_inline_size(
+            sizing_context::SizedBox::held_if_any(node, self.participant_metrics(node).as_ref()),
+            self.participant_constraints,
+        )
     }
 
     fn calculate_min_content_block_size(&self, node: Node, inline_size: CssPixels) -> CssPixels {
-        self.sizing()
-            .calculate_min_content_block_size(node, inline_size, self.participant_constraints)
+        self.sizing().calculate_min_content_block_size(
+            sizing_context::SizedBox::held_if_any(node, self.participant_metrics(node).as_ref()),
+            inline_size,
+            self.participant_constraints,
+        )
     }
 
     fn calculate_max_content_block_size(&self, node: Node, inline_size: CssPixels) -> CssPixels {
-        self.sizing()
-            .calculate_max_content_block_size(node, inline_size, self.participant_constraints)
+        self.sizing().calculate_max_content_block_size(
+            sizing_context::SizedBox::held_if_any(node, self.participant_metrics(node).as_ref()),
+            inline_size,
+            self.participant_constraints,
+        )
     }
 
     fn compute_cell_measures(&mut self, include_rows: bool) {
@@ -1706,7 +1723,11 @@ impl<'pass> TableFormattingContext<'pass> {
             } else {
                 let content_sizes = self
                     .sizing()
-                    .content_inline_sizes(cell.box_, self.participant_constraints, None)
+                    .content_inline_sizes(
+                        sizing_context::SizedBox::held_if_any(cell.box_, self.participant_metrics(cell.box_).as_ref()),
+                        self.participant_constraints,
+                        None,
+                    )
                     .sizes;
                 (content_sizes.min, content_sizes.max)
             };

@@ -461,6 +461,13 @@ macro_rules! box_metrics_getters {
                     }
                 }
             )+
+
+            fn record_viewed(&self) -> Option<&UsedValues> {
+                match self {
+                    Self::LaidOutByThisRun(record) => Some(record.record()),
+                    _ => None,
+                }
+            }
         }
     };
 }

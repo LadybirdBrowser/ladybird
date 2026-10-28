@@ -1133,12 +1133,6 @@ pub(crate) struct GridFormattingContext<'pass> {
     next_item_lookup_start: Cell<usize>,
 }
 
-impl formatting_context::ChildrenSizedInParentCells for GridFormattingContext<'_> {
-    fn child_input_cells(&self, node: Node) -> Option<used_values::RootInputCells> {
-        self.cells_of_items.get(&node).map(Cell::get)
-    }
-}
-
 impl formatting_context::ChildRunShapes for GridFormattingContext<'_> {
     fn child_run_shape_at(
         &self,
@@ -1391,9 +1385,7 @@ impl<'pass> GridFormattingContext<'pass> {
 
     #[inline]
     fn sizing(&self) -> sizing_context::SizingContext<'pass, '_> {
-        sizing_context::SizingContext::new(self.run.records, self.run.callbacks)
-            .with_child_run_shapes(self)
-            .with_children_sized_in_parent_cells(self)
+        sizing_context::SizingContext::new(self.run.records, self.run.callbacks).with_child_run_shapes(self)
     }
 
     fn parent_grid(&self) -> Option<&ParentGridData<'pass>> {
@@ -1647,7 +1639,7 @@ impl<'pass> GridFormattingContext<'pass> {
                 return None;
             }
             Some(self.sizing().calculate_inner_size_for_property(
-                self.run.box_,
+                sizing_context::SizedBox::new(self.run.box_, &self.run.root_record()),
                 axis.sizing_axis(),
                 axis.select(SizingProperty::MinWidth, SizingProperty::MinHeight),
                 self.container_available_space(),
@@ -2541,7 +2533,7 @@ impl<'pass> GridFormattingContext<'pass> {
     fn preferred_behaves_as_auto(&self, item: GridItem, axis: Axis) -> bool {
         let available = self.item_available_space(item);
         let behaves_as_auto = self.sizing().should_treat_size_as_auto(
-            item.box_,
+            sizing_context::SizedBox::new(item.box_, &self.cells_of(item)),
             axis.sizing_axis(),
             available,
             self.track_sizing_constraints(),
@@ -2566,13 +2558,15 @@ impl<'pass> GridFormattingContext<'pass> {
 
     fn min_content_size(&self, item: GridItem, axis: Axis) -> CssPixels {
         if axis.is_column() {
-            self.sizing()
-                .calculate_min_content_inline_size(item.box_, self.intrinsic_contribution_constraints(item, axis))
+            self.sizing().calculate_min_content_inline_size(
+                sizing_context::SizedBox::new(item.box_, &self.cells_of(item)),
+                self.intrinsic_contribution_constraints(item, axis),
+            )
         } else if self.grid_item_is_column_only_subgrid(item) {
             self.column_subgrid_content_block_size(item)
         } else {
             self.sizing().calculate_min_content_block_size(
-                item.box_,
+                sizing_context::SizedBox::new(item.box_, &self.cells_of(item)),
                 self.item_available_space(item).inline_size.to_px_or_zero(),
                 self.intrinsic_contribution_constraints(item, axis),
             )
@@ -2601,7 +2595,7 @@ impl<'pass> GridFormattingContext<'pass> {
         } else {
             let property = axis.select(SizingProperty::Width, SizingProperty::Height);
             self.sizing().calculate_inner_size_for_property(
-                item.box_,
+                sizing_context::SizedBox::new(item.box_, &self.cells_of(item)),
                 axis.sizing_axis(),
                 property,
                 self.available_space.unwrap(),
@@ -2628,7 +2622,7 @@ impl<'pass> GridFormattingContext<'pass> {
             size
         } else if behaves_as_auto || preferred.is_fit_content() {
             self.sizing().calculate_fit_content_size(
-                item.box_,
+                sizing_context::SizedBox::new(item.box_, &self.cells_of(item)),
                 axis.sizing_axis(),
                 self.item_available_space(item),
                 self.intrinsic_contribution_constraints(item, axis),
@@ -2643,7 +2637,7 @@ impl<'pass> GridFormattingContext<'pass> {
                 )),
             };
             self.sizing().calculate_inner_size_for_property(
-                item.box_,
+                sizing_context::SizedBox::new(item.box_, &self.cells_of(item)),
                 axis.sizing_axis(),
                 axis.select(SizingProperty::Width, SizingProperty::Height),
                 area_space,
@@ -2694,7 +2688,7 @@ impl<'pass> GridFormattingContext<'pass> {
         let constraints = self.track_sizing_constraints();
         let inner_size = |property: SizingProperty| {
             self.sizing().calculate_inner_size_for_property(
-                item.box_,
+                sizing_context::SizedBox::new(item.box_, &self.cells_of(item)),
                 opposite.sizing_axis(),
                 property,
                 available,
@@ -2713,11 +2707,15 @@ impl<'pass> GridFormattingContext<'pass> {
             ));
         }
         Some(if axis.is_column() {
-            self.sizing()
-                .content_inline_size_from_aspect_ratio(item.box_, opposite_axis_size)
+            self.sizing().content_inline_size_from_aspect_ratio(
+                sizing_context::SizedBox::new(item.box_, &self.cells_of(item)),
+                opposite_axis_size,
+            )
         } else {
-            self.sizing()
-                .content_block_size_from_aspect_ratio(item.box_, opposite_axis_size)
+            self.sizing().content_block_size_from_aspect_ratio(
+                sizing_context::SizedBox::new(item.box_, &self.cells_of(item)),
+                opposite_axis_size,
+            )
         })
     }
 
@@ -2828,7 +2826,7 @@ impl<'pass> GridFormattingContext<'pass> {
             return self.max_content_contribution(item, axis);
         } else {
             self.sizing().calculate_inner_size_for_property(
-                item.box_,
+                sizing_context::SizedBox::new(item.box_, &self.cells_of(item)),
                 axis.sizing_axis(),
                 axis.select(SizingProperty::MinWidth, SizingProperty::MinHeight),
                 self.item_available_space(item),
@@ -2886,7 +2884,7 @@ impl<'pass> GridFormattingContext<'pass> {
         let available = self.container_available_space();
         let constraints = self.layout_input.unwrap().containing_block_constraints;
         self.sizing().calculate_inner_size_for_property(
-            self.run.box_,
+            sizing_context::SizedBox::new(self.run.box_, &self.run.root_record()),
             axis.sizing_axis(),
             axis.select(SizingProperty::MaxWidth, SizingProperty::MaxHeight),
             available,
@@ -3621,7 +3619,7 @@ impl<'pass> GridFormattingContext<'pass> {
 
         if !wrapper_style.width().is_auto() {
             wrapper_size = wrapper_size.max(sizing.calculate_inner_size_for_property(
-                item.box_,
+                sizing_context::SizedBox::new(item.box_, &self.cells_of(item)),
                 SizingAxis::Inline,
                 SizingProperty::Width,
                 available,
@@ -3629,7 +3627,10 @@ impl<'pass> GridFormattingContext<'pass> {
             ));
         }
         if table_style.width().is_auto() {
-            wrapper_size = wrapper_size.max(sizing.calculate_min_content_inline_size(item.box_, constraints));
+            wrapper_size = wrapper_size.max(sizing.calculate_min_content_inline_size(
+                sizing_context::SizedBox::new(item.box_, &self.cells_of(item)),
+                constraints,
+            ));
         }
 
         let alignment = self.item_alignment(item, Axis::Column);
@@ -3644,7 +3645,7 @@ impl<'pass> GridFormattingContext<'pass> {
             let area_constraints = self.grid_area_constraints(item);
             if !sizing.should_treat_max_inline_size_as_none(item.box_, available.inline_size, area_constraints) {
                 stretched = stretched.min(sizing.calculate_inner_size_for_property(
-                    item.box_,
+                    sizing_context::SizedBox::new(item.box_, &self.cells_of(item)),
                     SizingAxis::Inline,
                     SizingProperty::MaxWidth,
                     available,
@@ -3671,7 +3672,7 @@ impl<'pass> GridFormattingContext<'pass> {
         let area_constraints = self.grid_area_constraints(item);
         if !sizing.should_treat_max_inline_size_as_none(item.box_, available.inline_size, area_constraints) {
             wrapper_size = wrapper_size.min(sizing.calculate_inner_size_for_property(
-                item.box_,
+                sizing_context::SizedBox::new(item.box_, &self.cells_of(item)),
                 SizingAxis::Inline,
                 SizingProperty::MaxWidth,
                 available,
@@ -3680,7 +3681,7 @@ impl<'pass> GridFormattingContext<'pass> {
         }
         if !crate::layout::sizing_context::is_plain_auto(wrapper_style.min_width()) {
             wrapper_size = wrapper_size.max(sizing.calculate_inner_size_for_property(
-                item.box_,
+                sizing_context::SizedBox::new(item.box_, &self.cells_of(item)),
                 SizingAxis::Inline,
                 SizingProperty::MinWidth,
                 available,
@@ -3857,19 +3858,29 @@ impl<'pass> GridFormattingContext<'pass> {
             //     which transfer the used size of the other axis through the aspect ratio.
             let cells = self.cells_of(item);
             if axis.is_column() {
-                self.sizing()
-                    .content_inline_size_from_aspect_ratio(item.box_, cells.content_block_size)
+                self.sizing().content_inline_size_from_aspect_ratio(
+                    sizing_context::SizedBox::new(item.box_, &self.cells_of(item)),
+                    cells.content_block_size,
+                )
             } else {
-                self.sizing()
-                    .content_block_size_from_aspect_ratio(item.box_, cells.content_inline_size)
+                self.sizing().content_block_size_from_aspect_ratio(
+                    sizing_context::SizedBox::new(item.box_, &self.cells_of(item)),
+                    cells.content_inline_size,
+                )
             }
         } else if use_replaced {
             if axis.is_column() {
-                self.sizing()
-                    .compute_inline_size_for_replaced_element(item.box_, available, constraints)
+                self.sizing().compute_inline_size_for_replaced_element(
+                    sizing_context::SizedBox::new(item.box_, &self.cells_of(item)),
+                    available,
+                    constraints,
+                )
             } else {
-                self.sizing()
-                    .compute_block_size_for_replaced_element(item.box_, available, constraints)
+                self.sizing().compute_block_size_for_replaced_element(
+                    sizing_context::SizedBox::new(item.box_, &self.cells_of(item)),
+                    available,
+                    constraints,
+                )
             }
         } else if !axis.is_column()
             && preferred.is_auto()
@@ -3880,7 +3891,7 @@ impl<'pass> GridFormattingContext<'pass> {
             //     height through the aspect ratio instead of using fit-content sizing, which would
             //     incorrectly use the available width (grid area width) instead of the item's width.
             let size = self.sizing().calculate_inner_size_for_property(
-                item.box_,
+                sizing_context::SizedBox::new(item.box_, &self.cells_of(item)),
                 SizingAxis::Block,
                 SizingProperty::Height,
                 available,
@@ -3888,7 +3899,7 @@ impl<'pass> GridFormattingContext<'pass> {
             );
             // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-minimum
             let minimum = self.sizing().automatic_minimum_size_from_aspect_ratio(
-                item.box_,
+                sizing_context::SizedBox::new(item.box_, &self.cells_of(item)),
                 SizingAxis::Block,
                 self.cells_of(item).content_inline_size,
                 size,
@@ -3922,14 +3933,14 @@ impl<'pass> GridFormattingContext<'pass> {
                 }
             };
             self.sizing().calculate_fit_content_size(
-                item.box_,
+                sizing_context::SizedBox::new(item.box_, &self.cells_of(item)),
                 axis.sizing_axis(),
                 available,
                 content_measurement_constraints,
             )
         } else {
             self.sizing().calculate_inner_size_for_property(
-                item.box_,
+                sizing_context::SizedBox::new(item.box_, &self.cells_of(item)),
                 axis.sizing_axis(),
                 axis.select(SizingProperty::Width, SizingProperty::Height),
                 available,
@@ -3985,7 +3996,7 @@ impl<'pass> GridFormattingContext<'pass> {
         // NB: A calc-size() with an auto basis resolves against the size auto gives the item, stretched or not.
         if preferred.is_auto() && preferred.calc_size().is_some() {
             let size = self.sizing().resolve_calc_size(
-                item.box_,
+                sizing_context::SizedBox::new(item.box_, &self.cells_of(item)),
                 axis.sizing_axis(),
                 preferred,
                 resolved.size,
@@ -4006,7 +4017,7 @@ impl<'pass> GridFormattingContext<'pass> {
         };
         if !maximum_is_none {
             let maximum = self.sizing().calculate_inner_size_for_property(
-                item.box_,
+                sizing_context::SizedBox::new(item.box_, &self.cells_of(item)),
                 axis.sizing_axis(),
                 axis.select(SizingProperty::MaxWidth, SizingProperty::MaxHeight),
                 available,
@@ -4017,9 +4028,11 @@ impl<'pass> GridFormattingContext<'pass> {
             }
         }
         if axis.is_column()
-            && let Some(limits) = self
-                .sizing()
-                .transferred_inline_size_limits(item.box_, available, constraints)
+            && let Some(limits) = self.sizing().transferred_inline_size_limits(
+                sizing_context::SizedBox::new(item.box_, &self.cells_of(item)),
+                available,
+                constraints,
+            )
         {
             let limited = limits.clamp(resolved.size);
             if limited != resolved.size {
@@ -4029,7 +4042,7 @@ impl<'pass> GridFormattingContext<'pass> {
         let minimum = axis.select(style.min_width(), style.min_height());
         if !minimum.is_auto() {
             let minimum = self.sizing().calculate_inner_size_for_property(
-                item.box_,
+                sizing_context::SizedBox::new(item.box_, &self.cells_of(item)),
                 axis.sizing_axis(),
                 axis.select(SizingProperty::MinWidth, SizingProperty::MinHeight),
                 available,
@@ -4113,7 +4126,7 @@ impl<'pass> GridFormattingContext<'pass> {
             && !sizing.should_treat_max_block_size_as_none(self.run.box_, available.block_size, constraints)
         {
             block_size = block_size.min(sizing.calculate_inner_size_for_property(
-                self.run.box_,
+                sizing_context::SizedBox::new(self.run.box_, &self.run.root_record()),
                 SizingAxis::Block,
                 SizingProperty::MaxHeight,
                 available,
@@ -4124,7 +4137,7 @@ impl<'pass> GridFormattingContext<'pass> {
             && !(self.own_block_size_is_being_measured() && style.min_height().is_intrinsic_sizing_constraint())
         {
             block_size = block_size.max(sizing.calculate_inner_size_for_property(
-                self.run.box_,
+                sizing_context::SizedBox::new(self.run.box_, &self.run.root_record()),
                 SizingAxis::Block,
                 SizingProperty::MinHeight,
                 available,
@@ -4409,7 +4422,7 @@ impl<'pass> GridFormattingContext<'pass> {
             if self.facts(item.box_).is_table_wrapper() && self.item_is_stretched(item, Axis::Row) {
                 // A stretched table wrapper stretches the table box inside it, less the size of its captions.
                 let sizes = self.sizing().measure_table_box_block_size_inside_wrapper(
-                    item.box_,
+                    sizing_context::SizedBox::new(item.box_, &self.cells_of(item)),
                     AvailableSpace {
                         inline_size: AvailableSize::definite(area.size.inline_size),
                         block_size: AvailableSize::Indefinite,
@@ -4968,7 +4981,7 @@ impl<'pass> GridFormattingContext<'pass> {
             self.automatic_content_block_size = intrinsic_block_size;
         } else if let AvailableSize::Definite(block_size) = available.block_size
             && self.sizing().should_treat_block_size_as_auto(
-                self.run.box_,
+                sizing_context::SizedBox::new(self.run.box_, &self.run.root_record()),
                 available,
                 self.layout_input.unwrap().containing_block_constraints,
             )

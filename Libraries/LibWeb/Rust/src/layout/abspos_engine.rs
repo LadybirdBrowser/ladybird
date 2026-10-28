@@ -284,6 +284,12 @@ impl<'pass> AbsposEngine<'pass> {
         used_values::RecordInFrame::new(self.records.used_values(node), self.callbacks.frame)
     }
 
+    /// `node`, as a box the sizing steps of this engine size in its record.
+    #[track_caller]
+    fn sized_record(&self, node: Node) -> sizing_context::SizedRecord<'pass> {
+        sizing_context::SizedRecord::new(node, self.used(node))
+    }
+
     /// The sizes, size constraints and box sides of `node`, with its record read in the frame this engine places boxes
     /// in.
     #[track_caller]
@@ -1815,10 +1821,18 @@ impl AbsposEngine<'_> {
         let sizing = self.sizing();
         if !size.is_stretch() {
             return match axis {
-                SizingAxis::Inline => {
-                    sizing.calculate_inner_inline_size(node, available_space.inline_size, size, constraints)
-                }
-                SizingAxis::Block => sizing.calculate_inner_block_size(node, available_space, size, constraints),
+                SizingAxis::Inline => sizing.calculate_inner_inline_size(
+                    self.sized_record(node).sized_box(),
+                    available_space.inline_size,
+                    size,
+                    constraints,
+                ),
+                SizingAxis::Block => sizing.calculate_inner_block_size(
+                    self.sized_record(node).sized_box(),
+                    available_space,
+                    size,
+                    constraints,
+                ),
             };
         }
         let style = self.style(node).with_resolved_insets(resolved_anchor_insets);
@@ -1880,12 +1894,18 @@ impl AbsposEngine<'_> {
             CssPixels::default()
         };
         let stretch_fit_size = sizing.stretch_fit_inner_size(
-            node,
+            self.sized_record(node).sized_box(),
             axis,
             containing_block_size - start_offset - end_offset,
             constraints,
         );
-        sizing.resolve_calc_size(node, axis, size, stretch_fit_size, percentage_basis)
+        sizing.resolve_calc_size(
+            self.sized_record(node).sized_box(),
+            axis,
+            size,
+            stretch_fit_size,
+            percentage_basis,
+        )
     }
 
     #[expect(clippy::too_many_arguments)]
@@ -1950,11 +1970,12 @@ impl AbsposEngine<'_> {
         let shrink_to_fit = |left: CssPixels, margin_left: AutoPx, margin_right: AutoPx, right: CssPixels| {
             let available = solve_for_inline_size(left, margin_left, margin_right, right);
             let sizing = self.sizing();
-            let preferred = sizing.calculate_max_content_inline_size(node, constraints);
+            let preferred = sizing.calculate_max_content_inline_size(self.sized_record(node).sized_box(), constraints);
             if preferred <= available {
                 preferred
             } else {
-                let preferred_minimum = sizing.calculate_min_content_inline_size(node, constraints);
+                let preferred_minimum =
+                    sizing.calculate_min_content_inline_size(self.sized_record(node).sized_box(), constraints);
                 preferred_minimum.max(available).min(preferred)
             }
         };
@@ -2079,7 +2100,7 @@ impl AbsposEngine<'_> {
         // NB: A calc-size() with an auto basis resolves against the inline size auto gives the box.
         if style.width().is_auto() && style.width().calc_size().is_some() {
             let inline_size = sizing.resolve_calc_size(
-                node,
+                self.sized_record(node).sized_box(),
                 SizingAxis::Inline,
                 style.width(),
                 auto_px_value(used_inline_size),
@@ -2118,7 +2139,9 @@ impl AbsposEngine<'_> {
                 );
             }
         }
-        if let Some(limits) = sizing.transferred_inline_size_limits(node, available_space, constraints) {
+        if let Some(limits) =
+            sizing.transferred_inline_size_limits(self.sized_record(node).sized_box(), available_space, constraints)
+        {
             let value = auto_px_value(used_inline_size);
             let limited = limits.clamp(value);
             if limited != value {
@@ -2185,7 +2208,11 @@ impl AbsposEngine<'_> {
                 resolved_anchor_insets,
             )
         } else {
-            sizing.compute_inline_size_for_replaced_element(node, available_space, constraints)
+            sizing.compute_inline_size_for_replaced_element(
+                self.sized_record(node).sized_box(),
+                available_space,
+                constraints,
+            )
         };
         let containing_block_inline_size = available_space.inline_size.to_px_or_zero();
         let style = self.style(node).with_resolved_insets(resolved_anchor_insets);
@@ -2236,10 +2263,11 @@ impl AbsposEngine<'_> {
         static_position_rect: abspos_inputs::StaticPositionRect,
         resolved_anchor_insets: Option<&formatting_context::ResolvedAnchorInsets>,
     ) {
-        if self
-            .sizing()
-            .box_is_sized_as_replaced_element(node, available_space, constraints)
-        {
+        if self.sizing().box_is_sized_as_replaced_element(
+            self.sized_record(node).sized_box(),
+            available_space,
+            constraints,
+        ) {
             self.compute_inline_size_for_replaced(
                 node,
                 available_space,
@@ -2325,12 +2353,13 @@ impl AbsposEngine<'_> {
                 return Some(self.used(node).content_block_size());
             }
             let inline_size = self.used(node).content_inline_size();
-            let preferred = sizing.calculate_max_content_block_size(node, inline_size, constraints);
+            let preferred =
+                sizing.calculate_max_content_block_size(self.sized_record(node).sized_box(), inline_size, constraints);
             let size = if preferred <= stretch_fit_block_size {
                 preferred
             } else {
                 sizing
-                    .calculate_min_content_block_size(node, inline_size, constraints)
+                    .calculate_min_content_block_size(self.sized_record(node).sized_box(), inline_size, constraints)
                     .max(stretch_fit_block_size)
                     .min(preferred)
             };
@@ -2351,7 +2380,12 @@ impl AbsposEngine<'_> {
         let inner = self
             .used(node)
             .available_inner_space_or_constraints_from(available_space);
-        Some(sizing.calculate_fit_content_size(node, SizingAxis::Block, inner, constraints))
+        Some(sizing.calculate_fit_content_size(
+            self.sized_record(node).sized_box(),
+            SizingAxis::Block,
+            inner,
+            constraints,
+        ))
     }
 
     #[expect(clippy::too_many_arguments)]
@@ -2503,14 +2537,16 @@ impl AbsposEngine<'_> {
         let mut intrinsic_available_space = available_space;
         intrinsic_available_space.inline_size = AvailableSize::definite(self.used(node).content_inline_size());
         let initial = if self.facts(node).is_table_wrapper() {
-            Some(
-                self.sizing()
-                    .compute_table_box_block_size_inside_wrapper(node, available_space, constraints),
-            )
-        } else if self
-            .sizing()
-            .should_treat_block_size_as_auto(node, available_space, constraints)
-        {
+            Some(self.sizing().compute_table_box_block_size_inside_wrapper(
+                self.sized_record(node).sized_box(),
+                available_space,
+                constraints,
+            ))
+        } else if self.sizing().should_treat_block_size_as_auto(
+            self.sized_record(node).sized_box(),
+            available_space,
+            constraints,
+        ) {
             None
         } else {
             Some(self.calculate_inner_size(
@@ -2540,7 +2576,7 @@ impl AbsposEngine<'_> {
             && let Some(auto_block_size) = solution.block_size
         {
             let block_size = self.sizing().resolve_calc_size(
-                node,
+                self.sized_record(node).sized_box(),
                 SizingAxis::Block,
                 style.height(),
                 auto_block_size,
@@ -2653,15 +2689,20 @@ impl AbsposEngine<'_> {
                 resolved_anchor_insets,
             )
         } else {
-            self.sizing()
-                .compute_block_size_for_replaced_element(node, available_space, constraints)
+            self.sizing().compute_block_size_for_replaced_element(
+                self.sized_record(node).sized_box(),
+                available_space,
+                constraints,
+            )
         };
         if let BlockSizePass::AfterInsideLayout {
             automatic_content_block_size_of_inside_layout,
         } = pass
-            && self
-                .sizing()
-                .block_size_is_ratio_dependent(node, available_space, constraints)
+            && self.sizing().block_size_is_ratio_dependent(
+                self.sized_record(node).sized_box(),
+                available_space,
+                constraints,
+            )
         {
             // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-minimum
             // NB: A box that is only sized like a replaced element through its aspect ratio grows to fit its content.
@@ -2676,7 +2717,7 @@ impl AbsposEngine<'_> {
                 )
             });
             if let Some(minimum) = self.sizing().automatic_minimum_size_from_aspect_ratio(
-                node,
+                self.sized_record(node).sized_box(),
                 SizingAxis::Block,
                 self.used(node).content_inline_size(),
                 block_size,
@@ -2717,10 +2758,11 @@ impl AbsposEngine<'_> {
             // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-automatic
             // A block size transferred through the preferred aspect ratio from a definite inline size is definite, so
             // the content resolves percentages against it.
-            if !self
-                .sizing()
-                .should_treat_block_size_as_auto(node, available_space, constraints)
-            {
+            if !self.sizing().should_treat_block_size_as_auto(
+                self.sized_record(node).sized_box(),
+                available_space,
+                constraints,
+            ) {
                 used.set_has_definite_block_size(true);
             }
             return;
@@ -2742,10 +2784,11 @@ impl AbsposEngine<'_> {
         pass: BlockSizePass,
         resolved_anchor_insets: Option<&formatting_context::ResolvedAnchorInsets>,
     ) {
-        if self
-            .sizing()
-            .box_is_sized_as_replaced_element(node, available_space, constraints)
-        {
+        if self.sizing().box_is_sized_as_replaced_element(
+            self.sized_record(node).sized_box(),
+            available_space,
+            constraints,
+        ) {
             self.compute_block_size_for_replaced(
                 node,
                 available_space,
@@ -2850,8 +2893,12 @@ impl<'pass> AbsposEngine<'pass> {
             }
         }
 
-        self.sizing()
-            .make_form_control_content_box_definite(node, available_space, constraints, None);
+        self.sizing().make_form_control_content_box_definite(
+            self.sized_record(node),
+            available_space,
+            constraints,
+            None,
+        );
     }
 
     pub(crate) fn finalize_out_of_flow_root_after_inside_layout(
