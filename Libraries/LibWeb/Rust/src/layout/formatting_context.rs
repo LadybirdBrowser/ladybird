@@ -361,6 +361,16 @@ pub(crate) struct PlacedChild {
 }
 
 impl PlacedChild {
+    /// A child whose fragment shows `geometry`, in `frame`, before its parent decided anything about it.
+    pub(crate) fn new(geometry: fragment_tree::FragmentGeometry, frame: geometry::Frame) -> Self {
+        Self {
+            geometry,
+            frame,
+            facts_decided_by_parent: run_records::FactsDecidedByParent::default(),
+            offset_from_relatively_positioned_inline_ancestors: FfiCssPixelPoint::default(),
+        }
+    }
+
     /// A child whose run handed back the box `laid_out` with the lines `line_data`, in `frame`, before its parent
     /// decided anything about it.
     pub(crate) fn of_laid_out_box(
@@ -368,22 +378,20 @@ impl PlacedChild {
         line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
         frame: geometry::Frame,
     ) -> Self {
-        Self {
-            geometry: fragment_tree::FragmentGeometry {
+        Self::new(
+            fragment_tree::FragmentGeometry {
                 cells: laid_out.cells,
                 line_data,
             },
             frame,
-            facts_decided_by_parent: run_records::FactsDecidedByParent::default(),
-            offset_from_relatively_positioned_inline_ancestors: FfiCssPixelPoint::default(),
-        }
+        )
     }
 
     /// A box that `run` lays out in `record`, before its parent decided anything about it.
     pub(crate) fn of_record(record: &UsedValues, run: &FormattingContextRun) -> Self {
         let callbacks = &run.callbacks;
-        Self {
-            geometry: fragment_tree::FragmentGeometry {
+        Self::new(
+            fragment_tree::FragmentGeometry {
                 cells: used_values::RecordInFrame::new(record, callbacks.frame).cells(),
                 // NB: Only a run that builds fragments shows the lines it laid out in the boxes it places.
                 line_data: run
@@ -392,10 +400,8 @@ impl PlacedChild {
                     .then(|| record.finish_line_data(callbacks))
                     .flatten(),
             },
-            frame: callbacks.frame,
-            facts_decided_by_parent: run_records::FactsDecidedByParent::default(),
-            offset_from_relatively_positioned_inline_ancestors: FfiCssPixelPoint::default(),
-        }
+            callbacks.frame,
+        )
     }
 
     /// The child with the insets its parent resolved for it as an in-flow box.

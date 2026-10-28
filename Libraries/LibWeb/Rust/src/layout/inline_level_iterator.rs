@@ -1020,7 +1020,7 @@ fn record_entered_inline_box(
         formatting_context::place_child(
             context.run,
             node,
-            formatting_context::PlacedChild::read_from_records(context.run, node),
+            formatting_context::PlacedChild::of_record(used, context.run).with_in_flow_box_insets(insets),
             FfiCssPixelPoint::default(),
             None,
         );

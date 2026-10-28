@@ -1005,8 +1005,8 @@ pub(crate) struct InlineFormattingContext<'context> {
 struct EnteredInlineBox {
     /// The sizes and box sides of the box.
     sides: used_values::RootInputCells,
-    /// The used insets of the box, which are zero unless it is relatively positioned.
-    used_insets: run_records::UsedInsets,
+    /// What the insets of the box resolved to.
+    insets: abspos_engine::InFlowBoxInsets,
 }
 
 impl<'context> InlineFormattingContext<'context> {
@@ -1213,13 +1213,9 @@ impl<'context> InlineFormattingContext<'context> {
         sides: used_values::RootInputCells,
         insets: abspos_engine::InFlowBoxInsets,
     ) {
-        self.entered_inline_boxes.borrow_mut().insert(
-            node,
-            EnteredInlineBox {
-                sides,
-                used_insets: insets.used_insets.unwrap_or_default(),
-            },
-        );
+        self.entered_inline_boxes
+            .borrow_mut()
+            .insert(node, EnteredInlineBox { sides, insets });
     }
 
     fn entered_inline_box(&self, node: Node) -> Option<used_values::RootInputCells> {
@@ -1236,12 +1232,30 @@ impl<'context> InlineFormattingContext<'context> {
             .expect("the inline formatting context entered the inline box")
     }
 
+    /// What placing `node`, an inline box this context entered, takes.
+    #[track_caller]
+    fn placed_entered_inline_box(&self, node: Node) -> formatting_context::PlacedChild {
+        let entered = *self
+            .entered_inline_boxes
+            .borrow()
+            .get(&node)
+            .expect("the inline formatting context entered the inline box");
+        formatting_context::PlacedChild::new(
+            fragment_tree::FragmentGeometry {
+                cells: entered.sides,
+                line_data: None,
+            },
+            self.callbacks.frame,
+        )
+        .with_in_flow_box_insets(entered.insets)
+    }
+
     /// The relative-position insets of the inline boxes this context entered from `first_ancestor` up to its
     /// containing block, summed.
     fn relative_insets_of_inline_ancestors(&self, first_ancestor: Node) -> InlineAncestorChainRelativeOffset {
         let used_insets_of_entered_inline_box = |ancestor| {
             if let Some(entered) = self.entered_inline_boxes.borrow().get(&ancestor) {
-                return entered.used_insets;
+                return entered.insets.used_insets.unwrap_or_default();
             }
             // NB: A floated inline node can hold inline content this context lays out among its lines, while its
             //     float's own layout resolves its insets.
@@ -2258,7 +2272,7 @@ impl<'context> InlineFormattingContext<'context> {
                     formatting_context::place_child(
                         self.run,
                         node,
-                        formatting_context::PlacedChild::read_from_records(self.run, node),
+                        self.placed_entered_inline_box(node),
                         FfiCssPixelPoint::default(),
                         None,
                     );
