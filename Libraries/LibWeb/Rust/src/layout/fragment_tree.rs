@@ -972,6 +972,38 @@ impl RunFragmentBuilder {
         }
     }
 
+    pub(crate) fn register_inline_anchor_candidate(
+        &self,
+        node: crate::layout::node_data::NodeSlotId,
+        border_box_rect: CssPixelRect,
+        coordinate_space_box: crate::layout::node_data::NodeSlotId,
+    ) {
+        let mut inner = self.inner.borrow_mut();
+        let candidate = AnchorCandidate {
+            node,
+            border_box_rect,
+            coordinate_space_box,
+        };
+        if coordinate_space_box == self.root_node {
+            inner.anchor_candidates_at_root.push(candidate);
+            return;
+        }
+        match inner.pending_fragments.get_mut(&coordinate_space_box.slot_index()) {
+            Some(pending_fragment) => pending_fragment.anchor_candidates.push(candidate),
+            None => {
+                if self.is_entry_accumulator {
+                    inner.anchor_candidates_at_root.push(candidate);
+                } else {
+                    let mut pending_fragment = PendingFragment::new(coordinate_space_box);
+                    pending_fragment.anchor_candidates.push(candidate);
+                    inner
+                        .pending_fragments
+                        .insert(coordinate_space_box.slot_index(), pending_fragment);
+                }
+            }
+        }
+    }
+
     pub(crate) fn register_inline_containing_block_rect(
         &self,
         inline_box: crate::layout::node_data::NodeSlotId,
@@ -1187,9 +1219,25 @@ impl RunFragmentBuilder {
             entry.translate_by(offset);
             inner.pending_abspos_at_root.push(entry);
         }
+        // Lookups outside the fragmentation context use the bounding rectangle of all fragments.
+        // Combine candidates only after translating them into the multicol container's coordinate space.
+        let mut anchor_indices: HashMap<_, _> = inner
+            .anchor_candidates_at_root
+            .iter()
+            .enumerate()
+            .map(|(index, candidate)| ((candidate.node, candidate.coordinate_space_box), index))
+            .collect();
         for mut candidate in root.propagated_anchor_candidates {
             candidate.translate_by(offset);
-            inner.anchor_candidates_at_root.push(candidate);
+            let key = (candidate.node, candidate.coordinate_space_box);
+            if let Some(&index) = anchor_indices.get(&key) {
+                inner.anchor_candidates_at_root[index]
+                    .border_box_rect
+                    .unite(candidate.border_box_rect);
+            } else {
+                anchor_indices.insert(key, inner.anchor_candidates_at_root.len());
+                inner.anchor_candidates_at_root.push(candidate);
+            }
         }
         for mut payload in root.propagated_inline_containing_block_rects {
             payload.translate_by(offset);

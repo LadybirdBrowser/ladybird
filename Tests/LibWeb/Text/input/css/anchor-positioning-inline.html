@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    #container { margin: 60px 80px; width: 140px; font: 20px/30px monospace; }
+    #anchor { padding: 2px 4px; border: 1px solid; }
+    #tooltip {
+        position: fixed;
+        position-anchor: --commit;
+        top: calc(anchor(bottom) + 4px);
+        left: calc(anchor(left) - 0px);
+        width: anchor-size(width);
+        height: 30px;
+    }
+</style>
+<div id="container"><a id="anchor">Commit message</a></div>
+<div id="tooltip"></div>
+<script>
+    test(() => {
+        const anchor = document.getElementById("anchor");
+        const tooltip = document.getElementById("tooltip");
+        function check(label) {
+            const a = anchor.getBoundingClientRect();
+            const t = tooltip.getBoundingClientRect();
+            println(`${label}: left=${t.left === a.left}, top=${t.top === a.bottom + 4}, width=${t.width === a.width}`);
+        }
+
+        // Hovercards assign the anchor name after the link has already been laid out.
+        anchor.getBoundingClientRect();
+        anchor.style.anchorName = "--commit";
+        check("Wrapped inline");
+        anchor.style.position = "relative";
+        anchor.style.left = "15px";
+        anchor.style.top = "10px";
+        check("Relative inline");
+        document.getElementById("container").style.width = "400px";
+        check("Single line");
+        document.getElementById("container").style.position = "relative";
+        check("Positioned ancestor");
+        document.getElementById("container").appendChild(tooltip);
+        tooltip.style.position = "absolute";
+        check("Absolute tooltip");
+        anchor.style.anchorName = "none";
+        anchor.getBoundingClientRect();
+        anchor.style.anchorName = "--commit";
+        tooltip.style.positionTryFallbacks = "flip-block, flip-inline";
+        check("Restored anchor with fallbacks");
+    });
+</script>

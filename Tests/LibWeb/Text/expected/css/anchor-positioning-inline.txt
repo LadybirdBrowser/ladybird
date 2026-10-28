@@ -1,0 +1,6 @@
+Wrapped inline: left=true, top=true, width=true
+Relative inline: left=true, top=true, width=true
+Single line: left=true, top=true, width=true
+Positioned ancestor: left=true, top=true, width=true
+Absolute tooltip: left=true, top=true, width=true
+Restored anchor with fallbacks: left=true, top=true, width=true

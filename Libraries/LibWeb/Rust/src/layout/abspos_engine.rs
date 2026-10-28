@@ -473,7 +473,7 @@ impl AbsposEngine<'_> {
         if anchor_box == positioned_box
             || !arena
                 .node_kind_if_live(anchor_box)
-                .is_some_and(super::node_facts::kind_is_box)
+                .is_some_and(|kind| super::node_facts::kind_is_box(kind) || kind == NodeKind::InlineNode)
             || !self
                 .fragments
                 .as_deref()
