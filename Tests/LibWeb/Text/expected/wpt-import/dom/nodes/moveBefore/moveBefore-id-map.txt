@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Fail
+Fail	moveBefore() correctly updates id map when moving into shadow root
+Fail	moveBefore() correctly updates window map when moving id-mapped element into shadow root
+Fail	moveBefore() correctly updates id map when moving between shadow roots
+Fail	moveBefore() correctly updates id map when swapping elements with duplicate ids

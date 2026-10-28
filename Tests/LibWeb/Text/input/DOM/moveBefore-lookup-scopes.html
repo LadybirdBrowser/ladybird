@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const firstHost = document.createElement("div");
+        const secondHost = document.createElement("div");
+        document.body.append(firstHost, secondHost);
+        const firstRoot = firstHost.attachShadow({ mode: "open" });
+        const secondRoot = secondHost.attachShadow({ mode: "open" });
+
+        const documentElement = document.createElement("span");
+        documentElement.id = "duplicate";
+        document.body.append(documentElement);
+
+        const moved = document.createElement("section");
+        const child = document.createElement("span");
+        child.id = "duplicate";
+        const nestedHost = document.createElement("div");
+        const form = document.createElement("form");
+        form.id = "moved-form";
+        moved.append(child, nestedHost, form);
+        firstRoot.append(moved);
+        const oldControl = document.createElement("input");
+        const newControl = document.createElement("input");
+        oldControl.setAttribute("form", "moved-form");
+        newControl.setAttribute("form", "moved-form");
+        firstRoot.append(oldControl);
+        secondRoot.append(newControl);
+        const nestedRoot = nestedHost.attachShadow({ mode: "open" });
+        const nestedChild = document.createElement("span");
+        nestedChild.id = "duplicate";
+        nestedRoot.append(nestedChild);
+
+        println(`Initial document lookup: ${document.getElementById("duplicate") === documentElement}`);
+        println(`Initial shadow lookup: ${firstRoot.getElementById("duplicate") === child}`);
+        println(`Initial nested lookup: ${nestedRoot.getElementById("duplicate") === nestedChild}`);
+
+        println(`Initial form associations: ${oldControl.form === form && newControl.form === null}`);
+        secondRoot.moveBefore(moved, null);
+        println(`Form associations follow new scope: ${oldControl.form === null && newControl.form === form}`);
+        println(`Old shadow releases moved ID: ${firstRoot.getElementById("duplicate") === null}`);
+        println(`New shadow finds moved ID: ${secondRoot.getElementById("duplicate") === child}`);
+        println(`Nested shadow retains its ID: ${nestedRoot.getElementById("duplicate") === nestedChild}`);
+        println(`Document retains its own ID: ${document.getElementById("duplicate") === documentElement}`);
+
+        document.body.moveBefore(moved, documentElement);
+        println(`Shadow controls release document form: ${oldControl.form === null && newControl.form === null}`);
+        println(`Document follows duplicate order: ${document.getElementById("duplicate") === child}`);
+        println(`Previous shadow releases moved ID: ${secondRoot.getElementById("duplicate") === null}`);
+        println(`Nested shadow stays separate: ${nestedRoot.getElementById("duplicate") === nestedChild}`);
+
+        nestedChild.id = "renamed-in-nested-shadow";
+        println(`Renamed nested ID stays local: ${nestedRoot.getElementById("renamed-in-nested-shadow") === nestedChild && document.getElementById("renamed-in-nested-shadow") === null}`);
+    });
+</script>

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<title>Changing the id of an element that moveBefore() moved across a shadow boundary</title>
+<link rel=help href="https://dom.spec.whatwg.org/#move">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<body>
+  <div id="host"></div>
+</body>
+
+<script>
+  const host = document.getElementById("host");
+  const shadowRoot = host.attachShadow({mode: "open"});
+
+  test(t => {
+      const element = document.createElement("div");
+      element.id = "moved-into-shadow";
+      document.body.appendChild(element);
+      t.add_cleanup(() => element.remove());
+
+      shadowRoot.moveBefore(element, null);
+      element.id = "renamed-in-shadow";
+
+      assert_equals(shadowRoot.getElementById("renamed-in-shadow"), element);
+      assert_equals(document.getElementById("renamed-in-shadow"), null);
+      assert_equals(window["renamed-in-shadow"], undefined);
+  }, "Changing the id of an element moved into a shadow root only updates the shadow root's id map");
+
+  test(t => {
+      const element = document.createElement("div");
+      element.id = "moved-out-of-shadow";
+      shadowRoot.appendChild(element);
+      t.add_cleanup(() => element.remove());
+
+      document.body.moveBefore(element, null);
+
+      assert_equals(window["moved-out-of-shadow"], element);
+
+      element.id = "renamed-in-document";
+
+      assert_equals(document.getElementById("renamed-in-document"), element);
+      assert_equals(window["renamed-in-document"], element);
+      assert_equals(window["moved-out-of-shadow"], undefined);
+
+      element.remove();
+
+      assert_equals(window["renamed-in-document"], undefined);
+  }, "Changing the id of an element moved out of a shadow root updates the document's id and name maps");
+</script>
