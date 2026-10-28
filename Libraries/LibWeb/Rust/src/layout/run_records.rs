@@ -697,6 +697,46 @@ impl<'arena> RunRecords<'arena> {
         );
     }
 
+    /// Whether this run keeps `child` without a record, for runs of its own: before the first of them returns, or as
+    /// the last one handed it back.
+    pub(crate) fn keeps_child_without_record(&self, child: Node) -> bool {
+        let Some(HeldBox::Kept(index)) = self.held_box(child) else {
+            return false;
+        };
+        !matches!(
+            self.scratch.kept_boxes.borrow()[index as usize].holding,
+            KeptBoxHolding::Record { .. }
+        )
+    }
+
+    /// Gives `child`, a box this run keeps without a record, a record with the cells `cells`, for this run to lay the
+    /// box out itself.
+    #[track_caller]
+    pub(crate) fn lay_out_child_in_this_run(&self, child: Node, cells: used_values::RootInputCells) -> &UsedValues {
+        assert_eq!(
+            self.scratch.innermost_run_nonce(),
+            Some(self.nonce),
+            "only the innermost layout run may register records"
+        );
+        let Some(HeldBox::Kept(index)) = self.held_box(child) else {
+            self.panic_for_box_not_held(child)
+        };
+        let (record_index, record) = self.scratch.run_record_stack.push(cells.materialize_record());
+        let holding = &mut self.scratch.kept_boxes.borrow_mut()[index as usize].holding;
+        assert!(
+            !matches!(holding, KeptBoxHolding::Record { .. }),
+            "slot {} already has a record in the run rooted at slot {}",
+            child.slot_index(),
+            self.root.slot_index()
+        );
+        *holding = KeptBoxHolding::Record {
+            record: record_index,
+            handed_back_by_its_run: None,
+        };
+        // SAFETY: The record stays on the stack until this run returns, which ends this borrow of the run.
+        unsafe { record.as_ref() }
+    }
+
     fn assert_registers_in_innermost_run(&self, node: Node) {
         if node == self.root && self.root_used.is_some() {
             self.panic_for_box_registered_twice(node);

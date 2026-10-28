@@ -2867,7 +2867,7 @@ pub(crate) fn layout_inside_child(
     input: LayoutInput,
     force_independent_context_run: bool,
 ) -> ChildLayout {
-    let child_input_cells = used_values::RootInputCells::capture(run.records.used_values(child));
+    let child_input_cells = run.records.box_metrics_of(child).input_cells();
     layout_inside_child_with_input_cells(
         run,
         parent_block,
@@ -2891,7 +2891,6 @@ pub(crate) fn layout_inside_child_with_input_cells(
     force_independent_context_run: bool,
 ) -> ChildLayout {
     let facts = NodeFacts::new(&run.callbacks, child);
-    let used = run.records.used_values(child);
     let child_run_builds_fragments = run_builds_fragments(&input, run.fragments.is_some());
     if let Some((padding_top, padding_bottom)) = input.sizing.table_cell_intrinsic_block_padding {
         debug_assert!(facts.is_table_cell());
@@ -2902,7 +2901,14 @@ pub(crate) fn layout_inside_child_with_input_cells(
         child_input_cells.padding_top += padding_top;
         child_input_cells.padding_bottom += padding_bottom;
     }
-    child_input_cells.apply_to_record(used);
+    let record_kept_by_parent = (!run.records.keeps_child_without_record(child)).then(|| {
+        let used = run.records.used_values(child);
+        child_input_cells.apply_to_record(used);
+        used
+    });
+    // NB: A child kept without a record that this run lays out itself gets a record of the cells it was handed.
+    let record_for_this_run =
+        || record_kept_by_parent.unwrap_or_else(|| run.records.lay_out_child_in_this_run(child, child_input_cells));
     let skipped = || ChildLayoutOutcome::Skipped {
         depends_on_percentage_block_size: run.sizing().skipped_child_depends_on_percentage_block_size(child),
     };
@@ -2917,6 +2923,7 @@ pub(crate) fn layout_inside_child_with_input_cells(
     {
         // OPTIMIZATION: An empty atomic block has no formatting-context body output. Size it in the
         // parent run, which will also construct its fragment when placing the box.
+        let used = record_for_this_run();
         let committed_fragment = run.sizing().dimension_empty_atomic_root(
             child,
             input.available_space,
@@ -2947,6 +2954,7 @@ pub(crate) fn layout_inside_child_with_input_cells(
         Some(FormattingContextType::InternalReplaced | FormattingContextType::ReplacedWithChildren)
     );
     if !facts.can_have_children() && !creates_replaced_context {
+        record_for_this_run();
         size_skipped_independent_root(run, parent_block, child, &input);
         return ChildLayout::without_fragments(skipped());
     }
@@ -2957,6 +2965,7 @@ pub(crate) fn layout_inside_child_with_input_cells(
         input,
     }) = child_run_plan(run, child, input, force_independent_context_run)
     else {
+        record_for_this_run();
         if force_independent_context_run {
             return ChildLayout::without_fragments(skipped());
         }
@@ -2964,8 +2973,8 @@ pub(crate) fn layout_inside_child_with_input_cells(
     };
     let (result, fragment_arrival) = run_formatting_context(
         run.fragments.as_deref(),
-        Some(used),
-        used_values::RootInputCells::capture(used),
+        record_kept_by_parent,
+        child_input_cells,
         child,
         root_containing_block,
         parent_grid,

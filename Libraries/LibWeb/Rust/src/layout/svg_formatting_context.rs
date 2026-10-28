@@ -2030,7 +2030,12 @@ impl<'pass> SvgFormattingContext<'pass> {
         if self.svg_attributes(child).is_fit_to_view_box {
             self.layout_nested_viewport(run, child);
         } else if kind == NodeKind::SVGForeignObjectBox {
-            let mut child_cells = used_values::RootInputCells::capture(self.create_used_values(child));
+            // SVG descendants carry no percentage basis, as `create_used_values` explains.
+            let mut child_cells = self.run.records.keep_child_for_its_run(
+                &self.run.callbacks,
+                child,
+                ContainingBlockConstraints::default(),
+            );
             let style = self.style(child);
             let rect = SvgCssPixelRect {
                 x: style.x().to_px(self.viewport_width),
