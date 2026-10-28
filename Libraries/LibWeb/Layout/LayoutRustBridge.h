@@ -22,6 +22,7 @@
 
 namespace Web::CSS {
 
+class InstalledStyle;
 class LengthPercentage;
 class LengthPercentageOrAuto;
 class Size;
@@ -39,6 +40,8 @@ WEB_API void register_layout_host(NodeArena&, DOM::Document&);
 void publish_svg_attribute_facts(DOM::Element&);
 void publish_math_attribute_facts(DOM::Element const&);
 void publish_svg_style_references(DOM::Element&);
+
+bool svg_style_references_differ(CSS::InstalledStyle const&, CSS::InstalledStyle const&);
 
 // Which shape an SVG geometry element draws, and the endpoints a <line> parses. The other fields keep their defaults.
 // Layout reads these from the published facts, and the DOM's geometry queries pass them to the same shape builders.
