@@ -125,14 +125,6 @@ impl std::fmt::Debug for LineDataState {
 }
 
 impl LineDataState {
-    pub(crate) fn building(&self) -> &LineData {
-        match self {
-            Self::Building(data) => data,
-            Self::Empty => panic!("line building accessed line data before it began"),
-            Self::Finished(_) => panic!("line building accessed finalized inline content"),
-        }
-    }
-
     pub(crate) fn building_mut(&mut self) -> &mut LineData {
         match self {
             Self::Building(data) => data,
@@ -271,12 +263,15 @@ impl UsedValues {
         }
     }
 
-    pub(crate) fn building_line_data(&self) -> Ref<'_, LineData> {
-        Ref::map(self.line_data.borrow(), LineDataState::building)
+    /// Takes the lines built in this record so far, for an inline formatting context to build on.
+    pub(crate) fn take_building_line_data(&self) -> LineData {
+        let mut data = RefMut::map(self.line_data.borrow_mut(), LineDataState::building_mut);
+        std::mem::take(&mut *data)
     }
 
-    pub(crate) fn building_line_data_mut(&self) -> RefMut<'_, LineData> {
-        RefMut::map(self.line_data.borrow_mut(), LineDataState::building_mut)
+    /// Keeps the lines an inline formatting context built in this record.
+    pub(crate) fn set_building_line_data(&self, data: LineData) {
+        *RefMut::map(self.line_data.borrow_mut(), LineDataState::building_mut) = data;
     }
 
     pub(crate) fn set_finished_line_data(&self, content: std::sync::Arc<inline_content::InlineContent>) {
