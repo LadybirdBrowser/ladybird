@@ -131,6 +131,31 @@ void WalkerActor::handle_message(Message const& message)
         return;
     }
 
+    if (message.type == "getNodeActorFromContentDomReference"sv) {
+        auto content_dom_reference = get_required_parameter<JsonObject>(message, "contentDomReference"sv);
+        if (!content_dom_reference.has_value())
+            return;
+
+        JsonValue node_front;
+
+        auto tab = m_tab.strong_ref();
+        auto browsing_context_id = content_dom_reference->get_integer<u64>("browsingContextId"sv);
+        auto node_id = content_dom_reference->get_integer<Web::UniqueNodeID::Type>("id"sv);
+
+        if (tab && browsing_context_id == tab->description().id && node_id.has_value()) {
+            if (auto actor = node_actor_name_for(Web::UniqueNodeID { *node_id }); actor.has_value()) {
+                if (auto dom_node = this->dom_node(*actor); dom_node.has_value()) {
+                    if (auto element = element_node_for_picker_node(dom_node->node); element.has_value())
+                        node_front = serialize_disconnected_node(*element);
+                }
+            }
+        }
+
+        response.set("nodeFront"sv, move(node_front));
+        send_response(message, move(response));
+        return;
+    }
+
     if (message.type == "getNodeFromActor"sv) {
         auto path = get_required_parameter<JsonArray>(message, "path"sv);
         if (!path.has_value())

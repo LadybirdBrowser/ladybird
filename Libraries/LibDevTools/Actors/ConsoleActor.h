@@ -9,6 +9,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <LibDevTools/Actor.h>
 #include <LibDevTools/Forward.h>
+#include <LibWebCommon/Forward.h>
 
 namespace DevTools {
 
@@ -18,6 +19,8 @@ public:
 
     static NonnullRefPtr<ConsoleActor> create(DevToolsServer&, String name, WeakPtr<TabActor>, WeakPtr<ThreadActor>);
     virtual ~ConsoleActor() override;
+
+    void inspect_element(Web::UniqueNodeID);
 
 private:
     ConsoleActor(DevToolsServer&, String name, WeakPtr<TabActor>, WeakPtr<ThreadActor>);

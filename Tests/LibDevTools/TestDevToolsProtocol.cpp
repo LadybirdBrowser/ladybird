@@ -1371,6 +1371,9 @@ public:
         if (!navigation_listeners.is_empty())
             navigation_listeners.take_first();
     }
+
+    virtual void listen_for_inspect_element_requests(DevTools::TabDescription const&, OnInspectElementRequest callback) const override { on_inspect_element_request = move(callback); }
+    virtual void stop_listening_for_inspect_element_requests(DevTools::TabDescription const&) const override { on_inspect_element_request = nullptr; }
     virtual void did_connect_devtools_client(DevTools::TabDescription const&) const override { ++did_connect_devtools_client_call_count; }
     virtual void did_disconnect_devtools_client(DevTools::TabDescription const&) const override { ++did_disconnect_devtools_client_call_count; }
 
@@ -1534,6 +1537,12 @@ public:
         on_node_picker_event(move(event));
     }
 
+    void emit_inspect_element_request(Web::UniqueNodeID node_id) const
+    {
+        VERIFY(on_inspect_element_request);
+        on_inspect_element_request(node_id);
+    }
+
     void emit_cookie_change(Vector<HTTP::Cookie::Cookie> cookies) const
     {
         VERIFY(on_host_cookie_change);
@@ -1571,6 +1580,7 @@ public:
     mutable Function<void(u64, ByteBuffer)> on_network_response_body_received;
     mutable Function<void(DevToolsDelegate::NetworkRequestCompleteData)> on_network_request_finished;
     mutable Function<void(DevToolsDelegate::NodePickerEvent)> on_node_picker_event;
+    mutable Function<void(Web::UniqueNodeID)> on_inspect_element_request;
     mutable Function<void(Vector<HTTP::Cookie::Cookie>)> on_host_cookie_change;
     mutable HashMap<u64, Function<void(DevToolsDelegate::StorageChange)>> storage_change_listeners;
     String tab_url { "https://example.test/"_string };
@@ -4581,6 +4591,61 @@ TEST_CASE(walker_node_picker)
     children.set("type"sv, "children"sv);
     children.set("node"sv, root_node_actor);
     EXPECT_EQ(client.request(move(children)).get_array("nodes"sv)->size(), 1u);
+}
+
+TEST_CASE(console_inspect_element)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    auto target = get_frame_target(client, actor_from(get_tab(client), "actor"sv));
+    auto console_actor = actor_from(target, "consoleActor"sv);
+
+    session->delegate.emit_inspect_element_request(Web::UniqueNodeID { 5 });
+
+    auto event = read_packet_with_type(client, "inspectObject"sv);
+    EXPECT_EQ(event.get_string("from"sv).value(), console_actor);
+    EXPECT_EQ(event.get_string("inspectFromAnnotation"sv).value(), "browser-context-menu"sv);
+
+    auto grip = event.get_object("objectActor"sv).release_value();
+    EXPECT_EQ(grip.get_object("preview"sv)->get_integer<u16>("nodeType"sv).value(), 1u);
+
+    auto content_dom_reference = grip.get_object("contentDomReference"sv).release_value();
+    EXPECT_EQ(content_dom_reference.get_integer<u64>("browsingContextId"sv).value(), target.get_integer<u64>("browsingContextID"sv).value());
+    EXPECT_EQ(content_dom_reference.get_integer<Web::UniqueNodeID::Type>("id"sv).value(), 5);
+
+    auto inspector_actor = actor_from(target, "inspectorActor"sv);
+    auto walker_actor = actor_from(get_walker(client, inspector_actor), "actor"sv);
+
+    auto resolve = [&](JsonObject reference) {
+        JsonObject request;
+        request.set("to"sv, walker_actor);
+        request.set("type"sv, "getNodeActorFromContentDomReference"sv);
+        request.set("contentDomReference"sv, move(reference));
+        return client.request(move(request));
+    };
+
+    // The reference names a text node, so the walker answers with its element: The DIV that contains it.
+    auto response = resolve(content_dom_reference);
+    auto node_front = response.get_object("nodeFront"sv).release_value();
+    auto node = node_front.get_object("node"sv).release_value();
+    EXPECT_EQ(node.get_string("nodeName"sv).value(), "DIV"sv);
+    EXPECT_EQ(node_front.get_array("newParents"sv)->size(), 2u);
+
+    JsonObject is_in_dom_tree;
+    is_in_dom_tree.set("to"sv, walker_actor);
+    is_in_dom_tree.set("type"sv, "isInDOMTree"sv);
+    is_in_dom_tree.set("node"sv, actor_from(node, "actor"sv));
+    EXPECT(client.request(move(is_in_dom_tree)).get_bool("attached"sv).value());
+
+    auto other_tab_reference = content_dom_reference;
+    other_tab_reference.set("browsingContextId"sv, 999);
+    EXPECT(resolve(move(other_tab_reference)).get("nodeFront"sv)->is_null());
+
+    auto unknown_node_reference = content_dom_reference;
+    unknown_node_reference.set("id"sv, 999);
+    EXPECT(resolve(move(unknown_node_reference)).get("nodeFront"sv)->is_null());
 }
 
 TEST_CASE(inspector_walker_navigation_reloads_root)

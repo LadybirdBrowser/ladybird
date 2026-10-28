@@ -121,6 +121,13 @@ FrameActor::FrameActor(DevToolsServer& devtools, String name, WeakPtr<TabActor> 
                 self.on_navigation_finished(move(url), move(title));
             }));
 
+        devtools.delegate().listen_for_inspect_element_requests(
+            tab->description(),
+            weak_callback(*this, [](auto& self, Web::UniqueNodeID node_id) {
+                if (auto console = self.m_console.strong_ref())
+                    console->inspect_element(node_id);
+            }));
+
         m_is_listening = true;
     }
 }
@@ -139,6 +146,7 @@ void FrameActor::stop_listening()
         devtools().delegate().stop_listening_for_console_messages(tab->description());
         devtools().delegate().stop_listening_for_network_events(tab->description());
         devtools().delegate().stop_listening_for_navigation_events(tab->description());
+        devtools().delegate().stop_listening_for_inspect_element_requests(tab->description());
     }
 
     m_is_listening = false;
