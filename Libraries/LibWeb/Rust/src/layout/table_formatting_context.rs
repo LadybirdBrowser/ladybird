@@ -956,6 +956,10 @@ pub(super) struct TableFormattingContext<'pass> {
     cell_measurements: Vec<Option<TableCellMeasurement>>,
     /// What the layout of each cell hands its placement, which places every cell once the rows are positioned.
     cell_fragment_arrivals: Vec<Option<fragment_tree::ChildFragmentArrival>>,
+    /// What placing each cell takes of the box its committing layout handed back.
+    placed_cells: Vec<Option<formatting_context::PlacedChild>>,
+    /// What each cell's fragment shows of the table's layout.
+    cell_fragment_facts: Vec<run_records::FragmentFactsDecidedByParent>,
     /// The input cells of each cell's box as this table sizes it, from the box's starting cells through the borders
     /// and padding of the table's border model and the sizes of its columns and rows to what the cell's run hands back.
     cell_box_cells: Vec<used_values::RootInputCells>,
@@ -1065,6 +1069,8 @@ impl<'pass> TableFormattingContext<'pass> {
             deferred_cell_inside_layouts: Vec::new(),
             cell_measurements: Vec::new(),
             cell_fragment_arrivals: Vec::new(),
+            placed_cells: Vec::new(),
+            cell_fragment_facts: Vec::new(),
             cell_box_cells: Vec::new(),
             columns: Vec::new(),
             rows: Vec::new(),
@@ -1114,6 +1120,7 @@ impl<'pass> TableFormattingContext<'pass> {
         self.deferred_cell_inside_layouts = vec![false; self.cells.len()];
         self.cell_measurements = vec![None; self.cells.len()];
         self.cell_fragment_arrivals = std::iter::repeat_with(|| None).take(self.cells.len()).collect();
+        self.placed_cells = vec![None; self.cells.len()];
         self.needs_fixed_mode_row_measurement = false;
         self.prepare_table_participants(TableParticipantPreparation::CreateUsedValues);
         self.border_conflict_resolution();
@@ -1224,11 +1231,20 @@ impl<'pass> TableFormattingContext<'pass> {
             .create_used_values(&self.run.callbacks, node, constraints)
     }
 
-    fn place_child(&self, node: Node, x: CssPixels, y: CssPixels) {
+    /// Places `node`, a participant this table lays out in `record`, with what its fragment shows of the table's
+    /// layout `fragment_facts`.
+    fn place_participant(
+        &self,
+        node: Node,
+        record: &UsedValues,
+        fragment_facts: run_records::FragmentFactsDecidedByParent,
+        x: CssPixels,
+        y: CssPixels,
+    ) {
         formatting_context::place_child(
             &self.run,
             node,
-            formatting_context::PlacedChild::read_from_records(&self.run, node),
+            formatting_context::PlacedChild::of_record(record, &self.run).with_fragment_facts(fragment_facts),
             FfiCssPixelPoint { x, y },
             None,
         );
@@ -1494,6 +1510,15 @@ impl<'pass> TableFormattingContext<'pass> {
                 .records
                 .place_in_table_columns(cell.box_, cell.column_index as u32, cell.column_span as u32);
         }
+        self.cell_fragment_facts = self
+            .cells
+            .iter()
+            .map(|cell| run_records::FragmentFactsDecidedByParent {
+                table_column_index: cell.column_index as u32,
+                table_column_span: cell.column_span as u32,
+                ..run_records::FragmentFactsDecidedByParent::default()
+            })
+            .collect();
         self.cell_box_cells = cell_box_cells;
     }
 
@@ -2522,6 +2547,7 @@ impl<'pass> TableFormattingContext<'pass> {
         self.deferred_cell_inside_layouts = vec![false; self.cells.len()];
         self.cell_measurements = vec![None; self.cells.len()];
         self.cell_fragment_arrivals = std::iter::repeat_with(|| None).take(self.cells.len()).collect();
+        self.placed_cells = vec![None; self.cells.len()];
         self.rows = table_grid.rows;
         self.columns = vec![Column::default(); table_grid.column_count];
         for cell in &self.cells {
@@ -2616,7 +2642,8 @@ impl<'pass> TableFormattingContext<'pass> {
         let formatting_context::ChildLayout {
             outcome,
             fragment_arrival,
-            ..
+            laid_out_box,
+            line_data,
         } = formatting_context::layout_inside_child_with_input_cells(
             run,
             None,
@@ -2636,6 +2663,13 @@ impl<'pass> TableFormattingContext<'pass> {
             }
             ChildLayoutOutcome::Skipped { .. } => run.records.box_metrics_of(cell.box_).content_baselines(),
         };
+        self.placed_cells[cell_index] = Some(match laid_out_box {
+            Some(laid_out_box) => {
+                formatting_context::PlacedChild::of_laid_out_box(&laid_out_box, line_data, run.callbacks.frame)
+            }
+            // NB: The cell was laid out by this table's run, in the record it keeps.
+            None => formatting_context::PlacedChild::of_record(run.records.used_values(cell.box_), run),
+        });
         (baselines, fragment_arrival)
     }
 
@@ -2783,9 +2817,11 @@ impl<'pass> TableFormattingContext<'pass> {
             // other engines: "This value causes the entire row or column to be removed from the display". It is laid
             // out like any other cell (with no inline size, see remove_collapsed_columns), and painting skips it.
             // https://www.w3.org/TR/CSS22/tables.html#dynamic-effects
+            let hidden_by_collapsed_columns = self.visible_spanned_columns(cell) == 0;
             self.run
                 .records
-                .set_hidden_by_collapsed_columns(cell.box_, self.visible_spanned_columns(cell) == 0);
+                .set_hidden_by_collapsed_columns(cell.box_, hidden_by_collapsed_columns);
+            self.cell_fragment_facts[cell_index].hidden_by_collapsed_columns = hidden_by_collapsed_columns;
             let height = style.height();
             if !self.rows[cell.row_index].is_collapsed && height.is_length() {
                 let offsets = cell_box.border_box_top(collapsed) + cell_box.border_box_bottom(collapsed);
@@ -3114,7 +3150,13 @@ impl<'pass> TableFormattingContext<'pass> {
             let used = self.used_values(row.box_);
             used.set_content_block_size(row.final_block_size);
             used.set_content_inline_size(row_inline_size);
-            self.place_child(row.box_, inline_offset, row_block_offset);
+            self.place_participant(
+                row.box_,
+                used,
+                run_records::FragmentFactsDecidedByParent::default(),
+                inline_offset,
+                row_block_offset,
+            );
             if !row.is_collapsed {
                 row_block_offset += row.final_block_size + block_spacing;
             }
@@ -3146,7 +3188,13 @@ impl<'pass> TableFormattingContext<'pass> {
             let used = self.used_values(group);
             used.set_content_block_size(block_end - block_start);
             used.set_content_inline_size(inline_size);
-            self.place_child(group, inline_offset, block_start);
+            self.place_participant(
+                group,
+                used,
+                run_records::FragmentFactsDecidedByParent::default(),
+                inline_offset,
+                block_start,
+            );
             group_block_offset = block_end + if has_rows { block_spacing } else { CssPixels::default() };
         }
         let padding_top = table_used.padding_top.get();
@@ -3181,14 +3229,20 @@ impl<'pass> TableFormattingContext<'pass> {
                 let cell_box = &mut self.cell_box_cells[cell_index];
                 cell_box.padding_top += intrinsic_block_padding.0;
                 cell_box.padding_bottom += intrinsic_block_padding.1;
+                let laid_out = run_records::LaidOutChildBox {
+                    cells: *cell_box,
+                    baselines: measurement.baselines,
+                    orthogonal_flow_baselines: None,
+                };
+                self.placed_cells[cell_index] = Some(formatting_context::PlacedChild::of_laid_out_box(
+                    &laid_out,
+                    None,
+                    run.callbacks.frame,
+                ));
                 run.records.receive_laid_out_child_box(
                     cell.box_,
                     run_records::ChildLaidOutByItsOwnRun {
-                        laid_out: run_records::LaidOutChildBox {
-                            cells: *cell_box,
-                            baselines: measurement.baselines,
-                            orthogonal_flow_baselines: None,
-                        },
+                        laid_out,
                         line_data: None,
                         frame: run.callbacks.frame,
                     },
@@ -3334,10 +3388,14 @@ impl<'pass> TableFormattingContext<'pass> {
                 + self.columns[cell.column_index].inline_offset;
             let y = row_content_offset.y + cell_box.border_box_top(collapsed);
             let fragment_arrival = self.cell_fragment_arrivals[cell_index].take();
+            let placed_cell = self.placed_cells[cell_index]
+                .take()
+                .expect("a cell is laid out before it is placed")
+                .with_fragment_facts(self.cell_fragment_facts[cell_index]);
             formatting_context::place_laid_out_child(
                 &self.run,
                 cell.box_,
-                formatting_context::PlacedChild::read_from_records(&self.run, cell.box_),
+                placed_cell,
                 FfiCssPixelPoint { x, y },
                 None,
                 fragment_arrival,
@@ -3418,6 +3476,11 @@ impl<'pass> TableFormattingContext<'pass> {
             self.run
                 .records
                 .place_in_table_columns(node, start as u32, (end - start) as u32);
+            let fragment_facts = run_records::FragmentFactsDecidedByParent {
+                table_column_index: start as u32,
+                table_column_span: (end - start) as u32,
+                ..run_records::FragmentFactsDecidedByParent::default()
+            };
             let used = self.used_values(node);
             used.set_content_inline_size(inline_size);
             used.set_content_block_size(block_size);
@@ -3430,7 +3493,7 @@ impl<'pass> TableFormattingContext<'pass> {
                 x -= group_offset.x;
                 y -= group_offset.y;
             }
-            self.place_child(node, x, y);
+            self.place_participant(node, used, fragment_facts, x, y);
         }
     }
 
