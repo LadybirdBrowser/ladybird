@@ -667,10 +667,10 @@ pub(crate) fn resolve_pending_abspos_containing_block(
 pub(crate) fn box_baseline(
     callbacks: &LayoutPass<'_>,
     box_: Node,
-    used: &UsedValues,
+    metrics: &run_records::BoxMetrics,
     baseline_set: BaselineSet,
 ) -> CssPixels {
-    box_baseline_with_content_baselines(callbacks, box_, used, baseline_set, used.content_baselines_from_cells())
+    box_baseline_with_content_baselines(callbacks, box_, metrics, baseline_set, metrics.content_baselines())
 }
 
 pub(crate) fn box_baseline_with_content_baselines(
