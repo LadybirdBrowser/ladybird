@@ -1778,7 +1778,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         ((marker_line_height - marker_block_size) / 2).max(CssPixels::default())
     }
 
-    fn create_marker_used_values(&self, list_item: Node, marker: Node) -> used_values::RootInputCells {
+    fn keep_marker_for_its_run(&self, list_item: Node, marker: Node) -> used_values::RootInputCells {
         let list_item_used = self.used(list_item);
         let marker_constraints = ContainingBlockConstraints {
             percentage_basis_inline_size: list_item_used
@@ -1789,7 +1789,9 @@ impl<'pass> BlockFormattingContext<'pass> {
                 .then(|| list_item_used.content_block_size.get()),
             ..ContainingBlockConstraints::default()
         };
-        used_values::RootInputCells::capture(self.create_used_values(marker, marker_constraints))
+        self.run
+            .records
+            .keep_child_for_its_run(&self.run.callbacks, marker, marker_constraints)
     }
 
     fn layout_list_item_marker(
@@ -1813,7 +1815,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         if marker_facts.is_floating() || marker_facts.is_absolutely_positioned() {
             return;
         }
-        let mut marker_cells = self.create_marker_used_values(list_item, marker);
+        let mut marker_cells = self.keep_marker_for_its_run(list_item, marker);
         let marker_style = self.style(marker);
         let marker_constraints = ContainingBlockConstraints {
             percentage_basis_inline_size: Some(self.used(list_item).content_inline_size.get()),
