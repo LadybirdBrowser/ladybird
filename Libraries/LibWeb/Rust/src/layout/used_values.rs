@@ -60,7 +60,6 @@ impl From<Option<libgfx_rust::IntRect>> for OptionalIntRect {
 #[repr(C)]
 pub(crate) struct LineBoxFragmentCoordinate {
     pub line_box_index: usize,
-    pub fragment_index: usize,
 }
 
 pub(crate) struct SealableCell<T> {

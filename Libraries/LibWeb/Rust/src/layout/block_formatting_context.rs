@@ -4334,7 +4334,6 @@ impl<'pass> BlockFormattingContext<'pass> {
             containing_block_position_in_root,
             (!is_after_clamp_point).then_some(used_values::LineBoxFragmentCoordinate {
                 line_box_index: line_index,
-                fragment_index: 0,
             }),
         );
         self.break_mode.set(break_mode_outside);
