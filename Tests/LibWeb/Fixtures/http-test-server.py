@@ -996,8 +996,9 @@ def _setup_tls_test_servers(http_port, ca_cert_output):
     with open(ca_cert_output, "wb") as ca_file:
         ca_file.write(root.public_bytes(Encoding.PEM))
 
-    # WPT tests reach HTTPS origins on localhost and 127.0.0.1, so the WPT HTTPS server presents a leaf for both, issued
-    # by the root itself.
+    # WPT tests reach HTTPS origins on localhost and 127.0.0.1, and cross-origin ones on the alternate host and its
+    # subdomains ({{hosts[alt][]}} and {{hosts[alt][www]}}), so the WPT HTTPS server presents a leaf for all of them,
+    # issued by the root itself.
     wpt_leaf_key = new_key()
     wpt_leaf = (
         x509.CertificateBuilder()
@@ -1011,6 +1012,9 @@ def _setup_tls_test_servers(http_port, ca_cert_output):
             x509.SubjectAlternativeName(
                 [
                     x509.DNSName("localhost"),
+                    # NB: curl ignores a wildcard with fewer than two dots, so the alternate host is named outright.
+                    x509.DNSName("not-localhost.localhost"),
+                    x509.DNSName("*.not-localhost.localhost"),
                     x509.IPAddress(ipaddress.ip_address("127.0.0.1")),
                     x509.IPAddress(ipaddress.ip_address("::1")),
                 ]
