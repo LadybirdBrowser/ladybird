@@ -2,14 +2,14 @@ Harness status: OK
 
 Found 30 tests
 
-6 Pass
-24 Fail
+8 Pass
+22 Fail
 Pass	.abspos 1
-Fail	.abspos 2
+Pass	.abspos 2
 Fail	.abspos 3
 Fail	.abspos 4
 Pass	.abspos 5
-Fail	.abspos 6
+Pass	.abspos 6
 Fail	.abspos 7
 Fail	.abspos 8
 Fail	.abspos 9
