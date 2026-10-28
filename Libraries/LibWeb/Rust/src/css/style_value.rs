@@ -19,6 +19,10 @@ use crate::css::css_tokenizer::{ParserSource, ParserTokenKind, SourcePosition, T
 use crate::css::parser::component_value::{
     ComponentKind, ComponentSerializationMode, ComponentValue, ComponentValueList, ComponentValueSlice,
 };
+use crate::css::serialize::{
+    original_component_values_source, serialize_component_values_to_utf16, trim_ascii_whitespace,
+    trim_ascii_whitespace_start,
+};
 
 pub(crate) use crate::css::css_string::{CssString, CssStringList};
 
@@ -3325,8 +3329,8 @@ pub extern "C" fn rust_style_value_create_display(raw: u32) -> *const StyleValue
     Arc::into_raw(Arc::new(StyleValueData::Display { raw }))
 }
 
-/// Creates an unresolved value from borrowed token source. Rust derives the source and comparison
-/// strings according to the requested SourceTextMode and retains the component tree.
+/// Creates an unresolved value from borrowed token source, deriving its source text according to
+/// the requested SourceTextMode and retaining the component tree.
 ///
 /// Takes ownership of one strong reference to `parsed_value` when it is non-null.
 #[unsafe(no_mangle)]
@@ -3334,10 +3338,6 @@ pub unsafe extern "C" fn rust_style_value_create_unresolved_from_source(
     token_source_ascii_units: *const u8,
     token_source_code_units: *const u16,
     token_source_length: usize,
-    has_original_source_text: bool,
-    original_source_text_ascii_units: *const u8,
-    original_source_text_code_units: *const u16,
-    original_source_text_length: usize,
     source_text_mode: u8,
     presence_attr: bool,
     presence_dashed_function: bool,
@@ -3356,57 +3356,27 @@ pub unsafe extern "C" fn rust_style_value_create_unresolved_from_source(
         crate::css::css_tokenizer::tokenize_for_parser(token_source),
     )
     .unwrap_or_default();
-    let normalized = crate::css::serialize::serialize_component_values_to_utf16(
-        &components,
-        crate::css::parser::component_value::ComponentSerializationMode::Normalized,
-    );
-    let (source_text, value_comparison_text) = if has_original_source_text {
-        let original_source_text = unsafe {
-            TokenizerInput::from_raw_parts(
-                original_source_text_ascii_units,
-                original_source_text_code_units,
-                original_source_text_length,
-            )
-        }
-        .unwrap_or_default();
-        let mut source_text = Vec::with_capacity(original_source_text.len());
-        original_source_text.append_to(&mut source_text);
-        (
-            crate::css::serialize::trim_ascii_whitespace(&source_text).to_vec(),
-            crate::css::serialize::trim_ascii_whitespace(&normalized).to_vec(),
-        )
-    } else {
-        let source_text = match source_text_mode {
-            0 | 1 => crate::css::serialize::serialize_component_values_to_utf16(
-                &components,
-                crate::css::parser::component_value::ComponentSerializationMode::PreserveNumericSource,
-            ),
-            2 => crate::css::serialize::original_component_values_source(&components)
-                .unwrap_or_else(|| normalized.clone()),
-            _ => unreachable!("unknown unresolved source text mode"),
-        };
-        let source_text = if source_text_mode == 0 {
-            crate::css::serialize::trim_ascii_whitespace(&source_text)
-        } else if source_text_mode == 1 {
-            crate::css::serialize::trim_ascii_whitespace_start(&source_text)
-        } else {
-            &source_text
-        };
-        (source_text.to_vec(), Vec::new())
+    let normalized = serialize_component_values_to_utf16(&components, ComponentSerializationMode::Normalized);
+    let source_text = match source_text_mode {
+        0 | 1 => serialize_component_values_to_utf16(&components, ComponentSerializationMode::PreserveNumericSource),
+        2 => original_component_values_source(&components).unwrap_or(normalized),
+        _ => unreachable!("unknown unresolved source text mode"),
     };
-    let component_source = if value_comparison_text.is_empty() {
+    let source_text = if source_text_mode == 0 {
+        trim_ascii_whitespace(&source_text)
+    } else if source_text_mode == 1 {
+        trim_ascii_whitespace_start(&source_text)
+    } else {
         &source_text
-    } else {
-        &value_comparison_text
     };
-    let components = RetainedComponentValueList::from_source(component_source);
+    let components = RetainedComponentValueList::from_source(source_text);
     if presence_attr {
         crate::css::parser::arbitrary_substitution::note_attr_names_read_by(components.as_slice());
     }
     Arc::into_raw(Arc::new(StyleValueData::Unresolved {
         components,
-        source_text: CssString::from_utf16(&source_text),
-        value_comparison_text: CssString::from_utf16(&value_comparison_text),
+        source_text: CssString::from_utf16(source_text),
+        value_comparison_text: CssString::from_utf16(&[]),
         presence_attr,
         presence_dashed_function,
         presence_env,

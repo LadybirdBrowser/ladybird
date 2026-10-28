@@ -14,20 +14,13 @@
 
 namespace Web::CSS {
 
-static StyleValueFFI::StyleValueData const* create_rust_style_value_from_source(Utf16String const& token_source, Parser::SubstitutionFunctionsPresence substitution_presence, Optional<Utf16String> const& original_source_text, UnresolvedStyleValue::SourceTextMode source_text_mode, bool contains_attr_tainted_values, StyleValue const* parsed_value)
+static StyleValueFFI::StyleValueData const* create_rust_style_value_from_source(Utf16String const& token_source, Parser::SubstitutionFunctionsPresence substitution_presence, UnresolvedStyleValue::SourceTextMode source_text_mode, bool contains_attr_tainted_values, StyleValue const* parsed_value)
 {
     auto token_source_view = token_source.utf16_view();
-    Utf16View original_source_text_view;
-    if (original_source_text.has_value())
-        original_source_text_view = original_source_text->utf16_view();
     return StyleValueFFI::rust_style_value_create_unresolved_from_source(
         token_source_view.has_ascii_storage() ? reinterpret_cast<u8 const*>(token_source_view.ascii_span().data()) : nullptr,
         token_source_view.has_ascii_storage() ? nullptr : reinterpret_cast<u16 const*>(token_source_view.utf16_span().data()),
         token_source_view.length_in_code_units(),
-        original_source_text.has_value(),
-        original_source_text_view.has_ascii_storage() ? reinterpret_cast<u8 const*>(original_source_text_view.ascii_span().data()) : nullptr,
-        original_source_text_view.has_ascii_storage() ? nullptr : reinterpret_cast<u16 const*>(original_source_text_view.utf16_span().data()),
-        original_source_text_view.length_in_code_units(),
         to_underlying(source_text_mode),
         substitution_presence.attr,
         substitution_presence.dashed_function,
@@ -47,21 +40,21 @@ Utf16String UnresolvedStyleValue::comparison_text() const
     return source_text().trim_ascii_whitespace();
 }
 
-ValueComparingNonnullRefPtr<UnresolvedStyleValue const> UnresolvedStyleValue::create_internal(Utf16String token_source, Parser::SubstitutionFunctionsPresence substitution_presence, Optional<Utf16String> original_source_text, SourceTextMode source_text_mode, bool contains_attr_tainted_values, RefPtr<StyleValue const> parsed_value)
+ValueComparingNonnullRefPtr<UnresolvedStyleValue const> UnresolvedStyleValue::create_internal(Utf16String token_source, Parser::SubstitutionFunctionsPresence substitution_presence, SourceTextMode source_text_mode, bool contains_attr_tainted_values, RefPtr<StyleValue const> parsed_value)
 {
-    auto* data = create_rust_style_value_from_source(token_source, substitution_presence, original_source_text, source_text_mode, contains_attr_tainted_values, parsed_value.ptr());
+    auto* data = create_rust_style_value_from_source(token_source, substitution_presence, source_text_mode, contains_attr_tainted_values, parsed_value.ptr());
     return adopt_ref(*new (nothrow) UnresolvedStyleValue(data));
 }
 
-ValueComparingNonnullRefPtr<UnresolvedStyleValue const> UnresolvedStyleValue::create(Utf16String token_source, Parser::SubstitutionFunctionsPresence substitution_presence, Optional<Utf16String> original_source_text, SourceTextMode source_text_mode, bool contains_attr_tainted_values)
+ValueComparingNonnullRefPtr<UnresolvedStyleValue const> UnresolvedStyleValue::create(Utf16String token_source, Parser::SubstitutionFunctionsPresence substitution_presence, SourceTextMode source_text_mode, bool contains_attr_tainted_values)
 {
-    return create_internal(move(token_source), substitution_presence, move(original_source_text), source_text_mode, contains_attr_tainted_values, nullptr);
+    return create_internal(move(token_source), substitution_presence, source_text_mode, contains_attr_tainted_values, nullptr);
 }
 
-ValueComparingNonnullRefPtr<UnresolvedStyleValue const> UnresolvedStyleValue::create_attr_tainted_with_parsed_value(Utf16String token_source, Parser::SubstitutionFunctionsPresence substitution_presence, Optional<Utf16String> original_source_text, SourceTextMode source_text_mode, NonnullRefPtr<StyleValue const> parsed_value)
+ValueComparingNonnullRefPtr<UnresolvedStyleValue const> UnresolvedStyleValue::create_attr_tainted_with_parsed_value(Utf16String token_source, Parser::SubstitutionFunctionsPresence substitution_presence, SourceTextMode source_text_mode, NonnullRefPtr<StyleValue const> parsed_value)
 {
     VERIFY(!parsed_value->is_unresolved());
-    return create_internal(move(token_source), substitution_presence, move(original_source_text), source_text_mode, true, move(parsed_value));
+    return create_internal(move(token_source), substitution_presence, source_text_mode, true, move(parsed_value));
 }
 
 bool UnresolvedStyleValue::equals(StyleValue const& other) const

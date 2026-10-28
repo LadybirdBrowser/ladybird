@@ -27,7 +27,8 @@ use crate::css::parser::arbitrary_substitution::{
 use crate::css::parser::calc_parser::{CalcParseError, parse_a_calc_function_node};
 use crate::css::parser::color_parser::{is_color_function_name, parse_color_value};
 use crate::css::parser::component_value::{
-    ComponentKind, ComponentValue, consume_a_list_of_component_values, consume_a_small_list_of_component_values,
+    ComponentKind, ComponentValue, ComponentValueList, consume_a_counted_list_of_component_values,
+    consume_a_list_of_component_values, consume_a_small_list_of_component_values,
 };
 use crate::css::parser::fonts_parser::parse_font_property;
 use crate::css::parser::grid_parser::parse_grid_property;
@@ -5815,25 +5816,17 @@ fn trim_ascii_whitespace(code_units: &[u16]) -> &[u16] {
 
 pub(crate) fn unresolved_value_from_string(
     unresolved_source: &[u16],
-    comparison_source: &[u16],
     presence: SubstitutionFunctionsPresence,
 ) -> StyleValueData {
     let source_text = trim_ascii_whitespace(unresolved_source);
-    let component_source = if comparison_source.is_empty() {
-        source_text
-    } else {
-        comparison_source
-    };
-    let values =
-        super::component_value::consume_a_counted_list_of_component_values(tokenize_for_parser(component_source))
-            .unwrap_or_default();
-    unresolved_value(source_text, comparison_source, values, presence)
+    let values = consume_a_counted_list_of_component_values(tokenize_for_parser(source_text)).unwrap_or_default();
+    unresolved_value(source_text, &[], values, presence)
 }
 
 pub(crate) fn unresolved_value(
     unresolved_source: &[u16],
     comparison_source: &[u16],
-    values: impl Into<super::component_value::ComponentValueList>,
+    values: impl Into<ComponentValueList>,
     presence: SubstitutionFunctionsPresence,
 ) -> StyleValueData {
     let source_text = trim_ascii_whitespace(unresolved_source);

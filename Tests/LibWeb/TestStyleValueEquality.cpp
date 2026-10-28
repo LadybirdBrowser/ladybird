@@ -159,7 +159,7 @@ TEST_CASE(rust_unresolved_value_retains_cached_parsed_value)
 {
     RefPtr<StyleValue const> parsed_value = NumberStyleValue::create(42);
     auto unresolved_value = UnresolvedStyleValue::create_attr_tainted_with_parsed_value(
-        {}, {}, {}, UnresolvedStyleValue::SourceTextMode::Trim, parsed_value.release_nonnull());
+        {}, {}, UnresolvedStyleValue::SourceTextMode::Trim, parsed_value.release_nonnull());
 
     auto restored_parsed_value = unresolved_value->parsed_value();
     EXPECT(restored_parsed_value);
@@ -1480,7 +1480,7 @@ TEST_CASE(counter_definitions_equality_is_deep)
 TEST_CASE(unresolved_equality_trims_only_ascii_whitespace)
 {
     auto make_unresolved = [](Utf16String source_text) {
-        return UnresolvedStyleValue::create({}, {}, move(source_text));
+        return UnresolvedStyleValue::create(move(source_text), {});
     };
 
     // U+00A0 has the Unicode White_Space property but is not ASCII whitespace; values differing
