@@ -1763,10 +1763,9 @@ impl CalcNode {
             } => {
                 let numerator = value.try_canonical_result(context)?;
                 let denominator = modulus.try_canonical_result(context)?;
-                // The arguments must have the same type, not merely consistent ones.
-                if numerator.numeric_type != denominator.numeric_type {
-                    return None;
-                }
+                // https://drafts.csswg.org/css-values-4/#calc-type-checking
+                // The result of adding the types of its comma-separated calculations.
+                let numeric_type = numerator.numeric_type?.added_to(&denominator.numeric_type?)?;
                 let result = if matches!(self, CalcNode::Mod { .. }) {
                     numerator.value - denominator.value * (numerator.value / denominator.value).floor()
                 } else {
@@ -1774,7 +1773,7 @@ impl CalcNode {
                 };
                 Some(CalcResult {
                     value: result,
-                    numeric_type: numerator.numeric_type,
+                    numeric_type: Some(numeric_type),
                 })
             }
             // https://drafts.csswg.org/css-values-5/#calculate-a-progress-function
