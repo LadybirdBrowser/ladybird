@@ -1,0 +1,20 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const cases = [
+            ["literal transform-list", "<transform-list>", "translateX(0px)"],
+            ["escaped transform-list start", String.raw`<\74 ransform-list>`, "translateX(0px)"],
+            ["escaped transform-list middle", String.raw`<transform\2d list>`, "translateX(0px)"],
+            ["escaped custom identifier", String.raw`\66 oo`, "foo"],
+        ];
+        for (const [index, [label, syntax, initialValue]] of cases.entries()) {
+            try {
+                CSS.registerProperty({ name: `--escaped-type-${index}`, syntax, initialValue, inherits: false });
+                println(`${label}: accepted`);
+            } catch (error) {
+                println(`${label}: ${error.name}`);
+            }
+        }
+    });
+</script>

@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 244 tests
 
-243 Pass
-1 Fail
+244 Pass
 Pass	syntax:'--foo', initialValue:'--foo' is valid
 Pass	syntax:'--foo | <color>', initialValue:'--foo' is valid
 Pass	syntax:'--foo | <color>', initialValue:'red' is valid
@@ -138,7 +137,7 @@ Pass	syntax:'\1F914 hmm', initialValue:'🤔hmm' is valid
 Pass	syntax:'\1F914\1F914', initialValue:'🤔🤔' is valid
 Pass	syntax:'<color>#', initialValue:'yellow blue' is invalid
 Pass	syntax:'banana,nya', initialValue:'banana' is invalid
-Fail	syntax:'<\6c ength>', initialValue:'10px' is invalid
+Pass	syntax:'<\6c ength>', initialValue:'10px' is invalid
 Pass	syntax:'<banana>', initialValue:'banana' is invalid
 Pass	syntax:'<Number>', initialValue:'10' is invalid
 Pass	syntax:'<length', initialValue:'10px' is invalid

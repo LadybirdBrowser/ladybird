@@ -1,0 +1,4 @@
+literal transform-list: accepted
+escaped transform-list start: SyntaxError
+escaped transform-list middle: SyntaxError
+escaped custom identifier: accepted
