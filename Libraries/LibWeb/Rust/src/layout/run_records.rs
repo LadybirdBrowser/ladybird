@@ -361,6 +361,8 @@ pub(crate) struct LaidOutChildBox {
 pub(crate) enum BoxMetrics<'records> {
     LaidOutByItsOwnRun(LaidOutChildBox),
     LaidOutByThisRun(&'records UsedValues),
+    /// A child this run sizes in cells of its own before laying it out by a run of its own.
+    BeingSizedByItsParent(used_values::RootInputCells),
 }
 
 impl BoxMetrics<'_> {
@@ -368,6 +370,7 @@ impl BoxMetrics<'_> {
         match self {
             Self::LaidOutByItsOwnRun(laid_out) => laid_out.cells,
             Self::LaidOutByThisRun(record) => used_values::RootInputCells::capture(record),
+            Self::BeingSizedByItsParent(cells) => *cells,
         }
     }
 
@@ -375,6 +378,7 @@ impl BoxMetrics<'_> {
         match self {
             Self::LaidOutByItsOwnRun(laid_out) => laid_out.baselines,
             Self::LaidOutByThisRun(record) => record.content_baselines_from_cells(),
+            Self::BeingSizedByItsParent(_) => DerivedBaselines::default(),
         }
     }
 
@@ -382,7 +386,7 @@ impl BoxMetrics<'_> {
         match self {
             Self::LaidOutByItsOwnRun(laid_out) => laid_out.orthogonal_flow_baselines,
             // NB: A box that establishes an orthogonal flow is laid out by a run of its own.
-            Self::LaidOutByThisRun(_) => None,
+            Self::LaidOutByThisRun(_) | Self::BeingSizedByItsParent(_) => None,
         }
     }
 }
@@ -396,6 +400,7 @@ macro_rules! box_metrics_getters {
                     match self {
                         Self::LaidOutByItsOwnRun(laid_out) => laid_out.cells.$name(),
                         Self::LaidOutByThisRun(record) => record.$name(),
+                        Self::BeingSizedByItsParent(cells) => cells.$name(),
                     }
                 }
             )+

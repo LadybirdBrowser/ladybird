@@ -2970,6 +2970,12 @@ impl ChildRunShape {
     }
 }
 
+/// A formatting context that sizes its children in cells of its own before laying them out by runs of their own.
+pub(crate) trait ChildrenSizedInParentCells {
+    /// The cells this context sizes `node` in, if it is one of those children.
+    fn child_input_cells(&self, node: Node) -> Option<used_values::RootInputCells>;
+}
+
 pub(crate) trait ChildRunShapes {
     fn child_run_shape_at(
         &self,

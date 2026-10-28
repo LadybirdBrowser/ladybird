@@ -115,6 +115,7 @@ pub(crate) struct SizingContext<'pass, 'container> {
     callbacks: LayoutPass<'pass>,
     style_cache: Cell<Option<(Node, &'pass FfiStylePayloads)>>,
     child_run_shapes: Option<&'container dyn formatting_context::ChildRunShapes>,
+    children_sized_in_parent_cells: Option<&'container dyn formatting_context::ChildrenSizedInParentCells>,
 }
 
 /// Whether a size is `auto` itself, rather than a calc-size() with an auto basis.
@@ -171,6 +172,18 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             callbacks,
             style_cache: Cell::new(None),
             child_run_shapes: None,
+            children_sized_in_parent_cells: None,
+        }
+    }
+
+    /// This context, reading the children `children` sizes in cells of its own from those cells.
+    pub(crate) fn with_children_sized_in_parent_cells(
+        self,
+        children: &'container dyn formatting_context::ChildrenSizedInParentCells,
+    ) -> Self {
+        Self {
+            children_sized_in_parent_cells: Some(children),
+            ..self
         }
     }
 
@@ -223,7 +236,22 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
     /// The sizes, size constraints and box sides of `node` as this context sizes it.
     #[track_caller]
     fn box_metrics(&self, node: Node) -> run_records::BoxMetrics<'pass> {
+        if let Some(children) = self.children_sized_in_parent_cells
+            && let Some(cells) = children.child_input_cells(node)
+        {
+            return run_records::BoxMetrics::BeingSizedByItsParent(cells);
+        }
         self.records.box_metrics_of(node)
+    }
+
+    /// The sizes, size constraints and box sides of `node` as this context sizes it, if its run holds them.
+    fn box_metrics_if_owned(&self, node: Node) -> Option<run_records::BoxMetrics<'pass>> {
+        if let Some(children) = self.children_sized_in_parent_cells
+            && let Some(cells) = children.child_input_cells(node)
+        {
+            return Some(run_records::BoxMetrics::BeingSizedByItsParent(cells));
+        }
+        self.records.box_metrics_of_if_owned(node)
     }
 
     fn first_child(&self, node: Node) -> Node {
@@ -2549,8 +2577,8 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         if !self.facts(node).is_replaced_box() {
             return None;
         }
-        let used = self.records.used_values_if_owned(node)?;
-        used.has_definite_block_size().then(|| used.content_block_size.get())
+        let metrics = self.box_metrics_if_owned(node)?;
+        metrics.has_definite_block_size().then(|| metrics.content_block_size())
     }
 
     fn single_content_inline_size(
@@ -3113,7 +3141,10 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         kind: IntrinsicSizeCacheKind,
     ) -> CssPixels {
         let own_frame = formatting_context::frame_established_by(&self.callbacks, node);
-        let sizing = SizingContext::new(self.records, self.callbacks.in_frame_of(own_frame.writing_mode()));
+        let sizing = SizingContext {
+            children_sized_in_parent_cells: self.children_sized_in_parent_cells,
+            ..SizingContext::new(self.records, self.callbacks.in_frame_of(own_frame.writing_mode()))
+        };
         let constraints_in_own_frame = ContainingBlockConstraints {
             percentage_basis_inline_size: constraints.percentage_basis_block_size,
             percentage_basis_block_size: constraints.percentage_basis_inline_size,
