@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>CSS Test (Selectors): Checkbox doesn't match :focus-visiblel after click on label</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/selectors-4/#the-focus-visible-pseudo" />
+<meta name="assert" content="This test checks that :focus-visible does NOT match when a checkbox is focused because an associated label has been clicked.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-actions.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../../resources/accesskey.js"></script>
+<script src="../../css/support/parsing-testcommon.js"></script>
+<style>
+  :focus-visible {
+    outline: red solid 5px;
+  }
+</style>
+<input type="checkbox" id="checkbox">
+<label for="checkbox" id="label">label</label>
+<script>
+  // Check that :focus-visible is supported.
+  test_valid_selector(':focus-visible');
+
+  promise_test(async t => {
+    await test_driver.click(label);
+    assert_equals(getComputedStyle(checkbox).outlineStyle, "none", `outline-style for ${checkbox.tagName}#${checkbox.id} should be none`);
+    t.done();
+  }, ":focus-visible does NOT match when a checkbox is focused via click on the associated label");
+</script>
+
