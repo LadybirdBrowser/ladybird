@@ -2,17 +2,16 @@ Harness status: OK
 
 Found 12 tests
 
-4 Pass
-8 Fail
+12 Pass
 Pass	Focus element SPAN#el-1 via mouse should NOT match :focus-visible as it does NOT support keyboard input
 Pass	Focus element SPAN#el-2 via mouse should NOT match :focus-visible as it does NOT support keyboard input
 Pass	Focus element SPAN#el-3 via mouse should NOT match :focus-visible as it does NOT support keyboard input
 Pass	Focus element BUTTON#el-4 via mouse should NOT match :focus-visible as it does NOT support keyboard input
-Fail	Focus element INPUT#el-5 via mouse should NOT match :focus-visible as it does NOT support keyboard input
-Fail	Focus element INPUT#el-6 via mouse should NOT match :focus-visible as it does NOT support keyboard input
-Fail	Focus element INPUT#el-7 via mouse should NOT match :focus-visible as it does NOT support keyboard input
-Fail	Focus element INPUT#el-8 via mouse should NOT match :focus-visible as it does NOT support keyboard input
-Fail	Focus element INPUT#el-9 via mouse should NOT match :focus-visible as it does NOT support keyboard input
-Fail	Focus element INPUT#el-10 via mouse should NOT match :focus-visible as it does NOT support keyboard input
-Fail	Focus element INPUT#el-12 via mouse should NOT match :focus-visible as it does NOT support keyboard input
-Fail	Focus element INPUT#el-13 via mouse should NOT match :focus-visible as it does NOT support keyboard input
+Pass	Focus element INPUT#el-5 via mouse should NOT match :focus-visible as it does NOT support keyboard input
+Pass	Focus element INPUT#el-6 via mouse should NOT match :focus-visible as it does NOT support keyboard input
+Pass	Focus element INPUT#el-7 via mouse should NOT match :focus-visible as it does NOT support keyboard input
+Pass	Focus element INPUT#el-8 via mouse should NOT match :focus-visible as it does NOT support keyboard input
+Pass	Focus element INPUT#el-9 via mouse should NOT match :focus-visible as it does NOT support keyboard input
+Pass	Focus element INPUT#el-10 via mouse should NOT match :focus-visible as it does NOT support keyboard input
+Pass	Focus element INPUT#el-12 via mouse should NOT match :focus-visible as it does NOT support keyboard input
+Pass	Focus element INPUT#el-13 via mouse should NOT match :focus-visible as it does NOT support keyboard input
