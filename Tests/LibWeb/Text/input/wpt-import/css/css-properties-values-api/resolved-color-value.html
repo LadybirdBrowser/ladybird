@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<title>CSS Properties and Values API Test: resolved registered &lt;color&gt; values</title>
+<link rel="help" href="https://drafts.csswg.org/css-properties-values-api/#calculation-of-computed-values">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  @property --color {
+    inherits: false;
+    initial-value: black;
+    syntax: "<color>";
+  }
+  #target {
+    --color: color(srgb 0 sibling-index() 0);
+  }
+</style>
+<div>
+  <div id="target"></div>
+</div>
+<script>
+  test(() => {
+    assert_equals(getComputedStyle(target).getPropertyValue("--color"), "color(srgb 0 1 0)");
+  }, "Resolved <color> value with sibling-index()");
+</script>
