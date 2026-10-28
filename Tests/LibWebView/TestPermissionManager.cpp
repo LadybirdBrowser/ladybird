@@ -291,6 +291,8 @@ TEST_CASE(private_session_inherits_ordinary_block_live)
     ordinary->set_decision(PermissionName::Geolocation, maps, PermissionDecision::Block);
     EXPECT(private_session->effective_state(PermissionName::Geolocation, maps) == EffectiveState::Denied);
     EXPECT(private_session->snapshot().revision > revision_before);
+    // The site settings panel shows the inherited block as the private session's own decision.
+    EXPECT(private_session->decision(PermissionName::Geolocation, maps) == PermissionDecision::Block);
     VERIFY(private_session->snapshot().entries.size() == 1);
 }
 
