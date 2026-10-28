@@ -2182,8 +2182,10 @@ impl AbsposEngine<'_> {
         let used = self.used(node);
         used.set_content_inline_size(auto_px_value(used_inline_size));
         self.set_used_inline_insets(node, left, right);
-        used.set_margin(geometry::Side::Left, auto_px_value(margin_left));
-        used.set_margin(geometry::Side::Right, auto_px_value(margin_right));
+        used.update(|cells| {
+            cells.margin_left = auto_px_value(margin_left);
+            cells.margin_right = auto_px_value(margin_right);
+        });
     }
 
     fn compute_inline_size_for_replaced(
@@ -2238,8 +2240,10 @@ impl AbsposEngine<'_> {
 
         let used = self.used(node);
         self.set_used_inline_insets(node, solution.start, solution.end);
-        used.set_margin(geometry::Side::Left, solution.margin_start);
-        used.set_margin(geometry::Side::Right, solution.margin_end);
+        used.update(|cells| {
+            cells.margin_left = solution.margin_start;
+            cells.margin_right = solution.margin_end;
+        });
         used.set_content_inline_size(inline_size);
     }
 
@@ -2662,18 +2666,20 @@ impl AbsposEngine<'_> {
             // NB: A box that establishes an orthogonal flow is sized in this axis before its contents are laid out,
             //     which they are at that size.
             if solution.block_size.is_some() && self.sizing().establishes_orthogonal_flow(node) {
-                used.set_has_definite_block_size(true);
+                used.update(|cells| cells.has_definite_block_size = true);
             }
             return;
         }
         if !style.height().is_intrinsic_sizing_constraint() {
-            used.set_has_definite_block_size(true);
+            used.update(|cells| cells.has_definite_block_size = true);
         }
         self.set_used_block_insets(node, auto_px_value(solution.top), auto_px_value(solution.bottom));
         // NOTE: solve_non_replaced_block_once() already resolved these against the bases the C++ layout code used:
         //       the insets against the containing block's block size, but the margins against its inline size.
-        used.set_margin(geometry::Side::Top, auto_px_value(solution.margin_top));
-        used.set_margin(geometry::Side::Bottom, auto_px_value(solution.margin_bottom));
+        used.update(|cells| {
+            cells.margin_top = auto_px_value(solution.margin_top);
+            cells.margin_bottom = auto_px_value(solution.margin_bottom);
+        });
     }
 
     fn compute_block_size_for_replaced(
@@ -2763,16 +2769,18 @@ impl AbsposEngine<'_> {
                 available_space,
                 constraints,
             ) {
-                used.set_has_definite_block_size(true);
+                used.update(|cells| cells.has_definite_block_size = true);
             }
             return;
         }
         if !style.height().is_intrinsic_sizing_constraint() {
-            used.set_has_definite_block_size(true);
+            used.update(|cells| cells.has_definite_block_size = true);
         }
         self.set_used_block_insets(node, solution.start, solution.end);
-        used.set_margin(geometry::Side::Top, solution.margin_start);
-        used.set_margin(geometry::Side::Bottom, solution.margin_end);
+        used.update(|cells| {
+            cells.margin_top = solution.margin_start;
+            cells.margin_bottom = solution.margin_end;
+        });
     }
 
     fn compute_block_size(
@@ -2828,29 +2836,16 @@ impl<'pass> AbsposEngine<'pass> {
             "an out-of-flow root with anchor() insets must arrive with their resolutions"
         );
         let style = self.style(node).with_resolved_insets(resolved);
-        {
-            let used = self.used(node);
-            used.set_border(geometry::Side::Left, style.border_left_width());
-            used.set_border(geometry::Side::Right, style.border_right_width());
-            used.set_border(geometry::Side::Top, style.border_top_width());
-            used.set_border(geometry::Side::Bottom, style.border_bottom_width());
-            used.set_padding(
-                geometry::Side::Left,
-                style.padding_left().to_px(containing_block_inline_size),
-            );
-            used.set_padding(
-                geometry::Side::Right,
-                style.padding_right().to_px(containing_block_inline_size),
-            );
-            used.set_padding(
-                geometry::Side::Top,
-                style.padding_top().to_px(containing_block_inline_size),
-            );
-            used.set_padding(
-                geometry::Side::Bottom,
-                style.padding_bottom().to_px(containing_block_inline_size),
-            );
-        }
+        self.used(node).update(|cells| {
+            cells.border_left = style.border_left_width();
+            cells.border_right = style.border_right_width();
+            cells.border_top = style.border_top_width();
+            cells.border_bottom = style.border_bottom_width();
+            cells.padding_left = style.padding_left().to_px(containing_block_inline_size);
+            cells.padding_right = style.padding_right().to_px(containing_block_inline_size);
+            cells.padding_top = style.padding_top().to_px(containing_block_inline_size);
+            cells.padding_bottom = style.padding_bottom().to_px(containing_block_inline_size);
+        });
 
         self.compute_inline_size(
             node,
@@ -2871,13 +2866,13 @@ impl<'pass> AbsposEngine<'pass> {
         {
             let used = self.used(node);
             if !style.inset_left().is_auto() && !style.inset_right().is_auto() {
-                used.set_has_definite_inline_size(true);
+                used.update(|cells| cells.has_definite_inline_size = true);
             }
             if !style.inset_top().is_auto()
                 && !style.inset_bottom().is_auto()
                 && (style.height().is_auto() || !style.height().is_intrinsic_sizing_constraint())
             {
-                used.set_has_definite_block_size(true);
+                used.update(|cells| cells.has_definite_block_size = true);
             }
         }
         if !self.facts(node).creates_block_formatting_context() {
@@ -2885,11 +2880,11 @@ impl<'pass> AbsposEngine<'pass> {
                 && self.facts(node).has_preferred_aspect_ratio()
                 && self.used(node).has_definite_inline_size();
             let used = self.used(node);
-            used.set_has_definite_inline_size(true);
+            used.update(|cells| cells.has_definite_inline_size = true);
             if (!style.height().is_auto() && !style.height().is_intrinsic_sizing_constraint())
                 || block_size_resolved_from_aspect_ratio
             {
-                used.set_has_definite_block_size(true);
+                used.update(|cells| cells.has_definite_block_size = true);
             }
         }
 

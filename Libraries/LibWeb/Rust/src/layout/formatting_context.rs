@@ -1707,7 +1707,7 @@ fn apply_root_sizing_directives(
                 }
                 if let Some(block_size) = directives.forced_content_block_size {
                     used.set_content_block_size(block_size);
-                    used.set_has_definite_block_size(true);
+                    used.update(|cells| cells.has_definite_block_size = true);
                 }
             }
             *input
@@ -1736,7 +1736,7 @@ fn dimension_block_level_root(
     if let Some(block_size) = input.sizing.forced_content_block_size {
         let used = run.root_record();
         used.set_content_block_size(block_size);
-        used.set_has_definite_block_size(true);
+        used.update(|cells| cells.has_definite_block_size = true);
         body_input.available_space.block_size = AvailableSize::definite(block_size);
         return body_input;
     }

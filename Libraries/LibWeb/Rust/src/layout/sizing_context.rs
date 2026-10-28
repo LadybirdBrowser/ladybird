@@ -21,10 +21,7 @@ pub(crate) struct ResolvedBlockSize {
 
 impl ResolvedBlockSize {
     pub(crate) fn apply_to_record(self, used: used_values::RecordInFrame<'_>) {
-        used.set_content_block_size(self.content_block_size);
-        if self.makes_block_size_definite {
-            used.set_has_definite_block_size(true);
-        }
+        used.update(|cells| self.apply_to_cells(cells));
     }
 
     pub(crate) fn apply_to_cells(self, cells: &mut used_values::RootInputCells) {
@@ -2204,7 +2201,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
                 && block_size_is_automatic;
 
             if native_control_block_size_constraint_is_active || block_size_is_definite_from_aspect_ratio {
-                sized_record.record.set_has_definite_block_size(true);
+                sized_record.record.update(|cells| cells.has_definite_block_size = true);
             }
             return None;
         }
@@ -3538,12 +3535,12 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         if !content_box_needs_to_be_definite {
             return;
         }
-        let used = sized_record.record;
-        used.set_content_block_size(used_block_size);
-        used.set_has_definite_block_size(true);
-        used.set_has_definite_block_size_only_for_button_content_alignment(
-            block_size_is_automatic && facts.uses_button_layout(),
-        );
+        sized_record.record.update(|cells| {
+            cells.set_content_block_size(used_block_size);
+            cells.has_definite_block_size = true;
+            cells.has_definite_block_size_only_for_button_content_alignment =
+                block_size_is_automatic && facts.uses_button_layout();
+        });
     }
 
     pub(crate) fn table_box_inside_wrapper(&self, wrapper: Node) -> Node {
