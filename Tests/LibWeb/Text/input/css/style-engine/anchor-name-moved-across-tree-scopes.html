@@ -14,6 +14,7 @@
 <script src="../../include.js"></script>
 <script>
     test(() => {
+        const anchor = document.getElementById("anchor");
         const shadow = host.attachShadow({ mode: "open" });
         shadow.innerHTML = `<style>.anchor { position: absolute; top: 0; width: 10px; height: 10px; anchor-name: --moved; }</style><div id="inner"></div>`;
         const inner = shadow.getElementById("inner");

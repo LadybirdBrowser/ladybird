@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 3 tests
 
-2 Pass
-1 Fail
+3 Pass
 Pass	moveBefore() correctly updates name map when moving into shadow root
-Fail	moveBefore() correctly updates window map
+Pass	moveBefore() correctly updates window map
 Pass	moveBefore() correctly updates name map ordering in document

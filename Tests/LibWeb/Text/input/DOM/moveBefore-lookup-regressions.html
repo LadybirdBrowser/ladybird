@@ -1,0 +1,82 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const container = document.createElement("div");
+        const names = ["move-name-first", "move-name-second", "move-name-third"];
+        const forms = names.map(name => {
+            const form = document.createElement("form");
+            form.name = name;
+            container.append(form);
+            return form;
+        });
+        document.body.append(container);
+        const order = () =>
+            Object.getOwnPropertyNames(document)
+                .filter(name => names.includes(name))
+                .join(",");
+        println(`Initial named order: ${order()}`);
+        container.moveBefore(forms[2], forms[0]);
+        println(`Named order after moving first: ${order()}`);
+        container.moveBefore(forms[2], null);
+        println(`Named order after moving last: ${order()}`);
+        container.moveBefore(forms[1], forms[0]);
+        println(`Named order after moving middle: ${order()}`);
+        container.remove();
+
+        const subtreeContainer = document.createElement("div");
+        const wrapper = document.createElement("section");
+        const subtreeNames = ["move-subtree-first", "move-subtree-second", "move-subtree-last"];
+        const subtreeForms = subtreeNames.map(name => {
+            const form = document.createElement("form");
+            form.name = name;
+            return form;
+        });
+        wrapper.append(subtreeForms[0], subtreeForms[1]);
+        subtreeContainer.append(wrapper, subtreeForms[2]);
+        document.body.append(subtreeContainer);
+        const subtreeOrder = () =>
+            Object.getOwnPropertyNames(document)
+                .filter(name => subtreeNames.includes(name))
+                .join(",");
+        println(`Initial named subtree order: ${subtreeOrder()}`);
+        subtreeContainer.moveBefore(wrapper, null);
+        println(`Named subtree order after moving last: ${subtreeOrder()}`);
+        subtreeContainer.moveBefore(wrapper, subtreeForms[2]);
+        println(`Named subtree order after moving first: ${subtreeOrder()}`);
+        wrapper.moveBefore(subtreeForms[1], subtreeForms[0]);
+        subtreeContainer.moveBefore(wrapper, null);
+        println(`Named subtree order after internal reorder and move: ${subtreeOrder()}`);
+        subtreeContainer.remove();
+
+        const firstHost = document.createElement("div");
+        const secondHost = document.createElement("div");
+        document.body.append(firstHost, secondHost);
+        const firstRoot = firstHost.attachShadow({ mode: "open" });
+        const secondRoot = secondHost.attachShadow({ mode: "open" });
+        const firstForm = document.createElement("form");
+        const secondForm = document.createElement("form");
+        firstForm.id = secondForm.id = "move-form-target";
+        firstRoot.append(firstForm);
+        secondRoot.append(secondForm);
+        const moved = document.createElement("section");
+        const control = document.createElement("input");
+        control.setAttribute("form", "move-form-target");
+        moved.append(control);
+        document.body.append(moved);
+        println(`ID-less control initially unassociated: ${control.form === null}`);
+        firstRoot.moveBefore(moved, null);
+        println(`ID-less control gains shadow form: ${control.form === firstForm}`);
+        println(
+            `Shadow form includes moved control: ${firstForm.elements.length === 1 && firstForm.elements[0] === control}`
+        );
+        secondRoot.moveBefore(moved, null);
+        println(
+            `ID-less control changes shadow form: ${control.form === secondForm && firstForm.elements.length === 0}`
+        );
+        document.body.moveBefore(moved, null);
+        println(`ID-less control releases shadow form: ${control.form === null && secondForm.elements.length === 0}`);
+        secondRoot.moveBefore(moved, null);
+        println(`ID-less control regains shadow form: ${control.form === secondForm}`);
+    });
+</script>

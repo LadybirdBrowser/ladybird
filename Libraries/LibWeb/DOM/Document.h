@@ -1267,6 +1267,7 @@ public:
     RefPtr<HTML::SessionHistoryEntry> latest_entry() const { return m_latest_entry; }
     void set_latest_entry(RefPtr<HTML::SessionHistoryEntry>);
 
+    void subtree_was_moved(Badge<DOM::Node>, DOM::Node& subtree, DOM::Node& old_root);
     void element_id_changed(Badge<DOM::Element>, GC::Ref<DOM::Element> element, Optional<Utf16FlyString> old_id);
     void element_with_id_was_added(Badge<DOM::Element>, GC::Ref<DOM::Element> element);
     void element_with_id_was_removed(Badge<DOM::Element>, GC::Ref<DOM::Element> element);
