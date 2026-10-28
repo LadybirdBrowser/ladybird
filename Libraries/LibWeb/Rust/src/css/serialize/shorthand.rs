@@ -454,6 +454,33 @@ pub(super) fn serialize(
                 write(sink, get(property_id::BORDER_WIDTH), mode);
             }
         }
+        property_id::FONT_SYNTHESIS => {
+            let components = [
+                (property_id::FONT_SYNTHESIS_WEIGHT, "weight"),
+                (property_id::FONT_SYNTHESIS_STYLE, "style"),
+                (property_id::FONT_SYNTHESIS_SMALL_CAPS, "small-caps"),
+            ];
+            if components.iter().any(|(property, _)| {
+                !keyword_is(get(*property), keyword::NONE) && !keyword_is(get(*property), keyword::AUTO)
+            }) {
+                return;
+            }
+            let mut first = true;
+            for (property, name) in components {
+                let value = get(property);
+                if keyword_is(value, keyword::NONE) {
+                    continue;
+                }
+                if !first {
+                    sink.push_ascii(" ");
+                }
+                sink.push_ascii(name);
+                first = false;
+            }
+            if first {
+                sink.push_ascii("none");
+            }
+        }
         property_id::FONT_VARIANT => {
             let ids = [
                 property_id::FONT_VARIANT_LIGATURES,

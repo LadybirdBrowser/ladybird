@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 39 tests
 
-37 Pass
-2 Fail
+38 Pass
+1 Fail
 Pass	Property font-family inherits
 Pass	Property font-feature-settings has initial value normal
 Pass	Property font-feature-settings inherits
@@ -22,7 +22,7 @@ Pass	Property font-stretch inherits
 Pass	Property font-style has initial value normal
 Pass	Property font-style inherits
 Fail	Property font-synthesis has initial value weight style small-caps position
-Fail	Property font-synthesis inherits
+Pass	Property font-synthesis inherits
 Pass	Property font-variant has initial value normal
 Pass	Property font-variant inherits
 Pass	Property font-variant-alternates has initial value normal

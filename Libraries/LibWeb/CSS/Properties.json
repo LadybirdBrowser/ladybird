@@ -2594,6 +2594,17 @@
       "font-style"
     ]
   },
+  "font-synthesis": {
+    "initial": "weight style small-caps",
+    "longhands": [
+      "font-synthesis-small-caps",
+      "font-synthesis-style",
+      "font-synthesis-weight"
+    ],
+    "valid-types": [
+      "string"
+    ]
+  },
   "font-synthesis-position": {
     "animation-type": "discrete",
     "inherited": true,

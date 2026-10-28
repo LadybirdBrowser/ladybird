@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 102 tests
 
-99 Pass
-3 Fail
+102 Pass
 Pass	Can set 'font-synthesis-weight' to CSS-wide keywords: initial
 Pass	Can set 'font-synthesis-weight' to CSS-wide keywords: inherit
 Pass	Can set 'font-synthesis-weight' to CSS-wide keywords: unset
@@ -103,6 +102,6 @@ Pass	Setting 'font-synthesis-small-caps' to a number: calc(2 + 3) throws TypeErr
 Pass	Setting 'font-synthesis-small-caps' to a transform: translate(50%, 50%) throws TypeError
 Pass	Setting 'font-synthesis-small-caps' to a transform: perspective(10em) throws TypeError
 Pass	Setting 'font-synthesis-small-caps' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
-Fail	'font-synthesis' does not support 'weight style'
-Fail	'font-synthesis' does not support 'style small-caps'
-Fail	'font-synthesis' does not support 'small-caps weight style'
+Pass	'font-synthesis' does not support 'weight style'
+Pass	'font-synthesis' does not support 'style small-caps'
+Pass	'font-synthesis' does not support 'small-caps weight style'

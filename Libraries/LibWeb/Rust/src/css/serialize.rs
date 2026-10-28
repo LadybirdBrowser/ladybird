@@ -3528,6 +3528,7 @@ fn serialize_shorthand(
         property_id::BORDER,
         property_id::BACKGROUND_POSITION,
         property_id::FONT,
+        property_id::FONT_SYNTHESIS,
         property_id::FONT_VARIANT,
         property_id::GRID,
         property_id::GRID_AREA,
