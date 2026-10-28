@@ -553,6 +553,7 @@ void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, O
 
                 // 11.11 For each track in stream, tie track source to MediaDevices with track.[[Source]] and mediaDevices.
                 media_devices->m_media_stream_track_sources.append(track);
+                track->set_media_devices({}, *media_devices);
                 track->on_audio_capture_revoked = [media_devices = GC::Weak<MediaDevices>(media_devices), track = GC::Weak<MediaStreamTrack>(track)] {
                     if (!media_devices.ptr() || !track.ptr())
                         return;
@@ -849,6 +850,12 @@ void MediaDevices::end_tracks_without_permission()
         return true;
     });
     end_tracks(move(tracks_to_end));
+}
+
+// A clone of a microphone track captures from the microphone too, so it ends with the permission like its original.
+void MediaDevices::track_was_cloned(Badge<MediaStreamTrack>, MediaStreamTrack& clone)
+{
+    m_media_stream_track_sources.append(clone);
 }
 
 void MediaDevices::end_tracks(GC::RootVector<GC::Ref<MediaStreamTrack>> tracks_to_end)

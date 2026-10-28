@@ -8,6 +8,7 @@
 
 #include <AK/Atomic.h>
 #include <AK/AtomicRefCounted.h>
+#include <AK/Badge.h>
 #include <AK/Function.h>
 #include <AK/Mutex.h>
 #include <AK/NonnullRefPtr.h>
@@ -18,6 +19,7 @@
 #include <AK/Utf16String.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
+#include <LibGC/Weak.h>
 #include <LibWeb/Bindings/MediaStreamConstraints.h>
 #include <LibWeb/Bindings/MediaStreamTrack.h>
 #include <LibWeb/DOM/EventTarget.h>
@@ -117,6 +119,10 @@ public:
     void end();
     GC::Ref<MediaStreamTrack> clone() const;
 
+    // Ties a microphone track to the MediaDevices that made it, which ends the track, and any clone of it, with the
+    // permission.
+    void set_media_devices(Badge<MediaDevices>, MediaDevices&);
+
     bool is_audio() const;
     bool is_video() const;
 
@@ -162,6 +168,7 @@ private:
     MediaTrackSettings m_settings;
 
     u64 m_provider_id { 0 };
+    GC::Weak<MediaDevices> m_media_devices;
 
     NonnullRefPtr<AudioFrameFanout> m_audio_fanout;
     RefPtr<Audio::RecordStream> m_audio_capture_stream;
