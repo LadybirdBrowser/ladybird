@@ -242,6 +242,7 @@ pub(crate) struct BlockFormattingContext<'pass> {
     pub(super) previous_line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
     block_offset_of_current_block_container: Cell<Option<CssPixels>>,
     pending_legend_flow_position: Cell<Option<geometry::LogicalOffset>>,
+    pending_legend_fragment_arrival: Cell<Option<fragment_tree::ChildFragmentArrival>>,
     margin_state: RefCell<BlockMarginState>,
     floats: RefCell<Vec<FloatingBox>>,
     bands: RefCell<SmallVec<[FloatBand; 4]>>,
@@ -363,6 +364,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             previous_line_data,
             block_offset_of_current_block_container: Cell::new(None),
             pending_legend_flow_position: Cell::new(None),
+            pending_legend_fragment_arrival: Cell::new(None),
             margin_state: RefCell::new(BlockMarginState::default()),
             floats: RefCell::new(Vec::new()),
             bands: RefCell::new(smallvec![FloatBand::default()]),
@@ -539,17 +541,29 @@ impl<'pass> BlockFormattingContext<'pass> {
         sizing_context::SizingContext::new(self.run.records, self.run.callbacks)
     }
 
-    fn place_child(&self, node: Node, offset: FfiCssPixelPoint) {
-        self.place_child_on_line(node, offset, None);
+    fn place_laid_out_child(
+        &self,
+        node: Node,
+        offset: FfiCssPixelPoint,
+        fragment_arrival: Option<fragment_tree::ChildFragmentArrival>,
+    ) {
+        self.place_laid_out_child_on_line(node, offset, None, fragment_arrival);
     }
 
-    fn place_child_on_line(
+    fn place_laid_out_child_on_line(
         &self,
         node: Node,
         offset: FfiCssPixelPoint,
         containing_line_box_fragment: Option<used_values::LineBoxFragmentCoordinate>,
+        fragment_arrival: Option<fragment_tree::ChildFragmentArrival>,
     ) -> Option<fragment_tree::PlacedFragment> {
-        formatting_context::place_child(&self.run, node, offset, containing_line_box_fragment)
+        formatting_context::place_laid_out_child(
+            &self.run,
+            node,
+            offset,
+            containing_line_box_fragment,
+            fragment_arrival,
+        )
     }
 
     fn register_contained_abspos_child(&self, node: Node, block_offset: CssPixels, coordinate_space_box: Node) {
@@ -1764,7 +1778,6 @@ impl<'pass> BlockFormattingContext<'pass> {
             },
             true,
         );
-        formatting_context::hold_fragment_arrival_until_placement(run, marker, fragment_arrival);
         marker_outcome.report_percentage_block_size_dependency_of(run, marker);
         match marker_outcome {
             ChildLayoutOutcome::Created(_) | ChildLayoutOutcome::Skipped { .. } => {}
@@ -1794,12 +1807,13 @@ impl<'pass> BlockFormattingContext<'pass> {
             ))
         };
 
-        self.place_child(
+        self.place_laid_out_child(
             marker,
             FfiCssPixelPoint {
                 x: round_css_pixels(marker_inline_offset),
                 y: marker_block_offset,
             },
+            fragment_arrival,
         );
     }
 
@@ -1809,19 +1823,21 @@ impl<'pass> BlockFormattingContext<'pass> {
         node: Node,
         input: LayoutInput,
         force_independent_context_run: bool,
-    ) -> Option<formatting_context::ChildLayoutResult> {
+    ) -> (
+        Option<formatting_context::ChildLayoutResult>,
+        Option<fragment_tree::ChildFragmentArrival>,
+    ) {
         let formatting_context::ChildLayout {
             outcome,
             fragment_arrival,
         } = formatting_context::layout_inside_child(run, Some(self), None, node, input, force_independent_context_run);
-        formatting_context::hold_fragment_arrival_until_placement(run, node, fragment_arrival);
         outcome.report_percentage_block_size_dependency_of(run, node);
         match outcome {
-            ChildLayoutOutcome::Skipped { .. } => None,
-            ChildLayoutOutcome::Created(child_layout) => Some(child_layout),
+            ChildLayoutOutcome::Skipped { .. } => (None, fragment_arrival),
+            ChildLayoutOutcome::Created(child_layout) => (Some(child_layout), fragment_arrival),
             ChildLayoutOutcome::ReenterCurrent => {
                 self.run(run, input);
-                None
+                (None, fragment_arrival)
             }
         }
     }
@@ -2193,6 +2209,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             self.break_mode.set(BreakMode::ForcedBreaksOnly);
         }
         let mut baselines_of_contents_laid_out_in_this_flow = None;
+        let mut fragment_arrival_of_child_with_own_formatting_context = None;
         let child_layout = if has_independent_formatting_context {
             // Margins of elements that establish new formatting contexts do not collapse with their in-flow children
             self.margin_state.borrow_mut().reset();
@@ -2232,7 +2249,8 @@ impl<'pass> BlockFormattingContext<'pass> {
                 let used = self.used(node);
                 (used.border_box_left(false), used.border_box_top(false))
             });
-            let child_layout = self.layout_inside(run, node, inside_layout_input, true);
+            let (child_layout, fragment_arrival) = self.layout_inside(run, node, inside_layout_input, true);
+            fragment_arrival_of_child_with_own_formatting_context = fragment_arrival;
             if container_facts.is_table_wrapper() && style.display().is_table_inside() && child_layout.is_some() {
                 let used = self.used(node);
                 self.table_box_in_wrapper_border_box_block_size.set(Some(
@@ -2470,8 +2488,23 @@ impl<'pass> BlockFormattingContext<'pass> {
             },
         );
 
-        let placed = pending_position
-            .and_then(|position| self.place_child_on_line(node, position, containing_line_box_fragment));
+        let placed = match pending_position {
+            Some(position) => self.place_laid_out_child_on_line(
+                node,
+                position,
+                containing_line_box_fragment,
+                fragment_arrival_of_child_with_own_formatting_context,
+            ),
+            None => {
+                debug_assert!(
+                    box_is_positioned_by_fieldset_layout,
+                    "only a rendered legend waits for its position"
+                );
+                self.pending_legend_fragment_arrival
+                    .set(fragment_arrival_of_child_with_own_formatting_context);
+                None
+            }
+        };
 
         if has_independent_formatting_context || !self.margins_collapse_through(node) {
             let mut margin_state = self.margin_state.borrow_mut();
@@ -3856,13 +3889,15 @@ impl<'pass> BlockFormattingContext<'pass> {
         let legend_content_block_offset = fieldset_border_box_block_start_in_content
             + legend_border_box_centering_offset
             + self.used(legend).border_box_top(false);
+        let legend_fragment_arrival = self.pending_legend_fragment_arrival.take();
         if let Some(legend_flow_position) = self.pending_legend_flow_position.take() {
-            self.place_child(
+            self.place_laid_out_child(
                 legend,
                 FfiCssPixelPoint {
                     x: legend_flow_position.inline_offset,
                     y: legend_content_block_offset,
                 },
+                legend_fragment_arrival,
             );
             self.translate_floats_in_subtree(
                 legend,
@@ -4163,7 +4198,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let available_space = input.available_space;
         assert!(self.facts(node).is_floating());
         let block_container = self.containing_block(node);
-        let _ = self.layout_inside(
+        let (_, fragment_arrival) = self.layout_inside(
             run,
             node,
             LayoutInput {
@@ -4195,6 +4230,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             None
         };
         let Some(side) = side else {
+            formatting_context::leave_child_unplaced(run, node, fragment_arrival);
             return;
         };
         let mut margin_box_ceiling = if let Some(line_builder) = line_builder.as_deref_mut() {
@@ -4282,12 +4318,13 @@ impl<'pass> BlockFormattingContext<'pass> {
         } else {
             floating_box.percentage_basis_inline_size.unwrap_or_default() - floating_box.offset_from_edge
         };
-        self.place_child(
+        self.place_laid_out_child(
             node,
             FfiCssPixelPoint {
                 x: inline_offset,
                 y: content_block_offset,
             },
+            fragment_arrival,
         );
     }
 

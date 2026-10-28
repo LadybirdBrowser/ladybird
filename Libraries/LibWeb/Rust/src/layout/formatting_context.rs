@@ -2861,6 +2861,16 @@ pub(crate) fn layout_inside_child(
     }
 }
 
+/// Hands what the layout of the child `node` handed its placement to the run's fragment builder, where the child is
+/// laid out but not placed.
+pub(crate) fn leave_child_unplaced(
+    run: &FormattingContextRun,
+    node: Node,
+    fragment_arrival: Option<fragment_tree::ChildFragmentArrival>,
+) {
+    hold_fragment_arrival_until_placement(run, node, fragment_arrival);
+}
+
 /// Keeps what the layout of the child `node` handed its placement in the run's fragment builder until the placement
 /// takes it.
 pub(crate) fn hold_fragment_arrival_until_placement(
