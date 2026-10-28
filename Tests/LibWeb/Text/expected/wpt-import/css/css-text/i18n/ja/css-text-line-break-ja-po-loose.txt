@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 10 tests
+
+10 Fail
+Fail	00B0  DEGREE SIGN may appear at line start if ja and loose
+Fail	2030  PER MILLE SIGN may appear at line start if ja and loose
+Fail	2032  PRIME may appear at line start if ja and loose
+Fail	2033  DOUBLE PRIME may appear at line start if ja and loose
+Fail	2035  REVERSED PRIME may appear at line start if ja and loose
+Fail	2103  DEGREE CELSIUS may appear at line start if ja and loose
+Fail	2109  DEGREE FAHRENHEIT may appear at line start if ja and loose
+Fail	FE6A  SMALL PERCENT SIGN may appear at line start if ja and loose
+Fail	FF05  FULLWIDTH PERCENT SIGN may appear at line start if ja and loose
+Fail	FFE0  FULLWIDTH CENT SIGN may appear at line start if ja and loose

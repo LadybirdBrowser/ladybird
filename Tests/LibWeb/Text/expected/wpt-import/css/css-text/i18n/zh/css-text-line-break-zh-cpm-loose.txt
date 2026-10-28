@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 10 tests
+
+10 Fail
+Fail	30FB  KATAKANA MIDDLE DOT may appear at line start if zh and loose
+Fail	FF1A  FULLWIDTH COLON may appear at line start if zh and loose
+Fail	FF1B  FULLWIDTH SEMICOLON may appear at line start if zh and loose
+Fail	FF65  HALFWIDTH KATAKANA MIDDLE DOT may appear at line start if zh and loose
+Fail	203C  DOUBLE EXCLAMATION MARK may appear at line start if zh and loose
+Fail	2047  DOUBLE QUESTION MARK may appear at line start if zh and loose
+Fail	2048  QUESTION EXCLAMATION MARK may appear at line start if zh and loose
+Fail	2049  EXCLAMATION QUESTION MARK may appear at line start if zh and loose
+Fail	FF01  FULLWIDTH EXCLAMATION MARK may appear at line start if zh and loose
+Fail	FF1F  FULLWIDTH QUESTION MARK may appear at line start if zh and loose

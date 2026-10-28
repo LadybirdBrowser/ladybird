@@ -1,0 +1,16 @@
+Harness status: OK
+
+Found 10 tests
+
+8 Pass
+2 Fail
+Pass	00B0  DEGREE SIGN may NOT appear at line start if de and loose
+Pass	2030  PER MILLE SIGN may NOT appear at line start if de and loose
+Pass	2032  PRIME may NOT appear at line start if de and loose
+Pass	2033  DOUBLE PRIME may NOT appear at line start if de and loose
+Pass	2035  REVERSED PRIME may NOT appear at line start if de and loose
+Pass	2103  DEGREE CELSIUS may NOT appear at line start if de and loose
+Pass	2109  DEGREE FAHRENHEIT may NOT appear at line start if de and loose
+Fail	FE6A  SMALL PERCENT SIGN may NOT appear at line start if de and loose
+Pass	FF05  FULLWIDTH PERCENT SIGN may NOT appear at line start if de and loose
+Fail	FFE0  FULLWIDTH CENT SIGN may NOT appear at line start if de and loose
