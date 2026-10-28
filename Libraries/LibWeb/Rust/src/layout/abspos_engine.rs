@@ -3155,15 +3155,17 @@ impl<'pass> AbsposEngine<'pass> {
             && !margin_end.is_auto()
     }
 
-    /// Lays out and places `node` with the inputs `inputs`, where its insets compensate for the scroll shift
-    /// `default_scroll_shift`.
+    /// Lays out and places `node`, kept with the cells `cells` for its run, with the inputs `inputs`, where its insets
+    /// compensate for the scroll shift `default_scroll_shift`, and returns the block end of its border box in its
+    /// containing block.
     fn layout_element(
         &self,
         run: &FormattingContextRun<'pass>,
         node: Node,
+        cells: used_values::RootInputCells,
         inputs: abspos_inputs::AbsposLayoutInputs,
         default_scroll_shift: Option<abspos_inputs::DefaultScrollShift>,
-    ) {
+    ) -> CssPixels {
         assert!(!self.facts(node).is_svg_box());
         let (available_space, constraints) = out_of_flow_root_space(inputs);
 
@@ -3172,7 +3174,7 @@ impl<'pass> AbsposEngine<'pass> {
             fragment_arrival,
             laid_out_box,
             line_data,
-        } = formatting_context::layout_inside_child(
+        } = formatting_context::layout_inside_child_with_input_cells(
             run,
             None,
             None,
@@ -3182,6 +3184,7 @@ impl<'pass> AbsposEngine<'pass> {
                 constraints,
                 ParticipationInParentFormattingContext::AbsolutelyPositioned(inputs),
             ),
+            cells,
             false,
             // https://drafts.csswg.org/css-sizing-3/#definite
             // "Additionally, the size of the containing block of an absolutely positioned element is always definite
@@ -3199,9 +3202,14 @@ impl<'pass> AbsposEngine<'pass> {
             }
         };
 
-        let static_offset = self.static_offset(node, inputs.static_position_rect);
-        let metrics = self.box_metrics(node);
+        let laid_out_box = laid_out_box.expect("the layout of an absolutely positioned box leaves its box");
+        let metrics = laid_out_box.cells;
         let collapsed = metrics.uses_collapsing_borders_model();
+        let static_offset = aligned_static_offset(
+            inputs.static_position_rect,
+            metrics.margin_box_inline_size(collapsed),
+            metrics.margin_box_block_size(collapsed),
+        );
         let mut used_offset = geometry::LogicalOffset {
             inline_offset: if inputs.containing_block_info.inline_axis_mode
                 == abspos_inputs::AbsposAxisMode::StaticPosition
@@ -3242,11 +3250,8 @@ impl<'pass> AbsposEngine<'pass> {
             }
         }
         self.records.set_used_insets(node, used_insets);
-        let mut placed_child = formatting_context::PlacedChild::of_laid_out_box(
-            &laid_out_box.expect("the layout of an absolutely positioned box leaves its box"),
-            line_data,
-            run.callbacks.frame,
-        );
+        let mut placed_child =
+            formatting_context::PlacedChild::of_laid_out_box(&laid_out_box, line_data, run.callbacks.frame);
         placed_child.facts_decided_by_parent.used_insets = used_insets;
         placed_child.facts_decided_by_parent.default_scroll_shift = default_scroll_shift;
         formatting_context::place_child_in_containing_block(
@@ -3262,23 +3267,27 @@ impl<'pass> AbsposEngine<'pass> {
             Some(inputs),
             fragment_arrival,
         );
+        used_offset.block_offset + metrics.content_block_size() + metrics.border_box_bottom(collapsed)
     }
 
+    /// Lays out and places `child`, and returns the block end of its border box in its containing block.
     pub(crate) fn layout_pending_child(
         &self,
         run: &FormattingContextRun<'pass>,
         mut child: abspos_inputs::PendingAbsposChild,
-    ) {
+    ) -> CssPixels {
         let child_box = child.child_box;
         let position_option = self.determine_position_fallback_styles(&child);
-        self.records
-            .keep_child_for_its_run(&self.callbacks, child_box, ContainingBlockConstraints::default());
+        let cells =
+            self.records
+                .keep_child_for_its_run(&self.callbacks, child_box, ContainingBlockConstraints::default());
         let (mut inputs, default_scroll_shift) = self.pending_child_layout_inputs(&mut child);
         inputs.position_option = position_option.choice();
         self.records
             .set_default_scroll_shift(child_box, Some(default_scroll_shift));
-        self.layout_element(run, child_box, inputs, Some(default_scroll_shift));
+        let border_box_block_end = self.layout_element(run, child_box, cells, inputs, Some(default_scroll_shift));
         drop(position_option);
+        border_box_block_end
     }
 
     /// https://drafts.csswg.org/css-anchor-position-1/#determine-position-fallback-styles
@@ -3766,14 +3775,15 @@ impl<'pass> AbsposEngine<'pass> {
         }
         // Partial relayout uses a fresh state and keeps the replay root
         // exactly once.
-        self.records
+        let cells = self
+            .records
             .keep_child_for_its_run(&self.callbacks, node, ContainingBlockConstraints::default());
         let default_scroll_shift = self
             .callbacks
             .committed_fragment_link(node)
             .and_then(|link| link.default_scroll_shift);
         self.records.set_default_scroll_shift(node, default_scroll_shift);
-        self.layout_element(run, node, inputs, default_scroll_shift);
+        self.layout_element(run, node, cells, inputs, default_scroll_shift);
     }
 
     fn compute_inset(

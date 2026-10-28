@@ -330,18 +330,15 @@ pub(crate) fn lay_out_pending_abspos_children(
         let child_box = entry.child_box;
         let containing_block = entry.containing_block();
         let containing_block_frame = frame_established_by(&run.callbacks, containing_block);
-        if containing_block_frame == run.callbacks.frame {
-            engine.layout_pending_child(run, entry);
+        let border_box_block_end = if containing_block_frame == run.callbacks.frame {
+            engine.layout_pending_child(run, entry)
         } else {
             let framed_run = run.in_frame_of(containing_block_frame);
-            abspos_engine::AbsposEngine::for_run(&framed_run).layout_pending_child(&framed_run, entry);
-        }
-        let metrics = run.records.box_metrics_of(child_box);
+            abspos_engine::AbsposEngine::for_run(&framed_run).layout_pending_child(&framed_run, entry)
+        };
         placed.push(fragment_tree::PlacedAbsposBox {
             box_: child_box,
-            border_box_block_end: run.records.content_offset_or_origin(child_box).y
-                + metrics.content_block_size()
-                + metrics.border_box_bottom(metrics.uses_collapsing_borders_model()),
+            border_box_block_end,
         });
     }
     placed
