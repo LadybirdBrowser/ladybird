@@ -347,7 +347,7 @@ static void add_items_to_menu(QMenu& qmenu, QWidget& parent, WebView::Menu& menu
 #endif
 }
 
-static QAction* create_session_history_traversal_menu_action(QMenu& menu, WebContentView& view, WebView::ViewImplementation::SessionHistoryTraversalMenuItem const& item)
+static QAction* create_session_history_traversal_menu_action(QMenu& menu, WebView::ViewImplementation::SessionHistoryTraversalMenuItem const& item)
 {
     static constexpr int const MENU_ICON_SIZE = 16;
 
@@ -357,9 +357,7 @@ static QAction* create_session_history_traversal_menu_action(QMenu& menu, WebCon
         action->setIcon(icon_from_png(item.favicon_png->bytes(), MENU_ICON_SIZE));
     else
         action->setIcon(create_chrome_icon(ChromeIcon::Globe, menu.palette()));
-    QObject::connect(action, &QAction::triggered, &view, [&view, step = item.step] {
-        view.traverse_the_history_to_step(step);
-    });
+    action->setData(item.step);
     return action;
 }
 
@@ -370,7 +368,7 @@ static bool append_session_history_traversal_menu_items(QMenu& menu, WebContentV
         return false;
 
     for (auto const& item : items)
-        menu.addAction(create_session_history_traversal_menu_action(menu, view, item));
+        menu.addAction(create_session_history_traversal_menu_action(menu, item));
 
 #if defined(AK_OS_MACOS)
     enable_menu_icons(menu);
