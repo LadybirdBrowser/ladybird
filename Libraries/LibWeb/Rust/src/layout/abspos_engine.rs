@@ -3104,6 +3104,7 @@ impl<'pass> AbsposEngine<'pass> {
         let formatting_context::ChildLayout {
             outcome,
             fragment_arrival,
+            ..
         } = formatting_context::layout_inside_child(
             run,
             None,

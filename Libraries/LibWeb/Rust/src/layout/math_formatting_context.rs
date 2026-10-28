@@ -2146,6 +2146,7 @@ impl<'pass> MathFormattingContext<'pass> {
         let formatting_context::ChildLayout {
             outcome,
             fragment_arrival,
+            ..
         } = formatting_context::layout_inside_child_with_input_cells(run, None, None, child, input, child_cells, true);
         if let Some(fragment_arrival) = fragment_arrival {
             self.fragment_arrivals_of_children.borrow_mut().push(fragment_arrival);

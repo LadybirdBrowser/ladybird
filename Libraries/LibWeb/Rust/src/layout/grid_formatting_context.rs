@@ -4422,6 +4422,7 @@ impl<'pass> GridFormattingContext<'pass> {
             let formatting_context::ChildLayout {
                 outcome,
                 fragment_arrival,
+                ..
             } = formatting_context::layout_inside_child_with_input_cells(
                 run,
                 None,

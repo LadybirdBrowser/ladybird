@@ -3040,6 +3040,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         let formatting_context::ChildLayout {
             outcome,
             fragment_arrival,
+            ..
         } = formatting_context::layout_inside_child_with_input_cells(run, None, None, node, input, cells, false);
         self.flex_items[index].cells = run.records.box_metrics_of(node).input_cells();
         outcome.report_percentage_block_size_dependency_of(run, node);
