@@ -364,6 +364,13 @@ pub(crate) enum BoxMetrics<'records> {
 }
 
 impl BoxMetrics<'_> {
+    pub(crate) fn input_cells(&self) -> used_values::RootInputCells {
+        match self {
+            Self::LaidOutByItsOwnRun(laid_out) => laid_out.cells,
+            Self::LaidOutByThisRun(record) => used_values::RootInputCells::capture(record),
+        }
+    }
+
     pub(crate) fn content_baselines(&self) -> DerivedBaselines {
         match self {
             Self::LaidOutByItsOwnRun(laid_out) => laid_out.baselines,

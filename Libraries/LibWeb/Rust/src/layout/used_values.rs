@@ -452,6 +452,15 @@ impl RootInputCells {
         Self::capture(&create_used_values(callbacks, node, constraints))
     }
 
+    pub(crate) fn set_content_inline_size(&mut self, value: CssPixels) {
+        self.content_inline_size = clamp_to_max_dimension_value(value.max(CssPixels::default()));
+        self.has_definite_inline_size = true;
+    }
+
+    pub(crate) fn set_content_block_size(&mut self, value: CssPixels) {
+        self.content_block_size = clamp_to_max_dimension_value(value.max(CssPixels::default()));
+    }
+
     pub(crate) fn materialize_record(&self) -> UsedValues {
         let record = UsedValues::default();
         self.apply_to_record(&record);
@@ -610,30 +619,6 @@ impl UsedValues {
             && fragment.padding_bottom == self.padding_bottom.get()
             && fragment.uses_collapsing_borders_model == self.uses_collapsing_borders_model.get()
     }
-
-    pub(crate) fn available_inner_space_or_constraints_from(&self, outer: AvailableSpace) -> AvailableSpace {
-        use AvailableSize;
-
-        let mut inline_size = if self.has_definite_inline_size.get() {
-            AvailableSize::definite(self.content_inline_size.get())
-        } else {
-            AvailableSize::Indefinite
-        };
-        let block_size = if self.has_definite_block_size.get() {
-            AvailableSize::definite(self.content_block_size.get())
-        } else {
-            AvailableSize::Indefinite
-        };
-        if inline_size == AvailableSize::Indefinite
-            && matches!(outer.inline_size, AvailableSize::MinContent | AvailableSize::MaxContent)
-        {
-            inline_size = outer.inline_size;
-        }
-        AvailableSpace {
-            inline_size,
-            block_size,
-        }
-    }
 }
 
 /// The sizes, size constraints and box sides of a box, with what derives from them, whether a run holds them in the box's
@@ -744,6 +729,28 @@ pub(crate) trait BoxMetricCells {
             + self.border_box_top(collapsed)
             + self.content_block_size()
             + self.margin_box_bottom(collapsed)
+    }
+
+    fn available_inner_space_or_constraints_from(&self, outer: AvailableSpace) -> AvailableSpace {
+        let mut inline_size = if self.has_definite_inline_size() {
+            AvailableSize::definite(self.content_inline_size())
+        } else {
+            AvailableSize::Indefinite
+        };
+        let block_size = if self.has_definite_block_size() {
+            AvailableSize::definite(self.content_block_size())
+        } else {
+            AvailableSize::Indefinite
+        };
+        if inline_size == AvailableSize::Indefinite
+            && matches!(outer.inline_size, AvailableSize::MinContent | AvailableSize::MaxContent)
+        {
+            inline_size = outer.inline_size;
+        }
+        AvailableSpace {
+            inline_size,
+            block_size,
+        }
     }
 }
 

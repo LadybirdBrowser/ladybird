@@ -2796,6 +2796,29 @@ pub(crate) fn layout_inside_child(
     input: LayoutInput,
     force_independent_context_run: bool,
 ) -> ChildLayout {
+    let child_input_cells = used_values::RootInputCells::capture(run.records.used_values(child));
+    layout_inside_child_with_input_cells(
+        run,
+        parent_block,
+        parent_grid,
+        child,
+        input,
+        child_input_cells,
+        force_independent_context_run,
+    )
+}
+
+/// Lays out `child` with the input cells its parent sized it to, which its record takes until the parent no longer
+/// keeps one for the child.
+pub(crate) fn layout_inside_child_with_input_cells(
+    run: &FormattingContextRun,
+    parent_block: Option<&block_formatting_context::BlockFormattingContext>,
+    parent_grid: Option<&grid_formatting_context::GridFormattingContext>,
+    child: Node,
+    input: LayoutInput,
+    mut child_input_cells: used_values::RootInputCells,
+    force_independent_context_run: bool,
+) -> ChildLayout {
     let facts = NodeFacts::new(&run.callbacks, child);
     let used = run.records.used_values(child);
     let child_run_builds_fragments = run_builds_fragments(&input, run.fragments.is_some());
@@ -2805,9 +2828,10 @@ pub(crate) fn layout_inside_child(
             input.participation,
             ParticipationInParentFormattingContext::Item
         ));
-        used.padding_top.set(used.padding_top.get() + padding_top);
-        used.padding_bottom.set(used.padding_bottom.get() + padding_bottom);
+        child_input_cells.padding_top += padding_top;
+        child_input_cells.padding_bottom += padding_bottom;
     }
+    child_input_cells.apply_to_record(used);
     let skipped = || ChildLayoutOutcome::Skipped {
         depends_on_percentage_block_size: run.sizing().skipped_child_depends_on_percentage_block_size(child),
     };
@@ -2913,6 +2937,7 @@ pub(crate) fn leave_child_unplaced(
 pub(crate) fn table_cell_run_shape_ahead_of_its_intrinsic_block_padding(
     run: &FormattingContextRun,
     cell: Node,
+    cell_input_cells: used_values::RootInputCells,
     mut input: LayoutInput,
 ) -> Option<ChildRunShape> {
     debug_assert!(matches!(
@@ -2925,7 +2950,7 @@ pub(crate) fn table_cell_run_shape_ahead_of_its_intrinsic_block_padding(
         node: cell,
         fc_type: plan.fc_type,
         input: plan.input,
-        root_cells: used_values::RootInputCells::capture(run.records.used_values(cell)),
+        root_cells: cell_input_cells,
         root_containing_block: plan.root_containing_block,
     })
 }
