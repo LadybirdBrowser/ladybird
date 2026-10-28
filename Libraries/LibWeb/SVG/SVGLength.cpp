@@ -401,7 +401,7 @@ static WebIDL::ExceptionOr<SVGLengthValue> convert_px_to_specified_units(JS::Rea
             return 1.0 / CSS::ratio_between_font_relative_unit_and_px(length_unit, length_resolution_context->font_metrics, length_resolution_context->root_font_metrics);
 
         if (CSS::is_viewport_relative(length_unit))
-            return 1.0 / CSS::ratio_between_viewport_relative_unit_and_px(length_unit, length_resolution_context->viewport_rect);
+            return 1.0 / CSS::ratio_between_viewport_relative_unit_and_px(length_unit, length_resolution_context->viewport_rect, length_resolution_context->subject_inline_axis_is_horizontal);
 
         VERIFY_NOT_REACHED();
     }());

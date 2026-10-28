@@ -134,9 +134,9 @@ double Length::font_relative_length_to_px_without_rounding(Length::FontMetrics c
     return ratio_between_font_relative_unit_and_px(m_unit, font_metrics, root_font_metrics) * m_value;
 }
 
-double Length::viewport_relative_length_to_px_without_rounding(CSSPixelRect const& viewport_rect) const
+double Length::viewport_relative_length_to_px_without_rounding(CSSPixelRect const& viewport_rect, bool inline_axis_is_horizontal) const
 {
-    return ratio_between_viewport_relative_unit_and_px(m_unit, viewport_rect) * m_value;
+    return ratio_between_viewport_relative_unit_and_px(m_unit, viewport_rect, inline_axis_is_horizontal) * m_value;
 }
 
 double Length::container_relative_length_to_px_without_rounding(ResolutionContext const& context) const
@@ -398,7 +398,7 @@ double ratio_between_font_relative_unit_and_px(LengthUnit font_relative_unit, Le
     VERIFY_NOT_REACHED();
 }
 
-double ratio_between_viewport_relative_unit_and_px(LengthUnit viewport_relative_unit, CSSPixelRect const& viewport_rect)
+double ratio_between_viewport_relative_unit_and_px(LengthUnit viewport_relative_unit, CSSPixelRect const& viewport_rect, bool inline_axis_is_horizontal)
 {
     switch (viewport_relative_unit) {
     case LengthUnit::Vw:
@@ -415,14 +415,12 @@ double ratio_between_viewport_relative_unit_and_px(LengthUnit viewport_relative_
     case LengthUnit::Svi:
     case LengthUnit::Lvi:
     case LengthUnit::Dvi:
-        // FIXME: Select the width or height based on which is the inline axis.
-        return viewport_rect.width().to_double() / 100;
+        return (inline_axis_is_horizontal ? viewport_rect.width() : viewport_rect.height()).to_double() / 100;
     case LengthUnit::Vb:
     case LengthUnit::Svb:
     case LengthUnit::Lvb:
     case LengthUnit::Dvb:
-        // FIXME: Select the width or height based on which is the block axis.
-        return viewport_rect.height().to_double() / 100;
+        return (inline_axis_is_horizontal ? viewport_rect.height() : viewport_rect.width()).to_double() / 100;
     case LengthUnit::Vmin:
     case LengthUnit::Svmin:
     case LengthUnit::Lvmin:

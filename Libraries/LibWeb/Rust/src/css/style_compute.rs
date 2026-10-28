@@ -148,6 +148,8 @@ enum FontMetricSelector {
 enum ViewportAxis {
     Width,
     Height,
+    Inline,
+    Block,
     Min,
     Max,
 }
@@ -233,13 +235,20 @@ fn length_unit_kinds() -> &'static [LengthUnitKind] {
                     metric: FontMetricSelector::LineHeight,
                     root: true,
                 },
-                // NB: vi maps to the width and vb to the height until the C++
-                //     side selects by inline axis, matching the FIXME there.
-                "vw" | "svw" | "lvw" | "dvw" | "vi" | "svi" | "lvi" | "dvi" => LengthUnitKind::ViewportRelative {
+                "vw" | "svw" | "lvw" | "dvw" => LengthUnitKind::ViewportRelative {
                     axis: ViewportAxis::Width,
                 },
-                "vh" | "svh" | "lvh" | "dvh" | "vb" | "svb" | "lvb" | "dvb" => LengthUnitKind::ViewportRelative {
+                "vh" | "svh" | "lvh" | "dvh" => LengthUnitKind::ViewportRelative {
                     axis: ViewportAxis::Height,
+                },
+                // https://drafts.csswg.org/css-values-4/#vi
+                // Equal to 1% of the size of the large viewport size, small viewport size, large viewport size, and
+                // dynamic viewport size (respectively) in the box’s inline axis.
+                "vi" | "svi" | "lvi" | "dvi" => LengthUnitKind::ViewportRelative {
+                    axis: ViewportAxis::Inline,
+                },
+                "vb" | "svb" | "lvb" | "dvb" => LengthUnitKind::ViewportRelative {
+                    axis: ViewportAxis::Block,
                 },
                 "vmin" | "svmin" | "lvmin" | "dvmin" => LengthUnitKind::ViewportRelative {
                     axis: ViewportAxis::Min,
@@ -370,6 +379,20 @@ pub(crate) fn absolutize_length(value: f64, unit: usize, context: &FfiLengthReso
             let basis = match axis {
                 ViewportAxis::Width => context.viewport_width,
                 ViewportAxis::Height => context.viewport_height,
+                ViewportAxis::Inline => {
+                    if context.subject_inline_axis_is_horizontal {
+                        context.viewport_width
+                    } else {
+                        context.viewport_height
+                    }
+                }
+                ViewportAxis::Block => {
+                    if context.subject_inline_axis_is_horizontal {
+                        context.viewport_height
+                    } else {
+                        context.viewport_width
+                    }
+                }
                 ViewportAxis::Min => context.viewport_width.min(context.viewport_height),
                 ViewportAxis::Max => context.viewport_width.max(context.viewport_height),
             };
@@ -940,8 +963,13 @@ pub(crate) fn recascade_font_size_batch<'a>(
                         metric: FontMetricSelector::FontSize,
                         root: false,
                     }) => Some((*value * current_size.to_double(), depends_on_viewport_metrics)),
+                    // NB: Logical viewport units need the ancestor's writing mode from its resolution context.
+                    Some(LengthUnitKind::ViewportRelative {
+                        axis: ViewportAxis::Inline | ViewportAxis::Block,
+                    }) => None,
                     Some(LengthUnitKind::ViewportRelative { axis }) => {
                         let basis = match axis {
+                            ViewportAxis::Inline | ViewportAxis::Block => unreachable!(),
                             ViewportAxis::Width => document_inputs.viewport_width,
                             ViewportAxis::Height => document_inputs.viewport_height,
                             ViewportAxis::Min => document_inputs.viewport_width.min(document_inputs.viewport_height),
@@ -3416,10 +3444,31 @@ pub(crate) fn property_computation_order_for_phase(phase: u8) -> &'static [u16] 
         (line_height, color_scheme)
     });
     match phase {
-        LONGHAND_DRIVE_PHASE_FONT => &order[..line_height],
+        LONGHAND_DRIVE_PHASE_FONT => {
+            // NB: Font sizes can use logical viewport units, so their subject's writing mode must be computed first.
+            static FONT_ORDER: OnceLock<Vec<u16>> = OnceLock::new();
+            FONT_ORDER.get_or_init(|| {
+                std::iter::once(prop::WRITING_MODE)
+                    .chain(order[..line_height].iter().copied())
+                    .collect()
+            })
+        }
         LONGHAND_DRIVE_PHASE_LINE_HEIGHT => &order[line_height..color_scheme],
         LONGHAND_DRIVE_PHASE_COLOR_SCHEME => &order[color_scheme..color_scheme + 1],
-        LONGHAND_DRIVE_PHASE_REMAINING => &order[color_scheme + 1..],
+        LONGHAND_DRIVE_PHASE_REMAINING => {
+            // NB: A partial remaining-phase drive must resolve the current axis before any length, including images.
+            static REMAINING_ORDER: OnceLock<Vec<u16>> = OnceLock::new();
+            REMAINING_ORDER.get_or_init(|| {
+                std::iter::once(prop::WRITING_MODE)
+                    .chain(
+                        order[color_scheme + 1..]
+                            .iter()
+                            .copied()
+                            .filter(|&property| property != prop::WRITING_MODE),
+                    )
+                    .collect()
+            })
+        }
         _ => unreachable!("unknown longhand drive phase"),
     }
 }
@@ -3742,7 +3791,12 @@ pub(crate) unsafe fn drive_property_computation(
     let mut background_image_list_length: Option<usize> = None;
     // The computed writing-mode and direction, tracked for logical alias pairing;
     // both properties only take keywords, whose computed value is the specified one.
-    let mut computed_writing_mode: Option<u8> = None;
+    let mut computed_writing_mode = longhand_table
+        .get(prop::WRITING_MODE)
+        .and_then(|value| match value.data() {
+            StyleValueData::Keyword { keyword } => keyword_to_writing_mode(*keyword),
+            _ => None,
+        });
     let mut computed_direction: Option<u8> = None;
     let mut computed_overflow_x: Option<u16> = None;
     let mut computed_overflow_y: Option<u16> = None;
@@ -3945,14 +3999,27 @@ pub(crate) unsafe fn drive_property_computation(
             };
         let requires_computation = property_requires_computation_level(property_id) >= required_level || zooms_value;
 
-        let zoomed_length_resolution_context;
+        let mut zoomed_length_resolution_context;
         let length_resolution_context = match length_resolution_context {
-            Some(context) if !zoom.is_identity() => {
-                zoomed_length_resolution_context = zoom.context(
-                    context,
-                    inherit_fetch_attempted && !use_initial,
-                    phase == LONGHAND_DRIVE_PHASE_FONT,
-                );
+            Some(context)
+                if !zoom.is_identity()
+                    || computed_writing_mode.is_some_and(|writing_mode| {
+                        context.subject_inline_axis_is_horizontal != (writing_mode == writing_mode::HORIZONTAL_TB)
+                    }) =>
+            {
+                zoomed_length_resolution_context = if zoom.is_identity() {
+                    *context
+                } else {
+                    zoom.context(
+                        context,
+                        inherit_fetch_attempted && !use_initial,
+                        phase == LONGHAND_DRIVE_PHASE_FONT,
+                    )
+                };
+                if let Some(writing_mode) = computed_writing_mode {
+                    zoomed_length_resolution_context.subject_inline_axis_is_horizontal =
+                        writing_mode == writing_mode::HORIZONTAL_TB;
+                }
                 Some(&zoomed_length_resolution_context)
             }
             context => context,
@@ -9119,5 +9186,269 @@ mod tests {
         assert_eq!(result.px, 80.0);
         assert!(result.resolved_viewport_relative_length);
         assert!(dependency_was_recorded);
+    }
+
+    fn svg_axis_case(svg: bool, vertical: bool) -> [f64; 3] {
+        use crate::css::property_metadata::property_id as prop;
+        let mut table = ComputedLonghandTable::new();
+        table.set(prop::ZOOM, retained_new(StyleValueData::Number { value: 2.0 }), -1);
+        let mut store = crate::css::cascaded_properties::CascadedPropertyStore::new();
+        store.seed_retained_property(
+            prop::WRITING_MODE,
+            retained_new(StyleValueData::Keyword {
+                keyword: if vertical {
+                    keyword::VERTICAL_RL
+                } else {
+                    keyword::HORIZONTAL_TB
+                },
+            }),
+            false,
+            false,
+        );
+        for (property, value, unit) in [
+            (prop::WIDTH, 7.0, "px"),
+            (prop::HEIGHT, 1.0, "rem"),
+            (prop::MARGIN_LEFT, 10.0, "vi"),
+        ] {
+            store.seed_retained_property(
+                property,
+                retained_new(StyleValueData::Length {
+                    value,
+                    unit: unit_code(unit) as u8,
+                }),
+                false,
+                false,
+            );
+        }
+        let mut box_type_input = element_adjustment_input();
+        box_type_input.is_svg_element = svg;
+        let environment = FfiStyleComputationEnvironment {
+            box_type_input,
+            color_scheme_input: FfiEffectiveColorSchemeInput {
+                preferred_color_scheme: 0,
+                has_document_supported_schemes: false,
+                document_supported_scheme_codes: std::ptr::null(),
+                document_supported_scheme_count: 0,
+            },
+            is_th_element: false,
+            has_new_font_size: false,
+            has_tree_counting_context: false,
+            sibling_count: 0,
+            sibling_index: 0,
+            random_base_values: std::ptr::null(),
+            random_base_value_count: 0,
+            document_base_url: std::ptr::null(),
+            document_base_url_length: 0,
+            style_sheet_resource_contexts: std::ptr::null(),
+            style_sheet_resource_context_count: 0,
+            device_pixels_per_css_pixel: 1.0,
+            initial_font_size_raw: 1024,
+            default_font_size_raw: 1024,
+            root_effective_zoom: 1.0,
+        };
+        let context = FfiLengthResolutionContext {
+            viewport_width: 200.0,
+            viewport_height: 100.0,
+            root_font_metrics: FfiFontMetrics {
+                font_size: 20.0,
+                ..Default::default()
+            },
+            subject_inline_axis_is_horizontal: true,
+            zoom: 1.0,
+            ..Default::default()
+        };
+        let mut results = empty_longhand_driver_results();
+        let mut color_scheme = -1;
+        // SAFETY: All environment slices are empty and the borrowed contexts live throughout the drive.
+        unsafe {
+            drive_property_computation(
+                &mut table,
+                &store,
+                None,
+                None,
+                &environment,
+                None,
+                LONGHAND_DRIVE_PHASE_REMAINING,
+                Some(&context),
+                None,
+                &mut results,
+                &mut color_scheme,
+                false,
+            );
+        }
+        [prop::WIDTH, prop::HEIGHT, prop::MARGIN_LEFT].map(|property| match table.get(property).unwrap().data() {
+            StyleValueData::Length { value, unit } if *unit == px_length_unit() => *value,
+            _ => panic!("expected absolute computed length"),
+        })
+    }
+
+    #[test]
+    fn svg_vertical_axis_preserves_unzoomed_lengths() {
+        assert_eq!(svg_axis_case(true, true), [7.0, 20.0, 10.0]);
+    }
+    #[test]
+    fn html_vertical_axis_applies_zoom() {
+        assert_eq!(svg_axis_case(false, true), [14.0, 40.0, 20.0]);
+    }
+    #[test]
+    fn svg_horizontal_axis_preserves_unzoomed_lengths() {
+        assert_eq!(svg_axis_case(true, false), [7.0, 20.0, 20.0]);
+    }
+    fn font_phase_axis_case(
+        declared: Option<u16>,
+        parent_mode: u16,
+        inherit_font: bool,
+        context_horizontal: bool,
+    ) -> [f64; 2] {
+        use crate::css::property_metadata::property_id as prop;
+        let mut table = ComputedLonghandTable::new();
+        table.set(prop::ZOOM, retained_new(StyleValueData::Number { value: 1.0 }), -1);
+        let mut store = crate::css::cascaded_properties::CascadedPropertyStore::new();
+        if let Some(keyword) = declared {
+            store.seed_retained_property(
+                prop::WRITING_MODE,
+                retained_new(StyleValueData::Keyword { keyword }),
+                false,
+                false,
+            );
+        }
+        if !inherit_font {
+            store.seed_retained_property(
+                prop::FONT_SIZE,
+                retained_new(StyleValueData::Length {
+                    value: 10.0,
+                    unit: unit_code("vi") as u8,
+                }),
+                false,
+                false,
+            );
+        }
+        store.seed_retained_property(
+            prop::LINE_HEIGHT,
+            retained_new(StyleValueData::Length {
+                value: 10.0,
+                unit: unit_code("vb") as u8,
+            }),
+            false,
+            false,
+        );
+        let mut parent = ComputedLonghandTable::new();
+        parent.set(
+            prop::WRITING_MODE,
+            retained_new(StyleValueData::Keyword { keyword: parent_mode }),
+            -1,
+        );
+        parent.set(
+            prop::FONT_SIZE,
+            retained_new(StyleValueData::Length {
+                value: 23.0,
+                unit: px_length_unit(),
+            }),
+            -1,
+        );
+        parent.set(
+            prop::FONT_WEIGHT,
+            retained_new(StyleValueData::Number { value: 400.0 }),
+            -1,
+        );
+        let snapshot = ParentSnapshot::new(&parent, None, false);
+        let mut box_type_input = element_adjustment_input();
+        box_type_input.is_svg_element = false;
+        let environment = FfiStyleComputationEnvironment {
+            box_type_input,
+            color_scheme_input: FfiEffectiveColorSchemeInput {
+                preferred_color_scheme: 0,
+                has_document_supported_schemes: false,
+                document_supported_scheme_codes: std::ptr::null(),
+                document_supported_scheme_count: 0,
+            },
+            is_th_element: false,
+            has_new_font_size: false,
+            has_tree_counting_context: false,
+            sibling_count: 0,
+            sibling_index: 0,
+            random_base_values: std::ptr::null(),
+            random_base_value_count: 0,
+            document_base_url: std::ptr::null(),
+            document_base_url_length: 0,
+            style_sheet_resource_contexts: std::ptr::null(),
+            style_sheet_resource_context_count: 0,
+            device_pixels_per_css_pixel: 1.0,
+            initial_font_size_raw: 1024,
+            default_font_size_raw: 1024,
+            root_effective_zoom: 1.0,
+        };
+        let context = FfiLengthResolutionContext {
+            viewport_width: 800.0,
+            viewport_height: 600.0,
+            root_font_metrics: FfiFontMetrics {
+                font_size: 20.0,
+                ..Default::default()
+            },
+            subject_inline_axis_is_horizontal: context_horizontal,
+            zoom: 1.0,
+            ..Default::default()
+        };
+        let mut results = empty_longhand_driver_results();
+        let mut color_scheme = -1;
+        // SAFETY: All environment slices are empty and the borrowed contexts live throughout the drive.
+        for phase in [LONGHAND_DRIVE_PHASE_FONT, LONGHAND_DRIVE_PHASE_LINE_HEIGHT] {
+            unsafe {
+                drive_property_computation(
+                    &mut table,
+                    &store,
+                    Some(&snapshot),
+                    None,
+                    &environment,
+                    None,
+                    phase,
+                    Some(&context),
+                    None,
+                    &mut results,
+                    &mut color_scheme,
+                    false,
+                );
+            }
+        }
+        [prop::FONT_SIZE, prop::LINE_HEIGHT].map(|property| match table.get(property).unwrap().data() {
+            StyleValueData::Length { value, unit } if *unit == px_length_unit() => *value,
+            _ => panic!("expected absolute computed length"),
+        })
+    }
+
+    #[test]
+    fn font_and_line_height_follow_explicit_vertical_axis() {
+        assert_eq!(
+            font_phase_axis_case(Some(keyword::VERTICAL_RL), keyword::HORIZONTAL_TB, false, true),
+            [60.0, 80.0]
+        );
+    }
+    #[test]
+    fn font_and_line_height_follow_explicit_horizontal_axis() {
+        assert_eq!(
+            font_phase_axis_case(Some(keyword::HORIZONTAL_TB), keyword::VERTICAL_RL, false, false),
+            [80.0, 60.0]
+        );
+    }
+    #[test]
+    fn font_and_line_height_follow_inherited_axis() {
+        assert_eq!(
+            font_phase_axis_case(None, keyword::VERTICAL_RL, false, true),
+            [60.0, 80.0]
+        );
+    }
+    #[test]
+    fn inherited_computed_font_size_is_not_reinterpreted_in_child_axis() {
+        assert_eq!(
+            font_phase_axis_case(Some(keyword::VERTICAL_RL), keyword::HORIZONTAL_TB, true, true),
+            [23.0, 80.0]
+        );
+    }
+    #[test]
+    fn font_axis_initial_keyword_uses_initial_writing_mode() {
+        assert_eq!(
+            font_phase_axis_case(Some(keyword::INITIAL), keyword::VERTICAL_RL, false, false),
+            [80.0, 60.0]
+        );
     }
 }
