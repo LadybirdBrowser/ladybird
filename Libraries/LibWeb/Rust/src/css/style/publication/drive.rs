@@ -289,12 +289,12 @@ impl RetainedState {
             else {
                 return Some(MonospaceRecascade::AwaitsFont(request));
             };
-            // The ancestor's own font is the one being recascaded; its line height is the one it
-            // inherits, and the initial one is zero.
+            // NB: The ancestor's own font is the one being recascaded; its line height is the one it
+            //     inherits, or the initial font's normal line height when there is no parent.
             let (line_height, inherited_font_metrics_depend_on_viewport_metrics) = index
                 .checked_sub(1)
                 .and_then(|parent| views[parent].1.as_ref())
-                .map_or((0.0, false), |view| {
+                .map_or((inputs.initial_line_height, false), |view| {
                     let font = unsafe {
                         view.payloads[STYLE_GROUP_INDEX_FONT]
                             .cast::<crate::css::computed_value_types::FontValues>()
@@ -797,7 +797,7 @@ impl RetainedState {
             x_height: inputs.initial_font_x_height,
             cap_height: inputs.initial_font_cap_height,
             zero_advance: inputs.initial_font_zero_advance,
-            line_height: 0.0,
+            line_height: inputs.initial_line_height,
         };
         let (parent_metrics, parent_font_metrics_depend_on_viewport_metrics, parent_line_height_used) =
             match &parent_view {
@@ -819,7 +819,7 @@ impl RetainedState {
                         parent_font.line_height_used.to_double(),
                     )
                 }
-                None => (initial_metrics, false, 0.0),
+                None => (initial_metrics, false, inputs.initial_line_height),
             };
         let snapshot = match &parent_view {
             Some(parent_view) => {

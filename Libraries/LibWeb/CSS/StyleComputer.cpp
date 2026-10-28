@@ -157,7 +157,7 @@ static RustDeclarationBlock const& declaration_of_rule(CSSRule const& rule)
 
 StyleComputer::StyleComputer(DOM::Document& document)
     : m_document(document)
-    , m_default_font_metrics(16, Platform::FontPlugin::the().default_font(16)->pixel_metrics(), InitialValues::line_height())
+    , m_default_font_metrics(16, Platform::FontPlugin::the().default_font(16)->pixel_metrics(), normal_line_height(Platform::FontPlugin::the().default_font(16)->pixel_metrics()))
     , m_root_element_font_metrics(m_default_font_metrics)
     , m_style_engine(this)
 {
@@ -1990,7 +1990,7 @@ ComputationContext StyleComputer::make_computation_context_for_property(Layout::
         auto line_height_font_metrics = Length::FontMetrics {
             style.font_size(),
             style.first_available_computed_font(document().font_computer())->pixel_metrics(),
-            inheritance_parent.has_value() && inheritance_parent->has_style() ? inheritance_parent->computed_style()->line_height() : InitialValues::line_height()
+            inheritance_parent.has_value() && inheritance_parent->has_style() ? inheritance_parent->computed_style()->line_height() : normal_line_height(document().font_computer().initial_font().pixel_metrics())
         };
 
         return {

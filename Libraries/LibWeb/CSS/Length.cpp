@@ -11,6 +11,7 @@
 #include <LibGC/Cell.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Rect.h>
+#include <LibWeb/CSS/ComputedStyleWorkingSet.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/Length.h>
@@ -254,7 +255,10 @@ Length::ResolutionContext Length::ResolutionContext::for_document(DOM::Document 
 {
     auto const& initial_font = document.font_computer().initial_font();
     Gfx::FontPixelMetrics const& initial_font_metrics = initial_font.pixel_metrics();
-    Length::FontMetrics font_metrics { CSSPixels { initial_font.pixel_size() }, initial_font_metrics, InitialValues::line_height() };
+    // https://drafts.csswg.org/css-values-4/#font-relative-lengths
+    // When used outside the context of an element (such as in media queries), the font-relative lengths units refer
+    // to the metrics corresponding to the initial values of the font and line-height properties.
+    Length::FontMetrics font_metrics { CSSPixels { initial_font.pixel_size() }, initial_font_metrics, normal_line_height(initial_font_metrics) };
     CSSPixelRect viewport_rect;
 
     if (document.navigable())
