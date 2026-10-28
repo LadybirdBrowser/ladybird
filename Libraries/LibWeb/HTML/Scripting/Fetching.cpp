@@ -300,12 +300,12 @@ static void prepare_bytecode_cache_off_thread(EnvironmentSettingsObject& setting
 // come back as a ParsedProgram so the main thread can report them through the same Script/ModuleScript construction
 // paths; successful programs come back as CompiledProgram artifacts whose GC-backed Executable materialization must
 // still happen on the main thread.
-// NB: The SourceCode stays on the main thread inside the heap-allocated callback. The worker thread only receives raw
-//     UTF-16 data pointers.
+// NB: The SourceCode stays on the main thread inside the heap-allocated callback. The worker thread only receives a view
+//     of its code, which stays unchanged while the SourceCode lives.
 static void compile_off_thread(EnvironmentSettingsObject& settings_object, NonnullRefPtr<JS::SourceCode const> source_code, JS::ProgramType type, size_t line_number_offset, bool retain_parse_for_cache, Function<void(OffThreadCompiledProgram, NonnullRefPtr<JS::SourceCode const>)> on_compiled)
 {
-    // Extract the raw data the parser needs while still on the main thread.
-    ReadonlySpan<u16> source_text { source_code->utf16_data(), source_code->length_in_code_units() };
+    // Extract the view the parser needs while still on the main thread.
+    auto source_text = source_code->code().utf16_view();
 
     // Capture source_code in the callback so it stays alive on the main thread and is available for materialization.
     // The script runs in a task of the settings object's global, so never beside a rendering update in flight that holds

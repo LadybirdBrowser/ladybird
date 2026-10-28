@@ -63,11 +63,6 @@ size_t SourceCode::length_in_code_units() const
     return js_source_code_length_in_code_units(source_code_to_abi(*this));
 }
 
-u16 const* SourceCode::utf16_data() const
-{
-    return js_source_code_utf16_data(source_code_to_abi(*this));
-}
-
 Utf16String SourceCode::source_text_from_offsets(size_t start_offset, size_t length) const
 {
     if (length == 0)

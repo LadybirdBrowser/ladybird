@@ -84,7 +84,7 @@ class JS_API ParsedProgram {
     AK_MAKE_NONCOPYABLE(ParsedProgram);
 
 public:
-    static ParsedProgram parse(ReadonlySpan<u16> source_text, ProgramType, size_t line_number_offset);
+    static ParsedProgram parse(Utf16View source_text, ProgramType, size_t line_number_offset);
 
     ParsedProgram() = default;
     ParsedProgram(ParsedProgram&&);
