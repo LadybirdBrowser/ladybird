@@ -118,12 +118,20 @@ public:
     };
     // A waiter fires only once the channel ends: closes, errors, or is cancelled or transferred.
     struct EndOnly { };
-    using WakeOn = Variant<BufferedAtLeast, EndOnly>;
+    // Fires as BufferedAtLeast does, and keeps a copy of the first byte_count bytes and the state from the moment it
+    // is due, for take_prefix().
+    struct PrefixOf {
+        u64 byte_count;
+    };
+    using WakeOn = Variant<BufferedAtLeast, EndOnly, PrefixOf>;
 
     // Each call adds a waiter that fires once, and returns the ticket its wake will carry; a wake already due fires
     // before this returns, outside the lock. Waiters due at the same time fire in the order they were added.
     WakeTicket arm_waiter(WakeOn = BufferedAtLeast { 1 });
     void disarm_waiter(WakeTicket);
+
+    // What a PrefixOf waiter kept, once. A cancellation, a transfer or disarming its ticket drops it unread.
+    [[nodiscard]] Optional<TakeResult> take_prefix(WakeTicket);
 
 private:
     FetchByteChannel(Watermarks, NonnullRefPtr<FetchByteChannelProducerSink>);
@@ -148,11 +156,18 @@ private:
     [[nodiscard]] TerminateResult terminate_locked(State, PendingNotifications&);
     [[nodiscard]] bool is_due_locked(WakeOn const&) const;
     void wake_due_waiters_locked(PendingNotifications&);
+    void keep_prefix_locked(WakeTicket, WakeOn const&);
     void dispatch(PendingNotifications const&);
 
     struct ArmedWaiter {
         WakeTicket ticket { 0 };
         WakeOn wake_on;
+    };
+
+    // A compact copy, so it holds none of the chunks' storage.
+    struct KeptPrefix {
+        WakeTicket ticket { 0 };
+        TakeResult prefix;
     };
 
     Watermarks const m_watermarks;
@@ -169,6 +184,7 @@ private:
     bool m_transport_ended { false };
     Optional<Core::ImmutableBytes> m_whole_body;
     Vector<ArmedWaiter, 2> m_armed_waiters;
+    Vector<KeptPrefix, 1> m_kept_prefixes;
     u64 m_next_ticket { 1 };
 };
 

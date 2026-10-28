@@ -46,7 +46,8 @@ bool FetchByteChannel::is_due_locked(WakeOn const& wake_on) const
         return true;
     return wake_on.visit(
         [&](BufferedAtLeast const& buffered_at_least) { return m_buffered_byte_count >= buffered_at_least.byte_count; },
-        [](EndOnly) { return false; });
+        [](EndOnly) { return false; },
+        [&](PrefixOf const& prefix_of) { return m_buffered_byte_count >= prefix_of.byte_count; });
 }
 
 void FetchByteChannel::wake_due_waiters_locked(PendingNotifications& notifications)
@@ -54,9 +55,36 @@ void FetchByteChannel::wake_due_waiters_locked(PendingNotifications& notificatio
     m_armed_waiters.remove_all_matching([&](ArmedWaiter const& waiter) {
         if (!is_due_locked(waiter.wake_on))
             return false;
+        keep_prefix_locked(waiter.ticket, waiter.wake_on);
         notifications.append(Wake { waiter.ticket });
         return true;
     });
+}
+
+// A cancelled or transferred channel keeps nothing, so take_prefix() finds no prefix for it.
+void FetchByteChannel::keep_prefix_locked(WakeTicket ticket, WakeOn const& wake_on)
+{
+    auto const* prefix_of = wake_on.get_pointer<PrefixOf>();
+    if (!prefix_of || m_state.has<ConsumerCancelled>() || m_state.has<Transferred>())
+        return;
+
+    ByteBuffer prefix;
+    auto append_up_to_limit = [&](ReadonlyBytes bytes) {
+        auto length = min<u64>(bytes.size(), prefix_of->byte_count - prefix.size());
+        prefix.append(bytes.trim(static_cast<size_t>(length)));
+    };
+    for (auto const& chunk : m_chunks) {
+        if (prefix.size() == prefix_of->byte_count)
+            break;
+        append_up_to_limit(chunk.bytes());
+    }
+    if (prefix.size() < prefix_of->byte_count)
+        append_up_to_limit(m_copied_tail.bytes());
+
+    TakeResult kept { .taken = {}, .state = m_state, .buffered_byte_count = m_buffered_byte_count };
+    if (!prefix.is_empty())
+        kept.taken.append(Core::ImmutableBytes::adopt(move(prefix)));
+    m_kept_prefixes.append({ ticket, move(kept) });
 }
 
 FetchByteChannel::WriteResult FetchByteChannel::write(Core::ImmutableBytes bytes)
@@ -187,6 +215,7 @@ FetchByteChannel::TerminateResult FetchByteChannel::cancel()
     auto result = TerminateResult::AlreadyTerminated;
     {
         MutexLocker locker { m_mutex };
+        m_kept_prefixes.clear();
         // A Closed channel keeps its undrained buffer, which a Streams cancellation may still discard.
         if (m_state.has<Open>() || (m_state.has<Closed>() && m_buffered_byte_count > 0)) {
             m_state = ConsumerCancelled {};
@@ -210,6 +239,7 @@ Vector<Core::ImmutableBytes> FetchByteChannel::transfer_out()
     Vector<Core::ImmutableBytes> undrained_bytes;
     {
         MutexLocker locker { m_mutex };
+        m_kept_prefixes.clear();
         if (!m_state.has<Open>() && !m_state.has<Closed>())
             return {};
 
@@ -311,26 +341,39 @@ WakeTicket FetchByteChannel::arm_waiter(WakeOn wake_on)
     VERIFY(m_consumer_sink);
     wake_on.visit(
         [](BufferedAtLeast const& buffered_at_least) { VERIFY(buffered_at_least.byte_count > 0); },
-        [](EndOnly) { });
+        [](EndOnly) { },
+        [](PrefixOf const& prefix_of) { VERIFY(prefix_of.byte_count > 0); });
 
     PendingNotifications notifications;
     WakeTicket ticket { 0 };
     {
         MutexLocker locker { m_mutex };
         ticket = WakeTicket { m_next_ticket++ };
-        if (is_due_locked(wake_on))
+        if (is_due_locked(wake_on)) {
+            keep_prefix_locked(ticket, wake_on);
             notifications.append(Wake { ticket });
-        else
+        } else {
             m_armed_waiters.append({ ticket, move(wake_on) });
+        }
     }
     dispatch(notifications);
     return ticket;
+}
+
+Optional<FetchByteChannel::TakeResult> FetchByteChannel::take_prefix(WakeTicket ticket)
+{
+    MutexLocker locker { m_mutex };
+    auto index = m_kept_prefixes.find_first_index_if([&](KeptPrefix const& kept) { return kept.ticket == ticket; });
+    if (!index.has_value())
+        return {};
+    return m_kept_prefixes.take(*index).prefix;
 }
 
 void FetchByteChannel::disarm_waiter(WakeTicket ticket)
 {
     MutexLocker locker { m_mutex };
     m_armed_waiters.remove_first_matching([&](ArmedWaiter const& waiter) { return waiter.ticket == ticket; });
+    m_kept_prefixes.remove_first_matching([&](KeptPrefix const& kept) { return kept.ticket == ticket; });
 }
 
 }

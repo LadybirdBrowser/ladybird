@@ -406,6 +406,133 @@ TEST_CASE(waiter_is_one_shot_and_disarmable)
     EXPECT(harness.take_events().is_empty());
 }
 
+TEST_CASE(a_prefix_waiter_keeps_its_bytes_through_a_later_error)
+{
+    ChannelHarness harness;
+
+    auto ticket = harness.channel->arm_waiter(FetchByteChannel::PrefixOf { 4 });
+    EXPECT_EQ(harness.channel->write(bytes_of("head"sv)), WriteResult::Accepted);
+    EXPECT_EQ(harness.channel->write(bytes_of("body"sv)), WriteResult::Accepted);
+    EXPECT_EQ(harness.channel->error({ .message = MUST(ByteBuffer::copy("failed"sv.bytes())) }), TerminateResult::Terminated);
+
+    // The error empties the channel, while the waiter keeps what it saw the moment it was due.
+    EXPECT(harness.channel->take_all().state.has<Errored>());
+    auto kept = harness.channel->take_prefix(ticket);
+    EXPECT(kept.has_value());
+    EXPECT_EQ(flatten(*kept), "head"sv);
+    EXPECT(kept->state.has<Open>());
+}
+
+TEST_CASE(a_prefix_waiter_keeps_every_byte_of_a_short_close)
+{
+    ChannelHarness harness;
+
+    auto ticket = harness.channel->arm_waiter(FetchByteChannel::PrefixOf { 16 });
+    EXPECT_EQ(harness.channel->write(bytes_of("short"sv)), WriteResult::Accepted);
+    EXPECT(!harness.channel->take_prefix(ticket).has_value());
+    EXPECT_EQ(harness.channel->close(), TerminateResult::Terminated);
+
+    auto kept = harness.channel->take_prefix(ticket);
+    EXPECT(kept.has_value());
+    EXPECT_EQ(flatten(*kept), "short"sv);
+    EXPECT(kept->state.has<Closed>());
+}
+
+TEST_CASE(a_prefix_waiter_keeps_no_bytes_of_an_early_error)
+{
+    ChannelHarness harness;
+
+    auto ticket = harness.channel->arm_waiter(FetchByteChannel::PrefixOf { 16 });
+    EXPECT_EQ(harness.channel->write(bytes_of("partial"sv)), WriteResult::Accepted);
+    EXPECT_EQ(harness.channel->error({ .message = MUST(ByteBuffer::copy("failed"sv.bytes())) }), TerminateResult::Terminated);
+
+    auto kept = harness.channel->take_prefix(ticket);
+    EXPECT(kept.has_value());
+    EXPECT(kept->taken.is_empty());
+    EXPECT(kept->state.has<Errored>());
+}
+
+TEST_CASE(a_prefix_waiter_armed_with_its_bytes_buffered_keeps_them_at_once)
+{
+    ChannelHarness harness;
+
+    EXPECT_EQ(harness.channel->write(bytes_of("already here"sv)), WriteResult::Accepted);
+    (void)harness.take_events();
+    auto ticket = harness.channel->arm_waiter(FetchByteChannel::PrefixOf { 7 });
+    auto events = harness.take_events();
+    EXPECT_EQ(events.size(), 1u);
+    EXPECT_EQ(events[0].value, ticket.value());
+
+    auto kept = harness.channel->take_prefix(ticket);
+    EXPECT(kept.has_value());
+    EXPECT_EQ(flatten(*kept), "already"sv);
+}
+
+TEST_CASE(a_kept_prefix_is_taken_once)
+{
+    ChannelHarness harness;
+
+    auto ticket = harness.channel->arm_waiter(FetchByteChannel::PrefixOf { 1 });
+    EXPECT_EQ(harness.channel->write(bytes_of("x"sv)), WriteResult::Accepted);
+    EXPECT(harness.channel->take_prefix(ticket).has_value());
+    EXPECT(!harness.channel->take_prefix(ticket).has_value());
+
+    // Another waiter's ticket finds none.
+    auto plain_ticket = harness.channel->arm_waiter();
+    EXPECT(!harness.channel->take_prefix(plain_ticket).has_value());
+}
+
+TEST_CASE(disarming_cancelling_or_transferring_drops_a_kept_prefix)
+{
+    for (int ending = 0; ending < 3; ++ending) {
+        ChannelHarness harness;
+        auto ticket = harness.channel->arm_waiter(FetchByteChannel::PrefixOf { 4 });
+        EXPECT_EQ(harness.channel->write(bytes_of("head"sv)), WriteResult::Accepted);
+        if (ending == 0)
+            harness.channel->disarm_waiter(ticket);
+        else if (ending == 1)
+            (void)harness.channel->cancel();
+        else
+            (void)harness.channel->transfer_out();
+        EXPECT(!harness.channel->take_prefix(ticket).has_value());
+    }
+}
+
+TEST_CASE(a_prefix_waiter_cancelled_or_transferred_before_its_bytes_keeps_nothing)
+{
+    for (bool cancel : { true, false }) {
+        ChannelHarness harness;
+        auto ticket = harness.channel->arm_waiter(FetchByteChannel::PrefixOf { 16 });
+        EXPECT_EQ(harness.channel->write(bytes_of("some"sv)), WriteResult::Accepted);
+        (void)harness.take_events();
+        if (cancel)
+            (void)harness.channel->cancel();
+        else
+            (void)harness.channel->transfer_out();
+
+        // The ending wakes the waiter, which keeps nothing.
+        bool woken = false;
+        for (auto const& event : harness.take_events())
+            woken |= event.kind == SinkEvent::Kind::Wake && event.value == ticket.value();
+        EXPECT(woken);
+        EXPECT(!harness.channel->take_prefix(ticket).has_value());
+    }
+}
+
+TEST_CASE(keeping_and_taking_a_prefix_leaves_the_bytes_and_credit_alone)
+{
+    ChannelHarness harness;
+
+    auto ticket = harness.channel->arm_waiter(FetchByteChannel::PrefixOf { 4 });
+    EXPECT_EQ(harness.channel->write(bytes_of("headbody"sv)), WriteResult::Accepted);
+    (void)harness.take_events();
+    EXPECT_EQ(flatten(*harness.channel->take_prefix(ticket)), "head"sv);
+
+    // Neither keeping nor taking the prefix granted credit or removed a byte.
+    EXPECT(harness.take_events().is_empty());
+    EXPECT_EQ(flatten(harness.channel->peek_up_to(64)), "headbody"sv);
+}
+
 TEST_CASE(a_drained_close_leaves_nothing_to_cancel)
 {
     ChannelHarness harness;
@@ -729,12 +856,15 @@ TEST_CASE(concurrent_writer_wakes_each_of_several_waiters_once)
     // Each round arms several waiters at once and disarms one of them while the writer decides which are due.
     auto end_ticket = channel->arm_waiter(FetchByteChannel::EndOnly {});
     Vector<WakeTicket> owed;
+    Vector<WakeTicket> prefixes;
     Vector<WakeTicket> disarmed;
     u64 total_bytes_taken = 0;
     for (;;) {
         auto some = channel->arm_waiter(FetchByteChannel::BufferedAtLeast { 1 });
         owed.append(some);
         owed.append(channel->arm_waiter(FetchByteChannel::BufferedAtLeast { 32 }));
+        prefixes.append(channel->arm_waiter(FetchByteChannel::PrefixOf { 8 }));
+        owed.append(prefixes.last());
         auto unwanted = channel->arm_waiter(FetchByteChannel::BufferedAtLeast { 48 });
         channel->disarm_waiter(unwanted);
         disarmed.append(unwanted);
@@ -766,6 +896,14 @@ TEST_CASE(concurrent_writer_wakes_each_of_several_waiters_once)
         EXPECT_EQ(consumer_sink->times_woken(ticket), 1u);
     for (auto ticket : disarmed)
         EXPECT(consumer_sink->times_woken(ticket) <= 1);
+
+    // Each prefix waiter kept at most its limit, from an open or closed channel.
+    for (auto ticket : prefixes) {
+        auto kept = channel->take_prefix(ticket);
+        EXPECT(kept.has_value());
+        EXPECT(flatten(*kept).length() <= 8);
+        EXPECT(kept->state.has<Open>() || kept->state.has<Closed>());
+    }
 }
 
 TEST_CASE(concurrent_cancellation_rejects_every_later_write)
