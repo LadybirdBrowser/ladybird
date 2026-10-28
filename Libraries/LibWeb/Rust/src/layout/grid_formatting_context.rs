@@ -1008,6 +1008,16 @@ impl Axis {
     }
 }
 
+/// What a grid keeps of an item it laid out: the baselines of the item's contents, and where it placed the item.
+#[derive(Clone, Copy)]
+struct LaidOutGridItem {
+    content_baselines: DerivedBaselines,
+    /// For an item that establishes an orthogonal flow, its baselines along the horizontal axis of the grid's frame.
+    orthogonal_flow_baselines: Option<DerivedBaselines>,
+    /// The offset of the item's content box in the grid container, once the grid placed it.
+    content_offset: Option<FfiCssPixelPoint>,
+}
+
 #[derive(Clone, Copy)]
 struct GridItem {
     box_: Node,
@@ -1098,6 +1108,8 @@ pub(crate) struct GridFormattingContext<'pass> {
     items: Vec<GridItem>,
     /// The input cells of each item as this grid sizes it, which the item's run takes.
     cells_of_items: HashMap<Node, Cell<used_values::RootInputCells>>,
+    /// What this grid keeps of each item it laid out.
+    laid_out_items: RefCell<HashMap<Node, LaidOutGridItem>>,
     explicit_column_line_count: usize,
     explicit_row_line_count: usize,
     explicit_column_start: usize,
@@ -1284,6 +1296,7 @@ impl<'pass> GridFormattingContext<'pass> {
             item_runs_offered_to_row_measurements: None,
             next_item_lookup_start: Cell::new(0),
             cells_of_items: HashMap::default(),
+            laid_out_items: RefCell::new(HashMap::default()),
             lanes: None,
         }
     }
@@ -1853,6 +1866,7 @@ impl<'pass> GridFormattingContext<'pass> {
     /// grid.
     fn collect_grid_items(&mut self) -> (Vec<Node>, Vec<PlacementInput>) {
         self.cells_of_items.clear();
+        self.laid_out_items.get_mut().clear();
         let mut nodes = Vec::new();
         let mut inputs = Vec::new();
         for child in self.run.callbacks.children(self.run.box_) {
@@ -4456,8 +4470,12 @@ impl<'pass> GridFormattingContext<'pass> {
                 false,
                 run.percentage_block_insets_of_root_children_have_definite_basis(),
             );
-            let handed_back = run.records.box_metrics_of(item.box_).input_cells();
-            self.update_cells_of(item, |item_cells| *item_cells = handed_back);
+            let laid_out_cells = match &laid_out_box {
+                Some(laid_out_box) => laid_out_box.cells,
+                // NB: The item was laid out by this grid container's run, in the record it keeps.
+                None => run.records.box_metrics_of(item.box_).input_cells(),
+            };
+            self.update_cells_of(item, |item_cells| *item_cells = laid_out_cells);
             outcome.report_percentage_block_size_dependency_of(run, item.box_);
             match outcome {
                 ChildLayoutOutcome::Created(_) | ChildLayoutOutcome::Skipped { .. } => {}
@@ -4465,6 +4483,20 @@ impl<'pass> GridFormattingContext<'pass> {
                     self.run(run, input);
                 }
             };
+            let laid_out_item = match &laid_out_box {
+                Some(laid_out_box) => LaidOutGridItem {
+                    content_baselines: laid_out_box.baselines,
+                    orthogonal_flow_baselines: laid_out_box.orthogonal_flow_baselines,
+                    content_offset: None,
+                },
+                None => LaidOutGridItem {
+                    content_baselines: run.records.box_metrics_of(item.box_).content_baselines(),
+                    // NB: A box that establishes an orthogonal flow is laid out by a run of its own.
+                    orthogonal_flow_baselines: None,
+                    content_offset: None,
+                },
+            };
+            self.laid_out_items.borrow_mut().insert(item.box_, laid_out_item);
             let placed_item = match laid_out_box {
                 Some(laid_out_box) => {
                     formatting_context::PlacedChild::of_laid_out_box(&laid_out_box, line_data, run.callbacks.frame)
@@ -4494,7 +4526,7 @@ impl<'pass> GridFormattingContext<'pass> {
                 baseline_aligned_items.push((item_index, placed_item, offset, fragment_arrival));
                 continue;
             }
-            formatting_context::place_laid_out_child(&self.run, item.box_, placed_item, offset, None, fragment_arrival);
+            self.place_item(item, placed_item, offset, fragment_arrival);
         }
         self.place_baseline_aligned_items(baseline_aligned_items);
         self.derived_baselines_of_root_box = DerivedBaselines {
@@ -4572,10 +4604,8 @@ impl<'pass> GridFormattingContext<'pass> {
             .sizing()
             .establishes_orthogonal_flow(item.box_)
             .then(|| {
-                self.run
-                    .records
-                    .box_metrics_of(item.box_)
-                    .orthogonal_flow_baselines()
+                self.laid_out_item(item)
+                    .orthogonal_flow_baselines
                     .and_then(|baselines| baselines.first)
             })
             .flatten();
@@ -4591,7 +4621,7 @@ impl<'pass> GridFormattingContext<'pass> {
     fn item_row_baseline(&self, item: GridItem) -> CssPixels {
         let metrics = self.cells_of(item);
         let collapsed = metrics.uses_collapsing_borders_model;
-        let content_baselines = self.run.records.box_metrics_of(item.box_).content_baselines();
+        let content_baselines = self.laid_out_item(item).content_baselines;
         let distance_from_margin_box_top =
             if !self.sizing().establishes_orthogonal_flow(item.box_) && content_baselines.first.is_some() {
                 formatting_context::box_baseline_with_content_baselines(
@@ -4660,8 +4690,54 @@ impl<'pass> GridFormattingContext<'pass> {
             if self.item_participates_in_column_baseline_alignment(item) {
                 offset.x += shared_column_baselines[&item.column] - self.item_column_baseline(item);
             }
-            formatting_context::place_laid_out_child(&self.run, item.box_, placed_item, offset, None, fragment_arrival);
+            self.place_item(item, placed_item, offset, fragment_arrival);
         }
+    }
+
+    fn place_item(
+        &self,
+        item: GridItem,
+        placed_item: formatting_context::PlacedChild,
+        offset: FfiCssPixelPoint,
+        fragment_arrival: Option<fragment_tree::ChildFragmentArrival>,
+    ) {
+        formatting_context::place_laid_out_child(&self.run, item.box_, placed_item, offset, None, fragment_arrival);
+        self.laid_out_items
+            .borrow_mut()
+            .get_mut(&item.box_)
+            .expect("a grid item is laid out before it is placed")
+            .content_offset = Some(offset);
+    }
+
+    #[track_caller]
+    fn laid_out_item(&self, item: GridItem) -> LaidOutGridItem {
+        *self
+            .laid_out_items
+            .borrow()
+            .get(&item.box_)
+            .expect("a grid item is laid out before its baselines are read")
+    }
+
+    /// The baseline of `item`, once the grid placed it, relative to the grid container's margin edge.
+    fn baseline_of_placed_item(
+        &self,
+        item: GridItem,
+        baseline_set: formatting_context::BaselineSet,
+        source: formatting_context::ChildBaselineSource,
+    ) -> Option<CssPixels> {
+        let laid_out_item = self.laid_out_item(item);
+        formatting_context::baseline_of_laid_out_child_for_purpose(
+            &self.run.callbacks,
+            formatting_context::LaidOutChild {
+                node: item.box_,
+                metrics: &self.cells_of(item),
+                content_baselines: laid_out_item.content_baselines,
+                content_offset: laid_out_item.content_offset.unwrap_or_default(),
+            },
+            baseline_set,
+            source,
+            formatting_context::BaselinePurpose::Container,
+        )
     }
 
     // https://drafts.csswg.org/css-grid-2/#grid-baselines
@@ -4697,7 +4773,7 @@ impl<'pass> GridFormattingContext<'pass> {
         } else {
             formatting_context::ChildBaselineSource::OwnOrSynthesized
         };
-        formatting_context::baseline_of_child(self.run.records, &self.run.callbacks, item.box_, baseline_set, source)
+        self.baseline_of_placed_item(*item, baseline_set, source)
     }
 
     fn used_track_list_data(&self, axis: Axis, subgrid: bool) -> OwnedUsedGridTrackList {

@@ -439,14 +439,6 @@ impl BoxMetrics<'_> {
             Self::NotYetLaidOut(_) => DerivedBaselines::default(),
         }
     }
-
-    pub(crate) fn orthogonal_flow_baselines(&self) -> Option<DerivedBaselines> {
-        match self {
-            Self::LaidOutByItsOwnRun(laid_out) => laid_out.orthogonal_flow_baselines,
-            // NB: A box that establishes an orthogonal flow is laid out by a run of its own.
-            Self::LaidOutByThisRun(_) | Self::NotYetLaidOut(_) => None,
-        }
-    }
 }
 
 macro_rules! box_metrics_getters {

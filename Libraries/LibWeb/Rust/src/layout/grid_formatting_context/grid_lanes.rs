@@ -617,13 +617,7 @@ impl GridFormattingContext<'_> {
             } else {
                 formatting_context::ChildBaselineSource::OwnOrSynthesized
             };
-            formatting_context::baseline_of_child(
-                self.run.records,
-                &self.run.callbacks,
-                item.box_,
-                baseline_set,
-                source,
-            )
+            self.baseline_of_placed_item(item, baseline_set, source)
         });
         match baseline_set {
             formatting_context::BaselineSet::First => baselines.min(),
