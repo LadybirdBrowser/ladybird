@@ -36,6 +36,7 @@ runs:
         ccache --evict-older-than=1d
 
     - name: 'Compiler Cache'
+      if: ${{ github.ref == 'refs/heads/master' }}
       uses: actions/cache/save@v6
       with:
         path: ${{ inputs.ccache_path }}
@@ -56,13 +57,14 @@ runs:
         sccache --stop-server || true
 
     - name: 'Rust Compiler Cache'
+      if: ${{ github.ref == 'refs/heads/master' }}
       uses: actions/cache/save@v6
       with:
         path: ${{ inputs.sccache_path }}
         key: ${{ inputs.sccache_primary_key }}
 
     - name: 'vcpkg binary cache'
-      if: ${{ inputs.vcpkg_cache_primary_key != '' }}
+      if: ${{ github.ref == 'refs/heads/master' && inputs.vcpkg_cache_primary_key != '' }}
       uses: actions/cache/save@v6
       with:
         path: ${{ inputs.vcpkg_cache_path }}
