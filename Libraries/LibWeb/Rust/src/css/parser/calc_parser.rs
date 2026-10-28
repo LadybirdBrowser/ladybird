@@ -446,7 +446,7 @@ pub(crate) fn parse_a_calc_function_node(
                     if !types.iter().all(accepts_dimension_or_percentage) {
                         return Err(CalcParseError::Invalid);
                     }
-                    require_same(&types)?;
+                    require_consistent(&types)?;
                 }
                 _ => unreachable!(),
             }

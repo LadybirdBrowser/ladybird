@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 243 tests
 
-233 Pass
-10 Fail
+243 Pass
 Pass	round(10,10) should be used-value-equivalent to 10
 Pass	mod(1,1) should be used-value-equivalent to 0
 Pass	mod(0,-2) should be used-value-equivalent to 0
@@ -141,34 +140,34 @@ Pass	round(2rem,5px) should be used-value-equivalent to 30px
 Pass	round(100px,1rem) should be used-value-equivalent to 96px
 Pass	round(10s,6000ms) should be used-value-equivalent to 12s
 Pass	round(10000ms,6s) should be used-value-equivalent to 12s
-Fail	mod(10%,1px) should be used-value-equivalent to 0.5px
-Fail	mod(10%,5px) should be used-value-equivalent to 2.5px
+Pass	mod(10%,1px) should be used-value-equivalent to 0.5px
+Pass	mod(10%,5px) should be used-value-equivalent to 2.5px
 Pass	mod(2rem,5px) should be used-value-equivalent to 2px
 Pass	mod(100px,1rem) should be used-value-equivalent to 4px
 Pass	mod(10s,6000ms) should be used-value-equivalent to 4s
 Pass	mod(10000ms,6s) should be used-value-equivalent to 4s
-Fail	mod(18px,100% / 15) should be used-value-equivalent to 3px
-Fail	mod(-18px,100% / 10) should be used-value-equivalent to 4.5px
+Pass	mod(18px,100% / 15) should be used-value-equivalent to 3px
+Pass	mod(-18px,100% / 10) should be used-value-equivalent to 4.5px
 Pass	mod(18%,5%) should be used-value-equivalent to 3%
 Pass	mod(-19%,5%) should be used-value-equivalent to 1%
 Pass	mod(18vw,5vw) should be used-value-equivalent to 3vw
 Pass	mod(-18vw,5vw) should be used-value-equivalent to 2vw
-Fail	rem(10%,1px) should be used-value-equivalent to 0.5px
-Fail	rem(10%,5px) should be used-value-equivalent to 2.5px
+Pass	rem(10%,1px) should be used-value-equivalent to 0.5px
+Pass	rem(10%,5px) should be used-value-equivalent to 2.5px
 Pass	rem(2rem,5px) should be used-value-equivalent to 2px
 Pass	rem(100px,1rem) should be used-value-equivalent to 4px
 Pass	rem(10s,6000ms) should be used-value-equivalent to 4s
 Pass	rem(10000ms,6s) should be used-value-equivalent to 4s
-Fail	rem(18px,100% / 15) should be used-value-equivalent to 3px
-Fail	rem(-18px,100% / 15) should be used-value-equivalent to -3px
+Pass	rem(18px,100% / 15) should be used-value-equivalent to 3px
+Pass	rem(-18px,100% / 15) should be used-value-equivalent to -3px
 Pass	rem(18vw,5vw) should be used-value-equivalent to 3vw
 Pass	rem(-18vw,5vw) should be used-value-equivalent to -3vw
 Pass	calc(round(1px + 0%, 1px + 0%)) should be used-value-equivalent to 1px
 Pass	calc(mod(3px + 0%, 2px + 0%)) should be used-value-equivalent to 1px
 Pass	calc(rem(3px + 0%, 2px + 0%)) should be used-value-equivalent to 1px
 Pass	round(1px + 0%, 1px) should be used-value-equivalent to 1px
-Fail	mod(3px + 0%, 2px) should be used-value-equivalent to 1px
-Fail	rem(3px + 0%, 2px) should be used-value-equivalent to 1px
+Pass	mod(3px + 0%, 2px) should be used-value-equivalent to 1px
+Pass	rem(3px + 0%, 2px) should be used-value-equivalent to 1px
 Pass	round(0, 0) should be used-value-equivalent to calc(NaN)
 Pass	round(-0, 0) should be used-value-equivalent to calc(NaN)
 Pass	round(Infinity, 0) should be used-value-equivalent to calc(NaN)
