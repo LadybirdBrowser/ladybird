@@ -627,7 +627,7 @@ pub(crate) fn compute(
                 std::mem::take(&mut per_node.lines),
             )
         };
-        let used = context.used(node);
+        let sides = context.sides_of_entered_inline_box(node);
         let reversed = context.facts(node).inline_axis_is_reverse();
         let (
             border_padding_low,
@@ -637,12 +637,12 @@ pub(crate) fn compute(
             margin_low,
             margin_high,
         ) = (
-            used.border_box_left(false),
-            used.border_box_right(false),
-            used.border_box_top(false),
-            used.border_box_bottom(false),
-            used.margin_left.get(),
-            used.margin_right.get(),
+            sides.border_box_left(false),
+            sides.border_box_right(false),
+            sides.border_box_top(false),
+            sides.border_box_bottom(false),
+            sides.margin_left,
+            sides.margin_right,
         );
 
         let node_is_inline_containing_block = collect_inline_containing_block_rects
@@ -785,7 +785,7 @@ pub(crate) fn compute(
         if node_is_inline_containing_block
             && let Some(rect) = padding_box_rect_spanning_first_and_last_content_lines(
                 &corners,
-                used,
+                &sides,
                 reversed,
                 container_inline_axis_is_reverse,
             )
@@ -798,7 +798,10 @@ pub(crate) fn compute(
     }
 
     for (index, node) in without_fragments.into_iter().enumerate() {
-        context.used(node);
+        assert!(
+            context.entered_inline_box(node).is_some(),
+            "a fragmented inline without fragments is an inline box the context entered"
+        );
         let line_height = context.style(node).line_height();
         let placeholder_rect = FfiCssPixelRect {
             height: line_height,
@@ -845,7 +848,7 @@ pub(crate) fn compute(
 
 fn padding_box_rect_spanning_first_and_last_content_lines(
     corners: &FirstAndLastContentLineCorners,
-    used: &UsedValues,
+    sides: &used_values::RootInputCells,
     inline_axis_is_reverse: bool,
     container_inline_axis_is_reverse: bool,
 ) -> Option<CssPixelRect> {
@@ -853,10 +856,10 @@ fn padding_box_rect_spanning_first_and_last_content_lines(
     let last = corners.last?;
 
     let (border_inline_low, border_inline_high, border_block_low, border_block_high) = (
-        used.border_left.get(),
-        used.border_right.get(),
-        used.border_top.get(),
-        used.border_bottom.get(),
+        sides.border_left,
+        sides.border_right,
+        sides.border_top,
+        sides.border_bottom,
     );
     let direction_matches = inline_axis_is_reverse == container_inline_axis_is_reverse;
     let (contracted_inline_low, contracted_inline_high) = if direction_matches {
@@ -988,6 +991,8 @@ pub(crate) struct InlineFormattingContext<'context> {
     /// Whether margins collapse through each block-level box this context interrupted its lines for, as the layout of
     /// the box found.
     margins_collapse_through_interrupting_blocks: RefCell<HashMap<Node, bool>>,
+    /// The sizes and box sides of each inline box this context entered, as it resolved them on entering the box.
+    sides_of_entered_inline_boxes: RefCell<HashMap<Node, used_values::RootInputCells>>,
 }
 
 impl<'context> InlineFormattingContext<'context> {
@@ -1017,6 +1022,7 @@ impl<'context> InlineFormattingContext<'context> {
             fragmentainer_stop_token: RefCell::new(None),
             lines_are_unbreakable: Cell::new(false),
             margins_collapse_through_interrupting_blocks: RefCell::new(HashMap::default()),
+            sides_of_entered_inline_boxes: RefCell::new(HashMap::default()),
         }
     }
 
@@ -1182,6 +1188,21 @@ impl<'context> InlineFormattingContext<'context> {
         constraints: ContainingBlockConstraints,
     ) -> &'context UsedValues {
         self.run.records.create_used_values(&self.callbacks, node, constraints)
+    }
+
+    pub(crate) fn keep_sides_of_entered_inline_box(&self, node: Node, sides: used_values::RootInputCells) {
+        self.sides_of_entered_inline_boxes.borrow_mut().insert(node, sides);
+    }
+
+    fn entered_inline_box(&self, node: Node) -> Option<used_values::RootInputCells> {
+        self.sides_of_entered_inline_boxes.borrow().get(&node).copied()
+    }
+
+    /// The sizes and box sides of `node`, an inline box this context entered.
+    #[track_caller]
+    pub(crate) fn sides_of_entered_inline_box(&self, node: Node) -> used_values::RootInputCells {
+        self.entered_inline_box(node)
+            .expect("the inline formatting context entered the inline box")
     }
 
     /// Starts holding `node`, an atomic inline-level box: kept for its run where it has a formatting context of its
@@ -2313,11 +2334,17 @@ impl<'context> InlineFormattingContext<'context> {
             if let Some(collapses_through) = interrupting_block_collapses_through {
                 return collapses_through;
             }
-            if !self.run.records.holds_box(child) {
+            let entered_inline_box = self.entered_inline_box(child);
+            if entered_inline_box.is_none() && !self.run.records.holds_box(child) {
                 return true;
             }
             block_formatting_context::margins_can_collapse_through_box_itself(facts, self.style(child), || {
-                self.used(child).border_box_block_size(false)
+                match entered_inline_box {
+                    Some(sides) => sides.border_box_block_size(false),
+                    // NB: A box this context holds as an atomic inline-level box, which has a record where it has no
+                    //     formatting context of its own.
+                    None => self.used(child).border_box_block_size(false),
+                }
             }) && self.children_let_margins_collapse_through(child)
         })
     }

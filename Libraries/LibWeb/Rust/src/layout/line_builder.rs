@@ -748,12 +748,12 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
 
     fn inline_box_alignment_metrics(&self, node: Node) -> VerticalAlignMetrics {
         let style = self.style(node);
-        let used = self.context().used(node);
+        let sides = self.context().sides_of_entered_inline_box(node);
         VerticalAlignMetrics {
             baseline: Self::baseline_for_style(style, style.line_height()),
             block_size: style.line_height(),
-            effective_box_block_start_offset: used.border_box_top(false),
-            effective_box_block_end_offset: used.border_box_bottom(false),
+            effective_box_block_start_offset: sides.border_box_top(false),
+            effective_box_block_end_offset: sides.border_box_bottom(false),
             line_height: style.line_height(),
         }
     }
