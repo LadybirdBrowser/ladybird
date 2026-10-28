@@ -6,6 +6,7 @@
  */
 
 #include <AK/Assertions.h>
+#include <AK/NeverDestroyed.h>
 #include <AK/Optional.h>
 #include <AK/TypeCasts.h>
 #include <LibWeb/DOM/AbortSignal.h>
@@ -30,6 +31,7 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
+#include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/MouseEvent.h>
 #include <LibWeb/UIEvents/TouchEvent.h>
 
@@ -46,6 +48,11 @@ static Optional<Utf16FlyString> legacy_event_type_for_event_type(Utf16FlyString 
         return HTML::EventNames::webkitAnimationStart;
     if (event_type == HTML::EventNames::transitionend)
         return HTML::EventNames::webkitTransitionEnd;
+    // INTEROP: Other browsers use mousewheel as the legacy event type for trusted wheel events.
+    if (event_type == UIEvents::EventNames::wheel) {
+        static NeverDestroyed<Utf16FlyString> mousewheel_event_type { "mousewheel"_utf16_fly_string };
+        return *mousewheel_event_type;
+    }
     return {};
 }
 
@@ -280,10 +287,26 @@ bool EventDispatcher::dispatch(GC::Ref<EventTarget> target, Event& event, bool l
     bool should_dispatch = is_activation_event;
     if (!should_dispatch) {
         auto const* node = as_if<Node>(*target);
-        should_dispatch = !node || node->has_inclusive_ancestor_with_event_listener(event.type());
+        auto has_listener_on_event_path = [&](Utf16FlyString const& type) {
+            for (auto* ancestor = target.ptr(); ancestor;) {
+                if (ancestor->has_event_listener(type))
+                    return true;
+                // NB: ShadowRoot::get_parent() reads the first path entry for non-composed events. The path is not
+                //     built yet, so apply that boundary check here before calling it.
+                if (!event.composed() && is<ShadowRoot>(*ancestor)) {
+                    if (node && &node->root() == ancestor)
+                        break;
+                    ancestor = as<ShadowRoot>(*ancestor).host();
+                    continue;
+                }
+                ancestor = ancestor->get_parent(event);
+            }
+            return false;
+        };
+        should_dispatch = !node || has_listener_on_event_path(event.type());
         if (!should_dispatch && event.is_trusted()) {
             if (auto legacy_event_type = legacy_event_type_for_event_type(event.type()); legacy_event_type.has_value())
-                should_dispatch = node->has_inclusive_ancestor_with_event_listener(*legacy_event_type);
+                should_dispatch = has_listener_on_event_path(*legacy_event_type);
         }
     }
 

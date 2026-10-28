@@ -1,0 +1,6 @@
+slot-only legacy: capture mousewheel trusted=true, bubble mousewheel trusted=true
+standard takes priority: capture wheel, bubble wheel
+fallback remains per target: capture wheel, bubble wheel, bubble mousewheel trusted=true
+untrusted wheel: capture wheel, bubble wheel
+non-composed slotted wheel: capture wheel, bubble wheel
+non-composed event stays in shadow: true
