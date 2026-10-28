@@ -4460,7 +4460,6 @@ impl<'pass> GridFormattingContext<'pass> {
                 outcome,
                 fragment_arrival,
                 laid_out_box,
-                line_data,
             } = formatting_context::layout_inside_child_with_input_cells(
                 run,
                 None,
@@ -4481,7 +4480,7 @@ impl<'pass> GridFormattingContext<'pass> {
                     content_offset: None,
                 },
             );
-            let placed_item = formatting_context::PlacedChild::of_laid_out_box(&laid_out_box, line_data);
+            let placed_item = formatting_context::PlacedChild::of_laid_out_box(&laid_out_box);
             let offset = FfiCssPixelPoint {
                 x: area.offset.inline_offset + self.item_margin_box_start(item, Axis::Column),
                 y: area.offset.block_offset + self.item_margin_box_start(item, Axis::Row),

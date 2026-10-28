@@ -2712,7 +2712,6 @@ impl<'pass> TableFormattingContext<'pass> {
             outcome,
             fragment_arrival,
             laid_out_box,
-            line_data,
         } = formatting_context::layout_inside_child_with_input_cells(
             run,
             None,
@@ -2727,14 +2726,8 @@ impl<'pass> TableFormattingContext<'pass> {
         self.cell_box_cells[cell_index] = laid_out_box.cells;
         self.content_baselines_of_handed_back_cells[cell_index] = Some(laid_out_box.baselines);
         outcome.report_percentage_block_size_dependency_of(run, cell.box_);
-        let baselines = match outcome {
-            ChildLayoutOutcome::Created(result) => result.baselines,
-            ChildLayoutOutcome::Skipped { .. } => laid_out_box.baselines,
-        };
-        self.placed_cells[cell_index] = Some(formatting_context::PlacedChild::of_laid_out_box(
-            &laid_out_box,
-            line_data,
-        ));
+        let baselines = laid_out_box.baselines;
+        self.placed_cells[cell_index] = Some(formatting_context::PlacedChild::of_laid_out_box(&laid_out_box));
         (baselines, fragment_arrival)
     }
 
@@ -3301,8 +3294,9 @@ impl<'pass> TableFormattingContext<'pass> {
                     cells: *cell_box,
                     baselines: measurement.baselines,
                     orthogonal_flow_baselines: None,
+                    line_data: None,
                 };
-                self.placed_cells[cell_index] = Some(formatting_context::PlacedChild::of_laid_out_box(&laid_out, None));
+                self.placed_cells[cell_index] = Some(formatting_context::PlacedChild::of_laid_out_box(&laid_out));
                 self.content_baselines_of_handed_back_cells[cell_index] = Some(laid_out.baselines);
                 run.records.note_child_handed_back(cell.box_);
                 formatting_context::propagate_percentage_block_size_dependency_to_containing_block(

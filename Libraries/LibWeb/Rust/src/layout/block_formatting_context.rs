@@ -2142,7 +2142,6 @@ impl<'pass> BlockFormattingContext<'pass> {
             outcome: marker_outcome,
             fragment_arrival,
             laid_out_box: marker_box,
-            line_data: marker_line_data,
         } = formatting_context::layout_inside_child_with_input_cells(
             run,
             None,
@@ -2187,7 +2186,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         formatting_context::place_child(
             &self.run,
             marker,
-            formatting_context::PlacedChild::of_laid_out_box(&marker_box, marker_line_data),
+            formatting_context::PlacedChild::of_laid_out_box(&marker_box),
             FfiCssPixelPoint {
                 x: round_css_pixels(marker_inline_offset),
                 y: marker_block_offset,
@@ -2203,8 +2202,7 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 
     /// Lays out the contents of `node`, a child with a formatting context of its own, and returns its result where a
-    /// run of its own laid it out, the fragments its placement takes, the child's box as its layout left it, and the
-    /// lines that layout laid out in it.
+    /// run of its own laid it out, the fragments its placement takes, and the child's box as its layout left it.
     fn layout_inside(
         &self,
         run: &FormattingContextRun<'pass>,
@@ -2216,13 +2214,11 @@ impl<'pass> BlockFormattingContext<'pass> {
         Option<formatting_context::ChildLayoutResult>,
         Option<fragment_tree::ChildFragmentArrival>,
         run_records::LaidOutChildBox,
-        Option<std::sync::Arc<inline_content::InlineContent>>,
     ) {
         let formatting_context::ChildLayout {
             outcome,
             fragment_arrival,
             laid_out_box,
-            line_data,
         } = formatting_context::layout_inside_child_with_input_cells(
             run,
             Some(self),
@@ -2238,7 +2234,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             ChildLayoutOutcome::Skipped { .. } => None,
             ChildLayoutOutcome::Created(child_layout) => Some(child_layout),
         };
-        (child_layout, fragment_arrival, laid_out_box, line_data)
+        (child_layout, fragment_arrival, laid_out_box)
     }
 
     fn child_layout_input(
@@ -2739,20 +2735,17 @@ impl<'pass> BlockFormattingContext<'pass> {
                 let metrics = self.metrics_of(sized_child);
                 (metrics.border_box_left(false), metrics.border_box_top(false))
             });
-            let (child_layout, fragment_arrival, laid_out_box, line_data) =
+            let (child_layout, fragment_arrival, laid_out_box) =
                 self.layout_inside(run, node, block_container, inside_layout_input, true);
             assert!(
                 child_layout.is_some(),
                 "a block-level box with a formatting context of its own is laid out by its run"
             );
             fragment_arrival_of_child_with_own_formatting_context = fragment_arrival;
-            child_handed_back_by_its_run = Some(formatting_context::PlacedChild::of_laid_out_box(
-                &laid_out_box,
-                line_data,
-            ));
+            child_handed_back_by_its_run = Some(formatting_context::PlacedChild::of_laid_out_box(&laid_out_box));
+            let table_box = laid_out_box.cells;
             laid_out_box_handed_back_by_its_run = Some(laid_out_box);
             if container_facts.is_table_wrapper() && style.display().is_table_inside() {
-                let table_box = laid_out_box.cells;
                 self.table_box_in_wrapper_border_box_inline_size.set(Some(
                     table_box.border_box_inline_size(table_box.uses_collapsing_borders_model()),
                 ));
@@ -4752,12 +4745,13 @@ impl<'pass> BlockFormattingContext<'pass> {
                 input.containing_block_constraints,
             );
         self.dimension_float_root_inline_size(node, block_container, &float_input);
-        let (float_layout, fragment_arrival, float_box, float_line_data) =
+        let (float_layout, fragment_arrival, float_box) =
             self.layout_inside(run, node, block_container, float_input, false);
         // NB: A float its own run laid out is placed as that run handed it back, and any other with its record here.
         let float_handed_back_by_its_run = float_layout
             .is_some()
-            .then(|| formatting_context::PlacedChild::of_laid_out_box(&float_box, float_line_data));
+            .then(|| formatting_context::PlacedChild::of_laid_out_box(&float_box));
+        let float_box_cells = float_box.cells;
         let laid_out_float_handed_back_by_its_run = float_layout.is_some().then_some(float_box);
         let containing_block_rect = self.containing_block_rect(block_container, containing_block_position_in_root);
         let containing_block_rect_now = containing_block_rect.translated(
@@ -4788,7 +4782,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 laid_out_float_handed_back_by_its_run,
             );
         };
-        let float_box = float_box.cells;
+        let float_box = float_box_cells;
         let mut margin_box_ceiling = if let Some(line_builder) = line_builder.as_deref_mut() {
             line_builder.ceiling_for_float_to_be_inserted_here(float_box.margin_box_inline_size(false))
         } else {

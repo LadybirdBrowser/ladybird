@@ -1478,7 +1478,6 @@ impl<'context> InlineFormattingContext<'context> {
             outcome,
             fragment_arrival,
             laid_out_box,
-            line_data,
         } = formatting_context::layout_inside_child_with_input_cells(
             self.run,
             Some(self.parent),
@@ -1491,14 +1490,8 @@ impl<'context> InlineFormattingContext<'context> {
         );
         self.keep_atomic_inline_fragment_arrival(node, fragment_arrival);
         outcome.report_percentage_block_size_dependency_of(self.run, node);
-        let baselines = match outcome {
-            ChildLayoutOutcome::Created(result) => result.baselines,
-            ChildLayoutOutcome::Skipped { .. } => laid_out_box.baselines,
-        };
-        self.keep_placed_atomic_inline(
-            node,
-            formatting_context::PlacedChild::of_laid_out_box(&laid_out_box, line_data),
-        );
+        let baselines = laid_out_box.baselines;
+        self.keep_placed_atomic_inline(node, formatting_context::PlacedChild::of_laid_out_box(&laid_out_box));
         (baselines, laid_out_box.cells)
     }
 
