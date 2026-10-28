@@ -1680,7 +1680,15 @@ void update_the_source_set(DOM::Element& element)
         }
 
         // 7. Parse child's sizes attribute with img, and let source set's source size be the returned value.
-        source_set.m_source_size = parse_a_sizes_attribute(element.document(), child->attribute(HTML::AttributeNames::sizes).value_or({}), img);
+        auto sizes = child->attribute(HTML::AttributeNames::sizes);
+        // AD-HOC: Parsing a sizes attribute treats an absent attribute as the empty string, but the source element's
+        //         sizes attribute definition says:
+        //         https://html.spec.whatwg.org/multipage/embedded-content.html#attr-source-sizes
+        //         "If the img element allows auto-sizes, then the sizes attribute can be omitted on previous sibling
+        //         source elements. In such cases, it is equivalent to specifying auto."
+        if (!sizes.has_value() && img && img->allows_auto_sizes())
+            sizes = "auto"_utf16;
+        source_set.m_source_size = parse_a_sizes_attribute(element.document(), sizes.value_or({}), img);
 
         // 8. If child has a type attribute, and its value is an unknown or unsupported MIME type, continue to the next child.
         if (child->has_attribute(HTML::AttributeNames::type)) {
