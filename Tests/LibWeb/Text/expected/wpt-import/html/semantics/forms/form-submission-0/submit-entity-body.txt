@@ -1,0 +1,18 @@
+Harness status: OK
+
+Found 13 tests
+
+13 Fail
+Fail	form submission from form should navigate to url with x-www-form-urlencoded
+Fail	form submission from form should navigate to url with multipart/form-data
+Fail	form submission from form should navigate to url with text/plain
+Fail	form submission from button should navigate to url with x-www-form-urlencoded
+Fail	form submission from button should navigate to url with multipart/form-data
+Fail	form submission from button should navigate to url with text/plain
+Fail	form submission from input should navigate to url with x-www-form-urlencoded
+Fail	form submission from input should navigate to url with multipart/form-data
+Fail	form submission from input should navigate to url with text/plain
+Fail	form submission from submit input should contain submit button value
+Fail	form submission from submit button should contain submit button value
+Fail	form submission from image input should contain entries for its clicked coordinate
+Fail	form submission from image input should only contain entries for the submitter's clicked coordinate when multiple image inputs are present

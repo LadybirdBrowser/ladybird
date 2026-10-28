@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta name="timeout" content="long">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script>
+var simple_tests = [
+  {
+    name: "form submission from form should navigate to url with x-www-form-urlencoded",
+    input: "<input name=foo value=bara>",
+    enctype: "application/x-www-form-urlencoded",
+    submitelement: "",
+    submitaction: function(doc) { doc.getElementById("testform").submit(); }
+  },
+  {
+    name: "form submission from form should navigate to url with multipart/form-data",
+    input: "<textarea name=foo>bar</textarea>",
+    enctype: "multipart/form-data",
+    submitelement: "",
+    submitaction: function(doc) { doc.getElementById("testform").submit(); }
+  },
+  {
+    name: "form submission from form should navigate to url with text/plain",
+    input: "<textarea name=qux>baz</textarea>",
+    enctype: "text/plain",
+    submitelement: "",
+    submitaction: function(doc) { doc.getElementById("testform").submit(); }
+  },
+  {
+    name: "form submission from button should navigate to url with x-www-form-urlencoded",
+    input: "<input name=foo value=bara>",
+    enctype: "application/x-www-form-urlencoded",
+    submitelement: "<button id=buttonsubmit type=\"submit\">Submit</button>",
+    submitaction: function(doc) { doc.getElementById("buttonsubmit").click(); }
+  },
+  {
+    name: "form submission from button should navigate to url with multipart/form-data",
+    input: "<textarea name=foo>bar</textarea>",
+    enctype: "multipart/form-data",
+    submitelement: "<button id=buttonsubmit type=\"submit\">Submit</button>",
+    submitaction: function(doc) { doc.getElementById("buttonsubmit").click(); }
+  },
+  {
+    name: "form submission from button should navigate to url with text/plain",
+    input: "<textarea name=qux>baz</textarea>",
+    enctype: "text/plain",
+    submitelement: "<button id=buttonsubmit type=\"submit\">Submit</button>",
+    submitaction: function(doc) { doc.getElementById("buttonsubmit").click(); }
+  },
+  {
+    name: "form submission from input should navigate to url with x-www-form-urlencoded",
+    input: "<input name=foo value=bara>",
+    enctype: "application/x-www-form-urlencoded",
+    submitelement: "<input id=inputsubmit type=\"submit\">Submit</input>",
+    submitaction: function(doc) { doc.getElementById("inputsubmit").click(); }
+  },
+  {
+    name: "form submission from input should navigate to url with multipart/form-data",
+    input: "<textarea name=foo>bar</textarea>",
+    enctype: "multipart/form-data",
+    submitelement: "<input id=inputsubmit type=\"submit\">Submit</input>",
+    submitaction: function(doc) { doc.getElementById("inputsubmit").click(); }
+  },
+  {
+    name: "form submission from input should navigate to url with text/plain",
+    input: "<input name=qux value=baz>",
+    enctype: "text/plain",
+    submitelement: "<input id=inputsubmit type=\"submit\">Submit</input>",
+    submitaction: function(doc) { doc.getElementById("inputsubmit").click(); }
+  },
+  {
+    name: "form submission from submit input should contain submit button value",
+    input: "<button type=submit name=notclicked value=nope>not clicked</button>",
+    enctype: "application/x-www-form-urlencoded",
+    submitelement: "<button id=inputsubmit type=\"submit\" name=foo value=bara>Submit</button>",
+    submitaction: function(doc) { doc.getElementById("inputsubmit").click(); }
+  },
+  {
+    name: "form submission from submit button should contain submit button value",
+    input: "<input type=submit name=notclicked value=nope/>",
+    enctype: "application/x-www-form-urlencoded",
+    submitelement: "<input id=inputsubmit type=\"submit\" name=foo value=bara >",
+    submitaction: function(doc) { doc.getElementById("inputsubmit").click(); }
+  },
+  {
+    name: "form submission from image input should contain entries for its clicked coordinate",
+    input: "<input type=submit name=notclicked value=nope/>",
+    enctype: "application/x-www-form-urlencoded",
+    submitelement: "<input id=inputsubmit type=image name=foo>",
+    submitaction: function(doc) { doc.getElementById("inputsubmit").click(); },
+    expected_body: "foo.x=0&foo.y=0"
+  },
+  {
+    name: "form submission from image input should only contain entries for the submitter's clicked coordinate when multiple image inputs are present",
+    input: "<input type=image name=bar>",
+    enctype: "application/x-www-form-urlencoded",
+    submitelement: "<input id=inputsubmit type=image name=foo>",
+    submitaction: function(doc) { doc.getElementById("inputsubmit").click(); },
+    expected_body: "foo.x=0&foo.y=0"
+  },
+];
+simple_tests.forEach(function(test_obj) {
+  test_obj.test = async_test(test_obj.name);
+});
+function run_simple_test() {
+  if (simple_tests.length == 0) {
+    return;
+  }
+  var test_obj = simple_tests.pop();
+  var enctype = test_obj.enctype || "application/x-www-form-urlencoded";
+  var query = test_obj.expected_body ? "expected_body=" + encodeURIComponent(test_obj.expected_body) : "query=1";
+  var t = test_obj.test;
+  var testframe = document.getElementById("testframe");
+  var testdocument = testframe.contentWindow.document;
+  testdocument.body.innerHTML =
+    "<form id=testform method=post action=\"/html/semantics/forms/form-submission-0/resources/form-submission.py?" + query + "\" enctype=\"" + enctype + "\">" +
+    test_obj.input +
+    test_obj.submitelement +
+    "</form>";
+  testframe.onload = function() {
+    t.step(function (){
+      var response = testframe.contentDocument.documentElement.textContent;
+      assert_equals(response, "OK");
+    });
+    t.done();
+    run_simple_test();
+  };
+  test_obj.submitaction(testdocument);
+}
+</script>
+<iframe id=testframe src="../../../../common/blank.html" onload="run_simple_test();"></iframe>
