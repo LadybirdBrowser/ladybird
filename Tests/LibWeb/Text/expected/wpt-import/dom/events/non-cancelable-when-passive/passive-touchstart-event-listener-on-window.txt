@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	passive touchstart event listener on window
+1 Pass
+Pass	passive touchstart event listener on window
