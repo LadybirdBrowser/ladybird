@@ -400,7 +400,7 @@ pub(crate) fn place_child_in_containing_block(
         );
         return None;
     };
-    fragments.note_placed_box(node, placement);
+    fragments.note_placed_box(node, placement, cells_kept_for_contained_abspos(run, node));
     let facts_decided_by_parent = records.facts_decided_by_parent_of(node);
     debug_assert!(
         fragment_arrival
@@ -498,6 +498,22 @@ pub(crate) fn place_child_in_containing_block(
     })
 }
 
+/// The sizes and box sides of `node`, which `run` is placing, where the box may be the containing block of absolutely
+/// positioned boxes the run lays out at its placement or later.
+fn cells_kept_for_contained_abspos(run: &FormattingContextRun, node: Node) -> Option<fragment_tree::CellsInFrame> {
+    let data = run.callbacks.node_data(node);
+    let may_contain_abspos = node_facts::has_flag(data, NodeFlag::EstablishesAbsolutePositionContainingBlock)
+        || node_facts::has_flag(data, NodeFlag::EstablishesFixedPositionContainingBlock)
+        || data.parent.get().is_invalid();
+    may_contain_abspos.then(|| fragment_tree::CellsInFrame {
+        cells: run
+            .records
+            .box_cells_in_frame_if_owned(node, run.callbacks.frame)
+            .expect("a run holds the boxes it places"),
+        frame: run.callbacks.frame,
+    })
+}
+
 /// Places an in-flow child whose committed subtree is reused as it is, with the committed fragment it was laid out
 /// to. The child's record must already hold what its layout left in it.
 pub(crate) fn place_reused_child(
@@ -518,7 +534,7 @@ pub(crate) fn place_reused_child(
         .fragments
         .as_deref()
         .expect("a reused subtree is placed by a run that builds fragments");
-    fragments.note_placed_box(node, placement);
+    fragments.note_placed_box(node, placement, cells_kept_for_contained_abspos(run, node));
     fragments.attach_committed_fragment(
         node,
         fragment,
@@ -3699,7 +3715,7 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
     let placement = facts_decided_by_parent
         .placement
         .expect("the root of a partial relayout keeps the placement it committed");
-    fragments.note_placed_box(root, placement);
+    fragments.note_placed_box(root, placement, cells_kept_for_contained_abspos(run, root));
     // The retained offset already includes relative positioning. Publish it directly instead
     // of applying placement adjustments a second time.
     let Some(fragment_tree::ChildFragmentArrival::RunRoot {
