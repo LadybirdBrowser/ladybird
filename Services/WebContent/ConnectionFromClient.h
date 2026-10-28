@@ -223,7 +223,7 @@ private:
     virtual void remove_debugger_breakpoint(Web::PageId page_id, u64 request_id, WebView::DebuggerBreakpointLocation) override;
     virtual void get_debugger_environments(Web::PageId page_id, u64 request_id, u64 frame_id) override;
     virtual void evaluate_javascript_in_debugger_frame(Web::PageId page_id, u64 request_id, u64 frame_id, Utf16String source_text) override;
-    virtual void get_debugger_object_properties(Web::PageId page_id, u64 request_id, u64 object_id) override;
+    virtual void get_debugger_object_properties(Web::PageId page_id, u64 request_id, u64 object_id, WebView::DebuggerObjectScope scope) override;
     virtual void get_debugger_source_positions(Web::PageId page_id, u64 request_id, Web::HTML::ScriptRegistry::Identifier) override;
     virtual void resolve_dom_node_url(Web::PageId page_id, u64 request_id, Optional<Web::UniqueNodeID> node_id, String url) override;
 

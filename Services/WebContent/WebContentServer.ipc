@@ -205,7 +205,7 @@ endpoint WebContentServer routed by Web::PageId page_id
     remove_debugger_breakpoint(Web::PageId page_id, u64 request_id, WebView::DebuggerBreakpointLocation location) =|
     get_debugger_environments(Web::PageId page_id, u64 request_id, u64 frame_id) =|
     evaluate_javascript_in_debugger_frame(Web::PageId page_id, u64 request_id, u64 frame_id, Utf16String source_text) =|
-    get_debugger_object_properties(Web::PageId page_id, u64 request_id, u64 object_id) =|
+    get_debugger_object_properties(Web::PageId page_id, u64 request_id, u64 object_id, WebView::DebuggerObjectScope scope) =|
     get_debugger_source_positions(Web::PageId page_id, u64 request_id, Web::HTML::ScriptRegistryIdentifier source_id) =|
     resolve_dom_node_url(Web::PageId page_id, u64 request_id, Optional<Web::UniqueNodeID> node_id, String url) =|
 

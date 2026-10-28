@@ -321,22 +321,69 @@ void ThreadActor::send_wrong_state_error(Message const& message, StringView erro
     send_response(message, move(response));
 }
 
-ObjectActor& ThreadActor::object_actor_for(WebView::DebuggerValue const& value)
+ObjectActor& ThreadActor::object_actor_for(u64 object_id, String const& class_name, WebView::DebuggerObjectScope scope)
 {
-    VERIFY(value.type == WebView::DebuggerValueType::Object);
-    if (auto actor = m_object_actors.find(value.object_id); actor != m_object_actors.end()) {
+    auto& object_actors = scope == WebView::DebuggerObjectScope::Console ? m_console_object_actors : m_object_actors;
+    if (auto actor = object_actors.find(object_id); actor != object_actors.end()) {
         if (auto object_actor = actor->value.strong_ref())
             return *object_actor;
     }
 
-    auto& actor = devtools().register_actor<ObjectActor>(make_weak_ptr<ThreadActor>(), value.object_id, value.object_class);
-    add_child_actor(actor);
-    m_pause_scoped_actors.append(actor);
-    m_object_actors.set(value.object_id, actor);
+    auto& actor = devtools().register_actor<ObjectActor>(make_weak_ptr<ThreadActor>(), object_id, class_name, scope);
+    track_actor(actor, scope);
+    object_actors.set(object_id, actor);
     return actor;
 }
 
-JsonValue ThreadActor::serialize_debugger_value(WebView::DebuggerValue const& value)
+// An actor for an object that the paused debugger holds goes away when the debugger resumes, but one for an object
+// that the console holds stays until the client releases it, or the target goes away.
+void ThreadActor::track_actor(Actor& actor, WebView::DebuggerObjectScope scope)
+{
+    add_child_actor(actor);
+    if (scope == WebView::DebuggerObjectScope::Pause)
+        m_pause_scoped_actors.append(actor);
+}
+
+// The grip fields that WebContent sends name each object inside them by an objectId field, which becomes the grip of an
+// object actor here. And a node's contentDomReference gets the browsing context that the client needs to resolve it.
+JsonValue ThreadActor::resolve_object_references(JsonValue const& value, WebView::DebuggerObjectScope scope)
+{
+    if (value.is_array()) {
+        JsonArray resolved;
+        value.as_array().for_each([&](auto const& item) {
+            resolved.must_append(resolve_object_references(item, scope));
+        });
+        return resolved;
+    }
+
+    if (!value.is_object())
+        return value;
+
+    auto const& object = value.as_object();
+    JsonObject resolved;
+    auto object_id = object.get_integer<u64>("objectId"sv);
+    if (object_id.has_value())
+        resolved = object_actor_for(*object_id, object.get_string("class"sv).value_or({}), scope).grip();
+
+    object.for_each_member([&](auto const& key, auto const& member) {
+        // The objectId and class of a reference are in the actor's grip already.
+        if (object_id.has_value() && (key == "objectId"sv || key == "class"sv))
+            return;
+        resolved.set(key, resolve_object_references(member, scope));
+    });
+
+    if (auto content_dom_reference = resolved.get_object("contentDomReference"sv); content_dom_reference.has_value()) {
+        if (auto tab = m_tab.strong_ref()) {
+            auto reference = content_dom_reference.value();
+            reference.set("browsingContextId"sv, tab->description().id);
+            resolved.set("contentDomReference"sv, move(reference));
+        }
+    }
+
+    return resolved;
+}
+
+JsonValue ThreadActor::serialize_debugger_value(WebView::DebuggerValue const& value, WebView::DebuggerObjectScope scope)
 {
     switch (value.type) {
     case WebView::DebuggerValueType::Boolean:
@@ -366,8 +413,16 @@ JsonValue ThreadActor::serialize_debugger_value(WebView::DebuggerValue const& va
         grip.set("text"sv, value.text.to_utf8());
         return grip;
     }
-    case WebView::DebuggerValueType::Object:
-        return object_actor_for(value).grip();
+    case WebView::DebuggerValueType::Object: {
+        auto grip = object_actor_for(value.object_id, value.object_class, scope).grip();
+        if (value.grip_fields.is_object()) {
+            auto fields = resolve_object_references(value.grip_fields, scope);
+            fields.as_object().for_each_member([&](auto const& key, auto const& member) {
+                grip.set(key, member);
+            });
+        }
+        return grip;
+    }
     case WebView::DebuggerValueType::Null: {
         JsonObject grip;
         grip.set("type"sv, "null"sv);
@@ -473,19 +528,19 @@ void ThreadActor::get_frame_environment(DebuggerFrameActor& frame_actor, Actor::
         });
 }
 
-JsonObject ThreadActor::serialize_property_descriptor(WebView::DebuggerProperty const& property)
+JsonObject ThreadActor::serialize_property_descriptor(WebView::DebuggerProperty const& property, WebView::DebuggerObjectScope scope)
 {
     JsonObject descriptor;
     descriptor.set("configurable"sv, property.configurable);
     descriptor.set("enumerable"sv, property.enumerable);
     if (property.value.has_value()) {
         descriptor.set("writable"sv, property.writable);
-        descriptor.set("value"sv, serialize_debugger_value(*property.value));
+        descriptor.set("value"sv, serialize_debugger_value(*property.value, scope));
     } else {
         if (property.getter.has_value())
-            descriptor.set("get"sv, serialize_debugger_value(*property.getter));
+            descriptor.set("get"sv, serialize_debugger_value(*property.getter, scope));
         if (property.setter.has_value())
-            descriptor.set("set"sv, serialize_debugger_value(*property.setter));
+            descriptor.set("set"sv, serialize_debugger_value(*property.setter, scope));
     }
     return descriptor;
 }
@@ -500,8 +555,9 @@ void ThreadActor::get_object_properties(ObjectActor& object_actor, Actor::Messag
 
     auto message_id = message.id;
     auto options = message.data.get_object("options"sv).value_or({});
-    devtools().delegate().retrieve_debugger_object_properties(tab->description(), object_actor.object_id(),
-        [weak_self = make_weak_ptr<ThreadActor>(), weak_object = object_actor.make_weak_ptr<ObjectActor>(), message_id, request, property_name = move(property_name), options = move(options)](auto result) mutable {
+    auto scope = object_actor.scope();
+    devtools().delegate().retrieve_debugger_object_properties(tab->description(), object_actor.object_id(), scope,
+        [weak_self = make_weak_ptr<ThreadActor>(), weak_object = object_actor.make_weak_ptr<ObjectActor>(), message_id, request, scope, property_name = move(property_name), options = move(options)](auto result) mutable {
             auto self = weak_self.strong_ref();
             auto object = weak_object.strong_ref();
             if (!self || !object)
@@ -518,7 +574,7 @@ void ThreadActor::get_object_properties(ObjectActor& object_actor, Actor::Messag
             JsonObject response;
             if (request == ObjectPropertiesRequest::Prototype) {
                 if (properties.prototype.has_value())
-                    response.set("prototype"sv, self->serialize_debugger_value(*properties.prototype));
+                    response.set("prototype"sv, self->serialize_debugger_value(*properties.prototype, scope));
                 object->send_response({ .id = message_id }, move(response));
                 return;
             }
@@ -528,7 +584,7 @@ void ThreadActor::get_object_properties(ObjectActor& object_actor, Actor::Messag
                 auto name = property.name.to_utf8();
                 if (property_name.has_value() && name != *property_name)
                     continue;
-                serialized_properties.append({ move(name), self->serialize_property_descriptor(property) });
+                serialized_properties.append({ move(name), self->serialize_property_descriptor(property, scope) });
             }
 
             if (request == ObjectPropertiesRequest::Property) {
@@ -543,7 +599,7 @@ void ThreadActor::get_object_properties(ObjectActor& object_actor, Actor::Messag
                 for (auto& property : serialized_properties)
                     own_properties.set(property.name, move(property.descriptor));
                 if (properties.prototype.has_value())
-                    response.set("prototype"sv, self->serialize_debugger_value(*properties.prototype));
+                    response.set("prototype"sv, self->serialize_debugger_value(*properties.prototype, scope));
                 response.set("ownProperties"sv, move(own_properties));
                 // FIXME: Serialize the object's actual symbol-keyed properties.
                 response.set("ownSymbols"sv, JsonArray {});
@@ -585,8 +641,7 @@ void ThreadActor::get_object_properties(ObjectActor& object_actor, Actor::Messag
             }
 
             auto& iterator = self->devtools().register_actor<PropertyIteratorActor>(self->make_weak_ptr<ThreadActor>(), move(serialized_properties));
-            self->add_child_actor(iterator);
-            self->m_pause_scoped_actors.append(iterator);
+            self->track_actor(iterator, scope);
             response.set("iterator"sv, iterator.form());
             object->send_response({ .id = message_id }, move(response));
         });
@@ -595,8 +650,7 @@ void ThreadActor::get_object_properties(ObjectActor& object_actor, Actor::Messag
 void ThreadActor::get_object_symbols(ObjectActor& object_actor, Actor::Message const& message)
 {
     auto& iterator = devtools().register_actor<SymbolIteratorActor>(make_weak_ptr<ThreadActor>());
-    add_child_actor(iterator);
-    m_pause_scoped_actors.append(iterator);
+    track_actor(iterator, object_actor.scope());
 
     JsonObject response;
     response.set("iterator"sv, iterator.form());

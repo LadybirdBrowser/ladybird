@@ -122,7 +122,8 @@ public:
 
     void initialize_js_console(Web::DOM::Document& document);
     void js_console_input(StringView js_source);
-    void did_execute_js_console_input(JsonValue const&);
+    void did_execute_js_console_input(WebView::DebuggerValue const&);
+    ErrorOr<WebView::DebuggerObjectProperties> console_object_properties(u64 object_id);
     void run_javascript(StringView js_source);
     void did_output_js_console_message(WebView::ConsoleOutput);
 

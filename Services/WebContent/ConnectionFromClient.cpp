@@ -2231,19 +2231,21 @@ void ConnectionFromClient::evaluate_javascript_in_debugger_frame(Web::PageId pag
     async_did_evaluate_javascript_in_debugger_frame(page_id, request_id, {}, result.release_value());
 }
 
-void ConnectionFromClient::get_debugger_object_properties(Web::PageId page_id, u64 request_id, u64 object_id)
+void ConnectionFromClient::get_debugger_object_properties(Web::PageId page_id, u64 request_id, u64 object_id, WebView::DebuggerObjectScope scope)
 {
     auto page = this->page(page_id);
     if (!page.has_value()) {
         async_did_get_debugger_object_properties(page_id, request_id, "Unable to locate page"_string, {});
         return;
     }
-    if (!m_devtools_debugger) {
+    if (scope == WebView::DebuggerObjectScope::Pause && !m_devtools_debugger) {
         async_did_get_debugger_object_properties(page_id, request_id, "No debugger client is attached"_string, {});
         return;
     }
 
-    auto properties = m_devtools_debugger->properties_for_object(*page, object_id);
+    auto properties = scope == WebView::DebuggerObjectScope::Console
+        ? page->console_object_properties(object_id)
+        : m_devtools_debugger->properties_for_object(*page, object_id);
     if (properties.is_error()) {
         async_did_get_debugger_object_properties(page_id, request_id, MUST(String::from_utf8(properties.release_error().string_literal())), {});
         return;

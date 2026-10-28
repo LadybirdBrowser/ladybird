@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target" class="fixture" data-x="1">Hello<span>world</span></div>
+<script>
+    var gripGetterRan = false;
+
+    test(() => {
+        // A node's ID, an object's ID, and the page's URL depend on the run, so nodes and the URL are masked, and
+        // objects are numbered in the order they appear.
+        const renumber = grip => {
+            const ids = new Map();
+            return grip.replace(/"objectId":(\d+)/g, (_, id) => {
+                if (!ids.has(id))
+                    ids.set(id, ids.size + 1);
+                return `"objectId":${ids.get(id)}`;
+            });
+        };
+        const show = (label, value) =>
+            println(`${label}: ${renumber(internals.devtoolsGrip(value)).replace(/"contentDomReference":\{"id":\d+\}/g, '"contentDomReference":{"id":<node>}').replaceAll(location.href, "<page>")}`);
+
+        show("element", document.getElementById("target"));
+        show("text", document.getElementById("target").firstChild);
+        show("node list", document.getElementById("target").childNodes);
+        show("collection", document.getElementsByTagName("span"));
+        show("array", [1, "a", null, undefined, NaN, -0, 10n, [1, 2], { k: 1 }]);
+        show("long array", Array.from({ length: 12 }, (_, i) => i));
+        show("object", { a: 1, b: [1, 2], get c() { gripGetterRan = true; return 3; } });
+        println(`getter ran: ${gripGetterRan}`);
+        show("map", new Map([[1, "one"], ["k", { v: 1 }]]));
+        show("set", new Set([1, 2]));
+        show("function", function namedFunction(a, b) {});
+        show("error", new TypeError("boom"));
+        show("date", new Date(0));
+        show("regexp", /ab+c/gi);
+        show("prototype", Object.getPrototypeOf({}));
+        show("string object", new String("s"));
+        show("proxy", new Proxy({ a: 1 }, {}));
+
+        // An object ID from one table never names an object of another, as when a document's console replaces the last.
+        const firstId = JSON.parse(internals.devtoolsGrip({})).objectId;
+        const secondId = JSON.parse(internals.devtoolsGrip({})).objectId;
+        println(`object IDs differ across tables: ${firstId !== secondId}`);
+    });
+</script>

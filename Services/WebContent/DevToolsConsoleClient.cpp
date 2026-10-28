@@ -98,10 +98,24 @@ JsonValue DevToolsConsoleClient::serialize_value(JS::Realm& realm, JS::Value val
     return {};
 }
 
+void DevToolsConsoleClient::visit_edges(JS::Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    m_object_table.visit_edges(visitor);
+}
+
 void DevToolsConsoleClient::handle_result(JS::Value result)
 {
     auto& settings = Web::HTML::relevant_settings_object(m_console_global_environment_extensions->binding_object());
-    m_client->did_execute_js_console_input(serialize_value(settings.realm(), result));
+    Web::HTML::TemporaryExecutionContext execution_context { settings.realm() };
+    m_client->did_execute_js_console_input(m_object_table.serialize_value(result));
+}
+
+ErrorOr<WebView::DebuggerObjectProperties> DevToolsConsoleClient::properties_for_object(u64 object_id)
+{
+    auto& settings = Web::HTML::relevant_settings_object(m_console_global_environment_extensions->binding_object());
+    Web::HTML::TemporaryExecutionContext execution_context { settings.realm() };
+    return m_object_table.properties_for_object(object_id);
 }
 
 void DevToolsConsoleClient::report_exception(Utf16View name, Utf16View message, JS::ErrorData const& error_data, bool in_promise)

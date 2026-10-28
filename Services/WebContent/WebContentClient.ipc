@@ -286,7 +286,7 @@ endpoint WebContentClient routed by Web::PageId page_id
     gamepad_play_effect(Web::Gamepad::GamepadHandle handle, Web::Gamepad::GamepadEffect effect) =|
     gamepad_stop_effects(Web::Gamepad::GamepadHandle handle) =|
 
-    did_execute_js_console_input(Web::PageId page_id, JsonValue result) =|
+    did_execute_js_console_input(Web::PageId page_id, WebView::DebuggerValue result) =|
     did_output_js_console_message(Web::PageId page_id, WebView::ConsoleOutput console_output) =|
 
     did_block_resource(Web::PageId page_id, URL::URL url, String kind) =|

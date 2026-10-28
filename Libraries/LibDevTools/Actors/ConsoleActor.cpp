@@ -164,8 +164,11 @@ void ConsoleActor::handle_message(Message const& message)
 
         if (auto tab = m_tab.strong_ref()) {
             devtools().delegate().evaluate_javascript(tab->description(), *text,
-                async_handler({}, [result_id, input = *text](auto&, auto result, auto& response) {
-                    received_console_result(response, move(result_id), move(input), move(result));
+                async_handler<ConsoleActor>({}, [result_id, input = *text](auto& self, auto result, auto& response) {
+                    // The console holds the objects of its results, so they stay expandable after the debugger resumes.
+                    auto thread = self.m_thread.strong_ref();
+                    auto serialized = thread ? thread->serialize_debugger_value(result, WebView::DebuggerObjectScope::Console) : JsonValue {};
+                    received_console_result(response, move(result_id), move(input), move(serialized));
                 }));
         }
 

@@ -31,7 +31,7 @@ public:
 
     JsonObject serialize_source(Web::HTML::ScriptRegistryDescription const&);
     JsonArray serialize_sources(Vector<Web::HTML::ScriptRegistryDescription> const&);
-    JsonValue serialize_debugger_value(WebView::DebuggerValue const&);
+    JsonValue serialize_debugger_value(WebView::DebuggerValue const&, WebView::DebuggerObjectScope = WebView::DebuggerObjectScope::Pause);
     Optional<u64> frame_id_for_actor(StringView actor) const;
     void get_frame_environment(DebuggerFrameActor&, Actor::Message const&, u64 frame_id);
     void get_object_properties(ObjectActor&, Actor::Message const&, ObjectPropertiesRequest, Optional<String> property_name = {});
@@ -49,9 +49,11 @@ private:
 
     void prune_source_actors(Vector<Web::HTML::ScriptRegistryDescription> const&);
     SourceActor& source_actor_for(Web::HTML::ScriptRegistryDescription const&);
-    ObjectActor& object_actor_for(WebView::DebuggerValue const&);
+    ObjectActor& object_actor_for(u64 object_id, String const& class_name, WebView::DebuggerObjectScope);
+    JsonValue resolve_object_references(JsonValue const&, WebView::DebuggerObjectScope);
+    void track_actor(Actor&, WebView::DebuggerObjectScope);
     JsonObject serialize_environment_chain(Vector<WebView::DebuggerEnvironment>);
-    JsonObject serialize_property_descriptor(WebView::DebuggerProperty const&);
+    JsonObject serialize_property_descriptor(WebView::DebuggerProperty const&, WebView::DebuggerObjectScope);
     void clear_pause_actors();
     void attach();
     void send_wrong_state_error(Message const&, StringView message);
@@ -60,6 +62,7 @@ private:
     WeakPtr<WatcherActor> m_watcher;
     HashMap<Web::HTML::ScriptRegistryIdentifier, WeakPtr<SourceActor>> m_source_actors;
     HashMap<u64, WeakPtr<ObjectActor>> m_object_actors;
+    HashMap<u64, WeakPtr<ObjectActor>> m_console_object_actors;
     Vector<WeakPtr<DebuggerFrameActor>> m_frame_actors;
     Vector<WeakPtr<Actor>> m_pause_scoped_actors;
     Optional<Web::HTML::ScriptRegistryIdentifier> m_paused_source_id;

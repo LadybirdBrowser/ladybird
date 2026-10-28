@@ -349,7 +349,7 @@ public:
     void did_complete_debugger_breakpoint_operation(u64 request_id, Optional<String> error);
     void retrieve_debugger_environments(u64 frame_id, DevTools::DevToolsDelegate::OnDebuggerEnvironmentsReceived);
     void evaluate_javascript_in_debugger_frame(u64 frame_id, String const&, DevTools::DevToolsDelegate::OnDebuggerEvaluationComplete);
-    void retrieve_debugger_object_properties(u64 object_id, DevTools::DevToolsDelegate::OnDebuggerObjectPropertiesReceived);
+    void retrieve_debugger_object_properties(u64 object_id, DebuggerObjectScope, DevTools::DevToolsDelegate::OnDebuggerObjectPropertiesReceived);
     void retrieve_debugger_source_positions(Web::HTML::ScriptRegistryIdentifier, DevTools::DevToolsDelegate::OnDebuggerSourcePositionsReceived);
     void resolve_dom_node_url(Optional<Web::UniqueNodeID> node_id, String const& url, DevTools::DevToolsDelegate::OnResolvedURLReceived);
     void clear_inspected_dom_node();
@@ -554,7 +554,7 @@ public:
     Function<void(Web::HTML::ScriptRegistryDescription)> on_devtools_source_available;
     DevTools::DevToolsDelegate::OnDebuggerPaused on_debugger_paused;
     DevTools::DevToolsDelegate::OnDebuggerResumed on_debugger_resumed;
-    Function<void(JsonValue)> on_received_js_console_result;
+    Function<void(DebuggerValue)> on_received_js_console_result;
     Function<void(ConsoleOutput)> on_console_message;
     Function<void(Web::UniqueNodeID)> on_inspect_element_request;
     Function<void(u64 request_id, URL::URL const&, ByteString const&, Vector<HTTP::Header> const&, ByteBuffer, Optional<String>, String, bool, Web::Fetch::Infrastructure::RequestPriority)> on_network_request_started;

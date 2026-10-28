@@ -185,10 +185,10 @@ public:
     virtual void remove_debugger_breakpoint(TabDescription const&, WebView::DebuggerBreakpointLocation, OnDebuggerBreakpointOperationComplete) const { }
     virtual void retrieve_debugger_environments(TabDescription const&, u64, OnDebuggerEnvironmentsReceived) const { }
     virtual void evaluate_javascript_in_debugger_frame(TabDescription const&, u64, String const&, OnDebuggerEvaluationComplete) const { }
-    virtual void retrieve_debugger_object_properties(TabDescription const&, u64, OnDebuggerObjectPropertiesReceived) const { }
+    virtual void retrieve_debugger_object_properties(TabDescription const&, u64, WebView::DebuggerObjectScope, OnDebuggerObjectPropertiesReceived) const { }
     virtual void retrieve_debugger_source_positions(TabDescription const&, Web::HTML::ScriptRegistryIdentifier, OnDebuggerSourcePositionsReceived) const { }
 
-    using OnScriptEvaluationComplete = Function<void(ErrorOr<JsonValue>)>;
+    using OnScriptEvaluationComplete = Function<void(ErrorOr<WebView::DebuggerValue>)>;
     virtual void evaluate_javascript(TabDescription const&, String const&, OnScriptEvaluationComplete) const { }
 
     using OnConsoleMessage = Function<void(WebView::ConsoleOutput)>;

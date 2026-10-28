@@ -2335,9 +2335,16 @@ void PageClient::initialize_js_console(Web::DOM::Document& document)
     document.set_console_client(console_client);
 }
 
-void PageClient::did_execute_js_console_input(JsonValue const& result)
+void PageClient::did_execute_js_console_input(WebView::DebuggerValue const& result)
 {
     client().async_did_execute_js_console_input(m_id, result);
+}
+
+ErrorOr<WebView::DebuggerObjectProperties> PageClient::console_object_properties(u64 object_id)
+{
+    if (!m_top_level_document_console_client)
+        return Error::from_string_literal("Unable to locate console object");
+    return as<DevToolsConsoleClient>(*m_top_level_document_console_client).properties_for_object(object_id);
 }
 
 void PageClient::js_console_input(StringView js_source)

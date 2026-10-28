@@ -40,6 +40,7 @@ ErrorOr<void> encode(Encoder& encoder, WebView::DebuggerValue const& value)
     TRY(encoder.encode(value.text));
     TRY(encoder.encode(value.object_id));
     TRY(encoder.encode(value.object_class));
+    TRY(encoder.encode(value.grip_fields));
     return {};
 }
 
@@ -53,6 +54,7 @@ ErrorOr<WebView::DebuggerValue> decode(Decoder& decoder)
         .text = TRY(decoder.decode<Utf16String>()),
         .object_id = TRY(decoder.decode<u64>()),
         .object_class = TRY(decoder.decode<String>()),
+        .grip_fields = TRY(decoder.decode<JsonValue>()),
     };
 }
 

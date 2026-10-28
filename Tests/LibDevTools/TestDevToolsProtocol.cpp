@@ -1299,10 +1299,17 @@ public:
         });
     }
 
-    virtual void retrieve_debugger_object_properties(DevTools::TabDescription const&, u64 object_id, OnDebuggerObjectPropertiesReceived on_complete) const override
+    virtual void evaluate_javascript(DevTools::TabDescription const&, String const& script, OnScriptEvaluationComplete on_complete) const override
+    {
+        last_evaluated_script = script;
+        on_complete(console_evaluation_result);
+    }
+
+    virtual void retrieve_debugger_object_properties(DevTools::TabDescription const&, u64 object_id, WebView::DebuggerObjectScope scope, OnDebuggerObjectPropertiesReceived on_complete) const override
     {
         ++retrieve_debugger_object_properties_call_count;
         last_debugger_object_id = object_id;
+        last_debugger_object_scope = scope;
         if (debugger_object_properties_error.has_value()) {
             on_complete(*debugger_object_properties_error);
             return;
@@ -1698,6 +1705,9 @@ public:
     mutable size_t retrieve_debugger_environments_call_count { 0 };
     mutable size_t evaluate_javascript_in_debugger_frame_call_count { 0 };
     mutable size_t retrieve_debugger_object_properties_call_count { 0 };
+    mutable Optional<WebView::DebuggerObjectScope> last_debugger_object_scope;
+    mutable Optional<String> last_evaluated_script;
+    WebView::DebuggerValue console_evaluation_result;
     mutable Optional<String> debugger_object_properties_error;
     mutable DevTools::DevToolsDelegate::OnDebuggerPaused on_debugger_paused;
     mutable DevTools::DevToolsDelegate::OnDebuggerResumed on_debugger_resumed;
@@ -4646,6 +4656,57 @@ TEST_CASE(console_inspect_element)
     auto unknown_node_reference = content_dom_reference;
     unknown_node_reference.set("id"sv, 999);
     EXPECT(resolve(move(unknown_node_reference)).get("nodeFront"sv)->is_null());
+}
+
+TEST_CASE(console_evaluation_result_object_grips)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    auto target = get_frame_target(client, actor_from(get_tab(client), "actor"sv));
+    auto console_actor = actor_from(target, "consoleActor"sv);
+
+    // WebContent names the objects inside a result's grip fields by ID; the server makes each one an object actor.
+    session->delegate.console_evaluation_result = {
+        .type = WebView::DebuggerValueType::Object,
+        .boolean_value = false,
+        .number_value = 0,
+        .text = {},
+        .object_id = 7,
+        .object_class = "NodeList"_string,
+        .grip_fields = MUST(JsonValue::from_string(R"~~~({"preview":{"kind":"ArrayLike","length":1,"items":[
+            {"type":"object","objectId":8,"class":"HTMLDivElement","contentDomReference":{"id":5},
+             "preview":{"kind":"DOMNode","nodeName":"div","attributes":{"class":"x"}}}]}})~~~"sv)),
+    };
+
+    JsonObject evaluate;
+    evaluate.set("to"sv, console_actor);
+    evaluate.set("type"sv, "evaluateJSAsync"sv);
+    evaluate.set("text"sv, "document.querySelectorAll('div')"sv);
+    auto result_id = client.request(move(evaluate)).get_string("resultID"sv).release_value();
+
+    auto evaluation = read_packet_with_type(client, "evaluationResult"sv);
+    EXPECT_EQ(evaluation.get_string("resultID"sv).value(), result_id);
+    auto result = evaluation.get_object("result"sv).release_value();
+    EXPECT_EQ(result.get_string("class"sv).value(), "NodeList"sv);
+    EXPECT(result.has_string("actor"sv));
+    EXPECT_EQ(result.get_object("preview"sv)->get_integer<u32>("length"sv).value(), 1u);
+
+    auto item = result.get_object("preview"sv)->get_array("items"sv)->at(0).as_object();
+    auto item_actor = actor_from(item, "actor"sv);
+    EXPECT_NE(item_actor, actor_from(result, "actor"sv));
+    EXPECT_EQ(item.get_string("class"sv).value(), "HTMLDivElement"sv);
+    EXPECT(!item.has("objectId"sv));
+    EXPECT_EQ(item.get_object("preview"sv)->get_object("attributes"sv)->get_string("class"sv).value(), "x"sv);
+    EXPECT_EQ(item.get_object("contentDomReference"sv)->get_integer<u64>("id"sv).value(), 5u);
+    EXPECT_EQ(item.get_object("contentDomReference"sv)->get_integer<u64>("browsingContextId"sv).value(), target.get_integer<u64>("browsingContextID"sv).value());
+
+    // Expanding an object of a console result asks for the properties of the console's object, not the debugger's.
+    auto properties = client.request(item_actor, "prototypeAndProperties"sv);
+    EXPECT_EQ(session->delegate.last_debugger_object_id.value(), 8u);
+    EXPECT_EQ(session->delegate.last_debugger_object_scope.value(), WebView::DebuggerObjectScope::Console);
+    EXPECT(properties.get_object("ownProperties"sv)->has("answer"sv));
 }
 
 TEST_CASE(inspector_walker_navigation_reloads_root)

@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/JsonValue.h>
 #include <AK/Span.h>
 #include <AK/Types.h>
 #include <AK/Utf16String.h>
@@ -55,6 +56,17 @@ struct DebuggerValue {
     Utf16String text;
     u64 object_id { 0 };
     String object_class;
+
+    // The fields an object's grip has beyond its type, actor, and class: its preview, e.g. An object inside them is
+    // named by an objectId field, rather than an actor.
+    JsonValue grip_fields;
+};
+
+// Whether the debugger's paused state holds an object, so it's gone once the debugger resumes, or the console does, so
+// it stays until the page navigates.
+enum class DebuggerObjectScope : u8 {
+    Pause,
+    Console,
 };
 
 struct DebuggerBinding {

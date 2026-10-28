@@ -1270,7 +1270,7 @@ void WebContentPage::did_cut_selected_text(u64 request_id, ByteString selection)
     view().did_cut_selected_text({}, request_id, move(selection));
 }
 
-void WebContentPage::did_execute_js_console_input(JsonValue result)
+void WebContentPage::did_execute_js_console_input(DebuggerValue result)
 {
     if (displays_tab()) {
         if (view().on_received_js_console_result)
