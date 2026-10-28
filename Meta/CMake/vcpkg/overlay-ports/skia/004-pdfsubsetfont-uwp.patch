@@ -1,0 +1,12 @@
+diff --git a/src/pdf/SkPDFSubsetFont.cpp b/src/pdf/SkPDFSubsetFont.cpp
+index a8aa48a92b..69bfa17827 100644
+--- a/src/pdf/SkPDFSubsetFont.cpp
++++ b/src/pdf/SkPDFSubsetFont.cpp
+@@ -199,6 +199,7 @@ bool SkPDFCanSubsetTableBasedFonts() {
+ 
+ #else
+ 
++#include "include/core/SkData.h"
+ sk_sp<SkData> SkPDFSubsetFont(const SkTypeface&, const SkPDFGlyphUse&) {
+     return nullptr;
+ }

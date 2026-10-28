@@ -1,0 +1,28 @@
+diff --git a/modules/skcms/BUILD.gn b/modules/skcms/BUILD.gn
+index 5d037a94c9..0ef92c4762 100644
+--- a/modules/skcms/BUILD.gn
++++ b/modules/skcms/BUILD.gn
+@@ -85,12 +85,22 @@ static_library("skcms") {
+   if (!is_win || is_clang) {
+     cflags += [ "-std=c11" ]
+   }
++
++  defines = []
+   if (target_cpu != "x64" || target_os == "android") {
+-    defines = [
++    defines += [
+       "SKCMS_DISABLE_HSW",
+       "SKCMS_DISABLE_SKX",
+     ]
+   }
++
++  if (is_component_build) {
++    defines += [
++      "SKCMS_DLL",
++      "SKCMS_IMPLEMENTATION=1",
++    ]
++  }
++
+   public = skcms_public_headers
+   sources = skcms_public + skcms_TransformBaseline
+   deps = [

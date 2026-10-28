@@ -72,6 +72,7 @@ def get_files_to_format(use_git: bool, additional_files: List[str]) -> List[str]
                 "*.h",
                 "*.mm",
                 ":!:Base",
+                ":!:Meta/CMake/vcpkg/overlay-ports/skia/example",
             ],
             return_output=True,
         )
