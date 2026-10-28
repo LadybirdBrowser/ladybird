@@ -43,6 +43,11 @@ enum class ParsingMode {
     SVGPresentationAttribute, // See https://svgwg.org/svg2-draft/types.html#presentation-attribute-css-value
 };
 
+enum class PseudoElementParsingMode {
+    Selector,
+    ComputedStyle,
+};
+
 enum class IsUAStyleSheet {
     Yes,
     No,
@@ -106,7 +111,7 @@ public:
     // Contrary to the name, these parse a comma-separated list of selectors, according to the spec.
     Optional<SelectorList> parse_as_selector(Utf16View, SelectorParsingMode = SelectorParsingMode::Standard);
 
-    Optional<Selector::PseudoElementSelector> parse_as_pseudo_element_selector(Utf16View);
+    Optional<Selector::PseudoElementSelector> parse_as_pseudo_element_selector(Utf16View, PseudoElementParsingMode = PseudoElementParsingMode::Selector);
 
     Optional<RustQueryHandle> parse_as_supports(Utf16View);
 
@@ -187,7 +192,7 @@ RefPtr<CSS::StyleValue const> parse_css_value(CSS::Parser::ParsingParams const&,
 RefPtr<CSS::StyleValue const> parse_css_type(CSS::Parser::ParsingParams const&, Utf16View, CSS::ValueType);
 RefPtr<CSS::StyleValue const> parse_css_descriptor(CSS::Parser::ParsingParams const&, CSS::AtRuleID, CSS::DescriptorNameAndID const&, Utf16View);
 Optional<CSS::SelectorList> parse_selector(CSS::Parser::ParsingParams const&, Utf16View);
-Optional<CSS::Selector::PseudoElementSelector> parse_pseudo_element_selector(CSS::Parser::ParsingParams const&, Utf16View);
+Optional<CSS::Selector::PseudoElementSelector> parse_pseudo_element_selector(CSS::Parser::ParsingParams const&, Utf16View, CSS::Parser::PseudoElementParsingMode = CSS::Parser::PseudoElementParsingMode::Selector);
 Optional<CSS::RustRule> parse_css_rule(CSS::Parser::ParsingParams const&, Utf16View, bool nested = false);
 Optional<CSS::RustQueryHandle> parse_css_supports(CSS::Parser::ParsingParams const&, Utf16View);
 WEB_API ErrorOr<Utf16String> css_decode_bytes(Optional<StringView> const& environment_encoding, Optional<StringView> mime_type_charset, ReadonlyBytes encoded_string);
