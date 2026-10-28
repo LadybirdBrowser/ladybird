@@ -463,3 +463,11 @@ TEST_CASE(autocomplete_suggestion_display_text)
     search_suggestion.text = "https://example.com/"_string;
     EXPECT_EQ(WebView::autocomplete_suggestion_display_text(search_suggestion), "https://example.com/"sv);
 }
+
+TEST_CASE(search_query_display_truncation)
+{
+    EXPECT_EQ(s_test_engine.format_search_query_for_display("short"sv), "Search Test for “short”"sv);
+
+    // The 32nd byte falls in the middle of the first "é".
+    EXPECT_EQ(s_test_engine.format_search_query_for_display("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaéé"sv), "Search Test for “aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaé…”"sv);
+}

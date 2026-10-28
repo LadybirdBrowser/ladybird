@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Utf8View.h>
 #include <LibURL/URL.h>
 #include <LibWebView/SearchEngine.h>
 
@@ -31,11 +32,12 @@ String SearchEngine::format_search_query_for_display(StringView query) const
 {
     static constexpr auto MAX_SEARCH_STRING_LENGTH = 32;
 
-    return MUST(String::formatted("Search {} for “{:.{}}{}”",
-        name,
-        query,
-        MAX_SEARCH_STRING_LENGTH,
-        query.length() > MAX_SEARCH_STRING_LENGTH ? "…"sv : ""sv));
+    Utf8View query_view { query };
+    auto is_truncated = query_view.length() > MAX_SEARCH_STRING_LENGTH;
+    if (is_truncated)
+        query_view = query_view.unicode_substring_view(0, MAX_SEARCH_STRING_LENGTH);
+
+    return MUST(String::formatted("Search {} for “{}{}”", name, query_view.as_string(), is_truncated ? "…"sv : ""sv));
 }
 
 String SearchEngine::format_search_query_for_navigation(StringView query) const
