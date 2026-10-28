@@ -3151,8 +3151,9 @@ void ViewImplementation::initialize_tab(Web::HTML::VisibilityState system_visibi
     on_cancel_geolocation_position_request = [this](WebContentPage& requesting_page, u64 request_id) {
         ScopeGuard update_location_in_use = [this] { this->update_location_in_use(); };
         auto provider_request_id = m_geolocation_position_request_ids.take({ requesting_page, request_id });
-        if (provider_request_id.has_value())
-            Application::the().cancel_geolocation_position_request(*provider_request_id);
+        if (!provider_request_id.has_value())
+            return;
+        Application::the().cancel_geolocation_position_request(*provider_request_id);
         m_geolocation_request_documents.remove({ requesting_page, request_id });
     };
 
@@ -3182,11 +3183,11 @@ void ViewImplementation::initialize_tab(Web::HTML::VisibilityState system_visibi
     on_stop_geolocation_position_watch = [this](WebContentPage& requesting_page, u64 request_id) {
         ScopeGuard update_location_in_use = [this] { this->update_location_in_use(); };
         auto provider_watch_id = m_geolocation_watch_ids.take({ requesting_page, request_id });
-        m_geolocation_request_documents.remove({ requesting_page, request_id });
         if (!provider_watch_id.has_value())
             return;
 
         Application::the().stop_watching_geolocation_position(*provider_watch_id);
+        m_geolocation_request_documents.remove({ requesting_page, request_id });
     };
 }
 
