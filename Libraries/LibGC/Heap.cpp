@@ -51,6 +51,12 @@ static constexpr size_t GC_MIN_BYTES_THRESHOLD { 32 * 1024 * 1024 };
 static constexpr size_t GC_HEAP_GROWTH_FACTOR_NUMERATOR { 16 };
 static constexpr size_t GC_HEAP_GROWTH_FACTOR_DENOMINATOR { 4 };
 
+// NB: Memory that cells own outside the heap (array buffer contents, decoded images) is mostly large, long-lived data,
+//     and allocating more cells does not grow it. Letting it grow the threshold by the cell factor makes a page with
+//     1 GiB of such memory allocate ~4 GiB of cells between collections, so it only grows the threshold by a tenth.
+static constexpr size_t GC_EXTERNAL_GROWTH_FACTOR_NUMERATOR { 1 };
+static constexpr size_t GC_EXTERNAL_GROWTH_FACTOR_DENOMINATOR { 10 };
+
 static constexpr int GC_INCREMENTAL_SWEEP_INTERVAL_MS = 16;
 static constexpr int GC_INCREMENTAL_SWEEP_SLICE_MS = 5;
 
@@ -417,17 +423,14 @@ void Heap::update_gc_bytes_threshold(size_t live_cell_bytes, size_t live_externa
         m_stats->live_cell_bytes = live_cell_bytes;
         m_stats->live_external_bytes = live_external_bytes;
     }
-    Checked<size_t> live_bytes = live_cell_bytes;
-    live_bytes += live_external_bytes;
-
-    if (live_bytes.has_overflow()) {
-        m_gc_bytes_threshold = NumericLimits<size_t>::max();
-        return;
-    }
-
-    Checked<size_t> next_gc_bytes_threshold = live_bytes.value();
+    Checked<size_t> next_gc_bytes_threshold = live_cell_bytes;
     next_gc_bytes_threshold *= GC_HEAP_GROWTH_FACTOR_NUMERATOR;
     next_gc_bytes_threshold /= GC_HEAP_GROWTH_FACTOR_DENOMINATOR;
+
+    Checked<size_t> external_growth = live_external_bytes;
+    external_growth *= GC_EXTERNAL_GROWTH_FACTOR_NUMERATOR;
+    external_growth /= GC_EXTERNAL_GROWTH_FACTOR_DENOMINATOR;
+    next_gc_bytes_threshold += external_growth;
 
     if (next_gc_bytes_threshold.has_overflow()) {
         m_gc_bytes_threshold = NumericLimits<size_t>::max();
