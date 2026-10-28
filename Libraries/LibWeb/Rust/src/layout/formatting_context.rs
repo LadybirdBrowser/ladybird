@@ -1686,7 +1686,7 @@ fn apply_root_sizing_directives(
             body_input
         }
         ParticipationInParentFormattingContext::AbsolutelyPositioned(abspos_inputs) => {
-            abspos_engine::AbsposEngine::for_run(run).dimension_out_of_flow_root(run.box_, abspos_inputs);
+            abspos_engine::AbsposEngine::for_run(run).dimension_out_of_flow_root(run.sized_root(), abspos_inputs);
             body_input_with_inner_available_space(run, input)
         }
         ParticipationInParentFormattingContext::Item => {
@@ -1911,19 +1911,6 @@ fn finalize_float_root(run: &FormattingContextRun, input: &LayoutInput, body_res
     );
 }
 
-/// Whether size_skipped_independent_root() sizes a child that participates in its parent's formatting context as
-/// `participation`, which it does in the record its parent holds for the child.
-fn parent_sizes_skipped_root_in_its_record(participation: &ParticipationInParentFormattingContext) -> bool {
-    match participation {
-        ParticipationInParentFormattingContext::BlockLevel
-        | ParticipationInParentFormattingContext::Float { .. }
-        | ParticipationInParentFormattingContext::AbsolutelyPositioned(_) => true,
-        ParticipationInParentFormattingContext::AtomicInline
-        | ParticipationInParentFormattingContext::Item
-        | ParticipationInParentFormattingContext::Root => false,
-    }
-}
-
 fn size_skipped_independent_root(
     run: &FormattingContextRun,
     parent_block: Option<&block_formatting_context::BlockFormattingContext>,
@@ -1946,8 +1933,10 @@ fn size_skipped_independent_root(
         }
         ParticipationInParentFormattingContext::AbsolutelyPositioned(abspos_inputs) => {
             let engine = abspos_engine::AbsposEngine::for_run(run);
-            engine.dimension_out_of_flow_root(child, abspos_inputs);
-            engine.finalize_out_of_flow_root_after_inside_layout(child, abspos_inputs, None);
+            let sized_child =
+                sizing_context::SizedRecord::new(child, used_values::RecordInFrame::new(record, run.callbacks.frame));
+            engine.dimension_out_of_flow_root(sized_child, abspos_inputs);
+            engine.finalize_out_of_flow_root_after_inside_layout(sized_child, abspos_inputs, None);
         }
         ParticipationInParentFormattingContext::BlockLevel => {
             unreachable!("a block formatting context lays out only boxes, and every block-level box can have children")
@@ -2482,7 +2471,7 @@ fn lay_out_run_root_and_contents<'pass>(
         }
         ParticipationInParentFormattingContext::AbsolutelyPositioned(abspos_inputs) => {
             abspos_engine::AbsposEngine::for_run(run).finalize_out_of_flow_root_after_inside_layout(
-                run.box_,
+                run.sized_root(),
                 abspos_inputs,
                 Some(abspos_engine::InsideLayoutBlockSizes {
                     automatic_content_block_size: result.automatic_content_block_size,
@@ -2826,13 +2815,6 @@ pub(crate) fn layout_inside_child_with_input_cells(
     if let Some(used) = record_kept_by_parent {
         child_input_cells.apply_to_record(used);
     }
-    // NB: A child kept without a record that this run lays out itself gets a record of the cells it was handed.
-    let record_for_this_run = || {
-        record_kept_by_parent.unwrap_or_else(|| {
-            run.records
-                .lay_out_child_in_this_run(child, child_input_cells, run.callbacks.frame)
-        })
-    };
     let skipped = || ChildLayoutOutcome::Skipped {
         depends_on_percentage_block_size: run.sizing().skipped_child_depends_on_percentage_block_size(child),
     };
@@ -2892,14 +2874,17 @@ pub(crate) fn layout_inside_child_with_input_cells(
         Some(FormattingContextType::InternalReplaced | FormattingContextType::ReplacedWithChildren)
     );
     if !facts.can_have_children() && !creates_replaced_context {
-        if record_kept_by_parent.is_none() && !parent_sizes_skipped_root_in_its_record(&input.participation) {
-            // NB: A child kept without a record that nothing sizes further keeps the cells it was handed, in a record
-            //     of this layout's own, and is handed back like a child its own run laid out.
-            let record_of_this_layout = child_input_cells.materialize_record(run.callbacks.frame);
-            run.records.note_child_handed_back(child);
-            return ChildLayout::of_child_sized_in_parent_run(skipped(), &record_of_this_layout);
-        }
-        let used = record_for_this_run();
+        // NB: A child its parent's call keeps no record of is sized in a record of this layout's own, and handed back
+        //     like a child its own run laid out.
+        let record_of_this_layout;
+        let used = match record_kept_by_parent {
+            Some(used) => used,
+            None => {
+                record_of_this_layout = child_input_cells.materialize_record(run.callbacks.frame);
+                run.records.note_child_handed_back(child);
+                &record_of_this_layout
+            }
+        };
         size_skipped_independent_root(run, parent_block, child, used, &input);
         return ChildLayout::of_child_sized_in_parent_run(skipped(), used);
     }

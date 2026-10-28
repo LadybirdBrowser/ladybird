@@ -582,41 +582,6 @@ impl<'arena> RunRecords<'arena> {
         );
     }
 
-    /// Gives `child`, a box this run keeps without a record, a record with the cells `cells`, for this run to lay the
-    /// box out itself.
-    #[track_caller]
-    pub(crate) fn lay_out_child_in_this_run(
-        &self,
-        child: Node,
-        cells: used_values::RootInputCells,
-        frame: geometry::Frame,
-    ) -> &UsedValues {
-        assert!(
-            self.is_innermost_run(),
-            "only the innermost layout run may register records"
-        );
-        if self.is_root_with_record(child) {
-            self.panic_for_box_not_held(child)
-        }
-        let mut held_boxes = self.held_boxes.borrow_mut();
-        let Some(kept) = held_boxes.get_mut(&child) else {
-            self.panic_for_box_not_held(child)
-        };
-        assert!(
-            !matches!(
-                kept.holding,
-                KeptBoxHolding::LaidOutByThisRun { .. } | KeptBoxHolding::LaidOutInRecordItsLayoutOwns
-            ),
-            "slot {} already has a record in the run rooted at slot {}",
-            child.slot_index(),
-            self.root.slot_index()
-        );
-        let record = NonNull::from(Box::leak(Box::new(cells.materialize_record(frame))));
-        kept.holding = KeptBoxHolding::LaidOutByThisRun { record };
-        // SAFETY: The run keeps the record until it is dropped, which ends this borrow of the run.
-        unsafe { record.as_ref() }
-    }
-
     fn assert_registers_in_innermost_run(&self, node: Node) {
         if self.is_root_with_record(node) {
             self.panic_for_box_registered_twice(node);
@@ -1028,28 +993,6 @@ impl<'arena> RunRecords<'arena> {
         Some(BoxMetrics::LaidOutByThisRun(
             used_values::RecordInFrame::in_its_own_frame(unsafe { record.as_ref() }),
         ))
-    }
-
-    /// The sizes, size constraints, box sides and baselines of `node` as box_metrics_of() has them, with the record of a
-    /// box this run lays out read in frame `reader`.
-    #[track_caller]
-    pub(crate) fn box_metrics_in_frame(&self, node: Node, reader: geometry::Frame) -> BoxMetrics<'_> {
-        match self.box_metrics_in_frame_if_owned(node, reader) {
-            Some(metrics) => metrics,
-            None => self.panic_for_box_not_held(node),
-        }
-    }
-
-    /// The sizes, size constraints, box sides and baselines of `node` as box_metrics_of_if_owned() has them, with the
-    /// record of a box this run lays out read in frame `reader`.
-    #[track_caller]
-    pub(crate) fn box_metrics_in_frame_if_owned(&self, node: Node, reader: geometry::Frame) -> Option<BoxMetrics<'_>> {
-        Some(match self.box_metrics_of_if_owned(node)? {
-            BoxMetrics::LaidOutByThisRun(record) => {
-                BoxMetrics::LaidOutByThisRun(used_values::RecordInFrame::new(record.record(), reader))
-            }
-            metrics_kept_as_a_value => metrics_kept_as_a_value,
-        })
     }
 
     /// What the fragment of `node` shows of the box's own layout, which finishes the lines this run laid out in it.
