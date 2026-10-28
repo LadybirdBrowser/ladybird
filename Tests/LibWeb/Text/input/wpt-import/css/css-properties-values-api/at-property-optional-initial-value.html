@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Properties and Values API: optional initial-value descriptor</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-properties-values-api/#initial-value-descriptor">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/9078">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+@property --registered {
+    syntax: '*';
+    initial-value: ;
+    inherits: false;
+}
+#target {
+    --test-bg: var(--registered) green;
+    --test-fallback: var(--registered, red);
+    background-color: var(--test-bg, var(--test-fallback));
+}
+</style>
+<div id="target"></div>
+<script>
+test(function() {
+    const target = document.getElementById('target');
+    const style = getComputedStyle(target);
+
+    // When initial-value is omitted (empty space), the property should be registered
+    // with a space character as the initial value, making var(--registered) green
+    // evaluate to " green" which is a valid color value.
+    assert_equals(style.backgroundColor, 'rgb(0, 128, 0)',
+      'background-color should be green when @property has empty initial-value');
+  }, '@property with empty initial-value should use space character');
+</script>
