@@ -49,6 +49,7 @@ pub(super) fn layout_replaced_with_children(
     let formatting_context::ChildRunOutcome {
         result: wrapper_result,
         fragment_arrival,
+        ..
     } = formatting_context::run_formatting_context(
         run.fragments.as_deref(),
         wrapper_state,

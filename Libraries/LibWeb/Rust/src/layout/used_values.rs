@@ -582,14 +582,6 @@ impl UsedValues {
         scratch.content_block_size.set(self.content_block_size.get());
     }
 
-    pub(crate) fn has_definite_inline_size(&self) -> bool {
-        self.has_definite_inline_size.get()
-    }
-
-    pub(crate) fn has_definite_block_size(&self) -> bool {
-        self.has_definite_block_size.get()
-    }
-
     pub(crate) fn set_content_inline_size(&self, value: CssPixels) {
         // Negative inline sizes are not allowed in CSS. We have a bug somewhere! Clamp to 0 to avoid doing too much damage.
         self.content_inline_size
@@ -645,98 +637,6 @@ impl UsedValues {
             && fragment.uses_collapsing_borders_model == self.uses_collapsing_borders_model.get()
     }
 
-    fn collapsed_border_share(&self, width: CssPixels, start_edge: bool) -> CssPixels {
-        collapsed_border_share(width, start_edge, self.is_collapsed_borders_table_box.get())
-    }
-
-    pub(crate) fn border_left_collapsed(&self, collapsed: bool) -> CssPixels {
-        if collapsed {
-            self.collapsed_border_share(self.border_left.get(), true)
-        } else {
-            self.border_left.get()
-        }
-    }
-
-    pub(crate) fn border_right_collapsed(&self, collapsed: bool) -> CssPixels {
-        if collapsed {
-            self.collapsed_border_share(self.border_right.get(), false)
-        } else {
-            self.border_right.get()
-        }
-    }
-
-    pub(crate) fn border_top_collapsed(&self, collapsed: bool) -> CssPixels {
-        if collapsed {
-            self.collapsed_border_share(self.border_top.get(), true)
-        } else {
-            self.border_top.get()
-        }
-    }
-
-    pub(crate) fn border_bottom_collapsed(&self, collapsed: bool) -> CssPixels {
-        if collapsed {
-            self.collapsed_border_share(self.border_bottom.get(), false)
-        } else {
-            self.border_bottom.get()
-        }
-    }
-
-    pub(crate) fn border_box_left(&self, collapsed: bool) -> CssPixels {
-        self.border_left_collapsed(collapsed) + self.padding_left.get()
-    }
-
-    pub(crate) fn border_box_right(&self, collapsed: bool) -> CssPixels {
-        self.border_right_collapsed(collapsed) + self.padding_right.get()
-    }
-
-    pub(crate) fn border_box_top(&self, collapsed: bool) -> CssPixels {
-        self.border_top_collapsed(collapsed) + self.padding_top.get()
-    }
-
-    pub(crate) fn border_box_bottom(&self, collapsed: bool) -> CssPixels {
-        self.border_bottom_collapsed(collapsed) + self.padding_bottom.get()
-    }
-
-    pub(crate) fn horizontal_margin_border_padding(&self) -> CssPixels {
-        self.margin_left.get()
-            + self.border_left.get()
-            + self.padding_left.get()
-            + self.padding_right.get()
-            + self.border_right.get()
-            + self.margin_right.get()
-    }
-
-    pub(crate) fn border_box_inline_size(&self, collapsed: bool) -> CssPixels {
-        self.border_box_left(collapsed) + self.content_inline_size.get() + self.border_box_right(collapsed)
-    }
-
-    pub(crate) fn border_box_block_size(&self, collapsed: bool) -> CssPixels {
-        self.border_box_top(collapsed) + self.content_block_size.get() + self.border_box_bottom(collapsed)
-    }
-
-    pub(crate) fn margin_box_bottom(&self, collapsed: bool) -> CssPixels {
-        self.margin_bottom.get() + self.border_box_bottom(collapsed)
-    }
-
-    pub(crate) fn margin_box_top(&self, collapsed: bool) -> CssPixels {
-        self.margin_top.get() + self.border_box_top(collapsed)
-    }
-
-    pub(crate) fn margin_box_inline_size(&self, collapsed: bool) -> CssPixels {
-        self.margin_left.get()
-            + self.border_box_left(collapsed)
-            + self.content_inline_size.get()
-            + self.border_box_right(collapsed)
-            + self.margin_right.get()
-    }
-
-    pub(crate) fn margin_box_block_size(&self, collapsed: bool) -> CssPixels {
-        self.margin_top.get()
-            + self.border_box_top(collapsed)
-            + self.content_block_size.get()
-            + self.margin_box_bottom(collapsed)
-    }
-
     pub(crate) fn available_inner_space_or_constraints_from(&self, outer: AvailableSpace) -> AvailableSpace {
         use AvailableSize;
 
@@ -761,6 +661,163 @@ impl UsedValues {
         }
     }
 }
+
+/// The sizes, size constraints and box sides of a box, with what derives from them, whether a run holds them in the box's
+/// record or its parent holds them as a value.
+pub(crate) trait BoxMetricCells {
+    fn content_inline_size(&self) -> CssPixels;
+    fn content_block_size(&self) -> CssPixels;
+    fn margin_left(&self) -> CssPixels;
+    fn margin_right(&self) -> CssPixels;
+    fn margin_top(&self) -> CssPixels;
+    fn margin_bottom(&self) -> CssPixels;
+    fn border_left(&self) -> CssPixels;
+    fn border_right(&self) -> CssPixels;
+    fn border_top(&self) -> CssPixels;
+    fn border_bottom(&self) -> CssPixels;
+    fn padding_left(&self) -> CssPixels;
+    fn padding_right(&self) -> CssPixels;
+    fn padding_top(&self) -> CssPixels;
+    fn padding_bottom(&self) -> CssPixels;
+    fn has_definite_inline_size(&self) -> bool;
+    fn has_definite_block_size(&self) -> bool;
+    fn uses_collapsing_borders_model(&self) -> bool;
+    fn is_collapsed_borders_table_box(&self) -> bool;
+
+    fn border_left_collapsed(&self, collapsed: bool) -> CssPixels {
+        if collapsed {
+            collapsed_border_share(self.border_left(), true, self.is_collapsed_borders_table_box())
+        } else {
+            self.border_left()
+        }
+    }
+
+    fn border_right_collapsed(&self, collapsed: bool) -> CssPixels {
+        if collapsed {
+            collapsed_border_share(self.border_right(), false, self.is_collapsed_borders_table_box())
+        } else {
+            self.border_right()
+        }
+    }
+
+    fn border_top_collapsed(&self, collapsed: bool) -> CssPixels {
+        if collapsed {
+            collapsed_border_share(self.border_top(), true, self.is_collapsed_borders_table_box())
+        } else {
+            self.border_top()
+        }
+    }
+
+    fn border_bottom_collapsed(&self, collapsed: bool) -> CssPixels {
+        if collapsed {
+            collapsed_border_share(self.border_bottom(), false, self.is_collapsed_borders_table_box())
+        } else {
+            self.border_bottom()
+        }
+    }
+
+    fn border_box_left(&self, collapsed: bool) -> CssPixels {
+        self.border_left_collapsed(collapsed) + self.padding_left()
+    }
+
+    fn border_box_right(&self, collapsed: bool) -> CssPixels {
+        self.border_right_collapsed(collapsed) + self.padding_right()
+    }
+
+    fn border_box_top(&self, collapsed: bool) -> CssPixels {
+        self.border_top_collapsed(collapsed) + self.padding_top()
+    }
+
+    fn border_box_bottom(&self, collapsed: bool) -> CssPixels {
+        self.border_bottom_collapsed(collapsed) + self.padding_bottom()
+    }
+
+    fn horizontal_margin_border_padding(&self) -> CssPixels {
+        self.margin_left()
+            + self.border_left()
+            + self.padding_left()
+            + self.padding_right()
+            + self.border_right()
+            + self.margin_right()
+    }
+
+    fn border_box_inline_size(&self, collapsed: bool) -> CssPixels {
+        self.border_box_left(collapsed) + self.content_inline_size() + self.border_box_right(collapsed)
+    }
+
+    fn border_box_block_size(&self, collapsed: bool) -> CssPixels {
+        self.border_box_top(collapsed) + self.content_block_size() + self.border_box_bottom(collapsed)
+    }
+
+    fn margin_box_bottom(&self, collapsed: bool) -> CssPixels {
+        self.margin_bottom() + self.border_box_bottom(collapsed)
+    }
+
+    fn margin_box_top(&self, collapsed: bool) -> CssPixels {
+        self.margin_top() + self.border_box_top(collapsed)
+    }
+
+    fn margin_box_inline_size(&self, collapsed: bool) -> CssPixels {
+        self.margin_left()
+            + self.border_box_left(collapsed)
+            + self.content_inline_size()
+            + self.border_box_right(collapsed)
+            + self.margin_right()
+    }
+
+    fn margin_box_block_size(&self, collapsed: bool) -> CssPixels {
+        self.margin_top()
+            + self.border_box_top(collapsed)
+            + self.content_block_size()
+            + self.margin_box_bottom(collapsed)
+    }
+}
+
+macro_rules! impl_box_metric_cells {
+    ($type:ty, $read:ident) => {
+        impl BoxMetricCells for $type {
+            impl_box_metric_cells!(@getters $read;
+                content_inline_size: CssPixels,
+                content_block_size: CssPixels,
+                margin_left: CssPixels,
+                margin_right: CssPixels,
+                margin_top: CssPixels,
+                margin_bottom: CssPixels,
+                border_left: CssPixels,
+                border_right: CssPixels,
+                border_top: CssPixels,
+                border_bottom: CssPixels,
+                padding_left: CssPixels,
+                padding_right: CssPixels,
+                padding_top: CssPixels,
+                padding_bottom: CssPixels,
+                has_definite_inline_size: bool,
+                has_definite_block_size: bool,
+                uses_collapsing_borders_model: bool,
+                is_collapsed_borders_table_box: bool,
+            );
+        }
+    };
+    (@getters cell; $($name:ident: $value:ty,)+) => {
+        $(
+            #[inline]
+            fn $name(&self) -> $value {
+                self.$name.get()
+            }
+        )+
+    };
+    (@getters value; $($name:ident: $value:ty,)+) => {
+        $(
+            #[inline]
+            fn $name(&self) -> $value {
+                self.$name
+            }
+        )+
+    };
+}
+
+impl_box_metric_cells!(UsedValues, cell);
+impl_box_metric_cells!(RootInputCells, value);
 
 /// The part of a collapsed border that lies after its grid line (below or right of it), the rest lying before it.
 /// A collapsed border "is centered on the grid line" (CSS 2.2 §17.6.2), but layout keeps box edges on whole CSS
