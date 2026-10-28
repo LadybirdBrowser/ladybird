@@ -47,11 +47,7 @@ pub(super) fn layout_replaced_with_children(
     let mut wrapper_cells = used_values::RootInputCells::capture(wrapper_record);
     wrapper_cells.set_content_inline_size(content_inline_size);
 
-    let formatting_context::ChildRunOutcome {
-        result: wrapper_result,
-        fragment_arrival,
-        ..
-    } = formatting_context::run_formatting_context(
+    let (wrapper_result, fragment_arrival) = formatting_context::run_formatting_context(
         run.fragments.as_deref(),
         Some(wrapper_record),
         wrapper_cells,
@@ -71,7 +67,8 @@ pub(super) fn layout_replaced_with_children(
             participation: geometry::ParticipationInParentFormattingContext::Item,
         },
         None,
-    );
+    )
+    .hand_box_back_to(run, wrapper);
     formatting_context::propagate_percentage_block_size_dependency_to_containing_block(
         run.records,
         &run.callbacks,
