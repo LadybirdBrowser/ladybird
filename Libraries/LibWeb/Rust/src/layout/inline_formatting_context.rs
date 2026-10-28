@@ -988,6 +988,8 @@ pub(crate) struct InlineFormattingContext<'context> {
     block_axis_float_clearance: Cell<CssPixels>,
     /// What the layout of each atomic inline hands its placement, which places it once its line is final.
     atomic_inline_fragment_arrivals: RefCell<HashMap<Node, fragment_tree::ChildFragmentArrival>>,
+    /// What placing each atomic inline this context laid out takes.
+    placed_atomic_inlines: RefCell<HashMap<Node, formatting_context::PlacedChild>>,
     /// The break token of the containing block, once the fragmentainer stops before one of its lines.
     fragmentainer_stop_token: RefCell<Option<std::rc::Rc<fragmentation::BlockBreakToken>>>,
     lines_are_unbreakable: Cell<bool>,
@@ -1033,6 +1035,7 @@ impl<'context> InlineFormattingContext<'context> {
             inline_boxes_continued_in_next_fragment: RefCell::new(Vec::new()),
             block_axis_float_clearance: Cell::new(CssPixels::default()),
             atomic_inline_fragment_arrivals: RefCell::new(HashMap::default()),
+            placed_atomic_inlines: RefCell::new(HashMap::default()),
             fragmentainer_stop_token: RefCell::new(None),
             lines_are_unbreakable: Cell::new(false),
             margins_collapse_through_interrupting_blocks: RefCell::new(HashMap::default()),
@@ -1061,6 +1064,47 @@ impl<'context> InlineFormattingContext<'context> {
         self.atomic_inline_fragment_arrivals.borrow_mut().remove(&node)
     }
 
+    /// Keeps what placing `node`, an atomic inline this context laid out, takes. A box laid out again keeps what the
+    /// context decided about it before.
+    fn keep_placed_atomic_inline(&self, node: Node, mut placed_child: formatting_context::PlacedChild) {
+        let mut placed_atomic_inlines = self.placed_atomic_inlines.borrow_mut();
+        if let Some(previous) = placed_atomic_inlines.get(&node) {
+            placed_child.facts_decided_by_parent = previous.facts_decided_by_parent;
+        }
+        placed_atomic_inlines.insert(node, placed_child);
+    }
+
+    fn update_placed_atomic_inline(
+        &self,
+        node: Node,
+        update: impl FnOnce(formatting_context::PlacedChild) -> formatting_context::PlacedChild,
+    ) {
+        let mut placed_atomic_inlines = self.placed_atomic_inlines.borrow_mut();
+        if let Some(placed_child) = placed_atomic_inlines.remove(&node) {
+            placed_atomic_inlines.insert(node, update(placed_child));
+        }
+    }
+
+    #[track_caller]
+    fn placed_atomic_inline(&self, node: Node) -> formatting_context::PlacedChild {
+        self.placed_atomic_inlines
+            .borrow()
+            .get(&node)
+            .cloned()
+            .expect("an atomic inline is laid out before it is placed")
+    }
+
+    fn hide_placed_atomic_inline_for_line_clamp(&self, node: Node) {
+        self.run.records.hide_for_line_clamp(node);
+        self.update_placed_atomic_inline(node, |mut placed_child| {
+            placed_child
+                .facts_decided_by_parent
+                .fragment_facts
+                .is_invisible_for_line_clamp = true;
+            placed_child
+        });
+    }
+
     fn discard_unplaced_atomic_inline(&self, node: Node) {
         let fragment_arrival = self.take_atomic_inline_fragment_arrival(node);
         if let Some(fragments) = self.run.fragments.as_deref() {
@@ -1078,7 +1122,7 @@ impl<'context> InlineFormattingContext<'context> {
 
     fn hide_atomic_inline_for_line_clamp(&self, node: Node) {
         self.discard_unplaced_atomic_inline(node);
-        self.run.records.hide_for_line_clamp(node);
+        self.hide_placed_atomic_inline_for_line_clamp(node);
     }
 
     fn stops_at_line_clamp_point<'builder>(
@@ -1437,18 +1481,28 @@ impl<'context> InlineFormattingContext<'context> {
         let formatting_context::ChildLayout {
             outcome,
             fragment_arrival,
-            ..
+            laid_out_box,
+            line_data,
         } = formatting_context::layout_inside_child(self.run, Some(self.parent), None, node, input, false);
         self.keep_atomic_inline_fragment_arrival(node, fragment_arrival);
         outcome.report_percentage_block_size_dependency_of(self.run, node);
-        match outcome {
+        let baselines = match outcome {
             ChildLayoutOutcome::Created(result) => result.baselines,
             ChildLayoutOutcome::ReenterCurrent => {
                 self.parent.run(self.run, input);
                 self.box_metrics(node).content_baselines()
             }
             ChildLayoutOutcome::Skipped { .. } => self.box_metrics(node).content_baselines(),
-        }
+        };
+        let placed_child = match laid_out_box {
+            Some(laid_out_box) => {
+                formatting_context::PlacedChild::of_laid_out_box(&laid_out_box, line_data, self.callbacks.frame)
+            }
+            // NB: The box was laid out by this context's parent flow, in the record it keeps here.
+            None => formatting_context::PlacedChild::of_record(self.run.records.used_values(node), self.run),
+        };
+        self.keep_placed_atomic_inline(node, placed_child);
+        baselines
     }
 
     pub(crate) fn dimension_box_on_line(&self, node: Node) -> DerivedBaselines {
@@ -1923,7 +1977,10 @@ impl<'context> InlineFormattingContext<'context> {
                         self.dimension_box_on_line(item.node);
                         item.box_cells = Some(Box::new(self.box_metrics(item.node).input_cells()));
                     }
-                    self.compute_inset(item.node);
+                    let insets = self.compute_inset(item.node);
+                    self.update_placed_atomic_inline(item.node, |placed_child| {
+                        placed_child.with_in_flow_box_insets(insets)
+                    });
                     if self.style(self.containing_block).text_wrap_mode() == text_wrap_mode::WRAP {
                         let mut minimum = item.border_box_inline_size();
                         if item.margin_start < CssPixels::default() {
@@ -2136,12 +2193,12 @@ impl<'context> InlineFormattingContext<'context> {
                 .parent
                 .take_floating_boxes_from(state_at_clamp_point.floating_box_count);
             for (node, position) in atomic_inlines_after_clamp_point {
-                self.run.records.hide_for_line_clamp(node);
+                self.hide_placed_atomic_inline_for_line_clamp(node);
                 let fragment_arrival = self.take_atomic_inline_fragment_arrival(node);
                 formatting_context::place_laid_out_child(
                     self.run,
                     node,
-                    formatting_context::PlacedChild::read_from_records(self.run, node),
+                    self.placed_atomic_inline(node),
                     position,
                     None,
                     fragment_arrival,
@@ -2299,7 +2356,7 @@ impl<'context> InlineFormattingContext<'context> {
                 formatting_context::place_laid_out_child(
                     self.run,
                     fragment.layout_node,
-                    formatting_context::PlacedChild::read_from_records(self.run, fragment.layout_node),
+                    self.placed_atomic_inline(fragment.layout_node),
                     FfiCssPixelPoint {
                         x: x + relative_insets.offset_x,
                         y: y + relative_insets.offset_y,
