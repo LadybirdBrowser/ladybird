@@ -872,16 +872,16 @@ pub(crate) fn derive_baselines(records: &RunRecords, callbacks: &LayoutPass<'_>,
                 let fragment_node = line
                     .first_fragment_node
                     .expect("block-level line must have one fragment");
-                let block_child_state = records.used_values(fragment_node);
+                let block_child = records.box_metrics_of(fragment_node);
                 let child_offset_from_margin_edge = records.content_offset_or_origin(fragment_node).y
-                    - block_child_state.margin_box_top(block_child_state.uses_collapsing_borders_model.get());
+                    - block_child.margin_box_top(block_child.uses_collapsing_borders_model());
                 child_offset_from_margin_edge
                     + box_baseline_for_purpose(
                         callbacks,
                         fragment_node,
-                        block_child_state,
+                        &block_child,
                         baseline_set,
-                        block_child_state.content_baselines_from_cells(),
+                        block_child.content_baselines(),
                         purpose,
                     )
             };
