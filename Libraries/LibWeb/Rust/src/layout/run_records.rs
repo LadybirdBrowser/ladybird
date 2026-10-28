@@ -139,8 +139,9 @@ enum KeptBoxHolding {
     ChildNotYetLaidOut {
         cells_before_its_run: used_values::RootInputCells,
     },
-    /// A child laid out by a run of its own, as that run handed it back.
-    ChildHandedBack(ChildLaidOutByItsOwnRun),
+    /// A child laid out by a run of its own, once that run handed the box back to the formatting context of this run,
+    /// which keeps what it reads of the box.
+    ChildHandedBack,
 }
 
 impl Default for LayoutScratch {
@@ -322,9 +323,10 @@ impl LayoutScratch {
 /// The per-run registry of the boxes a run holds, found through the slot-indexed side table in the
 /// layout stage's scratch. A run owns its root's record, built from the input cells its caller
 /// hands it, and keeps every other box it holds on the scratch's kept box stack: with a record on
-/// the record stack for a box it lays out itself, or as a value for a child it hands to a run of
-/// its own. Both stacks release them when the run returns. The scoped constructors lend records to
-/// the run, so callers cannot extend the registry's lifetime.
+/// the record stack for a box it lays out itself, or with the cells it starts out with for a child
+/// it hands to a run of its own, until that run hands the box back to the run's formatting context.
+/// Both stacks release them when the run returns. The scoped constructors lend records to the run,
+/// so callers cannot extend the registry's lifetime.
 pub(crate) struct RunRecords<'arena> {
     root: Node,
     root_used: Option<UsedValues>,
@@ -412,11 +414,17 @@ pub(crate) struct ChildLaidOutByItsOwnRun {
     pub(crate) frame: geometry::Frame,
 }
 
-/// The sizes, size constraints, box sides and baselines of a box as a run sees them: kept as a value for a child laid
-/// out by a run of its own or awaiting that run, or read from the record of a box the run lays out itself.
+impl ChildLaidOutByItsOwnRun {
+    /// What placing the child takes of the box its run handed back.
+    pub(crate) fn placed_child(&self) -> formatting_context::PlacedChild {
+        formatting_context::PlacedChild::of_laid_out_box(&self.laid_out, self.line_data.clone(), self.frame)
+    }
+}
+
+/// The sizes, size constraints, box sides and baselines of a box as a run sees them: kept as a value for a child
+/// awaiting the run of its own, or read from the record of a box the run lays out itself.
 #[derive(Clone, Copy)]
 pub(crate) enum BoxMetrics<'records> {
-    LaidOutByItsOwnRun(LaidOutChildBox),
     LaidOutByThisRun(used_values::RecordInFrame<'records>),
     /// A child this run keeps for a run of its own that has not laid it out yet, with the cells it is to be handed to
     /// that run with.
@@ -426,7 +434,6 @@ pub(crate) enum BoxMetrics<'records> {
 impl BoxMetrics<'_> {
     pub(crate) fn input_cells(&self) -> used_values::RootInputCells {
         match self {
-            Self::LaidOutByItsOwnRun(laid_out) => laid_out.cells,
             Self::LaidOutByThisRun(record) => record.cells(),
             Self::NotYetLaidOut(cells) => *cells,
         }
@@ -434,7 +441,6 @@ impl BoxMetrics<'_> {
 
     pub(crate) fn content_baselines(&self) -> DerivedBaselines {
         match self {
-            Self::LaidOutByItsOwnRun(laid_out) => laid_out.baselines,
             Self::LaidOutByThisRun(record) => record.record().content_baselines_from_cells(),
             Self::NotYetLaidOut(_) => DerivedBaselines::default(),
         }
@@ -448,7 +454,6 @@ macro_rules! box_metrics_getters {
                 #[inline]
                 fn $name(&self) -> $value {
                     match self {
-                        Self::LaidOutByItsOwnRun(laid_out) => laid_out.cells.$name(),
                         Self::LaidOutByThisRun(record) => record.$name(),
                         Self::NotYetLaidOut(cells) => cells.$name(),
                     }
@@ -697,7 +702,7 @@ impl<'arena> RunRecords<'arena> {
         );
     }
 
-    /// Whether this run keeps `child` without a record, for runs of its own: before the first of them returns, or as
+    /// Whether this run keeps `child` without a record, for runs of its own: before the first of them returns, or once
     /// the last one handed it back.
     pub(crate) fn keeps_child_without_record(&self, child: Node) -> bool {
         let Some(HeldBox::Kept(index)) = self.held_box(child) else {
@@ -805,7 +810,7 @@ impl<'arena> RunRecords<'arena> {
                 KeptBoxHolding::LaidOutByThisRun { record } => {
                     Some(unsafe { self.scratch.run_record_stack.get(record).as_ref() })
                 }
-                KeptBoxHolding::ChildNotYetLaidOut { .. } | KeptBoxHolding::ChildHandedBack(_) => None,
+                KeptBoxHolding::ChildNotYetLaidOut { .. } | KeptBoxHolding::ChildHandedBack => None,
             },
         }
     }
@@ -813,6 +818,16 @@ impl<'arena> RunRecords<'arena> {
     /// Whether this run holds `node`: lays it out itself, or keeps a child laid out by a run of its own.
     pub(crate) fn holds_box(&self, node: Node) -> bool {
         self.held_box(node).is_some()
+    }
+
+    #[track_caller]
+    fn panic_for_child_read_after_its_run_handed_it_back(&self, node: Node) -> ! {
+        panic!(
+            "the run rooted at slot {} reads slot {}, which its parent keeps once its run handed it back (read at {})",
+            self.root.slot_index(),
+            node.slot_index(),
+            std::panic::Location::caller(),
+        )
     }
 
     #[track_caller]
@@ -1081,9 +1096,9 @@ impl<'arena> RunRecords<'arena> {
         }
     }
 
-    /// Keeps what the run of `child`, a box this run keeps for that run, handed back once it returned.
+    /// Notes that the run of `child`, a box this run keeps for that run, handed the box back once it returned.
     #[track_caller]
-    pub(crate) fn receive_laid_out_child_box(&self, child: Node, handed_back: ChildLaidOutByItsOwnRun) {
+    pub(crate) fn note_child_handed_back(&self, child: Node) {
         let Some(HeldBox::Kept(index)) = self.held_box(child) else {
             self.panic_for_box_not_held(child)
         };
@@ -1092,11 +1107,11 @@ impl<'arena> RunRecords<'arena> {
             !matches!(holding, KeptBoxHolding::LaidOutByThisRun { .. }),
             "{child:?} is handed back by a run of its own to a parent that lays it out itself"
         );
-        *holding = KeptBoxHolding::ChildHandedBack(handed_back);
+        *holding = KeptBoxHolding::ChildHandedBack;
     }
 
-    /// The sizes, size constraints, box sides and baselines of `node`, a box this run lays out or a child of one laid
-    /// out by a run of its own.
+    /// The sizes, size constraints, box sides and baselines of `node`, a box this run lays out or a child it keeps for
+    /// a run of its own that has not laid it out yet.
     #[track_caller]
     pub(crate) fn box_metrics_of(&self, node: Node) -> BoxMetrics<'_> {
         match self.box_metrics_of_if_owned(node) {
@@ -1105,8 +1120,9 @@ impl<'arena> RunRecords<'arena> {
         }
     }
 
-    /// The sizes, size constraints, box sides and baselines of `node`, if this run lays it out or holds a child it laid
-    /// out by a run of its own.
+    /// The sizes, size constraints, box sides and baselines of `node`, if this run lays it out or keeps a child for a
+    /// run of its own that has not laid it out yet.
+    #[track_caller]
     pub(crate) fn box_metrics_of_if_owned(&self, node: Node) -> Option<BoxMetrics<'_>> {
         let index = match self.held_box(node)? {
             HeldBox::RootWithRecord => {
@@ -1122,9 +1138,7 @@ impl<'arena> RunRecords<'arena> {
             KeptBoxHolding::ChildNotYetLaidOut { cells_before_its_run } => {
                 return Some(BoxMetrics::NotYetLaidOut(*cells_before_its_run));
             }
-            KeptBoxHolding::ChildHandedBack(handed_back) => {
-                return Some(BoxMetrics::LaidOutByItsOwnRun(handed_back.laid_out));
-            }
+            KeptBoxHolding::ChildHandedBack => self.panic_for_child_read_after_its_run_handed_it_back(node),
         };
         // SAFETY: This run registered the record, and it stays on the stack until this run returns.
         Some(BoxMetrics::LaidOutByThisRun(
@@ -1144,6 +1158,7 @@ impl<'arena> RunRecords<'arena> {
 
     /// The sizes, size constraints, box sides and baselines of `node` as box_metrics_of_if_owned() has them, with the
     /// record of a box this run lays out read in frame `reader`.
+    #[track_caller]
     pub(crate) fn box_metrics_in_frame_if_owned(&self, node: Node, reader: geometry::Frame) -> Option<BoxMetrics<'_>> {
         Some(match self.box_metrics_of_if_owned(node)? {
             BoxMetrics::LaidOutByThisRun(record) => {
@@ -1154,6 +1169,7 @@ impl<'arena> RunRecords<'arena> {
     }
 
     /// The sizes, size constraints and box sides this run holds for `node`, if it holds the box, read in frame `reader`.
+    #[track_caller]
     pub(crate) fn box_cells_in_frame_if_owned(
         &self,
         node: Node,
@@ -1174,9 +1190,7 @@ impl<'arena> RunRecords<'arena> {
                 );
                 return Some(*cells_before_its_run);
             }
-            KeptBoxHolding::ChildHandedBack(handed_back) => {
-                return Some(handed_back.laid_out.cells.in_frame(handed_back.frame, reader));
-            }
+            KeptBoxHolding::ChildHandedBack => self.panic_for_child_read_after_its_run_handed_it_back(node),
         };
         // SAFETY: This run registered the record, and it stays on the stack until this run returns.
         Some(cells_of_record(unsafe {
@@ -1203,26 +1217,14 @@ impl<'arena> RunRecords<'arena> {
             Some(HeldBox::Kept(index)) => index,
             None => self.panic_for_box_not_held(node),
         };
-        let handed_back = match &self.scratch.kept_boxes.borrow()[index as usize].holding {
-            KeptBoxHolding::LaidOutByThisRun { record } => {
-                // SAFETY: This run registered the record, and it stays on the stack until this run returns.
-                return geometry_of_record(unsafe { self.scratch.run_record_stack.get(*record).as_ref() });
+        let record = match &self.scratch.kept_boxes.borrow()[index as usize].holding {
+            KeptBoxHolding::LaidOutByThisRun { record } => *record,
+            KeptBoxHolding::ChildNotYetLaidOut { .. } | KeptBoxHolding::ChildHandedBack => {
+                panic!("the fragment of {node:?} is built from the box its run hands back to its parent")
             }
-            KeptBoxHolding::ChildNotYetLaidOut { .. } => {
-                panic!("the fragment of {node:?} is built before its run handed the box back")
-            }
-            KeptBoxHolding::ChildHandedBack(handed_back) => handed_back.clone(),
         };
-        if cfg!(debug_assertions) || super::run_repeatability::verification_is_enabled() {
-            assert_eq!(
-                handed_back.frame, callbacks.frame,
-                "the fragment of {node:?} is built in another frame than the one its box is kept in"
-            );
-        }
-        fragment_tree::FragmentGeometry {
-            cells: handed_back.laid_out.cells,
-            line_data: handed_back.line_data,
-        }
+        // SAFETY: This run registered the record, and it stays on the stack until this run returns.
+        geometry_of_record(unsafe { self.scratch.run_record_stack.get(record).as_ref() })
     }
 
     pub(crate) fn store_table_inline_layout(&self, table: Node, layout: table_formatting_context::TableInlineLayout) {
