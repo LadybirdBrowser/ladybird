@@ -319,22 +319,32 @@ pub(crate) enum BaselineSet {
 }
 
 /// Lays out absolutely positioned boxes whose containing blocks are placed, each in the frame of its containing
-/// block's writing mode.
+/// block's writing mode, and returns where each was placed.
 pub(crate) fn lay_out_pending_abspos_children(
     run: &FormattingContextRun,
     batch: Vec<abspos_inputs::PendingAbsposChild>,
-) {
+) -> Vec<fragment_tree::PlacedAbsposBox> {
     let engine = abspos_engine::AbsposEngine::for_run(run);
+    let mut placed = Vec::with_capacity(batch.len());
     for entry in batch {
+        let child_box = entry.child_box;
         let containing_block = entry.containing_block();
         let containing_block_frame = frame_established_by(&run.callbacks, containing_block);
         if containing_block_frame == run.callbacks.frame {
             engine.layout_pending_child(run, entry);
-            continue;
+        } else {
+            let framed_run = run.in_frame_of(containing_block_frame);
+            abspos_engine::AbsposEngine::for_run(&framed_run).layout_pending_child(&framed_run, entry);
         }
-        let framed_run = run.in_frame_of(containing_block_frame);
-        abspos_engine::AbsposEngine::for_run(&framed_run).layout_pending_child(&framed_run, entry);
+        let metrics = run.records.box_metrics_of(child_box);
+        placed.push(fragment_tree::PlacedAbsposBox {
+            box_: child_box,
+            border_box_block_end: run.records.content_offset_or_origin(child_box).y
+                + metrics.content_block_size()
+                + metrics.border_box_bottom(metrics.uses_collapsing_borders_model()),
+        });
     }
+    placed
 }
 
 pub(crate) fn place_child(
@@ -440,6 +450,7 @@ pub(crate) fn place_child_in_containing_block(
         return Some(fragment_tree::PlacedFragment {
             fragment,
             exports_payloads: false,
+            abspos_boxes_placed_with_it: Vec::new(),
         });
     }
     match child_run_root {
@@ -448,12 +459,13 @@ pub(crate) fn place_child_in_containing_block(
         }
         None => fragments.open_fragment_of_placed_box(node),
     }
+    let mut abspos_boxes_placed_with_it = Vec::new();
     loop {
         let batch = fragments.take_drainable_abspos(node, records, callbacks);
         if batch.is_empty() {
             break;
         }
-        lay_out_pending_abspos_children(run, batch);
+        abspos_boxes_placed_with_it.extend(lay_out_pending_abspos_children(run, batch));
     }
     let node_facts = NodeFacts::new(callbacks, node);
     let own_anchor_candidate_border_box_rect = (node_facts.is_box() && node_facts.has_anchor_names()).then(|| {
@@ -466,7 +478,7 @@ pub(crate) fn place_child_in_containing_block(
             height: metrics.border_box_block_size(collapsed),
         }
     });
-    Some(fragments.build_fragment_for_placed_box(
+    let placed = fragments.build_fragment_for_placed_box(
         callbacks,
         node,
         (!containing_block.is_invalid()).then_some(containing_block),
@@ -480,7 +492,11 @@ pub(crate) fn place_child_in_containing_block(
             committed_offset_delta_at_placement(records, callbacks, node, containing_block),
         ),
         own_anchor_candidate_border_box_rect,
-    ))
+    );
+    Some(fragment_tree::PlacedFragment {
+        abspos_boxes_placed_with_it,
+        ..placed
+    })
 }
 
 /// Places an in-flow child whose committed subtree is reused as it is, with the committed fragment it was laid out
@@ -1893,6 +1909,7 @@ fn size_skipped_independent_root(
                 child,
                 input.available_space,
                 input.containing_block_constraints,
+                None,
                 None,
             );
         }

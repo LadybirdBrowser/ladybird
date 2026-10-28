@@ -2268,6 +2268,12 @@ impl<'context> InlineFormattingContext<'context> {
             self.register_inline_anchor_candidates();
         }
         self.leave_atomic_inlines_without_a_line_unplaced();
+        let last_line = self
+            .line_data
+            .get_mut()
+            .line_boxes
+            .last()
+            .map(line_box::LineBoxData::retained_metrics);
         containing_used.set_building_line_data(std::mem::take(self.line_data.get_mut()));
         block_formatting_context::ChildrenSummary {
             baselines: formatting_context::derive_baselines_from_lines(
@@ -2277,6 +2283,8 @@ impl<'context> InlineFormattingContext<'context> {
             ),
             fragmentainer_stop_token: self.fragmentainer_stop_token.take(),
             lines_are_unbreakable: self.lines_are_unbreakable.get(),
+            last_line,
+            ..Default::default()
         }
     }
 

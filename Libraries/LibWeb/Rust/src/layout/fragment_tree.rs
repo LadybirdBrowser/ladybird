@@ -587,6 +587,15 @@ fn snapshot_fragment(
 pub(crate) struct PlacedFragment {
     pub(crate) fragment: std::sync::Arc<Fragment>,
     pub(crate) exports_payloads: bool,
+    /// The absolutely positioned boxes laid out and placed as the box was placed.
+    pub(crate) abspos_boxes_placed_with_it: Vec<PlacedAbsposBox>,
+}
+
+/// An absolutely positioned box laid out and placed in its containing block.
+pub(crate) struct PlacedAbsposBox {
+    pub(crate) box_: crate::layout::node_data::NodeSlotId,
+    /// The block end of the border box in the containing block.
+    pub(crate) border_box_block_end: CssPixels,
 }
 
 pub(crate) struct PlacementData {
@@ -1473,6 +1482,7 @@ impl RunFragmentBuilder {
         PlacedFragment {
             fragment,
             exports_payloads,
+            abspos_boxes_placed_with_it: Vec::new(),
         }
     }
 
