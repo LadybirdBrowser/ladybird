@@ -576,8 +576,17 @@ void OpenGLContext::copy_default_framebuffer_to_cpu_painting_surface()
         glPixelStorei(GL_PACK_SKIP_ROWS, 0);
     }
 
-    for (int source_y = 0; source_y < m_size.height(); ++source_y)
-        glReadPixels(0, source_y, m_size.width(), 1, GL_RGBA, GL_UNSIGNED_BYTE, bitmap->scanline_u8(m_size.height() - source_y - 1));
+    // ANGLE's Direct3D 11 backend waits for the GPU on every glReadPixels(), so the frame is read with one call.
+    VERIFY(bitmap->pitch() == static_cast<size_t>(m_size.width()) * sizeof(Gfx::RawPixel));
+    glReadPixels(0, 0, m_size.width(), m_size.height(), GL_RGBA, GL_UNSIGNED_BYTE, bitmap->scanline_u8(0));
+
+    // GL's rows go from the bottom of the image up, so flip them into the bitmap's top-down order.
+    for (int top = 0, bottom = m_size.height() - 1; top < bottom; ++top, --bottom) {
+        auto* top_row = bitmap->scanline(top);
+        auto* bottom_row = bitmap->scanline(bottom);
+        for (int x = 0; x < m_size.width(); ++x)
+            swap(top_row[x], bottom_row[x]);
+    }
 
     if (m_webgl_version == WebGLVersion::WebGL2) {
         glPixelStorei(GL_PACK_ROW_LENGTH, original_pack_row_length);
