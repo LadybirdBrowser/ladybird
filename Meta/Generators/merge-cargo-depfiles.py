@@ -68,9 +68,13 @@ def escape_depfile_path(path):
 
 
 def cargo_manifests():
-    manifests = subprocess.check_output(
-        ["git", "-C", str(LADYBIRD_SOURCE_DIR), "ls-files", "-z", "--", "Cargo.toml", "**/Cargo.toml"]
-    ).split(b"\0")
+    try:
+        manifests = subprocess.check_output(
+            ["git", "-C", str(LADYBIRD_SOURCE_DIR), "ls-files", "-z", "--", "Cargo.toml", "**/Cargo.toml"],
+            stderr=subprocess.DEVNULL,
+        ).split(b"\0")
+    except (OSError, subprocess.CalledProcessError):
+        manifests = []
 
     return {(LADYBIRD_SOURCE_DIR / Path(manifest.decode())).resolve() for manifest in manifests if manifest}
 
