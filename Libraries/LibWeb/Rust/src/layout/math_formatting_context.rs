@@ -1463,6 +1463,15 @@ pub(super) struct MathFormattingContext<'pass> {
 }
 
 impl<'pass> MathFormattingContext<'pass> {
+    #[track_caller]
+    fn placed_child(&self, child: Node) -> formatting_context::PlacedChild {
+        self.placed_children
+            .borrow()
+            .get(&child)
+            .cloned()
+            .expect("a math child is laid out before it is placed")
+    }
+
     fn take_fragment_arrival_of_child(&self, child: Node) -> Option<fragment_tree::ChildFragmentArrival> {
         let mut arrivals = self.fragment_arrivals_of_children.borrow_mut();
         let index = arrivals.iter().position(|arrival| arrival.node() == child)?;
@@ -2304,15 +2313,15 @@ impl<'pass> MathFormattingContext<'pass> {
                 y: margin_box_top + metrics.margin_box_top(collapsed),
             };
             let fragment_arrival = self.take_fragment_arrival_of_child(child.node);
-            let placed_child = self
-                .placed_children
-                .borrow_mut()
-                .remove(&child.node)
-                .expect("a math child is laid out before it is placed");
+            let placed_child = self.placed_child(child.node);
             formatting_context::place_laid_out_child(run, child.node, placed_child, offset, None, fragment_arrival);
         }
         for fragment_arrival in self.fragment_arrivals_of_children.take() {
-            formatting_context::leave_child_unplaced(run, Some(fragment_arrival));
+            formatting_context::leave_child_unplaced(
+                run,
+                self.placed_child(fragment_arrival.node()),
+                Some(fragment_arrival),
+            );
         }
 
         if run.fragments.is_some() && (!content.rules.is_empty() || !content.glyph_runs.is_empty()) {

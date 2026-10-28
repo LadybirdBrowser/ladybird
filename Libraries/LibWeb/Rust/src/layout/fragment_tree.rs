@@ -676,6 +676,28 @@ impl PlacementData {
         }
     }
 
+    /// The placement data of `node`, a child the run left unplaced, which `close()` hands on as `unplaced_child`
+    /// shows it.
+    fn of_unplaced_child(
+        unplaced_child: &crate::layout::formatting_context::PlacedChild,
+        node: crate::layout::node_data::NodeSlotId,
+        frame: geometry::Frame,
+    ) -> Self {
+        if cfg!(debug_assertions) || crate::layout::run_repeatability::verification_is_enabled() {
+            assert_eq!(
+                unplaced_child.frame, frame,
+                "{node:?} is left unplaced in another frame than the one its box is kept in"
+            );
+        }
+        Self::of_box(
+            &unplaced_child.facts_decided_by_parent,
+            None,
+            None,
+            FfiCssPixelPoint::default(),
+            frame,
+        )
+    }
+
     /// The placement data of a box `close()` hands on unplaced or placed as it is.
     fn of_box_as_this_run_left_it(
         records: &RunRecords,
@@ -706,6 +728,13 @@ fn link_fragment(fragment: std::sync::Arc<Fragment>, placement: PlacementData) -
         containing_block: placement.containing_block,
         frame: placement.frame,
     }
+}
+
+/// A child the run laid out but does not place: what its layout handed its placement, and what placing it would have
+/// taken.
+struct ChildLeftUnplaced {
+    arrival: ChildFragmentArrival,
+    unplaced_child: crate::layout::formatting_context::PlacedChild,
 }
 
 #[derive(Clone)]
@@ -933,7 +962,7 @@ struct RunFragmentBuilderInner {
     reused_subtree_roots: HashSet<u32>,
     /// What the layouts of children the run laid out but never placed handed their placements, which close() links at
     /// the top of the run's fragments.
-    children_left_unplaced: Vec<ChildFragmentArrival>,
+    children_left_unplaced: Vec<ChildLeftUnplaced>,
     /// What the run's layout of its root hands the root's fragment.
     root_payloads: Option<Box<FragmentPayloads>>,
     /// Where the run placed each box it placed so far, from the moment it places the box, before the placement drains
@@ -1284,13 +1313,21 @@ impl RunFragmentBuilder {
         taken
     }
 
-    /// Keeps what the layout of a child the run laid out but does not place handed its placement.
-    pub(crate) fn leave_child_unplaced(&self, arrival: ChildFragmentArrival) {
+    /// Keeps what the layout of a child the run laid out but does not place handed its placement, with what placing the
+    /// child would have taken.
+    pub(crate) fn leave_child_unplaced(
+        &self,
+        arrival: ChildFragmentArrival,
+        unplaced_child: crate::layout::formatting_context::PlacedChild,
+    ) {
         debug_assert!(
             !self.left_child_unplaced(arrival.node()),
             "a child was left unplaced twice"
         );
-        self.inner.borrow_mut().children_left_unplaced.push(arrival);
+        self.inner.borrow_mut().children_left_unplaced.push(ChildLeftUnplaced {
+            arrival,
+            unplaced_child,
+        });
     }
 
     pub(crate) fn left_child_unplaced(&self, node: crate::layout::node_data::NodeSlotId) -> bool {
@@ -1298,7 +1335,7 @@ impl RunFragmentBuilder {
             .borrow()
             .children_left_unplaced
             .iter()
-            .any(|arrival| arrival.node() == node)
+            .any(|child| child.arrival.node() == node)
     }
 
     pub(crate) fn adopt_fragmentainer_root(
@@ -1717,7 +1754,11 @@ impl RunFragmentBuilder {
         //     root has, and closes the same way.
         // An empty box that was never placed has no fragment in this run.
         let mut child_run_roots_left_unplaced = Vec::new();
-        for arrival in std::mem::take(&mut inner.children_left_unplaced) {
+        for ChildLeftUnplaced {
+            arrival,
+            unplaced_child,
+        } in std::mem::take(&mut inner.children_left_unplaced)
+        {
             match arrival {
                 ChildFragmentArrival::CommittedFragment {
                     fragment,
@@ -1725,16 +1766,17 @@ impl RunFragmentBuilder {
                 } => {
                     let node = fragment.node;
                     inner.reused_subtree_roots.insert(node.slot_index());
+                    let placement = PlacementData::of_unplaced_child(&unplaced_child, node, callbacks.frame);
                     inner.top_scope_links.push(link_fragment(
                         snapshot_fragment(
                             callbacks,
                             node,
                             Vec::new(),
-                            records.fragment_geometry_of(node, callbacks),
-                            records.facts_decided_by_parent_of(node).fragment_facts,
+                            unplaced_child.geometry,
+                            unplaced_child.facts_decided_by_parent.fragment_facts,
                             Some(Box::new(FragmentPayloads::of_fragment(&fragment))),
                         ),
-                        PlacementData::of_box_as_this_run_left_it(records, node, callbacks.frame),
+                        placement,
                     ));
                 }
                 ChildFragmentArrival::CommittedFragment {
@@ -1743,26 +1785,27 @@ impl RunFragmentBuilder {
                 ChildFragmentArrival::RunRoot {
                     root,
                     reuses_committed_subtree,
-                } => child_run_roots_left_unplaced.push((root, reuses_committed_subtree)),
+                } => child_run_roots_left_unplaced.push((root, reuses_committed_subtree, unplaced_child)),
             }
         }
-        for (root, reuses_committed_subtree) in child_run_roots_left_unplaced {
+        for (root, reuses_committed_subtree, unplaced_child) in child_run_roots_left_unplaced {
             inner
                 .reused_subtree_roots
                 .extend(root.reused_subtree_roots.iter().copied());
             if reuses_committed_subtree {
                 inner.reused_subtree_roots.insert(root.node.slot_index());
             }
+            let placement = PlacementData::of_unplaced_child(&unplaced_child, root.node, callbacks.frame);
             inner.top_scope_links.push(link_fragment(
                 snapshot_fragment(
                     callbacks,
                     root.node,
                     root.scoped_descendants,
-                    records.fragment_geometry_of(root.node, callbacks),
-                    records.facts_decided_by_parent_of(root.node).fragment_facts,
+                    unplaced_child.geometry,
+                    unplaced_child.facts_decided_by_parent.fragment_facts,
                     root.root_payloads,
                 ),
-                PlacementData::of_box_as_this_run_left_it(records, root.node, callbacks.frame),
+                placement,
             ));
         }
         let placed_boxes = &inner.placed_boxes;

@@ -4593,7 +4593,13 @@ impl<'pass> BlockFormattingContext<'pass> {
             None
         };
         let Some(side) = side else {
-            formatting_context::leave_child_unplaced(run, fragment_arrival);
+            formatting_context::leave_child_unplaced(
+                run,
+                float_handed_back_by_its_run
+                    .unwrap_or_else(|| formatting_context::PlacedChild::of_record(self.used(node), &self.run))
+                    .with_fragment_facts(fragment_facts),
+                fragment_arrival,
+            );
             return abspos_engine::InFlowBoxInsets::default();
         };
         let float_box = float_box.cells;

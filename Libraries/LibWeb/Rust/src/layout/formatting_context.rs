@@ -3056,13 +3056,14 @@ pub(crate) fn layout_inside_child_with_input_cells(
 /// but not placed.
 pub(crate) fn leave_child_unplaced(
     run: &FormattingContextRun,
+    unplaced_child: PlacedChild,
     fragment_arrival: Option<fragment_tree::ChildFragmentArrival>,
 ) {
     if let Some(arrival) = fragment_arrival {
         run.fragments
             .as_deref()
             .expect("only a run that builds fragments is handed a child's fragments")
-            .leave_child_unplaced(arrival);
+            .leave_child_unplaced(arrival, unplaced_child);
     }
 }
 
