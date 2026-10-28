@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibGC/ConservativeVector.h>
+#include <LibGC/RootVector.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/UIEvents/Touch.h>
 
@@ -17,12 +17,12 @@ class TouchList final : public Bindings::GCAllocatedWrappable {
     GC_DECLARE_ALLOCATOR(TouchList);
 
 public:
-    static GC::Ref<TouchList> create(GC::ConservativeVector<GC::Ref<Touch>>);
+    static GC::Ref<TouchList> create(GC::RootVector<GC::Ref<Touch>>);
     u32 length() const { return m_touches.size(); }
     GC::Ptr<Touch> item(u32 index) const { return index < m_touches.size() ? m_touches[index].ptr() : nullptr; }
 
 private:
-    explicit TouchList(GC::ConservativeVector<GC::Ref<Touch>>);
+    explicit TouchList(GC::RootVector<GC::Ref<Touch>>);
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
     Vector<GC::Ref<Touch>> m_touches;

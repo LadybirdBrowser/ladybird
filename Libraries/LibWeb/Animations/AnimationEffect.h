@@ -11,7 +11,7 @@
 #include <AK/Utf16String.h>
 #include <AK/Variant.h>
 #include <LibGC/ConservativeHashMap.h>
-#include <LibGC/ConservativeVector.h>
+#include <LibGC/RootVector.h>
 #include <LibWeb/Animations/TimeValue.h>
 #include <LibWeb/Bindings/AnimationEffect.h>
 #include <LibWeb/Bindings/Wrappable.h>
@@ -48,7 +48,7 @@ struct AnimationUpdateContext {
 
         CSS::StyleRecordID style_record_before_update;
         RefPtr<CSS::ComputedStyleWorkingSet> target_style;
-        GC::ConservativeVector<GC::Ref<KeyframeEffect>> effects;
+        GC::RootVector<GC::Ref<KeyframeEffect>> effects;
         // Whether the record the update samples over was computed by this style update, so that the base
         // adjustments the sampled values feed into were made over the values the element holds now.
         bool base_is_current { false };

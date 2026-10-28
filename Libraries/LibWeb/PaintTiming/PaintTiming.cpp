@@ -6,6 +6,7 @@
 
 #include <AK/NeverDestroyed.h>
 #include <LibGC/ConservativeVector.h>
+#include <LibGC/RootVector.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
@@ -496,7 +497,7 @@ void mark_paint_timing(DOM::Document& document)
     });
 
     // NB: This is when the user agent paints a Text node for the first time.
-    GC::ConservativeVector<GC::Ref<DOM::Text>> text_nodes_no_longer_pending;
+    GC::RootVector<GC::Ref<DOM::Text>> text_nodes_no_longer_pending;
     auto is_no_longer_pending = [&](GC::Ref<DOM::Text> text) {
         if (!text->is_connected() || &text->document() != &document)
             return true;

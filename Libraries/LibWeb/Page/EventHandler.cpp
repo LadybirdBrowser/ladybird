@@ -15,6 +15,7 @@
 #include <LibGC/ConservativeHashTable.h>
 #include <LibGC/Heap.h>
 #include <LibGC/RootHashTable.h>
+#include <LibGC/RootVector.h>
 #include <LibGfx/Bitmap.h>
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/Segmenter.h>
@@ -4955,7 +4956,7 @@ EventResult EventHandler::handle_pointer_event(Web::MouseEvent const& input, CSS
                 auto click_coordinates = coordinates;
                 if (auto* click_layout = click_target->layout_node(read))
                     click_coordinates = compute_mouse_event_coordinates(visual_viewport_position, viewport_position, *click_layout);
-                GC::ConservativeVector<GC::Ref<DOM::Node>> touch_hover_ancestors;
+                GC::RootVector<GC::Ref<DOM::Node>> touch_hover_ancestors;
                 if (is_touch) {
                     for (auto* ancestor = mouse_target.ptr(); ancestor; ancestor = ancestor->parent_or_shadow_host())
                         touch_hover_ancestors.append(*ancestor);

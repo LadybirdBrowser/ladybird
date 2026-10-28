@@ -31,7 +31,7 @@ public:
 };
 
 template<typename T, size_t inline_capacity>
-class GC_API ConservativeVector final
+requires(!IsSpecializationOf<RemoveCVReference<T>, Ptr> && !IsSpecializationOf<RemoveCVReference<T>, Ref>) class GC_API ConservativeVector final
     : public ConservativeVectorBase
     , public Vector<T, inline_capacity> {
 

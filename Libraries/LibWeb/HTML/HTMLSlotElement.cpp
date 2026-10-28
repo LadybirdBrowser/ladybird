@@ -7,6 +7,7 @@
  */
 
 #include <LibGC/ConservativeHashTable.h>
+#include <LibGC/RootVector.h>
 #include <LibWeb/Bindings/HTMLSlotElement.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ShadowRoot.h>
@@ -129,7 +130,7 @@ void HTMLSlotElement::assign(GC::ConservativeVector<SlottableHandle> nodes)
     // INTEROP: The spec only assigns slottables for this's root below, so a slot in another tree that loses a node
     //          to this slot keeps it as an assigned node and fires no slotchange event. Browsers also assign
     //          slottables for the trees of those slots, and so do we.
-    GC::ConservativeVector<GC::Ref<DOM::Node>> roots_of_previous_slots;
+    GC::RootVector<GC::Ref<DOM::Node>> roots_of_previous_slots;
 
     // 3. For each node of nodes:
     for (auto& node_handle : nodes) {

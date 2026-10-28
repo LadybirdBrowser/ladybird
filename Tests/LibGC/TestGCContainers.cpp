@@ -32,6 +32,40 @@ class TestCell : public GC::Cell {
 
 GC_DEFINE_ALLOCATOR(TestCell);
 
+// Probe the public container type, including aliases and incomplete pointees, rather than its implementation trait.
+template<typename T>
+concept ConservativeVectorAccepts = requires { typename GC::ConservativeVector<T>; };
+
+class ForwardDeclaredCell;
+using AliasedCellPtr = GC::Ptr<ForwardDeclaredCell>;
+using AliasedCellRef = GC::Ref<ForwardDeclaredCell>;
+struct ConservativeRecord {
+    GC::Ref<TestCell> cell;
+    FlatPtr payload;
+};
+
+static_assert(ConservativeVectorAccepts<FlatPtr>);
+static_assert(ConservativeVectorAccepts<TestCell*>);
+static_assert(ConservativeVectorAccepts<ConservativeRecord>);
+static_assert(!ConservativeVectorAccepts<GC::Ptr<TestCell>>);
+static_assert(!ConservativeVectorAccepts<GC::Ref<TestCell>>);
+static_assert(!ConservativeVectorAccepts<GC::Ptr<TestCell const>>);
+static_assert(!ConservativeVectorAccepts<GC::Ref<TestCell const>>);
+static_assert(!ConservativeVectorAccepts<AliasedCellPtr>);
+static_assert(!ConservativeVectorAccepts<AliasedCellRef>);
+static_assert(!ConservativeVectorAccepts<AliasedCellPtr const>);
+static_assert(!ConservativeVectorAccepts<AliasedCellRef volatile>);
+static_assert(!ConservativeVectorAccepts<AliasedCellPtr volatile>);
+static_assert(!ConservativeVectorAccepts<AliasedCellRef const>);
+static_assert(!ConservativeVectorAccepts<AliasedCellPtr const volatile>);
+static_assert(!ConservativeVectorAccepts<AliasedCellRef const volatile>);
+static_assert(!ConservativeVectorAccepts<AliasedCellPtr&>);
+static_assert(!ConservativeVectorAccepts<AliasedCellRef&>);
+static_assert(!ConservativeVectorAccepts<AliasedCellPtr const&>);
+static_assert(!ConservativeVectorAccepts<AliasedCellRef const&>);
+static_assert(!ConservativeVectorAccepts<AliasedCellPtr&&>);
+static_assert(!ConservativeVectorAccepts<AliasedCellRef&&>);
+
 class FinalizerObservingCell : public GC::Cell {
     GC_CELL(FinalizerObservingCell, GC::Cell);
     GC_DECLARE_ALLOCATOR(FinalizerObservingCell);
@@ -257,14 +291,39 @@ TEST_CASE(root_vector_adopts_moved_vector)
     EXPECT_EQ(roots.size(), 1u);
 }
 
+TEST_CASE(root_vector_native_member_survives_relocation)
+{
+    auto& heap = test_heap();
+    struct NativeState {
+        GC::RootVector<GC::Ref<TestCell>> cells;
+    };
+    Vector<NativeState> states;
+    states.append(NativeState {});
+    auto cell = heap.allocate<TestCell>();
+    states[0].cells.append(cell);
+
+    // Moving the enclosing native storage must transfer the member's registration in the heap's root list.
+    states.ensure_capacity(states.capacity() + 1);
+    heap.collect_garbage();
+
+    HashMap<GC::Cell*, GC::HeapRoot> roots;
+    states[0].cells.gather_roots(roots);
+    EXPECT(roots.contains(cell.ptr()));
+    EXPECT_EQ(roots.size(), 1u);
+
+    // Destruction must unregister the member before the collector next walks its root list.
+    states.clear();
+    heap.collect_garbage();
+}
+
 TEST_CASE(conservative_vector_adopts_moved_vector)
 {
     auto& heap = test_heap();
-    Vector<GC::Ref<TestCell>> vector;
+    Vector<FlatPtr> vector;
 
     auto cell = heap.allocate<TestCell>();
-    vector.append(cell);
-    GC::ConservativeVector<GC::Ref<TestCell>> conservative_vector { move(vector) };
+    vector.append(bit_cast<FlatPtr>(cell.ptr()));
+    GC::ConservativeVector<FlatPtr> conservative_vector { move(vector) };
 
     EXPECT(possible_values_contain(conservative_vector, cell.ptr()));
 }
@@ -272,10 +331,10 @@ TEST_CASE(conservative_vector_adopts_moved_vector)
 TEST_CASE(conservative_vector_reports_possible_values)
 {
     auto& heap = test_heap();
-    GC::ConservativeVector<GC::Ref<TestCell>> vector;
+    GC::ConservativeVector<ConservativeRecord> vector;
 
     auto cell = heap.allocate<TestCell>();
-    vector.append(cell);
+    vector.append({ cell, 0x1234 });
 
     EXPECT(possible_values_contain(vector, cell.ptr()));
 }
