@@ -164,6 +164,32 @@ void XMLHttpRequest::visit_edges(Cell::Visitor& visitor)
         visitor.visit(cached_response_object.object);
 }
 
+void XMLHttpRequest::restart_timeout_timer()
+{
+    stop_timeout_timer();
+    if (!m_send || m_synchronous || !m_async_request || m_async_request->done() || m_timeout == 0)
+        return;
+
+    // NB: Timeout changes keep the deadline relative to send(), rather than starting a fresh timeout period.
+    auto elapsed = MonotonicTime::now() - m_async_send_start_time;
+    auto remaining = max(AK::Duration::zero(), AK::Duration::from_milliseconds(m_timeout) - elapsed);
+    m_timeout_timer = Platform::Timer::create_single_shot(heap(), remaining, nullptr);
+    auto request = NonnullRefPtr { *m_async_request };
+    m_timeout_timer->on_timeout = GC::create_function(heap(), [this, request, fetch_controller = m_fetch_controller] {
+        if (m_async_request.ptr() != request.ptr() || m_fetch_controller != fetch_controller)
+            return;
+
+        stop_timeout_timer();
+        m_async_request = nullptr;
+        if (!request->done()) {
+            m_timed_out = true;
+            fetch_controller->terminate();
+            MUST(handle_errors());
+        }
+    });
+    m_timeout_timer->start();
+}
+
 void XMLHttpRequest::stop_timeout_timer()
 {
     if (!m_timeout_timer)
@@ -638,6 +664,8 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::open(String const& method, Utf16String
     // 10. Terminate this’s fetch controller.
     // Spec Note: A fetch can be ongoing at this point.
     m_fetch_controller->terminate();
+    stop_timeout_timer();
+    m_async_request = nullptr;
     m_activity_root.release();
 
     // 11. Set variables associated with the object as follows:
@@ -1037,22 +1065,13 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(NullableDocumentOrXMLHttpRequestB
         }));
 
         // 11. Let now be the present time.
+        m_async_send_start_time = MonotonicTime::now();
+        m_async_request = request;
+
         // 12. Run these steps in parallel:
         //     1. Wait until either req’s done flag is set or this’s timeout is not 0 and this’s timeout milliseconds have passed since now.
         //     2. If req’s done flag is unset, then set this’s timed out flag and terminate this’s fetch controller.
-        if (m_timeout != 0) {
-            stop_timeout_timer();
-            m_timeout_timer = Platform::Timer::create_single_shot(heap(), AK::Duration::from_milliseconds(m_timeout), nullptr);
-            m_timeout_timer->on_timeout = GC::create_function(GC::Heap::the(), [this, request]() {
-                if (!request->done()) {
-                    m_timed_out = true;
-                    m_fetch_controller->terminate();
-                    MUST(handle_errors());
-                }
-                stop_timeout_timer();
-            });
-            m_timeout_timer->start();
-        }
+        restart_timeout_timer();
     }
     // 12. Otherwise, if this’s synchronous flag is set:
     else {
@@ -1223,6 +1242,10 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::set_timeout(u32 timeout)
     // 2. Set this’s timeout to the given value.
     m_timeout = timeout;
 
+    // NB: The asynchronous send() timeout wait observes changes to this value.
+    if (m_send && !m_synchronous)
+        restart_timeout_timer();
+
     return {};
 }
 
@@ -1257,6 +1280,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::set_with_credentials(bool with_credent
 void XMLHttpRequest::abort()
 {
     stop_timeout_timer();
+    m_async_request = nullptr;
     auto& associated_realm = HTML::relevant_realm(relevant_global_object());
 
     // 1. Abort this’s fetch controller.
@@ -1304,6 +1328,7 @@ WebIDL::ExceptionOr<String> XMLHttpRequest::status_text() const
 WebIDL::ExceptionOr<void> XMLHttpRequest::handle_response_end_of_body()
 {
     stop_timeout_timer();
+    m_async_request = nullptr;
 
     // 1. Handle errors for xhr.
     TRY(handle_errors());
@@ -1375,6 +1400,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::handle_errors()
 WebIDL::ExceptionOr<void> XMLHttpRequest::request_error_steps(Utf16FlyString const& event_name, GC::Ptr<WebIDL::DOMException> exception)
 {
     stop_timeout_timer();
+    m_async_request = nullptr;
 
     // 1. Set xhr’s state to done.
     m_state = State::Done;

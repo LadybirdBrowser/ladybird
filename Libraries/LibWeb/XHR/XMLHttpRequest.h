@@ -10,6 +10,7 @@
 
 #include <AK/ByteBuffer.h>
 #include <AK/RefCounted.h>
+#include <AK/RefPtr.h>
 #include <AK/Time.h>
 #include <AK/Vector.h>
 #include <AK/Weakable.h>
@@ -129,6 +130,7 @@ private:
     WebIDL::ExceptionOr<void> handle_errors();
     WebIDL::ExceptionOr<void> request_error_steps(Utf16FlyString const& event_name, GC::Ptr<WebIDL::DOMException> exception = nullptr);
 
+    void restart_timeout_timer();
     void stop_timeout_timer();
     bool should_be_kept_alive() const;
     void update_activity_root();
@@ -247,6 +249,8 @@ private:
     Optional<MonotonicTime> m_last_upload_progress_timestamp;
     Optional<MonotonicTime> m_last_download_progress_timestamp;
 
+    RefPtr<Fetch::Infrastructure::Request> m_async_request;
+    MonotonicTime m_async_send_start_time;
     GC::Ptr<Platform::Timer> m_timeout_timer;
     GC::ActivityRoot m_activity_root;
 };
