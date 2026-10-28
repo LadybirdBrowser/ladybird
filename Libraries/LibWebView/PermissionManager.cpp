@@ -191,8 +191,11 @@ void PermissionManager::bump_generation(PermissionName name, URL::Origin const& 
     m_generations.set(key, m_generations.get(key).value_or(0) + 1);
 }
 
+// A private session reads the ordinary session's blocks as decisions of its own, since they bind it as well.
 Optional<PermissionDecision> PermissionManager::decision(PermissionName name, URL::Origin const& origin) const
 {
+    if (ordinary_session_blocks(name, origin))
+        return PermissionDecision::Block;
     if (auto const* entry = find_entry(name, origin))
         return entry->decision;
     return {};
