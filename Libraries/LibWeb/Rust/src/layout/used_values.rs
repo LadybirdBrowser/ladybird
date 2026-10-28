@@ -478,6 +478,40 @@ impl RootInputCells {
         self.apply_to_record(&record);
         record
     }
+
+    /// The cells, with the sizes, size constraints and box sides they hold in frame `from` read in frame `to` instead.
+    pub(crate) fn in_frame(mut self, from: geometry::Frame, to: geometry::Frame) -> Self {
+        if from == to {
+            return self;
+        }
+        [self.margin_top, self.margin_right, self.margin_bottom, self.margin_left] = from.sides_in(
+            [self.margin_top, self.margin_right, self.margin_bottom, self.margin_left],
+            to,
+        );
+        [self.border_top, self.border_right, self.border_bottom, self.border_left] = from.sides_in(
+            [self.border_top, self.border_right, self.border_bottom, self.border_left],
+            to,
+        );
+        [
+            self.padding_top,
+            self.padding_right,
+            self.padding_bottom,
+            self.padding_left,
+        ] = from.sides_in(
+            [
+                self.padding_top,
+                self.padding_right,
+                self.padding_bottom,
+                self.padding_left,
+            ],
+            to,
+        );
+        if from.is_orthogonal_to(to) {
+            std::mem::swap(&mut self.content_inline_size, &mut self.content_block_size);
+            std::mem::swap(&mut self.has_definite_inline_size, &mut self.has_definite_block_size);
+        }
+        self
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -501,58 +535,8 @@ impl UsedValuesCellState {
 
     /// The state, with the sizes, size constraints and box sides it holds in frame `from` read in frame `to` instead.
     pub(crate) fn in_frame(mut self, from: geometry::Frame, to: geometry::Frame) -> Self {
-        if from == to {
-            return self;
-        }
-        let inputs = &mut self.inputs;
-        [
-            inputs.margin_top,
-            inputs.margin_right,
-            inputs.margin_bottom,
-            inputs.margin_left,
-        ] = from.sides_in(
-            [
-                inputs.margin_top,
-                inputs.margin_right,
-                inputs.margin_bottom,
-                inputs.margin_left,
-            ],
-            to,
-        );
-        [
-            inputs.border_top,
-            inputs.border_right,
-            inputs.border_bottom,
-            inputs.border_left,
-        ] = from.sides_in(
-            [
-                inputs.border_top,
-                inputs.border_right,
-                inputs.border_bottom,
-                inputs.border_left,
-            ],
-            to,
-        );
-        [
-            inputs.padding_top,
-            inputs.padding_right,
-            inputs.padding_bottom,
-            inputs.padding_left,
-        ] = from.sides_in(
-            [
-                inputs.padding_top,
-                inputs.padding_right,
-                inputs.padding_bottom,
-                inputs.padding_left,
-            ],
-            to,
-        );
+        self.inputs = self.inputs.in_frame(from, to);
         if from.is_orthogonal_to(to) {
-            std::mem::swap(&mut inputs.content_inline_size, &mut inputs.content_block_size);
-            std::mem::swap(
-                &mut inputs.has_definite_inline_size,
-                &mut inputs.has_definite_block_size,
-            );
             self.baselines = DerivedBaselines::default();
         }
         self
