@@ -1,0 +1,27 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const first = await caches.open("cache-batch-rollback-shared-list");
+        const second = await caches.open("cache-batch-rollback-shared-list");
+        await first.put("/a", new Response("a"));
+
+        try {
+            await first.addAll([location.href, location.href]);
+        } catch (error) {
+            println(`addAll rejected: ${error.name}`);
+        }
+        const entries_after_rollback = await second.keys();
+        println(`Entries seen by the other Cache after rollback: ${entries_after_rollback.length}`);
+        println(
+            `Original /a entry restored: ${entries_after_rollback.some(request => request.url === new URL("/a", location.href).href)}`
+        );
+        println(`Batch URL absent: ${entries_after_rollback.every(request => request.url !== location.href)}`);
+
+        await first.put("/b", new Response("b"));
+        println(`Entries seen by the other Cache after put: ${(await second.keys()).length}`);
+
+        await caches.delete("cache-batch-rollback-shared-list");
+        done();
+    });
+</script>
