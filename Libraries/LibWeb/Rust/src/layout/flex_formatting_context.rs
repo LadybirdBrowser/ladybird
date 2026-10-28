@@ -2977,7 +2977,11 @@ impl<'pass> FlexFormattingContext<'pass> {
         )
     }
 
-    fn layout_inside_item(&mut self, run: &FormattingContextRun<'pass>, index: usize) {
+    fn layout_inside_item(
+        &mut self,
+        run: &FormattingContextRun<'pass>,
+        index: usize,
+    ) -> Option<fragment_tree::ChildFragmentArrival> {
         let node = self.flex_items[index].box_;
         let input = self.item_layout_input(
             index,
@@ -2988,7 +2992,6 @@ impl<'pass> FlexFormattingContext<'pass> {
             outcome,
             fragment_arrival,
         } = formatting_context::layout_inside_child(run, None, None, node, input, false);
-        formatting_context::hold_fragment_arrival_until_placement(run, node, fragment_arrival);
         outcome.report_percentage_block_size_dependency_of(run, node);
         self.flex_items[index].content_baselines = match outcome {
             ChildLayoutOutcome::Created(result) => result.baselines,
@@ -3002,6 +3005,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         let container_inline_size = self.container_used().content_inline_size.get();
         let container_block_size = self.container_used().content_block_size.get();
         abspos_engine::compute_inset_native(run, node, container_inline_size, container_block_size);
+        fragment_arrival
     }
 
     // https://drafts.csswg.org/css-flexbox-1/#abspos-items
@@ -3852,11 +3856,11 @@ impl<'pass> FlexFormattingContext<'pass> {
     // AD-HOC: Layout the inside of all flex items after resolving their dimensions.
     fn layout_items_and_derive_baselines(&mut self, run: &FormattingContextRun<'pass>) {
         self.copy_dimensions_from_flex_items_to_boxes();
-        for index in 0..self.flex_items.len() {
-            self.layout_inside_item(run, index);
-        }
+        let fragment_arrivals_of_items: Vec<_> = (0..self.flex_items.len())
+            .map(|index| self.layout_inside_item(run, index))
+            .collect();
         self.resolve_baseline_aligned_items();
-        for index in 0..self.flex_items.len() {
+        for (index, fragment_arrival) in fragment_arrivals_of_items.into_iter().enumerate() {
             let item = &self.flex_items[index];
             let offset = if self.main_axis_is_horizontal() {
                 FfiCssPixelPoint {
@@ -3869,7 +3873,7 @@ impl<'pass> FlexFormattingContext<'pass> {
                     y: item.main_offset,
                 }
             };
-            formatting_context::place_child(&self.run, item.box_, offset, None);
+            formatting_context::place_laid_out_child(&self.run, item.box_, offset, None, fragment_arrival);
         }
         self.derived_baselines_of_root_box = DerivedBaselines {
             inline_alignment: self.flex_lines.len().checked_sub(1).and_then(|line_index| {
