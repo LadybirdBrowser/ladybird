@@ -1721,8 +1721,28 @@ pub(crate) struct ReplacedAxisSolution {
 }
 
 #[derive(Clone, Copy)]
+pub(crate) enum AutoMarginOverflow {
+    Split,
+    LowSide,
+    HighSide,
+}
+
+impl AutoMarginOverflow {
+    fn distribute(self, remainder: CssPixels) -> (CssPixels, CssPixels) {
+        if remainder < CssPixels::default() {
+            match self {
+                Self::LowSide => return (remainder, CssPixels::default()),
+                Self::HighSide => return (CssPixels::default(), remainder),
+                Self::Split => {}
+            }
+        }
+        (remainder / 2, remainder / 2)
+    }
+}
+
+#[derive(Clone, Copy)]
 pub(crate) struct ReplacedAxisBehavior {
-    pub(crate) clear_negative_auto_margins: bool,
+    pub(crate) auto_margin_overflow: AutoMarginOverflow,
 }
 
 pub(crate) fn solve_replaced_axis(
@@ -1749,15 +1769,9 @@ pub(crate) fn solve_replaced_axis(
     }
     if margin_start.is_none() && margin_end.is_none() {
         let remainder = available - auto_px_value(start) - auto_px_value(end);
-        if behavior.clear_negative_auto_margins && remainder < CssPixels::default() {
-            // This deliberately matches the C++ inline-axis implementation,
-            // which zeroes both margins instead of solving the end margin.
-            margin_start = Some(CssPixels::default());
-            margin_end = Some(CssPixels::default());
-        } else {
-            margin_start = Some(remainder / 2);
-            margin_end = Some(remainder / 2);
-        }
+        let (start_margin, end_margin) = behavior.auto_margin_overflow.distribute(remainder);
+        margin_start = Some(start_margin);
+        margin_end = Some(end_margin);
     }
     if start.is_none() {
         start = Some(available - auto_px_value(end) - auto_px_value(margin_start) - auto_px_value(margin_end));
@@ -1786,6 +1800,31 @@ pub(crate) fn solve_replaced_axis(
 }
 
 impl AbsposEngine<'_> {
+    fn auto_margin_overflow(&self, containing_block: Node, axis: SizingAxis) -> AutoMarginOverflow {
+        let (writing_mode, direction) = if containing_block.is_invalid() {
+            (writing_mode::HORIZONTAL_TB, direction::LTR)
+        } else {
+            let style = self.style(containing_block);
+            (style.writing_mode(), style.direction())
+        };
+        let frame_horizontal = matches!(axis, SizingAxis::Inline);
+        let containing_inline_is_frame_horizontal =
+            (writing_mode == writing_mode::HORIZONTAL_TB) != self.callbacks.frame.is_transposed();
+        if frame_horizontal != containing_inline_is_frame_horizontal {
+            return AutoMarginOverflow::Split;
+        }
+        // https://drafts.csswg.org/css-position-3/#abspos-margins
+        // However, (all with respect to the writing mode of the containing block), if in the inline axis the remaining
+        // space is negative and both margins are auto, the start margin resolves to zero and the end margin receives
+        // the remaining space.
+        // NB: The negative remainder goes to the containing block's inline-end in this frame.
+        if geometry::start_is_low_side_in_frame(self.callbacks.frame, writing_mode, direction, frame_horizontal) {
+            AutoMarginOverflow::HighSide
+        } else {
+            AutoMarginOverflow::LowSide
+        }
+    }
+
     fn static_offset(
         &self,
         sized: sizing_context::SizedRecord<'_>,
@@ -1905,6 +1944,7 @@ impl AbsposEngine<'_> {
         static_position_rect: abspos_inputs::StaticPositionRect,
         input_inline_size: AutoPx,
         resolved_anchor_insets: Option<&formatting_context::ResolvedAnchorInsets>,
+        auto_margin_overflow: AutoMarginOverflow,
     ) -> (AutoPx, CssPixels, CssPixels, AutoPx, AutoPx) {
         let style = self.style_of(sized).with_resolved_insets(resolved_anchor_insets);
         let used = sized.record;
@@ -2000,8 +2040,9 @@ impl AbsposEngine<'_> {
                 - left
                 - right;
             if margin_left.is_none() && margin_right.is_none() {
-                margin_left = Some(available_for_margins / 2);
-                margin_right = Some(available_for_margins / 2);
+                let (start, end) = auto_margin_overflow.distribute(available_for_margins);
+                margin_left = Some(start);
+                margin_right = Some(end);
                 return (inline_size, left, right, margin_left, margin_right);
             }
             if margin_left.is_none() {
@@ -2050,6 +2091,7 @@ impl AbsposEngine<'_> {
         constraints: ContainingBlockConstraints,
         static_position_rect: abspos_inputs::StaticPositionRect,
         resolved_anchor_insets: Option<&formatting_context::ResolvedAnchorInsets>,
+        auto_margin_overflow: AutoMarginOverflow,
     ) {
         let node = sized.node;
         let containing_block_inline_size = available_space.inline_size.to_px_or_zero();
@@ -2089,6 +2131,7 @@ impl AbsposEngine<'_> {
                 static_position_rect,
                 initial,
                 resolved_anchor_insets,
+                auto_margin_overflow,
             );
 
         // NB: A calc-size() with an auto basis resolves against the inline size auto gives the box.
@@ -2108,6 +2151,7 @@ impl AbsposEngine<'_> {
                 static_position_rect,
                 Some(inline_size),
                 resolved_anchor_insets,
+                auto_margin_overflow,
             );
         }
 
@@ -2130,6 +2174,7 @@ impl AbsposEngine<'_> {
                     static_position_rect,
                     Some(max_inline_size),
                     resolved_anchor_insets,
+                    auto_margin_overflow,
                 );
             }
         }
@@ -2145,6 +2190,7 @@ impl AbsposEngine<'_> {
                     static_position_rect,
                     Some(limited),
                     resolved_anchor_insets,
+                    auto_margin_overflow,
                 );
             }
         }
@@ -2167,6 +2213,7 @@ impl AbsposEngine<'_> {
                     static_position_rect,
                     Some(min_inline_size),
                     resolved_anchor_insets,
+                    auto_margin_overflow,
                 );
             }
         }
@@ -2187,6 +2234,7 @@ impl AbsposEngine<'_> {
         constraints: ContainingBlockConstraints,
         static_position_rect: abspos_inputs::StaticPositionRect,
         resolved_anchor_insets: Option<&formatting_context::ResolvedAnchorInsets>,
+        auto_margin_overflow: AutoMarginOverflow,
     ) {
         let sizing = self.sizing();
         // NB: A stretch inline size fills the inset-modified containing block, which replaced element sizing does not
@@ -2220,9 +2268,7 @@ impl AbsposEngine<'_> {
             resolve_margin_or_auto(style.margin_left(), containing_block_inline_size),
             resolve_margin_or_auto(style.margin_right(), containing_block_inline_size),
             self.static_offset(sized, static_position_rect).inline_offset,
-            ReplacedAxisBehavior {
-                clear_negative_auto_margins: true,
-            },
+            ReplacedAxisBehavior { auto_margin_overflow },
         );
 
         let used = sized.record;
@@ -2259,6 +2305,7 @@ impl AbsposEngine<'_> {
         constraints: ContainingBlockConstraints,
         static_position_rect: abspos_inputs::StaticPositionRect,
         resolved_anchor_insets: Option<&formatting_context::ResolvedAnchorInsets>,
+        auto_margin_overflow: AutoMarginOverflow,
     ) {
         if self
             .sizing()
@@ -2270,6 +2317,7 @@ impl AbsposEngine<'_> {
                 constraints,
                 static_position_rect,
                 resolved_anchor_insets,
+                auto_margin_overflow,
             );
         } else {
             self.compute_inline_size_for_non_replaced(
@@ -2278,6 +2326,7 @@ impl AbsposEngine<'_> {
                 constraints,
                 static_position_rect,
                 resolved_anchor_insets,
+                auto_margin_overflow,
             );
         }
     }
@@ -2395,6 +2444,7 @@ impl AbsposEngine<'_> {
         pass: BlockSizePass,
         block_size: AutoPx,
         resolved_anchor_insets: Option<&formatting_context::ResolvedAnchorInsets>,
+        auto_margin_overflow: AutoMarginOverflow,
     ) -> BlockAxisSolution {
         let style = self.style_of(sized).with_resolved_insets(resolved_anchor_insets);
         let containing_block_inline_size = available_space.inline_size.to_px_or_zero();
@@ -2475,8 +2525,9 @@ impl AbsposEngine<'_> {
             if solution.margin_top.is_none() && solution.margin_bottom.is_none() {
                 let total = Some(auto_px_value(solution.margin_top) + auto_px_value(solution.margin_bottom));
                 let remainder = solve_for(total, false, solution);
-                solution.margin_top = Some(remainder / 2);
-                solution.margin_bottom = Some(remainder / 2);
+                let (start, end) = auto_margin_overflow.distribute(remainder);
+                solution.margin_top = Some(start);
+                solution.margin_bottom = Some(end);
             } else if solution.margin_top.is_none() {
                 solution.margin_top = Some(solve_for(solution.margin_top, false, solution));
             } else if solution.margin_bottom.is_none() {
@@ -2525,6 +2576,7 @@ impl AbsposEngine<'_> {
         solution
     }
 
+    #[expect(clippy::too_many_arguments)]
     fn compute_block_size_for_non_replaced(
         &self,
         sized: sizing_context::SizedRecord<'_>,
@@ -2533,6 +2585,7 @@ impl AbsposEngine<'_> {
         static_position_rect: abspos_inputs::StaticPositionRect,
         pass: BlockSizePass,
         resolved_anchor_insets: Option<&formatting_context::ResolvedAnchorInsets>,
+        auto_margin_overflow: AutoMarginOverflow,
     ) {
         let node = sized.node;
         let style = self.style_of(sized);
@@ -2568,6 +2621,7 @@ impl AbsposEngine<'_> {
             pass,
             initial,
             resolved_anchor_insets,
+            auto_margin_overflow,
         );
 
         // NB: As in the inline axis, a calc-size() with an auto basis resolves against the block size auto gives the
@@ -2591,6 +2645,7 @@ impl AbsposEngine<'_> {
                 pass,
                 Some(block_size),
                 resolved_anchor_insets,
+                auto_margin_overflow,
             );
         }
 
@@ -2613,6 +2668,7 @@ impl AbsposEngine<'_> {
                     pass,
                     Some(max_block_size),
                     resolved_anchor_insets,
+                    auto_margin_overflow,
                 );
             }
         }
@@ -2635,6 +2691,7 @@ impl AbsposEngine<'_> {
                     pass,
                     Some(min_block_size),
                     resolved_anchor_insets,
+                    auto_margin_overflow,
                 );
             }
         }
@@ -2671,6 +2728,7 @@ impl AbsposEngine<'_> {
         });
     }
 
+    #[expect(clippy::too_many_arguments)]
     fn compute_block_size_for_replaced(
         &self,
         sized: sizing_context::SizedRecord<'_>,
@@ -2679,6 +2737,7 @@ impl AbsposEngine<'_> {
         static_position_rect: abspos_inputs::StaticPositionRect,
         pass: BlockSizePass,
         resolved_anchor_insets: Option<&formatting_context::ResolvedAnchorInsets>,
+        auto_margin_overflow: AutoMarginOverflow,
     ) {
         // NB: As for the inline axis, a stretch block size fills the inset-modified containing block.
         let mut block_size = if self.style_of(sized).height().is_stretch() {
@@ -2734,9 +2793,7 @@ impl AbsposEngine<'_> {
             resolve_margin_or_auto(style.margin_top(), containing_block_block_size),
             resolve_margin_or_auto(style.margin_bottom(), containing_block_block_size),
             self.static_offset(sized, static_position_rect).block_offset,
-            ReplacedAxisBehavior {
-                clear_negative_auto_margins: false,
-            },
+            ReplacedAxisBehavior { auto_margin_overflow },
         );
 
         let used = sized.record;
@@ -2763,6 +2820,7 @@ impl AbsposEngine<'_> {
         });
     }
 
+    #[expect(clippy::too_many_arguments)]
     fn compute_block_size(
         &self,
         sized: sizing_context::SizedRecord<'_>,
@@ -2771,6 +2829,7 @@ impl AbsposEngine<'_> {
         static_position_rect: abspos_inputs::StaticPositionRect,
         pass: BlockSizePass,
         resolved_anchor_insets: Option<&formatting_context::ResolvedAnchorInsets>,
+        auto_margin_overflow: AutoMarginOverflow,
     ) {
         if self
             .sizing()
@@ -2783,6 +2842,7 @@ impl AbsposEngine<'_> {
                 static_position_rect,
                 pass,
                 resolved_anchor_insets,
+                auto_margin_overflow,
             );
         } else {
             self.compute_block_size_for_non_replaced(
@@ -2792,6 +2852,7 @@ impl AbsposEngine<'_> {
                 static_position_rect,
                 pass,
                 resolved_anchor_insets,
+                auto_margin_overflow,
             );
         }
     }
@@ -2837,6 +2898,7 @@ impl<'pass> AbsposEngine<'pass> {
             constraints,
             static_position_rect_for_sizing(&inputs),
             resolved,
+            self.auto_margin_overflow(inputs.containing_block, SizingAxis::Inline),
         );
         self.compute_block_size(
             sized,
@@ -2845,6 +2907,7 @@ impl<'pass> AbsposEngine<'pass> {
             static_position_rect_for_sizing(&inputs),
             BlockSizePass::BeforeInsideLayout,
             resolved,
+            self.auto_margin_overflow(inputs.containing_block, SizingAxis::Block),
         );
 
         {
@@ -2898,6 +2961,7 @@ impl<'pass> AbsposEngine<'pass> {
                 static_position_rect_for_sizing(&inputs),
                 BlockSizePass::AfterInsideLayout { inside_layout },
                 resolved,
+                self.auto_margin_overflow(inputs.containing_block, SizingAxis::Block),
             );
         }
 
@@ -3943,8 +4007,12 @@ mod tests {
                 (Some(0), None, Some(10), None, [0, available - 10, 10, 0]),
                 (Some(0), None, None, Some(10), [0, available - 10, 0, 10]),
             ] {
-                // NB: Auto insets zero auto margins regardless of the axis-specific negative-space rule.
-                for clear_negative_auto_margins in [false, true] {
+                // NB: Each policy represents an axis/direction selected by the caller, including orthogonal boxes.
+                for overflow in [
+                    AutoMarginOverflow::Split,
+                    AutoMarginOverflow::LowSide,
+                    AutoMarginOverflow::HighSide,
+                ] {
                     let actual = solve_replaced_axis(
                         px(available),
                         start.map(px),
@@ -3953,7 +4021,7 @@ mod tests {
                         margin_end.map(px),
                         px(17),
                         ReplacedAxisBehavior {
-                            clear_negative_auto_margins,
+                            auto_margin_overflow: overflow,
                         },
                     );
                     assert_eq!(
@@ -3967,6 +4035,37 @@ mod tests {
                         "available={available}, start={start:?}, end={end:?}, margins={margin_start:?}/{margin_end:?}",
                     );
                 }
+            }
+        }
+    }
+
+    #[test]
+    fn replaced_axis_definite_insets_preserve_auto_margin_distribution() {
+        for (overflow, negative_start, negative_end) in [
+            (AutoMarginOverflow::Split, -25, -25),
+            (AutoMarginOverflow::LowSide, -50, 0),
+            (AutoMarginOverflow::HighSide, 0, -50),
+        ] {
+            for (available, margin_start, margin_end) in [(-50, negative_start, negative_end), (50, 25, 25)] {
+                assert_eq!(
+                    solve_replaced_axis(
+                        px(available),
+                        Some(px(0)),
+                        Some(px(0)),
+                        None,
+                        None,
+                        px(17),
+                        ReplacedAxisBehavior {
+                            auto_margin_overflow: overflow,
+                        },
+                    ),
+                    ReplacedAxisSolution {
+                        start: px(0),
+                        end: px(0),
+                        margin_start: px(margin_start),
+                        margin_end: px(margin_end),
+                    },
+                );
             }
         }
     }
