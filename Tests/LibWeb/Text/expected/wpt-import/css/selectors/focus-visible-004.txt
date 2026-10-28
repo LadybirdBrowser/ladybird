@@ -1,0 +1,16 @@
+Harness status: OK
+
+Found 10 tests
+
+4 Pass
+6 Fail
+Pass	Focus element SPAN#el-1 via mouse should NOT match :focus-visible as it does NOT support keyboard input - not affected by "appearance: none"
+Pass	Focus element SPAN#el-2 via mouse should NOT match :focus-visible as it does NOT support keyboard input - not affected by "appearance: none"
+Pass	Focus element SPAN#el-3 via mouse should NOT match :focus-visible as it does NOT support keyboard input - not affected by "appearance: none"
+Pass	Focus element BUTTON#el-4 via mouse should NOT match :focus-visible as it does NOT support keyboard input - not affected by "appearance: none"
+Fail	Focus element INPUT#el-5 via mouse should NOT match :focus-visible as it does NOT support keyboard input - not affected by "appearance: none"
+Fail	Focus element INPUT#el-6 via mouse should NOT match :focus-visible as it does NOT support keyboard input - not affected by "appearance: none"
+Fail	Focus element INPUT#el-7 via mouse should NOT match :focus-visible as it does NOT support keyboard input - not affected by "appearance: none"
+Fail	Focus element INPUT#el-8 via mouse should NOT match :focus-visible as it does NOT support keyboard input - not affected by "appearance: none"
+Fail	Focus element INPUT#el-10 via mouse should NOT match :focus-visible as it does NOT support keyboard input - not affected by "appearance: none"
+Fail	Focus element INPUT#el-11 via mouse should NOT match :focus-visible as it does NOT support keyboard input - not affected by "appearance: none"
