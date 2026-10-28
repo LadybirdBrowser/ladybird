@@ -194,7 +194,8 @@ impl ComparedLayouts<'_> {
             "{checked} returned a result {reference} does not"
         );
         assert_eq!(
-            checked_outputs.root_outcome.cells, reference_outputs.root_outcome.cells,
+            checked_outputs.root_outcome.input_cells_left_by_run,
+            reference_outputs.root_outcome.input_cells_left_by_run,
             "{checked} left a root record {reference} does not"
         );
         assert_eq!(

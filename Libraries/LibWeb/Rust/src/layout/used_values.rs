@@ -221,9 +221,6 @@ pub(crate) struct UsedValues {
     pub has_last_baseline: Cell<bool>,
     pub last_baseline: Cell<CssPixels>,
     pub inline_alignment_baseline: Cell<Option<CssPixels>>,
-    /// For a box that establishes an orthogonal flow, its baselines as distances along the horizontal axis of the frame
-    /// it is laid out in, from the left edge of its content box.
-    pub orthogonal_flow_baselines: Cell<Option<DerivedBaselines>>,
 
     pub(crate) line_data: RefCell<LineDataState>,
     /// The anchor-size() resolutions of an absolutely positioned box, set once as the abspos engine places it.
@@ -258,7 +255,6 @@ impl Default for UsedValues {
             has_last_baseline: Cell::new(false),
             last_baseline: Cell::new(zero),
             inline_alignment_baseline: Cell::new(None),
-            orthogonal_flow_baselines: Cell::new(None),
             line_data: RefCell::new(LineDataState::Empty),
             anchor_resolved_values: std::cell::OnceCell::new(),
         }
@@ -372,10 +368,7 @@ impl UsedValues {
         );
         self.has_definite_inline_size.set(state.inputs.has_definite_inline_size);
         self.has_definite_block_size.set(state.inputs.has_definite_block_size);
-        self.has_first_baseline.set(state.outputs.has_first_baseline);
-        self.has_last_baseline.set(state.outputs.has_last_baseline);
-        self.inline_alignment_baseline
-            .set(state.outputs.inline_alignment_baseline);
+        formatting_context::store_derived_baselines(self, state.baselines);
     }
 
     pub(crate) fn own_metrics_are_sealed(&self) -> bool {
@@ -449,17 +442,6 @@ used_values_cells! {
     }
 }
 
-used_values_cells! {
-    RootOutputCells {
-        has_first_baseline: bool,
-        first_baseline: CssPixels,
-        has_last_baseline: bool,
-        last_baseline: CssPixels,
-        inline_alignment_baseline: Option<CssPixels>,
-        orthogonal_flow_baselines: Option<DerivedBaselines>,
-    }
-}
-
 impl RootInputCells {
     /// The input cells of `node` as its record starts out, before anything sizes the box.
     pub(crate) fn of_box_before_sizing(
@@ -480,20 +462,20 @@ impl RootInputCells {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct UsedValuesCellState {
     pub(crate) inputs: RootInputCells,
-    pub(crate) outputs: RootOutputCells,
+    pub(crate) baselines: DerivedBaselines,
 }
 
 impl UsedValuesCellState {
     pub(crate) fn capture(used: &UsedValues) -> Self {
         Self {
             inputs: RootInputCells::capture(used),
-            outputs: RootOutputCells::capture(used),
+            baselines: used.content_baselines_from_cells(),
         }
     }
 
     pub(crate) fn apply_to_record(&self, used: &UsedValues) {
         self.inputs.apply_to_record(used);
-        self.outputs.apply_to_record(used);
+        formatting_context::store_derived_baselines(used, self.baselines);
     }
 
     /// The state, with the sizes, size constraints and box sides it holds in frame `from` read in frame `to` instead.
@@ -550,9 +532,7 @@ impl UsedValuesCellState {
                 &mut inputs.has_definite_inline_size,
                 &mut inputs.has_definite_block_size,
             );
-            self.outputs.has_first_baseline = false;
-            self.outputs.has_last_baseline = false;
-            self.outputs.inline_alignment_baseline = None;
+            self.baselines = DerivedBaselines::default();
         }
         self
     }

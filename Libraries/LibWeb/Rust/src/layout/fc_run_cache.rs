@@ -323,11 +323,9 @@ impl FcRunCacheEntry {
     }
 
     fn root_content_size_as_its_parent_holds_it(&self) -> (CssPixels, CssPixels) {
-        match &self.outputs.root_outcome.cells {
-            formatting_context::RootCellsOutcome::AllCells(cells) => {
-                (cells.inputs.content_inline_size, cells.inputs.content_block_size)
-            }
-            formatting_context::RootCellsOutcome::OutputCellsOnly(_) => (
+        match &self.outputs.root_outcome.input_cells_left_by_run {
+            Some(cells) => (cells.content_inline_size, cells.content_block_size),
+            None => (
                 self.key.root_cells.content_inline_size,
                 self.root_content_block_size_adopted_after_run
                     .unwrap_or(self.key.root_cells.content_block_size),
@@ -937,7 +935,7 @@ impl FcRunCacheAttempt {
                 .sizing
                 .table_cell_intrinsic_block_padding
                 .is_some()
-                && outputs.root_outcome.cells.parent_owns_root_input_cells()
+                && outputs.root_outcome.parent_owns_root_input_cells()
                 && !run_observes_root_block_padding(callbacks, box_, outputs),
             root_content_block_size_adopted_after_run,
             layout_commits_when_stored: callbacks.arena().layout_commit_count(),
@@ -1074,9 +1072,7 @@ mod tests {
                 result: formatting_context::ChildLayoutResult::default(),
                 root,
                 root_outcome: formatting_context::RunRootOutcome {
-                    cells: formatting_context::RootCellsOutcome::AllCells(used_values::UsedValuesCellState::capture(
-                        &UsedValues::default(),
-                    )),
+                    input_cells_left_by_run: Some(used_values::RootInputCells::capture(&UsedValues::default())),
                     own_metrics_sealed: false,
                     line_data: None,
                 },
@@ -1333,7 +1329,7 @@ mod tests {
     }
 
     #[test]
-    fn item_keys_leave_out_root_outputs_and_the_block_size_adopted_after_the_run_unless_the_run_reads_it() {
+    fn item_keys_leave_out_the_block_size_adopted_after_the_run_unless_the_run_reads_it() {
         let record = UsedValues::default();
         let item_input = LayoutInput::new(
             AvailableSpace {
@@ -1347,8 +1343,6 @@ mod tests {
         let stored_block_key = key_of(formatting_context::FormattingContextType::Block, item_input);
         let stored_flex_key = key_of(formatting_context::FormattingContextType::Flex, item_input);
 
-        record.has_first_baseline.set(true);
-        record.first_baseline.set(px(12));
         let mut adopting_input = item_input;
         adopting_input.sizing.adopt_automatic_content_block_size = true;
         adopting_input.sizing.content_block_size_after_inside_layout = Some(px(40));
