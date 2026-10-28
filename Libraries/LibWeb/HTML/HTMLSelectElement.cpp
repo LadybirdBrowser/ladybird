@@ -640,13 +640,33 @@ void HTMLSelectElement::form_associated_element_was_inserted()
     create_shadow_tree_if_needed();
 }
 
-void HTMLSelectElement::form_associated_element_attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const&, Optional<Utf16String> const& value, Optional<Utf16FlyString> const&)
+void HTMLSelectElement::form_associated_element_attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {
-    if (name == HTML::AttributeNames::multiple) {
-        // If the multiple attribute is absent then update the selectedness of the option elements.
+    if (namespace_.has_value())
+        return;
+
+    // https://html.spec.whatwg.org/multipage/form-elements.html#the-select-element
+    if (name == HTML::AttributeNames::size) {
+        // Whenever a select element's size attribute is set, changed, or removed, reset a select's selectedness given the select element and false.
+        reset_selectedness(HasChanged::No);
+    } else if (name == HTML::AttributeNames::multiple && old_value.has_value() != value.has_value()) {
+        // Whenever a select element select's multiple attribute is added or removed, run these steps:
+        // 1. If the multiple attribute was removed, then set the selectedness of all but the first option element
+        //    with its selectedness set to true in select's list of options to false.
         if (!value.has_value()) {
-            update_selectedness();
+            update_cached_list_of_options();
+            bool found_selected_option = false;
+            for (auto const& option : m_cached_list_of_options) {
+                if (!option->selected())
+                    continue;
+                if (found_selected_option)
+                    option->set_selected_internal(false);
+                found_selected_option = true;
+            }
         }
+
+        // 2. Reset a select's selectedness given select and true.
+        reset_selectedness(HasChanged::Yes);
     }
 
     // AD-HOC: Changing the required or multiple attribute can change whether the select satisfies its constraints.
@@ -759,7 +779,7 @@ void HTMLSelectElement::clone_selected_option_into_select_button()
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#selectedness-setting-algorithm
 // https://whatpr.org/html/11890/form-elements.html#selectedness-setting-algorithm
-void HTMLSelectElement::update_selectedness()
+bool HTMLSelectElement::update_selectedness()
 {
     // The selectedness setting algorithm, given a select element element, is to run the following steps:
     update_cached_list_of_options();
@@ -820,6 +840,24 @@ void HTMLSelectElement::update_selectedness()
 
     // AD-HOC: A change to the selected option can change whether a required select satisfies its constraints.
     CSS::Invalidation::invalidate_style_after_validity_change(*this);
+
+    return should_update_selectedcontent;
+}
+
+// https://html.spec.whatwg.org/multipage/form-elements.html#reset-a-select%27s-selectedness
+void HTMLSelectElement::reset_selectedness(HasChanged has_changed)
+{
+    // 1. If the result of running the selectedness setting algorithm given select is true, then set hasChanged to true.
+    // NB: Our selectedness setting algorithm already updated the selectedcontent elements if it changed anything.
+    if (update_selectedness())
+        return;
+
+    // 2. If hasChanged is false, then return.
+    if (has_changed == HasChanged::No)
+        return;
+
+    // 3. Update a select's descendant selectedcontent elements given select.
+    MUST(update_selectedcontent());
 }
 
 bool HTMLSelectElement::is_focusable() const

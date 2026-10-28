@@ -2,13 +2,13 @@ Harness status: OK
 
 Found 8 tests
 
-2 Pass
-6 Fail
-Fail	Reducing a select's size to 1 selects the first enabled option.
+6 Pass
+2 Fail
+Pass	Reducing a select's size to 1 selects the first enabled option.
 Pass	Removing a select's multiple attribute selects the first enabled option.
 Fail	Removing an option's disabled attribute selects it.
 Fail	Removing an optgroup's disabled attribute selects the option inside it.
-Fail	Adding an option's selected attribute deselects the other options.
-Fail	Removing an option's selected attribute falls back to the first enabled option.
+Pass	Adding an option's selected attribute deselects the other options.
+Pass	Removing an option's selected attribute falls back to the first enabled option.
 Pass	Removing the selected attribute from a dirty option does not change selectedness.
-Fail	Removing a select's multiple attribute keeps the first selected option.
+Pass	Removing a select's multiple attribute keeps the first selected option.
