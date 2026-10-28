@@ -2727,11 +2727,11 @@ void Tab::show_site_settings_popover()
         // the panel was opened for: its menu runs a nested event loop, during which the tab may move on to another.
         m_site_settings_popover->on_permission_change = [this](Web::Permissions::PermissionName name, Optional<WebView::PermissionDecision> decision) {
             view().set_site_permission(*m_site_settings_popover_origin, name, decision);
-            m_site_settings_popover->set_permissions(view().site_permission_rows());
+            refresh_site_settings_popover();
         };
         m_site_settings_popover->on_reset_permissions = [this] {
             view().reset_site_permissions(*m_site_settings_popover_origin);
-            m_site_settings_popover->set_permissions(view().site_permission_rows());
+            refresh_site_settings_popover();
         };
     }
 
@@ -2751,6 +2751,19 @@ void Tab::show_site_settings_popover()
     m_site_settings_popover->show();
     move_popover_below(*m_site_settings_popover, anchor_or_field, PopoverAlignment::Leading);
     m_site_settings_popover->raise();
+}
+
+// The rows are read again for the site the panel was opened for; a panel whose tab has moved on to another site closes
+// instead, since its rows would be the new site's.
+void Tab::refresh_site_settings_popover()
+{
+    if (!m_site_settings_popover)
+        return;
+    if (!view().permission_origin().is_same_origin(*m_site_settings_popover_origin)) {
+        m_site_settings_popover->close();
+        return;
+    }
+    m_site_settings_popover->set_permissions(view().site_permission_rows());
 }
 
 void Tab::show_private_session_popover()
