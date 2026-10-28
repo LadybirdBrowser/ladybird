@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    iframe {
+        display: block;
+        width: 200px;
+        height: 100px;
+        border: 0;
+    }
+</style>
+<script>
+    // A target=_blank link opens a noopener popup. A sandboxed iframe is the one permitted sandboxed navigator of that
+    // popup, so the link navigates it although the iframe's sandboxed navigation browsing context flag is set.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+        const channelName = `sandboxed-link-popup-${runId}`;
+        const channel = new BroadcastChannel(channelName);
+        const nextMessage = () => new Promise(resolve => channel.addEventListener("message", event => resolve(event.data), { once: true }));
+
+        const popupUrl = await httpServer.createEcho("GET", `/sandboxed-link-popup-${runId}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><script>
+                new BroadcastChannel(${JSON.stringify(channelName)}).postMessage("the popup loaded");
+                window.close();
+            <\/script>`,
+        });
+        const linkDocument = `<!DOCTYPE html><style>body { margin: 0; } a { display: block; width: 200px; height: 100px; }</style>
+            <a target="_blank" href="${popupUrl}">link</a>`;
+
+        const crossSiteUrl = new URL(
+            await httpServer.createEcho("GET", `/sandboxed-link-iframe-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `${linkDocument}<script>parent.postMessage("ready", "*");<\/script>`,
+            })
+        );
+        crossSiteUrl.hostname = uniqueLocalhostHostname("sandboxed-link-iframe");
+
+        const clickLinkIn = async (label, setUp) => {
+            const iframe = document.createElement("iframe");
+            iframe.sandbox = "allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts";
+            const loaded = setUp(iframe);
+            document.body.appendChild(iframe);
+            await loaded;
+
+            const popupLoaded = nextMessage();
+            const rect = iframe.getBoundingClientRect();
+            internals.clickThroughUIProcess(rect.left + 30, rect.top + 20);
+            println(`${label}: ${await popupLoaded}`);
+            iframe.remove();
+        };
+
+        await clickLinkIn("same-site iframe", iframe => {
+            iframe.srcdoc = linkDocument;
+            return new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        });
+
+        await clickLinkIn("cross-site iframe", iframe => {
+            iframe.src = crossSiteUrl;
+            return new Promise(resolve => addEventListener("message", resolve, { once: true }));
+        });
+    });
+</script>

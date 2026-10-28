@@ -1,0 +1,2 @@
+same-site iframe: the popup loaded
+cross-site iframe: the popup loaded

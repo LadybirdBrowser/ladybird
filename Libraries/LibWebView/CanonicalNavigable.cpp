@@ -655,7 +655,8 @@ CanonicalNavigable::ChosenTopLevelTraversable CanonicalNavigable::choose_a_new_t
 
     //    2. If sandboxingFlagSet's sandboxed navigation browsing context flag is set, then set chosen's active browsing
     //       context's one permitted sandboxed navigator to currentNavigable's active browsing context.
-    if (opener.has_value() && has_flag(sandboxing_flag_set, Web::HTML::SandboxingFlagSet::SandboxedNavigation))
+    // AD-HOC: For a noopener popup too. See https://github.com/whatwg/html/issues/12297
+    if (has_flag(sandboxing_flag_set, Web::HTML::SandboxingFlagSet::SandboxedNavigation))
         chosen.active_browsing_context().set_the_one_permitted_sandboxed_navigator(current_navigable.active_browsing_context());
 
     // 9. If sandboxingFlagSet's sandbox propagates to auxiliary browsing contexts flag is set, then all the flags that are

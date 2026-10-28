@@ -1889,12 +1889,14 @@ LocalNavigable::ChosenNavigable LocalNavigable::choose_a_navigable(Utf16View nam
                 // 1. Set chosen to the result of creating a new top-level traversable given currentNavigable's active browsing context, targetName, and currentNavigable.
                 // FIXME: "and currentNavigable", which is the openerNavigableForWebDriver parameter.
                 chosen = create_new_traversable(active_browsing_context());
-
-                // 2. If sandboxingFlagSet's sandboxed navigation browsing context flag is set,
-                //    then set chosen's active browsing context's one permitted sandboxed navigator to currentNavigable's active browsing context.
-                if (has_flag(sandboxing_flag_set, SandboxingFlagSet::SandboxedNavigation))
-                    as<LocalNavigable>(*chosen).active_browsing_context()->set_the_one_permitted_sandboxed_navigator(active_browsing_context().ptr());
             }
+
+            // 8.2. If sandboxingFlagSet's sandboxed navigation browsing context flag is set,
+            //      then set chosen's active browsing context's one permitted sandboxed navigator to currentNavigable's active browsing context.
+            // AD-HOC: For a noopener popup too, or a sandboxed document could not navigate the popup a target=_blank link
+            //         opens. See https://github.com/whatwg/html/issues/12297
+            if (has_flag(sandboxing_flag_set, SandboxingFlagSet::SandboxedNavigation))
+                as<LocalNavigable>(*chosen).active_browsing_context()->set_the_one_permitted_sandboxed_navigator(active_browsing_context().ptr());
 
             // 9. If sandboxingFlagSet's sandbox propagates to auxiliary browsing contexts flag is set,
             //     then all the flags that are set in sandboxingFlagSet must be set in chosen's active browsing context's popup sandboxing flag set.
