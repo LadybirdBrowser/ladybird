@@ -1591,10 +1591,15 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                 sink.push_ascii("repeating-");
             }
             sink.push_ascii("conic-gradient(");
-            let has_from_angle = from_angle.optional_data().is_some();
+            // https://drafts.csswg.org/css-images-4/#conic-gradients
+            // The entire gradient is rotated by this angle. If omitted, defaults to 0deg.
+            let from_angle = from_angle
+                .optional_data()
+                .filter(|angle| !matches!(angle, StyleValueData::Angle { value, .. } if *value == 0.0));
+            let has_from_angle = from_angle.is_some();
             let position = position.data();
             let has_at_position = !position_is_center(position, mode);
-            if let Some(from_angle) = from_angle.optional_data() {
+            if let Some(from_angle) = from_angle {
                 sink.push_ascii("from ");
                 serialize_style_value(sink, from_angle, mode);
             }
