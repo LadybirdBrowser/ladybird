@@ -3077,12 +3077,15 @@ void ViewImplementation::initialize_tab(Web::HTML::VisibilityState system_visibi
                     return;
             } else if (!view->m_geolocation_position_request_ids.remove(key)) {
                 return;
+            } else {
+                view->m_geolocation_request_documents.remove(key);
             }
 
             // The permission is checked again for every position, since the user may have taken it away meanwhile.
             if (!Application::the().sites_can_ask_for_location() || !request_page->document_may_use(document_id, Web::Permissions::PermissionName::Geolocation)) {
                 if (auto provider_watch_id = view->m_geolocation_watch_ids.take(key); provider_watch_id.has_value())
                     Application::the().stop_watching_geolocation_position(*provider_watch_id);
+                view->m_geolocation_request_documents.remove(key);
                 request_page->async_geolocation_position_response(request_id, {}, to_underlying(GeolocationErrorCode::PermissionDenied));
                 return;
             }
@@ -3107,6 +3110,8 @@ void ViewImplementation::initialize_tab(Web::HTML::VisibilityState system_visibi
                     return;
             } else if (!view->m_geolocation_position_request_ids.remove(key)) {
                 return;
+            } else {
+                view->m_geolocation_request_documents.remove(key);
             }
 
             auto code = geolocation_error_code(error);
@@ -3114,6 +3119,7 @@ void ViewImplementation::initialize_tab(Web::HTML::VisibilityState system_visibi
                 auto provider_watch_id = view->m_geolocation_watch_ids.take(key);
                 if (provider_watch_id.has_value())
                     Application::the().stop_watching_geolocation_position(*provider_watch_id);
+                view->m_geolocation_request_documents.remove(key);
             }
 
             request_page->async_geolocation_position_response(request_id, {}, to_underlying(code));
@@ -3147,6 +3153,7 @@ void ViewImplementation::initialize_tab(Web::HTML::VisibilityState system_visibi
         auto provider_request_id = m_geolocation_position_request_ids.take({ requesting_page, request_id });
         if (provider_request_id.has_value())
             Application::the().cancel_geolocation_position_request(*provider_request_id);
+        m_geolocation_request_documents.remove({ requesting_page, request_id });
     };
 
     on_start_geolocation_position_watch = [this, geolocation_error_code, make_geolocation_success_handler, make_geolocation_error_handler](WebContentPage& requesting_page, u64 request_id, Web::HTML::CrossProcessId document_id) {
@@ -3175,6 +3182,7 @@ void ViewImplementation::initialize_tab(Web::HTML::VisibilityState system_visibi
     on_stop_geolocation_position_watch = [this](WebContentPage& requesting_page, u64 request_id) {
         ScopeGuard update_location_in_use = [this] { this->update_location_in_use(); };
         auto provider_watch_id = m_geolocation_watch_ids.take({ requesting_page, request_id });
+        m_geolocation_request_documents.remove({ requesting_page, request_id });
         if (!provider_watch_id.has_value())
             return;
 
@@ -3191,6 +3199,7 @@ void ViewImplementation::cancel_all_native_geolocation_requests()
     auto geolocation_watch_ids = move(m_geolocation_watch_ids);
     for (auto const& watch : geolocation_watch_ids)
         Application::the().stop_watching_geolocation_position(watch.value);
+    m_geolocation_request_documents.clear();
     update_location_in_use();
 }
 
