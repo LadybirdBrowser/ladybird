@@ -1,0 +1,118 @@
+Harness status: OK
+
+Found 112 tests
+
+98 Pass
+14 Fail
+Pass	tr with display: contents, within table with display: flex, has row role
+Pass	td as child of tr with display: contents, within table with display: flex, has cell role
+Pass	tr with display: contents, within table with role=table with display: flex, has row role
+Pass	th as child of tr with display: contents, within table with role=table with display: flex, has columnheader role
+Pass	td as child of tr with display: contents, within table with role=table with display: flex, has cell role
+Pass	tr with display: contents, within table with role=grid with display: flex, has row role
+Pass	th as child of tr with display: contents, within table with role=grid with display: flex, has columnheader role
+Pass	td (no explicit role) as child of tr with display: contents, within table with role=grid with display: flex, has gridcell role
+Pass	ul with display: contents, as child of div with display: grid, has list role
+Pass	listitem within ul with display: contents, as child of div with display: grid, has listitem role
+Pass	header with display: contents has banner role
+Pass	main with display: contents has main role
+Pass	footer with display: contents has contentinfo role
+Pass	search with display: contents has search role
+Pass	div with role banner and display: contents has banner role
+Pass	div with role main and display: contents has main role
+Pass	div with role contentinfo and display: contents has contentinfo role
+Pass	ul with role list and display: contents (child li has display: contents) has list role
+Pass	li as child of ul with role list, both with display: contents, has listitem role
+Pass	ul with role list and display: contents has list role
+Pass	li, as child of ul with role list and display: contents, has listitem role
+Pass	li with display: contents, as child of ul with role list, has listitem role
+Pass	ol with role list and display: contents has list role (child li has display: contents)
+Pass	li as child of ol with role list, both with display: contents, has listitem role
+Pass	ol with role list and display: contents has list role
+Pass	li, as child of ol with role list and display: contents, has listitem role
+Pass	li with display: contents, as child of ol with role list, has listitem role
+Pass	div with list role and display: contents has list role
+Pass	div with listitem role, as child of div with display: contents, has listitem role
+Pass	div with list role and display: contents has list role (child div with listitem role has display: contents)
+Pass	div with listitem role (as child of div with list role), both with display: contents, has listitem role
+Pass	div with listitem role with display: contents, as child of div with list role, has listitem role
+Pass	table with role table and display: contents has table role
+Pass	tr in table with role table and display: contents has row role
+Pass	td within tr both with display: contents, in table with role table and display: contents, has columnheader role
+Pass	td within tr in table with role table, all with display: contents, has cell role
+Pass	div with role table with display: contents has table role
+Pass	div with role rowgroup in div with role table, both with display: contents, has rowgroup role
+Pass	div with role columnheader with display: contents, in div with role rowgroup within div with table role both with display: contents, has columnheader role
+Pass	th within table with role grid, both with display: contents, has columnheader role
+Pass	td within table with role grid, both with display: contents, has gridcell role
+Pass	div with role grid with display: contents has grid role
+Pass	div with role rowgroup in div with role grid, both with display: contents, has rowgroup role
+Pass	div with role columnheader with display: contents, in div with role rowgroup within div with grid role both with display: contents, has rowgroup role
+Pass	div with gridcell role and display: contents, within div with role row contained in a div with role grid both with display: contents, has gridcell role
+Pass	table with role treegrid and display: contents has treegrid role
+Pass	div with role treegrid and display: contents has treegrid role
+Pass	ul with role tree and display: contents has tree role
+Pass	li with role treeitem and display: contents, within ul with role tree and display: contents, has treeitem role
+Pass	li with role treeitem and display: contents, within ul with role=group (within ul with role tree and display: contents), has treeitem role
+Pass	Label: button with display: contents is labelled via referenced hidden span
+Pass	Label: link with display: contents is labelled via aria-labelledby
+Pass	Label: nav with display: contents is labelled via aria-labelledby
+Pass	Label: button with display: contents is labelled via aria-label
+Pass	Label: div with role group with display: contents is labelled via aria-label
+Pass	Label: button with display: contents is labelled via label for/id association
+Pass	Label: g element with display: contents, as child of svg, is labelled via title element
+Fail	Label: link with display: contents is labelled via name from contents
+Fail	Label: button with display: contents is labelled via name from contents
+Fail	Label: h3 with display: contents is labelled via name from contents
+Fail	Label: button with display: contents has button role
+Fail	Label: button with explicit button role and display: contents has button role
+Fail	Label: div with button role and display: contents has button role
+Fail	Label: div with button role, tabindex=0 and display: contents has button role
+Fail	Label: h3 with display: contents has heading role
+Fail	Label: div with heading role, aria-level=3 and display: contents has heading role
+Fail	Label: span with heading role, aria-level=1 and display: contents has heading role
+Pass	Label: nav with display: contents and aria-label has navigation role
+Pass	Label: aside with display: contents and aria-label has complementary role
+Pass	Label: form with display: contents has form role
+Pass	Label: section with aria-label and display: contents has region role
+Pass	Label: div with role navigation, aria-label and display: contents has navigation role
+Pass	Label: div with role complementary, aria-label and display: contents has complementary role
+Pass	Label: div with role form, aria-label and display: contents has form role
+Pass	Label: div with role search and display: contents has search role
+Pass	Label: div with role region, aria-label and display: contents has region role
+Fail	Label: link with display: contents has link role
+Fail	Label: link with explicit link role and display: contents has link role
+Fail	Label: div with link role and display: contents has link role
+Fail	Label: div with link role, tabindex=0 and display: contents has link role
+Pass	Role: button with display: contents is labelled via referenced hidden span
+Pass	Role: link with display: contents is labelled via aria-labelledby
+Pass	Role: nav with display: contents is labelled via aria-labelledby
+Pass	Role: button with display: contents is labelled via aria-label
+Pass	Role: div with role group with display: contents is labelled via aria-label
+Pass	Role: button with display: contents is labelled via label for/id association
+Pass	Role: g element with display: contents, as child of svg, is labelled via title element
+Pass	Role: link with display: contents is labelled via name from contents
+Pass	Role: button with display: contents is labelled via name from contents
+Pass	Role: h3 with display: contents is labelled via name from contents
+Pass	Role: button with display: contents has button role
+Pass	Role: button with explicit button role and display: contents has button role
+Pass	Role: div with button role and display: contents has button role
+Pass	Role: div with button role, tabindex=0 and display: contents has button role
+Pass	Role: h3 with display: contents has heading role
+Pass	Role: div with heading role, aria-level=3 and display: contents has heading role
+Pass	Role: span with heading role, aria-level=1 and display: contents has heading role
+Pass	Role: nav with display: contents and aria-label has navigation role
+Pass	Role: aside with display: contents and aria-label has complementary role
+Pass	Role: form with display: contents has form role
+Pass	Role: section with aria-label and display: contents has region role
+Pass	Role: div with role navigation, aria-label and display: contents has navigation role
+Pass	Role: div with role complementary, aria-label and display: contents has complementary role
+Pass	Role: div with role form, aria-label and display: contents has form role
+Pass	Role: div with role search and display: contents has search role
+Pass	Role: div with role region, aria-label and display: contents has region role
+Pass	Role: link with display: contents has link role
+Pass	Role: link with explicit link role and display: contents has link role
+Pass	Role: div with link role and display: contents has link role
+Pass	Role: div with link role, tabindex=0 and display: contents has link role
+Pass	div with display: contents has generic role
+Pass	span with display: contents has generic role
