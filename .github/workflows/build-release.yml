@@ -44,9 +44,8 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v7
         with:
-          name: ladybird-source
           path: '*-source.tar.xz'
-          compression-level: 0
+          archive: false
           if-no-files-found: error
 
   Build:
