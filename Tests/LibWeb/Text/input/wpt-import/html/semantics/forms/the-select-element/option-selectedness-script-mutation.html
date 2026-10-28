@@ -1,0 +1,101 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Select reacts to option selectedness updates from selected attribute mutations</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#concept-option-selectedness">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#reset-a-select's-selectedness">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#dom-select-selectedoptions">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<div id="log"></div>
+
+<script>
+"use strict";
+
+test(() => {
+  const select = document.createElement("select");
+  const first = new Option("123");
+  const second = new Option("234");
+  select.append(first, second);
+
+  const selectedOptions = select.selectedOptions;
+  assert_equals(select.selectedIndex, 0, "precondition: first option starts selected");
+  assert_equals(selectedOptions.length, 1, "precondition: exactly one selected option");
+  assert_equals(selectedOptions[0], first, "precondition: first selected option");
+
+  second.setAttribute("selected", "");
+
+  assert_equals(select.selectedIndex, 1, "setting selected content attribute updates select owner state");
+  assert_equals(selectedOptions.length, 1, "selectedOptions stays coherent for single select");
+  assert_equals(selectedOptions[0], second, "new option becomes the selected one");
+}, "single-select responds to setting selected attribute from script");
+
+test(() => {
+  const select = document.createElement("select");
+  const first = new Option("123");
+  const second = new Option("234");
+  second.defaultSelected = true;
+  select.append(first, second);
+
+  const selectedOptions = select.selectedOptions;
+  assert_equals(select.selectedIndex, 1, "precondition: second option starts selected");
+
+  second.removeAttribute("selected");
+
+  assert_equals(select.selectedIndex, 0, "removing selected content attribute runs reset behavior");
+  assert_equals(selectedOptions.length, 1, "selectedOptions remains coherent after removal");
+  assert_equals(selectedOptions[0], first, "selection falls back to first enabled option");
+}, "single-select responds to removing selected attribute from script");
+
+test(() => {
+  const select = document.createElement("select");
+  select.multiple = true;
+  const first = new Option("123");
+  const second = new Option("234");
+  select.append(first, second);
+
+  const selectedOptions = select.selectedOptions;
+  assert_equals(selectedOptions.length, 0, "precondition: no selected options in multi-select");
+
+  first.setAttribute("selected", "");
+  second.setAttribute("selected", "");
+
+  assert_equals(selectedOptions.length, 2, "multi-select retains both selected options");
+  assert_equals(selectedOptions[0], first, "first selected option should be present");
+  assert_equals(selectedOptions[1], second, "second selected option should be present");
+}, "multi-select keeps multiple selected options when selected attribute changes from script");
+
+test(() => {
+  const select = document.createElement("select");
+  const first = new Option("123");
+  const second = new Option("234");
+  select.append(first, second);
+
+  const selectedOptions = select.selectedOptions;
+  assert_equals(select.selectedIndex, 0, "precondition: first option starts selected");
+
+  second.selected = true;
+
+  assert_equals(select.selectedIndex, 1, "setting option.selected updates owner select state");
+  assert_equals(selectedOptions.length, 1, "selectedOptions stays coherent for single select");
+  assert_equals(selectedOptions[0], second, "new option becomes selected");
+  assert_false(second.hasAttribute("selected"), "IDL selected does not reflect to content attribute");
+}, "single-select responds to setting option.selected from script");
+
+test(() => {
+  const select = document.createElement("select");
+  select.multiple = true;
+  const first = new Option("123");
+  const second = new Option("234");
+  select.append(first, second);
+
+  const selectedOptions = select.selectedOptions;
+  first.selected = true;
+  second.selected = true;
+
+  assert_equals(selectedOptions.length, 2, "multi-select keeps both selections with option.selected");
+  assert_equals(selectedOptions[0], first, "first selected option should be present");
+  assert_equals(selectedOptions[1], second, "second selected option should be present");
+  assert_false(first.hasAttribute("selected"), "IDL selected does not reflect to content attribute");
+  assert_false(second.hasAttribute("selected"), "IDL selected does not reflect to content attribute");
+}, "multi-select responds to option.selected without selected attribute reflection");
+</script>
