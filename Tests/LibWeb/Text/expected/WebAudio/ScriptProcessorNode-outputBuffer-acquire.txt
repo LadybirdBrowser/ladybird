@@ -1,0 +1,12 @@
+event 1: output array retained from the previous event is detached: true
+event 2: output array retained from the previous event is detached: true
+event 2: detached its output array
+event 3: output array retained from the previous event is detached: true
+event 4: output array retained from the previous event is detached: true
+event 5: output array retained from the previous event is detached: true
+block 0 plays 0
+block 1 plays 0
+block 2 plays 1
+block 3 plays 2
+block 4 plays 0
+block 5 plays 4

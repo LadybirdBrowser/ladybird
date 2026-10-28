@@ -368,8 +368,8 @@ void AudioNode::visit_edges(Cell::Visitor& visitor)
     // references to any nodes it is connected to, and so on".
     // NB: The context roots every source node that is playing, which is what keeps a subgraph feeding the destination
     //     alive for as long as it can still produce sound.
-    // FIXME: A node that is still within its tail-time, and a ScriptProcessorNode or MediaElementAudioSourceNode that
-    //        is actively processing, should be kept alive by the context in the same way.
+    // FIXME: A node that is still within its tail-time, and a MediaElementAudioSourceNode that is actively processing,
+    //        should be kept alive by the context in the same way.
     for (auto& conn : m_param_connections)
         visitor.visit(conn.destination_param);
 

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Test AnalyserNode when the input is silent</title>
+  <meta name="timeout" content="long">
+  <script src="../../../resources/testharness.js"></script>
+  <script src="../../../resources/testharnessreport.js"></script>
+  <script>
+    setup({ single_test: true });
+    var ac = new AudioContext();
+    var analyser = ac.createAnalyser();
+    var constant = ac.createConstantSource();
+    var sp = ac.createScriptProcessor(2048, 1, 1);
+
+    constant.offset.value = 0.0;
+
+    constant.connect(analyser).connect(ac.destination);
+
+    constant.connect(sp).connect(ac.destination);
+
+    var buf = new Float32Array(analyser.frequencyBinCount);
+    var iteration_count = 10;
+    sp.onaudioprocess = function() {
+      analyser.getFloatFrequencyData(buf);
+      var correct = true;
+      for (var i = 0; i < buf.length; i++) {
+        correct &= buf[i] == -Infinity;
+      }
+      assert_true(!!correct, "silent input process -Infinity in decibel bins");
+      if (!iteration_count--) {
+        sp.onaudioprocess = null;
+        constant.stop();
+        ac.close();
+        done();
+      }
+    };
+
+    constant.start();
+  </script>
+</head>
+</body>
+</html>

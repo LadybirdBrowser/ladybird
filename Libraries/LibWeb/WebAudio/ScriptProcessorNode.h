@@ -6,7 +6,14 @@
 
 #pragma once
 
+#include <AK/RefPtr.h>
 #include <LibWeb/WebAudio/AudioNode.h>
+
+namespace Web::WebAudio::Rendering {
+
+class ScriptProcessorPipe;
+
+}
 
 namespace Web::WebAudio {
 
@@ -46,8 +53,12 @@ public:
 private:
     ScriptProcessorNode(GC::Ref<BaseAudioContext>, u8 number_of_input_channels, u8 number_of_output_channels);
 
-    void set_buffer_size_without_validation(WebIDL::Long buffer_size) { m_buffer_size = buffer_size; }
+    virtual void finalize() override;
 
+    void set_buffer_size_without_validation(WebIDL::Long buffer_size) { m_buffer_size = buffer_size; }
+    void process_block(size_t block, u64 start_frame);
+
+    RefPtr<Rendering::ScriptProcessorPipe> m_pipe;
     WebIDL::Long m_buffer_size { 0 };
     u8 m_number_of_input_channels { 0 };
     u8 m_number_of_output_channels { 0 };

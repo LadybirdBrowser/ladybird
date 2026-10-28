@@ -1,0 +1,4 @@
+audioprocess events for the node never connected: 0
+audioprocess events for the node output connected: 16
+audioprocess events for the node input connected: 16
+audioprocess events for the node disconnected in its first handler: 1

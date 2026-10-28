@@ -2,9 +2,9 @@ Harness status: OK
 
 Found 5 tests
 
-5 Fail
-Fail	ScriptProcessor handles block size with renderSizeHint 1 & bufferSize 256
-Fail	ScriptProcessor handles block size with renderSizeHint 256 & bufferSize 256
-Fail	ScriptProcessor handles block size with renderSizeHint 100 & bufferSize 256
-Fail	ScriptProcessor handles block size with renderSizeHint 4096 & bufferSize 4096
-Fail	ScriptProcessor handles block size with renderSizeHint 66000 & bufferSize 16384
+5 Pass
+Pass	ScriptProcessor handles block size with renderSizeHint 1 & bufferSize 256
+Pass	ScriptProcessor handles block size with renderSizeHint 256 & bufferSize 256
+Pass	ScriptProcessor handles block size with renderSizeHint 100 & bufferSize 256
+Pass	ScriptProcessor handles block size with renderSizeHint 4096 & bufferSize 4096
+Pass	ScriptProcessor handles block size with renderSizeHint 66000 & bufferSize 16384
