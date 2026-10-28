@@ -3174,9 +3174,6 @@ impl<'pass> AbsposEngine<'pass> {
             }
         }
         self.records.set_used_insets(node, used_insets);
-        if self.fragments.is_some() {
-            self.used(node).rare_data_mut().abspos_layout_inputs = Some(inputs);
-        }
         formatting_context::place_child_in_containing_block(
             run,
             node,
@@ -3186,6 +3183,7 @@ impl<'pass> AbsposEngine<'pass> {
                 y: used_offset.block_offset,
             },
             None,
+            Some(inputs),
         );
     }
 

@@ -544,13 +544,12 @@ pub(crate) struct PlacementData {
 
 impl PlacementData {
     fn of_box(
-        used: &UsedValues,
         facts: &run_records::FactsDecidedByParent,
+        abspos_layout_inputs: Option<abspos_inputs::AbsposLayoutInputs>,
         containing_line_box_index: Option<usize>,
         committed_offset: FfiCssPixelPoint,
         frame: geometry::Frame,
     ) -> Self {
-        let rare = used.rare_data.get().map(|cell| cell.borrow());
         Self {
             frame,
             committed_offset,
@@ -559,7 +558,7 @@ impl PlacementData {
             inset_top: facts.used_insets.top,
             inset_bottom: facts.used_insets.bottom,
             containing_line_box_index,
-            abspos_layout_inputs: rare.as_ref().and_then(|rare| rare.abspos_layout_inputs),
+            abspos_layout_inputs,
             default_scroll_shift: facts.default_scroll_shift,
             containing_block: facts
                 .placement
@@ -576,8 +575,8 @@ impl PlacementData {
         frame: geometry::Frame,
     ) -> Self {
         Self::of_box(
-            records.used_values(node),
             &records.facts_decided_by_parent_of(node),
+            None,
             None,
             records.content_offset_or_origin(node),
             frame,
@@ -1255,6 +1254,7 @@ impl RunFragmentBuilder {
         containing_block: Option<crate::layout::node_data::NodeSlotId>,
         used: &UsedValues,
         facts: run_records::FactsDecidedByParent,
+        abspos_layout_inputs: Option<abspos_inputs::AbsposLayoutInputs>,
         containing_block_is_sealed: bool,
         containing_line_box_index: Option<usize>,
         committed_offset: FfiCssPixelPoint,
@@ -1281,8 +1281,8 @@ impl RunFragmentBuilder {
         let link = link_fragment(
             fragment.clone(),
             PlacementData::of_box(
-                used,
                 &facts,
+                abspos_layout_inputs,
                 containing_line_box_index,
                 committed_offset,
                 callbacks.frame,
@@ -1367,8 +1367,8 @@ impl RunFragmentBuilder {
         fragment: std::sync::Arc<Fragment>,
         reuses_subtree: bool,
         containing_block: Option<crate::layout::node_data::NodeSlotId>,
-        used: &UsedValues,
         facts: run_records::FactsDecidedByParent,
+        abspos_layout_inputs: Option<abspos_inputs::AbsposLayoutInputs>,
         containing_block_is_sealed: bool,
         containing_line_box_index: Option<usize>,
         committed_offset: FfiCssPixelPoint,
@@ -1386,7 +1386,13 @@ impl RunFragmentBuilder {
         );
         let link = link_fragment(
             fragment,
-            PlacementData::of_box(used, &facts, containing_line_box_index, committed_offset, frame),
+            PlacementData::of_box(
+                &facts,
+                abspos_layout_inputs,
+                containing_line_box_index,
+                committed_offset,
+                frame,
+            ),
         );
         self.attach(&mut inner, link, containing_block, containing_block_is_sealed);
         if reuses_subtree {
