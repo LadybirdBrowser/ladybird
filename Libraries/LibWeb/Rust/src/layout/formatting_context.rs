@@ -355,9 +355,73 @@ pub(crate) struct PlacedChild {
     pub(crate) frame: geometry::Frame,
     /// What the parent decided about the child before placing it, which placing it adds the placement to.
     pub(crate) facts_decided_by_parent: run_records::FactsDecidedByParent,
+    /// The offset the relative positioning of the fragmented inline boxes a block-level child interrupts gives the
+    /// child's committed fragment.
+    pub(crate) offset_from_relatively_positioned_inline_ancestors: FfiCssPixelPoint,
 }
 
 impl PlacedChild {
+    /// A child whose run handed back the box `laid_out` with the lines `line_data`, in `frame`, before its parent
+    /// decided anything about it.
+    pub(crate) fn of_laid_out_box(
+        laid_out: &run_records::LaidOutChildBox,
+        line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
+        frame: geometry::Frame,
+    ) -> Self {
+        Self {
+            geometry: fragment_tree::FragmentGeometry {
+                cells: laid_out.cells,
+                line_data,
+            },
+            frame,
+            facts_decided_by_parent: run_records::FactsDecidedByParent::default(),
+            offset_from_relatively_positioned_inline_ancestors: FfiCssPixelPoint::default(),
+        }
+    }
+
+    /// A box that `run` lays out in `record`, before its parent decided anything about it.
+    pub(crate) fn of_record(record: &UsedValues, run: &FormattingContextRun) -> Self {
+        let callbacks = &run.callbacks;
+        Self {
+            geometry: fragment_tree::FragmentGeometry {
+                cells: used_values::RecordInFrame::new(record, callbacks.frame).cells(),
+                // NB: Only a run that builds fragments shows the lines it laid out in the boxes it places.
+                line_data: run
+                    .fragments
+                    .is_some()
+                    .then(|| record.finish_line_data(callbacks))
+                    .flatten(),
+            },
+            frame: callbacks.frame,
+            facts_decided_by_parent: run_records::FactsDecidedByParent::default(),
+            offset_from_relatively_positioned_inline_ancestors: FfiCssPixelPoint::default(),
+        }
+    }
+
+    /// The child with the insets its parent resolved for it as an in-flow box.
+    pub(crate) fn with_in_flow_box_insets(mut self, insets: abspos_engine::InFlowBoxInsets) -> Self {
+        if let Some(used_insets) = insets.used_insets {
+            self.facts_decided_by_parent.used_insets = used_insets;
+        }
+        if let Some(default_scroll_shift) = insets.default_scroll_shift {
+            self.facts_decided_by_parent.default_scroll_shift = Some(default_scroll_shift);
+        }
+        self
+    }
+
+    /// The child with what its parent decided its fragment shows of the parent's layout.
+    pub(crate) fn with_fragment_facts(mut self, fragment_facts: run_records::FragmentFactsDecidedByParent) -> Self {
+        self.facts_decided_by_parent.fragment_facts = fragment_facts;
+        self
+    }
+
+    /// The child, a block-level box, with the offset the relative positioning of the inline boxes it interrupts gives
+    /// it.
+    pub(crate) fn with_offset_from_relatively_positioned_inline_ancestors(mut self, offset: FfiCssPixelPoint) -> Self {
+        self.offset_from_relatively_positioned_inline_ancestors = offset;
+        self
+    }
+
     // FIXME: Remove this adapter once every caller hands placement the values it holds.
     pub(crate) fn read_from_records(run: &FormattingContextRun, node: Node) -> Self {
         let records = run.records;
@@ -370,10 +434,28 @@ impl PlacedChild {
                 line_data: None,
             }
         };
+        let callbacks = &run.callbacks;
+        let facts = NodeFacts::new(callbacks, node);
+        let mut offset_from_relatively_positioned_inline_ancestors = FfiCssPixelPoint::default();
+        if facts.is_in_flow() && facts.display().is_block_outside() {
+            let chain = inline_formatting_context::accumulated_relative_insets_from_inline_ancestor_chain(
+                callbacks,
+                callbacks.parent(node),
+                callbacks.in_flow_containing_block(node),
+                |ancestor| records.used_insets_of(ancestor),
+            );
+            if chain.found_fragmented_inline_node {
+                offset_from_relatively_positioned_inline_ancestors = FfiCssPixelPoint {
+                    x: chain.offset_x,
+                    y: chain.offset_y,
+                };
+            }
+        }
         Self {
             geometry,
             frame: run.callbacks.frame,
             facts_decided_by_parent: records.facts_decided_by_parent_of(node),
+            offset_from_relatively_positioned_inline_ancestors,
         }
     }
 }
@@ -441,6 +523,7 @@ pub(crate) fn place_child_in_containing_block(
         geometry,
         frame,
         facts_decided_by_parent,
+        offset_from_relatively_positioned_inline_ancestors,
     } = placed_child;
     if cfg!(debug_assertions) || run_repeatability::verification_is_enabled() {
         assert_eq!(
@@ -498,11 +581,10 @@ pub(crate) fn place_child_in_containing_block(
             point_add(
                 offset,
                 committed_offset_delta_at_placement(
-                    records,
                     callbacks,
                     node,
                     facts_decided_by_parent.used_insets,
-                    containing_block,
+                    offset_from_relatively_positioned_inline_ancestors,
                 ),
             ),
             callbacks.frame,
@@ -549,11 +631,10 @@ pub(crate) fn place_child_in_containing_block(
         point_add(
             offset,
             committed_offset_delta_at_placement(
-                records,
                 callbacks,
                 node,
                 facts_decided_by_parent.used_insets,
-                containing_block,
+                offset_from_relatively_positioned_inline_ancestors,
             ),
         ),
         own_anchor_candidate_border_box_rect,
@@ -621,11 +702,10 @@ pub(crate) fn place_reused_child(
         point_add(
             offset,
             committed_offset_delta_at_placement(
-                records,
                 callbacks,
                 node,
                 facts_decided_by_parent.used_insets,
-                containing_block,
+                FfiCssPixelPoint::default(),
             ),
         ),
         callbacks.frame,
@@ -647,11 +727,10 @@ fn resolve_containing_line_box_index(
 }
 
 fn committed_offset_delta_at_placement(
-    records: &RunRecords,
     callbacks: &LayoutPass<'_>,
     node: Node,
     used_insets: run_records::UsedInsets,
-    containing_block: Node,
+    offset_from_relatively_positioned_inline_ancestors: FfiCssPixelPoint,
 ) -> FfiCssPixelPoint {
     let mut delta = FfiCssPixelPoint::default();
     let facts = NodeFacts::new(callbacks, node);
@@ -659,22 +738,11 @@ fn committed_offset_delta_at_placement(
         return delta;
     }
     if facts.is_relatively_positioned() {
-        let insets = used_insets;
-        delta.x += insets.left;
-        delta.y += insets.top;
+        delta.x += used_insets.left;
+        delta.y += used_insets.top;
     }
-    if facts.is_in_flow() && facts.display().is_block_outside() {
-        let chain = inline_formatting_context::accumulated_relative_insets_from_inline_ancestor_chain(
-            callbacks,
-            callbacks.parent(node),
-            containing_block,
-            |ancestor| records.used_insets_of(ancestor),
-        );
-        if chain.found_fragmented_inline_node {
-            delta.x += chain.offset_x;
-            delta.y += chain.offset_y;
-        }
-    }
+    delta.x += offset_from_relatively_positioned_inline_ancestors.x;
+    delta.y += offset_from_relatively_positioned_inline_ancestors.y;
     delta
 }
 
@@ -2845,6 +2913,8 @@ pub(crate) struct ChildLayout {
     pub(crate) outcome: ChildLayoutOutcome,
     pub(crate) fragment_arrival: Option<fragment_tree::ChildFragmentArrival>,
     pub(crate) laid_out_box: Option<run_records::LaidOutChildBox>,
+    /// The lines a run of the child's own laid out in it.
+    pub(crate) line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
 }
 
 impl ChildLayout {
@@ -2853,6 +2923,7 @@ impl ChildLayout {
             outcome,
             fragment_arrival: None,
             laid_out_box: Some(run_records::LaidOutChildBox::sized_in_parent_run(record)),
+            line_data: None,
         }
     }
 }
@@ -2950,6 +3021,7 @@ pub(crate) fn layout_inside_child_with_input_cells(
             outcome: skipped(),
             fragment_arrival,
             laid_out_box: Some(run_records::LaidOutChildBox::sized_in_parent_run(used)),
+            line_data: None,
         };
     }
     let creates_replaced_context = matches!(
@@ -2976,6 +3048,7 @@ pub(crate) fn layout_inside_child_with_input_cells(
             outcome: ChildLayoutOutcome::ReenterCurrent,
             fragment_arrival: None,
             laid_out_box: None,
+            line_data: None,
         };
     };
     assert!(
@@ -2995,11 +3068,13 @@ pub(crate) fn layout_inside_child_with_input_cells(
         run.records.take_table_inline_layout(child),
     );
     let laid_out_box = child_run_outcome.laid_out_box;
+    let line_data = child_run_outcome.line_data.clone();
     let (result, fragment_arrival) = child_run_outcome.hand_box_back_to(run, child);
     ChildLayout {
         outcome: ChildLayoutOutcome::Created(result),
         fragment_arrival,
         laid_out_box: Some(laid_out_box),
+        line_data,
     }
 }
 

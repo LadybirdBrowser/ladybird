@@ -86,6 +86,14 @@ struct BrokenInside {
     block_end_of_content: CssPixels,
 }
 
+/// What a block-level box that interrupts the lines of inline content takes from them: the line box it shows on, if
+/// any, and the offset the relative positioning of the fragmented inline boxes it interrupts gives its fragment.
+#[derive(Clone, Copy)]
+pub(crate) struct InterruptedInlineContent {
+    line: Option<used_values::LineBoxFragmentCoordinate>,
+    offset_from_relatively_positioned_inline_ancestors: FfiCssPixelPoint,
+}
+
 /// What the layout of a block-level box the parent flow holds leaves for its outcome.
 #[derive(Default)]
 struct LaidOutBlockLevelBox {
@@ -748,15 +756,17 @@ impl<'pass> BlockFormattingContext<'pass> {
     fn place_laid_out_child(
         &self,
         node: Node,
+        placed_child: formatting_context::PlacedChild,
         offset: FfiCssPixelPoint,
         fragment_arrival: Option<fragment_tree::ChildFragmentArrival>,
     ) {
-        self.place_laid_out_child_on_line(node, offset, None, fragment_arrival);
+        self.place_laid_out_child_on_line(node, placed_child, offset, None, fragment_arrival);
     }
 
     fn place_laid_out_child_on_line(
         &self,
         node: Node,
+        placed_child: formatting_context::PlacedChild,
         offset: FfiCssPixelPoint,
         containing_line_box_fragment: Option<used_values::LineBoxFragmentCoordinate>,
         fragment_arrival: Option<fragment_tree::ChildFragmentArrival>,
@@ -764,7 +774,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         formatting_context::place_laid_out_child(
             &self.run,
             node,
-            formatting_context::PlacedChild::read_from_records(&self.run, node),
+            placed_child,
             offset,
             containing_line_box_fragment,
             fragment_arrival,
@@ -1968,6 +1978,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             outcome: marker_outcome,
             fragment_arrival,
             laid_out_box: marker_box,
+            ..
         } = formatting_context::layout_inside_child_with_input_cells(
             run,
             None,
@@ -2017,6 +2028,7 @@ impl<'pass> BlockFormattingContext<'pass> {
 
         self.place_laid_out_child(
             marker,
+            formatting_context::PlacedChild::read_from_records(&self.run, marker),
             FfiCssPixelPoint {
                 x: round_css_pixels(marker_inline_offset),
                 y: marker_block_offset,
@@ -2031,7 +2043,8 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 
     /// Lays out the contents of `node`, a child with a formatting context of its own, and returns its result where a
-    /// run of its own laid it out, the fragments its placement takes, and the child's box as its layout left it.
+    /// run of its own laid it out, the fragments its placement takes, the child's box as its layout left it, and the
+    /// lines that layout laid out in it.
     fn layout_inside(
         &self,
         run: &FormattingContextRun<'pass>,
@@ -2042,11 +2055,13 @@ impl<'pass> BlockFormattingContext<'pass> {
         Option<formatting_context::ChildLayoutResult>,
         Option<fragment_tree::ChildFragmentArrival>,
         run_records::LaidOutChildBox,
+        Option<std::sync::Arc<inline_content::InlineContent>>,
     ) {
         let formatting_context::ChildLayout {
             outcome,
             fragment_arrival,
             laid_out_box,
+            line_data,
         } = formatting_context::layout_inside_child_with_input_cells(
             run,
             Some(self),
@@ -2072,6 +2087,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             child_layout,
             fragment_arrival,
             laid_out_box.expect("the layout of a child with a formatting context of its own leaves its box"),
+            line_data,
         )
     }
 
@@ -2110,7 +2126,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         bottom_of_lowest_margin_box: &mut CssPixels,
         input: LayoutInput,
         containing_block_position_in_root: FfiCssPixelPoint,
-        containing_line_box_fragment: Option<used_values::LineBoxFragmentCoordinate>,
+        interrupted_inline_content: Option<InterruptedInlineContent>,
     ) -> Option<BlockLevelBoxOutcome> {
         // NB: The outcome is read once the layout of the box has let go of the box, which gives a child it never handed
         //     to its run a record of the cells it was sized in.
@@ -2121,7 +2137,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             bottom_of_lowest_margin_box,
             input,
             containing_block_position_in_root,
-            containing_line_box_fragment,
+            interrupted_inline_content,
         )?;
         let metrics = self.run.records.box_metrics_of(node);
         Some(BlockLevelBoxOutcome {
@@ -2150,10 +2166,11 @@ impl<'pass> BlockFormattingContext<'pass> {
         bottom_of_lowest_margin_box: &mut CssPixels,
         input: LayoutInput,
         containing_block_position_in_root: FfiCssPixelPoint,
-        containing_line_box_fragment: Option<used_values::LineBoxFragmentCoordinate>,
+        interrupted_inline_content: Option<InterruptedInlineContent>,
     ) -> Option<LaidOutBlockLevelBox> {
         let available_space = input.available_space;
         let facts = self.facts(node);
+        let containing_line_box_fragment = interrupted_inline_content.and_then(|interrupted| interrupted.line);
 
         if facts.is_absolutely_positioned() {
             // The static position sits where the next in-flow box would be placed, so the
@@ -2199,8 +2216,10 @@ impl<'pass> BlockFormattingContext<'pass> {
             .run
             .records
             .track_percentage_block_size_dependency_while_laying_out(node);
+        let mut fragment_facts = run_records::FragmentFactsDecidedByParent::default();
         if self.laying_out_invisible_line_clamp_content.get() {
             self.run.records.hide_for_line_clamp(node);
+            fragment_facts.is_invisible_for_line_clamp = true;
         }
         if facts.is_anonymous_button_content_wrapper() {
             let only_for_button_content_alignment = self
@@ -2240,6 +2259,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 cells.padding_top = CssPixels::default();
             });
             self.run.records.note_continues_from_previous_fragment(node);
+            fragment_facts.continues_from_previous_fragment = true;
         }
 
         if facts.is_floating() {
@@ -2501,6 +2521,8 @@ impl<'pass> BlockFormattingContext<'pass> {
         let mut baselines_of_contents_laid_out_in_this_flow = None;
         let mut summary_of_children_laid_out_in_this_flow = None;
         let mut fragment_arrival_of_child_with_own_formatting_context = None;
+        // NB: A child its own run laid out is placed as that run handed it back, and any other with its record here.
+        let mut child_handed_back_by_its_run = None;
         let child_layout = if has_independent_formatting_context {
             // Margins of elements that establish new formatting contexts do not collapse with their in-flow children
             self.margin_state.borrow_mut().reset();
@@ -2541,9 +2563,16 @@ impl<'pass> BlockFormattingContext<'pass> {
                 let metrics = self.child_metrics(node);
                 (metrics.border_box_left(false), metrics.border_box_top(false))
             });
-            let (child_layout, fragment_arrival, laid_out_box) =
+            let (child_layout, fragment_arrival, laid_out_box, line_data) =
                 self.layout_inside(run, node, inside_layout_input, true);
             fragment_arrival_of_child_with_own_formatting_context = fragment_arrival;
+            if child_layout.is_some() {
+                child_handed_back_by_its_run = Some(formatting_context::PlacedChild::of_laid_out_box(
+                    &laid_out_box,
+                    line_data,
+                    self.run.callbacks.frame,
+                ));
+            }
             if container_facts.is_table_wrapper() && style.display().is_table_inside() && child_layout.is_some() {
                 let table_box = laid_out_box.cells;
                 self.table_box_in_wrapper_border_box_inline_size.set(Some(
@@ -2750,6 +2779,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 used.border_bottom.set(CssPixels::default());
                 used.margin_bottom.set(CssPixels::default());
                 self.run.records.note_continues_in_next_fragment(node);
+                fragment_facts.continues_in_next_fragment = true;
                 std::rc::Rc::make_mut(&mut token).consumed_block_size = continuation
                     .as_ref()
                     .map_or(CssPixels::default(), |continuation| continuation.consumed_block_size)
@@ -2796,11 +2826,20 @@ impl<'pass> BlockFormattingContext<'pass> {
             );
         }
 
-        self.compute_inset(run, node, block_container);
+        let insets = self.compute_inset(run, node, block_container);
 
         let mut placed = match pending_position {
             Some(position) => self.place_laid_out_child_on_line(
                 node,
+                child_handed_back_by_its_run
+                    .unwrap_or_else(|| formatting_context::PlacedChild::of_record(self.used(node), &self.run))
+                    .with_in_flow_box_insets(insets)
+                    .with_fragment_facts(fragment_facts)
+                    .with_offset_from_relatively_positioned_inline_ancestors(
+                        interrupted_inline_content.map_or(FfiCssPixelPoint::default(), |interrupted| {
+                            interrupted.offset_from_relatively_positioned_inline_ancestors
+                        }),
+                    ),
                 position,
                 containing_line_box_fragment,
                 fragment_arrival_of_child_with_own_formatting_context,
@@ -2976,11 +3015,15 @@ impl<'pass> BlockFormattingContext<'pass> {
             node,
             entry.depends_on_percentage_block_size,
         );
-        self.compute_inset(&self.run, node, block_container);
+        let insets = self.compute_inset(&self.run, node, block_container);
         formatting_context::place_reused_child(
             &self.run,
             node,
-            self.run.records.facts_decided_by_parent_of(node),
+            run_records::FactsDecidedByParent {
+                used_insets: insets.used_insets.unwrap_or_default(),
+                default_scroll_shift: insets.default_scroll_shift,
+                ..run_records::FactsDecidedByParent::default()
+            },
             FfiCssPixelPoint {
                 x: entry.offset_from_flow_position.x,
                 y: entry.offset_from_flow_position.y + flow_position,
@@ -4170,6 +4213,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         if let Some(legend_flow_position) = self.pending_legend_flow_position.take() {
             self.place_laid_out_child(
                 legend,
+                formatting_context::PlacedChild::read_from_records(&self.run, legend),
                 FfiCssPixelPoint {
                     x: legend_flow_position.inline_offset,
                     y: legend_content_block_offset,
@@ -4318,6 +4362,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         containing_block_position_in_root: FfiCssPixelPoint,
         line_builder: &mut line_builder::LineBuilder<'_, '_>,
         is_after_clamp_point: bool,
+        offset_from_relatively_positioned_inline_ancestors: FfiCssPixelPoint,
     ) -> bool {
         let line_index = line_builder.line_index_for_block_level_box();
         let current_block_offset = line_builder.current_block_offset();
@@ -4336,8 +4381,11 @@ impl<'pass> BlockFormattingContext<'pass> {
             &mut dummy_bottom,
             input,
             containing_block_position_in_root,
-            (!is_after_clamp_point).then_some(used_values::LineBoxFragmentCoordinate {
-                line_box_index: line_index,
+            Some(InterruptedInlineContent {
+                line: (!is_after_clamp_point).then_some(used_values::LineBoxFragmentCoordinate {
+                    line_box_index: line_index,
+                }),
+                offset_from_relatively_positioned_inline_ancestors,
             }),
         );
         self.break_mode.set(break_mode_outside);
@@ -4513,7 +4561,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 input.containing_block_constraints,
             );
         self.dimension_float_root_inline_size(node, &float_input);
-        let (_, fragment_arrival, float_box) = self.layout_inside(run, node, float_input, false);
+        let (_, fragment_arrival, float_box, _) = self.layout_inside(run, node, float_input, false);
         let containing_block_rect = self.containing_block_rect(block_container, containing_block_position_in_root);
         let containing_block_rect_now = containing_block_rect.translated(
             CssPixels::default(),
@@ -4618,6 +4666,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         };
         self.place_laid_out_child(
             node,
+            formatting_context::PlacedChild::read_from_records(&self.run, node),
             FfiCssPixelPoint {
                 x: inline_offset,
                 y: content_block_offset,
