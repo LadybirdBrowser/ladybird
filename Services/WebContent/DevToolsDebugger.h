@@ -11,6 +11,7 @@
 #include <AK/Weakable.h>
 #include <LibGC/Root.h>
 #include <LibJS/Debugger.h>
+#include <LibWeb/HTML/Scripting/DevToolsObjectTable.h>
 #include <LibWebCommon/Page/PageId.h>
 #include <LibWebCommon/WebView/Debugger.h>
 #include <WebContent/Forward.h>
@@ -67,11 +68,9 @@ private:
     HashMap<Web::PageId, Vector<BreakpointRegistration>> m_breakpoints;
     HashMap<Web::PageId, Vector<BlackboxedSource>> m_blackboxed_sources;
     HashMap<u64, JS::ExecutionContext*> m_paused_frames;
-    HashMap<u64, GC::Root<JS::Object>> m_paused_objects;
-    HashMap<GC::Ptr<JS::Object>, u64> m_paused_object_ids;
+    Web::HTML::DevToolsObjectTable m_paused_object_table;
     u64 m_next_environment_id { 1 };
     u64 m_next_frame_id { 1 };
-    u64 m_next_object_id { 1 };
     Optional<Web::PageId> m_paused_page_id;
     WebView::DebuggerResumeMode m_resume_mode { WebView::DebuggerResumeMode::Continue };
     bool m_resume_requested { false };
