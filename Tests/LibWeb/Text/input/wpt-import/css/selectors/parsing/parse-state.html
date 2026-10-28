@@ -1,0 +1,35 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>CSS Selectors: custom state pseudo selectors</title>
+<link rel="help" href="https://github.com/w3c/csswg-drafts/pull/8213" />
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+<script>
+  test_valid_selector(":state(--foo)");
+  test_valid_selector(":state(bar)");
+  test_valid_selector(":state(--)");
+  test_valid_selector(":state(--0)");
+  test_valid_selector(":host(:state(--foo))");
+  test_valid_selector('my-input[type="foo"]:state(checked)');
+  test_valid_selector('my-input[type="foo"]:state(--0)::before');
+  test_valid_selector('my-input[type="foo"]:state(--0)::part(inner)');
+  test_valid_selector(
+    'my-input[type="foo"]:state(--0)::part(inner):state(bar)',
+  );
+  test_valid_selector('::part(inner):state(bar)::before');
+  test_valid_selector('::part(inner):state(bar)::after');
+  test_invalid_selector(":state");
+  test_invalid_selector(":state(");
+  test_invalid_selector(":state()");
+  test_invalid_selector(":state(0)");
+  test_invalid_selector(":state(0rem)");
+  test_invalid_selector(":state(url())");
+  test_invalid_selector(":state(foo(1))");
+  test_invalid_selector(":state(:host)");
+  test_invalid_selector("my-input::after:state(foo)");
+  test_invalid_selector('::part(inner):state(bar)::before:state(foo)');
+  test_invalid_selector('::part(inner):state(bar)::after:state(foo)');
+  test_invalid_selector("my-input::first-letter:state(foo)");
+  test_invalid_selector('::slotted(foo):state(foo)');
+</script>

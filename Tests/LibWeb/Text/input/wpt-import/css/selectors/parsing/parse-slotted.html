@@ -1,0 +1,28 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>CSS Selectors: slotted pseudo selectors</title>
+<link rel="help" href="https://drafts.csswg.org/css-shadow/#slotted-pseudo" />
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+<script>
+  test_valid_selector("::slotted(bar)");
+  test_valid_selector('::slotted([attr="foo"])');
+  test_valid_selector("::slotted(*)");
+  test_valid_selector("::slotted(.class)");
+  test_valid_selector("::slotted(:not(foo))");
+  test_valid_selector('::slotted(:not(:nth-last-of-type(2)):not([slot="foo"]))');
+  test_valid_selector("::slotted(:first-child)");
+  test_valid_selector("::slotted(:hover)");
+  test_valid_selector("::slotted(:has(:first-child:last-child))");
+  test_invalid_selector("::slotted");
+  test_invalid_selector("::slotted()");
+  test_invalid_selector("::slotted(0)");
+  test_invalid_selector(":slotted(foo)");
+  test_invalid_selector("::slotted(foo):first-child");
+  test_invalid_selector("::slotted(foo):hover");
+  test_invalid_selector("::slotted(foo):focus");
+  test_invalid_selector("::slotted(foo):lang(en)");
+  test_invalid_selector("::slotted(foo):dir(ltr)");
+  test_invalid_selector('::slotted(foo) + ::slotted(bar)');
+</script>
