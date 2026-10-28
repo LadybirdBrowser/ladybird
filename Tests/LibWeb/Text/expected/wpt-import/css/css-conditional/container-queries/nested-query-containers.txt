@@ -1,0 +1,38 @@
+Harness status: OK
+
+Found 32 tests
+
+4 Pass
+28 Fail
+Fail	test1 - inline - 0b000
+Fail	test2 - inline - 0b001
+Fail	test3 - inline - 0b010
+Fail	test4 - inline - 0b011
+Fail	test5 - inline - 0b100
+Fail	test6 - inline - 0b101
+Fail	test7 - inline - 0b110
+Fail	test8 - inline - 0b111
+Fail	test9 - contents - 0b000
+Fail	test10 - contents - 0b001
+Pass	test11 - contents - 0b010
+Pass	test12 - contents - 0b011
+Pass	test13 - contents - 0b100
+Pass	test14 - contents - 0b101
+Fail	test15 - contents - 0b110
+Fail	test16 - contents - 0b111
+Fail	test17 - table-cell - 0b000
+Fail	test18 - table-cell - 0b001
+Fail	test19 - table-cell - 0b010
+Fail	test20 - table-cell - 0b011
+Fail	test21 - table-cell - 0b100
+Fail	test22 - table-cell - 0b101
+Fail	test23 - table-cell - 0b110
+Fail	test24 - table-cell - 0b111
+Fail	test25 - table - 0b000
+Fail	test26 - table - 0b001
+Fail	test27 - table - 0b010
+Fail	test28 - table - 0b011
+Fail	test29 - table - 0b100
+Fail	test30 - table - 0b101
+Fail	test31 - table - 0b110
+Fail	test32 - table - 0b111
