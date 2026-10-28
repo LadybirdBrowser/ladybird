@@ -52,6 +52,14 @@ private:
                 m_container.setFocus(Qt::MouseFocusReason);
             break;
 
+        case QEvent::Paint:
+            // NB: QWindowContainer clears its whole area to transparent on platforms that may stack native child
+            //     windows below their parent. Ours are always above it, and the clear would only hide the host's own
+            //     painting wherever the native window has nothing on screen yet.
+            if (watched == &m_container)
+                return true;
+            break;
+
         default:
             break;
         }
