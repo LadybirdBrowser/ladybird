@@ -640,15 +640,11 @@ pub(super) fn content_sizes_of_orthogonal_flow(
         run.sizing().measurement_root_observes_percentage_inline_basis(node)
     });
     let available_inline_size_in_own_frame = scope.available_block_size();
-    let root = scope.root_cells().materialize_record();
-    root.move_box_metrics_to_frame(callbacks.frame, own_frame);
-    let inline_size = if root.has_definite_inline_size.get() {
-        root.content_inline_size.get()
+    let mut root_cells = scope.root_cells().in_frame(callbacks.frame, own_frame);
+    let inline_size = if root_cells.has_definite_inline_size {
+        root_cells.content_inline_size
     } else {
-        let scope_in_own_frame = ContentSizingScope {
-            node,
-            root_cells: used_values::RootInputCells::capture(&root),
-        };
+        let scope_in_own_frame = ContentSizingScope { node, root_cells };
         scope_in_own_frame.enter(callbacks_in_own_frame, |run| {
             run.sizing().orthogonal_flow_inline_size(
                 node,
@@ -660,8 +656,8 @@ pub(super) fn content_sizes_of_orthogonal_flow(
             )
         })
     };
-    root.set_content_inline_size(inline_size);
-    root.has_definite_block_size.set(false);
+    root_cells.set_content_inline_size(inline_size);
+    root_cells.has_definite_block_size = false;
     let mut input = LayoutInput::new(
         AvailableSpace {
             inline_size: AvailableSize::definite(inline_size),
@@ -674,12 +670,8 @@ pub(super) fn content_sizes_of_orthogonal_flow(
         formatting_context::independent_formatting_context_type(node, &callbacks_in_own_frame),
         formatting_context::FormattingContextType::Flex | formatting_context::FormattingContextType::Grid
     );
-    let result = formatting_context::lay_out_measurement_root_for_its_result(
-        callbacks_in_own_frame,
-        node,
-        used_values::RootInputCells::capture(&root),
-        input,
-    );
+    let result =
+        formatting_context::lay_out_measurement_root_for_its_result(callbacks_in_own_frame, node, root_cells, input);
     let size = result.automatic_content_block_size;
     sizing_context::ContentInlineSizes {
         sizes: sizing_context::ContentSizes { min: size, max: size },
