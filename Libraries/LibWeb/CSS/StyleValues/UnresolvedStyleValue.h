@@ -32,8 +32,6 @@ public:
     bool contains_attr_tainted_values() const { return m_value->unresolved.contains_attr_tainted_values; }
     RefPtr<StyleValue const> parsed_value() const { return wrap_rust_child_or_null(m_value->unresolved.parsed_value); }
 
-    bool equals(StyleValue const& other) const;
-
     GC::Ref<CSSStyleValue> reify(Utf16FlyString const& associated_property) const;
 
 private:
@@ -45,17 +43,6 @@ private:
     }
 
     static ValueComparingNonnullRefPtr<UnresolvedStyleValue const> create_internal(Utf16String token_source, Parser::SubstitutionFunctionsPresence, SourceTextMode, bool contains_attr_tainted_values, RefPtr<StyleValue const> parsed_value);
-
-    Utf16String comparison_text() const;
-
-    static Utf16String string_from_rust_data(StyleValueFFI::CssString const& string)
-    {
-        auto view = StyleValueFFI::rust_css_string_view(&string);
-        return Utf16String::from_utf16({ reinterpret_cast<char16_t const*>(view.data), view.length });
-    }
-
-    Utf16String source_text() const { return string_from_rust_data(m_value->unresolved.source_text); }
-    Utf16String value_comparison_text() const { return string_from_rust_data(m_value->unresolved.value_comparison_text); }
 };
 
 }

@@ -1,0 +1,28 @@
+<!doctype html>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const [name, syntax, initialValue] of [
+            ["--integer", "<integer>", "7"],
+            ["--number", "<number>", "9"],
+            ["--identifier", "<custom-ident>", "fallback"],
+        ]) {
+            CSS.registerProperty({ name, syntax, inherits: false, initialValue });
+        }
+
+        for (const [label, name, sources] of [
+            ["token kind", "--integer", ["1.0", "1"]],
+            ["numeric spelling", "--number", ["1.0", "1e0"]],
+            ["identifier spelling", "--identifier", ["a", "\\61"]],
+        ]) {
+            for (const source of sources) {
+                target.style.setProperty(name, source);
+                println(`${label}: ${JSON.stringify([
+                    target.style.getPropertyValue(name),
+                    getComputedStyle(target).getPropertyValue(name),
+                ])}`);
+            }
+        }
+    });
+</script>

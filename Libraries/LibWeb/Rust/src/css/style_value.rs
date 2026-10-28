@@ -329,10 +329,41 @@ impl Clone for RetainedComponentValueList {
 }
 
 impl PartialEq for RetainedComponentValueList {
-    fn eq(&self, _other: &Self) -> bool {
-        // The retained tree is a parsing/serialization cache. Unresolved value identity is
-        // defined by the source and comparison text fields, as it was before this cache existed.
-        true
+    fn eq(&self, other: &Self) -> bool {
+        fn components_equal(first: &[ComponentValue], second: &[ComponentValue]) -> bool {
+            first.len() == second.len()
+                && first
+                    .iter()
+                    .zip(second)
+                    .all(|(first, second)| match (&first.kind, &second.kind) {
+                        (ComponentKind::Token(first), ComponentKind::Token(second)) => first == second,
+                        (
+                            ComponentKind::Function {
+                                name: first_name,
+                                values: first,
+                            },
+                            ComponentKind::Function {
+                                name: second_name,
+                                values: second,
+                            },
+                        ) => first_name == second_name && components_equal(first, second),
+                        (
+                            ComponentKind::SimpleBlock {
+                                opening: first_opening,
+                                values: first,
+                            },
+                            ComponentKind::SimpleBlock {
+                                opening: second_opening,
+                                values: second,
+                            },
+                        ) => first_opening == second_opening && components_equal(first, second),
+                        _ => false,
+                    })
+        }
+
+        // Parsing retained components depends on their token kinds, even when their normalized
+        // serialization is identical. Source text and positions do not affect this comparison.
+        components_equal(self.as_slice(), other.as_slice())
     }
 }
 
@@ -3691,6 +3722,24 @@ fn hash_string_units(hasher: &mut crate::css::style::fast_hash::FastHasher, unit
 #[cfg(test)]
 mod equality_tests {
     use super::*;
+    use crate::css::css_tokenizer::tokenize_for_parser;
+    use crate::css::parser::component_value::consume_a_list_of_component_values;
+    use crate::css::parser::value_parser::unresolved_value;
+
+    fn unresolved(source: &str) -> StyleValueData {
+        let values = consume_a_list_of_component_values(tokenize_for_parser(source.as_bytes())).unwrap();
+        let serialized = serialize_component_values_to_utf16(&values, ComponentSerializationMode::Normalized);
+        unresolved_value(&serialized, &[], values, Default::default())
+    }
+
+    #[test]
+    fn unresolved_equality_preserves_numeric_token_types() {
+        for (first, second) in [("1", "1.0"), ("1", "1e0"), ("f(1)", "f(1.0)"), ("[1]", "[1.0]")] {
+            let first = unresolved(first);
+            let second = unresolved(second);
+            assert!(!style_values_equal(&first, &second));
+        }
+    }
 
     #[test]
     fn text_hashes_alike_in_either_spelling() {
