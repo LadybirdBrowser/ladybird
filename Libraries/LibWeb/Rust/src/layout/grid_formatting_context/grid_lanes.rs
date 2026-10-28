@@ -431,7 +431,7 @@ impl GridFormattingContext<'_> {
             self.resolve_metrics_of_item(item_index, Axis::Row);
             self.resolve_size_of_item(item_index, Axis::Row);
             let item = self.items[item_index];
-            let content_size = axis_content_size(self.used(item), stacking_axis);
+            let content_size = axis_content_size(&self.cells_of(item), stacking_axis);
             // For this purpose, the outer sizes of the box are floored at zero.
             let outer_size = self
                 .add_outer_size(item, stacking_axis, content_size)
@@ -729,6 +729,6 @@ fn axis_tracks_mut<'context, 'pass>(
     axis.select(&mut context.columns, &mut context.rows)
 }
 
-fn axis_content_size(used: &UsedValues, axis: Axis) -> CssPixels {
-    axis.select(used.content_inline_size.get(), used.content_block_size.get())
+fn axis_content_size(cells: &used_values::RootInputCells, axis: Axis) -> CssPixels {
+    axis.select(cells.content_inline_size, cells.content_block_size)
 }

@@ -1096,6 +1096,8 @@ pub(crate) struct GridFormattingContext<'pass> {
     column_gaps: Vec<Track<'pass>>,
     row_gaps: Vec<Track<'pass>>,
     items: Vec<GridItem>,
+    /// The input cells of each item as this grid sizes it, which the item's run takes.
+    cells_of_items: HashMap<Node, Cell<used_values::RootInputCells>>,
     explicit_column_line_count: usize,
     explicit_row_line_count: usize,
     explicit_column_start: usize,
@@ -1129,6 +1131,12 @@ pub(crate) struct GridFormattingContext<'pass> {
     maximum_inline_size_resolved_by_caller: Option<CssPixels>,
     item_runs_offered_to_row_measurements: Option<RowMeasurementsAhead>,
     next_item_lookup_start: Cell<usize>,
+}
+
+impl formatting_context::ChildrenSizedInParentCells for GridFormattingContext<'_> {
+    fn child_input_cells(&self, node: Node) -> Option<used_values::RootInputCells> {
+        self.cells_of_items.get(&node).map(Cell::get)
+    }
 }
 
 impl formatting_context::ChildRunShapes for GridFormattingContext<'_> {
@@ -1281,6 +1289,7 @@ impl<'pass> GridFormattingContext<'pass> {
             maximum_inline_size_resolved_by_caller: None,
             item_runs_offered_to_row_measurements: None,
             next_item_lookup_start: Cell::new(0),
+            cells_of_items: HashMap::default(),
             lanes: None,
         }
     }
@@ -1322,9 +1331,23 @@ impl<'pass> GridFormattingContext<'pass> {
         self.run.records.used_values(self.run.box_)
     }
 
-    fn used(&self, item: GridItem) -> &'pass UsedValues {
-        self.run.records.used_values(item.box_)
+    fn cells_of(&self, item: GridItem) -> used_values::RootInputCells {
+        self.cells_of_items
+            .get(&item.box_)
+            .expect("a grid item has the cells its grid sizes it in")
+            .get()
     }
+
+    fn update_cells_of(&self, item: GridItem, update: impl FnOnce(&mut used_values::RootInputCells)) {
+        let cells = self
+            .cells_of_items
+            .get(&item.box_)
+            .expect("a grid item has the cells its grid sizes it in");
+        let mut updated = cells.get();
+        update(&mut updated);
+        cells.set(updated);
+    }
+
     #[inline]
     fn style(&self, node: Node) -> StyleValues<'pass> {
         StyleValues::for_node(&self.run.callbacks, node)
@@ -1368,7 +1391,9 @@ impl<'pass> GridFormattingContext<'pass> {
 
     #[inline]
     fn sizing(&self) -> sizing_context::SizingContext<'pass, '_> {
-        sizing_context::SizingContext::new(self.run.records, self.run.callbacks).with_child_run_shapes(self)
+        sizing_context::SizingContext::new(self.run.records, self.run.callbacks)
+            .with_child_run_shapes(self)
+            .with_children_sized_in_parent_cells(self)
     }
 
     fn parent_grid(&self) -> Option<&ParentGridData<'pass>> {
@@ -1835,6 +1860,7 @@ impl<'pass> GridFormattingContext<'pass> {
     /// The grid items of the grid container, and the grid-placement properties of each resolved against the explicit
     /// grid.
     fn collect_grid_items(&mut self) -> (Vec<Node>, Vec<PlacementInput>) {
+        self.cells_of_items.clear();
         let mut nodes = Vec::new();
         let mut inputs = Vec::new();
         for child in self.run.callbacks.children(self.run.box_) {
@@ -1894,11 +1920,13 @@ impl<'pass> GridFormattingContext<'pass> {
                             child_grid_style.names.raws(),
                         ),
                     });
-                    self.run.records.create_used_values(
+                    let record = self.run.records.create_used_values(
                         &self.run.callbacks,
                         child,
                         ContainingBlockConstraints::default(),
                     );
+                    self.cells_of_items
+                        .insert(child, Cell::new(used_values::RootInputCells::capture(record)));
                     nodes.push(child);
                 }
             }
@@ -2295,15 +2323,15 @@ impl<'pass> GridFormattingContext<'pass> {
     }
 
     fn item_available_space(&self, item: GridItem) -> AvailableSpace {
-        let used = self.used(item);
+        let cells = self.cells_of(item);
         AvailableSpace {
-            inline_size: if used.has_definite_inline_size() {
-                AvailableSize::definite(used.content_inline_size.get())
+            inline_size: if cells.has_definite_inline_size {
+                AvailableSize::definite(cells.content_inline_size)
             } else {
                 AvailableSize::Indefinite
             },
-            block_size: if used.has_definite_block_size() {
-                AvailableSize::definite(used.content_block_size.get())
+            block_size: if cells.has_definite_block_size {
+                AvailableSize::definite(cells.content_block_size)
             } else {
                 AvailableSize::Indefinite
             },
@@ -2406,14 +2434,15 @@ impl<'pass> GridFormattingContext<'pass> {
             .items
             .iter()
             .map(|&item| {
-                let used = self.used(item);
-                (used.has_definite_inline_size(), used.has_definite_block_size())
+                let cells = self.cells_of(item);
+                (cells.has_definite_inline_size, cells.has_definite_block_size)
             })
             .collect();
         for &item in &self.items {
-            let used = self.used(item);
-            used.has_definite_inline_size.set(false);
-            used.has_definite_block_size.set(false);
+            self.update_cells_of(item, |cells| {
+                cells.has_definite_inline_size = false;
+                cells.has_definite_block_size = false;
+            });
         }
         // NB: Both contributions feed the column sizing, so either changing counts.
         let contributions = |context: &Self| -> Vec<(CssPixels, CssPixels)> {
@@ -2438,9 +2467,10 @@ impl<'pass> GridFormattingContext<'pass> {
                 self.resolve_size_of_item(index, Axis::Column);
             }
             for (&item, &(inline, block)) in self.items.iter().zip(&item_sizes_were_definite) {
-                let used = self.used(item);
-                used.has_definite_inline_size.set(inline);
-                used.has_definite_block_size.set(block);
+                self.update_cells_of(item, |cells| {
+                    cells.has_definite_inline_size = inline;
+                    cells.has_definite_block_size = block;
+                });
             }
             return;
         }
@@ -2452,7 +2482,7 @@ impl<'pass> GridFormattingContext<'pass> {
         self.resolve_item_sizes(Axis::Row);
         // NB: Sizing the columns again marks the inline sizes definite, but leaves the block sizes as they were made.
         for (&item, &(_, block)) in self.items.iter().zip(&item_sizes_were_definite) {
-            self.used(item).has_definite_block_size.set(block);
+            self.update_cells_of(item, |cells| cells.has_definite_block_size = block);
         }
     }
 
@@ -2637,8 +2667,8 @@ impl<'pass> GridFormattingContext<'pass> {
             return None;
         }
 
-        let used = self.used(item);
-        let has_definite_preferred_size = axis.select(used.has_definite_inline_size(), used.has_definite_block_size());
+        let cells = self.cells_of(item);
+        let has_definite_preferred_size = axis.select(cells.has_definite_inline_size, cells.has_definite_block_size);
         if has_definite_preferred_size {
             // FIXME: consider margins, padding and borders because it is outer size.
             let containing_block_size = self.containing_block_size(item, axis);
@@ -3098,22 +3128,19 @@ impl<'pass> GridFormattingContext<'pass> {
         subgrid: GridItem,
         measure: impl for<'a> FnOnce(&mut GridFormattingContext<'a>, &FormattingContextRun<'a>) -> R,
     ) -> R {
-        let live = self.used(subgrid);
-        let scratch_root =
-            used_values::create_used_values(&self.run.callbacks, subgrid.box_, ContainingBlockConstraints::default());
-        live.mirror_box_metrics_into(&scratch_root);
-        scratch_root
-            .has_definite_inline_size
-            .set(live.has_definite_inline_size.get());
-        scratch_root
-            .has_definite_block_size
-            .set(live.has_definite_block_size.get());
+        let live = self.cells_of(subgrid);
+        let scratch_root = used_values::RootInputCells {
+            has_definite_block_size_only_for_button_content_alignment: false,
+            uses_collapsing_borders_model: false,
+            is_collapsed_borders_table_box: false,
+            ..live
+        };
         let containing_block = self.run.callbacks.in_flow_containing_block(subgrid.box_);
         RunRecords::with_root(
             self.run.callbacks,
             subgrid.box_,
             containing_block,
-            used_values::RootInputCells::capture(&scratch_root),
+            scratch_root,
             |records, callbacks| {
                 let scratch_run = FormattingContextRun {
                     records,
@@ -3207,10 +3234,10 @@ impl<'pass> GridFormattingContext<'pass> {
     }
 
     fn subgrid_item_contributions_to_track_sizing(&self, subgrid: GridItem, axis: Axis) -> Vec<ItemContribution> {
-        let live = self.used(subgrid);
+        let live = self.cells_of(subgrid);
         let mut available = self.available_space.unwrap();
-        if !axis.is_column() && live.has_definite_inline_size() {
-            available.inline_size = AvailableSize::definite(live.content_inline_size.get());
+        if !axis.is_column() && live.has_definite_inline_size {
+            available.inline_size = AvailableSize::definite(live.content_inline_size);
         }
         let input = LayoutInput::new(
             available,
@@ -3336,25 +3363,27 @@ impl<'pass> GridFormattingContext<'pass> {
         let item_start = item.position(axis);
         let item_end = item_start + item.span(axis) as i32;
         let track_count = self.axis_tracks(axis).len() as i32;
-        let used = self.used(item);
-        let (left_or_top, right_or_bottom) = if axis.is_column() {
-            used.resolve_horizontal_box_model(&style, inline_basis);
-            (&used.margin_left, &used.margin_right)
-        } else {
-            used.resolve_vertical_box_model(&style, inline_basis);
-            (&used.margin_top, &used.margin_bottom)
-        };
-        let (start_margin, end_margin) = if self.tracks_are_reversed(axis) {
-            (right_or_bottom, left_or_top)
-        } else {
-            (left_or_top, right_or_bottom)
-        };
-        if item_start > 0 {
-            start_margin.set(start_margin.get() + extra_margin);
-        }
-        if item_end < track_count {
-            end_margin.set(end_margin.get() + extra_margin);
-        }
+        let tracks_are_reversed = self.tracks_are_reversed(axis);
+        self.update_cells_of(item, |cells| {
+            let (left_or_top, right_or_bottom) = if axis.is_column() {
+                cells.resolve_horizontal_box_model(&style, inline_basis);
+                (&mut cells.margin_left, &mut cells.margin_right)
+            } else {
+                cells.resolve_vertical_box_model(&style, inline_basis);
+                (&mut cells.margin_top, &mut cells.margin_bottom)
+            };
+            let (start_margin, end_margin) = if tracks_are_reversed {
+                (right_or_bottom, left_or_top)
+            } else {
+                (left_or_top, right_or_bottom)
+            };
+            if item_start > 0 {
+                *start_margin += extra_margin;
+            }
+            if item_end < track_count {
+                *end_margin += extra_margin;
+            }
+        });
     }
 
     fn item_alignment_for_node(&self, node: Node, axis: Axis) -> Alignment {
@@ -3544,7 +3573,7 @@ impl<'pass> GridFormattingContext<'pass> {
     }
 
     fn item_margin_box_start(&self, item: GridItem, axis: Axis) -> CssPixels {
-        let metrics = self.run.records.box_metrics_of(item.box_);
+        let metrics = self.cells_of(item);
         axis.select(
             metrics.margin_left() + metrics.border_left() + metrics.padding_left() + item.extra_margin_left,
             metrics.margin_top() + metrics.border_top() + metrics.padding_top() + item.extra_margin_top,
@@ -3552,7 +3581,7 @@ impl<'pass> GridFormattingContext<'pass> {
     }
 
     fn item_margin_box_end(&self, item: GridItem, axis: Axis) -> CssPixels {
-        let metrics = self.run.records.box_metrics_of(item.box_);
+        let metrics = self.cells_of(item);
         axis.select(
             metrics.padding_right() + metrics.border_right() + metrics.margin_right() + item.extra_margin_right,
             metrics.padding_bottom() + metrics.border_bottom() + metrics.margin_bottom() + item.extra_margin_bottom,
@@ -3579,13 +3608,13 @@ impl<'pass> GridFormattingContext<'pass> {
         let table_box = self.sizing().table_box_inside_wrapper(item.box_);
         let table_style = self.style(table_box);
         let sizing = self.sizing();
-        let current_used = self.used(item);
+        let current_cells = self.cells_of(item);
         let base_margin_start = wrapper_style.margin_left().to_px(containing_for_wrapper);
         let base_margin_end = wrapper_style.margin_right().to_px(containing_for_wrapper);
         let margin_box_start =
-            self.item_margin_box_start(item, Axis::Column) - current_used.margin_left.get() + base_margin_start;
+            self.item_margin_box_start(item, Axis::Column) - current_cells.margin_left + base_margin_start;
         let margin_box_end =
-            self.item_margin_box_end(item, Axis::Column) - current_used.margin_right.get() + base_margin_end;
+            self.item_margin_box_end(item, Axis::Column) - current_cells.margin_right + base_margin_end;
 
         if !wrapper_style.width().is_auto() {
             wrapper_size = wrapper_size.max(sizing.calculate_inner_size_for_property(
@@ -3757,7 +3786,7 @@ impl<'pass> GridFormattingContext<'pass> {
         let use_resolved_content_width = !axis.is_column()
             && (!self.sizing().establishes_orthogonal_flow(item.box_) || !facts.children_are_inline());
         let available_inline = if use_resolved_content_width {
-            self.used(item).content_inline_size.get()
+            self.cells_of(item).content_inline_size
         } else {
             containing_inline
         };
@@ -3807,10 +3836,11 @@ impl<'pass> GridFormattingContext<'pass> {
             // display:table, the anonymous table wrapper is the grid item, while table layout computes the inner
             // table's border-box inline size, so resolve the wrapper with the same grid-area basis used later.
             let resolved = self.resolve_table_wrapper_inline_size(item, containing);
-            let used = self.used(item);
-            used.margin_left.set(resolved.margin_start);
-            used.margin_right.set(resolved.margin_end);
-            used.set_content_inline_size(resolved.size);
+            self.update_cells_of(item, |cells| {
+                cells.margin_left = resolved.margin_start;
+                cells.margin_right = resolved.margin_end;
+                cells.set_content_inline_size(resolved.size);
+            });
             return;
         }
 
@@ -3822,13 +3852,13 @@ impl<'pass> GridFormattingContext<'pass> {
         {
             // NB: The item is sized consistent with the size calculation rules for block-level replaced elements,
             //     which transfer the used size of the other axis through the aspect ratio.
-            let used = self.used(item);
+            let cells = self.cells_of(item);
             if axis.is_column() {
                 self.sizing()
-                    .content_inline_size_from_aspect_ratio(item.box_, used.content_block_size.get())
+                    .content_inline_size_from_aspect_ratio(item.box_, cells.content_block_size)
             } else {
                 self.sizing()
-                    .content_block_size_from_aspect_ratio(item.box_, used.content_inline_size.get())
+                    .content_block_size_from_aspect_ratio(item.box_, cells.content_inline_size)
             }
         } else if use_replaced {
             if axis.is_column() {
@@ -3841,7 +3871,7 @@ impl<'pass> GridFormattingContext<'pass> {
         } else if !axis.is_column()
             && preferred.is_auto()
             && facts.has_preferred_aspect_ratio()
-            && self.used(item).has_definite_inline_size()
+            && self.cells_of(item).has_definite_inline_size
         {
             // NB: When the item has a preferred aspect ratio and a definite width, resolve the
             //     height through the aspect ratio instead of using fit-content sizing, which would
@@ -3857,7 +3887,7 @@ impl<'pass> GridFormattingContext<'pass> {
             let minimum = self.sizing().automatic_minimum_size_from_aspect_ratio(
                 item.box_,
                 SizingAxis::Block,
-                self.used(item).content_inline_size.get(),
+                self.cells_of(item).content_inline_size,
                 size,
                 available,
                 constraints,
@@ -3904,18 +3934,18 @@ impl<'pass> GridFormattingContext<'pass> {
             )
         };
 
-        let used = self.used(item);
+        let cells = self.cells_of(item);
         let (used_margin_start, used_margin_end, start_auto, end_auto) = if axis.is_column() {
             (
-                used.margin_left.get() + item.extra_margin_left,
-                used.margin_right.get() + item.extra_margin_right,
+                cells.margin_left + item.extra_margin_left,
+                cells.margin_right + item.extra_margin_right,
                 style.margin_left().is_auto(),
                 style.margin_right().is_auto(),
             )
         } else {
             (
-                used.margin_top.get() + item.extra_margin_top,
-                used.margin_bottom.get() + item.extra_margin_bottom,
+                cells.margin_top + item.extra_margin_top,
+                cells.margin_bottom + item.extra_margin_bottom,
                 style.margin_top().is_auto(),
                 style.margin_bottom().is_auto(),
             )
@@ -4007,15 +4037,18 @@ impl<'pass> GridFormattingContext<'pass> {
             }
         }
 
-        let used = self.used(item);
-        if axis.is_column() {
-            used.margin_left.set(resolved.margin_start);
-            used.margin_right.set(resolved.margin_end);
-            used.set_content_inline_size(resolved.size);
-        } else {
-            used.margin_top.set(resolved.margin_start);
-            used.margin_bottom.set(resolved.margin_end);
-            used.set_content_block_size(resolved.size);
+        self.update_cells_of(item, |cells| {
+            if axis.is_column() {
+                cells.margin_left = resolved.margin_start;
+                cells.margin_right = resolved.margin_end;
+                cells.set_content_inline_size(resolved.size);
+            } else {
+                cells.margin_top = resolved.margin_start;
+                cells.margin_bottom = resolved.margin_end;
+                cells.set_content_block_size(resolved.size);
+            }
+        });
+        if !axis.is_column() {
             // NB: A maximum block size clamps the grown size, and can leave nothing to grow.
             self.items[item_index].block_size_transferred_through_aspect_ratio =
                 transferred_block_size.filter(|&transferred| transferred < resolved.size);
@@ -4250,21 +4283,25 @@ impl<'pass> GridFormattingContext<'pass> {
             && !(self.style(item.box_).display().is_grid_inside() && self.grid_item_is_subgridded(item, Axis::Row))
     }
 
-    fn prepare_item_record(&self, item: GridItem, used: &UsedValues, row_area: ItemRowArea) {
-        used.has_definite_inline_size.set(true);
-        used.has_definite_block_size.set(match row_area {
+    fn prepare_item_cells(&self, item: GridItem, cells: &mut used_values::RootInputCells, row_area: ItemRowArea) {
+        cells.has_definite_inline_size = true;
+        cells.has_definite_block_size = match row_area {
             ItemRowArea::NotYetSized => false,
             ItemRowArea::SizedAt(_) => !self.item_block_size_follows_from_content(item),
-        });
+        };
     }
 
-    fn item_layout_input(&self, item: GridItem, used: &UsedValues, row_area: ItemRowArea) -> LayoutInput {
+    fn item_layout_input(
+        &self,
+        item: GridItem,
+        cells: &used_values::RootInputCells,
+        row_area: ItemRowArea,
+    ) -> LayoutInput {
         let (available_block_size, percentage_basis_block_size) = match row_area {
             ItemRowArea::NotYetSized => (AvailableSize::Indefinite, None),
-            ItemRowArea::SizedAt(area_block_size) => (
-                AvailableSize::definite(used.content_block_size.get()),
-                Some(area_block_size),
-            ),
+            ItemRowArea::SizedAt(area_block_size) => {
+                (AvailableSize::definite(cells.content_block_size), Some(area_block_size))
+            }
         };
         let percentage_basis_block_size = if self.is_grid_lanes_stacking_axis(Axis::Row) {
             self.grid_lanes_stacking_containing_block_size(Axis::Row)
@@ -4273,7 +4310,7 @@ impl<'pass> GridFormattingContext<'pass> {
         };
         LayoutInput {
             available_space: AvailableSpace {
-                inline_size: AvailableSize::definite(used.content_inline_size.get()),
+                inline_size: AvailableSize::definite(cells.content_inline_size),
                 block_size: available_block_size,
             },
             containing_block_constraints: ContainingBlockConstraints {
@@ -4319,15 +4356,15 @@ impl<'pass> GridFormattingContext<'pass> {
     }
 
     fn item_run_shape(&self, item: GridItem) -> Option<formatting_context::ChildRunShape> {
-        let record = used_values::RootInputCells::capture(self.used(item)).materialize_record();
-        self.prepare_item_record(item, &record, ItemRowArea::NotYetSized);
-        let input = self.item_layout_input(item, &record, ItemRowArea::NotYetSized);
+        let mut cells = self.cells_of(item);
+        self.prepare_item_cells(item, &mut cells, ItemRowArea::NotYetSized);
+        let input = self.item_layout_input(item, &cells, ItemRowArea::NotYetSized);
         let plan = formatting_context::child_run_plan(&self.run, item.box_, input, false)?;
         Some(formatting_context::ChildRunShape {
             node: item.box_,
             fc_type: plan.fc_type,
             input: plan.input,
-            root_cells: used_values::RootInputCells::capture(&record),
+            root_cells: cells,
             root_containing_block: plan.root_containing_block,
         })
     }
@@ -4343,21 +4380,23 @@ impl<'pass> GridFormattingContext<'pass> {
                 // against that final area so the real table layout resolves percentages against the grid area.
                 let resolved = self.resolve_table_wrapper_inline_size(item, area.size.inline_size);
                 table_wrapper_inline_basis = Some(area.size.inline_size);
-                let used = self.used(item);
-                used.margin_left.set(resolved.margin_start);
-                used.margin_right.set(resolved.margin_end);
-                used.set_content_inline_size(resolved.size);
+                self.update_cells_of(item, |cells| {
+                    cells.margin_left = resolved.margin_start;
+                    cells.margin_right = resolved.margin_end;
+                    cells.set_content_inline_size(resolved.size);
+                });
             }
             let row_area = ItemRowArea::SizedAt(area.size.block_size);
-            self.prepare_item_record(item, self.used(item), row_area);
+            let mut cells = self.cells_of(item);
+            self.prepare_item_cells(item, &mut cells, row_area);
             let mut sizing = RootSizingDirectives::default();
             if let Some(transferred) = item.block_size_transferred_through_aspect_ratio {
                 // NB: The content is laid out against the block size transferred through the aspect ratio, and the item
                 //     grows to its used block size afterwards.
-                let used = self.used(item);
-                sizing.content_block_size_after_inside_layout = Some(used.content_block_size.get());
-                used.set_content_block_size(transferred);
+                sizing.content_block_size_after_inside_layout = Some(cells.content_block_size);
+                cells.set_content_block_size(transferred);
             }
+            self.update_cells_of(item, |item_cells| *item_cells = cells);
             if self.facts(item.box_).is_table_wrapper() && self.item_is_stretched(item, Axis::Row) {
                 // A stretched table wrapper stretches the table box inside it, less the size of its captions.
                 let sizes = self.sizing().measure_table_box_block_size_inside_wrapper(
@@ -4369,11 +4408,11 @@ impl<'pass> GridFormattingContext<'pass> {
                     self.grid_area_constraints(item),
                 );
                 let captions_block_size = sizes.wrapper_content_block_size - sizes.table_box_border_box_block_size;
-                let stretched_table_box_block_size = self.used(item).content_block_size.get() - captions_block_size;
+                let stretched_table_box_block_size = cells.content_block_size - captions_block_size;
                 sizing.forced_min_border_box_block_size =
                     Some(stretched_table_box_block_size.max(sizes.table_box_border_box_block_size));
             }
-            let mut input = self.item_layout_input(item, self.used(item), row_area);
+            let mut input = self.item_layout_input(item, &cells, row_area);
             input.sizing = sizing;
             if let Some(inline_basis) = table_wrapper_inline_basis {
                 // Table wrappers pass their constraints through to the table box, so hand them the
@@ -4383,7 +4422,17 @@ impl<'pass> GridFormattingContext<'pass> {
             let formatting_context::ChildLayout {
                 outcome,
                 fragment_arrival,
-            } = formatting_context::layout_inside_child(run, None, Some(self), item.box_, input, false);
+            } = formatting_context::layout_inside_child_with_input_cells(
+                run,
+                None,
+                Some(self),
+                item.box_,
+                input,
+                cells,
+                false,
+            );
+            let handed_back = run.records.box_metrics_of(item.box_).input_cells();
+            self.update_cells_of(item, |item_cells| *item_cells = handed_back);
             outcome.report_percentage_block_size_dependency_of(run, item.box_);
             match outcome {
                 ChildLayoutOutcome::Created(_) | ChildLayoutOutcome::Skipped { .. } => {}
@@ -4476,14 +4525,16 @@ impl<'pass> GridFormattingContext<'pass> {
     /// The distance from the start of the item's grid area to its alignment baseline in the Column axis, as the item is
     /// laid out at the start of its area.
     fn item_column_baseline(&self, item: GridItem) -> CssPixels {
-        let metrics = self.run.records.box_metrics_of(item.box_);
-        let collapsed = metrics.uses_collapsing_borders_model();
-        let margin_box_left = metrics.margin_left() + metrics.border_box_left(collapsed);
+        let metrics = self.cells_of(item);
+        let collapsed = metrics.uses_collapsing_borders_model;
+        let margin_box_left = metrics.margin_left + metrics.border_box_left(collapsed);
         let baseline = self
             .sizing()
             .establishes_orthogonal_flow(item.box_)
             .then(|| {
-                metrics
+                self.run
+                    .records
+                    .box_metrics_of(item.box_)
                     .orthogonal_flow_baselines()
                     .and_then(|baselines| baselines.first)
             })
@@ -4498,15 +4549,17 @@ impl<'pass> GridFormattingContext<'pass> {
     /// The distance from the start of the item's grid area to its alignment baseline, as the item is laid out at the
     /// start of its area.
     fn item_row_baseline(&self, item: GridItem) -> CssPixels {
-        let metrics = self.run.records.box_metrics_of(item.box_);
-        let collapsed = metrics.uses_collapsing_borders_model();
+        let metrics = self.cells_of(item);
+        let collapsed = metrics.uses_collapsing_borders_model;
+        let content_baselines = self.run.records.box_metrics_of(item.box_).content_baselines();
         let distance_from_margin_box_top =
-            if !self.sizing().establishes_orthogonal_flow(item.box_) && metrics.content_baselines().first.is_some() {
-                formatting_context::box_baseline(
+            if !self.sizing().establishes_orthogonal_flow(item.box_) && content_baselines.first.is_some() {
+                formatting_context::box_baseline_with_content_baselines(
                     &self.run.callbacks,
                     item.box_,
                     &metrics,
                     formatting_context::BaselineSet::First,
+                    content_baselines,
                 )
             } else {
                 // https://drafts.csswg.org/css-align-3/#synthesize-baseline
