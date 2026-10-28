@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const writingMode of ["horizontal-tb", "vertical-rl", "vertical-lr", "sideways-rl", "sideways-lr"]) {
+            for (const direction of ["ltr", "rtl"]) {
+                for (const tag of ["div", "canvas"]) {
+                    const container = document.createElement("div");
+                    container.style.cssText = `position:relative;width:100px;height:120px;writing-mode:${writingMode};direction:${direction}`;
+                    const child = document.createElement(tag);
+                    const childWritingMode = writingMode === "horizontal-tb" ? "vertical-lr" : "horizontal-tb";
+                    child.style.cssText = `position:absolute;inset:0;margin:auto;width:160px;height:200px;writing-mode:${childWritingMode}`;
+                    container.appendChild(child);
+                    document.body.appendChild(container);
+                    const containerRect = container.getBoundingClientRect();
+                    const childRect = child.getBoundingClientRect();
+                    const style = getComputedStyle(child);
+                    println(JSON.stringify({
+                        tag, writingMode, direction,
+                        x: childRect.left - containerRect.left,
+                        y: childRect.top - containerRect.top,
+                        margins: [style.marginLeft, style.marginRight, style.marginTop, style.marginBottom]
+                    }));
+                    container.remove();
+                }
+            }
+        }
+    });
+</script>
