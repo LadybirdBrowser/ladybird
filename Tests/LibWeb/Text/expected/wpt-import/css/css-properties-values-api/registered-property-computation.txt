@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 75 tests
 
-68 Pass
-7 Fail
+69 Pass
+6 Fail
 Pass	<length> values computed are correctly via var()-reference
 Pass	<length> values computed are correctly via var()-reference when font-size is inherited
 Pass	<length> values are computed correctly when font-size is inherited [14em]
@@ -60,7 +60,7 @@ Fail	<color> values are computed correctly [color-mix(in srgb, currentcolor, #ff
 Fail	<color> values are computed correctly [color-mix(in srgb, currentcolor 20%, #ffffff 20%)]
 Fail	<color> values are computed correctly [light-dark(currentcolor, red)]
 Pass	<color> values are computed correctly [light-dark(lime, red)]
-Fail	<color> values are computed correctly [color(from lime srgb g g g)]
+Pass	<color> values are computed correctly [color(from lime srgb g g g)]
 Fail	<color> values are computed correctly [color(from currentcolor srgb b g r)]
 Pass	<color> values are computed correctly [color(srgb 1 1 1 / calc(NaN))]
 Pass	* values are computed correctly [tomato]

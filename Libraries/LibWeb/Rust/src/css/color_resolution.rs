@@ -1547,7 +1547,7 @@ fn resolve_relative_alpha(
 /// The computed value form of an absolute rgb(), hsl() or hwb() function: the same color as
 /// color(srgb ...). Other color functions compute to themselves.
 // https://drafts.csswg.org/css-color-4/#resolving-sRGB-values
-fn computed_value_form(value: StyleValueData) -> StyleValueData {
+pub(crate) fn relative_color_computed_value_form(value: StyleValueData) -> StyleValueData {
     use color_conversion as ct;
     let StyleValueData::ColorFunction {
         color_base,
@@ -1637,7 +1637,7 @@ pub unsafe extern "C" fn rust_relative_color_resolved_value(
     // SAFETY: Guaranteed by the caller.
     let resolution_input = unsafe { ColorResolutionInput::for_ffi_style(style) };
     match resolve_relative_form(value, &resolution_input) {
-        Some(resolved) => Arc::into_raw(Arc::new(computed_value_form(resolved))),
+        Some(resolved) => Arc::into_raw(Arc::new(relative_color_computed_value_form(resolved))),
         None => core::ptr::null(),
     }
 }
