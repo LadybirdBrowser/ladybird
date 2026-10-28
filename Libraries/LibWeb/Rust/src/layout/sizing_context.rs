@@ -2489,21 +2489,6 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         available.to_px_or_zero() - sized.metrics().horizontal_margin_border_padding()
     }
 
-    pub(crate) fn calculate_stretch_fit_block_size(&self, sized: SizedBox<'_>, available: AvailableSize) -> CssPixels {
-        // https://drafts.csswg.org/css-sizing-3/#stretch-fit-size
-        // The size a box would take if its outer size filled the available space in the given axis;
-        // in other words, the stretch fit into the available space, if that is definite.
-        // Undefined if the available space is indefinite.
-        let metrics = sized.metrics();
-        available.to_px_or_zero()
-            - metrics.margin_top()
-            - metrics.margin_bottom()
-            - metrics.padding_top()
-            - metrics.padding_bottom()
-            - metrics.border_top()
-            - metrics.border_bottom()
-    }
-
     /// Whether `node` lays out its contents in a frame orthogonal to the one this context sizes it in.
     pub(crate) fn establishes_orthogonal_flow(&self, node: Node) -> bool {
         formatting_context::frame_established_by(&self.callbacks, node).is_orthogonal_to(self.callbacks.frame)
@@ -3775,8 +3760,8 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             SizingAxis::Inline => {
                 // If the available space in a given axis is definite, equal to clamp(min-content size, stretch-fit size,
                 // max-content size) (i.e. max(min-content size, min(max-content size, stretch-fit size))).
-                if matches!(available_space.inline_size, AvailableSize::Definite(_)) {
-                    let stretch = self.calculate_stretch_fit_inline_size(sized, available_space.inline_size);
+                if let AvailableSize::Definite(basis) = available_space.inline_size {
+                    let stretch = self.stretch_fit_inner_size(sized, SizingAxis::Inline, basis, constraints);
                     let max_content = self.calculate_max_content_inline_size(sized, constraints);
                     if max_content <= stretch {
                         return max_content;
@@ -3796,8 +3781,8 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
                 // If the available space in a given axis is definite,
                 // equal to clamp(min-content size, stretch-fit size, max-content size)
                 // (i.e. max(min-content size, min(max-content size, stretch-fit size))).
-                if matches!(available_space.block_size, AvailableSize::Definite(_)) {
-                    let stretch = self.calculate_stretch_fit_block_size(sized, available_space.block_size);
+                if let AvailableSize::Definite(basis) = available_space.block_size {
+                    let stretch = self.stretch_fit_inner_size(sized, SizingAxis::Block, basis, constraints);
                     let max_content = self.calculate_max_content_block_size(sized, inline_size, constraints);
                     if max_content <= stretch {
                         return max_content;
