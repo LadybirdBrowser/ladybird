@@ -1128,6 +1128,7 @@ void WebContentView::schedule_repaint()
 {
 #if defined(LADYBIRD_QT_USE_VULKAN_WINDOW)
     m_frame_read_from_gpu = {};
+    ++m_page_window_content_serial;
     schedule_vulkan_window_update();
 #elif defined(LADYBIRD_QT_USE_IOSURFACE_LAYER)
     present_current_paintable_as_layer_contents();

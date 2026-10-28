@@ -860,6 +860,7 @@ struct WebContentView::VulkanWindowRenderer final : public QVulkanWindowRenderer
     virtual void startNextFrame() override
     {
         m_view.update_vulkan_alpha_blending_support();
+        auto content_serial = m_view.m_page_window_content_serial;
 
         auto command_buffer = m_window.currentCommandBuffer();
         auto target_size = m_window.swapChainImageSize();
@@ -964,6 +965,7 @@ struct WebContentView::VulkanWindowRenderer final : public QVulkanWindowRenderer
             return;
         }
         m_view.m_presented_page_window_size = target_size;
+        m_view.m_presented_page_window_content_serial = content_serial;
     }
 
     WebContentView& m_view;
@@ -1021,6 +1023,11 @@ struct WebContentView::VulkanWindow final : public QVulkanWindow {
     virtual bool event(QEvent* event) override
     {
         if (m_view && m_view->handle_vulkan_window_event(event))
+            return true;
+        // NB: Every step of a resize asks to present again, which recreates the swap chain at the new size only to show
+        //     the same frame in it. Until the page has a frame for the new size, keep the last one on screen. Its
+        //     surface keeps its size until it presents again, and the view paints the edge it leaves bare.
+        if (m_view && event->type() == QEvent::UpdateRequest && m_view->vulkan_window_update_would_only_resize())
             return true;
         auto handled = QVulkanWindow::event(event);
         if (m_view && event->type() == QEvent::Expose)
@@ -1087,6 +1094,21 @@ void WebContentView::set_vulkan_window_container_visible(bool visible)
         m_presented_page_window_size = {};
     if (m_vulkan_window_container)
         set_native_window_container_visible(*this, *m_vulkan_window_container, visible);
+}
+
+bool WebContentView::vulkan_window_update_would_only_resize() const
+{
+    // NB: Elsewhere, the page's window is opaque wherever it has not presented to, and covers the view's painting.
+    if (!m_vulkan_window || m_presented_page_window_size.isEmpty() || QGuiApplication::platformName() != "wayland")
+        return false;
+    // NB: A frame scaled to fit the view has to be scaled again for its new size.
+    if (m_scales_frames_to_fit)
+        return false;
+    if (m_presented_page_window_content_serial != m_page_window_content_serial)
+        return false;
+    // NB: The compositor doesn't clip the page's window to the browser window, so a window that shrinks presents again.
+    auto size = m_vulkan_window->size() * m_vulkan_window->devicePixelRatio();
+    return size != m_presented_page_window_size && size.width() >= m_presented_page_window_size.width() && size.height() >= m_presented_page_window_size.height();
 }
 
 QRect WebContentView::rect_covered_by_page_window() const

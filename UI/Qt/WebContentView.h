@@ -389,6 +389,7 @@ private:
     void fall_back_to_bitmap_rendering();
     void vulkan_window_exposure_changed();
     QRect rect_covered_by_page_window() const;
+    bool vulkan_window_update_would_only_resize() const;
     void remap_unexposed_vulkan_window();
 
     VulkanWindow* m_vulkan_window { nullptr };
@@ -400,6 +401,9 @@ private:
     QObject* m_top_level_expose_watcher { nullptr };
     // The size of the page's last frame on screen, in device pixels.
     QSize m_presented_page_window_size;
+    // Counts the changes to what the page's window shows, so that a present that would only resize it can be skipped.
+    u64 m_page_window_content_serial { 0 };
+    u64 m_presented_page_window_content_serial { 0 };
 
     // The pixels of the frame on screen, read back from GPU memory once for each frame that Qt paints itself.
     struct FrameReadFromGpu {
