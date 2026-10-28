@@ -27,6 +27,9 @@ public:
 
     virtual bool should_coordinate_browser_process() const override { return false; }
     virtual bool should_capture_web_content_output() const override { return true; }
+    // A test's position is emulated, so the OS is never asked for one, nor for leave to get one: the machine's own
+    // Location Services setting would otherwise read as a denial for every site a test allowed.
+    virtual bool should_use_os_geolocation() const override { return false; }
     // Tests cover elastic overscroll on every platform, whichever of them the browser enables it on.
     virtual bool platform_scrolls_elastically() const override { return true; }
 

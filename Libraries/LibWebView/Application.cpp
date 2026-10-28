@@ -3260,6 +3260,8 @@ void Application::set_spell_checker(OwnPtr<SpellChecker> spell_checker)
 ErrorOr<NonnullRawPtr<Core::GeolocationProvider>> Application::ensure_geolocation_provider()
 {
     if (!m_geolocation_provider) {
+        if (!should_use_os_geolocation())
+            return Error::from_string_literal("The OS location provider is disabled");
         m_geolocation_provider = TRY(Core::GeolocationProvider::create());
         m_geolocation_provider->on_authorization_change = [this] { update_os_location_authorization(); };
         update_os_location_authorization();
