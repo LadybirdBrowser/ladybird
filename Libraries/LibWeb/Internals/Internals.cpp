@@ -69,6 +69,7 @@
 #include <LibWeb/Geometry/DOMRect.h>
 #include <LibWeb/HTML/AnimatedBitmapDecodedImageData.h>
 #include <LibWeb/HTML/AutoplaySettings.h>
+#include <LibWeb/HTML/BitmapDecodedImageData.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventLoop/TaskQueue.h>
@@ -416,6 +417,11 @@ void Internals::gc_async(GC::Ref<WebIDL::Promise> promise)
         realm.vm().heap().collect_garbage();
         WebIDL::resolve_promise(*promise);
     });
+}
+
+WebIDL::UnsignedLongLong Internals::discard_decoded_image_frames()
+{
+    return HTML::BitmapDecodedImageData::discard_all_discardable_frames();
 }
 
 WebIDL::ExceptionOr<void> Internals::mark_as_garbage(Utf16String const& variable_name)

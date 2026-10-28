@@ -72,6 +72,7 @@ public:
 
     void gc();
     void gc_async(GC::Ref<WebIDL::Promise>);
+    WebIDL::UnsignedLongLong discard_decoded_image_frames();
     WebIDL::ExceptionOr<void> mark_as_garbage(Utf16String const& variable_name);
     bool wrapper_is_preserved(JS::Object&);
     bool has_activity_root(JS::Object&);

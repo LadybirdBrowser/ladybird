@@ -32,6 +32,8 @@ public:
     public:
         virtual GC::Ptr<DecodedImageData> decoded_image_data() const = 0;
         virtual void decoded_image_data_did_update() = 0;
+        // Whether the client may paint the image data, so that its pixels may be needed for the next paint.
+        virtual bool decoded_image_data_may_be_rendered() const { return true; }
 
     protected:
         void register_with_decoded_image_data_if_needed();
@@ -65,6 +67,7 @@ public:
     virtual Optional<Gfx::Color> color_if_single_pixel_bitmap() const { return {}; }
 
     bool has_clients() const { return !m_clients.is_empty(); }
+    bool has_clients_that_may_render() const;
 
 protected:
     DecodedImageData();

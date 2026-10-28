@@ -42,6 +42,15 @@ Optional<Compositing::DisplayListResource> DecodedImageData::record_display_list
     return {};
 }
 
+bool DecodedImageData::has_clients_that_may_render() const
+{
+    for (auto* client : m_clients) {
+        if (client->decoded_image_data_may_be_rendered())
+            return true;
+    }
+    return false;
+}
+
 void DecodedImageData::notify_clients_did_update()
 {
     for (auto* client : m_clients)

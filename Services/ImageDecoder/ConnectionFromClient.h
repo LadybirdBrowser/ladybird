@@ -65,6 +65,7 @@ private:
     explicit ConnectionFromClient(NonnullOwnPtr<IPC::Transport>);
 
     virtual void decode_image(Core::AnonymousBuffer, Optional<Gfx::IntSize> ideal_size, Optional<ByteString> mime_type, i64 request_id) override;
+    virtual Messages::ImageDecoderServer::DecodeFirstFrameSynchronouslyResponse decode_first_frame_synchronously(Core::AnonymousBuffer, Optional<ByteString> mime_type) override;
     virtual void cancel_decoding(i64 request_id) override;
     virtual void request_animation_frames(i64 session_id, u32 start_frame_index, u32 count) override;
     virtual void stop_animation_decode(i64 session_id) override;

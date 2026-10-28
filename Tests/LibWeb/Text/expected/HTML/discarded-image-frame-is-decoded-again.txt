@@ -1,0 +1,5 @@
+discarded at least one frame: true
+natural size after discard: 128x64
+left pixel: 255,0,0,255
+right pixel: 0,0,255,255
+frame decoded again can be discarded again: true

@@ -33,6 +33,7 @@ public:
         return promise;
     }
 
+    virtual ErrorOr<Web::Platform::DecodedFirstFrame> decode_first_frame_synchronously(ReadonlyBytes) override { VERIFY_NOT_REACHED(); }
     virtual void request_animation_frames(i64, u32, u32) override { VERIFY_NOT_REACHED(); }
     virtual void stop_animation_decode(i64) override { VERIFY_NOT_REACHED(); }
 

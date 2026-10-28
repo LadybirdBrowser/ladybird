@@ -30,6 +30,8 @@ interface Internals {
 
     undefined gc();
     [CreatesPromise] Promise<undefined> gcAsync();
+    // Discards every decoded image frame that can be decoded again, and returns how many were discarded.
+    unsigned long long discardDecodedImageFrames();
     // Clears a named environment binding and forces its current cell to be treated as garbage.
     // This does not work for values stored only in optimized locals or registers.
     undefined markAsGarbage(DOMString variableName);
