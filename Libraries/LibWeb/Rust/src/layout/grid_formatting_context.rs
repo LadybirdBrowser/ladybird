@@ -3140,6 +3140,7 @@ impl<'pass> GridFormattingContext<'pass> {
             subgrid.box_,
             containing_block,
             scratch_root,
+            self.run.callbacks.frame,
             |records, callbacks| {
                 let scratch_run = FormattingContextRun {
                     records,

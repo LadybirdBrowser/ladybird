@@ -97,13 +97,6 @@ impl<T: Copy> SealableCell<T> {
     pub(crate) fn seal(&self) {
         self.sealed.set(true);
     }
-
-    /// Sets the value even where it is sealed, for moving a box's metrics between the frames of writing modes: that
-    /// changes how they read, not what they are.
-    #[inline]
-    pub(crate) fn set_ignoring_seal(&self, value: T) {
-        self.value.set(value);
-    }
 }
 
 #[derive(Clone, Default, PartialEq)]
@@ -302,7 +295,7 @@ impl UsedValues {
                 std::mem::take(data.as_mut()),
                 callbacks.arena(),
                 self.content_inline_size.get(),
-                callbacks.frame.writing_mode(),
+                self.frame.get().writing_mode(),
             )),
         };
         *state = LineDataState::Finished(content.clone());
@@ -315,39 +308,6 @@ impl UsedValues {
             first: self.has_first_baseline.get().then(|| self.first_baseline.get()),
             last: self.has_last_baseline.get().then(|| self.last_baseline.get()),
         }
-    }
-
-    /// Moves the box's sizes, size constraints and box sides from frame `from` to frame `to`.
-    pub(crate) fn move_box_metrics_to_frame(&self, from: geometry::Frame, to: geometry::Frame) {
-        if from == to {
-            return;
-        }
-        self.frame.set(to);
-        let state = UsedValuesCellState::capture(self).in_frame(from, to);
-        macro_rules! move_sealable {
-            ($($field:ident),+) => {
-                $(self.$field.set_ignoring_seal(state.inputs.$field);)+
-            };
-        }
-        move_sealable!(
-            content_inline_size,
-            content_block_size,
-            margin_left,
-            margin_right,
-            margin_top,
-            margin_bottom,
-            border_left,
-            border_right,
-            border_top,
-            border_bottom,
-            padding_left,
-            padding_right,
-            padding_top,
-            padding_bottom
-        );
-        self.has_definite_inline_size.set(state.inputs.has_definite_inline_size);
-        self.has_definite_block_size.set(state.inputs.has_definite_block_size);
-        formatting_context::store_derived_baselines(self, state.baselines);
     }
 
     pub(crate) fn seal_own_metrics(&self) {
@@ -516,15 +476,6 @@ impl UsedValuesCellState {
     pub(crate) fn apply_to_record(&self, used: &UsedValues) {
         self.inputs.apply_to_record(used);
         formatting_context::store_derived_baselines(used, self.baselines);
-    }
-
-    /// The state, with the sizes, size constraints and box sides it holds in frame `from` read in frame `to` instead.
-    pub(crate) fn in_frame(mut self, from: geometry::Frame, to: geometry::Frame) -> Self {
-        self.inputs = self.inputs.in_frame(from, to);
-        if from.is_orthogonal_to(to) {
-            self.baselines = DerivedBaselines::default();
-        }
-        self
     }
 }
 

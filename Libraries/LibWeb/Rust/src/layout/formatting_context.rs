@@ -163,7 +163,7 @@ pub(crate) fn run_fragmentainer(
         .containing_block_for_child_run(box_, &input.participation);
     execute_formatting_context_run(
         builds_fragments,
-        used_values::RootInputCells::capture(outer.records.used_values(box_)),
+        used_values::RecordInFrame::new(outer.records.used_values(box_), outer.callbacks.frame).cells(),
         box_,
         root_containing_block,
         None,
@@ -2199,11 +2199,15 @@ fn execute_formatting_context_run(
     let parent_owns_root_input_cells = parent_owns_root_input_cells(&callbacks, box_, &input);
     let checks_root_input_cells_its_parent_owns =
         parent_owns_root_input_cells && (cfg!(debug_assertions) || run_repeatability::verification_is_enabled());
+    // NB: The root's record holds its metrics in the frame the root lays its contents out in, for its whole life. The
+    //     root's own box is sized in its parent's frame, through views of the record.
+    let own_frame = frame_established_by(&callbacks, box_);
     let (outputs, root_cells_left_by_run) = RunRecords::with_root(
         callbacks,
         box_,
         root_containing_block,
-        root_cells,
+        root_cells.in_frame(callbacks.frame, own_frame),
+        own_frame,
         |records, callbacks| {
             let outputs = lay_out_run_root_and_contents(
                 records,
@@ -2312,7 +2316,7 @@ fn lay_out_run_root_and_contents<'pass>(
     );
 
     let body_input = if changes_frame {
-        enter_own_frame(run, body_run, &input, body_input, parent_frame, own_frame)
+        body_input_in_own_frame(run, body_run, &input, body_input, parent_frame, own_frame)
     } else {
         body_input
     };
@@ -2426,7 +2430,7 @@ fn lay_out_run_root_and_contents<'pass>(
     // NB: Intrinsic size overrides use the box's own writing mode, before its sizes are projected into the
     //     parent's frame.
     if changes_frame {
-        result = leave_own_frame(run, body_run, result, parent_frame, own_frame);
+        result = result_in_parent_frame(run, body_run, result, parent_frame, own_frame);
     }
 
     if containment_facts.has_preferred_aspect_ratio() {
@@ -2519,20 +2523,11 @@ fn lay_out_run_root_and_contents<'pass>(
         match &implementation {
             FormattingContextImplementation::Block(_) => {}
             FormattingContextImplementation::Table(_) => {
-                let box_ = run.box_;
-                in_own_frame(run, parent_frame, own_frame, || {
-                    register_table_abspos_descendants(body_run, box_);
-                });
+                register_table_abspos_descendants(body_run, run.box_);
             }
-            FormattingContextImplementation::Flex(context) => {
-                in_own_frame(run, parent_frame, own_frame, || context.parent_did_dimension());
-            }
-            FormattingContextImplementation::Grid(context) => {
-                in_own_frame(run, parent_frame, own_frame, || context.parent_did_dimension());
-            }
-            FormattingContextImplementation::Math(context) => {
-                in_own_frame(run, parent_frame, own_frame, || context.parent_did_dimension());
-            }
+            FormattingContextImplementation::Flex(context) => context.parent_did_dimension(),
+            FormattingContextImplementation::Grid(context) => context.parent_did_dimension(),
+            FormattingContextImplementation::Math(context) => context.parent_did_dimension(),
             FormattingContextImplementation::Svg(_) | FormattingContextImplementation::ReplacedWithChildren => {}
             FormattingContextImplementation::InternalReplaced => {
                 return run.outputs(
@@ -2560,26 +2555,9 @@ pub(crate) fn frame_established_by(callbacks: &LayoutPass<'_>, node: Node) -> ge
         .map_or(callbacks.frame, |style| geometry::Frame::of(style.writing_mode()))
 }
 
-/// Runs `body` with the run root's metrics read in the frame it lays out its contents in.
-fn in_own_frame<R>(
-    run: &FormattingContextRun,
-    parent_frame: geometry::Frame,
-    own_frame: geometry::Frame,
-    body: impl FnOnce() -> R,
-) -> R {
-    if parent_frame == own_frame {
-        return body();
-    }
-    let used = run.records.used_values(run.box_);
-    used.move_box_metrics_to_frame(parent_frame, own_frame);
-    let result = body();
-    used.move_box_metrics_to_frame(own_frame, parent_frame);
-    result
-}
-
-/// Moves the root of a run whose writing mode establishes a frame other than its parent's into its own frame, where
-/// its contents are laid out, and returns the input for laying them out there.
-fn enter_own_frame(
+/// The input for laying out the contents of a run root whose writing mode establishes a frame other than its parent's,
+/// in that frame.
+fn body_input_in_own_frame(
     run: &FormattingContextRun,
     body_run: &FormattingContextRun,
     input: &LayoutInput,
@@ -2588,8 +2566,7 @@ fn enter_own_frame(
     own_frame: geometry::Frame,
 ) -> LayoutInput {
     let node = run.box_;
-    let used = run.records.used_values(node);
-    used.move_box_metrics_to_frame(parent_frame, own_frame);
+    let used = body_run.root_record();
     if !parent_frame.is_orthogonal_to(own_frame) {
         // NB: Sizes keep their axes between frames that are not orthogonal, so the contents are laid out with the
         //     input the root's sizing gave them, apart from the parent's block formatting context they leave.
@@ -2620,13 +2597,13 @@ fn enter_own_frame(
     // In the sizing phase [...] the dimensions of the box and the containing block are mapped to the inline
     // size and block size and calculations are performed accordingly using the writing mode of the box
     // establishing the orthogonal flow.
-    if !used.has_definite_inline_size.get() {
+    if !used.has_definite_inline_size() {
         // NB: A flex or grid container sizes its items in both axes before laying out their contents, even where it
         //     leaves a size indefinite for the percentages of their contents.
         let inline_size = if input.participation == ParticipationInParentFormattingContext::Item
             && NodeFacts::new(&run.callbacks, node).parent_is_flex_or_grid_container()
         {
-            used.content_inline_size.get()
+            used.content_inline_size()
         } else {
             body_run
                 .sizing()
@@ -2643,9 +2620,8 @@ fn enter_own_frame(
     body_input
 }
 
-/// Moves the root of a run back into its parent's frame once its contents are laid out in its own frame, and maps
-/// what the layout found into the parent's frame.
-fn leave_own_frame(
+/// Maps what the layout of a run root's contents in its own frame found into its parent's frame.
+fn result_in_parent_frame(
     run: &FormattingContextRun,
     body_run: &FormattingContextRun,
     mut result: ChildLayoutResult,
@@ -2653,8 +2629,6 @@ fn leave_own_frame(
     own_frame: geometry::Frame,
 ) -> ChildLayoutResult {
     let used = run.records.used_values(run.box_);
-    // NB: The root's lines are laid out along its own inline axis, so finish them while that is what the root
-    //     record holds.
     used.finish_line_data(&body_run.callbacks);
     if parent_frame.is_orthogonal_to(own_frame) {
         // https://drafts.csswg.org/css-writing-modes-4/#orthogonal-shrink-to-fit
@@ -2702,7 +2676,6 @@ fn leave_own_frame(
                 Some(table_box.border_box_inline_size(table_box.uses_collapsing_borders_model()));
         }
     }
-    used.move_box_metrics_to_frame(own_frame, parent_frame);
     result
 }
 
@@ -3821,21 +3794,28 @@ mod baseline_tests {
             },
         );
         let parent_cells = used_values::RootInputCells::capture(&UsedValues::default());
-        RunRecords::with_root(callbacks, parent, Node::INVALID, parent_cells, |records, callbacks| {
-            let child_used = records.register(child, UsedValues::default());
-            store_derived_baselines(
-                child_used,
-                DerivedBaselines {
-                    first: Some(CssPixels::from_integer(10)),
-                    last: Some(CssPixels::from_integer(30)),
-                    inline_alignment: None,
-                },
-            );
-            let baselines = derive_baselines(records, &callbacks, parent);
-            assert_eq!(baselines.first, Some(CssPixels::from_integer(10)));
-            assert_eq!(baselines.last, Some(CssPixels::from_integer(30)));
-            assert_eq!(baselines.inline_alignment, Some(CssPixels::from_integer(10)));
-        });
+        RunRecords::with_root(
+            callbacks,
+            parent,
+            Node::INVALID,
+            parent_cells,
+            callbacks.frame,
+            |records, callbacks| {
+                let child_used = records.register(child, UsedValues::default());
+                store_derived_baselines(
+                    child_used,
+                    DerivedBaselines {
+                        first: Some(CssPixels::from_integer(10)),
+                        last: Some(CssPixels::from_integer(30)),
+                        inline_alignment: None,
+                    },
+                );
+                let baselines = derive_baselines(records, &callbacks, parent);
+                assert_eq!(baselines.first, Some(CssPixels::from_integer(10)));
+                assert_eq!(baselines.last, Some(CssPixels::from_integer(30)));
+                assert_eq!(baselines.inline_alignment, Some(CssPixels::from_integer(10)));
+            },
+        );
         arena
             .free_subtree(parent)
             .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
