@@ -321,7 +321,9 @@ fn absolutize_image(value: &StyleValueData, context: &AbsolutizationContext) -> 
     else {
         return None;
     };
-    if url.is_empty() {
+    // https://drafts.csswg.org/css-values-4/#local-urls
+    // When serializing a url() with the local url flag set, it must serialize as just the fragment.
+    if url.is_empty() || url.is_fragment() {
         return Some(Absolutized::Unchanged);
     }
 

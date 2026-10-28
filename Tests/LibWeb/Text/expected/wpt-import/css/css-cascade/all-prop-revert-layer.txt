@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 347 tests
+Found 350 tests
 
-343 Pass
+346 Pass
 4 Fail
 Pass	accent-color
 Pass	border-collapse
@@ -45,6 +45,7 @@ Pass	hyphenate-character
 Pass	image-rendering
 Pass	letter-spacing
 Pass	line-height
+Pass	list-style-image
 Pass	list-style-position
 Pass	list-style-type
 Pass	math-depth
@@ -111,6 +112,7 @@ Pass	background-attachment
 Pass	background-blend-mode
 Pass	background-clip
 Pass	background-color
+Pass	background-image
 Pass	background-origin
 Pass	background-position-x
 Pass	background-position-y
@@ -135,6 +137,7 @@ Pass	border-end-start-radius
 Pass	border-image-outset
 Pass	border-image-repeat
 Pass	border-image-slice
+Pass	border-image-source
 Pass	border-image-width
 Pass	border-inline-end-color
 Pass	border-inline-end-style

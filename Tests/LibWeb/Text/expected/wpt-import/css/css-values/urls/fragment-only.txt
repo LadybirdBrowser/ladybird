@@ -2,9 +2,9 @@ Harness status: OK
 
 Found 5 tests
 
-5 Fail
-Fail	empty URL: inline-unquoted
-Fail	empty URL: inline-quoted
-Fail	empty URL: external-unquoted
-Fail	empty URL: external-quoted
-Fail	empty URL: external-variable
+5 Pass
+Pass	empty URL: inline-unquoted
+Pass	empty URL: inline-quoted
+Pass	empty URL: external-unquoted
+Pass	empty URL: external-quoted
+Pass	empty URL: external-variable

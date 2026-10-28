@@ -161,6 +161,13 @@ ImageStyleValue::~ImageStyleValue()
 
 GC::Ptr<HTML::SharedResourceRequest> ImageStyleValue::fetch_image(DOM::Document& document) const
 {
+    auto resolved_url = this->resolved_url(document);
+    if (!resolved_url.has_value())
+        return {};
+    // NB: Match the resource key while preserving URL modifiers and the stylesheet's referrer context.
+    auto original_url = url_value();
+    URL request_url { resolved_url->to_string(), original_url.type(), original_url.request_url_modifiers() };
+
     RuleOrDeclaration rule_or_declaration {
         .environment_settings_object = document.relevant_settings_object(),
         .value = RuleOrDeclaration::Rule {},
@@ -168,7 +175,7 @@ GC::Ptr<HTML::SharedResourceRequest> ImageStyleValue::fetch_image(DOM::Document&
         .parent_style_sheet_origin_clean = m_parent_style_sheet_origin_clean,
     };
 
-    return fetch_an_external_image_for_a_stylesheet(url_value(), rule_or_declaration, document);
+    return fetch_an_external_image_for_a_stylesheet(request_url, rule_or_declaration, document);
 }
 
 void ImageStyleValue::load_any_resources(DOM::Document& document)
@@ -280,6 +287,10 @@ Optional<::URL::URL> ImageStyleValue::resolved_url(DOM::Document const& document
     if (url.is_empty())
         return {};
 
+    // https://drafts.csswg.org/css-values-4/#local-urls
+    // NB: A fragment-only image reference follows the document URL rather than a stylesheet or base element.
+    if (url.starts_with(u'#'))
+        return DOMURL::parse(url, document.url());
     auto resolved_url = DOMURL::parse(url, style_resource_base_url(document));
     // A value without a base URL of its own follows the document's base URL as that changes.
     if (m_style_resource_base_url.has_value())

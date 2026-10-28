@@ -626,11 +626,8 @@ pub(crate) fn parse_image_value(
 ) -> Option<StyleValueData> {
     tokens.discard_whitespace();
     if let Some(url) = parse_url_value(context, tokens.next_token()) {
-        let is_fragment = matches!(&url, StyleValueData::Url { url, .. } if url.is_fragment());
-        if !is_fragment {
-            tokens.discard_a_token();
-            return image_from_url(url);
-        }
+        tokens.discard_a_token();
+        return image_from_url(url);
     }
     if allow_image_set
         && let Some((name, arguments)) = tokens.next_token().function()
@@ -718,14 +715,18 @@ fn parse_image_or_none(context: &ParseContext, property: u16, values: &[Componen
         StyleValueData::Keyword {
             keyword: crate::css::css_enums::keyword::NONE,
         }
-    } else if let Some(image) = parse_image_value(context, property, &mut tokens, true) {
-        image
-    } else if property == property_id::MASK_IMAGE {
-        let url = parse_url_value(context, tokens.next_token())?;
+    } else if property == property_id::MASK_IMAGE
+        && let Some(url) = parse_url_value(context, tokens.next_token())
+    {
         tokens.discard_a_token();
-        url
+        if matches!(&url, StyleValueData::Url { url, .. } if url.is_fragment()) {
+            // NB: Preserve the SVG resource path for local mask references.
+            url
+        } else {
+            image_from_url(url)?
+        }
     } else {
-        return None;
+        parse_image_value(context, property, &mut tokens, true)?
     };
     tokens.discard_whitespace();
     (!tokens.has_next_token()).then_some(parsed)
@@ -794,7 +795,15 @@ mod tests {
             parse(property_id::BACKGROUND_IMAGE, "none, url(image.png)"),
             ParseOutcome::Parsed(_)
         ));
-        for source in ["image-set()", "image-set(url(one.png) 1x 2x)", "url(#mask)"] {
+        let ParseOutcome::Parsed(value) = parse(property_id::BACKGROUND_IMAGE, "url(#mask)") else {
+            panic!("fragment background image should parse");
+        };
+        let StyleValueData::ValueList { values, .. } = &*value else {
+            panic!("background-image should be a list");
+        };
+        assert_eq!(values.as_slice().len(), 1);
+        assert!(matches!(values.as_slice()[0].data(), StyleValueData::Image { .. }));
+        for source in ["image-set()", "image-set(url(one.png) 1x 2x)"] {
             assert!(matches!(
                 parse(property_id::BACKGROUND_IMAGE, source),
                 ParseOutcome::NotHandled

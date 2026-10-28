@@ -1,0 +1,90 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGNgaGAAAAEEAIFw9selAAAAAElFTkSuQmCC";
+        const image = path =>
+            server.createEcho("GET", path, {
+                status: 200,
+                headers: {
+                    "Content-Type": "image/png",
+                    "Access-Control-Allow-Origin": "*",
+                    "Cache-Control": "no-store",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                body: png,
+                body_encoding: "base64",
+            });
+        const wrongBase = await image("/wrong-base.png");
+        const policyImage = await image("/policy.png");
+        const sheetImage = await image("/sheet.png");
+        const sheetURL = await server.createEcho("GET", "/context/sheet.css", {
+            status: 200,
+            headers: { "Content-Type": "text/css", "Cache-Control": "no-store", "Referrer-Policy": "unsafe-url" },
+            body: `#sheet { background-image: url("${sheetImage}" cross-origin(anonymous) referrer-policy(unsafe-url)); }`,
+        });
+        const token = uniqueID();
+        const page = `<!DOCTYPE html><base href="${wrongBase}"><body><script>
+            const targets = ${JSON.stringify([wrongBase, policyImage, sheetImage])};
+            window.addEventListener("message", async event => {
+                if (event.data !== ${JSON.stringify(token)}) return;
+                const requests = [];
+                let complete;
+                const finished = new Promise(resolve => complete = resolve);
+                const observer = new PerformanceObserver(list => {
+                    for (const entry of list.getEntries()) {
+                        if (entry.name.split("#")[0] === location.href || targets.includes(entry.name.split("#")[0])) {
+                            requests.push(entry.name);
+                            if (requests.length === 3) complete();
+                        }
+                    }
+                });
+                observer.observe({ type: "resource" });
+                const fragment = document.createElement("div");
+                fragment.style.cssText = 'width:1px;height:1px;background-image:image-set("#fragment" 1x)';
+                const policy = document.createElement("div");
+                policy.style.cssText = 'width:1px;height:1px;background-image:url("${policyImage}" referrer-policy(no-referrer))';
+                const sheet = document.createElement("div");
+                sheet.id = "sheet";
+                sheet.style.cssText = "width:1px;height:1px";
+                document.body.append(fragment, policy, sheet);
+                const link = document.createElement("link");
+                link.rel = "stylesheet";
+                link.href = ${JSON.stringify(sheetURL)};
+                document.head.append(link);
+                document.body.offsetWidth;
+                await finished;
+                observer.disconnect();
+                parent.postMessage({ token: ${JSON.stringify(token)}, requests }, "*");
+            });
+        <\/script>`;
+        const documentURL = await server.createEcho("GET", "/document.html", {
+            status: 200,
+            headers: { "Content-Type": "text/html", "Cache-Control": "no-store" },
+            body: page,
+        });
+        const frame = document.createElement("iframe");
+        const loaded = new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
+        const received = new Promise(resolve =>
+            window.addEventListener("message", event => {
+                if (event.source === frame.contentWindow && event.data?.token === token) resolve(event.data.requests);
+            })
+        );
+        frame.src = documentURL;
+        document.body.append(frame);
+        await loaded;
+        frame.contentWindow.postMessage(token, "*");
+        const requests = await received;
+        const fragmentRequest = requests.find(url => ![policyImage, sheetImage].includes(url.split("#")[0]));
+        println(`Fragment fetch uses document URL: ${fragmentRequest?.split("#")[0] === documentURL}`);
+        const referrer = async url => {
+            const response = await fetch(server.recordedRequestHeadersURL(url), { cache: "no-store" });
+            const headers = await response.json();
+            return Object.entries(headers).find(([name]) => name.toLowerCase() === "referer")?.[1][0] ?? null;
+        };
+        println(`URL request modifier preserved: ${(await referrer(policyImage)) === null}`);
+        println(`Stylesheet referrer context preserved: ${(await referrer(sheetImage)) === sheetURL}`);
+        frame.remove();
+    });
+</script>
