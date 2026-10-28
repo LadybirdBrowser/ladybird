@@ -1073,7 +1073,6 @@ mod tests {
                 root,
                 root_outcome: formatting_context::RunRootOutcome {
                     input_cells_left_by_run: Some(used_values::RootInputCells::capture(&UsedValues::default())),
-                    own_metrics_sealed: false,
                     line_data: None,
                 },
                 // NB: As a run whose result depends on no percentage block size proves.
