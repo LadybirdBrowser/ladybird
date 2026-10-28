@@ -44,10 +44,10 @@ struct BlockLevelBoxOutcome {
     /// The offset of the content box in the containing block, or the origin while the box is not placed.
     content_offset: FfiCssPixelPoint,
     is_placed: bool,
-    content_block_size: CssPixels,
-    border_box_bottom: CssPixels,
-    border_box_block_size: CssPixels,
-    margin_bottom: CssPixels,
+    /// The sizes and box sides of the box, in the frame of its containing block.
+    cells: used_values::RootInputCells,
+    /// The baselines of the contents of the box, relative to its content box.
+    content_baselines: DerivedBaselines,
     collapses_through: bool,
     is_invisible_for_line_clamp: bool,
     can_break_inside: bool,
@@ -57,8 +57,25 @@ struct BlockLevelBoxOutcome {
 }
 
 impl BlockLevelBoxOutcome {
+    fn content_block_size(&self) -> CssPixels {
+        self.cells.content_block_size
+    }
+
+    fn border_box_bottom(&self) -> CssPixels {
+        self.cells.border_box_bottom(self.cells.uses_collapsing_borders_model)
+    }
+
+    fn border_box_block_size(&self) -> CssPixels {
+        self.cells
+            .border_box_block_size(self.cells.uses_collapsing_borders_model)
+    }
+
+    fn margin_bottom(&self) -> CssPixels {
+        self.cells.margin_bottom
+    }
+
     fn border_box_block_end(&self) -> CssPixels {
-        self.content_offset.y + self.content_block_size + self.border_box_bottom
+        self.content_offset.y + self.content_block_size() + self.border_box_bottom()
     }
 }
 
@@ -123,8 +140,8 @@ impl RootFlowChild {
         Self {
             node,
             border_box_block_end: outcome.border_box_block_end(),
-            border_box_block_size: outcome.border_box_block_size,
-            margin_bottom: outcome.margin_bottom,
+            border_box_block_size: outcome.border_box_block_size(),
+            margin_bottom: outcome.margin_bottom(),
             collapses_through: outcome.collapses_through,
             is_invisible_for_line_clamp: outcome.is_invisible_for_line_clamp,
         }
@@ -820,7 +837,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         {
             summary.last_in_flow_child = Some(LastInFlowChild {
                 border_box_block_end: outcome.border_box_block_end(),
-                margin_bottom: outcome.margin_bottom,
+                margin_bottom: outcome.margin_bottom(),
             });
         }
     }
@@ -2085,14 +2102,11 @@ impl<'pass> BlockFormattingContext<'pass> {
             containing_line_box_fragment,
         )?;
         let metrics = self.run.records.box_metrics_of(node);
-        let collapsed = metrics.uses_collapsing_borders_model();
         Some(BlockLevelBoxOutcome {
             content_offset: self.run.records.content_offset_or_origin(node),
             is_placed: self.run.records.is_placed(node),
-            content_block_size: metrics.content_block_size(),
-            border_box_bottom: metrics.border_box_bottom(collapsed),
-            border_box_block_size: metrics.border_box_block_size(collapsed),
-            margin_bottom: metrics.margin_bottom(),
+            cells: metrics.input_cells(),
+            content_baselines: metrics.content_baselines(),
             collapses_through: laid_out.collapses_through,
             is_invisible_for_line_clamp: self.run.records.is_invisible_for_line_clamp(node),
             can_break_inside: self.box_can_break_inside(node, laid_out.has_unbreakable_lines),
@@ -3215,18 +3229,18 @@ impl<'pass> BlockFormattingContext<'pass> {
             return FragmentationStep::Stop;
         }
         let break_before_is_avoided = self.break_between_is_avoided(state, child);
-        let border_box_block_size = outcome.border_box_block_size;
+        let border_box_block_size = outcome.border_box_block_size();
         if self.allows_unforced_breaks() {
             let content_block_end = state.container_content_box_block_start_in_root
                 + self.block_offset_adjustment_from_pending_ancestor_block_start_margins(block_container)
                 + outcome.content_offset.y
-                + outcome.content_block_size;
+                + outcome.content_block_size();
             let is_breakable = outcome.can_break_inside
                 && !fragmentation::avoids_column_break_inside(self.style(child).break_inside());
             if !is_breakable {
                 fragmentainer.note_unbreakable_block_size(border_box_block_size);
             }
-            let block_end = content_block_end + outcome.border_box_bottom;
+            let block_end = content_block_end + outcome.border_box_bottom();
             if fragmentainer.exceeds(block_end) {
                 fragmentainer.note_space_shortage(block_end);
                 if state.fragmentainer_had_content_before_child
@@ -4172,8 +4186,9 @@ impl<'pass> BlockFormattingContext<'pass> {
             if let Some(index) = index_of_legend_in_root_flow_children
                 && let Some(legend_outcome) = legend_outcome.as_ref()
             {
-                self.root_flow_children.borrow_mut()[index].border_box_block_end =
-                    legend_content_block_offset + legend_outcome.content_block_size + legend_outcome.border_box_bottom;
+                self.root_flow_children.borrow_mut()[index].border_box_block_end = legend_content_block_offset
+                    + legend_outcome.content_block_size()
+                    + legend_outcome.border_box_bottom();
             }
             self.translate_floats_in_subtree(
                 legend,
@@ -4342,13 +4357,29 @@ impl<'pass> BlockFormattingContext<'pass> {
             .get()
             .unwrap_or_else(|| line_builder.current_block_offset());
         self.block_offset_of_current_block_container.set(saved);
+        let outcome = outcome.expect("the flow holds a block-level box that interrupts its lines");
+        assert!(
+            outcome.is_placed,
+            "a block-level box is placed before its line takes it"
+        );
         line_builder.append_block_level_box(
             node,
             line_index,
             block_bottom,
             self.margin_state.borrow().current_collapsed_margin(),
+            line_box::BlockLevelBoxOnLine {
+                content_offset: outcome.content_offset,
+                cells: outcome.cells,
+                baselines: formatting_context::baselines_of_block_level_box_on_line(
+                    &self.run.callbacks,
+                    node,
+                    &outcome.cells,
+                    outcome.content_baselines,
+                    outcome.content_offset.y,
+                ),
+            },
         );
-        outcome.is_none_or(|outcome| outcome.collapses_through)
+        outcome.collapses_through
     }
 
     // Run-prelude inline sizing for a block-level root: commits the result of the parent's winning

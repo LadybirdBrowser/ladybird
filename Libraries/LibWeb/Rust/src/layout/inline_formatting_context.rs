@@ -529,8 +529,11 @@ pub(crate) fn compute(
             }
 
             let interrupting_block = if interrupting {
-                let block = context.box_metrics(fragment.layout_node);
-                let collapsed = block.uses_collapsing_borders_model();
+                let block = line
+                    .block_level_box
+                    .expect("a line interrupted for a block-level box keeps the box")
+                    .cells;
+                let collapsed = block.uses_collapsing_borders_model;
                 let (border_box_inline_low, border_box_block_low, border_box_inline_size, border_box_block_size) = (
                     block.border_box_left(collapsed),
                     block.border_box_top(collapsed),
@@ -1448,6 +1451,7 @@ impl<'context> InlineFormattingContext<'context> {
                 static_position_markers: Vec::new(),
                 inline_box_baselines: Vec::new(),
                 text_overflow_elision: None,
+                block_level_box: None,
             };
             fragment_start = fragment_end;
             let line_item_start = item_index;
@@ -2301,13 +2305,10 @@ impl<'context> InlineFormattingContext<'context> {
             .line_boxes
             .last()
             .map(line_box::LineBoxData::retained_metrics);
+        let baselines = formatting_context::derive_baselines_from_lines(&self.line_data.get_mut().line_boxes);
         containing_used.set_building_line_data(std::mem::take(self.line_data.get_mut()));
         block_formatting_context::ChildrenSummary {
-            baselines: formatting_context::derive_baselines_from_lines(
-                self.run.records,
-                &self.callbacks,
-                self.containing_block,
-            ),
+            baselines,
             fragmentainer_stop_token: self.fragmentainer_stop_token.take(),
             lines_are_unbreakable: self.lines_are_unbreakable.get(),
             last_line,

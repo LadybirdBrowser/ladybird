@@ -50,6 +50,17 @@ pub(crate) struct TextOverflowElision {
     pub(crate) ellipsis_fragment_inline_length: CssPixels,
 }
 
+/// What a line its block container interrupted for a block-level box keeps of the box, as the layout of the box left it.
+#[derive(Clone, Copy, PartialEq)]
+pub(crate) struct BlockLevelBoxOnLine {
+    /// The offset of the content box of the box in its containing block.
+    pub(crate) content_offset: FfiCssPixelPoint,
+    /// The sizes and box sides of the box.
+    pub(crate) cells: used_values::RootInputCells,
+    /// The baselines the box gives the line.
+    pub(crate) baselines: formatting_context::LineBaselines,
+}
+
 #[derive(Clone, PartialEq)]
 pub(crate) struct LineBoxData {
     pub(crate) start: super::fragmentation::LinePosition,
@@ -57,6 +68,8 @@ pub(crate) struct LineBoxData {
     pub(crate) static_position_markers: Vec<StaticPositionMarker>,
     pub(crate) inline_box_baselines: Vec<InlineBoxBaseline>,
     pub(crate) text_overflow_elision: Option<TextOverflowElision>,
+    /// The block-level box the line holds, where the line is interrupted for one.
+    pub(crate) block_level_box: Option<BlockLevelBoxOnLine>,
     pub(crate) record: inline_content::LineRecord,
 }
 
@@ -81,6 +94,7 @@ impl LineBoxData {
             static_position_markers: Vec::new(),
             inline_box_baselines: Vec::new(),
             text_overflow_elision: None,
+            block_level_box: None,
             record: inline_content::LineRecord {
                 direction,
                 writing_mode,
@@ -92,8 +106,6 @@ impl LineBoxData {
 
     pub(crate) fn retained_metrics(&self) -> inline_content::LineRecord {
         inline_content::LineRecord {
-            layout_fragment_count: self.fragments.len(),
-            first_fragment_node: self.fragments.first().map(|fragment| fragment.layout_node),
             is_empty: self.is_empty(),
             horizontal_extent: inline_formatting_context::line_physical_horizontal_extent(self),
             ..self.record

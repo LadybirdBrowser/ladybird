@@ -525,19 +525,13 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         line_index: usize,
         block_end: CssPixels,
         block_end_margin: CssPixels,
+        block_level_box: line_box::BlockLevelBoxOnLine,
     ) {
-        let block = self.context().box_metrics(node);
-        let content_offset = self
-            .context()
-            .run
-            .records
-            .placement_of(node)
-            .expect("a block-level box is placed before its line takes it")
-            .content_offset_in_containing_block;
-        let inline_offset = content_offset.x;
-        let block_offset = content_offset.y;
-        let inline_length = block.content_inline_size();
-        let block_length = block.content_block_size();
+        let block = block_level_box.cells;
+        let inline_offset = block_level_box.content_offset.x;
+        let block_offset = block_level_box.content_offset.y;
+        let inline_length = block.content_inline_size;
+        let block_length = block.content_block_size;
         let border_start = block.border_box_top(false);
         let line_inline_length = block.margin_box_inline_size(false);
         let ensured_line_index = self.ensure_last_line_index();
@@ -567,6 +561,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             line.block_end = block_end;
             line.baseline = CssPixels::default();
             line.has_block_level_box = true;
+            line.block_level_box = Some(block_level_box);
             line.block_level_box_block_end_margin = block_end_margin;
             line.has_break = true;
             line.has_forced_break = true;
