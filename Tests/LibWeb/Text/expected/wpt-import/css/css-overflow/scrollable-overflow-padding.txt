@@ -2,35 +2,35 @@ Harness status: OK
 
 Found 30 tests
 
-6 Pass
-24 Fail
-Fail	scrollable-container 1
-Fail	scrollable-container 2
+28 Pass
+2 Fail
+Pass	scrollable-container 1
+Pass	scrollable-container 2
 Pass	scrollable-container 3
-Fail	scrollable-container 4
+Pass	scrollable-container 4
 Fail	scrollable-container 5
-Fail	scrollable-container 6
-Fail	scrollable-container 7
+Pass	scrollable-container 6
+Pass	scrollable-container 7
 Pass	scrollable-container 8
-Fail	scrollable-container 9
+Pass	scrollable-container 9
 Fail	scrollable-container 10
-Fail	scrollable-container 11
-Fail	scrollable-container 12
+Pass	scrollable-container 11
+Pass	scrollable-container 12
 Pass	scrollable-container 13
-Fail	scrollable-container 14
-Fail	scrollable-container 15
-Fail	scrollable-container 16
-Fail	scrollable-container 17
+Pass	scrollable-container 14
+Pass	scrollable-container 15
+Pass	scrollable-container 16
+Pass	scrollable-container 17
 Pass	scrollable-container 18
-Fail	scrollable-container 19
-Fail	scrollable-container 20
-Fail	scrollable-container 21
-Fail	scrollable-container 22
+Pass	scrollable-container 19
+Pass	scrollable-container 20
+Pass	scrollable-container 21
+Pass	scrollable-container 22
 Pass	scrollable-container 23
-Fail	scrollable-container 24
-Fail	scrollable-container 25
-Fail	scrollable-container 26
-Fail	scrollable-container 27
+Pass	scrollable-container 24
+Pass	scrollable-container 25
+Pass	scrollable-container 26
+Pass	scrollable-container 27
 Pass	scrollable-container 28
-Fail	scrollable-container 29
-Fail	scrollable-container 30
+Pass	scrollable-container 29
+Pass	scrollable-container 30

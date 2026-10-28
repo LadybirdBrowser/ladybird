@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Overflow: Scroll Length Calculated Correctly When One Axis Has Zero Length</title>
+<link rel="author" title="David Shin" href="mailto:dshin@mozilla.com">
+<link rel="author" title="Mozilla" href="http://www.mozilla.org/">
+<link rel="help" href="https://drafts.csswg.org/css-overflow-3/#scrollable">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1800907">
+<style>
+.scroll {
+  overflow: scroll;
+}
+
+.zero-h {
+  width: 100px;
+  height: 0px;
+}
+
+.zero-w {
+  width: 0;
+  height: 100px;
+}
+
+.flex-row {
+  display: flex;
+}
+
+.flex-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.grid {
+  display: grid;
+}
+</style>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.scroll')">
+<div class="scroll zero-h" data-expected-scroll-height="100">
+  <div class="zero-w"></div>
+</div>
+<div class="scroll zero-w" data-expected-scroll-width="100">
+  <div class="zero-h"></div>
+</div>
+
+<div class="scroll zero-h flex-row" data-expected-scroll-height="100">
+  <div class="zero-w"></div>
+</div>
+<div class="scroll zero-w flex-col" data-expected-scroll-width="100">
+  <div class="zero-h"></div>
+</div>
+
+<div class="scroll zero-h grid" data-expected-scroll-height="100">
+  <div class="zero-w"></div>
+</div>
+<div class="scroll zero-w grid" data-expected-scroll-width="100">
+  <div class="zero-h"></div>
+</div>

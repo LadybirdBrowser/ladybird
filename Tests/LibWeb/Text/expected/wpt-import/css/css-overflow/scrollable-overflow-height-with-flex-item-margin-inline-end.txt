@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	Check scrollHeight with overflow: auto
+Pass	Check scrollHeight with overflow: scroll
+Pass	Check scrollHeight with overflow: hidden
+Pass	Check scrollHeight with overflow: clip
+Pass	Check scrollHeight with overflow: visible
+Pass	Check scrollHeight with overflowX: visible, overflowY: clip
+Pass	Check scrollHeight with overflowX: visible, overflowY: hidden
+Pass	Check scrollHeight with overflowX: visible, overflowY: auto

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<title>CSS Overflow: Scrollable overflow from flex item with margin-inline-end</title>
+<link rel="help" href="https://drafts.csswg.org/css-overflow-3/#scrollable" />
+<meta name="assert" content="Flex item contribute its margin-end to parent scroller's scrollable overflow.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  #container {
+    width: 100px;
+    height: 100px;
+    display: flex;
+    overflow: scroll;
+    outline: 1px solid red;
+    writing-mode: vertical-lr;
+  }
+
+  .item {
+    outline: 2px solid green;
+    width: 50px;
+    height: 50px;
+    margin-inline-end: 950px;
+  }
+</style>
+
+<div id=container>
+  <div class=item></div>
+</div>
+<script>
+  test(() => {
+    container.style.overflow = "auto";
+    assert_equals(container.scrollHeight, 950);
+  }, "Check scrollHeight with overflow: auto");
+
+  test(() => {
+    container.style.overflow = "scroll";
+    assert_equals(container.scrollHeight, 950);
+  }, "Check scrollHeight with overflow: scroll");
+
+  test(() => {
+    container.style.overflow = "hidden";
+    assert_equals(container.scrollHeight, 950);
+  }, "Check scrollHeight with overflow: hidden");
+
+  test(() => {
+    container.style.overflow = "clip";
+    assert_equals(container.scrollHeight, 100);
+  }, "Check scrollHeight with overflow: clip");
+
+  test(() => {
+    container.style.overflow = "visible";
+    assert_equals(container.scrollHeight, 100);
+  }, "Check scrollHeight with overflow: visible");
+
+  test(() => {
+    container.style.overflowX = "visible";
+    container.style.overflowY = "clip";
+    assert_equals(container.scrollHeight, 100);
+  }, "Check scrollHeight with overflowX: visible, overflowY: clip");
+
+  test(() => {
+    container.style.overflowX = "visible";
+    container.style.overflowY = "hidden";
+    assert_equals(container.scrollHeight, 950);
+  }, "Check scrollHeight with overflowX: visible, overflowY: hidden");
+
+  test(() => {
+    container.style.overflowX = "visible";
+    container.style.overflowY = "auto";
+    assert_equals(container.scrollHeight, 950);
+  }, "Check scrollHeight with overflowX: visible, overflowY: auto");
+</script>
