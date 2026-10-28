@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<body>
+  <div id="container"></div>
+  <div id="target" data-target></div>
+  <span id="target" data-span></span>
+
+  <div id="container2"></div>
+  <div id="target2"></div>
+
+  <div id="host1"></div>
+  <div id="host2"></div>
+
+  <div id="swap-parent">
+    <div id="duplicate" data-a></div>
+    <div id="duplicate" data-b></div>
+  </div>
+</body>
+
+<script>
+  test(() => {
+      let shadowRoot = container.attachShadow({mode: "open"});
+      let div = document.createElement("div");
+      shadowRoot.appendChild(div);
+      let target = document.querySelector('[data-target]');
+
+      assert_equals(document.getElementById("target"), target);
+      assert_equals(shadowRoot.getElementById("target"), null);
+
+      div.moveBefore(target, null);
+
+      assert_equals(document.getElementById("target"), document.querySelector('[data-span]'));
+      assert_equals(shadowRoot.getElementById("target"), target);
+  }, 'moveBefore() correctly updates id map when moving into shadow root');
+
+  test(() => {
+      let shadowRoot = container2.attachShadow({mode: "open"});
+      let div = document.createElement("div");
+      shadowRoot.appendChild(div);
+      let localTarget = document.getElementById("target2");
+
+      assert_equals(window.target2, localTarget);
+
+      div.moveBefore(localTarget, null);
+
+      assert_equals(window.target2, undefined);
+  }, 'moveBefore() correctly updates window map when moving id-mapped element into shadow root');
+
+  test(() => {
+      let shadowRoot1 = host1.attachShadow({mode: "open"});
+      let shadowRoot2 = host2.attachShadow({mode: "open"});
+
+      let container1 = document.createElement("div");
+      let container2 = document.createElement("div");
+      shadowRoot1.appendChild(container1);
+      shadowRoot2.appendChild(container2);
+
+      let div = document.createElement("div");
+      div.id = "a";
+      container1.appendChild(div);
+
+      assert_equals(shadowRoot1.getElementById("a"), div);
+      assert_equals(shadowRoot2.getElementById("a"), null);
+
+      container2.moveBefore(div, null);
+
+      assert_equals(shadowRoot1.getElementById("a"), null);
+      assert_equals(shadowRoot2.getElementById("a"), div);
+  }, 'moveBefore() correctly updates id map when moving between shadow roots');
+
+  test(() => {
+      let parent = document.getElementById("swap-parent");
+      let a = parent.querySelector('[data-a]');
+      let b = parent.querySelector('[data-b]');
+
+      assert_equals(document.getElementById("duplicate"), a);
+
+      parent.moveBefore(b, a);
+
+      assert_equals(parent.firstElementChild, b);
+      assert_equals(document.getElementById("duplicate"), b);
+
+      parent.moveBefore(a, b);
+
+      assert_equals(parent.firstElementChild, a);
+      assert_equals(document.getElementById("duplicate"), a);
+  }, 'moveBefore() correctly updates id map when swapping elements with duplicate ids');
+</script>

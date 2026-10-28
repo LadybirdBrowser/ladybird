@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<body>
+  <div id="container"></div>
+  <div id="window-container"></div>
+  <img name="target" data-target>
+  <img name="target2" data-target2>
+
+  <div id="host1"></div>
+  <div id="host2"></div>
+</body>
+
+<script>
+  test(() => {
+      let shadowRoot = container.attachShadow({mode: "open"});
+      let div = document.createElement("div");
+      shadowRoot.appendChild(div);
+
+      let target = document.querySelector('[data-target]');
+
+      let nameMap = document.getElementsByName("target");
+      assert_equals(nameMap.length, 1);
+      assert_equals(nameMap[0], target);
+
+      div.moveBefore(target, null);
+
+      assert_equals(nameMap.length, 0);
+  }, 'moveBefore() correctly updates name map when moving into shadow root');
+
+  test(() => {
+      let shadowRoot = document.getElementById("window-container").attachShadow({mode: "open"});
+      let div = document.createElement("div");
+      shadowRoot.appendChild(div);
+
+      let target = document.querySelector('[data-target2]');
+
+      assert_equals(window.target2, target);
+
+      div.moveBefore(target, null);
+
+      assert_equals(window.target2, undefined);
+  }, 'moveBefore() correctly updates window map');
+
+  test(() => {
+      let host = document.createElement("div");
+      document.body.appendChild(host);
+
+      let shadowRoot = host.attachShadow({mode: "open"});
+      let parent = document.createElement("div");
+      shadowRoot.appendChild(parent);
+
+      let a = document.createElement("img");
+      let b = document.createElement("img");
+
+      a.name = "duplicate";
+      b.name = "duplicate";
+
+      parent.appendChild(a);
+      parent.appendChild(b);
+
+      let nameMap = document.getElementsByName("duplicate");
+
+      assert_equals(nameMap.length, 0);
+
+      document.body.appendChild(a);
+      document.body.appendChild(b);
+
+      nameMap = document.getElementsByName("duplicate");
+      assert_equals(nameMap.length, 2);
+      assert_equals(nameMap[0], a);
+
+      document.body.moveBefore(b, a);
+
+      assert_equals(nameMap.length, 2);
+      assert_equals(nameMap[0], b);
+  }, 'moveBefore() correctly updates name map ordering in document');
+</script>

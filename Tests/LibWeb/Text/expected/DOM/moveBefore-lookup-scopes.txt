@@ -1,0 +1,14 @@
+Initial document lookup: true
+Initial shadow lookup: true
+Initial nested lookup: true
+Initial form associations: true
+Form associations follow new scope: false
+Old shadow releases moved ID: false
+New shadow finds moved ID: false
+Nested shadow retains its ID: true
+Document retains its own ID: true
+Shadow controls release document form: false
+Document follows duplicate order: false
+Previous shadow releases moved ID: true
+Nested shadow stays separate: true
+Renamed nested ID stays local: true
