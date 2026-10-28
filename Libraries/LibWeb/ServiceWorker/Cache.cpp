@@ -723,12 +723,13 @@ void Cache::keys(JS::Realm& realm, Optional<Fetch::RequestInfo> request, CacheQu
         // 3. Else:
         else {
             // 1. Let requestResponses be the result of running Query Cache with r and options.
-            auto request_responses = query_cache(realm, *inner_request, options);
+            // NB: Only the requests are used, so we copy them below. Copying the responses would tee their bodies.
+            auto request_responses = query_cache(realm, *inner_request, options, {}, CloneCache::No);
 
             // 2. For each requestResponse of requestResponses:
             for (auto request_response : request_responses->elements()) {
                 // 1. Add requestResponse’s request to requests.
-                requests.append(request_response->request);
+                requests.append(request_response->request->clone());
             }
         }
 
