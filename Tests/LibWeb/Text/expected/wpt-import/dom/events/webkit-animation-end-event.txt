@@ -1,0 +1,19 @@
+Harness status: OK
+
+Found 13 tests
+
+9 Pass
+4 Fail
+Pass	onanimationend and onwebkitanimationend are not aliases
+Pass	dispatchEvent of a webkitAnimationEnd event does trigger a prefixed event handler or listener
+Pass	dispatchEvent of a webkitAnimationEnd event does not trigger an unprefixed event handler or listener
+Pass	dispatchEvent of an animationend event does not trigger a prefixed event handler or listener
+Fail	onwebkitanimationend event handler should trigger for an animation
+Pass	onwebkitanimationend event handler should not trigger if an unprefixed event handler also exists
+Pass	onwebkitanimationend event handler should not trigger if an unprefixed listener also exists
+Fail	event types for prefixed and unprefixed animationend event handlers should be named appropriately
+Fail	webkitAnimationEnd event listener should trigger for an animation
+Pass	webkitAnimationEnd event listener should not trigger if an unprefixed listener also exists
+Pass	webkitAnimationEnd event listener should not trigger if an unprefixed event handler also exists
+Fail	event types for prefixed and unprefixed animationend event listeners should be named appropriately
+Pass	webkitAnimationEnd event listener is case sensitive
