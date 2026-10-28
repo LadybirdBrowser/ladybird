@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<link rel="help" href="">
+<link rel="help" href="http://www.w3.org/TR/css3-selectors/#first-letter">
+<meta name="assert" content="">
+<style>
+  body { line-height: 20px; }
+  .flexbox { display: flex; }
+  .inline-flexbox { display: inline-flex; }
+  .flexbox-first-letter::first-letter { line-height: 100px; color: red; }
+  .container-first-letter::first-letter { line-height: 200px; color: green; }
+</style>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+
+<body onload="checkLayout('.container');">
+
+<div id="log"></div>
+
+<div class="container">
+  <div class="flexbox flexbox-first-letter">
+    <div class="item" data-expected-height=20>The first item.</div>
+    <div class="item" data-expected-height=20>The second item.</div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="inline-flexbox flexbox-first-letter">
+    <div class="item" data-expected-height=20>The first item.</div>
+    <div class="item" data-expected-height=20>The second item.</div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="flexbox flexbox-first-letter" data-expected-height=20>
+    Anonymous item.
+  </div>
+</div>
+
+<div class="container">
+  <div class="inline-flexbox flexbox-first-letter" data-expected-height=20>
+    Anonymous item.
+  </div>
+</div>
+
+<div class="container container-first-letter">
+  <div class="flexbox flexbox-first-letter">
+    <div class="item" data-expected-height=20>The first item.</div>
+    <div class="item" data-expected-height=20>The second item.</div>
+  </div>
+  <div data-expected-height=20>Out of flexbox.</div>
+</div>
+
+<div class="container container-first-letter">
+  <div class="inline-flexbox flexbox-first-letter">
+    <div class="item" data-expected-height=20>The first item.</div>
+    <div class="item" data-expected-height=20>The second item.</div>
+  </div>
+  <div data-expected-height=20>Out of flexbox.</div>
+</div>
+
+<div class="container container-first-letter">
+  <div class="flexbox flexbox-first-letter" data-expected-height=20>
+    Anonymous item.
+  </div>
+  <div data-expected-height=20>Out of flexbox.</div>
+</div>
+
+<div class="container container-first-letter">
+  <div class="inline-flexbox flexbox-first-letter" data-expected-height=20>
+    Anonymous item.
+  </div>
+  <div data-expected-height=20>Out of flexbox.</div>
+</div>
+
+<div class="container container-first-letter">
+  <div class="flexbox">
+    <div class="item" data-expected-height=20>The first item.</div>
+    <div class="item" data-expected-height=20>The second item.</div>
+  </div>
+  <div data-expected-height=20>Out of flexbox.</div>
+</div>
+
+<div class="container container-first-letter">
+  <div class="inline-flexbox">
+    <div class="item" data-expected-height=20>The first item.</div>
+    <div class="item" data-expected-height=20>The second item.</div>
+  </div>
+  <div data-expected-height=20>Out of flexbox.</div>
+</div>
+
+<div class="container container-first-letter">
+  <div class="flexbox" data-expected-height=20>
+    Anonymous item.
+  </div>
+  <div data-expected-height=20>Out of flexbox.</div>
+</div>
+
+<div class="container container-first-letter">
+  <div class="inline-flexbox" data-expected-height=20>
+    Anonymous item.
+  </div>
+  <div data-expected-height=20>Out of flexbox.</div>
+</div>
+</body>
+
