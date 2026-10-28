@@ -1315,8 +1315,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         let style = self.style(node);
         let in_quirks_mode = facts.document_in_quirks_mode();
         let svg_root_forwards_quirks_basis = facts.is_svg_svg_box() && in_quirks_mode;
-        let forwards_block_basis_as_anonymous_box =
-            self.records.holds_box(node) && self.forwards_percentage_bases_as_anonymous_box(node);
+        let forwards_block_basis_as_anonymous_box = self.forwards_percentage_bases_as_anonymous_box(node);
         let forwards_quirks_basis_as_auto_height_block_container = in_quirks_mode
             && !facts.is_viewport()
             && !facts.is_table_cell()

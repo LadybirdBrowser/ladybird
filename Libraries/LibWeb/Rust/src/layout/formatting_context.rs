@@ -2762,14 +2762,18 @@ pub(crate) fn propagate_percentage_block_size_dependency_to_containing_block(
     if !child_depends_on_percentage_block_size && !relative_block_insets_resolve_against_containing_block {
         return;
     }
-    let containing_block = callbacks.in_flow_containing_block(child);
-    let containing_block_or_run_root_that_forwarded_the_basis =
-        if !containing_block.is_invalid() && records.holds_box(containing_block) {
-            containing_block
-        } else {
-            records.root()
-        };
-    records.note_descendant_depends_on_percentage_block_size(containing_block_or_run_root_that_forwarded_the_basis);
+    // NB: The nearest box at or above the containing block whose dependency this run resolves hears of it, which is
+    //     the run root where the containing block lies above it.
+    let mut box_resolving_the_dependency = callbacks.in_flow_containing_block(child);
+    while !box_resolving_the_dependency.is_invalid()
+        && !records.resolves_percentage_block_size_dependency_of(box_resolving_the_dependency)
+    {
+        box_resolving_the_dependency = callbacks.parent(box_resolving_the_dependency);
+    }
+    if box_resolving_the_dependency.is_invalid() {
+        box_resolving_the_dependency = records.root();
+    }
+    records.note_descendant_depends_on_percentage_block_size(box_resolving_the_dependency);
 }
 
 /// The layout of a child: its outcome, the fragments its placement takes, and the child's box as its layout left it,
