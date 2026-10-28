@@ -2072,7 +2072,7 @@ impl<'context> InlineFormattingContext<'context> {
                     line_builder.set_unbreakable_run_inline_size_interrupted_by_float(
                         iterator.next_unbreakable_run_inline_size(self),
                     );
-                    let insets = self.parent.layout_floating_box(
+                    let (insets, _) = self.parent.layout_floating_box(
                         self.run,
                         item.node,
                         self.block_container,

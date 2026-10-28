@@ -1070,6 +1070,21 @@ pub(crate) fn baselines_child_gives_container(
     }
 }
 
+/// The baselines `child` gives its container, relative to the container's content box.
+pub(crate) fn baselines_laid_out_child_gives_container(
+    callbacks: &LayoutPass<'_>,
+    child: LaidOutChild<'_, impl BoxMetricCells>,
+) -> DerivedBaselines {
+    let baseline = |baseline_set, purpose| {
+        baseline_of_laid_out_child_for_purpose(callbacks, child, baseline_set, ChildBaselineSource::Own, purpose)
+    };
+    DerivedBaselines {
+        first: baseline(BaselineSet::First, BaselinePurpose::Container),
+        last: baseline(BaselineSet::Last, BaselinePurpose::Container),
+        inline_alignment: baseline(BaselineSet::Last, BaselinePurpose::InlineAlignment),
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ChildBaselineSource {
     Own,
