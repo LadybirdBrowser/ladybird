@@ -1,0 +1,9 @@
+empty: deferred source selected: true
+empty: original URL requested: false
+empty: final source loaded: true
+replacement: deferred source selected: true
+replacement: original URL requested: false
+replacement: final source loaded: true
+same URL: deferred source selected: true
+same URL: original URL requested: true
+same URL: final source loaded: true

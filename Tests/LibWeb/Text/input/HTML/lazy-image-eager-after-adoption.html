@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const frame = document.createElement("iframe");
+        const frameLoaded = new Promise(resolve => frame.onload = resolve);
+        document.body.append(frame);
+        await frameLoaded;
+
+        const image = frame.contentDocument.createElement("img");
+        image.style.display = "none";
+        image.loading = "lazy";
+        image.src = "../wpt-import/html/semantics/embedded-content/the-img-element/resources/image.png?adopted-eager";
+        frame.contentDocument.body.append(image);
+        await new Promise(resolve => requestAnimationFrame(resolve));
+
+        const imageLoaded = new Promise(resolve => image.onload = resolve);
+        document.adoptNode(image);
+        image.loading = "eager";
+        await imageLoaded;
+        println(`Adopted lazy image loaded: ${image.complete && image.naturalWidth > 0}`);
+        frame.remove();
+        done();
+    });
+</script>

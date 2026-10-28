@@ -1,0 +1,90 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const token = uniqueID();
+        const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+        const initial = await server.createEcho("GET", `/lazy-initial-${token}.png`, {
+            status: 200,
+            headers: { "Content-Type": "image/png", "Cache-Control": "no-store" },
+            body: png,
+            body_encoding: "base64",
+        });
+        const pending = await server.createEcho("GET", `/lazy-pending-${token}.png`, {
+            status: 200,
+            headers: { "Content-Type": "image/png", "Cache-Control": "no-store" },
+            body: png,
+            body_encoding: "base64",
+            wait_for_unblock: token,
+        });
+        const parserToken = `${token}-parser`;
+        const parser = await server.createEcho("GET", `/lazy-parser-${token}.js`, {
+            status: 200,
+            headers: { "Content-Type": "text/javascript", "Cache-Control": "no-store" },
+            body: "",
+            wait_for_unblock: parserToken,
+        });
+        const frame = document.createElement("iframe");
+        let childLoaded = false;
+        let resolvePrepared, resolveLoaded, resolveReplacement;
+        const prepared = new Promise(resolve => (resolvePrepared = resolve));
+        const loaded = new Promise(resolve => (resolveLoaded = resolve));
+        const replacementLoaded = new Promise(resolve => (resolveReplacement = resolve));
+        const onMessage = event => {
+            if (event.source !== frame.contentWindow || event.data.token !== token) return;
+            if (event.data.kind === "prepared") resolvePrepared(event.data);
+            if (event.data.kind === "replacement") resolveReplacement(event.data);
+            if (event.data.kind === "loaded") {
+                childLoaded = true;
+                resolveLoaded(event.data);
+            }
+        };
+        addEventListener("message", onMessage);
+        frame.srcdoc = `<!doctype html><body><script>
+            const image = document.createElement("img");
+            image.style.display = "none";
+            const send = kind => parent.postMessage({
+                token: ${JSON.stringify(token)}, kind,
+                currentSrc: image.currentSrc, width: image.naturalWidth,
+            }, "*");
+            image.onload = async () => {
+                image.onload = () => send("replacement");
+                image.loading = "lazy";
+                image.src = ${JSON.stringify(pending)};
+                await Promise.resolve();
+                image.src = ${JSON.stringify(pending)};
+                await Promise.resolve();
+                image.loading = "eager";
+                send("prepared");
+            };
+            image.src = ${JSON.stringify(initial)};
+            document.body.appendChild(image);
+            addEventListener("load", () => send("loaded"), { once: true });
+        <\/script><script src=${JSON.stringify(parser)}><\/script>`;
+        document.body.appendChild(frame);
+        try {
+            const ready = await prepared;
+            println(`Initial source loaded: ${ready.currentSrc === initial && ready.width === 1}`);
+            // NB: The parser gate keeps child load pending until the source updates above have finished.
+            await fetch(new URL(`/unblock/${parserToken}`, parser));
+            let requested = false;
+            while (!childLoaded) {
+                if ((await fetch(server.recordedRequestHeadersURL(pending), { cache: "no-store" })).ok) {
+                    requested = true;
+                    break;
+                }
+            }
+            await fetch(new URL(`/unblock/${token}`, pending));
+            const result = requested ? await replacementLoaded : await loaded;
+            await loaded;
+            println(`Retained pending source requested: ${requested}`);
+            println(`Replacement became current: ${result.currentSrc === pending && result.width === 1}`);
+        } finally {
+            await fetch(new URL(`/unblock/${token}`, pending));
+            await fetch(new URL(`/unblock/${parserToken}`, parser));
+            removeEventListener("message", onMessage);
+            frame.remove();
+        }
+    });
+</script>
