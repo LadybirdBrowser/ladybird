@@ -1103,7 +1103,6 @@ impl<'context> InlineFormattingContext<'context> {
     }
 
     fn hide_placed_atomic_inline_for_line_clamp(&self, node: Node) {
-        self.run.records.hide_for_line_clamp(node);
         self.update_placed_atomic_inline(node, |mut placed_child| {
             placed_child
                 .facts_decided_by_parent
@@ -2062,9 +2061,6 @@ impl<'context> InlineFormattingContext<'context> {
                             &record_of_float_without_formatting_context_of_its_own,
                         )
                     };
-                    if state_at_clamp_point.is_some() {
-                        self.run.records.hide_for_line_clamp(item.node);
-                    }
                     self.clear_floating_boxes(item.node);
                     line_builder.set_unbreakable_run_inline_size_interrupted_by_float(
                         iterator.next_unbreakable_run_inline_size(self),

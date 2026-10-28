@@ -144,16 +144,23 @@ struct LaidOutBlockLevelBox {
     /// The box as its layout left it: as a run of its own handed it back, or as this flow laid it out in a record its
     /// layout owns.
     laid_out_box: run_records::LaidOutChildBox,
+    /// What this flow decided the box's fragment shows of it.
+    fragment_facts: run_records::FragmentFactsDecidedByParent,
 }
 
 impl LaidOutBlockLevelBox {
-    /// A box laid out as `laid_out_box`, which neither broke inside nor let margins collapse through it.
-    fn of_box(laid_out_box: run_records::LaidOutChildBox) -> Self {
+    /// A box laid out as `laid_out_box` with `fragment_facts`, which neither broke inside nor let margins collapse
+    /// through it.
+    fn of_box(
+        laid_out_box: run_records::LaidOutChildBox,
+        fragment_facts: run_records::FragmentFactsDecidedByParent,
+    ) -> Self {
         Self {
             broken_inside: None,
             has_unbreakable_lines: false,
             collapses_through: false,
             laid_out_box,
+            fragment_facts,
         }
     }
 }
@@ -2260,7 +2267,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             cells,
             content_baselines,
             collapses_through: laid_out.collapses_through,
-            is_invisible_for_line_clamp: self.run.records.is_invisible_for_line_clamp(node),
+            is_invisible_for_line_clamp: laid_out.fragment_facts.is_invisible_for_line_clamp,
             can_break_inside: self.box_can_break_inside(node, laid_out.has_unbreakable_lines),
             broken_inside: laid_out.broken_inside,
             baselines_in_containing_block,
@@ -2337,7 +2344,6 @@ impl<'pass> BlockFormattingContext<'pass> {
             .track_percentage_block_size_dependency_while_laying_out(node);
         let mut fragment_facts = run_records::FragmentFactsDecidedByParent::default();
         if self.laying_out_invisible_line_clamp_content.get() {
-            self.run.records.hide_for_line_clamp(node);
             fragment_facts.is_invisible_for_line_clamp = true;
         }
         if facts.is_anonymous_button_content_wrapper() {
@@ -2377,7 +2383,6 @@ impl<'pass> BlockFormattingContext<'pass> {
                 cells.border_top = CssPixels::default();
                 cells.padding_top = CssPixels::default();
             });
-            self.run.records.note_continues_from_previous_fragment(node);
             fragment_facts.continues_from_previous_fragment = true;
         }
 
@@ -2400,9 +2405,11 @@ impl<'pass> BlockFormattingContext<'pass> {
             if let Some(floating_box) = self.floats.borrow().last() {
                 *bottom_of_lowest_margin_box = (*bottom_of_lowest_margin_box).max(floating_box.bottom_margin_edge);
             }
-            return Some(LaidOutBlockLevelBox::of_box(float_handed_back_by_its_run.expect(
-                "a floating box of a block formatting context is laid out by a run of its own",
-            )));
+            return Some(LaidOutBlockLevelBox::of_box(
+                float_handed_back_by_its_run
+                    .expect("a floating box of a block formatting context is laid out by a run of its own"),
+                fragment_facts,
+            ));
         }
 
         let in_flow_reuse = match self.probe_in_flow_reuse(
@@ -2422,6 +2429,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 );
                 return Some(LaidOutBlockLevelBox::of_box(
                     Self::laid_out_box_in_record_its_layout_owns(sized_child),
+                    fragment_facts,
                 ));
             }
             attempt => attempt,
@@ -2487,7 +2495,10 @@ impl<'pass> BlockFormattingContext<'pass> {
             );
             return Some(LaidOutBlockLevelBox {
                 collapses_through: self.margins_collapse_through(sized_child, None),
-                ..LaidOutBlockLevelBox::of_box(Self::laid_out_box_in_record_its_layout_owns(sized_child))
+                ..LaidOutBlockLevelBox::of_box(
+                    Self::laid_out_box_in_record_its_layout_owns(sized_child),
+                    fragment_facts,
+                )
             });
         }
         // If first child margin top will collapse with margin-top of containing block then margin-top of child is 0
@@ -2907,7 +2918,6 @@ impl<'pass> BlockFormattingContext<'pass> {
                 used.padding_bottom.set(CssPixels::default());
                 used.border_bottom.set(CssPixels::default());
                 used.margin_bottom.set(CssPixels::default());
-                self.run.records.note_continues_in_next_fragment(node);
                 fragment_facts.continues_in_next_fragment = true;
                 std::rc::Rc::make_mut(&mut token).consumed_block_size = continuation
                     .as_ref()
@@ -3011,8 +3021,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         };
         if !collapses_through {
             let mut margin_state = self.margin_state.borrow_mut();
-            if !margin_state.box_last_in_flow_child_margin_bottom_collapsed
-                || self.run.records.continues_in_next_fragment(node)
+            if !margin_state.box_last_in_flow_child_margin_bottom_collapsed || fragment_facts.continues_in_next_fragment
             {
                 margin_state.reset();
             }
@@ -3048,6 +3057,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             collapses_through,
             laid_out_box: laid_out_box_handed_back_by_its_run
                 .unwrap_or_else(|| Self::laid_out_box_in_record_its_layout_owns(sized_child)),
+            fragment_facts,
         })
     }
 

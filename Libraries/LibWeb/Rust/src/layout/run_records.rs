@@ -716,64 +716,6 @@ impl<'arena> RunRecords<'arena> {
         }
     }
 
-    #[track_caller]
-    fn update_fragment_facts_decided_by_parent_of(
-        &self,
-        node: Node,
-        update: impl FnOnce(&mut FragmentFactsDecidedByParent),
-    ) {
-        assert!(
-            !self.is_root_with_record(node),
-            "what a box's fragment shows of its parent's layout is decided by the run of that parent"
-        );
-        let mut facts = self.facts_decided_by_parent_of(node);
-        update(&mut facts.fragment_facts);
-        self.keep_facts_decided_by_parent_of(node, facts);
-    }
-
-    /// Places `node` in the table grid columns starting at `first_column_index`.
-    #[track_caller]
-    pub(crate) fn place_in_table_columns(&self, node: Node, first_column_index: u32, column_span: u32) {
-        self.update_fragment_facts_decided_by_parent_of(node, |facts| {
-            facts.table_column_index = first_column_index;
-            facts.table_column_span = column_span;
-        });
-    }
-
-    #[track_caller]
-    pub(crate) fn set_hidden_by_collapsed_columns(&self, node: Node, hidden: bool) {
-        self.update_fragment_facts_decided_by_parent_of(node, |facts| facts.hidden_by_collapsed_columns = hidden);
-    }
-
-    #[track_caller]
-    pub(crate) fn hide_for_line_clamp(&self, node: Node) {
-        self.update_fragment_facts_decided_by_parent_of(node, |facts| facts.is_invisible_for_line_clamp = true);
-    }
-
-    #[track_caller]
-    pub(crate) fn is_invisible_for_line_clamp(&self, node: Node) -> bool {
-        self.facts_decided_by_parent_of(node)
-            .fragment_facts
-            .is_invisible_for_line_clamp
-    }
-
-    #[track_caller]
-    pub(crate) fn note_continues_from_previous_fragment(&self, node: Node) {
-        self.update_fragment_facts_decided_by_parent_of(node, |facts| facts.continues_from_previous_fragment = true);
-    }
-
-    #[track_caller]
-    pub(crate) fn note_continues_in_next_fragment(&self, node: Node) {
-        self.update_fragment_facts_decided_by_parent_of(node, |facts| facts.continues_in_next_fragment = true);
-    }
-
-    #[track_caller]
-    pub(crate) fn continues_in_next_fragment(&self, node: Node) -> bool {
-        self.facts_decided_by_parent_of(node)
-            .fragment_facts
-            .continues_in_next_fragment
-    }
-
     /// Where `node` is placed, if this run placed it.
     pub(crate) fn placement_of(&self, node: Node) -> Option<BoxPlacement> {
         self.kept_facts_decided_by_parent_of(node)?.placement

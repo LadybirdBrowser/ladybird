@@ -1552,11 +1552,6 @@ impl<'pass> TableFormattingContext<'pass> {
                 cells
             })
             .collect();
-        for cell in &self.cells {
-            self.run
-                .records
-                .place_in_table_columns(cell.box_, cell.column_index as u32, cell.column_span as u32);
-        }
         self.cell_fragment_facts = self
             .cells
             .iter()
@@ -2857,9 +2852,6 @@ impl<'pass> TableFormattingContext<'pass> {
             // out like any other cell (with no inline size, see remove_collapsed_columns), and painting skips it.
             // https://www.w3.org/TR/CSS22/tables.html#dynamic-effects
             let hidden_by_collapsed_columns = self.visible_spanned_columns(cell) == 0;
-            self.run
-                .records
-                .set_hidden_by_collapsed_columns(cell.box_, hidden_by_collapsed_columns);
             self.cell_fragment_facts[cell_index].hidden_by_collapsed_columns = hidden_by_collapsed_columns;
             let height = style.height();
             if !self.rows[cell.row_index].is_collapsed && height.is_length() {
@@ -3498,9 +3490,6 @@ impl<'pass> TableFormattingContext<'pass> {
             } else {
                 CssPixels::default()
             };
-            self.run
-                .records
-                .place_in_table_columns(node, start as u32, (end - start) as u32);
             let fragment_facts = run_records::FragmentFactsDecidedByParent {
                 table_column_index: start as u32,
                 table_column_span: (end - start) as u32,
