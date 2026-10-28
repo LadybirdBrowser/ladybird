@@ -3278,14 +3278,7 @@ impl<'pass> TableFormattingContext<'pass> {
                     run.callbacks.frame,
                 ));
                 self.content_baselines_of_handed_back_cells[cell_index] = Some(laid_out.baselines);
-                run.records.receive_laid_out_child_box(
-                    cell.box_,
-                    run_records::ChildLaidOutByItsOwnRun {
-                        laid_out,
-                        line_data: None,
-                        frame: run.callbacks.frame,
-                    },
-                );
+                run.records.note_child_handed_back(cell.box_);
                 formatting_context::propagate_percentage_block_size_dependency_to_containing_block(
                     run.records,
                     &run.callbacks,

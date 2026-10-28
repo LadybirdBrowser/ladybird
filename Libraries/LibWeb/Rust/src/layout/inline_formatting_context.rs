@@ -1234,7 +1234,8 @@ impl<'context> InlineFormattingContext<'context> {
             .expect("lines are laid out in a block container of definite inline size")
     }
 
-    /// The sizes, box sides and baselines of `node`, a box this context lays out or one laid out by a run of its own.
+    /// The sizes, box sides and baselines of `node`, a box this context lays out or one it keeps for a run of its own
+    /// that has not laid it out yet.
     #[track_caller]
     pub(crate) fn box_metrics(&self, node: Node) -> run_records::BoxMetrics<'context> {
         self.run.records.box_metrics_of(node)

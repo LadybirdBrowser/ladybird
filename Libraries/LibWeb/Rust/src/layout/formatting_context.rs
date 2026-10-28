@@ -2139,26 +2139,27 @@ pub(crate) struct ChildRunOutcome {
 }
 
 impl ChildRunOutcome {
-    /// What placing the child in `run` takes of the box its run hands back.
-    pub(crate) fn placed_child_in(&self, run: &FormattingContextRun) -> PlacedChild {
-        PlacedChild::of_laid_out_box(&self.laid_out_box, self.line_data.clone(), run.callbacks.frame)
-    }
-
-    /// Hands the laid out box to `run`, the run that holds `child`, and returns the rest of the outcome.
+    /// Hands the laid out box back to the formatting context of `run`, the run that holds `child`, which keeps what it
+    /// reads of the box: returns the run's result, the box, and the fragments its placement takes.
     pub(crate) fn hand_box_back_to(
         self,
         run: &FormattingContextRun,
         child: Node,
-    ) -> (ChildLayoutResult, Option<fragment_tree::ChildFragmentArrival>) {
-        run.records.receive_laid_out_child_box(
-            child,
+    ) -> (
+        ChildLayoutResult,
+        run_records::ChildLaidOutByItsOwnRun,
+        Option<fragment_tree::ChildFragmentArrival>,
+    ) {
+        run.records.note_child_handed_back(child);
+        (
+            self.result,
             run_records::ChildLaidOutByItsOwnRun {
                 laid_out: self.laid_out_box,
                 line_data: self.line_data,
                 frame: run.callbacks.frame,
             },
-        );
-        (self.result, self.fragment_arrival)
+            self.fragment_arrival,
+        )
     }
 }
 
@@ -3101,14 +3102,12 @@ pub(crate) fn layout_inside_child_with_input_cells(
         input,
         run.records.take_table_inline_layout(child),
     );
-    let laid_out_box = child_run_outcome.laid_out_box;
-    let line_data = child_run_outcome.line_data.clone();
-    let (result, fragment_arrival) = child_run_outcome.hand_box_back_to(run, child);
+    let (result, handed_back, fragment_arrival) = child_run_outcome.hand_box_back_to(run, child);
     ChildLayout {
         outcome: ChildLayoutOutcome::Created(result),
         fragment_arrival,
-        laid_out_box: Some(laid_out_box),
-        line_data,
+        laid_out_box: Some(handed_back.laid_out),
+        line_data: handed_back.line_data,
     }
 }
 
@@ -3719,12 +3718,11 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
             input,
             None,
         );
-        let placed_root = root_outcome.placed_child_in(&entry_run);
-        let (_, fragment_arrival) = root_outcome.hand_box_back_to(&entry_run, root_for_layout);
+        let (_, handed_back_root, fragment_arrival) = root_outcome.hand_box_back_to(&entry_run, root_for_layout);
         place_laid_out_child(
             &entry_run,
             root_for_layout,
-            placed_root,
+            handed_back_root.placed_child(),
             FfiCssPixelPoint::default(),
             None,
             fragment_arrival,
@@ -3875,11 +3873,11 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
         input,
         None,
     );
+    let (_, handed_back_root, fragment_arrival) = root_outcome.hand_box_back_to(run, root);
     let root_geometry = fragment_tree::FragmentGeometry {
-        cells: root_outcome.laid_out_box.cells,
-        line_data: root_outcome.line_data.clone(),
+        cells: handed_back_root.laid_out.cells,
+        line_data: handed_back_root.line_data,
     };
-    let (_, fragment_arrival) = root_outcome.hand_box_back_to(run, root);
     let facts_decided_by_parent = committed_root.facts_decided_by_parent;
     let placement = facts_decided_by_parent
         .placement

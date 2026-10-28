@@ -68,8 +68,7 @@ pub(super) fn layout_replaced_with_children(
         },
         None,
     );
-    let placed_wrapper = wrapper_outcome.placed_child_in(run);
-    let (wrapper_result, fragment_arrival) = wrapper_outcome.hand_box_back_to(run, wrapper);
+    let (wrapper_result, handed_back_wrapper, fragment_arrival) = wrapper_outcome.hand_box_back_to(run, wrapper);
     formatting_context::propagate_percentage_block_size_dependency_to_containing_block(
         run.records,
         &run.callbacks,
@@ -79,7 +78,7 @@ pub(super) fn layout_replaced_with_children(
     formatting_context::place_laid_out_child(
         run,
         wrapper,
-        placed_wrapper,
+        handed_back_wrapper.placed_child(),
         used_values::FfiCssPixelPoint::default(),
         None,
         fragment_arrival,
