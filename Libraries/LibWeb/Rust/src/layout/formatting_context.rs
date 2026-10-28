@@ -487,7 +487,17 @@ pub(crate) fn place_child_in_containing_block(
         );
         return None;
     };
-    fragments.note_placed_box(node, placement, cells_kept_for_contained_abspos(run, node));
+    let placed_child_cells_in_run_frame = || {
+        placed_child
+            .geometry
+            .cells
+            .in_frame(placed_child.frame, callbacks.frame)
+    };
+    fragments.note_placed_box(
+        node,
+        placement,
+        cells_kept_for_contained_abspos(run, node, placed_child_cells_in_run_frame),
+    );
     let PlacedChild {
         geometry,
         frame,
@@ -614,18 +624,19 @@ pub(crate) fn place_child_in_containing_block(
     })
 }
 
-/// The sizes and box sides of `node`, which `run` is placing, where the box may be the containing block of absolutely
-/// positioned boxes the run lays out at its placement or later.
-fn cells_kept_for_contained_abspos(run: &FormattingContextRun, node: Node) -> Option<fragment_tree::CellsInFrame> {
+/// The sizes and box sides `cells_in_run_frame` of `node`, which `run` is placing, where the box may be the containing
+/// block of absolutely positioned boxes the run lays out at its placement or later.
+fn cells_kept_for_contained_abspos(
+    run: &FormattingContextRun,
+    node: Node,
+    cells_in_run_frame: impl FnOnce() -> used_values::RootInputCells,
+) -> Option<fragment_tree::CellsInFrame> {
     let data = run.callbacks.node_data(node);
     let may_contain_abspos = node_facts::has_flag(data, NodeFlag::EstablishesAbsolutePositionContainingBlock)
         || node_facts::has_flag(data, NodeFlag::EstablishesFixedPositionContainingBlock)
         || data.parent.get().is_invalid();
     may_contain_abspos.then(|| fragment_tree::CellsInFrame {
-        cells: run
-            .records
-            .box_cells_in_frame_if_owned(node, run.callbacks.frame)
-            .expect("a run holds the boxes it places"),
+        cells: cells_in_run_frame(),
         frame: run.callbacks.frame,
     })
 }
@@ -651,7 +662,15 @@ pub(crate) fn place_reused_child(
         .fragments
         .as_deref()
         .expect("a reused subtree is placed by a run that builds fragments");
-    fragments.note_placed_box(node, placement, cells_kept_for_contained_abspos(run, node));
+    fragments.note_placed_box(
+        node,
+        placement,
+        cells_kept_for_contained_abspos(run, node, || {
+            records
+                .box_cells_in_frame_if_owned(node, callbacks.frame)
+                .expect("a reused child is placed in the record its run left")
+        }),
+    );
     debug_assert!(
         facts_decided_by_parent.placement.is_none(),
         "a child is handed to placement before it is placed"
@@ -3876,7 +3895,11 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
     let placement = facts_decided_by_parent
         .placement
         .expect("the root of a partial relayout keeps the placement it committed");
-    fragments.note_placed_box(root, placement, cells_kept_for_contained_abspos(run, root));
+    fragments.note_placed_box(
+        root,
+        placement,
+        cells_kept_for_contained_abspos(run, root, || root_geometry.cells),
+    );
     // The retained offset already includes relative positioning. Publish it directly instead
     // of applying placement adjustments a second time.
     let Some(fragment_tree::ChildFragmentArrival::RunRoot {
