@@ -24,11 +24,6 @@ elseif (WIN32)
     ladybird_windows_bin(test-web CONSOLE)
 endif()
 
-# FIXME: Add support for running test-web on Windows
-if (WIN32)
-    return()
-endif()
-
 if (BUILD_TESTING)
     add_test(
         NAME LibWebManualRenderingReset
@@ -56,12 +51,11 @@ if (BUILD_TESTING)
             --results-dir test-dumps/ui-process-session-history-results
     )
 
-    set_tests_properties(LibWeb PROPERTIES
+    set_tests_properties(LibWeb LibWebUIProcessSessionHistory PROPERTIES
         ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR}
-        RUN_SERIAL TRUE
-        TIMEOUT_SIGNAL_NAME SIGTERM)
-    set_tests_properties(LibWebUIProcessSessionHistory PROPERTIES
-        ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR}
-        RUN_SERIAL TRUE
-        TIMEOUT_SIGNAL_NAME SIGTERM)
+        RUN_SERIAL TRUE)
+    # CTest refuses to run tests with a timeout signal on Windows.
+    if (NOT WIN32)
+        set_tests_properties(LibWeb LibWebUIProcessSessionHistory PROPERTIES TIMEOUT_SIGNAL_NAME SIGTERM)
+    endif()
 endif()
