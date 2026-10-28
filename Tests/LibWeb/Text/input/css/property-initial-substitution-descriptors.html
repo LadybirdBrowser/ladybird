@@ -8,12 +8,44 @@
             ["later substitution", "initial-value: value; initial-value: var(--missing)"],
             ["important substitution", "initial-value: var(--missing) !important"],
             ["later important", "initial-value: var(--missing); initial-value: value !important"],
+            ["var fallback env", "initial-value: var(--missing, env(safe-area-inset-top))"],
+            ["env fallback var", "initial-value: env(safe-area-inset-top, var(--missing))"],
+            ["var then env", "initial-value: var(--missing) env(safe-area-inset-top)"],
+            ["env then var", "initial-value: env(safe-area-inset-top) var(--missing)"],
+            ["later mixed", "initial-value: value; initial-value: var(--missing, env(safe-area-inset-top))"],
+            ["mixed then valid", "initial-value: var(--missing, env(safe-area-inset-top)); initial-value: value"],
+            ["malformed var", "initial-value: value; initial-value: var(missing)"],
+            ["malformed env", "initial-value: value; initial-value: var(--missing, env())"],
+            ["env only", "initial-value: value; initial-value: env(safe-area-inset-top)"],
+            ["nested malformed var", "initial-value: value; initial-value: env(safe-area-inset-top, var(missing))"],
+            [
+                "mixed important",
+                "initial-value: value; initial-value: var(--missing, env(safe-area-inset-top)) !important",
+            ],
+            [
+                "typed later mixed",
+                "initial-value: 1px; initial-value: var(--missing) env(safe-area-inset-top)",
+                "<length>",
+            ],
+            [
+                "typed later nested",
+                "initial-value: 1px; initial-value: env(safe-area-inset-top, var(--missing))",
+                "<length>",
+            ],
+            ["typed malformed env", "initial-value: 1px; initial-value: var(--missing) env()", "<length>"],
+            [
+                "typed later valid",
+                "initial-value: var(--missing, env(safe-area-inset-top)); initial-value: 1px",
+                "<length>",
+            ],
         ];
-        for (const [index, [label, descriptors]] of cases.entries()) {
+        for (const [index, [label, descriptors, syntax = "*"]] of cases.entries()) {
             const style = document.createElement("style");
-            style.textContent = `@property --initial-${index} { syntax: "*"; inherits: false; ${descriptors}; }`;
+            style.textContent = `@property --initial-${index} { syntax: ${JSON.stringify(syntax)}; inherits: false; ${descriptors}; }`;
             document.head.appendChild(style);
             println(`${label}: ${style.sheet.cssRules.length}`);
+            if (index >= 5 && style.sheet.cssRules.length)
+                println(`${label} initial value: ${style.sheet.cssRules[0].initialValue}`);
             style.remove();
         }
     });

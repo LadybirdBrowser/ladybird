@@ -24,6 +24,9 @@ use crate::css::keyframes::{FfiKeyframe, KeyframeData};
 use crate::css::layer_names::LayerNames;
 use crate::css::media_list::{MediaList, MediaListData};
 use crate::css::namespace_rule::NamespaceRuleData;
+use crate::css::parser::arbitrary_substitution::{
+    ArbitrarySubstitutionFunction, arbitrary_substitution_function, arguments_are_valid, declaration_value_is_valid,
+};
 use crate::css::parser::component_value::{
     ComponentKind, ComponentSerializationMode, ComponentValue, ParserTokens, consume_a_component_value,
     consume_a_list_of_component_values, trim_whitespace,
@@ -922,6 +925,33 @@ fn at_rule_declarations(rule: &AtRule) -> impl Iterator<Item = &Declaration> {
         .flatten()
 }
 
+fn initial_value_contains_variable_reference(values: &[ComponentValue]) -> Option<bool> {
+    let mut contains_reference = false;
+    for value in values {
+        let nested_values = match &value.kind {
+            ComponentKind::Function { name, values } => {
+                match arbitrary_substitution_function(name.as_ref()) {
+                    Some(ArbitrarySubstitutionFunction::Var) => {
+                        let (name, _) = crate::css::style_value::split_var_arguments(values)?;
+                        if name.len() < 3 {
+                            return None;
+                        }
+                        contains_reference = true;
+                    }
+                    // NB: Other substitutions retain their descriptor handling, but cannot hide a var() reference.
+                    Some(function) if !arguments_are_valid(function, values) => return None,
+                    Some(_) | None => {}
+                }
+                values.as_ref()
+            }
+            ComponentKind::SimpleBlock { values, .. } => values.as_ref(),
+            ComponentKind::Token(_) => continue,
+        };
+        contains_reference |= initial_value_contains_variable_reference(nested_values)?;
+    }
+    Some(contains_reference)
+}
+
 fn parse_property_prelude(rule: &AtRule, context: &ParseContext) -> ParsedRulePrelude {
     if !rule.has_block {
         return ParsedRulePrelude::Invalid;
@@ -935,6 +965,7 @@ fn parse_property_prelude(rule: &AtRule, context: &ParseContext) -> ParsedRulePr
     let mut syntax_source: Option<ParserString> = None;
     let mut inherits = None;
     let mut initial_value_source = None;
+    let mut initial_value_is_invalid = false;
     for declaration in at_rule_declarations(rule) {
         let source = component_list_source(&declaration.value);
         if parse_descriptor(
@@ -946,6 +977,15 @@ fn parse_property_prelude(rule: &AtRule, context: &ParseContext) -> ParsedRulePr
         )
         .is_none()
         {
+            // NB: A var() reference matches the descriptor's <declaration-value>? grammar, so it replaces an earlier
+            //     initial value. It is not computationally independent, so it makes the rule invalid.
+            if equals_ascii_case_insensitive(declaration.name.as_ref(), b"initial-value")
+                && !declaration.important
+                && declaration_value_is_valid(&declaration.value)
+                && initial_value_contains_variable_reference(&declaration.value) == Some(true)
+            {
+                initial_value_is_invalid = true;
+            }
             continue;
         }
         if equals_ascii_case_insensitive(declaration.name.as_ref(), b"syntax") {
@@ -973,6 +1013,7 @@ fn parse_property_prelude(rule: &AtRule, context: &ParseContext) -> ParsedRulePr
                     }
                 });
         } else if equals_ascii_case_insensitive(declaration.name.as_ref(), b"initial-value") {
+            initial_value_is_invalid = false;
             initial_value_source = Some(serialize_component_values_to_utf16(
                 &declaration.value,
                 ComponentSerializationMode::Retokenize,
@@ -980,6 +1021,9 @@ fn parse_property_prelude(rule: &AtRule, context: &ParseContext) -> ParsedRulePr
         }
     }
 
+    if initial_value_is_invalid {
+        return ParsedRulePrelude::Invalid;
+    }
     let (Some(syntax_source), Some(inherits)) = (syntax_source, inherits) else {
         return ParsedRulePrelude::Invalid;
     };
