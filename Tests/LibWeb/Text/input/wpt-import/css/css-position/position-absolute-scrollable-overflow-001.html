@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>CSS Positioned Layout Test: Absolute positioned elements are included in the scrollable overflow area</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-position/#valdef-position-absolute">
+<link rel="help" href="https://drafts.csswg.org/css-overflow/#scrollable">
+<link rel="help" href="https://drafts.csswg.org/cssom-view/#dom-element-scrollheight">
+<meta name=assert content="Absolute positioned elements are included in the scrollable overflow area of its containing block.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<style>
+.containing-block {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  margin: 100px;
+}
+
+.abspos {
+  position: absolute;
+  background: rgba(0, 255, 0, 0.5);
+  width: 10px;
+  height: 10px;
+  left: 0;
+  top: 0;
+}
+</style>
+<body onload="checkLayout('.containing-block');">
+  <div id="log"></div>
+  <div class="containing-block" data-expected-scroll-width="100" data-expected-scroll-height="500">
+    <div class="abspos" style="left: -50px; height: 500px;"></div>
+  </div>
+  <div class="containing-block" data-expected-scroll-width="100" data-expected-scroll-height="550">
+    <div class="abspos" style="left: -50px; height: 500px; top: 50px;"></div>
+  </div>
+  <div class="containing-block" data-expected-scroll-width="100" data-expected-scroll-height="700">
+    <div class="abspos" style="left: -50px; height: 500px; top: 200px;"></div>
+  </div>
+  <div class="containing-block" data-expected-scroll-width="100" data-expected-scroll-height="400">
+    <div class="abspos" style="left: -50px; height: 500px; top: -100px;"></div>
+  </div>
+  <div class="containing-block" data-expected-scroll-width="100" data-expected-scroll-height="100">
+    <div class="abspos" style="left: -50px; height: 500px; top: -1000px;"></div>
+  </div>
+  <div class="containing-block" data-expected-scroll-width="100" data-expected-scroll-height="100">
+    <div class="abspos" style="left: 50px; height: 500px; top: -1000px;"></div>
+  </div>
+  <div class="containing-block" data-expected-scroll-width="210" data-expected-scroll-height="700">
+    <div class="abspos" style="left: 200px; height: 500px; top: 200px;"></div>
+  </div>
+  <div class="containing-block" data-expected-scroll-width="500" data-expected-scroll-height="100">
+    <div class="abspos" style="width: 500px; top: -50px;"></div>
+  </div>
+  <div class="containing-block" data-expected-scroll-width="550" data-expected-scroll-height="100">
+    <div class="abspos" style="width: 500px; left: 50px; top: -50px;"></div>
+  </div>
+  <div class="containing-block" data-expected-scroll-width="700" data-expected-scroll-height="100">
+    <div class="abspos" style="width: 500px; left: 200px; top: -50px;"></div>
+  </div>
+  <div class="containing-block" data-expected-scroll-width="400" data-expected-scroll-height="100">
+    <div class="abspos" style="width: 500px; left: -100px; top: -50px;"></div>
+  </div>
+  <div class="containing-block" data-expected-scroll-width="100" data-expected-scroll-height="100">
+    <div class="abspos" style="width: 500px; left: -1000px; top: -50px;"></div>
+  </div>
+  <div class="containing-block" data-expected-scroll-width="100" data-expected-scroll-height="100">
+    <div class="abspos" style="width: 500px; left: -1000px; top: 50px;"></div>
+  </div>
+  <div class="containing-block" data-expected-scroll-width="700" data-expected-scroll-height="210">
+    <div class="abspos" style="width: 500px; left: 200px; top: 200px;"></div>
+  </div>
+</body>
