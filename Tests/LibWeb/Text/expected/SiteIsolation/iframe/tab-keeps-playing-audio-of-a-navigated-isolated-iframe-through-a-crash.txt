@@ -2,5 +2,5 @@ plays audio heard in the isolated iframe: true
 the iframe's next process is gone: true
 plays audio: true
 stops playing audio a while later: true
-about three seconds after navigating: true
+went on playing audio for at least two and a half seconds after navigating: true
 changed whether it plays audio once: true
