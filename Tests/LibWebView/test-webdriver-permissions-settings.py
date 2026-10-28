@@ -79,8 +79,13 @@ def run_test(webdriver_binary):
             def saved_decisions():
                 deadline = time.time() + 5
                 while True:
-                    decisions = json.loads(permissions_file.read_text())["decisions"]
-                    yield decisions
+                    # The browser rewrites the file in place, so a read may overlap a write and see part of it.
+                    try:
+                        decisions = json.loads(permissions_file.read_text())["decisions"]
+                    except (OSError, ValueError, KeyError):
+                        decisions = None
+                    if decisions is not None:
+                        yield decisions
                     if time.time() > deadline:
                         return
                     time.sleep(0.1)
