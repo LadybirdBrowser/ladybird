@@ -16,6 +16,7 @@
 #include <LibHTTP/Header.h>
 #include <LibHTTP/HeaderList.h>
 #include <LibTextCodec/Decoder.h>
+#include <LibURL/Origin.h>
 #include <LibURL/URL.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleScope.h>
@@ -1428,7 +1429,13 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
             mime_type_charset = charset->bytes_as_string_view();
     }
 
-    if (mime_type_string.has_value() && mime_type_string != u"text/css"sv)
+    // Quirk: If the document has been set to quirks mode, has the same origin as the URL of the external resource,
+    // and the Content-Type metadata of the external resource is not a supported style sheet type, the user agent
+    // must instead assume it to be text/css.
+    auto resource_url = response.url();
+    auto assume_css_in_quirks_mode = document().in_quirks_mode() && resource_url.has_value()
+        && document().origin().is_same_origin(resource_url->origin());
+    if (mime_type_string.has_value() && mime_type_string != u"text/css"sv && !assume_css_in_quirks_mode)
         success = false;
 
     // 2. If el no longer creates an external resource link that contributes to the styling processing model, or

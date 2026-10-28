@@ -2,11 +2,10 @@ Harness status: OK
 
 Found 6 tests
 
-3 Pass
-3 Fail
-Fail	Same-origin stylesheet with wrong MIME type, no CORS
-Fail	Same-origin stylesheet with wrong MIME type, with CORS
+6 Pass
+Pass	Same-origin stylesheet with wrong MIME type, no CORS
+Pass	Same-origin stylesheet with wrong MIME type, with CORS
 Pass	Cross-origin stylesheet with text/css, with CORS
 Pass	Cross-origin stylesheet with wrong MIME type, with CORS
-Fail	Cross-origin redirect to same-origin stylesheet with wrong MIME type, with CORS
+Pass	Cross-origin redirect to same-origin stylesheet with wrong MIME type, with CORS
 Pass	Same-origin redirect to cross-origin stylesheet with wrong MIME type, with CORS
