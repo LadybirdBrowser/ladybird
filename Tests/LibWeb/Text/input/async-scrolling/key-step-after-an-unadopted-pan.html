@@ -18,7 +18,7 @@
 
         // The compositor pans the page by 100 while the main thread is busy, so the main thread has not heard of the
         // pan when an arrow key steps the page by another 100. The step goes on from where the pan took the page.
-        internals.wheelThroughUIProcess(50, 50, 0, 0, true, "began");
+        await internals.wheelThroughUIProcess(50, 50, 0, 0, true, "ongoing");
         await animationFrame();
         await animationFrame();
         internals.wheelThroughUIProcess(50, 50, 0, 100, true, "ongoing");

@@ -16,7 +16,7 @@
         const nextScrollend = () => new Promise(resolve => document.addEventListener("scrollend", resolve, { once: true }));
 
         const flingThenPressDown = async ({ whileMomentumStepIsPending = false } = {}) => {
-            internals.wheelThroughUIProcess(400, 300, 0, 0, true, "began");
+            await internals.wheelThroughUIProcess(400, 300, 0, 0, true, "ongoing");
             for (let step = 0; step < 3; step++)
                 await internals.wheelThroughUIProcess(400, 300, 0, 50, true, "ongoing");
             for (let step = 0; step < 3; step++) {
@@ -68,7 +68,7 @@
         const offsetBeforeNewGesture = window.scrollY;
         println(`After the key, before a new gesture: moved ${offsetBeforeNewGesture - offsetBeforeKey}`);
         ended = nextScrollend();
-        internals.wheelThroughUIProcess(400, 300, 0, 0, true, "began");
+        await internals.wheelThroughUIProcess(400, 300, 0, 0, true, "ongoing");
         for (let step = 0; step < 2; step++)
             await internals.wheelThroughUIProcess(400, 300, 0, 50, true, "ongoing");
         await internals.wheelThroughUIProcess(400, 300, 0, 0, true, "ended");

@@ -27,7 +27,7 @@
 
         // A script starts a smooth scroll while the fingers are still down, then they lift. The box's scroll ends once,
         // when the script's scroll arrives.
-        internals.wheelThroughUIProcess(50, 50, 0, 0, true, "began");
+        await internals.wheelThroughUIProcess(50, 50, 0, 0, true, "ongoing");
         for (let step = 0; step < 3; step++)
             await internals.wheelThroughUIProcess(50, 50, 0, 50, true, "ongoing");
         scroller.scrollTo({ top: 3000, behavior: "smooth" });

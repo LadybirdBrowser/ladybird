@@ -43,7 +43,7 @@
             const flungStart = flung.scrollTop;
             const keyedStart = keyed.scrollTop;
             const ended = Promise.all([nextScrollendOf(flung), nextScrollendOf(keyed)]);
-            internals.wheelThroughUIProcess(150, 150, 0, 0, true, "began");
+            await internals.wheelThroughUIProcess(150, 150, 0, 0, true, "ongoing");
             for (let step = 0; step < 3; step++)
                 await internals.wheelThroughUIProcess(150, 150, 0, 50, true, "ongoing");
             for (let step = 0; step < 3; step++) {

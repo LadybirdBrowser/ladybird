@@ -18,7 +18,7 @@
 
         // The compositor pans the page by 100 while the main thread is busy, so the main thread has not heard of the
         // pan when the page scrolls itself by 50. The page goes 50 past where the pan took it, which is where it is.
-        internals.wheelThroughUIProcess(50, 50, 0, 0, true, "began");
+        await internals.wheelThroughUIProcess(50, 50, 0, 0, true, "ongoing");
         internals.wheelThroughUIProcess(50, 50, 0, 100, true, "ongoing");
         busyWait(200);
         window.scrollBy(0, 50);
