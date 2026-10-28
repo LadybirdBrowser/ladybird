@@ -689,21 +689,6 @@ impl PlacementData {
             frame,
         )
     }
-
-    /// The placement data of a box `close()` hands on unplaced or placed as it is.
-    fn of_box_as_this_run_left_it(
-        records: &RunRecords,
-        node: crate::layout::node_data::NodeSlotId,
-        frame: geometry::Frame,
-    ) -> Self {
-        Self::of_box(
-            &records.facts_decided_by_parent_of(node),
-            None,
-            None,
-            records.content_offset_or_origin(node),
-            frame,
-        )
-    }
 }
 
 fn link_fragment(fragment: std::sync::Arc<Fragment>, placement: PlacementData) -> FragmentLink {
@@ -1690,31 +1675,27 @@ impl RunFragmentBuilder {
             .insert(containing_block.slot_index(), pending_fragment);
     }
 
-    pub(crate) fn take_unplaced_root(&self, records: &RunRecords, callbacks: &LayoutPass<'_>) -> UnplacedRootFragment {
+    pub(crate) fn take_unplaced_root(&self, callbacks: &LayoutPass<'_>) -> UnplacedRootFragment {
         debug_assert!(
             !self.is_entry_accumulator,
             "an entry accumulator closes as a pass, not a run"
         );
-        self.close(records, callbacks)
+        self.close(callbacks)
     }
 
-    pub(crate) fn take_completed_pass(
-        &self,
-        records: &RunRecords,
-        callbacks: &LayoutPass<'_>,
-    ) -> CompletedPassFragments {
+    pub(crate) fn take_completed_pass(&self, callbacks: &LayoutPass<'_>) -> CompletedPassFragments {
         debug_assert!(
             self.is_entry_accumulator,
             "an ordinary run closes as a singular unplaced root"
         );
-        let root = self.close(records, callbacks);
+        let root = self.close(callbacks);
         CompletedPassFragments {
             roots: root.scoped_descendants,
             reused_subtree_roots: root.reused_subtree_roots,
         }
     }
 
-    fn close(&self, records: &RunRecords, callbacks: &LayoutPass<'_>) -> UnplacedRootFragment {
+    fn close(&self, callbacks: &LayoutPass<'_>) -> UnplacedRootFragment {
         let mut inner = self.inner.take();
         let mut propagated_pending_abspos = std::mem::take(&mut inner.pending_abspos_at_root);
         let mut propagated_anchor_candidates = std::mem::take(&mut inner.anchor_candidates_at_root);
@@ -1727,20 +1708,13 @@ impl RunFragmentBuilder {
             propagated_pending_abspos.extend(pending_fragment.pending_abspos);
             propagated_anchor_candidates.extend(pending_fragment.anchor_candidates);
             propagated_inline_containing_block_rects.extend(pending_fragment.inline_containing_block_rects);
-            if pending_fragment.children.is_empty() {
-                continue;
-            }
-            inner.top_scope_links.push(link_fragment(
-                snapshot_fragment(
-                    callbacks,
-                    pending_fragment.node,
-                    pending_fragment.children,
-                    records.fragment_geometry_of(pending_fragment.node, callbacks),
-                    records.facts_decided_by_parent_of(pending_fragment.node).fragment_facts,
-                    pending_fragment.payloads,
-                ),
-                PlacementData::of_box_as_this_run_left_it(records, pending_fragment.node, callbacks.frame),
-            ));
+            // NB: Every formatting context places the containing blocks of the children it places, or leaves them
+            //     unplaced with the children they contain.
+            assert!(
+                pending_fragment.children.is_empty(),
+                "{:?} contains placed children but was never placed",
+                pending_fragment.node
+            );
         }
         // NB: A reused subtree root its run never placed has no children of its own in this run, as an empty child run
         //     root has, and closes the same way.

@@ -624,16 +624,6 @@ impl<'arena> RunRecords<'arena> {
     }
 
     #[track_caller]
-    fn panic_for_box_read_outside_the_layout_owning_its_record(&self, node: Node) -> ! {
-        panic!(
-            "the run rooted at slot {} reads slot {}, whose layout keeps it in a record of its own (read at {})",
-            self.root.slot_index(),
-            node.slot_index(),
-            std::panic::Location::caller(),
-        )
-    }
-
-    #[track_caller]
     fn panic_for_box_not_held(&self, node: Node) -> ! {
         panic!(
             "the run rooted at slot {} does not hold slot {} (read at {})",
@@ -802,40 +792,6 @@ impl<'arena> RunRecords<'arena> {
             "{child:?} is handed back by a run of its own to a parent that lays it out itself"
         );
         kept.holding = KeptBoxHolding::ChildHandedBack;
-    }
-
-    /// What the fragment of `node` shows of the box's own layout, which finishes the lines this run laid out in it.
-    #[track_caller]
-    pub(crate) fn fragment_geometry_of(
-        &self,
-        node: Node,
-        callbacks: &LayoutPass<'_>,
-    ) -> fragment_tree::FragmentGeometry {
-        let geometry_of_record = |used: &UsedValues| {
-            let line_data = used.finish_line_data(callbacks);
-            fragment_tree::FragmentGeometry {
-                cells: used_values::RecordInFrame::new(used, callbacks.frame).cells(),
-                line_data,
-            }
-        };
-        if self.is_root_with_record(node) {
-            return geometry_of_record(self.used_values(node));
-        }
-        let holding = match self.held_boxes.borrow().get(&node) {
-            Some(kept) => match &kept.holding {
-                KeptBoxHolding::LaidOutByThisRun { record } => Ok(*record),
-                KeptBoxHolding::ChildNotYetLaidOut | KeptBoxHolding::ChildHandedBack => Err(true),
-                KeptBoxHolding::LaidOutInRecordItsLayoutOwns => Err(false),
-            },
-            None => self.panic_for_box_not_held(node),
-        };
-        let record = match holding {
-            Ok(record) => record,
-            Err(true) => panic!("the fragment of {node:?} is built from the box its run hands back to its parent"),
-            Err(false) => self.panic_for_box_read_outside_the_layout_owning_its_record(node),
-        };
-        // SAFETY: The run keeps the record until it is dropped, which ends this borrow of the run.
-        geometry_of_record(unsafe { record.as_ref() })
     }
 
     pub(crate) fn store_table_inline_layout(&self, table: Node, layout: table_formatting_context::TableInlineLayout) {

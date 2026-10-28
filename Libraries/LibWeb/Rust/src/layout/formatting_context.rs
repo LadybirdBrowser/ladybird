@@ -2532,7 +2532,7 @@ fn lay_out_run_root_and_contents<'pass>(
     let take_run_fragments = || {
         run.fragments
             .as_ref()
-            .map(|fragments| fragments.take_unplaced_root(run.records, &body_run.callbacks))
+            .map(|fragments| fragments.take_unplaced_root(&body_run.callbacks))
     };
 
     let registered_abspos_children_could_never_be_laid_out = run.fragments.is_none();
@@ -3591,7 +3591,7 @@ fn finish_entry_pass(
         should_collect_devtools_layout_data,
         entry_fragments,
     );
-    let pass_fragments = entry_fragments.take_completed_pass(entry_records, callbacks);
+    let pass_fragments = entry_fragments.take_completed_pass(callbacks);
     debug_assert!(
         !pass_fragments.roots.is_empty(),
         "an entry pass always produces the entry root's fragment"
