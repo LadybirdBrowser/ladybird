@@ -664,15 +664,6 @@ pub(crate) fn resolve_pending_abspos_containing_block(
         .continue_containing_block_search(&mut entry.containing_block_search, limit);
 }
 
-pub(crate) fn box_baseline(
-    callbacks: &LayoutPass<'_>,
-    box_: Node,
-    metrics: &run_records::BoxMetrics,
-    baseline_set: BaselineSet,
-) -> CssPixels {
-    box_baseline_with_content_baselines(callbacks, box_, metrics, baseline_set, metrics.content_baselines())
-}
-
 pub(crate) fn box_baseline_with_content_baselines(
     callbacks: &LayoutPass<'_>,
     box_: Node,

@@ -452,6 +452,26 @@ impl RootInputCells {
         Self::capture(&create_used_values(callbacks, node, constraints))
     }
 
+    /// Resolves the left and right margins, borders and padding of `style`, with percentages against `basis`.
+    pub(crate) fn resolve_horizontal_box_model(&mut self, style: &StyleValues<'_>, basis: CssPixels) {
+        self.margin_left = style.margin_left().to_px(basis);
+        self.margin_right = style.margin_right().to_px(basis);
+        self.border_left = style.border_left_width();
+        self.border_right = style.border_right_width();
+        self.padding_left = style.padding_left().to_px(basis);
+        self.padding_right = style.padding_right().to_px(basis);
+    }
+
+    /// Resolves the top and bottom margins, borders and padding of `style`, with percentages against `basis`.
+    pub(crate) fn resolve_vertical_box_model(&mut self, style: &StyleValues<'_>, basis: CssPixels) {
+        self.margin_top = style.margin_top().to_px(basis);
+        self.margin_bottom = style.margin_bottom().to_px(basis);
+        self.border_top = style.border_top_width();
+        self.border_bottom = style.border_bottom_width();
+        self.padding_top = style.padding_top().to_px(basis);
+        self.padding_bottom = style.padding_bottom().to_px(basis);
+    }
+
     pub(crate) fn set_content_inline_size(&mut self, value: CssPixels) {
         self.content_inline_size = clamp_to_max_dimension_value(value.max(CssPixels::default()));
         self.has_definite_inline_size = true;
@@ -548,23 +568,6 @@ impl UsedValuesCellState {
 }
 
 impl UsedValues {
-    pub(crate) fn mirror_box_metrics_into(&self, scratch: &UsedValues) {
-        scratch.margin_left.set(self.margin_left.get());
-        scratch.margin_right.set(self.margin_right.get());
-        scratch.margin_top.set(self.margin_top.get());
-        scratch.margin_bottom.set(self.margin_bottom.get());
-        scratch.border_left.set(self.border_left.get());
-        scratch.border_right.set(self.border_right.get());
-        scratch.border_top.set(self.border_top.get());
-        scratch.border_bottom.set(self.border_bottom.get());
-        scratch.padding_left.set(self.padding_left.get());
-        scratch.padding_right.set(self.padding_right.get());
-        scratch.padding_top.set(self.padding_top.get());
-        scratch.padding_bottom.set(self.padding_bottom.get());
-        scratch.content_inline_size.set(self.content_inline_size.get());
-        scratch.content_block_size.set(self.content_block_size.get());
-    }
-
     pub(crate) fn set_content_inline_size(&self, value: CssPixels) {
         // Negative inline sizes are not allowed in CSS. We have a bug somewhere! Clamp to 0 to avoid doing too much damage.
         self.content_inline_size
