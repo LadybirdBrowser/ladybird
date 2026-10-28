@@ -583,8 +583,9 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         self.begin_new_line(false, true, ForcedBreak::No);
     }
 
-    pub(crate) fn ceiling_for_float_to_be_inserted_here(&mut self, node: Node) -> CssPixels {
-        let float_inline_size = self.context().box_metrics(node).margin_box_inline_size(false);
+    /// The block offset a float whose margin box is `float_inline_size` wide is placed at: beside the content of the
+    /// current line where the float fits there, and below that line otherwise.
+    pub(crate) fn ceiling_for_float_to_be_inserted_here(&mut self, float_inline_size: CssPixels) -> CssPixels {
         let mut candidate = self.current_block_offset;
         let line_index = self.ensure_last_line_index();
         let mut line = self.line_mut(line_index);

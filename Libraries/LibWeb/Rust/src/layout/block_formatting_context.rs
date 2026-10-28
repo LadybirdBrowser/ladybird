@@ -4520,8 +4520,9 @@ impl<'pass> BlockFormattingContext<'pass> {
             formatting_context::leave_child_unplaced(run, fragment_arrival);
             return;
         };
+        let float_box = self.run.records.box_metrics_of(node);
         let mut margin_box_ceiling = if let Some(line_builder) = line_builder.as_deref_mut() {
-            line_builder.ceiling_for_float_to_be_inserted_here(node)
+            line_builder.ceiling_for_float_to_be_inserted_here(float_box.margin_box_inline_size(false))
         } else {
             block_offset
         };
@@ -4540,7 +4541,6 @@ impl<'pass> BlockFormattingContext<'pass> {
                     + self.block_offset_adjustment_from_pending_ancestor_block_start_margins(last.box_),
             );
         }
-        let float_box = self.run.records.box_metrics_of(node);
         let placement = self.place_float(
             side,
             &float_box,
