@@ -3110,14 +3110,23 @@ impl<'pass> AbsposEngine<'pass> {
             && !margin_end.is_auto()
     }
 
-    fn layout_element(&self, run: &FormattingContextRun<'pass>, node: Node, inputs: abspos_inputs::AbsposLayoutInputs) {
+    /// Lays out and places `node` with the inputs `inputs`, where its insets compensate for the scroll shift
+    /// `default_scroll_shift`.
+    fn layout_element(
+        &self,
+        run: &FormattingContextRun<'pass>,
+        node: Node,
+        inputs: abspos_inputs::AbsposLayoutInputs,
+        default_scroll_shift: Option<abspos_inputs::DefaultScrollShift>,
+    ) {
         assert!(!self.facts(node).is_svg_box());
         let (available_space, constraints) = out_of_flow_root_space(inputs);
 
         let formatting_context::ChildLayout {
             outcome,
             fragment_arrival,
-            ..
+            laid_out_box,
+            line_data,
         } = formatting_context::layout_inside_child(
             run,
             None,
@@ -3184,10 +3193,17 @@ impl<'pass> AbsposEngine<'pass> {
             }
         }
         self.records.set_used_insets(node, used_insets);
+        let mut placed_child = formatting_context::PlacedChild::of_laid_out_box(
+            &laid_out_box.expect("the layout of an absolutely positioned box leaves its box"),
+            line_data,
+            run.callbacks.frame,
+        );
+        placed_child.facts_decided_by_parent.used_insets = used_insets;
+        placed_child.facts_decided_by_parent.default_scroll_shift = default_scroll_shift;
         formatting_context::place_child_in_containing_block(
             run,
             node,
-            formatting_context::PlacedChild::read_from_records(run, node),
+            placed_child,
             inputs.containing_block,
             FfiCssPixelPoint {
                 x: used_offset.inline_offset,
@@ -3212,7 +3228,7 @@ impl<'pass> AbsposEngine<'pass> {
         inputs.position_option = position_option.choice();
         self.records
             .set_default_scroll_shift(child_box, Some(default_scroll_shift));
-        self.layout_element(run, child_box, inputs);
+        self.layout_element(run, child_box, inputs, Some(default_scroll_shift));
         drop(position_option);
     }
 
@@ -3703,13 +3719,12 @@ impl<'pass> AbsposEngine<'pass> {
         // exactly once.
         self.records
             .keep_child_for_its_run(&self.callbacks, node, ContainingBlockConstraints::default());
-        self.records.set_default_scroll_shift(
-            node,
-            self.callbacks
-                .committed_fragment_link(node)
-                .and_then(|link| link.default_scroll_shift),
-        );
-        self.layout_element(run, node, inputs);
+        let default_scroll_shift = self
+            .callbacks
+            .committed_fragment_link(node)
+            .and_then(|link| link.default_scroll_shift);
+        self.records.set_default_scroll_shift(node, default_scroll_shift);
+        self.layout_element(run, node, inputs, default_scroll_shift);
     }
 
     fn compute_inset(
