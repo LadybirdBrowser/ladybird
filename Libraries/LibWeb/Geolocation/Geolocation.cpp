@@ -380,16 +380,23 @@ void Geolocation::acquire_a_position(GC::Ref<WebIDL::CallbackType> success_callb
 
         // NB: While the permission is "prompt" (a one-time grant just ended, e.g.), neither step above applies, and the
         //     timeout task elapses without a position.
-        call_back_with_timeout_error(error_callback, options.timeout);
+        call_back_with_timeout_error(error_callback, options.timeout, watch_id);
     }
 }
 
-void Geolocation::call_back_with_timeout_error(GC::Ptr<WebIDL::CallbackType> error_callback, WebIDL::UnsignedLong timeout)
+// A watch cleared, or a document left, before the timeout elapses hears nothing of it, as with a timeout that elapses
+// while a position is being acquired.
+void Geolocation::call_back_with_timeout_error(GC::Ptr<WebIDL::CallbackType> error_callback, WebIDL::UnsignedLong timeout, Optional<WebIDL::UnsignedLong> watch_id)
 {
+    auto weak_document = GC::Weak<DOM::Document> { window().associated_document() };
     auto timer = Platform::Timer::create_single_shot(heap(), AK::Duration::from_milliseconds(min(timeout, NumericLimits<int>::max())), {});
     m_timeout_timers.append(timer);
-    timer->on_timeout = GC::create_function(heap(), [this, timer, error_callback] {
+    timer->on_timeout = GC::create_function(heap(), [this, timer, error_callback, watch_id, weak_document] {
         m_timeout_timers.remove_first_matching([&](auto candidate) { return candidate == timer; });
+        if (watch_id.has_value() && !m_watch_ids.contains(*watch_id))
+            return;
+        if (!weak_document || !weak_document->is_fully_active())
+            return;
         call_back_with_error(error_callback, GeolocationPositionError::ErrorCode::Timeout);
     });
     timer->start();
