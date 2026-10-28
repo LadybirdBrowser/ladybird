@@ -51,6 +51,10 @@ QString task_manager_site_label(URL::URL const& url)
     if (url == URL::about_blank())
         return {};
     if (url.host().has_value()) {
+        // NB: Pages and request servers are isolated by site, so a site's hosts, such as www.example.com and
+        //     example.com, are listed together under its registrable domain.
+        if (auto registrable_domain = url.host()->registrable_domain(); registrable_domain.has_value())
+            return qstring_from_ak_string(*registrable_domain);
         auto host = qstring_from_ak_string(url.serialized_host());
         if (!host.isEmpty())
             return host;
