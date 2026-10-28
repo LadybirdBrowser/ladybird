@@ -1020,6 +1020,21 @@ impl<'arena> RunRecords<'arena> {
         Some(BoxMetrics::LaidOutByItsOwnRun(laid_out))
     }
 
+    /// What the fragment of `node` shows of the box's own layout, which finishes the lines this run laid out in it.
+    #[track_caller]
+    pub(crate) fn fragment_geometry_of(
+        &self,
+        node: Node,
+        callbacks: &LayoutPass<'_>,
+    ) -> fragment_tree::FragmentGeometry {
+        let used = self.used_values(node);
+        let line_data = used.finish_line_data(callbacks);
+        fragment_tree::FragmentGeometry {
+            cells: used_values::RootInputCells::capture(used),
+            line_data,
+        }
+    }
+
     pub(crate) fn store_table_inline_layout(&self, table: Node, layout: table_formatting_context::TableInlineLayout) {
         self.table_inline_layouts.borrow_mut().insert(table, layout);
     }

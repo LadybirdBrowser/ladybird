@@ -2400,16 +2400,15 @@ impl<'pass> SvgFormattingContext<'pass> {
                 && !node_facts::kind_is_svg_resource_box(self.node_kind(child))
             {
                 self.layout_svg_element(run, child);
-                let child_used_pointer = self.used_values(child);
-                let child_used = child_used_pointer;
+                let child_metrics = self.run.records.box_metrics_of(child);
                 // The container's bounding box includes descendants' transforms; children lay out
                 // untransformed, so each child rect maps through the child's own transform here.
                 let child_content_offset = self.run.records.content_offset_or_origin(child);
                 let mapped_child_rect = self.svg_element_transform(child).map_rect(FfiFloatRect {
                     x: child_content_offset.x.raw_value() as f32 / 64.0,
                     y: child_content_offset.y.raw_value() as f32 / 64.0,
-                    width: child_used.content_inline_size.get().raw_value() as f32 / 64.0,
-                    height: child_used.content_block_size.get().raw_value() as f32 / 64.0,
+                    width: child_metrics.content_inline_size().raw_value() as f32 / 64.0,
+                    height: child_metrics.content_block_size().raw_value() as f32 / 64.0,
                 });
                 let left = CssPixels::nearest_value_for_f32(mapped_child_rect.x);
                 let top = CssPixels::nearest_value_for_f32(mapped_child_rect.y);

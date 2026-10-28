@@ -459,12 +459,20 @@ impl FragmentPayloads {
     }
 }
 
-/// The committed fragment `fragment` of `node`, or a fragment of its record around the committed children where the box
-/// is now hidden or shown for line clamping unlike the committed fragment.
+/// What the fragment of a placed box shows of the box's own layout: its sizes and box sides in the frame of the run that
+/// places it, and its lines.
+#[derive(Clone)]
+pub(crate) struct FragmentGeometry {
+    pub(crate) cells: used_values::RootInputCells,
+    pub(crate) line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
+}
+
+/// The committed fragment `fragment` of `node`, or a fragment of the box's `geometry` around the committed children
+/// where the box is now hidden or shown for line clamping unlike the committed fragment.
 pub(crate) fn committed_fragment_showing_box(
     callbacks: &LayoutPass<'_>,
     node: crate::layout::node_data::NodeSlotId,
-    used: &UsedValues,
+    geometry: impl FnOnce() -> FragmentGeometry,
     fragment_facts: run_records::FragmentFactsDecidedByParent,
     fragment: std::sync::Arc<Fragment>,
 ) -> std::sync::Arc<Fragment> {
@@ -475,7 +483,7 @@ pub(crate) fn committed_fragment_showing_box(
         callbacks,
         node,
         fragment.children.clone(),
-        used,
+        geometry(),
         fragment_facts,
         Some(Box::new(FragmentPayloads::of_fragment(&fragment))),
     )
@@ -485,12 +493,12 @@ fn snapshot_fragment(
     callbacks: &LayoutPass<'_>,
     node: crate::layout::node_data::NodeSlotId,
     children: Vec<FragmentLink>,
-    used: &UsedValues,
+    geometry: FragmentGeometry,
     fragment_facts: run_records::FragmentFactsDecidedByParent,
     payloads: Option<Box<FragmentPayloads>>,
 ) -> std::sync::Arc<Fragment> {
     static NEXT_IDENTITY: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
-    let line_data = used.finish_line_data(callbacks);
+    let FragmentGeometry { cells, line_data } = geometry;
     let FragmentPayloads {
         collapsed_table_borders,
         grid_layout_data,
@@ -507,22 +515,22 @@ fn snapshot_fragment(
     let mut fragment = Fragment {
         identity: 0,
         node,
-        content_inline_size: used.content_inline_size.get(),
-        content_block_size: used.content_block_size.get(),
-        margin_left: used.margin_left.get(),
-        margin_right: used.margin_right.get(),
-        margin_top: used.margin_top.get(),
-        margin_bottom: used.margin_bottom.get(),
-        border_left: used.border_left.get(),
-        border_right: used.border_right.get(),
-        border_top: used.border_top.get(),
-        border_bottom: used.border_bottom.get(),
-        padding_left: used.padding_left.get(),
-        padding_right: used.padding_right.get(),
-        padding_top: used.padding_top.get(),
-        padding_bottom: used.padding_bottom.get(),
-        uses_collapsing_borders_model: used.uses_collapsing_borders_model.get(),
-        is_collapsed_borders_table_box: used.is_collapsed_borders_table_box.get(),
+        content_inline_size: cells.content_inline_size,
+        content_block_size: cells.content_block_size,
+        margin_left: cells.margin_left,
+        margin_right: cells.margin_right,
+        margin_top: cells.margin_top,
+        margin_bottom: cells.margin_bottom,
+        border_left: cells.border_left,
+        border_right: cells.border_right,
+        border_top: cells.border_top,
+        border_bottom: cells.border_bottom,
+        padding_left: cells.padding_left,
+        padding_right: cells.padding_right,
+        padding_top: cells.padding_top,
+        padding_bottom: cells.padding_bottom,
+        uses_collapsing_borders_model: cells.uses_collapsing_borders_model,
+        is_collapsed_borders_table_box: cells.is_collapsed_borders_table_box,
         table_column_index: fragment_facts.table_column_index,
         table_column_span: fragment_facts.table_column_span,
         hidden_by_collapsed_columns: fragment_facts.hidden_by_collapsed_columns,
@@ -1296,7 +1304,7 @@ impl RunFragmentBuilder {
         callbacks: &LayoutPass<'_>,
         node: crate::layout::node_data::NodeSlotId,
         containing_block: Option<crate::layout::node_data::NodeSlotId>,
-        used: &UsedValues,
+        geometry: FragmentGeometry,
         facts: run_records::FactsDecidedByParent,
         abspos_layout_inputs: Option<abspos_inputs::AbsposLayoutInputs>,
         containing_block_is_sealed: bool,
@@ -1318,7 +1326,8 @@ impl RunFragmentBuilder {
             .pending_fragments
             .remove(&slot)
             .unwrap_or_else(|| PendingFragment::new(node));
-        let fragment = snapshot_fragment(callbacks, node, children, used, facts.fragment_facts, payloads);
+        let content_size = (geometry.cells.content_inline_size, geometry.cells.content_block_size);
+        let fragment = snapshot_fragment(callbacks, node, children, geometry, facts.fragment_facts, payloads);
         let link = link_fragment(
             fragment.clone(),
             PlacementData::of_box(
@@ -1341,9 +1350,7 @@ impl RunFragmentBuilder {
                 (own != callbacks.frame).then(|| PlacedBoxFrames {
                     own,
                     containing_block: callbacks.frame,
-                    physical_content_size: callbacks
-                        .frame
-                        .size_to_physical(used.content_inline_size.get(), used.content_block_size.get()),
+                    physical_content_size: callbacks.frame.size_to_physical(content_size.0, content_size.1),
                 })
             })
             .flatten();
@@ -1518,13 +1525,12 @@ impl RunFragmentBuilder {
             if pending_fragment.children.is_empty() {
                 continue;
             }
-            let used = records.used_values(pending_fragment.node);
             inner.top_scope_links.push(link_fragment(
                 snapshot_fragment(
                     callbacks,
                     pending_fragment.node,
                     pending_fragment.children,
-                    used,
+                    records.fragment_geometry_of(pending_fragment.node, callbacks),
                     records.facts_decided_by_parent_of(pending_fragment.node).fragment_facts,
                     pending_fragment.payloads,
                 ),
@@ -1542,14 +1548,13 @@ impl RunFragmentBuilder {
                     reuses_subtree: true,
                 } => {
                     let node = fragment.node;
-                    let used = records.used_values(node);
                     inner.reused_subtree_roots.insert(node.slot_index());
                     inner.top_scope_links.push(link_fragment(
                         snapshot_fragment(
                             callbacks,
                             node,
                             Vec::new(),
-                            used,
+                            records.fragment_geometry_of(node, callbacks),
                             records.facts_decided_by_parent_of(node).fragment_facts,
                             Some(Box::new(FragmentPayloads::of_fragment(&fragment))),
                         ),
@@ -1572,13 +1577,12 @@ impl RunFragmentBuilder {
             if reuses_committed_subtree {
                 inner.reused_subtree_roots.insert(root.node.slot_index());
             }
-            let used = records.used_values(root.node);
             inner.top_scope_links.push(link_fragment(
                 snapshot_fragment(
                     callbacks,
                     root.node,
                     root.scoped_descendants,
-                    used,
+                    records.fragment_geometry_of(root.node, callbacks),
                     records.facts_decided_by_parent_of(root.node).fragment_facts,
                     root.root_payloads,
                 ),
