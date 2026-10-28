@@ -2505,8 +2505,8 @@ impl<'context> InlineFormattingContext<'context> {
                 std::cmp::Ordering::Greater
             }
         });
-        for (_, fragment_arrival) in unplaced {
-            formatting_context::leave_child_unplaced(self.run, Some(fragment_arrival));
+        for (node, fragment_arrival) in unplaced {
+            formatting_context::leave_child_unplaced(self.run, self.placed_atomic_inline(node), Some(fragment_arrival));
         }
     }
 
