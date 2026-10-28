@@ -37,6 +37,12 @@ void WebContentConsoleClient::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_console_global_environment_extensions);
 }
 
+Optional<Web::HTML::ConsoleInputCompletion> WebContentConsoleClient::complete_input(StringView input)
+{
+    auto& settings = Web::HTML::relevant_settings_object(m_console_global_environment_extensions->binding_object());
+    return Web::HTML::complete_console_input(settings.realm(), input);
+}
+
 void WebContentConsoleClient::handle_input(StringView js_source)
 {
     auto& settings = Web::HTML::relevant_settings_object(m_console_global_environment_extensions->binding_object());

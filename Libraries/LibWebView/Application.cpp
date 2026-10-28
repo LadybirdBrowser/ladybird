@@ -4248,6 +4248,17 @@ void Application::retrieve_debugger_source_positions(DevTools::TabDescription co
     view->retrieve_debugger_source_positions(source_id, move(on_complete));
 }
 
+void Application::complete_console_input(DevTools::TabDescription const& description, String const& input, OnConsoleInputCompleted on_complete) const
+{
+    auto view = ViewImplementation::find_view_by_id(description.id);
+    if (!view.has_value()) {
+        on_complete(DevTools::DevToolsDelegate::ConsoleInputCompletion {});
+        return;
+    }
+
+    view->complete_js_console_input(input, move(on_complete));
+}
+
 void Application::resolve_dom_node_url(DevTools::TabDescription const& description, Optional<Web::UniqueNodeID> node_id, String const& url, OnResolvedURLReceived on_complete) const
 {
     auto view = ViewImplementation::find_view_by_id(description.id);

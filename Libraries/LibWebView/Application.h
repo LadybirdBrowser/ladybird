@@ -586,6 +586,7 @@ private:
     virtual void evaluate_javascript_in_debugger_frame(DevTools::TabDescription const&, u64 frame_id, String const&, OnDebuggerEvaluationComplete) const override;
     virtual void retrieve_debugger_object_properties(DevTools::TabDescription const&, u64 object_id, DebuggerObjectScope, OnDebuggerObjectPropertiesReceived) const override;
     virtual void retrieve_debugger_source_positions(DevTools::TabDescription const&, Web::HTML::ScriptRegistryIdentifier, OnDebuggerSourcePositionsReceived) const override;
+    virtual void complete_console_input(DevTools::TabDescription const&, String const&, OnConsoleInputCompleted) const override;
     virtual void resolve_dom_node_url(DevTools::TabDescription const&, Optional<Web::UniqueNodeID>, String const&, OnResolvedURLReceived) const override;
     virtual void evaluate_javascript(DevTools::TabDescription const&, String const&, OnScriptEvaluationComplete) const override;
     virtual void listen_for_console_messages(DevTools::TabDescription const&, OnConsoleMessage) const override;

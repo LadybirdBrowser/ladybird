@@ -95,9 +95,39 @@ void ConsoleActor::handle_message(Message const& message)
     JsonObject response;
 
     if (message.type == "autocomplete"sv) {
-        response.set("matches"sv, JsonArray {});
-        response.set("matchProp"sv, String {});
-        send_response(message, move(response));
+        auto text = get_required_parameter<String>(message, "text"sv);
+        if (!text.has_value())
+            return;
+
+        // The client asks for the completions at the cursor, a UTF-16 offset into the text, so only the text before it
+        // is completed.
+        auto input = text.release_value();
+        if (auto cursor = message.data.get_integer<size_t>("cursor"sv); cursor.has_value()) {
+            auto utf16_input = Utf16String::from_utf8(input);
+            if (*cursor < utf16_input.length_in_code_units())
+                input = utf16_input.substring_view(0, *cursor).to_utf8_but_should_be_ported_to_utf16();
+        }
+
+        auto tab = m_tab.strong_ref();
+        if (!tab) {
+            response.set("matches"sv, JsonValue {});
+            send_response(message, move(response));
+            return;
+        }
+
+        devtools().delegate().complete_console_input(tab->description(), input,
+            async_handler(message, [](auto&, DevToolsDelegate::ConsoleInputCompletion completion, auto& response) {
+                if (completion.matches.has_value()) {
+                    JsonArray matches;
+                    for (auto& match : *completion.matches)
+                        matches.must_append(move(match));
+                    response.set("matches"sv, move(matches));
+                } else {
+                    response.set("matches"sv, JsonValue {});
+                }
+                response.set("matchProp"sv, move(completion.match_prop));
+                response.set("isElementAccess"sv, false);
+            }));
         return;
     }
 

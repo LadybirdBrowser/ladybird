@@ -313,6 +313,7 @@ private:
     virtual void did_mutate_dom(Mutation mutation) override;
     virtual void did_get_dom_node_html(String html) override;
     virtual void did_resolve_dom_node_url(u64 request_id, String resolved_url) override;
+    virtual void did_complete_js_console_input(u64 request_id, Optional<Vector<String>> matches, String match_prop) override;
     virtual void did_receive_network_response_headers(u64 request_id, u32 status_code, Optional<String> reason_phrase, Vector<HTTP::Header> response_headers, Requests::CacheState cache_state) override;
     virtual void did_update_indexed_database(String update) override;
     virtual void did_request_clipboard_entries(u64 request_id) override;

@@ -227,6 +227,7 @@ private:
     virtual void get_debugger_object_properties(Web::PageId page_id, u64 request_id, u64 object_id, WebView::DebuggerObjectScope scope) override;
     virtual void get_debugger_source_positions(Web::PageId page_id, u64 request_id, Web::HTML::ScriptRegistry::Identifier) override;
     virtual void resolve_dom_node_url(Web::PageId page_id, u64 request_id, Optional<Web::UniqueNodeID> node_id, String url) override;
+    virtual void complete_js_console_input(Web::PageId page_id, u64 request_id, String input) override;
 
     virtual void set_listen_for_dom_mutations(Web::PageId page_id, bool) override;
     virtual void set_has_devtools_client(Web::PageId page_id, bool has_devtools_client) override;
