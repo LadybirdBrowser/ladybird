@@ -1099,7 +1099,8 @@ pub(crate) fn baseline_of_child(
     )
 }
 
-pub(crate) fn baseline_of_child_for_purpose(
+/// The baseline of `child`, a box `records` holds, relative to its container's margin edge.
+fn baseline_of_child_for_purpose(
     records: &RunRecords,
     callbacks: &LayoutPass<'_>,
     child: Node,
@@ -1108,7 +1109,52 @@ pub(crate) fn baseline_of_child_for_purpose(
     purpose: BaselinePurpose,
 ) -> Option<CssPixels> {
     let child_metrics = records.box_metrics_of_if_owned(child)?;
-    let content_baselines = child_metrics.content_baselines();
+    baseline_of_laid_out_child_for_purpose(
+        callbacks,
+        LaidOutChild {
+            node: child,
+            metrics: &child_metrics,
+            content_baselines: child_metrics.content_baselines(),
+            content_offset: records.content_offset_or_origin(child),
+        },
+        baseline_set,
+        source,
+        purpose,
+    )
+}
+
+/// A child its parent laid out: its sizes and box sides, the baselines of its contents, and the offset of its content
+/// box in its containing block, or the origin while it is not placed.
+pub(crate) struct LaidOutChild<'metrics, Metrics: BoxMetricCells> {
+    pub(crate) node: Node,
+    pub(crate) metrics: &'metrics Metrics,
+    pub(crate) content_baselines: DerivedBaselines,
+    pub(crate) content_offset: FfiCssPixelPoint,
+}
+
+impl<Metrics: BoxMetricCells> Clone for LaidOutChild<'_, Metrics> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<Metrics: BoxMetricCells> Copy for LaidOutChild<'_, Metrics> {}
+
+/// The baseline of `child`, relative to its container's margin edge. A synthesized baseline comes from the child's
+/// border box.
+pub(crate) fn baseline_of_laid_out_child_for_purpose(
+    callbacks: &LayoutPass<'_>,
+    child: LaidOutChild<'_, impl BoxMetricCells>,
+    baseline_set: BaselineSet,
+    source: ChildBaselineSource,
+    purpose: BaselinePurpose,
+) -> Option<CssPixels> {
+    let LaidOutChild {
+        node,
+        metrics: child_metrics,
+        content_baselines,
+        content_offset,
+    } = child;
     let has_baseline = match baseline_set {
         BaselineSet::First => content_baselines.first.is_some(),
         BaselineSet::Last => content_baselines.last.is_some(),
@@ -1121,23 +1167,13 @@ pub(crate) fn baseline_of_child_for_purpose(
         // https://drafts.csswg.org/css-align-3/#synthesize-baseline
         // The alphabetic baseline is synthesized from the line-under edge of the border box.
         return Some(
-            records.content_offset_or_origin(child).y
-                + child_metrics.content_block_size()
-                + child_metrics.border_box_bottom(collapsed),
+            content_offset.y + child_metrics.content_block_size() + child_metrics.border_box_bottom(collapsed),
         );
     }
-    let child_offset_from_margin_edge =
-        records.content_offset_or_origin(child).y - child_metrics.margin_box_top(collapsed);
+    let child_offset_from_margin_edge = content_offset.y - child_metrics.margin_box_top(collapsed);
     Some(
         child_offset_from_margin_edge
-            + box_baseline_for_purpose(
-                callbacks,
-                child,
-                &child_metrics,
-                baseline_set,
-                content_baselines,
-                purpose,
-            ),
+            + box_baseline_for_purpose(callbacks, node, child_metrics, baseline_set, content_baselines, purpose),
     )
 }
 
