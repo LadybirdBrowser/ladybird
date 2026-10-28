@@ -1839,10 +1839,12 @@ pub(crate) fn absolutize(value: &StyleValueData, context: &AbsolutizationContext
         StyleValueData::Transformation {
             property,
             transform_function,
-            values,
+            values: original_values,
+            matrix_values,
+            ..
         } => {
             let mut changed = false;
-            let mut values = absolutize_list(values, context, &mut changed)?;
+            let mut values = absolutize_list(original_values, context, &mut changed)?;
             // https://drafts.csswg.org/css-viewport/#zoom-property
             // NB: The translation of a matrix is a length given in pixels, which zoom applies to as it does to a
             //     <length>.
@@ -1860,12 +1862,41 @@ pub(crate) fn absolutize(value: &StyleValueData, context: &AbsolutizationContext
                     }
                 }
             }
+            let mut retained_matrix_values = crate::css::style_value::map_transform_matrix_values(
+                original_values.as_slice(),
+                &values,
+                matrix_values.as_slice(),
+            )
+            .as_slice()
+            .to_vec();
+            let original_values = original_values.as_slice();
+            let parameters = crate::css::serialize::TRANSFORM_FUNCTION_PARAMETER_TYPES[*transform_function as usize];
+            for (index, original) in original_values.iter().enumerate() {
+                if parameters.get(index) != Some(&crate::css::table_group_builder::TRANSFORM_PARAMETER_ANGLE)
+                    || !matches!(original.data(), StyleValueData::Angle { value, .. } if value.is_finite())
+                    || (!retained_matrix_values.is_empty()
+                        && retained_matrix_values[index].data() != values[index].data())
+                {
+                    continue;
+                }
+                let precise = crate::css::table_group_builder::transform_angle_radians(original.data()) as f32;
+                let canonical = crate::css::table_group_builder::transform_angle_radians(values[index].data()) as f32;
+                if precise.to_bits() != canonical.to_bits() {
+                    if retained_matrix_values.is_empty() {
+                        retained_matrix_values = values.clone();
+                    }
+                    retained_matrix_values[index] = original.clone_retained();
+                }
+            }
+            let retained_matrix_values = RetainedStyleValueDataList::from_retained_values(retained_matrix_values);
+            changed |= retained_matrix_values != *matrix_values;
             rebuild!(
                 changed,
                 StyleValueData::Transformation {
                     property: *property,
                     transform_function: *transform_function,
                     values: RetainedStyleValueDataList::from_retained_values(values),
+                    matrix_values: retained_matrix_values,
                 }
             )
         }

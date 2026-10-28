@@ -474,11 +474,16 @@ fn transform_operations_from_style_value(
         let StyleValueData::Transformation {
             transform_function,
             values,
+            matrix_values,
             ..
         } = transformation
         else {
             return None;
         };
+        // Matrix-only precision inputs must not replace unwrapped animation interpolation arguments.
+        if !matrix_values.as_slice().is_empty() {
+            return None;
+        }
         transform_operation(
             *transform_function,
             values.as_slice(),
@@ -917,6 +922,7 @@ mod tests {
             property: property_id::TRANSFORM,
             transform_function: function,
             values: RetainedStyleValueDataList::from_retained_values(values.into_iter().map(retained).collect()),
+            matrix_values: crate::css::style_value::RetainedStyleValueDataList::from_retained_values(Vec::new()),
         }
     }
 
@@ -1202,6 +1208,41 @@ mod tests {
         ffi_request.key_frame_set_identity += 1;
         let request = Request::with_keyframes(&ffi_request, &sparse);
         assert!(!state.build(&request, &Host::new(&ffi_host), |_| vec![3]).built);
+    }
+
+    #[test]
+    fn transform_precision_inputs_do_not_replace_compositor_interpolation_angles() {
+        let mut value = transformation(transform_function::ROTATE, vec![deg(1e30 * 360.0)]);
+        assert!(
+            transform_operations_from_style_value(
+                AnimatedProperty::Transform,
+                &value_list(vec![value.clone()]),
+                (100.0, 100.0),
+                1.0,
+                None
+            )
+            .is_some()
+        );
+        let StyleValueData::Transformation { matrix_values, .. } = &mut value else {
+            unreachable!()
+        };
+        *matrix_values = RetainedStyleValueDataList::from_retained_values(vec![retained(StyleValueData::Angle {
+            value: 1e30,
+            unit: crate::css::calc::ANGLE_UNIT_NAMES
+                .iter()
+                .position(|unit| *unit == "turn")
+                .unwrap() as u8,
+        })]);
+        assert!(
+            transform_operations_from_style_value(
+                AnimatedProperty::Transform,
+                &value_list(vec![value]),
+                (100.0, 100.0),
+                1.0,
+                None
+            )
+            .is_none()
+        );
     }
 
     #[test]

@@ -1832,6 +1832,7 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             property,
             transform_function,
             values,
+            ..
         } => {
             use crate::css::property_metadata::property_id;
             let entries = values.as_slice();

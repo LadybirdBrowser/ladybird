@@ -728,8 +728,22 @@ pub(crate) fn angle_radians(data: &StyleValueData) -> Option<f64> {
 }
 
 /// An angle-typed transform argument in radians.
-fn transform_angle_radians(data: &StyleValueData) -> f64 {
-    angle_radians(data).expect("a computed transform angle is an angle or a calculation that resolves without context")
+pub(crate) fn transform_angle_radians(data: &StyleValueData) -> f64 {
+    if let StyleValueData::Angle { value, unit } = data {
+        let period = match crate::css::calc::ANGLE_UNIT_NAMES[*unit as usize] {
+            "deg" => 360.0,
+            "grad" => 400.0,
+            "rad" => std::f64::consts::TAU,
+            "turn" => 1.0,
+            _ => unreachable!("the angle unit table names every unit"),
+        };
+        // NB: Reduce literal angles before unit conversion, which can round away their periodic equivalence.
+        return angle_value_to_radians(value % period, *unit);
+    }
+    let degrees = angle_degrees(data)
+        .expect("a computed transform angle is an angle or a calculation that resolves without context");
+    // NB: Calculated angles resolve in canonical degrees.
+    (degrees % 360.0).to_radians()
 }
 
 /// An angle in degrees. None for a value that is not an angle or a calculation that resolves
@@ -1061,12 +1075,17 @@ pub extern "C" fn rust_transform_list_to_abstract_matrix(
         let StyleValueData::Transformation {
             transform_function,
             values,
+            matrix_values,
             ..
         } = function
         else {
             return false;
         };
-        let values = values.as_slice();
+        let values = if matrix_values.as_slice().is_empty() {
+            values.as_slice()
+        } else {
+            matrix_values.as_slice()
+        };
         let parameters = crate::css::serialize::TRANSFORM_FUNCTION_PARAMETER_TYPES[*transform_function as usize];
         if !values
             .iter()
@@ -1139,13 +1158,18 @@ fn lower_transformation(data: &StyleValueData) -> ComputedResolvedTransform {
     let StyleValueData::Transformation {
         transform_function,
         values,
+        matrix_values,
         ..
     } = data
     else {
         unreachable!("a computed transform function is a transformation value");
     };
     let function = *transform_function;
-    let values = values.as_slice();
+    let values = if matrix_values.as_slice().is_empty() {
+        values.as_slice()
+    } else {
+        matrix_values.as_slice()
+    };
     let parameters = crate::css::serialize::TRANSFORM_FUNCTION_PARAMETER_TYPES[function as usize];
 
     let axis_needs_reference_box = |index: usize| {
@@ -3498,5 +3522,199 @@ pub(crate) unsafe fn build_group_payloads_from_table(
         };
         assert!(!payload.is_null(), "computed group build returned null");
         *out_payload = payload;
+    }
+}
+
+#[cfg(test)]
+mod transform_angle_tests {
+    use super::*;
+
+    fn literal(value: f64, unit: &str) -> StyleValueData {
+        StyleValueData::Angle {
+            value,
+            unit: angle_unit_index(unit) as u8,
+        }
+    }
+
+    fn computed_transform(source: &str) -> RetainedStyleValueData {
+        use crate::css::absolutize::{Absolutized, absolutize_with_element_facts};
+        use crate::css::css_tokenizer::{TokenizerInput, tokenize_for_parser};
+        use crate::css::parser::component_value::consume_a_list_of_component_values;
+        use crate::css::parser::value_parser::{ParseContext, ParseOutcome, parse_css_value};
+        let units: Vec<_> = source.encode_utf16().collect();
+        let tokens = consume_a_list_of_component_values(tokenize_for_parser(TokenizerInput::Utf16(&units))).unwrap();
+        let ParseOutcome::Parsed(parsed) = parse_css_value(&ParseContext::default(), property_id::TRANSFORM, &tokens)
+        else {
+            panic!("valid transform");
+        };
+        match absolutize_with_element_facts(
+            &parsed,
+            &crate::css::style_compute::FfiLengthResolutionContext::default(),
+            None,
+            &[],
+            None,
+        )
+        .unwrap()
+        {
+            Absolutized::Changed(value) => value,
+            Absolutized::Unchanged => RetainedStyleValueData::from_arc(parsed),
+        }
+    }
+
+    fn first_transform(value: &RetainedStyleValueData) -> &StyleValueData {
+        let StyleValueData::ValueList { values, .. } = value.data() else {
+            panic!("transform list")
+        };
+        values.as_slice()[0].data()
+    }
+
+    #[test]
+    fn parsed_large_turns_remain_identity_after_absolutization_and_lowering() {
+        for source in ["rotate(1e30turn)", "rotate(-1e30turn)"] {
+            let value = computed_transform(source);
+            let matrix = lower_transformation(first_transform(&value)).matrix;
+            for (actual, expected) in matrix.into_iter().zip(matrix_identity()) {
+                assert!((actual - expected).abs() < 1e-6, "{source}: {matrix:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn canonical_arguments_and_serialization_survive_precise_matrix_inputs() {
+        let value = computed_transform("rotate(1e30turn)");
+        let transform = first_transform(&value);
+        let StyleValueData::Transformation {
+            property,
+            transform_function,
+            values,
+            matrix_values,
+        } = transform
+        else {
+            panic!("transform function");
+        };
+        assert!(!matrix_values.as_slice().is_empty());
+        assert!(
+            matches!(values.as_slice()[0].data(), StyleValueData::Angle { value, unit }
+            if *value == 1e30 * 360.0 && *unit as usize == angle_unit_index("deg"))
+        );
+        let without_matrix_inputs = StyleValueData::Transformation {
+            property: *property,
+            transform_function: *transform_function,
+            values: values.clone(),
+            matrix_values: crate::css::style_value::RetainedStyleValueDataList::from_retained_values(Vec::new()),
+        };
+        assert_eq!(
+            crate::css::serialize::serialize_style_value_to_utf16(transform),
+            crate::css::serialize::serialize_style_value_to_utf16(&without_matrix_inputs)
+        );
+        assert!(transform != &without_matrix_inputs);
+        assert!(transform.content_hash() != without_matrix_inputs.content_hash());
+        let cloned = transform.clone();
+        assert!(transform == &cloned);
+        assert_eq!(transform.content_hash(), cloned.content_hash());
+        assert_eq!(
+            lower_transformation(transform).matrix,
+            lower_transformation(&cloned).matrix
+        );
+        let repeated = crate::css::absolutize::absolutize_with_element_facts(
+            &cloned,
+            &crate::css::style_compute::FfiLengthResolutionContext::default(),
+            None,
+            &[],
+            None,
+        )
+        .unwrap();
+        match repeated {
+            crate::css::absolutize::Absolutized::Unchanged => {}
+            crate::css::absolutize::Absolutized::Changed(value) => {
+                assert!(value.data() == transform);
+                assert_eq!(
+                    lower_transformation(value.data()).matrix,
+                    lower_transformation(transform).matrix
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn mapped_matrix_inputs_follow_axes_and_drop_replaced_angles() {
+        let value = computed_transform("rotate3d(0, 0, 1, 1e30turn)");
+        let StyleValueData::Transformation {
+            values, matrix_values, ..
+        } = first_transform(&value)
+        else {
+            panic!("transform function");
+        };
+        let mut mapped = values.as_slice().to_vec();
+        mapped[0] = RetainedStyleValueData::from_arc(std::sync::Arc::new(StyleValueData::Number { value: 1.0 }));
+        let retained =
+            crate::css::style_value::map_transform_matrix_values(values.as_slice(), &mapped, matrix_values.as_slice());
+        assert!(retained.as_slice()[0].data() == mapped[0].data());
+        assert!(
+            matches!(retained.as_slice()[3].data(), StyleValueData::Angle { value, unit }
+            if *value == 1e30 && *unit as usize == angle_unit_index("turn"))
+        );
+        mapped[3] = RetainedStyleValueData::from_arc(std::sync::Arc::new(literal(90.0, "deg")));
+        let retained =
+            crate::css::style_value::map_transform_matrix_values(values.as_slice(), &mapped, matrix_values.as_slice());
+        assert!(retained.as_slice().is_empty());
+    }
+
+    #[test]
+    fn large_whole_turns_do_not_rotate() {
+        for value in [1e30, -1e30] {
+            assert_eq!(transform_angle_radians(&literal(value, "turn")), 0.0);
+        }
+    }
+
+    #[test]
+    fn large_grad_angles_preserve_their_remainder() {
+        // The representable f64 value 1e30 has a remainder of 256 grads, or 230.4 degrees.
+        let expected = std::f64::consts::PI * 1.28;
+        assert!((transform_angle_radians(&literal(1e30, "grad")) - expected).abs() < 1e-14);
+        assert!((transform_angle_radians(&literal(-1e30, "grad")) + expected).abs() < 1e-14);
+    }
+
+    #[test]
+    fn transform_angle_units_keep_their_periods() {
+        for (value, unit) in [
+            (450.0, "deg"),
+            (500.0, "grad"),
+            (1.25, "turn"),
+            (std::f64::consts::PI * 2.5, "rad"),
+        ] {
+            assert!((transform_angle_radians(&literal(value, unit)) - std::f64::consts::FRAC_PI_2).abs() < 1e-14);
+        }
+    }
+
+    #[test]
+    fn calculated_transform_angle_keeps_degree_resolution() {
+        use crate::css::calc::{CalcNode, CalcNodeHandle, CalcNumericType, CalcNumericValue, FfiNumericType};
+        let node = std::sync::Arc::new(CalcNode::Numeric(CalcNumericValue::Angle {
+            value: 450.0,
+            unit: angle_unit_index("deg") as u8,
+        }));
+        let value = StyleValueData::Calculated {
+            resolved_type: FfiNumericType::from_calc(node.numeric_type(&CalcNumericType::default())),
+            rust_calculation: CalcNodeHandle::from_arc(node),
+            resolve_as_is_number: false,
+            resolve_as_base: 0,
+            has_percentages_resolve_as: false,
+            percentages_resolve_as: 0,
+            resolve_numbers_as_integers: false,
+            accepted_ranges: crate::css::style_value::RetainedNumericRangeList::empty(),
+        };
+        assert_eq!(angle_degrees(&value), Some(450.0));
+        assert!((transform_angle_radians(&value) - std::f64::consts::FRAC_PI_2).abs() < 1e-14);
+        assert_eq!(angle_degrees(&value), Some(450.0));
+    }
+
+    #[test]
+    fn non_finite_transform_angles_stay_nan() {
+        for value in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+            for unit in ["deg", "grad", "rad", "turn"] {
+                assert!(transform_angle_radians(&literal(value, unit)).is_nan());
+            }
+        }
     }
 }
