@@ -267,7 +267,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         {
             return self.flex_items[index].cells;
         }
-        self.run.records.box_metrics_of(node).input_cells()
+        self.run.records.box_metrics_of(node).cells()
     }
 
     fn container_used(&self) -> &'pass UsedValues {
@@ -3106,7 +3106,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         self.flex_items[index].cells = match &laid_out_box {
             Some(laid_out_box) => laid_out_box.cells,
             // NB: The item was laid out by this flex container's run, in the record it keeps.
-            None => run.records.box_metrics_of(node).input_cells(),
+            None => run.records.box_metrics_of(node).cells(),
         };
         self.flex_items[index].orthogonal_flow_baselines =
             laid_out_box.and_then(|laid_out_box| laid_out_box.orthogonal_flow_baselines);

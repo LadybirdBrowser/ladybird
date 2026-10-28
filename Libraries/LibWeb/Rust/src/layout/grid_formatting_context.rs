@@ -4475,7 +4475,7 @@ impl<'pass> GridFormattingContext<'pass> {
             let laid_out_cells = match &laid_out_box {
                 Some(laid_out_box) => laid_out_box.cells,
                 // NB: The item was laid out by this grid container's run, in the record it keeps.
-                None => run.records.box_metrics_of(item.box_).input_cells(),
+                None => run.records.box_metrics_of(item.box_).cells(),
             };
             self.update_cells_of(item, |item_cells| *item_cells = laid_out_cells);
             outcome.report_percentage_block_size_dependency_of(run, item.box_);
