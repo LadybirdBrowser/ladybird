@@ -1,8 +1,9 @@
+ladybird_test_suite(LibTextCodec)
+
 set(TEST_SOURCES
     TestTextDecoders.cpp
     TestTextEncoders.cpp
 )
 
-foreach(source IN LISTS TEST_SOURCES)
-    ladybird_test("${source}" LibTextCodec LIBS LibTextCodec)
-endforeach()
+target_sources(TestLibTextCodec PRIVATE ${TEST_SOURCES})
+target_link_libraries(TestLibTextCodec PRIVATE LibTextCodec)
