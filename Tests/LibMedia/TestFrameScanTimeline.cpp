@@ -57,7 +57,7 @@ constexpr size_t RESYNC_BYTES_AFTER_TARGET = 400;
 
 class FixedSizeFrames final : public Media::FrameScanSource {
 public:
-    virtual Optional<Frame> next_frame(Media::MediaStreamCursor& cursor, size_t position) const override
+    virtual Media::DecoderErrorOr<Optional<Frame>> next_frame(Media::MediaStreamCursor& cursor, size_t position) const override
     {
         auto bytes_are_readable = [&](size_t start, size_t end) {
             if (cursor.seek(start, AK::SeekMode::SetPosition).is_error())
@@ -69,7 +69,7 @@ public:
 
         if (is_non_frame_byte(position)) {
             if (!bytes_are_readable(position, s_non_frame_bytes->end))
-                return {};
+                return Optional<Frame> {};
             position = s_non_frame_bytes->end;
         }
 
@@ -79,7 +79,7 @@ public:
             readable = whole_frame_is_readable();
         }
         if (!readable)
-            return {};
+            return Optional<Frame> {};
 
         auto sample_count = 1152u;
         if (s_doubled_frame_bytes.has_value() && position >= s_doubled_frame_bytes->start && position < s_doubled_frame_bytes->end)
@@ -87,17 +87,17 @@ public:
         return Frame { position, FRAME_BYTE_SIZE, Media::SampleDuration { sample_count, 48000 } };
     }
 
-    virtual Optional<size_t> find_boundary_at_or_after(Media::MediaStreamCursor&, size_t start_byte, size_t upper_bound) const override
+    virtual Media::DecoderErrorOr<Optional<size_t>> find_boundary_at_or_after(Media::MediaStreamCursor&, size_t start_byte, size_t upper_bound) const override
     {
         auto boundary = (start_byte + FRAME_BYTE_SIZE - 1) / FRAME_BYTE_SIZE * FRAME_BYTE_SIZE;
         if (is_non_frame_byte(boundary))
             boundary = s_non_frame_bytes->end;
         if (boundary + FRAME_BYTE_SIZE > upper_bound)
-            return {};
+            return Optional<size_t> {};
         return boundary;
     }
 
-    virtual Optional<size_t> find_boundary_at_or_before(Media::MediaStreamCursor&, size_t target_byte, size_t lower_bound, size_t upper_bound) const override
+    virtual Media::DecoderErrorOr<Optional<size_t>> find_boundary_at_or_before(Media::MediaStreamCursor&, size_t target_byte, size_t lower_bound, size_t upper_bound) const override
     {
         if (s_on_resync)
             s_on_resync(target_byte);
@@ -108,7 +108,7 @@ public:
         if (is_non_frame_byte(boundary))
             boundary = s_non_frame_bytes->start - FRAME_BYTE_SIZE;
         if (boundary < lower_bound)
-            return {};
+            return Optional<size_t> {};
         return boundary;
     }
 };
