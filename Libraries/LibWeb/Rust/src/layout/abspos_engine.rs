@@ -135,7 +135,7 @@ impl ContainingBlockGeometry {
 #[derive(Clone, Copy)]
 pub(crate) struct OutOfFlowBox<'a> {
     pub(crate) node: Node,
-    pub(crate) record: used_values::RecordInFrame<'a>,
+    pub(crate) record: used_values::CellsInFrame<'a>,
     used_insets: &'a Cell<run_records::UsedInsets>,
     anchor_resolved_values: Option<&'a style_values::AnchorResolvedValues>,
 }

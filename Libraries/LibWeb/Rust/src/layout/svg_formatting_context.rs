@@ -1882,7 +1882,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         let placed_child = formatting_context::PlacedChild::of_record(record, None, &self.run);
         self.place_laid_out_child(node, placed_child, x, y, None);
         LaidOutSvgElement {
-            cells: used_values::RootInputCells::capture(record),
+            cells: record.cells(),
             content_offset: FfiCssPixelPoint { x, y },
         }
     }
@@ -2255,7 +2255,7 @@ impl<'pass> SvgFormattingContext<'pass> {
             }),
         );
         Some(LaidOutSvgElement {
-            cells: used_values::RootInputCells::capture(used),
+            cells: used.cells(),
             content_offset: committed_offset,
         })
     }

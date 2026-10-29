@@ -132,116 +132,44 @@ pub(crate) struct CommittedSvgFacts {
 /// The per-box geometry stored in a Rust-owned layout pass.
 #[derive(Debug)]
 pub(crate) struct UsedValues {
-    pub content_inline_size: Cell<CssPixels>,
-    pub content_block_size: Cell<CssPixels>,
+    /// The box's sizes, size constraints and box sides, held in `frame`.
+    pub(crate) cells: Cell<RootInputCells>,
+    /// The frame the box's sizes, size constraints and box sides are held in.
+    pub(crate) frame: geometry::Frame,
+}
 
-    pub margin_left: Cell<CssPixels>,
-    pub margin_right: Cell<CssPixels>,
-    pub margin_top: Cell<CssPixels>,
-    pub margin_bottom: Cell<CssPixels>,
+/// The sizes, size constraints and box sides of a box.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct RootInputCells {
+    pub(crate) content_inline_size: CssPixels,
+    pub(crate) content_block_size: CssPixels,
 
-    pub border_left: Cell<CssPixels>,
-    pub border_right: Cell<CssPixels>,
-    pub border_top: Cell<CssPixels>,
-    pub border_bottom: Cell<CssPixels>,
+    pub(crate) margin_left: CssPixels,
+    pub(crate) margin_right: CssPixels,
+    pub(crate) margin_top: CssPixels,
+    pub(crate) margin_bottom: CssPixels,
 
-    pub padding_left: Cell<CssPixels>,
-    pub padding_right: Cell<CssPixels>,
-    pub padding_top: Cell<CssPixels>,
-    pub padding_bottom: Cell<CssPixels>,
+    pub(crate) border_left: CssPixels,
+    pub(crate) border_right: CssPixels,
+    pub(crate) border_top: CssPixels,
+    pub(crate) border_bottom: CssPixels,
 
-    pub has_definite_inline_size: Cell<bool>,
-    pub has_definite_block_size: Cell<bool>,
+    pub(crate) padding_left: CssPixels,
+    pub(crate) padding_right: CssPixels,
+    pub(crate) padding_top: CssPixels,
+    pub(crate) padding_bottom: CssPixels,
+
+    pub(crate) has_definite_inline_size: bool,
+    pub(crate) has_definite_block_size: bool,
     /// A button, or the anonymous wrapper of its content, whose automatic block size was made definite only so the
     /// content can be centered within a larger min-height. Percentages inside the button still treat it as indefinite.
-    pub has_definite_block_size_only_for_button_content_alignment: Cell<bool>,
-    pub uses_collapsing_borders_model: Cell<bool>,
+    pub(crate) has_definite_block_size_only_for_button_content_alignment: bool,
+    pub(crate) uses_collapsing_borders_model: bool,
     /// In the collapsing borders model, whether this is the table box rather than a cell. Both store the full widths
     /// of the collapsed borders at their edges, of which only a part lies inside the box (see border_left_collapsed()
     /// and friends): the table's border area lies outside the grid, so it owns the part of an outer border on the far
     /// side of the first or last grid line, while a cell owns the part on the inner side of its grid lines.
-    pub is_collapsed_borders_table_box: Cell<bool>,
-
-    /// The frame the box's sizes, size constraints and box sides are held in.
-    pub(crate) frame: Cell<geometry::Frame>,
-}
-
-impl Default for UsedValues {
-    fn default() -> Self {
-        let zero = CssPixels::from_raw(0);
-        Self {
-            content_inline_size: Cell::new(zero),
-            content_block_size: Cell::new(zero),
-            margin_left: Cell::new(zero),
-            margin_right: Cell::new(zero),
-            margin_top: Cell::new(zero),
-            margin_bottom: Cell::new(zero),
-            border_left: Cell::new(zero),
-            border_right: Cell::new(zero),
-            border_top: Cell::new(zero),
-            border_bottom: Cell::new(zero),
-            padding_left: Cell::new(zero),
-            padding_right: Cell::new(zero),
-            padding_top: Cell::new(zero),
-            padding_bottom: Cell::new(zero),
-            has_definite_inline_size: Cell::new(false),
-            has_definite_block_size: Cell::new(false),
-            has_definite_block_size_only_for_button_content_alignment: Cell::new(false),
-            uses_collapsing_borders_model: Cell::new(false),
-            is_collapsed_borders_table_box: Cell::new(false),
-            frame: Cell::new(geometry::Frame::PHYSICAL),
-        }
-    }
-}
-
-macro_rules! used_values_cells {
-    ($name:ident { $($field:ident: $type:ty,)+ }) => {
-        #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-        pub(crate) struct $name {
-            $(pub(crate) $field: $type,)+
-        }
-
-        impl $name {
-            #[inline]
-            pub(crate) fn capture(used: &UsedValues) -> Self {
-                Self {
-                    $($field: used.$field.get(),)+
-                }
-            }
-
-            pub(crate) fn apply_to_record(&self, used: &UsedValues) {
-                $(
-                    if used.$field.get() != self.$field {
-                        used.$field.set(self.$field);
-                    }
-                )+
-            }
-        }
-    };
-}
-
-used_values_cells! {
-    RootInputCells {
-        content_inline_size: CssPixels,
-        content_block_size: CssPixels,
-        margin_left: CssPixels,
-        margin_right: CssPixels,
-        margin_top: CssPixels,
-        margin_bottom: CssPixels,
-        border_left: CssPixels,
-        border_right: CssPixels,
-        border_top: CssPixels,
-        border_bottom: CssPixels,
-        padding_left: CssPixels,
-        padding_right: CssPixels,
-        padding_top: CssPixels,
-        padding_bottom: CssPixels,
-        has_definite_inline_size: bool,
-        has_definite_block_size: bool,
-        has_definite_block_size_only_for_button_content_alignment: bool,
-        uses_collapsing_borders_model: bool,
-        is_collapsed_borders_table_box: bool,
-    }
+    pub(crate) is_collapsed_borders_table_box: bool,
 }
 
 impl RootInputCells {
@@ -266,11 +194,13 @@ impl RootInputCells {
     }
 
     pub(crate) fn set_content_inline_size(&mut self, value: CssPixels) {
+        // Negative inline sizes are not allowed in CSS. We have a bug somewhere! Clamp to 0 to avoid doing too much damage.
         self.content_inline_size = clamp_to_max_dimension_value(value.max(CssPixels::default()));
         self.has_definite_inline_size = true;
     }
 
     pub(crate) fn set_content_block_size(&mut self, value: CssPixels) {
+        // Negative block sizes are not allowed in CSS. We have a bug somewhere! Clamp to 0 to avoid doing too much damage.
         self.content_block_size = clamp_to_max_dimension_value(value.max(CssPixels::default()));
     }
 
@@ -309,11 +239,11 @@ impl RootInputCells {
     }
 
     /// A record holding the cells, which hold the box's metrics in `frame`.
-    pub(crate) fn materialize_record(&self, frame: geometry::Frame) -> UsedValues {
-        let record = UsedValues::default();
-        record.frame.set(frame);
-        self.apply_to_record(&record);
-        record
+    pub(crate) fn materialize_record(self, frame: geometry::Frame) -> UsedValues {
+        UsedValues {
+            cells: Cell::new(self),
+            frame,
+        }
     }
 
     /// The cells, with the sizes, size constraints and box sides they hold in frame `from` read in frame `to` instead.
@@ -355,26 +285,21 @@ impl RootInputCells {
 impl UsedValues {
     /// Writes the record's metrics, which `write` sees and changes as the record holds them.
     pub(crate) fn update_cells(&self, write: impl FnOnce(&mut RootInputCells)) {
-        let mut cells = RootInputCells::capture(self);
+        let mut cells = self.cells.get();
         write(&mut cells);
-        cells.apply_to_record(self);
+        self.cells.set(cells);
     }
 
     pub(crate) fn set_content_inline_size(&self, value: CssPixels) {
-        // Negative inline sizes are not allowed in CSS. We have a bug somewhere! Clamp to 0 to avoid doing too much damage.
-        self.content_inline_size
-            .set(clamp_to_max_dimension_value(value.max(CssPixels::default())));
-        self.has_definite_inline_size.set(true);
+        self.update_cells(|cells| cells.set_content_inline_size(value));
     }
 
     pub(crate) fn set_content_block_size(&self, value: CssPixels) {
-        // Negative block sizes are not allowed in CSS. We have a bug somewhere! Clamp to 0 to avoid doing too much damage.
-        self.content_block_size
-            .set(clamp_to_max_dimension_value(value.max(CssPixels::default())));
+        self.update_cells(|cells| cells.set_content_block_size(value));
     }
 
     pub(crate) fn set_box_metrics_from_fragment(&self, fragment: &fragment_tree::Fragment) {
-        RecordInFrame::in_its_own_frame(self).set_box_metrics_from_fragment(fragment);
+        self.update_cells(|cells| cells.take_box_metrics_of_fragment(fragment));
     }
 }
 
@@ -531,7 +456,7 @@ pub(crate) trait BoxMetricCells {
 impl BoxMetricCells for UsedValues {
     #[inline]
     fn cells(&self) -> RootInputCells {
-        RootInputCells::capture(self)
+        self.cells.get()
     }
 }
 
@@ -542,42 +467,35 @@ impl BoxMetricCells for RootInputCells {
     }
 }
 
-/// A record as a reader in frame `reader` sees it: the sizes, size constraints and box sides the record holds in its own
-/// frame, read and written in the reader's frame.
+/// Cells held in frame `held`, read and written in frame `reader`.
 #[derive(Clone, Copy)]
-pub(crate) struct RecordInFrame<'record> {
-    record: &'record UsedValues,
+pub(crate) struct CellsInFrame<'a> {
+    cells: &'a Cell<RootInputCells>,
+    held: geometry::Frame,
     reader: geometry::Frame,
 }
 
-impl<'record> RecordInFrame<'record> {
-    /// The record, read in frame `reader`.
+impl<'a> CellsInFrame<'a> {
+    /// The cells of `record`, read in frame `reader`.
     #[inline]
-    pub(crate) fn new(record: &'record UsedValues, reader: geometry::Frame) -> Self {
-        Self { record, reader }
-    }
-
-    /// The record, read in the frame it holds its metrics in.
-    #[inline]
-    pub(crate) fn in_its_own_frame(record: &'record UsedValues) -> Self {
+    pub(crate) fn new(record: &'a UsedValues, reader: geometry::Frame) -> Self {
         Self {
-            record,
-            reader: record.frame.get(),
+            cells: &record.cells,
+            held: record.frame,
+            reader,
         }
     }
 
-    /// The frame the record is read in.
+    /// The frame the cells are read in.
     pub(crate) fn reader(&self) -> geometry::Frame {
         self.reader
     }
 
-    /// Writes the record's metrics, which `write` sees and changes as the reader's frame has them.
+    /// Writes the cells, which `write` sees and changes as the reader's frame has them.
     pub(crate) fn update_cells(self, write: impl FnOnce(&mut RootInputCells)) {
         let mut cells = self.cells();
         write(&mut cells);
-        cells
-            .in_frame(self.reader, self.record.frame.get())
-            .apply_to_record(self.record);
+        self.cells.set(cells.in_frame(self.reader, self.held));
     }
 
     pub(crate) fn set_content_inline_size(self, value: CssPixels) {
@@ -598,10 +516,10 @@ impl<'record> RecordInFrame<'record> {
     }
 }
 
-impl BoxMetricCells for RecordInFrame<'_> {
+impl BoxMetricCells for CellsInFrame<'_> {
     #[inline]
     fn cells(&self) -> RootInputCells {
-        RootInputCells::capture(self.record).in_frame(self.record.frame.get(), self.reader)
+        self.cells.get().in_frame(self.held, self.reader)
     }
 }
 

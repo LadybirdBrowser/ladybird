@@ -163,7 +163,7 @@ pub(crate) fn run_fragmentainer(
         .containing_block_for_child_run(box_, &input.participation);
     execute_formatting_context_run(
         builds_fragments,
-        used_values::RecordInFrame::new(outer.records.used_values(box_), outer.callbacks.frame).cells(),
+        used_values::CellsInFrame::new(outer.records.used_values(box_), outer.callbacks.frame).cells(),
         box_,
         root_containing_block,
         None,
@@ -386,7 +386,7 @@ impl PlacedChild {
     ) -> Self {
         let callbacks = &run.callbacks;
         Self::new(fragment_tree::FragmentGeometry {
-            cells: used_values::RecordInFrame::new(record, callbacks.frame).cells(),
+            cells: used_values::CellsInFrame::new(record, callbacks.frame).cells(),
             // NB: Only a run that builds fragments shows the lines it laid out in the boxes it places.
             line_data: run
                 .fragments
@@ -397,7 +397,7 @@ impl PlacedChild {
                             lines,
                             callbacks.arena(),
                             record.content_inline_size(),
-                            record.frame.get().writing_mode(),
+                            record.frame.writing_mode(),
                         ))
                     })
                 })
@@ -1361,8 +1361,8 @@ impl<'pass> FormattingContextRun<'pass> {
 
     /// The record of the run's root, read in the frame this run lays out in.
     #[track_caller]
-    pub(crate) fn root_record(&self) -> used_values::RecordInFrame<'pass> {
-        used_values::RecordInFrame::new(self.records.used_values(self.box_), self.callbacks.frame)
+    pub(crate) fn root_record(&self) -> used_values::CellsInFrame<'pass> {
+        used_values::CellsInFrame::new(self.records.used_values(self.box_), self.callbacks.frame)
     }
 
     /// Hands what the layout of `node` produced besides its geometry to the box's fragment, where this run builds
@@ -1956,7 +1956,7 @@ fn size_skipped_independent_root(
             });
             let used_insets = Cell::new(run_records::UsedInsets::default());
             let sized_child = abspos_engine::OutOfFlowBox::new(
-                sizing_context::SizedRecord::new(child, used_values::RecordInFrame::new(record, run.callbacks.frame)),
+                sizing_context::SizedRecord::new(child, used_values::CellsInFrame::new(record, run.callbacks.frame)),
                 &used_insets,
                 anchor_resolved_values.as_ref(),
             );
@@ -2278,14 +2278,14 @@ fn execute_formatting_context_run(
             if input.sizing.root_keeps_its_committed_geometry {
                 assert_eq!(
                     sizes_and_box_sides(
-                        used_values::RecordInFrame::new(records.used_values(box_), callbacks.frame).cells()
+                        used_values::CellsInFrame::new(records.used_values(box_), callbacks.frame).cells()
                     ),
                     sizes_and_box_sides(root_cells),
                     "the run of {box_:?} changed the committed geometry of its root"
                 );
             }
             let root_cells_left_by_run = checks_root_input_cells_its_parent_owns
-                .then(|| used_values::RecordInFrame::new(records.used_values(box_), callbacks.frame).cells());
+                .then(|| used_values::CellsInFrame::new(records.used_values(box_), callbacks.frame).cells());
             (outputs, root_cells_left_by_run)
         },
     );
@@ -2511,7 +2511,7 @@ fn lay_out_run_root_and_contents<'pass>(
         root_lines.finish(
             callbacks.arena(),
             record.content_inline_size(),
-            record.frame.get().writing_mode(),
+            record.frame.writing_mode(),
         );
         result = result_in_parent_frame(run, result, parent_frame, own_frame);
     }
@@ -2578,7 +2578,7 @@ fn lay_out_run_root_and_contents<'pass>(
     let root_line_data = root_lines.finish(
         callbacks.arena(),
         record.content_inline_size(),
-        record.frame.get().writing_mode(),
+        record.frame.writing_mode(),
     );
     result.depends_on_percentage_block_size = run.sizing().resolve_percentage_block_size_dependency(run.box_);
     let item_run_observations_are_known = !run_is_handed_table_inline_layout_outside_its_key;
@@ -2906,7 +2906,7 @@ pub(crate) fn layout_inside_child_with_input_cells(
         let committed_fragment = run.sizing().dimension_empty_atomic_root(
             sizing_context::SizedRecord::new(
                 child,
-                used_values::RecordInFrame::new(&record_of_this_layout, run.callbacks.frame),
+                used_values::CellsInFrame::new(&record_of_this_layout, run.callbacks.frame),
             ),
             input.available_space,
             input.containing_block_constraints,
@@ -2919,7 +2919,7 @@ pub(crate) fn layout_inside_child_with_input_cells(
                 run.fragments.is_some()
                     && fragment.is_plain_box()
                     && fragment_tree::FragmentGeometry {
-                        cells: used_values::RootInputCells::capture(&record_of_this_layout),
+                        cells: record_of_this_layout.cells(),
                         line_data: None,
                     }
                     .shows_box_of_fragment(fragment)

@@ -120,7 +120,7 @@ pub(crate) struct BlockContainer {
 impl BlockContainer {
     /// The run's root, as the block container of the boxes laid out in it.
     pub(crate) fn root_of(run: &FormattingContextRun<'_>) -> Self {
-        let cells = used_values::RootInputCells::capture(run.records.used_values(run.box_));
+        let cells = run.records.used_values(run.box_).cells();
         Self {
             node: run.box_,
             cells,
@@ -824,7 +824,7 @@ impl<'pass> BlockFormattingContext<'pass> {
     /// The sizes, size constraints and box sides of `child`, a box this block formatting context sizes.
     fn metrics_of(&self, child: ChildSizedHere<'_>) -> used_values::RootInputCells {
         match child.sized_in {
-            SizedIn::Record(record) => used_values::RootInputCells::capture(record),
+            SizedIn::Record(record) => record.cells.get(),
             SizedIn::CellsAheadOfItsRun(cells) => cells.get(),
         }
     }
@@ -833,7 +833,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let mut cells = self.metrics_of(child);
         update(&mut cells);
         match child.sized_in {
-            SizedIn::Record(record) => cells.apply_to_record(record),
+            SizedIn::Record(record) => record.cells.set(cells),
             SizedIn::CellsAheadOfItsRun(cells_ahead) => cells_ahead.set(cells),
         }
     }
@@ -851,7 +851,7 @@ impl<'pass> BlockFormattingContext<'pass> {
     fn sized_record_of<'record>(&self, child: ChildSizedHere<'record>) -> sizing_context::SizedRecord<'record> {
         sizing_context::SizedRecord::new(
             child.node,
-            used_values::RecordInFrame::new(self.record_of(child), self.run.callbacks.frame),
+            used_values::CellsInFrame::new(self.record_of(child), self.run.callbacks.frame),
         )
     }
 
@@ -3233,7 +3233,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let node = sized_child.node;
         self.run.callbacks.arena().layout_trace.reused_in_flow_subtree(node);
         let used = self.record_of(sized_child);
-        entry.cells.apply_to_record(used);
+        used.cells.set(entry.cells);
         let flow_position = self.flow_position();
         *self.margin_state.borrow_mut() = entry.outgoing_margins.clone();
         formatting_context::propagate_percentage_block_size_dependency_to_containing_block(
@@ -3251,7 +3251,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             &self.run,
             node,
             formatting_context::PlacedChild::new(fragment_tree::FragmentGeometry {
-                cells: used_values::RecordInFrame::new(used, self.run.callbacks.frame).cells(),
+                cells: used_values::CellsInFrame::new(used, self.run.callbacks.frame).cells(),
                 line_data: None,
             })
             .with_in_flow_box_insets(insets),
@@ -3306,7 +3306,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let entry = in_flow_block_cache::InFlowBlockEntry {
             key,
             validity,
-            cells: used_values::RootInputCells::capture(used),
+            cells: used.cells(),
             baselines,
             offset_from_flow_position: FfiCssPixelPoint {
                 x: content_offset.x,
@@ -4520,7 +4520,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 let measurement_result = formatting_context::lay_out_measurement_root_for_its_result(
                     self.run.callbacks,
                     self.run.box_,
-                    used_values::RootInputCells::capture(self.used(self.run.box_)),
+                    self.used(self.run.box_).cells(),
                     LayoutInput {
                         sizing: RootSizingDirectives {
                             finds_automatic_line_clamp_lines: true,
