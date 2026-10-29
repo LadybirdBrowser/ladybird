@@ -82,6 +82,7 @@ private:
         DecoderErrorOr<void> receive_coded_frame(CodedFrame const&, DecodeIntent);
         DecoderErrorOr<bool> replace_drained_decoder();
         bool check_if_seek_is_needed_or_allow_demuxer_reads(u32 seek_id);
+        void wait_for_another_seek_or_exit(u32 seek_id);
         void release_decoder();
         void exit();
 
@@ -159,6 +160,7 @@ private:
         OwnPtr<VideoDecoder> m_decoder;
         NonReferenceFrameDetector m_non_reference_frame_detector;
         bool m_decoder_needs_keyframe_next_seek { false };
+        bool m_decoder_is_draining_before_unavailable_data { false };
 
         FrameQueue m_queue;
         RefPtr<VideoFrame> m_last_queued_frame;

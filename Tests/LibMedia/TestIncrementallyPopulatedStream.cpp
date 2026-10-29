@@ -387,6 +387,77 @@ TEST_CASE(cursor_abort_and_reset)
     EXPECT_EQ(result.value(), 10u);
 }
 
+TEST_CASE(missing_data_made_permanently_unavailable_fails_waiting_reads_only)
+{
+    auto stream = Media::IncrementallyPopulatedStream::create_empty();
+    stream->set_expected_size(100);
+    auto data = make_test_data(50);
+    stream->add_chunk_at(0, data.bytes());
+
+    auto waiting_cursor = stream->create_cursor();
+    MUST(waiting_cursor->seek(60, AK::SeekMode::SetPosition));
+
+    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> read_blocked { false };
+    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> was_permanently_unavailable { false };
+    waiting_cursor->set_blocked_change_handler([&](Media::ReadBlocked blocked) {
+        read_blocked = blocked == Media::ReadBlocked::Yes;
+    });
+
+    auto thread = Threading::Thread::construct("TestUnavailableRead"sv, [&, waiting_cursor]() -> intptr_t {
+        Array<u8, 10> buffer;
+        auto result = waiting_cursor->read_into(buffer);
+        was_permanently_unavailable = result.is_error() && result.error().category() == Media::DecoderErrorCategory::PermanentlyUnavailable;
+        return 0;
+    });
+    thread->start();
+    while (!read_blocked.load())
+        ;
+
+    stream->make_missing_data_permanently_unavailable();
+    MUST(thread->join());
+    EXPECT(was_permanently_unavailable.load());
+
+    // Later reads of missing data fail the same way instead of waiting.
+    Array<u8, 10> buffer;
+    auto result = waiting_cursor->read_into(buffer);
+    EXPECT(result.is_error());
+    EXPECT_EQ(result.error().category(), Media::DecoderErrorCategory::PermanentlyUnavailable);
+
+    // Data that is already there can still be read, and the stream does not end where that data ends.
+    auto cursor = stream->create_cursor();
+    auto read_result = cursor->read_into(buffer);
+    EXPECT(!read_result.is_error());
+    EXPECT_EQ(read_result.value(), 10u);
+    EXPECT(!stream->is_closed());
+    EXPECT_EQ(stream->expected_size(), 100u);
+}
+
+TEST_CASE(missing_data_made_permanently_unavailable_ends_the_wait_for_an_unknown_size)
+{
+    auto stream = Media::IncrementallyPopulatedStream::create_empty();
+    auto cursor = stream->create_cursor();
+
+    auto thread = Threading::Thread::construct("TestUnavailableSize"sv, [cursor]() -> intptr_t {
+        (void)cursor->blocking_size();
+        return 0;
+    });
+    thread->start();
+
+    stream->make_missing_data_permanently_unavailable();
+    MUST(thread->join());
+}
+
+TEST_CASE(missing_data_made_permanently_unavailable_leaves_an_unknown_size_past_every_chunk)
+{
+    auto stream = Media::IncrementallyPopulatedStream::create_empty();
+    auto data = make_test_data(200);
+    stream->add_chunk_at(100, data.bytes().slice(100));
+    stream->add_chunk_at(0, data.bytes().slice(0, 10));
+
+    stream->make_missing_data_permanently_unavailable();
+    EXPECT_EQ(stream->size(), 200u);
+}
+
 TEST_CASE(cursor_blocked_change_handler)
 {
     auto stream = Media::IncrementallyPopulatedStream::create_empty();

@@ -51,7 +51,7 @@ protected:
     template<typename T>
     static DecoderErrorOr<Optional<T>> absorb_data_errors(DecoderErrorOr<Optional<T>> result)
     {
-        if (result.is_error() && result.error().category() != DecoderErrorCategory::Aborted)
+        if (result.is_error() && !is_stream_control_flow(result.error().category()))
             return Optional<T> {};
         return result;
     }

@@ -45,6 +45,9 @@ public:
     void close();
     virtual bool is_closed() const override;
 
+    // Reads that would wait for missing data fail as permanently unavailable from then on.
+    void make_missing_data_permanently_unavailable();
+
     virtual Availability availability() const override;
 
     virtual void set_available_ranges_change_observer(Function<void()>) override;
@@ -141,6 +144,7 @@ private:
     Chunks m_chunks;
     Optional<u64> m_expected_size;
     bool m_closed { false };
+    bool m_missing_data_is_permanently_unavailable { false };
 
     Function<void()> m_available_ranges_change_observer;
 

@@ -292,7 +292,7 @@ void ConnectionFromClient::destroy_media_stream(u64 stream_id)
     if (!stream.has_value())
         return;
     (*stream)->set_data_request_callback(nullptr);
-    (*stream)->close();
+    (*stream)->make_missing_data_permanently_unavailable();
 }
 
 void ConnectionFromClient::add_media_stream_chunk(u64 stream_id, u64 offset, ByteBuffer data)
