@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="support/namespaces.js"></script>
+<script src="support/passthroughpolicy.js"></script>
+<script src="support/script-messages.js"></script>
+<link rel="help" href="https://w3c.github.io/trusted-types/dist/spec/#enforcement-in-scripts">
+<meta http-equiv="Content-Security-Policy" content="require-trusted-types-for 'script';">
+<!-- This test is similar to script-enforcement-001 but it defines a
+     default policy, so we can track precisely when its callbacks
+     are called, the sink names used as well as their effect on
+     the original script's source. -->
+<div id="container"></div>
+<script>
+  trustedTypes.createPolicy("default", {
+    createHTML: (value, _, sink) => {
+      window.log_message("CREATE_HTML");
+      window.log_message(sink);
+      return value.replace("RUN", "RUN_TRUSTED_HTML");
+    },
+    createScript: (value, _, sink) => {
+      window.log_message("CREATE_SCRIPT");
+      window.log_message(sink);
+      return value.replace("RUN", "RUN_TRUSTED_SCRIPT");
+    },
+  });
+
+  promise_test(async t => {
+    let messages = await script_messages_for(_ => {
+      let script = document.createElement("script");
+      window.log_message("SET");
+      script.innerText = LOG_RUN_MESSAGE;
+      window.log_message("APPEND");
+      container.appendChild(script);
+    });
+    assert_array_equals(messages, ["SET", "CREATE_SCRIPT", "HTMLScriptElement innerText", "APPEND", "RUN_TRUSTED_SCRIPT"]);
+  }, "Default policy's calls when setting script source via HTMLScriptElement.innerText.");
+
+  promise_test(async t => {
+    let messages = await script_messages_for(_ => {
+      let script = document.createElement("script");
+      window.log_message("SET");
+      Object.getOwnPropertyDescriptor(HTMLElement.prototype, "innerText").set.call(script, LOG_RUN_MESSAGE);
+      window.log_message("APPEND");
+      container.appendChild(script);
+    });
+    assert_array_equals(messages, ["SET", "APPEND", "CREATE_SCRIPT", "HTMLScriptElement text", "RUN_TRUSTED_SCRIPT"]);
+  }, "Verify when the default policy is called for script source via HTMLElement.innerText.");
+
+  promise_test(async t => {
+    let messages = await script_messages_for(_ => {
+      let script = document.createElement("script");
+      window.log_message("SET");
+      script.textContent = LOG_RUN_MESSAGE;
+      window.log_message("APPEND");
+      container.appendChild(script);
+    });
+    assert_array_equals(messages, ["SET", "CREATE_SCRIPT", "HTMLScriptElement textContent", "APPEND", "RUN_TRUSTED_SCRIPT"]);
+  }, "Default policy's calls when setting script source via HTMLScriptElement.textContent.");
+
+  promise_test(async t => {
+    let messages = await script_messages_for(_ => {
+      let script = document.createElement("script");
+      window.log_message("SET");
+      Object.getOwnPropertyDescriptor(Node.prototype, "textContent").set.call(script, LOG_RUN_MESSAGE);
+      window.log_message("APPEND");
+      container.appendChild(script);
+    });
+    assert_array_equals(messages, ["SET", "APPEND", "CREATE_SCRIPT", "HTMLScriptElement text", "RUN_TRUSTED_SCRIPT"]);
+  }, "Verify when the default policy is called for script source set via Node.textContent.");
+
+  promise_test(async t => {
+    let messages = await script_messages_for(_ => {
+      let script = document.createElement("script");
+      window.log_message("SET");
+      script.text = LOG_RUN_MESSAGE;
+      window.log_message("APPEND");
+      container.appendChild(script);
+    });
+    assert_array_equals(messages, ["SET", "CREATE_SCRIPT", "HTMLScriptElement text", "APPEND", "RUN_TRUSTED_SCRIPT"]);
+  }, "Default policy's calls when setting script source via HTMLScriptElement.text.");
+
+  promise_test(async t => {
+    let messages = await script_messages_for(_ => {
+      let script = document.createElement("script");
+      window.log_message("SET");
+      script.innerHTML = LOG_RUN_MESSAGE;
+      window.log_message("APPEND");
+      container.appendChild(script);
+    });
+    assert_array_equals(messages, ["SET", "CREATE_HTML", "Element innerHTML", "APPEND", "CREATE_SCRIPT", "HTMLScriptElement text", "RUN_TRUSTED_SCRIPT_TRUSTED_HTML"]);
+  }, "Default policy's calls when setting script source via Element.innerHTML.");
+
+  promise_test(async t => {
+    let messages = await script_messages_for(_ => {
+      let script = document.createElement("script");
+      window.log_message("SET");
+      script.setHTMLUnsafe(LOG_RUN_MESSAGE);
+      window.log_message("APPEND");
+      container.appendChild(script);
+    });
+    assert_array_equals(messages, ["SET", "CREATE_HTML", "Element setHTMLUnsafe", "APPEND", "CREATE_SCRIPT", "HTMLScriptElement text", "RUN_TRUSTED_SCRIPT_TRUSTED_HTML"]);
+  }, "Default policy's calls when setting script source via Element.setHTMLUnsafe().");
+
+  promise_test(async t => {
+    let messages = await script_messages_for(_ => {
+      let script = create_html_script_with_trusted_source_text(`${LOG_RUN_MESSAGE};;;`);
+      window.log_message("SET");
+      script.firstChild.splitText(3);
+      window.log_message("APPEND");
+      container.appendChild(script);
+    });
+    assert_array_equals(messages, ["SET", "APPEND", "RUN"]);
+  }, "Default policy when splitting script source via Text.splitText().");
+
+  promise_test(async t => {
+    let messages = await script_messages_for(_ => {
+      let script = create_html_script_with_trusted_source_text(`${LOG_RUN_MESSAGE};;;`);
+      script.firstChild.splitText(3);
+      window.log_message("SET");
+      script.normalize();
+      window.log_message("APPEND");
+      container.appendChild(script);
+    });
+    assert_array_equals(messages, ["SET", "APPEND", "RUN"]);
+  }, "Default policy when normalizing script source via Element.normalize().");
+
+  promise_test(async t => {
+    let messages = await script_messages_for(_ => {
+      let script = create_html_script_with_trusted_source_text(";");
+      window.log_message("SET");
+      script.firstChild.nodeValue = LOG_RUN_MESSAGE;
+      window.log_message("APPEND");
+      container.appendChild(script);
+    });
+    assert_array_equals(messages, ["SET", "APPEND", "CREATE_SCRIPT", "HTMLScriptElement text", "RUN_TRUSTED_SCRIPT"]);
+  }, "Default policy's calls when setting script source via Node.nodeValue.");
+
+  promise_test(async t => {
+    let messages = await script_messages_for(_ => {
+      let script = create_html_script_with_trusted_source_text(";");
+      window.log_message("SET");
+      script.firstChild.data = LOG_RUN_MESSAGE;
+      window.log_message("APPEND");
+      container.appendChild(script);
+    });
+    assert_array_equals(messages, ["SET", "APPEND", "CREATE_SCRIPT", "HTMLScriptElement text", "RUN_TRUSTED_SCRIPT"]);
+  }, "Default policy's calls when setting script source via CharacterData.data.");
+
+  promise_test(async t => {
+    let messages = await script_messages_for(_ => {
+      let script = create_html_script_with_trusted_source_text(";");
+      window.log_message("SET");
+      script.firstChild.appendData(LOG_RUN_MESSAGE);
+      window.log_message("APPEND");
+      container.appendChild(script);
+    });
+    assert_array_equals(messages, ["SET", "APPEND", "CREATE_SCRIPT", "HTMLScriptElement text", "RUN_TRUSTED_SCRIPT"]);
+  }, "Default policy's calls when setting script source via CharacterData.appendData().");
+
+  promise_test(async t => {
+    let messages = await script_messages_for(_ => {
+      let script = create_html_script_with_trusted_source_text(";");
+      window.log_message("SET");
+      script.firstChild.insertData(0, LOG_RUN_MESSAGE);
+      window.log_message("APPEND");
+      container.appendChild(script);
+    });
+    assert_array_equals(messages, ["SET", "APPEND", "CREATE_SCRIPT", "HTMLScriptElement text", "RUN_TRUSTED_SCRIPT"]);
+  }, "Default policy's calls when setting script source via CharacterData.insertData().");
+
+  promise_test(async t => {
+    let messages = await script_messages_for(_ => {
+      let script = create_html_script_with_trusted_source_text(";");
+      window.log_message("SET");
+      script.firstChild.replaceData(0, 0, LOG_RUN_MESSAGE);
+      window.log_message("APPEND");
+      container.appendChild(script);
+    });
+    assert_array_equals(messages, ["SET", "APPEND", "CREATE_SCRIPT", "HTMLScriptElement text", "RUN_TRUSTED_SCRIPT"]);
+  }, "Default policy's calls when setting script source via CharacterData.replaceData().");
+
+  promise_test(async t => {
+    let messages = await script_messages_for(_ => {
+      let script = create_html_script_with_trusted_source_text(`//${LOG_RUN_MESSAGE}`);
+      window.log_message("SET");
+      script.firstChild.deleteData(0, 2);
+      window.log_message("APPEND");
+      container.appendChild(script);
+    });
+    assert_array_equals(messages, ["SET", "APPEND", "CREATE_SCRIPT", "HTMLScriptElement text", "RUN_TRUSTED_SCRIPT"]);
+  }, "Default policy's calls when setting script source via CharacterData.deleteData().");
+
+  promise_test(async t => {
+    let messages = await script_messages_for(_ => {
+      let script = create_html_script_with_trusted_source_text(";");
+      window.log_message("SET");
+      script.firstChild.before(LOG_RUN_MESSAGE);
+      window.log_message("APPEND");
+      container.appendChild(script);
+    });
+    assert_array_equals(messages, ["SET", "APPEND", "CREATE_SCRIPT", "HTMLScriptElement text", "RUN_TRUSTED_SCRIPT"]);
+  }, "Default policy's calls when setting script source via CharacterData.before().");
+
+  promise_test(async t => {
+    let messages = await script_messages_for(_ => {
+      let script = create_html_script_with_trusted_source_text(";");
+      window.log_message("SET");
+      script.firstChild.after(LOG_RUN_MESSAGE);
+      window.log_message("APPEND");
+      container.appendChild(script);
+    });
+    assert_array_equals(messages, ["SET", "APPEND", "CREATE_SCRIPT", "HTMLScriptElement text", "RUN_TRUSTED_SCRIPT"]);
+  }, "Default policy's calls when setting script source via CharacterData.after().");
+
+  promise_test(async t => {
+    let messages = await script_messages_for(_ => {
+      let script = create_html_script_with_trusted_source_text(`;;;${LOG_RUN_MESSAGE}`);
+      script.firstChild.splitText(3);
+      window.log_message("SET");
+      script.firstChild.remove();
+      window.log_message("APPEND");
+      container.appendChild(script);
+    });
+    assert_array_equals(messages, ["SET", "APPEND", "CREATE_SCRIPT", "HTMLScriptElement text", "RUN_TRUSTED_SCRIPT"]);
+  }, "Default policy's calls when setting script source via CharacterData.remove().");
+
+  promise_test(async t => {
+    let messages = await script_messages_for(_ => {
+      let script = create_html_script_with_trusted_source_text(";");
+      window.log_message("SET");
+      script.firstChild.replaceWith(document.createTextNode(LOG_RUN_MESSAGE));
+      window.log_message("APPEND");
+      container.appendChild(script);
+    });
+    assert_array_equals(messages, ["SET", "APPEND", "CREATE_SCRIPT", "HTMLScriptElement text", "RUN_TRUSTED_SCRIPT"]);
+  }, "Default policy's calls when setting script source via CharacterData.replaceWith().");
+
+  promise_test(async t => {
+    let messages = await script_messages_for(_ => {
+      let script = create_html_script_with_trusted_source_text(";");
+      window.log_message("SET");
+      script.appendChild(document.createTextNode(LOG_RUN_MESSAGE));
+      window.log_message("APPEND");
+      container.appendChild(script);
+    });
+    assert_array_equals(messages, ["SET", "APPEND", "CREATE_SCRIPT", "HTMLScriptElement text", "RUN_TRUSTED_SCRIPT"]);
+  }, "Default policy's calls when setting script source via Node.appendChild().");
+
+  promise_test(async t => {
+    let messages = await script_messages_for(_ => {
+      let script = create_html_script_with_trusted_source_text(";");
+      window.log_message("SET");
+      script.insertBefore(document.createTextNode(LOG_RUN_MESSAGE), script.firstChild);
+      window.log_message("APPEND");
+      container.appendChild(script);
+    });
+    assert_array_equals(messages, ["SET", "APPEND", "CREATE_SCRIPT", "HTMLScriptElement text", "RUN_TRUSTED_SCRIPT"]);
+  }, "Default policy's calls when setting script source via Node.insertBefore().");
+
+  promise_test(async t => {
+    let messages = await script_messages_for(_ => {
+      let script = create_html_script_with_trusted_source_text(";");
+      window.log_message("SET");
+      script.replaceChild(document.createTextNode(LOG_RUN_MESSAGE), script.firstChild);
+      window.log_message("APPEND");
+      container.appendChild(script);
+    });
+    assert_array_equals(messages, ["SET", "APPEND", "CREATE_SCRIPT", "HTMLScriptElement text", "RUN_TRUSTED_SCRIPT"]);
+  }, "Default policy's calls when setting script source via Node.replaceChild().");
+
+  promise_test(async t => {
+    let messages = await script_messages_for(_ => {
+      let script = create_html_script_with_trusted_source_text(`;;;${LOG_RUN_MESSAGE}`);
+      script.firstChild.splitText(3);
+      window.log_message("SET");
+      script.removeChild(script.firstChild);
+      window.log_message("APPEND");
+      container.appendChild(script);
+    });
+    assert_array_equals(messages, ["SET", "APPEND", "CREATE_SCRIPT", "HTMLScriptElement text", "RUN_TRUSTED_SCRIPT"]);
+  }, "Default policy's calls when setting script source via Node.removeChild().");
+
+  promise_test(async t => {
+    let messages = await script_messages_for(_ => {
+      let script = create_html_script_with_trusted_source_text(";");
+      window.log_message("SET");
+      script.prepend(document.createTextNode(LOG_RUN_MESSAGE));
+      window.log_message("APPEND");
+      container.appendChild(script);
+    });
+    assert_array_equals(messages, ["SET", "APPEND", "CREATE_SCRIPT", "HTMLScriptElement text", "RUN_TRUSTED_SCRIPT"]);
+  }, "Default policy's calls when setting script source via Element.prepend().");
+
+  promise_test(async t => {
+    let messages = await script_messages_for(_ => {
+      let script = create_html_script_with_trusted_source_text(";");
+      window.log_message("SET");
+      script.append(document.createTextNode(LOG_RUN_MESSAGE));
+      window.log_message("APPEND");
+      container.appendChild(script);
+    });
+    assert_array_equals(messages, ["SET", "APPEND", "CREATE_SCRIPT", "HTMLScriptElement text", "RUN_TRUSTED_SCRIPT"]);
+  }, "Default policy's calls when setting script source via Element.append().");
+
+  promise_test(async t => {
+    let messages = await script_messages_for(_ => {
+      let script = create_html_script_with_trusted_source_text(";");
+      window.log_message("SET");
+      script.replaceChildren(document.createTextNode(LOG_RUN_MESSAGE));
+      window.log_message("APPEND");
+      container.appendChild(script);
+    });
+    assert_array_equals(messages, ["SET", "APPEND", "CREATE_SCRIPT", "HTMLScriptElement text", "RUN_TRUSTED_SCRIPT"]);
+  }, "Default policy's calls when setting script source via Element.replaceChildren().");
+
+  promise_test(async t => {
+    let messages = await script_messages_for(_ => {
+      let script = create_html_script_with_trusted_source_text(";");
+      window.log_message("SET");
+      // Per https://dom.spec.whatwg.org/#move, step 1, moveBefore requires
+      // the two nodes to have the same shadow-including root.
+      let text = document.createTextNode(LOG_RUN_MESSAGE);
+      let root = document.createElement("div");
+      root.appendChild(text);
+      root.appendChild(script);
+      script.moveBefore(text, script.firstChild);
+      window.log_message("APPEND");
+      container.appendChild(script);
+    });
+    assert_array_equals(messages, ["SET", "APPEND", "CREATE_SCRIPT", "HTMLScriptElement text", "RUN_TRUSTED_SCRIPT"]);
+  }, "Default policy's calls when setting script source via Element.moveBefore().");
+
+  promise_test(async t => {
+    let messages1 = await script_messages_for(_ => {
+      let script = create_html_script_with_trusted_source_text(";");
+      window.log_message("SET");
+      script.insertAdjacentText("afterbegin", LOG_RUN_MESSAGE);
+      window.log_message("APPEND");
+      container.appendChild(script);
+    });
+    assert_array_equals(messages1, ["SET", "APPEND", "CREATE_SCRIPT", "HTMLScriptElement text", "RUN_TRUSTED_SCRIPT"]);
+    let messages2 = await script_messages_for(_ => {
+      let script = create_html_script_with_trusted_source_text(";");
+      window.log_message("SET");
+      script.insertAdjacentText("beforeend", LOG_RUN_MESSAGE);
+      window.log_message("APPEND");
+      container.appendChild(script);
+    });
+    assert_array_equals(messages2, ["SET", "APPEND", "CREATE_SCRIPT", "HTMLScriptElement text", "RUN_TRUSTED_SCRIPT"]);
+  }, "Default policy's calls when setting script source via Node.insertAdjacentText().");
+
+  promise_test(async t => {
+    let messages1 = await script_messages_for(_ => {
+      let script = create_html_script_with_trusted_source_text(";");
+      window.log_message("SET");
+      script.insertAdjacentHTML("afterbegin", LOG_RUN_MESSAGE);
+      window.log_message("APPEND");
+      container.appendChild(script);
+    });
+    assert_array_equals(messages1, ["SET", "CREATE_HTML", "Element insertAdjacentHTML", "APPEND", "CREATE_SCRIPT", "HTMLScriptElement text", "RUN_TRUSTED_SCRIPT_TRUSTED_HTML"]);
+    let messages2 = await script_messages_for(_ => {
+      let script = create_html_script_with_trusted_source_text(";");
+      window.log_message("SET");
+      script.insertAdjacentHTML("beforeend", LOG_RUN_MESSAGE);
+      window.log_message("APPEND");
+      container.appendChild(script);
+    });
+    assert_array_equals(messages2, ["SET", "CREATE_HTML", "Element insertAdjacentHTML", "APPEND", "CREATE_SCRIPT", "HTMLScriptElement text", "RUN_TRUSTED_SCRIPT_TRUSTED_HTML"]);
+  }, "Default policy's calls when setting script source via Node.insertAdjacentHTML().");
+
+  promise_test(async t => {
+    let messages = await script_messages_for(_ => {
+      let script = create_html_script_with_trusted_source_text(`;`);
+      let range = new Range();
+      range.selectNode(script.firstChild);
+      window.log_message("SET");
+      range.insertNode(document.createTextNode(LOG_RUN_MESSAGE));
+      window.log_message("APPEND");
+      container.appendChild(script);
+    });
+    assert_array_equals(messages, ["SET", "APPEND", "CREATE_SCRIPT", "HTMLScriptElement text", "RUN_TRUSTED_SCRIPT"]);
+  }, "Default policy's calls when setting source via Range.insertNode().");
+
+  promise_test(async t => {
+    let messages = await script_messages_for(_ => {
+      let script = create_html_script_with_trusted_source_text(`//;;;${LOG_RUN_MESSAGE}`);
+      script.firstChild.splitText(2);
+      let range = new Range();
+      range.setStart(script.firstChild, 0);
+      range.setEnd(script.lastChild, 3);
+      window.log_message("SET");
+      range.deleteContents();
+      window.log_message("APPEND");
+      container.appendChild(script);
+    });
+    assert_array_equals(messages, ["SET", "APPEND", "CREATE_SCRIPT", "HTMLScriptElement text", "RUN_TRUSTED_SCRIPT"]);
+  }, "Default policy's calls when setting script source via Range.deleteContents().");
+
+  promise_test(async t => {
+    let messages = await script_messages_for(_ => {
+      let script = create_html_script_with_trusted_source_text(`${LOG_RUN_MESSAGE}`);
+      window.log_message("CLONE");
+      let clone = script.cloneNode(true);
+      window.log_message("APPEND");
+      container.appendChild(clone);
+    });
+    assert_array_equals(messages, ["CLONE", "APPEND", "CREATE_SCRIPT", "HTMLScriptElement text", "RUN_TRUSTED_SCRIPT"]);
+  }, "Default policy's calls when cloning a script via Node.cloneNode().");
+
+  promise_test(async t => {
+    let messages = await script_messages_for(_ => {
+      let div = document.createElement("div");
+      let script = create_html_script_with_trusted_source_text(`${LOG_RUN_MESSAGE}`);
+      div.appendChild(script);
+      let range = new Range();
+      range.selectNode(script);
+      window.log_message("CLONE");
+      let documentFragment = range.cloneContents();
+      window.log_message("APPEND");
+      container.appendChild(documentFragment.firstElementChild);
+    });
+    assert_array_equals(messages, ["CLONE", "APPEND", "CREATE_SCRIPT", "HTMLScriptElement text", "RUN_TRUSTED_SCRIPT"]);
+  }, "Default policy's calls when cloning a script via Range.cloneContents().");
+</script>
+</body>

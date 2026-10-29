@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="support/namespaces.js"></script>
+<script src="support/passthroughpolicy.js"></script>
+<script src="support/script-messages.js"></script>
+<link rel="help" href="https://w3c.github.io/trusted-types/dist/spec/#enforcement-in-scripts">
+<link rel="help" href="https://html.spec.whatwg.org/#prepare-the-script-element">
+<meta http-equiv="Content-Security-Policy" content="require-trusted-types-for 'script';">
+<!-- This test covers the following step from the "prepare the script element"
+     algorithm, verifying that "source text" is the one after application of
+     the default policy: "If el has no src attribute, and source text is the
+     empty string, then return." -->
+<div id="htmlContainer">
+  <script id="scriptToCreateNonEmptyHTMLScript" type="unknown">;</script>
+</div>
+<svg id="svgContainer">
+  <script id="scriptToCreateNonEmptySVGScript" type="unknown">;</script>
+</svg>
+<script>
+  // Define a default policy that transforms empty script string to some source
+  // logging a RUN message and other script strings to empty.
+  trustedTypes.createPolicy("default", {
+    createScript: (value, _, sink) => {
+      window.log_message("CREATE_SCRIPT");
+      window.log_message(sink);
+      return value.length ? "" : LOG_RUN_MESSAGE;
+    }
+  });
+
+  promise_test(async t => {
+    let messages = await script_messages_for(_ => {
+      // Current version of the specification requires the script text to change
+      // in order to force a call to the default policy callback with sink
+      // "HTMLScriptElement text". If the following PR is accepted, this could
+      // be simplified to create_html_script_with_untrusted_source_text("").
+      // https://github.com/w3c/trusted-types/pull/579
+      let script = document.getElementById("scriptToCreateNonEmptyHTMLScript");
+      script.remove();
+      script.removeAttribute("type");
+      script.firstChild.remove();
+      htmlContainer.appendChild(script);
+    });
+    assert_array_equals(messages, ["CREATE_SCRIPT", "HTMLScriptElement text", "RUN"]);
+  }, "Empty HTMLScriptElement is executed if the default policy makes it non-empty.");
+
+  promise_test(async t => {
+    let messages = await script_messages_for(_ => {
+      let script = create_html_script_with_untrusted_source_text(LOG_RUN_MESSAGE);
+      htmlContainer.appendChild(script);
+    });
+    assert_array_equals(messages, ["CREATE_SCRIPT", "HTMLScriptElement text"]);
+
+  }, "Non-empty HTMLScriptElement is not executed if the default policy makes it empty.");
+
+  promise_test(async t => {
+    let messages = await script_messages_for(_ => {
+      // Note: Using create_html_script_with_untrusted_source_text("") may not
+      // guarantee the script to be untrusted for implementations using a
+      // script-based enforcement mechanism. So make sure we do modify the text.
+      let script = document.getElementById("scriptToCreateNonEmptySVGScript");
+      script.remove();
+      script.removeAttribute("type");
+      script.firstChild.remove();
+      svgContainer.appendChild(script);
+    });
+    assert_array_equals(messages, ["CREATE_SCRIPT", "SVGScriptElement text", "RUN"]);
+  }, "Empty SVGScriptElement is executed if the default policy makes it non-empty.");
+
+  promise_test(async t => {
+    let messages = await script_messages_for(_ => {
+      let script = create_svg_script_with_untrusted_source_text(LOG_RUN_MESSAGE);
+      svgContainer.appendChild(script);
+    });
+    assert_array_equals(messages, ["CREATE_SCRIPT", "SVGScriptElement text"]);
+
+  }, "Non-empty SVGScriptElement is not executed if the default policy makes it empty.");
+</script>

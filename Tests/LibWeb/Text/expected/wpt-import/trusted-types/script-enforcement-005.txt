@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Fail
+Fail	Empty HTMLScriptElement is executed if the default policy makes it non-empty.
+Fail	Non-empty HTMLScriptElement is not executed if the default policy makes it empty.
+Fail	Empty SVGScriptElement is executed if the default policy makes it non-empty.
+Fail	Non-empty SVGScriptElement is not executed if the default policy makes it empty.

@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="support/namespaces.js"></script>
+<script src="support/passthroughpolicy.js"></script>
+<script src="support/script-messages.js"></script>
+<link rel="help" href="https://w3c.github.io/trusted-types/dist/spec/#enforcement-in-scripts">
+<link rel="help" href="https://html.spec.whatwg.org/#prepare-the-script-element">
+<meta http-equiv="Content-Security-Policy" content="require-trusted-types-for 'script'">
+<!-- This test covers the following step from the "prepare the script element"
+     algorithm, verifying that "source text" is the one after application of
+     the default policy: "If el does not have a src content attribute: ...
+     Switch on el's type:" -->
+<div id="container"></div>
+<script>
+  let modulePolicyCalled = false;
+  let moduleScriptExecuted;
+  const logMessageModulePath = "./support/logMessage-module.sub.js";
+
+  // Define a default policy that transforms the script's type to some valid
+  // source content.
+  trustedTypes.createPolicy("default", {
+    createScript: (value, _, sink) => {
+      window.log_message("CREATE_SCRIPT");
+      window.log_message(sink);
+      switch (value) {
+      case "classic":
+        return `window.log_message('CLASSIC');`;
+      case "module":
+        modulePolicyCalled = true;
+        return `window.log_message('MODULE'); moduleScriptExecuted();`;
+      case "importmap":
+        return `{ "imports": { "${logMessageModulePath}?message=UNMAPPED": "${logMessageModulePath}?message=IMPORTMAP" }}`;
+      case "importmap2":
+        return `{ "imports": { "${logMessageModulePath}?message=UNMAPPED2": "${logMessageModulePath}?message=IMPORTMAP2" }}`;
+      case "importmap3":
+        return `{ "imports": { "${logMessageModulePath}?message=UNMAPPED3": "${logMessageModulePath}?message=IMPORTMAP3" }}`;
+      }
+    }
+  });
+
+  promise_test(async t => {
+    let messages = await script_messages_for(_ => {
+      let script = create_html_script_with_untrusted_source_text("classic");
+      script.setAttribute("type", "application/ecmascript");
+      // Appending the script will log "CLASSIC".
+      container.appendChild(script);
+    });
+    assert_array_equals(messages, ["CREATE_SCRIPT", "HTMLScriptElement text", "CLASSIC"]);
+  }, "Untrusted HTMLScriptElement with classic type uses the source text returned by the default policy.");
+
+  promise_test(async t => {
+    let messages = await script_messages_for(async _ => {
+      let script = create_html_script_with_untrusted_source_text("importmap");
+      script.setAttribute("type", "importmap");
+
+      // Appending the script sets up an import map for logMessageModulePath.
+      container.appendChild(script);
+
+      // Importing logMessageModulePath will log message "IMPORTMAP"
+      await import(`${logMessageModulePath}?message=UNMAPPED`);
+    });
+    assert_array_equals(messages, ["CREATE_SCRIPT", "HTMLScriptElement text", "IMPORTMAP"]);
+  }, "Untrusted HTMLScriptElement of importmap type uses the source text returned by the default policy.");
+
+  promise_test(async t => {
+    let messages = await script_messages_for(async _ => {
+      const executed = new Promise(resolve => { moduleScriptExecuted = resolve; });
+      let script = create_html_script_with_untrusted_source_text("module");
+      script.setAttribute("type", "module");
+
+      // Appending the script will log message "MODULE". Wait for its execution.
+      container.appendChild(script);
+      assert_true(modulePolicyCalled);
+      await executed;
+    });
+    assert_array_equals(messages, ["CREATE_SCRIPT", "HTMLScriptElement text", "MODULE"]);
+  }, "Untrusted HTMLScriptElement of module type uses the source text returned by the default policy.");
+
+  promise_test(async t => {
+    let messages = await script_messages_for(async _ => {
+      let script2 = create_html_script_with_untrusted_source_text("importmap2");
+      script2.setAttribute("type", "importmap");
+
+      // Appending the script sets up an import map for logMessageModulePath.
+      container.appendChild(script2);
+
+      // Importing logMessageModulePath will log message "IMPORTMAP2"
+      await import(`${logMessageModulePath}?message=UNMAPPED2`);
+
+      let script3 = create_html_script_with_untrusted_source_text("importmap3");
+      script3.setAttribute("type", "importmap");
+
+      // Appending the script sets up an import map for logMessageModulePath.
+      container.appendChild(script3);
+
+      // Importing logMessageModulePath will log message "IMPORTMAP3"
+      await import(`${logMessageModulePath}?message=UNMAPPED3`);
+    });
+    assert_array_equals(messages,
+        ["CREATE_SCRIPT", "HTMLScriptElement text", "IMPORTMAP2",
+         "CREATE_SCRIPT", "HTMLScriptElement text", "IMPORTMAP3"]);
+  }, "Untrusted HTMLScriptElement of two importmap type use the source text returned by the default policy.");
+</script>
