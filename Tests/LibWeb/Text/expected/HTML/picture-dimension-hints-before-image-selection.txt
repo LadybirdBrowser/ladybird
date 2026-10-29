@@ -1,0 +1,11 @@
+inserted: 10px, 30px, auto 10 / 30; currentSrc unchanged: true
+invalid srcset: 10px, 30px, auto 10 / 30; currentSrc unchanged: true
+nonmatching media: 10px, 30px, auto 10 / 30; currentSrc unchanged: true
+unsupported type: 10px, 30px, auto 10 / 30; currentSrc unchanged: true
+matching source: 10px, 30px, auto 10 / 30; currentSrc unchanged: true
+width only: 10px, 30px, auto 10 / 30; currentSrc unchanged: true
+no dimensions: 10px, 30px, auto 10 / 30; currentSrc unchanged: true
+dimensions restored: 10px, 30px, auto 10 / 30; currentSrc unchanged: true
+source follows image: 10px, 30px, auto 10 / 30; currentSrc unchanged: true
+source precedes image: 10px, 30px, auto 10 / 30; currentSrc unchanged: true
+source removed: 10px, 30px, auto 10 / 30; currentSrc unchanged: true

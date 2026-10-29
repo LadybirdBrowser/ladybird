@@ -1,0 +1,242 @@
+<!doctype html>
+<title>Image width and height attributes are used to infer aspect-ratio</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<style>
+  img:not([nowidth]) {
+    width: 100%;
+    max-width: 100px;
+    height: auto;
+  }
+</style>
+<picture>
+  <source srcset="/images/green-100x50.png">
+  <img>
+</picture>
+
+<picture>
+  <source srcset="/images/green-100x50.png" width="100" height="100">
+  <img>
+</picture>
+
+<picture>
+  <source srcset="/images/green-100x50.png" width="100" height="100">
+  <img width="50" height="100">
+</picture>
+
+<picture>
+  <source srcset="/images/green-100x50.png" width="100" height="100" id="twosource-s1">
+  <source srcset="/images/green-100x50.png" width="300" height="150">
+  <img id="twosource-img">
+</picture>
+
+<div style="width: 100px;">
+  <picture>
+    <source srcset="/images/green-100x50.png" width="100%" height="50%" id="percent-src">
+    <img style="contain:size;" id="percent-img" nowidth="true">
+  </picture>
+</div>
+
+<picture>
+  <source srcset="/images/green-100x50.png" width="100abc" height="50abc" id="trailing-src">
+  <img style="contain:size;" id="trailing-img" nowidth="true">
+</picture>
+
+<script>
+let guard = async_test("source width and height attributes are used to infer aspect-ratio in <picture>");
+function assert_ratio(img, expected, description) {
+  let epsilon = 0.001;
+  assert_approx_equals(parseFloat(getComputedStyle(img).width, 10) / parseFloat(getComputedStyle(img).height, 10),
+                       expected, epsilon, description);
+}
+
+function createPicture(width, height) {
+  var picture = document.createElement("picture");
+  var source = document.createElement("source");
+  if (width !== undefined)
+    source.setAttribute("width", width);
+  if (height !== undefined)
+    source.setAttribute("height", height);
+  source.setAttribute("srcset", "../../../../images/green.png");
+  picture.appendChild(source);
+  var img = document.createElement("img");
+  picture.appendChild(img);
+  document.body.appendChild(picture);
+  return img;
+}
+
+function assert_cs(img, val) {
+  assert_equals(getComputedStyle(img).aspectRatio, val);
+}
+
+// Create and append a new image and immediately check the ratio.
+// This is not racy because the spec requires the user agent to queue a task:
+// https://html.spec.whatwg.org/multipage/images.html#updating-the-image-data
+test(function() {
+  var img = createPicture(100, 100);
+  assert_ratio(img, 1.0);
+  assert_cs(img, "auto 100 / 100");
+  img.style.display = "none";
+  img.setAttribute("nowidth", "true");
+  assert_equals(getComputedStyle(img).width, "100px");
+  assert_equals(getComputedStyle(img).height, "100px");
+  var source = img.previousSibling;
+  assert_equals(getComputedStyle(source).width, "auto");
+  assert_equals(getComputedStyle(source).height, "auto");
+}, "Computed style for width/height/aspect-ratio");
+
+test(function() {
+  img = createPicture(200, 100);
+  img.setAttribute("width", 250);
+  img.setAttribute("height", 50);
+  assert_ratio(img, 2.0);
+  assert_cs(img, "auto 200 / 100");
+  img.style.display = "none";
+  img.setAttribute("nowidth", "true");
+  assert_equals(getComputedStyle(img).width, "200px");
+  assert_equals(getComputedStyle(img).height, "100px");
+  source = img.previousSibling;
+  assert_equals(getComputedStyle(source).width, "auto");
+  assert_equals(getComputedStyle(source).height, "auto");
+}, "Source width/height should take precedence over img attributes.");
+
+test(function() {
+  img.parentNode.removeChild(img.previousSibling);
+  assert_cs(img, "auto 250 / 50");
+  img.src = "../../../../images/green.png";
+  assert_ratio(img, 5.0);
+  img.style.display = "none";
+  img.setAttribute("nowidth", "true");
+  assert_equals(getComputedStyle(img).width, "250px");
+  assert_equals(getComputedStyle(img).height, "50px");
+}, "Make sure style gets invalidated correctly when the source gets removed.");
+
+test(function() {
+  img = createPicture(100, undefined);
+  img.setAttribute("width", 200);
+  img.setAttribute("height", 100);
+  assert_cs(img, "auto");
+  img.style.display = "none";
+  img.setAttribute("nowidth", "true");
+  assert_equals(getComputedStyle(img).width, "100px");
+  assert_equals(getComputedStyle(img).height, "auto");
+}, "If the <source> has only one of width/height, we don't get an aspect ratio, even if the <img> has both.");
+
+test(function() {
+  img = createPicture(undefined, undefined);
+  img.setAttribute("width", 200);
+  img.setAttribute("height", 100);
+  assert_cs(img, "auto 200 / 100");
+}, "If we don't have width/height on the source, we fall back to width/height on the <img>.");
+
+test(function() {
+  img = createPicture(100, undefined);
+  img.parentNode.style.display = "none";
+  img.setAttribute("width", "200");
+  img.setAttribute("height", "300");
+  img.setAttribute("nowidth", "true");
+  assert_cs(img, "auto");
+  assert_equals(getComputedStyle(img).width, "100px");
+  assert_equals(getComputedStyle(img).height, "auto");
+}, "If we only have one width attribute, we should get width mapped but no aspect ratio, even if <img> has attributes.");
+
+test(function() {
+  img = createPicture(undefined, 100);
+  img.parentNode.style.display = "none";
+  img.setAttribute("width", "200");
+  img.setAttribute("height", "300");
+  img.setAttribute("nowidth", "true");
+  assert_cs(img, "auto");
+  assert_equals(getComputedStyle(img).width, "auto");
+  assert_equals(getComputedStyle(img).height, "100px");
+}, "If we only have height attribute, we should get height mapped but no aspect ratio, even if <img> has attributes.");
+
+test(function() {
+  img = createPicture(100, 100);
+  assert_cs(img, "auto 100 / 100");
+  img.previousSibling.setAttribute("height", "300");
+  assert_cs(img, "auto 100 / 300");
+  img.previousSibling.setAttribute("width", "10");
+  assert_cs(img, "auto 10 / 300");
+  img.style.display = "none";
+  img.setAttribute("nowidth", "true");
+  assert_equals(getComputedStyle(img).width, "10px");
+  assert_equals(getComputedStyle(img).height, "300px");
+}, "Dynamically changing width/height should change computed style");
+
+test(function() {
+  img = document.getElementById("twosource-img");
+  assert_cs(img, "auto 100 / 100");
+  source = document.getElementById("twosource-s1");
+  source.setAttribute("type", "x-foo/x-bar");
+  // We should now match the second source
+  assert_cs(img, "auto 300 / 150");
+  img.style.display = "none";
+  img.setAttribute("nowidth", "true");
+  assert_equals(getComputedStyle(img).width, "300px");
+  assert_equals(getComputedStyle(img).height, "150px");
+}, "Changing which <source> matches should change computed style");
+
+test(function() {
+  img = document.getElementById("percent-img");
+  assert_equals(img.offsetWidth, 100);
+  assert_equals(img.offsetHeight, 0);
+  assert_cs(img, "auto");
+  source = document.getElementById("percent-src");
+  assert_equals(source.width, 100);
+  assert_equals(source.height, 50);
+  img.style.display = "none";
+  img.setAttribute("nowidth", "true");
+  assert_equals(getComputedStyle(img).width, "100%");
+  assert_equals(getComputedStyle(img).height, "50%");
+}, "Percentages on source should be ignored for aspect-ratio but used for width/height.");
+
+test(function() {
+  img = document.getElementById("trailing-img");
+  assert_equals(img.offsetWidth, 100);
+  assert_equals(img.offsetHeight, 50);
+  assert_cs(img, "auto 100 / 50");
+  source = document.getElementById("trailing-src");
+  assert_equals(source.width, 100);
+  assert_equals(source.height, 50);
+  img.style.display = "none";
+  img.setAttribute("nowidth", "true");
+  assert_equals(getComputedStyle(img).width, "100px");
+  assert_equals(getComputedStyle(img).height, "50px");
+}, "Trailing garbage should be ignored but not make the attribute invalid");
+
+onload = function() {
+  let images = document.querySelectorAll("img");
+  test(function() {
+    var img = images[0];
+    assert_ratio(img, 2.0, "2.0 is the original aspect ratio of green-100x50.png");
+    assert_cs(img, "auto");
+    img.style.display = "none";
+    img.setAttribute("nowidth", "true");
+    assert_equals(getComputedStyle(img).width, "auto");
+    assert_equals(getComputedStyle(img).height, "auto");
+  }, "Loaded picture test: Both <source> and <img> are without width and height attributes");
+
+  test(function () {
+    img = images[1];
+    assert_ratio(img, 2.0, "Loaded image's aspect ratio, at least by default, overrides width / height ratio.");
+    assert_cs(img, "auto 100 / 100");
+    img.style.display = "none";
+    img.setAttribute("nowidth", "true");
+    assert_equals(getComputedStyle(img).width, "100px");
+    assert_equals(getComputedStyle(img).height, "100px");
+  }, "Loaded picture test: <source> with width and height attributes, <img> without width and height attributes");
+
+  test(function () {
+    img = images[2];
+    assert_ratio(img, 2.0, "Loaded image's aspect ratio, at least by default, overrides width / height ratio (2).");
+    assert_cs(img, "auto 100 / 100");
+    img.style.display = "none";
+    img.setAttribute("nowidth", "true");
+    assert_equals(getComputedStyle(img).width, "100px");
+    assert_equals(getComputedStyle(img).height, "100px");
+  }, "Loaded picture test: Both <source> and <img> are with width and height attributes");
+
+  guard.done();
+};
+</script>

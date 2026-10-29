@@ -1,0 +1,50 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const url = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="2" height="1"/>')}`;
+        const picture = document.createElement("picture");
+        const source = document.createElement("source");
+        source.srcset = url;
+        source.width = 80;
+        source.height = 40;
+        picture.append(source);
+        const image = document.createElement("img");
+        image.width = 10;
+        image.height = 30;
+        image.style.display = "none";
+        picture.append(image);
+        const initialCurrentSrc = image.currentSrc;
+        document.body.append(picture);
+
+        function printHints(label) {
+            const style = getComputedStyle(image);
+            println(`${label}: ${style.width}, ${style.height}, ${style.aspectRatio}; currentSrc unchanged: ${image.currentSrc === initialCurrentSrc}`);
+        }
+
+        printHints("inserted");
+        source.srcset = `${url} 1x 1x`;
+        printHints("invalid srcset");
+        source.srcset = url;
+        source.media = "not all";
+        printHints("nonmatching media");
+        source.media = "all";
+        source.type = "unsupported/image";
+        printHints("unsupported type");
+        source.type = "image/svg+xml";
+        printHints("matching source");
+        source.removeAttribute("height");
+        printHints("width only");
+        source.removeAttribute("width");
+        printHints("no dimensions");
+        source.width = 60;
+        source.height = 20;
+        printHints("dimensions restored");
+        picture.append(source);
+        printHints("source follows image");
+        picture.prepend(source);
+        printHints("source precedes image");
+        source.remove();
+        printHints("source removed");
+    });
+</script>
