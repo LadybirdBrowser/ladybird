@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-text-4/#text-wrap">
+<meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+#container {
+  height: 15ch;
+  writing-mode: vertical-rl;
+}
+.balance {
+  text-wrap: balance;
+}
+</style>
+<div id="container"></div>
+<script>
+const container = document.getElementById('container');
+for (const text of [
+    '平衡应该',
+    '平衡文本换行不应改变行数',
+    '平衡文本换行不应改变该文本段落的行数',
+  ]) {
+  const normal = document.createElement('div');
+  const balance = document.createElement('div');
+  normal.textContent = text;
+  balance.textContent = text;
+  balance.classList.add('balance');
+  container.appendChild(normal);
+  container.appendChild(balance);
+  test(() => {
+    assert_equals(normal.offsetWidth, balance.offsetWidth);
+  });
+}
+</script>

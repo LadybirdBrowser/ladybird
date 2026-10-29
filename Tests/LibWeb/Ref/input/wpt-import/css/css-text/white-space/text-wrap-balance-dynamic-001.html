@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-text-4/#valdef-text-wrap-balance">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text/white-space/reference/text-wrap-balance-dynamic-001-ref.html">
+<style>
+#container {
+  width: 20ch;
+  text-wrap: balance;
+}
+span:hover {
+  color: red;
+}
+</style>
+<div id="container">
+  123 567 901 345 789
+  123 567 901 345 789
+  123 567 901 345 789
+</div>
+<script>
+document.body.offsetTop;
+container.appendChild(document.createTextNode('999'));
+</script>
