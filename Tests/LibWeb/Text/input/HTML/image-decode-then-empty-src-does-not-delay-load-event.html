@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+// Test: Setting the src of an img to the empty string while it loads stops delaying the load event of its document,
+//       even when decode() was called on the image while it loaded.
+asyncTest(async done => {
+    const server = httpTestServer();
+    const slowImageUrl = await server.createEcho("GET", "/decode-then-empty-src-slow.svg", {
+        status: 200,
+        headers: {
+            "Content-Type": "image/svg+xml",
+            "Access-Control-Allow-Origin": "*",
+        },
+        body: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16" fill="green"/></svg>',
+        delay_ms: 10000,
+    });
+
+    const iframe = document.createElement("iframe");
+    const start = performance.now();
+    iframe.onload = () => {
+        if (performance.now() - start < 5000)
+            println("PASS: The load event of the iframe fired before the image arrived");
+        else
+            println("FAIL: The load event of the iframe waited for the image");
+        done();
+    };
+    iframe.srcdoc = `<img src="${slowImageUrl}"><script>
+        const image = document.querySelector("img");
+        image.decode().catch(() => {});
+        setTimeout(() => { image.src = ""; }, 0);
+    <\/script>`;
+    document.body.appendChild(iframe);
+});
+</script>

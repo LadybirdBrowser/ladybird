@@ -60,6 +60,13 @@ public:
     void fetch_image(NonnullRefPtr<Fetch::Infrastructure::Request>);
     void add_callbacks(Function<void()> on_finish, Function<void()> on_fail, Function<void()> on_stop = {});
 
+    // Adds callbacks that do not make the fetch delay the load event, and that stop_waiting_for_fetch() keeps.
+    void add_callbacks_without_delaying_the_load_event(Function<void()> on_finish, Function<void()> on_fail);
+
+    // Stops waiting for the fetch of the shared resource request, which then no longer delays the load event for
+    // this image request.
+    void stop_waiting_for_fetch();
+
     GC::Ptr<SharedResourceRequest const> shared_resource_request() const { return m_shared_resource_request; }
 
     [[nodiscard]] bool was_aborted() const { return m_was_aborted; }
@@ -96,6 +103,8 @@ private:
     //     a SharedResourceRequest that may be used by others, we don't abort the fetch itself; instead, fetch
     //     callbacks use this flag to discard their work for aborted requests.
     bool m_was_aborted { false };
+
+    Vector<u64> m_shared_resource_request_callbacks_ids;
 };
 
 // https://html.spec.whatwg.org/multipage/images.html#abort-the-image-request

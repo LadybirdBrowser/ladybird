@@ -69,8 +69,12 @@ void ImageRequest::set_current_url(DOM::Document& document, String url, CORSSett
 {
     m_current_url = Utf16String::from_utf8(url);
 
-    if (auto parsed_url = DOMURL::parse(m_current_url); parsed_url.has_value())
-        m_shared_resource_request = SharedResourceRequest::get_or_create(document, parsed_url.release_value(), cors_setting);
+    if (auto parsed_url = DOMURL::parse(m_current_url); parsed_url.has_value()) {
+        auto shared_resource_request = SharedResourceRequest::get_or_create(document, parsed_url.release_value(), cors_setting);
+        if (shared_resource_request != m_shared_resource_request)
+            stop_waiting_for_fetch();
+        m_shared_resource_request = shared_resource_request;
+    }
 }
 
 void ImageRequest::set_current_url(DOM::Document& document, Utf16String url, CORSSettingAttribute cors_setting)
@@ -130,7 +134,23 @@ void ImageRequest::fetch_image(NonnullRefPtr<Fetch::Infrastructure::Request> req
 void ImageRequest::add_callbacks(Function<void()> on_finish, Function<void()> on_fail, Function<void()> on_stop)
 {
     VERIFY(m_shared_resource_request);
-    m_shared_resource_request->add_callbacks(move(on_finish), move(on_fail), move(on_stop));
+    if (auto id = m_shared_resource_request->add_removable_callbacks(move(on_finish), move(on_fail), move(on_stop)); id.has_value())
+        m_shared_resource_request_callbacks_ids.append(*id);
+}
+
+void ImageRequest::add_callbacks_without_delaying_the_load_event(Function<void()> on_finish, Function<void()> on_fail)
+{
+    VERIFY(m_shared_resource_request);
+    (void)m_shared_resource_request->add_removable_callbacks(move(on_finish), move(on_fail), {}, SharedResourceRequest::DelaysLoadEvent::No);
+}
+
+void ImageRequest::stop_waiting_for_fetch()
+{
+    if (m_shared_resource_request) {
+        for (auto id : m_shared_resource_request_callbacks_ids)
+            m_shared_resource_request->remove_callbacks(id);
+    }
+    m_shared_resource_request_callbacks_ids.clear();
 }
 
 }

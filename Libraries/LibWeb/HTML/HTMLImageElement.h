@@ -161,6 +161,7 @@ private:
 
     void handle_failed_fetch();
     void add_callbacks_to_image_request(GC::Ref<ImageRequest>, bool maybe_omit_events, Utf16View url_string, Utf16View previous_url);
+    void stop_delaying_the_load_event_for_aborted_requests();
 
     void create_alt_text_shadow_tree();
     void remove_alt_text_shadow_tree();

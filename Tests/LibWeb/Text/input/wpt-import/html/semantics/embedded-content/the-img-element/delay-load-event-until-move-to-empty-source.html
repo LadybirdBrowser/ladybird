@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Inline image element blocks load until source is changed to empty source</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<img src="../../../../images/blue.png?pipe=trickle(d100)">
+<script>
+
+async_test(t => {
+  const image = document.querySelector("img");
+
+  assert_false(image.complete, "The image is loading initially");
+
+  // Complete the test as soon as we obtained the window "load" event,
+  // which should happen as soon as the image stops loading by moving
+  // to an empty source.
+  window.addEventListener("load", t.step_func_done(() => {
+      assert_true(image.complete, "The image is no longer loading once the window 'load' event is dispatched");
+  }));
+
+  // Stop loading the image.
+  image.src = "";
+}, "Image element delays window's load event until the image changes to empty source");
+
+</script>
