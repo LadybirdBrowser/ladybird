@@ -60,6 +60,16 @@ async function waitForCondition(condition, attempts = 600, interval = 25) {
     return true;
 }
 
+// Each round runs in a task of its own, so that pending tasks can drop their references and the objects that WeakRefs
+// kept alive for an earlier job are released.
+async function collectGarbageUntilCleared(weakRefs, rounds = 100) {
+    for (let round = 0; round < rounds; ++round) {
+        await timeout(0);
+        await internals.gcAsync();
+        if (weakRefs.every(weakRef => weakRef.deref() === undefined)) return;
+    }
+}
+
 async function setSystemVisibilityState(state) {
     // Tests assume that the document reflects the UI process's system visibility state and that
     // no previous visibility state change is still pending.

@@ -24,13 +24,7 @@
             }
         })();
 
-        const maximumGcRoundsWhileRequestTeardownTasksDrain = 100;
-        for (let round = 0; round < maximumGcRoundsWhileRequestTeardownTasksDrain; ++round) {
-            await timeout(0);
-            await internals.gcAsync();
-            if (weakResponses.every(weak => weak.deref() === undefined))
-                break;
-        }
+        await collectGarbageUntilCleared(weakResponses);
 
         const collected = weakResponses.filter(weak => weak.deref() === undefined).length;
         println(`collected ${collected} of ${weakResponses.length} completed responses`);

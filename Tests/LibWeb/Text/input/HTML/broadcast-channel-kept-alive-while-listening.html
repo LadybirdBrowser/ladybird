@@ -53,12 +53,7 @@
             "open, with its message listener removed",
             "open, with its onmessage handler cleared",
         ];
-        for (let round = 0; round < 100; ++round) {
-            await timeout(0);
-            await internals.gcAsync();
-            if (collectable.every(description => weakChannels.get(description).deref() === undefined))
-                break;
-        }
+        await collectGarbageUntilCleared(collectable.map(description => weakChannels.get(description)));
         for (const [description, weakChannel] of weakChannels)
             println(`${description}: ${weakChannel.deref() === undefined ? "collected" : "kept alive"}`);
 
