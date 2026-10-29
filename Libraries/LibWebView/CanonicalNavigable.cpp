@@ -569,6 +569,18 @@ bool CanonicalNavigable::is_ancestor_of(CanonicalNavigable const& potential_desc
     return false;
 }
 
+// https://html.spec.whatwg.org/multipage/interaction.html#fully-active-descendant-of-a-top-level-traversable-with-user-attention
+bool CanonicalNavigable::active_document_is_fully_active_descendant_of_a_top_level_traversable_with_user_attention() const
+{
+    // A Document d is a fully active descendant of a top-level traversable with user attention when d is fully active
+    // and d's node navigable's top-level traversable has user attention.
+    // NB: The process hosting the active document reports whether it is fully active. A lost document has no host, and
+    //     is not fully active whatever its host last reported.
+    if (!active_document().host())
+        return false;
+    return m_hosted_state.has_value() && m_hosted_state->active_document_is_fully_active && top_level_traversable().has_user_attention();
+}
+
 // https://html.spec.whatwg.org/multipage/document-sequences.html#familiar-with
 // NB: Stated on the navigables whose active browsing contexts are compared, as in the renderer.
 bool CanonicalNavigable::is_familiar_with(CanonicalNavigable const& other) const

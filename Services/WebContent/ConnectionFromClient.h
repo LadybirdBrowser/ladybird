@@ -84,7 +84,6 @@ public:
     Queue<Web::QueuedInputEvent>& input_event_queue() { return m_input_event_queue; }
     void update_input_method_state(Web::PageId page_id);
 
-    void notify_started_using_gamepads();
     void pump_and_dispatch_gamepad_events();
 
 private:
@@ -366,8 +365,6 @@ private:
     RefPtr<Web::Compositor::CompositorConnection> m_compositor_connection;
     NonnullOwnPtr<PageHost> m_page_host;
     OwnPtr<DevToolsDebugger> m_devtools_debugger;
-
-    bool m_did_notify_started_using_gamepads { false };
 
     HashMap<int, Web::FileRequest> m_requested_files {};
     int last_id { 0 };

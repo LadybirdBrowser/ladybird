@@ -3,6 +3,7 @@
 <script src="gamepad-helper.js"></script>
 <script>
     promiseTest(async () => {
+        startUsingGamepads();
         const virtualGamepads = [];
         for (let index = 0; index < 9; ++index)
             virtualGamepads.push(internals.connectVirtualGamepad());

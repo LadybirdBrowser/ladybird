@@ -1,0 +1,1 @@
+Button 1 is pressed after pressing it while hidden: true

@@ -128,6 +128,7 @@ public:
     CanonicalNavigable& append_child(NonnullOwnPtr<CanonicalNavigable>);
     NonnullOwnPtr<CanonicalNavigable> remove_child(CanonicalNavigable&);
     bool is_ancestor_of(CanonicalNavigable const&) const;
+    bool active_document_is_fully_active_descendant_of_a_top_level_traversable_with_user_attention() const;
     bool allowed_by_sandboxing_to_navigate(CanonicalNavigable const& target, Web::InitiatorSourceSnapshot const& source_snapshot_params) const;
     bool is_familiar_with(CanonicalNavigable const&) const;
     // https://html.spec.whatwg.org/multipage/document-sequences.html#the-rules-for-choosing-a-navigable

@@ -89,6 +89,17 @@ void CanonicalTraversable::set_has_system_focus(bool has_system_focus, RefPtr<We
     });
 }
 
+// https://html.spec.whatwg.org/multipage/interaction.html#user-attention
+bool CanonicalTraversable::has_user_attention() const
+{
+    // A top-level traversable has user attention when its system visibility state is "visible", and it either has
+    // system focus or user agent widgets directly related to it can receive keyboard input channeled from the
+    // operating system.
+    // FIXME: Also give the traversable user attention while a user agent widget related to it, such as the location bar,
+    //        can receive keyboard input.
+    return m_system_visibility_state == Web::HTML::VisibilityState::Visible && m_has_system_focus;
+}
+
 void CanonicalTraversable::set_focused_navigable(CanonicalNavigable& navigable, WebContentPage& requesting_page)
 {
     if (m_focused_navigable_id == navigable.id())
