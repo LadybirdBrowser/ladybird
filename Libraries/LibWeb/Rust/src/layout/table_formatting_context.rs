@@ -963,7 +963,7 @@ pub(super) struct TableFormattingContext<'pass> {
     /// The baselines of the contents of each cell whose layout handed the box back to this table, which keeps them.
     content_baselines_of_handed_back_cells: Vec<Option<DerivedBaselines>>,
     /// What each cell's fragment shows of the table's layout.
-    cell_fragment_facts: Vec<run_records::FragmentFactsDecidedByParent>,
+    cell_fragment_facts: Vec<run_state::FragmentFactsDecidedByParent>,
     /// The input cells of each cell's box as this table sizes it, from the box's starting cells through the borders
     /// and padding of the table's border model and the sizes of its columns and rows to what the cell's run hands back.
     cell_box_cells: Vec<used_values::RootInputCells>,
@@ -1155,7 +1155,7 @@ impl<'pass> TableFormattingContext<'pass> {
 
     #[inline]
     fn sizing(&self) -> sizing_context::SizingContext<'pass, 'static> {
-        sizing_context::SizingContext::new(self.run.records, self.run.callbacks)
+        sizing_context::SizingContext::new(self.run.state, self.run.callbacks)
     }
 
     fn parent(&self, node: Node) -> Node {
@@ -1268,7 +1268,7 @@ impl<'pass> TableFormattingContext<'pass> {
         &self,
         node: Node,
         participant_box: &TableParticipantBox,
-        fragment_facts: run_records::FragmentFactsDecidedByParent,
+        fragment_facts: run_state::FragmentFactsDecidedByParent,
         x: CssPixels,
         y: CssPixels,
     ) {
@@ -1516,7 +1516,7 @@ impl<'pass> TableFormattingContext<'pass> {
         let note_percentage_block_size_dependency_of = |participant| {
             if sizing.own_style_depends_on_percentage_block_size(participant) {
                 self.run
-                    .records
+                    .state
                     .note_descendant_depends_on_percentage_block_size(self.run.box_);
             }
         };
@@ -1557,10 +1557,10 @@ impl<'pass> TableFormattingContext<'pass> {
         self.cell_fragment_facts = self
             .cells
             .iter()
-            .map(|cell| run_records::FragmentFactsDecidedByParent {
+            .map(|cell| run_state::FragmentFactsDecidedByParent {
                 table_column_index: cell.column_index as u32,
                 table_column_span: cell.column_span as u32,
-                ..run_records::FragmentFactsDecidedByParent::default()
+                ..run_state::FragmentFactsDecidedByParent::default()
             })
             .collect();
         self.cell_box_cells = cell_box_cells;
@@ -3196,7 +3196,7 @@ impl<'pass> TableFormattingContext<'pass> {
             self.place_participant(
                 row.box_,
                 row_box,
-                run_records::FragmentFactsDecidedByParent::default(),
+                run_state::FragmentFactsDecidedByParent::default(),
                 inline_offset,
                 row_block_offset,
             );
@@ -3235,7 +3235,7 @@ impl<'pass> TableFormattingContext<'pass> {
             self.place_participant(
                 group,
                 group_box,
-                run_records::FragmentFactsDecidedByParent::default(),
+                run_state::FragmentFactsDecidedByParent::default(),
                 inline_offset,
                 block_start,
             );
@@ -3273,7 +3273,7 @@ impl<'pass> TableFormattingContext<'pass> {
                 let cell_box = &mut self.cell_box_cells[cell_index];
                 cell_box.padding_top += intrinsic_block_padding.0;
                 cell_box.padding_bottom += intrinsic_block_padding.1;
-                let laid_out = run_records::LaidOutChildBox {
+                let laid_out = run_state::LaidOutChildBox {
                     cells: *cell_box,
                     baselines: measurement.baselines,
                     orthogonal_flow_baselines: None,
@@ -3282,7 +3282,7 @@ impl<'pass> TableFormattingContext<'pass> {
                 self.placed_cells[cell_index] = Some(formatting_context::PlacedChild::of_laid_out_box(&laid_out));
                 self.content_baselines_of_handed_back_cells[cell_index] = Some(laid_out.baselines);
                 formatting_context::propagate_percentage_block_size_dependency_to_containing_block(
-                    run.records,
+                    run.state,
                     &run.callbacks,
                     cell.box_,
                     measurement.depends_on_percentage_block_size,
@@ -3501,10 +3501,10 @@ impl<'pass> TableFormattingContext<'pass> {
             } else {
                 CssPixels::default()
             };
-            let fragment_facts = run_records::FragmentFactsDecidedByParent {
+            let fragment_facts = run_state::FragmentFactsDecidedByParent {
                 table_column_index: start as u32,
                 table_column_span: (end - start) as u32,
-                ..run_records::FragmentFactsDecidedByParent::default()
+                ..run_state::FragmentFactsDecidedByParent::default()
             };
             let column_box = self.row_group_or_column_box(node);
             let used = &column_box.cells;

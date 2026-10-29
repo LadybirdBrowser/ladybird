@@ -58,13 +58,13 @@ impl ContainerLengthBasesQuery {
 /// mutable arena borrow, so its text and style views cannot survive commit.
 ///
 /// A layout run reads only the subtree it lays out. Whatever it needs from above arrives through
-/// its layout input, its root's used values and its records, or was derived onto the subtree
+/// its layout input, its root's used values and its run state, or was derived onto the subtree
 /// before the pass, like ancestor facts. That is what lets partial relayout, the formatting context
 /// run cache and the intrinsic size caches reuse a subtree's layout without looking outside it.
 #[derive(Clone, Copy)]
 pub(crate) struct LayoutPass<'arena> {
     arena: &'arena LayoutNodeArena,
-    scratch: &'arena super::run_records::LayoutScratch,
+    scratch: &'arena super::run_state::LayoutScratch,
     pub(crate) container_length_bases: ContainerLengthBasesQuery,
     pub(crate) initial_containing_block_inline_size: CssPixels,
     pub(crate) initial_containing_block_block_size: CssPixels,
@@ -79,7 +79,7 @@ pub(crate) struct LayoutPass<'arena> {
 impl<'arena> LayoutPass<'arena> {
     pub(crate) fn new(
         arena: &'arena LayoutNodeArena,
-        scratch: &'arena super::run_records::LayoutScratch,
+        scratch: &'arena super::run_state::LayoutScratch,
         stage: super::formatting_context::LayoutStageFacts,
     ) -> Self {
         Self {
@@ -96,7 +96,7 @@ impl<'arena> LayoutPass<'arena> {
 
     /// A pass whose only question to the document has no answer, over `arena` and `scratch`.
     #[cfg(test)]
-    pub(crate) fn for_test(arena: &'arena LayoutNodeArena, scratch: &'arena super::run_records::LayoutScratch) -> Self {
+    pub(crate) fn for_test(arena: &'arena LayoutNodeArena, scratch: &'arena super::run_state::LayoutScratch) -> Self {
         Self::new(
             arena,
             scratch,
@@ -131,8 +131,8 @@ impl<'arena> LayoutPass<'arena> {
         self.arena
     }
 
-    /// The layout stage's own scratch, which the pass's runs keep their records in.
-    pub(crate) fn scratch(&self) -> &'arena super::run_records::LayoutScratch {
+    /// The layout stage's own scratch, which the runs of the pass share.
+    pub(crate) fn scratch(&self) -> &'arena super::run_state::LayoutScratch {
         self.scratch
     }
 

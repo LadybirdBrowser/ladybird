@@ -137,14 +137,14 @@ pub(crate) struct OutOfFlowBox<'a> {
     pub(crate) node: Node,
     pub(crate) cells: &'a Cell<used_values::RootInputCells>,
     pub(crate) frame: geometry::Frame,
-    used_insets: &'a Cell<run_records::UsedInsets>,
+    used_insets: &'a Cell<run_state::UsedInsets>,
     anchor_resolved_values: Option<&'a style_values::AnchorResolvedValues>,
 }
 
 impl<'a> OutOfFlowBox<'a> {
     pub(crate) fn new(
         sized: sizing_context::SizedCells<'a>,
-        used_insets: &'a Cell<run_records::UsedInsets>,
+        used_insets: &'a Cell<run_state::UsedInsets>,
         anchor_resolved_values: Option<&'a style_values::AnchorResolvedValues>,
     ) -> Self {
         Self {
@@ -166,7 +166,7 @@ impl<'a> OutOfFlowBox<'a> {
 }
 
 pub(crate) struct AbsposEngine<'pass> {
-    records: &'pass RunRecords<'pass>,
+    state: &'pass RunState<'pass>,
     callbacks: LayoutPass<'pass>,
     fragments: Option<std::rc::Rc<fragment_tree::RunFragmentBuilder>>,
 }
@@ -174,7 +174,7 @@ pub(crate) struct AbsposEngine<'pass> {
 impl<'pass> AbsposEngine<'pass> {
     pub(crate) fn for_run(run: &FormattingContextRun<'pass>) -> Self {
         Self {
-            records: run.records,
+            state: run.state,
             callbacks: run.callbacks,
             fragments: run.fragments.clone(),
         }
@@ -247,7 +247,7 @@ impl<'pass> AbsposEngine<'pass> {
             return FfiCssPixelPoint::default();
         }
         let mut merge_point = from_space;
-        while merge_point != to_space && !self.callbacks.is_ancestor(merge_point, to_space, self.records.root()) {
+        while merge_point != to_space && !self.callbacks.is_ancestor(merge_point, to_space, self.state.root()) {
             merge_point = self.placement_containing_block(merge_point);
             assert!(!merge_point.is_invalid());
         }
@@ -280,7 +280,7 @@ impl<'pass> AbsposEngine<'pass> {
     }
 
     /// Where the run placed `node`, if it placed the box.
-    fn placement_of(&self, node: Node) -> Option<run_records::BoxPlacement> {
+    fn placement_of(&self, node: Node) -> Option<run_state::BoxPlacement> {
         self.placed_box_fragments().placement_of(node)
     }
 
@@ -291,7 +291,7 @@ impl<'pass> AbsposEngine<'pass> {
 
     #[inline]
     fn sizing(&self) -> sizing_context::SizingContext<'pass, 'static> {
-        sizing_context::SizingContext::new(self.records, self.callbacks)
+        sizing_context::SizingContext::new(self.state, self.callbacks)
     }
 
     #[inline]
@@ -542,7 +542,7 @@ impl AbsposEngine<'_> {
             if self.facts(ancestor).is_scroll_container() {
                 return ancestor;
             }
-            if ancestor == self.records.root() {
+            if ancestor == self.state.root() {
                 break;
             }
             ancestor = self.placement_containing_block(ancestor);
@@ -2290,7 +2290,7 @@ impl AbsposEngine<'_> {
 
     fn set_used_inline_insets(sized: OutOfFlowBox<'_>, left: CssPixels, right: CssPixels) {
         let insets = sized.used_insets;
-        insets.set(run_records::UsedInsets {
+        insets.set(run_state::UsedInsets {
             left,
             right,
             ..insets.get()
@@ -2299,7 +2299,7 @@ impl AbsposEngine<'_> {
 
     fn set_used_block_insets(sized: OutOfFlowBox<'_>, top: CssPixels, bottom: CssPixels) {
         let insets = sized.used_insets;
-        insets.set(run_records::UsedInsets {
+        insets.set(run_state::UsedInsets {
             top,
             bottom,
             ..insets.get()
@@ -3862,7 +3862,7 @@ impl<'pass> AbsposEngine<'pass> {
             return insets;
         }
         formatting_context::propagate_percentage_block_size_dependency_to_containing_block(
-            self.records,
+            self.state,
             &self.callbacks,
             node,
             false,
@@ -3899,7 +3899,7 @@ impl<'pass> AbsposEngine<'pass> {
             block_axis_inset_value(style.inset_bottom(), treat_block_axis_percentage_insets_as_auto),
             percentage_basis.block_size,
         );
-        insets.used_insets = Some(run_records::UsedInsets {
+        insets.used_insets = Some(run_state::UsedInsets {
             left,
             right,
             top,
@@ -3910,14 +3910,14 @@ impl<'pass> AbsposEngine<'pass> {
 }
 
 pub(crate) fn drain_abspos_with_placed_containing_blocks(
-    records: &RunRecords<'_>,
+    state: &RunState<'_>,
     callbacks: LayoutPass<'_>,
     should_collect_devtools_layout_data: bool,
     entry_fragments: &std::rc::Rc<fragment_tree::RunFragmentBuilder>,
 ) {
     let accumulator_root = entry_fragments.root_node();
     let run = FormattingContextRun {
-        records,
+        state,
         box_: accumulator_root,
         callbacks,
         should_collect_devtools_layout_data,
@@ -3938,7 +3938,7 @@ pub(crate) fn drain_abspos_with_placed_containing_blocks(
 /// its anchor() insets compensate for.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct InFlowBoxInsets {
-    pub(crate) used_insets: Option<run_records::UsedInsets>,
+    pub(crate) used_insets: Option<run_state::UsedInsets>,
     pub(crate) default_scroll_shift: Option<abspos_inputs::DefaultScrollShift>,
 }
 

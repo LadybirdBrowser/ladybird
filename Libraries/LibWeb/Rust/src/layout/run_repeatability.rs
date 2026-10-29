@@ -274,8 +274,8 @@ fn same_elements_in_any_order<T: PartialEq>(left: &[T], right: &[T]) -> bool {
     })
 }
 
-fn host_findings_match(left: Option<&run_records::HostFindings>, right: Option<&run_records::HostFindings>) -> bool {
-    let none = run_records::HostFindings::default();
+fn host_findings_match(left: Option<&run_state::HostFindings>, right: Option<&run_state::HostFindings>) -> bool {
+    let none = run_state::HostFindings::default();
     let left = left.unwrap_or(&none);
     let right = right.unwrap_or(&none);
     same_elements_in_any_order(

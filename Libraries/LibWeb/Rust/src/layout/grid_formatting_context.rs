@@ -1413,7 +1413,7 @@ impl<'pass> GridFormattingContext<'pass> {
 
     #[inline]
     fn sizing(&self) -> sizing_context::SizingContext<'pass, '_> {
-        sizing_context::SizingContext::new(self.run.records, self.run.callbacks).with_child_run_shapes(self)
+        sizing_context::SizingContext::new(self.run.state, self.run.callbacks).with_child_run_shapes(self)
     }
 
     fn parent_grid(&self) -> Option<&ParentGridData<'pass>> {
@@ -3169,14 +3169,14 @@ impl<'pass> GridFormattingContext<'pass> {
             ..live
         };
         let containing_block = self.run.callbacks.in_flow_containing_block(subgrid.box_);
-        RunRecords::with_root(
+        RunState::with_root(
             self.run.callbacks,
             subgrid.box_,
             containing_block,
             None,
-            |records, callbacks| {
+            |state, callbacks| {
                 let scratch_run = FormattingContextRun {
-                    records,
+                    state,
                     box_: subgrid.box_,
                     callbacks,
                     should_collect_devtools_layout_data: false,

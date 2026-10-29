@@ -55,13 +55,13 @@ impl ContentSizingScope {
     }
 
     fn enter<R>(&self, callbacks: LayoutPass<'_>, size_content: impl FnOnce(&FormattingContextRun<'_>) -> R) -> R {
-        RunRecords::with_content_inline_sizes_root(
+        RunState::with_content_inline_sizes_root(
             callbacks,
             self.node,
             callbacks.in_flow_containing_block(self.node),
-            |records, callbacks| {
+            |state, callbacks| {
                 size_content(&FormattingContextRun {
-                    records,
+                    state,
                     box_: self.node,
                     callbacks,
                     should_collect_devtools_layout_data: false,

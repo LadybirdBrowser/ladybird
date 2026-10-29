@@ -418,12 +418,12 @@ pub(crate) struct CellsInFrame {
 /// containing block of absolutely positioned boxes, as the run placed it. Both are keyed by slot.
 #[derive(Default)]
 pub(crate) struct PlacedBoxes {
-    placements: HashMap<u32, run_records::BoxPlacement>,
+    placements: HashMap<u32, run_state::BoxPlacement>,
     cells_of_abspos_containing_blocks: HashMap<u32, CellsInFrame>,
 }
 
 impl PlacedBoxes {
-    pub(crate) fn placement_of(&self, node: crate::layout::node_data::NodeSlotId) -> Option<run_records::BoxPlacement> {
+    pub(crate) fn placement_of(&self, node: crate::layout::node_data::NodeSlotId) -> Option<run_state::BoxPlacement> {
         self.placements.get(&node.slot_index()).copied()
     }
 
@@ -534,7 +534,7 @@ pub(crate) fn committed_fragment_showing_box(
     callbacks: &LayoutPass<'_>,
     node: crate::layout::node_data::NodeSlotId,
     geometry: impl FnOnce() -> FragmentGeometry,
-    fragment_facts: run_records::FragmentFactsDecidedByParent,
+    fragment_facts: run_state::FragmentFactsDecidedByParent,
     fragment: std::sync::Arc<Fragment>,
 ) -> std::sync::Arc<Fragment> {
     if fragment_facts.is_invisible_for_line_clamp == fragment.is_invisible_for_line_clamp {
@@ -555,7 +555,7 @@ fn snapshot_fragment(
     node: crate::layout::node_data::NodeSlotId,
     children: Vec<FragmentLink>,
     geometry: FragmentGeometry,
-    fragment_facts: run_records::FragmentFactsDecidedByParent,
+    fragment_facts: run_state::FragmentFactsDecidedByParent,
     payloads: Option<Box<FragmentPayloads>>,
 ) -> std::sync::Arc<Fragment> {
     static NEXT_IDENTITY: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
@@ -652,7 +652,7 @@ pub(crate) struct PlacementData {
 
 impl PlacementData {
     fn of_box(
-        facts: &run_records::FactsDecidedByParent,
+        facts: &run_state::FactsDecidedByParent,
         abspos_layout_inputs: Option<abspos_inputs::AbsposLayoutInputs>,
         containing_line_box_index: Option<usize>,
         committed_offset: FfiCssPixelPoint,
@@ -1008,7 +1008,7 @@ impl RunFragmentBuilder {
     pub(crate) fn note_placed_box(
         &self,
         node: crate::layout::node_data::NodeSlotId,
-        placement: run_records::BoxPlacement,
+        placement: run_state::BoxPlacement,
         cells_for_contained_abspos: Option<CellsInFrame>,
     ) {
         let placed_boxes = &mut self.inner.borrow_mut().placed_boxes;
@@ -1038,7 +1038,7 @@ impl RunFragmentBuilder {
     }
 
     /// Where the run placed `node`, if it placed the box.
-    pub(crate) fn placement_of(&self, node: crate::layout::node_data::NodeSlotId) -> Option<run_records::BoxPlacement> {
+    pub(crate) fn placement_of(&self, node: crate::layout::node_data::NodeSlotId) -> Option<run_state::BoxPlacement> {
         self.inner.borrow().placed_boxes.placement_of(node)
     }
 
@@ -1496,7 +1496,7 @@ impl RunFragmentBuilder {
         node: crate::layout::node_data::NodeSlotId,
         containing_block: Option<crate::layout::node_data::NodeSlotId>,
         geometry: FragmentGeometry,
-        facts: run_records::FactsDecidedByParent,
+        facts: run_state::FactsDecidedByParent,
         abspos_layout_inputs: Option<abspos_inputs::AbsposLayoutInputs>,
         containing_line_box_index: Option<usize>,
         committed_offset: FfiCssPixelPoint,
@@ -1606,7 +1606,7 @@ impl RunFragmentBuilder {
         fragment: std::sync::Arc<Fragment>,
         reuses_subtree: bool,
         containing_block: Option<crate::layout::node_data::NodeSlotId>,
-        facts: run_records::FactsDecidedByParent,
+        facts: run_state::FactsDecidedByParent,
         abspos_layout_inputs: Option<abspos_inputs::AbsposLayoutInputs>,
         containing_line_box_index: Option<usize>,
         committed_offset: FfiCssPixelPoint,

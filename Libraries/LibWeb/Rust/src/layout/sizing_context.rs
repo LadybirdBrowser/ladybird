@@ -200,7 +200,7 @@ impl<'cells> SizedCells<'cells> {
 }
 
 pub(crate) struct SizingContext<'pass, 'container> {
-    records: &'pass RunRecords<'pass>,
+    state: &'pass RunState<'pass>,
     callbacks: LayoutPass<'pass>,
     style_cache: Cell<Option<(Node, &'pass FfiStylePayloads)>>,
     child_run_shapes: Option<&'container dyn formatting_context::ChildRunShapes>,
@@ -254,9 +254,9 @@ pub(crate) fn stretch_fit_block_margins(
 
 impl<'pass, 'container> SizingContext<'pass, 'container> {
     #[inline]
-    pub(crate) fn new(records: &'pass RunRecords<'pass>, callbacks: LayoutPass<'pass>) -> Self {
+    pub(crate) fn new(state: &'pass RunState<'pass>, callbacks: LayoutPass<'pass>) -> Self {
         Self {
-            records,
+            state,
             callbacks,
             style_cache: Cell::new(None),
             child_run_shapes: None,
@@ -296,7 +296,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         if !style.is_absolutely_positioned() {
             return style;
         }
-        style.with_anchor_resolved_values(self.records.anchor_resolved_values_of(node))
+        style.with_anchor_resolved_values(self.state.anchor_resolved_values_of(node))
     }
 
     fn first_child(&self, node: Node) -> Node {
@@ -1159,7 +1159,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             && facts.is_anonymous()
             && !facts.is_table_cell()
             && !facts.has_auto_content_box_size()
-            && (!self.records.measures_content_inline_sizes_of(node) || self.is_anonymous_block_box_in_block_flow(node))
+            && (!self.state.measures_content_inline_sizes_of(node) || self.is_anonymous_block_box_in_block_flow(node))
     }
 
     fn is_anonymous_block_box_in_block_flow(&self, node: Node) -> bool {
@@ -1359,13 +1359,13 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
     }
 
     pub(crate) fn resolve_percentage_block_size_dependency(&self, node: Node) -> bool {
-        let found = self.records.percentage_block_size_dependency_of(node);
+        let found = self.state.percentage_block_size_dependency_of(node);
         let depends_on_percentage_block_size = found.depends_on_percentage_block_size
             || self.own_style_depends_on_percentage_block_size(node)
             || (found.has_descendant_that_depends_on_percentage_block_size
                 && self.passes_percentage_block_size_through_to_children(node));
         if depends_on_percentage_block_size {
-            self.records.note_box_depends_on_percentage_block_size(node);
+            self.state.note_box_depends_on_percentage_block_size(node);
         }
         depends_on_percentage_block_size
     }
@@ -1429,9 +1429,9 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         if !depends_on_percentage_block_size {
             return;
         }
-        self.records.note_box_depends_on_percentage_block_size(node);
+        self.state.note_box_depends_on_percentage_block_size(node);
         formatting_context::propagate_percentage_block_size_dependency_to_containing_block(
-            self.records,
+            self.state,
             &self.callbacks,
             node,
             true,
@@ -2407,12 +2407,12 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         let indefinite_inline_basis = CssPixels::default();
         root.resolve_box_model(&self.style(node), indefinite_inline_basis);
         let (contributions, percentage_block_size_dependency_its_layout_would_report) =
-            RunRecords::with_content_sizing_root(
+            RunState::with_content_sizing_root(
                 self.callbacks,
                 node,
                 self.callbacks.in_flow_containing_block(node),
-                |records, callbacks| {
-                    let sizing = SizingContext::new(records, callbacks);
+                |state, callbacks| {
+                    let sizing = SizingContext::new(state, callbacks);
                     let inline_size_under = |inline_size| {
                         sizing.atomic_root_content_inline_size(
                             SizedBox::of_own_metrics(node, &root, callbacks.frame),
@@ -2436,7 +2436,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
                             border_end: root.border_right,
                             margin_end: root.margin_right,
                         },
-                        records
+                        state
                             .percentage_block_size_dependency_of(node)
                             .depends_on_percentage_block_size
                             || sizing.skipped_child_depends_on_percentage_block_size(node),
@@ -2444,7 +2444,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
                 },
             );
         formatting_context::propagate_percentage_block_size_dependency_to_containing_block(
-            self.records,
+            self.state,
             &self.callbacks,
             node,
             percentage_block_size_dependency_its_layout_would_report,
@@ -2760,7 +2760,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
     }
 
     fn charge_content_sizing_scope_with(&self, node: Node, dependencies: IntrinsicMeasurementDependencies) {
-        if self.records.is_content_sizing() {
+        if self.state.is_content_sizing() {
             self.charge_measurement_dependency_to_measured_box_and_containing_block(
                 node,
                 dependencies.percentage_block_size,
@@ -3300,7 +3300,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
     ) -> CssPixels {
         let node = sized.node;
         let own_frame = formatting_context::frame_established_by(&self.callbacks, node);
-        let sizing = SizingContext::new(self.records, self.callbacks.in_frame_of(own_frame.writing_mode()));
+        let sizing = SizingContext::new(self.state, self.callbacks.in_frame_of(own_frame.writing_mode()));
         let constraints_in_own_frame = ContainingBlockConstraints {
             percentage_basis_inline_size: constraints.percentage_basis_block_size,
             percentage_basis_block_size: constraints.percentage_basis_inline_size,
@@ -3579,13 +3579,13 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         table_cells.padding_left = table_style.padding_left().to_px(containing_block_inline_size);
         table_cells.padding_right = table_style.padding_right().to_px(containing_block_inline_size);
 
-        RunRecords::with_content_sizing_root(
+        RunState::with_content_sizing_root(
             self.callbacks,
             table_box,
             self.callbacks.in_flow_containing_block(table_box),
-            |records, callbacks| {
+            |state, callbacks| {
                 let table_run = FormattingContextRun {
-                    records,
+                    state,
                     box_: table_box,
                     callbacks,
                     should_collect_devtools_layout_data: false,
@@ -3701,7 +3701,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
                 },
             );
         formatting_context::propagate_percentage_block_size_dependency_to_containing_block(
-            self.records,
+            self.state,
             &self.callbacks,
             table_box,
             table_depends_on_percentage_block_size,
@@ -4293,7 +4293,7 @@ mod replaced_ratio_tests {
     use crate::layout::formatting_context::LayoutStageFacts;
     use crate::layout::layout_node_arena::LayoutNodeArena;
     use crate::layout::node_data::{NodeConstructionFacts, NodeKind, StylePayloadsRef};
-    use crate::layout::run_records::LayoutScratch;
+    use crate::layout::run_state::LayoutScratch;
 
     unsafe extern "C" fn unused_container_bases(
         _: *mut c_void,
@@ -4375,8 +4375,8 @@ mod replaced_ratio_tests {
                 document_in_quirks_mode: false,
             },
         );
-        let result = RunRecords::with_root(callbacks, node, Node::INVALID, None, |records, callbacks| {
-            let context = SizingContext::new(records, callbacks);
+        let result = RunState::with_root(callbacks, node, Node::INVALID, None, |state, callbacks| {
+            let context = SizingContext::new(state, callbacks);
             let mut metrics = used_values::RootInputCells::default();
             let available = AvailableSpace {
                 inline_size: AvailableSize::Definite(CssPixels::from_integer(800)),

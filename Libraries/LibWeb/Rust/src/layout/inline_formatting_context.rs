@@ -905,7 +905,7 @@ pub(crate) fn accumulated_relative_insets_from_inline_ancestor_chain(
     callbacks: &LayoutPass<'_>,
     first_ancestor: Node,
     stop_at: Node,
-    used_insets_of: impl Fn(Node) -> run_records::UsedInsets,
+    used_insets_of: impl Fn(Node) -> run_state::UsedInsets,
 ) -> InlineAncestorChainRelativeOffset {
     let mut result = InlineAncestorChainRelativeOffset::default();
     let mut ancestor = first_ancestor;
@@ -1001,7 +1001,7 @@ pub(crate) struct InlineFormattingContext<'context> {
     /// Each inline box this context entered, as it resolved the box on entering it.
     entered_inline_boxes: RefCell<HashMap<Node, EnteredInlineBox>>,
     /// The used insets of each float this context laid out among its lines, as the float's layout resolved them.
-    used_insets_of_floats: RefCell<HashMap<Node, run_records::UsedInsets>>,
+    used_insets_of_floats: RefCell<HashMap<Node, run_state::UsedInsets>>,
 }
 
 /// What an inline formatting context resolved of an inline box on entering it.
@@ -2059,9 +2059,9 @@ impl<'context> InlineFormattingContext<'context> {
                         self.containing_block_position_in_bfc_root,
                         CssPixels::default(),
                         Some(&mut line_builder),
-                        run_records::FragmentFactsDecidedByParent {
+                        run_state::FragmentFactsDecidedByParent {
                             is_invisible_for_line_clamp: state_at_clamp_point.is_some(),
-                            ..run_records::FragmentFactsDecidedByParent::default()
+                            ..run_state::FragmentFactsDecidedByParent::default()
                         },
                     );
                     self.used_insets_of_floats
