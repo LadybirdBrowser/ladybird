@@ -156,13 +156,14 @@ struct DocumentEntry {
     state: UnsafeCell<RenderState>,
     /// The lanes of the document's presented frames (see [`super::clock`]), which a job on them takes out meanwhile.
     lanes: Cell<Option<super::clock::LaneSlot>>,
+    /// Whether a job runs on the state, which hands the job the only reference to it.
+    job_runs_on_state: Cell<bool>,
 }
 
 /// On the owner: runs `job` on the render state of `document`, made from `seed` where no job has reached it yet.
 ///
-/// A host callback the job makes may reach the same state again, as a layout round's read of an element's style does:
-/// the map is not borrowed while the job runs, and the callback reaches the state only between the job's own uses of
-/// it.
+/// The job holds the only reference to the state while it runs: nothing the job calls reaches the state of its own
+/// document again, though a job may run one on another document's state, as a dump of a nested document does.
 pub(super) fn with_state<R>(
     document: DocumentId,
     seed: Option<StateSeed>,
@@ -175,16 +176,30 @@ pub(super) fn with_state<R>(
                     Box::new(DocumentEntry {
                         state: UnsafeCell::new(RenderState::new(seed)),
                         lanes: Cell::default(),
+                        job_runs_on_state: Cell::new(false),
                     })
                 }),
                 None => states
                     .get_mut(&document)
                     .expect("a document's first job makes its render state"),
             };
-            entry.state.get()
+            (entry.state.get(), std::ptr::from_ref(&entry.job_runs_on_state))
         });
-        // SAFETY: The state stays boxed in the map until a job retires it, which no job of the document runs inside of.
-        job(unsafe { &mut *state })
+        // SAFETY: The entry stays boxed in the map until a job retires it, which no job of the document runs inside of.
+        let job_runs_on_state = unsafe { &*state.1 };
+        assert!(
+            !job_runs_on_state.replace(true),
+            "a job reached the render state of its own document again"
+        );
+        struct JobEnds<'a>(&'a Cell<bool>);
+        impl Drop for JobEnds<'_> {
+            fn drop(&mut self) {
+                self.0.set(false);
+            }
+        }
+        let _job_ends = JobEnds(job_runs_on_state);
+        // SAFETY: As above, and the assertion makes this the only reference to the state while the job runs.
+        job(unsafe { &mut *state.0 })
     })
 }
 
@@ -209,7 +224,7 @@ pub(super) fn with_lanes<R>(
 pub(super) fn retire(document: DocumentId) {
     hold(|| {
         if let Some(entry) = with_states(|states| states.remove(&document)) {
-            let DocumentEntry { state, lanes } = *entry;
+            let DocumentEntry { state, lanes, .. } = *entry;
             super::clock::retire_slot(lanes.into_inner());
             state.into_inner().retire();
         }
