@@ -1,0 +1,54 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 82 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 66 0+0+8] children: not-inline
+      BlockContainer <div.container> at [8,8] [0+0+0 600 0+0+184] [0+0+0 22 0+0+0] children: not-inline
+        TableWrapper <(anonymous)> at [8,8] [0+0+0 600 0+0+0] [0+0+0 22 0+0+0] [BFC] children: not-inline
+          Box <div.outer> at [8,8] table-box [0+0+0 600 0+0+0] [0+0+0 22 0+0+0] [TFC] children: not-inline
+            Box <(anonymous)> at [8,8] table-row [0+0+0 600 0+0+0] [0+0+0 22 0+0+0] children: not-inline
+              BlockContainer <(anonymous)> at [8,8] table-cell [0+0+0 600 0+0+0] [0+0+0 22 0+0+0] [BFC] children: not-inline
+                BlockContainer <div> at [8,8] [0+0+0 600 0+0+0] [0+0+0 22 0+0+0] children: not-inline
+                  TableWrapper <(anonymous)> at [8,8] [0+0+0 300 0+0+300] [0+0+0 22 0+0+0] [BFC] children: not-inline
+                    Box <table> at [8,8] table-box [0+0+0 300 0+0+0] [0+0+0 22 0+0+0] [TFC] children: not-inline
+                      Box <tbody> at [8,8] table-row-group [0+0+0 300 0+0+0] [0+0+0 22 0+0+0] children: not-inline
+                        Box <tr> at [8,8] table-row [0+0+0 300 0+0+0] [0+0+0 22 0+0+0] children: not-inline
+                          BlockContainer <td> at [9,9] table-cell [0+0+1 148 1+0+0] [0+0+1 20 1+0+0] [BFC] children: not-inline
+                            BlockContainer <div> at [9,9] [0+0+0 40 0+0+108] [0+0+0 20 0+0+0] children: not-inline
+                          BlockContainer <td> at [159,9] table-cell [0+0+1 148 1+0+0] [0+0+1 20 1+0+0] [BFC] children: not-inline
+                            BlockContainer <div> at [159,9] [0+0+0 40 0+0+108] [0+0+0 20 0+0+0] children: not-inline
+      BlockContainer <(anonymous)> at [8,30] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div.container> at [8,30] [0+0+0 600 0+0+184] [0+0+0 22 0+0+0] children: not-inline
+        TableWrapper <(anonymous)> at [8,30] [0+0+0 600 0+0+0] [0+0+0 22 0+0+0] [BFC] children: not-inline
+          Box <div.outer> at [8,30] table-box [0+0+0 600 0+0+0] [0+0+0 22 0+0+0] [TFC] children: not-inline
+            Box <(anonymous)> at [8,30] table-row [0+0+0 600 0+0+0] [0+0+0 22 0+0+0] children: not-inline
+              BlockContainer <(anonymous)> at [8,30] table-cell [0+0+0 600 0+0+0] [0+0+0 22 0+0+0] [BFC] children: not-inline
+                BlockContainer <div> at [8,30] [0+0+0 600 0+0+0] [0+0+0 0 0+0+0] children: not-inline
+                  TableWrapper <(anonymous)> at [308,30] floating [0+0+0 300 0+0+0] [0+0+0 22 0+0+0] [BFC] children: not-inline
+                    Box <table.float> at [308,30] table-box [0+0+0 300 0+0+0] [0+0+0 22 0+0+0] [TFC] children: not-inline
+                      Box <tbody> at [308,30] table-row-group [0+0+0 300 0+0+0] [0+0+0 22 0+0+0] children: not-inline
+                        Box <tr> at [308,30] table-row [0+0+0 300 0+0+0] [0+0+0 22 0+0+0] children: not-inline
+                          BlockContainer <td> at [309,31] table-cell [0+0+1 148 1+0+0] [0+0+1 20 1+0+0] [BFC] children: not-inline
+                            BlockContainer <div> at [309,31] [0+0+0 40 0+0+108] [0+0+0 20 0+0+0] children: not-inline
+                          BlockContainer <td> at [459,31] table-cell [0+0+1 148 1+0+0] [0+0+1 20 1+0+0] [BFC] children: not-inline
+                            BlockContainer <div> at [459,31] [0+0+0 40 0+0+108] [0+0+0 20 0+0+0] children: not-inline
+      BlockContainer <(anonymous)> at [8,52] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div.container> at [8,52] [0+0+0 600 0+0+184] [0+0+0 22 0+0+0] children: not-inline
+        TableWrapper <(anonymous)> at [8,52] [0+0+0 600 0+0+0] [0+0+0 22 0+0+0] [BFC] children: not-inline
+          Box <div.outer> at [8,52] table-box [0+0+0 600 0+0+0] [0+0+0 22 0+0+0] [TFC] children: not-inline
+            Box <(anonymous)> at [8,52] table-row [0+0+0 600 0+0+0] [0+0+0 22 0+0+0] children: not-inline
+              BlockContainer <(anonymous)> at [8,52] table-cell [0+0+0 600 0+0+0] [0+0+0 22 0+0+0] [BFC] children: not-inline
+                BlockContainer <div> at [8,52] [0+0+0 600 0+0+0] [0+0+0 22 0+0+0] children: not-inline
+                  TableWrapper <(anonymous)> at [8,52] [0+0+0 60 0+0+540] [0+0+0 22 0+0+0] [BFC] children: not-inline
+                    Box <table> at [8,52] table-box [0+0+0 60 0+0+0] [0+0+0 22 0+0+0] [TFC] children: not-inline
+                      Box <tbody> at [8,52] table-row-group [0+0+0 60 0+0+0] [0+0+0 22 0+0+0] children: not-inline
+                        Box <tr> at [8,52] table-row [0+0+0 60 0+0+0] [0+0+0 22 0+0+0] children: not-inline
+                          BlockContainer <td> at [9,53] table-cell [0+0+1 28 1+0+0] [0+0+1 20 1+0+0] [BFC] children: not-inline
+                            BlockContainer <div> at [9,53] [0+0+0 40 0+0+-12] [0+0+0 20 0+0+0] children: not-inline
+                          BlockContainer <td> at [39,53] table-cell [0+0+1 28 1+0+0] [0+0+1 20 1+0+0] [BFC] children: not-inline
+                            BlockContainer <div> at [39,53] [0+0+0 40 0+0+-12] [0+0+0 20 0+0+0] children: not-inline
+      BlockContainer <(anonymous)> at [8,74] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x82] (z-index: auto)

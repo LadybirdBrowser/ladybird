@@ -888,6 +888,8 @@ pub(crate) fn calculate_table_grid<T: TableTree>(tree: &T, table: Node, missing_
 
 pub(super) const BORDER_COLLAPSE_SEPARATE: u8 = 0;
 const TABLE_LAYOUT_FIXED: u8 = 1;
+/// The max-content inline size, in px, of a table laid out in fixed mode with a percentage width: in effect unbounded.
+const FIXED_MODE_PERCENTAGE_TABLE_MAX_CONTENT_INLINE_SIZE: i64 = 1_000_000;
 
 /// The grid columns that a table-column box, or a table-column-group box without table-column children, corresponds
 /// to (see column_track_ranges()).
@@ -2423,6 +2425,9 @@ impl<'pass> TableFormattingContext<'pass> {
             //       wrapper consistent without reading the wrapper's state from here.
             let mut value = match available_inline {
                 AvailableSize::MinContent => grid_min,
+                AvailableSize::MaxContent if self.max_content_inline_size_is_unbounded() => {
+                    CssPixels::from_integer(FIXED_MODE_PERCENTAGE_TABLE_MAX_CONTENT_INLINE_SIZE)
+                }
                 AvailableSize::MaxContent => grid_max,
                 AvailableSize::Definite(available)
                     if self.auto_table_inline_size == AutoTableInlineSize::FillsAvailableInlineSize =>
@@ -2538,6 +2543,16 @@ impl<'pass> TableFormattingContext<'pass> {
         }
     }
 
+    // AD-HOC: The spec doesn't say what a table laid out in fixed mode contributes as its max-content inline size, and
+    //         GRIDMAX only measures the first row's specified widths. A fixed-mode table with a percentage width that
+    //         can't resolve yet counts as in effect unboundedly wide there instead, so that a shrink-to-fit container
+    //         holding it fills its available space for it.
+    fn max_content_inline_size_is_unbounded(&self) -> bool {
+        self.use_fixed_mode_layout()
+            && self.style(self.run.box_).width().contains_percentage()
+            && self.table_constraints.percentage_basis_inline_size.is_none()
+    }
+
     fn max_inline_size_fits_content_to_unknown_containing_block_inline_size(&self) -> bool {
         let max_inline_size = self.style(self.run.box_).max_width();
         self.table_constraints.percentage_basis_inline_size.is_none()
@@ -2551,7 +2566,9 @@ impl<'pass> TableFormattingContext<'pass> {
         measures: TableInlineSizeMeasures,
     ) -> CssPixels {
         let intrinsic_inline_size = self.used_table_inline_size(intrinsic_sizing_constraint, measures);
-        if self.max_inline_size_fits_content_to_unknown_containing_block_inline_size() {
+        if self.max_inline_size_fits_content_to_unknown_containing_block_inline_size()
+            || (intrinsic_sizing_constraint == AvailableSize::MaxContent && self.max_content_inline_size_is_unbounded())
+        {
             return intrinsic_inline_size;
         }
         self.used_table_inline_size(AvailableSize::Definite(intrinsic_inline_size), measures)
