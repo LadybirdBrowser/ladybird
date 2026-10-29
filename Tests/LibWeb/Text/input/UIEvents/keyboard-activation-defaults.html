@@ -1,0 +1,67 @@
+<!doctype html>
+<script src="../include.js"></script>
+<button id="button">Button</button>
+<input id="inputbutton" type="button" value="Input button" />
+<script>
+    test(() => {
+        const button = document.getElementById("button");
+        const input = document.getElementById("inputbutton");
+        const keys = [
+            ["Space", " "],
+            ["Enter", "\uE006"],
+        ];
+
+        for (const element of [button, input]) {
+            for (const [name, key] of keys) {
+                const clicks = [];
+                const clicked = event => clicks.push(event.isTrusted);
+                element.addEventListener("click", clicked);
+                internals.sendText(element, key);
+                element.removeEventListener("click", clicked);
+                println(`${element.id} ${name}: trusted clicks=${JSON.stringify(clicks)}`);
+            }
+        }
+
+        for (const [name, key, eventType] of [
+            ["Enter", "\uE006", "keypress"],
+            ["Space", " ", "keydown"],
+        ]) {
+            let clicks = 0;
+            const moveFocus = () => input.focus();
+            const clicked = () => ++clicks;
+            button.addEventListener(eventType, moveFocus);
+            button.addEventListener("click", clicked);
+            internals.sendText(button, key);
+            button.removeEventListener(eventType, moveFocus);
+            button.removeEventListener("click", clicked);
+            println(
+                `${name} focus change: active=${document.activeElement.id}, pressed=${button.matches(":active")}, clicks=${clicks}`
+            );
+        }
+
+        const link = document.createElement("a");
+        link.href = "#keyboard-activation";
+        const child = document.createElement("span");
+        child.tabIndex = 0;
+        link.appendChild(child);
+        document.body.appendChild(link);
+        let descendantClicks = 0;
+        const countClick = event => {
+            ++descendantClicks;
+            event.preventDefault();
+        };
+        link.addEventListener("click", countClick);
+        internals.sendText(child, "\uE006");
+        link.removeEventListener("click", countClick);
+        println(`Focused hyperlink descendant: clicks=${descendantClicks}`);
+
+        const events = [];
+        for (const type of ["keydown", "keypress", "click", "keyup"])
+            link.addEventListener(type, event => {
+                events.push(type === "click" ? `click trusted=${event.isTrusted}` : type);
+                if (type === "click") event.preventDefault();
+            });
+        internals.sendText(link, "\uE006");
+        println(`Hyperlink Enter: ${events.join(", ")}`);
+    });
+</script>

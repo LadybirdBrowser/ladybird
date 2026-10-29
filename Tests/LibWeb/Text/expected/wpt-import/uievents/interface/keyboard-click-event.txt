@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Test that the Keyboard generated click does not fire pointer or mouse events for button when pressing space key
+Pass	Test that the Keyboard generated click does not fire pointer or mouse events for inputbutton when pressing space key
+Pass	Test that the Keyboard generated click does not fire pointer or mouse events for button when pressing enter key
+Pass	Test that the Keyboard generated click does not fire pointer or mouse events for inputbutton when pressing enter key

@@ -1,0 +1,50 @@
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-actions.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+
+<p>Tests that a button pressed by using Space or Enter will fire only the click event</p>
+<button id="button">Click Me by pressing Enter or Space</button>
+<input id="inputbutton" type="button" value="Click me by pressing Enter or Space">
+
+<script>
+let button = document.getElementById("button");
+let inputbutton = document.getElementById("inputbutton");
+let radiobutton = document.getElementById("radiobutton");
+let elementList = [button, inputbutton];
+let eventLog = [];
+const enterKey = '\uE006';
+const spaceKey = ' ';
+let keys = [spaceKey, enterKey];
+const eventList = ["pointerdown", "pointerup", "mousedown", "mouseup", "click"];
+elementList.forEach((el)=>{eventList.forEach((ev)=>el.addEventListener(ev, (e)=>{
+  eventLog.push(`${ev}_${el.id}`);
+  if(ev === "click" && currentTest){
+    currentTest.step(()=>{
+      if(e instanceof PointerEvent){
+        // We want the test to run on all browsers even if click is not a PointerEvent.
+        assert_equals(e.pointerId, -1, "Click's pointerId has reserved value");
+        assert_equals(e.pointerType, "", "Click's pointerType has default value");
+      }
+    });
+  }
+}));});
+let currentTest;
+let testElements = [button, inputbutton];
+let keyNameMap = new Map([[spaceKey, "space"], [enterKey, "enter"]]);
+keys.forEach((key)=>testElements.forEach((el)=>promise_test((test)=> new Promise(async (resolve,reject)=>{
+  currentTest = test;
+  eventLog = [];
+  var eventWatcher = new EventWatcher(test, el, ['click']);
+  let waitForClick = eventWatcher.wait_for('click');
+  el.focus();
+  let actions = new test_driver.Actions();
+  await test_driver
+    .send_keys(el, key);
+  await waitForClick;
+
+  assert_array_equals(eventLog, [`click_${el.id}`], "The Keyboard generated click only sends the click event.");
+  resolve();
+}), `Test that the Keyboard generated click does not fire pointer or mouse events for ${el.id} when pressing ${keyNameMap.get(key)} key`)));
+</script>

@@ -109,6 +109,7 @@ public:
     };
     KeyboardScrollSnapshot keyboard_scroll_snapshot() const;
     EventResult handle_keyup(UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat);
+    void cancel_keyboard_activation();
 
     EventResult handle_drag_and_drop_event(DragEvent::Type, CSSPixelPoint, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, Vector<HTML::SelectedFile> files);
     EventResult handle_pinch_event(CSSPixelPoint, PinchEvent const&, Optional<RemoteInputEventTarget>* remote_target);
@@ -157,6 +158,7 @@ private:
     int page_scroll_distance_for_key_input() const;
 
     EventResult fire_keyboard_event(Utf16FlyString const& event_name, HTML::LocalNavigable&, UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat, Optional<u32> key_code = {});
+    EventResult handle_keyboard_activation(Utf16FlyString const& event_name, UIEvents::KeyCode, u32 modifiers, DOM::Node& target, bool cancelled, bool repeat);
     [[nodiscard]] EventResult fire_text_input_event(HTML::LocalNavigable&, Utf16String const& data);
     [[nodiscard]] EventResult input_event(Utf16FlyString const& event_name, Utf16FlyString const& input_type, HTML::LocalNavigable&, Variant<u32, Utf16String> code_point_or_string, GC::Ptr<DOM::StaticRange> deletion_range = nullptr);
 
@@ -354,6 +356,7 @@ private:
     OwnPtr<MiddleButtonScrollHandler> m_middle_button_scroll_handler;
     NonnullOwnPtr<DragAndDropEventHandler> m_drag_and_drop_event_handler;
 
+    GC::Weak<DOM::Element> m_keyboard_activation_target;
     Optional<UIEvents::KeyCode> m_held_scroll_key;
     OwnPtr<HTML::UserScrollGestureHold> m_scroll_key_gesture_hold;
 

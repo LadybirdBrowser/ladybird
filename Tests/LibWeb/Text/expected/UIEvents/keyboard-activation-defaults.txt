@@ -1,0 +1,8 @@
+button Space: trusted clicks=[true]
+button Enter: trusted clicks=[true]
+inputbutton Space: trusted clicks=[true]
+inputbutton Enter: trusted clicks=[true]
+Enter focus change: active=inputbutton, pressed=false, clicks=0
+Space focus change: active=inputbutton, pressed=false, clicks=0
+Focused hyperlink descendant: clicks=0
+Hyperlink Enter: keydown, click trusted=true, keyup

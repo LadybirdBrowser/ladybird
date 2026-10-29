@@ -1209,7 +1209,7 @@ void HTMLElement::inserted()
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#fire-a-synthetic-pointer-event
-bool HTMLElement::fire_a_synthetic_pointer_event(Utf16FlyString const& type, DOM::Element& target, bool not_trusted)
+bool HTMLElement::fire_a_synthetic_pointer_event(Utf16FlyString const& type, DOM::Element& target, NotTrusted not_trusted, u32 modifiers)
 {
     // 1. Let event be the result of creating an event using PointerEvent.
     // 2. Initialize event's type attribute to e.
@@ -1219,7 +1219,14 @@ bool HTMLElement::fire_a_synthetic_pointer_event(Utf16FlyString const& type, DOM
     //     https://w3c.github.io/pointerevents/#click-auxclick-and-contextmenu
     UIEvents::PointerEventOptions options;
     options.pointer_id = -1;
-    auto event = UIEvents::PointerEvent::create(event_name, move(options), 0, 0, 0, 0, HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*this)));
+    options.ctrl_key = modifiers & UIEvents::Mod_Ctrl;
+    options.shift_key = modifiers & UIEvents::Mod_Shift;
+    options.alt_key = modifiers & UIEvents::Mod_Alt;
+    options.meta_key = modifiers & UIEvents::Mod_Super;
+    if (auto browsing_context = target.document().browsing_context())
+        options.view = browsing_context->window_proxy();
+    auto event = UIEvents::PointerEvent::create(event_name, move(options), 0, 0, 0, 0, HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(target)));
+    event->set_is_trusted(true);
 
     // 3. Initialize event's bubbles and cancelable attributes to true.
     event->set_bubbles(true);
@@ -1229,14 +1236,15 @@ bool HTMLElement::fire_a_synthetic_pointer_event(Utf16FlyString const& type, DOM
     event->set_composed(true);
 
     // 5. If the not trusted flag is set, initialize event's isTrusted attribute to false.
-    if (not_trusted) {
+    if (not_trusted == NotTrusted::Yes) {
         event->set_is_trusted(false);
     }
 
-    // FIXME: 6. Initialize event's ctrlKey, shiftKey, altKey, and metaKey attributes according to the current state
-    //           of the key input device, if any (false for any keys that are not available).
+    // 6. Initialize event's ctrlKey, shiftKey, altKey, and metaKey attributes according to the current state
+    //    of the key input device, if any (false for any keys that are not available).
 
-    // FIXME: 7. Initialize event's view attribute to target's node document's Window object, if any, and null otherwise.
+    // 7. Initialize event's view attribute to target's node document's Window object, if any, and null otherwise.
+    // NB: These attributes are initialized through options when creating the event above.
 
     // FIXME: 8. event's getModifierState() method is to return values appropriately describing the current state of the key input device.
 
@@ -1337,7 +1345,7 @@ void HTMLElement::click()
     m_click_in_progress = true;
 
     // 4. Fire a synthetic pointer event named click at this element, with the not trusted flag set.
-    fire_a_synthetic_pointer_event(HTML::EventNames::click, *this, true);
+    fire_a_synthetic_pointer_event(HTML::EventNames::click, *this, NotTrusted::Yes);
 
     // 5. Unset this element's click in progress flag.
     m_click_in_progress = false;

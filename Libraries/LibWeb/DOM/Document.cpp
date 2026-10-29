@@ -4156,6 +4156,8 @@ void Document::set_focused_area(GC::Ptr<Node> node, InvalidateFocusPseudoClasses
         return;
 
     page().invalidate_compositor_keyboard_scroll_state_for_document(*this);
+    if (auto navigable = this->navigable())
+        navigable->event_handler().cancel_keyboard_activation();
     if (node)
         m_sequential_focus_navigation_starting_point = nullptr;
 
