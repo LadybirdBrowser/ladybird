@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Tests active state of checkbox/radio when pressing space key but its default prevented</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../resources/testdriver.js"></script>
+<script src="../../../../resources/testdriver-actions.js"></script>
+<script src="../../../../resources/testdriver-vendor.js"></script>
+</head>
+<body>
+<input type="checkbox">
+<input type="radio">
+<script>
+const spaceKey = "\uE00D";
+
+function preventDefault(event) {
+  event.preventDefault();
+}
+
+promise_test(async t => {
+  const checkbox = document.querySelector("input[type=checkbox]");
+  checkbox.focus();
+  checkbox.addEventListener("keydown", preventDefault);
+  await (new test_driver.Actions()).keyDown(spaceKey).send();
+  t.add_cleanup(async () => {
+    await (new test_driver.Actions()).keyUp(spaceKey).send();
+    checkbox.removeEventListener("keydown", preventDefault);
+  });
+  assert_equals(
+    document.querySelector("input:active"),
+    null,
+    "The checkbox shouldn't be activated"
+  );
+}, "Space key shouldn't active the checkbox when its default is prevented");
+
+promise_test(async t => {
+  const radio = document.querySelector("input[type=radio]");
+  radio.focus();
+  radio.addEventListener("keydown", preventDefault);
+  await (new test_driver.Actions()).keyDown(spaceKey).send();
+  t.add_cleanup(async () => {
+    await (new test_driver.Actions()).keyUp(spaceKey).send();
+    radio.removeEventListener("keydown", preventDefault);
+  });
+  assert_equals(
+    document.querySelector("input:active"),
+    null,
+    "The radio shouldn't be activated"
+  );
+}, "Space key shouldn't active the radio when its default is prevented");
+</script>
+</body>
+</html>

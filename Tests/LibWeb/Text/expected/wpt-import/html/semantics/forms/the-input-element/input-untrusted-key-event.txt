@@ -1,0 +1,49 @@
+Harness status: OK
+
+Found 44 tests
+
+44 Pass
+Pass	Dispatching untrusted keypress events to input button should not cause submission, click, change, input, or focus events
+Pass	Dispatching untrusted keyup/keydown events to input button should not cause submission, click, change, input, or focus events
+Pass	Dispatching untrusted keypress events to input checkbox should not cause submission, click, change, input, or focus events
+Pass	Dispatching untrusted keyup/keydown events to input checkbox should not cause submission, click, change, input, or focus events
+Pass	Dispatching untrusted keypress events to input color should not cause submission, click, change, input, or focus events
+Pass	Dispatching untrusted keyup/keydown events to input color should not cause submission, click, change, input, or focus events
+Pass	Dispatching untrusted keypress events to input date should not cause submission, click, change, input, or focus events
+Pass	Dispatching untrusted keyup/keydown events to input date should not cause submission, click, change, input, or focus events
+Pass	Dispatching untrusted keypress events to input datetime-local should not cause submission, click, change, input, or focus events
+Pass	Dispatching untrusted keyup/keydown events to input datetime-local should not cause submission, click, change, input, or focus events
+Pass	Dispatching untrusted keypress events to input email should not cause submission, click, change, input, or focus events
+Pass	Dispatching untrusted keyup/keydown events to input email should not cause submission, click, change, input, or focus events
+Pass	Dispatching untrusted keypress events to input file should not cause submission, click, change, input, or focus events
+Pass	Dispatching untrusted keyup/keydown events to input file should not cause submission, click, change, input, or focus events
+Pass	Dispatching untrusted keypress events to input hidden should not cause submission, click, change, input, or focus events
+Pass	Dispatching untrusted keyup/keydown events to input hidden should not cause submission, click, change, input, or focus events
+Pass	Dispatching untrusted keypress events to input image should not cause submission, click, change, input, or focus events
+Pass	Dispatching untrusted keyup/keydown events to input image should not cause submission, click, change, input, or focus events
+Pass	Dispatching untrusted keypress events to input month should not cause submission, click, change, input, or focus events
+Pass	Dispatching untrusted keyup/keydown events to input month should not cause submission, click, change, input, or focus events
+Pass	Dispatching untrusted keypress events to input number should not cause submission, click, change, input, or focus events
+Pass	Dispatching untrusted keyup/keydown events to input number should not cause submission, click, change, input, or focus events
+Pass	Dispatching untrusted keypress events to input password should not cause submission, click, change, input, or focus events
+Pass	Dispatching untrusted keyup/keydown events to input password should not cause submission, click, change, input, or focus events
+Pass	Dispatching untrusted keypress events to input radio should not cause submission, click, change, input, or focus events
+Pass	Dispatching untrusted keyup/keydown events to input radio should not cause submission, click, change, input, or focus events
+Pass	Dispatching untrusted keypress events to input range should not cause submission, click, change, input, or focus events
+Pass	Dispatching untrusted keyup/keydown events to input range should not cause submission, click, change, input, or focus events
+Pass	Dispatching untrusted keypress events to input reset should not cause submission, click, change, input, or focus events
+Pass	Dispatching untrusted keyup/keydown events to input reset should not cause submission, click, change, input, or focus events
+Pass	Dispatching untrusted keypress events to input search should not cause submission, click, change, input, or focus events
+Pass	Dispatching untrusted keyup/keydown events to input search should not cause submission, click, change, input, or focus events
+Pass	Dispatching untrusted keypress events to input submit should not cause submission, click, change, input, or focus events
+Pass	Dispatching untrusted keyup/keydown events to input submit should not cause submission, click, change, input, or focus events
+Pass	Dispatching untrusted keypress events to input tel should not cause submission, click, change, input, or focus events
+Pass	Dispatching untrusted keyup/keydown events to input tel should not cause submission, click, change, input, or focus events
+Pass	Dispatching untrusted keypress events to input text should not cause submission, click, change, input, or focus events
+Pass	Dispatching untrusted keyup/keydown events to input text should not cause submission, click, change, input, or focus events
+Pass	Dispatching untrusted keypress events to input time should not cause submission, click, change, input, or focus events
+Pass	Dispatching untrusted keyup/keydown events to input time should not cause submission, click, change, input, or focus events
+Pass	Dispatching untrusted keypress events to input url should not cause submission, click, change, input, or focus events
+Pass	Dispatching untrusted keyup/keydown events to input url should not cause submission, click, change, input, or focus events
+Pass	Dispatching untrusted keypress events to input week should not cause submission, click, change, input, or focus events
+Pass	Dispatching untrusted keyup/keydown events to input week should not cause submission, click, change, input, or focus events

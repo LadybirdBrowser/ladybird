@@ -1,0 +1,52 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Details activation with space bar</title>
+<link rel="author" href="mailto:emilio@crisal.io" title="Emilio Cobos Álvarez">
+<link rel="author" href="https://mozilla.org" title="Mozilla">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1726454">
+<script src=../../../../resources/testharness.js></script>
+<script src=../../../../resources/testharnessreport.js></script>
+<script src="../../../../resources/testdriver.js"></script>
+<script src="../../../../resources/testdriver-actions.js"></script>
+<script src="../../../../resources/testdriver-vendor.js"></script>
+<style>
+:root {
+  scroll-behavior: instant;
+}
+.spacer {
+  height: 200vh;
+}
+</style>
+<details>
+  <summary>Activate me with the <kbd>Space</kbd> key</summary>
+  <p>Summary</p>
+</details>
+<div class="spacer"></div>
+<script>
+function tick() {
+  return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+}
+
+promise_test(async t => {
+  const details = document.querySelector("details");
+  const summary = details.querySelector("summary");
+
+  summary.focus();
+  assert_equals(document.activeElement, summary, "Summary should be focusable");
+  assert_false(details.open, "Details should be closed");
+
+  const oldScrollY = window.scrollY;
+  assert_equals(oldScrollY, 0, "Should be at top");
+
+  window.addEventListener("scroll", t.unreached_func("Unexpected scroll event"));
+
+  await test_driver.send_keys(summary, " ");
+
+  assert_true(details.open, "Space bar on summary should open details");
+  assert_equals(window.scrollY, oldScrollY, "Scroll position shouldn't change");
+
+  await tick();
+
+  assert_equals(window.scrollY, oldScrollY, "Scroll position shouldn't change");
+});
+</script>
