@@ -1404,8 +1404,13 @@ struct OperatorGlyph {
 /// Lays out an <mo> whose text was laid out in a block formatting context with the glyph it is drawn with instead,
 /// if it is stretched or a large operator.
 // https://w3c.github.io/mathml-core/#layout-of-operators
-pub(super) fn layout_operator(run: &FormattingContextRun<'_>, input: &LayoutInput, result: &mut ChildLayoutResult) {
-    let context = MathFormattingContext::new(run);
+pub(super) fn layout_operator(
+    run: &FormattingContextRun<'_>,
+    input: &LayoutInput,
+    result: &mut ChildLayoutResult,
+    root: &mut used_values::RootInputCells,
+) {
+    let context = MathFormattingContext::new(run, *root);
     let operator = run.box_;
     if context.kind(operator) != MathLayoutKind::Mo {
         return;
@@ -1419,10 +1424,9 @@ pub(super) fn layout_operator(run: &FormattingContextRun<'_>, input: &LayoutInpu
     let ascent = glyphs.ascent - baseline_shift;
     let descent = glyphs.descent + baseline_shift;
     let inline_size = glyphs.advance;
-    let used = run.records.used_values(operator);
     // NB: The math content box sizes the content box, unless the width property gives it a size.
     if sizing_context::is_plain_auto(context.style(operator).width()) {
-        used.update_cells(|cells| cells.content_inline_size = inline_size);
+        root.content_inline_size = inline_size;
     }
     result.automatic_content_block_size = ascent + descent;
     result.baselines = DerivedBaselines {
@@ -1462,6 +1466,8 @@ pub(super) struct MathFormattingContext<'pass> {
     fragment_arrivals_of_children: RefCell<Vec<fragment_tree::ChildFragmentArrival>>,
     /// What placing each child takes of the box its latest layout handed back.
     placed_children: RefCell<HashMap<Node, formatting_context::PlacedChild>>,
+    /// The cells in which this context sizes the run's root, in the frame the root lays its contents out in.
+    root_cells: Cell<used_values::RootInputCells>,
 }
 
 impl<'pass> MathFormattingContext<'pass> {
@@ -1480,14 +1486,20 @@ impl<'pass> MathFormattingContext<'pass> {
         Some(arrivals.swap_remove(index))
     }
 
-    pub(super) fn new(run: &FormattingContextRun<'pass>) -> Self {
+    pub(super) fn new(run: &FormattingContextRun<'pass>, root_cells: used_values::RootInputCells) -> Self {
         Self {
             run: run.clone(),
             content: MathContent::default(),
             derived_baselines_of_root_box: DerivedBaselines::default(),
             fragment_arrivals_of_children: RefCell::new(Vec::new()),
             placed_children: RefCell::new(HashMap::default()),
+            root_cells: Cell::new(root_cells),
         }
+    }
+
+    /// The cells of the run's root as this context left them.
+    pub(super) fn root_cells(&self) -> used_values::RootInputCells {
+        self.root_cells.get()
     }
 
     fn style(&self, node: Node) -> StyleValues<'pass> {
@@ -2169,7 +2181,7 @@ impl<'pass> MathFormattingContext<'pass> {
             input,
             child_cells,
             true,
-            run.percentage_block_insets_of_root_children_have_definite_basis(run.records.used_values(run.box_)),
+            run.percentage_block_insets_of_root_children_have_definite_basis(&self.root_cells),
         );
         if let Some(fragment_arrival) = fragment_arrival {
             self.fragment_arrivals_of_children.borrow_mut().push(fragment_arrival);
@@ -2200,7 +2212,7 @@ impl<'pass> MathFormattingContext<'pass> {
         let kind = self.kind(root);
         let constraints = run.sizing().constraints_for_child_context(
             root,
-            &run.root_record(),
+            &self.root_cells,
             layout_input.containing_block_constraints,
         );
         let nodes = self.in_flow_children();
@@ -2275,8 +2287,7 @@ impl<'pass> MathFormattingContext<'pass> {
         // If a different size is specified for the content box, that size is used instead and the inline-start and
         // block-start edges of the math content box are aligned with the ones of the content box, unless otherwise
         // specified in a specific layout algorithm.
-        let root_used = run.records.used_values(root);
-        let content_box_inline_size = root_used.content_inline_size();
+        let content_box_inline_size = self.root_cells.content_inline_size();
         let centers_math_content = match kind {
             // If the computed display property is equal to block math then that math content box is rendered
             // horizontally centered within the content box.
@@ -2286,10 +2297,10 @@ impl<'pass> MathFormattingContext<'pass> {
             MathLayoutKind::Mfrac | MathLayoutKind::Munder | MathLayoutKind::Mover | MathLayoutKind::Munderover => true,
             _ => false,
         };
-        let content_box_is_known = root_used.has_definite_inline_size();
+        let content_box_is_known = self.root_cells.has_definite_inline_size();
         // NB: A MathML box measured for its content inline sizes takes the inline size of its math content.
         if !content_box_is_known {
-            root_used.set_content_inline_size(content.inline_size);
+            self.root_cells.set_content_inline_size(content.inline_size);
         }
         let is_rtl = root_style.direction() == direction::RTL;
         let mut math_content_line_left = CssPixels::default();
@@ -2631,8 +2642,7 @@ impl<'pass> MathFormattingContext<'pass> {
         }
     }
 
-    pub(super) fn parent_did_dimension(&self) {
-        let root_used = self.run.records.used_values(self.run.box_);
+    pub(super) fn parent_did_dimension(&self, root_after_epilogue: used_values::RootInputCells) {
         for child in self.run.callbacks.children(self.run.box_) {
             let facts = self.facts(child);
             if !facts.is_box() || !facts.is_absolutely_positioned() {
@@ -2642,8 +2652,8 @@ impl<'pass> MathFormattingContext<'pass> {
                 rect: geometry::LogicalRect {
                     offset: Default::default(),
                     size: geometry::LogicalSize {
-                        inline_size: root_used.content_inline_size(),
-                        block_size: root_used.content_block_size(),
+                        inline_size: root_after_epilogue.content_inline_size,
+                        block_size: root_after_epilogue.content_block_size,
                     },
                 },
                 inline_alignment: abspos_inputs::StaticPositionAlignment::Start,
