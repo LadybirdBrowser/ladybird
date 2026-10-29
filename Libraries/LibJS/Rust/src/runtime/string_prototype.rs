@@ -725,13 +725,14 @@ impl StringPrototype {
         {
             let (string, that_value) = (vm.this_value().as_string(), vm.argument(0).as_string());
             let (view, that_view) = (string.utf16_string_view(), that_value.utf16_string_view());
-            if view == that_view {
-                return Ok(Value::from_i32(0));
-            }
+            // NB: The ASCII comparison finds identical strings equal too.
             if let (Utf16View::Ascii(view), Utf16View::Ascii(that_view)) = (view, that_view)
                 && let Some(result) = try_fast_ascii_string_compare(view, that_view)
             {
                 return Ok(Value::from_i32(result));
+            }
+            if view == that_view {
+                return Ok(Value::from_i32(0));
             }
             // NB: The views are taken again after making the collator, which may collect garbage.
             let collator = realm.intrinsics().default_collator(vm);
