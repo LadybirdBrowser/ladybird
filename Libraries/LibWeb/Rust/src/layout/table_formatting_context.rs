@@ -1050,7 +1050,7 @@ impl TableFormattingContext<'_> {
         }
         if removed > CssPixels::default() {
             let table_used = self.used_values(self.run.box_);
-            table_used.set_content_inline_size(table_used.content_inline_size.get() - removed);
+            table_used.set_content_inline_size(table_used.content_inline_size() - removed);
         }
     }
 }
@@ -1425,18 +1425,20 @@ impl<'pass> TableFormattingContext<'pass> {
         let table_used = self.used_values(self.run.box_);
         let old_border_box_top = table_used.border_box_top(false);
         let old_inline_borders = table_used.border_box_left(false) + table_used.border_box_right(false);
-        table_used.border_top.set(outer.top);
-        table_used.border_right.set(outer.right);
-        table_used.border_bottom.set(outer.bottom);
-        table_used.border_left.set(outer.left);
-        // https://www.w3.org/TR/CSS22/tables.html#collapsing-borders
-        // "In this model, a table does not have padding (but does have margins)."
-        table_used.padding_top.set(CssPixels::default());
-        table_used.padding_right.set(CssPixels::default());
-        table_used.padding_bottom.set(CssPixels::default());
-        table_used.padding_left.set(CssPixels::default());
-        table_used.uses_collapsing_borders_model.set(true);
-        table_used.is_collapsed_borders_table_box.set(true);
+        table_used.update_cells(|cells| {
+            cells.border_top = outer.top;
+            cells.border_right = outer.right;
+            cells.border_bottom = outer.bottom;
+            cells.border_left = outer.left;
+            // https://www.w3.org/TR/CSS22/tables.html#collapsing-borders
+            // "In this model, a table does not have padding (but does have margins)."
+            cells.padding_top = CssPixels::default();
+            cells.padding_right = CssPixels::default();
+            cells.padding_bottom = CssPixels::default();
+            cells.padding_left = CssPixels::default();
+            cells.uses_collapsing_borders_model = true;
+            cells.is_collapsed_borders_table_box = true;
+        });
         self.table_box_content_block_offset_in_wrapper += table_used.border_box_top(true) - old_border_box_top;
         let freed_inline = old_inline_borders - (table_used.border_box_left(true) + table_used.border_box_right(true));
         if let AvailableSize::Definite(available) = self.available_space.inline_size {
@@ -2304,7 +2306,7 @@ impl<'pass> TableFormattingContext<'pass> {
         };
         let edges = if self.style(self.run.box_).box_sizing() == box_sizing::BORDER_BOX {
             let used = self.used_values(self.run.box_);
-            let collapsed = used.uses_collapsing_borders_model.get();
+            let collapsed = used.uses_collapsing_borders_model();
             used.border_box_left(collapsed) + used.border_box_right(collapsed)
         } else {
             CssPixels::default()
@@ -2342,7 +2344,7 @@ impl<'pass> TableFormattingContext<'pass> {
         // NB: The table wrapper box carries the margins, so a stretch size fills the basis with the table's border box.
         if constraint.is_stretch() {
             let used = self.used_values(self.run.box_);
-            let collapsed = used.uses_collapsing_borders_model.get();
+            let collapsed = used.uses_collapsing_borders_model();
             let stretch_fit_size =
                 (basis - used.border_box_left(collapsed) - used.border_box_right(collapsed)).max(CssPixels::default());
             return self.resolve_calc_size_of_keyword(constraint, stretch_fit_size, basis);
@@ -2352,7 +2354,7 @@ impl<'pass> TableFormattingContext<'pass> {
         let mut resolved = constraint.to_px(basis);
         if self.style(self.run.box_).box_sizing() == box_sizing::BORDER_BOX {
             let used = self.used_values(self.run.box_);
-            let collapsed = used.uses_collapsing_borders_model.get();
+            let collapsed = used.uses_collapsing_borders_model();
             resolved -= used.border_box_left(collapsed) + used.border_box_right(collapsed);
         }
         resolved.max(CssPixels::default())
@@ -2565,7 +2567,7 @@ impl<'pass> TableFormattingContext<'pass> {
                 .used_table_inline_size_when_laid_out_at_intrinsic_inline_size(AvailableSize::MaxContent, measures),
         };
         let table_used = self.used_values(self.run.box_);
-        let collapsed = table_used.uses_collapsing_borders_model.get();
+        let collapsed = table_used.uses_collapsing_borders_model();
         let border_box_inline_size = |content_inline_size: CssPixels| {
             table_used.border_box_left(collapsed) + content_inline_size + table_used.border_box_right(collapsed)
         };
@@ -2952,7 +2954,7 @@ impl<'pass> TableFormattingContext<'pass> {
         };
         if let Some(minimum) = self.min_border_box_block_size_from_flex_item {
             let used = self.used_values(self.run.box_);
-            let collapsed = used.uses_collapsing_borders_model.get();
+            let collapsed = used.uses_collapsing_borders_model();
             let content_min =
                 minimum - used.border_box_top(collapsed) - used.border_box_bottom(collapsed) - row_spacing;
             self.table_block_size = self.table_block_size.max(content_min);
@@ -2964,7 +2966,7 @@ impl<'pass> TableFormattingContext<'pass> {
             let mut specified = table_style.height().to_px(self.table_constraints.block_basis());
             if table_style.box_sizing() == box_sizing::BORDER_BOX {
                 let used = self.used_values(self.run.box_);
-                let collapsed = used.uses_collapsing_borders_model.get();
+                let collapsed = used.uses_collapsing_borders_model();
                 specified -= used.border_box_top(collapsed) + used.border_box_bottom(collapsed);
             }
             self.table_block_size = self.table_block_size.max(specified - row_spacing);
@@ -3173,7 +3175,7 @@ impl<'pass> TableFormattingContext<'pass> {
         let table_used = self.used_values(self.run.box_);
         let block_spacing = self.border_spacing_block();
         let inline_spacing = self.border_spacing_inline();
-        let inline_offset = table_used.border_box_left(table_used.uses_collapsing_borders_model.get()) + inline_spacing;
+        let inline_offset = table_used.border_box_left(table_used.uses_collapsing_borders_model()) + inline_spacing;
         let mut row_block_offset = self.table_box_content_block_offset_in_wrapper + block_spacing;
         let row_inline_size = self
             .columns
@@ -3232,7 +3234,7 @@ impl<'pass> TableFormattingContext<'pass> {
             );
             group_block_offset = block_end + if has_rows { block_spacing } else { CssPixels::default() };
         }
-        let padding_top = table_used.padding_top.get();
+        let padding_top = table_used.padding_top();
         let total =
             row_block_offset.max(group_block_offset) - self.table_box_content_block_offset_in_wrapper - padding_top;
         self.table_block_size = self.table_block_size.max(total);
@@ -3349,7 +3351,7 @@ impl<'pass> TableFormattingContext<'pass> {
         // https://www.w3.org/TR/css-tables-3/#bounding-box-assignment
         let first = &self.row_boxes[cell.row_index].record;
         if cell.row_span == 1 {
-            return first.content_block_size.get();
+            return first.content_block_size();
         }
         // When the row span is greater than 1, the borders of inner rows within the span have to be
         // included in the content block size of the spanning cell. First top and final bottom borders are
@@ -3359,9 +3361,9 @@ impl<'pass> TableFormattingContext<'pass> {
         for index in 0..cell.row_span {
             let used = &self.row_boxes[cell.row_index + index].record;
             if index == 0 {
-                span += used.content_block_size.get() + used.border_box_bottom(false);
+                span += used.content_block_size() + used.border_box_bottom(false);
             } else if index == cell.row_span - 1 {
-                span += used.border_box_top(false) + used.content_block_size.get();
+                span += used.border_box_top(false) + used.content_block_size();
             } else {
                 span += used.border_box_block_size(false);
             }
@@ -3435,7 +3437,7 @@ impl<'pass> TableFormattingContext<'pass> {
         let table_used = self.used_values(self.run.box_);
         let inline_spacing = self.border_spacing_inline();
         let block_spacing = self.border_spacing_block();
-        let inline_offset = table_used.border_box_left(table_used.uses_collapsing_borders_model.get()) + inline_spacing;
+        let inline_offset = table_used.border_box_left(table_used.uses_collapsing_borders_model()) + inline_spacing;
 
         // The rows were positioned by position_row_boxes(): the columns extend from the first row to the end of
         // the last one.
@@ -3590,7 +3592,7 @@ impl<'pass> TableFormattingContext<'pass> {
             (self.columns.len() + 1) * self.border_spacing_inline()
         };
         // The assignable table inline size is its used inline size minus the inline-axis border spacing.
-        let assignable = table_used.content_inline_size.get() - total_spacing;
+        let assignable = table_used.content_inline_size() - total_spacing;
         let fixed = self.use_fixed_mode_layout();
         // Distribute the inline size of the table among columns.
         distribute_inline_size(&mut self.columns, assignable, fixed);

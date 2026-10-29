@@ -1422,7 +1422,7 @@ pub(super) fn layout_operator(run: &FormattingContextRun<'_>, input: &LayoutInpu
     let used = run.records.used_values(operator);
     // NB: The math content box sizes the content box, unless the width property gives it a size.
     if sizing_context::is_plain_auto(context.style(operator).width()) {
-        used.content_inline_size.set(inline_size);
+        used.update_cells(|cells| cells.content_inline_size = inline_size);
     }
     result.automatic_content_block_size = ascent + descent;
     result.baselines = DerivedBaselines {
@@ -2276,7 +2276,7 @@ impl<'pass> MathFormattingContext<'pass> {
         // block-start edges of the math content box are aligned with the ones of the content box, unless otherwise
         // specified in a specific layout algorithm.
         let root_used = run.records.used_values(root);
-        let content_box_inline_size = root_used.content_inline_size.get();
+        let content_box_inline_size = root_used.content_inline_size();
         let centers_math_content = match kind {
             // If the computed display property is equal to block math then that math content box is rendered
             // horizontally centered within the content box.
@@ -2642,8 +2642,8 @@ impl<'pass> MathFormattingContext<'pass> {
                 rect: geometry::LogicalRect {
                     offset: Default::default(),
                     size: geometry::LogicalSize {
-                        inline_size: root_used.content_inline_size.get(),
-                        block_size: root_used.content_block_size.get(),
+                        inline_size: root_used.content_inline_size(),
+                        block_size: root_used.content_block_size(),
                     },
                 },
                 inline_alignment: abspos_inputs::StaticPositionAlignment::Start,

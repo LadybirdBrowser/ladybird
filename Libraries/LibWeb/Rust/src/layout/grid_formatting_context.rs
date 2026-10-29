@@ -2249,8 +2249,8 @@ impl<'pass> GridFormattingContext<'pass> {
     fn container_padding_start(&self, axis: Axis) -> CssPixels {
         let used = self.container_used();
         let (left_or_top, right_or_bottom) = axis.select(
-            (used.padding_left.get(), used.padding_right.get()),
-            (used.padding_top.get(), used.padding_bottom.get()),
+            (used.padding_left(), used.padding_right()),
+            (used.padding_top(), used.padding_bottom()),
         );
         if self.tracks_are_reversed(axis) {
             right_or_bottom
@@ -2262,8 +2262,8 @@ impl<'pass> GridFormattingContext<'pass> {
     fn container_padding_end(&self, axis: Axis) -> CssPixels {
         let used = self.container_used();
         let (left_or_top, right_or_bottom) = axis.select(
-            (used.padding_left.get(), used.padding_right.get()),
-            (used.padding_top.get(), used.padding_bottom.get()),
+            (used.padding_left(), used.padding_right()),
+            (used.padding_top(), used.padding_bottom()),
         );
         if self.tracks_are_reversed(axis) {
             left_or_top
@@ -3095,13 +3095,13 @@ impl<'pass> GridFormattingContext<'pass> {
         let used = self.container_used();
         let (left_or_top, right_or_bottom) = if axis.is_column() {
             (
-                used.margin_left.get() + used.border_left.get() + used.padding_left.get(),
-                used.padding_right.get() + used.border_right.get() + used.margin_right.get(),
+                used.margin_left() + used.border_left() + used.padding_left(),
+                used.padding_right() + used.border_right() + used.margin_right(),
             )
         } else {
             (
-                used.margin_top.get() + used.border_top.get() + used.padding_top.get(),
-                used.padding_bottom.get() + used.border_bottom.get() + used.margin_bottom.get(),
+                used.margin_top() + used.border_top() + used.padding_top(),
+                used.padding_bottom() + used.border_bottom() + used.margin_bottom(),
             )
         };
         let parent = container_as_parent_grid_item;
@@ -4116,19 +4116,19 @@ impl<'pass> GridFormattingContext<'pass> {
 
     fn grid_container_alignment_size(&self, axis: Axis) -> CssPixels {
         if axis.is_column() {
-            return self.container_used().content_inline_size.get();
+            return self.container_used().content_inline_size();
         }
         if self.use_row_alignment_container_size {
             let style = self.style(self.run.box_);
             if !crate::layout::sizing_context::is_plain_auto(style.min_height()) {
                 return self
                     .row_alignment_container_size
-                    .max(self.container_used().content_block_size.get());
+                    .max(self.container_used().content_block_size());
             }
             return self.row_alignment_container_size;
         }
         if self.container_used().has_definite_block_size() {
-            self.container_used().content_block_size.get()
+            self.container_used().content_block_size()
         } else {
             self.row_alignment_container_size
         }
@@ -5158,8 +5158,8 @@ impl<'pass> GridFormattingContext<'pass> {
                     rect: geometry::LogicalRect {
                         offset: Default::default(),
                         size: geometry::LogicalSize {
-                            inline_size: self.container_used().content_inline_size.get(),
-                            block_size: self.container_used().content_block_size.get(),
+                            inline_size: self.container_used().content_inline_size(),
+                            block_size: self.container_used().content_block_size(),
                         },
                     },
                     inline_alignment: static_position_alignment(child, horizontal_axis),

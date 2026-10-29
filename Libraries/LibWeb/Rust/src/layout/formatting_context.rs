@@ -396,7 +396,7 @@ impl PlacedChild {
                         std::sync::Arc::new(inline_content::InlineContent::finish(
                             lines,
                             callbacks.arena(),
-                            record.content_inline_size.get(),
+                            record.content_inline_size(),
                             record.frame.get().writing_mode(),
                         ))
                     })
@@ -1723,7 +1723,7 @@ fn apply_root_sizing_directives(
                 }
                 if let Some(block_size) = directives.forced_content_block_size {
                     used.set_content_block_size(block_size);
-                    used.update(|cells| cells.has_definite_block_size = true);
+                    used.update_cells(|cells| cells.has_definite_block_size = true);
                 }
             }
             *input
@@ -1752,7 +1752,7 @@ fn dimension_block_level_root(
     if let Some(block_size) = input.sizing.forced_content_block_size {
         let used = run.root_record();
         used.set_content_block_size(block_size);
-        used.update(|cells| cells.has_definite_block_size = true);
+        used.update_cells(|cells| cells.has_definite_block_size = true);
         body_input.available_space.block_size = AvailableSize::definite(block_size);
         return body_input;
     }
@@ -2510,7 +2510,7 @@ fn lay_out_run_root_and_contents<'pass>(
         let record = records.used_values(box_);
         root_lines.finish(
             callbacks.arena(),
-            record.content_inline_size.get(),
+            record.content_inline_size(),
             record.frame.get().writing_mode(),
         );
         result = result_in_parent_frame(run, result, parent_frame, own_frame);
@@ -2577,7 +2577,7 @@ fn lay_out_run_root_and_contents<'pass>(
     let record = records.used_values(box_);
     let root_line_data = root_lines.finish(
         callbacks.arena(),
-        record.content_inline_size.get(),
+        record.content_inline_size(),
         record.frame.get().writing_mode(),
     );
     result.depends_on_percentage_block_size = run.sizing().resolve_percentage_block_size_dependency(run.box_);
@@ -2730,13 +2730,13 @@ fn result_in_parent_frame(
         // orthogonal flow, the used block size of the child is calculated to fit its content; and this resulting
         // content-based size is used as input to the inline-axis min-content size and max-content size of the
         // parent.
-        let content_inline_size = used.content_inline_size.get();
+        let content_inline_size = used.content_inline_size();
         // NB: The root's baselines lie across its own block axis, which is the horizontal axis of its parent's frame.
         let block_start_is_left = matches!(
             own_frame.side_in(geometry::Side::Top, parent_frame),
             geometry::Side::Left
         );
-        let content_block_size = used.content_block_size.get();
+        let content_block_size = used.content_block_size();
         let along_parent_horizontal_axis = |baseline: Option<CssPixels>| {
             baseline.map(|baseline| {
                 if block_start_is_left {
