@@ -401,7 +401,7 @@ impl<Live: AsRef<LayoutNodeArena>> PaintRead for Live {
     fn with_grapheme_segmenter<R>(&self, id: NodeSlotId, read: impl FnOnce(&GraphemeSegmenter) -> R) -> Option<R> {
         self.as_ref()
             .text_content(id)
-            .map(|content| read(content.grapheme_segmenter()))
+            .map(|content| read(&GraphemeSegmenter::new(&content.text)))
     }
 
     fn text_fragments(&self, primary: NodeSlotId) -> TextFragments {

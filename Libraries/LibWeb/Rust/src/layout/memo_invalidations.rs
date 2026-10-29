@@ -15,10 +15,12 @@
 use super::fc_run_cache::FcRunCacheStore;
 use super::in_flow_block_cache::InFlowBlockCacheStore;
 use super::node_data::NodeSlotId;
+use super::rendered_text::TextMemos;
 
 #[derive(Clone, Copy, Default)]
 struct SlotNotes {
     noted: bool,
+    text_memos_dropped: bool,
     run_cache_entries_dropped: bool,
     in_flow_block_entries_dropped: bool,
     fragment_cache_epoch_bumped: bool,
@@ -58,7 +60,15 @@ impl MemoInvalidations {
     /// The box in `slot` left the arena, which drops all its memo entries.
     pub(crate) fn note_slot_freed(&mut self, slot: u32) {
         self.note_run_cache_entries_dropped(slot);
-        self.notes_of(slot).in_flow_block_entries_dropped = true;
+        let notes = self.notes_of(slot);
+        notes.text_memos_dropped = true;
+        notes.in_flow_block_entries_dropped = true;
+    }
+
+    /// The text row in `slot` got other rendered text, which the chunks and segmenter made of the old text no longer
+    /// describe.
+    pub(crate) fn note_text_replaced(&mut self, slot: u32) {
+        self.notes_of(slot).text_memos_dropped = true;
     }
 
     /// The fragment cache epoch of `node` moved on: its run cache entries need the sweep, and its in-flow block entry,
@@ -82,7 +92,12 @@ impl MemoInvalidations {
     }
 
     /// Applies the notes to the memos, in the order the boxes were first noted.
-    pub(crate) fn apply_to(self, run_cache: &FcRunCacheStore, in_flow_block_cache: &InFlowBlockCacheStore) {
+    pub(crate) fn apply_to(
+        self,
+        run_cache: &FcRunCacheStore,
+        in_flow_block_cache: &InFlowBlockCacheStore,
+        text_memos: &TextMemos,
+    ) {
         for slot in self.noted_slots {
             let notes = self.slots[slot as usize];
             if notes.run_cache_entries_dropped {
@@ -98,6 +113,9 @@ impl MemoInvalidations {
             }
             if notes.in_flow_block_entries_dropped {
                 in_flow_block_cache.remove_entry(slot);
+            }
+            if notes.text_memos_dropped {
+                text_memos.forget(slot);
             }
         }
     }

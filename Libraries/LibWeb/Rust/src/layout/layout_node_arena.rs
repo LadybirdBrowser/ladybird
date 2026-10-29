@@ -5302,6 +5302,7 @@ impl LayoutNodeArena {
         }
         state.content = Some(content);
         drop(state);
+        self.memo_invalidations.get_mut().note_text_replaced(id.slot_index());
         self.searchable_text = None;
         // Publication can happen through a C++ text read before the enrolled
         // sync runs. Invalidate here so every publication invalidates layout,

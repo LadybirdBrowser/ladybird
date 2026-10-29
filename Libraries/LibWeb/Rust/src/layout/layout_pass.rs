@@ -246,6 +246,30 @@ impl<'arena> LayoutPass<'arena> {
             .expect("text node content must be synced to the arena before layout")
     }
 
+    /// The chunks of the text row `node` for `key`, made by `compute` where the last run that chunked the row's text did
+    /// so for another key.
+    pub(crate) fn text_chunks(
+        &self,
+        node: Node,
+        key: &super::rendered_text::TextChunkCacheKey,
+        compute: impl FnOnce() -> Vec<super::text_chunker::TextChunk>,
+    ) -> std::sync::Arc<super::rendered_text::CachedTextChunks> {
+        self.scratch
+            .text_memos()
+            .text_chunks(node, self.text_content(node).rendered(), key, compute)
+    }
+
+    /// Runs `read` with the grapheme segmenter of the text row `node`.
+    pub(crate) fn with_grapheme_segmenter<R>(
+        &self,
+        node: Node,
+        read: impl FnOnce(&super::text_chunker::GraphemeSegmenter) -> R,
+    ) -> R {
+        self.scratch
+            .text_memos()
+            .with_grapheme_segmenter(node, self.text_content(node).rendered(), read)
+    }
+
     #[inline]
     pub(crate) fn style_payloads(&self, node: Node) -> &'arena FfiStylePayloads {
         self.style_payloads_if_styled(node)

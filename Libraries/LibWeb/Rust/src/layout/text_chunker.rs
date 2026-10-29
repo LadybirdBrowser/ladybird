@@ -1121,7 +1121,7 @@ pub(crate) fn text_chunks(
         ) && parent_style.text_orientation() == text_orientation::MIXED,
     };
     let text = &callbacks.text_content(node).text;
-    callbacks.text_content(node).text_chunks(&key, || {
+    callbacks.text_chunks(node, &key, || {
         chunk_text(TextChunkInputs {
             text,
             frozen_font_list: &key.frozen_font_list,
