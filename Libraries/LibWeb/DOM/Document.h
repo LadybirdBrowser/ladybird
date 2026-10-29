@@ -967,6 +967,8 @@ public:
     bool has_focus_for_bindings() const;
     bool has_focus() const;
 
+    bool is_fully_active_descendant_of_a_top_level_traversable_with_user_attention() const;
+
     bool allow_focus() const;
 
     void set_parser(Badge<HTML::HTMLParser>, HTML::HTMLParser&);

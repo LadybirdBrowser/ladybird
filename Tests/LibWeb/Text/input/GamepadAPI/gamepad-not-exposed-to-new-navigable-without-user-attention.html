@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="gamepad-helper.js"></script>
+<script>
+    promiseTest(async () => {
+        const gamepad = internals.connectVirtualGamepad();
+        await pumpGamepadEvents();
+        listenForGamepadConnected();
+
+        gamepad.setButton(gamepad.buttons[0], true);
+        await pumpGamepadEvents();
+        gamepad.setButton(gamepad.buttons[0], false);
+        await pumpGamepadEvents();
+
+        const iframe = document.createElement("iframe");
+        const loaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        iframe.srcdoc = "<!DOCTYPE html>";
+        document.body.appendChild(iframe);
+        await loaded;
+        const iframeNavigator = iframe.contentWindow.navigator;
+        println(`Gamepads in a new navigable before pressing a button: ${iframeNavigator.getGamepads().length}`);
+
+        internals.setPageFocus(false);
+        gamepad.setButton(gamepad.buttons[0], true);
+        await pumpGamepadEvents();
+        println(`Gamepads in the new navigable after pressing a button without system focus: ${iframeNavigator.getGamepads().length}`);
+        gamepad.setButton(gamepad.buttons[0], false);
+        await pumpGamepadEvents();
+        internals.setPageFocus(true);
+
+        gamepad.setButton(gamepad.buttons[0], true);
+        await pumpGamepadEvents();
+        println(`Gamepads in the new navigable after pressing a button with user attention: ${iframeNavigator.getGamepads().length}`);
+
+        gamepad.disconnect();
+        await pumpGamepadEvents();
+    });
+</script>

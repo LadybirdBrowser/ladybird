@@ -170,6 +170,17 @@ void Page::visit_edges(JS::Cell::Visitor& visitor)
     });
 }
 
+// https://html.spec.whatwg.org/multipage/interaction.html#user-attention
+bool Page::top_level_traversable_has_user_attention() const
+{
+    // A top-level traversable has user attention when its system visibility state is "visible", and it either has
+    // system focus or user agent widgets directly related to it can receive keyboard input channeled from the
+    // operating system.
+    // FIXME: Also give the top-level traversable user attention while a user agent widget related to it, such as the
+    //        location bar, can receive keyboard input.
+    return m_system_visibility_state == HTML::VisibilityState::Visible && client().has_focus();
+}
+
 // The navigable keyboard input goes to in the tab, which is the top-level traversable until focus moves into another.
 GC::Ptr<HTML::Navigable> Page::focused_navigable() const
 {
