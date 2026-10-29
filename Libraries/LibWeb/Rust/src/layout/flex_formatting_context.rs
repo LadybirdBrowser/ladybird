@@ -265,7 +265,7 @@ impl<'pass> FlexFormattingContext<'pass> {
     /// sizes it in.
     fn box_metrics(&self, node: Node) -> used_values::RootInputCells {
         if node == self.run.box_ {
-            return used_values::RootInputCells::capture(self.container_used());
+            return self.container_used().cells();
         }
         let index = self
             .index_of_flex_item(node)

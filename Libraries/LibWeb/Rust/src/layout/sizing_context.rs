@@ -20,7 +20,7 @@ pub(crate) struct ResolvedBlockSize {
 }
 
 impl ResolvedBlockSize {
-    pub(crate) fn apply_to_record(self, used: used_values::RecordInFrame<'_>) {
+    pub(crate) fn apply_to_record(self, used: used_values::CellsInFrame<'_>) {
         used.update_cells(|cells| self.apply_to_cells(cells));
     }
 
@@ -188,11 +188,11 @@ impl<'metrics> SizedBox<'metrics> {
 #[derive(Clone, Copy)]
 pub(crate) struct SizedRecord<'record> {
     pub(crate) node: Node,
-    pub(crate) record: used_values::RecordInFrame<'record>,
+    pub(crate) record: used_values::CellsInFrame<'record>,
 }
 
 impl<'record> SizedRecord<'record> {
-    pub(crate) fn new(node: Node, record: used_values::RecordInFrame<'record>) -> Self {
+    pub(crate) fn new(node: Node, record: used_values::CellsInFrame<'record>) -> Self {
         Self { node, record }
     }
 
@@ -4375,12 +4375,12 @@ mod replaced_ratio_tests {
             callbacks,
             node,
             Node::INVALID,
-            used_values::RootInputCells::capture(&UsedValues::default()),
+            used_values::RootInputCells::default(),
             callbacks.frame,
             None,
             |records, callbacks| {
                 let context = SizingContext::new(records, callbacks);
-                let mut metrics = used_values::RootInputCells::capture(&UsedValues::default());
+                let mut metrics = used_values::RootInputCells::default();
                 let available = AvailableSpace {
                     inline_size: AvailableSize::Definite(CssPixels::from_integer(800)),
                     block_size: AvailableSize::Indefinite,

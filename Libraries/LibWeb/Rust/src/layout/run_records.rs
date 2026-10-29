@@ -304,7 +304,7 @@ impl LaidOutChildBox {
     /// sizes the child itself instead of handing it to a run of its own.
     pub(crate) fn sized_in_parent_run(record: &UsedValues, baselines: DerivedBaselines) -> Self {
         Self {
-            cells: used_values::RootInputCells::capture(record),
+            cells: record.cells(),
             baselines,
             // NB: A box that establishes an orthogonal flow is laid out by a run of its own.
             orthogonal_flow_baselines: None,
