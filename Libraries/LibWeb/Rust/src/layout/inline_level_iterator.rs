@@ -512,6 +512,7 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
         InlineLevelIterator {
             entered_box_model_nodes: iterator.entered_box_model_nodes,
             items: ItemQueue::Owned(iterator.items.into_iter()),
+            items_kept_for_looking_ahead: 0,
         }
     }
 
@@ -1102,6 +1103,8 @@ impl ItemQueue {
 pub(crate) struct InlineLevelIterator {
     entered_box_model_nodes: Vec<Node>,
     items: ItemQueue,
+    /// The number of items at the end that this iterator only shows to look ahead, and does not hand out.
+    items_kept_for_looking_ahead: usize,
 }
 
 impl InlineLevelIterator {
@@ -1126,6 +1129,7 @@ impl InlineLevelIterator {
             return Self {
                 entered_box_model_nodes: entered_box_model_nodes.to_vec(),
                 items: ItemQueue::Shared { items, next: 0 },
+                items_kept_for_looking_ahead: 0,
             };
         }
         let iterator = Self::new(context);
@@ -1152,6 +1156,7 @@ impl InlineLevelIterator {
                     next: 0,
                 }
             },
+            items_kept_for_looking_ahead: 0,
         }
     }
 
@@ -1179,6 +1184,7 @@ impl InlineLevelIterator {
         Self {
             entered_box_model_nodes: stash.entered_box_model_nodes,
             items: ItemQueue::Owned(stash.items.into_iter()),
+            items_kept_for_looking_ahead: 0,
         }
     }
 
@@ -1220,6 +1226,9 @@ impl InlineLevelIterator {
     }
 
     pub(crate) fn next(&mut self) -> Option<Item> {
+        if self.items.as_slice().len() <= self.items_kept_for_looking_ahead {
+            return None;
+        }
         self.items.next()
     }
 
@@ -1239,12 +1248,14 @@ impl InlineLevelIterator {
         self.items.skip(count);
     }
 
-    /// An iterator over a copy of the items left in `range`, which leaves the items of this one in place.
-    pub(crate) fn duplicate(&self, range: std::ops::Range<usize>) -> Self {
-        let items: Vec<Item> = self.items()[range].to_vec();
+    /// An iterator over a copy of the items left in `range`, which leaves the items of this one in place. It looks
+    /// ahead at the items after `range` up to `look_ahead_end`, without handing them out.
+    pub(crate) fn duplicate(&self, range: std::ops::Range<usize>, look_ahead_end: usize) -> Self {
+        let items: Vec<Item> = self.items()[range.start..look_ahead_end].to_vec();
         Self {
             entered_box_model_nodes: self.entered_box_model_nodes.clone(),
             items: ItemQueue::Owned(items.into_iter()),
+            items_kept_for_looking_ahead: look_ahead_end - range.end,
         }
     }
 

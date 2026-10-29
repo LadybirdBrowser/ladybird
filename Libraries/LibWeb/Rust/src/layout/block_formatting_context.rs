@@ -186,6 +186,24 @@ impl LaidOutBlockLevelBox {
     }
 }
 
+/// The floats and margins of a block formatting context before finding where lines break changes them.
+pub(crate) struct StateBeforeFindingLineBreaks {
+    float_count: usize,
+    bands: SmallVec<[FloatBand; 4]>,
+    lowest_left_margin_edge: CssPixels,
+    lowest_right_margin_edge: CssPixels,
+    margin_state: BlockMarginState,
+}
+
+/// A float whose contents are laid out, which is yet to be positioned and placed.
+pub(crate) struct FloatLaidOutAheadOfItsPosition {
+    node: Node,
+    placed_float: formatting_context::PlacedChild,
+    pub(crate) cells: used_values::RootInputCells,
+    laid_out_float_handed_back_by_its_run: Option<run_state::LaidOutChildBox>,
+    fragment_arrival: Option<fragment_tree::ChildFragmentArrival>,
+}
+
 /// A box a block formatting context sizes, in cells the call laying the box out owns: the cells the context lays the
 /// box out in, or the cells it sizes a child in ahead of the child's layout.
 #[derive(Clone, Copy)]
@@ -4752,13 +4770,41 @@ impl<'pass> BlockFormattingContext<'pass> {
         input: LayoutInput,
         containing_block_position_in_root: FfiCssPixelPoint,
         block_offset: CssPixels,
-        mut line_builder: Option<&mut line_builder::LineBuilder<'_, '_>>,
+        line_builder: Option<&mut line_builder::LineBuilder<'_, '_>>,
         fragment_facts: run_state::FragmentFactsDecidedByParent,
     ) -> (
         abspos_engine::InFlowBoxInsets,
         Option<run_state::LaidOutChildBox>,
         Option<FfiCssPixelPoint>,
     ) {
+        let laid_out_float = self.lay_out_float_ahead_of_its_position(
+            run,
+            sized_float,
+            block_container,
+            input,
+            containing_block_position_in_root,
+        );
+        self.position_laid_out_float(
+            run,
+            laid_out_float,
+            block_container,
+            input,
+            containing_block_position_in_root,
+            block_offset,
+            line_builder,
+            fragment_facts,
+        )
+    }
+
+    /// Lays out the contents of a float, which does not depend on where the float goes.
+    pub(crate) fn lay_out_float_ahead_of_its_position(
+        &self,
+        run: &FormattingContextRun<'pass>,
+        sized_float: ChildSizedHere<'_>,
+        block_container: BlockContainer,
+        input: LayoutInput,
+        containing_block_position_in_root: FfiCssPixelPoint,
+    ) -> FloatLaidOutAheadOfItsPosition {
         let node = sized_float.node;
         let available_space = input.available_space;
         assert!(self.facts(node).is_floating());
@@ -4782,26 +4828,40 @@ impl<'pass> BlockFormattingContext<'pass> {
         self.dimension_float_root_inline_size(sized_float, block_container, &float_input);
         let (float_layout, fragment_arrival, float_box) =
             self.layout_inside(run, sized_float, block_container, float_input, false);
-        let placed_float = formatting_context::PlacedChild::of_laid_out_box(&float_box);
-        let float_box_cells = float_box.cells;
-        let laid_out_float_handed_back_by_its_run = float_layout.is_some().then_some(float_box);
-        let containing_block_rect = self.containing_block_rect(block_container, containing_block_position_in_root);
-        let containing_block_rect_now = containing_block_rect.translated(
-            CssPixels::default(),
-            self.block_offset_adjustment_from_pending_ancestor_block_start_margins(block_container.node),
-        );
+        FloatLaidOutAheadOfItsPosition {
+            node,
+            placed_float: formatting_context::PlacedChild::of_laid_out_box(&float_box),
+            cells: float_box.cells,
+            laid_out_float_handed_back_by_its_run: float_layout.is_some().then_some(float_box),
+            fragment_arrival,
+        }
+    }
 
-        // Next, float to the left and/or right
-        // FIXME: Honor writing-mode, direction and text-orientation.
-        let style = self.style(node);
-        let side = if matches!(style.float_(), float::LEFT | float::INLINE_START) {
-            Some(FloatSide::Left)
-        } else if matches!(style.float_(), float::RIGHT | float::INLINE_END) {
-            Some(FloatSide::Right)
-        } else {
-            None
-        };
-        let Some(side) = side else {
+    /// Positions and places a float laid out ahead of its position.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn position_laid_out_float(
+        &self,
+        run: &FormattingContextRun<'pass>,
+        laid_out_float: FloatLaidOutAheadOfItsPosition,
+        block_container: BlockContainer,
+        input: LayoutInput,
+        containing_block_position_in_root: FfiCssPixelPoint,
+        block_offset: CssPixels,
+        mut line_builder: Option<&mut line_builder::LineBuilder<'_, '_>>,
+        fragment_facts: run_state::FragmentFactsDecidedByParent,
+    ) -> (
+        abspos_engine::InFlowBoxInsets,
+        Option<run_state::LaidOutChildBox>,
+        Option<FfiCssPixelPoint>,
+    ) {
+        let FloatLaidOutAheadOfItsPosition {
+            node,
+            placed_float,
+            cells: float_box,
+            laid_out_float_handed_back_by_its_run,
+            fragment_arrival,
+        } = laid_out_float;
+        let Some(side) = Self::float_side(self.style(node)) else {
             formatting_context::leave_child_unplaced(
                 run,
                 placed_float.with_fragment_facts(fragment_facts),
@@ -4813,60 +4873,17 @@ impl<'pass> BlockFormattingContext<'pass> {
                 None,
             );
         };
-        let float_box = float_box_cells;
-        let mut margin_box_ceiling = if let Some(line_builder) = line_builder.as_deref_mut() {
-            line_builder.ceiling_for_float_to_be_inserted_here(float_box.margin_box_inline_size(false))
-        } else {
-            block_offset
-        };
-        if side == FloatSide::Left && matches!(style.clear(), clear::LEFT | clear::BOTH | clear::INLINE_START) {
-            margin_box_ceiling =
-                margin_box_ceiling.max(self.lowest_left_margin_edge.get() - containing_block_rect_now.y);
-        }
-        if side == FloatSide::Right && matches!(style.clear(), clear::RIGHT | clear::BOTH | clear::INLINE_END) {
-            margin_box_ceiling =
-                margin_box_ceiling.max(self.lowest_right_margin_edge.get() - containing_block_rect_now.y);
-        }
-        let mut ceiling_in_root = containing_block_rect_now.y + margin_box_ceiling;
-        if let Some(last) = self.floats.borrow().last().copied() {
-            ceiling_in_root = ceiling_in_root.max(
-                last.margin_box_rect_in_root_coordinate_space.y
-                    + self.block_offset_adjustment_from_pending_ancestor_block_start_margins(last.box_),
-            );
-        }
-        let placement = self.place_float(
+        let (floating_box, content_block_offset) = self.add_float_beside_lines(
+            node,
             side,
             &float_box,
-            available_space,
-            containing_block_rect_now,
-            ceiling_in_root,
+            block_container,
+            input,
+            containing_block_position_in_root,
+            block_offset,
+            line_builder.as_deref_mut(),
         );
-        let content_block_offset = placement.block_start - containing_block_rect_now.y
-            + float_box.margin_top()
-            + float_box.border_box_top(false);
-        let mut margin_box_rect = Self::margin_box_rect(&float_box)
-            .translated(CssPixels::default(), content_block_offset)
-            .translated(containing_block_rect.x, containing_block_rect.y);
-        let floating_box = FloatingBox {
-            box_: node,
-            side,
-            offset_from_edge: placement.offset_from_edge,
-            left_margin_edge_to_content_edge: float_box.margin_left() + float_box.border_box_left(false),
-            left_content_edge_to_right_margin_edge: float_box.content_inline_size()
-                + float_box.margin_right()
-                + float_box.border_box_right(false),
-            bottom_margin_edge: content_block_offset
-                + float_box.content_block_size()
-                + float_box.margin_box_bottom(false),
-            margin_box_rect_in_root_coordinate_space: margin_box_rect,
-            containing_block_rect_in_root_coordinate_space: containing_block_rect,
-            percentage_basis_inline_size: input.containing_block_constraints.percentage_basis_inline_size,
-        };
-        margin_box_rect.x = floating_box.margin_box_left_in_root_coordinate_space();
-        let mut floating_box = floating_box;
-        floating_box.margin_box_rect_in_root_coordinate_space = margin_box_rect;
-        self.floats.borrow_mut().push(floating_box);
-        self.add_float_to_bands(floating_box, containing_block_rect);
+        let margin_box_rect = floating_box.margin_box_rect_in_root_coordinate_space;
 
         let bottom_margin_edge = margin_box_rect.bottom();
         if let Some(fragmentainer) = self.run.fragmentainer.as_deref()
@@ -4910,6 +4927,142 @@ impl<'pass> BlockFormattingContext<'pass> {
             fragment_arrival,
         );
         (insets, laid_out_float_handed_back_by_its_run, Some(content_offset))
+    }
+
+    /// Adds a float laid out in `float_box` beside the lines `line_builder` builds, only to find where they break.
+    pub(crate) fn add_float_for_finding_line_breaks(
+        &self,
+        node: Node,
+        float_box: &used_values::RootInputCells,
+        block_container: BlockContainer,
+        input: LayoutInput,
+        containing_block_position_in_root: FfiCssPixelPoint,
+        line_builder: &mut line_builder::LineBuilder<'_, '_>,
+    ) {
+        let Some(side) = Self::float_side(self.style(node)) else {
+            return;
+        };
+        self.add_float_beside_lines(
+            node,
+            side,
+            float_box,
+            block_container,
+            input,
+            containing_block_position_in_root,
+            CssPixels::default(),
+            Some(&mut *line_builder),
+        );
+        line_builder.recalculate_available_space();
+    }
+
+    /// The floats and margins of this context before finding where lines break changes them.
+    pub(crate) fn state_before_finding_line_breaks(&self) -> StateBeforeFindingLineBreaks {
+        StateBeforeFindingLineBreaks {
+            float_count: self.floating_box_count(),
+            bands: self.bands.borrow().clone(),
+            lowest_left_margin_edge: self.lowest_left_margin_edge.get(),
+            lowest_right_margin_edge: self.lowest_right_margin_edge.get(),
+            margin_state: self.margin_state.borrow().clone(),
+        }
+    }
+
+    /// Takes out the floats added and restores the margins committed to find where lines break since `state` was the
+    /// state of this context.
+    pub(crate) fn restore_state_after_finding_line_breaks(&self, state: StateBeforeFindingLineBreaks) {
+        *self.margin_state.borrow_mut() = state.margin_state;
+        if self.floating_box_count() == state.float_count {
+            return;
+        }
+        self.floats.borrow_mut().truncate(state.float_count);
+        *self.bands.borrow_mut() = state.bands;
+        self.lowest_left_margin_edge.set(state.lowest_left_margin_edge);
+        self.lowest_right_margin_edge.set(state.lowest_right_margin_edge);
+    }
+
+    fn float_side(style: StyleValues<'_>) -> Option<FloatSide> {
+        // FIXME: Honor writing-mode, direction and text-orientation.
+        if matches!(style.float_(), float::LEFT | float::INLINE_START) {
+            Some(FloatSide::Left)
+        } else if matches!(style.float_(), float::RIGHT | float::INLINE_END) {
+            Some(FloatSide::Right)
+        } else {
+            None
+        }
+    }
+
+    /// Floats the box laid out in `float_box` to `side`, below the content `line_builder` already put on its line
+    /// where the float does not fit beside it, and adds it to the floats of this context.
+    #[allow(clippy::too_many_arguments)]
+    fn add_float_beside_lines(
+        &self,
+        node: Node,
+        side: FloatSide,
+        float_box: &used_values::RootInputCells,
+        block_container: BlockContainer,
+        input: LayoutInput,
+        containing_block_position_in_root: FfiCssPixelPoint,
+        block_offset: CssPixels,
+        line_builder: Option<&mut line_builder::LineBuilder<'_, '_>>,
+    ) -> (FloatingBox, CssPixels) {
+        let style = self.style(node);
+        let containing_block_rect = self.containing_block_rect(block_container, containing_block_position_in_root);
+        let containing_block_rect_now = containing_block_rect.translated(
+            CssPixels::default(),
+            self.block_offset_adjustment_from_pending_ancestor_block_start_margins(block_container.node),
+        );
+        let mut margin_box_ceiling = if let Some(line_builder) = line_builder {
+            line_builder.ceiling_for_float_to_be_inserted_here(float_box.margin_box_inline_size(false))
+        } else {
+            block_offset
+        };
+        if side == FloatSide::Left && matches!(style.clear(), clear::LEFT | clear::BOTH | clear::INLINE_START) {
+            margin_box_ceiling =
+                margin_box_ceiling.max(self.lowest_left_margin_edge.get() - containing_block_rect_now.y);
+        }
+        if side == FloatSide::Right && matches!(style.clear(), clear::RIGHT | clear::BOTH | clear::INLINE_END) {
+            margin_box_ceiling =
+                margin_box_ceiling.max(self.lowest_right_margin_edge.get() - containing_block_rect_now.y);
+        }
+        let mut ceiling_in_root = containing_block_rect_now.y + margin_box_ceiling;
+        if let Some(last) = self.floats.borrow().last().copied() {
+            ceiling_in_root = ceiling_in_root.max(
+                last.margin_box_rect_in_root_coordinate_space.y
+                    + self.block_offset_adjustment_from_pending_ancestor_block_start_margins(last.box_),
+            );
+        }
+        let placement = self.place_float(
+            side,
+            float_box,
+            input.available_space,
+            containing_block_rect_now,
+            ceiling_in_root,
+        );
+        let content_block_offset = placement.block_start - containing_block_rect_now.y
+            + float_box.margin_top()
+            + float_box.border_box_top(false);
+        let mut margin_box_rect = Self::margin_box_rect(float_box)
+            .translated(CssPixels::default(), content_block_offset)
+            .translated(containing_block_rect.x, containing_block_rect.y);
+        let mut floating_box = FloatingBox {
+            box_: node,
+            side,
+            offset_from_edge: placement.offset_from_edge,
+            left_margin_edge_to_content_edge: float_box.margin_left() + float_box.border_box_left(false),
+            left_content_edge_to_right_margin_edge: float_box.content_inline_size()
+                + float_box.margin_right()
+                + float_box.border_box_right(false),
+            bottom_margin_edge: content_block_offset
+                + float_box.content_block_size()
+                + float_box.margin_box_bottom(false),
+            margin_box_rect_in_root_coordinate_space: margin_box_rect,
+            containing_block_rect_in_root_coordinate_space: containing_block_rect,
+            percentage_basis_inline_size: input.containing_block_constraints.percentage_basis_inline_size,
+        };
+        margin_box_rect.x = floating_box.margin_box_left_in_root_coordinate_space();
+        floating_box.margin_box_rect_in_root_coordinate_space = margin_box_rect;
+        self.floats.borrow_mut().push(floating_box);
+        self.add_float_to_bands(floating_box, containing_block_rect);
+        (floating_box, content_block_offset)
     }
 
     fn layout_inline_children(

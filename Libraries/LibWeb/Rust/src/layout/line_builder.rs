@@ -54,12 +54,11 @@ struct LineRelativeAlignedSubtree {
 pub(crate) struct LineBuilder<'builder, 'context> {
     context: &'builder inline_formatting_context::InlineFormattingContext<'context>,
     available_inline_size_for_current_line: AvailableSize,
-    /// The inline size that text-wrap-style: balance chose for the lines of each group between forced breaks to break
-    /// at, below the available inline size.
-    balanced_inline_sizes: Vec<Option<CssPixels>>,
+    /// The inline size that text-wrap-style: balance takes off the available inline size of each line of each group
+    /// between forced breaks, for the lines to break at.
+    balancing_reductions: Vec<Option<CssPixels>>,
     forced_break_count: usize,
-    /// Whether this builder only finds where lines break, to balance them, and leaves the margins of the parent as
-    /// they are.
+    /// Whether this builder only finds where lines break, to balance them, and leaves the boxes on the lines unplaced.
     only_finds_line_breaks: bool,
     current_block_offset: CssPixels,
     max_block_size_on_current_line: CssPixels,
@@ -86,31 +85,18 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         builder
     }
 
-    /// A builder that only finds where the lines of one group between forced breaks break when they break at
-    /// `balanced_inline_size`.
+    /// A builder that only finds where the lines break, to balance them.
     pub(crate) fn new_for_finding_balanced_line_breaks(
         context: &'builder inline_formatting_context::InlineFormattingContext<'context>,
-        balanced_inline_size: CssPixels,
-        follows_forced_break: bool,
     ) -> Self {
         let mut builder = Self::initialized(context);
-        builder.balanced_inline_sizes = vec![Some(balanced_inline_size)];
         builder.only_finds_line_breaks = true;
-        builder.is_continuation = follows_forced_break;
-        builder.begin_new_line(
-            false,
-            true,
-            if follows_forced_break {
-                ForcedBreak::Yes
-            } else {
-                ForcedBreak::No
-            },
-        );
+        builder.begin_new_line(false, true, ForcedBreak::No);
         builder
     }
 
-    pub(crate) fn set_balanced_inline_sizes(&mut self, balanced_inline_sizes: Vec<Option<CssPixels>>) {
-        self.balanced_inline_sizes = balanced_inline_sizes;
+    pub(crate) fn set_balancing_reductions(&mut self, balancing_reductions: Vec<Option<CssPixels>>) {
+        self.balancing_reductions = balancing_reductions;
     }
 
     pub(crate) fn new_for_continuation(
@@ -137,7 +123,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         Self {
             context,
             available_inline_size_for_current_line: AvailableSize::Indefinite,
-            balanced_inline_sizes: Vec::new(),
+            balancing_reductions: Vec::new(),
             forced_break_count: 0,
             only_finds_line_breaks: false,
             current_block_offset: CssPixels::default(),
@@ -342,13 +328,13 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
     /// The inline size the current line breaks at. Balancing breaks lines before they fill the available inline size,
     /// but they still align within it.
     fn inline_size_to_break_current_line_at(&self) -> AvailableSize {
-        let balanced_inline_size = self
-            .balanced_inline_sizes
+        let balancing_reduction = self
+            .balancing_reductions
             .get(self.forced_break_count)
             .copied()
             .flatten();
-        match (self.available_inline_size_for_current_line, balanced_inline_size) {
-            (AvailableSize::Definite(available), Some(balanced)) => AvailableSize::Definite(available.min(balanced)),
+        match (self.available_inline_size_for_current_line, balancing_reduction) {
+            (AvailableSize::Definite(available), Some(reduction)) => AvailableSize::Definite(available - reduction),
             (available, _) => available,
         }
     }
@@ -361,12 +347,8 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         Some(available - self.line(line_index).physical_horizontal_extent())
     }
 
-    fn remaining_inline_size_on_current_line(&mut self) -> Option<CssPixels> {
-        self.remaining_inline_size_on_current_line_within(self.inline_size_to_break_current_line_at())
-    }
-
-    /// NB: Balancing does not break words that fit the available inline size, so they overflow the balanced inline
-    ///     size instead.
+    /// NB: Balancing does not break words that fit the available inline size, so they overflow the inline size the
+    ///     line breaks at instead.
     pub(crate) fn remaining_inline_size_for_overflow_break(&mut self) -> Option<CssPixels> {
         self.remaining_inline_size_on_current_line_within(self.available_inline_size_for_current_line)
     }
@@ -407,7 +389,9 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         }
     }
     pub(crate) fn current_line_has_no_space_left_by_floats(&mut self) -> bool {
-        let Some(remaining) = self.remaining_inline_size_on_current_line() else {
+        let Some(remaining) =
+            self.remaining_inline_size_on_current_line_within(self.available_inline_size_for_current_line)
+        else {
             return false;
         };
         if remaining > CssPixels::default() {
@@ -544,7 +528,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             return;
         }
         let line_index = self.ensure_last_line_index();
-        if self.line(line_index).has_block_level_box || self.only_finds_line_breaks {
+        if self.line(line_index).has_block_level_box {
             return;
         }
         let margin = self.context().parent_commit_pending_margin_before_inline_content();
@@ -667,7 +651,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
     }
 
     fn should_break(&mut self, next_item_inline_size: CssPixels) -> bool {
-        if self.current_line_is_empty() {
+        let inline_size_to_break_at = if self.current_line_is_empty() {
             let line_height = self.containing_style().line_height();
             if !self
                 .context()
@@ -675,11 +659,14 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             {
                 return false;
             }
-        }
+            // NB: Balancing moves breaks between the content of lines, not lines past floats.
+            self.available_inline_size_for_current_line
+        } else {
+            self.inline_size_to_break_current_line_at()
+        };
         let line_index = self.ensure_last_line_index();
         let current_inline_size = self.line(line_index).physical_horizontal_extent();
-        self.inline_size_to_break_current_line_at()
-            .pixels_greater_than(current_inline_size + next_item_inline_size)
+        inline_size_to_break_at.pixels_greater_than(current_inline_size + next_item_inline_size)
     }
 
     pub(super) fn baseline_for_style(style: StyleValues, line_height: CssPixels) -> CssPixels {

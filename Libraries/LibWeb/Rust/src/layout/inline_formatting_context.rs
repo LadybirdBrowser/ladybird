@@ -1002,6 +1002,8 @@ pub(crate) struct InlineFormattingContext<'context> {
     entered_inline_boxes: RefCell<HashMap<Node, EnteredInlineBox>>,
     /// The used insets of each float this context laid out among its lines, as the float's layout resolved them.
     used_insets_of_floats: RefCell<HashMap<Node, run_state::UsedInsets>>,
+    /// The floats among the lines laid out ahead of them, to balance the lines.
+    floats_laid_out_ahead_of_lines: RefCell<HashMap<Node, block_formatting_context::FloatLaidOutAheadOfItsPosition>>,
 }
 
 /// What an inline formatting context resolved of an inline box on entering it.
@@ -1043,6 +1045,7 @@ impl<'context> InlineFormattingContext<'context> {
             margins_collapse_through_interrupting_blocks: RefCell::new(HashMap::default()),
             entered_inline_boxes: RefCell::new(HashMap::default()),
             used_insets_of_floats: RefCell::new(HashMap::default()),
+            floats_laid_out_ahead_of_lines: RefCell::new(HashMap::default()),
         }
     }
 
@@ -1778,8 +1781,8 @@ impl<'context> InlineFormattingContext<'context> {
     }
 
     /// Whether text-wrap-style: balance balances the lines of this context. Lines are only balanced while finding where
-    /// they break leaves the rest of the layout alone, so not beside floats or with floats or block-level boxes among
-    /// them, and not when they are clamped or fragmented.
+    /// they break leaves the rest of the layout alone, so not with block-level boxes among them, and not when they are
+    /// clamped or fragmented.
     fn balances_lines(
         &self,
         iterator: &inline_level_iterator::InlineLevelIterator,
@@ -1800,10 +1803,45 @@ impl<'context> InlineFormattingContext<'context> {
         {
             return false;
         }
-        if self.any_floats_intrude_in_block_range(CssPixels::default(), max_dimension_value()) {
-            return false;
+        // NB: Floats are laid out ahead of the lines, before the floats ahead of them are placed, so not the ones whose
+        //     stretch inline size avoids those floats.
+        iterator.items().iter().all(|item| {
+            item.type_.stays_on_lines()
+                || (item.type_ == inline_level_iterator::ItemType::FloatingElement
+                    && !self.style(item.node).width().is_stretch())
+        })
+    }
+
+    /// Lays out the floats among the items of `iterator` ahead of the lines, so that finding where the lines break
+    /// can float them beside the lines without laying them out again.
+    fn lay_out_floats_ahead_of_lines(&self, iterator: &inline_level_iterator::InlineLevelIterator) {
+        for item in iterator.items() {
+            if item.type_ == inline_level_iterator::ItemType::FloatingElement {
+                let laid_out_float = self.lay_out_float_ahead_of_its_position(item.node);
+                self.floats_laid_out_ahead_of_lines
+                    .borrow_mut()
+                    .insert(item.node, laid_out_float);
+            }
         }
-        iterator.items().iter().all(|item| item.type_.stays_on_lines())
+    }
+
+    fn lay_out_float_ahead_of_its_position(
+        &self,
+        node: Node,
+    ) -> block_formatting_context::FloatLaidOutAheadOfItsPosition {
+        // NB: Every float is sized in cells ahead of its layout, which takes them.
+        let cells_of_float_ahead_of_its_layout = Cell::new(used_values::cells_before_sizing(
+            &self.callbacks,
+            node,
+            self.input.containing_block_constraints,
+        ));
+        self.parent.lay_out_float_ahead_of_its_position(
+            self.run,
+            block_formatting_context::ChildSizedHere::ahead_of_its_run(node, &cells_of_float_ahead_of_its_layout),
+            self.block_container,
+            self.input,
+            self.containing_block_position_in_bfc_root,
+        )
     }
 
     // https://drafts.csswg.org/css-text-4/#valdef-text-wrap-style-balance
@@ -1811,37 +1849,65 @@ impl<'context> InlineFormattingContext<'context> {
     // possible. This should avoid changing-- and in the case of 5 or fewer lines must not change-- the number of line
     // boxes the block would contain if text-wrap were set to auto.
     // ...
+    // The remaining space to consider is that which remains after placing floats and inline content, but before any
+    // adjustments due to text justification. Line boxes are balanced when the standard deviation from the average
+    // inline-size of the remaining space in each line box is reduced over the block (including lines that end in a
+    // forced line break).
+    // ...
     // Groups of lines separated by a forced line break are processed separately.
-    /// The inline size the lines of each group break at to balance them, if they are balanced.
-    fn balanced_inline_sizes(&self, iterator: &inline_level_iterator::InlineLevelIterator) -> Vec<Option<CssPixels>> {
+    /// The inline size taken off the available inline size of each line of each group to balance them, if they are
+    /// balanced. Leaving each line of a group the same space unused balances the space that remains on them.
+    fn balancing_reductions(&self, iterator: &inline_level_iterator::InlineLevelIterator) -> Vec<Option<CssPixels>> {
         let items = iterator.items();
-        let mut balanced_inline_sizes = Vec::new();
+        let group_ends: Vec<usize> = items
+            .iter()
+            .enumerate()
+            .filter(|(_, item)| item.type_ == inline_level_iterator::ItemType::ForcedBreak)
+            .map(|(index, _)| index)
+            .chain(std::iter::once(items.len()))
+            .collect();
+        let state = self.state_before_finding_line_breaks();
+        let mut line_builder = line_builder::LineBuilder::new_for_finding_balanced_line_breaks(self);
+        let mut reductions = Vec::new();
         let mut group_start = 0;
-        for (index, item) in items.iter().enumerate() {
-            if item.type_ == inline_level_iterator::ItemType::ForcedBreak {
-                balanced_inline_sizes.push(self.balanced_inline_size_of_group(
-                    iterator,
-                    group_start..index,
-                    !balanced_inline_sizes.is_empty(),
-                ));
-                group_start = index + 1;
+        for (group_index, &group_end) in group_ends.iter().enumerate() {
+            // NB: Breaking the items looks ahead past the forced break after them, as far as the next group reaches.
+            let look_ahead_end = group_ends
+                .get(group_index + 1)
+                .map_or(items.len(), |&next_group_end| (next_group_end + 1).min(items.len()));
+            let reduction = self.balancing_reduction_of_group(
+                iterator,
+                group_start..group_end,
+                look_ahead_end,
+                &line_builder,
+                &reductions,
+            );
+            reductions.push(reduction);
+            if group_end == items.len() {
+                break;
             }
+            // NB: Break the group and the forced break after it into lines as balanced, so that the lines of the next
+            //     group are tried from where they start.
+            line_builder.set_balancing_reductions(reductions.clone());
+            let mut group_items = iterator.duplicate(group_start..group_end + 1, look_ahead_end);
+            let item_count = group_items.items().len();
+            self.break_items_into_lines(&mut group_items, &mut line_builder, item_count, None, None, None);
+            group_start = group_end + 1;
         }
-        balanced_inline_sizes.push(self.balanced_inline_size_of_group(
-            iterator,
-            group_start..items.len(),
-            !balanced_inline_sizes.is_empty(),
-        ));
-        balanced_inline_sizes
+        self.line_data_mut().line_boxes.clear();
+        self.restore_state_after_finding_line_breaks(state);
+        reductions
     }
 
-    /// The inline size the lines of the items in `group` break at to balance them: found by bisecting down to a pixel,
-    /// it breaks the items into as many lines as the available inline size does.
-    fn balanced_inline_size_of_group(
-        &self,
+    /// The inline size taken off the available inline size of each line of the items in `group` to balance them:
+    /// found by bisecting down to a pixel, it breaks the items into as many lines as the available inline size does.
+    fn balancing_reduction_of_group<'builder>(
+        &'builder self,
         iterator: &inline_level_iterator::InlineLevelIterator,
         group: std::ops::Range<usize>,
-        follows_forced_break: bool,
+        look_ahead_end: usize,
+        line_builder_at_group_start: &line_builder::LineBuilder<'builder, 'context>,
+        reductions_of_previous_groups: &[Option<CssPixels>],
     ) -> Option<CssPixels> {
         // INTEROP: Only balance up to 6 lines, since each try breaks all of the lines again.
         const MAXIMUM_LINE_COUNT: usize = 6;
@@ -1853,49 +1919,89 @@ impl<'context> InlineFormattingContext<'context> {
         if content_inline_size > available_inline_size * (MAXIMUM_LINE_COUNT * 2) {
             return None;
         }
-        let find_line_breaks = |inline_size| {
-            self.find_line_breaks_when_breaking_at(iterator, group.clone(), follows_forced_break, inline_size)
+        let find_line_breaks = |reduction| {
+            self.find_line_breaks_of_group(
+                iterator,
+                group.clone(),
+                look_ahead_end,
+                line_builder_at_group_start,
+                reductions_of_previous_groups,
+                reduction,
+            )
         };
-        let (line_count, inline_size_of_lines) = find_line_breaks(available_inline_size);
+        let (line_count, inline_size_of_lines) = find_line_breaks(CssPixels::default());
         if line_count <= 1 || line_count > MAXIMUM_LINE_COUNT {
             return None;
         }
-        // NB: Bisect between the available inline size and a bit less than the average line, which is too narrow
-        //     unless lines overflow.
-        let mut too_narrow = (inline_size_of_lines / line_count).scaled(0.8);
-        let mut balanced_inline_size = available_inline_size;
-        while balanced_inline_size - too_narrow > CssPixels::from_integer(1) {
-            let candidate = too_narrow + (balanced_inline_size - too_narrow) / 2;
+        // NB: Bisect between no reduction and one that leaves less than the average line, which is too much unless
+        //     lines overflow.
+        let mut too_much = available_inline_size - (inline_size_of_lines / line_count).scaled(0.8);
+        let mut reduction = CssPixels::default();
+        while too_much - reduction > CssPixels::from_integer(1) {
+            let candidate = reduction + (too_much - reduction) / 2;
             if find_line_breaks(candidate).0 <= line_count {
-                balanced_inline_size = candidate;
+                reduction = candidate;
             } else {
-                too_narrow = candidate;
+                too_much = candidate;
             }
         }
-        (balanced_inline_size < available_inline_size).then_some(balanced_inline_size)
+        (reduction > CssPixels::default()).then_some(reduction)
     }
 
-    /// The number of lines and the sum of their inline sizes when the items in `group` break into lines at
-    /// `inline_size`.
-    fn find_line_breaks_when_breaking_at(
-        &self,
+    /// The number of lines of the items in `group`, and the sum of their inline sizes, when `line_builder_at_group_start`
+    /// breaks them into lines reduced by `reduction`. The lines and floats of the context are left as they were.
+    fn find_line_breaks_of_group<'builder>(
+        &'builder self,
         iterator: &inline_level_iterator::InlineLevelIterator,
         group: std::ops::Range<usize>,
-        follows_forced_break: bool,
-        inline_size: CssPixels,
+        look_ahead_end: usize,
+        line_builder_at_group_start: &line_builder::LineBuilder<'builder, 'context>,
+        reductions_of_previous_groups: &[Option<CssPixels>],
+        reduction: CssPixels,
     ) -> (usize, CssPixels) {
-        let mut iterator = iterator.duplicate(group);
-        let item_count = iterator.items().len();
-        let mut line_builder =
-            line_builder::LineBuilder::new_for_finding_balanced_line_breaks(self, inline_size, follows_forced_break);
-        self.break_items_into_lines(&mut iterator, &mut line_builder, item_count, None, None, None);
-        line_builder.remove_last_line_if_empty();
-        let mut lines = std::mem::take(&mut self.line_data_mut().line_boxes);
-        let inline_size_of_lines = lines.iter_mut().fold(CssPixels::default(), |sum, line| {
-            line.trim_trailing_whitespace();
-            sum + line.inline_length
-        });
-        (lines.len(), inline_size_of_lines)
+        let state = self.state_before_finding_line_breaks();
+        // NB: The lines of the group start with the current line, and breaking it can change the line before it.
+        let first_line_index = self.line_data().line_boxes.len() - 1;
+        let first_changed_line_index = first_line_index.saturating_sub(1);
+        let lines_before_breaking = self.line_data().line_boxes[first_changed_line_index..].to_vec();
+        let mut line_builder = line_builder_at_group_start.clone();
+        let mut reductions = reductions_of_previous_groups.to_vec();
+        reductions.push(Some(reduction));
+        line_builder.set_balancing_reductions(reductions);
+        let mut group_items = iterator.duplicate(group, look_ahead_end);
+        let item_count = group_items.items().len();
+        self.break_items_into_lines(&mut group_items, &mut line_builder, item_count, None, None, None);
+        let mut data = self.line_data_mut();
+        let lines = &mut data.line_boxes;
+        let mut end = lines.len();
+        while end > first_line_index && lines[end - 1].is_empty() {
+            end -= 1;
+        }
+        let inline_size_of_lines = lines[first_line_index..end]
+            .iter_mut()
+            .fold(CssPixels::default(), |sum, line| {
+                line.trim_trailing_whitespace();
+                sum + line.inline_length
+            });
+        lines.truncate(first_changed_line_index);
+        lines.extend(lines_before_breaking);
+        drop(data);
+        self.restore_state_after_finding_line_breaks(state);
+        (end - first_line_index, inline_size_of_lines)
+    }
+
+    /// The state of this context and its parent that breaking items into lines changes beyond the lines.
+    fn state_before_finding_line_breaks(&self) -> StateBeforeFindingLineBreaks {
+        StateBeforeFindingLineBreaks {
+            parent: self.parent.state_before_finding_line_breaks(),
+            block_axis_float_clearance: self.block_axis_float_clearance.get(),
+        }
+    }
+
+    /// Restores the state that breaking items into lines changed beyond the lines, only to find where they break.
+    fn restore_state_after_finding_line_breaks(&self, state: StateBeforeFindingLineBreaks) {
+        self.parent.restore_state_after_finding_line_breaks(state.parent);
+        self.block_axis_float_clearance.set(state.block_axis_float_clearance);
     }
 
     /// Breaks the items left in `iterator` into lines with `line_builder`. `item_count` is the number of items the
@@ -1991,11 +2097,7 @@ impl<'context> InlineFormattingContext<'context> {
                     });
                     let continuation = iterator.next_inline_run_size(self);
                     line_builder.break_line(line_builder::ForcedBreak::Yes, item.node, continuation);
-                    // NB: Trials to balance the lines leave clearance to the layout of the lines.
-                    if !item.node.is_invalid()
-                        && !line_builder.only_finds_line_breaks()
-                        && self.clear_floating_boxes(item.node)
-                    {
+                    if !item.node.is_invalid() && self.clear_floating_boxes(item.node) {
                         line_builder.did_introduce_clearance(self.block_axis_float_clearance.get());
                         self.reset_parent_margin_state();
                     }
@@ -2077,33 +2179,43 @@ impl<'context> InlineFormattingContext<'context> {
                 }
                 inline_level_iterator::ItemType::FloatingElement => {
                     line_builder.commit_pending_margin_before_float();
-                    let constraints = self.input.containing_block_constraints;
-                    // NB: Every float is sized in cells ahead of its layout, which takes them.
-                    let cells_of_float_ahead_of_its_layout = Cell::new(used_values::cells_before_sizing(
-                        &self.callbacks,
-                        item.node,
-                        constraints,
-                    ));
-                    let sized_float = block_formatting_context::ChildSizedHere::ahead_of_its_run(
-                        item.node,
-                        &cells_of_float_ahead_of_its_layout,
-                    );
                     self.clear_floating_boxes(item.node);
                     line_builder.set_unbreakable_run_inline_size_interrupted_by_float(
                         iterator.next_unbreakable_run_inline_size(self),
                     );
-                    let (insets, _, _) = self.parent.layout_floating_box(
+                    if line_builder.only_finds_line_breaks() {
+                        let cells = self
+                            .floats_laid_out_ahead_of_lines
+                            .borrow()
+                            .get(&item.node)
+                            .expect("floats among balanced lines are laid out ahead of them")
+                            .cells;
+                        self.parent.add_float_for_finding_line_breaks(
+                            item.node,
+                            &cells,
+                            self.block_container,
+                            self.input,
+                            self.containing_block_position_in_bfc_root,
+                            line_builder,
+                        );
+                        continue;
+                    }
+                    let fragment_facts = run_state::FragmentFactsDecidedByParent {
+                        is_invisible_for_line_clamp: state_at_clamp_point.is_some(),
+                        ..run_state::FragmentFactsDecidedByParent::default()
+                    };
+                    let laid_out_ahead = self.floats_laid_out_ahead_of_lines.borrow_mut().remove(&item.node);
+                    let laid_out_float =
+                        laid_out_ahead.unwrap_or_else(|| self.lay_out_float_ahead_of_its_position(item.node));
+                    let (insets, _, _) = self.parent.position_laid_out_float(
                         self.run,
-                        sized_float,
+                        laid_out_float,
                         self.block_container,
                         self.input,
                         self.containing_block_position_in_bfc_root,
                         CssPixels::default(),
                         Some(&mut *line_builder),
-                        run_state::FragmentFactsDecidedByParent {
-                            is_invisible_for_line_clamp: state_at_clamp_point.is_some(),
-                            ..run_state::FragmentFactsDecidedByParent::default()
-                        },
+                        fragment_facts,
                     );
                     self.used_insets_of_floats
                         .borrow_mut()
@@ -2247,8 +2359,9 @@ impl<'context> InlineFormattingContext<'context> {
             && iterator.items()[start_item_index - 1].type_ == inline_level_iterator::ItemType::ForcedBreak;
         iterator.skip_items(start_item_index);
         // NB: Trials to balance the lines move the start of the current line, so balance before the lines start.
-        let balanced_inline_sizes = if balances_lines {
-            self.balanced_inline_sizes(&iterator)
+        let balancing_reductions = if balances_lines {
+            self.lay_out_floats_ahead_of_lines(&iterator);
+            self.balancing_reductions(&iterator)
         } else {
             Vec::new()
         };
@@ -2264,9 +2377,7 @@ impl<'context> InlineFormattingContext<'context> {
         } else {
             line_builder::LineBuilder::new_after_reused_lines(self)
         };
-        if balanced_inline_sizes.iter().any(Option::is_some) {
-            line_builder.set_balanced_inline_sizes(balanced_inline_sizes);
-        }
+        line_builder.set_balancing_reductions(balancing_reductions);
 
         let mut floating_boxes_after_clamp_point = Vec::new();
         let floating_box_count_before_lines = self.parent.floating_box_count();
@@ -2886,6 +2997,12 @@ impl<'context> InlineFormattingContext<'context> {
             piece.relpos_delta = accumulated_relative_offset_from(piece.node);
         }
     }
+}
+
+/// The state of an inline formatting context and its parent that breaking items into lines changes beyond the lines.
+struct StateBeforeFindingLineBreaks {
+    parent: block_formatting_context::StateBeforeFindingLineBreaks,
+    block_axis_float_clearance: CssPixels,
 }
 
 /// What breaking the items into lines left to finish once the lines are built.
