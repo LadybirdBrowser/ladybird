@@ -1,0 +1,2 @@
+Parent load events before replacement close: 0
+Replacement child reached complete ready state

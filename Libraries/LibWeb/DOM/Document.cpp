@@ -1500,7 +1500,14 @@ WebIDL::ExceptionOr<Document*> Document::open(Optional<Utf16String> const&, Opti
     // INTEROP: The HTML Standard says the document open steps do not affect whether a Document is ready for post-load
     //          tasks. Blink and WebKit reset their corresponding frame load-completion state, while Gecko marks the
     //          document loader as opened but not loaded. Reset our load gating flag for the replacement contents too.
-    set_ready_for_post_load_tasks(false);
+    //          Blink only treats document.open() as part of a load when the parent document still has to fire
+    //          its load event, so keep the flag when the container's document has already fired its load event:
+    //          nothing waits on the replacement contents then, and a later load of an ancestor must not wait on
+    //          them either. The replacement contents still fire a load event of their own, so a document that is
+    //          reopened in turn below them is part of their load.
+    if (auto container_document = this->container_document(); !container_document || container_document->load_event_still_needed())
+        set_ready_for_post_load_tasks(false);
+    m_opened_contents_still_loading = true;
 
     // INTEROP: The HTML Standard does not reset the page showing flag in the document open steps. Browsers allow a
     //          completed Document to be reopened and complete loading again, so mark the replaced contents as no longer
@@ -6083,6 +6090,7 @@ void Document::set_ready_for_post_load_tasks(bool ready)
 {
     m_ready_for_post_load_tasks = ready;
     if (ready) {
+        m_opened_contents_still_loading = false;
         if (auto navigable = this->navigable()) {
             if (auto container = navigable->container())
                 container->document().schedule_html_parser_end_check();
