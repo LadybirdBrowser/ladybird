@@ -1,0 +1,4 @@
+constructor ran: true
+document element is the constructor's element: true
+root element parent: null
+document element children: 1

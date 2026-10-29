@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const iframe = document.createElement("iframe");
+        document.body.appendChild(iframe);
+        const win = iframe.contentWindow;
+        const doc = iframe.contentDocument;
+        let rootElement;
+        let otherElement;
+        win.customElements.define("x-root-inserter", class extends win.HTMLHtmlElement {
+            constructor() {
+                super();
+                rootElement = this;
+                otherElement = doc.createElement("div");
+                doc.appendChild(otherElement);
+            }
+        }, { extends: "html" });
+        doc.open();
+        doc.write('<html is="x-root-inserter"><body>text</body></html>');
+        doc.close();
+        println(`constructor ran: ${rootElement !== undefined}`);
+        println(`document element is the constructor's element: ${doc.documentElement === otherElement}`);
+        println(`root element parent: ${rootElement.parentNode}`);
+        println(`document element children: ${doc.children.length}`);
+        done();
+    });
+</script>

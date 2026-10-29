@@ -1,0 +1,22 @@
+<!doctype html>
+<html class="test-wait">
+<title>Custom button element insertion is aborted after its form is set.</title>
+<script src="../common/gc.js"></script>
+<script>
+customElements.define("x-b", class extends HTMLButtonElement {
+  constructor() {
+    super();
+    window.button = this;
+    this.appendChild(document.querySelector("form"));
+  }
+}, { extends: "button" });
+
+addEventListener("load", async () => {
+  button.removeChild(button.firstChild);
+  await garbageCollect();
+  button.form?.append("test");
+  document.documentElement.classList.remove("test-wait");
+});
+</script>
+<form><button is="x-b"></button></form>
+</html>

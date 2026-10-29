@@ -3313,11 +3313,8 @@ bool Node::is_host_including_inclusive_ancestor_of(Node const& other) const
         return true;
 
     // or if B’s root has a non-null host and A is a host-including inclusive ancestor of B’s root’s host
-    if (is<DocumentFragment>(other.root())
-        && static_cast<DocumentFragment const&>(other.root()).host()
-        && is_inclusive_ancestor_of(*static_cast<DocumentFragment const&>(other.root()).host())) {
-        return true;
-    }
+    if (auto const* fragment = as_if<DocumentFragment>(other.root()); fragment && fragment->host())
+        return is_host_including_inclusive_ancestor_of(*fragment->host());
     return false;
 }
 
