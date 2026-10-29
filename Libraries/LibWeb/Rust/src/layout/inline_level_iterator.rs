@@ -96,14 +96,15 @@ pub(crate) fn text_is_set_upright(writing_mode: u8, text_orientation: u8, code_p
 }
 
 /// Sets shaped glyphs upright: each of them takes one em along the inline axis, which runs downwards in the frame of
-/// a vertical writing mode, while keeping its own horizontal width, which painting centers it within.
+/// a vertical writing mode, while keeping its own horizontal width, which painting centers it within. Invisible
+/// characters such as soft hyphens take no space.
 // FIXME: Use the vertical metrics of the font, where it has them.
 fn set_glyphs_upright(glyph_data: &mut line_box_fragment::GlyphData, inline_offset: f32, advance: f32) {
     let glyphs = glyph_data.glyphs.to_mut();
     let mut pen = inline_offset;
     let mut count = 0usize;
     for glyph in glyphs.iter_mut() {
-        if glyph.length_in_code_units != 0 {
+        if glyph.length_in_code_units != 0 && glyph.should_paint {
             if count > 0 {
                 pen += advance;
             }
