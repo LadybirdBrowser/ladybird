@@ -1,0 +1,33 @@
+<!doctype html>
+<title>Changing href of a render-blocking stylesheet link keeps rendering blocked until the new stylesheet loads</title>
+<link rel="help" href="https://html.spec.whatwg.org/#blocking-attributes">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<script>
+const stylesheet = document.createElement('link');
+stylesheet.rel = 'stylesheet';
+stylesheet.href = 'support/target-red.css?pipe=trickle(d1)';
+stylesheet.blocking = 'render';
+document.head.appendChild(stylesheet);
+stylesheet.href = 'support/target-red.css?pipe=trickle(d2)&second';
+
+// A render-blocked document has no rendering updates, so the first animation
+// frame callback runs only after the new stylesheet has loaded.
+let colorInFirstFrame;
+requestAnimationFrame(() => {
+  colorInFirstFrame =
+      getComputedStyle(document.querySelector('.target')).color;
+});
+</script>
+
+<div class="target">
+  This should be red
+</div>
+
+<script>
+promise_test(async test => {
+  await test.step_wait(() => colorInFirstFrame !== undefined);
+  assert_equals(colorInFirstFrame, 'rgb(255, 0, 0)');
+}, 'The stylesheet with the new href applies in the first rendering update');
+</script>

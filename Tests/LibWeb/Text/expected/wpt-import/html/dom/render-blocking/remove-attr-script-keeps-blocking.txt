@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 2 tests
+
+1 Pass
+1 Fail
+Fail	Rendering is blocked before render-blocking resources are loaded
+Pass	Render-blocking script is loaded and evaluated

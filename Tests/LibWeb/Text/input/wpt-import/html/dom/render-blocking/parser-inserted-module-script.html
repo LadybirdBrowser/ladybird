@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<title>Parser-inserted module script elements with "blocking=render" are render-blocking</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/test-render-blocking.js"></script>
+
+<script id="module-script" type="module" blocking="render"
+        src="support/dummy-1.mjs?pipe=trickle(d1)">
+</script>
+
+<div id="dummy">some text</div>
+
+<script>
+const moduleScript = document.getElementById('module-script');
+test_render_blocking(
+    moduleScript,
+    () => assert_equals(document.getElementById('dummy').textContent, '1'),
+    'Parser-inserted render-blocking module script is evaluated');
+</script>
