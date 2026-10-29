@@ -496,6 +496,15 @@ impl GlobalObject {
     pub(crate) fn parse_int(vm: &Vm) -> ThrowCompletionOr<Value> {
         let string = vm.argument(0);
 
+        // OPTIMIZATION: The decimal digits of an int32 parse back to it, so we can skip the int32-to-string-to-number
+        //               round trip when the radix is 10 or the default one.
+        let radix_argument = vm.argument(1);
+        if string.is_int32()
+            && (radix_argument.is_undefined() || (radix_argument.is_int32() && radix_argument.as_i32() == 10))
+        {
+            return Ok(string);
+        }
+
         // 1. Let inputString be ? ToString(string).
         let input_string = string.to_utf16_string(vm)?;
         let input_string = Utf16View::of_string(&input_string);
