@@ -1,0 +1,4 @@
+Gamepads after pressing a button without system focus: 0
+Gamepads after pressing a button while hidden: 0
+Received gamepadconnected event for 'Ladybird Virtual Gamepad' at index 0
+Gamepads after pressing a button with user attention: 1

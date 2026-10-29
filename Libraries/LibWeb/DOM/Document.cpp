@@ -5842,6 +5842,14 @@ bool Document::has_focus() const
     return false;
 }
 
+// https://html.spec.whatwg.org/multipage/interaction.html#fully-active-descendant-of-a-top-level-traversable-with-user-attention
+bool Document::is_fully_active_descendant_of_a_top_level_traversable_with_user_attention() const
+{
+    // A Document d is a fully active descendant of a top-level traversable with user attention when d is fully active
+    // and d's node navigable's top-level traversable has user attention.
+    return is_fully_active() && page().top_level_traversable_has_user_attention();
+}
+
 // https://html.spec.whatwg.org/multipage/interaction.html#allow-focus-steps
 bool Document::allow_focus() const
 {

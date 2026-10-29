@@ -1,0 +1,4 @@
+Received gamepadconnected event for 'Ladybird Virtual Gamepad' at index 0
+Gamepads in a new navigable before pressing a button: 0
+Gamepads in the new navigable after pressing a button without system focus: 0
+Gamepads in the new navigable after pressing a button with user attention: 1

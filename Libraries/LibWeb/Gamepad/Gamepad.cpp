@@ -387,8 +387,14 @@ void Gamepad::update_gamepad_state(Badge<NavigatorGamepadPartial>)
     // 6. Let navigator be gamepad's relevant global object's Navigator object.
     auto navigator = window.navigator();
 
-    // 7. If navigator.[[hasGamepadGesture]] is false and gamepad contains a gamepad user gesture:
-    if (!navigator->has_gamepad_gesture() && contains_gamepad_user_gesture()) {
+    // 7. Let document be gamepad's relevant global object's associated Document; otherwise null.
+    // 8. If document is null, abort these steps.
+    // NB: A Window always has an associated Document.
+    auto& document = window.associated_document();
+
+    // 9. If navigator.[[hasGamepadGesture]] is false and document is a fully active descendant of a top-level
+    //    traversable with user attention and gamepad contains a gamepad user gesture:
+    if (!navigator->has_gamepad_gesture() && document.is_fully_active_descendant_of_a_top_level_traversable_with_user_attention() && contains_gamepad_user_gesture()) {
         // 1. Set navigator.[[hasGamepadGesture]] to true.
         navigator->set_has_gamepad_gesture({}, true);
 
@@ -402,10 +408,7 @@ void Gamepad::update_gamepad_state(Badge<NavigatorGamepadPartial>)
                 // 2. Set connectedGamepad.[[timestamp]] to now.
                 connected_gamepad->m_timestamp = now;
 
-                // 3. Let document be gamepad's relevant global object's associated Document; otherwise null.
-                auto& document = window.associated_document();
-
-                // 4. If document is not null and is fully active, then queue a global task on the gamepad task source
+                // 3. If document is not null and is fully active, then queue a global task on the gamepad task source
                 //    to fire an event named gamepadconnected at gamepad's relevant global object using GamepadEvent
                 //    with its gamepad attribute initialized to connectedGamepad.
                 if (document.is_fully_active()) {

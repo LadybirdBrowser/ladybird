@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="gamepad-helper.js"></script>
+<script>
+    promiseTest(async () => {
+        const gamepad = internals.connectVirtualGamepad();
+        await pumpGamepadEvents();
+        listenForGamepadConnected();
+
+        internals.setPageFocus(false);
+        gamepad.setButton(gamepad.buttons[0], true);
+        await pumpGamepadEvents();
+        println(`Gamepads after pressing a button without system focus: ${navigator.getGamepads().length}`);
+        gamepad.setButton(gamepad.buttons[0], false);
+        await pumpGamepadEvents();
+        internals.setPageFocus(true);
+
+        await setSystemVisibilityState("hidden");
+        gamepad.setButton(gamepad.buttons[0], true);
+        await pumpGamepadEvents();
+        println(`Gamepads after pressing a button while hidden: ${navigator.getGamepads().length}`);
+        gamepad.setButton(gamepad.buttons[0], false);
+        await pumpGamepadEvents();
+        await setSystemVisibilityState("visible");
+
+        gamepad.setButton(gamepad.buttons[0], true);
+        await pumpGamepadEvents();
+        println(`Gamepads after pressing a button with user attention: ${navigator.getGamepads().length}`);
+
+        gamepad.disconnect();
+        await pumpGamepadEvents();
+    });
+</script>
