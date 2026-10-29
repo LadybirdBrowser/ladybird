@@ -205,7 +205,7 @@ impl HoverPlan {
         //     pins only these rows' records, leaving unrelated records reclaimable. Frames with animation overlays
         //     use the regular lane above, and so do frames with a row that still names an overlay record no element
         //     is assigned, which the lease declines.
-        let visual_context = state.arena.arena().paint_state().borrow().visual_context.clone();
+        let visual_context = state.arena.arena().paint_state().visual_context.clone();
         if visual_context.tree.is_none() {
             return;
         }
@@ -965,7 +965,7 @@ impl Lane {
             drop(work.resolve(arena));
             // The boxes show what the rows moved in place of the compositor animations the host published for them.
             if !settles_back {
-                let (engine, arena) = state.engine_and_arena();
+                let (engine, arena) = state.engine_ref_and_arena_mut();
                 for install in installs.iter().filter(|install| !rebuilt(install.element.style_node)) {
                     super::effects::stop_compositor_animations_a_row_moves(engine, arena, &install.element);
                 }
@@ -982,7 +982,7 @@ impl Lane {
                 }
                 started_transitions = true;
                 made.started.push(transitions.node);
-                super::effects::stop_ended_compositor_animations(state.arena.arena(), &transitions);
+                super::effects::stop_ended_compositor_animations(state.arena.arena_mut(), &transitions);
                 made.replaced.extend(self.start_transitions(transitions, timestamp));
             }
             let engine = state.engine_mut();
@@ -1195,7 +1195,6 @@ impl Lane {
         let arena = state.arena.arena();
         let tree = arena
             .paint_state()
-            .borrow()
             .visual_context
             .tree
             .clone()
@@ -1210,9 +1209,7 @@ impl Lane {
             ..HitTestList::default()
         };
         list.build_spatial_indexes_if_needed();
-        let paint_state = arena.paint_state().borrow();
-        let scroll_offsets = self.scroll_offsets_on_screen(arena, &paint_state.visual_context, plan);
-        drop(paint_state);
+        let scroll_offsets = self.scroll_offsets_on_screen(arena, &arena.paint_state().visual_context, plan);
         let callbacks =
             FfiHitTestQueryCallbacks::sealed(plan.device_pixels_per_css_pixel, &scroll_offsets, plan.chrome_metrics);
         let pixel_ratio = plan.device_pixels_per_css_pixel as f32;

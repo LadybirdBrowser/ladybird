@@ -505,7 +505,6 @@ pub(crate) fn freeze_recording_frame(arena: &mut LayoutNodeArena, inputs: FrameI
     if let Some(published_canvas_rect) = inputs.published_root_background_canvas_rect {
         let root = arena
             .paint_state()
-            .borrow()
             .root_background_source
             .expect("a recording follows paint preparation")
             .root_layout_node;
@@ -524,7 +523,7 @@ pub(crate) fn freeze_recording_frame(arena: &mut LayoutNodeArena, inputs: FrameI
     // The recording reads the document as it is now: what the host writes after this goes to the next frame.
     let frame = arena.freeze_frame(inputs.hit_test_item_capacity_hint);
     let rows_version = arena.rows_version();
-    let paint_state = arena.paint_state().borrow();
+    let paint_state = arena.paint_state();
     Some(FrozenFrame {
         frame,
         rows_version,

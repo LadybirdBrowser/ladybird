@@ -1265,7 +1265,7 @@ pub(crate) struct LayoutNodeArena {
     memo_invalidations: super::memo_invalidations::MemoInvalidations,
     pub(super) layout_trace: super::trace::TraceRecord,
     pub(crate) paintable_rows: crate::painting::paintable_rows::PaintableRowStore,
-    paint_state: RefCell<crate::painting::paint_state::PaintState>,
+    paint_state: crate::painting::paint_state::PaintState,
     // Hit testing can measure overflow and invalidate painting state while querying this list.
     // Reuse workspace allocations without making recording scratch part of the committed paint state.
     pub(crate) scrollable_overflow: crate::painting::scrollable_overflow::ScrollableOverflowState,
@@ -1380,7 +1380,7 @@ impl LayoutNodeArena {
             memo_invalidations: Default::default(),
             layout_trace: super::trace::TraceRecord::default(),
             paintable_rows: crate::painting::paintable_rows::PaintableRowStore::default(),
-            paint_state: RefCell::new(crate::painting::paint_state::PaintState::default()),
+            paint_state: crate::painting::paint_state::PaintState::default(),
             scrollable_overflow: Default::default(),
             partial_relayout_boundary_roots: Default::default(),
             nodes_with_layout_update_flags: Vec::new(),
@@ -1773,7 +1773,7 @@ impl LayoutNodeArena {
         }
         self.svg_paint_resources.forget_slot(id);
         for highlight in crate::painting::selection::HighlightPseudoElement::ALL {
-            let styles = self.paint_state.get_mut().highlight_pseudo_styles_mut(highlight);
+            let styles = self.paint_state.highlight_pseudo_styles_mut(highlight);
             if styles.contains_key(&id) {
                 Arc::make_mut(styles).remove(&id);
             }
@@ -2309,11 +2309,8 @@ impl LayoutNodeArena {
 
     /// The scroll state reads the offsets the rows hold, so it is read again before it is published next whenever one
     /// of them moves.
-    fn note_scroll_offsets_moved(&self) {
-        self.paint_state()
-            .borrow_mut()
-            .visual_context
-            .needs_to_refresh_scroll_state = true;
+    fn note_scroll_offsets_moved(&mut self) {
+        self.paint_state_mut().visual_context.needs_to_refresh_scroll_state = true;
     }
 
     /// Record whether the node sits in the user agent shadow tree of the focused text control.
@@ -2625,7 +2622,7 @@ impl LayoutNodeArena {
     /// Notes the visual contexts a style move with `damage`, an `FfiStyleInvalidationField` word, moves for `slot`'s
     /// box, which the next recording builds again: those up to the level the word carries, and the nodes of the box's
     /// stacking context where the move rebuilds it, as a z-index change does alone.
-    pub(crate) fn note_style_visual_context_moves(&self, slot: NodeSlotId, damage: u32) {
+    pub(crate) fn note_style_visual_context_moves(&mut self, slot: NodeSlotId, damage: u32) {
         use crate::css::style::bridge::FfiStyleInvalidationField;
         use crate::painting::visual_context::dirty::VisualContextBoxDirtyKind;
         let visual_contexts = (damage >> FfiStyleInvalidationField::VisualContextShift as u32)
@@ -4449,7 +4446,6 @@ impl LayoutNodeArena {
                 self.svg_paint_resources.address(),
                 self.image_map_areas().address(),
                 self.paint_state
-                    .borrow()
                     .visual_context
                     .tree
                     .as_ref()
@@ -5807,8 +5803,12 @@ impl LayoutNodeArena {
         child_data.set_next_sibling(NodeSlotId::INVALID);
     }
 
-    pub(crate) fn paint_state(&self) -> &RefCell<crate::painting::paint_state::PaintState> {
+    pub(crate) fn paint_state(&self) -> &crate::painting::paint_state::PaintState {
         &self.paint_state
+    }
+
+    pub(crate) fn paint_state_mut(&mut self) -> &mut crate::painting::paint_state::PaintState {
+        &mut self.paint_state
     }
 
     pub(crate) fn node_data_if_live(&self, id: NodeSlotId) -> Option<&NodeData> {
@@ -7229,8 +7229,8 @@ mod tests {
         let positioned = arena.allocate_for_test();
         let anchor = arena.allocate_for_test();
         let other_anchor = arena.allocate_for_test();
-        let take_dirty_bits = |arena: &LayoutNodeArena| -> Option<BoxDirtyBits> {
-            let mut paint_state = arena.paint_state().borrow_mut();
+        let take_dirty_bits = |arena: &mut LayoutNodeArena| -> Option<BoxDirtyBits> {
+            let paint_state = arena.paint_state_mut();
             let bits = paint_state
                 .visual_context
                 .dirty_boxes
@@ -7240,25 +7240,25 @@ mod tests {
             paint_state.visual_context.dirty_boxes.clear();
             bits
         };
-        let notes_scroll_shift_change = |arena: &LayoutNodeArena| {
+        let notes_scroll_shift_change = |arena: &mut LayoutNodeArena| {
             take_dirty_bits(arena)
                 .is_some_and(|bits| bits.contains(VisualContextBoxDirtyKind::DefaultScrollShiftInputsChanged))
         };
 
         arena.set_default_scroll_shift(positioned.slot, NodeSlotId::INVALID, false, false);
-        assert!(!notes_scroll_shift_change(&arena));
+        assert!(!notes_scroll_shift_change(&mut arena));
 
         arena.set_default_scroll_shift(positioned.slot, anchor.slot, true, false);
-        assert!(notes_scroll_shift_change(&arena));
+        assert!(notes_scroll_shift_change(&mut arena));
         arena.set_default_scroll_shift(positioned.slot, anchor.slot, true, false);
-        assert!(!notes_scroll_shift_change(&arena));
+        assert!(!notes_scroll_shift_change(&mut arena));
 
         arena.set_default_scroll_shift(positioned.slot, anchor.slot, true, true);
-        assert!(notes_scroll_shift_change(&arena));
+        assert!(notes_scroll_shift_change(&mut arena));
         arena.set_default_scroll_shift(positioned.slot, other_anchor.slot, true, true);
-        assert!(notes_scroll_shift_change(&arena));
+        assert!(notes_scroll_shift_change(&mut arena));
         arena.set_default_scroll_shift(positioned.slot, NodeSlotId::INVALID, false, false);
-        assert!(notes_scroll_shift_change(&arena));
+        assert!(notes_scroll_shift_change(&mut arena));
 
         let mut anchored_pairs = Vec::new();
         arena.set_default_scroll_shift(positioned.slot, anchor.slot, false, true);

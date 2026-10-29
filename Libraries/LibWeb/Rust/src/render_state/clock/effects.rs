@@ -878,18 +878,19 @@ pub(super) fn ended_compositor_animation_kinds(
 /// Stops the compositor animations of the box of the element `transitions` restyle that drive what the host's
 /// transitions the step ended animated, which the host published for them: the frames of the lane show the step's
 /// style in their place.
-pub(super) fn stop_ended_compositor_animations(arena: &LayoutNodeArena, transitions: &HoverTransitions) {
+pub(super) fn stop_ended_compositor_animations(arena: &mut LayoutNodeArena, transitions: &HoverTransitions) {
     let Some(ended) = ended_compositor_animation_kinds(transitions).filter(|ended| !ended.is_empty()) else {
         return;
     };
-    stop_compositor_animations(arena, arena.bound_row(transitions.node), &ended);
+    let row = arena.bound_row(transitions.node);
+    stop_compositor_animations(arena, row, &ended);
 }
 
 /// Stops the compositor animations of the box of the element of `row`, a hover's row, that drive what the row moves: the
 /// frames of the lane show the record it installs in their place.
 pub(super) fn stop_compositor_animations_a_row_moves(
     engine: &StyleEngine,
-    arena: &LayoutNodeArena,
+    arena: &mut LayoutNodeArena,
     row: &FfiStyleDelta,
 ) {
     use crate::css::property_metadata::property_id as prop;
@@ -921,18 +922,19 @@ pub(super) fn stop_compositor_animations_a_row_moves(
             kinds.push(kind);
         }
     }
-    stop_compositor_animations(arena, arena.bound_row(node), &kinds);
+    let row = arena.bound_row(node);
+    stop_compositor_animations(arena, row, &kinds);
 }
 
 /// Stops the compositor animations of the box `row` of the `kinds`, which the host published: the frames of the lane
 /// show what the lane gave the box in their place, which an animation the compositor runs on, or holds at its end
 /// until the host publishes again, would hide.
-fn stop_compositor_animations(arena: &LayoutNodeArena, row: NodeSlotId, kinds: &[FfiVisualAnimationTargetKind]) {
+fn stop_compositor_animations(arena: &mut LayoutNodeArena, row: NodeSlotId, kinds: &[FfiVisualAnimationTargetKind]) {
     if row.is_invalid() || kinds.is_empty() {
         return;
     }
     let nodes = arena.box_animation_nodes(row);
-    let mut paint_state = arena.paint_state().borrow_mut();
+    let paint_state = arena.paint_state_mut();
     let Some(tree) = paint_state.visual_context.tree.as_mut() else {
         return;
     };

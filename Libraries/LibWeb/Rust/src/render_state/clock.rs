@@ -469,7 +469,7 @@ impl CommittedFrame {
                 &turn,
                 CommittedSample::Unrecorded {
                     visual_context_tree: sends_visual_context_tree
-                        .then(|| state.arena_mut().paint_state().borrow().visual_context.tree.clone())
+                        .then(|| state.arena_mut().paint_state().visual_context.tree.clone())
                         .flatten(),
                 },
             ),
@@ -1442,7 +1442,7 @@ impl Lane {
                 }),
         );
         self.presented_compositor_animations.clear();
-        if let Some(tree) = arena.paint_state().borrow().visual_context.tree.as_deref() {
+        if let Some(tree) = arena.paint_state().visual_context.tree.as_deref() {
             self.presented_compositor_animations
                 .extend(self.presented_border_boxes.iter().map(|&(element, _)| {
                     let nodes = arena.box_animation_nodes(arena.bound_row(element));
@@ -1517,7 +1517,7 @@ fn freeze_tick_frame(
         TickPresented::LeftToHost => return Err(Park("the host presents the frame")),
     }
     let viewport = arena.layout_root();
-    if arena.paint_state().borrow().trace_recordings {
+    if arena.paint_state().trace_recordings {
         return Err(Park("a trace reads the recording"));
     }
     let visual_contexts = prepare_for_clock_tick(arena, viewport)?;

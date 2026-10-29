@@ -78,7 +78,7 @@ fn invalidate_text_node(layout_arena: &mut PaintableRowsMut<'_>, node: NodeSlotI
 }
 
 pub(crate) fn clear(layout_arena: &mut PaintableRowsMut<'_>) {
-    let Some(previous) = layout_arena.paint_state().borrow_mut().selection.take() else {
+    let Some(previous) = layout_arena.paint_state_mut().selection.take() else {
         return;
     };
     for node in previous.text_states.keys() {
@@ -176,7 +176,7 @@ impl SearchTextHighlights {
 }
 
 pub(crate) fn clear_search_text(layout_arena: &mut PaintableRowsMut<'_>) {
-    let previous = std::mem::take(&mut layout_arena.paint_state().borrow_mut().search_text);
+    let previous = std::mem::take(&mut layout_arena.paint_state_mut().search_text);
     for node in previous.by_node.keys() {
         invalidate_text_node(layout_arena, *node);
     }
@@ -212,13 +212,13 @@ pub(crate) fn apply_search_text(
     for touching in highlights.by_node.values_mut() {
         touching.sort_by_key(|&(match_index, state)| matches[match_index as usize].offsets_in_node(state));
     }
-    let previous = std::mem::take(&mut layout_arena.paint_state().borrow_mut().search_text);
+    let previous = std::mem::take(&mut layout_arena.paint_state_mut().search_text);
     for node in previous.by_node.keys().chain(highlights.by_node.keys()) {
         if previous.node_signature(*node) != highlights.node_signature(*node) {
             invalidate_text_node(layout_arena, *node);
         }
     }
-    layout_arena.paint_state().borrow_mut().search_text = Arc::new(highlights);
+    layout_arena.paint_state_mut().search_text = Arc::new(highlights);
 }
 
 #[derive(Debug, Default)]
@@ -228,7 +228,7 @@ pub(crate) struct SpellingErrorHighlights {
 }
 
 pub(crate) fn clear_spelling_errors(layout_arena: &mut PaintableRowsMut<'_>) {
-    let previous = std::mem::take(&mut layout_arena.paint_state().borrow_mut().spelling_errors);
+    let previous = std::mem::take(&mut layout_arena.paint_state_mut().spelling_errors);
     for node in previous.by_node.keys() {
         invalidate_text_node(layout_arena, *node);
     }
@@ -248,13 +248,13 @@ pub(crate) fn apply_spelling_errors(layout_arena: &mut PaintableRowsMut<'_>, err
     for runs in highlights.by_node.values_mut() {
         runs.sort_unstable();
     }
-    let previous = std::mem::take(&mut layout_arena.paint_state().borrow_mut().spelling_errors);
+    let previous = std::mem::take(&mut layout_arena.paint_state_mut().spelling_errors);
     for node in previous.by_node.keys().chain(highlights.by_node.keys()) {
         if previous.by_node.get(node) != highlights.by_node.get(node) {
             invalidate_text_node(layout_arena, *node);
         }
     }
-    layout_arena.paint_state().borrow_mut().spelling_errors = Arc::new(highlights);
+    layout_arena.paint_state_mut().spelling_errors = Arc::new(highlights);
 }
 
 /// https://drafts.csswg.org/css-pseudo-4/#highlight-styling
@@ -392,7 +392,7 @@ fn highlight_pseudo_styles_of_records(
 /// own rows, or, while it has no box, the rows of its text children, which then have no element
 /// row above them to find it on.
 pub(crate) fn sync_highlight_pseudo_styles(
-    arena: &LayoutNodeArena,
+    arena: &mut LayoutNodeArena,
     element: StyleNodeID,
     style_records: HighlightStyleRecords,
 ) {
@@ -403,27 +403,33 @@ pub(crate) fn sync_highlight_pseudo_styles(
     } else {
         HighlightStyleAnswers::default()
     };
-    arena.with_style_store(|engine| {
-        for text in engine
+    let text_rows: Vec<NodeSlotId> = arena.with_style_store(|engine| {
+        engine
             .tree()
             .dom_children(element)
             .filter(|child| child.text_index().is_some())
-        {
-            let row = arena.bound_row(text);
-            if !row.is_invalid() {
-                set_highlight_pseudo_styles_of_rows(arena, arena.rows_sharing_dom_node_with(row), &text_rows_answers);
-            }
-        }
+            .map(|text| arena.bound_row(text))
+            .filter(|row| !row.is_invalid())
+            .collect()
     });
+    for row in text_rows {
+        let rows: Vec<NodeSlotId> = arena.rows_sharing_dom_node_with(row).collect();
+        set_highlight_pseudo_styles_of_rows(arena, &rows, &text_rows_answers);
+    }
     if !element_row.is_invalid() {
-        set_highlight_pseudo_styles_of_rows(arena, arena.rows_sharing_dom_node_with(element_row), &answers);
+        let rows: Vec<NodeSlotId> = arena.rows_sharing_dom_node_with(element_row).collect();
+        set_highlight_pseudo_styles_of_rows(arena, &rows, &answers);
     }
 }
 
 /// Gives a row the tree build made what the published highlight pseudo-element records of
 /// `element` say highlighted text paints with: `element`'s own row, or a text row whose parent
 /// element has no box.
-pub(crate) fn note_built_row_highlight_pseudo_styles(arena: &LayoutNodeArena, row: NodeSlotId, element: StyleNodeID) {
+pub(crate) fn note_built_row_highlight_pseudo_styles(
+    arena: &mut LayoutNodeArena,
+    row: NodeSlotId,
+    element: StyleNodeID,
+) {
     let style_records = arena.with_style_store(|engine| {
         HighlightPseudoElement::ALL.map(|highlight| {
             engine
@@ -432,19 +438,19 @@ pub(crate) fn note_built_row_highlight_pseudo_styles(arena: &LayoutNodeArena, ro
         })
     });
     let answers = highlight_pseudo_styles_of_records(arena, element, style_records);
-    set_highlight_pseudo_styles_of_rows(arena, arena.rows_sharing_dom_node_with(row), &answers);
+    let rows: Vec<NodeSlotId> = arena.rows_sharing_dom_node_with(row).collect();
+    set_highlight_pseudo_styles_of_rows(arena, &rows, &answers);
 }
 
 fn set_highlight_pseudo_styles_of_rows(
-    arena: &LayoutNodeArena,
-    rows: impl Iterator<Item = NodeSlotId>,
+    arena: &mut LayoutNodeArena,
+    rows: &[NodeSlotId],
     answers: &HighlightStyleAnswers,
 ) {
-    let rows: Vec<NodeSlotId> = rows.collect();
-    let mut paint_state = arena.paint_state().borrow_mut();
+    let paint_state = arena.paint_state_mut();
     for (highlight, answer) in HighlightPseudoElement::ALL.into_iter().zip(answers) {
         let styles = paint_state.highlight_pseudo_styles_mut(highlight);
-        for &row in &rows {
+        for &row in rows {
             match answer {
                 Some(answer) => {
                     Arc::make_mut(styles).insert(row, answer.clone());

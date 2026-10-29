@@ -174,7 +174,7 @@ impl<'a> PaintableCommit<'a> {
                 self.arena_mut().push_paint_damage(node, PaintDamage::ALL_PRODUCERS);
             }
             if row_existed_before_this_commit && enclosing_line_root_changes.fragment_changed {
-                self.arena()
+                self.arena_mut()
                     .note_visual_context_box_dirty(node, VisualContextBoxDirtyKind::InlineGeometryChanged);
             }
         }
@@ -192,12 +192,12 @@ impl<'a> PaintableCommit<'a> {
                 // A recommitted viewport row starts its paint state over: the scroll registry is
                 // dropped here and rebuilt by the next tree update, while the host resets its
                 // snapshot from the row reset notification.
-                arena.paint_state().borrow_mut().visual_context.clear_scroll_state();
+                arena.paint_state_mut().visual_context.clear_scroll_state();
             }
         } else {
             arena.populate_paintable_row(node);
             if node_kind == NodeKind::Viewport {
-                arena.paint_state().borrow_mut().reset_visual_context_state();
+                arena.paint_state_mut().reset_visual_context_state();
             }
             arena.note_visual_context_box_dirty(node, VisualContextBoxDirtyKind::NewRow);
         }
@@ -348,11 +348,11 @@ impl<'a> PaintableCommit<'a> {
         }
         self.arena_mut().push_paint_damage(node, damage);
         if !offset_unchanged {
-            self.arena()
+            self.arena_mut()
                 .note_visual_context_box_dirty(node, VisualContextBoxDirtyKind::MovedWithDescendants);
         }
         if !fragment_content_unchanged {
-            self.arena()
+            self.arena_mut()
                 .note_visual_context_box_dirty(node, VisualContextBoxDirtyKind::RecommittedInPlace);
         }
         if !fragment_content_unchanged || !self.arena().committed_side_data(node).overflow_valid_across_recommits {
@@ -458,7 +458,7 @@ impl<'a> PaintableCommit<'a> {
         }
         self.arena_mut()
             .push_paint_damage(slot, PaintDamage::ALL_PRODUCERS | PaintDamage::MOVED);
-        self.arena().note_visual_context_box_dirty(
+        self.arena_mut().note_visual_context_box_dirty(
             slot,
             if moved {
                 VisualContextBoxDirtyKind::MovedWithDescendants

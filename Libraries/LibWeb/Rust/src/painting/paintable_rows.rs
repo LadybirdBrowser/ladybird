@@ -905,8 +905,7 @@ impl LayoutNodeArena {
             self.withdraw_stacking_context_state_of_reset_row(id, Some(record.stacking_context));
             let former_paint_parent =
                 crate::painting::paint_order::paint_parent(&self.paintable_rows(), id).unwrap_or(NodeSlotId::INVALID);
-            self.paint_state()
-                .borrow_mut()
+            self.paint_state_mut()
                 .visual_context
                 .dirty_boxes
                 .note_removed(RemovedBoxBlocks {
@@ -916,11 +915,7 @@ impl LayoutNodeArena {
                 });
         } else {
             self.withdraw_stacking_context_state_of_reset_row(id, None);
-            self.paint_state()
-                .borrow_mut()
-                .visual_context
-                .dirty_boxes
-                .forget_box(id);
+            self.paint_state_mut().visual_context.dirty_boxes.forget_box(id);
         }
         self.clear_absolute_rect_memo();
         let store = &mut self.paintable_rows;
@@ -1135,20 +1130,18 @@ impl LayoutNodeArena {
         std::mem::take(&mut self.paintable_rows.line_roots_needing_fragment_ownership)
     }
 
-    pub(crate) fn note_visual_context_box_dirty(&self, id: NodeSlotId, kind: VisualContextBoxDirtyKind) {
+    pub(crate) fn note_visual_context_box_dirty(&mut self, id: NodeSlotId, kind: VisualContextBoxDirtyKind) {
         let pending_box_limit = self
             .paintable_row_count()
             .max(crate::painting::visual_context::dirty::MINIMUM_PENDING_DIRTY_BOX_LIMIT);
-        self.paint_state()
-            .borrow_mut()
+        self.paint_state_mut()
             .visual_context
             .dirty_boxes
             .note_box(id, kind, pending_box_limit);
     }
 
-    pub(crate) fn request_full_visual_context_rebuild(&self, scope: VisualContextUpdateScope) {
-        self.paint_state()
-            .borrow_mut()
+    pub(crate) fn request_full_visual_context_rebuild(&mut self, scope: VisualContextUpdateScope) {
+        self.paint_state_mut()
             .visual_context
             .dirty_boxes
             .request_full_rebuild(scope);

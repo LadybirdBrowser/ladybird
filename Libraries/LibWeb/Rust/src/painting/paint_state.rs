@@ -84,7 +84,7 @@ impl crate::layout::LayoutNodeArena {
         &mut self,
         source: crate::painting::host::RootBackgroundSource,
     ) -> bool {
-        let Some(previous) = self.paint_state().borrow_mut().root_background_source.replace(source) else {
+        let Some(previous) = self.paint_state_mut().root_background_source.replace(source) else {
             return false;
         };
         if previous == source {
@@ -103,5 +103,17 @@ impl crate::layout::LayoutNodeArena {
             }
         }
         true
+    }
+
+    /// Lends the visual context state out of the paint state to `update`, which reads the rest of the arena beside it:
+    /// refreshing the scroll state and the sticky constraints reads the rows while it writes the state.
+    pub(crate) fn with_visual_context_state_lent<T>(
+        &mut self,
+        update: impl FnOnce(&Self, &mut crate::painting::visual_context::VisualContextState) -> T,
+    ) -> T {
+        let mut state = std::mem::take(&mut self.paint_state_mut().visual_context);
+        let answer = update(self, &mut state);
+        self.paint_state_mut().visual_context = state;
+        answer
     }
 }
