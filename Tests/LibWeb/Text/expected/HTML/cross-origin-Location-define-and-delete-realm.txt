@@ -1,0 +1,2 @@
+Define property: SecurityError, current realm: true
+Delete property: SecurityError, current realm: true
