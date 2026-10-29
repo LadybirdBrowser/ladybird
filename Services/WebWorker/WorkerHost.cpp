@@ -257,7 +257,8 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
         if (!is_shared) {
             inside_port = Web::HTML::MessagePort::create(worker_global_scope);
 
-            // FIXME:  1. Set inside port's message event target to worker global scope.
+            // 1. Set inside port's message event target to worker global scope.
+            inside_port->set_message_event_target(worker_global_scope);
 
             // 2. Set worker global scope's inside port to inside port.
             worker_global_scope->set_internal_port(*inside_port);

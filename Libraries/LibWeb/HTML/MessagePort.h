@@ -84,7 +84,7 @@ public:
     virtual WebIDL::ExceptionOr<void> transfer_receiving_steps(JS::Realm&, HTML::TransferDataDecoder&) override;
     virtual HTML::TransferType primary_interface() const override { return HTML::TransferType::MessagePort; }
 
-    void set_worker_event_target(GC::Ref<DOM::EventTarget>);
+    void set_message_event_target(GC::Ref<DOM::EventTarget>);
 
     WebIDL::ExceptionOr<void> message_port_post_message_steps(JS::Realm&, GC::Ptr<MessagePort> target_port, JS::Value message, StructuredSerializeOptions const& options);
 
@@ -117,7 +117,9 @@ private:
     OwnPtr<IPC::Transport> m_transport;
 
     GC::Ref<DOM::EventTarget> m_global_event_target;
-    GC::Ptr<DOM::EventTarget> m_worker_event_target;
+
+    // https://html.spec.whatwg.org/multipage/web-messaging.html#message-event-target
+    GC::Ptr<DOM::EventTarget> m_message_event_target;
 
     Vector<SerializedTransferRecord> m_pending_incoming_messages;
     Vector<SerializedTransferRecord> m_pending_outgoing_messages;
