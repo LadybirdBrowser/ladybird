@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Parent is site-keyed, child is origin-keyed using parameters on its structured header, child is a subdomain of the parent</title>
+<script src="../../../../../resources/testharness.js"></script>
+<script src="../../../../../resources/testharnessreport.js"></script>
+
+<div id="log"></div>
+
+<script type="module">
+import {
+  insertIframe,
+  testDifferentAgentClusters,
+  testGetter
+} from "../resources/helpers.mjs";
+
+promise_setup(async () => {
+  await insertIframe("{{hosts[][www]}}", "?1;param1;param2=value2");
+});
+
+// Since they're different-origin, the child's request is respected, so the
+// parent ends up in the site-keyed agent cluster and the child in the
+// origin-keyed one.
+testDifferentAgentClusters([self, 0]);
+
+testGetter(self, false, "parent");
+testGetter(0, true, "child");
+</script>

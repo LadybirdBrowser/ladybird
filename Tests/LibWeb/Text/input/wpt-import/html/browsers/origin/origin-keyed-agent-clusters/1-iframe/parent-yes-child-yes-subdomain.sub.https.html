@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Parent is origin-keyed, child is site-keyed, child is a subdomain of the parent</title>
+<script src="../../../../../resources/testharness.js"></script>
+<script src="../../../../../resources/testharnessreport.js"></script>
+
+<div id="log"></div>
+
+<script type="module">
+import {
+  insertIframe,
+  testDifferentAgentClusters,
+  testGetter
+} from "../resources/helpers.mjs";
+
+promise_setup(async () => {
+  await insertIframe("{{hosts[][www]}}", "?1");
+});
+
+// Both request origin-keying, so the parent ends up in one origin-keyed agent
+// cluster (the base domain's origin), and the child ends up in a different
+// origin-keyed agent cluster (the www subdomain's origin).
+testDifferentAgentClusters([self, 0]);
+
+testGetter(self, true, "parent");
+testGetter(0, true, "child");
+</script>

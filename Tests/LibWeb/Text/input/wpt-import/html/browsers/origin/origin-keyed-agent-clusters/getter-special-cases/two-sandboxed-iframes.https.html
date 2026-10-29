@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Two sandboxed iframes are in different agent clusters</title>
+<script src="../../../../../resources/testharness.js"></script>
+<script src="../../../../../resources/testharnessreport.js"></script>
+
+<div id="log"></div>
+
+<script type="module">
+// Each sandboxed iframe (without allow-same-origin) gets a unique opaque
+// origin and so should be in its own agent cluster. Sending a
+// WebAssembly.Module from one sandboxed iframe to another should therefore
+// fire messageerror, not a successful message event.
+
+const helperSrcdoc = `
+  <script>
+    addEventListener("message", e => {
+      if (e.data && e.data.cmd === "send-wasm") {
+        const wasm = new WebAssembly.Module(new Uint8Array([0,97,115,109,1,0,0,0]));
+        parent.frames[e.data.targetIndex].postMessage(wasm, "*");
+        return;
+      }
+      if (e.data instanceof WebAssembly.Module) {
+        parent.postMessage({ result: "message" }, "*");
+      }
+    });
+    addEventListener("messageerror", () => {
+      parent.postMessage({ result: "messageerror" }, "*");
+    });
+  <\/script>
+`;
+
+function insertSandboxedIframe() {
+  const iframe = document.createElement("iframe");
+  iframe.sandbox = "allow-scripts";
+  iframe.srcdoc = helperSrcdoc;
+  const loaded = new Promise(resolve => iframe.addEventListener("load", resolve));
+  document.body.append(iframe);
+  return loaded.then(() => iframe);
+}
+
+function nextResult() {
+  return new Promise(resolve => {
+    addEventListener("message", e => {
+      if (e.data && e.data.result)
+        resolve(e.data.result);
+    }, { once: true });
+  });
+}
+
+promise_test(async () => {
+  const iframe1 = await insertSandboxedIframe();
+  await insertSandboxedIframe();
+
+  const result = nextResult();
+  iframe1.contentWindow.postMessage({ cmd: "send-wasm", targetIndex: 1 }, "*");
+  assert_equals(await result, "messageerror");
+}, "Sending a WebAssembly.Module between two sandboxed iframes must fire messageerror");
+</script>
