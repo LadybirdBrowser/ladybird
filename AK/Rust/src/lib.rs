@@ -605,6 +605,19 @@ pub fn encode_base64(input: &[u8], alphabet: Base64Alphabet, omit_padding: bool)
 }
 
 impl Utf16FlyString {
+    /// Retains a borrowed raw `AK::Utf16FlyString` reference.
+    ///
+    /// # Safety
+    ///
+    /// `raw` must be a valid, nonzero fly-string representation that remains live for this call.
+    #[inline]
+    pub unsafe fn from_raw_borrowed(raw: usize) -> Self {
+        // SAFETY: The caller keeps the string alive while adding a reference.
+        unsafe { reference_utf16_string(raw) };
+        // SAFETY: The new reference is transferred to the returned owner.
+        unsafe { Self::from_raw_owned(raw) }
+    }
+
     /// Creates a string through AK's authoritative UTF-8 fly-string table.
     pub fn from_utf8(string: &str) -> Self {
         if let Some(raw) = utf16_short_string_raw(string) {
