@@ -140,12 +140,12 @@ JS::Realm* callback_realm(WebIDL::CallbackType* callback)
 {
     if (!callback)
         return nullptr;
-    return &callback->callback->shape().realm();
+    return &callback->associated_realm();
 }
 
 HTML::Window* window_from_callback(WebIDL::CallbackType& callback)
 {
-    auto& realm = callback.callback->shape().realm();
+    auto& realm = callback.associated_realm();
     return HTML::window_from_global_object(realm.global_object());
 }
 
@@ -158,7 +158,7 @@ DOM::EventTarget* current_target_global(WebIDL::CallbackType& callback, DOM::Eve
         return window;
 
     // Any other target's relevant realm is its wrapper's: the realm it was created in.
-    auto& callback_realm = callback.callback->shape().realm();
+    auto& callback_realm = callback.associated_realm();
     auto wrapper = current_target_wrapper(callback_realm, event);
     if (!wrapper)
         return nullptr;
@@ -167,13 +167,13 @@ DOM::EventTarget* current_target_global(WebIDL::CallbackType& callback, DOM::Eve
 
 void report_exception_for_callback(WebIDL::CallbackType& callback, JS::Value exception)
 {
-    auto& realm = callback.callback->shape().realm();
+    auto& realm = callback.associated_realm();
     HTML::report_an_exception(realm.global_object(), exception);
 }
 
 JS::Completion invoke_event_listener(WebIDL::CallbackType& callback, DOM::Event& event)
 {
-    auto& callback_realm = callback.callback->shape().realm();
+    auto& callback_realm = callback.associated_realm();
     auto this_value = current_target_wrapper(callback_realm, event);
     auto& event_realm = this_value ? this_value_realm(callback_realm, this_value) : callback_realm;
     auto wrapped_event = Bindings::event(event_realm, GC::Ref { event });
@@ -195,11 +195,11 @@ JS::Completion invoke_event_handler(WebIDL::CallbackType& callback, DOM::Event& 
         auto wrapped_lineno = JS::Value(error_event.lineno());
         auto wrapped_colno = JS::Value(error_event.colno());
 
-        auto this_value = current_target_wrapper(callback.callback->shape().realm(), error_event);
+        auto this_value = current_target_wrapper(callback.associated_realm(), error_event);
         return WebIDL::invoke_callback(callback, this_value.ptr(), { { wrapped_message, wrapped_filename, wrapped_lineno, wrapped_colno, error_event.error() } });
     }
 
-    auto& callback_realm = callback.callback->shape().realm();
+    auto& callback_realm = callback.associated_realm();
     auto this_value = current_target_wrapper(callback_realm, event);
     auto& event_realm = this_value ? this_value_realm(callback_realm, this_value) : callback_realm;
     auto wrapped_event = Bindings::event(event_realm, GC::Ref { event });

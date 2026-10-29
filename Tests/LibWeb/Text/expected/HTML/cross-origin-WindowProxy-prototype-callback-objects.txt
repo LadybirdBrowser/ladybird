@@ -1,0 +1,3 @@
+EventListener: reported SecurityError, current realm: true
+NodeFilter: SecurityError, current realm: true
+Cross-origin functions called: none
