@@ -18,7 +18,12 @@ struct Global {
     {
         Gfx::FontDatabase::the().install_system_font_provider(make<Gfx::PathFontProvider>());
     }
-} global;
+};
+
+TEST_SETUP
+{
+    static Global global;
+}
 
 }
 

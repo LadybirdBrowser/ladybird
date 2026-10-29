@@ -27,7 +27,12 @@ struct Global {
     {
         Core::ResourceImplementation::install(make<Core::ResourceImplementationFile>(MUST(String::formatted("{}/Base/res", LADYBIRD_SOURCE_DIR))));
     }
-} global;
+};
+
+TEST_SETUP
+{
+    static Global global;
+}
 
 static IPC::File copy_bytes_to_file(ReadonlyBytes bytes)
 {

@@ -1,8 +1,10 @@
+ladybird_test_suite(LibGfx)
+
 set(TEST_SOURCES
     BenchmarkJPEGLoader.cpp
     TestColor.cpp
-    TestFontCatalog.cpp
     TestFont.cpp
+    TestFontCatalog.cpp
     TestImageDecoder.cpp
     TestImageWriter.cpp
     TestRect.cpp
@@ -11,21 +13,14 @@ set(TEST_SOURCES
     TestWOFF2.cpp
 )
 
-foreach(source IN LISTS TEST_SOURCES)
-    ladybird_test("${source}" LibGfx LIBS LibGfx)
-endforeach()
-
-target_link_libraries(BenchmarkJPEGLoader PRIVATE LibImageDecoders)
-target_link_libraries(TestImageDecoder PRIVATE LibImageDecoders)
-target_link_libraries(TestImageWriter PRIVATE LibImageDecoders)
-target_link_libraries(TestFont PRIVATE harfbuzz LibIPC LibThreading)
-target_link_libraries(TestSharedFontProvider PRIVATE LibIPC)
-target_compile_definitions(TestSharedFontProvider PRIVATE LADYBIRD_SOURCE_DIR="${LADYBIRD_SOURCE_DIR}")
-
-ladybird_test(TestBitmapSequence.cpp LibGfx LIBS LibGfx LibIPC)
-ladybird_test(TestShareableBitmap.cpp LibGfx LIBS LibGfx LibIPC)
+list(APPEND TEST_SOURCES TestBitmapSequence.cpp TestShareableBitmap.cpp)
 
 # Opens the LibGfx and LibWeb shared libraries by name to reach their copies of the Rust graphics crate.
 if (BUILD_SHARED_LIBS AND (APPLE OR LINUX))
-    ladybird_test(TestRustCrateCopies.cpp LibGfx LIBS LibGfx LibWeb)
+    list(APPEND TEST_SOURCES TestRustCrateCopies.cpp)
+    target_link_libraries(TestLibGfx PRIVATE LibWeb)
 endif()
+
+target_sources(TestLibGfx PRIVATE ${TEST_SOURCES})
+target_link_libraries(TestLibGfx PRIVATE LibGfx LibImageDecoders LibIPC LibThreading harfbuzz)
+set_property(SOURCE TestSharedFontProvider.cpp APPEND PROPERTY COMPILE_DEFINITIONS LADYBIRD_SOURCE_DIR="${LADYBIRD_SOURCE_DIR}")
