@@ -81,6 +81,7 @@ public:
         Web::Gamepad::SharedGamepadStateSlot& shared_state_slot(size_t slot_index);
         bool may_receive_device(Device const&) const;
         bool has_page_that_may_receive_gamepads() const;
+        void notify_about_user_activation_for_gamepad_user_gesture() const;
 
         WebContentClient& client;
         Core::AnonymousBuffer state_buffer;

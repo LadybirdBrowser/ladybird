@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="gamepad-helper.js"></script>
+<script>
+    promiseTest(async () => {
+        startUsingGamepads();
+        const gamepad = internals.connectVirtualGamepad();
+        await pumpGamepadEvents();
+        println(`Transient activation before pressing a button: ${navigator.userActivation.isActive}`);
+
+        gamepad.setButton(gamepad.buttons[0], true);
+        await pumpGamepadEvents();
+        await waitForUserActivation();
+        println(`Transient activation after pressing a button: ${navigator.userActivation.isActive}`);
+        gamepad.setButton(gamepad.buttons[0], false);
+        await pumpGamepadEvents();
+
+        try {
+            await document.documentElement.requestFullscreen();
+            await document.exitFullscreen();
+        } catch (error) {
+            println(`FAIL: entering fullscreen threw ${error.name}`);
+        }
+        println(`Transient activation after entering fullscreen consumed it: ${navigator.userActivation.isActive}`);
+
+        internals.setPageFocus(false);
+        gamepad.setButton(gamepad.buttons[0], true);
+        await pumpGamepadEvents();
+        println(`Transient activation after pressing a button without system focus: ${navigator.userActivation.isActive}`);
+        gamepad.setButton(gamepad.buttons[0], false);
+        await pumpGamepadEvents();
+        internals.setPageFocus(true);
+
+        gamepad.disconnect();
+        await pumpGamepadEvents();
+    });
+</script>

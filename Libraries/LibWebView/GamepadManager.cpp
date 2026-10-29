@@ -490,13 +490,38 @@ void GamepadManager::notify_consumers_of_state_changes()
 
 void GamepadManager::publish_device_state(Device const& device)
 {
+    auto contains_gamepad_user_gesture = device.contains_gamepad_user_gesture();
+
     for (auto& entry : m_consumers) {
         auto& consumer = *entry.value;
         if (auto slot_index = consumer.slot_index_for_device(device.description.handle); slot_index.has_value()) {
             Web::Gamepad::publish_gamepad_state_to_slot(consumer.shared_state_slot(*slot_index), device.last_published_state);
             consumer.has_pending_state_changes = true;
+
+            // The activation is in place before the process learns of the state that gave it.
+            if (contains_gamepad_user_gesture)
+                consumer.notify_about_user_activation_for_gamepad_user_gesture();
         }
     }
+}
+
+// https://github.com/w3c/gamepad/pull/230
+// The activation notification steps that updating a gamepad's state runs for each document it belongs to. The UI
+// process runs them, as the gesture is input it received.
+void GamepadManager::Consumer::notify_about_user_activation_for_gamepad_user_gesture() const
+{
+    HashTable<Web::HTML::CrossProcessId> notified_document_ids;
+    client.for_each_page([&](WebContentPage& page) {
+        page.for_each_navigable_with_a_hosted_active_document([&](CanonicalNavigable const& navigable) {
+            // Only the documents allowed to use gamepads have them, so only those start the steps. The steps then reach
+            // their ancestors and same-origin descendants whatever those may use.
+            if (navigable.active_document_is_fully_active_descendant_of_a_top_level_traversable_with_user_attention()
+                && navigable.active_document().is_allowed_to_use(Web::PermissionsPolicy::PolicyControlledFeature::Gamepad))
+                navigable.run_activation_notification_steps_for_active_document(notified_document_ids);
+            return IterationDecision::Continue;
+        });
+        return IterationDecision::Continue;
+    });
 }
 
 void GamepadManager::device_connected(u32 sdl_joystick_id)

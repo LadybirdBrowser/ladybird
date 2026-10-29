@@ -380,6 +380,10 @@ void Gamepad::update_gamepad_state(Badge<NavigatorGamepadPartial>)
     // NB: A Window always has an associated Document.
     auto& document = window.associated_document();
 
+    // AD-HOC: https://github.com/w3c/gamepad/pull/230 proposes a step here: "If document is a fully active descendant of
+    //         a top-level traversable with user attention and gamepad contains a gamepad user gesture, then run the
+    //         activation notification steps given document." The UI process runs it.
+
     // 9. If navigator.[[hasGamepadGesture]] is false and document is a fully active descendant of a top-level
     //    traversable with user attention and gamepad contains a gamepad user gesture:
     if (!navigator->has_gamepad_gesture() && document.is_fully_active_descendant_of_a_top_level_traversable_with_user_attention() && contains_gamepad_user_gesture()) {
