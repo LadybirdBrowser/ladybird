@@ -12,13 +12,14 @@ typedef (CanvasImageSource or
          Blob or
          ImageData) ImageBitmapSource;
 
-enum ImageOrientation { "from-image", "flipY" };
+// INTEROP: Chromium and WebKit still accept the legacy "none" orientation.
+enum ImageOrientation { "from-image", "flipY", "none" };
 enum PremultiplyAlpha { "none", "premultiply", "default" };
 enum ColorSpaceConversion { "none", "default" };
 enum ResizeQuality { "pixelated", "low", "medium", "high" };
 
 dictionary ImageBitmapOptions {
-    // FIXME: ImageOrientation imageOrientation = "from-image";
+    ImageOrientation imageOrientation = "from-image";
     // FIXME: PremultiplyAlpha premultiplyAlpha = "default";
     ColorSpaceConversion colorSpaceConversion = "default";
     [EnforceRange] unsigned long resizeWidth;
