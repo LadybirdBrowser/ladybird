@@ -6838,7 +6838,9 @@ bool LocalNavigable::commit_frame(PaintConfig paint_config)
 
     // Hit testing can publish a display list before the next frame. Give both paths the same canvas fill so that
     // switching between them does not force another recording. Screenshots can supply their own fill rectangle.
-    if (is_local_root() && !paint_config.canvas_fill_rect.has_value())
+    // NB: Only the top-level traversable fills its canvas. A local root under a remote parent is an iframe in another
+    //     process, and its canvas stays transparent like that of a same-process iframe.
+    if (is_top_level_traversable() && !paint_config.canvas_fill_rect.has_value())
         paint_config.canvas_fill_rect = Gfx::IntRect { {}, page().css_to_device_rect(viewport_rect()).size().to_type<int>() };
 
     // A frame is left to the next rendering update while the compositor cannot be reached.
