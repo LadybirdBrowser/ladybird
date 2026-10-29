@@ -1063,8 +1063,6 @@ private:
     PseudoElementData* pseudo_element_data();
     PseudoElementData const* pseudo_element_data() const;
 
-    Utf16FlyString make_html_uppercased_qualified_name() const;
-
     void exit_fullscreen_on_element_removal();
     CSS::RequiredInvalidationAfterStyleChange recompute_pseudo_element_styles(Layout::BegunRead const& read, bool& did_change_custom_properties, bool had_list_marker, CSS::ComputedValues const* old_originating_style, EnginePseudoElementRecords const* = nullptr, EngineRecordDamages const* = nullptr);
     void apply_computed_style_to_layout_node_if_needed(Layout::BegunRead const& read, CSS::RequiredInvalidationAfterStyleChange const&);
