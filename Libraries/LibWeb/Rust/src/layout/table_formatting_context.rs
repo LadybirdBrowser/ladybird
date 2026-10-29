@@ -1271,7 +1271,7 @@ impl<'pass> TableFormattingContext<'pass> {
         formatting_context::place_child(
             &self.run,
             node,
-            formatting_context::PlacedChild::of_record(record, &self.run).with_fragment_facts(fragment_facts),
+            formatting_context::PlacedChild::of_record(record, None, &self.run).with_fragment_facts(fragment_facts),
             content_offset,
             None,
             None,

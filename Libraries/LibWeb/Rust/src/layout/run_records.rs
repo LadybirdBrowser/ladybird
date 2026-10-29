@@ -301,7 +301,7 @@ pub(crate) struct LaidOutChildBox {
 
 impl LaidOutChildBox {
     /// A child as the run of its parent left it in `record`, where that run sizes the child itself instead of handing
-    /// it to a run of its own. The record keeps any lines the parent's run laid out in it.
+    /// it to a run of its own.
     pub(crate) fn sized_in_parent_run(record: &UsedValues) -> Self {
         Self {
             cells: used_values::RootInputCells::capture(record),

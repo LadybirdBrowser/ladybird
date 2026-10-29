@@ -113,23 +113,27 @@ pub(crate) enum LineDataState {
     Finished(std::sync::Arc<inline_content::InlineContent>),
 }
 
-impl std::fmt::Debug for LineDataState {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str(match self {
-            Self::Empty => "Empty",
-            Self::Building(_) => "Building",
-            Self::Finished(_) => "Finished",
-        })
-    }
-}
-
 impl LineDataState {
-    pub(crate) fn building_mut(&mut self) -> &mut LineData {
-        match self {
-            Self::Building(data) => data,
-            Self::Empty => panic!("line building mutated line data before it began"),
-            Self::Finished(_) => panic!("line building mutated finalized inline content"),
-        }
+    /// The lines as inline content laid out at `content_inline_size` in `writing_mode`. Finishes lines still being
+    /// built and keeps the result, so later calls return the same content.
+    pub(crate) fn finish(
+        &mut self,
+        arena: &LayoutNodeArena,
+        content_inline_size: CssPixels,
+        writing_mode: u8,
+    ) -> Option<std::sync::Arc<inline_content::InlineContent>> {
+        let content = match self {
+            Self::Empty => return None,
+            Self::Finished(content) => return Some(content.clone()),
+            Self::Building(data) => std::sync::Arc::new(inline_content::InlineContent::finish(
+                std::mem::take(data.as_mut()),
+                arena,
+                content_inline_size,
+                writing_mode,
+            )),
+        };
+        *self = Self::Finished(content.clone());
+        Some(content)
     }
 
     pub(crate) fn lines(&self) -> impl DoubleEndedIterator<Item = inline_content::LineRecord> + '_ {
@@ -202,7 +206,6 @@ pub(crate) struct UsedValues {
     pub last_baseline: Cell<CssPixels>,
     pub inline_alignment_baseline: Cell<Option<CssPixels>>,
 
-    pub(crate) line_data: RefCell<LineDataState>,
     /// The frame the box's sizes, size constraints and box sides are held in.
     pub(crate) frame: Cell<geometry::Frame>,
 }
@@ -235,59 +238,12 @@ impl Default for UsedValues {
             has_last_baseline: Cell::new(false),
             last_baseline: Cell::new(zero),
             inline_alignment_baseline: Cell::new(None),
-            line_data: RefCell::new(LineDataState::Empty),
             frame: Cell::new(geometry::Frame::PHYSICAL),
         }
     }
 }
 
 impl UsedValues {
-    pub(crate) fn line_data_ref(&self) -> Option<Ref<'_, LineDataState>> {
-        let state = self.line_data.borrow();
-        (!matches!(*state, LineDataState::Empty)).then_some(state)
-    }
-
-    pub(crate) fn ensure_line_data(&self) {
-        let mut state = self.line_data.borrow_mut();
-        if matches!(*state, LineDataState::Empty) {
-            *state = LineDataState::Building(Box::default());
-        }
-    }
-
-    /// Takes the lines built in this record so far, for an inline formatting context to build on.
-    pub(crate) fn take_building_line_data(&self) -> LineData {
-        let mut data = RefMut::map(self.line_data.borrow_mut(), LineDataState::building_mut);
-        std::mem::take(&mut *data)
-    }
-
-    /// Keeps the lines an inline formatting context built in this record.
-    pub(crate) fn set_building_line_data(&self, data: LineData) {
-        *RefMut::map(self.line_data.borrow_mut(), LineDataState::building_mut) = data;
-    }
-
-    pub(crate) fn set_finished_line_data(&self, content: std::sync::Arc<inline_content::InlineContent>) {
-        *self.line_data.borrow_mut() = LineDataState::Finished(content);
-    }
-
-    pub(crate) fn finish_line_data(
-        &self,
-        callbacks: &LayoutPass<'_>,
-    ) -> Option<std::sync::Arc<inline_content::InlineContent>> {
-        let mut state = self.line_data.borrow_mut();
-        let content = match &mut *state {
-            LineDataState::Empty => return None,
-            LineDataState::Finished(content) => return Some(content.clone()),
-            LineDataState::Building(data) => std::sync::Arc::new(inline_content::InlineContent::finish(
-                std::mem::take(data.as_mut()),
-                callbacks.arena(),
-                self.content_inline_size.get(),
-                self.frame.get().writing_mode(),
-            )),
-        };
-        *state = LineDataState::Finished(content.clone());
-        Some(content)
-    }
-
     pub(crate) fn content_baselines_from_cells(&self) -> DerivedBaselines {
         DerivedBaselines {
             inline_alignment: self.inline_alignment_baseline.get(),
@@ -509,31 +465,6 @@ impl UsedValues {
     pub(crate) fn set_box_metrics_from_fragment(&self, fragment: &fragment_tree::Fragment) {
         RecordInFrame::in_its_own_frame(self).set_box_metrics_from_fragment(fragment);
     }
-
-    /// Whether `fragment` shows this record's box as it stands: its metrics, and the very line data it holds.
-    pub(crate) fn shows_box_of_fragment(&self, fragment: &fragment_tree::Fragment) -> bool {
-        let same_line_data = match (&fragment.line_data, &*self.line_data.borrow()) {
-            (None, LineDataState::Empty) => true,
-            (Some(left), LineDataState::Finished(right)) => std::sync::Arc::ptr_eq(left, right),
-            _ => false,
-        };
-        same_line_data
-            && fragment.content_inline_size == self.content_inline_size.get()
-            && fragment.content_block_size == self.content_block_size.get()
-            && fragment.margin_left == self.margin_left.get()
-            && fragment.margin_right == self.margin_right.get()
-            && fragment.margin_top == self.margin_top.get()
-            && fragment.margin_bottom == self.margin_bottom.get()
-            && fragment.border_left == self.border_left.get()
-            && fragment.border_right == self.border_right.get()
-            && fragment.border_top == self.border_top.get()
-            && fragment.border_bottom == self.border_bottom.get()
-            && fragment.padding_left == self.padding_left.get()
-            && fragment.padding_right == self.padding_right.get()
-            && fragment.padding_top == self.padding_top.get()
-            && fragment.padding_bottom == self.padding_bottom.get()
-            && fragment.uses_collapsing_borders_model == self.uses_collapsing_borders_model.get()
-    }
 }
 
 /// The sizes, size constraints and box sides of a box, with what derives from them, whether a run holds them in the box's
@@ -727,12 +658,6 @@ impl<'record> RecordInFrame<'record> {
             record,
             reader: record.frame.get(),
         }
-    }
-
-    /// The record, for what it holds besides the metrics this view projects.
-    #[inline]
-    pub(crate) fn record(self) -> &'record UsedValues {
-        self.record
     }
 
     /// Writes the record's metrics, which `write` sees and changes as the reader's frame has them.

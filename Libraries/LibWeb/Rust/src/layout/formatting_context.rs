@@ -378,8 +378,12 @@ impl PlacedChild {
         })
     }
 
-    /// A box that `run` lays out in `record`, before its parent decided anything about it.
-    pub(crate) fn of_record(record: &UsedValues, run: &FormattingContextRun) -> Self {
+    /// A box that `run` lays out in `record` with `lines`, before its parent decided anything about it.
+    pub(crate) fn of_record(
+        record: &UsedValues,
+        lines: Option<used_values::LineData>,
+        run: &FormattingContextRun,
+    ) -> Self {
         let callbacks = &run.callbacks;
         Self::new(fragment_tree::FragmentGeometry {
             cells: used_values::RecordInFrame::new(record, callbacks.frame).cells(),
@@ -387,7 +391,16 @@ impl PlacedChild {
             line_data: run
                 .fragments
                 .is_some()
-                .then(|| record.finish_line_data(callbacks))
+                .then(|| {
+                    lines.map(|lines| {
+                        std::sync::Arc::new(inline_content::InlineContent::finish(
+                            lines,
+                            callbacks.arena(),
+                            record.content_inline_size.get(),
+                            record.frame.get().writing_mode(),
+                        ))
+                    })
+                })
                 .flatten(),
         })
     }
@@ -1386,13 +1399,13 @@ impl<'pass> FormattingContextRun<'pass> {
         &self,
         result: ChildLayoutResult,
         root: Option<fragment_tree::UnplacedRootFragment>,
+        root_line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
         inputs_never_observed: fc_run_cache::RunInputsTheStoredRunNeverObserved,
         parent_owns_root_input_cells: bool,
     ) -> RunOutputs {
-        let record = self.root_record();
         let root_outcome = RunRootOutcome {
-            input_cells_left_by_run: (!parent_owns_root_input_cells).then(|| record.cells()),
-            line_data: record.record().finish_line_data(&self.callbacks),
+            input_cells_left_by_run: (!parent_owns_root_input_cells).then(|| self.root_record().cells()),
+            line_data: root_line_data,
         };
         RunOutputs {
             result,
@@ -2375,6 +2388,7 @@ fn lay_out_run_root_and_contents<'pass>(
     };
 
     let mut implementation = None;
+    let mut root_lines = used_values::LineDataState::Empty;
     let mut result = if !changes_frame
         && run.fragments.is_some()
         && matches!(
@@ -2412,6 +2426,7 @@ fn lay_out_run_root_and_contents<'pass>(
                 if NodeFacts::new(&body_run.callbacks, box_).display().is_math_inside() {
                     math_formatting_context::layout_operator(body_run, &input, &mut result);
                 }
+                root_lines = context.take_root_lines();
                 result
             }
             FormattingContextImplementation::Flex(context) => {
@@ -2490,7 +2505,15 @@ fn lay_out_run_root_and_contents<'pass>(
     // NB: Intrinsic size overrides use the box's own writing mode, before its sizes are projected into the
     //     parent's frame.
     if changes_frame {
-        result = result_in_parent_frame(run, body_run, result, parent_frame, own_frame);
+        // NB: The lines are finished at the inline size the contents were laid out at, before the root's own box is
+        //     sized in its parent's frame.
+        let record = records.used_values(box_);
+        root_lines.finish(
+            callbacks.arena(),
+            record.content_inline_size.get(),
+            record.frame.get().writing_mode(),
+        );
+        result = result_in_parent_frame(run, result, parent_frame, own_frame);
     }
 
     if containment_facts.has_preferred_aspect_ratio() {
@@ -2551,6 +2574,12 @@ fn lay_out_run_root_and_contents<'pass>(
             result.content_block_size_for_aspect_ratio_minimum,
         );
     }
+    let record = records.used_values(box_);
+    let root_line_data = root_lines.finish(
+        callbacks.arena(),
+        record.content_inline_size.get(),
+        record.frame.get().writing_mode(),
+    );
     result.depends_on_percentage_block_size = run.sizing().resolve_percentage_block_size_dependency(run.box_);
     let item_run_observations_are_known = !run_is_handed_table_inline_layout_outside_its_key;
     let inputs_never_observed = fc_run_cache::RunInputsTheStoredRunNeverObserved {
@@ -2578,6 +2607,7 @@ fn lay_out_run_root_and_contents<'pass>(
         return run.outputs(
             result,
             take_run_fragments(),
+            root_line_data,
             inputs_never_observed,
             parent_owns_root_input_cells,
         );
@@ -2596,6 +2626,7 @@ fn lay_out_run_root_and_contents<'pass>(
                 return run.outputs(
                     result,
                     take_run_fragments(),
+                    root_line_data,
                     inputs_never_observed,
                     parent_owns_root_input_cells,
                 );
@@ -2606,6 +2637,7 @@ fn lay_out_run_root_and_contents<'pass>(
     run.outputs(
         result,
         take_run_fragments(),
+        root_line_data,
         inputs_never_observed,
         parent_owns_root_input_cells,
     )
@@ -2688,13 +2720,11 @@ fn body_input_in_own_frame(
 /// Maps what the layout of a run root's contents in its own frame found into its parent's frame.
 fn result_in_parent_frame(
     run: &FormattingContextRun,
-    body_run: &FormattingContextRun,
     mut result: ChildLayoutResult,
     parent_frame: geometry::Frame,
     own_frame: geometry::Frame,
 ) -> ChildLayoutResult {
     let used = run.records.used_values(run.box_);
-    used.finish_line_data(&body_run.callbacks);
     if parent_frame.is_orthogonal_to(own_frame) {
         // https://drafts.csswg.org/css-writing-modes-4/#orthogonal-shrink-to-fit
         // Note that this section requires that when a child box auto-sized in its block axis establishes an
@@ -2889,7 +2919,11 @@ pub(crate) fn layout_inside_child_with_input_cells(
             .filter(|fragment| {
                 run.fragments.is_some()
                     && fragment.is_plain_box()
-                    && record_of_this_layout.shows_box_of_fragment(fragment)
+                    && fragment_tree::FragmentGeometry {
+                        cells: used_values::RootInputCells::capture(&record_of_this_layout),
+                        line_data: None,
+                    }
+                    .shows_box_of_fragment(fragment)
                     && !facts.has_anchor_names()
             })
             .map(|fragment| fragment_tree::ChildFragmentArrival::CommittedFragment {
