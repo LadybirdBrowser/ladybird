@@ -378,15 +378,16 @@ impl PlacedChild {
         })
     }
 
-    /// A box that `run` lays out in `record` with `lines`, before its parent decided anything about it.
-    pub(crate) fn of_record(
-        record: &UsedValues,
+    /// A box that `run` lays out in `cells`, which hold it in the run's frame, with `lines`, before its parent decided
+    /// anything about it.
+    pub(crate) fn laid_out_here(
+        cells: used_values::RootInputCells,
         lines: Option<used_values::LineData>,
         run: &FormattingContextRun,
     ) -> Self {
         let callbacks = &run.callbacks;
         Self::new(fragment_tree::FragmentGeometry {
-            cells: used_values::CellsInFrame::new(record, callbacks.frame).cells(),
+            cells,
             // NB: Only a run that builds fragments shows the lines it laid out in the boxes it places.
             line_data: run
                 .fragments
@@ -396,13 +397,22 @@ impl PlacedChild {
                         std::sync::Arc::new(inline_content::InlineContent::finish(
                             lines,
                             callbacks.arena(),
-                            record.content_inline_size(),
-                            record.frame.writing_mode(),
+                            cells.content_inline_size,
+                            callbacks.frame.writing_mode(),
                         ))
                     })
                 })
                 .flatten(),
         })
+    }
+
+    /// A box without lines that `run` lays out in `record`, before its parent decided anything about it.
+    pub(crate) fn of_record(record: &UsedValues, run: &FormattingContextRun) -> Self {
+        Self::laid_out_here(
+            used_values::CellsInFrame::new(record, run.callbacks.frame).cells(),
+            None,
+            run,
+        )
     }
 
     /// The child with the insets its parent resolved for it as an in-flow box.
@@ -1942,18 +1952,18 @@ fn finalize_float_root(
     );
 }
 
-/// Sizes `child` in `record` without a run of its own. Returns the used insets of an absolutely positioned child.
+/// Sizes `child` in `cells` without a run of its own. Returns the used insets of an absolutely positioned child.
 fn size_skipped_independent_root(
     run: &FormattingContextRun,
     parent_block: Option<&block_formatting_context::BlockFormattingContext>,
     child: Node,
-    record: &UsedValues,
+    cells: &Cell<used_values::RootInputCells>,
     input: &LayoutInput,
 ) -> Option<run_records::UsedInsets> {
     match input.participation {
         ParticipationInParentFormattingContext::Float { .. } => {
             let parent = parent_block.expect("a float requires an enclosing block formatting context");
-            let sized_float = block_formatting_context::ChildSizedHere::laid_out_in(child, record);
+            let sized_float = block_formatting_context::ChildSizedHere::laid_out_in(child, cells);
             parent.resolve_float_root_block_size_in_parent(sized_float, input);
             parent.resolve_used_block_size_if_treated_as_auto(
                 sized_float,
@@ -1971,7 +1981,10 @@ fn size_skipped_independent_root(
             });
             let used_insets = Cell::new(run_records::UsedInsets::default());
             let sized_child = abspos_engine::OutOfFlowBox::new(
-                sizing_context::SizedRecord::new(child, used_values::CellsInFrame::new(record, run.callbacks.frame)),
+                sizing_context::SizedRecord::new(
+                    child,
+                    used_values::CellsInFrame::of_cells(cells, run.callbacks.frame, run.callbacks.frame),
+                ),
                 &used_insets,
                 anchor_resolved_values.as_ref(),
             );
@@ -2900,11 +2913,11 @@ pub(crate) struct ChildLayout {
 }
 
 impl ChildLayout {
-    fn of_child_sized_in_parent_run(outcome: ChildLayoutOutcome, record: &UsedValues) -> Self {
+    fn of_child_sized_in_parent_run(outcome: ChildLayoutOutcome, cells: used_values::RootInputCells) -> Self {
         Self {
             outcome,
             fragment_arrival: None,
-            laid_out_box: run_records::LaidOutChildBox::sized_in_parent_run(record, DerivedBaselines::default()),
+            laid_out_box: run_records::LaidOutChildBox::sized_here(cells, DerivedBaselines::default()),
         }
     }
 }
@@ -2948,24 +2961,24 @@ pub(crate) fn layout_inside_child_with_input_cells(
     {
         // OPTIMIZATION: An empty atomic block has no formatting-context body output. Size it in the
         // parent run, which will also construct its fragment when placing the box.
-        let record_of_this_layout = child_input_cells.materialize_record(run.callbacks.frame);
+        let cells_of_this_layout = Cell::new(child_input_cells);
         let committed_fragment = run.sizing().dimension_empty_atomic_root(
             sizing_context::SizedRecord::new(
                 child,
-                used_values::CellsInFrame::new(&record_of_this_layout, run.callbacks.frame),
+                used_values::CellsInFrame::of_cells(&cells_of_this_layout, run.callbacks.frame, run.callbacks.frame),
             ),
             input.available_space,
             input.containing_block_constraints,
             child_run_builds_fragments,
         );
         // OPTIMIZATION: A box that took its metrics from its committed fragment is placed with that fragment, where
-        // it shows the box as the record holds it.
+        // it shows the box as its cells hold it.
         let fragment_arrival = committed_fragment
             .filter(|fragment| {
                 run.fragments.is_some()
                     && fragment.is_plain_box()
                     && fragment_tree::FragmentGeometry {
-                        cells: record_of_this_layout.cells(),
+                        cells: cells_of_this_layout.get(),
                         line_data: None,
                     }
                     .shows_box_of_fragment(fragment)
@@ -2976,7 +2989,7 @@ pub(crate) fn layout_inside_child_with_input_cells(
                 reuses_subtree: false,
             });
         let laid_out_box =
-            run_records::LaidOutChildBox::sized_in_parent_run(&record_of_this_layout, DerivedBaselines::default());
+            run_records::LaidOutChildBox::sized_here(cells_of_this_layout.get(), DerivedBaselines::default());
         return ChildLayout {
             outcome: skipped(None),
             fragment_arrival,
@@ -2988,12 +3001,12 @@ pub(crate) fn layout_inside_child_with_input_cells(
         Some(FormattingContextType::InternalReplaced | FormattingContextType::ReplacedWithChildren)
     );
     if !facts.can_have_children() && !creates_replaced_context {
-        let record_of_this_layout = child_input_cells.materialize_record(run.callbacks.frame);
+        let cells_of_this_layout = Cell::new(child_input_cells);
         let out_of_flow_root_used_insets =
-            size_skipped_independent_root(run, parent_block, child, &record_of_this_layout, &input);
+            size_skipped_independent_root(run, parent_block, child, &cells_of_this_layout, &input);
         return ChildLayout::of_child_sized_in_parent_run(
             skipped(out_of_flow_root_used_insets),
-            &record_of_this_layout,
+            cells_of_this_layout.get(),
         );
     }
 

@@ -111,4 +111,6 @@ pub(crate) use style_values::StyleValues;
 pub(crate) use tree_builder::build_keeps_box;
 pub(crate) use update_layout::MainThreadFfiEntry as UpdateMainThreadFfiEntry;
 pub(crate) use update_layout::{ClockRound, ClockRoundDeclined, FlownRound, SealedRound};
-pub(crate) use used_values::{BoxMetricCells, FfiCssPixelPoint, FfiCssPixelRect, FfiCssPixelSize, UsedValues};
+pub(crate) use used_values::{
+    BoxMetricCells, BoxMetricCellsMut, FfiCssPixelPoint, FfiCssPixelRect, FfiCssPixelSize, UsedValues,
+};

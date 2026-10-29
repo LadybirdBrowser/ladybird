@@ -1879,7 +1879,7 @@ impl<'pass> SvgFormattingContext<'pass> {
     /// Places `node`, a box this context lays out in `record`, whose metrics are final once the box is placed, and
     /// returns what the parent of the box reads of it.
     fn place_child(&self, node: Node, record: &UsedValues, x: CssPixels, y: CssPixels) -> LaidOutSvgElement {
-        let placed_child = formatting_context::PlacedChild::of_record(record, None, &self.run);
+        let placed_child = formatting_context::PlacedChild::of_record(record, &self.run);
         self.place_laid_out_child(node, placed_child, x, y, None);
         LaidOutSvgElement {
             cells: record.cells(),
@@ -2246,7 +2246,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         used.update_cells(|cells| cells.has_definite_block_size = true);
         self.place_laid_out_child(
             shape,
-            formatting_context::PlacedChild::of_record(used, None, &self.run),
+            formatting_context::PlacedChild::of_record(used, &self.run),
             committed_offset.x,
             committed_offset.y,
             Some(fragment_tree::ChildFragmentArrival::CommittedFragment {

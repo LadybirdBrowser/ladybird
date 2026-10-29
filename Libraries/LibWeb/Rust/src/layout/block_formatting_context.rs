@@ -155,7 +155,7 @@ struct LaidOutBlockLevelBox {
     broken_inside: Option<BrokenInside>,
     has_unbreakable_lines: bool,
     collapses_through: bool,
-    /// The box as its layout left it: as a run of its own handed it back, or as this flow laid it out in a record its
+    /// The box as its layout left it: as a run of its own handed it back, or as this flow laid it out in cells its
     /// layout owns.
     laid_out_box: run_records::LaidOutChildBox,
     /// What this flow decided the box's fragment shows of it.
@@ -187,7 +187,7 @@ impl LaidOutBlockLevelBox {
     }
 }
 
-/// A box a block formatting context sizes, in what the call laying the box out owns: the record the context lays the
+/// A box a block formatting context sizes, in cells the call laying the box out owns: the cells the context lays the
 /// box out in, or the cells it sizes a child in ahead of the child's layout.
 #[derive(Clone, Copy)]
 pub(crate) struct ChildSizedHere<'sized> {
@@ -197,16 +197,16 @@ pub(crate) struct ChildSizedHere<'sized> {
 
 #[derive(Clone, Copy)]
 enum SizedIn<'sized> {
-    Record(&'sized UsedValues),
+    LaidOutHere(&'sized Cell<used_values::RootInputCells>),
     CellsAheadOfItsRun(&'sized Cell<used_values::RootInputCells>),
 }
 
 impl<'sized> ChildSizedHere<'sized> {
-    /// `node`, laid out in `record`, which its layout owns.
-    pub(crate) fn laid_out_in(node: Node, record: &'sized UsedValues) -> Self {
+    /// `node`, laid out in `cells`, which its layout owns.
+    pub(crate) fn laid_out_in(node: Node, cells: &'sized Cell<used_values::RootInputCells>) -> Self {
         Self {
             node,
-            sized_in: SizedIn::Record(record),
+            sized_in: SizedIn::LaidOutHere(cells),
         }
     }
 
@@ -218,10 +218,10 @@ impl<'sized> ChildSizedHere<'sized> {
         }
     }
 
-    /// The record the box is laid out in, if the context lays it out itself.
-    fn record(self) -> Option<&'sized UsedValues> {
+    /// The cells the box is laid out in, if the context lays it out itself.
+    fn cells_laid_out_here(self) -> Option<&'sized Cell<used_values::RootInputCells>> {
         match self.sized_in {
-            SizedIn::Record(record) => Some(record),
+            SizedIn::LaidOutHere(cells) => Some(cells),
             SizedIn::CellsAheadOfItsRun(_) => None,
         }
     }
@@ -824,34 +824,34 @@ impl<'pass> BlockFormattingContext<'pass> {
     /// The sizes, size constraints and box sides of `child`, a box this block formatting context sizes.
     fn metrics_of(&self, child: ChildSizedHere<'_>) -> used_values::RootInputCells {
         match child.sized_in {
-            SizedIn::Record(record) => record.cells.get(),
-            SizedIn::CellsAheadOfItsRun(cells) => cells.get(),
+            SizedIn::LaidOutHere(cells) | SizedIn::CellsAheadOfItsRun(cells) => cells.get(),
         }
     }
 
     fn update_cells_of(&self, child: ChildSizedHere<'_>, update: impl FnOnce(&mut used_values::RootInputCells)) {
-        let mut cells = self.metrics_of(child);
-        update(&mut cells);
         match child.sized_in {
-            SizedIn::Record(record) => record.cells.set(cells),
-            SizedIn::CellsAheadOfItsRun(cells_ahead) => cells_ahead.set(cells),
+            SizedIn::LaidOutHere(cells) | SizedIn::CellsAheadOfItsRun(cells) => cells.update_cells(update),
         }
     }
 
-    /// The record `child` is laid out in, a box this block formatting context lays out in a record.
+    /// The cells `child` is laid out in, a box this block formatting context lays out itself.
     #[track_caller]
-    fn record_of<'record>(&self, child: ChildSizedHere<'record>) -> &'record UsedValues {
+    fn record_of<'record>(&self, child: ChildSizedHere<'record>) -> &'record Cell<used_values::RootInputCells> {
         child
-            .record()
+            .cells_laid_out_here()
             .unwrap_or_else(|| panic!("{:?} is sized ahead of its run, not laid out here", child.node))
     }
 
-    /// `child`, a box this block formatting context lays out in a record, as a box its sizing steps size there.
+    /// `child`, a box this block formatting context lays out itself, as a box its sizing steps size there.
     #[track_caller]
     fn sized_record_of<'record>(&self, child: ChildSizedHere<'record>) -> sizing_context::SizedRecord<'record> {
         sizing_context::SizedRecord::new(
             child.node,
-            used_values::CellsInFrame::new(self.record_of(child), self.run.callbacks.frame),
+            used_values::CellsInFrame::of_cells(
+                self.record_of(child),
+                self.run.callbacks.frame,
+                self.run.callbacks.frame,
+            ),
         )
     }
 
@@ -2360,28 +2360,24 @@ impl<'pass> BlockFormattingContext<'pass> {
 
         // NOTE: It is possible to encounter SVGMaskBox and SVGClipBox nodes while doing layout of the
         //       formatting context established by a <foreignObject> that references them. Skip them
-        //       before creating any used values; SVGFormattingContext lays them out on behalf of the
-        //       referencing element.
+        //       before sizing them; SVGFormattingContext lays them out on behalf of the referencing
+        //       element.
         if facts.is_svg_mask_box() || facts.is_svg_clip_box() {
             return None;
         }
 
         let block_container_inline_size = block_container.cells.content_inline_size;
-        // NB: A child with a formatting context of its own is sized in cells of this block formatting context, which its
-        //     run takes. A box without one is laid out in a record of this call.
-        let cells_of_child_ahead_of_its_run;
-        let record_of_box_without_formatting_context_of_its_own;
+        // NB: A child with a formatting context of its own is sized in these cells ahead of its run, which takes them.
+        //     A box without one is laid out in them.
+        let cells_of_child = Cell::new(used_values::cells_before_sizing(
+            &self.run.callbacks,
+            node,
+            input.containing_block_constraints,
+        ));
         let sized_child = if formatting_context::formatting_context_type_created_by_box(facts).is_some() {
-            cells_of_child_ahead_of_its_run = Cell::new(used_values::cells_before_sizing(
-                &self.run.callbacks,
-                node,
-                input.containing_block_constraints,
-            ));
-            ChildSizedHere::ahead_of_its_run(node, &cells_of_child_ahead_of_its_run)
+            ChildSizedHere::ahead_of_its_run(node, &cells_of_child)
         } else {
-            record_of_box_without_formatting_context_of_its_own =
-                used_values::create_used_values(&self.run.callbacks, node, input.containing_block_constraints);
-            ChildSizedHere::laid_out_in(node, &record_of_box_without_formatting_context_of_its_own)
+            ChildSizedHere::laid_out_in(node, &cells_of_child)
         };
         let _percentage_block_size_dependency_tracking = self
             .run
@@ -2712,7 +2708,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let mut baselines_of_contents_laid_out_in_this_flow = None;
         let mut summary_of_children_laid_out_in_this_flow = None;
         let mut fragment_arrival_of_child_with_own_formatting_context = None;
-        // NB: A child its own run laid out is placed as that run handed it back, and any other with its record here.
+        // NB: A child its own run laid out is placed as that run handed it back, and any other with its cells here.
         let mut child_handed_back_by_its_run = None;
         let mut laid_out_box_handed_back_by_its_run = None;
         if has_independent_formatting_context {
@@ -3022,8 +3018,8 @@ impl<'pass> BlockFormattingContext<'pass> {
             .and_then(|summary| summary.lines.take());
         let placed_child = child_handed_back_by_its_run
             .unwrap_or_else(|| {
-                formatting_context::PlacedChild::of_record(
-                    self.record_of(sized_child),
+                formatting_context::PlacedChild::laid_out_here(
+                    self.metrics_of(sized_child),
                     lines_laid_out_in_this_flow,
                     &self.run,
                 )
@@ -3066,7 +3062,7 @@ impl<'pass> BlockFormattingContext<'pass> {
 
         let collapses_through = !has_independent_formatting_context
             && self.margins_collapse_through(sized_child, summary_of_children_laid_out_in_this_flow.as_ref());
-        // NB: A child its own run laid out has the metrics that run handed back, and any other those of its record here.
+        // NB: A child its own run laid out has the metrics that run handed back, and any other those of its cells here.
         let metrics = match &laid_out_box_handed_back_by_its_run {
             Some(handed_back) => handed_back.cells,
             None => self.metrics_of(sized_child),
@@ -3125,15 +3121,16 @@ impl<'pass> BlockFormattingContext<'pass> {
         })
     }
 
-    /// The box `child` as this flow laid it out in a record its layout owns, with the `baselines` of its contents.
+    /// The box `child` as this flow laid it out in cells its layout owns, with the `baselines` of its contents.
     fn laid_out_box_in_record_its_layout_owns(
         child: ChildSizedHere<'_>,
         baselines: DerivedBaselines,
     ) -> run_records::LaidOutChildBox {
-        run_records::LaidOutChildBox::sized_in_parent_run(
+        run_records::LaidOutChildBox::sized_here(
             child
-                .record()
-                .expect("a box laid out in this flow is laid out in a record its layout owns"),
+                .cells_laid_out_here()
+                .expect("a box laid out in this flow is laid out in cells its layout owns")
+                .get(),
             baselines,
         )
     }
@@ -3232,8 +3229,7 @@ impl<'pass> BlockFormattingContext<'pass> {
     ) -> (FfiCssPixelPoint, CssPixels) {
         let node = sized_child.node;
         self.run.callbacks.arena().layout_trace.reused_in_flow_subtree(node);
-        let used = self.record_of(sized_child);
-        used.cells.set(entry.cells);
+        self.record_of(sized_child).set(entry.cells);
         let flow_position = self.flow_position();
         *self.margin_state.borrow_mut() = entry.outgoing_margins.clone();
         formatting_context::propagate_percentage_block_size_dependency_to_containing_block(
@@ -3251,7 +3247,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             &self.run,
             node,
             formatting_context::PlacedChild::new(fragment_tree::FragmentGeometry {
-                cells: used_values::CellsInFrame::new(used, self.run.callbacks.frame).cells(),
+                cells: self.metrics_of(sized_child),
                 line_data: None,
             })
             .with_in_flow_box_insets(insets),
@@ -3306,7 +3302,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let entry = in_flow_block_cache::InFlowBlockEntry {
             key,
             validity,
-            cells: used.cells(),
+            cells: self.metrics_of(sized_child),
             baselines,
             offset_from_flow_position: FfiCssPixelPoint {
                 x: content_offset.x,

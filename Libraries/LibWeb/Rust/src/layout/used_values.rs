@@ -467,6 +467,35 @@ impl BoxMetricCells for RootInputCells {
     }
 }
 
+impl BoxMetricCells for Cell<RootInputCells> {
+    #[inline]
+    fn cells(&self) -> RootInputCells {
+        self.get()
+    }
+}
+
+/// Writes the metrics a cell holds. Not `update`: the inherent `Cell::update` would shadow it.
+pub(crate) trait BoxMetricCellsMut {
+    /// Writes the metrics, which `write` sees and changes as the cell holds them.
+    fn update_cells(&self, write: impl FnOnce(&mut RootInputCells));
+
+    fn set_content_inline_size(&self, value: CssPixels) {
+        self.update_cells(|cells| cells.set_content_inline_size(value));
+    }
+
+    fn set_content_block_size(&self, value: CssPixels) {
+        self.update_cells(|cells| cells.set_content_block_size(value));
+    }
+}
+
+impl BoxMetricCellsMut for Cell<RootInputCells> {
+    fn update_cells(&self, write: impl FnOnce(&mut RootInputCells)) {
+        let mut cells = self.get();
+        write(&mut cells);
+        self.set(cells);
+    }
+}
+
 /// Cells held in frame `held`, read and written in frame `reader`.
 #[derive(Clone, Copy)]
 pub(crate) struct CellsInFrame<'a> {
