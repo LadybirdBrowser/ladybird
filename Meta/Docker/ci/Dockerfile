@@ -76,6 +76,7 @@ RUN apt-get update -o APT::Update::Error-Mode=any \
         qt6-positioning-dev \
         qt6-tools-dev-tools \
         rsync \
+        sccache \
         shellcheck \
         tar \
         unzip \
