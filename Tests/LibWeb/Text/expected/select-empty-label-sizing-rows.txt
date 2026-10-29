@@ -1,0 +1,10 @@
+initial empty rows: 0
+grown empty rows: 0
+nonempty row: true, wider: true
+cleared rows: 0, width restored: true
+spaces row: true, wider: true
+text fallback row: true, wider: true
+cleared text rows: 0, width restored: true
+moved row removed: true
+moved label retained: true
+moved empty row removed: true
