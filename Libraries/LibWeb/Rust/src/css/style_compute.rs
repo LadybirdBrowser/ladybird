@@ -3482,11 +3482,23 @@ fn needs_computed_style_sheet_context(value: &RetainedStyleValueData) -> bool {
     }
 }
 
-/// Store what a drive found for one longhand: its computed value, and the specified value its
-/// inheritance depends on, if it does.
+/// Store what a drive found for one longhand: its computed value, and the value its inheritance depends on, if it
+/// does. That's the specified value, except for a value that reads currentcolor: An inheriting element takes its
+/// computed value, which keeps currentcolor to resolve against that element's own color, and whose lengths are
+/// absolute (resolved against this element's font, as inheritance requires).
 fn store_driven_value(longhand_table: &mut ComputedLonghandTable, entry: ComputedStoreEntry) {
-    let specified_value = entry.inheritance_dependent.then(|| entry.data.clone());
-    longhand_table.set_drive_inheritance_dependent_value(entry.property_id, specified_value);
+    use crate::css::property_metadata::property_id as prop;
+    let inheritance_dependent_value = entry.inheritance_dependent.then(|| {
+        let inherits_computed_value = entry.computed_kind == COMPUTED_KIND_STYLE_VALUE
+            && entry.property_id != prop::COLOR
+            && crate::css::style_value::retained_value_depends_on_current_color(entry.data)
+            && !value_depends_on_inherited_info_for_property(entry.data.data(), entry.property_id);
+        match &entry.computed_data {
+            Some(computed_data) if inherits_computed_value => computed_data.clone(),
+            _ => entry.data.clone(),
+        }
+    });
+    longhand_table.set_drive_inheritance_dependent_value(entry.property_id, inheritance_dependent_value);
     store_computed_value(longhand_table, entry);
 }
 
