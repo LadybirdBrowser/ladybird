@@ -2028,7 +2028,10 @@ impl<'pass> FlexFormattingContext<'pass> {
             align_self::SELF_END => align_items::SELF_END,
             align_self::FLEX_START => align_items::FLEX_START,
             align_self::FLEX_END => align_items::FLEX_END,
-            align_self::CENTER => align_items::CENTER,
+            // https://drafts.csswg.org/css-anchor-position-1/#valdef-justify-self-anchor-center
+            // If the box is not absolutely positioned, or does not have a default anchor box, this value behaves as
+            // center and has no additional effect on how inset properties resolve.
+            align_self::CENTER | align_self::ANCHOR_CENTER => align_items::CENTER,
             align_self::BASELINE => align_items::BASELINE,
             align_self::START => align_items::START,
             align_self::STRETCH => align_items::STRETCH,
