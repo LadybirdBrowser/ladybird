@@ -1,8 +1,9 @@
+ladybird_test_suite(LibDevTools)
+
 set(TEST_SOURCES
     TestDevToolsProtocol.cpp
     TestStorageHelpers.cpp
 )
 
-foreach(source IN LISTS TEST_SOURCES)
-    ladybird_test("${source}" LibDevTools LIBS LibDevTools LibHTTP LibRequests LibThreading LibWeb LibWebView)
-endforeach()
+target_sources(TestLibDevTools PRIVATE ${TEST_SOURCES})
+target_link_libraries(TestLibDevTools PRIVATE LibDevTools LibHTTP LibRequests LibThreading LibWeb LibWebView)
