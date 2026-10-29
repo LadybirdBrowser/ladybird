@@ -631,6 +631,10 @@
         {
           "type": "patch",
           "path": "../vcpkg/overlay-ports/ffmpeg/0100-ladybird-symbol-version-nodes.patch"
+        },
+        {
+          "type": "patch",
+          "path": "../vcpkg/overlay-ports/ffmpeg/0101-vulkan-decode-dpb-distinct-no-drm-modifiers.patch"
         }
       ]
     },

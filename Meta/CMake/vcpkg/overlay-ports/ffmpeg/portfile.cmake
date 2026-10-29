@@ -20,6 +20,7 @@ vcpkg_from_github(
         0051-fix-msvc-undef-flags.patch
         0052-fix-disable-unstable-swscale-link.patch
         0100-ladybird-symbol-version-nodes.patch
+        0101-vulkan-decode-dpb-distinct-no-drm-modifiers.patch
 )
 
 if(SOURCE_PATH MATCHES " ")
