@@ -3521,9 +3521,9 @@ impl LayoutStageJob {
                 .note_document_svg_root_natural_size(root_box, natural_size);
         }
         notifications.prepend_layout_messages(messages);
-        let arena = state.arena();
-        state.layout_scratch().layout_trace.hand_over_to(&arena.layout_trace);
-        state.layout_scratch().end_layout_pass(arena);
+        let (arena, scratch) = state.arena_mut_and_layout_scratch();
+        scratch.layout_trace.hand_over_to(&arena.layout_trace);
+        scratch.end_layout_pass(arena);
         arena.reset_layout_update_flags_in_subtree(root);
         arena.leave_active_layout_pass();
         match kind {
@@ -3635,15 +3635,15 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
 /// Brings the arena up to date for a stage before the stage borrows it: derives the facts its runs read, marks the
 /// flex and grid items of the nodes marked for layout, and drops the cached intrinsic sizes of released slots.
 fn prepare_layout_stage(state: &mut super::ArenaHandle, kind: LayoutStageKind, root: NodeSlotId) {
-    let arena = state.arena();
+    let (arena, scratch) = state.arena_mut_and_layout_scratch();
     match kind {
         LayoutStageKind::Root { .. } => {
             // NB: The tree builder derives the facts of rebuilt subtrees. Unclassified invalidations
             // require deriving them for the entire tree instead.
-            if arena.pending_updates_escape_partial_relayout.get() {
+            if arena.pending_updates_escape_partial_relayout {
                 arena.derive_facts_in_subtree(root);
                 arena.clear_partial_relayout_escape();
-                arena.pending_attached_subtree_roots.borrow_mut().clear();
+                arena.pending_attached_subtree_roots.clear();
             } else {
                 // NB: Top-layer updates can attach boxes without running the tree builder.
                 arena.derive_facts_after_tree_update(&[]);
@@ -3657,16 +3657,16 @@ fn prepare_layout_stage(state: &mut super::ArenaHandle, kind: LayoutStageKind, r
             arena.derive_facts_in_subtree(root);
         }
     }
-    drop_intrinsic_size_cache_entries_of_released_slots(arena, state.layout_scratch());
-    state.layout_scratch().apply_memo_invalidations(arena);
-    arena.layout_trace.hand_over_to(&state.layout_scratch().layout_trace);
+    drop_intrinsic_size_cache_entries_of_released_slots(arena, scratch);
+    scratch.apply_memo_invalidations(arena);
+    arena.layout_trace.hand_over_to(&scratch.layout_trace);
     arena.begin_active_layout_pass();
 }
 
 /// Drops the intrinsic size cache entries of the slots the arena let go of, or whose cache epoch wrapped, since the
 /// last stage, before any run of this one reads a cache.
 fn drop_intrinsic_size_cache_entries_of_released_slots(
-    arena: &LayoutNodeArena,
+    arena: &mut LayoutNodeArena,
     scratch: &super::run_state::LayoutScratch,
 ) {
     let drops = arena.take_intrinsic_size_cache_drops();
