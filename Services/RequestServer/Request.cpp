@@ -853,6 +853,16 @@ void Request::handle_fetch_complete(int result_code)
             transfer_headers_to_client_if_needed();
     }
 
+    // https://fetch.spec.whatwg.org/#concept-http-network-fetch
+    // 11. If bytes is failure, then terminate fetchParams’s controller.
+    // NB: A decoding failure is a body error after the response headers arrived. Expose that response even if libcurl
+    //     could not produce a single decoded byte, after storing its cookies and HSTS policy.
+    if (result_code == CURLE_BAD_CONTENT_ENCODING) {
+        if (defer_until_response_cookies_and_hsts_policy_are_stored([this, result_code] { handle_fetch_complete(result_code); }))
+            return;
+        transfer_headers_to_client_if_needed();
+    }
+
     m_curl_result_code = result_code;
 
     if (m_response_buffer.is_eof())

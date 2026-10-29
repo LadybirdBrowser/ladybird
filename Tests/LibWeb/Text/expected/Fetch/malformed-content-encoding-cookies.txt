@@ -1,2 +1,6 @@
-GET fetch: TypeError
-POST fetch: TypeError
+GET status: 200
+GET body: TypeError
+GET cookie stored: true
+POST status: 200
+POST body: TypeError
+POST cookie stored: true
