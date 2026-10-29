@@ -4,42 +4,18 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include "HeadlessTest.h"
 #include <AK/LexicalPath.h>
-#include <AK/Random.h>
-#include <AK/ScopeGuard.h>
-#include <LibCore/Directory.h>
 #include <LibCore/EventLoop.h>
-#include <LibCore/StandardPaths.h>
-#include <LibFileSystem/FileSystem.h>
 #include <LibGfx/SystemTheme.h>
-#include <LibMain/Main.h>
+#include <LibTest/TestCase.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/UIEvents/InputEvent.h>
-#include <LibWebView/Application.h>
 #include <LibWebView/HeadlessWebView.h>
 #include <LibWebView/Utilities.h>
 #include <stdlib.h>
 
 namespace {
-
-class TestApplication : public WebView::Application {
-    WEB_VIEW_APPLICATION(TestApplication)
-
-public:
-    explicit TestApplication(Optional<ByteString> ladybird_binary_path)
-        : WebView::Application(move(ladybird_binary_path))
-    {
-    }
-
-    virtual void create_platform_options(WebView::BrowserOptions& browser_options, WebView::RequestServerOptions&, WebView::WebContentOptions& web_content_options) override
-    {
-        browser_options.headless_mode = WebView::HeadlessMode::Test;
-        browser_options.disable_sql_database = WebView::DisableSQLDatabase::Yes;
-        web_content_options.is_test_mode = WebView::IsTestMode::Yes;
-    }
-
-    virtual bool should_coordinate_browser_process() const override { return false; }
-};
 
 void click(WebView::ViewImplementation& view)
 {
@@ -65,23 +41,14 @@ void click(WebView::ViewImplementation& view)
 
 }
 
-ErrorOr<int> ladybird_main(Main::Arguments arguments)
+TEST_CASE(before_unload)
 {
-    auto test_config_directory = ByteString::formatted("{}/Ladybird-TestBeforeUnload-{}", Core::StandardPaths::tempfile_directory(), generate_random_uuid());
-    TRY(Core::Directory::create(test_config_directory, Core::Directory::CreateDirectories::Yes));
-    auto cleanup_test_config_directory = ScopeGuard([&] {
-        MUST(FileSystem::remove(test_config_directory, FileSystem::RecursionMode::Allowed));
-    });
-    VERIFY(setenv("XDG_CONFIG_HOME", test_config_directory.characters(), 1) == 0);
+    Test::HeadlessTestEnvironment environment { "TestBeforeUnload"sv };
 
-#if defined(LADYBIRD_BINARY_PATH)
-    auto app = TRY(TestApplication::create(arguments, LADYBIRD_BINARY_PATH));
-#else
-    auto app = TRY(TestApplication::create(arguments, OptionalNone {}));
-#endif
+    auto app = TRY_OR_FAIL(environment.create_application());
 
     auto theme_path = LexicalPath::join(WebView::s_ladybird_resource_root, "themes"sv, "Default.ini"sv);
-    auto theme = TRY(Gfx::load_system_theme(theme_path.string()));
+    auto theme = TRY_OR_FAIL(Gfx::load_system_theme(theme_path.string()));
     auto view = WebView::HeadlessWebView::create(move(theme), { 800, 600 });
 
     size_t loads_finished = 0;
@@ -194,5 +161,4 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     Core::EventLoop::current().spin_until([&] { return closed; });
 
     outln("PASS: beforeunload prompt handling");
-    return 0;
 }

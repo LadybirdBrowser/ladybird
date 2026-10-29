@@ -4,17 +4,14 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include "HeadlessTest.h"
 #include <AK/LexicalPath.h>
 #include <AK/Random.h>
-#include <AK/ScopeGuard.h>
 #include <AK/String.h>
 #include <LibCore/ArgsParser.h>
-#include <LibCore/Directory.h>
 #include <LibCore/EventLoop.h>
-#include <LibCore/StandardPaths.h>
-#include <LibFileSystem/FileSystem.h>
 #include <LibGfx/SystemTheme.h>
-#include <LibMain/Main.h>
+#include <LibTest/TestCase.h>
 #include <LibURL/Parser.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CanonicalDocument.h>
@@ -24,12 +21,12 @@
 
 namespace {
 
-class TestApplication : public WebView::Application {
+class TestApplication : public Test::HeadlessApplication {
     WEB_VIEW_APPLICATION(TestApplication)
 
 public:
     explicit TestApplication(Optional<ByteString> ladybird_binary_path)
-        : WebView::Application(move(ladybird_binary_path))
+        : Test::HeadlessApplication(move(ladybird_binary_path))
     {
     }
 
@@ -39,35 +36,20 @@ public:
         browser_options.disable_sql_database = WebView::DisableSQLDatabase::Yes;
         web_content_options.is_test_mode = WebView::IsTestMode::Yes;
     }
-
-    virtual void create_platform_arguments(Core::ArgsParser& parser) override
-    {
-        parser.add_option(m_bidi_reload_only, "Run only the BiDi reload crash recovery case", "bidi-reload-only");
-    }
-
-    bool bidi_reload_only() const { return m_bidi_reload_only; }
-    virtual bool should_coordinate_browser_process() const override { return false; }
-
-private:
-    bool m_bidi_reload_only { false };
 };
 
 }
 
-ErrorOr<int> ladybird_main(Main::Arguments arguments)
+static void test_crash_overlay(bool bidi_reload_only)
 {
-    auto test_directory = ByteString::formatted("{}/Ladybird-TestCrashOverlay-{}", Core::StandardPaths::tempfile_directory(), generate_random_uuid());
-    TRY(Core::Directory::create(test_directory, Core::Directory::CreateDirectories::Yes));
-    ScopeGuard cleanup = [&] { MUST(FileSystem::remove(test_directory, FileSystem::RecursionMode::Allowed)); };
-    VERIFY(setenv("XDG_CONFIG_HOME", test_directory.characters(), 1) == 0);
+    Test::HeadlessTestEnvironment environment { "TestCrashOverlay"sv };
+    auto const& test_directory = environment.directory();
+
     VERIFY(setenv("XDG_DATA_HOME", test_directory.characters(), 1) == 0);
-#if defined(LADYBIRD_BINARY_PATH)
-    auto app = TRY(TestApplication::create(arguments, LADYBIRD_BINARY_PATH));
-#else
-    auto app = TRY(TestApplication::create(arguments, OptionalNone {}));
-#endif
+
+    auto app = TRY_OR_FAIL(environment.create_application<TestApplication>());
     auto theme_path = LexicalPath::join(WebView::s_ladybird_resource_root, "themes"sv, "Default.ini"sv);
-    auto theme = TRY(Gfx::load_system_theme(theme_path.string()));
+    auto theme = TRY_OR_FAIL(Gfx::load_system_theme(theme_path.string()));
     auto view = WebView::HeadlessWebView::create(theme, { 1000, 700 });
     size_t loads_finished = 0;
     view->on_load_finish = [&](auto const&) { ++loads_finished; };
@@ -129,13 +111,13 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         view->on_ready_to_paint = nullptr;
     };
 
-    if (app->bidi_reload_only()) {
+    if (bidi_reload_only) {
         check_bidi_reload();
         VERIFY(view->url() == failed_url);
         VERIFY(evaluate("document.body.textContent === 'original-page-content'"sv).as_bool());
         VERIFY(session_history.used_step_count() == 2);
         outln("PASS: BiDi reload recovers the crash overlay");
-        return 0;
+        return;
     }
 
     crash_and_wait_for_screen();
@@ -184,5 +166,14 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     VERIFY(evaluate("document.body.textContent === 'loaded-html'"sv).as_bool());
     VERIFY(session_history.used_step_count() == 5);
     outln("PASS: native crash overlay state, reload and history");
-    return 0;
+}
+
+TEST_CASE(crash_overlay)
+{
+    test_crash_overlay(false);
+}
+
+TEST_CASE(bidi_crash_recovery)
+{
+    test_crash_overlay(true);
 }

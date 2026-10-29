@@ -4,44 +4,19 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include "HeadlessTest.h"
 #include <AK/LexicalPath.h>
-#include <AK/Random.h>
-#include <AK/ScopeGuard.h>
 #include <AK/String.h>
-#include <LibCore/Directory.h>
-#include <LibCore/Environment.h>
 #include <LibCore/EventLoop.h>
-#include <LibCore/StandardPaths.h>
-#include <LibFileSystem/FileSystem.h>
 #include <LibGfx/SystemTheme.h>
-#include <LibMain/Main.h>
+#include <LibTest/TestCase.h>
 #include <LibURL/Parser.h>
 #include <LibWebCommon/HTML/VisibilityState.h>
 #include <LibWebCommon/Page/InputEvent.h>
-#include <LibWebView/Application.h>
 #include <LibWebView/HeadlessWebView.h>
 #include <LibWebView/Utilities.h>
 
 namespace {
-
-class TestApplication : public WebView::Application {
-    WEB_VIEW_APPLICATION(TestApplication)
-
-public:
-    explicit TestApplication(Optional<ByteString> ladybird_binary_path)
-        : WebView::Application(move(ladybird_binary_path))
-    {
-    }
-
-    virtual void create_platform_options(WebView::BrowserOptions& browser_options, WebView::RequestServerOptions&, WebView::WebContentOptions& web_content_options) override
-    {
-        browser_options.headless_mode = WebView::HeadlessMode::Test;
-        browser_options.disable_sql_database = WebView::DisableSQLDatabase::Yes;
-        web_content_options.is_test_mode = WebView::IsTestMode::Yes;
-    }
-
-    virtual bool should_coordinate_browser_process() const override { return false; }
-};
 
 // A view that records the URL each tab it opens is loaded with.
 class TestWebView final : public WebView::HeadlessWebView {
@@ -111,23 +86,14 @@ void middle_click_at(WebView::ViewImplementation& view, Web::DevicePixelPoint po
 // Middle-clicking opens the link the walk finds in a new tab. And an empty title is no advisory information at all,
 // while carriage returns in a title become line feeds.
 
-ErrorOr<int> ladybird_main(Main::Arguments arguments)
+TEST_CASE(shadow_tree_tooltips_and_links)
 {
-    auto test_config_directory = ByteString::formatted("{}/Ladybird-TestShadowTreeTooltipsAndLinks-{}", Core::StandardPaths::tempfile_directory(), generate_random_uuid());
-    TRY(Core::Directory::create(test_config_directory, Core::Directory::CreateDirectories::Yes));
-    auto cleanup_test_config_directory = ScopeGuard([&] {
-        MUST(FileSystem::remove(test_config_directory, FileSystem::RecursionMode::Allowed));
-    });
-    MUST(Core::Environment::set("XDG_CONFIG_HOME"sv, test_config_directory, Core::Environment::Overwrite::Yes));
+    Test::HeadlessTestEnvironment environment { "TestShadowTreeTooltipsAndLinks"sv };
 
-#if defined(LADYBIRD_BINARY_PATH)
-    auto app = TRY(TestApplication::create(arguments, LADYBIRD_BINARY_PATH));
-#else
-    auto app = TRY(TestApplication::create(arguments, OptionalNone {}));
-#endif
+    auto app = TRY_OR_FAIL(environment.create_application());
 
     auto theme_path = LexicalPath::join(WebView::s_ladybird_resource_root, "themes"sv, "Default.ini"sv);
-    auto theme = TRY(Gfx::load_system_theme(theme_path.string()));
+    auto theme = TRY_OR_FAIL(Gfx::load_system_theme(theme_path.string()));
 
     auto view = TestWebView::create(move(theme), { 800, 600 });
 
@@ -258,5 +224,4 @@ document.getElementById("carriage-returns").setAttribute("title", "One\r\nTwo\rT
     VERIFY(tooltip == "One\nTwo\nThree"sv);
 
     outln("PASS: titles and links apply across shadow trees and slots, and an empty title is no advisory information");
-    return 0;
 }

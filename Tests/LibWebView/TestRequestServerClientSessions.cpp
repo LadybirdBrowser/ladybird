@@ -4,19 +4,14 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include "HeadlessTest.h"
 #include <AK/LexicalPath.h>
-#include <AK/Random.h>
-#include <AK/ScopeGuard.h>
-#include <LibCore/Directory.h>
-#include <LibCore/Environment.h>
 #include <LibCore/EventLoop.h>
-#include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
-#include <LibFileSystem/FileSystem.h>
 #include <LibGfx/SystemTheme.h>
-#include <LibMain/Main.h>
 #include <LibRequests/RequestClient.h>
 #include <LibRequests/RequestControlClient.h>
+#include <LibTest/TestCase.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/HeadlessWebView.h>
@@ -26,12 +21,12 @@
 
 namespace {
 
-class TestApplication : public WebView::Application {
+class TestApplication : public Test::HeadlessApplication {
     WEB_VIEW_APPLICATION(TestApplication)
 
 public:
     explicit TestApplication(Optional<ByteString> ladybird_binary_path)
-        : WebView::Application(move(ladybird_binary_path))
+        : Test::HeadlessApplication(move(ladybird_binary_path))
     {
     }
 
@@ -41,8 +36,6 @@ public:
         browser_options.disable_sql_database = WebView::DisableSQLDatabase::Yes;
         browser_options.allow_popups = WebView::AllowPopups::Yes;
     }
-
-    virtual bool should_coordinate_browser_process() const override { return false; }
 };
 
 // Connects a new RequestServer client the way the UI process does for its helpers, and asks RequestServer which ID
@@ -69,20 +62,11 @@ int connect_request_server_client(WebView::BrowsingSession& session)
 // uses the browsing session that it created the client for, so a client of a private session that has since been
 // restarted never gets the new session's cookies.
 
-ErrorOr<int> ladybird_main(Main::Arguments arguments)
+TEST_CASE(request_server_client_sessions)
 {
-    auto test_config_directory = ByteString::formatted("{}/Ladybird-TestRequestServerClientSessions-{}", Core::StandardPaths::tempfile_directory(), generate_random_uuid());
-    TRY(Core::Directory::create(test_config_directory, Core::Directory::CreateDirectories::Yes));
-    auto cleanup_test_config_directory = ScopeGuard([&] {
-        MUST(FileSystem::remove(test_config_directory, FileSystem::RecursionMode::Allowed));
-    });
-    MUST(Core::Environment::set("XDG_CONFIG_HOME"sv, test_config_directory, Core::Environment::Overwrite::Yes));
+    Test::HeadlessTestEnvironment environment { "TestRequestServerClientSessions"sv };
 
-#if defined(LADYBIRD_BINARY_PATH)
-    auto app = TRY(TestApplication::create(arguments, LADYBIRD_BINARY_PATH));
-#else
-    auto app = TRY(TestApplication::create(arguments, OptionalNone {}));
-#endif
+    auto app = TRY_OR_FAIL(environment.create_application<TestApplication>());
 
     auto normal_client = connect_request_server_client(WebView::Application::default_session());
     VERIFY(app->session_for_request_server_client(normal_client).ptr() == &WebView::Application::default_session());
@@ -90,7 +74,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     // The views of the first private session keep it alive after the user restarts private browsing.
     auto first_private_session = WebView::Application::session_for_new_view(WebView::IsPrivate::Yes);
     auto first_private_client = connect_request_server_client(*first_private_session);
-    auto first_ui_private_client = client_id_of(*TRY(WebView::Application::request_server_client(WebView::IsPrivate::Yes)));
+    auto first_ui_private_client = client_id_of(*TRY_OR_FAIL(WebView::Application::request_server_client(WebView::IsPrivate::Yes)));
     VERIFY(app->session_for_request_server_client(first_ui_private_client) == first_private_session);
 
     app->reset_private_browsing_session();
@@ -98,7 +82,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     auto second_private_client = connect_request_server_client(*second_private_session);
 
     // The UI process's own private client is replaced along with the session, so its requests use the new cookies.
-    auto second_ui_private_client = client_id_of(*TRY(WebView::Application::request_server_client(WebView::IsPrivate::Yes)));
+    auto second_ui_private_client = client_id_of(*TRY_OR_FAIL(WebView::Application::request_server_client(WebView::IsPrivate::Yes)));
     VERIFY(app->session_for_request_server_client(second_ui_private_client) == second_private_session);
 
     VERIFY(first_private_session.ptr() != second_private_session.ptr());
@@ -110,7 +94,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     // When RequestServer restarts, every WebContent process gets a replacement client. The one for a view of the old
     // private session must keep using that session's cookies.
-    auto theme = TRY(Gfx::load_system_theme(LexicalPath::join(WebView::s_ladybird_resource_root, "themes"sv, "Default.ini"sv).string()));
+    auto theme = TRY_OR_FAIL(Gfx::load_system_theme(LexicalPath::join(WebView::s_ladybird_resource_root, "themes"sv, "Default.ini"sv).string()));
     app->reset_private_browsing_session();
     auto old_private_view = WebView::HeadlessWebView::create(theme, { 800, 600 }, WebView::IsPrivate::Yes);
     auto& old_private_session = old_private_view->page().client().session();
@@ -150,5 +134,4 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     s_clients.clear();
     Core::EventLoop::current().spin_until([&] { return !app->session_for_request_server_client(disconnecting_client); });
     outln("PASS: RequestServer clients use the cookies of the browsing session they were created for");
-    return 0;
 }

@@ -4,20 +4,18 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include "HeadlessTest.h"
 #include "ReportServer.h"
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
 #include <AK/LexicalPath.h>
-#include <AK/Random.h>
-#include <AK/ScopeGuard.h>
 #include <LibCore/Directory.h>
 #include <LibCore/Environment.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
-#include <LibCore/StandardPaths.h>
 #include <LibFileSystem/FileSystem.h>
-#include <LibMain/Main.h>
+#include <LibTest/TestCase.h>
 #include <LibWebView/CrashReportReview.h>
 
 using namespace ReportServerTest;
@@ -68,20 +66,14 @@ ByteString write_report(ByteString const& directory, StringView name)
 
 }
 
-ErrorOr<int> ladybird_main(Main::Arguments arguments)
+TEST_CASE(crash_report_submission)
 {
-    auto test_directory = ByteString::formatted("{}/Ladybird-TestCrashReportSubmission-{}", Core::StandardPaths::tempfile_directory(), generate_random_uuid());
-    TRY(Core::Directory::create(test_directory, Core::Directory::CreateDirectories::Yes));
-    auto cleanup_test_directory = ScopeGuard([&] {
-        MUST(FileSystem::remove(test_directory, FileSystem::RecursionMode::Allowed));
-    });
+    Test::HeadlessTestEnvironment environment { "TestCrashReportSubmission"sv };
+    auto const& test_directory = environment.directory();
+
     MUST(Core::Environment::set("XDG_CONFIG_HOME"sv, LexicalPath::join(test_directory, "config"sv).string(), Core::Environment::Overwrite::Yes));
 
-#if defined(LADYBIRD_BINARY_PATH)
-    auto app = TRY(TestApplication::create(arguments, LADYBIRD_BINARY_PATH));
-#else
-    auto app = TRY(TestApplication::create(arguments, OptionalNone {}));
-#endif
+    auto app = TRY_OR_FAIL(environment.create_application<TestApplication>());
 
     ReportServer server;
     MUST(Core::Environment::set("LADYBIRD_REPORTS_ENDPOINT"sv, server.endpoint(), Core::Environment::Overwrite::Yes));
@@ -219,5 +211,4 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     VERIFY(server.requests[1].path == "/api/v1/reports"sv);
 
     outln("PASS: Crash reports reach the report server in the format it expects");
-    return 0;
 }

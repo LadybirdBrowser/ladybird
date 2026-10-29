@@ -4,22 +4,19 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include "HeadlessTest.h"
 #include <AK/ByteString.h>
 #include <AK/Mutex.h>
-#include <AK/Random.h>
 #include <AK/ScopeGuard.h>
 #include <AK/String.h>
 #include <AK/StringBuilder.h>
-#include <LibCore/Directory.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
-#include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
 #include <LibCore/Timer.h>
-#include <LibFileSystem/FileSystem.h>
-#include <LibMain/Main.h>
 #include <LibRequests/Request.h>
 #include <LibRequests/RequestClient.h>
+#include <LibTest/TestCase.h>
 #include <LibThreading/Thread.h>
 #include <LibURL/Parser.h>
 #include <LibWebView/Application.h>
@@ -29,25 +26,6 @@
 #include <sys/socket.h>
 
 namespace {
-
-class TestApplication : public WebView::Application {
-    WEB_VIEW_APPLICATION(TestApplication)
-
-public:
-    explicit TestApplication(Optional<ByteString> ladybird_binary_path)
-        : WebView::Application(move(ladybird_binary_path))
-    {
-    }
-
-    virtual void create_platform_options(WebView::BrowserOptions& browser_options, WebView::RequestServerOptions&, WebView::WebContentOptions& web_content_options) override
-    {
-        browser_options.headless_mode = WebView::HeadlessMode::Test;
-        browser_options.disable_sql_database = WebView::DisableSQLDatabase::Yes;
-        web_content_options.is_test_mode = WebView::IsTestMode::Yes;
-    }
-
-    virtual bool should_coordinate_browser_process() const override { return false; }
-};
 
 enum class RangeSupport {
     Yes,
@@ -549,23 +527,15 @@ void expect_leased_request_is_torn_down_when_transferred_after_finishing(TestHtt
 
 }
 
-ErrorOr<int> ladybird_main(Main::Arguments arguments)
+TEST_CASE(file_downloader)
 {
-    auto test_directory = ByteString::formatted("{}/Ladybird-TestFileDownloader-{}", Core::StandardPaths::tempfile_directory(), generate_random_uuid());
-    TRY(Core::Directory::create(test_directory, Core::Directory::CreateDirectories::Yes));
-    auto cleanup_test_directory = ScopeGuard([&] {
-        MUST(FileSystem::remove(test_directory, FileSystem::RecursionMode::Allowed));
-    });
-    VERIFY(setenv("XDG_CONFIG_HOME", test_directory.characters(), 1) == 0);
-    VERIFY(setenv("XDG_DOWNLOAD_DIR", test_directory.characters(), 1) == 0);
+    Test::HeadlessTestEnvironment environment { "TestFileDownloader"sv, 120 };
+    auto const& test_directory = environment.directory();
 
+    VERIFY(setenv("XDG_DOWNLOAD_DIR", test_directory.characters(), 1) == 0);
     signal(SIGPIPE, SIG_IGN);
 
-#if defined(LADYBIRD_BINARY_PATH)
-    auto app = TRY(TestApplication::create(arguments, LADYBIRD_BINARY_PATH));
-#else
-    auto app = TRY(TestApplication::create(arguments, OptionalNone {}));
-#endif
+    auto app = TRY_OR_FAIL(environment.create_application());
 
     {
         auto response_body = make_body(4 * KiB);
@@ -786,5 +756,4 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     }
 
     outln("PASS");
-    return 0;
 }

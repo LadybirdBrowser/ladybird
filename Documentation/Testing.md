@@ -66,6 +66,15 @@ Build/release/bin/TestLibTest 'TestGenerator::*'
 
 Build the library's executable to link its sources, and use `--suite` to select the tests from a source file.
 
+LibWebView's headless browser integration tests also run through `TestLibWebView`, with a fresh application
+and temporary configuration for each case. The target builds the helper processes and resources they need.
+For example, from the source directory:
+
+```sh
+cmake --build Build/release --target TestLibWebView
+LADYBIRD_SOURCE_DIR="$PWD" Build/release/bin/TestLibWebView --suite TestFavicon
+```
+
 ### JavaScript tests
 
 Build `test-js` to build the runtime runner and `js`, and prepare the shared

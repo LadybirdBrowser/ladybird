@@ -4,14 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Random.h>
-#include <AK/ScopeGuard.h>
+#include "HeadlessTest.h"
 #include <AK/String.h>
-#include <LibCore/Directory.h>
 #include <LibCore/EventLoop.h>
-#include <LibCore/StandardPaths.h>
-#include <LibFileSystem/FileSystem.h>
-#include <LibMain/Main.h>
+#include <LibTest/TestCase.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/Autocomplete.h>
 #include <LibWebView/AutocompleteService.h>
@@ -33,12 +29,12 @@ public:
     }
 };
 
-class TestApplication : public WebView::Application {
+class TestApplication : public Test::HeadlessApplication {
     WEB_VIEW_APPLICATION(TestApplication)
 
 public:
     explicit TestApplication(Optional<ByteString> ladybird_binary_path)
-        : WebView::Application(move(ladybird_binary_path))
+        : Test::HeadlessApplication(move(ladybird_binary_path))
     {
     }
 
@@ -48,8 +44,6 @@ public:
         browser_options.disable_sql_database = WebView::DisableSQLDatabase::Yes;
         web_content_options.is_test_mode = WebView::IsTestMode::Yes;
     }
-
-    virtual bool should_coordinate_browser_process() const override { return false; }
 
     virtual void resolve_external_url_handler(URL::URL const& url, WebView::ExternalURLHandlerCallback callback) const override
     {
@@ -88,20 +82,11 @@ private:
 // That cancel runs while the request's completion callback is still on the stack — so, tearing the request down freed a
 // callback mid-call, and tripped an assert. Regression test for #10278.
 
-ErrorOr<int> ladybird_main(Main::Arguments arguments)
+TEST_CASE(autocomplete)
 {
-    auto test_config_directory = ByteString::formatted("{}/Ladybird-TestAutocomplete-{}", Core::StandardPaths::tempfile_directory(), generate_random_uuid());
-    TRY(Core::Directory::create(test_config_directory, Core::Directory::CreateDirectories::Yes));
-    auto cleanup_test_config_directory = ScopeGuard([&] {
-        MUST(FileSystem::remove(test_config_directory, FileSystem::RecursionMode::Allowed));
-    });
-    VERIFY(setenv("XDG_CONFIG_HOME", test_config_directory.characters(), 1) == 0);
+    Test::HeadlessTestEnvironment environment { "TestAutocomplete"sv };
 
-#if defined(LADYBIRD_BINARY_PATH)
-    auto app = TRY(TestApplication::create(arguments, LADYBIRD_BINARY_PATH));
-#else
-    auto app = TRY(TestApplication::create(arguments, OptionalNone {}));
-#endif
+    auto app = TRY_OR_FAIL(environment.create_application<TestApplication>());
 
     WebView::Application::settings().set_search_engine_settings({});
     WebView::Application::autocomplete_service().update_bookmarks({ {
@@ -462,5 +447,4 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     Core::EventLoop::current().spin_until([&]() { return request_completed; });
 
     outln("PASS: cancel_pending_query during query completion did not crash");
-    return 0;
 }
