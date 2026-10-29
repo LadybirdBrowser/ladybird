@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	addHandler() after finish
+Pass	addHandler() after commit
+Pass	addHandler() in detached iframe

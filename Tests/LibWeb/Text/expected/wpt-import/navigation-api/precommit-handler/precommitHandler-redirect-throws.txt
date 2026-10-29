@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 8 tests
+
+7 Pass
+1 Fail
+Pass	redirect() after finish
+Pass	redirect() after commit
+Pass	redirect() in detached iframe
+Pass	redirect() to invalid url
+Pass	redirect() to cross-origin url
+Pass	redirect() with an unserializable state object
+Pass	redirect() reload
+Fail	redirect() traverse

@@ -1,0 +1,20 @@
+<!doctype html>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="resources/helpers.js"></script>
+
+<body>
+<script>
+promise_test(async t => {
+  let i = document.createElement("iframe");
+  document.body.append(i);
+
+  i.contentWindow.navigation.onnavigate = t.unreached_func("onnavigate should not be called");
+  i.contentWindow.navigation.onnavigatesuccess = t.unreached_func("onnavigatesuccess should not be called");
+  i.contentWindow.navigation.onnavigateerror = t.unreached_func("onnavigateerror should not be called");
+
+  const result = i.contentWindow.navigation.navigate("#1");
+  assertNeverSettles(t, result, i.contentWindow);
+  await new Promise(resolve => t.step_timeout(resolve, 10));
+}, "navigate() in initial about:blank document");
+</script>

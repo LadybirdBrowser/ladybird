@@ -3630,6 +3630,29 @@ void LocalNavigable::begin_navigation(PreparedNavigation navigation)
         return;
     }
 
+    // INTEROP: Other browsers refuse to navigate a child navigable to a URL that more than one of its ancestors'
+    //          active documents already have, ignoring fragments, so that a page cannot nest itself without end. One
+    //          level of self-reference is allowed, since sites depend on it. about: URLs cannot recurse this way,
+    //          navigations from the browser UI are trusted, and sites build frame hierarchies from POST requests to
+    //          the same URL, so these are exempt. The specification only has such a check for the src attribute of
+    //          iframe and frame elements.
+    if (parent() != nullptr
+        && user_involvement != UserNavigationInvolvement::BrowserUI
+        && url.scheme() != "about"sv
+        && !document_resource.has<POSTResource>()) {
+        u32 ancestors_with_url = 0;
+        for (auto const& ancestor : active_document.ancestor_navigables()) {
+            auto ancestor_url = ancestor->active_document_url();
+            if (ancestor_url.has_value() && ancestor_url->equals(url, URL::ExcludeFragment::Yes))
+                ++ancestors_with_url;
+        }
+        if (ancestors_with_url > 1) {
+            if (WebDriver::BiDi::is_active())
+                WebDriver::BiDi::navigation_event(*this, "browsingContext.navigationFailed"sv, navigation_id, url);
+            return;
+        }
+    }
+
     // 15. If navigable's parent is non-null, then set navigable's is delaying load events to true.
     if (parent() != nullptr)
         set_delaying_load_events(true);

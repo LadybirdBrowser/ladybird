@@ -1,0 +1,46 @@
+<!doctype html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<body>
+<script>
+
+promise_test(async t => {
+  let precommit_controller;
+  navigation.onnavigate = t.step_func(e => {
+    e.intercept({ precommitHandler: async controller => precommit_controller = controller });
+  });
+  await navigation.navigate("#").finished;
+  assert_throws_dom("InvalidStateError", () => precommit_controller.addHandler(() => {}));
+}, "addHandler() after finish");
+
+promise_test(async t => {
+  let precommit_controller;
+  navigation.onnavigate = t.step_func(e => {
+    e.intercept({
+      precommitHandler: async controller => precommit_controller = controller,
+      handler: t.step_func(async () => {
+        assert_throws_dom("InvalidStateError", () => precommit_controller.addHandler(() => {}));
+      })
+    });
+  });
+  await navigation.navigate("#").finished;
+}, "addHandler() after commit");
+
+promise_test(async t => {
+  let i = document.createElement("iframe");
+  i.src = "about:blank";
+  document.body.appendChild(i);
+  i.contentWindow.navigation.onnavigate = t.step_func(e => {
+    e.intercept({
+      precommitHandler: t.step_func(controller => {
+        let iframe_constructor = i.contentWindow.DOMException;
+        i.remove();
+        assert_throws_dom("InvalidStateError", iframe_constructor, () => controller.addHandler(() => {}));
+      })
+    });
+  });
+  i.contentWindow.navigation.navigate("#");
+}, "addHandler() in detached iframe");
+
+</script>
+</body>

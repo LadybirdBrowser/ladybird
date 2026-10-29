@@ -1,0 +1,103 @@
+<!doctype html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<body>
+<script>
+
+promise_test(async t => {
+  let precommit_controller;
+  navigation.onnavigate = t.step_func(e => {
+    e.intercept({ precommitHandler: async controller => precommit_controller = controller });
+  });
+  await navigation.navigate("#").finished;
+  assert_throws_dom("InvalidStateError", () => precommit_controller.redirect("#"));
+}, "redirect() after finish");
+
+promise_test(async t => {
+  let precommit_controller;
+  navigation.onnavigate = t.step_func(e => {
+    e.intercept({
+      precommitHandler: async controller => precommit_controller = controller,
+      handler: t.step_func(async () => {
+        assert_throws_dom("InvalidStateError", () => precommit_controller.redirect("#"));
+      })
+    });
+  });
+  await navigation.navigate("#").finished;
+}, "redirect() after commit");
+
+promise_test(async t => {
+  let i = document.createElement("iframe");
+  i.src = "about:blank";
+  document.body.appendChild(i);
+  i.contentWindow.navigation.onnavigate = t.step_func(e => {
+    e.intercept({
+      precommitHandler: t.step_func(controller => {
+        let iframe_constructor = i.contentWindow.DOMException;
+        i.remove();
+        assert_throws_dom("InvalidStateError", iframe_constructor, () => controller.redirect("#"));
+      })
+    });
+  });
+  i.contentWindow.navigation.navigate("#");
+}, "redirect() in detached iframe");
+
+promise_test(async t => {
+  navigation.onnavigate = t.step_func(e => {
+    e.intercept({ precommitHandler: t.step_func(controller => {
+      assert_throws_dom("SyntaxError", () => controller.redirect("https://example.com\u0000mozilla.org"));
+    })});
+  });
+  await navigation.navigate("#").finished;
+}, "redirect() to invalid url");
+
+promise_test(async t => {
+  navigation.onnavigate = t.step_func(e => {
+    e.intercept({ precommitHandler: t.step_func(controller => {
+      assert_throws_dom("SecurityError", () => controller.redirect("https://example.com"));
+    })});
+  });
+  await navigation.navigate("#").finished;
+}, "redirect() to cross-origin url");
+
+promise_test(async t => {
+  // See https://github.com/whatwg/html/issues/5380 for why not `new SharedArrayBuffer()`
+  const buffer = new WebAssembly.Memory({ shared:true, initial:1, maximum:1 }).buffer;
+
+  navigation.onnavigate = t.step_func(e => {
+    e.intercept({ precommitHandler: t.step_func(controller => {
+      assert_throws_dom("DataCloneError", () => {
+        controller.redirect(location.href, { state: buffer });
+      });
+    })});
+  });
+  await navigation.navigate("#").finished;
+}, "redirect() with an unserializable state object");
+
+promise_test(async t => {
+  navigation.onnavigate = t.step_func(e => {
+    e.intercept({ precommitHandler: t.step_func(controller => {
+      assert_throws_dom("InvalidStateError", () => controller.redirect("#"));
+    })});
+  });
+  await navigation.reload().finished;
+}, "redirect() reload");
+
+promise_test(async t => {
+  // Wait for after the load event so that the navigation doesn't get converted
+  // into a replace navigation.
+  if (document.readyState !== 'complete') {
+    await new Promise(resolve => window.onload = () => t.step_timeout(resolve, 0));
+  }
+
+  await navigation.navigate("#forward").finished;
+
+  navigation.onnavigate = t.step_func(e => {
+    e.intercept({ precommitHandler: t.step_func(controller => {
+      assert_throws_dom("InvalidStateError", () => controller.redirect("#"));
+    })});
+  });
+  await navigation.back().finished;
+}, "redirect() traverse");
+</script>
+</body>
