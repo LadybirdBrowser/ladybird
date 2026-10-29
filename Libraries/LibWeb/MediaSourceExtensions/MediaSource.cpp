@@ -265,8 +265,12 @@ WebIDL::ExceptionOr<GC::Ref<SourceBuffer>> MediaSource::add_source_buffer(Utf16S
     // FIXME: 7. If buffer's [[generate timestamps flag]] is true, set buffer's mode to "sequence".
     //           Otherwise, set buffer's mode to "segments".
     // 8. Append buffer to this's sourceBuffers.
-    // 9. Queue a task to fire an event named addsourcebuffer at this's sourceBuffers.
     m_source_buffers->append(buffer);
+
+    // 9. Queue a task to fire an event named addsourcebuffer at this's sourceBuffers.
+    queue_a_media_source_task(GC::create_function(GC::Heap::the(), [media_source = GC::Ref(*this), source_buffers = m_source_buffers] {
+        source_buffers->dispatch_event(media_source->create_associated_event(EventNames::addsourcebuffer));
+    }));
 
     // 10. Return buffer.
     return buffer;
