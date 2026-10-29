@@ -197,6 +197,7 @@ void SharedResourceRequest::fetch_resource(NonnullRefPtr<Fetch::Infrastructure::
 
     m_state = State::Fetching;
     m_load_event_delayer.emplace(*m_document);
+    m_fetch_has_user_without_callbacks = m_callbacks.is_empty();
 
     auto fetch_controller = Fetch::Fetching::fetch(
         realm,
@@ -212,25 +213,32 @@ void SharedResourceRequest::fetch_resource(NonnullRefPtr<Fetch::Infrastructure::
 
 void SharedResourceRequest::add_callbacks(Function<void()> on_finish, Function<void()> on_fail, Function<void()> on_stop)
 {
+    (void)add_removable_callbacks(move(on_finish), move(on_fail), move(on_stop));
+}
+
+Optional<u64> SharedResourceRequest::add_removable_callbacks(Function<void()> on_finish, Function<void()> on_fail, Function<void()> on_stop, DelaysLoadEvent delays_load_event)
+{
     if (m_state == State::Finished) {
         if (on_finish)
             on_finish();
-        return;
+        return {};
     }
 
     if (m_state == State::Failed) {
         if (on_fail)
             on_fail();
-        return;
+        return {};
     }
 
     if (m_state == State::Stopped) {
         if (on_stop)
             on_stop();
-        return;
+        return {};
     }
 
     Callbacks callbacks;
+    callbacks.id = m_next_callbacks_id++;
+    callbacks.delays_load_event = delays_load_event;
     if (on_finish)
         callbacks.on_finish = GC::create_function(GC::Heap::the(), move(on_finish));
     if (on_fail)
@@ -238,7 +246,31 @@ void SharedResourceRequest::add_callbacks(Function<void()> on_finish, Function<v
     if (on_stop)
         callbacks.on_stop = GC::create_function(GC::Heap::the(), move(on_stop));
 
+    auto id = callbacks.id;
     m_callbacks.append(move(callbacks));
+
+    // NB: The fetch may have stopped delaying the load event because nothing waited for it, but now something does.
+    if (m_state == State::Fetching && delays_load_event == DelaysLoadEvent::Yes && !m_load_event_delayer.has_value())
+        m_load_event_delayer.emplace(*m_document);
+    return id;
+}
+
+void SharedResourceRequest::remove_callbacks(u64 id)
+{
+    // NB: Only mark the entry as no longer waiting, and skip it when invoking the callbacks. A callback that is being
+    //     invoked can get here, and the invocation goes on over m_callbacks.
+    for (auto& callbacks : m_callbacks) {
+        if (callbacks.id == id)
+            callbacks.id = 0;
+    }
+
+    // NB: The fetch keeps going so that its result can still be cached, but once nothing waits for it anymore, it
+    //     must not keep delaying the load event of the document.
+    auto nothing_waits = all_of(m_callbacks, [](auto const& callbacks) {
+        return callbacks.id == 0 || callbacks.delays_load_event == DelaysLoadEvent::No;
+    });
+    if (m_state == State::Fetching && nothing_waits && !m_fetch_has_user_without_callbacks)
+        m_load_event_delayer.clear();
 }
 
 void SharedResourceRequest::handle_successful_fetch(URL::URL const& url_string, IsSVGImage is_svg_image, ByteBuffer data, bool image_data_is_cors_cross_origin)
@@ -314,7 +346,7 @@ void SharedResourceRequest::handle_failed_fetch()
     m_load_event_delayer.clear();
     m_fetch_controller = nullptr;
     for (auto& callback : m_callbacks) {
-        if (callback.on_fail)
+        if (callback.id != 0 && callback.on_fail)
             callback.on_fail->function()();
     }
     m_callbacks.clear();
@@ -333,7 +365,7 @@ void SharedResourceRequest::handle_stopped_fetch()
     m_load_event_delayer.clear();
     m_fetch_controller = nullptr;
     for (auto& callback : m_callbacks) {
-        if (callback.on_stop)
+        if (callback.id != 0 && callback.on_stop)
             callback.on_stop->function()();
     }
     m_callbacks.clear();
@@ -346,7 +378,7 @@ void SharedResourceRequest::handle_successful_resource_load()
     m_load_event_delayer.clear();
     m_fetch_controller = nullptr;
     for (auto& callback : m_callbacks) {
-        if (callback.on_finish)
+        if (callback.id != 0 && callback.on_finish)
             callback.on_finish->function()();
     }
     m_callbacks.clear();

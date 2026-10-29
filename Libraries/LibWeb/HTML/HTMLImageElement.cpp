@@ -741,7 +741,7 @@ void HTMLImageElement::decode(GC::Ref<WebIDL::Promise> promise) const
             return;
         }
 
-        current_request.add_callbacks(
+        current_request.add_callbacks_without_delaying_the_load_event(
             // AD-HOC: Enqueue on the batching dispatcher to preserve ordering relative to update_the_image_data's step
             //         16, which also goes through the batching dispatcher. Otherwise decode() can resolve before the
             //         current request transitions to CompletelyAvailable, leaving the image dimensions at zero when
@@ -1074,6 +1074,7 @@ after_step_7:
             unregister_with_decoded_image_data_if_needed();
             abort_the_image_request(m_current_request);
             abort_the_image_request(m_pending_request);
+            stop_delaying_the_load_event_for_aborted_requests();
             m_pending_request = nullptr;
 
             // AD-HOC: The element may have been rendering as blank space while a load was pending;
@@ -1115,6 +1116,7 @@ after_step_7:
             unregister_with_decoded_image_data_if_needed();
             abort_the_image_request(m_current_request);
             abort_the_image_request(m_pending_request);
+            stop_delaying_the_load_event_for_aborted_requests();
 
             // 2. Set the current request's state to broken.
             m_current_request->set_state(ImageRequest::State::Broken);
@@ -1421,6 +1423,16 @@ void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> imag
         [this] {
             m_load_event_delayer.clear();
         });
+}
+
+// NB: Aborting the image requests aborts their fetches, so nothing that the img element is fetching delays the load
+//     event of its node document anymore. Our fetches are shared and keep going, so stop waiting for them here.
+void HTMLImageElement::stop_delaying_the_load_event_for_aborted_requests()
+{
+    m_current_request->stop_waiting_for_fetch();
+    if (m_pending_request)
+        m_pending_request->stop_waiting_for_fetch();
+    m_load_event_delayer.clear();
 }
 
 void HTMLImageElement::did_set_viewport_rect(CSSPixelRect const& viewport_rect)
