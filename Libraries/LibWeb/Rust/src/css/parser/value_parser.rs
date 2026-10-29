@@ -5015,26 +5015,30 @@ fn parse_border_image_shorthand(context: &ParseContext, values: &[ComponentValue
 
 // https://drafts.csswg.org/css-fonts-4/#font-synthesis
 fn parse_font_synthesis_shorthand(values: &[ComponentValue]) -> ParseOutcome {
-    // INTEROP: Chrome and Safari support weight, style, and small-caps, but not position or oblique-only.
+    // https://drafts.csswg.org/css-fonts-4/#font-synthesis
     let Some(keywords) = values
         .iter()
         .filter(|value| !value.is_whitespace())
-        .map(|value| value.ident().and_then(keyword_from_ascii_case_insensitive))
+        .map(|value| value.ident())
         .collect::<Option<Vec<_>>>()
     else {
         return ParseOutcome::Invalid;
     };
-    if keywords.is_empty() || keywords.len() > 3 {
+    if keywords.is_empty() || keywords.len() > 4 {
         return ParseOutcome::Invalid;
     }
-    let mut enabled = [false; 3];
-    if keywords.as_slice() != [keyword::NONE] {
-        for keyword in keywords {
-            let index = match keyword {
-                keyword::WEIGHT => 0,
-                keyword::STYLE => 1,
-                keyword::SMALL_CAPS => 2,
-                _ => return ParseOutcome::Invalid,
+    let mut enabled = [false; 4];
+    if keywords.len() != 1 || !equals_ascii_case_insensitive(keywords[0], b"none") {
+        for ident in keywords {
+            let index = if equals_ascii_case_insensitive(ident, b"position") {
+                3
+            } else {
+                match keyword_from_ascii_case_insensitive(ident) {
+                    Some(keyword::WEIGHT) => 0,
+                    Some(keyword::STYLE) => 1,
+                    Some(keyword::SMALL_CAPS) => 2,
+                    _ => return ParseOutcome::Invalid,
+                }
             };
             if enabled[index] {
                 return ParseOutcome::Invalid;
@@ -5050,6 +5054,7 @@ fn parse_font_synthesis_shorthand(values: &[ComponentValue]) -> ParseOutcome {
                 property_id::FONT_SYNTHESIS_WEIGHT => 0,
                 property_id::FONT_SYNTHESIS_STYLE => 1,
                 property_id::FONT_SYNTHESIS_SMALL_CAPS => 2,
+                property_id::FONT_SYNTHESIS_POSITION => 3,
                 _ => unreachable!(),
             };
             StyleValueData::Keyword {

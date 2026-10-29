@@ -84,6 +84,112 @@ mod tests {
         .join()
         .unwrap();
     }
+    #[test]
+    fn font_synthesis_four_keyword_initial_round_trip() {
+        let value = initial(property_id::FONT_SYNTHESIS);
+        assert_eq!(
+            text(value.as_ref(), SerializationMode::Normal).into_utf16(),
+            "weight style small-caps position".encode_utf16().collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn font_synthesis_four_keyword_combinations() {
+        let components = [
+            (property_id::FONT_SYNTHESIS_WEIGHT, "weight"),
+            (property_id::FONT_SYNTHESIS_STYLE, "style"),
+            (property_id::FONT_SYNTHESIS_SMALL_CAPS, "small-caps"),
+            (property_id::FONT_SYNTHESIS_POSITION, "position"),
+        ];
+        let mut missing = Vec::new();
+        for mask in 0..16 {
+            let names = components
+                .iter()
+                .enumerate()
+                .filter(|(index, _)| mask & (1 << index) != 0)
+                .map(|(_, (_, name))| *name)
+                .collect::<Vec<_>>();
+            let expected = if names.is_empty() {
+                "none".to_owned()
+            } else {
+                names.join(" ")
+            };
+            let source = if names.is_empty() {
+                "none".to_owned()
+            } else {
+                names.iter().rev().copied().collect::<Vec<_>>().join(" ")
+            };
+            let units: Vec<_> = source.encode_utf16().collect();
+            let Some(value) = parse(property_id::FONT_SYNTHESIS, TokenizerInput::Utf16(&units)) else {
+                missing.push(source);
+                continue;
+            };
+            assert_eq!(
+                text(&value, SerializationMode::Normal).into_utf16(),
+                expected.encode_utf16().collect::<Vec<_>>(),
+                "{source}"
+            );
+            for (index, (property, _)) in components.iter().enumerate() {
+                let expected = if mask & (1 << index) != 0 {
+                    keyword::AUTO
+                } else {
+                    keyword::NONE
+                };
+                assert!(
+                    matches!(longhand(&value, *property), Some(StyleValueData::Keyword { keyword }) if *keyword == expected),
+                    "{source}"
+                );
+            }
+        }
+        assert!(missing.is_empty(), "rejected valid combinations: {missing:?}");
+    }
+
+    #[test]
+    fn font_synthesis_four_keyword_invalid_values() {
+        for source in [
+            "position position",
+            "position none",
+            "none position",
+            "none none",
+            "weight style small-caps position weight",
+            "position unsupported",
+            "oblique-only",
+        ] {
+            let units: Vec<_> = source.encode_utf16().collect();
+            assert!(
+                parse(property_id::FONT_SYNTHESIS, TokenizerInput::Utf16(&units)).is_none(),
+                "{source}"
+            );
+        }
+    }
+
+    #[test]
+    fn font_synthesis_ordinary_and_css_wide_serialization_controls() {
+        for (source, expected) in [
+            ("none", "none"),
+            ("style weight", "weight style"),
+            ("small-caps weight style", "weight style small-caps"),
+            ("initial", "initial"),
+            ("inherit", "inherit"),
+            ("unset", "unset"),
+            ("revert", "revert"),
+            ("revert-layer", "revert-layer"),
+        ] {
+            let units: Vec<_> = source.encode_utf16().collect();
+            let value = parse(property_id::FONT_SYNTHESIS, TokenizerInput::Utf16(&units)).unwrap();
+            assert_eq!(
+                text(&value, SerializationMode::Normal).into_utf16(),
+                expected.encode_utf16().collect::<Vec<_>>()
+            );
+        }
+        for source in ["oblique-only", "weight weight", "none weight"] {
+            let units: Vec<_> = source.encode_utf16().collect();
+            assert!(
+                parse(property_id::FONT_SYNTHESIS, TokenizerInput::Utf16(&units)).is_none(),
+                "{source}"
+            );
+        }
+    }
 }
 
 fn longhand(value: &StyleValueData, property: u16) -> Option<&StyleValueData> {
@@ -459,6 +565,7 @@ pub(super) fn serialize(
                 (property_id::FONT_SYNTHESIS_WEIGHT, "weight"),
                 (property_id::FONT_SYNTHESIS_STYLE, "style"),
                 (property_id::FONT_SYNTHESIS_SMALL_CAPS, "small-caps"),
+                (property_id::FONT_SYNTHESIS_POSITION, "position"),
             ];
             if components.iter().any(|(property, _)| {
                 !keyword_is(get(*property), keyword::NONE) && !keyword_is(get(*property), keyword::AUTO)

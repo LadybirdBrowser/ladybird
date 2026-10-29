@@ -1,0 +1,79 @@
+<!doctype html>
+<script src="../include.js"></script>
+<div id="parent"><div id="target"></div></div>
+<script>
+    test(() => {
+        const parent = document.getElementById("parent");
+        const target = document.getElementById("target");
+        const style = target.style;
+        const names = ["weight", "style", "small-caps", "position"].map(name => `font-synthesis-${name}`);
+        const values = () => names.map(name => style.getPropertyValue(name));
+        const priorities = () => names.map(name => style.getPropertyPriority(name));
+        const check = (label, actual, expected) => {
+            println(`${label}: ${JSON.stringify(actual)}`);
+            if (JSON.stringify(actual) !== JSON.stringify(expected))
+                throw new Error(`${label}: expected ${JSON.stringify(expected)}`);
+        };
+        style.setProperty("font-synthesis-position", "auto", "important");
+        style.setProperty("font-synthesis", "none", "important");
+        check("none resets all four", values(), ["none", "none", "none", "none"]);
+        check("important expands to four", priorities(), ["important", "important", "important", "important"]);
+        check("none shorthand", style.getPropertyValue("font-synthesis"), "none");
+        check("remove representable shorthand", style.removeProperty("font-synthesis"), "none");
+        check("remove clears four", values(), ["", "", "", ""]);
+        style.setProperty("font-synthesis", "weight");
+        style.setProperty("font-synthesis-position", "auto");
+        check("position auto is represented", style.getPropertyValue("font-synthesis"), "weight position");
+        check("remove position shorthand", style.removeProperty("font-synthesis"), "weight position");
+        check("position removal clears four", values(), ["", "", "", ""]);
+        style.setProperty("font-synthesis-position", "auto", "important");
+        style.setProperty("font-synthesis", "weight");
+        check("CSSOM replacement resets important position", values(), ["auto", "none", "none", "none"]);
+        check("CSSOM replacement clears priority", priorities(), ["", "", "", ""]);
+        style.setProperty("font-synthesis-weight", "auto", "important");
+        check("mixed priority shorthand", style.getPropertyValue("font-synthesis"), "");
+        style.removeProperty("font-synthesis");
+        check("mixed priority removal clears four", values(), ["", "", "", ""]);
+        target.attributeStyleMap.set("font-synthesis", new CSSKeywordValue("position"));
+        check("typed keyword position", values(), ["none", "none", "none", "auto"]);
+        check("typed position roundtrip", String(target.attributeStyleMap.get("font-synthesis")), "position");
+        for (const keyword of ["initial", "inherit", "unset", "revert", "revert-layer"]) {
+            style.setProperty("font-synthesis", keyword);
+            check(`${keyword} specified four`, values(), [keyword, keyword, keyword, keyword]);
+            check(`${keyword} shorthand`, style.getPropertyValue("font-synthesis"), keyword);
+        }
+        style.setProperty("font-synthesis", "initial");
+        check(
+            "initial computed shorthand",
+            getComputedStyle(target).getPropertyValue("font-synthesis"),
+            "weight style small-caps position"
+        );
+        parent.style.setProperty("font-synthesis-position", "none");
+        for (const [keyword, expected] of [
+            ["initial", "auto"],
+            ["inherit", "none"],
+            ["unset", "none"],
+        ]) {
+            style.setProperty("font-synthesis", keyword);
+            check(
+                `${keyword} computed position`,
+                getComputedStyle(target).getPropertyValue("font-synthesis-position"),
+                expected
+            );
+        }
+        style.cssText = "";
+        style.setProperty("--s", "weight");
+        style.setProperty("font-synthesis", "var(--s)");
+        check("pending shorthand", style.getPropertyValue("font-synthesis"), "var(--s)");
+        check(
+            "pending shorthand resets computed position",
+            getComputedStyle(target).getPropertyValue("font-synthesis-position"),
+            "none"
+        );
+        check(
+            "position grammar",
+            [CSS.supports("font-synthesis", "position"), CSS.supports("font-synthesis", "oblique-only")],
+            [true, false]
+        );
+    });
+</script>
