@@ -1,0 +1,4 @@
+child accepted: ctrlKey=true defaultPrevented=false
+parent wheel events: 0, scale: 2
+child canceled: ctrlKey=true defaultPrevented=true
+parent wheel events: 0, scale: 2
