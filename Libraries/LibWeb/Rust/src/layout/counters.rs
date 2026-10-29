@@ -13,7 +13,7 @@ use super::node_data::{
 };
 use crate::css::computed_value_views::ComputedValuesView;
 use crate::css::css_string::CssString;
-use crate::css::style::StyleEngine;
+use crate::css::style::RetainedState;
 use crate::css::style::fast_hash::FastMap as HashMap;
 use crate::css::style::tree::StyleNodeID;
 use crate::painting::paint_read::PaintRead;
@@ -190,7 +190,7 @@ pub(crate) fn style_resets_forward_list_item_counter(style: ComputedValuesView<'
 /// `::backdrop`, so that one is read from the box it was built with.
 pub(crate) fn style_of<'a>(
     arena: &'a LayoutNodeArena,
-    engine: &'a StyleEngine,
+    engine: &'a RetainedState,
     owner: CounterOwner,
 ) -> Option<ComputedValuesView<'a>> {
     match owner.generated_for {
@@ -209,7 +209,7 @@ pub(crate) fn style_of<'a>(
 }
 
 /// The element's parent element, or the originating element of a pseudo-element.
-fn parent_element(engine: &StyleEngine, owner: CounterOwner) -> Option<StyleNodeID> {
+fn parent_element(engine: &RetainedState, owner: CounterOwner) -> Option<StyleNodeID> {
     if owner.generated_for != 0 {
         return Some(owner.element);
     }
@@ -308,7 +308,7 @@ fn last_counter_with_name<'a>(counters: &'a mut [Counter], name: &CssString) -> 
 // https://drafts.csswg.org/css-lists-3/#instantiate-counter
 fn instantiate_a_counter<'a>(
     arena: &LayoutNodeArena,
-    engine: &StyleEngine,
+    engine: &RetainedState,
     counters: &'a mut Vec<Counter>,
     name: CssString,
     element: CounterOwner,
@@ -350,7 +350,7 @@ fn instantiate_a_counter<'a>(
 // https://drafts.csswg.org/css-lists-3/#propdef-counter-set
 fn set_a_counter(
     arena: &LayoutNodeArena,
-    engine: &StyleEngine,
+    engine: &RetainedState,
     counters: &mut Vec<Counter>,
     name: &CssString,
     element: CounterOwner,
@@ -371,7 +371,7 @@ fn set_a_counter(
 // https://drafts.csswg.org/css-lists-3/#propdef-counter-increment
 fn increment_a_counter(
     arena: &LayoutNodeArena,
-    engine: &StyleEngine,
+    engine: &RetainedState,
     counters: &mut Vec<Counter>,
     name: &CssString,
     element: CounterOwner,
@@ -450,7 +450,7 @@ fn apply_reversed_counter_contribution(
 }
 
 fn walk_reversed_counter_sibling_run(
-    engine: &StyleEngine,
+    engine: &RetainedState,
     state: &mut ReversedScopeWalkState<'_>,
     first: Option<StyleNodeID>,
 ) -> ReversedScopeWalkDecision {
@@ -492,7 +492,7 @@ fn walk_reversed_counter_sibling_run(
 // 4. Add lastNonZeroIncrementNegated to num.
 // 5. Return num."
 fn reversed_counter_start_value(
-    engine: &StyleEngine,
+    engine: &RetainedState,
     name: &CssString,
     originating_element: CounterOwner,
     style: ComputedValuesView<'_>,
@@ -521,7 +521,7 @@ fn reversed_counter_start_value(
 // https://drafts.csswg.org/css-lists-3/#inherit-counters
 fn inherit_counters(
     arena: &LayoutNodeArena,
-    engine: &StyleEngine,
+    engine: &RetainedState,
     sets: &CountersSets,
     element: CounterOwner,
 ) -> Option<CountersSet> {

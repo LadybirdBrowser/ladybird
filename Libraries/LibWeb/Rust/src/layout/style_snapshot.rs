@@ -89,7 +89,7 @@ impl LayoutNodeArena {
     /// Hands the style engine the committed box of a node whose new style makes it a size
     /// container, which the last commit gathered no row for. Until the next commit, a size query
     /// on it reads that box, as the host's evaluation reads the box it holds.
-    pub(crate) fn publish_new_size_container_geometry(&self, node: NodeSlotId) {
+    pub(crate) fn publish_new_size_container_geometry(&mut self, node: NodeSlotId) {
         if !node_is_size_container(self, node) {
             return;
         }

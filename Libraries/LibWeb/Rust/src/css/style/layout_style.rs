@@ -111,7 +111,7 @@ impl Drop for LayoutStyle {
 }
 
 impl LayoutStyle {
-    pub(crate) fn from_record(engine: &StyleEngine, record: u64) -> Self {
+    pub(crate) fn from_record(engine: &super::RetainedState, record: u64) -> Self {
         let view = engine
             .style_record_view(record)
             .expect("layout style record must be live");

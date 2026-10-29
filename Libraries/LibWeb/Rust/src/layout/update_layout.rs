@@ -316,7 +316,7 @@ pub struct FfiStyleImageFacts {
 }
 
 impl FfiStyleImageFacts {
-    fn of(engine: &crate::css::style::StyleEngine, style_record: u64) -> Self {
+    fn of(engine: &crate::css::style::RetainedState, style_record: u64) -> Self {
         Self {
             style_record,
             holds_image_values: engine.style_record_holds_image_values(style_record),
@@ -587,7 +587,7 @@ impl OwedImage {
                     ) || arena.owe_style_image_resources_once(row))
             })
             .collect();
-        arena.with_style_engine(|engine| {
+        arena.with_style_store(|engine| {
             owed.into_iter()
                 .map(|(row, owed)| Self {
                     row,
