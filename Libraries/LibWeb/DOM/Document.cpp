@@ -6570,10 +6570,12 @@ void Document::destroy()
             auto& child_navigable = *navigable_container->content_navigable();
             page().client().page_did_destroy_child_frame(child_navigable.id());
             child_navigable.set_has_been_destroyed();
-            if (auto* local_child_navigable = as_if<HTML::LocalNavigable>(child_navigable))
+            if (auto* local_child_navigable = as_if<HTML::LocalNavigable>(child_navigable)) {
                 local_child_navigable->remove_from_all_local_navigables();
-            else
+            } else {
+                page().discard_provisional_navigable(child_navigable.id());
                 as<HTML::RemoteNavigable>(child_navigable).remove_from_all_remote_navigables();
+            }
         }
     }
 
