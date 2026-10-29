@@ -113,32 +113,43 @@ fn transform_uses_locale(transform: u8) -> bool {
 
 /// Enrolls the text under `root` whose casing or loose line breaking depends on its language, and answers whether there was
 /// any. This only enrolls text; source views are requested after DOM language invalidation completes.
-pub(crate) fn enroll_text_after_language_change(arena: &LayoutNodeArena, root: NodeSlotId) -> bool {
-    let mut changed = false;
-    let mut enroll = |node| {
+pub(crate) fn enroll_text_after_language_change(arena: &mut LayoutNodeArena, root: NodeSlotId) -> bool {
+    let depends_on_language = |arena: &LayoutNodeArena, node: NodeSlotId| {
         if !super::node_facts::kind_is_text(arena.data(node).kind.get()) {
-            return;
+            return false;
         }
         let parent = arena.data(node).parent.get();
-        if !parent.is_invalid()
+        !parent.is_invalid()
             && arena.style_payloads(parent).is_some_and(|style| {
                 let values = ComputedValuesView::new(&style.groups);
                 transform_uses_locale(values.inherited_text().text_transform)
                     || values.line_break() == crate::css::css_enums::line_break::LOOSE
             })
-        {
-            arena.enroll_text_node_for_content_sync(node);
-            changed = true;
-        }
     };
-    if super::node_facts::kind_is_text(arena.data(root).kind.get()) {
-        for &node in arena.text_fragments(root).as_slice() {
-            enroll(node);
+    let mut enrolled = Vec::new();
+    {
+        let arena: &LayoutNodeArena = arena;
+        if super::node_facts::kind_is_text(arena.data(root).kind.get()) {
+            enrolled.extend(
+                arena
+                    .text_fragments(root)
+                    .as_slice()
+                    .iter()
+                    .copied()
+                    .filter(|&node| depends_on_language(arena, node)),
+            );
+        } else {
+            arena.for_each_node_in_layout_subtree_in_pre_order(root, |node| {
+                if depends_on_language(arena, node) {
+                    enrolled.push(node);
+                }
+            });
         }
-    } else {
-        arena.for_each_node_in_layout_subtree_in_pre_order(root, enroll);
     }
-    changed
+    for &node in &enrolled {
+        arena.enroll_text_node_for_content_sync(node);
+    }
+    !enrolled.is_empty()
 }
 
 #[derive(Clone)]

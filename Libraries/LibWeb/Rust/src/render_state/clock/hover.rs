@@ -945,7 +945,7 @@ impl Lane {
             }
             let installs = state.engine_mut().install_hover_wave(&wave);
             made.installed |= !settles_back;
-            let arena = state.arena.arena();
+            let arena = state.arena.arena_mut();
             let work = OwedHostWork::default();
             // The installs cannot call the host, which never hears of the boxes of the lane's fork they touched.
             arena.queue_box_presence();

@@ -237,7 +237,7 @@ impl RenderState {
         };
         // What applying the rows owes the host, the host's install of the rows makes good again.
         let work = OwedHostWork::default();
-        let Ok(applied) = self.arena.arena().apply_flight_style_rows(HostCalls(&work), rows) else {
+        let Ok(applied) = self.arena.arena_mut().apply_flight_style_rows(HostCalls(&work), rows) else {
             return (Vec::new(), None);
         };
         (applied, self.run_round(round, work))

@@ -134,7 +134,7 @@ impl<'a> PaintableCommit<'a> {
         let row_existed_before_this_commit = self.arena().paintable_rows().paintable_row_is_populated(node);
         let previous_offset = row_existed_before_this_commit.then(|| self.arena().live_paintable_data(node).offset);
         if !wants_paintable {
-            self.arena().clear_committed_fragment_link(node);
+            self.arena_mut().clear_committed_fragment_link(node);
             if row_existed_before_this_commit {
                 let reset = {
                     let arena = self.arena();
@@ -166,7 +166,7 @@ impl<'a> PaintableCommit<'a> {
             };
         }
         if !has_used_values {
-            self.arena().clear_committed_fragment_link(node);
+            self.arena_mut().clear_committed_fragment_link(node);
             // Fragmented inlines get their painted pieces from the enclosing line root.
             let inline_paint_changed = enclosing_line_root_changes.inline_content_changed
                 || (enclosing_line_root_changes.fragment_changed && has_descendant_dependent_paint(self.arena(), node));
