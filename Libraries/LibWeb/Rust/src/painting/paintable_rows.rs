@@ -19,7 +19,7 @@ use crate::painting::visual_context::{
     BoxVisualContextNodeHandles, EMPTY_BOX_VISUAL_CONTEXT_NODE_HANDLES, PaintableVisualContextRecord,
 };
 use smallvec::{SmallVec, smallvec};
-use std::cell::{Cell, Ref, RefCell};
+use std::cell::{Cell, RefCell};
 use std::ffi::c_void;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
@@ -321,16 +321,16 @@ pub(crate) struct PaintableRowStore {
     pub(crate) row_paint_states: Vec<RowPaintState>,
     pub(crate) damage: DamageSet,
     // NB: Boxed, as most rows have no record, and a row holds no more than a pointer for one.
-    visual_context_records: RefCell<CowColumn<Option<Box<PaintableVisualContextRecord>>, PAINTABLE_SLOTS_PER_CHUNK>>,
+    visual_context_records: CowColumn<Option<Box<PaintableVisualContextRecord>>, PAINTABLE_SLOTS_PER_CHUNK>,
     /// The visual context node handles of each row that has a record. They are kept here only, in
     /// a column a frame publishes, so the visual context update and the recording read the same.
-    visual_context_node_handles: RefCell<VisualContextNodeHandleColumn>,
-    pub(crate) stacking_context_entries: RefCell<StackingContextEntryColumn>,
-    pub(crate) stacking_context_roots_flagged_for_resort: RefCell<Vec<NodeSlotId>>,
-    line_roots_needing_fragment_ownership: RefCell<Vec<NodeSlotId>>,
+    visual_context_node_handles: VisualContextNodeHandleColumn,
+    pub(crate) stacking_context_entries: StackingContextEntryColumn,
+    pub(crate) stacking_context_roots_flagged_for_resort: Vec<NodeSlotId>,
+    line_roots_needing_fragment_ownership: Vec<NodeSlotId>,
     absolute_rect_memo: RefCell<Vec<Option<(NodeSlotId, u64, crate::css::css_pixels::CssPixelRect)>>>,
     absolute_rect_memo_epoch: Cell<u64>,
-    committed_fragment_links: RefCell<CowColumn<CommittedFragmentLinkSlot, PAINTABLE_SLOTS_PER_CHUNK>>,
+    committed_fragment_links: CowColumn<CommittedFragmentLinkSlot, PAINTABLE_SLOTS_PER_CHUNK>,
     image_map_areas: crate::painting::image_map_areas::ImageMapAreaColumn,
     unique_node_ids: UniqueNodeIdColumn,
     /// How many times a row was populated or reset, which moves whether a row is populated.
@@ -573,7 +573,7 @@ impl PaintableRowStore {
         geometry_epoch: u32,
         read: impl FnOnce(&std::sync::Arc<fragment_tree::Fragment>) -> R,
     ) -> Option<R> {
-        let slots = self.committed_fragment_links.borrow();
+        let slots = &self.committed_fragment_links;
         let slot = slots.get(layout_slot_index as usize)?;
         if slot.layout_slot_generation != layout_slot_generation
             || !slot.geometry_is_current
@@ -592,7 +592,7 @@ impl PaintableRowStore {
         geometry_epoch: u32,
         link: &fragment_tree::FragmentLink,
     ) -> bool {
-        let slots = self.committed_fragment_links.borrow();
+        let slots = &self.committed_fragment_links;
         slots.get(layout_slot_index as usize).is_some_and(|slot| {
             slot.layout_slot_generation == layout_slot_generation
                 && slot.geometry_is_current
@@ -604,8 +604,8 @@ impl PaintableRowStore {
         })
     }
 
-    pub(crate) fn invalidate_committed_geometry(&self, layout_slot_index: u32) {
-        if let Some(mut slot) = RowMut::new(self.committed_fragment_links.borrow_mut(), layout_slot_index as usize) {
+    pub(crate) fn invalidate_committed_geometry(&mut self, layout_slot_index: u32) {
+        if let Some(mut slot) = RowMut::new(&mut self.committed_fragment_links, layout_slot_index as usize) {
             slot.geometry_is_current = false;
         }
     }
@@ -616,7 +616,6 @@ impl PaintableRowStore {
         layout_slot_generation: u8,
     ) -> Option<fragment_tree::FragmentLink> {
         self.committed_fragment_links
-            .borrow()
             .get(layout_slot_index as usize)
             .filter(|slot| slot.layout_slot_generation == layout_slot_generation)
             .and_then(|slot| slot.link.clone())
@@ -628,7 +627,7 @@ impl PaintableRowStore {
         layout_slot_generation: u8,
         read: impl FnOnce(Option<&fragment_tree::FragmentLink>) -> R,
     ) -> R {
-        let slots = self.committed_fragment_links.borrow();
+        let slots = &self.committed_fragment_links;
         read(
             slots
                 .get(layout_slot_index as usize)
@@ -637,13 +636,13 @@ impl PaintableRowStore {
     }
 
     pub(crate) fn set_committed_fragment_link(
-        &self,
+        &mut self,
         layout_slot_index: u32,
         layout_slot_generation: u8,
         geometry_epoch: Option<u32>,
         link: fragment_tree::FragmentLink,
     ) {
-        let mut slots = self.committed_fragment_links.borrow_mut();
+        let slots = &mut self.committed_fragment_links;
         slots.grow_to(layout_slot_index as usize + 1);
         let mut slot = slots
             .row_mut(layout_slot_index as usize)
@@ -662,18 +661,17 @@ impl PaintableRowStore {
     }
 
     pub(crate) fn take_committed_fragment_link(
-        &self,
+        &mut self,
         layout_slot_index: u32,
         layout_slot_generation: u8,
     ) -> Option<fragment_tree::FragmentLink> {
-        RowMut::new(self.committed_fragment_links.borrow_mut(), layout_slot_index as usize)
+        RowMut::new(&mut self.committed_fragment_links, layout_slot_index as usize)
             .filter(|slot| slot.layout_slot_generation == layout_slot_generation)
             .and_then(|mut slot| slot.link.take())
     }
 
-    pub(crate) fn reset_committed_fragment_link_slot(&self, layout_slot_index: u32) {
+    pub(crate) fn reset_committed_fragment_link_slot(&mut self, layout_slot_index: u32) {
         self.committed_fragment_links
-            .borrow_mut()
             .set(layout_slot_index as usize, CommittedFragmentLinkSlot::default());
     }
 }
@@ -775,10 +773,10 @@ impl LayoutNodeArena {
             rows: store.rows.publish(),
             // Borrowed rather than reached through `&mut`, so a publication that a host read makes while
             // a writer of the columns is still on the stack panics instead of racing it.
-            fragment_links: store.committed_fragment_links.borrow_mut().publish(),
+            fragment_links: store.committed_fragment_links.publish(),
             side_data: store.committed_side_data.publish(),
-            stacking_context_entries: store.stacking_context_entries.borrow_mut().publish(),
-            visual_context_node_handles: store.visual_context_node_handles.borrow_mut().publish(),
+            stacking_context_entries: store.stacking_context_entries.publish(),
+            visual_context_node_handles: store.visual_context_node_handles.publish(),
         }
     }
 
@@ -792,10 +790,10 @@ impl LayoutNodeArena {
     pub(crate) fn paintable_rows_version(&self) -> u64 {
         let store = &self.paintable_rows;
         store.rows.version()
-            + store.committed_fragment_links.borrow().version()
+            + store.committed_fragment_links.version()
             + store.committed_side_data.version()
-            + store.stacking_context_entries.borrow().version()
-            + store.visual_context_node_handles.borrow().version()
+            + store.stacking_context_entries.version()
+            + store.visual_context_node_handles.version()
     }
 
     pub(crate) fn paintable_rows_mut(&mut self) -> PaintableRowsMut<'_> {
@@ -851,12 +849,12 @@ impl LayoutNodeArena {
         let store = &mut self.paintable_rows;
         let index = layout_node.slot_index() as usize;
         let mut absolute_rect_memo = store.absolute_rect_memo.borrow_mut();
-        let mut visual_context_records = store.visual_context_records.borrow_mut();
+        let visual_context_records = &mut store.visual_context_records;
         store.rows.grow_to(index + 1);
         visual_context_records.grow_to(index + 1);
         store.committed_side_data.grow_to(index + 1);
-        store.visual_context_node_handles.get_mut().grow_to(index + 1);
-        store.stacking_context_entries.get_mut().grow_to(index + 1);
+        store.visual_context_node_handles.grow_to(index + 1);
+        store.stacking_context_entries.grow_to(index + 1);
         while store.side_data.len() <= index {
             store.side_data.push(PaintableSideData::default());
             store.row_paint_states.push(RowPaintState::default());
@@ -879,8 +877,8 @@ impl LayoutNodeArena {
         store.row_paint_states[index].clear();
         absolute_rect_memo[index] = None;
         visual_context_records.set(index, None);
-        set_visual_context_node_handles(store.visual_context_node_handles.get_mut(), index, None);
-        drop_table(store.stacking_context_entries.get_mut(), index);
+        set_visual_context_node_handles(&mut store.visual_context_node_handles, index, None);
+        drop_table(&mut store.stacking_context_entries, index);
         self.scrollable_overflow.rows_to_measure.push(layout_node);
         drop((absolute_rect_memo, visual_context_records));
         self.notify_committed_box_changed(layout_node);
@@ -921,9 +919,9 @@ impl LayoutNodeArena {
         store.side_data[index] = PaintableSideData::default();
         store.committed_side_data.set(index, CommittedSideData::default());
         store.row_paint_states[index].clear();
-        store.visual_context_records.borrow_mut().set(index, None);
-        set_visual_context_node_handles(store.visual_context_node_handles.get_mut(), index, None);
-        drop_table(store.stacking_context_entries.get_mut(), index);
+        store.visual_context_records.set(index, None);
+        set_visual_context_node_handles(&mut store.visual_context_node_handles, index, None);
+        drop_table(&mut store.stacking_context_entries, index);
         if reset.kind == crate::painting::paintable_data::PaintableRowResetKind::Freed {
             store.image_map_areas.forget(id);
         }
@@ -940,22 +938,19 @@ impl LayoutNodeArena {
         &self.paintable_rows.unique_node_ids
     }
 
-    pub(crate) fn paintable_visual_context_record(
-        &self,
-        id: NodeSlotId,
-    ) -> Option<Ref<'_, PaintableVisualContextRecord>> {
+    pub(crate) fn paintable_visual_context_record(&self, id: NodeSlotId) -> Option<&PaintableVisualContextRecord> {
         if !self.paintable_row_is_populated(id) {
             return None;
         }
-        Ref::filter_map(self.paintable_rows.visual_context_records.borrow(), |records| {
-            records.get(id.slot_index() as usize).and_then(Option::as_deref)
-        })
-        .ok()
+        self.paintable_rows
+            .visual_context_records
+            .get(id.slot_index() as usize)
+            .and_then(Option::as_deref)
     }
 
     /// A row's visual context record and node handles, which the row no longer has.
     pub(crate) fn take_paintable_visual_context_record(
-        &self,
+        &mut self,
         id: NodeSlotId,
     ) -> Option<(PaintableVisualContextRecord, Arc<BoxVisualContextNodeHandles>)> {
         if !self.paintable_row_is_populated(id) {
@@ -965,14 +960,12 @@ impl LayoutNodeArena {
         let record = self
             .paintable_rows
             .visual_context_records
-            .borrow_mut()
             .row_mut(index)
             .and_then(|mut record| record.take())
             .map(|record| *record)?;
         let node_handles = self
             .paintable_rows
             .visual_context_node_handles
-            .borrow_mut()
             .row_mut(index)
             .and_then(|mut handles| handles.take())
             .expect("a row with a record has node handles");
@@ -993,13 +986,12 @@ impl LayoutNodeArena {
             )
         });
         set_visual_context_node_handles(
-            &mut self.paintable_rows.visual_context_node_handles.borrow_mut(),
+            &mut self.paintable_rows.visual_context_node_handles,
             id.slot_index() as usize,
             Some(node_handles),
         );
         self.paintable_rows
             .visual_context_records
-            .borrow_mut()
             .set(id.slot_index() as usize, Some(Box::new(record)));
         if let Some(inputs) = inputs {
             if self.update_paint_order_inputs(id, inputs) {
@@ -1011,38 +1003,34 @@ impl LayoutNodeArena {
         }
     }
 
-    pub(crate) fn drop_all_visual_context_records(&self) {
+    pub(crate) fn drop_all_visual_context_records(&mut self) {
         let rows = self.paintable_rows.side_data.len();
-        let mut records = self.paintable_rows.visual_context_records.borrow_mut();
+        let records = &mut self.paintable_rows.visual_context_records;
         for index in 0..rows {
             records.set(index, None);
         }
-        drop(records);
-        let mut handles = self.paintable_rows.visual_context_node_handles.borrow_mut();
-        for index in 0..self.paintable_row_count() {
-            set_visual_context_node_handles(&mut handles, index, None);
+        let handles = &mut self.paintable_rows.visual_context_node_handles;
+        for index in 0..rows {
+            set_visual_context_node_handles(handles, index, None);
         }
     }
 
     /// A snapshot of every row's visual context node handles, as they are now, which later writes leave as it is.
     pub(crate) fn visual_context_node_handles_snapshot(
-        &self,
+        &mut self,
     ) -> crate::cow_column::ColumnSnapshot<Option<Arc<BoxVisualContextNodeHandles>>, PAINTABLE_SLOTS_PER_CHUNK> {
-        self.paintable_rows.visual_context_node_handles.borrow_mut().publish()
+        self.paintable_rows.visual_context_node_handles.publish()
     }
 
     /// A row's visual context node handles, if it has a visual context record.
-    pub(crate) fn paintable_visual_context_node_handles(
-        &self,
-        id: NodeSlotId,
-    ) -> Option<Ref<'_, BoxVisualContextNodeHandles>> {
+    pub(crate) fn paintable_visual_context_node_handles(&self, id: NodeSlotId) -> Option<&BoxVisualContextNodeHandles> {
         if !self.paintable_row_is_populated(id) {
             return None;
         }
-        Ref::filter_map(self.paintable_rows.visual_context_node_handles.borrow(), |column| {
-            column.get(id.slot_index() as usize).and_then(Option::as_deref)
-        })
-        .ok()
+        self.paintable_rows
+            .visual_context_node_handles
+            .get(id.slot_index() as usize)
+            .and_then(Option::as_deref)
     }
 
     /// The effect and spatial nodes of the box `id`, which compositor animations of their kinds drive.
@@ -1059,7 +1047,7 @@ impl LayoutNodeArena {
         read: impl FnOnce(&BoxVisualContextNodeHandles) -> R,
     ) -> R {
         match self.paintable_visual_context_node_handles(id) {
-            Some(handles) => read(&handles),
+            Some(handles) => read(handles),
             None => read(&EMPTY_BOX_VISUAL_CONTEXT_NODE_HANDLES),
         }
     }
@@ -1096,11 +1084,11 @@ impl LayoutNodeArena {
         })
     }
 
-    pub(crate) fn mark_paintable_subtree_may_own_geometry_dependent_nodes(&self, id: NodeSlotId) -> Option<bool> {
+    pub(crate) fn mark_paintable_subtree_may_own_geometry_dependent_nodes(&mut self, id: NodeSlotId) -> Option<bool> {
         if !self.paintable_row_is_populated(id) {
             return None;
         }
-        let mut records = self.paintable_rows.visual_context_records.borrow_mut();
+        let records = &mut self.paintable_rows.visual_context_records;
         let mut row = records.row_mut(id.slot_index() as usize)?;
         let record = row.as_mut()?;
         let was_flagged = record.subtree_may_own_geometry_dependent_nodes;
@@ -1108,9 +1096,9 @@ impl LayoutNodeArena {
         Some(was_flagged)
     }
 
-    pub(crate) fn set_paintable_record_stacking_context_contribution_registered(&self, id: NodeSlotId) {
+    pub(crate) fn set_paintable_record_stacking_context_contribution_registered(&mut self, id: NodeSlotId) {
         debug_assert!(self.paintable_row_is_populated(id));
-        let mut records = self.paintable_rows.visual_context_records.borrow_mut();
+        let records = &mut self.paintable_rows.visual_context_records;
         if let Some(mut row) = records.row_mut(id.slot_index() as usize)
             && let Some(record) = row.as_mut()
         {
@@ -1118,15 +1106,14 @@ impl LayoutNodeArena {
         }
     }
 
-    pub(crate) fn note_line_root_needs_fragment_ownership(&self, line_root: NodeSlotId) {
+    pub(crate) fn note_line_root_needs_fragment_ownership(&mut self, line_root: NodeSlotId) {
         self.paintable_rows
             .line_roots_needing_fragment_ownership
-            .borrow_mut()
             .push(line_root);
     }
 
-    pub(crate) fn take_line_roots_needing_fragment_ownership(&self) -> Vec<NodeSlotId> {
-        std::mem::take(&mut *self.paintable_rows.line_roots_needing_fragment_ownership.borrow_mut())
+    pub(crate) fn take_line_roots_needing_fragment_ownership(&mut self) -> Vec<NodeSlotId> {
+        std::mem::take(&mut self.paintable_rows.line_roots_needing_fragment_ownership)
     }
 
     pub(crate) fn note_visual_context_box_dirty(&self, id: NodeSlotId, kind: VisualContextBoxDirtyKind) {

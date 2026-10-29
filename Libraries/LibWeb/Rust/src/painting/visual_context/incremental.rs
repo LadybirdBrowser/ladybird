@@ -524,7 +524,6 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsWrite>(
             (true, false)
         } else {
             let record = layout_arena.paintable_visual_context_record(slot);
-            let record = record.as_deref();
             let rebuild = work_bits.is_some_and(|bits| !bits.is_move_only())
                 || record.is_none_or(|record| record.inherited_input != input)
                 || (moved && record.is_some_and(|record| record.owns_geometry_dependent_nodes));
@@ -552,7 +551,7 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsWrite>(
             };
             let tree = std::sync::Arc::make_mut(state.tree.as_mut().expect("the tree exists throughout the pass"));
             let existing_handles = layout_arena.paintable_visual_context_node_handles(slot);
-            let mut writer = BoxNodeWriter::new(tree, existing_handles.as_deref(), &mut delta);
+            let mut writer = BoxNodeWriter::new(tree, existing_handles, &mut delta);
             let environment = BoxBuildEnvironment {
                 layout_arena: &*layout_arena,
                 pixel_ratio: tree_inputs.device_pixels_per_css_pixel,
@@ -569,7 +568,6 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsWrite>(
                 },
             );
             let (handles, reconcile) = writer.finish();
-            drop(existing_handles);
             if layout_arena
                 .node_style_if_live(slot)
                 .is_some_and(|style| style.transform().has_offset_path)

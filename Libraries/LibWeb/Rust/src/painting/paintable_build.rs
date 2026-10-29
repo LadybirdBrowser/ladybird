@@ -499,7 +499,7 @@ impl<'a> PaintableCommit<'a> {
             self.arena_mut().push_paint_damage(slot, PaintDamage::ORDER);
         }
         if has_pieces {
-            self.arena().note_line_root_needs_fragment_ownership(slot);
+            self.arena_mut().note_line_root_needs_fragment_ownership(slot);
         }
         LineDataChange {
             has_pieces,
