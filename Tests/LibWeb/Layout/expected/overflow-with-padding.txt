@@ -19,12 +19,12 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
               "overflow rectangle, the box’s own padding so"
           frag 2 from TextNode start: 92, length: 45, rect: [35,189 366.578125x16] baseline: 12.796875
               "that when its content is scrolled to the end,"
-          frag 3 from TextNode start: 138, length: 44, rect: [35,205 359.828125x16] baseline: 12.796875
-              "there is padding between the end-edge of its"
-          frag 4 from TextNode start: 183, length: 48, rect: [35,221 391.71875x16] baseline: 12.796875
-              "in-flow (or floated) content and the border edge"
-          frag 5 from TextNode start: 232, length: 50, rect: [35,237 395.328125x16] baseline: 12.796875
-              "of the box. It typically ends up being exactly the"
+          frag 3 from TextNode start: 138, length: 48, rect: [35,205 388.484375x16] baseline: 12.796875
+              "there is padding between the end-edge of its in-"
+          frag 4 from TextNode start: 186, length: 48, rect: [35,221 395.859375x16] baseline: 12.796875
+              "flow (or floated) content and the border edge of"
+          frag 5 from TextNode start: 235, length: 47, rect: [35,237 370.53125x16] baseline: 12.796875
+              "the box. It typically ends up being exactly the"
           frag 6 from TextNode start: 283, length: 47, rect: [35,253 399.1875x16] baseline: 12.796875
               "same size as the box’s own padding, except in a"
           frag 7 from TextNode start: 331, length: 37, rect: [35,269 320.640625x16] baseline: 12.796875

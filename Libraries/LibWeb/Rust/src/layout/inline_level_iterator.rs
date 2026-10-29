@@ -1276,7 +1276,7 @@ pub(crate) fn sequence_inline_size(
     stop_at_overflow_breakable_text: bool,
 ) -> Option<CssPixels> {
     let mut size = CssPixels::default();
-    for item in items {
+    for (index, item) in items.iter().enumerate() {
         match item.type_ {
             ItemType::ForcedBreak => return Some(CssPixels::default()),
             ItemType::BlockLevelBox => break,
@@ -1285,6 +1285,10 @@ pub(crate) fn sequence_inline_size(
         let style = context.style(context.style_source(item.node));
         if style.text_wrap_mode() == text_wrap_mode::WRAP {
             if item.type_ != ItemType::Text || item.is_collapsible_whitespace {
+                break;
+            }
+            // NB: The sequence ends at its next soft wrap opportunity, such as the one after a hyphen.
+            if index > 0 && item.can_break_before {
                 break;
             }
             if item.is_ascii_whitespace(context) {
