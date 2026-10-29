@@ -982,8 +982,7 @@ impl DocumentHost {
 
     /// Runs `job` on the document's render state on the render owner, after the writes the host queued, and waits for
     /// it, taking the frame in flight in first with `wait`. A job that `writes` leaves the paint and hit testing
-    /// properties prepared from the state stale. A host callback the job makes may reach the state again, as a layout
-    /// round's read of an element's style does, which runs right there on the owner.
+    /// properties prepared from the state stale. Nothing the job calls runs another job on the same state.
     pub(crate) fn run<R>(&self, wait: impl RenderWait, writes: bool, job: impl FnOnce(&mut RenderState) -> R) -> R {
         assert!(
             wait.reaches(self),
