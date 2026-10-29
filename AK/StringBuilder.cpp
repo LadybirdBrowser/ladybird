@@ -375,6 +375,9 @@ ErrorOr<void> StringBuilder::try_append_repeated(Utf16View const& string, size_t
 
     if (string.has_ascii_storage()) {
         TRY(will_append(string.length_in_code_units() * n));
+    } else if (string.has_latin1_storage()) {
+        auto utf8_length = simdutf::utf8_length_from_latin1(reinterpret_cast<char const*>(string.latin1_span().data()), string.length_in_code_units());
+        TRY(will_append(utf8_length * n));
     } else {
         auto utf8_length = simdutf::utf8_length_from_utf16(string.utf16_span().data(), string.length_in_code_units());
         TRY(will_append(utf8_length * n));

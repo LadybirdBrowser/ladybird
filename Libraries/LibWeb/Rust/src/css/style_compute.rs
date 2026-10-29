@@ -8412,7 +8412,7 @@ pub(crate) mod ffi_test_stubs {
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_utf16_string_unref(_raw: usize) {}
     #[unsafe(no_mangle)]
-    extern "C" fn ladybird_utf16_string_create_uninitialized(_length: usize, _has_ascii_storage: bool) -> usize {
+    extern "C" fn ladybird_utf16_string_create_uninitialized(_length: usize, _has_latin1_storage: bool) -> usize {
         unreachable!("no unit test makes a string the host owns");
     }
     #[unsafe(no_mangle)]

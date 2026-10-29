@@ -12,6 +12,8 @@
 #include <AK/Utf16StringData.h>
 #include <AK/kmalloc.h>
 
+#include <simdutf.h>
+
 namespace AK {
 
 Utf16StringBuilder::Buffer::~Buffer()
@@ -200,20 +202,20 @@ void Utf16StringBuilder::will_append(size_t size_in_bytes)
 
 void Utf16StringBuilder::ensure_storage_is_utf16()
 {
-    if (!m_is_ascii)
+    if (!m_has_latin1_storage)
         return;
 
-    auto ascii_length = length_in_bytes();
-    m_is_ascii = false;
-    if (ascii_length == 0)
+    auto latin1_length = length_in_bytes();
+    m_has_latin1_storage = false;
+    if (latin1_length == 0)
         return;
 
-    m_buffer.resize(m_buffer.size() + ascii_length);
+    m_buffer.resize(m_buffer.size() + latin1_length);
 
-    Bytes source { data(), ascii_length };
-    Span<char16_t> target { reinterpret_cast<char16_t*>(data()), ascii_length };
+    Bytes source { data(), latin1_length };
+    Span<char16_t> target { reinterpret_cast<char16_t*>(data()), latin1_length };
 
-    for (size_t i = ascii_length; i > 0; --i) {
+    for (size_t i = latin1_length; i > 0; --i) {
         auto index = i - 1;
 
         auto code_unit = static_cast<char16_t>(source[index]);
@@ -226,20 +228,16 @@ void Utf16StringBuilder::append(Utf16View const& view)
     if (view.is_empty())
         return;
 
-    if (m_is_ascii && (view.has_ascii_storage() || view.is_ascii())) {
+    if (m_has_latin1_storage && view.has_latin1_storage()) {
         will_append(view.length_in_code_units());
-
-        if (view.has_latin1_storage()) {
-            m_buffer.append(view.latin1_span().data(), view.length_in_code_units());
-        } else {
-            for (auto code_unit : view.utf16_span()) {
-                auto ascii_code_unit = static_cast<char>(code_unit);
-                m_buffer.append(&ascii_code_unit, sizeof(ascii_code_unit));
-            }
-        }
-
+        m_buffer.append(view.latin1_span().data(), view.length_in_code_units());
+        if (!view.has_ascii_storage())
+            m_contains_non_ascii = true;
         return;
     }
+
+    if (m_has_latin1_storage && try_append_as_latin1(view.utf16_span()))
+        return;
 
     ensure_storage_is_utf16();
     will_append(utf16_byte_count(view.length_in_code_units()));
@@ -254,11 +252,29 @@ void Utf16StringBuilder::append(Utf16View const& view)
     }
 }
 
+bool Utf16StringBuilder::try_append_as_latin1(ReadonlySpan<char16_t> code_units)
+{
+    will_append(code_units.size());
+
+    auto original_size = m_buffer.size();
+    m_buffer.resize(original_size + code_units.size());
+
+    auto* destination = reinterpret_cast<char*>(m_buffer.data() + original_size);
+    if (simdutf::convert_utf16_to_latin1(code_units.data(), code_units.size(), destination) != code_units.size()) {
+        m_buffer.resize(original_size);
+        return false;
+    }
+
+    if (!m_contains_non_ascii && !simdutf::validate_ascii(destination, code_units.size()))
+        m_contains_non_ascii = true;
+    return true;
+}
+
 void Utf16StringBuilder::append_ascii(char code_unit)
 {
     VERIFY(is_ascii(code_unit));
 
-    if (m_is_ascii) {
+    if (m_has_latin1_storage) {
         will_append(1);
         m_buffer.append(&code_unit, sizeof(code_unit));
     } else {
@@ -279,7 +295,7 @@ void Utf16StringBuilder::append_ascii_without_validation(ReadonlyBytes string)
     if (string.is_empty())
         return;
 
-    if (m_is_ascii) {
+    if (m_has_latin1_storage) {
         will_append(string.size());
         m_buffer.append(string.data(), string.size());
         return;
@@ -309,7 +325,7 @@ void Utf16StringBuilder::append_quoted_escaped_for_json(Utf16View const& string)
             }
         }
 
-        if (!needs_escaping && m_is_ascii) {
+        if (!needs_escaping && m_has_latin1_storage) {
             Checked<size_t> appended_size = bytes.size();
             appended_size += 2;
             VERIFY(!appended_size.has_overflow());
@@ -361,8 +377,12 @@ void Utf16StringBuilder::append_quoted_escaped_for_json(Utf16View const& string)
 
 void Utf16StringBuilder::append_code_unit(char16_t code_unit)
 {
-    if (m_is_ascii && is_ascii(code_unit)) {
-        append_ascii(static_cast<char>(code_unit));
+    if (m_has_latin1_storage && code_unit <= 0xFF) {
+        auto latin1_code_unit = static_cast<u8>(code_unit);
+        will_append(sizeof(latin1_code_unit));
+        m_buffer.append(&latin1_code_unit, sizeof(latin1_code_unit));
+        if (!is_ascii(code_unit))
+            m_contains_non_ascii = true;
         return;
     }
 
@@ -378,8 +398,8 @@ void Utf16StringBuilder::append_code_point(u32 code_point)
         return;
     }
 
-    if (m_is_ascii && is_ascii(code_point)) {
-        append_ascii(static_cast<char>(code_point));
+    if (m_has_latin1_storage && code_point <= 0xFF) {
+        append_code_unit(static_cast<char16_t>(code_point));
         return;
     }
 
@@ -395,7 +415,7 @@ void Utf16StringBuilder::append_repeated_ascii(char code_unit, size_t count)
 {
     VERIFY(is_ascii(code_unit));
 
-    if (m_is_ascii) {
+    if (m_has_latin1_storage) {
         will_append(count);
         for (size_t i = 0; i < count; ++i)
             m_buffer.append(&code_unit, sizeof(code_unit));
@@ -491,15 +511,15 @@ Utf16View Utf16StringBuilder::view() const
 {
     auto data = m_buffer.span().slice(string_builder_prefix_size());
 
-    if (m_is_ascii)
-        return { reinterpret_cast<char const*>(data.data()), data.size(), true };
+    if (m_has_latin1_storage)
+        return Utf16View::from_latin1(data, !m_contains_non_ascii);
     return { reinterpret_cast<char16_t const*>(data.data()), data.size() / sizeof(char16_t) };
 }
 
 size_t Utf16StringBuilder::length_in_code_units() const
 {
     auto length = length_in_bytes();
-    if (m_is_ascii)
+    if (m_has_latin1_storage)
         return length;
     return length / sizeof(char16_t);
 }
@@ -507,7 +527,7 @@ size_t Utf16StringBuilder::length_in_code_units() const
 void Utf16StringBuilder::trim(size_t count_in_code_units)
 {
     auto count_in_bytes = count_in_code_units;
-    if (!m_is_ascii)
+    if (!m_has_latin1_storage)
         count_in_bytes = utf16_byte_count(count_in_code_units);
 
     auto decrease_count = min(length_in_bytes(), count_in_bytes);
@@ -517,7 +537,8 @@ void Utf16StringBuilder::trim(size_t count_in_code_units)
 void Utf16StringBuilder::clear()
 {
     m_buffer.resize(string_builder_prefix_size());
-    m_is_ascii = true;
+    m_has_latin1_storage = true;
+    m_contains_non_ascii = false;
 }
 
 auto Utf16StringBuilder::leak_buffer_for_string_construction() -> Optional<Buffer::OutlineBuffer>

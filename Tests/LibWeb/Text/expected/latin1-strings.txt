@@ -1,0 +1,13 @@
+TextEncoder: 99,97,102,195,169
+TextDecoder windows-1252: cé€
+TextDecoder UTF-8: cé
+URL: http://xn--caf-dma.example/%C3%A9?q=%C3%BC#%C3%BF
+URLSearchParams: ?q=%C3%BC&cl%C3%A9=%C3%A9
+textContent: crème brûlée (12)
+dataset: valeur
+querySelector: true
+attribute: true
+style: "é"
+structuredClone: crème brûlée
+Blob: é
+btoa: 6Q==, atob: true

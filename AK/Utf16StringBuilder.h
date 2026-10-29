@@ -128,6 +128,7 @@ private:
     void initialize_buffer(size_t capacity_in_code_units);
     void will_append(size_t size_in_bytes);
     void ensure_storage_is_utf16();
+    bool try_append_as_latin1(ReadonlySpan<char16_t>);
 
     Optional<Buffer::OutlineBuffer> leak_buffer_for_string_construction();
 
@@ -136,7 +137,9 @@ private:
     [[nodiscard]] size_t length_in_bytes() const;
 
     Buffer m_buffer;
-    bool m_is_ascii { true };
+    bool m_has_latin1_storage { true };
+    // Set once a byte above 0x7F is appended, even if trimming removes it later.
+    bool m_contains_non_ascii { false };
 };
 
 }

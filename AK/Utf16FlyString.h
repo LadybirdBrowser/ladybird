@@ -109,8 +109,8 @@ public:
     {
         auto view = m_data.utf16_view();
 
-        if (view.has_ascii_storage()) {
-            if (!any_of(view.ascii_span(), is_ascii_upper_alpha))
+        if (view.has_latin1_storage()) {
+            if (!any_of(view.latin1_span(), is_ascii_upper_alpha))
                 return *this;
         } else {
             if (!any_of(view.utf16_span(), is_ascii_upper_alpha))
@@ -124,8 +124,8 @@ public:
     {
         auto view = m_data.utf16_view();
 
-        if (view.has_ascii_storage()) {
-            if (!any_of(view.ascii_span(), is_ascii_lower_alpha))
+        if (view.has_latin1_storage()) {
+            if (!any_of(view.latin1_span(), is_ascii_lower_alpha))
                 return *this;
         } else {
             if (!any_of(view.utf16_span(), is_ascii_lower_alpha))

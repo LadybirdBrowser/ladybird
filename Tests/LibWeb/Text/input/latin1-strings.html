@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<div id="target" data-clé="valeur">crème brûlée</div>
+<script src="include.js"></script>
+<script>
+    promiseTest(async () => {
+        println(`TextEncoder: ${new TextEncoder().encode("café").join(",")}`);
+        println(`TextDecoder windows-1252: ${new TextDecoder("windows-1252").decode(new Uint8Array([0x63, 0xe9, 0x80]))}`);
+        println(`TextDecoder UTF-8: ${new TextDecoder().decode(new Uint8Array([0x63, 0xc3, 0xa9]))}`);
+
+        const url = new URL("http://café.example/é?q=ü#ÿ");
+        println(`URL: ${url.href}`);
+        url.searchParams.set("clé", "é");
+        println(`URLSearchParams: ${url.search}`);
+
+        const target = document.getElementById("target");
+        println(`textContent: ${target.textContent} (${target.textContent.length})`);
+        println(`dataset: ${target.dataset["clé"]}`);
+        println(`querySelector: ${document.querySelector("[data-clé='valeur']") === target}`);
+        target.setAttribute("title", "ça");
+        println(`attribute: ${target.title === "ça"}`);
+        target.style.setProperty("content", '"é"');
+        println(`style: ${target.style.getPropertyValue("content")}`);
+
+        println(`structuredClone: ${structuredClone({ clé: "crème brûlée" })["clé"]}`);
+        println(`Blob: ${await new Blob(["é"]).text()}`);
+        println(`btoa: ${btoa("é")}, atob: ${atob("6Q==") === "é"}`);
+    });
+</script>

@@ -70,7 +70,7 @@ Utf16String Utf16String::from_utf8_without_validation(StringView utf8_string)
         return string;
     }
 
-    return Utf16String { Detail::Utf16StringData::from_utf8(utf8_string, Detail::Utf16StringData::AllowASCIIStorage::Yes) };
+    return Utf16String { Detail::Utf16StringData::from_utf8(utf8_string) };
 }
 
 Utf16String Utf16String::from_utf16(Utf16View const& utf16_string)
@@ -97,7 +97,7 @@ Utf16String Utf16String::from_string_builder(Badge<Utf16StringBuilder>, Utf16Str
 {
     auto view = builder.view();
 
-    if (view.length_in_code_units() <= Detail::MAX_SHORT_STRING_BYTE_COUNT && view.has_ascii_storage()) {
+    if (view.length_in_code_units() <= Detail::MAX_SHORT_STRING_BYTE_COUNT && view.has_latin1_storage() && view.is_ascii()) {
         Utf16String string;
         string.m_value.short_ascii_string = Detail::ShortString::create_with_byte_count(view.length_in_code_units());
 
