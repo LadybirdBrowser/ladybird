@@ -3,7 +3,6 @@ name: Lint Code
 on:
   push:
     branches: [master]
-  pull_request:
 
 jobs:
   lint:

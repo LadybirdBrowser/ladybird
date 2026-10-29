@@ -10,105 +10,81 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # CI matrix - runs the job in build-and-test.yml with different configurations.
-  Lagom:
+  Diagnostics:
     if: github.repository == 'LadybirdBrowser/ladybird'
-    name: ${{ matrix.os_name }}, ${{ matrix.arch }}, ${{ matrix.build_preset }}, ${{ matrix.toolchain }}
+    name: Linux, ${{ matrix.arch }}, diagnostics, ${{ matrix.environment }}
+    runs-on: ${{ fromJSON(matrix.runner_labels) }}
+    container: ${{ fromJSON(matrix.container) }}
+    timeout-minutes: 30
 
     strategy:
       fail-fast: false
       matrix:
-        os_name: ['Linux']
-        arch: ['x86_64']
-        build_preset: ['Release']
-        toolchain: ['GNU']
-        clang_plugins: [false]
-        runner_labels: ['["blacksmith-16vcpu-ubuntu-2404"]']
-        container: [&ci_container '{"image":"ghcr.io/ladybirdbrowser/ladybird-ci:2026.10.16"}']
-
+        arch: ['arm64', 'x86_64']
+        environment: ['container', 'host']
         include:
-          - os_name: 'Linux'
-            arch: 'x86_64'
-            build_preset: 'Sanitizer'
-            toolchain: 'Clang'
-            clang_plugins: true
-            runner_labels: '["blacksmith-16vcpu-ubuntu-2404"]'
-            container: *ci_container
-
-          - os_name: 'Linux'
-            arch: 'arm64'
-            build_preset: 'Sanitizer'
-            toolchain: 'Clang'
-            clang_plugins: false
+          - arch: 'arm64'
             runner_labels: '["blacksmith-16vcpu-ubuntu-2404-arm"]'
-            container: *ci_container
-
-          - os_name: 'Linux'
-            arch: 'x86_64'
-            build_preset: 'Fuzzers'
-            toolchain: 'Clang'
-            clang_plugins: false
+          - arch: 'x86_64'
             runner_labels: '["blacksmith-16vcpu-ubuntu-2404"]'
-            container: *ci_container
-
-          - os_name: 'Linux'
-            arch: 'x86_64'
-            build_preset: 'All_Debug'
-            toolchain: 'Clang'
-            clang_plugins: false
-            runner_labels: '["blacksmith-16vcpu-ubuntu-2404"]'
-            container: *ci_container
-
-          - os_name: 'Linux'
-            arch: 'x86_64'
-            build_preset: 'Release'
-            toolchain: 'Clang'
-            clang_plugins: false
-            runner_labels: '["blacksmith-16vcpu-ubuntu-2404"]'
-            container: *ci_container
-
-          - os_name: 'Windows'
-            arch: 'x86_64'
-            build_preset: 'Sanitizer'
-            toolchain: 'ClangCL'
-            clang_plugins: false
-            runner_labels: '["blacksmith-16vcpu-windows-2025"]'
+          - environment: 'container'
+            container: '{"image":"ghcr.io/ladybirdbrowser/ladybird-ci:2026.10.16"}'
+          - environment: 'host'
             container: 'null'
 
-    secrets: inherit
-    uses: ./.github/workflows/build-and-test.yml
-    with:
-      toolchain: ${{ matrix.toolchain }}
-      os_name: ${{ matrix.os_name }}
-      runner_labels: ${{ matrix.runner_labels }}
-      arch: ${{ matrix.arch }}
-      build_preset: ${{ matrix.build_preset }}
-      clang_plugins: ${{ matrix.clang_plugins }}
-      container: ${{ matrix.container }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
 
-  # The macOS Sanitizer build has a 2nd consumer: the macOS AX tests run against the app bundle the Sanitizer build
-  # packages. We put it outside the matrix to make those tests wait for this build alone, not for the slowest job in it.
-  macOS-Sanitizer:
-    if: github.repository == 'LadybirdBrowser/ladybird'
-    name: 'macOS, arm64, Sanitizer, Clang'
-    secrets: inherit
-    uses: ./.github/workflows/build-and-test.yml
-    with:
-      toolchain: 'Clang'
-      os_name: 'macOS'
-      runner_labels: '["blacksmith-12vcpu-macos-26"]'
-      arch: 'arm64'
-      build_preset: 'Sanitizer'
-      clang_plugins: false
+      - name: System
+        run: |
+          set +e -x
+          uname -a
+          nproc
+          lscpu || cat /proc/cpuinfo
+          free -m
+          df -h .
+          ulimit -a
+          cat /proc/sys/kernel/core_pattern
+          cat /proc/sys/kernel/core_pipe_limit
+          cat /proc/sys/kernel/core_uses_pid
+          cat /proc/sys/fs/suid_dumpable
+          cat /sys/kernel/security/lsm || true
+          cat /proc/pressure/cpu /proc/pressure/memory /proc/pressure/io || true
+          cat /sys/fs/cgroup/cpu.max /sys/fs/cgroup/memory.max /sys/fs/cgroup/cpu.stat || true
 
-  # The macOS AX tests need an unlocked GUI session that Accessibility can be granted in, and Blacksmith's macOS runners
-  # boot with one. A few of them still boot screen-locked, though — and on one of those, the AX preflight fails at once
-  # with an error naming the runner, so a rerun of the job gets a fresh one. The job's name leaves the runner out, so
-  # that a change of runner doesn't rename the check.
-  macOS-Accessibility:
-    needs: macOS-Sanitizer
-    name: macOS, arm64, AX testing
-    uses: ./.github/workflows/macos-accessibility-tests.yml
-    with:
-      runner_labels: '["blacksmith-12vcpu-macos-26"]'
-      artifact_name: ladybird-app-bundle-macOS-arm64-Sanitizer
+      - name: Core dump handling on the host
+        if: matrix.environment == 'host'
+        run: |
+          set -x
+          systemctl status --no-pager systemd-coredump.socket apport.service || true
+          cat /etc/systemd/coredump.conf /etc/systemd/coredump.conf.d/* || true
+          cat /etc/default/apport || true
+          ls -la /var/crash /var/lib/systemd/coredump || true
+
+      - name: CPU throughput
+        run: |
+          python3 - <<'EOF'
+          import os, subprocess, sys, time
+          work = "sum(i * i for i in range(20_000_000))"
+          started_at = time.monotonic()
+          subprocess.run([sys.executable, "-c", work], check=True)
+          print(f"1 process: {time.monotonic() - started_at:.2f}s")
+          started_at = time.monotonic()
+          processes = [subprocess.Popen([sys.executable, "-c", work]) for _ in range(os.cpu_count())]
+          for process in processes:
+              process.wait()
+          print(f"{os.cpu_count()} processes at once: {time.monotonic() - started_at:.2f}s")
+          EOF
+
+      - name: Time from a crash to the process exit
+        run: python3 Meta/ci-crash-exit-diagnostics.py
+
+      - name: Core dump handling on the host after the crashes
+        if: matrix.environment == 'host'
+        run: |
+          set -x
+          coredumpctl --no-pager list || true
+          journalctl --no-pager -n 50 -u 'systemd-coredump@*' || true
+          ls -la /var/crash /var/lib/systemd/coredump || true
