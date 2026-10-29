@@ -23,6 +23,8 @@ GC_DEFINE_ALLOCATOR(CSSFunctionRule);
 
 static Utf16View parameter_name(Parser::ValueParserFFI::FfiFunctionParameterView const& parameter)
 {
+    if (parameter.name.ascii)
+        return StringView { reinterpret_cast<char const*>(parameter.name.ascii), parameter.name.length };
     return { reinterpret_cast<char16_t const*>(parameter.name.utf16), parameter.name.length };
 }
 

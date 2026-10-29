@@ -12,7 +12,7 @@ use std::ffi::c_void;
 use std::sync::Arc;
 
 pub(crate) struct FunctionParameterData {
-    pub(crate) name: CssString,
+    pub(crate) name: ak::Utf16FlyString,
     pub(crate) syntax: Arc<SyntaxNode>,
     pub(crate) default_value: Option<Arc<StyleValueData>>,
 }
@@ -58,9 +58,9 @@ pub extern "C" fn rust_function_signature_parameter(
     index: usize,
 ) -> FfiFunctionParameterView<'_> {
     let parameter = &signature.parameters[index];
-    let name = parameter.name.units();
+    let name = parameter.name.as_units();
     FfiFunctionParameterView {
-        name: FfiUtf16View::from_utf16(name),
+        name: FfiUtf16View::from_input(name.into()),
         syntax: Arc::as_ptr(&parameter.syntax).cast(),
         default_value: parameter
             .default_value
