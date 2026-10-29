@@ -1075,6 +1075,10 @@ impl<'a> ComputedValuesView<'a> {
         self.inherited_text().overflow_wrap
     }
 
+    pub(crate) fn text_wrap_style(self) -> u8 {
+        self.inherited_text().text_wrap_style
+    }
+
     pub(crate) fn text_indent(self) -> LengthPercentageRef<'a> {
         self.inherited_text_facts()
             .text_indent

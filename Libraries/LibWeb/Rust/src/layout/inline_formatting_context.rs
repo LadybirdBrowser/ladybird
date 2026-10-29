@@ -1777,114 +1777,149 @@ impl<'context> InlineFormattingContext<'context> {
         }
     }
 
-    pub(crate) fn generate_line_boxes(&mut self, mut iterator: inline_level_iterator::InlineLevelIterator) {
-        self.fragmented_inlines_in_pre_order = iterator.fragmented_inlines_in_pre_order(self);
-        let fragmentation = self.parent.line_root_fragmentation(self.containing_block);
-        let resume = fragmentation.and_then(|fragmentation| fragmentation.resume);
-        let (reused_lines, reused_item_count) = if self.parent.has_line_clamp() || resume.is_some() {
-            Default::default()
-        } else {
-            self.parent
-                .previous_line_data
-                .as_deref()
-                .map(|previous| self.reusable_atomic_line_prefix(previous, &iterator))
-                .unwrap_or_default()
-        };
-        {
-            let mut data = self.line_data_mut();
-            data.line_boxes = reused_lines;
-            data.inline_box_pieces.clear();
-            data.lines_after_clamp_point_rect = None;
+    /// Whether text-wrap-style: balance balances the lines of this context. Lines are only balanced while finding where
+    /// they break leaves the rest of the layout alone, so not beside floats or with floats or block-level boxes among
+    /// them, and not when they are clamped or fragmented.
+    fn balances_lines(
+        &self,
+        iterator: &inline_level_iterator::InlineLevelIterator,
+        fragmentation: Option<fragmentation::LineRootFragmentation>,
+    ) -> bool {
+        let style = self.style(self.containing_block);
+        if style.text_wrap_style() != text_wrap_style::BALANCE || style.text_wrap_mode() != text_wrap_mode::WRAP {
+            return false;
         }
-        let item_count = iterator.items().len();
-        let start_item_index = resume.map_or(reused_item_count, |resume| resume.item_index.min(item_count));
-        let shares_items = iterator.shares_items();
-        let skipped_atomic_inlines: Vec<Node> = if resume.is_some() && !shares_items {
-            iterator.items()[..start_item_index]
-                .iter()
-                .filter(|item| item.type_ == inline_level_iterator::ItemType::Element)
-                .map(|item| item.node)
-                .collect()
-        } else {
-            Vec::new()
-        };
-        let mut pending_resume_offset = resume.map(|resume| resume.offset_in_node);
-        self.inline_boxes_continued_from_previous_fragment = {
-            let (before, after) = iterator.items().split_at(start_item_index.min(item_count));
-            let has_node = |item: &&inline_level_iterator::Item| !item.node.is_invalid();
-            let left_fragment = |item: &&inline_level_iterator::Item| {
-                has_node(item)
-                    && item.type_ != inline_level_iterator::ItemType::ForcedBreak
-                    && item.type_ != inline_level_iterator::ItemType::AbsolutelyPositionedElement
-                    && !item.is_collapsible_whitespace
-            };
-            match after.first() {
-                Some(item) if pending_resume_offset.is_some_and(|offset| offset > item.offset_in_node) => {
-                    self.fragmented_inline_ancestors(item.node)
-                }
-                _ if resume.is_some() => match (before.iter().rev().find(left_fragment), after.iter().find(has_node)) {
-                    (Some(before), Some(after)) => self.fragmented_inline_ancestors_spanning(before.node, after.node),
-                    _ => Vec::new(),
-                },
-                _ => Vec::new(),
-            }
-        };
-        let resumes_after_forced_break = resume.is_some()
-            && start_item_index > 0
-            && iterator.items()[start_item_index - 1].type_ == inline_level_iterator::ItemType::ForcedBreak;
-        iterator.skip_items(start_item_index);
-        self.current_line_start.set(fragmentation::LinePosition {
-            item_index: start_item_index,
-            offset_in_node: pending_resume_offset.unwrap_or_default(),
-        });
-        let reused_line_count = self.line_data().line_boxes.len();
-        let mut line_builder = if resume.is_some() {
-            line_builder::LineBuilder::new_for_continuation(self, resumes_after_forced_break)
-        } else if reused_line_count == 0 {
-            line_builder::LineBuilder::new(self)
-        } else {
-            line_builder::LineBuilder::new_after_reused_lines(self)
-        };
+        if self.parent.has_line_clamp()
+            || self.run.fragmentainer.is_some()
+            || iterator.shares_items()
+            || fragmentation.is_some()
+        {
+            return false;
+        }
+        if !matches!(self.input.available_space.inline_size, AvailableSize::Definite(available) if available > CssPixels::default())
+        {
+            return false;
+        }
+        if self.any_floats_intrude_in_block_range(CssPixels::default(), max_dimension_value()) {
+            return false;
+        }
+        iterator.items().iter().all(|item| item.type_.stays_on_lines())
+    }
 
+    // https://drafts.csswg.org/css-text-4/#valdef-text-wrap-style-balance
+    // Line breaks are chosen to balance the remaining (empty) space in each line box, if better balance than auto is
+    // possible. This should avoid changing-- and in the case of 5 or fewer lines must not change-- the number of line
+    // boxes the block would contain if text-wrap were set to auto.
+    // ...
+    // Groups of lines separated by a forced line break are processed separately.
+    /// The inline size the lines of each group break at to balance them, if they are balanced.
+    fn balanced_inline_sizes(&self, iterator: &inline_level_iterator::InlineLevelIterator) -> Vec<Option<CssPixels>> {
+        let items = iterator.items();
+        let mut balanced_inline_sizes = Vec::new();
+        let mut group_start = 0;
+        for (index, item) in items.iter().enumerate() {
+            if item.type_ == inline_level_iterator::ItemType::ForcedBreak {
+                balanced_inline_sizes.push(self.balanced_inline_size_of_group(
+                    iterator,
+                    group_start..index,
+                    !balanced_inline_sizes.is_empty(),
+                ));
+                group_start = index + 1;
+            }
+        }
+        balanced_inline_sizes.push(self.balanced_inline_size_of_group(
+            iterator,
+            group_start..items.len(),
+            !balanced_inline_sizes.is_empty(),
+        ));
+        balanced_inline_sizes
+    }
+
+    /// The inline size the lines of the items in `group` break at to balance them: found by bisecting down to a pixel,
+    /// it breaks the items into as many lines as the available inline size does.
+    fn balanced_inline_size_of_group(
+        &self,
+        iterator: &inline_level_iterator::InlineLevelIterator,
+        group: std::ops::Range<usize>,
+        follows_forced_break: bool,
+    ) -> Option<CssPixels> {
+        // INTEROP: Only balance up to 6 lines, since each try breaks all of the lines again.
+        const MAXIMUM_LINE_COUNT: usize = 6;
+        let available_inline_size = self.input.available_space.inline_size.to_px_or_zero();
+        // NB: Skip measuring lines for content far too long to balance.
+        let content_inline_size = iterator.items()[group.clone()]
+            .iter()
+            .fold(CssPixels::default(), |sum, item| sum + item.border_box_inline_size());
+        if content_inline_size > available_inline_size * (MAXIMUM_LINE_COUNT * 2) {
+            return None;
+        }
+        let find_line_breaks = |inline_size| {
+            self.find_line_breaks_when_breaking_at(iterator, group.clone(), follows_forced_break, inline_size)
+        };
+        let (line_count, inline_size_of_lines) = find_line_breaks(available_inline_size);
+        if line_count <= 1 || line_count > MAXIMUM_LINE_COUNT {
+            return None;
+        }
+        // NB: Bisect between the available inline size and a bit less than the average line, which is too narrow
+        //     unless lines overflow.
+        let mut too_narrow = (inline_size_of_lines / line_count).scaled(0.8);
+        let mut balanced_inline_size = available_inline_size;
+        while balanced_inline_size - too_narrow > CssPixels::from_integer(1) {
+            let candidate = too_narrow + (balanced_inline_size - too_narrow) / 2;
+            if find_line_breaks(candidate).0 <= line_count {
+                balanced_inline_size = candidate;
+            } else {
+                too_narrow = candidate;
+            }
+        }
+        (balanced_inline_size < available_inline_size).then_some(balanced_inline_size)
+    }
+
+    /// The number of lines and the sum of their inline sizes when the items in `group` break into lines at
+    /// `inline_size`.
+    fn find_line_breaks_when_breaking_at(
+        &self,
+        iterator: &inline_level_iterator::InlineLevelIterator,
+        group: std::ops::Range<usize>,
+        follows_forced_break: bool,
+        inline_size: CssPixels,
+    ) -> (usize, CssPixels) {
+        let mut iterator = iterator.duplicate(group);
+        let item_count = iterator.items().len();
+        let mut line_builder =
+            line_builder::LineBuilder::new_for_finding_balanced_line_breaks(self, inline_size, follows_forced_break);
+        self.break_items_into_lines(&mut iterator, &mut line_builder, item_count, None, None, None);
+        line_builder.remove_last_line_if_empty();
+        let mut lines = std::mem::take(&mut self.line_data_mut().line_boxes);
+        let inline_size_of_lines = lines.iter_mut().fold(CssPixels::default(), |sum, line| {
+            line.trim_trailing_whitespace();
+            sum + line.inline_length
+        });
+        (lines.len(), inline_size_of_lines)
+    }
+
+    /// Breaks the items left in `iterator` into lines with `line_builder`. `item_count` is the number of items the
+    /// iterator started with.
+    fn break_items_into_lines<'builder>(
+        &'builder self,
+        iterator: &mut inline_level_iterator::InlineLevelIterator,
+        line_builder: &mut line_builder::LineBuilder<'builder, 'context>,
+        item_count: usize,
+        mut pending_resume_offset: Option<usize>,
+        mut line_limit: Option<FragmentainerLineLimit>,
+        mut consumed_item_nodes: Option<Vec<(usize, Node)>>,
+    ) -> BrokenLines<'builder, 'context> {
+        let shares_items = iterator.shares_items();
         let mut leading_margin = CssPixels::default();
         let mut leading_border = CssPixels::default();
         let mut leading_padding = CssPixels::default();
         let mut absolute_boxes = Vec::new();
-
         let mut previous_text_item_allows_overflow_break_after = false;
         let mut state_at_clamp_point = None;
         let mut items_after_clamp_point = Vec::new();
-        let mut floating_boxes_after_clamp_point = Vec::new();
-        let floating_box_count_before_lines = self.parent.floating_box_count();
-        let mut line_limit = fragmentation
-            .filter(|_| !self.parent.has_line_clamp())
-            .and_then(|fragmentation| fragmentation.block_size)
-            .filter(|_| {
-                shares_items
-                    || iterator.items().iter().all(|item| {
-                        matches!(
-                            item.type_,
-                            inline_level_iterator::ItemType::Text
-                                | inline_level_iterator::ItemType::Element
-                                | inline_level_iterator::ItemType::ForcedBreak
-                                | inline_level_iterator::ItemType::AbsolutelyPositionedElement
-                        )
-                    })
-            })
-            .map(|block_size| FragmentainerLineLimit {
-                block_size,
-                widows: self.style(self.containing_block).widows().max(1) as usize,
-                checked_line_count: 0,
-                lines_past_end: 0,
-                minimum_line_block_size: None,
-            });
         let mut stopped_at_line_limit = false;
-        let mut consumed_item_nodes = (self.run.fragmentainer.is_some()
-            && self.run.fragments.is_some()
-            && !iterator.entered_inline_boxes().is_empty())
-        .then(Vec::new);
         loop {
-            if self.stops_at_line_clamp_point(&line_builder, &mut state_at_clamp_point) {
+            if self.stops_at_line_clamp_point(line_builder, &mut state_at_clamp_point) {
                 break;
             }
             if line_limit.as_mut().is_some_and(|limit| limit.is_reached(self)) {
@@ -1956,7 +1991,11 @@ impl<'context> InlineFormattingContext<'context> {
                     });
                     let continuation = iterator.next_inline_run_size(self);
                     line_builder.break_line(line_builder::ForcedBreak::Yes, item.node, continuation);
-                    if !item.node.is_invalid() && self.clear_floating_boxes(item.node) {
+                    // NB: Trials to balance the lines leave clearance to the layout of the lines.
+                    if !item.node.is_invalid()
+                        && !line_builder.only_finds_line_breaks()
+                        && self.clear_floating_boxes(item.node)
+                    {
                         line_builder.did_introduce_clearance(self.block_axis_float_clearance.get());
                         self.reset_parent_margin_state();
                     }
@@ -1969,10 +2008,12 @@ impl<'context> InlineFormattingContext<'context> {
                         let (_, laid_out_cells) = self.dimension_box_on_line(item.node, cells);
                         item.box_cells = Some(Box::new(laid_out_cells));
                     }
-                    let insets = self.compute_inset(item.node);
-                    self.update_placed_atomic_inline(item.node, |placed_child| {
-                        placed_child.with_in_flow_box_insets(insets)
-                    });
+                    if !line_builder.only_finds_line_breaks() {
+                        let insets = self.compute_inset(item.node);
+                        self.update_placed_atomic_inline(item.node, |placed_child| {
+                            placed_child.with_in_flow_box_insets(insets)
+                        });
+                    }
                     if self.style(self.containing_block).text_wrap_mode() == text_wrap_mode::WRAP {
                         let mut minimum = item.border_box_inline_size();
                         if item.margin_start < CssPixels::default() {
@@ -1984,7 +2025,7 @@ impl<'context> InlineFormattingContext<'context> {
                         line_builder.break_if_needed(minimum);
                         line_builder.note_soft_wrap_opportunity();
                     }
-                    if self.stops_at_line_clamp_point(&line_builder, &mut state_at_clamp_point) {
+                    if self.stops_at_line_clamp_point(line_builder, &mut state_at_clamp_point) {
                         break;
                     }
                     line_builder.append_box(&item);
@@ -1994,7 +2035,7 @@ impl<'context> InlineFormattingContext<'context> {
                     leading_border += item.border_start;
                     leading_padding += item.padding_start;
                     line_builder.finish_current_line_before_block_level_box();
-                    if self.stops_at_line_clamp_point(&line_builder, &mut state_at_clamp_point) {
+                    if self.stops_at_line_clamp_point(line_builder, &mut state_at_clamp_point) {
                         break;
                     }
                     let relative_insets = self.relative_insets_of_inline_ancestors(self.callbacks.parent(item.node));
@@ -2004,7 +2045,7 @@ impl<'context> InlineFormattingContext<'context> {
                         self.block_container,
                         self.input,
                         self.containing_block_position_in_bfc_root,
-                        &mut line_builder,
+                        line_builder,
                         state_at_clamp_point.is_some(),
                         if relative_insets.found_fragmented_inline_node {
                             FfiCssPixelPoint {
@@ -2058,7 +2099,7 @@ impl<'context> InlineFormattingContext<'context> {
                         self.input,
                         self.containing_block_position_in_bfc_root,
                         CssPixels::default(),
-                        Some(&mut line_builder),
+                        Some(&mut *line_builder),
                         run_state::FragmentFactsDecidedByParent {
                             is_invisible_for_line_clamp: state_at_clamp_point.is_some(),
                             ..run_state::FragmentFactsDecidedByParent::default()
@@ -2120,7 +2161,7 @@ impl<'context> InlineFormattingContext<'context> {
                         }
                         if overflow_break_allowed {
                             if self.break_overflowing_text_item(
-                                &mut line_builder,
+                                line_builder,
                                 &mut item,
                                 item_index,
                                 line_limit.as_mut(),
@@ -2132,13 +2173,132 @@ impl<'context> InlineFormattingContext<'context> {
                             previous_text_item_allows_overflow_break_after = true;
                         }
                     }
-                    if self.stops_at_line_clamp_point(&line_builder, &mut state_at_clamp_point) {
+                    if self.stops_at_line_clamp_point(line_builder, &mut state_at_clamp_point) {
                         break;
                     }
                     line_builder.append_text_item(&mut item, style.line_height());
                 }
             }
         }
+        BrokenLines {
+            absolute_boxes,
+            state_at_clamp_point,
+            items_after_clamp_point,
+            stopped_at_line_limit,
+            consumed_item_nodes,
+        }
+    }
+
+    pub(crate) fn generate_line_boxes(&mut self, mut iterator: inline_level_iterator::InlineLevelIterator) {
+        self.fragmented_inlines_in_pre_order = iterator.fragmented_inlines_in_pre_order(self);
+        let fragmentation = self.parent.line_root_fragmentation(self.containing_block);
+        let resume = fragmentation.and_then(|fragmentation| fragmentation.resume);
+        let balances_lines = self.balances_lines(&iterator, fragmentation);
+        let (reused_lines, reused_item_count) = if self.parent.has_line_clamp() || resume.is_some() || balances_lines {
+            Default::default()
+        } else {
+            self.parent
+                .previous_line_data
+                .as_deref()
+                .map(|previous| self.reusable_atomic_line_prefix(previous, &iterator))
+                .unwrap_or_default()
+        };
+        {
+            let mut data = self.line_data_mut();
+            data.line_boxes = reused_lines;
+            data.inline_box_pieces.clear();
+            data.lines_after_clamp_point_rect = None;
+        }
+        let item_count = iterator.items().len();
+        let start_item_index = resume.map_or(reused_item_count, |resume| resume.item_index.min(item_count));
+        let shares_items = iterator.shares_items();
+        let skipped_atomic_inlines: Vec<Node> = if resume.is_some() && !shares_items {
+            iterator.items()[..start_item_index]
+                .iter()
+                .filter(|item| item.type_ == inline_level_iterator::ItemType::Element)
+                .map(|item| item.node)
+                .collect()
+        } else {
+            Vec::new()
+        };
+        let pending_resume_offset = resume.map(|resume| resume.offset_in_node);
+        self.inline_boxes_continued_from_previous_fragment = {
+            let (before, after) = iterator.items().split_at(start_item_index.min(item_count));
+            let has_node = |item: &&inline_level_iterator::Item| !item.node.is_invalid();
+            let left_fragment = |item: &&inline_level_iterator::Item| {
+                has_node(item)
+                    && item.type_ != inline_level_iterator::ItemType::ForcedBreak
+                    && item.type_ != inline_level_iterator::ItemType::AbsolutelyPositionedElement
+                    && !item.is_collapsible_whitespace
+            };
+            match after.first() {
+                Some(item) if pending_resume_offset.is_some_and(|offset| offset > item.offset_in_node) => {
+                    self.fragmented_inline_ancestors(item.node)
+                }
+                _ if resume.is_some() => match (before.iter().rev().find(left_fragment), after.iter().find(has_node)) {
+                    (Some(before), Some(after)) => self.fragmented_inline_ancestors_spanning(before.node, after.node),
+                    _ => Vec::new(),
+                },
+                _ => Vec::new(),
+            }
+        };
+        let resumes_after_forced_break = resume.is_some()
+            && start_item_index > 0
+            && iterator.items()[start_item_index - 1].type_ == inline_level_iterator::ItemType::ForcedBreak;
+        iterator.skip_items(start_item_index);
+        // NB: Trials to balance the lines move the start of the current line, so balance before the lines start.
+        let balanced_inline_sizes = if balances_lines {
+            self.balanced_inline_sizes(&iterator)
+        } else {
+            Vec::new()
+        };
+        self.current_line_start.set(fragmentation::LinePosition {
+            item_index: start_item_index,
+            offset_in_node: pending_resume_offset.unwrap_or_default(),
+        });
+        let reused_line_count = self.line_data().line_boxes.len();
+        let mut line_builder = if resume.is_some() {
+            line_builder::LineBuilder::new_for_continuation(self, resumes_after_forced_break)
+        } else if reused_line_count == 0 {
+            line_builder::LineBuilder::new(self)
+        } else {
+            line_builder::LineBuilder::new_after_reused_lines(self)
+        };
+        if balanced_inline_sizes.iter().any(Option::is_some) {
+            line_builder.set_balanced_inline_sizes(balanced_inline_sizes);
+        }
+
+        let mut floating_boxes_after_clamp_point = Vec::new();
+        let floating_box_count_before_lines = self.parent.floating_box_count();
+        let line_limit = fragmentation
+            .filter(|_| !self.parent.has_line_clamp())
+            .and_then(|fragmentation| fragmentation.block_size)
+            .filter(|_| shares_items || iterator.items().iter().all(|item| item.type_.stays_on_lines()))
+            .map(|block_size| FragmentainerLineLimit {
+                block_size,
+                widows: self.style(self.containing_block).widows().max(1) as usize,
+                checked_line_count: 0,
+                lines_past_end: 0,
+                minimum_line_block_size: None,
+            });
+        let consumed_item_nodes = (self.run.fragmentainer.is_some()
+            && self.run.fragments.is_some()
+            && !iterator.entered_inline_boxes().is_empty())
+        .then(Vec::new);
+        let BrokenLines {
+            mut absolute_boxes,
+            state_at_clamp_point,
+            items_after_clamp_point,
+            stopped_at_line_limit,
+            consumed_item_nodes,
+        } = self.break_items_into_lines(
+            &mut iterator,
+            &mut line_builder,
+            item_count,
+            pending_resume_offset,
+            line_limit,
+            consumed_item_nodes,
+        );
 
         if let Some(state_at_clamp_point) = state_at_clamp_point {
             line_builder.update_last_line(false);
@@ -2726,6 +2886,15 @@ impl<'context> InlineFormattingContext<'context> {
             piece.relpos_delta = accumulated_relative_offset_from(piece.node);
         }
     }
+}
+
+/// What breaking the items into lines left to finish once the lines are built.
+struct BrokenLines<'builder, 'context> {
+    absolute_boxes: Vec<Node>,
+    state_at_clamp_point: Option<LineBuildingState<'builder, 'context>>,
+    items_after_clamp_point: Vec<(inline_level_iterator::ItemType, Node)>,
+    stopped_at_line_limit: bool,
+    consumed_item_nodes: Option<Vec<(usize, Node)>>,
 }
 
 struct LineBuildingState<'builder, 'context> {
