@@ -423,7 +423,7 @@ pub fn validate_utf8(mut bytes: &[u8]) -> Result<(), DecodeError> {
     Ok(())
 }
 
-/// `Utf16String`: whether its code units are stored as ASCII bytes, their count, then the code units.
+/// `Utf16String`: whether its code units are stored as Latin-1 bytes, their count, then the code units.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub struct Utf16String(pub Vec<u16>);
 
@@ -441,10 +441,10 @@ impl Utf16String {
 
 impl Encode for Utf16String {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
-        let is_ascii = self.0.iter().all(|&code_unit| code_unit < 0x80);
-        is_ascii.encode(encoder)?;
+        let is_latin1 = self.0.iter().all(|&code_unit| code_unit <= 0xFF);
+        is_latin1.encode(encoder)?;
         encoder.encode_size(self.0.len())?;
-        if is_ascii {
+        if is_latin1 {
             encoder.bytes.reserve(self.0.len());
             encoder.bytes.extend(self.0.iter().map(|&code_unit| code_unit as u8));
         } else {
@@ -458,13 +458,10 @@ impl Decode for Utf16String {
     const MIN_ENCODED_SIZE: usize = 5;
 
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
-        let is_ascii = decoder.decode::<bool>()?;
+        let is_latin1 = decoder.decode::<bool>()?;
         let length = decoder.decode_size()?;
-        if is_ascii {
+        if is_latin1 {
             let bytes = decoder.read_bytes(length)?;
-            if !bytes.is_ascii() {
-                return Err(DecodeError::InvalidValue("Utf16String with ASCII storage"));
-            }
             return Ok(Self(bytes.iter().map(|&byte| u16::from(byte)).collect()));
         }
         let byte_count = length.checked_mul(2).ok_or(DecodeError::SizeTooLarge(length))?;
@@ -763,20 +760,20 @@ mod tests {
     }
 
     #[test]
-    fn utf16_strings_go_as_ascii_bytes_when_they_can() {
+    fn utf16_strings_go_as_latin1_bytes_when_they_can() {
         let (value, bytes) = round_trip(&Utf16String::from("ab"));
         assert_eq!(value.to_string_lossy(), "ab");
         assert_eq!(bytes, [1, 2, 0, 0, 0, b'a', b'b']);
 
-        for units in [vec![], vec![0x7f], vec![0x80, 0xd800, 0xffff]] {
+        for units in [vec![], vec![0x7f], vec![0x80, 0xe9, 0xff], vec![0x100, 0xd800, 0xffff]] {
             let value = Utf16String(units.clone());
             let (decoded, bytes) = round_trip(&value);
             assert_eq!(decoded, value);
-            let is_ascii = units.iter().all(|&unit| unit < 0x80);
-            let mut expected = vec![u8::from(is_ascii)];
+            let is_latin1 = units.iter().all(|&unit| unit <= 0xff);
+            let mut expected = vec![u8::from(is_latin1)];
             expected.extend_from_slice(&(units.len() as u32).to_ne_bytes());
             for unit in units {
-                if is_ascii {
+                if is_latin1 {
                     expected.push(unit as u8);
                 } else {
                     expected.extend_from_slice(&unit.to_ne_bytes());

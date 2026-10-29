@@ -482,22 +482,15 @@ TEST_CASE(from_ipc_stream)
         EXPECT(result.is_error());
     }
     {
-        auto data = u"😀"sv;
+        // One-byte storage is Latin-1, so each byte is the code unit of its value.
+        static constexpr u8 data[] = { 'c', 'r', 0xE8, 'm', 'e', ' ', 'b', 'r', 0xFB, 'l', 0xE9, 'e' };
+        FixedMemoryStream stream { ReadonlyBytes { data } };
 
-        auto buffer = MUST(ByteBuffer::copy({ reinterpret_cast<u8 const*>(data.utf16_span().data()), data.length_in_code_units() * sizeof(char16_t) }));
-        FixedMemoryStream stream { buffer.bytes() };
-
-        auto result = Utf16String::from_ipc_stream(stream, data.length_in_code_units(), true);
-        EXPECT(result.is_error());
-    }
-    {
-        auto data = u"hello 😀 there!"sv;
-
-        auto buffer = MUST(ByteBuffer::copy({ reinterpret_cast<u8 const*>(data.utf16_span().data()), data.length_in_code_units() * sizeof(char16_t) }));
-        FixedMemoryStream stream { buffer.bytes() };
-
-        auto result = Utf16String::from_ipc_stream(stream, data.length_in_code_units(), true);
-        EXPECT(result.is_error());
+        auto string = TRY_OR_FAIL(Utf16String::from_ipc_stream(stream, sizeof(data), true));
+        EXPECT(!string.is_ascii());
+        EXPECT(!string.has_long_ascii_storage());
+        EXPECT(string.utf16_view().has_latin1_storage());
+        EXPECT_EQ(string, u"crème brûlée"sv);
     }
 }
 

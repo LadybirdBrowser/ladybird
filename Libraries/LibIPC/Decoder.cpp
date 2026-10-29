@@ -43,10 +43,10 @@ ErrorOr<String> decode(Decoder& decoder)
 template<>
 ErrorOr<Utf16String> decode(Decoder& decoder)
 {
-    auto is_ascii = TRY(decoder.decode<bool>());
+    auto has_latin1_storage = TRY(decoder.decode<bool>());
     auto length_in_code_units = TRY(decoder.decode_size());
 
-    return Utf16String::from_ipc_stream(decoder.stream(), length_in_code_units, is_ascii);
+    return Utf16String::from_ipc_stream(decoder.stream(), length_in_code_units, has_latin1_storage);
 }
 
 template<>

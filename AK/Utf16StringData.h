@@ -81,7 +81,7 @@ public:
     static NonnullRefPtr<Utf16StringData> from_ascii(ReadonlyBytes);
     static NonnullRefPtr<Utf16StringData> from_utf16(Utf16View const&);
     static NonnullRefPtr<Utf16StringData> from_string_builder(Utf16StringBuilder&);
-    static ErrorOr<NonnullRefPtr<Utf16StringData>> from_ipc_stream(Stream&, size_t length_in_code_units, bool is_ascii);
+    static ErrorOr<NonnullRefPtr<Utf16StringData>> from_ipc_stream(Stream&, size_t length_in_code_units, bool has_latin1_storage);
 
     // Creates the stable shared header and reserves trailing character storage for an FFI caller
     // to initialize before publishing the resulting string.

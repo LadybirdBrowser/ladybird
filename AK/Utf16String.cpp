@@ -110,22 +110,18 @@ Utf16String Utf16String::from_string_builder(Badge<Utf16StringBuilder>, Utf16Str
     return Utf16String { Detail::Utf16StringData::from_string_builder(builder) };
 }
 
-ErrorOr<Utf16String> Utf16String::from_ipc_stream(Stream& stream, size_t length_in_code_units, bool is_ascii)
+ErrorOr<Utf16String> Utf16String::from_ipc_stream(Stream& stream, size_t length_in_code_units, bool has_latin1_storage)
 {
-    if (is_ascii && length_in_code_units <= Detail::MAX_SHORT_STRING_BYTE_COUNT) {
-        Utf16String string;
-        string.m_value.short_ascii_string = Detail::ShortString::create_with_byte_count(length_in_code_units);
-
-        Bytes bytes { string.m_value.short_ascii_string.storage, length_in_code_units };
+    if (has_latin1_storage && length_in_code_units <= Detail::MAX_SHORT_STRING_BYTE_COUNT) {
+        Array<u8, Detail::MAX_SHORT_STRING_BYTE_COUNT> buffer;
+        auto bytes = buffer.span().trim(length_in_code_units);
         TRY(stream.read_until_filled(bytes));
 
-        if (!StringView { bytes }.is_ascii())
-            return Error::from_string_literal("Stream contains invalid ASCII data");
-
-        return string;
+        // NB: Only ASCII is stored in a short string.
+        return from_utf16(Utf16View::from_latin1(bytes, false));
     }
 
-    return Utf16String { TRY(Detail::Utf16StringData::from_ipc_stream(stream, length_in_code_units, is_ascii)) };
+    return Utf16String { TRY(Detail::Utf16StringData::from_ipc_stream(stream, length_in_code_units, has_latin1_storage)) };
 }
 
 Utf16String Utf16String::repeated(u32 code_point, size_t count)

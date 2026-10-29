@@ -10,6 +10,7 @@
 #include <AK/Optional.h>
 #include <AK/Queue.h>
 #include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCore/System.h>
@@ -165,4 +166,29 @@ TEST_CASE(sizes_are_bounded_before_contents_and_only_within_the_value)
     EXPECT_EQ(MUST(decoder.decode_with_max_size<String>(9)), "123456789"sv);
     EXPECT(!MUST(decoder.decode_with_max_size<Optional<String>>(4)).has_value());
     EXPECT_EQ(MUST(decoder.decode<String>()), "123456789"sv);
+}
+
+TEST_CASE(decode_utf16_string_with_latin1_storage)
+{
+    auto latin1_string = [](ReadonlyBytes code_units) {
+        Vector<u8> bytes;
+        bytes.append(1);
+        bytes.extend(bytes_with_size_prefix(code_units.size(), code_units));
+        return MUST(decode_bytes<Utf16String>(bytes));
+    };
+
+    // "café crème", with each code unit as one byte.
+    static constexpr u8 long_code_units[] = { 'c', 'a', 'f', 0xE9, ' ', 'c', 'r', 0xE8, 'm', 'e' };
+    auto string = latin1_string(long_code_units);
+    EXPECT_EQ(string, Utf16String::from_utf8("café crème"sv));
+    EXPECT(string.utf16_view().has_latin1_storage());
+    EXPECT(!string.has_ascii_storage());
+
+    static constexpr u8 short_code_units[] = { 0xE9 };
+    auto short_string = latin1_string(short_code_units);
+    EXPECT_EQ(short_string, Utf16String::from_utf8("é"sv));
+    EXPECT(!short_string.has_short_ascii_storage());
+
+    static constexpr u8 ascii_code_units[] = { 'c', 'a', 'f', 'e' };
+    EXPECT(latin1_string(ascii_code_units).has_short_ascii_storage());
 }

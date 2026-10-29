@@ -154,18 +154,18 @@ NonnullRefPtr<Utf16StringData> Utf16StringData::from_string_builder(Utf16StringB
     return string.release_nonnull();
 }
 
-ErrorOr<NonnullRefPtr<Utf16StringData>> Utf16StringData::from_ipc_stream(Stream& stream, size_t length_in_code_units, bool is_ascii)
+ErrorOr<NonnullRefPtr<Utf16StringData>> Utf16StringData::from_ipc_stream(Stream& stream, size_t length_in_code_units, bool has_latin1_storage)
 {
     RefPtr<Utf16StringData> string;
 
-    if (is_ascii) {
+    if (has_latin1_storage) {
         string = create_uninitialized(StorageType::Latin1, length_in_code_units);
 
         Bytes bytes { string->latin1_data(), length_in_code_units };
         TRY(stream.read_until_filled(bytes));
 
-        if (!string->ascii_view().is_ascii())
-            return Error::from_string_literal("Stream contains invalid ASCII data");
+        if (!simdutf::validate_ascii(reinterpret_cast<char const*>(bytes.data()), bytes.size()))
+            string->m_header.flags |= ContainsNonAscii;
     } else {
         string = create_uninitialized(StorageType::UTF16, length_in_code_units);
 

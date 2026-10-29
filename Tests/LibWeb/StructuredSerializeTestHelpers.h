@@ -96,9 +96,9 @@ inline void append_storage_record_header(Vector<u8>& bytes)
 }
 
 // The folded string header: (length << 1) | is_ascii, matching the production encoder.
-inline void append_storage_string_header(Vector<u8>& bytes, bool is_ascii, size_t length)
+inline void append_storage_string_header(Vector<u8>& bytes, bool is_latin1, size_t length)
 {
-    append_storage_leb128(bytes, (static_cast<u64>(length) << 1) | (is_ascii ? 1u : 0u));
+    append_storage_leb128(bytes, (static_cast<u64>(length) << 1) | (is_latin1 ? 1u : 0u));
 }
 
 inline void append_storage_ascii_utf16(Vector<u8>& bytes, StringView ascii)
