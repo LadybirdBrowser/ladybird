@@ -88,6 +88,7 @@ public:
     bool displays_tab() const;
     String dump_process_tree() const;
     Optional<CanonicalNavigable&> hosted_navigable(Web::HTML::CrossProcessId) const;
+    bool hosts_active_document_of(CanonicalNavigable const&) const;
     Optional<CanonicalEnvironmentSettingsObject const&> hosted_environment(Web::HTML::EnvironmentId const& environment_id) const;
 
     // Whether the document of an environment the page hosts has a cross-site ancestor, or nothing if the page hosts no

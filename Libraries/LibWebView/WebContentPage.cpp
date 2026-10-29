@@ -237,6 +237,12 @@ Optional<CanonicalNavigable&> WebContentPage::hosted_navigable(Web::HTML::CrossP
     return *navigable;
 }
 
+// A page standing in for a lost document hosts its navigable, but not the document.
+bool WebContentPage::hosts_active_document_of(CanonicalNavigable const& navigable) const
+{
+    return navigable.active_document().host() == this;
+}
+
 // The environments a page names are the window environments of the documents it hosts, and of those populated for it
 // to host.
 void WebContentPage::for_each_hosted_document(Function<IterationDecision(CanonicalDocument&)> const& callback) const
@@ -710,7 +716,7 @@ void WebContentPage::did_request_navigation_of_navigable(Web::HTML::CrossProcess
     RefPtr<WebContentPage> source_page;
     client().for_each_page([&](WebContentPage& page) {
         auto navigable = page.traversable().find(source_navigable_id);
-        if (!navigable.has_value() || navigable->active_document().id() != source_document_id || navigable->active_document().host() != &page)
+        if (!navigable.has_value() || navigable->active_document().id() != source_document_id || !page.hosts_active_document_of(*navigable))
             return IterationDecision::Continue;
         source = *navigable;
         source_page = page;
@@ -1623,9 +1629,9 @@ bool WebContentPage::hosts_a_document_allowed_to_use(Web::PermissionsPolicy::Pol
 {
     auto is_allowed = false;
     traversable().for_each_in_inclusive_subtree([&](CanonicalNavigable const& navigable) {
-        auto const& document = navigable.active_document();
-        if (document.host() != this)
+        if (!hosts_active_document_of(navigable))
             return IterationDecision::Continue;
+        auto const& document = navigable.active_document();
         auto value = Web::PermissionsPolicy::check_permissions_policy(document.permissions_policy(), feature, document.origin(), document.origin());
         is_allowed = value == Web::PermissionsPolicy::FeatureValue::Enabled;
         return is_allowed ? IterationDecision::Break : IterationDecision::Continue;
@@ -1663,10 +1669,9 @@ bool WebContentPage::hosts_a_document_with_top_level_origin(URL::Origin const& o
 {
     auto hosts = false;
     traversable().for_each_in_inclusive_subtree([&](CanonicalNavigable const& navigable) {
-        auto const& document = navigable.active_document();
-        if (document.host() != this)
+        if (!hosts_active_document_of(navigable))
             return IterationDecision::Continue;
-        auto top_level_origin = document.top_level_origin();
+        auto top_level_origin = navigable.active_document().top_level_origin();
         hosts = top_level_origin.has_value() && top_level_origin->is_same_origin(origin);
         return hosts ? IterationDecision::Break : IterationDecision::Continue;
     });
@@ -2469,7 +2474,7 @@ void WebContentPage::did_change_hosted_navigable_state(Web::HTML::CrossProcessId
 
     // A page standing in for a document the navigable lost, as the page displaying the tab after its process crashed
     // does, does not speak for that document.
-    if (navigable->active_document().host() != this)
+    if (!hosts_active_document_of(*navigable))
         return;
 
     navigable->update_hosted_state(move(state));
@@ -2479,7 +2484,7 @@ void WebContentPage::did_set_opener_browsing_context(Web::HTML::CrossProcessId n
 {
     // Only the process hosting a navigable's active document speaks for its browsing context.
     auto navigable = hosted_navigable(navigable_id);
-    if (!navigable.has_value() || navigable->active_document().host() != this)
+    if (!navigable.has_value() || !hosts_active_document_of(*navigable))
         return;
     navigable->did_set_opener_browsing_context(opener_navigable_id);
 }
@@ -2659,7 +2664,7 @@ void WebContentPage::did_finish_loading(Web::HTML::CrossProcessId navigable_id, 
     //     navigable lost, as the page displaying the tab after its process crashed does, finishes loading the stand-in;
     //     that must not surface in the view.
     auto navigable = traversable().find(navigable_id);
-    if (!navigable.has_value() || navigable->active_document().host() != this)
+    if (!navigable.has_value() || !hosts_active_document_of(*navigable))
         return;
 
     if (navigable->active_document().id() != document_id)

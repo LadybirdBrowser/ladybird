@@ -1128,7 +1128,7 @@ void CanonicalNavigable::discard_pending_host()
 
 void CanonicalNavigable::discard_pending_host(WebContentPage const& page)
 {
-    if (active_document().host() == &page)
+    if (page.hosts_active_document_of(*this))
         return;
     Vector<NonnullRefPtr<CanonicalDocumentState>> document_states;
     for_each_populated_document_state([&](CanonicalDocumentState& document_state) {
