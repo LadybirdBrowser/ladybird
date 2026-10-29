@@ -1,0 +1,134 @@
+<!doctype html>
+<title>Pointer Events optional attributes</title>
+<meta name="viewport" content="width=device-width">
+<meta name="variant" content="?mouse">
+<meta name="variant" content="?pen">
+<meta name="variant" content="?mouse-right">
+<meta name="variant" content="?pen-right">
+<meta name="variant" content="?touch">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-actions.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+<script type="text/javascript" src="pointerevent_support.js"></script>
+<script>
+  "use strict";
+  const queryStringFragments = location.search.substring(1).split('-');
+  const pointerType = queryStringFragments[0];
+  const button = queryStringFragments[1] === "right" ? "right" : undefined;
+
+  assert_true(['mouse', 'pen', 'touch'].indexOf(pointerType) >= 0,
+        `Unexpected pointer type (${pointerType})`);
+
+  let frameLoaded = undefined;
+  const frameLoadedPromise = new Promise(resolve => {
+    frameLoaded = resolve;
+  });
+
+  const eventsTested = [
+    'pointerover',
+    'pointerenter',
+    'pointerdown',
+    'pointerup',
+    'pointerout',
+    'pointerleave',
+    'pointermove'
+  ];
+
+  async function runTests() {
+    await frameLoadedPromise;
+
+    // Prevent opening a contextmenu on right-click.
+    addEventListener("contextmenu", e => e.preventDefault());
+    frames[0].addEventListener("contextmenu", e => e.preventDefault());
+
+    function addPromiseTest(testNamePrefix, target) {
+      const testName = `${testNamePrefix} attribute test.`;
+
+      promise_test(async test => {
+        let eventsLogged = [];
+
+        function eventChecker(e) {
+          e.preventDefault();
+          eventsLogged.push(e.type);
+          check_PointerEvent(e, testNamePrefix, true);
+        };
+
+        eventsTested.forEach(type => {
+          target.addEventListener(type, eventChecker, { once: true });
+          test.add_cleanup(() => {
+            target.removeEventListener(type, eventChecker, { once: true });
+          });
+        });
+
+        // Start with a click in the same frame but outside the target, then
+        // scrub the target, then move outside again to make sure the boundary
+        // events are fired for hoverable pointers. Non-hoverable pointers fire
+        // those events on pointerdown/up.
+        {
+          const actions = new test_driver.Actions();
+          let buttonArguments = (button == 'right')
+                                ? { button: actions.ButtonType.RIGHT }
+                                : undefined;
+          await actions
+            .addPointer('pointer1', pointerType)
+            .pointerMove(100, 0, { origin: target })
+            .pointerDown()
+            .pointerUp()
+            .pointerMove(-20, 0, { origin: target })
+            .pointerDown(buttonArguments)
+            .pointerMove(20, 0, { origin: target })
+            .pointerUp(buttonArguments)
+            .pointerMove(0, 0)
+            .send();
+        }
+
+        // Processing a click or tap on the done button is used to signal that
+        // all other events should have been handled.
+        {
+          const doneButton = document.getElementById('done');
+          const clickOnDone = getEvent('pointerup', doneButton);
+          await new test_driver.Actions()
+            .addPointer('pointer1', pointerType)
+            .pointerMove(0, 0, {origin: doneButton})
+            .pointerDown()
+            .pointerUp()
+            .send();
+          await clickOnDone;
+        }
+
+        assert_array_equals(eventsLogged.toSorted(), eventsTested.toSorted(),
+              `${testNamePrefix}: Logged and tested events should be the same`);
+      }, testName);
+    }
+
+    addPromiseTest("Main-frame", document.getElementById('square1'));
+    addPromiseTest("Inner-frame", frames[0].document.getElementById('square2'));
+  }
+</script>
+<style>
+  #square1 {
+    touch-action: none;
+    user-select: none;
+    height: 50px;
+    width: 50px;
+  }
+</style>
+<body onload="runTests()">
+  <div id="square1" draggable="false"></div>
+  <iframe onload="frameLoaded()" id="innerFrame" srcdoc='
+    <style>
+      #square2 {
+        touch-action: none;
+        user-select: none;
+        height: 50px;
+        width: 50px;
+      }
+    </style>
+    <body>
+      <div id="square2" draggable="false"></div>
+    </body>
+  '></iframe>
+  <button id="done">done</button>
+</body>
