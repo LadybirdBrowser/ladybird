@@ -1510,7 +1510,7 @@ fn create_formatting_context_implementation<'pass>(
             FormattingContextImplementation::Flex(Box::new(flex_formatting_context::FlexFormattingContext::new(run)))
         }
         FormattingContextType::Grid => FormattingContextImplementation::Grid(Box::new(
-            grid_formatting_context::GridFormattingContext::new(run, parent_grid),
+            grid_formatting_context::GridFormattingContext::new(run, root_cells_in_own_frame, parent_grid),
         )),
         FormattingContextType::Table => {
             FormattingContextImplementation::Table(Box::new(table_formatting_context::TableFormattingContext::new(
@@ -2493,7 +2493,7 @@ fn lay_out_run_root_and_contents<'pass>(
                     in_flow_children_margin_box_block_extent: context.in_flow_items_margin_box_block_extent(),
                     ..ChildLayoutResult::default()
                 };
-                (result, root_left_in_record())
+                (result, own_root.get())
             }
             FormattingContextImplementation::Table(context) => {
                 context.run(body_run, body_input, inline_layout_of_root_table_box.take());
@@ -2678,7 +2678,9 @@ fn lay_out_run_root_and_contents<'pass>(
                 register_table_abspos_descendants(body_run, run.box_);
             }
             FormattingContextImplementation::Flex(context) => context.parent_did_dimension(),
-            FormattingContextImplementation::Grid(context) => context.parent_did_dimension(),
+            FormattingContextImplementation::Grid(context) => {
+                context.parent_did_dimension(root_in_own_frame_left_by_run);
+            }
             FormattingContextImplementation::Math(context) => {
                 context.parent_did_dimension(root_in_own_frame_left_by_run);
             }
