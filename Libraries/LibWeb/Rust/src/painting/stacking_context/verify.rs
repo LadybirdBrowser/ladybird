@@ -63,7 +63,6 @@ impl Verifier<'_> {
         match self.arena.paintable_visual_context_record(slot) {
             Some(record) => {
                 let stored = record.stacking_context;
-                drop(record);
                 let mut fresh_with_registered_contribution = fresh;
                 fresh_with_registered_contribution.contribution_is_registered = true;
                 if stored != fresh_with_registered_contribution {
@@ -187,11 +186,10 @@ impl Verifier<'_> {
                     .note(format_args!("entries table of {root:?} is still flagged for a resort"));
             }
         }
-        let tables = self.arena.paintable_rows.stacking_context_entries.borrow();
+        let tables = &self.arena.paintable_rows.stacking_context_entries;
         let stored_table_count = (0..self.arena.paintable_row_count())
             .filter(|index| tables.get(*index).is_some_and(Option::is_some))
             .count();
-        drop(tables);
         let expected_table_count = self
             .expected_entries_by_root
             .keys()
