@@ -1,9 +1,10 @@
+ladybird_test_suite(LibURL)
+
 set(URL_TEST_SOURCES
+    TestPublicSuffix.cpp
     TestURL.cpp
     TestURLPattern.cpp
-    TestPublicSuffix.cpp
 )
 
-foreach(source IN LISTS URL_TEST_SOURCES)
-    ladybird_test("${source}" LibURL LIBS LibURL LibRegex)
-endforeach()
+target_sources(TestLibURL PRIVATE ${URL_TEST_SOURCES})
+target_link_libraries(TestLibURL PRIVATE LibURL LibRegex)
