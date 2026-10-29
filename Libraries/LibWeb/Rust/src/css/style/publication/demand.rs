@@ -204,8 +204,8 @@ impl RetainedState {
         let owing: HashSet<StyleNodeID> = host
             .journal
             .inputs()
-            .chain(host.deferred_element_style_inputs.iter().copied())
             .filter_map(|input| input.key.style_node())
+            .chain(host.deferred_element_style_inputs.keys().copied())
             .collect();
         owing.is_empty()
             || !std::iter::successors(self.tree.flat_tree_parent(node), |&parent| {

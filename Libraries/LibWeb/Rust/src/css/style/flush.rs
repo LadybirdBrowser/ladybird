@@ -473,8 +473,18 @@ impl StyleEngine {
                 && !self.host.program_staging.is_dirty()
                 && self.host.sheet_rule_replacement.is_none();
         self.host.deferred_element_style_inputs_moved |= !self.host.deferred_element_style_inputs.is_empty();
-        for input in std::mem::take(&mut self.host.deferred_element_style_inputs) {
-            self.record_input(input.key, input.old, input.new);
+        for (node, input) in std::mem::take(&mut self.host.deferred_element_style_inputs) {
+            self.record_input(
+                InputKey::ElementStyleInput(node),
+                InputValue::ElementStyleInput {
+                    reaction: 0,
+                    inherited_style_groups: 0,
+                },
+                InputValue::ElementStyleInput {
+                    reaction: input.reaction,
+                    inherited_style_groups: input.inherited_style_groups,
+                },
+            );
         }
         self.host.deferred_element_style_inputs_are_pending = false;
         let inputs_moved = std::mem::take(&mut self.retained.row_inputs_moved);

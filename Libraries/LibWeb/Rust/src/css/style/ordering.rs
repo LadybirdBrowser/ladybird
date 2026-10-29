@@ -2097,38 +2097,16 @@ impl StyleEngine {
     /// Merge one element style input into the deferred inputs, which are kept sorted by key.
     pub(crate) fn defer_element_style_input(&mut self, node: StyleNodeID, reaction: u8, inherited_style_groups: u8) {
         self.host.deferred_element_style_inputs_moved = true;
-        let key = InputKey::ElementStyleInput(node);
-        match self
+        let pending = self
             .host
             .deferred_element_style_inputs
-            .binary_search_by_key(&key, |pending| pending.key)
-        {
-            Ok(index) => {
-                let InputValue::ElementStyleInput {
-                    reaction: pending_reaction,
-                    inherited_style_groups: pending_inherited_style_groups,
-                } = &mut self.host.deferred_element_style_inputs[index].new
-                else {
-                    unreachable!();
-                };
-                *pending_reaction |= reaction;
-                *pending_inherited_style_groups |= inherited_style_groups;
-            }
-            Err(index) => self.host.deferred_element_style_inputs.insert(
-                index,
-                NormalizedInput {
-                    key,
-                    old: InputValue::ElementStyleInput {
-                        reaction: 0,
-                        inherited_style_groups: 0,
-                    },
-                    new: InputValue::ElementStyleInput {
-                        reaction,
-                        inherited_style_groups,
-                    },
-                },
-            ),
-        }
+            .entry(node)
+            .or_insert(DeferredElementStyleInput {
+                reaction: 0,
+                inherited_style_groups: 0,
+            });
+        pending.reaction |= reaction;
+        pending.inherited_style_groups |= inherited_style_groups;
     }
 
     /// Release a drained transaction's scratch charge.

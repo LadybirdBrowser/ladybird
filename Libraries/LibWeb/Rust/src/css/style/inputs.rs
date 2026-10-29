@@ -2176,7 +2176,7 @@ impl StyleEngine {
                 journal: NormalizationJournal::new(),
                 deferred_geometry_journal: NormalizationJournal::new(),
                 flushing_deferred_geometry_journal: false,
-                deferred_element_style_inputs: Vec::new(),
+                deferred_element_style_inputs: Default::default(),
                 deferred_element_style_inputs_moved: false,
                 deferred_element_style_inputs_are_pending: false,
                 environment_move_changed_names: Default::default(),
@@ -2381,15 +2381,10 @@ impl StyleEngine {
     /// the merged inherited style groups in the next, or zero when nothing was folded.
     /// The reaction the element `node` owes as an element style input the engine defers, if it owes one.
     pub(crate) fn deferred_element_style_reaction(&self, node: StyleNodeID) -> Option<u8> {
-        let index = self
-            .host
+        self.host
             .deferred_element_style_inputs
-            .binary_search_by_key(&InputKey::ElementStyleInput(node), |pending| pending.key)
-            .ok()?;
-        match self.host.deferred_element_style_inputs[index].new {
-            InputValue::ElementStyleInput { reaction, .. } => Some(reaction),
-            _ => None,
-        }
+            .get(&node)
+            .map(|pending| pending.reaction)
     }
 
     pub fn absorb_element_style_input(
@@ -2399,19 +2394,12 @@ impl StyleEngine {
         inherited_style_groups: u8,
         absorbs_any: bool,
     ) -> u32 {
-        let Ok(index) = self
-            .host
-            .deferred_element_style_inputs
-            .binary_search_by_key(&InputKey::ElementStyleInput(node), |pending| pending.key)
-        else {
-            return 0;
-        };
-        let InputValue::ElementStyleInput {
+        let Some(&DeferredElementStyleInput {
             reaction: pending_reaction,
             inherited_style_groups: pending_inherited_style_groups,
-        } = self.host.deferred_element_style_inputs[index].new
+        }) = self.host.deferred_element_style_inputs.get(&node)
         else {
-            unreachable!();
+            return 0;
         };
         // A descendant recompute asks nothing of the element its own reaction does not answer, and
         // the applied reaction carries what it asks of the descendants to the element's children.
@@ -2421,7 +2409,7 @@ impl StyleEngine {
         {
             return 0;
         }
-        self.host.deferred_element_style_inputs.remove(index);
+        self.host.deferred_element_style_inputs.remove(&node);
         self.host.deferred_element_style_inputs_moved = true;
         u32::from(reaction | pending_reaction)
             | (u32::from(inherited_style_groups | pending_inherited_style_groups) << 8)
@@ -2438,28 +2426,14 @@ impl StyleEngine {
             self.host
                 .deferred_element_style_inputs
                 .iter()
-                .filter_map(|input| match (input.key, input.new) {
-                    (
-                        InputKey::ElementStyleInput(node),
-                        InputValue::ElementStyleInput {
-                            reaction,
-                            inherited_style_groups,
-                        },
-                    ) => Some((node, reaction, inherited_style_groups)),
-                    _ => None,
-                })
+                .map(|(&node, pending)| (node, pending.reaction, pending.inherited_style_groups))
                 .collect(),
         )
     }
 
     /// Drop the style input an element owes: C++ computed the element's style, which answers it.
     pub fn consume_element_style_input(&mut self, node: StyleNodeID) {
-        if let Ok(index) = self
-            .host
-            .deferred_element_style_inputs
-            .binary_search_by_key(&InputKey::ElementStyleInput(node), |pending| pending.key)
-        {
-            self.host.deferred_element_style_inputs.remove(index);
+        if self.host.deferred_element_style_inputs.remove(&node).is_some() {
             self.host.deferred_element_style_inputs_moved = true;
         }
     }
@@ -2467,26 +2441,15 @@ impl StyleEngine {
     /// Drop the style input an element owes but the descendant recompute it carries: a demand
     /// answers the element's own style, which reaches none of its descendants.
     pub(super) fn consume_element_style_input_but_descendants(&mut self, node: StyleNodeID) {
-        let Ok(index) = self
-            .host
-            .deferred_element_style_inputs
-            .binary_search_by_key(&InputKey::ElementStyleInput(node), |pending| pending.key)
-        else {
+        let Some(pending) = self.host.deferred_element_style_inputs.get_mut(&node) else {
             return;
         };
         self.host.deferred_element_style_inputs_moved = true;
-        let InputValue::ElementStyleInput {
-            reaction,
-            inherited_style_groups,
-        } = &mut self.host.deferred_element_style_inputs[index].new
-        else {
-            unreachable!();
-        };
-        if *reaction & transaction::STYLE_REACTION_RECOMPUTE_DESCENDANT_STYLES != 0 {
-            *reaction = transaction::STYLE_REACTION_RECOMPUTE_DESCENDANT_STYLES;
-            *inherited_style_groups = 0;
+        if pending.reaction & transaction::STYLE_REACTION_RECOMPUTE_DESCENDANT_STYLES != 0 {
+            pending.reaction = transaction::STYLE_REACTION_RECOMPUTE_DESCENDANT_STYLES;
+            pending.inherited_style_groups = 0;
         } else {
-            self.host.deferred_element_style_inputs.remove(index);
+            self.host.deferred_element_style_inputs.remove(&node);
         }
     }
 
@@ -3608,12 +3571,9 @@ impl RetainedState {
 }
 
 impl HostState {
-    /// Whether `node` still owes a deferred style input. The deferred inputs are kept sorted by
-    /// key, so this is a binary search.
+    /// Whether `node` still owes a deferred style input.
     pub(super) fn owes_element_style_input(&self, node: StyleNodeID) -> bool {
-        self.deferred_element_style_inputs
-            .binary_search_by_key(&InputKey::ElementStyleInput(node), |pending| pending.key)
-            .is_ok()
+        self.deferred_element_style_inputs.contains_key(&node)
     }
 }
 
