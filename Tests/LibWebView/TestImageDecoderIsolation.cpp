@@ -4,18 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include "HeadlessTest.h"
 #include <AK/HashTable.h>
 #include <AK/LexicalPath.h>
-#include <AK/Random.h>
-#include <AK/ScopeGuard.h>
-#include <LibCore/Directory.h>
-#include <LibCore/Environment.h>
 #include <LibCore/EventLoop.h>
-#include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
-#include <LibFileSystem/FileSystem.h>
 #include <LibGfx/SystemTheme.h>
-#include <LibMain/Main.h>
+#include <LibTest/TestCase.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/HeadlessWebView.h>
 #include <LibWebView/ProcessManager.h>
@@ -24,12 +19,12 @@
 
 namespace {
 
-class TestApplication : public WebView::Application {
+class TestApplication : public Test::HeadlessApplication {
     WEB_VIEW_APPLICATION(TestApplication)
 
 public:
     explicit TestApplication(Optional<ByteString> ladybird_binary_path)
-        : WebView::Application(move(ladybird_binary_path))
+        : Test::HeadlessApplication(move(ladybird_binary_path))
     {
     }
 
@@ -38,8 +33,6 @@ public:
         browser_options.headless_mode = WebView::HeadlessMode::Test;
         browser_options.disable_sql_database = WebView::DisableSQLDatabase::Yes;
     }
-
-    virtual bool should_coordinate_browser_process() const override { return false; }
 };
 
 HashTable<pid_t> processes_of_type(WebView::ProcessType type)
@@ -57,23 +50,14 @@ HashTable<pid_t> processes_of_type(WebView::ProcessType type)
 // An ImageDecoder parses untrusted images, so each renderer has one of its own, and never sees another's images. A
 // decoder that crashes is replaced for its renderer alone.
 
-ErrorOr<int> ladybird_main(Main::Arguments arguments)
+TEST_CASE(image_decoder_isolation)
 {
-    auto test_config_directory = ByteString::formatted("{}/Ladybird-TestImageDecoderIsolation-{}", Core::StandardPaths::tempfile_directory(), generate_random_uuid());
-    TRY(Core::Directory::create(test_config_directory, Core::Directory::CreateDirectories::Yes));
-    auto cleanup_test_config_directory = ScopeGuard([&] {
-        MUST(FileSystem::remove(test_config_directory, FileSystem::RecursionMode::Allowed));
-    });
-    MUST(Core::Environment::set("XDG_CONFIG_HOME"sv, test_config_directory, Core::Environment::Overwrite::Yes));
+    Test::HeadlessTestEnvironment environment { "TestImageDecoderIsolation"sv };
 
-#if defined(LADYBIRD_BINARY_PATH)
-    auto app = TRY(TestApplication::create(arguments, LADYBIRD_BINARY_PATH));
-#else
-    auto app = TRY(TestApplication::create(arguments, OptionalNone {}));
-#endif
+    auto app = TRY_OR_FAIL(environment.create_application<TestApplication>());
 
     auto theme_path = LexicalPath::join(WebView::s_ladybird_resource_root, "themes"sv, "Default.ini"sv);
-    auto theme = TRY(Gfx::load_system_theme(theme_path.string()));
+    auto theme = TRY_OR_FAIL(Gfx::load_system_theme(theme_path.string()));
 
     auto first_view = WebView::HeadlessWebView::create(theme, { 800, 600 });
     auto second_view = WebView::HeadlessWebView::create(theme, { 800, 600 });
@@ -84,7 +68,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     VERIFY(decoders.size() == renderers.size());
 
     auto crashed_decoder = *decoders.begin();
-    TRY(Core::System::kill(crashed_decoder, SIGKILL));
+    TRY_OR_FAIL(Core::System::kill(crashed_decoder, SIGKILL));
 
     // The replacement is launched as the Browser learns that the decoder died, so this cannot finish without it.
     Core::EventLoop::current().spin_until([&] {
@@ -100,5 +84,4 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     }
 
     outln("PASS: each renderer has an image decoder of its own, which is replaced alone when it crashes");
-    return 0;
 }

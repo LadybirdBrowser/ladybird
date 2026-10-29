@@ -4,18 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include "HeadlessTest.h"
 #include <AK/LexicalPath.h>
-#include <AK/Random.h>
-#include <AK/ScopeGuard.h>
-#include <LibCore/Directory.h>
-#include <LibCore/Environment.h>
 #include <LibCore/EventLoop.h>
-#include <LibCore/StandardPaths.h>
-#include <LibFileSystem/FileSystem.h>
 #include <LibGfx/SystemTheme.h>
 #include <LibHTTP/Cookie/Cookie.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
-#include <LibMain/Main.h>
+#include <LibTest/TestCase.h>
 #include <LibURL/Parser.h>
 #include <LibURL/Site.h>
 #include <LibWebCommon/FileAPI/SerializedBlobURLEntry.h>
@@ -35,12 +30,12 @@
 namespace {
 
 // Neither WebDriver nor the test harness drives this application, so its renderers get no HTTP-like cookie access.
-class TestApplication : public WebView::Application {
+class TestApplication : public Test::HeadlessApplication {
     WEB_VIEW_APPLICATION(TestApplication)
 
 public:
     explicit TestApplication(Optional<ByteString> ladybird_binary_path)
-        : WebView::Application(move(ladybird_binary_path))
+        : Test::HeadlessApplication(move(ladybird_binary_path))
     {
     }
 
@@ -50,8 +45,6 @@ public:
         browser_options.disable_sql_database = WebView::DisableSQLDatabase::Yes;
         web_content_options.is_test_mode = WebView::IsTestMode::No;
     }
-
-    virtual bool should_coordinate_browser_process() const override { return false; }
 };
 
 }
@@ -60,23 +53,14 @@ public:
 // replace the HttpOnly cookies of every site. RequestServer handles the cookies of HTTP traffic itself, so the UI process
 // treats such a request from a renderer as misbehavior and terminates it, and the cookie jar stays untouched.
 
-ErrorOr<int> ladybird_main(Main::Arguments arguments)
+TEST_CASE(renderer_cookie_access)
 {
-    auto test_config_directory = ByteString::formatted("{}/Ladybird-TestRendererCookieAccess-{}", Core::StandardPaths::tempfile_directory(), generate_random_uuid());
-    TRY(Core::Directory::create(test_config_directory, Core::Directory::CreateDirectories::Yes));
-    auto cleanup_test_config_directory = ScopeGuard([&] {
-        MUST(FileSystem::remove(test_config_directory, FileSystem::RecursionMode::Allowed));
-    });
-    MUST(Core::Environment::set("XDG_CONFIG_HOME"sv, test_config_directory, Core::Environment::Overwrite::Yes));
+    Test::HeadlessTestEnvironment environment { "TestRendererCookieAccess"sv };
 
-#if defined(LADYBIRD_BINARY_PATH)
-    auto app = TRY(TestApplication::create(arguments, LADYBIRD_BINARY_PATH));
-#else
-    auto app = TRY(TestApplication::create(arguments, OptionalNone {}));
-#endif
+    auto app = TRY_OR_FAIL(environment.create_application<TestApplication>());
 
     auto theme_path = LexicalPath::join(WebView::s_ladybird_resource_root, "themes"sv, "Default.ini"sv);
-    auto theme = TRY(Gfx::load_system_theme(theme_path.string()));
+    auto theme = TRY_OR_FAIL(Gfx::load_system_theme(theme_path.string()));
 
     auto victim_url = URL::Parser::basic_parse("https://victim.example/"sv).release_value();
 
@@ -199,5 +183,4 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     VERIFY(navigation_stub.did_lose_request_server_connection({}).handle().has_value());
 
     outln("PASS: renderers cannot read, store or update cookies the way HTTP responses and WebDriver do, nor reach another origin's cookies or blob URL entries");
-    return 0;
 }

@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "HeadlessTest.h"
 #include <AK/ByteBuffer.h>
 #include <AK/ByteString.h>
 #include <AK/HashMap.h>
@@ -22,12 +23,12 @@
 
 namespace ReportServerTest {
 
-class TestApplication : public WebView::Application {
+class TestApplication : public Test::HeadlessApplication {
     WEB_VIEW_APPLICATION(TestApplication)
 
 public:
     explicit TestApplication(Optional<ByteString> ladybird_binary_path)
-        : WebView::Application(move(ladybird_binary_path))
+        : Test::HeadlessApplication(move(ladybird_binary_path))
     {
     }
 
@@ -36,8 +37,6 @@ public:
         browser_options.headless_mode = WebView::HeadlessMode::Test;
         browser_options.disable_sql_database = WebView::DisableSQLDatabase::Yes;
     }
-
-    virtual bool should_coordinate_browser_process() const override { return false; }
 };
 
 struct ReceivedRequest {

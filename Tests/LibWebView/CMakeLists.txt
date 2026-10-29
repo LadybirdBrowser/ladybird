@@ -155,13 +155,15 @@ if (BUILD_BROWSER_TESTS_ONLY)
     return()
 endif()
 
+ladybird_test_suite(LibWebView)
+
 set(TEST_SOURCES
     TestAccessibilityTreeManager.cpp
     TestAudibilityHold.cpp
     TestAudioServerAudibility.cpp
-    TestBackgroundNetworking.cpp
     TestAutocompleteMuxer.cpp
     TestAutocompleteRanker.cpp
+    TestBackgroundNetworking.cpp
     TestCanonicalBrowsingContextGroup.cpp
     TestCookieJar.cpp
     TestCrashReportDiagnostics.cpp
@@ -169,8 +171,8 @@ set(TEST_SOURCES
     TestDownloadStore.cpp
     TestExternalURLHandler.cpp
     TestFaviconStore.cpp
-    TestHistoryStore.cpp
     TestHelperProcessEnvironment.cpp
+    TestHistoryStore.cpp
     TestHSTSStore.cpp
     TestNavigationLoader.cpp
     TestOmnibox.cpp
@@ -191,7 +193,13 @@ set(TEST_SOURCES
 )
 
 if (APPLE OR LINUX)
-    list(APPEND TEST_SOURCES TestCrashReport.cpp TestCrashReportReview.cpp TestCrashReportStore.cpp TestFontService.cpp TestRendererFontService.cpp)
+    list(APPEND TEST_SOURCES
+        TestCrashReport.cpp
+        TestCrashReportReview.cpp
+        TestCrashReportStore.cpp
+        TestFontService.cpp
+        TestRendererFontService.cpp
+    )
 endif()
 
 if (APPLE)
@@ -203,58 +211,73 @@ if (LINUX)
 endif()
 
 if (APPLE AND NOT IOS)
-    ladybird_test(TestWebDriverMachBootstrap.cpp LibWebView LIBS LibGfx LibIPC LibURL LibWebCommon LibWebSocket OpenSSL::Crypto OpenSSL::SSL)
-    target_sources(TestWebDriverMachBootstrap PRIVATE
+    target_link_libraries(TestLibWebView PRIVATE LibWebSocket OpenSSL::Crypto OpenSSL::SSL)
+    target_sources(TestLibWebView PRIVATE
+        TestWebDriverMachBootstrap.cpp
         "${LADYBIRD_SOURCE_DIR}/Services/WebDriver/BiDiSession.cpp"
         "${LADYBIRD_SOURCE_DIR}/Services/WebDriver/BrowserConnection.cpp"
         "${LADYBIRD_SOURCE_DIR}/Services/WebDriver/Client.cpp"
         "${LADYBIRD_SOURCE_DIR}/Services/WebDriver/Session.cpp"
         "${LADYBIRD_SOURCE_DIR}/Services/WebDriver/WebSocket.cpp"
     )
-    target_include_directories(TestWebDriverMachBootstrap PRIVATE "${LADYBIRD_SOURCE_DIR}/Services" "${CMAKE_BINARY_DIR}/Services")
-    set_tests_properties(TestWebDriverMachBootstrap PROPERTIES TIMEOUT 30)
+    target_include_directories(TestLibWebView PRIVATE "${LADYBIRD_SOURCE_DIR}/Services" "${CMAKE_BINARY_DIR}/Services")
+    set_tests_properties(TestLibWebView PROPERTIES TIMEOUT 120)
 endif()
 
-foreach(source IN LISTS TEST_SOURCES)
-    set(test_libraries LibDatabase LibWebView LibURL)
-    if (source STREQUAL "TestProfile.cpp" OR source STREQUAL "TestDownloadSegmentation.cpp")
-        list(APPEND test_libraries LibHTTP)
-    endif()
-    if (source STREQUAL "TestAudioServerAudibility.cpp")
-        list(APPEND test_libraries LibAudio LibIPC)
-    endif()
-    if (source STREQUAL "TestPermissionManager.cpp")
-        list(APPEND test_libraries LibFileSystem LibWebCommon)
-    endif()
-    if (source STREQUAL "TestFontService.cpp")
-        list(APPEND test_libraries LibFileSystem LibIPC LibGfx)
-    endif()
-    if (source STREQUAL "TestRendererFontService.cpp")
-        list(APPEND test_libraries LibCompositing LibGfx LibIPC LibThreading)
-    endif()
-    ladybird_test("${source}" LibWebView LIBS ${test_libraries})
-endforeach()
-
-if (TARGET TestProcessReaper)
-    add_dependencies(TestProcessReaper ProcessReaper)
+if (NOT WIN32)
+    set(HEADLESS_TEST_SOURCES
+        TestApplicationDestruction.cpp
+        TestAutocomplete.cpp
+        TestBeforeUnload.cpp
+        TestBrowserHistoryTraversal.cpp
+        TestCompositorInputRouting.cpp
+        TestCrashOverlay.cpp
+        TestCrashReportSubmission.cpp
+        TestFavicon.cpp
+        TestFileDownloader.cpp
+        TestImageDecoderIsolation.cpp
+        TestInputMethodState.cpp
+        TestLinkHoverStatus.cpp
+        TestNavigationDownloads.cpp
+        TestPictureInPictureUserActivation.cpp
+        TestPictureInPictureWindowControls.cpp
+        TestPictureInPictureWindowLifetime.cpp
+        TestRendererCookieAccess.cpp
+        TestRendererOriginClaims.cpp
+        TestRendererViolationReports.cpp
+        TestRequestServerClientSessions.cpp
+        TestShadowTreeTooltipsAndLinks.cpp
+        TestTabPerformanceMonitor.cpp
+        TestUserActivation.cpp
+        TestWebCompatReport.cpp
+        TestWebCompatReportPage.cpp
+    )
+    list(APPEND TEST_SOURCES ${HEADLESS_TEST_SOURCES})
 endif()
 
-if (TARGET TestAudioDaemonSocket)
+target_sources(TestLibWebView PRIVATE ${TEST_SOURCES})
+target_link_libraries(TestLibWebView PRIVATE LibAudio LibCompositing LibDatabase LibGfx LibHTTP LibIPC LibRequests LibThreading LibURL LibWeb LibWebCommon LibWebView)
+
+if (APPLE)
+    add_dependencies(TestLibWebView ProcessReaper)
+endif()
+
+if (LINUX)
     include(audio)
     if (LADYBIRD_AUDIO_BACKEND STREQUAL "PULSE")
-        target_compile_definitions(TestAudioDaemonSocket PRIVATE HAVE_PULSEAUDIO=1)
+        set_property(SOURCE TestAudioDaemonSocket.cpp APPEND PROPERTY COMPILE_DEFINITIONS HAVE_PULSEAUDIO=1)
     endif()
 endif()
 
-if (TARGET TestCrashReport AND cpptrace_FOUND AND LADYBIRD_ENABLE_CPPTRACE)
-    target_compile_definitions(TestCrashReport PRIVATE TEST_HAS_CPPTRACE=1)
+if ((APPLE OR LINUX) AND cpptrace_FOUND AND LADYBIRD_ENABLE_CPPTRACE)
+    set_property(SOURCE TestCrashReport.cpp APPEND PROPERTY COMPILE_DEFINITIONS TEST_HAS_CPPTRACE=1)
 endif()
 
-if (TARGET TestCrashReport AND LINUX AND CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
+if (LINUX AND CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
     add_library(CrashReportLateLibrary SHARED CrashReportLateLibrary.cpp)
-    add_dependencies(TestCrashReport CrashReportLateLibrary)
-    target_compile_definitions(TestCrashReport PRIVATE TEST_CRASH_REPORT_LATE_LIBRARY="$<TARGET_FILE:CrashReportLateLibrary>")
-    target_link_libraries(TestCrashReport PRIVATE ${CMAKE_DL_LIBS})
+    add_dependencies(TestLibWebView CrashReportLateLibrary)
+    set_property(SOURCE TestCrashReport.cpp APPEND PROPERTY COMPILE_DEFINITIONS TEST_CRASH_REPORT_LATE_LIBRARY="$<TARGET_FILE:CrashReportLateLibrary>")
+    target_link_libraries(TestLibWebView PRIVATE ${CMAKE_DL_LIBS})
 endif()
 
 if (APPLE OR LINUX)
@@ -288,179 +311,14 @@ if (APPLE OR LINUX)
     endforeach()
 endif()
 
-target_link_libraries(TestNavigationLoader PRIVATE LibRequests LibWeb)
 
 if (NOT WIN32)
-    ladybird_test(TestApplicationDestruction.cpp LibWebView LIBS LibCore LibDatabase LibFileSystem LibGfx LibIPC LibRequests LibURL LibWeb LibWebView)
+    target_sources(TestLibWebView PRIVATE HeadlessTest.cpp)
+    target_link_libraries(TestLibWebView PRIVATE LibCrypto LibDiff LibImageDecoders LibImageDecoderClient LibJS)
+    add_dependencies(TestLibWebView ladybird_build_resource_files ${ladybird_helper_processes})
+    set_tests_properties(TestLibWebView PROPERTIES TIMEOUT 1800 ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
     if (APPLE)
-        target_compile_definitions(TestApplicationDestruction PRIVATE LADYBIRD_BINARY_PATH="$<TARGET_FILE_DIR:ladybird>")
-    endif()
-
-    add_executable(TestAutocomplete TestAutocomplete.cpp)
-    add_dependencies(TestAutocomplete ${ladybird_helper_processes})
-    target_link_libraries(TestAutocomplete PRIVATE AK LibCore LibDiff LibFileSystem LibGfx LibImageDecoders LibImageDecoderClient LibIPC LibJS LibMain LibRequests LibURL LibWeb LibWebView)
-    if (APPLE)
-        target_compile_definitions(TestAutocomplete PRIVATE LADYBIRD_BINARY_PATH="$<TARGET_FILE_DIR:ladybird>")
-    endif()
-
-    add_executable(TestFavicon TestFavicon.cpp)
-    add_dependencies(TestFavicon ${ladybird_helper_processes})
-    target_link_libraries(TestFavicon PRIVATE AK LibCore LibFileSystem LibGfx LibIPC LibMain LibRequests LibURL LibWeb LibWebView)
-    if (APPLE)
-        target_compile_definitions(TestFavicon PRIVATE LADYBIRD_BINARY_PATH="$<TARGET_FILE_DIR:ladybird>")
-    endif()
-
-    add_executable(TestFileDownloader TestFileDownloader.cpp)
-    add_dependencies(TestFileDownloader ${ladybird_helper_processes})
-    target_link_libraries(TestFileDownloader PRIVATE AK LibCore LibDiff LibFileSystem LibGfx LibImageDecoders LibImageDecoderClient LibIPC LibJS LibMain LibRequests LibThreading LibURL LibWeb LibWebView)
-    if (APPLE)
-        target_compile_definitions(TestFileDownloader PRIVATE LADYBIRD_BINARY_PATH="$<TARGET_FILE_DIR:ladybird>")
-    endif()
-
-    add_executable(TestNavigationDownloads TestNavigationDownloads.cpp)
-    add_dependencies(TestNavigationDownloads ladybird_build_resource_files ${ladybird_helper_processes})
-    target_link_libraries(TestNavigationDownloads PRIVATE AK LibCore LibFileSystem LibGfx LibIPC LibMain LibThreading LibURL LibWeb LibWebView)
-    if (APPLE)
-        target_compile_definitions(TestNavigationDownloads PRIVATE LADYBIRD_BINARY_PATH="$<TARGET_FILE_DIR:ladybird>")
-    endif()
-
-    add_executable(TestCrashOverlay TestCrashOverlay.cpp)
-    add_dependencies(TestCrashOverlay ladybird_build_resource_files ${ladybird_helper_processes})
-    target_link_libraries(TestCrashOverlay PRIVATE AK LibCore LibDiff LibFileSystem LibGfx LibImageDecoders LibImageDecoderClient LibIPC LibJS LibMain LibRequests LibURL LibWeb LibWebView)
-    if (APPLE)
-        target_compile_definitions(TestCrashOverlay PRIVATE LADYBIRD_BINARY_PATH="$<TARGET_FILE_DIR:ladybird>")
-    endif()
-
-    add_executable(TestBrowserHistoryTraversal TestBrowserHistoryTraversal.cpp)
-    add_dependencies(TestBrowserHistoryTraversal ladybird_build_resource_files ${ladybird_helper_processes})
-    target_link_libraries(TestBrowserHistoryTraversal PRIVATE AK LibCore LibDiff LibFileSystem LibGfx LibHTTP LibImageDecoders LibImageDecoderClient LibIPC LibJS LibMain LibRequests LibURL LibWeb LibWebView)
-    if (APPLE)
-        target_compile_definitions(TestBrowserHistoryTraversal PRIVATE LADYBIRD_BINARY_PATH="$<TARGET_FILE_DIR:ladybird>")
-    endif()
-
-    add_executable(TestBeforeUnload TestBeforeUnload.cpp)
-    add_dependencies(TestBeforeUnload ladybird_build_resource_files ${ladybird_helper_processes})
-    target_link_libraries(TestBeforeUnload PRIVATE AK LibCore LibFileSystem LibGfx LibImageDecoders LibImageDecoderClient LibIPC LibJS LibMain LibRequests LibURL LibWeb LibWebView)
-    if (APPLE)
-        target_compile_definitions(TestBeforeUnload PRIVATE LADYBIRD_BINARY_PATH="$<TARGET_FILE_DIR:ladybird>")
-    endif()
-
-    add_executable(TestInputMethodState TestInputMethodState.cpp)
-    add_dependencies(TestInputMethodState ladybird_build_resource_files ${ladybird_helper_processes})
-    target_link_libraries(TestInputMethodState PRIVATE AK LibCore LibDiff LibFileSystem LibGfx LibImageDecoders LibImageDecoderClient LibIPC LibJS LibMain LibRequests LibURL LibWeb LibWebView)
-    if (APPLE)
-        target_compile_definitions(TestInputMethodState PRIVATE LADYBIRD_BINARY_PATH="$<TARGET_FILE_DIR:ladybird>")
-    endif()
-
-    add_executable(TestLinkHoverStatus TestLinkHoverStatus.cpp)
-    add_dependencies(TestLinkHoverStatus ladybird_build_resource_files ${ladybird_helper_processes})
-    target_link_libraries(TestLinkHoverStatus PRIVATE AK LibCore LibDiff LibFileSystem LibGfx LibImageDecoders LibImageDecoderClient LibIPC LibJS LibMain LibRequests LibURL LibWeb LibWebView)
-    if (APPLE)
-        target_compile_definitions(TestLinkHoverStatus PRIVATE LADYBIRD_BINARY_PATH="$<TARGET_FILE_DIR:ladybird>")
-    endif()
-
-    add_executable(TestUserActivation TestUserActivation.cpp)
-    add_dependencies(TestUserActivation ladybird_build_resource_files ${ladybird_helper_processes})
-    target_link_libraries(TestUserActivation PRIVATE AK LibCore LibDiff LibFileSystem LibGfx LibImageDecoders LibImageDecoderClient LibIPC LibJS LibMain LibRequests LibURL LibWeb LibWebView)
-    if (APPLE)
-        target_compile_definitions(TestUserActivation PRIVATE LADYBIRD_BINARY_PATH="$<TARGET_FILE_DIR:ladybird>")
-    endif()
-
-    add_executable(TestPictureInPictureUserActivation TestPictureInPictureUserActivation.cpp)
-    add_dependencies(TestPictureInPictureUserActivation ladybird_build_resource_files ${ladybird_helper_processes})
-    target_link_libraries(TestPictureInPictureUserActivation PRIVATE AK LibCore LibDiff LibFileSystem LibGfx LibImageDecoders LibImageDecoderClient LibIPC LibJS LibMain LibRequests LibURL LibWeb LibWebView)
-    if (APPLE)
-        target_compile_definitions(TestPictureInPictureUserActivation PRIVATE LADYBIRD_BINARY_PATH="$<TARGET_FILE_DIR:ladybird>")
-    endif()
-
-    add_executable(TestPictureInPictureWindowControls TestPictureInPictureWindowControls.cpp)
-    add_dependencies(TestPictureInPictureWindowControls ladybird_build_resource_files ${ladybird_helper_processes})
-    target_link_libraries(TestPictureInPictureWindowControls PRIVATE AK LibCore LibDiff LibFileSystem LibGfx LibImageDecoders LibImageDecoderClient LibIPC LibJS LibMain LibRequests LibURL LibWeb LibWebView)
-    if (APPLE)
-        target_compile_definitions(TestPictureInPictureWindowControls PRIVATE LADYBIRD_BINARY_PATH="$<TARGET_FILE_DIR:ladybird>")
-    endif()
-
-    add_executable(TestPictureInPictureWindowLifetime TestPictureInPictureWindowLifetime.cpp)
-    add_dependencies(TestPictureInPictureWindowLifetime ladybird_build_resource_files ${ladybird_helper_processes})
-    target_link_libraries(TestPictureInPictureWindowLifetime PRIVATE AK LibCore LibFileSystem LibGfx LibIPC LibMain LibURL LibWeb LibWebView)
-    if (APPLE)
-        target_compile_definitions(TestPictureInPictureWindowLifetime PRIVATE LADYBIRD_BINARY_PATH="$<TARGET_FILE_DIR:ladybird>")
-    endif()
-
-    add_executable(TestWebCompatReportPage TestWebCompatReportPage.cpp)
-    add_dependencies(TestWebCompatReportPage ladybird_build_resource_files ${ladybird_helper_processes})
-    target_link_libraries(TestWebCompatReportPage PRIVATE AK LibCore LibDiff LibFileSystem LibGfx LibImageDecoders LibImageDecoderClient LibIPC LibJS LibMain LibRequests LibURL LibWeb LibWebView)
-    if (APPLE)
-        target_compile_definitions(TestWebCompatReportPage PRIVATE LADYBIRD_BINARY_PATH="$<TARGET_FILE_DIR:ladybird>")
-    endif()
-
-    add_executable(TestShadowTreeTooltipsAndLinks TestShadowTreeTooltipsAndLinks.cpp)
-    add_dependencies(TestShadowTreeTooltipsAndLinks ladybird_build_resource_files ${ladybird_helper_processes})
-    target_link_libraries(TestShadowTreeTooltipsAndLinks PRIVATE AK LibCore LibDiff LibFileSystem LibGfx LibImageDecoders LibImageDecoderClient LibIPC LibJS LibMain LibRequests LibURL LibWeb LibWebView)
-    if (APPLE)
-        target_compile_definitions(TestShadowTreeTooltipsAndLinks PRIVATE LADYBIRD_BINARY_PATH="$<TARGET_FILE_DIR:ladybird>")
-    endif()
-
-    add_executable(TestCompositorInputRouting TestCompositorInputRouting.cpp)
-    add_dependencies(TestCompositorInputRouting ladybird_build_resource_files ${ladybird_helper_processes})
-    target_link_libraries(TestCompositorInputRouting PRIVATE AK LibCore LibDiff LibFileSystem LibGfx LibImageDecoders LibImageDecoderClient LibIPC LibJS LibMain LibRequests LibURL LibWeb LibWebView)
-    if (APPLE)
-        target_compile_definitions(TestCompositorInputRouting PRIVATE LADYBIRD_BINARY_PATH="$<TARGET_FILE_DIR:ladybird>")
-    endif()
-    add_executable(TestRendererCookieAccess TestRendererCookieAccess.cpp)
-    add_dependencies(TestRendererCookieAccess ladybird_build_resource_files ${ladybird_helper_processes})
-    target_link_libraries(TestRendererCookieAccess PRIVATE AK LibCore LibFileSystem LibGfx LibHTTP LibIPC LibMain LibURL LibWeb LibWebView)
-    if (APPLE)
-        target_compile_definitions(TestRendererCookieAccess PRIVATE LADYBIRD_BINARY_PATH="$<TARGET_FILE_DIR:ladybird>")
-    endif()
-
-    add_executable(TestRendererOriginClaims TestRendererOriginClaims.cpp)
-    add_dependencies(TestRendererOriginClaims ladybird_build_resource_files ${ladybird_helper_processes})
-    target_link_libraries(TestRendererOriginClaims PRIVATE AK LibCore LibFileSystem LibGfx LibHTTP LibIPC LibMain LibURL LibWeb LibWebView)
-    if (APPLE)
-        target_compile_definitions(TestRendererOriginClaims PRIVATE LADYBIRD_BINARY_PATH="$<TARGET_FILE_DIR:ladybird>")
-    endif()
-
-    add_executable(TestRendererViolationReports TestRendererViolationReports.cpp)
-    add_dependencies(TestRendererViolationReports ladybird_build_resource_files ${ladybird_helper_processes})
-    target_link_libraries(TestRendererViolationReports PRIVATE AK LibCore LibFileSystem LibGfx LibIPC LibMain LibThreading LibURL LibWeb LibWebView)
-    if (APPLE)
-        target_compile_definitions(TestRendererViolationReports PRIVATE LADYBIRD_BINARY_PATH="$<TARGET_FILE_DIR:ladybird>")
-    endif()
-
-    add_executable(TestImageDecoderIsolation TestImageDecoderIsolation.cpp)
-    add_dependencies(TestImageDecoderIsolation ladybird_build_resource_files ${ladybird_helper_processes})
-    target_link_libraries(TestImageDecoderIsolation PRIVATE AK LibCore LibFileSystem LibGfx LibIPC LibMain LibWebView)
-    if (APPLE)
-        target_compile_definitions(TestImageDecoderIsolation PRIVATE LADYBIRD_BINARY_PATH="$<TARGET_FILE_DIR:ladybird>")
-    endif()
-
-    add_executable(TestCrashReportSubmission TestCrashReportSubmission.cpp)
-    add_dependencies(TestCrashReportSubmission ${ladybird_helper_processes})
-    target_link_libraries(TestCrashReportSubmission PRIVATE AK LibCore LibCrypto LibFileSystem LibIPC LibMain LibWebView)
-    if (APPLE)
-        target_compile_definitions(TestCrashReportSubmission PRIVATE LADYBIRD_BINARY_PATH="$<TARGET_FILE_DIR:ladybird>")
-    endif()
-
-    add_executable(TestWebCompatReport TestWebCompatReport.cpp)
-    add_dependencies(TestWebCompatReport ${ladybird_helper_processes})
-    target_link_libraries(TestWebCompatReport PRIVATE AK LibCore LibCrypto LibFileSystem LibIPC LibMain LibURL LibWebView)
-    if (APPLE)
-        target_compile_definitions(TestWebCompatReport PRIVATE LADYBIRD_BINARY_PATH="$<TARGET_FILE_DIR:ladybird>")
-    endif()
-
-    add_executable(TestRequestServerClientSessions TestRequestServerClientSessions.cpp)
-    add_dependencies(TestRequestServerClientSessions ${ladybird_helper_processes})
-    target_link_libraries(TestRequestServerClientSessions PRIVATE AK LibCore LibDiff LibFileSystem LibGfx LibImageDecoders LibImageDecoderClient LibIPC LibJS LibMain LibRequests LibURL LibWeb LibWebView)
-    if (APPLE)
-        target_compile_definitions(TestRequestServerClientSessions PRIVATE LADYBIRD_BINARY_PATH="$<TARGET_FILE_DIR:ladybird>")
-    endif()
-
-    add_executable(TestTabPerformanceMonitor TestTabPerformanceMonitor.cpp)
-    add_dependencies(TestTabPerformanceMonitor ladybird_build_resource_files ${ladybird_helper_processes})
-    target_link_libraries(TestTabPerformanceMonitor PRIVATE AK LibCore LibDiff LibFileSystem LibGfx LibImageDecoders LibImageDecoderClient LibIPC LibJS LibMain LibRequests LibURL LibWeb LibWebView)
-    if (APPLE)
-        target_compile_definitions(TestTabPerformanceMonitor PRIVATE LADYBIRD_BINARY_PATH="$<TARGET_FILE_DIR:ladybird>")
+        target_compile_definitions(TestLibWebView PRIVATE LADYBIRD_BINARY_PATH="$<TARGET_FILE_DIR:ladybird>")
     endif()
 endif()
 
@@ -471,67 +329,4 @@ if (BUILD_TESTING AND NOT WIN32)
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-bidi-cleanup.py
     )
     set_tests_properties(TestWebDriverBiDiCleanup PROPERTIES TIMEOUT 30)
-
-    add_test(NAME TestAutocomplete COMMAND $<TARGET_FILE:TestAutocomplete>)
-    set_tests_properties(TestAutocomplete PROPERTIES TIMEOUT 60 ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
-
-    add_test(NAME TestFavicon COMMAND $<TARGET_FILE:TestFavicon>)
-    set_tests_properties(TestFavicon PROPERTIES TIMEOUT 120 ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
-
-    add_test(NAME TestFileDownloader COMMAND $<TARGET_FILE:TestFileDownloader>)
-    set_tests_properties(TestFileDownloader PROPERTIES TIMEOUT 120 ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
-
-    add_test(NAME TestNavigationDownloads COMMAND $<TARGET_FILE:TestNavigationDownloads>)
-    set_tests_properties(TestNavigationDownloads PROPERTIES TIMEOUT 120 ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
-
-    add_test(NAME TestCrashOverlay COMMAND $<TARGET_FILE:TestCrashOverlay>)
-    set_tests_properties(TestCrashOverlay PROPERTIES TIMEOUT 60 ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
-
-    add_test(NAME TestBrowserHistoryTraversal COMMAND $<TARGET_FILE:TestBrowserHistoryTraversal>)
-    set_tests_properties(TestBrowserHistoryTraversal PROPERTIES TIMEOUT 60 ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
-
-    add_test(NAME TestBeforeUnload COMMAND $<TARGET_FILE:TestBeforeUnload>)
-    set_tests_properties(TestBeforeUnload PROPERTIES TIMEOUT 60 ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
-
-    add_test(NAME TestInputMethodState COMMAND $<TARGET_FILE:TestInputMethodState>)
-    set_tests_properties(TestInputMethodState PROPERTIES TIMEOUT 60 ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
-
-    add_test(NAME TestLinkHoverStatus COMMAND $<TARGET_FILE:TestLinkHoverStatus>)
-    set_tests_properties(TestLinkHoverStatus PROPERTIES TIMEOUT 60 ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
-
-    add_test(NAME TestUserActivation COMMAND $<TARGET_FILE:TestUserActivation>)
-    set_tests_properties(TestUserActivation PROPERTIES TIMEOUT 60 ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
-
-    add_test(NAME TestPictureInPictureUserActivation COMMAND $<TARGET_FILE:TestPictureInPictureUserActivation>)
-    set_tests_properties(TestPictureInPictureUserActivation PROPERTIES TIMEOUT 60 ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
-
-    add_test(NAME TestPictureInPictureWindowControls COMMAND $<TARGET_FILE:TestPictureInPictureWindowControls>)
-    set_tests_properties(TestPictureInPictureWindowControls PROPERTIES TIMEOUT 60 ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
-
-    add_test(NAME TestPictureInPictureWindowLifetime COMMAND $<TARGET_FILE:TestPictureInPictureWindowLifetime>)
-    set_tests_properties(TestPictureInPictureWindowLifetime PROPERTIES TIMEOUT 60 ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
-
-    add_test(NAME TestWebCompatReportPage COMMAND $<TARGET_FILE:TestWebCompatReportPage>)
-    set_tests_properties(TestWebCompatReportPage PROPERTIES TIMEOUT 60 ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
-    add_test(NAME TestShadowTreeTooltipsAndLinks COMMAND $<TARGET_FILE:TestShadowTreeTooltipsAndLinks>)
-    set_tests_properties(TestShadowTreeTooltipsAndLinks PROPERTIES TIMEOUT 60 ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
-
-    add_test(NAME TestCompositorInputRouting COMMAND $<TARGET_FILE:TestCompositorInputRouting>)
-    set_tests_properties(TestCompositorInputRouting PROPERTIES TIMEOUT 60 ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
-    add_test(NAME TestRendererCookieAccess COMMAND $<TARGET_FILE:TestRendererCookieAccess>)
-    set_tests_properties(TestRendererCookieAccess PROPERTIES TIMEOUT 60 ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
-    add_test(NAME TestRendererOriginClaims COMMAND $<TARGET_FILE:TestRendererOriginClaims>)
-    set_tests_properties(TestRendererOriginClaims PROPERTIES TIMEOUT 60 ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
-    add_test(NAME TestRendererViolationReports COMMAND $<TARGET_FILE:TestRendererViolationReports>)
-    set_tests_properties(TestRendererViolationReports PROPERTIES TIMEOUT 60 ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
-    add_test(NAME TestImageDecoderIsolation COMMAND $<TARGET_FILE:TestImageDecoderIsolation>)
-    set_tests_properties(TestImageDecoderIsolation PROPERTIES TIMEOUT 60 ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
-    add_test(NAME TestCrashReportSubmission COMMAND $<TARGET_FILE:TestCrashReportSubmission>)
-    set_tests_properties(TestCrashReportSubmission PROPERTIES TIMEOUT 60 ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
-    add_test(NAME TestWebCompatReport COMMAND $<TARGET_FILE:TestWebCompatReport>)
-    set_tests_properties(TestWebCompatReport PROPERTIES TIMEOUT 60 ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
-    add_test(NAME TestRequestServerClientSessions COMMAND $<TARGET_FILE:TestRequestServerClientSessions>)
-    set_tests_properties(TestRequestServerClientSessions PROPERTIES TIMEOUT 60 ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
-    add_test(NAME TestTabPerformanceMonitor COMMAND $<TARGET_FILE:TestTabPerformanceMonitor>)
-    set_tests_properties(TestTabPerformanceMonitor PROPERTIES TIMEOUT 60 ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
 endif()

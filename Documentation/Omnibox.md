@@ -290,14 +290,16 @@ enabled.
 
 The implementation has three main deterministic test layers:
 
-- `TestAutocompleteRanker` verifies matching, relevance components, eligibility, decay, and short
+- `TestAutocompleteRanker.cpp` verifies matching, relevance components, eligibility, decay, and short
   query behavior.
-- `TestAutocompleteMuxer` verifies destination merging, diversity, source limits, verbatim
+- `TestAutocompleteMuxer.cpp` verifies destination merging, diversity, source limits, verbatim
   preservation, and representative selection.
-- `TestOmnibox` drives the editing state machine with a scripted provider, covering stale delivery,
+- `TestOmnibox.cpp` drives the editing state machine with a scripted provider, covering stale delivery,
   completion acceptance and rejection, selection preservation, activation, and engagement recording.
 
-`TestAutocomplete` exercises the asynchronous integration with the application, service worker,
+These sources and the browser storage tests are part of `TestLibWebView`.
+
+The `TestAutocomplete` suite in `TestLibWebView` exercises the asynchronous integration with the application, service worker,
 bookmark updates, private-profile reads, and remote failure handling. History-store tests cover
 persisted ranking state, migrations, and deletion behavior.
 
