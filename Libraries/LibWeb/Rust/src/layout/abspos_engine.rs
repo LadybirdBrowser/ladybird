@@ -1722,7 +1722,6 @@ pub(crate) struct ReplacedAxisSolution {
 
 #[derive(Clone, Copy)]
 pub(crate) struct ReplacedAxisBehavior {
-    pub(crate) clear_auto_margins_if_start_is_auto: bool,
     pub(crate) clear_negative_auto_margins: bool,
 }
 
@@ -1738,7 +1737,9 @@ pub(crate) fn solve_replaced_axis(
     if start.is_none() && end.is_none() {
         start = Some(static_offset);
     }
-    if end.is_none() || (behavior.clear_auto_margins_if_start_is_auto && start.is_none()) {
+    // https://drafts.csswg.org/css-position-3/#abspos-margins
+    // If either inset property in the relevant axis is auto, then any auto margins resolve to zero.
+    if start.is_none() || end.is_none() {
         if margin_start.is_none() {
             margin_start = Some(CssPixels::default());
         }
@@ -2217,7 +2218,6 @@ impl AbsposEngine<'_> {
             resolve_margin_or_auto(style.margin_right(), containing_block_inline_size),
             self.static_offset(sized, static_position_rect).inline_offset,
             ReplacedAxisBehavior {
-                clear_auto_margins_if_start_is_auto: true,
                 clear_negative_auto_margins: true,
             },
         );
@@ -2720,8 +2720,6 @@ impl AbsposEngine<'_> {
             - used.padding_top()
             - used.padding_bottom()
             - style.border_bottom_width();
-        // Deliberately pass false for `clear_auto_margins_if_start_is_auto`:
-        // this matches the C++ condition, which tests only the end inset.
         let solution = solve_replaced_axis(
             available,
             resolve_or_auto(style.inset_top(), containing_block_block_size),
@@ -2730,7 +2728,6 @@ impl AbsposEngine<'_> {
             resolve_margin_or_auto(style.margin_bottom(), containing_block_block_size),
             self.static_offset(sized, static_position_rect).block_offset,
             ReplacedAxisBehavior {
-                clear_auto_margins_if_start_is_auto: false,
                 clear_negative_auto_margins: false,
             },
         );
@@ -3921,5 +3918,54 @@ impl Drop for PositionOptionStyles<'_> {
                 engine.unpin_layout_style_record(record.record);
             }
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn px(value: i64) -> CssPixels {
+        CssPixels::from_integer(value)
+    }
+
+    #[test]
+    fn replaced_axis_auto_insets_zero_auto_margins() {
+        for available in [-50, 50] {
+            for (start, end, margin_start, margin_end, expected) in [
+                (None, Some(0), None, None, [available, 0, 0, 0]),
+                (Some(0), None, None, None, [0, available, 0, 0]),
+                (None, None, None, None, [17, available - 17, 0, 0]),
+                (None, Some(0), Some(10), None, [available - 10, 0, 10, 0]),
+                (None, Some(0), None, Some(10), [available - 10, 0, 0, 10]),
+                (Some(0), None, Some(10), None, [0, available - 10, 10, 0]),
+                (Some(0), None, None, Some(10), [0, available - 10, 0, 10]),
+            ] {
+                // NB: Auto insets zero auto margins regardless of the axis-specific negative-space rule.
+                for clear_negative_auto_margins in [false, true] {
+                    let actual = solve_replaced_axis(
+                        px(available),
+                        start.map(px),
+                        end.map(px),
+                        margin_start.map(px),
+                        margin_end.map(px),
+                        px(17),
+                        ReplacedAxisBehavior {
+                            clear_negative_auto_margins,
+                        },
+                    );
+                    assert_eq!(
+                        actual,
+                        ReplacedAxisSolution {
+                            start: px(expected[0]),
+                            end: px(expected[1]),
+                            margin_start: px(expected[2]),
+                            margin_end: px(expected[3]),
+                        },
+                        "available={available}, start={start:?}, end={end:?}, margins={margin_start:?}/{margin_end:?}",
+                    );
+                }
+            }
+        }
     }
 }
