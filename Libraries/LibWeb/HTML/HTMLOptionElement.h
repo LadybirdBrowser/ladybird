@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/Badge.h>
 #include <AK/Utf16View.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/HTMLElement.h>
@@ -34,6 +35,8 @@ public:
 
     [[nodiscard]] Utf16String label() const;
     void set_label(Utf16View);
+
+    void descendant_text_content_changed(Badge<DOM::Element>) { update_selection_label(); }
 
     int index() const;
 
@@ -68,6 +71,7 @@ private:
 
     void ask_for_a_reset();
     void update_selection_label();
+    void update_label_sizer_text();
 
     // https://html.spec.whatwg.org/multipage/form-elements.html#update-an-option's-nearest-ancestor-select
     void update_nearest_select_element();
@@ -82,6 +86,9 @@ private:
 
     // https://html.spec.whatwg.org/multipage/form-elements.html#cached-nearest-ancestor-select-element
     GC::Ptr<HTMLSelectElement> m_cached_nearest_select_element;
+
+    // The text in this option's row in its select's label sizer, which sizes the select to fit its widest option.
+    GC::Ptr<DOM::Text> m_label_sizer_text;
 };
 
 }

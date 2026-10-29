@@ -63,6 +63,8 @@ void HTMLSelectElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_options);
     visitor.visit(m_selected_options);
     visitor.visit(m_inner_text_element);
+    visitor.visit(m_selected_label_element);
+    visitor.visit(m_label_sizer_element);
     visitor.visit(m_chevron_icon_element);
     visitor.visit(m_cached_list_of_options);
     visitor.visit(m_select_item_option_elements);
@@ -725,6 +727,28 @@ void HTMLSelectElement::create_shadow_tree_if_needed()
     )~~~"_utf16);
     MUST(border->append_child(*m_inner_text_element));
 
+    m_selected_label_element = DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML).release_value_but_fixme_should_propagate_errors();
+    m_selected_label_element->set_attribute_value(HTML::AttributeNames::style, R"~~~(
+        overflow: clip;
+        text-overflow: inherit;
+    )~~~"_utf16);
+    MUST(m_inner_text_element->append_child(*m_selected_label_element));
+
+    // NB: The label sizer holds the label of every option in its own block row, without taking up any block size or
+    //     being painted. It gives the select enough inline size for its widest option, so choosing another option
+    //     does not resize it. It floats so that its rows never give the select a baseline, even when no option is selected.
+    m_label_sizer_element = DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML).release_value_but_fixme_should_propagate_errors();
+    m_label_sizer_element->set_attribute_value(HTML::AttributeNames::style, R"~~~(
+        float: inline-start;
+        block-size: 0;
+        overflow: clip;
+        visibility: hidden;
+    )~~~"_utf16);
+    MUST(m_inner_text_element->append_child(*m_label_sizer_element));
+    update_cached_list_of_options();
+    for (auto const& option : m_cached_list_of_options)
+        option->update_label_sizer_text();
+
     // NB: The chevron icon is positioned out of flow so that the label is the wrapper's only flex item, keeping the
     //     baseline of the select derived from the label text. The label's margin-inline-end reserves its space.
     m_chevron_icon_element = DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML).release_value_but_fixme_should_propagate_errors();
@@ -757,7 +781,7 @@ void HTMLSelectElement::clone_selected_option_into_select_button()
 {
     // To clone selected option into select button, given a select element select:
 
-    if (!m_inner_text_element)
+    if (!m_selected_label_element)
         return;
 
     update_cached_list_of_options();
@@ -774,7 +798,7 @@ void HTMLSelectElement::clone_selected_option_into_select_button()
         text = (*option)->label();
 
     // 4. Set select's select fallback button text to text.
-    m_inner_text_element->string_replace_all(move(text));
+    m_selected_label_element->string_replace_all(move(text));
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#selectedness-setting-algorithm

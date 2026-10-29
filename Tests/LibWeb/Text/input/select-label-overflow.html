@@ -9,7 +9,7 @@
 <script>
     test(() => {
         for (const select of document.querySelectorAll("select")) {
-            const label = internals.getShadowRoot(select).firstChild.firstChild;
+            const label = internals.getShadowRoot(select).firstChild.firstChild.firstChild;
             const rect = label.getBoundingClientRect();
             const range = document.createRange();
             range.selectNodeContents(label);

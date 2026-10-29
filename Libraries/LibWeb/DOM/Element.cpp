@@ -3437,6 +3437,12 @@ void Element::children_changed(ChildrenChangedMetadata const& metadata)
         document().style_computer().style_engine().note_children_changed_beside_flown_transaction(style_node_id());
     if (child_style_uses_tree_counting_function())
         document().style_computer().style_engine().restyle_children_reading_sibling_position(*this);
+
+    // NB: Option labels include descendant text, so mutations below a wrapper must update their cached labels too.
+    for (auto* ancestor = parent(); ancestor; ancestor = ancestor->parent()) {
+        if (auto* option = as_if<HTML::HTMLOptionElement>(ancestor))
+            option->descendant_text_content_changed({});
+    }
 }
 
 void Element::set_style_node_id(CSS::StyleNodeID style_node_id)

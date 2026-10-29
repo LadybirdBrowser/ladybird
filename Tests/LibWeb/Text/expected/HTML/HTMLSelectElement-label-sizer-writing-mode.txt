@@ -1,0 +1,54 @@
+horizontal-tb, auto, longer reference grows: true
+horizontal-tb, auto, widest option: true
+horizontal-tb, auto, block size matches: true
+horizontal-tb, auto, selection keeps inline size: true
+horizontal-tb, auto, selection keeps block size: true
+horizontal-tb, auto, unselected label mutation: true
+horizontal-tb, auto, no selection keeps inline size: true
+horizontal-tb, auto, no selection block size matches: true
+horizontal-tb, auto, author logical sizes: true
+horizontal-tb, none, longer reference grows: true
+horizontal-tb, none, widest option: true
+horizontal-tb, none, block size matches: true
+horizontal-tb, none, selection keeps inline size: true
+horizontal-tb, none, selection keeps block size: true
+horizontal-tb, none, unselected label mutation: true
+horizontal-tb, none, no selection keeps inline size: true
+horizontal-tb, none, no selection block size matches: true
+horizontal-tb, none, author logical sizes: true
+vertical-rl, auto, longer reference grows: true
+vertical-rl, auto, widest option: true
+vertical-rl, auto, block size matches: true
+vertical-rl, auto, selection keeps inline size: true
+vertical-rl, auto, selection keeps block size: true
+vertical-rl, auto, unselected label mutation: true
+vertical-rl, auto, no selection keeps inline size: true
+vertical-rl, auto, no selection block size matches: true
+vertical-rl, auto, author logical sizes: true
+vertical-rl, none, longer reference grows: true
+vertical-rl, none, widest option: true
+vertical-rl, none, block size matches: true
+vertical-rl, none, selection keeps inline size: true
+vertical-rl, none, selection keeps block size: true
+vertical-rl, none, unselected label mutation: true
+vertical-rl, none, no selection keeps inline size: true
+vertical-rl, none, no selection block size matches: true
+vertical-rl, none, author logical sizes: true
+vertical-lr, auto, longer reference grows: true
+vertical-lr, auto, widest option: true
+vertical-lr, auto, block size matches: true
+vertical-lr, auto, selection keeps inline size: true
+vertical-lr, auto, selection keeps block size: true
+vertical-lr, auto, unselected label mutation: true
+vertical-lr, auto, no selection keeps inline size: true
+vertical-lr, auto, no selection block size matches: true
+vertical-lr, auto, author logical sizes: true
+vertical-lr, none, longer reference grows: true
+vertical-lr, none, widest option: true
+vertical-lr, none, block size matches: true
+vertical-lr, none, selection keeps inline size: true
+vertical-lr, none, selection keeps block size: true
+vertical-lr, none, unselected label mutation: true
+vertical-lr, none, no selection keeps inline size: true
+vertical-lr, none, no selection block size matches: true
+vertical-lr, none, author logical sizes: true

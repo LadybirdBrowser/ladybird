@@ -167,6 +167,8 @@ private:
     bool m_is_open { false };
     Vector<GC::Ref<HTMLOptionElement>> m_select_item_option_elements;
     GC::Ptr<DOM::Element> m_inner_text_element;
+    GC::Ptr<DOM::Element> m_selected_label_element;
+    GC::Ptr<DOM::Element> m_label_sizer_element;
     GC::Ptr<DOM::Element> m_chevron_icon_element;
     bool m_chevron_icon_hidden { false };
 
