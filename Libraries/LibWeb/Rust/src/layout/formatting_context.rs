@@ -1522,9 +1522,9 @@ fn create_formatting_context_implementation<'pass>(
         FormattingContextType::Svg => {
             FormattingContextImplementation::Svg(Box::new(svg_formatting_context::SvgFormattingContext::new(run)))
         }
-        FormattingContextType::Math => {
-            FormattingContextImplementation::Math(Box::new(math_formatting_context::MathFormattingContext::new(run)))
-        }
+        FormattingContextType::Math => FormattingContextImplementation::Math(Box::new(
+            math_formatting_context::MathFormattingContext::new(run, root_cells_in_own_frame),
+        )),
         FormattingContextType::ReplacedWithChildren => FormattingContextImplementation::ReplacedWithChildren,
         FormattingContextType::InternalReplaced => FormattingContextImplementation::InternalReplaced,
     }
@@ -2463,14 +2463,15 @@ fn lay_out_run_root_and_contents<'pass>(
                     table_box_in_wrapper_border_box_block_size: context.table_box_in_wrapper_border_box_block_size(),
                     ..ChildLayoutResult::default()
                 };
+                let mut root_after_body = own_root.get();
                 // https://w3c.github.io/mathml-core/#layout-of-operators
                 // NB: An operator lays out its text in a block formatting context, unless it is drawn with a
                 //     stretched or large glyph.
                 if NodeFacts::new(&body_run.callbacks, box_).display().is_math_inside() {
-                    math_formatting_context::layout_operator(body_run, &input, &mut result);
+                    math_formatting_context::layout_operator(body_run, &input, &mut result, &mut root_after_body);
                 }
                 root_lines = context.take_root_lines();
-                (result, root_left_in_record())
+                (result, root_after_body)
             }
             FormattingContextImplementation::Flex(context) => {
                 context.run(body_run, body_input);
@@ -2516,12 +2517,16 @@ fn lay_out_run_root_and_contents<'pass>(
                     baselines,
                     ..ChildLayoutResult::default()
                 };
-                (result, root_left_in_record())
+                (result, context.root_cells())
             }
             FormattingContextImplementation::ReplacedWithChildren => {
-                let result =
-                    replaced_with_children_formatting_context::layout_replaced_with_children(body_run, body_input);
-                (result, root_left_in_record())
+                let mut root_after_body = own_root.get();
+                let result = replaced_with_children_formatting_context::layout_replaced_with_children(
+                    body_run,
+                    body_input,
+                    &mut root_after_body,
+                );
+                (result, root_after_body)
             }
             FormattingContextImplementation::InternalReplaced => (ChildLayoutResult::default(), root_left_in_record()),
         };
@@ -2674,7 +2679,9 @@ fn lay_out_run_root_and_contents<'pass>(
             }
             FormattingContextImplementation::Flex(context) => context.parent_did_dimension(),
             FormattingContextImplementation::Grid(context) => context.parent_did_dimension(),
-            FormattingContextImplementation::Math(context) => context.parent_did_dimension(),
+            FormattingContextImplementation::Math(context) => {
+                context.parent_did_dimension(root_in_own_frame_left_by_run);
+            }
             FormattingContextImplementation::Svg(_) | FormattingContextImplementation::ReplacedWithChildren => {}
             FormattingContextImplementation::InternalReplaced => {
                 let outputs = run.outputs(
