@@ -1160,7 +1160,7 @@ impl InlineLevelIterator {
         atomic_sizing: AtomicInlineSizing,
     ) -> Self {
         let callbacks = context.callbacks;
-        match callbacks.scratch().inline_item_stash(context.containing_block) {
+        match callbacks.inline_item_stash(context.containing_block) {
             Some(stash) => Self::from_stash(context, stash),
             None => InlineLevelIteratorGenerator::generate(context, atomic_sizing),
         }
@@ -1204,7 +1204,7 @@ impl InlineLevelIterator {
                 glyphs.glyphs = libgfx_rust::text_layout::GlyphBuffer::Shared(std::mem::take(owned).into());
             }
         }
-        context.callbacks.scratch().store_inline_item_stash(
+        context.callbacks.store_inline_item_stash(
             context.containing_block,
             StashedInlineItems {
                 items,

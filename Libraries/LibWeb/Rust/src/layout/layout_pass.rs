@@ -31,6 +31,12 @@ pub(crate) struct LayoutPass<'arena> {
     innermost_run: (Node, Node),
     /// What the run this pass view was handed to found out for the host so far, or the pass outside any run.
     host_findings: &'arena RefCell<super::run_state::HostFindings>,
+    /// The intrinsic sizes the runs this pass view reaches read and measure into: those passes measured, kept for the
+    /// passes after them, or inside a run whose result is discarded, that run's own.
+    intrinsic_size_caches: &'arena super::layout_node_arena::IntrinsicSizeCaches,
+    /// Whether this pass view is inside a run whose result is discarded, which reads no memoized layout from before it
+    /// and keeps none: the run cache, the in-flow block cache, inline item stashes and intrinsic sizes.
+    reads_no_memoized_layout: bool,
 }
 
 impl<'arena> LayoutPass<'arena> {
@@ -48,6 +54,8 @@ impl<'arena> LayoutPass<'arena> {
             frame: super::geometry::Frame::PHYSICAL,
             innermost_run: (NodeSlotId::INVALID, NodeSlotId::INVALID),
             host_findings: &scratch.host_findings_outside_runs,
+            intrinsic_size_caches: &scratch.intrinsic_size_caches,
+            reads_no_memoized_layout: false,
         }
     }
 
@@ -101,6 +109,50 @@ impl<'arena> LayoutPass<'arena> {
         self.scratch
     }
 
+    /// Lays out `run`, whose result is discarded, with this pass as that run sees it: it reads no memoized layout from
+    /// before it and keeps none, so that it computes everything afresh and leaves nothing for the runs after it. It
+    /// measures intrinsic sizes into caches of its own, which start empty and are dropped when it returns.
+    pub(crate) fn lay_out_discarded_run<R>(self, run: impl for<'discarded> FnOnce(LayoutPass<'discarded>) -> R) -> R {
+        let intrinsic_size_caches = super::layout_node_arena::IntrinsicSizeCaches::default();
+        let pass: LayoutPass<'_> = self;
+        run(LayoutPass {
+            intrinsic_size_caches: &intrinsic_size_caches,
+            reads_no_memoized_layout: true,
+            ..pass
+        })
+    }
+
+    /// Whether this pass view is inside a run whose result is discarded, which reads no memoized layout from before it
+    /// and keeps none.
+    pub(crate) fn reads_no_memoized_layout(&self) -> bool {
+        self.reads_no_memoized_layout
+    }
+
+    /// The inline items a block container generated earlier in the pass, which a run whose result is discarded does not
+    /// read.
+    pub(crate) fn inline_item_stash(
+        &self,
+        block_container: Node,
+    ) -> Option<super::inline_level_iterator::StashedInlineItems> {
+        if self.reads_no_memoized_layout {
+            return None;
+        }
+        self.scratch.inline_item_stash(block_container)
+    }
+
+    /// Keeps the inline items `block_container` generated for its later runs in the pass, unless this pass view is
+    /// inside a run whose result is discarded.
+    pub(crate) fn store_inline_item_stash(
+        &self,
+        block_container: Node,
+        stash: super::inline_level_iterator::StashedInlineItems,
+    ) {
+        if self.reads_no_memoized_layout {
+            return;
+        }
+        self.scratch.store_inline_item_stash(block_container, stash);
+    }
+
     /// Notes what the run this pass view was handed to found out for the host, or the pass outside any run.
     pub(crate) fn note_host_findings(&self, note: impl FnOnce(&mut super::run_state::HostFindings)) {
         note(&mut self.host_findings.borrow_mut());
@@ -113,9 +165,10 @@ impl<'arena> LayoutPass<'arena> {
         }
     }
 
-    /// The intrinsic sizes passes measured, kept for the passes after them.
+    /// The intrinsic sizes passes measured, kept for the passes after them, or inside a run whose result is discarded,
+    /// that run's own.
     pub(crate) fn intrinsic_size_caches(&self) -> &'arena super::layout_node_arena::IntrinsicSizeCaches {
-        &self.scratch.intrinsic_size_caches
+        self.intrinsic_size_caches
     }
 
     /// What an intrinsic size cache entry measured for `node` now is valid for.

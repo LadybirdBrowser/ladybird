@@ -2012,7 +2012,7 @@ pub(super) fn run_formatting_context(
         parent_fragments.is_none() || builds_fragments,
         "the run of {box_:?} builds no fragments for its parent to commit"
     );
-    if callbacks.scratch().reads_no_memoized_layout() {
+    if callbacks.reads_no_memoized_layout() {
         let outputs = execute_formatting_context_run(
             builds_fragments,
             root_cells,
@@ -2082,7 +2082,7 @@ pub(super) fn run_formatting_context(
         .layout_trace
         .run(box_, fc_type, || cache_attempt.trace_action());
     let previous_line_data = cache_attempt.previous_line_data();
-    let discarded_outputs = run_repeatability::lay_out_discarded_run(&callbacks, || {
+    let discarded_outputs = run_repeatability::lay_out_discarded_run(&callbacks, |callbacks| {
         execute_formatting_context_run(
             builds_fragments,
             root_cells,
@@ -2122,7 +2122,7 @@ pub(super) fn run_formatting_context(
             root_cells,
             input,
             &outputs,
-            |other_root_cells, other_input| {
+            |callbacks, other_root_cells, other_input| {
                 execute_formatting_context_run(
                     builds_fragments,
                     other_root_cells,
@@ -3175,7 +3175,7 @@ pub(crate) fn lay_out_shape_for_its_result(callbacks: LayoutPass<'_>, shape: Chi
         root_containing_block,
     } = shape;
     let builds_fragments = run_builds_fragments(&input, false);
-    let lay_out = |root_cells, input, previous_line_data| {
+    let lay_out = |callbacks: LayoutPass<'_>, root_cells, input, previous_line_data| {
         execute_formatting_context_run(
             builds_fragments,
             root_cells,
@@ -3195,8 +3195,8 @@ pub(crate) fn lay_out_shape_for_its_result(callbacks: LayoutPass<'_>, shape: Chi
         callbacks.receive_host_findings(outputs.host_findings.clone());
         outputs.result
     };
-    if callbacks.scratch().reads_no_memoized_layout() {
-        return result_with_host_findings(&lay_out(root_cells, input, None));
+    if callbacks.reads_no_memoized_layout() {
+        return result_with_host_findings(&lay_out(callbacks, root_cells, input, None));
     }
     let runs_ahead_of_intrinsic_block_padding =
         builds_fragments && input.sizing.table_cell_intrinsic_block_padding.is_some();
@@ -3228,8 +3228,9 @@ pub(crate) fn lay_out_shape_for_its_result(callbacks: LayoutPass<'_>, shape: Chi
     };
     let _trace = callbacks.arena().layout_trace.run(node, fc_type, || action);
     let previous_line_data = cache_attempt.previous_line_data();
-    let discarded_outputs = run_repeatability::lay_out_discarded_run(&callbacks, || lay_out(root_cells, input, None));
-    let outputs = lay_out(root_cells, input, previous_line_data);
+    let discarded_outputs =
+        run_repeatability::lay_out_discarded_run(&callbacks, |callbacks| lay_out(callbacks, root_cells, input, None));
+    let outputs = lay_out(callbacks, root_cells, input, previous_line_data);
     if let Some(discarded_outputs) = &discarded_outputs {
         run_repeatability::verify_repeated_run(&callbacks, node, discarded_outputs, &outputs);
     }
@@ -3240,7 +3241,7 @@ pub(crate) fn lay_out_shape_for_its_result(callbacks: LayoutPass<'_>, shape: Chi
             root_cells,
             input,
             &outputs,
-            |other_root_cells, other_input| lay_out(other_root_cells, other_input, None),
+            |callbacks, other_root_cells, other_input| lay_out(callbacks, other_root_cells, other_input, None),
         );
     }
     cache_attempt.conclude(&callbacks, node, cache_key, &input, &outputs);
