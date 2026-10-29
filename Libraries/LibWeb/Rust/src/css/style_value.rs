@@ -16,7 +16,8 @@ use std::ffi::c_void;
 use std::sync::Arc;
 
 use crate::css::css_tokenizer::{
-    ParserSource, ParserTokenKind, SourcePosition, TokenizerInput, trim_component_value_boundary_whitespace,
+    ParserSource, ParserTokenKind, SourcePosition, TextDetacher, TokenizerInput,
+    trim_component_value_boundary_whitespace,
 };
 use crate::css::parser::component_value::{
     ComponentKind, ComponentSerializationMode, ComponentValue, ComponentValueList, ComponentValueSlice,
@@ -45,6 +46,7 @@ impl RetainedComponentValueList {
         let values = values.into();
         let token_count = values.token_count;
         let mut values = values.into_vec().into_boxed_slice();
+        TextDetacher::detach(|detacher| values.iter_mut().for_each(|value| value.detach(detacher)));
         let result = Self {
             pointer: values.as_mut_ptr().cast(),
             length: values.len(),

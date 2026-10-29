@@ -487,11 +487,16 @@ impl SourceStorage {
             Self::Utf16(units) => TokenizerInput::Utf16(units),
         }
     }
+
+    fn len(&self) -> usize {
+        self.as_input().len()
+    }
 }
 
 /// Moves the text that values outliving their parse keep out of the storage they share with the rest of the sheet, so
 /// that keeping them does not keep the whole sheet's text alive. The values are walked twice: once to find the span of
-/// each storage they keep, and once to point them into one copy of that span.
+/// each storage they keep, and once to point them into one copy of that span (or the storage itself, when they keep all
+/// of it).
 #[derive(Default)]
 pub(crate) struct TextDetacher {
     sources: DetachedSpans<SourceStorage>,
@@ -507,13 +512,21 @@ impl TextDetacher {
         let mut detacher = Self::default();
         walk(&mut detacher);
         for (storage, span, copy) in &mut detacher.sources {
-            *copy = Some(Arc::new(match storage.as_ref() {
-                SourceStorage::Ascii(units) => SourceStorage::Ascii(units[span.clone()].into()),
-                SourceStorage::Utf16(units) => SourceStorage::Utf16(units[span.clone()].into()),
-            }));
+            *copy = Some(if *span == (0..storage.len()) {
+                Arc::clone(storage)
+            } else {
+                Arc::new(match storage.as_ref() {
+                    SourceStorage::Ascii(units) => SourceStorage::Ascii(units[span.clone()].into()),
+                    SourceStorage::Utf16(units) => SourceStorage::Utf16(units[span.clone()].into()),
+                })
+            });
         }
         for (storage, span, copy) in &mut detacher.strings {
-            *copy = Some(storage[span.clone()].into());
+            *copy = Some(if *span == (0..storage.len()) {
+                Arc::clone(storage)
+            } else {
+                storage[span.clone()].into()
+            });
         }
         walk(&mut detacher);
     }
