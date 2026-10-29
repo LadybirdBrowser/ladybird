@@ -90,19 +90,23 @@ fn any_simple(selector: &CompiledSelector, predicate: &impl Fn(&SimpleSelector) 
 // recursively, (rather than considering any of its syntax to be unknown or invalid) and that selector doesn’t
 // contain unknown -webkit- pseudo-elements.
 pub(crate) fn contains_unsupported_selector(selector: &CompiledSelector) -> bool {
-    any_simple(selector, &|simple| match simple {
-        SimpleSelector::Invalid(..) => true,
-        SimpleSelector::PseudoElement(pseudo_element) => {
-            pseudo_element.pseudo_element == PseudoElementType::UnknownWebKit
-                || matches!(&pseudo_element.value, PseudoElementValue::CompoundSelector(selector)
-                    if contains_unsupported_selector(selector))
-        }
-        SimpleSelector::PseudoClass(pseudo_class) => pseudo_class
-            .argument_selector_list
-            .iter()
-            .any(|selector| contains_unsupported_selector(selector)),
-        _ => false,
-    })
+    fn visit(selector: &CompiledSelector, allow_pseudo_elements: bool) -> bool {
+        any_simple(selector, &|simple| match simple {
+            SimpleSelector::Invalid(..) => true,
+            SimpleSelector::PseudoElement(pseudo_element) => {
+                !allow_pseudo_elements
+                    || pseudo_element.pseudo_element == PseudoElementType::UnknownWebKit
+                    || matches!(&pseudo_element.value, PseudoElementValue::CompoundSelector(selector)
+                        if visit(selector, false))
+            }
+            SimpleSelector::PseudoClass(pseudo_class) => pseudo_class
+                .argument_selector_list
+                .iter()
+                .any(|selector| visit(selector, false)),
+            _ => false,
+        })
+    }
+    visit(selector, true)
 }
 
 fn contains_named_namespace(selector: &CompiledSelector) -> bool {

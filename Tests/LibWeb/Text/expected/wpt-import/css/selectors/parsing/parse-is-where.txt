@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 33 tests
 
-26 Pass
-7 Fail
+28 Pass
+5 Fail
 Pass	":is(div )" should be a valid selector
 Pass	":where(div )" should be a valid selector
 Pass	":is(div + bar, div ~ .baz)" should be a valid selector
@@ -24,8 +24,8 @@ Pass	":is(div):hover" should be a valid selector
 Pass	":where(div):hover" should be a valid selector
 Pass	":is(div)::before" should be a valid selector
 Pass	":where(div)::before" should be a valid selector
-Fail	":is(::before)" should be a valid selector
-Fail	":where(::before)" should be a valid selector
+Pass	":is(::before)" should be a valid selector
+Pass	":where(::before)" should be a valid selector
 Pass	":is(div) + bar" should be a valid selector
 Pass	":where(div) + bar" should be a valid selector
 Pass	"::part(foo):is(:hover)" should be a valid selector
