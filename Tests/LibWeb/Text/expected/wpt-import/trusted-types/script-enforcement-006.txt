@@ -2,8 +2,9 @@ Harness status: OK
 
 Found 4 tests
 
-4 Fail
-Fail	Untrusted HTMLScriptElement with classic type uses the source text returned by the default policy.
-Fail	Untrusted HTMLScriptElement of importmap type uses the source text returned by the default policy.
-Fail	Untrusted HTMLScriptElement of module type uses the source text returned by the default policy.
+3 Pass
+1 Fail
+Pass	Untrusted HTMLScriptElement with classic type uses the source text returned by the default policy.
+Pass	Untrusted HTMLScriptElement of importmap type uses the source text returned by the default policy.
+Pass	Untrusted HTMLScriptElement of module type uses the source text returned by the default policy.
 Fail	Untrusted HTMLScriptElement of two importmap type use the source text returned by the default policy.
