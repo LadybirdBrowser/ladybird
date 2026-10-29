@@ -1185,7 +1185,7 @@ struct SubgridBlockSizeKey {
 /// Block sizes measured for column subgrids during one run of an independent grid, shared by every subgrid context
 /// nested under it — so a nest of subgrids measures each one once per key, rather than once per request at
 /// every level of the nest, which grows exponentially with its depth.
-type SubgridBlockSizeMemo = std::rc::Rc<std::cell::RefCell<std::collections::HashMap<SubgridBlockSizeKey, CssPixels>>>;
+type SubgridBlockSizeMemo = std::rc::Rc<std::cell::RefCell<HashMap<SubgridBlockSizeKey, CssPixels>>>;
 
 pub(crate) struct GridFormattingContext<'pass> {
     run: FormattingContextRun<'pass>,
