@@ -466,7 +466,7 @@ pub(super) fn content_sizes_of_flex_container(
         block_size,
         depends_on_block_size,
         None,
-        |run, input| flex_formatting_context::FlexFormattingContext::new(run).content_inline_size(input),
+        |run, _, input| flex_formatting_context::FlexFormattingContext::new(run).content_inline_size(input),
     )
 }
 
@@ -484,7 +484,9 @@ pub(super) fn content_sizes_of_grid_container(
         block_size,
         depends_on_block_size,
         content_size_named_by_maximum_inline_size(&callbacks, node),
-        |run, input| grid_formatting_context::GridFormattingContext::new(run, None).content_inline_size(input),
+        |run, root_cells, input| {
+            grid_formatting_context::GridFormattingContext::new(run, root_cells, None).content_inline_size(input)
+        },
     )
 }
 
@@ -535,7 +537,7 @@ fn content_sizes_of_container_under_each_inline_size_constraint(
     block_size: Option<CssPixels>,
     depends_on_block_size: bool,
     content_size_named_by_maximum_inline_size: Option<ContentSizeNamedByMaximum>,
-    content_inline_size: impl Fn(&FormattingContextRun<'_>, LayoutInput) -> CssPixels,
+    content_inline_size: impl Fn(&FormattingContextRun<'_>, used_values::RootInputCells, LayoutInput) -> CssPixels,
 ) -> sizing_context::ContentInlineSizes {
     let content_inline_size_under =
         |available_inline_size: AvailableSize, content_size_named_by_maximum: Option<CssPixels>| {
@@ -561,7 +563,7 @@ fn content_sizes_of_container_under_each_inline_size_constraint(
                             constraints,
                         )
                     });
-                let size = content_inline_size(run, input);
+                let size = content_inline_size(run, scope.root_cells(), input);
                 let dependencies = IntrinsicMeasurementDependencies {
                     percentage_block_size: sizing.resolve_percentage_block_size_dependency(node),
                     percentage_inline_basis: sizing.measurement_root_observes_percentage_inline_basis(node),
