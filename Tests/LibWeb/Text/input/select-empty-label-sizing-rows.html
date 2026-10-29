@@ -1,0 +1,52 @@
+<!doctype html>
+<script src="include.js"></script>
+<style>
+    select {
+        font: 16px monospace;
+        white-space: pre;
+        appearance: none;
+        padding: 0;
+        border: 0;
+    }
+</style>
+<script>
+    test(() => {
+        const select = document.createElement("select");
+        select.innerHTML = "<option></option><option></option><option></option>";
+        document.body.append(select);
+        const width = () => select.getBoundingClientRect().width;
+        const rows = () => {
+            width();
+            const shadow = internals.getShadowRoot(select);
+            return Array.from(shadow.querySelectorAll("div")).find(div => div.style.visibility === "hidden").children;
+        };
+        const emptyWidth = width();
+        println(`initial empty rows: ${rows().length}`);
+        select.options.length = 2000;
+        println(`grown empty rows: ${rows().length}`);
+        const option = select.options[1];
+        option.label = "A deliberately long option label";
+        println(`nonempty row: ${rows().length === 1}, wider: ${width() > emptyWidth}`);
+        option.label = "";
+        println(`cleared rows: ${rows().length}, width restored: ${width() === emptyWidth}`);
+        option.label = "            ";
+        println(`spaces row: ${rows().length === 1}, wider: ${width() > emptyWidth}`);
+        option.removeAttribute("label");
+        option.textContent = "Text label";
+        println(`text fallback row: ${rows().length === 1}, wider: ${width() > emptyWidth}`);
+        option.textContent = "";
+        println(`cleared text rows: ${rows().length}, width restored: ${width() === emptyWidth}`);
+        option.label = "Moved label";
+        const other = document.createElement("select");
+        document.body.append(other);
+        other.getBoundingClientRect();
+        other.append(option);
+        println(`moved row removed: ${rows().length === 0}`);
+        const otherSizer = Array.from(internals.getShadowRoot(other).querySelectorAll("div")).find(
+            div => div.style.visibility === "hidden"
+        );
+        println(`moved label retained: ${otherSizer.children.length === 1}`);
+        option.label = "";
+        println(`moved empty row removed: ${otherSizer.children.length === 0}`);
+    });
+</script>

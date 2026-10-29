@@ -70,8 +70,17 @@ void HTMLOptionElement::update_label_sizer_text()
     if (!label_sizer)
         return;
 
-    // NB: Each option has a block row, with the same inherited white-space as the selected label.
     auto text = label();
+    if (text.is_empty()) {
+        if (m_label_sizer_text) {
+            if (auto* row = m_label_sizer_text->parent())
+                row->remove();
+            m_label_sizer_text = nullptr;
+        }
+        return;
+    }
+
+    // NB: Nonempty labels have a block row, with the same inherited white-space as the selected label.
     if (m_label_sizer_text) {
         if (m_label_sizer_text->data() != text)
             m_label_sizer_text->set_data(text);
