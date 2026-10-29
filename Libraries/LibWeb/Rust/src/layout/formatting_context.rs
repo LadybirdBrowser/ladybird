@@ -152,6 +152,7 @@ pub(crate) fn run_root_without_parent_fragments(
 
 pub(crate) fn run_fragmentainer(
     outer: &FormattingContextRun,
+    outer_root_cells: used_values::RootInputCells,
     builds_fragments: bool,
     input: LayoutInput,
     fragmentainer: std::rc::Rc<fragmentation::FragmentainerContext>,
@@ -163,7 +164,7 @@ pub(crate) fn run_fragmentainer(
         .containing_block_for_child_run(box_, &input.participation);
     execute_formatting_context_run(
         builds_fragments,
-        used_values::CellsInFrame::new(outer.records.used_values(box_), outer.callbacks.frame).cells(),
+        outer_root_cells,
         box_,
         root_containing_block,
         None,
@@ -1505,13 +1506,14 @@ pub(crate) fn formatting_context_type_created_by_box(facts: NodeFacts<'_>) -> Op
 
 fn create_formatting_context_implementation<'pass>(
     run: &FormattingContextRun<'pass>,
+    root_cells_in_own_frame: used_values::RootInputCells,
     parent_grid: Option<&grid_formatting_context::GridFormattingContext<'pass>>,
     fc_type: FormattingContextType,
     previous_line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
 ) -> FormattingContextImplementation<'pass> {
     match fc_type {
         FormattingContextType::Block => FormattingContextImplementation::Block(Box::new(
-            block_formatting_context::BlockFormattingContext::new(run, previous_line_data),
+            block_formatting_context::BlockFormattingContext::new(run, root_cells_in_own_frame, previous_line_data),
         )),
         FormattingContextType::Flex => {
             FormattingContextImplementation::Flex(Box::new(flex_formatting_context::FlexFormattingContext::new(run)))
@@ -2446,8 +2448,13 @@ fn lay_out_run_root_and_contents<'pass>(
         // run through the shared paths around this branch.
         (ChildLayoutResult::default(), root_left_in_record())
     } else {
-        let mut context_implementation =
-            create_formatting_context_implementation(body_run, parent_grid, fc_type, previous_line_data);
+        let mut context_implementation = create_formatting_context_implementation(
+            body_run,
+            own_root.get(),
+            parent_grid,
+            fc_type,
+            previous_line_data,
+        );
         if let (Some(layout), FormattingContextImplementation::Block(context)) =
             (inline_layout_of_child_table_box, &context_implementation)
         {

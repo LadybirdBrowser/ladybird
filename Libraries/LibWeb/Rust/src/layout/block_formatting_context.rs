@@ -118,14 +118,13 @@ pub(crate) struct BlockContainer {
 }
 
 impl BlockContainer {
-    /// The run's root, as the block container of the boxes laid out in it.
-    pub(crate) fn root_of(run: &FormattingContextRun<'_>) -> Self {
-        let cells = run.records.used_values(run.box_).cells();
+    /// The run's root, laid out with `root_cells`, as the block container of the boxes laid out in it.
+    pub(crate) fn root_of(run: &FormattingContextRun<'_>, root_cells: used_values::RootInputCells) -> Self {
         Self {
             node: run.box_,
-            cells,
+            cells: root_cells,
             percentage_block_insets_have_definite_basis: run
-                .percentage_block_insets_of_root_children_have_definite_basis(&cells),
+                .percentage_block_insets_of_root_children_have_definite_basis(&root_cells),
         }
     }
 
@@ -528,6 +527,9 @@ enum BreakMode {
 // https://www.w3.org/TR/css-display/#block-formatting-context
 pub(crate) struct BlockFormattingContext<'pass> {
     run: FormattingContextRun<'pass>,
+    /// The cells of the run's root, in the frame its contents are laid out in. The root does not change while its
+    /// contents are laid out.
+    root_cells: used_values::RootInputCells,
     /// The lines the stored run of the root laid out, which inline layout of the root's own lines may reuse a prefix of.
     pub(super) previous_line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
     block_offset_of_current_block_container: Cell<Option<CssPixels>>,
@@ -644,6 +646,7 @@ pub(crate) fn root_lays_out_content_against_its_own_block_size(
 impl<'pass> BlockFormattingContext<'pass> {
     pub(crate) fn new(
         run: &FormattingContextRun<'pass>,
+        root_cells: used_values::RootInputCells,
         previous_line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
     ) -> Self {
         let style = StyleValues::for_node(&run.callbacks, run.box_);
@@ -655,6 +658,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             is_line_clamp_container && computed_continue == continue_value::_WEBKIT_LEGACY;
         Self {
             run: run.clone(),
+            root_cells,
             previous_line_data,
             block_offset_of_current_block_container: Cell::new(None),
             margin_state: RefCell::new(BlockMarginState::default()),
@@ -672,7 +676,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             clamped_content_is_scrollable_overflow,
             // NB: Measurements at a definite inline size need the clamped block size, just like committed layout.
             max_lines: Cell::new(
-                ((run.fragments.is_some() || run.records.used_values(run.box_).has_definite_inline_size())
+                ((run.fragments.is_some() || root_cells.has_definite_inline_size)
                     && is_line_clamp_container
                     && style.max_lines() > 0)
                     .then_some(style.max_lines() as usize),
@@ -769,11 +773,6 @@ impl<'pass> BlockFormattingContext<'pass> {
         StyleValues::for_node(&self.run.callbacks, node)
     }
 
-    #[track_caller]
-    fn used(&self, node: Node) -> &'pass UsedValues {
-        self.run.records.used_values(node)
-    }
-
     /// Keeps `layout`, the inline layout of the table box inside `child`, for the run of `child`.
     pub(crate) fn keep_table_inline_layout_of(&self, child: Node, layout: table_formatting_context::TableInlineLayout) {
         self.table_inline_layout_of_child.set(Some((child, layout)));
@@ -789,7 +788,7 @@ impl<'pass> BlockFormattingContext<'pass> {
 
     /// The run's root, as the block container of the boxes laid out in it.
     fn root_block_container(&self) -> BlockContainer {
-        BlockContainer::root_of(&self.run)
+        BlockContainer::root_of(&self.run, self.root_cells)
     }
 
     fn next_sibling(&self, node: Node) -> Node {
@@ -1643,9 +1642,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         band: FloatBand,
         rect_in_root: CssPixelRect,
     ) -> inline_formatting_context::SpaceUsedByFloats {
-        // Deliberately read the root inline size at query time. It can be stale while
-        // intrinsic sizing of this context's own root is in progress.
-        let root_content_inline_size = self.used(self.run.box_).content_inline_size();
+        let root_content_inline_size = self.root_cells.content_inline_size;
         inline_formatting_context::SpaceUsedByFloats {
             left: band.left_intrusion.map_or(CssPixels::default(), |intrusion| {
                 (intrusion - rect_in_root.x).max(CssPixels::default())
@@ -1737,7 +1734,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let pending_adjustment =
             self.block_offset_adjustment_from_pending_ancestor_block_start_margins(floating_box.box_);
         containing_block_rect_in_root.y += pending_adjustment;
-        let root_content_inline_size = self.used(self.run.box_).content_inline_size();
+        let root_content_inline_size = self.root_cells.content_inline_size;
         let margin_box_rect = floating_box
             .margin_box_rect_in_root_coordinate_space
             .translated(CssPixels::default(), pending_adjustment);
@@ -3861,13 +3858,13 @@ impl<'pass> BlockFormattingContext<'pass> {
 
     fn layout_multicol_container_rows(&self, run: &FormattingContextRun<'pass>, input: LayoutInput) {
         let root = self.run.box_;
-        let root_used = self.used(root);
         let style = self.style(root);
-        let content_inline_size = root_used.content_inline_size();
+        let content_inline_size = self.root_cells.content_inline_size;
         let geometry = fragmentation::resolve_column_geometry(style, content_inline_size);
-        let definite_block_size = root_used
-            .has_definite_block_size()
-            .then(|| root_used.content_block_size());
+        let definite_block_size = self
+            .root_cells
+            .has_definite_block_size
+            .then_some(self.root_cells.content_block_size);
         let column_input = LayoutInput {
             available_space: AvailableSpace {
                 inline_size: AvailableSize::definite(geometry.inline_size),
@@ -4084,7 +4081,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             && !style.min_height().is_intrinsic_sizing_constraint())
         .then(|| {
             sizing.calculate_inner_block_size(
-                sizing_context::SizedBox::new(root, self.used(root)),
+                sizing_context::SizedBox::new(root, &self.root_cells),
                 own_size_space,
                 style.min_height(),
                 constraints,
@@ -4095,7 +4092,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 && !style.max_height().is_intrinsic_sizing_constraint())
             .then(|| {
                 let maximum = sizing.calculate_inner_block_size(
-                    sizing_context::SizedBox::new(root, self.used(root)),
+                    sizing_context::SizedBox::new(root, &self.root_cells),
                     own_size_space,
                     style.max_height(),
                     constraints,
@@ -4261,8 +4258,13 @@ impl<'pass> BlockFormattingContext<'pass> {
                 early_break_before,
                 allows_early_break_requests,
             ));
-            let outputs =
-                formatting_context::run_fragmentainer(&self.run, builds_fragments, input, fragmentainer.clone());
+            let outputs = formatting_context::run_fragmentainer(
+                &self.run,
+                self.root_cells,
+                builds_fragments,
+                input,
+                fragmentainer.clone(),
+            );
             if outputs.result.depends_on_percentage_block_size {
                 self.run
                     .records
@@ -4516,7 +4518,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 let measurement_result = formatting_context::lay_out_measurement_root_for_its_result(
                     self.run.callbacks,
                     self.run.box_,
-                    self.used(self.run.box_).cells(),
+                    self.root_cells,
                     LayoutInput {
                         sizing: RootSizingDirectives {
                             finds_automatic_line_clamp_lines: true,
@@ -5071,9 +5073,8 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 
     fn resolve_automatic_line_clamp_block_size(&self, input: LayoutInput) -> Option<CssPixels> {
-        let used = self.used(self.run.box_);
-        if used.has_definite_block_size() {
-            return Some(used.content_block_size());
+        if self.root_cells.has_definite_block_size {
+            return Some(self.root_cells.content_block_size);
         }
 
         let style = self.style(self.run.box_);
@@ -5087,16 +5088,15 @@ impl<'pass> BlockFormattingContext<'pass> {
         {
             return None;
         }
-        let root_record = self.run.root_record();
         let mut block_size = sizing.calculate_inner_block_size(
-            sizing_context::SizedBox::of_own_metrics(self.run.box_, &root_record, root_record.reader()),
+            sizing_context::SizedBox::of_own_metrics(self.run.box_, &self.root_cells, self.run.callbacks.frame),
             input.available_space,
             style.max_height(),
             input.containing_block_constraints,
         );
         if !crate::layout::sizing_context::is_plain_auto(style.min_height()) {
             block_size = block_size.max(sizing.calculate_inner_block_size(
-                sizing_context::SizedBox::of_own_metrics(self.run.box_, &root_record, root_record.reader()),
+                sizing_context::SizedBox::of_own_metrics(self.run.box_, &self.root_cells, self.run.callbacks.frame),
                 input.available_space,
                 style.min_height(),
                 input.containing_block_constraints,
