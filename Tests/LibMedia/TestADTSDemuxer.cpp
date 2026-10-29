@@ -157,6 +157,51 @@ static void expect_an_aborted_read_to_resume_with_its_frame(ReadonlyBytes bytes,
     EXPECT_EQ(actual_timestamps, expected_timestamps);
 }
 
+enum class SeekInterruption : u8 {
+    AbortedReads,
+    PermanentlyUnavailableData,
+};
+
+static void expect_an_interrupted_seek_to_keep_the_position(ReadonlyBytes bytes, size_t available_byte_count, SeekInterruption interruption)
+{
+    Vector<AK::Duration> expected_timestamps;
+    {
+        auto demuxer = create_demuxer_for(bytes);
+        auto track = audio_track(*demuxer);
+        expected_timestamps = timestamps_of_every_frame(*demuxer, track);
+    }
+
+    auto stream = Media::IncrementallyPopulatedStream::create_empty();
+    stream->set_expected_size(bytes.size());
+    stream->add_chunk_at(0, bytes.trim(available_byte_count));
+    auto demuxer = MUST(Media::ADTS::ADTSDemuxer::from_stream(stream));
+    auto track = audio_track(*demuxer);
+
+    constexpr size_t frames_read_before_seeking = 3;
+    for (size_t index = 0; index < frames_read_before_seeking; index++)
+        EXPECT_EQ(MUST(demuxer->get_next_sample_for_track(track)).presentation_timestamp(), expected_timestamps[index]);
+
+    auto expected_category = Media::DecoderErrorCategory::Aborted;
+    if (interruption == SeekInterruption::AbortedReads) {
+        demuxer->set_blocking_reads_aborted_for_track(track);
+    } else {
+        stream->make_missing_data_permanently_unavailable();
+        expected_category = Media::DecoderErrorCategory::PermanentlyUnavailable;
+    }
+
+    // The target lies in data the stream does not have, so the seek has to read it.
+    auto seek_result = demuxer->seek_to_most_recent_keyframe(track, expected_timestamps.last(), Media::DemuxerSeekOptions::None);
+    EXPECT(seek_result.is_error());
+    if (seek_result.is_error())
+        EXPECT_EQ(seek_result.error().category(), expected_category);
+
+    if (interruption == SeekInterruption::AbortedReads)
+        demuxer->reset_blocking_reads_aborted_for_track(track);
+    // A demuxer that moved into the missing data fails this read instead of waiting on it forever.
+    stream->make_missing_data_permanently_unavailable();
+    EXPECT_EQ(MUST(demuxer->get_next_sample_for_track(track)).presentation_timestamp(), expected_timestamps[frames_read_before_seeking]);
+}
+
 TEST_CASE(demuxer_reads_a_stream_of_nothing_but_frames)
 {
     // Nine ADTS AAC-LC frames containing 48 kHz stereo silence, as an encoder wrote them. The first
@@ -362,4 +407,18 @@ TEST_CASE(demuxer_resumes_after_a_transient_abort)
     Vector<u8> bytes;
     append_frames(bytes, 400);
     expect_a_transient_abort_to_resume_with_its_frame(bytes, 200 * FRAME_BYTE_SIZE);
+}
+
+TEST_CASE(demuxer_keeps_its_position_when_a_seek_is_aborted)
+{
+    Vector<u8> bytes;
+    append_frames(bytes, 400);
+    expect_an_interrupted_seek_to_keep_the_position(bytes, 200 * FRAME_BYTE_SIZE, SeekInterruption::AbortedReads);
+}
+
+TEST_CASE(demuxer_keeps_its_position_when_a_seek_needs_permanently_unavailable_data)
+{
+    Vector<u8> bytes;
+    append_frames(bytes, 400);
+    expect_an_interrupted_seek_to_keep_the_position(bytes, 200 * FRAME_BYTE_SIZE, SeekInterruption::PermanentlyUnavailableData);
 }

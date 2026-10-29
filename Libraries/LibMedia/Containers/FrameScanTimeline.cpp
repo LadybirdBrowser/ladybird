@@ -152,14 +152,14 @@ DecoderErrorOr<SeekResult> FrameScanTimeline::seek_to_timestamp(NonnullRefPtr<Me
         auto file_size = stream.expected_size();
         update_scanned_ranges(*scanning_cursor, stream.available_byte_ranges(), file_size);
 
-        auto lookup = look_up_timestamp(*scanning_cursor, timestamp, file_size);
+        auto lookup = TRY(look_up_timestamp(*scanning_cursor, timestamp, file_size));
         if (auto const* landed = lookup.get_pointer<ByteTimePoint>())
             return seeked_position(*landed);
         gap = lookup.get<Gap>();
     }
 
     auto estimated_byte = estimate_byte_for_timestamp(timestamp, gap.start, gap.end);
-    auto resynced_frame_byte = m_frames->find_boundary_at_or_before(*seek_cursor, estimated_byte, gap.start.byte, gap.end.byte).value_or(gap.start.byte);
+    auto resynced_frame_byte = TRY(m_frames->find_boundary_at_or_before(*seek_cursor, estimated_byte, gap.start.byte, gap.end.byte)).value_or(gap.start.byte);
 
     // The resync above has blocked until the data at the target is available. Now that the data is available, the
     // frames walked by the scan may have a different bitrate than we expected. Walk the frames from an established
@@ -173,7 +173,8 @@ DecoderErrorOr<SeekResult> FrameScanTimeline::seek_to_timestamp(NonnullRefPtr<Me
     if (!range.has_value())
         return seeked_position({ resynced_frame_byte, interpolate_timestamp_at_byte(resynced_frame_byte, gap.start, gap.end) });
 
-    return seeked_position(walk_to_timestamp(*seek_cursor, walk_start_for(*range, timestamp), timestamp).point);
+    auto walk = TRY(walk_to_timestamp(*seek_cursor, walk_start_for(*range, timestamp), timestamp));
+    return seeked_position(walk.point);
 }
 
 SeekedPosition FrameScanTimeline::seeked_position(ByteTimePoint const& point)
@@ -266,7 +267,7 @@ Optional<FrameScanTimeline::ByteTimePoint> FrameScanTimeline::end_anchor(Optiona
     return ByteTimePoint { end_byte, last.time + gap_duration(end_byte - last.byte, rate_for_gap(walked_rate(), file_size)) };
 }
 
-FrameScanTimeline::TimestampLookup FrameScanTimeline::look_up_timestamp(MediaStreamCursor& cursor, AK::Duration target, Optional<u64> file_size) const
+DecoderErrorOr<FrameScanTimeline::TimestampLookup> FrameScanTimeline::look_up_timestamp(MediaStreamCursor& cursor, AK::Duration target, Optional<u64> file_size) const
 {
     Optional<size_t> index;
     for (size_t i = 0; i < m_scanned_ranges.size(); i++) {
@@ -277,9 +278,9 @@ FrameScanTimeline::TimestampLookup FrameScanTimeline::look_up_timestamp(MediaStr
 
     auto scanned_end = origin_point();
     if (index.has_value()) {
-        auto walk = walk_to_timestamp(cursor, walk_start_for(m_scanned_ranges[*index], target), target);
+        auto walk = TRY(walk_to_timestamp(cursor, walk_start_for(m_scanned_ranges[*index], target), target));
         if (walk.spans_target)
-            return walk.point;
+            return TimestampLookup { walk.point };
         scanned_end = walk.point;
     }
 
@@ -291,8 +292,8 @@ FrameScanTimeline::TimestampLookup FrameScanTimeline::look_up_timestamp(MediaStr
         gap_end = end_anchor(file_size);
 
     if (!gap_end.has_value() || scanned_end.byte >= gap_end->byte)
-        return scanned_end;
-    return Gap { scanned_end, *gap_end };
+        return TimestampLookup { scanned_end };
+    return TimestampLookup { Gap { scanned_end, *gap_end } };
 }
 
 Optional<FrameScanTimeline::ScannedByteRange> FrameScanTimeline::last_range_starting_at_or_before_byte(size_t byte) const
@@ -314,31 +315,32 @@ FrameScanTimeline::ByteTimePoint FrameScanTimeline::walk_start_for(ScannedByteRa
     return scanned_start(range);
 }
 
-FrameScanTimeline::FrameWalk FrameScanTimeline::walk_to_timestamp(MediaStreamCursor& cursor, ByteTimePoint const& start, AK::Duration target) const
+DecoderErrorOr<FrameScanTimeline::FrameWalk> FrameScanTimeline::walk_to_timestamp(MediaStreamCursor& cursor, ByteTimePoint const& start, AK::Duration target) const
 {
     auto target_duration_in_ticks = (target - start.time).to_time_units(1, FRAME_DURATION_TIMEBASE);
     u64 duration_in_ticks = 0;
     auto position = start.byte;
     while (true) {
-        auto frame = m_frames->next_frame(cursor, position);
+        auto frame = TRY(m_frames->next_frame(cursor, position));
         if (!frame.has_value())
             break;
 
         auto frame_ticks = frame_duration_in_ticks(frame->duration);
         if (static_cast<i64>(duration_in_ticks + frame_ticks) > target_duration_in_ticks)
-            return { { frame->position, start.time + duration_from_ticks(duration_in_ticks) }, true };
+            return FrameWalk { { frame->position, start.time + duration_from_ticks(duration_in_ticks) }, true };
         duration_in_ticks += frame_ticks;
         position = frame->end_position();
     }
-    return { { position, start.time + duration_from_ticks(duration_in_ticks) }, false };
+    return FrameWalk { { position, start.time + duration_from_ticks(duration_in_ticks) }, false };
 }
 
 void FrameScanTimeline::scan_frames_into_range(MediaStreamCursor& cursor, ScannedByteRange& range, size_t limit)
 {
     while (true) {
-        auto frame = m_frames->next_frame(cursor, range.last_scanned_byte);
-        if (!frame.has_value())
+        auto frame_or_error = m_frames->next_frame(cursor, range.last_scanned_byte);
+        if (frame_or_error.is_error() || !frame_or_error.value().has_value())
             break;
+        auto frame = frame_or_error.release_value();
         if (frame->end_position() > limit) {
             range.last_scanned_byte = min(frame->position, limit);
             break;
@@ -416,9 +418,10 @@ void FrameScanTimeline::create_ranges_for_unscanned_bytes(MediaStreamCursor& cur
         if (search_start >= search_end)
             continue;
 
-        auto frame_boundary = m_frames->find_boundary_at_or_after(cursor, search_start, search_end);
-        if (!frame_boundary.has_value())
+        auto frame_boundary_or_error = m_frames->find_boundary_at_or_after(cursor, search_start, search_end);
+        if (frame_boundary_or_error.is_error() || !frame_boundary_or_error.value().has_value())
             continue;
+        auto frame_boundary = frame_boundary_or_error.release_value();
 
         ScannedByteRange range {
             .byte_start = *frame_boundary,
