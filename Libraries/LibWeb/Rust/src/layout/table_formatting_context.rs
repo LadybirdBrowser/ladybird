@@ -1276,7 +1276,6 @@ impl<'pass> TableFormattingContext<'pass> {
             None,
             None,
         );
-        record.seal_own_metrics();
         participant_box.content_offset.set(content_offset);
     }
 

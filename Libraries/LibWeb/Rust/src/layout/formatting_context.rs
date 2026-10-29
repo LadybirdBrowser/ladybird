@@ -2275,6 +2275,15 @@ fn execute_formatting_context_run(
                 fragmentainer,
                 parent_owns_root_input_cells,
             );
+            if input.sizing.root_keeps_its_committed_geometry {
+                assert_eq!(
+                    sizes_and_box_sides(
+                        used_values::RecordInFrame::new(records.used_values(box_), callbacks.frame).cells()
+                    ),
+                    sizes_and_box_sides(root_cells),
+                    "the run of {box_:?} changed the committed geometry of its root"
+                );
+            }
             let root_cells_left_by_run = checks_root_input_cells_its_parent_owns
                 .then(|| used_values::RecordInFrame::new(records.used_values(box_), callbacks.frame).cells());
             (outputs, root_cells_left_by_run)
@@ -2299,6 +2308,18 @@ fn execute_formatting_context_run(
     outputs
 }
 
+/// The sizes and box sides of `cells`, with every flag cleared.
+fn sizes_and_box_sides(cells: used_values::RootInputCells) -> used_values::RootInputCells {
+    used_values::RootInputCells {
+        has_definite_inline_size: false,
+        has_definite_block_size: false,
+        has_definite_block_size_only_for_button_content_alignment: false,
+        uses_collapsing_borders_model: false,
+        is_collapsed_borders_table_box: false,
+        ..cells
+    }
+}
+
 #[expect(clippy::too_many_arguments)]
 fn lay_out_run_root_and_contents<'pass>(
     records: &'pass RunRecords<'pass>,
@@ -2316,9 +2337,6 @@ fn lay_out_run_root_and_contents<'pass>(
     parent_owns_root_input_cells: bool,
 ) -> RunOutputs {
     let run_is_handed_table_inline_layout_outside_its_key = table_inline_layout.is_some();
-    if input.sizing.root_keeps_its_committed_geometry {
-        records.used_values(box_).seal_own_metrics();
-    }
     let run = FormattingContextRun {
         records,
         box_,
@@ -2615,7 +2633,6 @@ fn lay_out_run_root_and_contents<'pass>(
             }
         }
     }
-    run.records.used_values(run.box_).seal_own_metrics();
     run.outputs(
         result,
         take_run_fragments(),

@@ -1881,7 +1881,6 @@ impl<'pass> SvgFormattingContext<'pass> {
     fn place_child(&self, node: Node, record: &UsedValues, x: CssPixels, y: CssPixels) -> LaidOutSvgElement {
         let placed_child = formatting_context::PlacedChild::of_record(record, None, &self.run);
         self.place_laid_out_child(node, placed_child, x, y, None);
-        record.seal_own_metrics();
         LaidOutSvgElement {
             cells: used_values::RootInputCells::capture(record),
             content_offset: FfiCssPixelPoint { x, y },
@@ -2253,7 +2252,6 @@ impl<'pass> SvgFormattingContext<'pass> {
                 reuses_subtree: false,
             }),
         );
-        used.seal_own_metrics();
         Some(LaidOutSvgElement {
             cells: used_values::RootInputCells::capture(used),
             content_offset: committed_offset,

@@ -62,42 +62,6 @@ pub(crate) struct LineBoxFragmentCoordinate {
     pub line_box_index: usize,
 }
 
-pub(crate) struct SealableCell<T> {
-    value: Cell<T>,
-    sealed: Cell<bool>,
-}
-
-impl<T: Copy + std::fmt::Debug> std::fmt::Debug for SealableCell<T> {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.value.get().fmt(formatter)
-    }
-}
-
-impl<T: Copy> SealableCell<T> {
-    pub(crate) fn new(value: T) -> Self {
-        Self {
-            value: Cell::new(value),
-            sealed: Cell::new(false),
-        }
-    }
-
-    #[inline]
-    pub(crate) fn get(&self) -> T {
-        self.value.get()
-    }
-
-    #[track_caller]
-    #[inline]
-    pub(crate) fn set(&self, value: T) {
-        assert!(!self.sealed.get(), "write to a sealed committed box metric");
-        self.value.set(value);
-    }
-
-    pub(crate) fn seal(&self) {
-        self.sealed.set(true);
-    }
-}
-
 #[derive(Clone, Default, PartialEq)]
 pub(crate) struct LineData {
     pub(crate) line_boxes: Vec<line_box::LineBoxData>,
@@ -168,23 +132,23 @@ pub(crate) struct CommittedSvgFacts {
 /// The per-box geometry stored in a Rust-owned layout pass.
 #[derive(Debug)]
 pub(crate) struct UsedValues {
-    pub content_inline_size: SealableCell<CssPixels>,
-    pub content_block_size: SealableCell<CssPixels>,
+    pub content_inline_size: Cell<CssPixels>,
+    pub content_block_size: Cell<CssPixels>,
 
-    pub margin_left: SealableCell<CssPixels>,
-    pub margin_right: SealableCell<CssPixels>,
-    pub margin_top: SealableCell<CssPixels>,
-    pub margin_bottom: SealableCell<CssPixels>,
+    pub margin_left: Cell<CssPixels>,
+    pub margin_right: Cell<CssPixels>,
+    pub margin_top: Cell<CssPixels>,
+    pub margin_bottom: Cell<CssPixels>,
 
-    pub border_left: SealableCell<CssPixels>,
-    pub border_right: SealableCell<CssPixels>,
-    pub border_top: SealableCell<CssPixels>,
-    pub border_bottom: SealableCell<CssPixels>,
+    pub border_left: Cell<CssPixels>,
+    pub border_right: Cell<CssPixels>,
+    pub border_top: Cell<CssPixels>,
+    pub border_bottom: Cell<CssPixels>,
 
-    pub padding_left: SealableCell<CssPixels>,
-    pub padding_right: SealableCell<CssPixels>,
-    pub padding_top: SealableCell<CssPixels>,
-    pub padding_bottom: SealableCell<CssPixels>,
+    pub padding_left: Cell<CssPixels>,
+    pub padding_right: Cell<CssPixels>,
+    pub padding_top: Cell<CssPixels>,
+    pub padding_bottom: Cell<CssPixels>,
 
     pub has_definite_inline_size: Cell<bool>,
     pub has_definite_block_size: Cell<bool>,
@@ -206,20 +170,20 @@ impl Default for UsedValues {
     fn default() -> Self {
         let zero = CssPixels::from_raw(0);
         Self {
-            content_inline_size: SealableCell::new(zero),
-            content_block_size: SealableCell::new(zero),
-            margin_left: SealableCell::new(zero),
-            margin_right: SealableCell::new(zero),
-            margin_top: SealableCell::new(zero),
-            margin_bottom: SealableCell::new(zero),
-            border_left: SealableCell::new(zero),
-            border_right: SealableCell::new(zero),
-            border_top: SealableCell::new(zero),
-            border_bottom: SealableCell::new(zero),
-            padding_left: SealableCell::new(zero),
-            padding_right: SealableCell::new(zero),
-            padding_top: SealableCell::new(zero),
-            padding_bottom: SealableCell::new(zero),
+            content_inline_size: Cell::new(zero),
+            content_block_size: Cell::new(zero),
+            margin_left: Cell::new(zero),
+            margin_right: Cell::new(zero),
+            margin_top: Cell::new(zero),
+            margin_bottom: Cell::new(zero),
+            border_left: Cell::new(zero),
+            border_right: Cell::new(zero),
+            border_top: Cell::new(zero),
+            border_bottom: Cell::new(zero),
+            padding_left: Cell::new(zero),
+            padding_right: Cell::new(zero),
+            padding_top: Cell::new(zero),
+            padding_bottom: Cell::new(zero),
             has_definite_inline_size: Cell::new(false),
             has_definite_block_size: Cell::new(false),
             has_definite_block_size_only_for_button_content_alignment: Cell::new(false),
@@ -227,25 +191,6 @@ impl Default for UsedValues {
             is_collapsed_borders_table_box: Cell::new(false),
             frame: Cell::new(geometry::Frame::PHYSICAL),
         }
-    }
-}
-
-impl UsedValues {
-    pub(crate) fn seal_own_metrics(&self) {
-        self.content_inline_size.seal();
-        self.content_block_size.seal();
-        self.margin_left.seal();
-        self.margin_right.seal();
-        self.margin_top.seal();
-        self.margin_bottom.seal();
-        self.border_left.seal();
-        self.border_right.seal();
-        self.border_top.seal();
-        self.border_bottom.seal();
-        self.padding_left.seal();
-        self.padding_right.seal();
-        self.padding_top.seal();
-        self.padding_bottom.seal();
     }
 }
 

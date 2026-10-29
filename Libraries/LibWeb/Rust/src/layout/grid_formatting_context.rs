@@ -4508,8 +4508,6 @@ impl<'pass> GridFormattingContext<'pass> {
                 x: area.offset.inline_offset + self.item_margin_box_start(item, Axis::Column),
                 y: area.offset.block_offset + self.item_margin_box_start(item, Axis::Row),
             };
-            // Resolve relative-position insets before placement seals the
-            // item's committed metrics.
             let insets = abspos_engine::compute_inset_native(
                 run,
                 item.box_,
