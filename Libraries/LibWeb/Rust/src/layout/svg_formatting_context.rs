@@ -166,22 +166,6 @@ pub struct FfiSvgLengthValue {
     pub unit: u8,
 }
 
-/// The sizes a container-relative length on an element resolves against, as style answers them
-/// for that element: per axis, the committed content box of its nearest size query container, or
-/// the small viewport size. Style writes nothing while it answers: it says which containers the
-/// lengths depend on, by style node or 0 for the viewport, and whether a container has no committed
-/// box yet, so the document must evaluate its container queries after layout.
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiContainerLengthBases {
-    pub width: f64,
-    pub height: f64,
-    pub width_query_container: u32,
-    pub height_query_container: u32,
-    pub width_query_container_awaits_layout: bool,
-    pub height_query_container_awaits_layout: bool,
-}
-
 pub const SVG_LENGTH_KIND_NONE: u8 = 0;
 pub const SVG_LENGTH_KIND_NUMBER: u8 = 1;
 pub const SVG_LENGTH_KIND_LENGTH: u8 = 2;
@@ -2561,24 +2545,23 @@ fn length_resolution_context(
     let root_style = document_element_style(callbacks, node).unwrap_or(style);
     let viewport_width = callbacks.initial_containing_block_inline_size.to_double();
     let viewport_height = callbacks.initial_containing_block_block_size.to_double();
-    // A container unit resolves against the nearest size query container on its axis, or the small viewport size
-    // without one. Finding that container is style's business, so it is asked only for a length that needs it. A pass
-    // that cannot ask resolves it to zero, and leaves the node for the host to lay out again.
-    let container_bases = if crate::css::style_compute::length_unit_is_container_relative(unit) {
+    // A container unit resolves against the committed content box of the nearest size query container on its axis, or
+    // the viewport without one. Finding that container is style's business, so it is asked only for a length that
+    // needs it, and the host hears which containers the lengths depend on once the layout is committed.
+    let container_bases = crate::css::style_compute::length_unit_is_container_relative(unit).then(|| {
         let element = callbacks
             .arena()
             .dom_node_style_node(node)
             .expect("an SVG element's attribute length is resolved for the element's own box");
-        let bases = callbacks.container_length_bases.bases(element);
-        callbacks.scratch().note_host_findings(|findings| match &bases {
-            Some(bases) => findings.note_container_length_dependencies(element, bases),
-            None => findings.note_unresolved_container_lengths(node),
-        });
+        let bases = callbacks
+            .arena()
+            .with_style_store(|engine| engine.container_unit_bases(element, false));
+        callbacks
+            .scratch()
+            .note_host_findings(|findings| findings.note_container_length_dependencies(element, &bases));
         bases
-    } else {
-        None
-    };
-    crate::css::style_compute::FfiLengthResolutionContext {
+    });
+    let mut context = crate::css::style_compute::FfiLengthResolutionContext {
         viewport_width,
         viewport_height,
         font_metrics: font_metrics_for_length_resolution(style),
@@ -2586,16 +2569,20 @@ fn length_resolution_context(
         // Only the out-flag below consumes these, and this resolution reports no dependency.
         font_metrics_depend_on_viewport_metrics: false,
         root_font_metrics_depend_on_viewport_metrics: false,
-        has_container_width_basis: container_bases.is_some(),
-        has_container_height_basis: container_bases.is_some(),
-        container_width_basis: container_bases.map_or(0.0, |bases| bases.width),
-        container_height_basis: container_bases.map_or(0.0, |bases| bases.height),
+        has_container_width_basis: false,
+        has_container_height_basis: false,
+        container_width_basis: 0.0,
+        container_height_basis: 0.0,
         container_width_basis_depends_on_viewport_metrics: false,
         container_height_basis_depends_on_viewport_metrics: false,
         subject_inline_axis_is_horizontal: style.writing_mode() == writing_mode::HORIZONTAL_TB,
         resolved_viewport_relative_length: std::ptr::null_mut(),
         zoom: 1.0,
+    };
+    if let Some(bases) = container_bases {
+        bases.apply_to(&mut context);
     }
+    context
 }
 
 /// The style of the document element, which a root-relative length resolves against.

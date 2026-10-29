@@ -7,53 +7,6 @@
 use super::node_facts::ReplacedContentFacts;
 use super::*;
 
-/// The one question a layout pass still asks the document while it runs: what the container-relative
-/// lengths on an element resolve against. The answer reads the committed size of the element's query
-/// container, so it cannot be published ahead of the pass, and it writes nothing in the document: the
-/// dependencies it finds reach the document as commit messages. A pass holds this and no other part
-/// of the host. Every other host call takes the main thread token, which a
-/// pass is not handed, so a pass has no way to make any other call into the document.
-#[derive(Clone, Copy)]
-pub(crate) struct ContainerLengthBasesQuery {
-    context: *mut c_void,
-    /// The query, or none for a pass that runs beside the host and cannot ask it.
-    query: Option<unsafe extern "C" fn(*mut c_void, u32) -> svg_formatting_context::FfiContainerLengthBases>,
-}
-
-// SAFETY: A layout job calls the query while the host waits for the job's answer, so the document the C++ side reads
-// changes under neither of them.
-unsafe impl Send for ContainerLengthBasesQuery {}
-
-impl ContainerLengthBasesQuery {
-    /// Only the layout host makes one, for a caller holding the main thread token.
-    pub(super) fn new(
-        context: *mut c_void,
-        query: unsafe extern "C" fn(*mut c_void, u32) -> svg_formatting_context::FfiContainerLengthBases,
-    ) -> Self {
-        Self {
-            context,
-            query: Some(query),
-        }
-    }
-
-    /// The query for a pass that runs beside the host, which answers nothing.
-    pub(crate) fn sealed(self) -> Self {
-        Self {
-            context: std::ptr::null_mut(),
-            query: None,
-        }
-    }
-
-    /// What `cqw` and `cqh` are 100 of for `element`, where the pass can ask the host.
-    pub(crate) fn bases(
-        self,
-        element: crate::css::style::tree::StyleNodeID,
-    ) -> Option<svg_formatting_context::FfiContainerLengthBases> {
-        // SAFETY: The document registered the query with the arena and outlives the pass, which the host waits for.
-        self.query.map(|query| unsafe { query(self.context, element.raw()) })
-    }
-}
-
 /// Arena inputs borrowed while computing a layout result. The pass ends before commit takes a
 /// mutable arena borrow, so its text and style views cannot survive commit.
 ///
@@ -61,11 +14,13 @@ impl ContainerLengthBasesQuery {
 /// its layout input, its root's used values and its run state, or was derived onto the subtree
 /// before the pass, like ancestor facts. That is what lets partial relayout, the formatting context
 /// run cache and the intrinsic size caches reuse a subtree's layout without looking outside it.
+///
+/// A pass holds no part of the host. Every host call takes the main thread token, which a pass is
+/// not handed, so a pass has no way to call into the document.
 #[derive(Clone, Copy)]
 pub(crate) struct LayoutPass<'arena> {
     arena: &'arena LayoutNodeArena,
     scratch: &'arena super::run_state::LayoutScratch,
-    pub(crate) container_length_bases: ContainerLengthBasesQuery,
     pub(crate) initial_containing_block_inline_size: CssPixels,
     pub(crate) initial_containing_block_block_size: CssPixels,
     pub(crate) document_in_quirks_mode: bool,
@@ -85,7 +40,6 @@ impl<'arena> LayoutPass<'arena> {
         Self {
             arena,
             scratch,
-            container_length_bases: stage.container_length_bases,
             initial_containing_block_inline_size: stage.viewport_inline_size,
             initial_containing_block_block_size: stage.viewport_block_size,
             document_in_quirks_mode: stage.document_in_quirks_mode,
@@ -94,17 +48,13 @@ impl<'arena> LayoutPass<'arena> {
         }
     }
 
-    /// A pass whose only question to the document has no answer, over `arena` and `scratch`.
+    /// A pass over `arena` and `scratch` with no viewport, in no-quirks mode.
     #[cfg(test)]
     pub(crate) fn for_test(arena: &'arena LayoutNodeArena, scratch: &'arena super::run_state::LayoutScratch) -> Self {
         Self::new(
             arena,
             scratch,
             super::formatting_context::LayoutStageFacts {
-                container_length_bases: ContainerLengthBasesQuery {
-                    context: std::ptr::null_mut(),
-                    query: None,
-                },
                 viewport_inline_size: CssPixels::default(),
                 viewport_block_size: CssPixels::default(),
                 document_in_quirks_mode: false,

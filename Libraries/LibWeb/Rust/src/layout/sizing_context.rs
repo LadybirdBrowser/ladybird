@@ -4295,13 +4295,6 @@ mod replaced_ratio_tests {
     use crate::layout::node_data::{NodeConstructionFacts, NodeKind, StylePayloadsRef};
     use crate::layout::run_state::LayoutScratch;
 
-    unsafe extern "C" fn unused_container_bases(
-        _: *mut c_void,
-        _: u32,
-    ) -> svg_formatting_context::FfiContainerLengthBases {
-        unreachable!("replaced ratio tests use absolute lengths")
-    }
-
     fn size(
         width: Option<i64>,
         height: Option<i64>,
@@ -4365,11 +4358,6 @@ mod replaced_ratio_tests {
             &arena,
             &scratch,
             LayoutStageFacts {
-                container_length_bases: layout_pass::ContainerLengthBasesQuery::new(
-                    std::ptr::null_mut(),
-                    unused_container_bases,
-                )
-                .sealed(),
                 viewport_inline_size: CssPixels::from_integer(800),
                 viewport_block_size: CssPixels::from_integer(600),
                 document_in_quirks_mode: false,

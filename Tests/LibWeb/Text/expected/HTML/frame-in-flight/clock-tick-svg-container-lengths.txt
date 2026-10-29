@@ -1,0 +1,4 @@
+lane as the task begins: ticking
+lane after a tick: ticking
+last frame presented by: clock
+presented wrapper width: 150

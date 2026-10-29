@@ -88,6 +88,14 @@ impl CommitNotifications {
             .filter_map(|message| StyleNodeID::from_raw(message.style_node))
     }
 
+    /// Whether a length the committed layout resolved reads a size container that had no box, whose queries the host
+    /// evaluates once a layout gives it one.
+    pub(crate) fn awaits_container_query_evaluation(&self) -> bool {
+        self.messages
+            .iter()
+            .any(|message| message.kind == FfiCommitMessageKind::ContainerQueryEvaluationNeededAfterLayout)
+    }
+
     /// Tells the host of the resets and messages of the commit, which it answers synchronously, while no mutable arena
     /// borrow is active.
     pub(crate) fn notify_host(
