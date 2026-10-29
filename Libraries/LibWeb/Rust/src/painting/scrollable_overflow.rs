@@ -1022,11 +1022,6 @@ mod tests {
     use crate::layout::fragment_tree::FragmentLink;
     use crate::layout::node_data::{FfiStylePayloads, StylePayloadsRef};
 
-    #[unsafe(no_mangle)]
-    extern "C" fn ladybird_gfx_font_is_invisible(_font: *const std::ffi::c_void) -> bool {
-        unreachable!("the overflow fixtures have no text fragments");
-    }
-
     #[test]
     fn overflow_percentage_margins_use_the_containing_blocks_inline_size() {
         for (mode, expected_bottom) in [
