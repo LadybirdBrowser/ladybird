@@ -4294,10 +4294,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 );
             }
             // NB: Only the attempt that is kept tells the host what it found out.
-            self.run
-                .callbacks
-                .scratch()
-                .receive_host_findings(outputs.host_findings);
+            self.run.callbacks.receive_host_findings(outputs.host_findings);
             return ColumnLayout {
                 outcome,
                 consumed_block_size: outputs.result.automatic_content_block_size,

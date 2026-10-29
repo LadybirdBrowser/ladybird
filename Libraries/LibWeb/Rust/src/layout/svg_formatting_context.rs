@@ -2556,9 +2556,7 @@ fn length_resolution_context(
         let bases = callbacks
             .arena()
             .with_style_store(|engine| engine.container_unit_bases(element, false));
-        callbacks
-            .scratch()
-            .note_host_findings(|findings| findings.note_container_length_dependencies(element, &bases));
+        callbacks.note_host_findings(|findings| findings.note_container_length_dependencies(element, &bases));
         bases
     });
     let mut context = crate::css::style_compute::FfiLengthResolutionContext {
