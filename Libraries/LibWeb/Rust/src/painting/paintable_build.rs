@@ -289,7 +289,7 @@ impl<'a> PaintableCommit<'a> {
             });
         if old_content_size != new_content_size {
             if self.arena().data(node).kind.get() == NodeKind::Viewport {
-                self.arena().set_needs_full_scrollable_overflow_recalculation();
+                self.arena_mut().set_needs_full_scrollable_overflow_recalculation();
             }
             assert!(
                 !reuses_committed_subtree || old_content_inline_size == Some(fragment.content_inline_size),
@@ -517,15 +517,13 @@ impl<'a> PaintableCommit<'a> {
             if !self.overflow_invalidated_boxes.insert(node) {
                 break;
             }
-            let arena = self.arena();
+            let is_full_layout = self.is_full_layout;
+            let arena = self.arena_mut();
             if arena.paintable_row_is_populated(node) {
                 arena.paintable_rows().clear_cached_overflow_data(node);
                 // Commit queues are consumed immediately and are bounded by the committed tree.
-                if self.is_full_layout && !arena.needs_full_scrollable_overflow_recalculation.get() {
-                    arena
-                        .boxes_needing_scrollable_overflow_recalculation
-                        .borrow_mut()
-                        .push(node);
+                if is_full_layout && !arena.needs_full_scrollable_overflow_recalculation {
+                    arena.boxes_needing_scrollable_overflow_recalculation.push(node);
                 }
             }
             node = arena.containing_block_by_walking_ancestors(node);

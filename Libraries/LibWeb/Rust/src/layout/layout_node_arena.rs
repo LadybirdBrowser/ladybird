@@ -1242,7 +1242,7 @@ pub(crate) struct LayoutNodeArena {
     /// under a key so that it survives the node's identity being retired and re-issued.
     next_rows_built_for_same_node: Vec<NodeSlotId>,
     /// What writes since the layout stage last looked did to the boxes its run memos hold entries of.
-    memo_invalidations: RefCell<super::memo_invalidations::MemoInvalidations>,
+    memo_invalidations: super::memo_invalidations::MemoInvalidations,
     pub(super) layout_trace: super::trace::LayoutTrace,
     pub(crate) paintable_rows: crate::painting::paintable_rows::PaintableRowStore,
     paint_state: RefCell<crate::painting::paint_state::PaintState>,
@@ -1271,8 +1271,8 @@ pub(crate) struct LayoutNodeArena {
     /// this escape bit is set. Partial relayout may only run while the bit is clear; a full
     /// layout pass re-derives every fact boundary qualification depends on, so it clears the bit.
     pub(crate) pending_updates_escape_partial_relayout: bool,
-    pub(crate) boxes_needing_scrollable_overflow_recalculation: RefCell<Vec<NodeSlotId>>,
-    pub(crate) needs_full_scrollable_overflow_recalculation: Cell<bool>,
+    pub(crate) boxes_needing_scrollable_overflow_recalculation: Vec<NodeSlotId>,
+    pub(crate) needs_full_scrollable_overflow_recalculation: bool,
     text_nodes_enrolled_for_content_sync: HashSet<NodeSlotId>,
     /// The scroll containers a running tree build gave a style, which may be where scroll
     /// snapping happens once the build is over.
@@ -1301,7 +1301,7 @@ pub(crate) struct LayoutNodeArena {
     /// The rows the layout commit in progress gathers for the style engine's container queries.
     pub(crate) layout_style_snapshot_commit: Vec<super::style_snapshot::CommittedGeometry>,
     /// What the DOM has asked the next layout tree build to rebuild, by style node identity.
-    layout_tree_update_marks: RefCell<super::tree_update_marks::LayoutTreeUpdateMarks>,
+    layout_tree_update_marks: super::tree_update_marks::LayoutTreeUpdateMarks,
     /// The counter styles each tree scope registers. The rule cache that settles them is C++'s,
     /// and the document owns the result because a fallback chain is followed from the scope the
     /// counter is used in, not from the scope the style was written in.
@@ -1357,7 +1357,7 @@ impl LayoutNodeArena {
             layer_image_paint_facts: Default::default(),
             svg_paint_resources: crate::painting::svg_paint_resources::SvgPaintResources::default(),
             next_rows_built_for_same_node: Vec::new(),
-            memo_invalidations: RefCell::default(),
+            memo_invalidations: Default::default(),
             layout_trace: super::trace::LayoutTrace::default(),
             paintable_rows: crate::painting::paintable_rows::PaintableRowStore::default(),
             paint_state: RefCell::new(crate::painting::paint_state::PaintState::default()),
@@ -1373,8 +1373,8 @@ impl LayoutNodeArena {
             inline_boxes_lifted_out_of: HashMap::default(),
             out_of_flow_positioning_contained: HashMap::default(),
             pending_updates_escape_partial_relayout: false,
-            boxes_needing_scrollable_overflow_recalculation: RefCell::new(Vec::new()),
-            needs_full_scrollable_overflow_recalculation: Cell::new(false),
+            boxes_needing_scrollable_overflow_recalculation: Vec::new(),
+            needs_full_scrollable_overflow_recalculation: false,
             text_nodes_enrolled_for_content_sync: HashSet::default(),
             built_scroll_containers: Default::default(),
             image_resources_owed_to_host: Default::default(),
@@ -1386,7 +1386,7 @@ impl LayoutNodeArena {
             document_svg_root_natural_size: None,
             handed_over_document_svg_root_natural_size: (None),
             layout_style_snapshot_commit: Vec::new(),
-            layout_tree_update_marks: RefCell::default(),
+            layout_tree_update_marks: Default::default(),
             counter_styles: Default::default(),
             style_node_tables: StyleNodeTables::default(),
         }
@@ -1436,8 +1436,8 @@ impl LayoutNodeArena {
     }
 
     /// What writes did to the boxes the layout stage's run memos hold entries of since the stage last took it.
-    pub(crate) fn take_memo_invalidations(&self) -> super::memo_invalidations::MemoInvalidations {
-        self.memo_invalidations.take()
+    pub(crate) fn take_memo_invalidations(&mut self) -> super::memo_invalidations::MemoInvalidations {
+        std::mem::take(&mut self.memo_invalidations)
     }
 
     /// Drops the entries of `store` whose slot or epoch no longer matches, marks the entry whose fragments each box
@@ -1650,10 +1650,8 @@ impl LayoutNodeArena {
             self.scrollable_overflow.full_layout_commit.set(false);
             self.scrollable_overflow.geometry_changed.set(false);
             self.scrollable_overflow.scrollability_changed.set(false);
-            self.boxes_needing_scrollable_overflow_recalculation
-                .borrow_mut()
-                .clear();
-            self.needs_full_scrollable_overflow_recalculation.set(false);
+            self.boxes_needing_scrollable_overflow_recalculation.clear();
+            self.needs_full_scrollable_overflow_recalculation = false;
         }
         let mut rows = Vec::new();
         self.for_each_node_in_layout_subtree_in_pre_order(root, |slot| rows.push(slot));
@@ -1745,7 +1743,7 @@ impl LayoutNodeArena {
         }
         self.owned_image_natural_sizes.remove(&id);
         self.owned_image_providers.remove(&id);
-        self.memo_invalidations.get_mut().note_slot_freed(index);
+        self.memo_invalidations.note_slot_freed(index);
         self.remove_layout_update_flag_node(id);
         self.math_layout_kinds.remove(&id);
         if self.replaced_paint_facts.contains_key(&id) {
@@ -1878,45 +1876,48 @@ impl LayoutNodeArena {
         self.dom_node_style_node(id).map(StyleNodeID::raw)
     }
 
-    pub(crate) fn layout_tree_update_marks(&self) -> &RefCell<super::tree_update_marks::LayoutTreeUpdateMarks> {
+    pub(crate) fn layout_tree_update_marks(&self) -> &super::tree_update_marks::LayoutTreeUpdateMarks {
         &self.layout_tree_update_marks
+    }
+
+    pub(crate) fn layout_tree_update_marks_mut(&mut self) -> &mut super::tree_update_marks::LayoutTreeUpdateMarks {
+        &mut self.layout_tree_update_marks
     }
 
     /// Retires the layout tree update marks of a node whose stale box was cleared: its own, and its
     /// host's when the node is a shadow root whose own mark was what marked the host, as clearing a
     /// mark through the DOM does, and its children's summary.
-    pub(crate) fn retire_layout_tree_update_marks_of_cleared_node(&self, node: StyleNodeID) {
-        let mut marks = self.layout_tree_update_marks().borrow_mut();
+    pub(crate) fn retire_layout_tree_update_marks_of_cleared_node(&mut self, node: StyleNodeID) {
         let mut current = node;
-        while marks.merge(current, false, 0) {
+        while self.layout_tree_update_marks.merge(current, false, 0) {
             let Some(host) = self.with_style_store(|engine| engine.tree().host_of(current)) else {
                 break;
             };
             current = host;
         }
-        marks.set_child_needs(node, false);
+        self.layout_tree_update_marks.set_child_needs(node, false);
     }
 
     /// Retire the layout tree update marks `style_node` holds, own and child alike.
-    pub(crate) fn clear_layout_tree_update_marks(&self, style_node: Option<StyleNodeID>) {
+    pub(crate) fn clear_layout_tree_update_marks(&mut self, style_node: Option<StyleNodeID>) {
         if let Some(style_node) = style_node {
-            self.layout_tree_update_marks.borrow_mut().clear(style_node);
+            self.layout_tree_update_marks.clear(style_node);
         }
     }
 
     /// Whether `style_node` itself holds a layout tree update mark.
     pub(crate) fn needs_layout_tree_update(&self, style_node: StyleNodeID) -> bool {
-        self.layout_tree_update_marks.borrow().needs(style_node)
+        self.layout_tree_update_marks.needs(style_node)
     }
 
     /// Which narrower rebuilds the layout tree update marks `style_node` collected still permit.
     pub(crate) fn layout_tree_update_reuse_reasons(&self, style_node: StyleNodeID) -> u8 {
-        self.layout_tree_update_marks.borrow().reuse_reasons(style_node)
+        self.layout_tree_update_marks.reuse_reasons(style_node)
     }
 
     /// Whether a flat-tree descendant of `style_node` holds a layout tree update mark.
     pub(crate) fn child_needs_layout_tree_update(&self, style_node: Option<StyleNodeID>) -> bool {
-        style_node.is_some_and(|style_node| self.layout_tree_update_marks.borrow().child_needs(style_node))
+        style_node.is_some_and(|style_node| self.layout_tree_update_marks.child_needs(style_node))
     }
 
     fn set_node_style_node(&mut self, id: NodeSlotId, style_node: Option<StyleNodeID>) {
@@ -4767,15 +4768,16 @@ impl LayoutNodeArena {
 
     /// A style change reaches the anonymous boxes below the node without rebuilding them, and
     /// they take some of their ancestor facts from it.
-    fn refresh_ancestor_facts_of_anonymous_children(&self, parent: NodeSlotId) {
+    fn refresh_ancestor_facts_of_anonymous_children(&mut self, parent: NodeSlotId) {
         let mut child = self.data(parent).first_child.get();
         while !child.is_invalid() {
-            let data = self.data(child);
-            if super::node_facts::has_flag(data, NodeFlag::Anonymous) && self.derive_ancestor_facts_for_node(child) {
+            if super::node_facts::has_flag(self.data(child), NodeFlag::Anonymous)
+                && self.derive_ancestor_facts_for_node(child)
+            {
                 self.bump_fragment_cache_epoch_of_self_and_ancestors(child);
                 self.refresh_ancestor_facts_of_anonymous_children(child);
             }
-            child = data.next_sibling.get();
+            child = self.data(child).next_sibling.get();
         }
     }
 
@@ -5279,9 +5281,7 @@ impl LayoutNodeArena {
     pub(crate) fn clear_committed_fragment_link(&mut self, id: NodeSlotId) {
         // Cached runs may reuse the committed paintable subtree without replaying its fragments.
         // Once that subtree is cleared, a later layout must rebuild it instead.
-        self.memo_invalidations
-            .borrow_mut()
-            .note_run_cache_entries_dropped(id.slot_index());
+        self.memo_invalidations.note_run_cache_entries_dropped(id.slot_index());
         self.note_subtrees_of_self_and_ancestors_committed_anew(id);
         drop(self.take_committed_fragment_link(self.data(id)));
     }
@@ -5367,7 +5367,7 @@ impl LayoutNodeArena {
         }
         state.content = Some(content);
         drop(state);
-        self.memo_invalidations.get_mut().note_text_replaced(id.slot_index());
+        self.memo_invalidations.note_text_replaced(id.slot_index());
         self.searchable_text = None;
         // Publication can happen through a C++ text read before the enrolled
         // sync runs. Invalidate here so every publication invalidates layout,
@@ -5628,7 +5628,7 @@ impl LayoutNodeArena {
     // parent pass sizing a child navigable's viewport invalidates the child document), so only
     // this arena's own pass may not see one. A bump landing between a run's probe and its store
     // is handled by storing the probe-time validity, which turns it into a fail-safe miss.
-    fn invalidate_at_and_above(&self, mut node: NodeSlotId, invalidation: AncestorInvalidation) {
+    fn invalidate_at_and_above(&mut self, mut node: NodeSlotId, invalidation: AncestorInvalidation) {
         while !node.is_invalid() {
             self.invalidate_one(node, invalidation);
             node = self.data(node).parent.get();
@@ -5636,9 +5636,9 @@ impl LayoutNodeArena {
     }
 
     /// The part of `invalidate_at_and_above` that applies to one node, for walks that also do other work on the way up.
-    pub(super) fn invalidate_one(&self, node: NodeSlotId, invalidation: AncestorInvalidation) {
+    pub(super) fn invalidate_one(&mut self, node: NodeSlotId, invalidation: AncestorInvalidation) {
         if invalidation == AncestorInvalidation::StructuralChange {
-            self.memo_invalidations.borrow_mut().note_structural_inline_change(node);
+            self.memo_invalidations.note_structural_inline_change(node);
         }
         self.bump_fragment_cache_epoch(node);
         if super::node_facts::kind_is_box(self.data(node).kind.get()) {
@@ -5646,7 +5646,7 @@ impl LayoutNodeArena {
         }
     }
 
-    pub(super) fn bump_fragment_cache_epoch(&self, node: NodeSlotId) {
+    pub(super) fn bump_fragment_cache_epoch(&mut self, node: NodeSlotId) {
         let data = self.data(node);
         let epoch = data.fragment_cache_epoch.get().wrapping_add(1);
         data.fragment_cache_epoch.set(epoch);
@@ -5657,16 +5657,14 @@ impl LayoutNodeArena {
             !self.layout_pass_is_running(),
             "a node's committed fragments became stale while a layout pass ran"
         );
-        self.memo_invalidations
-            .borrow_mut()
-            .note_fragment_cache_epoch_bumped(node);
+        self.memo_invalidations.note_fragment_cache_epoch_bumped(node);
     }
 
-    pub(crate) fn note_structural_change_at_and_above(&self, node: NodeSlotId) {
+    pub(crate) fn note_structural_change_at_and_above(&mut self, node: NodeSlotId) {
         self.invalidate_at_and_above(node, AncestorInvalidation::StructuralChange);
     }
 
-    pub(crate) fn bump_fragment_cache_epoch_of_self_and_ancestors(&self, node: NodeSlotId) {
+    pub(crate) fn bump_fragment_cache_epoch_of_self_and_ancestors(&mut self, node: NodeSlotId) {
         self.invalidate_at_and_above(node, AncestorInvalidation::ContentChange);
     }
 
@@ -6293,7 +6291,7 @@ pub extern "C" fn render_state_layout_is_up_to_date(host: &DocumentHost, documen
     host.ask(here, |state| {
         let arena = state.arena_mut();
         let document_needs_layout_tree_build = document.is_some_and(|document| {
-            let marks = arena.layout_tree_update_marks().borrow();
+            let marks = arena.layout_tree_update_marks();
             marks.needs(document) || marks.child_needs(document)
         });
         arena.layout_is_up_to_date(document_needs_layout_tree_build)

@@ -1524,7 +1524,7 @@ mod tests {
         arena.paint_state().borrow_mut().visual_context.dirty_boxes.clear();
 
         let outcome = crate::painting::paint_passes::prepare_for_rendering(
-            &arena,
+            &mut arena,
             RootBackgroundSource {
                 root_layout_node: root,
                 ..Default::default()

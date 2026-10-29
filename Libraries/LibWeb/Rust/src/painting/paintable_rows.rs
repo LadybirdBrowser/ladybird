@@ -705,7 +705,7 @@ impl LayoutNodeArena {
         PaintableRows { arena: self }
     }
 
-    pub(crate) fn schedule_scrollable_overflow_recalculation(&self, node: NodeSlotId) {
+    pub(crate) fn schedule_scrollable_overflow_recalculation(&mut self, node: NodeSlotId) {
         // SAFETY: The caller supplies a live slot; data() generation-checks every slot the
         // containing-block walk visits.
         let node_kind = self.data(node).kind.get();
@@ -724,39 +724,40 @@ impl LayoutNodeArena {
             }
         }
 
-        if self.needs_full_scrollable_overflow_recalculation.get() {
+        if self.needs_full_scrollable_overflow_recalculation {
             return;
         }
 
         // NB: Cap the queue in case it's never consumed (e.g. forced style updates in a document
         //     that never updates layout).
         const MAX_PENDING_SCROLLABLE_OVERFLOW_RECALCULATIONS: usize = 1024;
-        let mut boxes = self.boxes_needing_scrollable_overflow_recalculation.borrow_mut();
+        let row_is_populated = self.paintable_rows().paintable_row_is_populated(node);
+        let boxes = &mut self.boxes_needing_scrollable_overflow_recalculation;
         if boxes.len() >= MAX_PENDING_SCROLLABLE_OVERFLOW_RECALCULATIONS {
             boxes.clear();
-            self.needs_full_scrollable_overflow_recalculation.set(true);
+            self.needs_full_scrollable_overflow_recalculation = true;
             return;
         }
 
-        if self.paintable_rows().paintable_row_is_populated(node) {
+        if row_is_populated {
             boxes.push(node);
         }
     }
 
-    pub(crate) fn set_needs_full_scrollable_overflow_recalculation(&self) {
-        self.needs_full_scrollable_overflow_recalculation.set(true);
+    pub(crate) fn set_needs_full_scrollable_overflow_recalculation(&mut self) {
+        self.needs_full_scrollable_overflow_recalculation = true;
     }
 
     /// Whether a scrollable overflow recalculation is scheduled, which the next rendering preparation settles.
     pub(crate) fn scrollable_overflow_recalculation_is_scheduled(&self) -> bool {
-        self.needs_full_scrollable_overflow_recalculation.get()
-            || !self.boxes_needing_scrollable_overflow_recalculation.borrow().is_empty()
+        self.needs_full_scrollable_overflow_recalculation
+            || !self.boxes_needing_scrollable_overflow_recalculation.is_empty()
     }
 
-    pub(crate) fn take_scrollable_overflow_recalculation_state(&self) -> (Vec<NodeSlotId>, bool) {
+    pub(crate) fn take_scrollable_overflow_recalculation_state(&mut self) -> (Vec<NodeSlotId>, bool) {
         (
-            std::mem::take(&mut *self.boxes_needing_scrollable_overflow_recalculation.borrow_mut()),
-            self.needs_full_scrollable_overflow_recalculation.replace(false),
+            std::mem::take(&mut self.boxes_needing_scrollable_overflow_recalculation),
+            std::mem::replace(&mut self.needs_full_scrollable_overflow_recalculation, false),
         )
     }
 

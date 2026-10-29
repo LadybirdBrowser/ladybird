@@ -130,7 +130,7 @@ impl LayoutScratch {
     }
 
     /// Brings the run memos up to date with what the arena's writes since the last call did to their boxes.
-    pub(super) fn apply_memo_invalidations(&self, arena: &LayoutNodeArena) {
+    pub(super) fn apply_memo_invalidations(&self, arena: &mut LayoutNodeArena) {
         arena.take_memo_invalidations().apply_to(
             &self.fc_run_cache_store,
             &self.in_flow_block_cache_store,
@@ -159,7 +159,7 @@ impl LayoutScratch {
     }
 
     /// Lets go of what the pass that just committed into `arena` kept for itself, and sweeps the run cache.
-    pub(crate) fn end_layout_pass(&self, arena: &LayoutNodeArena) {
+    pub(crate) fn end_layout_pass(&self, arena: &mut LayoutNodeArena) {
         self.apply_memo_invalidations(arena);
         arena.sweep_stale_fc_run_cache_entries(&self.fc_run_cache_store);
         self.inline_item_stashes.borrow_mut().clear();
