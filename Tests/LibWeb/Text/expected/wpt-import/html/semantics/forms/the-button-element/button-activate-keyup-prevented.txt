@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Fail
+Fail	Button activation submits on keyup, but not if keydown is defaultPrevented

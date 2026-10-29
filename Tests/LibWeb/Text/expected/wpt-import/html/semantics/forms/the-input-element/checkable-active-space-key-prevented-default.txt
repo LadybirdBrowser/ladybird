@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Space key shouldn't active the checkbox when its default is prevented
+Pass	Space key shouldn't active the radio when its default is prevented

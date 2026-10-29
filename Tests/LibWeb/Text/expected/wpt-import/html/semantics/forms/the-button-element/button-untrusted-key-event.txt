@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	Dispatching untrusted keypress events to submit button should not cause click event
+Pass	Dispatching untrusted keyup/keydown events to submit button should not cause click event
+Pass	Dispatching untrusted keypress events to reset button should not cause click event
+Pass	Dispatching untrusted keyup/keydown events to reset button should not cause click event
+Pass	Dispatching untrusted keypress events to button button should not cause click event
+Pass	Dispatching untrusted keyup/keydown events to button button should not cause click event

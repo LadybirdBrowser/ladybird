@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Space key shouldn't active the checkbox when it's disabled by a keydown event listener
+Pass	Space key shouldn't active the radio when it's disabled by a keydown event listener
+Pass	Space key press shouldn't activate the disabled checkbox
+Pass	Space key press shouldn't activate the disabled radio

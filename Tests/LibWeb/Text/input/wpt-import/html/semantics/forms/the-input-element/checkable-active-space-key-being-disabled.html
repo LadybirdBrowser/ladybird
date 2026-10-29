@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Tests active state of checkbox/radio when pressing space key but it's disabled by a keydown event listener</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../resources/testdriver.js"></script>
+<script src="../../../../resources/testdriver-actions.js"></script>
+<script src="../../../../resources/testdriver-vendor.js"></script>
+</head>
+<body>
+<input type="checkbox">
+<input type="radio">
+<script>
+const spaceKey = "\uE00D";
+
+function disableTarget(event) {
+  event.target.disabled = true;
+}
+
+// If a `keydown` event listener disables the event target, default event
+// handler in browser shouldn't activate the disabled element.  Otherwise,
+// the browser loses a chance to inactivate the disabled element because
+// it won't get keyup events until it's enabled again.
+
+promise_test(async t => {
+  const checkbox = document.querySelector("input[type=checkbox]");
+  checkbox.focus();
+  checkbox.addEventListener("keydown", disableTarget);
+  await (new test_driver.Actions()).keyDown(spaceKey).send();
+  let released = false;
+  t.add_cleanup(async () => {
+    if (!released) {
+      await (new test_driver.Actions()).keyUp(spaceKey).send();
+    }
+    checkbox.removeEventListener("keydown", disableTarget);
+    checkbox.remove();
+  });
+  test(() => {
+    assert_equals(
+      document.querySelector("input:active"),
+      null,
+      "The checkbox shouldn't be activated"
+    );
+  }, "Space key press shouldn't activate the disabled checkbox");
+
+  await (new test_driver.Actions()).keyUp(spaceKey).send();
+  released = true;
+
+  assert_equals(
+    document.querySelector("input:active"),
+    null,
+    "The disabled checkbox should be inactivated even if activated accidentally"
+  );
+}, "Space key shouldn't active the checkbox when it's disabled by a keydown event listener");
+
+promise_test(async t => {
+  const radio = document.querySelector("input[type=radio]");
+  radio.focus();
+  radio.addEventListener("keydown", disableTarget);
+  await (new test_driver.Actions()).keyDown(spaceKey).send();
+  let released = false;
+  t.add_cleanup(async () => {
+    if (!released) {
+      await (new test_driver.Actions()).keyUp(spaceKey).send();
+    }
+    radio.removeEventListener("keydown", disableTarget);
+    radio.disabled = false;
+  });
+  test(() => {
+    assert_equals(
+      document.querySelector("input:active"),
+      null,
+      "The radio shouldn't be activated"
+    );
+  }, "Space key press shouldn't activate the disabled radio");
+
+  await (new test_driver.Actions()).keyUp(spaceKey).send();
+  released = true;
+
+  assert_equals(
+    document.querySelector("input:active"),
+    null,
+    "The disabled radio should be inactivated even if it's accidentally activated"
+  );
+}, "Space key shouldn't active the radio when it's disabled by a keydown event listener");
+</script>
+</body>
+</html>
