@@ -26,6 +26,7 @@
 #include <LibCore/ThreadEventQueue.h>
 #include <LibCore/TimeoutSet.h>
 #include <LibCore/Timer.h>
+#include <mswsock.h>
 #include <signal.h>
 
 struct OwnHandle {
@@ -198,15 +199,46 @@ public:
     WeakPtr<EventReceiver> owner;
 };
 
-struct EventLoopSocket final : CompletionPacket {
-    int fd { -1 };
-    OwnHandle wait_packet;
-    OwnHandle wait_event;
-    Vector<Notifier*, 2> notifiers;
+// The Ancillary Function Driver's poll request, which select() and WSAPoll() are built on, is not in the Windows SDK.
+// https://github.com/piscisaureus/wepoll/blob/master/src/afd.h
+static constexpr DWORD IOCTL_AFD_POLL = 0x00012024;
 
-    // The network events that WSAEnumNetworkEvents() has reported since the socket was last polled.
-    long reported_events { 0 };
-    bool is_queued_for_poll { false };
+static constexpr ULONG AFD_POLL_RECEIVE = 0x0001;
+static constexpr ULONG AFD_POLL_SEND = 0x0004;
+static constexpr ULONG AFD_POLL_DISCONNECT = 0x0008;
+static constexpr ULONG AFD_POLL_ABORT = 0x0010;
+static constexpr ULONG AFD_POLL_LOCAL_CLOSE = 0x0020;
+static constexpr ULONG AFD_POLL_ACCEPT = 0x0080;
+static constexpr ULONG AFD_POLL_CONNECT_FAIL = 0x0100;
+
+struct AFD_POLL_HANDLE_INFO {
+    HANDLE Handle;
+    ULONG Events;
+    NTSTATUS Status;
+};
+
+struct AFD_POLL_INFO {
+    LARGE_INTEGER Timeout;
+    ULONG NumberOfHandles;
+    ULONG Exclusive;
+    AFD_POLL_HANDLE_INFO Handles[];
+};
+
+struct EventLoopSocket {
+    AK_ALLOC_WITH_KMALLOC;
+
+    int fd { -1 };
+    // The socket that AFD polls, which differs from the socket itself when a layered service provider is installed.
+    SOCKET base_socket { INVALID_SOCKET };
+    Vector<Notifier*, 2> notifiers;
+    // The socket was closed under its notifiers, so it is no longer polled.
+    bool is_closed { false };
+};
+
+struct PolledSocket {
+    SOCKET base_socket;
+    // Null once the socket's last notifier is unregistered while it is polled.
+    EventLoopSocket* socket;
 };
 
 struct EventLoopPipeNotifier final : CompletionPacket {
@@ -277,14 +309,23 @@ struct ThreadData {
 
     OwnHandle iocp;
 
-    // These are only used to register and unregister. The event loop doesn't access these.
+    // A handle to AFD that sockets are polled through, opened when the first socket is watched. Its polls complete to
+    // the completion port with socket_poll_packet as their key.
+    OwnHandle afd;
+    CompletionPacket socket_poll_packet { CompletionType::Socket };
+
+    // All sockets are polled at once, and only while the loop waits, as with poll(). AFD completes only the oldest of
+    // the polls pending on a socket, so a poll left pending between waits would starve any other wait on the socket.
+    OVERLAPPED socket_poll {};
+    // An AFD_POLL_INFO with a handle for each polled socket. AFD writes the ready sockets back to it, in order.
+    Vector<u8> socket_poll_buffer;
+    Vector<PolledSocket, 8> polled_sockets;
+    bool socket_poll_is_pending { false };
+
     HashMap<int, NonnullOwnPtr<EventLoopSocket>> sockets;
+    // These are only used to register and unregister. The event loop doesn't access these.
     HashMap<Notifier*, EventLoopSocket*> socket_notifiers;
     HashMap<Notifier*, NonnullOwnPtr<EventLoopPipeNotifier>> pipe_notifiers;
-
-    // Sockets to poll on the next pump: those whose event was signalled, those whose notifiers changed, and those that
-    // were ready when last polled, which are polled again once the activations posted for them have been handled.
-    Vector<EventLoopSocket*, 8> sockets_to_poll;
 
     // Pipe notifiers whose activation has been posted. Each reads its pipe again only on the next pump, once its
     // activation has been handled, so that it activates again only if there is still something to read, as a poll()
@@ -412,83 +453,145 @@ static void handle_process_message(OVERLAPPED_ENTRY const& entry)
     });
 }
 
-static int notifier_type_to_network_event(NotificationType type)
+static ULONG socket_poll_events(EventLoopSocket const& socket)
 {
-    // NotificationType is a bitmask (e.g. HangUp | Error), so translate each set bit.
-    int events = 0;
-    if (has_flag(type, NotificationType::Read))
-        events |= FD_READ | FD_CLOSE | FD_ACCEPT;
-    if (has_flag(type, NotificationType::Write))
-        events |= FD_WRITE | FD_CONNECT;
-    // WSAEventSelect has no separate error event; socket errors surface as FD_CLOSE.
-    if (has_flag(type, NotificationType::HangUp) || has_flag(type, NotificationType::Error))
-        events |= FD_CLOSE;
-
-    if (!events) {
-        dbgln("This notification type is not implemented: {}", (int)type);
-        VERIFY_NOT_REACHED();
+    // As with poll(), hang-ups and errors are always reported. A socket that is closed while it is polled completes its
+    // poll.
+    ULONG events = AFD_POLL_ABORT | AFD_POLL_CONNECT_FAIL | AFD_POLL_LOCAL_CLOSE;
+    for (auto* notifier : socket.notifiers) {
+        if (has_flag(notifier->type(), NotificationType::Read))
+            events |= AFD_POLL_RECEIVE | AFD_POLL_ACCEPT | AFD_POLL_DISCONNECT;
+        if (has_flag(notifier->type(), NotificationType::Write))
+            events |= AFD_POLL_SEND;
     }
-
     return events;
 }
 
-static void queue_socket_poll(ThreadData& thread_data, EventLoopSocket& socket)
+static NotificationType afd_poll_events_to_notification_type(ULONG events)
 {
-    if (socket.is_queued_for_poll)
-        return;
-    socket.is_queued_for_poll = true;
-    thread_data.sockets_to_poll.append(&socket);
+    // This follows EventLoopImplementationUnix's translation of poll() events.
+    auto type = NotificationType::None;
+    if (events & (AFD_POLL_RECEIVE | AFD_POLL_ACCEPT | AFD_POLL_DISCONNECT))
+        type |= NotificationType::Read;
+    if (events & AFD_POLL_SEND)
+        type |= NotificationType::Write;
+    if (events & AFD_POLL_ABORT)
+        type |= NotificationType::Read | NotificationType::Write | NotificationType::HangUp;
+    if (events & AFD_POLL_CONNECT_FAIL)
+        type |= NotificationType::Read | NotificationType::Write | NotificationType::Error;
+    return type;
 }
 
-static void poll_sockets(ThreadData& thread_data, ThreadEventQueue& event_queue)
+static void open_afd(ThreadData& thread_data)
 {
-    auto& sockets = thread_data.sockets_to_poll;
-    if (sockets.is_empty())
-        return;
+    // Any name under \Device\Afd opens a handle that polls can be issued through.
+    static constexpr wchar_t device_name[] = L"\\Device\\Afd\\Ladybird";
+    UNICODE_STRING name {
+        .Length = sizeof(device_name) - sizeof(wchar_t),
+        .MaximumLength = sizeof(device_name),
+        .Buffer = const_cast<PWSTR>(device_name),
+    };
+    OBJECT_ATTRIBUTES attributes {};
+    attributes.Length = sizeof(attributes);
+    attributes.ObjectName = &name;
+    IO_STATUS_BLOCK io_status {};
+    NTSTATUS status = g_system.NtCreateFile(&thread_data.afd.handle, SYNCHRONIZE, &attributes, &io_status, NULL, 0, FILE_SHARE_READ | FILE_SHARE_WRITE, FILE_OPEN, 0, NULL, 0);
+    VERIFY(NT_SUCCESS(status));
+    VERIFY(CreateIoCompletionPort(thread_data.afd.handle, thread_data.iocp.handle, reinterpret_cast<ULONG_PTR>(&thread_data.socket_poll_packet), 0));
+}
 
-    Vector<WSAPOLLFD, 8> poll_fds;
-    for (auto* socket : sockets) {
-        short events = 0;
-        for (auto* notifier : socket->notifiers) {
-            if (has_flag(notifier->type(), NotificationType::Read))
-                events |= POLLRDNORM;
-            if (has_flag(notifier->type(), NotificationType::Write))
-                events |= POLLWRNORM;
+static AFD_POLL_INFO& socket_poll_info(ThreadData& thread_data)
+{
+    return *reinterpret_cast<AFD_POLL_INFO*>(thread_data.socket_poll_buffer.data());
+}
+
+static bool socket_is_closed(SOCKET socket)
+{
+    int type = 0;
+    int type_size = sizeof(type);
+    return getsockopt(socket, SOL_SOCKET, SO_TYPE, reinterpret_cast<char*>(&type), &type_size) == SOCKET_ERROR
+        && WSAGetLastError() == WSAENOTSOCK;
+}
+
+// Polls all sockets with notifiers for the events those notifiers are waiting for, until finish_socket_poll().
+static void start_socket_poll(ThreadData& thread_data, bool should_wait)
+{
+    VERIFY(!thread_data.socket_poll_is_pending);
+    for (;;) {
+        thread_data.polled_sockets.clear_with_capacity();
+        for (auto& [fd, socket] : thread_data.sockets) {
+            if (!socket->is_closed)
+                thread_data.polled_sockets.append({ socket->base_socket, socket.ptr() });
         }
-        poll_fds.append({ .fd = static_cast<SOCKET>(socket->fd), .events = events, .revents = 0 });
-    }
-    if (WSAPoll(poll_fds.data(), poll_fds.size(), 0) == SOCKET_ERROR) {
-        for (auto& poll_fd : poll_fds)
-            poll_fd.revents = POLLERR;
-    }
+        if (thread_data.polled_sockets.is_empty())
+            return;
 
-    Vector<EventLoopSocket*, 8> still_ready;
-    for (size_t i = 0; i < sockets.size(); ++i) {
-        auto& socket = *sockets[i];
-        auto revents = poll_fds[i].revents;
+        auto buffer_size = sizeof(AFD_POLL_INFO) + (thread_data.polled_sockets.size() * sizeof(AFD_POLL_HANDLE_INFO));
+        thread_data.socket_poll_buffer.resize(buffer_size);
+        auto& poll_info = socket_poll_info(thread_data);
+        poll_info.Timeout.QuadPart = should_wait ? NumericLimits<i64>::max() : 0;
+        poll_info.NumberOfHandles = thread_data.polled_sockets.size();
+        poll_info.Exclusive = FALSE;
+        for (size_t i = 0; i < thread_data.polled_sockets.size(); i++) {
+            auto& polled_socket = thread_data.polled_sockets[i];
+            poll_info.Handles[i] = {
+                .Handle = reinterpret_cast<HANDLE>(polled_socket.base_socket),
+                .Events = socket_poll_events(*polled_socket.socket),
+                .Status = 0,
+            };
+        }
 
-        long ready_events = exchange(socket.reported_events, 0);
-        if (revents & POLLRDNORM)
-            ready_events |= FD_READ;
-        if (revents & (POLLHUP | POLLERR | POLLNVAL))
-            ready_events |= FD_READ | FD_CLOSE;
-        if (revents & (POLLWRNORM | POLLHUP | POLLERR | POLLNVAL))
-            ready_events |= FD_WRITE;
+        thread_data.socket_poll = {};
+        // A poll whose events have already occurred completes at once, but its completion is still queued.
+        if (DeviceIoControl(thread_data.afd.handle, IOCTL_AFD_POLL, &poll_info, buffer_size, &poll_info, buffer_size, NULL, &thread_data.socket_poll)
+            || GetLastError() == ERROR_IO_PENDING) {
+            thread_data.socket_poll_is_pending = true;
+            return;
+        }
 
-        bool activated = false;
-        for (auto* notifier : socket.notifiers) {
-            if (ready_events & notifier_type_to_network_event(notifier->type())) {
-                event_queue.post_event(notifier, Core::Event::Type::NotifierActivation);
-                activated = true;
+        // The whole poll fails if any of its sockets was closed under its notifiers. Like poll() with POLLNVAL, those
+        // never activate their notifiers, so they are left out of the poll.
+        bool found_closed_socket = false;
+        for (auto& polled_socket : thread_data.polled_sockets) {
+            if (socket_is_closed(polled_socket.base_socket)) {
+                polled_socket.socket->is_closed = true;
+                found_closed_socket = true;
             }
         }
-
-        if (activated && revents)
-            still_ready.append(&socket);
-        else
-            socket.is_queued_for_poll = false;
+        if (!found_closed_socket) {
+            dbgln("Failed to poll sockets: {}", Error::from_windows_error());
+            return;
+        }
     }
-    sockets = move(still_ready);
+}
+
+static void handle_socket_poll_completion(ThreadData& thread_data, ThreadEventQueue& event_queue)
+{
+    thread_data.socket_poll_is_pending = false;
+
+    // A cancelled poll reports no events.
+    auto status = static_cast<NTSTATUS>(thread_data.socket_poll.Internal);
+    if (!NT_SUCCESS(status))
+        return;
+
+    auto& poll_info = socket_poll_info(thread_data);
+    size_t polled_socket_index = 0;
+    for (ULONG i = 0; i < poll_info.NumberOfHandles; i++) {
+        auto& result = poll_info.Handles[i];
+        while (polled_socket_index < thread_data.polled_sockets.size() && thread_data.polled_sockets[polled_socket_index].base_socket != reinterpret_cast<SOCKET>(result.Handle))
+            polled_socket_index++;
+        if (polled_socket_index == thread_data.polled_sockets.size())
+            break;
+
+        auto* socket = thread_data.polled_sockets[polled_socket_index].socket;
+        if (!socket)
+            continue;
+        auto type = afd_poll_events_to_notification_type(result.Events);
+        for (auto* notifier : socket->notifiers) {
+            if ((type & notifier->type()) != NotificationType::None)
+                event_queue.post_event(notifier, Core::Event::Type::NotifierActivation);
+        }
+    }
 }
 
 static bool handle_is_overlapped(HANDLE handle)
@@ -531,6 +634,76 @@ static void cancel_pipe_read(EventLoopPipeNotifier& notifier_data)
         WaitForSingleObject(notifier_data.wait_event.handle, INFINITE);
 }
 
+static void handle_completion(ThreadData& thread_data, OVERLAPPED_ENTRY const& entry, ThreadEventQueue& event_queue)
+{
+    if (is_process_completion_key(entry.lpCompletionKey)) {
+        handle_process_message(entry);
+        return;
+    }
+    auto* packet = reinterpret_cast<CompletionPacket*>(entry.lpCompletionKey);
+
+    if (packet->type == CompletionType::Signal) {
+        dispatch_pending_signals();
+        return;
+    }
+    if (packet->type == CompletionType::Wake) {
+        auto* wake_data = static_cast<EventLoopWake*>(packet);
+        NTSTATUS status = g_system.NtAssociateWaitCompletionPacket(wake_data->wait_packet.handle, thread_data.iocp.handle, wake_data->wait_event.handle, wake_data, NULL, 0, 0, NULL);
+        VERIFY(NT_SUCCESS(status));
+        return;
+    }
+    if (packet->type == CompletionType::Timer) {
+        auto* master_timer = static_cast<EventLoopMasterTimer*>(packet);
+        master_timer->wait_packet_associated = false;
+        thread_data.armed_deadline = {};
+
+        // TimeoutSet fires due timers in registration order for equal deadlines. (This cannot rely on
+        // kernel wakeup order: simultaneously signaled wait completion packets are delivered in LIFO
+        // order.)
+        auto now = MonotonicTime::now();
+        thread_data.timeouts.fire_expired(now);
+        // Zero-interval reloads are rescheduled relative to defer them to the next pump.
+        thread_data.timeouts.absolutize_relative_timeouts(now);
+
+        arm_master_timer(thread_data);
+        return;
+    }
+    if (packet->type == CompletionType::Socket) {
+        handle_socket_poll_completion(thread_data, event_queue);
+        return;
+    }
+    if (packet->type == CompletionType::PipeNotifier) {
+        auto* notifier_data = static_cast<EventLoopPipeNotifier*>(packet);
+        event_queue.post_event(notifier_data->notifier, Core::Event::Type::NotifierActivation);
+        NTSTATUS status = g_system.NtAssociateWaitCompletionPacket(notifier_data->wait_packet.handle, thread_data.iocp.handle, notifier_data->wait_event.handle, notifier_data, NULL, 0, 0, NULL);
+        VERIFY(NT_SUCCESS(status));
+        thread_data.pipe_notifiers_to_rearm.append(notifier_data);
+        return;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+// NOTE: The number of entries to dequeue is to be optimized. Ideally we always dequeue all outstanding packets,
+// but we don't want to increase the cost of each pump unnecessarily. If more than one entry is never dequeued
+// at once, we could switch to using GetQueuedCompletionStatus which directly returns the values.
+static constexpr ULONG completion_entry_count = 32;
+
+// Cancels the socket poll if it is still pending, and waits for it to complete so that its results can be reported
+// and its buffer reused. Completions dequeued meanwhile are handled as usual.
+static void finish_socket_poll(ThreadData& thread_data, ThreadEventQueue& event_queue)
+{
+    if (!thread_data.socket_poll_is_pending)
+        return;
+    CancelIoEx(thread_data.afd.handle, &thread_data.socket_poll);
+    while (thread_data.socket_poll_is_pending) {
+        OVERLAPPED_ENTRY entries[completion_entry_count];
+        ULONG entries_removed = 0;
+        VERIFY(GetQueuedCompletionStatusEx(thread_data.iocp.handle, entries, completion_entry_count, &entries_removed, INFINITE, FALSE));
+        for (ULONG i = 0; i < entries_removed; i++)
+            handle_completion(thread_data, entries[i], event_queue);
+    }
+}
+
 size_t EventLoopImplementationWindows::pump(PumpMode pump_mode)
 {
     auto& event_queue = ThreadEventQueue::current();
@@ -540,80 +713,22 @@ size_t EventLoopImplementationWindows::pump(PumpMode pump_mode)
         read_pipe_until_readable(*notifier_data);
     thread_data->pipe_notifiers_to_rearm.clear();
 
-    // NOTE: The number of entries to dequeue is to be optimized. Ideally we always dequeue all outstanding packets,
-    // but we don't want to increase the cost of each pump unnecessarily. If more than one entry is never dequeued
-    // at once, we could switch to using GetQueuedCompletionStatus which directly returns the values.
-    constexpr ULONG entry_count = 32;
-    OVERLAPPED_ENTRY entries[entry_count];
+    OVERLAPPED_ENTRY entries[completion_entry_count];
     ULONG entries_removed = 0;
 
-    // A socket that was ready when last polled is polled again without waiting, as poll() would report it ready again.
-    bool has_pending_events = event_queue.has_pending_events() || !thread_data->sockets_to_poll.is_empty();
+    bool has_pending_events = event_queue.has_pending_events();
     DWORD timeout = 0;
     if (!has_pending_events && pump_mode == PumpMode::WaitForEvents)
         timeout = INFINITE;
 
-    BOOL success = GetQueuedCompletionStatusEx(thread_data->iocp.handle, entries, entry_count, &entries_removed, timeout, FALSE);
+    start_socket_poll(*thread_data, timeout != 0);
+
+    BOOL success = GetQueuedCompletionStatusEx(thread_data->iocp.handle, entries, completion_entry_count, &entries_removed, timeout, FALSE);
     dbgln_if(debug_event_loop, "Event loop dequed {} events", entries_removed);
 
     if (success) {
-        for (ULONG i = 0; i < entries_removed; i++) {
-            auto& entry = entries[i];
-            if (is_process_completion_key(entry.lpCompletionKey)) {
-                handle_process_message(entry);
-                continue;
-            }
-            auto* packet = reinterpret_cast<CompletionPacket*>(entry.lpCompletionKey);
-
-            if (packet->type == CompletionType::Signal) {
-                dispatch_pending_signals();
-                continue;
-            }
-            if (packet->type == CompletionType::Wake) {
-                auto* wake_data = static_cast<EventLoopWake*>(packet);
-                NTSTATUS status = g_system.NtAssociateWaitCompletionPacket(wake_data->wait_packet.handle, thread_data->iocp.handle, wake_data->wait_event.handle, wake_data, NULL, 0, 0, NULL);
-                VERIFY(NT_SUCCESS(status));
-                continue;
-            }
-            if (packet->type == CompletionType::Timer) {
-                auto* master_timer = static_cast<EventLoopMasterTimer*>(packet);
-                master_timer->wait_packet_associated = false;
-                thread_data->armed_deadline = {};
-
-                // TimeoutSet fires due timers in registration order for equal deadlines. (This cannot rely on
-                // kernel wakeup order: simultaneously signaled wait completion packets are delivered in LIFO
-                // order.)
-                auto now = MonotonicTime::now();
-                thread_data->timeouts.fire_expired(now);
-                // Zero-interval reloads are rescheduled relative to defer them to the next pump.
-                thread_data->timeouts.absolutize_relative_timeouts(now);
-
-                arm_master_timer(*thread_data);
-                continue;
-            }
-            if (packet->type == CompletionType::Socket) {
-                auto* socket = static_cast<EventLoopSocket*>(packet);
-                // If querying which events occurred fails, dispatch to all notifier types.
-                WSANETWORKEVENTS occurred {};
-                if (WSAEnumNetworkEvents(socket->fd, socket->wait_event.handle, &occurred) == 0)
-                    socket->reported_events |= occurred.lNetworkEvents;
-                else
-                    socket->reported_events = ~0;
-                NTSTATUS status = g_system.NtAssociateWaitCompletionPacket(socket->wait_packet.handle, thread_data->iocp.handle, socket->wait_event.handle, socket, NULL, 0, 0, NULL);
-                VERIFY(NT_SUCCESS(status));
-                queue_socket_poll(*thread_data, *socket);
-                continue;
-            }
-            if (packet->type == CompletionType::PipeNotifier) {
-                auto* notifier_data = static_cast<EventLoopPipeNotifier*>(packet);
-                event_queue.post_event(notifier_data->notifier, Core::Event::Type::NotifierActivation);
-                NTSTATUS status = g_system.NtAssociateWaitCompletionPacket(notifier_data->wait_packet.handle, thread_data->iocp.handle, notifier_data->wait_event.handle, notifier_data, NULL, 0, 0, NULL);
-                VERIFY(NT_SUCCESS(status));
-                thread_data->pipe_notifiers_to_rearm.append(notifier_data);
-                continue;
-            }
-            VERIFY_NOT_REACHED();
-        }
+        for (ULONG i = 0; i < entries_removed; i++)
+            handle_completion(*thread_data, entries[i], event_queue);
     } else {
         DWORD error = GetLastError();
         switch (error) {
@@ -625,7 +740,7 @@ size_t EventLoopImplementationWindows::pump(PumpMode pump_mode)
         }
     }
 
-    poll_sockets(*thread_data, event_queue);
+    finish_socket_poll(*thread_data, event_queue);
 
     return event_queue.process();
 }
@@ -640,50 +755,48 @@ void EventLoopImplementationWindows::wake()
     SetEvent(m_wake_event);
 }
 
-static void select_socket_events(EventLoopSocket& socket)
+static SOCKET base_socket(int fd)
 {
-    long network_events = 0;
-    for (auto* notifier : socket.notifiers)
-        network_events |= notifier_type_to_network_event(notifier->type());
-    int rc = WSAEventSelect(socket.fd, socket.wait_event.handle, network_events);
-    VERIFY(!rc);
+    SOCKET base = INVALID_SOCKET;
+    DWORD bytes = 0;
+    if (WSAIoctl(static_cast<SOCKET>(fd), SIO_BASE_HANDLE, NULL, 0, &base, sizeof(base), &bytes, NULL, NULL) == SOCKET_ERROR)
+        return static_cast<SOCKET>(fd);
+    return base;
 }
 
 static void register_socket_notifier(ThreadData& thread_data, Notifier& notifier)
 {
+    if (!thread_data.afd.handle)
+        open_afd(thread_data);
+
     auto& socket = *thread_data.sockets.ensure(notifier.fd(), [&] {
         auto socket = make<EventLoopSocket>();
-        socket->type = CompletionType::Socket;
         socket->fd = notifier.fd();
-        socket->wait_event.handle = CreateEvent(NULL, FALSE, FALSE, NULL);
-        VERIFY(socket->wait_event.handle);
-        NTSTATUS status = g_system.NtCreateWaitCompletionPacket(&socket->wait_packet.handle, GENERIC_READ | GENERIC_WRITE, NULL);
-        VERIFY(NT_SUCCESS(status));
-        status = g_system.NtAssociateWaitCompletionPacket(socket->wait_packet.handle, thread_data.iocp.handle, socket->wait_event.handle, socket.ptr(), NULL, 0, 0, NULL);
-        VERIFY(NT_SUCCESS(status));
         return socket;
     });
+    // A socket that was closed under its notifiers may have had its handle reused since.
+    if (socket.notifiers.is_empty() || socket.is_closed) {
+        socket.base_socket = base_socket(socket.fd);
+        socket.is_closed = false;
+        // WSAEventSelect(), which sockets used to be watched with, made them non-blocking, so this does too.
+        u_long non_blocking = 1;
+        (void)ioctlsocket(static_cast<SOCKET>(socket.fd), FIONBIO, &non_blocking);
+    }
     socket.notifiers.append(&notifier);
     thread_data.socket_notifiers.set(&notifier, &socket);
-    select_socket_events(socket);
-    queue_socket_poll(thread_data, socket);
 }
 
 static void unregister_socket_notifier(ThreadData& thread_data, Notifier& notifier, EventLoopSocket& socket)
 {
     socket.notifiers.remove_first_matching([&](auto* entry) { return entry == &notifier; });
-    if (!socket.notifiers.is_empty()) {
-        select_socket_events(socket);
+    if (!socket.notifiers.is_empty())
         return;
-    }
 
-    if (socket.is_queued_for_poll)
-        thread_data.sockets_to_poll.remove_first_matching([&](auto* entry) { return entry == &socket; });
-    // The socket may already have been closed, so this can fail.
-    (void)WSAEventSelect(socket.fd, nullptr, 0);
-    // We are removing the signalled packets since the caller no longer expects them
-    NTSTATUS status = g_system.NtCancelWaitCompletionPacket(socket.wait_packet.handle, TRUE);
-    VERIFY(NT_SUCCESS(status));
+    // A signal handler may unregister a notifier while its socket is polled.
+    for (auto& polled_socket : thread_data.polled_sockets) {
+        if (polled_socket.socket == &socket)
+            polled_socket.socket = nullptr;
+    }
     thread_data.sockets.remove(socket.fd);
 }
 

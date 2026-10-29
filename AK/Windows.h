@@ -63,6 +63,7 @@ BOOL WINAPI ProcessPrng(PBYTE pbData, SIZE_T cbData);
 using PFN_NtCreateWaitCompletionPacket = decltype(&NtCreateWaitCompletionPacket);
 using PFN_NtCancelWaitCompletionPacket = decltype(&NtCancelWaitCompletionPacket);
 using PFN_NtAssociateWaitCompletionPacket = decltype(&NtAssociateWaitCompletionPacket);
+using PFN_NtCreateFile = decltype(&NtCreateFile);
 using PFN_NtQueryInformationFile = decltype(&NtQueryInformationFile);
 using PFN_ProcessPrng = decltype(&ProcessPrng);
 
@@ -70,6 +71,7 @@ inline struct SystemApi {
     PFN_NtAssociateWaitCompletionPacket NtAssociateWaitCompletionPacket = NULL;
     PFN_NtCancelWaitCompletionPacket NtCancelWaitCompletionPacket = NULL;
     PFN_NtCreateWaitCompletionPacket NtCreateWaitCompletionPacket = NULL;
+    PFN_NtCreateFile NtCreateFile = NULL;
     PFN_NtQueryInformationFile NtQueryInformationFile = NULL;
     PFN_ProcessPrng ProcessPrng = NULL;
 
@@ -83,11 +85,13 @@ inline struct SystemApi {
             NtAssociateWaitCompletionPacket = (PFN_NtAssociateWaitCompletionPacket)GetProcAddress(hNtdll, "NtAssociateWaitCompletionPacket");
             NtCancelWaitCompletionPacket = (PFN_NtCancelWaitCompletionPacket)GetProcAddress(hNtdll, "NtCancelWaitCompletionPacket");
             NtCreateWaitCompletionPacket = (PFN_NtCreateWaitCompletionPacket)GetProcAddress(hNtdll, "NtCreateWaitCompletionPacket");
+            NtCreateFile = (PFN_NtCreateFile)GetProcAddress(hNtdll, "NtCreateFile");
             NtQueryInformationFile = (PFN_NtQueryInformationFile)GetProcAddress(hNtdll, "NtQueryInformationFile");
             ProcessPrng = (PFN_ProcessPrng)GetProcAddress(hBcryptprimitives, "ProcessPrng");)
         VERIFY(NtAssociateWaitCompletionPacket);
         VERIFY(NtCancelWaitCompletionPacket);
         VERIFY(NtCreateWaitCompletionPacket);
+        VERIFY(NtCreateFile);
         VERIFY(NtQueryInformationFile);
         VERIFY(ProcessPrng);
     }
