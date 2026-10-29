@@ -843,6 +843,9 @@ public:
     bool ready_for_post_load_tasks() const { return m_ready_for_post_load_tasks; }
     void set_ready_for_post_load_tasks(bool ready);
 
+    // NB: Whether this document has yet to fire its load event, including for contents written after document.open().
+    bool load_event_still_needed() const { return !m_ready_for_post_load_tasks || m_opened_contents_still_loading; }
+
     // https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#print-when-loaded
     bool print_when_loaded() const { return m_print_when_loaded; }
     void set_print_when_loaded() { m_print_when_loaded = true; }
@@ -1983,6 +1986,7 @@ private:
     Optional<Utf16String> m_encoding;
 
     bool m_ready_for_post_load_tasks { false };
+    bool m_opened_contents_still_loading { false };
     bool m_print_when_loaded { false };
 
     GC::Ptr<DOMImplementation> m_implementation;

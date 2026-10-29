@@ -1,0 +1,3 @@
+Parent document ready state after its load: complete
+Top-level document loaded before child reopen: false
+Top-level document loaded while child is still open: true

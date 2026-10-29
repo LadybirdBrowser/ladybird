@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body>
+<script>
+    let topLevelLoaded = false;
+    window.addEventListener("load", () => (topLevelLoaded = true), { once: true });
+
+    // Keep the top-level document loading until this iframe's reopened document is closed.
+    const holdIframe = document.createElement("iframe");
+    document.body.appendChild(holdIframe);
+    const holdDocument = holdIframe.contentDocument;
+    holdDocument.open();
+
+    const parentIframe = document.createElement("iframe");
+    document.body.appendChild(parentIframe);
+
+    asyncTest(async done => {
+        const parentDocument = parentIframe.contentDocument;
+        const parentLoad = new Promise(resolve => parentIframe.addEventListener("load", () => setTimeout(resolve), { once: true }));
+        parentDocument.open().write('<iframe id="child" srcdoc="Initial child document"></iframe>');
+        parentDocument.close();
+        await parentLoad;
+        println(`Parent document ready state after its load: ${parentDocument.readyState}`);
+        println(`Top-level document loaded before child reopen: ${topLevelLoaded}`);
+
+        const childDocument = parentDocument.querySelector("#child").contentDocument;
+        childDocument.open().write("<body>Replacement child document</body>");
+
+        const topLevelLoad = new Promise(resolve => {
+            if (topLevelLoaded)
+                resolve();
+            else
+                window.addEventListener("load", resolve, { once: true });
+        });
+        holdDocument.close();
+        await topLevelLoad;
+        println(`Top-level document loaded while child is still open: ${childDocument.readyState === "loading"}`);
+
+        childDocument.close();
+        parentIframe.remove();
+        holdIframe.remove();
+        done();
+    });
+</script>
