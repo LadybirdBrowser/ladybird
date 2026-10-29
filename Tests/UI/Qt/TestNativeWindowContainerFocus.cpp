@@ -17,14 +17,9 @@ namespace {
 
 QApplication& application()
 {
-    static struct ForceOffscreenPlatform {
-        ForceOffscreenPlatform() { qputenv("QT_QPA_PLATFORM", "offscreen"); }
-    } force_offscreen_platform;
-    static int argc = 1;
-    static char program_name[] = "TestNativeWindowContainerFocus";
-    static char* argv[] = { program_name, nullptr };
-    static QApplication app(argc, argv);
-    return app;
+    auto* app = qobject_cast<QApplication*>(QCoreApplication::instance());
+    VERIFY(app);
+    return *app;
 }
 
 struct TestWindow {
