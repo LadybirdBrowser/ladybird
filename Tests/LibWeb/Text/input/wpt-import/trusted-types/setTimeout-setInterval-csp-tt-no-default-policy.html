@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="variant" content="?default">
+  <meta name="variant" content="?trusted-types-eval">
+  <script nonce="abc" src="../resources/testharness.js"></script>
+  <script nonce="abc" src="../resources/testharnessreport.js"></script>
+  <meta http-equiv="Content-Security-Policy" content="require-trusted-types-for 'script'">
+  <script nonce="abc">
+    // With 'trusted-types-eval' and an enforced require-trusted-types-for
+    // 'script', the results must be the same as without a script-src.
+    if (location.search === "?trusted-types-eval") {
+      const meta = document.createElement("meta");
+      meta.httpEquiv = "Content-Security-Policy";
+      meta.content = "script-src 'nonce-abc' 'trusted-types-eval'";
+      document.head.appendChild(meta);
+    }
+  </script>
+</head>
+<body>
+<script nonce="abc">
+  let finishTimerTest;
+  const p = trustedTypes.createPolicy("p", {createScript: s => s});
+
+  // Strings are rejected, since there is no default policy to convert them.
+  test(t => {
+    globalThis.timeoutString = false;
+    assert_throws_js(TypeError,
+                     () => setTimeout('globalThis.timeoutString = true'));
+    assert_false(globalThis.timeoutString);
+  }, "setTimeout of string throws.");
+
+  test(t => {
+    globalThis.intervalString = false;
+    assert_throws_js(TypeError,
+                     () => setInterval('globalThis.intervalString = true'));
+    assert_false(globalThis.intervalString);
+  }, "setInterval of string throws.");
+
+  // TrustedScript values run.
+  promise_test(async t => {
+    globalThis.timeoutTrustedScript = false;
+    await new Promise(resolve => {
+      finishTimerTest = resolve;
+      const id = setTimeout(p.createScript('globalThis.timeoutTrustedScript = true; finishTimerTest()'));
+      assert_greater_than(id, 0);
+      t.add_cleanup(() => clearTimeout(id));
+    });
+    assert_true(globalThis.timeoutTrustedScript);
+  }, "setTimeout of TrustedScript runs.");
+
+  promise_test(async t => {
+    globalThis.intervalTrustedScript = false;
+    await new Promise(resolve => {
+      let id;
+      finishTimerTest = () => {
+        clearInterval(id);
+        resolve();
+      };
+      id = setInterval(p.createScript('globalThis.intervalTrustedScript = true; finishTimerTest()'));
+      assert_greater_than(id, 0);
+      t.add_cleanup(() => clearInterval(id));
+    });
+    assert_true(globalThis.intervalTrustedScript);
+  }, "setInterval of TrustedScript runs.");
+</script>
+</body>
+</html>

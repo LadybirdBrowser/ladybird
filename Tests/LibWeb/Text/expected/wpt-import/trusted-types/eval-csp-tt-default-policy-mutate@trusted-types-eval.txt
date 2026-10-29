@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	eval of string where default policy mutates value throws.
+Pass	indirect eval of string where default policy mutates value throws.
+Pass	Function constructor with string where default policy mutates value throws.
+Pass	AsyncFunction constructor with string where default policy mutates value throws.
+Pass	GeneratorFunction constructor with string where default policy mutates value throws.
+Pass	AsyncGeneratorFunction constructor with string where default policy mutates value throws.

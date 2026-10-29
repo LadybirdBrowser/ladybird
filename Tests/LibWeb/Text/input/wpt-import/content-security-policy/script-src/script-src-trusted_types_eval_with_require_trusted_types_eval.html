@@ -1,0 +1,61 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+    <title>Scripts injected via `eval` are allowed with `trusted-types-eval` and `require-trusted-types-for 'script'`.</title>
+    <script src='../../resources/testharness.js' nonce='dummy'></script>
+    <script src='../../resources/testharnessreport.js' nonce='dummy'></script>
+
+    <!-- CSP served: script-src 'nonce-dummy' 'trusted-types-eval'; require-trusted-types-for 'script'; -->
+</head>
+
+<body>
+    <script nonce='dummy'>
+        let finishTimerTest;
+        trustedTypes.createPolicy('default', {createScript: s => s});
+
+        test(t => {
+            globalThis.evalScriptRan = false;
+            eval("globalThis.evalScriptRan = true;");
+            assert_true(globalThis.evalScriptRan);
+        }, "Script injected via direct `eval` is allowed with `trusted-types-eval` and `require-trusted-types-for 'script'`.");
+
+        test(t => {
+            globalThis.indirectEvalScriptRan = false;
+            eval?.("globalThis.indirectEvalScriptRan = true;");
+            assert_true(globalThis.indirectEvalScriptRan);
+        }, "Script injected via indirect `eval` is allowed with `trusted-types-eval` and `require-trusted-types-for 'script'`.");
+
+        test(t => {
+            globalThis.functionScriptRan = false;
+            new Function("globalThis.functionScriptRan = true;")();
+            assert_true(globalThis.functionScriptRan);
+        }, "Script injected via `new Function` is allowed with `trusted-types-eval` and `require-trusted-types-for 'script'`.");
+
+        promise_test(t => {
+            globalThis.setTimeoutScriptRan = false;
+            const executed = new Promise(resolve => { finishTimerTest = resolve; });
+            const id = setTimeout("globalThis.setTimeoutScriptRan = true; finishTimerTest();", 0);
+            assert_greater_than(id, 0);
+            t.add_cleanup(() => clearTimeout(id));
+            return executed.then(() => assert_true(globalThis.setTimeoutScriptRan));
+        }, "Script injected via `setTimeout` is allowed with `trusted-types-eval` and `require-trusted-types-for 'script'`.");
+
+        promise_test(t => {
+            globalThis.setIntervalScriptRan = false;
+            let id;
+            const executed = new Promise(resolve => {
+                finishTimerTest = () => {
+                    clearInterval(id);
+                    resolve();
+                };
+            });
+            id = setInterval("globalThis.setIntervalScriptRan = true; finishTimerTest();", 0);
+            assert_greater_than(id, 0);
+            t.add_cleanup(() => clearInterval(id));
+            return executed.then(() => assert_true(globalThis.setIntervalScriptRan));
+        }, "Script injected via `setInterval` is allowed with `trusted-types-eval` and `require-trusted-types-for 'script'`.");
+    </script>
+</body>
+
+</html>

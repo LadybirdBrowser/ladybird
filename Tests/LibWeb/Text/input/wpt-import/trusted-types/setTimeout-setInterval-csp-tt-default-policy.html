@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="variant" content="?default">
+  <meta name="variant" content="?trusted-types-eval">
+  <script nonce="abc" src="../resources/testharness.js"></script>
+  <script nonce="abc" src="../resources/testharnessreport.js"></script>
+  <meta http-equiv="Content-Security-Policy" content="require-trusted-types-for 'script'">
+  <script nonce="abc">
+    // With 'trusted-types-eval' and an enforced require-trusted-types-for
+    // 'script', the results must be the same as without a script-src.
+    if (location.search === "?trusted-types-eval") {
+      const meta = document.createElement("meta");
+      meta.httpEquiv = "Content-Security-Policy";
+      meta.content = "script-src 'nonce-abc' 'trusted-types-eval'";
+      document.head.appendChild(meta);
+    }
+  </script>
+</head>
+<body>
+<script nonce="abc">
+  let finishTimerTest;
+  const policy_error = new Error("createScript exception");
+
+  trustedTypes.createPolicy("default", {
+    createScript: s => {
+      if (s.includes("reject")) return null;
+      if (s.includes("throw")) throw policy_error;
+      if (s.includes("mutate")) return s.replace("mutate", "mutated");
+      return s;
+    }
+  });
+
+  // Strings accepted by the default policy run.
+  promise_test(async t => {
+    globalThis.timeoutAccepted = false;
+    await new Promise(resolve => {
+      finishTimerTest = resolve;
+      const id = setTimeout('globalThis.timeoutAccepted = true; finishTimerTest()');
+      assert_greater_than(id, 0);
+      t.add_cleanup(() => clearTimeout(id));
+    });
+    assert_true(globalThis.timeoutAccepted);
+  }, "setTimeout of string accepted by the default policy runs.");
+
+  promise_test(async t => {
+    globalThis.intervalAccepted = false;
+    await new Promise(resolve => {
+      let id;
+      finishTimerTest = () => {
+        clearInterval(id);
+        resolve();
+      };
+      id = setInterval('globalThis.intervalAccepted = true; finishTimerTest()');
+      assert_greater_than(id, 0);
+      t.add_cleanup(() => clearInterval(id));
+    });
+    assert_true(globalThis.intervalAccepted);
+  }, "setInterval of string accepted by the default policy runs.");
+
+  // Strings rejected by the default policy are blocked.
+  test(t => {
+    globalThis.timeoutRejected = false;
+    assert_throws_js(TypeError,
+                     () => setTimeout('globalThis.timeoutRejected = true; // reject'));
+    assert_false(globalThis.timeoutRejected);
+  }, "setTimeout of string rejected by the default policy throws.");
+
+  test(t => {
+    globalThis.intervalRejected = false;
+    assert_throws_js(TypeError,
+                     () => setInterval('globalThis.intervalRejected = true; // reject'));
+    assert_false(globalThis.intervalRejected);
+  }, "setInterval of string rejected by the default policy throws.");
+
+  // When the default policy throws, its exception is rethrown.
+  test(t => {
+    globalThis.timeoutThrown = false;
+    assert_throws_exactly(policy_error,
+                          () => setTimeout('globalThis.timeoutThrown = true; // throw'));
+    assert_false(globalThis.timeoutThrown);
+  }, "setTimeout of string where the default policy throws rethrows the exception.");
+
+  test(t => {
+    globalThis.intervalThrown = false;
+    assert_throws_exactly(policy_error,
+                          () => setInterval('globalThis.intervalThrown = true; // throw'));
+    assert_false(globalThis.intervalThrown);
+  }, "setInterval of string where the default policy throws rethrows the exception.");
+
+  // When the default policy changes the string, the changed string runs.
+  promise_test(async t => {
+    globalThis.timeoutMutated = "";
+    await new Promise(resolve => {
+      finishTimerTest = resolve;
+      const id = setTimeout('globalThis.timeoutMutated = "mutate"; finishTimerTest()');
+      assert_greater_than(id, 0);
+      t.add_cleanup(() => clearTimeout(id));
+    });
+    assert_equals(globalThis.timeoutMutated, "mutated");
+  }, "setTimeout of string changed by the default policy runs the changed string.");
+
+  promise_test(async t => {
+    globalThis.intervalMutated = "";
+    await new Promise(resolve => {
+      let id;
+      finishTimerTest = () => {
+        clearInterval(id);
+        resolve();
+      };
+      id = setInterval('globalThis.intervalMutated = "mutate"; finishTimerTest()');
+      assert_greater_than(id, 0);
+      t.add_cleanup(() => clearInterval(id));
+    });
+    assert_equals(globalThis.intervalMutated, "mutated");
+  }, "setInterval of string changed by the default policy runs the changed string.");
+</script>
+</body>
+</html>

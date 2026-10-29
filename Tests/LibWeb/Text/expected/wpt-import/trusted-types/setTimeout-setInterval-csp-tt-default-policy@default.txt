@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	setTimeout of string accepted by the default policy runs.
+Pass	setInterval of string accepted by the default policy runs.
+Pass	setTimeout of string rejected by the default policy throws.
+Pass	setInterval of string rejected by the default policy throws.
+Pass	setTimeout of string where the default policy throws rethrows the exception.
+Pass	setInterval of string where the default policy throws rethrows the exception.
+Pass	setTimeout of string changed by the default policy runs the changed string.
+Pass	setInterval of string changed by the default policy runs the changed string.

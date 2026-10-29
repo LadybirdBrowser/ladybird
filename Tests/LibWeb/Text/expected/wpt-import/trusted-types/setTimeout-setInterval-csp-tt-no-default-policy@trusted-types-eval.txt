@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 4 tests
+
+2 Pass
+2 Fail
+Pass	setTimeout of string throws.
+Pass	setInterval of string throws.
+Fail	setTimeout of TrustedScript runs.
+Fail	setInterval of TrustedScript runs.
