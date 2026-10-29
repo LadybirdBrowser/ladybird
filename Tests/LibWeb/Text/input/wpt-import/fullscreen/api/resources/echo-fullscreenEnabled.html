@@ -1,0 +1,11 @@
+<!doctype html>
+<script>
+window.onmessage = (e) => {
+  if (e.data === 'What is document.fullscreenEnabled?') {
+    e.source.postMessage(document.fullscreenEnabled, '*');
+  } else {
+    e.source.postMessage('Incorrect message', '*');
+  }
+}
+</script>
+<p>This page echos document.fullscreenEnabled.</p>

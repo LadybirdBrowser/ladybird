@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>Recursive IFrame Fullscreen API success reporter</title>
+<body>
+  <script src="/resources/testdriver.js"></script>
+  <script src="/resources/testdriver-vendor.js"></script>
+  <script src="../../trusted-click.js"></script>
+  <script>
+    let child_frame = null;
+    const events = [];
+
+    document.onfullscreenchange = () => {
+      events.push("fullscreenchange");
+    };
+
+    document.onfullscreenerror  = () => {
+      events.push("fullscreenerror");
+    };
+
+    function send_report() {
+      window.top.postMessage(
+        {
+          name: window.name,
+          action: "report",
+          report: {
+            api: "fullscreen",
+            frame: window.name,
+            fullscreenElementIsNull: document.fullscreenElement === null,
+            events,
+          },
+        },
+        "*"
+      );
+    }
+
+    async function create_child_frame({ src, name, allow_fullscreen }) {
+      child_frame = document.createElement("iframe");
+      child_frame.allow = allow_fullscreen ? "fullscreen" : "";
+      child_frame.name = name;
+      child_frame.style.width = "100%";
+      child_frame.style.height = "100%";
+      document.body.appendChild(child_frame);
+      await new Promise((resolve) => {
+        child_frame.addEventListener("load", resolve, { once: true });
+        child_frame.src = src;
+      });
+      window.top.postMessage({ action: "load", name }, "*");
+    }
+
+    async function go_fullscreen() {
+      await trusted_click(document.body);
+      let error;
+      try {
+        await document.body.requestFullscreen();
+      } catch (err) {
+        error = err.name;
+      } finally {
+        window.top.postMessage(
+          { action: "requestFullscreen", name: window.name, error },
+          "*"
+        );
+      }
+    }
+
+    window.addEventListener("message", async (e) => {
+      // Massage is not for us, try to pass it on...
+      if (e.data.name !== window.name) {
+        child_frame?.contentWindow.postMessage(e.data, "*");
+        return;
+      }
+      switch (e.data.action) {
+        case "requestReport":
+          send_report();
+          break;
+        case "requestFullscreen":
+          await go_fullscreen();
+          break;
+        case "addIframe":
+          await create_child_frame(e.data.iframe);
+          break;
+        default:
+          window.top.postMessage(e.data, "*");
+      }
+    });
+  </script>
+</body>

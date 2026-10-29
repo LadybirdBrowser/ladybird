@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <title>Element ready check with allowfullscreen attribute</title>
-<script src="../../resources/testharness.js"></script>
-<script src="../../resources/testharnessreport.js"></script>
-<script src="../../resources/testdriver.js"></script>
-<script src="../../resources/testdriver-vendor.js"></script>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/resources/testdriver.js"></script>
+<script src="/resources/testdriver-vendor.js"></script>
 <script src="../trusted-click.js"></script>
 <iframe name="cross-origin-allowed" allowfullscreen></iframe>
 <script>
@@ -13,7 +13,7 @@
         await new Promise((resolve) => {
             iframe.onload = resolve;
             iframe.src =
-                "http://not-wpt.live:80/fullscreen/api/resources/attempt-fullscreen.html";
+                "http://{{hosts[alt][]}}:{{ports[http][0]}}/fullscreen/api/resources/attempt-fullscreen.html";
         });
 
         // Activate the child frame.

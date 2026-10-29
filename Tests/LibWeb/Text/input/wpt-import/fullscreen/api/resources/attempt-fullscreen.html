@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>IFrame Fullscreen API success reporter</title>
+<body></body>
+<script>
+    window.addEventListener("message", async (e) => {
+        switch (e.data.action) {
+            case "report":
+                await sendReport();
+                break;
+            default:
+                parent.postMessage(
+                    {
+                        report: {
+                            api: "fullscreen",
+                            result: `Unknown action ${e.data.action}`,
+                            frame: window.name,
+                        },
+                    },
+                    "*"
+                );
+        }
+    });
+
+    async function sendReport() {
+        let didSucceed = true;
+        let error;
+        let errorMessage;
+        try {
+            await document.body.requestFullscreen();
+        } catch (e) {
+            didSucceed = false;
+            error = e.name;
+            errorMessage = e.message;
+        } finally {
+            const data = {
+                report: {
+                    api: "fullscreen",
+                    result: didSucceed,
+                    frame: window.name,
+                    error,
+                    errorMessage,
+                },
+            };
+            parent.postMessage(data, "*");
+        }
+    }
+</script>

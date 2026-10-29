@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <title>Document#fullscreenEnabled</title>
-<script src="../../resources/testharness.js"></script>
-<script src="../../resources/testharnessreport.js"></script>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
 <div id="log"></div>
 <iframe src="resources/report-fullscreen-enabled.html" name="same-origin-default"></iframe>
 <iframe src="resources/report-fullscreen-enabled.html" allowfullscreen name="same-origin-allow"></iframe>
-<iframe src="http://not-wpt.live:80/fullscreen/api/resources/report-fullscreen-enabled.html" name="cross-origin-default"></iframe>
-<iframe src="http://not-wpt.live:8000/fullscreen/api/resources/report-fullscreen-enabled.html" allowfullscreen name="cross-origin-allow"></iframe>
+<iframe src="http://{{hosts[alt][]}}:{{ports[http][0]}}/fullscreen/api/resources/report-fullscreen-enabled.html" name="cross-origin-default"></iframe>
+<iframe src="http://{{hosts[alt][]}}:{{ports[http][1]}}/fullscreen/api/resources/report-fullscreen-enabled.html" allowfullscreen name="cross-origin-allow"></iframe>
 <script>
 var expectations = {
   "same-origin-default": true,

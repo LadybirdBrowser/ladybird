@@ -1,0 +1,24 @@
+<!DOCTYPE HTML>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+      <title>This page just redirects back to same-origin!</title>
+  </head>
+  <body>
+    <h1>Redirect me away!</h1>
+    <script>
+
+    window.addEventListener("message", async (e) => {
+      switch (e.data.dest) {
+        case "same":
+          window.location.replace("http://{{hosts[][]}}:{{ports[http][0]}}/fullscreen/api/resources/report-fullscreen-enabled.html")
+          break;
+        case "cross":
+          window.location.replace("http://{{hosts[alt][]}}:{{ports[http][0]}}/fullscreen/api/resources/report-fullscreen-enabled.html")
+          break;
+      }
+    });
+
+    </script>
+  </body>
+</html>

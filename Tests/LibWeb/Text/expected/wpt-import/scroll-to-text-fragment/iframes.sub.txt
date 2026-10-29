@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 5 tests
+
+4 Pass
+1 Fail
+Pass	Text fragment specified in iframe.src
+Fail	Navigate same-origin iframe via window.location
+Pass	Navigate cross-origin iframe via window.location
+Pass	Non-matching text with element-id fallback
+Pass	Cross-origin with element-id fallback

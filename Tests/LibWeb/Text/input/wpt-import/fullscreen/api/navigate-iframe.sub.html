@@ -3,8 +3,8 @@
 <head>
     <title>Document#fullscreenEnabled</title>
     <meta charset="UTF-8" />
-    <script src="../../resources/testharness.js"></script>
-    <script src="../../resources/testharnessreport.js"></script>
+    <script src="/resources/testharness.js"></script>
+    <script src="/resources/testharnessreport.js"></script>
 </head>
 <body>
   <div id="log"></div>
@@ -33,7 +33,7 @@ var expectations = {
   "cross_to_same": {allowlist: "", iframe_src: "cross", iframe_dest: "same", target_result: false},
   "same_to_same": {allowlist: "", iframe_src: "same", iframe_dest: "same", target_result: true},
   "cross_to_cross": {allowlist: "", iframe_src: "cross", iframe_dest: "cross", target_result: false},
-  "allowed_cross_to_same": {allowlist: "'self' http://not-wpt.live:80",
+  "allowed_cross_to_same": {allowlist: "'self' http://{{hosts[alt][]}}:{{ports[http][0]}}",
    iframe_src: "cross", iframe_dest: "same", target_result: true},
 };
 
@@ -49,8 +49,8 @@ for (const [test, {allowlist, iframe_src, iframe_dest, target_result}] of Object
       iframe.contentWindow.postMessage({dest: iframe_dest}, "*");
     });
 
-    let hostname = iframe_src === "same" ? "wpt.live" : "not-wpt.live";
-    iframe.src = `http://${hostname}:80/fullscreen/api/resources/navigate.sub.html`;
+    let hostname = iframe_src === "same" ? "{{hosts[][]}}" : "{{hosts[alt][]}}";
+    iframe.src = `http://${hostname}:{{ports[http][0]}}/fullscreen/api/resources/navigate.sub.html`;
 
     window.addEventListener('message', e => {
       if (e.data.report?.api == "fullscreen") {

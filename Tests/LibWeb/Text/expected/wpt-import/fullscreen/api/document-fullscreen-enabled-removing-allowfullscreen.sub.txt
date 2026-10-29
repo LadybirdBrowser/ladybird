@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Fail
+Fail	
+    Document#fullscreenEnabled removing allowfullscreen after load and then
+    navigating
