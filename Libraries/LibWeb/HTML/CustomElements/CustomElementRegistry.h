@@ -64,7 +64,8 @@ private:
     // https://html.spec.whatwg.org/multipage/custom-elements.html#scoped-document-set
     // Every CustomElementRegistry has a scoped document set, a set of Document objects, initially « ».
     // NB: This is a "weak set", see https://github.com/whatwg/html/issues/12092#issuecomment-3769252677
-    GC::WeakHashSet<DOM::Document> m_scoped_documents;
+    // NB: Keep association order when defining elements across documents.
+    GC::OrderedWeakHashSet<DOM::Document> m_scoped_documents;
 
     // https://html.spec.whatwg.org/multipage/custom-elements.html#custom-element-definition-set
     // Every CustomElementRegistry has a custom element definition set, a set of custom element definitions,

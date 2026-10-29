@@ -11,7 +11,7 @@
 
 namespace GC {
 
-template<typename T>
+template<typename T, bool IsOrdered = false>
 class WeakHashSet {
     struct InternalTraits : public DefaultTraits<Weak<T>> {
         static unsigned hash(Weak<T> const& value)
@@ -20,7 +20,7 @@ class WeakHashSet {
         }
     };
 
-    using TableType = HashTable<Weak<T>, InternalTraits>;
+    using TableType = HashTable<Weak<T>, InternalTraits, IsOrdered>;
 
 public:
     WeakHashSet() = default;
@@ -152,5 +152,8 @@ private:
     TableType m_table;
     size_t m_mutations_since_last_prune { 0 };
 };
+
+template<typename T>
+using OrderedWeakHashSet = WeakHashSet<T, true>;
 
 }
