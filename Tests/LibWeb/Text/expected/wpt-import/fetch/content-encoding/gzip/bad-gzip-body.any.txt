@@ -2,11 +2,11 @@ Harness status: OK
 
 Found 7 tests
 
-7 Fail
-Fail	Fetching a resource with bad gzip content should still resolve
-Fail	Consuming the body of a resource with bad gzip content with arrayBuffer() should reject
-Fail	Consuming the body of a resource with bad gzip content with blob() should reject
-Fail	Consuming the body of a resource with bad gzip content with bytes() should reject
-Fail	Consuming the body of a resource with bad gzip content with formData() should reject
-Fail	Consuming the body of a resource with bad gzip content with json() should reject
-Fail	Consuming the body of a resource with bad gzip content with text() should reject
+7 Pass
+Pass	Fetching a resource with bad gzip content should still resolve
+Pass	Consuming the body of a resource with bad gzip content with arrayBuffer() should reject
+Pass	Consuming the body of a resource with bad gzip content with blob() should reject
+Pass	Consuming the body of a resource with bad gzip content with bytes() should reject
+Pass	Consuming the body of a resource with bad gzip content with formData() should reject
+Pass	Consuming the body of a resource with bad gzip content with json() should reject
+Pass	Consuming the body of a resource with bad gzip content with text() should reject
