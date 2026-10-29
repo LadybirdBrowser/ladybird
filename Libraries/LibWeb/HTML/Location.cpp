@@ -213,8 +213,7 @@ struct LocationWrapperTraits {
         }
 
         // 2. Throw a "SecurityError" DOMException.
-        auto& realm = HTML::relevant_realm(wrapper);
-        return throw_completion(realm, WebIDL::SecurityError::create(realm, Utf16String::formatted("Can't define property '{}' on cross-origin object", property_key)));
+        return throw_completion(*wrapper.vm().current_realm(), WebIDL::SecurityError::create(Utf16String::formatted("Can't define property '{}' on cross-origin object", property_key)));
     }
 
     // 7.10.5.7 [[Get]] ( P, Receiver ), https://html.spec.whatwg.org/multipage/history.html#location-get
@@ -247,8 +246,7 @@ struct LocationWrapperTraits {
             return wrapper.ordinary_delete(property_key);
 
         // 2. Throw a "SecurityError" DOMException.
-        auto& realm = HTML::relevant_realm(wrapper);
-        return throw_completion(realm, WebIDL::SecurityError::create(realm, Utf16String::formatted("Can't delete property '{}' on cross-origin object", property_key)));
+        return throw_completion(*wrapper.vm().current_realm(), WebIDL::SecurityError::create(Utf16String::formatted("Can't delete property '{}' on cross-origin object", property_key)));
     }
 
     // 7.10.5.10 [[OwnPropertyKeys]] ( ), https://html.spec.whatwg.org/multipage/history.html#location-ownpropertykeys

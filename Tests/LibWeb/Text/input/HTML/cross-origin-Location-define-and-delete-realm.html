@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function report(description, callback) {
+        try {
+            callback();
+            println(`${description}: no exception`);
+        } catch (e) {
+            println(`${description}: ${e.name}, current realm: ${e instanceof DOMException}`);
+        }
+    }
+
+    asyncTest(done => {
+        const iframe = document.createElement("iframe");
+        iframe.sandbox = "";
+        iframe.srcdoc = "<!DOCTYPE html>";
+        iframe.onload = () => {
+            const crossOriginLocation = iframe.contentWindow.location;
+
+            report("Define property", () => Object.defineProperty(crossOriginLocation, "x", { value: 1 }));
+            report("Delete property", () => Reflect.deleteProperty(crossOriginLocation, "x"));
+
+            done();
+        };
+        document.body.appendChild(iframe);
+    });
+</script>
