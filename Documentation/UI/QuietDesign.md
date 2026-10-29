@@ -430,7 +430,7 @@ Don't invent new shadows. Pick a level.
 | Hover | The active tab's shape in `hover` fill, no feet; the × fades into its slot |
 | Active | Joins the toolbar; title in full `text` color, weight 400 |
 | Dragging | Stays in the strip with a Lift shadow, flat (no tilt), slides sideways only |
-| Loading | Accent ring (24 px) around the favicon. The favicon shrinks to 10 px inside the ring so square icons never touch it. |
+| Loading | Accent ring (20 px, 1.5 px line) around the favicon, reaching only 2 px past the favicon slot so the title keeps about 6 px of room and nothing moves. The favicon shrinks to 10 px inside the ring so square icons never touch it. |
 | Playing audio / muted | 20 px speaker button left of the close slot; click to mute. Muted keeps the struck speaker. In sidebar rows (13 px titles) the speaker is a 16 px glyph in a 22 px button, in the `icon` color, so it matches the × in weight. In the collapsed sidebar rail, the speaker is an 18 px round badge with a 13 px glyph, overlapping the favicon's bottom-right corner by about 7 px, on an opaque toolbar-colored backing with a hairline ring; it is clickable. |
 | Needs attention | A 7 px accent dot on the favicon's corner; clears on visit |
 | Pinned | Favicon only, 44 px wide |
