@@ -3638,7 +3638,6 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
 /// flex and grid items of the nodes marked for layout, and drops the cached intrinsic sizes of released slots.
 fn prepare_layout_stage(state: &mut super::ArenaHandle, kind: LayoutStageKind, root: NodeSlotId) {
     let arena = state.arena();
-    arena.begin_active_layout_pass();
     match kind {
         LayoutStageKind::Root { .. } => {
             // NB: The tree builder derives the facts of rebuilt subtrees. Unclassified invalidations
@@ -3661,6 +3660,7 @@ fn prepare_layout_stage(state: &mut super::ArenaHandle, kind: LayoutStageKind, r
         }
     }
     drop_intrinsic_size_cache_entries_of_released_slots(arena, state.layout_scratch());
+    arena.begin_active_layout_pass();
 }
 
 /// Drops the intrinsic size cache entries of the slots the arena let go of, or whose cache epoch wrapped, since the

@@ -5588,10 +5588,9 @@ impl LayoutNodeArena {
     // ancestor. Preserve the structural proof along the same unbounded path as the fragment
     // epoch bumps so each affected inline context can reuse its unchanged line prefix.
     // NB: Bumps can legitimately run while another document's layout pass is on the stack (a
-    // parent pass sizing a child navigable's viewport invalidates the child document), so the
-    // helpers must not assert against the process-global pass flag. A bump landing between a
-    // run's probe and its store is handled by storing the probe-time validity, which turns it
-    // into a fail-safe miss.
+    // parent pass sizing a child navigable's viewport invalidates the child document), so only
+    // this arena's own pass may not see one. A bump landing between a run's probe and its store
+    // is handled by storing the probe-time validity, which turns it into a fail-safe miss.
     fn invalidate_at_and_above(&self, mut node: NodeSlotId, invalidation: AncestorInvalidation) {
         while !node.is_invalid() {
             self.invalidate_one(node, invalidation);
@@ -5617,9 +5616,10 @@ impl LayoutNodeArena {
         if epoch == 0 {
             self.paintable_rows.invalidate_committed_geometry(node.slot_index());
         }
-        if self.layout_pass_is_running() {
-            self.fragment_cache_epoch_changed_during_layout_pass.set(true);
-        }
+        assert!(
+            !self.layout_pass_is_running(),
+            "a node's committed fragments became stale while a layout pass ran"
+        );
         self.fc_run_cache_store.note_invalidated_entry(node);
         // NB: An in-flow block entry is valid for one epoch only, so it never matches again.
         self.in_flow_block_cache_store.remove_entry(node.slot_index());
@@ -7026,11 +7026,6 @@ mod tests {
         assert_eq!(current(&arena), None);
 
         arena.begin_active_layout_pass();
-        arena.bump_fragment_cache_epoch_of_self_and_ancestors(node);
-        commit_from_layout(&arena);
-        assert!(arena.leave_active_layout_pass());
-        assert_eq!(current(&arena), None);
-        arena.begin_active_layout_pass();
         commit_from_layout(&arena);
         assert!(arena.leave_active_layout_pass());
         assert_eq!(current(&arena), Some(node));
@@ -7041,6 +7036,15 @@ mod tests {
         arena.bump_fragment_cache_epoch_of_self_and_ancestors(node);
         assert_eq!(arena.data(node).fragment_cache_epoch.get(), 0);
         assert_eq!(current(&arena), None);
+    }
+
+    #[test]
+    #[should_panic(expected = "a node's committed fragments became stale while a layout pass ran")]
+    fn no_committed_fragment_goes_stale_while_a_layout_pass_runs() {
+        let mut arena = LayoutNodeArena::new();
+        let node = arena.allocate_for_test().slot;
+        arena.begin_active_layout_pass();
+        arena.bump_fragment_cache_epoch_of_self_and_ancestors(node);
     }
 
     #[test]
