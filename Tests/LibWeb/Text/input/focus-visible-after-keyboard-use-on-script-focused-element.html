@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<style>
+    body { margin: 0; }
+    button { display: block; width: 100px; height: 50px; }
+    :focus-visible { outline: 3px solid rgb(0, 128, 0); }
+    :focus:not(:focus-visible) { outline: 3px solid rgb(255, 0, 0); }
+</style>
+<button id="opener">Opener</button>
+<button id="target">Target</button>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const opener = document.getElementById("opener");
+        const target = document.getElementById("target");
+        opener.addEventListener("click", () => target.focus());
+
+        const report = label => {
+            println(`${label}: focused=${document.activeElement === target}, matches=${target.matches(":focus-visible")}, outline=${getComputedStyle(target).outlineColor}`);
+        };
+
+        internals.click(50, 25);
+        report("After a click moved focus by script");
+
+        internals.sendKey(target, "A", internals.MOD_CTRL);
+        report("After a Ctrl shortcut");
+
+        internals.sendKey(target, "LeftShift");
+        report("After a key press");
+
+        internals.click(50, 25);
+        report("After another click moved focus by script");
+
+        target.focus({ focusVisible: true });
+        report("After focus({ focusVisible: true }) on the focused target");
+
+        target.focus({ focusVisible: false });
+        report("After focus({ focusVisible: false }) on the focused target");
+
+        internals.sendKey(target, "LeftShift");
+        report("After a key press, with focusVisible: false still in effect");
+    });
+</script>

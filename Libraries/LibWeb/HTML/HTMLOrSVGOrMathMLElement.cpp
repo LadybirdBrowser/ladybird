@@ -89,8 +89,13 @@ void HTMLOrSVGOrMathMLElement<ElementBase>::focus(Bindings::FocusOptions const& 
     // OPTIMIZATION: Checking whether an element is focusable may update its style. WebKit and Blink
     // also return before that check when focus() is called on the already-focused element.
     if (auto navigable = element.document().navigable()) {
-        if (navigable->top_level_traversable()->currently_focused_area() == GC::Ptr<DOM::Node> { element })
+        if (navigable->top_level_traversable()->currently_focused_area() == GC::Ptr<DOM::Node> { element }) {
+            // NB: Step 3 still applies to an element that already has focus, since it doesn't depend on the focusing
+            //     steps having moved focus.
+            if (options.focus_visible.has_value())
+                element.document().request_focus_visibility_for_focused_element(*options.focus_visible);
             return;
+        }
     }
 
     // 2. Run the focusing steps for this.
@@ -98,9 +103,11 @@ void HTMLOrSVGOrMathMLElement<ElementBase>::focus(Bindings::FocusOptions const& 
     //    "center".
     // NB: The scroll into view of step 4 is performed by the focus update steps, which scroll the newly focused
     //     element into  view for every way of focusing it.
-    run_focusing_steps(&element, nullptr, FocusTrigger::Script, options.prevent_scroll ? ScrollIntoView::No : ScrollIntoView::Yes);
-
-    // FIXME: 3. If options["focusVisible"] is true, or does not exist but in an implementation-defined way the user agent determines it would be best to do so, then indicate focus.
+    // 3. If options["focusVisible"] is true, or does not exist but in an implementation-defined way the user agent
+    //    determines it would be best to do so, then indicate focus.
+    // NB: The focusing steps record the option, and Element::should_indicate_focus() answers with it while the element
+    //     stays focused.
+    run_focusing_steps(&element, nullptr, FocusTrigger::Script, options.prevent_scroll ? ScrollIntoView::No : ScrollIntoView::Yes, options.focus_visible);
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-blur

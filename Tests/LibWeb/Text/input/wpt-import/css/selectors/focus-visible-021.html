@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>CSS Test (Selectors): Modifier key doesn't make element to stop matching :focus-visible</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/selectors-4/#the-focus-visible-pseudo" />
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../../css/support/parsing-testcommon.js"></script>
+<style>
+  #warning {
+    display: none;
+    background: red;
+  }
+
+  @supports not selector(:focus-visible) {
+    #instructions {
+      display: none;
+    }
+
+    #warning {
+      display: block;
+    }
+  }
+
+  :focus-visible {
+    outline: solid thick green;
+  }
+
+  :focus:not(:focus-visible) {
+    outline: none;
+    background-color: red;
+  }
+</style>
+
+This test checks that using a modifier key does not make the element to stop matching <code>:focus-visible</code>.
+<ol id="instructions">
+  <li>If the element that says "Focused" has a red background, then the test result is a FAILURE.</li>
+  <li>Press the Ctrl key.</li>
+  <li>If the element keeps the green outline and has not a red background, then the test result is SUCCESS.</li>
+</ol>
+<p id="warning">Your user-agent does not support <code>:focus-visible</code> pseudo-class, please SKIP this test.</p>
+
+<div id="target" tabindex="0">Focused</div>
+<script>
+  // Check that :focus-visible is supported.
+  test_valid_selector(':focus-visible');
+
+  async_test(function(t) {
+    target.addEventListener("focus", t.step_func(() => {
+      assert_equals(getComputedStyle(target).outlineColor, "rgb(0, 128, 0)", `outlineColor for ${target.tagName}#${target.id} should be green`);
+      assert_not_equals(getComputedStyle(target).backgroundColor, "rgb(255, 0, 0)", `backgroundColor for ${target.tagName}#${target.id} should NOT be red`);
+
+      const ctrl_key = '\uE009';
+      test_driver.send_keys(target, ctrl_key);
+    }));
+
+    target.addEventListener("keyup", t.step_func_done(() => {
+      assert_equals(getComputedStyle(target).outlineColor, "rgb(0, 128, 0)", `outlineColor for ${target.tagName}#${target.id} should be green`);
+      assert_not_equals(getComputedStyle(target).backgroundColor, "rgb(255, 0, 0)", `backgroundColor for ${target.tagName}#${target.id} should NOT be red`);
+    }));
+
+  }, "Ctrl key doesn't make an element to stop matching :focus-visible");
+
+  target.focus();
+</script>

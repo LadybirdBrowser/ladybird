@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	":focus-visible" should be a valid selector
+Pass	Ctrl key doesn't make an element to stop matching :focus-visible

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>CSS Test (Selectors): Keyboard use triggers :focus-visible</title>
+  <link rel="author" title="Alice Boxhall" href="aboxhall@chromium.org" />
+  <link rel="help" href="https://drafts.csswg.org/selectors-4/#the-focus-visible-pseudo" />
+  <script src="../../resources/testharness.js"></script>
+  <script src="../../resources/testharnessreport.js"></script>
+  <script src="../../resources/testdriver.js"></script>
+  <script src="../../resources/testdriver-vendor.js"></script>
+  <style>
+    [data-hadkeydown] :focus-visible {
+      outline: green solid 5px;
+    }
+
+    [data-hadmousedown] :focus-visible {
+      outline: red solid 5px;
+    }
+
+    [data-hadkeydown] :focus:not(:focus-visible) {
+      outline: 0;
+      background-color: red;
+    }
+
+    [data-hadmousedown] :focus:not(:focus-visible) {
+      outline: 0;
+      background-color: lime;
+    }
+
+  </style>
+</head>
+<body>
+  This test checks that using the keyboard in a way that does not move focus still causes <code>:focus-visible</code> matching to trigger.
+  <ol id="instructions">
+    <li>If the user-agent does not claim to support the <code>:focus-visible</code> pseudo-class then SKIP this test.</li>
+    <li>Use the mouse to focus the element below that says "Click me."</li>
+    <li>If the element has a red outline, then the test result is FAILURE.</li>
+    <li>Press the ENTER key.</li>
+    <li>If the element now has a green outline and not red background, then the test result is SUCCESS.</li>
+  </ol>
+
+  <div id="one" tabindex="0">Click me.</div>
+  <script>
+    setup({ explicit_done: true });
+
+    document.body.addEventListener("keydown", (e) => {
+      delete document.body.dataset.hadmousedown;
+      document.body.dataset.hadkeydown = "";
+    }, true);
+
+    document.body.addEventListener("mousedown", (e) => {
+      delete document.body.dataset.hadkeydown;
+      document.body.dataset.hadmousedown = "";
+    }, true);
+
+    async_test(function(t) {
+      let tested_initial_focus = false;
+
+      const handle_initial_focus = t.step_func(() => {
+        tested_initial_focus = true;
+        assert_equals(getComputedStyle(one).backgroundColor, "rgb(0, 255, 0)");
+        assert_not_equals(getComputedStyle(one).outlineColor, "rgb(255, 0, 0)");
+
+        one.addEventListener("keyup", t.step_func(test_modality_change));
+        one.removeEventListener("focus", handle_initial_focus);
+
+        const enter = "\uE007";
+        test_driver.send_keys(one, enter);
+      });
+
+      const test_modality_change = t.step_func(() => {
+        assert_true(tested_initial_focus);
+        one.removeEventListener("keyup", test_modality_change);
+        assert_equals(getComputedStyle(one).outlineColor, "rgb(0, 128, 0)");
+        assert_not_equals(getComputedStyle(one).backgroundColor, "rgb(255, 0, 0)");
+        t.done();
+      });
+
+      one.addEventListener("focus", handle_initial_focus);
+      test_driver.click(one).then(() => done());
+    }, "Using keyboard while element is focused should trigger :focus-visible; using mouse without moving focus should not cancel it; moving focus using mouse should cancel it.");
+  </script>
+</body>
+</html>
