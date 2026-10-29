@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="../../GamepadAPI/gamepad-helper.js"></script>
+<script>
+    // A gamepad user gesture gives activation to the windows of the ancestors and same-origin descendants of the
+    // documents it activates, whichever process hosts them.
+    promiseTest(async () => {
+        const isolatedIframeUrl = async (name, body) => {
+            const url = new URL(
+                await httpTestServer().createEcho("GET", `/${name}`, {
+                    status: 200,
+                    headers: { "Content-Type": "text/html" },
+                    body,
+                })
+            );
+            url.hostname = uniqueLocalhostHostname(name);
+            return url;
+        };
+
+        const nextMessage = () => new Promise(resolve => window.addEventListener("message", event => resolve(event.data), { once: true }));
+
+        const addIframe = async url => {
+            const ready = nextMessage();
+            const iframe = document.createElement("iframe");
+            iframe.src = url;
+            document.body.appendChild(iframe);
+            await ready;
+            return iframe;
+        };
+
+        const askIframe = async (iframe, message) => {
+            const reply = nextMessage();
+            iframe.contentWindow.postMessage(message, "*");
+            return await reply;
+        };
+
+        const pressingIframe = await addIframe(
+            await isolatedIframeUrl(
+                "gamepad-pressing-iframe",
+                `<!DOCTYPE html><script>
+                    const pump = () => {
+                        internals.pumpGamepadEvents();
+                        return new Promise(resolve => setTimeout(resolve, 0));
+                    };
+                    addEventListener("message", async () => {
+                        navigator.getGamepads();
+                        const gamepad = internals.connectVirtualGamepad();
+                        await pump();
+                        gamepad.setButton(gamepad.buttons[0], true);
+                        await pump();
+                        // As in waitForUserActivation(), the activation can arrive after the pumped gamepad state.
+                        for (let attempts = 0; attempts < 600 && !navigator.userActivation.isActive; ++attempts)
+                            await new Promise(resolve => setTimeout(resolve, 25));
+                        const isActive = navigator.userActivation.isActive;
+                        gamepad.disconnect();
+                        await pump();
+                        parent.postMessage(isActive, "*");
+                    });
+                    parent.postMessage("ready", "*");
+                <\/script>`
+            )
+        );
+        const passiveIframe = await addIframe(
+            await isolatedIframeUrl(
+                "gamepad-passive-iframe",
+                `<!DOCTYPE html><script>
+                    addEventListener("message", () => parent.postMessage(navigator.userActivation.hasBeenActive, "*"));
+                    parent.postMessage("ready", "*");
+                <\/script>`
+            )
+        );
+
+        println(`Top-level document has been active before any press: ${navigator.userActivation.hasBeenActive}`);
+        println(`Pressing iframe has transient activation after its press: ${await askIframe(pressingIframe, "press")}`);
+        println(`Top-level document has been active after the iframe's press: ${navigator.userActivation.hasBeenActive}`);
+        println(`Cross-site sibling iframe has been active after the iframe's press: ${await askIframe(passiveIframe, "query")}`);
+
+        startUsingGamepads();
+        const gamepad = internals.connectVirtualGamepad();
+        await pumpGamepadEvents();
+        gamepad.setButton(gamepad.buttons[0], true);
+        await pumpGamepadEvents();
+        await waitForUserActivation();
+        println(`Top-level document has transient activation after its own press: ${navigator.userActivation.isActive}`);
+        println(`Cross-site iframe has been active after the top-level press: ${await askIframe(passiveIframe, "query")}`);
+        gamepad.disconnect();
+        await pumpGamepadEvents();
+
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>

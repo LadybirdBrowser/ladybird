@@ -11,7 +11,11 @@
 #include <LibGfx/SystemTheme.h>
 #include <LibTest/TestCase.h>
 #include <LibWebCommon/Page/InputEvent.h>
+#include <LibWebCommon/PermissionsPolicy/PermissionsPolicy.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/CanonicalDocument.h>
+#include <LibWebView/CanonicalTraversable.h>
+#include <LibWebView/GamepadManager.h>
 #include <LibWebView/HeadlessWebView.h>
 #include <LibWebView/Utilities.h>
 
@@ -66,6 +70,22 @@ void click(WebView::ViewImplementation& view, Web::DevicePixelPoint position, We
     });
 }
 
+void start_using_gamepads(WebView::ViewImplementation& view)
+{
+    bool title_changed = false;
+    view.on_title_change = [&](auto const&) { title_changed = true; };
+    view.run_javascript("navigator.getGamepads(); document.title = 'Using gamepads';"_string);
+    Core::EventLoop::current().spin_until([&] { return title_changed; });
+    view.on_title_change = nullptr;
+}
+
+void press_gamepad_button(WebView::WebContentClient& client, Web::Gamepad::VirtualGamepad const& gamepad)
+{
+    auto& gamepad_manager = WebView::GamepadManager::the();
+    gamepad_manager.set_virtual_gamepad_button(client, gamepad.handle, gamepad.buttons[0], true);
+    gamepad_manager.set_virtual_gamepad_button(client, gamepad.handle, gamepad.buttons[0], false);
+}
+
 }
 
 // Each key or mouse press the UI process delivers gives the page one popup, and one link opened in a new tab, even when
@@ -117,4 +137,41 @@ TEST_CASE(user_activation)
     outln("two queued middle-clicks open two popups and two tabs");
 
     VERIFY(popups_opened == 4);
+
+    // A gamepad user gesture gives activation too, to a page with the user's attention.
+    auto gamepad_view = WebView::HeadlessWebView::create(TRY_OR_FAIL(Gfx::load_system_theme(theme_path.string())), { 800, 600 });
+    auto& gamepad_page = gamepad_view->page();
+    gamepad_view->set_system_visibility_state(Web::HTML::VisibilityState::Visible);
+    gamepad_view->set_has_system_focus(true);
+    start_using_gamepads(*gamepad_view);
+    auto gamepad = WebView::GamepadManager::the().create_virtual_gamepad(gamepad_page.client()).release_value();
+    (void)WebView::GamepadManager::the().pump_gamepad_events(gamepad_page.client());
+    VERIFY(!gamepad_page.has_transient_user_activation());
+
+    press_gamepad_button(gamepad_page.client(), gamepad);
+    VERIFY(gamepad_page.has_transient_user_activation());
+    outln("a gamepad user gesture gives activation");
+
+    VERIFY(gamepad_page.consume_transient_user_activation());
+    gamepad_view->set_has_system_focus(false);
+    press_gamepad_button(gamepad_page.client(), gamepad);
+    VERIFY(!gamepad_page.has_transient_user_activation());
+    outln("a gamepad user gesture without the user's attention gives none");
+
+    // Only a document allowed to use gamepads starts the activation of a gesture, in a process that has the gamepad.
+    gamepad_view->set_has_system_focus(true);
+    auto& gamepad_document = gamepad_view->traversable().active_document();
+    auto permissions_policy = gamepad_document.permissions_policy();
+    auto permissions_policy_without_gamepads = permissions_policy;
+    permissions_policy_without_gamepads.inherited_policy[to_underlying(Web::PermissionsPolicy::PolicyControlledFeature::Gamepad)] = Web::PermissionsPolicy::FeatureValue::Disabled;
+    gamepad_document.set_permissions_policy(move(permissions_policy_without_gamepads));
+    (void)gamepad_page.consume_transient_user_activation();
+    press_gamepad_button(gamepad_page.client(), gamepad);
+    VERIFY(!gamepad_page.has_transient_user_activation());
+    outln("a gamepad user gesture for a document not allowed to use gamepads gives none");
+
+    gamepad_document.set_permissions_policy(move(permissions_policy));
+    press_gamepad_button(gamepad_page.client(), gamepad);
+    VERIFY(gamepad_page.has_transient_user_activation());
+    outln("a gamepad user gesture for a document allowed to use gamepads again gives activation");
 }

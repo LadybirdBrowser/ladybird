@@ -1,0 +1,2 @@
+The iframe may not use gamepads: SecurityError
+Same-origin iframe has transient activation after pressing a button: true

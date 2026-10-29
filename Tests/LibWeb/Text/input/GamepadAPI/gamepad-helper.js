@@ -11,6 +11,11 @@
         });
     };
 
+    // The activation of a gamepad user gesture comes over another connection than the pumped gamepad state, so it can
+    // arrive after it.
+    globalThis.waitForUserActivation = (targetWindow = window) =>
+        waitForCondition(() => targetWindow.navigator.userActivation.isActive);
+
     globalThis.getStringifiedGamepads = () => {
         const gamepads = navigator.getGamepads().map(gamepad => ({
             id: gamepad.id,

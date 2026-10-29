@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="gamepad-helper.js"></script>
+<iframe allow="gamepad 'none'" srcdoc="<!DOCTYPE html>"></iframe>
+<script>
+    promiseTest(async () => {
+        await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
+        const iframeWindow = document.querySelector("iframe").contentWindow;
+        try {
+            iframeWindow.navigator.getGamepads();
+            println("FAIL: the iframe is allowed to use gamepads");
+        } catch (error) {
+            println(`The iframe may not use gamepads: ${error.name}`);
+        }
+
+        startUsingGamepads();
+        const gamepad = internals.connectVirtualGamepad();
+        await pumpGamepadEvents();
+
+        gamepad.setButton(gamepad.buttons[0], true);
+        await pumpGamepadEvents();
+        await waitForUserActivation(iframeWindow);
+        println(`Same-origin iframe has transient activation after pressing a button: ${iframeWindow.navigator.userActivation.isActive}`);
+
+        gamepad.disconnect();
+        await pumpGamepadEvents();
+    });
+</script>

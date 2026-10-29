@@ -1,0 +1,4 @@
+Transient activation before pressing a button: false
+Transient activation after pressing a button: true
+Transient activation after entering fullscreen consumed it: false
+Transient activation after pressing a button without system focus: false
