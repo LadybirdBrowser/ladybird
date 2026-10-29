@@ -3032,12 +3032,12 @@ pub(crate) fn pseudo_element_decision(facts: PseudoElementFacts) -> FfiPseudoEle
 /// Resolves the CSS counters set of `element`, or of one of its pseudo-elements, now that its box
 /// is in the layout tree, and answers whose set it is.
 fn resolve_counters(
-    host: &TreeBuilderHost<'_>,
+    host: &mut TreeBuilderHost<'_>,
     element: StyleNodeID,
     pseudo_element: FfiPseudoElement,
 ) -> crate::layout::counters::CounterOwner {
     let owner = counter_owner_of_pseudo_element(element, pseudo_element);
-    crate::layout::counters::resolve_counters(host.arena(), owner);
+    crate::layout::counters::resolve_counters(host.arena_mut(), owner);
     owner
 }
 
@@ -3369,7 +3369,7 @@ fn create_pseudo_element(
         let first_child = host.first_child(layout_node);
         host.attach_child(layout_node, marker, first_child);
         let marker_content = crate::layout::generated_content::resolve_nested_marker_content(
-            host.arena(),
+            host.arena_mut(),
             owner,
             marker_slot,
             layout_node,
@@ -3391,7 +3391,7 @@ fn create_pseudo_element(
         (layout_node, facts.originating_list_box)
     });
     let resolved_content = crate::layout::generated_content::resolve_content(
-        host.arena(),
+        host.arena_mut(),
         owner,
         marker_and_list_box,
         initial_quote_nesting_level,

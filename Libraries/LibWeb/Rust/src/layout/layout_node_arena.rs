@@ -1037,15 +1037,22 @@ pub(crate) struct StaleWalkFacts {
 /// How many interned names one SVG element's attribute publication can name.
 const PUBLISHED_REFERENCE_ATOM_COUNT: usize = 5;
 
+/// The counters sets and the generated content of the elements, while a resolution of counters or generated content
+/// holds them apart from the arena.
+pub(crate) struct CounterTables {
+    pub(crate) counters_sets: super::counters::CountersSets,
+    pub(crate) generated_content: super::generated_content::GeneratedContent,
+}
+
 /// What the arena keeps under a style node identity, besides the rows carrying it. Identities are
 /// reissued, so every table here must let go of a retired one: `LayoutNodeArena::forget_style_node`
 /// names each field, and a table added here does not compile until it says how it forgets.
 #[derive(Clone, Default)]
 struct StyleNodeTables {
     /// The CSS counters set of every element and pseudo-element the tree build resolved one for.
-    counters_sets: RefCell<super::counters::CountersSets>,
+    counters_sets: super::counters::CountersSets,
     /// What the tree build recorded about the generated content of each pseudo-element it built.
-    generated_content: RefCell<super::generated_content::GeneratedContent>,
+    generated_content: super::generated_content::GeneratedContent,
     /// The parsed SVG attributes each SVG element published, keyed by its style node: an
     /// element that draws nothing itself has no row, and a mask, clip or pattern has one row per
     /// element that references it.
@@ -1053,29 +1060,29 @@ struct StyleNodeTables {
     /// The maps are borrowed for writing only by the publication entry points, which can run while a
     /// tree build is under way: an element styled on the build's behalf replaces its style record,
     /// which republishes the resources its style names. No reader holds a borrow across a host call.
-    svg_attribute_facts: RefCell<HashMap<StyleNodeID, super::svg_formatting_context::FfiSvgAttributeFacts>>,
+    svg_attribute_facts: HashMap<StyleNodeID, super::svg_formatting_context::FfiSvgAttributeFacts>,
     /// The parsed MathML attributes each MathML element published, keyed by its style node.
-    math_attribute_facts: RefCell<HashMap<StyleNodeID, super::math_formatting_context::FfiMathAttributeFacts>>,
+    math_attribute_facts: HashMap<StyleNodeID, super::math_formatting_context::FfiMathAttributeFacts>,
     /// The `points` list each <polyline> and <polygon> published beside its facts.
-    svg_points: RefCell<HashMap<StyleNodeID, std::sync::Arc<[super::svg_formatting_context::FfiFloatPoint]>>>,
+    svg_points: HashMap<StyleNodeID, std::sync::Arc<[super::svg_formatting_context::FfiFloatPoint]>>,
     /// The elements carrying each anchor name, in tree order. The DOM's registry republishes a
     /// name's list whenever it changes.
-    anchor_name_elements: RefCell<HashMap<ScopedAnchorName, Vec<StyleNodeID>>>,
+    anchor_name_elements: HashMap<ScopedAnchorName, Vec<StyleNodeID>>,
     /// The nodes sitting in the user agent shadow tree of the focused text control, which is what
     /// a caret is painted inside. At most one control is focused, so this holds one control's
     /// shadow tree and is empty the rest of the time.
-    identities_in_focused_text_control: RefCell<HashSet<StyleNodeID>>,
+    identities_in_focused_text_control: HashSet<StyleNodeID>,
     /// What each element has scrolled to, held against its identity because the element's box is
     /// replaced whenever its subtree is rebuilt. The element still stores the offset it answers
     /// `scrollTop` with, and publishes it here as it changes, arrives and changes identity. Zero is
     /// the absence of an entry, which is nearly every element.
-    element_scroll_offsets: RefCell<HashMap<StyleNodeID, CssPixelPoint>>,
+    element_scroll_offsets: HashMap<StyleNodeID, CssPixelPoint>,
     /// What each element's pseudo-elements have scrolled to, held against the element's identity,
     /// since a pseudo-element has none of its own, and published the way the element's offset is.
-    pseudo_element_scroll_offsets: RefCell<HashMap<StyleNodeID, PseudoElementScrollOffsets>>,
+    pseudo_element_scroll_offsets: HashMap<StyleNodeID, PseudoElementScrollOffsets>,
     /// The writing suggestion showing after the caret, if any: at most one per document, held
     /// against the identity of the text node the caret is in.
-    writing_suggestion: RefCell<Option<PublishedWritingSuggestion>>,
+    writing_suggestion: Option<PublishedWritingSuggestion>,
 }
 
 /// A writing suggestion as the document publishes it: the text node the caret is in, where the
@@ -2128,12 +2135,12 @@ impl LayoutNodeArena {
     /// Replaces the elements registered under `anchor_name` in the tree scope hosted by
     /// `scope_host`, in tree order. An empty list forgets the name.
     pub(crate) fn set_anchor_name_elements(
-        &self,
+        &mut self,
         scope_host: Option<StyleNodeID>,
         anchor_name: usize,
         elements: impl Iterator<Item = StyleNodeID>,
     ) {
-        let mut names = self.style_node_tables.anchor_name_elements.borrow_mut();
+        let names = &mut self.style_node_tables.anchor_name_elements;
         let key = ScopedAnchorName {
             scope_host,
             name: anchor_name,
@@ -2154,7 +2161,7 @@ impl LayoutNodeArena {
         anchor_name: usize,
         is_acceptable: impl FnMut(&StyleNodeID) -> bool,
     ) -> Option<StyleNodeID> {
-        let names = self.style_node_tables.anchor_name_elements.borrow();
+        let names = &self.style_node_tables.anchor_name_elements;
         names
             .get(&ScopedAnchorName {
                 scope_host,
@@ -2199,17 +2206,12 @@ impl LayoutNodeArena {
             }
             self.style_node_tables
                 .pseudo_element_scroll_offsets
-                .borrow()
                 .get(&style_node)
                 .map(|offsets| offsets[pseudo_element_scroll_offset_index(generated_for)])
         } else if super::node_facts::has_flag(data, NodeFlag::Anonymous) {
             None
         } else {
-            self.style_node_tables
-                .element_scroll_offsets
-                .borrow()
-                .get(&style_node)
-                .copied()
+            self.style_node_tables.element_scroll_offsets.get(&style_node).copied()
         };
         offset.unwrap_or_default()
     }
@@ -2223,12 +2225,12 @@ impl LayoutNodeArena {
         self.set_node_flag(slot, NodeFlag::HasScrollOffset, has_scroll_offset);
     }
 
-    pub(crate) fn set_writing_suggestion(&self, suggestion: Option<PublishedWritingSuggestion>) {
-        *self.style_node_tables.writing_suggestion.borrow_mut() = suggestion;
+    pub(crate) fn set_writing_suggestion(&mut self, suggestion: Option<PublishedWritingSuggestion>) {
+        self.style_node_tables.writing_suggestion = suggestion;
     }
 
     pub(crate) fn writing_suggestion(&self) -> Option<PublishedWritingSuggestion> {
-        self.style_node_tables.writing_suggestion.borrow().clone()
+        self.style_node_tables.writing_suggestion.clone()
     }
 
     /// Records what the element has scrolled to, for every row built for it. A rebuild can leave
@@ -2236,7 +2238,7 @@ impl LayoutNodeArena {
     /// old one, and both answer for the element meanwhile.
     pub(crate) fn set_element_scroll_offset(&mut self, element: StyleNodeID, offset: CssPixelPoint) {
         let previous_offset = {
-            let mut offsets = self.style_node_tables.element_scroll_offsets.borrow_mut();
+            let offsets = &mut self.style_node_tables.element_scroll_offsets;
             if offset == CssPixelPoint::default() {
                 offsets.remove(&element)
             } else {
@@ -2263,7 +2265,7 @@ impl LayoutNodeArena {
     ) {
         let previous_offset = {
             let index = pseudo_element_scroll_offset_index(generated_for);
-            let mut offsets = self.style_node_tables.pseudo_element_scroll_offsets.borrow_mut();
+            let offsets = &mut self.style_node_tables.pseudo_element_scroll_offsets;
             if offset != CssPixelPoint::default() {
                 std::mem::replace(&mut offsets.entry(generator).or_default()[index], offset)
             } else if let Some(element_offsets) = offsets.get_mut(&generator) {
@@ -2302,8 +2304,8 @@ impl LayoutNodeArena {
     }
 
     /// Record whether the node sits in the user agent shadow tree of the focused text control.
-    pub(crate) fn set_identity_in_focused_text_control(&self, node: StyleNodeID, value: bool) {
-        let mut identities = self.style_node_tables.identities_in_focused_text_control.borrow_mut();
+    pub(crate) fn set_identity_in_focused_text_control(&mut self, node: StyleNodeID, value: bool) {
+        let identities = &mut self.style_node_tables.identities_in_focused_text_control;
         if value {
             identities.insert(node);
         } else {
@@ -2319,7 +2321,6 @@ impl LayoutNodeArena {
             && self.dom_node_style_node(id).is_some_and(|style_node| {
                 self.style_node_tables
                     .identities_in_focused_text_control
-                    .borrow()
                     .contains(&style_node)
             })
     }
@@ -2338,35 +2339,31 @@ impl LayoutNodeArena {
             element_scroll_offsets,
             pseudo_element_scroll_offsets,
             writing_suggestion,
-        } = &self.style_node_tables;
-        counters_sets.borrow_mut().forget(style_node);
-        generated_content.borrow_mut().forget(style_node);
-        // The SVG facts let go of the reference atoms they hold as they leave.
-        let removed = svg_attribute_facts.borrow_mut().remove(&style_node);
-        if let Some(removed) = removed {
-            self.retain_published_reference_atoms(
-                [0; PUBLISHED_REFERENCE_ATOM_COUNT],
-                Self::published_reference_atoms(&removed),
-            );
-        }
-        svg_points.borrow_mut().remove(&style_node);
-        math_attribute_facts.borrow_mut().remove(&style_node);
-        identities_in_focused_text_control.borrow_mut().remove(&style_node);
-        element_scroll_offsets.borrow_mut().remove(&style_node);
-        pseudo_element_scroll_offsets.borrow_mut().remove(&style_node);
-        let mut writing_suggestion = writing_suggestion.borrow_mut();
+        } = &mut self.style_node_tables;
+        counters_sets.forget(style_node);
+        generated_content.forget(style_node);
+        let removed_svg_attribute_facts = svg_attribute_facts.remove(&style_node);
+        svg_points.remove(&style_node);
+        math_attribute_facts.remove(&style_node);
+        identities_in_focused_text_control.remove(&style_node);
+        element_scroll_offsets.remove(&style_node);
+        pseudo_element_scroll_offsets.remove(&style_node);
         if writing_suggestion
             .as_ref()
             .is_some_and(|suggestion| suggestion.text == style_node)
         {
             *writing_suggestion = None;
         }
-        drop(writing_suggestion);
         // A retired shadow host takes its tree scope with it. The registry withdraws no names from a
         // scope it can no longer name.
-        anchor_name_elements
-            .borrow_mut()
-            .retain(|name, _| name.scope_host != Some(style_node));
+        anchor_name_elements.retain(|name, _| name.scope_host != Some(style_node));
+        // The SVG facts let go of the reference atoms they hold as they leave.
+        if let Some(removed) = removed_svg_attribute_facts {
+            self.retain_published_reference_atoms(
+                [0; PUBLISHED_REFERENCE_ATOM_COUNT],
+                Self::published_reference_atoms(&removed),
+            );
+        }
         loop {
             let row = self.first_rows_by_style_node.head(style_node);
             if row.is_invalid() {
@@ -3215,12 +3212,22 @@ impl LayoutNodeArena {
         self.counter_styles.publish_scope(tree_scope, scope);
     }
 
-    pub(crate) fn counters_sets(&self) -> &RefCell<super::counters::CountersSets> {
-        &self.style_node_tables.counters_sets
+    pub(crate) fn generated_content(&self) -> &super::generated_content::GeneratedContent {
+        &self.style_node_tables.generated_content
     }
 
-    pub(crate) fn generated_content(&self) -> &RefCell<super::generated_content::GeneratedContent> {
-        &self.style_node_tables.generated_content
+    /// Lends the counters sets and the generated content out of the arena to `resolve`, which reads the rest of the
+    /// arena beside them: resolving counters and generated content writes the two tables while it reads styles the
+    /// arena holds.
+    pub(crate) fn with_counter_tables_lent<T>(&mut self, resolve: impl FnOnce(&Self, &mut CounterTables) -> T) -> T {
+        let mut tables = CounterTables {
+            counters_sets: std::mem::take(&mut self.style_node_tables.counters_sets),
+            generated_content: std::mem::take(&mut self.style_node_tables.generated_content),
+        };
+        let answer = resolve(self, &mut tables);
+        self.style_node_tables.counters_sets = tables.counters_sets;
+        self.style_node_tables.generated_content = tables.generated_content;
+        answer
     }
 
     pub(crate) fn svg_attribute_facts(&self, id: NodeSlotId) -> super::svg_formatting_context::FfiSvgAttributeFacts {
@@ -3239,7 +3246,6 @@ impl LayoutNodeArena {
     ) -> super::svg_formatting_context::FfiSvgAttributeFacts {
         self.style_node_tables
             .svg_attribute_facts
-            .borrow()
             .get(&style_node)
             .copied()
             .unwrap_or_default()
@@ -3249,25 +3255,16 @@ impl LayoutNodeArena {
     /// with the default facts, in which every attribute is absent.
     pub(crate) fn math_attribute_facts(&self, id: NodeSlotId) -> super::math_formatting_context::FfiMathAttributeFacts {
         self.dom_node_style_node(id)
-            .and_then(|style_node| {
-                self.style_node_tables
-                    .math_attribute_facts
-                    .borrow()
-                    .get(&style_node)
-                    .copied()
-            })
+            .and_then(|style_node| self.style_node_tables.math_attribute_facts.get(&style_node).copied())
             .unwrap_or_default()
     }
 
     pub(crate) fn set_style_node_math_attribute_facts(
-        &self,
+        &mut self,
         style_node: StyleNodeID,
         facts: super::math_formatting_context::FfiMathAttributeFacts,
     ) {
-        self.style_node_tables
-            .math_attribute_facts
-            .borrow_mut()
-            .insert(style_node, facts);
+        self.style_node_tables.math_attribute_facts.insert(style_node, facts);
     }
 
     /// The `points` list a <polyline> or <polygon> parsed, shared rather than borrowed: a
@@ -3283,7 +3280,7 @@ impl LayoutNodeArena {
         &self,
         style_node: StyleNodeID,
     ) -> Option<std::sync::Arc<[super::svg_formatting_context::FfiFloatPoint]>> {
-        self.style_node_tables.svg_points.borrow().get(&style_node).cloned()
+        self.style_node_tables.svg_points.get(&style_node).cloned()
     }
 
     /// The element an SVG reference resolves to, named by the atom its URL fragment interned to.
@@ -3321,7 +3318,7 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn set_style_node_svg_attribute_facts(
-        &self,
+        &mut self,
         style_node: StyleNodeID,
         facts: super::svg_formatting_context::FfiSvgAttributeFacts,
         points: &[super::svg_formatting_context::FfiFloatPoint],
@@ -3330,13 +3327,12 @@ impl LayoutNodeArena {
         let replaced = self
             .style_node_tables
             .svg_attribute_facts
-            .borrow_mut()
             .insert(style_node, facts)
             .map_or([0; PUBLISHED_REFERENCE_ATOM_COUNT], |published| {
                 Self::published_reference_atoms(&published)
             });
         self.retain_published_reference_atoms(retained, replaced);
-        let mut published_points = self.style_node_tables.svg_points.borrow_mut();
+        let published_points = &mut self.style_node_tables.svg_points;
         if points.is_empty() {
             published_points.remove(&style_node);
         } else {
@@ -3347,8 +3343,8 @@ impl LayoutNodeArena {
     /// Replace only the four names a graphics element's style carries. An element that has not
     /// published its attributes yet has no place to put them, and will carry them itself when it
     /// does: the publication is made when the style tree names the element.
-    pub(crate) fn set_style_node_svg_style_references(&self, style_node: StyleNodeID, references: [u32; 4]) {
-        let mut published = self.style_node_tables.svg_attribute_facts.borrow_mut();
+    pub(crate) fn set_style_node_svg_style_references(&mut self, style_node: StyleNodeID, references: [u32; 4]) {
+        let published = &mut self.style_node_tables.svg_attribute_facts;
         let Some(facts) = published.get_mut(&style_node) else {
             return;
         };
@@ -3360,7 +3356,6 @@ impl LayoutNodeArena {
             facts.stroke_reference_atom,
         ] = references;
         let retained = Self::published_reference_atoms(facts);
-        drop(published);
         self.retain_published_reference_atoms(retained, replaced);
     }
 
@@ -6441,7 +6436,7 @@ mod tests {
 
         arena.forget_style_node(host);
         // Whatever element is issued the identity next hosts no names it did not register.
-        let names = arena.style_node_tables.anchor_name_elements.borrow();
+        let names = &arena.style_node_tables.anchor_name_elements;
         assert!(!names.contains_key(&super::ScopedAnchorName {
             scope_host: Some(host),
             name
@@ -6450,16 +6445,15 @@ mod tests {
             names.get(&super::ScopedAnchorName { scope_host: None, name }),
             Some(&vec![anchor_in_document])
         );
-        drop(names);
 
         arena.set_anchor_name_elements(None, name, std::iter::empty());
-        assert!(arena.style_node_tables.anchor_name_elements.borrow().is_empty());
+        assert!(arena.style_node_tables.anchor_name_elements.is_empty());
     }
 
     #[test]
     fn an_anchor_name_answers_the_last_acceptable_element_of_its_tree_scope() {
         use crate::css::style::tree::StyleNodeID;
-        let arena = LayoutNodeArena::new();
+        let mut arena = LayoutNodeArena::new();
         let [first, second, third] = [7, 8, 9].map(StyleNodeID::element);
         let name = 0x2000;
         arena.set_anchor_name_elements(None, name, [first, second, third].into_iter());
@@ -6956,7 +6950,6 @@ mod tests {
             !arena
                 .style_node_tables
                 .pseudo_element_scroll_offsets
-                .borrow()
                 .contains_key(&element)
         );
         for row in [principal, first, second] {

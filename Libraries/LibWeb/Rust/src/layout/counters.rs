@@ -572,14 +572,17 @@ fn inherit_counters(
 }
 
 // https://drafts.csswg.org/css-lists-3/#auto-numbering
-pub(crate) fn resolve_counters(arena: &LayoutNodeArena, element: CounterOwner) {
+pub(crate) fn resolve_counters(arena: &mut LayoutNodeArena, element: CounterOwner) {
+    arena.with_counter_tables_lent(|arena, tables| resolve_counters_into(arena, &mut tables.counters_sets, element));
+}
+
+fn resolve_counters_into(arena: &LayoutNodeArena, sets: &mut CountersSets, element: CounterOwner) {
     arena.with_style_store(|engine| {
         // Resolving counter values on a given element is a multi-step process:
         let style = style_of(arena, engine, element).expect("an element that resolves counters has a style");
 
         // 1. Existing counters are inherited from previous elements.
-        let mut sets = arena.counters_sets().borrow_mut();
-        let mut counters = inherit_counters(arena, engine, &sets, element);
+        let mut counters = inherit_counters(arena, engine, sets, element);
 
         // https://drafts.csswg.org/css-lists-3/#counters-without-boxes
         // An element that does not generate a box (for example, an element with display set to none,
