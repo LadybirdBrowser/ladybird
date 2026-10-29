@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	SourceBuffer added to activeSourceBuffers list when its only audio track gets loaded (and thus becomes enabled).
+Pass	SourceBuffer added to activeSourceBuffers list when its only video track gets loaded (and thus becomes selected).
+Pass	Active SourceBuffers must appear in the same order as they appear in the sourceBuffers attribute: audio is first sourceBuffer, audio media appended first
+Pass	Active SourceBuffers must appear in the same order as they appear in the sourceBuffers attribute: audio is first sourceBuffer, video media appended first
+Pass	Active SourceBuffers must appear in the same order as they appear in the sourceBuffers attribute: video is first sourceBuffer, audio media appended first
+Pass	Active SourceBuffers must appear in the same order as they appear in the sourceBuffers attribute: video is first sourceBuffer, video media appended first
+Pass	Active SourceBuffers list reflects changes to selected audio/video tracks associated with separate SourceBuffers.
+Pass	Active SourceBuffers list ignores changes to selected audio/video tracks that do not affect the activation of the SourceBuffer.

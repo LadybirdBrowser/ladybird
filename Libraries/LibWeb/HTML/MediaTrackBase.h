@@ -30,6 +30,10 @@ public:
     Utf16String const& label() const { return m_label; }
     Utf16String const& language() const { return m_language; }
 
+    GC::Ptr<MediaSourceExtensions::SourceBuffer> source_buffer() const { return m_source_buffer; }
+    GC::Ptr<MediaSourceExtensions::SourceBuffer> source_buffer_in_attached_media_source() const;
+    void set_source_buffer(Badge<MediaSourceExtensions::SourceBuffer>, MediaSourceExtensions::SourceBuffer& source_buffer) { m_source_buffer = source_buffer; }
+
 protected:
     MediaTrackBase(GC::Ref<HTMLMediaElement>, Media::Track const&);
 
@@ -55,6 +59,9 @@ private:
     // https://html.spec.whatwg.org/multipage/media.html#dom-audiotrack-language
     // https://html.spec.whatwg.org/multipage/media.html#dom-videotrack-language
     Utf16String m_language;
+
+    // https://w3c.github.io/media-source/#active-source-buffer-changes
+    GC::Ptr<MediaSourceExtensions::SourceBuffer> m_source_buffer;
 };
 
 }

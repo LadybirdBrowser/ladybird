@@ -1,0 +1,6 @@
+second activeSourceBuffers: 2
+toggling the first MediaSource's tracks
+second activeSourceBuffers: 2
+disabling the second MediaSource's audio track
+removesourcebuffer at second activeSourceBuffers
+second activeSourceBuffers: 1

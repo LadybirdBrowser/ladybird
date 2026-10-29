@@ -55,6 +55,14 @@ void SourceBufferList::insert_in_order_of(GC::Ref<SourceBuffer> buffer, SourceBu
     m_buffers.insert(insertion_index, buffer);
 }
 
+void SourceBufferList::remove(SourceBuffer const& buffer)
+{
+    auto removed = m_buffers.remove_first_matching([&](GC::Ref<SourceBuffer> contained_buffer) {
+        return contained_buffer.ptr() == &buffer;
+    });
+    VERIFY(removed);
+}
+
 void SourceBufferList::remove_all_buffers(Badge<MediaSource>)
 {
     m_buffers.clear();
