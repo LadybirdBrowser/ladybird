@@ -118,6 +118,15 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: ctest --output-on-failure --test-dir Build --timeout 1800
 
+      - name: Upload LibWeb Test Artifacts
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: libweb-test-artifacts-${{ matrix.os_name }}-${{ matrix.arch }}-Distribution
+          path: Build/Tests/LibWeb/test-web/test-dumps/
+          retention-days: 0
+          if-no-files-found: ignore
+
       - name: Package
         working-directory: ${{ github.workspace }}/Build
         run: |
