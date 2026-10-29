@@ -277,6 +277,10 @@ pub struct ObjectMethods {
     pub as_builtin_iterator_if_next_is_not_redefined: fn(&Object, Value) -> Option<BuiltinIteratorNext>,
     /// The [[ErrorData]] internal slot, which Error objects have.
     pub error_data: fn(&Object) -> Option<&ErrorData>,
+    /// Whether the objects of this class have internal slots other than [[Prototype]], [[Extensible]] and
+    /// [[PrivateElements]], for a class whose fields do not tell: one whose fields only cache, or one with a slot that
+    /// holds nothing. None leaves it to the fields, which Object::has_internal_slots() reads.
+    pub has_internal_slots: Option<bool>,
 }
 
 /// [[GetPrototypeOf]].
@@ -311,6 +315,7 @@ pub static ORDINARY_OBJECT_METHODS: ObjectMethods = ObjectMethods {
     eligible_for_own_property_enumeration_fast_path: |_| true,
     as_builtin_iterator_if_next_is_not_redefined: |_, _| None,
     error_data: error_data_of_error,
+    has_internal_slots: None,
 };
 
 define_cell!(
@@ -1007,6 +1012,15 @@ impl Object {
     pub fn has_property(&self, vm: &Vm, property_key: &PropertyKey) -> ThrowCompletionOr<bool> {
         // 1. Return ? O.[[HasProperty]](P).
         self.internal_has_property(vm, property_key)
+    }
+
+    /// Whether this object has internal slots other than [[Prototype]], [[Extensible]] and [[PrivateElements]]. Its
+    /// class keeps the internal slots of its objects in fields of its own, so a class the size of Object has none,
+    /// unless its internal methods say otherwise, or its shape holds a [[ParameterMap]].
+    pub fn has_internal_slots(&self) -> bool {
+        self.methods().has_internal_slots.unwrap_or_else(|| {
+            self.class().type_info.cell_size != Self::CLASS.type_info.cell_size || self.has_parameter_map()
+        })
     }
 
     /// Whether [[GetPrototypeOf]] and [[Get]] of this object are the ordinary ones, and [[GetOwnProperty]] is the

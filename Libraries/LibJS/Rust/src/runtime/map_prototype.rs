@@ -50,6 +50,8 @@ pub struct MapPrototype {
 
 define_object_class!(MapPrototype, extends: [Object], methods: {
     initialize: MapPrototype::initialize,
+    // NB: The field of the prototype only caches its entries function.
+    has_internal_slots: Some(false),
     ..ORDINARY_OBJECT_METHODS
 });
 
