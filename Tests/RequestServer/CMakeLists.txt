@@ -1,29 +1,22 @@
-ladybird_test(TestAIA.cpp RequestServer LIBS OpenSSL::Crypto OpenSSL::SSL CURL::libcurl)
-target_sources(TestAIA PRIVATE ${LADYBIRD_SOURCE_DIR}/Services/RequestServer/AIA.cpp)
-target_include_directories(TestAIA PRIVATE ${LADYBIRD_SOURCE_DIR}/Services)
+ladybird_test_suite(RequestServer)
 
-ladybird_test(TestContentCodingRetry.cpp RequestServer LIBS requestserverservice)
-target_include_directories(TestContentCodingRetry PRIVATE ${LADYBIRD_SOURCE_DIR}/Services)
-
-ladybird_test(TestCookieResponses.cpp RequestServer LIBS requestserverservice)
-target_include_directories(TestCookieResponses PRIVATE ${LADYBIRD_SOURCE_DIR}/Services)
-
-ladybird_test(TestDiskCacheWaiters.cpp RequestServer LIBS requestserverservice)
-target_include_directories(TestDiskCacheWaiters PRIVATE ${LADYBIRD_SOURCE_DIR}/Services)
-
-ladybird_test(TestRequestTimingInfo.cpp RequestServer LIBS requestserverservice)
-target_include_directories(TestRequestTimingInfo PRIVATE ${LADYBIRD_SOURCE_DIR}/Services)
-
-ladybird_test(TestSiteBinding.cpp RequestServer LIBS requestserverservice)
-target_include_directories(TestSiteBinding PRIVATE ${LADYBIRD_SOURCE_DIR}/Services)
+set(TEST_SOURCES
+    ResourceSubstitutionMap.cpp
+    TestAIA.cpp
+    TestAlternativeServices.cpp
+    TestContentCodingRetry.cpp
+    TestCookieResponses.cpp
+    TestDiskCacheWaiters.cpp
+    TestExportImport.cpp
+    TestRequestTimingInfo.cpp
+    TestSiteBinding.cpp
+    ${LADYBIRD_SOURCE_DIR}/Services/RequestServer/AIA.cpp
+)
 
 if (LINUX)
-    ladybird_test(TestResourceMapSandbox.cpp RequestServer LIBS requestserverservice)
-    target_include_directories(TestResourceMapSandbox PRIVATE ${LADYBIRD_SOURCE_DIR}/Services)
+    list(APPEND TEST_SOURCES TestResourceMapSandbox.cpp)
 endif()
 
-ladybird_test(TestAlternativeServices.cpp RequestServer LIBS requestserverservice)
-target_include_directories(TestAlternativeServices PRIVATE ${LADYBIRD_SOURCE_DIR}/Services)
-
-ladybird_test(TestExportImport.cpp RequestServer LIBS requestserverservice)
-target_include_directories(TestExportImport PRIVATE ${LADYBIRD_SOURCE_DIR}/Services)
+target_sources(TestRequestServer PRIVATE ${TEST_SOURCES})
+target_link_libraries(TestRequestServer PRIVATE requestserverservice OpenSSL::Crypto OpenSSL::SSL CURL::libcurl)
+target_include_directories(TestRequestServer PRIVATE ${LADYBIRD_SOURCE_DIR}/Services)

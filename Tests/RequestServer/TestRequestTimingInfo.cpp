@@ -21,12 +21,6 @@
 #include <RequestServer/ConnectionFromClient.h>
 #include <RequestServer/ResourceSubstitutionMap.h>
 
-namespace RequestServer {
-
-OwnPtr<ResourceSubstitutionMap> g_resource_substitution_map;
-
-}
-
 namespace {
 
 // A local HTTP server that answers every request with the same small response.
