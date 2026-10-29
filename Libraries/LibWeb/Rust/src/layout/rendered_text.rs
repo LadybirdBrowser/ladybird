@@ -709,13 +709,13 @@ mod tests {
         arena.write_shape(node).set_parent(parent);
         let sharp_s_first = || content("SSS", 0, 2, vec![edit(0, 1, 0, 2)]);
         arena.set_text_content(node, sharp_s_first());
-        let epoch = arena.data(parent).fragment_cache_epoch.get();
+        let epoch = arena.data(parent).fragment_cache_epoch;
         assert_eq!(arena.rendered_text_offset_for_dom_offset(node, 1, Start), 2);
         arena.set_text_content(node, sharp_s_first());
-        assert_eq!(arena.data(parent).fragment_cache_epoch.get(), epoch);
+        assert_eq!(arena.data(parent).fragment_cache_epoch, epoch);
 
         arena.set_text_content(node, content("SSS", 0, 2, vec![edit(1, 1, 1, 2)]));
-        assert_ne!(arena.data(parent).fragment_cache_epoch.get(), epoch);
+        assert_ne!(arena.data(parent).fragment_cache_epoch, epoch);
         assert_eq!(arena.rendered_text_offset_for_dom_offset(node, 1, Start), 1);
         assert_eq!(arena.dom_offset_for_rendered_text_offset(node, 2, End), 2);
     }
@@ -740,7 +740,7 @@ mod tests {
         original.rendering_key = Some(key.clone());
         arena.set_text_content(node, original);
         let storage = arena.text_content(node).unwrap().text.as_ptr();
-        let epoch = arena.data(node).fragment_cache_epoch.get();
+        let epoch = arena.data(node).fragment_cache_epoch;
 
         arena.invalidate_text_content(node);
         assert!(arena.text_content(node).unwrap().rendering_key.is_none());
@@ -753,7 +753,7 @@ mod tests {
 
         assert_eq!(arena.text_content(node).unwrap().rendering_key.as_ref(), Some(&new_key));
         assert_eq!(arena.text_content(node).unwrap().text.as_ptr(), storage);
-        assert_eq!(arena.data(node).fragment_cache_epoch.get(), epoch);
+        assert_eq!(arena.data(node).fragment_cache_epoch, epoch);
         assert!(arena.pending_text_nodes_for_content_sync().is_empty());
     }
 

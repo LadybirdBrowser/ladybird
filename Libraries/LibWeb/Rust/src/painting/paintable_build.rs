@@ -375,7 +375,7 @@ impl<'a> PaintableCommit<'a> {
             node,
             link.clone(),
             // A layout pass bumps no epoch, so its geometry is laid out against the epoch the node has now.
-            Some(self.arena().data(node).fragment_cache_epoch.get()),
+            Some(self.arena().data(node).fragment_cache_epoch),
         );
         ReplacedCommittedFragmentLink {
             content_size_change,

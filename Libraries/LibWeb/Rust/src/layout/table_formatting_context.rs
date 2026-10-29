@@ -1014,11 +1014,11 @@ pub(crate) trait TableTree {
     fn display(&self, node: Node) -> FfiDisplay;
 
     fn table_column_span(&self, node: Node) -> usize {
-        self.node_data(node).table_column_span.get() as usize
+        self.node_data(node).table_column_span as usize
     }
 
     fn table_row_span(&self, node: Node) -> usize {
-        self.node_data(node).table_row_span.get() as usize
+        self.node_data(node).table_row_span as usize
     }
 
     fn row_is_collapsed(&self, _row: Node, _row_group: Option<Node>) -> bool {

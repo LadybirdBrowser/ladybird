@@ -267,6 +267,12 @@ impl Chunk {
         &self.slots[offset]
     }
 
+    /// The facts of the node at `offset` that no publication carries, to write without marking the node.
+    #[inline]
+    pub(crate) fn unpublished_facts_mut(&mut self, offset: usize) -> super::node_data::UnpublishedNodeFactsMut<'_> {
+        self.slots[offset].unpublished_facts_mut()
+    }
+
     /// The node at `offset` of this chunk, the arena's chunk at `chunk_index`, marked for the next publication.
     #[inline]
     pub(crate) fn slot_mut(&mut self, chunk_index: usize, offset: usize, writes: &ShapeWrites) -> &mut NodeData {
