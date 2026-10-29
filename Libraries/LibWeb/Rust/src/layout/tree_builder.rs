@@ -1433,7 +1433,7 @@ impl TreeBuildJob {
         }
 
         let built_scroll_containers = host.arena().take_built_scroll_containers();
-        let arena = host.arena();
+        let arena = host.arena_mut();
         if rebuilt_subtrees_were_updated_individually {
             let attached_roots = arena.derive_facts_after_tree_update(&state.rebuilt_subtree_roots);
             arena.resolve_deferred_child_list_insertions(&attached_roots);
@@ -2600,7 +2600,7 @@ fn update_principal_node_after_entry(
     if !construction.layout_node.is_invalid() {
         let layout_node = construction.layout_node;
         if update.kind.is_element() || update.kind.is_document() {
-            host.arena().owe_image_resources(
+            host.arena_mut().owe_image_resources(
                 layout_node,
                 OwedImageResources::StyleResources {
                     owns_content_replacement_image: construction.owns_content_replacement_image,
@@ -3222,7 +3222,7 @@ fn stamp_nested_list_marker_row(
     host.arena()
         .set_node_flag(slot, NodeFlag::ListMarkerIsInside, marker_position_is_inside);
     host.note_style_of_built_row(slot, None);
-    host.arena().owe_image_resources(
+    host.arena_mut().owe_image_resources(
         slot,
         OwedImageResources::StyleResources {
             owns_content_replacement_image: false,
@@ -3274,7 +3274,7 @@ fn create_generated_content_item(
     host.arena().stamp_anonymous_box(slot, NodeKind::ImageBox, derived);
     host.arena()
         .set_node_generated_for(slot, generated_for_of(pseudo_element), Some(generator));
-    host.arena().owe_image_resources(
+    host.arena_mut().owe_image_resources(
         slot,
         OwedImageResources::GeneratedImage {
             generator,
@@ -3326,7 +3326,7 @@ fn create_pseudo_element(
 
     host.arena()
         .stamp_pseudo_element_box(layout_node, element_identity, generated_for_of(pseudo_element));
-    host.arena().owe_image_resources(
+    host.arena_mut().owe_image_resources(
         layout_node,
         OwedImageResources::StyleResources {
             owns_content_replacement_image: decision == FfiPseudoElementDecision::ContentReplacement,
@@ -3830,7 +3830,7 @@ impl<'a> TreeBuilderHost<'a> {
         self.arena().refresh_insets_use_anchor_functions_flag(slot);
         // An anonymous inline box takes its style from its parent, so it may name images too.
         if node_kind == NodeKind::InlineNode {
-            self.arena().owe_image_resources(
+            self.arena_mut().owe_image_resources(
                 slot,
                 OwedImageResources::StyleResources {
                     owns_content_replacement_image: false,
@@ -4612,7 +4612,7 @@ fn create_first_letter_boxes(host: &mut TreeBuilderHost<'_>, element: StyleNodeI
     host.arena()
         .stamp_pseudo_element_row(wrapper_slot, wrapper_kind, element, GENERATED_FOR_FIRST_LETTER);
     host.note_style_of_built_row(wrapper_slot, None);
-    host.arena().owe_image_resources(
+    host.arena_mut().owe_image_resources(
         wrapper_slot,
         OwedImageResources::StyleResources {
             owns_content_replacement_image: false,

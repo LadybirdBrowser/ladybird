@@ -1189,7 +1189,7 @@ pub(crate) struct LayoutNodeArena {
     /// never bound. The document, which has no identity of its own, is bound to the viewport row.
     bound_rows: RefCell<BoundRows>,
     /// What the navigable has scrolled the viewport to, which the viewport's row holds.
-    viewport_scroll_offset: Cell<CssPixelPoint>,
+    viewport_scroll_offset: CssPixelPoint,
     /// The style node of the document the last layout tree build was for. The style mirror names
     /// the document element as its first DOM child.
     document_style_node: Option<StyleNodeID>,
@@ -1234,8 +1234,8 @@ pub(crate) struct LayoutNodeArena {
     replaced_content_facts: Vec<ReplacedContentFactsSlot>,
     /// The layout kind of each row built for a MathML element, from its tag name.
     math_layout_kinds: RefCell<HashMap<NodeSlotId, super::math_formatting_context::MathLayoutKind>>,
-    replaced_paint_facts: RefCell<Arc<crate::painting::replaced_paint_facts::ReplacedPaintFactsTable>>,
-    layer_image_paint_facts: RefCell<Arc<crate::painting::layer_image_paint_facts::LayerImagePaintFactsTable>>,
+    replaced_paint_facts: Arc<crate::painting::replaced_paint_facts::ReplacedPaintFactsTable>,
+    layer_image_paint_facts: Arc<crate::painting::layer_image_paint_facts::LayerImagePaintFactsTable>,
     svg_paint_resources: crate::painting::svg_paint_resources::SvgPaintResources,
     /// The rows built for one DOM node, chained into a ring through the rows themselves; a row that
     /// is the only one built for its node links to nothing. The chain lives on the rows rather than
@@ -1258,7 +1258,7 @@ pub(crate) struct LayoutNodeArena {
     pub(crate) deferred_child_list_insertion_parents: RefCell<Vec<(NodeSlotId, NodeSlotId)>>,
     /// Layout inputs for new absolutely positioned boxes that the build confined to themselves.
     /// They stand in for the committed inputs such a box does not have yet.
-    pub(crate) confined_abspos_layout_inputs: RefCell<HashMap<NodeSlotId, AbsposLayoutInputs>>,
+    pub(crate) confined_abspos_layout_inputs: HashMap<NodeSlotId, AbsposLayoutInputs>,
     /// The position option each box with position options was last laid out with.
     /// https://drafts.csswg.org/css-anchor-position-1/#fallback-apply
     position_options_in_use: HashMap<NodeSlotId, super::abspos_inputs::PositionOptionChoice>,
@@ -1281,7 +1281,7 @@ pub(crate) struct LayoutNodeArena {
     /// the builds came to owe them, until the layout update the builds ran in is over.
     image_resources_owed_to_host: RefCell<Vec<(NodeSlotId, OwedImageResources)>>,
     /// The image boxes among the rows that own the provider of the image they show.
-    owned_image_providers: RefCell<HashMap<NodeSlotId, OwnedImageProvider>>,
+    owned_image_providers: HashMap<NodeSlotId, OwnedImageProvider>,
     /// Whether a row has ever been given a style with `content-visibility: auto`.
     may_have_auto_content_visibility: Cell<bool>,
     /// Whether a row has ever been given a style with a scroll snap type.
@@ -1290,7 +1290,7 @@ pub(crate) struct LayoutNodeArena {
     /// The natural size of the image each image box that owns its image's provider shows
     /// (`content: url(...)`), as the provider publishes it: zero while the image is not available.
     /// Such a box shows an image of its own rather than its element's.
-    owned_image_natural_sizes: RefCell<HashMap<NodeSlotId, crate::css::style::NaturalSize>>,
+    owned_image_natural_sizes: HashMap<NodeSlotId, crate::css::style::NaturalSize>,
     /// The natural size layout last negotiated for the box of an `<svg>` document element, and that
     /// box. An `<object>` showing the document is sized from it.
     document_svg_root_natural_size: Option<(NodeSlotId, crate::css::style::NaturalSize)>,
@@ -1325,7 +1325,7 @@ impl LayoutNodeArena {
             next_rows_with_same_style_node: Vec::new(),
             first_rows_by_style_node: RefCell::new(RowsByStyleNode::default()),
             bound_rows: RefCell::default(),
-            viewport_scroll_offset: Cell::new(CssPixelPoint::default()),
+            viewport_scroll_offset: CssPixelPoint::default(),
             document_style_node: (None),
             style_engine: Cell::new(crate::css::style::StyleEngineHandle::null()),
             box_presence_host: Cell::new(None),
@@ -1353,8 +1353,8 @@ impl LayoutNodeArena {
             searchable_text: None,
             replaced_content_facts: Vec::new(),
             math_layout_kinds: RefCell::default(),
-            replaced_paint_facts: RefCell::default(),
-            layer_image_paint_facts: RefCell::default(),
+            replaced_paint_facts: Default::default(),
+            layer_image_paint_facts: Default::default(),
             svg_paint_resources: crate::painting::svg_paint_resources::SvgPaintResources::default(),
             next_rows_built_for_same_node: Vec::new(),
             memo_invalidations: RefCell::default(),
@@ -1367,7 +1367,7 @@ impl LayoutNodeArena {
             layout_update_flag_node_indices: RefCell::new(HashMap::default()),
             pending_attached_subtree_roots: RefCell::new(Vec::new()),
             deferred_child_list_insertion_parents: RefCell::new(Vec::new()),
-            confined_abspos_layout_inputs: RefCell::new(HashMap::default()),
+            confined_abspos_layout_inputs: HashMap::default(),
             position_options_in_use: (HashMap::default()),
             last_successful_position_options: (HashMap::default()),
             inline_boxes_lifted_out_of: RefCell::new(HashMap::default()),
@@ -1378,11 +1378,11 @@ impl LayoutNodeArena {
             text_nodes_enrolled_for_content_sync: RefCell::new(HashSet::default()),
             built_scroll_containers: RefCell::default(),
             image_resources_owed_to_host: RefCell::default(),
-            owned_image_providers: RefCell::default(),
+            owned_image_providers: Default::default(),
             may_have_auto_content_visibility: Cell::new(false),
             may_have_scroll_snap_areas: Cell::new(false),
             nodes_enrolled_for_replaced_content_facts_sync: RefCell::new(Vec::new()),
-            owned_image_natural_sizes: RefCell::new(HashMap::default()),
+            owned_image_natural_sizes: HashMap::default(),
             document_svg_root_natural_size: None,
             handed_over_document_svg_root_natural_size: (None),
             layout_style_snapshot_commit: RefCell::new(Vec::new()),
@@ -1543,13 +1543,13 @@ impl LayoutNodeArena {
         for &node in &enrolled_nodes {
             // A box waiting for the provider it owns shows no image yet, as the provider says while
             // its image is not available.
-            let input = if self.owned_image_providers.get_mut().get(&node) == Some(&OwnedImageProvider::Awaited) {
+            let input = if self.owned_image_providers.get(&node) == Some(&OwnedImageProvider::Awaited) {
                 crate::css::style::ReplacedContentInput::NaturalSize(crate::css::style::NaturalSize {
                     width: Some(0),
                     height: Some(0),
                     aspect_ratio: None,
                 })
-            } else if let Some(&natural_size) = self.owned_image_natural_sizes.get_mut().get(&node) {
+            } else if let Some(&natural_size) = self.owned_image_natural_sizes.get(&node) {
                 crate::css::style::ReplacedContentInput::NaturalSize(natural_size)
             } else if let Some(input) = self.replaced_content_input(node) {
                 input
@@ -1745,16 +1745,16 @@ impl LayoutNodeArena {
         if let Some(slot) = self.replaced_content_facts.get_mut(index as usize) {
             *slot = ReplacedContentFactsSlot::default();
         }
-        self.owned_image_natural_sizes.get_mut().remove(&id);
-        self.owned_image_providers.get_mut().remove(&id);
+        self.owned_image_natural_sizes.remove(&id);
+        self.owned_image_providers.remove(&id);
         self.memo_invalidations.get_mut().note_slot_freed(index);
         self.remove_layout_update_flag_node(id);
         self.math_layout_kinds.get_mut().remove(&id);
-        if self.replaced_paint_facts.get_mut().contains_key(&id) {
-            Arc::make_mut(self.replaced_paint_facts.get_mut()).remove(&id);
+        if self.replaced_paint_facts.contains_key(&id) {
+            Arc::make_mut(&mut self.replaced_paint_facts).remove(&id);
         }
-        if self.layer_image_paint_facts.get_mut().contains_key(&id) {
-            Arc::make_mut(self.layer_image_paint_facts.get_mut()).remove(&id);
+        if self.layer_image_paint_facts.contains_key(&id) {
+            Arc::make_mut(&mut self.layer_image_paint_facts).remove(&id);
         }
         self.svg_paint_resources.forget_slot(id);
         for highlight in crate::painting::selection::HighlightPseudoElement::ALL {
@@ -2183,7 +2183,7 @@ impl LayoutNodeArena {
         }
         let data = self.data(slot);
         if data.kind.get() == NodeKind::Viewport {
-            return self.viewport_scroll_offset.get();
+            return self.viewport_scroll_offset;
         }
         let Some(style_node) = self.node_style_node(slot) else {
             return CssPixelPoint::default();
@@ -2282,8 +2282,8 @@ impl LayoutNodeArena {
     }
 
     /// Records what the navigable has scrolled the viewport to.
-    pub(crate) fn set_viewport_scroll_offset(&self, offset: CssPixelPoint) {
-        if self.viewport_scroll_offset.replace(offset) != offset {
+    pub(crate) fn set_viewport_scroll_offset(&mut self, offset: CssPixelPoint) {
+        if std::mem::replace(&mut self.viewport_scroll_offset, offset) != offset {
             self.note_scroll_offsets_moved();
         }
     }
@@ -3100,9 +3100,13 @@ impl LayoutNodeArena {
 
     /// Publish the natural size of the image the image box `id` owns the provider of, which the
     /// box's replaced content facts are derived from.
-    pub(crate) fn set_owned_image_natural_size(&self, id: NodeSlotId, natural_size: crate::css::style::NaturalSize) {
+    pub(crate) fn set_owned_image_natural_size(
+        &mut self,
+        id: NodeSlotId,
+        natural_size: crate::css::style::NaturalSize,
+    ) {
         assert_eq!(self.data(id).kind.get(), NodeKind::ImageBox);
-        self.owned_image_natural_sizes.borrow_mut().insert(id, natural_size);
+        self.owned_image_natural_sizes.insert(id, natural_size);
     }
 
     /// Whether the tree the arena holds already reflects every pending update. A document without
@@ -4303,7 +4307,7 @@ impl LayoutNodeArena {
         &self,
         id: NodeSlotId,
     ) -> Option<crate::painting::replaced_paint_facts::ReplacedPaintFacts> {
-        self.replaced_paint_facts.borrow().get(&id).cloned()
+        self.replaced_paint_facts.get(&id).cloned()
     }
 
     pub(crate) fn layer_image_paint_facts(
@@ -4313,7 +4317,7 @@ impl LayoutNodeArena {
         computed_index: u32,
     ) -> Option<crate::painting::layer_image_paint_facts::LayerImagePaintFacts> {
         crate::painting::layer_image_paint_facts::layer_image_paint_facts_in(
-            &self.layer_image_paint_facts.borrow(),
+            &self.layer_image_paint_facts,
             id,
             list,
             computed_index,
@@ -4321,26 +4325,25 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn set_layer_image_paint_facts(
-        &self,
+        &mut self,
         id: NodeSlotId,
         entries: Vec<crate::painting::layer_image_paint_facts::LayerImagePaintFactsEntry>,
     ) -> bool {
         if !self.slot_is_live(id) {
             return false;
         }
-        let mut table = self.layer_image_paint_facts.borrow_mut();
+        let table = &mut self.layer_image_paint_facts;
         let changed = if entries.is_empty() {
             table.contains_key(&id)
-                && Arc::make_mut(&mut table)
+                && Arc::make_mut(table)
                     .remove(&id)
                     .is_some_and(|previous| !previous.is_empty())
         } else if table.get(&id) == Some(&entries) {
             false
         } else {
-            Arc::make_mut(&mut table).insert(id, entries);
+            Arc::make_mut(table).insert(id, entries);
             true
         };
-        drop(table);
         if changed {
             use crate::painting::record::damage::PaintDamage;
             self.push_paint_damage_for_repaint(
@@ -4355,7 +4358,7 @@ impl LayoutNodeArena {
     /// their kind. A box that owns the provider of its image shows that provider's image, which only facts naming the
     /// box by its row carry, and none before the host hands it the provider.
     pub(crate) fn set_replaced_paint_facts(
-        &self,
+        &mut self,
         target: super::tree_update_marks::MarkedBox,
         facts: crate::painting::replaced_paint_facts::ReplacedPaintFacts,
     ) {
@@ -4383,13 +4386,12 @@ impl LayoutNodeArena {
             return;
         }
         let damage = facts.damage_when_changed();
-        for row in self.rows_sharing_dom_node_with(id) {
-            let mut table = self.replaced_paint_facts.borrow_mut();
-            if table.get(&row) == Some(&facts) {
+        let rows: Vec<NodeSlotId> = self.rows_sharing_dom_node_with(id).collect();
+        for row in rows {
+            if self.replaced_paint_facts.get(&row) == Some(&facts) {
                 continue;
             }
-            Arc::make_mut(&mut table).insert(row, facts.clone());
-            drop(table);
+            Arc::make_mut(&mut self.replaced_paint_facts).insert(row, facts.clone());
             self.push_paint_damage_for_repaint(row, damage);
         }
     }
@@ -4407,8 +4409,8 @@ impl LayoutNodeArena {
             style: self.shape_writes.style(),
             population: self.paintable_population_version(),
             tables: [
-                Arc::as_ptr(&self.replaced_paint_facts.borrow()).addr(),
-                Arc::as_ptr(&self.layer_image_paint_facts.borrow()).addr(),
+                Arc::as_ptr(&self.replaced_paint_facts).addr(),
+                Arc::as_ptr(&self.layer_image_paint_facts).addr(),
                 self.svg_paint_resources.address(),
                 self.image_map_areas().address(),
                 self.paint_state
@@ -4433,8 +4435,8 @@ impl LayoutNodeArena {
     pub(crate) fn publish_paint_facts(&mut self) -> crate::painting::published_frame::PublishedPaintFacts {
         crate::painting::published_frame::PublishedPaintFacts {
             text: self.text_slots.published.publish(),
-            replaced: self.replaced_paint_facts.borrow().clone(),
-            layer_images: self.layer_image_paint_facts.borrow().clone(),
+            replaced: self.replaced_paint_facts.clone(),
+            layer_images: self.layer_image_paint_facts.clone(),
             svg_paint_resources: self.svg_paint_resources.publish(),
             image_maps: self.image_map_areas().snapshot(),
         }
@@ -5048,7 +5050,6 @@ impl LayoutNodeArena {
             })
             .or_else(|| {
                 self.confined_abspos_layout_inputs
-                    .borrow()
                     .get(&NodeSlotId::new(index, metadata.generation))
                     .copied()
             })
@@ -5838,11 +5839,9 @@ impl LayoutNodeArena {
 
     /// Owes the host `id`'s image resources once the layout update the running build is part of
     /// is over. An image box that owns its image's provider has no image until then.
-    pub(crate) fn owe_image_resources(&self, id: NodeSlotId, owed: OwedImageResources) {
+    pub(crate) fn owe_image_resources(&mut self, id: NodeSlotId, owed: OwedImageResources) {
         if owed.owns_provider() {
-            self.owned_image_providers
-                .borrow_mut()
-                .insert(id, OwnedImageProvider::Awaited);
+            self.owned_image_providers.insert(id, OwnedImageProvider::Awaited);
         }
         self.image_resources_owed_to_host.borrow_mut().push((id, owed));
     }
@@ -5855,12 +5854,12 @@ impl LayoutNodeArena {
 
     /// Where `id` stands with the provider of its image, if it is an image box that owns one.
     pub(crate) fn owned_image_provider(&self, id: NodeSlotId) -> Option<OwnedImageProvider> {
-        self.owned_image_providers.borrow().get(&id).copied()
+        self.owned_image_providers.get(&id).copied()
     }
 
     /// Notes that the host is about to hand `id` the provider it owns, if it was waiting for one.
-    pub(crate) fn note_owned_provider_handed_over(&self, id: NodeSlotId) {
-        if let Some(provider) = self.owned_image_providers.borrow_mut().get_mut(&id) {
+    pub(crate) fn note_owned_provider_handed_over(&mut self, id: NodeSlotId) {
+        if let Some(provider) = self.owned_image_providers.get_mut(&id) {
             *provider = OwnedImageProvider::HandedOver;
         }
     }
