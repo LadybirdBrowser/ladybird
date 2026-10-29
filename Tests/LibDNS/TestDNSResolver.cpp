@@ -760,12 +760,25 @@ TEST_CASE(test_truncated_udp_response_is_retried_over_tcp)
 {
     Core::EventLoop loop;
 
-    auto tcp_server = MUST(Core::TCPServer::try_create());
-    MUST(tcp_server->listen(IPv4Address { 127, 0, 0, 1 }, 0, Core::TCPServer::AllowAddressReuse::Yes));
-    auto server_port = tcp_server->local_port().value();
+    // The server answers on one port over both UDP and TCP. The port the system picks for TCP isn't reserved for UDP,
+    // though, so another socket can already hold it for UDP — in which case, try again with a fresh port.
+    RefPtr<Core::TCPServer> tcp_server;
+    RefPtr<Core::UDPServer> udp_server;
+    u16 server_port = 0;
+    for (size_t attempt = 0; attempt < 10 && !udp_server; ++attempt) {
+        tcp_server = MUST(Core::TCPServer::try_create());
+        MUST(tcp_server->listen(IPv4Address { 127, 0, 0, 1 }, 0, Core::TCPServer::AllowAddressReuse::Yes));
+        server_port = tcp_server->local_port().value();
 
-    auto udp_server = Core::UDPServer::construct();
-    EXPECT(udp_server->bind(IPv4Address { 127, 0, 0, 1 }, server_port));
+        auto candidate = Core::UDPServer::construct();
+        if (candidate->bind(IPv4Address { 127, 0, 0, 1 }, server_port))
+            udp_server = move(candidate);
+    }
+    if (!udp_server) {
+        FAIL("Couldn't bind UDP to the port of a TCP server");
+        return;
+    }
+
     size_t udp_queries = 0;
     udp_server->on_ready_to_receive = [&] {
         sockaddr_in from {};
