@@ -250,12 +250,6 @@ static void log_failure(LoadRequest const& request, ErrorType const& error)
     dbgln("ResourceLoader: Failed load of: \"{}\", \033[31;1mError: {}\033[0m, Duration: {}ms", url_for_logging, error, load_time_ms);
 }
 
-static void log_filtered_request(LoadRequest const& request)
-{
-    auto url_for_logging = sanitized_url_for_logging(*request.url());
-    dbgln("ResourceLoader: Filtered request to: \"{}\"", url_for_logging);
-}
-
 // What kind of resource a blocked request was for, as the browser names it to the user.
 static StringView blocked_resource_kind(LoadRequest const& request)
 {
@@ -318,7 +312,6 @@ static bool should_block_request(LoadRequest const& request)
     if (auto page = request.page(); !page || page->content_blocking_enabled_for_url(request.top_level_creation_url())) {
         auto source_url = request.source_url().value_or(url);
         if (ContentBlocker::the().is_filtered(url, source_url, request.destination(), request.initiator_type(), request.request_mode())) {
-            log_filtered_request(request);
             if (page)
                 page->client().page_did_block_resource(url, blocked_resource_kind(request));
             return true;
