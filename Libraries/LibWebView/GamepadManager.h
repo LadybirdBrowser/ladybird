@@ -64,6 +64,17 @@ public:
     struct Consumer {
         AK_ALLOC_WITH_KMALLOC;
 
+        explicit Consumer(WebContentClient& client)
+            : client(client)
+        {
+        }
+
+        Optional<size_t> allocate_shared_state_slot(Web::Gamepad::GamepadHandle);
+        Optional<size_t> slot_index_for_device(Web::Gamepad::GamepadHandle) const;
+        Web::Gamepad::SharedGamepadStateSlot& shared_state_slot(size_t slot_index);
+        bool may_receive_device(Device const&) const;
+
+        WebContentClient& client;
         Core::AnonymousBuffer state_buffer;
         Array<Web::Gamepad::GamepadHandle, Web::Gamepad::MAX_SHARED_GAMEPADS> slot_handles {};
         bool receives_real_devices { false };
@@ -81,10 +92,6 @@ private:
 
     Consumer* ensure_consumer(WebContentClient&);
 
-    static Optional<size_t> allocate_shared_state_slot(Consumer&, Web::Gamepad::GamepadHandle);
-    static Optional<size_t> slot_index_for_device(Consumer const&, Web::Gamepad::GamepadHandle);
-    static Web::Gamepad::SharedGamepadStateSlot& shared_state_slot(Consumer&, size_t slot_index);
-
     void device_connected(u32 sdl_joystick_id);
     void device_disconnected(u32 sdl_joystick_id);
 
@@ -97,9 +104,8 @@ private:
     Device* device_for_sdl_joystick_id(u32 sdl_joystick_id);
 
     void announce_device(Device&);
-    void announce_device_to_consumer(Device const&, WebContentClient&, Consumer&);
-    void fill_vacant_slots(WebContentClient&, Consumer&);
-    static bool consumer_may_receive_device(Consumer const&, WebContentClient const&, Device const&);
+    void announce_device_to_consumer(Device const&, Consumer&);
+    void fill_vacant_slots(Consumer&);
     void remove_device(Web::Gamepad::GamepadHandle);
 
     bool m_sdl_initialized { false };
