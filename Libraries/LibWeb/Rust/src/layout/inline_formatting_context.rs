@@ -975,13 +975,13 @@ impl FragmentainerLineLimit {
 pub(crate) struct InlineFormattingContext<'context> {
     pub(crate) run: &'context FormattingContextRun<'context>,
     pub(crate) containing_block: Node,
-    /// The containing block, with the record it lays out its lines in.
+    /// The containing block, with the record that holds the metrics its lines are laid out against.
     block_container: block_formatting_context::BlockContainer<'context>,
     pub(crate) input: LayoutInput,
     containing_block_position_in_bfc_root: FfiCssPixelPoint,
     pub(crate) callbacks: LayoutPass<'context>,
     pub(crate) parent: &'context block_formatting_context::BlockFormattingContext<'context>,
-    /// The lines this context lays out, which its containing block's record keeps once they are laid out.
+    /// The lines this context lays out, which it hands back once they are laid out.
     line_data: RefCell<used_values::LineData>,
     pub(crate) fragmented_inlines_in_pre_order: Vec<Node>,
     pub(crate) current_line_start: Cell<fragmentation::LinePosition>,
@@ -1022,7 +1022,6 @@ impl<'context> InlineFormattingContext<'context> {
         callbacks: LayoutPass<'context>,
         parent: &'context block_formatting_context::BlockFormattingContext<'context>,
     ) -> Self {
-        block_container.used.ensure_line_data();
         Self {
             run,
             containing_block: block_container.node,
@@ -2421,8 +2420,6 @@ impl<'context> InlineFormattingContext<'context> {
     pub(crate) fn run(&mut self) -> block_formatting_context::ChildrenSummary {
         assert!(self.facts(self.containing_block).children_are_inline());
         let run = self.run;
-        let containing_used = self.block_container.used;
-        *self.line_data.get_mut() = containing_used.take_building_line_data();
         let iterator = match run.fragmentainer.as_deref() {
             Some(fragmentainer) => {
                 inline_level_iterator::InlineLevelIterator::new_sharing_items(self, &fragmentainer.inline_items)
@@ -2443,9 +2440,9 @@ impl<'context> InlineFormattingContext<'context> {
             .last()
             .map(line_box::LineBoxData::retained_metrics);
         let baselines = formatting_context::derive_baselines_from_lines(&self.line_data.get_mut().line_boxes);
-        containing_used.set_building_line_data(std::mem::take(self.line_data.get_mut()));
         block_formatting_context::ChildrenSummary {
             baselines,
+            lines: Some(std::mem::take(self.line_data.get_mut())),
             fragmentainer_stop_token: self.fragmentainer_stop_token.take(),
             lines_are_unbreakable: self.lines_are_unbreakable.get(),
             last_line,

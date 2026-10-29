@@ -230,6 +230,8 @@ impl<'sized> ChildSizedHere<'sized> {
 #[derive(Default)]
 pub(crate) struct ChildrenSummary {
     pub(crate) baselines: DerivedBaselines,
+    /// The lines laid out in the container, where an inline formatting context laid them out.
+    pub(crate) lines: Option<used_values::LineData>,
     /// The break token of the container, where the fragmentainer stopped while its children were laid out.
     pub(crate) fragmentainer_stop_token: Option<std::rc::Rc<fragmentation::BlockBreakToken>>,
     /// Whether the lines of the container are kept together in one fragmentainer.
@@ -555,6 +557,8 @@ pub(crate) struct BlockFormattingContext<'pass> {
     column_inline_items: OnceCell<std::rc::Rc<inline_level_iterator::InlineItemCache>>,
     /// The children of the run's root that its flow laid out, in tree order.
     root_flow_children: RefCell<Vec<RootFlowChild>>,
+    /// The lines laid out in the run's root, which the run finishes once it has sized the root.
+    root_lines: RefCell<used_values::LineDataState>,
     column_early_breaks: RefCell<ColumnEarlyBreaks>,
     multicol_automatic_content_block_size: Cell<Option<CssPixels>>,
     discard_block_start_margin_of_next_child: Cell<bool>,
@@ -681,6 +685,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             break_mode: Cell::new(BreakMode::AllBreaks),
             column_inline_items: OnceCell::new(),
             root_flow_children: RefCell::new(Vec::new()),
+            root_lines: RefCell::new(used_values::LineDataState::Empty),
             column_early_breaks: RefCell::new(ColumnEarlyBreaks::default()),
             multicol_automatic_content_block_size: Cell::new(None),
             discard_block_start_margin_of_next_child: Cell::new(false),
@@ -943,6 +948,12 @@ impl<'pass> BlockFormattingContext<'pass> {
 
     pub(crate) fn derived_baselines_of_root_box(&self) -> DerivedBaselines {
         self.derived_baselines_of_root_box.get()
+    }
+
+    /// Takes the lines laid out in the run's root, which the run finishes. Call this after the last read of
+    /// `automatic_content_block_size`, which reads the last of these lines.
+    pub(crate) fn take_root_lines(&self) -> used_values::LineDataState {
+        std::mem::take(&mut *self.root_lines.borrow_mut())
     }
 
     /// Resolves the insets of `node`, an in-flow child of `block_container`, keeps them for the box and returns them.
@@ -3015,8 +3026,17 @@ impl<'pass> BlockFormattingContext<'pass> {
 
         let insets = self.compute_inset(run, node, block_container);
 
+        let lines_laid_out_in_this_flow = summary_of_children_laid_out_in_this_flow
+            .as_mut()
+            .and_then(|summary| summary.lines.take());
         let placed_child = child_handed_back_by_its_run
-            .unwrap_or_else(|| formatting_context::PlacedChild::of_record(self.record_of(sized_child), &self.run))
+            .unwrap_or_else(|| {
+                formatting_context::PlacedChild::of_record(
+                    self.record_of(sized_child),
+                    lines_laid_out_in_this_flow,
+                    &self.run,
+                )
+            })
             .with_in_flow_box_insets(insets)
             .with_fragment_facts(fragment_facts)
             .with_offset_from_relatively_positioned_inline_ancestors(
@@ -4026,9 +4046,9 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
         self.margin_state.borrow_mut().reset();
         if !root_line_data_of_columns.is_empty() {
-            root_used.set_finished_line_data(inline_content::InlineContent::concatenate_translated(
-                &root_line_data_of_columns,
-            ));
+            *self.root_lines.borrow_mut() = used_values::LineDataState::Finished(
+                inline_content::InlineContent::concatenate_translated(&root_line_data_of_columns),
+            );
         }
         let multicol_layout_data = std::sync::Arc::new(fragmentation::MulticolLayoutData { geometry, rows });
         self.run.update_fragment_payloads_of(self.run.box_, |payloads| {
@@ -4547,7 +4567,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             self.record_derived_baselines_of_root_box(baselines);
             return;
         }
-        let children_summary = if root_facts.is_table_wrapper() {
+        let mut children_summary = if root_facts.is_table_wrapper() {
             self.layout_table_wrapper_children(run, root_input, available_space)
         } else if root_facts.children_are_inline() {
             self.layout_inline_children(
@@ -4566,6 +4586,9 @@ impl<'pass> BlockFormattingContext<'pass> {
                 available_space,
             )
         };
+        if let Some(lines) = children_summary.lines.take() {
+            *self.root_lines.borrow_mut() = used_values::LineDataState::Building(Box::new(lines));
+        }
         let baselines = children_summary.baselines;
         self.record_derived_baselines_of_root_box(baselines);
 
@@ -5114,7 +5137,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
         let line_clamp_reached = self.line_clamp_reached();
         let block_size = automatic_block_size_for_bfc_root(
-            self.run.records,
+            self.root_lines.borrow().last_line(),
             self.run.callbacks,
             self.run.box_,
             &self.root_flow_children.borrow(),
@@ -5314,7 +5337,7 @@ pub(crate) fn margins_can_collapse_through_box_itself(
 
 // https://www.w3.org/TR/CSS22/visudet.html#root-height
 pub(crate) fn automatic_block_size_for_bfc_root(
-    records: &RunRecords,
+    root_last_line: Option<inline_content::LineRecord>,
     callbacks: LayoutPass<'_>,
     root: Node,
     flow_children: &[RootFlowChild],
@@ -5332,9 +5355,7 @@ pub(crate) fn automatic_block_size_for_bfc_root(
     if facts.children_are_inline() {
         // If it only has inline-level children, the block size is the distance between
         // the top content edge and the bottom of the bottommost line box.
-        let root_used = records.used_values(root);
-        let line_data = root_used.line_data_ref();
-        if let Some(last_line) = line_data.as_ref().and_then(|data| data.last_line()) {
+        if let Some(last_line) = root_last_line {
             bottom = Some(last_line.physical_vertical_end());
             // A trailing interrupting block's bottom margin cannot collapse out of a BFC root,
             // so it contributes to the root's automatic block size. The line box bottom excludes it.
