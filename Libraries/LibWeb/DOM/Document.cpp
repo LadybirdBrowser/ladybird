@@ -9933,7 +9933,7 @@ static size_t calculate_depth_for_node(Node const& node)
 }
 
 // https://drafts.csswg.org/resize-observer-1/#gather-active-observations-h
-void Document::gather_active_observations_at_depth(size_t depth)
+void Document::gather_active_observations_at_depth(size_t depth, u64 rendering_update_serial)
 {
     // 1. Let depth be the depth passed in.
 
@@ -9953,6 +9953,10 @@ void Document::gather_active_observations_at_depth(size_t depth)
 
         // 2. For each observation in observer.[[observationTargets]] run this step:
         for (auto& observation : observer->observation_targets()) {
+            // NB: An observation made beside a rendering update in flight is gathered by the rendering updates after it.
+            if (observation->first_rendering_update_to_gather() > rendering_update_serial)
+                continue;
+
             // 1. If observation.isActive() is true
             if (observation->is_active()) {
                 auto target = observation->target();

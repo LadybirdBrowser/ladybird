@@ -12,6 +12,7 @@
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Page/Page.h>
@@ -114,6 +115,7 @@ void ResizeObserver::observe(DOM::Element& target, ResizeObserverOptions options
 
     // 3. Let resizeObservation be new ResizeObservation(target, observedBox).
     auto resize_observation = MUST(ResizeObservation::create(target, observed_box));
+    resize_observation->set_first_rendering_update_to_gather(HTML::main_thread_event_loop().first_rendering_update_to_gather_resize_observations_of(*m_document));
 
     // 4. Add the resizeObservation to the [[observationTargets]] slot.
     m_observation_targets.append(resize_observation);

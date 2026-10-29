@@ -683,7 +683,7 @@ static HeldTasks tasks_rendering_update_holds(Vector<GC::Root<DOM::Document>> co
     return HeldTasks::None;
 }
 
-static void update_style_and_layout_for_rendering(DOM::Document&);
+static void update_style_and_layout_for_rendering(DOM::Document&, u64 update_serial);
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#update-the-rendering
 // NB: The documents step 3 of update the rendering keeps.
@@ -1009,7 +1009,7 @@ void EventLoop::update_the_rendering()
                 }
             }
         }
-        update_style_and_layout_for_rendering(document);
+        update_style_and_layout_for_rendering(document, m_rendering_update_serial);
     }
 
     update_the_rendering_after_style_and_layout(docs, frame_timestamp, m_rendering_update_serial);
@@ -1033,7 +1033,7 @@ void EventLoop::update_whether_font_face_sets_are_pending_on_the_environment(Vec
 
 // Step 16 of updating the rendering, for one doc of docs: its style and layout, and the resize observations they
 // answer.
-static void update_style_and_layout_for_rendering(DOM::Document& document)
+static void update_style_and_layout_for_rendering(DOM::Document& document, u64 update_serial)
 {
     // 1. Let resizeObserverDepth be 0.
     size_t resize_observer_depth = 0;
@@ -1117,7 +1117,7 @@ static void update_style_and_layout_for_rendering(DOM::Document& document)
             continue;
 
         // 5. Gather active resize observations at depth resizeObserverDepth for doc.
-        document.gather_active_observations_at_depth(resize_observer_depth);
+        document.gather_active_observations_at_depth(resize_observer_depth, update_serial);
 
         // 6. If doc has active resize observations:
         if (document.has_active_resize_observations()) {
@@ -1362,7 +1362,7 @@ void EventLoop::resume_rendering_update_in_flight()
     {
         TemporaryChange running { m_running_rendering_task, true };
         // The style and layout of the doc whose transaction flew take it in, waiting for it to land.
-        update_style_and_layout_for_rendering(update->document());
+        update_style_and_layout_for_rendering(update->document(), update->serial);
         update_the_rendering_after_style_and_layout(update->docs, update->frame_timestamp, update->serial);
     }
     // What the steps asked for, an animation frame of a promise they resolved for one, asks for the next rendering
@@ -1400,6 +1400,13 @@ bool EventLoop::finish_ended_rendering_update_as_its_layout_flew()
     }
     update_whether_font_face_sets_are_pending_on_the_environment(update->docs, TakenLayout::AsItFlew);
     return true;
+}
+
+u64 EventLoop::first_rendering_update_to_gather_resize_observations_of(DOM::Document const& document) const
+{
+    if (m_rendering_update_in_flight && &m_rendering_update_in_flight->document() == &document)
+        return m_rendering_update_in_flight->serial + 1;
+    return 0;
 }
 
 void EventLoop::finish_rendering_update_in_flight()
