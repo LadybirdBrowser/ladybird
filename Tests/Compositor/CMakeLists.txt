@@ -1,3 +1,5 @@
+ladybird_test_suite(Compositor)
+
 set(TEST_SOURCES
     TestAsyncScrollTree.cpp
     TestBitmapExport.cpp
@@ -8,16 +10,19 @@ set(TEST_SOURCES
     TestVSyncScheduler.cpp
 )
 
-foreach(source IN LISTS TEST_SOURCES)
-    ladybird_test("${source}" Compositor LIBS compositorservice LibCompositing LibGfx)
-endforeach()
-
 # These drive Skia directly, and the compositor keeps its Skia dependency private.
-foreach(source IN ITEMS TestDisplayListImageFilters.cpp BenchmarkForceDarkImageFilter.cpp TestForceDarkImageFilter.cpp TestPaintingSurface.cpp TestYUVData.cpp)
-    ladybird_test("${source}" Compositor LIBS compositorservice LibCompositing LibGfx skia)
-endforeach()
+list(APPEND TEST_SOURCES
+    BenchmarkForceDarkImageFilter.cpp
+    TestDisplayListImageFilters.cpp
+    TestForceDarkImageFilter.cpp
+    TestPaintingSurface.cpp
+    TestYUVData.cpp
+)
 
 if (APPLE)
-    ladybird_test(TestVideoSurfaceImage.mm Compositor LIBS compositorservice LibCompositing LibGfx skia)
-    target_link_libraries(TestVideoSurfaceImage PRIVATE "-framework CoreVideo")
+    list(APPEND TEST_SOURCES TestVideoSurfaceImage.mm)
+    target_link_libraries(TestCompositor PRIVATE "-framework CoreVideo")
 endif()
+
+target_sources(TestCompositor PRIVATE ${TEST_SOURCES})
+target_link_libraries(TestCompositor PRIVATE compositorservice LibCompositing LibGfx skia)
