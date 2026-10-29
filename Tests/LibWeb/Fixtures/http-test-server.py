@@ -177,10 +177,10 @@ class WPTContext:
             return config
 
     def apply_config_for_request(self, request):
-        # test-web serves each test it loads over HTTP from a unique test-web-*.localhost host, so substitutions like
-        # {{host}} and {{domains[www1]}} name that host and its subdomains, as they name the test's host in WPT.
+        # test-web uses unique test-web-*.localhost hosts, or test-web-*.test for insecure-origin tests.
+        # Substitutions like {{host}} and {{domains[www1]}} must name that test host and its subdomains.
         hostname = request.url_parts.hostname or ""
-        match = re.search(r"(?:^|\.)(test-web-[0-9a-fA-F-]+\.localhost)$", hostname)
+        match = re.search(r"(?:^|\.)(test-web-[0-9a-fA-F-]+\.(?:localhost|test))$", hostname)
         if not match:
             return
 
