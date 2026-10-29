@@ -3,6 +3,9 @@
 <script>
 asyncTest(async done => {
     const video = document.createElement("video");
+    // The Metadata preload state may suspend the download at HAVE_CURRENT_DATA, before the scan reaches the end, which
+    // would fire an extra suspend event. This test is about the suspend that follows the final progress event.
+    video.preload = "auto";
     document.body.append(video);
     for (let load = 0; load < 2; ++load) {
         let progressEnd = -1;
