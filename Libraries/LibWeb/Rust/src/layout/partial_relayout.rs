@@ -678,7 +678,7 @@ impl LayoutNodeArena {
 
     /// What a box that is not laid out again still owes a child list change that stays inside its
     /// children: the cached runs that describe the old list, and the paint that depends on it.
-    fn note_contained_child_list_change(&self, parent: NodeSlotId) {
+    fn note_contained_child_list_change(&mut self, parent: NodeSlotId) {
         use crate::layout::node_data::DomPaintFact;
         use crate::painting::record::damage::PaintDamage;
 

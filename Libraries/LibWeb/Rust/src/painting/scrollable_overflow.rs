@@ -831,13 +831,13 @@ fn box_holds_scroll_state(arena: &LayoutNodeArena, slot: NodeSlotId) -> bool {
 /// Settles the scheduled recalculation, then measures every other row left unmeasured. Answers the scroll offsets the
 /// new overflow moved out of range, each clamped into it, for the document to store.
 #[must_use = "the document stores the clamped scroll offsets"]
-pub(crate) fn update_scrollable_overflow(arena: &LayoutNodeArena) -> Vec<(NodeSlotId, CssPixelPoint)> {
+pub(crate) fn update_scrollable_overflow(arena: &mut LayoutNodeArena) -> Vec<(NodeSlotId, CssPixelPoint)> {
     let clamped = settle_scheduled_scrollable_overflow(arena);
     arena.measure_scrollable_overflow();
     clamped
 }
 
-fn settle_scheduled_scrollable_overflow(arena: &LayoutNodeArena) -> Vec<(NodeSlotId, CssPixelPoint)> {
+fn settle_scheduled_scrollable_overflow(arena: &mut LayoutNodeArena) -> Vec<(NodeSlotId, CssPixelPoint)> {
     let mut clamped = Vec::new();
     let Some(viewport) = arena.scrollable_overflow.viewport.get() else {
         return clamped;

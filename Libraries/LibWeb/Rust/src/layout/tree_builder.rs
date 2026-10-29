@@ -1393,7 +1393,7 @@ impl TreeBuildJob {
                     &state.additional_table_fixup_roots,
                 );
             } else {
-                host.arena().set_needs_full_scrollable_overflow_recalculation();
+                host.arena_mut().set_needs_full_scrollable_overflow_recalculation();
                 fixup_tables(host, document_layout_node);
             }
 
@@ -1540,7 +1540,7 @@ fn update_layout_tree_for_shadow_root_children(
         must_create_subtree,
         FfiInsertionMode::Append,
     );
-    host.arena().clear_layout_tree_update_marks(Some(shadow_root));
+    host.arena_mut().clear_layout_tree_update_marks(Some(shadow_root));
 }
 
 /// Updates a slot's assigned nodes in flat-tree order.
@@ -1892,7 +1892,7 @@ fn update_layout_tree_for_display_contents(
         assert!(placed.is_none());
     }
 
-    host.arena().clear_layout_tree_update_marks(Some(style_node));
+    host.arena_mut().clear_layout_tree_update_marks(Some(style_node));
 
     if clear_layout_top_layer_for_descendants {
         context.layout_top_layer = true;
@@ -2305,7 +2305,7 @@ fn update_principal_node_descendants(
         state.quote_nesting_level = prior_quote_nesting_level;
     }
 
-    host.arena()
+    host.arena_mut()
         .clear_layout_tree_update_marks(Some(update.mirror_identity));
 }
 

@@ -316,20 +316,19 @@ impl LayoutNodeArena {
             self.mark_layout_tree_update(Some(owner), mark);
         }
         if !self
-            .layout_tree_update_marks()
-            .borrow_mut()
+            .layout_tree_update_marks_mut()
             .merge(style_node, true, mark.reuse_reason)
         {
             return;
         }
 
         // The build reaches a top layer member from the document rather than through its ancestors.
-        let is_in_top_layer = |node: StyleNodeID| {
-            self.with_style_store(|engine| {
+        let is_in_top_layer = |arena: &Self, node: StyleNodeID| {
+            arena.with_style_store(|engine| {
                 engine.element_adjustment_facts(node) & element_adjustment_fact::RENDERED_IN_TOP_LAYER != 0
             })
         };
-        let mut is_inside_top_layer_member = node.is_some_and(&is_in_top_layer);
+        let mut is_inside_top_layer_member = node.is_some_and(|node| is_in_top_layer(self, node));
         let mut current = node;
         while let Some(child) = current {
             current = self.flat_tree_parent(child);
@@ -337,19 +336,13 @@ impl LayoutNodeArena {
             let Some(parent) = current.or(document) else {
                 break;
             };
-            is_inside_top_layer_member |= current.is_some_and(&is_in_top_layer);
-            if self
-                .layout_tree_update_marks()
-                .borrow_mut()
-                .set_child_needs(parent, true)
-            {
+            is_inside_top_layer_member |= current.is_some_and(|node| is_in_top_layer(self, node));
+            if self.layout_tree_update_marks_mut().set_child_needs(parent, true) {
                 break;
             }
         }
         if is_inside_top_layer_member && let Some(document) = document {
-            self.layout_tree_update_marks()
-                .borrow_mut()
-                .set_child_needs(document, true);
+            self.layout_tree_update_marks_mut().set_child_needs(document, true);
         }
 
         self.apply_layout_tree_update_mark(node, mark);

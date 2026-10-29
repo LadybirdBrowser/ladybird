@@ -560,7 +560,7 @@ mod tests {
         let scratch = crate::layout::run_state::LayoutScratch::default();
         let node = arena.allocate_for_test().slot;
         arena.set_text_content(node, content("hello", 0, 5, Vec::new()));
-        scratch.apply_memo_invalidations(&arena);
+        scratch.apply_memo_invalidations(&mut arena);
         let text_chunks = |arena: &LayoutNodeArena, key: &TextChunkCacheKey, compute: &dyn Fn() -> Vec<TextChunk>| {
             scratch
                 .text_memos()
@@ -619,7 +619,7 @@ mod tests {
         };
         let published_hello = published_text(&published);
         arena.set_text_content(node, content("hello", 0, 5, Vec::new()));
-        scratch.apply_memo_invalidations(&arena);
+        scratch.apply_memo_invalidations(&mut arena);
         assert_eq!(Arc::strong_count(&replacement), 2);
         // The same content keeps the rendered text the publication shares.
         assert!(std::sync::Arc::ptr_eq(
@@ -627,7 +627,7 @@ mod tests {
             &published_text(&arena.publish_paint_facts().text)
         ));
         arena.set_text_content(node, content("goodbye", 0, 7, Vec::new()));
-        scratch.apply_memo_invalidations(&arena);
+        scratch.apply_memo_invalidations(&mut arena);
         assert_eq!(Arc::strong_count(&replacement), 1);
         // A publication keeps the rendered text it was made with.
         assert_eq!(
@@ -643,7 +643,7 @@ mod tests {
         drop(replacement);
         assert!(replacement_weak.upgrade().is_none());
         let _ = arena.free_subtree(node);
-        scratch.apply_memo_invalidations(&arena);
+        scratch.apply_memo_invalidations(&mut arena);
         assert_eq!(Arc::strong_count(&new_chunks), 1);
     }
 

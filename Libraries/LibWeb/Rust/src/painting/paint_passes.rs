@@ -270,7 +270,7 @@ impl PendingPreparation {
     /// sticky constraints.
     pub(crate) fn prepare(
         self,
-        arena: &LayoutNodeArena,
+        arena: &mut LayoutNodeArena,
         sticky_inputs: Option<&FfiVisualContextTreeInputs>,
     ) -> RenderingPreparation {
         prepare_for_rendering(arena, self.root_background_source, sticky_inputs)
@@ -305,7 +305,7 @@ pub(crate) fn pending_preparation(read: &BegunRead, host: &DocumentHost) -> Opti
 /// Prepares `arena` for rendering. The sticky constraints the new overflow moved are refreshed with `sticky_inputs`, the
 /// inputs of the visual context tree, unless there are none: a visual context update is pending, which refreshes them.
 pub(crate) fn prepare_for_rendering(
-    arena: &LayoutNodeArena,
+    arena: &mut LayoutNodeArena,
     root_background_source: RootBackgroundSource,
     sticky_inputs: Option<&FfiVisualContextTreeInputs>,
 ) -> RenderingPreparation {

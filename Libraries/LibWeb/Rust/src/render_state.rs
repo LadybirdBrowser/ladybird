@@ -89,9 +89,12 @@ impl RenderState {
         if let Some(streamed) = self.streamed_marks.take() {
             marks.fold(streamed);
         }
-        *self.arena.arena().layout_tree_update_marks().borrow_mut() = marks;
+        *self.arena.arena_mut().layout_tree_update_marks_mut() = marks;
         let answer = job(self);
-        (answer, Some(self.arena.arena().layout_tree_update_marks().take()))
+        (
+            answer,
+            Some(std::mem::take(self.arena.arena_mut().layout_tree_update_marks_mut())),
+        )
     }
 
     /// Applies `changes`, writes the host streamed to the state beside its task, into marks of their own, which the
@@ -99,9 +102,9 @@ impl RenderState {
     /// its writes wait in its queue.
     fn apply_streamed(&mut self, changes: Vec<ArenaChange>) {
         let streamed = self.streamed_marks.take().unwrap_or_default();
-        *self.arena.arena().layout_tree_update_marks().borrow_mut() = streamed;
+        *self.arena.arena_mut().layout_tree_update_marks_mut() = streamed;
         self.apply(changes);
-        self.streamed_marks = Some(self.arena.arena().layout_tree_update_marks().take());
+        self.streamed_marks = Some(std::mem::take(self.arena.arena_mut().layout_tree_update_marks_mut()));
     }
 
     /// A fork of the state, as it is now: a copy of it that the render clock may write and present from while the host

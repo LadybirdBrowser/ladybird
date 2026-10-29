@@ -628,7 +628,7 @@ impl SealedRound {
             return None;
         }
         let mut answer = self.job.run_owing(state, work);
-        answer.prepare_committed_layout_for_rendering(state.arena());
+        answer.prepare_committed_layout_for_rendering(state.arena_mut());
         Some(FlownRound {
             answer,
             rebuilds_tree: self.rebuilds_tree,
@@ -706,7 +706,7 @@ impl ClockRound {
         }
         Ok(arena
             .document_style_node()
-            .filter(|&document| arena.layout_tree_update_marks().borrow().child_needs(document))
+            .filter(|&document| arena.layout_tree_update_marks().child_needs(document))
             .map(|document| TreeBuildJob::new(document, None)))
     }
 
@@ -948,7 +948,7 @@ impl LayoutRoundAnswer {
 
     /// Prepares `arena` for rendering where the round committed a layout, as the host's commit of it asks, so that the
     /// host waits for no preparation of its own after the round.
-    fn prepare_committed_layout_for_rendering(&mut self, arena: &LayoutNodeArena) {
+    fn prepare_committed_layout_for_rendering(&mut self, arena: &mut LayoutNodeArena) {
         if matches!(
             self.end,
             LayoutRoundEnd::Built { .. } | LayoutRoundEnd::NeedsDocumentStyle
@@ -1413,10 +1413,10 @@ mod tests {
             needs_another_build_pass: false,
             layout: RoundLayout::Full,
         })
-        .prepare_committed_layout_for_rendering(&arena);
+        .prepare_committed_layout_for_rendering(&mut arena);
         assert!(rendering_preparation_pending(&arena).is_some());
 
-        answer_ending(LayoutRoundEnd::FullLayout).prepare_committed_layout_for_rendering(&arena);
+        answer_ending(LayoutRoundEnd::FullLayout).prepare_committed_layout_for_rendering(&mut arena);
         assert!(rendering_preparation_pending(&arena).is_none());
         arena
             .free_subtree(viewport)
