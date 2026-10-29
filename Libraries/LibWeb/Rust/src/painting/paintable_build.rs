@@ -371,12 +371,10 @@ impl<'a> PaintableCommit<'a> {
             data.content_size = new_content_size;
             data.offset = new_offset;
         }
-        self.arena().set_committed_fragment_link(
-            node,
-            link.clone(),
-            // A layout pass bumps no epoch, so its geometry is laid out against the epoch the node has now.
-            Some(self.arena().data(node).fragment_cache_epoch),
-        );
+        // A layout pass bumps no epoch, so its geometry is laid out against the epoch the node has now.
+        let epoch_of_laid_out_geometry = self.arena().data(node).fragment_cache_epoch;
+        self.arena_mut()
+            .set_committed_fragment_link(node, link.clone(), Some(epoch_of_laid_out_geometry));
         ReplacedCommittedFragmentLink {
             content_size_change,
             line_root_changes: LineRootChanges {

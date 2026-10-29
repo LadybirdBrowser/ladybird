@@ -2720,7 +2720,7 @@ fn update_principal_node_after_entry(
                 let new_data = arena.data(layout_node);
                 if node_facts::kind_is_box(old_data.kind.get())
                     && node_facts::kind_is_box(new_data.kind.get())
-                    && let Some(link) = arena.take_committed_fragment_link(old_data)
+                    && let Some(link) = arena.take_committed_fragment_link(old_layout_node)
                 {
                     arena.set_committed_fragment_link(layout_node, link, None);
                 }
@@ -3793,7 +3793,7 @@ impl<'a> TreeBuilderHost<'a> {
             .arena()
             .document_style_node()
             .expect("a build names the document it lays out");
-        self.arena().stamp_dom_paint_facts(slot, document);
+        self.arena_mut().stamp_dom_paint_facts(slot, document);
         let unique_node_id = self
             .arena()
             .with_style_store(|engine| engine.element_unique_node_id(document));
