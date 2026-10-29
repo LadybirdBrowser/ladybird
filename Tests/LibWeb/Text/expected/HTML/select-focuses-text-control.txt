@@ -1,12 +1,12 @@
-empty-input: activeElement=BODY
+empty-input: activeElement=empty-input
 empty-input: selection=0-0
-filled-input: activeElement=BODY
+filled-input: activeElement=filled-input
 filled-input: selection=0-5
-textarea: activeElement=BODY
+textarea: activeElement=textarea
 textarea: selection=0-5
 scrollY: 0
-disabled-input: activeElement=BODY
+disabled-input: activeElement=textarea
 disabled-input: selection=0-8
-type-changing-input: activeElement=BODY
-type-changing-input: selection=0-4
-events: 
+type-changing-input: activeElement=type-changing-input
+type-changing-input: selection=null-null
+events: focus empty-input, blur empty-input, focus filled-input, blur filled-input, focus textarea, blur textarea, focus type-changing-input

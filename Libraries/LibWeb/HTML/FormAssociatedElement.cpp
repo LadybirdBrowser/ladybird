@@ -880,11 +880,20 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::select()
     // 1. If this element is an input element, and either select() does not apply to this element
     //    or the corresponding control has no selectable text, return.
     auto& html_element = text_control_to_html_element();
-    if (is<HTMLInputElement>(html_element)) {
-        auto& input_element = static_cast<HTMLInputElement&>(html_element);
-        if (!input_element.select_applies() || !input_element.has_selectable_text())
-            return {};
-    }
+    auto select_does_not_apply = [&] {
+        auto* input_element = as_if<HTMLInputElement>(html_element);
+        return input_element && (!input_element->select_applies() || !input_element->has_selectable_text());
+    };
+    if (select_does_not_apply())
+        return {};
+
+    // INTEROP: select() also focuses the control, without scrolling it into view. Sites rely on this to focus an
+    //          input, e.g. Instagram's search box.
+    html_element.focus({ .prevent_scroll = true });
+
+    // AD-HOC: Focus event handlers may have changed the control's type, so check step 1 again.
+    if (select_does_not_apply())
+        return {};
 
     // 2. Set the selection range with 0 and infinity.
     set_the_selection_range(0, NumericLimits<WebIDL::UnsignedLong>::max());
