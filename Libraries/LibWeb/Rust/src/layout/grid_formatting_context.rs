@@ -48,7 +48,10 @@ pub(crate) fn inline_item_alignment(justify_self_value: u8, container_justify_it
             _ => unreachable!("invalid justify-items value"),
         },
         justify_self::BASELINE => Alignment::Baseline,
-        justify_self::CENTER => Alignment::Center,
+        // https://drafts.csswg.org/css-anchor-position-1/#valdef-justify-self-anchor-center
+        // If the box is not absolutely positioned, or does not have a default anchor box, this value behaves as
+        // center and has no additional effect on how inset properties resolve.
+        justify_self::CENTER | justify_self::ANCHOR_CENTER => Alignment::Center,
         justify_self::END | justify_self::FLEX_END => Alignment::End,
         justify_self::FLEX_START | justify_self::START => Alignment::Start,
         justify_self::LEFT => Alignment::Left,
@@ -79,7 +82,10 @@ pub(crate) fn block_item_alignment(align_self_value: u8, container_align_items: 
             _ => unreachable!("invalid align-items value"),
         },
         align_self::BASELINE => Alignment::Baseline,
-        align_self::CENTER => Alignment::Center,
+        // https://drafts.csswg.org/css-anchor-position-1/#valdef-justify-self-anchor-center
+        // If the box is not absolutely positioned, or does not have a default anchor box, this value behaves as
+        // center and has no additional effect on how inset properties resolve.
+        align_self::CENTER | align_self::ANCHOR_CENTER => Alignment::Center,
         align_self::END | align_self::FLEX_END => Alignment::End,
         align_self::FLEX_START | align_self::START => Alignment::Start,
         align_self::NORMAL => Alignment::Normal,
