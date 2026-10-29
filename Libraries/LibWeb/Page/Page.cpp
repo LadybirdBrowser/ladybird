@@ -181,6 +181,23 @@ bool Page::top_level_traversable_has_user_attention() const
     return m_system_visibility_state == HTML::VisibilityState::Visible && client().has_focus();
 }
 
+// https://html.spec.whatwg.org/multipage/interaction.html#activation-notification
+// NB: The UI process gathers the windows of steps 2 to 4, which documents in other processes can hold, and names each
+//     one this page hosts.
+void Page::notify_document_about_user_activation(HTML::CrossProcessId document_id)
+{
+    for (auto const& navigable : hosted_navigables()) {
+        auto document = navigable->active_document();
+        if (!document || !document->is_fully_active() || document->id() != document_id)
+            continue;
+
+        // 5.1. Set window's last activation timestamp to the current high resolution time.
+        // 5.2. Notify the close watcher manager about user activation given window.
+        document->window()->notify_about_user_activation();
+        return;
+    }
+}
+
 // The navigable keyboard input goes to in the tab, which is the top-level traversable until focus moves into another.
 GC::Ptr<HTML::Navigable> Page::focused_navigable() const
 {
