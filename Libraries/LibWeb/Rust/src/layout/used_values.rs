@@ -486,6 +486,12 @@ impl<'a> CellsInFrame<'a> {
         }
     }
 
+    /// `cells`, held in frame `held`, read in frame `reader`.
+    #[inline]
+    pub(crate) fn of_cells(cells: &'a Cell<RootInputCells>, held: geometry::Frame, reader: geometry::Frame) -> Self {
+        Self { cells, held, reader }
+    }
+
     /// The frame the cells are read in.
     pub(crate) fn reader(&self) -> geometry::Frame {
         self.reader
