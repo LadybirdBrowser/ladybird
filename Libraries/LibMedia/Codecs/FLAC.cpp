@@ -9,6 +9,7 @@
 #include <LibMedia/Codecs/FLAC.h>
 #include <LibMedia/MediaStream.h>
 #include <LibMediaCodecs/BitReader.h>
+#include <LibMediaCodecs/Limits.h>
 
 namespace Media::Codecs {
 
@@ -149,6 +150,8 @@ DecoderErrorOr<FLAC::StreamInfo> FLAC::parse_stream_info(ReadonlyBytes bytes)
     stream_info.total_sample_count = reader.read_bits<u64>(36);
     if (stream_info.sample_rate == 0 || stream_info.maximum_block_size == 0)
         return DecoderError::corrupted("FLAC STREAMINFO declares no sample rate or block size"sv);
+    if (audio_sample_rate_is_outside_limits(stream_info.sample_rate))
+        return DecoderError::format(DecoderErrorCategory::NotImplemented, "FLAC sample rate of {} Hz is not supported", stream_info.sample_rate);
     return stream_info;
 }
 

@@ -18,6 +18,7 @@ set(TEST_SOURCES
     TestDecoderRegistry.cpp
     TestDemuxerRegistry.cpp
     TestDisplayingVideoSink.cpp
+    TestFFmpegAudioConverter.cpp
     TestFFmpegAudioNormalization.cpp
     TestFLACDemuxer.cpp
     TestFrameScanTimeline.cpp

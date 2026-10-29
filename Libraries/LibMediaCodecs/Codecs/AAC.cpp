@@ -10,6 +10,7 @@
 #include <AK/MemoryStream.h>
 #include <LibMediaCodecs/BitReader.h>
 #include <LibMediaCodecs/Codecs/AAC.h>
+#include <LibMediaCodecs/Limits.h>
 
 namespace Media::Codecs {
 
@@ -166,6 +167,11 @@ DecoderErrorOr<FixedArray<u8>> AAC::create_configuration_record(u32 audio_object
     static constexpr size_t MAXIMUM_SIZE = 16;
 
     VERIFY(audio_object_type < ESCAPED_AUDIO_OBJECT_TYPE);
+
+    if (audio_sample_rate_is_outside_limits(sample_rate))
+        return DecoderError::format(DecoderErrorCategory::NotImplemented, "AAC sample rate of {} Hz is not supported", sample_rate);
+    if (spectral_band_replication_sample_rate.has_value() && audio_sample_rate_is_outside_limits(spectral_band_replication_sample_rate.value()))
+        return DecoderError::format(DecoderErrorCategory::NotImplemented, "AAC SBR sample rate of {} Hz is not supported", spectral_band_replication_sample_rate.value());
 
     auto channels = channel_configuration(channel_count);
     if (!channels.has_value())
