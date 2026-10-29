@@ -1,0 +1,71 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+    iframe {
+        display: block;
+        width: 400px;
+        height: 300px;
+        border: 0;
+    }
+</style>
+<script>
+    promiseTest(async () => {
+        const iframe = document.createElement("iframe");
+        const nextMessage = type =>
+            new Promise(resolve => {
+                const listener = event => {
+                    if (event.source !== iframe.contentWindow || event.data.type !== type) return;
+                    removeEventListener("message", listener);
+                    resolve(event.data);
+                };
+                addEventListener("message", listener);
+            });
+
+        const ready = nextMessage("ready");
+        iframe.srcdoc = `<!DOCTYPE html><style>body { margin: 0; }</style><script>
+            let cancel = false;
+            addEventListener("message", event => {
+                cancel = event.data.cancel;
+                parent.postMessage({ type: "ready" }, "*");
+            });
+            addEventListener("wheel", event => {
+                if (cancel)
+                    event.preventDefault();
+                parent.postMessage({ type: "wheel", ctrlKey: event.ctrlKey, defaultPrevented: event.defaultPrevented }, "*");
+            }, { passive: false });
+            parent.postMessage({ type: "ready" }, "*");
+        <\/script>`;
+        document.body.appendChild(iframe);
+        await ready;
+        await animationFrame();
+        await animationFrame();
+
+        let parentWheels = 0;
+        addEventListener(
+            "wheel",
+            event => {
+                ++parentWheels;
+                event.preventDefault();
+            },
+            { passive: false }
+        );
+
+        let wheel = nextMessage("wheel");
+        internals.pinchThroughUIProcess(200, 150, 1);
+        let event = await wheel;
+        println(`child accepted: ctrlKey=${event.ctrlKey} defaultPrevented=${event.defaultPrevented}`);
+        println(`parent wheel events: ${parentWheels}, scale: ${visualViewport.scale}`);
+
+        const changed = nextMessage("ready");
+        iframe.contentWindow.postMessage({ cancel: true }, "*");
+        await changed;
+        wheel = nextMessage("wheel");
+        internals.pinchThroughUIProcess(200, 150, 1);
+        event = await wheel;
+        println(`child canceled: ctrlKey=${event.ctrlKey} defaultPrevented=${event.defaultPrevented}`);
+        println(`parent wheel events: ${parentWheels}, scale: ${visualViewport.scale}`);
+    });
+</script>

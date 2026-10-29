@@ -1365,11 +1365,9 @@ EventResult EventHandler::dispatch_synthetic_pinch_wheel_event(CSSPixelPoint vis
             return event_handler.dispatch_synthetic_pinch_wheel_event(position, screen_position, modifiers, wheel_delta_y, is_cancelable);
         });
         result.has_value()) {
-        if (result.value() == EventResult::Handled || result.value() == EventResult::Cancelled)
-            return result.value();
-        target_layout_node = target->layout_node(read);
-        if (!target_layout_node)
-            return EventResult::Dropped;
+        // A wheel event belongs to the nested document's event path. It does not bubble through the iframe element
+        // into this document, and an uncanceled child event must not give the parent another chance to cancel it.
+        return result.value();
     }
 
     modifiers |= UIEvents::KeyModifier::Mod_Ctrl;
