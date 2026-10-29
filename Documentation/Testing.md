@@ -48,6 +48,24 @@ CTEST_OUTPUT_ON_FAILURE=1 ninja test
 ctest --output-on-failure
 ```
 
+### C++ unit tests
+
+Ordinary unit tests share one executable per library. Each original test source runs in a separate
+process so its setup function and process-wide state remain isolated. Dedicated runners such as
+`test-js` and `test-web`, custom event-loop runners, and incompatible Rust panic fixtures remain separate.
+
+LibTest executables accept `--list`, an optional case-name pattern, and `--suite` to select a suite
+by its source file name without the extension:
+
+```sh
+cmake --build Build/release --target TestLibTest
+Build/release/bin/TestLibTest --list
+Build/release/bin/TestLibTest --suite TestGenerator
+Build/release/bin/TestLibTest 'TestGenerator::*'
+```
+
+Build the library's executable to link its sources, and use `--suite` to select the tests from a source file.
+
 ### JavaScript tests
 
 Build `test-js` to build the runtime runner and `js`, and prepare the shared

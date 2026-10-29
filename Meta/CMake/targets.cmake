@@ -205,6 +205,12 @@ function(ladybird_test test_src sub_dir)
     endif()
 endfunction()
 
+# Each library's sources are added directly to its test executable.
+function(ladybird_test_suite sub_dir)
+    string(REPLACE "/" "" suite_name "Test${sub_dir}")
+    ladybird_test("" "${sub_dir}" NAME "${suite_name}" ${ARGN})
+endfunction()
+
 function(ladybird_utility name)
     cmake_parse_arguments(LADYBIRD_UTILITY "" "" "SOURCES;LIBS" ${ARGN})
 
