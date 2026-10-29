@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	textStream method existence
+Pass	Blob.textStream() basic functionality
+Pass	Blob.textStream() with empty blob
+Pass	Blob.textStream() with multi-part blob
+Pass	Blob.textStream() ignores type charset (UTF-16LE)
+Pass	Blob.textStream() ignores invalid type charset (invalid-charset)
+Pass	Blob.textStream() ignores type charset (iso-8859-1)
+Pass	Blob.textStream() can be called multiple times

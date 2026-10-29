@@ -20,6 +20,7 @@ use crate::bindings::interface::{Inherits, Ref, Wrappable, allocate, cell_from_a
 use crate::bindings::promise::{WebIdlPromise, promise_from_abi};
 use crate::bindings::structured_data::{Serializable, SerializationReader, SerializationWriter};
 use crate::bindings::{CallContext, WebIdlResult};
+use crate::encoding::text_decoder_stream::TextDecoderStream;
 use crate::streams::readable_stream::ReadableStream;
 
 unsafe extern "C" {
@@ -493,6 +494,27 @@ impl Blob {
                 ak::Span::new(&self.raw_bytes()),
             ))
         })
+    }
+
+    // https://w3c.github.io/FileAPI/#dom-blob-textstream
+    pub(crate) fn text_stream(&self, cx: &mut CallContext) -> WebIdlResult<Ref<ReadableStream>> {
+        // 1. Let stream be the result of calling get stream on this.
+        let stream = self.stream(cx)?;
+
+        // 2. Let decoder be a new TextDecoderStream in this's relevant realm.
+        // 3. Set up decoder with UTF-8.
+        let decoder = TextDecoderStream::set_up(cx, encoding_rs::UTF_8, false, false);
+
+        // 4. Return the result of calling stream, piped through decoder.
+        Ok(ReadableStream::piped_through(
+            stream,
+            cx.vm(),
+            decoder.transform(),
+            false,
+            false,
+            false,
+            None,
+        ))
     }
 
     // https://w3c.github.io/FileAPI/#dom-blob-bytes
