@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<style>
+    input { display: block; font: 20px monospace; width: 400px; border: 1px solid black; outline: none; padding: 4px; }
+</style>
+<input value="is:pr state:open">
+<script>
+    const input = document.querySelector("input");
+    input.focus();
+    input.setSelectionRange(16, 16);
+</script>

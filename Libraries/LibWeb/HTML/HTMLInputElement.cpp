@@ -1209,6 +1209,8 @@ void HTMLInputElement::create_text_input_shadow_tree()
                 align-items: center;
                 white-space: pre;
                 border: none;
+                flex: 1;
+                min-width: 0;
             )~~~"sv);
         }
         set_own_inline_style(*element, *style);
