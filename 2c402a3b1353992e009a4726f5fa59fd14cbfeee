@@ -1,0 +1,6 @@
+Ladybird now hides a block-level replaced element that comes after a
+line-clamp container’s clamp point, inside inline content, with the
+rest of the content after the clamp point, as it already did for any
+other block-level box there. Blink does the same: Its LineClampData::
+IsHidden() hides each box that’s laid out once IsPastClampPoint() is
+true, whatever kind of box it is.
