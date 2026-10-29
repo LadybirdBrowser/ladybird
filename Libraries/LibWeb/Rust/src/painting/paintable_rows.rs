@@ -19,7 +19,7 @@ use crate::painting::visual_context::{
     BoxVisualContextNodeHandles, EMPTY_BOX_VISUAL_CONTEXT_NODE_HANDLES, PaintableVisualContextRecord,
 };
 use smallvec::{SmallVec, smallvec};
-use std::cell::{Cell, RefCell};
+use std::cell::RefCell;
 use std::ffi::c_void;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
@@ -327,8 +327,7 @@ pub(crate) struct PaintableRowStore {
     pub(crate) stacking_context_entries: StackingContextEntryColumn,
     pub(crate) stacking_context_roots_flagged_for_resort: Vec<NodeSlotId>,
     line_roots_needing_fragment_ownership: Vec<NodeSlotId>,
-    absolute_rect_memo: RefCell<Vec<Option<(NodeSlotId, u64, crate::css::css_pixels::CssPixelRect)>>>,
-    absolute_rect_memo_epoch: Cell<u64>,
+    absolute_rect_memo_epoch: u64,
     committed_fragment_links: CowColumn<CommittedFragmentLinkSlot, PAINTABLE_SLOTS_PER_CHUNK>,
     image_map_areas: crate::painting::image_map_areas::ImageMapAreaColumn,
     unique_node_ids: UniqueNodeIdColumn,
@@ -358,6 +357,8 @@ fn set_visual_context_node_handles(
 
 pub(crate) struct PaintableRows<Arena> {
     arena: Arena,
+    /// The absolute rects this view computed, each valid for the geometry epoch of the arena it was computed at.
+    absolute_rects: RefCell<crate::painting::record::recorder_state::AbsoluteRectMemo>,
 }
 
 pub(crate) type PaintableRowsRef<'a> = PaintableRows<&'a LayoutNodeArena>;
@@ -365,7 +366,10 @@ pub(crate) type PaintableRowsMut<'a> = PaintableRows<&'a mut LayoutNodeArena>;
 
 impl Clone for PaintableRowsRef<'_> {
     fn clone(&self) -> Self {
-        Self { arena: self.arena }
+        Self {
+            arena: self.arena,
+            absolute_rects: RefCell::default(),
+        }
     }
 }
 
@@ -545,6 +549,25 @@ where
 
 impl<Arena> PaintableRowsRead for PaintableRows<Arena> where Arena: Deref<Target = LayoutNodeArena> {}
 
+impl<Arena> PaintableRows<Arena>
+where
+    Arena: Deref<Target = LayoutNodeArena>,
+{
+    pub(crate) fn memoized_absolute_rect_of_view(
+        &self,
+        id: NodeSlotId,
+    ) -> Option<crate::css::css_pixels::CssPixelRect> {
+        self.absolute_rects
+            .borrow()
+            .get(id, self.arena.absolute_rect_memo_epoch())
+    }
+
+    pub(crate) fn memoize_absolute_rect_of_view(&self, id: NodeSlotId, rect: crate::css::css_pixels::CssPixelRect) {
+        let epoch = self.arena.absolute_rect_memo_epoch();
+        self.absolute_rects.borrow_mut().set(id, epoch, rect);
+    }
+}
+
 impl<Arena> PaintableRowsWrite for PaintableRows<Arena>
 where
     Arena: DerefMut<Target = LayoutNodeArena>,
@@ -700,7 +723,10 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn paintable_rows(&self) -> PaintableRowsRef<'_> {
-        PaintableRows { arena: self }
+        PaintableRows {
+            arena: self,
+            absolute_rects: RefCell::default(),
+        }
     }
 
     pub(crate) fn schedule_scrollable_overflow_recalculation(&mut self, node: NodeSlotId) {
@@ -766,7 +792,7 @@ impl LayoutNodeArena {
         let paint_facts = self.publish_paint_facts();
         let store = &mut self.paintable_rows;
         PublishedRows {
-            geometry_epoch: store.absolute_rect_memo_epoch.get(),
+            geometry_epoch: store.absolute_rect_memo_epoch,
             nodes,
             paint_facts,
             rows: store.rows.publish(),
@@ -796,7 +822,10 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn paintable_rows_mut(&mut self) -> PaintableRowsMut<'_> {
-        PaintableRows { arena: self }
+        PaintableRows {
+            arena: self,
+            absolute_rects: RefCell::default(),
+        }
     }
 
     /// The fragment link committed for `node`. A layout reaches boxes whose paintable row is not populated yet, and a
@@ -814,26 +843,14 @@ impl LayoutNodeArena {
         PaintableRowReset { slot, kind }
     }
 
-    pub(crate) fn memoized_absolute_rect(&self, id: NodeSlotId) -> Option<crate::css::css_pixels::CssPixelRect> {
-        let store = &self.paintable_rows;
-        let (memoized_id, memoized_epoch, rect) = store
-            .absolute_rect_memo
-            .borrow()
-            .get(id.slot_index() as usize)
-            .copied()
-            .flatten()?;
-        (memoized_id == id && memoized_epoch == store.absolute_rect_memo_epoch.get()).then_some(rect)
+    /// What the absolute rects memoized for the rows are valid for, which moves on with every write that moves a row.
+    pub(crate) fn absolute_rect_memo_epoch(&self) -> u64 {
+        self.paintable_rows.absolute_rect_memo_epoch
     }
 
-    pub(crate) fn memoize_absolute_rect(&self, id: NodeSlotId, rect: crate::css::css_pixels::CssPixelRect) {
-        let store = &self.paintable_rows;
-        store.absolute_rect_memo.borrow_mut()[id.slot_index() as usize] =
-            Some((id, store.absolute_rect_memo_epoch.get(), rect));
-    }
-
-    pub(crate) fn clear_absolute_rect_memo(&self) {
-        let epoch = &self.paintable_rows.absolute_rect_memo_epoch;
-        epoch.set(epoch.get().checked_add(1).expect("absolute rect memo epoch overflowed"));
+    pub(crate) fn clear_absolute_rect_memo(&mut self) {
+        let epoch = &mut self.paintable_rows.absolute_rect_memo_epoch;
+        *epoch = epoch.checked_add(1).expect("absolute rect memo epoch overflowed");
     }
 
     pub(crate) fn paintable_row_count(&self) -> usize {
@@ -847,17 +864,14 @@ impl LayoutNodeArena {
             .map(crate::painting::scrollable_overflow::OverflowStyle::new);
         let store = &mut self.paintable_rows;
         let index = layout_node.slot_index() as usize;
-        let mut absolute_rect_memo = store.absolute_rect_memo.borrow_mut();
-        let visual_context_records = &mut store.visual_context_records;
         store.rows.grow_to(index + 1);
-        visual_context_records.grow_to(index + 1);
+        store.visual_context_records.grow_to(index + 1);
         store.committed_side_data.grow_to(index + 1);
         store.visual_context_node_handles.grow_to(index + 1);
         store.stacking_context_entries.grow_to(index + 1);
         while store.side_data.len() <= index {
             store.side_data.push(PaintableSideData::default());
             store.row_paint_states.push(RowPaintState::default());
-            absolute_rect_memo.push(None);
         }
 
         store.population_writes += 1;
@@ -874,12 +888,10 @@ impl LayoutNodeArena {
         };
         store.committed_side_data.set(index, CommittedSideData::default());
         store.row_paint_states[index].clear();
-        absolute_rect_memo[index] = None;
-        visual_context_records.set(index, None);
+        store.visual_context_records.set(index, None);
         set_visual_context_node_handles(&mut store.visual_context_node_handles, index, None);
         drop_table(&mut store.stacking_context_entries, index);
         self.scrollable_overflow.rows_to_measure.push(layout_node);
-        drop((absolute_rect_memo, visual_context_records));
         self.notify_committed_box_changed(layout_node);
     }
 
