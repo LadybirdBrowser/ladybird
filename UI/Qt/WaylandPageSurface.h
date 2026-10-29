@@ -22,6 +22,7 @@
 
 #include <sys/types.h>
 
+class QImage;
 class QWindow;
 
 namespace QNativeInterface::Private {
@@ -32,6 +33,7 @@ struct QWaylandWindow;
 
 struct wl_buffer;
 struct wl_compositor;
+struct wl_shm;
 struct wl_subcompositor;
 struct wl_subsurface;
 struct wl_surface;
@@ -93,6 +95,11 @@ public:
     // Whether the compositor may still read the buffer that shows this backing store.
     bool holds_backing_store(u64 page_id, i32 bitmap_id) const;
 
+    // An image over the page, such as the address of a hovered link, at a position in the logical coordinates of the
+    // window's surface. It changes on screen together with the parent's next commit. False if the window has no surface.
+    bool show_overlay(QWindow& parent, QImage const&, QPoint position);
+    void hide_overlay();
+
     struct HeldBackingStore {
         u64 page_id;
         i32 bitmap_id;
@@ -111,6 +118,7 @@ private:
         wl_subcompositor* subcompositor { nullptr };
         wp_viewporter* viewporter { nullptr };
         zwp_linux_dmabuf_v1* dmabuf { nullptr };
+        wl_shm* shm { nullptr };
     };
 
     enum class BufferState {
@@ -151,6 +159,7 @@ private:
     static void buffer_created(void*, zwp_linux_buffer_params_v1*, wl_buffer*);
     static void buffer_failed(void*, zwp_linux_buffer_params_v1*);
     static void buffer_released(void*, wl_buffer*);
+    static void overlay_buffer_released(void*, wl_buffer*);
 
     Globals m_globals;
     wl_surface* m_surface { nullptr };
@@ -167,6 +176,13 @@ private:
     u64 m_commit_count { 0 };
 
     Vector<NonnullOwnPtr<Buffer>> m_buffers;
+
+    wl_surface* m_overlay_surface { nullptr };
+    wp_viewport* m_overlay_viewport { nullptr };
+    wl_subsurface* m_overlay_subsurface { nullptr };
+    bool m_overlay_is_attached { false };
+    // The compositor may read these until it releases them.
+    Vector<wl_buffer*> m_overlay_buffers;
 };
 
 }

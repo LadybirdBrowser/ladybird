@@ -70,6 +70,8 @@
 
 namespace Ladybird {
 
+static constexpr int HOVER_TEXT_CORNER_RADIUS = 4;
+
 static constexpr auto WINDOW_DRAG_REGION_PROPERTY = "LadybirdWindowDragRegion";
 static constexpr int BOOKMARKS_BAR_HOVER_COLLAPSE_POLL_INTERVAL_MS = 250;
 
@@ -1350,15 +1352,16 @@ void Tab::initialize(Optional<WebView::CanonicalTraversable&> traversable)
         });
     };
 
+    QObject::connect(m_view, &WebContentView::image_overlay_unavailable, this, &Tab::update_hover_label);
+
     view().on_link_hover = [this](auto const& url) {
-        m_hover_label->setText(qstring_from_ak_string(url.to_byte_string()));
+        m_hover_text = qstring_from_ak_string(url.to_byte_string());
+        m_hover_text_is_on_right = false;
         update_hover_label();
-        m_hover_label->setCursor(view().cursor());
-        m_hover_label->show();
     };
 
     view().on_link_unhover = [this]() {
-        m_hover_label->hide();
+        hide_hover_label();
     };
 
     view().on_loading_state_change = [this](bool is_loading) {
@@ -2252,7 +2255,7 @@ void Tab::resizeEvent(QResizeEvent* event)
     if (!is_loaded())
         return;
 
-    if (m_hover_label->isVisible())
+    if (!m_hover_text.isEmpty())
         update_hover_label();
 }
 
@@ -2263,12 +2266,32 @@ void Tab::hideEvent(QHideEvent* event)
         return;
 
     set_bookmarks_bar_hover_expanded(false);
-    m_hover_label->hide();
+    hide_hover_label();
 }
 
 void Tab::update_hover_label()
 {
-    m_hover_label->setText(QFontMetrics(m_hover_label->font()).elidedText(m_hover_label->text(), Qt::ElideRight, width() / 2 - 10));
+    if (m_hover_text.isEmpty())
+        return;
+    auto text = QFontMetrics(m_hover_label->font()).elidedText(m_hover_text, Qt::ElideRight, width() / 2 - 10);
+
+    // NB: Where the view can stack the text above the page itself, it stays inside the window and costs the page
+    //     nothing. A tooltip is a window of its own instead, which can stick out of the browser window.
+    auto image = render_hover_text(text);
+    auto size = image.deviceIndependentSize().toSize();
+    QPoint position { m_hover_text_is_on_right ? m_view->width() - size.width() : 0, m_view->height() - size.height() };
+    if (m_view->show_image_over_page(image, position)) {
+        m_hover_text_rect_over_page = { position, size };
+        m_hover_label->hide();
+        return;
+    }
+    if (!m_hover_text_rect_over_page.isEmpty()) {
+        m_view->hide_image_over_page();
+        m_hover_text_rect_over_page = {};
+    }
+
+    m_hover_label->setText(text);
+    m_hover_label->setCursor(view().cursor());
     m_hover_label->resize(m_hover_label->sizeHint());
 
     auto hover_label_height = height() - m_hover_label->height();
@@ -2281,11 +2304,57 @@ void Tab::update_hover_label()
         m_hover_label->move(left_position);
 
     m_hover_label->raise();
+    m_hover_label->show();
 }
 
 void Tab::hide_hover_label()
 {
+    m_hover_text = {};
+    if (!m_hover_text_rect_over_page.isEmpty()) {
+        m_view->hide_image_over_page();
+        m_hover_text_rect_over_page = {};
+    }
     m_hover_label->hide();
+}
+
+// Paints the hover text the way the hover label's style sheet does. It sits in a bottom corner of the page, and only
+// its corner toward the page is rounded.
+QImage Tab::render_hover_text(QString const& text) const
+{
+    static constexpr int horizontal_padding = 4 + 1;
+    static constexpr int vertical_padding = 2 + 1;
+
+    QFontMetrics metrics { m_hover_label->font() };
+    QSize size { metrics.horizontalAdvance(text) + 2 * horizontal_padding, metrics.height() + 2 * vertical_padding };
+    auto device_pixel_ratio = devicePixelRatioF();
+    QImage image { size * device_pixel_ratio, QImage::Format_ARGB32_Premultiplied };
+    image.setDevicePixelRatio(device_pixel_ratio);
+    image.fill(Qt::transparent);
+
+    auto palette = Theme::chrome_palette(*this);
+    QPainter painter { &image };
+    painter.setRenderHint(QPainter::Antialiasing);
+    painter.setPen(ChromeStyle::chrome_border(palette));
+    painter.setBrush(ChromeStyle::chrome_surface(palette));
+    auto rect = QRectF { QPointF {}, size }.adjusted(0.5, 0.5, -0.5, -0.5);
+    QPainterPath path;
+    path.moveTo(rect.bottomLeft());
+    if (m_hover_text_is_on_right) {
+        path.lineTo(rect.left(), rect.top() + HOVER_TEXT_CORNER_RADIUS);
+        path.arcTo(rect.left(), rect.top(), 2 * HOVER_TEXT_CORNER_RADIUS, 2 * HOVER_TEXT_CORNER_RADIUS, 180, -90);
+        path.lineTo(rect.topRight());
+    } else {
+        path.lineTo(rect.topLeft());
+        path.lineTo(rect.right() - HOVER_TEXT_CORNER_RADIUS, rect.top());
+        path.arcTo(rect.right() - 2 * HOVER_TEXT_CORNER_RADIUS, rect.top(), 2 * HOVER_TEXT_CORNER_RADIUS, 2 * HOVER_TEXT_CORNER_RADIUS, 90, -90);
+    }
+    path.lineTo(rect.bottomRight());
+    path.closeSubpath();
+    painter.drawPath(path);
+    painter.setFont(m_hover_label->font());
+    painter.setPen(ChromeStyle::chrome_text(palette));
+    painter.drawText(QRect { QPoint {}, size }, Qt::AlignCenter, text);
+    return image;
 }
 
 bool Tab::event(QEvent* event)
@@ -2310,6 +2379,11 @@ bool Tab::eventFilter(QObject* watched, QEvent* event)
     if (watched == m_location_edit && event->type() == QEvent::DynamicPropertyChange) {
         if (static_cast<QDynamicPropertyChangeEvent*>(event)->propertyName() == "autocompleteOpen")
             update_bookmarks_bar_hover();
+    }
+    // NB: The hover text over the page lets the pointer through, so it moves aside when the pointer comes over it.
+    if (watched == m_view && event->type() == QEvent::MouseMove && m_hover_text_rect_over_page.contains(static_cast<QMouseEvent*>(event)->position().toPoint())) {
+        m_hover_text_is_on_right = !m_hover_text_is_on_right;
+        update_hover_label();
     }
     if (watched == m_view && (event->type() == QEvent::Resize || event->type() == QEvent::Move)) {
         update_bookmarks_bar_geometry();
@@ -2346,8 +2420,8 @@ void Tab::update_chrome_style()
     auto hover_surface = ChromeStyle::style_sheet_color(ChromeStyle::chrome_surface(Theme::chrome_palette(*this)));
     auto hover_border = ChromeStyle::style_sheet_color(ChromeStyle::chrome_border(Theme::chrome_palette(*this)));
     auto hover_text = ChromeStyle::style_sheet_color(ChromeStyle::chrome_text(Theme::chrome_palette(*this)));
-    m_hover_label->setStyleSheet(qformatted("background: {}; color: {}; border: 1px solid {}; border-radius: 6px;",
-        hover_surface, hover_text, hover_border));
+    m_hover_label->setStyleSheet(qformatted("background: {}; color: {}; border: 1px solid {}; border-top-right-radius: {}px;",
+        hover_surface, hover_text, hover_border, HOVER_TEXT_CORNER_RADIUS));
     if (m_downloads_popover)
         m_downloads_popover->update_chrome_style(palette());
     m_is_updating_chrome_style = false;

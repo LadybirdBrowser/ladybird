@@ -1939,6 +1939,17 @@ void WebContentView::set_page_dim(qreal)
 }
 #endif
 
+#ifndef LADYBIRD_HAS_WAYLAND_GPU_QUERY
+bool WebContentView::show_image_over_page(QImage const&, QPoint)
+{
+    return false;
+}
+
+void WebContentView::hide_image_over_page()
+{
+}
+#endif
+
 void WebContentView::set_bookmarks_bar_overlay_height([[maybe_unused]] int height)
 {
 #ifdef LADYBIRD_QT_USE_VULKAN_WINDOW

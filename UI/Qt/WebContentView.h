@@ -133,6 +133,11 @@ public:
     static Vector<u64> presentation_drm_format_modifiers();
 #endif
 
+    // Shows an image over the page, at a position in the view, where the window system can stack it above the page
+    // itself. Returns false where it cannot, and Qt has to show the image some other way.
+    bool show_image_over_page(QImage const&, QPoint position);
+    void hide_image_over_page();
+
 #if !defined(LADYBIRD_QT_USE_RHI_WIDGET)
     virtual void paintEvent(QPaintEvent*) override;
 #endif
@@ -205,6 +210,7 @@ public:
 signals:
     void ready_to_paint();
     void crash_overlay_changed();
+    void image_overlay_unavailable();
     void urls_dropped(QList<QUrl> const&);
 
 private:
