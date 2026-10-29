@@ -320,7 +320,7 @@ mod tests {
         host_tables.replace_image_observers(freed, object(8));
 
         let host_calls = HostCalls(&work);
-        super::super::layout_node_arena::prepare_subtree_for_detach(host_calls, &arena, freed);
+        super::super::layout_node_arena::prepare_subtree_for_detach(host_calls, &mut arena, freed);
         host_calls.free_subtree(&mut arena, freed);
         // The walk owes the host the observers it let go of, so they stay until the walk is over.
         assert_eq!(host_tables.image_observers(freed), object(8));
@@ -361,7 +361,7 @@ mod tests {
         arena.queue_box_presence();
         super::super::layout_node_arena::prepare_subtree_for_detach(
             crate::layout::tree_mutation::HostCalls(&work),
-            &arena,
+            &mut arena,
             root,
         );
         work.resolve(&mut arena).pay(&main_thread);

@@ -4566,7 +4566,7 @@ fn create_first_letter_boxes(host: &mut TreeBuilderHost<'_>, element: StyleNodeI
         let first_letter_slice = host.arena.allocate_unbound();
         host.arena_mut()
             .stamp_dom_row(first_letter_slice, NodeKind::TextNode, text);
-        host.arena()
+        host.arena_mut()
             .note_rows_share_dom_node(remainder_slice, first_letter_slice);
         (first_letter_slice, remainder_slice)
     } else {
@@ -4689,7 +4689,7 @@ fn create_writing_suggestion_boxes(host: &mut TreeBuilderHost<'_>, element: Styl
     let leading_slice = host.arena.allocate_unbound();
     host.arena_mut()
         .stamp_dom_row(leading_slice, NodeKind::TextNode, Some(suggestion.text));
-    host.arena().note_rows_share_dom_node(trailing_slice, leading_slice);
+    host.arena_mut().note_rows_share_dom_node(trailing_slice, leading_slice);
     for slice in [leading_slice, trailing_slice] {
         host.stamp_text_row_facts(slice, suggestion.text);
     }
