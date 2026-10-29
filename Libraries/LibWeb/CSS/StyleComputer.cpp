@@ -93,6 +93,7 @@
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
+#include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/Layout/LayoutRustBridge.h>
@@ -1098,17 +1099,39 @@ void StyleComputer::compose_installed_engine_record(Layout::BegunRead const& rea
     context.publish();
 }
 
-static void collect_dimension_attribute(Vector<StyleProperty>& properties, DOM::Element const& element, Utf16FlyString const& attribute_name, CSS::PropertyID property_id)
+static RefPtr<CSS::StyleValue const> collect_dimension_attribute(Vector<StyleProperty>& properties, DOM::Element const& element, Utf16FlyString const& attribute_name, CSS::PropertyID property_id)
 {
     auto attribute = element.attribute(attribute_name);
     if (!attribute.has_value())
-        return;
+        return {};
 
     auto parsed_value = HTML::parse_dimension_value(*attribute);
     if (!parsed_value)
+        return {};
+
+    properties.append({ .property_id = property_id, .value = *parsed_value });
+    return parsed_value;
+}
+
+// https://html.spec.whatwg.org/multipage/rendering.html#map-to-the-aspect-ratio-property-(using-dimension-rules)
+static void collect_aspect_ratio_from_dimension_values(Vector<StyleProperty>& properties, RefPtr<CSS::StyleValue const> const& width, RefPtr<CSS::StyleValue const> const& height)
+{
+    // if element has both attributes w and h, and parsing those attributes' values using the rules for parsing
+    // dimension values doesn't generate an error or return a percentage for either,
+    if (!width || !height || !width->is_length() || !height->is_length())
         return;
 
-    properties.append({ .property_id = property_id, .value = parsed_value.release_nonnull() });
+    // then the user agent is expected to use the parsed dimensions as a presentational hint for the 'aspect-ratio'
+    // property of the form auto w / h.
+    auto aspect_ratio = CSS::StyleValueList::create(
+        CSS::StyleValueVector {
+            CSS::KeywordStyleValue::create(CSS::Keyword::Auto),
+            CSS::RatioStyleValue::create(
+                CSS::NumberStyleValue::create(width->as_length().length().raw_value()),
+                CSS::NumberStyleValue::create(height->as_length().length().raw_value())),
+        },
+        CSS::StyleValueList::Separator::Space);
+    properties.append({ .property_id = CSS::PropertyID::AspectRatio, .value = aspect_ratio });
 }
 
 // The whole transition step for an element's record, run once the record is installed.
@@ -1811,8 +1834,14 @@ Vector<StyleProperty> StyleComputer::collect_presentational_hint_properties(DOM:
         auto const& dimension_source = is<HTML::HTMLImageElement>(element)
             ? static_cast<HTML::HTMLImageElement const&>(element).dimension_attribute_source()
             : element;
-        collect_dimension_attribute(properties, dimension_source, HTML::AttributeNames::width, CSS::PropertyID::Width);
-        collect_dimension_attribute(properties, dimension_source, HTML::AttributeNames::height, CSS::PropertyID::Height);
+        auto width = collect_dimension_attribute(properties, dimension_source, HTML::AttributeNames::width, CSS::PropertyID::Width);
+        auto height = collect_dimension_attribute(properties, dimension_source, HTML::AttributeNames::height, CSS::PropertyID::Height);
+
+        // The width and height attributes map to the aspect-ratio property (using dimension rules) on img and video
+        // elements, and input elements with a type attribute in the Image Button state.
+        // NB: An input element only supports dimension attributes in the Image Button state.
+        if (is<HTML::HTMLImageElement>(element) || is<HTML::HTMLVideoElement>(element) || is<HTML::HTMLInputElement>(element))
+            collect_aspect_ratio_from_dimension_values(properties, width, height);
     }
     HashTable<CSS::PropertyID> seen_properties;
     for (size_t i = properties.size(); i > 0; --i) {
