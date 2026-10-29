@@ -488,7 +488,11 @@ pub fn put_by_value(
         );
         return SlowPathControl::continue_at(pc + op::PutByValue::LENGTH);
     }
-    if base.is_object() && property_key.is_string() && put_kind_from_operand(instruction.kind) == PutKind::Normal {
+    if base.is_object()
+        && base.as_object().is_cacheable_across_realms()
+        && property_key.is_string()
+        && put_kind_from_operand(instruction.kind) == PutKind::Normal
+    {
         asm_try!(
             vm,
             pc,

@@ -830,6 +830,10 @@ impl StaticPropertyLookupCaches {
         &self.caches[site as usize]
     }
 
+    pub fn contains(&self, cache: &PropertyLookupCache) -> bool {
+        self.caches.as_ptr_range().contains(&core::ptr::from_ref(cache))
+    }
+
     pub fn remove_dead_entries(&self, sweep: &Sweep<'_>) {
         for cache in &self.caches {
             cache.remove_dead_entries(sweep);

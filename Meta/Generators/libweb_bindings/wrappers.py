@@ -167,6 +167,7 @@ def wrapper_host_class_flags(context: GenerationContext, interface: Interface) -
     flags = ["platform_object_host_class_flags"]
     if is_location:
         flags.append("JS_HOST_CLASS_MAY_INTERFERE_WITH_INDEXED_PROPERTY_ACCESS")
+        flags.append("JS_HOST_CLASS_NOT_CACHEABLE_ACROSS_REALMS")
     if any(interface_in_chain.name == "HTMLAllCollection" for interface_in_chain in interfaces):
         flags.append("JS_HOST_CLASS_IS_HTMLDDA")
     if is_global:

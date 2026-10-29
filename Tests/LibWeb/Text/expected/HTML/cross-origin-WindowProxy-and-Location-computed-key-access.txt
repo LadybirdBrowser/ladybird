@@ -1,0 +1,8 @@
+Read of a WindowProxy property: SecurityError
+Read of a Location property: SecurityError
+Write of a Location property: SecurityError
+Read through an object inheriting from Location: SecurityError
+Write through an object inheriting from Location: SecurityError
+Read of a Location property after reading a copy of Location: SecurityError
+Object.prototype.toString of a WindowProxy: [object Object]
+Promise resolved with a WindowProxy: the WindowProxy

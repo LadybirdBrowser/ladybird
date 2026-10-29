@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function read(object, key) {
+        return object[key];
+    }
+
+    function write(object, key, value) {
+        object[key] = value;
+    }
+
+    function makeReadsGeneric() {
+        for (let i = 0; i < 1500; ++i)
+            read({ [`key${i}`]: i }, `key${i}`);
+    }
+
+    function makeWritesGeneric() {
+        for (let i = 0; i < 1500; ++i)
+            write({}, `key${i}`, i);
+    }
+
+    function accessOwnWindowAndLocation() {
+        window.secret = {};
+        read(window, "secret");
+        makeWritesGeneric();
+        write(location, "expando", 1);
+        write(location, "expando", 2);
+        read(location, "reload");
+        parent.postMessage("ready", "*");
+    }
+
+    function accessOwnLocationThroughPrototype() {
+        makeWritesGeneric();
+        read(Object.create(location), "reload");
+        write(Object.create(location), "expando", 1);
+        parent.postMessage("ready", "*");
+    }
+
+    function readCopyOfOwnLocation() {
+        const copy = Object.create(Object.getPrototypeOf(location), Object.getOwnPropertyDescriptors(location));
+        read(copy, "reload");
+        parent.postMessage("ready", "*");
+    }
+
+    function passOwnWindowToBuiltIns() {
+        window.then = resolve => resolve("the frame's then function");
+        Object.prototype.toString.call(window);
+        Promise.resolve(window);
+        parent.postMessage("ready", "*");
+    }
+
+    function loadSandboxedFrame(script) {
+        const ready = new Promise(resolve => window.addEventListener("message", resolve, { once: true }));
+        const iframe = document.createElement("iframe");
+        iframe.sandbox = "allow-scripts";
+        iframe.srcdoc = `<script>${read}${write}${makeWritesGeneric}(${script})()<\/script>`;
+        document.body.appendChild(iframe);
+        return ready;
+    }
+
+    function report(description, callback) {
+        try {
+            callback();
+            println(`${description}: no exception`);
+        } catch (e) {
+            println(`${description}: ${e.name}`);
+        }
+    }
+
+    promiseTest(async () => {
+        makeReadsGeneric();
+        makeWritesGeneric();
+
+        await loadSandboxedFrame(accessOwnWindowAndLocation);
+        report("Read of a WindowProxy property", () => read(frames[0], "secret"));
+        report("Read of a Location property", () => read(frames[0].location, "reload"));
+        report("Write of a Location property", () => write(frames[0].location, "expando", 3));
+
+        await loadSandboxedFrame(accessOwnLocationThroughPrototype);
+        const inheritsFromLocation = () => Object.create(frames[1].location);
+        report("Read through an object inheriting from Location", () => read(inheritsFromLocation(), "reload"));
+        report("Write through an object inheriting from Location", () => write(inheritsFromLocation(), "expando", 2));
+
+        await loadSandboxedFrame(readCopyOfOwnLocation);
+        report("Read of a Location property after reading a copy of Location", () => read(frames[2].location, "reload"));
+
+        await loadSandboxedFrame(passOwnWindowToBuiltIns);
+        println(`Object.prototype.toString of a WindowProxy: ${Object.prototype.toString.call(frames[3])}`);
+        const resolution = await Promise.resolve(frames[3]);
+        println(`Promise resolved with a WindowProxy: ${resolution === frames[3] ? "the WindowProxy" : resolution}`);
+    });
+</script>
