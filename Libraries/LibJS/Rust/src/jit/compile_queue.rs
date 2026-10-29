@@ -7,6 +7,7 @@
 //! The compile threads. Only snapshots go to them and only compile results come back: the compiler never sees the heap.
 
 use std::collections::VecDeque;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::Duration;
@@ -45,6 +46,9 @@ struct SharedJobs {
 pub struct CompileQueue {
     jobs: Arc<SharedJobs>,
     results: Receiver<(u64, CompileResult)>,
+    /// Set by a compile thread after it sends a result, and cleared before the results are taken. The thread that owns
+    /// the queue checks for finished jobs very often, and the flag is cheaper to check than the channel.
+    results_pending: Arc<AtomicBool>,
 }
 
 impl CompileQueue {
@@ -57,9 +61,11 @@ impl CompileQueue {
             job_available: Condvar::new(),
         });
         let (result_sender, results) = channel();
+        let results_pending = Arc::new(AtomicBool::new(false));
         for index in 0..thread_count.max(1) {
             let jobs = Arc::clone(&jobs);
             let result_sender = result_sender.clone();
+            let results_pending = Arc::clone(&results_pending);
             let spawned = std::thread::Builder::new()
                 .name("LibJS JIT".to_string())
                 .spawn(move || {
@@ -88,6 +94,7 @@ impl CompileQueue {
                         if result_sender.send((id, result)).is_err() {
                             return;
                         }
+                        results_pending.store(true, Ordering::Release);
                     }
                 });
             // NB: The queue needs one thread. If the process cannot start more, it compiles on those it started.
@@ -97,7 +104,11 @@ impl CompileQueue {
                 break;
             }
         }
-        Self { jobs, results }
+        Self {
+            jobs,
+            results,
+            results_pending,
+        }
     }
 
     pub fn submit(&self, id: u64, snapshot: Box<Snapshot>) {
@@ -133,6 +144,11 @@ impl CompileQueue {
 
     /// The results of the jobs that finished since the last call.
     pub fn take_finished(&self) -> Vec<(u64, CompileResult)> {
+        // NB: A result sent after the flag is cleared sets it again, so it is taken here or by the next call. The load
+        //     keeps the swap, which is a full barrier, out of the calls that find nothing.
+        if !self.results_pending.load(Ordering::Relaxed) || !self.results_pending.swap(false, Ordering::Acquire) {
+            return Vec::new();
+        }
         self.results.try_iter().collect()
     }
 }
