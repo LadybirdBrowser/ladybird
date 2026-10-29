@@ -2512,10 +2512,10 @@ fn lay_out_run_root_and_contents<'pass>(
                 };
                 (result, root_left_in_record())
             }
-            FormattingContextImplementation::Svg(context) => {
-                context.run(body_run, body_input);
-                (ChildLayoutResult::default(), root_left_in_record())
-            }
+            FormattingContextImplementation::Svg(context) => (
+                ChildLayoutResult::default(),
+                context.run(body_run, body_input, own_root.get()),
+            ),
             FormattingContextImplementation::Math(context) => {
                 context.run(body_run, body_input);
                 let baselines = context.derived_baselines_of_root_box();
