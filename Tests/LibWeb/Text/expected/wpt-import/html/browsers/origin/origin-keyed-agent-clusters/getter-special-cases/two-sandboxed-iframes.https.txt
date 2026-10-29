@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Sending a WebAssembly.Module between two sandboxed iframes must fire messageerror

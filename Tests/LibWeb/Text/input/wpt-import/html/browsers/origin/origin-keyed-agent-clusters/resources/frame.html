@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>A frame included by a test page</title>
+
+<script>
+window.onmessage = e => {
+  if (e.data.type === "set document.domain") {
+    document.domain = e.data.newValue;
+    e.source.postMessage({ type: "new document.domain", result: document.domain }, "*");
+  }
+};
+</script>

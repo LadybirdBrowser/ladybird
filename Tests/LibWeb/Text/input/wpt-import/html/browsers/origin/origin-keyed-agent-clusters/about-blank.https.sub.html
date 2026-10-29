@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>The initial about:blank respects origin isolation</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+
+<div id="log"></div>
+
+<script type="module">
+import {
+  insertIframe,
+  setBothDocumentDomains,
+  testSameAgentCluster,
+  testDifferentAgentClusters,
+  testGetter
+} from "./resources/helpers.mjs";
+
+promise_setup(async () => {
+  await insertAboutBlankIframe();
+  await insertIframe("{{hosts[][www]}}");
+});
+
+// Since the initial about:blank inherits its origin from its parent, it is
+// same-origin with the parent, and thus cross-origin with child2.
+testSameAgentCluster([self, 0], "parent to about:blank");
+testDifferentAgentClusters([0, 1], "about:blank to child2");
+testDifferentAgentClusters([1, 0], "child2 to about:blank");
+
+testGetter(self, true, "parent");
+testGetter(0, true, "about:blank");
+testGetter(1, false, "child2");
+
+async function insertAboutBlankIframe() {
+  const iframe = await createBlankIframe();
+
+  // Now create and add the script, but don't navigate anywhere (since we want
+  // to stay on the initial about:blank).
+  // We need to absolutize the URL to since about:blank doesn't have a base URL.
+  const scriptURL = (new URL("./resources/send-header-page-script.mjs", import.meta.url)).href;
+  const script = iframe.contentDocument.createElement("script");
+  script.type = "module";
+  script.src = scriptURL;
+
+  await new Promise((resolve, reject) => {
+    script.onload = resolve;
+    script.onerror = () => reject(
+      new Error("Could not load the child frame script into the about:blank page")
+    );
+    iframe.contentDocument.body.append(script);
+  });
+
+  await setBothDocumentDomains(iframe.contentWindow);
+}
+
+async function createBlankIframe() {
+  const iframe = document.createElement("iframe");
+  const promise = new Promise(resolve => {
+    iframe.addEventListener("load", resolve);
+  });
+  document.body.append(iframe);
+  await promise;
+  return iframe;
+}
+</script>

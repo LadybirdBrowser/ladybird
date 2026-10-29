@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 4 tests
+
+1 Pass
+3 Fail
+Fail	messageerror event must occur
+Pass	setting document.domain must not give sync access
+Fail	parent: originAgentCluster must equal false
+Fail	child: originAgentCluster must equal true
