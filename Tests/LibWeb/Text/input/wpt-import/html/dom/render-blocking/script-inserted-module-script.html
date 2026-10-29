@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<title>Script-inserted module script elements with "blocking=render" are render-blocking</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/test-render-blocking.js"></script>
+
+<script>
+const moduleScript = document.createElement('script');
+moduleScript.type = 'module';
+moduleScript.blocking = 'render';
+moduleScript.src = 'support/dummy-1.mjs?pipe=trickle(d1)';
+document.head.appendChild(moduleScript);
+</script>
+
+<div id="dummy">some text</div>
+
+<script>
+test_render_blocking(
+    moduleScript,
+    () => assert_equals(document.getElementById('dummy').textContent, '1'),
+    'Script-inserted render-blocking module script is evaluated');
+</script>

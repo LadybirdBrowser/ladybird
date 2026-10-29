@@ -1,0 +1,26 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const name of ["link", "script", "style"]) {
+            const element = document.createElement(name);
+            const tokens = element.blocking;
+            if (!tokens) {
+                println(`${name}: blocking is ${tokens}`);
+                continue;
+            }
+            println(`${name}: same object ${tokens === element.blocking}`);
+            element.setAttribute("blocking", "render extra");
+            println(`attribute to tokens: ${tokens.value}, ${tokens.length}`);
+            element.blocking = "RENDER";
+            println(`tokens to attribute: ${element.getAttribute("blocking")}`);
+            println(`supported: ${tokens.supports("render")}, ${tokens.supports("RENDER")}, ${tokens.supports("extra")}`);
+            element.setAttributeNS("urn:test", "test:blocking", "other");
+            println(`namespaced attribute leaves tokens: ${tokens.value}`);
+            tokens.add("other");
+            println(`added token: ${element.getAttribute("blocking")}`);
+            element.removeAttribute("blocking");
+            println(`removed attribute empties tokens: ${tokens.length}`);
+        }
+    });
+</script>

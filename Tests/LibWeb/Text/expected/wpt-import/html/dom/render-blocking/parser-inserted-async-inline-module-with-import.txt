@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Fail
+Fail	Parser-inserted async inline module script elements with "blocking=render" are render-blocking

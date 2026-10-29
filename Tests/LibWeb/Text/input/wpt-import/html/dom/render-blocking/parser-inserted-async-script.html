@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<title>Parser-inserted async script elements with "blocking=render" are render-blocking</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/test-render-blocking.js"></script>
+
+<script id="async-script" async blocking="render"
+        src="support/dummy-1.js?pipe=trickle(d1)">
+</script>
+
+<div>Some text</div>
+
+<script>
+const asyncScript = document.getElementById('async-script');
+test_render_blocking(
+    asyncScript,
+    () => assert_equals(window.dummy, 1),
+    'Parser-inserted render-blocking async script is evaluated');
+</script>
