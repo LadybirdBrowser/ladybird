@@ -37,7 +37,10 @@
         println(`exportedPrivateKey ext: ${exportedPrivateKey.ext}`);
 
         let exportedPublicKey2 = await window.crypto.subtle.exportKey("spki", key.publicKey);
-        println(`FIXME: exportedPublicKey2: ${bufferToHex(exportedPublicKey2)}`);
+        const exportedPublicKey2Hex = bufferToHex(exportedPublicKey2);
+        println(`exportedPublicKey2 byteLength: ${exportedPublicKey2.byteLength}`);
+        println(`exportedPublicKey2 header: ${exportedPublicKey2Hex.substring(0, 50)}`);
+        println(`exportedPublicKey2 exponent: ${exportedPublicKey2Hex.substring(exportedPublicKey2Hex.length - 10)}`);
 
         try {
             let exportedPrivateKey2 = await window.crypto.subtle.exportKey("spki", key.privateKey);
