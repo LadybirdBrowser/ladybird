@@ -671,9 +671,42 @@ pub(crate) struct PlacementResult {
     pub(crate) explicit_row_start: usize,
 }
 
+/// The occupied cells of one row of an OccupationGrid.
 #[derive(Default)]
+struct OccupationGridRow {
+    /// The occupied columns, as sorted half-open ranges that neither overlap nor touch.
+    occupied_columns: smallvec::SmallVec<[Range<i32>; 2]>,
+    /// The column past the grid items that step 2 of the placement algorithm placed in this row, where sparse packing
+    /// places the next item locked to this row.
+    column_past_items_locked_to_this_row: i32,
+}
+
+impl OccupationGridRow {
+    fn occupy(&mut self, columns: Range<i32>) {
+        let ranges = &mut self.occupied_columns;
+        let first_touching = ranges.partition_point(|range| range.end < columns.start);
+        let end_touching = ranges.partition_point(|range| range.start <= columns.end);
+        if first_touching == end_touching {
+            ranges.insert(first_touching, columns);
+            return;
+        }
+        ranges[first_touching] =
+            ranges[first_touching].start.min(columns.start)..ranges[end_touching - 1].end.max(columns.end);
+        ranges.drain(first_touching + 1..end_touching);
+    }
+
+    /// The end of the occupied range that overlaps `columns`, which is the first column past it that's unoccupied.
+    fn end_of_occupied_columns_overlapping(&self, columns: &Range<i32>) -> Option<i32> {
+        let ranges = &self.occupied_columns;
+        let range = ranges.get(ranges.partition_point(|range| range.end <= columns.start))?;
+        (range.start < columns.end).then_some(range.end)
+    }
+}
+
 pub(crate) struct OccupationGrid {
-    occupied: HashSet<(i32, i32)>,
+    /// The rows from `first_row` on, which grow at the end as items occupy cells further down.
+    rows: Vec<OccupationGridRow>,
+    first_row: i32,
     min_column_index: i32,
     // NB: max < min means the axis has no tracks at all; an axis with no explicit tracks starts
     //     out as max = -1 and only grows when items actually occupy it.
@@ -683,9 +716,11 @@ pub(crate) struct OccupationGrid {
 }
 
 impl OccupationGrid {
-    pub(crate) fn new(column_count: usize, row_count: usize) -> Self {
+    /// An occupation grid whose rows are stored from `first_row` on, which should be the first row an item occupies.
+    pub(crate) fn new(column_count: usize, row_count: usize, first_row: i32) -> Self {
         Self {
-            occupied: HashSet::default(),
+            rows: Vec::new(),
+            first_row,
             min_column_index: 0,
             max_column_index: column_count as i32 - 1,
             min_row_index: 0,
@@ -693,20 +728,55 @@ impl OccupationGrid {
         }
     }
 
+    fn row(&self, row: i32) -> Option<&OccupationGridRow> {
+        self.rows.get(usize::try_from(row.checked_sub(self.first_row)?).ok()?)
+    }
+
+    fn rows_mut(&mut self, rows: Range<i32>) -> &mut [OccupationGridRow] {
+        if rows.start < self.first_row {
+            let missing_row_count = (self.first_row - rows.start) as usize;
+            self.rows.splice(
+                0..0,
+                std::iter::repeat_with(OccupationGridRow::default).take(missing_row_count),
+            );
+            self.first_row = rows.start;
+        }
+        let start = (rows.start - self.first_row) as usize;
+        let end = (rows.end - self.first_row) as usize;
+        if self.rows.len() < end {
+            self.rows.resize_with(end, OccupationGridRow::default);
+        }
+        &mut self.rows[start..end]
+    }
+
     pub(crate) fn set_occupied(&mut self, column_start: i32, column_end: i32, row_start: i32, row_end: i32) {
-        for row in row_start..row_end {
-            for column in column_start..column_end {
-                self.min_column_index = self.min_column_index.min(column);
-                self.max_column_index = self.max_column_index.max(column);
-                self.min_row_index = self.min_row_index.min(row);
-                self.max_row_index = self.max_row_index.max(row);
-                self.occupied.insert((column, row));
-            }
+        if column_start >= column_end || row_start >= row_end {
+            return;
+        }
+        self.min_column_index = self.min_column_index.min(column_start);
+        self.max_column_index = self.max_column_index.max(column_end - 1);
+        self.min_row_index = self.min_row_index.min(row_start);
+        self.max_row_index = self.max_row_index.max(row_end - 1);
+        for row in self.rows_mut(row_start..row_end) {
+            row.occupy(column_start..column_end);
         }
     }
 
-    pub(crate) fn is_occupied(&self, column: i32, row: i32) -> bool {
-        self.occupied.contains(&(column, row))
+    /// The end of an occupied range of columns that overlaps the area, if any does. Starting the area at any later
+    /// column before that end overlaps the range too.
+    fn end_of_occupied_columns_overlapping_area(
+        &self,
+        column_start: i32,
+        row_start: i32,
+        column_span: usize,
+        row_span: usize,
+    ) -> Option<i32> {
+        if column_span == 0 {
+            return None;
+        }
+        let columns = column_start..column_start + column_span as i32;
+        (row_start..row_start + row_span as i32)
+            .find_map(|row| self.row(row)?.end_of_occupied_columns_overlapping(&columns))
     }
 
     pub(crate) fn is_area_occupied(
@@ -716,14 +786,8 @@ impl OccupationGrid {
         column_span: usize,
         row_span: usize,
     ) -> bool {
-        for row in row_start..row_start + row_span as i32 {
-            for column in column_start..column_start + column_span as i32 {
-                if self.is_occupied(column, row) {
-                    return true;
-                }
-            }
-        }
-        false
+        self.end_of_occupied_columns_overlapping_area(column_start, row_start, column_span, row_span)
+            .is_some()
     }
 
     fn find_unoccupied_grid_area(&self, column: &mut i32, row: &mut i32, column_span: usize, row_span: usize) {
@@ -731,14 +795,25 @@ impl OccupationGrid {
         while *row <= self.max_row_index {
             while *column <= self.max_column_index {
                 let minor_axis_fits = *column + column_span as i32 - 1 <= self.max_column_index;
-                if minor_axis_fits && !self.is_area_occupied(*column, *row, column_span, row_span) {
-                    return;
+                if !minor_axis_fits {
+                    break;
                 }
-                *column += 1;
+                match self.end_of_occupied_columns_overlapping_area(*column, *row, column_span, row_span) {
+                    Some(end_of_occupied_columns) => *column = end_of_occupied_columns,
+                    None => return,
+                }
             }
             *row += 1;
             *column = self.min_column_index;
         }
+    }
+
+    fn column_past_items_locked_to_row(&self, row: i32) -> i32 {
+        self.row(row).map_or(0, |row| row.column_past_items_locked_to_this_row)
+    }
+
+    fn set_column_past_items_locked_to_row(&mut self, row: i32, column: i32) {
+        self.rows_mut(row..row + 1)[0].column_past_items_locked_to_this_row = column;
     }
 }
 
@@ -817,7 +892,8 @@ fn place_items_in_row_flow(
     ordered_indices.sort_by_key(|index| (items[*index].order, *index));
 
     let mut remaining = vec![true; items.len()];
-    let mut grid = OccupationGrid::new(explicit_column_count, explicit_row_count);
+    let first_occupied_row = items.iter().filter_map(|item| item.row.start).min().unwrap_or(0).min(0);
+    let mut grid = OccupationGrid::new(explicit_column_count, explicit_row_count, first_occupied_row);
     let mut output = Vec::with_capacity(items.len());
 
     // FIXME: 0. Generate anonymous grid items
@@ -842,7 +918,6 @@ fn place_items_in_row_flow(
     //    "dense" packing (dense specified)
     //        Set the column-start line of its placement to the earliest (smallest positive index) line index that
     //        ensures this item’s grid area will not overlap any occupied grid cells.
-    let mut row_cursors = HashMap::<i32, i32>::default();
     for &index in &ordered_indices {
         if !remaining[index] {
             continue;
@@ -858,20 +933,22 @@ fn place_items_in_row_flow(
         let mut column = if dense {
             0
         } else {
-            row_cursors.get(&row).copied().unwrap_or(0)
+            grid.column_past_items_locked_to_row(row)
         };
         let mut found = false;
         while column <= grid.max_column_index {
-            if !grid.is_area_occupied(column, row, item.column.span, item.row.span) {
-                found = true;
-                break;
+            match grid.end_of_occupied_columns_overlapping_area(column, row, item.column.span, item.row.span) {
+                Some(end_of_occupied_columns) => column = end_of_occupied_columns,
+                None => {
+                    found = true;
+                    break;
+                }
             }
-            column += 1;
         }
         if !found {
             column = grid.max_column_index + 1;
         }
-        row_cursors.insert(row, column + item.column.span as i32);
+        grid.set_column_past_items_locked_to_row(row, column + item.column.span as i32);
         record(&mut grid, &mut output, item, row, column);
         remaining[index] = false;
     }
