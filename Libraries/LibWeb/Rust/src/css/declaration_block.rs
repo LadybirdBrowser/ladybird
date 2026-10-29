@@ -644,4 +644,97 @@ mod tests {
         drop(snapshot);
         assert!(old_data.upgrade().is_none());
     }
+    #[test]
+    fn font_synthesis_expands_existing_position_for_ordinary_values() {
+        use crate::css::css_enums::keyword;
+        let mut observed = Vec::new();
+        for source in ["none", "weight", "style", "small-caps", "weight style small-caps"] {
+            let data = parsed_declarations(&format!("font-synthesis-position: auto; font-synthesis: {source}"));
+            let position = data
+                .properties
+                .iter()
+                .find(|property| property.property_id == property_id::FONT_SYNTHESIS_POSITION)
+                .unwrap();
+            let StyleValueData::Keyword { keyword: value } = position.value.as_ref() else {
+                panic!("keyword expected")
+            };
+            observed.push((source, keyword::NAMES[*value as usize]));
+        }
+        assert_eq!(
+            observed,
+            vec![
+                ("none", "none"),
+                ("weight", "none"),
+                ("style", "none"),
+                ("small-caps", "none"),
+                ("weight style small-caps", "none")
+            ]
+        );
+    }
+
+    #[test]
+    fn font_synthesis_stylesheet_importance_covers_position() {
+        use crate::css::css_enums::keyword;
+        let kept = parsed_declarations("font-synthesis-position: auto !important; font-synthesis: none");
+        let position = kept
+            .properties
+            .iter()
+            .find(|property| property.property_id == property_id::FONT_SYNTHESIS_POSITION)
+            .unwrap();
+        assert!(position.important);
+        assert!(
+            matches!(position.value.as_ref(), StyleValueData::Keyword { keyword: value } if *value == keyword::AUTO)
+        );
+        let changed =
+            parsed_declarations("font-synthesis-position: auto !important; font-synthesis: weight !important");
+        assert_eq!(changed.properties.len(), 4);
+        for property in &changed.properties {
+            assert!(property.important);
+        }
+        let position = changed
+            .properties
+            .iter()
+            .find(|property| property.property_id == property_id::FONT_SYNTHESIS_POSITION)
+            .unwrap();
+        assert!(
+            matches!(position.value.as_ref(), StyleValueData::Keyword { keyword: value } if *value == keyword::NONE)
+        );
+    }
+
+    #[test]
+    fn font_synthesis_css_wide_and_pending_substitutions_cover_all_four() {
+        use crate::css::css_enums::keyword;
+        for (source, expected) in [
+            ("initial", keyword::INITIAL),
+            ("inherit", keyword::INHERIT),
+            ("unset", keyword::UNSET),
+            ("revert", keyword::REVERT),
+            ("revert-layer", keyword::REVERT_LAYER),
+        ] {
+            let data = parsed_declarations(&format!("font-synthesis: {source} !important"));
+            assert_eq!(data.properties.len(), 4, "{source}");
+            assert!(
+                data.properties
+                    .iter()
+                    .any(|property| property.property_id == property_id::FONT_SYNTHESIS_POSITION)
+            );
+            for property in &data.properties {
+                assert!(property.important);
+                assert!(matches!(property.value.as_ref(), StyleValueData::Keyword { keyword } if *keyword == expected));
+            }
+        }
+        let pending = parsed_declarations("font-synthesis: var(--s)");
+        assert_eq!(pending.properties.len(), 5);
+        assert_eq!(pending.properties[0].property_id, property_id::FONT_SYNTHESIS);
+        assert!(
+            pending.properties[1..]
+                .iter()
+                .any(|property| property.property_id == property_id::FONT_SYNTHESIS_POSITION)
+        );
+        assert!(
+            pending.properties[1..]
+                .iter()
+                .all(|property| matches!(property.value.as_ref(), StyleValueData::PendingSubstitution { .. }))
+        );
+    }
 }

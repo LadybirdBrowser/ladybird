@@ -2595,8 +2595,9 @@
     ]
   },
   "font-synthesis": {
-    "initial": "weight style small-caps",
+    "initial": "weight style small-caps position",
     "longhands": [
+      "font-synthesis-position",
       "font-synthesis-small-caps",
       "font-synthesis-style",
       "font-synthesis-weight"

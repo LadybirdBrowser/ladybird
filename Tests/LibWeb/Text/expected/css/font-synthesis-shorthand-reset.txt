@@ -1,0 +1,31 @@
+none resets all four: ["none","none","none","none"]
+important expands to four: ["important","important","important","important"]
+none shorthand: "none"
+remove representable shorthand: "none"
+remove clears four: ["","","",""]
+position auto is represented: "weight position"
+remove position shorthand: "weight position"
+position removal clears four: ["","","",""]
+CSSOM replacement resets important position: ["auto","none","none","none"]
+CSSOM replacement clears priority: ["","","",""]
+mixed priority shorthand: ""
+mixed priority removal clears four: ["","","",""]
+typed keyword position: ["none","none","none","auto"]
+typed position roundtrip: "position"
+initial specified four: ["initial","initial","initial","initial"]
+initial shorthand: "initial"
+inherit specified four: ["inherit","inherit","inherit","inherit"]
+inherit shorthand: "inherit"
+unset specified four: ["unset","unset","unset","unset"]
+unset shorthand: "unset"
+revert specified four: ["revert","revert","revert","revert"]
+revert shorthand: "revert"
+revert-layer specified four: ["revert-layer","revert-layer","revert-layer","revert-layer"]
+revert-layer shorthand: "revert-layer"
+initial computed shorthand: "weight style small-caps position"
+initial computed position: "auto"
+inherit computed position: "none"
+unset computed position: "none"
+pending shorthand: "var(--s)"
+pending shorthand resets computed position: "none"
+position grammar: [true,false]
