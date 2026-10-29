@@ -2,23 +2,31 @@
 <style>
     #foo {
         animation-name: anim;
+        animation-duration: 1s;
         animation-play-state: paused;
         animation-fill-mode: forwards;
         animation-timing-function: cubic-bezier(0.4, 0.1, 1, 0);
     }
 
-    @keyframes anim {}
+    @keyframes anim {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
 </style>
 <div id="foo"></div>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async (done) => {
+    test(() => {
         const foo = document.getElementById("foo");
         const anim = foo.getAnimations()[0];
-        anim.onfinish = function () {
-            println("PASS! (Didn't crash)");
-            done();
-        };
-        anim.play();
+        for (const time of [999.999, 1000]) {
+            anim.currentTime = time;
+            getComputedStyle(foo).opacity;
+        }
+        println("PASS! (Didn't crash)");
     });
 </script>
