@@ -486,11 +486,18 @@ fn convert_color(color_type: u8, target_type: u8, color: Color) -> Option<Color>
     if color_type == target_type || color_type == RGB && target_type == SRGB {
         return Some(color);
     }
+    match (color_type, target_type) {
+        // https://drafts.csswg.org/css-color-4/#lab-to-lch
+        (LAB, LCH) | (OKLAB, OKLCH) => return Some(rectangular_to_polar(color)),
+        // https://drafts.csswg.org/css-color-4/#lch-to-lab
+        (LCH, LAB) | (OKLCH, OKLAB) => return Some(polar_to_rectangular(color)),
+        _ => {}
+    }
     if target_type == HSL || target_type == HWB {
-        let srgb = if color_type == RGB || color_type == SRGB {
-            color
-        } else {
-            from_xyz65(SRGB, to_xyz65(color_type, color)?)?
+        let srgb = match color_type {
+            RGB | SRGB => color,
+            HSL | HWB => legacy_color_to_srgb_color(color_type, color)?,
+            _ => from_xyz65(SRGB, to_xyz65(color_type, color)?)?,
         };
         return Some(if target_type == HSL {
             srgb_to_hsl(srgb)
@@ -523,6 +530,16 @@ mod tests {
         assert!((white[0] - 1.0).abs() < 0.00001);
         assert!(white[1].abs() < 0.00001);
         assert!(white[2].abs() < 0.00001);
+    }
+
+    #[test]
+    fn converts_between_forms_of_the_same_color_space_exactly() {
+        assert_eq!(convert(OKLAB, OKLCH, [0.5, 0.1, 0.0, 1.0]), Some([0.5, 0.1, 0.0, 1.0]));
+        assert_eq!(convert(LAB, LCH, [50.0, 10.0, 0.0, 1.0]), Some([50.0, 10.0, 0.0, 1.0]));
+        assert_eq!(
+            convert(HWB, HSL, [180.0, 0.0, 0.25, 1.0]),
+            Some([180.0, 1.0, 0.375, 1.0])
+        );
     }
 
     #[test]
