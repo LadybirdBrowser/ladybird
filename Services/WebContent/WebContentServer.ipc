@@ -147,6 +147,7 @@ endpoint WebContentServer routed by Web::PageId page_id
     key_event(Web::PageId page_id, Web::KeyEvent event) =|
     mouse_event(Web::PageId page_id, Web::MouseEvent event) =|
     mouse_event_in_hosted_root(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::MouseEvent event) =|
+    pinch_event_in_hosted_root(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::PinchEvent event) =|
     drag_event(Web::PageId page_id, Web::DragEvent event) =|
     pinch_event(Web::PageId page_id, Web::PinchEvent event) =|
 

@@ -322,6 +322,7 @@ private:
     virtual void did_update_child_frame_viewport(Web::HTML::CrossProcessId frame_id, Web::DevicePixelRect viewport_rect, Web::DevicePixelRect viewport_intersection, double device_pixel_ratio) override;
     virtual void did_update_frame_stats_displayed(Web::HTML::CrossProcessId, bool) override;
     virtual void did_forward_mouse_event_to_child_frame(Web::HTML::CrossProcessId frame_id, Web::MouseEvent) override;
+    virtual void did_forward_pinch_event_to_child_frame(Web::HTML::CrossProcessId frame_id, Web::PinchEvent) override;
     virtual void did_destroy_child_frame(Web::HTML::CrossProcessId frame_id) override;
     Messages::WebContentClient::DidStartDownloadWithoutRequestResponse did_start_download_without_request(URL::URL url, ByteString suggested_filename, Optional<u64> total_size);
     Messages::WebContentClient::DidStartDownloadResponse did_start_download(Web::HTML::CrossProcessId navigable_id, Optional<Utf16String> navigation_id, URL::URL url, ByteString suggested_filename, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ByteBuffer initial_data,

@@ -167,6 +167,7 @@ public:
     // the main thread.
     Web::WheelGestureMark note_wheel_event_from_ui(Web::MouseEvent const&, Optional<MonotonicTime> now_for_testing = {});
     ContextUpdateResult handle_pinch_event(Web::PinchEvent const&);
+    bool admits_async_pinch() const { return m_wheel_gesture_routing.admits_async_pinch(); }
 
     bool may_hand_first_wheel_steps_to_nested_contexts() const;
     Optional<Compositing::NestedContextWheelHit> nested_context_for_wheel_at(Gfx::FloatPoint position);

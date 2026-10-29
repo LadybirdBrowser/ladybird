@@ -261,6 +261,7 @@ private:
     // `context_id`, among that context and the contexts nested in it. Empty when each of them passes the step on.
     Optional<NestedContextTakingWheelStep> nested_context_taking_first_wheel_step(Web::CompositorContextId, Compositing::NestedContextWheelHit, Gfx::FloatPoint delta_in_css_pixels, Web::WheelDeltaPrecision);
     bool is_nested_in(Web::CompositorContextId containing_context_id, ContextState const&) const;
+    bool nested_context_may_cancel_pinch(Web::CompositorContextId) const;
     void dispatch_scroll_fling_step(Web::CompositorContextId, ContextState&, Optional<Web::MouseEvent>, MonotonicTime now);
     void present_frame(Web::CompositorContextId, ContextState&, PendingFrame);
     void schedule_present_frame(Web::CompositorContextId, ContextState&, PendingFrame);

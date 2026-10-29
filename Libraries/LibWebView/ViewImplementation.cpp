@@ -901,7 +901,15 @@ void ViewImplementation::enqueue_input_event(Web::InputEvent event)
 // Input waits while the compositor decides whether it forwards a key event, so a key it hands back is not overtaken.
 void ViewImplementation::send_queued_input_events()
 {
+    bool has_earlier_pinch = false;
     for (size_t index = 0; index < m_pending_input_events.size(); ++index) {
+        // Pinches in different processes share the tab's visual viewport. A later pinch must not zoom it before an
+        // earlier frame has dispatched its wheel event and, if uncanceled, returned for the zoom.
+        if (m_pending_input_events[index].event.has<Web::PinchEvent>()) {
+            if (has_earlier_pinch)
+                continue;
+            has_earlier_pinch = true;
+        }
         if (!m_pending_input_events[index].sent)
             send_input_event(index);
         if (m_pending_input_events[index].awaits_compositor_dispatch())
@@ -1137,6 +1145,20 @@ void ViewImplementation::did_finish_handling_input_event(Badge<WebContentPage>, 
     auto index = m_pending_input_events.find_first_index_if([&](auto const& pending) { return Web::input_event_id(pending.event) == event_id; });
     if (!index.has_value() || m_pending_input_events[*index].endpoint.ptr() != &reporting_page)
         return;
+    // Keep the returned default action in its original position. Removing it and scheduling the queue first would
+    // let a later pinch overtake it, which changes the zoom when focal points differ or a scale limit is reached.
+    auto& pending_input = m_pending_input_events[*index];
+    if (auto* pinch_event = pending_input.event.get_pointer<Web::PinchEvent>();
+        pinch_event && pending_input.forwarded_to_child_frame && !pinch_event->wheel_event_was_dispatched && !pinch_event->async_zoom_performed_default_action
+        && event_result != Web::EventResult::Handled && event_result != Web::EventResult::Cancelled) {
+        pinch_event->wheel_event_was_dispatched = true;
+        pending_input.endpoint = page();
+        pending_input.sent = false;
+        pending_input.routed_through_compositor = false;
+        send_queued_input_events();
+        return;
+    }
+
     auto pending = m_pending_input_events.take(*index);
     auto event = move(pending.event);
     send_queued_input_events();
@@ -1197,6 +1219,23 @@ void ViewImplementation::did_forward_input_event(Badge<WebContentPage>, WebConte
     if (!index.has_value() || m_pending_input_events[*index].endpoint.ptr() != &reporting_page)
         return;
     m_pending_input_events[*index].endpoint = endpoint;
+    m_pending_input_events[*index].forwarded_to_child_frame = true;
+}
+
+void ViewImplementation::did_forward_pinch_event(Badge<WebContentPage>, WebContentPage const& reporting_page, Web::PinchEvent const& event, WebContentPage& endpoint)
+{
+    auto index = m_pending_input_events.find_first_index_if([&](auto const& pending) { return Web::input_event_id(pending.event) == event.id; });
+    if (!index.has_value() || m_pending_input_events[*index].endpoint.ptr() != &reporting_page)
+        return;
+    auto& pending = m_pending_input_events[*index];
+    auto* pinch_event = pending.event.get_pointer<Web::PinchEvent>();
+    if (!pinch_event)
+        return;
+    pending.endpoint = endpoint;
+    pending.forwarded_to_child_frame = true;
+    // The page may have coalesced earlier steps of the pinch into the event, which the zoom asked for later includes.
+    pinch_event->scale_delta = event.scale_delta;
+    pinch_event->async_zoom_performed_default_action = event.async_zoom_performed_default_action;
 }
 
 // The earliest input the page has yet to finish handling that gives it user activation: input the page handles, or

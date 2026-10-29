@@ -106,6 +106,7 @@ endpoint WebContentClient routed by Web::PageId page_id
     did_update_frame_stats_displayed(Web::PageId page_id, Web::HTML::CrossProcessId frame_id, bool displayed) =|
     did_update_child_frame_viewport(Web::PageId page_id, Web::HTML::CrossProcessId frame_id, Web::DevicePixelRect viewport_rect, Web::DevicePixelRect viewport_intersection, double device_pixel_ratio) =|
     did_forward_mouse_event_to_child_frame(Web::PageId page_id, Web::HTML::CrossProcessId frame_id, Web::MouseEvent event) =|
+    did_forward_pinch_event_to_child_frame(Web::PageId page_id, Web::HTML::CrossProcessId frame_id, Web::PinchEvent event) =|
     did_destroy_child_frame(Web::PageId page_id, Web::HTML::CrossProcessId frame_id) =|
     did_finish_loading(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId document_id) =|
     [NotRouted] did_start_download_without_request(Web::PageId page_id, URL::URL url, ByteString suggested_filename, Optional<u64> total_size) => (Optional<u64> download_id)

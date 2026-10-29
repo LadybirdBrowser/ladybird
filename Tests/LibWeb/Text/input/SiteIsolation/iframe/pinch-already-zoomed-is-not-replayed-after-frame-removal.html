@@ -1,0 +1,139 @@
+<!doctype html>
+<script src="../../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        min-height: 600px;
+    }
+    iframe {
+        display: block;
+        width: 400px;
+        height: 250px;
+        border: 0;
+    }
+</style>
+<script>
+    function nextTask() {
+        return new Promise(resolve => {
+            const channel = new MessageChannel();
+            channel.port1.onmessage = () => {
+                channel.port1.close();
+                channel.port2.close();
+                resolve();
+            };
+            channel.port2.postMessage(null);
+        });
+    }
+
+    promiseTest(async () => {
+        const target = document.createElement("iframe");
+        const sibling = document.createElement("iframe");
+        const nextMessage = (frame, type) =>
+            new Promise(resolve => {
+                const listener = event => {
+                    if (event.source !== frame.contentWindow || event.data !== type) return;
+                    removeEventListener("message", listener);
+                    resolve();
+                };
+                addEventListener("message", listener);
+            });
+        const server = httpTestServer();
+        const targetURL = new URL(
+            await server.createEcho("GET", "/pinch-removed-target", {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><style>body { margin: 0; }</style><script>
+                addEventListener("message", async event => {
+                    if (event.data !== "park")
+                        return;
+                    await new Promise(requestAnimationFrame);
+                    await new Promise(requestAnimationFrame);
+                    internals.synchronizeCompositor();
+                    internals.beginInputTrace();
+                    internals.setManualRenderingOpportunities(true);
+                    parent.postMessage("parked", "*");
+                });
+                parent.postMessage("ready", "*");
+            <\/script>`,
+            })
+        );
+        const siblingURL = new URL(
+            await server.createEcho("GET", "/pinch-surviving-sibling", {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>
+                addEventListener("message", async event => {
+                    if (event.data !== "resume")
+                        return;
+                    internals.setManualRenderingOpportunities(false);
+                    while (true) {
+                        const dropped = internals.takeInputTrace().some(record => record.stage === "web-content" && record.decision === "dropped-without-local-root");
+                        if (dropped)
+                            break;
+                        internals.beginInputTrace();
+                        await new Promise(requestAnimationFrame);
+                    }
+                    parent.postMessage("dropped", "*");
+                });
+                parent.postMessage("ready", "*");
+            <\/script>`,
+            })
+        );
+        const remoteHost = uniqueLocalhostHostname("pinch-root-removal");
+        targetURL.hostname = remoteHost;
+        siblingURL.hostname = remoteHost;
+        const targetReady = nextMessage(target, "ready");
+        const siblingReady = nextMessage(sibling, "ready");
+        target.src = targetURL;
+        sibling.src = siblingURL;
+        document.body.append(target, sibling);
+        await Promise.all([targetReady, siblingReady]);
+        const parked = nextMessage(target, "parked");
+        target.contentWindow.postMessage("park", "*");
+        await parked;
+        await animationFrame();
+        await animationFrame();
+
+        internals.beginInputTrace();
+        internals.pinchThroughUIProcess(200, 100, 1);
+        let forwardedID;
+        while (forwardedID === undefined || visualViewport.scale !== 2) {
+            const trace = internals.takeInputTrace();
+            internals.beginInputTrace();
+            for (const record of trace) {
+                if (record.stage === "web-content" && record.decision === "forwarded-to-remote-frame")
+                    forwardedID = record.id;
+            }
+            await nextTask();
+        }
+        println(`compositor zoom before removal: ${visualViewport.scale}`);
+        target.remove();
+        let tree;
+        do {
+            await nextTask();
+            tree = internals.dumpSiteIsolationProcessTree();
+        } while ((tree.match(/iframe#/g) || []).length !== 1);
+        println(`one remote sibling remains: ${(tree.match(/iframe#/g) || []).length === 1}`);
+        const dropped = nextMessage(sibling, "dropped");
+        sibling.contentWindow.postMessage("resume", "*");
+        await dropped;
+
+        // This later, zero-delta input is a barrier on the UI-to-compositor-to-page path. Any erroneous replay was
+        // sent before it, and must finish before its own acknowledgment. A zero delta dispatches no wheel event.
+        internals.pinchThroughUIProcess(600, 400, 0);
+        let sentinelFinished = false;
+        while (!sentinelFinished) {
+            const trace = internals.takeInputTrace();
+            internals.beginInputTrace();
+            sentinelFinished = trace.some(
+                record =>
+                    record.stage === "web-content" &&
+                    record.decision === "finished-handled" &&
+                    record.id !== forwardedID
+            );
+            if (!sentinelFinished) await nextTask();
+        }
+        println("removed root reported dropped without closing its page");
+        println(`scale after the dropped pinch: ${visualViewport.scale}`);
+    });
+</script>

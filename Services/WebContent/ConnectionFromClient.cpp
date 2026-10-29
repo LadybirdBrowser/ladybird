@@ -943,6 +943,16 @@ void ConnectionFromClient::drag_event(Web::PageId page_id, Web::DragEvent event)
 
 void ConnectionFromClient::pinch_event(Web::PageId page_id, Web::PinchEvent event)
 {
+    enqueue_pinch_event(page_id, {}, move(event));
+}
+
+void ConnectionFromClient::pinch_event_in_hosted_root(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::PinchEvent event)
+{
+    enqueue_pinch_event(page_id, navigable_id, move(event));
+}
+
+void ConnectionFromClient::enqueue_pinch_event(Web::PageId page_id, Optional<Web::HTML::CrossProcessId> navigable_id, Web::PinchEvent event)
+{
     auto page = m_page_host->page(page_id);
     if (!page.has_value()) {
         async_did_finish_handling_input_event(page_id, event.id, Web::EventResult::Dropped);
@@ -953,12 +963,15 @@ void ConnectionFromClient::pinch_event(Web::PageId page_id, Web::PinchEvent even
     //               deltas are multiplicative, so preserve the combined scale change.
     //               Only coalesce events with the same focal point, as applying
     //               one combined zoom around a different point is not equivalent
-    //               to applying each zoom in sequence.
-    if (!m_input_event_queue.is_empty() && m_input_event_queue.tail().page_id == page_id) {
+    //               to applying each zoom in sequence. A frame another process hosts
+    //               hands each pinch it lets through back for its own zoom, so the
+    //               events to such a frame stay apart.
+    if (!navigable_id.has_value() && !m_input_event_queue.is_empty() && m_input_event_queue.tail().page_id == page_id && !m_input_event_queue.tail().navigable_id.has_value()) {
         if (auto const* pinch_event = m_input_event_queue.tail().event.get_pointer<Web::PinchEvent>()) {
             if (pinch_event->position != event.position || pinch_event->modifiers != event.modifiers
-                || pinch_event->async_zoom_performed_default_action != event.async_zoom_performed_default_action)
-                return enqueue_input_event({ page_id, move(event), {}, {} });
+                || pinch_event->async_zoom_performed_default_action != event.async_zoom_performed_default_action
+                || pinch_event->wheel_event_was_dispatched != event.wheel_event_was_dispatched)
+                return enqueue_input_event({ page_id, move(event), {}, navigable_id });
 
             event.scale_delta = (1.0 + pinch_event->scale_delta) * (1.0 + event.scale_delta) - 1.0;
             auto coalesced_event_id = pinch_event->id;
@@ -970,7 +983,7 @@ void ConnectionFromClient::pinch_event(Web::PageId page_id, Web::PinchEvent even
         }
     }
 
-    enqueue_input_event({ page_id, move(event), {}, {} });
+    enqueue_input_event({ page_id, move(event), {}, navigable_id });
 }
 
 static bool is_discrete_input_event(Web::InputEvent const& event)

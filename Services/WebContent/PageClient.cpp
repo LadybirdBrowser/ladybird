@@ -564,6 +564,11 @@ void PageClient::forward_mouse_event_to_remote_navigable(Web::PageId page_id, We
     client().async_did_forward_mouse_event_to_child_frame(page_id, navigable_id, move(event));
 }
 
+void PageClient::forward_pinch_event_to_remote_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::PinchEvent event)
+{
+    client().async_did_forward_pinch_event_to_child_frame(page_id, navigable_id, event);
+}
+
 Web::CompositorContextId PageClient::allocate_compositor_context_id(Web::PagePresentationRegistration page_presentation_registration)
 {
     return client().allocate_compositor_context_id(m_id, page_presentation_registration);

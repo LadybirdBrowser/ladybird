@@ -110,5 +110,6 @@ struct Web::PinchEvent {
     Web::UIEvents::KeyModifier modifiers;
     [Finite] double scale_delta;
     bool async_zoom_performed_default_action;
+    bool wheel_event_was_dispatched;
     u64 id;
 }

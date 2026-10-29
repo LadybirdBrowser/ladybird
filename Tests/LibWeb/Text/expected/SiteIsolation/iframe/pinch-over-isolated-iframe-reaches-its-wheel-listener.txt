@@ -1,0 +1,3 @@
+canceling listener: ctrlKey=true cancelable=true defaultPrevented=true compositor scale=1
+listener letting the event through: ctrlKey=true cancelable=true defaultPrevented=false
+scale after both pinches: 2

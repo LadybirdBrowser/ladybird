@@ -199,7 +199,7 @@ public:
     EventResult handle_mousecancel(HTML::LocalNavigable& root);
     EventResult handle_mousewheel(HTML::LocalNavigable& root, DevicePixelPoint, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, double wheel_delta_x, double wheel_delta_y, double wheel_tick_120ths_x, double wheel_tick_120ths_y, Web::WheelDeltaPrecision, Web::ScrollGesturePhase, bool async_scroll_performed_default_action, Optional<AsyncScrollOperation>* async_scroll_operation, Optional<RemoteInputEventTarget>* remote_target, Optional<Web::WheelGestureMark>);
     EventResult handle_drag_and_drop_event(HTML::LocalNavigable& root, DragEvent::Type, DevicePixelPoint, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, Vector<HTML::SelectedFile> files);
-    EventResult handle_pinch_event(HTML::LocalNavigable& root, DevicePixelPoint point, unsigned modifiers, double scale, bool async_zoom_performed_default_action);
+    EventResult handle_pinch_event(HTML::LocalNavigable& root, PinchEvent const&, Optional<RemoteInputEventTarget>* remote_target);
 
     EventResult handle_mouseup(DevicePixelPoint, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers);
     EventResult handle_mousedown(DevicePixelPoint, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, int click_count);
@@ -712,6 +712,7 @@ public:
     virtual void report_finished_handling_input_event(Web::PageId page_id, u64 event_id, EventResult event_was_handled) = 0;
     // The event lands on content another process hosts, which handles it and finishes it.
     virtual void forward_mouse_event_to_remote_navigable([[maybe_unused]] Web::PageId page_id, [[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] Web::MouseEvent) { }
+    virtual void forward_pinch_event_to_remote_navigable([[maybe_unused]] Web::PageId page_id, [[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] Web::PinchEvent) { }
     virtual Web::CompositorContextId allocate_compositor_context_id(Web::PagePresentationRegistration page_presentation_registration)
     {
         if (page_presentation_registration == Web::PagePresentationRegistration::Yes)
