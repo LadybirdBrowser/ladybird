@@ -18,3 +18,13 @@ dynamic-in-picture: 200x50
 dynamic: 200x100
 dynamic: 200x0
 dynamic-in-picture: 200x400
+img-large: auto 100000000 / 50000000
+img-large-decimal: auto 100000000.5 / 50000000.25
+video-large: auto 100000000 / 50000000
+input-image-large: auto 100000000 / 50000000
+img-large-percentage: auto
+img-invalid: auto
+img-trailing-text: auto 16.5 / 9
+img-author-ratio: 3 / 1
+img-large: 200x100
+img-nonfinite: auto

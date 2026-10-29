@@ -2419,6 +2419,12 @@ static RefPtr<CSS::StyleValue const> parse_current_dimension_value(double value,
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-dimension-values
 RefPtr<CSS::StyleValue const> parse_dimension_value(Utf16View input)
 {
+    double unclamped_value;
+    return parse_dimension_value(input, unclamped_value);
+}
+
+RefPtr<CSS::StyleValue const> parse_dimension_value(Utf16View input, double& unclamped_value)
+{
     // 1. Let input be the string being parsed.
     // 2. Let position be a position variable for input, initially pointing at the start of input.
     size_t position = 0;
@@ -2440,6 +2446,7 @@ RefPtr<CSS::StyleValue const> parse_dimension_value(Utf16View input)
         ++position;
     }
 
+    unclamped_value = integer_value;
     double value = min(integer_value, CSSPixels::max_dimension_value);
 
     // 6. If position is past the end of input, then return value as a length.
@@ -2466,7 +2473,9 @@ RefPtr<CSS::StyleValue const> parse_dimension_value(Utf16View input)
 
             // 2. Add the value of the code point at position within input,
             //    interpreted as a base-ten digit (0..9) and divided by divisor, to value.
-            value += (code_unit_at(input, position) - '0') / divisor;
+            auto fraction = (code_unit_at(input, position) - '0') / divisor;
+            value += fraction;
+            unclamped_value += fraction;
 
             // 3. Advance position by 1.
             ++position;

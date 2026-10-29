@@ -236,6 +236,8 @@ private:
 };
 
 RefPtr<CSS::StyleValue const> parse_dimension_value(Utf16View);
+// Also expose the numeric value before layout clamping when parsing succeeds.
+RefPtr<CSS::StyleValue const> parse_dimension_value(Utf16View, double& unclamped_value);
 RefPtr<CSS::StyleValue const> parse_nonzero_dimension_value(Utf16View);
 Optional<Color> parse_legacy_color_value(Utf16View);
 RefPtr<CSS::StyleValue const> parse_table_child_element_align_value(Utf16View);

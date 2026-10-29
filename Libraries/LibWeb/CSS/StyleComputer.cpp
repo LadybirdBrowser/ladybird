@@ -1099,26 +1099,31 @@ void StyleComputer::compose_installed_engine_record(Layout::BegunRead const& rea
     context.publish();
 }
 
-static RefPtr<CSS::StyleValue const> collect_dimension_attribute(Vector<StyleProperty>& properties, DOM::Element const& element, Utf16FlyString const& attribute_name, CSS::PropertyID property_id)
+static Optional<double> collect_dimension_attribute(Vector<StyleProperty>& properties, DOM::Element const& element, Utf16FlyString const& attribute_name, CSS::PropertyID property_id)
 {
     auto attribute = element.attribute(attribute_name);
     if (!attribute.has_value())
         return {};
 
-    auto parsed_value = HTML::parse_dimension_value(*attribute);
+    double unclamped_value;
+    auto parsed_value = HTML::parse_dimension_value(*attribute, unclamped_value);
     if (!parsed_value)
         return {};
 
     properties.append({ .property_id = property_id, .value = *parsed_value });
-    return parsed_value;
+    // NB: The ratio uses the parsed number, rather than the clamped layout dimension. Values beyond the numeric
+    //     representation's range cannot form a finite ratio hint, but keep their ordinary dimension mapping.
+    if (!parsed_value->is_length() || !__builtin_isfinite(unclamped_value))
+        return {};
+    return unclamped_value;
 }
 
 // https://html.spec.whatwg.org/multipage/rendering.html#map-to-the-aspect-ratio-property-(using-dimension-rules)
-static void collect_aspect_ratio_from_dimension_values(Vector<StyleProperty>& properties, RefPtr<CSS::StyleValue const> const& width, RefPtr<CSS::StyleValue const> const& height)
+static void collect_aspect_ratio_from_dimension_values(Vector<StyleProperty>& properties, Optional<double> width, Optional<double> height)
 {
     // if element has both attributes w and h, and parsing those attributes' values using the rules for parsing
     // dimension values doesn't generate an error or return a percentage for either,
-    if (!width || !height || !width->is_length() || !height->is_length())
+    if (!width.has_value() || !height.has_value())
         return;
 
     // then the user agent is expected to use the parsed dimensions as a presentational hint for the 'aspect-ratio'
@@ -1127,8 +1132,8 @@ static void collect_aspect_ratio_from_dimension_values(Vector<StyleProperty>& pr
         CSS::StyleValueVector {
             CSS::KeywordStyleValue::create(CSS::Keyword::Auto),
             CSS::RatioStyleValue::create(
-                CSS::NumberStyleValue::create(width->as_length().length().raw_value()),
-                CSS::NumberStyleValue::create(height->as_length().length().raw_value())),
+                CSS::NumberStyleValue::create(*width),
+                CSS::NumberStyleValue::create(*height)),
         },
         CSS::StyleValueList::Separator::Space);
     properties.append({ .property_id = CSS::PropertyID::AspectRatio, .value = aspect_ratio });
