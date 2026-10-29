@@ -15,6 +15,8 @@
 #include <LibWeb/HTML/VideoTrack.h>
 #include <LibWeb/HTML/VideoTrackList.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
+#include <LibWeb/MediaSourceExtensions/MediaSource.h>
+#include <LibWeb/MediaSourceExtensions/SourceBuffer.h>
 
 namespace Web::HTML {
 
@@ -66,10 +68,14 @@ void VideoTrack::set_selected(bool selected)
     auto previously_unselected_track_is_selected = !m_selected && selected;
     auto selected_track_was_unselected_without_another_selection = m_selected && !selected;
 
+    GC::Ptr<VideoTrack> previously_selected_track = m_selected ? this : nullptr;
     for (auto video_track_list : m_video_track_lists) {
         for (auto video_track : video_track_list->video_tracks()) {
-            if (video_track.ptr() != this)
-                video_track->m_selected = false;
+            if (video_track.ptr() == this)
+                continue;
+            if (video_track->m_selected)
+                previously_selected_track = video_track;
+            video_track->m_selected = false;
         }
 
         // Whenever a track in a VideoTrackList that was previously not selected is selected, and whenever the selected track in a
@@ -87,6 +93,18 @@ void VideoTrack::set_selected(bool selected)
 
     // AD-HOC: Inform the element node that we have (un)selected a video track for layout.
     media_element().set_selected_video_track({}, m_selected ? this : nullptr);
+
+    if (auto source_buffer = source_buffer_in_attached_media_source()) {
+        GC::Ptr<MediaSourceExtensions::SourceBuffer> previously_selected_track_source_buffer;
+        if (previously_selected_track) {
+            previously_selected_track_source_buffer = previously_selected_track->source_buffer_in_attached_media_source();
+            VERIFY(previously_selected_track_source_buffer);
+        }
+        GC::Ptr<MediaSourceExtensions::SourceBuffer> newly_selected_track_source_buffer;
+        if (m_selected)
+            newly_selected_track_source_buffer = source_buffer;
+        media_element().attached_media_source()->selected_video_track_changed({}, previously_selected_track_source_buffer, newly_selected_track_source_buffer);
+    }
 }
 
 }

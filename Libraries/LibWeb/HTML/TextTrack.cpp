@@ -217,6 +217,9 @@ void TextTrack::set_mode(TextTrackMode mode)
 
     if (m_media_element)
         m_media_element->text_track_mode_changed();
+
+    // FIXME: Update activeSourceBuffers for tracks from a SourceBuffer:
+    //        https://w3c.github.io/media-source/#active-source-buffer-changes
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#text-track-cue-active-flag

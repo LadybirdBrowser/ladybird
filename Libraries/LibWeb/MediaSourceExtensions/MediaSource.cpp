@@ -188,6 +188,68 @@ Utf16String MediaSource::next_track_id()
     return Utf16String::number(m_next_track_id++);
 }
 
+// https://w3c.github.io/media-source/#active-source-buffer-changes
+void MediaSource::selected_video_track_changed(Badge<HTML::VideoTrack>, GC::Ptr<SourceBuffer> previously_selected_track_source_buffer, GC::Ptr<SourceBuffer> newly_selected_track_source_buffer)
+{
+    // If the selected video track changes, then run the following steps:
+    // 1. If the SourceBuffer associated with the previously selected video track is not associated with any other
+    //    enabled tracks, run the following steps:
+    auto previously_selected_track_source_buffer_became_inactive = [&] {
+        if (!previously_selected_track_source_buffer || !m_active_source_buffers->contains(*previously_selected_track_source_buffer))
+            return false;
+        return !previously_selected_track_source_buffer->is_associated_with_an_enabled_or_selected_track();
+    }();
+    if (previously_selected_track_source_buffer_became_inactive) {
+        // 1. Remove the SourceBuffer from activeSourceBuffers.
+        m_active_source_buffers->remove(*previously_selected_track_source_buffer);
+
+        // 2. Queue a task to fire an event named removesourcebuffer at activeSourceBuffers
+        queue_a_media_source_task(GC::create_function(GC::Heap::the(), [media_source = GC::Ref(*this), source_buffers = m_active_source_buffers] {
+            source_buffers->dispatch_event(media_source->create_associated_event(EventNames::removesourcebuffer));
+        }));
+    }
+
+    // 2. If the SourceBuffer associated with the newly selected video track is not already in activeSourceBuffers,
+    //    run the following steps:
+    if (newly_selected_track_source_buffer && !m_active_source_buffers->contains(*newly_selected_track_source_buffer)) {
+        // 1. Add the SourceBuffer to activeSourceBuffers.
+        m_active_source_buffers->insert_in_order_of(*newly_selected_track_source_buffer, m_source_buffers);
+
+        // 2. Queue a task to fire an event named addsourcebuffer at activeSourceBuffers
+        queue_a_media_source_task(GC::create_function(GC::Heap::the(), [media_source = GC::Ref(*this), source_buffers = m_active_source_buffers] {
+            source_buffers->dispatch_event(media_source->create_associated_event(EventNames::addsourcebuffer));
+        }));
+    }
+}
+
+// https://w3c.github.io/media-source/#active-source-buffer-changes
+void MediaSource::audio_track_enabled_changed(Badge<HTML::AudioTrack>, SourceBuffer& source_buffer, bool enabled)
+{
+    // If an audio track becomes disabled and the SourceBuffer associated with this track is not associated with any
+    // other enabled or selected track, then run the following steps:
+    if (!enabled && m_active_source_buffers->contains(source_buffer) && !source_buffer.is_associated_with_an_enabled_or_selected_track()) {
+        // 1. Remove the SourceBuffer associated with the audio track from activeSourceBuffers
+        m_active_source_buffers->remove(source_buffer);
+
+        // 2. Queue a task to fire an event named removesourcebuffer at activeSourceBuffers
+        queue_a_media_source_task(GC::create_function(GC::Heap::the(), [media_source = GC::Ref(*this), source_buffers = m_active_source_buffers] {
+            source_buffers->dispatch_event(media_source->create_associated_event(EventNames::removesourcebuffer));
+        }));
+    }
+
+    // If an audio track becomes enabled and the SourceBuffer associated with this track is not already in
+    // activeSourceBuffers, then run the following steps:
+    if (enabled && !m_active_source_buffers->contains(source_buffer)) {
+        // 1. Add the SourceBuffer associated with the audio track to activeSourceBuffers
+        m_active_source_buffers->insert_in_order_of(source_buffer, m_source_buffers);
+
+        // 2. Queue a task to fire an event named addsourcebuffer at activeSourceBuffers
+        queue_a_media_source_task(GC::create_function(GC::Heap::the(), [media_source = GC::Ref(*this), source_buffers = m_active_source_buffers] {
+            source_buffers->dispatch_event(media_source->create_associated_event(EventNames::addsourcebuffer));
+        }));
+    }
+}
+
 // https://w3c.github.io/media-source/#dom-mediasource-onsourceopen
 void MediaSource::set_onsourceopen(GC::Ptr<WebIDL::CallbackType> event_handler)
 {

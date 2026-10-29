@@ -40,6 +40,10 @@ public:
 
     Utf16String next_track_id();
 
+    // https://w3c.github.io/media-source/#active-source-buffer-changes
+    void selected_video_track_changed(Badge<HTML::VideoTrack>, GC::Ptr<SourceBuffer> previously_selected_track_source_buffer, GC::Ptr<SourceBuffer> newly_selected_track_source_buffer);
+    void audio_track_enabled_changed(Badge<HTML::AudioTrack>, SourceBuffer&, bool enabled);
+
     // https://w3c.github.io/media-source/#dom-mediasource-canconstructindedicatedworker
     static bool can_construct_in_dedicated_worker() { return false; }
 

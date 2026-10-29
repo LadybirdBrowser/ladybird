@@ -7,6 +7,8 @@
 #include <LibUnicode/Locale.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/MediaTrackBase.h>
+#include <LibWeb/MediaSourceExtensions/MediaSource.h>
+#include <LibWeb/MediaSourceExtensions/SourceBuffer.h>
 
 namespace Web::HTML {
 
@@ -48,10 +50,18 @@ MediaTrackBase::MediaTrackBase(GC::Ref<HTMLMediaElement> media_element, Media::T
 
 MediaTrackBase::~MediaTrackBase() = default;
 
+GC::Ptr<MediaSourceExtensions::SourceBuffer> MediaTrackBase::source_buffer_in_attached_media_source() const
+{
+    if (!m_source_buffer || m_source_buffer->media_source() != m_media_element->attached_media_source())
+        return nullptr;
+    return m_source_buffer;
+}
+
 void MediaTrackBase::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_media_element);
+    visitor.visit(m_source_buffer);
 }
 
 }

@@ -157,6 +157,8 @@ public:
 
     GC::Ref<AudioTrackList> audio_tracks() const { return *m_audio_tracks; }
     GC::Ref<VideoTrackList> video_tracks() const { return *m_video_tracks; }
+
+    GC::Ptr<MediaSourceExtensions::MediaSource> attached_media_source() const { return m_attached_media_source; }
     GC::Ref<TextTrackList> text_tracks() const { return *m_text_tracks; }
     enum class TimeMarchesOnReason : u8 {
         NormalPlayback,

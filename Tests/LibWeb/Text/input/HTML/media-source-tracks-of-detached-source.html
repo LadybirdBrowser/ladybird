@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<video id="video"></video>
+<script src="../include.js"></script>
+<script>
+    // Tracks from a detached MediaSource outlive it, but toggling them must not affect the MediaSource attached after it.
+    asyncTest(done => {
+        function fail(name, error) {
+            println(`FAIL: ${name}: ${error}`);
+            done();
+        }
+
+        async function appendAsset(mediaSource, mimeType, name) {
+            const sourceBuffer = mediaSource.addSourceBuffer(mimeType);
+            const response = await fetch(`../../../Assets/${name}`);
+            if (!response.ok)
+                throw new Error(`HTTP ${response.status} for ${name}`);
+            sourceBuffer.appendBuffer(new Uint8Array(await response.arrayBuffer()));
+            await new Promise((resolve, reject) => {
+                sourceBuffer.addEventListener("updateend", resolve, { once: true });
+                sourceBuffer.addEventListener("error", () => reject(new Error(`error event on SourceBuffer for ${name}`)), { once: true });
+            });
+            return sourceBuffer;
+        }
+
+        async function attachMediaSource(video) {
+            const mediaSource = new MediaSource();
+            video.src = URL.createObjectURL(mediaSource);
+            await new Promise(resolve => mediaSource.addEventListener("sourceopen", resolve, { once: true }));
+            const audioSourceBuffer = await appendAsset(mediaSource, 'audio/webm;codecs="opus"', "two-audio-tracks-of-different-lengths.webm");
+            const videoSourceBuffer = await appendAsset(mediaSource, 'video/webm;codecs="vp9"', "two-video-tracks.webm");
+            return { mediaSource, audioSourceBuffer, videoSourceBuffer };
+        }
+
+        function printActiveSourceBufferEvents(label, mediaSource) {
+            for (const type of ["addsourcebuffer", "removesourcebuffer"])
+                mediaSource.activeSourceBuffers.addEventListener(type, () => println(`${type} at ${label}`));
+        }
+
+        (async () => {
+            const video = document.getElementById("video");
+            const first = await attachMediaSource(video);
+            const firstAudioTrack = first.audioSourceBuffer.audioTracks[0];
+            const firstVideoTrack = first.videoSourceBuffer.videoTracks[0];
+
+            const second = await attachMediaSource(video);
+            printActiveSourceBufferEvents("first activeSourceBuffers", first.mediaSource);
+            printActiveSourceBufferEvents("second activeSourceBuffers", second.mediaSource);
+            println(`second activeSourceBuffers: ${second.mediaSource.activeSourceBuffers.length}`);
+
+            println("toggling the first MediaSource's tracks");
+            firstAudioTrack.enabled = false;
+            firstAudioTrack.enabled = true;
+            firstVideoTrack.selected = false;
+            firstVideoTrack.selected = true;
+            println(`second activeSourceBuffers: ${second.mediaSource.activeSourceBuffers.length}`);
+
+            // The removal's event is queued after any the toggles above could have queued.
+            println("disabling the second MediaSource's audio track");
+            second.audioSourceBuffer.audioTracks[0].enabled = false;
+            await new Promise(resolve => second.mediaSource.activeSourceBuffers.addEventListener("removesourcebuffer", resolve, { once: true }));
+            println(`second activeSourceBuffers: ${second.mediaSource.activeSourceBuffers.length}`);
+            done();
+        })().catch(e => fail("test", e));
+    });
+</script>

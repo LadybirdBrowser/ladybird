@@ -850,6 +850,7 @@ void SourceBuffer::on_first_initialization_segment_processed(Vector<Media::Track
 
                 // 8. Add new audio track to the audioTracks attribute on this SourceBuffer object.
                 m_audio_tracks->add_track(new_audio_track);
+                new_audio_track->set_source_buffer({}, *this);
                 // NOTE: This should trigger AudioTrackList [HTML] logic to queue a task to fire an event named
                 //       addtrack using TrackEvent with the track attribute initialized to new audio track, at the
                 //       AudioTrackList object referenced by the audioTracks attribute on this SourceBuffer object.
@@ -921,6 +922,7 @@ void SourceBuffer::on_first_initialization_segment_processed(Vector<Media::Track
 
                 // 8. Add new video track to the videoTracks attribute on this SourceBuffer object.
                 m_video_tracks->add_track(new_video_track);
+                new_video_track->set_source_buffer({}, *this);
                 // NOTE: This should trigger VideoTrackList [HTML] logic to queue a task to fire an event named addtrack
                 //       using TrackEvent with the track attribute initialized to new video track, at the VideoTrackList
                 //       object referenced by the videoTracks attribute on this SourceBuffer object.
@@ -1081,6 +1083,11 @@ void SourceBuffer::on_first_initialization_segment_processed(Vector<Media::Track
         if (media_element.ready_state() == HTML::HTMLMediaElement::ReadyState::HaveNothing)
             media_element.media_source_metadata_available({});
     }
+}
+
+bool SourceBuffer::is_associated_with_an_enabled_or_selected_track() const
+{
+    return m_audio_tracks->has_enabled_track() || m_video_tracks->selected_index() != -1;
 }
 
 // https://w3c.github.io/media-source/#sourcebuffer-buffer-append

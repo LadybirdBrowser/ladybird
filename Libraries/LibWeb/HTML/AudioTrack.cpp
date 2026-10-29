@@ -15,6 +15,8 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/MediaSourceExtensions/MediaSource.h>
+#include <LibWeb/MediaSourceExtensions/SourceBuffer.h>
 
 namespace Web::HTML {
 
@@ -74,6 +76,9 @@ void AudioTrack::set_enabled(bool enabled)
     }
 
     media_element().set_audio_track_enabled({}, this, enabled);
+
+    if (auto source_buffer = source_buffer_in_attached_media_source())
+        media_element().attached_media_source()->audio_track_enabled_changed({}, *source_buffer, enabled);
 }
 
 }
