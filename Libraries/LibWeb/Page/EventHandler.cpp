@@ -1659,7 +1659,7 @@ static constexpr bool is_enter_key_or_interoperable_enter_key_combo(UIEvents::Ke
 {
     if (key != UIEvents::KeyCode::Key_Return)
         return false;
-    if (!modifiers)
+    if (!(modifiers & ~UIEvents::Mod_Keypad))
         return true;
     if (modifiers & (UIEvents::KeyModifier::Mod_Shift | UIEvents::KeyModifier::Mod_Ctrl))
         return true;
@@ -2352,7 +2352,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
     case UIEvents::KeyCode::Key_Space: {
         if ((modifiers_without_keypad & ~UIEvents::KeyModifier::Mod_Shift) != UIEvents::KeyModifier::Mod_None)
             break;
-        // FIXME: These elements must run their activation behavior instead of merely swallowing the key.
+        // NB: Keyboard activation is handled after dispatching the key events.
         if (focused_area_activates_on_space(document->focused_area().ptr()))
             break;
         bool scroll_backward = (modifiers_without_keypad & UIEvents::KeyModifier::Mod_Shift) != UIEvents::KeyModifier::Mod_None;
@@ -3003,6 +3003,115 @@ static GC::RootVector<GC::Ref<DOM::StaticRange>> target_ranges_for_input_event(D
     return target_ranges;
 }
 
+static GC::Ptr<DOM::Element> keyboard_activation_target(DOM::Node& target, UIEvents::KeyCode key)
+{
+    auto* element = as_if<DOM::Element>(target);
+    // INTEROP: Like WebKit and Gecko, only activate controls that remain focused after their key event handlers run.
+    if (!element || element->document().focused_area().ptr() != element || !element->is_connected() || !element->is_focusable())
+        return nullptr;
+    if (element->find_in_shadow_including_ancestry([](auto const& ancestor) { return ancestor.is_inert(); }))
+        return nullptr;
+
+    if (auto* button = as_if<HTML::HTMLButtonElement>(*element))
+        return button->enabled() ? element : nullptr;
+
+    if (auto* input = as_if<HTML::HTMLInputElement>(*element)) {
+        if (!input->enabled())
+            return nullptr;
+        using enum HTML::HTMLInputElement::TypeAttributeState;
+        switch (input->type_state()) {
+        case Button:
+        case SubmitButton:
+        case ResetButton:
+        case ImageButton:
+        case FileUpload:
+        case Color:
+            return element;
+        case Checkbox:
+        case RadioButton:
+            return key == UIEvents::Key_Space ? element : nullptr;
+        default:
+            return nullptr;
+        }
+    }
+
+    if (auto* summary = as_if<HTML::HTMLSummaryElement>(*element))
+        return summary->is_summary_for_its_parent_details() ? element : nullptr;
+
+    if (key == UIEvents::Key_Return && element->created_hyperlink())
+        return element;
+
+    return nullptr;
+}
+
+void EventHandler::cancel_keyboard_activation()
+{
+    if (m_keyboard_activation_target)
+        m_keyboard_activation_target->set_being_activated(false);
+    m_keyboard_activation_target = nullptr;
+}
+
+// https://html.spec.whatwg.org/multipage/interaction.html#activation-behavior
+// When the user triggers an element with a defined activation behavior in a manner other than clicking it,
+// the default action of the interaction event must be to fire a click event at the element.
+EventResult EventHandler::handle_keyboard_activation(Utf16FlyString const& event_name, UIEvents::KeyCode key, u32 modifiers, DOM::Node& target, bool cancelled, bool repeat)
+{
+    if (key != UIEvents::Key_Return && key != UIEvents::Key_Space)
+        return cancelled ? EventResult::Cancelled : EventResult::Accepted;
+
+    if (key == UIEvents::Key_Return && event_name == UIEvents::EventNames::keyup)
+        return cancelled ? EventResult::Cancelled : EventResult::Accepted;
+
+    if (key == UIEvents::Key_Space && event_name == UIEvents::EventNames::keypress) {
+        if (cancelled)
+            return EventResult::Cancelled;
+        // NB: An activation keypress must not also insert text into an input button or checkbox.
+        return m_keyboard_activation_target ? EventResult::Handled : EventResult::Accepted;
+    }
+
+    if (key == UIEvents::Key_Space && event_name == UIEvents::EventNames::keyup) {
+        GC::Ptr<DOM::Element> activation_target = m_keyboard_activation_target.ptr();
+        cancel_keyboard_activation();
+        if (!cancelled && target.document().is_fully_active() && m_navigable->active_document().ptr() == &target.document() && activation_target && activation_target.ptr() == keyboard_activation_target(target, key).ptr()) {
+            HTML::HTMLElement::fire_a_synthetic_pointer_event(HTML::EventNames::click, *activation_target, HTML::HTMLElement::NotTrusted::No, modifiers);
+            return EventResult::Handled;
+        }
+        return cancelled ? EventResult::Cancelled : EventResult::Accepted;
+    }
+
+    if (key == UIEvents::Key_Space && event_name == UIEvents::EventNames::keydown && !repeat)
+        cancel_keyboard_activation();
+
+    if (cancelled)
+        return EventResult::Cancelled;
+
+    if (!target.document().is_fully_active() || m_navigable->active_document().ptr() != &target.document())
+        return EventResult::Dropped;
+
+    auto activation_target = keyboard_activation_target(target, key);
+    if (!activation_target)
+        return EventResult::Accepted;
+
+    // INTEROP: Buttons, checkboxes, radios, and summaries activate on Space release. Remember the press so that a
+    //          canceled keydown or a focus change cannot cause a click on release, and key repeat only clicks once.
+    if (key == UIEvents::Key_Space && event_name == UIEvents::EventNames::keydown) {
+        m_keyboard_activation_target = activation_target;
+        activation_target->set_being_activated(true);
+    }
+
+    // INTEROP: Like Blink and WebKit, hyperlinks activate on Enter keydown. Other controls activate on keypress,
+    //          allowing either keydown or keypress to cancel their click.
+    if (key == UIEvents::Key_Return) {
+        auto const& activation_event_name = activation_target->created_hyperlink() ? UIEvents::EventNames::keydown : UIEvents::EventNames::keypress;
+        if (event_name != activation_event_name)
+            return EventResult::Accepted;
+        HTML::HTMLElement::fire_a_synthetic_pointer_event(HTML::EventNames::click, *activation_target, HTML::HTMLElement::NotTrusted::No, modifiers);
+        return EventResult::Handled;
+    }
+
+    return EventResult::Accepted;
+}
+
 EventResult EventHandler::fire_keyboard_event(Utf16FlyString const& event_name, HTML::LocalNavigable& navigable, UIEvents::KeyCode key, u32 modifiers, u32 code_point, bool repeat, Optional<u32> key_code)
 {
     GC::Ptr<DOM::Document> document = navigable.active_document();
@@ -3026,7 +3135,8 @@ EventResult EventHandler::fire_keyboard_event(Utf16FlyString const& event_name, 
         auto event = UIEvents::KeyboardEvent::create_from_platform_event(HTML::relevant_global_object(*document), event_name, key, modifiers, code_point, repeat);
         if (key_code.has_value())
             event->set_key_code(*key_code);
-        return focused_area->dispatch_event(event) ? EventResult::Accepted : EventResult::Cancelled;
+        auto cancelled = !focused_area->dispatch_event(event);
+        return navigable.event_handler().handle_keyboard_activation(event_name, key, modifiers, *focused_area, cancelled, repeat);
     }
 
     // FIXME: De-duplicate this. This is just to prevent wasting a KeyboardEvent allocation when recursing into an (i)frame.
@@ -3035,7 +3145,8 @@ EventResult EventHandler::fire_keyboard_event(Utf16FlyString const& event_name, 
         event->set_key_code(*key_code);
 
     GC::Ptr target = document->body() ?: &document->root();
-    return target->dispatch_event(event) ? EventResult::Accepted : EventResult::Cancelled;
+    auto cancelled = !target->dispatch_event(event);
+    return navigable.event_handler().handle_keyboard_activation(event_name, key, modifiers, *target, cancelled, repeat);
 }
 
 // https://w3c.github.io/uievents/#event-type-textInput

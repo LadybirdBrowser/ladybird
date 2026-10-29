@@ -137,7 +137,11 @@ public:
     bool autocorrect() const;
     void set_autocorrect(bool);
 
-    bool fire_a_synthetic_pointer_event(Utf16FlyString const& type, DOM::Element& target, bool not_trusted);
+    enum class NotTrusted {
+        No,
+        Yes,
+    };
+    static bool fire_a_synthetic_pointer_event(Utf16FlyString const& type, DOM::Element& target, NotTrusted not_trusted, u32 modifiers = 0);
 
     // https://html.spec.whatwg.org/multipage/forms.html#category-label
     virtual bool is_labelable() const { return is_form_associated_custom_element(); }

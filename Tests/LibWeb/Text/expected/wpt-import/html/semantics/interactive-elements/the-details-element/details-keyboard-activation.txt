@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Details activation with space bar
+1 Pass
+Pass	Details activation with space bar
