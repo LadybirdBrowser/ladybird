@@ -297,10 +297,6 @@ impl UsedValues {
     pub(crate) fn set_content_block_size(&self, value: CssPixels) {
         self.update_cells(|cells| cells.set_content_block_size(value));
     }
-
-    pub(crate) fn set_box_metrics_from_fragment(&self, fragment: &fragment_tree::Fragment) {
-        self.update_cells(|cells| cells.take_box_metrics_of_fragment(fragment));
-    }
 }
 
 /// The sizes, size constraints and box sides of a box, with what derives from them, whether a run holds them in the box's
