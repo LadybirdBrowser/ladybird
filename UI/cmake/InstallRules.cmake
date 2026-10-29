@@ -221,26 +221,28 @@ if (ENABLE_INSTALL_FREEDESKTOP_FILES OR LINUX)
     configure_file("${FREEDESKTOP_RESOURCE_DIR}/org.ladybird.Ladybird.metainfo.xml.in" "${CMAKE_CURRENT_BINARY_DIR}/org.ladybird.Ladybird.metainfo.xml" @ONLY)
 endif()
 
+# The archives and Linux packages leave these out: an archive can be unpacked anywhere, and the Linux packages carry
+# copies in /usr that point at the installed command.
 if (ENABLE_INSTALL_FREEDESKTOP_FILES)
     install(FILES
         "${FREEDESKTOP_RESOURCE_DIR}/org.ladybird.Ladybird.svg"
         DESTINATION "${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps"
-        COMPONENT ladybird_Runtime
+        COMPONENT ladybird_Freedesktop
     )
     install(FILES
         "${FREEDESKTOP_RESOURCE_DIR}/org.ladybird.Ladybird.desktop"
         DESTINATION "${CMAKE_INSTALL_DATADIR}/applications"
-        COMPONENT ladybird_Runtime
+        COMPONENT ladybird_Freedesktop
     )
     install(FILES
         "${FREEDESKTOP_RESOURCE_DIR}/org.ladybird.Ladybird.service"
         DESTINATION "${CMAKE_INSTALL_DATADIR}/dbus-1/services"
-        COMPONENT ladybird_Runtime
+        COMPONENT ladybird_Freedesktop
     )
     install(FILES
         "${CMAKE_CURRENT_BINARY_DIR}/org.ladybird.Ladybird.metainfo.xml"
         DESTINATION "${CMAKE_INSTALL_DATADIR}/metainfo"
-        COMPONENT ladybird_Runtime
+        COMPONENT ladybird_Freedesktop
     )
 endif()
 
