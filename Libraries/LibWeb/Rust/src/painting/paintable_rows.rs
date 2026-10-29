@@ -289,27 +289,26 @@ impl PartialEq for CommittedFragmentLinkSlot {
 // for, so a slot that has been recycled since answers for the new row and not the old one.
 #[derive(Clone, Default)]
 pub(crate) struct UniqueNodeIdColumn {
-    ids: RefCell<Vec<(NodeSlotId, i64)>>,
+    ids: Vec<(NodeSlotId, i64)>,
 }
 
 impl UniqueNodeIdColumn {
     pub(crate) fn id(&self, slot: NodeSlotId) -> i64 {
-        match self.ids.borrow().get(slot.slot_index() as usize) {
+        match self.ids.get(slot.slot_index() as usize) {
             Some(&(stamped_for, id)) if !slot.is_invalid() && stamped_for == slot => id,
             _ => 0,
         }
     }
 
-    pub(crate) fn publish(&self, slot: NodeSlotId, id: i64) {
+    pub(crate) fn publish(&mut self, slot: NodeSlotId, id: i64) {
         if slot.is_invalid() || self.id(slot) == id {
             return;
         }
         let index = slot.slot_index() as usize;
-        let mut ids = self.ids.borrow_mut();
-        if ids.len() <= index {
-            ids.resize(index + 1, (NodeSlotId::INVALID, 0));
+        if self.ids.len() <= index {
+            self.ids.resize(index + 1, (NodeSlotId::INVALID, 0));
         }
-        ids[index] = (slot, id);
+        self.ids[index] = (slot, id);
     }
 }
 
@@ -933,9 +932,17 @@ impl LayoutNodeArena {
         &self.paintable_rows.image_map_areas
     }
 
+    pub(crate) fn image_map_areas_mut(&mut self) -> &mut crate::painting::image_map_areas::ImageMapAreaColumn {
+        &mut self.paintable_rows.image_map_areas
+    }
+
     /// The unique node id of what each box is the box of, as the build stamped it.
     pub(crate) fn unique_node_ids(&self) -> &UniqueNodeIdColumn {
         &self.paintable_rows.unique_node_ids
+    }
+
+    pub(crate) fn unique_node_ids_mut(&mut self) -> &mut UniqueNodeIdColumn {
+        &mut self.paintable_rows.unique_node_ids
     }
 
     pub(crate) fn paintable_visual_context_record(&self, id: NodeSlotId) -> Option<&PaintableVisualContextRecord> {

@@ -3798,7 +3798,7 @@ impl<'a> TreeBuilderHost<'a> {
         let unique_node_id = self
             .arena()
             .with_style_store(|engine| engine.element_unique_node_id(document));
-        self.arena().unique_node_ids().publish(slot, unique_node_id);
+        self.arena_mut().unique_node_ids_mut().publish(slot, unique_node_id);
         let host_calls = self.host_calls();
         self.arena_mut()
             .apply_reinherited_style_record(host_calls, slot, document_style);
