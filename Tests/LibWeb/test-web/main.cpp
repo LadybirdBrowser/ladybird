@@ -671,7 +671,12 @@ static ErrorOr<void> write_screenshot_failure_results(Test& test, Gfx::Bitmap co
     return {};
 }
 
-static ErrorOr<bool> compare_current_ref_test_expectation(Test& test, URL::URL const& test_url)
+enum class WriteFailureResults {
+    No,
+    Yes,
+};
+
+static ErrorOr<bool> compare_current_ref_test_expectation(Test& test, URL::URL const& test_url, WriteFailureResults write_failure_results)
 {
     VERIFY(test.ref_test_expectation_index < test.ref_test_expectations.size());
 
@@ -682,7 +687,8 @@ static ErrorOr<bool> compare_current_ref_test_expectation(Test& test, URL::URL c
     if (should_match == screenshot_matches)
         return true;
 
-    TRY(write_screenshot_failure_results(test, *test.actual_screenshot, *test.expectation_screenshot));
+    if (write_failure_results == WriteFailureResults::Yes)
+        TRY(write_screenshot_failure_results(test, *test.actual_screenshot, *test.expectation_screenshot));
     return false;
 }
 
@@ -722,10 +728,28 @@ static void run_ref_test(TestWebView& view, TestRunContext& context, Test& test,
                 test.expectation_screenshot = move(screenshot);
                 view.reset_zoom();
 
-                auto expectation_passed = compare_current_ref_test_expectation(test, url);
+                // A test passes if at least one of its match references matches, and all of its mismatch references
+                // mismatch. https://web-platform-tests.org/writing-tests/reftests.html#multiple-references
+                auto is_match = [](RefTestExpectation const& expectation) { return expectation.type == RefTestExpectationType::Match; };
+                auto const& expectations = test.ref_test_expectations;
+                auto current_is_match = is_match(expectations[test.ref_test_expectation_index]);
+                auto another_match_follows = current_is_match
+                    && any_of(expectations.span().slice(test.ref_test_expectation_index + 1), is_match);
+
+                // NB: A failed match is only a failure of the test if no other match reference remains to try.
+                auto expectation_passed = compare_current_ref_test_expectation(test, url,
+                    another_match_follows ? WriteFailureResults::No : WriteFailureResults::Yes);
                 if (expectation_passed.is_error() || !expectation_passed.value()) {
-                    view.on_test_complete({ test_index, TestResult::Fail });
-                    return;
+                    if (expectation_passed.is_error() || !another_match_follows) {
+                        view.on_test_complete({ test_index, TestResult::Fail });
+                        return;
+                    }
+                } else if (current_is_match) {
+                    // NB: One matching reference is enough, so only the mismatch references remain to be checked.
+                    for (size_t index = expectations.size() - 1; index > test.ref_test_expectation_index; --index) {
+                        if (is_match(expectations[index]))
+                            test.ref_test_expectations.remove(index);
+                    }
                 }
 
                 ++test.ref_test_expectation_index;
