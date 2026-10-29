@@ -1,16 +1,16 @@
+ladybird_test_suite(LibHTTP)
+
 set(TEST_SOURCES
+    TestCacheIndex.cpp
     TestCacheUtilities.cpp
+    TestDiskCache.cpp
     TestHSTSPolicy.cpp
     TestHSTSPreloadData.cpp
     TestHTTPUtils.cpp
+    TestMemoryCache.cpp
+    TestProxy.cpp
     TestStructuredFields.cpp
 )
 
-foreach(source IN LISTS TEST_SOURCES)
-    ladybird_test("${source}" LibWeb LIBS LibHTTP)
-endforeach()
-
-ladybird_test("TestCacheIndex.cpp" LibWeb LIBS LibHTTP LibDatabase)
-ladybird_test("TestDiskCache.cpp" LibWeb LIBS LibHTTP LibURL)
-ladybird_test("TestMemoryCache.cpp" LibWeb LIBS LibHTTP LibURL)
-ladybird_test("TestProxy.cpp" LibWeb LIBS LibHTTP LibURL)
+target_sources(TestLibHTTP PRIVATE ${TEST_SOURCES})
+target_link_libraries(TestLibHTTP PRIVATE LibDatabase LibHTTP LibURL)
