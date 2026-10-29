@@ -159,6 +159,16 @@ TEST_CASE(excess_free_buffers_are_dropped_to_fit_the_budget)
     EXPECT(pool->allocated_byte_count() <= slot_buffer_size * Media::VideoFramePool::MIN_SLOT_COUNT);
 }
 
+TEST_CASE(frame_layouts_beyond_the_size_limits_are_refused)
+{
+    Media::Subsampling subsampling { true, true };
+    EXPECT(!Media::frame_plane_layout({ 32767, 16 }, 8, subsampling).is_error());
+    EXPECT(Media::frame_plane_layout({ 32768, 16 }, 8, subsampling).is_error());
+    EXPECT(Media::frame_plane_layout({ 16, 32768 }, 8, subsampling).is_error());
+    EXPECT(!Media::frame_plane_layout({ 16384, 32767 }, 8, subsampling).is_error());
+    EXPECT(Media::frame_plane_layout({ 23171, 23171 }, 8, subsampling).is_error());
+}
+
 TEST_CASE(shed_storage_frees_all_but_held_slots)
 {
     auto pool = make_pool();

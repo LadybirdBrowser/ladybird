@@ -13,6 +13,7 @@
 #include <LibMediaCodecs/Codecs/NALUnit.h>
 #include <LibMediaCodecs/Codecs/VP9.h>
 #include <LibMediaCodecs/CodedFrame.h>
+#include <LibMediaCodecs/Limits.h>
 #include <LibMediaCodecs/VideoFrame.h>
 #include <LibMediaCodecs/VideoToolbox/VideoToolboxVideoDecoder.h>
 
@@ -226,6 +227,10 @@ DecoderErrorOr<VTDecompressionSessionRef> create_decompression_session(CodecID c
     auto hardware_is_usable = !is_running_in_virtual_machine();
     if (hardware_decoding_is_required(codec_id) && !hardware_is_usable)
         return DecoderError::with_description(DecoderErrorCategory::NotImplemented, "VideoToolbox has no decoder for this format"sv);
+
+    auto dimensions = CMVideoFormatDescriptionGetDimensions(format.description.ref());
+    if (dimensions.width < 1 || dimensions.height < 1 || video_frame_exceeds_limits(dimensions.width, dimensions.height))
+        return DecoderError::with_description(DecoderErrorCategory::Corrupted, "Video frame size is outside the supported limits"sv);
 
     VTRegisterSupplementalVideoDecoderIfAvailable(codec_type_from_codec_id(codec_id));
 

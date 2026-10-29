@@ -14,6 +14,7 @@
 #include <LibMediaCodecs/FFmpeg/FFmpegFunctions.h>
 #include <LibMediaCodecs/FFmpeg/FFmpegHelpers.h>
 #include <LibMediaCodecs/FFmpeg/FFmpegVulkanVideoDecoder.h>
+#include <LibMediaCodecs/Limits.h>
 #include <LibMediaCodecs/VideoFrame.h>
 #include <LibThreading/Thread.h>
 #include <string.h>
@@ -400,6 +401,7 @@ DecoderErrorOr<NonnullOwnPtr<FFmpegVulkanVideoDecoder>> FFmpegVulkanVideoDecoder
     TRY(set_codec_initialization_data(functions, *codec_context, codec_id, codec_initialization_data));
     // The device already decodes several frames at a time, and frame threading would only hold frames back.
     VERIFY(functions.av_opt_set_int(codec_context, "threads", 1, 0) == 0);
+    codec_context->max_pixels = MAX_VIDEO_FRAME_AREA;
     codec_context->hw_device_ctx = functions.av_buffer_ref(device_context);
     if (codec_context->hw_device_ctx == nullptr)
         return DecoderError::with_description(DecoderErrorCategory::Memory, "Failed to reference the FFmpeg Vulkan device context"sv);

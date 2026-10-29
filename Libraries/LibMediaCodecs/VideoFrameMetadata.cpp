@@ -21,6 +21,8 @@ ErrorOr<FramePlaneLayout> frame_plane_layout(Gfx::IntSize size, u8 bit_depth, Su
     constexpr size_t PLANE_ALIGNMENT = 64;
 
     auto plane_sizes = TRY(Gfx::YUVData::plane_sizes(size, bit_depth, subsampling));
+    if (video_frame_exceeds_limits(size.width(), size.height()))
+        return Error::from_string_literal("Video frame is larger than the frame size limit");
 
     auto u_offset = align_up_to(plane_sizes.y, PLANE_ALIGNMENT);
     auto v_offset = align_up_to(u_offset + plane_sizes.u, PLANE_ALIGNMENT);
@@ -47,9 +49,7 @@ bool VideoFrameMetadata::is_valid() const
         return false;
     if (size.width() < 1 || size.height() < 1)
         return false;
-    if (static_cast<u32>(size.width()) > MAX_VIDEO_FRAME_DIMENSION || static_cast<u32>(size.height()) > MAX_VIDEO_FRAME_DIMENSION)
-        return false;
-    if (static_cast<u64>(size.width()) * static_cast<u64>(size.height()) > MAX_VIDEO_FRAME_AREA)
+    if (video_frame_exceeds_limits(size.width(), size.height()))
         return false;
     return cicp.is_valid_or_unspecified();
 }
