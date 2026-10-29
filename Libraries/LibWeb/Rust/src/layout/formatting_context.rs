@@ -843,9 +843,8 @@ fn box_baseline_for_purpose(
 
 /// First and last baseline sets derived for one box, relative to its content
 /// box. Laying out a box's contents returns them. A formatting context records
-/// its own root box's baselines on the instance, and the side that ran the
-/// context stores them into the root's used values; the layout of an interior
-/// box stores them into that box's used values.
+/// its own root box's baselines on the instance. The side that ran the context
+/// or laid the box out hands them back with the box.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct DerivedBaselines {
     pub(crate) first: Option<CssPixels>,
@@ -853,23 +852,6 @@ pub(crate) struct DerivedBaselines {
     // NB: Inline alignment can export a descendant flex/grid first baseline through block containers while
     //     ordinary container derivation must retain the distinct last baseline set.
     pub(crate) inline_alignment: Option<CssPixels>,
-}
-
-// NOTE: A box can be baselined more than once (e.g. table cells are laid out
-//       twice), so both presence bits are re-assigned on every store. The
-//       payload cells are left untouched for an absent baseline so that
-//       resetting the presence bits does not perturb payloads observed by the
-//       existing derivation flow.
-pub(crate) fn store_derived_baselines(used: &UsedValues, baselines: DerivedBaselines) {
-    used.inline_alignment_baseline.set(baselines.inline_alignment);
-    used.has_first_baseline.set(baselines.first.is_some());
-    if let Some(value) = baselines.first {
-        used.first_baseline.set(value);
-    }
-    used.has_last_baseline.set(baselines.last.is_some());
-    if let Some(value) = baselines.last {
-        used.last_baseline.set(value);
-    }
 }
 
 /// The first, last and inline-alignment baselines of a line, relative to the content box of its block container.
@@ -2859,7 +2841,7 @@ impl ChildLayout {
         Self {
             outcome,
             fragment_arrival: None,
-            laid_out_box: run_records::LaidOutChildBox::sized_in_parent_run(record),
+            laid_out_box: run_records::LaidOutChildBox::sized_in_parent_run(record, DerivedBaselines::default()),
         }
     }
 }
@@ -2930,8 +2912,8 @@ pub(crate) fn layout_inside_child_with_input_cells(
                 fragment,
                 reuses_subtree: false,
             });
-        store_derived_baselines(&record_of_this_layout, DerivedBaselines::default());
-        let laid_out_box = run_records::LaidOutChildBox::sized_in_parent_run(&record_of_this_layout);
+        let laid_out_box =
+            run_records::LaidOutChildBox::sized_in_parent_run(&record_of_this_layout, DerivedBaselines::default());
         return ChildLayout {
             outcome: skipped(None),
             fragment_arrival,

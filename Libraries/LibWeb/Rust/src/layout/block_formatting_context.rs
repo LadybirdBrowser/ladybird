@@ -2485,7 +2485,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                     content_offset: Some(content_offset),
                     margin_box_block_end: Some(margin_box_block_end),
                     ..LaidOutBlockLevelBox::of_box(
-                        Self::laid_out_box_in_record_its_layout_owns(sized_child),
+                        Self::laid_out_box_in_record_its_layout_owns(sized_child, entry.baselines),
                         fragment_facts,
                     )
                 });
@@ -2554,7 +2554,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             return Some(LaidOutBlockLevelBox {
                 collapses_through: self.margins_collapse_through(sized_child, None),
                 ..LaidOutBlockLevelBox::of_box(
-                    Self::laid_out_box_in_record_its_layout_owns(sized_child),
+                    Self::laid_out_box_in_record_its_layout_owns(sized_child, DerivedBaselines::default()),
                     fragment_facts,
                 )
             });
@@ -2840,7 +2840,6 @@ impl<'pass> BlockFormattingContext<'pass> {
                     space_available_for_children,
                 )
             };
-            formatting_context::store_derived_baselines(self.record_of(sized_child), children_summary.baselines);
             baselines_of_contents_laid_out_in_this_flow = Some(children_summary.baselines);
             summary_of_children_laid_out_in_this_flow = Some(children_summary);
             if is_in_flow_candidate {
@@ -3112,6 +3111,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         self.conclude_in_flow_reuse(
             in_flow_reuse,
             sized_child,
+            baselines_of_contents_laid_out_in_this_flow.unwrap_or_default(),
             placed.map(|placed| (content_offset, placed)),
             depends_on_percentage_block_size,
         );
@@ -3126,8 +3126,12 @@ impl<'pass> BlockFormattingContext<'pass> {
             broken_inside,
             has_unbreakable_lines,
             collapses_through,
-            laid_out_box: laid_out_box_handed_back_by_its_run
-                .unwrap_or_else(|| Self::laid_out_box_in_record_its_layout_owns(sized_child)),
+            laid_out_box: laid_out_box_handed_back_by_its_run.unwrap_or_else(|| {
+                Self::laid_out_box_in_record_its_layout_owns(
+                    sized_child,
+                    baselines_of_contents_laid_out_in_this_flow.unwrap_or_default(),
+                )
+            }),
             fragment_facts,
             content_offset: pending_position,
             margin_box_block_end: Some(margin_box_block_end),
@@ -3135,12 +3139,16 @@ impl<'pass> BlockFormattingContext<'pass> {
         })
     }
 
-    /// The box `child` as this flow laid it out in a record its layout owns.
-    fn laid_out_box_in_record_its_layout_owns(child: ChildSizedHere<'_>) -> run_records::LaidOutChildBox {
+    /// The box `child` as this flow laid it out in a record its layout owns, with the `baselines` of its contents.
+    fn laid_out_box_in_record_its_layout_owns(
+        child: ChildSizedHere<'_>,
+        baselines: DerivedBaselines,
+    ) -> run_records::LaidOutChildBox {
         run_records::LaidOutChildBox::sized_in_parent_run(
             child
                 .record()
                 .expect("a box laid out in this flow is laid out in a record its layout owns"),
+            baselines,
         )
     }
 
@@ -3281,6 +3289,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         &self,
         attempt: InFlowReuse,
         sized_child: ChildSizedHere<'_>,
+        baselines: DerivedBaselines,
         placed: Option<(FfiCssPixelPoint, fragment_tree::PlacedFragment)>,
         depends_on_percentage_block_size: bool,
     ) {
@@ -3309,11 +3318,11 @@ impl<'pass> BlockFormattingContext<'pass> {
         if !reusable {
             return;
         }
-        let cells = used_values::UsedValuesCellState::capture(used);
         let entry = in_flow_block_cache::InFlowBlockEntry {
             key,
             validity,
-            cells,
+            cells: used_values::RootInputCells::capture(used),
+            baselines,
             offset_from_flow_position: FfiCssPixelPoint {
                 x: content_offset.x,
                 y: content_offset.y - flow_position,

@@ -60,8 +60,10 @@ impl InFlowBlockKey {
 pub(super) struct InFlowBlockEntry {
     pub(super) key: InFlowBlockKey,
     pub(super) validity: fc_run_cache::FcRunCacheValidity,
-    /// The child's record as its layout left it.
-    pub(super) cells: used_values::UsedValuesCellState,
+    /// The child's cells as its layout left them.
+    pub(super) cells: used_values::RootInputCells,
+    /// The baselines of the child's contents as its layout left them.
+    pub(super) baselines: formatting_context::DerivedBaselines,
     pub(super) offset_from_flow_position: FfiCssPixelPoint,
     pub(super) flow_position_advance: CssPixels,
     pub(super) outgoing_margins: block_formatting_context::BlockMarginState,

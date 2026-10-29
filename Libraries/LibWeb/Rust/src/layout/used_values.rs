@@ -198,14 +198,6 @@ pub(crate) struct UsedValues {
     /// side of the first or last grid line, while a cell owns the part on the inner side of its grid lines.
     pub is_collapsed_borders_table_box: Cell<bool>,
 
-    // Keep baseline payloads separate so resetting the presence bits does not
-    // perturb the payloads observed by the existing derivation flow.
-    pub has_first_baseline: Cell<bool>,
-    pub first_baseline: Cell<CssPixels>,
-    pub has_last_baseline: Cell<bool>,
-    pub last_baseline: Cell<CssPixels>,
-    pub inline_alignment_baseline: Cell<Option<CssPixels>>,
-
     /// The frame the box's sizes, size constraints and box sides are held in.
     pub(crate) frame: Cell<geometry::Frame>,
 }
@@ -233,25 +225,12 @@ impl Default for UsedValues {
             has_definite_block_size_only_for_button_content_alignment: Cell::new(false),
             uses_collapsing_borders_model: Cell::new(false),
             is_collapsed_borders_table_box: Cell::new(false),
-            has_first_baseline: Cell::new(false),
-            first_baseline: Cell::new(zero),
-            has_last_baseline: Cell::new(false),
-            last_baseline: Cell::new(zero),
-            inline_alignment_baseline: Cell::new(None),
             frame: Cell::new(geometry::Frame::PHYSICAL),
         }
     }
 }
 
 impl UsedValues {
-    pub(crate) fn content_baselines_from_cells(&self) -> DerivedBaselines {
-        DerivedBaselines {
-            inline_alignment: self.inline_alignment_baseline.get(),
-            first: self.has_first_baseline.get().then(|| self.first_baseline.get()),
-            last: self.has_last_baseline.get().then(|| self.last_baseline.get()),
-        }
-    }
-
     pub(crate) fn seal_own_metrics(&self) {
         self.content_inline_size.seal();
         self.content_block_size.seal();
@@ -425,26 +404,6 @@ impl RootInputCells {
             std::mem::swap(&mut self.has_definite_inline_size, &mut self.has_definite_block_size);
         }
         self
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct UsedValuesCellState {
-    pub(crate) inputs: RootInputCells,
-    pub(crate) baselines: DerivedBaselines,
-}
-
-impl UsedValuesCellState {
-    pub(crate) fn capture(used: &UsedValues) -> Self {
-        Self {
-            inputs: RootInputCells::capture(used),
-            baselines: used.content_baselines_from_cells(),
-        }
-    }
-
-    pub(crate) fn apply_to_record(&self, used: &UsedValues) {
-        self.inputs.apply_to_record(used);
-        formatting_context::store_derived_baselines(used, self.baselines);
     }
 }
 
