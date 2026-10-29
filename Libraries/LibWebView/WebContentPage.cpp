@@ -2276,6 +2276,22 @@ void WebContentPage::did_forward_mouse_event_to_child_frame(Web::HTML::CrossProc
     host.async_mouse_event_in_hosted_root(frame_id, move(event));
 }
 
+// The page found a pinch over a child frame another process hosts, whose document gets the pinch's ctrl+wheel event.
+void WebContentPage::did_forward_pinch_event_to_child_frame(Web::HTML::CrossProcessId frame_id, Web::PinchEvent event)
+{
+    auto child_frame = traversable().find(frame_id);
+    if (!child_frame.has_value() || !holds_container_of(*child_frame, "did_forward_pinch_event_to_child_frame"sv) || !child_frame->has_remote_host()) {
+        did_finish_handling_input_event(event.id, Web::EventResult::Dropped);
+        return;
+    }
+
+    auto& host = child_frame->remote_host();
+    view().did_forward_pinch_event({}, *this, event, host);
+    // NB: The frame has yet to dispatch the event, whatever the page that forwards it claims.
+    event.wheel_event_was_dispatched = false;
+    host.async_pinch_event_in_hosted_root(frame_id, event);
+}
+
 void WebContentPage::did_destroy_child_frame(Web::HTML::CrossProcessId frame_id)
 {
     auto child_frame = traversable().find(frame_id);

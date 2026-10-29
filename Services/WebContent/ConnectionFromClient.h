@@ -169,6 +169,7 @@ private:
     virtual void mouse_event_in_hosted_root(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::MouseEvent) override;
     virtual void drag_event(Web::PageId page_id, Web::DragEvent) override;
     virtual void pinch_event(Web::PageId page_id, Web::PinchEvent) override;
+    virtual void pinch_event_in_hosted_root(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::PinchEvent) override;
     virtual void debug_request(Web::PageId page_id, ByteString, ByteString) override;
     virtual void get_source(Web::PageId page_id) override;
     virtual void inspect_dom_tree(Web::PageId page_id) override;
@@ -370,6 +371,7 @@ private:
 
     void enqueue_input_event(Web::QueuedInputEvent);
     void enqueue_mouse_event(Web::PageId page_id, Optional<Web::HTML::CrossProcessId> navigable_id, Web::MouseEvent);
+    void enqueue_pinch_event(Web::PageId page_id, Optional<Web::HTML::CrossProcessId> navigable_id, Web::PinchEvent);
 
     Queue<Web::QueuedInputEvent> m_input_event_queue;
     bool m_enable_test_mode { false };

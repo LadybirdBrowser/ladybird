@@ -1,0 +1,107 @@
+<!doctype html>
+<script src="../../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+    iframe {
+        display: block;
+        width: 400px;
+        height: 300px;
+        border: 0;
+    }
+</style>
+<script>
+    // A pinch over an isolated iframe is a ctrl+wheel event to the frame's document first. The frame's listener can
+    // cancel it to handle the pinch itself, and the page zooms only when the frame lets it through.
+    promiseTest(async () => {
+        const remoteUrl = new URL(
+            await httpTestServer().createEcho("GET", "/oop-iframe-pinch", {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><style>body { margin: 0; }</style><script>
+                    let cancelWheelEvents = true;
+                    addEventListener("message", event => {
+                        cancelWheelEvents = event.data.cancelWheelEvents;
+                        parent.postMessage("ready", "*");
+                    });
+                    addEventListener("wheel", event => {
+                        if (cancelWheelEvents)
+                            event.preventDefault();
+                        parent.postMessage({ ctrlKey: event.ctrlKey, cancelable: event.cancelable, defaultPrevented: event.defaultPrevented }, "*");
+                    }, { passive: false });
+                    requestAnimationFrame(() => requestAnimationFrame(() => {
+                        // The parent synchronizes only its own process. Publish this frame's listener state and
+                        // parent-context link on our compositor connection before inviting input.
+                        internals.synchronizeCompositor();
+                        parent.postMessage("ready", "*");
+                    }));
+                <\/script>`,
+            })
+        );
+        remoteUrl.hostname = uniqueLocalhostHostname("oop-iframe-pinch");
+
+        const nextMessage = () =>
+            new Promise(resolve => window.addEventListener("message", event => resolve(event.data), { once: true }));
+        const vv = window.visualViewport;
+
+        let ready = nextMessage();
+        const iframe = document.createElement("iframe");
+        iframe.src = remoteUrl;
+        document.body.appendChild(iframe);
+        await ready;
+        await animationFrame();
+        await animationFrame();
+
+        const rect = iframe.getBoundingClientRect();
+        let wheel = nextMessage();
+        internals.pinchThroughUIProcess(rect.left + 200, rect.top + 150, 1.0);
+        let event = await wheel;
+        println(
+            `canceling listener: ctrlKey=${event.ctrlKey} cancelable=${event.cancelable} defaultPrevented=${event.defaultPrevented} compositor scale=${internals.compositorScrollState().visualViewportScale}`
+        );
+
+        // The reply confirms that the listener now lets the next wheel event through. The terminal-input barrier
+        // below waits for the returned default action before reading its scale.
+        ready = nextMessage();
+        iframe.contentWindow.postMessage({ cancelWheelEvents: false }, "*");
+        await ready;
+
+        internals.beginInputTrace();
+        wheel = nextMessage();
+        internals.pinchThroughUIProcess(rect.left + 200, rect.top + 150, 1.0);
+        event = await wheel;
+        const forwarded = internals
+            .takeInputTrace()
+            .find(record => record.stage === "web-content" && record.decision === "forwarded-to-remote-frame");
+        internals.beginInputTrace();
+        if (!forwarded) throw new Error("The second wheel event arrived without its pinch being forwarded");
+
+        // A later zero-delta pinch passes the UI/compositor/page path only after the accepted pinch completes. Its
+        // distinct terminal ID prevents an incorrect first zoom from making a scale-only wait finish early.
+        internals.pinchThroughUIProcess(0, 0, 0);
+        let finished = false;
+        while (!finished) {
+            const trace = internals.takeInputTrace();
+            internals.beginInputTrace();
+            finished = trace.some(
+                record =>
+                    record.stage === "web-content" && record.decision === "finished-handled" && record.id > forwarded.id
+            );
+            if (!finished)
+                await new Promise(resolve => {
+                    const channel = new MessageChannel();
+                    channel.port1.onmessage = () => {
+                        channel.port1.close();
+                        channel.port2.close();
+                        resolve();
+                    };
+                    channel.port2.postMessage(null);
+                });
+        }
+        println(
+            `listener letting the event through: ctrlKey=${event.ctrlKey} cancelable=${event.cancelable} defaultPrevented=${event.defaultPrevented}`
+        );
+        println(`scale after both pinches: ${vv.scale}`);
+    });
+</script>

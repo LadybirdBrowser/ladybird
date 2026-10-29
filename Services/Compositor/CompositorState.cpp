@@ -857,6 +857,19 @@ void CompositorState::dispatch_scroll_fling_step(Web::CompositorContextId contex
     context.dispatch_mouse_event_to_web_content(*event);
 }
 
+// A pinch over a document nested in the context is a ctrl+wheel event to that document first, which its blocking wheel
+// event listeners may cancel before anything zooms. Rather than hit test contexts the pinch may be zooming, any nested
+// context that would hold back a pinch of its own holds back the pinch of the context it is nested in.
+bool CompositorState::nested_context_may_cancel_pinch(Web::CompositorContextId context_id) const
+{
+    for (auto const& context_entry : m_contexts) {
+        auto const& nested_context = *context_entry.value;
+        if (!nested_context.admits_async_pinch() && is_nested_in(context_id, nested_context))
+            return true;
+    }
+    return false;
+}
+
 void CompositorState::handle_and_dispatch_pinch_event(Web::CompositorContextId context_id, Web::PinchEvent event)
 {
     // NB: The presentation connection only passes on input for the contexts bound to it.
@@ -868,7 +881,9 @@ void CompositorState::handle_and_dispatch_pinch_event(Web::CompositorContextId c
         return;
     }
 
-    event.async_zoom_performed_default_action = apply_context_update_result(context_id, *context, context->handle_pinch_event(event));
+    // A nested document that already let the event through leaves only the zoom to do.
+    if (context->admits_async_pinch() && (event.wheel_event_was_dispatched || !nested_context_may_cancel_pinch(context_id)))
+        event.async_zoom_performed_default_action = apply_context_update_result(context_id, *context, context->handle_pinch_event(event));
 
     // The scroll updates the event produced reach WebContent ahead of the event itself on the same connection.
     publish_pending_async_scroll_updates(context_id, *context);

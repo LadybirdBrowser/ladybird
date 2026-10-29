@@ -193,6 +193,9 @@ struct WEBCOMMON_API PinchEvent {
     Web::UIEvents::KeyModifier modifiers { Web::UIEvents::KeyModifier::Mod_None };
     double scale_delta;
     bool async_zoom_performed_default_action { false };
+    // A frame another process hosts dispatched the pinch's ctrl+wheel event and did not cancel it, which leaves only the
+    // zoom of the page's visual viewport to do.
+    bool wheel_event_was_dispatched { false };
     u64 id { 0 };
 };
 

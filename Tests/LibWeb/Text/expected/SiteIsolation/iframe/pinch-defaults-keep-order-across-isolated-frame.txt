@@ -1,0 +1,3 @@
+isolated child: true
+wheel events: child 1, parent 1
+scale after ordered pinches: 2

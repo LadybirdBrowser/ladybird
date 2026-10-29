@@ -229,6 +229,7 @@ public:
     // The page reporting on an event must be the one handling it.
     void did_finish_handling_input_event(Badge<WebContentPage>, WebContentPage const& reporting_page, u64 event_id, Web::EventResult event_result);
     void did_forward_input_event(Badge<WebContentPage>, WebContentPage const& reporting_page, u64 event_id, WebContentPage& endpoint);
+    void did_forward_pinch_event(Badge<WebContentPage>, WebContentPage const& reporting_page, Web::PinchEvent const&, WebContentPage& endpoint);
     // Whether the page has yet to finish handling input that gives it user activation.
     bool is_delivering_user_activation_to(WebContentPage const&) const;
     // Consumes the activation of the earliest input giving the page activation that the page has yet to finish
@@ -899,6 +900,9 @@ protected:
         // The page handling the event, which is not the view's own page when another process hosts the focused
         // navigable. A lost page never finishes the events it held.
         NonnullRefPtr<WebContentPage> endpoint;
+
+        // Set once a page forwarded the event to a child frame another process hosts.
+        bool forwarded_to_child_frame { false };
 
         // Unset while the event waits for the compositor to decide where an earlier key event goes.
         bool sent { false };

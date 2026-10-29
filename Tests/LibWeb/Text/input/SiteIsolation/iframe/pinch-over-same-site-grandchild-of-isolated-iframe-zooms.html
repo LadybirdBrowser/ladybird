@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    body { margin: 0; }
+    iframe { display: block; width: 400px; height: 300px; border: 0; }
+</style>
+<script>
+    // A grandchild same site with this document, under an isolated iframe, is hosted in this document's process. A
+    // pinch over it is forwarded there, and the page zooms once the grandchild lets the pinch's wheel event through.
+    // This page is served over HTTP so that the grandchild can be same site with it.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+
+        const grandchildUrl = await httpServer.createEcho("GET", "/oop-pinch-grandchild", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><style>body { margin: 0; }</style><script>
+                addEventListener("wheel", event => {
+                    top.postMessage({ ctrlKey: event.ctrlKey, cancelable: event.cancelable, defaultPrevented: event.defaultPrevented }, "*");
+                }, { passive: false });
+                top.postMessage("ready", "*");
+            <\/script>`,
+        });
+
+        const childUrl = new URL(
+            await httpServer.createEcho("GET", "/oop-pinch-grandchild-child", {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><style>body { margin: 0; } iframe { display: block; width: 400px; height: 300px; border: 0; }</style><iframe src="${grandchildUrl}"></iframe>`,
+            })
+        );
+        childUrl.hostname = uniqueLocalhostHostname("oop-pinch-grandchild");
+
+        const nextMessage = () => new Promise(resolve => window.addEventListener("message", event => resolve(event.data), { once: true }));
+        const vv = window.visualViewport;
+
+        const ready = nextMessage();
+        const iframe = document.createElement("iframe");
+        iframe.src = childUrl;
+        document.body.appendChild(iframe);
+        await ready;
+        await animationFrame();
+        await animationFrame();
+
+        const rect = iframe.getBoundingClientRect();
+        const wheel = nextMessage();
+        internals.pinchThroughUIProcess(rect.left + 200, rect.top + 150, 1.0);
+        const event = await wheel;
+        while (vv.scale === 1)
+            await animationFrame();
+        println(`grandchild saw: ctrlKey=${event.ctrlKey} cancelable=${event.cancelable} defaultPrevented=${event.defaultPrevented}`);
+        println(`scale=${vv.scale}`);
+    });
+</script>

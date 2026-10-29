@@ -1,0 +1,4 @@
+compositor zoom before removal: 2
+one remote sibling remains: true
+removed root reported dropped without closing its page
+scale after the dropped pinch: 2

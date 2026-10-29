@@ -1,0 +1,84 @@
+<!doctype html>
+<script src="../../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        min-height: 600px;
+    }
+    iframe {
+        display: block;
+        width: 400px;
+        height: 300px;
+        border: 0;
+    }
+</style>
+<script>
+    function nextTask() {
+        return new Promise(resolve => {
+            const channel = new MessageChannel();
+            channel.port1.onmessage = () => {
+                channel.port1.close();
+                channel.port2.close();
+                resolve();
+            };
+            channel.port2.postMessage(null);
+        });
+    }
+
+    promiseTest(async () => {
+        const iframe = document.createElement("iframe");
+        let childWheels = 0;
+        const ready = new Promise(resolve =>
+            addEventListener("message", event => {
+                if (event.source !== iframe.contentWindow) return;
+                if (event.data === "ready") resolve();
+                else if (event.data === "wheel") ++childWheels;
+            })
+        );
+        const remoteUrl = new URL(
+            await httpTestServer().createEcho("GET", "/pinch-order-remote", {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><style>body { margin: 0; }</style><script>
+                addEventListener("wheel", () => parent.postMessage("wheel", "*"), { passive: false });
+                parent.postMessage("ready", "*");
+            <\/script>`,
+            })
+        );
+        remoteUrl.hostname = uniqueLocalhostHostname("pinch-order");
+        iframe.src = remoteUrl;
+        document.body.appendChild(iframe);
+        await ready;
+        await animationFrame();
+        await animationFrame();
+
+        let parentWheels = 0;
+        addEventListener("wheel", () => ++parentWheels, { passive: false });
+        internals.beginInputTrace();
+        internals.setManualRenderingOpportunities(true);
+        try {
+            // A frame must get the first wheel event before the shared visual viewport zooms. These different focal
+            // points must not coalesce. At the minimum scale, shrink-then-grow ends at 2; the reverse order ends at 1.
+            internals.pinchThroughUIProcess(200, 150, -0.5);
+            internals.pinchThroughUIProcess(600, 150, 1);
+            const tree = internals.dumpSiteIsolationProcessTree();
+            println(`isolated child: ${tree.includes("iframe#0: remote WebContent#1")}`);
+
+            const completed = new Set();
+            while (completed.size < 2 || childWheels < 1) {
+                internals.injectRenderingOpportunity(performance.now());
+                await nextTask();
+                const trace = internals.takeInputTrace();
+                internals.beginInputTrace();
+                for (const record of trace) {
+                    if (record.stage === "web-content" && record.decision === "finished-handled")
+                        completed.add(record.id);
+                }
+            }
+            println(`wheel events: child ${childWheels}, parent ${parentWheels}`);
+            println(`scale after ordered pinches: ${visualViewport.scale}`);
+        } finally {
+            internals.setManualRenderingOpportunities(false);
+        }
+    });
+</script>

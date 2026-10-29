@@ -207,6 +207,7 @@ private:
     virtual void page_did_update_child_frame_viewport(Web::HTML::CrossProcessId frame_id, Web::DevicePixelRect viewport_rect, Web::DevicePixelRect viewport_intersection) override;
     virtual void page_did_update_frame_stats_displayed(Web::HTML::CrossProcessId, bool) override;
     virtual void forward_mouse_event_to_remote_navigable(Web::PageId, Web::HTML::CrossProcessId navigable_id, Web::MouseEvent) override;
+    virtual void forward_pinch_event_to_remote_navigable(Web::PageId, Web::HTML::CrossProcessId navigable_id, Web::PinchEvent) override;
     virtual void page_did_destroy_child_frame(Web::HTML::CrossProcessId frame_id) override;
     virtual String dump_site_isolation_process_tree_for_testing() override;
     virtual void crash_remote_frame_processes_for_testing() override;

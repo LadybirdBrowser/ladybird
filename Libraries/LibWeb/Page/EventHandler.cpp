@@ -1340,7 +1340,7 @@ EventResult EventHandler::dispatch_wheel_event(Layout::BegunRead const& read, La
     return node->dispatch_event(event) ? EventResult::Accepted : EventResult::Cancelled;
 }
 
-EventResult EventHandler::dispatch_synthetic_pinch_wheel_event(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 modifiers, double wheel_delta_y, bool is_cancelable)
+EventResult EventHandler::dispatch_synthetic_pinch_wheel_event(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 modifiers, double wheel_delta_y, bool is_cancelable, Optional<RemoteInputEventTarget>* remote_target)
 {
     auto document = m_navigable->active_document();
     if (!document || !document->is_fully_active())
@@ -1361,8 +1361,8 @@ EventResult EventHandler::dispatch_synthetic_pinch_wheel_event(CSSPixelPoint vis
     if (!target_layout_node || !target_dom_node)
         return EventResult::Dropped;
 
-    if (auto result = dispatch_event_to_nested_navigable(*this, *target_layout_node, target_dom_node, visual_viewport_position, nullptr, [screen_position, modifiers, wheel_delta_y, is_cancelable](EventHandler& event_handler, CSSPixelPoint position) -> EventResult {
-            return event_handler.dispatch_synthetic_pinch_wheel_event(position, screen_position, modifiers, wheel_delta_y, is_cancelable);
+    if (auto result = dispatch_event_to_nested_navigable(*this, *target_layout_node, target_dom_node, visual_viewport_position, remote_target, [screen_position, modifiers, wheel_delta_y, is_cancelable, remote_target](EventHandler& event_handler, CSSPixelPoint position) -> EventResult {
+            return event_handler.dispatch_synthetic_pinch_wheel_event(position, screen_position, modifiers, wheel_delta_y, is_cancelable, remote_target);
         });
         result.has_value()) {
         // A wheel event belongs to the nested document's event path. It does not bubble through the iframe element
@@ -2473,7 +2473,7 @@ bool EventHandler::should_ignore_device_input_event() const
     return m_drag_and_drop_event_handler->has_ongoing_drag_and_drop_operation();
 }
 
-EventResult EventHandler::handle_pinch_event(CSSPixelPoint point, u32 modifiers, double scale_delta, bool async_zoom_performed_default_action)
+EventResult EventHandler::handle_pinch_event(CSSPixelPoint point, PinchEvent const& event, Optional<RemoteInputEventTarget>* remote_target)
 {
     auto document = m_navigable->active_document();
     if (!document)
@@ -2481,21 +2481,34 @@ EventResult EventHandler::handle_pinch_event(CSSPixelPoint point, u32 modifiers,
     if (!document->is_fully_active())
         return EventResult::Dropped;
 
-    // Pinch activity keeps the scroll gesture in progress even when it no longer moves the visual viewport.
+    // Pinch activity keeps the scroll gesture in progress even when it no longer moves the visual viewport. Only the
+    // top-level traversable has a visual viewport that a pinch zooms.
     AsyncScrollNodeStableID visual_viewport_stable_node_id { .node_id = document->unique_id(), .kind = AsyncScrollNodeKind::VisualViewport };
-    m_navigable->extend_user_scroll_gesture_of(visual_viewport_stable_node_id);
+    if (m_navigable->is_top_level_traversable())
+        m_navigable->extend_user_scroll_gesture_of(visual_viewport_stable_node_id);
 
-    auto scale = 1.0 + scale_delta;
+    auto scale = 1.0 + event.scale_delta;
     if (scale == 1.0)
         return EventResult::Handled;
 
+    if (!event.wheel_event_was_dispatched) {
+        auto wheel_delta_y = -100.0 * AK::log(scale);
+        if (dispatch_synthetic_pinch_wheel_event(point, point, event.modifiers, wheel_delta_y, !event.async_zoom_performed_default_action, remote_target) == EventResult::Cancelled)
+            return EventResult::Cancelled;
+        // A frame another process hosts is under the pinch, and dispatches the event there.
+        if (remote_target && remote_target->has_value())
+            return EventResult::Handled;
+    }
+
     // The compositor process zoomed without waiting to see whether the page cancels the event, and reported the zoom in
     // the scroll updates it sent ahead of the event.
-    auto wheel_delta_y = -100.0 * AK::log(scale);
-    if (dispatch_synthetic_pinch_wheel_event(point, point, modifiers, wheel_delta_y, !async_zoom_performed_default_action) == EventResult::Cancelled)
-        return EventResult::Cancelled;
-    if (async_zoom_performed_default_action)
+    if (event.async_zoom_performed_default_action)
         return EventResult::Handled;
+
+    // The pinch zooms the visual viewport of the top-level traversable. A frame hosted apart from it leaves the zoom to
+    // the page displaying the tab, which the UI asks once the event is left uncanceled.
+    if (!m_navigable->is_top_level_traversable())
+        return EventResult::Accepted;
 
     document = m_navigable->active_document();
     if (!document || !document->is_fully_active())
@@ -2504,7 +2517,7 @@ EventResult EventHandler::handle_pinch_event(CSSPixelPoint point, u32 modifiers,
     auto visual_viewport = document->visual_viewport();
     auto offset_left_before_zoom = visual_viewport->offset_left();
     auto offset_top_before_zoom = visual_viewport->offset_top();
-    visual_viewport->zoom(point, scale_delta);
+    visual_viewport->zoom(point, event.scale_delta);
     if (visual_viewport->offset_left() != offset_left_before_zoom || visual_viewport->offset_top() != offset_top_before_zoom)
         m_navigable->note_user_scroll_gesture_of(visual_viewport_stable_node_id, {}, HTML::LocalNavigable::UserScrollMovedBox::Yes);
     return EventResult::Handled;

@@ -504,7 +504,7 @@ void EventLoop::process_input_events() const
                     return page.handle_drag_and_drop_event(*root, drag_event.type, drag_event.position, drag_event.screen_position, drag_event.button, drag_event.buttons, drag_event.modifiers, move(drag_event.files));
                 },
                 [&](Web::PinchEvent& pinch_event) {
-                    return page.handle_pinch_event(*root, pinch_event.position, pinch_event.modifiers, pinch_event.scale_delta, pinch_event.async_zoom_performed_default_action);
+                    return page.handle_pinch_event(*root, pinch_event, &remote_target);
                 });
 
             finish_handling_coalesced_input_events(event);
@@ -513,6 +513,12 @@ void EventLoop::process_input_events() const
             // the viewport of the navigable it hosts, and finishes it.
             if (remote_target.has_value()) {
                 record_routing(input_event_id(event.event), InputRoutingDecision::ForwardedToRemoteFrame);
+                if (auto const* pinch_event = event.event.get_pointer<Web::PinchEvent>()) {
+                    auto forwarded_pinch_event = *pinch_event;
+                    forwarded_pinch_event.position = page.css_to_device_point(remote_target->position);
+                    page_client.forward_pinch_event_to_remote_navigable(event.page_id, remote_target->navigable_id, forwarded_pinch_event);
+                    continue;
+                }
                 auto mouse_event = event.event.get<Web::MouseEvent>().clone_without_browser_data();
                 mouse_event.position = page.css_to_device_point(remote_target->position);
                 page_client.forward_mouse_event_to_remote_navigable(event.page_id, remote_target->navigable_id, move(mouse_event));
