@@ -1,7 +1,7 @@
 focus old before append: rgb(0, 128, 0)
 focus new before append: rgb(0, 0, 0)
 focus old after append: rgb(0, 0, 0)
-focus new after append: rgb(0, 128, 0)
+focus new after append: rgb(0, 0, 0)
 focus new after remove: rgb(0, 0, 0)
 focus move old before moveBefore: rgb(0, 128, 0)
 focus move new before moveBefore: rgb(0, 0, 0)
@@ -10,11 +10,11 @@ focus move new after moveBefore: rgb(0, 128, 0)
 focus fragment old before append: rgb(0, 128, 0)
 focus fragment new before append: rgb(0, 0, 0)
 focus fragment old after append: rgb(0, 0, 0)
-focus fragment new after append: rgb(0, 128, 0)
+focus fragment new after append: rgb(0, 0, 0)
 focus pseudo old before append: focus
 focus pseudo new before append: none
 focus pseudo old after append: none
-focus pseudo new after append: focus
+focus pseudo new after append: none
 focus pseudo new after remove: none
 focus pseudo move old before moveBefore: focus
 focus pseudo move new before moveBefore: none
@@ -25,13 +25,13 @@ focus pseudo move new after moveBefore back: none
 focus pseudo fragment old before append: focus
 focus pseudo fragment new before append: none
 focus pseudo fragment old after append: none
-focus pseudo fragment new after append: focus
-focus pseudo fragment old after moveBefore back: focus
+focus pseudo fragment new after append: none
+focus pseudo fragment old after moveBefore back: none
 focus pseudo fragment new after moveBefore back: none
 shadow focus pseudo old before append: shadow focus
 shadow focus pseudo new before append: none
 shadow focus pseudo old after append: none
-shadow focus pseudo new after append: shadow focus
+shadow focus pseudo new after append: none
 shadow focus pseudo new after remove: none
 shadow focus pseudo move old before moveBefore: shadow focus
 shadow focus pseudo move new before moveBefore: none
@@ -42,8 +42,8 @@ shadow focus pseudo move new after moveBefore back: none
 shadow focus pseudo fragment old before append: shadow focus
 shadow focus pseudo fragment new before append: none
 shadow focus pseudo fragment old after append: none
-shadow focus pseudo fragment new after append: shadow focus
-shadow focus pseudo fragment old after moveBefore back: shadow focus
+shadow focus pseudo fragment new after append: none
+shadow focus pseudo fragment old after moveBefore back: none
 shadow focus pseudo fragment new after moveBefore back: none
 hover old before append: rgb(255, 0, 0)
 hover new before append: rgb(255, 255, 255)

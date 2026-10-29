@@ -17,6 +17,7 @@
 #include <LibWeb/Editing/EditingHistory.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
+#include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/WebIDL/DOMException.h>
 
 namespace Web::Editing {
@@ -156,6 +157,9 @@ bool ReplaceDataCommand::replay(Utf16String const& from, Utf16String const& to)
 
     if (control) {
         MUST(control->set_range_text(to, m_offset, m_offset + length, Bindings::SelectionMode::Preserve));
+        // NB: History edits also create a pending change, while its input event is dispatched once by EditingHistory.
+        if (auto* textarea = dynamic_cast<HTML::HTMLTextAreaElement*>(control))
+            textarea->record_user_edit(current_data);
         return true;
     }
     return !m_node->replace_data(m_offset, length, to).is_error();

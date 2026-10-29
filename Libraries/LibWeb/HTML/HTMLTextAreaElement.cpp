@@ -83,6 +83,13 @@ void HTMLTextAreaElement::did_lose_focus()
     if (m_placeholder_text_node)
         m_placeholder_text_node->set_needs_repaint(InvalidateDisplayList::PaintCommands);
 
+    // NB: Consume the pending edit before dispatch, including removal, so reentrant focus changes cannot commit it again.
+    if (!m_value_before_first_user_edit.has_value())
+        return;
+    auto value_before_first_user_edit = m_value_before_first_user_edit.release_value();
+    if (!is_connected() || value_before_first_user_edit == api_value())
+        return;
+
     // The change event fires when the value is committed, if that makes sense for the control,
     // or else when the control loses focus
     auto change_event = DOM::Event::create(
@@ -105,6 +112,7 @@ void HTMLTextAreaElement::reset_algorithm()
     // The reset algorithm for textarea elements is to set the user validity to false, the dirty value flag back to false,
     m_user_validity = false;
     m_dirty_value = false;
+    m_value_before_first_user_edit.clear();
     // and the raw value to its child text content.
     set_raw_value(child_text_content());
 
@@ -124,7 +132,11 @@ void HTMLTextAreaElement::clear_algorithm()
     m_dirty_value = false;
 
     // and set the raw value of element to an empty string.
+    if (!m_value_before_first_user_edit.has_value())
+        m_value_before_first_user_edit = api_value();
     set_raw_value({});
+    if (*m_value_before_first_user_edit == api_value())
+        m_value_before_first_user_edit.clear();
 
     // Unlike their associated reset algorithms, changes made to form controls as part of these algorithms do count as
     // changes caused by the user (and thus, e.g. do cause input events to fire).
@@ -486,10 +498,23 @@ void HTMLTextAreaElement::form_associated_element_attribute_changed(Utf16FlyStri
         CSS::Invalidation::invalidate_style_after_validity_change(*this);
 }
 
-void HTMLTextAreaElement::did_edit_text_node(Utf16FlyString const& input_type, Optional<Utf16String> const& data)
+void HTMLTextAreaElement::record_user_edit(Utf16View previous_value)
+{
+    // NB: set_range_text() already updated the raw value, so callers supply the pre-edit value.
+    if (!m_value_before_first_user_edit.has_value())
+        m_value_before_first_user_edit = Utf16String::from_utf16(previous_value);
+    if (*m_value_before_first_user_edit == api_value())
+        m_value_before_first_user_edit.clear();
+}
+
+void HTMLTextAreaElement::did_edit_text_node(Utf16FlyString const& input_type, Optional<Utf16String> const& data, Utf16View previous_value)
 {
     VERIFY(m_text_node);
     set_raw_value(m_text_node->data());
+    record_user_edit(previous_value);
+
+    // A textarea element's dirty value flag must be set to true whenever the user interacts with the control in a way that changes the raw value.
+    m_dirty_value = true;
 
     // AD-HOC: Editing the value may change which validity pseudo-classes match.
     CSS::Invalidation::invalidate_style_after_validity_change(*this);
@@ -506,9 +531,6 @@ void HTMLTextAreaElement::did_edit_text_node(Utf16FlyString const& input_type, O
     input_event_init.is_composing = document().is_input_method_composing();
     auto input_event = UIEvents::InputEvent::create_from_platform_event(HTML::EventNames::input, input_event_init, {}, HighResolutionTime::current_high_resolution_time(relevant_global_object(*this)));
     dispatch_event(input_event);
-
-    // A textarea element's dirty value flag must be set to true whenever the user interacts with the control in a way that changes the raw value.
-    m_dirty_value = true;
 
     update_placeholder_visibility();
 }

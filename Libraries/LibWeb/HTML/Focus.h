@@ -27,6 +27,9 @@ WEB_API void run_focusing_steps(GC::Ptr<DOM::Node> new_focus_target, GC::Ptr<DOM
 WEB_API void run_unfocusing_steps(GC::Ptr<DOM::Node> old_focus_target);
 GC::Ptr<DOM::Node> focus_delegate(DOM::Node& focus_target, FocusTrigger = FocusTrigger::Other);
 void run_popover_focusing_steps(HTMLElement& subject);
+bool focus_fixup_rule_may_apply(DOM::Document const&);
+bool focus_fixup_rule_applies(DOM::Document&);
+void run_focus_fixup_rule(DOM::Document&);
 
 // https://html.spec.whatwg.org/multipage/interaction.html#sequential-focus-direction
 enum class SequentialFocusDirection : u8 {

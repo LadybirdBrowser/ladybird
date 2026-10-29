@@ -7051,7 +7051,12 @@ bool Element::meets_focusable_area_rendering_requirements() const
     if (!is_connected())
         return false;
 
-    return const_cast<Element&>(*this).document().update_style_for_element(AbstractElement { *this }, Document::StyleUpdateMode::StopAtDisplayNone);
+    if (!const_cast<Element&>(*this).document().update_style_for_element(AbstractElement { *this }, Document::StyleUpdateMode::StopAtDisplayNone))
+        return false;
+
+    // NB: Elements whose boxes are not visible cannot be focused.
+    auto const* values = style_group<CSS::ComputedValues::InheritedBoxValues>();
+    return values && values->visibility_value() == CSS::Visibility::Visible;
 }
 
 // https://drafts.csswg.org/css-view-transitions-1/#document-scoped-view-transition-name

@@ -2,6 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-2 Fail
-Fail	Test ':focus' after 'display:none' on input
-Fail	Test ':focus' after 'display:none' on input's parent
+2 Pass
+Pass	Test ':focus' after 'display:none' on input
+Pass	Test ':focus' after 'display:none' on input's parent
