@@ -62,7 +62,7 @@ impl TextDecoderStream {
     }
 
     // https://encoding.spec.whatwg.org/#set-up-a-text-decoder-stream
-    fn set_up(cx: &CallContext, encoding: &'static Encoding, fatal: bool, ignore_bom: bool) -> Self {
+    pub(crate) fn set_up(cx: &CallContext, encoding: &'static Encoding, fatal: bool, ignore_bom: bool) -> Self {
         // 1. Assert: encoding is not replacement.
         assert!(
             encoding != encoding_rs::REPLACEMENT,
@@ -93,6 +93,10 @@ impl TextDecoderStream {
             ignore_bom,
             transform: create_and_set_up(cx, decoder),
         }
+    }
+
+    pub(crate) fn transform(&self) -> Ref<TransformStream> {
+        self.transform
     }
 
     // https://encoding.spec.whatwg.org/#dom-textdecoder-encoding
