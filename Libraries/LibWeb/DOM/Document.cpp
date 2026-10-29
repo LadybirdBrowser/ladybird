@@ -7430,6 +7430,8 @@ void Document::run_the_update_intersection_observations_steps(HighResolutionTime
     };
 
     for (auto& observer : intersection_observers) {
+        observer->remove_dead_observation_targets();
+
         auto intersection_root_node = observer->intersection_root_node();
         // NB: The root and the targets may each be in another document than this one, and their boxes are reads of
         //     the render state of their own documents.
@@ -7457,7 +7459,11 @@ void Document::run_the_update_intersection_observations_steps(HighResolutionTime
         // 2. For each target in observer’s internal [[ObservationTargets]] slot, processed in the same order that
         //    observe() was called on each target:
         for (auto& observed_target : observer->observation_targets()) {
-            auto& target = observed_target.target;
+            // NB: A collection during this loop can clear a target that the pruning above kept.
+            auto maybe_target = observed_target.target.ptr();
+            if (!maybe_target)
+                continue;
+            GC::Ref<Element> target = *maybe_target;
             // 1. Let:
             // thresholdIndex be 0.
             size_t threshold_index = 0;
@@ -8557,9 +8563,12 @@ void Document::update_compositor_animations(Layout::BegunRead const& read)
         if (root->is_element())
             index_shadow_including_element_ancestors(*root, elements_with_intersection_observation_descendants);
         for (auto const& observation : observer.observation_targets()) {
-            index_shadow_including_element_ancestors(observation.target, elements_with_intersection_observation_descendants);
+            auto target = observation.target.ptr();
+            if (!target)
+                continue;
+            index_shadow_including_element_ancestors(*target, elements_with_intersection_observation_descendants);
             if (observer.track_visibility())
-                index_shadow_including_element_ancestors(observation.target, elements_with_visibility_observation_descendants);
+                index_shadow_including_element_ancestors(*target, elements_with_visibility_observation_descendants);
         }
     }
 
@@ -8795,15 +8804,18 @@ void Document::update_compositor_animations(Layout::BegunRead const& read)
                 return true;
             bool subtree_is_clipped_outside_root = transform_subtree_is_clipped_outside(animated_target, observer.root_intersection_rectangle(read));
             for (auto const& observation : observer.observation_targets()) {
-                if (!animated_target.is_shadow_including_inclusive_ancestor_of(*observation.target) || subtree_is_clipped_outside_root)
+                auto target = observation.target.ptr();
+                if (!target)
+                    continue;
+                if (!animated_target.is_shadow_including_inclusive_ancestor_of(*target) || subtree_is_clipped_outside_root)
                     continue;
                 if (only_translates_horizontally && ancestor_transform_can_map_horizontal_motion_to_vertical(animated_target, *root)) {
                     requires_main_thread_sampling = true;
                     return true;
                 }
-                if (only_translates_horizontally && !observation_has_another_transform_animation(animated_target, *observation.target, effect)) {
-                    auto const& target_rect = observation_target_rect_cache.ensure(observation.target, [&] {
-                        return observation.target->bounding_client_rect_assuming_layout_clean();
+                if (only_translates_horizontally && !observation_has_another_transform_animation(animated_target, *target, effect)) {
+                    auto const& target_rect = observation_target_rect_cache.ensure(target, [&] {
+                        return target->bounding_client_rect_assuming_layout_clean();
                     });
                     auto root_rect = observer.root_intersection_rectangle(read);
                     bool vertical_bands_are_disjoint = target_rect.bottom() < root_rect.top() || target_rect.top() > root_rect.bottom();
