@@ -135,6 +135,10 @@ pub fn parse_json_text(vm: &Vm, realm: Gc<Realm>, text: Utf16View<'_>) -> ThrowC
     let first_key = tables.property_keys.len();
     let result = match text {
         Utf16View::Ascii(bytes) => Parser::new(vm, realm, &mut tables, bytes).parse_text(),
+        // NB: The byte parser makes its strings with ASCII storage, so Latin-1 is parsed as UTF-16.
+        Utf16View::Latin1(_) => {
+            text.with_utf16_code_units(|code_units| Parser::new(vm, realm, &mut tables, code_units).parse_text())
+        }
         Utf16View::Utf16(code_units) => Parser::new(vm, realm, &mut tables, code_units).parse_text(),
     };
     // NB: A text that is not valid leaves the values and keys of what it did not finish.
@@ -151,7 +155,7 @@ fn json_malformed<T>(vm: &Vm) -> ThrowCompletionOr<T> {
 /// Whether `units` are the code units of `key`.
 fn are_code_units_of<C: CodeUnit>(units: &[C], key: &PropertyKey) -> bool {
     match Utf16View::of_fly_string(key.as_string()) {
-        Utf16View::Ascii(bytes) => {
+        Utf16View::Ascii(bytes) | Utf16View::Latin1(bytes) => {
             bytes.len() == units.len()
                 && bytes
                     .iter()

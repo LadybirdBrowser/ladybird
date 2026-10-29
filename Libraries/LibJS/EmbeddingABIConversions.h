@@ -106,17 +106,17 @@ inline JSBigInt* bigint_to_abi(BigInt const& bigint)
 // The code units stay where they are, so the view is only valid while its string is.
 inline JSUtf16View utf16_view_to_abi(Utf16View const& view)
 {
-    if (view.has_ascii_storage())
-        return { view.ascii_span().data(), view.length_in_code_units(), true };
-    return { view.utf16_span().data(), view.length_in_code_units(), false };
+    if (view.has_latin1_storage())
+        return { view.latin1_span().data(), view.length_in_code_units(), true, view.has_ascii_storage() };
+    return { view.utf16_span().data(), view.length_in_code_units(), false, false };
 }
 
 inline Utf16View utf16_view_from_abi(JSUtf16View view)
 {
     if (view.length_in_code_units == 0)
         return {};
-    if (view.has_ascii_storage)
-        return Utf16View { StringView { static_cast<char const*>(view.data), view.length_in_code_units } };
+    if (view.has_latin1_storage)
+        return Utf16View::from_latin1({ static_cast<u8 const*>(view.data), view.length_in_code_units }, view.is_ascii);
     return Utf16View { static_cast<char16_t const*>(view.data), view.length_in_code_units };
 }
 

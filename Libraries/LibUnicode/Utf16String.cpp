@@ -22,7 +22,7 @@ Utf16String Utf16String::to_lowercase(Optional<Utf16View> const& locale) const
 
     Optional<Unicode::LocaleData&> locale_data;
     if (locale.has_value())
-        locale_data = Unicode::LocaleData::for_locale(locale->bytes());
+        locale_data = Unicode::LocaleData::for_locale(locale->ascii_bytes());
 
     auto icu_string = Unicode::icu_string(*this);
     locale_data.has_value() ? icu_string.toLower(locale_data->locale()) : icu_string.toLower();
@@ -37,7 +37,7 @@ Utf16String Utf16String::to_uppercase(Optional<Utf16View> const& locale) const
 
     Optional<Unicode::LocaleData&> locale_data;
     if (locale.has_value())
-        locale_data = Unicode::LocaleData::for_locale(locale->bytes());
+        locale_data = Unicode::LocaleData::for_locale(locale->ascii_bytes());
 
     auto icu_string = Unicode::icu_string(*this);
     locale_data.has_value() ? icu_string.toUpper(locale_data->locale()) : icu_string.toUpper();
@@ -49,7 +49,7 @@ Utf16String Utf16String::to_titlecase(Optional<Utf16View> const& locale, Trailin
 {
     Optional<Unicode::LocaleData&> locale_data;
     if (locale.has_value())
-        locale_data = Unicode::LocaleData::for_locale(locale->bytes());
+        locale_data = Unicode::LocaleData::for_locale(locale->ascii_bytes());
 
     u32 options = 0;
     if (trailing_code_point_transformation == TrailingCodePointTransformation::PreserveExisting)

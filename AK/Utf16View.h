@@ -27,6 +27,9 @@ namespace AK {
 namespace Detail {
 
 static constexpr inline auto UTF16_FLAG = NumericLimits<size_t>::digits() - 1;
+// Set for Latin-1 storage that may hold a code unit above U+007F. Without it, Latin-1 storage is known to be ASCII.
+static constexpr inline auto NON_ASCII_FLAG = UTF16_FLAG - 1;
+static constexpr inline size_t STORAGE_FLAGS = (1uz << UTF16_FLAG) | (1uz << NON_ASCII_FLAG);
 class Utf16StringBase;
 
 }
@@ -43,8 +46,8 @@ public:
         auto remaining_code_units = this->remaining_code_units();
         VERIFY(remaining_code_units > 0);
 
-        if (has_ascii_storage()) {
-            ++m_iterator.ascii;
+        if (has_latin1_storage()) {
+            ++m_iterator.latin1;
             --m_remaining_code_units;
         } else {
             auto length = min(length_in_code_units(), remaining_code_units);
@@ -61,8 +64,8 @@ public:
         auto remaining_code_units = this->remaining_code_units();
         VERIFY(remaining_code_units > 0);
 
-        if (has_ascii_storage())
-            return *m_iterator.ascii;
+        if (has_latin1_storage())
+            return static_cast<u8>(*m_iterator.latin1);
 
         auto code_unit = *m_iterator.utf16;
 
@@ -103,14 +106,14 @@ public:
         if (m_remaining_code_units != other.m_remaining_code_units)
             return false;
 
-        if (has_ascii_storage())
-            return m_iterator.ascii == other.m_iterator.ascii;
+        if (has_latin1_storage())
+            return m_iterator.latin1 == other.m_iterator.latin1;
         return m_iterator.utf16 == other.m_iterator.utf16;
     }
 
     [[nodiscard]] constexpr size_t length_in_code_units()
     {
-        if (has_ascii_storage())
+        if (has_latin1_storage())
             return 1;
         return UnicodeUtils::code_unit_length_for_code_point(**this);
     }
@@ -119,7 +122,7 @@ private:
     friend Utf16View;
 
     constexpr Utf16CodePointIterator(char const* iterator, size_t length)
-        : m_iterator { .ascii = iterator }
+        : m_iterator { .latin1 = iterator }
         , m_remaining_code_units(length)
     {
     }
@@ -131,15 +134,15 @@ private:
         m_remaining_code_units |= 1uz << Detail::UTF16_FLAG;
     }
 
-    constexpr bool has_ascii_storage() const { return m_remaining_code_units >> Detail::UTF16_FLAG == 0; }
+    constexpr bool has_latin1_storage() const { return m_remaining_code_units >> Detail::UTF16_FLAG == 0; }
     constexpr size_t remaining_code_units() const { return m_remaining_code_units & ~(1uz << Detail::UTF16_FLAG); }
 
     union {
-        char const* ascii;
+        char const* latin1;
         char16_t const* utf16;
-    } m_iterator { .ascii = nullptr };
+    } m_iterator { .latin1 = nullptr };
 
-    // Just like Utf16StringData, we store whether this string has ASCII or UTF-16 storage by setting the most
+    // Just like Utf16StringData, we store whether this string has Latin-1 or UTF-16 storage by setting the most
     // significant bit of m_remaining_code_units for UTF-16 storage.
     size_t m_remaining_code_units { 0 };
 };
@@ -149,7 +152,7 @@ public:
     using Iterator = Utf16CodePointIterator;
 
     constexpr Utf16View()
-        : m_string { .ascii = "" }
+        : m_string { .latin1 = "" }
     {
     }
     ~Utf16View() = default;
@@ -163,10 +166,18 @@ public:
     }
 
     constexpr Utf16View(StringView string)
-        : m_string { .ascii = string.characters_without_null_termination() }
+        : m_string { .latin1 = string.characters_without_null_termination() }
         , m_length_in_code_units(string.length())
     {
         VERIFY(all_of(string, AK::is_ascii));
+    }
+
+    // A view of Latin-1 bytes, one per code unit. Unless is_ascii is set, they may include code units above U+007F.
+    static ALWAYS_INLINE Utf16View from_latin1(ReadonlyBytes bytes, bool is_ascii)
+    {
+        if (bytes.is_empty())
+            return {};
+        return { reinterpret_cast<char const*>(bytes.data()), bytes.size(), is_ascii };
     }
 
     ErrorOr<String> to_utf8(AllowLonelySurrogates = AllowLonelySurrogates::Yes) const;
@@ -184,44 +195,53 @@ public:
 
     [[nodiscard]] u32 ascii_case_insensitive_hash() const
     {
-        if (has_ascii_storage())
-            return case_insensitive_string_hash(reinterpret_cast<char const*>(bytes().data()), bytes().size());
-
-        auto to_lowercase = [](char16_t code_unit) -> u32 {
-            if (code_unit >= 'A' && code_unit <= 'Z')
-                return static_cast<u32>(code_unit) + 0x20;
-            return static_cast<u32>(code_unit);
+        auto hash_code_units = [](auto code_units) {
+            u32 hash = 0;
+            for (u32 code_unit : code_units) {
+                if (code_unit >= 'A' && code_unit <= 'Z')
+                    code_unit += 0x20;
+                hash += code_unit;
+                hash += (hash << 10);
+                hash ^= (hash >> 6);
+            }
+            hash += hash << 3;
+            hash ^= hash >> 11;
+            hash += hash << 15;
+            return hash;
         };
 
-        u32 hash = 0;
-        for (auto code_unit : utf16_span()) {
-            hash += to_lowercase(code_unit);
-            hash += (hash << 10);
-            hash ^= (hash >> 6);
-        }
-        hash += hash << 3;
-        hash ^= hash >> 11;
-        hash += hash << 15;
-        return hash;
+        if (has_latin1_storage())
+            return hash_code_units(latin1_span());
+        return hash_code_units(utf16_span());
     }
 
-    [[nodiscard]] constexpr bool has_ascii_storage() const { return m_length_in_code_units >> Detail::UTF16_FLAG == 0; }
+    // Latin-1 storage holds one byte per code unit, so it can hold any code unit up to U+00FF.
+    [[nodiscard]] constexpr bool has_latin1_storage() const { return m_length_in_code_units >> Detail::UTF16_FLAG == 0; }
 
-    [[nodiscard]] ALWAYS_INLINE ReadonlyBytes bytes() const
+    // ASCII storage is Latin-1 storage that is known to hold only code units up to U+007F.
+    [[nodiscard]] constexpr bool has_ascii_storage() const { return m_length_in_code_units >> Detail::NON_ASCII_FLAG == 0; }
+
+    [[nodiscard]] ALWAYS_INLINE ReadonlyBytes latin1_span() const
+    {
+        VERIFY(has_latin1_storage());
+        return { reinterpret_cast<u8 const*>(m_string.latin1), length_in_code_units() };
+    }
+
+    [[nodiscard]] ALWAYS_INLINE ReadonlyBytes ascii_bytes() const
     {
         VERIFY(has_ascii_storage());
-        return { m_string.ascii, length_in_code_units() };
+        return { reinterpret_cast<u8 const*>(m_string.latin1), length_in_code_units() };
     }
 
     [[nodiscard]] constexpr ReadonlySpan<char> ascii_span() const
     {
         VERIFY(has_ascii_storage());
-        return { m_string.ascii, length_in_code_units() };
+        return { m_string.latin1, length_in_code_units() };
     }
 
     [[nodiscard]] constexpr ReadonlySpan<char16_t> utf16_span() const
     {
-        VERIFY(!has_ascii_storage());
+        VERIFY(!has_latin1_storage());
         return { m_string.utf16, length_in_code_units() };
     }
 
@@ -229,7 +249,7 @@ public:
     ALWAYS_INLINE Optional<T> to_number(TrimWhitespace trim_whitespace = TrimWhitespace::Yes, int base = 10) const
     {
         if (has_ascii_storage())
-            return parse_number<T>(bytes(), trim_whitespace, base);
+            return parse_number<T>(ascii_bytes(), trim_whitespace, base);
         return parse_number<T>(*this, trim_whitespace, base);
     }
 
@@ -238,9 +258,9 @@ public:
         if (length_in_code_units() != other.length_in_code_units())
             return false;
 
-        if (has_ascii_storage() && other.has_ascii_storage())
-            return TypedTransfer<char>::compare(m_string.ascii, other.m_string.ascii, length_in_code_units());
-        if (!has_ascii_storage() && !other.has_ascii_storage())
+        if (has_latin1_storage() && other.has_latin1_storage())
+            return TypedTransfer<char>::compare(m_string.latin1, other.m_string.latin1, length_in_code_units());
+        if (!has_latin1_storage() && !other.has_latin1_storage())
             return TypedTransfer<char16_t>::compare(m_string.utf16, other.m_string.utf16, length_in_code_units());
 
         for (size_t i = 0; i < length_in_code_units(); ++i) {
@@ -254,10 +274,10 @@ public:
     [[nodiscard]] constexpr bool operator==(StringView other) const
     {
         if (has_ascii_storage())
-            return StringView { m_string.ascii, length_in_code_units() } == other;
+            return StringView { ascii_span().data(), length_in_code_units() } == other;
 
         if (other.is_ascii())
-            return *this == Utf16View { other.characters_without_null_termination(), other.length() };
+            return *this == Utf16View { other };
 
         Utf8View other_utf8 { other };
 
@@ -280,8 +300,8 @@ public:
         size_t length = min(length_in_code_units(), other.length_in_code_units());
         int result = 0;
 
-        if (has_ascii_storage() && other.has_ascii_storage()) {
-            result = __builtin_memcmp(m_string.ascii, other.m_string.ascii, length);
+        if (has_latin1_storage() && other.has_latin1_storage()) {
+            result = __builtin_memcmp(m_string.latin1, other.m_string.latin1, length);
         } else {
             for (size_t i = 0; i < length; ++i) {
                 auto this_code_unit = code_unit_at(i);
@@ -359,8 +379,8 @@ public:
     {
         if (is_empty())
             return 0;
-        if (has_ascii_storage())
-            return string_hash(m_string.ascii, length_in_code_units());
+        if (has_latin1_storage())
+            return string_hash(reinterpret_cast<u8 const*>(m_string.latin1), length_in_code_units());
         return string_hash(m_string.utf16, length_in_code_units());
     }
 
@@ -370,8 +390,8 @@ public:
 
     [[nodiscard]] constexpr bool is_ascii_whitespace() const
     {
-        if (has_ascii_storage())
-            return all_of(ascii_span(), AK::is_ascii_space);
+        if (has_latin1_storage())
+            return all_of(latin1_span(), AK::is_ascii_space);
         return all_of(utf16_span(), AK::is_ascii_space);
     }
 
@@ -379,12 +399,12 @@ public:
     [[nodiscard]] bool validate() const;
     [[nodiscard]] bool validate(size_t& valid_code_units) const;
 
-    [[nodiscard]] constexpr size_t length_in_code_units() const { return m_length_in_code_units & ~(1uz << Detail::UTF16_FLAG); }
+    [[nodiscard]] constexpr size_t length_in_code_units() const { return m_length_in_code_units & ~Detail::STORAGE_FLAGS; }
 
     [[nodiscard]] ALWAYS_INLINE size_t length_in_code_points() const
     {
-        if (has_ascii_storage())
-            return m_length_in_code_units;
+        if (has_latin1_storage())
+            return length_in_code_units();
 
         if (m_length_in_code_points == NumericLimits<size_t>::max())
             m_length_in_code_points = calculate_length_in_code_points();
@@ -395,8 +415,8 @@ public:
     {
         VERIFY(index < length_in_code_units());
 
-        if (has_ascii_storage())
-            return m_string.ascii[index];
+        if (has_latin1_storage())
+            return static_cast<u8>(m_string.latin1[index]);
         return m_string.utf16[index];
     }
 
@@ -432,29 +452,29 @@ public:
 
     [[nodiscard]] constexpr Utf16CodePointIterator begin() const
     {
-        if (has_ascii_storage())
-            return { m_string.ascii, length_in_code_units() };
+        if (has_latin1_storage())
+            return { m_string.latin1, length_in_code_units() };
         return { m_string.utf16, length_in_code_units() };
     }
 
     [[nodiscard]] constexpr Utf16CodePointIterator end() const
     {
-        if (has_ascii_storage())
-            return { m_string.ascii + length_in_code_units(), 0 };
+        if (has_latin1_storage())
+            return { m_string.latin1 + length_in_code_units(), 0 };
         return { m_string.utf16 + length_in_code_units(), 0 };
     }
 
     [[nodiscard]] constexpr size_t iterator_offset(Utf16CodePointIterator const& it) const
     {
-        if (has_ascii_storage()) {
-            VERIFY(it.has_ascii_storage());
-            VERIFY(it.m_iterator.ascii >= m_string.ascii);
-            VERIFY(it.m_iterator.ascii <= m_string.ascii + length_in_code_units());
+        if (has_latin1_storage()) {
+            VERIFY(it.has_latin1_storage());
+            VERIFY(it.m_iterator.latin1 >= m_string.latin1);
+            VERIFY(it.m_iterator.latin1 <= m_string.latin1 + length_in_code_units());
 
-            return it.m_iterator.ascii - m_string.ascii;
+            return it.m_iterator.latin1 - m_string.latin1;
         }
 
-        VERIFY(!it.has_ascii_storage());
+        VERIFY(!it.has_latin1_storage());
         VERIFY(it.m_iterator.utf16 >= m_string.utf16);
         VERIFY(it.m_iterator.utf16 <= m_string.utf16 + length_in_code_units());
 
@@ -465,8 +485,8 @@ public:
     {
         VERIFY(code_unit_offset <= length_in_code_units());
 
-        if (has_ascii_storage())
-            return { m_string.ascii + code_unit_offset, length_in_code_units() - code_unit_offset };
+        if (has_latin1_storage())
+            return { m_string.latin1 + code_unit_offset, length_in_code_units() - code_unit_offset };
         return { m_string.utf16 + code_unit_offset, length_in_code_units() - code_unit_offset };
     }
 
@@ -478,8 +498,8 @@ public:
     {
         VERIFY(code_unit_offset + code_unit_length <= length_in_code_units());
 
-        if (has_ascii_storage())
-            return { m_string.ascii + code_unit_offset, code_unit_length };
+        if (has_latin1_storage())
+            return { m_string.latin1 + code_unit_offset, code_unit_length, has_ascii_storage() };
         return { m_string.utf16 + code_unit_offset, code_unit_length };
     }
 
@@ -529,9 +549,9 @@ public:
 
     constexpr Optional<size_t> find_code_unit_offset(Utf16View const& needle, size_t start_offset = 0) const
     {
-        if (has_ascii_storage() && needle.has_ascii_storage())
-            return ascii_span().index_of(needle.ascii_span(), start_offset);
-        if (!has_ascii_storage() && !needle.has_ascii_storage())
+        if (has_latin1_storage() && needle.has_latin1_storage())
+            return latin1_span().index_of(needle.latin1_span(), start_offset);
+        if (!has_latin1_storage() && !needle.has_latin1_storage())
             return utf16_span().index_of(needle.utf16_span(), start_offset);
 
         Checked maximum_offset { start_offset };
@@ -730,21 +750,26 @@ private:
     friend Detail::Utf16StringBase;
     friend Detail::Utf16StringData;
 
-    constexpr Utf16View(char const* string, size_t length_in_code_units)
-        : m_string { .ascii = string }
+    constexpr Utf16View(char const* string, size_t length_in_code_units, bool is_ascii)
+        : m_string { .latin1 = string }
         , m_length_in_code_units(length_in_code_units)
     {
+        if (!is_ascii)
+            m_length_in_code_units |= 1uz << Detail::NON_ASCII_FLAG;
     }
 
     [[nodiscard]] size_t calculate_length_in_code_points() const;
 
+    // NB: Latin-1 storage is read through u8, so that code units above U+007F are not sign extended. It is kept as char
+    //     so that a view of a StringView can be made in a constant expression.
     union {
-        char const* ascii;
+        char const* latin1;
         char16_t const* utf16;
-    } m_string { .ascii = nullptr };
+    } m_string { .latin1 = nullptr };
 
-    // Just like Utf16StringData, we store whether this string has ASCII or UTF-16 storage by setting the most
-    // significant bit of m_length_in_code_units for UTF-16 storage.
+    // Just like Utf16StringData, we store whether this string has Latin-1 or UTF-16 storage by setting the most
+    // significant bit of m_length_in_code_units for UTF-16 storage. The next bit marks Latin-1 storage that may not
+    // be ASCII.
     size_t m_length_in_code_units { 0 };
     mutable size_t m_length_in_code_points { NumericLimits<size_t>::max() };
 };

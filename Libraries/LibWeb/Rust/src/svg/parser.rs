@@ -8,21 +8,21 @@ use smallvec::SmallVec;
 
 #[derive(Clone, Copy)]
 pub(super) enum Input<'a> {
-    Ascii(&'a [u8]),
+    Latin1(&'a [u8]),
     Utf16(&'a [u16]),
 }
 
 impl Input<'_> {
     fn len(self) -> usize {
         match self {
-            Self::Ascii(input) => input.len(),
+            Self::Latin1(input) => input.len(),
             Self::Utf16(input) => input.len(),
         }
     }
 
     fn code_unit_at(self, index: usize) -> u16 {
         match self {
-            Self::Ascii(input) => u16::from(input[index]),
+            Self::Latin1(input) => u16::from(input[index]),
             Self::Utf16(input) => input[index],
         }
     }

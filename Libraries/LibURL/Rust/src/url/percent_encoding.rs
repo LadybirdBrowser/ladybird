@@ -238,6 +238,11 @@ pub(super) fn percent_encode_after_encoding_into(
     };
     let did_succeed = match input {
         super::UrlInput::Utf8(input) => textcodec_encode_into(encoding, input, on_item),
+        super::UrlInput::Latin1(input) => crate::textcodec::encode_utf16_into(
+            encoding,
+            &input.iter().map(|&byte| u16::from(byte)).collect::<Vec<_>>(),
+            on_item,
+        ),
         super::UrlInput::Utf16(input) => crate::textcodec::encode_utf16_into(encoding, input, on_item),
     };
     assert!(did_succeed, "encoding_rs should encode into any output encoding");

@@ -272,7 +272,9 @@ pub(crate) fn process_blob_parts(blob_parts: &MarkedVec<'_, BlobPart>, options: 
 
 fn is_basic_latin(string: &Utf16String) -> bool {
     match string.as_units() {
-        Utf16StringUnits::Ascii(bytes) => bytes.iter().all(|&byte| (0x20..=0x7E).contains(&byte)),
+        Utf16StringUnits::Ascii(bytes) | Utf16StringUnits::Latin1(bytes) => {
+            bytes.iter().all(|&byte| (0x20..=0x7E).contains(&byte))
+        }
         Utf16StringUnits::Utf16(code_units) => code_units.iter().all(|&code_unit| (0x20..=0x7E).contains(&code_unit)),
     }
 }

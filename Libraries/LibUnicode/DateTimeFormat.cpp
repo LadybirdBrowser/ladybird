@@ -105,7 +105,7 @@ Optional<HourCycle> default_hour_cycle(Utf16View locale)
 {
     UErrorCode status = U_ZERO_ERROR;
 
-    auto locale_data = LocaleData::for_locale(locale.bytes());
+    auto locale_data = LocaleData::for_locale(locale.ascii_bytes());
     if (!locale_data.has_value())
         return {};
 
@@ -896,7 +896,7 @@ NonnullOwnPtr<DateTimeFormat> DateTimeFormat::create_for_date_and_time_style(
 {
     UErrorCode status = U_ZERO_ERROR;
 
-    auto locale_data = LocaleData::for_locale(locale.bytes());
+    auto locale_data = LocaleData::for_locale(locale.ascii_bytes());
     VERIFY(locale_data.has_value());
 
     auto formatter = adopt_own(*as<icu::SimpleDateFormat>([&]() {
@@ -941,7 +941,7 @@ NonnullOwnPtr<DateTimeFormat> DateTimeFormat::create_for_pattern_options(
 {
     UErrorCode status = U_ZERO_ERROR;
 
-    auto locale_data = LocaleData::for_locale(locale.bytes());
+    auto locale_data = LocaleData::for_locale(locale.ascii_bytes());
     VERIFY(locale_data.has_value());
 
     icu::UnicodeString pattern;
@@ -987,7 +987,7 @@ WeekInfo week_info_of_locale(Utf16View locale)
 {
     UErrorCode status = U_ZERO_ERROR;
 
-    auto locale_data = LocaleData::for_locale(locale.bytes());
+    auto locale_data = LocaleData::for_locale(locale.ascii_bytes());
     if (!locale_data.has_value())
         return {};
 

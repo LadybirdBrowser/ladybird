@@ -223,6 +223,7 @@ impl HtmlName {
             }
             match self.0.as_units() {
                 Utf16StringUnits::Ascii(units) => units == other.as_bytes(),
+                Utf16StringUnits::Latin1(units) => units.iter().map(|&unit| u16::from(unit)).eq(other.encode_utf16()),
                 Utf16StringUnits::Utf16(units) => units.iter().copied().eq(other.encode_utf16()),
             }
         }
@@ -246,7 +247,10 @@ impl HtmlName {
         #[cfg(not(test))]
         {
             match (self.0.as_units(), other.0.as_units()) {
-                (Utf16StringUnits::Ascii(left), Utf16StringUnits::Ascii(right)) => left.eq_ignore_ascii_case(right),
+                (
+                    Utf16StringUnits::Ascii(left) | Utf16StringUnits::Latin1(left),
+                    Utf16StringUnits::Ascii(right) | Utf16StringUnits::Latin1(right),
+                ) => left.eq_ignore_ascii_case(right),
                 (Utf16StringUnits::Utf16(left), Utf16StringUnits::Utf16(right)) => {
                     left.len() == right.len()
                         && left.iter().zip(right).all(|(left, right)| {
@@ -256,8 +260,8 @@ impl HtmlName {
                                     && (*left as u8).eq_ignore_ascii_case(&(*right as u8)))
                         })
                 }
-                (Utf16StringUnits::Ascii(left), Utf16StringUnits::Utf16(right))
-                | (Utf16StringUnits::Utf16(right), Utf16StringUnits::Ascii(left)) => {
+                (Utf16StringUnits::Ascii(left) | Utf16StringUnits::Latin1(left), Utf16StringUnits::Utf16(right))
+                | (Utf16StringUnits::Utf16(right), Utf16StringUnits::Ascii(left) | Utf16StringUnits::Latin1(left)) => {
                     left.len() == right.len()
                         && left.iter().zip(right).all(|(left, right)| {
                             u16::from(*left) == *right || (*right <= 0x7f && left.eq_ignore_ascii_case(&(*right as u8)))

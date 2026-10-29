@@ -520,7 +520,12 @@ ErrorOr<void> StringBuilder::try_append(Utf16View const& utf16_view)
     if (utf16_view.is_empty())
         return {};
     if (utf16_view.has_ascii_storage())
-        return try_append_ascii_without_validation(utf16_view.bytes());
+        return try_append_ascii_without_validation(utf16_view.ascii_bytes());
+    if (utf16_view.has_latin1_storage()) {
+        for (auto code_point : utf16_view)
+            TRY(try_append_code_point(code_point));
+        return {};
+    }
 
     auto remaining_view = utf16_view.utf16_span();
     auto maximum_utf8_length = UnicodeUtils::maximum_utf8_length_from_utf16(remaining_view);

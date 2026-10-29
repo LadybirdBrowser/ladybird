@@ -461,7 +461,7 @@ fn url_text_clones_share_native_storage_and_outlive_their_input() {
             let original_view = rust_css_url_text_view(&text);
             let copied_view = rust_css_url_text_view(&copy);
             let parts = |view: crate::css::ffi_support::FfiUtf16View<'_>| match view.units().unwrap() {
-                TokenizerInput::Ascii(units) => (units.as_ptr().addr(), units.len(), true),
+                TokenizerInput::Latin1(units) => (units.as_ptr().addr(), units.len(), true),
                 TokenizerInput::Utf16(units) => (units.as_ptr().addr(), units.len(), false),
             };
             assert_eq!(parts(original_view), parts(copied_view));
@@ -743,7 +743,7 @@ fn cache_keys_include_parsing_context_and_replay_side_effects() {
 fn cache_shares_ascii_and_utf16_sources() {
     let source = b".cached { width: 13px }";
     let context = super::tests::parse_context();
-    let ascii = parse_shared_stylesheet(TokenizerInput::Ascii(source), Some(&context));
+    let ascii = parse_shared_stylesheet(TokenizerInput::Latin1(source), Some(&context));
     let wide = parse(&utf16(".cached { width: 13px }"), &context);
     assert!(Arc::ptr_eq(&ascii, &wide));
 }

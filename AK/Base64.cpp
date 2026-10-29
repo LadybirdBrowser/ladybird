@@ -18,8 +18,8 @@ size_t size_required_to_decode_base64(StringView input)
 
 size_t size_required_to_decode_base64(Utf16View input)
 {
-    if (input.has_ascii_storage())
-        return size_required_to_decode_base64(StringView { input.bytes() });
+    if (input.has_latin1_storage())
+        return size_required_to_decode_base64(StringView { input.latin1_span() });
     return simdutf::maximal_binary_length_from_base64(input.utf16_span().data(), input.length_in_code_units());
 }
 
@@ -94,8 +94,10 @@ static ErrorOr<size_t, InvalidBase64> decode_base64_into_impl(StringView input, 
 
 static ErrorOr<size_t, InvalidBase64> decode_base64_into_impl(Utf16View input, Bytes& output, LastChunkHandling last_chunk_handling, simdutf::base64_options options)
 {
-    if (input.has_ascii_storage())
-        return decode_base64_into_span(input.ascii_span(), output, last_chunk_handling, options);
+    if (input.has_latin1_storage()) {
+        auto latin1 = input.latin1_span();
+        return decode_base64_into_span(ReadonlySpan<char> { reinterpret_cast<char const*>(latin1.data()), latin1.size() }, output, last_chunk_handling, options);
+    }
     return decode_base64_into_span(input.utf16_span(), output, last_chunk_handling, options);
 }
 

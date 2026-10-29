@@ -81,7 +81,9 @@ ErrorOr<String> String::from_utf8(StringView view)
 ErrorOr<String> String::from_utf16_with_replacement_character(Utf16View const& view)
 {
     if (view.has_ascii_storage())
-        return String::from_utf8_without_validation(view.bytes());
+        return String::from_utf8_without_validation(view.ascii_bytes());
+    if (view.has_latin1_storage())
+        return view.to_utf8();
 
     auto utf16 = view.utf16_span();
     auto utf8_length = simdutf::utf8_length_from_utf16_with_replacement(utf16.data(), utf16.size()).count;

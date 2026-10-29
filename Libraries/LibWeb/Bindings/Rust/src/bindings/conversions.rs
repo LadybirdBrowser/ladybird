@@ -47,6 +47,7 @@ impl UsvString {
     pub(crate) fn utf8_length(&self) -> usize {
         match self.units() {
             Utf16StringUnits::Ascii(bytes) => bytes.len(),
+            Utf16StringUnits::Latin1(bytes) => bytes.len() + bytes.iter().filter(|&&byte| byte >= 0x80).count(),
             Utf16StringUnits::Utf16(code_units) => utf8_length_from_valid_utf16(code_units),
         }
     }
@@ -64,6 +65,16 @@ impl UsvString {
                 output[..bytes.len()].write_copy_of_slice(bytes);
                 bytes.len()
             }
+            Utf16StringUnits::Latin1(bytes) => {
+                let mut length = 0;
+                for &byte in bytes {
+                    let mut buffer = [0; 2];
+                    let encoded = char::from(byte).encode_utf8(&mut buffer).as_bytes();
+                    output[length..length + encoded.len()].write_copy_of_slice(encoded);
+                    length += encoded.len();
+                }
+                length
+            }
             Utf16StringUnits::Utf16(code_units) => {
                 debug_assert!(output.len() >= utf8_length_from_valid_utf16(code_units));
                 // SAFETY: A USVString is well-formed, and the caller gives the output room for its encoding.
@@ -76,6 +87,11 @@ impl UsvString {
     pub(crate) fn strip_ascii_prefix(&self, prefix: u8) -> Option<Self> {
         match self.units() {
             Utf16StringUnits::Ascii(bytes) => bytes.strip_prefix(&[prefix]).map(Self::from_ascii),
+            Utf16StringUnits::Latin1(bytes) => bytes.strip_prefix(&[prefix]).map(|rest| {
+                Self(Utf16String::from_utf16(
+                    &rest.iter().map(|&byte| u16::from(byte)).collect::<Vec<_>>(),
+                ))
+            }),
             Utf16StringUnits::Utf16(code_units) => code_units
                 .strip_prefix(&[u16::from(prefix)])
                 .map(|rest| Self(Utf16String::from_utf16(rest))),
@@ -93,6 +109,7 @@ impl UsvString {
     pub(crate) fn to_utf8(&self) -> String {
         match self.units() {
             Utf16StringUnits::Ascii(bytes) => String::from_utf8(bytes.to_vec()),
+            Utf16StringUnits::Latin1(bytes) => Ok(bytes.iter().map(|&byte| char::from(byte)).collect()),
             Utf16StringUnits::Utf16(code_units) => String::from_utf16(code_units).map_err(|_| unreachable!()),
         }
         .expect("a USVString is well-formed")
@@ -151,6 +168,8 @@ pub(crate) fn to_enumeration_value(
         .iter()
         .position(|enumeration_value| match string.as_units() {
             Utf16StringUnits::Ascii(units) => units == enumeration_value.as_bytes(),
+            // NB: Every enumeration value is ASCII.
+            Utf16StringUnits::Latin1(_) => false,
             Utf16StringUnits::Utf16(units) => units.iter().copied().eq(enumeration_value.bytes().map(u16::from)),
         });
     match index {

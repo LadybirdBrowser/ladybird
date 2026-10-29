@@ -48,7 +48,7 @@ impl Wrappable for URLSearchParams {}
 
 fn code_units(string: &UsvString) -> impl Iterator<Item = u16> + '_ {
     let (ascii, utf16) = match string.units() {
-        Utf16StringUnits::Ascii(bytes) => (bytes, &[][..]),
+        Utf16StringUnits::Ascii(bytes) | Utf16StringUnits::Latin1(bytes) => (bytes, &[][..]),
         Utf16StringUnits::Utf16(code_units) => (&[][..], code_units),
     };
     ascii.iter().map(|byte| u16::from(*byte)).chain(utf16.iter().copied())

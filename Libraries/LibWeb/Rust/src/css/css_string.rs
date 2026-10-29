@@ -82,7 +82,7 @@ impl CssString {
             return Self::none();
         }
         match unsafe { ak::utf16_string_units(&raw) } {
-            ak::Utf16StringUnits::Ascii(bytes) => {
+            ak::Utf16StringUnits::Ascii(bytes) | ak::Utf16StringUnits::Latin1(bytes) => {
                 Self::from_utf16(&bytes.iter().map(|&byte| u16::from(byte)).collect::<Vec<_>>())
             }
             ak::Utf16StringUnits::Utf16(units) => Self::from_utf16(units),

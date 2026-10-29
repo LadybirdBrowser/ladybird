@@ -62,7 +62,7 @@ pub(crate) fn with_fly_string_units<'a, R>(
     f: impl FnOnce(StringUnits) -> R,
 ) -> R {
     let units = match string.into() {
-        TokenizerInput::Ascii(bytes) => StringUnits::Ascii(bytes),
+        TokenizerInput::Latin1(bytes) => StringUnits::Ascii(bytes),
         TokenizerInput::Utf16(units) => StringUnits::Utf16(units),
     };
     f(units)
@@ -352,6 +352,7 @@ pub(crate) fn fly_string_raw_to_string(raw: usize) -> String {
             // SAFETY: ASCII is valid UTF-8.
             unsafe { String::from_utf8_unchecked(bytes.to_vec()) }
         }
+        ak::Utf16StringUnits::Latin1(bytes) => bytes.iter().map(|&byte| char::from(byte)).collect(),
         ak::Utf16StringUnits::Utf16(units) => String::from_utf16_lossy(units),
     }
 }
@@ -459,7 +460,9 @@ pub(crate) fn serialize_a_string(sink: &mut TextSink, string: &StringUnits) {
 
 fn serialize_url_text(sink: &mut TextSink, string: &RetainedString) {
     match string.units() {
-        crate::css::css_tokenizer::TokenizerInput::Ascii(bytes) => serialize_a_string(sink, &StringUnits::Ascii(bytes)),
+        crate::css::css_tokenizer::TokenizerInput::Latin1(bytes) => {
+            serialize_a_string(sink, &StringUnits::Ascii(bytes));
+        }
         crate::css::css_tokenizer::TokenizerInput::Utf16(units) => serialize_a_string(sink, &StringUnits::Utf16(units)),
     }
 }

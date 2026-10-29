@@ -205,7 +205,7 @@ impl<'a> FfiUtf16View<'a> {
 
     pub(crate) fn from_input(input: TokenizerInput<'a>) -> Self {
         match input {
-            TokenizerInput::Ascii(units) => Self::from_ascii(units),
+            TokenizerInput::Latin1(units) => Self::from_ascii(units),
             TokenizerInput::Utf16(units) => Self::from_utf16(units),
         }
     }

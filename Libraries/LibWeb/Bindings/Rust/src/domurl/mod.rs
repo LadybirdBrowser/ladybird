@@ -22,6 +22,7 @@ pub(crate) mod url_search_params;
 pub(crate) fn url_input(units: Utf16StringUnits<'_>) -> UrlInput<'_> {
     match units {
         Utf16StringUnits::Ascii(bytes) => UrlInput::Utf8(core::str::from_utf8(bytes).expect("ASCII is UTF-8")),
+        Utf16StringUnits::Latin1(bytes) => UrlInput::Latin1(bytes),
         Utf16StringUnits::Utf16(code_units) => UrlInput::Utf16(code_units),
     }
 }

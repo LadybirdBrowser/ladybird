@@ -21,8 +21,11 @@ use std::sync::atomic::{AtomicU32, Ordering};
 pub const SHORT_STRING_FLAG: usize = 1;
 /// The byte count of a short string is stored in its tag byte, above the flag.
 pub const SHORT_STRING_BYTE_COUNT_SHIFT: u32 = 2;
-/// Set in `Utf16StringDataHeader::flags` when the storage holds UTF-16 code units rather than ASCII bytes.
+/// Set in `Utf16StringDataHeader::flags` when the storage holds UTF-16 code units rather than Latin-1 bytes.
 pub const HAS_UTF16_STORAGE: u32 = 1;
+/// Set in `Utf16StringDataHeader::flags` when Latin-1 storage holds a byte above 0x7F. Without it, Latin-1 storage is
+/// ASCII.
+pub const CONTAINS_NON_ASCII: u32 = 1 << 3;
 const UNKNOWN_CODE_POINT_LENGTH: u32 = u32::MAX;
 
 /// Mirrors `AK::Detail::Utf16StringDataHeader`. The string's storage follows it directly.
@@ -45,12 +48,15 @@ const _: () = assert!(std::mem::offset_of!(Utf16StringDataHeader, flags) == 16);
 
 /// A borrowed view of an `AK::Utf16String` or `AK::Utf16FlyString`.
 pub enum Utf16StringUnits<'a> {
+    /// One byte per code unit, all of them ASCII.
     Ascii(&'a [u8]),
+    /// One byte per code unit, at least one of them above U+007F.
+    Latin1(&'a [u8]),
     Utf16(&'a [u16]),
 }
 
 unsafe extern "C" {
-    fn ladybird_utf16_string_create_uninitialized(length: usize, has_ascii_storage: bool) -> usize;
+    fn ladybird_utf16_string_create_uninitialized(length: usize, has_latin1_storage: bool) -> usize;
     fn ladybird_utf16_fly_string_from_utf8(data: *const u8, length: usize) -> usize;
     fn ladybird_utf16_fly_string_from_utf16(data: *const u16, length: usize) -> usize;
     fn ladybird_utf16_fly_string_from_utf16_string(raw: usize) -> usize;
@@ -61,11 +67,11 @@ unsafe extern "C" {
     fn ladybird_convert_valid_utf16_to_utf8(data: *const u16, length: usize, output: *mut u8) -> usize;
     fn ladybird_utf16_string_from_utf8(data: *const u8, length: usize) -> usize;
     fn ladybird_utf16_string_to_well_formed(data: *const u16, length: usize) -> usize;
-    fn ladybird_size_required_to_decode_base64(data: *const u8, length: usize, has_ascii_storage: bool) -> usize;
+    fn ladybird_size_required_to_decode_base64(data: *const u8, length: usize, has_latin1_storage: bool) -> usize;
     fn ladybird_decode_base64_into(
         data: *const u8,
         length: usize,
-        has_ascii_storage: bool,
+        has_latin1_storage: bool,
         url: bool,
         last_chunk_handling: u8,
         output: *mut u8,
@@ -204,16 +210,18 @@ macro_rules! impl_utf16_string_owner {
                 self.0.raw.get()
             }
 
-            /// Borrows the shared ASCII or UTF-16 character storage directly.
+            /// Borrows the shared Latin-1 or UTF-16 character storage directly.
             #[inline]
             pub fn as_units(&self) -> Utf16StringUnits<'_> {
                 self.0.as_units()
             }
 
-            /// Borrows UTF-16 storage, widening ASCII only when a UTF-16 slice is needed.
+            /// Borrows UTF-16 storage, widening Latin-1 only when a UTF-16 slice is needed.
             pub fn to_utf16(&self) -> std::borrow::Cow<'_, [u16]> {
                 match self.as_units() {
-                    Utf16StringUnits::Ascii(units) => units.iter().map(|&unit| u16::from(unit)).collect(),
+                    Utf16StringUnits::Ascii(units) | Utf16StringUnits::Latin1(units) => {
+                        units.iter().map(|&unit| u16::from(unit)).collect()
+                    }
                     Utf16StringUnits::Utf16(units) => std::borrow::Cow::Borrowed(units),
                 }
             }
@@ -224,11 +232,11 @@ macro_rules! impl_utf16_string_owner {
                 self.length_in_code_units() == 0
             }
 
-            /// Returns the number of UTF-16 code units, which is the number of bytes of ASCII storage.
+            /// Returns the number of UTF-16 code units, which is the number of bytes of Latin-1 storage.
             #[inline]
             pub fn length_in_code_units(&self) -> usize {
                 match self.as_units() {
-                    Utf16StringUnits::Ascii(units) => units.len(),
+                    Utf16StringUnits::Ascii(units) | Utf16StringUnits::Latin1(units) => units.len(),
                     Utf16StringUnits::Utf16(units) => units.len(),
                 }
             }
@@ -384,9 +392,9 @@ impl Utf16String {
         unsafe { Self::from_raw_owned(usize::from_ne_bytes(bytes)) }
     }
 
-    fn create_uninitialized(length: usize, has_ascii_storage: bool) -> Self {
+    fn create_uninitialized(length: usize, has_latin1_storage: bool) -> Self {
         assert!(length < UNKNOWN_CODE_POINT_LENGTH as usize);
-        let unit_size = if has_ascii_storage { 1 } else { size_of::<u16>() };
+        let unit_size = if has_latin1_storage { 1 } else { size_of::<u16>() };
         assert!(
             size_of::<Utf16StringDataHeader>()
                 .checked_add(
@@ -398,7 +406,7 @@ impl Utf16String {
         );
         // SAFETY: C++ returns a fully initialized native string owner with trailing storage sized
         // for `length` units. The caller initializes that storage before publishing the owner.
-        let raw = unsafe { ladybird_utf16_string_create_uninitialized(length, has_ascii_storage) };
+        let raw = unsafe { ladybird_utf16_string_create_uninitialized(length, has_latin1_storage) };
         // SAFETY: The allocator transfers one ownership reference.
         unsafe { Self::from_raw_owned(raw) }
     }
@@ -542,7 +550,7 @@ pub struct Base64DecodeResult {
 
 fn raw_units(string: Utf16StringUnits<'_>) -> (*const u8, usize, bool) {
     match string {
-        Utf16StringUnits::Ascii(bytes) => (bytes.as_ptr(), bytes.len(), true),
+        Utf16StringUnits::Ascii(bytes) | Utf16StringUnits::Latin1(bytes) => (bytes.as_ptr(), bytes.len(), true),
         Utf16StringUnits::Utf16(units) => (units.as_ptr().cast(), units.len(), false),
     }
 }
@@ -553,10 +561,10 @@ pub fn decode_base64(
     last_chunk_handling: LastChunkHandling,
     max_length: Option<usize>,
 ) -> Base64DecodeResult {
-    let (data, length, has_ascii_storage) = raw_units(input);
+    let (data, length, has_latin1_storage) = raw_units(input);
     let capacity = max_length.unwrap_or_else(|| {
         // SAFETY: The string's storage remains alive for the duration of the call.
-        unsafe { ladybird_size_required_to_decode_base64(data, length, has_ascii_storage) }
+        unsafe { ladybird_size_required_to_decode_base64(data, length, has_latin1_storage) }
     });
 
     let mut bytes = Vec::with_capacity(capacity);
@@ -568,7 +576,7 @@ pub fn decode_base64(
         ladybird_decode_base64_into(
             data,
             length,
-            has_ascii_storage,
+            has_latin1_storage,
             alphabet == Base64Alphabet::Base64Url,
             last_chunk_handling as u8,
             bytes.as_mut_ptr(),
@@ -688,10 +696,13 @@ impl PartialEq for Utf16String {
             return false;
         }
         match (self.as_units(), other.as_units()) {
-            (Utf16StringUnits::Ascii(left), Utf16StringUnits::Ascii(right)) => left == right,
+            (
+                Utf16StringUnits::Ascii(left) | Utf16StringUnits::Latin1(left),
+                Utf16StringUnits::Ascii(right) | Utf16StringUnits::Latin1(right),
+            ) => left == right,
             (Utf16StringUnits::Utf16(left), Utf16StringUnits::Utf16(right)) => left == right,
-            (Utf16StringUnits::Ascii(left), Utf16StringUnits::Utf16(right))
-            | (Utf16StringUnits::Utf16(right), Utf16StringUnits::Ascii(left)) => {
+            (Utf16StringUnits::Ascii(left) | Utf16StringUnits::Latin1(left), Utf16StringUnits::Utf16(right))
+            | (Utf16StringUnits::Utf16(right), Utf16StringUnits::Ascii(left) | Utf16StringUnits::Latin1(left)) => {
                 left.len() == right.len() && left.iter().zip(right).all(|(left, right)| u16::from(*left) == *right)
             }
         }
@@ -837,9 +848,15 @@ pub unsafe fn utf16_string_units(raw: &usize) -> Utf16StringUnits<'_> {
     let storage = std::ptr::from_ref(header)
         .cast::<u8>()
         .wrapping_add(size_of::<Utf16StringDataHeader>());
-    if header.flags.load(Ordering::Acquire) & HAS_UTF16_STORAGE == 0 {
-        // SAFETY: Long ASCII storage starts immediately after the header and contains `length` bytes.
-        Utf16StringUnits::Ascii(unsafe { crate::slice_from_raw_parts(storage, length) })
+    let flags = header.flags.load(Ordering::Acquire);
+    if flags & HAS_UTF16_STORAGE == 0 {
+        // SAFETY: Long Latin-1 storage starts immediately after the header and contains `length` bytes.
+        let units = unsafe { crate::slice_from_raw_parts(storage, length) };
+        if flags & CONTAINS_NON_ASCII == 0 {
+            Utf16StringUnits::Ascii(units)
+        } else {
+            Utf16StringUnits::Latin1(units)
+        }
     } else {
         // SAFETY: Long UTF-16 storage starts immediately after the aligned header and contains
         // `length` u16 code units.

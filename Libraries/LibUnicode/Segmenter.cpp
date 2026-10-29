@@ -696,7 +696,7 @@ NonnullOwnPtr<Segmenter> Segmenter::create(Utf16View locale, SegmenterGranularit
 {
     UErrorCode status = U_ZERO_ERROR;
 
-    auto locale_data = LocaleData::for_locale(locale.bytes());
+    auto locale_data = LocaleData::for_locale(locale.ascii_bytes());
     VERIFY(locale_data.has_value());
 
     auto segmenter = adopt_own_if_nonnull([&]() {

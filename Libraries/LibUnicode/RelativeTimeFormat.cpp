@@ -268,7 +268,7 @@ NonnullOwnPtr<RelativeTimeFormat> RelativeTimeFormat::create(Utf16View locale, S
 {
     UErrorCode status = U_ZERO_ERROR;
 
-    auto locale_data = LocaleData::for_locale(locale.bytes());
+    auto locale_data = LocaleData::for_locale(locale.ascii_bytes());
     VERIFY(locale_data.has_value());
 
     auto* number_formatter = icu::NumberFormat::createInstance(locale_data->locale(), UNUM_DECIMAL, status);

@@ -12,9 +12,10 @@
 // A borrowed UTF-16 string in either of AK::Utf16View's storages: `ascii` is set when the string has ASCII storage,
 // and `utf16` otherwise. Lengths are in UTF-16 code units.
 struct UnicodeIntlText {
-    u8 const* ascii;
+    u8 const* latin1;
     u16 const* utf16;
     size_t length;
+    bool is_ascii;
 };
 
 // The parts of a Unicode::LocaleID, in the order parse_unicode_locale_id() parsed them. A transformed extension's

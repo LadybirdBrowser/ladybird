@@ -199,7 +199,9 @@ pub unsafe extern "C" fn document_host_intern_attribute_name(
     };
     // SAFETY: Guaranteed by the caller.
     let local_name: Box<[u16]> = match unsafe { ak::utf16_string_units(&local_name) } {
-        ak::Utf16StringUnits::Ascii(units) => units.iter().map(|&unit| u16::from(unit)).collect(),
+        ak::Utf16StringUnits::Ascii(units) | ak::Utf16StringUnits::Latin1(units) => {
+            units.iter().map(|&unit| u16::from(unit)).collect()
+        }
         ak::Utf16StringUnits::Utf16(units) => units.into(),
     };
     if local_name.iter().any(|&unit| ascii_lowercase(unit) != unit) {

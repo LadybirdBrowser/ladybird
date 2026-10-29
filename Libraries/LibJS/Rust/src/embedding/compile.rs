@@ -79,7 +79,7 @@ pub unsafe fn code_units_of<'a>(source: JSUtf16View) -> Cow<'a, [u16]> {
     // SAFETY: The caller passes a valid view.
     match unsafe { source.as_view() } {
         Utf16View::Utf16(code_units) => Cow::Borrowed(code_units),
-        ascii @ Utf16View::Ascii(_) => Cow::Owned(ascii.code_units().collect()),
+        one_byte @ (Utf16View::Ascii(_) | Utf16View::Latin1(_)) => Cow::Owned(one_byte.code_units().collect()),
     }
 }
 

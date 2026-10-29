@@ -19,23 +19,26 @@ use crate::utf16::{Utf16StringBuilder, Utf16View};
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub(crate) struct UnicodeIntlText {
-    ascii: *const u8,
+    latin1: *const u8,
     utf16: *const u16,
     length: usize,
+    is_ascii: bool,
 }
 
 impl UnicodeIntlText {
     pub(crate) fn of(view: Utf16View<'_>) -> Self {
         match view {
-            Utf16View::Ascii(units) => Self {
-                ascii: units.as_ptr(),
+            Utf16View::Ascii(units) | Utf16View::Latin1(units) => Self {
+                latin1: units.as_ptr(),
                 utf16: core::ptr::null(),
                 length: units.len(),
+                is_ascii: view.has_ascii_storage(),
             },
             Utf16View::Utf16(units) => Self {
-                ascii: core::ptr::null(),
+                latin1: core::ptr::null(),
                 utf16: units.as_ptr(),
                 length: units.len(),
+                is_ascii: false,
             },
         }
     }

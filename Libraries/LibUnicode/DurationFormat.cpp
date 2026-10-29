@@ -26,7 +26,7 @@ DigitalFormat digital_format(Utf16View locale)
 {
     UErrorCode status = U_ZERO_ERROR;
 
-    auto locale_data = LocaleData::for_locale(locale.bytes());
+    auto locale_data = LocaleData::for_locale(locale.ascii_bytes());
     if (!locale_data.has_value())
         return {};
 

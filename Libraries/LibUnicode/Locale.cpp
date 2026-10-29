@@ -566,7 +566,7 @@ Optional<Utf16String> canonicalize_unicode_locale_id(StringView locale)
 
 Optional<Utf16String> canonicalize_unicode_locale_id(Utf16View locale)
 {
-    return LocaleData::canonicalize(locale.bytes());
+    return LocaleData::canonicalize(locale.ascii_bytes());
 }
 
 Utf16String canonicalize_unicode_extension_values(StringView key, Utf16View value)
@@ -703,7 +703,7 @@ Optional<Utf16String> add_likely_subtags(Utf16View locale)
 {
     UErrorCode status = U_ZERO_ERROR;
 
-    auto locale_data = LocaleData::for_locale(locale.bytes());
+    auto locale_data = LocaleData::for_locale(locale.ascii_bytes());
     if (!locale_data.has_value())
         return {};
 
@@ -730,7 +730,7 @@ Optional<Utf16String> remove_likely_subtags(Utf16View locale)
 {
     UErrorCode status = U_ZERO_ERROR;
 
-    auto locale_data = LocaleData::for_locale(locale.bytes());
+    auto locale_data = LocaleData::for_locale(locale.ascii_bytes());
     if (!locale_data.has_value())
         return {};
 

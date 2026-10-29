@@ -401,7 +401,7 @@ mod tests {
 
     fn parse_with_namespace_context(source: &str) -> SelectorList {
         let values = consume_a_list_of_component_values(tokenize_for_parser(source.as_bytes())).unwrap();
-        parse_selector_list_from_component_values(&values, &[TokenizerInput::Ascii(b"foo")], SelectorType::Standalone)
+        parse_selector_list_from_component_values(&values, &[TokenizerInput::Latin1(b"foo")], SelectorType::Standalone)
             .unwrap()
             .selectors()
             .clone()

@@ -17,7 +17,7 @@ Vector<Utf16FlyString> DeclarativeEnvironment::bindings() const
     JSStringSink names_sink {
         .context = &names,
         .append = [](void* context, u16 const* code_units, size_t length_in_code_units) {
-            auto name = utf16_view_from_abi({ code_units, length_in_code_units, false });
+            auto name = utf16_view_from_abi({ code_units, length_in_code_units, false, false });
             static_cast<Vector<Utf16FlyString>*>(context)->append(Utf16FlyString::from_utf16(name));
         },
     };

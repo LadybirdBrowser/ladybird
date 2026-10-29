@@ -59,7 +59,7 @@ Vector<Utf16String> available_calendars(Utf16View locale)
 {
     UErrorCode status = U_ZERO_ERROR;
 
-    auto locale_data = LocaleData::for_locale(locale.bytes());
+    auto locale_data = LocaleData::for_locale(locale.ascii_bytes());
     if (!locale_data.has_value())
         return {};
 
@@ -179,7 +179,7 @@ Vector<Utf16String> available_collations(Utf16View locale)
 {
     UErrorCode status = U_ZERO_ERROR;
 
-    auto locale_data = LocaleData::for_locale(locale.bytes());
+    auto locale_data = LocaleData::for_locale(locale.ascii_bytes());
     if (!locale_data.has_value())
         return {};
 
@@ -277,7 +277,7 @@ Vector<Utf16String> const& available_number_systems()
 
 Vector<Utf16String> available_number_systems(Utf16View locale)
 {
-    auto locale_data = LocaleData::for_locale(locale.bytes());
+    auto locale_data = LocaleData::for_locale(locale.ascii_bytes());
     if (!locale_data.has_value())
         return {};
 

@@ -8378,7 +8378,9 @@ impl AnimatedCustomProperties {
         // SAFETY: the name owns one reference to a live fly string.
         self.units
             .push(match unsafe { ak::utf16_string_units(name.raw_word()) } {
-                ak::Utf16StringUnits::Ascii(bytes) => bytes.iter().map(|&unit| u16::from(unit)).collect(),
+                ak::Utf16StringUnits::Ascii(bytes) | ak::Utf16StringUnits::Latin1(bytes) => {
+                    bytes.iter().map(|&unit| u16::from(unit)).collect()
+                }
                 ak::Utf16StringUnits::Utf16(units) => units.to_vec(),
             });
         self.names.push(name.clone());

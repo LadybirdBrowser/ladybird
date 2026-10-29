@@ -617,7 +617,7 @@ impl PrimitiveString {
             DeferredKind::Inline => Some(self.as_inline_string().characters()),
             DeferredKind::None => match Utf16View::of_string(self.resolved_utf16_string()?) {
                 Utf16View::Ascii(characters) => Some(characters),
-                Utf16View::Utf16(_) => None,
+                Utf16View::Latin1(_) | Utf16View::Utf16(_) => None,
             },
             DeferredKind::Rope | DeferredKind::Substring => None,
         }

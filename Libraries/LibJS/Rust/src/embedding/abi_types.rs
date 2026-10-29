@@ -284,14 +284,16 @@ pub fn value_from_abi(value: JSValue) -> Value {
 }
 
 /// A borrowed run of code units in the two storage kinds of AK::Utf16View: `data` points to `length_in_code_units`
-/// ASCII bytes if `has_ascii_storage` is set, and to as many UTF-16 code units otherwise. `data` may be null when the
+/// Latin-1 bytes if `has_latin1_storage` is set, which are ASCII if `is_ascii` is set too, and to as many UTF-16 code
+/// units otherwise. `data` may be null when the
 /// length is 0.
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct JSUtf16View {
     pub data: *const c_void,
     pub length_in_code_units: usize,
-    pub has_ascii_storage: bool,
+    pub has_latin1_storage: bool,
+    pub is_ascii: bool,
 }
 
 impl JSUtf16View {
@@ -300,12 +302,20 @@ impl JSUtf16View {
             Utf16View::Ascii(bytes) => Self {
                 data: bytes.as_ptr().cast(),
                 length_in_code_units: bytes.len(),
-                has_ascii_storage: true,
+                has_latin1_storage: true,
+                is_ascii: true,
+            },
+            Utf16View::Latin1(bytes) => Self {
+                data: bytes.as_ptr().cast(),
+                length_in_code_units: bytes.len(),
+                has_latin1_storage: true,
+                is_ascii: false,
             },
             Utf16View::Utf16(code_units) => Self {
                 data: code_units.as_ptr().cast(),
                 length_in_code_units: code_units.len(),
-                has_ascii_storage: false,
+                has_latin1_storage: false,
+                is_ascii: false,
             },
         }
     }
@@ -319,9 +329,14 @@ impl JSUtf16View {
             return Utf16View::EMPTY;
         }
         assert!(!self.data.is_null(), "a view of code units has its data");
-        if self.has_ascii_storage {
-            // SAFETY: The caller guarantees that the data is this many ASCII bytes.
-            Utf16View::Ascii(unsafe { ak::slice_from_raw_parts(self.data.cast(), self.length_in_code_units) })
+        if self.has_latin1_storage {
+            // SAFETY: The caller guarantees that the data is this many Latin-1 bytes.
+            let bytes = unsafe { ak::slice_from_raw_parts(self.data.cast(), self.length_in_code_units) };
+            if self.is_ascii {
+                Utf16View::Ascii(bytes)
+            } else {
+                Utf16View::Latin1(bytes)
+            }
         } else {
             // SAFETY: The caller guarantees that the data is this many UTF-16 code units.
             Utf16View::Utf16(unsafe { ak::slice_from_raw_parts(self.data.cast(), self.length_in_code_units) })
@@ -421,11 +436,11 @@ pub fn append_to_value_sink(sink: &JSValueSink, value: Value) {
 /// Hands `string` to the embedder's sink, which takes UTF-16 code units.
 pub fn append_to_string_sink(sink: &JSStringSink, string: Utf16View<'_>) {
     let append = sink.append.expect("a string sink has an append function");
-    let widened_ascii;
+    let widened_latin1;
     let code_units = match string {
-        Utf16View::Ascii(bytes) => {
-            widened_ascii = bytes.iter().map(|&byte| u16::from(byte)).collect::<Vec<u16>>();
-            widened_ascii.as_slice()
+        Utf16View::Ascii(bytes) | Utf16View::Latin1(bytes) => {
+            widened_latin1 = bytes.iter().map(|&byte| u16::from(byte)).collect::<Vec<u16>>();
+            widened_latin1.as_slice()
         }
         Utf16View::Utf16(code_units) => code_units,
     };

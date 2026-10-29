@@ -79,8 +79,8 @@ Utf16String Utf16String::from_utf16(Utf16View const& utf16_string)
         Utf16String string;
         string.m_value.short_ascii_string = Detail::ShortString::create_with_byte_count(utf16_string.length_in_code_units());
 
-        if (utf16_string.has_ascii_storage()) {
-            auto result = utf16_string.bytes().copy_to(string.m_value.short_ascii_string.storage);
+        if (utf16_string.has_latin1_storage()) {
+            auto result = utf16_string.latin1_span().copy_to(string.m_value.short_ascii_string.storage);
             VERIFY(result == utf16_string.length_in_code_units());
         } else {
             auto result = simdutf::convert_utf16_to_utf8(utf16_string.utf16_span().data(), utf16_string.length_in_code_units(), reinterpret_cast<char*>(string.m_value.short_ascii_string.storage));
@@ -101,7 +101,7 @@ Utf16String Utf16String::from_string_builder(Badge<Utf16StringBuilder>, Utf16Str
         Utf16String string;
         string.m_value.short_ascii_string = Detail::ShortString::create_with_byte_count(view.length_in_code_units());
 
-        auto result = view.bytes().copy_to(string.m_value.short_ascii_string.storage);
+        auto result = view.ascii_bytes().copy_to(string.m_value.short_ascii_string.storage);
         VERIFY(result == view.length_in_code_units());
 
         return string;
