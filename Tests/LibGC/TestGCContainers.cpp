@@ -23,6 +23,8 @@
 #include <LibGC/WeakHashMap.h>
 #include <LibTest/TestCase.h>
 
+namespace {
+
 class TestCell : public GC::Cell {
     GC_CELL(TestCell, GC::Cell);
     GC_DECLARE_ALLOCATOR(TestCell);
@@ -742,4 +744,6 @@ TEST_CASE(weak_pointers_to_dead_cells_are_null_while_finalizing)
     heap.collect_garbage(GC::Heap::CollectionType::CollectEverything);
     EXPECT(weak_cell_was_null_while_finalizing);
     EXPECT(weak_to_self_was_null_while_finalizing);
+}
+
 }

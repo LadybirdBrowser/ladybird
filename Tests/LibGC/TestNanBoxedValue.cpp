@@ -15,6 +15,8 @@
 #include <LibGC/WeakInlines.h>
 #include <LibTest/TestCase.h>
 
+namespace {
+
 class TestCell final : public GC::Cell {
     GC_CELL(TestCell, GC::Cell);
     GC_DECLARE_ALLOCATOR(TestCell);
@@ -95,4 +97,6 @@ TEST_CASE(conservative_scanner_decodes_caged_value)
     GC::scrub_stack_for_testing();
     heap.collect_garbage(GC::Heap::CollectionType::CollectEverything);
     EXPECT(!weak_cell);
+}
+
 }
