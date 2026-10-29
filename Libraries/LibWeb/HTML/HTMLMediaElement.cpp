@@ -199,13 +199,12 @@ struct HTMLMediaElement::RemoteFetchData {
     bool resource_was_complete { false };
     bool download_is_suspended { false };
     bool may_suspend_after_first_frame { true };
+    bool fetching_was_interrupted { false };
 
     ~RemoteFetchData()
     {
-        if (stream) {
+        if (stream)
             stream->set_data_request_callback(nullptr);
-            stream->close();
-        }
 
         if (fetch_controller)
             fetch_controller->stop_fetch();
@@ -484,8 +483,6 @@ void HTMLMediaElement::cancel_the_fetching_process()
 {
     m_current_fetch_generation++;
     m_waiting_for_an_implementation_defined_event_to_fetch_the_resource = false;
-    if (m_remote_fetch_data && m_remote_fetch_data->stream)
-        m_remote_fetch_data->stream->close();
     m_remote_fetch_data.clear();
 }
 
@@ -1992,7 +1989,7 @@ void HTMLMediaElement::handle_data_request(Optional<u64> offset)
 {
     VERIFY(m_remote_fetch_data);
 
-    if (m_error)
+    if (m_error || m_remote_fetch_data->fetching_was_interrupted)
         return;
 
     auto& fetch_controller = m_remote_fetch_data->fetch_controller;
@@ -2532,10 +2529,8 @@ void HTMLMediaElement::queue_interrupted_fetch_steps()
         fetch_controller->stop_fetch();
         fetch_controller = nullptr;
     }
-    m_remote_fetch_data->stream->close();
+    m_remote_fetch_data->fetching_was_interrupted = true;
 
-    // NB: The task checks for the same fetch data, not the same fetch generation; a data request the media server sent
-    //     before the stream closed can start a range fetch before the task runs; the steps then cancel that fetch too.
     queue_a_media_element_task([fetch_data_id = m_remote_fetch_data->id](HTMLMediaElement& self) {
         if (!self.m_remote_fetch_data || self.m_remote_fetch_data->id != fetch_data_id || self.m_error)
             return;
@@ -2633,6 +2628,9 @@ void HTMLMediaElement::process_media_data(FetchingStatus fetching_status)
 
             // 6. Abort the overall resource selection algorithm.
             // NB: Stopping the fetch stops the resource selection algorithm when the error is set.
+        } else {
+            // NB: Before the metadata is known, only the end of the stream lets the demuxer finish or fail.
+            m_remote_fetch_data->stream->close();
         }
     }
 

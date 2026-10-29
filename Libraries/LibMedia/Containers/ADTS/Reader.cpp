@@ -21,8 +21,7 @@ static DecoderErrorOr<size_t> read_available(MediaStreamCursor& cursor, size_t p
         TRY(cursor.seek_to_position(position));
         return cursor.read_into(buffer);
     }();
-    // Data that ends early reads short, but an aborted read has to reach the reader that will retry it.
-    if (result.is_error() && result.error().category() != DecoderErrorCategory::Aborted)
+    if (result.is_error() && !is_stream_control_flow(result.error().category()))
         return 0;
     return result;
 }

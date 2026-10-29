@@ -270,10 +270,17 @@ DecoderErrorOr<bool> DecodedAudioProducer::ThreadData::replace_drained_decoder()
     return true;
 }
 
+void DecodedAudioProducer::ThreadData::wait_for_another_seek_or_exit(u32 seek_id)
+{
+    auto locker = take_lock();
+    while (m_seek_id == seek_id && !should_thread_exit_while_locked())
+        m_wait_condition.wait();
+}
+
 bool DecodedAudioProducer::ThreadData::check_if_seek_is_needed_or_allow_demuxer_reads(u32 seek_id)
 {
     auto locker = take_lock();
-    if (m_seek_id != seek_id)
+    if (m_seek_id != seek_id || should_thread_exit_while_locked())
         return true;
     m_demuxer->reset_blocking_reads_aborted_for_track(m_track);
     return false;
@@ -290,6 +297,7 @@ void DecodedAudioProducer::ThreadData::exit()
 {
     auto locker = take_lock();
     m_requested_state = RequestedState::Exit;
+    m_demuxer->set_blocking_reads_aborted_for_track(m_track);
     wake();
 }
 
@@ -326,7 +334,7 @@ void DecodedAudioProducer::ThreadData::consume()
 
 void DecodedAudioProducer::ThreadData::enter_halting_state(PipelineStatus status, Optional<DecoderError> error)
 {
-    VERIFY(!error.has_value() || error->category() != DecoderErrorCategory::Aborted);
+    VERIFY(!error.has_value() || !is_stream_control_flow(error->category()));
 
     VERIFY(status == PipelineStatus::EndOfStream || status == PipelineStatus::Error);
     m_current_halting_status = status;
@@ -536,6 +544,8 @@ void DecodedAudioProducer::ThreadData::handle_seek()
             seek_reason = m_seek_reason;
 
             timestamp = m_seek_timestamp;
+            if (should_thread_exit_while_locked())
+                return;
             m_demuxer->reset_blocking_reads_aborted_for_track(m_track);
 
             if (seek_reason == SeekReason::DecoderResetNeeded && !seek_was_externally_requested) {
@@ -549,6 +559,7 @@ void DecodedAudioProducer::ThreadData::handle_seek()
 
             m_current_halting_status = PipelineStatus::Pending;
             m_frame_awaiting_decoder_replacement.clear();
+            m_decoder_is_draining_before_unavailable_data = false;
         }
 
         // All of our audio codecs have independently decodable frames, so always moving the demuxer is cheap.
@@ -557,6 +568,10 @@ void DecodedAudioProducer::ThreadData::handle_seek()
             seek_options |= DemuxerSeekOptions::NeedCodecConfiguration;
         auto demuxer_seek_result_or_error = m_demuxer->seek_to_most_recent_keyframe(m_track, timestamp, seek_options);
         if (demuxer_seek_result_or_error.is_error() && demuxer_seek_result_or_error.error().category() != DecoderErrorCategory::EndOfStream) {
+            if (demuxer_seek_result_or_error.error().category() == DecoderErrorCategory::PermanentlyUnavailable) {
+                wait_for_another_seek_or_exit(seek_id);
+                return;
+            }
             if (demuxer_seek_result_or_error.error().category() == DecoderErrorCategory::Aborted)
                 continue;
             handle_error(demuxer_seek_result_or_error.release_error());
@@ -577,6 +592,10 @@ void DecodedAudioProducer::ThreadData::handle_seek()
                 auto block_result = retrieve_next_block(current_block);
                 if (block_result.is_error()) {
                     if (block_result.error().category() == DecoderErrorCategory::EndOfStream) {
+                        if (m_decoder_is_draining_before_unavailable_data) {
+                            wait_for_another_seek_or_exit(seek_id);
+                            return;
+                        }
                         auto error_or_decoder_was_replaced = replace_drained_decoder();
                         if (error_or_decoder_was_replaced.is_error()) {
                             if (seek_to_resubmit_if_decoder_lost_its_state(error_or_decoder_was_replaced.error())) {
@@ -641,6 +660,13 @@ void DecodedAudioProducer::ThreadData::handle_seek()
                         resolve_handled_seek_while_locked();
                         return;
                     }
+                    m_decoder->signal_end_of_stream();
+                } else if (category == DecoderErrorCategory::PermanentlyUnavailable) {
+                    if (m_decoder == nullptr) {
+                        wait_for_another_seek_or_exit(seek_id);
+                        return;
+                    }
+                    m_decoder_is_draining_before_unavailable_data = true;
                     m_decoder->signal_end_of_stream();
                 } else if (category != DecoderErrorCategory::Aborted) {
                     handle_error(coded_frame_result.release_error());
@@ -729,6 +755,10 @@ void DecodedAudioProducer::ThreadData::push_data_and_decode_a_block()
             if (seek_to_resubmit_if_decoder_lost_its_state(block_result.error()))
                 return;
             if (block_result.error().category() == DecoderErrorCategory::EndOfStream) {
+                if (m_decoder_is_draining_before_unavailable_data) {
+                    wait_for_another_seek_or_exit(m_last_processed_seek_id);
+                    return;
+                }
                 auto replaced_result = replace_drained_decoder();
                 if (replaced_result.is_error()) {
                     if (seek_to_resubmit_if_decoder_lost_its_state(replaced_result.error()))
@@ -765,6 +795,13 @@ void DecodedAudioProducer::ThreadData::push_data_and_decode_a_block()
                 set_halting_status_and_wait_for_seek(PipelineStatus::EndOfStream, {});
                 return;
             }
+            m_decoder->signal_end_of_stream();
+        } else if (category == DecoderErrorCategory::PermanentlyUnavailable) {
+            if (m_decoder == nullptr) {
+                wait_for_another_seek_or_exit(m_last_processed_seek_id);
+                return;
+            }
+            m_decoder_is_draining_before_unavailable_data = true;
             m_decoder->signal_end_of_stream();
         } else if (category != DecoderErrorCategory::Aborted) {
             set_halting_status_and_wait_for_seek(PipelineStatus::Error, sample_result.release_error());

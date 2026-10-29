@@ -73,6 +73,68 @@ static Optional<Vector<BlockFrameRange>> take_blocks_to_the_end_of_stream(Media:
     }
 }
 
+// Ends a track's samples after a number of them, with the given error.
+class TruncatingDemuxer final : public Media::Demuxer {
+public:
+    static NonnullRefPtr<TruncatingDemuxer> create(NonnullRefPtr<Media::Demuxer> inner, size_t sample_count, Media::DecoderErrorCategory category)
+    {
+        return adopt_ref(*new TruncatingDemuxer(move(inner), sample_count, category));
+    }
+
+    virtual Media::DecoderErrorOr<void> create_context_for_track(Media::Track const& track) override { return m_inner->create_context_for_track(track); }
+    virtual Media::DecoderErrorOr<Vector<Media::Track>> get_tracks_for_type(Media::TrackType type) override { return m_inner->get_tracks_for_type(type); }
+    virtual Media::DecoderErrorOr<Optional<Media::Track>> get_preferred_track_for_type(Media::TrackType type) override { return m_inner->get_preferred_track_for_type(type); }
+    virtual Media::DecoderErrorOr<Media::CodedFrame> get_next_sample_for_track(Media::Track const& track) override
+    {
+        if (m_samples_served >= m_sample_count)
+            return Media::DecoderError::with_description(m_category, "The samples end here"sv);
+        m_samples_served++;
+        return m_inner->get_next_sample_for_track(track);
+    }
+    virtual AK::Duration select_fast_seek_target_for_track(Media::Track const& track, AK::Duration target, Media::SeekMode mode) override { return m_inner->select_fast_seek_target_for_track(track, target, mode); }
+    virtual Media::DecoderErrorOr<Media::DemuxerSeekResult> seek_to_most_recent_keyframe(Media::Track const& track, AK::Duration timestamp, Media::DemuxerSeekOptions options) override { return m_inner->seek_to_most_recent_keyframe(track, timestamp, options); }
+    virtual Media::DecoderErrorOr<AK::Duration> duration_of_track(Media::Track const& track) override { return m_inner->duration_of_track(track); }
+    virtual Media::DecoderErrorOr<AK::Duration> total_duration() override { return m_inner->total_duration(); }
+    virtual Media::DemuxerScanState const& scan_state() const LIFETIME_BOUND override { return m_inner->scan_state(); }
+    virtual void set_scan_state_change_handler(ScanStateChangeHandler handler) override { m_inner->set_scan_state_change_handler(move(handler)); }
+    virtual void set_blocking_reads_aborted_for_track(Media::Track const& track) override { m_inner->set_blocking_reads_aborted_for_track(track); }
+    virtual void reset_blocking_reads_aborted_for_track(Media::Track const& track) override { m_inner->reset_blocking_reads_aborted_for_track(track); }
+    virtual void set_read_blocked_change_handler_for_track(Media::Track const& track, Media::ReadBlockedChangeHandler handler) override { m_inner->set_read_blocked_change_handler_for_track(track, move(handler)); }
+
+private:
+    TruncatingDemuxer(NonnullRefPtr<Media::Demuxer> inner, size_t sample_count, Media::DecoderErrorCategory category)
+        : m_inner(move(inner))
+        , m_sample_count(sample_count)
+        , m_category(category)
+    {
+    }
+
+    NonnullRefPtr<Media::Demuxer> m_inner;
+    size_t const m_sample_count;
+    Media::DecoderErrorCategory const m_category;
+    size_t m_samples_served { 0 };
+};
+
+static NonnullRefPtr<Media::DecodedAudioProducer> create_started_truncated_audio_producer(Core::EventLoop& loop, StringView path, size_t sample_count, Media::DecoderErrorCategory category, Optional<AK::Duration> seek_target = {})
+{
+    auto file = MUST(Core::File::open(path, Core::File::OpenMode::Read));
+    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(MUST(file->read_until_eof()));
+    auto inner_demuxer = MUST(Media::create_demuxer(stream));
+    auto tracks = MUST(inner_demuxer->get_tracks_for_type(Media::TrackType::Audio));
+    VERIFY(!tracks.is_empty());
+    auto demuxer = TruncatingDemuxer::create(move(inner_demuxer), sample_count, category);
+    auto producer = MUST(Media::DecodedAudioProducer::try_create(loop, demuxer, tracks[0]));
+    // Resampling holds back the end of the decoded audio until the converter is drained.
+    MUST(producer->set_output_sample_specification(Audio::SampleSpecification(96'000, Audio::ChannelMap::stereo())));
+    producer->set_error_handler([](Media::DecoderError&& error) {
+        FAIL(ByteString::formatted("An error occurred while decoding: {}", error.description()));
+    });
+    if (seek_target.has_value())
+        producer->seek(seek_target.value());
+    producer->start();
+    return producer;
+}
+
 // The blocks a decoder produced before it lost its state are still good, so they stay available while decoding
 // restarts, and decoding continues after them.
 TEST_CASE(blocks_held_when_the_decoder_loses_its_state_stay_available)
@@ -135,6 +197,73 @@ TEST_CASE(a_seek_during_a_restart_lands_on_its_own_target)
     producer->seek(target);
     state_loss->resume_decoding();
 
+    auto deadline = MonotonicTime::now_coarse() + time_limit;
+    auto output = producer->peek();
+    while (output.status != Media::PipelineStatus::HaveData) {
+        if (MonotonicTime::now_coarse() >= deadline) {
+            FAIL("Timed out waiting for the seek to resolve");
+            return;
+        }
+        loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+        output = producer->peek();
+    }
+    EXPECT(output.block->contains_media_time(target));
+}
+
+// When the data runs out for good, the blocks the decoder still holds come out as they would at the end of the
+// stream, but the stream does not end.
+TEST_CASE(blocks_held_by_the_decoder_are_delivered_when_data_becomes_permanently_unavailable)
+{
+    auto& loop = never_destroyed_event_loop();
+    auto time_limit = AK::Duration::from_seconds(5);
+    size_t const sample_count = 20;
+
+    auto ended_ranges = take_blocks_to_the_end_of_stream(create_started_truncated_audio_producer(loop, "test-webm-xiph-lacing.mka"sv, sample_count, Media::DecoderErrorCategory::EndOfStream), loop, time_limit);
+    if (!ended_ranges.has_value()) {
+        FAIL("Timed out decoding to the end of the truncated stream");
+        return;
+    }
+
+    auto producer = create_started_truncated_audio_producer(loop, "test-webm-xiph-lacing.mka"sv, sample_count, Media::DecoderErrorCategory::PermanentlyUnavailable);
+    Vector<BlockFrameRange> ranges;
+    auto quiet_period = AK::Duration::from_milliseconds(300);
+    auto deadline = MonotonicTime::now_coarse() + time_limit;
+    auto quiet_until = MonotonicTime::now_coarse() + quiet_period;
+    while (MonotonicTime::now_coarse() < quiet_until && MonotonicTime::now_coarse() < deadline) {
+        auto output = producer->peek();
+        EXPECT_NE(output.status, Media::PipelineStatus::EndOfStream);
+        if (output.status == Media::PipelineStatus::HaveData) {
+            ranges.append({ output.block->first_frame_index(), output.block->end_frame_index() });
+            producer->consume();
+            quiet_until = MonotonicTime::now_coarse() + quiet_period;
+            continue;
+        }
+        loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    }
+
+    EXPECT_EQ(ranges.size(), ended_ranges->size());
+    if (!ranges.is_empty() && !ended_ranges->is_empty())
+        EXPECT_EQ(ranges.last().end_frame_index, ended_ranges->last().end_frame_index);
+}
+
+// The end of the audio before the data runs out only comes out of the converter when it is drained, so a seek to it
+// resolves once the decoder drains.
+TEST_CASE(a_seek_resolves_on_held_blocks_when_data_becomes_permanently_unavailable)
+{
+    auto& loop = never_destroyed_event_loop();
+    auto time_limit = AK::Duration::from_seconds(5);
+    // Few enough samples that the target lies within the seek pre-roll, so that both producers decode from the first
+    // sample.
+    size_t const sample_count = 4;
+
+    auto ended_ranges = take_blocks_to_the_end_of_stream(create_started_truncated_audio_producer(loop, "test-webm-xiph-lacing.mka"sv, sample_count, Media::DecoderErrorCategory::EndOfStream), loop, time_limit);
+    if (!ended_ranges.has_value() || ended_ranges->is_empty()) {
+        FAIL("Timed out decoding to the end of the truncated stream");
+        return;
+    }
+    auto target = AK::Duration::from_time_units(ended_ranges->last().end_frame_index - 1, 1, 96'000);
+
+    auto producer = create_started_truncated_audio_producer(loop, "test-webm-xiph-lacing.mka"sv, sample_count, Media::DecoderErrorCategory::PermanentlyUnavailable, target);
     auto deadline = MonotonicTime::now_coarse() + time_limit;
     auto output = producer->peek();
     while (output.status != Media::PipelineStatus::HaveData) {

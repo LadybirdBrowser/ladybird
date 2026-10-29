@@ -178,6 +178,13 @@ bool IncrementallyPopulatedStream::is_closed() const
     return m_closed;
 }
 
+void IncrementallyPopulatedStream::make_missing_data_permanently_unavailable()
+{
+    MutexLocker locker { m_mutex };
+    m_missing_data_is_permanently_unavailable = true;
+    m_state_changed.broadcast();
+}
+
 void IncrementallyPopulatedStream::set_available_ranges_change_observer(Function<void()> observer)
 {
     MutexLocker locker { m_mutex };
@@ -193,9 +200,12 @@ void IncrementallyPopulatedStream::notify_available_ranges_changed_while_locked(
 u64 IncrementallyPopulatedStream::size()
 {
     MutexLocker locker { m_mutex };
-    while (!m_expected_size.has_value())
+    while (!m_expected_size.has_value() && !m_missing_data_is_permanently_unavailable)
         m_state_changed.wait();
-    return m_expected_size.value();
+    if (m_expected_size.has_value())
+        return m_expected_size.value();
+    auto const* last_chunk = m_chunks.find_largest_not_above(NumericLimits<u64>::max());
+    return last_chunk ? last_chunk->end() : 0;
 }
 
 void IncrementallyPopulatedStream::set_expected_size(u64 expected_size)
@@ -365,9 +375,14 @@ DecoderErrorOr<size_t> IncrementallyPopulatedStream::read_at(Cursor& cursor, siz
     MutexLocker locker { m_mutex };
 
     bool notified_blocked = false;
+    bool data_is_permanently_unavailable = false;
     while (!cursor.m_aborted.load(AK::MemoryOrder::memory_order_relaxed) && cursor.m_is_blocking) {
         if (check_if_data_is_available_or_begin_request_while_locked(cursor, position, bytes.size()))
             break;
+        if (m_missing_data_is_permanently_unavailable) {
+            data_is_permanently_unavailable = true;
+            break;
+        }
 
         cursor.m_blocked = true;
         if (!notified_blocked) {
@@ -387,6 +402,8 @@ DecoderErrorOr<size_t> IncrementallyPopulatedStream::read_at(Cursor& cursor, siz
 
     if (cursor.m_aborted.load(AK::MemoryOrder::memory_order_relaxed))
         return DecoderError::with_description(DecoderErrorCategory::Aborted, "Blocking read was aborted"sv);
+    if (data_is_permanently_unavailable)
+        return DecoderError::with_description(DecoderErrorCategory::PermanentlyUnavailable, "The data will never arrive"sv);
 
     if (m_closed && position >= m_expected_size.value())
         return DecoderError::with_description(DecoderErrorCategory::EndOfStream, "Blocking read reached end of stream"sv);

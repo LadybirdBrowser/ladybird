@@ -45,11 +45,13 @@ public:
             if (m_samples_served >= m_samples_before_blocking) {
                 m_read_is_blocked = true;
                 m_state_changed.broadcast();
-                while (m_blocks_reads && !m_reads_are_aborted)
+                while (m_blocks_reads && !m_reads_are_aborted && !m_blocked_samples_are_permanently_unavailable)
                     m_state_changed.wait();
                 m_read_is_blocked = false;
                 if (m_reads_are_aborted)
                     return Media::DecoderError::with_description(Media::DecoderErrorCategory::Aborted, "Blocking read was aborted"sv);
+                if (m_blocked_samples_are_permanently_unavailable)
+                    return Media::DecoderError::with_description(Media::DecoderErrorCategory::PermanentlyUnavailable, "The data will never arrive"sv);
             }
             m_samples_served++;
         }
@@ -111,6 +113,13 @@ public:
         m_state_changed.broadcast();
     }
 
+    void make_blocked_samples_permanently_unavailable()
+    {
+        MutexLocker locker { m_mutex };
+        m_blocked_samples_are_permanently_unavailable = true;
+        m_state_changed.broadcast();
+    }
+
     size_t samples_served()
     {
         MutexLocker locker { m_mutex };
@@ -137,6 +146,7 @@ private:
     size_t m_samples_served { 0 };
     bool m_blocks_reads { true };
     bool m_reads_are_aborted { false };
+    bool m_blocked_samples_are_permanently_unavailable { false };
     bool m_read_is_blocked { false };
     Atomic<size_t> m_seek_count { 0 };
     Atomic<size_t> m_forced_seek_count { 0 };
@@ -668,6 +678,53 @@ TEST_CASE(a_seek_resolves_on_output_that_arrives_while_the_demuxer_blocks)
     EXPECT_EQ(demuxer->seek_count(), 1u);
 
     demuxer->stop_blocking_reads();
+}
+
+TEST_CASE(a_seek_resolves_on_held_output_when_data_becomes_permanently_unavailable)
+{
+    auto& loop = never_destroyed_event_loop();
+    auto withheld_outputs = make_ref_counted<WithheldOutputs>();
+    WithholdingVideoDecoder::set_withheld_outputs_for_new_decoders(withheld_outputs);
+    ScopeGuard stop_withholding = [] { WithholdingVideoDecoder::set_withheld_outputs_for_new_decoders(nullptr); };
+
+    auto sample_timestamps = presentation_timestamps_of_first_samples("./vp9_in_webm.webm"sv, 3);
+    auto target_sample_timestamp = sample_timestamps.last();
+    auto [inner_demuxer, track] = demuxer_and_video_track_for("./vp9_in_webm.webm"sv);
+    auto demuxer = BlockingDemuxer::create(inner_demuxer, sample_timestamps.size());
+    auto producer = TRY_OR_FAIL(Media::DecodedVideoProducer::try_create(loop, demuxer, track));
+    producer->set_error_handler([&](Media::DecoderError&& error) {
+        FAIL(ByteString::formatted("An error occurred while decoding: {}", error.description()));
+    });
+    producer->seek(target_sample_timestamp + AK::Duration::from_milliseconds(1));
+    producer->start();
+
+    auto time_limit = AK::Duration::from_seconds(5);
+    if (!demuxer->wait_until_a_read_blocks(time_limit)) {
+        FAIL("Timed out waiting for the decode thread to block on the demuxer");
+        return;
+    }
+
+    // The decoder holds the target's output, so the seek resolves on it once the decoder is drained.
+    demuxer->make_blocked_samples_permanently_unavailable();
+    if (!withheld_outputs->wait_until_the_caller_waits_for_output(time_limit)) {
+        FAIL("Timed out waiting for the decode thread to drain the decoder");
+        return;
+    }
+    while (withheld_outputs->release_next()) { }
+
+    auto deadline = MonotonicTime::now_coarse() + time_limit;
+    RefPtr<Media::VideoFrame> frame;
+    while (frame == nullptr && MonotonicTime::now_coarse() < deadline) {
+        auto output = producer->peek();
+        if (output.status == Media::PipelineStatus::HaveData)
+            frame = output.frame;
+        else
+            loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    }
+    if (frame == nullptr)
+        FAIL("The seek did not resolve on the output held by the decoder");
+    else
+        EXPECT_EQ(frame->timestamp(), target_sample_timestamp);
 }
 
 // Output finishing while a seek is requested wakes the decode thread between taking output and reading the next
@@ -1209,4 +1266,61 @@ TEST_CASE(samples_that_follow_a_transient_end_of_stream_are_ignored)
         }
         loop.pump(Core::EventLoop::WaitMode::PollForEvents);
     }
+}
+
+// Frames the decoder still holds when the data runs out for good are drained out, without ending the stream.
+TEST_CASE(frames_held_by_the_decoder_are_delivered_when_data_becomes_permanently_unavailable)
+{
+    auto& loop = never_destroyed_event_loop();
+    auto withheld_outputs = make_ref_counted<WithheldOutputs>();
+    WithholdingVideoDecoder::set_withheld_outputs_for_new_decoders(withheld_outputs);
+    ScopeGuard stop_withholding = [] { WithholdingVideoDecoder::set_withheld_outputs_for_new_decoders(nullptr); };
+
+    auto sample_timestamps = presentation_timestamps_of_first_samples("./vp9_in_webm.webm"sv, 3);
+    auto [inner_demuxer, track] = demuxer_and_video_track_for("./vp9_in_webm.webm"sv);
+    auto demuxer = BlockingDemuxer::create(inner_demuxer, sample_timestamps.size());
+    auto producer = TRY_OR_FAIL(Media::DecodedVideoProducer::try_create(loop, demuxer, track));
+    producer->set_error_handler([&](Media::DecoderError&& error) {
+        FAIL(ByteString::formatted("An error occurred while decoding: {}", error.description()));
+    });
+    producer->start();
+
+    auto time_limit = AK::Duration::from_seconds(5);
+    if (!demuxer->wait_until_a_read_blocks(time_limit)) {
+        FAIL("Timed out waiting for the decode thread to block on the demuxer");
+        return;
+    }
+    EXPECT_EQ(withheld_outputs->withheld_count(), sample_timestamps.size());
+
+    demuxer->make_blocked_samples_permanently_unavailable();
+    if (!withheld_outputs->wait_until_the_caller_waits_for_output(time_limit)) {
+        FAIL("Timed out waiting for the decode thread to drain the decoder");
+        return;
+    }
+    while (withheld_outputs->release_next()) { }
+
+    for (auto timestamp : sample_timestamps) {
+        auto frame = take_frame_within_time_limit(*producer, loop, time_limit);
+        if (frame == nullptr) {
+            FAIL("Timed out waiting for a frame drained from the decoder");
+            return;
+        }
+        EXPECT_EQ(frame->timestamp(), timestamp);
+    }
+
+    auto deadline = MonotonicTime::now() + AK::Duration::from_milliseconds(200);
+    while (MonotonicTime::now() < deadline) {
+        EXPECT_EQ(producer->peek().status, Media::PipelineStatus::Pending);
+        loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    }
+
+    // The drained decoder has to start over, so the next seek moves the demuxer.
+    auto seek_count = demuxer->seek_count();
+    auto forced_seek_count = demuxer->forced_seek_count();
+    producer->seek(sample_timestamps.last() + AK::Duration::from_seconds(10));
+    auto seek_deadline = MonotonicTime::now() + time_limit;
+    while (demuxer->seek_count() == seek_count && MonotonicTime::now() < seek_deadline)
+        loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    EXPECT(demuxer->seek_count() > seek_count);
+    EXPECT(demuxer->forced_seek_count() > forced_seek_count);
 }

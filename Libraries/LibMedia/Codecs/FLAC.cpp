@@ -5,6 +5,7 @@
  */
 
 #include <AK/BuiltinWrappers.h>
+#include <AK/GenericShorthands.h>
 #include <LibMedia/Codecs/FLAC.h>
 #include <LibMedia/MediaStream.h>
 #include <LibMediaCodecs/BitReader.h>
@@ -34,7 +35,7 @@ static DecoderErrorOr<bool> propagate_abort(DecoderErrorOr<void> result)
 {
     if (!result.is_error())
         return true;
-    if (result.error().category() == DecoderErrorCategory::Aborted)
+    if (first_is_one_of(result.error().category(), DecoderErrorCategory::Aborted, DecoderErrorCategory::PermanentlyUnavailable))
         return result.release_error();
     return false;
 }

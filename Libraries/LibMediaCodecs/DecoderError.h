@@ -22,6 +22,7 @@ using DecoderErrorOr = ErrorOr<T, DecoderError>;
 
 enum class DecoderErrorCategory : u8 {
     Aborted,
+    PermanentlyUnavailable,
     Unknown,
     IO,
     NeedsMoreInput,
@@ -39,6 +40,15 @@ enum class DecoderErrorCategory : u8 {
     // The decoder lost its state, so coded data must be submitted to it again starting from a keyframe.
     NeedsResubmission,
 };
+
+inline bool is_stream_control_flow(DecoderErrorCategory category)
+{
+    if (category == DecoderErrorCategory::Aborted)
+        return true;
+    if (category == DecoderErrorCategory::PermanentlyUnavailable)
+        return true;
+    return false;
+}
 
 class DecoderError {
 public:
@@ -95,6 +105,8 @@ constexpr StringView decoder_error_category_to_string(DecoderErrorCategory categ
     switch (category) {
     case DecoderErrorCategory::Aborted:
         return "Aborted"sv;
+    case DecoderErrorCategory::PermanentlyUnavailable:
+        return "PermanentlyUnavailable"sv;
     case DecoderErrorCategory::Unknown:
         return "Unknown"sv;
     case DecoderErrorCategory::IO:

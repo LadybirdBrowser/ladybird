@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A fetch that fails partway does not end the media resource where the fetched data ends, so a seek past that data
+    // keeps waiting for it rather than resolving as if it had reached the end.
+    asyncTest(async done => {
+        const server = httpTestServer();
+
+        // Build a constant-bitrate MP3 of about 2 MiB by repeating the audio frames of tone.mp3 (all but its leading ID3
+        // tag and Info frame).
+        const tone = new Uint8Array(await (await fetch(server.getStaticURL("Assets/tone.mp3"))).arrayBuffer());
+        const audioFrames = tone.subarray(226);
+        const repetitions = Math.ceil((2 * 1024 * 1024) / audioFrames.length);
+        const mediaBytes = new Uint8Array(audioFrames.length * repetitions);
+        for (let i = 0; i < repetitions; ++i)
+            mediaBytes.set(audioFrames, i * audioFrames.length);
+
+        // The body stops short of the Content-Length, so the connection closes before the response is complete.
+        const sentBytes = mediaBytes.subarray(0, 512 * 1024);
+        let binary = "";
+        for (let i = 0; i < sentBytes.length; i += 0x8000)
+            binary += String.fromCharCode(...sentBytes.subarray(i, i + 0x8000));
+        const testID = crypto.randomUUID();
+        const mediaURL = new URL(await server.createEcho("GET", `/echo/seek-past-fetched-data-${testID}.mp3`, {
+            status: 200,
+            headers: {
+                "Content-Type": "audio/mpeg",
+                "Content-Length": String(mediaBytes.length),
+                "Cache-Control": "no-store",
+            },
+            body: btoa(binary),
+            body_encoding: "base64",
+        }));
+
+        // Hold the rest of the body back until the metadata is known, so that the connection fails after it.
+        const token = `seek-past-fetched-data-${testID}`;
+        const unblockURL = new URL(`/unblock/${token}`, mediaURL);
+        unblockURL.hostname = uniqueLocalhostHostname("seek-past-fetched-data-unblock");
+        mediaURL.search = `?chunks=262144&chunk_unblock_tokens=${token}`;
+
+        const audio = document.createElement("audio");
+        audio.preload = "auto";
+        audio.src = mediaURL;
+        document.body.append(audio);
+
+        await new Promise(resolve => audio.addEventListener("loadedmetadata", resolve, { once: true }));
+        const error = new Promise(resolve => audio.addEventListener("error", resolve, { once: true }));
+        await fetch(unblockURL);
+        await error;
+        println(`error code: ${audio.error.code}`);
+
+        for (const name of ["seeked", "ended"])
+            audio.addEventListener(name, () => println(`${name} fired`));
+
+        audio.currentTime = audio.duration * 0.9;
+        await new Promise(resolve => audio.addEventListener("seeking", resolve, { once: true }));
+        println("seeking fired");
+
+        // Give a seek that wrongly resolves at the end of the fetched data time to report it.
+        await new Promise(resolve => setTimeout(resolve, 200));
+        println(`seeking: ${audio.seeking}`);
+        done();
+    });
+</script>
