@@ -130,8 +130,9 @@ impl CompileTarget {
 
 /// Executables with more bytecode than this are never compiled. The compile of one takes time and memory in proportion
 /// to its size or worse (YouTube's top-level script code, 8.8 MiB of bytecode, took minutes and over 1 GiB), and code
-/// that large rarely runs hot as a whole.
-const MAX_COMPILED_BYTECODE_SIZE: usize = 64 * 1024;
+/// that large rarely runs hot as a whole. Compiled C code is the exception: hot functions of Emscripten output can have
+/// over 200 KiB of bytecode (Octane zlib has one with 209 KiB).
+const MAX_COMPILED_BYTECODE_SIZE: usize = 256 * 1024;
 
 /// What to compile the running frame's executable for, if it should be compiled at all.
 fn code_to_compile(vm: &Vm) -> Option<CompileTarget> {
