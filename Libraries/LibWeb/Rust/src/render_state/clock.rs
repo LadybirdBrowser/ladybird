@@ -884,7 +884,7 @@ impl Lane {
                         continue;
                     }
                 };
-                let arena = state.arena.arena();
+                let arena = state.arena.arena_mut();
                 if let Some(host_style) = arena.install_sample(row, restyled, crate::layout::SampleKind::Animation)? {
                     self.ticked.push((row, host_style));
                 }
@@ -907,7 +907,13 @@ impl Lane {
         if rebuilds.len() > 1 {
             let resampled: SmallVec<[StyleNodeID; 8]> = self.resampled_elements().collect();
             let (ticked, restyles) = (&mut self.ticked, &mut self.restyles_built_again);
-            restore_samples_for_build(state.arena.arena(), ticked, Some(&resampled), restyles, |_, _| true)?;
+            restore_samples_for_build(
+                state.arena.arena_mut(),
+                ticked,
+                Some(&resampled),
+                restyles,
+                |_, _, _| true,
+            )?;
             self.samples_restored = true;
         }
         for (node, rebuild) in rebuilds {
@@ -950,7 +956,7 @@ impl Lane {
                 let in_place = !parent_row.is_invalid() && build_keeps_box(arena, parent, CHILD_LIST_INSERTION);
                 if in_place {
                     // The anonymous boxes the build makes in the parent's box inherit what it shows.
-                    restore_samples_for_build(arena, ticked, Some(&resampled), restyles, |row, host_style| {
+                    restore_samples_for_build(arena, ticked, Some(&resampled), restyles, |arena, row, host_style| {
                         nearest_element_box(arena, row) == Some(parent_row)
                             && arena.shows_other_inherited_style_than(row, host_style.record())
                     })?;
@@ -963,7 +969,9 @@ impl Lane {
                 if in_place {
                     // The boxes the build takes away show nothing more.
                     let row = arena.bound_row(node);
-                    restore_samples_for_build(arena, ticked, None, restyles, |inner, _| box_holds(arena, row, inner))?;
+                    restore_samples_for_build(arena, ticked, None, restyles, |arena, inner, _| {
+                        box_holds(arena, row, inner)
+                    })?;
                     arena.mark_layout_tree_update(Some(node), style_change_mark(0));
                 }
                 in_place
@@ -1000,15 +1008,24 @@ fn nearest_element_box(arena: &LayoutNodeArena, row: NodeSlotId) -> Option<NodeS
 /// another, the record a size query decided for it, goes in `restyles` with that record, which the box the build makes
 /// for it shows again. An anonymous box that shows such a record only the host builds.
 fn restore_samples_for_build(
-    arena: &LayoutNodeArena,
+    arena: &mut LayoutNodeArena,
     ticked: &mut Vec<(NodeSlotId, HostStyle)>,
     resampled: Option<&[StyleNodeID]>,
     restyles: &mut Vec<(StyleNodeID, u64)>,
-    holds: impl Fn(NodeSlotId, &HostStyle) -> bool,
+    holds: impl Fn(&LayoutNodeArena, NodeSlotId, &HostStyle) -> bool,
 ) -> Result<(), Park> {
+    let held: SmallVec<[bool; 16]> = ticked
+        .iter()
+        .map(|(row, host_style)| holds(arena, *row, host_style))
+        .collect();
     if let Some(resampled) = resampled {
         let mut kept_restyles: SmallVec<[(StyleNodeID, u64); 4]> = SmallVec::new();
-        for (row, _) in ticked.iter().filter(|(row, host_style)| holds(*row, host_style)) {
+        for (row, _) in ticked
+            .iter()
+            .zip(&held)
+            .filter(|(_, held)| **held)
+            .map(|(ticked, _)| ticked)
+        {
             let element = nearest_element_box(arena, *row).and_then(|box_| arena.dom_node_style_node(box_));
             if element.is_some_and(|element| resampled.contains(&element)) {
                 continue;
@@ -1025,7 +1042,8 @@ fn restore_samples_for_build(
         });
         restyles.extend(kept_restyles);
     }
-    for (row, host_style) in ticked.extract_if(.., |(row, host_style)| holds(*row, host_style)) {
+    let mut held = held.into_iter();
+    for (row, host_style) in ticked.extract_if(.., |_| held.next().expect("each ticked row was asked once")) {
         arena.restore_host_style(row, host_style, crate::layout::StyleRelayout::ByLayoutAffectingGroups);
         arena.push_paint_damage_for_repaint(row, PaintDamage::ALL_PRODUCERS);
     }
@@ -1046,7 +1064,7 @@ fn mark_region_for_tree_build(
     use crate::css::style::bridge::element_adjustment_fact::{
         IS_DOCUMENT_ELEMENT, IS_HTML_BODY_ELEMENT, RENDERED_IN_TOP_LAYER,
     };
-    let arena = state.arena.arena();
+    let arena = state.arena.arena_mut();
     let row = arena.bound_row(root);
     let parent = match row.is_invalid() {
         true => NodeSlotId::INVALID,
@@ -1059,7 +1077,7 @@ fn mark_region_for_tree_build(
     {
         return Err(Park("a rebuilt box the host places"));
     }
-    restore_samples_for_build(arena, ticked, Some(resampled), restyles, |inner, _| {
+    restore_samples_for_build(arena, ticked, Some(resampled), restyles, |arena, inner, _| {
         box_holds(arena, row, inner)
     })?;
     arena.mark_layout_tree_update(Some(root), style_change_mark(0));
@@ -1338,7 +1356,7 @@ impl Lane {
         let mut owed = Vec::new();
         let built = self.plan.round.build(&mut state.arena, &mut owed);
         let restyles = std::mem::take(&mut self.restyles_built_again);
-        let arena = state.arena.arena();
+        let arena = state.arena.arena_mut();
         let mut shown = Ok(());
         for (element, record) in restyles {
             let row = arena.bound_row(element);

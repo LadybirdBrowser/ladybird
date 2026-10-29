@@ -3414,12 +3414,12 @@ pub(crate) fn lay_out_root(
     assert!(!root.is_invalid());
     // The style rewrites enroll the affected boxes' text children for content sync, so the sync
     // follows them, and both precede the pass, which caches decoded style.
-    let arena = state.arena();
+    let facts = viewport_propagation::viewport_propagation_facts(state.arena());
     viewport_propagation::propagate_root_styles_to_viewport(
         super::tree_mutation::HostCalls(work),
-        arena,
+        state.arena_mut(),
         root,
-        &viewport_propagation::viewport_propagation_facts(arena),
+        &facts,
     );
     super::layout_node_arena::sync_enrolled_content_for_layout(state.arena_mut());
     LayoutStageJob {

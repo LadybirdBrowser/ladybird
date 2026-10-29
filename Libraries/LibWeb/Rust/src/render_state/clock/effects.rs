@@ -450,7 +450,7 @@ impl Lane {
         let damage = node.map_or(0, |node| {
             engine.element_record_damage(node, false, shown, sample.record)
         }) | engine.sampled_properties_damage(shown, sample.record, properties);
-        let arena = state.arena.arena();
+        let arena = state.arena.arena_mut();
         let host_style = arena.install_sample_beside_anonymous_boxes(row, sample, StyleRelayout::ByDamage(damage));
         // The box shows what the sample of transitions the hover started animates of what the compositor animates, in
         // place of the compositor. The compositor runs the host's animations as the ticks sample them, and on once the
@@ -804,7 +804,7 @@ impl Lane {
                 let damage = state
                     .engine_mut()
                     .sampled_properties_damage(shown, host_style.record(), properties);
-                let arena = state.arena.arena();
+                let arena = state.arena.arena_mut();
                 arena.restore_host_style(row, host_style, StyleRelayout::ByDamage(damage));
                 arena.note_style_visual_context_moves(row, damage);
                 arena.push_paint_damage_for_repaint(row, PaintDamage::ALL_PRODUCERS);

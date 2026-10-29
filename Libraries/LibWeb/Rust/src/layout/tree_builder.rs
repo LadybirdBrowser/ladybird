@@ -148,7 +148,7 @@ pub enum FfiElementLayoutKind {
 
 fn apply_replaced_display_adjustment(
     host_calls: HostCalls<'_>,
-    arena: &LayoutNodeArena,
+    arena: &mut LayoutNodeArena,
     node: NodeSlotId,
     adjustment: FfiReplacedElementDisplayAdjustment,
 ) {
@@ -1413,8 +1413,9 @@ impl TreeBuildJob {
                     .expect("the document element's box publishes its style during the build")
                     .misc_reset()
                     .scrollbar_width;
-                host.arena()
-                    .update_layout_style(host.host_calls(), document_layout_node, |style| {
+                let host_calls = host.host_calls();
+                host.arena_mut()
+                    .update_layout_style(host_calls, document_layout_node, |style| {
                         style.set_scrollbar_width(scrollbar_width);
                     });
             }
@@ -2620,7 +2621,7 @@ fn update_principal_node_after_entry(
         }
         let adjustment = replaced_element_display_adjustment(host, layout_node);
         if adjustment != FfiReplacedElementDisplayAdjustment::None {
-            apply_replaced_display_adjustment(host.host_calls(), host.arena(), layout_node, adjustment);
+            apply_replaced_display_adjustment(host.host_calls(), host.arena_mut(), layout_node, adjustment);
         }
 
         let old_layout_node = update.old_layout_node;
@@ -3169,11 +3170,12 @@ fn stamp_pseudo_element_box_row(
             .and_then(node_kind_for_display)?,
     };
     let slot = host.arena.allocate_unbound();
-    host.arena()
+    host.arena_mut()
         .stamp_pseudo_element_row(slot, kind, generator, generated_for);
     if decision == FfiPseudoElementDecision::Contents {
-        host.arena()
-            .make_display_contents_pseudo_element_box_inline(host.host_calls(), slot);
+        let host_calls = host.host_calls();
+        host.arena_mut()
+            .make_display_contents_pseudo_element_box_inline(host_calls, slot);
     }
     if is_list_item_marker {
         host.arena()
@@ -3212,7 +3214,7 @@ fn stamp_nested_list_marker_row(
         LayoutStyle::from_record(engine, record).intern(engine)
     });
     let slot = host.arena.allocate_unbound();
-    host.arena()
+    host.arena_mut()
         .stamp_anonymous_box(slot, NodeKind::ListItemMarkerBox, derived);
     host.arena()
         .set_node_generated_for(slot, generated_for_of(pseudo_element), Some(generator));
@@ -3271,7 +3273,7 @@ fn create_generated_content_item(
         ),
     );
     let slot = host.arena.allocate_unbound();
-    host.arena().stamp_anonymous_box(slot, NodeKind::ImageBox, derived);
+    host.arena_mut().stamp_anonymous_box(slot, NodeKind::ImageBox, derived);
     host.arena()
         .set_node_generated_for(slot, generated_for_of(pseudo_element), Some(generator));
     host.arena_mut().owe_image_resources(
@@ -3335,7 +3337,7 @@ fn create_pseudo_element(
     if decision == FfiPseudoElementDecision::ContentReplacement {
         let adjustment = replaced_element_display_adjustment(host, layout_node);
         if adjustment != FfiReplacedElementDisplayAdjustment::None {
-            apply_replaced_display_adjustment(host.host_calls(), host.arena(), layout_node, adjustment);
+            apply_replaced_display_adjustment(host.host_calls(), host.arena_mut(), layout_node, adjustment);
         }
     }
 
@@ -3651,7 +3653,7 @@ impl<'a> TreeBuilderHost<'a> {
     /// record the element published. A fieldset and a media element adjust their box as it is built.
     fn create_element_box(&mut self, element: StyleNodeID, kind: NodeKind, record: u64) -> NodeSlotId {
         let slot = self.stamp_dom_box(kind, Some(element));
-        self.arena().stamp_published_style(slot, record);
+        self.arena_mut().stamp_published_style(slot, record);
         match kind {
             // https://html.spec.whatwg.org/multipage/rendering.html#the-fieldset-and-legend-elements
             // If the computed outer display type is inline, the fieldset is expected to behave as inline-block.
@@ -3659,7 +3661,8 @@ impl<'a> TreeBuilderHost<'a> {
             NodeKind::FieldSetBox => {
                 let display = self.style(slot).map(|style| style.display());
                 if let Some(display) = display.filter(FfiDisplay::is_flow_inside) {
-                    self.arena().update_layout_style(self.host_calls(), slot, |style| {
+                    let host_calls = self.host_calls();
+                    self.arena_mut().update_layout_style(host_calls, slot, |style| {
                         style.set_display(FfiDisplay::outside_and_inside(
                             display.outside,
                             crate::css::css_enums::display_inside::FLOW_ROOT,
@@ -3693,7 +3696,7 @@ impl<'a> TreeBuilderHost<'a> {
     /// row.
     fn stamp_dom_box(&mut self, kind: NodeKind, style_node: Option<StyleNodeID>) -> NodeSlotId {
         let slot = self.arena.allocate_unbound();
-        self.arena().stamp_dom_row(slot, kind, style_node);
+        self.arena_mut().stamp_dom_row(slot, kind, style_node);
         self.arena().take_over_rows_of_bound_node(slot);
         slot
     }
@@ -3794,8 +3797,9 @@ impl<'a> TreeBuilderHost<'a> {
             .arena()
             .with_style_store(|engine| engine.element_unique_node_id(document));
         self.arena().unique_node_ids().publish(slot, unique_node_id);
-        self.arena()
-            .apply_reinherited_style_record(self.host_calls(), slot, document_style);
+        let host_calls = self.host_calls();
+        self.arena_mut()
+            .apply_reinherited_style_record(host_calls, slot, document_style);
         self.arena().note_built_scroll_container(slot);
         slot
     }
@@ -3826,7 +3830,7 @@ impl<'a> TreeBuilderHost<'a> {
             .arena()
             .derive_anonymous_style_record(parent_style_record, style_kind, overrides);
         let slot = self.arena.allocate_unbound();
-        self.arena().stamp_anonymous_box(slot, node_kind, derived);
+        self.arena_mut().stamp_anonymous_box(slot, node_kind, derived);
         self.arena().refresh_insets_use_anchor_functions_flag(slot);
         // An anonymous inline box takes its style from its parent, so it may name images too.
         if node_kind == NodeKind::InlineNode {
@@ -4382,12 +4386,10 @@ fn insert_node_into_inline_or_block_ancestor(
     } else {
         insertion_parent_for_block_node(host, state, nearest_insertion_ancestor, node_slot, mode, identity)
     };
-    host.arena().note_inline_box_lifted_out_of(
-        node_slot,
-        (insertion_point != nearest_insertion_ancestor
-            && host.data(nearest_insertion_ancestor).kind.get() == NodeKind::InlineNode)
-            .then_some(nearest_insertion_ancestor),
-    );
+    let lifted_out_of = (insertion_point != nearest_insertion_ancestor
+        && host.data(nearest_insertion_ancestor).kind.get() == NodeKind::InlineNode)
+        .then_some(nearest_insertion_ancestor);
+    host.arena_mut().note_inline_box_lifted_out_of(node_slot, lifted_out_of);
 
     // Insertion parents can be above the subtree being rebuilt in place: inline ancestors are
     // skipped, and out-of-flow boxes can join a trailing anonymous sibling. InDomOrder is selected
@@ -4561,7 +4563,8 @@ fn create_first_letter_boxes(host: &mut TreeBuilderHost<'_>, element: StyleNodeI
         let text = host.arena().node_style_node(text_node);
         let remainder_slice = host.stamp_dom_box(NodeKind::TextNode, text);
         let first_letter_slice = host.arena.allocate_unbound();
-        host.arena().stamp_dom_row(first_letter_slice, NodeKind::TextNode, text);
+        host.arena_mut()
+            .stamp_dom_row(first_letter_slice, NodeKind::TextNode, text);
         host.arena()
             .note_rows_share_dom_node(remainder_slice, first_letter_slice);
         (first_letter_slice, remainder_slice)
@@ -4609,7 +4612,7 @@ fn create_first_letter_boxes(host: &mut TreeBuilderHost<'_>, element: StyleNodeI
     }
 
     let wrapper_slot = host.arena.allocate_unbound();
-    host.arena()
+    host.arena_mut()
         .stamp_pseudo_element_row(wrapper_slot, wrapper_kind, element, GENERATED_FOR_FIRST_LETTER);
     host.note_style_of_built_row(wrapper_slot, None);
     host.arena_mut().owe_image_resources(
@@ -4683,7 +4686,7 @@ fn create_writing_suggestion_boxes(host: &mut TreeBuilderHost<'_>, element: Styl
     // becoming the row the node is bound to.
     let trailing_slice = host.stamp_dom_box(NodeKind::TextNode, Some(suggestion.text));
     let leading_slice = host.arena.allocate_unbound();
-    host.arena()
+    host.arena_mut()
         .stamp_dom_row(leading_slice, NodeKind::TextNode, Some(suggestion.text));
     host.arena().note_rows_share_dom_node(trailing_slice, leading_slice);
     for slice in [leading_slice, trailing_slice] {
@@ -4882,13 +4885,13 @@ fn wrap_fieldset_contents_if_needed(host: &mut TreeBuilderHost<'_>, layout_node:
             overflow_y: style.box_values().overflow_y,
             columns_from_parent: true,
         };
-        host.arena()
-            .update_layout_style(host.host_calls(), layout_node, |style| {
-                style.set_overflow(
-                    crate::css::css_enums::overflow::VISIBLE,
-                    crate::css::css_enums::overflow::VISIBLE,
-                );
-            });
+        let host_calls = host.host_calls();
+        host.arena_mut().update_layout_style(host_calls, layout_node, |style| {
+            style.set_overflow(
+                crate::css::css_enums::overflow::VISIBLE,
+                crate::css::css_enums::overflow::VISIBLE,
+            );
+        });
         let wrapper = host.create_anonymous_box(
             layout_node,
             AnonymousStyleKind::FieldsetContentWrapper,
@@ -5294,8 +5297,9 @@ fn generate_missing_parents(host: &mut TreeBuilderHost<'_>, root: LayoutNode) ->
                 AnonymousStyleOverrides::default(),
                 NodeKind::TableWrapper,
             );
-            host.arena()
-                .reset_table_box_style_used_by_wrapper(host.host_calls(), table_root);
+            let host_calls = host.host_calls();
+            host.arena_mut()
+                .reset_table_box_style_used_by_wrapper(host_calls, table_root);
             let wrapper_slot = wrapper.slot();
             host.move_child(table_root, wrapper_slot, NodeSlotId::INVALID);
             host.attach_child(parent, wrapper, nearest_sibling);
