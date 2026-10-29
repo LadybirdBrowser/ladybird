@@ -1099,6 +1099,53 @@ def check_network_cancel_with_events_off(bidi, context, server, kind):
                 bidi.evaluate(context, "objectFrame.remove(); 0")
 
 
+def check_network_stopped_fetch_reports_error(bidi, context, server):
+    url = f"http://127.0.0.1:{server.server_port}/network-interception/fail-body"
+    server.interception_transport_closed.clear()
+    subscription = bidi.command(
+        "session.subscribe",
+        {"events": ["network.responseStarted", "network.responseCompleted", "network.fetchError"]},
+    )["subscription"]
+    try:
+        # An <object>'s fetch has no fetch record, and stopping its frame still stops the fetch while its body arrives.
+        markup = f'<object data="{url}"></object>'
+        bidi.evaluate(
+            context,
+            "window.objectFrame = document.createElement('iframe'); "
+            f"objectFrame.srcdoc = {json.dumps(markup)}; document.body.append(objectFrame); 0",
+        )
+        started = bidi.event("network.responseStarted")
+        while started["request"]["url"] != url:
+            started = bidi.event("network.responseStarted")
+        bidi.evaluate(context, "objectFrame.contentWindow.stop(); 0")
+        assert server.interception_transport_closed.wait(30), "The stopped fetch left its transport open"
+
+        # A stop reports before it closes the transport, so the next reply follows every event the stop reports.
+        bidi.evaluate(context, "0")
+        request_ids = {started["request"]["request"]} | {
+            event["params"]["request"]["request"]
+            for event in bidi.events
+            if event["method"] == "network.responseStarted" and event["params"]["request"]["url"] == url
+        }
+        for request_id in request_ids:
+            terminals = [
+                event["method"]
+                for event in bidi.events
+                if event["method"] in ["network.responseCompleted", "network.fetchError"]
+                and event["params"]["request"]["request"] == request_id
+            ]
+            assert terminals == ["network.fetchError"], (request_id, terminals)
+        bidi.events = [
+            event
+            for event in bidi.events
+            if not event["method"].startswith("network.") or event["params"]["request"]["url"] != url
+        ]
+    finally:
+        if sys.exc_info()[0] is None:
+            bidi.command("session.unsubscribe", {"subscriptions": [subscription]})
+            bidi.evaluate(context, "objectFrame.remove(); 0")
+
+
 def check_network_continue_after_gc(bidi, context, server):
     subscription = bidi.command(
         "session.subscribe",
@@ -1434,6 +1481,8 @@ def check_network_interception(bidi, context, server, case="all"):
     for kind in ["abort", "stop"]:
         if case in ["all", f"events-off-{kind}"]:
             check_network_cancel_with_events_off(bidi, context, server, kind)
+    if case in ["all", "events-on-stop"]:
+        check_network_stopped_fetch_reports_error(bidi, context, server)
     if case in ["all", "continue-after-gc"]:
         check_network_continue_after_gc(bidi, context, server)
     for action in ["continue", "fail", "provide"]:
@@ -2590,6 +2639,7 @@ if __name__ == "__main__":
             "abort-after-gc",
             "events-off-abort",
             "events-off-stop",
+            "events-on-stop",
             "continue-after-gc",
             "adopted-navigation-continue",
             "adopted-navigation-fail",

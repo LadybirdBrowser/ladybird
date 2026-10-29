@@ -213,6 +213,7 @@ void FetchController::stop_fetch()
         return;
 
     m_control_block->set_state({}, State::Stopped);
+    report_webdriver_bidi_fetch_error("Fetch was stopped"sv);
     cancel_webdriver_bidi_network_interception();
 
     // AD-HOC: Some HTML elements need to stop an ongoing fetching process without causing any network error to be raised
