@@ -4612,7 +4612,7 @@ impl LayoutNodeArena {
             && value
             && updated != previous
             && self.paintable_row_is_populated(id)
-            && !self.paintable_side_data(id).overflow_measured_this_commit.get()
+            && !self.paintable_side_data(id).overflow_measured_this_commit
         {
             self.note_row_overflow_unmeasured(id);
         }
@@ -5662,7 +5662,7 @@ impl LayoutNodeArena {
         }
         self.bump_fragment_cache_epoch(node);
         if super::node_facts::kind_is_box(self.data(node).kind.get()) {
-            self.paintable_rows().clear_cached_overflow_data(node);
+            self.paintable_rows_mut().clear_cached_overflow_data(node);
         }
     }
 

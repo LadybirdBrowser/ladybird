@@ -19,7 +19,7 @@ use crate::painting::visual_context::{
     BoxVisualContextNodeHandles, EMPTY_BOX_VISUAL_CONTEXT_NODE_HANDLES, PaintableVisualContextRecord,
 };
 use smallvec::{SmallVec, smallvec};
-use std::cell::{Cell, Ref, RefCell, RefMut};
+use std::cell::{Cell, Ref, RefCell};
 use std::ffi::c_void;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
@@ -127,7 +127,7 @@ mod tests {
         let rows = arena.paintable_rows();
         assert_eq!(paintable_geometry::scrollable_overflow_rect(&rows, node), None);
         assert!(!paintable_geometry::has_scrollable_overflow(&rows, node));
-        assert!(!arena.paintable_side_data(node).overflow_measured_this_commit.get());
+        assert!(!arena.paintable_side_data(node).overflow_measured_this_commit);
     }
 
     #[test]
@@ -195,10 +195,10 @@ mod tests {
             };
             committed.overflow_valid_across_recommits = true;
         }
-        arena.paintable_side_data(node).overflow_measured_this_commit.set(true);
+        arena.paintable_side_data_mut(node).overflow_measured_this_commit = true;
 
         let previous_geometry = *arena.paintable_rows().paintable_data(node);
-        arena.paintable_rows().clear_cached_overflow_data(node);
+        arena.paintable_rows_mut().clear_cached_overflow_data(node);
         // Reading overflow never measures it.
         assert_eq!(
             paintable_geometry::scrollable_overflow_rect(&arena.paintable_rows(), node),
@@ -215,22 +215,20 @@ mod tests {
     }
 
     #[test]
-    fn overflow_cache_invalidation_is_independent_of_borrowed_geometry() {
+    fn overflow_cache_invalidation_leaves_the_geometry_alone() {
         let mut arena = LayoutNodeArena::new();
         let node = arena.allocate_for_test().slot;
         arena.populate_paintable_row(node);
         arena.committed_side_data_mut(node).overflow_valid_across_recommits = true;
-        arena.paintable_side_data(node).overflow_measured_this_commit.set(true);
+        arena.paintable_side_data_mut(node).overflow_measured_this_commit = true;
         arena.paintable_rows_mut().begin_paintable_row_recommit(node);
         assert!(arena.committed_side_data(node).overflow_valid_across_recommits);
 
-        let rows = arena.paintable_rows();
-        let geometry = rows.paintable_data(node);
-        let previous_geometry = *geometry;
-        rows.clear_cached_overflow_data(node);
-        assert_eq!(*geometry, previous_geometry);
+        let previous_geometry = *arena.paintable_rows().paintable_data(node);
+        arena.paintable_rows_mut().clear_cached_overflow_data(node);
+        assert_eq!(*arena.paintable_rows().paintable_data(node), previous_geometry);
         assert!(!arena.committed_side_data(node).overflow_valid_across_recommits);
-        assert!(!arena.paintable_side_data(node).overflow_measured_this_commit.get());
+        assert!(!arena.paintable_side_data(node).overflow_measured_this_commit);
     }
 }
 
@@ -318,8 +316,8 @@ impl UniqueNodeIdColumn {
 #[derive(Clone, Default)]
 pub(crate) struct PaintableRowStore {
     rows: CowColumn<PaintableData, PAINTABLE_SLOTS_PER_CHUNK>,
-    side_data: RefCell<Vec<PaintableSideData>>,
-    committed_side_data: RefCell<CowColumn<CommittedSideData, PAINTABLE_SLOTS_PER_CHUNK>>,
+    side_data: Vec<PaintableSideData>,
+    committed_side_data: CowColumn<CommittedSideData, PAINTABLE_SLOTS_PER_CHUNK>,
     pub(crate) row_paint_states: Vec<RowPaintState>,
     pub(crate) damage: DamageSet,
     // NB: Boxed, as most rows have no record, and a row holds no more than a pointer for one.
@@ -381,7 +379,7 @@ pub(crate) type PaintableDataMut<'a> =
 
 /// A row's committed side data, for writing. See [`RowMut`].
 pub(crate) type CommittedSideDataMut<'a> = RowMut<
-    RefMut<'a, CowColumn<CommittedSideData, PAINTABLE_SLOTS_PER_CHUNK>>,
+    &'a mut CowColumn<CommittedSideData, PAINTABLE_SLOTS_PER_CHUNK>,
     CommittedSideData,
     PAINTABLE_SLOTS_PER_CHUNK,
 >;
@@ -424,15 +422,6 @@ impl<Arena> PaintableRows<Arena>
 where
     Arena: Deref<Target = LayoutNodeArena>,
 {
-    pub(crate) fn clear_cached_overflow_data(&self, id: NodeSlotId) {
-        if !self.paintable_row_is_populated(id) {
-            return;
-        }
-        if std::mem::take(&mut self.arena.committed_side_data_mut(id).overflow_valid_across_recommits) {
-            self.arena.note_row_overflow_unmeasured(id);
-        }
-    }
-
     /// A style repaint of a row also repaints the anonymous boxes it generated and, for an
     /// inline, the ancestors up to the line root that paints its pieces.
     pub(crate) fn for_each_row_repainted_with(&self, id: NodeSlotId, mut repaint: impl FnMut(NodeSlotId)) {
@@ -480,6 +469,15 @@ impl<Arena> PaintableRows<Arena>
 where
     Arena: DerefMut<Target = LayoutNodeArena>,
 {
+    pub(crate) fn clear_cached_overflow_data(&mut self, id: NodeSlotId) {
+        if !self.paintable_row_is_populated(id) {
+            return;
+        }
+        if std::mem::take(&mut self.arena.committed_side_data_mut(id).overflow_valid_across_recommits) {
+            self.arena.note_row_overflow_unmeasured(id);
+        }
+    }
+
     /// A text-decoration change on a box repaints the text of every line root and inline
     /// below it that inherits the decoration.
     pub(crate) fn push_propagated_text_decoration_damage(&mut self, root: NodeSlotId) {
@@ -538,8 +536,8 @@ where
             committed.clear_committed_records();
             committed.fragment_ownership.take()
         };
-        let mut side = self.arena.paintable_side_data_mut(id);
-        side.overflow_measured_this_commit.set(false);
+        let side = self.arena.paintable_side_data_mut(id);
+        side.overflow_measured_this_commit = false;
         if filter.is_some() {
             side.fragment_ownership_before_recommit = filter;
         }
@@ -713,11 +711,10 @@ impl LayoutNodeArena {
         // containing-block walk visits.
         let node_kind = self.data(node).kind.get();
         if crate::layout::node_facts::kind_is_box(node_kind) {
-            let paintable_rows = self.paintable_rows();
             let mut containing_box = node;
             loop {
-                if paintable_rows.paintable_row_is_populated(containing_box) {
-                    paintable_rows.clear_cached_overflow_data(containing_box);
+                if self.paintable_row_is_populated(containing_box) {
+                    self.paintable_rows_mut().clear_cached_overflow_data(containing_box);
                 }
                 // SAFETY: As above.
                 let Some(next) = self.node_containing_block_if_live(containing_box) else {
@@ -779,7 +776,7 @@ impl LayoutNodeArena {
             // Borrowed rather than reached through `&mut`, so a publication that a host read makes while
             // a writer of the columns is still on the stack panics instead of racing it.
             fragment_links: store.committed_fragment_links.borrow_mut().publish(),
-            side_data: store.committed_side_data.borrow_mut().publish(),
+            side_data: store.committed_side_data.publish(),
             stacking_context_entries: store.stacking_context_entries.borrow_mut().publish(),
             visual_context_node_handles: store.visual_context_node_handles.borrow_mut().publish(),
         }
@@ -796,7 +793,7 @@ impl LayoutNodeArena {
         let store = &self.paintable_rows;
         store.rows.version()
             + store.committed_fragment_links.borrow().version()
-            + store.committed_side_data.borrow().version()
+            + store.committed_side_data.version()
             + store.stacking_context_entries.borrow().version()
             + store.visual_context_node_handles.borrow().version()
     }
@@ -843,7 +840,7 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn paintable_row_count(&self) -> usize {
-        self.paintable_rows.side_data.borrow().len()
+        self.paintable_rows.side_data.len()
     }
 
     pub(crate) fn populate_paintable_row(&mut self, layout_node: NodeSlotId) {
@@ -853,16 +850,15 @@ impl LayoutNodeArena {
             .map(crate::painting::scrollable_overflow::OverflowStyle::new);
         let store = &mut self.paintable_rows;
         let index = layout_node.slot_index() as usize;
-        let mut side_data = store.side_data.borrow_mut();
         let mut absolute_rect_memo = store.absolute_rect_memo.borrow_mut();
         let mut visual_context_records = store.visual_context_records.borrow_mut();
         store.rows.grow_to(index + 1);
         visual_context_records.grow_to(index + 1);
-        store.committed_side_data.get_mut().grow_to(index + 1);
+        store.committed_side_data.grow_to(index + 1);
         store.visual_context_node_handles.get_mut().grow_to(index + 1);
         store.stacking_context_entries.get_mut().grow_to(index + 1);
-        while side_data.len() <= index {
-            side_data.push(PaintableSideData::default());
+        while store.side_data.len() <= index {
+            store.side_data.push(PaintableSideData::default());
             store.row_paint_states.push(RowPaintState::default());
             absolute_rect_memo.push(None);
         }
@@ -875,21 +871,18 @@ impl LayoutNodeArena {
                 ..PaintableData::default()
             },
         );
-        side_data[index] = PaintableSideData {
+        store.side_data[index] = PaintableSideData {
             overflow_style,
             ..Default::default()
         };
-        store
-            .committed_side_data
-            .get_mut()
-            .set(index, CommittedSideData::default());
+        store.committed_side_data.set(index, CommittedSideData::default());
         store.row_paint_states[index].clear();
         absolute_rect_memo[index] = None;
         visual_context_records.set(index, None);
         set_visual_context_node_handles(store.visual_context_node_handles.get_mut(), index, None);
         drop_table(store.stacking_context_entries.get_mut(), index);
         self.scrollable_overflow.rows_to_measure.get_mut().push(layout_node);
-        drop((side_data, absolute_rect_memo, visual_context_records));
+        drop((absolute_rect_memo, visual_context_records));
         self.notify_committed_box_changed(layout_node);
     }
 
@@ -925,11 +918,8 @@ impl LayoutNodeArena {
         let index = id.slot_index() as usize;
         store.population_writes += 1;
         store.rows.set(index, PaintableData::default());
-        store.side_data.borrow_mut()[index] = PaintableSideData::default();
-        store
-            .committed_side_data
-            .get_mut()
-            .set(index, CommittedSideData::default());
+        store.side_data[index] = PaintableSideData::default();
+        store.committed_side_data.set(index, CommittedSideData::default());
         store.row_paint_states[index].clear();
         store.visual_context_records.borrow_mut().set(index, None);
         set_visual_context_node_handles(store.visual_context_node_handles.get_mut(), index, None);
@@ -1022,7 +1012,7 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn drop_all_visual_context_records(&self) {
-        let rows = self.paintable_rows.side_data.borrow().len();
+        let rows = self.paintable_rows.side_data.len();
         let mut records = self.paintable_rows.visual_context_records.borrow_mut();
         for index in 0..rows {
             records.set(index, None);
@@ -1254,44 +1244,36 @@ impl LayoutNodeArena {
 
     /// Stores the paint-order inputs gathered for a row, answering whether they changed.
     pub(crate) fn update_paint_order_inputs(
-        &self,
+        &mut self,
         row: NodeSlotId,
         inputs: crate::painting::paint_order_plan::PaintOrderInputs,
     ) -> bool {
         std::mem::replace(&mut self.committed_side_data_mut(row).order_inputs, inputs) != inputs
     }
 
-    pub(crate) fn committed_side_data(&self, id: NodeSlotId) -> Ref<'_, CommittedSideData> {
+    pub(crate) fn committed_side_data(&self, id: NodeSlotId) -> &CommittedSideData {
         debug_assert!(self.paintable_row_is_populated(id));
-        Ref::map(self.paintable_rows.committed_side_data.borrow(), |side_data| {
-            side_data
-                .get(id.slot_index() as usize)
-                .expect("a populated row has side data")
-        })
+        self.paintable_rows
+            .committed_side_data
+            .get(id.slot_index() as usize)
+            .expect("a populated row has side data")
     }
 
     /// A populated row's committed side data, for writing. See [`RowMut`].
-    pub(crate) fn committed_side_data_mut(&self, id: NodeSlotId) -> CommittedSideDataMut<'_> {
+    pub(crate) fn committed_side_data_mut(&mut self, id: NodeSlotId) -> CommittedSideDataMut<'_> {
         debug_assert!(self.paintable_row_is_populated(id));
-        RowMut::new(
-            self.paintable_rows.committed_side_data.borrow_mut(),
-            id.slot_index() as usize,
-        )
-        .expect("a populated row has side data")
+        RowMut::new(&mut self.paintable_rows.committed_side_data, id.slot_index() as usize)
+            .expect("a populated row has side data")
     }
 
-    pub(crate) fn paintable_side_data(&self, id: NodeSlotId) -> Ref<'_, PaintableSideData> {
+    pub(crate) fn paintable_side_data(&self, id: NodeSlotId) -> &PaintableSideData {
         debug_assert!(self.paintable_row_is_populated(id));
-        Ref::map(self.paintable_rows.side_data.borrow(), |side_data| {
-            &side_data[id.slot_index() as usize]
-        })
+        &self.paintable_rows.side_data[id.slot_index() as usize]
     }
 
-    pub(crate) fn paintable_side_data_mut(&self, id: NodeSlotId) -> RefMut<'_, PaintableSideData> {
+    pub(crate) fn paintable_side_data_mut(&mut self, id: NodeSlotId) -> &mut PaintableSideData {
         debug_assert!(self.paintable_row_is_populated(id));
-        RefMut::map(self.paintable_rows.side_data.borrow_mut(), |side_data| {
-            &mut side_data[id.slot_index() as usize]
-        })
+        &mut self.paintable_rows.side_data[id.slot_index() as usize]
     }
 }
 

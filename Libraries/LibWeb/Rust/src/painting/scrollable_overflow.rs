@@ -159,8 +159,7 @@ impl OverflowAssignment {
     pub(crate) fn apply(self, layout_arena: &mut impl PaintableRowsWrite) {
         let previously_measured = layout_arena
             .paintable_side_data(self.box_paintable)
-            .overflow_measured_this_commit
-            .get();
+            .overflow_measured_this_commit;
         let (scroll_metadata_changed, scrollability_flipped) = {
             let mut data = layout_arena.committed_side_data_mut(self.box_paintable);
             let scroll_metadata_changed = self
@@ -176,9 +175,8 @@ impl OverflowAssignment {
             (scroll_metadata_changed, scrollability_flipped)
         };
         layout_arena
-            .paintable_side_data(self.box_paintable)
-            .overflow_measured_this_commit
-            .set(true);
+            .paintable_side_data_mut(self.box_paintable)
+            .overflow_measured_this_commit = true;
         use crate::painting::record::damage::PaintDamage;
         if scroll_metadata_changed {
             if previously_measured {
@@ -256,8 +254,7 @@ fn measure_scrollable_overflow_impl(
         let data = layout_arena.committed_side_data(box_paintable);
         let measured_this_commit = layout_arena
             .paintable_side_data(box_paintable)
-            .overflow_measured_this_commit
-            .get();
+            .overflow_measured_this_commit;
         if measured_this_commit && data.overflow_valid_across_recommits {
             return CssPixelRect::from(data.overflow_relative_to_padding_box.rect).translated_by(
                 paintable_geometry::first_fragment_padding_box_rect(layout_arena, box_paintable).location(),
@@ -801,7 +798,7 @@ impl LayoutNodeArena {
             return;
         }
         if self.committed_side_data(slot).overflow_valid_across_recommits {
-            self.paintable_side_data(slot).overflow_measured_this_commit.set(true);
+            self.paintable_side_data_mut(slot).overflow_measured_this_commit = true;
             return;
         }
         // Ordinary inline fragments have paint geometry but no independently measured scrolling area.
@@ -877,7 +874,7 @@ fn settle_scheduled_scrollable_overflow(arena: &mut LayoutNodeArena) -> Vec<(Nod
             if arena.paintable_row_is_populated(slot)
                 && (slot == viewport
                     || box_holds_scroll_state(arena, slot)
-                    || (!full_layout_commit && arena.paintable_side_data(slot).overflow_measured_this_commit.get()))
+                    || (!full_layout_commit && arena.paintable_side_data(slot).overflow_measured_this_commit))
             {
                 add(slot);
             }
@@ -889,7 +886,7 @@ fn settle_scheduled_scrollable_overflow(arena: &mut LayoutNodeArena) -> Vec<(Nod
             }
             // NB: A full commit queues changed descendants individually, including scroll
             //     containers behind clipping boundaries. Partial commits also queue their root.
-            if !full_layout_commit && !arena.paintable_side_data(slot).overflow_measured_this_commit.get() {
+            if !full_layout_commit && !arena.paintable_side_data(slot).overflow_measured_this_commit {
                 // A subtree commit can replace scroll containers whose overflow does not
                 // propagate through the relayout root (for example, overflow: hidden).
                 arena.for_each_node_in_layout_subtree_in_pre_order(slot, |child| {
@@ -994,15 +991,13 @@ impl LayoutNodeArena {
         let Some(style) = self.node_style_if_live(slot) else {
             return;
         };
-        let changed = {
-            let mut cache = self.paintable_side_data_mut(slot);
-            let changed = cache
-                .overflow_style
-                .as_ref()
-                .is_some_and(|previous| !previous.matches(style));
-            cache.overflow_style = Some(OverflowStyle::new(style));
-            changed
-        };
+        let changed = self
+            .paintable_side_data(slot)
+            .overflow_style
+            .as_ref()
+            .is_some_and(|previous| !previous.matches(style));
+        let overflow_style = OverflowStyle::new(style);
+        self.paintable_side_data_mut(slot).overflow_style = Some(overflow_style);
         if !changed {
             return;
         }

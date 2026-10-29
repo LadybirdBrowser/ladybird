@@ -8,7 +8,6 @@ use crate::css::css_pixels::CssPixels;
 use crate::layout::node_data::NodeSlotId;
 use crate::layout::used_values;
 use crate::painting::display_list::commands::{ContextRef, SpatialNodeIndex};
-use std::cell::Cell;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u32)]
@@ -196,7 +195,7 @@ pub struct PaintableSideData {
     // Invalidation also runs while paint geometry is borrowed. Keep this
     // mutable cache state out of the plain-data row shared with C++.
     pub(crate) overflow_style: Option<crate::painting::scrollable_overflow::OverflowStyle>,
-    pub(crate) overflow_measured_this_commit: Cell<bool>,
+    pub(crate) overflow_measured_this_commit: bool,
     // The filter a recommit cleared, kept so the next assignment can tell whether the box
     // paints a different selection of fragments than before.
     pub(crate) fragment_ownership_before_recommit:
