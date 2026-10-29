@@ -1071,9 +1071,12 @@ pub(super) struct TableFormattingContext<'pass> {
     rows: Vec<Row>,
     /// The box of each row as this table lays it out, by row index, once the table prepared its participants.
     row_boxes: Vec<TableParticipantBox>,
-    /// The boxes of the row groups, column groups and columns as this table lays them out, once it prepared its
-    /// participants.
-    row_group_and_column_boxes: HashMap<Node, TableParticipantBox>,
+    /// The box of each row group as this table lays it out, in the order the rows are laid out (see
+    /// row_groups_in_layout_order()), once the table prepared its participants.
+    row_group_boxes: Vec<(Node, TableParticipantBox)>,
+    /// The box of each column group and column as this table lays it out, in tree order (see column_boxes()), once
+    /// the table prepared its participants.
+    column_group_and_column_boxes: Vec<(Node, TableParticipantBox)>,
     collapsed_border_grid: Option<CollapsedBorderGrid>,
     derived_baselines_of_root_box: Cell<DerivedBaselines>,
 }
@@ -1197,7 +1200,8 @@ impl<'pass> TableFormattingContext<'pass> {
             columns: Vec::new(),
             rows: Vec::new(),
             row_boxes: Vec::new(),
-            row_group_and_column_boxes: HashMap::default(),
+            row_group_boxes: Vec::new(),
+            column_group_and_column_boxes: Vec::new(),
             collapsed_border_grid: None,
             derived_baselines_of_root_box: Cell::new(DerivedBaselines::default()),
         }
@@ -1354,12 +1358,21 @@ impl<'pass> TableFormattingContext<'pass> {
         (0..self.rows.len()).map(|row_index| &self.row_boxes[row_index])
     }
 
-    /// The box of `participant`, a row group, column group or column, as this table lays it out.
-    #[track_caller]
-    fn row_group_or_column_box(&self, participant: Node) -> &TableParticipantBox {
-        self.row_group_and_column_boxes
-            .get(&participant)
-            .expect("a table lays out its row groups and columns in cells it keeps")
+    /// The row groups that contain rows, in layout order, each with the range of the indices of its rows. The rows
+    /// of a row group are contiguous in layout order.
+    fn row_ranges_of_row_groups(&self) -> Vec<(Node, Range<usize>)> {
+        let mut row_ranges: Vec<(Node, Range<usize>)> = Vec::new();
+        for row_index in 0..self.rows.len().min(self.row_boxes.len()) {
+            let parent = self.parent(self.rows[row_index].box_);
+            if parent == self.run.box_ {
+                continue;
+            }
+            match row_ranges.last_mut() {
+                Some((group, rows)) if *group == parent && rows.end == row_index => rows.end += 1,
+                _ => row_ranges.push((parent, row_index..row_index + 1)),
+            }
+        }
+        row_ranges
     }
 
     /// Places `node`, a participant this table lays out as `participant_box`, with what its fragment shows of the
@@ -1606,7 +1619,7 @@ impl<'pass> TableFormattingContext<'pass> {
     // Participants resolve percentages against the table's input basis inside this context, so
     // their dependency is charged here rather than through child runs.
     fn prepare_table_participants(&mut self, preparation: TableParticipantPreparation) {
-        let row_groups = self.matching_children(self.run.box_, |display| display.is_table_row_group_kind());
+        let row_groups = self.row_groups_in_layout_order();
         // Column groups and columns have no content to lay out, but they are painted: their backgrounds cover the
         // cells of their columns (CSS 2.2 §17.5.1), so they get boxes, positioned by position_column_boxes().
         let column_boxes = self.column_boxes();
@@ -1628,10 +1641,17 @@ impl<'pass> TableFormattingContext<'pass> {
             )),
             content_offset: Cell::new(FfiCssPixelPoint::default()),
         };
-        let mut row_group_and_column_boxes = HashMap::default();
-        for participant in row_groups.into_iter().chain(column_boxes) {
+        let mut row_group_boxes = Vec::new();
+        for participant in row_groups {
             if prepares_cells_of_rows_row_groups_and_columns {
-                row_group_and_column_boxes.insert(participant, participant_box(participant));
+                row_group_boxes.push((participant, participant_box(participant)));
+            }
+            note_percentage_block_size_dependency_of(participant);
+        }
+        let mut column_group_and_column_boxes = Vec::new();
+        for participant in column_boxes {
+            if prepares_cells_of_rows_row_groups_and_columns {
+                column_group_and_column_boxes.push((participant, participant_box(participant)));
             }
             note_percentage_block_size_dependency_of(participant);
         }
@@ -1642,7 +1662,8 @@ impl<'pass> TableFormattingContext<'pass> {
             }
             note_percentage_block_size_dependency_of(row.box_);
         }
-        self.row_group_and_column_boxes = row_group_and_column_boxes;
+        self.row_group_boxes = row_group_boxes;
+        self.column_group_and_column_boxes = column_group_and_column_boxes;
         self.row_boxes = row_boxes;
         let cell_box_cells = self
             .cells
@@ -3310,15 +3331,17 @@ impl<'pass> TableFormattingContext<'pass> {
         // starts at its first row rather than where the previous group ended; a group without rows is empty at the
         // position that the rows placed so far reached.
         let mut group_block_offset = self.table_box_content_block_offset_in_wrapper + block_spacing;
-        for group in self.row_groups_in_layout_order() {
+        let mut row_ranges_of_row_groups = self.row_ranges_of_row_groups().into_iter().peekable();
+        for (group, group_box) in &self.row_group_boxes {
+            let group = *group;
             let mut block_start = group_block_offset;
             let mut block_end = group_block_offset;
             let mut inline_size = CssPixels::default();
             let mut has_rows = false;
-            for (row, row_box) in self.rows.iter().zip(self.row_boxes_by_row_index()) {
-                if self.parent(row.box_) != group {
-                    continue;
-                }
+            let rows_of_group = row_ranges_of_row_groups
+                .next_if(|(group_of_rows, _)| *group_of_rows == group)
+                .map_or(0..0, |(_, rows)| rows);
+            for row_box in &self.row_boxes[rows_of_group] {
                 let used = &row_box.cells;
                 let row_block_offset = row_box.content_offset.get().y;
                 if !has_rows {
@@ -3328,7 +3351,6 @@ impl<'pass> TableFormattingContext<'pass> {
                 block_end = row_block_offset + used.border_box_block_size(false);
                 inline_size = inline_size.max(used.border_box_inline_size(false));
             }
-            let group_box = self.row_group_or_column_box(group);
             let used = &group_box.cells;
             used.set_content_block_size(block_end - block_start);
             used.set_content_inline_size(inline_size);
@@ -3341,6 +3363,10 @@ impl<'pass> TableFormattingContext<'pass> {
             );
             group_block_offset = block_end + if has_rows { block_spacing } else { CssPixels::default() };
         }
+        debug_assert!(
+            row_ranges_of_row_groups.next().is_none(),
+            "the row groups lay out their rows in the order of the groups"
+        );
         let padding_top = table_used.padding_top();
         let total =
             row_block_offset.max(group_block_offset) - self.table_box_content_block_offset_in_wrapper - padding_top;
@@ -3577,8 +3603,9 @@ impl<'pass> TableFormattingContext<'pass> {
 
         // Columns are assigned to grid columns in tree order, like the cells they contain (see
         // column_track_ranges()). A column group is placed before its columns: a table-column-group box is the
-        // containing block of its columns, so they are positioned relative to it.
-        let mut placements: Vec<(Node, Option<Node>, usize, usize)> = Vec::new();
+        // containing block of its columns, so they are positioned relative to it. So the placements come in the
+        // order of column_boxes(), and each column refers to the placement of its group by its index.
+        let mut placements: Vec<(Node, Option<usize>, usize, usize)> = Vec::new();
         let mut group_placement: Option<usize> = None;
         for range in self.column_track_ranges() {
             match range.group {
@@ -3592,10 +3619,11 @@ impl<'pass> TableFormattingContext<'pass> {
                 None => group_placement = None,
             }
             if !range.is_group_without_columns() {
-                placements.push((range.box_, range.group, range.start, range.end));
+                placements.push((range.box_, group_placement, range.start, range.end));
             }
         }
-        for (node, group, start, end) in placements {
+        debug_assert_eq!(placements.len(), self.column_group_and_column_boxes.len());
+        for (placement_index, (node, group_placement, start, end)) in placements.into_iter().enumerate() {
             let inline_size = if (start..end).any(|index| !self.columns[index].is_collapsed) {
                 column_offsets[end] - column_offsets[start] - inline_spacing
             } else {
@@ -3606,16 +3634,21 @@ impl<'pass> TableFormattingContext<'pass> {
                 table_column_span: (end - start) as u32,
                 ..run_state::FragmentFactsDecidedByParent::default()
             };
-            let column_box = self.row_group_or_column_box(node);
+            let (column_node, column_box) = &self.column_group_and_column_boxes[placement_index];
+            debug_assert!(
+                *column_node == node,
+                "a column is placed in the order of column_boxes()"
+            );
             let used = &column_box.cells;
             used.set_content_inline_size(inline_size);
             used.set_content_block_size(block_size);
             let mut x = inline_offset + column_offsets[start];
             let mut y = block_start;
-            if let Some(group) = group
-                && self.run.callbacks.in_flow_containing_block(node) == group
+            if let Some((group, group_box)) =
+                group_placement.map(|group_placement| &self.column_group_and_column_boxes[group_placement])
+                && self.run.callbacks.in_flow_containing_block(node) == *group
             {
-                let group_offset = self.row_group_or_column_box(group).content_offset.get();
+                let group_offset = group_box.content_offset.get();
                 x -= group_offset.x;
                 y -= group_offset.y;
             }
