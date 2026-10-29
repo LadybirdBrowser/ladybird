@@ -3631,6 +3631,28 @@ pub(crate) fn char_in_ranges(cp: u32, ranges: &[CharRange]) -> bool {
     }
 }
 
+/// Whether the ASCII code point `cp` matches the character class `ranges` ignoring case, which is whether one of the
+/// characters that canonicalize like `cp` is in the class.
+// OPTIMIZATION: Those characters are `cp` itself, the other case of a letter, and in unicode mode U+212A KELVIN SIGN
+// (folds to k) and U+017F LATIN SMALL LETTER LONG S (folds to s). Checking them directly spares building an ICU case
+// closure per range for every character that misses the class.
+#[inline(always)]
+fn ascii_matches_char_class_ignoring_case(cp: u32, ranges: &CharRanges, unicode_mode: bool) -> bool {
+    if ranges.contains(cp) {
+        return true;
+    }
+    let lowercase = cp | 0x20;
+    if !(b'a' as u32..=b'z' as u32).contains(&lowercase) {
+        return false;
+    }
+    if ranges.contains(cp ^ 0x20) {
+        return true;
+    }
+    unicode_mode
+        && ((lowercase == b'k' as u32 && ranges.contains(0x212A))
+            || (lowercase == b's' as u32 && ranges.contains(0x017F)))
+}
+
 /// Check if a code point is in a character class.
 ///
 /// This is the VM-level realization of `CharacterSetMatcher`, including the
@@ -3658,21 +3680,25 @@ pub(crate) fn match_char_class(
         }
         false
     } else if ignore_case {
+        if cp < 0x80 {
+            return ascii_matches_char_class_ignoring_case(cp, ranges, unicode_mode);
+        }
         // Per ECMA-262, the character set is built from un-folded range
         // endpoints, then Canonicalize is applied to each member for
         // comparison. We must not fold the range endpoints because case
         // folding is not order-preserving.
-        if char_in_ranges(cp, ranges) {
+        if ranges.contains(cp) {
             return true;
         }
         let folded = case_fold(cp, unicode_mode);
-        if folded != cp && char_in_ranges(folded, ranges) {
+        if folded != cp && ranges.contains(folded) {
             return true;
         }
         // Canonicalize is many-to-one, so we must also check the inverse:
         // other characters that share the same canonical form as cp.
         // Always use the ICU-based range matcher which correctly handles
-        // cross-script case folding (e.g. U+017F ſ folds to ASCII s).
+        // case folding outside of the ranges (e.g. U+00DF ß matches
+        // [\u{1E9E}] in unicode mode, since U+1E9E folds to ß).
         ranges.iter().any(|r| {
             libunicode_rust::character_types::code_point_matches_range_ignoring_case(cp, r.start, r.end, unicode_mode)
         })
