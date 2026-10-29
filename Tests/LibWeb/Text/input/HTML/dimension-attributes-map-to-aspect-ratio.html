@@ -20,6 +20,14 @@
 <img id="dynamic" class="contained" src="../../../Assets/120.png" width="100" height="100">
 <picture><source id="dynamic-source" srcset="../../../Assets/120.png" width="100" height="25"><img id="dynamic-in-picture" class="contained" width="100" height="100"></picture>
 <picture><source srcset="../../../Assets/120.png"><img id="contained-in-picture" class="contained" src="../../../Assets/120.png" width="400" height="100" sizes="auto" loading="lazy"></picture>
+<img id="img-large" class="contained" src="../../../Assets/120.png" width="100000000" height="50000000">
+<img id="img-large-decimal" class="contained" width="100000000.5" height="50000000.25">
+<video id="video-large" class="contained" width="100000000" height="50000000"></video>
+<input id="input-image-large" class="contained" type="image" width="100000000" height="50000000">
+<img id="img-large-percentage" class="contained" width="100000000%" height="50000000">
+<img id="img-invalid" class="contained" width="-16" height="9">
+<img id="img-trailing-text" class="contained" width=" 16.5px" height="9">
+<img id="img-author-ratio" class="contained" width="100000000" height="50000000" style="aspect-ratio: 3 / 1">
 <script>
     asyncTest(done => {
         window.onload = () => {
@@ -40,6 +48,17 @@
             const source = document.getElementById("dynamic-source");
             source.setAttribute("height", "200");
             printSize("dynamic-in-picture");
+
+            for (const id of ["img-large", "img-large-decimal", "video-large", "input-image-large", "img-large-percentage", "img-invalid", "img-trailing-text", "img-author-ratio"])
+                println(`${id}: ${getComputedStyle(document.getElementById(id)).aspectRatio}`);
+            printSize("img-large");
+
+            const overflow = document.createElement("img");
+            overflow.className = "contained";
+            overflow.setAttribute("width", "9".repeat(400));
+            overflow.setAttribute("height", "10");
+            document.body.append(overflow);
+            println(`img-nonfinite: ${getComputedStyle(overflow).aspectRatio}`);
             done();
         };
     });
