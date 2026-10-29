@@ -1,0 +1,9 @@
+Ladybird now clips each CSS mask layer to the curve of its mask-clip
+box, as it clips background layers. Blink, WebKit, and Gecko all paint
+mask layers with their background fill-layer code, so the same rounded
+clip applies to them: Blink’s BoxPainterBase::PaintMaskImages() calls
+PaintFillLayers() with the mask layers, and WebKit’s RenderBox::
+paintMaskImages() calls BackgroundPainter::paintFillLayers() with them.
+In Gecko, PaintMaskSurface() calls the PaintStyleImageLayerWithSC() of
+nsCSSRendering, whose GetImageLayerClip() puts the border radii into
+the clip it applies to each mask layer.
