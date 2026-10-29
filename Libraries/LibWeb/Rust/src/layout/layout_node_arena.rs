@@ -4238,8 +4238,8 @@ impl LayoutNodeArena {
         bits
     }
 
-    /// Tells the host what boxes `node` has now. No row list may be borrowed here. A
-    /// pseudo-element's boxes stay unmirrored, since nothing on the DOM side reads them as a bit.
+    /// Queues what the host is to hear of the boxes `node` has now, once the change under way is over. No row list may
+    /// be borrowed here. A pseudo-element's boxes stay unmirrored, since nothing on the DOM side reads them as a bit.
     fn notify_box_presence(&self, node: BoundNode) {
         if let BoundNode::Identity(style_node) = node {
             self.gather_layout_style_snapshot_box_loss(style_node);
@@ -4247,23 +4247,11 @@ impl LayoutNodeArena {
         if self.box_presence_host.get().is_none() {
             return;
         }
-        if let Some(queued) = self.queued_box_presence.borrow_mut().as_mut() {
-            queued.push(node);
-            return;
-        }
-        self.tell_host_of_box_presence(node);
-    }
-
-    fn tell_host_of_box_presence(&self, node: BoundNode) {
-        let Some(BoxPresenceHost(context, callback)) = self.box_presence_host.get() else {
-            return;
-        };
-        let Some((style_node, bits)) = self.box_presence_of(node) else {
-            return;
-        };
-        // SAFETY: Registration and unregistration keep the host context live, and the host does
-        // not reenter the arena.
-        unsafe { callback(context, style_node, bits) };
+        self.queued_box_presence
+            .borrow_mut()
+            .as_mut()
+            .expect("boxes change only in a change that queues what the host hears of them")
+            .push(node);
     }
 
     /// The identity of `node`, 0 for the document, and what boxes it has, for a node whose boxes the host mirrors.
@@ -6501,15 +6489,26 @@ mod tests {
             style_node: element.raw(),
             ..test_construction_facts()
         });
-        arena.bind_row(row);
-        arena.populate_paintable_row(row);
-        let reset = arena
-            .prepare_paintable_row_cleared_reset(row)
-            .expect("a populated row has a reset");
-        arena.paintable_row_cleared(reset);
-        arena
-            .free_subtree(row)
-            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
+        fn in_a_change(arena: &mut LayoutNodeArena, change: impl FnOnce(&mut LayoutNodeArena)) {
+            arena.queue_box_presence();
+            change(arena);
+            arena
+                .take_queued_box_presence()
+                .tell(&crate::stage::MainThread::for_test());
+        }
+        in_a_change(&mut arena, |arena| arena.bind_row(row));
+        in_a_change(&mut arena, |arena| arena.populate_paintable_row(row));
+        in_a_change(&mut arena, |arena| {
+            let reset = arena
+                .prepare_paintable_row_cleared_reset(row)
+                .expect("a populated row has a reset");
+            arena.paintable_row_cleared(reset);
+        });
+        in_a_change(&mut arena, |arena| {
+            arena
+                .free_subtree(row)
+                .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
+        });
         arena.set_box_presence_host(None);
 
         let both = BOX_PRESENCE_HAS_LAYOUT_BOX | BOX_PRESENCE_HAS_COMMITTED_BOX;
