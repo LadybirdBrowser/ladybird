@@ -4384,7 +4384,6 @@ mod replaced_ratio_tests {
             node,
             Node::INVALID,
             used_values::RootInputCells::default(),
-            callbacks.frame,
             None,
             |records, callbacks| {
                 let context = SizingContext::new(records, callbacks);

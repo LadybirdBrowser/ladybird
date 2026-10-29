@@ -1355,18 +1355,6 @@ impl<'pass> FormattingContextRun<'pass> {
         )
     }
 
-    /// The run's root, as a box its sizing steps size in its record.
-    #[track_caller]
-    pub(crate) fn sized_root(&self) -> sizing_context::SizedRecord<'pass> {
-        sizing_context::SizedRecord::new(self.box_, self.root_record())
-    }
-
-    /// The record of the run's root, read in the frame this run lays out in.
-    #[track_caller]
-    pub(crate) fn root_record(&self) -> used_values::CellsInFrame<'pass> {
-        used_values::CellsInFrame::new(self.records.used_values(self.box_), self.callbacks.frame)
-    }
-
     /// Hands what the layout of `node` produced besides its geometry to the box's fragment, where this run builds
     /// fragments.
     pub(crate) fn update_fragment_payloads_of(
@@ -1506,9 +1494,9 @@ fn create_formatting_context_implementation<'pass>(
         FormattingContextType::Block => FormattingContextImplementation::Block(Box::new(
             block_formatting_context::BlockFormattingContext::new(run, root_cells_in_own_frame, previous_line_data),
         )),
-        FormattingContextType::Flex => {
-            FormattingContextImplementation::Flex(Box::new(flex_formatting_context::FlexFormattingContext::new(run)))
-        }
+        FormattingContextType::Flex => FormattingContextImplementation::Flex(Box::new(
+            flex_formatting_context::FlexFormattingContext::new(run, root_cells_in_own_frame),
+        )),
         FormattingContextType::Grid => FormattingContextImplementation::Grid(Box::new(
             grid_formatting_context::GridFormattingContext::new(run, root_cells_in_own_frame, parent_grid),
         )),
@@ -2277,7 +2265,6 @@ fn execute_formatting_context_run(
         box_,
         root_containing_block,
         root_cells.in_frame(callbacks.frame, own_frame),
-        own_frame,
         root_anchor_resolved_values,
         |records, callbacks| {
             lay_out_run_root_and_contents(
@@ -2420,7 +2407,7 @@ fn lay_out_run_root_and_contents<'pass>(
     } else {
         body_input
     };
-    // NB: Until the formatting contexts hold their root themselves, they lay it out in its record, in its own frame.
+    // NB: A root whose contents no formatting context lays out takes its cells back from its record, in its own frame.
     let root_record = records.used_values(box_);
     root_record.cells.set(own_root.get());
     let root_left_in_record = || root_record.cells.get();
@@ -2482,7 +2469,7 @@ fn lay_out_run_root_and_contents<'pass>(
                     in_flow_children_margin_box_block_extent: context.in_flow_items_margin_box_block_extent(),
                     ..ChildLayoutResult::default()
                 };
-                (result, root_left_in_record())
+                (result, context.container_cells())
             }
             FormattingContextImplementation::Grid(context) => {
                 context.run(body_run, body_input);
@@ -2630,8 +2617,6 @@ fn lay_out_run_root_and_contents<'pass>(
     }
     let root_cells_left_by_run = root.get();
     let root_in_own_frame_left_by_run = root_cells_left_by_run.in_frame(parent_frame, own_frame);
-    // NB: Some formatting contexts read the record of their root again, after its own box is sized.
-    root_record.cells.set(root_in_own_frame_left_by_run);
     let root_line_data = root_lines.finish(
         callbacks.arena(),
         root_in_own_frame_left_by_run.content_inline_size,
@@ -2677,7 +2662,9 @@ fn lay_out_run_root_and_contents<'pass>(
             FormattingContextImplementation::Table(_) => {
                 register_table_abspos_descendants(body_run, run.box_);
             }
-            FormattingContextImplementation::Flex(context) => context.parent_did_dimension(),
+            FormattingContextImplementation::Flex(context) => {
+                context.parent_did_dimension(root_in_own_frame_left_by_run);
+            }
             FormattingContextImplementation::Grid(context) => {
                 context.parent_did_dimension(root_in_own_frame_left_by_run);
             }
@@ -3938,35 +3925,27 @@ mod baseline_tests {
             },
         );
         let parent_cells = used_values::RootInputCells::default();
-        RunRecords::with_root(
-            callbacks,
-            parent,
-            Node::INVALID,
-            parent_cells,
-            callbacks.frame,
-            None,
-            |_, callbacks| {
-                let child_cells = used_values::RootInputCells::default();
-                assert!(child_gives_container_baselines(&callbacks, parent, child));
-                let mut baselines = DerivedBaselines::default();
-                baselines.fold_in_later_child(baselines_laid_out_child_gives_container(
-                    &callbacks,
-                    LaidOutChild {
-                        node: child,
-                        metrics: &child_cells,
-                        content_baselines: DerivedBaselines {
-                            first: Some(CssPixels::from_integer(10)),
-                            last: Some(CssPixels::from_integer(30)),
-                            inline_alignment: None,
-                        },
-                        content_offset: FfiCssPixelPoint::default(),
+        RunRecords::with_root(callbacks, parent, Node::INVALID, parent_cells, None, |_, callbacks| {
+            let child_cells = used_values::RootInputCells::default();
+            assert!(child_gives_container_baselines(&callbacks, parent, child));
+            let mut baselines = DerivedBaselines::default();
+            baselines.fold_in_later_child(baselines_laid_out_child_gives_container(
+                &callbacks,
+                LaidOutChild {
+                    node: child,
+                    metrics: &child_cells,
+                    content_baselines: DerivedBaselines {
+                        first: Some(CssPixels::from_integer(10)),
+                        last: Some(CssPixels::from_integer(30)),
+                        inline_alignment: None,
                     },
-                ));
-                assert_eq!(baselines.first, Some(CssPixels::from_integer(10)));
-                assert_eq!(baselines.last, Some(CssPixels::from_integer(30)));
-                assert_eq!(baselines.inline_alignment, Some(CssPixels::from_integer(10)));
-            },
-        );
+                    content_offset: FfiCssPixelPoint::default(),
+                },
+            ));
+            assert_eq!(baselines.first, Some(CssPixels::from_integer(10)));
+            assert_eq!(baselines.last, Some(CssPixels::from_integer(30)));
+            assert_eq!(baselines.inline_alignment, Some(CssPixels::from_integer(10)));
+        });
         arena
             .free_subtree(parent)
             .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());

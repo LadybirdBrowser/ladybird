@@ -466,7 +466,9 @@ pub(super) fn content_sizes_of_flex_container(
         block_size,
         depends_on_block_size,
         None,
-        |run, _, input| flex_formatting_context::FlexFormattingContext::new(run).content_inline_size(input),
+        |run, root_cells, input| {
+            flex_formatting_context::FlexFormattingContext::new(run, root_cells).content_inline_size(input)
+        },
     )
 }
 
