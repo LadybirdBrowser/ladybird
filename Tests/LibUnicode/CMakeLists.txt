@@ -1,3 +1,5 @@
+ladybird_test_suite(LibUnicode)
+
 set(TEST_SOURCES
     TestBidi.cpp
     TestDisplayNames.cpp
@@ -10,8 +12,5 @@ set(TEST_SOURCES
     TestUnicodeNormalization.cpp
 )
 
-foreach(source IN LISTS TEST_SOURCES)
-    ladybird_test("${source}" LibUnicode LIBS LibUnicode)
-endforeach()
-
-target_link_libraries(TestLocale PRIVATE LibThreading ICU::i18n ICU::uc)
+target_sources(TestLibUnicode PRIVATE ${TEST_SOURCES})
+target_link_libraries(TestLibUnicode PRIVATE LibUnicode LibThreading ICU::i18n ICU::uc)
