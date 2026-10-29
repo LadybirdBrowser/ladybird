@@ -64,3 +64,12 @@ test("ASCII strings compare like the collator", () => {
         for (const b of strings) expect(a.localeCompare(b)).toBe(collator.compare(a, b));
     }
 });
+
+test("identical strings are equal", () => {
+    const strings = ["", "foo123", "a\x01b", "\x00", "á", "\u{1F600}x"];
+    for (const string of strings) {
+        const copy = [...string].join("");
+        expect(string.localeCompare(copy)).toBe(0);
+        expect(copy.localeCompare(string)).toBe(0);
+    }
+});
