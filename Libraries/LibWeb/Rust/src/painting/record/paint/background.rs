@@ -329,35 +329,55 @@ fn paint_background_layers<O: Observer>(
             painted_mask_layer = true;
         }
 
+        let mut layer_inline_clips = Vec::new();
+        if !is_root_element {
+            let unshrunken_clip_float_rect = unshrunken_clip_rect.to_float();
+            if layer.clip_follows_corners {
+                let corner_radii = clip_box.radii.corners_unconditionally(&converter);
+                if let Some(clip) = contour_clip(css_clip_rect) {
+                    layer_inline_clips.push(clip);
+                } else if corner_radii.has_any_radius() {
+                    layer_inline_clips.push(PendingInlineClip::intersecting_rounded_rect(
+                        unshrunken_clip_float_rect,
+                        corner_radii,
+                    ));
+                }
+            }
+            layer_inline_clips.push(PendingInlineClip::intersecting_float_rect(unshrunken_clip_float_rect));
+        }
+
         let layer_erases_uncovered_destination =
             operator_erases_destination_outside_the_drawn_geometry(compositing_and_blending_operator);
         if layer_erases_uncovered_destination {
             // https://drafts.fxtf.org/css-masking-1/#the-mask-composite
             // The composite must erase the accumulated mask outside the drawn geometry, but only
             // within the layer's clip: the layer plays as an isolated group composited with the
-            // operator, and the command's own clip bounds the erase.
-            let group = recorder.recorder.begin_isolated_group();
-            recorder.trace_paint(Operation::Named(Some(paintable), "mask-layer"), |recorder| {
-                if layer.image.is_some() {
-                    paint_image_layer(
-                        recorder,
-                        paintable,
-                        layer,
-                        inputs.image_rendering,
-                        css_clip_rect,
-                        clip_rect,
-                        CompositingAndBlendingOperator::Normal,
-                        backdrop,
-                        inputs.visible_device_rect,
-                    );
-                }
+            // operator, and the command's own clip bounds the erase. The group takes the layer's
+            // inline clips as its own, so a rounded clip bounds the erase to the box's curve.
+            recorder.record_with_inline_clips(&layer_inline_clips, |recorder| {
+                let group = recorder.recorder.begin_isolated_group();
+                recorder.trace_paint(Operation::Named(Some(paintable), "mask-layer"), |recorder| {
+                    if layer.image.is_some() {
+                        paint_image_layer(
+                            recorder,
+                            paintable,
+                            layer,
+                            inputs.image_rendering,
+                            css_clip_rect,
+                            clip_rect,
+                            CompositingAndBlendingOperator::Normal,
+                            backdrop,
+                            inputs.visible_device_rect,
+                        );
+                    }
+                });
+                recorder.recorder.finish_isolated_group(
+                    group,
+                    unshrunken_clip_rect.to_float(),
+                    compositing_and_blending_operator,
+                    MaskKind::Alpha,
+                );
             });
-            recorder.recorder.finish_isolated_group(
-                group,
-                unshrunken_clip_rect.to_float(),
-                compositing_and_blending_operator,
-                MaskKind::Alpha,
-            );
             continue;
         }
 
@@ -377,23 +397,7 @@ fn paint_background_layers<O: Observer>(
             }
         };
 
-        if is_root_element {
-            paint_layer(recorder);
-        } else {
-            let unshrunken_clip_float_rect = unshrunken_clip_rect.to_float();
-            let corner_radii = clip_box.radii.corners_unconditionally(&converter);
-            let mut layer_inline_clips = Vec::new();
-            if let Some(clip) = contour_clip(css_clip_rect) {
-                layer_inline_clips.push(clip);
-            } else if corner_radii.has_any_radius() {
-                layer_inline_clips.push(PendingInlineClip::intersecting_rounded_rect(
-                    unshrunken_clip_float_rect,
-                    corner_radii,
-                ));
-            }
-            layer_inline_clips.push(PendingInlineClip::intersecting_float_rect(unshrunken_clip_float_rect));
-            recorder.record_with_inline_clips(&layer_inline_clips, paint_layer);
-        }
+        recorder.record_with_inline_clips(&layer_inline_clips, paint_layer);
     }
 }
 
