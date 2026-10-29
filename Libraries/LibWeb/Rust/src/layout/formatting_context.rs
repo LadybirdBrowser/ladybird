@@ -2700,7 +2700,7 @@ fn body_input_in_own_frame(
             used.content_inline_size()
         } else {
             body_run.sizing().orthogonal_flow_inline_size(
-                sizing_context::SizedBox::new(node, &used),
+                sizing_context::SizedBox::of_own_metrics(node, &used, used.reader()),
                 available_space,
                 constraints,
             )

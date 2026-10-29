@@ -5091,15 +5091,16 @@ impl<'pass> BlockFormattingContext<'pass> {
         {
             return None;
         }
+        let root_record = self.run.root_record();
         let mut block_size = sizing.calculate_inner_block_size(
-            sizing_context::SizedBox::new(self.run.box_, &self.run.root_record()),
+            sizing_context::SizedBox::of_own_metrics(self.run.box_, &root_record, root_record.reader()),
             input.available_space,
             style.max_height(),
             input.containing_block_constraints,
         );
         if !crate::layout::sizing_context::is_plain_auto(style.min_height()) {
             block_size = block_size.max(sizing.calculate_inner_block_size(
-                sizing_context::SizedBox::new(self.run.box_, &self.run.root_record()),
+                sizing_context::SizedBox::of_own_metrics(self.run.box_, &root_record, root_record.reader()),
                 input.available_space,
                 style.min_height(),
                 input.containing_block_constraints,
