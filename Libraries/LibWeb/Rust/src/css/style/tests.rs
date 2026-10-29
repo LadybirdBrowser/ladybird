@@ -12287,3 +12287,200 @@ fn shadow_text_line_break_language_follows_host_mutation() {
         assert!(retained.text_language_tag(direct).is_empty());
     }
 }
+
+pub(super) fn staged_hover_pending_shadow_fixture() -> (StyleEngine, [StyleNodeID; 10]) {
+    let mut engine = StyleEngine::new();
+    let mut raw = [0; 10];
+    engine.allocate_style_nodes(&mut raw);
+    let nodes = raw.map(|raw| StyleNodeID::from_raw(raw).unwrap());
+    engine.mark_relation_only_style_node(nodes[0]);
+    engine.set_element_adjustment_facts(nodes[1], super::bridge::element_adjustment_fact::IS_DOCUMENT_ELEMENT);
+    // document, document element, host, shadow root, outer popover, slot A, light child, inner popover, slot B, fallback
+    let parents = [
+        None,
+        None,
+        Some(1),
+        None,
+        Some(3),
+        Some(4),
+        Some(2),
+        Some(4),
+        Some(7),
+        Some(5),
+    ];
+    for (index, node) in nodes.iter().copied().enumerate() {
+        if index == 0 {
+            continue;
+        }
+        let mut row = TreeRelations::detached(if [3, 4, 5, 7, 8, 9].contains(&index) {
+            TreeScopeID(1)
+        } else {
+            TreeScopeID::DOCUMENT
+        });
+        row.parent = parents[index].map(|index| nodes[index]);
+        if index == 5 {
+            row.next_element_sibling = Some(nodes[7]);
+        }
+        if index == 7 {
+            row.previous_element_sibling = Some(nodes[5]);
+        }
+        if index == 6 {
+            row.assigned_slot = Some(nodes[5]);
+        }
+        engine.record_tree_delta(node, None, Some(row));
+    }
+    for (parent, child) in [(1, 2), (2, 6), (3, 4), (4, 5), (5, 9), (7, 8)] {
+        engine.stage_first_child(nodes[parent], Some(nodes[child]));
+    }
+    engine.set_shadow_root(nodes[2], nodes[3]);
+    engine.set_slot_assigned_nodes(nodes[5], &[nodes[6]]);
+    engine.tree.link_in_dom_order(nodes[1], Some(nodes[0]), None);
+    (engine, nodes)
+}
+
+pub(super) fn staged_hover_shadow_fixture() -> (StyleEngine, [StyleNodeID; 10]) {
+    let (mut engine, nodes) = staged_hover_pending_shadow_fixture();
+    discard_transaction(&mut engine);
+    assert_eq!(engine.tree.parent(nodes[1]), None);
+    assert_eq!(engine.tree.first_element_child(nodes[0]), None);
+    assert_eq!(engine.tree.dom_children(nodes[0]).collect::<Vec<_>>(), vec![nodes[1]]);
+    assert!(nodes.iter().all(|&node| engine.tree.is_live(node)));
+    assert_eq!(engine.tree.flat_tree_parent(nodes[6]), Some(nodes[5]));
+    assert_eq!(engine.tree.flat_tree_parent(nodes[4]), Some(nodes[2]));
+    assert_eq!(engine.tree.flat_tree_parent(nodes[9]), None);
+    (engine, nodes)
+}
+
+pub(super) fn assert_staged_hover_facts(engine: &StyleEngine, nodes: &[StyleNodeID; 10], expected: &[usize]) {
+    let actual: Vec<_> = nodes
+        .iter()
+        .enumerate()
+        .filter_map(|(i, &node)| {
+            engine
+                .facts
+                .states_of_node(node)
+                .contains(StateFact::Hover)
+                .then_some(i)
+        })
+        .collect();
+    assert_eq!(actual, expected);
+}
+
+#[test]
+fn staged_hover_slotted_top_layer_uses_flat_ancestors() {
+    let (mut engine, nodes) = staged_hover_shadow_fixture();
+    engine.set_element_adjustment_facts(nodes[4], bridge::element_adjustment_fact::RENDERED_IN_TOP_LAYER);
+    engine.set_hover(Some(nodes[6]));
+    assert_staged_hover_facts(&engine, &nodes, &[4, 5, 6]);
+}
+
+#[test]
+fn staged_hover_reads_pending_slot_reassignment_in_both_directions() {
+    let (mut engine, nodes) = staged_hover_shadow_fixture();
+    engine.set_hover(Some(nodes[6]));
+    let before = engine.settled_tree_relations(nodes[6]);
+    let mut after = before;
+    after.assigned_slot = Some(nodes[8]);
+    engine.record_tree_delta(nodes[6], Some(before), Some(after));
+    assert_eq!(engine.tree.assigned_slot_of(nodes[6]), Some(nodes[5]));
+    engine.set_hover(Some(nodes[6]));
+    assert_staged_hover_facts(&engine, &nodes, &[1, 2, 4, 6, 7, 8]);
+    engine.set_slot_assigned_nodes(nodes[5], &[]);
+    engine.set_slot_assigned_nodes(nodes[8], &[nodes[6]]);
+    discard_transaction(&mut engine);
+    engine.record_tree_delta(nodes[6], Some(after), Some(before));
+    assert_eq!(engine.tree.assigned_slot_of(nodes[6]), Some(nodes[8]));
+    engine.set_hover(Some(nodes[6]));
+    assert_staged_hover_facts(&engine, &nodes, &[1, 2, 4, 5, 6]);
+}
+
+#[test]
+fn staged_hover_unassigned_light_child_has_no_flat_chain() {
+    let (mut engine, nodes) = staged_hover_shadow_fixture();
+    engine.set_hover(Some(nodes[6]));
+    let before = engine.settled_tree_relations(nodes[6]);
+    let mut after = before;
+    after.assigned_slot = None;
+    engine.record_tree_delta(nodes[6], Some(before), Some(after));
+    engine.set_slot_assigned_nodes(nodes[5], &[]);
+    engine.set_hover(Some(nodes[6]));
+    assert_eq!(engine.hover_target(), Some(nodes[6]));
+    assert_staged_hover_facts(&engine, &nodes, &[]);
+}
+
+#[test]
+fn staged_hover_fallback_observes_current_element_and_text_assignments() {
+    let (mut engine, nodes) = staged_hover_shadow_fixture();
+    engine.set_hover(Some(nodes[9]));
+    assert_eq!(engine.hover_target(), Some(nodes[9]));
+    assert_staged_hover_facts(&engine, &nodes, &[]);
+    engine.set_slot_assigned_nodes(nodes[5], &[]);
+    engine.set_hover(Some(nodes[9]));
+    assert_staged_hover_facts(&engine, &nodes, &[1, 2, 4, 5, 9]);
+    let mut raw_text = [0];
+    engine.allocate_text_style_nodes(&mut raw_text);
+    let text = StyleNodeID::from_raw(raw_text[0]).unwrap();
+    engine.set_slot_assigned_nodes(nodes[5], &[text]);
+    assert!(
+        engine
+            .tree
+            .assigned_nodes_of(nodes[5])
+            .iter()
+            .all(|node| node.text_index().is_some())
+    );
+    engine.set_hover(Some(nodes[9]));
+    assert_eq!(engine.hover_target(), Some(nodes[9]));
+    assert_staged_hover_facts(&engine, &nodes, &[]);
+}
+
+#[test]
+fn staged_hover_pending_shadow_insertion_jumps_to_host() {
+    let (mut engine, nodes) = staged_hover_shadow_fixture();
+    let before = engine.settled_tree_relations(nodes[6]);
+    let mut after = before;
+    after.parent = Some(nodes[3]);
+    after.assigned_slot = None;
+    after.tree_scope = TreeScopeID(1);
+    engine.record_tree_delta(nodes[6], Some(before), Some(after));
+    engine.set_slot_assigned_nodes(nodes[5], &[]);
+    assert_eq!(engine.tree.parent(nodes[6]), Some(nodes[2]));
+    engine.set_hover(Some(nodes[6]));
+    assert_staged_hover_facts(&engine, &nodes, &[1, 2, 6]);
+}
+
+#[test]
+fn staged_hover_nearest_top_layer_changes_with_same_target() {
+    let (mut engine, nodes) = staged_hover_shadow_fixture();
+    let before = engine.settled_tree_relations(nodes[6]);
+    let mut after = before;
+    after.assigned_slot = Some(nodes[8]);
+    engine.record_tree_delta(nodes[6], Some(before), Some(after));
+    engine.set_slot_assigned_nodes(nodes[5], &[]);
+    engine.set_slot_assigned_nodes(nodes[8], &[nodes[6]]);
+    discard_transaction(&mut engine);
+    for (outer, inner, expected) in [
+        (true, true, &[6, 7, 8][..]),
+        (true, false, &[4, 6, 7, 8][..]),
+        (false, true, &[6, 7, 8][..]),
+        (false, false, &[1, 2, 4, 6, 7, 8][..]),
+    ] {
+        engine.set_element_adjustment_facts(
+            nodes[4],
+            if outer {
+                bridge::element_adjustment_fact::RENDERED_IN_TOP_LAYER
+            } else {
+                0
+            },
+        );
+        engine.set_element_adjustment_facts(
+            nodes[7],
+            if inner {
+                bridge::element_adjustment_fact::RENDERED_IN_TOP_LAYER
+            } else {
+                0
+            },
+        );
+        engine.set_hover(Some(nodes[6]));
+        assert_staged_hover_facts(&engine, &nodes, expected);
+    }
+}

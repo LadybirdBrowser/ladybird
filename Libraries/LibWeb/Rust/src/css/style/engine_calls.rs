@@ -1637,3 +1637,215 @@ pub unsafe extern "C" fn style_engine_decide_transitions(
     });
     hand_over(&actions);
 }
+
+#[cfg(test)]
+mod hover_replay_tests {
+    use super::*;
+    use crate::css::style::bridge::{FfiTreeRelations, element_adjustment_fact};
+    use crate::css::style::tests::{
+        assert_staged_hover_facts, discard_transaction, staged_hover_pending_shadow_fixture,
+        staged_hover_shadow_fixture,
+    };
+    use crate::css::style::transaction::TreeRelations;
+
+    fn encoded(row: TreeRelations) -> FfiTreeRelations {
+        FfiTreeRelations {
+            parent: row.parent.map_or(0, StyleNodeID::raw),
+            previous_element_sibling: row.previous_element_sibling.map_or(0, StyleNodeID::raw),
+            next_element_sibling: row.next_element_sibling.map_or(0, StyleNodeID::raw),
+            tree_scope: row.tree_scope.0,
+            assigned_slot: row.assigned_slot.map_or(0, StyleNodeID::raw),
+        }
+    }
+
+    fn replay(
+        engine: &mut StyleEngine,
+        node: StyleNodeID,
+        before: TreeRelations,
+        after: Option<TreeRelations>,
+        hover: Option<Option<StyleNodeID>>,
+    ) {
+        EngineWrite::ApplyTransaction(Box::new(StagedInput {
+            tree: vec![FfiTreeDelta {
+                node: node.raw(),
+                old_connected: true,
+                new_connected: after.is_some(),
+                old_relations: encoded(before),
+                new_relations: encoded(after.unwrap_or(before)),
+            }],
+            hover,
+            ..Default::default()
+        }))
+        .apply(engine);
+        discard_transaction(engine);
+    }
+
+    fn move_hover(engine: &mut StyleEngine, target: Option<StyleNodeID>) {
+        let mut input = StagedInput::default();
+        input.stage_hover(target);
+        EngineWrite::ApplyTransaction(Box::new(input)).apply(engine);
+        discard_transaction(engine);
+    }
+
+    #[test]
+    fn staged_hover_transaction_rejects_a_descendant_of_an_excluded_ancestor() {
+        let (mut engine, nodes) = staged_hover_shadow_fixture();
+        let before = engine.settled_tree_relations(nodes[9]);
+        let mut after = before;
+        after.parent = Some(nodes[6]);
+        after.tree_scope = TreeScopeID::DOCUMENT;
+        replay(&mut engine, nodes[9], before, Some(after), Some(Some(nodes[9])));
+        assert_staged_hover_facts(&engine, &nodes, &[1, 2, 4, 5, 6, 9]);
+        let before = engine.settled_tree_relations(nodes[6]);
+        let mut after = before;
+        after.assigned_slot = None;
+        engine.set_slot_assigned_nodes(nodes[5], &[]);
+        replay(&mut engine, nodes[6], before, Some(after), None);
+        assert_staged_hover_facts(&engine, &nodes, &[]);
+        engine.set_slot_assigned_nodes(nodes[5], &[nodes[6]]);
+        replay(&mut engine, nodes[6], after, Some(before), None);
+        assert_staged_hover_facts(&engine, &nodes, &[1, 2, 4, 5, 6, 9]);
+    }
+
+    #[test]
+    fn staged_hover_transaction_restores_fallback_without_another_hover_move() {
+        let (mut engine, nodes) = staged_hover_shadow_fixture();
+        let assigned = engine.settled_tree_relations(nodes[6]);
+        let mut unassigned = assigned;
+        unassigned.assigned_slot = None;
+        engine.set_slot_assigned_nodes(nodes[5], &[]);
+        replay(&mut engine, nodes[6], assigned, Some(unassigned), Some(Some(nodes[9])));
+        assert_staged_hover_facts(&engine, &nodes, &[1, 2, 4, 5, 9]);
+        engine.set_slot_assigned_nodes(nodes[5], &[nodes[6]]);
+        replay(&mut engine, nodes[6], unassigned, Some(assigned), None);
+        assert_staged_hover_facts(&engine, &nodes, &[]);
+        let suppressed_identity = engine.hover_target();
+        engine.set_slot_assigned_nodes(nodes[5], &[]);
+        replay(&mut engine, nodes[6], assigned, Some(unassigned), None);
+        assert_eq!(
+            (suppressed_identity, engine.hover_target()),
+            (Some(nodes[9]), Some(nodes[9]))
+        );
+        assert_staged_hover_facts(&engine, &nodes, &[1, 2, 4, 5, 9]);
+    }
+
+    #[test]
+    fn staged_hover_transaction_stops_validation_at_the_top_layer() {
+        let (mut engine, nodes) = staged_hover_shadow_fixture();
+        move_hover(&mut engine, Some(nodes[6]));
+        let mut root = [0];
+        engine.allocate_style_nodes(&mut root);
+        let root = StyleNodeID::from_raw(root[0]).unwrap();
+        engine.record_tree_delta(root, None, Some(TreeRelations::detached(TreeScopeID(2))));
+        engine.set_shadow_root(nodes[1], root);
+        engine.set_element_adjustment_facts(nodes[4], element_adjustment_fact::RENDERED_IN_TOP_LAYER);
+        let row = engine.settled_tree_relations(nodes[2]);
+        replay(&mut engine, nodes[2], row, Some(row), None);
+        assert_staged_hover_facts(&engine, &nodes, &[4, 5, 6]);
+        crate::css::style::boundary::StyleChange::SetElementAdjustmentFacts {
+            node: Some(nodes[4]),
+            facts: 0,
+        }
+        .apply(&mut engine);
+        assert_staged_hover_facts(&engine, &nodes, &[]);
+        crate::css::style::boundary::StyleChange::SetElementAdjustmentFacts {
+            node: Some(nodes[4]),
+            facts: element_adjustment_fact::RENDERED_IN_TOP_LAYER,
+        }
+        .apply(&mut engine);
+        assert_staged_hover_facts(&engine, &nodes, &[4, 5, 6]);
+        move_hover(&mut engine, None);
+        crate::css::style::boundary::StyleChange::SetElementAdjustmentFacts {
+            node: Some(nodes[4]),
+            facts: 0,
+        }
+        .apply(&mut engine);
+        assert_eq!(engine.hover_target(), None);
+        assert_staged_hover_facts(&engine, &nodes, &[]);
+    }
+
+    #[test]
+    fn staged_hover_transaction_rejects_a_parentless_element_component() {
+        let (mut engine, nodes) = staged_hover_shadow_fixture();
+        move_hover(&mut engine, Some(nodes[6]));
+        let before = engine.settled_tree_relations(nodes[2]);
+        let mut after = before;
+        after.parent = None;
+        replay(&mut engine, nodes[2], before, Some(after), None);
+        assert_staged_hover_facts(&engine, &nodes, &[]);
+        replay(&mut engine, nodes[2], after, Some(before), None);
+        assert_staged_hover_facts(&engine, &nodes, &[1, 2, 4, 5, 6]);
+    }
+
+    #[test]
+    fn staged_hover_pending_document_element_arrival_accepts_the_chain() {
+        let (mut engine, nodes) = staged_hover_pending_shadow_fixture();
+        assert_eq!(engine.tree.parent(nodes[2]), None);
+        let mut input = StagedInput::default();
+        input.stage_hover(Some(nodes[6]));
+        EngineWrite::ApplyTransaction(Box::new(input)).apply(&mut engine);
+        assert_staged_hover_facts(&engine, &nodes, &[1, 2, 4, 5, 6]);
+        discard_transaction(&mut engine);
+        assert_staged_hover_facts(&engine, &nodes, &[1, 2, 4, 5, 6]);
+    }
+
+    #[test]
+    fn staged_hover_pending_document_element_departure_rejects_the_chain() {
+        let (mut engine, nodes) = staged_hover_shadow_fixture();
+        move_hover(&mut engine, Some(nodes[6]));
+        assert_staged_hover_facts(&engine, &nodes, &[1, 2, 4, 5, 6]);
+        let before = engine.settled_tree_relations(nodes[1]);
+        EngineWrite::ApplyTransaction(Box::new(StagedInput {
+            tree: vec![FfiTreeDelta {
+                node: nodes[1].raw(),
+                old_connected: true,
+                new_connected: false,
+                old_relations: encoded(before),
+                new_relations: encoded(before),
+            }],
+            ..Default::default()
+        }))
+        .apply(&mut engine);
+        assert!(engine.host.tree_staging.current_row(nodes[1], Some(before)).is_none());
+        assert_staged_hover_facts(&engine, &nodes, &[]);
+        discard_transaction(&mut engine);
+    }
+
+    #[test]
+    fn staged_hover_slot_list_replays_text_only_suppression_without_tree_input() {
+        let (mut engine, nodes) = staged_hover_shadow_fixture();
+        let before = engine.settled_tree_relations(nodes[6]);
+        let mut after = before;
+        after.assigned_slot = None;
+        engine.set_slot_assigned_nodes(nodes[5], &[]);
+        replay(&mut engine, nodes[6], before, Some(after), Some(Some(nodes[9])));
+        assert_staged_hover_facts(&engine, &nodes, &[1, 2, 4, 5, 9]);
+        let mut text = [0];
+        engine.allocate_text_style_nodes(&mut text);
+        let text = StyleNodeID::from_raw(text[0]).unwrap();
+        crate::css::style::boundary::StyleChange::SetSlotAssignedNodes {
+            slot: Some(nodes[5]),
+            assigned: vec![text].into(),
+        }
+        .apply(&mut engine);
+        assert_staged_hover_facts(&engine, &nodes, &[]);
+        assert_eq!(engine.hover_target(), Some(nodes[9]));
+        crate::css::style::boundary::StyleChange::SetSlotAssignedNodes {
+            slot: Some(nodes[5]),
+            assigned: Box::new([]),
+        }
+        .apply(&mut engine);
+        assert_staged_hover_facts(&engine, &nodes, &[1, 2, 4, 5, 9]);
+    }
+
+    #[test]
+    fn staged_hover_transaction_retirement_clears_the_requested_identity() {
+        let (mut engine, nodes) = staged_hover_shadow_fixture();
+        move_hover(&mut engine, Some(nodes[6]));
+        let before = engine.settled_tree_relations(nodes[6]);
+        engine.set_slot_assigned_nodes(nodes[5], &[]);
+        replay(&mut engine, nodes[6], before, None, None);
+        assert_eq!(engine.hover_target(), None);
+        assert_staged_hover_facts(&engine, &nodes, &[]);
+    }
+}

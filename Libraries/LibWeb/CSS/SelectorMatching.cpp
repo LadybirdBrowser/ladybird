@@ -33,11 +33,16 @@ static bool matches_hover_pseudo_class(DOM::Element const& element)
         return false;
     // https://drafts.csswg.org/selectors-4/#useraction-pseudos
     // NB: Match the top layer boundary used by the style engine's hover chain.
-    for (auto const* node = hovered_node; node; node = node->parent_or_shadow_host_node()) {
+    bool is_hovered = false;
+    for (auto const* node = hovered_node; node; node = node->flat_tree_parent()) {
+        if (!node->is_connected())
+            return false;
         if (node == &element)
-            return true;
+            is_hovered = true;
+        if (node->is_document())
+            return is_hovered;
         if (auto const* ancestor = as_if<DOM::Element>(*node); ancestor && ancestor->rendered_in_top_layer())
-            break;
+            return is_hovered;
     }
     return false;
 }
