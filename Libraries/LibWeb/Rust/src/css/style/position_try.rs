@@ -10,7 +10,7 @@
 
 use super::HashMap;
 use super::StyleEngine;
-use super::layout_style::{DerivedStyleRecord, LayoutStyle};
+use super::layout_style::LayoutStyle;
 use super::tree::{StyleNodeID, TreeScopeID};
 use crate::css::computed_longhand_table::ComputedLonghandTable;
 use crate::css::computed_value_types::{AnchorValues, FontValues};
@@ -624,6 +624,14 @@ impl TacticContext {
     }
 }
 
+/// The style of a box with one of its position options applied.
+pub(crate) enum PositionOptionStyle {
+    /// The option changes none of the box's computed values.
+    SameAsBase,
+    /// The option's style, boxed so that the payloads it hands to style reads stay where they are.
+    Applied(Box<LayoutStyle>),
+}
+
 impl StyleEngine {
     /// https://drafts.csswg.org/css-anchor-position-1/#position-options-list
     /// The first `limit` entries of the `position-try-fallbacks` of the box of `node`, whose record is `record`, that
@@ -655,19 +663,19 @@ impl StyleEngine {
     }
 
     /// https://drafts.csswg.org/css-anchor-position-1/#apply-a-position-option
-    /// The style record of the box of `node`, whose record is `record`, with the position option that the entry
-    /// `index` of its `position-try-fallbacks` makes applied, pinned for a layout row. Logical directions are resolved
-    /// against the writing mode of the containing block, `containing_block_writing_mode` and
-    /// `containing_block_direction`. Answers none where the entry adds no position option to the box's position
-    /// options list.
-    pub(crate) fn position_option_record(
-        &mut self,
+    /// The style of the box of `node`, whose record is `record`, with the position option that the entry `index` of
+    /// its `position-try-fallbacks` makes applied. Logical directions are resolved against the writing mode of the
+    /// containing block, `containing_block_writing_mode` and `containing_block_direction`. Answers none where the
+    /// entry adds no position option to the box's position options list. The style is made without a record of its
+    /// own, so a layout pass can try the option while it only reads the engine.
+    pub(crate) fn position_option_style(
+        &self,
         node: StyleNodeID,
         record: u64,
         index: usize,
         containing_block_writing_mode: u8,
         containing_block_direction: u8,
-    ) -> Option<DerivedStyleRecord> {
+    ) -> Option<PositionOptionStyle> {
         let view = self.computed_group_sets.style_record_view(record)?;
         let base = view.longhand_table?;
         // SAFETY: A live record's payloads are live payloads of their groups.
@@ -742,9 +750,9 @@ impl StyleEngine {
             style.set_position_area(codes);
         }
         if style.is_unchanged() {
-            return Some(DerivedStyleRecord::pin(self, record));
+            return Some(PositionOptionStyle::SameAsBase);
         }
-        Some(style.intern(self))
+        Some(PositionOptionStyle::Applied(Box::new(style)))
     }
 
     /// https://drafts.csswg.org/css-shadow-1/#tree-scoped-name

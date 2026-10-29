@@ -92,6 +92,8 @@ pub(crate) struct LayoutStyle {
     changed: bool,
 }
 
+const _: () = assert!(group_index::COUNT == crate::layout::node_data::STYLE_GROUP_COUNT);
+
 impl Drop for LayoutStyle {
     fn drop(&mut self) {
         for (index, payload) in self.payloads.iter().copied().enumerate() {
@@ -211,6 +213,12 @@ impl LayoutStyle {
 
     pub(crate) fn is_unchanged(&self) -> bool {
         !self.changed
+    }
+
+    /// The group payloads of this style, for a row's style reads to see in place of its record's, as a record's
+    /// payloads are named. They address the style where it is, so the caller keeps it in place while reads see them.
+    pub(crate) fn payloads_for_style_reads(&self) -> crate::layout::node_data::StylePayloadsRef {
+        crate::layout::node_data::StylePayloadsRef::new(self.payloads.as_ptr().cast())
     }
 
     /// Builds the payloads of `groups` again from `table`, a longhand table holding the style's computed values with
