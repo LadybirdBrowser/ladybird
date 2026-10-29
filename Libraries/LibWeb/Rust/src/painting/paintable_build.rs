@@ -439,7 +439,7 @@ impl<'a> PaintableCommit<'a> {
             return;
         }
         {
-            let mut side = self.arena().committed_side_data_mut(slot);
+            let mut side = self.arena_mut().committed_side_data_mut(slot);
             side.containing_block_fragment = containing_block_fragment;
             side.box_fragments = (!later_fragments.is_empty()).then(|| {
                 std::sync::Arc::new(
@@ -494,7 +494,7 @@ impl<'a> PaintableCommit<'a> {
             }
             (true, !previous.has_same_item_order(line_data))
         });
-        self.arena().committed_side_data_mut(slot).inline_content = Some(line_data.clone());
+        self.arena_mut().committed_side_data_mut(slot).inline_content = Some(line_data.clone());
         if item_order_changed {
             self.arena_mut().push_paint_damage(slot, PaintDamage::ORDER);
         }
@@ -518,7 +518,7 @@ impl<'a> PaintableCommit<'a> {
             let is_full_layout = self.is_full_layout;
             let arena = self.arena_mut();
             if arena.paintable_row_is_populated(node) {
-                arena.paintable_rows().clear_cached_overflow_data(node);
+                arena.paintable_rows_mut().clear_cached_overflow_data(node);
                 // Commit queues are consumed immediately and are bounded by the committed tree.
                 if is_full_layout && !arena.needs_full_scrollable_overflow_recalculation {
                     arena.boxes_needing_scrollable_overflow_recalculation.push(node);

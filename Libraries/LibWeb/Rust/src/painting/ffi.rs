@@ -1469,10 +1469,7 @@ mod tests {
                 .into(),
                 has_scrollable_overflow: true,
             };
-            arena
-                .paintable_side_data(viewport)
-                .overflow_measured_this_commit
-                .set(true);
+            arena.paintable_side_data_mut(viewport).overflow_measured_this_commit = true;
             arena.note_publishing_paint_recording_started();
             arena.clear_paint_damage_consumed_by_published_recording();
 
@@ -1520,7 +1517,7 @@ mod tests {
             .into(),
             has_scrollable_overflow: true,
         };
-        arena.paintable_side_data(root).overflow_measured_this_commit.set(true);
+        arena.paintable_side_data_mut(root).overflow_measured_this_commit = true;
         arena.paint_state().borrow_mut().visual_context.dirty_boxes.clear();
 
         let outcome = crate::painting::paint_passes::prepare_for_rendering(
