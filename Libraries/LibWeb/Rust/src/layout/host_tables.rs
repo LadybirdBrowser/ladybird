@@ -260,7 +260,7 @@ mod tests {
         // The walk can ask for the new row's layout node before the old one is destroyed.
         host_tables.attach_shell(reused, object(16));
 
-        work.resolve(&arena).pay(&main_thread);
+        work.resolve(&mut arena).pay(&main_thread);
         assert_eq!(
             host_tables.shells.borrow().get(&reused).map(|shell| shell.as_ptr()),
             Some(object(16))
@@ -325,7 +325,7 @@ mod tests {
         assert_eq!(reused.slot_index(), freed.slot_index());
         host_tables.replace_image_observers(reused, object(16));
 
-        work.resolve(&arena).pay(&main_thread);
+        work.resolve(&mut arena).pay(&main_thread);
         assert!(host_tables.image_observers(freed).is_null());
         assert_eq!(host_tables.image_observers(reused), object(16));
         host_tables.replace_image_observers(reused, std::ptr::null_mut());
@@ -359,7 +359,7 @@ mod tests {
             &arena,
             root,
         );
-        work.resolve(&arena).pay(&main_thread);
+        work.resolve(&mut arena).pay(&main_thread);
 
         assert!(host_tables.image_observers(root).is_null());
         assert_eq!(host_tables.image_observers(text), object(16));
