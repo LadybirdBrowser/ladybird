@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    asyncTest(async done => {
+        // NB: This runs disposeAsync() from a microtask, where awaiting a disposer cannot wait for a nested microtask
+        //     checkpoint.
+        await null;
+
+        const events = [];
+        const stack = new AsyncDisposableStack();
+        stack.defer(() => events.push("sync disposer"));
+        stack.defer(async () => {
+            events.push("async disposer started");
+            await null;
+            events.push("async disposer finished");
+        });
+        const promise = stack.disposeAsync();
+        events.push("disposeAsync() returned");
+        await promise;
+        events.push(`disposed: ${stack.disposed}`);
+
+        const throwing_stack = new AsyncDisposableStack();
+        throwing_stack.defer(async () => {
+            throw new Error("first");
+        });
+        throwing_stack.defer(async () => {
+            throw new Error("second");
+        });
+        try {
+            await throwing_stack.disposeAsync();
+        } catch (error) {
+            events.push(`${error.name}: error=${error.error.message} suppressed=${error.suppressed.message}`);
+        }
+
+        for (const event of events)
+            println(event);
+        done();
+    });
+</script>

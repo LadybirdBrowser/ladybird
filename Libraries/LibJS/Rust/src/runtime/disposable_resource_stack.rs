@@ -86,6 +86,11 @@ impl DisposableResourceStack {
         stack
     }
 
+    /// Takes the resources of the given dispose capability, which is left with an empty stack.
+    pub fn take_dispose_capability(&self, dispose_capability: &GcRefCell<DisposeCapability>) {
+        self.dispose_capability.swap(dispose_capability);
+    }
+
     pub fn add_disposable_resource(&self, vm: &Vm, value: Value, hint: InitializeBindingHint) -> ThrowCompletionOr<()> {
         add_disposable_resource(vm, &self.dispose_capability, value, hint, None)
     }
