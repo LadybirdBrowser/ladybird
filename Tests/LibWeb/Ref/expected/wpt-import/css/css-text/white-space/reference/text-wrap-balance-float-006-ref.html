@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset=utf-8>
+<style>
+body {
+  font: 20px/1 monospace;
+}
+.float {
+  float: left;
+  width: 15ch;
+  height: 150px;
+  background: silver;
+}
+.mask {
+  width: 15ch;
+  height: 150px;
+  background: green;
+  position: absolute;
+  left: 15ch;
+}
+.test {
+  width: 28ch;
+  background: red;
+}
+</style>
+</head>
+
+<body>
+<p>There should be no red:</p>
+<div class="float">
+  <div class="mask"></div>
+</div>
+<p class="test">
+Lorem ipsum dolor <span>sit</span> amet consectetur adipisicing elit.
+</p>
+</body>
+

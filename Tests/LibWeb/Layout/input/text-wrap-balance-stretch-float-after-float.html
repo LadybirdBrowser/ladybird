@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<style>
+    body {
+        font: 20px monospace;
+    }
+    .container {
+        width: 400px;
+        margin-bottom: 10px;
+    }
+    .first {
+        float: left;
+        width: 100px;
+        height: 40px;
+        background: orange;
+    }
+    .stretch {
+        float: left;
+        width: stretch;
+        height: 20px;
+        background: green;
+    }
+</style>
+<div class="container" style="text-wrap: balance">
+    <div class="first"></div>
+    <canvas class="stretch"></canvas>
+    abc def ghi jkl mno pqr stu vwx yz abc def ghi jkl
+</div>
+<div class="container" style="text-wrap: wrap">
+    <div class="first"></div>
+    <canvas class="stretch"></canvas>
+    abc def ghi jkl mno pqr stu vwx yz abc def ghi jkl
+</div>

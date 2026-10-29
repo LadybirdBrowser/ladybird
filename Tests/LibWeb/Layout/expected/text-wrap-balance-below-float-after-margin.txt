@@ -1,0 +1,40 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 208 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 190 0+0+8] children: not-inline
+      BlockContainer <div.container> at [8,8] [0+0+0 784 0+0+0] [0+0+0 90 0+0+10] [BFC] children: not-inline
+        BlockContainer <(anonymous)> at [8,8] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+          BlockContainer <div.float> at [8,8] floating [0+0+0 200 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+          TextNode <#text> (not painted)
+        BlockContainer <p> at [8,38] [0+0+0 300 0+0+484] [30+0+0 60 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 15, rect: [8,38 172.28125x20] baseline: 16
+              "The quick brown"
+          frag 1 from TextNode start: 16, length: 18, rect: [8,58 198.359375x20] baseline: 16
+              "fox jumps over the"
+          frag 2 from TextNode start: 35, length: 21, rect: [8,78 210.125x20] baseline: 16
+              "lazy dog and the cat."
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [8,98] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,108] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div.container> at [8,108] [0+0+0 784 0+0+0] [0+0+0 90 0+0+10] [BFC] children: not-inline
+        BlockContainer <(anonymous)> at [8,108] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+          BlockContainer <div.float> at [8,108] floating [0+0+0 200 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+          TextNode <#text> (not painted)
+        BlockContainer <p> at [8,138] [0+0+0 300 0+0+484] [30+0+0 60 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 25, rect: [8,138 284.390625x20] baseline: 16
+              "The quick brown fox jumps"
+          frag 1 from TextNode start: 26, length: 25, rect: [8,158 259.5625x20] baseline: 16
+              "over the lazy dog and the"
+          frag 2 from TextNode start: 52, length: 4, rect: [8,178 36.8125x20] baseline: 16
+              "cat."
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [8,198] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,208] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x208] (z-index: auto)

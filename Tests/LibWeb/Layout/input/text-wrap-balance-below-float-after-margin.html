@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<style>
+    body {
+        font: 20px monospace;
+    }
+    .container {
+        display: flow-root;
+        margin-bottom: 10px;
+    }
+    .float {
+        float: left;
+        width: 200px;
+        height: 20px;
+        background: orange;
+    }
+    p {
+        width: 300px;
+        margin: 30px 0 0;
+    }
+</style>
+<div class="container">
+    <div class="float"></div>
+    <p style="text-wrap: balance">The quick brown fox jumps over the lazy dog and the cat.</p>
+</div>
+<div class="container">
+    <div class="float"></div>
+    <p style="text-wrap: wrap">The quick brown fox jumps over the lazy dog and the cat.</p>
+</div>
