@@ -196,7 +196,7 @@ impl ComparedLayouts<'_> {
         assert_eq!(
             checked_outputs.root_outcome.input_cells_left_by_run,
             reference_outputs.root_outcome.input_cells_left_by_run,
-            "{checked} left a root record {reference} does not"
+            "{checked} left root cells {reference} does not"
         );
         assert!(
             checked_outputs.root_outcome.line_data.as_deref() == reference_outputs.root_outcome.line_data.as_deref(),

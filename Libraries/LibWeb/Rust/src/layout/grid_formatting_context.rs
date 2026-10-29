@@ -1032,7 +1032,7 @@ struct GridItem {
     column: i32,
     column_span: usize,
     // Accumulated while projecting a nested subgrid item into an ancestor's track
-    // sizing without modifying the UsedValues owned by the nested grid context.
+    // sizing without modifying the cells the nested grid context holds for the item.
     extra_margin_top: CssPixels,
     extra_margin_right: CssPixels,
     extra_margin_bottom: CssPixels,
@@ -3094,7 +3094,7 @@ impl<'pass> GridFormattingContext<'pass> {
         // This extra layer of "margin" accumulates through multiple levels of
         // subgrids.
         //
-        // NB: Scrollbar gutters are not represented in UsedValues yet.
+        // NB: The cells of a box do not hold its scrollbar gutters yet.
         let position = item.position(axis);
         let span = item.span(axis);
         let track_count = self.axis_tracks(axis).len() as i32;
@@ -3173,7 +3173,6 @@ impl<'pass> GridFormattingContext<'pass> {
             self.run.callbacks,
             subgrid.box_,
             containing_block,
-            scratch_root,
             None,
             |records, callbacks| {
                 let scratch_run = FormattingContextRun {

@@ -235,13 +235,12 @@ impl LayoutScratch {
     }
 }
 
-/// What a run keeps while it is in progress: the record of its root, built from the input cells its caller hands it, the
-/// anchor-size() resolutions of its root, and the percentage block size dependencies it resolves. Every other box the
-/// run lays out is laid out in a record the call laying it out owns, or handed to a run of its own. The scoped
-/// constructors lend the records to the run, so callers cannot extend their lifetime.
+/// What a run keeps while it is in progress: its root, the percentage block size dependencies it resolves and the
+/// anchor-size() resolutions of its root. It keeps no metrics of any box: the formatting context or call that lays out
+/// a box holds the box's cells, or hands the box to a run of its own. The scoped constructors lend this to the run, so
+/// callers cannot extend its lifetime.
 pub(crate) struct RunRecords<'arena> {
     root: Node,
-    root_used: Option<UsedValues>,
     scratch: &'arena LayoutScratch,
     /// How many runs are in progress with this one, of which only the innermost hands over what it found out.
     runs_in_progress_with_it: usize,
@@ -359,13 +358,12 @@ enum ContentSizing {
 }
 
 impl<'arena> RunRecords<'arena> {
-    /// Runs `run` with the records of a run rooted at `root`, and the pass as that run sees it. The root's record holds
-    /// `root_cells`. The style reads of an absolutely positioned root see `root_anchor_resolved_values`.
+    /// Runs `run` with what a run rooted at `root` keeps, and the pass as that run sees it. The style reads of an
+    /// absolutely positioned root see `root_anchor_resolved_values`.
     pub(crate) fn with_root<R>(
         callbacks: LayoutPass<'arena>,
         root: Node,
         root_containing_block: Node,
-        root_cells: used_values::RootInputCells,
         root_anchor_resolved_values: Option<Box<style_values::AnchorResolvedValues>>,
         run: impl FnOnce(&Self, LayoutPass<'arena>) -> R,
     ) -> R {
@@ -373,7 +371,6 @@ impl<'arena> RunRecords<'arena> {
             callbacks,
             root,
             root_containing_block,
-            Some(root_cells),
             root_anchor_resolved_values,
             ContentSizing::Layout,
             run,
@@ -384,14 +381,12 @@ impl<'arena> RunRecords<'arena> {
         callbacks: LayoutPass<'arena>,
         root: Node,
         root_containing_block: Node,
-        root_cells: used_values::RootInputCells,
         run: impl FnOnce(&Self, LayoutPass<'arena>) -> R,
     ) -> R {
         Self::enter(
             callbacks,
             root,
             root_containing_block,
-            Some(root_cells),
             None,
             ContentSizing::RootContributions,
             run,
@@ -402,33 +397,14 @@ impl<'arena> RunRecords<'arena> {
         callbacks: LayoutPass<'arena>,
         root: Node,
         root_containing_block: Node,
-        root_cells: used_values::RootInputCells,
         run: impl FnOnce(&Self, LayoutPass<'arena>) -> R,
     ) -> R {
         Self::enter(
             callbacks,
             root,
             root_containing_block,
-            Some(root_cells),
             None,
             ContentSizing::RootContentInlineSizes,
-            run,
-        )
-    }
-
-    pub(crate) fn with_unrooted<R>(
-        callbacks: LayoutPass<'arena>,
-        root: Node,
-        root_containing_block: Node,
-        run: impl FnOnce(&Self, LayoutPass<'arena>) -> R,
-    ) -> R {
-        Self::enter(
-            callbacks,
-            root,
-            root_containing_block,
-            None,
-            None,
-            ContentSizing::Layout,
             run,
         )
     }
@@ -437,7 +413,6 @@ impl<'arena> RunRecords<'arena> {
         callbacks: LayoutPass<'arena>,
         root: Node,
         root_containing_block: Node,
-        root_cells: Option<used_values::RootInputCells>,
         root_anchor_resolved_values: Option<Box<style_values::AnchorResolvedValues>>,
         content_sizing: ContentSizing,
         run: impl FnOnce(&Self, LayoutPass<'arena>) -> R,
@@ -449,7 +424,6 @@ impl<'arena> RunRecords<'arena> {
         let scratch = callbacks.scratch();
         let records = Self {
             root,
-            root_used: root_cells.map(used_values::RootInputCells::materialize_record),
             scratch,
             runs_in_progress_with_it: scratch.begin_run(),
             content_sizing,
@@ -488,26 +462,6 @@ impl<'arena> RunRecords<'arena> {
 
     fn is_innermost_run(&self) -> bool {
         self.scratch.runs_in_progress() == self.runs_in_progress_with_it
-    }
-
-    #[track_caller]
-    pub(crate) fn used_values(&self, node: Node) -> &UsedValues {
-        let caller = std::panic::Location::caller();
-        self.used_values_if_owned(node).unwrap_or_else(|| {
-            panic!(
-                "the run rooted at slot {} does not own the record for slot {} (read at {caller})",
-                self.root.slot_index(),
-                node.slot_index(),
-            )
-        })
-    }
-
-    /// The record of `node` where it is the run's root, the only box a run keeps a record of.
-    pub(crate) fn used_values_if_owned(&self, node: Node) -> Option<&UsedValues> {
-        if node != self.root {
-            return None;
-        }
-        self.root_used.as_ref()
     }
 
     pub(crate) fn root(&self) -> Node {
@@ -603,7 +557,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn a_nested_run_keeps_its_own_root_record() {
+    fn a_nested_run_keeps_its_own_root() {
         let mut arena = LayoutNodeArena::new();
         let scratch = LayoutScratch::default();
         let root = arena.allocate_for_test().slot;
@@ -612,31 +566,23 @@ mod tests {
             LayoutPass::for_test(&arena, &scratch),
             root,
             NodeSlotId::INVALID,
-            used_values::RootInputCells::default(),
             None,
             |parent, _| {
-                let root_used: *const UsedValues = parent.used_values(root);
+                assert_eq!(parent.root(), root);
                 RunRecords::with_root(
                     LayoutPass::for_test(&arena, &scratch),
                     child,
                     root,
-                    used_values::RootInputCells::default(),
                     None,
                     |nested, _| {
-                        assert!(nested.used_values_if_owned(root).is_none());
-                        assert!(nested.used_values_if_owned(child).is_some());
-                        assert!(parent.used_values_if_owned(child).is_none());
-                        RunRecords::with_unrooted(
-                            LayoutPass::for_test(&arena, &scratch),
-                            child,
-                            root,
-                            |unrooted, _| {
-                                assert!(unrooted.used_values_if_owned(child).is_none());
-                            },
-                        );
+                        assert_eq!(nested.root(), child);
+                        assert!(nested.resolves_percentage_block_size_dependency_of(child));
+                        assert!(!nested.resolves_percentage_block_size_dependency_of(root));
+                        assert!(!parent.resolves_percentage_block_size_dependency_of(child));
+                        assert!(nested.anchor_resolved_values_of(child).is_none());
                     },
                 );
-                assert!(std::ptr::eq(parent.used_values(root), root_used));
+                assert_eq!(parent.root(), root);
             },
         );
         assert_eq!(scratch.runs_in_progress(), 0);
@@ -652,22 +598,15 @@ mod tests {
             LayoutPass::for_test(&arena, &scratch),
             root,
             NodeSlotId::INVALID,
-            used_values::RootInputCells::default(),
             None,
             |parent, _| {
-                let root_used: *const UsedValues = parent.used_values(root);
                 let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    RunRecords::with_root(
-                        LayoutPass::for_test(&arena, &scratch),
-                        child,
-                        root,
-                        used_values::RootInputCells::default(),
-                        None,
-                        |_, _| panic!("abort the nested measurement"),
-                    );
+                    RunRecords::with_root(LayoutPass::for_test(&arena, &scratch), child, root, None, |_, _| {
+                        panic!("abort the nested measurement")
+                    });
                 }));
                 assert!(result.is_err());
-                assert!(std::ptr::eq(parent.used_values(root), root_used));
+                assert_eq!(parent.root(), root);
                 assert_eq!(scratch.runs_in_progress(), 1);
             },
         );

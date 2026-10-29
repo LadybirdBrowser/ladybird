@@ -2413,7 +2413,6 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
                 self.callbacks,
                 node,
                 self.callbacks.in_flow_containing_block(node),
-                root,
                 |records, callbacks| {
                     let sizing = SizingContext::new(records, callbacks);
                     let inline_size_under = |inline_size| {
@@ -3586,7 +3585,6 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             self.callbacks,
             table_box,
             self.callbacks.in_flow_containing_block(table_box),
-            table_cells,
             |records, callbacks| {
                 let table_run = FormattingContextRun {
                     records,
@@ -4379,35 +4377,22 @@ mod replaced_ratio_tests {
                 document_in_quirks_mode: false,
             },
         );
-        let result = RunRecords::with_root(
-            callbacks,
-            node,
-            Node::INVALID,
-            used_values::RootInputCells::default(),
-            None,
-            |records, callbacks| {
-                let context = SizingContext::new(records, callbacks);
-                let mut metrics = used_values::RootInputCells::default();
-                let available = AvailableSpace {
-                    inline_size: AvailableSize::Definite(CssPixels::from_integer(800)),
-                    block_size: AvailableSize::Indefinite,
-                };
-                let constraints = ContainingBlockConstraints::default();
-                let inline = context.compute_inline_size_for_replaced_element(
-                    SizedBox::new(node, &metrics),
-                    available,
-                    constraints,
-                );
-                // NB: Match dimension_atomic_root: publish the used inline size before resolving the block size.
-                metrics.set_content_inline_size(inline);
-                let block = context.compute_block_size_for_replaced_element(
-                    SizedBox::new(node, &metrics),
-                    available,
-                    constraints,
-                );
-                (inline.to_int(), block.to_int())
-            },
-        );
+        let result = RunRecords::with_root(callbacks, node, Node::INVALID, None, |records, callbacks| {
+            let context = SizingContext::new(records, callbacks);
+            let mut metrics = used_values::RootInputCells::default();
+            let available = AvailableSpace {
+                inline_size: AvailableSize::Definite(CssPixels::from_integer(800)),
+                block_size: AvailableSize::Indefinite,
+            };
+            let constraints = ContainingBlockConstraints::default();
+            let inline =
+                context.compute_inline_size_for_replaced_element(SizedBox::new(node, &metrics), available, constraints);
+            // NB: Match dimension_atomic_root: publish the used inline size before resolving the block size.
+            metrics.set_content_inline_size(inline);
+            let block =
+                context.compute_block_size_for_replaced_element(SizedBox::new(node, &metrics), available, constraints);
+            (inline.to_int(), block.to_int())
+        });
         arena
             .free_subtree(node)
             .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());

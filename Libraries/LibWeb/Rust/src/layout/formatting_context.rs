@@ -2245,9 +2245,6 @@ fn execute_formatting_context_run(
     let parent_owns_root_input_cells = parent_owns_root_input_cells(&callbacks, box_, &input);
     let checks_root_input_cells_its_parent_owns =
         parent_owns_root_input_cells && (cfg!(debug_assertions) || run_repeatability::verification_is_enabled());
-    // NB: The root's own box is sized in cells held in its parent's frame. The root's record holds its metrics in the
-    //     frame the root lays its contents out in.
-    let own_frame = frame_established_by(&callbacks, box_);
     // NB: The anchor-size() resolutions apply only in the parent's frame, where the root's own box is sized.
     let root_anchor_resolved_values = match input.participation {
         ParticipationInParentFormattingContext::AbsolutelyPositioned(inputs)
@@ -2264,7 +2261,6 @@ fn execute_formatting_context_run(
         callbacks,
         box_,
         root_containing_block,
-        root_cells.in_frame(callbacks.frame, own_frame),
         root_anchor_resolved_values,
         |records, callbacks| {
             lay_out_run_root_and_contents(
@@ -2407,10 +2403,6 @@ fn lay_out_run_root_and_contents<'pass>(
     } else {
         body_input
     };
-    // NB: A root whose contents no formatting context lays out takes its cells back from its record, in its own frame.
-    let root_record = records.used_values(box_);
-    root_record.cells.set(own_root.get());
-    let root_left_in_record = || root_record.cells.get();
 
     let mut implementation = None;
     let mut root_lines = used_values::LineDataState::Empty;
@@ -2425,7 +2417,7 @@ fn lay_out_run_root_and_contents<'pass>(
     {
         // An empty atomic block context has no body output. Root sizing and finalization still
         // run through the shared paths around this branch.
-        (ChildLayoutResult::default(), root_left_in_record())
+        (ChildLayoutResult::default(), own_root.get())
     } else {
         let mut context_implementation = create_formatting_context_implementation(
             body_run,
@@ -2515,7 +2507,7 @@ fn lay_out_run_root_and_contents<'pass>(
                 );
                 (result, root_after_body)
             }
-            FormattingContextImplementation::InternalReplaced => (ChildLayoutResult::default(), root_left_in_record()),
+            FormattingContextImplementation::InternalReplaced => (ChildLayoutResult::default(), own_root.get()),
         };
         implementation = Some(context_implementation);
         result_and_own_root_after_body
@@ -3600,7 +3592,7 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
         percentage_basis_block_size: Some(viewport_block_size),
         ..ContainingBlockConstraints::default()
     };
-    RunRecords::with_unrooted(callbacks, root, NodeSlotId::INVALID, |entry_records, callbacks| {
+    RunRecords::with_root(callbacks, root, Node::INVALID, None, |entry_records, callbacks| {
         let _trace = arena.layout_trace.pass(None);
         let entry_fragments = std::rc::Rc::new(fragment_tree::RunFragmentBuilder::new_entry_accumulator(root));
         let entry_run = FormattingContextRun {
@@ -3744,10 +3736,11 @@ fn compute_subtree_layout_fragments(input: LayoutStageInput<'_>, containing_bloc
     } else {
         (root, containing_block)
     };
-    RunRecords::with_unrooted(
+    RunRecords::with_root(
         callbacks,
         entry_root,
         entry_root_containing_block,
+        None,
         |entry_records, callbacks| {
             let _trace = arena.layout_trace.pass(Some(root));
             let entry_fragments =
@@ -3924,8 +3917,7 @@ mod baseline_tests {
                 document_in_quirks_mode: false,
             },
         );
-        let parent_cells = used_values::RootInputCells::default();
-        RunRecords::with_root(callbacks, parent, Node::INVALID, parent_cells, None, |_, callbacks| {
+        RunRecords::with_root(callbacks, parent, Node::INVALID, None, |_, callbacks| {
             let child_cells = used_values::RootInputCells::default();
             assert!(child_gives_container_baselines(&callbacks, parent, child));
             let mut baselines = DerivedBaselines::default();

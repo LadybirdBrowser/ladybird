@@ -4548,89 +4548,82 @@ mod stretch_cross_limit_tests {
             ..ContainingBlockConstraints::default()
         };
         let container_cells = used_values::cells_before_sizing(&callbacks, container, constraints);
-        RunRecords::with_root(
-            callbacks,
-            container,
-            Node::INVALID,
-            container_cells,
-            None,
-            |records, callbacks| {
-                let run = FormattingContextRun {
-                    records,
-                    box_: container,
-                    callbacks,
-                    should_collect_devtools_layout_data: false,
-                    treat_block_axis_percentage_insets_as_auto_beyond_root: false,
-                    fragments: None,
-                    fragmentainer: None,
-                };
-                let mut flex = FlexFormattingContext::new(&run, container_cells);
-                let available = AvailableSpace {
-                    inline_size: if column && !definite_cross_basis {
-                        AvailableSize::Indefinite
-                    } else {
-                        AvailableSize::definite(px(100))
-                    },
-                    block_size: if column || definite_cross_basis {
-                        AvailableSize::definite(px(100))
-                    } else {
-                        AvailableSize::Indefinite
-                    },
-                };
-                flex.generate_items_and_determine_available_space(LayoutInput::new(
-                    available,
-                    constraints,
-                    ParticipationInParentFormattingContext::Root,
-                ));
-                assert_eq!(flex.flex_items.len(), 2);
-                assert_eq!(flex.cross_axis_stretch_basis().is_some(), definite_cross_basis);
-                if !definite_cross_basis {
-                    assert_eq!(flex.cross_axis_stretch_basis(), None);
-                    assert_eq!(flex.cross_size_limits(0), (px(0), CssPixels::from_raw(i32::MAX)));
-                }
-                // Initial cells have already applied the container-sized stretch limit. The preferred size must
-                // survive this clamp so the final, larger line maximum can restore it.
-                assert_eq!(flex.inner_cross_size(0), px(provisional));
-                for index in 0..2 {
-                    flex.flex_items[index].main_size = Some(px(50));
-                    flex.determine_hypothetical_cross_size_of_item(index);
-                }
-                assert_eq!(flex.flex_items[0].hypothetical_cross_size, px(provisional));
-                flex.flex_lines.push(FlexLine {
-                    items: vec![0, 1],
-                    ..FlexLine::default()
-                });
-                flex.calculate_cross_size_of_each_flex_line();
-                assert_eq!(
-                    flex.flex_lines[0].cross_size,
-                    px(if max_constrained { 100 } else { 200 })
-                );
-                // The initial containing-block basis stays indefinite. Step 11 still resolves stretch limits
-                // against the completed line below.
-                assert_eq!(flex.cross_axis_stretch_basis().is_some(), definite_cross_basis);
-                if !definite_cross_basis {
-                    assert_eq!(flex.cross_axis_stretch_basis(), None);
-                    assert_eq!(flex.cross_size_limits(0), (px(0), CssPixels::from_raw(i32::MAX)));
-                }
-                flex.determine_used_cross_size_of_each_flex_item();
-                assert_eq!(flex.flex_items[0].cross_size, Some(px(final_size)));
-                assert_eq!(flex.inner_cross_size(0), px(final_size));
-                if max_constrained {
-                    // Match the immutable keyword-sizes-on-flex-item-001.html cases60–65 oracle.
-                    let item = &flex.flex_items[0];
-                    let border_box = item.cross_size.unwrap()
-                        + item.borders.cross_before
-                        + item.borders.cross_after
-                        + item.padding.cross_before
-                        + item.padding.cross_after;
-                    assert_eq!(border_box, px(90));
-                }
-                if auto {
-                    assert!(flex.has_definite_cross_size(0));
-                }
-                assert_eq!(flex.flex_items[1].cross_size, Some(px(200)));
-            },
-        );
+        RunRecords::with_root(callbacks, container, Node::INVALID, None, |records, callbacks| {
+            let run = FormattingContextRun {
+                records,
+                box_: container,
+                callbacks,
+                should_collect_devtools_layout_data: false,
+                treat_block_axis_percentage_insets_as_auto_beyond_root: false,
+                fragments: None,
+                fragmentainer: None,
+            };
+            let mut flex = FlexFormattingContext::new(&run, container_cells);
+            let available = AvailableSpace {
+                inline_size: if column && !definite_cross_basis {
+                    AvailableSize::Indefinite
+                } else {
+                    AvailableSize::definite(px(100))
+                },
+                block_size: if column || definite_cross_basis {
+                    AvailableSize::definite(px(100))
+                } else {
+                    AvailableSize::Indefinite
+                },
+            };
+            flex.generate_items_and_determine_available_space(LayoutInput::new(
+                available,
+                constraints,
+                ParticipationInParentFormattingContext::Root,
+            ));
+            assert_eq!(flex.flex_items.len(), 2);
+            assert_eq!(flex.cross_axis_stretch_basis().is_some(), definite_cross_basis);
+            if !definite_cross_basis {
+                assert_eq!(flex.cross_axis_stretch_basis(), None);
+                assert_eq!(flex.cross_size_limits(0), (px(0), CssPixels::from_raw(i32::MAX)));
+            }
+            // Initial cells have already applied the container-sized stretch limit. The preferred size must
+            // survive this clamp so the final, larger line maximum can restore it.
+            assert_eq!(flex.inner_cross_size(0), px(provisional));
+            for index in 0..2 {
+                flex.flex_items[index].main_size = Some(px(50));
+                flex.determine_hypothetical_cross_size_of_item(index);
+            }
+            assert_eq!(flex.flex_items[0].hypothetical_cross_size, px(provisional));
+            flex.flex_lines.push(FlexLine {
+                items: vec![0, 1],
+                ..FlexLine::default()
+            });
+            flex.calculate_cross_size_of_each_flex_line();
+            assert_eq!(
+                flex.flex_lines[0].cross_size,
+                px(if max_constrained { 100 } else { 200 })
+            );
+            // The initial containing-block basis stays indefinite. Step 11 still resolves stretch limits
+            // against the completed line below.
+            assert_eq!(flex.cross_axis_stretch_basis().is_some(), definite_cross_basis);
+            if !definite_cross_basis {
+                assert_eq!(flex.cross_axis_stretch_basis(), None);
+                assert_eq!(flex.cross_size_limits(0), (px(0), CssPixels::from_raw(i32::MAX)));
+            }
+            flex.determine_used_cross_size_of_each_flex_item();
+            assert_eq!(flex.flex_items[0].cross_size, Some(px(final_size)));
+            assert_eq!(flex.inner_cross_size(0), px(final_size));
+            if max_constrained {
+                // Match the immutable keyword-sizes-on-flex-item-001.html cases60–65 oracle.
+                let item = &flex.flex_items[0];
+                let border_box = item.cross_size.unwrap()
+                    + item.borders.cross_before
+                    + item.borders.cross_after
+                    + item.padding.cross_before
+                    + item.padding.cross_after;
+                assert_eq!(border_box, px(90));
+            }
+            if auto {
+                assert!(flex.has_definite_cross_size(0));
+            }
+            assert_eq!(flex.flex_items[1].cross_size, Some(px(200)));
+        });
         arena
             .free_subtree(container)
             .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
