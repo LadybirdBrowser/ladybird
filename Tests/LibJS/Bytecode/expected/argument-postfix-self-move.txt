@@ -12,12 +12,11 @@ block0:
   [  40] End value:reg5
 
 
-f$01d98a5f argument-postfix-self-move.js:2:6
+f$049d7b6f argument-postfix-self-move.js:2:6
   Registers: 6
   Blocks:    1
 
 block0:
   [   0] Enter
   [   8] PostfixDecrement arith_feedback:0, dst:reg5, src:arg0
-  [  18] Mov dst:arg0, src:arg0
-  [  28] Return value:arg0
+  [  18] Return value:arg0
