@@ -485,6 +485,23 @@ impl Utf16StringBuilder {
             return;
         }
 
+        // OPTIMIZATION: ASCII text has no surrogates, so the runs between the code units that need escaping are
+        //               appended as they are.
+        if let Utf16View::Ascii(mut units) = string {
+            self.append_code_unit(u16::from(b'"'));
+            while let Some(position) = units
+                .iter()
+                .position(|&byte| is_json_special_code_unit(u32::from(byte)))
+            {
+                self.append_ascii_bytes(&units[..position]);
+                self.append_json_escape(u16::from(units[position]));
+                units = &units[position + 1..];
+            }
+            self.append_ascii_bytes(units);
+            self.append_code_unit(u16::from(b'"'));
+            return;
+        }
+
         self.append_code_unit(u16::from(b'"'));
         let length = string.length_in_code_units();
         let mut index = 0;
@@ -500,30 +517,39 @@ impl Utf16StringBuilder {
                 index += 2;
                 continue;
             }
-            match code_unit {
-                0x08 => self.append_ascii("\\b"),
-                0x09 => self.append_ascii("\\t"),
-                0x0A => self.append_ascii("\\n"),
-                0x0C => self.append_ascii("\\f"),
-                0x0D => self.append_ascii("\\r"),
-                0x22 => self.append_ascii("\\\""),
-                0x5C => self.append_ascii("\\\\"),
-                _ if code_unit < 0x20 || is_unicode_surrogate(code_unit) => {
-                    const HEX_DIGITS: &[u8; 16] = b"0123456789abcdef";
-                    self.append_ascii_bytes(&[
-                        b'\\',
-                        b'u',
-                        HEX_DIGITS[usize::from(code_unit >> 12)],
-                        HEX_DIGITS[usize::from((code_unit >> 8) & 0xf)],
-                        HEX_DIGITS[usize::from((code_unit >> 4) & 0xf)],
-                        HEX_DIGITS[usize::from(code_unit & 0xf)],
-                    ]);
-                }
-                _ => self.append_code_unit(code_unit),
+            if is_json_special_code_unit(u32::from(code_unit)) || is_unicode_surrogate(code_unit) {
+                self.append_json_escape(code_unit);
+            } else {
+                self.append_code_unit(code_unit);
             }
             index += 1;
         }
         self.append_code_unit(u16::from(b'"'));
+    }
+
+    /// Appends the escape sequence of a code unit that a JSON string cannot hold as it is: a JSON special code unit or
+    /// a lone surrogate.
+    fn append_json_escape(&mut self, code_unit: u16) {
+        match code_unit {
+            0x08 => self.append_ascii("\\b"),
+            0x09 => self.append_ascii("\\t"),
+            0x0A => self.append_ascii("\\n"),
+            0x0C => self.append_ascii("\\f"),
+            0x0D => self.append_ascii("\\r"),
+            0x22 => self.append_ascii("\\\""),
+            0x5C => self.append_ascii("\\\\"),
+            _ => {
+                const HEX_DIGITS: &[u8; 16] = b"0123456789abcdef";
+                self.append_ascii_bytes(&[
+                    b'\\',
+                    b'u',
+                    HEX_DIGITS[usize::from(code_unit >> 12)],
+                    HEX_DIGITS[usize::from((code_unit >> 8) & 0xf)],
+                    HEX_DIGITS[usize::from((code_unit >> 4) & 0xf)],
+                    HEX_DIGITS[usize::from(code_unit & 0xf)],
+                ]);
+            }
+        }
     }
 
     pub fn append_utf8(&mut self, utf8: &str) {
