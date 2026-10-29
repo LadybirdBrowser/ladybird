@@ -40,7 +40,7 @@ pub extern "C" fn render_state_panic_for_testing(host: &DocumentHost) {
 }
 
 /// Answers `read` of the layout arena of `host`'s document, spending the forced read of the call that reached the entry.
-fn read_arena<R>(host: &DocumentHost, read: impl FnOnce(&LayoutNodeArena) -> R) -> R {
+fn read_arena<R>(host: &DocumentHost, read: impl FnOnce(&mut LayoutNodeArena) -> R) -> R {
     host.ask(ScriptForcedRead::at_script_entry(&DEVTOOLS_ENTRY), |state| {
         read(state.arena_mut())
     })
@@ -87,11 +87,11 @@ pub extern "C" fn render_state_pre_order_label_violation_count(host: &DocumentHo
 #[unsafe(no_mangle)]
 pub extern "C" fn render_state_scrollable_overflow_recalculation_count(host: &DocumentHost, reset: bool) -> u64 {
     read_arena(host, |arena| {
-        let recalculations = &arena.scrollable_overflow.recalculations;
+        let recalculations = &mut arena.scrollable_overflow.recalculations;
         if reset {
-            recalculations.replace(0)
+            std::mem::take(recalculations)
         } else {
-            recalculations.get()
+            *recalculations
         }
     })
 }
@@ -101,8 +101,8 @@ pub extern "C" fn render_state_scrollable_overflow_recalculation_count(host: &Do
 #[unsafe(no_mangle)]
 pub extern "C" fn render_state_overflow_contained_box_index_refill_count(host: &DocumentHost, reset: bool) -> u64 {
     read_arena(host, |arena| {
-        let refills = &arena.scrollable_overflow.contained_box_index_refills;
-        if reset { refills.replace(0) } else { refills.get() }
+        let refills = &mut arena.scrollable_overflow.contained_box_index_refills;
+        if reset { std::mem::take(refills) } else { *refills }
     })
 }
 

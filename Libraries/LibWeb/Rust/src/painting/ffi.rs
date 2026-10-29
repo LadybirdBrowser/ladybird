@@ -1437,7 +1437,7 @@ mod tests {
             let viewport = arena.allocate_for_test().slot;
             arena.write_shape(viewport).set_kind(NodeKind::Viewport);
             arena.populate_paintable_row(viewport);
-            arena.scrollable_overflow.viewport.set(Some(viewport));
+            arena.scrollable_overflow.viewport = Some(viewport);
             let root = arena.allocate_for_test().slot;
             arena.populate_paintable_row(root);
             {
@@ -1479,8 +1479,8 @@ mod tests {
             let source = crate::painting::paint_read::PaintSource::over_rows(&rows.paintable, &absolute_rects);
             let rect = crate::painting::paintable_geometry::scrollable_overflow_rect(&source, viewport);
             assert_eq!(rect, Some(CssPixelRect::default()));
-            assert!(arena.scrollable_overflow.geometry_changed.get());
-            assert!(arena.scrollable_overflow.scrollability_changed.get());
+            assert!(arena.scrollable_overflow.geometry_changed);
+            assert!(arena.scrollable_overflow.scrollability_changed);
             assert!(arena.paint_damage_of_row(root).contains(PaintDamage::DRAW_BACKGROUND));
             assert!(
                 arena
@@ -1500,7 +1500,7 @@ mod tests {
         let viewport = arena.allocate_for_test().slot;
         arena.write_shape(viewport).set_kind(NodeKind::Viewport);
         arena.populate_paintable_row(viewport);
-        arena.scrollable_overflow.viewport.set(Some(viewport));
+        arena.scrollable_overflow.viewport = Some(viewport);
         let root = arena.allocate_for_test().slot;
         arena.write_shape(root).set_kind(NodeKind::BlockContainer);
         arena.populate_paintable_row(root);

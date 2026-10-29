@@ -111,7 +111,7 @@ mod tests {
         let node = arena.allocate_for_test().slot;
         arena.write_shape(node).set_kind(NodeKind::InlineNode);
         arena.populate_paintable_row(node);
-        arena.scrollable_overflow.viewport.set(Some(node));
+        arena.scrollable_overflow.viewport = Some(node);
         let rect = CssPixelRect::new(
             CssPixels::from_integer(0),
             CssPixels::from_integer(0),
@@ -140,7 +140,7 @@ mod tests {
         let node = arena.allocate_for_test().slot;
         arena.write_shape(node).set_kind(NodeKind::InlineNode);
         arena.populate_paintable_row(node);
-        arena.scrollable_overflow.viewport.set(Some(node));
+        arena.scrollable_overflow.viewport = Some(node);
         let rect = CssPixelRect::new(
             CssPixels::from_integer(0),
             CssPixels::from_integer(0),
@@ -176,7 +176,7 @@ mod tests {
         arena.write_shape(node).set_kind(NodeKind::InlineNode);
         arena.set_node_flag(node, NodeFlag::HasScrollOffset, true);
         arena.populate_paintable_row(node);
-        arena.scrollable_overflow.viewport.set(Some(node));
+        arena.scrollable_overflow.viewport = Some(node);
         let rect = CssPixelRect::new(
             CssPixels::from_integer(0),
             CssPixels::from_integer(0),
@@ -204,14 +204,14 @@ mod tests {
             paintable_geometry::scrollable_overflow_rect(&arena.paintable_rows(), node),
             None
         );
-        assert!(!arena.scrollable_overflow.geometry_changed.get());
+        assert!(!arena.scrollable_overflow.geometry_changed);
         arena.measure_scrollable_overflow();
         let rows = arena.paintable_rows();
         assert_eq!(paintable_geometry::scrollable_overflow_rect(&rows, node), Some(rect));
         assert!(!paintable_geometry::has_scrollable_overflow(&rows, node));
         assert_eq!(*rows.paintable_data(node), previous_geometry);
-        assert!(arena.scrollable_overflow.geometry_changed.get());
-        assert!(arena.scrollable_overflow.scrollability_changed.get());
+        assert!(arena.scrollable_overflow.geometry_changed);
+        assert!(arena.scrollable_overflow.scrollability_changed);
     }
 
     #[test]
@@ -881,7 +881,7 @@ impl LayoutNodeArena {
         visual_context_records.set(index, None);
         set_visual_context_node_handles(store.visual_context_node_handles.get_mut(), index, None);
         drop_table(store.stacking_context_entries.get_mut(), index);
-        self.scrollable_overflow.rows_to_measure.get_mut().push(layout_node);
+        self.scrollable_overflow.rows_to_measure.push(layout_node);
         drop((absolute_rect_memo, visual_context_records));
         self.notify_committed_box_changed(layout_node);
     }

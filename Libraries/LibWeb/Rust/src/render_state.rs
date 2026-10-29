@@ -1098,7 +1098,7 @@ mod tests {
             let viewport = arena.allocate_for_test().slot;
             arena.write_shape(viewport).set_kind(NodeKind::Viewport);
             arena.populate_paintable_row(viewport);
-            arena.scrollable_overflow.viewport.set(Some(viewport));
+            arena.scrollable_overflow.viewport = Some(viewport);
             // The viewport had scrollable overflow before it was laid out again, and a read measures it first since.
             arena
                 .committed_side_data_mut(viewport)
@@ -1116,7 +1116,7 @@ mod tests {
         document_host_note_paint_preparation_is_current(host);
         measure();
         assert!(!document_host_paint_preparation_is_current(host));
-        assert!(host.with_arena_for_test(|arena| arena.scrollable_overflow.scrollability_changed.get()));
+        assert!(host.with_arena_for_test(|arena| arena.scrollable_overflow.scrollability_changed));
 
         // A read that measures nothing leaves the preparation as it is.
         document_host_note_paint_preparation_is_current(host);
