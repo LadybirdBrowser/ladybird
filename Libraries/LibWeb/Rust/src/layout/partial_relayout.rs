@@ -906,7 +906,7 @@ mod tests {
     }
 
     fn intrinsic_cache_epoch(arena: &LayoutNodeArena, allocation: &NodeAllocation) -> u16 {
-        arena.data(allocation.slot).intrinsic_cache_epoch.get()
+        arena.data(allocation.slot).intrinsic_cache_epoch
     }
 
     #[test]

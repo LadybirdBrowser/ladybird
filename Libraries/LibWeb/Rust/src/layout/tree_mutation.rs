@@ -330,7 +330,7 @@ mod tests {
     }
 
     fn fragment_cache_epoch(arena: &LayoutNodeArena, node: NodeSlotId) -> u32 {
-        arena.data(node).fragment_cache_epoch.get()
+        arena.data(node).fragment_cache_epoch
     }
 
     fn owned(slot: NodeSlotId) -> UnplacedLayoutNode {

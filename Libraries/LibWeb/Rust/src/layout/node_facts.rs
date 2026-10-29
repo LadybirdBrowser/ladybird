@@ -600,7 +600,7 @@ pub(crate) fn node_applies_text_overflow_ellipsis(style: Option<ComputedValuesVi
 }
 
 pub(crate) fn has_ancestor_fact(data: &NodeData, fact: AncestorFact) -> bool {
-    data.ancestor_facts.get() & fact as u8 != 0
+    data.ancestor_facts & fact as u8 != 0
 }
 
 /// The construction facts a test row is built with, as the word the style mirror publishes them in.

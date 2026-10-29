@@ -1429,14 +1429,14 @@ impl LayoutNodeArena {
         IntrinsicSizeCacheStamp {
             index: id.slot_index(),
             generation: id.generation(),
-            epoch: self.data(id).intrinsic_cache_epoch.get(),
+            epoch: self.data(id).intrinsic_cache_epoch,
         }
     }
 
     pub(crate) fn reset_cached_intrinsic_sizes(&mut self, node: NodeSlotId) {
-        let data = self.data(node);
-        let bumped_epoch = data.intrinsic_cache_epoch.get().wrapping_add(1);
-        data.intrinsic_cache_epoch.set(bumped_epoch);
+        let epoch = self.unpublished_facts_mut(node).intrinsic_cache_epoch;
+        *epoch = epoch.wrapping_add(1);
+        let bumped_epoch = *epoch;
         if bumped_epoch == 0 {
             self.drop_intrinsic_size_cache(node);
         }
@@ -1461,7 +1461,7 @@ impl LayoutNodeArena {
                     return false;
                 }
                 let id = NodeSlotId::new(slot, metadata.generation);
-                self.data(id).fragment_cache_epoch.get() == validity.fragment_cache_epoch
+                self.data(id).fragment_cache_epoch == validity.fragment_cache_epoch
             },
             |box_, entry| {
                 entry
@@ -1837,6 +1837,13 @@ impl LayoutNodeArena {
             },
             &self.shape_writes,
         )
+    }
+
+    /// The facts of `id` that no publication carries, to write: writing them marks nothing for the paint side.
+    pub(crate) fn unpublished_facts_mut(&mut self, id: NodeSlotId) -> super::node_data::UnpublishedNodeFactsMut<'_> {
+        self.data(id);
+        let index = id.slot_index() as usize;
+        self.chunks[index / SLOTS_PER_CHUNK].unpublished_facts_mut(index % SLOTS_PER_CHUNK)
     }
 
     /// The shape of the node whose data `data` is, for writing.
@@ -4722,7 +4729,7 @@ impl LayoutNodeArena {
     }
 
     /// Returns whether the node's ancestor facts changed.
-    fn derive_ancestor_facts_for_node(&self, node: NodeSlotId) -> bool {
+    fn derive_ancestor_facts_for_node(&mut self, node: NodeSlotId) -> bool {
         let data = self.data(node);
         let parent = data.parent.get();
         let mut facts = 0;
@@ -4762,7 +4769,7 @@ impl LayoutNodeArena {
                 }
             }
         }
-        data.ancestor_facts.replace(facts) != facts
+        std::mem::replace(self.unpublished_facts_mut(node).ancestor_facts, facts) != facts
     }
 
     /// A style change reaches the anonymous boxes below the node without rebuilding them, and
@@ -5243,7 +5250,7 @@ impl LayoutNodeArena {
         self.paintable_rows.holds_current_committed_fragment_link(
             id.slot_index(),
             id.generation(),
-            self.data(id).fragment_cache_epoch.get(),
+            self.data(id).fragment_cache_epoch,
             link,
         )
     }
@@ -5256,7 +5263,7 @@ impl LayoutNodeArena {
         self.paintable_rows.with_current_committed_fragment(
             node.slot_index(),
             node.generation(),
-            self.data(node).fragment_cache_epoch.get(),
+            self.data(node).fragment_cache_epoch,
             read,
         )
     }
@@ -5436,7 +5443,7 @@ impl LayoutNodeArena {
 
     /// Gives the row the spans its element published again, after one of the element's span
     /// attributes changed, and answers whether they moved.
-    pub(crate) fn restamp_table_spans(&self, id: NodeSlotId) -> bool {
+    pub(crate) fn restamp_table_spans(&mut self, id: NodeSlotId) -> bool {
         let element = self
             .node_style_node(id)
             .expect("a row whose spans are restamped is built for an element");
@@ -5446,11 +5453,11 @@ impl LayoutNodeArena {
 
     /// Gives the row the spans its table cell or table column element has, and answers whether
     /// they changed.
-    pub(crate) fn set_table_spans(&self, id: NodeSlotId, spans: TableSpans) -> bool {
-        let data = self.data(id);
-        let changed = data.table_column_span.get() != spans.column_span || data.table_row_span.get() != spans.row_span;
-        data.table_column_span.set(spans.column_span);
-        data.table_row_span.set(spans.row_span);
+    pub(crate) fn set_table_spans(&mut self, id: NodeSlotId, spans: TableSpans) -> bool {
+        let facts = self.unpublished_facts_mut(id);
+        let changed = *facts.table_column_span != spans.column_span || *facts.table_row_span != spans.row_span;
+        *facts.table_column_span = spans.column_span;
+        *facts.table_row_span = spans.row_span;
         changed
     }
 
@@ -5646,9 +5653,9 @@ impl LayoutNodeArena {
     }
 
     pub(super) fn bump_fragment_cache_epoch(&mut self, node: NodeSlotId) {
-        let data = self.data(node);
-        let epoch = data.fragment_cache_epoch.get().wrapping_add(1);
-        data.fragment_cache_epoch.set(epoch);
+        let epoch = self.unpublished_facts_mut(node).fragment_cache_epoch;
+        *epoch = epoch.wrapping_add(1);
+        let epoch = *epoch;
         if epoch == 0 {
             self.paintable_rows.invalidate_committed_geometry(node.slot_index());
         }
@@ -6858,14 +6865,14 @@ mod tests {
 
         let cell = arena.allocate_unbound();
         arena.stamp_dom_row(cell, NodeKind::BlockContainer, Some(element));
-        assert_eq!(arena.data(cell).table_column_span.get(), 2);
-        assert_eq!(arena.data(cell).table_row_span.get(), 3);
+        assert_eq!(arena.data(cell).table_column_span, 2);
+        assert_eq!(arena.data(cell).table_row_span, 3);
 
         engine.set_element_table_spans(element, TableSpans::default());
         arena.reset_layout_update_flags_in_subtree(cell);
         crate::layout::layout_changes::LayoutChange::RestampTableSpans { node: cell }.apply(&mut arena);
-        assert_eq!(arena.data(cell).table_column_span.get(), 1);
-        assert_eq!(arena.data(cell).table_row_span.get(), 1);
+        assert_eq!(arena.data(cell).table_column_span, 1);
+        assert_eq!(arena.data(cell).table_row_span, 1);
         assert!(arena.node_needs_layout_update(cell));
         arena
             .free_subtree(cell)
@@ -7046,7 +7053,7 @@ mod tests {
             arena.set_committed_fragment_link(
                 node,
                 fragment_tree::FragmentLink::for_test(node),
-                Some(arena.data(node).fragment_cache_epoch.get()),
+                Some(arena.data(node).fragment_cache_epoch),
             );
         };
         commit_from_layout(&arena);
@@ -7066,11 +7073,11 @@ mod tests {
         assert!(arena.leave_active_layout_pass());
         assert_eq!(current(&arena), Some(node));
 
-        arena.data(node).fragment_cache_epoch.set(0);
+        *arena.unpublished_facts_mut(node).fragment_cache_epoch = 0;
         commit_from_layout(&arena);
-        arena.data(node).fragment_cache_epoch.set(u32::MAX);
+        *arena.unpublished_facts_mut(node).fragment_cache_epoch = u32::MAX;
         arena.bump_fragment_cache_epoch_of_self_and_ancestors(node);
-        assert_eq!(arena.data(node).fragment_cache_epoch.get(), 0);
+        assert_eq!(arena.data(node).fragment_cache_epoch, 0);
         assert_eq!(current(&arena), None);
     }
 
@@ -7095,8 +7102,8 @@ mod tests {
         }
 
         assert_eq!(first_data_address, std::ptr::from_ref(arena.data(first.slot)) as usize);
-        arena.data(first.slot).table_column_span.set(42);
-        assert_eq!(arena.data(first.slot).table_column_span.get(), 42);
+        *arena.unpublished_facts_mut(first.slot).table_column_span = 42;
+        assert_eq!(arena.data(first.slot).table_column_span, 42);
         arena
             .free_subtree(first.slot)
             .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
@@ -7483,7 +7490,6 @@ mod tests {
         };
         let dependency_computations = Cell::new(0);
 
-        let first_data = arena.data(first.slot);
         caches.intrinsic_block_size_cache_put(
             arena.intrinsic_size_cache_stamp(first.slot),
             IntrinsicSizeCacheKind::MaxContentBlock,
@@ -7519,9 +7525,7 @@ mod tests {
         );
         assert_eq!(dependency_computations.get(), 1);
 
-        first_data
-            .intrinsic_cache_epoch
-            .set(first_data.intrinsic_cache_epoch.get() + 1);
+        *arena.unpublished_facts_mut(first.slot).intrinsic_cache_epoch += 1;
         assert_eq!(
             caches.intrinsic_block_size_cache_get(
                 arena.intrinsic_size_cache_stamp(first.slot),
