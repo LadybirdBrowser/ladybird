@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<style>
+div {
+    width: 100px;
+    height: 100px;
+}
+</style>
+<script src="../include.js"></script>
+<div id="live"></div>
+<script>
+promiseTest(async () => {
+    let resolveEntries;
+    const observer = new IntersectionObserver(entries => {
+        resolveEntries(entries.map(entry => entry.target.id).join(", "));
+    });
+    function observe(target) {
+        const entries = new Promise(resolve => resolveEntries = resolve);
+        observer.observe(target);
+        return entries;
+    }
+
+    async function observeAndRemove() {
+        const removed = document.createElement("div");
+        removed.id = "removed";
+        document.body.append(removed);
+        println(`initial entries: ${await observe(removed)}`);
+        removed.remove();
+        // Preserve the wrapper so collection checks the element, not just a disposable JS wrapper.
+        removed.gcSentinel = true;
+        return new WeakRef(removed);
+    }
+    const weakTarget = await observeAndRemove();
+
+    await collectGarbageUntilCleared([weakTarget]);
+    println(`removed target collected: ${weakTarget.deref() === undefined}`);
+
+    println(`entries after collection: ${await observe(document.getElementById("live"))}`);
+});
+</script>

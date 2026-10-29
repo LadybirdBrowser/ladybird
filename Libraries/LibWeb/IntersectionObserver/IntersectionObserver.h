@@ -23,7 +23,7 @@ using IntersectionObserverRoot = NullableIntersectionObserverRoot;
 using IntersectionObserverOptions = Bindings::IntersectionObserverInit;
 
 struct ObservationTarget {
-    GC::Ref<DOM::Element> target;
+    GC::Weak<DOM::Element> target;
     Optional<size_t> previous_threshold_index;
     bool previous_is_intersecting { false };
 };
@@ -46,6 +46,7 @@ public:
 
     Vector<ObservationTarget>& observation_targets() { return m_observation_targets; }
     Vector<ObservationTarget> const& observation_targets() const { return m_observation_targets; }
+    void remove_dead_observation_targets();
     WebIDL::CallbackType& callback() { return *m_callback; }
 
     NullableIntersectionObserverRoot root() const;

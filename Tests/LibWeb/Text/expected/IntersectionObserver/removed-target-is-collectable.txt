@@ -1,0 +1,3 @@
+initial entries: removed
+removed target collected: true
+entries after collection: live
