@@ -18,6 +18,8 @@
 #include <LibGC/Ptr.h>
 #include <LibTest/TestCase.h>
 
+namespace {
+
 class TestCell : public GC::Cell {
     GC_CELL(TestCell, GC::Cell);
     GC_DECLARE_ALLOCATOR(TestCell);
@@ -389,3 +391,5 @@ static_assert(!GC::IsVisitable<Optional<int>>::value);
 
 static_assert(GC::IsVisitable<Variant<GC::Ref<TestCell>, int>>::value);
 static_assert(!GC::IsVisitable<Variant<int, double>>::value);
+
+}
