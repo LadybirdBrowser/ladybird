@@ -187,7 +187,7 @@ impl LaidOutBlockLevelBox {
 }
 
 /// A box a block formatting context sizes, in what the call laying the box out owns: the record the context lays the
-/// box out in, or the cells it sizes a child in ahead of the child's run.
+/// box out in, or the cells it sizes a child in ahead of the child's layout.
 #[derive(Clone, Copy)]
 pub(crate) struct ChildSizedHere<'sized> {
     pub(crate) node: Node,
@@ -209,7 +209,7 @@ impl<'sized> ChildSizedHere<'sized> {
         }
     }
 
-    /// `node`, a child kept for its run, sized in `cells` ahead of that run.
+    /// `node`, a child sized in `cells` ahead of its layout, which takes them.
     pub(crate) fn ahead_of_its_run(node: Node, cells: &'sized Cell<used_values::RootInputCells>) -> Self {
         Self {
             node,
@@ -2164,7 +2164,6 @@ impl<'pass> BlockFormattingContext<'pass> {
                 participation: ParticipationInParentFormattingContext::Item,
             },
             marker_cells,
-            None,
             true,
             list_item.percentage_block_insets_have_definite_basis,
         );
@@ -2234,7 +2233,6 @@ impl<'pass> BlockFormattingContext<'pass> {
             sized_child.node,
             input,
             self.metrics_of(sized_child),
-            sized_child.record(),
             force_independent_context_run,
             block_container.percentage_block_insets_have_definite_basis,
         );
@@ -4779,10 +4777,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         self.dimension_float_root_inline_size(sized_float, block_container, &float_input);
         let (float_layout, fragment_arrival, float_box) =
             self.layout_inside(run, sized_float, block_container, float_input, false);
-        // NB: A float its own run laid out is placed as that run handed it back, and any other with its record here.
-        let float_handed_back_by_its_run = float_layout
-            .is_some()
-            .then(|| formatting_context::PlacedChild::of_laid_out_box(&float_box));
+        let placed_float = formatting_context::PlacedChild::of_laid_out_box(&float_box);
         let float_box_cells = float_box.cells;
         let laid_out_float_handed_back_by_its_run = float_layout.is_some().then_some(float_box);
         let containing_block_rect = self.containing_block_rect(block_container, containing_block_position_in_root);
@@ -4804,11 +4799,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let Some(side) = side else {
             formatting_context::leave_child_unplaced(
                 run,
-                float_handed_back_by_its_run
-                    .unwrap_or_else(|| {
-                        formatting_context::PlacedChild::of_record(self.record_of(sized_float), &self.run)
-                    })
-                    .with_fragment_facts(fragment_facts),
+                placed_float.with_fragment_facts(fragment_facts),
                 fragment_arrival,
             );
             return (
@@ -4906,8 +4897,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         formatting_context::place_child(
             &self.run,
             node,
-            float_handed_back_by_its_run
-                .unwrap_or_else(|| formatting_context::PlacedChild::of_record(self.record_of(sized_float), &self.run))
+            placed_float
                 .with_in_flow_box_insets(insets)
                 .with_fragment_facts(fragment_facts),
             content_offset,

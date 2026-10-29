@@ -1472,7 +1472,6 @@ impl<'context> InlineFormattingContext<'context> {
             node,
             input,
             cells,
-            None,
             false,
             self.block_container.percentage_block_insets_have_definite_basis,
         );
@@ -2039,33 +2038,16 @@ impl<'context> InlineFormattingContext<'context> {
                 inline_level_iterator::ItemType::FloatingElement => {
                     line_builder.commit_pending_margin_before_float();
                     let constraints = self.input.containing_block_constraints;
-                    // NB: A float with a formatting context of its own is sized ahead of its run, and any other is
-                    //     laid out in a record of this call.
-                    let cells_of_float_ahead_of_its_run;
-                    let record_of_float_without_formatting_context_of_its_own;
-                    let sized_float = if formatting_context::formatting_context_type_created_by_box(NodeFacts::new(
-                        &self.run.callbacks,
+                    // NB: Every float is sized in cells ahead of its layout, which takes them.
+                    let cells_of_float_ahead_of_its_layout = Cell::new(used_values::cells_before_sizing(
+                        &self.callbacks,
                         item.node,
-                    ))
-                    .is_some()
-                    {
-                        cells_of_float_ahead_of_its_run = Cell::new(used_values::cells_before_sizing(
-                            &self.callbacks,
-                            item.node,
-                            constraints,
-                        ));
-                        block_formatting_context::ChildSizedHere::ahead_of_its_run(
-                            item.node,
-                            &cells_of_float_ahead_of_its_run,
-                        )
-                    } else {
-                        record_of_float_without_formatting_context_of_its_own =
-                            used_values::create_used_values(&self.callbacks, item.node, constraints);
-                        block_formatting_context::ChildSizedHere::laid_out_in(
-                            item.node,
-                            &record_of_float_without_formatting_context_of_its_own,
-                        )
-                    };
+                        constraints,
+                    ));
+                    let sized_float = block_formatting_context::ChildSizedHere::ahead_of_its_run(
+                        item.node,
+                        &cells_of_float_ahead_of_its_layout,
+                    );
                     self.clear_floating_boxes(item.node);
                     line_builder.set_unbreakable_run_inline_size_interrupted_by_float(
                         iterator.next_unbreakable_run_inline_size(self),
