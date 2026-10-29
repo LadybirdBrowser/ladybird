@@ -658,8 +658,6 @@ void DocumentPaintTimingState::visit_edges(GC::Cell::Visitor& visitor)
     for (auto& record : images_pending_rendering)
         visitor.visit(record.element);
     visitor.visit(text_nodes_pending_first_paint);
-    if (current_largest_contentful_paint_candidate.has_value())
-        visitor.visit(current_largest_contentful_paint_candidate->element);
 }
 
 }

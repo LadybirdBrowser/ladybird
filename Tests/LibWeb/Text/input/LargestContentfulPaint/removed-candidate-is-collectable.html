@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+promiseTest(async () => {
+    async function paintAndRemoveCandidate() {
+        const candidate = document.createElement("div");
+        candidate.id = "candidate";
+        candidate.style.fontSize = "48px";
+        candidate.textContent = "Largest contentful paint";
+        const reported = new Promise(resolve => {
+            new PerformanceObserver((list, observer) => {
+                const entry = list.getEntries().find(entry => entry.element === candidate);
+                if (!entry)
+                    return;
+                observer.disconnect();
+                resolve(entry);
+            }).observe({ type: "largest-contentful-paint", buffered: true });
+        });
+        document.body.append(candidate);
+        const entry = await reported;
+        println(`reported: ${entry.id}`);
+        candidate.remove();
+        // Preserve the wrapper so collection checks the element, not just a disposable JS wrapper.
+        candidate.gcSentinel = true;
+        return { entry, weakCandidate: new WeakRef(candidate) };
+    }
+    const { entry, weakCandidate } = await paintAndRemoveCandidate();
+
+    await collectGarbageUntilCleared([weakCandidate]);
+    println(`removed candidate collected: ${weakCandidate.deref() === undefined}`);
+    println(`entry element: ${entry.element}`);
+});
+</script>

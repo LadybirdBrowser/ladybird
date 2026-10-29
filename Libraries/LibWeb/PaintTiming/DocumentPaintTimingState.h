@@ -13,6 +13,7 @@
 #include <LibGC/ConservativeHashMap.h>
 #include <LibGC/Ptr.h>
 #include <LibGC/RootVector.h>
+#include <LibGC/Weak.h>
 #include <LibWeb/Forward.h>
 #include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
 #include <LibWebCommon/PixelUnits.h>
@@ -44,7 +45,8 @@ struct PendingImageRecord {
 // https://w3c.github.io/largest-contentful-paint/#largest-contentful-paint-candidate
 struct LargestContentfulPaintCandidate {
     // element, an element
-    GC::Ref<DOM::Element> element;
+    // NB: Held weakly, as only the size of the current candidate is read once its element is removed.
+    GC::Weak<DOM::Element> element;
 
     // size, a number
     double size { 0 };
