@@ -2,20 +2,20 @@ Harness status: OK
 
 Found 15 tests
 
-6 Pass
-9 Fail
+13 Pass
+2 Fail
 Pass	source width and height attributes are used to infer aspect-ratio in <picture>
 Fail	Computed style for width/height/aspect-ratio
 Fail	Source width/height should take precedence over img attributes.
 Pass	Make sure style gets invalidated correctly when the source gets removed.
-Fail	If the <source> has only one of width/height, we don't get an aspect ratio, even if the <img> has both.
+Pass	If the <source> has only one of width/height, we don't get an aspect ratio, even if the <img> has both.
 Pass	If we don't have width/height on the source, we fall back to width/height on the <img>.
-Fail	If we only have one width attribute, we should get width mapped but no aspect ratio, even if <img> has attributes.
-Fail	If we only have height attribute, we should get height mapped but no aspect ratio, even if <img> has attributes.
-Fail	Dynamically changing width/height should change computed style
-Fail	Changing which <source> matches should change computed style
-Fail	Percentages on source should be ignored for aspect-ratio but used for width/height.
-Fail	Trailing garbage should be ignored but not make the attribute invalid
+Pass	If we only have one width attribute, we should get width mapped but no aspect ratio, even if <img> has attributes.
+Pass	If we only have height attribute, we should get height mapped but no aspect ratio, even if <img> has attributes.
+Pass	Dynamically changing width/height should change computed style
+Pass	Changing which <source> matches should change computed style
+Pass	Percentages on source should be ignored for aspect-ratio but used for width/height.
+Pass	Trailing garbage should be ignored but not make the attribute invalid
 Pass	Loaded picture test: Both <source> and <img> are without width and height attributes
 Pass	Loaded picture test: <source> with width and height attributes, <img> without width and height attributes
 Pass	Loaded picture test: Both <source> and <img> are with width and height attributes

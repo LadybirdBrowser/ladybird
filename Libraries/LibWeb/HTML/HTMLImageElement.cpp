@@ -159,6 +159,35 @@ void HTMLImageElement::initialize_element()
     });
 }
 
+// https://html.spec.whatwg.org/multipage/images.html#update-the-source-set
+static void update_dimension_attribute_source(HTMLImageElement& image)
+{
+    // INTEROP: Chrome, Firefox and Safari expose dimension hints to synchronous style queries before the deferred
+    //          image update. Select only the source element here; resolving sizes could depend on layout, and
+    //          currentSrc must remain deferred.
+    if (is<HTMLPictureElement>(image.parent())) {
+        for (auto* child = image.parent()->first_child(); child != &image; child = child->next_sibling()) {
+            auto* source = as_if<HTMLSourceElement>(child);
+            if (!source)
+                continue;
+            auto srcset = source->attribute(HTML::AttributeNames::srcset);
+            if (!srcset.has_value() || parse_a_srcset_attribute(*srcset).is_empty())
+                continue;
+            if (auto media = source->attribute(HTML::AttributeNames::media); media.has_value()
+                && !CSS::RustMediaList::parse(*media).evaluate(image.document()))
+                continue;
+            if (auto type = source->attribute(HTML::AttributeNames::type); type.has_value() && !is_supported_image_type(*type))
+                continue;
+
+            // 5.9. If child has width or height attributes, set el's dimension attribute source to child.
+            //      Otherwise, set el's dimension attribute source to el.
+            image.set_dimension_attribute_source(source->has_attribute(HTML::AttributeNames::width) || source->has_attribute(HTML::AttributeNames::height) ? source : nullptr);
+            return;
+        }
+    }
+    image.set_dimension_attribute_source(nullptr);
+}
+
 void HTMLImageElement::adopted_from(DOM::Document& old_document)
 {
     old_document.unregister_viewport_client(*this);
@@ -185,6 +214,8 @@ void HTMLImageElement::moved_from(IsSubtreeRoot is_subtree_root, GC::Ptr<DOM::No
     //    movedNode.
     if (is_subtree_root == IsSubtreeRoot::Yes && is<HTMLPictureElement>(old_ancestor.ptr()))
         update_the_image_data();
+    else
+        update_dimension_attribute_source(*this);
 }
 
 // https://html.spec.whatwg.org/multipage/embedded-content.html#the-img-element:html-element-removing-steps
@@ -228,6 +259,12 @@ void HTMLImageElement::set_dimension_attribute_source(DOM::Element const* source
         m_dimension_attribute_source = source;
         CSS::republish_presentational_hints(*this);
     }
+}
+
+void HTMLImageElement::inserted()
+{
+    Base::inserted();
+    update_dimension_attribute_source(*this);
 }
 
 bool HTMLImageElement::is_presentational_hint(Utf16FlyString const& name) const
@@ -843,6 +880,8 @@ bool HTMLImageElement::uses_srcset_or_picture() const
 // https://html.spec.whatwg.org/multipage/images.html#update-the-image-data
 void HTMLImageElement::update_the_image_data(bool restart_animations, bool maybe_omit_events)
 {
+    update_dimension_attribute_source(*this);
+
     auto update_the_image_data_count = ++m_update_the_image_data_count;
 
     // 1. If the element's node document is not fully active, then:
@@ -1389,6 +1428,7 @@ void HTMLImageElement::did_set_viewport_rect(CSSPixelRect const& viewport_rect)
     if (viewport_rect.size() == m_last_seen_viewport_size)
         return;
     m_last_seen_viewport_size = viewport_rect.size();
+    update_dimension_attribute_source(*this);
     batching_dispatcher().enqueue(document(), GC::create_function(GC::Heap::the(), [this] {
         react_to_changes_in_the_environment();
     }));

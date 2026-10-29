@@ -46,5 +46,10 @@
         printHints("source precedes image");
         source.remove();
         printHints("source removed");
+        document.body.moveBefore(image, null);
+        printHints("image outside picture");
+        picture.prepend(source);
+        picture.moveBefore(image, null);
+        printHints("image moved into picture");
     });
 </script>

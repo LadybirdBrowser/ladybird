@@ -146,6 +146,7 @@ private:
     virtual void finalize() override;
 
     virtual void adopted_from(DOM::Document&) override;
+    virtual void inserted() override;
     virtual void moved_from(IsSubtreeRoot, GC::Ptr<DOM::Node> old_ancestor) override;
     virtual void removed_from(IsSubtreeRoot, DOM::Node* old_ancestor, DOM::Node& old_root) override;
 
