@@ -2292,6 +2292,13 @@ GC::Ref<External> Window::external()
     return *m_external;
 }
 
+// https://html.spec.whatwg.org/multipage/browsers.html#dom-originagentcluster
+bool Window::origin_agent_cluster() const
+{
+    // The originAgentCluster getter steps are to return the surrounding agent's agent cluster's is origin-keyed.
+    return as<WindowEnvironmentSettingsObject>(relevant_settings_object()).agent_cluster_is_origin_keyed();
+}
+
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigation
 GC::Ref<Navigation> Window::navigation()
 {

@@ -56,6 +56,7 @@ public:
         Web::HTML::CrossProcessId document_id;
         // The permissions policy created for navigationParams in the UI process, if it handled them.
         Optional<Web::PermissionsPolicy::PermissionsPolicy> permissions_policy {};
+        bool requests_oac { false };
     };
     Optional<ResponseDocument> response_document() const;
     void set_document(CanonicalDocument const&, CanonicalNavigable const&);

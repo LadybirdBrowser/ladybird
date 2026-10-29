@@ -404,12 +404,7 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
     }
     // 7. Otherwise:
     else {
-        // FIXME: 1. Let oacHeader be the result of getting a structured field value given `Origin-Agent-Cluster` and "item" from response's header list.
-
-        // FIXME: 2. Let requestsOAC be true if oacHeader is not null and oacHeader[0] is the boolean true; otherwise false.
-        [[maybe_unused]] auto requests_oac = false;
-
-        // FIXME: 3. If navigationParams's reserved environment is a non-secure context, then set requestsOAC to false.
+        // NB: The UI process performs steps 1 through 4 and passes the selected agent cluster's properties.
 
         // 4. Let agent be the result of obtaining a similar-origin window agent given navigationParams's origin, browsingContext's group, and requestsOAC.
         // NB: The UI process obtains the agent, and names its agent cluster.
@@ -456,6 +451,9 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
             agent_cluster_id,
             agent_cluster_cross_origin_isolation_mode);
     }
+
+    // NB: The UI process selects the window's agent even when an initial about:blank Window is reused.
+    as<HTML::WindowEnvironmentSettingsObject>(HTML::relevant_settings_object(*window)).set_agent_cluster_is_origin_keyed(navigation_params.agent_cluster_is_origin_keyed || navigation_params.origin.is_opaque() || navigation_params.agent_cluster_cross_origin_isolation_mode != HTML::CrossOriginIsolationMode::None);
 
     // AD-HOC: The fetch controller is only available in the process that ran the navigation fetch. Navigation params
     //         rebuilt from a descriptor carry the fetch's timing info directly.

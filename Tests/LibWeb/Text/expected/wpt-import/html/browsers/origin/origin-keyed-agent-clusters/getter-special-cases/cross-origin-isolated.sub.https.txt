@@ -2,6 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-2 Fail
-Fail	self: originAgentCluster must equal true
-Fail	child: originAgentCluster must equal true
+2 Pass
+Pass	self: originAgentCluster must equal true
+Pass	child: originAgentCluster must equal true

@@ -137,6 +137,7 @@ struct NavigationParamsDescriptor {
     Optional<URL::URL> about_base_url;
     UserNavigationInvolvement user_involvement { UserNavigationInvolvement::None };
     Optional<u64> agent_cluster_id;
+    bool agent_cluster_is_origin_keyed { false };
     CrossOriginIsolationMode agent_cluster_cross_origin_isolation_mode { CrossOriginIsolationMode::None };
     Optional<u64> new_browsing_context_group_id;
     // The permissions policy the UI process created for the new Document.

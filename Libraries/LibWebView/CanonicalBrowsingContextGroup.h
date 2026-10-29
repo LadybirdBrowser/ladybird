@@ -24,21 +24,23 @@ namespace WebView {
 // https://html.spec.whatwg.org/multipage/webappapis.html#similar-origin-window-agent
 class WEBVIEW_API CanonicalSimilarOriginWindowAgent final : public RefCounted<CanonicalSimilarOriginWindowAgent> {
 public:
-    static NonnullRefPtr<CanonicalSimilarOriginWindowAgent> create(Web::HTML::CrossOriginIsolationMode);
+    static NonnullRefPtr<CanonicalSimilarOriginWindowAgent> create(Web::HTML::CrossOriginIsolationMode, bool agent_cluster_is_origin_keyed);
 
     RefPtr<WebContentClient> hosting_process() const;
     void set_hosting_process_if_unset(WebContentClient&);
 
     u64 agent_cluster_id() const { return m_agent_cluster_id; }
+    bool agent_cluster_is_origin_keyed() const { return m_agent_cluster_is_origin_keyed; }
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#agent-cluster-cross-origin-isolation
     Web::HTML::CrossOriginIsolationMode agent_cluster_cross_origin_isolation_mode() const { return m_agent_cluster_cross_origin_isolation_mode; }
 
 private:
-    explicit CanonicalSimilarOriginWindowAgent(Web::HTML::CrossOriginIsolationMode);
+    explicit CanonicalSimilarOriginWindowAgent(Web::HTML::CrossOriginIsolationMode, bool agent_cluster_is_origin_keyed);
 
     WeakPtr<WebContentClient> m_hosting_process;
     u64 m_agent_cluster_id { 0 };
+    bool m_agent_cluster_is_origin_keyed { false };
     Web::HTML::CrossOriginIsolationMode m_agent_cluster_cross_origin_isolation_mode { Web::HTML::CrossOriginIsolationMode::None };
 };
 

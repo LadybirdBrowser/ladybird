@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	originAgentCluster must equal true
+1 Pass
+Pass	originAgentCluster must equal true

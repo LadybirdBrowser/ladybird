@@ -14,6 +14,7 @@
 #include <LibWebCommon/HTML/HistoryOperation.h>
 #include <LibWebCommon/HTML/SerializationRecords.h>
 #include <LibWebCommon/Page/ViewportIsFullscreen.h>
+#include <LibWebCommon/SecureContexts/AbstractOperations.h>
 #include <LibWebCommon/WebView/SiteIsolation.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BrowsingSession.h>
@@ -426,11 +427,15 @@ NonnullRefPtr<CanonicalDocument> CanonicalNavigable::create_and_initialize_a_doc
     }
     // 7. Otherwise:
     else {
-        // FIXME: 1. Let oacHeader be the result of getting a structured field value given `Origin-Agent-Cluster` and "item"
-        //           from navigationParams's response's header list.
-        // FIXME: 2. Let requestsOAC be true if oacHeader is not null and oacHeader[0] is the boolean true; otherwise false.
-        // FIXME: 3. If navigationParams's reserved environment is a non-secure context, then set requestsOAC to false.
-        auto requests_oac = false;
+        // NB: NavigationLoader parsed the response's Origin-Agent-Cluster field for steps 1 and 2.
+        auto requests_oac = navigation_params.requests_oac;
+
+        // 3. If navigationParams's reserved environment is a non-secure context, then set requestsOAC to false.
+        // NB: Derive this from canonical navigation state, since WebContent supplies the reserved environment.
+        auto reserved_top_level_creation_url = m_parent ? m_parent->active_document().relevant_global_object().relevant_settings_object().top_level_creation_url().value() : creation_url;
+        if (reserved_top_level_creation_url.scheme() == "data"sv
+            || Web::SecureContexts::is_url_potentially_trustworthy(reserved_top_level_creation_url) == Web::SecureContexts::Trustworthiness::NotTrustworthy)
+            requests_oac = false;
 
         // 4. Let agent be the result of obtaining a similar-origin window agent given navigationParams's origin,
         //    browsingContext's group, and requestsOAC.
