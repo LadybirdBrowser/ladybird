@@ -3271,6 +3271,79 @@ mod tests {
     }
 
     #[test]
+    fn supports_rejects_contextual_pseudo_elements() {
+        let value_context = FfiValueParsingContext {
+            kind: FfiValueParsingContextKind::Property,
+            value: 0,
+            secondary_value: 0,
+            name: Default::default(),
+        };
+        let context = media_value_parse_context(&value_context);
+        let selectors = [
+            ":is(::before)",
+            ":where(.ok, ::after)",
+            ":is(.ok, :unknown)",
+            ":not(::before)",
+            ":not(:is(::before))",
+            ":has(::before)",
+            ":has(:is(::before))",
+            ":nth-child(2n of ::before)",
+            ":nth-last-child(2n of :is(::before))",
+            ":host(::before)",
+            ":host(:is(::before))",
+            "::slotted(::before)",
+            "::slotted(:where(.ok, ::before))",
+            ":is(::slotted(.ok))",
+            "::-webkit-unknown",
+        ];
+        let wrongly_supported: Vec<_> = selectors
+            .into_iter()
+            .filter(|source| {
+                let units: Vec<_> = source.encode_utf16().collect();
+                supports_feature_matches(&context, &[], SupportsFeatureKind::Selector, &units)
+            })
+            .collect();
+        assert!(
+            wrongly_supported.is_empty(),
+            "incorrectly supported: {wrongly_supported:?}"
+        );
+    }
+
+    #[test]
+    fn supports_valid_pseudo_elements_and_real_nested_selectors() {
+        let value_context = FfiValueParsingContext {
+            kind: FfiValueParsingContextKind::Property,
+            value: 0,
+            secondary_value: 0,
+            name: Default::default(),
+        };
+        let context = media_value_parse_context(&value_context);
+        for source in [
+            "::before",
+            "div::after",
+            "::part(foo)",
+            "::slotted(.ok)",
+            "::slotted(:is(.ok, :hover))",
+            ":is(.ok, :hover)",
+            ":where(:not(.bad), :has(.child))",
+            ":nth-child(2n of :is(.ok, .other))",
+            ":host(:is(.ok, .other))",
+        ] {
+            let units: Vec<_> = source.encode_utf16().collect();
+            assert!(
+                supports_feature_matches(&context, &[], SupportsFeatureKind::Selector, &units),
+                "{source}"
+            );
+        }
+    }
+
+    #[test]
+    fn supports_validation_does_not_change_forgiving_stylesheet_parsing() {
+        let units: Vec<_> = ":is(.ok, ::before)".encode_utf16().collect();
+        assert!(parse_selector_list(&units, &[], SelectorType::Standalone, SelectorParsingMode::Standard).is_ok());
+    }
+
+    #[test]
     fn parses_container_size_and_style_queries() {
         let values = components_from_source(b"--".as_slice()).unwrap();
         assert!(matches!(

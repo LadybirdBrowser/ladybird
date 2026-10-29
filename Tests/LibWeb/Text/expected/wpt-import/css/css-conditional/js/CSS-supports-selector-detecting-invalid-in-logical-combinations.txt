@@ -2,10 +2,9 @@ Harness status: OK
 
 Found 5 tests
 
-4 Pass
-1 Fail
+5 Pass
 Pass	Invalid selector can be detected with CSS.supports()
 Pass	Invalid selector can be detected with CSS.supports() even if it is dropped by forgiving parsing
 Pass	:is(), :where() or :has() always fails without argument
 Pass	:has() always fails inside :has()
-Fail	Some pseudo elements always fail inside :is(), :where(), :has()
+Pass	Some pseudo elements always fail inside :is(), :where(), :has()
