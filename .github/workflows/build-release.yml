@@ -71,7 +71,7 @@ jobs:
           - os_name: 'Linux'
             arch: 'x86_64'
             runner_labels: '["blacksmith-16vcpu-ubuntu-2404"]'
-            container: &ci_container '{"image":"ghcr.io/ladybirdbrowser/ladybird-ci:2026.10.16"}'
+            container: &ci_container '{"image":"ghcr.io/ladybirdbrowser/ladybird-ci:2026.10.29"}'
           - os_name: 'Linux'
             arch: 'arm64'
             runner_labels: '["blacksmith-16vcpu-ubuntu-2404-arm"]'
