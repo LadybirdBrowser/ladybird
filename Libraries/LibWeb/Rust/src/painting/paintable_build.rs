@@ -106,12 +106,12 @@ impl<'a> PaintableCommit<'a> {
         self.arena
     }
 
-    pub(crate) fn discard_absolute_rects_memoized_during_commit(&self) {
-        self.arena().clear_absolute_rect_memo();
+    pub(crate) fn discard_absolute_rects_memoized_during_commit(&mut self) {
+        self.arena_mut().clear_absolute_rect_memo();
     }
 
-    pub(crate) fn begin_commit(&self) {
-        self.arena().clear_absolute_rect_memo();
+    pub(crate) fn begin_commit(&mut self) {
+        self.arena_mut().clear_absolute_rect_memo();
     }
 
     pub(crate) fn prepare_node(

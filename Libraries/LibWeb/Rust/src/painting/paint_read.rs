@@ -356,9 +356,56 @@ impl AsRef<LayoutNodeArena> for LayoutNodeArena {
     }
 }
 
+/// Where a live read keeps the absolute rects it computed. A view of the rows keeps its own, each valid for the
+/// geometry epoch of the arena it was computed at; the bare arena keeps none, as a shared borrow of it writes nothing.
+pub(crate) trait LiveAbsoluteRects {
+    fn memoized_live_absolute_rect(&self, id: NodeSlotId) -> Option<CssPixelRect>;
+    fn memoize_live_absolute_rect(&self, id: NodeSlotId, rect: CssPixelRect);
+}
+
+impl LiveAbsoluteRects for LayoutNodeArena {
+    fn memoized_live_absolute_rect(&self, _: NodeSlotId) -> Option<CssPixelRect> {
+        None
+    }
+
+    fn memoize_live_absolute_rect(&self, _: NodeSlotId, _: CssPixelRect) {}
+}
+
+impl<Arena: Deref<Target = LayoutNodeArena>> LiveAbsoluteRects
+    for crate::painting::paintable_rows::PaintableRows<Arena>
+{
+    fn memoized_live_absolute_rect(&self, id: NodeSlotId) -> Option<CssPixelRect> {
+        self.memoized_absolute_rect_of_view(id)
+    }
+
+    fn memoize_live_absolute_rect(&self, id: NodeSlotId, rect: CssPixelRect) {
+        self.memoize_absolute_rect_of_view(id, rect);
+    }
+}
+
+impl<Reader: LiveAbsoluteRects + ?Sized> LiveAbsoluteRects for &Reader {
+    fn memoized_live_absolute_rect(&self, id: NodeSlotId) -> Option<CssPixelRect> {
+        (**self).memoized_live_absolute_rect(id)
+    }
+
+    fn memoize_live_absolute_rect(&self, id: NodeSlotId, rect: CssPixelRect) {
+        (**self).memoize_live_absolute_rect(id, rect);
+    }
+}
+
+impl<Reader: LiveAbsoluteRects + ?Sized> LiveAbsoluteRects for &mut Reader {
+    fn memoized_live_absolute_rect(&self, id: NodeSlotId) -> Option<CssPixelRect> {
+        (**self).memoized_live_absolute_rect(id)
+    }
+
+    fn memoize_live_absolute_rect(&self, id: NodeSlotId, rect: CssPixelRect) {
+        (**self).memoize_live_absolute_rect(id, rect);
+    }
+}
+
 // The live arena, and every view that borrows it, answers each read with the arena's own method of
 // the same name.
-impl<Live: AsRef<LayoutNodeArena>> GeometryRead for Live {
+impl<Live: AsRef<LayoutNodeArena> + LiveAbsoluteRects> GeometryRead for Live {
     type Row<'a>
         = crate::layout::LiveRow<'a>
     where
@@ -385,15 +432,15 @@ impl<Live: AsRef<LayoutNodeArena>> GeometryRead for Live {
     }
 
     fn memoized_absolute_rect(&self, id: NodeSlotId) -> Option<CssPixelRect> {
-        self.as_ref().memoized_absolute_rect(id)
+        self.memoized_live_absolute_rect(id)
     }
 
     fn memoize_absolute_rect(&self, id: NodeSlotId, rect: CssPixelRect) {
-        self.as_ref().memoize_absolute_rect(id, rect);
+        self.memoize_live_absolute_rect(id, rect);
     }
 }
 
-impl<Live: AsRef<LayoutNodeArena>> PaintRead for Live {
+impl<Live: AsRef<LayoutNodeArena> + LiveAbsoluteRects> PaintRead for Live {
     fn rendered_text(&self, id: NodeSlotId) -> Option<&RenderedText> {
         self.as_ref().text_content(id).map(|content| &**content)
     }
