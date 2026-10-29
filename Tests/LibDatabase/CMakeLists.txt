@@ -1,8 +1,9 @@
+ladybird_test_suite(LibDatabase)
+
 set(TEST_SOURCES
     TestDatabase.cpp
     TestMigrations.cpp
 )
 
-foreach(source IN LISTS TEST_SOURCES)
-    ladybird_test("${source}" LibDatabase LIBS LibCore LibDatabase LibFileSystem)
-endforeach()
+target_sources(TestLibDatabase PRIVATE ${TEST_SOURCES})
+target_link_libraries(TestLibDatabase PRIVATE LibCore LibDatabase LibFileSystem)
