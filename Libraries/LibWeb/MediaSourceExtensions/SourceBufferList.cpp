@@ -37,17 +37,7 @@ void SourceBufferList::visit_edges(Cell::Visitor& visitor)
 
 void SourceBufferList::append(GC::Ref<SourceBuffer> buffer)
 {
-    // From https://w3c.github.io/media-source/#addsourcebuffer-method
-    // 8. Append buffer to this's sourceBuffers.
     m_buffers.append(buffer);
-
-    // 9. Queue a task to fire an event named addsourcebuffer at this's sourceBuffers.
-    // FIXME: Should this have a task source? An event loop? A document?
-    HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(GC::Heap::the(), [weak_self = GC::Weak(*this)] {
-        if (!weak_self)
-            return;
-        weak_self->dispatch_event(weak_self->m_media_source->create_associated_event(EventNames::addsourcebuffer));
-    }));
 }
 
 void SourceBufferList::remove_all_buffers(Badge<MediaSource>)
