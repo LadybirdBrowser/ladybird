@@ -21,6 +21,8 @@ pub struct RawJSONObject {
 }
 
 define_object_class!(RawJSONObject, extends: [Object], methods: {
+    // NB: The [[IsRawJSON]] internal slot holds nothing, so the object has no field for it.
+    has_internal_slots: Some(true),
     ..ORDINARY_OBJECT_METHODS
 });
 

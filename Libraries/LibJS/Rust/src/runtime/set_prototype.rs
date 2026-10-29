@@ -47,6 +47,8 @@ pub struct SetPrototype {
 
 define_object_class!(SetPrototype, extends: [Object], methods: {
     initialize: SetPrototype::initialize,
+    // NB: The field of the prototype only caches its values function.
+    has_internal_slots: Some(false),
     ..ORDINARY_OBJECT_METHODS
 });
 
