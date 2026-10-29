@@ -10,6 +10,7 @@
 #include <AK/Base64.h>
 #include <AK/NumericLimits.h>
 #include <AK/QuickSort.h>
+#include <AK/StdLibExtras.h>
 #include <AK/String.h>
 #include <AK/StringBuilder.h>
 #include <AK/Utf8View.h>
@@ -412,8 +413,18 @@ static ErrorOr<Gfx::DecodedImageFrame> crop_to_the_source_rectangle_with_formatt
     }
     auto output_color_space = input_frame.color_space();
 
-    // FIXME: 8. If the value of the imageOrientation member of options is "flipY", output must be flipped vertically,
-    //  disregarding any image orientation metadata of the source (such as EXIF metadata), if any. [EXIF]
+    // 8. If the value of the imageOrientation member of options is "flipY", output must be flipped vertically,
+    //    disregarding any image orientation metadata of the source (such as EXIF metadata), if any. [EXIF]
+    //    If the value is "from-image", no extra step is needed.
+    if (options.image_orientation == Bindings::ImageOrientation::FlipY) {
+        // NB: Cropping and scaling produced a copy, so swapping rows does not modify the source bitmap.
+        for (i32 y = 0; y < output->height() / 2; ++y) {
+            auto* top_row = output->scanline(y);
+            auto* bottom_row = output->scanline(output->height() - y - 1);
+            for (i32 x = 0; x < output->width(); ++x)
+                AK::swap(top_row[x], bottom_row[x]);
+        }
+    }
 
     // 9. If image is an img element or a Blob object, let val be the value of the colorSpaceConversion member of
     //    options, and then run these substeps:
