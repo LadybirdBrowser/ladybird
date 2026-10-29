@@ -1607,7 +1607,7 @@ void HTMLInputElement::did_receive_focus()
 
     if (has_selectable_text()) {
         if (document().last_focus_trigger() == FocusTrigger::Key)
-            MUST(select());
+            set_the_selection_range(0, NumericLimits<WebIDL::UnsignedLong>::max());
         else
             document().get_selection()->remove_all_ranges();
     }
