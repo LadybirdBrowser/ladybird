@@ -1,0 +1,41 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 108 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 90 0+0+8] children: not-inline
+      BlockContainer <div> at [8,8] [0+0+0 110 0+0+674] [0+0+0 30 0+0+10] children: inline
+        frag 0 from TextNode start: 0, length: 3, rect: [8,8 30x10] baseline: 8
+            "aaa"
+        frag 1 from TextNode start: 4, length: 7, rect: [8,18 70x10] baseline: 8
+            "memory-"
+        frag 2 from TextNode start: 11, length: 9, rect: [8,28 90x10] baseline: 8
+            "efficient"
+        TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,48] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [8,48] [0+0+0 110 0+0+674] [0+0+0 20 0+0+10] children: inline
+        frag 0 from TextNode start: 0, length: 3, rect: [8,48 30x10] baseline: 8
+            "aaa"
+        frag 1 from TextNode start: 0, length: 9, rect: [78,58 90x10] baseline: 8
+            "efficient"
+        TextNode <#text> (not painted)
+        InlineNode <b> at [8,58] [0+0+0 70 0+0+0] [0+0+0 10 0+0+0]
+          frag 0 from TextNode start: 0, length: 7, rect: [8,58 70x10] baseline: 8
+              "memory-"
+          TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,78] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [8,78] [0+0+0 110 0+0+674] [0+0+0 20 0+0+10] children: inline
+        frag 0 from TextNode start: 0, length: 3, rect: [8,78 30x10] baseline: 8
+            "aaa"
+        frag 1 from TextNode start: 4, length: 7, rect: [8,88 70x10] baseline: 8
+            "memory-"
+        TextNode <#text> (not painted)
+        InlineNode <b> at [78,88] [0+0+0 90 0+0+0] [0+0+0 10 0+0+0]
+          frag 0 from TextNode start: 0, length: 9, rect: [78,88 90x10] baseline: 8
+              "efficient"
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,108] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x108] (z-index: auto)
