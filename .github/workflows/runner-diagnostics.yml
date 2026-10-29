@@ -1,0 +1,23 @@
+name: 'Runner diagnostics'
+on: pull_request
+
+permissions: {}
+
+jobs:
+  windows:
+    runs-on: blacksmith-16vcpu-windows-2025
+    if: github.repository == 'LadybirdBrowser/ladybird'
+
+    steps:
+      # No checkout or setup step runs first, so anything found here ships with the runner image.
+      - name: 'Look for compiler caches'
+        shell: pwsh
+        run: |
+          foreach ($tool in 'ccache', 'sccache') {
+            "== $tool"
+            where.exe $tool
+            if ($LASTEXITCODE -eq 0) { & $tool --version | Select-Object -First 1 }
+          }
+          "== choco packages"
+          choco list
+          exit 0
