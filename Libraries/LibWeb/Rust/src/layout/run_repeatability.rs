@@ -278,10 +278,7 @@ fn host_findings_match(left: Option<&run_state::HostFindings>, right: Option<&ru
     let none = run_state::HostFindings::default();
     let left = left.unwrap_or(&none);
     let right = right.unwrap_or(&none);
-    same_elements_in_any_order(
-        &left.nodes_with_unresolved_container_lengths,
-        &right.nodes_with_unresolved_container_lengths,
-    ) && same_elements_in_any_order(&left.messages, &right.messages)
+    same_elements_in_any_order(&left.messages, &right.messages)
         && left.document_svg_root_natural_size == right.document_svg_root_natural_size
 }
 

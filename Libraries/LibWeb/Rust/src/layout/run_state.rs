@@ -29,54 +29,41 @@ pub(crate) struct LayoutScratch {
     discarded_runs_in_progress: Cell<u32>,
 }
 
-/// What layout found out that the host hears of once the layout that found it is committed: the nodes whose SVG
-/// lengths it resolved without the container they are relative to, what the container-relative lengths it resolved
-/// depend on, and the natural size it negotiated for the box of an `<svg>` document element. A run hands them to its
-/// parent with its result, so a discarded result tells the host nothing.
+/// What layout found out that the host hears of once the layout that found it is committed: what the
+/// container-relative lengths it resolved depend on, and the natural size it negotiated for the box of an `<svg>`
+/// document element. A run hands them to its parent with its result, so a discarded result tells the host nothing.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct HostFindings {
-    pub(crate) nodes_with_unresolved_container_lengths: Vec<NodeSlotId>,
     pub(crate) messages: Vec<super::commit::FfiCommitMessage>,
     pub(crate) document_svg_root_natural_size: Option<(NodeSlotId, crate::css::style::NaturalSize)>,
 }
 
 impl HostFindings {
     pub(crate) fn is_empty(&self) -> bool {
-        self.nodes_with_unresolved_container_lengths.is_empty()
-            && self.messages.is_empty()
-            && self.document_svg_root_natural_size.is_none()
-    }
-
-    pub(crate) fn note_unresolved_container_lengths(&mut self, node: NodeSlotId) {
-        if !self.nodes_with_unresolved_container_lengths.contains(&node) {
-            self.nodes_with_unresolved_container_lengths.push(node);
-        }
+        self.messages.is_empty() && self.document_svg_root_natural_size.is_none()
     }
 
     pub(crate) fn note_container_length_dependencies(
         &mut self,
         element: crate::css::style::tree::StyleNodeID,
-        bases: &super::svg_formatting_context::FfiContainerLengthBases,
+        bases: &crate::css::style::ContainerUnitBases,
     ) {
         use super::commit::{FfiCommitMessage, FfiCommitMessageKind};
         self.note_message(FfiCommitMessage::new(
             element.raw(),
             FfiCommitMessageKind::StyleDependsOnSizeContainerQuery,
         ));
-        for (container, awaits_layout) in [
-            (bases.width_query_container, bases.width_query_container_awaits_layout),
-            (bases.height_query_container, bases.height_query_container_awaits_layout),
-        ] {
-            if container == 0 {
+        for basis in bases.width_and_height() {
+            let Some(container) = basis.container() else {
                 continue;
-            }
+            };
             self.note_message(FfiCommitMessage::new(
-                container,
+                container.raw(),
                 FfiCommitMessageKind::SizeQueryContainerResolvedAgainst,
             ));
-            if awaits_layout {
+            if basis.container_has_no_box() {
                 self.note_message(FfiCommitMessage::new(
-                    container,
+                    container.raw(),
                     FfiCommitMessageKind::ContainerQueryEvaluationNeededAfterLayout,
                 ));
             }
@@ -90,9 +77,6 @@ impl HostFindings {
     }
 
     pub(crate) fn receive(&mut self, other: HostFindings) {
-        for node in other.nodes_with_unresolved_container_lengths {
-            self.note_unresolved_container_lengths(node);
-        }
         for message in other.messages {
             self.note_message(message);
         }

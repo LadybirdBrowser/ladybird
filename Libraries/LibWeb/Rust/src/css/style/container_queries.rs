@@ -69,21 +69,38 @@ impl ContainerVerdict {
 /// nearest flat-tree ancestor that accepts size queries on that axis as of the last layout commit,
 /// zero while that container has no box, and the viewport's size when there is no such container.
 #[derive(Clone, Copy)]
-pub(super) struct ContainerUnitBasis {
+pub(crate) struct ContainerUnitBasis {
     basis: f64,
     /// The container the basis is read from, or none for the viewport.
     container: Option<StyleNodeID>,
     container_has_no_box: bool,
 }
 
+impl ContainerUnitBasis {
+    /// The container the basis is read from, or none for the viewport.
+    pub(crate) fn container(&self) -> Option<StyleNodeID> {
+        self.container
+    }
+
+    /// Whether the container has no box as of the last layout commit, so its queries are evaluated again after the
+    /// next layout gives it one.
+    pub(crate) fn container_has_no_box(&self) -> bool {
+        self.container_has_no_box
+    }
+}
+
 /// The bases of both physical axes, width and height.
 #[derive(Clone, Copy)]
-pub(super) struct ContainerUnitBases([ContainerUnitBasis; 2]);
+pub(crate) struct ContainerUnitBases([ContainerUnitBasis; 2]);
 
 impl ContainerUnitBases {
+    pub(crate) fn width_and_height(&self) -> [ContainerUnitBasis; 2] {
+        self.0
+    }
+
     /// Resolve a context's container-relative lengths against these bases; one read from the
     /// viewport is a viewport dependency.
-    pub(super) fn apply_to(&self, length: &mut crate::css::style_compute::FfiLengthResolutionContext) {
+    pub(crate) fn apply_to(&self, length: &mut crate::css::style_compute::FfiLengthResolutionContext) {
         let [width, height] = self.0;
         length.has_container_width_basis = true;
         length.has_container_height_basis = true;
@@ -262,7 +279,7 @@ impl RetainedState {
     }
 
     /// The bases of both physical axes for a subject's container-relative lengths.
-    pub(super) fn container_unit_bases(
+    pub(crate) fn container_unit_bases(
         &self,
         subject: StyleNodeID,
         subject_is_pseudo_element: bool,

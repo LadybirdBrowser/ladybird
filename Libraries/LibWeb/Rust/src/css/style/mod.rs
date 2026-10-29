@@ -75,6 +75,7 @@ mod column;
 pub mod compiler;
 mod computed;
 mod container_queries;
+pub(crate) use container_queries::ContainerUnitBases;
 mod custom_property_cascade;
 mod custom_property_environments;
 #[cfg(test)]

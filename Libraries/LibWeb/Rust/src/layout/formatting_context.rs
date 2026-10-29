@@ -1220,7 +1220,7 @@ pub(crate) struct FlexLayoutData {
     pub(crate) lines: Vec<FlexLayoutLine>,
 }
 
-/// The document-side answers every layout pass needs, registered once per arena. Each callback
+/// The calls the layout stage makes into the document, registered once per arena. Each callback
 /// receives the registered `context`, the owning document, as its first argument. The fields are
 /// private: the callbacks are reached only through the methods below, which take the main thread
 /// token.
@@ -1235,8 +1235,6 @@ pub struct FfiLayoutHostCallbacks {
     /// them.
     deliver_commit_messages:
         extern "C" fn(*mut c_void, &crate::render_state::BegunRead, *const commit::FfiCommitMessage, usize),
-    /// What a container-relative length on the element with the given identity resolves against.
-    container_length_bases: extern "C" fn(*mut c_void, u32) -> svg_formatting_context::FfiContainerLengthBases,
     /// The scroll containers a finished layout tree build gave a style, each with whether it is a
     /// scroll snap container.
     take_built_scroll_containers:
@@ -1287,14 +1285,6 @@ impl FfiLayoutHostCallbacks {
         }
         // The document registered the host with the arena and outlives this call.
         (self.take_built_scroll_containers)(self.context, read, built.as_ptr(), built.len());
-    }
-
-    /// The one question a layout pass may ask the document while it runs.
-    pub(crate) fn container_length_bases_query(
-        &self,
-        _: &crate::stage::MainThread,
-    ) -> layout_pass::ContainerLengthBasesQuery {
-        layout_pass::ContainerLengthBasesQuery::new(self.context, self.container_length_bases)
     }
 }
 
@@ -3456,11 +3446,10 @@ pub(crate) fn lay_out_boundary(
     .run(state)
 }
 
-/// What every layout stage of a round reads besides the arena: the one question a pass may ask
-/// the document, and the document's viewport and quirks mode as the round began.
+/// What every layout stage of a round reads besides the arena: the document's viewport and quirks
+/// mode as the round began.
 #[derive(Clone, Copy)]
 pub(crate) struct LayoutStageFacts {
-    pub(crate) container_length_bases: layout_pass::ContainerLengthBasesQuery,
     pub(crate) viewport_inline_size: CssPixels,
     pub(crate) viewport_block_size: CssPixels,
     pub(crate) document_in_quirks_mode: bool,
@@ -3517,7 +3506,6 @@ impl LayoutStageJob {
         };
         let mut notifications = commit::commit_replacing(root, state.arena_mut(), &output.fragments);
         let super::run_state::HostFindings {
-            nodes_with_unresolved_container_lengths,
             messages,
             document_svg_root_natural_size,
         } = output.host_findings;
@@ -3528,9 +3516,6 @@ impl LayoutStageJob {
         }
         notifications.prepend_layout_messages(messages);
         let arena = state.arena();
-        for node in nodes_with_unresolved_container_lengths {
-            arena.note_unresolved_container_lengths(node);
-        }
         arena.end_layout_pass();
         state.layout_scratch().end_layout_pass();
         arena.reset_layout_update_flags_in_subtree(root);
@@ -3839,13 +3824,6 @@ mod baseline_tests {
     use crate::layout::node_data::{NodeConstructionFacts, NodeKind, StylePayloadsRef};
     use crate::layout::run_state::LayoutScratch;
 
-    unsafe extern "C" fn unused_container_bases(
-        _: *mut c_void,
-        _: u32,
-    ) -> svg_formatting_context::FfiContainerLengthBases {
-        unreachable!("baseline derivation does not resolve container lengths")
-    }
-
     #[test]
     fn block_derivation_preserves_flex_last_baseline() {
         check_block_derivation(keyword::FLEX);
@@ -3895,11 +3873,6 @@ mod baseline_tests {
             &arena,
             &scratch,
             LayoutStageFacts {
-                container_length_bases: layout_pass::ContainerLengthBasesQuery::new(
-                    std::ptr::null_mut(),
-                    unused_container_bases,
-                )
-                .sealed(),
                 viewport_inline_size: CssPixels::from_integer(800),
                 viewport_block_size: CssPixels::from_integer(600),
                 document_in_quirks_mode: false,
