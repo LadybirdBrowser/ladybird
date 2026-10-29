@@ -166,6 +166,11 @@ impl<'arena> LayoutPass<'arena> {
         None
     }
 
+    /// The document's layout trace, which records what the pass does while the document traces its layout.
+    pub(crate) fn layout_trace(&self) -> &'arena super::trace::LayoutTrace {
+        &self.scratch.layout_trace
+    }
+
     /// The results of formatting context runs, kept for the runs and passes after them.
     pub(crate) fn fc_run_cache_store(&self) -> &'arena super::fc_run_cache::FcRunCacheStore {
         self.scratch.fc_run_cache_store()

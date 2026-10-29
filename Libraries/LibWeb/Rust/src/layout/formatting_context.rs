@@ -2068,7 +2068,7 @@ pub(super) fn run_formatting_context(
             } else {
                 "REPLAY FRAGMENTS"
             };
-            let _trace = callbacks.arena().layout_trace.run(box_, fc_type, || action);
+            let _trace = callbacks.layout_trace().run(box_, fc_type, || action);
             let outputs = if builds_fragments {
                 hit.entry.outputs_to_replay(reuses_committed_subtree)
             } else {
@@ -2086,8 +2086,7 @@ pub(super) fn run_formatting_context(
         }
     };
     let _trace = callbacks
-        .arena()
-        .layout_trace
+        .layout_trace()
         .run(box_, fc_type, || cache_attempt.trace_action());
     let previous_line_data = cache_attempt.previous_line_data();
     let discarded_outputs = run_repeatability::lay_out_discarded_run(&callbacks, |callbacks| {
@@ -2196,8 +2195,7 @@ fn reuse_committed_subtree_as_it_is(
         return None;
     }
     let _trace = callbacks
-        .arena()
-        .layout_trace
+        .layout_trace()
         .run(box_, cache_key.fc_type(), || "REUSE SUBTREE");
     callbacks.receive_host_findings(entry.outputs.host_findings.clone());
     Some(ChildRunOutcome {
@@ -3225,7 +3223,7 @@ pub(crate) fn lay_out_shape_for_its_result(callbacks: LayoutPass<'_>, shape: Chi
             } else {
                 "READ RESULT"
             };
-            let _trace = callbacks.arena().layout_trace.run(node, fc_type, || action);
+            let _trace = callbacks.layout_trace().run(node, fc_type, || action);
             return result_with_host_findings(&hit.entry.outputs);
         }
     };
@@ -3234,7 +3232,7 @@ pub(crate) fn lay_out_shape_for_its_result(callbacks: LayoutPass<'_>, shape: Chi
     } else {
         cache_attempt.trace_action()
     };
-    let _trace = callbacks.arena().layout_trace.run(node, fc_type, || action);
+    let _trace = callbacks.layout_trace().run(node, fc_type, || action);
     let previous_line_data = cache_attempt.previous_line_data();
     let discarded_outputs =
         run_repeatability::lay_out_discarded_run(&callbacks, |callbacks| lay_out(callbacks, root_cells, input, None));
@@ -3524,6 +3522,7 @@ impl LayoutStageJob {
         }
         notifications.prepend_layout_messages(messages);
         let arena = state.arena();
+        state.layout_scratch().layout_trace.hand_over_to(&arena.layout_trace);
         state.layout_scratch().end_layout_pass(arena);
         arena.reset_layout_update_flags_in_subtree(root);
         arena.leave_active_layout_pass();
@@ -3560,7 +3559,7 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
         ..ContainingBlockConstraints::default()
     };
     RunState::with_root(callbacks, root, Node::INVALID, None, |entry_run_state, callbacks| {
-        let _trace = arena.layout_trace.pass(None);
+        let _trace = scratch.layout_trace.pass(None);
         let entry_fragments = std::rc::Rc::new(fragment_tree::RunFragmentBuilder::new_entry_accumulator(root));
         let entry_run = FormattingContextRun {
             state: entry_run_state,
@@ -3660,6 +3659,7 @@ fn prepare_layout_stage(state: &mut super::ArenaHandle, kind: LayoutStageKind, r
     }
     drop_intrinsic_size_cache_entries_of_released_slots(arena, state.layout_scratch());
     state.layout_scratch().apply_memo_invalidations(arena);
+    arena.layout_trace.hand_over_to(&state.layout_scratch().layout_trace);
     arena.begin_active_layout_pass();
 }
 
@@ -3735,7 +3735,7 @@ fn compute_subtree_layout_fragments(input: LayoutStageInput<'_>, containing_bloc
         entry_root_containing_block,
         None,
         |entry_run_state, callbacks| {
-            let _trace = arena.layout_trace.pass(Some(root));
+            let _trace = scratch.layout_trace.pass(Some(root));
             let entry_fragments =
                 std::rc::Rc::new(fragment_tree::RunFragmentBuilder::new_entry_accumulator(entry_root));
             let entry_run = FormattingContextRun {

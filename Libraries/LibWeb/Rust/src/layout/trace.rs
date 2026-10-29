@@ -146,6 +146,11 @@ impl LayoutTrace {
         Some(Scope { trace: self, line })
     }
 
+    /// Moves what this trace holds to `recorder`, which goes on with it.
+    pub(super) fn hand_over_to(&self, recorder: &LayoutTrace) {
+        *recorder.0.borrow_mut() = self.0.take();
+    }
+
     /// Runs `untraced` with nothing it does traced.
     pub(super) fn without_events<R>(&self, untraced: impl FnOnce() -> R) -> R {
         let trace = self.0.take();

@@ -21,6 +21,9 @@ pub(crate) struct LayoutScratch {
     fc_run_cache_store: super::fc_run_cache::FcRunCacheStore,
     /// The layouts of in-flow blocks, kept for the passes after the one that laid them out.
     in_flow_block_cache_store: super::in_flow_block_cache::InFlowBlockCacheStore,
+    /// The document's layout trace while a stage lays the document out, which the stage takes from the arena and hands
+    /// back once it is done.
+    pub(super) layout_trace: super::trace::LayoutTrace,
 }
 
 /// What layout found out that the host hears of once the layout that found it is committed: what the
@@ -94,6 +97,7 @@ impl Default for LayoutScratch {
             host_findings_outside_runs: RefCell::new(HostFindings::default()),
             fc_run_cache_store: Default::default(),
             in_flow_block_cache_store: Default::default(),
+            layout_trace: Default::default(),
         }
     }
 }
