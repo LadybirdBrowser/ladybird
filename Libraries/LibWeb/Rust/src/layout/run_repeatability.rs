@@ -38,18 +38,16 @@ pub(super) fn verification_is_enabled() -> bool {
 /// progress around it already. Nothing it does is traced.
 pub(super) fn lay_out_discarded_run(
     callbacks: &LayoutPass<'_>,
-    run: impl FnOnce() -> formatting_context::RunOutputs,
+    run: impl for<'discarded> FnOnce(LayoutPass<'discarded>) -> formatting_context::RunOutputs,
 ) -> Option<formatting_context::RunOutputs> {
-    if run_repeatability_verification() == RunRepeatabilityVerification::Off
-        || callbacks.scratch().reads_no_memoized_layout()
-    {
+    if run_repeatability_verification() == RunRepeatabilityVerification::Off || callbacks.reads_no_memoized_layout() {
         return None;
     }
     Some(
         callbacks
             .arena()
             .layout_trace
-            .without_events(|| callbacks.scratch().lay_out_discarded_run(run)),
+            .without_events(|| callbacks.lay_out_discarded_run(run)),
     )
 }
 
@@ -131,9 +129,13 @@ pub(super) fn verify_run_ignores_its_unobserved_own_block_size_and_block_margins
     root_cells: used_values::RootInputCells,
     input: LayoutInput,
     outputs: &formatting_context::RunOutputs,
-    lay_out: impl Fn(used_values::RootInputCells, LayoutInput) -> formatting_context::RunOutputs,
+    lay_out: impl for<'discarded> Fn(
+        LayoutPass<'discarded>,
+        used_values::RootInputCells,
+        LayoutInput,
+    ) -> formatting_context::RunOutputs,
 ) {
-    if !unobserved_own_block_size_verification_is_enabled() || callbacks.scratch().reads_no_memoized_layout() {
+    if !unobserved_own_block_size_verification_is_enabled() || callbacks.reads_no_memoized_layout() {
         return;
     }
     let checked = format!("the run of {box_:?}, which never observed its own block size or block margins,");
@@ -163,9 +165,7 @@ pub(super) fn verify_run_ignores_its_unobserved_own_block_size_and_block_margins
     }
     for (reference_cells, reference_input, reference) in reference_inputs {
         let reference_outputs = callbacks.arena().layout_trace.without_events(|| {
-            callbacks
-                .scratch()
-                .lay_out_discarded_run(|| lay_out(reference_cells, reference_input))
+            callbacks.lay_out_discarded_run(|callbacks| lay_out(callbacks, reference_cells, reference_input))
         });
         ComparedLayouts {
             checked: &checked,

@@ -3138,7 +3138,7 @@ impl<'pass> BlockFormattingContext<'pass> {
     ) -> bool {
         let facts = self.facts(node);
         let container_facts = self.facts(block_container);
-        !self.run.callbacks.scratch().reads_no_memoized_layout()
+        !self.run.callbacks.reads_no_memoized_layout()
             && self.run.fragmentainer.is_none()
             && self.run.fragments.is_some()
             && !self.run.should_collect_devtools_layout_data

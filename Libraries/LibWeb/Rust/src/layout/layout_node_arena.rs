@@ -337,14 +337,6 @@ pub(crate) struct IntrinsicSizeCaches {
 }
 
 impl IntrinsicSizeCaches {
-    /// Runs `measure` with caches of its own, which start empty and are dropped when it returns.
-    pub(crate) fn set_aside_while<R>(&self, measure: impl FnOnce() -> R) -> R {
-        let set_aside = self.slots.take();
-        let result = measure();
-        self.slots.replace(set_aside);
-        result
-    }
-
     /// Drops the entries of `slots`, which were freed or whose rows' cache epoch wrapped.
     pub(crate) fn drop_slots(&self, slots: Vec<u32>) {
         let mut caches = self.slots.borrow_mut();

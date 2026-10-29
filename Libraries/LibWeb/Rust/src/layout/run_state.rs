@@ -22,9 +22,6 @@ pub(crate) struct LayoutScratch {
     has_position_option_styles: Cell<bool>,
     /// What the pass found out for the host outside any run, which its driver reports itself.
     pub(super) host_findings_outside_runs: RefCell<HostFindings>,
-    /// How many runs whose results are discarded are in progress, which read no memoized layout from before them and
-    /// keep none.
-    discarded_runs_in_progress: Cell<u32>,
 }
 
 /// What layout found out that the host hears of once the layout that found it is committed: what the
@@ -98,7 +95,6 @@ impl Default for LayoutScratch {
             position_option_styles: RefCell::new(Vec::new()),
             has_position_option_styles: Cell::new(false),
             host_findings_outside_runs: RefCell::new(HostFindings::default()),
-            discarded_runs_in_progress: Cell::new(0),
         }
     }
 }
@@ -131,41 +127,19 @@ impl LayoutScratch {
             .map(|(_, style)| *style)
     }
 
-    pub(crate) fn store_inline_item_stash(
+    pub(super) fn store_inline_item_stash(
         &self,
         block_container: NodeSlotId,
         stash: super::inline_level_iterator::StashedInlineItems,
     ) {
-        if self.reads_no_memoized_layout() {
-            return;
-        }
         self.inline_item_stashes.borrow_mut().insert(block_container, stash);
     }
 
-    pub(crate) fn inline_item_stash(
+    pub(super) fn inline_item_stash(
         &self,
         block_container: NodeSlotId,
     ) -> Option<super::inline_level_iterator::StashedInlineItems> {
-        if self.reads_no_memoized_layout() {
-            return None;
-        }
         self.inline_item_stashes.borrow().get(&block_container).cloned()
-    }
-
-    /// Lays out `run`, whose result is discarded, without reading memoized layout from before it or keeping any, so
-    /// that it computes everything afresh and leaves nothing for the runs after it.
-    pub(crate) fn lay_out_discarded_run<R>(&self, run: impl FnOnce() -> R) -> R {
-        let in_progress = &self.discarded_runs_in_progress;
-        in_progress.set(in_progress.get() + 1);
-        let result = self.intrinsic_size_caches.set_aside_while(run);
-        in_progress.set(in_progress.get() - 1);
-        result
-    }
-
-    /// Whether a run whose result is discarded is in progress, which reads no memoized layout from before it and keeps
-    /// none: the run cache, the in-flow block cache, inline item stashes and intrinsic sizes.
-    pub(crate) fn reads_no_memoized_layout(&self) -> bool {
-        self.discarded_runs_in_progress.get() > 0
     }
 
     /// What the pass found out outside any run, which its driver reports itself.
