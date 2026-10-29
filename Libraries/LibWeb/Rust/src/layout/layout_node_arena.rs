@@ -1230,8 +1230,8 @@ pub(crate) struct LayoutNodeArena {
     live_count: u32,
     /// The slots whose intrinsic size cache entries the layout stage drops before its next run.
     intrinsic_size_cache_drops: RefCell<Vec<u32>>,
-    default_scroll_shift_anchors: RefCell<Vec<DefaultScrollShiftAnchorSlot>>,
-    any_default_scroll_shift_anchor_ever_stored: Cell<bool>,
+    default_scroll_shift_anchors: Vec<DefaultScrollShiftAnchorSlot>,
+    any_default_scroll_shift_anchor_ever_stored: bool,
     text_slots: TextSlots,
     pub(super) searchable_text: Option<Vec<super::text_queries::MappedText>>,
     replaced_content_facts: Vec<ReplacedContentFactsSlot>,
@@ -1296,7 +1296,7 @@ pub(crate) struct LayoutNodeArena {
     owned_image_natural_sizes: RefCell<HashMap<NodeSlotId, crate::css::style::NaturalSize>>,
     /// The natural size layout last negotiated for the box of an `<svg>` document element, and that
     /// box. An `<object>` showing the document is sized from it.
-    document_svg_root_natural_size: Cell<Option<(NodeSlotId, crate::css::style::NaturalSize)>>,
+    document_svg_root_natural_size: Option<(NodeSlotId, crate::css::style::NaturalSize)>,
     /// The document element's natural size as it was last handed to the `<object>` showing the
     /// document, if it has been.
     handed_over_document_svg_root_natural_size: Cell<Option<crate::css::style::NaturalSize>>,
@@ -1351,8 +1351,8 @@ impl LayoutNodeArena {
             next_index: 0,
             live_count: 0,
             intrinsic_size_cache_drops: RefCell::new(Vec::new()),
-            default_scroll_shift_anchors: RefCell::new(Vec::new()),
-            any_default_scroll_shift_anchor_ever_stored: Cell::new(false),
+            default_scroll_shift_anchors: Vec::new(),
+            any_default_scroll_shift_anchor_ever_stored: false,
             text_slots: TextSlots::default(),
             searchable_text: None,
             replaced_content_facts: Vec::new(),
@@ -1388,7 +1388,7 @@ impl LayoutNodeArena {
             may_have_scroll_snap_areas: Cell::new(false),
             nodes_enrolled_for_replaced_content_facts_sync: RefCell::new(Vec::new()),
             owned_image_natural_sizes: RefCell::new(HashMap::default()),
-            document_svg_root_natural_size: Cell::new(None),
+            document_svg_root_natural_size: None,
             handed_over_document_svg_root_natural_size: Cell::new(None),
             layout_style_snapshot_commit: RefCell::new(Vec::new()),
             layout_tree_update_marks: RefCell::default(),
@@ -1748,7 +1748,7 @@ impl LayoutNodeArena {
         self.style_records_pinned_by_host[index as usize].set(0);
 
         self.intrinsic_size_cache_drops.get_mut().push(index);
-        if let Some(slot) = self.default_scroll_shift_anchors.get_mut().get_mut(index as usize) {
+        if let Some(slot) = self.default_scroll_shift_anchors.get_mut(index as usize) {
             *slot = DefaultScrollShiftAnchorSlot::default();
         }
         self.paintable_rows.reset_committed_fragment_link_slot(index);
@@ -3099,7 +3099,7 @@ impl LayoutNodeArena {
         root_box: NodeSlotId,
         natural_size: crate::css::style::NaturalSize,
     ) {
-        self.document_svg_root_natural_size.set(Some((root_box, natural_size)));
+        self.document_svg_root_natural_size = Some((root_box, natural_size));
     }
 
     /// The natural size of the document's `<svg>` document element as its last layout negotiated
@@ -3108,7 +3108,6 @@ impl LayoutNodeArena {
     pub(crate) fn take_changed_document_svg_root_natural_size(&self) -> Option<crate::css::style::NaturalSize> {
         let current = self
             .document_svg_root_natural_size
-            .get()
             .filter(|&(root_box, _)| self.is_document_svg_root_box(root_box))
             .map(|(_, natural_size)| natural_size)
             .unwrap_or_default();
@@ -5088,7 +5087,7 @@ impl LayoutNodeArena {
                 != compensates_for_horizontal_scroll
             || (previous_flags & NodeFlag::CompensatesForVerticalScroll as u32 != 0) != compensates_for_vertical_scroll;
         {
-            let mut slots = self.default_scroll_shift_anchors.borrow_mut();
+            let slots = &mut self.default_scroll_shift_anchors;
             let index = id.slot_index() as usize;
             if anchor_is_live {
                 if slots.len() <= index {
@@ -5113,7 +5112,7 @@ impl LayoutNodeArena {
             compensates_for_vertical_scroll,
         );
         if anchor_is_live {
-            self.any_default_scroll_shift_anchor_ever_stored.set(true);
+            self.any_default_scroll_shift_anchor_ever_stored = true;
         }
         if scroll_shift_inputs_changed {
             self.note_visual_context_box_dirty(
@@ -5124,10 +5123,10 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn default_scroll_shift_anchor(&self, id: NodeSlotId) -> NodeSlotId {
-        if !self.any_default_scroll_shift_anchor_ever_stored.get() {
+        if !self.any_default_scroll_shift_anchor_ever_stored {
             return NodeSlotId::INVALID;
         }
-        let slots = self.default_scroll_shift_anchors.borrow();
+        let slots = &self.default_scroll_shift_anchors;
         let Some(slot) = slots.get(id.slot_index() as usize) else {
             return NodeSlotId::INVALID;
         };
@@ -5138,14 +5137,14 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn may_have_default_scroll_shift_anchor(&self) -> bool {
-        self.any_default_scroll_shift_anchor_ever_stored.get()
+        self.any_default_scroll_shift_anchor_ever_stored
     }
 
     pub(crate) fn for_each_default_scroll_shift_anchor(&self, mut visit: impl FnMut(NodeSlotId, NodeSlotId)) {
-        if !self.any_default_scroll_shift_anchor_ever_stored.get() {
+        if !self.any_default_scroll_shift_anchor_ever_stored {
             return;
         }
-        let slots = self.default_scroll_shift_anchors.borrow();
+        let slots = &self.default_scroll_shift_anchors;
         for (index, slot) in slots.iter().enumerate() {
             if slot.anchor.is_invalid() || slot.generation == 0 {
                 continue;
