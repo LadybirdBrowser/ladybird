@@ -257,15 +257,15 @@ impl TextDigest {
             .each_ref()
             .map(RandomState::build_hasher);
         let mut write = |bytes: &[u8]| hashers.iter_mut().for_each(|hasher| hasher.write(bytes));
-        // NB: Equal texts hash equally whether they arrive as ASCII or as UTF-16, so UTF-16 text that is all ASCII is
-        //     hashed as ASCII. The first byte keeps the two forms apart otherwise.
+        // NB: Equal texts hash equally whether they arrive as Latin-1 or as UTF-16, so UTF-16 text that is all Latin-1 is
+        //     hashed as Latin-1. The first byte keeps the two forms apart otherwise.
         let mut chunk = [0u8; CHUNK_BYTES];
         match source {
             TokenizerInput::Latin1(units) => {
                 write(&[0]);
                 write(units);
             }
-            TokenizerInput::Utf16(units) if units.iter().all(|&unit| unit < 0x80) => {
+            TokenizerInput::Utf16(units) if units.iter().all(|&unit| unit <= 0xFF) => {
                 write(&[0]);
                 for part in units.chunks(CHUNK_BYTES) {
                     for (byte, &unit) in chunk.iter_mut().zip(part) {

@@ -80,7 +80,7 @@ impl Regex {
         self.exec_into_input(input, start, out)
     }
 
-    pub fn exec_into_ascii(&self, input: &[u8], start: usize, out: &mut [i32]) -> vm::VmResult {
+    pub fn exec_into_latin1(&self, input: &[u8], start: usize, out: &mut [i32]) -> vm::VmResult {
         self.exec_into_input(input, start, out)
     }
 
@@ -123,7 +123,7 @@ impl Regex {
         self.test_input(input, start)
     }
 
-    pub fn test_ascii(&self, input: &[u8], start: usize) -> vm::VmResult {
+    pub fn test_latin1(&self, input: &[u8], start: usize) -> vm::VmResult {
         self.test_input(input, start)
     }
 
@@ -540,7 +540,7 @@ impl Regex {
         self.find_all_into_input(input, start, result_buf)
     }
 
-    pub fn find_all_into_ascii(&self, input: &[u8], start: usize, result_buf: &mut [i32]) -> i32 {
+    pub fn find_all_into_latin1(&self, input: &[u8], start: usize, result_buf: &mut [i32]) -> i32 {
         self.find_all_into_input(input, start, result_buf)
     }
 

@@ -573,7 +573,11 @@ public:
             return;
         }
 
-        m_segmented_text = icu::UnicodeString { text.utf16_span().data(), static_cast<i32>(text.length_in_code_units()) };
+        // NB: Latin-1 that is not ASCII is segmented as UTF-16, so that the boundaries are code unit offsets.
+        if (text.has_latin1_storage())
+            m_segmented_text = icu_string(text);
+        else
+            m_segmented_text = icu::UnicodeString { text.utf16_span().data(), static_cast<i32>(text.length_in_code_units()) };
         m_segmenter->setText(m_segmented_text.get<icu::UnicodeString>());
     }
 

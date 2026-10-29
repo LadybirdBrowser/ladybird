@@ -55,7 +55,7 @@ static bool basic_parse_with_state_override_impl(FFI::RustUrlInput input, URL& u
 Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> base_url, Optional<StringView> encoding)
 {
     auto input = String::from_wtf8_with_replacement_character(raw_input);
-    return basic_parse_impl({ input.bytes().data(), nullptr, input.bytes().size() }, base_url, encoding);
+    return basic_parse_impl({ input.bytes().data(), nullptr, nullptr, input.bytes().size() }, base_url, encoding);
 }
 
 Optional<URL> Parser::basic_parse(Utf16View raw_input, Optional<URL const&> base_url, Optional<StringView> encoding)
@@ -66,7 +66,7 @@ Optional<URL> Parser::basic_parse(Utf16View raw_input, Optional<URL const&> base
 bool Parser::basic_parse(StringView raw_input, URL& url, State state_override, Optional<StringView> encoding)
 {
     auto input = String::from_wtf8_with_replacement_character(raw_input);
-    return basic_parse_with_state_override_impl({ input.bytes().data(), nullptr, input.bytes().size() }, url, state_override, encoding);
+    return basic_parse_with_state_override_impl({ input.bytes().data(), nullptr, nullptr, input.bytes().size() }, url, state_override, encoding);
 }
 
 bool Parser::basic_parse(Utf16View raw_input, URL& url, State state_override, Optional<StringView> encoding)

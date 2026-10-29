@@ -21,19 +21,22 @@ use crate::url::{UrlInput, parse_host_into};
 #[derive(Clone, Copy)]
 pub struct RustUrlInput {
     pub utf8: *const u8,
+    pub latin1: *const u8,
     pub utf16: *const u16,
     pub length: usize,
 }
 
 impl RustUrlInput {
     /// # Safety
-    /// The selected pointer must borrow length storage units. Byte input must be valid UTF-8.
+    /// The selected pointer must borrow length storage units. UTF-8 input must be valid UTF-8.
     pub(crate) unsafe fn borrow<'a>(self) -> UrlInput<'a> {
         if self.length == 0 {
             return UrlInput::Utf8("");
         }
         if !self.utf16.is_null() {
             UrlInput::Utf16(unsafe { ak::slice_from_raw_parts(self.utf16, self.length) })
+        } else if !self.latin1.is_null() {
+            UrlInput::Latin1(unsafe { ak::slice_from_raw_parts(self.latin1, self.length) })
         } else {
             UrlInput::Utf8(unsafe { std::str::from_utf8_unchecked(ak::slice_from_raw_parts(self.utf8, self.length)) })
         }

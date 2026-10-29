@@ -41,7 +41,7 @@ inline size_t utf16_string_external_memory_size(Utf16String const& string)
     if (!string.has_long_storage())
         return 0;
 
-    auto code_unit_size = string.has_ascii_storage() ? sizeof(char) : sizeof(char16_t);
+    auto code_unit_size = string.utf16_view().has_latin1_storage() ? sizeof(u8) : sizeof(char16_t);
     if (string.length_in_code_units() > NumericLimits<size_t>::max() / code_unit_size)
         return NumericLimits<size_t>::max();
     return string.length_in_code_units() * code_unit_size;

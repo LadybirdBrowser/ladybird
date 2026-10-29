@@ -72,21 +72,19 @@ pub struct RustFfiPreloadScannerEntry {
     pub media_len: usize,
 }
 
-/// Scan pending parser input for resources the speculative HTML parser can fetch.
+/// Scan pending Latin-1 parser input for resources the speculative HTML parser can fetch.
 ///
 /// # Safety
-/// `input` must be valid UTF-8. `callback` must not retain pointers from the provided entry beyond the callback
-/// invocation.
+/// `callback` must not retain pointers from the provided entry beyond the callback invocation.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_html_preload_scanner_scan(
+pub unsafe extern "C" fn rust_html_preload_scanner_scan_latin1(
     input: ak::Span<'_, u8>,
     scripting_enabled: bool,
     ctx: *mut c_void,
     callback: unsafe extern "C" fn(ctx: *mut c_void, entry: *const RustFfiPreloadScannerEntry) -> bool,
 ) {
-    let input = input.as_slice();
-
-    scan(input, scripting_enabled, |entry| unsafe {
+    let code_units = input.as_slice().iter().map(|&byte| u16::from(byte)).collect();
+    scan_code_units(code_units, scripting_enabled, &mut |entry| unsafe {
         callback(ctx, &raw const *entry)
     });
 }
@@ -109,6 +107,7 @@ pub unsafe extern "C" fn rust_html_preload_scanner_scan_utf16(
     });
 }
 
+#[cfg(test)]
 pub(crate) fn scan(
     input: &[u8],
     scripting_enabled: bool,

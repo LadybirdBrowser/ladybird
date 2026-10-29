@@ -44,8 +44,8 @@ public:
     static Optional<RustPageSelectors> parse(Utf16View text)
     {
         auto* selectors = Parser::ValueParserFFI::rust_parse_page_selector_list({
-            .ascii = text.has_ascii_storage() ? reinterpret_cast<u8 const*>(text.ascii_span().data()) : nullptr,
-            .utf16 = text.has_ascii_storage() ? nullptr : reinterpret_cast<u16 const*>(text.utf16_span().data()),
+            .latin1 = text.has_latin1_storage() ? text.latin1_span().data() : nullptr,
+            .utf16 = text.has_latin1_storage() ? nullptr : reinterpret_cast<u16 const*>(text.utf16_span().data()),
             .length = text.length_in_code_units(),
         });
         if (!selectors)

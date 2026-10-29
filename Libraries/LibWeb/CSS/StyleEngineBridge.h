@@ -114,12 +114,12 @@ u64 style_engine_size_query_container_scan_visits(DocumentHost const*, BegunRead
 u64 style_engine_ensure_random_base_value(DocumentHost const*, BegunRead const*, StyleNodeID node, ReadonlySpan<u16> name, bool element_shared);
 }
 
-// A view of the code units of a string, ASCII or UTF-16 as it stores them, which the engine copies if it keeps them.
+// A view of the code units of a string, Latin-1 or UTF-16 as it stores them, which the engine copies if it keeps them.
 inline FfiUtf16View ffi_utf16_view(Utf16View view)
 {
-    if (view.has_ascii_storage())
-        return { .ascii = reinterpret_cast<u8 const*>(view.ascii_span().data()), .utf16 = nullptr, .length = view.length_in_code_units() };
-    return { .ascii = nullptr, .utf16 = reinterpret_cast<u16 const*>(view.utf16_span().data()), .length = view.length_in_code_units() };
+    if (view.has_latin1_storage())
+        return { .latin1 = view.latin1_span().data(), .utf16 = nullptr, .length = view.length_in_code_units() };
+    return { .latin1 = nullptr, .utf16 = reinterpret_cast<u16 const*>(view.utf16_span().data()), .length = view.length_in_code_units() };
 }
 
 }

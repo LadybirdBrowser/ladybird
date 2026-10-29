@@ -111,8 +111,8 @@ public:
 private:
     static Parser::ValueParserFFI::FfiUtf16View view(Utf16View text)
     {
-        return { text.has_ascii_storage() ? reinterpret_cast<u8 const*>(text.ascii_span().data()) : nullptr,
-            text.has_ascii_storage() ? nullptr : reinterpret_cast<u16 const*>(text.utf16_span().data()), text.length_in_code_units() };
+        return { text.has_latin1_storage() ? text.latin1_span().data() : nullptr,
+            text.has_latin1_storage() ? nullptr : reinterpret_cast<u16 const*>(text.utf16_span().data()), text.length_in_code_units() };
     }
     static void copy_text(void* context, u16 const* data, size_t length)
     {

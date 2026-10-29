@@ -79,9 +79,8 @@ void SpeculativeHTMLParser::run()
 
     auto scripting_enabled = m_scripting_mode != ParserScriptingMode::Disabled;
     auto input = m_input.utf16_view();
-    if (input.has_ascii_storage()) {
-        auto bytes = input.ascii_bytes();
-        rust_html_preload_scanner_scan(bytes, scripting_enabled, this, scanner_callback);
+    if (input.has_latin1_storage()) {
+        rust_html_preload_scanner_scan_latin1(input.latin1_span(), scripting_enabled, this, scanner_callback);
     } else {
         auto code_units = input.utf16_span();
         rust_html_preload_scanner_scan_utf16({ reinterpret_cast<u16 const*>(code_units.data()), code_units.size() }, scripting_enabled, this, scanner_callback);

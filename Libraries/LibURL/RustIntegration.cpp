@@ -350,11 +350,11 @@ static void on_parse_host_complete(void* ctx_ptr, FFI::FfiUrlHost const* ffi_res
 
 FFI::RustUrlInput rust_url_input(Utf16View input)
 {
-    return {
-        input.has_ascii_storage() ? reinterpret_cast<u8 const*>(input.ascii_span().data()) : nullptr,
-        input.has_ascii_storage() ? nullptr : reinterpret_cast<u16 const*>(input.utf16_span().data()),
-        input.length_in_code_units(),
-    };
+    if (input.has_ascii_storage())
+        return { input.ascii_bytes().data(), nullptr, nullptr, input.length_in_code_units() };
+    if (input.has_latin1_storage())
+        return { nullptr, input.latin1_span().data(), nullptr, input.length_in_code_units() };
+    return { nullptr, nullptr, reinterpret_cast<u16 const*>(input.utf16_span().data()), input.length_in_code_units() };
 }
 
 static Optional<Host> parse_host_impl(FFI::RustUrlInput input, bool is_opaque)
@@ -374,7 +374,7 @@ static Optional<Host> parse_host_impl(FFI::RustUrlInput input, bool is_opaque)
 Optional<Host> parse_host(StringView input, bool is_opaque)
 {
     auto processed_input = String::from_wtf8_with_replacement_character(input);
-    return parse_host_impl({ processed_input.bytes().data(), nullptr, processed_input.bytes().size() }, is_opaque);
+    return parse_host_impl({ processed_input.bytes().data(), nullptr, nullptr, processed_input.bytes().size() }, is_opaque);
 }
 
 Optional<Host> parse_host(Utf16View input, bool is_opaque)

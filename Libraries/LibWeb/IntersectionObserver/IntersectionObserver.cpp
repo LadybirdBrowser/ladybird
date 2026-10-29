@@ -454,8 +454,8 @@ Optional<Vector<CSS::LengthPercentage>> IntersectionObserver::parse_a_margin(Str
     auto source = Utf16String::from_utf8(margin_string);
     auto source_view = source.utf16_view();
     CSS::Parser::ValueParserFFI::FfiUtf16View ffi_source {
-        .ascii = source_view.has_ascii_storage() ? reinterpret_cast<u8 const*>(source_view.ascii_span().data()) : nullptr,
-        .utf16 = source_view.has_ascii_storage() ? nullptr : reinterpret_cast<u16 const*>(source_view.utf16_span().data()),
+        .latin1 = source_view.has_latin1_storage() ? source_view.latin1_span().data() : nullptr,
+        .utf16 = source_view.has_latin1_storage() ? nullptr : reinterpret_cast<u16 const*>(source_view.utf16_span().data()),
         .length = source_view.length_in_code_units(),
     };
     auto visit = [](void* context, u8 type, double value, u16 const* unit, size_t unit_length) {

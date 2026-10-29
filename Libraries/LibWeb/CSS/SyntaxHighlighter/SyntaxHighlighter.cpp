@@ -39,8 +39,8 @@ void SyntaxHighlighter::rehighlight(Palette const& palette)
     Vector<CSS::Parser::FFI::CssSyntaxToken> tokens;
     tokens.ensure_capacity((input_view.length_in_code_units() / 2) + 1);
     CSS::Parser::FFI::rust_css_tokenize_for_syntax_highlighting(
-        input_view.has_ascii_storage() ? reinterpret_cast<u8 const*>(input_view.ascii_span().data()) : nullptr,
-        input_view.has_ascii_storage() ? nullptr : reinterpret_cast<u16 const*>(input_view.utf16_span().data()),
+        input_view.has_latin1_storage() ? input_view.latin1_span().data() : nullptr,
+        input_view.has_latin1_storage() ? nullptr : reinterpret_cast<u16 const*>(input_view.utf16_span().data()),
         input_view.length_in_code_units(),
         &tokens,
         [](void* raw_tokens, CSS::Parser::FFI::CssSyntaxToken const* token) {

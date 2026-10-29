@@ -14,11 +14,11 @@ ErrorOr<CompiledRustRegex, String> CompiledRustRegex::compile(Utf16View pattern,
     size_t error_len = 0;
 
     RustRegex* regex = nullptr;
-    if (pattern.has_ascii_storage()) {
-        auto ascii = pattern.ascii_span();
-        regex = rust_regex_compile_ascii(
-            reinterpret_cast<unsigned char const*>(ascii.data()),
-            ascii.size(),
+    if (pattern.has_latin1_storage()) {
+        auto latin1 = pattern.latin1_span();
+        regex = rust_regex_compile_latin1(
+            latin1.data(),
+            latin1.size(),
             flags,
             &error_ptr,
             &error_len);
@@ -107,12 +107,12 @@ int CompiledRustRegex::exec_internal(Utf16View input, size_t start_pos) const
     auto slots = m_capture_count * 2;
     m_capture_buffer.resize(slots);
 
-    if (input.has_ascii_storage()) {
-        auto ascii = input.ascii_span();
-        return rust_regex_exec_into_ascii(
+    if (input.has_latin1_storage()) {
+        auto latin1 = input.latin1_span();
+        return rust_regex_exec_into_latin1(
             m_regex,
-            reinterpret_cast<uint8_t const*>(ascii.data()),
-            ascii.size(),
+            latin1.data(),
+            latin1.size(),
             start_pos,
             m_capture_buffer.data(),
             slots);
@@ -144,12 +144,12 @@ bool CompiledRustRegex::is_single_non_bmp_literal() const
 
 int CompiledRustRegex::test(Utf16View input, size_t start_pos) const
 {
-    if (input.has_ascii_storage()) {
-        auto ascii = input.ascii_span();
-        return rust_regex_test_ascii(
+    if (input.has_latin1_storage()) {
+        auto latin1 = input.latin1_span();
+        return rust_regex_test_latin1(
             m_regex,
-            reinterpret_cast<uint8_t const*>(ascii.data()),
-            ascii.size(),
+            latin1.data(),
+            latin1.size(),
             start_pos);
     }
 
@@ -169,12 +169,12 @@ int CompiledRustRegex::find_all(Utf16View input, size_t start_pos) const
 
     for (;;) {
         int result;
-        if (input.has_ascii_storage()) {
-            auto ascii = input.ascii_span();
-            result = rust_regex_find_all_ascii(
+        if (input.has_latin1_storage()) {
+            auto latin1 = input.latin1_span();
+            result = rust_regex_find_all_latin1(
                 m_regex,
-                reinterpret_cast<uint8_t const*>(ascii.data()),
-                ascii.size(),
+                latin1.data(),
+                latin1.size(),
                 start_pos,
                 m_find_all_buffer.data(),
                 m_find_all_buffer.size());

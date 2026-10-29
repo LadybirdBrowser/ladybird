@@ -94,7 +94,7 @@ Optional<StringView> get_standardized_encoding(Utf16View encoding)
         return {};
     }
 
-    if (encoding.has_ascii_storage()) {
+    if (encoding.has_latin1_storage()) {
         auto ascii = encoding.ascii_span();
         return get_standardized_encoding(StringView { ascii.data(), ascii.size() });
     }

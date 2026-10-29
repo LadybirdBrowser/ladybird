@@ -18,8 +18,8 @@ static StyleValueFFI::StyleValueData const* create_rust_style_value_from_source(
 {
     auto token_source_view = token_source.utf16_view();
     return StyleValueFFI::rust_style_value_create_unresolved_from_source(
-        token_source_view.has_ascii_storage() ? reinterpret_cast<u8 const*>(token_source_view.ascii_span().data()) : nullptr,
-        token_source_view.has_ascii_storage() ? nullptr : reinterpret_cast<u16 const*>(token_source_view.utf16_span().data()),
+        token_source_view.has_latin1_storage() ? token_source_view.latin1_span().data() : nullptr,
+        token_source_view.has_latin1_storage() ? nullptr : reinterpret_cast<u16 const*>(token_source_view.utf16_span().data()),
         token_source_view.length_in_code_units(),
         to_underlying(source_text_mode),
         substitution_presence.attr,

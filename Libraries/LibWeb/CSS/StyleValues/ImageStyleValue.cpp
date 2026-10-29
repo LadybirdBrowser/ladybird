@@ -29,8 +29,8 @@ StyleValueFFI::StyleValueData const* ImageStyleValue::make_image_url_data(URL co
     auto resource_base_url = style_resource_base_url.has_value() ? style_resource_base_url->to_string() : String {};
     auto resource_base_url_bytes = resource_base_url.bytes();
     return StyleValueFFI::rust_style_value_create_image(
-        { url_string.has_ascii_storage() ? reinterpret_cast<u8 const*>(url_string.ascii_span().data()) : nullptr,
-            url_string.has_ascii_storage() ? nullptr : reinterpret_cast<u16 const*>(url_string.utf16_span().data()), url_string.length_in_code_units() },
+        { url_string.has_latin1_storage() ? url_string.latin1_span().data() : nullptr,
+            url_string.has_latin1_storage() ? nullptr : reinterpret_cast<u16 const*>(url_string.utf16_span().data()), url_string.length_in_code_units() },
         to_underlying(url.type()), modifiers.data(), modifiers.size(),
         { resource_base_url_bytes.data(), nullptr, resource_base_url_bytes.size() }, style_resource_base_url.has_value());
 }

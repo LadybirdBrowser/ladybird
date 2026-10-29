@@ -571,7 +571,7 @@ Optional<Utf16String> canonicalize_unicode_locale_id(Utf16View locale)
 
 Utf16String canonicalize_unicode_extension_values(StringView key, Utf16View value)
 {
-    VERIFY(value.has_ascii_storage());
+    VERIFY(value.is_ascii());
     auto lowercase_value = value.to_ascii_lowercase();
 
     UErrorCode status = U_ZERO_ERROR;

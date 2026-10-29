@@ -997,3 +997,45 @@ TEST_CASE(previous_code_point_at)
         EXPECT_EQ(index, 0u);
     }
 }
+
+TEST_CASE(latin1_storage)
+{
+    // "café", with U+00E9 as one byte.
+    static constexpr u8 bytes[] = { 'c', 'a', 'f', 0xE9 };
+    auto view = Utf16View::from_latin1(bytes, false);
+
+    EXPECT(view.has_latin1_storage());
+    EXPECT(!view.has_ascii_storage());
+    EXPECT(!view.is_ascii());
+    EXPECT(view.validate());
+    EXPECT_EQ(view.length_in_code_units(), 4uz);
+    EXPECT_EQ(view.length_in_code_points(), 4uz);
+    EXPECT_EQ(view.code_unit_at(3), u'é');
+    EXPECT_EQ(view.code_point_at(3), 0xE9u);
+
+    EXPECT_EQ(view, u"café"sv);
+    EXPECT_EQ(view.hash(), u"café"sv.hash());
+    EXPECT_EQ(view.ascii_case_insensitive_hash(), u"CAFé"sv.ascii_case_insensitive_hash());
+    EXPECT(view == "café"sv);
+    EXPECT_EQ(MUST(view.to_utf8()), "café"sv);
+
+    EXPECT_EQ(view.find_code_unit_offset(u'é'), 3uz);
+    EXPECT_EQ(view.find_last_code_point_offset(0xE9), 3uz);
+    EXPECT(!view.find_code_unit_offset(u'ĩ').has_value());
+
+    auto prefix = view.substring_view(0, 3);
+    EXPECT(!prefix.has_ascii_storage());
+    EXPECT(prefix.is_ascii());
+    EXPECT_EQ(StringView { prefix.ascii_bytes() }, "caf"sv);
+}
+
+TEST_CASE(latin1_storage_is_not_utf8)
+{
+    // "Ã©", whose two bytes are the UTF-8 encoding of "é".
+    static constexpr u8 bytes[] = { 0xC3, 0xA9 };
+    auto view = Utf16View::from_latin1(bytes, false);
+
+    EXPECT(view != "é"sv);
+    EXPECT(view == "Ã©"sv);
+    EXPECT_EQ(MUST(view.to_utf8()), "Ã©"sv);
+}
