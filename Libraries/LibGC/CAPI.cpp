@@ -422,6 +422,11 @@ void gc_visitor_visit_values(GCVisitor* visitor, uint64_t const* values, size_t 
     as_visitor(visitor).visit(ReadonlySpan<NanBoxedValue> { reinterpret_cast<NanBoxedValue const*>(values), count });
 }
 
+void gc_visitor_visit_ephemeron(GCVisitor* visitor, GCCell* key, uint64_t const* value)
+{
+    as_visitor(visitor).visit_ephemeron(*from_gc_cell(key), *reinterpret_cast<NanBoxedValue const*>(value));
+}
+
 void gc_visitor_visit_possible_values(GCVisitor* visitor, uint8_t const* data, size_t size)
 {
     as_visitor(visitor).visit_possible_values(ReadonlyBytes { data, size });

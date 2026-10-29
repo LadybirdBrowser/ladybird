@@ -182,6 +182,8 @@ GC_API void gc_weak_impl_unref(GCWeakImpl*);
 GC_API void gc_visitor_visit_cell(GCVisitor*, GCCell*);
 GC_API void gc_visitor_visit_cells(GCVisitor*, GCCell* const*, size_t count);
 GC_API void gc_visitor_visit_values(GCVisitor*, uint64_t const*, size_t count);
+// Visits a NaN-boxed value that is reachable only while key is, such as a WeakMap entry's.
+GC_API void gc_visitor_visit_ephemeron(GCVisitor*, GCCell* key, uint64_t const* value);
 // Treats every aligned word in the range as a possible pointer to a cell or NaN-boxed cell value.
 GC_API void gc_visitor_visit_possible_values(GCVisitor*, uint8_t const*, size_t size);
 

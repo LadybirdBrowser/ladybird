@@ -1252,19 +1252,51 @@ public:
         }
     }
 
+    virtual void visit_ephemeron(Cell& key, NanBoxedValue const& value) override
+    {
+        if (!value.is_cell())
+            return;
+        // NB: This phase does not mark keys outside the domain, so their values stay reachable.
+        if (key.is_marked() || !cell_is_in_domain(key)) {
+            visit(value);
+            return;
+        }
+        m_pending_ephemerons.append({ &key, &value.as_cell() });
+    }
+
     void mark_all_live_cells()
     {
-        while (!m_work_queue.is_empty()) {
-            auto cell = m_work_queue.take_last();
-            if (cell->state() != Cell::State::Live)
-                continue;
-            cell->type_info().visit_edges(cell.ptr(), this);
+        // Marking can reach the key of a pending ephemeron, so repeat until no more values get marked.
+        for (;;) {
+            while (!m_work_queue.is_empty()) {
+                auto cell = m_work_queue.take_last();
+                if (cell->state() != Cell::State::Live)
+                    continue;
+                cell->type_info().visit_edges(cell.ptr(), this);
+            }
+
+            bool marked_a_value = false;
+            m_pending_ephemerons.remove_all_matching([&](auto const& ephemeron) {
+                if (!ephemeron.key->is_marked())
+                    return false;
+                visit(*ephemeron.value);
+                marked_a_value = true;
+                return true;
+            });
+            if (!marked_a_value)
+                break;
         }
     }
 
 private:
+    struct Ephemeron {
+        Cell* key { nullptr };
+        Cell* value { nullptr };
+    };
+
     ReadonlySpan<Heap* const> m_domain;
     Vector<Ref<Cell>> m_work_queue;
+    Vector<Ephemeron> m_pending_ephemerons;
     FlatPtr m_heap_region_start;
     FlatPtr m_heap_region_end;
 };
