@@ -6328,6 +6328,18 @@ pub(crate) fn sync_enrolled_content_for_layout(arena: &mut LayoutNodeArena) {
     arena.sync_enrolled_replaced_content_facts();
 }
 
+const _: () = {
+    const fn assert_sync<T: Sync>() {}
+    assert_sync::<StyleNodeTables>();
+    assert_sync::<BoundRows>();
+    assert_sync::<RowsByStyleNode>();
+    assert_sync::<TextSlots>();
+    assert_sync::<super::memo_invalidations::MemoInvalidations>();
+    assert_sync::<super::tree_update_marks::LayoutTreeUpdateMarks>();
+    assert_sync::<super::trace::TraceRecord>();
+    assert_sync::<crate::painting::svg_paint_resources::SvgPaintResources>();
+};
+
 #[cfg(test)]
 mod tests {
     use std::cell::Cell;
