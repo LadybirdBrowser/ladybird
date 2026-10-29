@@ -130,7 +130,12 @@ impl<'a> StructuredSerializeReader<'a> {
 
     pub(crate) fn decode_utf16_string(&self) -> WebIdlResult<Utf16String> {
         Ok(match self.decoded(self.decoder.decode_utf16_string())? {
-            DecodedString::Ascii(characters) => Utf16String::from_ascii(characters),
+            DecodedString::Latin1(characters) => Utf16String::from_utf16(
+                &characters
+                    .iter()
+                    .map(|&character| u16::from(character))
+                    .collect::<Vec<_>>(),
+            ),
             DecodedString::Utf16(code_units) => Utf16String::from_utf16(&code_units),
         })
     }

@@ -151,43 +151,34 @@ impl RecordEncoder {
         self.data.extend_from_slice(&size.to_ne_bytes());
     }
 
-    /// A string, whose ASCII storage the record keeps: an IPC record holds whether the string has it and the length of
+    /// A string, whose Latin-1 storage the record keeps: an IPC record holds whether the string has it and the length of
     /// the string, and a storage record holds both in one varint, the length shifted left by one.
     pub fn encode_utf16_string(&mut self, string: Utf16StringUnits<'_>) {
-        let (has_ascii_storage, length) = match string {
-            Utf16StringUnits::Ascii(characters) => (true, characters.len()),
-            Utf16StringUnits::Latin1(characters) => (false, characters.len()),
+        let (has_latin1_storage, length) = match string {
+            Utf16StringUnits::Ascii(characters) | Utf16StringUnits::Latin1(characters) => (true, characters.len()),
             Utf16StringUnits::Utf16(code_units) => (false, code_units.len()),
         };
         match self.serialization_type {
             SerializationType::Ipc => {
-                self.encode_bool(has_ascii_storage);
+                self.encode_bool(has_latin1_storage);
                 self.encode_ipc_size(length);
             }
             SerializationType::Storage => {
-                append_unsigned_leb128(&mut self.data, ((length as u64) << 1) | u64::from(has_ascii_storage));
+                append_unsigned_leb128(&mut self.data, ((length as u64) << 1) | u64::from(has_latin1_storage));
             }
         }
         match string {
-            Utf16StringUnits::Ascii(characters) => self.data.extend_from_slice(characters),
-            // FIXME: Serialize Latin-1 as one byte per code unit.
-            Utf16StringUnits::Latin1(characters) => {
-                for &character in characters {
-                    self.encode_utf16_code_unit(u16::from(character));
-                }
+            Utf16StringUnits::Ascii(characters) | Utf16StringUnits::Latin1(characters) => {
+                self.data.extend_from_slice(characters);
             }
             Utf16StringUnits::Utf16(code_units) => {
                 for &code_unit in code_units {
-                    self.encode_utf16_code_unit(code_unit);
+                    match self.serialization_type {
+                        SerializationType::Ipc => self.data.extend_from_slice(&code_unit.to_ne_bytes()),
+                        SerializationType::Storage => self.data.extend_from_slice(&code_unit.to_le_bytes()),
+                    }
                 }
             }
-        }
-    }
-
-    fn encode_utf16_code_unit(&mut self, code_unit: u16) {
-        match self.serialization_type {
-            SerializationType::Ipc => self.data.extend_from_slice(&code_unit.to_ne_bytes()),
-            SerializationType::Storage => self.data.extend_from_slice(&code_unit.to_le_bytes()),
         }
     }
 
@@ -217,10 +208,10 @@ fn storage_size(size: u64) -> Result<usize, DecodeError> {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct DecodeError(pub &'static str);
 
-/// A string that a record holds: the characters of a string with ASCII storage, or the code units of any other.
+/// A string that a record holds: the characters of a string with Latin-1 storage, or the code units of any other.
 #[derive(Debug, PartialEq, Eq)]
 pub enum DecodedString<'a> {
-    Ascii(&'a [u8]),
+    Latin1(&'a [u8]),
     Utf16(Vec<u16>),
 }
 
@@ -399,19 +390,15 @@ impl<'a> RecordDecoder<'a> {
     }
 
     pub fn decode_utf16_string(&self) -> Result<DecodedString<'a>, DecodeError> {
-        let (has_ascii_storage, length) = match self.serialization_type {
+        let (has_latin1_storage, length) = match self.serialization_type {
             SerializationType::Ipc => (self.decode_bool()?, self.decode_size()?),
             SerializationType::Storage => {
                 let header = self.decode_u64()?;
                 (header & 1 != 0, storage_size(header >> 1)?)
             }
         };
-        if has_ascii_storage {
-            let characters = self.read_bytes(length)?;
-            if !characters.is_ascii() {
-                return Err(DecodeError("Invalid ASCII in structured serialization record"));
-            }
-            return Ok(DecodedString::Ascii(characters));
+        if has_latin1_storage {
+            return Ok(DecodedString::Latin1(self.read_bytes(length)?));
         }
         let byte_count = length
             .checked_mul(2)
@@ -525,10 +512,14 @@ mod tests {
     }
 
     #[test]
-    fn a_storage_record_holds_an_ascii_string_as_one_byte_per_code_unit() {
+    fn a_storage_record_holds_a_latin1_string_as_one_byte_per_code_unit() {
         assert_eq!(
             storage(|encoder| encoder.encode_utf16_string(Utf16StringUnits::Ascii(b"AB"))),
             [0x05, b'A', b'B']
+        );
+        assert_eq!(
+            storage(|encoder| encoder.encode_utf16_string(Utf16StringUnits::Latin1(&[b'A', 0xe9]))),
+            [0x05, b'A', 0xe9]
         );
         assert_eq!(
             storage(|encoder| encoder.encode_utf16_string(Utf16StringUnits::Ascii(b""))),
@@ -669,13 +660,13 @@ mod tests {
                     );
                     assert_eq!(
                         decoder.decode_utf16_string(),
-                        Ok(DecodedString::Ascii(b"stored string"))
+                        Ok(DecodedString::Latin1(b"stored string"))
                     );
                     assert_eq!(
                         decoder.decode_utf16_string(),
                         Ok(DecodedString::Utf16(vec![0x68, 0xe9, 0xd83e, 0xdeac]))
                     );
-                    assert_eq!(decoder.decode_utf16_string(), Ok(DecodedString::Ascii(b"")));
+                    assert_eq!(decoder.decode_utf16_string(), Ok(DecodedString::Latin1(b"")));
                     assert_eq!(decoder.decode_bytes(), Ok(&[0xde, 0xad, 0xbe, 0xef][..]));
                     assert_eq!(decoder.decode_big_int(), Ok((true, &[0x01, 0x00][..])));
                 },
@@ -749,9 +740,12 @@ mod tests {
 
     #[test]
     fn a_string_holds_the_characters_its_header_claims() {
-        // ASCII storage that holds a byte that is not ASCII.
+        // Latin-1 storage that holds a byte that is not ASCII.
         let record = storage_record(&[0x03, 0xe9]);
-        assert!(storage_decoder(&record).decode_utf16_string().is_err());
+        assert_eq!(
+            storage_decoder(&record).decode_utf16_string(),
+            Ok(DecodedString::Latin1(&[0xe9]))
+        );
 
         // Fewer bytes than the length claims.
         let record = storage_record(&[0x07, b'a', b'b']);
@@ -765,13 +759,13 @@ mod tests {
         let record = storage_record(&[0x85, 0x00, b'a', b'b']);
         assert_eq!(
             storage_decoder(&record).decode_utf16_string(),
-            Ok(DecodedString::Ascii(b"ab"))
+            Ok(DecodedString::Latin1(b"ab"))
         );
 
         // A string ends at its length, not at the end of the record.
         let record = storage_record(&[0x03, b'a', b'b']);
         let decoder = storage_decoder(&record);
-        assert_eq!(decoder.decode_utf16_string(), Ok(DecodedString::Ascii(b"a")));
+        assert_eq!(decoder.decode_utf16_string(), Ok(DecodedString::Latin1(b"a")));
         assert!(!decoder.is_at_end());
     }
 

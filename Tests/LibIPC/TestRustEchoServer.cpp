@@ -87,6 +87,19 @@ TEST_CASE(values_make_a_round_trip_through_rust)
     EXPECT_EQ(response->bytes(), bytes);
 }
 
+TEST_CASE(latin1_strings_make_a_round_trip_through_rust)
+{
+    auto transport = start_server();
+    // "crème brûlée", with each code unit as one byte.
+    static constexpr u8 code_units[] = { 'c', 'r', 0xE8, 'm', 'e', ' ', 'b', 'r', 0xFB, 'l', 0xE9, 'e' };
+    auto latin1_text = Utf16String::from_utf16(Utf16View::from_latin1(code_units, false));
+    send(*transport, Messages::RustEchoServer::Echo::static_encode(1, ""sv, latin1_text.utf16_view(), {}, {}));
+
+    auto response = receive<Messages::RustEchoServer::EchoResponse>(*transport);
+    EXPECT_EQ(response->utf16_text(), latin1_text);
+    EXPECT(response->utf16_text().utf16_view().has_latin1_storage());
+}
+
 TEST_CASE(strings_with_lone_surrogates_make_a_round_trip_through_rust)
 {
     auto transport = start_server();

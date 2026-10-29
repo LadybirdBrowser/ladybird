@@ -266,12 +266,14 @@ TEST_CASE(storage_reader_rejects_trailing_bytes)
     EXPECT(!storage_deserialize(storage_record_with_value(clean)).is_error());
 }
 
-TEST_CASE(storage_reader_rejects_ascii_flagged_string_with_non_ascii_bytes)
+TEST_CASE(storage_reader_decodes_latin1_flagged_string_with_non_ascii_bytes)
 {
     Vector<u8> value { to_underlying(ValueTag::StringPrimitive) };
-    append_storage_string_header(value, /*is_ascii=*/true, 1);
-    value.append(0x80); // not ASCII
-    EXPECT(storage_deserialize(storage_record_with_value(value)).is_error());
+    append_storage_string_header(value, /*is_latin1=*/true, 1);
+    value.append(0xE9); // U+00E9
+    auto decoded = MUST(storage_deserialize(storage_record_with_value(value)));
+    EXPECT(decoded.is_string());
+    expect_utf16_equals(decoded.as_string().utf16_string(), Utf16String::from_utf8("é"sv));
 }
 
 TEST_CASE(storage_reader_decodes_ascii_content_flagged_as_utf16)
@@ -303,18 +305,18 @@ TEST_CASE(storage_reader_rejects_a_string_with_fewer_bytes_than_its_length_claim
         return storage_record_with_value(value);
     };
 
-    // ASCII: one byte per code unit, so two code units need two bytes — only one is present.
+    // Latin-1: one byte per code unit, so two code units need two bytes — only one is present.
     {
         Vector<u8> body;
-        append_storage_string_header(body, /*is_ascii=*/true, 2);
+        append_storage_string_header(body, /*is_latin1=*/true, 2);
         body.append('h'); // one byte, not two
         EXPECT(storage_deserialize(string_record(body)).is_error());
     }
 
-    // Non-ASCII: two bytes per code unit, so two code units need four bytes — only two are present.
+    // UTF-16: two bytes per code unit, so two code units need four bytes — only two are present.
     {
         Vector<u8> body;
-        append_storage_string_header(body, /*is_ascii=*/false, 2);
+        append_storage_string_header(body, /*is_latin1=*/false, 2);
         append_little_endian_u16(body, u'h'); // one code unit (two bytes), not two
         EXPECT(storage_deserialize(string_record(body)).is_error());
     }
