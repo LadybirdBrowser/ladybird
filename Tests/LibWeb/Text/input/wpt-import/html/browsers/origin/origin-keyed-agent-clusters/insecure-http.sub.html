@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
-<title>Parent requests origin-keying, child requests origin-keying, child is same-origin with the parent, but all over insecure HTTP</title>
+<title>Parent requests origin-keying, child requests origin-keying, child is a subdomain of the parent, but all over insecure HTTP</title>
 <script src="../../../../resources/testharness.js"></script>
 <script src="../../../../resources/testharnessreport.js"></script>
 
@@ -14,8 +14,7 @@ import {
 } from "./resources/helpers.mjs";
 
 promise_setup(async () => {
-  // NB: The text runner assigns this fixture an isolated insecure host. Keep its child on that host.
-  await insertIframe(location.host, "?1");
+  await insertIframe("{{hosts[][www]}}", "?1");
 });
 
 // All origin-keying requests are ignored, since this is over insecure HTTP.
