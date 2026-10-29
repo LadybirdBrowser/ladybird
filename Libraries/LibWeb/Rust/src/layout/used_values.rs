@@ -451,58 +451,6 @@ impl BoxMetricCellsMut for Cell<RootInputCells> {
     }
 }
 
-/// Cells held in frame `held`, read and written in frame `reader`.
-#[derive(Clone, Copy)]
-pub(crate) struct CellsInFrame<'a> {
-    cells: &'a Cell<RootInputCells>,
-    held: geometry::Frame,
-    reader: geometry::Frame,
-}
-
-impl<'a> CellsInFrame<'a> {
-    /// `cells`, held in frame `held`, read in frame `reader`.
-    #[inline]
-    pub(crate) fn of_cells(cells: &'a Cell<RootInputCells>, held: geometry::Frame, reader: geometry::Frame) -> Self {
-        Self { cells, held, reader }
-    }
-
-    /// The frame the cells are read in.
-    pub(crate) fn reader(&self) -> geometry::Frame {
-        self.reader
-    }
-
-    /// Writes the cells, which `write` sees and changes as the reader's frame has them.
-    pub(crate) fn update_cells(self, write: impl FnOnce(&mut RootInputCells)) {
-        let mut cells = self.cells();
-        write(&mut cells);
-        self.cells.set(cells.in_frame(self.reader, self.held));
-    }
-
-    pub(crate) fn set_content_inline_size(self, value: CssPixels) {
-        self.update_cells(|cells| cells.set_content_inline_size(value));
-    }
-
-    pub(crate) fn set_content_block_size(self, value: CssPixels) {
-        self.update_cells(|cells| cells.set_content_block_size(value));
-    }
-
-    /// Resolves every margin, border and padding of `style`, with percentages against `basis`.
-    pub(crate) fn resolve_box_model(self, style: &StyleValues<'_>, basis: CssPixels) {
-        self.update_cells(|cells| cells.resolve_box_model(style, basis));
-    }
-
-    pub(crate) fn set_box_metrics_from_fragment(self, fragment: &fragment_tree::Fragment) {
-        self.update_cells(|cells| cells.take_box_metrics_of_fragment(fragment));
-    }
-}
-
-impl BoxMetricCells for CellsInFrame<'_> {
-    #[inline]
-    fn cells(&self) -> RootInputCells {
-        self.cells.get().in_frame(self.held, self.reader)
-    }
-}
-
 /// The part of a collapsed border that lies after its grid line (below or right of it), the rest lying before it.
 /// A collapsed border "is centered on the grid line" (CSS 2.2 §17.6.2), but layout keeps box edges on whole CSS
 /// pixels, so the border is split on whole pixels, an odd width giving its extra pixel to the part before the line.

@@ -835,7 +835,7 @@ impl<'pass> BlockFormattingContext<'pass> {
 
     /// The cells `child` is laid out in, a box this block formatting context lays out itself.
     #[track_caller]
-    fn record_of<'record>(&self, child: ChildSizedHere<'record>) -> &'record Cell<used_values::RootInputCells> {
+    fn cells_laid_out_here<'cells>(&self, child: ChildSizedHere<'cells>) -> &'cells Cell<used_values::RootInputCells> {
         child
             .cells_laid_out_here()
             .unwrap_or_else(|| panic!("{:?} is sized ahead of its run, not laid out here", child.node))
@@ -843,15 +843,8 @@ impl<'pass> BlockFormattingContext<'pass> {
 
     /// `child`, a box this block formatting context lays out itself, as a box its sizing steps size there.
     #[track_caller]
-    fn sized_record_of<'record>(&self, child: ChildSizedHere<'record>) -> sizing_context::SizedRecord<'record> {
-        sizing_context::SizedRecord::new(
-            child.node,
-            used_values::CellsInFrame::of_cells(
-                self.record_of(child),
-                self.run.callbacks.frame,
-                self.run.callbacks.frame,
-            ),
-        )
+    fn sized_cells_of<'cells>(&self, child: ChildSizedHere<'cells>) -> sizing_context::SizedCells<'cells> {
+        sizing_context::SizedCells::new(child.node, self.cells_laid_out_here(child), self.run.callbacks.frame)
     }
 
     fn register_contained_abspos_child(&self, node: Node, block_offset: CssPixels, block_container: BlockContainer) {
@@ -1955,7 +1948,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         //         box with in-flow children where they collapse through each of them.
         //         (see https://github.com/w3c/csswg-drafts/pull/13699 )
         margins_can_collapse_through_box_itself(self.facts(node), self.style(node), || {
-            self.record_of(sized_child).border_box_block_size(false)
+            self.cells_laid_out_here(sized_child).border_box_block_size(false)
         }) && children.is_none_or(|children| !children.has_child_whose_margins_do_not_collapse_through)
     }
 
@@ -2468,7 +2461,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                     content_offset: Some(content_offset),
                     margin_box_block_end: Some(margin_box_block_end),
                     ..LaidOutBlockLevelBox::of_box(
-                        Self::laid_out_box_in_record_its_layout_owns(sized_child, entry.baselines),
+                        Self::laid_out_box_of_box_laid_out_here(sized_child, entry.baselines),
                         fragment_facts,
                     )
                 });
@@ -2537,7 +2530,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             return Some(LaidOutBlockLevelBox {
                 collapses_through: self.margins_collapse_through(sized_child, None),
                 ..LaidOutBlockLevelBox::of_box(
-                    Self::laid_out_box_in_record_its_layout_owns(sized_child, DerivedBaselines::default()),
+                    Self::laid_out_box_of_box_laid_out_here(sized_child, DerivedBaselines::default()),
                     fragment_facts,
                 )
             });
@@ -2547,8 +2540,8 @@ impl<'pass> BlockFormattingContext<'pass> {
 
         let box_opens_top_margin_group = !has_independent_formatting_context
             && continuation.is_none()
-            && self.record_of(sized_child).border_top() == CssPixels::default()
-            && self.record_of(sized_child).padding_top() == CssPixels::default()
+            && self.cells_laid_out_here(sized_child).border_top() == CssPixels::default()
+            && self.cells_laid_out_here(sized_child).padding_top() == CssPixels::default()
             && !self.margin_state.borrow().has_open_top_margin_group();
 
         let container_facts = self.facts(block_container.node);
@@ -2594,7 +2587,8 @@ impl<'pass> BlockFormattingContext<'pass> {
         );
         let float_avoidance_inline_size = probe.opportunity;
         if !has_independent_formatting_context && let Some(content_inline_size) = probe.content_inline_size {
-            self.record_of(sized_child).set_content_inline_size(content_inline_size);
+            self.cells_laid_out_here(sized_child)
+                .set_content_inline_size(content_inline_size);
         }
         let content_inline_size_now = probe
             .content_inline_size
@@ -2663,8 +2657,8 @@ impl<'pass> BlockFormattingContext<'pass> {
         } else {
             CssPixels::default()
         };
-        if continuation.is_some() && self.record_of(sized_child).has_definite_block_size() {
-            let used = self.record_of(sized_child);
+        if continuation.is_some() && self.cells_laid_out_here(sized_child).has_definite_block_size() {
+            let used = self.cells_laid_out_here(sized_child);
             used.set_content_block_size(
                 (used.content_block_size() - continuation_inner_size_excess).max(CssPixels::default()),
             );
@@ -2778,11 +2772,11 @@ impl<'pass> BlockFormattingContext<'pass> {
             let space_available_for_children = if facts.is_anonymous() {
                 available_space
             } else {
-                self.record_of(sized_child)
+                self.cells_laid_out_here(sized_child)
                     .available_inner_space_or_constraints_from(available_space)
             };
-            if self.record_of(sized_child).border_top() > CssPixels::default()
-                || self.record_of(sized_child).padding_top() > CssPixels::default()
+            if self.cells_laid_out_here(sized_child).border_top() > CssPixels::default()
+                || self.cells_laid_out_here(sized_child).padding_top() > CssPixels::default()
             {
                 // margin-top of block container can't collapse with its children if it has non-zero border or padding.
                 self.margin_state.borrow_mut().reset();
@@ -2795,8 +2789,8 @@ impl<'pass> BlockFormattingContext<'pass> {
                 self.discard_block_start_margin_of_next_child.set(
                     discards_block_start_margin
                         && !facts.children_are_inline()
-                        && self.record_of(sized_child).border_top() == CssPixels::default()
-                        && self.record_of(sized_child).padding_top() == CssPixels::default(),
+                        && self.cells_laid_out_here(sized_child).border_top() == CssPixels::default()
+                        && self.cells_laid_out_here(sized_child).padding_top() == CssPixels::default(),
                 );
             }
             let content_box_position_in_root = FfiCssPixelPoint {
@@ -2833,7 +2827,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 let final_content_block_offset = if introduced_clearance {
                     content_block_offset
                 } else {
-                    block_offset + resolved_margin_top + self.record_of(sized_child).border_box_top(false)
+                    block_offset + resolved_margin_top + self.cells_laid_out_here(sized_child).border_box_top(false)
                 };
                 if box_is_positioned_by_fieldset_layout {
                     legend_flow_position = Some(geometry::LogicalOffset {
@@ -2876,14 +2870,14 @@ impl<'pass> BlockFormattingContext<'pass> {
         {
             let content_block_size = self.compute_automatic_block_size_for_block_level_element(
                 sized_child,
-                self.record_of(sized_child)
+                self.cells_laid_out_here(sized_child)
                     .available_inner_space_or_constraints_from(available_space_for_block_size_resolution),
                 input.containing_block_constraints,
                 None,
                 summary_of_children_laid_out_in_this_flow.as_ref(),
             );
             self.sizing().apply_automatic_minimum_block_size_from_aspect_ratio(
-                self.sized_record_of(sized_child),
+                self.sized_cells_of(sized_child),
                 available_space_for_block_size_resolution,
                 input.containing_block_constraints,
                 Some(content_block_size),
@@ -2922,13 +2916,15 @@ impl<'pass> BlockFormattingContext<'pass> {
                 let block_size = fragmentainer.block_size?;
                 let content_block_start_in_root = content_block_start_in_root?;
                 let can_break_after_block_start_edges = self.box_can_break_inside(node, has_unbreakable_lines)
-                    && content_block_start_in_root - self.record_of(sized_child).border_box_top(false) < block_size;
+                    && content_block_start_in_root - self.cells_laid_out_here(sized_child).border_box_top(false)
+                        < block_size;
                 if can_break_after_block_start_edges && content_block_start_in_root > block_size {
                     fragmentainer.note_space_shortage(content_block_start_in_root);
                 }
                 let breaks_inside = can_break_after_block_start_edges
                     && content_block_start_in_root <= block_size
-                    && content_block_start_in_root + self.record_of(sized_child).content_block_size() > block_size
+                    && content_block_start_in_root + self.cells_laid_out_here(sized_child).content_block_size()
+                        > block_size
                     && content_block_start_in_root
                         + children
                             .map_or(CssPixels::default(), ChildrenSummary::block_end_of_content)
@@ -2943,7 +2939,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 })
             });
             if let Some(mut token) = broken_token {
-                let used = self.record_of(sized_child);
+                let used = self.cells_laid_out_here(sized_child);
                 if let (Some(block_size), Some(content_block_start_in_root)) =
                     (fragmentainer.block_size, content_block_start_in_root)
                 {
@@ -3106,7 +3102,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             has_unbreakable_lines,
             collapses_through,
             laid_out_box: laid_out_box_handed_back_by_its_run.unwrap_or_else(|| {
-                Self::laid_out_box_in_record_its_layout_owns(
+                Self::laid_out_box_of_box_laid_out_here(
                     sized_child,
                     baselines_of_contents_laid_out_in_this_flow.unwrap_or_default(),
                 )
@@ -3119,7 +3115,7 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 
     /// The box `child` as this flow laid it out in cells its layout owns, with the `baselines` of its contents.
-    fn laid_out_box_in_record_its_layout_owns(
+    fn laid_out_box_of_box_laid_out_here(
         child: ChildSizedHere<'_>,
         baselines: DerivedBaselines,
     ) -> run_records::LaidOutChildBox {
@@ -3226,7 +3222,7 @@ impl<'pass> BlockFormattingContext<'pass> {
     ) -> (FfiCssPixelPoint, CssPixels) {
         let node = sized_child.node;
         self.run.callbacks.arena().layout_trace.reused_in_flow_subtree(node);
-        self.record_of(sized_child).set(entry.cells);
+        self.cells_laid_out_here(sized_child).set(entry.cells);
         let flow_position = self.flow_position();
         *self.margin_state.borrow_mut() = entry.outgoing_margins.clone();
         formatting_context::propagate_percentage_block_size_dependency_to_containing_block(
@@ -3285,7 +3281,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let Some((content_offset, placed)) = placed else {
             return;
         };
-        let used = self.record_of(sized_child);
+        let used = self.cells_laid_out_here(sized_child);
         // NB: A reused child tells its parent that margins do not collapse through it, which holds only for a child
         //     whose border box has a block size.
         let reusable = !placed.exports_payloads
@@ -3666,7 +3662,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         children: Option<&ChildrenSummary>,
     ) {
         let node = sized_child.node;
-        let used = self.record_of(sized_child);
+        let used = self.cells_laid_out_here(sized_child);
         if used.has_definite_block_size() {
             used.set_content_block_size((used.content_block_size() - consumed_block_size).max(CssPixels::default()));
             return;
@@ -5050,7 +5046,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             } else {
                 margin_state.current_collapsed_margin()
             };
-            let used = self.record_of(sized_child);
+            let used = self.cells_laid_out_here(sized_child);
             if used.padding_bottom() == CssPixels::default() && used.border_bottom() == CssPixels::default() {
                 margin_state.box_last_in_flow_child_margin_bottom_collapsed = true;
                 margin_bottom = CssPixels::default();
