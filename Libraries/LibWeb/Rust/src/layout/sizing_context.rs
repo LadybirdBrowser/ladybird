@@ -775,6 +775,17 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         // 10.4 Minimum and maximum widths: 'min-width' and 'max-width'
         // https://www.w3.org/TR/CSS22/visudet.html#min-max-widths
         let style = self.style(node);
+        // NB: With no natural ratio, auto uses the specified fallback ratio. Transfer the tentative inline
+        //     size before applying constraints so the tentative dimensions follow that ratio.
+        let input_block_size = if style.aspect_ratio_uses_natural_when_available()
+            && self.facts(node).has_preferred_aspect_ratio()
+            && (self.facts(node).node_has_size_containment()
+                || self.auto_content_size(node).aspect_ratio.is_none())
+        {
+            self.content_block_size_from_aspect_ratio(sized, input_inline_size)
+        } else {
+            input_block_size
+        };
         let min_inline = if is_plain_auto(style.min_width()) {
             CssPixels::default()
         } else {
@@ -4274,5 +4285,161 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             SizingAxis::Inline => self.should_treat_inline_size_as_auto(sized, available_space),
             SizingAxis::Block => self.should_treat_block_size_as_auto(sized, available_space, constraints),
         }
+    }
+}
+
+#[cfg(test)]
+mod replaced_ratio_tests {
+    use super::*;
+    use crate::css::computed_values::{
+        BoxValues, GroupPayloadRef, SizingValues, clone_group_payload, release_group_payload,
+    };
+    use crate::css::style_value::{RetainedStyleValueData, StyleValueData};
+    use crate::css::table_group_builder::group_index;
+    use crate::layout::formatting_context::LayoutStageFacts;
+    use crate::layout::layout_node_arena::LayoutNodeArena;
+    use crate::layout::node_data::{NodeConstructionFacts, NodeKind, StylePayloadsRef};
+    use crate::layout::run_records::LayoutScratch;
+
+    unsafe extern "C" fn unused_container_bases(
+        _: *mut c_void,
+        _: u32,
+    ) -> svg_formatting_context::FfiContainerLengthBases {
+        unreachable!("replaced ratio tests use absolute lengths")
+    }
+
+    fn size(
+        width: Option<i64>,
+        height: Option<i64>,
+        ratio: Option<(i64, i64)>,
+        fallback: bool,
+        contained: bool,
+    ) -> (i32, i32) {
+        let mut arena = LayoutNodeArena::new();
+        let scratch = LayoutScratch::default();
+        let mut style = FfiStylePayloads {
+            groups: std::array::from_fn(|index| GroupPayloadRef::default_payload(index).as_ptr()),
+        };
+        // SAFETY: Each cloned immortal default payload is private until installed in this test's arena.
+        let box_payload = unsafe { clone_group_payload(group_index::BOX, style.groups[group_index::BOX]) };
+        let sizing_payload = unsafe { clone_group_payload(group_index::SIZING, style.groups[group_index::SIZING]) };
+        // SAFETY: These clones have the corresponding payload layouts and no readers yet.
+        unsafe {
+            let box_values = &mut *box_payload.cast::<BoxValues>();
+            box_values.display = crate::css::display::FfiDisplay::block();
+            box_values.aspect_ratio.has_preferred_ratio = fallback;
+            box_values.aspect_ratio.preferred_ratio_numerator = 2.0;
+            box_values.aspect_ratio.preferred_ratio_denominator = 1.0;
+            box_values.size_containment = contained;
+            let length = RetainedStyleValueData::from_owned(StyleValueData::Length {
+                value: 40.0,
+                unit: crate::css::style_compute::px_length_unit(),
+            });
+            (*sizing_payload.cast::<SizingValues>()).max_height = ComputedSize::from_data(&length);
+        }
+        style.groups[group_index::BOX] = box_payload;
+        style.groups[group_index::SIZING] = sizing_payload;
+        let node = arena.allocate(NodeConstructionFacts {
+            kind: NodeKind::ImageBox,
+            is_anonymous: false,
+            is_html_input_element: false,
+            is_html_html_element: false,
+            is_document_element: false,
+            is_in_user_agent_shadow_tree: false,
+            uses_button_layout: false,
+            is_editing_host: false,
+            is_body: false,
+            dom_paint_facts: 0,
+            style_node: 0,
+        });
+        arena.set_node_style(node, 0, StylePayloadsRef::new(&raw const style));
+        arena.set_replaced_content_facts(
+            node,
+            node_facts::ReplacedContentFacts {
+                auto_content_size: formatting_context::ReplacedIntrinsicSize {
+                    width: width.map(CssPixels::from_integer),
+                    height: height.map(CssPixels::from_integer),
+                    aspect_ratio: ratio.map(|(numerator, denominator)| formatting_context::PixelFraction {
+                        numerator: CssPixels::from_integer(numerator),
+                        denominator: CssPixels::from_integer(denominator),
+                    }),
+                },
+                ..Default::default()
+            },
+        );
+        let callbacks = LayoutPass::new(
+            &arena,
+            &scratch,
+            LayoutStageFacts {
+                container_length_bases: layout_pass::ContainerLengthBasesQuery::new(
+                    std::ptr::null_mut(),
+                    unused_container_bases,
+                )
+                .sealed(),
+                viewport_inline_size: CssPixels::from_integer(800),
+                viewport_block_size: CssPixels::from_integer(600),
+                document_in_quirks_mode: false,
+            },
+        );
+        let result = RunRecords::with_root(
+            callbacks,
+            node,
+            Node::INVALID,
+            used_values::RootInputCells::capture(&UsedValues::default()),
+            callbacks.frame,
+            |records, callbacks| {
+                let context = SizingContext::new(records, callbacks);
+                let mut metrics = used_values::RootInputCells::capture(&UsedValues::default());
+                let available = AvailableSpace {
+                    inline_size: AvailableSize::Definite(CssPixels::from_integer(800)),
+                    block_size: AvailableSize::Indefinite,
+                };
+                let constraints = ContainingBlockConstraints::default();
+                let inline = context.compute_inline_size_for_replaced_element(
+                    SizedBox::new(node, &metrics),
+                    available,
+                    constraints,
+                );
+                // NB: Match dimension_atomic_root: publish the used inline size before resolving the block size.
+                metrics.set_content_inline_size(inline);
+                let block = context.compute_block_size_for_replaced_element(
+                    SizedBox::new(node, &metrics),
+                    available,
+                    constraints,
+                );
+                (inline.to_int(), block.to_int())
+            },
+        );
+        arena
+            .free_subtree(node)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
+        release_group_payload(group_index::SIZING, sizing_payload);
+        release_group_payload(group_index::BOX, box_payload);
+        result
+    }
+
+    #[test]
+    fn auto_ratio_width_only_is_constrained_through_the_fallback_ratio() {
+        assert_eq!(size(Some(100), None, None, true, false), (80, 40));
+    }
+
+    #[test]
+    fn auto_ratio_height_only_is_constrained_through_the_fallback_ratio() {
+        assert_eq!(size(None, Some(100), None, true, false), (80, 40));
+    }
+
+    #[test]
+    fn auto_ratio_preserves_the_natural_ratio() {
+        assert_eq!(size(Some(100), Some(100), Some((1, 1)), true, false), (40, 40));
+    }
+
+    #[test]
+    fn plain_auto_without_a_ratio_keeps_independent_dimensions() {
+        assert_eq!(size(Some(100), Some(20), None, false, false), (100, 20));
+    }
+
+    #[test]
+    fn size_containment_uses_the_fallback_ratio_with_explicit_inner_sizes() {
+        assert_eq!(size(Some(100), Some(20), None, true, true), (80, 40));
     }
 }
