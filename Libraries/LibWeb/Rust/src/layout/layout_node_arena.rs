@@ -1165,22 +1165,22 @@ pub(crate) struct LayoutNodeArena {
     shape_writes: ShapeWrites,
     chunks_by_address: Vec<ChunkAddress>,
     slot_metadata: Vec<SlotMetadata>,
-    style_records: Vec<Cell<u64>>,
+    style_records: Vec<u64>,
     /// The style record whose image resources the host was last owed for each row, or zero. A row whose record has not
     /// changed since holds those resources still, so a build that visits it again owes it nothing.
-    image_resources_owed_records: Vec<Cell<u64>>,
-    style_record_pins: Vec<Cell<ArenaStylePin>>,
+    image_resources_owed_records: Vec<u64>,
+    style_record_pins: Vec<ArenaStylePin>,
     /// The style record the host pinned for its readers of a row that outlive the row's place in
     /// the tree (a detached box is read until its row is freed), or zero. A pin is counted, so this
     /// is a pin of its own beside the arena's, and it names the record it took rather than whichever
     /// record the row holds when it goes.
-    style_records_pinned_by_host: Vec<Cell<u64>>,
+    style_records_pinned_by_host: Vec<u64>,
     /// The StyleNodeID of the element or text node each row is bound to, or of the element it is
     /// generated for. Rows carrying one identity are chained through `next_rows_with_same_style_node`
     /// from `first_rows_by_style_node`, so retiring an identity reaches every row that carries it,
     /// bound or not, before the identity can be reused.
-    style_nodes: Vec<Cell<Option<StyleNodeID>>>,
-    next_rows_with_same_style_node: Vec<Cell<NodeSlotId>>,
+    style_nodes: Vec<Option<StyleNodeID>>,
+    next_rows_with_same_style_node: Vec<NodeSlotId>,
     first_rows_by_style_node: RowsByStyleNode,
     /// The row each element or text node is bound to: the row its layout node is. Carrying the
     /// identity does not make a row bound, since first-letter slices and rows awaiting a rebuild
@@ -1220,7 +1220,7 @@ pub(crate) struct LayoutNodeArena {
     layout_commit_count: u64,
     committed_subtree_tokens: Vec<u32>,
     layout_tree_build_stats: FfiLayoutTreeBuildStats,
-    pre_order_labels: Vec<Cell<u64>>,
+    pre_order_labels: Vec<u64>,
     pre_order_relabel_count: u64,
     free_list: Vec<u32>,
     next_index: u32,
@@ -1240,7 +1240,7 @@ pub(crate) struct LayoutNodeArena {
     /// The rows built for one DOM node, chained into a ring through the rows themselves; a row that
     /// is the only one built for its node links to nothing. The chain lives on the rows rather than
     /// under a key so that it survives the node's identity being retired and re-issued.
-    next_rows_built_for_same_node: Vec<Cell<NodeSlotId>>,
+    next_rows_built_for_same_node: Vec<NodeSlotId>,
     /// What writes since the layout stage last looked did to the boxes its run memos hold entries of.
     memo_invalidations: RefCell<super::memo_invalidations::MemoInvalidations>,
     pub(super) layout_trace: super::trace::LayoutTrace,
@@ -1601,14 +1601,14 @@ impl LayoutNodeArena {
                 self.shape_writes.add_chunk(chunk_index);
             }
             self.slot_metadata.push(SlotMetadata::default());
-            self.style_records.push(Cell::new(0));
-            self.image_resources_owed_records.push(Cell::new(0));
-            self.style_record_pins.push(Cell::new(ArenaStylePin::None));
-            self.style_records_pinned_by_host.push(Cell::new(0));
-            self.style_nodes.push(Cell::new(None));
-            self.next_rows_with_same_style_node.push(Cell::new(NodeSlotId::INVALID));
-            self.next_rows_built_for_same_node.push(Cell::new(NodeSlotId::INVALID));
-            self.pre_order_labels.push(Cell::new(0));
+            self.style_records.push(0);
+            self.image_resources_owed_records.push(0);
+            self.style_record_pins.push(ArenaStylePin::None);
+            self.style_records_pinned_by_host.push(0);
+            self.style_nodes.push(None);
+            self.next_rows_with_same_style_node.push(NodeSlotId::INVALID);
+            self.next_rows_built_for_same_node.push(NodeSlotId::INVALID);
+            self.pre_order_labels.push(0);
             self.next_index = self
                 .next_index
                 .checked_add(1)
@@ -1661,10 +1661,10 @@ impl LayoutNodeArena {
         let mut paintable_row_resets = Vec::new();
         let mut arena_pinned_style_records = Vec::new();
         for &slot in &rows {
-            if self.style_record_pins[slot.slot_index() as usize].get() != ArenaStylePin::None {
-                arena_pinned_style_records.push(self.style_records[slot.slot_index() as usize].get());
+            if self.style_record_pins[slot.slot_index() as usize] != ArenaStylePin::None {
+                arena_pinned_style_records.push(self.style_records[slot.slot_index() as usize]);
             }
-            let host_pinned_style_record = self.style_records_pinned_by_host[slot.slot_index() as usize].get();
+            let host_pinned_style_record = self.style_records_pinned_by_host[slot.slot_index() as usize];
             if host_pinned_style_record != 0 {
                 arena_pinned_style_records.push(host_pinned_style_record);
             }
@@ -1722,16 +1722,16 @@ impl LayoutNodeArena {
         }
         self.inline_boxes_lifted_out_of.remove(&id);
         self.out_of_flow_positioning_contained.remove(&id);
-        self.pre_order_labels[index as usize].set(0);
+        self.pre_order_labels[index as usize] = 0;
         self.partial_relayout_boundary_roots.note_freed(id);
         self.metadata_mut(index).occupied = false;
         self.forget_row_sharing_dom_node(id);
         self.unbind_row(id);
         self.set_node_style_node(id, None);
-        self.style_records[index as usize].set(0);
-        self.image_resources_owed_records[index as usize].set(0);
-        self.style_record_pins[index as usize].set(ArenaStylePin::None);
-        self.style_records_pinned_by_host[index as usize].set(0);
+        self.style_records[index as usize] = 0;
+        self.image_resources_owed_records[index as usize] = 0;
+        self.style_record_pins[index as usize] = ArenaStylePin::None;
+        self.style_records_pinned_by_host[index as usize] = 0;
 
         self.intrinsic_size_cache_drops.push(index);
         if let Some(slot) = self.default_scroll_shift_anchors.get_mut(index as usize) {
@@ -1828,7 +1828,7 @@ impl LayoutNodeArena {
             |index| {
                 self.style_record_pins
                     .get(index)
-                    .is_some_and(|pin| pin.get() == ArenaStylePin::Derived)
+                    .is_some_and(|&pin| pin == ArenaStylePin::Derived)
             },
             &self.shape_writes,
         )
@@ -1856,7 +1856,7 @@ impl LayoutNodeArena {
         if !self.slot_is_live(id) {
             return None;
         }
-        self.style_nodes[id.slot_index() as usize].get()
+        self.style_nodes[id.slot_index() as usize]
     }
 
     /// The style node of the DOM node a row stands for. An anonymous row, which includes a
@@ -1921,7 +1921,7 @@ impl LayoutNodeArena {
 
     fn set_node_style_node(&mut self, id: NodeSlotId, style_node: Option<StyleNodeID>) {
         let index = id.slot_index() as usize;
-        let previous = self.style_nodes[index].get();
+        let previous = self.style_nodes[index];
         if previous == style_node {
             return;
         }
@@ -1930,27 +1930,27 @@ impl LayoutNodeArena {
             self.replace_bound_row(BoundNode::of(previous, generated_for), id, NodeSlotId::INVALID)
         });
         if let Some(previous) = previous {
-            let next = self.next_rows_with_same_style_node[index].replace(NodeSlotId::INVALID);
+            let next = std::mem::replace(&mut self.next_rows_with_same_style_node[index], NodeSlotId::INVALID);
             let head = self.first_rows_by_style_node.head_mut(previous);
             if *head == id {
                 *head = next;
             } else {
                 let mut row = *head;
                 loop {
-                    let link = &self.next_rows_with_same_style_node[row.slot_index() as usize];
-                    if link.get() == id {
-                        link.set(next);
+                    let link = &mut self.next_rows_with_same_style_node[row.slot_index() as usize];
+                    if *link == id {
+                        *link = next;
                         break;
                     }
-                    row = link.get();
+                    row = *link;
                 }
             }
         }
-        self.style_nodes[index].set(style_node);
+        self.style_nodes[index] = style_node;
         self.write_shape(id).mark_identity();
         if let Some(style_node) = style_node {
             let head = self.first_rows_by_style_node.head_mut(style_node);
-            self.next_rows_with_same_style_node[index].set(*head);
+            self.next_rows_with_same_style_node[index] = *head;
             *head = id;
             if was_bound {
                 self.set_bound_row(BoundNode::of(style_node, generated_for), id);
@@ -1993,7 +1993,7 @@ impl LayoutNodeArena {
 
     /// The node a row can be bound to, if any.
     fn bound_node_of(&self, id: NodeSlotId) -> Option<BoundNode> {
-        if let Some(style_node) = self.style_nodes[id.slot_index() as usize].get() {
+        if let Some(style_node) = self.style_nodes[id.slot_index() as usize] {
             return Some(BoundNode::of(style_node, self.data(id).generated_for.get()));
         }
         if self.data(id).kind.get() == NodeKind::Viewport {
@@ -2383,7 +2383,11 @@ impl LayoutNodeArena {
         let previous = self.replace_style_record(id.slot_index() as usize, style_record);
         self.shape_writes.note_style();
         self.write_shape(id).mark();
-        if self.style_record_pins[id.slot_index() as usize].replace(ArenaStylePin::None) != ArenaStylePin::None {
+        if std::mem::replace(
+            &mut self.style_record_pins[id.slot_index() as usize],
+            ArenaStylePin::None,
+        ) != ArenaStylePin::None
+        {
             self.with_style_engine(|engine| engine.unpin_layout_style_record(previous));
         }
         self.enroll_text_children_for_content_sync(id);
@@ -2459,7 +2463,7 @@ impl LayoutNodeArena {
             if !matches!(
                 self.data(slot).kind.get(),
                 NodeKind::Box | NodeKind::BlockContainer | NodeKind::InlineNode
-            ) || self.style_records[slot.slot_index() as usize].get() != row.old_style_record
+            ) || self.style_records[slot.slot_index() as usize] != row.old_style_record
                 || self.node_style_record_is_derived(slot)
                 || self.node_style_record_pinned_by_host(slot) != 0
                 || (!parent.is_invalid() && self.data(parent).kind.get() == NodeKind::TableWrapper)
@@ -2550,10 +2554,10 @@ impl LayoutNodeArena {
         }
         // A record the host pinned for its own readers stays theirs until the host installs the row, beside the one
         // the box shows.
-        if self.style_records[slot.slot_index() as usize].get() != row.old_style_record {
+        if self.style_records[slot.slot_index() as usize] != row.old_style_record {
             return Some("a box that shows another record".into());
         }
-        if self.style_record_pins[slot.slot_index() as usize].get() == ArenaStylePin::Sampled {
+        if self.style_record_pins[slot.slot_index() as usize] == ArenaStylePin::Sampled {
             return Some("a box that shows an animation sample".into());
         }
         if self.node_style_record_is_derived(slot) {
@@ -2571,7 +2575,7 @@ impl LayoutNodeArena {
         generated_for: u8,
     ) -> bool {
         let slot = self.hover_row_box(row, generated_for);
-        slot.is_invalid() || self.style_records[slot.slot_index() as usize].get() == row.new_style_record
+        slot.is_invalid() || self.style_records[slot.slot_index() as usize] == row.new_style_record
     }
 
     /// Installs the record `row` of a hover's style transaction moves to in the box of its element or pseudo-element,
@@ -2644,7 +2648,7 @@ impl LayoutNodeArena {
         matches!(
             self.data(row).kind.get(),
             NodeKind::Box | NodeKind::BlockContainer | NodeKind::InlineNode
-        ) && self.style_record_pins[row.slot_index() as usize].get() != ArenaStylePin::Derived
+        ) && self.style_record_pins[row.slot_index() as usize] != ArenaStylePin::Derived
             && (kind == SampleKind::Transition || self.node_style_record_pinned_by_host(row) == 0)
             && self.node_style_node(row).is_some()
             && (parent.is_invalid() || self.data(parent).kind.get() != NodeKind::TableWrapper)
@@ -2700,7 +2704,7 @@ impl LayoutNodeArena {
                         && flags & NodeFlag::IsPseudoElementPrincipalBox as u32 == 0
                         && data.generated_for.get() == 0
                         && matches!(
-                            self.style_record_pins[child.slot_index() as usize].get(),
+                            self.style_record_pins[child.slot_index() as usize],
                             ArenaStylePin::Derived | ArenaStylePin::Sampled
                         );
                     if !wraps {
@@ -2755,18 +2759,18 @@ impl LayoutNodeArena {
         relayout: StyleRelayout,
     ) -> Option<HostStyle> {
         let index = row.slot_index() as usize;
-        let host_style = match self.style_record_pins[index].get() {
+        let host_style = match self.style_record_pins[index] {
             ArenaStylePin::Sampled => {
-                let previous = self.style_records[index].get();
+                let previous = self.style_records[index];
                 self.with_style_engine(|engine| engine.unpin_layout_style_record(previous));
                 None
             }
             pin => Some(HostStyle {
-                record: self.style_records[index].get(),
+                record: self.style_records[index],
                 pin,
             }),
         };
-        self.style_record_pins[index].set(ArenaStylePin::Sampled);
+        self.style_record_pins[index] = ArenaStylePin::Sampled;
         self.show_style(row, self.node_style_node(row), sample, relayout);
         host_style
     }
@@ -2807,10 +2811,10 @@ impl LayoutNodeArena {
     pub(crate) fn restore_host_style(&mut self, row: NodeSlotId, host_style: HostStyle, relayout: StyleRelayout) {
         let index = row.slot_index() as usize;
         assert!(
-            self.style_record_pins[index].get() == ArenaStylePin::Sampled,
+            self.style_record_pins[index] == ArenaStylePin::Sampled,
             "a box shows a sample until its host's style is restored"
         );
-        let sample = self.style_records[index].get();
+        let sample = self.style_records[index];
         self.with_style_engine(|engine| engine.unpin_layout_style_record(sample));
         let HostStyle { record, pin } = host_style;
         let payloads = self.with_style_engine(|engine| {
@@ -2819,7 +2823,7 @@ impl LayoutNodeArena {
                 .expect("the host's style record is live while a box shows a sample")
                 .as_ptr()
         });
-        self.style_record_pins[index].set(pin);
+        self.style_record_pins[index] = pin;
         self.show_style(
             row,
             self.node_style_node(row),
@@ -2946,10 +2950,10 @@ impl LayoutNodeArena {
 
     /// Gives the row at `index` the style record `record`, answering the one it held. A row whose record changes no
     /// longer holds the image resources it was owed for the old one.
-    fn replace_style_record(&self, index: usize, record: u64) -> u64 {
-        let previous = self.style_records[index].replace(record);
+    fn replace_style_record(&mut self, index: usize, record: u64) -> u64 {
+        let previous = std::mem::replace(&mut self.style_records[index], record);
         if previous != record {
-            self.image_resources_owed_records[index].set(0);
+            self.image_resources_owed_records[index] = 0;
         }
         previous
     }
@@ -2958,7 +2962,7 @@ impl LayoutNodeArena {
     /// if so. The host attached them already where it was owed them for the record the row still holds. Boxes whose
     /// paint facts also follow their element's own state, such as a form control's or a media element's, are owed
     /// them on every visit.
-    pub(crate) fn owe_style_image_resources_once(&self, id: NodeSlotId) -> bool {
+    pub(crate) fn owe_style_image_resources_once(&mut self, id: NodeSlotId) -> bool {
         // NB: These are the kinds whose paint facts push_paint_facts_after_style_attach() in Painting/PaintFacts.cpp
         //     takes from their element, and the two must stay in sync.
         if matches!(
@@ -2973,8 +2977,8 @@ impl LayoutNodeArena {
             return true;
         }
         let index = id.slot_index() as usize;
-        let record = self.style_records[index].get();
-        record == 0 || self.image_resources_owed_records[index].replace(record) != record
+        let record = self.style_records[index];
+        record == 0 || std::mem::replace(&mut self.image_resources_owed_records[index], record) != record
     }
 
     pub(crate) fn node_style_record(&self, id: NodeSlotId) -> u64 {
@@ -2982,7 +2986,7 @@ impl LayoutNodeArena {
             self.slot_is_live(id),
             "layout node arena read the style record of a dead slot"
         );
-        self.style_records[id.slot_index() as usize].get()
+        self.style_records[id.slot_index() as usize]
     }
 
     /// Whether the row's record is one the arena derived for it rather than one its node published.
@@ -2991,16 +2995,16 @@ impl LayoutNodeArena {
             self.slot_is_live(id),
             "layout node arena read the style pin of a dead slot"
         );
-        self.style_record_pins[id.slot_index() as usize].get() == ArenaStylePin::Derived
+        self.style_record_pins[id.slot_index() as usize] == ArenaStylePin::Derived
     }
 
     /// Pins the style record of a row that is leaving the layout tree for the host's readers, which
     /// read it until the row is freed. A text row has no record of its own.
-    pub(crate) fn pin_style_record_for_detachment(&self, row: NodeSlotId) {
+    pub(crate) fn pin_style_record_for_detachment(&mut self, row: NodeSlotId) {
         if !super::tree_builder::node_kind_is_node_with_style(self.data(row).kind.get()) {
             return;
         }
-        let style_record = self.style_records[row.slot_index() as usize].get();
+        let style_record = self.style_records[row.slot_index() as usize];
         if style_record != 0 {
             self.pin_node_style_record_for_host(row, style_record);
         }
@@ -3008,19 +3012,19 @@ impl LayoutNodeArena {
 
     /// Pins `record` for the host's readers of `id`. A row holds at most one such pin; asking again
     /// while one is held keeps the one it has.
-    pub(crate) fn pin_node_style_record_for_host(&self, id: NodeSlotId, record: u64) {
+    pub(crate) fn pin_node_style_record_for_host(&mut self, id: NodeSlotId, record: u64) {
         assert!(record != 0, "a row pinned a null style record for its host");
-        let pinned = &self.style_records_pinned_by_host[id.slot_index() as usize];
-        if pinned.get() != 0 {
+        let pinned = &mut self.style_records_pinned_by_host[id.slot_index() as usize];
+        if *pinned != 0 {
             return;
         }
-        pinned.set(record);
+        *pinned = record;
         self.with_style_engine(|engine| engine.pin_layout_style_record(record));
     }
 
     /// Releases the pin the host holds on `id`'s style record, if it holds one.
-    pub(crate) fn release_node_style_record_pin_for_host(&self, id: NodeSlotId) {
-        let record = self.style_records_pinned_by_host[id.slot_index() as usize].replace(0);
+    pub(crate) fn release_node_style_record_pin_for_host(&mut self, id: NodeSlotId) {
+        let record = std::mem::replace(&mut self.style_records_pinned_by_host[id.slot_index() as usize], 0);
         if record != 0 {
             self.with_style_engine(|engine| engine.unpin_layout_style_record(record));
         }
@@ -3028,7 +3032,7 @@ impl LayoutNodeArena {
 
     /// The style record the host pinned for `id`, or zero.
     pub(crate) fn node_style_record_pinned_by_host(&self, id: NodeSlotId) -> u64 {
-        self.style_records_pinned_by_host[id.slot_index() as usize].get()
+        self.style_records_pinned_by_host[id.slot_index() as usize]
     }
 
     pub(crate) fn set_style_engine(&self, style_engine: crate::css::style::StyleEngineHandle) {
@@ -3972,7 +3976,7 @@ impl LayoutNodeArena {
         let mut records: Vec<_> = self
             .style_records
             .iter()
-            .map(Cell::get)
+            .copied()
             .filter(|&record| record != 0)
             .collect();
         records.sort_unstable();
@@ -4103,7 +4107,7 @@ impl LayoutNodeArena {
         if self.set_node_style(slot, published.record, published.payloads) {
             self.refresh_style_flags(slot);
         }
-        self.style_record_pins[slot.slot_index() as usize].set(ArenaStylePin::Published);
+        self.style_record_pins[slot.slot_index() as usize] = ArenaStylePin::Published;
         self.enroll_node_for_svg_paint_resources_sync(slot);
     }
 
@@ -4207,7 +4211,8 @@ impl LayoutNodeArena {
         data.set_kind(kind);
         data.set_flags(super::node_facts::construction_flags(kind, true, 0));
         self.replace_style_record(slot.slot_index() as usize, derived.record);
-        self.style_record_pins[slot.slot_index() as usize].set(ArenaStylePin::Derived);
+        self.style_record_pins[slot.slot_index() as usize] = ArenaStylePin::Derived;
+        let data = self.write_shape(slot);
         data.set_style(derived.payloads);
         data.mark();
         self.note_row_style(slot);
@@ -4295,8 +4300,10 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn replace_arena_pinned_style_record(&mut self, slot: NodeSlotId, derived: DerivedStyleRecord) {
-        let previously_pinned =
-            self.style_record_pins[slot.slot_index() as usize].replace(ArenaStylePin::Derived) != ArenaStylePin::None;
+        let previously_pinned = std::mem::replace(
+            &mut self.style_record_pins[slot.slot_index() as usize],
+            ArenaStylePin::Derived,
+        ) != ArenaStylePin::None;
         assert!(derived.record != 0 && !derived.payloads.is_null());
         let previous_style_record = self.replace_style_record(slot.slot_index() as usize, derived.record);
         self.shape_writes.note_style();
@@ -4472,7 +4479,7 @@ impl LayoutNodeArena {
         any_changed
     }
 
-    pub(crate) fn note_rows_share_dom_node(&self, bound_row: NodeSlotId, added_row: NodeSlotId) {
+    pub(crate) fn note_rows_share_dom_node(&mut self, bound_row: NodeSlotId, added_row: NodeSlotId) {
         assert!(
             self.node_is_dom_backed(added_row),
             "layout node arena shared rows of an anonymous node"
@@ -4481,23 +4488,22 @@ impl LayoutNodeArena {
             self.bound_node_of(added_row) == self.bound_node_of(bound_row),
             "layout node arena shared rows of different DOM nodes"
         );
-        let added_link = &self.next_rows_built_for_same_node[added_row.slot_index() as usize];
         assert!(
-            added_link.get().is_invalid(),
+            self.next_rows_built_for_same_node[added_row.slot_index() as usize].is_invalid(),
             "layout node arena shared a row that already shares a DOM node"
         );
         // The added row goes in behind the bound row's predecessor, at the end of the ring as seen from the bound row, so
         // adding a row does not change which row takes the binding over when the bound row is freed.
         let mut predecessor = bound_row;
         loop {
-            let next = self.next_rows_built_for_same_node[predecessor.slot_index() as usize].get();
+            let next = self.next_rows_built_for_same_node[predecessor.slot_index() as usize];
             if next.is_invalid() || next == bound_row {
                 break;
             }
             predecessor = next;
         }
-        added_link.set(bound_row);
-        self.next_rows_built_for_same_node[predecessor.slot_index() as usize].set(added_row);
+        self.next_rows_built_for_same_node[added_row.slot_index() as usize] = bound_row;
+        self.next_rows_built_for_same_node[predecessor.slot_index() as usize] = added_row;
     }
 
     /// The rows built for the same DOM node as `id`, starting with `id`.
@@ -4513,28 +4519,31 @@ impl LayoutNodeArena {
     /// The row after `current` in the ring of rows built for the DOM node of `first`, or none once the ring comes
     /// back to `first`. A walk that writes each row it visits reads the next one with this before the write.
     pub(crate) fn next_row_sharing_dom_node_with(&self, first: NodeSlotId, current: NodeSlotId) -> Option<NodeSlotId> {
-        let next = self.next_rows_built_for_same_node[current.slot_index() as usize].get();
+        let next = self.next_rows_built_for_same_node[current.slot_index() as usize];
         (!next.is_invalid() && next != first).then_some(next)
     }
 
     fn forget_row_sharing_dom_node(&mut self, id: NodeSlotId) {
-        let successor = self.next_rows_built_for_same_node[id.slot_index() as usize].replace(NodeSlotId::INVALID);
+        let successor = std::mem::replace(
+            &mut self.next_rows_built_for_same_node[id.slot_index() as usize],
+            NodeSlotId::INVALID,
+        );
         if successor.is_invalid() {
             return;
         }
         // Close the ring behind the row that is leaving.
         let mut predecessor = successor;
         loop {
-            let link = &self.next_rows_built_for_same_node[predecessor.slot_index() as usize];
-            if link.get() == id {
-                link.set(if predecessor == successor {
+            let link = &mut self.next_rows_built_for_same_node[predecessor.slot_index() as usize];
+            if *link == id {
+                *link = if predecessor == successor {
                     NodeSlotId::INVALID
                 } else {
                     successor
-                });
+                };
                 break;
             }
-            predecessor = link.get();
+            predecessor = *link;
         }
         // The node stays bound to one of the rows that still share it.
         let Some(node) = self.bound_node_of(id) else {
@@ -4906,11 +4915,11 @@ impl LayoutNodeArena {
 
     pub(crate) fn node_pre_order_label(&self, id: NodeSlotId) -> u64 {
         let _ = self.data(id);
-        self.pre_order_labels[id.slot_index() as usize].get()
+        self.pre_order_labels[id.slot_index() as usize]
     }
 
-    fn set_node_pre_order_label(&self, id: NodeSlotId, label: u64) {
-        self.pre_order_labels[id.slot_index() as usize].set(label);
+    fn set_node_pre_order_label(&mut self, id: NodeSlotId, label: u64) {
+        self.pre_order_labels[id.slot_index() as usize] = label;
     }
 
     pub(crate) fn pre_order_relabel_count(&self) -> u64 {
@@ -4969,7 +4978,8 @@ impl LayoutNodeArena {
             // Placement is biased toward the insertion direction, so a one-directional hot
             // spot consumes the gap linearly instead of halving it.
             let mut position_in_subtree = 0u64;
-            self.for_each_node_in_layout_subtree_in_pre_order(child, |node| {
+            let mut cursor = Some(child);
+            while let Some(node) = cursor {
                 position_in_subtree += 1;
                 let label = if next_sibling.is_invalid() {
                     lower + stride * position_in_subtree
@@ -4977,7 +4987,8 @@ impl LayoutNodeArena {
                     upper - stride * (inserted_node_count + 1 - position_in_subtree)
                 };
                 self.set_node_pre_order_label(node, label);
-            });
+                cursor = self.next_node_in_layout_subtree_in_pre_order(child, node);
+            }
             debug_assert!(lower < self.node_pre_order_label(child));
             debug_assert!(self.node_pre_order_label(self.last_descendant_in_pre_order(child)) < upper);
             return;
@@ -5019,13 +5030,12 @@ impl LayoutNodeArena {
         }
         assert!(step >= 2, "pre-order label space exhausted");
         let mut position_in_subtree = 0u64;
-        self.for_each_node_in_layout_subtree_in_pre_order(subtree_root, |node| {
-            if node == subtree_root {
-                return;
-            }
+        let mut cursor = self.next_node_in_layout_subtree_in_pre_order(subtree_root, subtree_root);
+        while let Some(node) = cursor {
             position_in_subtree += 1;
             self.set_node_pre_order_label(node, lower + step * position_in_subtree);
-        });
+            cursor = self.next_node_in_layout_subtree_in_pre_order(subtree_root, node);
+        }
         self.pre_order_relabel_count += 1;
         true
     }
@@ -5607,7 +5617,7 @@ impl LayoutNodeArena {
     pub(crate) fn live_row(&self, id: NodeSlotId) -> Option<LiveRow<'_>> {
         self.slot_is_live(id).then(|| LiveRow {
             data: self.data(id),
-            style_node: self.style_nodes[id.slot_index() as usize].get(),
+            style_node: self.style_nodes[id.slot_index() as usize],
         })
     }
 
@@ -6115,7 +6125,7 @@ pub unsafe extern "C" fn render_state_set_node_style(
 /// the host pins its style record, and its paint cache is cleaned now rather than through the
 /// journal, which would resolve the node's identity after a replacement row was bound. The image
 /// observers the row holds are dropped, and the image provider it owns is told.
-pub(crate) fn prepare_row_for_detach(host_calls: HostCalls<'_>, arena: &LayoutNodeArena, row: NodeSlotId) {
+pub(crate) fn prepare_row_for_detach(host_calls: HostCalls<'_>, arena: &mut LayoutNodeArena, row: NodeSlotId) {
     arena.pin_style_record_for_detachment(row);
     arena.push_paint_damage(
         row,
@@ -6143,7 +6153,7 @@ pub(crate) fn tell_host_of_row_detach(main_thread: &MainThread, row: NodeSlotId,
 }
 
 /// Prepares every row of the subtree `root` heads for leaving the layout tree, in pre-order.
-pub(crate) fn prepare_subtree_for_detach(host_calls: HostCalls<'_>, arena: &LayoutNodeArena, root: NodeSlotId) {
+pub(crate) fn prepare_subtree_for_detach(host_calls: HostCalls<'_>, arena: &mut LayoutNodeArena, root: NodeSlotId) {
     let mut rows = Vec::new();
     arena.for_each_node_in_layout_subtree_in_pre_order(root, |row| rows.push(row));
     for row in rows {
@@ -6964,7 +6974,7 @@ mod tests {
         let mut arena = LayoutNodeArena::new();
         let element = arena.allocate(test_construction_facts_with_kind(NodeKind::InlineNode));
         // The host's pin, as pin_node_style_record_for_host takes it, without an engine to count it.
-        arena.style_records_pinned_by_host[element.slot_index() as usize].set(11);
+        arena.style_records_pinned_by_host[element.slot_index() as usize] = 11;
         assert_eq!(arena.node_style_record_pinned_by_host(element), 11);
 
         let freed = arena.free_subtree(element);

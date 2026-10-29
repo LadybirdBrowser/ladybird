@@ -324,8 +324,8 @@ impl TreeShape {
     pub(crate) fn publish(
         &mut self,
         chunks: &[Box<Chunk>],
-        style_records: &[Cell<u64>],
-        style_nodes: &[Cell<Option<StyleNodeID>>],
+        style_records: &[u64],
+        style_nodes: &[Option<StyleNodeID>],
         style_is_derived: impl Fn(usize) -> bool,
         writes: &ShapeWrites,
     ) -> ColumnSnapshot<PaintNode, PUBLISHED_ROWS_PER_CHUNK> {
@@ -340,8 +340,8 @@ impl TreeShape {
                     let index = chunk_index * SLOTS_PER_CHUNK + offset;
                     let row = PaintNode::of(
                         &chunk.slots[offset],
-                        style_records.get(index).map_or(0, Cell::get),
-                        style_nodes.get(index).and_then(Cell::get),
+                        style_records.get(index).copied().unwrap_or(0),
+                        style_nodes.get(index).copied().flatten(),
                         style_is_derived(index),
                     );
                     self.nodes.set(index, row).expect("the column holds every chunk");
