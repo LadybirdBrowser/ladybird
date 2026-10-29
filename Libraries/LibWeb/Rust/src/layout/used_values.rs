@@ -132,10 +132,8 @@ pub(crate) struct CommittedSvgFacts {
 /// The per-box geometry stored in a Rust-owned layout pass.
 #[derive(Debug)]
 pub(crate) struct UsedValues {
-    /// The box's sizes, size constraints and box sides, held in `frame`.
+    /// The box's sizes, size constraints and box sides.
     pub(crate) cells: Cell<RootInputCells>,
-    /// The frame the box's sizes, size constraints and box sides are held in.
-    pub(crate) frame: geometry::Frame,
 }
 
 /// The sizes, size constraints and box sides of a box.
@@ -238,12 +236,9 @@ impl RootInputCells {
         self.padding_bottom = fragment.padding_bottom;
     }
 
-    /// A record holding the cells, which hold the box's metrics in `frame`.
-    pub(crate) fn materialize_record(self, frame: geometry::Frame) -> UsedValues {
-        UsedValues {
-            cells: Cell::new(self),
-            frame,
-        }
+    /// A record holding the cells.
+    pub(crate) fn materialize_record(self) -> UsedValues {
+        UsedValues { cells: Cell::new(self) }
     }
 
     /// The cells, with the sizes, size constraints and box sides they hold in frame `from` read in frame `to` instead.
@@ -279,23 +274,6 @@ impl RootInputCells {
             std::mem::swap(&mut self.has_definite_inline_size, &mut self.has_definite_block_size);
         }
         self
-    }
-}
-
-impl UsedValues {
-    /// Writes the record's metrics, which `write` sees and changes as the record holds them.
-    pub(crate) fn update_cells(&self, write: impl FnOnce(&mut RootInputCells)) {
-        let mut cells = self.cells.get();
-        write(&mut cells);
-        self.cells.set(cells);
-    }
-
-    pub(crate) fn set_content_inline_size(&self, value: CssPixels) {
-        self.update_cells(|cells| cells.set_content_inline_size(value));
-    }
-
-    pub(crate) fn set_content_block_size(&self, value: CssPixels) {
-        self.update_cells(|cells| cells.set_content_block_size(value));
     }
 }
 
@@ -449,13 +427,6 @@ pub(crate) trait BoxMetricCells {
     }
 }
 
-impl BoxMetricCells for UsedValues {
-    #[inline]
-    fn cells(&self) -> RootInputCells {
-        self.cells.get()
-    }
-}
-
 impl BoxMetricCells for RootInputCells {
     #[inline]
     fn cells(&self) -> RootInputCells {
@@ -501,16 +472,6 @@ pub(crate) struct CellsInFrame<'a> {
 }
 
 impl<'a> CellsInFrame<'a> {
-    /// The cells of `record`, read in frame `reader`.
-    #[inline]
-    pub(crate) fn new(record: &'a UsedValues, reader: geometry::Frame) -> Self {
-        Self {
-            cells: &record.cells,
-            held: record.frame,
-            reader,
-        }
-    }
-
     /// `cells`, held in frame `held`, read in frame `reader`.
     #[inline]
     pub(crate) fn of_cells(cells: &'a Cell<RootInputCells>, held: geometry::Frame, reader: geometry::Frame) -> Self {

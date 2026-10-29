@@ -360,14 +360,12 @@ enum ContentSizing {
 
 impl<'arena> RunRecords<'arena> {
     /// Runs `run` with the records of a run rooted at `root`, and the pass as that run sees it. The root's record holds
-    /// `root_cells`, which hold its metrics in `root_frame`, the frame it lays its contents out in. The style reads of
-    /// an absolutely positioned root see `root_anchor_resolved_values`.
+    /// `root_cells`. The style reads of an absolutely positioned root see `root_anchor_resolved_values`.
     pub(crate) fn with_root<R>(
         callbacks: LayoutPass<'arena>,
         root: Node,
         root_containing_block: Node,
         root_cells: used_values::RootInputCells,
-        root_frame: geometry::Frame,
         root_anchor_resolved_values: Option<Box<style_values::AnchorResolvedValues>>,
         run: impl FnOnce(&Self, LayoutPass<'arena>) -> R,
     ) -> R {
@@ -375,7 +373,7 @@ impl<'arena> RunRecords<'arena> {
             callbacks,
             root,
             root_containing_block,
-            Some((root_cells, root_frame)),
+            Some(root_cells),
             root_anchor_resolved_values,
             ContentSizing::Layout,
             run,
@@ -393,7 +391,7 @@ impl<'arena> RunRecords<'arena> {
             callbacks,
             root,
             root_containing_block,
-            Some((root_cells, callbacks.frame)),
+            Some(root_cells),
             None,
             ContentSizing::RootContributions,
             run,
@@ -411,7 +409,7 @@ impl<'arena> RunRecords<'arena> {
             callbacks,
             root,
             root_containing_block,
-            Some((root_cells, callbacks.frame)),
+            Some(root_cells),
             None,
             ContentSizing::RootContentInlineSizes,
             run,
@@ -439,7 +437,7 @@ impl<'arena> RunRecords<'arena> {
         callbacks: LayoutPass<'arena>,
         root: Node,
         root_containing_block: Node,
-        root_cells: Option<(used_values::RootInputCells, geometry::Frame)>,
+        root_cells: Option<used_values::RootInputCells>,
         root_anchor_resolved_values: Option<Box<style_values::AnchorResolvedValues>>,
         content_sizing: ContentSizing,
         run: impl FnOnce(&Self, LayoutPass<'arena>) -> R,
@@ -451,7 +449,7 @@ impl<'arena> RunRecords<'arena> {
         let scratch = callbacks.scratch();
         let records = Self {
             root,
-            root_used: root_cells.map(|(cells, frame)| cells.materialize_record(frame)),
+            root_used: root_cells.map(used_values::RootInputCells::materialize_record),
             scratch,
             runs_in_progress_with_it: scratch.begin_run(),
             content_sizing,
@@ -615,7 +613,6 @@ mod tests {
             root,
             NodeSlotId::INVALID,
             used_values::RootInputCells::default(),
-            geometry::Frame::PHYSICAL,
             None,
             |parent, _| {
                 let root_used: *const UsedValues = parent.used_values(root);
@@ -624,7 +621,6 @@ mod tests {
                     child,
                     root,
                     used_values::RootInputCells::default(),
-                    geometry::Frame::PHYSICAL,
                     None,
                     |nested, _| {
                         assert!(nested.used_values_if_owned(root).is_none());
@@ -657,7 +653,6 @@ mod tests {
             root,
             NodeSlotId::INVALID,
             used_values::RootInputCells::default(),
-            geometry::Frame::PHYSICAL,
             None,
             |parent, _| {
                 let root_used: *const UsedValues = parent.used_values(root);
@@ -667,7 +662,6 @@ mod tests {
                         child,
                         root,
                         used_values::RootInputCells::default(),
-                        geometry::Frame::PHYSICAL,
                         None,
                         |_, _| panic!("abort the nested measurement"),
                     );
