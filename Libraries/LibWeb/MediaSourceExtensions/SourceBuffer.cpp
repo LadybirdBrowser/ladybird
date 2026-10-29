@@ -1028,7 +1028,9 @@ void SourceBuffer::on_first_initialization_segment_processed(Vector<Media::Track
         // 5. If active track flag equals true, then run the following steps:
         if (active_track_flag) {
             // 1. Add this SourceBuffer to activeSourceBuffers.
-            m_media_source->active_source_buffers()->append(*this);
+            // NB: activeSourceBuffers must keep the order of sourceBuffers, see
+            //     https://w3c.github.io/media-source/#dom-mediasource-activesourcebuffers
+            m_media_source->active_source_buffers()->insert_in_order_of(*this, m_media_source->source_buffers());
 
             // 2. Queue a task to fire an event named addsourcebuffer at activeSourceBuffers.
             m_media_source->queue_a_media_source_task(GC::create_function(GC::Heap::the(),
