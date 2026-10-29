@@ -64,6 +64,7 @@
             target.className = "";
             target.removeAttribute("style");
             await nextFrames(2);
+            internals.fireCompositorAnimationWakeupForTesting(document.timeline.currentTime);
         };
 
         target.className = "azure-pair";
