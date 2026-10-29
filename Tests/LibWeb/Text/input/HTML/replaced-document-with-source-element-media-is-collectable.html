@@ -35,13 +35,7 @@
             return weakDocuments;
         })();
 
-        const maximumGcRoundsWhileTeardownTasksDrain = 100;
-        for (let round = 0; round < maximumGcRoundsWhileTeardownTasksDrain; ++round) {
-            await timeout(0);
-            await internals.gcAsync();
-            if (weakDocuments.every(weak => weak.deref() === undefined))
-                break;
-        }
+        await collectGarbageUntilCleared(weakDocuments);
 
         const collected = weakDocuments.filter(weak => weak.deref() === undefined).length;
         println(`collected ${collected} of ${weakDocuments.length} replaced documents`);
