@@ -988,7 +988,7 @@ impl<'pass> NodeFacts<'pass> {
                 aspect_ratio: aspect_ratio
                     .map(|(numerator, denominator)| (numerator.raw_value(), denominator.raw_value())),
             };
-            self.callbacks.scratch().note_host_findings(|findings| {
+            self.callbacks.note_host_findings(|findings| {
                 findings.document_svg_root_natural_size = Some((self.node, natural_size));
             });
         }

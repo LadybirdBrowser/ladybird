@@ -200,7 +200,7 @@ impl<'cells> SizedCells<'cells> {
 }
 
 pub(crate) struct SizingContext<'pass, 'container> {
-    state: &'pass RunState<'pass>,
+    state: &'pass RunState,
     callbacks: LayoutPass<'pass>,
     style_cache: Cell<Option<(Node, &'pass FfiStylePayloads)>>,
     child_run_shapes: Option<&'container dyn formatting_context::ChildRunShapes>,
@@ -254,7 +254,7 @@ pub(crate) fn stretch_fit_block_margins(
 
 impl<'pass, 'container> SizingContext<'pass, 'container> {
     #[inline]
-    pub(crate) fn new(state: &'pass RunState<'pass>, callbacks: LayoutPass<'pass>) -> Self {
+    pub(crate) fn new(state: &'pass RunState, callbacks: LayoutPass<'pass>) -> Self {
         Self {
             state,
             callbacks,

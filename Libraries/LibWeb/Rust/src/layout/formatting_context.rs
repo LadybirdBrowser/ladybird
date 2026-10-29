@@ -1302,7 +1302,7 @@ pub unsafe extern "C" fn document_host_set_layout_host_callbacks(
 
 #[derive(Clone)]
 pub(crate) struct FormattingContextRun<'pass> {
-    pub(crate) state: &'pass RunState<'pass>,
+    pub(crate) state: &'pass RunState,
     pub(crate) box_: Node,
     pub(crate) callbacks: LayoutPass<'pass>,
     pub(crate) should_collect_devtools_layout_data: bool,
@@ -2191,9 +2191,7 @@ fn reuse_committed_subtree_as_it_is(
         .arena()
         .layout_trace
         .run(box_, cache_key.fc_type(), || "REUSE SUBTREE");
-    callbacks
-        .scratch()
-        .receive_host_findings(entry.outputs.host_findings.clone());
+    callbacks.receive_host_findings(entry.outputs.host_findings.clone());
     Some(ChildRunOutcome {
         result: entry.outputs.result,
         laid_out_box,
@@ -2308,7 +2306,7 @@ fn sizes_and_box_sides(cells: used_values::RootInputCells) -> used_values::RootI
 
 #[expect(clippy::too_many_arguments)]
 fn lay_out_run_root_and_contents<'pass>(
-    state: &'pass RunState<'pass>,
+    state: &'pass RunState,
     callbacks: LayoutPass<'pass>,
     builds_fragments: bool,
     root_cells: used_values::RootInputCells,
@@ -3194,7 +3192,7 @@ pub(crate) fn lay_out_shape_for_its_result(callbacks: LayoutPass<'_>, shape: Chi
         )
     };
     let result_with_host_findings = |outputs: &RunOutputs| {
-        callbacks.scratch().receive_host_findings(outputs.host_findings.clone());
+        callbacks.receive_host_findings(outputs.host_findings.clone());
         outputs.result
     };
     if callbacks.scratch().reads_no_memoized_layout() {
@@ -3349,7 +3347,7 @@ fn child_run_outcome_from_outputs(
         inputs_never_observed: _,
         host_findings,
     } = outputs;
-    callbacks.scratch().receive_host_findings(host_findings);
+    callbacks.receive_host_findings(host_findings);
     let content_block_size_adopted_after_run =
         content_block_size_adopted_after_run(input, result.automatic_content_block_size);
     let laid_out_box = root_outcome.laid_out_child_box(root_cells, &result, content_block_size_adopted_after_run);
@@ -3651,7 +3649,7 @@ fn drop_intrinsic_size_cache_entries_of_released_slots(
 }
 
 fn finish_entry_pass(
-    entry_run_state: &RunState<'_>,
+    entry_run_state: &RunState,
     entry_fragments: &std::rc::Rc<fragment_tree::RunFragmentBuilder>,
     callbacks: &LayoutPass<'_>,
     should_collect_devtools_layout_data: bool,

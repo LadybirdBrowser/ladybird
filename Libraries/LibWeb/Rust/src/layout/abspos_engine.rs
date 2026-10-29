@@ -168,7 +168,7 @@ impl<'a> OutOfFlowBox<'a> {
 }
 
 pub(crate) struct AbsposEngine<'pass> {
-    state: &'pass RunState<'pass>,
+    state: &'pass RunState,
     callbacks: LayoutPass<'pass>,
     fragments: Option<std::rc::Rc<fragment_tree::RunFragmentBuilder>>,
 }
@@ -3920,7 +3920,7 @@ impl<'pass> AbsposEngine<'pass> {
 }
 
 pub(crate) fn drain_abspos_with_placed_containing_blocks(
-    state: &RunState<'_>,
+    state: &RunState,
     callbacks: LayoutPass<'_>,
     should_collect_devtools_layout_data: bool,
     entry_fragments: &std::rc::Rc<fragment_tree::RunFragmentBuilder>,
