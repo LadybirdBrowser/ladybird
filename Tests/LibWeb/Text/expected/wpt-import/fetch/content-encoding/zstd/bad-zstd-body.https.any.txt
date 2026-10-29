@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Fail
+Fail	Fetching a resource with bad zstd content should still resolve
+Fail	Consuming the body of a resource with bad zstd content with arrayBuffer() should reject
+Fail	Consuming the body of a resource with bad zstd content with blob() should reject
+Fail	Consuming the body of a resource with bad zstd content with bytes() should reject
+Fail	Consuming the body of a resource with bad zstd content with formData() should reject
+Fail	Consuming the body of a resource with bad zstd content with json() should reject
+Fail	Consuming the body of a resource with bad zstd content with text() should reject

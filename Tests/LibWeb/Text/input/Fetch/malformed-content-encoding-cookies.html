@@ -1,0 +1,48 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        for (const method of ["GET", "POST"]) {
+            const host = uniqueLocalhostHostname(`malformed-content-encoding-${method.toLowerCase()}`);
+            const responseURL = new URL(await httpTestServer().createEcho(method, `/malformed-content-encoding-${method}`, {
+                status: 200,
+                headers: {
+                    "Access-Control-Allow-Origin": location.origin,
+                    "Access-Control-Allow-Credentials": "true",
+                    "Content-Type": "text/plain",
+                    "Content-Encoding": "gzip",
+                    "Set-Cookie": "malformedbodycookie=stored; Path=/",
+                    "Cache-Control": "no-store",
+                },
+                body: "not actually gzip",
+            }));
+            responseURL.hostname = host;
+            try {
+                const response = await fetch(responseURL, { method, credentials: "include" });
+                println(`${method} status: ${response.status}`);
+                try {
+                    await response.text();
+                    println(`${method} body unexpectedly resolved`);
+                } catch (error) {
+                    println(`${method} body: ${error.name}`);
+                }
+                const echoURL = new URL(await httpTestServer().createEcho("GET", `/malformed-content-encoding-cookie-${method}`, {
+                    status: 200,
+                    headers: {
+                        "Access-Control-Allow-Origin": location.origin,
+                        "Access-Control-Allow-Credentials": "true",
+                        "Content-Type": "application/json",
+                    },
+                    body: "$HEADERS",
+                    reflect_headers_in_body: true,
+                }));
+                echoURL.hostname = host;
+                const headers = await (await fetch(echoURL, { credentials: "include" })).json();
+                const cookie = headers["Cookie"]?.some(value => value.includes("malformedbodycookie=stored"));
+                println(`${method} cookie stored: ${!!cookie}`);
+            } catch (error) {
+                println(`${method} fetch: ${error.name}`);
+            }
+        }
+    });
+</script>

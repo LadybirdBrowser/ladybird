@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Fail
+Fail	Consuming the body of a resource with bad br content with arrayBuffer() should reject
+Fail	Consuming the body of a resource with bad br content with blob() should reject
+Fail	Consuming the body of a resource with bad br content with bytes() should reject
+Fail	Consuming the body of a resource with bad br content with formData() should reject
+Fail	Consuming the body of a resource with bad br content with json() should reject
+Fail	Consuming the body of a resource with bad br content with text() should reject
