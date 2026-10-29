@@ -2243,11 +2243,15 @@ void WebContentPage::did_request_writing_suggestion(u64 request_id, Utf16String 
 
 void WebContentPage::did_request_set_system_focus(bool has_system_focus)
 {
+    if (!may_change_window(*this, "did_request_set_system_focus"sv))
+        return;
     traversable().set_has_system_focus(has_system_focus, *this);
 }
 
 void WebContentPage::did_request_set_system_visibility_state(Web::HTML::VisibilityState visibility_state)
 {
+    if (!may_change_window(*this, "did_request_set_system_visibility_state"sv))
+        return;
     view().set_system_visibility_state(visibility_state);
 }
 
