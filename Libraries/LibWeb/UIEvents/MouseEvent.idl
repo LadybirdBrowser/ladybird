@@ -29,6 +29,9 @@ interface MouseEvent : UIEvent {
 
     [DirectGetter] readonly attribute EventTarget? relatedTarget;
 
+    readonly attribute Node? fromElement;
+    readonly attribute Node? toElement;
+
     boolean getModifierState([FlyString] DOMString keyArg);
 
     // https://w3c.github.io/uievents/#dom-mouseevent-initmouseevent

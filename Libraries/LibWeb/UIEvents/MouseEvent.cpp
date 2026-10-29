@@ -7,6 +7,7 @@
 
 #include <LibGC/Heap.h>
 #include <LibWeb/Bindings/MouseEvent.h>
+#include <LibWeb/DOM/Node.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
@@ -18,6 +19,19 @@
 namespace Web::UIEvents {
 
 GC_DEFINE_ALLOCATOR(MouseEvent);
+
+// INTEROP: The legacy mouse endpoints use the current dispatch targets, reversing direction for exit events.
+GC::Ptr<DOM::Node> MouseEvent::from_element() const
+{
+    auto endpoint = type().is_one_of(EventNames::mouseout, EventNames::mouseleave) ? target() : related_target();
+    return as_if<DOM::Node>(endpoint.ptr());
+}
+
+GC::Ptr<DOM::Node> MouseEvent::to_element() const
+{
+    auto endpoint = type().is_one_of(EventNames::mouseout, EventNames::mouseleave) ? related_target() : target();
+    return as_if<DOM::Node>(endpoint.ptr());
+}
 
 MouseEvent::MouseEvent(FlyString const& event_name, MouseEventOptions const& options, double page_x, double page_y, double offset_x, double offset_y, HighResolutionTime::DOMHighResTimeStamp time_stamp)
     : UIEvent(event_name, time_stamp)

@@ -116,6 +116,9 @@ public:
     i16 button() const { return m_button; }
     u16 buttons() const { return m_buttons; }
 
+    virtual GC::Ptr<DOM::Node> from_element() const;
+    virtual GC::Ptr<DOM::Node> to_element() const;
+
     bool get_modifier_state(Utf16FlyString const& key_arg) const;
 
     virtual u32 which() const override { return m_button + 1; }

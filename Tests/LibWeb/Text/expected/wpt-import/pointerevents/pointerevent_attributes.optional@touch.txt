@@ -2,22 +2,21 @@ Harness status: OK
 
 Found 16 tests
 
-1 Pass
+15 Pass
 1 Fail
-14 Optional Feature Unsupported
 Pass	Main-frame attribute test.
 Fail	Inner-frame attribute test.
-Optional Feature Unsupported	Main-frame touch pointerover.fromElement value is null
-Optional Feature Unsupported	Main-frame touch pointerover.toElement value is null
-Optional Feature Unsupported	Main-frame touch pointerenter.fromElement value is null
-Optional Feature Unsupported	Main-frame touch pointerenter.toElement value is null
-Optional Feature Unsupported	Main-frame touch pointerdown.fromElement value is null
-Optional Feature Unsupported	Main-frame touch pointerdown.toElement value is null
-Optional Feature Unsupported	Main-frame touch pointermove.fromElement value is null
-Optional Feature Unsupported	Main-frame touch pointermove.toElement value is null
-Optional Feature Unsupported	Main-frame touch pointerup.fromElement value is null
-Optional Feature Unsupported	Main-frame touch pointerup.toElement value is null
-Optional Feature Unsupported	Main-frame touch pointerout.fromElement value is null
-Optional Feature Unsupported	Main-frame touch pointerout.toElement value is null
-Optional Feature Unsupported	Main-frame touch pointerleave.fromElement value is null
-Optional Feature Unsupported	Main-frame touch pointerleave.toElement value is null
+Pass	Main-frame touch pointerover.fromElement value is null
+Pass	Main-frame touch pointerover.toElement value is null
+Pass	Main-frame touch pointerenter.fromElement value is null
+Pass	Main-frame touch pointerenter.toElement value is null
+Pass	Main-frame touch pointerdown.fromElement value is null
+Pass	Main-frame touch pointerdown.toElement value is null
+Pass	Main-frame touch pointermove.fromElement value is null
+Pass	Main-frame touch pointermove.toElement value is null
+Pass	Main-frame touch pointerup.fromElement value is null
+Pass	Main-frame touch pointerup.toElement value is null
+Pass	Main-frame touch pointerout.fromElement value is null
+Pass	Main-frame touch pointerout.toElement value is null
+Pass	Main-frame touch pointerleave.fromElement value is null
+Pass	Main-frame touch pointerleave.toElement value is null
