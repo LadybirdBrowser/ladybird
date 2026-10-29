@@ -58,7 +58,7 @@ impl OwedHostWork {
     /// Resolves what the change owes the host against `arena`, the arena it changed, as it ends: which nodes gained
     /// or lost a box, and the style a row whose layout node hears of it has. The host pays it with nothing but its own
     /// tables. A row the change freed again, such as whitespace table fixup removed, is owed no style change.
-    pub(crate) fn resolve(self, arena: &LayoutNodeArena) -> HostWorkDue {
+    pub(crate) fn resolve(self, arena: &mut LayoutNodeArena) -> HostWorkDue {
         let box_presence = arena.take_queued_box_presence();
         let calls = self
             .owed

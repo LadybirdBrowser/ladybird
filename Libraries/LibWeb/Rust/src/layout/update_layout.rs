@@ -569,7 +569,7 @@ pub(crate) struct OwedImage {
 
 impl OwedImage {
     /// Takes the image resources the builds that ran on `arena` owe the rows they stamped and left live.
-    fn take_from(arena: &LayoutNodeArena) -> Vec<Self> {
+    fn take_from(arena: &mut LayoutNodeArena) -> Vec<Self> {
         let owed = arena.take_image_resources_owed_to_host();
         if owed.is_empty() {
             return Vec::new();
@@ -718,12 +718,11 @@ impl ClockRound {
         let Some(build) = Self::marked_build(state.arena())? else {
             return Ok(false);
         };
-        let arena = state.arena();
-        if build.lacks_document_style(arena) {
+        if build.lacks_document_style(state.arena()) {
             return Err(ClockRoundDeclined("a build that needs the document's style"));
         }
         // The round cannot call the host, which hears of the boxes nodes gain and lose once it is over.
-        arena.queue_box_presence();
+        state.arena_mut().queue_box_presence();
         let mut answer = LayoutRoundAnswer {
             build: None,
             work: HostWorkDue::default(),
@@ -744,9 +743,10 @@ impl ClockRound {
             &mut answer,
             self.facts.has_stale_list_item_counters,
         );
-        let arena = state.arena();
+        let arena = state.arena_mut();
         answer.work = work.resolve(arena);
         answer.owed_images = OwedImage::take_from(arena);
+        let arena = state.arena();
         // A box the build gave an image has none until the host attaches it.
         let declined = match end {
             BuildEnd::AnotherPass => Some("a build that asks for another pass"),
@@ -788,8 +788,8 @@ impl LayoutRoundJob {
     /// Runs the round over `state`, and resolves what it owes the host as it ends, `work` among it.
     fn run_owing(self, state: &mut ArenaHandle, work: OwedHostWork) -> LayoutRoundAnswer {
         let mut answer = self.run_with(state, &work);
-        answer.work = work.resolve(state.arena());
-        answer.owed_images = OwedImage::take_from(state.arena());
+        answer.work = work.resolve(state.arena_mut());
+        answer.owed_images = OwedImage::take_from(state.arena_mut());
         answer
     }
 
@@ -810,7 +810,7 @@ impl LayoutRoundJob {
             document_in_quirks_mode: facts.document_in_quirks_mode,
         };
         // The round cannot call the host, which hears of the boxes nodes gain and lose once it is over.
-        state.arena().queue_box_presence();
+        state.arena_mut().queue_box_presence();
         if self
             .build
             .as_ref()

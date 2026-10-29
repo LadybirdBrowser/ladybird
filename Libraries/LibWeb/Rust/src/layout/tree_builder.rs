@@ -1433,7 +1433,7 @@ impl TreeBuildJob {
             ));
         }
 
-        let built_scroll_containers = host.arena().take_built_scroll_containers();
+        let built_scroll_containers = host.arena_mut().take_built_scroll_containers();
         let arena = host.arena_mut();
         if rebuilt_subtrees_were_updated_individually {
             let attached_roots = arena.derive_facts_after_tree_update(&state.rebuilt_subtree_roots);
@@ -3216,7 +3216,7 @@ fn stamp_nested_list_marker_row(
     let slot = host.arena.allocate_unbound();
     host.arena_mut()
         .stamp_anonymous_box(slot, NodeKind::ListItemMarkerBox, derived);
-    host.arena()
+    host.arena_mut()
         .set_node_generated_for(slot, generated_for_of(pseudo_element), Some(generator));
     let marker_position_is_inside = host
         .style(list_item_box)
@@ -3247,7 +3247,7 @@ fn create_generated_content_item(
     let image = match item {
         ContentItem::Text(text) => {
             let slot = host.stamp_generated_text_box(&text);
-            host.arena()
+            host.arena_mut()
                 .set_node_generated_for(slot, generated_for_of(pseudo_element), Some(generator));
             return slot;
         }
@@ -3274,7 +3274,7 @@ fn create_generated_content_item(
     );
     let slot = host.arena.allocate_unbound();
     host.arena_mut().stamp_anonymous_box(slot, NodeKind::ImageBox, derived);
-    host.arena()
+    host.arena_mut()
         .set_node_generated_for(slot, generated_for_of(pseudo_element), Some(generator));
     host.arena_mut().owe_image_resources(
         slot,
@@ -3303,7 +3303,7 @@ fn create_pseudo_element(
     }
     // The pseudo-element gives up the box it holds from an earlier build before the walk decides
     // whether it gets a new one.
-    host.arena()
+    host.arena_mut()
         .clear_pseudo_element_box(element_identity, generated_for_of(pseudo_element));
     let facts = published_pseudo_element_facts(host, element_identity, pseudo_element);
     let decision = pseudo_element_decision(facts);
@@ -3326,7 +3326,7 @@ fn create_pseudo_element(
         host.attach_child(list_item_box, unplaced_box.take().expect("the marker box"), first_child);
     }
 
-    host.arena()
+    host.arena_mut()
         .stamp_pseudo_element_box(layout_node, element_identity, generated_for_of(pseudo_element));
     host.arena_mut().owe_image_resources(
         layout_node,
@@ -3697,7 +3697,7 @@ impl<'a> TreeBuilderHost<'a> {
     fn stamp_dom_box(&mut self, kind: NodeKind, style_node: Option<StyleNodeID>) -> NodeSlotId {
         let slot = self.arena.allocate_unbound();
         self.arena_mut().stamp_dom_row(slot, kind, style_node);
-        self.arena().take_over_rows_of_bound_node(slot);
+        self.arena_mut().take_over_rows_of_bound_node(slot);
         slot
     }
 
@@ -3712,7 +3712,7 @@ impl<'a> TreeBuilderHost<'a> {
     /// snapping may happen in, with the root element's box standing in for the viewport, and what
     /// an element's highlight pseudo-element styles paint highlighted text with. None of it needs
     /// the row's layout node.
-    fn note_style_of_built_row(&self, slot: NodeSlotId, element: Option<StyleNodeID>) {
+    fn note_style_of_built_row(&mut self, slot: NodeSlotId, element: Option<StyleNodeID>) {
         if let Some(element) = element
             && self.holds_highlight_style(element)
         {
@@ -3721,10 +3721,10 @@ impl<'a> TreeBuilderHost<'a> {
         if self.arena().node_flags(slot) & NodeFlag::IsDocumentElement as u32 != 0 {
             let viewport = self.arena().bound_viewport_row();
             if !viewport.is_invalid() {
-                self.arena().note_built_scroll_container(viewport);
+                self.arena_mut().note_built_scroll_container(viewport);
             }
         } else if node_facts::kind_and_style_make_scroll_container(self.data(slot).kind.get(), self.style(slot)) {
-            self.arena().note_built_scroll_container(slot);
+            self.arena_mut().note_built_scroll_container(slot);
         }
     }
 
@@ -3800,7 +3800,7 @@ impl<'a> TreeBuilderHost<'a> {
         let host_calls = self.host_calls();
         self.arena_mut()
             .apply_reinherited_style_record(host_calls, slot, document_style);
-        self.arena().note_built_scroll_container(slot);
+        self.arena_mut().note_built_scroll_container(slot);
         slot
     }
 
@@ -4621,9 +4621,9 @@ fn create_first_letter_boxes(host: &mut TreeBuilderHost<'_>, element: StyleNodeI
             owns_content_replacement_image: false,
         },
     );
-    host.arena()
+    host.arena_mut()
         .clear_pseudo_element_box(element, GENERATED_FOR_FIRST_LETTER);
-    host.arena()
+    host.arena_mut()
         .stamp_pseudo_element_box(wrapper_slot, element, GENERATED_FOR_FIRST_LETTER);
     let wrapper = host.created(wrapper_slot);
     let parent = host.parent(text_node);
@@ -5589,7 +5589,7 @@ mod tests {
             work: &work,
         };
         assert!(!host.clear_stale_layout_node(element, None));
-        work.resolve(&arena).pay(&main_thread);
+        work.resolve(&mut arena).pay(&main_thread);
 
         assert!(!arena.slot_is_live(element_box));
         assert!(!arena.slot_is_live(before_box));
@@ -5665,7 +5665,7 @@ mod tests {
         let decision = principal_node_entry_decision(facts, update.reuse, update.kind, 0, update.context);
         assert!(!decision.should_create_layout_node);
         super::update_principal_node_after_entry(&mut update, facts, decision);
-        work.resolve(&arena).pay(&MainThread::for_test());
+        work.resolve(&mut arena).pay(&MainThread::for_test());
 
         assert!(state.reached_unstyled_element);
         assert_eq!(state.reports.len(), 1);

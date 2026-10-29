@@ -261,7 +261,7 @@ fn commit_subtree(
         paintables.schedule_scrollable_overflow_recalculation(node);
     }
 
-    paintables.arena().gather_layout_style_snapshot_geometry(node);
+    paintables.arena_mut().gather_layout_style_snapshot_geometry(node);
 
     paintables.stamp_containing_block(node, entry);
     if reuses_committed_subtree {
@@ -339,7 +339,7 @@ pub(crate) fn commit_replacing(
             ));
         }
     }
-    paintables.arena().publish_layout_style_snapshot_commit();
+    paintables.arena_mut().publish_layout_style_snapshot_commit();
     CommitNotifications {
         row_resets: paintables.take_row_reset_notifications(),
         messages,

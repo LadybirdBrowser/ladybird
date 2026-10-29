@@ -67,7 +67,7 @@ impl LayoutNodeArena {
     /// Gathers the node's row for the style engine. Style asks layout only about size containers,
     /// and about scroll-state containers, whose rows the scroll state makes; an element that
     /// stops being one keeps its row up to date until it goes.
-    pub(crate) fn gather_layout_style_snapshot_geometry(&self, node: NodeSlotId) {
+    pub(crate) fn gather_layout_style_snapshot_geometry(&mut self, node: NodeSlotId) {
         let is_size_container = node_is_size_container(self, node);
         // OPTIMIZATION: Most committed boxes are no size container, and while no container is held, none is gathered.
         if !is_size_container
@@ -83,7 +83,7 @@ impl LayoutNodeArena {
             return;
         }
         let row = self.committed_geometry(node, style_node);
-        self.layout_style_snapshot_commit.borrow_mut().push(row);
+        self.layout_style_snapshot_commit.push(row);
     }
 
     /// Hands the style engine the committed box of a node whose new style makes it a size
@@ -107,14 +107,14 @@ impl LayoutNodeArena {
 
     /// Gathers a row without a box for a node that holds a row and lost its bound box: no commit
     /// reaches a node without one, and a size query on it is unknown.
-    pub(crate) fn gather_layout_style_snapshot_box_loss(&self, style_node: StyleNodeID) {
+    pub(crate) fn gather_layout_style_snapshot_box_loss(&mut self, style_node: StyleNodeID) {
         if !self.has_style_engine()
             || !self.bound_row(style_node).is_invalid()
             || !self.with_style_store(|engine| engine.layout_style_snapshot(style_node).is_some())
         {
             return;
         }
-        self.layout_style_snapshot_commit.borrow_mut().push(CommittedGeometry {
+        self.layout_style_snapshot_commit.push(CommittedGeometry {
             node: style_node,
             content_width_raw: 0,
             content_height_raw: 0,
@@ -123,8 +123,8 @@ impl LayoutNodeArena {
     }
 
     /// Hands the rows a completed commit gathered to the style engine.
-    pub(crate) fn publish_layout_style_snapshot_commit(&self) {
-        let rows = std::mem::take(&mut *self.layout_style_snapshot_commit.borrow_mut());
+    pub(crate) fn publish_layout_style_snapshot_commit(&mut self) {
+        let rows = std::mem::take(&mut self.layout_style_snapshot_commit);
         if rows.is_empty() {
             return;
         }
