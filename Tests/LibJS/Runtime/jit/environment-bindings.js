@@ -162,3 +162,33 @@ test("bindings written in loops are read back", () => {
     }
     for (let i = 0; i < 200; ++i) expect(counts()).toBe(10);
 });
+
+test("bindings incremented several times in a row are read back", () => {
+    function steps() {
+        let top = 0;
+        const advance = () => {
+            const start = top;
+            top = (top + 8) | 0;
+            top = (top + 8) | 0;
+            top = (top + 8) | 0;
+            return top - start;
+        };
+        let sum = 0;
+        for (let i = 0; i < 10; ++i) sum += advance();
+        return sum + top;
+    }
+    for (let i = 0; i < 200; ++i) expect(steps()).toBe(480);
+});
+
+test("assigning an uninitialized binding with a number throws", () => {
+    function assignEarly(value) {
+        const assign = () => {
+            binding = (value + 1) | 0;
+        };
+        assign();
+        let binding = 0;
+        return binding;
+    }
+    for (let i = 0; i < 200; ++i)
+        expect(() => assignEarly(i)).toThrowWithMessage(ReferenceError, "Binding binding is not initialized");
+});

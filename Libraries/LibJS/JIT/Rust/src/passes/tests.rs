@@ -543,6 +543,64 @@ fn branches_on_known_kinds_fold() {
     assert_eq!(branches, 1, "{:?}", graph.blocks);
 }
 
+/// A value that passed an int32 check is no empty value, so a branch on
+/// whether it is one (like the initialization check of a binding store)
+/// takes the edge where it is not.
+#[test]
+fn branches_on_whether_values_of_known_kinds_are_empty_fold() {
+    let mut graph = Graph::default();
+    for predecessors in [vec![], vec![BlockId(0)], vec![BlockId(0)]] {
+        graph.add_block(Block {
+            predecessors,
+            ..Block::default()
+        });
+    }
+    let frame_state = graph.add_frame_state(crate::ir::FrameState {
+        executable: 0,
+        pc: 0,
+        mode: crate::code::ResumeMode::ResumeAt,
+        values: Vec::new(),
+        in_frame: Vec::new(),
+        parent: None,
+        passed_argument_count: None,
+        legacy_arguments: 0..0,
+    });
+    let value = node(&mut graph, Op::LoadSlot { slot: 0 }, vec![], Some(Repr::Tagged));
+    let check = node(&mut graph, Op::CheckInt32, vec![value], Some(Repr::Int32));
+    graph.nodes[check.index()].frame_state = Some(frame_state);
+    let empty = node(
+        &mut graph,
+        Op::Constant(crate::ir::value::EMPTY),
+        vec![],
+        Some(Repr::Tagged),
+    );
+    let branch = node(
+        &mut graph,
+        Op::Branch {
+            condition: BranchCondition::TaggedEquals { equal: false },
+            if_true: BlockId(1),
+            if_false: BlockId(2),
+        },
+        vec![value, empty],
+        None,
+    );
+    graph.blocks[0].body = vec![value, check];
+    graph.blocks[0].control = Some(branch);
+    for block in [1, 2] {
+        let ret = node(&mut graph, Op::Return, vec![value], None);
+        graph.blocks[block].control = Some(ret);
+    }
+    verify(&graph).unwrap();
+
+    super::check_elimination::run(&mut graph);
+    let control = graph.blocks[0].control.unwrap();
+    assert!(
+        matches!(graph.node(control).op, Op::Jump { target: BlockId(1) }),
+        "{:?}",
+        graph.node(control)
+    );
+}
+
 /// b4 is reached from the entry b0, which checks a constant, and from b2,
 /// which only the on-stack replacement entry b1 reaches through b3 (a block
 /// later in the order than b2). b2 is skipped until b3 has been visited, so

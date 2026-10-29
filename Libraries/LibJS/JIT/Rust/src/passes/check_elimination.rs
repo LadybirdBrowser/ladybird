@@ -294,6 +294,16 @@ fn visit_block(
             .iter()
             .map(|input| decisions.value(graph, *input))
             .collect::<InlineVec<NodeId, 2>>();
+        // NB: A value of a known kind is no empty value (like a binding that
+        //     is initialized, which a store of it checks).
+        if let BranchCondition::TaggedEquals { equal } = condition
+            && graph.constant_value(inputs[1]) == Some(value::EMPTY)
+            && facts.value_kind(inputs[0]).is_some()
+        {
+            let target = if equal { if_false } else { if_true };
+            decisions.controls.push((control, Op::Jump { target }));
+            return vec![(target, facts)];
+        }
         if let Some(key) = BranchKey::of(graph, condition, &inputs) {
             if let Some(holds) = facts.branch_outcome(&key) {
                 let target = if holds { if_true } else { if_false };
