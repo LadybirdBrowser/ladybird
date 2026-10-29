@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<style>
+    body { margin: 0; }
+    button, iframe, #host { display: block; width: 100px; height: 50px; border: 0; }
+</style>
+<button id="button">Button</button>
+<iframe id="frame" srcdoc="<button id=inner>Inner</button>"></iframe>
+<div id="host"></div>
+<script src="include.js"></script>
+<script>
+    asyncTest(done => {
+        const button = document.getElementById("button");
+        const frame = document.getElementById("frame");
+        const host = document.getElementById("host");
+        const shadow = host.attachShadow({ mode: "open", delegatesFocus: true });
+        shadow.innerHTML = "<button style='width: 100px; height: 50px'>Delegate</button>";
+        const delegate = shadow.querySelector("button");
+
+        window.addEventListener("load", () => {
+            button.focus({ focusVisible: false });
+            println(`Button after focus({ focusVisible: false }): matches=${button.matches(":focus-visible")}`);
+
+            frame.contentDocument.getElementById("inner").focus();
+            println(`Iframe after focus moved into it: focused=${document.activeElement === frame}, matches=${frame.matches(":focus-visible")}`);
+
+            internals.click(50, 125);
+            println(`Delegate after a click: focused=${shadow.activeElement === delegate}, matches=${delegate.matches(":focus-visible")}`);
+
+            host.focus({ focusVisible: true });
+            println(`Delegate after host.focus({ focusVisible: true }): matches=${delegate.matches(":focus-visible")}`);
+            done();
+        });
+    });
+</script>

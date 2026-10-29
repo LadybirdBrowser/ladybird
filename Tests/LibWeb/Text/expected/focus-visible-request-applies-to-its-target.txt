@@ -1,0 +1,4 @@
+Button after focus({ focusVisible: false }): matches=false
+Iframe after focus moved into it: focused=true, matches=true
+Delegate after a click: focused=true, matches=false
+Delegate after host.focus({ focusVisible: true }): matches=true

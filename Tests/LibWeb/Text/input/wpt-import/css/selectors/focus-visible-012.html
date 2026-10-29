@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>CSS Test (Selectors): Keyboard shortcut combinations do not trigger :focus-visible</title>
+  <link rel="author" title="Alice Boxhall" href="aboxhall@chromium.org" />
+  <link rel="help" href="https://drafts.csswg.org/selectors-4/#the-focus-visible-pseudo" />
+  <script src="../../resources/testharness.js"></script>
+  <script src="../../resources/testharnessreport.js"></script>
+  <script src="../../resources/testdriver.js"></script>
+  <script src="../../resources/testdriver-actions.js"></script>
+  <script src="../../resources/testdriver-vendor.js"></script>
+  <style>
+    @supports not selector(:focus-visible) {
+      :focus {
+        outline: red solid 5px;
+        background-color: red;
+      }
+    }
+
+    :focus-visible {
+      outline: 0;
+      outline-color: red;
+      background-color: red;
+    }
+
+    :focus:not(:focus-visible) {
+      outline: green solid 5px;
+    }
+  </style>
+</head>
+<body>
+  This test checks that using keyboard combinations with [Ctrl], [Alt] or [Cmd]
+  do not trigger <code>:focus-visible</code> matching.
+  <ol id="instructions">
+    <li>If the user-agent does not claim to support the <code>:focus-visible</code> pseudo-class then SKIP this test.</li>
+    <li>Click the element below that says "Click me, then use a keyboard shortcut."</li>
+    <li>Press a keyboard combination including [Ctrl], [Alt] or [Cmd], such as <code>Ctrl</code> + <code>y</code></li>
+    <li>If the element has a red background, then the test result is FAILURE. If the element has a green outline, then the test result is SUCCESS.</li>
+  </ol>
+  <br>
+  <div id="el" tabindex="0">Click me, then use a keyboard shortcut.</div>
+  <script>
+        var t = async_test( "Keyboard focus should match :focus-visible");
+
+        el.addEventListener("click", t.step_func(function(e) {
+          assert_equals(getComputedStyle(el).outlineColor, "rgb(0, 128, 0)", `outlineColor for ${el.tagName}#${el.id} should be green`);
+          assert_not_equals(getComputedStyle(el).backgroundColor, "rgb(255, 0, 0)", `backgroundColor for ${el.tagName}#${el.id} should NOT be red`);
+        }), true);
+
+        el.addEventListener("keydown", t.step_func(function(e) {
+          if (e.altKey || e.ctrlKey || e.metaKey) {
+            assert_equals(getComputedStyle(el).outlineColor, "rgb(0, 128, 0)", `outlineColor for ${el.tagName}#${el.id} should be green`);
+            assert_not_equals(getComputedStyle(el).backgroundColor, "rgb(255, 0, 0)", `backgroundColor for ${el.tagName}#${el.id} should NOT be red`);
+            t.done();
+            return;
+          }
+          assert_true(false, "No modifier key");
+          t.done();
+        }));
+
+        const ctrl_key = '\uE009';
+        test_driver.click(el).then(() => {
+          return test_driver.send_keys(el, ctrl_key);
+        });
+
+  </script>
+</body>
+</html>

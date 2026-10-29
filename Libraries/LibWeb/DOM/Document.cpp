@@ -981,6 +981,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_focused_area);
     visitor.visit(m_sequential_focus_navigation_starting_point);
     visitor.visit(m_active_element);
+    visitor.visit(m_focus_visibility_request_target);
     visitor.visit(m_target_element);
     visitor.visit(m_autofocus_candidates);
     visitor.visit(m_accessibility_focus_target);
@@ -4191,6 +4192,37 @@ void Document::set_focused_area(GC::Ptr<Node> node, InvalidateFocusPseudoClasses
         spell_check_controller().did_focus(m_focused_area);
     if (m_writing_suggestion_controller)
         m_writing_suggestion_controller->did_focus(m_focused_area);
+}
+
+void Document::note_keyboard_interaction()
+{
+    if (!m_last_user_focus_was_by_pointer)
+        return;
+    auto indicated_focus = focused_element_indicates_focus();
+    m_last_user_focus_was_by_pointer = false;
+    publish_focus_visibility_change(indicated_focus);
+}
+
+void Document::request_focus_visibility_for_focused_element(bool focus_visible)
+{
+    auto indicated_focus = focused_element_indicates_focus();
+    set_requested_focus_visibility(m_focused_area, focus_visible);
+    publish_focus_visibility_change(indicated_focus);
+}
+
+bool Document::focused_element_indicates_focus() const
+{
+    auto const* focused_element = as_if<Element>(m_focused_area.ptr());
+    return focused_element && focused_element->should_indicate_focus();
+}
+
+// The focused element's :focus-visible can change without focus moving, so the style engine has to hear the new state
+// from the element rather than from a focus move.
+void Document::publish_focus_visibility_change(bool indicated_focus_before)
+{
+    auto* focused_element = as_if<Element>(m_focused_area.ptr());
+    if (focused_element && focused_element->should_indicate_focus() != indicated_focus_before)
+        CSS::record_element_state_changed(*focused_element, CSS::PseudoClass::FocusVisible, !indicated_focus_before);
 }
 
 Element const* Document::active_element() const

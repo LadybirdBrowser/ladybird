@@ -781,6 +781,32 @@ public:
     HTML::FocusTrigger last_focus_trigger() const { return m_last_focus_trigger; }
     void set_last_focus_trigger(HTML::FocusTrigger trigger) { m_last_focus_trigger = trigger; }
 
+    // Whether the user last moved focus with a pointing device and hasn't used the keyboard since. Focus that a script
+    // moves leaves this alone, since this decides whether that focus is indicated.
+    bool last_user_focus_was_by_pointer() const { return m_last_user_focus_was_by_pointer; }
+    void set_last_user_focus_was_by_pointer(bool value) { m_last_user_focus_was_by_pointer = value; }
+
+    // Using the keyboard clears last_user_focus_was_by_pointer(), which can change whether the focused element matches
+    // :focus-visible without focus moving.
+    void note_keyboard_interaction();
+
+    // The focusVisible option of the focus() call that last moved focus here, if it had one, for the element it focused.
+    // Any other focus move here clears it, and it never applies to another element this document's focus moves to.
+    Optional<bool> requested_focus_visibility_for(Node const& node) const
+    {
+        if (m_focus_visibility_request_target.ptr() != &node)
+            return {};
+        return m_requested_focus_visibility;
+    }
+    void set_requested_focus_visibility(GC::Ptr<Node> target, Optional<bool> value)
+    {
+        m_focus_visibility_request_target = value.has_value() ? target : nullptr;
+        m_requested_focus_visibility = value.value_or(false);
+    }
+
+    // A focus() call with a focusVisible option on the element that already has focus applies the option to it.
+    void request_focus_visibility_for_focused_element(bool focus_visible);
+
     Element const* active_element() const;
     void set_active_element(GC::Ptr<Element>);
 
@@ -1955,6 +1981,12 @@ private:
     GC::Ptr<Node> m_sequential_focus_navigation_starting_point;
 
     HTML::FocusTrigger m_last_focus_trigger { HTML::FocusTrigger::Other };
+    bool m_last_user_focus_was_by_pointer { false };
+    GC::Ptr<Node> m_focus_visibility_request_target;
+    bool m_requested_focus_visibility { false };
+
+    bool focused_element_indicates_focus() const;
+    void publish_focus_visibility_change(bool indicated_focus_before);
 
     GC::Ptr<Element> m_active_element;
     GC::Ptr<Element> m_target_element;

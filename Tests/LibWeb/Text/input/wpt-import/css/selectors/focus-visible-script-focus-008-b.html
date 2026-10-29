@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>CSS Test (Selectors): Script focus after mouse click on a button that does not match :focus-visible, does NOT match :focus-visible</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/selectors-4/#the-focus-visible-pseudo" />
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../../css/support/parsing-testcommon.js"></script>
+<style>
+  #warning {
+    display: none;
+    background: red;
+  }
+
+  @supports not selector(:focus-visible) {
+    #instructions {
+      display: none;
+    }
+
+    #warning {
+      display: block;
+    }
+  }
+
+  :focus-visible {
+    outline: solid thick red;
+  }
+
+  :focus:not(:focus-visible) {
+    background-color: lime;
+  }
+</style>
+
+<p>This test checks that a script focus after a mouse click on a button that does not match <code>:focus visible</code>, does NOT match <code>:focus-visible</code>.</p>
+<ol id="instructions">
+  <li>Click on the button that says "Click me".</li>
+  <li>If the element that says "Focused" has a red outline then the test result is FAILURE, if it has a green background then the test result is SUCCESS.</li>
+</ol>
+<p id="warning">Your user-agent does not support <code>:focus-visible</code> pseudo-class, please SKIP this test.</p>
+
+<button id="initial">Click me</button>
+<div id="target" tabindex="0">Focused</div>
+
+<script>
+  setup({ explicit_done: true });
+
+  // Check that :focus-visible is supported.
+  test_valid_selector(':focus-visible');
+
+  initial.addEventListener("click", () => {
+    target.focus();
+  });
+
+  async_test(function(t) {
+    target.addEventListener("focus", t.step_func_done(function() {
+      assert_equals(getComputedStyle(target).backgroundColor, "rgb(0, 255, 0)", `backgroundColor for ${target.tagName}#${target.id} should be lime`);
+      assert_not_equals(getComputedStyle(target).outlineColor, "rgb(255, 0, 0)", `outlineColor for ${target.tagName}#${target.id} should NOT be red`);
+    }));
+
+    test_driver.click(initial).then(() => done());
+  }, "Script focus after mouse click on a button that does not match :focus-visible, does NOT match :focus-visible");
+</script>

@@ -1903,6 +1903,11 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
     if (!m_navigable->active_document()->is_fully_active())
         return EventResult::Dropped;
 
+    // Using the keyboard means focus is indicated again, even if a click moved it last. A shortcut, with Ctrl, Alt, or
+    // Super held, doesn't count.
+    if (!(modifiers & (UIEvents::KeyModifier::Mod_Alt | UIEvents::KeyModifier::Mod_Ctrl | UIEvents::KeyModifier::Mod_Super)))
+        m_navigable->active_document()->note_keyboard_interaction();
+
     if (should_ignore_device_input_event() && m_mousedown_target_is_drag_candidate && key == UIEvents::KeyCode::Key_Escape)
         return cancel_drag_and_drop_event(m_last_known_mouse_visual_viewport_position.value_or({}), m_last_known_mouse_screen_position, UIEvents::MouseButton::Primary, m_last_known_mouse_buttons, modifiers);
 

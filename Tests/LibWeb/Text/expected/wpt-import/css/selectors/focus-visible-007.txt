@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Using keyboard while element is focused should trigger :focus-visible; using mouse without moving focus should not cancel it; moving focus using mouse should cancel it.

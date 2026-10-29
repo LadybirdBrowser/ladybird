@@ -7198,6 +7198,11 @@ void Element::play_or_cancel_animations_after_display_property_change()
 // https://drafts.csswg.org/selectors/#indicate-focus
 bool Element::should_indicate_focus() const
 {
+    // NB: When focus() moved focus with a focusVisible option, that option decides, ahead of every heuristic below.
+    // https://html.spec.whatwg.org/multipage/interaction.html#dom-focus
+    if (auto requested_focus_visibility = document().requested_focus_visibility_for(*this); requested_focus_visibility.has_value())
+        return *requested_focus_visibility;
+
     // User agents can choose their own heuristics for when to indicate focus; however, the following (non-normative)
     // suggestions can be used as a starting point for when to indicate focus on the currently focused element:
 
@@ -7215,16 +7220,22 @@ bool Element::should_indicate_focus() const
     if (document().last_focus_trigger() == HTML::FocusTrigger::Key)
         return true;
 
-    // FIXME: * If the user interacts with the page via a pointing device (mouse, touchscreen, etc.) and the focused element
+    // * If the user interacts with the page via a pointing device (mouse, touchscreen, etc.) and the focused element
     //   does not support keyboard input, don’t indicate focus.
+    // NB: Keyboard use while the element stays focused brings the indication back, per the suggestion above.
+    if (document().last_focus_trigger() == HTML::FocusTrigger::Click)
+        return !document().last_user_focus_was_by_pointer();
 
     // * If the previously-focused element indicated focus, and a script causes focus to move elsewhere, indicate focus
     //   on the newly focused element.
     //   Conversely, if the previously-focused element did not indicate focus, and a script causes focus to move
     //   elsewhere, don’t indicate focus on the newly focused element.
-    // AD-HOC: Other browsers seem to always indicate focus on programmatically focused elements.
+    // AD-HOC: Focus that a script moves follows how the user last moved focus, rather than whether the previously-
+    //         focused element indicated it: It isn't indicated if the user last moved focus with a pointing device and
+    //         hasn't used the keyboard since, even when the element clicked was a text control that indicated focus.
+    //         But focus that a script moves before the user has moved focus at all (while a page loads) is indicated.
     if (document().last_focus_trigger() == HTML::FocusTrigger::Script)
-        return true;
+        return !document().last_user_focus_was_by_pointer();
 
     // FIXME: * If a newly-displayed element automatically gains focus (such as an action button in a freshly opened dialog),
     //   that element should indicate focus.

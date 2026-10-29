@@ -1,0 +1,7 @@
+After a click moved focus by script: focused=true, matches=false, outline=rgb(255, 0, 0)
+After a Ctrl shortcut: focused=true, matches=false, outline=rgb(255, 0, 0)
+After a key press: focused=true, matches=true, outline=rgb(0, 128, 0)
+After another click moved focus by script: focused=true, matches=false, outline=rgb(255, 0, 0)
+After focus({ focusVisible: true }) on the focused target: focused=true, matches=true, outline=rgb(0, 128, 0)
+After focus({ focusVisible: false }) on the focused target: focused=true, matches=false, outline=rgb(255, 0, 0)
+After a key press, with focusVisible: false still in effect: focused=true, matches=false, outline=rgb(255, 0, 0)

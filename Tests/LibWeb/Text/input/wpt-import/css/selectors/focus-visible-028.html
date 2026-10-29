@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>CSS Test (Selectors): Programmatic focus causes :focus-visible to match after keyboard usage when preventDefault() is used</title>
+  <link rel="author" title="Tyler Jones" href="tylerjdev@github.com" />
+  <link rel="help" href="https://drafts.csswg.org/selectors-4/#the-focus-visible-pseudo" />
+  <script src="../../resources/testharness.js"></script>
+  <script src="../../resources/testharnessreport.js"></script>
+  <script src="../../resources/testdriver.js"></script>
+  <script src="../../resources/testdriver-vendor.js"></script>
+  <style>
+    @supports not selector(:focus-visible) {
+      :focus {
+        outline: red solid 5px;
+        background-color: red;
+      }
+    }
+
+    :focus-visible {
+      outline: blue solid 5px;
+    }
+
+    :focus:not(:focus-visible) {
+      outline: 0;
+      background-color: lime;
+    }
+  </style>
+</head>
+<body>
+  This test checks that programmatically focusing an element after a click and using keyboard afterwards triggers <code>:focus-visible</code> matching.
+  <ol id="instructions">
+    <li>If the user-agent does not claim to support the <code>:focus-visible</code> pseudo-class then SKIP this test.</li>
+    <li>Click the button below that says "Click me".</li>
+    <li>Once focused on the button that says "I will be focused programmatically", use "Left" or "Right" arrow keys to navigate through the button group</li>
+    <li>If any button within the group has a blue outline after using either arrow key, then the test result is SUCCESS. If the element has a green background after using either arrow key, then the test result is FAILURE.</li>
+  </ol>
+  <br />
+  <button id="button">Click me</button>
+  <div id="container">
+      <button id="btn1">I will be focused programmatically.</button>
+      <button id="btn2">Button 2</button>
+      <button id="btn3">Button 3</button>
+  </div>
+  <script>
+    button.addEventListener("click", () => {
+      btn1.focus();
+    });
+
+    focusTrap(document.querySelector('#container'));
+
+    function focusTrap(container) {
+      container.addEventListener('keydown', (e) => {
+        if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+        e.preventDefault();
+
+        const btns = container.querySelectorAll('button');
+        const currentIndex = Array.from(btns).indexOf(document.activeElement);
+        let nextIndex;
+
+        if (e.key === 'ArrowRight') {
+          nextIndex = (currentIndex + 1) % btns.length;
+        } else if (e.key === 'ArrowLeft') {
+          nextIndex = (currentIndex - 1 + btns.length) % btns.length;
+        }
+
+        btns[nextIndex].focus();
+      });
+    }
+
+    promise_test(async t => {
+      const arrow_right = "\uE014";
+      btn2.addEventListener("focus", t.step_func_done((e) => {
+        assert_equals(getComputedStyle(btn2).outlineColor, "rgb(0, 0, 255)", `outlineColor for ${btn2.tagName}#${btn2.id} is blue`);
+        assert_not_equals(getComputedStyle(btn2).backgroundColor, "rgb(0, 255, 0)", `backgroundColor for ${btn2.tagName}#${btn2.id} is NOT lime`);
+      }));
+
+      await test_driver.click(button);
+      assert_equals(document.activeElement, btn1);
+      await test_driver.send_keys(btn1, arrow_right);
+    }, "Programmatic focus after click and keyboard interaction should match :focus-visible");
+  </script>
+</body>
+</html>

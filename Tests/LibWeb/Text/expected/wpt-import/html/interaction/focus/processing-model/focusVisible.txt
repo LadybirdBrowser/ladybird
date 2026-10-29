@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	FocusOptions.focusVisible: button
+Pass	FocusOptions.focusVisible: input
+Pass	FocusOptions.focusVisible: #contenteditable
+Pass	FocusOptions.focusVisible: #tabindex
+Pass	FocusOptions.focusVisible: #not_focusable

@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	":focus-visible" should be a valid selector
+Pass	Script focus after mouse click on a focusable element that does not match :focus-visible, does NOT match :focus-visible

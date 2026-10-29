@@ -583,7 +583,7 @@ static GC::Ptr<DOM::Node> get_focusable_area(DOM::Node& focus_target, FocusTrigg
 
 // https://html.spec.whatwg.org/multipage/interaction.html#focusing-steps
 // FIXME: This should accept more types.
-void run_focusing_steps(GC::Ptr<DOM::Node> new_focus_target, GC::Ptr<DOM::Node> fallback_target, FocusTrigger focus_trigger, ScrollIntoView scroll_into_view)
+void run_focusing_steps(GC::Ptr<DOM::Node> new_focus_target, GC::Ptr<DOM::Node> fallback_target, FocusTrigger focus_trigger, ScrollIntoView scroll_into_view, Optional<bool> focus_visible)
 {
     // 1. If new focus target is not a focusable area, then set new focus target to the result of getting the focusable
     //    area for new focus target, given focus trigger if it was passed.
@@ -634,8 +634,13 @@ void run_focusing_steps(GC::Ptr<DOM::Node> new_focus_target, GC::Ptr<DOM::Node> 
     auto root = focus_root(new_focus_target->document());
     if (!root)
         return;
-    if (new_focus_target.ptr() == root->currently_focused_area().ptr())
+    if (new_focus_target.ptr() == root->currently_focused_area().ptr()) {
+        // NB: focus()'s focusVisible option still applies to the element that already has focus, e.g. the delegate a
+        //     shadow host resolved to.
+        if (focus_visible.has_value())
+            new_focus_target->document().request_focus_visibility_for_focused_element(*focus_visible);
         return;
+    }
 
     // 6. Let old chain be the current focus chain of the top-level browsing context in which
     //    new focus target finds itself.
@@ -646,6 +651,9 @@ void run_focusing_steps(GC::Ptr<DOM::Node> new_focus_target, GC::Ptr<DOM::Node> 
 
     // AD-HOC: Remember last focus trigger for :focus-visible / focus indication.
     new_focus_target->document().set_last_focus_trigger(focus_trigger);
+    new_focus_target->document().set_requested_focus_visibility(new_focus_target, focus_visible);
+    if (focus_trigger == FocusTrigger::Click || focus_trigger == FocusTrigger::Key)
+        new_focus_target->document().set_last_user_focus_was_by_pointer(focus_trigger == FocusTrigger::Click);
 
     // NB: The tab's focused navigable shows the walk below a top-level traversable another process hosts, and the other
     //     pages of the tab follow it, so it moves to the navigable of new focus target before any focus event fires.
