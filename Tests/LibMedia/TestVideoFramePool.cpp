@@ -144,19 +144,49 @@ TEST_CASE(budget_always_allows_the_liveness_floor)
 TEST_CASE(excess_free_buffers_are_dropped_to_fit_the_budget)
 {
     auto slot_buffer_size = measured_slot_buffer_size(FRAME_BYTE_COUNT);
-    auto pool = make_pool(nullptr, slot_buffer_size * Media::VideoFramePool::MIN_SLOT_COUNT);
+    auto byte_budget = slot_buffer_size * (Media::VideoFramePool::MIN_SLOT_COUNT + 1);
+    auto pool = make_pool(nullptr, byte_budget);
 
     // Fill the budget with free buffers.
+    {
+        Vector<Media::VideoFramePool::AcquiredSlot> slots;
+        for (u32 i = 0; i < Media::VideoFramePool::MIN_SLOT_COUNT + 1; i++)
+            slots.append(pool->try_acquire(FRAME_BYTE_COUNT).release_value());
+    }
+    EXPECT_EQ(pool->allocated_byte_count(), byte_budget);
+
+    // A larger allocation replaces one free buffer and sheds another to return to the budget.
+    auto larger_byte_count = slot_buffer_size * 2;
+    auto larger = pool->try_acquire(larger_byte_count).release_value();
+    EXPECT_EQ(pool->allocated_byte_count(), measured_slot_buffer_size(larger_byte_count) + (slot_buffer_size * (Media::VideoFramePool::MIN_SLOT_COUNT - 1)));
+}
+
+TEST_CASE(the_liveness_floor_stays_allocated_past_the_budget)
+{
+    auto slot_buffer_size = measured_slot_buffer_size(FRAME_BYTE_COUNT);
+    auto pool = make_pool(nullptr, 0);
     {
         Vector<Media::VideoFramePool::AcquiredSlot> slots;
         for (u32 i = 0; i < Media::VideoFramePool::MIN_SLOT_COUNT; i++)
             slots.append(pool->try_acquire(FRAME_BYTE_COUNT).release_value());
     }
-    EXPECT_EQ(pool->allocated_byte_count(), slot_buffer_size * Media::VideoFramePool::MIN_SLOT_COUNT);
 
-    // A larger allocation replaces one free buffer and sheds others to return to the budget.
-    auto larger = pool->try_acquire(FRAME_BYTE_COUNT * 2).release_value();
-    EXPECT(pool->allocated_byte_count() <= slot_buffer_size * Media::VideoFramePool::MIN_SLOT_COUNT);
+    (void)pool->try_acquire(FRAME_BYTE_COUNT).release_value();
+    EXPECT_EQ(pool->allocated_byte_count(), slot_buffer_size * Media::VideoFramePool::MIN_SLOT_COUNT);
+}
+
+TEST_CASE(reallocation_replaces_the_largest_free_buffer)
+{
+    auto slot_buffer_size = measured_slot_buffer_size(FRAME_BYTE_COUNT);
+    auto pool = make_pool();
+    {
+        auto smaller = pool->try_acquire(slot_buffer_size).release_value();
+        auto larger = pool->try_acquire(slot_buffer_size * 4).release_value();
+    }
+
+    auto middle_byte_count = slot_buffer_size * 2;
+    (void)pool->try_acquire(middle_byte_count).release_value();
+    EXPECT_EQ(pool->allocated_byte_count(), slot_buffer_size + measured_slot_buffer_size(middle_byte_count));
 }
 
 TEST_CASE(frame_layouts_beyond_the_size_limits_are_refused)
