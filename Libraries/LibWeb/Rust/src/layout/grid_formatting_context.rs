@@ -1662,8 +1662,9 @@ impl<'pass> GridFormattingContext<'pass> {
             if crate::layout::sizing_context::is_plain_auto(minimum) || minimum.is_intrinsic_sizing_constraint() {
                 return None;
             }
+            let root_record = self.run.root_record();
             Some(self.sizing().calculate_inner_size_for_property(
-                sizing_context::SizedBox::new(self.run.box_, &self.run.root_record()),
+                sizing_context::SizedBox::of_own_metrics(self.run.box_, &root_record, root_record.reader()),
                 axis.sizing_axis(),
                 axis.select(SizingProperty::MinWidth, SizingProperty::MinHeight),
                 self.container_available_space(),
@@ -2908,8 +2909,9 @@ impl<'pass> GridFormattingContext<'pass> {
         }
         let available = self.container_available_space();
         let constraints = self.layout_input.unwrap().containing_block_constraints;
+        let root_record = self.run.root_record();
         self.sizing().calculate_inner_size_for_property(
-            sizing_context::SizedBox::new(self.run.box_, &self.run.root_record()),
+            sizing_context::SizedBox::of_own_metrics(self.run.box_, &root_record, root_record.reader()),
             axis.sizing_axis(),
             axis.select(SizingProperty::MaxWidth, SizingProperty::MaxHeight),
             available,
@@ -4161,8 +4163,9 @@ impl<'pass> GridFormattingContext<'pass> {
             && !self.maximum_size_is_unresolvable_during_measurement(Axis::Row)
             && !sizing.should_treat_max_block_size_as_none(self.run.box_, available.block_size, constraints)
         {
+            let root_record = self.run.root_record();
             block_size = block_size.min(sizing.calculate_inner_size_for_property(
-                sizing_context::SizedBox::new(self.run.box_, &self.run.root_record()),
+                sizing_context::SizedBox::of_own_metrics(self.run.box_, &root_record, root_record.reader()),
                 SizingAxis::Block,
                 SizingProperty::MaxHeight,
                 available,
@@ -4172,8 +4175,9 @@ impl<'pass> GridFormattingContext<'pass> {
         if !crate::layout::sizing_context::is_plain_auto(style.min_height())
             && !(self.own_block_size_is_being_measured() && style.min_height().is_intrinsic_sizing_constraint())
         {
+            let root_record = self.run.root_record();
             block_size = block_size.max(sizing.calculate_inner_size_for_property(
-                sizing_context::SizedBox::new(self.run.box_, &self.run.root_record()),
+                sizing_context::SizedBox::of_own_metrics(self.run.box_, &root_record, root_record.reader()),
                 SizingAxis::Block,
                 SizingProperty::MinHeight,
                 available,
@@ -5081,7 +5085,11 @@ impl<'pass> GridFormattingContext<'pass> {
             self.automatic_content_block_size = intrinsic_block_size;
         } else if let AvailableSize::Definite(block_size) = available.block_size
             && self.sizing().should_treat_block_size_as_auto(
-                sizing_context::SizedBox::new(self.run.box_, &self.run.root_record()),
+                sizing_context::SizedBox::of_own_metrics(
+                    self.run.box_,
+                    &self.run.root_record(),
+                    self.run.callbacks.frame,
+                ),
                 available,
                 self.layout_input.unwrap().containing_block_constraints,
             )

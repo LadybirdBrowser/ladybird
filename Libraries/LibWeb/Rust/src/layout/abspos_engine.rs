@@ -159,7 +159,7 @@ impl<'a> OutOfFlowBox<'a> {
     }
 
     fn sized_box(&self) -> sizing_context::SizedBox<'_> {
-        sizing_context::SizedBox::new(self.node, &self.record)
+        sizing_context::SizedBox::of_own_metrics(self.node, &self.record, self.record.reader())
     }
 }
 

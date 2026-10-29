@@ -137,6 +137,10 @@ pub(crate) struct SizedBox<'metrics> {
     pub(crate) node: Node,
     /// What the caller holds of the box, which is nothing for a box its run does not hold yet.
     metrics: Option<&'metrics dyn BoxMetricCells>,
+    /// Where the metrics are the box's own (held by the run or call that sizes the box, not by a parent sizing it ahead
+    /// of its run), the frame they are held in. content_block_size_of_orthogonal_flow() reads such metrics in the box's
+    /// own frame.
+    own_metrics_frame: Option<geometry::Frame>,
 }
 
 impl<'metrics> SizedBox<'metrics> {
@@ -144,19 +148,25 @@ impl<'metrics> SizedBox<'metrics> {
         Self {
             node,
             metrics: Some(metrics),
+            own_metrics_frame: None,
+        }
+    }
+
+    /// `node`, with metrics of its own that are held in frame `held_in`.
+    pub(crate) fn of_own_metrics(node: Node, metrics: &'metrics dyn BoxMetricCells, held_in: geometry::Frame) -> Self {
+        Self {
+            node,
+            metrics: Some(metrics),
+            own_metrics_frame: Some(held_in),
         }
     }
 
     /// `node`, of which its caller holds no metrics.
     pub(crate) fn unheld(node: Node) -> Self {
-        Self { node, metrics: None }
-    }
-
-    /// `node`, with the metrics its caller holds of it, if any.
-    pub(crate) fn held_if_any(node: Node, metrics: Option<&'metrics impl BoxMetricCells>) -> Self {
         Self {
             node,
-            metrics: metrics.map(|metrics| metrics as &dyn BoxMetricCells),
+            metrics: None,
+            own_metrics_frame: None,
         }
     }
 
@@ -187,7 +197,7 @@ impl<'record> SizedRecord<'record> {
     }
 
     pub(crate) fn sized_box(&self) -> SizedBox<'_> {
-        SizedBox::new(self.node, &self.record)
+        SizedBox::of_own_metrics(self.node, &self.record, self.record.reader())
     }
 }
 
@@ -1873,13 +1883,9 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             content_constraints.percentage_basis_inline_size = Some(other_axis_size);
             content_constraints.percentage_basis_block_size = Some(transferred_size);
             if self.establishes_orthogonal_flow(content_box) {
-                // NB: The run measuring the button may not hold its content box, whose sizing reads no metrics of it.
-                let content_box_record = self
-                    .records
-                    .used_values_if_owned(content_box)
-                    .map(|record| used_values::RecordInFrame::new(record, self.callbacks.frame));
+                // NB: A run that sizes the button never holds its content box, whose sizing reads no metrics of it.
                 return self.content_block_size_of_orthogonal_flow(
-                    SizedBox::held_if_any(content_box, content_box_record.as_ref()),
+                    SizedBox::unheld(content_box),
                     other_axis_size,
                     content_constraints,
                     IntrinsicSizeCacheKind::MaxContentInline,
@@ -2411,7 +2417,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
                     let root_record = used_values::RecordInFrame::new(records.used_values(node), callbacks.frame);
                     let inline_size_under = |inline_size| {
                         sizing.atomic_root_content_inline_size(
-                            SizedBox::new(node, &root_record),
+                            SizedBox::of_own_metrics(node, &root_record, root_record.reader()),
                             AvailableSpace {
                                 inline_size,
                                 block_size: available_block_size,
@@ -3303,13 +3309,12 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             percentage_basis_block_size: constraints.percentage_basis_inline_size,
             quirks_mode_percentage_basis_block_size: None,
         };
-        // NB: A record of the box is read in the box's own frame. Cells its parent sizes it in are read as they are.
-        let record_in_own_frame = sized
-            .metrics_if_held()
-            .and_then(|metrics| metrics.record_viewed())
-            .map(|record| used_values::RecordInFrame::new(record, sizing.callbacks.frame));
-        let sized_in_own_frame = match &record_in_own_frame {
-            Some(record) => SizedBox::new(node, record),
+        // NB: The box's own metrics are read in the box's own frame. Cells its parent sizes it in are read as they are.
+        let own_metrics_in_own_frame = sized
+            .own_metrics_frame
+            .map(|held_in| sized.metrics().cells().in_frame(held_in, sizing.callbacks.frame));
+        let sized_in_own_frame = match &own_metrics_in_own_frame {
+            Some(cells) => SizedBox::of_own_metrics(node, cells, sizing.callbacks.frame),
             None => sized,
         };
         let answer = sizing.content_inline_size(sized_in_own_frame, constraints_in_own_frame, Some(inline_size), kind);

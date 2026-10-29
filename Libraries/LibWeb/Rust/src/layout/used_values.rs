@@ -410,11 +410,6 @@ pub(crate) trait BoxMetricCells {
         is_collapsed_borders_table_box: bool,
     }
 
-    /// The record these metrics view, if they view one, which a reader in another frame views in its own.
-    fn record_viewed(&self) -> Option<&UsedValues> {
-        None
-    }
-
     fn border_left_collapsed(&self, collapsed: bool) -> CssPixels {
         if collapsed {
             collapsed_border_share(self.border_left(), true, self.is_collapsed_borders_table_box())
@@ -564,6 +559,11 @@ impl<'record> RecordInFrame<'record> {
         }
     }
 
+    /// The frame the record is read in.
+    pub(crate) fn reader(&self) -> geometry::Frame {
+        self.reader
+    }
+
     /// Writes the record's metrics, which `write` sees and changes as the reader's frame has them.
     pub(crate) fn update(self, write: impl FnOnce(&mut RootInputCells)) {
         let mut cells = self.cells();
@@ -595,10 +595,6 @@ impl BoxMetricCells for RecordInFrame<'_> {
     #[inline]
     fn cells(&self) -> RootInputCells {
         RootInputCells::capture(self.record).in_frame(self.record.frame.get(), self.reader)
-    }
-
-    fn record_viewed(&self) -> Option<&UsedValues> {
-        Some(self.record)
     }
 }
 
