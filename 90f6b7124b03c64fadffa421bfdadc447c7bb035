@@ -1,0 +1,11 @@
+Ladybird now lays out an in-flow flex or grid item with align-self or
+justify-self set to anchor-center exactly as with center. Blink does the
+same: Its ResolvedSelfAlignment() turns anchor-center into center for a
+box with no anchor-center offset, and its AxisEdgeFromItemPosition()
+gives a grid item’s kAnchorCenter the center edge. In WebKit, the
+columnAxisPositionForGridItem() and rowAxisPositionForGridItem() of
+RenderGrid map AnchorCenter to GridAxisCenter, and FlexFormattingUtils::
+alignmentOffset() gives AnchorCenter the same offset as Center. In
+Gecko, EnterAlignPackingSpace() aligns a flex item with ANCHOR_CENTER as
+CENTER, and CSSAlignUtils::AlignJustifySelf() also treats ANCHOR_CENTER
+with no anchor as CENTER.
