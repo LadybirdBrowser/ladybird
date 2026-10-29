@@ -1435,6 +1435,24 @@ Vector<Gfx::SharedImageBuffer const*> WebContentView::backing_stores() const
     return backing_stores;
 }
 
+bool WebContentView::show_image_over_page(QImage const& image, QPoint position)
+{
+    auto* parent = window()->windowHandle();
+    if (!m_page_surface || !parent || !m_page_surface->show_overlay(*parent, image, mapTo(window(), position)))
+        return false;
+    // NB: The overlay changes on screen when the browser window commits next, so have Qt repaint a pixel of it.
+    update(0, 0, 1, 1);
+    return true;
+}
+
+void WebContentView::hide_image_over_page()
+{
+    if (!m_page_surface)
+        return;
+    m_page_surface->hide_overlay();
+    update(0, 0, 1, 1);
+}
+
 void WebContentView::destroy_page_surface()
 {
     m_page_surface->retire_buffers([this](WaylandPageSurface::HeldBackingStore const& held) -> Function<void()> {
@@ -1501,6 +1519,7 @@ void WebContentView::fall_back_from_page_surface()
     create_vulkan_window();
     schedule_vulkan_window_update();
     update();
+    emit image_overlay_unavailable();
 }
 #endif
 

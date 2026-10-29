@@ -11,11 +11,14 @@
 #include <UI/Qt/WaylandRegistry.h>
 
 #include <QGuiApplication>
+#include <QImage>
 #include <QWindow>
 #include <qpa/qplatformwindow_p.h>
 
 #include <libdrm/drm_fourcc.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
+#include <unistd.h>
 #include <wayland-client.h>
 
 // NB: The generated listener functions cast the const away from the listeners they pass to libwayland.
@@ -50,12 +53,13 @@ OwnPtr<WaylandPageSurface> WaylandPageSurface::create()
             .subcompositor = registry->bind<wl_subcompositor>(wl_subcompositor_interface, 1),
             .viewporter = registry->bind<wp_viewporter>(wp_viewporter_interface, 1),
             .dmabuf = registry->bind<zwp_linux_dmabuf_v1>(zwp_linux_dmabuf_v1_interface, 3),
+            .shm = registry->bind<wl_shm>(wl_shm_interface, 1),
         };
-        for (void* proxy : { static_cast<void*>(globals.subcompositor), static_cast<void*>(globals.viewporter), static_cast<void*>(globals.dmabuf) }) {
+        for (void* proxy : { static_cast<void*>(globals.subcompositor), static_cast<void*>(globals.viewporter), static_cast<void*>(globals.dmabuf), static_cast<void*>(globals.shm) }) {
             if (proxy)
                 WaylandRegistry::move_to_qt_queue(proxy);
         }
-        if (!globals.subcompositor || !globals.viewporter || !globals.dmabuf)
+        if (!globals.subcompositor || !globals.viewporter || !globals.dmabuf || !globals.shm)
             return {};
         return globals;
     }();
@@ -70,10 +74,13 @@ WaylandPageSurface::WaylandPageSurface(Globals globals)
 {
     m_surface = wl_compositor_create_surface(m_globals.compositor);
     m_viewport = wp_viewporter_get_viewport(m_globals.viewporter, m_surface);
+    m_overlay_surface = wl_compositor_create_surface(m_globals.compositor);
+    m_overlay_viewport = wp_viewporter_get_viewport(m_globals.viewporter, m_overlay_surface);
 
     // NB: Input goes to the browser window underneath, where Qt delivers it to the view.
     auto* empty_region = wl_compositor_create_region(m_globals.compositor);
     wl_surface_set_input_region(m_surface, empty_region);
+    wl_surface_set_input_region(m_overlay_surface, empty_region);
     wl_region_destroy(empty_region);
 }
 
@@ -85,6 +92,10 @@ WaylandPageSurface::~WaylandPageSurface()
     QObject::disconnect(m_parent_surface_created_connection);
     for (auto& buffer : m_buffers)
         destroy_buffer(*buffer);
+    for (auto* buffer : m_overlay_buffers)
+        wl_buffer_destroy(buffer);
+    wp_viewport_destroy(m_overlay_viewport);
+    wl_surface_destroy(m_overlay_surface);
     wp_viewport_destroy(m_viewport);
     wl_surface_destroy(m_surface);
 }
@@ -110,6 +121,9 @@ bool WaylandPageSurface::ensure_subsurface(QWindow& parent)
         wl_subsurface_set_sync(m_subsurface);
     else
         wl_subsurface_set_desync(m_subsurface);
+    // NB: A new subsurface goes on top of its siblings, so the overlay is above the page. It stays synchronized, so
+    //     that what it shows and where it shows it change together.
+    m_overlay_subsurface = wl_subcompositor_get_subsurface(m_globals.subcompositor, m_overlay_surface, parent_surface);
     m_parent = &parent;
     m_parent_surface = parent_surface;
     m_parent_surface_destroyed_connection = QObject::connect(wayland_window, &QNativeInterface::Private::QWaylandWindow::surfaceDestroyed, [this, wayland_window] {
@@ -137,10 +151,15 @@ void WaylandPageSurface::destroy_subsurface()
         wl_subsurface_destroy(m_subsurface);
         m_subsurface = nullptr;
     }
+    if (m_overlay_subsurface) {
+        wl_subsurface_destroy(m_overlay_subsurface);
+        m_overlay_subsurface = nullptr;
+    }
     m_parent = nullptr;
     m_parent_surface = nullptr;
     m_position.clear();
     hide();
+    hide_overlay();
 }
 
 WaylandPageSurface::Buffer* WaylandPageSurface::buffer_for(Frame const& frame)
@@ -380,6 +399,61 @@ void WaylandPageSurface::set_synchronized(bool synchronized)
         wl_subsurface_set_sync(m_subsurface);
     else
         wl_subsurface_set_desync(m_subsurface);
+}
+
+bool WaylandPageSurface::show_overlay(QWindow& parent, QImage const& image, QPoint position)
+{
+    if (image.isNull() || !ensure_subsurface(parent))
+        return false;
+
+    // NB: Wayland's ARGB8888 is Qt's premultiplied ARGB32 on a little-endian machine.
+    auto pixels = image.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+    auto size = static_cast<size_t>(pixels.sizeInBytes());
+    auto fd = memfd_create("ladybird-overlay", MFD_CLOEXEC);
+    if (fd < 0)
+        return false;
+    auto* memory = ftruncate(fd, static_cast<off_t>(size)) == 0 ? mmap(nullptr, size, PROT_WRITE, MAP_SHARED, fd, 0) : MAP_FAILED;
+    if (memory == MAP_FAILED) {
+        ::close(fd);
+        return false;
+    }
+    memcpy(memory, pixels.constBits(), size);
+    munmap(memory, size);
+
+    auto* pool = wl_shm_create_pool(m_globals.shm, fd, static_cast<i32>(size));
+    auto* buffer = wl_shm_pool_create_buffer(pool, 0, pixels.width(), pixels.height(), static_cast<i32>(pixels.bytesPerLine()), WL_SHM_FORMAT_ARGB8888);
+    wl_shm_pool_destroy(pool);
+    ::close(fd);
+    static wl_buffer_listener const buffer_listener {
+        .release = overlay_buffer_released,
+    };
+    wl_buffer_add_listener(buffer, &buffer_listener, this);
+    m_overlay_buffers.append(buffer);
+
+    auto logical_size = image.deviceIndependentSize().toSize();
+    wl_subsurface_set_position(m_overlay_subsurface, position.x(), position.y());
+    wp_viewport_set_destination(m_overlay_viewport, logical_size.width(), logical_size.height());
+    wl_surface_attach(m_overlay_surface, buffer, 0, 0);
+    wl_surface_damage_buffer(m_overlay_surface, 0, 0, INT32_MAX, INT32_MAX);
+    wl_surface_commit(m_overlay_surface);
+    m_overlay_is_attached = true;
+    return true;
+}
+
+void WaylandPageSurface::hide_overlay()
+{
+    if (!m_overlay_is_attached)
+        return;
+    wl_surface_attach(m_overlay_surface, nullptr, 0, 0);
+    wl_surface_commit(m_overlay_surface);
+    m_overlay_is_attached = false;
+}
+
+void WaylandPageSurface::overlay_buffer_released(void* data, wl_buffer* buffer)
+{
+    auto& surface = *static_cast<WaylandPageSurface*>(data);
+    surface.m_overlay_buffers.remove_first_matching([&](auto* candidate) { return candidate == buffer; });
+    wl_buffer_destroy(buffer);
 }
 
 bool WaylandPageSurface::holds_backing_store(u64 page_id, i32 bitmap_id) const
