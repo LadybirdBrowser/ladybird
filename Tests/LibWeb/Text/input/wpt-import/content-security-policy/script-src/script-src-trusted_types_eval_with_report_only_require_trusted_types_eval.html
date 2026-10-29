@@ -1,0 +1,106 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+    <title>Scripts injected via `eval` are not allowed with `trusted-types-eval` when `require-trusted-types-for 'script'` is report only.</title>
+    <script src='../../resources/testharness.js' nonce='dummy'></script>
+    <script src='../../resources/testharnessreport.js' nonce='dummy'></script>
+
+    <!-- CSP served: script-src 'nonce-dummy' 'trusted-types-eval' -->
+    <!-- Report Only CSP served: require-trusted-types-for 'script' -->
+</head>
+
+<body>
+    <script nonce='dummy'>
+        trustedTypes.createPolicy('default', { createScript: s => s });
+
+        promise_test(t => {
+            globalThis.evalScriptRan = false;
+            const violation = new EventWatcher(t, self, 'securitypolicyviolation')
+                .wait_for('securitypolicyviolation')
+                .then(e => {
+                    assert_equals(e.effectiveDirective, 'script-src');
+                    assert_equals(e.blockedURI, 'eval');
+                    assert_false(globalThis.evalScriptRan);
+                });
+            assert_throws_js(Error, () => {
+                try {
+                    eval("globalThis.evalScriptRan = true;");
+                } catch (e) {
+                    throw new Error();
+                }
+            });
+            return violation;
+        }, "Scripts injected via direct `eval` are not allowed with `trusted-types-eval` when `require-trusted-types-for 'script'` is report only.");
+
+        promise_test(t => {
+            globalThis.indirectEvalScriptRan = false;
+            const violation = new EventWatcher(t, self, 'securitypolicyviolation')
+                .wait_for('securitypolicyviolation')
+                .then(e => {
+                    assert_equals(e.effectiveDirective, 'script-src');
+                    assert_equals(e.blockedURI, 'eval');
+                    assert_false(globalThis.indirectEvalScriptRan);
+                });
+            assert_throws_js(Error, () => {
+                try {
+                    eval?.("globalThis.indirectEvalScriptRan = true;");
+                } catch (e) {
+                    throw new Error();
+                }
+            });
+            return violation;
+        }, "Scripts injected via indirect `eval` are not allowed with `trusted-types-eval` when `require-trusted-types-for 'script'` is report only.");
+
+        promise_test(t => {
+            globalThis.functionScriptRan = false;
+            const violation = new EventWatcher(t, self, 'securitypolicyviolation')
+                .wait_for('securitypolicyviolation')
+                .then(e => {
+                    assert_equals(e.effectiveDirective, 'script-src');
+                    assert_equals(e.blockedURI, 'eval');
+                    assert_false(globalThis.functionScriptRan);
+                });
+            assert_throws_js(Error, () => {
+                try {
+                    new Function("globalThis.functionScriptRan = true;")();
+                } catch (e) {
+                    throw new Error();
+                }
+            });
+            return violation;
+        }, "Scripts injected via `new Function` are not allowed with `trusted-types-eval` when `require-trusted-types-for 'script'` is report only.");
+
+        promise_test(t => {
+            globalThis.setTimeoutScriptRan = false;
+            const violation = new EventWatcher(t, self, 'securitypolicyviolation')
+                .wait_for('securitypolicyviolation')
+                .then(e => {
+                    assert_equals(e.effectiveDirective, 'script-src');
+                    assert_equals(e.blockedURI, 'eval');
+                })
+                .then(() => assert_false(globalThis.setTimeoutScriptRan));
+            const id = setTimeout("globalThis.setTimeoutScriptRan = true;", 0);
+            t.add_cleanup(() => clearTimeout(id));
+            assert_equals(id, 0);
+            return violation;
+        }, "Scripts injected via `setTimeout` are not allowed with `trusted-types-eval` when `require-trusted-types-for 'script'` is report only.");
+
+        promise_test(t => {
+            globalThis.setIntervalScriptRan = false;
+            const violation = new EventWatcher(t, self, 'securitypolicyviolation')
+                .wait_for('securitypolicyviolation')
+                .then(e => {
+                    assert_equals(e.effectiveDirective, 'script-src');
+                    assert_equals(e.blockedURI, 'eval');
+                })
+                .then(() => assert_false(globalThis.setIntervalScriptRan));
+            const id = setInterval("globalThis.setIntervalScriptRan = true;", 0);
+            t.add_cleanup(() => clearInterval(id));
+            assert_equals(id, 0);
+            return violation;
+        }, "Scripts injected via `setInterval` are not allowed with `trusted-types-eval` when `require-trusted-types-for 'script'` is report only.");
+    </script>
+</body>
+
+</html>
