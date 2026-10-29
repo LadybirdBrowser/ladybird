@@ -1609,7 +1609,7 @@ pub(crate) fn flex_self_block_size_resolution_space(
 // Flex containers with an automatic block size are treated as max-content, so resolve it early.
 fn eagerly_resolve_atomic_flex_root_auto_block_size(
     run: &FormattingContextRun,
-    sized_root: sizing_context::SizedRecord<'_>,
+    sized_root: sizing_context::SizedCells<'_>,
     input: &LayoutInput,
     inline_definite_space: AvailableSpace,
 ) {
@@ -1634,7 +1634,7 @@ fn eagerly_resolve_atomic_flex_root_auto_block_size(
                 &sizing,
                 sized_root.sized_box(),
                 sized_root
-                    .record
+                    .cells
                     .available_inner_space_or_constraints_from(inline_definite_space),
                 input.containing_block_constraints,
                 None,
@@ -1650,7 +1650,7 @@ struct RootSizingOutcome {
 
 fn apply_root_sizing_directives(
     run: &FormattingContextRun,
-    sized_root: sizing_context::SizedRecord<'_>,
+    sized_root: sizing_context::SizedCells<'_>,
     input: &LayoutInput,
     fc_type: FormattingContextType,
     root_used_insets: &Cell<run_records::UsedInsets>,
@@ -1662,7 +1662,7 @@ fn apply_root_sizing_directives(
         }
         ParticipationInParentFormattingContext::Float { .. } => {
             resolve_float_root_block_size_ahead_of_its_contents(run, sized_root, input);
-            body_input_with_inner_available_space(&sized_root.record, input)
+            body_input_with_inner_available_space(sized_root.cells, input)
         }
         ParticipationInParentFormattingContext::AtomicInline => {
             let run_cache_may_reuse_this_run_at_other_available_inline_sizes =
@@ -1673,9 +1673,9 @@ fn apply_root_sizing_directives(
                 input.containing_block_constraints,
                 run_cache_may_reuse_this_run_at_other_available_inline_sizes,
             );
-            let mut body_input = body_input_with_inner_available_space(&sized_root.record, input);
+            let mut body_input = body_input_with_inner_available_space(sized_root.cells, input);
             let inline_definite_space = AvailableSpace {
-                inline_size: AvailableSize::definite(sized_root.record.content_inline_size()),
+                inline_size: AvailableSize::definite(sized_root.cells.content_inline_size()),
                 block_size: AvailableSize::Indefinite,
             };
             let flex_self_resolution_space = flex_self_block_size_resolution_space(
@@ -1699,12 +1699,12 @@ fn apply_root_sizing_directives(
                 ),
                 abspos_inputs,
             );
-            body_input_with_inner_available_space(&sized_root.record, input)
+            body_input_with_inner_available_space(sized_root.cells, input)
         }
         ParticipationInParentFormattingContext::Item => {
             if cfg!(debug_assertions) && run.fragments.is_some() {
                 debug_assert!(
-                    sized_root.record.has_definite_inline_size(),
+                    sized_root.cells.has_definite_inline_size(),
                     "container-internal run root must arrive with a container-assigned inline size"
                 );
             }
@@ -1713,7 +1713,7 @@ fn apply_root_sizing_directives(
         ParticipationInParentFormattingContext::Root => {
             let directives = input.sizing;
             if directives.forced_content_inline_size.is_some() || directives.forced_content_block_size.is_some() {
-                let used = sized_root.record;
+                let used = sized_root.cells;
                 if let Some(inline_size) = directives.forced_content_inline_size {
                     used.set_content_inline_size(inline_size);
                 }
@@ -1733,7 +1733,7 @@ fn apply_root_sizing_directives(
 
 fn dimension_block_level_root(
     run: &FormattingContextRun,
-    sized_root: sizing_context::SizedRecord<'_>,
+    sized_root: sizing_context::SizedCells<'_>,
     input: &LayoutInput,
     fc_type: FormattingContextType,
 ) -> LayoutInput {
@@ -1743,10 +1743,10 @@ fn dimension_block_level_root(
     let sizing = run.sizing();
     let style = StyleValues::for_node(&run.callbacks, node);
     let flex_self_resolution_space = size_block_level_root_ahead_of_its_contents(run, sized_root, input);
-    let mut body_input = body_input_with_inner_available_space(&sized_root.record, input);
+    let mut body_input = body_input_with_inner_available_space(sized_root.cells, input);
     body_input.sizing.flex_self_block_size_resolution_space = flex_self_resolution_space;
     if let Some(block_size) = input.sizing.forced_content_block_size {
-        let used = sized_root.record;
+        let used = sized_root.cells;
         used.set_content_block_size(block_size);
         used.update_cells(|cells| cells.has_definite_block_size = true);
         body_input.available_space.block_size = AvailableSize::definite(block_size);
@@ -1783,11 +1783,11 @@ fn dimension_block_level_root(
 /// automatic block size in, if it does.
 fn size_block_level_root_ahead_of_its_contents(
     run: &FormattingContextRun,
-    sized_root: sizing_context::SizedRecord<'_>,
+    sized_root: sizing_context::SizedCells<'_>,
     input: &LayoutInput,
 ) -> Option<AvailableSpace> {
     let node = run.box_;
-    let root = sized_root.record;
+    let root = sized_root.cells;
     let constraints = input.containing_block_constraints;
     let sizing = run.sizing();
     let facts = NodeFacts::new(&run.callbacks, node);
@@ -1822,11 +1822,11 @@ fn size_block_level_root_ahead_of_its_contents(
 /// inline size its block formatting context gave it.
 fn resolve_float_root_block_size_ahead_of_its_contents(
     run: &FormattingContextRun,
-    sized_root: sizing_context::SizedRecord<'_>,
+    sized_root: sizing_context::SizedCells<'_>,
     input: &LayoutInput,
 ) {
     let node = run.box_;
-    let root = sized_root.record;
+    let root = sized_root.cells;
     let available_space = input.available_space;
     let constraints = input.containing_block_constraints;
     let sizing = run.sizing();
@@ -1890,13 +1890,13 @@ pub(crate) fn content_block_size_for_aspect_ratio_minimum(
 
 fn finalize_block_level_root(
     run: &FormattingContextRun,
-    sized_root: sizing_context::SizedRecord<'_>,
+    sized_root: sizing_context::SizedCells<'_>,
     input: &LayoutInput,
     body_result: &ChildLayoutResult,
 ) {
     let node = run.box_;
     if let Some(inline_size) = body_result.table_wrapper_content_inline_size {
-        sized_root.record.set_content_inline_size(inline_size);
+        sized_root.cells.set_content_inline_size(inline_size);
     }
     let style = StyleValues::for_node(&run.callbacks, node);
     if !style.display().is_table_inside() && input.sizing.forced_content_block_size.is_none() {
@@ -1918,12 +1918,12 @@ fn finalize_block_level_root(
 
 fn finalize_float_root(
     run: &FormattingContextRun,
-    sized_root: sizing_context::SizedRecord<'_>,
+    sized_root: sizing_context::SizedCells<'_>,
     input: &LayoutInput,
     body_result: &ChildLayoutResult,
 ) {
     if let Some(inline_size) = body_result.table_wrapper_content_inline_size {
-        sized_root.record.set_content_inline_size(inline_size);
+        sized_root.cells.set_content_inline_size(inline_size);
     }
     run.sizing().resolve_used_block_size_if_treated_as_auto(
         sized_root,
@@ -1963,10 +1963,7 @@ fn size_skipped_independent_root(
             });
             let used_insets = Cell::new(run_records::UsedInsets::default());
             let sized_child = abspos_engine::OutOfFlowBox::new(
-                sizing_context::SizedRecord::new(
-                    child,
-                    used_values::CellsInFrame::of_cells(cells, run.callbacks.frame, run.callbacks.frame),
-                ),
+                sizing_context::SizedCells::new(child, cells, run.callbacks.frame),
                 &used_insets,
                 anchor_resolved_values.as_ref(),
             );
@@ -2372,10 +2369,7 @@ fn lay_out_run_root_and_contents<'pass>(
         table_inline_layout => (None, table_inline_layout),
     };
     let root = Cell::new(root_cells);
-    let sized_root = sizing_context::SizedRecord::new(
-        box_,
-        used_values::CellsInFrame::of_cells(&root, parent_frame, parent_frame),
-    );
+    let sized_root = sizing_context::SizedCells::new(box_, &root, parent_frame);
     let root_used_insets = Cell::new(run_records::UsedInsets::default());
     let RootSizingOutcome {
         body_input,
@@ -2391,10 +2385,7 @@ fn lay_out_run_root_and_contents<'pass>(
         body_input_in_own_frame(
             run,
             body_run,
-            sizing_context::SizedRecord::new(
-                box_,
-                used_values::CellsInFrame::of_cells(&own_root, own_frame, own_frame),
-            ),
+            sizing_context::SizedCells::new(box_, &own_root, own_frame),
             &input,
             body_input,
             parent_frame,
@@ -2584,7 +2575,7 @@ fn lay_out_run_root_and_contents<'pass>(
                 && let Some(block_size) =
                     content_block_size_adopted_after_run(&input, result.automatic_content_block_size)
             {
-                sized_root.record.set_content_block_size(block_size);
+                sized_root.cells.set_content_block_size(block_size);
             }
         }
         ParticipationInParentFormattingContext::Root => {}
@@ -2700,14 +2691,14 @@ pub(crate) fn frame_established_by(callbacks: &LayoutPass<'_>, node: Node) -> ge
 fn body_input_in_own_frame(
     run: &FormattingContextRun,
     body_run: &FormattingContextRun,
-    sized_root_in_own_frame: sizing_context::SizedRecord<'_>,
+    sized_root_in_own_frame: sizing_context::SizedCells<'_>,
     input: &LayoutInput,
     body_input: LayoutInput,
     parent_frame: geometry::Frame,
     own_frame: geometry::Frame,
 ) -> LayoutInput {
     let node = run.box_;
-    let used = sized_root_in_own_frame.record;
+    let used = sized_root_in_own_frame.cells;
     if !parent_frame.is_orthogonal_to(own_frame) {
         // NB: Sizes keep their axes between frames that are not orthogonal, so the contents are laid out with the
         //     input the root's sizing gave them, apart from the parent's block formatting context they leave.
@@ -2819,7 +2810,7 @@ fn result_in_parent_frame(
 
 fn finalize_atomic_root_block_size(
     run: &FormattingContextRun,
-    sized_root: sizing_context::SizedRecord<'_>,
+    sized_root: sizing_context::SizedCells<'_>,
     input: &LayoutInput,
     automatic_content_block_size_of_completed_body_run: CssPixels,
 ) {
@@ -2950,10 +2941,7 @@ pub(crate) fn layout_inside_child_with_input_cells(
         // parent run, which will also construct its fragment when placing the box.
         let cells_of_this_layout = Cell::new(child_input_cells);
         let committed_fragment = run.sizing().dimension_empty_atomic_root(
-            sizing_context::SizedRecord::new(
-                child,
-                used_values::CellsInFrame::of_cells(&cells_of_this_layout, run.callbacks.frame, run.callbacks.frame),
-            ),
+            sizing_context::SizedCells::new(child, &cells_of_this_layout, run.callbacks.frame),
             input.available_space,
             input.containing_block_constraints,
             child_run_builds_fragments,

@@ -3649,14 +3649,7 @@ impl<'pass> FlexFormattingContext<'pass> {
 
     fn resolve_own_auto_block_size(&self, automatic_block_size: CssPixels, resolution_space: AvailableSpace) {
         self.sizing().resolve_used_block_size_if_treated_as_auto(
-            sizing_context::SizedRecord::new(
-                self.run.box_,
-                used_values::CellsInFrame::of_cells(
-                    &self.container_cells,
-                    self.run.callbacks.frame,
-                    self.run.callbacks.frame,
-                ),
-            ),
+            sizing_context::SizedCells::new(self.run.box_, &self.container_cells, self.run.callbacks.frame),
             resolution_space,
             self.layout_input.unwrap().containing_block_constraints,
             Some(automatic_block_size),
