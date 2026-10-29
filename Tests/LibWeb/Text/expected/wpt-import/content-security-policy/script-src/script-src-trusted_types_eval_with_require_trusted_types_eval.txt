@@ -2,9 +2,9 @@ Harness status: OK
 
 Found 5 tests
 
-5 Fail
-Fail	Script injected via direct `eval` is allowed with `trusted-types-eval` and `require-trusted-types-for 'script'`.
-Fail	Script injected via indirect `eval` is allowed with `trusted-types-eval` and `require-trusted-types-for 'script'`.
-Fail	Script injected via `new Function` is allowed with `trusted-types-eval` and `require-trusted-types-for 'script'`.
-Fail	Script injected via `setTimeout` is allowed with `trusted-types-eval` and `require-trusted-types-for 'script'`.
-Fail	Script injected via `setInterval` is allowed with `trusted-types-eval` and `require-trusted-types-for 'script'`.
+5 Pass
+Pass	Script injected via direct `eval` is allowed with `trusted-types-eval` and `require-trusted-types-for 'script'`.
+Pass	Script injected via indirect `eval` is allowed with `trusted-types-eval` and `require-trusted-types-for 'script'`.
+Pass	Script injected via `new Function` is allowed with `trusted-types-eval` and `require-trusted-types-for 'script'`.
+Pass	Script injected via `setTimeout` is allowed with `trusted-types-eval` and `require-trusted-types-for 'script'`.
+Pass	Script injected via `setInterval` is allowed with `trusted-types-eval` and `require-trusted-types-for 'script'`.

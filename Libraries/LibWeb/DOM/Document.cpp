@@ -12447,7 +12447,7 @@ static WebIDL::ExceptionOr<Utf16String> document_write_compliant_string(DOM::Doc
             HTML::relevant_global_object(document),
             string.to_string(),
             sink,
-            "script"_utf16));
+            TrustedTypes::Script.view()));
         string.clear();
         string.append(new_string);
     }
