@@ -32,9 +32,15 @@ endif()
 if (APPLE)
     set(CMAKE_MACOSX_RPATH TRUE)
     set(CMAKE_INSTALL_NAME_DIR "@rpath")
-    set(CMAKE_INSTALL_RPATH "@executable_path/../lib")
-else()
-    set(CMAKE_INSTALL_RPATH "$ORIGIN:$ORIGIN/../${CMAKE_INSTALL_LIBDIR}")
+endif()
+
+# Static builds install no libraries of their own, so their executables have nothing to look for next to them.
+if (BUILD_SHARED_LIBS)
+    if (APPLE)
+        set(CMAKE_INSTALL_RPATH "@executable_path/../lib")
+    else()
+        set(CMAKE_INSTALL_RPATH "$ORIGIN:$ORIGIN/../${CMAKE_INSTALL_LIBDIR}")
+    endif()
 endif()
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
