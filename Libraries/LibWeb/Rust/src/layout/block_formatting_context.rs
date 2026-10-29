@@ -3045,20 +3045,14 @@ impl<'pass> BlockFormattingContext<'pass> {
             );
         let mut deferred_legend = None;
         let mut placed = match pending_position {
-            Some(position) => {
-                let placed = formatting_context::place_child(
-                    &self.run,
-                    node,
-                    placed_child,
-                    position,
-                    containing_line_box_fragment,
-                    fragment_arrival_of_child_with_own_formatting_context,
-                );
-                if let Some(record) = sized_child.record() {
-                    record.seal_own_metrics();
-                }
-                placed
-            }
+            Some(position) => formatting_context::place_child(
+                &self.run,
+                node,
+                placed_child,
+                position,
+                containing_line_box_fragment,
+                fragment_arrival_of_child_with_own_formatting_context,
+            ),
             None => {
                 deferred_legend = Some(Box::new(DeferredLegend {
                     flow_position: legend_flow_position.expect("only a rendered legend waits for its position"),
@@ -3276,7 +3270,6 @@ impl<'pass> BlockFormattingContext<'pass> {
                 reuses_subtree: true,
             }),
         );
-        used.seal_own_metrics();
         self.block_offset_of_current_block_container
             .set(Some(flow_position + entry.flow_position_advance));
         (
