@@ -716,6 +716,32 @@ impl StringPrototype {
     fn locale_compare(vm: &Vm) -> ThrowCompletionOr<Value> {
         let realm = vm.current_realm().expect("a native function runs in a realm");
 
+        // OPTIMIZATION: Strings compared with the default options are compared as they are, without copying them into
+        //               new strings first.
+        if vm.this_value().is_string()
+            && vm.argument(0).is_string()
+            && vm.argument(1).is_undefined()
+            && vm.argument(2).is_undefined()
+        {
+            let (string, that_value) = (vm.this_value().as_string(), vm.argument(0).as_string());
+            let (view, that_view) = (string.utf16_string_view(), that_value.utf16_string_view());
+            if view == that_view {
+                return Ok(Value::from_i32(0));
+            }
+            if let (Utf16View::Ascii(view), Utf16View::Ascii(that_view)) = (view, that_view)
+                && let Some(result) = try_fast_ascii_string_compare(view, that_view)
+            {
+                return Ok(Value::from_i32(result));
+            }
+            // NB: The views are taken again after making the collator, which may collect garbage.
+            let collator = realm.intrinsics().default_collator(vm);
+            return Ok(Value::from_i32(compare_strings(
+                &collator,
+                string.utf16_string_view(),
+                that_value.utf16_string_view(),
+            )));
+        }
+
         // 1. Let O be ? RequireObjectCoercible(this value).
         let object = require_object_coercible(vm, vm.this_value())?;
 
