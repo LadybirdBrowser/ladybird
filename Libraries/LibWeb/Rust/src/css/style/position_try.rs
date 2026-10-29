@@ -9,7 +9,7 @@
 //! https://drafts.csswg.org/css-anchor-position-1/#fallback
 
 use super::HashMap;
-use super::StyleEngine;
+use super::RetainedState;
 use super::layout_style::LayoutStyle;
 use super::tree::{StyleNodeID, TreeScopeID};
 use crate::css::computed_longhand_table::ComputedLonghandTable;
@@ -632,7 +632,7 @@ pub(crate) enum PositionOptionStyle {
     Applied(Box<LayoutStyle>),
 }
 
-impl StyleEngine {
+impl RetainedState {
     /// https://drafts.csswg.org/css-anchor-position-1/#position-options-list
     /// The first `limit` entries of the `position-try-fallbacks` of the box of `node`, whose record is `record`, that
     /// add a position option to its position options list: the index of each, and the identity of the `@position-try`

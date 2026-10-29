@@ -8,7 +8,7 @@ use super::*;
 
 use crate::css::css_enums::{content_visibility, float, positioning, white_space_collapse};
 use crate::css::style::RecordDemand;
-use crate::css::style::StyleEngine;
+use crate::css::style::RetainedState;
 use crate::css::style::bridge::{
     ElementBoxKind, FfiDemandedPseudoElement, FfiPseudoElementRecordDemand, answer_record_demand,
     element_adjustment_fact,
@@ -78,13 +78,13 @@ impl Default for TreeBuilderState {
 
 impl TreeBuilderState {
     /// Holds `record` until the build ends.
-    fn pin_style_record_for_build(&mut self, arena: &LayoutNodeArena, record: u64) {
+    fn pin_style_record_for_build(&mut self, arena: &mut LayoutNodeArena, record: u64) {
         arena.with_style_engine(|engine| engine.pin_layout_style_record(record));
         self.pinned_style_records.push(record);
     }
 
     /// Lets go of every record the build held, once the build is over.
-    pub(super) fn release_pinned_style_records(&mut self, arena: &LayoutNodeArena) {
+    pub(super) fn release_pinned_style_records(&mut self, arena: &mut LayoutNodeArena) {
         let unused_document_style = self.document_style.take().map(|document_style| document_style.record);
         if self.pinned_style_records.is_empty() && unused_document_style.is_none() {
             return;
@@ -512,7 +512,7 @@ enum SiblingDirection {
 /// arena. Every rejection is a shape the incremental insertion cannot produce the same tree for.
 struct ChildListInsertionReuse<'a, 'host> {
     layout: &'a TreeBuilderHost<'host>,
-    engine: &'a StyleEngine,
+    engine: &'a RetainedState,
     element: StyleNodeID,
     layout_node: LayoutNode,
     /// Whether a `::first-letter` owner styles the first letter of this subtree, whose source
@@ -586,7 +586,7 @@ pub(crate) fn build_keeps_box(arena: &mut LayoutNodeArena, element: StyleNodeID,
 /// tree around it, which only a full build resolves.
 fn may_update_pseudo_elements_in_place(
     layout: &TreeBuilderHost<'_>,
-    engine: &StyleEngine,
+    engine: &RetainedState,
     kind: PrincipalNodeKind,
     element: StyleNodeID,
 ) -> bool {
@@ -671,7 +671,7 @@ fn may_update_pseudo_elements_in_place(
 /// See `DOM::Node::first_letter_owner_for_layout_subtree_from`.
 fn first_letter_owner_covers_subtree(
     layout: &TreeBuilderHost<'_>,
-    engine: &StyleEngine,
+    engine: &RetainedState,
     element: StyleNodeID,
     layout_node: LayoutNode,
 ) -> bool {
@@ -696,7 +696,7 @@ fn first_letter_owner_covers_subtree(
 
 fn may_reuse_layout_node_for_child_list_insertion(
     layout: &TreeBuilderHost<'_>,
-    engine: &StyleEngine,
+    engine: &RetainedState,
     kind: PrincipalNodeKind,
     element: StyleNodeID,
 ) -> bool {
@@ -1358,7 +1358,7 @@ impl TreeBuildJob {
         // build that may build the viewport is handed it before it starts.
         if let Some(record) = self.document_style_record {
             state.document_style = Some(
-                host.arena()
+                host.arena_mut()
                     .with_style_engine(|engine| DerivedStyleRecord::pin(engine, record)),
             );
         }
@@ -2434,7 +2434,7 @@ fn construct_principal_layout_node(
             return PrincipalBoxConstruction::none();
         };
         // The record the box is built from is held for the whole build.
-        update.state.pin_style_record_for_build(host.arena(), record);
+        update.state.pin_style_record_for_build(host.arena_mut(), record);
         let display = host.published_display(update.style_node);
         let generation = principal_box_generation_decision(
             true,
@@ -3195,7 +3195,7 @@ fn stamp_nested_list_marker_row(
     pseudo_element: FfiPseudoElement,
     list_item_box: NodeSlotId,
 ) -> NodeSlotId {
-    let derived = host.arena().with_style_engine(|engine| {
+    let derived = host.arena_mut().with_style_engine(|engine| {
         // The generator's own `::marker` record, which the engine derives for this read alone where the generator
         // holds none. It answers one for every list item; should it not, the marker takes the generator's style.
         let record = engine
@@ -3265,8 +3265,9 @@ fn create_generated_content_item(
     };
     // https://drafts.csswg.org/css-content-3/#content-property
     // For <image>, this is an inline anonymous replaced element.
-    let derived = host.arena().derive_style_record_with_display(
-        host.arena().node_style_record(style_box),
+    let style_box_record = host.arena().node_style_record(style_box);
+    let derived = host.arena_mut().derive_style_record_with_display(
+        style_box_record,
         FfiDisplay::outside_and_inside(
             crate::css::css_enums::display_outside::INLINE,
             crate::css::css_enums::display_inside::FLOW,
@@ -3300,7 +3301,7 @@ fn create_pseudo_element(
         engine.pseudo_published_style_record(element_identity, pseudo_kind_of(generated_for_of(pseudo_element)))
     });
     if let Some(record) = record {
-        state.pin_style_record_for_build(host.arena(), record);
+        state.pin_style_record_for_build(host.arena_mut(), record);
     }
     // The pseudo-element gives up the box it holds from an earlier build before the walk decides
     // whether it gets a new one.
@@ -3828,7 +3829,7 @@ impl<'a> TreeBuilderHost<'a> {
         node_kind: NodeKind,
     ) -> UnplacedLayoutNode {
         let derived = self
-            .arena()
+            .arena_mut()
             .derive_anonymous_style_record(parent_style_record, style_kind, overrides);
         let slot = self.arena.allocate_unbound();
         self.arena_mut().stamp_anonymous_box(slot, node_kind, derived);

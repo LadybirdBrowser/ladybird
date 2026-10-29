@@ -34,7 +34,6 @@ use crate::layout::tree_mutation::HostCalls;
 use crate::painting::paint_read::{GeometryRead, PaintRead};
 use crate::render_state::DocumentHost;
 use crate::stage::MainThread;
-use std::cell::Cell;
 use std::cell::RefCell;
 use std::ffi::c_void;
 use std::hash::Hash;
@@ -676,6 +675,10 @@ pub(crate) struct BoxPresenceHost(*mut c_void, unsafe extern "C" fn(*mut c_void,
 // pays it on the host's thread once it is over (see [`LayoutNodeArena::queue_box_presence`]).
 unsafe impl Send for BoxPresenceHost {}
 
+// SAFETY: The arena only carries the host's context and callback, to hand them out with what the host is due to hear.
+// Only [`DueBoxPresence::tell`], on the host's thread, calls the callback, so a shared arena reaches nothing of the host.
+unsafe impl Sync for BoxPresenceHost {}
+
 /// What the host is to hear of the boxes the nodes a change changed have: each node's identity, 0 for the document,
 /// and what boxes it has, as the change left them.
 #[derive(Default)]
@@ -701,6 +704,16 @@ impl DueBoxPresence {
         }
     }
 }
+
+/// The style engine of the arena's document. A shared borrow of the arena reads only the engine's retained state, and
+/// changing the engine takes the arena exclusively.
+#[derive(Clone, Copy)]
+struct ArenaStyleEngine(crate::css::style::StyleEngineHandle);
+
+// SAFETY: Through a shared borrow of the arena, the engine is reached only as its retained state, which is Sync, and a
+// mutable borrow of the engine takes the arena exclusively (see [`LayoutNodeArena::with_style_store`] and
+// [`LayoutNodeArena::with_style_engine`]). What the handle asks of every borrow of the engine still holds.
+unsafe impl Sync for ArenaStyleEngine {}
 
 /// A row is bound to the node.
 pub const BOX_PRESENCE_HAS_LAYOUT_BOX: u8 = 1 << 0;
@@ -1202,8 +1215,8 @@ pub(crate) struct LayoutNodeArena {
     document_style_node: Option<StyleNodeID>,
     /// The style engine the document registered, which owns the records rows are built from;
     /// null when it registered none, as in a layout test.
-    style_engine: Cell<crate::css::style::StyleEngineHandle>,
-    box_presence_host: Cell<Option<BoxPresenceHost>>,
+    style_engine: ArenaStyleEngine,
+    box_presence_host: Option<BoxPresenceHost>,
     /// The nodes whose boxes a running tree build or layout write changed, which the host hears of
     /// once it is over, or `None` while none runs.
     queued_box_presence: Option<Vec<BoundNode>>,
@@ -1334,8 +1347,8 @@ impl LayoutNodeArena {
             bound_rows: Default::default(),
             viewport_scroll_offset: CssPixelPoint::default(),
             document_style_node: (None),
-            style_engine: Cell::new(crate::css::style::StyleEngineHandle::null()),
-            box_presence_host: Cell::new(None),
+            style_engine: ArenaStyleEngine(crate::css::style::StyleEngineHandle::null()),
+            box_presence_host: None,
             queued_box_presence: None,
             document_is_decoded_svg: (false),
             active_layout_pass_depth: 0,
@@ -1682,7 +1695,7 @@ impl LayoutNodeArena {
             rows,
             paintable_row_resets,
             arena_pinned_style_records,
-            style_engine: self.style_engine.get(),
+            style_engine: self.style_engine.0,
         }
     }
 
@@ -2677,10 +2690,10 @@ impl LayoutNodeArena {
     /// so do the boxes below them. Answers none where one of them follows another pseudo-element or styles a table
     /// wrapper, which only the host restyles.
     pub(crate) fn anonymous_child_samples(
-        &self,
+        &mut self,
         row: NodeSlotId,
         sample: &DerivedStyleRecord,
-        host_record: impl Fn(NodeSlotId) -> u64,
+        host_record: impl Fn(&Self, NodeSlotId) -> u64,
     ) -> Option<smallvec::SmallVec<[(NodeSlotId, DerivedStyleRecord); 2]>> {
         let mut samples: smallvec::SmallVec<[(NodeSlotId, DerivedStyleRecord); 2]> = smallvec::SmallVec::new();
         let mut parents: smallvec::SmallVec<[(NodeSlotId, u64); 2]> = smallvec::smallvec![(row, sample.record)];
@@ -2717,8 +2730,9 @@ impl LayoutNodeArena {
                         .anonymous_box_column_source(child)
                         .filter(|source| *source == row)
                         .map(|_| sample.record);
+                    let child_host_record = host_record(self, child);
                     let derived =
-                        self.reinherit_anonymous_style_record(host_record(child), parent_record, column_source);
+                        self.reinherit_anonymous_style_record(child_host_record, parent_record, column_source);
                     parents.push((child, derived.record));
                     samples.push((child, derived));
                 }
@@ -2794,7 +2808,7 @@ impl LayoutNodeArena {
     /// Whether the style the box `row` shows differs from the record `host_record`, which the host installed for it, in
     /// what its children inherit.
     pub(crate) fn shows_other_inherited_style_than(&self, row: NodeSlotId, host_record: u64) -> bool {
-        let Some(host_payloads) = self.with_style_engine(|engine| {
+        let Some(host_payloads) = self.with_style_store(|engine| {
             engine
                 .style_record_payloads(host_record)
                 .map(|payloads| StylePayloadsRef::new(payloads.as_ptr().cast()))
@@ -2815,7 +2829,7 @@ impl LayoutNodeArena {
         let sample = self.style_records[index];
         self.with_style_engine(|engine| engine.unpin_layout_style_record(sample));
         let HostStyle { record, pin } = host_style;
-        let payloads = self.with_style_engine(|engine| {
+        let payloads = self.with_style_store(|engine| {
             engine
                 .style_record_payloads(record)
                 .expect("the host's style record is live while a box shows a sample")
@@ -2940,7 +2954,7 @@ impl LayoutNodeArena {
             })
             .collect();
         fork.chunks_by_address.sort_unstable_by_key(|address| address.start);
-        fork.style_engine.set(engine);
+        fork.style_engine = ArenaStyleEngine(engine);
         fork.svg_paint_resources.detach_enrolled_flag_for_fork();
         fork
     }
@@ -3037,8 +3051,8 @@ impl LayoutNodeArena {
         self.style_records_pinned_by_host[id.slot_index() as usize]
     }
 
-    pub(crate) fn set_style_engine(&self, style_engine: crate::css::style::StyleEngineHandle) {
-        self.style_engine.set(style_engine);
+    pub(crate) fn set_style_engine(&mut self, style_engine: crate::css::style::StyleEngineHandle) {
+        self.style_engine = ArenaStyleEngine(style_engine);
     }
 
     pub(crate) fn set_document_is_decoded_svg(&mut self, is_decoded_svg: bool) {
@@ -3199,7 +3213,7 @@ impl LayoutNodeArena {
     }
 
     fn style_engine(&self) -> crate::css::style::StyleEngineHandle {
-        let style_engine = self.style_engine.get();
+        let style_engine = self.style_engine.0;
         assert!(!style_engine.is_null(), "layout node arena has no style engine");
         style_engine
     }
@@ -3400,7 +3414,7 @@ impl LayoutNodeArena {
     /// element answering to it, and a reference to an id that is in no document has no such
     /// element.
     fn retain_published_reference_atoms(
-        &self,
+        &mut self,
         retained: [u32; PUBLISHED_REFERENCE_ATOM_COUNT],
         released: [u32; PUBLISHED_REFERENCE_ATOM_COUNT],
     ) {
@@ -3429,7 +3443,9 @@ impl LayoutNodeArena {
         callback(&self.counter_styles)
     }
 
-    pub(crate) fn with_style_store<T>(&self, query: impl FnOnce(&StyleEngine) -> T) -> T {
+    /// Reads the style engine's retained state, the part of the engine a shared arena reaches.
+    pub(crate) fn with_style_store<T>(&self, query: impl FnOnce(&crate::css::style::RetainedState) -> T) -> T {
+        // SAFETY: The engine outlives the arena's live nodes, and a mutable borrow of it needs the arena exclusively.
         query(unsafe { self.style_engine().get() })
     }
 
@@ -3578,17 +3594,17 @@ impl LayoutNodeArena {
 
     /// Whether a style engine hosts this arena's records; a layout test's arena has none.
     pub(crate) fn has_style_engine(&self) -> bool {
-        !self.style_engine.get().is_null()
+        !self.style_engine.0.is_null()
     }
 
     // The engine outlives the arena's live nodes. No host callback runs while this
     // native style-store borrow is active; shell notifications follow publication.
-    pub(crate) fn with_style_engine<T>(&self, callback: impl FnOnce(&mut StyleEngine) -> T) -> T {
+    pub(crate) fn with_style_engine<T>(&mut self, callback: impl FnOnce(&mut StyleEngine) -> T) -> T {
         unsafe { callback(self.style_engine().get_mut()) }
     }
 
     pub(crate) fn derive_anonymous_style_record(
-        &self,
+        &mut self,
         parent: u64,
         kind: AnonymousStyleKind,
         overrides: AnonymousStyleOverrides,
@@ -3598,7 +3614,7 @@ impl LayoutNodeArena {
 
     /// `record` with its display replaced by `display`, pinned for a row of the arena.
     pub(crate) fn derive_style_record_with_display(
-        &self,
+        &mut self,
         record: u64,
         display: crate::layout::FfiDisplay,
     ) -> DerivedStyleRecord {
@@ -3613,7 +3629,7 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn reinherit_anonymous_style_record(
-        &self,
+        &mut self,
         record: u64,
         parent: u64,
         column_source: Option<u64>,
@@ -3653,8 +3669,9 @@ impl LayoutNodeArena {
         node: NodeSlotId,
         update: impl FnOnce(&mut LayoutStyle),
     ) {
+        let record = self.node_style_record(node);
         let derived = self.with_style_engine(|engine| {
-            let mut style = LayoutStyle::from_record(engine, self.node_style_record(node));
+            let mut style = LayoutStyle::from_record(engine, record);
             update(&mut style);
             if style.is_unchanged() {
                 return None;
@@ -4226,8 +4243,8 @@ impl LayoutNodeArena {
         self.set_node_flag(slot, NodeFlag::InsetsUseAnchorFunctions, insets_use_anchor_functions);
     }
 
-    pub(crate) fn set_box_presence_host(&self, host: Option<BoxPresenceHost>) {
-        self.box_presence_host.set(host);
+    pub(crate) fn set_box_presence_host(&mut self, host: Option<BoxPresenceHost>) {
+        self.box_presence_host = host;
     }
 
     /// What boxes the node bound to `row` has. An invalid row means the node has none.
@@ -4248,7 +4265,7 @@ impl LayoutNodeArena {
         if let BoundNode::Identity(style_node) = node {
             self.gather_layout_style_snapshot_box_loss(style_node);
         }
-        if self.box_presence_host.get().is_none() {
+        if self.box_presence_host.is_none() {
             return;
         }
         self.queued_box_presence
@@ -4278,7 +4295,7 @@ impl LayoutNodeArena {
     /// bound again is told once per change, each time with its final state.
     pub(crate) fn take_queued_box_presence(&mut self) -> DueBoxPresence {
         let queued = self.queued_box_presence.take().expect("a change queued box presence");
-        let Some(host) = self.box_presence_host.get() else {
+        let Some(host) = self.box_presence_host else {
             return DueBoxPresence::default();
         };
         let nodes = queued

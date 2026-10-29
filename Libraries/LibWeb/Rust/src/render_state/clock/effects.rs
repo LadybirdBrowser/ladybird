@@ -426,10 +426,14 @@ impl Lane {
 
     /// The record the host installed in the box `row`, which a tick may show a sample in meanwhile.
     fn host_record(&self, state: &RenderState, row: NodeSlotId) -> u64 {
-        self.ticked.iter().find(|(ticked, _)| *ticked == row).map_or_else(
-            || state.arena.arena().node_style_record(row),
-            |(_, host_style)| host_style.record(),
-        )
+        self.host_record_in(state.arena.arena(), row)
+    }
+
+    fn host_record_in(&self, arena: &LayoutNodeArena, row: NodeSlotId) -> u64 {
+        self.ticked
+            .iter()
+            .find(|(ticked, _)| *ticked == row)
+            .map_or_else(|| arena.node_style_record(row), |(_, host_style)| host_style.record())
     }
 
     /// Shows `sample`, of the effects of the element `node` names, which animate `properties`, in its box `row`, with
@@ -524,7 +528,7 @@ impl Lane {
                 self.compose_pseudo_element_samples(state, &samples, overlay, bounds, &mut pseudo_element_samples);
         }
         // The anonymous boxes below a box show what they inherit of its sample beside it, as the host reinherits them.
-        let arena = state.arena.arena();
+        let arena = state.arena.arena_mut();
         let mut anonymous: SmallVec<[(NodeSlotId, DerivedStyleRecord, &[u16]); 2]> = SmallVec::new();
         let mut takes = composed.is_ok();
         let box_samples = samples
@@ -544,7 +548,7 @@ impl Lane {
             }
             takes = arena.takes_sample_beside_anonymous_boxes(row, kind)
                 && arena
-                    .anonymous_child_samples(row, &sample, |child| self.host_record(state, child))
+                    .anonymous_child_samples(row, &sample, |arena, child| self.host_record_in(arena, child))
                     .map(|children| {
                         anonymous.extend(children.into_iter().map(|(child, sample)| (child, sample, properties)));
                     })

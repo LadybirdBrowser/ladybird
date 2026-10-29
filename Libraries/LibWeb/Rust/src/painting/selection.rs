@@ -262,7 +262,7 @@ pub(crate) fn apply_spelling_errors(layout_arena: &mut PaintableRowsMut<'_>, err
 /// `style_record`, the element's record for that pseudo-element (zero for none), or `None` when
 /// that record styles nothing a highlight paints.
 fn highlight_pseudo_style_of_record(
-    engine: &crate::css::style::StyleEngine,
+    engine: &crate::css::style::RetainedState,
     element: StyleNodeID,
     style_record: u64,
 ) -> Option<SelectionStyleAnswer> {

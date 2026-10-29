@@ -12,7 +12,7 @@
 
 use crate::css::computed_value_views::ComputedValuesView;
 use crate::css::css_enums::{overflow, overscroll_behavior};
-use crate::css::style::StyleEngine;
+use crate::css::style::RetainedState;
 use crate::css::style::bridge::{element_adjustment_fact, element_construction_fact};
 use crate::css::style::tree::StyleNodeID;
 use crate::layout::LayoutNodeArena;
@@ -45,7 +45,7 @@ pub(crate) struct ViewportPropagationFacts {
 }
 
 /// The published style record the style engine holds for an element.
-fn published_style(engine: &StyleEngine, node: StyleNodeID) -> Option<ComputedValuesView<'_>> {
+fn published_style(engine: &RetainedState, node: StyleNodeID) -> Option<ComputedValuesView<'_>> {
     engine
         .element_published_style_payloads(node)
         .map(ComputedValuesView::new)
@@ -67,7 +67,7 @@ fn document_element(arena: &LayoutNodeArena) -> Option<StyleNodeID> {
 }
 
 /// The first child of the document element that is an HTML body element.
-fn first_html_body_child(engine: &StyleEngine, root_element: StyleNodeID) -> Option<StyleNodeID> {
+fn first_html_body_child(engine: &RetainedState, root_element: StyleNodeID) -> Option<StyleNodeID> {
     engine
         .tree()
         .dom_children(root_element)

@@ -232,7 +232,7 @@ impl LayoutNodeArena {
             rows,
             damage: self.paint_damage_for_frame(),
             paint_state: PublishedPaintState::new(&self.paint_state().borrow(), hit_test_item_capacity_hint),
-            _style_records: self.with_style_engine(|engine| engine.lease_style_records()),
+            _style_records: self.with_style_store(|engine| engine.lease_style_records()),
         }
     }
 }
