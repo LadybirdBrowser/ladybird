@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Focus fixup rule one (no &lt;dialog>s involved)</title>
+<link rel="author" title="Domenic Denicola" href="mailto:d@domenic.me">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/interaction.html#focus-fixup-rule">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/forms.html#attr-fieldset-disabled">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../resources/testdriver.js"></script>
+<script src="../../../../resources/testdriver-actions.js"></script>
+<script src="../../../../resources/testdriver-vendor.js"></script>
+
+<div>
+  <button id="button1">Button 1</button>
+  <button id="button2">Button 2</button>
+  <button id="button3">Button 3</button>
+  <fieldset id="fieldset1"><button id="button4">Button 4</button></fieldset>
+  <fieldset id="fieldset2" disabled><legend><button id="button5">Button 5</button></legend></fieldset>
+  <div id="div" tabindex="0">Div</div>
+  <div id="editable" contenteditable=true>editor</div>
+  <button id="button6">Button 6</button>
+</div>
+
+<script>
+"use strict";
+
+function test_focus_fixup(selector, change, expectSync = false) {
+  promise_test(async function(t) {
+    // Make sure we're not running from a ResizeObserver / etc notification, and
+    // that the document is rendering already.
+    await new Promise(r => {
+      requestAnimationFrame(() => {
+        t.step_timeout(r, 0);
+      });
+    });
+
+    const el = document.querySelector(selector);
+    el.focus();
+
+    assert_equals(document.activeElement, el, `Sanity check: ${selector} must start focused`);
+
+    change(el);
+
+    {
+      const fn = expectSync ? assert_not_equals : assert_equals;
+      fn(document.activeElement, el, `active element ${expectSync ? "is" : "isn't"} fixed-up sync`);
+    }
+
+    // We don't expect blur events in the sync case per spec yet, at least.
+    if (!expectSync) {
+      // Fixup should run after animation frame callbacks, right before the end of
+      // "update the rendering", so after resize observations.
+      let ranFirstRaf = false;
+      let ranRO = false;
+
+      let resolveDone;
+      let done = new Promise(r => { resolveDone = r; });
+
+      requestAnimationFrame(t.step_func(() => {
+        ranFirstRaf = true;
+        assert_equals(document.activeElement, el, "activeElement shouldn't have changed yet (rAF)");
+        requestAnimationFrame(t.step_func(() => {
+          assert_true(ranRO, "ResizeObserver should've ran on the previous frame");
+          resolveDone();
+        }));
+      }));
+
+      let ro = new ResizeObserver(t.step_func(() => {
+        assert_true(ranFirstRaf, "requestAnimationFrame should run before ResizeObserver");
+        ranRO = true;
+        assert_equals(document.activeElement, el, "activeElement shouldn't have changed yet (ResizeObserver)");
+      }));
+
+      // TODO: Test IntersectionObserver timing. It's a bit trickier because it
+      // uses its own task source and so on.
+      ro.observe(document.documentElement);
+
+      await done;
+
+      ro.disconnect();
+    }
+
+    assert_not_equals(document.activeElement, el, "focus is fixed up");
+    assert_equals(document.activeElement, document.body, "Body is focused");
+  }, selector);
+}
+
+test_focus_fixup("#button1", function(button) {
+  button.disabled = true;
+});
+
+test_focus_fixup("#button2", function(button) {
+  button.hidden = true;
+});
+
+test_focus_fixup("#button3", function(button) {
+  button.remove();
+}, /* expectSync = */ true);
+
+test_focus_fixup("#button4", function(button) {
+  document.querySelector("#fieldset1").disabled = true;
+});
+
+test_focus_fixup("#button5", function(button) {
+  const fieldset = document.querySelector("#fieldset2");
+  fieldset.insertBefore(document.createElement("legend"), fieldset.firstChild);
+});
+
+test_focus_fixup("#div", function(div) {
+  div.removeAttribute("tabindex");
+});
+
+test_focus_fixup("#editable", function(div) {
+  div.contentEditable = false;
+});
+
+test_focus_fixup("#button6", function(button) {
+  button.style.visibility = "hidden";
+});
+</script>
+
+<script>
+function after_focus_fixup_rendering() {
+  return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+}
+
+function create_textarea_change_fixture(t) {
+  const form = document.createElement("form");
+  const textarea = document.createElement("textarea");
+  form.append(textarea);
+  document.body.append(form);
+  t.add_cleanup(() => form.remove());
+  const changes = [];
+  textarea.addEventListener("change", event => changes.push(event));
+  return { form, textarea, changes };
+}
+
+const textarea_change_cases = [
+  ["untouched", async () => {}, 0],
+  ["programmatic value", async textarea => { textarea.value = "script value"; }, 0],
+  ["programmatic defaultValue", async textarea => { textarea.defaultValue = "script default"; }, 0],
+  ["user edit", async textarea => { await test_driver.send_keys(textarea, "x"); }, 1],
+  ["reverted user edit", async textarea => {
+    await test_driver.send_keys(textarea, "x\uE003");
+    assert_equals(textarea.value, "", "The user restored the initial value");
+  }, 0],
+  ["programmatic value followed by user edit", async textarea => {
+    textarea.value = "script value";
+    await test_driver.send_keys(textarea, "x");
+  }, 1],
+  ["user edit with an input handler changing defaultValue", async textarea => {
+    textarea.addEventListener("input", () => { textarea.defaultValue = "script default"; });
+    await test_driver.send_keys(textarea, "x");
+    assert_equals(textarea.value, "x", "Changing defaultValue must not replace the user's value");
+  }, 1],
+  ["user edit followed by form reset", async (textarea, form) => {
+    await test_driver.send_keys(textarea, "x");
+    form.reset();
+    assert_equals(textarea.value, "", "Reset restored the default value");
+  }, 0],
+];
+
+for (const [state, prepare, expected_changes] of textarea_change_cases) {
+  for (const [reason, make_nonfocusable] of [
+    ["hidden", textarea => { textarea.hidden = true; }],
+    ["disabled", textarea => { textarea.disabled = true; }],
+    ["inert", (textarea, form) => { form.inert = true; }],
+  ]) {
+    promise_test(async t => {
+      const { form, textarea, changes } = create_textarea_change_fixture(t);
+      await after_focus_fixup_rendering();
+      textarea.focus();
+      assert_equals(document.activeElement, textarea, "The textarea starts focused");
+      await prepare(textarea, form);
+      assert_equals(changes.length, 0, "No change event fires before focus is fixed up");
+      make_nonfocusable(textarea, form);
+      await after_focus_fixup_rendering();
+      assert_equals(document.activeElement, document.body, "Focus is fixed up after rendering");
+      assert_equals(changes.length, expected_changes, "Only an uncommitted user edit fires change");
+    }, `Textarea ${state}: change events after becoming ${reason}`);
+  }
+}
+
+promise_test(async t => {
+  const { form, textarea, changes } = create_textarea_change_fixture(t);
+  textarea.focus();
+  await test_driver.send_keys(textarea, "x");
+  textarea.remove();
+  assert_equals(changes.length, 0, "Removal does not fire change");
+  form.append(textarea);
+  textarea.focus();
+  textarea.blur();
+  assert_equals(changes.length, 0, "Reinsertion does not retain the removed pending edit");
+}, "Textarea removal discards its pending change before reinsertion");
+
+promise_test(async t => {
+  const { form, textarea } = create_textarea_change_fixture(t);
+  textarea.focus();
+  await test_driver.send_keys(textarea, "x");
+  const clone = textarea.cloneNode(true);
+  form.append(clone);
+  let changes = 0;
+  clone.addEventListener("change", () => { ++changes; });
+  assert_equals(clone.value, textarea.value, "Cloning preserves the current value");
+  clone.focus();
+  clone.blur();
+  assert_equals(changes, 0, "Cloning does not copy pending user interaction state");
+}, "Cloning an edited textarea does not copy its pending change");
+</script>
+
+<script>
+function create_input_change_fixture(t, type = "text") {
+  const container = document.createElement("div");
+  const input = document.createElement("input");
+  input.type = type;
+  container.append(input);
+  document.body.append(container);
+  t.add_cleanup(() => container.remove());
+  const changes = [];
+  input.addEventListener("change", event => changes.push(event));
+  return { container, input, changes };
+}
+
+const input_focus_fixup_reasons = [
+  ["hidden", input => { input.hidden = true; }],
+  ["disabled", input => { input.disabled = true; }],
+  ["inert", (input, container) => { container.inert = true; }],
+];
+
+for (const type of [
+  "text", "search", "tel", "url", "email", "password", "date", "month", "week",
+  "time", "datetime-local", "number", "range", "color", "checkbox", "radio",
+  "file", "submit", "image", "reset", "button",
+]) {
+  for (const [reason, make_nonfocusable] of input_focus_fixup_reasons) {
+    promise_test(async t => {
+      const { container, input, changes } = create_input_change_fixture(t, type);
+      await after_focus_fixup_rendering();
+      input.focus();
+      assert_equals(document.activeElement, input, "The input starts focused");
+      make_nonfocusable(input, container);
+      await after_focus_fixup_rendering();
+      assert_equals(document.activeElement, document.body, "Focus is fixed up after rendering");
+      assert_equals(changes.length, 0, "An untouched input must not fire change");
+    }, `Untouched input type=${type}: no change after becoming ${reason}`);
+  }
+}
+
+for (const [reason, make_nonfocusable] of input_focus_fixup_reasons) {
+  promise_test(async t => {
+    const { container, input, changes } = create_input_change_fixture(t);
+    input.focus();
+    input.value = "script value";
+    make_nonfocusable(input, container);
+    await after_focus_fixup_rendering();
+    assert_equals(document.activeElement, document.body, "Focus is fixed up after rendering");
+    assert_equals(changes.length, 0, "Programmatic changes must not start a pending change");
+  }, `Programmatic text input value: no change after becoming ${reason}`);
+
+  promise_test(async t => {
+    const { container, input, changes } = create_input_change_fixture(t);
+    input.focus();
+    await test_driver.send_keys(input, "x");
+    assert_equals(changes.length, 0, "Typing does not commit before focus loss");
+    make_nonfocusable(input, container);
+    await after_focus_fixup_rendering();
+    assert_equals(document.activeElement, document.body, "Focus is fixed up after rendering");
+    assert_equals(changes.length, 1, "An edited text input fires exactly one change");
+  }, `User-edited text input: one change after becoming ${reason}`);
+
+  promise_test(async t => {
+    const { container, input, changes } = create_input_change_fixture(t, "range");
+    input.min = "0";
+    input.max = "10";
+    input.value = "5";
+    input.focus();
+    const previous_value = Number(input.value);
+    await new test_driver.Actions().keyDown("\uE014").keyUp("\uE014").send();
+    assert_greater_than(Number(input.value), previous_value, "ArrowRight changes the range value");
+    assert_equals(changes.length, 0, "The range edit remains pending before focus loss");
+    make_nonfocusable(input, container);
+    await after_focus_fixup_rendering();
+    assert_equals(document.activeElement, document.body, "Focus is fixed up after rendering");
+    assert_equals(changes.length, 1, "An edited range preserves its focus-loss commit");
+  }, `User-edited range input: one change after becoming ${reason}`);
+}
+
+promise_test(async t => {
+  const { container, input, changes } = create_input_change_fixture(t);
+  input.focus();
+  await test_driver.send_keys(input, "x");
+  input.remove();
+  assert_equals(changes.length, 0, "Removal does not fire change");
+  container.append(input);
+  input.focus();
+  input.blur();
+  assert_equals(changes.length, 0, "Reinsertion does not retain the removed pending edit");
+}, "Text input removal discards its pending change before reinsertion");
+
+promise_test(async t => {
+  const { input, changes } = create_input_change_fixture(t);
+  input.focus();
+  await test_driver.send_keys(input, "x");
+  input.type = "hidden";
+  await after_focus_fixup_rendering();
+  assert_equals(document.activeElement, document.body, "The hidden input loses focus");
+  assert_equals(changes.length, 0, "Change does not apply to hidden inputs");
+  input.type = "text";
+  input.focus();
+  input.blur();
+  assert_equals(changes.length, 0, "The inapplicable state discarded the pending change");
+}, "Changing an edited input to hidden discards its pending change");
+</script>
+
+<script>
+for (const action of ["undo", "redo"]) {
+  promise_test(async t => {
+    const { textarea, changes } = create_textarea_change_fixture(t);
+    textarea.focus();
+    await test_driver.send_keys(textarea, "x");
+    textarea.blur();
+    assert_equals(changes.length, 1, "The original edit was committed");
+
+    textarea.focus();
+    assert_true(document.execCommand("undo"), "Undo is available after refocusing");
+    assert_equals(textarea.value, "", "Undo restores the initial value");
+    let expected_changes = 2;
+    if (action === "redo") {
+      textarea.blur();
+      assert_equals(changes.length, 2, "Undo creates a new pending change");
+      textarea.focus();
+      assert_true(document.execCommand("redo"), "Redo is available after refocusing");
+      assert_equals(textarea.value, "x", "Redo restores the edited value");
+      expected_changes = 3;
+    }
+
+    textarea.hidden = true;
+    await after_focus_fixup_rendering();
+    assert_equals(document.activeElement, document.body, "Focus is fixed up after rendering");
+    assert_equals(changes.length, expected_changes, "The history edit commits exactly once on focus loss");
+  }, `Textarea ${action} after a committed edit creates a new pending change`);
+}
+</script>

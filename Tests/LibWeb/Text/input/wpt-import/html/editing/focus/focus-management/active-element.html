@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>document.activeElement</title>
+<link rel="author" title="Domenic Denicola" href="mailto:d@domenic.me">
+<link rel="help" href="https://html.spec.whatwg.org/#dom-document-activeelement">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+
+<div id="parent">
+  <div id="child" tabindex="0"></div>
+</div>
+
+<body>
+<script>
+"use strict";
+
+test(() => {
+
+  assert_equals(document.activeElement, document.body);
+
+}, "activeElement initially starts as the document body");
+
+test(() => {
+
+  const child = document.querySelector("#child");
+  child.focus();
+  assert_equals(document.activeElement, child);
+
+  document.querySelector("#parent").innerHTML = "";
+  assert_equals(document.activeElement, document.body);
+
+}, "activeElement gets set to a focused element and reset to the body when the focused element disappears");
+
+test(() => {
+
+  const el = document.querySelector("#parent");
+  el.tabIndex = 0;
+  el.focus();
+  assert_equals(document.activeElement, el);
+
+  document.body.removeChild(el);
+  document.body.appendChild(el);
+
+  assert_equals(document.activeElement, document.body);
+
+}, "re-adding the formerly active element to the document does not make it active again");
+
+</script>
+</body>

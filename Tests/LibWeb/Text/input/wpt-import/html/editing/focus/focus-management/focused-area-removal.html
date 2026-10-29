@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Focused area removal</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<body>
+<script>
+"use strict";
+promise_test(async t => {
+  // Wait for the test window to gain focus before testing synchronous focus changes.
+  const sentinel = document.createElement("button");
+  document.body.append(sentinel);
+  t.add_cleanup(() => sentinel.remove());
+  await new Promise(resolve => {
+    sentinel.addEventListener("focus", resolve, { once: true });
+    sentinel.focus();
+  });
+  sentinel.blur();
+
+  const button = document.createElement("button");
+  document.body.appendChild(button);
+  t.add_cleanup(() => button.remove());
+  button.focus();
+
+  assert_equals(document.activeElement, button);
+  assert_equals(document.hasFocus(), true);
+
+  button.remove();
+
+  assert_equals(document.activeElement, document.body);
+  assert_equals(document.hasFocus(), true);
+}, "removing the activeElement keeps focus on its document");
+</script>

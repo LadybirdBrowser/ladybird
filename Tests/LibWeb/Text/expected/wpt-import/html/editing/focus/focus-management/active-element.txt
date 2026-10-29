@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 3 tests
+
+1 Pass
+2 Fail
+Pass	activeElement initially starts as the document body
+Fail	activeElement gets set to a focused element and reset to the body when the focused element disappears
+Fail	re-adding the formerly active element to the document does not make it active again
