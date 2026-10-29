@@ -1,9 +1,10 @@
+ladybird_test_suite(LibAudio)
+
 set(TEST_SOURCES
     TestPlaybackStream.cpp
     TestSharedAudioFrameRing.cpp
     TestSpscAudioFrameRing.cpp
 )
 
-foreach(source IN LISTS TEST_SOURCES)
-    ladybird_test("${source}" LibAudio LIBS LibAudio LibCore LibThreading)
-endforeach()
+target_sources(TestLibAudio PRIVATE ${TEST_SOURCES})
+target_link_libraries(TestLibAudio PRIVATE LibAudio LibCore LibThreading)
