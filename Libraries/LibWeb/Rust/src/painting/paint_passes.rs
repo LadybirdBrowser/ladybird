@@ -283,7 +283,7 @@ pub(crate) fn rendering_preparation_pending(arena: &LayoutNodeArena) -> Option<P
     let root_background_source = crate::layout::viewport_propagation::root_background_source(arena);
     let overflow = &arena.scrollable_overflow;
     let pending = arena.paint_state().borrow().root_background_source != Some(root_background_source)
-        || overflow.full_layout_commit.get()
+        || overflow.full_layout_commit
         || overflow.measurement_awaits_preparation()
         || arena.scrollable_overflow_recalculation_is_scheduled()
         || !arena.scrollable_overflow_is_measured();
@@ -314,8 +314,8 @@ pub(crate) fn prepare_for_rendering(
     // the viewport united with it, so a flip in its scrollability is seen here rather than while
     // recording holds the paint state.
     let clamped_scroll_offsets = crate::painting::scrollable_overflow::update_scrollable_overflow(arena);
-    let changed = arena.scrollable_overflow.geometry_changed.replace(false);
-    let flipped = arena.scrollable_overflow.scrollability_changed.replace(false);
+    let changed = std::mem::replace(&mut arena.scrollable_overflow.geometry_changed, false);
+    let flipped = std::mem::replace(&mut arena.scrollable_overflow.scrollability_changed, false);
     let mut visual_context_values_changed = false;
     if let Some(inputs) = sticky_inputs.filter(|_| changed && !flipped) {
         let rows = arena.paintable_rows();

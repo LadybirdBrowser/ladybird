@@ -1664,12 +1664,12 @@ impl LayoutNodeArena {
         }
         // NB: The root was unlinked through remove_child(), which already noted what its subtree takes out of the
         //     overflow index.
-        if self.scrollable_overflow.viewport.get() == Some(root) {
-            self.scrollable_overflow.viewport.set(None);
-            self.scrollable_overflow.non_child_boxes.borrow_mut().clear();
-            self.scrollable_overflow.full_layout_commit.set(false);
-            self.scrollable_overflow.geometry_changed.set(false);
-            self.scrollable_overflow.scrollability_changed.set(false);
+        if self.scrollable_overflow.viewport == Some(root) {
+            self.scrollable_overflow.viewport = None;
+            self.scrollable_overflow.non_child_boxes.clear();
+            self.scrollable_overflow.full_layout_commit = false;
+            self.scrollable_overflow.geometry_changed = false;
+            self.scrollable_overflow.scrollability_changed = false;
             self.boxes_needing_scrollable_overflow_recalculation.clear();
             self.needs_full_scrollable_overflow_recalculation = false;
         }
@@ -3913,7 +3913,7 @@ impl LayoutNodeArena {
             return;
         }
         self.set_needs_layout_update(node, true);
-        self.scrollable_overflow.contained_boxes_dirty.set(true);
+        self.scrollable_overflow.contained_boxes_dirty = true;
         if releases_contained_boxes {
             self.record_partial_relayout_escape();
         }
