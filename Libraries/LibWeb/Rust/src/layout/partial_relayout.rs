@@ -1008,7 +1008,7 @@ mod tests {
         arena.write_shape(svg_root.slot).set_kind(NodeKind::SVGSVGBox);
         arena.insert_child(parent.slot, svg_root.slot, NodeSlotId::INVALID);
         arena.populate_paintable_row(svg_root.slot);
-        let plan_with_committed_containing_block = |arena: &LayoutNodeArena, containing_block| {
+        let plan_with_committed_containing_block = |arena: &mut LayoutNodeArena, containing_block| {
             let mut link = crate::layout::fragment_tree::FragmentLink::for_test(svg_root.slot);
             link.containing_block = containing_block;
             arena.set_committed_fragment_link(svg_root.slot, link, None);
@@ -1016,13 +1016,13 @@ mod tests {
         };
 
         assert_eq!(
-            plan_with_committed_containing_block(&arena, parent.slot),
+            plan_with_committed_containing_block(&mut arena, parent.slot),
             Some(vec![super::PlannedBoundary {
                 root: svg_root.slot,
                 containing_block: parent.slot,
             }])
         );
-        assert_eq!(plan_with_committed_containing_block(&arena, earlier_tree_box), None);
+        assert_eq!(plan_with_committed_containing_block(&mut arena, earlier_tree_box), None);
         free_node(&mut arena, &parent);
     }
 

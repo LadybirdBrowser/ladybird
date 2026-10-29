@@ -1177,7 +1177,7 @@ mod tests {
         host.fresh_rows(ScriptForcedRead::for_test());
 
         host.with_arena_untold_for_test(|arena| {
-            let shape = arena.write_shape(row);
+            let mut shape = arena.write_shape(row);
             shape.set_style(StylePayloadsRef::new(NonNull::dangling().as_ptr()));
             shape.mark();
         });
