@@ -1,3 +1,5 @@
+ladybird_test_suite(AK)
+
 set(AK_TEST_SOURCES
     TestAllOf.cpp
     TestAnyOf.cpp
@@ -15,7 +17,6 @@ set(AK_TEST_SOURCES
     TestByteString.cpp
     TestCharacterTypes.cpp
     TestChecked.cpp
-    TestSaturatingMath.cpp
     TestCircularBuffer.cpp
     TestCircularQueue.cpp
     TestDemangle.cpp
@@ -27,9 +28,9 @@ set(AK_TEST_SOURCES
     TestFFIHelpers.cpp
     TestFind.cpp
     TestFixedArray.cpp
-    TestFunction.cpp
     TestFlyString.cpp
     TestFormat.cpp
+    TestFunction.cpp
     TestGenericLexer.cpp
     TestGenericShorthands.cpp
     TestHashFunctions.cpp
@@ -37,12 +38,12 @@ set(AK_TEST_SOURCES
     TestHashTable.cpp
     TestHeapPartition.cpp
     TestHex.cpp
-    TestIPv4Address.cpp
-    TestIPv6Address.cpp
     TestIndexSequence.cpp
     TestInsertionSort.cpp
     TestIntegerMath.cpp
     TestIntrusiveList.cpp
+    TestIPv4Address.cpp
+    TestIPv6Address.cpp
     TestJSON.cpp
     TestLEB128.cpp
     TestMemory.cpp
@@ -59,6 +60,7 @@ set(AK_TEST_SOURCES
     TestRandom.cpp
     TestRedBlackTree.cpp
     TestRefPtr.cpp
+    TestSaturatingMath.cpp
     TestSeqLock.cpp
     TestSetUnion.cpp
     TestSharedMemoryValue.cpp
@@ -77,8 +79,8 @@ set(AK_TEST_SOURCES
     TestTime.cpp
     TestTrie.cpp
     TestTuple.cpp
-    TestTypeTraits.cpp
     TestTypedTransfer.cpp
+    TestTypeTraits.cpp
     TestUFixedBigInt.cpp
     TestUtf16FlyString.cpp
     TestUtf16String.cpp
@@ -98,13 +100,12 @@ else()
     list(APPEND AK_TEST_SOURCES TestDelayLoadWindows.cpp)
 endif()
 
-foreach(source IN LISTS AK_TEST_SOURCES)
-    ladybird_test("${source}" AK)
-endforeach()
+target_sources(TestAK PRIVATE ${AK_TEST_SOURCES})
+target_link_libraries(TestAK PRIVATE LibThreading LibUnicode)
 
 if (WIN32)
     # FIXME: Windows on ARM
-    target_link_libraries(TestUFixedBigInt PRIVATE clang_rt.builtins-x86_64.lib)
+    target_link_libraries(TestAK PRIVATE clang_rt.builtins-x86_64.lib)
 endif()
 
 if (APPLE)
@@ -113,13 +114,3 @@ if (APPLE)
     ladybird_test(TestFunctionObjC.mm AK NAME TestFunctionObjCArc)
     target_compile_options(TestFunctionObjCArc PRIVATE -fobjc-arc)
 endif()
-
-target_link_libraries(TestByteString PRIVATE LibThreading)
-target_link_libraries(TestFFIHelpers PRIVATE LibThreading)
-target_link_libraries(TestFlyString PRIVATE LibThreading)
-target_link_libraries(TestSeqLock PRIVATE LibThreading)
-target_link_libraries(TestString PRIVATE LibThreading LibUnicode)
-target_link_libraries(TestTearableAtomic PRIVATE LibThreading)
-target_link_libraries(TestThreadSafeWeakable PRIVATE LibThreading)
-target_link_libraries(TestUtf16FlyString PRIVATE LibThreading)
-target_link_libraries(TestUtf16String PRIVATE LibUnicode)

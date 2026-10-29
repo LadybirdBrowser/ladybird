@@ -10,6 +10,8 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefPtr.h>
 
+namespace {
+
 struct Object : public RefCounted<Object> {
     int x;
 };
@@ -162,4 +164,6 @@ TEST_CASE(destroy_self_owning_refcounted_object)
     object->self = object;
     object = nullptr;
     object_ptr->self = nullptr;
+}
+
 }
