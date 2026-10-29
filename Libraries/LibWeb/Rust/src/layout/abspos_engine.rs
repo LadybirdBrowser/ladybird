@@ -3325,28 +3325,25 @@ impl<'pass> AbsposEngine<'pass> {
     ) -> CssPixels {
         let child_box = child.child_box;
         let position_option = self.determine_position_fallback_styles(&child);
-        let cells = used_values::cells_before_sizing(&self.callbacks, child_box, ContainingBlockConstraints::default());
-        let (mut inputs, default_scroll_shift) = self.pending_child_layout_inputs(&mut child);
-        inputs.position_option = position_option.choice();
-        let border_box_block_end = self.layout_element(run, child_box, cells, inputs, Some(default_scroll_shift));
-        drop(position_option);
-        border_box_block_end
+        self.with_position_option_style(child_box, position_option.style, |engine| {
+            let run = run.with_callbacks(engine.callbacks);
+            let cells =
+                used_values::cells_before_sizing(&engine.callbacks, child_box, ContainingBlockConstraints::default());
+            let (mut inputs, default_scroll_shift) = engine.pending_child_layout_inputs(&mut child);
+            inputs.position_option = position_option.choice;
+            engine.layout_element(&run, child_box, cells, inputs, Some(default_scroll_shift))
+        })
     }
 
     /// https://drafts.csswg.org/css-anchor-position-1/#determine-position-fallback-styles
-    /// Chooses the position option the pending child `child` is laid out with, and makes its style reads see the
-    /// styles of that option until the answer is dropped.
-    fn determine_position_fallback_styles(
-        &self,
-        child: &abspos_inputs::PendingAbsposChild,
-    ) -> PositionOptionStyles<'pass> {
+    /// Chooses the position option the pending child `child` is laid out with, whose styles live until the answer is
+    /// dropped.
+    fn determine_position_fallback_styles(&self, child: &abspos_inputs::PendingAbsposChild) -> PositionOptionStyles {
         let node = child.child_box;
         let mut styles = PositionOptionStyles {
-            callbacks: self.callbacks,
-            node,
             choice: None,
+            style: None,
             option_styles: Vec::new(),
-            installed: false,
         };
         let style = StyleValues::for_node(&self.callbacks, node);
         let anchor = style.anchor();
@@ -3433,11 +3430,11 @@ impl<'pass> AbsposEngine<'pass> {
                 .iter()
                 .filter_map(|&option| {
                     let style = option_style(option)?;
-                    let size = self.with_position_option_style(node, style, || {
+                    let size = self.with_position_option_style(node, style, |engine| {
                         let mut child = *child;
-                        let (inputs, _) = self.pending_child_layout_inputs(&mut child);
-                        let size = self.inset_modified_containing_block_size(node, &inputs);
-                        let horizontal_is_frame_inline = !self.callbacks.frame.is_transposed();
+                        let (inputs, _) = engine.pending_child_layout_inputs(&mut child);
+                        let size = engine.inset_modified_containing_block_size(node, &inputs);
+                        let horizontal_is_frame_inline = !engine.callbacks.frame.is_transposed();
                         let inline_axis_is_horizontal = writing_mode == writing_mode::HORIZONTAL_TB;
                         let (horizontal, vertical) = if horizontal_is_frame_inline {
                             (size.inline_size, size.block_size)
@@ -3489,7 +3486,9 @@ impl<'pass> AbsposEngine<'pass> {
             let Some(style) = option_style(option) else {
                 return false;
             };
-            self.with_position_option_style(node, style, || self.position_option_fits(child, choice_of(option)))
+            self.with_position_option_style(node, style, |engine| {
+                engine.position_option_fits(child, choice_of(option))
+            })
         };
         // NB: The box determines its position fallback styles only where it overflows with its current styles.
         // INTEROP: Other browsers take the first option of a list that position-try-order sorted that fits, even
@@ -3510,30 +3509,30 @@ impl<'pass> AbsposEngine<'pass> {
                 .unwrap_or(current)
         };
         let option = options[chosen];
-        let style = option_style(option).flatten();
         styles.choice = Some(choice_of(option));
+        styles.style = option_style(option).flatten();
         styles.option_styles = option_styles.into_inner();
-        if let Some(style) = style {
-            self.callbacks.scratch().push_position_option_style(node, style);
-            styles.installed = true;
-        }
         styles
     }
 
-    /// Runs `callback` with the style reads of `node` seeing `style`, or the style of its row for none.
+    /// Runs `callback` with this engine as it lays out `node` with `style`, which its style reads see, or with the
+    /// style of its row for none.
     fn with_position_option_style<T>(
         &self,
         node: Node,
         style: Option<node_data::StylePayloadsRef>,
-        callback: impl FnOnce() -> T,
+        callback: impl for<'option> FnOnce(&AbsposEngine<'option>) -> T,
     ) -> T {
         let Some(style) = style else {
-            return callback();
+            return callback(self);
         };
-        self.callbacks.scratch().push_position_option_style(node, style);
-        let result = callback();
-        self.callbacks.scratch().pop_position_option_style(node);
-        result
+        self.callbacks.with_position_option_style(node, style, |callbacks| {
+            callback(&AbsposEngine {
+                state: self.state,
+                callbacks,
+                fragments: self.fragments.clone(),
+            })
+        })
     }
 
     /// The size of the inset-modified containing block that `inputs` give the box `node`, treating auto inset values
@@ -3970,30 +3969,14 @@ pub(crate) fn compute_inset_native(
     )
 }
 
-/// The position option a box is laid out with, whose styles its style reads see while this lives, and the styles of its
-/// position options, which the style reads of the box address until then.
-struct PositionOptionStyles<'pass> {
-    callbacks: LayoutPass<'pass>,
-    node: Node,
+/// The position option a box is laid out with and the styles it makes, if any, and the styles of the box's position
+/// options, which the style reads of the box address while this lives.
+struct PositionOptionStyles {
     choice: Option<abspos_inputs::PositionOptionChoice>,
+    style: Option<node_data::StylePayloadsRef>,
     /// Boxed so that the payloads the style reads address stay in place as the list grows.
     #[expect(clippy::vec_box)]
     option_styles: Vec<Box<LayoutStyle>>,
-    installed: bool,
-}
-
-impl PositionOptionStyles<'_> {
-    fn choice(&self) -> Option<abspos_inputs::PositionOptionChoice> {
-        self.choice
-    }
-}
-
-impl Drop for PositionOptionStyles<'_> {
-    fn drop(&mut self) {
-        if self.installed {
-            self.callbacks.scratch().pop_position_option_style(self.node);
-        }
-    }
 }
 
 #[cfg(test)]

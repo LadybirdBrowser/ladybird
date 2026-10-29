@@ -17,6 +17,9 @@ use super::*;
 ///
 /// A pass holds no part of the host. Every host call takes the main thread token, which a pass is
 /// not handed, so a pass has no way to call into the document.
+///
+/// Each run is handed a copy of its own, through which the code inside the run reaches what the run
+/// keeps for it, so no state that the runs share tells which run is in progress.
 #[derive(Clone, Copy)]
 pub(crate) struct LayoutPass<'arena> {
     arena: &'arena LayoutNodeArena,
@@ -37,6 +40,17 @@ pub(crate) struct LayoutPass<'arena> {
     /// Whether this pass view is inside a run whose result is discarded, which reads no memoized layout from before it
     /// and keeps none: the run cache, the in-flow block cache, inline item stashes and intrinsic sizes.
     reads_no_memoized_layout: bool,
+    /// The innermost of the position options the boxes this pass view lays out are laid out with.
+    position_option_styles: Option<&'arena PositionOptionStyle<'arena>>,
+}
+
+/// The style a box is laid out with in place of the style of its row: that of one of its position options. It links to
+/// the position option the box is laid out inside of, if any.
+/// https://drafts.csswg.org/css-anchor-position-1/#apply-a-position-option
+struct PositionOptionStyle<'pass> {
+    node: Node,
+    style: super::node_data::StylePayloadsRef,
+    enclosing: Option<&'pass PositionOptionStyle<'pass>>,
 }
 
 impl<'arena> LayoutPass<'arena> {
@@ -56,6 +70,7 @@ impl<'arena> LayoutPass<'arena> {
             host_findings: &scratch.host_findings_outside_runs,
             intrinsic_size_caches: &scratch.intrinsic_size_caches,
             reads_no_memoized_layout: false,
+            position_option_styles: None,
         }
     }
 
@@ -104,11 +119,6 @@ impl<'arena> LayoutPass<'arena> {
         self.arena
     }
 
-    /// The layout stage's own scratch, which the runs of the pass share.
-    pub(crate) fn scratch(&self) -> &'arena super::run_state::LayoutScratch {
-        self.scratch
-    }
-
     /// Lays out `run`, whose result is discarded, with this pass as that run sees it: it reads no memoized layout from
     /// before it and keeps none, so that it computes everything afresh and leaves nothing for the runs after it. It
     /// measures intrinsic sizes into caches of its own, which start empty and are dropped when it returns.
@@ -120,6 +130,40 @@ impl<'arena> LayoutPass<'arena> {
             reads_no_memoized_layout: true,
             ..pass
         })
+    }
+
+    /// Runs `run` with this pass as it lays out `node` with `style`, the style of one of its position options, which
+    /// the style reads of `node` see in place of the style of its row. The payloads `style` names must stay alive
+    /// until `run` returns.
+    pub(crate) fn with_position_option_style<R>(
+        self,
+        node: Node,
+        style: super::node_data::StylePayloadsRef,
+        run: impl for<'option> FnOnce(LayoutPass<'option>) -> R,
+    ) -> R {
+        let position_option_style = PositionOptionStyle {
+            node,
+            style,
+            enclosing: self.position_option_styles,
+        };
+        let pass: LayoutPass<'_> = self;
+        run(LayoutPass {
+            position_option_styles: Some(&position_option_style),
+            ..pass
+        })
+    }
+
+    /// The style the style reads of `node` see in place of the style of its row, if any.
+    #[inline]
+    fn position_option_style(&self, node: Node) -> Option<super::node_data::StylePayloadsRef> {
+        let mut position_option_style = self.position_option_styles;
+        while let Some(option) = position_option_style {
+            if option.node == node {
+                return Some(option.style);
+            }
+            position_option_style = option.enclosing;
+        }
+        None
     }
 
     /// Whether this pass view is inside a run whose result is discarded, which reads no memoized layout from before it
@@ -196,8 +240,8 @@ impl<'arena> LayoutPass<'arena> {
     /// The style of `node`: that of its row, or the position option it is being laid out with.
     #[inline]
     pub(crate) fn style_payloads_if_styled(&self, node: Node) -> Option<&'arena FfiStylePayloads> {
-        if let Some(style) = self.scratch.position_option_style(node) {
-            // SAFETY: A position option's style record stays pinned while a box is laid out with it.
+        if let Some(style) = self.position_option_style(node) {
+            // SAFETY: A position option's style stays alive while a box is laid out with it.
             return unsafe { super::node_data::style_payloads(style) };
         }
         self.arena.style_payloads(node)

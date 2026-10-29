@@ -11,15 +11,10 @@ use super::*;
 /// keeps for later passes.
 pub(crate) struct LayoutScratch {
     /// The intrinsic sizes passes measured, kept for the passes after them.
-    pub(crate) intrinsic_size_caches: super::layout_node_arena::IntrinsicSizeCaches,
+    pub(super) intrinsic_size_caches: super::layout_node_arena::IntrinsicSizeCaches,
     /// The inline items a block container generated, kept for its later runs in the same pass. The
     /// items borrow fonts for the current pass, so the stashes are cleared when the pass ends.
     inline_item_stashes: RefCell<HashMap<NodeSlotId, super::inline_level_iterator::StashedInlineItems>>,
-    /// The styles of the boxes being laid out with one of their position options, which the style reads of each box
-    /// see in place of the style of its row.
-    /// https://drafts.csswg.org/css-anchor-position-1/#apply-a-position-option
-    position_option_styles: RefCell<Vec<(NodeSlotId, super::node_data::StylePayloadsRef)>>,
-    has_position_option_styles: Cell<bool>,
     /// What the pass found out for the host outside any run, which its driver reports itself.
     pub(super) host_findings_outside_runs: RefCell<HostFindings>,
 }
@@ -92,41 +87,12 @@ impl Default for LayoutScratch {
         Self {
             intrinsic_size_caches: Default::default(),
             inline_item_stashes: RefCell::new(HashMap::default()),
-            position_option_styles: RefCell::new(Vec::new()),
-            has_position_option_styles: Cell::new(false),
             host_findings_outside_runs: RefCell::new(HostFindings::default()),
         }
     }
 }
 
 impl LayoutScratch {
-    /// Makes the style reads of `node` see `style` until [`Self::pop_position_option_style`].
-    pub(crate) fn push_position_option_style(&self, node: NodeSlotId, style: super::node_data::StylePayloadsRef) {
-        self.position_option_styles.borrow_mut().push((node, style));
-        self.has_position_option_styles.set(true);
-    }
-
-    pub(crate) fn pop_position_option_style(&self, node: NodeSlotId) {
-        let mut styles = self.position_option_styles.borrow_mut();
-        let popped = styles.pop();
-        debug_assert!(popped.is_some_and(|(popped, _)| popped == node));
-        self.has_position_option_styles.set(!styles.is_empty());
-    }
-
-    /// The style the style reads of `node` see in place of the style of its row, if any.
-    #[inline]
-    pub(crate) fn position_option_style(&self, node: NodeSlotId) -> Option<super::node_data::StylePayloadsRef> {
-        if !self.has_position_option_styles.get() {
-            return None;
-        }
-        self.position_option_styles
-            .borrow()
-            .iter()
-            .rev()
-            .find(|(styled, _)| *styled == node)
-            .map(|(_, style)| *style)
-    }
-
     pub(super) fn store_inline_item_stash(
         &self,
         block_container: NodeSlotId,
