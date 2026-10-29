@@ -4769,32 +4769,43 @@ impl<'pass> GridFormattingContext<'pass> {
         // therefore participate with other items in their row.)
         // [...] a table cell spanning three rows participates in first-baseline alignment with the table cells in the
         // first row that it spans [...]
-        let mut shared_baselines = HashMap::<i32, CssPixels>::default();
-        let mut shared_column_baselines = HashMap::<i32, CssPixels>::default();
+        // The shared baseline of the items that start in each row and column, by the index of its track.
+        let mut shared_baselines = Vec::<Option<CssPixels>>::new();
+        let mut shared_column_baselines = Vec::<Option<CssPixels>>::new();
+        let track_index =
+            |position: i32| usize::try_from(position).expect("a placed grid item starts at a track of its grid");
+        let share_baseline = |shared_baselines: &mut Vec<Option<CssPixels>>, track: usize, baseline: CssPixels| {
+            if shared_baselines.len() <= track {
+                shared_baselines.resize(track + 1, None);
+            }
+            let shared = &mut shared_baselines[track];
+            *shared = Some(shared.map_or(baseline, |shared| shared.max(baseline)));
+        };
         for &(item_index, _, _, _) in &items {
             let item = self.items[item_index];
             if self.item_participates_in_row_baseline_alignment(item) {
-                let baseline = self.item_row_baseline(item);
-                shared_baselines
-                    .entry(item.row)
-                    .and_modify(|shared| *shared = (*shared).max(baseline))
-                    .or_insert(baseline);
+                share_baseline(
+                    &mut shared_baselines,
+                    track_index(item.row),
+                    self.item_row_baseline(item),
+                );
             }
             if self.item_participates_in_column_baseline_alignment(item) {
-                let baseline = self.item_column_baseline(item);
-                shared_column_baselines
-                    .entry(item.column)
-                    .and_modify(|shared| *shared = (*shared).max(baseline))
-                    .or_insert(baseline);
+                share_baseline(
+                    &mut shared_column_baselines,
+                    track_index(item.column),
+                    self.item_column_baseline(item),
+                );
             }
         }
         for (item_index, placed_item, mut offset, fragment_arrival) in items {
             let item = self.items[item_index];
             if self.item_participates_in_row_baseline_alignment(item) {
-                offset.y += shared_baselines[&item.row] - self.item_row_baseline(item);
+                offset.y += shared_baselines[track_index(item.row)].unwrap() - self.item_row_baseline(item);
             }
             if self.item_participates_in_column_baseline_alignment(item) {
-                offset.x += shared_column_baselines[&item.column] - self.item_column_baseline(item);
+                offset.x +=
+                    shared_column_baselines[track_index(item.column)].unwrap() - self.item_column_baseline(item);
             }
             self.place_item(item, placed_item, offset, fragment_arrival);
         }
