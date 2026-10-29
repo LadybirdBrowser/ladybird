@@ -2161,7 +2161,9 @@ impl<'context> InlineFormattingContext<'context> {
                         x: x + relative_insets.offset_x,
                         y: y + relative_insets.offset_y,
                     };
-                    if fragment.is_atomic_inline {
+                    // A replaced element counts as atomic even when it's block-level, but a block-level box on a line
+                    // interrupted for it was laid out and placed as a block, not as an atomic inline.
+                    if fragment.is_atomic_inline && !line.has_block_level_box {
                         atomic_inlines_after_clamp_point.push((fragment.layout_node, position));
                     } else {
                         let (width, height) = fragment.size();

@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/line-clamp-hides-block-level-replaced-element-in-inline-ref.html" />
+<style>
+    * { margin: 0; }
+    div { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; width: 80px; font: 16px/20px monospace; }
+    img { display: block; width: 20px; height: 20px; }
+</style>
+<div><span>one two three four<img src="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2220%22 height=%2220%22%3E%3Crect width=%2220%22 height=%2220%22 fill=%22red%22/%3E%3C/svg%3E"></span></div>
