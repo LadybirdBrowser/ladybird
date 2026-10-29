@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <title>Document#fullscreenEnabled setting allowfullscreen after load and then navigating</title>
-<script src="../../resources/testharness.js"></script>
-<script src="../../resources/testharnessreport.js"></script>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
 <div id="log"></div>
 <script>
 async_test((t) => {
@@ -11,7 +11,7 @@ async_test((t) => {
   let i = 0;
 
   const path = location.pathname.substring(0, location.pathname.lastIndexOf('/') + 1);
-  iframe.src = "http://wpt.live:80" + path + "resources/echo-fullscreenEnabled.html";
+  iframe.src = "http://{{hosts[][]}}:{{ports[http][0]}}" + path + "resources/echo-fullscreenEnabled.html";
   iframe.onload = t.step_func(() => {
     if (i === 0) {
       iframe.allowFullscreen = true;

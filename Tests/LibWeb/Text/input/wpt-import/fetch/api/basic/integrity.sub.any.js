@@ -37,8 +37,8 @@ const invalidSha512 = "sha512-oUceBRNxPxnY60g/VtPCj2syT4wo4EZh2CgYdWy9veW8+OsReT
 const path = dirname(location.pathname) + RESOURCES_DIR + "top.txt";
 const url = path;
 const corsUrl =
-  `http://wpt.live:8000${path}?pipe=header(Access-Control-Allow-Origin,*)`;
-const corsUrl2 = `https://wpt.live:443${path}`
+  `http://{{host}}:{{ports[http][1]}}${path}?pipe=header(Access-Control-Allow-Origin,*)`;
+const corsUrl2 = `https://{{host}}:{{ports[https][0]}}${path}`
 
 integrity("Empty string integrity", url, "", /* initRequestMode */ undefined,
          /* shouldPass */ true);

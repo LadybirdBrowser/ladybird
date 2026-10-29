@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <title>Element ready check with no allowfullscreen attribute</title>
-<script src="../../resources/testharness.js"></script>
-<script src="../../resources/testharnessreport.js"></script>
-<script src="../../resources/testdriver.js"></script>
-<script src="../../resources/testdriver-vendor.js"></script>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/resources/testdriver.js"></script>
+<script src="/resources/testdriver-vendor.js"></script>
 <script src="../trusted-click.js"></script>
 <body>
   <iframe name="cross-origin-default"></iframe>
@@ -21,7 +21,7 @@
     await new Promise((resolve) => {
       iframe.onload = resolve;
       iframe.src =
-        "http://not-wpt.live:80/fullscreen/api/resources/attempt-fullscreen.html";
+        "http://{{hosts[alt][]}}:{{ports[http][0]}}/fullscreen/api/resources/attempt-fullscreen.html";
     });
     // Trigger the child frame to report as soon as its content is loaded.
     await trusted_click();

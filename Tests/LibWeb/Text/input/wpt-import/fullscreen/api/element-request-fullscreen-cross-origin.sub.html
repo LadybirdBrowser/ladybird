@@ -2,10 +2,10 @@
 <title>
   Element#requestFullscreen() works properly with a tree of cross-origin iframes
 </title>
-<script src="../../resources/testharness.js"></script>
-<script src="../../resources/testharnessreport.js"></script>
-<script src="../../resources/testdriver.js"></script>
-<script src="../../resources/testdriver-vendor.js"></script>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/resources/testdriver.js"></script>
+<script src="/resources/testdriver-vendor.js"></script>
 
 <body>
   <script>
@@ -48,31 +48,31 @@
     const iframes = [
       {
         name: "A",
-        src: "http://wpt.live:80/fullscreen/api/resources/recursive-iframe-fullscreen.html?a",
+        src: "http://{{hosts[][]}}:{{ports[http][0]}}/fullscreen/api/resources/recursive-iframe-fullscreen.html?a",
         allow_fullscreen: true,
         expectedEvents: ["fullscreenchange"],
       },
       {
         name: "B",
-        src: "http://wpt.live:8000/fullscreen/api/resources/recursive-iframe-fullscreen.html?b",
+        src: "http://{{hosts[][]}}:{{ports[http][1]}}/fullscreen/api/resources/recursive-iframe-fullscreen.html?b",
         allow_fullscreen: true,
         expectedEvents: ["fullscreenchange"],
       },
       {
         name: "C",
-        src: "http://not-wpt.live:80/fullscreen/api/resources/recursive-iframe-fullscreen.html?c",
+        src: "http://{{hosts[alt][]}}:{{ports[http][0]}}/fullscreen/api/resources/recursive-iframe-fullscreen.html?c",
         allow_fullscreen: true,
         expectedEvents: ["fullscreenchange"],
       },
       {
         name: "D",
-        src: "http://not-wpt.live:8000/fullscreen/api/resources/recursive-iframe-fullscreen.html?d",
+        src: "http://{{hosts[alt][]}}:{{ports[http][1]}}/fullscreen/api/resources/recursive-iframe-fullscreen.html?d",
         allow_fullscreen: true,
         expectedEvents: ["fullscreenchange"],
       },
       {
         name: "E",
-        src: "http://wpt.live:80/fullscreen/api/resources/recursive-iframe-fullscreen.html?e",
+        src: "http://{{hosts[][]}}:{{ports[http][0]}}/fullscreen/api/resources/recursive-iframe-fullscreen.html?e",
         allow_fullscreen: true,
         expectedEvents: [],
       },

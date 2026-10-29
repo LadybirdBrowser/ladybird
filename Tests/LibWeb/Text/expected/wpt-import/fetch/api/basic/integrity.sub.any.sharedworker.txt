@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 18 tests
 
-16 Pass
-2 Fail
+17 Pass
+1 Fail
 Pass	Empty string integrity
 Pass	SHA-256 integrity
 Pass	SHA-384 integrity
@@ -17,8 +17,8 @@ Pass	Multiple integrities: invalid stronger than valid
 Pass	Multiple integrities: invalid as strong as valid
 Pass	Multiple integrities: both are valid
 Pass	Multiple integrities: both are invalid
-Fail	CORS empty integrity
-Fail	CORS SHA-512 integrity
+Pass	CORS empty integrity
+Pass	CORS SHA-512 integrity
 Pass	CORS invalid integrity
-Pass	Empty string integrity for opaque response
+Fail	Empty string integrity for opaque response
 Pass	SHA-* integrity for opaque response

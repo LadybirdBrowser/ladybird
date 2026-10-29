@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Fullscreen enabled test: same-origin-default
+Pass	Fullscreen enabled test: same-origin-allow
+Pass	Fullscreen enabled test: cross-origin-default
+Pass	Fullscreen enabled test: cross-origin-allow

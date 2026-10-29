@@ -3,8 +3,8 @@
 <meta charset=utf-8>
 <meta name="timeout" content="long">
 <link rel="help" href="https://wicg.github.io/ScrollToTextFragment/">
-<script src="../resources/testharness.js"></script>
-<script src="../resources/testharnessreport.js"></script>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
 <script>
   function getResult(iframe) {
     return new Promise((resolve) => {
@@ -108,6 +108,6 @@
   </div>
   <div>
     Cross-Origin:
-    <iframe id="crossorigin" src="http://www.wpt.live:80/scroll-to-text-fragment/iframe-target.html"></iframe>
+    <iframe id="crossorigin" src="http://{{hosts[][www]}}:{{ports[http][0]}}/scroll-to-text-fragment/iframe-target.html"></iframe>
   </div>
 </body>

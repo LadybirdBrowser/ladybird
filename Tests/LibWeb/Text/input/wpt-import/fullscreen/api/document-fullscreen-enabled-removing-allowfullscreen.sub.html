@@ -3,8 +3,8 @@
     Document#fullscreenEnabled removing allowfullscreen after load and then
     navigating
 </title>
-<script src="../../resources/testharness.js"></script>
-<script src="../../resources/testharnessreport.js"></script>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
 <div id="log"></div>
 <iframe></iframe>
 <script>
@@ -35,7 +35,7 @@
                 0,
                 location.pathname.lastIndexOf("/") + 1
             );
-            iframe.src = `http://wpt.live:80${path}resources/echo-fullscreenEnabled.html`;
+            iframe.src = `http://{{hosts[][]}}:{{ports[http][0]}}${path}resources/echo-fullscreenEnabled.html`;
         });
 
         assert_true(

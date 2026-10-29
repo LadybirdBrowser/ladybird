@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 5 tests
+
+4 Pass
+1 Fail
+Pass	same_to_cross
+Pass	cross_to_same
+Pass	same_to_same
+Pass	cross_to_cross
+Fail	allowed_cross_to_same

@@ -1,12 +1,13 @@
 <!doctype html>
 <title>Navigating to a text fragment directive</title>
 <meta charset=utf-8>
+<meta name="timeout" content="long">
 <link rel="help" href="https://wicg.github.io/ScrollToTextFragment/">
-<script src="../resources/testharness.js"></script>
-<script src="../resources/testharnessreport.js"></script>
-<script src="../resources/testdriver.js"></script>
-<script src="../resources/testdriver-vendor.js"></script>
-<script src="../common/utils.js"></script>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/resources/testdriver.js"></script>
+<script src="/resources/testdriver-vendor.js"></script>
+<script src="/common/utils.js"></script>
 <script src="stash.js"></script>
 <script>
 // Test security restriction for user activation
@@ -34,7 +35,7 @@ for (let user_activation of [true, false]) {
   }), `Test that a text fragment directive requires a user activation (user_activation=${user_activation}).`);
 }
 
-const crossOriginTarget = "http://www.not-wpt.live:80/scroll-to-text-fragment/scroll-to-text-fragment-target.html";
+const crossOriginTarget = "http://{{hosts[alt][www]}}:{{ports[http][0]}}/scroll-to-text-fragment/scroll-to-text-fragment-target.html";
 
 // Test security restriction for no window opener
 for (let noopener of [true, false]) {
