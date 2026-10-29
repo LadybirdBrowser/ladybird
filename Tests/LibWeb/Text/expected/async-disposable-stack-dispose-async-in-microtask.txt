@@ -1,0 +1,6 @@
+async disposer started
+disposeAsync() returned
+async disposer finished
+sync disposer
+disposed: true
+SuppressedError: error=first suppressed=second

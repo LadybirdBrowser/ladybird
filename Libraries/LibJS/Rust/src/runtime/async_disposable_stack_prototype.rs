@@ -13,10 +13,11 @@ use crate::layout::cell::Gc;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::runtime::abstract_operations::{
-    add_disposable_resource, call_function_object, dispose_resources, ordinary_create_from_constructor_of,
+    add_disposable_resource, call_function_object, ordinary_create_from_constructor_of,
 };
 use crate::runtime::async_disposable_stack::{AsyncDisposableStack, AsyncDisposableState};
-use crate::runtime::completion::{Completion, Must, ThrowCompletionOr};
+use crate::runtime::completion::{Completion, CompletionType, Must, ThrowCompletionOr};
+use crate::runtime::disposable_resource_stack::{AsyncDisposeResourcesStep, DisposableResourceStack};
 use crate::runtime::environment::InitializeBindingHint;
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
@@ -25,7 +26,8 @@ use crate::runtime::intrinsics::Intrinsics;
 use crate::runtime::native_function::{NativeFunction, raw_native};
 use crate::runtime::object::{MayInterfereWithIndexedPropertyAccess, ORDINARY_OBJECT_METHODS, define_object_class};
 use crate::runtime::primitive_string::PrimitiveString;
-use crate::runtime::promise_capability::{new_promise_capability, try_or_reject};
+use crate::runtime::promise::{Promise, promise_resolve};
+use crate::runtime::promise_capability::{PromiseCapability, new_promise_capability};
 use crate::runtime::property_attributes::{Attribute, PropertyAttributes};
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::prototype_object::typed_this_object;
@@ -195,6 +197,7 @@ impl AsyncDisposableStackPrototype {
     }
 
     // 12.4.3.3 AsyncDisposableStack.prototype.disposeAsync(), https://tc39.es/proposal-explicit-resource-management/#sec-asyncdisposablestack.prototype.disposeAsync
+    #[allow(clippy::unnecessary_wraps, reason = "native functions can throw")]
     fn dispose_async(vm: &Vm) -> ThrowCompletionOr<Value> {
         let realm = current_realm(vm);
 
@@ -235,19 +238,14 @@ impl AsyncDisposableStackPrototype {
 
         // 6. Let result be DisposeResources(asyncDisposableStack.[[DisposeCapability]], NormalCompletion(undefined)).
         // 7. IfAbruptRejectPromise(result, promiseCapability).
-        let result = try_or_reject!(
-            vm,
-            promise_capability,
-            dispose_resources(
-                vm,
-                async_disposable_stack.dispose_capability(),
-                Completion::normal(Value::UNDEFINED),
-            )
-            .into_throw_completion_or()
-        );
-
         // 8. Perform ! Call(promiseCapability.[[Resolve]], undefined, « result »).
-        call_function_object(vm, promise_capability.resolve(), Value::UNDEFINED, &[result]).must();
+        // NB: DisposeResources may Await, which suspends this function until the awaited promise settles. We perform it
+        //     one step at a time, and continue with the next step from a reaction to each awaited promise, instead of
+        //     blocking until the promise settles. The resources move to a DisposableResourceStack, which keeps the
+        //     state of DisposeResources between the steps.
+        let stack = DisposableResourceStack::create(vm);
+        stack.take_dispose_capability(async_disposable_stack.dispose_capability());
+        continue_dispose_resources(vm, stack, promise_capability, Completion::normal(Value::UNDEFINED));
 
         // 9. Return promiseCapability.[[Promise]].
         Ok(Value::from_object(promise_capability.promise()))
@@ -336,4 +334,90 @@ impl AsyncDisposableStackPrototype {
         // 5. Return value.
         Ok(value)
     }
+}
+
+/// Performs the next step of the DisposeResources of AsyncDisposableStack.prototype.disposeAsync(), given the completion
+/// of the Await that the previous step performed, and settles the promise of disposeAsync() once DisposeResources is done.
+fn continue_dispose_resources(
+    vm: &Vm,
+    stack: Gc<DisposableResourceStack>,
+    promise_capability: Gc<PromiseCapability>,
+    await_completion: Completion,
+) {
+    let value = match stack.async_dispose_resources_step(vm, Completion::normal(Value::UNDEFINED), await_completion) {
+        Ok(AsyncDisposeResourcesStep::Await(value)) => value,
+        Ok(AsyncDisposeResourcesStep::Done) => {
+            // 8. Perform ! Call(promiseCapability.[[Resolve]], undefined, « result »).
+            call_function_object(vm, promise_capability.resolve(), Value::UNDEFINED, &[Value::UNDEFINED]).must();
+            return;
+        }
+        Err(throw) => {
+            // 7. IfAbruptRejectPromise(result, promiseCapability).
+            call_function_object(vm, promise_capability.reject(), Value::UNDEFINED, &[throw.value()]).must();
+            return;
+        }
+    };
+
+    // Await ( value ), https://tc39.es/ecma262/#await
+    let realm = current_realm(vm);
+
+    // 2. Let promise be ? PromiseResolve(%Promise%, value).
+    let promise = match promise_resolve(vm, realm.intrinsics().promise_constructor(vm).upcast(), value) {
+        Ok(promise) => promise,
+        Err(throw) => {
+            // NB: The Await throws, so the next step continues with its throw completion.
+            continue_dispose_resources(vm, stack, promise_capability, throw.into());
+            return;
+        }
+    };
+
+    // 3. Let fulfilledClosure be a new Abstract Closure with parameters (v) that captures asyncContext and performs the
+    //    following steps when called:
+    // 4. Let onFulfilled be CreateBuiltinFunction(fulfilledClosure, 1, "", « »).
+    let on_fulfilled = NativeFunction::create_anonymous(
+        vm,
+        (stack, promise_capability),
+        |vm, &(stack, promise_capability): &(Gc<DisposableResourceStack>, Gc<PromiseCapability>)| {
+            // d. Resume the suspended evaluation of asyncContext using NormalCompletion(v) as the result of the
+            //    operation that suspended it.
+            continue_dispose_resources(vm, stack, promise_capability, Completion::normal(vm.argument(0)));
+
+            // f. Return undefined.
+            Ok(Value::UNDEFINED)
+        },
+        1,
+    );
+
+    // 5. Let rejectedClosure be a new Abstract Closure with parameters (reason) that captures asyncContext and performs
+    //    the following steps when called:
+    // 6. Let onRejected be CreateBuiltinFunction(rejectedClosure, 1, "", « »).
+    let on_rejected = NativeFunction::create_anonymous(
+        vm,
+        (stack, promise_capability),
+        |vm, &(stack, promise_capability): &(Gc<DisposableResourceStack>, Gc<PromiseCapability>)| {
+            // d. Resume the suspended evaluation of asyncContext using ThrowCompletion(reason) as the result of the
+            //    operation that suspended it.
+            continue_dispose_resources(
+                vm,
+                stack,
+                promise_capability,
+                Completion::new(CompletionType::Throw, vm.argument(0)),
+            );
+
+            // f. Return undefined.
+            Ok(Value::UNDEFINED)
+        },
+        1,
+    );
+
+    // 7. Perform PerformPromiseThen(promise, onFulfilled, onRejected).
+    promise
+        .downcast::<Promise>()
+        .expect("PromiseResolve of %Promise% returns a Promise")
+        .perform_then(
+            vm,
+            Value::from_object(on_fulfilled),
+            Value::from_object(on_rejected),
+            None,
+        );
 }

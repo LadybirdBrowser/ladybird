@@ -13,7 +13,7 @@ test("nested promise job checkpoints wait for the current reaction to finish", (
     expect(order).toEqual(["reaction start", "reaction end", "queued reaction", "chained reaction"]);
 });
 
-test("native awaits resume disposal before draining later promise jobs", () => {
+test("disposeAsync() resumes disposal from promise jobs in order", () => {
     for (const reject of [false, true]) {
         const order = [];
         Promise.resolve().then(() => {
@@ -39,10 +39,10 @@ test("native awaits resume disposal before draining later promise jobs", () => {
         runQueuedPromiseJobs();
         expect(order).toEqual([
             "first dispose",
+            "dispose returned",
             "tick 1",
             "second dispose",
             "tick 2",
-            "dispose returned",
             "tick 3",
             reject ? "rejected" : "fulfilled",
         ]);
