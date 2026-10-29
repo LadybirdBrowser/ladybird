@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/first-letter-inherits-from-letter-parent-ref.html">
+<style>
+    div::first-letter { color: green; font-size: var(--size); float: var(--float); background-color: var(--background); }
+    div.underlined::first-letter { text-decoration: underline; }
+    span { font-size: 40px; }
+</style>
+<div><span>Sample text</span></div>
+<div><span id="resized-letter-parent">Sample text</span></div>
+<div><span id="refloated-letter-parent">Sample text</span></div>
+<div id="restyled-originating-element"><span>Sample text</span></div>
+<div id="resized-originating-element" style="font-size: 40px"><span style="display: contents">Sample text</span></div>
+<div id="restyled-first-letter"><span>Sample text</span></div>
+<script>
+    const nextFrame = () => new Promise(resolve => requestAnimationFrame(resolve));
+    (async () => {
+        await nextFrame();
+        await nextFrame();
+        document.getElementById("refloated-letter-parent").style.setProperty("--float", "right");
+        await nextFrame();
+        await nextFrame();
+        document.getElementById("restyled-originating-element").style.setProperty("--background", "blue");
+        document.getElementById("resized-originating-element").style.setProperty("--size", "20px");
+        document.getElementById("restyled-first-letter").classList.add("underlined");
+        await nextFrame();
+        await nextFrame();
+        document.getElementById("resized-letter-parent").style.setProperty("--size", "20px");
+        document.documentElement.classList.remove("reftest-wait");
+    })();
+</script>
+</html>

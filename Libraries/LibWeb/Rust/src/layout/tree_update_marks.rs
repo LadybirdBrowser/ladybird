@@ -295,6 +295,15 @@ impl FfiLayoutTreeUpdateMark {
         is_child_list_insertion: false,
         is_structural_boundary_self_rebuild: true,
     };
+
+    /// The mark a style change makes for the next layout tree build, which may reuse a box as `reuse_reason` says.
+    pub(crate) const fn style_change(reuse_reason: u8) -> Self {
+        Self {
+            reuse_reason,
+            is_child_list_insertion: false,
+            is_structural_boundary_self_rebuild: false,
+        }
+    }
 }
 
 impl LayoutNodeArena {

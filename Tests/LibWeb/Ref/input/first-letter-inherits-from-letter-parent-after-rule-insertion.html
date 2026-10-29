@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/first-letter-inherits-from-letter-parent-after-rule-insertion-ref.html">
+<style>
+    .wrapper::first-letter { margin-left: 0; }
+    h1 { font-size: 40px; margin: 0; }
+</style>
+<div><div class="wrapper"><h1 id="heading">Sample text</h1></div></div>
+<script>
+    const nextFrame = () => new Promise(resolve => requestAnimationFrame(resolve));
+    (async () => {
+        await nextFrame();
+        await nextFrame();
+        document.head.appendChild(document.createElement("style")).sheet.insertRule(".unrelated > div > * { order: 1; }");
+        document.getElementById("heading").append(document.createComment(""));
+        document.documentElement.classList.remove("reftest-wait");
+    })();
+</script>
+</html>
