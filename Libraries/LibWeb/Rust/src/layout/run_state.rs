@@ -17,6 +17,10 @@ pub(crate) struct LayoutScratch {
     inline_item_stashes: RefCell<HashMap<NodeSlotId, super::inline_level_iterator::StashedInlineItems>>,
     /// What the pass found out for the host outside any run, which its driver reports itself.
     pub(super) host_findings_outside_runs: RefCell<HostFindings>,
+    /// The results of formatting context runs, kept for the runs after them in this pass and the passes after it.
+    fc_run_cache_store: super::fc_run_cache::FcRunCacheStore,
+    /// The layouts of in-flow blocks, kept for the passes after the one that laid them out.
+    in_flow_block_cache_store: super::in_flow_block_cache::InFlowBlockCacheStore,
 }
 
 /// What layout found out that the host hears of once the layout that found it is committed: what the
@@ -88,11 +92,38 @@ impl Default for LayoutScratch {
             intrinsic_size_caches: Default::default(),
             inline_item_stashes: RefCell::new(HashMap::default()),
             host_findings_outside_runs: RefCell::new(HostFindings::default()),
+            fc_run_cache_store: Default::default(),
+            in_flow_block_cache_store: Default::default(),
         }
     }
 }
 
 impl LayoutScratch {
+    /// The scratch of a fork of the arena, which keeps the run memos the arena's entries were stored for and starts
+    /// the rest anew.
+    pub(super) fn fork(&self) -> Self {
+        Self {
+            fc_run_cache_store: self.fc_run_cache_store.clone(),
+            in_flow_block_cache_store: self.in_flow_block_cache_store.clone(),
+            ..Self::default()
+        }
+    }
+
+    pub(super) fn fc_run_cache_store(&self) -> &super::fc_run_cache::FcRunCacheStore {
+        &self.fc_run_cache_store
+    }
+
+    pub(super) fn in_flow_block_cache_store(&self) -> &super::in_flow_block_cache::InFlowBlockCacheStore {
+        &self.in_flow_block_cache_store
+    }
+
+    /// Brings the run memos up to date with what the arena's writes since the last call did to their boxes.
+    pub(super) fn apply_memo_invalidations(&self, arena: &LayoutNodeArena) {
+        arena
+            .take_memo_invalidations()
+            .apply_to(&self.fc_run_cache_store, &self.in_flow_block_cache_store);
+    }
+
     pub(super) fn store_inline_item_stash(
         &self,
         block_container: NodeSlotId,
@@ -113,8 +144,10 @@ impl LayoutScratch {
         std::mem::take(&mut self.host_findings_outside_runs.borrow_mut())
     }
 
-    /// Lets go of what the pass that just committed kept for itself.
-    pub(crate) fn end_layout_pass(&self) {
+    /// Lets go of what the pass that just committed into `arena` kept for itself, and sweeps the run cache.
+    pub(crate) fn end_layout_pass(&self, arena: &LayoutNodeArena) {
+        self.apply_memo_invalidations(arena);
+        arena.sweep_stale_fc_run_cache_entries(&self.fc_run_cache_store);
         self.inline_item_stashes.borrow_mut().clear();
     }
 }

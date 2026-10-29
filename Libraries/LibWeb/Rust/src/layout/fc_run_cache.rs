@@ -484,10 +484,11 @@ struct FcRunCacheSlot {
 
 type EarlierEntriesOfBox = smallvec::SmallVec<[std::sync::Arc<FcRunCacheEntry>; EARLIER_ENTRIES_PER_BOX]>;
 
-/// Per-document store of completed run results, surviving across layout passes on the node arena: per box the latest
-/// entry, the one whose fragments the box committed where a later store moved it aside, and a few earlier ones.
+/// Per-document store of completed run results, surviving across layout passes in the layout stage's scratch: per box
+/// the latest entry, the one whose fragments the box committed where a later store moved it aside, and a few earlier
+/// ones.
 #[derive(Clone, Default)]
-pub(crate) struct FcRunCacheArenaStore {
+pub(crate) struct FcRunCacheStore {
     slots: RefCell<Vec<FcRunCacheSlot>>,
     earlier_entries: RefCell<HashMap<u32, EarlierEntriesOfBox>>,
     inline_layout_damage: RefCell<Vec<InlineLayoutDamage>>,
@@ -495,7 +496,7 @@ pub(crate) struct FcRunCacheArenaStore {
     enrolled_for_sweep: RefCell<Vec<bool>>,
 }
 
-impl FcRunCacheArenaStore {
+impl FcRunCacheStore {
     pub(super) fn enqueue_for_sweep(&self, slot: u32) {
         let mut enrolled = self.enrolled_for_sweep.borrow_mut();
         if enrolled.len() <= slot as usize {
@@ -824,7 +825,7 @@ impl FcRunCacheAttempt {
         ) {
             return Ok(Self::Bypass);
         }
-        let store = callbacks.arena().fc_run_cache_store();
+        let store = callbacks.fc_run_cache_store();
         let validity = run_root_validity(callbacks, box_);
         if !builds_fragments {
             if let Some(entry) = store.first_entry_where(box_.slot_index(), |entry| {
@@ -887,7 +888,7 @@ impl FcRunCacheAttempt {
             outputs.result.automatic_content_block_size,
         )
         .map(|block_size| clamp_to_max_dimension_value(block_size.max(CssPixels::default())));
-        let store = callbacks.arena().fc_run_cache_store();
+        let store = callbacks.fc_run_cache_store();
         let (validity, structurally_damaged_entry) = match self {
             Self::Bypass => return,
             Self::StoreResultOnly { validity } => {
@@ -1098,7 +1099,7 @@ mod tests {
             .collect()
     }
 
-    fn widths_of_entries(store: &FcRunCacheArenaStore, slot: u32) -> Vec<AvailableSize> {
+    fn widths_of_entries(store: &FcRunCacheStore, slot: u32) -> Vec<AvailableSize> {
         let mut widths = Vec::new();
         store.first_entry_where(slot, |entry| {
             widths.push(entry.key.input.available_space.inline_size);
@@ -1107,7 +1108,7 @@ mod tests {
         widths
     }
 
-    fn width_of_committed_entry(store: &FcRunCacheArenaStore, slot: u32) -> Option<AvailableSize> {
+    fn width_of_committed_entry(store: &FcRunCacheStore, slot: u32) -> Option<AvailableSize> {
         store.slots.borrow()[slot as usize]
             .committed
             .as_ref()
@@ -1120,7 +1121,7 @@ mod tests {
 
     #[test]
     fn sweep_checks_changed_entries_without_discarding_reusable_stale_data_early() {
-        let store = FcRunCacheArenaStore::default();
+        let store = FcRunCacheStore::default();
         let entry = |epoch| entry(at(300), epoch, None, 0);
         store.store(Node::new(0, 1), entry(1));
         store.store(Node::new(1, 1), entry(1));
@@ -1157,7 +1158,7 @@ mod tests {
 
     #[test]
     fn a_store_keeps_the_entry_whose_fragments_the_box_committed_beside_newer_ones() {
-        let store = FcRunCacheArenaStore::default();
+        let store = FcRunCacheStore::default();
         let box_ = Node::new(0, 1);
         store.store(box_, entry(at(300), 1, Some(root_with_a_descendant()), 0));
         store.sweep_pending_entries(|_, _| true, mark_entries_of_key(at(300)), 1);
@@ -1176,7 +1177,7 @@ mod tests {
 
     #[test]
     fn the_sweep_marks_the_entry_whose_fragments_the_box_committed_and_drops_its_descendant_fragments() {
-        let store = FcRunCacheArenaStore::default();
+        let store = FcRunCacheStore::default();
         let box_ = Node::new(0, 1);
         store.store(box_, entry(at(300), 1, Some(root_with_a_descendant()), 0));
         store.store(box_, entry(at(320), 1, Some(root_with_a_descendant()), 0));
@@ -1212,7 +1213,7 @@ mod tests {
 
     #[test]
     fn an_earlier_entry_committed_in_place_of_the_marked_latest_one_stays_beside_later_stores() {
-        let store = FcRunCacheArenaStore::default();
+        let store = FcRunCacheStore::default();
         let box_ = Node::new(0, 1);
         store.store(box_, entry(at(300), 1, Some(root_with_a_descendant()), 0));
         store.store(box_, entry(at(320), 1, Some(root_with_a_descendant()), 0));
@@ -1237,7 +1238,7 @@ mod tests {
 
     #[test]
     fn a_committed_entry_that_no_longer_describes_the_committed_subtree_goes() {
-        let store = FcRunCacheArenaStore::default();
+        let store = FcRunCacheStore::default();
         let box_ = Node::new(0, 1);
         store.store(box_, entry(at(300), 1, Some(root_with_a_descendant()), 0));
         store.sweep_pending_entries(|_, _| true, mark_entries_of_key(at(300)), 1);
@@ -1249,7 +1250,7 @@ mod tests {
 
     #[test]
     fn entries_holding_fragments_the_box_never_committed_go_after_two_unused_layout_commits_beside_one_it_did() {
-        let store = FcRunCacheArenaStore::default();
+        let store = FcRunCacheStore::default();
         let box_ = Node::new(0, 1);
         store.store(box_, entry(at(280), 1, Some(root_with_a_descendant()), 0));
         store.sweep_pending_entries(|_, _| true, mark_entries_of_key(at(280)), 1);
@@ -1275,7 +1276,7 @@ mod tests {
 
     #[test]
     fn the_latest_entry_of_a_box_that_committed_none_of_its_entries_stays() {
-        let store = FcRunCacheArenaStore::default();
+        let store = FcRunCacheStore::default();
         let box_ = Node::new(0, 1);
         store.store(box_, entry(at(300), 1, Some(root_with_a_descendant()), 0));
         for layout_commit_count in 1..5 {
@@ -1286,7 +1287,7 @@ mod tests {
 
     #[test]
     fn earlier_entries_make_room_oldest_first_and_results_of_runs_without_fragments_first() {
-        let store = FcRunCacheArenaStore::default();
+        let store = FcRunCacheStore::default();
         let box_ = Node::new(0, 1);
         store.store(box_, entry(at(100), 1, Some(root_with_a_descendant()), 0));
         store.store(box_, entry(at(200), 1, None, 0));
@@ -1302,8 +1303,38 @@ mod tests {
     }
 
     #[test]
+    fn queued_memo_invalidations_count_structural_changes_only_while_the_box_holds_entries() {
+        use crate::layout::in_flow_block_cache::InFlowBlockCacheStore;
+        use crate::layout::memo_invalidations::MemoInvalidations;
+        let store = FcRunCacheStore::default();
+        let in_flow_block_cache = InFlowBlockCacheStore::default();
+        let node = Node::new(0, 1);
+        let mut notes = MemoInvalidations::default();
+        notes.note_structural_inline_change(node);
+        notes.apply_to(&store, &in_flow_block_cache);
+        assert_eq!(store.structural_epoch_bumps_of(node), 0);
+
+        store.store(node, entry(at(100), 1, Some(root_with_a_descendant()), 0));
+        let mut notes = MemoInvalidations::default();
+        notes.note_structural_inline_change(node);
+        notes.note_fragment_cache_epoch_bumped(node);
+        notes.note_structural_inline_change(node);
+        notes.apply_to(&store, &in_flow_block_cache);
+        assert_eq!(store.structural_epoch_bumps_of(node), 2);
+
+        let reused = Node::new(0, 2);
+        let mut notes = MemoInvalidations::default();
+        notes.note_structural_inline_change(node);
+        notes.note_slot_freed(node.slot_index());
+        notes.note_structural_inline_change(reused);
+        notes.apply_to(&store, &in_flow_block_cache);
+        assert!(!store.slot_holds_entries(0));
+        assert_eq!(store.structural_epoch_bumps_of(reused), 0);
+    }
+
+    #[test]
     fn a_store_keeps_the_inline_damage_an_earlier_entry_saw() {
-        let store = FcRunCacheArenaStore::default();
+        let store = FcRunCacheStore::default();
         let box_ = Node::new(0, 1);
         store.store(box_, entry(at(300), 1, Some(root_with_a_descendant()), 0));
         store.note_inline_layout_damage(box_);

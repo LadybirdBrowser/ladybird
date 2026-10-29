@@ -165,7 +165,7 @@ impl ArenaHandle {
     pub(crate) fn fork(&self, engine: crate::css::style::StyleEngineHandle) -> Self {
         Self {
             arena: self.arena.fork(engine),
-            layout_scratch: Default::default(),
+            layout_scratch: self.layout_scratch.fork(),
         }
     }
 
