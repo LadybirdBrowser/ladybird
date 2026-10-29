@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-text-4/#text-wrap">
+<meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+#container {
+  width: 20ch;
+}
+.balance {
+  text-wrap: balance;
+}
+</style>
+<div id="container" dir="rtl" lang="AR"></div>
+<script>
+const container = document.getElementById('container');
+for (const text of [
+    'ينبغي تحقيق التوازن',
+    'يجب ألا تؤدي موازنة التفاف النص إلى تغيير عدد الأسطر',
+    'يجب ألا تؤدي موازنة التفاف النص إلى تغيير عدد الأسطر لهذه الفقرة النصية',
+  ]) {
+  const normal = document.createElement('div');
+  const balance = document.createElement('div');
+  normal.textContent = text;
+  balance.textContent = text;
+  balance.classList.add('balance');
+  container.appendChild(normal);
+  container.appendChild(balance);
+  test(() => {
+    assert_equals(normal.offsetHeight, balance.offsetHeight);
+  });
+}
+</script>

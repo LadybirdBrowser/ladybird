@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	text-wrap-balance-right-to-left
+Pass	text-wrap-balance-right-to-left 1
+Pass	text-wrap-balance-right-to-left 2

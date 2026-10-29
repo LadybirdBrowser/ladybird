@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-text-4/#text-wrap-style">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1881855">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text/white-space/reference/text-wrap-balance-003-ref.html">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css">
+<style>
+div {
+  font: 15px Ahem;
+  width: 35ch;
+  margin: 1em;
+}
+.test {
+  text-wrap: balance;
+  color: green;
+}
+.ref {
+  color: blue;
+}
+</style>
+<p>Both test blocks (green) should have the same layout as the reference (blue):</p>
+<div class="test">The quickest brown fox jumped over the lazy dog</div>
+<!-- inline child elements should not affect wrapping -->
+<div class="test">The <span>quickest <span>brown</span> fox</span> jumped <span>over</span> the <span>lazy dog</span></div>
+<div class="ref">The quickest brown fox<br>jumped over the lazy dog</div>

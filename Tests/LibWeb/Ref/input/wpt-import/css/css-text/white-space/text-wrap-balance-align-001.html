@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-text-4/#valdef-text-wrap-balance">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text/white-space/reference/text-wrap-balance-align-001-ref.html">
+<style>
+.container {
+  font-family: monospace;
+  font-size: 20px;
+  width: 20ch;
+  border: solid 1px;
+  text-wrap: balance;
+}
+</style>
+<div class="container" style="text-align: right">
+  123456789 123 567
+  123456789 123 567
+</div>
+<div class="container" style="text-align: center">
+  123456789 123 567
+  123456789 123 567
+</div>
+<div class="container" style="text-align: justify">
+  123456789 123 567
+  123456789 123 567
+</div>

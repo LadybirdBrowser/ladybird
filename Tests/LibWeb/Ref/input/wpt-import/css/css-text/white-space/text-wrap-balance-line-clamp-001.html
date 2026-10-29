@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-text-4/#valdef-text-wrap-balance">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text/white-space/reference/text-wrap-balance-line-clamp-001-ref.html">
+<style>
+.container {
+  font-family: monospace;
+  font-size: 20px;
+  width: 20ch;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  text-wrap: balance;
+}
+</style>
+<div class="container">
+  123 567 901 345 789
+  123 567 901 345 789
+  123
+</div>

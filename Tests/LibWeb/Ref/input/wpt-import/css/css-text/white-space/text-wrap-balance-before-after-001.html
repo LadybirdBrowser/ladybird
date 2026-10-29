@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-text-4/#valdef-text-wrap-style-balance">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text/white-space/reference/text-wrap-balance-before-after-001-ref.html">
+<style>
+.container {
+  font: 16px monospace;
+  margin: 1em;
+  width: 60ch;
+}
+
+.text1, .text2 {
+  text-wrap: balance;
+  margin-bottom: 1em;
+  outline: 1px dashed gray;
+}
+
+/* :before and :after pseudos with display:block and no content should not affect
+   the layout of the paragraph content */
+.text2:before, .text2:after {
+  content: "";
+  display: block;
+}
+</style>
+
+<p>The two paragraphs should look identical, both having balanced lines:</p>
+
+<div class="container">
+<div class="text1">
+Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+</div>
+<div class="text2">
+Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+</div>
+</div>
