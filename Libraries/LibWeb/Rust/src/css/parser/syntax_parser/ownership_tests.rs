@@ -601,7 +601,7 @@ fn function_signatures_own_parameters_after_the_sheet_is_dropped() {
     assert_eq!(*signature.parameters[2].syntax, SyntaxNode::Universal);
     assert!(signature.parameters[2].default_value.is_none());
     let parameter = &signature.parameters[1];
-    assert_eq!(parameter.name.units(), utf16("--名"));
+    assert_eq!(parameter.name.to_utf16().as_ref(), utf16("--名"));
     assert_eq!(
         serialize_style_value_to_utf16(parameter.default_value.as_ref().unwrap()),
         utf16("\"雪\"")

@@ -2582,11 +2582,11 @@ fn split_function_arguments(tokens: &[ComponentValue]) -> Vec<&[ComponentValue]>
 }
 
 // https://drafts.csswg.org/css-mixins/#resolve-function-styles
-fn resolve_function_styles<'a, 'names>(
+fn resolve_function_styles<'a>(
     store: Option<&CustomPropertyStore>,
     registry: Option<&CustomPropertyRegistry>,
     local_scope: FunctionLocalScope<'a>,
-    property_names: impl IntoIterator<Item = &'names [u16]>,
+    property_names: impl IntoIterator<Item = impl AsRef<[u16]>>,
     context: &mut ASFResolutionContext<'a>,
     recursion_depth: u32,
 ) -> HashMap<Vec<u16>, TokenResolution> {
@@ -2622,6 +2622,7 @@ fn resolve_function_styles<'a, 'names>(
     let mut computed_values = HashMap::new();
 
     for name in property_names {
+        let name = name.as_ref();
         let value = resolve_custom_property(store, registry, name, context, recursion_depth + 1);
         // FIXME: Duplicate parameter names make an @function rule invalid, but the parser currently accepts them. Keep
         //        the pre-refactor behavior where a later failed resolution does not replace an earlier successful one.
@@ -2677,7 +2678,7 @@ fn evaluate_a_custom_function<'a>(
     //    registrations.
     for parameter in &custom_function.signature.parameters {
         registrations.insert(
-            parameter.name.units().to_vec(),
+            parameter.name.to_utf16().into_owned(),
             FunctionLocalRegistration {
                 syntax: &parameter.syntax,
                 initial_tokens: None,
@@ -2744,7 +2745,7 @@ fn evaluate_a_custom_function<'a>(
         // NB: If neither value is valid, the missing declaration represents the guaranteed-invalid value: the
         //     parameter's registration has no initial value, so resolve_function_local_property() returns Invalid.
         if let Some(value) = value {
-            argument_rule.insert(parameter.name.units().to_vec(), value);
+            argument_rule.insert(parameter.name.to_utf16().into_owned(), value);
         }
     }
 
@@ -2764,7 +2765,7 @@ fn evaluate_a_custom_function<'a>(
             .signature
             .parameters
             .iter()
-            .map(|parameter| parameter.name.units()),
+            .map(|parameter| parameter.name.to_utf16()),
         context,
         recursion_depth,
     );

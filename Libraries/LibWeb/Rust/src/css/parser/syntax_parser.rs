@@ -3584,7 +3584,7 @@ impl<'a> SyntaxParseBuilder<'a> {
                     parameters: parameters
                         .into_iter()
                         .map(|parameter| FunctionParameterData {
-                            name: CssString::from_utf16(&parameter.name),
+                            name: ak::Utf16FlyString::from_utf16(&parameter.name),
                             syntax: parameter.syntax,
                             default_value: parameter.default_value.map(|value| value.0),
                         })
