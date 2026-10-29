@@ -1069,8 +1069,6 @@ private:
     PseudoElementData* pseudo_element_data();
     PseudoElementData const* pseudo_element_data() const;
 
-    Utf16FlyString make_html_uppercased_qualified_name() const;
-
     void exit_fullscreen_on_element_removal();
     void apply_computed_style_to_layout_node_if_needed(Layout::BegunRead const& read, CSS::RequiredInvalidationAfterStyleChange const&);
     void apply_computed_pseudo_element_styles_to_layout_nodes_if_needed(Layout::BegunRead const& read, CSS::RequiredInvalidationAfterStyleChange const&);

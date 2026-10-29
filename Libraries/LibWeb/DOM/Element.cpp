@@ -2655,15 +2655,6 @@ void Element::synchronize_style_attribute() const
     CSS::record_element_attribute_changed(element, HTML::AttributeNames::style, {}, old_value, new_value);
 }
 
-// https://dom.spec.whatwg.org/#element-html-uppercased-qualified-name
-Utf16FlyString Element::make_html_uppercased_qualified_name() const
-{
-    // This is allowed by the spec: "User agents could optimize qualified name and HTML-uppercased qualified name by storing them in internal slots."
-    if (namespace_uri() == Namespace::HTML && document().document_type() == Document::Type::HTML)
-        return qualified_name().to_ascii_uppercase();
-    return qualified_name();
-}
-
 // https://html.spec.whatwg.org/multipage/webappapis.html#queue-an-element-task
 HTML::TaskID Element::queue_an_element_task(HTML::Task::Source source, GC::Ref<GC::Function<void()>> steps, GC::Ptr<GC::Function<void()>> discard_steps)
 {
@@ -5081,8 +5072,6 @@ void Element::setup_custom_element_from_constructor(HTML::CustomElementDefinitio
 void Element::set_prefix(Optional<Utf16FlyString> value)
 {
     m_qualified_name.set_prefix(move(value));
-    if (auto* rare_data = element_rare_data())
-        rare_data->html_uppercased_qualified_name.clear();
 }
 
 // https://dom.spec.whatwg.org/#locate-a-namespace-prefix
@@ -6918,13 +6907,13 @@ GC::Ptr<NamedNodeMap const> Element::attributes() const
     return const_cast<Element&>(*this).attributes();
 }
 
+// https://dom.spec.whatwg.org/#element-html-uppercased-qualified-name
 Utf16FlyString const& Element::html_uppercased_qualified_name() const
 {
-    // NB: Whether the qualified name is uppercased depends on the node document, which can change when the element is
-    //     adopted. So we only use the cached uppercased name while it applies.
+    // This is allowed by the spec: "User agents could optimize qualified name and HTML-uppercased qualified name by storing them in internal slots."
     if (namespace_uri() != Namespace::HTML || document().document_type() != Document::Type::HTML)
         return qualified_name();
-    return ensure_element_rare_data().html_uppercased_qualified_name.ensure([&] { return make_html_uppercased_qualified_name(); });
+    return m_qualified_name.ascii_uppercased_as_string();
 }
 
 void Element::play_or_cancel_animations_after_display_property_change()

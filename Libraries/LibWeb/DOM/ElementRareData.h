@@ -27,7 +27,6 @@ struct Element::RareData
     virtual ~RareData() override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    mutable Optional<Utf16FlyString> html_uppercased_qualified_name;
     GC::Ptr<CSS::StylePropertyMap> attribute_style_map;
     GC::Ptr<DOMTokenList> class_list;
     GC::Ptr<DOMTokenList> part_list;

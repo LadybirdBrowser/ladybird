@@ -92,6 +92,11 @@ void QualifiedName::Impl::make_internal_string()
     as_string = builder.to_string();
 }
 
+Utf16FlyString const& QualifiedName::ascii_uppercased_as_string() const
+{
+    return m_impl->ascii_uppercased_as_string.ensure([&] { return m_impl->as_string.to_ascii_uppercase(); });
+}
+
 void QualifiedName::set_prefix(Optional<Utf16FlyString> value)
 {
     m_impl = ensure_impl(m_impl->local_name, move(value), m_impl->namespace_);

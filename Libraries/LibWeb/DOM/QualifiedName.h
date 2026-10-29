@@ -26,6 +26,7 @@ public:
     Utf16FlyString const& lowercased_local_name() const { return m_impl->lowercased_local_name; }
 
     Utf16FlyString const& as_string() const { return m_impl->as_string; }
+    Utf16FlyString const& ascii_uppercased_as_string() const;
 
     struct WEB_API Impl : public RefCounted<Impl> {
         Impl(Utf16FlyString const& local_name, Optional<Utf16FlyString> const& prefix, Optional<Utf16FlyString> const& namespace_);
@@ -37,6 +38,7 @@ public:
         Optional<Utf16FlyString> prefix;
         Optional<Utf16FlyString> namespace_;
         Utf16FlyString as_string;
+        mutable Optional<Utf16FlyString> ascii_uppercased_as_string;
     };
 
     // Names that are equal in every part share their Impl, so this tells them apart in one comparison.
