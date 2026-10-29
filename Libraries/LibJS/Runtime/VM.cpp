@@ -121,7 +121,7 @@ static ImportedModulePayload imported_module_payload_from_abi(JSImportedModulePa
 
 static void append_utf16_string_to_sink(JSStringSink const& sink, Utf16View string)
 {
-    if (!string.has_ascii_storage()) {
+    if (!string.has_latin1_storage()) {
         sink.append(sink.context, reinterpret_cast<u16 const*>(string.utf16_span().data()), string.length_in_code_units());
         return;
     }

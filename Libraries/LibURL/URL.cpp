@@ -165,7 +165,7 @@ void URL::set_from_rust_callback(void* url, FFI::RustUrl const* rust_url)
 
 static FFI::RustUrlInput rust_url_input(StringView input)
 {
-    return { reinterpret_cast<u8 const*>(input.characters_without_null_termination()), nullptr, input.length() };
+    return { reinterpret_cast<u8 const*>(input.characters_without_null_termination()), nullptr, nullptr, input.length() };
 }
 
 static FFI::RustUrlByteSlice rust_byte_slice(Optional<StringView> string)

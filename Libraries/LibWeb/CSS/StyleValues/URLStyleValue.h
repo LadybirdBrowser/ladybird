@@ -15,8 +15,8 @@ namespace Web::CSS {
 inline Utf16View url_text_from_rust_data(StyleValueFFI::RetainedString const& string)
 {
     auto view = StyleValueFFI::rust_css_url_text_view(&string);
-    if (view.ascii)
-        return Utf16View { StringView { reinterpret_cast<char const*>(view.ascii), view.length } };
+    if (view.latin1)
+        return Utf16View::from_latin1({ view.latin1, view.length }, false);
     return Utf16View { reinterpret_cast<char16_t const*>(view.utf16), view.length };
 }
 

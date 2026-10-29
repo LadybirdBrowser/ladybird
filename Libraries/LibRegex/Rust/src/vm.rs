@@ -133,9 +133,6 @@ impl Input for &[u8] {
     #[inline(always)]
     fn find_code_unit(self, start: usize, end: usize, ch16: u16) -> Option<usize> {
         let byte = u8::try_from(ch16).ok()?;
-        if byte > 0x7F {
-            return None;
-        }
         let offset = memchr::memchr(byte, self.get(start..end)?)?;
         Some(start + offset)
     }
@@ -146,7 +143,7 @@ impl Input for &[u8] {
             return false;
         };
         for (actual, expected) in slice.iter().zip(needle.iter()) {
-            if *expected > 0x7F || *actual != *expected as u8 {
+            if u8::try_from(*expected) != Ok(*actual) {
                 return false;
             }
         }

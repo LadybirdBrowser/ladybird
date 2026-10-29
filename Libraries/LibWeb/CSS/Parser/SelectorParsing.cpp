@@ -19,8 +19,8 @@ Optional<SelectorList> Parser::parse_as_selector(Utf16View source, SelectorParsi
 Optional<Selector::PseudoElementSelector> Parser::parse_as_pseudo_element_selector(Utf16View input_view, PseudoElementParsingMode mode)
 {
     SelectorFFI::FfiUtf16View input {
-        .ascii = input_view.has_ascii_storage() ? reinterpret_cast<u8 const*>(input_view.ascii_span().data()) : nullptr,
-        .utf16 = input_view.has_ascii_storage() ? nullptr : reinterpret_cast<u16 const*>(input_view.utf16_span().data()),
+        .latin1 = input_view.has_latin1_storage() ? input_view.latin1_span().data() : nullptr,
+        .utf16 = input_view.has_latin1_storage() ? nullptr : reinterpret_cast<u16 const*>(input_view.utf16_span().data()),
         .length = input_view.length_in_code_units(),
     };
     auto parsed = SelectorFFI::rust_selector_parse_pseudo_element(input, mode == PseudoElementParsingMode::ComputedStyle);

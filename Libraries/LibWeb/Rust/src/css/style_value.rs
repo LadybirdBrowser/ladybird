@@ -733,12 +733,9 @@ impl RetainedString {
     fn from_units(units: TokenizerInput<'_>) -> Self {
         use crate::css::css_tokenizer::SourceStorage;
         Self::from_storage(match units {
-            TokenizerInput::Latin1(bytes) => {
-                assert!(bytes.is_ascii());
-                SourceStorage::Ascii(bytes.into())
-            }
+            TokenizerInput::Latin1(bytes) => SourceStorage::Latin1(bytes.into()),
             TokenizerInput::Utf16(units) if units.iter().all(|unit| *unit <= 0x7f) => {
-                SourceStorage::Ascii(units.iter().map(|unit| *unit as u8).collect())
+                SourceStorage::Latin1(units.iter().map(|unit| *unit as u8).collect())
             }
             TokenizerInput::Utf16(units) => SourceStorage::Utf16(units.into()),
         })
@@ -746,7 +743,7 @@ impl RetainedString {
 
     pub(crate) fn from_ascii(string: String) -> Self {
         assert!(string.is_ascii());
-        Self::from_storage(crate::css::css_tokenizer::SourceStorage::Ascii(
+        Self::from_storage(crate::css::css_tokenizer::SourceStorage::Latin1(
             string.into_bytes().into_boxed_slice(),
         ))
     }
@@ -761,16 +758,18 @@ impl RetainedString {
     pub(crate) fn units(&self) -> TokenizerInput<'_> {
         use crate::css::css_tokenizer::SourceStorage;
         match unsafe { &*self.storage.cast::<SourceStorage>() } {
-            SourceStorage::Ascii(bytes) => TokenizerInput::Latin1(bytes),
+            SourceStorage::Latin1(bytes) => TokenizerInput::Latin1(bytes),
             SourceStorage::Utf16(units) => TokenizerInput::Utf16(units),
         }
     }
 
     pub(crate) fn url_input(&self) -> liburl_rust::url::UrlInput<'_> {
         match self.units() {
-            TokenizerInput::Latin1(bytes) => {
+            // SAFETY: ASCII is UTF-8.
+            TokenizerInput::Latin1(bytes) if bytes.is_ascii() => {
                 liburl_rust::url::UrlInput::Utf8(unsafe { std::str::from_utf8_unchecked(bytes) })
             }
+            TokenizerInput::Latin1(bytes) => liburl_rust::url::UrlInput::Latin1(bytes),
             TokenizerInput::Utf16(units) => liburl_rust::url::UrlInput::Utf16(units),
         }
     }

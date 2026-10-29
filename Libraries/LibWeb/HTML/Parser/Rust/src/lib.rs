@@ -135,7 +135,7 @@ pub extern "C" fn rust_html_tokenizer_create_from_utf16(input: ak::Span<'_, u16>
 
 /// Create a new Rust HTML tokenizer directly from an ASCII byte buffer.
 #[unsafe(no_mangle)]
-pub extern "C" fn rust_html_tokenizer_create_from_ascii(input: ak::Span<'_, u8>) -> *mut RustFfiTokenizerHandle {
+pub extern "C" fn rust_html_tokenizer_create_from_latin1(input: ak::Span<'_, u8>) -> *mut RustFfiTokenizerHandle {
     let code_units = input.as_slice().iter().map(|byte| u16::from(*byte)).collect();
 
     make_handle(HtmlTokenizer::new(code_units))
@@ -336,7 +336,7 @@ pub extern "C" fn rust_html_tokenizer_insert_utf16_input(
 
 /// Insert ASCII input at the current insertion point.
 #[unsafe(no_mangle)]
-pub extern "C" fn rust_html_tokenizer_insert_ascii_input(
+pub extern "C" fn rust_html_tokenizer_insert_latin1_input(
     handle: Option<&mut RustFfiTokenizerHandle>,
     input: ak::Span<'_, u8>,
 ) {
@@ -344,7 +344,7 @@ pub extern "C" fn rust_html_tokenizer_insert_ascii_input(
         return;
     };
     let input = input.as_slice();
-    handle.tokenizer.insert_ascii_input_at_insertion_point(input);
+    handle.tokenizer.insert_latin1_input_at_insertion_point(input);
 }
 
 /// Append UTF-16 input to the tokenizer input stream.
@@ -362,7 +362,7 @@ pub extern "C" fn rust_html_tokenizer_append_utf16_input(
 
 /// Append ASCII input to the tokenizer input stream.
 #[unsafe(no_mangle)]
-pub extern "C" fn rust_html_tokenizer_append_ascii_input(
+pub extern "C" fn rust_html_tokenizer_append_latin1_input(
     handle: Option<&mut RustFfiTokenizerHandle>,
     input: ak::Span<'_, u8>,
 ) {
@@ -370,7 +370,7 @@ pub extern "C" fn rust_html_tokenizer_append_ascii_input(
         return;
     };
     let input = input.as_slice();
-    handle.tokenizer.append_ascii_input(input);
+    handle.tokenizer.append_latin1_input(input);
 }
 
 /// Get the tokenizer input that has not been consumed yet.

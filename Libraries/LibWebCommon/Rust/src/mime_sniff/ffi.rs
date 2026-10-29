@@ -21,6 +21,7 @@ use crate::rust_panic::abort_on_panic;
 #[derive(Clone, Copy)]
 pub struct FfiStringInput {
     pub utf8: *const u8,
+    pub latin1: *const u8,
     pub utf16: *const u16,
     pub length: usize,
 }
@@ -44,6 +45,11 @@ impl FfiStringInput {
                     .map(|code_point| code_point.unwrap_or(char::REPLACEMENT_CHARACTER))
                     .collect(),
             );
+        }
+        if !self.latin1.is_null() {
+            // SAFETY: The caller lends `length` Latin-1 code units.
+            let units = unsafe { ak::slice_from_raw_parts(self.latin1, self.length) };
+            return Some(units.iter().map(|&unit| char::from(unit)).collect());
         }
         // SAFETY: The caller lends `length` bytes.
         let bytes = unsafe { ak::slice_from_raw_parts(self.utf8, self.length) };

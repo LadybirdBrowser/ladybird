@@ -1747,6 +1747,14 @@ static decltype(auto) with_code_unit_span(Utf16View input, Callback&& callback)
 {
     if (input.has_ascii_storage())
         return callback(ReadonlySpan<char> { input.ascii_span().data(), input.length_in_code_units() });
+    // NB: The fast path makes UTF-8 strings of one-byte spans, so Latin-1 is parsed as UTF-16.
+    if (input.has_latin1_storage()) {
+        Vector<char16_t> code_units;
+        code_units.ensure_capacity(input.length_in_code_units());
+        for (auto byte : input.latin1_span())
+            code_units.unchecked_append(byte);
+        return callback(ReadonlySpan<char16_t> { code_units.data(), code_units.size() });
+    }
     return callback(input.utf16_span());
 }
 

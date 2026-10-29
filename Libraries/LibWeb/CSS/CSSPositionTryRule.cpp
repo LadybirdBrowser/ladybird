@@ -25,7 +25,7 @@ CSSPositionTryRule::CSSPositionTryRule(RustRule rule)
     : CSSRule(move(rule))
     , m_name([&] {
         auto name = native_rule().payload().name;
-        auto view = name.ascii ? Utf16View { StringView { reinterpret_cast<char const*>(name.ascii), name.length } } : Utf16View { reinterpret_cast<char16_t const*>(name.utf16), name.length };
+        auto view = name.latin1 ? Utf16View::from_latin1({ name.latin1, name.length }, false) : Utf16View { reinterpret_cast<char16_t const*>(name.utf16), name.length };
         return Utf16FlyString::from_utf16(view);
     }())
     , m_declarations(Parser::ValueParserFFI::rust_declaration_block_retain(native_rule().payload().declarations))

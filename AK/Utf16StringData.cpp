@@ -134,13 +134,13 @@ NonnullRefPtr<Utf16StringData> Utf16StringData::from_string_builder(Utf16StringB
     if (auto buffer = builder.leak_buffer_for_string_construction(Badge<Utf16StringData> {}); buffer.has_value()) {
         auto storage_type = view.has_latin1_storage() ? StorageType::Latin1 : StorageType::UTF16;
         string = adopt_ref(*new (buffer->buffer.data()) Utf16StringData { storage_type, code_unit_length });
-        if (view.has_latin1_storage() && !view.has_ascii_storage())
+        if (view.has_latin1_storage() && !view.is_ascii())
             string->m_header.flags |= ContainsNonAscii;
     } else {
         if (view.has_latin1_storage()) {
             string = create_uninitialized(StorageType::Latin1, code_unit_length);
             TypedTransfer<u8>::copy(string->latin1_data(), view.latin1_span().data(), code_unit_length);
-            if (!view.has_ascii_storage())
+            if (!view.is_ascii())
                 string->m_header.flags |= ContainsNonAscii;
         } else {
             string = create_uninitialized(StorageType::UTF16, code_unit_length);

@@ -12,7 +12,8 @@ namespace Unicode {
 
 bool may_require_bidi_processing(Utf16View const& text)
 {
-    if (text.has_ascii_storage())
+    // NB: No code point up to U+00FF is right to left.
+    if (text.has_latin1_storage())
         return false;
 
     for (auto code_point : text) {

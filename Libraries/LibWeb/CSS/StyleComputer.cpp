@@ -114,9 +114,9 @@ static Utf16View utf16_view(ComputedValuesFFI::FfiUtf16View view)
 {
     if (view.length == 0)
         return {};
-    VERIFY((view.ascii == nullptr) != (view.utf16 == nullptr));
-    if (view.ascii)
-        return StringView { reinterpret_cast<char const*>(view.ascii), view.length };
+    VERIFY((view.latin1 == nullptr) != (view.utf16 == nullptr));
+    if (view.latin1)
+        return Utf16View::from_latin1({ view.latin1, view.length }, false);
     return { reinterpret_cast<char16_t const*>(view.utf16), view.length };
 }
 

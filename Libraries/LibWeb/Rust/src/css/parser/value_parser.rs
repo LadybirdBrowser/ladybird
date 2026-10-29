@@ -7855,7 +7855,7 @@ mod tests {
                 kind: FfiValueParsingContextKind::Function,
                 value: 0,
                 secondary_value: 0,
-                name: FfiUtf16View::from_ascii(function_name),
+                name: FfiUtf16View::from_latin1(function_name),
             }));
             let mut parse_context = context();
             parse_context.value_contexts = ak::Span::new(&function_contexts);

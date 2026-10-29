@@ -18,16 +18,16 @@ namespace Web::MimeSniff {
 
 static FFI::FfiStringInput ffi_string_input(StringView string)
 {
-    return { reinterpret_cast<u8 const*>(string.characters_without_null_termination()), nullptr, string.length() };
+    return { reinterpret_cast<u8 const*>(string.characters_without_null_termination()), nullptr, nullptr, string.length() };
 }
 
 static FFI::FfiStringInput ffi_string_input(Utf16View string)
 {
-    return {
-        string.has_ascii_storage() ? reinterpret_cast<u8 const*>(string.ascii_span().data()) : nullptr,
-        string.has_ascii_storage() ? nullptr : reinterpret_cast<u16 const*>(string.utf16_span().data()),
-        string.length_in_code_units(),
-    };
+    if (string.has_ascii_storage())
+        return { string.ascii_bytes().data(), nullptr, nullptr, string.length_in_code_units() };
+    if (string.has_latin1_storage())
+        return { nullptr, string.latin1_span().data(), nullptr, string.length_in_code_units() };
+    return { nullptr, nullptr, reinterpret_cast<u16 const*>(string.utf16_span().data()), string.length_in_code_units() };
 }
 
 static String string_from_ffi(ReadonlyBytes bytes)

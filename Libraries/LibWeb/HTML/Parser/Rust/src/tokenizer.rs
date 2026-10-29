@@ -405,7 +405,7 @@ impl HtmlTokenizer {
         self.input.extend_from_slice(code_units);
     }
 
-    pub fn append_ascii_input(&mut self, bytes: &[u8]) {
+    pub fn append_latin1_input(&mut self, bytes: &[u8]) {
         self.input.extend(bytes.iter().map(|byte| u16::from(*byte)));
     }
 
@@ -424,7 +424,7 @@ impl HtmlTokenizer {
         }
     }
 
-    pub fn insert_ascii_input_at_insertion_point(&mut self, bytes: &[u8]) {
+    pub fn insert_latin1_input_at_insertion_point(&mut self, bytes: &[u8]) {
         if let Some(ip) = self.insertion_point {
             let ip = ip.min(self.input.len());
             self.input.splice(ip..ip, bytes.iter().map(|byte| u16::from(*byte)));

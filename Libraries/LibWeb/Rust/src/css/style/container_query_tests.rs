@@ -132,13 +132,13 @@ fn length_registry() -> Arc<CustomPropertyRegistry> {
         value: 0.0,
         unit: crate::css::style_compute::px_length_unit(),
     });
-    let syntax = rust_parse_syntax(FfiUtf16View::from_ascii(b"<length>"), false);
+    let syntax = rust_parse_syntax(FfiUtf16View::from_latin1(b"<length>"), false);
     let registration = FfiCustomPropertyRegistration {
-        name: FfiUtf16View::from_ascii(b"--width"),
+        name: FfiUtf16View::from_latin1(b"--width"),
         syntax,
         inherits: false,
         has_initial_value: true,
-        initial_value: FfiUtf16View::from_ascii(b"0px"),
+        initial_value: FfiUtf16View::from_latin1(b"0px"),
         computed_initial_value: initial.pointer().cast(),
     };
     let context = FfiCustomPropertyRegistryContext {

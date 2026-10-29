@@ -81,7 +81,7 @@ impl EcmaScriptRegex {
             has_indices: flags.has_indices,
         };
 
-        // Converted as rust_regex_compile_ascii and rust_regex_compile convert the pattern they are passed.
+        // Converted as rust_regex_compile_latin1 and rust_regex_compile convert the pattern they are passed.
         let pattern_characters = match pattern {
             Utf16View::Ascii(bytes) | Utf16View::Latin1(bytes) => bytes.iter().map(|&byte| char::from(byte)).collect(),
             Utf16View::Utf16(code_units) => char::decode_utf16(code_units.iter().copied())
@@ -115,11 +115,9 @@ impl EcmaScriptRegex {
         let mut capture_buffer = self.capture_buffer.borrow_mut();
         capture_buffer.resize(slots, 0);
         let result = match input {
-            Utf16View::Ascii(bytes) => self.regex.exec_into_ascii(bytes, start_position, &mut capture_buffer),
-            // NB: The byte matcher only matches ASCII, so Latin-1 is matched as UTF-16.
-            Utf16View::Latin1(_) => input.with_utf16_code_units(|code_units| {
-                self.regex.exec_into(code_units, start_position, &mut capture_buffer)
-            }),
+            Utf16View::Ascii(bytes) | Utf16View::Latin1(bytes) => {
+                self.regex.exec_into_latin1(bytes, start_position, &mut capture_buffer)
+            }
             Utf16View::Utf16(code_units) => self.regex.exec_into(code_units, start_position, &mut capture_buffer),
         };
         MatchResult::from_vm_result(result)
@@ -135,10 +133,7 @@ impl EcmaScriptRegex {
     /// Test for a match without filling capture buffer.
     pub fn test(&self, input: Utf16View<'_>, start_position: usize) -> MatchResult {
         let result = match input {
-            Utf16View::Ascii(bytes) => self.regex.test_ascii(bytes, start_position),
-            Utf16View::Latin1(_) => {
-                input.with_utf16_code_units(|code_units| self.regex.test(code_units, start_position))
-            }
+            Utf16View::Ascii(bytes) | Utf16View::Latin1(bytes) => self.regex.test_latin1(bytes, start_position),
             Utf16View::Utf16(code_units) => self.regex.test(code_units, start_position),
         };
         MatchResult::from_vm_result(result)
@@ -175,13 +170,10 @@ impl EcmaScriptRegex {
 
         loop {
             let result = match input {
-                Utf16View::Ascii(bytes) => self
-                    .regex
-                    .find_all_into_ascii(bytes, start_position, &mut find_all_buffer),
-                Utf16View::Latin1(_) => input.with_utf16_code_units(|code_units| {
+                Utf16View::Ascii(bytes) | Utf16View::Latin1(bytes) => {
                     self.regex
-                        .find_all_into(code_units, start_position, &mut find_all_buffer)
-                }),
+                        .find_all_into_latin1(bytes, start_position, &mut find_all_buffer)
+                }
                 Utf16View::Utf16(code_units) => {
                     self.regex
                         .find_all_into(code_units, start_position, &mut find_all_buffer)

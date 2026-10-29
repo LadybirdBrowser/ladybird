@@ -401,7 +401,10 @@ static hb_buffer_t* setup_text_shaping(Utf16View const& string, Font const& font
         hb_buffer_set_script(buffer, HB_SCRIPT_LATIN);
         hb_buffer_set_direction(buffer, HB_DIRECTION_LTR);
     } else {
-        hb_buffer_add_utf16(buffer, reinterpret_cast<u16 const*>(string.utf16_span().data()), string.length_in_code_units(), 0, -1);
+        if (string.has_latin1_storage())
+            hb_buffer_add_latin1(buffer, string.latin1_span().data(), string.length_in_code_units(), 0, -1);
+        else
+            hb_buffer_add_utf16(buffer, reinterpret_cast<u16 const*>(string.utf16_span().data()), string.length_in_code_units(), 0, -1);
         // For non-ASCII, set direction from text_type if known, otherwise guess.
         if (text_type == GlyphRun::TextType::Ltr) {
             hb_buffer_set_direction(buffer, HB_DIRECTION_LTR);

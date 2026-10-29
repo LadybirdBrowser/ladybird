@@ -11,6 +11,7 @@
 #include <AK/Enumerate.h>
 #include <AK/MemoryStream.h>
 #include <AK/StringBuilder.h>
+#include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
 
 static_assert(AK::Concepts::HashCompatible<Utf16String, Utf16View>);
@@ -1351,4 +1352,32 @@ TEST_CASE(utf16_string_builder_clear_resets_ascii_flag)
     EXPECT_EQ(second.length_in_code_units(), 101u);
     EXPECT_EQ(second.code_unit_at(0), 0x000A); // Must be newline, not null.
     EXPECT_EQ(second.code_unit_at(1), 0x0020);
+}
+
+TEST_CASE(latin1_storage)
+{
+    // "crème brûlée", with each code unit as one byte.
+    static constexpr u8 bytes[] = { 'c', 'r', 0xE8, 'm', 'e', ' ', 'b', 'r', 0xFB, 'l', 0xE9, 'e' };
+    auto string = Utf16String::from_utf16(Utf16View::from_latin1(bytes, false));
+    auto utf16_string = Utf16String::from_utf8("crème brûlée"sv);
+
+    EXPECT(string.has_long_storage());
+    EXPECT(!string.has_ascii_storage());
+    EXPECT(string.utf16_view().has_latin1_storage());
+    EXPECT(utf16_string.has_long_utf16_storage());
+
+    EXPECT_EQ(string, utf16_string);
+    EXPECT_EQ(string.hash(), utf16_string.hash());
+    EXPECT_EQ(string.to_utf8(), "crème brûlée"sv);
+    Utf16FlyString fly_string { utf16_string };
+    EXPECT_EQ(Utf16FlyString::from_utf16(string.utf16_view()), fly_string);
+
+    Utf16StringBuilder builder;
+    builder.append(string);
+    EXPECT_EQ(builder.to_string(), utf16_string);
+
+    // Latin-1 storage whose code units are all ASCII is ASCII storage.
+    static constexpr u8 ascii_bytes[] = { 'c', 'r', 'e', 'm', 'e', ' ', 'b', 'r', 'u', 'l', 'e', 'e' };
+    auto ascii_string = Utf16String::from_utf16(Utf16View::from_latin1(ascii_bytes, false));
+    EXPECT(ascii_string.has_long_ascii_storage());
 }

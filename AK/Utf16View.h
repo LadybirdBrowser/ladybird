@@ -227,15 +227,16 @@ public:
         return { reinterpret_cast<u8 const*>(m_string.latin1), length_in_code_units() };
     }
 
+    // NB: A substring of Latin-1 storage that is not ASCII may still be ASCII itself, which these check.
     [[nodiscard]] ALWAYS_INLINE ReadonlyBytes ascii_bytes() const
     {
-        VERIFY(has_ascii_storage());
+        VERIFY(has_ascii_storage() || (has_latin1_storage() && is_ascii()));
         return { reinterpret_cast<u8 const*>(m_string.latin1), length_in_code_units() };
     }
 
     [[nodiscard]] constexpr ReadonlySpan<char> ascii_span() const
     {
-        VERIFY(has_ascii_storage());
+        VERIFY(has_ascii_storage() || (has_latin1_storage() && is_ascii()));
         return { m_string.latin1, length_in_code_units() };
     }
 

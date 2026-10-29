@@ -162,14 +162,14 @@ impl<T> Drop for OwnedBox<T> {
     }
 }
 
-/// Text borrowed for `'a`, as ASCII bytes or UTF-16 code units.
+/// Text borrowed for `'a`, as Latin-1 bytes or UTF-16 code units.
 ///
 /// Rust builds a view only from a borrowed slice, and C++ hands one over under the same contract: exactly one non-empty
 /// pointer identifies `length` units that stay readable for `'a`.
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiUtf16View<'a> {
-    ascii: *const u8,
+    latin1: *const u8,
     utf16: *const u16,
     length: usize,
     units: PhantomData<TokenizerInput<'a>>,
@@ -178,7 +178,7 @@ pub struct FfiUtf16View<'a> {
 impl Default for FfiUtf16View<'_> {
     fn default() -> Self {
         Self {
-            ascii: std::ptr::null(),
+            latin1: std::ptr::null(),
             utf16: std::ptr::null(),
             length: 0,
             units: PhantomData,
@@ -187,9 +187,9 @@ impl Default for FfiUtf16View<'_> {
 }
 
 impl<'a> FfiUtf16View<'a> {
-    pub(crate) fn from_ascii(units: &'a [u8]) -> Self {
+    pub(crate) fn from_latin1(units: &'a [u8]) -> Self {
         Self {
-            ascii: units.as_ptr(),
+            latin1: units.as_ptr(),
             length: units.len(),
             ..Self::default()
         }
@@ -205,7 +205,7 @@ impl<'a> FfiUtf16View<'a> {
 
     pub(crate) fn from_input(input: TokenizerInput<'a>) -> Self {
         match input {
-            TokenizerInput::Latin1(units) => Self::from_ascii(units),
+            TokenizerInput::Latin1(units) => Self::from_latin1(units),
             TokenizerInput::Utf16(units) => Self::from_utf16(units),
         }
     }
@@ -217,7 +217,7 @@ impl<'a> FfiUtf16View<'a> {
     /// The viewed units, or none for a view that names both or neither kind of storage.
     pub(crate) fn units(self) -> Option<TokenizerInput<'a>> {
         // SAFETY: The view's contract keeps exactly one non-empty pointer readable for `length` units during `'a`.
-        unsafe { TokenizerInput::from_raw_parts(self.ascii, self.utf16, self.length) }
+        unsafe { TokenizerInput::from_raw_parts(self.latin1, self.utf16, self.length) }
     }
 
     pub(crate) fn to_utf16(self) -> Option<Vec<u16>> {

@@ -117,12 +117,21 @@ ALWAYS_INLINE icu::UnicodeString icu_string(StringView string)
     return icu::UnicodeString::fromUTF8(icu_string_piece(string));
 }
 
-// If the Utf16View has ASCII storage, this creates an owned icu::UnicodeString. Otherwise, the icu::UnicodeString is
+// If the Utf16View has Latin-1 storage, this creates an owned icu::UnicodeString. Otherwise, the icu::UnicodeString is
 // unowned (i.e. it is effectively a view).
 ALWAYS_INLINE icu::UnicodeString icu_string(Utf16View const& string)
 {
     if (string.has_ascii_storage())
         return icu::UnicodeString::fromUTF8(icu_string_piece(string.ascii_bytes()));
+    if (string.has_latin1_storage()) {
+        auto latin1 = string.latin1_span();
+        icu::UnicodeString result;
+        auto* buffer = result.getBuffer(static_cast<i32>(latin1.size()));
+        for (size_t i = 0; i < latin1.size(); ++i)
+            buffer[i] = latin1[i];
+        result.releaseBuffer(static_cast<i32>(latin1.size()));
+        return result;
+    }
     return { false, string.utf16_span().data(), static_cast<i32>(string.length_in_code_units()) };
 }
 
