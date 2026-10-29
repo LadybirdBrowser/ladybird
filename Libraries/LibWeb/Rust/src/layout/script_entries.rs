@@ -611,7 +611,7 @@ pub extern "C" fn layout_script_generated_content_accessible_text(
     let text = match StyleNodeID::from_raw(style_node) {
         Some(element) => read_arena(host, |arena| {
             let owner = crate::layout::counters::CounterOwner { element, generated_for };
-            arena.generated_content().borrow().accessible_text(owner).to_vec()
+            arena.generated_content().accessible_text(owner).to_vec()
         }),
         None => Vec::new(),
     };

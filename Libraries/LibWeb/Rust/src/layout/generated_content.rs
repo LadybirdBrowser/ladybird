@@ -8,8 +8,8 @@
 //! counters sets and the quote depth, or the marker string of a list marker whose `content` is
 //! `normal`.
 
-use super::counters::{CounterName, CounterOwner, LIST_ITEM_COUNTER_NAME, style_of};
-use super::layout_node_arena::LayoutNodeArena;
+use super::counters::{CounterName, CounterOwner, CountersSets, LIST_ITEM_COUNTER_NAME, style_of};
+use super::layout_node_arena::{CounterTables, LayoutNodeArena};
 use super::node_data::{GENERATED_FOR_MARKER, NodeSlotId};
 use crate::css::computed_value_views::ComputedValuesView;
 use crate::css::counter_representation::{
@@ -155,16 +155,13 @@ pub(crate) struct MarkerItem {
 // <string>: The element's marker string is the specified <string>."
 fn resolve_normal_marker_content(
     arena: &LayoutNodeArena,
+    counters_sets: &mut CountersSets,
     element: CounterOwner,
     tree_scope: u32,
     content: MarkerContent<'_>,
 ) -> MarkerItem {
-    let list_item_counter_value = || {
-        arena
-            .counters_sets()
-            .borrow_mut()
-            .counter_value_for_use(element, &CounterName::Units(&LIST_ITEM_COUNTER_NAME))
-    };
+    let mut list_item_counter_value =
+        || counters_sets.counter_value_for_use(element, &CounterName::Units(&LIST_ITEM_COUNTER_NAME));
     let (item, renders_list_item_counter_value) = match content {
         MarkerContent::Image => (ContentItem::ListStyleImage, false),
         MarkerContent::String(string) => {
@@ -199,18 +196,21 @@ fn marker_counter_styles_in_use(content: &MarkerContent<'_>) -> Vec<Option<Arc<C
 
 /// The marker string of the list marker a list-item pseudo-element `element` nests.
 pub(crate) fn resolve_nested_marker_content(
-    arena: &LayoutNodeArena,
+    arena: &mut LayoutNodeArena,
     element: CounterOwner,
     marker: NodeSlotId,
     list_box: NodeSlotId,
 ) -> MarkerItem {
     let tree_scope = arena.with_style_store(|engine| engine.counter_style_tree_scope(element.element));
-    resolve_normal_marker_content(
-        arena,
-        element,
-        tree_scope,
-        resolve_marker_content(arena, marker, list_box, tree_scope),
-    )
+    arena.with_counter_tables_lent(|arena, tables| {
+        resolve_normal_marker_content(
+            arena,
+            &mut tables.counters_sets,
+            element,
+            tree_scope,
+            resolve_marker_content(arena, marker, list_box, tree_scope),
+        )
+    })
 }
 
 enum QuotesData<'a> {
@@ -256,6 +256,7 @@ fn quote_string<'a>(quotes: &QuotesData<'a>, open: bool, depth: u32) -> &'a [u16
 
 struct CounterItemResolver<'a> {
     arena: &'a LayoutNodeArena,
+    counters_sets: &'a mut CountersSets,
     element: CounterOwner,
     tree_scope: u32,
     styles: &'a [Option<Arc<CounterStyle>>],
@@ -280,22 +281,14 @@ impl CounterItemResolver<'_> {
         // "Represents the value of the innermost counter in the element’s CSS counters set named <counter-name>
         // using the counter style named <counter-style>."
         if function == COUNTER_FUNCTION_COUNTER {
-            let value = self
-                .arena
-                .counters_sets()
-                .borrow_mut()
-                .counter_value_for_use(self.element, &name);
+            let value = self.counters_sets.counter_value_for_use(self.element, &name);
             return representation(self.arena, self.tree_scope, counter_style, value);
         }
 
         // "Represents the values of all the counters in the element’s CSS counters set named <counter-name>
         // using the counter style named <counter-style>, sorted in outermost-first to innermost-last order
         // and joined by the specified <string>."
-        let values = self
-            .arena
-            .counters_sets()
-            .borrow_mut()
-            .counter_values_for_use(self.element, &name);
+        let values = self.counters_sets.counter_values_for_use(self.element, &name);
         let mut result = Vec::new();
         for value in values {
             let counter_string = representation(self.arena, self.tree_scope, counter_style, value);
@@ -353,21 +346,17 @@ fn content_is_normal(content: Option<&StyleValueData>) -> bool {
 
 /// Records the counter styles the box just built for `owner` renders from.
 fn note_content_counter_styles_in_use(
-    arena: &LayoutNodeArena,
+    generated_content: &mut GeneratedContent,
     owner: CounterOwner,
     styles: Vec<Option<Arc<CounterStyle>>>,
 ) {
-    arena
-        .generated_content()
-        .borrow_mut()
-        .content_counter_styles_in_use
-        .insert(owner, styles);
+    generated_content.content_counter_styles_in_use.insert(owner, styles);
 }
 
 /// Whether the counter styles the pseudo-element's record names now differ from the ones its box
 /// was built with. False while no box of the pseudo-element has recorded any.
 pub(crate) fn content_counter_styles_changed(arena: &LayoutNodeArena, owner: CounterOwner) -> bool {
-    let generated_content = arena.generated_content().borrow();
+    let generated_content = arena.generated_content();
     let Some(in_use) = generated_content.content_counter_styles_in_use.get(&owner) else {
         return false;
     };
@@ -397,7 +386,19 @@ pub(crate) fn content_counter_styles_changed(arena: &LayoutNodeArena, owner: Cou
 /// Resolves the content of the pseudo-element `element` names, whose box the host has just built. A
 /// list marker box whose `content` is `normal` shows its marker string instead.
 pub(crate) fn resolve_content(
+    arena: &mut LayoutNodeArena,
+    element: CounterOwner,
+    marker_and_list_box: Option<(NodeSlotId, NodeSlotId)>,
+    initial_quote_nesting_level: u32,
+) -> ResolvedContent {
+    arena.with_counter_tables_lent(|arena, tables| {
+        resolve_content_with(arena, tables, element, marker_and_list_box, initial_quote_nesting_level)
+    })
+}
+
+fn resolve_content_with(
     arena: &LayoutNodeArena,
+    tables: &mut CounterTables,
     element: CounterOwner,
     marker_and_list_box: Option<(NodeSlotId, NodeSlotId)>,
     initial_quote_nesting_level: u32,
@@ -411,8 +412,12 @@ pub(crate) fn resolve_content(
             && content_is_normal(content)
         {
             let content = resolve_marker_content(arena, marker, list_box, tree_scope);
-            note_content_counter_styles_in_use(arena, element, marker_counter_styles_in_use(&content));
-            let marker = resolve_normal_marker_content(arena, element, tree_scope, content);
+            note_content_counter_styles_in_use(
+                &mut tables.generated_content,
+                element,
+                marker_counter_styles_in_use(&content),
+            );
+            let marker = resolve_normal_marker_content(arena, &mut tables.counters_sets, element, tree_scope, content);
             return ResolvedContent {
                 items: vec![marker.item],
                 is_list: true,
@@ -427,8 +432,8 @@ pub(crate) fn resolve_content(
             alt_text,
         }) = content
         else {
-            note_content_counter_styles_in_use(arena, element, styles);
-            arena.generated_content().borrow_mut().accessible_texts.remove(&element);
+            note_content_counter_styles_in_use(&mut tables.generated_content, element, styles);
+            tables.generated_content.accessible_texts.remove(&element);
             return ResolvedContent {
                 items: Vec::new(),
                 is_list: false,
@@ -439,6 +444,7 @@ pub(crate) fn resolve_content(
 
         let mut counters = CounterItemResolver {
             arena,
+            counters_sets: &mut tables.counters_sets,
             element,
             tree_scope,
             styles: &styles,
@@ -533,13 +539,12 @@ pub(crate) fn resolve_content(
                 }
             }
         }
-        arena
-            .generated_content()
-            .borrow_mut()
+        let renders_list_item_counter_value = counters.renders_list_item_counter_value;
+        tables
+            .generated_content
             .accessible_texts
             .insert(element, accessible_text);
-        let renders_list_item_counter_value = counters.renders_list_item_counter_value;
-        note_content_counter_styles_in_use(arena, element, styles);
+        note_content_counter_styles_in_use(&mut tables.generated_content, element, styles);
 
         ResolvedContent {
             items,
