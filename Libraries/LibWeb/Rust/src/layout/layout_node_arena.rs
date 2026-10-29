@@ -1192,7 +1192,7 @@ pub(crate) struct LayoutNodeArena {
     viewport_scroll_offset: Cell<CssPixelPoint>,
     /// The style node of the document the last layout tree build was for. The style mirror names
     /// the document element as its first DOM child.
-    document_style_node: Cell<Option<StyleNodeID>>,
+    document_style_node: Option<StyleNodeID>,
     /// The style engine the document registered, which owns the records rows are built from;
     /// null when it registered none, as in a layout test.
     style_engine: Cell<crate::css::style::StyleEngineHandle>,
@@ -1201,11 +1201,11 @@ pub(crate) struct LayoutNodeArena {
     /// once it is over, or `None` while none runs.
     queued_box_presence: RefCell<Option<Vec<BoundNode>>>,
     /// Whether the document is an SVG file decoded as an image, which is fixed for its lifetime.
-    document_is_decoded_svg: Cell<bool>,
+    document_is_decoded_svg: bool,
     /// Depth of synchronous layout passes, including their commits, on the stack.
     active_layout_pass_depth: Cell<u32>,
     /// The viewport the last layout tree build placed, invalid once that box is freed.
-    layout_root: Cell<NodeSlotId>,
+    layout_root: NodeSlotId,
     /// The subtree roots the last layout tree build rebuilt, waiting for the partial relayout
     /// plan that follows it. A full layout pass covers every one of them, so its commit clears
     /// them.
@@ -1213,13 +1213,13 @@ pub(crate) struct LayoutNodeArena {
     pending_layout_tree_update_escaped_rebuild_roots: Cell<bool>,
     /// Every box must be recreated by the next layout tree build; set when the tree is torn down
     /// or a build finds a box it cannot place among rebuilt roots, cleared by the full pass.
-    needs_full_layout_tree_update: Cell<bool>,
-    partial_layout_count: Cell<u64>,
-    full_layout_count: Cell<u64>,
+    needs_full_layout_tree_update: bool,
+    partial_layout_count: u64,
+    full_layout_count: u64,
     /// How many layouts were committed, full and partial.
     layout_commit_count: u64,
     committed_subtree_tokens: RefCell<Vec<u32>>,
-    layout_tree_build_stats: Cell<FfiLayoutTreeBuildStats>,
+    layout_tree_build_stats: FfiLayoutTreeBuildStats,
     pre_order_labels: Vec<Cell<u64>>,
     pre_order_relabel_count: Cell<u64>,
     free_list: Vec<u32>,
@@ -1261,9 +1261,9 @@ pub(crate) struct LayoutNodeArena {
     pub(crate) confined_abspos_layout_inputs: RefCell<HashMap<NodeSlotId, AbsposLayoutInputs>>,
     /// The position option each box with position options was last laid out with.
     /// https://drafts.csswg.org/css-anchor-position-1/#fallback-apply
-    position_options_in_use: RefCell<HashMap<NodeSlotId, super::abspos_inputs::PositionOptionChoice>>,
+    position_options_in_use: HashMap<NodeSlotId, super::abspos_inputs::PositionOptionChoice>,
     /// https://drafts.csswg.org/css-anchor-position-1/#last-successful-position-option
-    last_successful_position_options: RefCell<HashMap<NodeSlotId, super::abspos_inputs::PositionOptionChoice>>,
+    last_successful_position_options: HashMap<NodeSlotId, super::abspos_inputs::PositionOptionChoice>,
     pub(crate) inline_boxes_lifted_out_of: RefCell<HashMap<NodeSlotId, NodeSlotId>>,
     pub(crate) out_of_flow_positioning_contained: RefCell<HashMap<NodeSlotId, u32>>,
     /// Attribution of pending updates for partial relayout. Invariant: every update recorded
@@ -1296,7 +1296,7 @@ pub(crate) struct LayoutNodeArena {
     document_svg_root_natural_size: Option<(NodeSlotId, crate::css::style::NaturalSize)>,
     /// The document element's natural size as it was last handed to the `<object>` showing the
     /// document, if it has been.
-    handed_over_document_svg_root_natural_size: Cell<Option<crate::css::style::NaturalSize>>,
+    handed_over_document_svg_root_natural_size: Option<crate::css::style::NaturalSize>,
     /// What the running pass has to tell the document, waiting for the commit that delivers it.
     /// The rows the layout commit in progress gathers for the style engine's container queries.
     pub(crate) layout_style_snapshot_commit: RefCell<Vec<super::style_snapshot::CommittedGeometry>>,
@@ -1305,7 +1305,7 @@ pub(crate) struct LayoutNodeArena {
     /// The counter styles each tree scope registers. The rule cache that settles them is C++'s,
     /// and the document owns the result because a fallback chain is followed from the scope the
     /// counter is used in, not from the scope the style was written in.
-    counter_styles: RefCell<crate::css::counter_representation::CounterStyleRegistry>,
+    counter_styles: crate::css::counter_representation::CounterStyleRegistry,
     style_node_tables: StyleNodeTables,
 }
 
@@ -1326,21 +1326,21 @@ impl LayoutNodeArena {
             first_rows_by_style_node: RefCell::new(RowsByStyleNode::default()),
             bound_rows: RefCell::default(),
             viewport_scroll_offset: Cell::new(CssPixelPoint::default()),
-            document_style_node: Cell::new(None),
+            document_style_node: (None),
             style_engine: Cell::new(crate::css::style::StyleEngineHandle::null()),
             box_presence_host: Cell::new(None),
             queued_box_presence: RefCell::new(None),
-            document_is_decoded_svg: Cell::new(false),
+            document_is_decoded_svg: (false),
             active_layout_pass_depth: Cell::new(0),
-            layout_root: Cell::new(NodeSlotId::INVALID),
+            layout_root: (NodeSlotId::INVALID),
             pending_rebuilt_subtree_roots: RefCell::new(Vec::new()),
             pending_layout_tree_update_escaped_rebuild_roots: Cell::new(false),
-            needs_full_layout_tree_update: Cell::new(false),
-            partial_layout_count: Cell::new(0),
-            full_layout_count: Cell::new(0),
+            needs_full_layout_tree_update: (false),
+            partial_layout_count: (0),
+            full_layout_count: (0),
             layout_commit_count: 0,
             committed_subtree_tokens: RefCell::new(Vec::new()),
-            layout_tree_build_stats: Cell::new(FfiLayoutTreeBuildStats::default()),
+            layout_tree_build_stats: (FfiLayoutTreeBuildStats::default()),
             pre_order_labels: Vec::new(),
             pre_order_relabel_count: Cell::new(0),
             free_list: Vec::new(),
@@ -1368,8 +1368,8 @@ impl LayoutNodeArena {
             pending_attached_subtree_roots: RefCell::new(Vec::new()),
             deferred_child_list_insertion_parents: RefCell::new(Vec::new()),
             confined_abspos_layout_inputs: RefCell::new(HashMap::default()),
-            position_options_in_use: RefCell::new(HashMap::default()),
-            last_successful_position_options: RefCell::new(HashMap::default()),
+            position_options_in_use: (HashMap::default()),
+            last_successful_position_options: (HashMap::default()),
             inline_boxes_lifted_out_of: RefCell::new(HashMap::default()),
             out_of_flow_positioning_contained: RefCell::new(HashMap::default()),
             pending_updates_escape_partial_relayout: Cell::new(false),
@@ -1384,10 +1384,10 @@ impl LayoutNodeArena {
             nodes_enrolled_for_replaced_content_facts_sync: RefCell::new(Vec::new()),
             owned_image_natural_sizes: RefCell::new(HashMap::default()),
             document_svg_root_natural_size: None,
-            handed_over_document_svg_root_natural_size: Cell::new(None),
+            handed_over_document_svg_root_natural_size: (None),
             layout_style_snapshot_commit: RefCell::new(Vec::new()),
             layout_tree_update_marks: RefCell::default(),
-            counter_styles: RefCell::default(),
+            counter_styles: Default::default(),
             style_node_tables: StyleNodeTables::default(),
         }
     }
@@ -1639,8 +1639,8 @@ impl LayoutNodeArena {
     pub(crate) fn free_subtree(&mut self, root: NodeSlotId) -> FreedSubtree {
         assert!(!root.is_invalid(), "invalid layout node arena slot ID");
         self.assert_node_is_unlinked_from_parent(root);
-        if self.layout_root.get() == root {
-            self.layout_root.set(NodeSlotId::INVALID);
+        if self.layout_root == root {
+            self.layout_root = NodeSlotId::INVALID;
             self.pending_rebuilt_subtree_roots.get_mut().clear();
             self.pending_layout_tree_update_escaped_rebuild_roots.set(false);
         }
@@ -1976,11 +1976,11 @@ impl LayoutNodeArena {
 
     /// The style node of the document the last layout tree build was for.
     pub(crate) fn document_style_node(&self) -> Option<StyleNodeID> {
-        self.document_style_node.get()
+        self.document_style_node
     }
 
-    pub(crate) fn set_document_style_node(&self, document_style_node: StyleNodeID) {
-        self.document_style_node.set(Some(document_style_node));
+    pub(crate) fn set_document_style_node(&mut self, document_style_node: StyleNodeID) {
+        self.document_style_node = Some(document_style_node);
     }
 
     /// The row the pseudo-element of kind `generated_for` on the element with `generator` is bound
@@ -3032,12 +3032,12 @@ impl LayoutNodeArena {
         self.style_engine.set(style_engine);
     }
 
-    pub(crate) fn set_document_is_decoded_svg(&self, is_decoded_svg: bool) {
-        self.document_is_decoded_svg.set(is_decoded_svg);
+    pub(crate) fn set_document_is_decoded_svg(&mut self, is_decoded_svg: bool) {
+        self.document_is_decoded_svg = is_decoded_svg;
     }
 
     pub(crate) fn document_is_decoded_svg(&self) -> bool {
-        self.document_is_decoded_svg.get()
+        self.document_is_decoded_svg
     }
 
     /// True while a synchronous layout pass, including its commit, is on the stack. Computed
@@ -3060,12 +3060,12 @@ impl LayoutNodeArena {
         depth == 1
     }
 
-    pub(crate) fn set_layout_root(&self, viewport: NodeSlotId) {
-        self.layout_root.set(viewport);
+    pub(crate) fn set_layout_root(&mut self, viewport: NodeSlotId) {
+        self.layout_root = viewport;
     }
 
     pub(crate) fn layout_root(&self) -> NodeSlotId {
-        self.layout_root.get()
+        self.layout_root
     }
 
     /// Whether `id` is the live box of an `<svg>` document element.
@@ -3089,13 +3089,13 @@ impl LayoutNodeArena {
     /// The natural size of the document's `<svg>` document element as its last layout negotiated
     /// it, unless it is what the last call handed over. The size is all absent if the document
     /// element is no `<svg>` with a box.
-    pub(crate) fn take_changed_document_svg_root_natural_size(&self) -> Option<crate::css::style::NaturalSize> {
+    pub(crate) fn take_changed_document_svg_root_natural_size(&mut self) -> Option<crate::css::style::NaturalSize> {
         let current = self
             .document_svg_root_natural_size
             .filter(|&(root_box, _)| self.is_document_svg_root_box(root_box))
             .map(|(_, natural_size)| natural_size)
             .unwrap_or_default();
-        (self.handed_over_document_svg_root_natural_size.replace(Some(current)) != Some(current)).then_some(current)
+        (self.handed_over_document_svg_root_natural_size.replace(current) != Some(current)).then_some(current)
     }
 
     /// Publish the natural size of the image the image box `id` owns the provider of, which the
@@ -3151,41 +3151,41 @@ impl LayoutNodeArena {
         self.pending_layout_tree_update_escaped_rebuild_roots.set(false);
     }
 
-    pub(crate) fn note_partial_layout(&self) {
-        self.partial_layout_count.set(self.partial_layout_count.get() + 1);
+    pub(crate) fn note_partial_layout(&mut self) {
+        self.partial_layout_count += 1;
     }
 
-    pub(crate) fn note_full_layout(&self) {
-        self.full_layout_count.set(self.full_layout_count.get() + 1);
+    pub(crate) fn note_full_layout(&mut self) {
+        self.full_layout_count += 1;
     }
 
     pub(crate) fn partial_layout_count(&self) -> u64 {
-        self.partial_layout_count.get()
+        self.partial_layout_count
     }
 
     pub(crate) fn full_layout_count(&self) -> u64 {
-        self.full_layout_count.get()
+        self.full_layout_count
     }
 
-    pub(crate) fn record_layout_tree_build(&self, outcome: &FfiLayoutTreeBuildOutcome) {
-        let stats = self.layout_tree_build_stats.get();
-        self.layout_tree_build_stats.set(FfiLayoutTreeBuildStats {
+    pub(crate) fn record_layout_tree_build(&mut self, outcome: &FfiLayoutTreeBuildOutcome) {
+        let stats = self.layout_tree_build_stats;
+        self.layout_tree_build_stats = FfiLayoutTreeBuildStats {
             builds: stats.builds + 1,
             last_build_rebuilt_subtree_roots: outcome.rebuilt_subtree_root_count as u64,
             last_build_escaped_rebuild_roots: outcome.layout_tree_update_escaped_rebuild_roots,
-        });
+        };
     }
 
     pub(crate) fn layout_tree_build_stats(&self) -> FfiLayoutTreeBuildStats {
-        self.layout_tree_build_stats.get()
+        self.layout_tree_build_stats
     }
 
     pub(crate) fn needs_full_layout_tree_update(&self) -> bool {
-        self.needs_full_layout_tree_update.get()
+        self.needs_full_layout_tree_update
     }
 
-    pub(crate) fn set_needs_full_layout_tree_update(&self, value: bool) {
-        self.needs_full_layout_tree_update.set(value);
+    pub(crate) fn set_needs_full_layout_tree_update(&mut self, value: bool) {
+        self.needs_full_layout_tree_update = value;
     }
 
     fn style_engine(&self) -> crate::css::style::StyleEngineHandle {
@@ -3199,11 +3199,11 @@ impl LayoutNodeArena {
     /// Replace what one tree scope registers. C++ rebuilds a scope's counter styles whole, so the
     /// publication does too.
     pub(crate) fn publish_counter_styles(
-        &self,
+        &mut self,
         tree_scope: u32,
         scope: crate::css::counter_representation::CounterStyleScope,
     ) {
-        self.counter_styles.borrow_mut().publish_scope(tree_scope, scope);
+        self.counter_styles.publish_scope(tree_scope, scope);
     }
 
     pub(crate) fn counters_sets(&self) -> &RefCell<super::counters::CountersSets> {
@@ -3418,7 +3418,7 @@ impl LayoutNodeArena {
         &self,
         callback: impl FnOnce(&crate::css::counter_representation::CounterStyleRegistry) -> T,
     ) -> T {
-        callback(&self.counter_styles.borrow())
+        callback(&self.counter_styles)
     }
 
     pub(crate) fn with_style_store<T>(&self, query: impl FnOnce(&StyleEngine) -> T) -> T {
@@ -5006,7 +5006,7 @@ impl LayoutNodeArena {
         node: NodeSlotId,
         choice: Option<super::abspos_inputs::PositionOptionChoice>,
     ) {
-        let in_use = self.position_options_in_use.get_mut();
+        let in_use = &mut self.position_options_in_use;
         match choice {
             Some(choice) => {
                 in_use.insert(node, choice);
@@ -5023,21 +5023,21 @@ impl LayoutNodeArena {
         &self,
         node: NodeSlotId,
     ) -> Option<super::abspos_inputs::PositionOptionChoice> {
-        self.last_successful_position_options.borrow().get(&node).copied()
+        self.last_successful_position_options.get(&node).copied()
     }
 
     /// Whether a box was laid out with position options, or has a last successful position option.
     pub(crate) fn may_have_position_options(&self) -> bool {
-        !self.position_options_in_use.borrow().is_empty() || !self.last_successful_position_options.borrow().is_empty()
+        !self.position_options_in_use.is_empty() || !self.last_successful_position_options.is_empty()
     }
 
     /// https://drafts.csswg.org/css-anchor-position-1/#record-the-last-successful-position-option
     /// Set the last successful position option of each box with position options to the one it is now using.
-    pub(crate) fn record_last_successful_position_options(&self) {
-        let mut in_use = self.position_options_in_use.borrow_mut();
+    pub(crate) fn record_last_successful_position_options(&mut self) {
+        let mut in_use = std::mem::take(&mut self.position_options_in_use);
         in_use.retain(|&node, _| self.slot_is_live(node));
-        let mut last_successful = self.last_successful_position_options.borrow_mut();
-        last_successful.clone_from(&in_use);
+        self.last_successful_position_options.clone_from(&in_use);
+        self.position_options_in_use = in_use;
     }
 
     pub(crate) fn saved_abspos_layout_inputs(&self, data: &NodeData) -> Option<AbsposLayoutInputs> {

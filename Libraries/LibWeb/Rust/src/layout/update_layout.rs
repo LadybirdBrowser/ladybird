@@ -859,7 +859,7 @@ impl LayoutRoundJob {
                 for boundary in planned {
                     answer.commits.push(lay_out_boundary(state, boundary, stage));
                 }
-                state.arena().note_partial_layout();
+                state.arena_mut().note_partial_layout();
                 answer.end = LayoutRoundEnd::PartialLayout;
                 return answer;
             }
@@ -874,7 +874,7 @@ impl LayoutRoundJob {
                 };
                 return answer;
             }
-            state.arena().set_needs_full_layout_tree_update(false);
+            state.arena_mut().set_needs_full_layout_tree_update(false);
             if end == BuildEnd::ReconcileCounters {
                 answer.end = LayoutRoundEnd::Built {
                     needs_another_build_pass: false,
@@ -896,7 +896,7 @@ impl LayoutRoundJob {
             facts.should_collect_devtools_layout_data,
         );
         answer.commits.push(commit);
-        state.arena().note_full_layout();
+        state.arena_mut().note_full_layout();
         answer
     }
 
@@ -912,7 +912,7 @@ impl LayoutRoundJob {
     ) -> BuildEnd {
         let replaced_viewport = state.arena().layout_root();
         let built = build.run(state, work);
-        state.arena().record_layout_tree_build(&built.outcome);
+        state.arena_mut().record_layout_tree_build(&built.outcome);
         if has_stale_list_item_counters {
             answer.rebuilt_roots = state.arena().pending_rebuilt_dom_roots();
         }
@@ -1422,7 +1422,7 @@ mod tests {
 
     #[test]
     fn the_layout_counters_start_at_zero_and_count_each_pass() {
-        let arena = LayoutNodeArena::new();
+        let mut arena = LayoutNodeArena::new();
         assert_eq!(arena.partial_layout_count(), 0);
         assert_eq!(arena.full_layout_count(), 0);
         assert_eq!(arena.layout_tree_build_stats().builds, 0);
