@@ -1,8 +1,10 @@
+ladybird_test_suite(LibTest)
+
 set(TEST_SOURCES
     TestNoCrash.cpp
     TestGenerator.cpp
+    TestSuiteIsolation.cpp
+    TestSuiteIsolationPeer.cpp
 )
 
-foreach(source IN LISTS TEST_SOURCES)
-    ladybird_test("${source}" Test)
-endforeach()
+target_sources(TestLibTest PRIVATE ${TEST_SOURCES})

@@ -9,6 +9,7 @@
 
 #include <AK/ByteString.h>
 #include <AK/Function.h>
+#include <AK/HashMap.h>
 #include <AK/Time.h>
 #include <AK/Vector.h>
 #include <AK/kmalloc.h>
@@ -40,7 +41,7 @@ public:
 
     int run(Vector<NonnullRefPtr<TestCase>> const&);
     int main(ByteString const& suite_name, Span<StringView> arguments);
-    Vector<NonnullRefPtr<TestCase>> find_cases(ByteString const& search, bool find_tests, bool find_benchmarks);
+    Vector<NonnullRefPtr<TestCase>> find_cases(ByteString const& search, bool find_tests, bool find_benchmarks, StringView suite = {});
     void add_case(NonnullRefPtr<TestCase> const& test_case)
     {
         m_cases.append(test_case);
@@ -49,7 +50,7 @@ public:
     TestResult current_test_result() const { return m_current_test_result; }
     void set_current_test_result(TestResult result) { m_current_test_result = result; }
 
-    void set_suite_setup(Function<void()> setup) { m_setup = move(setup); }
+    void set_suite_setup(ByteString const& source, Function<void()> setup) { m_setups.set(source, move(setup)); }
     // The RandomnessSource is where generators record / replay random data
     // from. Initially a live "truly random" RandomnessSource is used, and when
     // a failure is found, a set of hardcoded RandomnessSources is used during
@@ -75,7 +76,7 @@ private:
     ByteString m_suite_name;
     u64 m_benchmark_repetitions = 1;
     u64 m_randomized_runs = 100;
-    Function<void()> m_setup;
+    HashMap<ByteString, Function<void()>> m_setups;
     TestResult m_current_test_result = TestResult::NotRun;
     Randomized::RandomnessSource m_randomness_source = Randomized::RandomnessSource::live();
     bool m_reporting_enabled = true;

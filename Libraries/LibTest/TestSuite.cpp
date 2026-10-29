@@ -6,8 +6,11 @@
  */
 
 #include <AK/Function.h>
+#include <AK/LexicalPath.h>
 #include <AK/Time.h>
 #include <LibCore/ArgsParser.h>
+#include <LibCore/Process.h>
+#include <LibCore/System.h>
 #include <LibTest/Macros.h>
 #include <LibTest/TestResult.h>
 #include <LibTest/TestSuite.h>
@@ -69,9 +72,9 @@ void add_test_case_to_suite(NonnullRefPtr<TestCase> const& test_case)
 }
 
 // Declared in TestCase.h
-void set_suite_setup_function(Function<void()> setup)
+void set_suite_setup_function(ByteString const& source, Function<void()> setup)
 {
-    TestSuite::the().set_suite_setup(move(setup));
+    TestSuite::the().set_suite_setup(source, move(setup));
 }
 
 // Declared in Macros.h
@@ -120,26 +123,65 @@ int TestSuite::main(ByteString const& suite_name, Span<StringView> arguments)
     bool do_benchmarks_only = false;
     bool do_list_cases = false;
     StringView search_string = "*"sv;
+    StringView selected_suite;
 
     args_parser.add_option(do_tests_only, "Only run tests.", "tests");
     args_parser.add_option(do_benchmarks_only, "Only run benchmarks.", "bench");
     args_parser.add_option(m_benchmark_repetitions, "Number of times to repeat each benchmark (default 1)", "benchmark_repetitions", 0, "N");
     args_parser.add_option(m_randomized_runs, "Number of times to run each RANDOMIZED_TEST_CASE (default 100)", "randomized_runs", 0, "RUNS");
     args_parser.add_option(do_list_cases, "List available test cases.", "list");
+    args_parser.add_option(selected_suite, "Only run cases from this suite.", "suite", 0, "SUITE");
     args_parser.add_positional_argument(search_string, "Only run matching cases.", "pattern", Core::ArgsParser::Required::No);
     args_parser.parse(arguments);
 
-    if (m_setup)
-        m_setup();
-
-    auto const& matching_tests = find_cases(search_string, !do_benchmarks_only, !do_tests_only);
+    auto const& matching_tests = find_cases(search_string, !do_benchmarks_only, !do_tests_only, selected_suite);
 
     if (do_list_cases) {
         outln("Available cases for {}:", suite_name);
         for (auto const& test : matching_tests) {
-            outln("    {}", test->name());
+            outln("    {}::{}", LexicalPath(test->source()).title(), test->name());
         }
         return 0;
+    }
+
+    Vector<ByteString> sources;
+    for (auto const& test : matching_tests) {
+        if (!sources.contains_slow(test->source()))
+            sources.append(test->source());
+    }
+    if (selected_suite.is_empty() && sources.size() > 1) {
+        auto executable = Core::System::current_executable_path();
+        if (executable.is_error()) {
+            warnln("Cannot find the test executable: {}", executable.error());
+            return 1;
+        }
+        int failures = 0;
+        for (auto const& source : sources) {
+            Vector<ByteString> child_arguments;
+            for (auto argument : arguments.slice(1))
+                child_arguments.append(ByteString { argument });
+            child_arguments.append("--suite");
+            child_arguments.append(LexicalPath(source).title());
+            warnln("Running suite '{}'.", LexicalPath(source).title());
+            auto process = Core::Process::spawn(executable.value(), child_arguments);
+            if (process.is_error()) {
+                warnln("Cannot start the suite: {}", process.error());
+                ++failures;
+                continue;
+            }
+            auto status = process.value().wait_for_termination();
+            if (status.is_error() || status.value() != 0)
+                ++failures;
+        }
+        return failures;
+    }
+    if (!selected_suite.is_empty() && matching_tests.is_empty()) {
+        warnln("No cases match suite '{}' and pattern '{}'.", selected_suite, search_string);
+        return 1;
+    }
+    if (!sources.is_empty()) {
+        if (auto setup = m_setups.find(sources.first()); setup != m_setups.end())
+            setup->value();
     }
 
     outln("Running {} cases out of {}.", matching_tests.size(), m_cases.size());
@@ -147,11 +189,15 @@ int TestSuite::main(ByteString const& suite_name, Span<StringView> arguments)
     return run(matching_tests);
 }
 
-Vector<NonnullRefPtr<TestCase>> TestSuite::find_cases(ByteString const& search, bool find_tests, bool find_benchmarks)
+Vector<NonnullRefPtr<TestCase>> TestSuite::find_cases(ByteString const& search, bool find_tests, bool find_benchmarks, StringView suite)
 {
     Vector<NonnullRefPtr<TestCase>> matches;
     for (auto& t : m_cases) {
-        if (!search.is_empty() && !t->name().matches(search, CaseSensitivity::CaseInsensitive)) {
+        auto source_path = LexicalPath(t->source());
+        if (!suite.is_empty() && source_path.title() != suite)
+            continue;
+        auto qualified_name = ByteString::formatted("{}::{}", source_path.title(), t->name());
+        if (!search.is_empty() && !t->name().matches(search, CaseSensitivity::CaseInsensitive) && !qualified_name.matches(search, CaseSensitivity::CaseInsensitive)) {
             continue;
         }
 
