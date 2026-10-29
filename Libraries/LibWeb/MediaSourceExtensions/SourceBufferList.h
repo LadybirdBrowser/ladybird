@@ -17,6 +17,7 @@ class SourceBufferList : public DOM::EventTarget {
 
 public:
     void append(GC::Ref<SourceBuffer>);
+    void insert_in_order_of(GC::Ref<SourceBuffer>, SourceBufferList const& ordered_list);
     void remove_all_buffers(Badge<MediaSource>);
 
     size_t length() const;
