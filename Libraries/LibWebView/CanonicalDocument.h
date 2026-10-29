@@ -69,6 +69,7 @@ public:
     // https://html.spec.whatwg.org/multipage/dom.html#concept-document-permissions-policy
     Web::PermissionsPolicy::PermissionsPolicy const& permissions_policy() const { return m_permissions_policy; }
     void set_permissions_policy(Web::PermissionsPolicy::PermissionsPolicy permissions_policy) { m_permissions_policy = move(permissions_policy); }
+    bool is_allowed_to_use(Web::PermissionsPolicy::PolicyControlledFeature) const;
 
     // https://html.spec.whatwg.org/multipage/dom.html#completely-loaded
     bool is_completely_loaded() const { return m_completely_loaded; }

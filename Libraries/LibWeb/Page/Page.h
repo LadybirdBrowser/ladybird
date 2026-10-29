@@ -923,6 +923,7 @@ public:
     virtual void disconnect_virtual_gamepad([[maybe_unused]] Gamepad::GamepadHandle handle) { }
     virtual Gamepad::ReceivedRumbleEffects virtual_gamepad_received_rumble_effects([[maybe_unused]] Gamepad::GamepadHandle handle) { return {}; }
     virtual void pump_gamepad_events() { }
+    virtual void reset_gamepad_access_for_testing() { }
 
     virtual void page_did_block_resource([[maybe_unused]] URL::URL const& url, [[maybe_unused]] StringView kind) { }
     virtual void page_did_start_network_request([[maybe_unused]] u64 request_id, [[maybe_unused]] URL::URL const& url, [[maybe_unused]] ByteString const& method, [[maybe_unused]] Vector<HTTP::Header> const& request_headers, [[maybe_unused]] ReadonlyBytes request_body, [[maybe_unused]] Optional<String> initiator_type, [[maybe_unused]] String const& referrer_policy, [[maybe_unused]] bool is_navigation_request, [[maybe_unused]] Fetch::Infrastructure::Request::Priority priority) { }

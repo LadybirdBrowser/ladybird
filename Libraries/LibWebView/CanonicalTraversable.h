@@ -153,6 +153,8 @@ public:
     bool has_system_focus() const { return m_has_system_focus; }
     void set_has_system_focus(bool, RefPtr<WebContentPage> requesting_page);
 
+    bool has_user_attention() const;
+
     Optional<Web::HTML::CrossProcessId> const& focused_navigable_id() const { return m_focused_navigable_id; }
     void set_focused_navigable(CanonicalNavigable&, WebContentPage& requesting_page);
     RefPtr<WebContentPage> focused_navigable_host() const;

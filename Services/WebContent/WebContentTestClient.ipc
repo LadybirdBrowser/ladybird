@@ -46,5 +46,6 @@ endpoint WebContentTestClient routed by Web::PageId page_id
     set_virtual_gamepad_axis(Web::Gamepad::GamepadHandle handle, i32 axis, i16 value) =|
     disconnect_virtual_gamepad(Web::Gamepad::GamepadHandle handle) =|
     pump_gamepad_events() => (Vector<Web::Gamepad::GamepadChangeEvent> events)
+    reset_gamepad_access_for_testing(Web::PageId page_id) =|
     get_virtual_gamepad_received_rumble_effects(Web::Gamepad::GamepadHandle handle) => (Vector<Web::Gamepad::ReceivedDualRumbleEffect> dual_rumble_effects, Vector<Web::Gamepad::ReceivedTriggerRumbleEffect> trigger_rumble_effects)
 }

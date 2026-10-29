@@ -386,6 +386,7 @@ private:
     virtual void disconnect_virtual_gamepad(Web::Gamepad::GamepadHandle) override;
     virtual Web::Gamepad::ReceivedRumbleEffects virtual_gamepad_received_rumble_effects(Web::Gamepad::GamepadHandle) override;
     virtual void pump_gamepad_events() override;
+    virtual void reset_gamepad_access_for_testing() override;
     virtual Web::HTML::WorkerAgentId start_worker_agent(Web::HTML::WorkerAgentStartRequest&&) override;
     virtual void close_worker_agent(Web::HTML::WorkerAgentId, Web::HTML::WorkerAgentOwnerToken) override;
     virtual void page_did_mutate_dom(Utf16FlyString const& type, Web::DOM::Node const& target, Web::DOM::NodeList& added_nodes, Web::DOM::NodeList& removed_nodes, GC::Ptr<Web::DOM::Node> previous_sibling, GC::Ptr<Web::DOM::Node> next_sibling, Optional<Utf16FlyString> const& attribute_name) override;
@@ -431,6 +432,7 @@ private:
     HashTable<u64> m_canceled_downloads;
     bool m_has_focus { true };
     bool m_is_closed { false };
+    bool m_did_start_using_gamepads { false };
 
     Web::CSS::PreferredColorScheme m_preferred_color_scheme { Web::CSS::PreferredColorScheme::Auto };
     Web::CSS::PreferredContrast m_preferred_contrast { Web::CSS::PreferredContrast::NoPreference };

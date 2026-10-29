@@ -10,6 +10,7 @@ set(SOURCES
     Fetch/Infrastructure/URL.cpp
     FileAPI/BlobURLStore.cpp
     FileAPI/SerializedBlobURLEntry.cpp
+    Gamepad/GamepadInput.cpp
     Gamepad/GamepadSharedState.cpp
     Gamepad/GamepadSnapshot.cpp
     Gamepad/GamepadStateBuffer.cpp

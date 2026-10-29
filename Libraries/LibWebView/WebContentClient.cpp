@@ -163,11 +163,6 @@ Optional<WebContentClient&> WebContentClient::client_for_compositor_context_id(W
     return client;
 }
 
-void WebContentClient::did_start_using_gamepads()
-{
-    GamepadManager::the().client_did_start_using_gamepads(*this);
-}
-
 void WebContentClient::gamepad_play_effect(Web::Gamepad::GamepadHandle handle, Web::Gamepad::GamepadEffect effect)
 {
     GamepadManager::the().play_effect(*this, handle, effect);

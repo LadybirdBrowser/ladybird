@@ -3615,14 +3615,6 @@ void ConnectionFromClient::dispatch_changed_gamepad_states()
     }
 }
 
-void ConnectionFromClient::notify_started_using_gamepads()
-{
-    if (m_did_notify_started_using_gamepads)
-        return;
-    m_did_notify_started_using_gamepads = true;
-    async_did_start_using_gamepads();
-}
-
 void ConnectionFromClient::pump_and_dispatch_gamepad_events()
 {
     auto* test_connection = this->test_connection();

@@ -2108,6 +2108,9 @@ void Internals::perform_per_test_cleanup()
         gamepad->disconnect();
     m_gamepads.clear();
 
+    // Reset gamepad access, so that no test relies on the gamepad use and gestures of an earlier one
+    page().client().reset_gamepad_access_for_testing();
+
     // Clear any input state
     if (auto local_root = local_root_of(window())) {
         local_root->event_handler().clear_per_test_input_state({});

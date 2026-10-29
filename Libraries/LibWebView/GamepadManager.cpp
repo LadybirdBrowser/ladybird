@@ -7,10 +7,14 @@
 #include <AK/AnyOf.h>
 #include <AK/NeverDestroyed.h>
 #include <LibCore/Timer.h>
+#include <LibWebCommon/Gamepad/GamepadInput.h>
 #include <LibWebCommon/Gamepad/GamepadStateBuffer.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/CanonicalDocument.h>
+#include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/GamepadManager.h>
 #include <LibWebView/WebContentClient.h>
+#include <LibWebView/WebContentPage.h>
 
 #include <SDL3/SDL_events.h>
 #include <SDL3/SDL_gamepad.h>
@@ -147,7 +151,8 @@ bool GamepadManager::ensure_sdl_initialized()
 
 void GamepadManager::update_polling_state()
 {
-    bool should_poll = m_sdl_initialized && !m_in_test_mode && any_of(m_consumers, [](auto const& entry) { return entry.value->receives_real_devices; });
+    // A process waiting for a gesture needs the polling that finds it.
+    bool should_poll = m_sdl_initialized && !m_in_test_mode && any_of(m_consumers, [](auto const& entry) { return !entry.value->pages_using_gamepads.is_empty(); });
 
     if (!should_poll) {
         if (m_poll_timer)
@@ -191,21 +196,36 @@ GamepadManager::Consumer* GamepadManager::ensure_consumer(WebContentClient& clie
     return consumer;
 }
 
-void GamepadManager::client_did_start_using_gamepads(WebContentClient& client)
+void GamepadManager::page_did_start_using_gamepads(WebContentPage& page)
 {
     if (!ensure_sdl_initialized())
         return;
 
+    auto& client = page.client();
     auto* consumer = ensure_consumer(client);
-    if (!consumer || consumer->receives_real_devices)
+    if (!consumer)
         return;
 
     drain_sdl_events();
     publish_changed_input_states();
 
-    consumer->receives_real_devices = true;
-    fill_vacant_slots(*consumer);
+    // A gamepad the user is still interacting with shows a gesture for the page too.
+    consumer->pages_using_gamepads.set(page.id());
+    for (auto& entry : m_devices) {
+        if (entry.value->announced)
+            announce_devices_after_gamepad_user_gesture(*consumer, *entry.value);
+    }
+    notify_consumers_of_state_changes();
 
+    update_polling_state();
+}
+
+void GamepadManager::page_closed(WebContentPage& page)
+{
+    auto consumer = m_consumers.get(&page.client());
+    if (!consumer.has_value())
+        return;
+    (*consumer)->pages_using_gamepads.remove(page.id());
     update_polling_state();
 }
 
@@ -392,6 +412,17 @@ Vector<Web::Gamepad::GamepadChangeEvent> GamepadManager::pump_gamepad_events(Web
     return move((*consumer)->buffered_virtual_gamepad_events);
 }
 
+// The renderer forgets only this page's use of gamepads, so the other pages of the process stay registered.
+void GamepadManager::reset_access_for_testing(WebContentPage& page)
+{
+    auto consumer = m_consumers.get(&page.client());
+    if (!consumer.has_value())
+        return;
+    (*consumer)->pages_using_gamepads.remove(page.id());
+    (*consumer)->has_seen_gamepad_user_gesture = false;
+    update_polling_state();
+}
+
 Vector<Web::Gamepad::ReceivedDualRumbleEffect> GamepadManager::virtual_gamepad_received_rumble_effects(WebContentClient& client, Web::Gamepad::GamepadHandle handle)
 {
     auto* device = virtual_device_owned_by_client(client, handle);
@@ -441,9 +472,16 @@ void GamepadManager::publish_changed_input_states()
         if (m_scratch_state == device.last_published_state)
             continue;
         device.last_published_state = m_scratch_state;
+        for (auto& consumer_entry : m_consumers)
+            announce_devices_after_gamepad_user_gesture(*consumer_entry.value, device);
         publish_device_state(device);
     }
 
+    notify_consumers_of_state_changes();
+}
+
+void GamepadManager::notify_consumers_of_state_changes()
+{
     for (auto& entry : m_consumers) {
         if (exchange(entry.value->has_pending_state_changes, false))
             entry.key->async_gamepad_states_changed();
@@ -506,14 +544,56 @@ void GamepadManager::announce_device(Device& device)
     for (auto& entry : m_consumers) {
         if (entry.value->may_receive_device(device))
             announce_device_to_consumer(device, *entry.value);
+        else
+            announce_devices_after_gamepad_user_gesture(*entry.value, device);
     }
+}
+
+// A process learns of the gamepads once the user interacts with one while a page of the process that uses them has the
+// user's attention, so that it cannot fingerprint gamepads the user never used with it.
+void GamepadManager::announce_devices_after_gamepad_user_gesture(Consumer& consumer, Device const& device)
+{
+    if (consumer.has_seen_gamepad_user_gesture)
+        return;
+    if (!device.may_be_announced_to(consumer.client) || !device.contains_gamepad_user_gesture())
+        return;
+    if (!consumer.has_page_that_may_receive_gamepads())
+        return;
+
+    consumer.has_seen_gamepad_user_gesture = true;
+    fill_vacant_slots(consumer);
+}
+
+bool GamepadManager::Device::contains_gamepad_user_gesture() const
+{
+    return Web::Gamepad::contains_gamepad_user_gesture(description, last_published_state);
+}
+
+bool GamepadManager::Device::may_be_announced_to(WebContentClient const& client) const
+{
+    return !virtual_device_owner || virtual_device_owner == &client;
+}
+
+bool GamepadManager::Consumer::has_page_that_may_receive_gamepads() const
+{
+    return any_of(pages_using_gamepads, [&](Web::PageId page_id) {
+        auto* page = client.page(page_id);
+        if (!page)
+            return false;
+
+        auto may_receive_gamepads = false;
+        page->for_each_navigable_with_a_hosted_active_document([&](CanonicalNavigable const& navigable) {
+            may_receive_gamepads = navigable.active_document_is_fully_active_descendant_of_a_top_level_traversable_with_user_attention()
+                && navigable.active_document().is_allowed_to_use(Web::PermissionsPolicy::PolicyControlledFeature::Gamepad);
+            return may_receive_gamepads ? IterationDecision::Break : IterationDecision::Continue;
+        });
+        return may_receive_gamepads;
+    });
 }
 
 bool GamepadManager::Consumer::may_receive_device(Device const& device) const
 {
-    if (device.virtual_device_owner)
-        return device.virtual_device_owner == &client;
-    return receives_real_devices;
+    return has_seen_gamepad_user_gesture && device.may_be_announced_to(client);
 }
 
 void GamepadManager::fill_vacant_slots(Consumer& consumer)
@@ -537,6 +617,7 @@ void GamepadManager::announce_device_to_consumer(Device const& device, Consumer&
         return;
     }
     Web::Gamepad::publish_gamepad_state_to_slot(consumer.shared_state_slot(*slot_index), device.last_published_state);
+    consumer.has_pending_state_changes = true;
 
     if (device.virtual_device_owner)
         consumer.buffered_virtual_gamepad_events.append(Web::Gamepad::GamepadConnectedEvent { device.description });

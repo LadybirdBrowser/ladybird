@@ -27,6 +27,7 @@
 #include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/CanonicalWindow.h>
 #include <LibWebView/CookieJar.h>
+#include <LibWebView/GamepadManager.h>
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/NavigationLoader.h>
 #include <LibWebView/PermissionManager.h>
@@ -656,6 +657,7 @@ void WebContentPage::close()
         if (auto* bidi = WebDriverBiDi::the())
             bidi->push_session_state_for_client(*m_client);
         m_client->forget_audio_playback(m_id);
+        GamepadManager::the().page_closed(*this);
     }
     if (m_traversable) {
         if (auto view = m_traversable->view(); view.has_value())
@@ -1628,15 +1630,21 @@ static Web::PermissionsPolicy::PolicyControlledFeature policy_controlled_feature
 bool WebContentPage::hosts_a_document_allowed_to_use(Web::PermissionsPolicy::PolicyControlledFeature feature) const
 {
     auto is_allowed = false;
-    traversable().for_each_in_inclusive_subtree([&](CanonicalNavigable const& navigable) {
-        if (!hosts_active_document_of(navigable))
-            return IterationDecision::Continue;
-        auto const& document = navigable.active_document();
-        auto value = Web::PermissionsPolicy::check_permissions_policy(document.permissions_policy(), feature, document.origin(), document.origin());
-        is_allowed = value == Web::PermissionsPolicy::FeatureValue::Enabled;
+    for_each_navigable_with_a_hosted_active_document([&](CanonicalNavigable const& navigable) {
+        is_allowed = navigable.active_document().is_allowed_to_use(feature);
         return is_allowed ? IterationDecision::Break : IterationDecision::Continue;
     });
     return is_allowed;
+}
+
+// Unlike for_each_hosted_document(), this skips the documents populated for navigations, which are not active yet.
+void WebContentPage::for_each_navigable_with_a_hosted_active_document(Function<IterationDecision(CanonicalNavigable const&)> const& callback) const
+{
+    traversable().for_each_in_inclusive_subtree([&](CanonicalNavigable const& navigable) {
+        if (!hosts_active_document_of(navigable))
+            return IterationDecision::Continue;
+        return callback(navigable);
+    });
 }
 
 bool WebContentPage::document_may_use(Web::HTML::CrossProcessId document_id, Web::Permissions::PermissionName name) const
@@ -1668,9 +1676,7 @@ void WebContentPage::did_request_geolocation_position(u64 request_id, Web::HTML:
 bool WebContentPage::hosts_a_document_with_top_level_origin(URL::Origin const& origin) const
 {
     auto hosts = false;
-    traversable().for_each_in_inclusive_subtree([&](CanonicalNavigable const& navigable) {
-        if (!hosts_active_document_of(navigable))
-            return IterationDecision::Continue;
+    for_each_navigable_with_a_hosted_active_document([&](CanonicalNavigable const& navigable) {
         auto top_level_origin = navigable.active_document().top_level_origin();
         hosts = top_level_origin.has_value() && top_level_origin->is_same_origin(origin);
         return hosts ? IterationDecision::Break : IterationDecision::Continue;
@@ -1933,6 +1939,11 @@ void WebContentPage::did_change_screen_wake_lock_state(Web::ScreenWakeLockState 
 {
     if (displays_tab())
         view().did_change_screen_wake_lock_state({}, wake_lock_state);
+}
+
+void WebContentPage::did_start_using_gamepads()
+{
+    GamepadManager::the().page_did_start_using_gamepads(*this);
 }
 
 void WebContentPage::did_update_session_history_entry_navigation_api_state(Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryIdentity entry_identity, Web::HTML::StorageSerializationRecord navigation_api_state)
@@ -3230,6 +3241,11 @@ void WebContentPage::did_reset_state_for_testing(Web::HTML::SessionHistoryEntryD
 {
     if (displays_tab())
         view().did_reset_state_for_testing({}, move(active_entry));
+}
+
+void WebContentPage::reset_gamepad_access_for_testing()
+{
+    GamepadManager::the().reset_access_for_testing(*this);
 }
 
 Messages::WebContentTestClient::DidRequestCaptureSessionHistorySnapshotForTestingResponse WebContentPage::did_request_capture_session_history_snapshot_for_testing()

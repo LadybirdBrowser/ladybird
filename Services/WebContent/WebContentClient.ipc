@@ -284,7 +284,7 @@ endpoint WebContentClient routed by Web::PageId page_id
 
     did_change_screen_wake_lock_state(Web::PageId page_id, Web::ScreenWakeLockState wake_lock_state) =|
 
-    did_start_using_gamepads() =|
+    did_start_using_gamepads(Web::PageId page_id) =|
     gamepad_play_effect(Web::Gamepad::GamepadHandle handle, Web::Gamepad::GamepadEffect effect) =|
     gamepad_stop_effects(Web::Gamepad::GamepadHandle handle) =|
 

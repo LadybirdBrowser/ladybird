@@ -1,0 +1,3 @@
+Gamepads after a press released before the page read it: 0
+Received gamepadconnected event for 'Ladybird Virtual Gamepad' at index 0
+Gamepads after a held press: 1

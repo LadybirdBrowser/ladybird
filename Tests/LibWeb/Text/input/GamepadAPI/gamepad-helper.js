@@ -1,4 +1,9 @@
 (() => {
+    // A page learns of gamepads only once it uses them and the user then interacts with one.
+    globalThis.startUsingGamepads = () => {
+        navigator.getGamepads();
+    };
+
     globalThis.pumpGamepadEvents = () => {
         internals.pumpGamepadEvents();
         return new Promise(resolve => {

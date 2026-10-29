@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="gamepad-helper.js"></script>
+<script>
+    promiseTest(async () => {
+        startUsingGamepads();
+        const gamepad = internals.connectVirtualGamepad();
+        await pumpGamepadEvents();
+
+        gamepad.setButton(gamepad.buttons[0], true);
+        await pumpGamepadEvents();
+        gamepad.setButton(gamepad.buttons[0], false);
+        await pumpGamepadEvents();
+
+        await setSystemVisibilityState("hidden");
+        gamepad.setButton(gamepad.buttons[1], true);
+        await pumpGamepadEvents();
+        println(`Button 1 is pressed after pressing it while hidden: ${navigator.getGamepads()[0].buttons[1].pressed}`);
+        await setSystemVisibilityState("visible");
+
+        gamepad.disconnect();
+        await pumpGamepadEvents();
+    });
+</script>

@@ -50,6 +50,11 @@ CanonicalDocument::CanonicalDocument(Web::HTML::CrossProcessId id, URL::URL crea
 
 CanonicalDocument::~CanonicalDocument() = default;
 
+bool CanonicalDocument::is_allowed_to_use(Web::PermissionsPolicy::PolicyControlledFeature feature) const
+{
+    return Web::PermissionsPolicy::check_permissions_policy(m_permissions_policy, feature, m_origin, m_origin) == Web::PermissionsPolicy::FeatureValue::Enabled;
+}
+
 Optional<URL::Origin> CanonicalDocument::top_level_origin() const
 {
     auto& top_level_browsing_context = m_browsing_context->top_level_browsing_context();

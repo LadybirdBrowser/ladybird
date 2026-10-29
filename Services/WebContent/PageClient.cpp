@@ -2072,7 +2072,10 @@ void PageClient::page_did_change_screen_wake_lock_state(Web::ScreenWakeLockState
 
 void PageClient::page_did_start_using_gamepads()
 {
-    client().notify_started_using_gamepads();
+    if (m_did_start_using_gamepads)
+        return;
+    m_did_start_using_gamepads = true;
+    client().async_did_start_using_gamepads(m_id);
 }
 
 void PageClient::page_did_play_gamepad_effect(Web::Gamepad::GamepadHandle handle, Web::Gamepad::GamepadEffect const& effect)
@@ -2132,6 +2135,13 @@ Web::Gamepad::ReceivedRumbleEffects PageClient::virtual_gamepad_received_rumble_
 void PageClient::pump_gamepad_events()
 {
     client().pump_and_dispatch_gamepad_events();
+}
+
+void PageClient::reset_gamepad_access_for_testing()
+{
+    m_did_start_using_gamepads = false;
+    if (auto* test_connection = client().test_connection(); test_connection && test_connection->is_open())
+        test_connection->async_reset_gamepad_access_for_testing(m_id);
 }
 
 Web::HTML::WorkerAgentId PageClient::start_worker_agent(Web::HTML::WorkerAgentStartRequest&& request)

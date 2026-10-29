@@ -8,6 +8,7 @@
 
 #include <AK/Array.h>
 #include <AK/HashMap.h>
+#include <AK/HashTable.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Optional.h>
 #include <AK/Vector.h>
@@ -15,6 +16,7 @@
 #include <LibCore/Forward.h>
 #include <LibWebCommon/Gamepad/GamepadSharedState.h>
 #include <LibWebCommon/Gamepad/GamepadSnapshot.h>
+#include <LibWebCommon/Page/PageId.h>
 #include <LibWebView/Forward.h>
 
 struct SDL_Gamepad;
@@ -30,7 +32,8 @@ class WEBVIEW_API GamepadManager {
 public:
     static GamepadManager& the();
 
-    void client_did_start_using_gamepads(WebContentClient&);
+    void page_did_start_using_gamepads(WebContentPage&);
+    void page_closed(WebContentPage&);
     void client_disconnected(WebContentClient&);
 
     void play_effect(WebContentClient&, Web::Gamepad::GamepadHandle, Web::Gamepad::GamepadEffect const&);
@@ -41,11 +44,15 @@ public:
     void set_virtual_gamepad_axis(WebContentClient&, Web::Gamepad::GamepadHandle, i32 axis, i16 value);
     void disconnect_virtual_gamepad(WebContentClient&, Web::Gamepad::GamepadHandle);
     Vector<Web::Gamepad::GamepadChangeEvent> pump_gamepad_events(WebContentClient&);
+    void reset_access_for_testing(WebContentPage&);
     Vector<Web::Gamepad::ReceivedDualRumbleEffect> virtual_gamepad_received_rumble_effects(WebContentClient&, Web::Gamepad::GamepadHandle);
     Vector<Web::Gamepad::ReceivedTriggerRumbleEffect> virtual_gamepad_received_trigger_rumble_effects(WebContentClient&, Web::Gamepad::GamepadHandle);
 
     struct Device {
         AK_ALLOC_WITH_KMALLOC;
+
+        bool contains_gamepad_user_gesture() const;
+        bool may_be_announced_to(WebContentClient const&) const;
 
         u32 sdl_joystick_id { 0 };
         SDL_Gamepad* sdl_gamepad { nullptr };
@@ -73,11 +80,13 @@ public:
         Optional<size_t> slot_index_for_device(Web::Gamepad::GamepadHandle) const;
         Web::Gamepad::SharedGamepadStateSlot& shared_state_slot(size_t slot_index);
         bool may_receive_device(Device const&) const;
+        bool has_page_that_may_receive_gamepads() const;
 
         WebContentClient& client;
         Core::AnonymousBuffer state_buffer;
         Array<Web::Gamepad::GamepadHandle, Web::Gamepad::MAX_SHARED_GAMEPADS> slot_handles {};
-        bool receives_real_devices { false };
+        HashTable<Web::PageId> pages_using_gamepads;
+        bool has_seen_gamepad_user_gesture { false };
         bool has_pending_state_changes { false };
         Vector<Web::Gamepad::GamepadChangeEvent> buffered_virtual_gamepad_events;
     };
@@ -89,6 +98,7 @@ private:
     void handle_sdl_event(SDL_Event const&);
     void publish_changed_input_states();
     void publish_device_state(Device const&);
+    void notify_consumers_of_state_changes();
 
     Consumer* ensure_consumer(WebContentClient&);
 
@@ -106,6 +116,7 @@ private:
     void announce_device(Device&);
     void announce_device_to_consumer(Device const&, Consumer&);
     void fill_vacant_slots(Consumer&);
+    void announce_devices_after_gamepad_user_gesture(Consumer&, Device const&);
     void remove_device(Web::Gamepad::GamepadHandle);
 
     bool m_sdl_initialized { false };

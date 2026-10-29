@@ -119,6 +119,7 @@ public:
 
     // Whether a document this page hosts may use the feature. The process hosting the page can act for any of them.
     bool hosts_a_document_allowed_to_use(Web::PermissionsPolicy::PolicyControlledFeature) const;
+    void for_each_navigable_with_a_hosted_active_document(Function<IterationDecision(CanonicalNavigable const&)> const&) const;
     RefPtr<CanonicalDocument> hosted_document_with_id(Web::HTML::CrossProcessId) const;
     bool hosts_a_document_with_top_level_origin(URL::Origin const&) const;
     bool document_may_use(Web::HTML::CrossProcessId, Web::Permissions::PermissionName) const;
@@ -286,6 +287,7 @@ private:
     virtual void did_change_background_color(Gfx::Color color) override;
     virtual void did_insert_clipboard_item(Web::Clipboard::SystemClipboardItem item, String) override;
     virtual void did_change_screen_wake_lock_state(Web::ScreenWakeLockState wake_lock_state) override;
+    virtual void did_start_using_gamepads() override;
     virtual void did_update_session_history_entry_navigation_api_state(Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryIdentity entry_identity, Web::HTML::StorageSerializationRecord navigation_api_state) override;
     virtual void did_update_session_history_entry_document_state_navigable_target_name(Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryIdentity entry_identity, Utf16String navigable_target_name) override;
     virtual void did_set_session_history_entry_document_state_reload_pending(Web::HTML::CrossProcessId navigable_id, Utf16String navigation_api_key, bool reload_pending) override;
@@ -391,6 +393,7 @@ private:
     virtual void did_request_reload_for_testing(bool bypass_cache) override;
     virtual void did_request_traverse_history_by_delta_for_testing(i32 delta) override;
     virtual void did_reset_state_for_testing(Web::HTML::SessionHistoryEntryDescriptor) override;
+    virtual void reset_gamepad_access_for_testing() override;
     Messages::WebContentTestClient::DidRequestHasPopulatedDocumentForTestingResponse did_request_has_populated_document_for_testing(Web::HTML::CrossProcessId navigable_id) const;
     Messages::WebContentTestClient::DidRequestCaptureSessionHistorySnapshotForTestingResponse did_request_capture_session_history_snapshot_for_testing();
     Messages::WebContentTestClient::DidRequestRestoreSessionHistorySnapshotForTestingResponse did_request_restore_session_history_snapshot_for_testing();
