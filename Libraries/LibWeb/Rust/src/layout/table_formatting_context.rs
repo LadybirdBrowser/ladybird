@@ -2533,6 +2533,17 @@ impl<'pass> TableFormattingContext<'pass> {
             capmin,
         } = measures;
         let table_style = self.style(self.run.box_);
+        // INTEROP: A table laid out in fixed mode with a percentage width fills whatever inline size its container
+        //          offers, so it has an infinite max-content inline size, capped at a large value.
+        const TABLE_MAX_INLINE_SIZE: i64 = 1_000_000;
+        let max_content_inline_size = if self.use_fixed_mode_layout()
+            && table_style.width().is_length_percentage()
+            && table_style.width().contains_percentage()
+        {
+            CssPixels::from_integer(TABLE_MAX_INLINE_SIZE)
+        } else {
+            grid_max
+        };
         // Percentages on 'width' and 'height' on the table are relative to the table wrapper box's containing block,
         // not the table wrapper box itself.
         let basis = self.table_constraints.inline_basis();
@@ -2552,13 +2563,13 @@ impl<'pass> TableFormattingContext<'pass> {
             //       wrapper consistent without reading the wrapper's state from here.
             let mut value = match available_inline {
                 AvailableSize::MinContent => grid_min,
-                AvailableSize::MaxContent => grid_max,
+                AvailableSize::MaxContent => max_content_inline_size,
                 AvailableSize::Definite(available)
                     if self.auto_table_inline_size == AutoTableInlineSize::FillsAvailableInlineSize =>
                 {
                     available.max(used_min)
                 }
-                AvailableSize::Definite(available) => grid_max.min(available).max(used_min),
+                AvailableSize::Definite(available) => max_content_inline_size.min(available).max(used_min),
                 AvailableSize::Indefinite => grid_max.max(used_min),
             };
             if !matches!(available_inline, AvailableSize::MinContent | AvailableSize::MaxContent) {

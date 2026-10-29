@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 3 tests
 
-2 Pass
-1 Fail
+3 Pass
 Pass	#wrapping-broke .flex 1
 Pass	#bug1454306 2
-Fail	#gmail-tables .flex 3
+Pass	#gmail-tables .flex 3
