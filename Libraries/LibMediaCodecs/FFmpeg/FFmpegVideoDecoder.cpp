@@ -12,6 +12,7 @@
 #include "FFmpegVideoDecoder.h"
 #include <LibMediaCodecs/FFmpeg/FFmpegFunctions.h>
 #include <LibMediaCodecs/FFmpeg/FFmpegHelpers.h>
+#include <LibMediaCodecs/Limits.h>
 
 namespace Media::FFmpeg {
 
@@ -47,6 +48,7 @@ DecoderErrorOr<NonnullOwnPtr<FFmpegVideoDecoder>> FFmpegVideoDecoder::try_create
 
     TRY(set_codec_initialization_data(functions, *codec_context, codec_id, codec_initialization_data));
     VERIFY(functions.av_opt_set_int(codec_context, "threads", min(Core::System::hardware_concurrency(), 4u), 0) == 0);
+    codec_context->max_pixels = MAX_VIDEO_FRAME_AREA;
 
     if (functions.avcodec_open2(codec_context, codec, nullptr) < 0)
         return DecoderError::format(DecoderErrorCategory::Unknown, "Unknown error occurred when opening FFmpeg codec {}", codec_id);
