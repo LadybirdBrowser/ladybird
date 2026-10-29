@@ -288,12 +288,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         if !style.is_absolutely_positioned() {
             return style;
         }
-        let anchor_resolved_values = self
-            .records
-            .used_values_if_owned(node)
-            .and_then(|used| used.anchor_resolved_values.get())
-            .map(|resolved| &**resolved);
-        style.with_anchor_resolved_values(anchor_resolved_values)
+        style.with_anchor_resolved_values(self.records.anchor_resolved_values_of(node))
     }
 
     fn first_child(&self, node: Node) -> Node {
@@ -4377,6 +4372,7 @@ mod replaced_ratio_tests {
             Node::INVALID,
             used_values::RootInputCells::capture(&UsedValues::default()),
             callbacks.frame,
+            None,
             |records, callbacks| {
                 let context = SizingContext::new(records, callbacks);
                 let mut metrics = used_values::RootInputCells::capture(&UsedValues::default());

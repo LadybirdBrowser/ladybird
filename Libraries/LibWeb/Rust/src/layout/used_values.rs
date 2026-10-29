@@ -205,11 +205,6 @@ pub(crate) struct UsedValues {
     pub(crate) line_data: RefCell<LineDataState>,
     /// The frame the box's sizes, size constraints and box sides are held in.
     pub(crate) frame: Cell<geometry::Frame>,
-    /// The anchor-size() resolutions of an absolutely positioned box, set once as the abspos engine places it.
-    pub(crate) anchor_resolved_values: std::cell::OnceCell<Box<style_values::AnchorResolvedValues>>,
-    /// The used values of the inset properties of an absolutely positioned box, which the abspos engine resolves as it
-    /// sizes the box.
-    pub(crate) used_insets: Cell<super::run_records::UsedInsets>,
 }
 
 impl Default for UsedValues {
@@ -242,8 +237,6 @@ impl Default for UsedValues {
             inline_alignment_baseline: Cell::new(None),
             line_data: RefCell::new(LineDataState::Empty),
             frame: Cell::new(geometry::Frame::PHYSICAL),
-            anchor_resolved_values: std::cell::OnceCell::new(),
-            used_insets: Cell::new(super::run_records::UsedInsets::default()),
         }
     }
 }
