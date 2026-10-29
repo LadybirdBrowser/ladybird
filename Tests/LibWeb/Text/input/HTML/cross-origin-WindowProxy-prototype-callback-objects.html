@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const frame = document.createElement("iframe");
+        frame.sandbox = "allow-scripts";
+        frame.srcdoc = `<!DOCTYPE html><script>
+            window.handleEvent = () => parent.postMessage("handleEvent was called", "*");
+            window.acceptNode = () => {
+                parent.postMessage("acceptNode was called", "*");
+                return NodeFilter.FILTER_ACCEPT;
+            };
+            window.onmessage = () => parent.postMessage("done", "*");
+        <\/script>`;
+        await new Promise(resolve => {
+            frame.onload = resolve;
+            document.body.appendChild(frame);
+        });
+        const crossOriginWindow = frame.contentWindow;
+
+        const messages = [];
+        const framePostedEverything = new Promise(resolve => {
+            window.addEventListener("message", event => {
+                if (event.data === "done")
+                    resolve();
+                else
+                    messages.push(event.data);
+            });
+        });
+
+        removeTestErrorHandler();
+        let reportedError;
+        window.addEventListener("error", event => {
+            reportedError = event.error;
+            event.preventDefault();
+        });
+        const target = document.createElement("div");
+        target.addEventListener("test", Object.create(crossOriginWindow));
+        target.dispatchEvent(new Event("test"));
+        println(`EventListener: reported ${reportedError?.name ?? "nothing"}, current realm: ${reportedError instanceof DOMException}`);
+
+        try {
+            document.createTreeWalker(document.body, NodeFilter.SHOW_ALL, Object.create(crossOriginWindow)).nextNode();
+            println("NodeFilter: no exception");
+        } catch (e) {
+            println(`NodeFilter: ${e.name}, current realm: ${e instanceof DOMException}`);
+        }
+
+        crossOriginWindow.postMessage("ping", "*");
+        await framePostedEverything;
+        println(`Cross-origin functions called: ${messages.length ? messages.join(", ") : "none"}`);
+    });
+</script>

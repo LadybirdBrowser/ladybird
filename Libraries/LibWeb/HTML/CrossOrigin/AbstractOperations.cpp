@@ -62,14 +62,6 @@ static Optional<Variant<GC::Ref<Location const>, GC::Ref<Window const>, GC::Ref<
     return {};
 }
 
-bool is_cross_origin_platform_object(JS::Object const& object)
-{
-    auto platform_object = cross_origin_exposed_platform_object(object);
-    if (!platform_object.has_value())
-        return false;
-    return !platform_object->visit([](auto object) { return is_platform_object_same_origin(*object); });
-}
-
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#integration-with-idl
 JS::ThrowCompletionOr<void> perform_a_security_check(JS::VM& vm, JS::Value js_value, Utf16View const& identifier, SecurityCheckType type)
 {

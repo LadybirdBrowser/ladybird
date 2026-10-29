@@ -27,6 +27,8 @@ public:
     CallbackType(JS::Object& callback, HTML::EnvironmentSettingsObject& callback_context, OperationReturnsPromise = OperationReturnsPromise::No);
     CallbackType(JS::Object& callback, JS::Realm& callback_context, OperationReturnsPromise = OperationReturnsPromise::No);
 
+    JS::Realm& associated_realm() const;
+
     GC::Ref<JS::Object> callback;
 
     // https://webidl.spec.whatwg.org/#dfn-callback-context
