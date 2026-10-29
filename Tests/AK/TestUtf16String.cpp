@@ -1353,14 +1353,16 @@ TEST_CASE(latin1_storage)
     static constexpr u8 bytes[] = { 'c', 'r', 0xE8, 'm', 'e', ' ', 'b', 'r', 0xFB, 'l', 0xE9, 'e' };
     auto string = Utf16String::from_utf16(Utf16View::from_latin1(bytes, false));
     auto utf16_string = Utf16String::from_utf8("crème brûlée"sv);
+    auto utf16_view = u"crème brûlée"sv;
 
     EXPECT(string.has_long_storage());
     EXPECT(!string.has_ascii_storage());
     EXPECT(string.utf16_view().has_latin1_storage());
-    EXPECT(utf16_string.has_long_utf16_storage());
+    EXPECT(!utf16_view.has_latin1_storage());
 
     EXPECT_EQ(string, utf16_string);
-    EXPECT_EQ(string.hash(), utf16_string.hash());
+    EXPECT_EQ(string, utf16_view);
+    EXPECT_EQ(string.hash(), utf16_view.hash());
     EXPECT_EQ(string.to_utf8(), "crème brûlée"sv);
     Utf16FlyString fly_string { utf16_string };
     EXPECT_EQ(Utf16FlyString::from_utf16(string.utf16_view()), fly_string);
@@ -1373,4 +1375,33 @@ TEST_CASE(latin1_storage)
     static constexpr u8 ascii_bytes[] = { 'c', 'r', 'e', 'm', 'e', ' ', 'b', 'r', 'u', 'l', 'e', 'e' };
     auto ascii_string = Utf16String::from_utf16(Utf16View::from_latin1(ascii_bytes, false));
     EXPECT(ascii_string.has_long_ascii_storage());
+}
+
+TEST_CASE(latin1_storage_for_text_up_to_u00ff)
+{
+    auto expect_latin1 = [](Utf16String const& string) {
+        EXPECT(string.has_long_storage());
+        EXPECT(string.utf16_view().has_latin1_storage());
+        EXPECT(!string.has_ascii_storage());
+    };
+
+    expect_latin1(Utf16String::from_utf8("café"sv));
+    expect_latin1(Utf16String::from_utf16(u"café"sv));
+    expect_latin1(Utf16String::from_utf8("ÿ"sv));
+    // Only ASCII is stored in a short string.
+    expect_latin1(Utf16String::from_utf8("é"sv));
+
+    auto string = Utf16String::from_utf8("Grüße aus Köln"sv);
+    expect_latin1(string);
+    EXPECT_EQ(string.length_in_code_units(), 14uz);
+    EXPECT_EQ(string.utf16_view().code_unit_at(2), 0xFC);
+    EXPECT_EQ(string.to_utf8(), "Grüße aus Köln"sv);
+
+    EXPECT(Utf16String::from_utf8("café €"sv).has_long_utf16_storage());
+    EXPECT(Utf16String::from_utf16(u"Ā"sv).has_long_utf16_storage());
+    EXPECT(Utf16String::from_utf16(u"cafe"sv).has_short_ascii_storage());
+
+    // A substring that is ASCII is ASCII storage.
+    EXPECT(Utf16String::from_utf16(string.substring_view(6, 3)).has_short_ascii_storage());
+    EXPECT(Utf16String::from_utf16(Utf16String::from_utf8("éabcdefghij"sv).substring_view(1)).has_long_ascii_storage());
 }

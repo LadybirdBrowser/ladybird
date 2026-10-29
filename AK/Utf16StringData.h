@@ -59,11 +59,6 @@ public:
         UTF16,
     };
 
-    enum class AllowASCIIStorage : u8 {
-        No,
-        Yes,
-    };
-
     enum Flag : u32 {
         HasUtf16Storage = 1 << 0,
         HasHash = 1 << 1,
@@ -77,7 +72,7 @@ public:
     static_assert(IsFlyString == 4);
     static_assert(ContainsNonAscii == 8);
 
-    static NonnullRefPtr<Utf16StringData> from_utf8(StringView, AllowASCIIStorage);
+    static NonnullRefPtr<Utf16StringData> from_utf8(StringView);
     static NonnullRefPtr<Utf16StringData> from_ascii(ReadonlyBytes);
     static NonnullRefPtr<Utf16StringData> from_utf16(Utf16View const&);
     static NonnullRefPtr<Utf16StringData> from_string_builder(Utf16StringBuilder&);
