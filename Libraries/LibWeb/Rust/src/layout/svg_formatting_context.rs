@@ -1909,7 +1909,7 @@ impl<'pass> SvgFormattingContext<'pass> {
     fn set_definite_content_size(used: &UsedValues, width: CssPixels, height: CssPixels) {
         used.set_content_inline_size(width);
         used.set_content_block_size(height);
-        used.has_definite_block_size.set(true);
+        used.update_cells(|cells| cells.has_definite_block_size = true);
     }
 
     fn set_content_rect(&self, node: Node, used: &UsedValues, rect: SvgCssPixelRect) -> LaidOutSvgElement {
@@ -1957,8 +1957,10 @@ impl<'pass> SvgFormattingContext<'pass> {
 
         // NOTE: We consider all SVG root elements to have definite size in both axes.
         //       I'm not sure if this is good or bad, but our viewport transform logic depends on it.
-        used.has_definite_inline_size.set(true);
-        used.has_definite_block_size.set(true);
+        used.update_cells(|cells| {
+            cells.has_definite_inline_size = true;
+            cells.has_definite_block_size = true;
+        });
 
         // An embedded SVG viewport's outer size does not depend on its descendants. Measuring it
         // only needs the root sizing above; shapes, text, and foreignObject content wait for layout.
@@ -1970,8 +1972,8 @@ impl<'pass> SvgFormattingContext<'pass> {
             self.set_svg_viewport_size(
                 self.run.box_,
                 FfiCssPixelSize {
-                    width: used.content_inline_size.get(),
-                    height: used.content_block_size.get(),
+                    width: used.content_inline_size(),
+                    height: used.content_block_size(),
                 },
             );
         }
@@ -2009,16 +2011,16 @@ impl<'pass> SvgFormattingContext<'pass> {
                     attributes.preserve_aspect_ratio_align,
                     attributes.preserve_aspect_ratio_meet_or_slice,
                     view_box,
-                    (used.content_inline_size.get(), used.content_block_size.get()),
+                    (used.content_inline_size(), used.content_block_size()),
                 )
             });
             self.set_svg_viewport_transform(self.run.box_, viewport_transform);
         }
 
-        self.viewport_width = active_view_box.map_or(used.content_inline_size.get(), |view_box| {
+        self.viewport_width = active_view_box.map_or(used.content_inline_size(), |view_box| {
             CssPixels::nearest_value_for(view_box.width)
         });
-        self.viewport_height = active_view_box.map_or(used.content_block_size.get(), |view_box| {
+        self.viewport_height = active_view_box.map_or(used.content_block_size(), |view_box| {
             CssPixels::nearest_value_for(view_box.height)
         });
         self.viewport_is_committed_viewport = kind == NodeKind::SVGSVGBox
@@ -2032,8 +2034,8 @@ impl<'pass> SvgFormattingContext<'pass> {
                         committed.view_box == attributes.has_active_view_box.then_some(attributes.active_view_box)
                             && committed.viewport_size
                                 == Some(FfiCssPixelSize {
-                                    width: used.content_inline_size.get(),
-                                    height: used.content_block_size.get(),
+                                    width: used.content_inline_size(),
+                                    height: used.content_block_size(),
                                 })
                     })
                 },
@@ -2241,7 +2243,7 @@ impl<'pass> SvgFormattingContext<'pass> {
             return None;
         }
         used.set_box_metrics_from_fragment(&fragment);
-        used.has_definite_block_size.set(true);
+        used.update_cells(|cells| cells.has_definite_block_size = true);
         self.place_laid_out_child(
             shape,
             formatting_context::PlacedChild::of_record(used, None, &self.run),

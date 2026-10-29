@@ -2227,7 +2227,7 @@ impl AbsposEngine<'_> {
         let used = sized.record;
         used.set_content_inline_size(auto_px_value(used_inline_size));
         Self::set_used_inline_insets(sized, left, right);
-        used.update(|cells| {
+        used.update_cells(|cells| {
             cells.margin_left = auto_px_value(margin_left);
             cells.margin_right = auto_px_value(margin_right);
         });
@@ -2279,7 +2279,7 @@ impl AbsposEngine<'_> {
 
         let used = sized.record;
         Self::set_used_inline_insets(sized, solution.start, solution.end);
-        used.update(|cells| {
+        used.update_cells(|cells| {
             cells.margin_left = solution.margin_start;
             cells.margin_right = solution.margin_end;
         });
@@ -2718,17 +2718,17 @@ impl AbsposEngine<'_> {
             // NB: A box that establishes an orthogonal flow is sized in this axis before its contents are laid out,
             //     which they are at that size.
             if solution.block_size.is_some() && self.sizing().establishes_orthogonal_flow(node) {
-                used.update(|cells| cells.has_definite_block_size = true);
+                used.update_cells(|cells| cells.has_definite_block_size = true);
             }
             return;
         }
         if !style.height().is_intrinsic_sizing_constraint() {
-            used.update(|cells| cells.has_definite_block_size = true);
+            used.update_cells(|cells| cells.has_definite_block_size = true);
         }
         Self::set_used_block_insets(sized, auto_px_value(solution.top), auto_px_value(solution.bottom));
         // NOTE: solve_non_replaced_block_once() already resolved these against the bases the C++ layout code used:
         //       the insets against the containing block's block size, but the margins against its inline size.
-        used.update(|cells| {
+        used.update_cells(|cells| {
             cells.margin_top = auto_px_value(solution.margin_top);
             cells.margin_bottom = auto_px_value(solution.margin_bottom);
         });
@@ -2812,15 +2812,15 @@ impl AbsposEngine<'_> {
                 .sizing()
                 .should_treat_block_size_as_auto(sized.sized_box(), available_space, constraints)
             {
-                used.update(|cells| cells.has_definite_block_size = true);
+                used.update_cells(|cells| cells.has_definite_block_size = true);
             }
             return;
         }
         if !style.height().is_intrinsic_sizing_constraint() {
-            used.update(|cells| cells.has_definite_block_size = true);
+            used.update_cells(|cells| cells.has_definite_block_size = true);
         }
         Self::set_used_block_insets(sized, solution.start, solution.end);
-        used.update(|cells| {
+        used.update_cells(|cells| {
             cells.margin_top = solution.margin_start;
             cells.margin_bottom = solution.margin_end;
         });
@@ -2886,7 +2886,7 @@ impl<'pass> AbsposEngine<'pass> {
             "an out-of-flow root with anchor() insets must arrive with their resolutions"
         );
         let style = self.style_of(sized).with_resolved_insets(resolved);
-        sized.record.update(|cells| {
+        sized.record.update_cells(|cells| {
             cells.border_left = style.border_left_width();
             cells.border_right = style.border_right_width();
             cells.border_top = style.border_top_width();
@@ -2918,13 +2918,13 @@ impl<'pass> AbsposEngine<'pass> {
         {
             let used = sized.record;
             if !style.inset_left().is_auto() && !style.inset_right().is_auto() {
-                used.update(|cells| cells.has_definite_inline_size = true);
+                used.update_cells(|cells| cells.has_definite_inline_size = true);
             }
             if !style.inset_top().is_auto()
                 && !style.inset_bottom().is_auto()
                 && (style.height().is_auto() || !style.height().is_intrinsic_sizing_constraint())
             {
-                used.update(|cells| cells.has_definite_block_size = true);
+                used.update_cells(|cells| cells.has_definite_block_size = true);
             }
         }
         if !self.facts(node).creates_block_formatting_context() {
@@ -2932,11 +2932,11 @@ impl<'pass> AbsposEngine<'pass> {
                 && self.facts(node).has_preferred_aspect_ratio()
                 && sized.record.has_definite_inline_size();
             let used = sized.record;
-            used.update(|cells| cells.has_definite_inline_size = true);
+            used.update_cells(|cells| cells.has_definite_inline_size = true);
             if (!style.height().is_auto() && !style.height().is_intrinsic_sizing_constraint())
                 || block_size_resolved_from_aspect_ratio
             {
-                used.update(|cells| cells.has_definite_block_size = true);
+                used.update_cells(|cells| cells.has_definite_block_size = true);
             }
         }
 

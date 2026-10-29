@@ -3025,7 +3025,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         main_size: Option<CssPixels>,
         cross_size: Option<CssPixels>,
     ) {
-        let reference = self.container_used().content_inline_size.get();
+        let reference = self.container_used().content_inline_size();
         let style = self.style(self.flex_items[index].box_);
         cells.margin_left = style.margin_left().to_px(reference);
         cells.margin_right = style.margin_right().to_px(reference);
@@ -3219,8 +3219,8 @@ impl<'pass> FlexFormattingContext<'pass> {
             node,
             container_used,
             geometry::LogicalSize {
-                inline_size: container_used.content_inline_size.get(),
-                block_size: container_used.content_block_size.get(),
+                inline_size: container_used.content_inline_size(),
+                block_size: container_used.content_block_size(),
             },
             run.percentage_block_insets_of_root_children_have_definite_basis(run.records.used_values(run.box_)),
         );
@@ -4248,7 +4248,7 @@ impl<'pass> FlexFormattingContext<'pass> {
     }
 
     pub(super) fn automatic_content_block_size(&self) -> CssPixels {
-        self.container_used().content_block_size.get()
+        self.container_used().content_block_size()
     }
 }
 

@@ -353,6 +353,13 @@ impl RootInputCells {
 }
 
 impl UsedValues {
+    /// Writes the record's metrics, which `write` sees and changes as the record holds them.
+    pub(crate) fn update_cells(&self, write: impl FnOnce(&mut RootInputCells)) {
+        let mut cells = RootInputCells::capture(self);
+        write(&mut cells);
+        cells.apply_to_record(self);
+    }
+
     pub(crate) fn set_content_inline_size(&self, value: CssPixels) {
         // Negative inline sizes are not allowed in CSS. We have a bug somewhere! Clamp to 0 to avoid doing too much damage.
         self.content_inline_size
@@ -565,7 +572,7 @@ impl<'record> RecordInFrame<'record> {
     }
 
     /// Writes the record's metrics, which `write` sees and changes as the reader's frame has them.
-    pub(crate) fn update(self, write: impl FnOnce(&mut RootInputCells)) {
+    pub(crate) fn update_cells(self, write: impl FnOnce(&mut RootInputCells)) {
         let mut cells = self.cells();
         write(&mut cells);
         cells
@@ -574,20 +581,20 @@ impl<'record> RecordInFrame<'record> {
     }
 
     pub(crate) fn set_content_inline_size(self, value: CssPixels) {
-        self.update(|cells| cells.set_content_inline_size(value));
+        self.update_cells(|cells| cells.set_content_inline_size(value));
     }
 
     pub(crate) fn set_content_block_size(self, value: CssPixels) {
-        self.update(|cells| cells.set_content_block_size(value));
+        self.update_cells(|cells| cells.set_content_block_size(value));
     }
 
     /// Resolves every margin, border and padding of `style`, with percentages against `basis`.
     pub(crate) fn resolve_box_model(self, style: &StyleValues<'_>, basis: CssPixels) {
-        self.update(|cells| cells.resolve_box_model(style, basis));
+        self.update_cells(|cells| cells.resolve_box_model(style, basis));
     }
 
     pub(crate) fn set_box_metrics_from_fragment(self, fragment: &fragment_tree::Fragment) {
-        self.update(|cells| cells.take_box_metrics_of_fragment(fragment));
+        self.update_cells(|cells| cells.take_box_metrics_of_fragment(fragment));
     }
 }
 
