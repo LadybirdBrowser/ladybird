@@ -51,6 +51,8 @@ struct ComputedLayer<'a> {
     image: Option<LayerImageSource<'a>>,
     attachment: u8,
     clip: u8,
+    // False for a mask layer with mask-clip: no-clip, which isn't clipped to its box's curve.
+    clip_follows_corners: bool,
     origin: u8,
     position_x: LengthPercentageRef<'a>,
     position_y: LengthPercentageRef<'a>,
@@ -65,6 +67,7 @@ pub(crate) struct ResolvedBackgroundLayer<'a> {
     pub image: Option<LayerImageSource<'a>>,
     pub attachment: u8,
     pub clip: u8,
+    pub clip_follows_corners: bool,
     pub position_x: CssPixels,
     pub position_y: CssPixels,
     pub background_positioning_area: CssPixelRect,
@@ -386,6 +389,7 @@ fn computed_background_layers(style: ComputedValuesView<'_>, facts_owner: NodeSl
                 .expect("computed background-blend-mode holds a blend keyword"),
             clip: css_enums::keyword_to_background_box(keyword_of(cycled(&clip_items, index)))
                 .expect("computed background-clip holds a box keyword"),
+            clip_follows_corners: true,
             origin: css_enums::keyword_to_background_box(keyword_of(cycled(&origin_items, index)))
                 .expect("computed background-origin holds a box keyword"),
             position_x: edge_offset(cycled(&position_x_items, index)),
@@ -447,8 +451,8 @@ fn computed_mask_layers(style: ComputedValuesView<'_>, facts_owner: NodeSlotId) 
         let StyleValueData::Position { edge_x, edge_y } = cycled(&position_items, index) else {
             unreachable!("computed mask-position holds a position value");
         };
-        let clip = css_enums::keyword_to_background_box(keyword_of(cycled(&clip_items, index)))
-            .unwrap_or(css_enums::background_box::BORDER_BOX);
+        let clip_keyword = keyword_of(cycled(&clip_items, index));
+        let clip = css_enums::keyword_to_background_box(clip_keyword).unwrap_or(css_enums::background_box::BORDER_BOX);
         let origin = css_enums::keyword_to_background_box(keyword_of(cycled(&origin_items, index)))
             .unwrap_or(css_enums::background_box::BORDER_BOX);
         layers.push(ComputedLayer {
@@ -456,6 +460,9 @@ fn computed_mask_layers(style: ComputedValuesView<'_>, facts_owner: NodeSlotId) 
             attachment: css_enums::background_attachment::SCROLL,
             blend_mode: mix_blend_mode::NORMAL,
             clip,
+            // FIXME: A mask layer with mask-clip: no-clip shouldn't be clipped at all, but it's still clipped to the
+            //        border box's rectangle.
+            clip_follows_corners: clip_keyword != css_enums::keyword::NO_CLIP,
             origin,
             position_x: edge_offset(edge_x.data()),
             position_y: edge_offset(edge_y.data()),
@@ -525,6 +532,7 @@ fn resolve_layers<'a, O: Observer>(
                 image: None,
                 attachment: 0,
                 clip: layer.clip,
+                clip_follows_corners: layer.clip_follows_corners,
                 position_x: CssPixels::from_raw(0),
                 position_y: CssPixels::from_raw(0),
                 background_positioning_area: CssPixelRect::default(),
@@ -702,6 +710,7 @@ fn resolve_layers<'a, O: Observer>(
             image: Some(image),
             attachment: layer.attachment,
             clip: layer.clip,
+            clip_follows_corners: layer.clip_follows_corners,
             position_x,
             position_y,
             background_positioning_area,

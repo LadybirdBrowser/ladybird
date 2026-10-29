@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/css-mask-clip-follows-border-radius-ref.html" />
+<meta name="fuzzy" content="maxDifference=0-80;totalPixels=0-1600" />
+<style>
+    * { margin: 0; }
+    div { position: absolute; top: 20px; width: 100px; height: 100px; padding: 10px; border-radius: 50%; background: green; }
+    .content { left: 20px; mask: linear-gradient(#fff 0 0) content-box; }
+    .exclude { left: 160px; mask: linear-gradient(#fff 0 0) content-box exclude, linear-gradient(#fff 0 0); }
+    .subtract { left: 300px; mask: linear-gradient(#fff 0 0) content-box subtract, linear-gradient(#fff 0 0); }
+    .no-clip { left: 440px; background: none; mask: linear-gradient(#fff 0 0) no-clip; }
+    .no-clip > div { position: static; padding: 0; border-radius: 0; width: 120px; height: 120px; margin: -10px; }
+</style>
+<div class="content"></div>
+<div class="exclude"></div>
+<div class="subtract"></div>
+<div class="no-clip"><div></div></div>

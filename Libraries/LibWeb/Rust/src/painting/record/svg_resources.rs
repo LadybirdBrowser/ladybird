@@ -17,7 +17,7 @@ use crate::painting::record::{PaintPhase, PaintRecorder};
 use crate::painting::visual_context::build::{
     BoxFacts, compute_svg_viewport_transform_data, svg_viewport_transform_of,
 };
-use crate::painting::visual_context::node_values::{MaskLayerPresenceEntry, mask_layer_presence};
+use crate::painting::visual_context::node_values::{MaskLayerPresenceEntry, border_radii_data, mask_layer_presence};
 use crate::painting::visual_context::{ClipData, EffectNodeData, EffectNodeIndex, MaskData, MaskLayerOrigin};
 use libgfx_rust::path::Path;
 use libgfx_rust::{AffineTransform, CompositingAndBlendingOperator, FloatPoint, FloatRect, MaskKind, multiply_affine};
@@ -246,7 +246,10 @@ impl<O: Observer> PaintRecorder<'_, O> {
         // FIXME: Respect `image-rendering` here.
         let inputs = crate::painting::record::paint::background_resolution::BackgroundPaintInputs {
             resolved,
-            border_radii: crate::painting::border_radii::BorderRadii::default(),
+            // https://drafts.csswg.org/css-backgrounds-3/#corner-clipping
+            // Although border images are not affected by border-radius, other effects that clip painting or event
+            // handling to the border, padding, or content edge must clip to their respective curves.
+            border_radii: border_radii_data(style, layout_arena, paintable),
             image_rendering: crate::css::css_enums::image_rendering::AUTO,
             is_root_element,
             visible_device_rect: None,
