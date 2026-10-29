@@ -43,7 +43,7 @@ private:
 };
 
 // A pool of shared-memory framebuffers, allocated on demand within a byte budget that the first MIN_SLOT_COUNT
-// held slots may exceed.
+// slots may exceed.
 class MEDIACODECS_API VideoFramePool final : public AtomicRefCounted<VideoFramePool> {
 public:
     static constexpr u32 MIN_SLOT_COUNT = 4;
@@ -80,6 +80,7 @@ private:
 
     void release_slot(u32 slot_index);
     u32 held_slot_count_while_locked() const;
+    u32 allocated_slot_count_while_locked() const;
     void drop_slot_storage_while_locked(Slot&);
     void free_excess_buffers_while_locked();
 

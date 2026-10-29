@@ -71,7 +71,7 @@ Optional<VideoFramePool::AcquiredSlot> VideoFramePool::try_acquire(size_t byte_c
         auto const& slot = m_slots[index];
         if (slot.is_held)
             continue;
-        if (!free_slot_index.has_value())
+        if (!free_slot_index.has_value() || slot.buffer.size() > m_slots[free_slot_index.value()].buffer.size())
             free_slot_index = index;
         if (slot.buffer.is_valid() && slot.buffer.size() == byte_count) {
             reusable_slot_index = index;
@@ -83,7 +83,7 @@ Optional<VideoFramePool::AcquiredSlot> VideoFramePool::try_acquire(size_t byte_c
     if (reusable_slot_index.has_value()) {
         chosen_slot = &m_slots[*reusable_slot_index];
     } else {
-        // Reallocate a free slot to the requested capacity, growing the pool if every slot is held.
+        // Reallocate the largest free slot to the requested capacity, growing the pool if every slot is held.
         if (!free_slot_index.has_value()) {
             if (m_slots.size() >= MAX_SLOT_COUNT)
                 return {};
@@ -133,6 +133,14 @@ u32 VideoFramePool::held_slot_count_while_locked() const
     return held_count;
 }
 
+u32 VideoFramePool::allocated_slot_count_while_locked() const
+{
+    u32 allocated_count = 0;
+    for (auto const& slot : m_slots)
+        allocated_count += slot.buffer.is_valid();
+    return allocated_count;
+}
+
 void VideoFramePool::drop_slot_storage_while_locked(Slot& slot)
 {
     if (!slot.buffer.is_valid())
@@ -143,7 +151,7 @@ void VideoFramePool::drop_slot_storage_while_locked(Slot& slot)
 
 void VideoFramePool::free_excess_buffers_while_locked()
 {
-    while (m_allocated_bytes > m_byte_budget) {
+    while (m_allocated_bytes > m_byte_budget && allocated_slot_count_while_locked() > MIN_SLOT_COUNT) {
         Slot* largest_free_slot = nullptr;
         for (auto& slot : m_slots) {
             if (slot.is_held || !slot.buffer.is_valid())
