@@ -975,8 +975,8 @@ impl FragmentainerLineLimit {
 pub(crate) struct InlineFormattingContext<'context> {
     pub(crate) run: &'context FormattingContextRun<'context>,
     pub(crate) containing_block: Node,
-    /// The containing block, with the record that holds the metrics its lines are laid out against.
-    block_container: block_formatting_context::BlockContainer<'context>,
+    /// The containing block, with the cells its lines are laid out against.
+    block_container: block_formatting_context::BlockContainer,
     pub(crate) input: LayoutInput,
     containing_block_position_in_bfc_root: FfiCssPixelPoint,
     pub(crate) callbacks: LayoutPass<'context>,
@@ -1016,7 +1016,7 @@ struct EnteredInlineBox {
 impl<'context> InlineFormattingContext<'context> {
     pub(crate) fn new_with_rust_parent(
         run: &'context FormattingContextRun<'context>,
-        block_container: block_formatting_context::BlockContainer<'context>,
+        block_container: block_formatting_context::BlockContainer,
         input: LayoutInput,
         containing_block_position_in_bfc_root: FfiCssPixelPoint,
         callbacks: LayoutPass<'context>,
@@ -1363,14 +1363,14 @@ impl<'context> InlineFormattingContext<'context> {
 
     /// Resolves the insets of `node`, an in-flow box in this context's lines, and keeps them for the box.
     pub(crate) fn compute_inset(&self, node: Node) -> abspos_engine::InFlowBoxInsets {
-        let used = self.block_container.used;
+        let block_container_cells = self.block_container.cells;
         abspos_engine::compute_inset_native(
             self.run,
             node,
-            used,
+            &block_container_cells,
             geometry::LogicalSize {
-                inline_size: used.content_inline_size.get(),
-                block_size: used.content_block_size.get(),
+                inline_size: block_container_cells.content_inline_size,
+                block_size: block_container_cells.content_block_size,
             },
             self.block_container.percentage_block_insets_have_definite_basis,
         )
@@ -1401,7 +1401,7 @@ impl<'context> InlineFormattingContext<'context> {
             x: content_box_position_in_bfc_root.x,
             y: content_box_position_in_bfc_root.y,
             width: self.inline_size_of_block_container_holding_lines(),
-            height: self.block_container.used.content_block_size.get(),
+            height: self.block_container.cells.content_block_size,
         };
         self.parent.intrusion_by_floats_into_rect(rect, block_start, block_end)
     }
