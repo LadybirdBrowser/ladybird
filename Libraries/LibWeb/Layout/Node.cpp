@@ -523,7 +523,6 @@ bool Node::is_fragmented_inline() const
 
 void NodeWithStyle::set_computed_values(Layout::BegunRead const& read, NonnullRefPtr<CSS::ComputedValues const> computed_values)
 {
-    VERIFY(!RustFFI::render_state_layout_pass_is_running(document_host()));
     CSS::StyleRecordID record;
     if (is_generated_for_pseudo_element())
         record = document().style_computer().intern_computed_style_inputs(read, { *pseudo_element_generator(), generated_for_pseudo_element() }, *computed_values);

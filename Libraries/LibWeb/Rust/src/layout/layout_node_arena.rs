@@ -6263,11 +6263,6 @@ pub unsafe extern "C" fn document_host_set_style_record_host_callbacks(
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn render_state_layout_pass_is_running(host: &DocumentHost) -> bool {
-    read_arena(host, node_read(), (), |arena, ()| arena.layout_pass_is_running())
-}
-
-#[unsafe(no_mangle)]
 pub extern "C" fn render_state_needs_full_layout_tree_update(
     host: &DocumentHost,
     read: &crate::render_state::BegunRead,
@@ -6327,12 +6322,8 @@ pub extern "C" fn render_state_layout_is_known_stale(host: &DocumentHost, docume
 }
 
 /// Refreshes the text content and replaced-content facts of every node enrolled since the last
-/// sync, ahead of a pass that caches them. A pass already on the stack owns those caches, so a
-/// request nested inside one is a no-op.
+/// sync, ahead of a pass that caches them.
 pub(crate) fn sync_enrolled_content_for_layout(arena: &mut LayoutNodeArena) {
-    if arena.layout_pass_is_running() {
-        return;
-    }
     for node in arena.pending_text_nodes_for_content_sync() {
         // Detached nodes retain enrollment until a parent supplies their style.
         if !arena.slot_is_live(node) || arena.data(node).parent.get().is_invalid() {
