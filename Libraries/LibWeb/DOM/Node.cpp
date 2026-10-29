@@ -1116,12 +1116,16 @@ void Node::insert_nodes_before(ReadonlySpan<GC::Ref<Node>> nodes, GC::Ptr<Node> 
                 return TraversalDecision::Continue;
 
             // 3. If inclusiveDescendant is an element and inclusiveDescendant’s custom element registry is non-null:
-            if (auto* element = as_if<Element>(inclusive_descendant); element && element->custom_element_registry()) {
+            // INTEROP: Already-custom elements still receive connectedCallback after adoption into a document with
+            //          no registry, as in Chromium and Firefox. Their definition supplies the callback independently of
+            //          the registry available to upgrade new elements.
+            if (auto* element = as_if<Element>(inclusive_descendant)) {
+                auto registry = element->custom_element_registry();
                 // 1. If inclusiveDescendant’s custom element registry’s is scoped is true, then append
                 //    inclusiveDescendant’s node document to inclusiveDescendant’s custom element registry’s scoped
                 //    document set.
-                if (element->custom_element_registry()->is_scoped())
-                    element->custom_element_registry()->append_scoped_document(element->document());
+                if (registry && registry->is_scoped())
+                    registry->append_scoped_document(element->document());
 
                 // 2. If inclusiveDescendant is custom, then enqueue a custom element callback reaction with
                 //    inclusiveDescendant, callback name "connectedCallback", and « ».
@@ -1129,7 +1133,7 @@ void Node::insert_nodes_before(ReadonlySpan<GC::Ref<Node>> nodes, GC::Ptr<Node> 
                     element->enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::connectedCallback);
 
                 // 3. Otherwise, try to upgrade inclusiveDescendant.
-                else {
+                else if (registry) {
                     element->try_to_upgrade();
                 }
             }
