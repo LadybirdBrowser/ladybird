@@ -1398,6 +1398,12 @@ void WebContentPage::give_user_activation()
     m_last_user_activation = MonotonicTime::now();
 }
 
+void WebContentPage::notify_about_user_activation(Web::HTML::CrossProcessId document_id)
+{
+    give_user_activation();
+    async_notify_about_user_activation(document_id);
+}
+
 bool WebContentPage::has_transient_user_activation() const
 {
     // NB: Automation lets a renderer synthesize the input that gives it activation.

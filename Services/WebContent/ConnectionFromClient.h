@@ -261,6 +261,7 @@ private:
     virtual void set_has_focus(Web::PageId page_id, bool) override;
     virtual void set_focused_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) override;
     virtual void consume_user_activation(Web::PageId page_id, Web::HTML::UserActivationConsumption) override;
+    virtual void notify_about_user_activation(Web::PageId page_id, Web::HTML::CrossProcessId document_id) override;
     virtual void set_is_scripting_enabled(Web::PageId page_id, bool) override;
     virtual void set_zoom_level(Web::PageId page_id, double zoom_level) override;
     virtual void set_maximum_frames_per_second(Web::PageId page_id, double) override;
