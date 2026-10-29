@@ -184,18 +184,26 @@ fn checkable_inputs(
             }
             _ => true,
         };
+        // OPTIMIZATION: The frame state entering the block from a predecessor is the same for every phi, and blocks of
+        //               large functions can have hundreds of phis with as many values in that frame state.
+        let mut entering = vec![None; block.predecessors.len()];
         for phi in &block.phis {
             let inputs = block
                 .predecessors
                 .iter()
                 .zip(&graph.node(*phi).inputs)
-                .map(|(predecessor, input)| {
+                .enumerate()
+                .map(|(entry, (predecessor, input))| {
                     let checkable = !gated
                         && checked.contains(phi.index())
                         && graph.node(*input).repr == Some(Repr::Tagged)
                         && graph.control(*predecessor).op == (Op::Jump { target: block_id });
                     checkable
-                        .then(|| edit::frame_state_entering(graph, block_id, *predecessor))
+                        .then(|| {
+                            entering[entry]
+                                .get_or_insert_with(|| edit::frame_state_entering(graph, block_id, *predecessor))
+                                .clone()
+                        })
                         .flatten()
                 })
                 .collect();
