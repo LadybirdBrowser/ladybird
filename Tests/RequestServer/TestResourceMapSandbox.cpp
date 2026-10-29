@@ -22,12 +22,6 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-namespace RequestServer {
-
-OwnPtr<ResourceSubstitutionMap> g_resource_substitution_map;
-
-}
-
 // The sandbox refuses to apply without Landlock, so there is nothing to test on such a kernel.
 static bool landlock_is_available()
 {

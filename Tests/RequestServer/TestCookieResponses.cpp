@@ -25,12 +25,6 @@
 #    include <AK/Windows.h>
 #endif
 
-namespace RequestServer {
-
-OwnPtr<ResourceSubstitutionMap> g_resource_substitution_map;
-
-}
-
 namespace {
 
 struct TestServer {

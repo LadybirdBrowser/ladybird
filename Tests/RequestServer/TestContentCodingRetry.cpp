@@ -16,12 +16,6 @@
 #include <RequestServer/ConnectionFromClient.h>
 #include <RequestServer/ResourceSubstitutionMap.h>
 
-namespace RequestServer {
-
-OwnPtr<ResourceSubstitutionMap> g_resource_substitution_map;
-
-}
-
 namespace {
 
 // A local HTTP server that records the head of each request, and answers each with a body whose content coding libcurl
