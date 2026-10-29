@@ -1,8 +1,9 @@
+ladybird_test_suite(LibTLS)
+
 set(TEST_SOURCES
     TestTLSCertificateParser.cpp
     TestTLSHandshake.cpp
 )
 
-foreach(source IN LISTS TEST_SOURCES)
-    ladybird_test("${source}" LibTLS LIBS LibTLS LibCrypto)
-endforeach()
+target_sources(TestLibTLS PRIVATE ${TEST_SOURCES})
+target_link_libraries(TestLibTLS PRIVATE LibTLS LibCrypto)
