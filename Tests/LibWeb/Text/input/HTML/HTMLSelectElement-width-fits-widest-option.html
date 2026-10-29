@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<style>
+    select {
+        font: 16px SerenitySans;
+        padding: 0 6px;
+    }
+    .none {
+        appearance: none;
+    }
+</style>
+<select id="reference"><option>Português (pt-BR)</option></select>
+<select id="reference-none" class="none"><option>Português (pt-BR)</option></select>
+<select id="short-selected"><option>English</option><option>Português (pt-BR)</option></select>
+<select id="short-selected-none" class="none"><option>English</option><option>Português (pt-BR)</option></select>
+<select id="nested" class="none"><option>English</option><optgroup label="Group"><option>Português (pt-BR)</option></optgroup></select>
+<select id="dynamic" class="none"><option>English</option></select>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const width = id => document.getElementById(id).getBoundingClientRect().width;
+        const reference = width("reference");
+        const referenceNone = width("reference-none");
+
+        println(`short selected option: ${width("short-selected") === reference}`);
+        println(`short selected option, appearance none: ${width("short-selected-none") === referenceNone}`);
+        println(`option in optgroup: ${width("nested") === referenceNone}`);
+
+        const dynamic = document.getElementById("dynamic");
+        const option = document.createElement("option");
+        option.textContent = "Português (pt-BR)";
+        dynamic.appendChild(option);
+        println(`after inserting wider option: ${width("dynamic") === referenceNone}`);
+
+        option.textContent = "E";
+        println(`after shortening its text: ${width("dynamic") < referenceNone}`);
+
+        option.label = "Português (pt-BR)";
+        println(`after setting a wider label: ${width("dynamic") === referenceNone}`);
+
+        option.remove();
+        println(`after removing it: ${width("dynamic") < referenceNone}`);
+    });
+</script>
