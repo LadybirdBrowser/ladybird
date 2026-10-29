@@ -131,6 +131,19 @@ TEST_CASE(visit_ptr_traces_cell)
     EXPECT(visitor.visited_cells.contains(cell.ptr()));
 }
 
+TEST_CASE(visit_ephemeron_traces_value_but_not_key)
+{
+    auto& heap = test_heap();
+    auto key = heap.allocate<TestCell>();
+    auto value = heap.allocate<TestCell>();
+
+    TestVisitor visitor;
+    visitor.visit_ephemeron(*key, TestNanBox::from_cell(value.ptr()));
+
+    EXPECT(visitor.visited_cells.contains(value.ptr()));
+    EXPECT(!visitor.visited_cells.contains(key.ptr()));
+}
+
 TEST_CASE(visit_null_ptr_traces_nothing)
 {
     GC::Ptr<TestCell> ptr;

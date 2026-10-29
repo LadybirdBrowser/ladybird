@@ -4,6 +4,7 @@ set(TEST_SOURCES
     TestBlockAllocator.cpp
     TestExternalEntityTable.cpp
     TestGCContainers.cpp
+    TestGCEphemeron.cpp
     TestGCFreeList.cpp
     TestGCHeapGroup.cpp
     TestGCIdleCollection.cpp

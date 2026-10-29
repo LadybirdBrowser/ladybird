@@ -31,4 +31,9 @@ void GC::Cell::Visitor::visit(NanBoxedValue const& value)
         visit_impl(value.as_cell());
 }
 
+void GC::Cell::Visitor::visit_ephemeron(Cell&, NanBoxedValue const& value)
+{
+    visit(value);
+}
+
 }

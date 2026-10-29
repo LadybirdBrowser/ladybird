@@ -27,11 +27,12 @@ use crate::runtime::realm::Realm;
 #[derive(Default)]
 struct WeakMapValues(HashMap<Gc<CellHeader>, Value, foldhash::fast::RandomState>);
 
-// SAFETY: Visits every value. The keys are held weakly, and removed in remove_dead_cells() once they die.
+// SAFETY: Visits every value as reachable only while its key is. The keys are held weakly, and removed in
+//         remove_dead_cells() once they die, together with their values.
 unsafe impl Trace for WeakMapValues {
     fn trace(&self, visitor: &mut Visitor) {
-        for value in self.0.values() {
-            value.trace(visitor);
+        for (&key, value) in &self.0 {
+            visitor.visit_ephemeron(key, value);
         }
     }
 }
