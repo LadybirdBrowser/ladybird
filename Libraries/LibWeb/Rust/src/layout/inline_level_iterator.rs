@@ -16,6 +16,17 @@ pub(crate) enum ItemType {
     FloatingElement,
 }
 
+impl ItemType {
+    /// Whether an item of this type takes its place on the lines alone, unlike floats and block-level boxes, which lay
+    /// out beside or between the lines.
+    pub(crate) fn stays_on_lines(self) -> bool {
+        matches!(
+            self,
+            Self::Text | Self::Element | Self::ForcedBreak | Self::AbsolutelyPositionedElement
+        )
+    }
+}
+
 #[derive(Clone, Debug)]
 pub(crate) struct Item {
     pub(crate) type_: ItemType,
@@ -1180,12 +1191,7 @@ impl InlineLevelIterator {
             };
         }
         let iterator = Self::new(context);
-        if !iterator.items.as_slice().iter().all(|item| {
-            matches!(
-                item.type_,
-                ItemType::Text | ItemType::ForcedBreak | ItemType::Element | ItemType::AbsolutelyPositionedElement
-            )
-        }) {
+        if !iterator.items.as_slice().iter().all(|item| item.type_.stays_on_lines()) {
             return iterator;
         }
         let items = iterator.items.into_vec();
@@ -1293,6 +1299,15 @@ impl InlineLevelIterator {
 
     pub(crate) fn skip_items(&mut self, count: usize) {
         self.items.skip(count);
+    }
+
+    /// An iterator over a copy of the items left in `range`, which leaves the items of this one in place.
+    pub(crate) fn duplicate(&self, range: std::ops::Range<usize>) -> Self {
+        let items: Vec<Item> = self.items()[range].to_vec();
+        Self {
+            entered_box_model_nodes: self.entered_box_model_nodes.clone(),
+            items: ItemQueue::Owned(items.into_iter()),
+        }
     }
 
     pub(crate) fn next_inline_run_size(
