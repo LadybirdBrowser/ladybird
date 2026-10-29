@@ -350,13 +350,19 @@ pub fn json_special_code_unit_lanes(word: u64, lowest_bits: u64) -> u64 {
     (quotation_marks | reverse_solidi | control_characters) & highest_bits
 }
 
-/// Whether ASCII text has a code unit that a JSON string cannot hold as it is.
-fn ascii_has_json_special_code_unit(bytes: &[u8]) -> bool {
+/// The position of the first code unit of ASCII text that a JSON string cannot hold as it is, if it has one.
+fn ascii_json_special_code_unit_position(bytes: &[u8]) -> Option<usize> {
     let (chunks, remainder) = bytes.as_chunks::<8>();
-    chunks
+    for (index, chunk) in chunks.iter().enumerate() {
+        let lanes = json_special_code_unit_lanes(u64::from_le_bytes(*chunk), 0x0101_0101_0101_0101);
+        if lanes != 0 {
+            return Some(index * 8 + lanes.trailing_zeros() as usize / 8);
+        }
+    }
+    remainder
         .iter()
-        .any(|chunk| json_special_code_unit_lanes(u64::from_le_bytes(*chunk), 0x0101_0101_0101_0101) != 0)
-        || remainder.iter().any(|byte| is_json_special_code_unit(u32::from(*byte)))
+        .position(|byte| is_json_special_code_unit(u32::from(*byte)))
+        .map(|position| chunks.len() * 8 + position)
 }
 
 pub fn is_unicode_surrogate(code_unit: u16) -> bool {
@@ -476,7 +482,7 @@ impl Utf16StringBuilder {
     /// QuoteJSONString specifies.
     pub fn append_quoted_escaped_for_json(&mut self, string: Utf16View<'_>) {
         if let (BuilderStorage::Ascii(bytes), Utf16View::Ascii(units)) = (&mut self.storage, string)
-            && !ascii_has_json_special_code_unit(units)
+            && ascii_json_special_code_unit_position(units).is_none()
         {
             bytes.reserve(units.len() + 2);
             bytes.push(b'"');
@@ -489,10 +495,7 @@ impl Utf16StringBuilder {
         //               appended as they are.
         if let Utf16View::Ascii(mut units) = string {
             self.append_code_unit(u16::from(b'"'));
-            while let Some(position) = units
-                .iter()
-                .position(|&byte| is_json_special_code_unit(u32::from(byte)))
-            {
+            while let Some(position) = ascii_json_special_code_unit_position(units) {
                 self.append_ascii_bytes(&units[..position]);
                 self.append_json_escape(u16::from(units[position]));
                 units = &units[position + 1..];
