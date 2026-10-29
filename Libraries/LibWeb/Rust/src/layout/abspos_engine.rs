@@ -5,6 +5,8 @@
  */
 
 use super::*;
+use crate::css::style::layout_style::LayoutStyle;
+use crate::css::style::position_try::PositionOptionStyle;
 use crate::css::style::tree::StyleNodeID;
 use crate::painting::paint_read::{GeometryRead, PaintRead};
 
@@ -3343,7 +3345,7 @@ impl<'pass> AbsposEngine<'pass> {
             callbacks: self.callbacks,
             node,
             choice: None,
-            records: Vec::new(),
+            option_styles: Vec::new(),
             installed: false,
         };
         let style = StyleValues::for_node(&self.callbacks, node);
@@ -3372,7 +3374,7 @@ impl<'pass> AbsposEngine<'pass> {
         // lists, to limit the amount of excess layout work that may be required. This limit must be at least five.
         const POSITION_OPTIONS_LIST_LIMIT: usize = 32;
         // NB: Each option is an entry of the position options list, the base styles first.
-        let entries = arena.with_style_engine(|engine| {
+        let entries = arena.with_style_store(|engine| {
             engine.position_option_entries(style_node, base_style_record, POSITION_OPTIONS_LIST_LIMIT - 1)
         });
         if entries.is_empty() {
@@ -3388,10 +3390,11 @@ impl<'pass> AbsposEngine<'pass> {
 
         // OPTIMIZATION: The styles of an option are made the first time it is tried, so that a box that fits with
         //               its current styles makes no other.
-        let made_styles: std::cell::RefCell<Vec<(u32, Option<node_data::StylePayloadsRef>)>> =
+        let made_styles: std::cell::RefCell<Vec<(u32, Option<Option<node_data::StylePayloadsRef>>)>> =
             std::cell::RefCell::new(Vec::new());
-        let records = std::cell::RefCell::new(Vec::new());
-        // The styles the option applies, which are none for the base styles, or none where it makes no styles.
+        let option_styles = std::cell::RefCell::new(Vec::new());
+        // The styles the option applies: none where the entry makes no option, and no styles of its own for the base
+        // styles or an option that changes none of them.
         let option_style = |option: u32| -> Option<Option<node_data::StylePayloadsRef>> {
             let Some((index, _)) = entry_of(option) else {
                 return Some(None);
@@ -3402,15 +3405,22 @@ impl<'pass> AbsposEngine<'pass> {
                 .find(|&&(made_option, _)| made_option == option)
                 .map(|&(_, style)| style);
             if let Some(style) = made {
-                return style.map(Some);
+                return style;
             }
-            let record = arena.with_style_engine(|engine| {
-                engine.position_option_record(style_node, base_style_record, index, writing_mode, direction)
-            });
-            let style = record.as_ref().map(|record| record.payloads);
-            records.borrow_mut().extend(record);
+            let style = arena
+                .with_style_store(|engine| {
+                    engine.position_option_style(style_node, base_style_record, index, writing_mode, direction)
+                })
+                .map(|style| match style {
+                    PositionOptionStyle::SameAsBase => None,
+                    PositionOptionStyle::Applied(style) => {
+                        let payloads = style.payloads_for_style_reads();
+                        option_styles.borrow_mut().push(style);
+                        Some(payloads)
+                    }
+                });
             made_styles.borrow_mut().push((option, style));
-            style.map(Some)
+            style
         };
 
         // https://drafts.csswg.org/css-anchor-position-1/#position-try-order-property
@@ -3502,7 +3512,7 @@ impl<'pass> AbsposEngine<'pass> {
         let option = options[chosen];
         let style = option_style(option).flatten();
         styles.choice = Some(choice_of(option));
-        styles.records = records.into_inner();
+        styles.option_styles = option_styles.into_inner();
         if let Some(style) = style {
             self.callbacks.scratch().push_position_option_style(node, style);
             styles.installed = true;
@@ -3960,13 +3970,15 @@ pub(crate) fn compute_inset_native(
     )
 }
 
-/// The position option a box is laid out with, whose styles its style reads see while this lives, and the style records
-/// of its position options, which stay pinned until then.
+/// The position option a box is laid out with, whose styles its style reads see while this lives, and the styles of its
+/// position options, which the style reads of the box address until then.
 struct PositionOptionStyles<'pass> {
     callbacks: LayoutPass<'pass>,
     node: Node,
     choice: Option<abspos_inputs::PositionOptionChoice>,
-    records: Vec<crate::css::style::layout_style::DerivedStyleRecord>,
+    /// Boxed so that the payloads the style reads address stay in place as the list grows.
+    #[expect(clippy::vec_box)]
+    option_styles: Vec<Box<LayoutStyle>>,
     installed: bool,
 }
 
@@ -3981,14 +3993,6 @@ impl Drop for PositionOptionStyles<'_> {
         if self.installed {
             self.callbacks.scratch().pop_position_option_style(self.node);
         }
-        if self.records.is_empty() {
-            return;
-        }
-        self.callbacks.arena().with_style_engine(|engine| {
-            for record in &self.records {
-                engine.unpin_layout_style_record(record.record);
-            }
-        });
     }
 }
 
