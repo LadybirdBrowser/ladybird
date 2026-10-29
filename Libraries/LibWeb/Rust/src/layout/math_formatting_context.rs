@@ -2170,7 +2170,7 @@ impl<'pass> MathFormattingContext<'pass> {
             child_cells,
             None,
             true,
-            run.percentage_block_insets_of_root_children_have_definite_basis(),
+            run.percentage_block_insets_of_root_children_have_definite_basis(run.records.used_values(run.box_)),
         );
         if let Some(fragment_arrival) = fragment_arrival {
             self.fragment_arrivals_of_children.borrow_mut().push(fragment_arrival);

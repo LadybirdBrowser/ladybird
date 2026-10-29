@@ -3155,7 +3155,9 @@ impl<'pass> FlexFormattingContext<'pass> {
             node,
             input,
             false,
-            self.run.percentage_block_insets_of_root_children_have_definite_basis(),
+            self.run.percentage_block_insets_of_root_children_have_definite_basis(
+                self.run.records.used_values(self.run.box_),
+            ),
         );
         debug_assert_eq!(plan.fc_type, formatting_context::FormattingContextType::Block);
         Some(formatting_context::ChildRunShape {
@@ -3204,7 +3206,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             cells,
             None,
             false,
-            run.percentage_block_insets_of_root_children_have_definite_basis(),
+            run.percentage_block_insets_of_root_children_have_definite_basis(run.records.used_values(run.box_)),
         );
         self.flex_items[index].cells = laid_out_box.cells;
         self.flex_items[index].orthogonal_flow_baselines = laid_out_box.orthogonal_flow_baselines;
@@ -3221,7 +3223,7 @@ impl<'pass> FlexFormattingContext<'pass> {
                 inline_size: container_used.content_inline_size.get(),
                 block_size: container_used.content_block_size.get(),
             },
-            run.percentage_block_insets_of_root_children_have_definite_basis(),
+            run.percentage_block_insets_of_root_children_have_definite_basis(run.records.used_values(run.box_)),
         );
         (fragment_arrival, placed_item.with_in_flow_box_insets(insets))
     }

@@ -124,7 +124,7 @@ impl<'pass> BlockContainer<'pass> {
             node: run.box_,
             used: run.records.used_values(run.box_),
             percentage_block_insets_have_definite_basis: run
-                .percentage_block_insets_of_root_children_have_definite_basis(),
+                .percentage_block_insets_of_root_children_have_definite_basis(run.records.used_values(run.box_)),
         }
     }
 
