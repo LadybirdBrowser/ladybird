@@ -1,0 +1,68 @@
+<!doctype html>
+<style>
+    select {
+        font: 16px SerenitySans;
+        padding: 0 6px;
+    }
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const short = "E";
+        const long = "Português (pt-BR)";
+        const make = (labels, appearance = "none", whiteSpace = "pre") => {
+            const select = document.createElement("select");
+            select.style.appearance = appearance;
+            select.style.whiteSpace = whiteSpace;
+            for (const label of labels) {
+                const option = document.createElement("option");
+                option.label = label;
+                select.append(option);
+            }
+            document.body.append(select);
+            return select;
+        };
+        const width = select => select.getBoundingClientRect().width;
+        const reference = make([long]);
+        const select = make([short]);
+        const option = document.createElement("option");
+        const span = document.createElement("span");
+        span.textContent = short;
+        option.append(span);
+        select.append(option);
+        span.firstChild.data = long;
+        println(`nested character data: ${width(select) === width(reference)}`);
+        span.textContent = short;
+        println(`nested textContent shrink: ${width(select) < width(reference)}`);
+        span.append(document.createTextNode(long));
+        const combinedReference = make([short + long]);
+        println(`nested insertion: ${width(select) === width(combinedReference)}`);
+        span.lastChild.remove();
+        println(`nested removal: ${width(select) < width(reference)}`);
+        const innerOption = document.createElement("option");
+        innerOption.textContent = short;
+        option.replaceChildren(innerOption);
+        innerOption.firstChild.data = long;
+        println(`nested option ancestor: ${width(select) === width(reference)}`);
+
+        for (const appearance of ["auto", "none"]) {
+            const multiline = make([short, "English\nPortuguês"], appearance, "nowrap");
+            const multilineReference = make(["English\nPortuguês"], appearance, "nowrap");
+            const before = width(multiline);
+            println(`newline label, ${appearance}: ${before === width(multilineReference)}`);
+            multiline.selectedIndex = 1;
+            println(`selection keeps width, ${appearance}: ${width(multiline) === before}`);
+        }
+
+        const destination = make([short]);
+        destination.append(option);
+        println(`moved option sizes destination: ${width(destination) === width(reference)}`);
+        println(`moved option shrinks source: ${width(select) < width(reference)}`);
+        option.remove();
+        println(`removed option shrinks destination: ${width(destination) < width(reference)}`);
+        const otherDocument = document.implementation.createHTMLDocument();
+        otherDocument.adoptNode(option);
+        destination.append(option);
+        println(`adopted option sizes destination: ${width(destination) === width(reference)}`);
+    });
+</script>

@@ -10,6 +10,7 @@
 #include <LibWeb/CSS/Invalidation/ElementStateInvalidator.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentFragment.h>
+#include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/HTMLDataListElement.h>
@@ -19,7 +20,9 @@
 #include <LibWeb/HTML/HTMLScriptElement.h>
 #include <LibWeb/HTML/HTMLSelectElement.h>
 #include <LibWeb/HTML/HTMLSelectedContentElement.h>
+#include <LibWeb/HTML/TagNames.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
+#include <LibWeb/Namespace.h>
 #include <LibWeb/SVG/SVGScriptElement.h>
 #include <LibWebCommon/Infra/Strings.h>
 
@@ -40,9 +43,9 @@ void HTMLOptionElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_cached_nearest_select_element);
+    visitor.visit(m_label_sizer_text);
 }
 
-// FIXME: This needs to be called any time a descendant's text is modified.
 void HTMLOptionElement::update_selection_label()
 {
     if (selected()) {
@@ -50,6 +53,34 @@ void HTMLOptionElement::update_selection_label()
             select_element->clone_selected_option_into_select_button();
         }
     }
+    update_label_sizer_text();
+}
+
+void HTMLOptionElement::update_label_sizer_text()
+{
+    GC::Ptr<DOM::Element> label_sizer;
+    if (m_cached_nearest_select_element)
+        label_sizer = m_cached_nearest_select_element->m_label_sizer_element;
+
+    if (m_label_sizer_text && (!label_sizer || !m_label_sizer_text->parent() || m_label_sizer_text->parent()->parent() != label_sizer.ptr())) {
+        if (auto* row = m_label_sizer_text->parent())
+            row->remove();
+        m_label_sizer_text = nullptr;
+    }
+    if (!label_sizer)
+        return;
+
+    // NB: Each option has a block row, with the same inherited white-space as the selected label.
+    auto text = label();
+    if (m_label_sizer_text) {
+        if (m_label_sizer_text->data() != text)
+            m_label_sizer_text->set_data(text);
+        return;
+    }
+    auto row = DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML).release_value_but_fixme_should_propagate_errors();
+    m_label_sizer_text = document().create_text_node(move(text));
+    MUST(row->append_child(*m_label_sizer_text));
+    MUST(label_sizer->append_child(*row));
 }
 
 void HTMLOptionElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
@@ -282,6 +313,7 @@ void HTMLOptionElement::update_nearest_select_element()
                 ++new_select->m_number_of_selected_options;
         }
         m_cached_nearest_select_element = new_select;
+        update_label_sizer_text();
 
         // 1. If oldSelect is not null, then run the selectedness setting algorithm given oldSelect.
         if (old_select)

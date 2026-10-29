@@ -1,0 +1,13 @@
+nested character data: true
+nested textContent shrink: true
+nested insertion: true
+nested removal: true
+nested option ancestor: true
+newline label, auto: true
+selection keeps width, auto: true
+newline label, none: true
+selection keeps width, none: true
+moved option sizes destination: true
+moved option shrinks source: true
+removed option shrinks destination: true
+adopted option sizes destination: true

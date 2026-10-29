@@ -1,0 +1,73 @@
+<!doctype html>
+<style>
+    select {
+        font: 16px SerenitySans;
+        white-space: pre;
+    }
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const short = "E";
+        const long = "Português (pt-BR)";
+        const longest = "A much longer option label";
+        const make = (labels, mode, appearance) => {
+            const select = document.createElement("select");
+            select.style.writingMode = mode;
+            select.style.appearance = appearance;
+            for (const label of labels) {
+                const option = document.createElement("option");
+                option.label = label;
+                select.append(option);
+            }
+            document.body.append(select);
+            return select;
+        };
+        for (const mode of ["horizontal-tb", "vertical-rl", "vertical-lr"]) {
+            for (const appearance of ["auto", "none"]) {
+                const inlineSize = select => {
+                    const rect = select.getBoundingClientRect();
+                    return mode === "horizontal-tb" ? rect.width : rect.height;
+                };
+                const blockSize = select => {
+                    const rect = select.getBoundingClientRect();
+                    return mode === "horizontal-tb" ? rect.height : rect.width;
+                };
+                const reference = make([long], mode, appearance);
+                const shortReference = make([short], mode, appearance);
+                const select = make([short, long], mode, appearance);
+                const before = inlineSize(select);
+                const blockBefore = blockSize(select);
+                println(
+                    `${mode}, ${appearance}, longer reference grows: ${inlineSize(reference) > inlineSize(shortReference)}`
+                );
+                println(`${mode}, ${appearance}, widest option: ${before === inlineSize(reference)}`);
+                println(`${mode}, ${appearance}, block size matches: ${blockBefore === blockSize(reference)}`);
+                select.selectedIndex = 1;
+                println(`${mode}, ${appearance}, selection keeps inline size: ${inlineSize(select) === before}`);
+                println(`${mode}, ${appearance}, selection keeps block size: ${blockSize(select) === blockBefore}`);
+                select.selectedIndex = 0;
+                select.options[1].label = longest;
+                const longestReference = make([longest], mode, appearance);
+                println(
+                    `${mode}, ${appearance}, unselected label mutation: ${inlineSize(select) === inlineSize(longestReference)}`
+                );
+                const longestInlineSize = inlineSize(longestReference);
+                select.selectedIndex = -1;
+                longestReference.selectedIndex = -1;
+                println(
+                    `${mode}, ${appearance}, no selection keeps inline size: ${inlineSize(select) === longestInlineSize}`
+                );
+                println(
+                    `${mode}, ${appearance}, no selection block size matches: ${blockSize(select) === blockSize(longestReference)}`
+                );
+                select.style.boxSizing = "border-box";
+                select.style.inlineSize = "240px";
+                select.style.blockSize = "48px";
+                println(
+                    `${mode}, ${appearance}, author logical sizes: ${inlineSize(select) === 240 && blockSize(select) === 48}`
+                );
+            }
+        }
+    });
+</script>

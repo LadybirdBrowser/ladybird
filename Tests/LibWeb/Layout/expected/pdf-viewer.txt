@@ -167,10 +167,64 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                         TextNode <#text> (not painted)
                       BlockContainer <select#scaleSelect> at [379.9375,3] flex-item [0+0+6 102.484375 38+0+0] [0+0+1 25 2+0+0] [BFC] children: not-inline
                         Box <div> at [379.9375,3] positioned flex-container(row) [0+0+0 102.484375 0+0+0] [0+0+0 25 0+0+0] [FFC] children: not-inline
-                          BlockContainer <div> at [379.9375,9.5] flex-item [0+0+0 102.484375 0+0+0] [0+0+0 12 0+0+0] [BFC] children: inline
-                            frag 0 from TextNode start: 0, length: 14, rect: [379.9375,9.5 102.484375x12] baseline: 9.59375
-                                "Automatic Zoom"
-                            TextNode <#text> (not painted)
+                          BlockContainer <div> at [379.9375,9.5] flex-item [0+0+0 102.484375 0+0+0] [0+0+0 12 0+0+0] [BFC] children: not-inline
+                            BlockContainer <div> at [379.9375,9.5] [0+0+0 102.484375 0+0+0] [0+0+0 12 0+0+0] children: inline
+                              frag 0 from TextNode start: 0, length: 14, rect: [379.9375,9.5 102.484375x12] baseline: 9.59375
+                                  "Automatic Zoom"
+                              TextNode <#text> (not painted)
+                            BlockContainer <div> at [379.9375,21.5] floating [0+0+0 102.484375 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
+                              BlockContainer <div> at [379.9375,21.5] [0+0+0 102.484375 0+0+0] [0+0+0 12 0+0+0] children: inline
+                                frag 0 from TextNode start: 0, length: 14, rect: [379.9375,21.5 102.484375x12] baseline: 9.59375
+                                    "Automatic Zoom"
+                                TextNode <#text> (not painted)
+                              BlockContainer <div> at [379.9375,33.5] [0+0+0 102.484375 0+0+0] [0+0+0 12 0+0+0] children: inline
+                                frag 0 from TextNode start: 0, length: 11, rect: [379.9375,33.5 71.28125x12] baseline: 9.59375
+                                    "Actual Size"
+                                TextNode <#text> (not painted)
+                              BlockContainer <div> at [379.9375,45.5] [0+0+0 102.484375 0+0+0] [0+0+0 12 0+0+0] children: inline
+                                frag 0 from TextNode start: 0, length: 8, rect: [379.9375,45.5 51.859375x12] baseline: 9.59375
+                                    "Page Fit"
+                                TextNode <#text> (not painted)
+                              BlockContainer <div> at [379.9375,57.5] [0+0+0 102.484375 0+0+0] [0+0+0 12 0+0+0] children: inline
+                                frag 0 from TextNode start: 0, length: 10, rect: [379.9375,57.5 64.984375x12] baseline: 9.59375
+                                    "Page Width"
+                                TextNode <#text> (not painted)
+                              BlockContainer <div> at [379.9375,69.5] [0+0+0 102.484375 0+0+0] [0+0+0 12 0+0+0] children: inline
+                                frag 0 from TextNode start: 0, length: 4, rect: [379.9375,69.5 16.421875x12] baseline: 9.59375
+                                    "⁨0⁩%"
+                                TextNode <#text> (not painted)
+                              BlockContainer <div> at [379.9375,81.5] [0+0+0 102.484375 0+0+0] [0+0+0 12 0+0+0] children: inline
+                                frag 0 from TextNode start: 0, length: 5, rect: [379.9375,81.5 22.765625x12] baseline: 9.59375
+                                    "⁨50⁩%"
+                                TextNode <#text> (not painted)
+                              BlockContainer <div> at [379.9375,93.5] [0+0+0 102.484375 0+0+0] [0+0+0 12 0+0+0] children: inline
+                                frag 0 from TextNode start: 0, length: 5, rect: [379.9375,93.5 22.109375x12] baseline: 9.59375
+                                    "⁨75⁩%"
+                                TextNode <#text> (not painted)
+                              BlockContainer <div> at [379.9375,105.5] [0+0+0 102.484375 0+0+0] [0+0+0 12 0+0+0] children: inline
+                                frag 0 from TextNode start: 0, length: 6, rect: [379.9375,105.5 28.390625x12] baseline: 9.59375
+                                    "⁨100⁩%"
+                                TextNode <#text> (not painted)
+                              BlockContainer <div> at [379.9375,117.5] [0+0+0 102.484375 0+0+0] [0+0+0 12 0+0+0] children: inline
+                                frag 0 from TextNode start: 0, length: 6, rect: [379.9375,117.5 26.9375x12] baseline: 9.59375
+                                    "⁨125⁩%"
+                                TextNode <#text> (not painted)
+                              BlockContainer <div> at [379.9375,129.5] [0+0+0 102.484375 0+0+0] [0+0+0 12 0+0+0] children: inline
+                                frag 0 from TextNode start: 0, length: 6, rect: [379.9375,129.5 27.53125x12] baseline: 9.59375
+                                    "⁨150⁩%"
+                                TextNode <#text> (not painted)
+                              BlockContainer <div> at [379.9375,141.5] [0+0+0 102.484375 0+0+0] [0+0+0 12 0+0+0] children: inline
+                                frag 0 from TextNode start: 0, length: 6, rect: [379.9375,141.5 30.234375x12] baseline: 9.59375
+                                    "⁨200⁩%"
+                                TextNode <#text> (not painted)
+                              BlockContainer <div> at [379.9375,153.5] [0+0+0 102.484375 0+0+0] [0+0+0 12 0+0+0] children: inline
+                                frag 0 from TextNode start: 0, length: 6, rect: [379.9375,153.5 30.453125x12] baseline: 9.59375
+                                    "⁨300⁩%"
+                                TextNode <#text> (not painted)
+                              BlockContainer <div> at [379.9375,165.5] [0+0+0 102.484375 0+0+0] [0+0+0 12 0+0+0] children: inline
+                                frag 0 from TextNode start: 0, length: 6, rect: [379.9375,165.5 29.4375x12] baseline: 9.59375
+                                    "⁨400⁩%"
+                                TextNode <#text> (not painted)
                       BlockContainer <(anonymous)> (not painted) [BFC] children: inline
                         TextNode <#text> (not painted)
                       BlockContainer <(anonymous)> at [500.421875,8] positioned [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
