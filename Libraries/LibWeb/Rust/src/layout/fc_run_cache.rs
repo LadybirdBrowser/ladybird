@@ -1329,7 +1329,7 @@ mod tests {
 
     #[test]
     fn item_keys_leave_out_the_block_size_adopted_after_the_run_unless_the_run_reads_it() {
-        let record = UsedValues::default();
+        let root_cells = used_values::RootInputCells::default();
         let item_input = LayoutInput::new(
             AvailableSpace {
                 inline_size: AvailableSize::definite(px(300)),
@@ -1338,7 +1338,7 @@ mod tests {
             ContainingBlockConstraints::default(),
             ParticipationInParentFormattingContext::Item,
         );
-        let key_of = |fc_type, input| FcRunCacheKey::new(fc_type, input, used_values::RootInputCells::capture(&record));
+        let key_of = |fc_type, input| FcRunCacheKey::new(fc_type, input, root_cells);
         let stored_block_key = key_of(formatting_context::FormattingContextType::Block, item_input);
         let stored_flex_key = key_of(formatting_context::FormattingContextType::Flex, item_input);
 
@@ -1448,11 +1448,13 @@ mod tests {
     }
 
     fn item_key(content_block_size: i64, has_definite_block_size: bool) -> FcRunCacheKey {
-        let record = UsedValues::default();
-        record.content_block_size.set(px(content_block_size));
-        record.has_definite_block_size.set(has_definite_block_size);
-        record.has_definite_inline_size.set(true);
-        record.content_inline_size.set(px(300));
+        let root_cells = used_values::RootInputCells {
+            content_inline_size: px(300),
+            content_block_size: px(content_block_size),
+            has_definite_inline_size: true,
+            has_definite_block_size,
+            ..used_values::RootInputCells::default()
+        };
         FcRunCacheKey::new(
             formatting_context::FormattingContextType::Block,
             LayoutInput::new(
@@ -1467,7 +1469,7 @@ mod tests {
                 ContainingBlockConstraints::default(),
                 ParticipationInParentFormattingContext::Item,
             ),
-            used_values::RootInputCells::capture(&record),
+            root_cells,
         )
     }
 

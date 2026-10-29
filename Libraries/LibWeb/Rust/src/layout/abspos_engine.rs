@@ -3574,7 +3574,7 @@ impl<'pass> AbsposEngine<'pass> {
                 ParticipationInParentFormattingContext::AbsolutelyPositioned(inputs),
             ),
         );
-        let used = laid_out.root_cells_left_by_run.materialize_record(self.callbacks.frame);
+        let used = laid_out.root_cells_left_by_run;
         let used_insets = laid_out
             .result
             .out_of_flow_root_used_insets
