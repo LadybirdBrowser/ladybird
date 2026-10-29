@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -124,8 +123,8 @@ pub(crate) type SvgPaintResourceRows = HashMap<NodeSlotId, SvgPaintResourceRow>;
 
 #[derive(Clone, Default)]
 pub(crate) struct SvgPaintResources {
-    rows: RefCell<Arc<SvgPaintResourceRows>>,
-    needs_sync: Cell<bool>,
+    rows: Arc<SvgPaintResourceRows>,
+    needs_sync: bool,
     /// Whether any row enrolled a resource, which the document's host reads beside a frame in flight. A row the frame
     /// enrolls asks for its resources to be resolved again itself.
     enrolled: Arc<AtomicBool>,
@@ -172,46 +171,40 @@ pub(crate) fn published_paint_server_in(
 }
 
 impl SvgPaintResources {
-    fn rows_mut(&self) -> std::cell::RefMut<'_, SvgPaintResourceRows> {
-        std::cell::RefMut::map(self.rows.borrow_mut(), Arc::make_mut)
+    fn rows_mut(&mut self) -> &mut SvgPaintResourceRows {
+        Arc::make_mut(&mut self.rows)
     }
 
     /// The table as it is now, for a recording to read.
     pub(crate) fn publish(&self) -> Arc<SvgPaintResourceRows> {
-        self.rows.borrow().clone()
+        self.rows.clone()
     }
 
     /// Where the table is, which moves when a write copies the one a publication shares.
     pub(crate) fn address(&self) -> usize {
-        Arc::as_ptr(&self.rows.borrow()).addr()
+        Arc::as_ptr(&self.rows).addr()
     }
 
-    pub(crate) fn set_enrolled_kinds(&self, slot: NodeSlotId, kinds: u8) {
+    pub(crate) fn set_enrolled_kinds(&mut self, slot: NodeSlotId, kinds: u8) {
         if kinds == 0 {
             self.forget_slot(slot);
             return;
         }
-        self.needs_sync.set(true);
-        if self
-            .rows
-            .borrow()
-            .get(&slot)
-            .is_some_and(|row| row.enrolled_kinds == kinds)
-        {
+        self.needs_sync = true;
+        if self.rows.get(&slot).is_some_and(|row| row.enrolled_kinds == kinds) {
             return;
         }
-        let mut rows = self.rows_mut();
-        let row = rows.entry(slot).or_default();
+        let row = self.rows_mut().entry(slot).or_default();
         let previous_kinds = std::mem::replace(&mut row.enrolled_kinds, kinds);
         row.forget_published(previous_kinds & !kinds);
         self.enrolled.store(true, Ordering::Relaxed);
     }
 
-    pub(crate) fn withdraw(&self, slot: NodeSlotId, kind: SvgPaintResourceKind) {
-        if !self.rows.borrow().contains_key(&slot) {
+    pub(crate) fn withdraw(&mut self, slot: NodeSlotId, kind: SvgPaintResourceKind) {
+        if !self.rows.contains_key(&slot) {
             return;
         }
-        let mut rows = self.rows_mut();
+        let rows = self.rows_mut();
         let Some(row) = rows.get_mut(&slot) else {
             return;
         };
@@ -219,15 +212,17 @@ impl SvgPaintResources {
         row.forget_published(kind.bit());
         if row.enrolled_kinds == 0 {
             rows.remove(&slot);
-            self.enrolled.store(!rows.is_empty(), Ordering::Relaxed);
+            let any_enrolled = !rows.is_empty();
+            self.enrolled.store(any_enrolled, Ordering::Relaxed);
         }
     }
 
-    pub(crate) fn forget_slot(&self, slot: NodeSlotId) {
-        if self.rows.borrow().contains_key(&slot) {
-            let mut rows = self.rows_mut();
+    pub(crate) fn forget_slot(&mut self, slot: NodeSlotId) {
+        if self.rows.contains_key(&slot) {
+            let rows = self.rows_mut();
             rows.remove(&slot);
-            self.enrolled.store(!rows.is_empty(), Ordering::Relaxed);
+            let any_enrolled = !rows.is_empty();
+            self.enrolled.store(any_enrolled, Ordering::Relaxed);
         }
     }
 
@@ -244,29 +239,28 @@ impl SvgPaintResources {
     }
 
     pub(crate) fn has_enrolled_entries(&self) -> bool {
-        !self.rows.borrow().is_empty()
+        !self.rows.is_empty()
     }
 
-    pub(crate) fn note_changed(&self) -> bool {
+    pub(crate) fn note_changed(&mut self) -> bool {
         if !self.has_enrolled_entries() {
             return false;
         }
-        self.needs_sync.set(true);
+        self.needs_sync = true;
         true
     }
 
     /// Whether the host is to resolve the enrolled resources again.
     pub(crate) fn needs_sync(&self) -> bool {
-        self.needs_sync.get()
+        self.needs_sync
     }
 
-    pub(crate) fn take_needs_sync(&self) -> bool {
-        self.needs_sync.replace(false)
+    pub(crate) fn take_needs_sync(&mut self) -> bool {
+        std::mem::take(&mut self.needs_sync)
     }
 
     pub(crate) fn enrolled_entries(&self) -> Vec<(NodeSlotId, SvgPaintResourceKind)> {
         self.rows
-            .borrow()
             .iter()
             .flat_map(|(slot, row)| {
                 SvgPaintResourceKind::ALL
@@ -282,7 +276,7 @@ impl SvgPaintResources {
         slot: NodeSlotId,
         kind: SvgPaintResourceKind,
     ) -> Option<Arc<PublishedSvgFilter>> {
-        published_filter_in(&self.rows.borrow(), slot, kind)
+        published_filter_in(&self.rows, slot, kind)
     }
 
     pub(crate) fn published_paint_server(
@@ -290,16 +284,16 @@ impl SvgPaintResources {
         slot: NodeSlotId,
         kind: SvgPaintResourceKind,
     ) -> Option<Arc<PublishedSvgPaintServer>> {
-        published_paint_server_in(&self.rows.borrow(), slot, kind)
+        published_paint_server_in(&self.rows, slot, kind)
     }
 
     pub(crate) fn publish_paint_server(
-        &self,
+        &mut self,
         slot: NodeSlotId,
         kind: SvgPaintResourceKind,
         paint_server: PublishedSvgPaintServer,
     ) -> bool {
-        match self.rows.borrow().get(&slot) {
+        match self.rows.get(&slot) {
             None => return false,
             Some(row)
                 if row
@@ -320,12 +314,12 @@ impl SvgPaintResources {
     }
 
     pub(crate) fn publish_filter(
-        &self,
+        &mut self,
         slot: NodeSlotId,
         kind: SvgPaintResourceKind,
         filter: PublishedSvgFilter,
     ) -> bool {
-        match self.rows.borrow().get(&slot) {
+        match self.rows.get(&slot) {
             None => return false,
             Some(row) if row.published_filter(kind).is_some_and(|previous| *previous == filter) => return false,
             Some(_) => {}
@@ -345,7 +339,7 @@ mod tests {
 
     #[test]
     fn a_published_table_keeps_what_it_held_when_a_row_changes() {
-        let resources = SvgPaintResources::default();
+        let mut resources = SvgPaintResources::default();
         let slot = NodeSlotId::new(1, 1);
         let filter = |failed| PublishedSvgFilter {
             failed,

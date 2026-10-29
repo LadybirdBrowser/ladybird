@@ -1250,7 +1250,7 @@ pub(crate) struct LayoutNodeArena {
     next_rows_built_for_same_node: Vec<NodeSlotId>,
     /// What writes since the layout stage last looked did to the boxes its run memos hold entries of.
     memo_invalidations: super::memo_invalidations::MemoInvalidations,
-    pub(super) layout_trace: super::trace::LayoutTrace,
+    pub(super) layout_trace: super::trace::TraceRecord,
     pub(crate) paintable_rows: crate::painting::paintable_rows::PaintableRowStore,
     paint_state: RefCell<crate::painting::paint_state::PaintState>,
     // Hit testing can measure overflow and invalidate painting state while querying this list.
@@ -1365,7 +1365,7 @@ impl LayoutNodeArena {
             svg_paint_resources: crate::painting::svg_paint_resources::SvgPaintResources::default(),
             next_rows_built_for_same_node: Vec::new(),
             memo_invalidations: Default::default(),
-            layout_trace: super::trace::LayoutTrace::default(),
+            layout_trace: super::trace::TraceRecord::default(),
             paintable_rows: crate::painting::paintable_rows::PaintableRowStore::default(),
             paint_state: RefCell::new(crate::painting::paint_state::PaintState::default()),
             scrollable_overflow: Default::default(),
@@ -2893,7 +2893,7 @@ impl LayoutNodeArena {
         self.set_needs_layout_update(slot, !confined);
     }
 
-    pub(crate) fn enroll_node_for_svg_paint_resources_sync(&self, id: NodeSlotId) {
+    pub(crate) fn enroll_node_for_svg_paint_resources_sync(&mut self, id: NodeSlotId) {
         use crate::painting::svg_paint_resources::SvgPaintResourceKind;
         let Some(style) = self.node_style_if_live(id) else {
             return;
@@ -2920,6 +2920,10 @@ impl LayoutNodeArena {
 
     pub(crate) fn svg_paint_resources(&self) -> &crate::painting::svg_paint_resources::SvgPaintResources {
         &self.svg_paint_resources
+    }
+
+    pub(crate) fn svg_paint_resources_mut(&mut self) -> &mut crate::painting::svg_paint_resources::SvgPaintResources {
+        &mut self.svg_paint_resources
     }
 
     /// A fork of the arena, linked to `engine`, the fork of its style engine: its chunks have addresses of their own,

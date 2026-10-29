@@ -3522,7 +3522,7 @@ impl LayoutStageJob {
         }
         notifications.prepend_layout_messages(messages);
         let (arena, scratch) = state.arena_mut_and_layout_scratch();
-        scratch.layout_trace.hand_over_to(&arena.layout_trace);
+        scratch.layout_trace.hand_back_to(&mut arena.layout_trace);
         scratch.end_layout_pass(arena);
         arena.reset_layout_update_flags_in_subtree(root);
         arena.leave_active_layout_pass();
@@ -3659,7 +3659,7 @@ fn prepare_layout_stage(state: &mut super::ArenaHandle, kind: LayoutStageKind, r
     }
     drop_intrinsic_size_cache_entries_of_released_slots(arena, scratch);
     scratch.apply_memo_invalidations(arena);
-    arena.layout_trace.hand_over_to(&scratch.layout_trace);
+    scratch.layout_trace.take_over_from(&mut arena.layout_trace);
     arena.begin_active_layout_pass();
 }
 
