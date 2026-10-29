@@ -1310,7 +1310,7 @@ void TabBar::paintEvent(QPaintEvent*)
             if (ring_opacity > 0) {
                 painter.save();
                 painter.setOpacity(ring_opacity);
-                ChromeStyle::paint_loading_ring(painter, Theme::chrome_palette(*this), QRectF(icon_rect).center(), tab_for_index && tab_for_index->is_waiting_for_response() ? ChromeStyle::LoadingPhase::WaitingForResponse : ChromeStyle::LoadingPhase::Receiving);
+                ChromeStyle::paint_loading_ring(painter, Theme::chrome_palette(*this), QRectF(icon_rect).center(), ChromeStyle::LoadingRingSize::Favicon, tab_for_index && tab_for_index->is_waiting_for_response() ? ChromeStyle::LoadingPhase::WaitingForResponse : ChromeStyle::LoadingPhase::Receiving);
                 painter.restore();
             }
             // NB: The fallback globe is drawn on a chrome icon's larger canvas, with room around it, so it is painted at

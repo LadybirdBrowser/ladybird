@@ -2079,24 +2079,33 @@ void paint_control_frame(QPainter& painter, QAbstractButton const& button, Contr
 
 // A ring around a favicon, with an arc in the accent color going around it, to show that the page is loading. Every
 // ring follows the same clock, so the rings on screen turn in step.
-static constexpr qreal LOADING_RING_RADIUS = 10.75;
+// NB: The radii are to the middle of the 1.5 px line, so the ring's outer edge is 0.75 px further out.
+static constexpr qreal LOADING_RING_LINE_WIDTH = 1.5;
+static constexpr qreal FAVICON_LOADING_RING_RADIUS = 9.25;
+static constexpr qreal TOOLBAR_BUTTON_LOADING_RING_RADIUS = 10.75;
+
+static QRectF loading_ring_rect(QPointF center, LoadingRingSize size)
+{
+    auto radius = size == LoadingRingSize::Favicon ? FAVICON_LOADING_RING_RADIUS : TOOLBAR_BUTTON_LOADING_RING_RADIUS;
+    return { center.x() - radius, center.y() - radius, 2 * radius, 2 * radius };
+}
 
 void paint_progress_ring(QPainter& painter, QPalette const& palette, QPointF center, double progress)
 {
-    QRectF ring_rect { center.x() - LOADING_RING_RADIUS, center.y() - LOADING_RING_RADIUS, 2 * LOADING_RING_RADIUS, 2 * LOADING_RING_RADIUS };
+    auto ring_rect = loading_ring_rect(center, LoadingRingSize::ToolbarButton);
 
     painter.save();
     painter.setRenderHint(QPainter::Antialiasing, true);
     painter.setBrush(Qt::NoBrush);
-    painter.setPen(QPen(Theme::chrome(palette).separator, 1.5));
+    painter.setPen(QPen(Theme::chrome(palette).separator, LOADING_RING_LINE_WIDTH));
     painter.drawEllipse(ring_rect);
     // NB: Qt's angles are in sixteenths of a degree, counterclockwise from three o'clock.
-    painter.setPen(QPen(Theme::accent(), 1.5, Qt::SolidLine, Qt::RoundCap));
+    painter.setPen(QPen(Theme::accent(), LOADING_RING_LINE_WIDTH, Qt::SolidLine, Qt::RoundCap));
     painter.drawArc(ring_rect, 90 * 16, -qRound(clamp(progress, 0.0, 1.0) * 360 * 16));
     painter.restore();
 }
 
-void paint_loading_ring(QPainter& painter, QPalette const& palette, QPointF center, LoadingPhase loading_phase)
+void paint_loading_ring(QPainter& painter, QPalette const& palette, QPointF center, LoadingRingSize size, LoadingPhase loading_phase)
 {
     static QElapsedTimer clock;
     if (!clock.isValid())
@@ -2104,7 +2113,7 @@ void paint_loading_ring(QPainter& painter, QPalette const& palette, QPointF cent
     auto period = loading_phase == LoadingPhase::WaitingForResponse ? LOADING_RING_WAITING_PERIOD_MS : LOADING_RING_PERIOD_MS;
     auto phase = static_cast<qreal>(clock.elapsed() % period) / period;
 
-    QRectF ring_rect { center.x() - LOADING_RING_RADIUS, center.y() - LOADING_RING_RADIUS, 2 * LOADING_RING_RADIUS, 2 * LOADING_RING_RADIUS };
+    auto ring_rect = loading_ring_rect(center, size);
 
     painter.save();
     painter.setRenderHint(QPainter::Antialiasing, true);
@@ -2112,7 +2121,7 @@ void paint_loading_ring(QPainter& painter, QPalette const& palette, QPointF cent
     if (loading_phase == LoadingPhase::WaitingForResponse && !SystemAppearance::prefers_reduced_motion())
         painter.setOpacity(painter.opacity() * 0.5);
     painter.setBrush(Qt::NoBrush);
-    painter.setPen(QPen(Theme::chrome(palette).separator, 1.5));
+    painter.setPen(QPen(Theme::chrome(palette).separator, LOADING_RING_LINE_WIDTH));
     painter.drawEllipse(ring_rect);
 
     // NB: Qt's angles are in sixteenths of a degree, counterclockwise from three o'clock. The arc is a quarter of the ring
@@ -2121,7 +2130,7 @@ void paint_loading_ring(QPainter& painter, QPalette const& palette, QPointF cent
     auto start_angle = reduce_motion ? 90 * 16 : qRound((90.0 - (phase * 360.0)) * 16);
     if (reduce_motion)
         painter.setOpacity(painter.opacity() * (0.35 + (0.65 * (0.5 + (0.5 * qCos(phase * 2 * M_PI))))));
-    painter.setPen(QPen(Theme::accent(), 1.5, Qt::SolidLine, Qt::RoundCap));
+    painter.setPen(QPen(Theme::accent(), LOADING_RING_LINE_WIDTH, Qt::SolidLine, Qt::RoundCap));
     painter.drawArc(ring_rect, start_angle, -90 * 16);
     painter.restore();
 }

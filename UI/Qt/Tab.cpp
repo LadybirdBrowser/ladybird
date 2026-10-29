@@ -500,7 +500,7 @@ private:
             if (progress.has_value())
                 ChromeStyle::paint_progress_ring(painter, palette, center, *progress);
             else
-                ChromeStyle::paint_loading_ring(painter, palette, center);
+                ChromeStyle::paint_loading_ring(painter, palette, center, ChromeStyle::LoadingRingSize::ToolbarButton);
             painter.restore();
         }
         if (m_needs_attention) {

@@ -26,6 +26,12 @@ constexpr inline int LOCATION_EDIT_CORNER_RADIUS = 7;
 constexpr inline int LOADING_RING_PERIOD_MS = 900;
 // Before the site responds, the ring turns more slowly, at half opacity.
 constexpr inline int LOADING_RING_WAITING_PERIOD_MS = 1600;
+enum class LoadingRingSize : u8 {
+    // 20 px, reaching 2 px past a tab's favicon slot.
+    Favicon,
+    // 23 px, filling a toolbar button.
+    ToolbarButton,
+};
 enum class LoadingPhase : u8 {
     WaitingForResponse,
     Receiving,
@@ -111,7 +117,7 @@ Optional<ControlFrameColors> control_frame_colors(QAbstractButton const&, Contro
 void paint_control_frame(QPainter&, QAbstractButton const&, ControlFrameStyle = ControlFrameStyle::InteractionOnly);
 void paint_focus_ring(QPainter&, QRectF const&, qreal radius);
 
-void paint_loading_ring(QPainter&, QPalette const&, QPointF center, LoadingPhase = LoadingPhase::Receiving);
+void paint_loading_ring(QPainter&, QPalette const&, QPointF center, LoadingRingSize, LoadingPhase = LoadingPhase::Receiving);
 // The loading ring's track, with an arc for the progress made, from 0 to 1, clockwise from twelve o'clock.
 void paint_progress_ring(QPainter&, QPalette const&, QPointF center, double progress);
 
