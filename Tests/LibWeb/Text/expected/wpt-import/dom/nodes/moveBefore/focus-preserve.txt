@@ -2,10 +2,9 @@ Harness status: OK
 
 Found 5 tests
 
-2 Pass
-3 Fail
+5 Pass
 Pass	moveBefore() preserves focus when the focused element remains focusable
 Pass	moveBefore() preserves focus and a backward selection in a text input
-Fail	Focus is fixed up after moveBefore() moves the focused element into an inert subtree
-Fail	Focus is fixed up after moveBefore() moves the focused element into a hidden parent
-Fail	Focus is fixed up after moveBefore() moves an ancestor of the focused element into a hidden parent
+Pass	Focus is fixed up after moveBefore() moves the focused element into an inert subtree
+Pass	Focus is fixed up after moveBefore() moves the focused element into a hidden parent
+Pass	Focus is fixed up after moveBefore() moves an ancestor of the focused element into a hidden parent

@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	removing the activeElement keeps focus on its document
+1 Pass
+Pass	removing the activeElement keeps focus on its document

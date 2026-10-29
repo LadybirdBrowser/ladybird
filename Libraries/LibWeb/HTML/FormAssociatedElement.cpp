@@ -1339,7 +1339,7 @@ void FormAssociatedTextControlElement::handle_insert(Utf16FlyString const& input
     if (first_is_one_of(input_type, UIEvents::InputTypes::insertText, UIEvents::InputTypes::insertCompositionText, UIEvents::InputTypes::insertFromPaste, UIEvents::InputTypes::insertReplacementText))
         data_for_input_event = Utf16String::from_utf16(data_for_insertion);
 
-    did_edit_text_node(input_type, data_for_input_event);
+    did_edit_text_node(input_type, data_for_input_event, old_value);
     html_element.document().spell_check_controller().did_user_edit(html_element);
     html_element.document().writing_suggestion_controller().did_user_edit(html_element);
     reveal_cursor_after_edit();
@@ -1429,7 +1429,7 @@ void FormAssociatedTextControlElement::handle_delete(Utf16FlyString const& input
     }
     history->end_recording();
 
-    did_edit_text_node(input_type, {});
+    did_edit_text_node(input_type, {}, old_value);
     html_element.document().spell_check_controller().did_user_edit(html_element);
     html_element.document().writing_suggestion_controller().did_user_edit(html_element);
     reveal_cursor_after_edit();

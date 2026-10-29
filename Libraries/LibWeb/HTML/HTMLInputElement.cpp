@@ -580,7 +580,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::run_input_activation_behavior(DOM::E
     return {};
 }
 
-void HTMLInputElement::did_edit_text_node(Utf16FlyString const& input_type, Optional<Utf16String> const& data)
+void HTMLInputElement::did_edit_text_node(Utf16FlyString const& input_type, Optional<Utf16String> const& data, Utf16View)
 {
     m_dirty_value = true;
     m_has_uncommitted_changes = true;
@@ -1561,6 +1561,10 @@ void HTMLInputElement::create_range_input_shadow_tree()
 
 void HTMLInputElement::user_interaction_did_change_input_value(Utf16FlyString const& input_type, Optional<Utf16String> const& data)
 {
+    // NB: Range interactions bypass text editing; keep their pending change for focus loss.
+    if (type_state() == TypeAttributeState::Range)
+        m_has_uncommitted_changes = true;
+
     // https://html.spec.whatwg.org/multipage/input.html#common-input-element-events
     // For input elements without a defined input activation behavior, but to which these events apply,
     // Although HTML specifies queuing this event, Blink, WebKit, and Gecko dispatch it
@@ -1625,7 +1629,13 @@ void HTMLInputElement::did_lose_focus()
     if (m_placeholder_text_node)
         m_placeholder_text_node->set_needs_repaint(InvalidateDisplayList::PaintCommands);
 
-    commit_pending_changes();
+    // NB: Removal discards pending changes, as does switching to a type to which change does not apply.
+    if (!is_connected() || !change_event_applies()) {
+        m_has_uncommitted_changes = false;
+        return;
+    }
+    if (m_has_uncommitted_changes)
+        commit_pending_changes();
 }
 
 void HTMLInputElement::form_associated_element_attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)

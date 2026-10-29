@@ -2,114 +2,114 @@ Harness status: OK
 
 Found 110 tests
 
-110 Fail
-Fail	#button1
-Fail	#button2
-Fail	#button3
-Fail	#button4
-Fail	#button5
-Fail	#div
-Fail	#editable
-Fail	#button6
-Fail	Textarea untouched: change events after becoming hidden
-Fail	Textarea untouched: change events after becoming disabled
-Fail	Textarea untouched: change events after becoming inert
-Fail	Textarea programmatic value: change events after becoming hidden
-Fail	Textarea programmatic value: change events after becoming disabled
-Fail	Textarea programmatic value: change events after becoming inert
-Fail	Textarea programmatic defaultValue: change events after becoming hidden
-Fail	Textarea programmatic defaultValue: change events after becoming disabled
-Fail	Textarea programmatic defaultValue: change events after becoming inert
-Fail	Textarea user edit: change events after becoming hidden
-Fail	Textarea user edit: change events after becoming disabled
-Fail	Textarea user edit: change events after becoming inert
-Fail	Textarea reverted user edit: change events after becoming hidden
-Fail	Textarea reverted user edit: change events after becoming disabled
-Fail	Textarea reverted user edit: change events after becoming inert
-Fail	Textarea programmatic value followed by user edit: change events after becoming hidden
-Fail	Textarea programmatic value followed by user edit: change events after becoming disabled
-Fail	Textarea programmatic value followed by user edit: change events after becoming inert
-Fail	Textarea user edit with an input handler changing defaultValue: change events after becoming hidden
-Fail	Textarea user edit with an input handler changing defaultValue: change events after becoming disabled
-Fail	Textarea user edit with an input handler changing defaultValue: change events after becoming inert
-Fail	Textarea user edit followed by form reset: change events after becoming hidden
-Fail	Textarea user edit followed by form reset: change events after becoming disabled
-Fail	Textarea user edit followed by form reset: change events after becoming inert
-Fail	Textarea removal discards its pending change before reinsertion
-Fail	Cloning an edited textarea does not copy its pending change
-Fail	Untouched input type=text: no change after becoming hidden
-Fail	Untouched input type=text: no change after becoming disabled
-Fail	Untouched input type=text: no change after becoming inert
-Fail	Untouched input type=search: no change after becoming hidden
-Fail	Untouched input type=search: no change after becoming disabled
-Fail	Untouched input type=search: no change after becoming inert
-Fail	Untouched input type=tel: no change after becoming hidden
-Fail	Untouched input type=tel: no change after becoming disabled
-Fail	Untouched input type=tel: no change after becoming inert
-Fail	Untouched input type=url: no change after becoming hidden
-Fail	Untouched input type=url: no change after becoming disabled
-Fail	Untouched input type=url: no change after becoming inert
-Fail	Untouched input type=email: no change after becoming hidden
-Fail	Untouched input type=email: no change after becoming disabled
-Fail	Untouched input type=email: no change after becoming inert
-Fail	Untouched input type=password: no change after becoming hidden
-Fail	Untouched input type=password: no change after becoming disabled
-Fail	Untouched input type=password: no change after becoming inert
-Fail	Untouched input type=date: no change after becoming hidden
-Fail	Untouched input type=date: no change after becoming disabled
-Fail	Untouched input type=date: no change after becoming inert
-Fail	Untouched input type=month: no change after becoming hidden
-Fail	Untouched input type=month: no change after becoming disabled
-Fail	Untouched input type=month: no change after becoming inert
-Fail	Untouched input type=week: no change after becoming hidden
-Fail	Untouched input type=week: no change after becoming disabled
-Fail	Untouched input type=week: no change after becoming inert
-Fail	Untouched input type=time: no change after becoming hidden
-Fail	Untouched input type=time: no change after becoming disabled
-Fail	Untouched input type=time: no change after becoming inert
-Fail	Untouched input type=datetime-local: no change after becoming hidden
-Fail	Untouched input type=datetime-local: no change after becoming disabled
-Fail	Untouched input type=datetime-local: no change after becoming inert
-Fail	Untouched input type=number: no change after becoming hidden
-Fail	Untouched input type=number: no change after becoming disabled
-Fail	Untouched input type=number: no change after becoming inert
-Fail	Untouched input type=range: no change after becoming hidden
-Fail	Untouched input type=range: no change after becoming disabled
-Fail	Untouched input type=range: no change after becoming inert
-Fail	Untouched input type=color: no change after becoming hidden
-Fail	Untouched input type=color: no change after becoming disabled
-Fail	Untouched input type=color: no change after becoming inert
-Fail	Untouched input type=checkbox: no change after becoming hidden
-Fail	Untouched input type=checkbox: no change after becoming disabled
-Fail	Untouched input type=checkbox: no change after becoming inert
-Fail	Untouched input type=radio: no change after becoming hidden
-Fail	Untouched input type=radio: no change after becoming disabled
-Fail	Untouched input type=radio: no change after becoming inert
-Fail	Untouched input type=file: no change after becoming hidden
-Fail	Untouched input type=file: no change after becoming disabled
-Fail	Untouched input type=file: no change after becoming inert
-Fail	Untouched input type=submit: no change after becoming hidden
-Fail	Untouched input type=submit: no change after becoming disabled
-Fail	Untouched input type=submit: no change after becoming inert
-Fail	Untouched input type=image: no change after becoming hidden
-Fail	Untouched input type=image: no change after becoming disabled
-Fail	Untouched input type=image: no change after becoming inert
-Fail	Untouched input type=reset: no change after becoming hidden
-Fail	Untouched input type=reset: no change after becoming disabled
-Fail	Untouched input type=reset: no change after becoming inert
-Fail	Untouched input type=button: no change after becoming hidden
-Fail	Untouched input type=button: no change after becoming disabled
-Fail	Untouched input type=button: no change after becoming inert
-Fail	Programmatic text input value: no change after becoming hidden
-Fail	User-edited text input: one change after becoming hidden
-Fail	User-edited range input: one change after becoming hidden
-Fail	Programmatic text input value: no change after becoming disabled
-Fail	User-edited text input: one change after becoming disabled
-Fail	User-edited range input: one change after becoming disabled
-Fail	Programmatic text input value: no change after becoming inert
-Fail	User-edited text input: one change after becoming inert
-Fail	User-edited range input: one change after becoming inert
-Fail	Text input removal discards its pending change before reinsertion
-Fail	Changing an edited input to hidden discards its pending change
-Fail	Textarea undo after a committed edit creates a new pending change
-Fail	Textarea redo after a committed edit creates a new pending change
+110 Pass
+Pass	#button1
+Pass	#button2
+Pass	#button3
+Pass	#button4
+Pass	#button5
+Pass	#div
+Pass	#editable
+Pass	#button6
+Pass	Textarea untouched: change events after becoming hidden
+Pass	Textarea untouched: change events after becoming disabled
+Pass	Textarea untouched: change events after becoming inert
+Pass	Textarea programmatic value: change events after becoming hidden
+Pass	Textarea programmatic value: change events after becoming disabled
+Pass	Textarea programmatic value: change events after becoming inert
+Pass	Textarea programmatic defaultValue: change events after becoming hidden
+Pass	Textarea programmatic defaultValue: change events after becoming disabled
+Pass	Textarea programmatic defaultValue: change events after becoming inert
+Pass	Textarea user edit: change events after becoming hidden
+Pass	Textarea user edit: change events after becoming disabled
+Pass	Textarea user edit: change events after becoming inert
+Pass	Textarea reverted user edit: change events after becoming hidden
+Pass	Textarea reverted user edit: change events after becoming disabled
+Pass	Textarea reverted user edit: change events after becoming inert
+Pass	Textarea programmatic value followed by user edit: change events after becoming hidden
+Pass	Textarea programmatic value followed by user edit: change events after becoming disabled
+Pass	Textarea programmatic value followed by user edit: change events after becoming inert
+Pass	Textarea user edit with an input handler changing defaultValue: change events after becoming hidden
+Pass	Textarea user edit with an input handler changing defaultValue: change events after becoming disabled
+Pass	Textarea user edit with an input handler changing defaultValue: change events after becoming inert
+Pass	Textarea user edit followed by form reset: change events after becoming hidden
+Pass	Textarea user edit followed by form reset: change events after becoming disabled
+Pass	Textarea user edit followed by form reset: change events after becoming inert
+Pass	Textarea removal discards its pending change before reinsertion
+Pass	Cloning an edited textarea does not copy its pending change
+Pass	Untouched input type=text: no change after becoming hidden
+Pass	Untouched input type=text: no change after becoming disabled
+Pass	Untouched input type=text: no change after becoming inert
+Pass	Untouched input type=search: no change after becoming hidden
+Pass	Untouched input type=search: no change after becoming disabled
+Pass	Untouched input type=search: no change after becoming inert
+Pass	Untouched input type=tel: no change after becoming hidden
+Pass	Untouched input type=tel: no change after becoming disabled
+Pass	Untouched input type=tel: no change after becoming inert
+Pass	Untouched input type=url: no change after becoming hidden
+Pass	Untouched input type=url: no change after becoming disabled
+Pass	Untouched input type=url: no change after becoming inert
+Pass	Untouched input type=email: no change after becoming hidden
+Pass	Untouched input type=email: no change after becoming disabled
+Pass	Untouched input type=email: no change after becoming inert
+Pass	Untouched input type=password: no change after becoming hidden
+Pass	Untouched input type=password: no change after becoming disabled
+Pass	Untouched input type=password: no change after becoming inert
+Pass	Untouched input type=date: no change after becoming hidden
+Pass	Untouched input type=date: no change after becoming disabled
+Pass	Untouched input type=date: no change after becoming inert
+Pass	Untouched input type=month: no change after becoming hidden
+Pass	Untouched input type=month: no change after becoming disabled
+Pass	Untouched input type=month: no change after becoming inert
+Pass	Untouched input type=week: no change after becoming hidden
+Pass	Untouched input type=week: no change after becoming disabled
+Pass	Untouched input type=week: no change after becoming inert
+Pass	Untouched input type=time: no change after becoming hidden
+Pass	Untouched input type=time: no change after becoming disabled
+Pass	Untouched input type=time: no change after becoming inert
+Pass	Untouched input type=datetime-local: no change after becoming hidden
+Pass	Untouched input type=datetime-local: no change after becoming disabled
+Pass	Untouched input type=datetime-local: no change after becoming inert
+Pass	Untouched input type=number: no change after becoming hidden
+Pass	Untouched input type=number: no change after becoming disabled
+Pass	Untouched input type=number: no change after becoming inert
+Pass	Untouched input type=range: no change after becoming hidden
+Pass	Untouched input type=range: no change after becoming disabled
+Pass	Untouched input type=range: no change after becoming inert
+Pass	Untouched input type=color: no change after becoming hidden
+Pass	Untouched input type=color: no change after becoming disabled
+Pass	Untouched input type=color: no change after becoming inert
+Pass	Untouched input type=checkbox: no change after becoming hidden
+Pass	Untouched input type=checkbox: no change after becoming disabled
+Pass	Untouched input type=checkbox: no change after becoming inert
+Pass	Untouched input type=radio: no change after becoming hidden
+Pass	Untouched input type=radio: no change after becoming disabled
+Pass	Untouched input type=radio: no change after becoming inert
+Pass	Untouched input type=file: no change after becoming hidden
+Pass	Untouched input type=file: no change after becoming disabled
+Pass	Untouched input type=file: no change after becoming inert
+Pass	Untouched input type=submit: no change after becoming hidden
+Pass	Untouched input type=submit: no change after becoming disabled
+Pass	Untouched input type=submit: no change after becoming inert
+Pass	Untouched input type=image: no change after becoming hidden
+Pass	Untouched input type=image: no change after becoming disabled
+Pass	Untouched input type=image: no change after becoming inert
+Pass	Untouched input type=reset: no change after becoming hidden
+Pass	Untouched input type=reset: no change after becoming disabled
+Pass	Untouched input type=reset: no change after becoming inert
+Pass	Untouched input type=button: no change after becoming hidden
+Pass	Untouched input type=button: no change after becoming disabled
+Pass	Untouched input type=button: no change after becoming inert
+Pass	Programmatic text input value: no change after becoming hidden
+Pass	User-edited text input: one change after becoming hidden
+Pass	User-edited range input: one change after becoming hidden
+Pass	Programmatic text input value: no change after becoming disabled
+Pass	User-edited text input: one change after becoming disabled
+Pass	User-edited range input: one change after becoming disabled
+Pass	Programmatic text input value: no change after becoming inert
+Pass	User-edited text input: one change after becoming inert
+Pass	User-edited range input: one change after becoming inert
+Pass	Text input removal discards its pending change before reinsertion
+Pass	Changing an edited input to hidden discards its pending change
+Pass	Textarea undo after a committed edit creates a new pending change
+Pass	Textarea redo after a committed edit creates a new pending change

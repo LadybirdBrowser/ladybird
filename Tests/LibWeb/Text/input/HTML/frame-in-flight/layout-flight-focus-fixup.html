@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    #box { width: 100px; height: 10px; color: rgb(0, 0, 255); }
+    #box.wide { width: 200px; color: rgb(0, 128, 0); }
+</style>
+<div id="box"></div>
+<button id="button">button</button>
+<script>
+    // A task beside a rendering update whose layout flies comes after the whole of the update: the rest of it does not
+    // fix up a control the task focused and then disabled. The next rendering update does, after its animation frame
+    // callbacks.
+    asyncTest(async done => {
+        const events = [];
+        button.addEventListener("blur", () => events.push("blur"));
+        await twoFramesLanded();
+        requestAnimationFrame(() => {
+            internals.holdNextFrame("layout");
+            internals.setManualRenderingOpportunities(true);
+            box.classList.add("wide");
+        });
+        await nextFrame();
+        while (internals.frameSchedulerState() !== "laying-out")
+            await nextTask();
+        await nextTask();
+        println(`state in the next task: ${internals.frameSchedulerState()}`);
+        button.focus();
+        button.disabled = true;
+        requestAnimationFrame(() => events.push(`animation frame, active element: ${document.activeElement.id}`));
+        internals.releaseHeldFrame();
+        while (internals.frameSchedulerState() !== "idle")
+            await nextTask();
+        events.push(`update finished, active element: ${document.activeElement.id}`);
+        internals.setManualRenderingOpportunities(false);
+        await twoFrames();
+        for (const event of events)
+            println(event);
+        println(`active element: ${document.activeElement.tagName}`);
+        done();
+    });
+</script>

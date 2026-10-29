@@ -2,10 +2,10 @@ Harness status: OK
 
 Found 6 tests
 
-6 Fail
-Fail	<input> that gets 'inert' attribute
-Fail	<input> whose parent gets 'inert' attribute
-Fail	<button> that gets 'inert' attribute
-Fail	<div> that gets 'inert' attribute
-Fail	<div> whose parent gets 'inert' attribute
-Fail	<div> whose grandparent gets 'inert' attribute
+6 Pass
+Pass	<input> that gets 'inert' attribute
+Pass	<input> whose parent gets 'inert' attribute
+Pass	<button> that gets 'inert' attribute
+Pass	<div> that gets 'inert' attribute
+Pass	<div> whose parent gets 'inert' attribute
+Pass	<div> whose grandparent gets 'inert' attribute

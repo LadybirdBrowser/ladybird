@@ -2576,9 +2576,7 @@ void HTMLElement::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor
 {
     Element::removed_from(is_subtree_root, old_ancestor, old_root);
 
-    // FIXME: 1. Let document be removedNode's node document.
-    // FIXME: 2. If document's focused area is removedNode, then set document's focused area to document's viewport,
-    //   and set document's relevant global object's navigation API's focus changed during ongoing navigation to false.
+    // NB: Node::removed_from() performs steps 1 and 2, which fix up focus for all namespaces.
 
     // 3. If removedNode is an element whose namespace is the HTML namespace, and this standard defines HTML element
     //    removing steps for removedNode's local name, then run the corresponding HTML element removing steps given

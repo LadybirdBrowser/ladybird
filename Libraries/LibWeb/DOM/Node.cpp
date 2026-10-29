@@ -84,6 +84,7 @@
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
+#include <LibWeb/HTML/Navigation.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/SimilarOriginWindowAgent.h>
@@ -1764,6 +1765,10 @@ void Node::remove(bool suppress_observers)
 
     removal_style_record_pins.pin_style_records_after_removal(*this, was_connected);
 
+    // NB: A subtree holding the focused or hovered node takes :focus-within and :hover out of its old ancestor
+    //     chain. Republish that chain before the removing steps clear the focused area.
+    CSS::Invalidation::invalidate_style_after_subtree_place_changed(*this, parent);
+
     // 11. Run the removing steps with node, true, and parent.
     // 12. Let isParentConnected be parent’s connected.
     // 13. If node is custom and isParentConnected is true, then enqueue a custom element callback reaction with node,
@@ -1772,10 +1777,6 @@ void Node::remove(bool suppress_observers)
     run_removing_steps(*parent, parent_root, was_tracked_by_style_engine);
 
     removal_style_record_pins.release_dom_style_records();
-
-    // A subtree holding the focused or hovered node takes `:focus-within` and `:hover` out of the
-    // chain it hung off. Nothing about any element in that chain moved, so it has to be told.
-    CSS::Invalidation::invalidate_style_after_subtree_place_changed(*this, parent);
 
     // 15. Add transient registered observers given node and parent.
     add_transient_registered_observers(*parent);
@@ -2877,6 +2878,17 @@ void Node::removed_from(IsSubtreeRoot, Node* old_parent, Node&)
 
     m_is_connected = false;
     m_in_editable_subtree = false;
+
+    // https://html.spec.whatwg.org/multipage/infrastructure.html#dom-trees:concept-node-remove-ext
+    // 1. Let document be removedNode's node document.
+    auto& document = this->document();
+
+    // 2. If document's focused area is removedNode, then set document's focused area to document's viewport, and set
+    //    document's relevant global object's navigation API's focus changed during ongoing navigation to false.
+    if (document.focused_area().ptr() == this) {
+        document.set_focused_area(nullptr);
+        HTML::relevant_window(document).navigation()->set_focus_changed_during_ongoing_navigation(false);
+    }
 }
 
 // https://dom.spec.whatwg.org/#concept-node-move-ext
@@ -3162,6 +3174,10 @@ void Node::remove_all_children(bool suppress_observers)
 
         removal_style_record_pins.pin_style_records_after_removal(*child, was_connected);
 
+        // NB: Republish the old chain before the removing steps clear the focused area.
+        if (a_child_holds_a_propagating_state_source)
+            CSS::Invalidation::invalidate_style_after_subtree_place_changed(*child, this);
+
         // 11. Run the removing steps with node, true, and parent.
         // 12. Let isParentConnected be parent’s connected.
         // 13. If node is custom and isParentConnected is true, then enqueue a custom element callback reaction with
@@ -3170,9 +3186,6 @@ void Node::remove_all_children(bool suppress_observers)
         child->run_removing_steps(*this, parent_root, was_tracked_by_style_engine);
 
         removal_style_record_pins.release_dom_style_records();
-
-        if (a_child_holds_a_propagating_state_source)
-            CSS::Invalidation::invalidate_style_after_subtree_place_changed(*child, this);
 
         // 15. Add transient registered observers given node and parent.
         child->add_transient_registered_observers(*this);

@@ -490,6 +490,7 @@
         }
     }
 
+    // Reparent focused controls with moveBefore; appendChild removes them and clears their focus.
     const unprobeablePseudoCases = [
         {
             name: "child :focus insertion with unrelated metadata",
@@ -500,7 +501,7 @@
                 input.focus({ preventScroll: true });
                 return { input };
             },
-            mutate: ({ anchor, input }) => anchor.appendChild(input),
+            mutate: ({ anchor, input }) => anchor.moveBefore(input, null),
         },
         {
             name: "descendant :focus insertion through wrapper with unrelated metadata",
@@ -513,7 +514,7 @@
                 input.focus({ preventScroll: true });
                 return { wrapper };
             },
-            mutate: ({ anchor, wrapper }) => anchor.appendChild(wrapper),
+            mutate: ({ anchor, wrapper }) => anchor.moveBefore(wrapper, null),
         },
         {
             name: "child :focus-within insertion with unrelated metadata",
@@ -526,7 +527,7 @@
                 input.focus({ preventScroll: true });
                 return { wrapper };
             },
-            mutate: ({ anchor, wrapper }) => anchor.appendChild(wrapper),
+            mutate: ({ anchor, wrapper }) => anchor.moveBefore(wrapper, null),
         },
         {
             name: "child :focus-visible insertion with unrelated metadata",
@@ -537,7 +538,7 @@
                 input.focus({ preventScroll: true });
                 return { input };
             },
-            mutate: ({ anchor, input }) => anchor.appendChild(input),
+            mutate: ({ anchor, input }) => anchor.moveBefore(input, null),
         },
         {
             name: "child :default checkbox insertion with unrelated metadata",
@@ -594,7 +595,7 @@
                 input.focus({ preventScroll: true });
                 return { input };
             },
-            mutate: ({ anchor, input }) => anchor.appendChild(input),
+            mutate: ({ anchor, input }) => anchor.moveBefore(input, null),
         },
         {
             name: "child :where(:invalid) insertion with unrelated metadata",
