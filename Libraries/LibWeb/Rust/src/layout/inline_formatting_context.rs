@@ -1752,14 +1752,16 @@ impl<'context> InlineFormattingContext<'context> {
                 line_builder.break_line(line_builder::ForcedBreak::No, NodeSlotId::INVALID, None);
                 continue;
             }
-            let split_item = item.split_for_overflow_break(
-                &text_content.text,
-                text_content.grapheme_segmenter(),
-                letter_spacing,
-                word_spacing,
-                remaining_inline_size,
-                line_is_empty,
-            );
+            let split_item = self.callbacks.with_grapheme_segmenter(item.node, |grapheme_segmenter| {
+                item.split_for_overflow_break(
+                    &text_content.text,
+                    grapheme_segmenter,
+                    letter_spacing,
+                    word_spacing,
+                    remaining_inline_size,
+                    line_is_empty,
+                )
+            });
             let Some(mut prefix) = split_item else {
                 if line_is_empty {
                     return false;
@@ -3140,12 +3142,16 @@ impl ContentSizingLines {
         trailing_whitespace_inline_size: CssPixels,
     ) {
         let text_content = context.callbacks.text_content(item.node);
-        let cluster_inline_sizes = item.grapheme_cluster_inline_sizes(
-            &text_content.text,
-            text_content.grapheme_segmenter(),
-            style.letter_spacing().to_double() as f32,
-            style.word_spacing().to_double() as f32,
-        );
+        let cluster_inline_sizes = context
+            .callbacks
+            .with_grapheme_segmenter(item.node, |grapheme_segmenter| {
+                item.grapheme_cluster_inline_sizes(
+                    &text_content.text,
+                    grapheme_segmenter,
+                    style.letter_spacing().to_double() as f32,
+                    style.word_spacing().to_double() as f32,
+                )
+            });
         let border_and_padding_end = item.padding_end + item.border_end;
         if border_and_padding_start + item.inline_size + border_and_padding_end > CssPixels::default() {
             self.lines.finish();

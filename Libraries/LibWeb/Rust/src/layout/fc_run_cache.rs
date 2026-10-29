@@ -1308,10 +1308,11 @@ mod tests {
         use crate::layout::memo_invalidations::MemoInvalidations;
         let store = FcRunCacheStore::default();
         let in_flow_block_cache = InFlowBlockCacheStore::default();
+        let text_memos = crate::layout::rendered_text::TextMemos::default();
         let node = Node::new(0, 1);
         let mut notes = MemoInvalidations::default();
         notes.note_structural_inline_change(node);
-        notes.apply_to(&store, &in_flow_block_cache);
+        notes.apply_to(&store, &in_flow_block_cache, &text_memos);
         assert_eq!(store.structural_epoch_bumps_of(node), 0);
 
         store.store(node, entry(at(100), 1, Some(root_with_a_descendant()), 0));
@@ -1319,7 +1320,7 @@ mod tests {
         notes.note_structural_inline_change(node);
         notes.note_fragment_cache_epoch_bumped(node);
         notes.note_structural_inline_change(node);
-        notes.apply_to(&store, &in_flow_block_cache);
+        notes.apply_to(&store, &in_flow_block_cache, &text_memos);
         assert_eq!(store.structural_epoch_bumps_of(node), 2);
 
         let reused = Node::new(0, 2);
@@ -1327,7 +1328,7 @@ mod tests {
         notes.note_structural_inline_change(node);
         notes.note_slot_freed(node.slot_index());
         notes.note_structural_inline_change(reused);
-        notes.apply_to(&store, &in_flow_block_cache);
+        notes.apply_to(&store, &in_flow_block_cache, &text_memos);
         assert!(!store.slot_holds_entries(0));
         assert_eq!(store.structural_epoch_bumps_of(reused), 0);
     }

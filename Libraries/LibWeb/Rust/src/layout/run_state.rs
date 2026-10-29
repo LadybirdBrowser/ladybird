@@ -24,6 +24,8 @@ pub(crate) struct LayoutScratch {
     /// The document's layout trace while a stage lays the document out, which the stage takes from the arena and hands
     /// back once it is done.
     pub(super) layout_trace: super::trace::LayoutTrace,
+    /// The chunks and grapheme segmenters of the text rows the passes laid out.
+    text_memos: super::rendered_text::TextMemos,
 }
 
 /// What layout found out that the host hears of once the layout that found it is committed: what the
@@ -98,6 +100,7 @@ impl Default for LayoutScratch {
             fc_run_cache_store: Default::default(),
             in_flow_block_cache_store: Default::default(),
             layout_trace: Default::default(),
+            text_memos: Default::default(),
         }
     }
 }
@@ -109,6 +112,7 @@ impl LayoutScratch {
         Self {
             fc_run_cache_store: self.fc_run_cache_store.clone(),
             in_flow_block_cache_store: self.in_flow_block_cache_store.clone(),
+            text_memos: self.text_memos.fork(),
             ..Self::default()
         }
     }
@@ -121,11 +125,17 @@ impl LayoutScratch {
         &self.in_flow_block_cache_store
     }
 
+    pub(super) fn text_memos(&self) -> &super::rendered_text::TextMemos {
+        &self.text_memos
+    }
+
     /// Brings the run memos up to date with what the arena's writes since the last call did to their boxes.
     pub(super) fn apply_memo_invalidations(&self, arena: &LayoutNodeArena) {
-        arena
-            .take_memo_invalidations()
-            .apply_to(&self.fc_run_cache_store, &self.in_flow_block_cache_store);
+        arena.take_memo_invalidations().apply_to(
+            &self.fc_run_cache_store,
+            &self.in_flow_block_cache_store,
+            &self.text_memos,
+        );
     }
 
     pub(super) fn store_inline_item_stash(
