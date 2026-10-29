@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Focus preservation and focus fixup after moveBefore()</title>
+<link rel="help" href="https://dom.spec.whatwg.org/#dom-parentnode-movebefore">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/interaction.html#focus-fixup-rule">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#textFieldSelection">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../common/rendering-utils.js"></script>
+<body>
+<script>
+"use strict";
+
+function createTestNodes(t) {
+  const fixture = document.createElement("div");
+  const sourceParent = document.createElement("div");
+  const destinationParent = document.createElement("div");
+  const button = document.createElement("button");
+  button.textContent = "Button";
+
+  sourceParent.append(button);
+  fixture.append(sourceParent, destinationParent);
+  document.body.append(fixture);
+  t.add_cleanup(() => fixture.remove());
+
+  return {button, sourceParent, destinationParent};
+}
+
+function assertFocusPreservedDuringMove(focusedElement, movedNode,
+                                        destinationParent) {
+  focusedElement.focus();
+  assert_equals(document.activeElement, focusedElement,
+                "The element starts focused");
+
+  destinationParent.moveBefore(movedNode, null);
+  assert_equals(movedNode.parentNode, destinationParent,
+                "moveBefore() moves the node");
+  assert_equals(document.activeElement, focusedElement,
+                "moveBefore() preserves focus synchronously");
+}
+
+async function assertFocusFixupAfterRendering(focusedElement, movedNode,
+                                              destinationParent) {
+  assertFocusPreservedDuringMove(focusedElement, movedNode, destinationParent);
+
+  // The focus fixup rule runs during a rendering update when the move makes
+  // the focused element non-focusable.
+  await waitForAtLeastOneFrame();
+  assert_equals(document.activeElement, document.body,
+                "Focus is fixed up after a rendering update");
+}
+
+promise_test(async t => {
+  const {button, destinationParent} = createTestNodes(t);
+
+  assertFocusPreservedDuringMove(button, button, destinationParent);
+  await waitForAtLeastOneFrame();
+  assert_equals(document.activeElement, button,
+                "Focus remains on the button after a rendering update");
+}, "moveBefore() preserves focus when the focused element remains focusable");
+
+promise_test(async t => {
+  const {sourceParent, destinationParent} = createTestNodes(t);
+  const input = document.createElement("input");
+  input.value = "0123456789";
+  sourceParent.append(input);
+
+  input.focus();
+  assert_equals(document.activeElement, input, "The input is focused");
+
+  input.setSelectionRange(2, 7, "backward");
+  assert_equals(input.selectionStart, 2, "selectionStart was set");
+  assert_equals(input.selectionEnd, 7, "selectionEnd was set");
+  assert_equals(input.selectionDirection, "backward",
+                "selectionDirection was set");
+
+  destinationParent.moveBefore(input, null);
+  assert_equals(input.parentNode, destinationParent,
+                "The input was moved to the destination parent");
+
+  await waitForAtLeastOneFrame();
+
+  assert_equals(document.activeElement, input,
+                "The input remains focused");
+  assert_equals(input.selectionStart, 2, "selectionStart is preserved");
+  assert_equals(input.selectionEnd, 7, "selectionEnd is preserved");
+  assert_equals(input.selectionDirection, "backward",
+                "selectionDirection is preserved");
+}, "moveBefore() preserves focus and a backward selection in a text input");
+
+promise_test(async t => {
+  const {button, destinationParent} = createTestNodes(t);
+  destinationParent.inert = true;
+
+  await assertFocusFixupAfterRendering(button, button, destinationParent);
+}, "Focus is fixed up after moveBefore() moves the focused element into an inert subtree");
+
+promise_test(async t => {
+  const {button, destinationParent} = createTestNodes(t);
+  destinationParent.hidden = true;
+
+  await assertFocusFixupAfterRendering(button, button, destinationParent);
+}, "Focus is fixed up after moveBefore() moves the focused element into a hidden parent");
+
+promise_test(async t => {
+  const {button, sourceParent, destinationParent} = createTestNodes(t);
+  destinationParent.hidden = true;
+
+  await assertFocusFixupAfterRendering(
+      button, sourceParent, destinationParent);
+}, "Focus is fixed up after moveBefore() moves an ancestor of the focused element into a hidden parent");
+</script>
+</body>

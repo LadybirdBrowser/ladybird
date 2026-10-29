@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>Dynamic inertness on focused element</title>
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/interaction.html#focus-fixup-rule">
+<meta name="assert" content="If a focused element becomes inert, it stops being focused.">
+<div id="log"></div>
+
+<div class="test-wrapper" data-name="<input> that gets 'inert' attribute">
+  <input class="becomes-inert check-focus">
+</div>
+
+<div class="test-wrapper" data-name="<input> whose parent gets 'inert' attribute">
+  <div class="becomes-inert">
+    <input class="check-focus">
+  </div>
+</div>
+
+<div class="test-wrapper" data-name="<button> that gets 'inert' attribute">
+  <button class="becomes-inert check-focus">foo</button>
+</div>
+
+<div class="test-wrapper" data-name="<div> that gets 'inert' attribute">
+  <div class="becomes-inert check-focus" tabindex="-1"></div>
+</div>
+
+<div class="test-wrapper" data-name="<div> whose parent gets 'inert' attribute">
+  <div class="becomes-inert">
+    <div class="check-focus" tabindex="-1">bar</div>
+  </div>
+</div>
+
+<div class="test-wrapper" data-name="<div> whose grandparent gets 'inert' attribute">
+  <div class="becomes-inert">
+    <p>
+      <span class="check-focus" tabindex="-1">baz</span>
+    </p>
+  </div>
+</div>
+
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script>
+function nextRepaint() {
+  return new Promise(resolve => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(resolve);
+    });
+  });
+}
+
+const loaded = new Promise(resolve => {
+  addEventListener("load", resolve, {once: true});
+});
+promise_setup(() => loaded);
+
+for (const testWrapper of document.querySelectorAll(".test-wrapper")) {
+  const becomesInert = testWrapper.querySelector(".becomes-inert");
+  const checkFocus = testWrapper.querySelector(".check-focus");
+  promise_test(async function() {
+    checkFocus.focus();
+    assert_equals(document.activeElement, checkFocus, "The element is focused");
+
+    becomesInert.inert = true;
+
+    // The focus fixup rule should blur the element since it's no longer focusable.
+    // In Chromium this happens after a repaint (https://crbug.com/1275097).
+    await nextRepaint();
+    assert_equals(document.activeElement, document.body, "The element stops being focused");
+  }, testWrapper.dataset.name);
+}
+</script>
