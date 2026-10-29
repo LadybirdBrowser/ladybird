@@ -102,8 +102,10 @@ WebIDL::ExceptionOr<void> HTMLScriptElement::prepare_script_text()
     //      sink,
     //      'script' as sinkGroup.
     if (m_script_text != child_text_content()) {
+        // INTEROP: Step 2 currently names TrustedScriptURL, but script bodies use the createScript policy callback
+        //          in other engines, consistently with the script text setters.
         m_script_text = TRY(TrustedTypes::get_trusted_type_compliant_string(
-            TrustedTypes::TrustedTypeName::TrustedScriptURL,
+            TrustedTypes::TrustedTypeName::TrustedScript,
             HTML::relevant_global_object(document()),
             child_text_content(),
             sink,

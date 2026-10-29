@@ -2,38 +2,37 @@ Harness status: OK
 
 Found 33 tests
 
-5 Pass
-28 Fail
+33 Pass
 Pass	Default policy's calls when setting script source via HTMLScriptElement.innerText.
-Fail	Verify when the default policy is called for script source via HTMLElement.innerText.
+Pass	Verify when the default policy is called for script source via HTMLElement.innerText.
 Pass	Default policy's calls when setting script source via HTMLScriptElement.textContent.
-Fail	Verify when the default policy is called for script source set via Node.textContent.
+Pass	Verify when the default policy is called for script source set via Node.textContent.
 Pass	Default policy's calls when setting script source via HTMLScriptElement.text.
-Fail	Default policy's calls when setting script source via Element.innerHTML.
-Fail	Default policy's calls when setting script source via Element.setHTMLUnsafe().
+Pass	Default policy's calls when setting script source via Element.innerHTML.
+Pass	Default policy's calls when setting script source via Element.setHTMLUnsafe().
 Pass	Default policy when splitting script source via Text.splitText().
 Pass	Default policy when normalizing script source via Element.normalize().
-Fail	Default policy's calls when setting script source via Node.nodeValue.
-Fail	Default policy's calls when setting script source via CharacterData.data.
-Fail	Default policy's calls when setting script source via CharacterData.appendData().
-Fail	Default policy's calls when setting script source via CharacterData.insertData().
-Fail	Default policy's calls when setting script source via CharacterData.replaceData().
-Fail	Default policy's calls when setting script source via CharacterData.deleteData().
-Fail	Default policy's calls when setting script source via CharacterData.before().
-Fail	Default policy's calls when setting script source via CharacterData.after().
-Fail	Default policy's calls when setting script source via CharacterData.remove().
-Fail	Default policy's calls when setting script source via CharacterData.replaceWith().
-Fail	Default policy's calls when setting script source via Node.appendChild().
-Fail	Default policy's calls when setting script source via Node.insertBefore().
-Fail	Default policy's calls when setting script source via Node.replaceChild().
-Fail	Default policy's calls when setting script source via Node.removeChild().
-Fail	Default policy's calls when setting script source via Element.prepend().
-Fail	Default policy's calls when setting script source via Element.append().
-Fail	Default policy's calls when setting script source via Element.replaceChildren().
-Fail	Default policy's calls when setting script source via Element.moveBefore().
-Fail	Default policy's calls when setting script source via Node.insertAdjacentText().
-Fail	Default policy's calls when setting script source via Node.insertAdjacentHTML().
-Fail	Default policy's calls when setting source via Range.insertNode().
-Fail	Default policy's calls when setting script source via Range.deleteContents().
-Fail	Default policy's calls when cloning a script via Node.cloneNode().
-Fail	Default policy's calls when cloning a script via Range.cloneContents().
+Pass	Default policy's calls when setting script source via Node.nodeValue.
+Pass	Default policy's calls when setting script source via CharacterData.data.
+Pass	Default policy's calls when setting script source via CharacterData.appendData().
+Pass	Default policy's calls when setting script source via CharacterData.insertData().
+Pass	Default policy's calls when setting script source via CharacterData.replaceData().
+Pass	Default policy's calls when setting script source via CharacterData.deleteData().
+Pass	Default policy's calls when setting script source via CharacterData.before().
+Pass	Default policy's calls when setting script source via CharacterData.after().
+Pass	Default policy's calls when setting script source via CharacterData.remove().
+Pass	Default policy's calls when setting script source via CharacterData.replaceWith().
+Pass	Default policy's calls when setting script source via Node.appendChild().
+Pass	Default policy's calls when setting script source via Node.insertBefore().
+Pass	Default policy's calls when setting script source via Node.replaceChild().
+Pass	Default policy's calls when setting script source via Node.removeChild().
+Pass	Default policy's calls when setting script source via Element.prepend().
+Pass	Default policy's calls when setting script source via Element.append().
+Pass	Default policy's calls when setting script source via Element.replaceChildren().
+Pass	Default policy's calls when setting script source via Element.moveBefore().
+Pass	Default policy's calls when setting script source via Node.insertAdjacentText().
+Pass	Default policy's calls when setting script source via Node.insertAdjacentHTML().
+Pass	Default policy's calls when setting source via Range.insertNode().
+Pass	Default policy's calls when setting script source via Range.deleteContents().
+Pass	Default policy's calls when cloning a script via Node.cloneNode().
+Pass	Default policy's calls when cloning a script via Range.cloneContents().
