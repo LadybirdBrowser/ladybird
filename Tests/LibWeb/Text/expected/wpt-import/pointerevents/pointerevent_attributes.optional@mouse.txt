@@ -2,22 +2,21 @@ Harness status: OK
 
 Found 16 tests
 
-1 Pass
+15 Pass
 1 Fail
-14 Optional Feature Unsupported
 Pass	Main-frame attribute test.
 Fail	Inner-frame attribute test.
-Optional Feature Unsupported	Main-frame mouse pointerover.fromElement value is null
-Optional Feature Unsupported	Main-frame mouse pointerover.toElement value is null
-Optional Feature Unsupported	Main-frame mouse pointerenter.fromElement value is null
-Optional Feature Unsupported	Main-frame mouse pointerenter.toElement value is null
-Optional Feature Unsupported	Main-frame mouse pointermove.fromElement value is null
-Optional Feature Unsupported	Main-frame mouse pointermove.toElement value is null
-Optional Feature Unsupported	Main-frame mouse pointerdown.fromElement value is null
-Optional Feature Unsupported	Main-frame mouse pointerdown.toElement value is null
-Optional Feature Unsupported	Main-frame mouse pointerup.fromElement value is null
-Optional Feature Unsupported	Main-frame mouse pointerup.toElement value is null
-Optional Feature Unsupported	Main-frame mouse pointerout.fromElement value is null
-Optional Feature Unsupported	Main-frame mouse pointerout.toElement value is null
-Optional Feature Unsupported	Main-frame mouse pointerleave.fromElement value is null
-Optional Feature Unsupported	Main-frame mouse pointerleave.toElement value is null
+Pass	Main-frame mouse pointerover.fromElement value is null
+Pass	Main-frame mouse pointerover.toElement value is null
+Pass	Main-frame mouse pointerenter.fromElement value is null
+Pass	Main-frame mouse pointerenter.toElement value is null
+Pass	Main-frame mouse pointermove.fromElement value is null
+Pass	Main-frame mouse pointermove.toElement value is null
+Pass	Main-frame mouse pointerdown.fromElement value is null
+Pass	Main-frame mouse pointerdown.toElement value is null
+Pass	Main-frame mouse pointerup.fromElement value is null
+Pass	Main-frame mouse pointerup.toElement value is null
+Pass	Main-frame mouse pointerout.fromElement value is null
+Pass	Main-frame mouse pointerout.toElement value is null
+Pass	Main-frame mouse pointerleave.fromElement value is null
+Pass	Main-frame mouse pointerleave.toElement value is null

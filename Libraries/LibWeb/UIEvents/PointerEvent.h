@@ -82,6 +82,13 @@ public:
     double offset_x() const override;
     double offset_y() const override;
 
+    // https://w3c.github.io/pointerevents/#attributes-and-default-actions
+    // Many user agents expose non-standard attributes fromElement and toElement in MouseEvents to support legacy content.
+    // We encourage those user agents to set the values of those (inherited) attributes in PointerEvents to null to
+    // transition authors to the use of standardized alternates (target and relatedTarget).
+    virtual GC::Ptr<DOM::Node> from_element() const override { return nullptr; }
+    virtual GC::Ptr<DOM::Node> to_element() const override { return nullptr; }
+
     WebIDL::Long pointer_id() const { return m_pointer_id; }
     double width() const { return m_width; }
     double height() const { return m_height; }
