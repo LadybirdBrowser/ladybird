@@ -407,15 +407,6 @@ impl PlacedChild {
         })
     }
 
-    /// A box without lines that `run` lays out in `record`, before its parent decided anything about it.
-    pub(crate) fn of_record(record: &UsedValues, run: &FormattingContextRun) -> Self {
-        Self::laid_out_here(
-            used_values::CellsInFrame::new(record, run.callbacks.frame).cells(),
-            None,
-            run,
-        )
-    }
-
     /// The child with the insets its parent resolved for it as an in-flow box.
     pub(crate) fn with_in_flow_box_insets(mut self, insets: abspos_engine::InFlowBoxInsets) -> Self {
         if let Some(used_insets) = insets.used_insets {
@@ -1524,6 +1515,7 @@ fn create_formatting_context_implementation<'pass>(
         FormattingContextType::Table => {
             FormattingContextImplementation::Table(Box::new(table_formatting_context::TableFormattingContext::new(
                 run,
+                root_cells_in_own_frame,
                 table_formatting_context::AutoTableInlineSize::FillsAvailableInlineSize,
             )))
         }
@@ -2510,7 +2502,7 @@ fn lay_out_run_root_and_contents<'pass>(
                     baselines,
                     ..ChildLayoutResult::default()
                 };
-                (result, root_left_in_record())
+                (result, context.table_box_cells())
             }
             FormattingContextImplementation::Svg(context) => (
                 ChildLayoutResult::default(),

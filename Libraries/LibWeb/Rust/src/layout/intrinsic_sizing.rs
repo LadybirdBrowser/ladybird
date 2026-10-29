@@ -434,6 +434,7 @@ pub(super) fn content_sizes_of_table(
         if is_table_box {
             table_formatting_context::TableFormattingContext::new(
                 run,
+                scope.root_cells(),
                 table_formatting_context::AutoTableInlineSize::FillsAvailableInlineSize,
             )
             .content_inline_sizes(LayoutInput::new(

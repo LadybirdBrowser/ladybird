@@ -587,15 +587,6 @@ pub(crate) fn collapsed_border_share(width: CssPixels, start_edge: bool, is_tabl
     }
 }
 
-/// A record of `node` holding the cells it starts out with in the pass's frame, before anything sizes the box.
-pub(crate) fn create_used_values(
-    callbacks: &LayoutPass<'_>,
-    node: Node,
-    constraints: ContainingBlockConstraints,
-) -> UsedValues {
-    cells_before_sizing(callbacks, node, constraints).materialize_record(callbacks.frame)
-}
-
 /// The input cells of `node` before anything sizes the box: the sizes its style makes definite without layout.
 pub(crate) fn cells_before_sizing(
     callbacks: &LayoutPass<'_>,
