@@ -183,10 +183,10 @@ fn commit_subtree(
     }
     if !reuses_committed_subtree {
         paintables.arena_mut().note_subtree_committed_anew(node);
-        paintables.arena().forget_committed_out_of_flow_facts(node);
+        paintables.arena_mut().forget_committed_out_of_flow_facts(node);
     }
     if let Some(inputs) = entry.and_then(|link| link.abspos_layout_inputs.as_ref()) {
-        paintables.arena().note_committed_out_of_flow_box(node, inputs);
+        paintables.arena_mut().note_committed_out_of_flow_box(node, inputs);
         paintables
             .arena_mut()
             .set_position_option_in_use(node, inputs.position_option);

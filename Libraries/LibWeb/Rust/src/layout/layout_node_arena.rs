@@ -1203,14 +1203,14 @@ pub(crate) struct LayoutNodeArena {
     /// Whether the document is an SVG file decoded as an image, which is fixed for its lifetime.
     document_is_decoded_svg: bool,
     /// Depth of synchronous layout passes, including their commits, on the stack.
-    active_layout_pass_depth: Cell<u32>,
+    active_layout_pass_depth: u32,
     /// The viewport the last layout tree build placed, invalid once that box is freed.
     layout_root: NodeSlotId,
     /// The subtree roots the last layout tree build rebuilt, waiting for the partial relayout
     /// plan that follows it. A full layout pass covers every one of them, so its commit clears
     /// them.
-    pending_rebuilt_subtree_roots: RefCell<Vec<NodeSlotId>>,
-    pending_layout_tree_update_escaped_rebuild_roots: Cell<bool>,
+    pending_rebuilt_subtree_roots: Vec<NodeSlotId>,
+    pending_layout_tree_update_escaped_rebuild_roots: bool,
     /// Every box must be recreated by the next layout tree build; set when the tree is torn down
     /// or a build finds a box it cannot place among rebuilt roots, cleared by the full pass.
     needs_full_layout_tree_update: bool,
@@ -1221,12 +1221,12 @@ pub(crate) struct LayoutNodeArena {
     committed_subtree_tokens: Vec<u32>,
     layout_tree_build_stats: FfiLayoutTreeBuildStats,
     pre_order_labels: Vec<Cell<u64>>,
-    pre_order_relabel_count: Cell<u64>,
+    pre_order_relabel_count: u64,
     free_list: Vec<u32>,
     next_index: u32,
     live_count: u32,
     /// The slots whose intrinsic size cache entries the layout stage drops before its next run.
-    intrinsic_size_cache_drops: RefCell<Vec<u32>>,
+    intrinsic_size_cache_drops: Vec<u32>,
     default_scroll_shift_anchors: Vec<DefaultScrollShiftAnchorSlot>,
     any_default_scroll_shift_anchor_ever_stored: bool,
     text_slots: TextSlots,
@@ -1249,13 +1249,13 @@ pub(crate) struct LayoutNodeArena {
     // Hit testing can measure overflow and invalidate painting state while querying this list.
     // Reuse workspace allocations without making recording scratch part of the committed paint state.
     pub(crate) scrollable_overflow: crate::painting::scrollable_overflow::ScrollableOverflowState,
-    pub(crate) partial_relayout_boundary_roots: RefCell<super::partial_relayout::PartialRelayoutBoundaryRoots>,
-    nodes_with_layout_update_flags: RefCell<Vec<NodeSlotId>>,
-    layout_update_flag_node_indices: RefCell<HashMap<NodeSlotId, usize>>,
-    pub(super) pending_attached_subtree_roots: RefCell<Vec<NodeSlotId>>,
+    pub(crate) partial_relayout_boundary_roots: super::partial_relayout::PartialRelayoutBoundaryRoots,
+    nodes_with_layout_update_flags: Vec<NodeSlotId>,
+    layout_update_flag_node_indices: HashMap<NodeSlotId, usize>,
+    pub(super) pending_attached_subtree_roots: Vec<NodeSlotId>,
     /// Boxes whose child lists gained children since the last layout tree build, held back from
     /// layout invalidation until the build shows what the new children are.
-    pub(crate) deferred_child_list_insertion_parents: RefCell<Vec<(NodeSlotId, NodeSlotId)>>,
+    pub(crate) deferred_child_list_insertion_parents: Vec<(NodeSlotId, NodeSlotId)>,
     /// Layout inputs for new absolutely positioned boxes that the build confined to themselves.
     /// They stand in for the committed inputs such a box does not have yet.
     pub(crate) confined_abspos_layout_inputs: HashMap<NodeSlotId, AbsposLayoutInputs>,
@@ -1265,12 +1265,12 @@ pub(crate) struct LayoutNodeArena {
     /// https://drafts.csswg.org/css-anchor-position-1/#last-successful-position-option
     last_successful_position_options: HashMap<NodeSlotId, super::abspos_inputs::PositionOptionChoice>,
     pub(crate) inline_boxes_lifted_out_of: HashMap<NodeSlotId, NodeSlotId>,
-    pub(crate) out_of_flow_positioning_contained: RefCell<HashMap<NodeSlotId, u32>>,
+    pub(crate) out_of_flow_positioning_contained: HashMap<NodeSlotId, u32>,
     /// Attribution of pending updates for partial relayout. Invariant: every update recorded
     /// since the last layout pass is either attributed to a boundary in the root set above, or
     /// this escape bit is set. Partial relayout may only run while the bit is clear; a full
     /// layout pass re-derives every fact boundary qualification depends on, so it clears the bit.
-    pub(crate) pending_updates_escape_partial_relayout: Cell<bool>,
+    pub(crate) pending_updates_escape_partial_relayout: bool,
     pub(crate) boxes_needing_scrollable_overflow_recalculation: RefCell<Vec<NodeSlotId>>,
     pub(crate) needs_full_scrollable_overflow_recalculation: Cell<bool>,
     text_nodes_enrolled_for_content_sync: HashSet<NodeSlotId>,
@@ -1331,10 +1331,10 @@ impl LayoutNodeArena {
             box_presence_host: Cell::new(None),
             queued_box_presence: None,
             document_is_decoded_svg: (false),
-            active_layout_pass_depth: Cell::new(0),
+            active_layout_pass_depth: 0,
             layout_root: (NodeSlotId::INVALID),
-            pending_rebuilt_subtree_roots: RefCell::new(Vec::new()),
-            pending_layout_tree_update_escaped_rebuild_roots: Cell::new(false),
+            pending_rebuilt_subtree_roots: Vec::new(),
+            pending_layout_tree_update_escaped_rebuild_roots: false,
             needs_full_layout_tree_update: (false),
             partial_layout_count: (0),
             full_layout_count: (0),
@@ -1342,11 +1342,11 @@ impl LayoutNodeArena {
             committed_subtree_tokens: Vec::new(),
             layout_tree_build_stats: (FfiLayoutTreeBuildStats::default()),
             pre_order_labels: Vec::new(),
-            pre_order_relabel_count: Cell::new(0),
+            pre_order_relabel_count: 0,
             free_list: Vec::new(),
             next_index: 0,
             live_count: 0,
-            intrinsic_size_cache_drops: RefCell::new(Vec::new()),
+            intrinsic_size_cache_drops: Vec::new(),
             default_scroll_shift_anchors: Vec::new(),
             any_default_scroll_shift_anchor_ever_stored: false,
             text_slots: TextSlots::default(),
@@ -1362,17 +1362,17 @@ impl LayoutNodeArena {
             paintable_rows: crate::painting::paintable_rows::PaintableRowStore::default(),
             paint_state: RefCell::new(crate::painting::paint_state::PaintState::default()),
             scrollable_overflow: Default::default(),
-            partial_relayout_boundary_roots: RefCell::default(),
-            nodes_with_layout_update_flags: RefCell::new(Vec::new()),
-            layout_update_flag_node_indices: RefCell::new(HashMap::default()),
-            pending_attached_subtree_roots: RefCell::new(Vec::new()),
-            deferred_child_list_insertion_parents: RefCell::new(Vec::new()),
+            partial_relayout_boundary_roots: Default::default(),
+            nodes_with_layout_update_flags: Vec::new(),
+            layout_update_flag_node_indices: HashMap::default(),
+            pending_attached_subtree_roots: Vec::new(),
+            deferred_child_list_insertion_parents: Vec::new(),
             confined_abspos_layout_inputs: HashMap::default(),
             position_options_in_use: (HashMap::default()),
             last_successful_position_options: (HashMap::default()),
             inline_boxes_lifted_out_of: HashMap::default(),
-            out_of_flow_positioning_contained: RefCell::new(HashMap::default()),
-            pending_updates_escape_partial_relayout: Cell::new(false),
+            out_of_flow_positioning_contained: HashMap::default(),
+            pending_updates_escape_partial_relayout: false,
             boxes_needing_scrollable_overflow_recalculation: RefCell::new(Vec::new()),
             needs_full_scrollable_overflow_recalculation: Cell::new(false),
             text_nodes_enrolled_for_content_sync: HashSet::default(),
@@ -1395,15 +1395,14 @@ impl LayoutNodeArena {
     /// Drops one node's cached intrinsic sizes outright, for the wrap of its epoch:
     /// entries are stamped with the epoch they were measured under, so a stamp reused
     /// after a full lap would match a pre-wrap entry.
-    pub(crate) fn drop_intrinsic_size_cache(&self, data: &NodeData) {
-        let (index, _) = self.slot_for_data(data);
-        self.intrinsic_size_cache_drops.borrow_mut().push(index);
+    fn drop_intrinsic_size_cache(&mut self, node: NodeSlotId) {
+        self.intrinsic_size_cache_drops.push(node.slot_index());
     }
 
     /// The slots whose intrinsic size cache entries must go, for the layout stage to drop before
     /// its next run reads any.
-    pub(crate) fn take_intrinsic_size_cache_drops(&self) -> Vec<u32> {
-        self.intrinsic_size_cache_drops.take()
+    pub(crate) fn take_intrinsic_size_cache_drops(&mut self) -> Vec<u32> {
+        std::mem::take(&mut self.intrinsic_size_cache_drops)
     }
 
     pub(crate) fn layout_commit_count(&self) -> u64 {
@@ -1415,7 +1414,7 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn has_intrinsic_size_cache_drops(&self) -> bool {
-        !self.intrinsic_size_cache_drops.borrow().is_empty()
+        !self.intrinsic_size_cache_drops.is_empty()
     }
 
     /// What an intrinsic size cache entry measured for the row `id` now is valid for.
@@ -1427,12 +1426,12 @@ impl LayoutNodeArena {
         }
     }
 
-    pub(crate) fn reset_cached_intrinsic_sizes(&self, node: NodeSlotId) {
+    pub(crate) fn reset_cached_intrinsic_sizes(&mut self, node: NodeSlotId) {
         let data = self.data(node);
         let bumped_epoch = data.intrinsic_cache_epoch.get().wrapping_add(1);
         data.intrinsic_cache_epoch.set(bumped_epoch);
         if bumped_epoch == 0 {
-            self.drop_intrinsic_size_cache(data);
+            self.drop_intrinsic_size_cache(node);
         }
     }
 
@@ -1640,8 +1639,8 @@ impl LayoutNodeArena {
         self.assert_node_is_unlinked_from_parent(root);
         if self.layout_root == root {
             self.layout_root = NodeSlotId::INVALID;
-            self.pending_rebuilt_subtree_roots.get_mut().clear();
-            self.pending_layout_tree_update_escaped_rebuild_roots.set(false);
+            self.pending_rebuilt_subtree_roots.clear();
+            self.pending_layout_tree_update_escaped_rebuild_roots = false;
         }
         // NB: The root was unlinked through remove_child(), which already noted what its subtree takes out of the
         //     overflow index.
@@ -1722,9 +1721,9 @@ impl LayoutNodeArena {
             self.paintable_row_freed(reset);
         }
         self.inline_boxes_lifted_out_of.remove(&id);
-        self.out_of_flow_positioning_contained.get_mut().remove(&id);
+        self.out_of_flow_positioning_contained.remove(&id);
         self.pre_order_labels[index as usize].set(0);
-        self.partial_relayout_boundary_roots.get_mut().note_freed(id);
+        self.partial_relayout_boundary_roots.note_freed(id);
         self.metadata_mut(index).occupied = false;
         self.forget_row_sharing_dom_node(id);
         self.unbind_row(id);
@@ -1734,7 +1733,7 @@ impl LayoutNodeArena {
         self.style_record_pins[index as usize].set(ArenaStylePin::None);
         self.style_records_pinned_by_host[index as usize].set(0);
 
-        self.intrinsic_size_cache_drops.get_mut().push(index);
+        self.intrinsic_size_cache_drops.push(index);
         if let Some(slot) = self.default_scroll_shift_anchors.get_mut(index as usize) {
             *slot = DefaultScrollShiftAnchorSlot::default();
         }
@@ -2084,14 +2083,10 @@ impl LayoutNodeArena {
         id: NodeSlotId,
         style_node: Option<StyleNodeID>,
     ) {
-        let mut row = id;
-        loop {
-            let next = self.next_rows_built_for_same_node[row.slot_index() as usize].get();
+        let mut cursor = Some(id);
+        while let Some(row) = cursor {
+            cursor = self.next_row_sharing_dom_node_with(id, row);
             self.set_node_style_node(row, style_node);
-            if next.is_invalid() || next == id {
-                break;
-            }
-            row = next;
         }
     }
 
@@ -2221,7 +2216,7 @@ impl LayoutNodeArena {
     /// Sets the row's `HasScrollOffset` flag from what it is scrolled to, as a row is stamped,
     /// bound or unbound, and as the offset it holds changes. The viewport's row is measured eagerly
     /// anyway, so it never carries the flag.
-    fn refresh_has_scroll_offset_flag(&self, slot: NodeSlotId) {
+    fn refresh_has_scroll_offset_flag(&mut self, slot: NodeSlotId) {
         let has_scroll_offset = self.data(slot).kind.get() != NodeKind::Viewport
             && self.row_scroll_offset(slot) != CssPixelPoint::default();
         self.set_node_flag(slot, NodeFlag::HasScrollOffset, has_scroll_offset);
@@ -2238,7 +2233,7 @@ impl LayoutNodeArena {
     /// Records what the element has scrolled to, for every row built for it. A rebuild can leave
     /// an old row and its replacement both built for the element until the commit that retires the
     /// old one, and both answer for the element meanwhile.
-    pub(crate) fn set_element_scroll_offset(&self, element: StyleNodeID, offset: CssPixelPoint) {
+    pub(crate) fn set_element_scroll_offset(&mut self, element: StyleNodeID, offset: CssPixelPoint) {
         let previous_offset = {
             let mut offsets = self.style_node_tables.element_scroll_offsets.borrow_mut();
             if offset == CssPixelPoint::default() {
@@ -2251,16 +2246,16 @@ impl LayoutNodeArena {
             self.note_scroll_offsets_moved();
         }
         let bound_row = self.bound_row(element);
-        if !bound_row.is_invalid() {
-            for row in self.rows_sharing_dom_node_with(bound_row) {
-                self.refresh_has_scroll_offset_flag(row);
-            }
+        let mut cursor = (!bound_row.is_invalid()).then_some(bound_row);
+        while let Some(row) = cursor {
+            cursor = self.next_row_sharing_dom_node_with(bound_row, row);
+            self.refresh_has_scroll_offset_flag(row);
         }
     }
 
     /// Records what the pseudo-element of kind `generated_for` on `generator` has scrolled to.
     pub(crate) fn set_pseudo_element_scroll_offset(
-        &self,
+        &mut self,
         generator: StyleNodeID,
         generated_for: u8,
         offset: CssPixelPoint,
@@ -2876,7 +2871,7 @@ impl LayoutNodeArena {
     /// again, so the relayout of one of them does not finish as a partial relayout. A relayout of an absolutely
     /// positioned partial relayout boundary stays confined to it, as the box contributes nothing to ancestor layout;
     /// a rendered ::backdrop keeps it from being confined, as its box is the element box's sibling.
-    fn mark_row_for_relayout_after_style_change(&self, style_node: StyleNodeID, slot: NodeSlotId) {
+    fn mark_row_for_relayout_after_style_change(&mut self, style_node: StyleNodeID, slot: NodeSlotId) {
         let viewport_propagation_source =
             self.data(slot).flags.get() & (NodeFlag::IsDocumentElement as u32 | NodeFlag::IsBody as u32) != 0;
         if viewport_propagation_source {
@@ -3052,19 +3047,18 @@ impl LayoutNodeArena {
     /// values must never be replaced in that window: the pass caches decoded style and borrows
     /// payload pointers that a replacement would invalidate under it.
     pub(crate) fn layout_pass_is_running(&self) -> bool {
-        self.active_layout_pass_depth.get() > 0
+        self.active_layout_pass_depth > 0
     }
 
-    pub(crate) fn begin_active_layout_pass(&self) {
-        self.active_layout_pass_depth
-            .set(self.active_layout_pass_depth.get() + 1);
+    pub(crate) fn begin_active_layout_pass(&mut self) {
+        self.active_layout_pass_depth += 1;
     }
 
     /// Leaves a pass, and answers whether it was the outermost one.
-    pub(crate) fn leave_active_layout_pass(&self) -> bool {
-        let depth = self.active_layout_pass_depth.get();
+    pub(crate) fn leave_active_layout_pass(&mut self) -> bool {
+        let depth = self.active_layout_pass_depth;
         assert!(depth > 0, "layout pass depth underflow");
-        self.active_layout_pass_depth.set(depth - 1);
+        self.active_layout_pass_depth = depth - 1;
         depth == 1
     }
 
@@ -3132,35 +3126,33 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn set_pending_rebuilt_subtree_roots(
-        &self,
+        &mut self,
         roots: Vec<NodeSlotId>,
         layout_tree_update_escaped_rebuild_roots: bool,
     ) {
-        *self.pending_rebuilt_subtree_roots.borrow_mut() = roots;
-        self.pending_layout_tree_update_escaped_rebuild_roots
-            .set(layout_tree_update_escaped_rebuild_roots);
+        self.pending_rebuilt_subtree_roots = roots;
+        self.pending_layout_tree_update_escaped_rebuild_roots = layout_tree_update_escaped_rebuild_roots;
     }
 
-    pub(crate) fn take_pending_rebuilt_subtree_roots(&self) -> (Vec<NodeSlotId>, bool) {
+    pub(crate) fn take_pending_rebuilt_subtree_roots(&mut self) -> (Vec<NodeSlotId>, bool) {
         (
-            std::mem::take(&mut *self.pending_rebuilt_subtree_roots.borrow_mut()),
-            self.pending_layout_tree_update_escaped_rebuild_roots.replace(false),
+            std::mem::take(&mut self.pending_rebuilt_subtree_roots),
+            std::mem::replace(&mut self.pending_layout_tree_update_escaped_rebuild_roots, false),
         )
     }
 
     /// The DOM nodes the subtrees the last build rebuilt and left live stand for. An anonymous root stands for none.
     pub(crate) fn pending_rebuilt_dom_roots(&self) -> Vec<crate::painting::host::FfiNodeIdentity> {
         self.pending_rebuilt_subtree_roots
-            .borrow()
             .iter()
             .filter(|&&root| self.node_is_dom_backed(root))
             .map(|&root| crate::painting::hit_test::resolve::row_node_identity(self, root, false))
             .collect()
     }
 
-    pub(crate) fn clear_pending_rebuilt_subtree_roots(&self) {
-        self.pending_rebuilt_subtree_roots.borrow_mut().clear();
-        self.pending_layout_tree_update_escaped_rebuild_roots.set(false);
+    pub(crate) fn clear_pending_rebuilt_subtree_roots(&mut self) {
+        self.pending_rebuilt_subtree_roots.clear();
+        self.pending_layout_tree_update_escaped_rebuild_roots = false;
     }
 
     pub(crate) fn note_partial_layout(&mut self) {
@@ -3863,7 +3855,7 @@ impl LayoutNodeArena {
         NodeSlotId::INVALID
     }
 
-    fn derive_containing_block_establishment_flags(&self, node: NodeSlotId) {
+    fn derive_containing_block_establishment_flags(&mut self, node: NodeSlotId) {
         let data = self.write_shape(node);
         let previous_flags = data.flags.get();
         let (absolute, fixed) = if data.kind.get() == NodeKind::InlineNode {
@@ -3894,7 +3886,6 @@ impl LayoutNodeArena {
         let releases_contained_boxes = lost != 0
             && self
                 .out_of_flow_positioning_contained
-                .borrow()
                 .get(&node)
                 .is_some_and(|contained| contained & lost != 0);
         if !catches_escaping_boxes && !releases_contained_boxes {
@@ -3911,7 +3902,7 @@ impl LayoutNodeArena {
         PaintRead::node_containing_block_if_live(self, node).unwrap_or(NodeSlotId::INVALID)
     }
 
-    fn mark_nodes_escaped_by_out_of_flow_box(&self, node: NodeSlotId, containing_block: NodeSlotId) {
+    fn mark_nodes_escaped_by_out_of_flow_box(&mut self, node: NodeSlotId, containing_block: NodeSlotId) {
         if let Some(inline_box) = self.inline_box_lifted_out_of(node) {
             let mut inline_ancestor = inline_box;
             while !inline_ancestor.is_invalid() && self.data(inline_ancestor).kind.get() == NodeKind::InlineNode {
@@ -3926,7 +3917,7 @@ impl LayoutNodeArena {
         }
     }
 
-    fn mark_nodes_escaped_by_attached_out_of_flow_box(&self, node: NodeSlotId) {
+    fn mark_nodes_escaped_by_attached_out_of_flow_box(&mut self, node: NodeSlotId) {
         if !super::node_facts::kind_is_box(self.data(node).kind.get())
             || !self
                 .node_style_if_live(node)
@@ -3938,21 +3929,21 @@ impl LayoutNodeArena {
         self.mark_nodes_escaped_by_out_of_flow_box(node, containing_block);
     }
 
-    pub(crate) fn forget_committed_out_of_flow_facts(&self, node: NodeSlotId) {
+    pub(crate) fn forget_committed_out_of_flow_facts(&mut self, node: NodeSlotId) {
         let data = self.write_shape(node);
         data.set_flags(data.flags.get() & !(NodeFlag::AbsposDescendantEscapes as u32));
-        let mut contained = self.out_of_flow_positioning_contained.borrow_mut();
+        let contained = &mut self.out_of_flow_positioning_contained;
         if !contained.is_empty() {
             contained.remove(&node);
         }
     }
 
-    pub(crate) fn note_committed_out_of_flow_box(&self, node: NodeSlotId, inputs: &AbsposLayoutInputs) {
+    pub(crate) fn note_committed_out_of_flow_box(&mut self, node: NodeSlotId, inputs: &AbsposLayoutInputs) {
         let positioning = super::node_facts::containing_block_establishment_flag(
             crate::painting::style_queries::is_fixed_position(self, node),
         ) as u32;
         {
-            let mut contained = self.out_of_flow_positioning_contained.borrow_mut();
+            let contained = &mut self.out_of_flow_positioning_contained;
             *contained.entry(inputs.containing_block).or_default() |= positioning;
             if !inputs.inline_containing_block.is_invalid() {
                 *contained.entry(inputs.inline_containing_block).or_default() |=
@@ -3962,14 +3953,19 @@ impl LayoutNodeArena {
         self.mark_nodes_escaped_by_out_of_flow_box(node, inputs.containing_block);
     }
 
-    fn derive_containing_block_establishment_flags_of_children(&self, parent: NodeSlotId) {
-        self.for_each_node_in_layout_subtree_in_pre_order_with_pruning(parent, |node| {
-            if node == parent {
-                return true;
-            }
-            self.derive_containing_block_establishment_flags(node);
-            super::node_facts::has_flag(self.data(node), NodeFlag::Anonymous)
-        });
+    fn derive_containing_block_establishment_flags_of_children(&mut self, parent: NodeSlotId) {
+        let mut cursor = Some(parent);
+        while let Some(node) = cursor {
+            let descend_into_children = node == parent || {
+                self.derive_containing_block_establishment_flags(node);
+                super::node_facts::has_flag(self.data(node), NodeFlag::Anonymous)
+            };
+            cursor = if descend_into_children {
+                self.next_node_in_layout_subtree_in_pre_order(parent, node)
+            } else {
+                self.next_node_after_layout_subtree_in_pre_order(parent, node)
+            };
+        }
     }
 
     pub(crate) fn hover_frame_style_records(&self) -> Vec<u64> {
@@ -3984,21 +3980,20 @@ impl LayoutNodeArena {
         records
     }
 
-    pub(crate) fn refresh_style_flags(&self, slot: NodeSlotId) {
+    pub(crate) fn refresh_style_flags(&mut self, slot: NodeSlotId) {
         let style = self.node_style_if_live(slot).expect("styled layout node");
+        let has_anchor_names = !style.anchor().anchor_names.as_slice().is_empty();
+        let has_preserve_3d_transform_style =
+            style.transform().transform_style == crate::css::css_enums::transform_style::PRESERVE_3D;
         let had_preserve_3d_transform_style =
             super::node_facts::has_flag(self.data(slot), NodeFlag::HasPreserve3dTransformStyle);
-        self.set_node_flag(
-            slot,
-            NodeFlag::HasAnchorNames,
-            !style.anchor().anchor_names.as_slice().is_empty(),
-        );
+        self.set_node_flag(slot, NodeFlag::HasAnchorNames, has_anchor_names);
         self.refresh_insets_use_anchor_functions_flag(slot);
         self.set_node_flag(slot, NodeFlag::HasAnimatedOpacityOrTransform, false);
         self.set_node_flag(
             slot,
             NodeFlag::HasPreserve3dTransformStyle,
-            style.transform().transform_style == crate::css::css_enums::transform_style::PRESERVE_3D,
+            has_preserve_3d_transform_style,
         );
         if !self.data(slot).parent.get().is_invalid() || self.data(slot).kind.get() == NodeKind::Viewport {
             self.derive_containing_block_establishment_flags(slot);
@@ -4032,8 +4027,8 @@ impl LayoutNodeArena {
 
     /// Marks the flex and grid items among the nodes marked for layout and their children, ahead of the layout that
     /// lays them out: a style change can make a box, or the children of a box, items without rebuilding them.
-    pub(crate) fn mark_flex_and_grid_items_of_nodes_marked_for_layout(&self) {
-        let nodes = self.nodes_with_layout_update_flags.borrow().clone();
+    pub(crate) fn mark_flex_and_grid_items_of_nodes_marked_for_layout(&mut self) {
+        let nodes = self.nodes_with_layout_update_flags.clone();
         for node in nodes {
             if !self.slot_is_live(node) {
                 continue;
@@ -4219,7 +4214,7 @@ impl LayoutNodeArena {
         self.enroll_node_for_replaced_content_facts_sync_if_eligible(slot);
     }
 
-    pub(crate) fn refresh_insets_use_anchor_functions_flag(&self, slot: NodeSlotId) {
+    pub(crate) fn refresh_insets_use_anchor_functions_flag(&mut self, slot: NodeSlotId) {
         let insets_use_anchor_functions = self.style_payloads(slot).is_some_and(|payloads| {
             super::node_facts::style_insets_use_anchor_functions(ComputedValuesView::new(&payloads.groups))
         });
@@ -4510,10 +4505,16 @@ impl LayoutNodeArena {
         let mut row = Some(id);
         std::iter::from_fn(move || {
             let current = row?;
-            let next = self.next_rows_built_for_same_node[current.slot_index() as usize].get();
-            row = (!next.is_invalid() && next != id).then_some(next);
+            row = self.next_row_sharing_dom_node_with(id, current);
             Some(current)
         })
+    }
+
+    /// The row after `current` in the ring of rows built for the DOM node of `first`, or none once the ring comes
+    /// back to `first`. A walk that writes each row it visits reads the next one with this before the write.
+    pub(crate) fn next_row_sharing_dom_node_with(&self, first: NodeSlotId, current: NodeSlotId) -> Option<NodeSlotId> {
+        let next = self.next_rows_built_for_same_node[current.slot_index() as usize].get();
+        (!next.is_invalid() && next != first).then_some(next)
     }
 
     fn forget_row_sharing_dom_node(&mut self, id: NodeSlotId) {
@@ -4545,9 +4546,8 @@ impl LayoutNodeArena {
         self.replace_bound_row(node, id, successor);
     }
 
-    pub(crate) fn set_node_flag(&self, id: NodeSlotId, flag: NodeFlag, value: bool) {
-        let data = self.write_shape(id);
-        let previous = data.flags.get();
+    pub(crate) fn set_node_flag(&mut self, id: NodeSlotId, flag: NodeFlag, value: bool) {
+        let previous = self.data(id).flags.get();
         let mut updated = previous;
         if value {
             updated |= flag as u32;
@@ -4556,13 +4556,10 @@ impl LayoutNodeArena {
         }
         if value
             && matches!(flag, NodeFlag::NeedsLayoutUpdate | NodeFlag::NeedsOwnGeometryUpdate)
-            && data.flags.get() & (NodeFlag::NeedsLayoutUpdate as u32 | NodeFlag::NeedsOwnGeometryUpdate as u32) == 0
+            && previous & (NodeFlag::NeedsLayoutUpdate as u32 | NodeFlag::NeedsOwnGeometryUpdate as u32) == 0
         {
-            let mut nodes = self.nodes_with_layout_update_flags.borrow_mut();
-            let previous = self
-                .layout_update_flag_node_indices
-                .borrow_mut()
-                .insert(id, nodes.len());
+            let nodes = &mut self.nodes_with_layout_update_flags;
+            let previous = self.layout_update_flag_node_indices.insert(id, nodes.len());
             debug_assert!(previous.is_none());
             nodes.push(id);
         } else if !value
@@ -4571,7 +4568,7 @@ impl LayoutNodeArena {
         {
             self.remove_layout_update_flag_node(id);
         }
-        data.set_flags(updated);
+        self.write_shape(id).set_flags(updated);
         // A box that becomes a flex or grid item can lay out to the fragment it committed before, but orders its
         // painting differently, so its committed geometry no longer lets its commit be skipped.
         if matches!(flag, NodeFlag::IsFlexItem | NodeFlag::IsGridItem) && updated != previous {
@@ -4628,12 +4625,25 @@ impl LayoutNodeArena {
         root: NodeSlotId,
         current: NodeSlotId,
     ) -> Option<NodeSlotId> {
+        let first_child = self
+            .slot_is_live(current)
+            .then(|| self.data(current).first_child.get())?;
+        if !first_child.is_invalid() {
+            return Some(first_child);
+        }
+        self.next_node_after_layout_subtree_in_pre_order(root, current)
+    }
+
+    /// The node a pre-order walk of the layout subtree under `root` visits after the subtree of `current`, for a walk
+    /// that skips the children of `current`.
+    pub(crate) fn next_node_after_layout_subtree_in_pre_order(
+        &self,
+        root: NodeSlotId,
+        current: NodeSlotId,
+    ) -> Option<NodeSlotId> {
         let valid = |link: NodeSlotId| (!link.is_invalid()).then_some(link);
         let mut current = current;
         let mut data = self.slot_is_live(current).then(|| self.data(current))?;
-        if let Some(first_child) = valid(data.first_child.get()) {
-            return Some(first_child);
-        }
         while current != root {
             if let Some(next_sibling) = valid(data.next_sibling.get()) {
                 return Some(next_sibling);
@@ -4648,28 +4658,30 @@ impl LayoutNodeArena {
         None
     }
 
-    fn remove_layout_update_flag_node(&self, node: NodeSlotId) {
-        let mut indices = self.layout_update_flag_node_indices.borrow_mut();
+    fn remove_layout_update_flag_node(&mut self, node: NodeSlotId) {
+        let indices = &mut self.layout_update_flag_node_indices;
         let Some(index) = indices.remove(&node) else {
             return;
         };
-        let mut nodes = self.nodes_with_layout_update_flags.borrow_mut();
+        let nodes = &mut self.nodes_with_layout_update_flags;
         nodes.swap_remove(index);
         if let Some(&moved_node) = nodes.get(index) {
             *indices.get_mut(&moved_node).unwrap() = index;
         }
     }
 
-    pub(crate) fn reset_layout_update_flags_in_subtree(&self, root: NodeSlotId) {
+    pub(crate) fn reset_layout_update_flags_in_subtree(&mut self, root: NodeSlotId) {
         let flags_to_clear = NodeFlag::NeedsLayoutUpdate as u32 | NodeFlag::NeedsOwnGeometryUpdate as u32;
         if self.data(root).kind.get() != NodeKind::Viewport {
             // NB: A partial-relayout batch commits each independent boundary separately.
             // Scanning the document's dirty list per boundary would make cleanup quadratic.
-            self.for_each_node_in_layout_subtree_in_pre_order(root, |node| {
+            let mut cursor = Some(root);
+            while let Some(node) = cursor {
                 let data = self.write_shape(node);
                 data.set_flags(data.flags.get() & !flags_to_clear);
                 self.remove_layout_update_flag_node(node);
-            });
+                cursor = self.next_node_in_layout_subtree_in_pre_order(root, node);
+            }
             return;
         }
 
@@ -4680,10 +4692,7 @@ impl LayoutNodeArena {
         membership.insert(NodeSlotId::INVALID, false);
         let mut ancestors = Vec::new();
         let mut index = 0;
-        loop {
-            let Some(node) = self.nodes_with_layout_update_flags.borrow().get(index).copied() else {
-                break;
-            };
+        while let Some(node) = self.nodes_with_layout_update_flags.get(index).copied() {
             let mut ancestor = node;
             while !membership.contains_key(&ancestor) {
                 ancestors.push(ancestor);
@@ -4762,16 +4771,16 @@ impl LayoutNodeArena {
     }
 
     /// Returns every attached subtree root the derivation visited.
-    pub(crate) fn derive_facts_after_tree_update(&self, rebuilt_roots: &[NodeSlotId]) -> HashSet<NodeSlotId> {
+    pub(crate) fn derive_facts_after_tree_update(&mut self, rebuilt_roots: &[NodeSlotId]) -> HashSet<NodeSlotId> {
         // NB: Anonymous wrappers, generated content, and table fixup can attach nodes
         // outside the builder's reported rebuild roots. Include every attached subtree.
-        let mut pending = self.pending_attached_subtree_roots.borrow_mut();
+        let mut pending = std::mem::take(&mut self.pending_attached_subtree_roots);
         let roots: HashSet<_> = pending
             .drain(..)
             .chain(rebuilt_roots.iter().copied())
             .filter(|&root| self.slot_is_live(root))
             .collect();
-        drop(pending);
+        self.pending_attached_subtree_roots = pending;
         for &root in &roots {
             let mut ancestor = self.data(root).parent.get();
             if ancestor.is_invalid() && self.data(root).kind.get() != NodeKind::Viewport {
@@ -4795,18 +4804,20 @@ impl LayoutNodeArena {
     /// Derives what the nodes in the inclusive subtree of `root` take from their ancestors: whether they
     /// establish containing blocks, and their ancestor facts, which the pre-order walk finds already derived
     /// for the parent. Out-of-flow boxes in the subtree also mark the ancestors they escape.
-    pub(crate) fn derive_facts_in_subtree(&self, root: NodeSlotId) {
-        self.for_each_node_in_layout_subtree_in_pre_order(root, |node| {
+    pub(crate) fn derive_facts_in_subtree(&mut self, root: NodeSlotId) {
+        let mut cursor = Some(root);
+        while let Some(node) = cursor {
             self.derive_containing_block_establishment_flags(node);
             self.mark_nodes_escaped_by_attached_out_of_flow_box(node);
             self.derive_ancestor_facts_for_node(node);
             self.mark_flex_or_grid_item(node);
-        });
+            cursor = self.next_node_in_layout_subtree_in_pre_order(root, node);
+        }
     }
 
     /// Marks `node` as a flex or grid item once its parent lays it out as one, as its parent's run would: an in-flow
     /// box that is not an anonymous run of collapsible whitespace. The mark is never taken back.
-    pub(crate) fn mark_flex_or_grid_item(&self, node: NodeSlotId) {
+    pub(crate) fn mark_flex_or_grid_item(&mut self, node: NodeSlotId) {
         let data = self.data(node);
         let parent = data.parent.get();
         if parent.is_invalid() || !super::node_facts::kind_is_box(data.kind.get()) {
@@ -4903,7 +4914,7 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn pre_order_relabel_count(&self) -> u64 {
-        self.pre_order_relabel_count.get()
+        self.pre_order_relabel_count
     }
 
     pub(crate) fn count_nodes_in_layout_subtree(&self, root: NodeSlotId) -> u64 {
@@ -4938,7 +4949,7 @@ impl LayoutNodeArena {
         }
     }
 
-    fn assign_pre_order_labels_to_inserted_subtree(&self, parent: NodeSlotId, child: NodeSlotId) {
+    fn assign_pre_order_labels_to_inserted_subtree(&mut self, parent: NodeSlotId, child: NodeSlotId) {
         let child_data = self.data(child);
         let (previous_sibling, next_sibling) = { (child_data.previous_sibling.get(), child_data.next_sibling.get()) };
         let lower = if previous_sibling.is_invalid() {
@@ -4990,7 +5001,7 @@ impl LayoutNodeArena {
     }
 
     fn spread_pre_order_labels_evenly_over_descendants(
-        &self,
+        &mut self,
         subtree_root: NodeSlotId,
         lower: u64,
         upper: u64,
@@ -5015,7 +5026,7 @@ impl LayoutNodeArena {
             position_in_subtree += 1;
             self.set_node_pre_order_label(node, lower + step * position_in_subtree);
         });
-        self.pre_order_relabel_count.set(self.pre_order_relabel_count.get() + 1);
+        self.pre_order_relabel_count += 1;
         true
     }
 
@@ -5649,7 +5660,7 @@ impl LayoutNodeArena {
         self.invalidate_at_and_above(node, AncestorInvalidation::ContentChange);
     }
 
-    pub(crate) fn insert_child(&self, parent: NodeSlotId, child: NodeSlotId, before: NodeSlotId) {
+    pub(crate) fn insert_child(&mut self, parent: NodeSlotId, child: NodeSlotId, before: NodeSlotId) {
         assert_ne!(parent, child, "a layout node cannot become its own child");
         let parent_data = self.write_shape(parent);
         let child_data = self.write_shape(child);
@@ -5713,12 +5724,12 @@ impl LayoutNodeArena {
 
         self.assign_pre_order_labels_to_inserted_subtree(parent, child);
         self.note_layout_subtree_attached(child);
-        self.pending_attached_subtree_roots.borrow_mut().push(child);
+        self.pending_attached_subtree_roots.push(child);
         self.note_overflow_contained_boxes_may_move_with_subtree(child);
         self.note_structural_change_at_and_above(parent);
     }
 
-    pub(crate) fn remove_child(&self, parent: NodeSlotId, child: NodeSlotId) {
+    pub(crate) fn remove_child(&mut self, parent: NodeSlotId, child: NodeSlotId) {
         if self.paintable_row_count() > 0 {
             self.push_enclosing_paint_order_damage(child);
         }
@@ -7289,19 +7300,19 @@ mod tests {
             arena.reset_layout_update_flags_in_subtree(boundary.slot);
             assert_eq!(arena.data(boundary.slot).flags.get(), 0);
             assert_eq!(arena.data(child.slot).flags.get(), 0);
-            assert_eq!(arena.nodes_with_layout_update_flags.borrow().len(), (31 - index) * 2);
-            assert_eq!(arena.layout_update_flag_node_indices.borrow().len(), (31 - index) * 2);
+            assert_eq!(arena.nodes_with_layout_update_flags.len(), (31 - index) * 2);
+            assert_eq!(arena.layout_update_flag_node_indices.len(), (31 - index) * 2);
             // Re-enrollment after removal must not leave duplicates or stale indices.
             arena.set_node_flag(child.slot, NodeFlag::NeedsLayoutUpdate, true);
             arena.set_node_flag(child.slot, NodeFlag::NeedsLayoutUpdate, false);
         }
-        assert!(arena.nodes_with_layout_update_flags.borrow().is_empty());
+        assert!(arena.nodes_with_layout_update_flags.is_empty());
         arena.set_node_flag(boundaries[0].0.slot, NodeFlag::NeedsLayoutUpdate, true);
         arena
             .free_subtree(viewport.slot)
             .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
-        assert!(arena.nodes_with_layout_update_flags.borrow().is_empty());
-        assert!(arena.layout_update_flag_node_indices.borrow().is_empty());
+        assert!(arena.nodes_with_layout_update_flags.is_empty());
+        assert!(arena.layout_update_flag_node_indices.is_empty());
     }
 
     #[test]
@@ -7330,7 +7341,7 @@ mod tests {
                 index >= 64
             );
         }
-        assert_eq!(arena.nodes_with_layout_update_flags.borrow().len(), 64);
+        assert_eq!(arena.nodes_with_layout_update_flags.len(), 64);
         arena
             .free_subtree(viewport.slot)
             .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());

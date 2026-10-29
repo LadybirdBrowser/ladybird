@@ -177,6 +177,11 @@ impl ArenaHandle {
     pub(crate) fn arena_mut(&mut self) -> &mut LayoutNodeArena {
         &mut self.arena
     }
+
+    /// The arena to write, beside the layout stage's scratch, which the stage reads as it prepares and ends a pass.
+    pub(crate) fn arena_mut_and_layout_scratch(&mut self) -> (&mut LayoutNodeArena, &super::run_state::LayoutScratch) {
+        (&mut self.arena, &self.layout_scratch)
+    }
 }
 
 #[cfg(test)]

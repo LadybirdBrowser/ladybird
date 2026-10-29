@@ -749,7 +749,7 @@ impl LayoutNodeArena {
         }
     }
 
-    pub(crate) fn did_commit_full_layout(&self, viewport: NodeSlotId) {
+    pub(crate) fn did_commit_full_layout(&mut self, viewport: NodeSlotId) {
         if self.scrollable_overflow.viewport.replace(Some(viewport)) != Some(viewport) {
             self.scrollable_overflow.contained_boxes_dirty.set(true);
             self.set_needs_full_scrollable_overflow_recalculation();
@@ -983,7 +983,7 @@ impl Drop for OverflowStyle {
 }
 
 impl LayoutNodeArena {
-    pub(crate) fn invalidate_overflow_after_style_change(&self, slot: NodeSlotId) {
+    pub(crate) fn invalidate_overflow_after_style_change(&mut self, slot: NodeSlotId) {
         if !self.paintable_row_is_populated(slot) {
             return;
         }

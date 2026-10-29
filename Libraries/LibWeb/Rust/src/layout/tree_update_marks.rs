@@ -303,7 +303,7 @@ impl LayoutNodeArena {
     /// to it, and its box is invalidated as [`Self::apply_layout_tree_update_mark`] does. What only the DOM side knows
     /// of, the resources an SVG element lends its references and a display: contents element's parent, is not for a
     /// node with a box.
-    pub(crate) fn mark_layout_tree_update(&self, node: Option<StyleNodeID>, mark: FfiLayoutTreeUpdateMark) {
+    pub(crate) fn mark_layout_tree_update(&mut self, node: Option<StyleNodeID>, mark: FfiLayoutTreeUpdateMark) {
         let document = self.document_style_node();
         let Some(style_node) = node.or(document) else {
             return;
@@ -357,7 +357,7 @@ impl LayoutNodeArena {
 
     /// Invalidates the box of the node `node` names, or the document's for `None`, as a layout tree update mark on it
     /// asks, and marks the node a rebuild of it escalates to. A node without a box has nothing to invalidate.
-    pub(crate) fn apply_layout_tree_update_mark(&self, node: Option<StyleNodeID>, mark: FfiLayoutTreeUpdateMark) {
+    pub(crate) fn apply_layout_tree_update_mark(&mut self, node: Option<StyleNodeID>, mark: FfiLayoutTreeUpdateMark) {
         let row = match node {
             Some(node) => self.bound_row(node),
             None => self.bound_viewport_row(),
@@ -585,7 +585,7 @@ impl FfiBoxMarks {
             arena.set_needs_layout_update(row, true);
         }
         if self.has_editing_facts {
-            let stamp = |flag: NodeFlag, value: bool| {
+            let mut stamp = |flag: NodeFlag, value: bool| {
                 let flips = (arena.node_flags(row) & flag as u32 != 0) != value;
                 if flips {
                     arena.set_node_flag(row, flag, value);

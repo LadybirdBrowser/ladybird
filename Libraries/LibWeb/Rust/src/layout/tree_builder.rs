@@ -2390,7 +2390,7 @@ fn construct_principal_layout_node(
                 update.state.layout_tree_update_escaped_rebuild_roots = true;
                 let backdrop_parent = host.parent(old_backdrop);
                 assert!(!backdrop_parent.is_invalid());
-                host.arena().detach_child(backdrop_parent, old_backdrop);
+                host.arena_mut().detach_child(backdrop_parent, old_backdrop);
                 host.free_subtree(old_backdrop);
             }
         }
@@ -2714,7 +2714,8 @@ fn update_principal_node_after_entry(
                 );
             }
             FfiPrincipalBoxPlacement::ReplaceExisting => {
-                let arena = host.arena();
+                let host_calls = host.host_calls();
+                let arena = host.arena_mut();
                 let old_data = arena.data(old_layout_node);
                 let new_data = arena.data(layout_node);
                 if node_facts::kind_is_box(old_data.kind.get())
@@ -2724,8 +2725,8 @@ fn update_principal_node_after_entry(
                     arena.set_committed_fragment_link(layout_node, link, None);
                 }
                 transfer_fragments_to_replacement_box(arena, old_layout_node, layout_node);
-                super::layout_node_arena::prepare_subtree_for_detach(host.host_calls(), arena, old_layout_node);
-                let old_parent = host.parent(old_layout_node);
+                super::layout_node_arena::prepare_subtree_for_detach(host_calls, arena, old_layout_node);
+                let old_parent = arena.data(old_layout_node).parent.get();
                 assert!(!old_parent.is_invalid());
                 let replaced_old_box = arena.replace_child(
                     old_parent,
@@ -3178,7 +3179,7 @@ fn stamp_pseudo_element_box_row(
             .make_display_contents_pseudo_element_box_inline(host_calls, slot);
     }
     if is_list_item_marker {
-        host.arena()
+        host.arena_mut()
             .set_node_flag(slot, NodeFlag::ListMarkerIsInside, facts.marker_position_is_inside);
     }
     host.note_style_of_built_row(slot, None);
@@ -3221,7 +3222,7 @@ fn stamp_nested_list_marker_row(
     let marker_position_is_inside = host
         .style(list_item_box)
         .is_some_and(ComputedValuesView::list_style_position_is_inside);
-    host.arena()
+    host.arena_mut()
         .set_node_flag(slot, NodeFlag::ListMarkerIsInside, marker_position_is_inside);
     host.note_style_of_built_row(slot, None);
     host.arena_mut().owe_image_resources(
@@ -3632,8 +3633,8 @@ impl<'a> TreeBuilderHost<'a> {
         })
     }
 
-    fn set_children_are_inline(&self, node: LayoutNode, children_are_inline: bool) {
-        self.arena()
+    fn set_children_are_inline(&mut self, node: LayoutNode, children_are_inline: bool) {
+        self.arena_mut()
             .set_node_flag(node, NodeFlag::ChildrenAreInline, children_are_inline);
     }
 
@@ -3674,7 +3675,7 @@ impl<'a> TreeBuilderHost<'a> {
             // A media element renders the children of its shadow root, such as its controls.
             NodeKind::AudioBox | NodeKind::VideoBox => {
                 let has_shadow_root = self.arena().shadow_root_of(element).is_some();
-                self.arena()
+                self.arena_mut()
                     .set_node_flag(slot, NodeFlag::ReplacedBoxCanHaveChildren, has_shadow_root);
             }
             _ => {}
@@ -3733,7 +3734,7 @@ impl<'a> TreeBuilderHost<'a> {
     /// metrics, giving the caret an anchor to paint at and the control its baseline. The document
     /// restamps it when editability changes. Under an element with a highlight pseudo-element style
     /// and no box of its own, the row takes that style's paint facts itself.
-    fn stamp_text_row_facts(&self, slot: NodeSlotId, text: StyleNodeID) {
+    fn stamp_text_row_facts(&mut self, slot: NodeSlotId, text: StyleNodeID) {
         use crate::css::style::bridge::element_construction_fact::{IS_EDITING_HOST, IS_HTML_INPUT_ELEMENT};
         let is_in_user_agent_shadow_tree =
             self.arena().node_flags(slot) & NodeFlag::IsInUserAgentShadowTree as u32 != 0;
@@ -3754,7 +3755,7 @@ impl<'a> TreeBuilderHost<'a> {
                     });
             (parent_is_editing_host || is_in_text_control, parent_element)
         });
-        self.arena().set_node_flag(
+        self.arena_mut().set_node_flag(
             slot,
             NodeFlag::ProducesLineBoxFragmentWhenEmpty,
             produces_line_box_fragment_when_empty,
@@ -3831,7 +3832,7 @@ impl<'a> TreeBuilderHost<'a> {
             .derive_anonymous_style_record(parent_style_record, style_kind, overrides);
         let slot = self.arena.allocate_unbound();
         self.arena_mut().stamp_anonymous_box(slot, node_kind, derived);
-        self.arena().refresh_insets_use_anchor_functions_flag(slot);
+        self.arena_mut().refresh_insets_use_anchor_functions_flag(slot);
         // An anonymous inline box takes its style from its parent, so it may name images too.
         if node_kind == NodeKind::InlineNode {
             self.arena_mut().owe_image_resources(
@@ -3853,12 +3854,12 @@ impl<'a> TreeBuilderHost<'a> {
         )
     }
 
-    fn attach_child(&self, parent: LayoutNode, child: UnplacedLayoutNode, before: LayoutNode) {
-        self.arena().attach_child(parent, child, before);
+    fn attach_child(&mut self, parent: LayoutNode, child: UnplacedLayoutNode, before: LayoutNode) {
+        self.arena_mut().attach_child(parent, child, before);
     }
 
-    fn move_child(&self, child: LayoutNode, new_parent: LayoutNode, before: LayoutNode) {
-        self.arena().move_child(child, new_parent, before);
+    fn move_child(&mut self, child: LayoutNode, new_parent: LayoutNode, before: LayoutNode) {
+        self.arena_mut().move_child(child, new_parent, before);
     }
 
     fn free_unplaced(&mut self, node: UnplacedLayoutNode) {
@@ -3939,7 +3940,7 @@ impl<'a> TreeBuilderHost<'a> {
         for &node in nodes {
             let parent = self.parent(node);
             assert!(!parent.is_invalid());
-            self.arena().detach_child(parent, node);
+            self.arena_mut().detach_child(parent, node);
         }
         for &node in nodes {
             self.free_subtree(node);
@@ -4307,7 +4308,7 @@ fn wrap_children_in_anonymous_wrapper(
 }
 
 fn insert_child_in_dom_order(
-    host: &TreeBuilderHost<'_>,
+    host: &mut TreeBuilderHost<'_>,
     parent: LayoutNode,
     child: UnplacedLayoutNode,
     identity: StyleNodeID,
@@ -4632,7 +4633,7 @@ fn create_first_letter_boxes(host: &mut TreeBuilderHost<'_>, element: StyleNodeI
     host.attach_child(wrapper_slot, first_letter_slice, NodeSlotId::INVALID);
     host.attach_child(parent, wrapper, text_node);
     host.attach_child(parent, remainder_slice, text_node);
-    host.arena().detach_child(parent, text_node);
+    host.arena_mut().detach_child(parent, text_node);
     host.free_subtree(text_node);
 }
 
@@ -4712,7 +4713,7 @@ fn create_writing_suggestion_boxes(host: &mut TreeBuilderHost<'_>, element: Styl
     host.attach_child(parent, leading_slice, text_node);
     host.attach_child(parent, wrapper, text_node);
     host.attach_child(parent, trailing_slice, text_node);
-    host.arena().detach_child(parent, text_node);
+    host.arena_mut().detach_child(parent, text_node);
     host.free_subtree(text_node);
 }
 
@@ -5344,7 +5345,7 @@ fn fixup_row(
             AnonymousStyleOverrides::default(),
             NodeKind::BlockContainer,
         );
-        host.arena()
+        host.arena_mut()
             .set_node_flag(cell.slot(), NodeFlag::IsMissingTableCell, true);
         host.attach_child(row, cell, NodeSlotId::INVALID);
     }

@@ -417,9 +417,9 @@ impl StabilizationTrace {
                     root.is_invalid(),
                     !root.is_invalid() && arena.node_needs_layout_update(root),
                     arena.needs_full_layout_tree_update(),
-                    arena.partial_relayout_boundary_roots.borrow().roots().len(),
-                    arena.pending_updates_escape_partial_relayout.get(),
-                    arena.deferred_child_list_insertion_parents.borrow().len(),
+                    arena.partial_relayout_boundary_roots.roots().len(),
+                    arena.pending_updates_escape_partial_relayout,
+                    arena.deferred_child_list_insertion_parents.len(),
                 )
             });
         let facts_that_hold: Vec<&str> = [
@@ -830,7 +830,7 @@ impl LayoutRoundJob {
         if self.layout == RoundLayout::PartialIfPlanned
             && arena.partial_relayout_may_be_attempted(
                 arena.layout_root(),
-                arena.partial_relayout_boundary_roots.borrow().roots(),
+                arena.partial_relayout_boundary_roots.roots(),
                 partial_relayout_facts,
             )
         {
@@ -845,7 +845,7 @@ impl LayoutRoundJob {
                 }
             }
 
-            let arena = state.arena();
+            let arena = state.arena_mut();
             // Among the boundaries are those the build registered where it invalidated what deferred child list
             // insertions reach.
             let boundaries = arena.take_partial_relayout_boundary_roots();
@@ -884,7 +884,7 @@ impl LayoutRoundJob {
             }
         }
         // The full layout below covers every registered boundary, the build's among them.
-        drop(state.arena().take_partial_relayout_boundary_roots());
+        drop(state.arena_mut().take_partial_relayout_boundary_roots());
 
         let layout_root = state.arena().layout_root();
         assert!(!layout_root.is_invalid(), "a full layout pass needs a layout root");
