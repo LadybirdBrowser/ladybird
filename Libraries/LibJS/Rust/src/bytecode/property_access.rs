@@ -90,7 +90,7 @@ pub fn get_by_value_with_keyed_cache(
     property_key: &PropertyKey,
     site_cache: Option<(&PropertyLookupCache, u64)>,
 ) -> ThrowCompletionOr<Value> {
-    if !property_key.is_string() {
+    if !property_key.is_string() || !base_object.is_cacheable_across_realms() {
         return base_object.internal_get(vm, property_key, this_value, None, PropertyLookupPhase::OwnProperty);
     }
 
@@ -384,6 +384,9 @@ pub fn get_with_property_lookup_cache(
     if let Some(value) = cached_property_slot(base_obj, cache, cache_key) {
         return get_cached_property_value(vm, value, this_value);
     }
+    if vm.is_static_property_lookup_cache(cache) && !base_obj.is_cacheable_across_realms() {
+        return base_obj.internal_get(vm, property_name, this_value, None, PropertyLookupPhase::OwnProperty);
+    }
     let shape = base_obj.shape();
     let prototype_chain_validity = shape
         .prototype()
@@ -609,6 +612,8 @@ pub fn put_by_property_key(
                 }
             }
 
+            let caches = caches
+                .filter(|cache| !vm.is_static_property_lookup_cache(cache) || object.is_cacheable_across_realms());
             let prototype_chain_validity = object
                 .shape()
                 .prototype()

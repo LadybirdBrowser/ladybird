@@ -271,6 +271,7 @@ pub struct ObjectMethods {
     /// for a few names whatever their shape holds.
     pub is_cacheable_for_absence_of: fn(&Object, &Vm, &PropertyKey) -> bool,
     pub is_cacheable_for_inherited_property: fn(&Object) -> bool,
+    pub is_cacheable_across_realms: fn(&Object) -> bool,
     pub eligible_for_own_property_enumeration_fast_path: fn(&Object) -> bool,
     /// The step of a built-in iterator whose next method is the original one, which IteratorStep takes without calling
     /// it; given the iterator and the next method of its iterator record.
@@ -308,6 +309,7 @@ pub static ORDINARY_OBJECT_METHODS: ObjectMethods = ObjectMethods {
     is_cacheable_for_property_absence: |_| true,
     is_cacheable_for_absence_of: |object, _, _| object.is_cacheable_for_property_absence(),
     is_cacheable_for_inherited_property: |_| true,
+    is_cacheable_across_realms: |_| true,
     eligible_for_own_property_enumeration_fast_path: |_| true,
     as_builtin_iterator_if_next_is_not_redefined: |_, _| None,
     error_data: error_data_of_error,
@@ -2039,6 +2041,10 @@ impl Object {
 
     pub fn is_cacheable_for_inherited_property(&self) -> bool {
         (self.methods().is_cacheable_for_inherited_property)(self)
+    }
+
+    pub fn is_cacheable_across_realms(&self) -> bool {
+        (self.methods().is_cacheable_across_realms)(self)
     }
 
     pub fn eligible_for_own_property_enumeration_fast_path(&self) -> bool {

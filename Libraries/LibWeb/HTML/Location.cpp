@@ -221,8 +221,10 @@ struct LocationWrapperTraits {
     static JS::ThrowCompletionOr<JS::Value> get(JS::HostObject const& wrapper, JS::PropertyKey const& property_key, JS::Value receiver, JS::CacheableGetPropertyMetadata* cacheable_metadata, JS::Object::PropertyLookupPhase phase)
     {
         // 1. If IsPlatformObjectSameOrigin(this) is true, then return ? OrdinaryGet(this, P, Receiver).
-        if (HTML::is_platform_object_same_origin(location_of(wrapper)))
-            return wrapper.ordinary_get(property_key, receiver, cacheable_metadata, phase);
+        if (HTML::is_platform_object_same_origin(location_of(wrapper))) {
+            auto may_cache_lookup = phase == JS::Object::PropertyLookupPhase::OwnProperty;
+            return wrapper.ordinary_get(property_key, receiver, may_cache_lookup ? cacheable_metadata : nullptr, phase);
+        }
 
         // 2. Return ? CrossOriginGet(this, P, Receiver).
         return HTML::cross_origin_get(wrapper.vm(), wrapper, property_key, receiver);
@@ -232,8 +234,10 @@ struct LocationWrapperTraits {
     static JS::ThrowCompletionOr<bool> set(JS::HostObject& wrapper, JS::PropertyKey const& property_key, JS::Value value, JS::Value receiver, JS::CacheableSetPropertyMetadata* cacheable_metadata, JS::Object::PropertyLookupPhase phase)
     {
         // 1. If IsPlatformObjectSameOrigin(this) is true, then return ? OrdinarySet(this, P, V, Receiver).
-        if (HTML::is_platform_object_same_origin(location_of(wrapper)))
-            return wrapper.ordinary_set(property_key, value, receiver, cacheable_metadata, phase);
+        if (HTML::is_platform_object_same_origin(location_of(wrapper))) {
+            auto may_cache_lookup = phase == JS::Object::PropertyLookupPhase::OwnProperty;
+            return wrapper.ordinary_set(property_key, value, receiver, may_cache_lookup ? cacheable_metadata : nullptr, phase);
+        }
 
         // 2. Return ? CrossOriginSet(this, P, V, Receiver).
         return HTML::cross_origin_set(wrapper.vm(), wrapper, property_key, value, receiver);
