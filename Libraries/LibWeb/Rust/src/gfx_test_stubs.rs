@@ -11,6 +11,11 @@ use libgfx_rust::text_layout::{DrawGlyph, TextType};
 use std::ffi::c_void;
 
 #[unsafe(no_mangle)]
+extern "C" fn ladybird_gfx_font_is_invisible(_font: *const c_void) -> bool {
+    unreachable!("no unit test reads a font");
+}
+
+#[unsafe(no_mangle)]
 extern "C" fn ladybird_gfx_font_is_emoji_font(_font: *const c_void) -> bool {
     unreachable!("no unit test reads a font");
 }
