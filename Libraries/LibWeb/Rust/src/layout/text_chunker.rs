@@ -652,13 +652,171 @@ struct ChunkBreakFlags {
     can_break_after: bool,
 }
 
+fn is_regional_indicator(code_point: u32) -> bool {
+    (0x1F1E6..=0x1F1FF).contains(&code_point)
+}
+
+/// The number of regional indicators at the end of a text.
+pub(crate) fn trailing_regional_indicator_count(text: &[u16]) -> usize {
+    let mut index = text.len();
+    let mut count = 0;
+    while index > 0 && is_regional_indicator(previous_code_point_at(text, &mut index)) {
+        count += 1;
+    }
+    count
+}
+
+/// Whether there is a soft wrap opportunity between the end of `before` and the start of `after`, such as the texts
+/// of two text nodes that follow each other on a line. `code_unit_before` is the last code unit of the text before
+/// `before`, if any. `regional_indicators_before` is the number of regional indicators that end `before`, including
+/// any in text before it.
+pub(crate) fn soft_wrap_opportunity_between(
+    before: &[u16],
+    after: &[u16],
+    code_unit_before: Option<u16>,
+    regional_indicators_before: usize,
+    word_break: u8,
+    line_break: u8,
+    line_break_language: LineBreakLanguage,
+) -> bool {
+    let (Some(&last), Some(&first)) = (before.last(), after.first()) else {
+        return false;
+    };
+    // NB: Whitespace gives its own soft wrap opportunities.
+    if (last <= 0x7f && code_point_is_ascii_space(u32::from(last)))
+        || (first <= 0x7f && code_point_is_ascii_space(u32::from(first)))
+    {
+        return false;
+    }
+    // NB: Only the number of regional indicators before the boundary tells whether it splits a flag, and they can
+    //     reach further back than the context below.
+    if regional_indicators_before > 0 && is_regional_indicator(code_point_at(after, 0)) {
+        return regional_indicators_before.is_multiple_of(2);
+    }
+    // NB: A few code points on each side of the boundary are enough context to find a soft wrap opportunity there.
+    const CONTEXT_LENGTH: usize = 8;
+    let mut before_start = before.len().saturating_sub(CONTEXT_LENGTH);
+    if before_start > 0 && is_utf16_low_surrogate(before[before_start]) {
+        before_start -= 1;
+    }
+    let mut after_end = after.len().min(CONTEXT_LENGTH);
+    if after_end < after.len() && is_utf16_low_surrogate(after[after_end]) {
+        after_end += 1;
+    }
+    let mut text = Vec::with_capacity(before.len() - before_start + after_end + 1);
+    // NB: Some rules look at the code point before the last one of `before`, which can be in the text before it.
+    if before_start == 0
+        && let Some(code_unit) = code_unit_before
+        && !is_utf16_low_surrogate(code_unit)
+    {
+        text.push(code_unit);
+    }
+    text.extend_from_slice(&before[before_start..]);
+    let boundary = text.len();
+    text.extend_from_slice(&after[..after_end]);
+    // OPTIMIZATION: Printable ASCII on both sides needs no line segmenter.
+    if word_break != word_break::BREAK_ALL
+        && let Some(is_boundary) = ascii_line_break_at(&text, boundary)
+    {
+        return is_boundary;
+    }
+    LineBreaker::new(&text, word_break, line_break, line_break_language).is_at_line_break_opportunity(boundary)
+}
+
+/// Finds the soft wrap opportunities of a text.
+struct LineBreaker<'text> {
+    text: &'text [u16],
+    line_segmenter: LineSegmenter<'text>,
+    word_break: u8,
+    allow_conditional_japanese_starters: bool,
+}
+
+impl<'text> LineBreaker<'text> {
+    fn new(text: &'text [u16], word_break: u8, line_break: u8, line_break_language: LineBreakLanguage) -> Self {
+        Self {
+            text,
+            line_segmenter: LineSegmenter::new(text, line_break, line_break_language),
+            word_break,
+            // NB: Apply CJ tailoring to word-break classification as well as to ICU's line segmenter.
+            allow_conditional_japanese_starters: matches!(line_break, line_break::NORMAL | line_break::LOOSE),
+        }
+    }
+
+    fn is_at_line_break_opportunity(&self, index: usize) -> bool {
+        let get_previous_code_point = || -> Option<u32> {
+            if index == 0 {
+                return None;
+            }
+            let mut index = index;
+            let mut previous_code_point = previous_code_point_at(self.text, &mut index);
+            while line_break_class(previous_code_point, self.allow_conditional_japanese_starters)
+                == line_break_class::COMBINING_MARK
+                && index > 0
+            {
+                previous_code_point = previous_code_point_at(self.text, &mut index);
+            }
+            Some(previous_code_point)
+        };
+
+        let is_at_line_segmenter_boundary = || {
+            if self.word_break != word_break::BREAK_ALL
+                && let Some(is_boundary) = ascii_line_break_at(self.text, index)
+            {
+                return is_boundary;
+            }
+            self.line_segmenter.next_boundary(index, true) == Some(index)
+        };
+
+        match self.word_break {
+            word_break::NORMAL | word_break::BREAK_WORD => is_at_line_segmenter_boundary(),
+            word_break::BREAK_ALL => {
+                if index >= self.text.len() {
+                    return false;
+                }
+                use line_break_class::*;
+                let breaks_anywhere = |code_point| {
+                    matches!(
+                        line_break_class(code_point, self.allow_conditional_japanese_starters),
+                        ALPHABETIC | NUMERIC | COMPLEX_CONTEXT | IDEOGRAPHIC
+                    )
+                };
+                if let Some(previous_code_point) = get_previous_code_point()
+                    && breaks_anywhere(previous_code_point)
+                    && breaks_anywhere(code_point_at(self.text, index))
+                {
+                    return true;
+                }
+                is_at_line_segmenter_boundary()
+            }
+            word_break::KEEP_ALL => {
+                if index >= self.text.len() {
+                    return false;
+                }
+                use line_break_class::*;
+                let keeps_together = |code_point| {
+                    matches!(
+                        line_break_class(code_point, self.allow_conditional_japanese_starters),
+                        ALPHABETIC | NUMERIC | AMBIGUOUS | IDEOGRAPHIC
+                    )
+                };
+                if let Some(previous_code_point) = get_previous_code_point()
+                    && keeps_together(previous_code_point)
+                    && keeps_together(code_point_at(self.text, index))
+                {
+                    return false;
+                }
+                is_at_line_segmenter_boundary()
+            }
+            _ => unreachable!("invalid word-break value"),
+        }
+    }
+}
+
 struct TextChunker<'text> {
     text: &'text [u16],
     frozen_font_list: &'text FrozenFontList,
     grapheme_segmenter: GraphemeSegmenter,
-    line_segmenter: LineSegmenter<'text>,
-    word_break: u8,
-    allow_conditional_japanese_starters: bool,
+    line_breaker: LineBreaker<'text>,
     font_variant_emoji: u8,
     should_collapse_whitespace: bool,
     break_after_preserved_tabs: bool,
@@ -672,15 +830,16 @@ struct TextChunker<'text> {
 
 impl<'text> TextChunker<'text> {
     fn new(inputs: TextChunkInputs<'text>) -> Self {
-        // NB: Apply CJ tailoring to word-break classification as well as to ICU's line segmenter.
-        let allow_conditional_japanese_starters = matches!(inputs.line_break, line_break::NORMAL | line_break::LOOSE);
         Self {
             text: inputs.text,
             frozen_font_list: inputs.frozen_font_list,
             grapheme_segmenter: GraphemeSegmenter::new(inputs.text),
-            line_segmenter: LineSegmenter::new(inputs.text, inputs.line_break, inputs.line_break_language),
-            word_break: inputs.word_break,
-            allow_conditional_japanese_starters,
+            line_breaker: LineBreaker::new(
+                inputs.text,
+                inputs.word_break,
+                inputs.line_break,
+                inputs.line_break_language,
+            ),
             font_variant_emoji: inputs.font_variant_emoji,
             should_collapse_whitespace: matches!(
                 inputs.white_space_collapse,
@@ -723,76 +882,7 @@ impl<'text> TextChunker<'text> {
     }
 
     fn is_at_line_break_opportunity(&self) -> bool {
-        if !self.should_wrap_lines {
-            return false;
-        }
-
-        let get_previous_code_point = || -> Option<u32> {
-            if self.current_index == 0 {
-                return None;
-            }
-            let mut index = self.current_index;
-            let mut previous_code_point = previous_code_point_at(self.text, &mut index);
-            while line_break_class(previous_code_point, self.allow_conditional_japanese_starters)
-                == line_break_class::COMBINING_MARK
-                && index > 0
-            {
-                previous_code_point = previous_code_point_at(self.text, &mut index);
-            }
-            Some(previous_code_point)
-        };
-
-        let is_at_line_segmenter_boundary = || {
-            if self.word_break != word_break::BREAK_ALL
-                && let Some(is_boundary) = ascii_line_break_at(self.text, self.current_index)
-            {
-                return is_boundary;
-            }
-            self.line_segmenter.next_boundary(self.current_index, true) == Some(self.current_index)
-        };
-
-        match self.word_break {
-            word_break::NORMAL | word_break::BREAK_WORD => is_at_line_segmenter_boundary(),
-            word_break::BREAK_ALL => {
-                if self.current_index >= self.text.len() {
-                    return false;
-                }
-                use line_break_class::*;
-                let breaks_anywhere = |code_point| {
-                    matches!(
-                        line_break_class(code_point, self.allow_conditional_japanese_starters),
-                        ALPHABETIC | NUMERIC | COMPLEX_CONTEXT | IDEOGRAPHIC
-                    )
-                };
-                if let Some(previous_code_point) = get_previous_code_point()
-                    && breaks_anywhere(previous_code_point)
-                    && breaks_anywhere(self.current_code_point())
-                {
-                    return true;
-                }
-                is_at_line_segmenter_boundary()
-            }
-            word_break::KEEP_ALL => {
-                if self.current_index >= self.text.len() {
-                    return false;
-                }
-                use line_break_class::*;
-                let keeps_together = |code_point| {
-                    matches!(
-                        line_break_class(code_point, self.allow_conditional_japanese_starters),
-                        ALPHABETIC | NUMERIC | AMBIGUOUS | IDEOGRAPHIC
-                    )
-                };
-                if let Some(previous_code_point) = get_previous_code_point()
-                    && keeps_together(previous_code_point)
-                    && keeps_together(self.current_code_point())
-                {
-                    return false;
-                }
-                is_at_line_segmenter_boundary()
-            }
-            _ => unreachable!("invalid word-break value"),
-        }
+        self.should_wrap_lines && self.line_breaker.is_at_line_break_opportunity(self.current_index)
     }
 
     fn emoji_presentation_at(&self, code_unit_offset: usize, code_point: u32) -> EmojiPresentation {

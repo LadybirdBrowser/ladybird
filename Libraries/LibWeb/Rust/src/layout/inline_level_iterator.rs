@@ -472,6 +472,17 @@ struct InlineLevelIteratorGenerator<'iterator, 'context> {
     items: Vec<Item>,
     accumulated_inline_size_for_tabs: CssPixels,
     previous_chunk_can_break_after: bool,
+    /// The text of the text node before the current one, when nothing but inline box boundaries and out-of-flow
+    /// boxes lies between them.
+    previous_text: Option<&'context [u16]>,
+    /// The number of regional indicators that end the previous text, including any in the text nodes before it.
+    previous_text_regional_indicators: usize,
+    /// The number of regional indicators that end the text before the current text node.
+    regional_indicators_before_text: usize,
+    /// The last code unit of the text before the previous text.
+    code_unit_before_previous_text: Option<u16>,
+    /// The last code unit of the text before the current text node.
+    code_unit_before_text: Option<u16>,
 }
 
 impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
@@ -495,6 +506,11 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
             items: Vec::new(),
             accumulated_inline_size_for_tabs: CssPixels::default(),
             previous_chunk_can_break_after: false,
+            previous_text: None,
+            previous_text_regional_indicators: 0,
+            regional_indicators_before_text: 0,
+            code_unit_before_previous_text: None,
+            code_unit_before_text: None,
         };
         iterator.is_unidirectional_left_to_right = iterator.compute_is_unidirectional_left_to_right();
         iterator.skip_to_next();
@@ -781,6 +797,17 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
                 text_type: line_box_fragment::GLYPH_TEXT_TYPE_COMMON,
             }
         } else {
+            if !text_context.text.is_empty() {
+                let regional_indicators = text_chunker::trailing_regional_indicator_count(text_context.text);
+                // NB: Each regional indicator is a surrogate pair.
+                self.previous_text_regional_indicators = if regional_indicators * 2 == text_context.text.len() {
+                    self.regional_indicators_before_text + regional_indicators
+                } else {
+                    regional_indicators
+                };
+                self.code_unit_before_previous_text = self.code_unit_before_text;
+                self.previous_text = Some(text_context.text);
+            }
             self.text_node_context = None;
             self.previous_chunk_can_break_after = false;
             self.skip_to_next();
@@ -886,6 +913,37 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
         item.is_collapsible_whitespace =
             text_context.should_collapse_whitespace && chunk.is_all_whitespace && !generated_empty;
         item.can_break_before = self.previous_chunk_can_break_after;
+        // NB: Look for a soft wrap opportunity between the texts of two text nodes, which the chunker of either text
+        //     cannot see. This uses the line breaking properties of the text after it.
+        if is_first_chunk {
+            self.regional_indicators_before_text = if self.previous_text.is_some() {
+                self.previous_text_regional_indicators
+            } else {
+                0
+            };
+            self.code_unit_before_text = self.previous_text.and_then(|text| text.last().copied());
+        }
+        if is_first_chunk
+            && !item.can_break_before
+            && let Some(previous_text) = self.previous_text.take()
+            && style.text_wrap_mode() == text_wrap_mode::WRAP
+        {
+            let line_break_language = if style.line_break() == line_break::LOOSE {
+                self.context().callbacks.arena().text_line_break_language(text_node)
+            } else {
+                text_chunker::LineBreakLanguage::Other
+            };
+            item.can_break_before = text_chunker::soft_wrap_opportunity_between(
+                previous_text,
+                &full_text[chunk.start..],
+                self.code_unit_before_previous_text,
+                self.regional_indicators_before_text,
+                style.word_break(),
+                style.line_break(),
+                line_break_language,
+            );
+        }
+        self.previous_text = None;
         self.previous_chunk_can_break_after = chunk.can_break_after;
         self.add_extra_box_model_metrics_to_item(&mut item, is_first_chunk, is_last_chunk);
         self.text_node_context = Some(text_context);
@@ -929,6 +987,7 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
                 return Some(item);
             }
             if facts.is_break_node() {
+                self.previous_text = None;
                 self.skip_to_next();
                 return Some(Item::new(ItemType::ForcedBreak, node));
             }
@@ -951,6 +1010,7 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
                 continue;
             }
             if facts.is_inline_flow_interrupting_block() {
+                self.previous_text = None;
                 self.skip_to_next();
                 let mut item = Item::new(ItemType::BlockLevelBox, node);
                 if self.atomic_sizing == AtomicInlineSizing::Contributions {
@@ -958,6 +1018,7 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
                 }
                 return Some(item);
             }
+            self.previous_text = None;
             return Some(self.generate_element_item(node));
         }
     }
