@@ -1204,9 +1204,6 @@ pub(crate) struct LayoutNodeArena {
     document_is_decoded_svg: Cell<bool>,
     /// Depth of synchronous layout passes, including their commits, on the stack.
     active_layout_pass_depth: Cell<u32>,
-    /// Whether any fragment-cache epoch changed during the outermost active layout pass. Geometry that the pass laid
-    /// out before the change may not match the box's current epoch.
-    fragment_cache_epoch_changed_during_layout_pass: Cell<bool>,
     /// The viewport the last layout tree build placed, invalid once that box is freed.
     layout_root: Cell<NodeSlotId>,
     /// The subtree roots the last layout tree build rebuilt, waiting for the partial relayout
@@ -1335,7 +1332,6 @@ impl LayoutNodeArena {
             queued_box_presence: RefCell::new(None),
             document_is_decoded_svg: Cell::new(false),
             active_layout_pass_depth: Cell::new(0),
-            fragment_cache_epoch_changed_during_layout_pass: Cell::new(false),
             layout_root: Cell::new(NodeSlotId::INVALID),
             pending_rebuilt_subtree_roots: RefCell::new(Vec::new()),
             pending_layout_tree_update_escaped_rebuild_roots: Cell::new(false),
@@ -3061,11 +3057,8 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn begin_active_layout_pass(&self) {
-        let depth = self.active_layout_pass_depth.get();
-        if depth == 0 {
-            self.fragment_cache_epoch_changed_during_layout_pass.set(false);
-        }
-        self.active_layout_pass_depth.set(depth + 1);
+        self.active_layout_pass_depth
+            .set(self.active_layout_pass_depth.get() + 1);
     }
 
     /// Leaves a pass, and answers whether it was the outermost one.
@@ -5184,10 +5177,6 @@ impl LayoutNodeArena {
         data.set_flags(data.flags.get() | NodeFlag::HasCommittedFragmentLink as u32);
     }
 
-    pub(crate) fn epoch_of_geometry_laid_out_in_this_pass(&self, data: &NodeData) -> Option<u32> {
-        (!self.fragment_cache_epoch_changed_during_layout_pass.get()).then(|| data.fragment_cache_epoch.get())
-    }
-
     /// Whether `id` committed `link` already, placed the same way, in a layout its geometry is still current for.
     pub(crate) fn holds_current_committed_fragment_link(
         &self,
@@ -7010,7 +6999,7 @@ mod tests {
             arena.set_committed_fragment_link(
                 node,
                 fragment_tree::FragmentLink::for_test(node),
-                arena.epoch_of_geometry_laid_out_in_this_pass(arena.data(node)),
+                Some(arena.data(node).fragment_cache_epoch.get()),
             );
         };
         commit_from_layout(&arena);
