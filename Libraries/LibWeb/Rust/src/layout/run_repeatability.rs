@@ -45,8 +45,7 @@ pub(super) fn lay_out_discarded_run(
     }
     Some(
         callbacks
-            .arena()
-            .layout_trace
+            .layout_trace()
             .without_events(|| callbacks.lay_out_discarded_run(run)),
     )
 }
@@ -164,7 +163,7 @@ pub(super) fn verify_run_ignores_its_unobserved_own_block_size_and_block_margins
         reference_inputs.push((cells, input, reference));
     }
     for (reference_cells, reference_input, reference) in reference_inputs {
-        let reference_outputs = callbacks.arena().layout_trace.without_events(|| {
+        let reference_outputs = callbacks.layout_trace().without_events(|| {
             callbacks.lay_out_discarded_run(|callbacks| lay_out(callbacks, reference_cells, reference_input))
         });
         ComparedLayouts {

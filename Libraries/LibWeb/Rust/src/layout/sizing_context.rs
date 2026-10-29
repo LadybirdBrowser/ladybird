@@ -3099,11 +3099,11 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         }
         let key = formatting_context::cache_key(None, block_size, constraints);
         if let Some(cached) = self.intrinsic_inline_measurement_cache_get(node, key) {
-            self.callbacks.arena().layout_trace.intrinsic_size_hit(node, kind);
+            self.callbacks.layout_trace().intrinsic_size_hit(node, kind);
             return ContentInlineSizeAnswer::from_cache(cached, kind);
         }
 
-        let trace = self.callbacks.arena().layout_trace.intrinsic_size_miss(node, kind);
+        let trace = self.callbacks.layout_trace().intrinsic_size_miss(node, kind);
         let depends_on_block_size = self.intrinsic_inline_measurement_may_depend_on_block_size(node, block_size);
         let scope = || intrinsic_sizing::ContentSizingScope::new(&self.callbacks, node, constraints, block_size);
         let facts = self.facts(node);
@@ -3234,7 +3234,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         let kind = IntrinsicSizeCacheKind::MaxContentBlock;
         let key = formatting_context::cache_key(Some(inline_size), None, constraints);
         if let Some(cached) = self.intrinsic_block_cache_get(node, kind, key) {
-            self.callbacks.arena().layout_trace.intrinsic_size_hit(node, kind);
+            self.callbacks.layout_trace().intrinsic_size_hit(node, kind);
             return cached.size;
         }
 
@@ -3243,7 +3243,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         {
             formatting_context::lay_out_shape_for_its_result(self.callbacks, shape)
         } else {
-            let _trace = self.callbacks.arena().layout_trace.intrinsic_size_miss(node, kind);
+            let _trace = self.callbacks.layout_trace().intrinsic_size_miss(node, kind);
             self.measure_block_size_with_normal_layout(node, inline_size, constraints)
         };
         let value = clamp_to_max_dimension_value(result.automatic_content_block_size);

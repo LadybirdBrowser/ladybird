@@ -3221,7 +3221,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         fragment: std::sync::Arc<fragment_tree::Fragment>,
     ) -> (FfiCssPixelPoint, CssPixels) {
         let node = sized_child.node;
-        self.run.callbacks.arena().layout_trace.reused_in_flow_subtree(node);
+        self.run.callbacks.layout_trace().reused_in_flow_subtree(node);
         self.cells_laid_out_here(sized_child).set(entry.cells);
         let flow_position = self.flow_position();
         *self.margin_state.borrow_mut() = entry.outgoing_margins.clone();
