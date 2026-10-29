@@ -7,6 +7,7 @@
  */
 
 #include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/DOM/DOMTokenList.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/HTMLStyleElement.h>
 
@@ -21,9 +22,18 @@ HTMLStyleElement::HTMLStyleElement(DOM::Document& document, DOM::QualifiedName q
 
 HTMLStyleElement::~HTMLStyleElement() = default;
 
+// https://html.spec.whatwg.org/multipage/urls-and-fetching.html#blocking-attribute
+GC::Ref<DOM::DOMTokenList> HTMLStyleElement::blocking()
+{
+    if (!m_blocking)
+        m_blocking = DOM::DOMTokenList::create(*this, AttributeNames::blocking);
+    return *m_blocking;
+}
+
 void HTMLStyleElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    visitor.visit(m_blocking);
     visit_style_element_edges(visitor);
 }
 
@@ -61,7 +71,16 @@ void HTMLStyleElement::moved_from(IsSubtreeRoot is_subtree_root, GC::Ptr<Node> o
 void HTMLStyleElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
+    if (!namespace_.has_value() && name == AttributeNames::blocking && m_blocking)
+        m_blocking->associated_attribute_changed(value.has_value() ? value->utf16_view() : u""sv);
     style_element_attribute_changed(name, value);
+}
+
+// https://html.spec.whatwg.org/multipage/semantics.html#the-style-element
+bool HTMLStyleElement::is_implicitly_potentially_render_blocking() const
+{
+    // A style element is implicitly potentially render-blocking if the element was created by its node document's parser.
+    return style_element_was_created_by_parser();
 }
 
 // https://html.spec.whatwg.org/multipage/semantics.html#contributes-a-script-blocking-style-sheet

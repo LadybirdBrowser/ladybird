@@ -1,0 +1,64 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+promiseTest(async () => {
+    const server = httpTestServer();
+    for (const kind of ["script", "module", "style", "link"]) {
+        for (const action of ["stop", "remove", "remove token", "navigate", "fail", ...(kind === "link" ? ["remove rel"] : [])]) {
+            const token = crypto.randomUUID();
+            const resource = await server.createEcho("GET", `/render-blocking-cancel-${token}`, {
+                status: action === "fail" ? 404 : 200,
+                headers: { "Content-Type": kind === "script" || kind === "module" ? "text/javascript" : "text/css" },
+                body: "",
+                wait_for_unblock: token,
+            });
+            const frame = document.createElement("iframe");
+            const ready = new Promise(resolve => {
+                window.addEventListener("message", function receive(event) {
+                    if (event.source !== frame.contentWindow || event.data !== token) return;
+                    window.removeEventListener("message", receive);
+                    resolve();
+                });
+            });
+            frame.src = await server.createEcho("GET", `/render-blocking-cancel-document-${token}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!doctype html><head><script>
+                    const blocker = document.createElement(${JSON.stringify(kind === "module" ? "script" : kind)});
+                    blocker.id = "blocker";
+                    blocker.blocking = "render";
+                    ${kind === "script" ? `blocker.src = ${JSON.stringify(resource)};` : ""}
+                    ${kind === "module" ? `blocker.type = "module"; blocker.textContent = ${JSON.stringify(`import "${resource}";`)};` : ""}
+                    ${kind === "style" ? `blocker.textContent = ${JSON.stringify(`@import url("${resource}");`)};` : ""}
+                    ${kind === "link" ? `blocker.rel = "stylesheet"; blocker.href = ${JSON.stringify(resource)};` : ""}
+                    document.head.append(blocker);
+                <\/script></head><body>Some text<script>
+                    parent.postMessage(${JSON.stringify(token)}, "*");
+                <\/script>`,
+            });
+            document.body.append(frame);
+            await ready;
+            while (!(await fetch(server.recordedRequestHeadersURL(resource))).ok) {}
+            let renderedWhileBlocked = false;
+            frame.contentWindow.requestAnimationFrame(() => (renderedWhileBlocked = true));
+            for (let i = 0; i < 3; ++i) await new Promise(resolve => requestAnimationFrame(resolve));
+            if (renderedWhileBlocked) println(`FAIL: ${kind}: rendering was not blocked before ${action}`);
+            const blocker = frame.contentDocument.getElementById("blocker");
+            if (action === "stop") frame.contentWindow.stop();
+            else if (action === "remove") blocker.remove();
+            else if (action === "remove token") blocker.blocking = "";
+            else if (action === "remove rel") blocker.rel = "";
+            else if (action === "fail") await fetch(new URL(`/unblock/${token}`, resource));
+            else {
+                const navigated = new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
+                frame.src = "about:blank";
+                await navigated;
+            }
+            await new Promise(resolve => frame.contentWindow.requestAnimationFrame(resolve));
+            println(`${kind}: rendering resumes after ${action}`);
+            frame.remove();
+            await fetch(new URL(`/unblock/${token}`, resource));
+        }
+    }
+});
+</script>

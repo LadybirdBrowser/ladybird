@@ -1,3 +1,21 @@
-link: blocking is undefined
-script: blocking is undefined
-style: blocking is undefined
+link: same object true
+attribute to tokens: render extra, 2
+tokens to attribute: RENDER
+supported: true, true, false
+namespaced attribute leaves tokens: RENDER
+added token: RENDER other
+removed attribute empties tokens: 0
+script: same object true
+attribute to tokens: render extra, 2
+tokens to attribute: RENDER
+supported: true, true, false
+namespaced attribute leaves tokens: RENDER
+added token: RENDER other
+removed attribute empties tokens: 0
+style: same object true
+attribute to tokens: render extra, 2
+tokens to attribute: RENDER
+supported: true, true, false
+namespaced attribute leaves tokens: RENDER
+added token: RENDER other
+removed attribute empties tokens: 0

@@ -262,6 +262,11 @@ WebIDL::ExceptionOr<bool> DOMTokenList::run_validation_steps(Utf16View token)
         { { HTML::TagNames::form, HTML::AttributeNames::rel },
             { u"noreferrer"sv, u"noopener"sv, u"opener"sv } },
 
+        // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#blocking-attribute
+        { { HTML::TagNames::link, HTML::AttributeNames::blocking }, { u"render"sv } },
+        { { HTML::TagNames::script, HTML::AttributeNames::blocking }, { u"render"sv } },
+        { { HTML::TagNames::style, HTML::AttributeNames::blocking }, { u"render"sv } },
+
         // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#attr-iframe-sandbox
         { { HTML::TagNames::iframe, HTML::AttributeNames::sandbox },
             { u"allow-downloads"sv, u"allow-forms"sv, u"allow-modals"sv, u"allow-orientation-lock"sv, u"allow-pointer-lock"sv, u"allow-popups"sv, u"allow-popups-to-escape-sandbox"sv, u"allow-presentation"sv, u"allow-same-origin"sv, u"allow-scripts"sv, u"allow-top-navigation"sv, u"allow-top-navigation-by-user-activation"sv, u"allow-top-navigation-to-custom-protocols"sv } },

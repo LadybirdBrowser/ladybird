@@ -9,6 +9,7 @@
 #include <AK/Utf16StringBuilder.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
+#include <LibWeb/DOM/DOMTokenList.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/ShadowRoot.h>
@@ -44,9 +45,18 @@ HTMLScriptElement::HTMLScriptElement(DOM::Document& document, DOM::QualifiedName
 
 HTMLScriptElement::~HTMLScriptElement() = default;
 
+// https://html.spec.whatwg.org/multipage/urls-and-fetching.html#blocking-attribute
+GC::Ref<DOM::DOMTokenList> HTMLScriptElement::blocking()
+{
+    if (!m_blocking)
+        m_blocking = DOM::DOMTokenList::create(*this, AttributeNames::blocking);
+    return *m_blocking;
+}
+
 void HTMLScriptElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    visitor.visit(m_blocking);
     m_result.visit(
         [](ResultState::Uninitialized) { },
         [](ResultState::Null) { },
@@ -66,6 +76,8 @@ void HTMLScriptElement::adopted_from(DOM::Document& old_document)
 void HTMLScriptElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
+    if (!namespace_.has_value() && name == AttributeNames::blocking && m_blocking)
+        m_blocking->associated_attribute_changed(value.has_value() ? value->utf16_view() : u""sv);
 
     if (!namespace_.has_value() && name == HTML::AttributeNames::crossorigin) {
         m_crossorigin = cors_setting_attribute_from_keyword(value.map([](auto const& value) { return value.utf16_view(); }));
@@ -461,7 +473,9 @@ void HTMLScriptElement::prepare_script()
         // 8. Set el's delaying the load event to true.
         begin_delaying_document_load_event(*m_preparation_time_document);
 
-        // FIXME: 9. If el is currently render-blocking, then set options's render-blocking to true.
+        // 9. If el is currently render-blocking, then set options's render-blocking to true.
+        if (document().is_render_blocking_element(*this))
+            options.render_blocking = true;
 
         // 10. Let onComplete given result be the following steps:
         OnFetchScriptComplete on_complete = create_on_fetch_script_complete(heap(), [this](auto result) {
@@ -522,6 +536,14 @@ void HTMLScriptElement::prepare_script()
             // 1. Set el's delaying the load event to true.
             begin_delaying_document_load_event(*m_preparation_time_document);
 
+            // 2. If el is potentially render-blocking:
+            if (is_potentially_render_blocking()) {
+                // 1. Block rendering on el.
+                block_rendering();
+                // 2. Set options's render-blocking to true.
+                options.render_blocking = true;
+            }
+
             auto steps = create_on_fetch_script_complete(heap(), [this](auto result) {
                 // 1. Queue an element task on the networking task source given el to perform the following steps:
                 queue_an_element_task(Task::Source::Networking, [this, result = move(result)] {
@@ -533,7 +555,7 @@ void HTMLScriptElement::prepare_script()
                 });
             });
 
-            // 2. Fetch an inline module script graph, given source text, base URL, settings object, options, and with the following steps given result:
+            // 3. Fetch an inline module script graph, given source text, base URL, settings object, options, and with the following steps given result:
             fetch_inline_module_script_graph(HTML::relevant_realm(*this), m_document->url().to_byte_string(), source_text.utf16_view(), base_url, document().relevant_settings_object(), options, m_source_line_number, steps);
         }
         // -> "importmap"
@@ -611,7 +633,8 @@ void HTMLScriptElement::prepare_script()
             // 1. Set el's parser document's pending parsing-blocking script to el.
             m_parser_document->set_pending_parsing_blocking_script(this);
 
-            // FIXME: 2. Block rendering on el.
+            // 2. Block rendering on el.
+            block_rendering();
 
             // 3. Set el's steps to run when the result is ready to the following:
             m_steps_to_run_when_the_result_is_ready = [this] {

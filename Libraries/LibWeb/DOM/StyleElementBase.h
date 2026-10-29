@@ -58,6 +58,7 @@ public:
 
 protected:
     bool style_element_contributes_a_script_blocking_style_sheet() const;
+    bool style_element_was_created_by_parser() const;
 
 private:
     void evaluate_associated_style_sheet_media_queries();

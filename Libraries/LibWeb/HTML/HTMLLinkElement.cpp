@@ -9,6 +9,7 @@
 
 #include <AK/ByteBuffer.h>
 #include <AK/Debug.h>
+#include <AK/ScopeGuard.h>
 #include <LibCore/ImmutableBytes.h>
 #include <LibGC/Heap.h>
 #include <LibGfx/Bitmap.h>
@@ -66,9 +67,18 @@ HTMLLinkElement::HTMLLinkElement(DOM::Document& document, DOM::QualifiedName qua
 
 HTMLLinkElement::~HTMLLinkElement() = default;
 
+// https://html.spec.whatwg.org/multipage/urls-and-fetching.html#blocking-attribute
+GC::Ref<DOM::DOMTokenList> HTMLLinkElement::blocking()
+{
+    if (!m_blocking)
+        m_blocking = DOM::DOMTokenList::create(*this, AttributeNames::blocking);
+    return *m_blocking;
+}
+
 void HTMLLinkElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    visitor.visit(m_blocking);
     visitor.visit(m_fetch_controller);
     visitor.visit(m_loaded_style_sheet);
     visitor.visit(m_rel_list);
@@ -220,6 +230,8 @@ bool HTMLLinkElement::has_icon_keyword() const
 void HTMLLinkElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
+    if (!namespace_.has_value() && name == AttributeNames::blocking && m_blocking)
+        m_blocking->associated_attribute_changed(value.has_value() ? value->utf16_view() : u""sv);
 
     // https://html.spec.whatwg.org/multipage/semantics.html#processing-the-type-attribute:attr-link-type
     if (name == HTML::AttributeNames::type) {
@@ -270,6 +282,10 @@ void HTMLLinkElement::attribute_changed(Utf16FlyString const& name, Optional<Utf
 
         if (m_rel_list)
             m_rel_list->associated_attribute_changed(value.has_value() ? value->utf16_view() : u""sv);
+
+        // NB: A link that no longer represents a stylesheet will not run stylesheet completion steps.
+        if ((old_relationship & Relationship::Stylesheet) && !(m_relationship & Relationship::Stylesheet))
+            cancel_pending_stylesheet_processing();
     }
 
     // https://html.spec.whatwg.org/multipage/semantics.html#the-link-element:explicitly-enabled
@@ -487,7 +503,14 @@ void HTMLLinkElement::fetch_and_process_linked_resource()
 {
     auto fetch_generation = ++m_current_fetch_generation;
 
-    cancel_pending_stylesheet_processing();
+    // NB: Replacing a pending stylesheet must preserve its render-blocking entry even after the body was inserted.
+    cancel_pending_stylesheet_processing(UnblockRendering::No);
+    ScopeGuard unblock_if_no_blocking_stylesheet = [this] {
+        if (document().is_render_blocking_element(*this)
+            && ((m_relationship & Relationship::Icon) || !(m_relationship & Relationship::Stylesheet) || !m_fetch_controller || !is_potentially_render_blocking()
+                || !CSS::RustMediaList::parse(media()).evaluate(document())))
+            unblock_rendering();
+    };
 
     if (m_fetch_controller) {
         m_fetch_controller->stop_fetch();
@@ -869,8 +892,7 @@ bool HTMLLinkElement::stylesheet_linked_resource_fetch_setup_steps(Fetch::Infras
         document().script_blocking_style_sheet_set().set(*this);
 
     // 3. If el's media attribute's value matches the environment and el is potentially render-blocking, then block rendering on el.
-    // FIXME: Check media attribute value.
-    if (is_potentially_render_blocking())
+    if (is_potentially_render_blocking() && CSS::RustMediaList::parse(media()).evaluate(document()))
         block_rendering();
 
     m_document_load_event_delayer.emplace(document(), DOM::DocumentLoadEventDelayerReason::StyleSheetRequest);
@@ -1584,24 +1606,29 @@ void HTMLLinkElement::associate_empty_style_sheet(Fetch::Infrastructure::Respons
     associate_style_sheet(*parse_css_stylesheet(CSS::Parser::ParsingParams { document() }, u""sv, move(location)), origin_clean);
 }
 
-void HTMLLinkElement::cancel_pending_stylesheet_processing()
+void HTMLLinkElement::cancel_pending_stylesheet_processing(UnblockRendering unblock_rendering)
 {
     m_fetch_generation_waiting_for_critical_subresources = {};
-    if (!m_stylesheet_processing_pending)
+    if (!m_stylesheet_processing_pending && !m_document_load_event_delayer.has_value())
         return;
     m_stylesheet_processing_pending = false;
-    stop_blocking_on_style_sheet();
+    stop_blocking_on_style_sheet(unblock_rendering);
 }
 
-void HTMLLinkElement::stop_blocking_on_style_sheet()
+void HTMLLinkElement::stop_blocking_on_style_sheet(UnblockRendering unblock_rendering)
 {
     document().remove_from_script_blocking_style_sheet_set(*this);
-    unblock_rendering();
+    if (unblock_rendering == UnblockRendering::Yes)
+        this->unblock_rendering();
     m_document_load_event_delayer.clear();
 }
 
 void HTMLLinkElement::finish_processing_stylesheet_resource(u64 fetch_generation)
 {
+    // NB: A load or error handler can start another fetch, which owns its own blocking state.
+    if (fetch_generation != m_current_fetch_generation)
+        return;
+
     // 6. If el contributes a script-blocking style sheet, then:
     if (document().script_blocking_style_sheet_set().contains(*this)) {
         // 1. Assert: el's node document's script-blocking style sheet set contains el.
@@ -1614,10 +1641,7 @@ void HTMLLinkElement::finish_processing_stylesheet_resource(u64 fetch_generation
     // 7. Unblock rendering on el.
     unblock_rendering();
 
-    // NB: Loading completion is element-based, but a newer parse may already be pending after
-    //     event dispatch. Do not mark that worker result as canceled.
-    if (fetch_generation == m_current_fetch_generation)
-        m_stylesheet_processing_pending = false;
+    m_stylesheet_processing_pending = false;
 
     if (m_loaded_style_sheet) {
         auto style_sheet_loading_state = m_loaded_style_sheet->loading_state();

@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Script-inserted module script elements with "blocking=render" are render-blocking
+1 Pass
+Pass	Script-inserted module script elements with "blocking=render" are render-blocking
