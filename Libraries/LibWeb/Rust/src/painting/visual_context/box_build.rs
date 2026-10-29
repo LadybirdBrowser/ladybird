@@ -35,6 +35,9 @@ pub(crate) struct PaintableVisualContextAssignment {
     pub has_non_invertible_css_transform: bool,
     pub record: PaintableVisualContextRecord,
     pub node_handles: BoxVisualContextNodeHandles,
+    /// The bounds of the SVG filter the box references, as the build gathered them, which the row takes as the
+    /// assignment applies. None for an assignment no build gathered.
+    pub gathered_svg_filter_bounds: Option<Option<crate::layout::used_values::FfiCssPixelRect>>,
 }
 
 impl PaintableVisualContextAssignment {
@@ -50,11 +53,15 @@ impl PaintableVisualContextAssignment {
             has_non_invertible_css_transform: data.has_flag(PaintableFlag::HasNonInvertibleCssTransform),
             record,
             node_handles: BoxVisualContextNodeHandles::default(),
+            gathered_svg_filter_bounds: None,
         }
     }
 
     pub(crate) fn apply(self, layout_arena: &mut impl PaintableRowsWrite) {
         use crate::painting::record::damage::PaintDamage;
+        if let Some(svg_filter_bounds) = self.gathered_svg_filter_bounds {
+            super::node_values::set_svg_filter_bounds(layout_arena, self.slot, svg_filter_bounds);
+        }
         // Commands and hit-test items name the row's own nodes; the scroll metadata of every
         // descendant names the nearest scroll node above it.
         let (scroll_nodes_changed, non_invertible_transform_flipped) = match layout_arena
@@ -238,7 +245,7 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead>(
     anchor_scroll_shift_resolver: &dyn AnchorScrollShiftResolver,
 ) -> PaintableVisualContextAssignment {
     let layout_arena = env.layout_arena;
-    let facts = super::build::BoxFacts::gather(layout_arena, slot, env.pixel_ratio, true);
+    let (facts, svg_filter_bounds) = super::build::BoxFacts::gather(layout_arena, slot, env.pixel_ratio, true);
     let position = crate::painting::style_queries::position(layout_arena, slot);
     let is_fixed = position == crate::css::css_enums::positioning::FIXED;
     let is_absolute = position == crate::css::css_enums::positioning::ABSOLUTE;
@@ -263,6 +270,7 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead>(
     assignment.enclosing_scroll_node_index = VISUAL_VIEWPORT_NODE_INDEX;
     assignment.own_scroll_node_index = VISUAL_VIEWPORT_NODE_INDEX;
     assignment.node_identity = 0;
+    assignment.gathered_svg_filter_bounds = Some(svg_filter_bounds);
 
     let mut nearest_scroll_nodes_for_descendants = if is_fixed {
         NearestScrollNodeIndices {

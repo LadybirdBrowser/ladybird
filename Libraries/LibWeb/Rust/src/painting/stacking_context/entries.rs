@@ -113,7 +113,7 @@ impl LayoutNodeArena {
         );
     }
 
-    pub(crate) fn register_stacking_context_contribution(&self, slot: NodeSlotId, facts: &StackingContextFacts) {
+    pub(crate) fn register_stacking_context_contribution(&mut self, slot: NodeSlotId, facts: &StackingContextFacts) {
         let enclosing = facts.enclosing_stacking_context;
         if !self.paintable_row_is_populated(enclosing) {
             return;
@@ -155,7 +155,7 @@ impl LayoutNodeArena {
         }
     }
 
-    pub(crate) fn withdraw_stacking_context_contribution(&self, slot: NodeSlotId, facts: &StackingContextFacts) {
+    pub(crate) fn withdraw_stacking_context_contribution(&mut self, slot: NodeSlotId, facts: &StackingContextFacts) {
         let enclosing = facts.enclosing_stacking_context;
         if !self.paintable_row_is_populated(enclosing) {
             return;
@@ -195,7 +195,7 @@ impl LayoutNodeArena {
         }
     }
 
-    fn flag_stacking_context_entries_for_resort(&self, root: NodeSlotId) {
+    fn flag_stacking_context_entries_for_resort(&mut self, root: NodeSlotId) {
         if !self.paintable_row_is_populated(root) {
             return;
         }
@@ -215,7 +215,7 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn apply_stacking_context_facts_delta(
-        &self,
+        &mut self,
         slot: NodeSlotId,
         previous: Option<&StackingContextFacts>,
         next: &mut StackingContextFacts,
@@ -333,7 +333,7 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn withdraw_stacking_context_state_of_reset_row(
-        &self,
+        &mut self,
         slot: NodeSlotId,
         facts: Option<StackingContextFacts>,
     ) {
@@ -345,19 +345,21 @@ impl LayoutNodeArena {
         self.drop_stacking_context_entries_of_root(slot);
     }
 
-    pub(crate) fn note_layout_subtree_attached(&self, subtree_root: NodeSlotId) {
+    pub(crate) fn note_layout_subtree_attached(&mut self, subtree_root: NodeSlotId) {
         if self.paintable_row_count() == 0 {
             return;
         }
         // The new parent lists the subtree from now on, and every row inside plans its own
         // descendants under the new ancestry.
         self.push_enclosing_paint_order_damage(subtree_root);
-        self.for_each_node_in_layout_subtree_in_pre_order(subtree_root, |node| {
+        let mut cursor = Some(subtree_root);
+        while let Some(node) = cursor {
             if self.paintable_row_is_populated(node) {
                 self.note_overflow_contained_box_added(node);
                 self.note_visual_context_box_dirty(node, VisualContextBoxDirtyKind::ReattachedInLayoutTree);
                 self.push_paint_damage(node, crate::painting::record::damage::PaintDamage::ORDER);
             }
-        });
+            cursor = self.next_node_in_layout_subtree_in_pre_order(subtree_root, node);
+        }
     }
 }

@@ -197,17 +197,19 @@ mod tests {
         }
         arena.paintable_side_data(node).overflow_measured_this_commit.set(true);
 
-        let rows = arena.paintable_rows();
-        let geometry = rows.paintable_data(node);
-        let previous_geometry = *geometry;
-        rows.clear_cached_overflow_data(node);
+        let previous_geometry = *arena.paintable_rows().paintable_data(node);
+        arena.paintable_rows().clear_cached_overflow_data(node);
         // Reading overflow never measures it.
-        assert_eq!(paintable_geometry::scrollable_overflow_rect(&rows, node), None);
+        assert_eq!(
+            paintable_geometry::scrollable_overflow_rect(&arena.paintable_rows(), node),
+            None
+        );
         assert!(!arena.scrollable_overflow.geometry_changed.get());
         arena.measure_scrollable_overflow();
+        let rows = arena.paintable_rows();
         assert_eq!(paintable_geometry::scrollable_overflow_rect(&rows, node), Some(rect));
         assert!(!paintable_geometry::has_scrollable_overflow(&rows, node));
-        assert_eq!(*geometry, previous_geometry);
+        assert_eq!(*rows.paintable_data(node), previous_geometry);
         assert!(arena.scrollable_overflow.geometry_changed.get());
         assert!(arena.scrollable_overflow.scrollability_changed.get());
     }
@@ -318,7 +320,7 @@ pub(crate) struct PaintableRowStore {
     rows: CowColumn<PaintableData, PAINTABLE_SLOTS_PER_CHUNK>,
     side_data: RefCell<Vec<PaintableSideData>>,
     committed_side_data: RefCell<CowColumn<CommittedSideData, PAINTABLE_SLOTS_PER_CHUNK>>,
-    pub(crate) row_paint_states: RefCell<Vec<RowPaintState>>,
+    pub(crate) row_paint_states: Vec<RowPaintState>,
     pub(crate) damage: DamageSet,
     // NB: Boxed, as most rows have no record, and a row holds no more than a pointer for one.
     visual_context_records: RefCell<CowColumn<Option<Box<PaintableVisualContextRecord>>, PAINTABLE_SLOTS_PER_CHUNK>>,
@@ -384,7 +386,8 @@ pub(crate) type CommittedSideDataMut<'a> = RowMut<
     PAINTABLE_SLOTS_PER_CHUNK,
 >;
 
-pub(crate) trait PaintableRowsWrite: PaintableRowsRead {
+/// A view of the live rows that writes them, and the rest of the arena.
+pub(crate) trait PaintableRowsWrite: PaintableRowsRead + DerefMut<Target = LayoutNodeArena> {
     fn paintable_data_mut(&mut self, id: NodeSlotId) -> PaintableDataMut<'_>;
 }
 
@@ -461,34 +464,6 @@ where
         }
     }
 
-    /// A text-decoration change on a box repaints the text of every line root and inline
-    /// below it that inherits the decoration.
-    pub(crate) fn push_propagated_text_decoration_damage(&self, root: NodeSlotId) {
-        if !self.paintable_row_is_populated(root) {
-            return;
-        }
-
-        let mut stack = Vec::new();
-        if let Some(first_child) = crate::painting::paint_order::first_paint_child(self, root) {
-            stack.push(first_child);
-        }
-        while let Some(current) = stack.pop() {
-            if let Some(next_sibling) = crate::painting::paint_order::next_paint_sibling(self, current) {
-                stack.push(next_sibling);
-            }
-
-            if crate::painting::style_queries::is_text_decoration_propagation_boundary(self.arena.deref(), current) {
-                continue;
-            }
-            if node_painting::has_lines(self, current) || node_painting::is_fragmented_inline(self, current) {
-                self.arena.push_paint_damage(current, PaintDamage::DRAW_FOREGROUND);
-            }
-            if let Some(first_child) = crate::painting::paint_order::first_paint_child(self, current) {
-                stack.push(first_child);
-            }
-        }
-    }
-
     pub(crate) fn prepare_paintable_row_recommit_notification(&self, id: NodeSlotId) -> PaintableRowReset {
         assert!(self.paintable_row_is_populated(id));
         // The host hears which row is the viewport's here: a layout pass is under way, so it cannot read the rows.
@@ -505,6 +480,34 @@ impl<Arena> PaintableRows<Arena>
 where
     Arena: DerefMut<Target = LayoutNodeArena>,
 {
+    /// A text-decoration change on a box repaints the text of every line root and inline
+    /// below it that inherits the decoration.
+    pub(crate) fn push_propagated_text_decoration_damage(&mut self, root: NodeSlotId) {
+        if !self.paintable_row_is_populated(root) {
+            return;
+        }
+
+        let mut stack = Vec::new();
+        if let Some(first_child) = crate::painting::paint_order::first_paint_child(&*self, root) {
+            stack.push(first_child);
+        }
+        while let Some(current) = stack.pop() {
+            if let Some(next_sibling) = crate::painting::paint_order::next_paint_sibling(&*self, current) {
+                stack.push(next_sibling);
+            }
+
+            if crate::painting::style_queries::is_text_decoration_propagation_boundary(self.arena.deref(), current) {
+                continue;
+            }
+            if node_painting::has_lines(&*self, current) || node_painting::is_fragmented_inline(&*self, current) {
+                self.arena.push_paint_damage(current, PaintDamage::DRAW_FOREGROUND);
+            }
+            if let Some(first_child) = crate::painting::paint_order::first_paint_child(&*self, current) {
+                stack.push(first_child);
+            }
+        }
+    }
+
     pub(crate) fn paintable_data_mut(&mut self, id: NodeSlotId) -> PaintableDataMut<'_> {
         assert!(!id.is_invalid(), "invalid paintable arena slot ID");
         let data = self
@@ -678,7 +681,7 @@ impl PaintableRowStore {
 }
 
 impl LayoutNodeArena {
-    pub(crate) fn refresh_paint_order_inputs(&self, row: NodeSlotId) {
+    pub(crate) fn refresh_paint_order_inputs(&mut self, row: NodeSlotId) {
         if !self.paintable_row_is_populated(row) {
             return;
         }
@@ -690,14 +693,14 @@ impl LayoutNodeArena {
 
     // A row whose ordering decisions changed is placed differently by its ancestors' plans and
     // may plan its own descendants differently.
-    pub(crate) fn note_paint_order_changed(&self, row: NodeSlotId) {
+    pub(crate) fn note_paint_order_changed(&mut self, row: NodeSlotId) {
         self.push_paint_damage(row, PaintDamage::ORDER);
         self.push_enclosing_paint_order_damage(row);
     }
 
     // The entry tables decide how a stacking context composes its hoisted content, so a table
     // change reorders the context's own painting even when no row changed its own decisions.
-    pub(crate) fn note_stacking_context_composition_changed(&self, context_root: NodeSlotId) {
+    pub(crate) fn note_stacking_context_composition_changed(&mut self, context_root: NodeSlotId) {
         self.push_paint_damage(context_root, PaintDamage::CONTEXT_ORDER);
     }
 
@@ -851,7 +854,6 @@ impl LayoutNodeArena {
         let store = &mut self.paintable_rows;
         let index = layout_node.slot_index() as usize;
         let mut side_data = store.side_data.borrow_mut();
-        let mut row_paint_states = store.row_paint_states.borrow_mut();
         let mut absolute_rect_memo = store.absolute_rect_memo.borrow_mut();
         let mut visual_context_records = store.visual_context_records.borrow_mut();
         store.rows.grow_to(index + 1);
@@ -861,7 +863,7 @@ impl LayoutNodeArena {
         store.stacking_context_entries.get_mut().grow_to(index + 1);
         while side_data.len() <= index {
             side_data.push(PaintableSideData::default());
-            row_paint_states.push(RowPaintState::default());
+            store.row_paint_states.push(RowPaintState::default());
             absolute_rect_memo.push(None);
         }
 
@@ -881,13 +883,13 @@ impl LayoutNodeArena {
             .committed_side_data
             .get_mut()
             .set(index, CommittedSideData::default());
-        row_paint_states[index].clear();
+        store.row_paint_states[index].clear();
         absolute_rect_memo[index] = None;
         visual_context_records.set(index, None);
         set_visual_context_node_handles(store.visual_context_node_handles.get_mut(), index, None);
         drop_table(store.stacking_context_entries.get_mut(), index);
         self.scrollable_overflow.rows_to_measure.get_mut().push(layout_node);
-        drop((side_data, row_paint_states, absolute_rect_memo, visual_context_records));
+        drop((side_data, absolute_rect_memo, visual_context_records));
         self.notify_committed_box_changed(layout_node);
     }
 
@@ -928,7 +930,7 @@ impl LayoutNodeArena {
             .committed_side_data
             .get_mut()
             .set(index, CommittedSideData::default());
-        store.row_paint_states.borrow()[index].clear();
+        store.row_paint_states[index].clear();
         store.visual_context_records.borrow_mut().set(index, None);
         set_visual_context_node_handles(store.visual_context_node_handles.get_mut(), index, None);
         drop_table(store.stacking_context_entries.get_mut(), index);
@@ -988,7 +990,7 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn set_paintable_visual_context_record(
-        &self,
+        &mut self,
         id: NodeSlotId,
         record: PaintableVisualContextRecord,
         node_handles: BoxVisualContextNodeHandles,
@@ -1218,7 +1220,7 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn transfer_fragments_to_replacement_node(
-        &self,
+        &mut self,
         containing_block: NodeSlotId,
         old_node: NodeSlotId,
         new_node: NodeSlotId,
@@ -1246,8 +1248,8 @@ impl LayoutNodeArena {
         }
     }
 
-    pub(crate) fn push_propagated_text_decoration_damage(&self, root: NodeSlotId) {
-        self.paintable_rows().push_propagated_text_decoration_damage(root);
+    pub(crate) fn push_propagated_text_decoration_damage(&mut self, root: NodeSlotId) {
+        self.paintable_rows_mut().push_propagated_text_decoration_damage(root);
     }
 
     /// Stores the paint-order inputs gathered for a row, answering whether they changed.

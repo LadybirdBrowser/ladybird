@@ -171,7 +171,7 @@ impl<'a> PaintableCommit<'a> {
             let inline_paint_changed = enclosing_line_root_changes.inline_content_changed
                 || (enclosing_line_root_changes.fragment_changed && has_descendant_dependent_paint(self.arena(), node));
             if row_existed_before_this_commit && inline_paint_changed {
-                self.arena().push_paint_damage(node, PaintDamage::ALL_PRODUCERS);
+                self.arena_mut().push_paint_damage(node, PaintDamage::ALL_PRODUCERS);
             }
             if row_existed_before_this_commit && enclosing_line_root_changes.fragment_changed {
                 self.arena()
@@ -301,7 +301,7 @@ impl<'a> PaintableCommit<'a> {
         // Inserted, removed or reordered children change which scopes this row's plans list,
         // independently of where the children were placed.
         if !child_sequence_unchanged {
-            self.arena().push_paint_damage(node, PaintDamage::ORDER);
+            self.arena_mut().push_paint_damage(node, PaintDamage::ORDER);
         }
         let painted_geometry_lives_in_enclosing_line_root = {
             let data = self.arena().data(node);
@@ -346,7 +346,7 @@ impl<'a> PaintableCommit<'a> {
         if !paint_offset_unchanged {
             damage |= PaintDamage::MOVED;
         }
-        self.arena().push_paint_damage(node, damage);
+        self.arena_mut().push_paint_damage(node, damage);
         if !offset_unchanged {
             self.arena()
                 .note_visual_context_box_dirty(node, VisualContextBoxDirtyKind::MovedWithDescendants);
@@ -456,7 +456,7 @@ impl<'a> PaintableCommit<'a> {
         if geometry_unchanged {
             return;
         }
-        self.arena()
+        self.arena_mut()
             .push_paint_damage(slot, PaintDamage::ALL_PRODUCERS | PaintDamage::MOVED);
         self.arena().note_visual_context_box_dirty(
             slot,
@@ -470,7 +470,7 @@ impl<'a> PaintableCommit<'a> {
     }
 
     pub(crate) fn set_line_data(
-        &self,
+        &mut self,
         slot: NodeSlotId,
         line_data: &std::sync::Arc<crate::layout::inline_content::InlineContent>,
         previous_fragmented_content: Option<std::sync::Arc<crate::layout::inline_content::InlineContent>>,
@@ -496,7 +496,7 @@ impl<'a> PaintableCommit<'a> {
         });
         self.arena().committed_side_data_mut(slot).inline_content = Some(line_data.clone());
         if item_order_changed {
-            self.arena().push_paint_damage(slot, PaintDamage::ORDER);
+            self.arena_mut().push_paint_damage(slot, PaintDamage::ORDER);
         }
         if has_pieces {
             self.arena().note_line_root_needs_fragment_ownership(slot);

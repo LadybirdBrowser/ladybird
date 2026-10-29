@@ -2560,7 +2560,7 @@ fn construct_principal_layout_node(
 // and inline-box-piece lists held by the containing block of a node that participated in inline
 // layout carry over to it; a subtree relayout that skips the containing block never rebuilds them.
 fn transfer_fragments_to_replacement_box(
-    arena: &LayoutNodeArena,
+    arena: &mut LayoutNodeArena,
     old_layout_node: LayoutNode,
     new_layout_node: LayoutNode,
 ) {

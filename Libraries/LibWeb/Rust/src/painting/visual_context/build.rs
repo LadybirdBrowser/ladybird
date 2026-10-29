@@ -92,26 +92,32 @@ impl BoxFacts {
             .is_some_and(|effects| effects.backdrop_filter.is_some())
     }
 
-    /// Gathers a box's facts for the visual context update, which keeps the bounds of the SVG
-    /// filter the box references on its row.
+    /// Gathers a box's facts for the visual context update, with the bounds of the SVG filter the box references,
+    /// which the update keeps on its row.
     pub(crate) fn gather(
         layout_arena: &impl PaintableRowsRead,
         slot: NodeSlotId,
         pixel_ratio: f64,
         consults_default_scroll_shift_anchors: bool,
-    ) -> Self {
+    ) -> (Self, Option<crate::layout::used_values::FfiCssPixelRect>) {
         let default_scroll_shift_anchor = if consults_default_scroll_shift_anchors {
             layout_arena.default_scroll_shift_anchor(slot)
         } else {
             NodeSlotId::INVALID
         };
-        Self::gather_with_effects(
+        let mut svg_filter_bounds = None;
+        let facts = Self::gather_with_effects(
             layout_arena,
             slot,
             pixel_ratio,
             default_scroll_shift_anchor,
-            |layout_arena| super::node_values::compute_effects_data(layout_arena, slot, pixel_ratio),
-        )
+            |layout_arena| {
+                let resolved = super::node_values::resolve_effects_data(layout_arena, slot, pixel_ratio)?;
+                svg_filter_bounds = resolved.svg_filter_bounds;
+                resolved.effects
+            },
+        );
+        (facts, svg_filter_bounds)
     }
 
     /// Gathers the facts of a box painted inside an SVG resource, which the visual context update

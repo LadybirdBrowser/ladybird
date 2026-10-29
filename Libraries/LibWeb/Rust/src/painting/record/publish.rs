@@ -377,18 +377,20 @@ pub(crate) fn take_in_presented_output(
 /// the hit-test list generation moves on where the list changed, and a recording that publishes consumes the damage it
 /// painted. Answers the hit-test list generation.
 pub(crate) fn take_in_recording(
-    arena: &LayoutNodeArena,
+    arena: &mut LayoutNodeArena,
     output: std::sync::Arc<RecordingOutput>,
     hit_test_list_changed: bool,
     publishes_recording: bool,
 ) -> u64 {
+    // Read-only recordings publish nothing and must not consume the damage.
+    if publishes_recording {
+        arena.clear_paint_damage_consumed_by_published_recording();
+    }
     let mut paint_state = arena.paint_state().borrow_mut();
     if hit_test_list_changed {
         paint_state.hit_test_list_generation += 1;
     }
     if publishes_recording {
-        // Read-only recordings publish nothing and must not consume the damage.
-        arena.clear_paint_damage_consumed_by_published_recording();
         paint_state.visual_context.quarantined_slots_are_releasable = true;
     }
     paint_state.last_recording = Some(output);
@@ -428,7 +430,7 @@ mod tests {
                 output,
                 read_write,
                 |output, changed| {
-                    generation = take_in_recording(&arena, output, changed, read_write);
+                    generation = take_in_recording(&mut arena, output, changed, read_write);
                 },
             );
             assert_eq!(generation, hit_test_generation);

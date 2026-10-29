@@ -8,7 +8,7 @@ use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::node_painting;
 use crate::painting::paint_read::PaintRead;
-use crate::painting::paintable_rows::PaintableRowsRead;
+use crate::painting::paintable_rows::PaintableRowsWrite;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct FragmentRange {
@@ -103,18 +103,18 @@ pub(crate) fn nearest_self_painting_inline_box(layout_arena: &impl PaintRead, no
     None
 }
 
-pub(crate) fn assign_fragment_ownership(layout_arena: &impl PaintableRowsRead, viewport: NodeSlotId) {
+pub(crate) fn assign_fragment_ownership(layout_arena: &mut impl PaintableRowsWrite, viewport: NodeSlotId) {
     let mut stack = vec![viewport];
     while let Some(current) = stack.pop() {
-        if let Some(next) = crate::painting::paint_order::next_paint_sibling(layout_arena, current)
+        if let Some(next) = crate::painting::paint_order::next_paint_sibling(&*layout_arena, current)
             && current != viewport
         {
             stack.push(next);
         }
-        if let Some(first_child) = crate::painting::paint_order::first_paint_child(layout_arena, current) {
+        if let Some(first_child) = crate::painting::paint_order::first_paint_child(&*layout_arena, current) {
             stack.push(first_child);
         }
-        if node_painting::has_lines(layout_arena, current)
+        if node_painting::has_lines(&*layout_arena, current)
             && !layout_arena.committed_side_data(current).inline_box_pieces().is_empty()
         {
             assign_for_block(layout_arena, current);
@@ -122,20 +122,20 @@ pub(crate) fn assign_fragment_ownership(layout_arena: &impl PaintableRowsRead, v
     }
 }
 
-pub(crate) fn assign_fragment_ownership_for_pending_line_roots(layout_arena: &LayoutNodeArena) {
+pub(crate) fn assign_fragment_ownership_for_pending_line_roots(layout_arena: &mut LayoutNodeArena) {
     let mut line_roots = layout_arena.take_line_roots_needing_fragment_ownership();
     line_roots.sort_unstable_by_key(|slot| (slot.index, slot.generation()));
     line_roots.dedup();
-    let paintable_rows = layout_arena.paintable_rows();
+    let mut paintable_rows = layout_arena.paintable_rows_mut();
     for line_root in line_roots {
         if paintable_rows.paintable_row_is_populated(line_root)
             && node_painting::has_lines(&paintable_rows, line_root)
-            && !layout_arena
+            && !paintable_rows
                 .committed_side_data(line_root)
                 .inline_box_pieces()
                 .is_empty()
         {
-            assign_for_block(&paintable_rows, line_root);
+            assign_for_block(&mut paintable_rows, line_root);
         }
     }
 }
@@ -202,33 +202,38 @@ pub(crate) fn compute_fragment_ownership_for_block(
     owners_with_filters
 }
 
-fn assign_for_block(layout_arena: &impl PaintableRowsRead, block: NodeSlotId) {
+/// Takes the fragment ownership filter `paintable` was assigned, or the one it held before its recommit.
+fn take_previous_fragment_ownership(
+    layout_arena: &mut impl PaintableRowsWrite,
+    paintable: NodeSlotId,
+) -> Option<std::sync::Arc<FragmentOwnershipFilter>> {
+    let assigned = layout_arena
+        .committed_side_data_mut(paintable)
+        .fragment_ownership
+        .take();
+    assigned.or_else(|| {
+        layout_arena
+            .paintable_side_data_mut(paintable)
+            .fragment_ownership_before_recommit
+            .take()
+    })
+}
+
+fn assign_for_block(layout_arena: &mut impl PaintableRowsWrite, block: NodeSlotId) {
     use crate::painting::record::damage::PaintDamage;
-    let owners_with_filters = compute_fragment_ownership_for_block(layout_arena, block);
+    let owners_with_filters = compute_fragment_ownership_for_block(&*layout_arena, block);
     // Start every piece's box from a clean slate. A box whose filter changes paints a
     // different selection of the block's fragments.
     let pieces = layout_arena.committed_side_data(block).inline_box_pieces().to_vec();
-    let previous_filter_of = |paintable: NodeSlotId| {
-        let assigned = layout_arena
-            .committed_side_data_mut(paintable)
-            .fragment_ownership
-            .take();
-        assigned.or_else(|| {
-            layout_arena
-                .paintable_side_data_mut(paintable)
-                .fragment_ownership_before_recommit
-                .take()
-        })
-    };
     let mut boxes_with_previous_filters = Vec::new();
     for piece in &pieces {
-        if let Some(paintable) = piece_paintable_of(layout_arena, piece.node)
-            && let Some(previous) = previous_filter_of(paintable)
+        if let Some(paintable) = piece_paintable_of(&*layout_arena, piece.node)
+            && let Some(previous) = take_previous_fragment_ownership(layout_arena, paintable)
         {
             boxes_with_previous_filters.push((paintable, previous));
         }
     }
-    if let Some(previous) = previous_filter_of(block) {
+    if let Some(previous) = take_previous_fragment_ownership(layout_arena, block) {
         boxes_with_previous_filters.push((block, previous));
     }
     for (owner, filter) in owners_with_filters {

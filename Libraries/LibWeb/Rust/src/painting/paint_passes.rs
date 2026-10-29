@@ -309,10 +309,7 @@ pub(crate) fn prepare_for_rendering(
     root_background_source: RootBackgroundSource,
     sticky_inputs: Option<&FfiVisualContextTreeInputs>,
 ) -> RenderingPreparation {
-    let background_source_changed = arena
-        .paint_state()
-        .borrow_mut()
-        .update_root_background_source(arena, root_background_source);
+    let background_source_changed = arena.update_root_background_source(root_background_source);
     // This measures all overflow left unmeasured, including the root's: the root background covers
     // the viewport united with it, so a flip in its scrollability is seen here rather than while
     // recording holds the paint state.
@@ -345,7 +342,7 @@ pub(crate) fn prepare_for_rendering(
 }
 
 pub(crate) fn refresh_scroll_state(
-    arena: &LayoutNodeArena,
+    arena: &mut LayoutNodeArena,
     device_pixels_per_css_pixel: f64,
 ) -> Option<Vec<FloatPoint>> {
     arena.measure_scrollable_overflow();
@@ -426,7 +423,7 @@ pub(crate) fn update_accumulated_visual_contexts(
     }
 
     while scope != VisualContextUpdateScope::FreshTree {
-        let result = update_visual_context_tree(&arena.paintable_rows(), viewport, inputs, scope, &mut state);
+        let result = update_visual_context_tree(&mut arena.paintable_rows_mut(), viewport, inputs, scope, &mut state);
         match result {
             IncrementalUpdateResult::Applied(mut outcome) => {
                 super::ffi::apply_walk_assignments(arena, &mut outcome);
@@ -484,7 +481,7 @@ fn fresh_visual_context_tree_build(
     state.tree = Some(std::sync::Arc::new(fresh_tree.tree));
     state.dirty_boxes.clear();
     let mut outcome = match update_visual_context_tree(
-        &arena.paintable_rows(),
+        &mut arena.paintable_rows_mut(),
         viewport,
         inputs,
         VisualContextUpdateScope::FreshTree,
@@ -500,7 +497,7 @@ fn fresh_visual_context_tree_build(
     super::ffi::apply_walk_assignments(arena, &mut outcome);
     arena.rebuild_all_stacking_context_entries_from_records(viewport);
     arena.take_line_roots_needing_fragment_ownership();
-    crate::painting::fragment_ownership::assign_fragment_ownership(&arena.paintable_rows(), viewport);
+    crate::painting::fragment_ownership::assign_fragment_ownership(&mut arena.paintable_rows_mut(), viewport);
     state.quarantined_slots_are_releasable = false;
     debug_assert_every_live_node_is_owned(
         &arena.paintable_rows(),

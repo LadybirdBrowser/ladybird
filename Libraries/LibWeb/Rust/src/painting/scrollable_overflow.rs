@@ -13,7 +13,7 @@ use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
 use crate::layout::node_facts::{self, NodeShape};
 use crate::painting::paint_read::{GeometryRead, PaintRead, PaintRow};
 use crate::painting::paintable_data::FfiOverflowData;
-use crate::painting::paintable_rows::PaintableRowsRead;
+use crate::painting::paintable_rows::{PaintableRowsRead, PaintableRowsWrite};
 use crate::painting::visual_context::dirty::VisualContextBoxDirtyKind;
 use crate::painting::visual_context::node_values;
 use crate::painting::{paintable_geometry, style_queries, text_fragment};
@@ -156,7 +156,7 @@ pub(crate) struct OverflowAssignment {
 }
 
 impl OverflowAssignment {
-    pub(crate) fn apply(self, layout_arena: &impl PaintableRowsRead) {
+    pub(crate) fn apply(self, layout_arena: &mut impl PaintableRowsWrite) {
         let previously_measured = layout_arena
             .paintable_side_data(self.box_paintable)
             .overflow_measured_this_commit
@@ -189,10 +189,11 @@ impl OverflowAssignment {
                 PaintDamage::SCROLL_METADATA | PaintDamage::DRAW_OVERLAY | PaintDamage::HIT_OVERLAY,
             );
             // The root background covers the viewport united with the root's overflow.
-            if layout_arena.node_kind_if_live(self.box_paintable) == Some(NodeKind::Viewport)
-                && let Some(source) = layout_arena.paint_state().borrow().root_background_source
-            {
-                layout_arena.push_paint_damage(source.root_layout_node, PaintDamage::DRAW_BACKGROUND);
+            if layout_arena.node_kind_if_live(self.box_paintable) == Some(NodeKind::Viewport) {
+                let root_background_source = layout_arena.paint_state().borrow().root_background_source;
+                if let Some(source) = root_background_source {
+                    layout_arena.push_paint_damage(source.root_layout_node, PaintDamage::DRAW_BACKGROUND);
+                }
             }
         }
         // A flip changes what rendering preparation answers even where it is the box's first measurement since it
@@ -773,7 +774,7 @@ impl LayoutNodeArena {
     /// Measures every row whose overflow a read could find unmeasured, so that reading overflow
     /// never measures it. Rendering preparation, hit testing, the recording and every query that
     /// reads overflow run this first; it never clamps a stored scroll offset.
-    pub(crate) fn measure_scrollable_overflow(&self) {
+    pub(crate) fn measure_scrollable_overflow(&mut self) {
         if self.scrollable_overflow_is_measured() {
             return;
         }
@@ -789,7 +790,7 @@ impl LayoutNodeArena {
         self.scrollable_overflow.rows_to_measure.borrow_mut().push(slot);
     }
 
-    fn ensure_scrollable_overflow(&self, slot: NodeSlotId) {
+    fn ensure_scrollable_overflow(&mut self, slot: NodeSlotId) {
         if !self.paintable_row_is_populated(slot)
             || !self
                 .scrollable_overflow
@@ -809,11 +810,14 @@ impl LayoutNodeArena {
             return;
         }
         self.ensure_overflow_contained_boxes();
-        let rows = self.paintable_rows();
-        let assignments =
-            measure_box_scrollable_overflow(&rows, &self.scrollable_overflow.non_child_boxes.borrow(), slot);
+        let assignments = measure_box_scrollable_overflow(
+            &self.paintable_rows(),
+            &self.scrollable_overflow.non_child_boxes.borrow(),
+            slot,
+        );
+        let mut rows = self.paintable_rows_mut();
         for assignment in assignments {
-            assignment.apply(&rows);
+            assignment.apply(&mut rows);
         }
     }
 }

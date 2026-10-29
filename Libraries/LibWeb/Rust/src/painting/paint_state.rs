@@ -66,12 +66,25 @@ impl PaintState {
         }
     }
 
+    pub(crate) fn reset_visual_context_state(&mut self) {
+        self.visual_context = crate::painting::visual_context::VisualContextState {
+            needs_to_refresh_scroll_state: true,
+            ..Default::default()
+        };
+        self.visual_context
+            .dirty_boxes
+            .request_full_rebuild(crate::painting::visual_context::dirty::VisualContextUpdateScope::FreshTree);
+    }
+}
+
+impl crate::layout::LayoutNodeArena {
+    /// Makes `source` the root background source, and pushes the damage of the boxes the move changes which paints
+    /// the root's background. Answers whether the source moved.
     pub(crate) fn update_root_background_source(
         &mut self,
-        arena: &crate::layout::LayoutNodeArena,
         source: crate::painting::host::RootBackgroundSource,
     ) -> bool {
-        let Some(previous) = self.root_background_source.replace(source) else {
+        let Some(previous) = self.paint_state().borrow_mut().root_background_source.replace(source) else {
             return false;
         };
         if previous == source {
@@ -82,23 +95,13 @@ impl PaintState {
         // and new owners, including inline pieces painted by their containing block.
         for source in [previous, source] {
             for slot in [source.root_layout_node, source.body_layout_node] {
-                arena.push_paint_damage_for_repaint(slot, PaintDamage::DRAW_BACKGROUND);
+                self.push_paint_damage_for_repaint(slot, PaintDamage::DRAW_BACKGROUND);
             }
             // The viewport's scrollbars take their colors from the propagated background.
-            if let Some(viewport) = arena.node_parent_if_live(source.root_layout_node) {
-                arena.push_paint_damage(viewport, PaintDamage::DRAW_OVERLAY | PaintDamage::SCROLL_METADATA);
+            if let Some(viewport) = self.node_parent_if_live(source.root_layout_node) {
+                self.push_paint_damage(viewport, PaintDamage::DRAW_OVERLAY | PaintDamage::SCROLL_METADATA);
             }
         }
         true
-    }
-
-    pub(crate) fn reset_visual_context_state(&mut self) {
-        self.visual_context = crate::painting::visual_context::VisualContextState {
-            needs_to_refresh_scroll_state: true,
-            ..Default::default()
-        };
-        self.visual_context
-            .dirty_boxes
-            .request_full_rebuild(crate::painting::visual_context::dirty::VisualContextUpdateScope::FreshTree);
     }
 }

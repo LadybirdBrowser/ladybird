@@ -267,7 +267,7 @@ fn commit_subtree(
     if reuses_committed_subtree {
         return;
     }
-    paintables.arena().refresh_paint_order_inputs(node);
+    paintables.arena_mut().refresh_paint_order_inputs(node);
 
     let mut child = paintables.arena().data(node).first_child.get();
     while !child.is_invalid() {
