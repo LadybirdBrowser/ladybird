@@ -437,6 +437,22 @@ describe("correct behavior", () => {
         expect(JSON.stringify("\x1f")).toBe('"\\u001f"');
     });
 
+    test("string escape sequences anywhere in long strings", () => {
+        const text = "abcdefghijklmnopqrstuvwxyz";
+        for (let position = 0; position < text.length; ++position) {
+            for (const [special, escaped] of [
+                ['"', '\\"'],
+                ["\\", "\\\\"],
+                ["\n", "\\n"],
+                ["\x1f", "\\u001f"],
+            ]) {
+                const string = text.slice(0, position) + special + text.slice(position) + "\\";
+                const expected = `"${text.slice(0, position)}${escaped}${text.slice(position)}\\\\"`;
+                expect(JSON.stringify(string)).toBe(expected);
+            }
+        }
+    });
+
     test("undefined and functions in arrays become null", () => {
         expect(JSON.stringify([undefined])).toBe("[null]");
         expect(JSON.stringify([function () {}])).toBe("[null]");
