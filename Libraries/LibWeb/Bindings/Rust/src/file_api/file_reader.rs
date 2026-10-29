@@ -81,7 +81,8 @@ pub(crate) struct FileReader {
     // Internal state to handle aborting the FileReader.
     #[gc(untraced)]
     pending_tasks: RefCell<Vec<TaskId>>,
-    is_aborted: Cell<bool>,
+    // The read operation being processed, which abort() terminates, and which a later read replaces.
+    current_read: Cell<Option<ReadOperationRef>>,
 
     // A FileReader has an associated state, that is "empty", "loading", or "done". It is initially "empty".
     // https://w3c.github.io/FileAPI/#filereader-state
@@ -228,7 +229,7 @@ impl FileReader {
             event_target: CppEventTarget::new(),
             realm,
             pending_tasks: RefCell::new(Vec::new()),
-            is_aborted: Cell::new(false),
+            current_read: Cell::new(None),
             state: Cell::new(State::Empty),
             result: RefCell::new(None),
             result_array_buffers: RefCell::new(Vec::new()),
@@ -340,7 +341,6 @@ impl FileReader {
 
         // 2. Set fr’s state to "loading".
         this.state.set(State::Loading);
-        this.is_aborted.set(false);
 
         // 3. Set fr’s result to null.
         this.set_result(None);
@@ -373,6 +373,7 @@ impl FileReader {
             encoding_name,
             blobs_type,
         });
+        this.current_read.set(Some(state));
 
         queue_a_global_task(
             vm,
@@ -402,9 +403,9 @@ impl FileReader {
                 Ok(Value::UNDEFINED)
             }),
             // 6. Otherwise, if chunkPromise is rejected with an error error, queue a task to run the following steps and abort this algorithm:
-            Some(|cx, (this, _), _| {
+            Some(|cx, (this, state), _| {
                 with_temporary_execution_context_and_callbacks(this.realm, || {
-                    if this.is_aborted.get() {
+                    if this.current_read.get() != Some(state) {
                         return;
                     }
 
@@ -432,7 +433,7 @@ impl FileReader {
     }
 
     fn chunk_promise_fulfilled(vm: &Vm, this: Ref<Self>, state: ReadOperationRef, promise_value: Value) {
-        if this.is_aborted.get() {
+        if this.current_read.get() != Some(state) {
             return;
         }
 
@@ -574,7 +575,7 @@ impl FileReader {
         remove_tasks(self.realm, &pending_tasks);
 
         // 4. Terminate the algorithm for the read method being processed.
-        self.is_aborted.set(true);
+        self.current_read.set(None);
 
         // 5. Fire a progress event called abort at this.
         self.fire_event("abort");

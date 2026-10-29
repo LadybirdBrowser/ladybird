@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const reader = new FileReader();
+        reader.onabort = () => {
+            println("abort");
+            reader.onabort = null;
+            reader.readAsText(new Blob(["second"]));
+        };
+        reader.onloadstart = () => println("loadstart");
+        reader.onload = () => println(`load: ${reader.result}`);
+        reader.onloadend = () => {
+            println("loadend");
+            done();
+        };
+        reader.readAsText(new Blob(["first"]));
+        reader.abort();
+    });
+</script>
