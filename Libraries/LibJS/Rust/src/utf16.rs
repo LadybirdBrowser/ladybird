@@ -827,18 +827,29 @@ pub fn concatenate(views: &[Utf16View<'_>]) -> Utf16String {
 /// Decodes UTF-8 into UTF-16 code units the way AK's Utf16String::from_utf8() accepts it: a lone surrogate encoded as
 /// a three-byte sequence (WTF-8) becomes that surrogate code unit. Returns None if `bytes` is not valid otherwise.
 pub fn utf16_from_wtf8(bytes: &[u8]) -> Option<Vec<u16>> {
+    // OPTIMIZATION: Source code is mostly ASCII, whose bytes widen to their code units without decoding.
+    fn extend_with_utf16(code_units: &mut Vec<u16>, text: &str) {
+        let ascii_length = if text.is_ascii() {
+            text.len()
+        } else {
+            text.bytes().position(|byte| !byte.is_ascii()).unwrap_or(text.len())
+        };
+        code_units.extend(text.as_bytes()[..ascii_length].iter().map(|&byte| u16::from(byte)));
+        code_units.extend(text[ascii_length..].encode_utf16());
+    }
+
     let mut code_units = Vec::with_capacity(bytes.len());
     let mut remaining = bytes;
     loop {
         match core::str::from_utf8(remaining) {
             Ok(text) => {
-                code_units.extend(text.encode_utf16());
+                extend_with_utf16(&mut code_units, text);
                 return Some(code_units);
             }
             Err(error) => {
                 let (valid, rest) = remaining.split_at(error.valid_up_to());
                 // SAFETY: from_utf8 validated this prefix.
-                code_units.extend(unsafe { core::str::from_utf8_unchecked(valid) }.encode_utf16());
+                extend_with_utf16(&mut code_units, unsafe { core::str::from_utf8_unchecked(valid) });
                 let [0xED, second @ 0xA0..=0xBF, third @ 0x80..=0xBF, ..] = *rest else {
                     return None;
                 };
