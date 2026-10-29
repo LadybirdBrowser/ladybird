@@ -7749,14 +7749,19 @@ void Document::shared_declarative_refresh_steps(Utf16View input, GC::Ptr<HTML::H
     //   flag set, then navigate document's node navigable to urlRecord using document, with historyHandling set to
     //   "replace".
     m_active_refresh_timer = Core::Timer::create_single_shot(AK::Duration::from_seconds(time), [this, has_meta_element = !!meta_element, url_record = move(url_record)]() {
-        if (has_meta_element && has_flag(active_sandboxing_flag_set(), HTML::SandboxingFlagSet::SandboxedAutomaticFeatures))
-            return;
+        // AD-HOC: Navigate from a task, so that the refresh comes after the tasks that "completely finish loading"
+        //         queued, such as the one that fires the load event at the container, as the refresh is due only
+        //         after the document has completely loaded.
+        HTML::queue_global_task(HTML::Task::Source::DOMManipulation, relevant_global_object(*this), GC::create_function(heap(), [document = GC::Ref { *this }, has_meta_element, url_record] {
+            if (has_meta_element && has_flag(document->active_sandboxing_flag_set(), HTML::SandboxingFlagSet::SandboxedAutomaticFeatures))
+                return;
 
-        auto navigable = this->navigable();
-        if (!navigable || navigable->has_been_destroyed())
-            return;
+            auto navigable = document->navigable();
+            if (!navigable || navigable->has_been_destroyed())
+                return;
 
-        MUST(navigable->navigate({ .url = url_record, .source_document = *this, .history_handling = HTML::NavigationHistoryBehavior::Replace }));
+            MUST(navigable->navigate({ .url = url_record, .source_document = document, .history_handling = HTML::NavigationHistoryBehavior::Replace }));
+        }));
     });
 
     // For the purposes of the previous paragraph, a refresh is said to have come due as soon as the later of the
