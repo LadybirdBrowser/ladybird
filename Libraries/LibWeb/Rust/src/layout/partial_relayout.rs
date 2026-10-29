@@ -489,10 +489,10 @@ impl LayoutNodeArena {
     /// cached runs above it have to forget their children. Any other insertion invalidates the
     /// box as the mutation did before the build.
     pub(crate) fn resolve_deferred_child_list_insertions(
-        &self,
+        &mut self,
         attached_roots: &crate::css::style::fast_hash::FastSet<NodeSlotId>,
     ) {
-        self.confined_abspos_layout_inputs.borrow_mut().clear();
+        self.confined_abspos_layout_inputs.clear();
         let mut parents = std::mem::take(&mut *self.deferred_child_list_insertion_parents.borrow_mut());
         parents.sort_unstable_by_key(|(parent, _)| parent.index);
         parents.dedup_by_key(|(parent, _)| *parent);
@@ -526,7 +526,7 @@ impl LayoutNodeArena {
             match confined_inputs {
                 Some(confined_inputs) => {
                     self.note_contained_child_list_change(parent);
-                    self.confined_abspos_layout_inputs.borrow_mut().extend(confined_inputs);
+                    self.confined_abspos_layout_inputs.extend(confined_inputs);
                 }
                 None => self.set_needs_layout_update(parent, true),
             }
