@@ -224,8 +224,13 @@ style_boundary! {
             node: StyleNodeID, parent: Option<StyleNodeID>
         };
         retire_text_style_nodes => RetireTextStyleNodes { nodes: Box<[StyleNodeID]> };
-        set_slot_assigned_nodes => SetSlotAssignedNodes { slot: StyleNodeID, assigned: Box<[StyleNodeID]> } =>
+        set_slot_assigned_nodes => SetSlotAssignedNodes { slot: StyleNodeID, assigned: Box<[StyleNodeID]> } => {
             engine.set_slot_assigned_nodes(slot, &assigned);
+            // Text-only assignments do not carry element tree deltas, but can hide or restore fallback content.
+            if let Some(target) = engine.hover_target() {
+                engine.set_hover(Some(target));
+            }
+        };
         set_top_layer_elements => SetTopLayerElements { members: Box<[StyleNodeID]> } =>
             engine.set_top_layer_elements(&members);
         set_text_is_ascii_whitespace => SetTextIsAsciiWhitespace { node: StyleNodeID, value: bool };

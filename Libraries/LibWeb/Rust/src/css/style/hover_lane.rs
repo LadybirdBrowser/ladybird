@@ -23,7 +23,7 @@ use super::tree::StyleNodeID;
 use crate::css::transition::HoverTransitions;
 use smallvec::SmallVec;
 
-/// The elements that match `:hover` while one element is hovered: the element and its shadow-including ancestors, the
+/// The elements that match `:hover` while one element is hovered: the element and its eligible flat-tree ancestors, the
 /// hovered element first.
 pub(crate) type HoverChain = SmallVec<[StyleNodeID; 16]>;
 
@@ -171,33 +171,56 @@ impl StyleEngine {
         }
     }
 
-    /// The parent of `node`, or the host of a shadow root, as the tree changes recorded so far leave it, or none where
-    /// they leave `node` out of the tree.
-    fn recorded_parent_or_shadow_host(&self, node: StyleNodeID) -> Option<StyleNodeID> {
-        let tree = self.tree();
-        let settled = tree.is_live(node).then(|| self.retained.settled_tree_relations(node));
-        let relations = self.host.tree_staging.current_row(node, settled)?;
-        relations.parent.or_else(|| tree.host_of(node))
-    }
-
-    /// The elements that match `:hover` while `hovered` is hovered, up to the first top layer element or the root,
-    /// as the tree changes recorded so far leave it.
+    /// The eligible hover chain, validated as a whole before any hover facts are published. A missing or
+    /// excluded ancestor invalidates the path; the document and the first top layer element are valid boundaries.
     fn hover_chain(&self, hovered: Option<StyleNodeID>) -> HoverChain {
         let tree = self.tree();
+        let Some(mut node) = hovered else {
+            return HoverChain::new();
+        };
+        let mut chain = HoverChain::new();
         // https://drafts.csswg.org/selectors-4/#useraction-pseudos
-        std::iter::successors(hovered, |&node| {
-            if self.computed_group_sets.adjustment_facts(node) & element_adjustment_fact::RENDERED_IN_TOP_LAYER != 0 {
-                None
-            } else {
-                self.recorded_parent_or_shadow_host(node)
+        loop {
+            let settled = tree.is_live(node).then(|| self.retained.settled_tree_relations(node));
+            let Some(relations) = self.host.tree_staging.current_row(node, settled) else {
+                return HoverChain::new();
+            };
+            if tree.is_relation_only(node) {
+                return if relations.parent.is_none() && relations.tree_scope == super::tree::TreeScopeID::DOCUMENT {
+                    chain
+                } else {
+                    HoverChain::new()
+                };
             }
-        })
-        .filter(|&node| {
-            node.element_index().is_some()
+            let adjustment_facts = self.computed_group_sets.adjustment_facts(node);
+            // NB: The document element has no style-tree parent. The Document identity roots only the DOM child sequence.
+            let is_document_element = relations.parent.is_none()
+                && relations.tree_scope == super::tree::TreeScopeID::DOCUMENT
+                && adjustment_facts & element_adjustment_fact::IS_DOCUMENT_ELEMENT != 0;
+            if node.element_index().is_some()
                 && tree.host_of(node).is_none()
-                && self.recorded_parent_or_shadow_host(node).is_some()
-        })
-        .collect()
+                && (relations.parent.is_some() || is_document_element)
+            {
+                chain.push(node);
+                if is_document_element || adjustment_facts & element_adjustment_fact::RENDERED_IN_TOP_LAYER != 0 {
+                    return chain;
+                }
+            }
+            if let Some(slot) = relations.assigned_slot {
+                node = slot;
+                continue;
+            }
+            let Some(parent) = relations.parent else {
+                return HoverChain::new();
+            };
+            if let Some(host) = tree.host_of(parent) {
+                node = host;
+            } else if tree.shadow_root_of(parent).is_some() || !tree.assigned_nodes_of(parent).is_empty() {
+                return HoverChain::new();
+            } else {
+                node = parent;
+            }
+        }
     }
 
     /// How the move of the element `row` restyles builds the element's boxes again, where `boxed` says whether it has a
@@ -272,7 +295,7 @@ impl StyleEngine {
             .is_some_and(super::computed::FinalStyleRecordID::is_animation_overlay)
     }
 
-    /// The element the hover targets, as [`Self::set_hover`] last placed it.
+    /// The live element last requested by the host, retained while its eligible hover chain is empty.
     pub(crate) fn hover_target(&self) -> Option<StyleNodeID> {
         self.retained.hover.target
     }
@@ -280,7 +303,15 @@ impl StyleEngine {
     /// Moves the hover to `target`, or off the document for none: the one way hover facts move. The elements that held
     /// the hover fact and stop, and those that take it, are the ones whose facts change.
     pub(crate) fn set_hover(&mut self, target: Option<StyleNodeID>) {
-        let target = target.filter(|&node| self.recorded_parent_or_shadow_host(node).is_some());
+        // Keep the requested identity while its chain is temporarily excluded. Tree transactions and top-layer
+        // changes replay it; an explicit move off the document or identity retirement clears it.
+        let target = target.filter(|&node| {
+            let tree = self.tree();
+            node.element_index().is_some()
+                && !tree.is_relation_only(node)
+                && tree.host_of(node).is_none()
+                && (tree.is_live(node) || self.node_arrival_is_pending(node))
+        });
         let new_chain = self.hover_chain(target);
         let old_chain = std::mem::take(&mut self.retained.hover.chain);
         for &node in old_chain.iter().filter(|node| !new_chain.contains(node)) {

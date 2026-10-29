@@ -1,0 +1,88 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script src="../HTML/frame-in-flight/frame-in-flight.js"></script>
+<style>
+    .target {
+        display: block;
+        width: 60px;
+        height: 40px;
+    }
+    .target:hover {
+        color: rgb(1, 2, 3);
+    }
+</style>
+<script>
+    asyncTest(async done => {
+        const failures = [];
+        const check = (label, actual, expected) => {
+            println(`${label}: ${actual}`);
+            if (actual !== expected) failures.push(label);
+        };
+        const hostAt = y => {
+            const host = document.createElement("div");
+            host.style.cssText = `position:absolute;left:20px;top:${y}px;width:100px;height:80px`;
+            document.body.append(host);
+            const shadow = host.attachShadow({ mode: "closed" });
+            shadow.innerHTML = "<slot></slot>";
+            return [host, shadow.querySelector("slot")];
+        };
+        const pointAt = async element => {
+            await twoFramesLanded();
+            const rect = element.getBoundingClientRect();
+            await internals.mouseEventThroughUIProcess("mousemove", rect.x + rect.width / 2, rect.y + rect.height / 2);
+        };
+        const [fallbackHost, fallbackSlot] = hostAt(20);
+        const fallback = document.createElement("div");
+        fallback.className = "target";
+        fallback.textContent = "fallback";
+        fallbackSlot.append(fallback);
+        await pointAt(fallback);
+        check("fallback initially hovered", fallback.matches(":hover"), true);
+        const text = document.createTextNode("assigned text");
+        fallbackHost.append(text);
+        fallbackSlot.assignedNodes();
+        check("text assignment excludes fallback", fallback.matches(":hover"), false);
+        text.remove();
+        fallbackSlot.assignedNodes();
+        check("empty slot restores fallback", fallback.matches(":hover"), true);
+
+        const [host, slot] = hostAt(140);
+        const light = document.createElement("div");
+        const leaf = document.createElement("div");
+        leaf.className = "target";
+        leaf.textContent = "descendant";
+        light.append(leaf);
+        host.append(light);
+        await pointAt(leaf);
+        check("descendant initially hovered", leaf.matches(":hover"), true);
+        light.slot = "missing";
+        slot.assignedNodes();
+        check("excluded ancestor excludes descendant", leaf.matches(":hover"), false);
+        light.slot = "";
+        slot.assignedNodes();
+        check("reassigned ancestor restores descendant", leaf.matches(":hover"), true);
+        light.remove();
+        check("disconnected descendant is not hovered", leaf.matches(":hover"), false);
+
+        const [layerHost, layerSlot] = hostAt(260);
+        const layerLight = document.createElement("div");
+        const popover = document.createElement("div");
+        popover.popover = "manual";
+        popover.style.cssText = "position:fixed;left:20px;top:280px;margin:0;padding:0;border:0";
+        const layerLeaf = document.createElement("div");
+        layerLeaf.className = "target";
+        layerLeaf.textContent = "top layer";
+        popover.append(layerLeaf);
+        layerLight.append(popover);
+        layerHost.append(layerLight);
+        popover.showPopover();
+        await pointAt(layerLeaf);
+        check("top-layer descendant initially hovered", layerLeaf.matches(":hover"), true);
+        layerLight.slot = "missing";
+        layerSlot.assignedNodes();
+        check("top-layer boundary keeps descendant hovered", layerLeaf.matches(":hover"), true);
+        check("excluded ancestor above top layer is not hovered", layerLight.matches(":hover"), false);
+        if (failures.length) throw new Error(`Incorrect hover facts: ${failures.join(", ")}`);
+        done();
+    });
+</script>

@@ -1,0 +1,10 @@
+fallback initially hovered: true
+text assignment excludes fallback: false
+empty slot restores fallback: true
+descendant initially hovered: true
+excluded ancestor excludes descendant: false
+reassigned ancestor restores descendant: true
+disconnected descendant is not hovered: false
+top-layer descendant initially hovered: true
+top-layer boundary keeps descendant hovered: true
+excluded ancestor above top layer is not hovered: false
