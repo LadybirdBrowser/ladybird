@@ -1,0 +1,22 @@
+<!doctype html>
+<html class="test-wait">
+<title>Custom image element insertion is aborted after its form is set.</title>
+<script src="../common/gc.js"></script>
+<script>
+customElements.define("x-i", class extends HTMLImageElement {
+  constructor() {
+    super();
+    window.image = this;
+    this.appendChild(document.querySelector("form"));
+  }
+}, { extends: "img" });
+
+addEventListener("load", async () => {
+  image.removeChild(image.firstChild);
+  await garbageCollect();
+  image.removeAttribute("id");
+  document.documentElement.classList.remove('test-wait');
+});
+</script>
+<form><img is="x-i" id="i"></form>
+</html>

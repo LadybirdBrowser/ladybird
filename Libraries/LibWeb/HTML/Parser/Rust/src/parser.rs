@@ -136,6 +136,7 @@ unsafe extern "C" {
     fn ladybird_html_parser_mark_script_already_started(parser: *mut c_void, element: usize);
     fn ladybird_html_parser_process_meta_element(parser: *mut c_void, element: usize);
     fn ladybird_html_parser_parent_node(node: usize) -> usize;
+    fn ladybird_html_parser_element_cannot_be_inserted(target_parent: usize, element: usize) -> bool;
     fn ladybird_html_parser_node_index(node: usize) -> usize;
     fn ladybird_html_parser_create_element(
         parser: *mut c_void,
@@ -3465,10 +3466,14 @@ impl TreeBuilder {
             token.had_duplicate_attribute(),
         );
         self.recycle_attribute_buffers(attributes);
+        // NB: Creating element can run a custom element constructor, which can insert element or another element into
+        //     the Document. Skip the insertion in that case, as step 2 of "insert an element at the adjusted insertion
+        //     location" does.
+        let cannot_be_inserted = unsafe { ladybird_html_parser_element_cannot_be_inserted(document, element) };
         // NB: When the parser's parser sanitizer configuration is not null, the element is inserted as described in
         //     "insert an element at the adjusted insertion location" with (the Document, null), so that a removed html
         //     element is not inserted.
-        if self.sanitizer_action(element) == SanitizerAction::Keep {
+        if !cannot_be_inserted && self.sanitizer_action(element) == SanitizerAction::Keep {
             self.append_child(document, element);
         }
         self.stack_of_open_elements.push(StackNode {
@@ -3787,11 +3792,15 @@ impl TreeBuilder {
         // NB: The implementation names overrideLocation insertion_location.
         let insertion_location = self.adjusted_insertion_location(insertion_location);
 
-        // FIXME: 2. If any of the following are true:
-        //           - element's parent is non-null;
-        //           - element is a host-including inclusive ancestor of targetParent; or
-        //           - targetParent is a Document node that already has an element child,
-        //           then return.
+        // 2. If any of the following are true:
+        //    - element's parent is non-null;
+        //    - element is a host-including inclusive ancestor of targetParent; or
+        //    - targetParent is a Document node that already has an element child,
+        //    then return.
+        // NB: Creating element can run a custom element constructor, which can move element or targetParent.
+        if unsafe { ladybird_html_parser_element_cannot_be_inserted(insertion_location.parent, element) } {
+            return;
+        }
 
         // 3. If alreadySanitized is false and the parser's parser sanitizer configuration is not null:
         if !already_sanitized && self.sanitizing {

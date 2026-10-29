@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    let element;
+    let innerHost;
+    customElements.define("x-nested-shadow-mover", class extends HTMLDivElement {
+        constructor() {
+            super();
+            element = this;
+            innerHost = document.createElement("div");
+            this.attachShadow({ mode: "open" }).appendChild(innerHost);
+            innerHost.attachShadow({ mode: "open" }).appendChild(document.getElementById("parent"));
+        }
+    }, { extends: "div" });
+</script>
+<div id="parent"><div is="x-nested-shadow-mover">child text</div></div>
+<script>
+    test(() => {
+        const parent = innerHost.shadowRoot.firstChild;
+        println(`element parent: ${element.parentNode}`);
+        println(`parent moved into inner shadow root: ${parent.id === "parent"}`);
+        println(`parent child count: ${parent.childNodes.length}`);
+        println(`element text: ${element.textContent}`);
+        try {
+            parent.appendChild(element);
+            println("appendChild did not throw");
+        } catch (e) {
+            println(`appendChild threw ${e.name}`);
+        }
+    });
+</script>

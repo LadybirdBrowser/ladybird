@@ -1,0 +1,5 @@
+element parent: null
+parent moved into inner shadow root: true
+parent child count: 0
+element text: child text
+appendChild threw HierarchyRequestError
