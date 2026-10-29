@@ -1810,6 +1810,19 @@ fn extract_channels_and_missing_slots(
             return Some((context, missing_slots));
         }
 
+        // Lab and LCH, and Oklab and OkLCh, are forms of the same color space, so convert between them directly.
+        if matches!(
+            (origin_native_type, target_color_type),
+            (ct::LAB, ct::LCH) | (ct::LCH, ct::LAB) | (ct::OKLAB, ct::OKLCH) | (ct::OKLCH, ct::OKLAB)
+        ) {
+            let converted = color_conversion::convert(origin_native_type, target_color_type, native_channels)?;
+            for (index, slot) in channel_slots(target_color_type)?.into_iter().enumerate() {
+                context[usize::from(slot)] = Some(f64::from(converted[index]));
+            }
+            make_powerless_target_hue_missing(&mut context, &mut missing_slots, target_color_type);
+            return Some((context, missing_slots));
+        }
+
         let xyz65 = native_channels_to_xyz65(native_channels, origin_native_type);
         let linear_srgb =
             color_conversion::convert(ct::XYZ_D65, ct::SRGB_LINEAR, xyz65).expect("XYZ-D65 converts to linear sRGB");
