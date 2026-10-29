@@ -78,7 +78,7 @@ WebIDL::ExceptionOr<GC::Ref<Worker>> Worker::create(WindowOrWorkerGlobalScopeMix
     auto worker = GC::Heap::the().allocate<Worker>(compliant_script_url.to_utf8_but_should_be_ported_to_utf16(), options);
 
     // 6. Set outsidePort's message event target to this.
-    outside_port->set_worker_event_target(worker);
+    outside_port->set_message_event_target(worker);
 
     // 7. Set this's outside port to outsidePort.
     worker->m_outside_port = outside_port;

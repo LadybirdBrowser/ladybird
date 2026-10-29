@@ -99,7 +99,7 @@ void MessagePort::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_remote_port);
     visitor.visit(m_global_event_target);
-    visitor.visit(m_worker_event_target);
+    visitor.visit(m_message_event_target);
 }
 
 bool MessagePort::is_entangled() const
@@ -107,9 +107,9 @@ bool MessagePort::is_entangled() const
     return m_remote_port || m_transport;
 }
 
-void MessagePort::set_worker_event_target(GC::Ref<DOM::EventTarget> target)
+void MessagePort::set_message_event_target(GC::Ref<DOM::EventTarget> target)
 {
-    m_worker_event_target = target;
+    m_message_event_target = target;
 }
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#message-ports:transfer-steps
@@ -120,7 +120,7 @@ WebIDL::ExceptionOr<void> MessagePort::transfer_steps(JS::Realm& realm, HTML::Tr
     GC::Ptr<MessagePort> remote_port;
     OwnPtr<IPC::Transport> remote_port_transport;
 
-    // 3. If value is entangled with another port remotePort, then:
+    // 3. If value is entangled with another port remotePort:
     if (m_remote_port) {
         remote_port = m_remote_port;
 
@@ -225,6 +225,7 @@ WebIDL::ExceptionOr<void> MessagePort::transfer_receiving_steps(JS::Realm& realm
     return {};
 }
 
+// https://html.spec.whatwg.org/multipage/web-messaging.html#disentangle
 void MessagePort::disentangle()
 {
     if (m_remote_port) {
@@ -240,7 +241,7 @@ void MessagePort::disentangle()
     m_pending_incoming_messages.clear();
     m_pending_outgoing_messages.clear();
     m_should_shutdown_on_enable = false;
-    m_worker_event_target = nullptr;
+    m_message_event_target = nullptr;
     update_keep_alive();
 }
 
@@ -268,10 +269,10 @@ void MessagePort::entangle_with(MessagePort& remote_port)
     m_remote_port->flush_pending_outgoing_messages();
 }
 
-// https://html.spec.whatwg.org/multipage/web-messaging.html#dom-messageport-postmessage-options
+// https://html.spec.whatwg.org/multipage/web-messaging.html#dom-messageport-postmessage
 WebIDL::ExceptionOr<void> MessagePort::post_message(JS::Realm& realm, JS::Value message, GC::RootVector<GC::Ref<JS::Object>> const& transfer)
 {
-    // 1. Let targetPort be the port with which this MessagePort is entangled, if any; otherwise let it be null.
+    // 1. Let targetPort be the port with which this is entangled, if any; otherwise let it be null.
     GC::Ptr<MessagePort> target_port = m_remote_port;
 
     // 2. Let options be «[ "transfer" → transfer ]».
@@ -281,13 +282,13 @@ WebIDL::ExceptionOr<void> MessagePort::post_message(JS::Realm& realm, JS::Value 
     return message_port_post_message_steps(realm, target_port, message, options);
 }
 
-// https://html.spec.whatwg.org/multipage/web-messaging.html#dom-messageport-postmessage
+// https://html.spec.whatwg.org/multipage/web-messaging.html#dom-messageport-postmessage-options
 WebIDL::ExceptionOr<void> MessagePort::post_message(JS::Realm& realm, JS::Value message, StructuredSerializeOptions const& options)
 {
-    // 1. Let targetPort be the port with which this MessagePort is entangled, if any; otherwise let it be null.
+    // 1. Let targetPort be the port with which this is entangled, if any; otherwise let it be null.
     GC::Ptr<MessagePort> target_port = m_remote_port;
 
-    // 2. Run the message port post message steps providing targetPort, message and options.
+    // 2. Run the message port post message steps providing this, targetPort, message and options.
     return message_port_post_message_steps(realm, target_port, message, options);
 }
 
@@ -302,7 +303,7 @@ WebIDL::ExceptionOr<void> MessagePort::message_port_post_message_steps(JS::Realm
     // 1. Let transfer be options["transfer"].
     auto const& transfer = options.transfer;
 
-    // 2. If transfer contains this MessagePort, then throw a "DataCloneError" DOMException.
+    // 2. If transfer contains sourcePort, then throw a "DataCloneError" DOMException.
     if (Bindings::transfer_list_contains_message_port(transfer, *this))
         return WebIDL::DataCloneError::create("Cannot transfer a MessagePort to itself"_utf16);
 
@@ -449,20 +450,15 @@ void MessagePort::post_message_task_steps(SerializedTransferRecord& serialize_wi
     // NOTE: This can be different from targetPort, if targetPort itself was transferred and thus all its tasks moved along with it.
     auto* final_target_port = this;
 
-    // IMPLEMENTATION DEFINED:
-    // https://html.spec.whatwg.org/multipage/workers.html#dedicated-workers-and-the-worker-interface
-    //      Worker objects act as if they had an implicit MessagePort associated with them.
-    //      All messages received by that port must immediately be retargeted at the Worker object.
-    // We therefore set a special event target for those implicit ports on the Worker and the WorkerGlobalScope objects
-    GC::Ptr<EventTarget> message_event_target = final_target_port;
-    if (m_worker_event_target != nullptr) {
-        message_event_target = m_worker_event_target;
-    }
+    // 2. Let messageEventTarget be finalTargetPort's message event target.
+    GC::Ref<EventTarget> message_event_target = *final_target_port;
+    if (final_target_port->m_message_event_target)
+        message_event_target = *final_target_port->m_message_event_target;
 
-    // 2. Let targetRealm be finalTargetPort's relevant realm.
+    // 3. Let targetRealm be finalTargetPort's relevant realm.
     auto& target_realm = HTML::relevant_realm(final_target_port->relevant_global_object());
 
-    // 3. Let deserializeRecord be StructuredDeserializeWithTransfer(serializeWithTransferResult, targetRealm).
+    // 4. Let deserializeRecord be StructuredDeserializeWithTransfer(serializeWithTransferResult, targetRealm).
     // NB: The execution context must not stay on the stack while the event is dispatched, so that a microtask
     //     checkpoint can be performed after each listener.
     auto deserialize_record_or_error = [&] {
@@ -470,7 +466,7 @@ void MessagePort::post_message_task_steps(SerializedTransferRecord& serialize_wi
         return structured_deserialize_with_transfer(serialize_with_transfer_result, target_realm);
     }();
     if (deserialize_record_or_error.is_error()) {
-        // If this throws an exception, catch it, fire an event named messageerror at finalTargetPort, using MessageEvent, and then return.
+        // If this throws an exception, catch it, fire an event named messageerror at messageEventTarget, using MessageEvent, and then return.
         auto exception = deserialize_record_or_error.release_error();
         MessageEventInit event_init;
         message_event_target->dispatch_event(MessageEvent::create(target_realm.global_object(), HTML::EventNames::messageerror, event_init));
@@ -478,14 +474,14 @@ void MessagePort::post_message_task_steps(SerializedTransferRecord& serialize_wi
     }
     auto deserialize_record = deserialize_record_or_error.release_value();
 
-    // 4. Let messageClone be deserializeRecord.[[Deserialized]].
+    // 5. Let messageClone be deserializeRecord.[[Deserialized]].
     auto message_clone = deserialize_record.deserialized;
 
-    // 5. Let newPorts be a new frozen array consisting of all MessagePort objects in deserializeRecord.[[TransferredValues]], if any, maintaining their relative order.
+    // 6. Let newPorts be a new frozen array consisting of all MessagePort objects in deserializeRecord.[[TransferredValues]], if any, maintaining their relative order.
     // FIXME: Use a FrozenArray
     auto new_ports = Bindings::message_ports_from_transferred_values(deserialize_record.transferred_values);
 
-    // 6. Fire an event named message at finalTargetPort, using MessageEvent, with the data attribute initialized to messageClone and the ports attribute initialized to newPorts.
+    // 7. Fire an event named message at messageEventTarget, using MessageEvent, with the data attribute initialized to messageClone and the ports attribute initialized to newPorts.
     MessageEventInit event_init { {}, message_clone, Utf16String {}, Utf16String {}, move(new_ports), Empty {} };
     auto event = MessageEvent::create(target_realm.global_object(), HTML::EventNames::message, event_init);
     event->set_is_trusted(true);
@@ -515,10 +511,10 @@ void MessagePort::start()
 // https://html.spec.whatwg.org/multipage/web-messaging.html#dom-messageport-close
 void MessagePort::close()
 {
-    // 1. Set this MessagePort object's [[Detached]] internal slot value to true.
+    // 1. Set this's [[Detached]] internal slot value to true.
     set_detached(true);
 
-    // 2. If this MessagePort object is entangled, disentangle it.
+    // 2. If this is entangled, disentangle it.
     if (is_entangled())
         disentangle();
 
