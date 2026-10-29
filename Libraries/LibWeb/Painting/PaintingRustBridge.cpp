@@ -642,6 +642,9 @@ Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRe
                     container_scheme = CSS::PreferredColorScheme::Light;
                 opaque_canvas = container_scheme != color_scheme;
             }
+        } else if (document.navigable()->parent()) {
+            // NB: The container of a local root lives in another process, which replicates its used color scheme.
+            opaque_canvas = document.navigable()->container_state().used_color_scheme != color_scheme;
         }
         inputs.canvas_fill_rect = config.canvas_fill_rect;
         inputs.canvas_color = CSS::SystemColor::canvas(color_scheme);

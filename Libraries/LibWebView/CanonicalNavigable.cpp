@@ -1092,6 +1092,9 @@ void CanonicalNavigable::abandon_populated_document(NonnullRefPtr<CanonicalDocum
 void CanonicalNavigable::place_populated_document(CanonicalDocument& document, WebContentPage& page)
 {
     document.set_host(page);
+    // A provisional host snapshots its container before population. Refresh it before giving that host a viewport.
+    if (parent() && m_hosted_state.has_value())
+        page.async_update_local_root_container_state(id(), m_hosted_state->container);
     if (auto* bidi = WebDriverBiDi::the())
         bidi->push_session_state_for_client(page.client());
     send_viewport_to_host();
@@ -1212,8 +1215,14 @@ void CanonicalNavigable::update_container_state(Web::HTML::ReplicatedContainerSt
         state.document_permissions_policy = m_container_document->permissions_policy();
     }
     m_hosted_state->container = state;
-    if (has_remote_host())
-        remote_host().async_update_local_root_container_state(id(), move(state));
+    RefPtr<WebContentPage> active_host = has_remote_host() ? &remote_host() : nullptr;
+    if (active_host)
+        active_host->async_update_local_root_container_state(id(), state);
+    // Viewport updates also reach provisional hosts. Keep their container snapshot current before they activate.
+    for_each_pending_host([&](WebContentPage& host) {
+        if (&host != active_host.ptr())
+            host.async_update_local_root_container_state(id(), state);
+    });
     send_replicated_state();
 }
 

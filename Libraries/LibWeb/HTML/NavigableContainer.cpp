@@ -548,6 +548,8 @@ void NavigableContainer::report_content_navigable_viewport_rect(Layout::BegunRea
     if (!document().layout_is_up_to_date())
         return;
     auto const* layout_node = this->layout_node(read);
+    if (layout_node)
+        report_used_color_scheme(layout_node->color_scheme());
     if (!layout_node || !Painting::is_navigable_container_viewport_paintable(*layout_node)) {
         if (Core::StatsLog::the())
             report_stats_displayed(false);
@@ -611,6 +613,18 @@ void NavigableContainer::report_content_navigable_viewport_rect(Layout::BegunRea
     page.client().page_did_update_child_frame_viewport(m_content_navigable->id(), reported.rect, reported.intersection);
 }
 
+// A content navigable whose document another process hosts decides whether its canvas is opaque by the container's
+// used color scheme, which it reads through its replicated state.
+void NavigableContainer::report_used_color_scheme(CSS::PreferredColorScheme color_scheme)
+{
+    if (color_scheme == CSS::PreferredColorScheme::Auto)
+        color_scheme = CSS::PreferredColorScheme::Light;
+    if (m_used_color_scheme == color_scheme)
+        return;
+    m_used_color_scheme = color_scheme;
+    document().page().client().page_did_change_navigable_container_state(m_content_navigable->id(), replicated_container_state());
+}
+
 ReplicatedContainerState NavigableContainer::replicated_container_state()
 {
     ReplicatedContainerState state;
@@ -626,6 +640,7 @@ ReplicatedContainerState NavigableContainer::replicated_container_state()
     auto document_policy_container = document().policy_container();
     state.document_insecure_requests_policy = document_policy_container->insecure_requests_policy();
     state.document_upgrade_insecure_navigations_set = document_policy_container->upgrade_insecure_navigations_set();
+    state.used_color_scheme = m_used_color_scheme;
     return state;
 }
 

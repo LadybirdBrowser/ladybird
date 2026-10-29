@@ -99,6 +99,9 @@ private:
         bool operator==(ReportedContentNavigableViewport const&) const = default;
     };
     Optional<ReportedContentNavigableViewport> m_reported_content_navigable_viewport;
+
+    void report_used_color_scheme(CSS::PreferredColorScheme);
+    CSS::PreferredColorScheme m_used_color_scheme { CSS::PreferredColorScheme::Light };
 };
 
 }

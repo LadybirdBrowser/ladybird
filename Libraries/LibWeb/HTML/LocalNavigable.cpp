@@ -1567,7 +1567,14 @@ ReplicatedContainerState LocalNavigable::container_state() const
 void LocalNavigable::set_root_container_state(ReplicatedContainerState state)
 {
     VERIFY(is_local_root() && parent());
+    auto used_color_scheme_changed = m_root_container_state.used_color_scheme != state.used_color_scheme;
     m_root_container_state = move(state);
+
+    // The container's used color scheme decides whether the canvas is opaque.
+    if (used_color_scheme_changed && m_active_document) {
+        m_needs_to_record_display_list = true;
+        m_active_document->set_needs_repaint(Badge<HTML::LocalNavigable> {}, InvalidateDisplayList::No);
+    }
 }
 
 void LocalNavigable::set_closing(bool value)

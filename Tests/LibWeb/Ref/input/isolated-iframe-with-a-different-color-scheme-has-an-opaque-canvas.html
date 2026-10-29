@@ -1,0 +1,54 @@
+<!doctype html>
+<html class="reftest-wait">
+    <link rel="match" href="../expected/isolated-iframe-with-a-different-color-scheme-has-an-opaque-canvas-ref.html" />
+    <style>
+        body {
+            margin: 0;
+            background: green;
+        }
+        iframe {
+            color-scheme: dark;
+            display: block;
+            width: 100px;
+            height: 100px;
+            border: 0;
+        }
+    </style>
+    <script>
+        // The frame's document is cross-site, so another process hosts it. Its used color scheme is light while the
+        // frame's is dark, so its canvas is opaque in the light Canvas color. The frame's process learns the frame's
+        // used color scheme from a rendering update of this page, so the frame is told to report only after one.
+        const request = new XMLHttpRequest();
+        const path = `/echo/isolated-iframe-opaque-canvas-${crypto.randomUUID()}`;
+        request.open("POST", "/echo", false);
+        request.setRequestHeader("Content-Type", "application/json");
+        request.send(
+            JSON.stringify({
+                method: "GET",
+                path,
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><style>html, body { margin: 0; height: 100%; }</style>
+            <script>window.addEventListener("message", () => requestAnimationFrame(() => requestAnimationFrame(async () => {
+                const nextTask = () => new Promise(resolve => {
+                    const channel = new MessageChannel();
+                    channel.port1.onmessage = resolve;
+                    channel.port2.postMessage(null);
+                });
+                do await nextTask();
+                while (internals.frameSchedulerState() !== "idle");
+                internals.synchronizeCompositor();
+                parent.postMessage("painted", "*");
+            })));<\/script>`,
+            })
+        );
+
+        const host = `oop-iframe-opaque-canvas-${crypto.randomUUID()}.localhost`;
+        window.addEventListener("message", () => document.documentElement.classList.remove("reftest-wait"));
+        document.write(`<iframe src="http://${host}:${location.port}${path}"></iframe>`);
+        const iframe = document.querySelector("iframe");
+        iframe.addEventListener("load", () => {
+            requestAnimationFrame(() => requestAnimationFrame(() => iframe.contentWindow.postMessage("paint", "*")));
+        });
+    </script>
+</html>
