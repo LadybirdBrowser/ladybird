@@ -6612,6 +6612,12 @@ void Element::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16
         return;
     }
 
+    // https://html.spec.whatwg.org/multipage/dom.html#render-blocking-mechanism
+    // Whenever a render-blocking element el becomes browsing-context disconnected, or el's blocking attribute's
+    // value is changed so that el is no longer potentially render-blocking, then unblock rendering on el.
+    if (local_name == HTML::AttributeNames::blocking && document().is_render_blocking_element(*this) && !is_potentially_render_blocking())
+        unblock_rendering();
+
     // https://dom.spec.whatwg.org/#ref-for-concept-element-attributes-change-ext①
     // 1. If localName is slot and namespace is null, then:
     if (local_name == HTML::AttributeNames::slot) {
@@ -7413,10 +7419,25 @@ void Element::unblock_rendering()
 // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#potentially-render-blocking
 bool Element::is_potentially_render_blocking()
 {
-    // An element is potentially render-blocking if
-    // FIXME: its blocking tokens set contains "render",
-    // or if it is implicitly potentially render-blocking, which will be defined at the individual elements.
-    return is_implicitly_potentially_render_blocking();
+    // An element is potentially render-blocking if its blocking tokens set contains "render", or if it is
+    // implicitly potentially render-blocking, which will be defined at the individual elements.
+    if (is_implicitly_potentially_render_blocking())
+        return true;
+    if (namespace_uri() != Namespace::HTML || !local_name().is_one_of(HTML::TagNames::link, HTML::TagNames::script, HTML::TagNames::style))
+        return false;
+    auto value = attribute(HTML::AttributeNames::blocking);
+    if (!value.has_value())
+        return false;
+    auto tokens = value->utf16_view();
+    size_t start = 0;
+    for (size_t i = 0; i <= tokens.length_in_code_units(); ++i) {
+        if (i != tokens.length_in_code_units() && !Infra::is_ascii_whitespace(tokens.code_unit_at(i)))
+            continue;
+        if (i > start && tokens.substring_view(start, i - start).equals_ignoring_ascii_case(u"render"sv))
+            return true;
+        start = i + 1;
+    }
+    return false;
 }
 
 }

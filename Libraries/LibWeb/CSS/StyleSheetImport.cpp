@@ -146,7 +146,7 @@ void StyleSheetImport::fetch()
         return;
     }
 
-    // AD-HOC: Track pending import rules to block rendering until they are done.
+    // NB: Track pending import rules for stylesheet load accounting.
     m_document->add_pending_css_import_rule({}, *this);
     set_loading_state(StyleSheetState::LoadingState::Loading);
 

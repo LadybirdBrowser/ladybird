@@ -1,0 +1,63 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+promiseTest(async () => {
+    const server = httpTestServer();
+    for (const kind of ["style", "link"]) {
+        const firstToken = crypto.randomUUID();
+        const secondToken = crypto.randomUUID();
+        async function styleSheet(path, token, color) {
+            return await server.createEcho("GET", path, {
+                status: 200,
+                headers: { "Content-Type": "text/css", "Cache-Control": "no-store" },
+                body: `body { color: ${color}; }`,
+                wait_for_unblock: token,
+            });
+        }
+        const first = await styleSheet(`/render-blocking-${kind}-first.css`, firstToken, "rgb(1, 2, 3)");
+        const second = await styleSheet(`/render-blocking-${kind}-second.css`, secondToken, "rgb(4, 5, 6)");
+        const frame = document.createElement("iframe");
+        let replaced;
+        const replacement = new Promise(resolve => replaced = resolve);
+        let painted;
+        const firstFrame = new Promise(resolve => painted = resolve);
+        window.addEventListener("message", function receive(event) {
+            if (event.source !== frame.contentWindow) return;
+            if (event.data === "replaced") replaced();
+            else if (event.data.color) {
+                window.removeEventListener("message", receive);
+                painted(event.data.color);
+            }
+        });
+        frame.src = await server.createEcho("GET", `/render-blocking-${kind}-load-replacement`, {
+            status: 200,
+            headers: { "Content-Type": "text/html", "Cache-Control": "no-store" },
+            body: `<!doctype html><head><script>
+                const style = document.createElement(${JSON.stringify(kind)});
+                style.rel = "stylesheet";
+                style.blocking = "render";
+                ${kind === "style" ? `style.textContent = ${JSON.stringify(`@import url("${first}");`)};` : `style.href = ${JSON.stringify(first)};`}
+                style.onload = () => {
+                    style.onload = null;
+                    ${kind === "style" ? `style.textContent = ${JSON.stringify(`@import url("${second}");`)};` : `style.href = ${JSON.stringify(second)};`}
+                    parent.postMessage("replaced", "*");
+                };
+                document.head.append(style);
+                requestAnimationFrame(() => parent.postMessage({ color: getComputedStyle(document.body).color }, "*"));
+            <\/script></head><body>Some text</body>`,
+        });
+        const loaded = new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
+        document.body.append(frame);
+        while (!(await fetch(server.recordedRequestHeadersURL(first))).ok) {}
+        await fetch(new URL(`/unblock/${firstToken}`, first));
+        await replacement;
+        while (!(await fetch(server.recordedRequestHeadersURL(second))).ok) {}
+        // Give an unblocked child a rendering opportunity while the replacement is unavailable.
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        await fetch(new URL(`/unblock/${secondToken}`, second));
+        println(`${kind}: first frame includes replacement from load handler: ${await firstFrame}`);
+        await loaded;
+        frame.remove();
+    }
+});
+</script>

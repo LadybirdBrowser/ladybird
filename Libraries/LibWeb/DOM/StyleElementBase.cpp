@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ScopeGuard.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
@@ -67,6 +68,11 @@ void StyleElementBase::style_element_moved()
     m_style_sheet_scope = &destination;
 }
 
+bool StyleElementBase::style_element_was_created_by_parser() const
+{
+    return m_parser_document == &as_element().document();
+}
+
 // The user agent must run the "update a style block" algorithm whenever one of the following conditions occur:
 // The element is popped off the stack of open elements of an HTML parser or XML parser.
 //
@@ -114,6 +120,13 @@ void StyleElementBase::update_a_style_block(UpdateSource update_source)
     //         replaced before that sheet's critical subresources finish loading. Keep that set and any queued
     //         completions in sync with the sheet removed above.
     ++m_style_sheet_update_generation;
+    // NB: Keep an existing render-blocking entry while replacing its sheet. Once the body exists,
+    //     removing the entry would prevent the new sheet from blocking rendering again.
+    bool keep_render_blocking = false;
+    ScopeGuard unblock_replaced_sheet = [&] {
+        if (!keep_render_blocking && style_element.document().is_render_blocking_element(style_element))
+            style_element.unblock_rendering();
+    };
     remove_from_script_blocking_style_sheet_set_if_needed();
     clear_associated_css_style_sheet_parser_blocking_state();
 
@@ -204,7 +217,11 @@ void StyleElementBase::update_a_style_block(UpdateSource update_source)
         m_associated_css_style_sheet_is_blocking_scripts = true;
     }
 
-    // FIXME: 8. If element's media attribute's value matches the environment and element is potentially render-blocking, then block rendering on element.
+    // 8. If element's media attribute's value matches the environment and element is potentially render-blocking, then block rendering on element.
+    if (m_associated_css_style_sheet_media_matches_environment && style_element.is_potentially_render_blocking()) {
+        style_element.block_rendering();
+        keep_render_blocking = true;
+    }
 
     // AD-HOC: Check if we have already loaded the sheet's resources.
     auto loading_state = m_associated_css_style_sheet->loading_state();
@@ -231,7 +248,7 @@ void StyleElementBase::finished_loading_critical_subresources(AnyFailed any_fail
         success = false;
 
     // 4. Queue an element task on the networking task source given element and the following steps:
-    element.queue_an_element_task(HTML::Task::Source::UserInteraction, [&element, success, style_sheet_update_generation] {
+    element.queue_an_element_task(HTML::Task::Source::Networking, [&element, success, style_sheet_update_generation] {
         // AD-HOC: If the associated stylesheet has been replaced or removed since this task was queued, ignore it.
         auto* style_element_base = as_if<StyleElementBase>(element);
         if (!style_element_base || style_element_base->m_style_sheet_update_generation != style_sheet_update_generation)
@@ -248,6 +265,10 @@ void StyleElementBase::finished_loading_critical_subresources(AnyFailed any_fail
             element.dispatch_event(DOM::Event::create(
                 HTML::EventNames::error,
                 HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(element))));
+        // NB: A load or error handler can replace the sheet and start blocking for its new resources.
+        if (style_element_base->m_style_sheet_update_generation != style_sheet_update_generation)
+            return;
+
         // 3. If element contributes a script-blocking style sheet:
         if (element.contributes_a_script_blocking_style_sheet()) {
             // 1. Assert: element's node document's script-blocking style sheet set contains element.

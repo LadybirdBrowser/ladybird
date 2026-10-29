@@ -26,6 +26,8 @@ class HTMLScriptElement final : public HTMLElement {
 public:
     virtual ~HTMLScriptElement() override;
 
+    GC::Ref<DOM::DOMTokenList> blocking();
+
     bool is_force_async() const { return m_force_async; }
     bool is_ready_to_be_parser_executed() const { return m_ready_to_be_parser_executed; }
     bool failed_to_load() const { return m_failed_to_load; }
@@ -80,6 +82,8 @@ protected:
 
 private:
     HTMLScriptElement(DOM::Document&, DOM::QualifiedName);
+
+    GC::Ptr<DOM::DOMTokenList> m_blocking;
 
     virtual bool is_html_script_element() const override { return true; }
     virtual void visit_edges(Cell::Visitor&) override;

@@ -1,0 +1,2 @@
+style: first frame includes replacement from load handler: rgb(4, 5, 6)
+link: first frame includes replacement from load handler: rgb(4, 5, 6)

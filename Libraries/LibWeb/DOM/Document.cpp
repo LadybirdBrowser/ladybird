@@ -6786,6 +6786,12 @@ void Document::abort()
         // 3. Make document unsalvageable given document and "parser-aborted".
         make_unsalvageable("parser-aborted"_utf16);
     }
+
+    // NB: Stopped fetches discard their completion tasks, so their elements cannot release rendering themselves.
+    while (!m_render_blocking_elements.is_empty()) {
+        auto element = *m_render_blocking_elements.begin();
+        element->unblock_rendering();
+    }
 }
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#abort-a-document-and-its-descendants
@@ -10481,10 +10487,6 @@ bool Document::is_render_blocked() const
     auto now = HighResolutionTime::current_high_resolution_time(relevant_global_object(*this));
     if (now > max_time_to_block_rendering_in_ms)
         return false;
-
-    // AD-HOC: Consider pending CSS @import rules as render-blocking
-    if (!m_pending_css_import_rules.is_empty())
-        return true;
 
     if (!m_render_blocking_elements.is_empty())
         return true;

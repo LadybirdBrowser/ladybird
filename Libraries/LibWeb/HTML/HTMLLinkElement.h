@@ -32,6 +32,8 @@ class WEB_API HTMLLinkElement final : public HTMLElement {
 public:
     virtual ~HTMLLinkElement() override;
 
+    GC::Ref<DOM::DOMTokenList> blocking();
+
     virtual void inserted() override;
     virtual void removed_from(IsSubtreeRoot, Node* old_ancestor, Node& old_root) override;
     virtual void moved_from(IsSubtreeRoot, GC::Ptr<Node> old_ancestor) override;
@@ -159,6 +161,8 @@ private:
     };
 
     HTMLLinkElement(DOM::Document&, DOM::QualifiedName);
+
+    GC::Ptr<DOM::DOMTokenList> m_blocking;
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void adopted_from(DOM::Document&) override;
 
@@ -196,8 +200,12 @@ private:
     void associate_style_sheet(CSS::StyleSheetState&, CSS::StyleScope::OriginClean);
     void associate_empty_style_sheet(Fetch::Infrastructure::ResponseView const&, CSS::StyleScope::OriginClean);
     void finish_processing_stylesheet_resource(u64 fetch_generation);
-    void cancel_pending_stylesheet_processing();
-    void stop_blocking_on_style_sheet();
+    enum class UnblockRendering : u8 {
+        No,
+        Yes,
+    };
+    void cancel_pending_stylesheet_processing(UnblockRendering = UnblockRendering::Yes);
+    void stop_blocking_on_style_sheet(UnblockRendering = UnblockRendering::Yes);
 
     bool should_fetch_and_process_resource_type() const;
 

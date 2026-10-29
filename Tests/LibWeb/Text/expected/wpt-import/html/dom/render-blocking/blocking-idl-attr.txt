@@ -2,10 +2,10 @@ Harness status: OK
 
 Found 6 tests
 
-6 Fail
-Fail	Supported tokens of the 'blocking' IDL attribute of the link element
-Fail	Setting the 'blocking' IDL attribute of the link element
-Fail	Supported tokens of the 'blocking' IDL attribute of the script element
-Fail	Setting the 'blocking' IDL attribute of the script element
-Fail	Supported tokens of the 'blocking' IDL attribute of the style element
-Fail	Setting the 'blocking' IDL attribute of the style element
+6 Pass
+Pass	Supported tokens of the 'blocking' IDL attribute of the link element
+Pass	Setting the 'blocking' IDL attribute of the link element
+Pass	Supported tokens of the 'blocking' IDL attribute of the script element
+Pass	Setting the 'blocking' IDL attribute of the script element
+Pass	Supported tokens of the 'blocking' IDL attribute of the style element
+Pass	Setting the 'blocking' IDL attribute of the style element

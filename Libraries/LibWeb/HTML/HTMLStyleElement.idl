@@ -5,7 +5,7 @@ interface HTMLStyleElement : HTMLElement {
 
     attribute boolean disabled;
     [CEReactions, Reflect] attribute DOMString media;
-    [FIXME, SameObject, PutForwards=value] readonly attribute DOMTokenList blocking;
+    [SameObject, PutForwards=value] readonly attribute DOMTokenList blocking;
 
     // Obsolete
     [Reflect] attribute DOMString type;
