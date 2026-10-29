@@ -1,0 +1,12 @@
+empty-input: activeElement=BODY
+empty-input: selection=0-0
+filled-input: activeElement=BODY
+filled-input: selection=0-5
+textarea: activeElement=BODY
+textarea: selection=0-5
+scrollY: 0
+disabled-input: activeElement=BODY
+disabled-input: selection=0-8
+type-changing-input: activeElement=BODY
+type-changing-input: selection=0-4
+events: 

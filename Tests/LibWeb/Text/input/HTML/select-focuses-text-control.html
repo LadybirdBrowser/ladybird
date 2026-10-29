@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div style="height: 3000px"></div>
+<input id="empty-input">
+<input id="filled-input" value="hello">
+<textarea id="textarea">world</textarea>
+<input id="disabled-input" value="disabled" disabled>
+<input id="type-changing-input" value="text">
+<script>
+    test(() => {
+        const ids = ["empty-input", "filled-input", "textarea", "disabled-input", "type-changing-input"];
+        const log = [];
+        for (const id of ids) {
+            const element = document.getElementById(id);
+            element.addEventListener("focus", () => log.push(`focus ${id}`));
+            element.addEventListener("blur", () => log.push(`blur ${id}`));
+        }
+
+        const typeChangingInput = document.getElementById("type-changing-input");
+        typeChangingInput.addEventListener("focus", () => { typeChangingInput.type = "checkbox"; });
+
+        for (const id of ids) {
+            const element = document.getElementById(id);
+            element.select();
+            println(`${id}: activeElement=${document.activeElement.id || document.activeElement.nodeName}`);
+            println(`${id}: selection=${element.selectionStart}-${element.selectionEnd}`);
+            if (id === "textarea")
+                println(`scrollY: ${window.scrollY}`);
+        }
+
+        println(`events: ${log.join(", ")}`);
+    });
+</script>
