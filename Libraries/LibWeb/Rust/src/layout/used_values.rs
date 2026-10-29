@@ -249,11 +249,6 @@ impl Default for UsedValues {
 }
 
 impl UsedValues {
-    /// Resolves every margin, border and padding of `style`, with percentages against `basis`.
-    pub(crate) fn resolve_box_model(&self, style: &StyleValues<'_>, basis: CssPixels) {
-        RecordInFrame::in_its_own_frame(self).resolve_box_model(style, basis);
-    }
-
     pub(crate) fn line_data_ref(&self) -> Option<Ref<'_, LineDataState>> {
         let state = self.line_data.borrow();
         (!matches!(*state, LineDataState::Empty)).then_some(state)

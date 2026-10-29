@@ -564,7 +564,7 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
 
     fn enter_node_with_box_model_metrics(&mut self, node: Node) {
         self.entered_box_model_nodes.push(node);
-        let sides = record_entered_inline_box(self.context, node);
+        let sides = lay_out_entered_inline_box(self.context, node);
         let leading = self.extra_leading_metrics.get_or_insert_default();
         leading.margin += sides.margin_left;
         leading.border += sides.border_left;
@@ -1001,26 +1001,27 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
     }
 }
 
-/// Lays out `node`, a fragmented inline the context enters, in a record of this call, resolves its box sides and
-/// returns them.
-fn record_entered_inline_box(
+/// Lays out `node`, a fragmented inline the context enters, resolves its box sides and returns them.
+fn lay_out_entered_inline_box(
     context: &inline_formatting_context::InlineFormattingContext<'_>,
     node: Node,
 ) -> used_values::RootInputCells {
     let constraints = context.input.containing_block_constraints;
-    let record_of_this_call = used_values::create_used_values(&context.callbacks, node, constraints);
-    let used = &record_of_this_call;
+    let mut sides = used_values::cells_before_sizing(&context.callbacks, node, constraints);
     let style = context.style(node);
     let basis = constraints.inline_basis();
-    used.resolve_box_model(&style, basis);
+    sides.resolve_box_model(&style, basis);
     let insets = context.compute_inset(node);
-    let sides = used_values::RootInputCells::capture(used);
     context.keep_entered_inline_box(node, sides, insets);
     if context.run.fragments.is_some() && context.run.fragmentainer.is_none() {
         formatting_context::place_child(
             context.run,
             node,
-            formatting_context::PlacedChild::of_record(used, context.run).with_in_flow_box_insets(insets),
+            formatting_context::PlacedChild::new(fragment_tree::FragmentGeometry {
+                cells: sides.in_frame(context.callbacks.frame, context.run.callbacks.frame),
+                line_data: None,
+            })
+            .with_in_flow_box_insets(insets),
             FfiCssPixelPoint::default(),
             None,
             None,
@@ -1109,7 +1110,7 @@ impl InlineLevelIterator {
             .map(|shared| (shared.items.clone(), shared.entered_box_model_nodes.clone()));
         if let Some((items, entered_box_model_nodes)) = shared {
             for node in entered_box_model_nodes.iter() {
-                record_entered_inline_box(context, *node);
+                lay_out_entered_inline_box(context, *node);
             }
             return Self {
                 entered_box_model_nodes: entered_box_model_nodes.to_vec(),
@@ -1167,7 +1168,7 @@ impl InlineLevelIterator {
 
     fn from_stash(context: &inline_formatting_context::InlineFormattingContext<'_>, stash: StashedInlineItems) -> Self {
         for node in &stash.entered_box_model_nodes {
-            record_entered_inline_box(context, *node);
+            lay_out_entered_inline_box(context, *node);
         }
         Self {
             entered_box_model_nodes: stash.entered_box_model_nodes,

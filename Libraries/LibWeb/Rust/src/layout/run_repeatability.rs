@@ -486,9 +486,11 @@ mod tests {
         content_block_size: i64,
         has_definite_block_size: bool,
     ) -> (used_values::RootInputCells, LayoutInput) {
-        let record = UsedValues::default();
-        record.content_block_size.set(px(content_block_size));
-        record.has_definite_block_size.set(has_definite_block_size);
+        let root_cells = used_values::RootInputCells {
+            content_block_size: px(content_block_size),
+            has_definite_block_size,
+            ..used_values::RootInputCells::default()
+        };
         let input = LayoutInput::new(
             AvailableSpace {
                 inline_size: AvailableSize::definite(px(300)),
@@ -501,7 +503,7 @@ mod tests {
             ContainingBlockConstraints::default(),
             ParticipationInParentFormattingContext::Item,
         );
-        (used_values::RootInputCells::capture(&record), input)
+        (root_cells, input)
     }
 
     fn own_block_sizes_verified_from(
