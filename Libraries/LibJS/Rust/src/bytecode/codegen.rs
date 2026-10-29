@@ -5161,11 +5161,8 @@ fn emit_set_variable(generator: &mut Generator, id: crate::ast::IdentifierId, va
         }
         let local_index = ident.local_index;
         let local = generator.resolve_local(local_index, ident.local_type.unwrap());
-        // Skip self-move entirely.
-        let is_variable_self_move = ident.local_type == Some(LocalType::Variable)
-            && value.operand().is_local()
-            && value.operand().index() == local_index;
-        if is_variable_self_move {
+        // Skip self-move entirely, of variables and arguments alike.
+        if local.operand() == value.operand() {
             return;
         }
         // No TDZ check here: the caller is responsible for checking TDZ

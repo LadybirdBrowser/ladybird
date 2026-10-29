@@ -12,7 +12,7 @@ block0:
   [  40] End value:reg5
 
 
-postfixInLogicalAnd$80fa793a postfix-update-in-logical-and.js:2:5
+postfixInLogicalAnd$ff9880b2 postfix-update-in-logical-and.js:2:5
   Registers: 8
   Blocks:    3
   Constants:
@@ -26,7 +26,7 @@ block0:
 
 block1:
   [  38] PostfixDecrement arith_feedback:1, dst:reg7, src:arg0
-  [  48] Mov2 c0_dst:arg0, c0_src:arg0, c1_dst:reg6, c1_src:reg7
+  [  48] Mov dst:reg6, src:reg7
 
 block2:
-  [  60] Return value:reg6
+  [  58] Return value:reg6
