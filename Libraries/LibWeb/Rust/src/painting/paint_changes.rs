@@ -220,7 +220,7 @@ impl PaintChange {
             Self::InvalidateAllPaintCaches => arena.push_all_paint_damage(),
             Self::RequestFullVisualContextRebuild(scope) => arena.request_full_visual_context_rebuild(scope),
             Self::SvgPaintResourcesChanged => {
-                arena.svg_paint_resources().note_changed();
+                arena.svg_paint_resources_mut().note_changed();
             }
             Self::SetRecordingTraceEnabled(enabled) => arena.paint_state().borrow_mut().trace_recordings = enabled,
             Self::TakeInRecording {

@@ -38,7 +38,12 @@ struct Line {
 }
 
 /// Observation belongs to the document, not to a single pass: geometry reads and
-/// style stabilization can cause several passes within one measured mutation.
+/// style stabilization can cause several passes within one measured mutation. The document keeps
+/// the trace here between passes, and the layout stage's recorder takes it over for each pass.
+#[derive(Clone, Default)]
+pub(crate) struct TraceRecord(Option<Trace>);
+
+/// What a layout pass records its events into: the trace it took over from the document.
 #[derive(Clone, Default)]
 pub(crate) struct LayoutTrace(RefCell<Option<Trace>>);
 
@@ -63,40 +68,47 @@ impl Drop for Scope<'_> {
     }
 }
 
-impl LayoutTrace {
-    pub(super) fn begin(&self) {
-        assert!(self.0.borrow().as_ref().is_none_or(|trace| trace.depth == 0));
-        *self.0.borrow_mut() = Some(Trace {
-            lines: Vec::new(),
-            depth: 0,
-        });
+fn begun_trace(previous: Option<&Trace>) -> Trace {
+    assert!(previous.is_none_or(|trace| trace.depth == 0));
+    Trace {
+        lines: Vec::new(),
+        depth: 0,
+    }
+}
+
+fn text_of(trace: Option<Trace>) -> String {
+    let Some(trace) = trace else {
+        return String::new();
+    };
+    assert_eq!(trace.depth, 0, "incomplete layout trace");
+    let mut text = String::new();
+    for line in trace.lines {
+        writeln!(
+            text,
+            "{}{}{}{}",
+            "  ".repeat(line.depth),
+            line.prefix,
+            line.owner_name.unwrap_or_default(),
+            line.text
+        )
+        .unwrap();
+    }
+    text
+}
+
+impl TraceRecord {
+    pub(super) fn begin(&mut self) {
+        self.0 = Some(begun_trace(self.0.as_ref()));
     }
 
-    pub(super) fn take(&self) -> String {
-        let Some(trace) = self.0.borrow_mut().take() else {
-            return String::new();
-        };
-        assert_eq!(trace.depth, 0, "incomplete layout trace");
-        let mut text = String::new();
-        for line in trace.lines {
-            writeln!(
-                text,
-                "{}{}{}{}",
-                "  ".repeat(line.depth),
-                line.prefix,
-                line.owner_name.unwrap_or_default(),
-                line.text
-            )
-            .unwrap();
-        }
-        text
+    pub(super) fn take(&mut self) -> String {
+        text_of(self.0.take())
     }
 
     /// The boxes the traced events name and that are not named yet, each by its line. A box whose row says what it is
     /// is named from the row; the host describes the rest.
     fn unnamed_owners(&self, arena: &LayoutNodeArena) -> Vec<UnnamedOwner> {
-        let state = self.0.borrow();
-        let Some(trace) = state.as_ref() else {
+        let Some(trace) = self.0.as_ref() else {
             return Vec::new();
         };
         trace
@@ -116,14 +128,26 @@ impl LayoutTrace {
     }
 
     /// Names the boxes of the traced events at the lines `names` gives.
-    fn name_owners(&self, names: Vec<(usize, String)>) {
-        let mut state = self.0.borrow_mut();
-        let Some(trace) = state.as_mut() else {
+    fn name_owners(&mut self, names: Vec<(usize, String)>) {
+        let Some(trace) = self.0.as_mut() else {
             return;
         };
         for (line, name) in names {
             trace.lines[line].owner_name = Some(name);
         }
+    }
+}
+
+impl LayoutTrace {
+    #[cfg(test)]
+    fn begin(&self) {
+        let begun = begun_trace(self.0.borrow().as_ref());
+        *self.0.borrow_mut() = Some(begun);
+    }
+
+    #[cfg(test)]
+    fn take(&self) -> String {
+        text_of(self.0.borrow_mut().take())
     }
 
     fn scope(
@@ -146,9 +170,14 @@ impl LayoutTrace {
         Some(Scope { trace: self, line })
     }
 
-    /// Moves what this trace holds to `recorder`, which goes on with it.
-    pub(super) fn hand_over_to(&self, recorder: &LayoutTrace) {
-        *recorder.0.borrow_mut() = self.0.take();
+    /// Takes over the trace the document kept in `record`, for a pass to go on with it.
+    pub(super) fn take_over_from(&self, record: &mut TraceRecord) {
+        *self.0.borrow_mut() = record.0.take();
+    }
+
+    /// Hands the trace back to `record` once the pass is over.
+    pub(super) fn hand_back_to(&self, record: &mut TraceRecord) {
+        record.0 = self.0.take();
     }
 
     /// Runs `untraced` with nothing it does traced.
@@ -286,7 +315,7 @@ fn describe_node(
 
 impl LayoutNodeArena {
     /// Names the boxes of the traced events at the lines `names` gives.
-    pub(crate) fn name_layout_trace_owners(&self, names: Vec<(usize, String)>) {
+    pub(crate) fn name_layout_trace_owners(&mut self, names: Vec<(usize, String)>) {
         self.layout_trace.name_owners(names);
     }
 }
@@ -405,11 +434,10 @@ mod tests {
 
         arena.layout_trace.begin();
         arena.begin_active_layout_pass();
-        drop(
-            arena
-                .layout_trace
-                .run(owner.slot, FormattingContextType::Block, || "RUN"),
-        );
+        let recorder = LayoutTrace::default();
+        recorder.take_over_from(&mut arena.layout_trace);
+        drop(recorder.run(owner.slot, FormattingContextType::Block, || "RUN"));
+        recorder.hand_back_to(&mut arena.layout_trace);
         assert!(arena.leave_active_layout_pass());
         let names = arena
             .layout_trace

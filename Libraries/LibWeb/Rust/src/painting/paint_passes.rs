@@ -545,15 +545,14 @@ pub(crate) enum ResolvedSvgPaintResource {
 
 /// What the host resolves of the enrolled SVG paint resources, if they changed since they were
 /// resolved last. A row that went away, or whose filters name no SVG filter any more, leaves them.
-pub(crate) fn svg_paint_resource_requests(arena: &LayoutNodeArena) -> Option<Vec<SvgPaintResourceRequest>> {
-    let resources = arena.svg_paint_resources();
-    if !resources.take_needs_sync() {
+pub(crate) fn svg_paint_resource_requests(arena: &mut LayoutNodeArena) -> Option<Vec<SvgPaintResourceRequest>> {
+    if !arena.svg_paint_resources_mut().take_needs_sync() {
         return None;
     }
     let mut requests = Vec::new();
-    for (slot, kind) in resources.enrolled_entries() {
+    for (slot, kind) in arena.svg_paint_resources().enrolled_entries() {
         let Some(style) = arena.node_style_if_live(slot) else {
-            resources.forget_slot(slot);
+            arena.svg_paint_resources_mut().forget_slot(slot);
             continue;
         };
         if matches!(kind, SvgPaintResourceKind::Fill | SvgPaintResourceKind::Stroke) {
@@ -567,7 +566,7 @@ pub(crate) fn svg_paint_resource_requests(arena: &LayoutNodeArena) -> Option<Vec
             SvgPaintResourceKind::Fill | SvgPaintResourceKind::Stroke => unreachable!(),
         };
         if !crate::painting::css_filter::contains_url(filter_list) {
-            resources.withdraw(slot, kind);
+            arena.svg_paint_resources_mut().withdraw(slot, kind);
             continue;
         }
         let urls = filter_list
@@ -593,22 +592,25 @@ pub(crate) fn svg_paint_resource_requests(arena: &LayoutNodeArena) -> Option<Vec
 /// Publishes what the host resolved of the enrolled SVG paint resources, and answers whether any
 /// changed.
 pub(crate) fn publish_resolved_svg_paint_resources(
-    arena: &LayoutNodeArena,
+    arena: &mut LayoutNodeArena,
     resolved: Vec<ResolvedSvgPaintResource>,
 ) -> bool {
     use crate::painting::record::damage::PaintDamage;
-    let resources = arena.svg_paint_resources();
     let mut any_changed = false;
     for resolved in resolved {
         match resolved {
             ResolvedSvgPaintResource::PaintServer { slot, kind, published } => {
-                if arena.slot_is_live(slot) && resources.publish_paint_server(slot, kind, published) {
+                if arena.slot_is_live(slot)
+                    && arena
+                        .svg_paint_resources_mut()
+                        .publish_paint_server(slot, kind, published)
+                {
                     any_changed = true;
                     arena.push_paint_damage(slot, PaintDamage::SVG | PaintDamage::SCOPE_PREAMBLE);
                 }
             }
             ResolvedSvgPaintResource::Filter { slot, kind, published } => {
-                if !arena.slot_is_live(slot) || !resources.publish_filter(slot, kind, published) {
+                if !arena.slot_is_live(slot) || !arena.svg_paint_resources_mut().publish_filter(slot, kind, published) {
                     continue;
                 }
                 any_changed = true;
