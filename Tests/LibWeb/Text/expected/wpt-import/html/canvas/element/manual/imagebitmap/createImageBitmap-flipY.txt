@@ -1,0 +1,28 @@
+Harness status: OK
+
+Found 22 tests
+
+9 Pass
+13 Fail
+Pass	createImageBitmap from an HTMLCanvasElement imageOrientation: "from-image", and drawImage on the created ImageBitmap
+Fail	createImageBitmap from an HTMLCanvasElement imageOrientation: "flipY", and drawImage on the created ImageBitmap
+Fail	createImageBitmap from an HTMLVideoElement imageOrientation: "from-image", and drawImage on the created ImageBitmap
+Fail	createImageBitmap from an HTMLVideoElement imageOrientation: "flipY", and drawImage on the created ImageBitmap
+Fail	createImageBitmap from an HTMLVideoElement from a data URL imageOrientation: "from-image", and drawImage on the created ImageBitmap
+Fail	createImageBitmap from an HTMLVideoElement from a data URL imageOrientation: "flipY", and drawImage on the created ImageBitmap
+Pass	createImageBitmap from a bitmap HTMLImageElement imageOrientation: "from-image", and drawImage on the created ImageBitmap
+Fail	createImageBitmap from a bitmap HTMLImageElement imageOrientation: "flipY", and drawImage on the created ImageBitmap
+Pass	createImageBitmap from a vector HTMLImageElement imageOrientation: "from-image", and drawImage on the created ImageBitmap
+Fail	createImageBitmap from a vector HTMLImageElement imageOrientation: "flipY", and drawImage on the created ImageBitmap
+Pass	createImageBitmap from a bitmap SVGImageElement imageOrientation: "from-image", and drawImage on the created ImageBitmap
+Fail	createImageBitmap from a bitmap SVGImageElement imageOrientation: "flipY", and drawImage on the created ImageBitmap
+Pass	createImageBitmap from a vector SVGImageElement imageOrientation: "from-image", and drawImage on the created ImageBitmap
+Fail	createImageBitmap from a vector SVGImageElement imageOrientation: "flipY", and drawImage on the created ImageBitmap
+Pass	createImageBitmap from an OffscreenCanvas imageOrientation: "from-image", and drawImage on the created ImageBitmap
+Fail	createImageBitmap from an OffscreenCanvas imageOrientation: "flipY", and drawImage on the created ImageBitmap
+Pass	createImageBitmap from an ImageData imageOrientation: "from-image", and drawImage on the created ImageBitmap
+Fail	createImageBitmap from an ImageData imageOrientation: "flipY", and drawImage on the created ImageBitmap
+Pass	createImageBitmap from an ImageBitmap imageOrientation: "from-image", and drawImage on the created ImageBitmap
+Fail	createImageBitmap from an ImageBitmap imageOrientation: "flipY", and drawImage on the created ImageBitmap
+Pass	createImageBitmap from a Blob imageOrientation: "from-image", and drawImage on the created ImageBitmap
+Fail	createImageBitmap from a Blob imageOrientation: "flipY", and drawImage on the created ImageBitmap
