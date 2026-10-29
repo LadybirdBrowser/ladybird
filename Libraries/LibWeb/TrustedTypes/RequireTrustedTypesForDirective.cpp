@@ -30,18 +30,9 @@ ENUMERATE_REQUIRE_KEYWORD_TRUSTED_TYPES_FOR
 
 static bool sink_group_matches(Utf16String const& directive_value, Utf16View sink_group)
 {
-    auto strip_quotes = [](Utf16View value) {
-        if (value.length_in_code_units() >= 2) {
-            auto first = value.code_unit_at(0);
-            auto last = value.code_unit_at(value.length_in_code_units() - 1);
-            if ((first == u'\'' && last == u'\'') || (first == u'"' && last == u'"'))
-                return value.substring_view(1, value.length_in_code_units() - 2);
-        }
-        return value;
-    };
-    auto value = strip_quotes(directive_value.utf16_view());
-    sink_group = strip_quotes(sink_group);
-    return value.equals_ignoring_ascii_case(sink_group);
+    // INTEROP: Match the complete quoted token case-sensitively, as Chromium and Firefox do.
+    //          The Trusted Types draft uses case-insensitive ABNF for this keyword.
+    return directive_value == sink_group;
 }
 
 static ContentSecurityPolicy::PolicyList const* csp_list_of_global(JS::Object& global)

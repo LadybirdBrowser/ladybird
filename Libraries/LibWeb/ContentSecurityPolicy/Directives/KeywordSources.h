@@ -19,6 +19,7 @@ namespace Web::ContentSecurityPolicy::Directives::KeywordSources {
     __ENUMERATE_KEYWORD_SOURCE(UnsafeHashes, "'unsafe-hashes'")                  \
     __ENUMERATE_KEYWORD_SOURCE(ReportSample, "'report-sample'")                  \
     __ENUMERATE_KEYWORD_SOURCE(UnsafeAllowRedirects, "'unsafe-allow-redirects'") \
+    __ENUMERATE_KEYWORD_SOURCE(TrustedTypesEval, "'trusted-types-eval'")         \
     __ENUMERATE_KEYWORD_SOURCE(WasmUnsafeEval, "'wasm-unsafe-eval'")
 
 #define __ENUMERATE_KEYWORD_SOURCE(name, value) extern Utf16FlyString const& name;

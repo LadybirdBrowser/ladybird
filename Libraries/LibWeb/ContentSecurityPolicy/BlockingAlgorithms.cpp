@@ -6,7 +6,6 @@
  */
 
 #include <AK/AnyOf.h>
-#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/DirectiveOperations.h>
@@ -26,7 +25,6 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
-#include <LibWeb/TrustedTypes/TrustedScript.h>
 #include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
 #include <LibWeb/WebAssembly/WebAssembly.h>
 #include <LibWebCommon/Fetch/Infrastructure/URL.h>
@@ -326,31 +324,30 @@ Directives::Directive::Result should_elements_inline_type_behavior_be_blocked_by
 // https://w3c.github.io/webappsec-csp/#can-compile-strings
 JS::ThrowCompletionOr<void> ensure_csp_does_not_block_string_compilation(JS::Realm& realm, ReadonlySpan<Utf16String> parameter_strings, Utf16View body_string, Utf16View code_string, JS::CompilationType compilation_type, ReadonlySpan<JS::Value> parameter_args, JS::Value body_arg)
 {
-    Utf16String source_string;
+    // 1. Let sourceString be codeString.
+    auto source_string = Utf16String::from_utf16(code_string);
 
-    // 1. If compilationType is "TIMER", then:
-    if (compilation_type == JS::CompilationType::Timer) {
-        // 1. Let sourceString be codeString.
-        source_string = Utf16String::from_utf16(code_string);
-    }
-    // 2. Else:
-    else {
+    // 2. If compilationType is not "TIMER", then:
+    if (compilation_type != JS::CompilationType::Timer) {
         // 1. Let compilationSink be "Function" if compilationType is "FUNCTION", and "eval" otherwise.
         auto const compilation_sink = compilation_type == JS::CompilationType::Function ? TrustedTypes::InjectionSink::Function : TrustedTypes::InjectionSink::Eval;
 
         // 2. Let isTrusted be true if bodyArg implements TrustedScript, and false otherwise.
         auto is_trusted = TrustedTypes::trusted_script_value_matches(body_arg, body_string.to_utf8_but_should_be_ported_to_utf16());
 
-        // 3. If isTrusted is true then:
-        // NOTE: trusted_script_value_matches() also performs the data equality check from this step.
-
-        // 4. If isTrusted is true, then:
+        // 3. If isTrusted is true, then:
         if (is_trusted) {
-            // 1. Assert: parameterArgs’ [list/size=] is equal to [parameterStrings]' size.
+            // 1. Assert: bodyString is equal to bodyArg’s data.
+            // NB: trusted_script_value_matches() also performs the data equality check from this step.
+
+            // 2. Assert: parameterArgs’ size is equal to parameterStrings’ size.
             VERIFY(parameter_args.size() == parameter_strings.size());
 
-            // 2. For each index of the range 0 to |parameterArgs]' [list/size=], verify that the argument implements
-            //    TrustedScript and parameterStrings[index] is equal to arg's data.
+            // 3. For each index of the range 0 to parameterArgs’ size:
+            //    1. Let arg be parameterArgs[index].
+            //    2. If arg implements TrustedScript, then:
+            //       1. Assert: parameterStrings[index] is equal to arg’s data.
+            //    3. Otherwise, set isTrusted to false.
             Vector<String> utf8_parameter_strings;
             utf8_parameter_strings.ensure_capacity(parameter_strings.size());
             for (auto const& parameter_string : parameter_strings)
@@ -358,30 +355,26 @@ JS::ThrowCompletionOr<void> ensure_csp_does_not_block_string_compilation(JS::Rea
             is_trusted = TrustedTypes::trusted_script_values_match(parameter_args, utf8_parameter_strings);
         }
 
-        // 5. Let sourceToValidate be a new TrustedScript object created in realm whose data is set to codeString
-        //    if isTrusted is true, and codeString otherwise.
-        auto const source_to_validate = is_trusted
-            ? TrustedTypes::TrustedScriptOrString(GC::Heap::the().allocate<TrustedTypes::TrustedScript>(Utf16String::from_utf16(code_string)))
-            : Utf16String::from_utf16(code_string);
+        // 4. If isTrusted is false, then:
+        if (!is_trusted) {
+            // 1. Set sourceString to the result of executing the get trusted type compliant string algorithm,
+            //    with TrustedScript, realm, codeString, compilationSink, and 'script'.
+            auto maybe_source_string = TrustedTypes::get_trusted_type_compliant_string(
+                TrustedTypes::TrustedTypeName::TrustedScript,
+                realm.global_object(),
+                source_string,
+                compilation_sink,
+                TrustedTypes::Script.view());
 
-        // 6. Let sourceString be the result of executing the Get Trusted Type compliant string algorithm,
-        //    with TrustedScript, realm, sourceToValidate, compilationSink, and 'script'.
-        auto maybe_source_string = TrustedTypes::get_trusted_type_compliant_string(
-            TrustedTypes::TrustedTypeName::TrustedScript,
-            realm.global_object(),
-            source_to_validate,
-            compilation_sink,
-            TrustedTypes::Script.view());
+            // 2. If the algorithm throws an error, throw an EvalError.
+            if (maybe_source_string.is_error())
+                return realm.vm().throw_completion<JS::EvalError>("Blocked by Content Security Policy"_utf16);
+            source_string = maybe_source_string.release_value();
 
-        // 7. If the algorithm throws an error, throw an EvalError.
-        if (maybe_source_string.is_error()) {
-            return realm.vm().throw_completion<JS::EvalError>("Blocked by Content Security Policy"_utf16);
+            // 3. If sourceString is not equal to codeString, throw an EvalError.
+            if (source_string != code_string)
+                return realm.vm().throw_completion<JS::EvalError>("Blocked by Content Security Policy"_utf16);
         }
-        source_string = maybe_source_string.release_value();
-
-        // 8. If sourceString is not equal to codeString, throw an EvalError.
-        if (source_string != code_string)
-            return realm.vm().throw_completion<JS::EvalError>("Blocked by Content Security Policy"_utf16);
     }
 
     // 3. Let result be "Allowed".
@@ -414,43 +407,49 @@ JS::ThrowCompletionOr<void> ensure_csp_does_not_block_string_compilation(JS::Rea
                 maybe_source_list = maybe_default_src->value();
         }
 
-        // 3. If source-list is not null, and does not contain a source expression which is an ASCII case-insensitive
-        //    match for the string "'unsafe-eval'", then:
+        // 3. If source-list is not null:
         if (maybe_source_list.has_value()) {
             auto const& source_list = maybe_source_list.value();
 
-            auto maybe_unsafe_eval = source_list.find_if([](auto const& directive_value) {
-                return directive_value.equals_ignoring_ascii_case(Directives::KeywordSources::UnsafeEval.view());
+            // 1. Let trustedTypesRequired be the result of executing does sink type require trusted types?, with realm, 'script', and false.
+            auto const trusted_types_required = TrustedTypes::does_sink_require_trusted_types(global, TrustedTypes::Script.view(), TrustedTypes::IncludeReportOnlyPolicies::No);
+
+            // 2. If trustedTypesRequired is true and source-list contains a source expression which is an ASCII case-insensitive match for the string "'trusted-types-eval'", then skip the following steps.
+            if (trusted_types_required && any_of(source_list, [](auto const& value) {
+                    return value.equals_ignoring_ascii_case(Directives::KeywordSources::TrustedTypesEval.view());
+                }))
+                continue;
+
+            // 3. If source-list contains a source expression which is an ASCII case-insensitive match for the string "'unsafe-eval'", then skip the following steps.
+            if (any_of(source_list, [](auto const& value) {
+                    return value.equals_ignoring_ascii_case(Directives::KeywordSources::UnsafeEval.view());
+                }))
+                continue;
+
+            // 4. Let violation be the result of executing § 2.4.1 Create a violation object for global, policy, and directive on global, policy, and "script-src".
+            auto script_src_string = Directives::Names::ScriptSrc.view().to_utf8_but_should_be_ported_to_utf16();
+            auto violation = Violation::create_a_violation_object_for_global_policy_and_directive(global, policy, script_src_string);
+
+            // 5. Set violation’s resource to "eval".
+            violation->set_resource(Violation::Resource::Eval);
+
+            // 6. If source-list contains the expression "'report-sample'", then set violation’s sample to the substring of sourceString containing its first 40 characters.
+            // FIXME: Should this be case insensitive?
+            auto maybe_report_sample = source_list.find_if([](auto const& directive_value) {
+                return directive_value.equals_ignoring_ascii_case(Directives::KeywordSources::ReportSample.view());
             });
 
-            if (maybe_unsafe_eval.is_end()) {
-                // 1. Let violation be the result of executing § 2.4.1 Create a violation object for global, policy,
-                //    and directive on global, policy, and "script-src".
-                auto script_src_string = Directives::Names::ScriptSrc.view().to_utf8_but_should_be_ported_to_utf16();
-                auto violation = Violation::create_a_violation_object_for_global_policy_and_directive(global, policy, script_src_string);
-
-                // 2. Set violation’s resource to "eval".
-                violation->set_resource(Violation::Resource::Eval);
-
-                // 3. If source-list contains the expression "'report-sample'", then set violation’s sample to the
-                //    substring of sourceString containing its first 40 characters.
-                // FIXME: Should this be case insensitive?
-                auto maybe_report_sample = source_list.find_if([](auto const& directive_value) {
-                    return directive_value.equals_ignoring_ascii_case(Directives::KeywordSources::ReportSample.view());
-                });
-
-                if (!maybe_report_sample.is_end()) {
-                    auto source_view = source_string.substring_view(0, min(source_string.length_in_code_units(), 40));
-                    violation->set_sample(Utf16String::from_utf16(source_view));
-                }
-
-                // 4. Execute § 5.5 Report a violation on violation.
-                violation->report_a_violation(realm);
-
-                // 5. If policy’s disposition is "enforce", then set result to "Blocked".
-                if (policy->disposition() == Policy::Disposition::Enforce)
-                    result = Directives::Directive::Result::Blocked;
+            if (!maybe_report_sample.is_end()) {
+                auto source_view = source_string.substring_view(0, min(source_string.length_in_code_units(), 40));
+                violation->set_sample(Utf16String::from_utf16(source_view));
             }
+
+            // 7. Execute § 5.5 Report a violation on violation.
+            violation->report_a_violation(realm);
+
+            // 8. If policy’s disposition is "enforce", then set result to "Blocked".
+            if (policy->disposition() == Policy::Disposition::Enforce)
+                result = Directives::Directive::Result::Blocked;
         }
     }
 

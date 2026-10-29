@@ -2,16 +2,15 @@ Harness status: OK
 
 Found 13 tests
 
-9 Pass
-4 Fail
-Fail	eval of TrustedScript works.
-Fail	indirect eval of TrustedScript works.
+13 Pass
+Pass	eval of TrustedScript works.
+Pass	indirect eval of TrustedScript works.
 Pass	eval of string fails.
 Pass	indirect eval of string fails.
 Pass	eval of !TrustedScript and !string works.
-Fail	Function constructor of TrustedScript works.
+Pass	Function constructor of TrustedScript works.
 Pass	Function constructor of string fails.
-Fail	Function constructor of all TrustedScripts works.
+Pass	Function constructor of all TrustedScripts works.
 Pass	Function constructor of all strings fails.
 Pass	Function constructor of string and TrustedScript fails.
 Pass	AsyncFunction constructor of string fails.
