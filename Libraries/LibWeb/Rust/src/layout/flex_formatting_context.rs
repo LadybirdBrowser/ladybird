@@ -938,7 +938,9 @@ impl<'pass> FlexFormattingContext<'pass> {
         // calculations that could change that.
         // This is particularly important since we take references to the items stored in flex_items
         // later, whose addresses won't be stable if we added or removed any items.
-        let mut buckets: HashMap<i32, Vec<(Node, used_values::RootInputCells)>> = HashMap::default();
+        let first_new_item = self.flex_items.len();
+        let mut order_of_first_item = None;
+        let mut items_have_different_orders = false;
         for child in self.run.callbacks.children(self.run.box_) {
             let facts = self.facts(child);
             if facts.is_box() {
@@ -951,24 +953,24 @@ impl<'pass> FlexFormattingContext<'pass> {
                         "the facts of a flex item are derived before layout"
                     );
                     let cells = self.keep_item_for_its_run(child);
-                    buckets
-                        .entry(self.style(child).order())
-                        .or_default()
-                        .push((child, cells));
+                    let order = self.style(child).order();
+                    items_have_different_orders |= *order_of_first_item.get_or_insert(order) != order;
+                    self.flex_items.push(FlexItem::new(child, cells));
                 }
             }
         }
 
-        self.flex_items.reserve_exact(buckets.values().map(Vec::len).sum());
-        let keys = order_modified_keys(&buckets, self.is_direction_reverse());
-        for key in keys {
-            self.flex_items.extend(
-                buckets
-                    .remove(&key)
-                    .unwrap()
-                    .into_iter()
-                    .map(|(node, cells)| FlexItem::new(node, cells)),
-            );
+        // https://drafts.csswg.org/css-display-3/#order-modified-document-order
+        // A stable sort keeps items with equal order in document order.
+        if items_have_different_orders {
+            let mut flex_items = std::mem::take(&mut self.flex_items);
+            let new_items = &mut flex_items[first_new_item..];
+            if self.is_direction_reverse() {
+                new_items.sort_by_key(|item| std::cmp::Reverse(self.style(item.box_).order()));
+            } else {
+                new_items.sort_by_key(|item| self.style(item.box_).order());
+            }
+            self.flex_items = flex_items;
         }
         for index in 0..self.flex_items.len() {
             self.populate_specified_margins(index);
@@ -4297,16 +4299,6 @@ impl SpaceDistribution {
 
 fn abs(value: CssPixels) -> CssPixels {
     if value < CssPixels::default() { -value } else { value }
-}
-
-pub(crate) fn order_modified_keys<T>(buckets: &HashMap<i32, Vec<T>>, reverse: bool) -> Vec<i32> {
-    let mut keys: Vec<_> = buckets.keys().copied().collect();
-    if reverse {
-        keys.sort_unstable_by(|left, right| right.cmp(left));
-    } else {
-        keys.sort_unstable();
-    }
-    keys
 }
 
 #[cfg(test)]
