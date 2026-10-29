@@ -3499,6 +3499,7 @@ impl LayoutStageJob {
     /// committing them owes the host.
     fn run(self, state: &mut super::ArenaHandle) -> commit::CommitNotifications {
         let Self { kind, root, stage } = self;
+        prepare_layout_stage(state, kind, root);
         let input = LayoutStageInput {
             arena: state.arena(),
             scratch: state.layout_scratch(),
@@ -3550,19 +3551,6 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
         root,
         stage,
     } = input;
-    arena.begin_active_layout_pass();
-    // NB: The tree builder derives the facts of rebuilt subtrees. Unclassified invalidations
-    // require deriving them for the entire tree instead.
-    if arena.pending_updates_escape_partial_relayout.get() {
-        arena.derive_facts_in_subtree(root);
-        arena.clear_partial_relayout_escape();
-        arena.pending_attached_subtree_roots.borrow_mut().clear();
-    } else {
-        // NB: Top-layer updates can attach boxes without running the tree builder.
-        arena.derive_facts_after_tree_update(&[]);
-    }
-    arena.mark_flex_and_grid_items_of_nodes_marked_for_layout();
-    drop_intrinsic_size_cache_entries_of_released_slots(arena, scratch);
     let callbacks = LayoutPass::new(arena, scratch, stage);
     let viewport_inline_size = stage.viewport_inline_size;
     let viewport_block_size = stage.viewport_block_size;
@@ -3646,6 +3634,35 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
     })
 }
 
+/// Brings the arena up to date for a stage before the stage borrows it: derives the facts its runs read, marks the
+/// flex and grid items of the nodes marked for layout, and drops the cached intrinsic sizes of released slots.
+fn prepare_layout_stage(state: &mut super::ArenaHandle, kind: LayoutStageKind, root: NodeSlotId) {
+    let arena = state.arena();
+    arena.begin_active_layout_pass();
+    match kind {
+        LayoutStageKind::Root { .. } => {
+            // NB: The tree builder derives the facts of rebuilt subtrees. Unclassified invalidations
+            // require deriving them for the entire tree instead.
+            if arena.pending_updates_escape_partial_relayout.get() {
+                arena.derive_facts_in_subtree(root);
+                arena.clear_partial_relayout_escape();
+                arena.pending_attached_subtree_roots.borrow_mut().clear();
+            } else {
+                // NB: Top-layer updates can attach boxes without running the tree builder.
+                arena.derive_facts_after_tree_update(&[]);
+            }
+            arena.mark_flex_and_grid_items_of_nodes_marked_for_layout();
+        }
+        LayoutStageKind::Boundary { .. } => {
+            // The boundary can be wider than the rebuilt roots that led to it, and laying it out may
+            // re-enter intrinsic sizing for descendants outside those roots, including anonymous boxes
+            // the incremental tree build created; derive the facts of the whole subtree.
+            arena.derive_facts_in_subtree(root);
+        }
+    }
+    drop_intrinsic_size_cache_entries_of_released_slots(arena, state.layout_scratch());
+}
+
 /// Drops the intrinsic size cache entries of the slots the arena let go of, or whose cache epoch wrapped, since the
 /// last stage, before any run of this one reads a cache.
 fn drop_intrinsic_size_cache_entries_of_released_slots(
@@ -3695,13 +3712,7 @@ fn compute_subtree_layout_fragments(input: LayoutStageInput<'_>, containing_bloc
         root,
         stage,
     } = input;
-    arena.begin_active_layout_pass();
     let callbacks = LayoutPass::new(arena, scratch, stage);
-    // The boundary can be wider than the rebuilt roots that led to it, and laying it out may
-    // re-enter intrinsic sizing for descendants outside those roots, including anonymous boxes
-    // the incremental tree build created; derive the facts of the whole subtree.
-    arena.derive_facts_in_subtree(root);
-    drop_intrinsic_size_cache_entries_of_released_slots(arena, scratch);
 
     // NB: Either way, the boundary root's own geometry lies in the frame of its containing block.
     let callbacks = if containing_block.is_invalid() {
