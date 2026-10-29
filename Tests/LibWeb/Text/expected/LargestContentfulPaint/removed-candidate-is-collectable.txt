@@ -1,0 +1,3 @@
+reported: candidate
+removed candidate collected: true
+entry element: null

@@ -50,8 +50,6 @@ public:
 private:
     LargestContentfulPaint(PaintTiming::PaintTimingInfo, WebIDL::UnsignedLong size, Utf16String url, Utf16String id, HighResolutionTime::DOMHighResTimeStamp load_time, GC::Ref<DOM::Element>);
 
-    virtual void visit_edges(GC::Cell::Visitor&) override;
-
     // https://w3c.github.io/largest-contentful-paint/#largestcontentfulpaint-size
     WebIDL::UnsignedLong m_size { 0 };
 
@@ -65,7 +63,8 @@ private:
     Utf16String m_url;
 
     // https://w3c.github.io/largest-contentful-paint/#largestcontentfulpaint-element
-    GC::Ptr<DOM::Element> m_element;
+    // NB: Held weakly, as the element getter returns null for an element that is not connected.
+    GC::Weak<DOM::Element> m_element;
 };
 
 // https://w3c.github.io/largest-contentful-paint/#report-largest-contentful-paint

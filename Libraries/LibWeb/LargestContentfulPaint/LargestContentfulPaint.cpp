@@ -61,17 +61,12 @@ HighResolutionTime::DOMHighResTimeStamp LargestContentfulPaint::render_time() co
 GC::Ptr<DOM::Element> LargestContentfulPaint::element() const
 {
     // 1. If this's element is not exposed for paint timing given null, return null.
-    if (!m_element || !PaintTiming::is_exposed_for_paint_timing(*m_element, nullptr))
+    auto element = m_element.ptr();
+    if (!element || !PaintTiming::is_exposed_for_paint_timing(*element, nullptr))
         return nullptr;
 
     // 2. Return this's element.
-    return m_element;
-}
-
-void LargestContentfulPaint::visit_edges(GC::Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_element);
+    return element;
 }
 
 // https://w3c.github.io/largest-contentful-paint/#effective-visual-size-result
@@ -343,7 +338,7 @@ static GC::Ref<LargestContentfulPaint> create_a_largest_contentful_paint_entry(P
     auto size = static_cast<WebIDL::UnsignedLong>(clamp(candidate.size, 0.0, static_cast<double>(NumericLimits<WebIDL::UnsignedLong>::max())));
 
     // 4. Return entry.
-    return LargestContentfulPaint::create(paint_timing_info, size, move(url), move(id), candidate.load_time, candidate.element);
+    return LargestContentfulPaint::create(paint_timing_info, size, move(url), move(id), candidate.load_time, *candidate.element.ptr());
 }
 
 // https://w3c.github.io/largest-contentful-paint/#report-largest-contentful-paint
