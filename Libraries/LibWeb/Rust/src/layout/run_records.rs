@@ -235,10 +235,10 @@ impl LayoutScratch {
     }
 }
 
-/// What a run keeps while it is in progress: the record of its root, built from the input cells its caller hands it, and
-/// the percentage block size dependencies it resolves. Every other box the run lays out is laid out in a record the
-/// call laying it out owns, or handed to a run of its own. The scoped constructors lend the records to the run, so
-/// callers cannot extend their lifetime.
+/// What a run keeps while it is in progress: the record of its root, built from the input cells its caller hands it, the
+/// anchor-size() resolutions of its root, and the percentage block size dependencies it resolves. Every other box the
+/// run lays out is laid out in a record the call laying it out owns, or handed to a run of its own. The scoped
+/// constructors lend the records to the run, so callers cannot extend their lifetime.
 pub(crate) struct RunRecords<'arena> {
     root: Node,
     root_used: Option<UsedValues>,
@@ -249,6 +249,8 @@ pub(crate) struct RunRecords<'arena> {
     /// What the run found so far about the percentage block size dependency of its root and of the boxes whose
     /// layout in it is in progress, the innermost last. Only these boxes have their dependency resolved.
     percentage_block_size_dependencies_in_progress: PercentageBlockSizeDependenciesInProgress,
+    /// The anchor-size() resolutions of an absolutely positioned root, a run input that is constant for the run.
+    root_anchor_resolved_values: Option<Box<style_values::AnchorResolvedValues>>,
 }
 
 /// Where a box is placed: the offset of its content box in the containing block it is placed in.
@@ -358,13 +360,15 @@ enum ContentSizing {
 
 impl<'arena> RunRecords<'arena> {
     /// Runs `run` with the records of a run rooted at `root`, and the pass as that run sees it. The root's record holds
-    /// `root_cells`, which hold its metrics in `root_frame`, the frame it lays its contents out in.
+    /// `root_cells`, which hold its metrics in `root_frame`, the frame it lays its contents out in. The style reads of
+    /// an absolutely positioned root see `root_anchor_resolved_values`.
     pub(crate) fn with_root<R>(
         callbacks: LayoutPass<'arena>,
         root: Node,
         root_containing_block: Node,
         root_cells: used_values::RootInputCells,
         root_frame: geometry::Frame,
+        root_anchor_resolved_values: Option<Box<style_values::AnchorResolvedValues>>,
         run: impl FnOnce(&Self, LayoutPass<'arena>) -> R,
     ) -> R {
         Self::enter(
@@ -372,6 +376,7 @@ impl<'arena> RunRecords<'arena> {
             root,
             root_containing_block,
             Some((root_cells, root_frame)),
+            root_anchor_resolved_values,
             ContentSizing::Layout,
             run,
         )
@@ -389,6 +394,7 @@ impl<'arena> RunRecords<'arena> {
             root,
             root_containing_block,
             Some((root_cells, callbacks.frame)),
+            None,
             ContentSizing::RootContributions,
             run,
         )
@@ -406,6 +412,7 @@ impl<'arena> RunRecords<'arena> {
             root,
             root_containing_block,
             Some((root_cells, callbacks.frame)),
+            None,
             ContentSizing::RootContentInlineSizes,
             run,
         )
@@ -417,7 +424,15 @@ impl<'arena> RunRecords<'arena> {
         root_containing_block: Node,
         run: impl FnOnce(&Self, LayoutPass<'arena>) -> R,
     ) -> R {
-        Self::enter(callbacks, root, root_containing_block, None, ContentSizing::Layout, run)
+        Self::enter(
+            callbacks,
+            root,
+            root_containing_block,
+            None,
+            None,
+            ContentSizing::Layout,
+            run,
+        )
     }
 
     fn enter<R>(
@@ -425,6 +440,7 @@ impl<'arena> RunRecords<'arena> {
         root: Node,
         root_containing_block: Node,
         root_cells: Option<(used_values::RootInputCells, geometry::Frame)>,
+        root_anchor_resolved_values: Option<Box<style_values::AnchorResolvedValues>>,
         content_sizing: ContentSizing,
         run: impl FnOnce(&Self, LayoutPass<'arena>) -> R,
     ) -> R {
@@ -443,6 +459,7 @@ impl<'arena> RunRecords<'arena> {
                 root,
                 PercentageBlockSizeDependency::default()
             )]),
+            root_anchor_resolved_values,
         };
         run(&records, callbacks.for_run(root, root_containing_block))
     }
@@ -497,6 +514,14 @@ impl<'arena> RunRecords<'arena> {
 
     pub(crate) fn root(&self) -> Node {
         self.root
+    }
+
+    /// The anchor-size() resolutions the style reads of `node` see, which only an absolutely positioned run root has.
+    pub(crate) fn anchor_resolved_values_of(&self, node: Node) -> Option<&style_values::AnchorResolvedValues> {
+        if node != self.root {
+            return None;
+        }
+        self.root_anchor_resolved_values.as_deref()
     }
 
     /// Tracks the percentage block size dependency of `node` until the returned tracking is dropped, which the layout
@@ -591,6 +616,7 @@ mod tests {
             NodeSlotId::INVALID,
             used_values::RootInputCells::default(),
             geometry::Frame::PHYSICAL,
+            None,
             |parent, _| {
                 let root_used: *const UsedValues = parent.used_values(root);
                 RunRecords::with_root(
@@ -599,6 +625,7 @@ mod tests {
                     root,
                     used_values::RootInputCells::default(),
                     geometry::Frame::PHYSICAL,
+                    None,
                     |nested, _| {
                         assert!(nested.used_values_if_owned(root).is_none());
                         assert!(nested.used_values_if_owned(child).is_some());
@@ -631,6 +658,7 @@ mod tests {
             NodeSlotId::INVALID,
             used_values::RootInputCells::default(),
             geometry::Frame::PHYSICAL,
+            None,
             |parent, _| {
                 let root_used: *const UsedValues = parent.used_values(root);
                 let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -640,6 +668,7 @@ mod tests {
                         root,
                         used_values::RootInputCells::default(),
                         geometry::Frame::PHYSICAL,
+                        None,
                         |_, _| panic!("abort the nested measurement"),
                     );
                 }));

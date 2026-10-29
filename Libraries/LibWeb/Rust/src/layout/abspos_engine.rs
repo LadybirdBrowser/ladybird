@@ -130,6 +130,39 @@ impl ContainingBlockGeometry {
     }
 }
 
+/// An absolutely positioned box this engine sizes: its record, the used insets the engine resolves for it, and the
+/// anchor-size() resolutions its style reads.
+#[derive(Clone, Copy)]
+pub(crate) struct OutOfFlowBox<'a> {
+    pub(crate) node: Node,
+    pub(crate) record: used_values::RecordInFrame<'a>,
+    used_insets: &'a Cell<run_records::UsedInsets>,
+    anchor_resolved_values: Option<&'a style_values::AnchorResolvedValues>,
+}
+
+impl<'a> OutOfFlowBox<'a> {
+    pub(crate) fn new(
+        sized: sizing_context::SizedRecord<'a>,
+        used_insets: &'a Cell<run_records::UsedInsets>,
+        anchor_resolved_values: Option<&'a style_values::AnchorResolvedValues>,
+    ) -> Self {
+        Self {
+            node: sized.node,
+            record: sized.record,
+            used_insets,
+            anchor_resolved_values,
+        }
+    }
+
+    fn sized_record(&self) -> sizing_context::SizedRecord<'a> {
+        sizing_context::SizedRecord::new(self.node, self.record)
+    }
+
+    fn sized_box(&self) -> sizing_context::SizedBox<'_> {
+        sizing_context::SizedBox::new(self.node, &self.record)
+    }
+}
+
 pub(crate) struct AbsposEngine<'pass> {
     records: &'pass RunRecords<'pass>,
     callbacks: LayoutPass<'pass>,
@@ -264,19 +297,12 @@ impl<'pass> AbsposEngine<'pass> {
         StyleValues::for_node(&self.callbacks, node)
     }
 
-    /// The style of `sized`, an absolutely positioned box this engine sizes, with the anchor-size() resolutions its
-    /// record holds.
-    fn style_of<'sized>(&self, sized: sizing_context::SizedRecord<'sized>) -> StyleValues<'sized>
+    /// The style of `sized`, an absolutely positioned box this engine sizes, with its anchor-size() resolutions.
+    fn style_of<'sized>(&self, sized: OutOfFlowBox<'sized>) -> StyleValues<'sized>
     where
         'pass: 'sized,
     {
-        let anchor_resolved_values = sized
-            .record
-            .record()
-            .anchor_resolved_values
-            .get()
-            .map(|resolved| &**resolved);
-        StyleValues::for_node(&self.callbacks, sized.node).with_anchor_resolved_values(anchor_resolved_values)
+        StyleValues::for_node(&self.callbacks, sized.node).with_anchor_resolved_values(sized.anchor_resolved_values)
     }
 
     #[inline]
@@ -965,26 +991,6 @@ impl AbsposEngine<'_> {
         if aligns_block {
             zero_if_auto(style.margin_top(), &mut resolved.margin_top);
             zero_if_auto(style.margin_bottom(), &mut resolved.margin_bottom);
-        }
-    }
-
-    /// Makes the resolved anchor sizes of `inputs` visible to the style reads of `node` in this run's records.
-    fn install_resolved_anchor_sizes(
-        &self,
-        sized: sizing_context::SizedRecord<'_>,
-        inputs: &abspos_inputs::AbsposLayoutInputs,
-    ) {
-        if inputs.resolved_anchor_sizes.is_empty() {
-            return;
-        }
-        let used = sized.record.record();
-        if used.anchor_resolved_values.get().is_none() {
-            let _ = used
-                .anchor_resolved_values
-                .set(Box::new(style_values::AnchorResolvedValues::new(
-                    &inputs.resolved_anchor_sizes,
-                    self.callbacks.frame,
-                )));
         }
     }
 
@@ -1827,7 +1833,7 @@ impl AbsposEngine<'_> {
 
     fn static_offset(
         &self,
-        sized: sizing_context::SizedRecord<'_>,
+        sized: OutOfFlowBox<'_>,
         rect: abspos_inputs::StaticPositionRect,
     ) -> geometry::LogicalOffset {
         let metrics = sized.record;
@@ -1845,7 +1851,7 @@ impl AbsposEngine<'_> {
     #[expect(clippy::too_many_arguments)]
     fn calculate_inner_size(
         &self,
-        sized: sizing_context::SizedRecord<'_>,
+        sized: OutOfFlowBox<'_>,
         axis: SizingAxis,
         size: &ComputedSize,
         available_space: AvailableSpace,
@@ -1937,7 +1943,7 @@ impl AbsposEngine<'_> {
     #[expect(clippy::too_many_arguments)]
     fn solve_non_replaced_inline_once(
         &self,
-        sized: sizing_context::SizedRecord<'_>,
+        sized: OutOfFlowBox<'_>,
         containing_block_inline_size: CssPixels,
         _available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
@@ -2086,7 +2092,7 @@ impl AbsposEngine<'_> {
 
     fn compute_inline_size_for_non_replaced(
         &self,
-        sized: sizing_context::SizedRecord<'_>,
+        sized: OutOfFlowBox<'_>,
         available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
         static_position_rect: abspos_inputs::StaticPositionRect,
@@ -2229,7 +2235,7 @@ impl AbsposEngine<'_> {
 
     fn compute_inline_size_for_replaced(
         &self,
-        sized: sizing_context::SizedRecord<'_>,
+        sized: OutOfFlowBox<'_>,
         available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
         static_position_rect: abspos_inputs::StaticPositionRect,
@@ -2280,8 +2286,8 @@ impl AbsposEngine<'_> {
         used.set_content_inline_size(inline_size);
     }
 
-    fn set_used_inline_insets(sized: sizing_context::SizedRecord<'_>, left: CssPixels, right: CssPixels) {
-        let insets = &sized.record.record().used_insets;
+    fn set_used_inline_insets(sized: OutOfFlowBox<'_>, left: CssPixels, right: CssPixels) {
+        let insets = sized.used_insets;
         insets.set(run_records::UsedInsets {
             left,
             right,
@@ -2289,8 +2295,8 @@ impl AbsposEngine<'_> {
         });
     }
 
-    fn set_used_block_insets(sized: sizing_context::SizedRecord<'_>, top: CssPixels, bottom: CssPixels) {
-        let insets = &sized.record.record().used_insets;
+    fn set_used_block_insets(sized: OutOfFlowBox<'_>, top: CssPixels, bottom: CssPixels) {
+        let insets = sized.used_insets;
         insets.set(run_records::UsedInsets {
             top,
             bottom,
@@ -2300,7 +2306,7 @@ impl AbsposEngine<'_> {
 
     fn compute_inline_size(
         &self,
-        sized: sizing_context::SizedRecord<'_>,
+        sized: OutOfFlowBox<'_>,
         available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
         static_position_rect: abspos_inputs::StaticPositionRect,
@@ -2351,7 +2357,7 @@ enum BlockSizePass {
 impl AbsposEngine<'_> {
     fn apply_min_max_block_size_constraints(
         &self,
-        sized: sizing_context::SizedRecord<'_>,
+        sized: OutOfFlowBox<'_>,
         available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
         static_position_rect: abspos_inputs::StaticPositionRect,
@@ -2388,7 +2394,7 @@ impl AbsposEngine<'_> {
 
     fn automatic_block_size(
         &self,
-        sized: sizing_context::SizedRecord<'_>,
+        sized: OutOfFlowBox<'_>,
         available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
         pass: BlockSizePass,
@@ -2437,7 +2443,7 @@ impl AbsposEngine<'_> {
     #[expect(clippy::too_many_arguments)]
     fn solve_non_replaced_block_once(
         &self,
-        sized: sizing_context::SizedRecord<'_>,
+        sized: OutOfFlowBox<'_>,
         available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
         static_position_rect: abspos_inputs::StaticPositionRect,
@@ -2579,7 +2585,7 @@ impl AbsposEngine<'_> {
     #[expect(clippy::too_many_arguments)]
     fn compute_block_size_for_non_replaced(
         &self,
-        sized: sizing_context::SizedRecord<'_>,
+        sized: OutOfFlowBox<'_>,
         available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
         static_position_rect: abspos_inputs::StaticPositionRect,
@@ -2731,7 +2737,7 @@ impl AbsposEngine<'_> {
     #[expect(clippy::too_many_arguments)]
     fn compute_block_size_for_replaced(
         &self,
-        sized: sizing_context::SizedRecord<'_>,
+        sized: OutOfFlowBox<'_>,
         available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
         static_position_rect: abspos_inputs::StaticPositionRect,
@@ -2823,7 +2829,7 @@ impl AbsposEngine<'_> {
     #[expect(clippy::too_many_arguments)]
     fn compute_block_size(
         &self,
-        sized: sizing_context::SizedRecord<'_>,
+        sized: OutOfFlowBox<'_>,
         available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
         static_position_rect: abspos_inputs::StaticPositionRect,
@@ -2864,11 +2870,10 @@ impl<'pass> AbsposEngine<'pass> {
     // pass, and the definiteness overrides insets and aspect ratios provide.
     pub(crate) fn dimension_out_of_flow_root(
         &self,
-        sized: sizing_context::SizedRecord<'_>,
+        sized: OutOfFlowBox<'_>,
         inputs: abspos_inputs::AbsposLayoutInputs,
     ) {
         let node = sized.node;
-        self.install_resolved_anchor_sizes(sized, &inputs);
         let (available_space, constraints) = out_of_flow_root_space(inputs);
         let containing_block_inline_size = available_space.inline_size.to_px_or_zero();
         let resolved = inputs.resolved_anchor_insets.as_ref();
@@ -2936,16 +2941,15 @@ impl<'pass> AbsposEngine<'pass> {
         }
 
         self.sizing()
-            .make_form_control_content_box_definite(sized, available_space, constraints, None);
+            .make_form_control_content_box_definite(sized.sized_record(), available_space, constraints, None);
     }
 
     pub(crate) fn finalize_out_of_flow_root_after_inside_layout(
         &self,
-        sized: sizing_context::SizedRecord<'_>,
+        sized: OutOfFlowBox<'_>,
         inputs: abspos_inputs::AbsposLayoutInputs,
         inside_layout: Option<InsideLayoutBlockSizes>,
     ) {
-        self.install_resolved_anchor_sizes(sized, &inputs);
         let (available_space, constraints) = out_of_flow_root_space(inputs);
         let containing_block_size = geometry::LogicalSize {
             inline_size: available_space.inline_size.to_px_or_zero(),
@@ -3140,7 +3144,7 @@ impl<'pass> AbsposEngine<'pass> {
     /// https://drafts.csswg.org/css-align-3/#align-abspos
     fn self_alignment(
         &self,
-        sized: sizing_context::SizedRecord<'_>,
+        sized: OutOfFlowBox<'_>,
         containing_block: Node,
         inline_axis: bool,
     ) -> Option<AbsposAlignment> {
@@ -3185,7 +3189,7 @@ impl<'pass> AbsposEngine<'pass> {
 
     /// Whether the box's self-alignment in an axis of its containing block's frame makes it take its fit-content size
     /// within its inset-modified containing block, rather than fill it.
-    fn self_alignment_sizes_to_fit_content(&self, sized: sizing_context::SizedRecord<'_>, inline_axis: bool) -> bool {
+    fn self_alignment_sizes_to_fit_content(&self, sized: OutOfFlowBox<'_>, inline_axis: bool) -> bool {
         let style = self.style_of(sized);
         let value = if inline_axis {
             style.justify_self()

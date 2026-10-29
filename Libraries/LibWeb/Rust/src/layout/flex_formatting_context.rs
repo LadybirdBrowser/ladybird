@@ -4540,6 +4540,7 @@ mod stretch_cross_limit_tests {
             Node::INVALID,
             container_cells,
             callbacks.frame,
+            None,
             |records, callbacks| {
                 let run = FormattingContextRun {
                     records,

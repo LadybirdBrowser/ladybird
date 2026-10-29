@@ -1663,6 +1663,7 @@ fn apply_root_sizing_directives(
     run: &FormattingContextRun,
     input: &LayoutInput,
     fc_type: FormattingContextType,
+    root_used_insets: &Cell<run_records::UsedInsets>,
 ) -> RootSizingOutcome {
     let sized_root = run.sized_root();
     let mut atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above = None;
@@ -1699,7 +1700,14 @@ fn apply_root_sizing_directives(
             body_input
         }
         ParticipationInParentFormattingContext::AbsolutelyPositioned(abspos_inputs) => {
-            abspos_engine::AbsposEngine::for_run(run).dimension_out_of_flow_root(run.sized_root(), abspos_inputs);
+            abspos_engine::AbsposEngine::for_run(run).dimension_out_of_flow_root(
+                abspos_engine::OutOfFlowBox::new(
+                    run.sized_root(),
+                    root_used_insets,
+                    run.records.anchor_resolved_values_of(run.box_),
+                ),
+                abspos_inputs,
+            );
             body_input_with_inner_available_space(run, input)
         }
         ParticipationInParentFormattingContext::Item => {
@@ -1924,13 +1932,14 @@ fn finalize_float_root(run: &FormattingContextRun, input: &LayoutInput, body_res
     );
 }
 
+/// Sizes `child` in `record` without a run of its own. Returns the used insets of an absolutely positioned child.
 fn size_skipped_independent_root(
     run: &FormattingContextRun,
     parent_block: Option<&block_formatting_context::BlockFormattingContext>,
     child: Node,
     record: &UsedValues,
     input: &LayoutInput,
-) {
+) -> Option<run_records::UsedInsets> {
     match input.participation {
         ParticipationInParentFormattingContext::Float { .. } => {
             let parent = parent_block.expect("a float requires an enclosing block formatting context");
@@ -1943,20 +1952,29 @@ fn size_skipped_independent_root(
                 None,
                 None,
             );
+            None
         }
         ParticipationInParentFormattingContext::AbsolutelyPositioned(abspos_inputs) => {
             let engine = abspos_engine::AbsposEngine::for_run(run);
-            let sized_child =
-                sizing_context::SizedRecord::new(child, used_values::RecordInFrame::new(record, run.callbacks.frame));
+            let anchor_resolved_values = (!abspos_inputs.resolved_anchor_sizes.is_empty()).then(|| {
+                style_values::AnchorResolvedValues::new(&abspos_inputs.resolved_anchor_sizes, run.callbacks.frame)
+            });
+            let used_insets = Cell::new(run_records::UsedInsets::default());
+            let sized_child = abspos_engine::OutOfFlowBox::new(
+                sizing_context::SizedRecord::new(child, used_values::RecordInFrame::new(record, run.callbacks.frame)),
+                &used_insets,
+                anchor_resolved_values.as_ref(),
+            );
             engine.dimension_out_of_flow_root(sized_child, abspos_inputs);
             engine.finalize_out_of_flow_root_after_inside_layout(sized_child, abspos_inputs, None);
+            Some(used_insets.get())
         }
         ParticipationInParentFormattingContext::BlockLevel => {
             unreachable!("a block formatting context lays out only boxes, and every block-level box can have children")
         }
         ParticipationInParentFormattingContext::AtomicInline
         | ParticipationInParentFormattingContext::Item
-        | ParticipationInParentFormattingContext::Root => {}
+        | ParticipationInParentFormattingContext::Root => None,
     }
 }
 
@@ -2227,12 +2245,25 @@ fn execute_formatting_context_run(
     // NB: The root's record holds its metrics in the frame the root lays its contents out in, for its whole life. The
     //     root's own box is sized in its parent's frame, through views of the record.
     let own_frame = frame_established_by(&callbacks, box_);
+    // NB: The anchor-size() resolutions apply only in the parent's frame, where the root's own box is sized.
+    let root_anchor_resolved_values = match input.participation {
+        ParticipationInParentFormattingContext::AbsolutelyPositioned(inputs)
+            if !inputs.resolved_anchor_sizes.is_empty() =>
+        {
+            Some(Box::new(style_values::AnchorResolvedValues::new(
+                &inputs.resolved_anchor_sizes,
+                callbacks.frame,
+            )))
+        }
+        _ => None,
+    };
     let (outputs, root_cells_left_by_run) = RunRecords::with_root(
         callbacks,
         box_,
         root_containing_block,
         root_cells.in_frame(callbacks.frame, own_frame),
         own_frame,
+        root_anchor_resolved_values,
         |records, callbacks| {
             let outputs = lay_out_run_root_and_contents(
                 records,
@@ -2327,10 +2358,11 @@ fn lay_out_run_root_and_contents<'pass>(
         Some(table_inline_layout) if table_inline_layout.table_box() == box_ => (Some(table_inline_layout), None),
         table_inline_layout => (None, table_inline_layout),
     };
+    let root_used_insets = Cell::new(run_records::UsedInsets::default());
     let RootSizingOutcome {
         body_input,
         atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above,
-    } = apply_root_sizing_directives(run, &input, fc_type);
+    } = apply_root_sizing_directives(run, &input, fc_type, &root_used_insets);
     debug_assert!(
         !body_input.available_space.inline_size.is_intrinsic_sizing_constraint(),
         "no run lays out its contents under an intrinsic inline size"
@@ -2478,14 +2510,18 @@ fn lay_out_run_root_and_contents<'pass>(
         }
         ParticipationInParentFormattingContext::AbsolutelyPositioned(abspos_inputs) => {
             abspos_engine::AbsposEngine::for_run(run).finalize_out_of_flow_root_after_inside_layout(
-                run.sized_root(),
+                abspos_engine::OutOfFlowBox::new(
+                    run.sized_root(),
+                    &root_used_insets,
+                    run.records.anchor_resolved_values_of(run.box_),
+                ),
                 abspos_inputs,
                 Some(abspos_engine::InsideLayoutBlockSizes {
                     automatic_content_block_size: result.automatic_content_block_size,
                     content_block_size_for_aspect_ratio_minimum: result.content_block_size_for_aspect_ratio_minimum,
                 }),
             );
-            result.out_of_flow_root_used_insets = Some(run.root_record().record().used_insets.get());
+            result.out_of_flow_root_used_insets = Some(root_used_insets.get());
         }
         ParticipationInParentFormattingContext::Item => {
             if run_reads_content_block_size_adopted_after_it(fc_type, &input)
@@ -2874,12 +2910,8 @@ pub(crate) fn layout_inside_child_with_input_cells(
     );
     if !facts.can_have_children() && !creates_replaced_context {
         let record_of_this_layout = child_input_cells.materialize_record(run.callbacks.frame);
-        size_skipped_independent_root(run, parent_block, child, &record_of_this_layout, &input);
-        let out_of_flow_root_used_insets = matches!(
-            input.participation,
-            ParticipationInParentFormattingContext::AbsolutelyPositioned(_)
-        )
-        .then(|| record_of_this_layout.used_insets.get());
+        let out_of_flow_root_used_insets =
+            size_skipped_independent_root(run, parent_block, child, &record_of_this_layout, &input);
         return ChildLayout::of_child_sized_in_parent_run(
             skipped(out_of_flow_root_used_insets),
             &record_of_this_layout,
@@ -3812,6 +3844,7 @@ mod baseline_tests {
             Node::INVALID,
             parent_cells,
             callbacks.frame,
+            None,
             |_, callbacks| {
                 let child_cells = used_values::RootInputCells::default();
                 assert!(child_gives_container_baselines(&callbacks, parent, child));
