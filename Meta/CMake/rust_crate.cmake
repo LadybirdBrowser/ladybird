@@ -1,5 +1,26 @@
 set_property(GLOBAL PROPERTY JOB_POOLS "${JOB_POOLS};cargo=1")
 
+# Detect the Rust toolchain.
+find_program(RUST_CARGO cargo REQUIRED)
+find_program(RUST_RUSTC rustc REQUIRED)
+
+if (NOT DEFINED RUSTC_WRAPPER)
+    set(RUSTC_WRAPPER "$ENV{RUSTC_WRAPPER}" CACHE FILEPATH "Path to a rustc wrapper program, e.g. sccache")
+endif()
+if (NOT RUSTC_WRAPPER)
+    find_program(SCCACHE_PROGRAM sccache)
+    if (SCCACHE_PROGRAM)
+        set(RUSTC_WRAPPER "${SCCACHE_PROGRAM}" CACHE FILEPATH "Path to a rustc wrapper program, e.g. sccache" FORCE)
+    endif()
+endif()
+
+if (NOT DEFINED CACHE{RUST_TARGET_TRIPLE})
+    execute_process(COMMAND "${RUST_RUSTC}" -vV OUTPUT_VARIABLE rustc_verbose)
+    string(REGEX MATCH "host: ([^\n]+)" _ "${rustc_verbose}")
+    string(STRIP "${CMAKE_MATCH_1}" host_triple)
+    set(RUST_TARGET_TRIPLE "${host_triple}" CACHE INTERNAL "Rust target triple")
+endif()
+
 # Compiler flags shared by Rust libraries, binaries, and tests.
 set(RUSTC_TARGET_FLAGS -Dwarnings ${RUSTC_TARGET_CPU_FLAGS} ${RUSTC_TARGET_FRAME_POINTER_FLAGS})
 list(JOIN RUSTC_TARGET_FLAGS " " RUSTC_TARGET_FLAGS)
@@ -338,25 +359,6 @@ function(_rust_crate_common_setup)
         get_filename_component(workspace_dir "${workspace_dir}" DIRECTORY)
     endwhile()
 
-    # Detect the Rust toolchain.
-    find_program(RUST_CARGO cargo REQUIRED)
-    find_program(RUST_RUSTC rustc REQUIRED)
-    if (NOT DEFINED RUSTC_WRAPPER)
-        set(RUSTC_WRAPPER "$ENV{RUSTC_WRAPPER}" CACHE FILEPATH "Path to a rustc wrapper program, e.g. sccache")
-    endif()
-    if (NOT RUSTC_WRAPPER)
-        find_program(SCCACHE_PROGRAM sccache)
-        if (SCCACHE_PROGRAM)
-            set(RUSTC_WRAPPER "${SCCACHE_PROGRAM}" CACHE FILEPATH "Path to a rustc wrapper program, e.g. sccache" FORCE)
-        endif()
-    endif()
-    if (NOT DEFINED CACHE{RUST_TARGET_TRIPLE})
-        execute_process(COMMAND "${RUST_RUSTC}" -vV OUTPUT_VARIABLE rustc_verbose)
-        string(REGEX MATCH "host: ([^\n]+)" _ "${rustc_verbose}")
-        string(STRIP "${CMAKE_MATCH_1}" host_triple)
-        set(RUST_TARGET_TRIPLE "${host_triple}" CACHE INTERNAL "Rust target triple")
-    endif()
-
     # Build the uppercased and underscored variants of the target triple.
     string(REPLACE "-" "_" target_underscore "${RUST_TARGET_TRIPLE}")
     string(TOUPPER "${target_underscore}" target_upper)
@@ -433,8 +435,6 @@ function(_rust_crate_common_setup)
     )
 
     # Populate the variable names used by the public helpers below.
-    set(RUST_CARGO "${RUST_CARGO}" PARENT_SCOPE)
-
     set(cargo_common_flags "${cargo_common_flags}" PARENT_SCOPE)
     set(cargo_env "${cargo_env}" PARENT_SCOPE)
     set(cargo_output_dir "${cargo_output_dir}" PARENT_SCOPE)
