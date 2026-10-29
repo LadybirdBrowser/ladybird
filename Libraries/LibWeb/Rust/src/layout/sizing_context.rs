@@ -2414,10 +2414,9 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
                 root,
                 |records, callbacks| {
                     let sizing = SizingContext::new(records, callbacks);
-                    let root_record = used_values::RecordInFrame::new(records.used_values(node), callbacks.frame);
                     let inline_size_under = |inline_size| {
                         sizing.atomic_root_content_inline_size(
-                            SizedBox::of_own_metrics(node, &root_record, root_record.reader()),
+                            SizedBox::of_own_metrics(node, &root, callbacks.frame),
                             AvailableSpace {
                                 inline_size,
                                 block_size: available_block_size,
@@ -2427,17 +2426,16 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
                     };
                     let max_content_inline_size = inline_size_under(AvailableSize::MaxContent);
                     let min_content_inline_size = inline_size_under(AvailableSize::MinContent);
-                    let root_used = records.used_values(node);
                     (
                         OuterInlineContributions {
                             min_content_inline_size,
                             max_content_inline_size,
-                            margin_start: root_used.margin_left(),
-                            border_start: root_used.border_left(),
-                            padding_start: root_used.padding_left(),
-                            padding_end: root_used.padding_right(),
-                            border_end: root_used.border_right(),
-                            margin_end: root_used.margin_right(),
+                            margin_start: root.margin_left,
+                            border_start: root.border_left,
+                            padding_start: root.padding_left,
+                            padding_end: root.padding_right,
+                            border_end: root.border_right,
+                            margin_end: root.margin_right,
                         },
                         records
                             .percentage_block_size_dependency_of(node)
