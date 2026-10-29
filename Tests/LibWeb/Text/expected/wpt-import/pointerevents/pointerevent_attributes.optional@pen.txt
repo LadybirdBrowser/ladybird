@@ -1,0 +1,23 @@
+Harness status: OK
+
+Found 16 tests
+
+1 Pass
+1 Fail
+14 Optional Feature Unsupported
+Pass	Main-frame attribute test.
+Fail	Inner-frame attribute test.
+Optional Feature Unsupported	Main-frame pen pointerover.fromElement value is null
+Optional Feature Unsupported	Main-frame pen pointerover.toElement value is null
+Optional Feature Unsupported	Main-frame pen pointerenter.fromElement value is null
+Optional Feature Unsupported	Main-frame pen pointerenter.toElement value is null
+Optional Feature Unsupported	Main-frame pen pointermove.fromElement value is null
+Optional Feature Unsupported	Main-frame pen pointermove.toElement value is null
+Optional Feature Unsupported	Main-frame pen pointerdown.fromElement value is null
+Optional Feature Unsupported	Main-frame pen pointerdown.toElement value is null
+Optional Feature Unsupported	Main-frame pen pointerup.fromElement value is null
+Optional Feature Unsupported	Main-frame pen pointerup.toElement value is null
+Optional Feature Unsupported	Main-frame pen pointerout.fromElement value is null
+Optional Feature Unsupported	Main-frame pen pointerout.toElement value is null
+Optional Feature Unsupported	Main-frame pen pointerleave.fromElement value is null
+Optional Feature Unsupported	Main-frame pen pointerleave.toElement value is null
