@@ -1,3 +1,5 @@
+ladybird_test_suite(LibCompositing)
+
 set(TEST_SOURCES
     TestElasticOverscroll.cpp
     TestOverlayFade.cpp
@@ -13,6 +15,5 @@ set(TEST_SOURCES
     TestWheelGestureIdentity.cpp
 )
 
-foreach(source IN LISTS TEST_SOURCES)
-    ladybird_test("${source}" LibCompositing LIBS LibCompositing LibGfx LibIPC)
-endforeach()
+target_sources(TestLibCompositing PRIVATE ${TEST_SOURCES})
+target_link_libraries(TestLibCompositing PRIVATE LibCompositing LibGfx LibIPC)
