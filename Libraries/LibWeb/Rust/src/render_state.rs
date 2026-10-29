@@ -905,6 +905,14 @@ const _: () = {
     assert_send::<ArenaChange>();
 };
 
+// A shared borrow of the layout arena changes nothing in it: every field is plain, written only through `&mut`, and the
+// style engine it links is reached through a shared borrow only as the engine's retained state. So the layout passes of a
+// stage may share the arena across threads, which the compiler checks here.
+const _: () = {
+    const fn assert_sync<T: Sync + ?Sized>() {}
+    assert_sync::<crate::layout::LayoutNodeArena>();
+};
+
 // Only a forced read waits for a frame in flight.
 impl crate::stage_thread::Flown for Landing {
     type JoinRight = ForcedRead;
