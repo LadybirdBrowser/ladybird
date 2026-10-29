@@ -1241,8 +1241,8 @@ pub(crate) struct LayoutNodeArena {
     /// is the only one built for its node links to nothing. The chain lives on the rows rather than
     /// under a key so that it survives the node's identity being retired and re-issued.
     next_rows_built_for_same_node: Vec<Cell<NodeSlotId>>,
-    fc_run_cache_store: super::fc_run_cache::FcRunCacheArenaStore,
-    in_flow_block_cache_store: super::in_flow_block_cache::InFlowBlockCacheStore,
+    /// What writes since the layout stage last looked did to the boxes its run memos hold entries of.
+    memo_invalidations: RefCell<super::memo_invalidations::MemoInvalidations>,
     pub(super) layout_trace: super::trace::LayoutTrace,
     pub(crate) paintable_rows: crate::painting::paintable_rows::PaintableRowStore,
     paint_state: RefCell<crate::painting::paint_state::PaintState>,
@@ -1357,8 +1357,7 @@ impl LayoutNodeArena {
             layer_image_paint_facts: RefCell::default(),
             svg_paint_resources: crate::painting::svg_paint_resources::SvgPaintResources::default(),
             next_rows_built_for_same_node: Vec::new(),
-            fc_run_cache_store: super::fc_run_cache::FcRunCacheArenaStore::default(),
-            in_flow_block_cache_store: super::in_flow_block_cache::InFlowBlockCacheStore::default(),
+            memo_invalidations: RefCell::default(),
             layout_trace: super::trace::LayoutTrace::default(),
             paintable_rows: crate::painting::paintable_rows::PaintableRowStore::default(),
             paint_state: RefCell::new(crate::painting::paint_state::PaintState::default()),
@@ -1437,24 +1436,17 @@ impl LayoutNodeArena {
         }
     }
 
-    pub(crate) fn fc_run_cache_store(&self) -> &super::fc_run_cache::FcRunCacheArenaStore {
-        &self.fc_run_cache_store
+    /// What writes did to the boxes the layout stage's run memos hold entries of since the stage last took it.
+    pub(crate) fn take_memo_invalidations(&self) -> super::memo_invalidations::MemoInvalidations {
+        self.memo_invalidations.take()
     }
 
-    pub(crate) fn in_flow_block_cache_store(&self) -> &super::in_flow_block_cache::InFlowBlockCacheStore {
-        &self.in_flow_block_cache_store
-    }
-
-    pub(crate) fn end_layout_pass(&self) {
-        self.sweep_stale_fc_run_cache_entries();
-    }
-
-    /// Drops entries whose slot or epoch no longer matches, marks the entry whose fragments each box
-    /// committed and ages the others. Checks only boxes whose entries were invalidated, stored or used
-    /// since the previous sweep, or can still age out. Stale entries survive until commit so inline
-    /// layout can reuse their undamaged line prefixes.
-    fn sweep_stale_fc_run_cache_entries(&self) {
-        self.fc_run_cache_store.sweep_pending_entries(
+    /// Drops the entries of `store` whose slot or epoch no longer matches, marks the entry whose fragments each box
+    /// committed and ages the others. Checks only boxes whose entries were invalidated, stored or used since the
+    /// previous sweep, or can still age out. Stale entries survive until commit so inline layout can reuse their
+    /// undamaged line prefixes.
+    pub(crate) fn sweep_stale_fc_run_cache_entries(&self, store: &super::fc_run_cache::FcRunCacheStore) {
+        store.sweep_pending_entries(
             |slot, validity| {
                 let Some(metadata) = self.slot_metadata.get(slot as usize) else {
                     return false;
@@ -1755,8 +1747,7 @@ impl LayoutNodeArena {
         }
         self.owned_image_natural_sizes.get_mut().remove(&id);
         self.owned_image_providers.get_mut().remove(&id);
-        self.fc_run_cache_store.remove_entry(index);
-        self.in_flow_block_cache_store.remove_entry(index);
+        self.memo_invalidations.get_mut().note_slot_freed(index);
         self.remove_layout_update_flag_node(id);
         self.math_layout_kinds.get_mut().remove(&id);
         if self.replaced_paint_facts.get_mut().contains_key(&id) {
@@ -5223,7 +5214,9 @@ impl LayoutNodeArena {
     pub(crate) fn clear_committed_fragment_link(&self, id: NodeSlotId) {
         // Cached runs may reuse the committed paintable subtree without replaying its fragments.
         // Once that subtree is cleared, a later layout must rebuild it instead.
-        self.fc_run_cache_store.remove_entry(id.slot_index());
+        self.memo_invalidations
+            .borrow_mut()
+            .note_run_cache_entries_dropped(id.slot_index());
         self.note_subtrees_of_self_and_ancestors_committed_anew(id);
         drop(self.take_committed_fragment_link(self.data(id)));
     }
@@ -5590,7 +5583,7 @@ impl LayoutNodeArena {
     /// The part of `invalidate_at_and_above` that applies to one node, for walks that also do other work on the way up.
     pub(super) fn invalidate_one(&self, node: NodeSlotId, invalidation: AncestorInvalidation) {
         if invalidation == AncestorInvalidation::StructuralChange {
-            self.fc_run_cache_store.note_inline_layout_damage(node);
+            self.memo_invalidations.borrow_mut().note_structural_inline_change(node);
         }
         self.bump_fragment_cache_epoch(node);
         if super::node_facts::kind_is_box(self.data(node).kind.get()) {
@@ -5609,9 +5602,9 @@ impl LayoutNodeArena {
             !self.layout_pass_is_running(),
             "a node's committed fragments became stale while a layout pass ran"
         );
-        self.fc_run_cache_store.note_invalidated_entry(node);
-        // NB: An in-flow block entry is valid for one epoch only, so it never matches again.
-        self.in_flow_block_cache_store.remove_entry(node.slot_index());
+        self.memo_invalidations
+            .borrow_mut()
+            .note_fragment_cache_epoch_bumped(node);
     }
 
     pub(crate) fn note_structural_change_at_and_above(&self, node: NodeSlotId) {

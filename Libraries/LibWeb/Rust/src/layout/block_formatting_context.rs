@@ -3181,7 +3181,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             .arena()
             .with_current_committed_fragment(node, |fragment| fragment.clone())
             .and_then(|fragment| {
-                let entry = callbacks.arena().in_flow_block_cache_store().matching(
+                let entry = callbacks.in_flow_block_cache_store().matching(
                     node.slot_index(),
                     validity,
                     &key,
@@ -3311,7 +3311,8 @@ impl<'pass> BlockFormattingContext<'pass> {
             fragment_identity: placed.fragment.identity,
         };
         let committed_identity = arena.with_current_committed_fragment(node, |fragment| fragment.identity);
-        arena
+        self.run
+            .callbacks
             .in_flow_block_cache_store()
             .store(node.slot_index(), entry, committed_identity);
     }

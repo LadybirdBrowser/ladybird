@@ -166,6 +166,16 @@ impl<'arena> LayoutPass<'arena> {
         None
     }
 
+    /// The results of formatting context runs, kept for the runs and passes after them.
+    pub(crate) fn fc_run_cache_store(&self) -> &'arena super::fc_run_cache::FcRunCacheStore {
+        self.scratch.fc_run_cache_store()
+    }
+
+    /// The layouts of in-flow blocks, kept for the passes after the one that laid them out.
+    pub(crate) fn in_flow_block_cache_store(&self) -> &'arena super::in_flow_block_cache::InFlowBlockCacheStore {
+        self.scratch.in_flow_block_cache_store()
+    }
+
     /// Whether this pass view is inside a run whose result is discarded, which reads no memoized layout from before it
     /// and keeps none.
     pub(crate) fn reads_no_memoized_layout(&self) -> bool {

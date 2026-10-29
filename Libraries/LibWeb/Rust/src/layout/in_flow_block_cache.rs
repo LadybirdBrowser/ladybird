@@ -81,7 +81,7 @@ struct InFlowBlockSlot {
     committed: Option<std::sync::Arc<InFlowBlockEntry>>,
 }
 
-/// Per-document store of in-flow block layouts, surviving across layout passes on the node arena.
+/// Per-document store of in-flow block layouts, surviving across layout passes in the layout stage's scratch.
 #[derive(Clone, Default)]
 pub(crate) struct InFlowBlockCacheStore {
     entries: RefCell<Vec<InFlowBlockSlot>>,

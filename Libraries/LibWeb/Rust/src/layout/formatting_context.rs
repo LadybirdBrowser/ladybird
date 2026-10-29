@@ -3524,8 +3524,7 @@ impl LayoutStageJob {
         }
         notifications.prepend_layout_messages(messages);
         let arena = state.arena();
-        arena.end_layout_pass();
-        state.layout_scratch().end_layout_pass();
+        state.layout_scratch().end_layout_pass(arena);
         arena.reset_layout_update_flags_in_subtree(root);
         arena.leave_active_layout_pass();
         match kind {
@@ -3660,6 +3659,7 @@ fn prepare_layout_stage(state: &mut super::ArenaHandle, kind: LayoutStageKind, r
         }
     }
     drop_intrinsic_size_cache_entries_of_released_slots(arena, state.layout_scratch());
+    state.layout_scratch().apply_memo_invalidations(arena);
     arena.begin_active_layout_pass();
 }
 
