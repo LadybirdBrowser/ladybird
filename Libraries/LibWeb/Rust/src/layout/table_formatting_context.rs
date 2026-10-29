@@ -5,6 +5,7 @@
  */
 
 use super::*;
+use std::ops::Range;
 
 pub(crate) const LINE_STYLE_NONE: u8 = 0;
 pub(crate) const LINE_STYLE_HIDDEN: u8 = 1;
@@ -675,7 +676,110 @@ pub(crate) struct TableGrid {
     pub(crate) column_count: usize,
     pub(crate) cells: Vec<TableCell>,
     pub(crate) rows: Vec<Row>,
-    pub(crate) occupancy: HashSet<(usize, usize)>,
+    pub(crate) occupancy: TableGridOccupancy,
+}
+
+/// A table cell whose row span covers rows after the row it starts in.
+struct CellSpanningRows {
+    columns: Range<usize>,
+    row_end: usize,
+}
+
+/// The slots of a table grid that its cells cover, each cell with its whole row and column span.
+pub(crate) struct TableGridOccupancy {
+    /// The covered columns of every row, as sorted half-open ranges that neither overlap nor touch. The ranges of row
+    /// `r` are `covered_columns[first_range_of_row[r]..first_range_of_row[r + 1]]`; those of the row being built are
+    /// the ranges past the last entry of `first_range_of_row`.
+    covered_columns: Vec<Range<usize>>,
+    first_range_of_row: Vec<usize>,
+    /// The cells whose row span covers rows after the row being built, or after the last row once all rows are built.
+    cells_spanning_later_rows: Vec<CellSpanningRows>,
+}
+
+impl TableGridOccupancy {
+    fn new() -> Self {
+        Self {
+            covered_columns: Vec::new(),
+            first_range_of_row: vec![0],
+            cells_spanning_later_rows: Vec::new(),
+        }
+    }
+
+    /// Whether a cell covers the slot at `(column, row)`.
+    pub(crate) fn contains(&self, &(column, row): &(usize, usize)) -> bool {
+        let built_row_count = self.first_range_of_row.len() - 1;
+        if row < built_row_count {
+            let ranges = &self.covered_columns[self.first_range_of_row[row]..self.first_range_of_row[row + 1]];
+            return Self::range_covering(ranges, column).is_some();
+        }
+        self.cells_spanning_later_rows
+            .iter()
+            .any(|cell| row < cell.row_end && cell.columns.contains(&column))
+    }
+
+    fn range_covering(ranges: &[Range<usize>], column: usize) -> Option<&Range<usize>> {
+        ranges
+            .get(ranges.partition_point(|range| range.end <= column))
+            .filter(|range| range.start <= column)
+    }
+
+    fn ranges_of_row_being_built(&self) -> &[Range<usize>] {
+        &self.covered_columns[*self.first_range_of_row.last().unwrap()..]
+    }
+
+    fn cover_columns_of_row_being_built(&mut self, columns: Range<usize>) {
+        if columns.is_empty() {
+            return;
+        }
+        let first_range_of_row = *self.first_range_of_row.last().unwrap();
+        let ranges = &self.covered_columns[first_range_of_row..];
+        let first_touching = first_range_of_row + ranges.partition_point(|range| range.end < columns.start);
+        let end_touching = first_range_of_row + ranges.partition_point(|range| range.start <= columns.end);
+        if first_touching == end_touching {
+            self.covered_columns.insert(first_touching, columns);
+            return;
+        }
+        let merged = self.covered_columns[first_touching].start.min(columns.start)
+            ..self.covered_columns[end_touching - 1].end.max(columns.end);
+        self.covered_columns[first_touching] = merged;
+        self.covered_columns.drain(first_touching + 1..end_touching);
+    }
+
+    /// Starts building row `row`, which the cells of earlier rows that span it cover.
+    fn start_row(&mut self, row: usize) {
+        debug_assert_eq!(self.first_range_of_row.len(), row + 1);
+        let mut cells = std::mem::take(&mut self.cells_spanning_later_rows);
+        cells.retain(|cell| {
+            self.cover_columns_of_row_being_built(cell.columns.clone());
+            cell.row_end > row + 1
+        });
+        self.cells_spanning_later_rows = cells;
+    }
+
+    /// The first column from `column` on that no cell covers in the row being built, or `column_count` if every one up
+    /// to it is covered.
+    fn first_uncovered_column_of_row_being_built(&self, column: usize, column_count: usize) -> usize {
+        if column >= column_count {
+            return column;
+        }
+        Self::range_covering(self.ranges_of_row_being_built(), column)
+            .map_or(column, |range| range.end.min(column_count))
+    }
+
+    /// Covers the slots of a cell that starts in the row being built, `row`.
+    fn cover_cell(&mut self, columns: Range<usize>, row: usize, row_span: usize) {
+        if row_span > 1 && !columns.is_empty() {
+            self.cells_spanning_later_rows.push(CellSpanningRows {
+                columns: columns.clone(),
+                row_end: row + row_span,
+            });
+        }
+        self.cover_columns_of_row_being_built(columns);
+    }
+
+    fn finish_row(&mut self) {
+        self.first_range_of_row.push(self.covered_columns.len());
+    }
 }
 
 #[derive(Clone)]
@@ -771,7 +875,7 @@ pub(crate) enum MissingTableCells {
 pub(crate) fn calculate_table_grid<T: TableTree>(tree: &T, table: Node, missing_cells: MissingTableCells) -> TableGrid {
     let mut cells = Vec::new();
     let mut rows = Vec::new();
-    let mut occupancy = HashSet::default();
+    let mut occupancy = TableGridOccupancy::new();
     let mut column_count = 0usize;
 
     for child in matching_children(tree, table, |display| {
@@ -798,19 +902,18 @@ pub(crate) fn calculate_table_grid<T: TableTree>(tree: &T, table: Node, missing_
                        row_group: Option<Node>,
                        cells: &mut Vec<TableCell>,
                        rows: &mut Vec<Row>,
-                       occupancy: &mut HashSet<(usize, usize)>,
+                       occupancy: &mut TableGridOccupancy,
                        column_count: &mut usize| {
         let current_row = rows.len();
         let mut current_column = 0usize;
+        occupancy.start_row(current_row);
         for cell_box in matching_children(tree, row, |display| display.is_table_cell()) {
             if missing_cells == MissingTableCells::Exclude
                 && node_facts::has_flag(tree.node_data(cell_box), NodeFlag::IsMissingTableCell)
             {
                 continue;
             }
-            while current_column < *column_count && occupancy.contains(&(current_column, current_row)) {
-                current_column += 1;
-            }
+            current_column = occupancy.first_uncovered_column_of_row_being_built(current_column, *column_count);
             if current_column == *column_count {
                 *column_count += 1;
             }
@@ -822,11 +925,7 @@ pub(crate) fn calculate_table_grid<T: TableTree>(tree: &T, table: Node, missing_
                 row_span = 1;
             }
             *column_count = (*column_count).max(current_column + column_span);
-            for row_index in current_row..current_row + row_span {
-                for column_index in current_column..current_column + column_span {
-                    occupancy.insert((column_index, row_index));
-                }
-            }
+            occupancy.cover_cell(current_column..current_column + column_span, current_row, row_span);
             cells.push(TableCell {
                 box_: cell_box,
                 column_index: current_column,
@@ -844,6 +943,7 @@ pub(crate) fn calculate_table_grid<T: TableTree>(tree: &T, table: Node, missing_
             current_column += column_span;
         }
 
+        occupancy.finish_row();
         rows.push(Row::new(row, tree.row_is_collapsed(row, row_group)));
     };
 
