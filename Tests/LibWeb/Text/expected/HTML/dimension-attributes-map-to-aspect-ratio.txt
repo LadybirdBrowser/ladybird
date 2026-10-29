@@ -1,0 +1,20 @@
+img: auto 1524 / 876
+img-decimal: auto 16.5 / 9
+img-percentage: auto
+img-only-width: auto
+img-zero: auto 0 / 10
+video: auto 640 / 360
+input-image: auto 30 / 20
+input-text: auto
+iframe: auto
+canvas: auto 300 / 200
+img-in-picture: auto 400 / 100
+img-in-picture-with-source-dimensions: auto 300 / 100
+contained: 200x114.953125
+contained-in-picture: 200x50
+contained-zero: 200x0
+dynamic: 200x200
+dynamic-in-picture: 200x50
+dynamic: 200x100
+dynamic: 200x0
+dynamic-in-picture: 200x400

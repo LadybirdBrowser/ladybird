@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .contained { contain: size; width: 200px; height: auto; display: block; }
+</style>
+<img id="img" width="1524" height="876">
+<img id="img-decimal" width="16.5" height="9">
+<img id="img-percentage" width="50%" height="9">
+<img id="img-only-width" width="16">
+<img id="img-zero" width="0" height="10">
+<img id="contained-zero" class="contained" width="0" height="0">
+<video id="video" width="640" height="360"></video>
+<input id="input-image" type="image" width="30" height="20">
+<input id="input-text" type="text" width="30" height="20">
+<iframe id="iframe" width="300" height="200"></iframe>
+<canvas id="canvas" width="300" height="200"></canvas>
+<picture><source id="source-without-dimensions" srcset="../../../Assets/120.png"><img id="img-in-picture" width="400" height="100"></picture>
+<picture><source srcset="../../../Assets/120.png" width="300" height="100"><img id="img-in-picture-with-source-dimensions" width="400" height="200"></picture>
+<img id="contained" class="contained" src="../../../Assets/120.png" width="1524" height="876">
+<img id="dynamic" class="contained" src="../../../Assets/120.png" width="100" height="100">
+<picture><source id="dynamic-source" srcset="../../../Assets/120.png" width="100" height="25"><img id="dynamic-in-picture" class="contained" width="100" height="100"></picture>
+<picture><source srcset="../../../Assets/120.png"><img id="contained-in-picture" class="contained" src="../../../Assets/120.png" width="400" height="100" sizes="auto" loading="lazy"></picture>
+<script>
+    asyncTest(done => {
+        window.onload = () => {
+            for (const id of ["img", "img-decimal", "img-percentage", "img-only-width", "img-zero", "video", "input-image", "input-text", "iframe", "canvas", "img-in-picture", "img-in-picture-with-source-dimensions"])
+                println(`${id}: ${getComputedStyle(document.getElementById(id)).aspectRatio}`);
+            const printSize = id => {
+                const rect = document.getElementById(id).getBoundingClientRect();
+                println(`${id}: ${rect.width}x${rect.height}`);
+            };
+            for (const id of ["contained", "contained-in-picture", "contained-zero", "dynamic", "dynamic-in-picture"])
+                printSize(id);
+
+            document.getElementById("dynamic").setAttribute("height", "50");
+            printSize("dynamic");
+            document.getElementById("dynamic").removeAttribute("height");
+            printSize("dynamic");
+
+            const source = document.getElementById("dynamic-source");
+            source.setAttribute("height", "200");
+            printSize("dynamic-in-picture");
+            done();
+        };
+    });
+</script>
