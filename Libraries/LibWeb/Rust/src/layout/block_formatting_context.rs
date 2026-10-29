@@ -156,9 +156,9 @@ struct LaidOutBlockLevelBox {
     collapses_through: bool,
     /// The box as its layout left it: as a run of its own handed it back, or as this flow laid it out in cells its
     /// layout owns.
-    laid_out_box: run_records::LaidOutChildBox,
+    laid_out_box: run_state::LaidOutChildBox,
     /// What this flow decided the box's fragment shows of it.
-    fragment_facts: run_records::FragmentFactsDecidedByParent,
+    fragment_facts: run_state::FragmentFactsDecidedByParent,
     /// The offset of the content box in the containing block, where this flow placed the box.
     content_offset: Option<FfiCssPixelPoint>,
     /// The block end of the margin box in the containing block, where this flow found it.
@@ -170,8 +170,8 @@ impl LaidOutBlockLevelBox {
     /// A box laid out as `laid_out_box` with `fragment_facts`, which neither broke inside nor let margins collapse
     /// through it, and which this flow did not place.
     fn of_box(
-        laid_out_box: run_records::LaidOutChildBox,
-        fragment_facts: run_records::FragmentFactsDecidedByParent,
+        laid_out_box: run_state::LaidOutChildBox,
+        fragment_facts: run_state::FragmentFactsDecidedByParent,
     ) -> Self {
         Self {
             broken_inside: None,
@@ -817,7 +817,7 @@ impl<'pass> BlockFormattingContext<'pass> {
 
     #[inline]
     pub(crate) fn sizing(&self) -> sizing_context::SizingContext<'pass, '_> {
-        sizing_context::SizingContext::new(self.run.records, self.run.callbacks)
+        sizing_context::SizingContext::new(self.run.state, self.run.callbacks)
     }
 
     /// The sizes, size constraints and box sides of `child`, a box this block formatting context sizes.
@@ -2212,7 +2212,7 @@ impl<'pass> BlockFormattingContext<'pass> {
     ) -> (
         Option<formatting_context::ChildLayoutResult>,
         Option<fragment_tree::ChildFragmentArrival>,
-        run_records::LaidOutChildBox,
+        run_state::LaidOutChildBox,
     ) {
         let formatting_context::ChildLayout {
             outcome,
@@ -2371,9 +2371,9 @@ impl<'pass> BlockFormattingContext<'pass> {
         };
         let _percentage_block_size_dependency_tracking = self
             .run
-            .records
+            .state
             .track_percentage_block_size_dependency_while_laying_out(node);
-        let mut fragment_facts = run_records::FragmentFactsDecidedByParent::default();
+        let mut fragment_facts = run_state::FragmentFactsDecidedByParent::default();
         if self.laying_out_invisible_line_clamp_content.get() {
             fragment_facts.is_invisible_for_line_clamp = true;
         }
@@ -2522,7 +2522,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             // vertical metrics have been resolved.
             eprintln!("FIXME: Block-level box is not BlockContainer but does not create formatting context");
             formatting_context::propagate_percentage_block_size_dependency_to_containing_block(
-                run.records,
+                run.state,
                 &self.run.callbacks,
                 node,
                 self.sizing().resolve_percentage_block_size_dependency(node),
@@ -2997,7 +2997,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         if dependency_was_not_reported_by_a_child_run {
             depends_on_percentage_block_size = self.sizing().resolve_percentage_block_size_dependency(node);
             formatting_context::propagate_percentage_block_size_dependency_to_containing_block(
-                run.records,
+                run.state,
                 &self.run.callbacks,
                 node,
                 depends_on_percentage_block_size,
@@ -3118,8 +3118,8 @@ impl<'pass> BlockFormattingContext<'pass> {
     fn laid_out_box_of_box_laid_out_here(
         child: ChildSizedHere<'_>,
         baselines: DerivedBaselines,
-    ) -> run_records::LaidOutChildBox {
-        run_records::LaidOutChildBox::sized_here(
+    ) -> run_state::LaidOutChildBox {
+        run_state::LaidOutChildBox::sized_here(
             child
                 .cells_laid_out_here()
                 .expect("a box laid out in this flow is laid out in cells its layout owns")
@@ -3226,7 +3226,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let flow_position = self.flow_position();
         *self.margin_state.borrow_mut() = entry.outgoing_margins.clone();
         formatting_context::propagate_percentage_block_size_dependency_to_containing_block(
-            self.run.records,
+            self.run.state,
             &self.run.callbacks,
             node,
             entry.depends_on_percentage_block_size,
@@ -4263,7 +4263,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             );
             if outputs.result.depends_on_percentage_block_size {
                 self.run
-                    .records
+                    .state
                     .note_descendant_depends_on_percentage_block_size(self.run.box_);
             }
             let mut outcome = fragmentainer.take_outcome();
@@ -4756,10 +4756,10 @@ impl<'pass> BlockFormattingContext<'pass> {
         containing_block_position_in_root: FfiCssPixelPoint,
         block_offset: CssPixels,
         mut line_builder: Option<&mut line_builder::LineBuilder<'_, '_>>,
-        fragment_facts: run_records::FragmentFactsDecidedByParent,
+        fragment_facts: run_state::FragmentFactsDecidedByParent,
     ) -> (
         abspos_engine::InFlowBoxInsets,
-        Option<run_records::LaidOutChildBox>,
+        Option<run_state::LaidOutChildBox>,
         Option<FfiCssPixelPoint>,
     ) {
         let node = sized_float.node;

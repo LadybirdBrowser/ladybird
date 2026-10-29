@@ -664,7 +664,7 @@ pub(crate) fn cells_before_sizing(
 /// of the link, which a run adopts as they are.
 pub(crate) struct CommittedBox {
     pub(crate) cells: RootInputCells,
-    pub(crate) facts_decided_by_parent: super::run_records::FactsDecidedByParent,
+    pub(crate) facts_decided_by_parent: super::run_state::FactsDecidedByParent,
 }
 
 pub(crate) fn committed_box_from_fragment_link(callbacks: &LayoutPass<'_>, node: Node) -> Option<CommittedBox> {
@@ -673,23 +673,23 @@ pub(crate) fn committed_box_from_fragment_link(callbacks: &LayoutPass<'_>, node:
 
     Some(CommittedBox {
         cells: RootInputCells::of_committed_fragment(fragment),
-        facts_decided_by_parent: super::run_records::FactsDecidedByParent {
-            placement: Some(super::run_records::BoxPlacement {
+        facts_decided_by_parent: super::run_state::FactsDecidedByParent {
+            placement: Some(super::run_state::BoxPlacement {
                 content_offset_in_containing_block: link.committed_offset,
                 containing_block: link.containing_block,
             }),
-            used_insets: super::run_records::UsedInsets {
+            used_insets: super::run_state::UsedInsets {
                 left: link.inset_left,
                 right: link.inset_right,
                 top: link.inset_top,
                 bottom: link.inset_bottom,
             },
             default_scroll_shift: None,
-            fragment_facts: super::run_records::FragmentFactsDecidedByParent {
+            fragment_facts: super::run_state::FragmentFactsDecidedByParent {
                 table_column_index: fragment.table_column_index,
                 table_column_span: fragment.table_column_span,
                 hidden_by_collapsed_columns: fragment.hidden_by_collapsed_columns,
-                ..super::run_records::FragmentFactsDecidedByParent::default()
+                ..super::run_state::FragmentFactsDecidedByParent::default()
             },
         },
     })

@@ -351,7 +351,7 @@ pub(crate) fn lay_out_pending_abspos_children(
 pub(crate) struct PlacedChild {
     pub(crate) geometry: fragment_tree::FragmentGeometry,
     /// What the parent decided about the child before placing it, which placing it adds the placement to.
-    pub(crate) facts_decided_by_parent: run_records::FactsDecidedByParent,
+    pub(crate) facts_decided_by_parent: run_state::FactsDecidedByParent,
     /// The offset the relative positioning of the fragmented inline boxes a block-level child interrupts gives the
     /// child's committed fragment.
     pub(crate) offset_from_relatively_positioned_inline_ancestors: FfiCssPixelPoint,
@@ -365,14 +365,14 @@ impl PlacedChild {
     pub(crate) fn new(geometry: fragment_tree::FragmentGeometry) -> Self {
         Self {
             geometry,
-            facts_decided_by_parent: run_records::FactsDecidedByParent::default(),
+            facts_decided_by_parent: run_state::FactsDecidedByParent::default(),
             offset_from_relatively_positioned_inline_ancestors: FfiCssPixelPoint::default(),
             abspos_layout_inputs: None,
         }
     }
 
     /// A child whose run handed back the box `laid_out`, before its parent decided anything about it.
-    pub(crate) fn of_laid_out_box(laid_out: &run_records::LaidOutChildBox) -> Self {
+    pub(crate) fn of_laid_out_box(laid_out: &run_state::LaidOutChildBox) -> Self {
         Self::new(fragment_tree::FragmentGeometry {
             cells: laid_out.cells,
             line_data: laid_out.line_data.clone(),
@@ -419,7 +419,7 @@ impl PlacedChild {
     }
 
     /// The child with what its parent decided its fragment shows of the parent's layout.
-    pub(crate) fn with_fragment_facts(mut self, fragment_facts: run_records::FragmentFactsDecidedByParent) -> Self {
+    pub(crate) fn with_fragment_facts(mut self, fragment_facts: run_state::FragmentFactsDecidedByParent) -> Self {
         self.facts_decided_by_parent.fragment_facts = fragment_facts;
         self
     }
@@ -449,7 +449,7 @@ pub(crate) fn place_child(
         |inputs| inputs.containing_block,
     );
     let callbacks = &run.callbacks;
-    let placement = run_records::BoxPlacement {
+    let placement = run_state::BoxPlacement {
         content_offset_in_containing_block: offset,
         containing_block,
     };
@@ -475,7 +475,7 @@ pub(crate) fn place_child(
         facts_decided_by_parent.placement.is_none(),
         "a child is handed to placement before it is placed"
     );
-    let facts_decided_by_parent = run_records::FactsDecidedByParent {
+    let facts_decided_by_parent = run_state::FactsDecidedByParent {
         placement: Some(placement),
         ..facts_decided_by_parent
     };
@@ -619,7 +619,7 @@ fn resolve_containing_line_box_index(
 fn committed_offset_delta_at_placement(
     callbacks: &LayoutPass<'_>,
     node: Node,
-    used_insets: run_records::UsedInsets,
+    used_insets: run_state::UsedInsets,
     offset_from_relatively_positioned_inline_ancestors: FfiCssPixelPoint,
 ) -> FfiCssPixelPoint {
     let mut delta = FfiCssPixelPoint::default();
@@ -1061,7 +1061,7 @@ pub(crate) struct ChildLayoutResult {
     pub in_flow_children_margin_box_block_extent: Option<CssPixels>,
     pub depends_on_percentage_block_size: bool,
     /// For an absolutely positioned box, the used insets its run gave it.
-    pub out_of_flow_root_used_insets: Option<run_records::UsedInsets>,
+    pub out_of_flow_root_used_insets: Option<run_state::UsedInsets>,
     /// For a box that establishes an orthogonal flow, its baselines along the horizontal axis of its parent's frame,
     /// from the left edge of its content box.
     pub orthogonal_flow_baselines: Option<DerivedBaselines>,
@@ -1092,12 +1092,12 @@ impl RunRootOutcome {
         root_cells: used_values::RootInputCells,
         result: &ChildLayoutResult,
         content_block_size_adopted_after_run: Option<CssPixels>,
-    ) -> run_records::LaidOutChildBox {
+    ) -> run_state::LaidOutChildBox {
         let mut cells = self.input_cells_left_by_run.unwrap_or(root_cells);
         if let Some(block_size) = content_block_size_adopted_after_run {
             cells.content_block_size = clamp_to_max_dimension_value(block_size.max(CssPixels::default()));
         }
-        run_records::LaidOutChildBox {
+        run_state::LaidOutChildBox {
             cells,
             baselines: result.baselines,
             orthogonal_flow_baselines: result.orthogonal_flow_baselines,
@@ -1113,14 +1113,14 @@ pub(crate) struct RunOutputs {
     pub(crate) root_outcome: RunRootOutcome,
     pub(crate) inputs_never_observed: fc_run_cache::RunInputsTheStoredRunNeverObserved,
     /// Boxed, as most runs find out nothing for the host.
-    pub(crate) host_findings: Option<Box<super::run_records::HostFindings>>,
+    pub(crate) host_findings: Option<Box<super::run_state::HostFindings>>,
 }
 
 pub(crate) enum ChildLayoutOutcome {
     Skipped {
         depends_on_percentage_block_size: bool,
         /// For an absolutely positioned child, the used values of its inset properties.
-        out_of_flow_root_used_insets: Option<run_records::UsedInsets>,
+        out_of_flow_root_used_insets: Option<run_state::UsedInsets>,
     },
     Created(ChildLayoutResult),
 }
@@ -1142,7 +1142,7 @@ impl ChildLayoutOutcome {
     /// percentages resolve against.
     pub(crate) fn report_percentage_block_size_dependency_of(&self, run: &FormattingContextRun, child: Node) {
         propagate_percentage_block_size_dependency_to_containing_block(
-            run.records,
+            run.state,
             &run.callbacks,
             child,
             self.child_depends_on_percentage_block_size(),
@@ -1312,7 +1312,7 @@ pub unsafe extern "C" fn document_host_set_layout_host_callbacks(
 
 #[derive(Clone)]
 pub(crate) struct FormattingContextRun<'pass> {
-    pub(crate) records: &'pass RunRecords<'pass>,
+    pub(crate) state: &'pass RunState<'pass>,
     pub(crate) box_: Node,
     pub(crate) callbacks: LayoutPass<'pass>,
     pub(crate) should_collect_devtools_layout_data: bool,
@@ -1325,7 +1325,7 @@ impl<'pass> FormattingContextRun<'pass> {
     /// This run, laying out in `frame`.
     pub(crate) fn in_frame_of(&self, frame: geometry::Frame) -> Self {
         Self {
-            records: self.records,
+            state: self.state,
             box_: self.box_,
             callbacks: self.callbacks.in_frame_of(frame.writing_mode()),
             should_collect_devtools_layout_data: self.should_collect_devtools_layout_data,
@@ -1338,7 +1338,7 @@ impl<'pass> FormattingContextRun<'pass> {
 
     #[inline]
     pub(crate) fn sizing(&self) -> sizing_context::SizingContext<'pass, 'static> {
-        sizing_context::SizingContext::new(self.records, self.callbacks)
+        sizing_context::SizingContext::new(self.state, self.callbacks)
     }
 
     /// Whether the block-axis percentage insets of the boxes whose containing block is the run's root, laid out in
@@ -1385,7 +1385,7 @@ impl<'pass> FormattingContextRun<'pass> {
             root,
             root_outcome,
             inputs_never_observed,
-            host_findings: self.records.take_host_findings(),
+            host_findings: self.state.take_host_findings(),
         }
     }
 }
@@ -1653,7 +1653,7 @@ fn apply_root_sizing_directives(
     sized_root: sizing_context::SizedCells<'_>,
     input: &LayoutInput,
     fc_type: FormattingContextType,
-    root_used_insets: &Cell<run_records::UsedInsets>,
+    root_used_insets: &Cell<run_state::UsedInsets>,
 ) -> RootSizingOutcome {
     let mut atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above = None;
     let body_input = match input.participation {
@@ -1695,7 +1695,7 @@ fn apply_root_sizing_directives(
                 abspos_engine::OutOfFlowBox::new(
                     sized_root,
                     root_used_insets,
-                    run.records.anchor_resolved_values_of(run.box_),
+                    run.state.anchor_resolved_values_of(run.box_),
                 ),
                 abspos_inputs,
             );
@@ -1941,7 +1941,7 @@ fn size_skipped_independent_root(
     child: Node,
     cells: &Cell<used_values::RootInputCells>,
     input: &LayoutInput,
-) -> Option<run_records::UsedInsets> {
+) -> Option<run_state::UsedInsets> {
     match input.participation {
         ParticipationInParentFormattingContext::Float { .. } => {
             let parent = parent_block.expect("a float requires an enclosing block formatting context");
@@ -1961,7 +1961,7 @@ fn size_skipped_independent_root(
             let anchor_resolved_values = (!abspos_inputs.resolved_anchor_sizes.is_empty()).then(|| {
                 style_values::AnchorResolvedValues::new(&abspos_inputs.resolved_anchor_sizes, run.callbacks.frame)
             });
-            let used_insets = Cell::new(run_records::UsedInsets::default());
+            let used_insets = Cell::new(run_state::UsedInsets::default());
             let sized_child = abspos_engine::OutOfFlowBox::new(
                 sizing_context::SizedCells::new(child, cells, run.callbacks.frame),
                 &used_insets,
@@ -1992,7 +1992,7 @@ fn body_input_with_inner_available_space(root: &impl BoxMetricCells, input: &Lay
 #[must_use]
 pub(crate) struct ChildRunOutcome {
     pub(crate) result: ChildLayoutResult,
-    pub(crate) laid_out_box: run_records::LaidOutChildBox,
+    pub(crate) laid_out_box: run_state::LaidOutChildBox,
     pub(crate) fragment_arrival: Option<fragment_tree::ChildFragmentArrival>,
 }
 
@@ -2254,14 +2254,14 @@ fn execute_formatting_context_run(
         }
         _ => None,
     };
-    let (outputs, root_cells_left_by_run) = RunRecords::with_root(
+    let (outputs, root_cells_left_by_run) = RunState::with_root(
         callbacks,
         box_,
         root_containing_block,
         root_anchor_resolved_values,
-        |records, callbacks| {
+        |state, callbacks| {
             lay_out_run_root_and_contents(
-                records,
+                state,
                 callbacks,
                 builds_fragments,
                 root_cells,
@@ -2318,7 +2318,7 @@ fn sizes_and_box_sides(cells: used_values::RootInputCells) -> used_values::RootI
 
 #[expect(clippy::too_many_arguments)]
 fn lay_out_run_root_and_contents<'pass>(
-    records: &'pass RunRecords<'pass>,
+    state: &'pass RunState<'pass>,
     callbacks: LayoutPass<'pass>,
     builds_fragments: bool,
     root_cells: used_values::RootInputCells,
@@ -2335,7 +2335,7 @@ fn lay_out_run_root_and_contents<'pass>(
 ) -> (RunOutputs, used_values::RootInputCells) {
     let run_is_handed_table_inline_layout_outside_its_key = table_inline_layout.is_some();
     let run = FormattingContextRun {
-        records,
+        state,
         box_,
         callbacks,
         should_collect_devtools_layout_data,
@@ -2370,7 +2370,7 @@ fn lay_out_run_root_and_contents<'pass>(
     };
     let root = Cell::new(root_cells);
     let sized_root = sizing_context::SizedCells::new(box_, &root, parent_frame);
-    let root_used_insets = Cell::new(run_records::UsedInsets::default());
+    let root_used_insets = Cell::new(run_state::UsedInsets::default());
     let RootSizingOutcome {
         body_input,
         atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above,
@@ -2560,7 +2560,7 @@ fn lay_out_run_root_and_contents<'pass>(
                 abspos_engine::OutOfFlowBox::new(
                     sized_root,
                     &root_used_insets,
-                    run.records.anchor_resolved_values_of(run.box_),
+                    run.state.anchor_resolved_values_of(run.box_),
                 ),
                 abspos_inputs,
                 Some(abspos_engine::InsideLayoutBlockSizes {
@@ -2847,12 +2847,12 @@ fn finalize_atomic_root_block_size(
 }
 
 pub(crate) fn propagate_percentage_block_size_dependency_to_containing_block(
-    records: &RunRecords,
+    state: &RunState,
     callbacks: &LayoutPass<'_>,
     child: Node,
     child_depends_on_percentage_block_size: bool,
 ) {
-    let run_root_reports_its_dependency_through_its_run_result = child == records.root();
+    let run_root_reports_its_dependency_through_its_run_result = child == state.root();
     if run_root_reports_its_dependency_through_its_run_result {
         return;
     }
@@ -2872,14 +2872,14 @@ pub(crate) fn propagate_percentage_block_size_dependency_to_containing_block(
     //     the run root where the containing block lies above it.
     let mut box_resolving_the_dependency = callbacks.in_flow_containing_block(child);
     while !box_resolving_the_dependency.is_invalid()
-        && !records.resolves_percentage_block_size_dependency_of(box_resolving_the_dependency)
+        && !state.resolves_percentage_block_size_dependency_of(box_resolving_the_dependency)
     {
         box_resolving_the_dependency = callbacks.parent(box_resolving_the_dependency);
     }
     if box_resolving_the_dependency.is_invalid() {
-        box_resolving_the_dependency = records.root();
+        box_resolving_the_dependency = state.root();
     }
-    records.note_descendant_depends_on_percentage_block_size(box_resolving_the_dependency);
+    state.note_descendant_depends_on_percentage_block_size(box_resolving_the_dependency);
 }
 
 /// The layout of a child: its outcome, the fragments its placement takes, and the child's box as its layout left it,
@@ -2887,7 +2887,7 @@ pub(crate) fn propagate_percentage_block_size_dependency_to_containing_block(
 pub(crate) struct ChildLayout {
     pub(crate) outcome: ChildLayoutOutcome,
     pub(crate) fragment_arrival: Option<fragment_tree::ChildFragmentArrival>,
-    pub(crate) laid_out_box: run_records::LaidOutChildBox,
+    pub(crate) laid_out_box: run_state::LaidOutChildBox,
 }
 
 impl ChildLayout {
@@ -2895,7 +2895,7 @@ impl ChildLayout {
         Self {
             outcome,
             fragment_arrival: None,
-            laid_out_box: run_records::LaidOutChildBox::sized_here(cells, DerivedBaselines::default()),
+            laid_out_box: run_state::LaidOutChildBox::sized_here(cells, DerivedBaselines::default()),
         }
     }
 }
@@ -2964,7 +2964,7 @@ pub(crate) fn layout_inside_child_with_input_cells(
                 reuses_subtree: false,
             });
         let laid_out_box =
-            run_records::LaidOutChildBox::sized_here(cells_of_this_layout.get(), DerivedBaselines::default());
+            run_state::LaidOutChildBox::sized_here(cells_of_this_layout.get(), DerivedBaselines::default());
         return ChildLayout {
             outcome: skipped(None),
             fragment_arrival,
@@ -3277,7 +3277,7 @@ fn own_block_size_observation_of_item_run(
         && parent_owns_root_input_cells(&run.callbacks, run.box_, input)
         && !result.depends_on_percentage_block_size
         && !run
-            .records
+            .state
             .percentage_block_size_dependency_of(run.box_)
             .has_descendant_that_depends_on_percentage_block_size
         && !block_formatting_context::root_lays_out_content_against_its_own_block_size(&run.sizing(), run.box_)
@@ -3471,7 +3471,7 @@ pub(crate) struct LayoutStageFacts {
 /// reach the rest of the host.
 struct LayoutStageInput<'a> {
     arena: &'a LayoutNodeArena,
-    scratch: &'a super::run_records::LayoutScratch,
+    scratch: &'a super::run_state::LayoutScratch,
     root: NodeSlotId,
     stage: LayoutStageFacts,
 }
@@ -3479,7 +3479,7 @@ struct LayoutStageInput<'a> {
 /// The fragments a layout stage computed, which its commit consumes, and what the stage found out for the host.
 struct LayoutStageOutput {
     fragments: fragment_tree::CompletedPassFragments,
-    host_findings: super::run_records::HostFindings,
+    host_findings: super::run_state::HostFindings,
 }
 
 /// One layout stage: computes the fragments of the whole document from its viewport, or of one
@@ -3516,7 +3516,7 @@ impl LayoutStageJob {
             LayoutStageKind::Boundary { containing_block } => compute_subtree_layout_fragments(input, containing_block),
         };
         let mut notifications = commit::commit_replacing(root, state.arena_mut(), &output.fragments);
-        let super::run_records::HostFindings {
+        let super::run_state::HostFindings {
             nodes_with_unresolved_container_lengths,
             messages,
             document_svg_root_natural_size,
@@ -3580,11 +3580,11 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
         percentage_basis_block_size: Some(viewport_block_size),
         ..ContainingBlockConstraints::default()
     };
-    RunRecords::with_root(callbacks, root, Node::INVALID, None, |entry_records, callbacks| {
+    RunState::with_root(callbacks, root, Node::INVALID, None, |entry_run_state, callbacks| {
         let _trace = arena.layout_trace.pass(None);
         let entry_fragments = std::rc::Rc::new(fragment_tree::RunFragmentBuilder::new_entry_accumulator(root));
         let entry_run = FormattingContextRun {
-            records: entry_records,
+            state: entry_run_state,
             box_: root,
             callbacks,
             should_collect_devtools_layout_data,
@@ -3645,7 +3645,7 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
             root_outcome.fragment_arrival,
         );
         finish_entry_pass(
-            entry_records,
+            entry_run_state,
             &entry_fragments,
             &callbacks,
             should_collect_devtools_layout_data,
@@ -3657,7 +3657,7 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
 /// last stage, before any run of this one reads a cache.
 fn drop_intrinsic_size_cache_entries_of_released_slots(
     arena: &LayoutNodeArena,
-    scratch: &super::run_records::LayoutScratch,
+    scratch: &super::run_state::LayoutScratch,
 ) {
     let drops = arena.take_intrinsic_size_cache_drops();
     if !drops.is_empty() {
@@ -3666,13 +3666,13 @@ fn drop_intrinsic_size_cache_entries_of_released_slots(
 }
 
 fn finish_entry_pass(
-    entry_records: &RunRecords<'_>,
+    entry_run_state: &RunState<'_>,
     entry_fragments: &std::rc::Rc<fragment_tree::RunFragmentBuilder>,
     callbacks: &LayoutPass<'_>,
     should_collect_devtools_layout_data: bool,
 ) -> LayoutStageOutput {
     abspos_engine::drain_abspos_with_placed_containing_blocks(
-        entry_records,
+        entry_run_state,
         *callbacks,
         should_collect_devtools_layout_data,
         entry_fragments,
@@ -3683,7 +3683,7 @@ fn finish_entry_pass(
         "an entry pass always produces the entry root's fragment"
     );
     let mut host_findings = callbacks.scratch().take_host_findings_outside_runs();
-    if let Some(found_by_entry_run) = entry_records.take_host_findings() {
+    if let Some(found_by_entry_run) = entry_run_state.take_host_findings() {
         host_findings.receive(*found_by_entry_run);
     }
     LayoutStageOutput {
@@ -3724,17 +3724,17 @@ fn compute_subtree_layout_fragments(input: LayoutStageInput<'_>, containing_bloc
     } else {
         (root, containing_block)
     };
-    RunRecords::with_root(
+    RunState::with_root(
         callbacks,
         entry_root,
         entry_root_containing_block,
         None,
-        |entry_records, callbacks| {
+        |entry_run_state, callbacks| {
             let _trace = arena.layout_trace.pass(Some(root));
             let entry_fragments =
                 std::rc::Rc::new(fragment_tree::RunFragmentBuilder::new_entry_accumulator(entry_root));
             let entry_run = FormattingContextRun {
-                records: entry_records,
+                state: entry_run_state,
                 box_: entry_root,
                 callbacks,
                 should_collect_devtools_layout_data: false,
@@ -3747,7 +3747,7 @@ fn compute_subtree_layout_fragments(input: LayoutStageInput<'_>, containing_bloc
             } else {
                 layout_subtree_with_frozen_root_geometry(&entry_run);
             }
-            finish_entry_pass(entry_records, &entry_fragments, &callbacks, false)
+            finish_entry_pass(entry_run_state, &entry_fragments, &callbacks, false)
         },
     )
 }
@@ -3837,7 +3837,7 @@ mod baseline_tests {
     use crate::css::table_group_builder::group_index;
     use crate::layout::layout_node_arena::LayoutNodeArena;
     use crate::layout::node_data::{NodeConstructionFacts, NodeKind, StylePayloadsRef};
-    use crate::layout::run_records::LayoutScratch;
+    use crate::layout::run_state::LayoutScratch;
 
     unsafe extern "C" fn unused_container_bases(
         _: *mut c_void,
@@ -3905,7 +3905,7 @@ mod baseline_tests {
                 document_in_quirks_mode: false,
             },
         );
-        RunRecords::with_root(callbacks, parent, Node::INVALID, None, |_, callbacks| {
+        RunState::with_root(callbacks, parent, Node::INVALID, None, |_, callbacks| {
             let child_cells = used_values::RootInputCells::default();
             assert!(child_gives_container_baselines(&callbacks, parent, child));
             let mut baselines = DerivedBaselines::default();

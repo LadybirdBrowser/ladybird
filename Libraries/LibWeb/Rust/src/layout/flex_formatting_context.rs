@@ -289,7 +289,7 @@ impl<'pass> FlexFormattingContext<'pass> {
 
     #[inline]
     fn sizing(&self) -> sizing_context::SizingContext<'pass, '_> {
-        sizing_context::SizingContext::new(self.run.records, self.run.callbacks).with_child_run_shapes(self)
+        sizing_context::SizingContext::new(self.run.state, self.run.callbacks).with_child_run_shapes(self)
     }
 
     fn keep_item_for_its_run(&self, node: Node) -> used_values::RootInputCells {
@@ -4316,7 +4316,7 @@ mod stretch_cross_limit_tests {
     use crate::css::style_value::{RetainedStyleValueData, StyleValueData};
     use crate::css::table_group_builder::group_index;
     use crate::layout::node_data::{NodeConstructionFacts, StylePayloadsRef};
-    use crate::layout::run_records::LayoutScratch;
+    use crate::layout::run_state::LayoutScratch;
 
     fn length(value: i32) -> ComputedSize {
         ComputedSize::from_data(&RetainedStyleValueData::from_owned(StyleValueData::Length {
@@ -4541,9 +4541,9 @@ mod stretch_cross_limit_tests {
             ..ContainingBlockConstraints::default()
         };
         let container_cells = used_values::cells_before_sizing(&callbacks, container, constraints);
-        RunRecords::with_root(callbacks, container, Node::INVALID, None, |records, callbacks| {
+        RunState::with_root(callbacks, container, Node::INVALID, None, |state, callbacks| {
             let run = FormattingContextRun {
-                records,
+                state,
                 box_: container,
                 callbacks,
                 should_collect_devtools_layout_data: false,

@@ -146,7 +146,7 @@ impl HostTables {
 /// The arena of a document's render state, and the layout stage's scratch beside it.
 pub(crate) struct ArenaHandle {
     arena: LayoutNodeArena,
-    layout_scratch: super::run_records::LayoutScratch,
+    layout_scratch: super::run_state::LayoutScratch,
 }
 
 impl ArenaHandle {
@@ -170,7 +170,7 @@ impl ArenaHandle {
     }
 
     /// The layout stage's own scratch.
-    pub(crate) fn layout_scratch(&self) -> &super::run_records::LayoutScratch {
+    pub(crate) fn layout_scratch(&self) -> &super::run_state::LayoutScratch {
         &self.layout_scratch
     }
 

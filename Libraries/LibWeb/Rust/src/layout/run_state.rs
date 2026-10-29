@@ -8,7 +8,7 @@ use super::*;
 
 /// What the layout stage keeps for itself besides what each of its runs keeps: what the runs of a layout pass share and
 /// what the runs in progress found out for the host. It is the stage's scratch rather than arena columns: nothing
-/// outside a running pass reads it, but for the memos it keeps for later passes, and it holds no record of a box.
+/// outside a running pass reads it, but for the memos it keeps for later passes.
 pub(crate) struct LayoutScratch {
     /// The intrinsic sizes passes measured, kept for the passes after them.
     pub(crate) intrinsic_size_caches: super::layout_node_arena::IntrinsicSizeCaches,
@@ -102,7 +102,7 @@ impl HostFindings {
     }
 }
 
-// The scratch holds no record, so it can move to the thread a layout stage runs on.
+// The scratch can move to the thread a layout stage runs on.
 const _: () = {
     const fn assert_send<T: Send>() {}
     assert_send::<LayoutScratch>();
@@ -239,7 +239,7 @@ impl LayoutScratch {
 /// anchor-size() resolutions of its root. It keeps no metrics of any box: the formatting context or call that lays out
 /// a box holds the box's cells, or hands the box to a run of its own. The scoped constructors lend this to the run, so
 /// callers cannot extend its lifetime.
-pub(crate) struct RunRecords<'arena> {
+pub(crate) struct RunState<'arena> {
     root: Node,
     scratch: &'arena LayoutScratch,
     /// How many runs are in progress with this one, of which only the innermost hands over what it found out.
@@ -332,8 +332,8 @@ type PercentageBlockSizeDependenciesInProgress =
     RefCell<smallvec::SmallVec<[(Node, PercentageBlockSizeDependency); 8]>>;
 
 /// Keeps tracking the percentage block size dependency of a box while its layout is in progress.
-pub(crate) struct PercentageBlockSizeDependencyTracking<'records> {
-    dependencies_in_progress: &'records PercentageBlockSizeDependenciesInProgress,
+pub(crate) struct PercentageBlockSizeDependencyTracking<'state> {
+    dependencies_in_progress: &'state PercentageBlockSizeDependenciesInProgress,
     node: Node,
 }
 
@@ -357,7 +357,7 @@ enum ContentSizing {
     RootContentInlineSizes,
 }
 
-impl<'arena> RunRecords<'arena> {
+impl<'arena> RunState<'arena> {
     /// Runs `run` with what a run rooted at `root` keeps, and the pass as that run sees it. The style reads of an
     /// absolutely positioned root see `root_anchor_resolved_values`.
     pub(crate) fn with_root<R>(
@@ -422,7 +422,7 @@ impl<'arena> RunRecords<'arena> {
             "the layout stage drops released intrinsic size cache entries before its runs read a cache"
         );
         let scratch = callbacks.scratch();
-        let records = Self {
+        let state = Self {
             root,
             scratch,
             runs_in_progress_with_it: scratch.begin_run(),
@@ -433,7 +433,7 @@ impl<'arena> RunRecords<'arena> {
             )]),
             root_anchor_resolved_values,
         };
-        run(&records, callbacks.for_run(root, root_containing_block))
+        run(&state, callbacks.for_run(root, root_containing_block))
     }
 
     /// What this run found out for the host, which its outputs carry to the run that uses its result.
@@ -546,7 +546,7 @@ impl<'arena> RunRecords<'arena> {
     }
 }
 
-impl Drop for RunRecords<'_> {
+impl Drop for RunState<'_> {
     fn drop(&mut self) {
         self.scratch.end_run(self.runs_in_progress_with_it);
     }
@@ -562,14 +562,14 @@ mod tests {
         let scratch = LayoutScratch::default();
         let root = arena.allocate_for_test().slot;
         let child = arena.allocate_for_test().slot;
-        RunRecords::with_root(
+        RunState::with_root(
             LayoutPass::for_test(&arena, &scratch),
             root,
             NodeSlotId::INVALID,
             None,
             |parent, _| {
                 assert_eq!(parent.root(), root);
-                RunRecords::with_root(
+                RunState::with_root(
                     LayoutPass::for_test(&arena, &scratch),
                     child,
                     root,
@@ -594,14 +594,14 @@ mod tests {
         let scratch = LayoutScratch::default();
         let root = arena.allocate_for_test().slot;
         let child = arena.allocate_for_test().slot;
-        RunRecords::with_root(
+        RunState::with_root(
             LayoutPass::for_test(&arena, &scratch),
             root,
             NodeSlotId::INVALID,
             None,
             |parent, _| {
                 let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    RunRecords::with_root(LayoutPass::for_test(&arena, &scratch), child, root, None, |_, _| {
+                    RunState::with_root(LayoutPass::for_test(&arena, &scratch), child, root, None, |_, _| {
                         panic!("abort the nested measurement")
                     });
                 }));
