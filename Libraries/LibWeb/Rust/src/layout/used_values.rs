@@ -129,13 +129,6 @@ pub(crate) struct CommittedSvgFacts {
     pub(crate) resource_content_units_are_object_bounding_box: bool,
 }
 
-/// The per-box geometry stored in a Rust-owned layout pass.
-#[derive(Debug)]
-pub(crate) struct UsedValues {
-    /// The box's sizes, size constraints and box sides.
-    pub(crate) cells: Cell<RootInputCells>,
-}
-
 /// The sizes, size constraints and box sides of a box.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct RootInputCells {
@@ -236,11 +229,6 @@ impl RootInputCells {
         self.padding_bottom = fragment.padding_bottom;
     }
 
-    /// A record holding the cells.
-    pub(crate) fn materialize_record(self) -> UsedValues {
-        UsedValues { cells: Cell::new(self) }
-    }
-
     /// The cells, with the sizes, size constraints and box sides they hold in frame `from` read in frame `to` instead.
     #[inline]
     pub(crate) fn in_frame(mut self, from: geometry::Frame, to: geometry::Frame) -> Self {
@@ -277,8 +265,6 @@ impl RootInputCells {
     }
 }
 
-/// The sizes, size constraints and box sides of a box, with what derives from them, whether a run holds them in the box's
-/// record or its parent holds them as a value.
 macro_rules! box_metric_getters {
     ($($name:ident: $value:ty,)+) => {
         $(
@@ -290,6 +276,8 @@ macro_rules! box_metric_getters {
     };
 }
 
+/// The sizes, size constraints and box sides of a box, with what derives from them, whether a cell holds them or they
+/// are read as a value.
 pub(crate) trait BoxMetricCells {
     /// The sizes, size constraints and box sides these metrics hold.
     fn cells(&self) -> RootInputCells;

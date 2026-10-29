@@ -645,7 +645,7 @@ pub(crate) fn first_fragment_padding_box_rect(arena: &impl GeometryRead, slot: N
 /// centered on the grid line between two boxes, so only a part of it belongs to each: "the border-box of the table
 /// includes half of the table border" and, for cells, "half the width of the collapsed border on each side".
 /// https://www.w3.org/TR/CSS22/tables.html#collapsing-borders
-/// The border is split the same way layout splits it when placing the boxes (`UsedValues::border_left_collapsed`):
+/// The border is split the same way layout splits it when placing the boxes (`BoxMetricCells::border_left_collapsed`):
 /// the part before the grid line goes to the box before the line, the part after it to the box after the line.
 pub(crate) fn committed_border_box_edges(arena: &impl GeometryRead, slot: NodeSlotId) -> FfiPixelBox {
     let border = committed_border(arena, slot);

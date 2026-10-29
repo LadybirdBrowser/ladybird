@@ -59,7 +59,6 @@ impl ContentSizingScope {
             callbacks,
             self.node,
             callbacks.in_flow_containing_block(self.node),
-            self.root_cells,
             |records, callbacks| {
                 size_content(&FormattingContextRun {
                     records,
