@@ -14,6 +14,7 @@
 #include <LibMediaCodecs/Codecs/H265.h>
 #include <LibMediaCodecs/Codecs/NALUnit.h>
 #include <LibMediaCodecs/Codecs/VP9.h>
+#include <LibMediaCodecs/Limits.h>
 #include <LibTest/TestCase.h>
 
 TEST_CASE(opus_isobmff_configuration_is_normalized_to_opus_head)
@@ -1237,4 +1238,19 @@ TEST_CASE(h264_max_num_reorder_frames_infers_zero_from_profile_constraints)
     };
     check_inference(without_vui);
     check_inference(without_bitstream_restriction);
+}
+
+TEST_CASE(aac_configuration_record_refuses_sample_rates_outside_the_supported_range)
+{
+    auto create = [](u32 sample_rate, Optional<u32> spectral_band_replication_sample_rate = {}) {
+        return Media::Codecs::AAC::create_configuration_record(Media::Codecs::AAC::LOW_COMPLEXITY_AUDIO_OBJECT_TYPE, sample_rate, 2, spectral_band_replication_sample_rate);
+    };
+
+    EXPECT(!create(Media::MIN_AUDIO_SAMPLE_RATE).is_error());
+    EXPECT(!create(Media::MAX_AUDIO_SAMPLE_RATE / 2, Media::MAX_AUDIO_SAMPLE_RATE).is_error());
+
+    EXPECT_EQ(create(Media::MIN_AUDIO_SAMPLE_RATE - 1).error().category(), Media::DecoderErrorCategory::NotImplemented);
+    EXPECT_EQ(create(Media::MAX_AUDIO_SAMPLE_RATE + 1).error().category(), Media::DecoderErrorCategory::NotImplemented);
+    EXPECT_EQ(create(Media::MAX_AUDIO_SAMPLE_RATE / 2, Media::MAX_AUDIO_SAMPLE_RATE + 2).error().category(), Media::DecoderErrorCategory::NotImplemented);
+    EXPECT_EQ(create(Media::MIN_AUDIO_SAMPLE_RATE - 1, (Media::MIN_AUDIO_SAMPLE_RATE - 1) * 2).error().category(), Media::DecoderErrorCategory::NotImplemented);
 }

@@ -8,6 +8,7 @@
 #include <AK/Math.h>
 #include <AK/Vector.h>
 #include <LibMedia/Containers/WAV/Reader.h>
+#include <LibMediaCodecs/Limits.h>
 
 namespace Media::WAV {
 
@@ -114,6 +115,8 @@ static DecoderErrorOr<SampleFormat> parse_format_chunk(MediaStreamCursor& cursor
 
     if (channel_count == 0 || sample_rate == 0)
         return DecoderError::corrupted("WAVE fmt chunk declares no channels or no sample rate"sv);
+    if (audio_sample_rate_is_outside_limits(sample_rate))
+        return DecoderError::format(DecoderErrorCategory::NotImplemented, "WAVE sample rate of {} Hz is not supported", sample_rate);
     if (channel_count > Audio::ChannelMap::capacity())
         return DecoderError::format(DecoderErrorCategory::NotImplemented, "WAVE stream has {} channels", channel_count);
 

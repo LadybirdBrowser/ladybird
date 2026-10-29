@@ -8,6 +8,7 @@
 #include <AK/Checked.h>
 #include <LibMedia/Codecs/FLAC.h>
 #include <LibMedia/Containers/Ogg/Reader.h>
+#include <LibMediaCodecs/Limits.h>
 
 namespace Media::Ogg {
 
@@ -366,6 +367,8 @@ static DecoderErrorOr<StreamIdentification> identify_vorbis(ReadonlyBytes packet
     identification.sample_rate = load_little_endian<u32>(packet, 12);
     if (identification.channel_count == 0 || identification.sample_rate == 0)
         return DecoderError::corrupted("Vorbis identification header is invalid"sv);
+    if (audio_sample_rate_is_outside_limits(identification.sample_rate))
+        return DecoderError::format(DecoderErrorCategory::NotImplemented, "Vorbis sample rate of {} Hz is not supported", identification.sample_rate);
     return identification;
 }
 
@@ -393,16 +396,14 @@ static DecoderErrorOr<StreamIdentification> identify_flac(ReadonlyBytes packet)
     if (packet.size() < OGG_FLAC_STREAM_INFO_OFFSET + Codecs::FLAC::STREAM_INFO_SIZE || packet[5] != 1
         || !packet.slice(9).starts_with("fLaC"sv.bytes()) || (packet[13] & 0x7F) != 0)
         return DecoderError::corrupted("FLAC identification header is invalid"sv);
-    auto stream_info = packet.slice(OGG_FLAC_STREAM_INFO_OFFSET, Codecs::FLAC::STREAM_INFO_SIZE);
+    auto stream_info = TRY(Codecs::FLAC::parse_stream_info(packet.slice(OGG_FLAC_STREAM_INFO_OFFSET, Codecs::FLAC::STREAM_INFO_SIZE)));
     StreamIdentification identification;
     identification.codec_id = CodecID::FLAC;
     auto following_header_count = load_big_endian<u16>(packet, 7);
     if (following_header_count != 0)
         identification.header_packet_count = following_header_count + 1;
-    identification.sample_rate = (static_cast<u32>(stream_info[10]) << 12) | (static_cast<u32>(stream_info[11]) << 4) | (stream_info[12] >> 4);
-    identification.channel_count = ((stream_info[12] >> 1) & 0x07) + 1;
-    if (identification.sample_rate == 0)
-        return DecoderError::corrupted("FLAC identification header is invalid"sv);
+    identification.sample_rate = stream_info.sample_rate;
+    identification.channel_count = stream_info.channel_count;
     return identification;
 }
 

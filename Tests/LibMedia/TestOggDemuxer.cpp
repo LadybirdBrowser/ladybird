@@ -14,6 +14,7 @@
 #include <LibMedia/IncrementallyPopulatedStream.h>
 #include <LibMedia/Producers/DecodedVideoProducer.h>
 #include <LibMediaCodecs/CodedFrame.h>
+#include <LibMediaCodecs/Limits.h>
 #include <LibMediaCodecs/VideoFrame.h>
 #include <LibTest/TestCase.h>
 #include <LibThreading/Thread.h>
@@ -579,6 +580,38 @@ TEST_CASE(demuxer_declines_what_it_cannot_read)
     EXPECT(not_ogg.is_error());
     if (not_ogg.is_error())
         EXPECT_EQ(not_ogg.error().category(), Media::DecoderErrorCategory::UnrecognizedFormat);
+}
+
+TEST_CASE(identification_refuses_sample_rates_outside_the_supported_range)
+{
+    auto vorbis_with_sample_rate = [](u32 sample_rate) {
+        Array<u8, 30> packet {};
+        "\x01vorbis"sv.bytes().copy_to(packet.span());
+        packet[11] = 1;
+        for (size_t i = 0; i < sizeof(sample_rate); i++)
+            packet[12 + i] = static_cast<u8>(sample_rate >> (i * 8));
+        return Media::Ogg::identify_stream(packet.span());
+    };
+    auto flac_with_sample_rate = [](u32 sample_rate) {
+        Array<u8, 17 + 34> packet {};
+        packet[0] = 0x7F;
+        "FLAC"sv.bytes().copy_to(packet.span().slice(1));
+        packet[5] = 1;
+        "fLaC"sv.bytes().copy_to(packet.span().slice(9));
+        // Block sizes of 4096.
+        packet[17 + 0] = packet[17 + 2] = 0x10;
+        packet[17 + 10] = static_cast<u8>(sample_rate >> 12);
+        packet[17 + 11] = static_cast<u8>(sample_rate >> 4);
+        packet[17 + 12] = static_cast<u8>((sample_rate & 0xF) << 4);
+        return Media::Ogg::identify_stream(packet.span());
+    };
+
+    for (auto identify : { +vorbis_with_sample_rate, +flac_with_sample_rate }) {
+        EXPECT(!identify(Media::MIN_AUDIO_SAMPLE_RATE).is_error());
+        EXPECT(!identify(Media::MAX_AUDIO_SAMPLE_RATE).is_error());
+        EXPECT_EQ(identify(Media::MIN_AUDIO_SAMPLE_RATE - 1).error().category(), Media::DecoderErrorCategory::NotImplemented);
+        EXPECT_EQ(identify(Media::MAX_AUDIO_SAMPLE_RATE + 1).error().category(), Media::DecoderErrorCategory::NotImplemented);
+    }
 }
 
 // A seek into data that is not there yet asks for little more than the pages its probes land on.

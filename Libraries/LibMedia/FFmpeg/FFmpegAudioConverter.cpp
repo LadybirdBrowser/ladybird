@@ -10,6 +10,7 @@
 #include <LibMedia/FFmpeg/FFmpegAudioConverter.h>
 #include <LibMedia/FFmpeg/FFmpegChannelLayout.h>
 #include <LibMediaCodecs/FFmpeg/FFmpegHelpers.h>
+#include <LibMediaCodecs/Limits.h>
 
 extern "C" {
 #include <libswresample/swresample.h>
@@ -26,11 +27,15 @@ ErrorOr<NonnullOwnPtr<FFmpegAudioConverter>> FFmpegAudioConverter::try_create()
 
 ErrorOr<void> FFmpegAudioConverter::set_output_sample_specification(Audio::SampleSpecification specification)
 {
+    if (audio_sample_rate_is_outside_limits(specification.sample_rate()))
+        return Error::from_string_literal("Audio sample rate is outside the supported range");
     return set_sample_specifications(m_input_sample_specification, specification);
 }
 
 ErrorOr<void> FFmpegAudioConverter::set_input_sample_specification(Audio::SampleSpecification specification)
 {
+    if (audio_sample_rate_is_outside_limits(specification.sample_rate()))
+        return Error::from_string_literal("Audio sample rate is outside the supported range");
     return set_sample_specifications(specification, m_output_sample_specification);
 }
 

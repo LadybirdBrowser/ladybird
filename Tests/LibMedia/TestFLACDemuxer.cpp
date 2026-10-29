@@ -12,6 +12,7 @@
 #include <LibMedia/DecoderRegistrations.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
 #include <LibMediaCodecs/CodedFrame.h>
+#include <LibMediaCodecs/Limits.h>
 #include <LibTest/TestCase.h>
 #include <LibThreading/Thread.h>
 
@@ -347,6 +348,27 @@ TEST_CASE(demuxer_declines_what_it_cannot_read)
     ByteBuffer marker_only;
     MUST(marker_only.try_append("fLaC"sv.bytes()));
     EXPECT(demuxer_for(marker_only).is_error());
+}
+
+TEST_CASE(demuxer_refuses_sample_rates_outside_the_supported_range)
+{
+    auto with_sample_rate = [](u32 sample_rate) {
+        // The sample rate is the first 20 bits after STREAMINFO's block and frame sizes.
+        static constexpr size_t sample_rate_offset = 8 + 10;
+        auto data = read_fixture("buffered-ranges/tone.flac"sv);
+        data[sample_rate_offset] = static_cast<u8>(sample_rate >> 12);
+        data[sample_rate_offset + 1] = static_cast<u8>(sample_rate >> 4);
+        data[sample_rate_offset + 2] = static_cast<u8>(((sample_rate & 0xF) << 4) | (data[sample_rate_offset + 2] & 0xF));
+        return data;
+    };
+
+    EXPECT(!demuxer_for(with_sample_rate(Media::MIN_AUDIO_SAMPLE_RATE)).is_error());
+    EXPECT(!demuxer_for(with_sample_rate(Media::MAX_AUDIO_SAMPLE_RATE)).is_error());
+
+    auto too_slow = demuxer_for(with_sample_rate(Media::MIN_AUDIO_SAMPLE_RATE - 1));
+    EXPECT_EQ(too_slow.error().category(), Media::DecoderErrorCategory::NotImplemented);
+    auto too_fast = demuxer_for(with_sample_rate(Media::MAX_AUDIO_SAMPLE_RATE + 1));
+    EXPECT_EQ(too_fast.error().category(), Media::DecoderErrorCategory::NotImplemented);
 }
 
 TEST_CASE(demuxer_grows_the_duration_of_a_stream_that_does_not_state_its_length)
