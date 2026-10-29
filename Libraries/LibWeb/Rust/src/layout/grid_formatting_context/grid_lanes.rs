@@ -133,7 +133,7 @@ impl GridFormattingContext<'_> {
     // properties’ syntax. Auto-placement, however, uses the Grid Lanes Layout and Placement Algorithm, placing each
     // item with an automatic grid position into the “shortest” track available.
     pub(super) fn place_grid_lanes_items(&mut self, lanes: GridLanes) {
-        let (nodes, inputs) = self.collect_grid_items();
+        let inputs = self.collect_grid_items();
         let grid_axis = lanes.grid_axis;
         let resolved = |input: &PlacementInput| grid_axis.select(input.column, input.row);
         let subgridded = self.container_is_subgridded(grid_axis);
@@ -173,7 +173,7 @@ impl GridFormattingContext<'_> {
             if subgridded {
                 Self::clamp_area_to_subgrid(&mut start, &mut span, track_count);
             }
-            let mut item = self.new_grid_item(nodes[input.id]);
+            let mut item = self.new_grid_item(input.id);
             item.set_position(grid_axis, start, span);
             item.set_position(lanes.stacking_axis(), 0, 1);
             item.is_auto_placed_in_grid_lanes = placement.start.is_none();
