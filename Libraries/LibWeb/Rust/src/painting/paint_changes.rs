@@ -142,7 +142,7 @@ impl PaintChange {
                 }
                 let selection =
                     super::selection::apply(&mut arena.paintable_rows_mut(), &entries, start_offset, end_offset);
-                arena.paint_state().borrow_mut().selection = Some(Arc::new(selection));
+                arena.paint_state_mut().selection = Some(Arc::new(selection));
             }
             Self::ClearSelection { viewport } => {
                 if arena.paintable_row_is_populated(viewport) {
@@ -222,7 +222,7 @@ impl PaintChange {
             Self::SvgPaintResourcesChanged => {
                 arena.svg_paint_resources_mut().note_changed();
             }
-            Self::SetRecordingTraceEnabled(enabled) => arena.paint_state().borrow_mut().trace_recordings = enabled,
+            Self::SetRecordingTraceEnabled(enabled) => arena.paint_state_mut().trace_recordings = enabled,
             Self::TakeInRecording {
                 output,
                 hit_test_list_changed,

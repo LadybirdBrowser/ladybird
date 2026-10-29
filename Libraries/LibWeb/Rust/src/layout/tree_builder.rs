@@ -3718,7 +3718,7 @@ impl<'a> TreeBuilderHost<'a> {
         if let Some(element) = element
             && self.holds_highlight_style(element)
         {
-            crate::painting::selection::note_built_row_highlight_pseudo_styles(self.arena(), slot, element);
+            crate::painting::selection::note_built_row_highlight_pseudo_styles(self.arena_mut(), slot, element);
         }
         if self.arena().node_flags(slot) & NodeFlag::IsDocumentElement as u32 != 0 {
             let viewport = self.arena().bound_viewport_row();
@@ -3765,7 +3765,7 @@ impl<'a> TreeBuilderHost<'a> {
             && self.holds_highlight_style(parent)
             && self.arena().bound_row(parent).is_invalid()
         {
-            crate::painting::selection::note_built_row_highlight_pseudo_styles(self.arena(), slot, parent);
+            crate::painting::selection::note_built_row_highlight_pseudo_styles(self.arena_mut(), slot, parent);
         }
     }
 

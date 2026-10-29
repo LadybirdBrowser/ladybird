@@ -187,7 +187,7 @@ impl OverflowAssignment {
             );
             // The root background covers the viewport united with the root's overflow.
             if layout_arena.node_kind_if_live(self.box_paintable) == Some(NodeKind::Viewport) {
-                let root_background_source = layout_arena.paint_state().borrow().root_background_source;
+                let root_background_source = layout_arena.paint_state().root_background_source;
                 if let Some(source) = root_background_source {
                     layout_arena.push_paint_damage(source.root_layout_node, PaintDamage::DRAW_BACKGROUND);
                 }

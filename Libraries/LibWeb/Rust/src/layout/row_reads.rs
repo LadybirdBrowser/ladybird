@@ -260,7 +260,7 @@ impl LayoutNodeArena {
             paintable,
             bound,
             image_maps: self.image_map_areas().snapshot(),
-            visual_context_tree: self.paint_state().borrow().visual_context.tree.clone(),
+            visual_context_tree: self.paint_state().visual_context.tree.clone(),
             version: self.rows_version(),
             overflow_is_measured: self.scrollable_overflow_is_measured(),
             text_awaiting_render: self.text_rows_awaiting_sync(),

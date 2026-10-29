@@ -386,7 +386,7 @@ pub(crate) fn take_in_recording(
     if publishes_recording {
         arena.clear_paint_damage_consumed_by_published_recording();
     }
-    let mut paint_state = arena.paint_state().borrow_mut();
+    let paint_state = arena.paint_state_mut();
     if hit_test_list_changed {
         paint_state.hit_test_list_generation += 1;
     }

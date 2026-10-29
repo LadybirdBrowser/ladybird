@@ -377,7 +377,7 @@ pub extern "C" fn render_state_publish_compositor_animations(
     }
     run_paint_pass(read, host, PassEffect::KeepsPaintPreparation, |arena| {
         crate::painting::visual_context::publish_compositor_animations(
-            &mut arena.paint_state().borrow_mut().visual_context,
+            &mut arena.paint_state_mut().visual_context,
             animations,
         )
     })
@@ -545,9 +545,7 @@ pub unsafe extern "C" fn render_state_take_recording_trace(
     let Some(pending) = host.recording().take_pending_recording_trace() else {
         return false;
     };
-    let recording = read_arena(host, read, (), |arena, ()| {
-        arena.paint_state().borrow().last_recording.clone()
-    });
+    let recording = read_arena(host, read, (), |arena, ()| arena.paint_state().last_recording.clone());
     let Some(recording) = recording else {
         return false;
     };

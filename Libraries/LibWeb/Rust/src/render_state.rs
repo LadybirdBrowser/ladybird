@@ -213,6 +213,14 @@ impl RenderState {
         (unsafe { self.engine.get_mut() }, self.arena.arena())
     }
 
+    /// The style engine to read, beside the layout arena to write.
+    pub(crate) fn engine_ref_and_arena_mut(
+        &mut self,
+    ) -> (&crate::css::style::StyleEngine, &mut crate::layout::LayoutNodeArena) {
+        // SAFETY: As for a change. The arena only links the engine, and its caller changes the engine through neither.
+        (unsafe { self.engine.get() }, self.arena.arena_mut())
+    }
+
     /// The layout arena.
     pub(crate) fn arena_mut(&mut self) -> &mut crate::layout::LayoutNodeArena {
         self.arena.arena_mut()
