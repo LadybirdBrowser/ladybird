@@ -1,0 +1,19 @@
+{
+  "name": "zmij",
+  "version": "1.2",
+  "port-version": 1,
+  "description": "A fast floating-point-to-string conversion library for C and C++",
+  "homepage": "https://github.com/vitaut/zmij",
+  "license": "MIT OR BSL-1.0",
+  "supports": "!arm | arm64",
+  "dependencies": [
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    },
+    {
+      "name": "vcpkg-cmake-config",
+      "host": true
+    }
+  ]
+}

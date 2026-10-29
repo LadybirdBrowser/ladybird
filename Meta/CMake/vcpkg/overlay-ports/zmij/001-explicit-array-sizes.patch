@@ -1,0 +1,30 @@
+diff --git a/zmij.h b/zmij.h
+--- a/zmij.h
++++ b/zmij.h
+@@ -292,7 +292,7 @@ constexpr
+ 
+ // Compressed 128-bit significands of powers of 10.
+ template <typename = void> struct pow10_data {
+-  static constexpr uint64_t minor[] = {
++  static constexpr uint64_t minor[28] = {
+       0x8000000000000000, 0xa000000000000000, 0xc800000000000000,
+       0xfa00000000000000, 0x9c40000000000000, 0xc350000000000000,
+       0xf424000000000000, 0x9896800000000000, 0xbebc200000000000,
+@@ -304,7 +304,7 @@ template <typename = void> struct pow10_data {
+       0xd3c21bcecceda100, 0x84595161401484a0, 0xa56fa5b99019a5c8,
+       0xcecb8f27f4200f3a,
+   };
+-  static constexpr uint128 major[] = {
++  static constexpr uint128 major[25] = {
+       {0xaddcb9e83c6b1793, 0xdf4abe242a1bbf3e},  // -331 (+1 ULP: see fixups)
+       {0xaf8e5410288e1b6f, 0x07ecf0ae5ee44dda},  // -303
+       {0xb1442798f49ffb4a, 0x99cd11cfdf41779d},  // -275
+@@ -331,7 +331,7 @@ template <typename = void> struct pow10_data {
+       {0xd94ad8b1c7380874, 0x18375281ae7822bd},  //  313 (+1 ULP: see fixups)
+       {0xdb68c2ca82ed2a05, 0xa67398db9f6820e1},  //  341
+   };
+-  static constexpr uint32_t fixups[] = {
++  static constexpr uint32_t fixups[21] = {
+       0x8d8fc810, 0x06100293, 0x19000000, 0x00100000, 0x00000908, 0x00000000,
+       0x04e00300, 0x3807e0b2, 0x3d83d793, 0x0006f5cc, 0x00000000, 0xffff0000,
+       0x8076337d, 0x4ff45ba0, 0x09405033, 0x034376d9, 0x09000000, 0x4e100501,
