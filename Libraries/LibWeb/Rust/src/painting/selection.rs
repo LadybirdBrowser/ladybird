@@ -68,7 +68,7 @@ pub(crate) struct SelectionRange {
     pub boxes_with_selection_state: Vec<NodeSlotId>,
 }
 
-fn invalidate_text_node(layout_arena: &PaintableRowsMut<'_>, node: NodeSlotId) {
+fn invalidate_text_node(layout_arena: &mut PaintableRowsMut<'_>, node: NodeSlotId) {
     if let Some(containing_block) = text_fragment::containing_block_paintable_of_node(layout_arena, node) {
         layout_arena.push_paint_damage(containing_block, PaintDamage::ALL_DRAW);
     }

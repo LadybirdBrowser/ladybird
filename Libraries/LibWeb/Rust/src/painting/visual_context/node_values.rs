@@ -19,7 +19,7 @@ use crate::painting::host::FfiVisualContextTreeInputs;
 use crate::painting::node_painting;
 use crate::painting::paint_read::{PaintRead, PaintRow};
 use crate::painting::paintable_geometry;
-use crate::painting::paintable_rows::PaintableRowsRead;
+use crate::painting::paintable_rows::PaintableRowsWrite;
 use crate::painting::style_queries;
 use libgfx_rust::{
     AffineTransform, CompositingAndBlendingOperator, CornerRadii, FloatPoint, affine_to_matrix, perspective_matrix,
@@ -571,8 +571,8 @@ pub(crate) fn mix_blend_mode_to_compositing_and_blending_operator(
 /// box, or the whole enclosing viewport rect for an element without geometry of its own.
 // The bounds size the transparent fill that triggers a content-generating SVG filter, which
 // the stacking-context preamble records.
-fn set_svg_filter_bounds(
-    layout_arena: &impl PaintableRowsRead,
+pub(crate) fn set_svg_filter_bounds(
+    layout_arena: &mut impl PaintableRowsWrite,
     slot: NodeSlotId,
     bounds: Option<crate::layout::used_values::FfiCssPixelRect>,
 ) {
@@ -641,16 +641,6 @@ fn published_svg_filter(
             .map(crate::layout::used_values::FfiCssPixelRect::from)
             .into(),
     }
-}
-
-pub(crate) fn compute_effects_data(
-    layout_arena: &impl PaintableRowsRead,
-    slot: NodeSlotId,
-    device_pixels_per_css_pixel: f64,
-) -> Option<EffectsData> {
-    let resolved = resolve_effects_data(layout_arena, slot, device_pixels_per_css_pixel)?;
-    set_svg_filter_bounds(layout_arena, slot, resolved.svg_filter_bounds);
-    resolved.effects
 }
 
 /// A box's effects, and the bounds of the SVG filter it references.
