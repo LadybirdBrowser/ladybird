@@ -691,7 +691,7 @@ impl GlobalObject {
         let mut escaped = Vec::with_capacity(string.length_in_code_units());
 
         // 4. Let unescapedSet be the string-concatenation of the ASCII word characters and "@*+-./".
-        let unescaped_set = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@*_+-./";
+        let unescaped_set = AsciiSet::new(b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@*_+-./");
 
         // 2. Let length be the length of string.
         // 5. Let k be 0.
@@ -700,8 +700,7 @@ impl GlobalObject {
             // a. Let char be the code unit at index k within string.
 
             // b. If unescapedSet contains char, then
-            // NOTE: We know unescapedSet is ASCII-only, so ensure we have an ASCII codepoint before casting to char.
-            if code_unit < 0x80 && unescaped_set.contains(&(code_unit as u8)) {
+            if unescaped_set.contains(code_unit) {
                 // i. Let S be the String value containing the single code unit char.
                 escaped.push(code_unit);
             }
@@ -808,6 +807,24 @@ impl GlobalObject {
 }
 
 // 19.2.6.5 Encode ( string, extraUnescaped ), https://tc39.es/ecma262/#sec-encode
+/// OPTIMIZATION: A set of ASCII characters that tells whether it contains a code unit with one lookup, where searching
+///               the characters would compare it with each of them.
+struct AsciiSet([bool; 128]);
+
+impl AsciiSet {
+    fn new(characters: &[u8]) -> Self {
+        let mut set = [false; 128];
+        for &character in characters {
+            set[usize::from(character)] = true;
+        }
+        Self(set)
+    }
+
+    fn contains(&self, code_unit: u16) -> bool {
+        self.0.get(usize::from(code_unit)).copied().unwrap_or(false)
+    }
+}
+
 fn encode(vm: &Vm, string: Utf16View<'_>, unescaped_set: &str) -> ThrowCompletionOr<Utf16String> {
     // 1. Let strLen be the length of string.
     let string_length = string.length_in_code_units();
@@ -818,6 +835,7 @@ fn encode(vm: &Vm, string: Utf16View<'_>, unescaped_set: &str) -> ThrowCompletio
     // 3. Let alwaysUnescaped be the string-concatenation of the ASCII word characters and "-.!~*'()".
     // 4. Let unescapedSet be the string-concatenation of alwaysUnescaped and extraUnescaped.
     // OPTIMIZATION: We pass in the entire unescapedSet as a StringView to avoid an extra allocation.
+    let unescaped_set = AsciiSet::new(unescaped_set.as_bytes());
 
     // 5. Let k be 0.
     let mut k = 0;
@@ -830,8 +848,7 @@ fn encode(vm: &Vm, string: Utf16View<'_>, unescaped_set: &str) -> ThrowCompletio
         // b. Let C be the code unit at index k within string.
         let code_unit = string.code_unit_at(k);
         // c. If C is in unescapedSet, then
-        // NOTE: We assume the unescaped set only contains ascii characters as unescaped_set is a StringView.
-        if code_unit < 0x80 && unescaped_set.as_bytes().contains(&(code_unit as u8)) {
+        if unescaped_set.contains(code_unit) {
             // i. Set k to k + 1.
             k += 1;
 
