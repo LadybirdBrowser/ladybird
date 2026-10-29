@@ -127,6 +127,12 @@ searchSuggestionsEnabled.addEventListener("change", () => {
 enableContentBlocking.addEventListener("change", () => {
     if (!initialized) return;
 
+    // Enable the lists before the content blocker, which then downloads every enabled list.
+    if (enableContentBlocking.checked) {
+        for (const identifier of ["easyList", "easyPrivacy"])
+            ladybird.sendMessage("setContentBlockerListEnabled", { identifier, enabled: true });
+    }
+
     ladybird.sendMessage("setContentBlockerEnabled", enableContentBlocking.checked);
     ladybird.sendMessage("setFilterListUpdatesEnabled", enableContentBlocking.checked);
 });
