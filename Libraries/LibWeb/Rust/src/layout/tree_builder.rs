@@ -164,7 +164,7 @@ fn apply_replaced_display_adjustment(
 }
 
 /// The kind of box a computed display asks for, or none for a display that generates no box.
-fn node_kind_for_display(display: FfiDisplay) -> Option<NodeKind> {
+pub(crate) fn node_kind_for_display(display: FfiDisplay) -> Option<NodeKind> {
     if display.is_none() || display.is_contents() {
         return None;
     }
@@ -4582,7 +4582,8 @@ fn create_first_letter_boxes(host: &mut TreeBuilderHost<'_>, element: StyleNodeI
             host.stamp_generated_text_box(&source[letter_end..]),
         )
     };
-    if let Some(text) = host.arena().node_style_node(first_letter_slice) {
+    let text = host.arena().node_style_node(first_letter_slice);
+    if let Some(text) = text {
         for slice in [first_letter_slice, remainder_slice] {
             host.stamp_text_row_facts(slice, text);
         }
@@ -4592,15 +4593,22 @@ fn create_first_letter_boxes(host: &mut TreeBuilderHost<'_>, element: StyleNodeI
     let first_letter_slice = host.created(first_letter_slice);
     let remainder_slice = host.created(remainder_slice);
 
+    let derived = text.and_then(|text| host.arena_mut().derive_first_letter_style_record(element, text));
     let wrapper_kind = host
         .arena()
         .with_style_store(|engine| {
-            engine
-                .pseudo_published_style_view(element, pseudo_kind_of(GENERATED_FOR_FIRST_LETTER))
-                .map(|view| view.display())
+            match derived {
+                Some(derived) => engine.published_record_view(derived.record),
+                None => engine.pseudo_published_style_view(element, pseudo_kind_of(GENERATED_FOR_FIRST_LETTER)),
+            }
+            .map(|view| view.display())
         })
         .and_then(node_kind_for_display);
     let Some(wrapper_kind) = wrapper_kind else {
+        if let Some(derived) = derived {
+            host.arena_mut()
+                .with_style_engine(|engine| engine.unpin_layout_style_record(derived.record));
+        }
         // A `::first-letter` whose display generates no box leaves the text it matched alone.
         host.free_unplaced(first_letter_slice);
         host.free_unplaced(remainder_slice);
@@ -4619,6 +4627,14 @@ fn create_first_letter_boxes(host: &mut TreeBuilderHost<'_>, element: StyleNodeI
     let wrapper_slot = host.arena.allocate_unbound();
     host.arena_mut()
         .stamp_pseudo_element_row(wrapper_slot, wrapper_kind, element, GENERATED_FOR_FIRST_LETTER);
+    if let Some(derived) = derived {
+        host.arena_mut()
+            .replace_arena_pinned_style_record(wrapper_slot, derived);
+    }
+    if let Some(text) = text {
+        host.arena_mut()
+            .note_first_letter_parent_style(wrapper_slot, element, text);
+    }
     host.note_style_of_built_row(wrapper_slot, None);
     host.arena_mut().owe_image_resources(
         wrapper_slot,

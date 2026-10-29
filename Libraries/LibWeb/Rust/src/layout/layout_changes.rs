@@ -346,6 +346,8 @@ pub(crate) enum LayoutWrite<'a> {
     ReinheritAnonymousDescendants { node: NodeSlotId },
     /// The anonymous boxes that give the text of a `display: contents` element its style take it again.
     ReinheritDisplayContentsText { element: StyleNodeID },
+    /// Each `::first-letter` box whose element containing the letter took another style takes its style again.
+    RefreshFirstLetterStyles,
     /// The viewport and the boxes of the root element and its body take the styles viewport propagation gives them.
     PropagateRootStylesToViewport,
     /// Prepares every row of the subtree the row heads for leaving the layout tree.
@@ -401,6 +403,10 @@ impl LayoutWrite<'_> {
             }
             Self::ReinheritDisplayContentsText { element } => {
                 arena.reinherit_display_contents_text(host_calls, element);
+                false
+            }
+            Self::RefreshFirstLetterStyles => {
+                arena.refresh_first_letter_styles(host_calls);
                 false
             }
             Self::PropagateRootStylesToViewport => {

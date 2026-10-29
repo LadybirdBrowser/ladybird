@@ -27,6 +27,7 @@
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/Layout/Box.h>
+#include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Selection/Selection.h>
 
 namespace Web::CSS {
@@ -768,6 +769,8 @@ static void update_style(Layout::BegunRead const& read, DOM::Document& document,
     document.set_has_completed_style_update();
     apply_document_style_invalidation_after_style_change(document, application.invalidation);
     document.sample_animation_effects_needing_style_update();
+    if (auto* arena = document.layout_node_arena_if_created())
+        Layout::RustFFI::render_state_refresh_first_letter_styles(arena->host());
 }
 
 // Records what update_style() records before it takes the document's style transaction, and lets the transaction fly

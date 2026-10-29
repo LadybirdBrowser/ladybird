@@ -821,15 +821,6 @@ enum TickRebuild {
     Again,
 }
 
-/// The mark a style change makes for the next layout tree build, which may reuse a box as `reuse_reason` says.
-fn style_change_mark(reuse_reason: u8) -> FfiLayoutTreeUpdateMark {
-    FfiLayoutTreeUpdateMark {
-        reuse_reason,
-        is_child_list_insertion: false,
-        is_structural_boundary_self_rebuild: false,
-    }
-}
-
 /// How many times a tick lays out again what the containers it resized restyled, as the host's layout update
 /// stabilizes them.
 const SIZE_QUERY_ROUND_LIMIT: usize = 8;
@@ -945,7 +936,10 @@ impl Lane {
             TickRebuild::PseudoElements => {
                 let in_place = build_keeps_box(arena, node, PSEUDO_ELEMENT_CHANGE);
                 if in_place {
-                    arena.mark_layout_tree_update(Some(node), style_change_mark(PSEUDO_ELEMENT_CHANGE));
+                    arena.mark_layout_tree_update(
+                        Some(node),
+                        FfiLayoutTreeUpdateMark::style_change(PSEUDO_ELEMENT_CHANGE),
+                    );
                 }
                 in_place
             }
@@ -972,7 +966,7 @@ impl Lane {
                     restore_samples_for_build(arena, ticked, None, restyles, |arena, inner, _| {
                         box_holds(arena, row, inner)
                     })?;
-                    arena.mark_layout_tree_update(Some(node), style_change_mark(0));
+                    arena.mark_layout_tree_update(Some(node), FfiLayoutTreeUpdateMark::style_change(0));
                 }
                 in_place
             }
@@ -1080,7 +1074,7 @@ fn mark_region_for_tree_build(
     restore_samples_for_build(arena, ticked, Some(resampled), restyles, |arena, inner, _| {
         box_holds(arena, row, inner)
     })?;
-    arena.mark_layout_tree_update(Some(root), style_change_mark(0));
+    arena.mark_layout_tree_update(Some(root), FfiLayoutTreeUpdateMark::style_change(0));
     Ok(())
 }
 

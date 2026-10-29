@@ -948,6 +948,10 @@ impl DocumentHost {
         self.shared.svg_paint_resources_enrolled.load(Ordering::Relaxed)
     }
 
+    pub(crate) fn first_letter_styles_may_be_derived(&self) -> bool {
+        self.shared.first_letter_styles_derived.load(Ordering::Relaxed)
+    }
+
     /// Whether some element may have random base values to keep, which only then is worth asking the render state.
     pub(crate) fn element_random_base_values_may_exist(&self) -> bool {
         self.shared.element_random_base_values_exist.load(Ordering::Relaxed)

@@ -26,8 +26,8 @@ use crate::layout::ComputedValuesView;
 use crate::layout::CssPixels;
 use crate::layout::node_data::{
     AncestorFact, DomPaintFact, FfiStylePayloads, GENERATED_FOR_AFTER, GENERATED_FOR_BEFORE,
-    GENERATED_FOR_LAST_SYNTHETIC, GENERATED_FOR_MARKER, MAX_NODE_SLOT_COUNT, NodeData, NodeFlag, NodeKind, NodeSlotId,
-    StylePayloadsRef, pseudo_kind_of,
+    GENERATED_FOR_FIRST_LETTER, GENERATED_FOR_LAST_SYNTHETIC, GENERATED_FOR_MARKER, MAX_NODE_SLOT_COUNT, NodeData,
+    NodeFlag, NodeKind, NodeSlotId, StylePayloadsRef, pseudo_kind_of,
 };
 use crate::layout::node_facts::ReplacedContentFacts;
 use crate::layout::tree_mutation::HostCalls;
@@ -1278,6 +1278,10 @@ pub(crate) struct LayoutNodeArena {
     position_options_in_use: HashMap<NodeSlotId, super::abspos_inputs::PositionOptionChoice>,
     /// https://drafts.csswg.org/css-anchor-position-1/#last-successful-position-option
     last_successful_position_options: HashMap<NodeSlotId, super::abspos_inputs::PositionOptionChoice>,
+    /// The style record and custom property environment of the element containing the letter, as each
+    /// `::first-letter` box's style was last derived from them.
+    first_letter_parent_styles: HashMap<NodeSlotId, (u64, u64)>,
+    first_letter_styles_derived: std::sync::Arc<std::sync::atomic::AtomicBool>,
     pub(crate) inline_boxes_lifted_out_of: HashMap<NodeSlotId, NodeSlotId>,
     pub(crate) out_of_flow_positioning_contained: HashMap<NodeSlotId, u32>,
     /// Attribution of pending updates for partial relayout. Invariant: every update recorded
@@ -1386,6 +1390,8 @@ impl LayoutNodeArena {
             confined_abspos_layout_inputs: HashMap::default(),
             position_options_in_use: (HashMap::default()),
             last_successful_position_options: (HashMap::default()),
+            first_letter_parent_styles: HashMap::default(),
+            first_letter_styles_derived: std::sync::Arc::default(),
             inline_boxes_lifted_out_of: HashMap::default(),
             out_of_flow_positioning_contained: HashMap::default(),
             pending_updates_escape_partial_relayout: false,
@@ -2951,12 +2957,20 @@ impl LayoutNodeArena {
         fork.chunks_by_address.sort_unstable_by_key(|address| address.start);
         fork.style_engine = ArenaStyleEngine(engine);
         fork.svg_paint_resources.detach_enrolled_flag_for_fork();
+        fork.first_letter_styles_derived = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(
+            self.first_letter_styles_derived
+                .load(std::sync::atomic::Ordering::Relaxed),
+        ));
         fork
     }
 
     /// See [`crate::painting::svg_paint_resources::SvgPaintResources::share_enrolled_flag`].
     pub(crate) fn share_svg_paint_resources_enrolled(&mut self, flag: std::sync::Arc<std::sync::atomic::AtomicBool>) {
         self.svg_paint_resources.share_enrolled_flag(flag);
+    }
+
+    pub(crate) fn share_first_letter_styles_derived(&mut self, flag: std::sync::Arc<std::sync::atomic::AtomicBool>) {
+        self.first_letter_styles_derived = flag;
     }
 
     /// Gives the row at `index` the style record `record`, answering the one it held. A row whose record changes no
@@ -3607,6 +3621,99 @@ impl LayoutNodeArena {
         self.with_style_engine(|engine| LayoutStyle::anonymous(engine, parent, kind, overrides).intern(engine))
     }
 
+    pub(crate) fn derive_first_letter_style_record(
+        &mut self,
+        originating: StyleNodeID,
+        text: StyleNodeID,
+    ) -> Option<DerivedStyleRecord> {
+        self.with_style_engine(|engine| {
+            let record = engine.first_letter_record_inheriting_from_text_parent(originating, text)?;
+            Some(DerivedStyleRecord::pin(engine, record))
+        })
+    }
+
+    pub(crate) fn note_first_letter_parent_style(
+        &mut self,
+        slot: NodeSlotId,
+        originating: StyleNodeID,
+        text: StyleNodeID,
+    ) {
+        let parent_style =
+            self.with_style_store(|engine| engine.first_letter_inheritance_parent_style(originating, text));
+        let Some(parent_style) = parent_style else {
+            self.first_letter_parent_styles.remove(&slot);
+            return;
+        };
+        self.first_letter_parent_styles.insert(slot, parent_style);
+        self.first_letter_styles_derived
+            .store(true, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    pub(crate) fn refresh_first_letter_styles(&mut self, host_calls: HostCalls<'_>) {
+        let noted: smallvec::SmallVec<[(NodeSlotId, (u64, u64)); 4]> = self
+            .first_letter_parent_styles
+            .iter()
+            .map(|(&slot, &parent_style)| (slot, parent_style))
+            .collect();
+        for (slot, noted_parent_style) in noted {
+            if !self.slot_is_live(slot) {
+                self.first_letter_parent_styles.remove(&slot);
+                continue;
+            }
+            let parent_style = self
+                .node_style_node(slot)
+                .zip(self.node_style_node(self.data(slot).first_child.get()))
+                .and_then(|(originating, text)| {
+                    self.with_style_store(|engine| engine.first_letter_inheritance_parent_style(originating, text))
+                });
+            if parent_style != Some(noted_parent_style) {
+                self.reinherit_first_letter_box(host_calls, slot);
+            }
+        }
+    }
+
+    fn reinherit_first_letter_box(&mut self, host_calls: HostCalls<'_>, slot: NodeSlotId) {
+        let data = self.data(slot);
+        if data.generated_for.get() != GENERATED_FOR_FIRST_LETTER
+            || !super::node_facts::has_flag(data, NodeFlag::IsPseudoElementPrincipalBox)
+        {
+            return;
+        }
+        let kind = data.kind.get();
+        let Some(originating) = self.node_style_node(slot) else {
+            return;
+        };
+        let Some(text) = self.node_style_node(data.first_child.get()) else {
+            return;
+        };
+        let derived = self.derive_first_letter_style_record(originating, text);
+        self.note_first_letter_parent_style(slot, originating, text);
+        let Some(derived) = derived else {
+            return;
+        };
+        if derived.record == self.node_style_record(slot) {
+            self.with_style_engine(|engine| engine.unpin_layout_style_record(derived.record));
+            return;
+        }
+        let derived_kind = self
+            .with_style_store(|engine| engine.published_record_view(derived.record).map(|view| view.display()))
+            .and_then(super::tree_builder::node_kind_for_display);
+        if derived_kind != Some(kind) {
+            self.with_style_engine(|engine| engine.unpin_layout_style_record(derived.record));
+            self.mark_layout_tree_update(
+                Some(originating),
+                super::tree_update_marks::FfiLayoutTreeUpdateMark::style_change(0),
+            );
+            return;
+        }
+        if self.apply_reinherited_style_record(host_calls, slot, derived) {
+            self.set_needs_layout_update(slot, true);
+        }
+        if self.owe_style_image_resources_once(slot) {
+            self.notify_shell_of_style_change(host_calls, slot, true);
+        }
+    }
+
     /// `record` with its display replaced by `display`, pinned for a row of the arena.
     pub(crate) fn derive_style_record_with_display(
         &mut self,
@@ -3710,6 +3817,7 @@ impl LayoutNodeArena {
         if self.node_style_record(node) == 0 {
             return;
         }
+        self.reinherit_first_letter_box(host_calls, node);
         if self.is_display_contents_pseudo_element_box_holding_its_published_display(node) {
             self.make_display_contents_pseudo_element_box_inline(host_calls, node);
         }
@@ -3788,6 +3896,8 @@ impl LayoutNodeArena {
                     self.apply_reinherited_style_record(host_calls, child, derived);
                     self.reinherit_anonymous_children(host_calls, child, derived.record);
                 }
+            } else {
+                self.reinherit_first_letter_box(host_calls, child);
             }
             child = next_sibling;
         }

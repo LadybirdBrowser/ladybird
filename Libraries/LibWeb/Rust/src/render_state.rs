@@ -66,6 +66,9 @@ impl RenderState {
         arena
             .arena_mut()
             .share_svg_paint_resources_enrolled(shared.svg_paint_resources_enrolled);
+        arena
+            .arena_mut()
+            .share_first_letter_styles_derived(shared.first_letter_styles_derived);
         arena.arena_mut().set_style_engine(engine);
         Self {
             arena,
@@ -358,6 +361,8 @@ pub(crate) enum ArenaChange {
     ReinheritAnonymousDescendants(crate::layout::node_data::NodeSlotId),
     /// The anonymous boxes that give the text of a `display: contents` element its style take it again.
     ReinheritDisplayContentsText(crate::css::style::tree::StyleNodeID),
+    /// The `::first-letter` boxes whose element containing the letter took another style take their style again.
+    RefreshFirstLetterStyles,
     /// A removed node's box leaves its parent's box in place, or the parent is marked for a rebuild, as the render state
     /// finds the boxes (see [`crate::layout::box_removal`]), which owes the host what it pays once the job that applies
     /// it is done.
@@ -416,6 +421,11 @@ impl ArenaChange {
                     .apply(arena)
                     .host_work,
             ),
+            Self::RefreshFirstLetterStyles => owed.push(
+                crate::layout::layout_changes::LayoutWrite::RefreshFirstLetterStyles
+                    .apply(arena)
+                    .host_work,
+            ),
             Self::RemoveBox(removal) => removal.apply(arena, owed),
             Self::Paint(change) => change.apply(arena),
             Self::Style(change) => change.apply(state.engine_mut()),
@@ -442,6 +452,7 @@ impl ArenaChange {
             | Self::DetachForRemoval(_)
             | Self::ReinheritAnonymousDescendants(_)
             | Self::ReinheritDisplayContentsText(_)
+            | Self::RefreshFirstLetterStyles
             | Self::RemoveBox(_) => false,
         }
     }
@@ -458,6 +469,7 @@ impl ArenaChange {
             Self::DetachForRemoval(_)
             | Self::ReinheritAnonymousDescendants(_)
             | Self::ReinheritDisplayContentsText(_)
+            | Self::RefreshFirstLetterStyles
             | Self::RemoveBox(_)
             | Self::Rule(_) => (true, true),
         };
@@ -475,7 +487,9 @@ impl ArenaChange {
             Self::Layout(change) => change.row_write(),
             Self::Paint(change) => change.row_write(),
             Self::DetachForRemoval(_) | Self::RemoveBox(_) => RowWrite::Identities,
-            Self::ReinheritAnonymousDescendants(_) | Self::ReinheritDisplayContentsText(_) => RowWrite::NamedStyles,
+            Self::ReinheritAnonymousDescendants(_)
+            | Self::ReinheritDisplayContentsText(_)
+            | Self::RefreshFirstLetterStyles => RowWrite::NamedStyles,
             Self::Style(_) | Self::Engine(_) | Self::Rule(_) => RowWrite::None,
         }
     }
@@ -586,7 +600,9 @@ impl ChangeQueue {
             ArenaChange::Layout(crate::layout::layout_changes::LayoutChange::SetNodeStyle { node, .. }) => {
                 self.styled_rows.borrow_mut().insert(*node);
             }
-            ArenaChange::ReinheritAnonymousDescendants(_) | ArenaChange::ReinheritDisplayContentsText(_) => {
+            ArenaChange::ReinheritAnonymousDescendants(_)
+            | ArenaChange::ReinheritDisplayContentsText(_)
+            | ArenaChange::RefreshFirstLetterStyles => {
                 self.restyles_anonymous_rows.set(true);
             }
             _ => {}

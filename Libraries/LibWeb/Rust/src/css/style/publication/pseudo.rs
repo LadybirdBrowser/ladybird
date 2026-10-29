@@ -1189,6 +1189,119 @@ impl RetainedState {
         Ok((old_record, record))
     }
 
+    fn refresh_stale_first_letter_winners(&mut self, node: StyleNodeID) {
+        let first_letter =
+            tree::PseudoElementTarget::new(tree::PseudoElementKind(u16::from(pseudo_kind::FIRST_LETTER)));
+        let program_version = self.program.version();
+        let current = self
+            .current_winner_groups()
+            .pseudo_state(node, first_letter)
+            .is_some_and(|(version, _, priority_current)| version == program_version && priority_current);
+        if current {
+            return;
+        }
+        let republication = WinnerRepublication::for_flush();
+        if self
+            .republish_pseudo_winners_from_retained_answer(node, republication)
+            .is_none()
+        {
+            self.rematch_driven_winners(node, republication);
+        }
+    }
+
+    fn first_letter_record_inheriting_from(
+        &mut self,
+        node: StyleNodeID,
+        parent: StyleNodeID,
+        font_scratch: &mut drive::FontDriveScratch,
+    ) -> Drive<computed::FinalStyleRecordID> {
+        let kind = pseudo_kind::FIRST_LETTER;
+        let program_version = self.program.version();
+        let state = self
+            .current_winner_groups()
+            .pseudo_state(
+                node,
+                tree::PseudoElementTarget::new(tree::PseudoElementKind(u16::from(kind))),
+            )
+            .filter(|&(version, _, priority_current)| version == program_version && priority_current)
+            .map(|(_, state, _)| state)
+            .or_refused()?;
+        let facts = self.computed_group_sets.adjustment_facts(node);
+        let mut inputs = self.document_style_computation_inputs;
+        if facts & bridge::element_adjustment_fact::IS_DOCUMENT_ELEMENT != 0 {
+            let element_record = self.computed_group_sets.assigned_style_record(node).or_refused()?;
+            self.root_font_inputs_from_record(element_record)
+                .or_refused()?
+                .apply_to(&mut inputs);
+        }
+        if self.declares_registered_custom_property(node, Some(kind), &inputs) {
+            return Err(Unanswered::Refused);
+        }
+        let parent_record = self.computed_group_sets.assigned_style_record(parent).or_refused()?;
+        let parent_environment = self.held_custom_property_environment(parent)?;
+        let environment =
+            self.engine_custom_property_environment_of(node, Some(kind), parent_environment, &inputs, None)?;
+        let mut substituted = false;
+        let store = self.cascaded_store_for_state(
+            node,
+            state,
+            Some(kind),
+            custom_property_cascade::SubstitutionEnvironment {
+                own: environment,
+                inherited: parent_environment,
+            },
+            &mut substituted,
+        )?;
+        let target = computed::ComputedStyleTarget::new(node, kind);
+        let subject = DriveSubject {
+            target,
+            parent: Some(parent),
+            facts: facts & PSEUDO_ELEMENT_ADJUSTMENT_FACTS,
+        };
+        let FullDrive::Driven(DrivenTable {
+            table, length, font, ..
+        }) = self.engine_full_drive(
+            subject,
+            None,
+            &store,
+            &inputs,
+            font_scratch,
+            FontDriveGoal::Complete,
+            None,
+        )?
+        else {
+            unreachable!("a complete drive that waits for no registered context answers with its table");
+        };
+        let font = font.expect("a full drive resolves the font");
+        let registry = self.table_counter_style_environment_identity(target, &table);
+        let (record, _) = self.assemble_and_publish_engine_record(
+            None,
+            Some(parent_record),
+            table,
+            &length,
+            &font,
+            environment,
+            0,
+            registry,
+            None,
+            &mut EngineComputabilityScratch::default(),
+        )?;
+        Ok(record)
+    }
+
+    pub(crate) fn first_letter_inheritance_parent_style(
+        &self,
+        node: StyleNodeID,
+        text: StyleNodeID,
+    ) -> Option<(u64, u64)> {
+        let parent = self.tree.inheritance_parent(text).filter(|&parent| parent != node)?;
+        let sets = &self.computed_group_sets;
+        Some((
+            sets.assigned_style_record(parent)?.raw(),
+            sets.custom_property_environment_identity(parent).unwrap_or(0),
+        ))
+    }
+
     /// Whether the node holds a match answer its pseudo-elements' winners are proven from: the
     /// one this transaction published, or the retained one.
     /// The synthetic pseudo-elements a published answer has rules for, where it can say.
@@ -1453,6 +1566,39 @@ impl StyleEngine {
             }
         }
         settled
+    }
+
+    pub(crate) fn first_letter_record_inheriting_from_text_parent(
+        &mut self,
+        node: StyleNodeID,
+        text: StyleNodeID,
+    ) -> Option<u64> {
+        let parent = self
+            .retained
+            .tree
+            .inheritance_parent(text)
+            .filter(|&parent| parent != node)?;
+        let font_environment_generation = self
+            .retained
+            .document_style_computation_inputs
+            .font_environment_generation;
+        if let Some(resolver) = &mut self.retained.font_resolution {
+            resolver.prepare(font_environment_generation);
+        }
+        self.retained.refresh_stale_first_letter_winners(node);
+        let mut font_scratch = drive::FontDriveScratch::default();
+        loop {
+            match self
+                .retained
+                .first_letter_record_inheriting_from(node, parent, &mut font_scratch)
+            {
+                Err(Unanswered::Suspended(Suspension::Font)) => {
+                    let request = font_scratch.take_suspended_request();
+                    self.refill_font_request(node, request);
+                }
+                attempt => return attempt.ok().map(computed::FinalStyleRecordID::raw),
+            }
+        }
     }
 }
 
