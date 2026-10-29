@@ -868,6 +868,26 @@ test("Unicode case-insensitive matching", () => {
     testMatch(/[ω]/iv, "\u2126", ["\u2126"]);
     testMatch(/[\u03A9]/i, "\u2126", null);
     testMatch(/[\u03A9]/iv, "\u2126", ["\u2126"]);
+
+    // ASCII characters against classes that only contain their non-ASCII case equivalents
+    testMatch(/[\u2100-\u212A]/i, "k", null);
+    testMatch(/[\u2100-\u212A]/i, "K", null);
+    testMatch(/[\u2100-\u212A]/iu, "k", ["k"]);
+    testMatch(/[\u2100-\u212A]/iu, "K", ["K"]);
+    testMatch(/[\u0100-\u017F]/i, "s", null);
+    testMatch(/[\u0100-\u017F]/i, "S", null);
+    testMatch(/[\u0100-\u017F]/iu, "s", ["s"]);
+    testMatch(/[\u0100-\u017F]/iu, "S", ["S"]);
+    testMatch(/[\u0100-\u017F]/iu, "t", null);
+
+    // ASCII characters against ASCII classes
+    testMatch(/[0-9]/i, "a", null);
+    testMatch(/[0-9]/iu, "7", ["7"]);
+    testMatch(/[a-f]/i, "D", ["D"]);
+    testMatch(/[A-F]/iu, "d", ["d"]);
+    testMatch(/[A-F]/i, "g", null);
+    testMatch(/[@]/i, "`", null);
+    testMatch(/[[]/i, "{", null);
 });
 
 test("surrogate pairs", () => {
