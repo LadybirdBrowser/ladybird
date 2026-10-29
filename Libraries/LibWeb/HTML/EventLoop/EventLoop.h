@@ -186,6 +186,9 @@ public:
     bool lays_out_rendering_update_in_flight() const;
     // Runs the steps of the rendering update whose style transaction flies, which take the transaction in.
     void finish_rendering_update_in_flight();
+    // The serial number of the first rendering update that may gather a resize observation of `document` made now. A
+    // task beside a rendering update whose style and layout of the document have yet to run comes after the whole of it.
+    u64 first_rendering_update_to_gather_resize_observations_of(DOM::Document const&) const;
     // A rendering task that would find a rendering update not yet finished keeps its place in the queue until the update
     // has finished, rather than wait for it. One that finds a frame still in flight runs beside it.
     bool holds_rendering_opportunity() const;

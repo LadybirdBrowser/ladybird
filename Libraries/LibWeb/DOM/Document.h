@@ -1438,7 +1438,7 @@ public:
     GC::RootVector<GC::Ref<DOM::Element>> named_elements_with_name(Utf16FlyString const&) const;
     static bool is_named_element_with_name(Element const&, Utf16FlyString const&);
 
-    void gather_active_observations_at_depth(size_t depth);
+    void gather_active_observations_at_depth(size_t depth, u64 rendering_update_serial);
     [[nodiscard]] size_t broadcast_active_resize_observations(Layout::BegunRead const& read);
     [[nodiscard]] bool has_active_resize_observations();
     [[nodiscard]] bool has_skipped_resize_observations();
