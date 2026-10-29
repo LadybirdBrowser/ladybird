@@ -93,6 +93,7 @@ unsafe extern "C" {
 // A raw string is never zero, which is what lets `Option` of an owner stay one word, the same as
 // `AK::Optional<AK::Utf16String>`.
 #[repr(transparent)]
+#[derive(Debug)]
 struct OwnedUtf16String {
     raw: NonZeroUsize,
 }
@@ -157,6 +158,7 @@ pub struct Utf16String(OwnedUtf16String);
 
 /// A one-word Rust owner for the same interned storage as `AK::Utf16FlyString`.
 #[repr(transparent)]
+#[derive(Debug)]
 pub struct Utf16FlyString(OwnedUtf16String);
 
 const _: () = assert!(size_of::<OwnedUtf16String>() == size_of::<usize>());
