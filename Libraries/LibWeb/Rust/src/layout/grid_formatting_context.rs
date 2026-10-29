@@ -4415,7 +4415,9 @@ impl<'pass> GridFormattingContext<'pass> {
             item.box_,
             input,
             false,
-            self.run.percentage_block_insets_of_root_children_have_definite_basis(),
+            self.run.percentage_block_insets_of_root_children_have_definite_basis(
+                self.run.records.used_values(self.run.box_),
+            ),
         );
         formatting_context::ChildRunShape {
             node: item.box_,
@@ -4489,7 +4491,7 @@ impl<'pass> GridFormattingContext<'pass> {
                 cells,
                 None,
                 false,
-                run.percentage_block_insets_of_root_children_have_definite_basis(),
+                run.percentage_block_insets_of_root_children_have_definite_basis(run.records.used_values(run.box_)),
             );
             self.update_cells_of(item, |item_cells| *item_cells = laid_out_box.cells);
             outcome.report_percentage_block_size_dependency_of(run, item.box_);
@@ -4513,7 +4515,7 @@ impl<'pass> GridFormattingContext<'pass> {
                 item.box_,
                 self.container_used(),
                 area.size,
-                run.percentage_block_insets_of_root_children_have_definite_basis(),
+                run.percentage_block_insets_of_root_children_have_definite_basis(run.records.used_values(run.box_)),
             );
             let placed_item = placed_item.with_in_flow_box_insets(insets);
             if self.item_participates_in_row_baseline_alignment(item)

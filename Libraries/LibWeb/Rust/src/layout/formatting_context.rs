@@ -1344,13 +1344,16 @@ impl<'pass> FormattingContextRun<'pass> {
         sizing_context::SizingContext::new(self.records, self.callbacks)
     }
 
-    /// Whether the block-axis percentage insets of the boxes whose containing block is the run's root resolve against a
-    /// definite block size.
-    pub(crate) fn percentage_block_insets_of_root_children_have_definite_basis(&self) -> bool {
+    /// Whether the block-axis percentage insets of the boxes whose containing block is the run's root, laid out in
+    /// `root`, resolve against a definite block size.
+    pub(crate) fn percentage_block_insets_of_root_children_have_definite_basis(
+        &self,
+        root: &impl BoxMetricCells,
+    ) -> bool {
         percentage_block_insets_have_definite_basis_in(
             &self.callbacks,
             self.box_,
-            || self.records.used_values(self.box_).has_definite_block_size(),
+            || root.has_definite_block_size(),
             !self.treat_block_axis_percentage_insets_as_auto_beyond_root,
         )
     }
@@ -2961,6 +2964,7 @@ pub(crate) fn leave_child_unplaced(
 /// fc_run_cache::run_observes_root_block_padding).
 pub(crate) fn table_cell_run_shape_ahead_of_its_intrinsic_block_padding(
     run: &FormattingContextRun,
+    table_box: &impl BoxMetricCells,
     cell: Node,
     cell_input_cells: used_values::RootInputCells,
     mut input: LayoutInput,
@@ -2976,7 +2980,7 @@ pub(crate) fn table_cell_run_shape_ahead_of_its_intrinsic_block_padding(
         cell,
         input,
         false,
-        run.percentage_block_insets_of_root_children_have_definite_basis(),
+        run.percentage_block_insets_of_root_children_have_definite_basis(table_box),
     );
     ChildRunShape {
         node: cell,

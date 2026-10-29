@@ -2693,7 +2693,7 @@ impl<'pass> TableFormattingContext<'pass> {
             None,
             false,
             // NB: A table cell is a containing block of its own to the percentage block insets of its descendants.
-            run.percentage_block_insets_of_root_children_have_definite_basis(),
+            run.percentage_block_insets_of_root_children_have_definite_basis(run.records.used_values(run.box_)),
         );
         self.cell_box_cells[cell_index] = laid_out_box.cells;
         self.content_baselines_of_handed_back_cells[cell_index] = Some(laid_out_box.baselines);
@@ -2784,6 +2784,7 @@ impl<'pass> TableFormattingContext<'pass> {
         }
         let shape = formatting_context::table_cell_run_shape_ahead_of_its_intrinsic_block_padding(
             run,
+            run.records.used_values(run.box_),
             cell.box_,
             self.cell_box_cells[cell_index],
             LayoutInput {
