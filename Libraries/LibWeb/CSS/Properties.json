@@ -41,6 +41,9 @@
   "-webkit-appearance": {
     "legacy-alias-for": "appearance"
   },
+  "-webkit-backface-visibility": {
+    "legacy-alias-for": "backface-visibility"
+  },
   "-webkit-background-clip": {
     "legacy-alias-for": "background-clip"
   },
