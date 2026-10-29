@@ -242,6 +242,7 @@ if (NOT WIN32)
         TestPictureInPictureUserActivation.cpp
         TestPictureInPictureWindowControls.cpp
         TestPictureInPictureWindowLifetime.cpp
+        TestRendererAttentionClaims.cpp
         TestRendererCookieAccess.cpp
         TestRendererOriginClaims.cpp
         TestRendererViolationReports.cpp
