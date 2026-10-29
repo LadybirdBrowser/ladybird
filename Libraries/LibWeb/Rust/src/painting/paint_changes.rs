@@ -211,7 +211,7 @@ impl PaintChange {
             }
             Self::SetReplacedPaintFacts { target, facts } => arena.set_replaced_paint_facts(target, facts),
             Self::SupersededReplacedPaintFacts => {}
-            Self::PublishImageMapAreas { node, areas } => arena.image_map_areas().publish(node, areas),
+            Self::PublishImageMapAreas { node, areas } => arena.image_map_areas_mut().publish(node, areas),
             Self::NoteVisualContextBoxDirty { node, kind } => {
                 if arena.paintable_row_is_populated(node) {
                     arena.note_visual_context_box_dirty(node, kind);

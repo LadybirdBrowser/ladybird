@@ -1866,7 +1866,7 @@ impl LayoutNodeArena {
         // has no box and still has pseudo-elements.
         if let Some(generator) = generator.filter(|_| generated_for != 0) {
             let unique_node_id = self.with_style_store(|engine| engine.element_unique_node_id(generator));
-            self.unique_node_ids().publish(id, unique_node_id);
+            self.unique_node_ids_mut().publish(id, unique_node_id);
         }
     }
 
@@ -4093,7 +4093,7 @@ impl LayoutNodeArena {
             // The name the document knows the row's node by. The mirror publishes one for an
             // element; a text node's row answers for nothing, as its identity reads zero.
             let unique_node_id = self.with_style_store(|engine| engine.element_unique_node_id(style_node));
-            self.unique_node_ids().publish(slot, unique_node_id);
+            self.unique_node_ids_mut().publish(slot, unique_node_id);
             // The spans a table cell or column takes from its attributes, which table fixup reads
             // before the build is over.
             let spans = self.with_style_store(|engine| engine.element_table_spans(style_node));

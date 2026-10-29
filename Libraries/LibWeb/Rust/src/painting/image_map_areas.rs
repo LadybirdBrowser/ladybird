@@ -8,7 +8,6 @@ use crate::css::style::fast_hash::FastMap;
 use crate::layout::node_data::NodeSlotId;
 use libgfx_rust::path::Path;
 use libgfx_rust::{FloatPoint, WindingRule};
-use std::cell::RefCell;
 use std::sync::Arc;
 
 /// The state an `<area>`'s `shape` attribute represents, as the HTML image map processing model
@@ -185,7 +184,7 @@ fn rectangle_path(left: f32, top: f32, right: f32, bottom: f32) -> Path {
 #[derive(Clone, Default)]
 pub struct ImageMapAreaColumn {
     /// Shared with the rows published for the host, so a write copies the maps only while those hold them.
-    maps: RefCell<Arc<ImageMaps>>,
+    maps: Arc<ImageMaps>,
 }
 
 /// The `<area>` elements of the image map of every image that has one, by the image's paintable row.
@@ -193,40 +192,38 @@ pub type ImageMaps = FastMap<NodeSlotId, Arc<[PublishedImageMapArea]>>;
 
 impl ImageMapAreaColumn {
     /// Publishes the `<area>` elements of the image map an image is associated with, in tree order.
-    pub fn publish(&self, slot: NodeSlotId, areas: Box<[PublishedImageMapArea]>) {
+    pub fn publish(&mut self, slot: NodeSlotId, areas: Box<[PublishedImageMapArea]>) {
         if slot.is_invalid() {
             return;
         }
-        let mut published = self.maps.borrow_mut();
         if areas.is_empty() {
-            if published.contains_key(&slot) {
-                Arc::make_mut(&mut published).remove(&slot);
+            if self.maps.contains_key(&slot) {
+                Arc::make_mut(&mut self.maps).remove(&slot);
             }
         } else {
-            Arc::make_mut(&mut published).insert(slot, areas.into());
+            Arc::make_mut(&mut self.maps).insert(slot, areas.into());
         }
     }
 
-    pub fn forget(&self, slot: NodeSlotId) {
-        let mut published = self.maps.borrow_mut();
-        if published.contains_key(&slot) {
-            Arc::make_mut(&mut published).remove(&slot);
+    pub fn forget(&mut self, slot: NodeSlotId) {
+        if self.maps.contains_key(&slot) {
+            Arc::make_mut(&mut self.maps).remove(&slot);
         }
     }
 
     /// Whether the image whose paintable row is `slot` has an image map.
     pub(crate) fn has_areas(&self, slot: NodeSlotId) -> bool {
-        self.maps.borrow().contains_key(&slot)
+        self.maps.contains_key(&slot)
     }
 
     /// The maps as they are now, for the host to read.
     pub(crate) fn snapshot(&self) -> Arc<ImageMaps> {
-        self.maps.borrow().clone()
+        self.maps.clone()
     }
 
     /// Where the maps are, which moves when a write copies the ones a snapshot shares.
     pub(crate) fn address(&self) -> usize {
-        Arc::as_ptr(&self.maps.borrow()).addr()
+        Arc::as_ptr(&self.maps).addr()
     }
 }
 
