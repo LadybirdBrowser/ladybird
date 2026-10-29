@@ -118,13 +118,13 @@ pub(crate) struct Token {
 
 #[derive(Clone, Copy)]
 pub(crate) enum TokenizerInput<'a> {
-    Ascii(&'a [u8]),
+    Latin1(&'a [u8]),
     Utf16(&'a [u16]),
 }
 
 impl Default for TokenizerInput<'_> {
     fn default() -> Self {
-        Self::Ascii(&[])
+        Self::Latin1(&[])
     }
 }
 
@@ -133,10 +133,10 @@ impl TokenizerInput<'_> {
     /// Exactly one non-empty input pointer must identify `length` readable units.
     pub(crate) unsafe fn from_raw_parts(ascii: *const u8, utf16: *const u16, length: usize) -> Option<Self> {
         if length == 0 {
-            return Some(Self::Ascii(&[]));
+            return Some(Self::Latin1(&[]));
         }
         match (ascii.is_null(), utf16.is_null()) {
-            (false, true) => Some(Self::Ascii(unsafe { ak::slice_from_raw_parts(ascii, length) })),
+            (false, true) => Some(Self::Latin1(unsafe { ak::slice_from_raw_parts(ascii, length) })),
             (true, false) => Some(Self::Utf16(unsafe { ak::slice_from_raw_parts(utf16, length) })),
             _ => None,
         }
@@ -144,7 +144,7 @@ impl TokenizerInput<'_> {
 
     pub(crate) fn len(self) -> usize {
         match self {
-            Self::Ascii(units) => units.len(),
+            Self::Latin1(units) => units.len(),
             Self::Utf16(units) => units.len(),
         }
     }
@@ -155,21 +155,21 @@ impl TokenizerInput<'_> {
 
     pub(crate) fn code_unit_at(self, index: usize) -> u16 {
         match self {
-            Self::Ascii(units) => u16::from(units[index]),
+            Self::Latin1(units) => u16::from(units[index]),
             Self::Utf16(units) => units[index],
         }
     }
 
     pub(crate) fn slice(self, range: Range<usize>) -> Self {
         match self {
-            Self::Ascii(units) => Self::Ascii(&units[range]),
+            Self::Latin1(units) => Self::Latin1(&units[range]),
             Self::Utf16(units) => Self::Utf16(&units[range]),
         }
     }
 
     pub(crate) fn append_to(self, output: &mut Vec<u16>) {
         match self {
-            Self::Ascii(units) => output.extend(units.iter().copied().map(u16::from)),
+            Self::Latin1(units) => output.extend(units.iter().copied().map(u16::from)),
             Self::Utf16(units) => output.extend_from_slice(units),
         }
     }
@@ -191,7 +191,7 @@ impl FilteredTokenizerInput<'_> {
 
 fn filter_code_points(input: TokenizerInput<'_>) -> FilteredTokenizerInput<'_> {
     let needs_filtering = match input {
-        TokenizerInput::Ascii(units) => units.iter().any(|unit| matches!(unit, b'\r' | b'\x0c' | b'\0')),
+        TokenizerInput::Latin1(units) => units.iter().any(|unit| matches!(unit, b'\r' | b'\x0c' | b'\0')),
         TokenizerInput::Utf16(units) => {
             let mut index = 0;
             let mut needs_filtering = false;
@@ -227,7 +227,7 @@ fn filter_code_points(input: TokenizerInput<'_>) -> FilteredTokenizerInput<'_> {
     let mut last_was_carriage_return = false;
     while index < input.len() {
         let (code_point, length) = match input {
-            TokenizerInput::Ascii(units) => (u32::from(units[index]), 1),
+            TokenizerInput::Latin1(units) => (u32::from(units[index]), 1),
             TokenizerInput::Utf16(units) => {
                 let first = units[index];
                 if (0xd800..=0xdbff).contains(&first)
@@ -286,7 +286,7 @@ fn filter_code_points(input: TokenizerInput<'_>) -> FilteredTokenizerInput<'_> {
 impl<'a> From<ak::Utf16StringUnits<'a>> for TokenizerInput<'a> {
     fn from(value: ak::Utf16StringUnits<'a>) -> Self {
         match value {
-            ak::Utf16StringUnits::Ascii(units) => Self::Ascii(units),
+            ak::Utf16StringUnits::Ascii(units) | ak::Utf16StringUnits::Latin1(units) => Self::Latin1(units),
             ak::Utf16StringUnits::Utf16(units) => Self::Utf16(units),
         }
     }
@@ -295,7 +295,7 @@ impl<'a> From<ak::Utf16StringUnits<'a>> for TokenizerInput<'a> {
 impl<'a> From<&'a [u8]> for TokenizerInput<'a> {
     fn from(value: &'a [u8]) -> Self {
         assert!(value.is_ascii());
-        Self::Ascii(value)
+        Self::Latin1(value)
     }
 }
 
@@ -510,14 +510,14 @@ pub(crate) enum SourceStorage {
 impl SourceStorage {
     fn from_input(input: TokenizerInput<'_>) -> Self {
         match input {
-            TokenizerInput::Ascii(units) => Self::Ascii(units.into()),
+            TokenizerInput::Latin1(units) => Self::Ascii(units.into()),
             TokenizerInput::Utf16(units) => Self::Utf16(units.into()),
         }
     }
 
     fn as_input(&self) -> TokenizerInput<'_> {
         match self {
-            Self::Ascii(units) => TokenizerInput::Ascii(units),
+            Self::Ascii(units) => TokenizerInput::Latin1(units),
             Self::Utf16(units) => TokenizerInput::Utf16(units),
         }
     }
@@ -1042,10 +1042,6 @@ struct TokenizerCursor {
 
 impl<'a> Tokenizer<'a> {
     fn new(input: TokenizerInput<'a>) -> Self {
-        // Checked once here, not per code point: that made debug builds quadratic in the input length.
-        if let TokenizerInput::Ascii(units) = input {
-            debug_assert!(units.is_ascii(), "an ASCII tokenizer input holds only ASCII bytes");
-        }
         Self {
             input,
             index: 0,
@@ -1142,7 +1138,7 @@ impl<'a> Tokenizer<'a> {
 
     fn code_point_at(&self, index: usize) -> Option<(u32, usize)> {
         match self.input {
-            TokenizerInput::Ascii(units) => units.get(index).map(|unit| (u32::from(*unit), 1)),
+            TokenizerInput::Latin1(units) => units.get(index).map(|unit| (u32::from(*unit), 1)),
             TokenizerInput::Utf16(units) => {
                 let first = *units.get(index)?;
                 if (0xD800..=0xDBFF).contains(&first)
@@ -2258,7 +2254,7 @@ mod tests {
 
     fn debug_token(token: &Token, input: TokenizerInput<'_>) -> String {
         let source = match input {
-            TokenizerInput::Ascii(units) => units[token.original_source_range.clone()]
+            TokenizerInput::Latin1(units) => units[token.original_source_range.clone()]
                 .iter()
                 .copied()
                 .map(u16::from)
@@ -2436,8 +2432,8 @@ mod tests {
     #[test]
     fn clean_input_is_not_copied_by_code_point_filtering() {
         let input = b"color: red";
-        let FilteredTokenizerInput::Borrowed(TokenizerInput::Ascii(filtered)) =
-            filter_code_points(TokenizerInput::Ascii(input))
+        let FilteredTokenizerInput::Borrowed(TokenizerInput::Latin1(filtered)) =
+            filter_code_points(TokenizerInput::Latin1(input))
         else {
             panic!("clean input should remain borrowed");
         };

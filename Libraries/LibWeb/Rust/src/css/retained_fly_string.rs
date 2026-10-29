@@ -48,7 +48,9 @@ impl RetainedUtf16FlyString {
         }
         // SAFETY: Every non-zero value owns one reference to a valid fly string.
         match unsafe { ak::utf16_string_units(&self.raw) } {
-            ak::Utf16StringUnits::Ascii(units) => units.iter().map(|&unit| u16::from(unit)).collect(),
+            ak::Utf16StringUnits::Ascii(units) | ak::Utf16StringUnits::Latin1(units) => {
+                units.iter().map(|&unit| u16::from(unit)).collect()
+            }
             ak::Utf16StringUnits::Utf16(units) => std::borrow::Cow::Borrowed(units),
         }
     }
@@ -111,7 +113,7 @@ impl Eq for RetainedUtf16FlyString {}
 impl<'a> From<&'a RetainedUtf16FlyString> for crate::css::css_tokenizer::TokenizerInput<'a> {
     fn from(string: &'a RetainedUtf16FlyString) -> Self {
         match unsafe { ak::utf16_string_units(string.raw_word()) } {
-            ak::Utf16StringUnits::Ascii(bytes) => Self::Ascii(bytes),
+            ak::Utf16StringUnits::Ascii(bytes) | ak::Utf16StringUnits::Latin1(bytes) => Self::Latin1(bytes),
             ak::Utf16StringUnits::Utf16(units) => Self::Utf16(units),
         }
     }

@@ -845,7 +845,7 @@ private:
         auto number_view = number.utf16_view();
 
         if (number_view.has_ascii_storage()) {
-            auto bytes = number_view.bytes();
+            auto bytes = number_view.ascii_bytes();
             return { {}, { reinterpret_cast<char const*>(bytes.data()), static_cast<i32>(bytes.size()) } };
         }
 
@@ -990,7 +990,7 @@ NonnullOwnPtr<NumberFormat> NumberFormat::create(
     DisplayOptions const& display_options,
     RoundingOptions const& rounding_options)
 {
-    auto locale_data = LocaleData::for_locale(locale.bytes());
+    auto locale_data = LocaleData::for_locale(locale.ascii_bytes());
     VERIFY(locale_data.has_value());
 
     auto formatter = icu::number::NumberFormatter::withLocale(locale_data->locale());

@@ -915,7 +915,7 @@ impl<S: SelectorSubject> SelectorEvaluator<S> {
                 let mut ranges = program.language_ranges(first, count);
                 // An element with no resolved language matches no range at all, not even `*`.
                 Ok(match self.subject.language_tag(row) {
-                    TokenizerInput::Ascii(tag) => {
+                    TokenizerInput::Latin1(tag) => {
                         !tag.is_empty() && ranges.any(|range| language_range_matches_tag(range, tag))
                     }
                     TokenizerInput::Utf16(tag) => {
@@ -1264,7 +1264,7 @@ impl<S: SelectorSubject> SelectorEvaluator<S> {
 
         let literal = program.literal(test.value_offset, test.value_length);
         match self.subject.attribute_value_text(attribute) {
-            Some(TokenizerInput::Ascii(value)) => attribute_value_matches(test.operator, value, literal, insensitive),
+            Some(TokenizerInput::Latin1(value)) => attribute_value_matches(test.operator, value, literal, insensitive),
             Some(TokenizerInput::Utf16(value)) => attribute_value_matches(test.operator, value, literal, insensitive),
             None => false,
         }

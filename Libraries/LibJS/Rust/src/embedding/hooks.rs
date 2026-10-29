@@ -647,7 +647,8 @@ unsafe extern "C" fn append_utf16_string(strings: *mut c_void, code_units: *cons
             JSUtf16View {
                 data: code_units.cast(),
                 length_in_code_units: length,
-                has_ascii_storage: false,
+                has_latin1_storage: false,
+                is_ascii: false,
             }
             .as_view(),
         )

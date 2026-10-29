@@ -72,8 +72,8 @@ Optional<ParseFirstNumberResult<T>> parse_first_number(StringView string, TrimWh
 template<Arithmetic T>
 Optional<ParseFirstNumberResult<T>> parse_first_number(Utf16View const& string, TrimWhitespace trim_whitespace, int base)
 {
-    if (string.has_ascii_storage())
-        return parse_first_number<T>(string.bytes(), trim_whitespace, base);
+    if (string.has_latin1_storage())
+        return parse_first_number<T>(string.latin1_span(), trim_whitespace, base);
 
     auto trimmed_string = trim_whitespace == TrimWhitespace::Yes ? string.trim_ascii_whitespace() : string;
     return from_chars<char16_t, T>(trimmed_string.utf16_span().data(), trimmed_string.length_in_code_units(), base);
@@ -108,8 +108,8 @@ Optional<T> parse_number(StringView string, TrimWhitespace trim_whitespace, int 
 template<Arithmetic T>
 Optional<T> parse_number(Utf16View const& string, TrimWhitespace trim_whitespace, int base)
 {
-    if (string.has_ascii_storage())
-        return parse_number<T>(string.bytes(), trim_whitespace, base);
+    if (string.has_latin1_storage())
+        return parse_number<T>(string.latin1_span(), trim_whitespace, base);
 
     auto trimmed_string = trim_whitespace == TrimWhitespace::Yes ? string.trim_ascii_whitespace() : string;
 

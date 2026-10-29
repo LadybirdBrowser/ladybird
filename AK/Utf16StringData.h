@@ -55,7 +55,7 @@ public:
     using AllowOwnPtr = FalseType;
 
     enum class StorageType : u8 {
-        ASCII,
+        Latin1,
         UTF16,
     };
 
@@ -68,11 +68,14 @@ public:
         HasUtf16Storage = 1 << 0,
         HasHash = 1 << 1,
         IsFlyString = 1 << 2,
+        // Set for Latin-1 storage that holds a code unit above U+007F. Without it, Latin-1 storage is ASCII.
+        ContainsNonAscii = 1 << 3,
     };
 
     static_assert(HasUtf16Storage == 1);
     static_assert(HasHash == 2);
     static_assert(IsFlyString == 4);
+    static_assert(ContainsNonAscii == 8);
 
     static NonnullRefPtr<Utf16StringData> from_utf8(StringView, AllowASCIIStorage);
     static NonnullRefPtr<Utf16StringData> from_ascii(ReadonlyBytes);
@@ -150,10 +153,11 @@ public:
     {
         if (has_ascii_storage())
             return ascii_view() == other;
-        return utf16_view() == Utf16View { other.characters_without_null_termination(), other.length() };
+        return utf16_view() == other;
     }
 
-    [[nodiscard]] ALWAYS_INLINE bool has_ascii_storage() const { return !has_flag(HasUtf16Storage); }
+    [[nodiscard]] ALWAYS_INLINE bool has_latin1_storage() const { return !has_flag(HasUtf16Storage); }
+    [[nodiscard]] ALWAYS_INLINE bool has_ascii_storage() const { return !has_any_flag(HasUtf16Storage | ContainsNonAscii); }
     [[nodiscard]] ALWAYS_INLINE bool has_utf16_storage() const { return has_flag(HasUtf16Storage); }
 
     ALWAYS_INLINE u32 hash() const
@@ -171,7 +175,7 @@ public:
     [[nodiscard]] ALWAYS_INLINE size_t length_in_code_units() const { return m_header.length_in_code_units; }
     [[nodiscard]] ALWAYS_INLINE size_t length_in_code_points() const
     {
-        if (has_ascii_storage())
+        if (has_latin1_storage())
             return length_in_code_units();
 
         auto length_in_code_points = atomic_load(&m_header.length_in_code_points, memory_order_acquire);
@@ -190,13 +194,14 @@ public:
     [[nodiscard]] ALWAYS_INLINE StringView ascii_view() const LIFETIME_BOUND
     {
         ASSERT(has_ascii_storage());
-        return { ascii_data(), length_in_code_units() };
+        return { latin1_data(), length_in_code_units() };
     }
 
     [[nodiscard]] ALWAYS_INLINE Utf16View utf16_view() const LIFETIME_BOUND
     {
-        if (has_ascii_storage())
-            return { ascii_data(), length_in_code_units() };
+        auto flags = atomic_load(&m_header.flags, memory_order_acquire);
+        if (!(flags & HasUtf16Storage))
+            return { reinterpret_cast<char const*>(latin1_data()), length_in_code_units(), !(flags & ContainsNonAscii) };
 
         Utf16View view { utf16_data(), length_in_code_units() };
         auto length_in_code_points = atomic_load(&m_header.length_in_code_points, memory_order_acquire);
@@ -226,10 +231,10 @@ private:
     template<typename ViewType>
     static NonnullRefPtr<Utf16StringData> create_from_code_point_iterable(ViewType const&);
 
-    [[nodiscard]] static constexpr size_t allocation_size_for_string_data(bool has_ascii_storage, size_t code_unit_length)
+    [[nodiscard]] static constexpr size_t allocation_size_for_string_data(bool has_latin1_storage, size_t code_unit_length)
     {
-        return has_ascii_storage
-            ? sizeof(Utf16StringData) + (sizeof(char) * code_unit_length)
+        return has_latin1_storage
+            ? sizeof(Utf16StringData) + (sizeof(u8) * code_unit_length)
             : sizeof(Utf16StringData) + (sizeof(char16_t) * code_unit_length);
     }
 
@@ -240,14 +245,19 @@ private:
         return atomic_load(&m_header.flags, memory_order_acquire) & static_cast<u32>(flag);
     }
 
-    [[nodiscard]] ALWAYS_INLINE char* ascii_data()
+    [[nodiscard]] ALWAYS_INLINE bool has_any_flag(u32 flags) const
     {
-        return reinterpret_cast<char*>(this) + offset_of_string_storage();
+        return atomic_load(&m_header.flags, memory_order_acquire) & flags;
     }
 
-    [[nodiscard]] ALWAYS_INLINE char const* ascii_data() const
+    [[nodiscard]] ALWAYS_INLINE u8* latin1_data()
     {
-        return reinterpret_cast<char const*>(this) + offset_of_string_storage();
+        return reinterpret_cast<u8*>(this) + offset_of_string_storage();
+    }
+
+    [[nodiscard]] ALWAYS_INLINE u8 const* latin1_data() const
+    {
+        return reinterpret_cast<u8 const*>(this) + offset_of_string_storage();
     }
 
     [[nodiscard]] ALWAYS_INLINE char16_t* utf16_data()

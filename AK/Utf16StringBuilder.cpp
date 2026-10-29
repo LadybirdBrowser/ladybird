@@ -229,8 +229,8 @@ void Utf16StringBuilder::append(Utf16View const& view)
     if (m_is_ascii && (view.has_ascii_storage() || view.is_ascii())) {
         will_append(view.length_in_code_units());
 
-        if (view.has_ascii_storage()) {
-            m_buffer.append(view.ascii_span().data(), view.length_in_code_units());
+        if (view.has_latin1_storage()) {
+            m_buffer.append(view.latin1_span().data(), view.length_in_code_units());
         } else {
             for (auto code_unit : view.utf16_span()) {
                 auto ascii_code_unit = static_cast<char>(code_unit);
@@ -244,8 +244,8 @@ void Utf16StringBuilder::append(Utf16View const& view)
     ensure_storage_is_utf16();
     will_append(utf16_byte_count(view.length_in_code_units()));
 
-    if (view.has_ascii_storage()) {
-        for (auto code_unit : view.ascii_span()) {
+    if (view.has_latin1_storage()) {
+        for (auto code_unit : view.latin1_span()) {
             auto utf16_code_unit = static_cast<char16_t>(code_unit);
             m_buffer.append(&utf16_code_unit, sizeof(utf16_code_unit));
         }
@@ -300,7 +300,7 @@ void Utf16StringBuilder::append_quoted_escaped_for_json(StringView string)
 void Utf16StringBuilder::append_quoted_escaped_for_json(Utf16View const& string)
 {
     if (string.has_ascii_storage()) {
-        auto bytes = string.bytes();
+        auto bytes = string.ascii_bytes();
         bool needs_escaping = false;
         for (auto byte : bytes) {
             if (byte < 0x20 || byte == '"' || byte == '\\') {
@@ -492,7 +492,7 @@ Utf16View Utf16StringBuilder::view() const
     auto data = m_buffer.span().slice(string_builder_prefix_size());
 
     if (m_is_ascii)
-        return { reinterpret_cast<char const*>(data.data()), data.size() };
+        return { reinterpret_cast<char const*>(data.data()), data.size(), true };
     return { reinterpret_cast<char16_t const*>(data.data()), data.size() / sizeof(char16_t) };
 }
 

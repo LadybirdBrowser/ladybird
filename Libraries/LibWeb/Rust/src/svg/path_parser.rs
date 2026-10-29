@@ -1035,7 +1035,7 @@ impl ParsedPath {
 
 #[cfg(test)]
 fn parse_ascii_path(input: &[u8], allow_error_recovery: bool) -> Option<ParsedPath> {
-    Parser::new(Input::Ascii(input))
+    Parser::new(Input::Latin1(input))
         .parse(allow_error_recovery)
         .map(|instructions| ParsedPath { instructions })
 }
@@ -1305,7 +1305,7 @@ impl<'a> Parser<'a> {
 /// The units of `view`, or none for a view that names both or neither kind of storage.
 pub(super) fn svg_input(view: FfiUtf16View<'_>) -> Option<Input<'_>> {
     Some(match view.units()? {
-        TokenizerInput::Ascii(units) => Input::Ascii(units),
+        TokenizerInput::Latin1(units) => Input::Latin1(units),
         TokenizerInput::Utf16(units) => Input::Utf16(units),
     })
 }
@@ -1314,7 +1314,7 @@ pub(super) fn svg_input(view: FfiUtf16View<'_>) -> Option<Input<'_>> {
 /// data gives Path2D's constructor, which is an empty path where the data describes none.
 pub fn gfx_path_from_path_data(input: ak::Utf16StringUnits<'_>) -> Path {
     let input = match input {
-        ak::Utf16StringUnits::Ascii(units) => Input::Ascii(units),
+        ak::Utf16StringUnits::Ascii(units) | ak::Utf16StringUnits::Latin1(units) => Input::Latin1(units),
         ak::Utf16StringUnits::Utf16(units) => Input::Utf16(units),
     };
     let instructions = Parser::new(input).parse(true).unwrap_or_default();
@@ -1386,7 +1386,7 @@ mod tests {
     }
 
     fn parse(input: &str, allow_error_recovery: bool) -> Option<Vec<PathInstruction>> {
-        Parser::new(Input::Ascii(input.as_bytes())).parse(allow_error_recovery)
+        Parser::new(Input::Latin1(input.as_bytes())).parse(allow_error_recovery)
     }
 
     #[test]

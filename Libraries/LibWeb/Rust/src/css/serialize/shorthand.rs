@@ -341,7 +341,7 @@ pub(super) fn serialize(
                             }
                             let source = text(other, mode);
                             let input = if source.is_ascii {
-                                TokenizerInput::Ascii(&source.ascii)
+                                TokenizerInput::Latin1(&source.ascii)
                             } else {
                                 TokenizerInput::Utf16(&source.utf16)
                             };

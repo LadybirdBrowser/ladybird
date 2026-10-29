@@ -428,10 +428,10 @@ impl TextFragments {
     }
 }
 
-/// The code units a published string spells, without widening ASCII storage to count them.
+/// The code units a published string spells, without widening Latin-1 storage to count them.
 pub(super) fn length_in_code_units(text: &ak::Utf16String) -> usize {
     match text.as_units() {
-        ak::Utf16StringUnits::Ascii(units) => units.len(),
+        ak::Utf16StringUnits::Ascii(units) | ak::Utf16StringUnits::Latin1(units) => units.len(),
         ak::Utf16StringUnits::Utf16(units) => units.len(),
     }
 }

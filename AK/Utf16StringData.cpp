@@ -20,7 +20,7 @@ namespace AK::Detail {
 
 NonnullRefPtr<Utf16StringData> Utf16StringData::create_uninitialized(StorageType storage_type, size_t code_unit_length)
 {
-    auto allocation_size = allocation_size_for_string_data(storage_type == Utf16StringData::StorageType::ASCII, code_unit_length);
+    auto allocation_size = allocation_size_for_string_data(storage_type == Utf16StringData::StorageType::Latin1, code_unit_length);
 
     void* slot = kmalloc(HeapPartition::String, allocation_size);
     VERIFY(slot);
@@ -58,8 +58,8 @@ NonnullRefPtr<Utf16StringData> Utf16StringData::create_from_code_point_iterable(
 NonnullRefPtr<Utf16StringData> Utf16StringData::from_ascii(ReadonlyBytes ascii_string)
 {
     VERIFY_UTF16_LENGTH(ascii_string.size());
-    auto string = create_uninitialized(StorageType::ASCII, ascii_string.size());
-    TypedTransfer<char>::copy(string->ascii_data(), reinterpret_cast<char const*>(ascii_string.data()), ascii_string.size());
+    auto string = create_uninitialized(StorageType::Latin1, ascii_string.size());
+    TypedTransfer<u8>::copy(string->latin1_data(), ascii_string.data(), ascii_string.size());
     return string;
 }
 
@@ -67,8 +67,8 @@ NonnullRefPtr<Utf16StringData> Utf16StringData::create_uninitialized_ascii(size_
 {
     VERIFY_UTF16_LENGTH(length_in_code_units);
 
-    auto string = create_uninitialized(StorageType::ASCII, length_in_code_units);
-    buffer = { string->ascii_data(), length_in_code_units };
+    auto string = create_uninitialized(StorageType::Latin1, length_in_code_units);
+    buffer = { string->latin1_data(), length_in_code_units };
     return string;
 }
 
@@ -79,8 +79,8 @@ NonnullRefPtr<Utf16StringData> Utf16StringData::from_utf8(StringView utf8_string
     if (allow_ascii_storage == AllowASCIIStorage::Yes && utf8_string.is_ascii()) {
         VERIFY_UTF16_LENGTH(utf8_string.length());
 
-        string = create_uninitialized(StorageType::ASCII, utf8_string.length());
-        TypedTransfer<char>::copy(string->ascii_data(), utf8_string.characters_without_null_termination(), utf8_string.length());
+        string = create_uninitialized(StorageType::Latin1, utf8_string.length());
+        TypedTransfer<u8>::copy(string->latin1_data(), utf8_string.bytes().data(), utf8_string.length());
     } else if (Utf8View view { utf8_string }; view.validate(AllowLonelySurrogates::No)) {
         auto code_unit_length = simdutf::utf16_length_from_utf8(utf8_string.characters_without_null_termination(), utf8_string.length());
         VERIFY_UTF16_LENGTH(code_unit_length);
@@ -101,13 +101,15 @@ NonnullRefPtr<Utf16StringData> Utf16StringData::from_utf16(Utf16View const& utf1
     VERIFY_UTF16_LENGTH(utf16_string.length_in_code_units());
     RefPtr<Utf16StringData> string;
 
-    if (utf16_string.has_ascii_storage()) {
-        string = create_uninitialized(StorageType::ASCII, utf16_string.length_in_code_units());
-        TypedTransfer<char>::copy(string->ascii_data(), utf16_string.ascii_span().data(), utf16_string.length_in_code_units());
+    if (utf16_string.has_latin1_storage()) {
+        string = create_uninitialized(StorageType::Latin1, utf16_string.length_in_code_units());
+        TypedTransfer<u8>::copy(string->latin1_data(), utf16_string.latin1_span().data(), utf16_string.length_in_code_units());
+        if (!utf16_string.is_ascii())
+            string->m_header.flags |= ContainsNonAscii;
     } else if (utf16_string.is_ascii()) {
-        string = create_uninitialized(StorageType::ASCII, utf16_string.length_in_code_units());
+        string = create_uninitialized(StorageType::Latin1, utf16_string.length_in_code_units());
 
-        auto result = simdutf::convert_utf16_to_utf8(utf16_string.utf16_span().data(), utf16_string.length_in_code_units(), string->ascii_data());
+        auto result = simdutf::convert_utf16_to_utf8(utf16_string.utf16_span().data(), utf16_string.length_in_code_units(), reinterpret_cast<char*>(string->latin1_data()));
         VERIFY(result == utf16_string.length_in_code_units());
     } else {
         string = create_uninitialized(StorageType::UTF16, utf16_string.length_in_code_units());
@@ -130,12 +132,16 @@ NonnullRefPtr<Utf16StringData> Utf16StringData::from_string_builder(Utf16StringB
     RefPtr<Utf16StringData> string;
 
     if (auto buffer = builder.leak_buffer_for_string_construction(Badge<Utf16StringData> {}); buffer.has_value()) {
-        auto storage_type = view.has_ascii_storage() ? StorageType::ASCII : StorageType::UTF16;
+        auto storage_type = view.has_latin1_storage() ? StorageType::Latin1 : StorageType::UTF16;
         string = adopt_ref(*new (buffer->buffer.data()) Utf16StringData { storage_type, code_unit_length });
+        if (view.has_latin1_storage() && !view.has_ascii_storage())
+            string->m_header.flags |= ContainsNonAscii;
     } else {
-        if (view.has_ascii_storage()) {
-            string = create_uninitialized(StorageType::ASCII, code_unit_length);
-            TypedTransfer<char>::copy(string->ascii_data(), view.ascii_span().data(), code_unit_length);
+        if (view.has_latin1_storage()) {
+            string = create_uninitialized(StorageType::Latin1, code_unit_length);
+            TypedTransfer<u8>::copy(string->latin1_data(), view.latin1_span().data(), code_unit_length);
+            if (!view.has_ascii_storage())
+                string->m_header.flags |= ContainsNonAscii;
         } else {
             string = create_uninitialized(StorageType::UTF16, code_unit_length);
             TypedTransfer<char16_t>::copy(string->utf16_data(), view.utf16_span().data(), code_unit_length);
@@ -153,9 +159,9 @@ ErrorOr<NonnullRefPtr<Utf16StringData>> Utf16StringData::from_ipc_stream(Stream&
     RefPtr<Utf16StringData> string;
 
     if (is_ascii) {
-        string = create_uninitialized(StorageType::ASCII, length_in_code_units);
+        string = create_uninitialized(StorageType::Latin1, length_in_code_units);
 
-        Bytes bytes { string->ascii_data(), length_in_code_units };
+        Bytes bytes { string->latin1_data(), length_in_code_units };
         TRY(stream.read_until_filled(bytes));
 
         if (!string->ascii_view().is_ascii())
@@ -172,7 +178,7 @@ ErrorOr<NonnullRefPtr<Utf16StringData>> Utf16StringData::from_ipc_stream(Stream&
 
 NonnullRefPtr<Utf16StringData> Utf16StringData::to_well_formed(Utf16View const& utf16_string)
 {
-    VERIFY(!utf16_string.has_ascii_storage());
+    VERIFY(!utf16_string.has_latin1_storage());
 
     auto string = create_uninitialized(StorageType::UTF16, utf16_string.length_in_code_units());
     simdutf::to_well_formed_utf16(utf16_string.utf16_span().data(), utf16_string.length_in_code_units(), string->utf16_data());
@@ -182,7 +188,7 @@ NonnullRefPtr<Utf16StringData> Utf16StringData::to_well_formed(Utf16View const& 
 
 size_t Utf16StringData::calculate_code_point_length() const
 {
-    ASSERT(!has_ascii_storage());
+    ASSERT(!has_latin1_storage());
 
     if (simdutf::validate_utf16(utf16_data(), length_in_code_units()))
         return simdutf::count_utf16(utf16_data(), length_in_code_units());

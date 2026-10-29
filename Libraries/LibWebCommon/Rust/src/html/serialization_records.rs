@@ -156,6 +156,7 @@ impl RecordEncoder {
     pub fn encode_utf16_string(&mut self, string: Utf16StringUnits<'_>) {
         let (has_ascii_storage, length) = match string {
             Utf16StringUnits::Ascii(characters) => (true, characters.len()),
+            Utf16StringUnits::Latin1(characters) => (false, characters.len()),
             Utf16StringUnits::Utf16(code_units) => (false, code_units.len()),
         };
         match self.serialization_type {
@@ -169,14 +170,24 @@ impl RecordEncoder {
         }
         match string {
             Utf16StringUnits::Ascii(characters) => self.data.extend_from_slice(characters),
-            Utf16StringUnits::Utf16(code_units) => {
-                for &code_unit in code_units {
-                    match self.serialization_type {
-                        SerializationType::Ipc => self.data.extend_from_slice(&code_unit.to_ne_bytes()),
-                        SerializationType::Storage => self.data.extend_from_slice(&code_unit.to_le_bytes()),
-                    }
+            // FIXME: Serialize Latin-1 as one byte per code unit.
+            Utf16StringUnits::Latin1(characters) => {
+                for &character in characters {
+                    self.encode_utf16_code_unit(u16::from(character));
                 }
             }
+            Utf16StringUnits::Utf16(code_units) => {
+                for &code_unit in code_units {
+                    self.encode_utf16_code_unit(code_unit);
+                }
+            }
+        }
+    }
+
+    fn encode_utf16_code_unit(&mut self, code_unit: u16) {
+        match self.serialization_type {
+            SerializationType::Ipc => self.data.extend_from_slice(&code_unit.to_ne_bytes()),
+            SerializationType::Storage => self.data.extend_from_slice(&code_unit.to_le_bytes()),
         }
     }
 

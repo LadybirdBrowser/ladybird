@@ -550,7 +550,7 @@ mod tests {
     use super::*;
 
     fn input(source: &str) -> Input<'_> {
-        Input::Ascii(source.as_bytes())
+        Input::Latin1(source.as_bytes())
     }
 
     #[test]

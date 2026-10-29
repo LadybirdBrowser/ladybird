@@ -39,10 +39,13 @@ fn find_subslice<T: Copy + PartialEq>(
     None
 }
 
-/// Mirrors AK::Utf16View: a borrowed run of UTF-16 code units, stored either as ASCII bytes or as UTF-16.
+/// Mirrors AK::Utf16View: a borrowed run of UTF-16 code units, stored either as Latin-1 bytes or as UTF-16.
 #[derive(Clone, Copy, Debug)]
 pub enum Utf16View<'a> {
+    /// One byte per code unit, all of them ASCII.
     Ascii(&'a [u8]),
+    /// One byte per code unit, which may be above U+007F.
+    Latin1(&'a [u8]),
     Utf16(&'a [u16]),
 }
 
@@ -52,6 +55,7 @@ impl<'a> Utf16View<'a> {
     pub fn from_units(units: Utf16StringUnits<'a>) -> Self {
         match units {
             Utf16StringUnits::Ascii(units) => Self::Ascii(units),
+            Utf16StringUnits::Latin1(units) => Self::Latin1(units),
             Utf16StringUnits::Utf16(units) => Self::Utf16(units),
         }
     }
@@ -66,7 +70,7 @@ impl<'a> Utf16View<'a> {
 
     pub fn length_in_code_units(self) -> usize {
         match self {
-            Self::Ascii(units) => units.len(),
+            Self::Ascii(units) | Self::Latin1(units) => units.len(),
             Self::Utf16(units) => units.len(),
         }
     }
@@ -82,13 +86,15 @@ impl<'a> Utf16View<'a> {
     pub fn is_ascii(self) -> bool {
         match self {
             Self::Ascii(_) => true,
+            // NB: A substring of Latin-1 storage that is not ASCII may still be ASCII itself.
+            Self::Latin1(units) => units.is_ascii(),
             Self::Utf16(units) => units.iter().all(|&code_unit| code_unit < 0x80),
         }
     }
 
     pub fn code_unit_at(self, index: usize) -> u16 {
         match self {
-            Self::Ascii(units) => u16::from(units[index]),
+            Self::Ascii(units) | Self::Latin1(units) => u16::from(units[index]),
             Self::Utf16(units) => units[index],
         }
     }
@@ -97,36 +103,41 @@ impl<'a> Utf16View<'a> {
         let range = code_unit_offset..code_unit_offset + code_unit_length;
         match self {
             Self::Ascii(units) => Self::Ascii(&units[range]),
+            Self::Latin1(units) => Self::Latin1(&units[range]),
             Self::Utf16(units) => Self::Utf16(&units[range]),
         }
     }
 
     pub fn code_units(self) -> CodeUnits<'a> {
         match self {
-            Self::Ascii(units) => CodeUnits::Ascii(units.iter()),
+            Self::Ascii(units) | Self::Latin1(units) => CodeUnits::Ascii(units.iter()),
             Self::Utf16(units) => CodeUnits::Utf16(units.iter()),
         }
     }
 
-    /// Lends the code units to `callback` as UTF-16, widening ASCII storage on the stack when it is short.
+    /// Lends the code units to `callback` as UTF-16, widening Latin-1 storage on the stack when it is short.
     pub fn with_utf16_code_units<R>(self, callback: impl FnOnce(&[u16]) -> R) -> R {
         const STACK_CAPACITY: usize = 64;
         match self {
             Self::Utf16(units) => callback(units),
-            Self::Ascii(units) if units.len() <= STACK_CAPACITY => {
+            Self::Ascii(units) | Self::Latin1(units) if units.len() <= STACK_CAPACITY => {
                 let mut widened = [0; STACK_CAPACITY];
                 for (wide, &unit) in widened.iter_mut().zip(units) {
                     *wide = u16::from(unit);
                 }
                 callback(&widened[..units.len()])
             }
-            Self::Ascii(units) => callback(&units.iter().map(|&unit| u16::from(unit)).collect::<Vec<_>>()),
+            Self::Ascii(units) | Self::Latin1(units) => {
+                callback(&units.iter().map(|&unit| u16::from(unit)).collect::<Vec<_>>())
+            }
         }
     }
 
     pub fn append_to(self, code_units: &mut Vec<u16>) {
         match self {
-            Self::Ascii(units) => code_units.extend(units.iter().map(|&code_unit| u16::from(code_unit))),
+            Self::Ascii(units) | Self::Latin1(units) => {
+                code_units.extend(units.iter().map(|&code_unit| u16::from(code_unit)));
+            }
             Self::Utf16(units) => code_units.extend_from_slice(units),
         }
     }
@@ -134,6 +145,7 @@ impl<'a> Utf16View<'a> {
     pub fn to_utf16_string(self) -> Utf16String {
         match self {
             Self::Ascii(units) => Utf16String::from_utf8(ascii_as_str(units)),
+            Self::Latin1(_) => self.with_utf16_code_units(Utf16String::from_utf16),
             Self::Utf16(units) => Utf16String::from_utf16(units),
         }
     }
@@ -141,6 +153,7 @@ impl<'a> Utf16View<'a> {
     pub fn to_utf16_fly_string(self) -> Utf16FlyString {
         match self {
             Self::Ascii(units) => Utf16FlyString::from_utf8(ascii_as_str(units)),
+            Self::Latin1(_) => self.with_utf16_code_units(Utf16FlyString::from_utf16),
             Self::Utf16(units) => Utf16FlyString::from_utf16(units),
         }
     }
@@ -149,6 +162,7 @@ impl<'a> Utf16View<'a> {
     pub fn to_utf8(self) -> String {
         match self {
             Self::Ascii(units) => ascii_as_str(units).to_owned(),
+            Self::Latin1(units) => units.iter().map(|&unit| char::from(unit)).collect(),
             Self::Utf16(units) => String::from_utf16_lossy(units),
         }
     }
@@ -159,6 +173,13 @@ impl<'a> Utf16View<'a> {
         let units = match self {
             Self::Ascii(units) => {
                 output.extend_from_slice(units);
+                return;
+            }
+            Self::Latin1(units) => {
+                for &unit in units {
+                    let mut buffer = [0; 4];
+                    output.extend_from_slice(char::from(unit).encode_utf8(&mut buffer).as_bytes());
+                }
                 return;
             }
             Self::Utf16(units) => units,
@@ -246,7 +267,7 @@ impl<'a> Utf16View<'a> {
 
         let last_possible_offset = self.length_in_code_units() - needle_length;
         match (self, needle) {
-            (Self::Ascii(haystack), Utf16View::Ascii(needle)) => {
+            (Self::Ascii(haystack) | Self::Latin1(haystack), Utf16View::Ascii(needle) | Utf16View::Latin1(needle)) => {
                 find_subslice(haystack, needle, start_offset, |candidates, first_byte| {
                     memchr::memchr(first_byte, candidates)
                 })
@@ -264,7 +285,7 @@ impl<'a> Utf16View<'a> {
     /// Mirrors AK::Utf16View::validate(): whether the code units are well-formed UTF-16, without unpaired surrogates.
     pub fn validate(self) -> bool {
         match self {
-            Self::Ascii(_) => true,
+            Self::Ascii(_) | Self::Latin1(_) => true,
             Self::Utf16(units) => ak::validate_utf16(units),
         }
     }
@@ -681,7 +702,7 @@ impl_utf16_display_through_display!(i8, i16, i32, i64, isize, u8, u16, u32, u64,
 impl PartialEq for Utf16View<'_> {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Self::Ascii(left), Self::Ascii(right)) => left == right,
+            (Self::Ascii(left) | Self::Latin1(left), Self::Ascii(right) | Self::Latin1(right)) => left == right,
             (Self::Utf16(left), Self::Utf16(right)) => left == right,
             _ => {
                 self.length_in_code_units() == other.length_in_code_units() && self.code_units().eq(other.code_units())
@@ -744,7 +765,7 @@ pub fn utf16_string_external_memory_size(string: &Utf16String) -> usize {
         return 0;
     }
     match string.as_units() {
-        Utf16StringUnits::Ascii(units) => units.len(),
+        Utf16StringUnits::Ascii(units) | Utf16StringUnits::Latin1(units) => units.len(),
         Utf16StringUnits::Utf16(units) => size_of_val(units),
     }
 }
@@ -816,7 +837,7 @@ pub fn concatenate(views: &[Utf16View<'_>]) -> Utf16String {
             length,
             views.iter().map(|view| match view {
                 Utf16View::Ascii(units) => *units,
-                Utf16View::Utf16(_) => unreachable!("every view has ASCII storage"),
+                Utf16View::Latin1(_) | Utf16View::Utf16(_) => unreachable!("every view has ASCII storage"),
             }),
         );
     }

@@ -85,7 +85,7 @@ public:
     [[nodiscard]] ALWAYS_INLINE Utf16View utf16_view() const& LIFETIME_BOUND
     {
         if (has_short_ascii_storage())
-            return Utf16View { ascii_view().characters_without_null_termination(), length_in_code_units() };
+            return Utf16View { ascii_view().characters_without_null_termination(), length_in_code_units(), true };
 
         if (auto const* data = data_without_union_member_assertion())
             return data->utf16_view();

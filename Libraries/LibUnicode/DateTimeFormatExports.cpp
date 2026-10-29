@@ -15,8 +15,8 @@
 
 static Utf16View text_view(UnicodeIntlText text)
 {
-    if (text.ascii)
-        return Utf16View { StringView { reinterpret_cast<char const*>(text.ascii), text.length } };
+    if (text.latin1)
+        return Utf16View::from_latin1({ text.latin1, text.length }, text.is_ascii);
     if (text.utf16)
         return Utf16View { reinterpret_cast<char16_t const*>(text.utf16), text.length };
     VERIFY(text.length == 0);

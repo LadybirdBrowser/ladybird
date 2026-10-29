@@ -36,6 +36,8 @@ pub struct TextCodecRustStreamingDecoder {
 pub fn encoding_for_label(label: Utf16StringUnits<'_>) -> Option<&'static Encoding> {
     match label {
         Utf16StringUnits::Ascii(label) => Encoding::for_label(label),
+        // NB: Every label is ASCII, so a label with any other code unit is not one.
+        Utf16StringUnits::Latin1(_) => None,
         Utf16StringUnits::Utf16(label) => {
             // NB: Every label is ASCII, so a label with any other code unit is not one.
             let label: Option<Vec<u8>> = label.iter().map(|&unit| u8::try_from(unit).ok()).collect();

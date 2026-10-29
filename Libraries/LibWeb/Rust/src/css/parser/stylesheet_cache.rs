@@ -261,7 +261,7 @@ impl TextDigest {
         //     hashed as ASCII. The first byte keeps the two forms apart otherwise.
         let mut chunk = [0u8; CHUNK_BYTES];
         match source {
-            TokenizerInput::Ascii(units) => {
+            TokenizerInput::Latin1(units) => {
                 write(&[0]);
                 write(units);
             }
@@ -478,11 +478,11 @@ mod tests {
         let utf16 = |text: &str| text.encode_utf16().collect::<Vec<_>>();
         let long = "a { color: red }\n".repeat(1000);
         for text in ["", "a{}", long.as_str()] {
-            let ascii = TextDigest::new(TokenizerInput::Ascii(text.as_bytes()));
+            let ascii = TextDigest::new(TokenizerInput::Latin1(text.as_bytes()));
             assert!(ascii == TextDigest::new(TokenizerInput::Utf16(&utf16(text))));
         }
-        let ascii = TextDigest::new(TokenizerInput::Ascii(b"a{}"));
-        assert!(ascii != TextDigest::new(TokenizerInput::Ascii(b"b{}")));
+        let ascii = TextDigest::new(TokenizerInput::Latin1(b"a{}"));
+        assert!(ascii != TextDigest::new(TokenizerInput::Latin1(b"b{}")));
         let wide = TextDigest::new(TokenizerInput::Utf16(&utf16("\u{e9}{}")));
         assert!(wide == TextDigest::new(TokenizerInput::Utf16(&utf16("\u{e9}{}"))));
         assert!(wide != TextDigest::new(TokenizerInput::Utf16(&utf16("\u{e8}{}"))));

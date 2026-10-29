@@ -1110,7 +1110,7 @@ pub(crate) struct VarResolutionEnvironment<'a> {
 
 fn source_ends_with_comment(source: crate::css::css_tokenizer::TokenizerInput<'_>) -> bool {
     match source {
-        crate::css::css_tokenizer::TokenizerInput::Ascii(source) => source
+        crate::css::css_tokenizer::TokenizerInput::Latin1(source) => source
             .iter()
             .rposition(|unit| !unit.is_ascii_whitespace())
             .is_some_and(|end| end > 0 && source[end - 1..=end] == *b"*/"),

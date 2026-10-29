@@ -22,8 +22,8 @@
 
 static Utf16View text_view(UnicodeIntlText text)
 {
-    if (text.ascii)
-        return Utf16View { StringView { reinterpret_cast<char const*>(text.ascii), text.length } };
+    if (text.latin1)
+        return Utf16View::from_latin1({ text.latin1, text.length }, text.is_ascii);
     if (text.utf16)
         return Utf16View { reinterpret_cast<char16_t const*>(text.utf16), text.length };
     VERIFY(text.length == 0);
@@ -147,13 +147,13 @@ extern "C" bool unicode_canonicalize_unicode_locale_id(UnicodeIntlText locale, U
 
 extern "C" void unicode_canonicalize_unicode_extension_values(UnicodeIntlText key, UnicodeIntlText value, UnicodeTextMappingOutput output)
 {
-    auto canonicalized = Unicode::canonicalize_unicode_extension_values(StringView { text_view(key).bytes() }, text_view(value));
+    auto canonicalized = Unicode::canonicalize_unicode_extension_values(StringView { text_view(key).ascii_bytes() }, text_view(value));
     write_utf16_to(output, canonicalized.utf16_view());
 }
 
 extern "C" bool unicode_is_locale_available(UnicodeIntlText locale)
 {
-    return Unicode::is_locale_available(StringView { text_view(locale).bytes() });
+    return Unicode::is_locale_available(StringView { text_view(locale).ascii_bytes() });
 }
 
 extern "C" bool unicode_add_likely_subtags(UnicodeIntlText locale, UnicodeTextMappingOutput output)

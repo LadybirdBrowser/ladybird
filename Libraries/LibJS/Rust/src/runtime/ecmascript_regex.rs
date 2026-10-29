@@ -83,7 +83,7 @@ impl EcmaScriptRegex {
 
         // Converted as rust_regex_compile_ascii and rust_regex_compile convert the pattern they are passed.
         let pattern_characters = match pattern {
-            Utf16View::Ascii(bytes) => bytes.iter().map(|&byte| char::from(byte)).collect(),
+            Utf16View::Ascii(bytes) | Utf16View::Latin1(bytes) => bytes.iter().map(|&byte| char::from(byte)).collect(),
             Utf16View::Utf16(code_units) => char::decode_utf16(code_units.iter().copied())
                 .map(|character| character.unwrap_or(char::REPLACEMENT_CHARACTER))
                 .collect(),
@@ -116,6 +116,10 @@ impl EcmaScriptRegex {
         capture_buffer.resize(slots, 0);
         let result = match input {
             Utf16View::Ascii(bytes) => self.regex.exec_into_ascii(bytes, start_position, &mut capture_buffer),
+            // NB: The byte matcher only matches ASCII, so Latin-1 is matched as UTF-16.
+            Utf16View::Latin1(_) => input.with_utf16_code_units(|code_units| {
+                self.regex.exec_into(code_units, start_position, &mut capture_buffer)
+            }),
             Utf16View::Utf16(code_units) => self.regex.exec_into(code_units, start_position, &mut capture_buffer),
         };
         MatchResult::from_vm_result(result)
@@ -132,6 +136,9 @@ impl EcmaScriptRegex {
     pub fn test(&self, input: Utf16View<'_>, start_position: usize) -> MatchResult {
         let result = match input {
             Utf16View::Ascii(bytes) => self.regex.test_ascii(bytes, start_position),
+            Utf16View::Latin1(_) => {
+                input.with_utf16_code_units(|code_units| self.regex.test(code_units, start_position))
+            }
             Utf16View::Utf16(code_units) => self.regex.test(code_units, start_position),
         };
         MatchResult::from_vm_result(result)
@@ -171,6 +178,10 @@ impl EcmaScriptRegex {
                 Utf16View::Ascii(bytes) => self
                     .regex
                     .find_all_into_ascii(bytes, start_position, &mut find_all_buffer),
+                Utf16View::Latin1(_) => input.with_utf16_code_units(|code_units| {
+                    self.regex
+                        .find_all_into(code_units, start_position, &mut find_all_buffer)
+                }),
                 Utf16View::Utf16(code_units) => {
                     self.regex
                         .find_all_into(code_units, start_position, &mut find_all_buffer)

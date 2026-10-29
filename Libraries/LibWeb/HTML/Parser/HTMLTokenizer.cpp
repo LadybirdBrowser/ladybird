@@ -21,7 +21,7 @@ static ReadonlySpan<u16> utf16_units(Utf16View input)
 static RustFfiTokenizerHandle* create_tokenizer_from_utf16(Utf16View input)
 {
     if (input.has_ascii_storage())
-        return rust_html_tokenizer_create_from_ascii(input.bytes());
+        return rust_html_tokenizer_create_from_ascii(input.ascii_bytes());
     return rust_html_tokenizer_create_from_utf16(utf16_units(input));
 }
 
@@ -174,7 +174,7 @@ void HTMLTokenizer::append_to_input_stream(Utf16View input)
         return;
 
     if (input.has_ascii_storage()) {
-        rust_html_tokenizer_append_ascii_input(m_tokenizer, input.bytes());
+        rust_html_tokenizer_append_ascii_input(m_tokenizer, input.ascii_bytes());
         return;
     }
     rust_html_tokenizer_append_utf16_input(m_tokenizer, utf16_units(input));
@@ -189,7 +189,7 @@ void HTMLTokenizer::close_input_stream()
 void HTMLTokenizer::insert_input_at_insertion_point(Utf16View input)
 {
     if (input.has_ascii_storage()) {
-        rust_html_tokenizer_insert_ascii_input(m_tokenizer, input.bytes());
+        rust_html_tokenizer_insert_ascii_input(m_tokenizer, input.ascii_bytes());
         return;
     }
     rust_html_tokenizer_insert_utf16_input(m_tokenizer, utf16_units(input));

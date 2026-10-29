@@ -43,6 +43,20 @@ pub(crate) fn encode_into(
                 written: length,
             }
         }
+        Utf16StringUnits::Latin1(latin1) => {
+            let mut progress = EncodeIntoProgress { read: 0, written: 0 };
+            let mut bytes = [0; 2];
+            for &byte in *latin1 {
+                let encoded = char::from(byte).encode_utf8(&mut bytes);
+                if capacity - progress.written < encoded.len() {
+                    break;
+                }
+                write(progress.written, encoded.as_bytes());
+                progress.read += 1;
+                progress.written += encoded.len();
+            }
+            progress
+        }
         Utf16StringUnits::Utf16(code_units) => {
             let mut progress = EncodeIntoProgress { read: 0, written: 0 };
             let mut bytes = [0; 4];

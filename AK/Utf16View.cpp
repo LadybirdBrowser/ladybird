@@ -19,7 +19,20 @@ ErrorOr<String> Utf16View::to_utf8(AllowLonelySurrogates allow_lonely_surrogates
     if (is_empty())
         return String {};
     if (has_ascii_storage())
-        return String::from_utf8_without_validation(bytes());
+        return String::from_utf8_without_validation(ascii_bytes());
+
+    if (has_latin1_storage()) {
+        String result;
+        auto utf8_length = simdutf::utf8_length_from_latin1(m_string.latin1, length_in_code_units());
+
+        TRY(result.replace_with_new_string(Badge<Utf16View> {}, utf8_length, [&](Bytes buffer) -> ErrorOr<void> {
+            [[maybe_unused]] auto result = simdutf::convert_latin1_to_utf8(m_string.latin1, length_in_code_units(), reinterpret_cast<char*>(buffer.data()));
+            ASSERT(result == buffer.size());
+            return {};
+        }));
+
+        return result;
+    }
 
     if (allow_lonely_surrogates == AllowLonelySurrogates::No) {
         if (!validate())
@@ -50,9 +63,17 @@ ErrorOr<ByteString> Utf16View::to_byte_string(AllowLonelySurrogates allow_lonely
 Optional<size_t> Utf16View::to_utf8_with_replacement_into(Bytes output) const
 {
     if (has_ascii_storage()) {
-        if (output.size() < bytes().size())
+        if (output.size() < ascii_bytes().size())
             return {};
-        return bytes().copy_to(output);
+        return ascii_bytes().copy_to(output);
+    }
+
+    if (has_latin1_storage()) {
+        auto latin1 = latin1_span();
+        auto utf8_length = simdutf::utf8_length_from_latin1(reinterpret_cast<char const*>(latin1.data()), latin1.size());
+        if (output.size() < utf8_length)
+            return {};
+        return simdutf::convert_latin1_to_utf8(reinterpret_cast<char const*>(latin1.data()), latin1.size(), reinterpret_cast<char*>(output.data()));
     }
 
     auto utf16 = utf16_span();
@@ -71,7 +92,7 @@ Utf16String Utf16View::to_ascii_lowercase() const
     //               time to a builder.
     if (has_ascii_storage()) {
         return Utf16String::create_uninitialized_ascii(length_in_code_units(), [&](Bytes buffer) {
-            auto const* input = bytes().data();
+            auto const* input = ascii_bytes().data();
             auto* output = buffer.data();
             for (size_t i = 0; i < buffer.size(); ++i)
                 output[i] = static_cast<u8>(AK::to_ascii_lowercase(input[i]));
@@ -91,7 +112,7 @@ Utf16String Utf16View::to_ascii_uppercase() const
     // OPTIMIZATION: See to_ascii_lowercase().
     if (has_ascii_storage()) {
         return Utf16String::create_uninitialized_ascii(length_in_code_units(), [&](Bytes buffer) {
-            auto const* input = bytes().data();
+            auto const* input = ascii_bytes().data();
             auto* output = buffer.data();
             for (size_t i = 0; i < buffer.size(); ++i)
                 output[i] = static_cast<u8>(AK::to_ascii_uppercase(input[i]));
@@ -178,19 +199,22 @@ bool Utf16View::is_ascii() const
 {
     if (has_ascii_storage())
         return true;
+    // NB: A substring of Latin-1 storage that is not ASCII may still be ASCII itself.
+    if (has_latin1_storage())
+        return simdutf::validate_ascii(m_string.latin1, length_in_code_units());
     return simdutf::validate_utf16_as_ascii(m_string.utf16, length_in_code_units());
 }
 
 bool Utf16View::validate() const
 {
-    if (has_ascii_storage())
+    if (has_latin1_storage())
         return true;
     return simdutf::validate_utf16(m_string.utf16, length_in_code_units());
 }
 
 bool Utf16View::validate(size_t& valid_code_units) const
 {
-    if (has_ascii_storage()) {
+    if (has_latin1_storage()) {
         valid_code_units = length_in_code_units();
         return true;
     }
@@ -231,7 +255,7 @@ size_t Utf16View::code_point_offset_of(size_t code_unit_offset) const
     size_t code_point_offset = 0;
 
     for (auto it = begin(); it != end();) {
-        // We know the view is using UTF-16 storage because ASCII storage would have returned early above.
+        // We know the view is using UTF-16 storage because Latin-1 storage would have returned early above.
         if ((++it).m_iterator.utf16 > m_string.utf16 + code_unit_offset)
             break;
         ++code_point_offset;
@@ -249,8 +273,8 @@ Utf16View Utf16View::unicode_substring_view(size_t code_point_offset, size_t cod
         return substring_view(code_point_offset, code_point_length);
 
     auto code_unit_offset_of = [&](Utf16CodePointIterator const& it) {
-        if (has_ascii_storage())
-            return it.m_iterator.ascii - m_string.ascii;
+        if (has_latin1_storage())
+            return it.m_iterator.latin1 - m_string.latin1;
         return it.m_iterator.utf16 - m_string.utf16;
     };
 
@@ -277,10 +301,10 @@ Optional<size_t> Utf16View::find_code_unit_offset(char16_t needle, size_t start_
     if (start_offset >= length_in_code_units())
         return {};
 
-    if (has_ascii_storage()) {
-        if (!AK::is_ascii(needle))
+    if (has_latin1_storage()) {
+        if (needle > 0xFF)
             return {};
-        return StringUtils::find(bytes(), static_cast<char>(needle), start_offset);
+        return StringUtils::find(latin1_span(), static_cast<char>(needle), start_offset);
     }
 
     auto const* start = m_string.utf16 + start_offset;
@@ -300,11 +324,11 @@ Optional<size_t> Utf16View::find_last_code_point_offset(u32 needle, size_t end_o
 
     auto const limit = min(end_offset, length_in_code_units());
 
-    if (has_ascii_storage()) {
-        if (!AK::is_ascii(needle))
+    if (has_latin1_storage()) {
+        if (needle > 0xFF)
             return {};
-        auto ascii_view = StringView { m_string.ascii, limit };
-        return ascii_view.find_last(static_cast<char>(needle));
+        auto latin1_view = StringView { m_string.latin1, limit };
+        return latin1_view.find_last(static_cast<char>(needle));
     }
 
     if (needle <= 0xFFFF) {
@@ -365,7 +389,7 @@ Vector<Utf16View> Utf16View::split_view(Utf16View const& separator, SplitBehavio
 
 size_t Utf16View::calculate_length_in_code_points() const
 {
-    ASSERT(!has_ascii_storage());
+    ASSERT(!has_latin1_storage());
 
     // simdutf's code point length method assumes valid UTF-16, whereas we allow lonely surrogates.
     if (validate()) [[likely]]

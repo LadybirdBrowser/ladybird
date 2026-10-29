@@ -10,6 +10,13 @@ use ak::{Utf16String, Utf16StringUnits, append_utf16_as_utf8_up_to_unpaired_surr
 pub(crate) fn utf8_bytes(string: &Utf16String) -> Vec<u8> {
     let mut code_units = match string.as_units() {
         Utf16StringUnits::Ascii(bytes) => return bytes.to_vec(),
+        Utf16StringUnits::Latin1(latin1) => {
+            return latin1
+                .iter()
+                .map(|&byte| char::from(byte))
+                .collect::<String>()
+                .into_bytes();
+        }
         Utf16StringUnits::Utf16(code_units) => code_units,
     };
     let mut bytes = Vec::with_capacity(code_units.len());
@@ -32,6 +39,7 @@ pub(crate) fn utf8_bytes(string: &Utf16String) -> Vec<u8> {
 pub(crate) fn ascii_bytes(string: &Utf16String) -> Option<Vec<u8>> {
     match string.as_units() {
         Utf16StringUnits::Ascii(bytes) => Some(bytes.to_vec()),
+        Utf16StringUnits::Latin1(bytes) => bytes.iter().map(|&byte| Some(byte).filter(u8::is_ascii)).collect(),
         Utf16StringUnits::Utf16(code_units) => code_units
             .iter()
             .map(|&code_unit| u8::try_from(code_unit).ok().filter(u8::is_ascii))

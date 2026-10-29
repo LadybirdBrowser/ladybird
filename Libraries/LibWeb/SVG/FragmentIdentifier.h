@@ -22,7 +22,7 @@ inline Utf16String decode_fragment_identifier(Utf16View fragment)
     if (!fragment.contains('%'))
         return Utf16String::from_utf16(fragment);
     if (fragment.has_ascii_storage())
-        return decode_fragment_identifier(fragment.bytes());
+        return decode_fragment_identifier(fragment.ascii_bytes());
     return decode_fragment_identifier(URL::percent_encode(fragment, URL::PercentEncodeSet::C0Control));
 }
 

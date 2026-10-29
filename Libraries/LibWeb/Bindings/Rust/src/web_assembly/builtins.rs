@@ -128,7 +128,9 @@ fn unsigned_i32(value: WasmValue) -> u32 {
 fn code_units_of(string: Gc<PrimitiveString>) -> Vec<u16> {
     let string = string.utf16_string();
     match string.as_units() {
-        Utf16StringUnits::Ascii(characters) => characters.iter().map(|&character| u16::from(character)).collect(),
+        Utf16StringUnits::Ascii(characters) | Utf16StringUnits::Latin1(characters) => {
+            characters.iter().map(|&character| u16::from(character)).collect()
+        }
         Utf16StringUnits::Utf16(code_units) => code_units.to_vec(),
     }
 }
