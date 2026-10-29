@@ -30,6 +30,10 @@ public:
     virtual CrossOriginIsolationMode agent_cluster_cross_origin_isolation_mode() const override { return m_agent_cluster_cross_origin_isolation_mode; }
     virtual double time_origin() const override;
 
+    // https://html.spec.whatwg.org/multipage/webappapis.html#agent-cluster-is-origin-keyed
+    bool agent_cluster_is_origin_keyed() const { return m_agent_cluster_is_origin_keyed; }
+    void set_agent_cluster_is_origin_keyed(bool value) { m_agent_cluster_is_origin_keyed = value; }
+
 private:
     WindowEnvironmentSettingsObject(Window&, NonnullOwnPtr<JS::ExecutionContext>);
 
@@ -37,6 +41,7 @@ private:
 
     GC::Ptr<Window> m_window;
     Optional<u64> m_agent_cluster_id;
+    bool m_agent_cluster_is_origin_keyed { true };
     CrossOriginIsolationMode m_agent_cluster_cross_origin_isolation_mode { CrossOriginIsolationMode::None };
 };
 

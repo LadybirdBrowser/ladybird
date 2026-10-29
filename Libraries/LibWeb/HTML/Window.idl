@@ -40,7 +40,7 @@ interface Window : EventTarget {
     // the user agent
     readonly attribute Navigator navigator;
     [Replaceable, ImplementedAs=navigator] readonly attribute Navigator clientInformation; // legacy alias of .navigator
-    [FIXME] readonly attribute boolean originAgentCluster;
+    readonly attribute boolean originAgentCluster;
 
     // user prompts
     undefined alert();

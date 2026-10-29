@@ -191,6 +191,7 @@ public:
     [[nodiscard]] GC::Ref<Location> location();
     GC::Ref<History> history() const;
     GC::Ref<Navigation> navigation();
+    bool origin_agent_cluster() const;
     void stop();
     void focus();
     void blur();

@@ -2,26 +2,26 @@ Harness status: OK
 
 Found 21 tests
 
-7 Pass
-14 Fail
+14 Pass
+7 Fail
 Pass	"": frame insertion
 Fail	"": setting document.domain must give sync access
-Fail	"": originAgentCluster must equal false
+Pass	"": originAgentCluster must equal false
 Pass	"?0": frame insertion
 Fail	"?0": setting document.domain must give sync access
-Fail	"?0": originAgentCluster must equal false
+Pass	"?0": originAgentCluster must equal false
 Pass	"true": frame insertion
 Fail	"true": setting document.domain must give sync access
-Fail	"true": originAgentCluster must equal false
+Pass	"true": originAgentCluster must equal false
 Pass	""?1"": frame insertion
 Fail	""?1"": setting document.domain must give sync access
-Fail	""?1"": originAgentCluster must equal false
+Pass	""?1"": originAgentCluster must equal false
 Pass	"1": frame insertion
 Fail	"1": setting document.domain must give sync access
-Fail	"1": originAgentCluster must equal false
+Pass	"1": originAgentCluster must equal false
 Pass	"?2": frame insertion
 Fail	"?2": setting document.domain must give sync access
-Fail	"?2": originAgentCluster must equal false
+Pass	"?2": originAgentCluster must equal false
 Pass	"(?1)": frame insertion
 Fail	"(?1)": setting document.domain must give sync access
-Fail	"(?1)": originAgentCluster must equal false
+Pass	"(?1)": originAgentCluster must equal false

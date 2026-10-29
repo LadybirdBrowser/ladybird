@@ -2,13 +2,12 @@ Harness status: OK
 
 Found 8 tests
 
-3 Pass
-5 Fail
+8 Pass
 Pass	parent to about:blank: setting document.domain must give sync access
-Fail	about:blank to child2: messageerror event must occur
+Pass	about:blank to child2: messageerror event must occur
 Pass	about:blank to child2: setting document.domain must not give sync access
-Fail	child2 to about:blank: messageerror event must occur
+Pass	child2 to about:blank: messageerror event must occur
 Pass	child2 to about:blank: setting document.domain must not give sync access
-Fail	parent: originAgentCluster must equal true
-Fail	about:blank: originAgentCluster must equal true
-Fail	child2: originAgentCluster must equal false
+Pass	parent: originAgentCluster must equal true
+Pass	about:blank: originAgentCluster must equal true
+Pass	child2: originAgentCluster must equal false

@@ -78,6 +78,15 @@ Optional<NavigationLoader::ResponseDocument> NavigationLoader::response_document
     //    sourceSnapshotParams, and entry's document state's initiator origin.
     if (fetched_navigation_params.response.status == 204 || fetched_navigation_params.response.status == 205)
         return {};
+    // https://html.spec.whatwg.org/multipage/document-lifecycle.html#initialise-the-document-object
+    // 7.1. Let oacHeader be the result of getting a structured field value given `Origin-Agent-Cluster` and "item"
+    //      from navigationParams's response's header list.
+    auto header_list = m_response_header_list ? NonnullRefPtr { *m_response_header_list } : HTTP::HeaderList::create(fetched_navigation_params.response.headers);
+    auto oac_header = header_list->get_structured_field_value<HTTP::StructuredFields::Item>("Origin-Agent-Cluster"sv);
+
+    // 7.2. Let requestsOAC be true if oacHeader is not null and oacHeader[0] is the boolean true; otherwise false.
+    auto requests_oac = oac_header.has_value() && oac_header->bare_item.has<bool>() && oac_header->bare_item.get<bool>();
+
     return ResponseDocument {
         .is_inline_content = false,
         .coop_enforcement_result = fetched_navigation_params.coop_enforcement_result,
@@ -94,6 +103,7 @@ Optional<NavigationLoader::ResponseDocument> NavigationLoader::response_document
         .environment_id = {},
         .document_id = {},
         .permissions_policy = fetched_navigation_params.permissions_policy,
+        .requests_oac = requests_oac,
     };
 }
 
@@ -485,6 +495,7 @@ void NavigationLoader::set_document(CanonicalDocument const& document, Canonical
     }
     navigation_params->reserved_environment->id = window.relevant_settings_object().id();
     navigation_params->agent_cluster_id = window.agent().agent_cluster_id();
+    navigation_params->agent_cluster_is_origin_keyed = window.agent().agent_cluster_is_origin_keyed();
     navigation_params->agent_cluster_cross_origin_isolation_mode = window.agent().agent_cluster_cross_origin_isolation_mode();
 
     if (&document.browsing_context() != &navigable.active_browsing_context())

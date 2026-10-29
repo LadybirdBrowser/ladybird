@@ -74,6 +74,7 @@ struct NavigationParams : GC::Cell {
     // AD-HOC: The agent cluster of the agent the UI process obtained for the new Document's window, and that agent
     //         cluster's cross-origin isolation mode.
     Optional<u64> agent_cluster_id;
+    bool agent_cluster_is_origin_keyed { false };
     CrossOriginIsolationMode agent_cluster_cross_origin_isolation_mode { CrossOriginIsolationMode::None };
 
     // AD-HOC: The id the UI process gave the new Document.

@@ -171,6 +171,7 @@ static NavigationParamsDescriptor create_navigation_params_descriptor(Navigation
         .about_base_url = params.about_base_url,
         .user_involvement = params.user_involvement,
         .agent_cluster_id = params.agent_cluster_id,
+        .agent_cluster_is_origin_keyed = params.agent_cluster_is_origin_keyed,
         .agent_cluster_cross_origin_isolation_mode = params.agent_cluster_cross_origin_isolation_mode,
         .new_browsing_context_group_id = params.new_browsing_context_group_id,
         .permissions_policy = params.permissions_policy,
@@ -356,6 +357,7 @@ ErrorOr<NavigationParamsVariant> create_navigation_params_from_descriptor(JS::Re
     navigation_params->webdriver_bidi_network_response = move(network_response);
     navigation_params->webdriver_bidi_network_response_state = move(network_response_state);
     navigation_params->agent_cluster_id = params.agent_cluster_id;
+    navigation_params->agent_cluster_is_origin_keyed = params.agent_cluster_is_origin_keyed;
     navigation_params->agent_cluster_cross_origin_isolation_mode = params.agent_cluster_cross_origin_isolation_mode;
     navigation_params->new_browsing_context_group_id = params.new_browsing_context_group_id;
     navigation_params->permissions_policy = move(params.permissions_policy);
