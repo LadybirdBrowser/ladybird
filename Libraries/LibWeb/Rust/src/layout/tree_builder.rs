@@ -1352,7 +1352,7 @@ impl TreeBuildJob {
             work,
         };
         let document_identity = self.document_style_node;
-        host.arena().set_document_style_node(document_identity);
+        host.arena_mut().set_document_style_node(document_identity);
         let mut state = TreeBuilderState::default();
         // The viewport's style is the document's, which the host makes rather than publishes, so a
         // build that may build the viewport is handed it before it starts.
@@ -1423,7 +1423,7 @@ impl TreeBuildJob {
         for &element in &state.layout_tree_rebuild_requests {
             // A request that names no element asks for the whole tree, which the arena answers itself.
             let Some(element) = element else {
-                host.arena().set_needs_full_layout_tree_update(true);
+                host.arena_mut().set_needs_full_layout_tree_update(true);
                 continue;
             };
             state.reports.push(crate::layout::commit::FfiCommitMessage::new(
@@ -2734,7 +2734,7 @@ fn update_principal_node_after_entry(
                 host.free_subtree(replaced_old_box);
             }
             FfiPrincipalBoxPlacement::DocumentRoot => {
-                host.arena().set_layout_root(layout_node);
+                host.arena_mut().set_layout_root(layout_node);
                 if let Some(viewport) = created_box.take() {
                     viewport.placed_as_layout_root();
                 }
@@ -3636,6 +3636,10 @@ impl<'a> TreeBuilderHost<'a> {
     }
 
     fn arena(&self) -> &LayoutNodeArena {
+        self.arena
+    }
+
+    fn arena_mut(&mut self) -> &mut LayoutNodeArena {
         self.arena
     }
 
