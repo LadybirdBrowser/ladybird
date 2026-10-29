@@ -44,6 +44,19 @@ SPDX-License-Identifier: BSD-2-Clause
                         role="radiogroup"
                         aria-labelledby="search-engine-title"
                     ></div>
+                    <div id="search-suggestions" class="switch-card hidden">
+                        <div>
+                            <span id="search-suggestions-title">Show search suggestions</span>
+                            <p id="search-suggestions-description" class="muted small"></p>
+                        </div>
+                        <input
+                            id="search-suggestions-enabled"
+                            type="checkbox"
+                            switch
+                            aria-labelledby="search-suggestions-title"
+                            aria-describedby="search-suggestions-description"
+                        />
+                    </div>
                 </section>
                 <section id="tab-mode-section" aria-labelledby="tab-mode-title">
                     <h2 id="tab-mode-title">Tabs</h2>
@@ -68,7 +81,7 @@ SPDX-License-Identifier: BSD-2-Clause
                         </label>
                     </div>
                 </section>
-                <section class="blocking" aria-labelledby="ad-blocking-title">
+                <section class="switch-card" aria-labelledby="ad-blocking-title">
                     <div>
                         <h2 id="ad-blocking-title">Block ads, trackers and more</h2>
                         <p class="muted small">

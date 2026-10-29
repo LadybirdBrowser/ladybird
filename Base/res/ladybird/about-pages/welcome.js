@@ -8,6 +8,9 @@ const form = document.querySelector("#welcome-form");
 const setupOptions = document.querySelector("#setup-options");
 const startBrowsing = document.querySelector("#start-browsing");
 const searchEngines = document.querySelector("#search-engines");
+const searchSuggestions = document.querySelector("#search-suggestions");
+const searchSuggestionsEnabled = document.querySelector("#search-suggestions-enabled");
+const searchSuggestionsDescription = document.querySelector("#search-suggestions-description");
 const enableContentBlocking = document.querySelector("#enable-content-blocking");
 const saveStatus = document.querySelector("#save-status");
 
@@ -16,11 +19,25 @@ let engines;
 let features;
 let initialized = false;
 
+function setSearchEngineSettings(name, suggestions) {
+    // NB: Keep our copy current, as the settings update for this change can arrive after the next one is made.
+    settings.searchEngine = { ...settings.searchEngine, engine: name, suggestions };
+    ladybird.sendMessage("setSearchEngineSettings", { engine: name, suggestions });
+    updateSearchSuggestions();
+}
+
 function setSearchEngine(name) {
-    ladybird.sendMessage("setSearchEngineSettings", {
-        engine: name,
-        suggestions: settings.searchEngine.suggestions,
-    });
+    setSearchEngineSettings(name, name !== null || settings.searchEngine.suggestions);
+}
+
+// The suggestions switch is only shown for a chosen engine that offers suggestions, and says where typed text goes.
+function updateSearchSuggestions() {
+    const name = settings.searchEngine.engine;
+    const engine = engines.search.find(engine => engine.name === name);
+    searchSuggestions.classList.toggle("hidden", !engine?.supportsSuggestions);
+    searchSuggestionsEnabled.checked = settings.searchEngine.suggestions;
+    if (engine)
+        searchSuggestionsDescription.textContent = `Your typing in the address bar is sent to ${name} before you press Enter.`;
 }
 
 // The search engines are shown in a new random order each time, so that none is favored by its place in the list.
@@ -85,6 +102,7 @@ function initialize() {
     document.querySelector(`input[name="tab-mode"][value="${tabMode}"]`).checked = true;
 
     renderSearchEngines();
+    updateSearchSuggestions();
 
     enableContentBlocking.checked = settings.contentBlockers.enabled;
     setupOptions.disabled = false;
@@ -100,6 +118,11 @@ for (const input of document.querySelectorAll('input[name="tab-mode"]')) {
         });
     });
 }
+
+searchSuggestionsEnabled.addEventListener("change", () => {
+    if (!initialized) return;
+    setSearchEngineSettings(settings.searchEngine.engine, searchSuggestionsEnabled.checked);
+});
 
 enableContentBlocking.addEventListener("change", () => {
     if (!initialized) return;
@@ -138,6 +161,7 @@ document.addEventListener("WebUIMessage", event => {
             if (Object.hasOwn(data, "searchEngine")) {
                 for (const radio of searchEngines.querySelectorAll("input"))
                     radio.checked = radio.value === settings.searchEngine.engine;
+                updateSearchSuggestions();
             }
             if (Object.hasOwn(data, "contentBlockers"))
                 enableContentBlocking.checked = settings.contentBlockers.enabled;

@@ -110,7 +110,8 @@ section {
         0 0 0 3px var(--focus-ring);
 }
 
-.blocking {
+.switch-card {
+    display: flex;
     flex-direction: row;
     align-items: center;
     gap: 16px;
@@ -119,14 +120,14 @@ section {
     box-shadow: inset 0 0 0 1px var(--separator);
 }
 
-.blocking > div {
+.switch-card > div {
     display: flex;
     flex: 1;
     flex-direction: column;
     gap: 2px;
 }
 
-.blocking input[switch] {
+.switch-card input[switch] {
     flex-shrink: 0;
 }
 
