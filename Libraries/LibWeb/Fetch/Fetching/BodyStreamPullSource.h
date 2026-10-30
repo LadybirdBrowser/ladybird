@@ -38,8 +38,8 @@ private:
     BodyStreamWakeToken const m_registry_token { 0 };
 };
 
-// The pull algorithm of a response stream whose bytes arrive through a FetchByteChannel. The channel's end reaches the
-// stream even when no pull is pending.
+// The pull algorithm of a response stream whose bytes arrive through a FetchByteChannel. The channel's error, or its
+// close with no bytes left unread, reaches the stream even when no pull is pending.
 class BodyStreamPullSource final : public JS::Cell {
     GC_CELL(BodyStreamPullSource, JS::Cell);
     GC_DECLARE_ALLOCATOR(BodyStreamPullSource);
@@ -94,7 +94,7 @@ private:
     GC::Ptr<GC::Function<void(Core::ImmutableBytes, Infrastructure::Body::SniffOutcome)>> m_on_resource_header;
     bool m_has_taken_bytes { false };
 
-    // Once the channel has ended, later pulls stay pending.
+    // Once set, later pulls stay pending until the stream is cancelled.
     bool m_detached { false };
 };
 

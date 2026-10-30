@@ -55,7 +55,7 @@ private:
 // A response's body as fetch keeps it: its length and where its bytes are.
 class WEB_API ResponseBody {
 public:
-    // The bytes are read through a stream outside fetch.
+    // The bytes are read through the stream of the response's body view.
     struct ReadThroughStream { };
     using Bytes = Variant<Core::ImmutableBytes, NonnullRefPtr<Engine::FetchByteChannel>, ReadThroughStream>;
 

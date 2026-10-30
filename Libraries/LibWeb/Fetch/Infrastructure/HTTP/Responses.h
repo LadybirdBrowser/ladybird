@@ -146,8 +146,8 @@ public:
     virtual void resume_body_delivery() const;
     virtual void resume_body_delivery_up_to(size_t) const;
 
-    // Stops this process taking the body, whose request another process adopts next, and returns the bytes that
-    // process reads before the rest.
+    // Stops this process taking the body, and returns the bytes that a process adopting its request reads before the
+    // rest.
     virtual Vector<Core::ImmutableBytes> release_body_for_transfer() const;
 
 protected:

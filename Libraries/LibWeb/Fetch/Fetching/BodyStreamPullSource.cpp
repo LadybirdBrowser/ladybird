@@ -210,7 +210,8 @@ void BodyStreamPullSource::on_pull_wake()
     if (!m_pending_pull_promise)
         return;
 
-    // AD-HOC: While a sync XHR send() pauses the HTML event loop, the pull runs now rather than in a fetch task.
+    // AD-HOC: While the HTML event loop is paused, the pull runs now rather than in a fetch task, which would not run
+    //         until the loop resumes.
     if (HTML::main_thread_event_loop().execution_paused()) {
         run_pull_task();
         push_while_paused();

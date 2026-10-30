@@ -2660,7 +2660,7 @@ struct NetworkBody {
 }
 
 // https://fetch.spec.whatwg.org/#concept-http-network-fetch
-// NB: Step 9 of HTTP-network fetch. Steps 10 to 13 run in create_body_from_channel(), where the body is first read.
+// NB: Step 9 of HTTP-network fetch. Steps 10 to 13 run in create_body_from_channel(), when the body's view is made.
 static NetworkBody create_network_body(RefPtr<Infrastructure::FetchParams const> fetch_params, Engine::FetchBodyDeliveryGate::NavigationHold navigation_hold, RefPtr<HTTP::MemoryCache> http_cache)
 {
     // 9. Let buffer be an empty byte sequence.
@@ -2723,7 +2723,7 @@ GC::Ptr<Infrastructure::Body> adopt_navigation_response_body(JS::Realm& realm, I
     auto delivery_gate = network_body.delivery_gate;
     auto network_transport = Engine::NetworkTransportHandle::create(*request);
     delivery_gate->attach_transport(network_transport);
-    // A request either finishes or tears down, so the observer hears the body's end once.
+    // The observer hears the body's end at most once.
     auto network_settled = GC::make_root(GC::create_function(GC::Heap::the(), move(on_network_settled)));
     network_transport->set_on_teardown([delivery_gate, channel, network_settled](Requests::Request::TeardownReason reason) {
         tear_down_network_body(*delivery_gate, *channel, reason);
@@ -2850,8 +2850,8 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
             return;
         }
 
-        // AD-HOC: From here on, the response's body delivery is scheduled against the event loop (see
-        //         BodyStreamPullSource::on_wake()); record that, for consume_a_preloaded_resource().
+        // AD-HOC: Record that the response has arrived, which consume_a_preloaded_resource() checks before
+        //         re-targeting this fetch.
         fetch_params->control_block().set_response_arrived();
 
         auto response = Infrastructure::Response::create();
@@ -2904,7 +2904,7 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
         body_pump->set_response(response);
 
         // 14. Set response’s body to a new body whose stream is stream.
-        // NB: The stream is made from the channel where the body is first read.
+        // NB: The stream is made from the channel when the body's view is made.
         response->set_body(Infrastructure::ResponseBody { channel, {} });
 
         // NB: HTTP-network-or-cache fetch's "Store httpRequest and forwardResponse in httpCache" runs here, as the

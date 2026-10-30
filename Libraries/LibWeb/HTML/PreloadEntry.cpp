@@ -93,8 +93,8 @@ bool consume_a_preloaded_resource(
     (void)integrity_metadata;
 
     // AD-HOC: A sync XHR consumer, whose event loop is paused while it's blocked, can't park on an in-flight entry whose
-    //         fetch's response has already arrived: Its delivery and processing are already queued against the event
-    //         loop, beyond the reach of step 9's re-targeting, so they can't hand the response over. Return false, so
+    //         fetch's response has already arrived: Its processing may already be queued against the event loop,
+    //         beyond the reach of step 9's re-targeting, so it could not hand the response over. Return false, so
     //         the consumer fetches on its own (as Blink/WebKit have every sync request do; see step 9), and leave the
     //         entry in the map: The preload completes once the loop resumes.
     if (!entry->response && consumer_body_intent == Fetch::Engine::BodyIntent::SyncAccumulate && entry->controller
