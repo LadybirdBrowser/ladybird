@@ -66,6 +66,15 @@ public:
         return buffer;
     }
 
+    virtual DecoderErrorOr<void> read_and_discard(size_t size) override
+    {
+        if (m_position > m_data.size() || size > m_data.size() - m_position)
+            return DecoderError::with_description(DecoderErrorCategory::EndOfStream, "End of buffer"sv);
+
+        m_position += size;
+        return {};
+    }
+
     virtual size_t position() const override { return m_position; }
     virtual Optional<u64> size() const override { return m_data.size(); }
     virtual size_t blocking_size() const override { return m_data.size(); }

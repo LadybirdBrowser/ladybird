@@ -51,6 +51,12 @@ private:
             return m_bytes->read_bytes(size);
         }
 
+        virtual Media::DecoderErrorOr<void> read_and_discard(size_t size) override
+        {
+            TRY(abort_if_reading_the_aborted_position());
+            return m_bytes->read_and_discard(size);
+        }
+
         virtual size_t position() const override { return m_bytes->position(); }
         virtual Optional<u64> size() const override { return m_bytes->size(); }
         virtual size_t blocking_size() const override { return m_bytes->blocking_size(); }

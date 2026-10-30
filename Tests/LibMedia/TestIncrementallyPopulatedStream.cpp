@@ -1174,3 +1174,114 @@ TEST_CASE(cursor_rejects_seeks_outside_the_stream)
     EXPECT(!cursor->seek(-2, AK::SeekMode::FromEndPosition).is_error());
     EXPECT_EQ(cursor->position(), 8u);
 }
+
+TEST_CASE(read_and_discard_requires_every_byte_in_between)
+{
+    auto stream = Media::IncrementallyPopulatedStream::create_empty();
+    stream->set_expected_size(100);
+    auto data = make_test_data(100);
+    stream->add_chunk_at(0, data.bytes().slice(0, 40));
+    stream->add_chunk_at(60, data.bytes().slice(60));
+
+    auto cursor = stream->create_cursor();
+    cursor->set_is_blocking(false);
+    MUST(cursor->seek(30, AK::SeekMode::SetPosition));
+
+    // The landing point is present, but the bytes before it are not.
+    auto result = cursor->read_and_discard(35);
+    EXPECT(result.is_error());
+    EXPECT_EQ(result.error().category(), Media::DecoderErrorCategory::NeedsMoreInput);
+    EXPECT_EQ(cursor->position(), 30u);
+
+    stream->add_chunk_at(40, data.bytes().slice(40, 20));
+    MUST(cursor->read_and_discard(35));
+    EXPECT_EQ(cursor->position(), 65u);
+
+    stream->close();
+    result = cursor->read_and_discard(40);
+    EXPECT(result.is_error());
+    EXPECT_EQ(result.error().category(), Media::DecoderErrorCategory::EndOfStream);
+    EXPECT_EQ(cursor->position(), 65u);
+}
+
+TEST_CASE(read_and_discard_in_a_closed_stream_requires_a_chunk_before_the_gap)
+{
+    auto stream = Media::IncrementallyPopulatedStream::create_empty();
+    auto data = make_test_data(100);
+    stream->add_chunk_at(60, data.bytes().slice(60));
+    stream->close();
+
+    auto cursor = stream->create_cursor();
+    cursor->set_is_blocking(false);
+    auto result = cursor->read_and_discard(10);
+    EXPECT(result.is_error());
+    EXPECT_EQ(result.error().category(), Media::DecoderErrorCategory::NeedsMoreInput);
+    EXPECT_EQ(cursor->position(), 0u);
+
+    stream->add_chunk_at(0, data.bytes().slice(0, 60));
+    EXPECT(!cursor->read_and_discard(10).is_error());
+    EXPECT_EQ(cursor->position(), 10u);
+}
+
+TEST_CASE(blocking_read_and_discard_past_the_expected_size_does_not_wait)
+{
+    auto stream = Media::IncrementallyPopulatedStream::create_empty();
+    stream->set_expected_size(100);
+    auto data = make_test_data(100);
+    stream->add_chunk_at(0, data.bytes());
+
+    auto cursor = stream->create_cursor();
+
+    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> reached_end_of_stream { false };
+    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> discard_finished { false };
+    auto thread = Threading::Thread::construct("TestDiscard"sv, [&, cursor]() -> intptr_t {
+        auto result = cursor->read_and_discard(101);
+        reached_end_of_stream = result.is_error() && result.error().category() == Media::DecoderErrorCategory::EndOfStream;
+        discard_finished = true;
+        return 0;
+    });
+    thread->start();
+
+    auto start_time = MonotonicTime::now_coarse();
+    while (!discard_finished.load() && MonotonicTime::now_coarse() - start_time < AK::Duration::from_seconds(1))
+        ;
+    if (!discard_finished.load())
+        cursor->abort();
+    MUST(thread->join());
+
+    EXPECT(reached_end_of_stream.load());
+    EXPECT_EQ(cursor->position(), 0u);
+}
+
+TEST_CASE(blocking_read_and_discard_waits_for_every_byte)
+{
+    auto stream = Media::IncrementallyPopulatedStream::create_empty();
+    stream->set_expected_size(100);
+    auto data = make_test_data(100);
+    stream->add_chunk_at(0, data.bytes().slice(0, 40));
+    stream->add_chunk_at(60, data.bytes().slice(60));
+
+    auto cursor = stream->create_cursor();
+
+    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> read_blocked { false };
+    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> discard_succeeded { false };
+    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> discard_finished { false };
+    cursor->set_blocked_change_handler([&](Media::ReadBlocked blocked) {
+        read_blocked = blocked == Media::ReadBlocked::Yes;
+    });
+
+    auto thread = Threading::Thread::construct("TestDiscard"sv, [&, cursor]() -> intptr_t {
+        discard_succeeded = !cursor->read_and_discard(70).is_error();
+        discard_finished = true;
+        return 0;
+    });
+    thread->start();
+
+    while (!read_blocked.load() && !discard_finished.load())
+        ;
+    stream->add_chunk_at(40, data.bytes().slice(40, 20));
+    MUST(thread->join());
+
+    EXPECT(discard_succeeded.load());
+    EXPECT_EQ(cursor->position(), 70u);
+}
