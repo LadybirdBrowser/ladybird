@@ -190,7 +190,8 @@ ErrorOr<NonnullRefPtr<Gfx::Typeface>> try_load_from_bytes(ReadonlyBytes buffer, 
         };
         memcpy(font_buffer_data + table_directory_offset, &table_record, sizeof(table_record));
 
-        font_buffer_offset += entry.orig_length;
+        // NB: Each table in the sfnt starts on a 4-byte boundary, the same padding expected_total_sfnt_size counts.
+        font_buffer_offset += (entry.orig_length + 3) & 0xFFFFFFFC;
     }
 
     if (header.total_sfnt_size != expected_total_sfnt_size)
