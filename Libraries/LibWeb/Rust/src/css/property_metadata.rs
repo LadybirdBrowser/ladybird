@@ -190,11 +190,11 @@ pub(crate) fn property_initial_value(property_id: u16) -> &'static str {
 }
 
 pub(crate) fn pseudo_element_supports_property(pseudo_element: u8, property_id: u16) -> bool {
-    if PSEUDO_ELEMENT_ALWAYS_ALLOWED_PROPERTIES
+    if PSEUDO_ELEMENT_TRANSITION_AND_ANIMATION_PROPERTIES
         .binary_search(&property_id)
         .is_ok()
     {
-        return true;
+        return PSEUDO_ELEMENT_ACCEPTS_ANIMATIONS[pseudo_element as usize];
     }
     match PSEUDO_ELEMENT_PROPERTY_WHITELISTS[pseudo_element as usize] {
         Some(whitelist) => whitelist.binary_search(&property_id).is_ok(),
@@ -202,8 +202,8 @@ pub(crate) fn pseudo_element_supports_property(pseudo_element: u8, property_id: 
     }
 }
 
-/// Whether a pseudo-element's own whitelist names the property, leaving out the properties every
-/// pseudo-element accepts.
+/// Whether a pseudo-element's own whitelist names the property, leaving out the transition and animation
+/// properties.
 pub(crate) fn pseudo_element_whitelist_names_property(pseudo_element: u8, property_id: u16) -> bool {
     PSEUDO_ELEMENT_PROPERTY_WHITELISTS[pseudo_element as usize]
         .is_some_and(|whitelist| whitelist.binary_search(&property_id).is_ok())

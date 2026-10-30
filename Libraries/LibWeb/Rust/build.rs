@@ -844,14 +844,21 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
         }
         Ok(result.into_iter().collect())
     };
-    let always_allowed_pseudo_properties = property_ids(
+    let transition_and_animation_pseudo_properties = property_ids(
         property_groups
-            .get("#always-allowed-properties")
-            .ok_or("missing always-allowed pseudo-element property group")?,
+            .get("#transition-and-animation-properties")
+            .ok_or("missing transition and animation pseudo-element property group")?,
     )?;
     let mut pseudo_property_whitelist_rows = Vec::new();
+    let mut pseudo_accepts_animations_rows = Vec::new();
     for name in ordered_pseudo_element_names(&pseudo_elements)? {
         let object = pseudo_elements[&name].as_object().unwrap();
+        pseudo_accepts_animations_rows.push(
+            object
+                .get("accepts-animations")
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(true),
+        );
         let Some(whitelist) = object.get("property-whitelist") else {
             pseudo_property_whitelist_rows.push("    None,".to_string());
             continue;
@@ -867,6 +874,7 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
     }
     // UnknownWebKit follows the known pseudo-elements and accepts all properties.
     pseudo_property_whitelist_rows.push("    None,".to_string());
+    pseudo_accepts_animations_rows.push(true);
 
     // The longhands other longhands' computation reads, which are computed first.
     let manual_order = [
@@ -1792,7 +1800,7 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
             .join("\n")
     ));
     output.push_str(&format!(
-        "\npub(crate) static PSEUDO_ELEMENT_ALWAYS_ALLOWED_PROPERTIES: &[u16] = &{always_allowed_pseudo_properties:?};\n"
+        "\npub(crate) static PSEUDO_ELEMENT_TRANSITION_AND_ANIMATION_PROPERTIES: &[u16] = &{transition_and_animation_pseudo_properties:?};\n"
     ));
     let positional_shorthands: Vec<u16> = properties
         .iter()
@@ -1813,6 +1821,10 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
         "pub(crate) static PSEUDO_ELEMENT_PROPERTY_WHITELISTS: [Option<&[u16]>; {}] = [\n{}\n];\n",
         pseudo_property_whitelist_rows.len(),
         pseudo_property_whitelist_rows.join("\n")
+    ));
+    output.push_str(&format!(
+        "pub(crate) static PSEUDO_ELEMENT_ACCEPTS_ANIMATIONS: [bool; {}] = {pseudo_accepts_animations_rows:?};\n",
+        pseudo_accepts_animations_rows.len(),
     ));
     std::fs::write(out_dir.join("property_metadata_generated.rs"), output)?;
     Ok(())

@@ -1,0 +1,3 @@
+::selection: rgb(0, 128, 0)
+::search-text: rgb(0, 128, 0)
+::spelling-error: rgb(0, 128, 0)
