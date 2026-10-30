@@ -60,52 +60,23 @@ pub(crate) struct IntrinsicSizeCacheKey {
 }
 
 impl IntrinsicSizeCacheKey {
-    fn with_percentage_block_bases_masked(self) -> Self {
-        Self {
-            percentage_basis_block_size: None,
-            quirks_mode_percentage_basis_block_size: None,
-            ..self
-        }
-    }
-
-    fn with_percentage_inline_basis_masked(self) -> Self {
-        Self {
-            percentage_basis_inline_size: None,
-            ..self
-        }
-    }
-
-    fn with_measured_at_block_size_masked(self) -> Self {
-        Self {
-            measured_at_block_size: None,
-            ..self
-        }
-    }
-
-    fn with_parts_masked(self, parts: IntrinsicMeasurementDependencies) -> Self {
-        let mut key = self;
-        if parts.percentage_block_size {
-            key = key.with_percentage_block_bases_masked();
-        }
-        if parts.percentage_inline_basis {
-            key = key.with_percentage_inline_basis_masked();
-        }
-        if parts.block_size {
-            key = key.with_measured_at_block_size_masked();
-        }
-        key
-    }
-
-    fn masked_for(self, dependencies: IntrinsicMeasurementDependencies) -> Self {
-        self.with_parts_masked(dependencies.unobserved_parts())
-    }
-
-    fn parts_that_masking_changes(self) -> IntrinsicMeasurementDependencies {
-        IntrinsicMeasurementDependencies {
-            percentage_block_size: self.with_percentage_block_bases_masked() != self,
-            percentage_inline_basis: self.with_percentage_inline_basis_masked() != self,
-            block_size: self.with_measured_at_block_size_masked() != self,
-        }
+    /// Whether a measurement made under this key answers `probe`: the keys agree on every part the measurement observed.
+    fn answers(&self, probe: &Self, observed: IntrinsicMeasurementDependencies) -> bool {
+        let Self {
+            measured_at_inline_size,
+            measured_at_block_size,
+            percentage_basis_inline_size,
+            percentage_basis_block_size,
+            quirks_mode_percentage_basis_block_size,
+            measured_in_transposed_frame,
+        } = *self;
+        measured_at_inline_size == probe.measured_at_inline_size
+            && measured_in_transposed_frame == probe.measured_in_transposed_frame
+            && (!observed.block_size || measured_at_block_size == probe.measured_at_block_size)
+            && (!observed.percentage_inline_basis || percentage_basis_inline_size == probe.percentage_basis_inline_size)
+            && (!observed.percentage_block_size
+                || (percentage_basis_block_size == probe.percentage_basis_block_size
+                    && quirks_mode_percentage_basis_block_size == probe.quirks_mode_percentage_basis_block_size))
     }
 }
 
@@ -124,43 +95,16 @@ impl IntrinsicMeasurementDependencies {
             block_size: self.block_size || other.block_size,
         }
     }
-
-    fn non_empty_subsets_of_all_parts() -> impl Iterator<Item = Self> {
-        (1u8..8).map(|bits| Self {
-            percentage_block_size: bits & 1 != 0,
-            percentage_inline_basis: bits & 2 != 0,
-            block_size: bits & 4 != 0,
-        })
-    }
-
-    fn unobserved_parts(self) -> Self {
-        Self {
-            percentage_block_size: !self.percentage_block_size,
-            percentage_inline_basis: !self.percentage_inline_basis,
-            block_size: !self.block_size,
-        }
-    }
-
-    fn is_subset_of(self, other: Self) -> bool {
-        (!self.percentage_block_size || other.percentage_block_size)
-            && (!self.percentage_inline_basis || other.percentage_inline_basis)
-            && (!self.block_size || other.block_size)
-    }
-
-    fn shares_a_part_with(self, other: Self) -> bool {
-        (self.percentage_block_size && other.percentage_block_size)
-            || (self.percentage_inline_basis && other.percentage_inline_basis)
-            || (self.block_size && other.block_size)
-    }
 }
 
 pub(crate) trait IntrinsicMeasurement: Copy {
     fn dependencies(&self) -> IntrinsicMeasurementDependencies;
 }
 
-/// The intrinsic size measurements of one box, one entry per key. A box is usually measured under one key, so they are
-/// kept inline and searched in order, which reads one cache line where a hash map reads several. As a cache it may
-/// forget: past a few keys, the oldest goes.
+/// The intrinsic size measurements of one box, each under the key it was measured for, answering every key that agrees
+/// with it on the parts it observed. A box is usually measured under one key, so they are kept inline and searched in
+/// order, which reads one cache line where a hash map reads several. As a cache it may forget: past a few keys, the
+/// oldest goes.
 struct IntrinsicMeasurements<V> {
     entries: smallvec::SmallVec<[(IntrinsicSizeCacheKey, V); 1]>,
 }
@@ -176,10 +120,13 @@ impl<V> Default for IntrinsicMeasurements<V> {
 impl<V> IntrinsicMeasurements<V> {
     const MAXIMUM_ENTRIES: usize = 8;
 
-    fn get(&self, key: &IntrinsicSizeCacheKey) -> Option<&V> {
+    fn answer(&self, probe: &IntrinsicSizeCacheKey) -> Option<V>
+    where
+        V: IntrinsicMeasurement,
+    {
         self.entries
             .iter()
-            .find_map(|(entry_key, value)| (entry_key == key).then_some(value))
+            .find_map(|(key, measurement)| key.answers(probe, measurement.dependencies()).then_some(*measurement))
     }
 
     fn insert(&mut self, key: IntrinsicSizeCacheKey, value: V) {
@@ -192,33 +139,6 @@ impl<V> IntrinsicMeasurements<V> {
         }
         self.entries.push((key, value));
     }
-}
-
-// Measurements are stored under their key with every part they never observed masked out. A
-// probe that had to mask a part must skip entries that observed it: a measurement made without
-// that part shares the masked key's shape.
-fn intrinsic_cache_lookup<V: IntrinsicMeasurement>(
-    map: &IntrinsicMeasurements<V>,
-    key: IntrinsicSizeCacheKey,
-) -> Option<V> {
-    if let Some(measurement) = map.get(&key) {
-        return Some(*measurement);
-    }
-    let parts_that_masking_changes = key.parts_that_masking_changes();
-    IntrinsicMeasurementDependencies::non_empty_subsets_of_all_parts()
-        .filter(|masked_parts| masked_parts.is_subset_of(parts_that_masking_changes))
-        .find_map(|masked_parts| {
-            let measurement = *map.get(&key.with_parts_masked(masked_parts))?;
-            (!measurement.dependencies().shares_a_part_with(masked_parts)).then_some(measurement)
-        })
-}
-
-fn intrinsic_cache_store<V: IntrinsicMeasurement>(
-    map: &mut IntrinsicMeasurements<V>,
-    key: IntrinsicSizeCacheKey,
-    value: V,
-) {
-    map.insert(key.masked_for(value.dependencies()), value);
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -352,7 +272,7 @@ impl IntrinsicSizeCaches {
             let map = maps
                 .block_sizes(kind)
                 .expect("block size cache kind must use the block axis");
-            intrinsic_cache_lookup(map, key)
+            map.answer(&key)
         })
     }
 
@@ -383,7 +303,7 @@ impl IntrinsicSizeCaches {
             let map = maps
                 .block_sizes_mut(kind)
                 .expect("block size cache kind must use the block axis");
-            intrinsic_cache_store(map, key, value);
+            map.insert(key, value);
         });
     }
 
@@ -392,7 +312,7 @@ impl IntrinsicSizeCaches {
         node: NodeSlotId,
         key: IntrinsicSizeCacheKey,
     ) -> Option<IntrinsicInlineSizeMeasurement> {
-        self.with_maps(node, |maps| intrinsic_cache_lookup(&maps.content_inline_sizes, key))
+        self.with_maps(node, |maps| maps.content_inline_sizes.answer(&key))
     }
 
     pub(crate) fn intrinsic_inline_size_depends_on_block_size(
@@ -417,7 +337,7 @@ impl IntrinsicSizeCaches {
         value: IntrinsicInlineSizeMeasurement,
     ) {
         self.with_maps_mut(node, |maps| {
-            intrinsic_cache_store(&mut maps.content_inline_sizes, key, value);
+            maps.content_inline_sizes.insert(key, value);
         });
     }
 }
