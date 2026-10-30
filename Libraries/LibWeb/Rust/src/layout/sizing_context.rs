@@ -2520,22 +2520,29 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         formatting_context::frame_established_by(&self.callbacks, node).is_orthogonal_to(self.callbacks.frame)
     }
 
-    fn key_in_frame(&self, mut key: IntrinsicSizeCacheKey) -> IntrinsicSizeCacheKey {
-        key.measured_in_transposed_frame = self.callbacks.frame.is_transposed();
-        key
+    fn intrinsic_size_cache_key(
+        &self,
+        measured_at_other_axis_size: Option<CssPixels>,
+        constraints: ContainingBlockConstraints,
+    ) -> IntrinsicSizeCacheKey {
+        IntrinsicSizeCacheKey {
+            measured_at_other_axis_size,
+            percentage_basis_inline_size: constraints.percentage_basis_inline_size,
+            percentage_basis_block_size: constraints.percentage_basis_block_size,
+            quirks_mode_percentage_basis_block_size: constraints.quirks_mode_percentage_basis_block_size,
+            measured_in_transposed_frame: self.callbacks.frame.is_transposed(),
+        }
     }
 
-    fn intrinsic_block_cache_get(
+    fn max_content_block_size_cache_get(
         &self,
         node: Node,
-        kind: IntrinsicSizeCacheKind,
         key: IntrinsicSizeCacheKey,
     ) -> Option<IntrinsicBlockSizeMeasurement> {
-        let key = self.key_in_frame(key);
         let measurement = self
             .callbacks
             .intrinsic_size_caches()
-            .intrinsic_block_size_cache_get(node, kind, key)?;
+            .max_content_block_size_cache_get(node, key)?;
         self.charge_measurement_dependency_to_measured_box_and_containing_block(
             node,
             measurement.depends_on_percentage_block_size,
@@ -2543,17 +2550,15 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         Some(measurement)
     }
 
-    fn intrinsic_block_cache_put(
+    fn max_content_block_size_cache_put(
         &self,
         node: Node,
-        kind: IntrinsicSizeCacheKind,
         key: IntrinsicSizeCacheKey,
         value: IntrinsicBlockSizeMeasurement,
     ) {
-        let key = self.key_in_frame(key);
         self.callbacks
             .intrinsic_size_caches()
-            .intrinsic_block_size_cache_put(node, kind, key, value);
+            .max_content_block_size_cache_put(node, key, value);
     }
 
     fn intrinsic_inline_measurement_cache_get(
@@ -2561,7 +2566,6 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         node: Node,
         key: IntrinsicSizeCacheKey,
     ) -> Option<IntrinsicInlineSizeMeasurement> {
-        let key = self.key_in_frame(key);
         let measurement = self
             .callbacks
             .intrinsic_size_caches()
@@ -2579,7 +2583,6 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         key: IntrinsicSizeCacheKey,
         value: IntrinsicInlineSizeMeasurement,
     ) {
-        let key = self.key_in_frame(key);
         self.callbacks
             .intrinsic_size_caches()
             .intrinsic_inline_size_measurement_cache_put(node, key, value);
@@ -3090,7 +3093,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         if let Some(answer) = self.content_inline_size_ignoring_content(node) {
             return answer;
         }
-        let key = formatting_context::cache_key(None, block_size, constraints);
+        let key = self.intrinsic_size_cache_key(block_size, constraints);
         if let Some(cached) = self.intrinsic_inline_measurement_cache_get(node, key) {
             self.callbacks.layout_trace().intrinsic_size_hit(node, kind);
             return ContentInlineSizeAnswer::from_cache(cached, kind);
@@ -3225,8 +3228,8 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
     ) -> CssPixels {
         debug_assert!(!self.establishes_orthogonal_flow(node));
         let kind = IntrinsicSizeCacheKind::MaxContentBlock;
-        let key = formatting_context::cache_key(Some(inline_size), None, constraints);
-        if let Some(cached) = self.intrinsic_block_cache_get(node, kind, key) {
+        let key = self.intrinsic_size_cache_key(Some(inline_size), constraints);
+        if let Some(cached) = self.max_content_block_size_cache_get(node, key) {
             self.callbacks.layout_trace().intrinsic_size_hit(node, kind);
             return cached.size;
         }
@@ -3244,9 +3247,8 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             node,
             result.depends_on_percentage_block_size,
         );
-        self.intrinsic_block_cache_put(
+        self.max_content_block_size_cache_put(
             node,
-            kind,
             key,
             IntrinsicBlockSizeMeasurement {
                 size: value,
@@ -3360,9 +3362,8 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         }
         if self.facts(node).has_preferred_aspect_ratio() {
             // OPTIMIZATION: The automatic minimum size measures the content, so the result is cached.
-            let kind = IntrinsicSizeCacheKind::MaxContentBlock;
-            let key = formatting_context::cache_key(Some(inline_size), None, constraints);
-            if let Some(cached) = self.intrinsic_block_cache_get(node, kind, key) {
+            let key = self.intrinsic_size_cache_key(Some(inline_size), constraints);
+            if let Some(cached) = self.max_content_block_size_cache_get(node, key) {
                 return cached.size;
             }
             let block_size = self.content_block_size_from_aspect_ratio(sized, inline_size);
@@ -3380,9 +3381,8 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
                 None,
             );
             let size = minimum.map_or(block_size, |minimum| block_size.max(minimum));
-            self.intrinsic_block_cache_put(
+            self.max_content_block_size_cache_put(
                 node,
-                kind,
                 key,
                 IntrinsicBlockSizeMeasurement {
                     size,

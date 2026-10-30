@@ -178,21 +178,6 @@ pub(crate) fn run_fragmentainer(
     )
 }
 
-pub(super) fn cache_key(
-    measured_at_inline_size: Option<CssPixels>,
-    measured_at_block_size: Option<CssPixels>,
-    constraints: ContainingBlockConstraints,
-) -> IntrinsicSizeCacheKey {
-    IntrinsicSizeCacheKey {
-        measured_at_inline_size,
-        measured_at_block_size,
-        percentage_basis_inline_size: constraints.percentage_basis_inline_size,
-        percentage_basis_block_size: constraints.percentage_basis_block_size,
-        quirks_mode_percentage_basis_block_size: constraints.quirks_mode_percentage_basis_block_size,
-        measured_in_transposed_frame: false,
-    }
-}
-
 impl PixelFraction {
     pub(crate) fn new(numerator: CssPixels, denominator: CssPixels) -> Self {
         assert_ne!(denominator, CssPixels::default());
