@@ -1099,6 +1099,14 @@ impl Deserializer<'_, '_> {
                 let buffer = self.serialized.decode_byte_buffer()?;
                 let max_byte_length = self.serialized.decode_size()?;
 
+                // NB: Creating a resizable buffer throws a RangeError if its byte length is greater than its max byte length.
+                if max_byte_length < buffer.len() {
+                    return Err(data_clone_error_from_serialization_error(
+                        realm,
+                        "ArrayBuffer byte length exceeds its max byte length",
+                    ));
+                }
+
                 if let Some(array_buffer) =
                     self.serialized
                         .array_buffer_sharing_side_table_entry(side_table_index, buffer.len(), true)
@@ -1131,6 +1139,14 @@ impl Deserializer<'_, '_> {
             ValueTag::ResizeableArrayBuffer => {
                 let buffer = self.serialized.decode_byte_buffer()?;
                 let max_byte_length = self.serialized.decode_size()?;
+
+                // NB: Creating a resizable buffer throws a RangeError if its byte length is greater than its max byte length.
+                if max_byte_length < buffer.len() {
+                    return Err(data_clone_error_from_serialization_error(
+                        realm,
+                        "ArrayBuffer byte length exceeds its max byte length",
+                    ));
+                }
 
                 let data = buffer.into_array_buffer(realm, ArrayBufferShared::No);
                 data.set_max_byte_length(max_byte_length);
@@ -1674,6 +1690,11 @@ pub(crate) fn structured_deserialize_with_transfer_internal(
     else if transfer_type == TransferType::ResizableArrayBuffer as u8 {
         let buffer = decoder.decode_byte_buffer(target_realm)?;
         let max_byte_length = decoder.decode_size(target_realm)?;
+
+        // NB: Creating a resizable buffer throws a RangeError if its byte length is greater than its max byte length.
+        if max_byte_length < buffer.len() {
+            return Err(data_clone_error("ArrayBuffer byte length exceeds its max byte length"));
+        }
 
         let data = buffer.into_array_buffer(target_realm, ArrayBufferShared::No);
         data.set_max_byte_length(max_byte_length);
