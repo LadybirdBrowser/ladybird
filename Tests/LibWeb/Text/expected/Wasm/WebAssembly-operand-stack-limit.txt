@@ -1,0 +1,3 @@
+1000 slots: true
+1048000 slots: true
+1049000 slots: true

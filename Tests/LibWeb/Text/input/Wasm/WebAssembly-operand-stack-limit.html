@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function leb(value) {
+        const bytes = [];
+        do {
+            let byte = value % 128;
+            value = Math.floor(value / 128);
+            if (value !== 0)
+                byte |= 0x80;
+            bytes.push(byte);
+        } while (value !== 0);
+        return bytes;
+    }
+
+    function section(id, contents) {
+        return [id, ...leb(contents.length), ...contents];
+    }
+
+    // A module whose function 1 calls function 0, which returns 1000 i64 values, `callCount` times without
+    // consuming any of the results, then drops into unreachable code so the function still validates.
+    function moduleWithOperandStackHeight(callCount) {
+        const types = [
+            0x02,
+            0x60, 0x00, ...leb(1000), ...new Array(1000).fill(0x7e),
+            0x60, 0x00, 0x00,
+        ];
+        const producer = [0x00, 0x00, 0x0b];
+        const consumer = [0x00];
+        for (let i = 0; i < callCount; ++i)
+            consumer.push(0x10, 0x00);
+        consumer.push(0x00, 0x0b);
+        return new Uint8Array([
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+            ...section(1, types),
+            ...section(3, [0x02, 0x00, 0x01]),
+            ...section(10, [
+                0x02,
+                ...leb(producer.length), ...producer,
+                ...leb(consumer.length), ...consumer,
+            ]),
+        ]);
+    }
+
+    test(() => {
+        println(`1000 slots: ${WebAssembly.validate(moduleWithOperandStackHeight(1))}`);
+        println(`1048000 slots: ${WebAssembly.validate(moduleWithOperandStackHeight(1048))}`);
+        println(`1049000 slots: ${WebAssembly.validate(moduleWithOperandStackHeight(1049))}`);
+    });
+</script>
