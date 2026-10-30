@@ -361,6 +361,12 @@ pub(crate) struct PaintableRows<Arena> {
     absolute_rects: RefCell<crate::painting::record::recorder_state::AbsoluteRectMemo>,
 }
 
+impl<Arena> PaintableRows<Arena> {
+    pub(crate) fn into_absolute_rect_memo(self) -> crate::painting::record::recorder_state::AbsoluteRectMemo {
+        self.absolute_rects.into_inner()
+    }
+}
+
 pub(crate) type PaintableRowsRef<'a> = PaintableRows<&'a LayoutNodeArena>;
 pub(crate) type PaintableRowsMut<'a> = PaintableRows<&'a mut LayoutNodeArena>;
 
@@ -726,6 +732,16 @@ impl LayoutNodeArena {
         PaintableRows {
             arena: self,
             absolute_rects: RefCell::default(),
+        }
+    }
+
+    pub(crate) fn paintable_rows_with_absolute_rect_memo(
+        &self,
+        memo: crate::painting::record::recorder_state::AbsoluteRectMemo,
+    ) -> PaintableRowsRef<'_> {
+        PaintableRows {
+            arena: self,
+            absolute_rects: RefCell::new(memo),
         }
     }
 
