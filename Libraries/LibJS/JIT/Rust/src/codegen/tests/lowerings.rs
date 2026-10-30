@@ -3046,14 +3046,24 @@ extern "C" fn fake_native_getter(_vm: u64) -> FakeNativeResult {
 
 #[test]
 fn get_by_id_reads_direct_getter_wrappers_inline() {
+    get_by_id_reads_direct_getter_wrappers_inline_from(false);
+}
+
+#[test]
+fn get_by_id_reads_direct_getter_wrappers_of_compressed_fields_inline() {
+    get_by_id_reads_direct_getter_wrappers_inline_from(true);
+}
+
+fn get_by_id_reads_direct_getter_wrappers_inline_from(compressed_field: bool) {
     use crate::builder::tests::property_access::{cache, own};
     use crate::snapshot::{
         AccessorFunctionSnapshot, CellId, DirectGetterFields, NativeCallTarget, PropertyCacheEntryType,
     };
     // A wrapper whose implementation is in its word 10, with an accessor
-    // property 1 whose getter reads the implementation's word 2, and the
-    // main world wrapper of that through the implementation's word 1 and
-    // the weak reference's word 1.
+    // property 1 whose getter reads the implementation's word 2 (or, as a
+    // compressed pointer, the high half of it), and the main world wrapper
+    // of that through the implementation's word 1 and the weak reference's
+    // word 1.
     let function = low_cell(&[0; 4]);
     let mut accessor = vec![0u64; 3];
     accessor[1] = compressed(function);
@@ -3061,9 +3071,14 @@ fn get_by_id_reads_direct_getter_wrappers_inline() {
     let mut fake = FakeCachedObject::new(&[value::int32(10), accessor_value]);
     let mut result = vec![0u64; 2];
     let mut result_weak = vec![0, result.as_ptr() as u64];
-    let result_implementation = [0, result_weak.as_ptr() as u64, 0];
+    let result_implementation = low_cell(&[0, result_weak.as_ptr() as u64, 0]);
+    let result_implementation_field = if compressed_field {
+        compressed(result_implementation) << 32
+    } else {
+        result_implementation.as_ptr() as u64
+    };
     let mut weak = vec![0, fake.object.as_ptr() as u64];
-    let mut implementation = vec![0, weak.as_ptr() as u64, result_implementation.as_ptr() as u64];
+    let mut implementation = vec![0, weak.as_ptr() as u64, result_implementation_field];
     fake.object[1] = u64::from(FLAG_IS_PLATFORM_OBJECT);
     fake.object[10] = implementation.as_ptr() as u64;
     let target = NativeCallTarget {
@@ -3072,7 +3087,8 @@ fn get_by_id_reads_direct_getter_wrappers_inline() {
         entry: fake_native_getter as *const () as u64,
         direct_getter: Some(DirectGetterFields {
             wrapper_implementation: 80,
-            implementation_value: 16,
+            implementation_value: if compressed_field { 20 } else { 16 },
+            implementation_value_is_compressed: compressed_field,
             main_world_wrapper: 8,
             weak_impl_value: 8,
         }),
@@ -3113,7 +3129,7 @@ fn get_by_id_reads_direct_getter_wrappers_inline() {
     assert_eq!(get(&fake), object_value(&result));
     implementation[2] = 0;
     assert_eq!(get(&fake), value::NULL);
-    implementation[2] = result_implementation.as_ptr() as u64;
+    implementation[2] = result_implementation_field;
 
     // The getter runs for a global object (which it returns as its window
     // proxy), an implementation without a main world wrapper, a receiver

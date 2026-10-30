@@ -14075,8 +14075,18 @@ asm_handler_GetById_cold:
     ldr x5, [x5, x4, lsl #3]
     cmp x5, x3
     b.ne .Lasm_GetById.ssa_block_3
-    ldr w1, [x1, #100]
-    ldr x0, [x0, x1, lsl #3]
+    ldr w3, [x1, #100]
+    ldr w1, [x1, #112]
+    adds x0, x0, x3
+    cbz w1, .Lasm_GetById.ssa_block_56
+    ldr w0, [x0]
+    add x9, x24, w0, uxtw #3
+    cmp w0, #0
+    csel x0, x9, xzr, ne
+    b .Lasm_GetById.ssa_block_57
+.Lasm_GetById.ssa_block_56:
+    ldr x0, [x0]
+.Lasm_GetById.ssa_block_57:
     cbnz x0, .Lasm_GetById.ssa_block_50
     movz x0, #0x7fff, lsl #48
     b .Lasm_GetById.ssa_block_51

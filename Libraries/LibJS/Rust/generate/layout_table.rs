@@ -485,9 +485,10 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
 
     w.section("DirectGetterFunction layout");
     field!(w, "DIRECT_GETTER_FUNCTION_WRAPPER_IMPLEMENTATION_WORD_OFFSET", "DirectGetterFunction.wrapper_implementation_word_offset", "u32", DirectGetterFunction, wrapper_implementation_word_offset, 4, "nullable", "scalar");
-    field!(w, "DIRECT_GETTER_FUNCTION_IMPLEMENTATION_VALUE_WORD_OFFSET", "DirectGetterFunction.implementation_value_word_offset", "u32", DirectGetterFunction, implementation_value_word_offset, 4, "nullable", "scalar");
+    field!(w, "DIRECT_GETTER_FUNCTION_IMPLEMENTATION_VALUE_OFFSET", "DirectGetterFunction.implementation_value_offset", "u32", DirectGetterFunction, implementation_value_offset, 4, "nullable", "scalar");
     field!(w, "DIRECT_GETTER_FUNCTION_MAIN_WORLD_WRAPPER_WORD_OFFSET", "DirectGetterFunction.main_world_wrapper_word_offset", "u32", DirectGetterFunction, main_world_wrapper_word_offset, 4, "nullable", "scalar");
     field!(w, "DIRECT_GETTER_FUNCTION_WEAK_IMPL_VALUE_WORD_OFFSET", "DirectGetterFunction.weak_impl_value_word_offset", "u32", DirectGetterFunction, weak_impl_value_word_offset, 4, "nullable", "scalar");
+    field!(w, "DIRECT_GETTER_FUNCTION_IMPLEMENTATION_VALUE_IS_COMPRESSED", "DirectGetterFunction.implementation_value_is_compressed", "u32", DirectGetterFunction, implementation_value_is_compressed, 4, "nullable", "scalar");
 
     w.section("ECMAScriptFunctionObject layout");
     field!(w, "ECMASCRIPT_FUNCTION_OBJECT_SHARED_DATA", "ECMAScriptFunctionObject.shared_data", "SharedFunctionInstanceData", FunctionObject, ecmascript_shared_data, 4, "nonnull", "compressed");

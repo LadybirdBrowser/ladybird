@@ -14,12 +14,6 @@ namespace JS {
 
 using namespace EmbeddingABI;
 
-static_assert(sizeof(DirectGetterConfiguration) == sizeof(JSDirectGetterConfiguration));
-static_assert(offsetof(DirectGetterConfiguration, wrapper_implementation_offset) == offsetof(JSDirectGetterConfiguration, wrapper_implementation_offset));
-static_assert(offsetof(DirectGetterConfiguration, implementation_value_offset) == offsetof(JSDirectGetterConfiguration, implementation_value_offset));
-static_assert(offsetof(DirectGetterConfiguration, main_world_wrapper_offset) == offsetof(JSDirectGetterConfiguration, main_world_wrapper_offset));
-static_assert(offsetof(DirectGetterConfiguration, weak_impl_value_offset) == offsetof(JSDirectGetterConfiguration, weak_impl_value_offset));
-
 // A closure's behaviour lives in a cell of the embedder's heap, which the function keeps alive, and whose captures the
 // garbage collector scans conservatively.
 using NativeFunctionBehaviour = GC::Function<ThrowCompletionOr<Value>(VM&)>;
@@ -70,9 +64,10 @@ GC::Ref<DirectGetterFunction> DirectGetterFunction::create(Realm& realm, NativeF
 {
     JSDirectGetterConfiguration abi_configuration {
         .wrapper_implementation_offset = configuration.wrapper_implementation_offset,
-        .implementation_value_offset = configuration.implementation_value_offset,
+        .implementation_value_offset = configuration.implementation_value_offset.offset,
         .main_world_wrapper_offset = configuration.main_world_wrapper_offset,
         .weak_impl_value_offset = configuration.weak_impl_value_offset,
+        .implementation_value_is_compressed = configuration.implementation_value_offset.is_compressed,
     };
     PrefixForABI abi_prefix { prefix };
     auto* function = js_function_create_direct_getter(vm_to_abi(realm.vm()), cell_to_abi<JSRealm>(realm), native_function_to_abi(behaviour), length, property_key_to_abi(name), &abi_configuration, abi_prefix.characters, abi_prefix.length);

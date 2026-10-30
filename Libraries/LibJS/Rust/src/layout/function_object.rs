@@ -54,15 +54,17 @@ pub struct RawNativeFunction {
 
 const _: () = assert!(size_of::<RawNativeFunction>() == 96);
 
-/// A raw native getter that reads a wrapped value straight out of a platform object, at word offsets the embedder
-/// provides.
+/// A raw native getter that reads a wrapped value straight out of a platform object, at offsets the embedder provides:
+/// word offsets of pointer-sized fields, and the byte offset of the implementation value, which is a compressed cell
+/// pointer if `implementation_value_is_compressed` is 1, and pointer-sized if it is 0.
 #[repr(C)]
 pub struct DirectGetterFunction {
     pub base: RawNativeFunction,
     pub wrapper_implementation_word_offset: Cell<u32>,
-    pub implementation_value_word_offset: Cell<u32>,
+    pub implementation_value_offset: Cell<u32>,
     pub main_world_wrapper_word_offset: Cell<u32>,
     pub weak_impl_value_word_offset: Cell<u32>,
+    pub implementation_value_is_compressed: Cell<u32>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

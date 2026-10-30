@@ -300,6 +300,24 @@ private:
     u32 m_compressed;
 };
 
+// The byte offset of a member in a cell, for code that loads the field directly and so has to know that it holds a
+// compressed pointer.
+struct MemberOffset {
+    size_t value { 0 };
+};
+
+template<typename FieldType>
+constexpr auto field_offset(size_t offset)
+{
+    if constexpr (Detail::IsMember<FieldType>)
+        return MemberOffset { offset };
+    else
+        return offset;
+}
+
+// The offset of a field of a cell, as a MemberOffset if the field is a member, and as a size_t otherwise.
+#define GC_FIELD_OFFSET(Type, field) ::GC::field_offset<RemoveCV<decltype(Type::field)>>(offsetof(Type, field))
+
 namespace Detail {
 
 // Whether a member of T that holds `compressed` points to `other`, as a comparison of T* with U* would tell.

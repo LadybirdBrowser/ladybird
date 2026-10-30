@@ -220,7 +220,8 @@ pub unsafe extern "C" fn js_function_create_closure_with_name(
 /// Where a direct getter finds the value it returns, as byte offsets of pointer-sized fields: the wrapped
 /// implementation in the wrapper (JS_HOST_OBJECT_WRAPPABLE_OFFSET for a host object), the field of the implementation
 /// that holds the value's GC::Weak implementation, the main world wrapper in that value, and the cell in a
-/// GC::WeakImpl. This is LibJS's JS::DirectGetterConfiguration.
+/// GC::WeakImpl. The field of the implementation is a compressed cell pointer (a GC::Member) instead if
+/// implementation_value_is_compressed is set. This is what LibJS's JS::DirectGetterConfiguration describes.
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct JSDirectGetterConfiguration {
@@ -228,10 +229,12 @@ pub struct JSDirectGetterConfiguration {
     pub implementation_value_offset: usize,
     pub main_world_wrapper_offset: usize,
     pub weak_impl_value_offset: usize,
+    pub implementation_value_is_compressed: bool,
 }
 
 /// js_function_create_native() for an attribute getter that the interpreter can answer without calling the behaviour,
-/// by following the configuration's offsets from the this value. Every offset must be a multiple of the pointer size.
+/// by following the configuration's offsets from the this value. Every offset must be a multiple of the pointer size,
+/// but that of a compressed implementation value, which must be a multiple of 4.
 /// The realm must not be null. Borrows the key and the configuration. Returns an unrooted function. Main thread only.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn js_function_create_direct_getter(
@@ -265,6 +268,7 @@ pub unsafe extern "C" fn js_function_create_direct_getter(
             implementation_value_offset: configuration.implementation_value_offset,
             main_world_wrapper_offset: configuration.main_world_wrapper_offset,
             weak_impl_value_offset: configuration.weak_impl_value_offset,
+            implementation_value_is_compressed: configuration.implementation_value_is_compressed,
         },
         prefix,
     ))

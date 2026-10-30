@@ -1314,14 +1314,14 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.masm.load64(temp, &field(temp, fields.weak_impl_value));
         self.masm.branch64(Condition::NotEqual, temp, receiver, call);
 
-        let not_null = self.masm.new_label();
-        self.masm
-            .load64(implementation, &field(implementation, fields.implementation_value));
-        self.masm.branch64_imm(Condition::NotEqual, implementation, 0, not_null);
-        self.masm.move_imm64(M::RETURN_GPRS[0], value::NULL);
-        self.masm.jump(done);
-
-        self.masm.bind(not_null);
+        let null = self.masm.new_label();
+        let value = field(implementation, fields.implementation_value);
+        if fields.implementation_value_is_compressed {
+            self.emit_load_compressed_cell_or_branch(implementation, &value, null);
+        } else {
+            self.masm.load64(implementation, &value);
+            self.masm.branch64_imm(Condition::Equal, implementation, 0, null);
+        }
         self.masm
             .load64(temp, &field(implementation, fields.main_world_wrapper));
         self.masm.branch64_imm(Condition::Equal, temp, 0, call);
@@ -1335,6 +1335,10 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             call,
         );
         self.box_cell_with_tag(M::RETURN_GPRS[0], temp, value::OBJECT_TAG);
+        self.masm.jump(done);
+
+        self.masm.bind(null);
+        self.masm.move_imm64(M::RETURN_GPRS[0], value::NULL);
         self.masm.jump(done);
         self.masm.bind(call);
     }
