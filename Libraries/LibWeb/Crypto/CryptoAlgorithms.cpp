@@ -370,15 +370,23 @@ static WebIDL::ExceptionOr<void> validate_jwk_key_ops(JS::Realm&, JsonWebKey con
     return {};
 }
 
+// NB: Keeps only the bytes that hold the first length_in_bits bits of data, and zeroes the unused low-order bits of
+//     the last byte when the length is not a whole number of bytes.
+static void keep_first_bits(ByteBuffer& data, size_t length_in_bits)
+{
+    auto length_in_bytes = ceil_div(length_in_bits, static_cast<size_t>(8));
+    VERIFY(length_in_bytes <= data.size());
+    data.resize(length_in_bytes);
+
+    if (auto remainder_bits = length_in_bits % 8; remainder_bits != 0)
+        data[length_in_bytes - 1] &= ~(0xff >> remainder_bits);
+}
+
 static WebIDL::ExceptionOr<ByteBuffer> generate_random_key(JS::VM& vm, u32 const size_in_bits)
 {
     auto key_buffer = TRY_OR_THROW_OOM(vm, ByteBuffer::create_uninitialized(ceil_div(size_in_bits, 8u)));
     fill_with_random(key_buffer);
-
-    // NB: Zero the unused low-order bits of the last byte when the length is not a whole number of bytes.
-    if (auto remainder_bits = size_in_bits % 8; remainder_bits != 0)
-        key_buffer[key_buffer.size() - 1] &= ~(0xff >> remainder_bits);
-
+    keep_first_bits(key_buffer, size_in_bits);
     return key_buffer;
 }
 
@@ -8267,9 +8275,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> HMAC::import_key(JS::Realm& realm, Web::
     }
 
     // 9. Let key be a new CryptoKey object representing an HMAC key with the first length bits of data.
-    auto length_in_bytes = length / 8;
-    if (data.size() > length_in_bytes)
-        data = MUST(data.slice(0, length_in_bytes));
+    keep_first_bits(data, length);
     auto key = CryptoKey::create(move(data));
 
     // 10. Set the [[type]] internal slot of key to "secret".
@@ -10558,11 +10564,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> KMAC::import_key(JS::Realm& realm, Algor
         length = requested_length;
     }
 
-    // 6. Let key be a new CryptoKey object representing a KMAC key with the first length bits of data.
-    auto length_in_bytes = length / 8;
-    if (data.size() > length_in_bytes)
-        data = MUST(data.slice(0, length_in_bytes));
+    TRY(validate_kmac_key_length(length));
 
+    // 6. Let key be a new CryptoKey object representing a KMAC key with the first length bits of the Keccak decoding
+    //    of data.
+    // NB: The length is a multiple of 8 and less than 8 bits shorter than data, so the key is all of data.
     auto key = CryptoKey::create(move(data));
 
     // 7. Set the [[type]] internal slot of key to "secret".
