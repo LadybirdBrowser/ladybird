@@ -95,7 +95,7 @@ public:
             .help_string = help_string,
             .long_name = long_name,
             .short_name = short_name,
-            .accept_value = [&](StringView) {
+            .accept_value = [&value, new_value](StringView) {
                 value = new_value;
                 return true;
             },
