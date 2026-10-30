@@ -1,0 +1,2 @@
+number cell measurements missed: 0
+geometry matches a fresh layout: true

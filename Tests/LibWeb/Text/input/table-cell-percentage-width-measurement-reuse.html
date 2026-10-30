@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; font: 16px/20px monospace; }
+    .container { width: 600px; }
+    .number { width: 1%; min-width: 30px; padding: 0 8px; text-align: right; }
+    .indented { width: 10%; text-indent: 50%; }
+    .half { width: 50%; }
+</style>
+<div class="container" id="container"></div>
+<script>
+    // A table cell's own percentage width resolves against the table, so it does not make the measurement of the
+    // cell's content depend on the table's containing block: that measurement is reused when only the width changes.
+    test(() => {
+        let rows = "";
+        for (let index = 0; index < 20; ++index)
+            rows += `<tr><td class="number">${index}</td><td class="indented">indented text ${index}</td><td><div class="half">some longer line of code ${index}</div></td></tr>`;
+        container.innerHTML = `<table>${rows}</table>`;
+        document.body.offsetHeight;
+
+        internals.beginLayoutTrace();
+        container.style.width = "700px";
+        document.body.offsetHeight;
+        const misses = internals.takeLayoutTrace().split("\n").filter(line => line.includes("<TD>.number MEASURE") && line.includes("cache=miss"));
+        println(`number cell measurements missed: ${misses.length}`);
+
+        const fresh = container.cloneNode(true);
+        fresh.id = "";
+        document.body.appendChild(fresh);
+        const geometry = root => Array.from(root.querySelectorAll("td, div")).map(element => {
+            const rect = element.getBoundingClientRect();
+            const rootRect = root.getBoundingClientRect();
+            return `${rect.left - rootRect.left},${rect.top - rootRect.top},${rect.width},${rect.height}`;
+        }).join(" ");
+        println(`geometry matches a fresh layout: ${geometry(container) === geometry(fresh)}`);
+    });
+</script>
