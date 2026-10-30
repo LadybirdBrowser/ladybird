@@ -69,6 +69,7 @@
 #include <LibWeb/ResizeObserver/ResizeObserver.h>
 #include <LibWeb/SVG/SVGPatternElement.h>
 #include <LibWeb/SVG/SVGUseElement.h>
+#include <LibWeb/TrustedTypes/TrustedHTML.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/XPath/EvaluateResult.h>
 #include <LibWebCommon/CSS/PreferredColorScheme.h>
@@ -1143,7 +1144,7 @@ public:
         No,
         Yes,
     };
-    WebIDL::ExceptionOr<bool> exec_command(Utf16FlyString const& command, bool show_ui, Utf16View value);
+    WebIDL::ExceptionOr<bool> exec_command(Utf16FlyString const& command, bool show_ui, TrustedTypes::TrustedHTMLOrString const& value);
     WebIDL::ExceptionOr<bool> exec_command_internal(Utf16FlyString const& command, bool show_ui, Utf16View value, DispatchInputEvent, Optional<Utf16FlyString> const& user_input_type = {}, GC::Ptr<StaticRange> deletion_range = nullptr);
     WebIDL::ExceptionOr<bool> query_command_enabled(Utf16FlyString const& command);
     WebIDL::ExceptionOr<bool> query_command_indeterm(Utf16FlyString const& command);

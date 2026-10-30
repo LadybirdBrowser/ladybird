@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<meta http-equiv="Content-Security-Policy" content="require-trusted-types-for 'script'">
+<script src="../include.js"></script>
+<div id="editor" contenteditable="true">ab</div>
+<script>
+    test(() => {
+        const selection = getSelection();
+        const reset = () => {
+            editor.textContent = "ab";
+            selection.collapse(editor.firstChild, 1);
+        };
+
+        reset();
+        try {
+            document.execCommand("insertHTML", false, "<b>string</b>");
+            println("string: no exception");
+        } catch (error) {
+            println(`string: ${error.name}`);
+        }
+        println(`after string: ${editor.innerHTML}`);
+
+        const policy = trustedTypes.createPolicy("policy", { createHTML: html => html });
+        reset();
+        println(`TrustedHTML returned: ${document.execCommand("insertHTML", false, policy.createHTML("<b>trusted</b>"))}`);
+        println(`after TrustedHTML: ${editor.innerHTML}`);
+
+        const sinks = [];
+        let nestedResult;
+        trustedTypes.createPolicy("default", { createHTML: (html, _, sink) => {
+            sinks.push(sink);
+            nestedResult = document.execCommand("insertHTML", false, "<i>nested</i>");
+            return html;
+        } });
+        reset();
+        println(`default policy returned: ${document.execCommand("insertHTML", false, "<b>default</b>")}`);
+        println(`after default policy: ${editor.innerHTML}`);
+        println(`default policy sinks: ${JSON.stringify(sinks)}`);
+        println(`nested insertHTML from the default policy returned: ${nestedResult}`);
+    });
+</script>

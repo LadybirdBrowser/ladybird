@@ -6,11 +6,11 @@
 
 #pragma once
 
+#include <AK/Utf16View.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/TrustedTypes/TrustedHTML.h>
 
 namespace Web::Editing {
 
-void replace_selection_with_fragment(DOM::Document&, TrustedTypes::TrustedHTMLOrString const&);
+void replace_selection_with_fragment(DOM::Document&, Utf16View html);
 
 }

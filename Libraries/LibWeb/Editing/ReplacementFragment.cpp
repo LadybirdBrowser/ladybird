@@ -119,10 +119,12 @@ static void remove_empty_inline_staging_wrappers(DOM::DocumentFragment& fragment
     }
 }
 
-ReplacementFragment::ReplacementFragment(DOM::Range& range, TrustedTypes::TrustedHTMLOrString const& value)
+ReplacementFragment::ReplacementFragment(DOM::Range& range, Utf16View html)
 {
     EditingHistory::ProxyMutationScope mutation_scope { *range.start_container() };
-    m_fragment = MUST(range.create_contextual_fragment(value));
+    // NB: The HTML is either a script's insertHTML value, which execCommand() already got a Trusted Types compliant
+    //     string for, or HTML the user pasted. So, it skips the injection-sink check createContextualFragment() makes.
+    m_fragment = MUST(range.create_contextual_fragment(html.to_utf8_but_should_be_ported_to_utf16()));
     remove_formatting_whitespace_between_blocks(*m_fragment);
 
     auto* first_leaf = m_fragment->first_child();

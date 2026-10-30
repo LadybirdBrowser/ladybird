@@ -1,0 +1,8 @@
+string: TypeError
+after string: ab
+TrustedHTML returned: true
+after TrustedHTML: a<b>trusted</b>b
+default policy returned: true
+after default policy: a<b>default</b>b
+default policy sinks: ["Document execCommand"]
+nested insertHTML from the default policy returned: false

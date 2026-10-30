@@ -445,13 +445,13 @@ static void replace_selection_with_inline_fragment(Layout::BegunRead const& read
         fix_disallowed_ancestors_of_node(descendant);
 }
 
-void replace_selection_with_fragment(DOM::Document& document, TrustedTypes::TrustedHTMLOrString const& value)
+void replace_selection_with_fragment(DOM::Document& document, Utf16View html)
 {
     Layout::ForcedReadScope read { document };
     auto range = active_range(document);
     VERIFY(range && range->collapsed());
 
-    ReplacementFragment replacement_fragment { *range, value };
+    ReplacementFragment replacement_fragment { *range, html };
     InsertedContent inserted_content { replacement_fragment.children() };
     if (inserted_content.is_empty())
         return;
