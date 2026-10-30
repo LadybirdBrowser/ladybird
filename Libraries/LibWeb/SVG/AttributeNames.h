@@ -18,6 +18,7 @@ namespace Web::SVG::AttributeNames {
     __ENUMERATE_SVG_ATTRIBUTE(azimuth, "azimuth")                                       \
     __ENUMERATE_SVG_ATTRIBUTE(baseFrequency, "baseFrequency")                           \
     __ENUMERATE_SVG_ATTRIBUTE(baseProfile, "baseProfile")                               \
+    __ENUMERATE_SVG_ATTRIBUTE(begin, "begin")                                           \
     __ENUMERATE_SVG_ATTRIBUTE(bias, "bias")                                             \
     __ENUMERATE_SVG_ATTRIBUTE(calcMode, "calcMode")                                     \
     __ENUMERATE_SVG_ATTRIBUTE(class_, "class")                                          \
@@ -94,6 +95,7 @@ namespace Web::SVG::AttributeNames {
     __ENUMERATE_SVG_ATTRIBUTE(repeatDur, "repeatDur")                                   \
     __ENUMERATE_SVG_ATTRIBUTE(requiredExtensions, "requiredExtensions")                 \
     __ENUMERATE_SVG_ATTRIBUTE(requiredFeatures, "requiredFeatures")                     \
+    __ENUMERATE_SVG_ATTRIBUTE(restart, "restart")                                       \
     __ENUMERATE_SVG_ATTRIBUTE(result, "result")                                         \
     __ENUMERATE_SVG_ATTRIBUTE(rotate, "rotate")                                         \
     __ENUMERATE_SVG_ATTRIBUTE(rx, "rx")                                                 \

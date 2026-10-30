@@ -1,0 +1,60 @@
+before any DOM method call (t=0.5)
+  offset: opacity 1.000, start time 1
+  earliest-offset: opacity 0.750, start time -1
+  indefinite: opacity 1.000, start time InvalidStateError
+  always: opacity 0.250, start time 0
+  when-not-active: opacity 0.250, start time 0
+  never: opacity 0.250, start time 0
+  later-instance: opacity 0.250, start time 0
+  later-instance-pending: opacity 1.000, start time 1
+  ended: opacity 1.000, start time InvalidStateError
+  ended-frozen: opacity 1.000, start time InvalidStateError
+  set-ended: opacity 1.000, start time InvalidStateError
+after beginning the elements (t=1.5)
+  offset: opacity 0.250, start time 1
+  earliest-offset: opacity 1.000, start time -1
+  indefinite: opacity 0.250, start time 1
+  always: opacity 0.500, start time 0.5
+  when-not-active: opacity 0.750, start time 0
+  never: opacity 0.750, start time 0
+  later-instance: opacity 0.750, start time 0
+  later-instance-pending: opacity 0.250, start time 1
+  ended: opacity 0.500, start time 0.5
+  ended-frozen: opacity 0.500, start time 0.5
+  set-ended: opacity 0.500, start time 0.5
+after ending the elements (t=1.75)
+  offset: opacity 0.375, start time 1
+  earliest-offset: opacity 1.000, start time -1
+  indefinite: opacity 0.375, start time 1
+  always: opacity 0.625, start time 0.5
+  when-not-active: opacity 0.875, start time 0
+  never: opacity 0.875, start time 0
+  later-instance: opacity 0.875, start time 0
+  later-instance-pending: opacity 0.375, start time 1
+  ended: opacity 1.000, start time 0.5
+  ended-frozen: opacity 0.500, start time 0.5
+  set-ended: opacity 0.500, start time 0.5
+after the active end of the elements (t=2.5)
+  offset: opacity 0.750, start time 1
+  earliest-offset: opacity 1.000, start time -1
+  indefinite: opacity 0.750, start time 1
+  always: opacity 1.000, start time 0.5
+  when-not-active: opacity 1.000, start time 0
+  never: opacity 1.000, start time 0
+  later-instance: opacity 1.000, start time 0
+  later-instance-pending: opacity 0.750, start time 1
+  ended: opacity 1.000, start time 0.5
+  ended-frozen: opacity 0.500, start time 0.5
+  set-ended: opacity 1.000, start time 0.5
+after beginning the elements again (t=2.5)
+  offset: opacity 0.750, start time 1
+  earliest-offset: opacity 1.000, start time -1
+  indefinite: opacity 0.750, start time 1
+  always: opacity 1.000, start time 0.5
+  when-not-active: opacity 0.000, start time 2.5
+  never: opacity 1.000, start time 0
+  later-instance: opacity 1.000, start time 0
+  later-instance-pending: opacity 0.750, start time 1
+  ended: opacity 0.000, start time 2.5
+  ended-frozen: opacity 0.500, start time 0.5
+  set-ended: opacity 1.000, start time 0.5
