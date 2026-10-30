@@ -246,10 +246,10 @@ pub struct StrokePathParams<'a> {
     pub should_anti_alias: ShouldAntiAlias,
 }
 
-pub struct GlyphRunForRecording<'a> {
+pub struct GlyphRunForRecording<Glyphs: IntoIterator<Item = DisplayListGlyph>> {
     pub font_smoothing: u8,
     pub font_id: FontResourceId,
-    pub glyphs: &'a [DisplayListGlyph],
+    pub glyphs: Glyphs,
 }
 
 pub struct IsolatedGroupEffects {
@@ -1054,7 +1054,7 @@ impl DisplayListRecorder {
     pub fn draw_glyph_run(
         &mut self,
         baseline_start: FloatPoint,
-        run: GlyphRunForRecording<'_>,
+        run: GlyphRunForRecording<impl IntoIterator<Item = DisplayListGlyph>>,
         color: Color,
         rect: IntRect,
         scale: f64,
@@ -1067,7 +1067,7 @@ impl DisplayListRecorder {
         }
         let color = self.resolve_color(color, force_dark_role);
         let mut payload = CommandPayloadBuilder::new::<DrawGlyphRun>(&self.builder);
-        let glyphs = payload.append_objects(run.glyphs.iter().copied());
+        let glyphs = payload.append_objects(run.glyphs);
         let command = DrawGlyphRun {
             font_smoothing: run.font_smoothing,
             font_id: run.font_id,
@@ -1133,13 +1133,13 @@ impl DisplayListRecorder {
         shadows_bounding_rect: IntRect,
         rect: IntRect,
         translation: FloatPoint,
-        run: GlyphRunForRecording<'_>,
+        run: GlyphRunForRecording<impl IntoIterator<Item = DisplayListGlyph>>,
         glyph_run_scale: f64,
         orientation: Orientation,
         force_dark_role: ForceDarkRole,
     ) {
         let mut payload = CommandPayloadBuilder::new::<PaintTextShadow>(&self.builder);
-        let glyphs = payload.append_objects(run.glyphs.iter().copied());
+        let glyphs = payload.append_objects(run.glyphs);
         let layers = payload.append_objects(layers.iter().map(|layer| TextShadowLayer {
             color: self.resolve_color(layer.color, force_dark_role),
             ..*layer

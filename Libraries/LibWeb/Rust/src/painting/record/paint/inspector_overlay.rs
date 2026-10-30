@@ -470,7 +470,7 @@ struct OverlayLabel {
     device_ascent: f32,
     device_descent: f32,
     blob_bounds: [f32; 4],
-    glyphs: Vec<DisplayListGlyph>,
+    glyphs: libgfx_rust::text_layout::GlyphBuffer,
 }
 
 fn shape_overlay_label<O: Observer>(
@@ -492,14 +492,6 @@ fn shape_overlay_label<O: Observer>(
     let device_ascent = device_font.facts().ascent;
     let device_descent = device_font.facts().descent;
     let font_id = recorder.register_font(device_font);
-    let glyphs = shaped
-        .glyphs()
-        .iter()
-        .map(|glyph| DisplayListGlyph {
-            position: FloatPoint { x: glyph.x, y: glyph.y },
-            glyph_id: glyph.glyph_id,
-        })
-        .collect();
     OverlayLabel {
         font_id,
         css_width: css_font.measure_text_width(text),
@@ -508,7 +500,7 @@ fn shape_overlay_label<O: Observer>(
         device_ascent,
         device_descent,
         blob_bounds,
-        glyphs,
+        glyphs: shaped.into_glyphs(),
     }
 }
 
@@ -538,7 +530,7 @@ fn draw_label<O: Observer>(recorder: &mut PaintRecorder<'_, O>, label: &OverlayL
         GlyphRunForRecording {
             font_smoothing: crate::css::css_enums::font_smoothing::AUTO,
             font_id: FontResourceId(label.font_id),
-            glyphs: &label.glyphs,
+            glyphs: label.glyphs.iter().map(DisplayListGlyph::from),
         },
         color,
         rect,

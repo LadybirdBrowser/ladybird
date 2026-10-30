@@ -17,6 +17,7 @@ use crate::painting::record::PaintRecorder;
 use crate::painting::record::inputs::CaretTarget;
 use crate::painting::selection::{HighlightPseudoElement, SelectionRange};
 use crate::painting::text_fragment::{self, SelectionOffsets};
+use libgfx_rust::text_layout::DrawGlyph;
 use libgfx_rust::{Color, FloatPoint, IntPoint, IntRect, Orientation};
 use std::sync::Arc;
 
@@ -362,18 +363,7 @@ fn compute_render_spans<O: Observer>(
     spans
 }
 
-fn glyphs_of(run: &crate::painting::paintable_data::GlyphRunRecord) -> Vec<DisplayListGlyph> {
-    run.glyphs
-        .iter()
-        .map(|glyph| DisplayListGlyph {
-            position: FloatPoint { x: glyph.x, y: glyph.y },
-            glyph_id: glyph.glyph_id,
-        })
-        .collect()
-}
-
 pub(crate) struct GlyphRunEmission {
-    pub glyphs: Vec<DisplayListGlyph>,
     pub baseline_start: FloatPoint,
     pub orientation: Orientation,
     pub glyph_bounding_rect: IntRect,
@@ -420,7 +410,6 @@ pub(crate) fn glyph_run_emission(
         Orientation::Vertical => vertical_glyph_bounds(horizontal_bounds, fragment_device_rect),
     };
     GlyphRunEmission {
-        glyphs: glyphs_of(run),
         baseline_start,
         orientation,
         glyph_bounding_rect,
@@ -547,14 +536,13 @@ fn paint_text_shadow<O: Observer>(
     let fragment_device_rect = converter.enclosing_device_rect(fragment_absolute_rect);
     let font_id = recorder.register_font(&run.font);
     let GlyphRunEmission {
-        glyphs,
         baseline_start,
         orientation,
         ..
     } = glyph_run_emission(fragment, run, fragment_absolute_rect, fragment_device_rect, scale);
 
     // If this is a partial span, slice the glyph run to only include the relevant glyphs.
-    let mut span_glyphs = glyphs.as_slice();
+    let mut span_glyphs: &[DrawGlyph] = &run.glyphs;
     if span.start_code_unit != 0 || span.end_code_unit != fragment.length_in_code_units {
         let mut start_glyph = 0usize;
         let mut glyph_count = 0usize;
@@ -570,7 +558,7 @@ fn paint_text_shadow<O: Observer>(
             }
         }
         if glyph_count > 0 {
-            span_glyphs = &glyphs[start_glyph..start_glyph + glyph_count];
+            span_glyphs = &run.glyphs[start_glyph..start_glyph + glyph_count];
         }
     }
 
@@ -622,7 +610,7 @@ fn paint_text_shadow<O: Observer>(
                 .inherited_text()
                 .font_smoothing,
             font_id: FontResourceId(font_id),
-            glyphs: span_glyphs,
+            glyphs: span_glyphs.iter().map(DisplayListGlyph::from),
         },
         scale,
         orientation,
@@ -680,7 +668,6 @@ fn paint_text_fragment<O: Observer>(
     let fragment_device_rect = converter.enclosing_device_rect(fragment_absolute_rect);
     let font_id = recorder.register_font(&run.font);
     let GlyphRunEmission {
-        glyphs,
         baseline_start,
         orientation,
         glyph_bounding_rect,
@@ -693,7 +680,7 @@ fn paint_text_fragment<O: Observer>(
             .inherited_text()
             .font_smoothing,
         font_id: FontResourceId(font_id),
-        glyphs: &glyphs,
+        glyphs: run.glyphs.iter().map(DisplayListGlyph::from),
     };
 
     // Paint text, clipped to span range if not full fragment.
