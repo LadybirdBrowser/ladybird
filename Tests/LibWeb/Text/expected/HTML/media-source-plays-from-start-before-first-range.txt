@@ -1,0 +1,5 @@
+near: buffered: [0.112-6.531219955]
+near: playing fired: true, readyState=HAVE_ENOUGH_DATA
+near: played into the first range
+far: buffered: [2.112-8.531219955]
+far: playing fired: false, readyState=HAVE_METADATA

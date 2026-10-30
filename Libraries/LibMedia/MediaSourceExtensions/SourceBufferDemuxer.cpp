@@ -44,6 +44,17 @@ AK::Duration SourceBufferDemuxer::maximum_time_range_gap(TrackData const& data)
     return data.maximum_frame_duration + data.maximum_frame_duration;
 }
 
+// https://w3c.github.io/media-source/#presentation-start-time
+bool SourceBufferDemuxer::is_within_start_gap_allowance(AK::Duration timestamp, AK::Duration first_data_start)
+{
+    // NOTE: For the purposes of determining if HTMLMediaElement's buffered contains a TimeRanges that includes the
+    //       current playback position, implementations MAY choose to allow a current playback position at or after
+    //       presentation start time and before the first TimeRanges to play the first TimeRanges if that TimeRanges
+    //       starts within a reasonably short time, like 1 second, after presentation start time.
+    constexpr auto start_gap_allowance = AK::Duration::from_seconds(1);
+    return timestamp >= AK::Duration::zero() && timestamp < first_data_start && first_data_start <= start_gap_allowance;
+}
+
 Media::TimeRanges SourceBufferDemuxer::coalesced_track_buffer_ranges(TrackData const& data)
 {
     // https://w3c.github.io/media-source/#track-buffer-ranges
@@ -620,6 +631,8 @@ Optional<size_t> SourceBufferDemuxer::find_run_to_play_from_while_locked(TrackDa
             // Resolve seeks to the following run if they are within the permitted gap size.
             if (run.presentation_start - timestamp <= maximum_time_range_gap(data))
                 return index;
+            if (index == 0 && is_within_start_gap_allowance(timestamp, run.presentation_start))
+                return index;
             return {};
         }
 
@@ -652,7 +665,9 @@ bool SourceBufferDemuxer::may_read_frame_while_locked(TrackData const& data, Med
     // A read may only move forward within the buffered range that it is already in. A seek target shortly before a
     // range plays from that range, as the track's own seeks do.
     auto range = m_buffered_ranges.range_at_or_after(anchor);
-    if (!range.has_value() || range->start > anchor + maximum_time_range_gap(data))
+    if (!range.has_value())
+        return false;
+    if (range->start > anchor + maximum_time_range_gap(data) && !is_within_start_gap_allowance(anchor, m_buffered_ranges[0].start))
         return false;
     return frame.presentation_timestamp() < range->end;
 }
