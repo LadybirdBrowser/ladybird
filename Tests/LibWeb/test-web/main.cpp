@@ -721,6 +721,10 @@ static void run_ref_test(TestWebView& view, TestRunContext& context, Test& test,
                 auto& test = context.tests[test_index];
                 test.expectation_screenshot = move(screenshot);
                 view.reset_zoom();
+                if (!test.expectation_screenshot) {
+                    view.on_test_complete({ test_index, TestResult::Fail });
+                    return;
+                }
 
                 auto expectation_passed = compare_current_ref_test_expectation(test, url);
                 if (expectation_passed.is_error() || !expectation_passed.value()) {
@@ -743,6 +747,10 @@ static void run_ref_test(TestWebView& view, TestRunContext& context, Test& test,
             view.take_screenshot()->when_resolved([&view, &context, test_index](RefPtr<Gfx::Bitmap const> screenshot) {
                 context.tests[test_index].actual_screenshot = move(screenshot);
                 view.reset_zoom();
+                if (!context.tests[test_index].actual_screenshot) {
+                    view.on_test_complete({ test_index, TestResult::Fail });
+                    return;
+                }
                 view.run_javascript("internals.loadReferenceTestMetadata();"_string);
             });
         }
@@ -812,6 +820,8 @@ static void run_screenshot_test(TestWebView& view, TestRunContext& context, Test
 
     auto handle_completed_test = [&context, test_index, url]() -> ErrorOr<TestResult> {
         auto& test = context.tests[test_index];
+        if (!test.actual_screenshot)
+            return Error::from_string_literal("The compositor did not take the screenshot");
         auto& actual = *test.actual_screenshot;
 
         // Try to load and compare against existing expected PNG first.

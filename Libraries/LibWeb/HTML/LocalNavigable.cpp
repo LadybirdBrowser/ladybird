@@ -7120,10 +7120,10 @@ bool LocalNavigable::paint_next_frame_if_needed(DOM::UpdateLayoutReason layout_r
     return true;
 }
 
-void LocalNavigable::render_screenshot(NonnullRefPtr<Gfx::Bitmap> target, PaintConfig paint_config, Function<void()>&& callback)
+void LocalNavigable::render_screenshot(NonnullRefPtr<Gfx::Bitmap> target, PaintConfig paint_config, Function<void(Compositor::ScreenshotResult)>&& callback)
 {
     if (!has_compositor_context()) {
-        callback();
+        callback(Compositor::ScreenshotResult::Failed);
         return;
     }
 
@@ -7137,7 +7137,7 @@ void LocalNavigable::render_screenshot(NonnullRefPtr<Gfx::Bitmap> target, PaintC
     }
 
     if (!commit_frame(paint_config)) {
-        callback();
+        callback(Compositor::ScreenshotResult::Failed);
         return;
     }
     // The screenshot is of what the compositor composes, so every frame committed before it is presented first.

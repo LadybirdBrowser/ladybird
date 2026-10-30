@@ -33,6 +33,12 @@ class CompositorHost;
 class NavigablePresenter;
 struct CompositorFrame;
 
+// Whether the compositor took a requested screenshot, so painted the bitmap the request handed it.
+enum class ScreenshotResult : u8 {
+    Taken,
+    Failed,
+};
+
 struct PlaceholderCanvasLink {
     Compositing::CanvasId canvas_id;
     u64 secret { 0 };
@@ -71,7 +77,7 @@ public:
     void viewport_size_updated(Gfx::IntSize, double device_pixel_ratio, Compositing::WindowResizingInProgress);
     bool request_rendering_opportunity(double maximum_frames_per_second);
     void hurry_rendering_opportunity();
-    void request_screenshot(NonnullRefPtr<Gfx::Bitmap>, Function<void()>&& callback);
+    void request_screenshot(NonnullRefPtr<Gfx::Bitmap>, Function<void(ScreenshotResult)>&& callback);
     // Sends the canvas commands a frame may sample ahead of it, and answers whether the compositor can be reached.
     bool ready_for_frame();
 
@@ -133,7 +139,7 @@ public:
     void viewport_size_updated(Web::CompositorContextId, Gfx::IntSize, double device_pixel_ratio, Compositing::WindowResizingInProgress);
     bool request_rendering_opportunity(Web::CompositorContextId, double maximum_frames_per_second);
     void hurry_rendering_opportunity(Web::CompositorContextId);
-    void request_screenshot(Web::CompositorContextId, NonnullRefPtr<Gfx::Bitmap>, Function<void()>&& callback);
+    void request_screenshot(Web::CompositorContextId, NonnullRefPtr<Gfx::Bitmap>, Function<void(ScreenshotResult)>&& callback);
 
 protected:
     CompositorHost();

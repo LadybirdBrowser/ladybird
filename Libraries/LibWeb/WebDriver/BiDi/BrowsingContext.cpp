@@ -1051,7 +1051,10 @@ void capture_screenshot(HTML::Navigable& navigable, JsonObject const& params, On
 
         auto bitmap = framebuffer.release_value();
         HTML::PaintConfig paint_config { .canvas_fill_rect = Gfx::IntRect { {}, viewport_device_rect.size() } };
-        navigable->render_screenshot(bitmap, paint_config, [state, framebuffer = bitmap, source_rectangle, destination_size, format_type = move(format_type), format_quality] mutable {
+        navigable->render_screenshot(bitmap, paint_config, [state, framebuffer = bitmap, source_rectangle, destination_size, format_type = move(format_type), format_quality](auto result) mutable {
+            if (result == Compositor::ScreenshotResult::Failed)
+                return state->complete(Error::from_code(ErrorCode::UnsupportedOperation, "The compositor did not take the screenshot"sv));
+
             auto cropped = framebuffer->cropped(source_rectangle);
             // NB: A screenshot too large to allocate is an unsupported operation.
             if (cropped.is_error())
