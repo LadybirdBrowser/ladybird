@@ -338,56 +338,77 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         !self.callbacks.first_child(node).is_invalid()
     }
 
+    /// Whether the content inline sizes of `root` may read its block size: the root takes its inline size from it, or
+    /// the block size reaches a box that does, through the boxes that size themselves from their parent's block size.
     pub(crate) fn intrinsic_inline_size_may_depend_on_block_size(&self, root: Node) -> bool {
-        if self.establishes_orthogonal_flow(root) {
+        if self.establishes_orthogonal_flow(root) || self.transfers_its_block_size_to_its_inline_size(root) {
             return true;
         }
-        // NB: Every frame the root is not orthogonal to transposes like the root's own, and frames that agree on that
-        //     read the same sizes, so the walk below answers the same for each of them.
-        self.callbacks
-            .intrinsic_size_caches()
-            .intrinsic_inline_size_depends_on_block_size(root, || {
-                let mut pending = vec![root];
-                while let Some(node) = pending.pop() {
-                    let facts = self.facts(node);
-                    if facts.is_text_node() {
-                        continue;
-                    }
-                    let style = self.style(node);
-                    if node != root && geometry::Frame::of(style.writing_mode()).is_orthogonal_to(self.callbacks.frame)
-                    {
-                        return true;
-                    }
-                    if style.display().is_flex_inside()
-                        && matches!(
-                            style.effective_flex_direction(),
-                            flex_direction::COLUMN | flex_direction::COLUMN_REVERSE
-                        )
-                        && style.flex_wrap() != flex_wrap::NOWRAP
-                    {
-                        return true;
-                    }
-                    if facts.has_preferred_aspect_ratio()
-                        && (style.height().contains_percentage()
-                            || style.min_height().contains_percentage()
-                            || style.max_height().contains_percentage()
-                            || (style.height().is_auto()
-                                && (node_facts::has_flag(facts.data(), NodeFlag::IsFlexItem)
-                                    || node_facts::has_flag(facts.data(), NodeFlag::IsGridItem))))
-                    {
-                        return true;
-                    }
-                    if node != root && facts.is_svg_svg_box() {
-                        continue;
-                    }
-                    for child in self.callbacks.children(node) {
-                        if !self.facts(child).is_absolutely_positioned() {
-                            pending.push(child);
-                        }
-                    }
+        let mut boxes_the_block_size_reaches = vec![root];
+        while let Some(container) = boxes_the_block_size_reaches.pop() {
+            if container != root && self.facts(container).is_svg_svg_box() {
+                continue;
+            }
+            for child in self.callbacks.children(container) {
+                let facts = self.facts(child);
+                if facts.is_text_node() || facts.is_absolutely_positioned() {
+                    continue;
                 }
-                false
-            })
+                if self.establishes_orthogonal_flow(child) {
+                    return true;
+                }
+                if !self.block_size_reaches_child(container, child) {
+                    continue;
+                }
+                if self.transfers_its_block_size_to_its_inline_size(child) {
+                    return true;
+                }
+                boxes_the_block_size_reaches.push(child);
+            }
+        }
+        false
+    }
+
+    fn transfers_its_block_size_to_its_inline_size(&self, node: Node) -> bool {
+        let facts = self.facts(node);
+        let style = self.style(node);
+        let lays_out_its_lines_against_its_block_size = style.display().is_flex_inside()
+            && matches!(
+                style.effective_flex_direction(),
+                flex_direction::COLUMN | flex_direction::COLUMN_REVERSE
+            )
+            && style.flex_wrap() != flex_wrap::NOWRAP;
+        let takes_its_inline_size_from_its_block_size_through_its_aspect_ratio = facts.has_preferred_aspect_ratio()
+            && (style.height().contains_percentage()
+                || style.min_height().contains_percentage()
+                || style.max_height().contains_percentage()
+                || (style.height().is_auto()
+                    && (node_facts::has_flag(facts.data(), NodeFlag::IsFlexItem)
+                        || node_facts::has_flag(facts.data(), NodeFlag::IsGridItem))));
+        lays_out_its_lines_against_its_block_size || takes_its_inline_size_from_its_block_size_through_its_aspect_ratio
+    }
+
+    /// Whether `child` sizes itself, or the boxes inside it, from the block size of `container`.
+    fn block_size_reaches_child(&self, container: Node, child: Node) -> bool {
+        let container_facts = self.facts(container);
+        let facts = self.facts(child);
+        let container_sizes_its_children_in_its_block_axis = facts.parent_is_flex_or_grid_container()
+            || container_facts.is_table_wrapper()
+            || container_facts.is_table_box()
+            || container_facts.is_table_row_group()
+            || container_facts.is_table_row();
+        if container_sizes_its_children_in_its_block_axis
+            || facts.is_anonymous()
+            || (facts.is_inline() && !facts.is_atomic_inline())
+        {
+            return true;
+        }
+        let style = self.style(child);
+        self.own_style_depends_on_percentage_block_size(child)
+            || self.passes_percentage_block_size_through_to_children(child)
+            || style.height().is_stretch()
+            || style.min_height().is_stretch()
+            || style.max_height().is_stretch()
     }
 
     pub(crate) fn content_block_size_from_aspect_ratio(
