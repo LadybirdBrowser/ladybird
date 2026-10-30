@@ -1,0 +1,8 @@
+Ladybird’s prompt offers Chrome’s three answers, with the same labels
+(IDS_PERMISSION_ALLOW_WHILE_VISITING, IDS_PERMISSION_ALLOW_THIS_TIME,
+and IDS_PERMISSION_NEVER_ALLOW in permissions_strings.grdp), anchored to
+the location bar as Chrome’s permission bubble is. Gecko’s geolocation
+prompt (GeolocationPermissionPrompt in PermissionUI.sys.mjs) has Allow
+and Block with a “Remember this decision” box instead, and also adds
+a hint line when the system will ask next, as Ladybird’s does. WebKit’s
+iOS prompt has Allow and Don’t Allow.
