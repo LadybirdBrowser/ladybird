@@ -1,1 +1,1 @@
-importScripts() threw Error: unmuted marker
+importScripts() threw NetworkError: Script error.
