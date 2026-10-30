@@ -370,6 +370,8 @@ public:
     OwnPtr<Compositor::CompositorContextHandle> take_compositor_context();
 
     void set_should_show_line_box_borders(bool);
+    void set_force_dark_settings(bool, HashMap<String, bool>);
+    void update_force_dark_for_active_document();
     void set_force_dark_enabled(bool);
     void set_force_dark_thresholds(i32 foreground, i32 background);
     bool active_document_opts_out_of_force_dark() const;
@@ -658,6 +660,8 @@ private:
 
     bool m_should_show_line_box_borders { false };
     bool m_force_dark_enabled { false };
+    bool m_force_dark_default { false };
+    HashMap<String, bool> m_force_dark_per_host;
     i32 m_force_dark_foreground_threshold { default_force_dark_foreground_threshold };
     i32 m_force_dark_background_threshold { default_force_dark_background_threshold };
     bool m_should_show_caret_hit_test_debug_overlay { false };
