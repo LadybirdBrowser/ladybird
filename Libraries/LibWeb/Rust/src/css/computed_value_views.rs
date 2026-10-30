@@ -672,16 +672,12 @@ impl<'a> ComputedValuesView<'a> {
     /// Whether the style can move the generated-content state a later sibling reads: any counter
     /// it touches, or a quote its content opens or closes.
     pub(crate) fn affects_generated_content_state(self) -> bool {
-        let content = self.content();
-        let names_counters =
-            |handle: &ComputedStyleValueHandle| !matches!(handle.data(), None | Some(StyleValueData::Keyword { .. }));
-        if names_counters(&content.counter_increment)
-            || names_counters(&content.counter_reset)
-            || names_counters(&content.counter_set)
-        {
-            return true;
-        }
-        let Some(StyleValueData::Content { content, .. }) = content.content.data() else {
+        !self.counter_properties_are_none() || self.content_opens_or_closes_quotes()
+    }
+
+    /// Whether `content` opens or closes a quote, which moves the quote depth that every quote after it reads.
+    pub(crate) fn content_opens_or_closes_quotes(self) -> bool {
+        let Some(StyleValueData::Content { content, .. }) = self.content().content.data() else {
             return false;
         };
         let Some(StyleValueData::ValueList { values, .. }) = content.optional_data() else {

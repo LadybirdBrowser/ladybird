@@ -172,6 +172,39 @@ PASS: append absolute block child after whitespace and anonymous inline run | in
 PASS: fall back for absolute block child after whitespace before existing child | rebuild parent
 PASS: fall back for absolute block child after whitespace before existing child | layout tree builds=1
 PASS: fall back for absolute block child after whitespace before existing child | incremental tree matches full rebuild
+PASS: append ordered list subtree | preserve parent
+PASS: append ordered list subtree | preserve before
+PASS: append ordered list subtree | layout tree builds=1
+PASS: append ordered list subtree | incremental tree matches full rebuild
+PASS: append unordered list subtree after whitespace | preserve parent
+PASS: append unordered list subtree after whitespace | preserve before
+PASS: append unordered list subtree after whitespace | layout tree builds=1
+PASS: append unordered list subtree after whitespace | incremental tree matches full rebuild
+PASS: append subtree with its own counter | preserve parent
+PASS: append subtree with its own counter | preserve before
+PASS: append subtree with its own counter | layout tree builds=1
+PASS: append subtree with its own counter | incremental tree matches full rebuild
+PASS: append block child incrementing a preceding counter | preserve parent
+PASS: append block child incrementing a preceding counter | preserve before
+PASS: append block child incrementing a preceding counter | layout tree builds=1
+PASS: append block child incrementing a preceding counter | incremental tree matches full rebuild
+PASS: append ordered list subtree before a sibling of the parent | preserve parent
+PASS: append ordered list subtree before a sibling of the parent | preserve before
+PASS: append ordered list subtree before a sibling of the parent | layout tree builds=1
+PASS: append ordered list subtree before a sibling of the parent | incremental tree matches full rebuild
+PASS: append counter increment before a sibling of the parent | preserve parent
+PASS: append counter increment before a sibling of the parent | preserve before
+PASS: append counter increment before a sibling of the parent | layout tree builds=1
+PASS: append counter increment before a sibling of the parent | incremental tree matches full rebuild
+PASS: fall back when appended counter subtree is followed by generated content | rebuild parent
+PASS: fall back when appended counter subtree is followed by generated content | layout tree builds=1
+PASS: fall back when appended counter subtree is followed by generated content | incremental tree matches full rebuild
+PASS: fall back when appending a list-item increment after a reversed list | rebuild parent
+PASS: fall back when appending a list-item increment after a reversed list | layout tree builds=1
+PASS: fall back when appending a list-item increment after a reversed list | incremental tree matches full rebuild
+PASS: fall back when appending a subtree that opens a quote | rebuild parent
+PASS: fall back when appending a subtree that opens a quote | layout tree builds=1
+PASS: fall back when appending a subtree that opens a quote | incremental tree matches full rebuild
 PASS: fall back for block child before anonymous inline run | rebuild parent
 PASS: fall back for block child before anonymous inline run | layout tree builds=1
 PASS: fall back for block child before anonymous inline run | incremental tree matches full rebuild
