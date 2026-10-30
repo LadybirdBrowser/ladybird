@@ -82,8 +82,8 @@
         const server = httpTestServer();
         const size = 2 * 1024 * 1024;
 
-        // Each body outgrows its channel and the request's pipe together, and its request ends only when the body is
-        // read or the request is stopped.
+        // Each body is larger than the process loading it takes before it is read, and its request ends only when the
+        // body is read or the request is stopped.
         const refused = new URL(await server.createEcho("GET", `/unread-body-refused-${crypto.randomUUID()}`, {
             status: 200,
             headers: { "Cache-Control": "no-store", "Content-Type": "text/html", "X-Frame-Options": "DENY" },

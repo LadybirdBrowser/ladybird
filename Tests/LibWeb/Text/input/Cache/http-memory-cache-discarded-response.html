@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    // A response the fetch discards leaves no memory-cache entry behind, pending or complete. A later response for the
-    // same request is the one the cache stores.
+    // With no other response for the request pending, a response the fetch discards mid-body leaves no pending
+    // memory-cache entry behind, so a later response for the same request is the one the cache stores.
     //
     // The Accept marker rides each fetch (CORS-safelisted, and the response has no Vary). The server records the last
     // marker it saw, which tells a hit from a miss.

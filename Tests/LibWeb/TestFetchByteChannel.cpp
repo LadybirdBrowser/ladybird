@@ -271,7 +271,7 @@ TEST_CASE(credit_accounting_with_batched_replenishment)
     EXPECT_EQ(events[0].kind, SinkEvent::Kind::CreditGrant);
     EXPECT_EQ(events[0].value, 30u); // 64 high - 10 buffered - 24 outstanding
 
-    // No further grant until the buffer crosses the low watermark again.
+    // A further take below the low watermark replenishes again, by the one byte it took.
     result = harness.channel->take_up_to(1);
     EXPECT_EQ(result.buffered_byte_count, 9u);
     events = harness.take_events();

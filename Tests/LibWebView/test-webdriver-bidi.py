@@ -1684,7 +1684,7 @@ def check_network_adopted_navigation_events(bidi, context, server):
                 else:
                     assert isinstance(params["errorText"], str) and params["errorText"], params
 
-                # Only the document's process reports the end of its body, and only once.
+                # No second report of the body's end arrives before a round trip to the document's process.
                 bidi.evaluate(context, "0")
                 assert not any(event["method"] in terminal_methods and is_our_event(event) for event in bidi.events), (
                     bidi.events
