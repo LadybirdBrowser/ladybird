@@ -1532,10 +1532,10 @@ impl LayoutNodeArena {
                 continue;
             };
             let facts = super::node_facts::derived_replaced_content_facts(self.data(node), input);
-            // Changed facts invalidate cached formatting-context runs regardless of which channel
-            // produced the change, including sources with no invalidation of their own.
+            // Changed facts invalidate cached formatting-context runs and intrinsic sizes regardless of
+            // which channel produced the change, including sources with no invalidation of their own.
             if self.set_replaced_content_facts(node, facts) {
-                self.invalidate_fragments_of_self_and_ancestors_leaving_intrinsic_sizes_to_its_cause(node);
+                self.invalidate_fragments_and_intrinsic_sizes_of_self_and_ancestors(node);
             }
         }
         self.nodes_enrolled_for_replaced_content_facts_sync = enrolled_nodes;
