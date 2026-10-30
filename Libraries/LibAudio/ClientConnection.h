@@ -83,7 +83,7 @@ public:
     // Resolves with a RemoteRecordStream carrying the device's frames in the device's own format. Streams on one
     // device share the server's capture stream and one ring. Rejects if the server cannot open the device or the
     // connection dies first.
-    NonnullRefPtr<RecordStream::CreatePromise> create_record_stream(StringView device_id, RecordStream::RecordCallback);
+    NonnullRefPtr<RecordStream::CreatePromise> create_record_stream(StringView device_id, PlaybackGroupId, RecordStream::RecordCallback);
     void record_stream_unsubscribed(Badge<RemoteRecordStream>, u64 stream_id);
     void register_record_stream(Badge<RemoteRecordStream>, RemoteRecordStream&);
     void unregister_record_stream(Badge<RemoteRecordStream>, RemoteRecordStream&);
@@ -124,6 +124,7 @@ private:
     // One per device this process records from, under the id of the server-side stream.
     struct CaptureSource {
         ByteString device_id;
+        PlaybackGroupId group;
         // Unset until the server hands over the ring.
         Optional<SampleSpecification> specification;
         Vector<PendingRecordStream> pending;

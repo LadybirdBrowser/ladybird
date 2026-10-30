@@ -264,7 +264,7 @@ void ServerConnection::devices_changed()
         send_device_list();
 }
 
-void ServerConnection::create_record_stream(u64 stream_id, ByteString device_id)
+void ServerConnection::create_record_stream(u64 stream_id, ByteString device_id, PlaybackGroupId group)
 {
     if (m_record_streams.contains(stream_id)) {
         did_misbehave("create_record_stream: stream ID already exists");
@@ -273,7 +273,7 @@ void ServerConnection::create_record_stream(u64 stream_id, ByteString device_id)
 
     // The Browser rules on every request, so a client once allowed cannot simply start another.
     m_record_streams.set(stream_id, RecordStreamState {});
-    m_request_capture_permission(device_id, [weak_self = make_weak_ptr<ServerConnection>(), stream_id, device_id](bool allowed) {
+    m_request_capture_permission(device_id, group, [weak_self = make_weak_ptr<ServerConnection>(), stream_id, device_id](bool allowed) {
         auto self = weak_self.strong_ref();
         if (self)
             self->capture_permission_decided(stream_id, device_id, allowed);

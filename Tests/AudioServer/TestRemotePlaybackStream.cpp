@@ -109,7 +109,7 @@ struct RemoteFixture {
         });
         mixer->set_group_authorization(AUTHORIZED_GROUP, Audio::PlaybackGroupAuthorization::Authorized);
         auto paired = MUST(IPC::Transport::create_paired());
-        server = Audio::ServerConnection::construct(move(paired.local), 1, *mixer, Audio::CaptureDevices::create([](Audio::SampleSpecification const&, u32, StringView, Audio::RecordStream::RecordCallback) { return Audio::RecordStream::CreatePromise::rejected(Error::from_string_literal("No capture in this test")); }), [](ByteString const&, Function<void(bool)> on_decided) { on_decided(false); });
+        server = Audio::ServerConnection::construct(move(paired.local), 1, *mixer, Audio::CaptureDevices::create([](Audio::SampleSpecification const&, u32, StringView, Audio::RecordStream::RecordCallback) { return Audio::RecordStream::CreatePromise::rejected(Error::from_string_literal("No capture in this test")); }), [](ByteString const&, Audio::PlaybackGroupId, Function<void(bool)> on_decided) { on_decided(false); });
         server->set_capture_permitted(true);
         server->on_death = [this] { server_died = true; };
         server_weak = server->make_weak_ptr<Audio::ServerConnection>();
@@ -612,7 +612,7 @@ struct RemoteSinkFixture {
             if (!accepting_connections)
                 return Error::from_string_literal("The fixture is no longer accepting connections");
             auto paired = TRY(IPC::Transport::create_paired());
-            servers.append(Audio::ServerConnection::construct(move(paired.local), static_cast<int>(connections_requested), *mixer, Audio::CaptureDevices::create([](Audio::SampleSpecification const&, u32, StringView, Audio::RecordStream::RecordCallback) { return Audio::RecordStream::CreatePromise::rejected(Error::from_string_literal("No capture in this test")); }), [](ByteString const&, Function<void(bool)> on_decided) { on_decided(false); }));
+            servers.append(Audio::ServerConnection::construct(move(paired.local), static_cast<int>(connections_requested), *mixer, Audio::CaptureDevices::create([](Audio::SampleSpecification const&, u32, StringView, Audio::RecordStream::RecordCallback) { return Audio::RecordStream::CreatePromise::rejected(Error::from_string_literal("No capture in this test")); }), [](ByteString const&, Audio::PlaybackGroupId, Function<void(bool)> on_decided) { on_decided(false); }));
             auto transport = TRY(paired.remote_handle.create_transport());
             return transport;
         });

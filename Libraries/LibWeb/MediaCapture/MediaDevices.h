@@ -47,6 +47,7 @@ public:
     void end_tracks_without_permission();
     void track_was_cloned(Badge<MediaStreamTrack>, MediaStreamTrack& clone);
     void track_source_ended(Badge<MediaStreamTrack>, MediaStreamTrack&);
+    HTML::Window& window() const { return m_window; }
     // getUserMedia() waits while the page lacks system focus, and the Window sees no event when that changes.
     void system_focus_changed();
 

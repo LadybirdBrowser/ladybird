@@ -14,6 +14,7 @@
 #include <AK/Utf16String.h>
 #include <AK/Utf16StringBuilder.h>
 #include <LibAudio/OutputSession.h>
+#include <LibAudio/RecordStream.h>
 #include <LibCore/Process.h>
 #include <LibCore/Timer.h>
 #include <LibDevTools/IndexedDBSerialization.h>
@@ -2181,6 +2182,11 @@ NonnullOwnPtr<MediaClient::RemotePlaybackManager> PageClient::create_media_playb
 void PageClient::rebind_media_playback_manager(MediaClient::RemotePlaybackManager& playback_manager)
 {
     playback_manager.set_audio_group(audio_playback_group(m_id));
+}
+
+NonnullRefPtr<Audio::RecordStream::CreatePromise> PageClient::create_audio_record_stream(StringView device_id, Audio::RecordStream::RecordCallback callback)
+{
+    return Audio::RecordStream::create(device_id, audio_playback_group(m_id), move(callback));
 }
 
 void PageClient::page_did_change_screen_wake_lock_state(Web::ScreenWakeLockState wake_lock_state)

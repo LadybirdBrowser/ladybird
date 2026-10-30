@@ -6,6 +6,7 @@
 
 #include <AK/NeverDestroyed.h>
 #include <AK/ScopeGuard.h>
+#include <LibAudio/RecordStream.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibGC/Heap.h>
 #include <LibGC/WeakHashMap.h>
@@ -537,6 +538,11 @@ NonnullOwnPtr<MediaClient::RemotePlaybackManager> SVGDecodedImageData::SVGPageCl
 void SVGDecodedImageData::SVGPageClient::rebind_media_playback_manager(MediaClient::RemotePlaybackManager& playback_manager)
 {
     m_host_page->client().rebind_media_playback_manager(playback_manager);
+}
+
+NonnullRefPtr<Audio::RecordStream::CreatePromise> SVGDecodedImageData::SVGPageClient::create_audio_record_stream(StringView device_id, Audio::RecordStream::RecordCallback callback)
+{
+    return m_host_page->client().create_audio_record_stream(device_id, move(callback));
 }
 
 void SVGDecodedImageData::did_request_frame()

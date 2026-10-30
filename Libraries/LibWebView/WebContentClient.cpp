@@ -975,10 +975,10 @@ ErrorOr<void> WebContentClient::ensure_audio_server_controller()
 
 ErrorOr<void> WebContentClient::initialize_audio_server_controller()
 {
-    m_audio_server_client->on_capture_requested = [weak_self = make_weak_ptr<WebContentClient>()](u64 tab_id, u64 request_id, ByteString const&) {
+    m_audio_server_client->on_capture_requested = [weak_self = make_weak_ptr<WebContentClient>()](u64 tab_id, u64 request_id, ByteString const&, Audio::PlaybackGroupId group) {
         auto self = weak_self.strong_ref();
         if (self && tab_id == self->m_audio_tab_id)
-            self->decide_audio_capture_request(request_id);
+            self->decide_audio_capture_request(request_id, group);
     };
     m_audio_server_audibility.watch(*m_audio_server_client, [weak_self = make_weak_ptr<WebContentClient>()](u64 tab_id, Audio::PlaybackGroupId group, Audio::Audibility audibility) {
         auto self = weak_self.strong_ref();
@@ -1064,21 +1064,34 @@ bool WebContentClient::page_may_capture_audio(WebContentPage const& page) const
     return session().permission_manager->effective_state(Web::Permissions::PermissionName::Microphone, origin) == Web::Permissions::EffectiveState::Granted;
 }
 
+// A tab's grant reaches only the documents whose permissions policy allows them the microphone.
+bool WebContentClient::page_permits_audio_capture(WebContentPage const& page) const
+{
+    return page.is_open() && page_may_capture_audio(page) && page.hosts_a_document_allowed_to_use(Web::PermissionsPolicy::PolicyControlledFeature::Microphone);
+}
+
+// The process may capture if it hosts a page that permits it, as it can act for any document it hosts.
 WebContentPage* WebContentClient::page_permitting_audio_capture() const
 {
-    // A tab's grant reaches only the documents whose permissions policy allows them the microphone. The process may
-    // capture if it hosts one, as it can act for any document it hosts.
     for (auto const& it : m_pages) {
-        auto const& page = it.value;
-        if (!page->is_open() || !page_may_capture_audio(*page))
-            continue;
-        if (page->hosts_a_document_allowed_to_use(Web::PermissionsPolicy::PolicyControlledFeature::Microphone))
-            return page.ptr();
+        if (page_permits_audio_capture(*it.value))
+            return it.value.ptr();
     }
     return nullptr;
 }
 
-void WebContentClient::decide_audio_capture_request(u64 request_id)
+// WebContent derives the group of a page's sound from the page's ID too.
+static Audio::PlaybackGroupId audio_playback_group(Web::PageId page_id)
+{
+    return Audio::PlaybackGroupId { page_id.value() };
+}
+
+static Web::PageId page_id_of_audio_playback_group(Audio::PlaybackGroupId group)
+{
+    return Web::PageId { group.value() };
+}
+
+void WebContentClient::decide_audio_capture_request(u64 request_id, Audio::PlaybackGroupId group)
 {
     auto* page = page_permitting_audio_capture();
     if (!page) {
@@ -1086,9 +1099,12 @@ void WebContentClient::decide_audio_capture_request(u64 request_id)
         return;
     }
 
+    // The renderer names the page it captures for, so the name only says where the user hears of a refusal, and only
+    // for a page that permits capture.
+    if (auto* named_page = this->page(page_id_of_audio_playback_group(group)); named_page && page_permits_audio_capture(*named_page))
+        page = named_page;
+
     // Only a site the user allowed gets the system to ask the user, if it never has.
-    // FIXME: The AudioServer doesn't say which page asked to capture, so a refusal is told in the tab of the first page
-    //        that may capture, which needn't be the one that asked.
     page->view().ensure_microphone_authorization([weak_self = make_weak_ptr<WebContentClient>(), request_id](bool authorized) {
         auto self = weak_self.strong_ref();
         if (!self || !self->m_audio_server_client || !self->m_audio_server_client->is_open())
@@ -1112,17 +1128,6 @@ ErrorOr<void> WebContentClient::tell_audio_server_of_capture_permission()
     if (!response)
         return Error::from_string_literal("Failed to tell the AudioServer of the capture permission");
     return {};
-}
-
-// WebContent derives the group of a page's sound from the page's ID too.
-static Audio::PlaybackGroupId audio_playback_group(Web::PageId page_id)
-{
-    return Audio::PlaybackGroupId { page_id.value() };
-}
-
-static Web::PageId page_id_of_audio_playback_group(Audio::PlaybackGroupId group)
-{
-    return Web::PageId { group.value() };
 }
 
 void WebContentClient::did_change_audio_playback_audibility(Audio::PlaybackGroupId group, Audio::Audibility audibility)

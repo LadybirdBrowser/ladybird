@@ -18,6 +18,7 @@ endpoint AudioServer {
 
     watch_devices() =|
 
-    create_record_stream(u64 stream_id, ByteString device_id) =|
+    // The group names the page the stream captures for, which the client vouches for alone.
+    create_record_stream(u64 stream_id, ByteString device_id, Audio::PlaybackGroupId group) =|
     destroy_record_stream(u64 stream_id) =|
 }

@@ -142,8 +142,8 @@ ErrorOr<IPC::TransportHandle> Tabs::connect_client(u64 tab_id)
 
     auto& tab = tab_for(tab_id);
     auto client_id = m_next_client_id++;
-    auto connection = Audio::ServerConnection::construct(move(paired_transports.local), client_id, tab.mixer, capture_devices(), [tab_id](ByteString const& device_id, Function<void(bool)> on_decided) {
-        Tabs::the().request_capture_permission(tab_id, device_id, move(on_decided));
+    auto connection = Audio::ServerConnection::construct(move(paired_transports.local), client_id, tab.mixer, capture_devices(), [tab_id](ByteString const& device_id, Audio::PlaybackGroupId group, Function<void(bool)> on_decided) {
+        Tabs::the().request_capture_permission(tab_id, device_id, group, move(on_decided));
     });
     connection->set_capture_permitted(m_tabs_with_capture_permission.contains(tab_id));
     connection->on_death = [tab_id, client_id] {
@@ -204,7 +204,7 @@ void Tabs::set_playback_group_mute_state(u64 tab_id, Audio::PlaybackGroupId grou
         tab->mixer->set_group_mute_state(group, mute_state);
 }
 
-void Tabs::request_capture_permission(u64 tab_id, ByteString const& device_id, Function<void(bool)> on_decided)
+void Tabs::request_capture_permission(u64 tab_id, ByteString const& device_id, Audio::PlaybackGroupId group, Function<void(bool)> on_decided)
 {
     auto control_connection = m_control_connection.strong_ref();
     if (!control_connection) {
@@ -213,7 +213,7 @@ void Tabs::request_capture_permission(u64 tab_id, ByteString const& device_id, F
     }
     auto request_id = m_next_capture_request_id++;
     m_pending_capture_decisions.set(request_id, move(on_decided));
-    control_connection->async_capture_requested(tab_id, request_id, device_id);
+    control_connection->async_capture_requested(tab_id, request_id, device_id, group);
 }
 
 void Tabs::capture_decided(u64 request_id, bool allowed)

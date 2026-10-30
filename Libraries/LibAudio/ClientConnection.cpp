@@ -142,7 +142,7 @@ void ClientConnection::devices_changed(Vector<AudioDeviceInfo> inputs, Vector<Au
         m_on_device_list(AudioDeviceEnumeration { .inputs = move(inputs), .outputs = move(outputs) });
 }
 
-NonnullRefPtr<RecordStream::CreatePromise> ClientConnection::create_record_stream(StringView device_id, RecordStream::RecordCallback callback)
+NonnullRefPtr<RecordStream::CreatePromise> ClientConnection::create_record_stream(StringView device_id, PlaybackGroupId group, RecordStream::RecordCallback callback)
 {
     auto promise = RecordStream::CreatePromise::construct();
     if (m_is_dead) {
@@ -151,7 +151,7 @@ NonnullRefPtr<RecordStream::CreatePromise> ClientConnection::create_record_strea
     }
 
     for (auto& [stream_id, source] : m_capture_sources) {
-        if (source.device_id != device_id)
+        if (source.device_id != device_id || source.group != group)
             continue;
         if (!source.specification.has_value()) {
             source.pending.append(PendingRecordStream { .promise = promise, .callback = move(callback) });
@@ -163,10 +163,10 @@ NonnullRefPtr<RecordStream::CreatePromise> ClientConnection::create_record_strea
     }
 
     auto stream_id = m_next_stream_id++;
-    CaptureSource source { .device_id = device_id, .specification = {}, .pending = {}, .stream_count = 0 };
+    CaptureSource source { .device_id = device_id, .group = group, .specification = {}, .pending = {}, .stream_count = 0 };
     source.pending.append(PendingRecordStream { .promise = promise, .callback = move(callback) });
     m_capture_sources.set(stream_id, move(source));
-    async_create_record_stream(stream_id, device_id);
+    async_create_record_stream(stream_id, device_id, group);
     return promise;
 }
 

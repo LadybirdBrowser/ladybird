@@ -293,8 +293,9 @@ private:
     static String audio_capture_permission_key(URL::URL const&);
     bool audio_capture_permitted() const { return page_permitting_audio_capture(); }
     WebContentPage* page_permitting_audio_capture() const;
+    bool page_permits_audio_capture(WebContentPage const&) const;
     bool page_may_capture_audio(WebContentPage const&) const;
-    void decide_audio_capture_request(u64 request_id);
+    void decide_audio_capture_request(u64 request_id, Audio::PlaybackGroupId);
     void send_audio_capture_decision(u64 request_id, bool allowed);
 
     // The controller connections to the MediaServer and AudioServer spawned for this process, from its first media use
