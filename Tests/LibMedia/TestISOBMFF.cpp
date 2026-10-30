@@ -1368,8 +1368,8 @@ TEST_CASE(parses_vp_codec_configuration_box)
 
     // Without a colour information box, the configuration record supplies the color.
     EXPECT(entry.cicp.has_value());
-    EXPECT(entry.cicp->color_primaries() == Media::ColorPrimaries::BT2020);
-    EXPECT(entry.cicp->transfer_characteristics() == Media::TransferCharacteristics::SMPTE2084);
+    EXPECT_EQ(entry.cicp->color_primaries(), Media::ColorPrimaries::BT2020);
+    EXPECT_EQ(entry.cicp->transfer_characteristics(), Media::TransferCharacteristics::SMPTE2084);
 }
 
 TEST_CASE(colour_information_box_overrides_the_vp_configuration_box_in_either_order)
@@ -1380,8 +1380,8 @@ TEST_CASE(colour_information_box_overrides_the_vp_configuration_box_in_either_or
         auto entry = parse_only_sample_entry(bytes);
 
         EXPECT(entry.cicp.has_value());
-        EXPECT(entry.cicp->color_primaries() == Media::ColorPrimaries::BT709);
-        EXPECT(entry.cicp->transfer_characteristics() == Media::TransferCharacteristics::BT709);
+        EXPECT_EQ(entry.cicp->color_primaries(), Media::ColorPrimaries::BT709);
+        EXPECT_EQ(entry.cicp->transfer_characteristics(), Media::TransferCharacteristics::BT709);
 
         // The configuration record is still read for the codec parameters.
         EXPECT(entry.parsed_codec.has_value());
@@ -1400,8 +1400,8 @@ TEST_CASE(parses_av1_configuration_box_color_from_its_sequence_header)
     EXPECT_EQ(entry.parsed_codec->av1_parameters()->level, 8);
 
     EXPECT(entry.cicp.has_value());
-    EXPECT(entry.cicp->color_primaries() == Media::ColorPrimaries::BT2020);
-    EXPECT(entry.cicp->transfer_characteristics() == Media::TransferCharacteristics::SMPTE2084);
+    EXPECT_EQ(entry.cicp->color_primaries(), Media::ColorPrimaries::BT2020);
+    EXPECT_EQ(entry.cicp->transfer_characteristics(), Media::TransferCharacteristics::SMPTE2084);
 }
 
 TEST_CASE(colour_information_box_overrides_the_av1_configuration_box)
@@ -1411,8 +1411,8 @@ TEST_CASE(colour_information_box_overrides_the_av1_configuration_box)
     auto entry = parse_only_sample_entry(bytes);
 
     EXPECT(entry.cicp.has_value());
-    EXPECT(entry.cicp->color_primaries() == Media::ColorPrimaries::BT709);
-    EXPECT(entry.cicp->transfer_characteristics() == Media::TransferCharacteristics::BT709);
+    EXPECT_EQ(entry.cicp->color_primaries(), Media::ColorPrimaries::BT709);
+    EXPECT_EQ(entry.cicp->transfer_characteristics(), Media::TransferCharacteristics::BT709);
 }
 
 TEST_CASE(rejects_a_configuration_box_that_disagrees_with_the_sample_entry_format)

@@ -47,7 +47,7 @@ constexpr StringView playback_state_to_string(PlaybackState state)
 namespace AK {
 
 template<>
-struct Formatter<Media::PlaybackState> final : Formatter<StringView> {
+struct Formatter<Media::PlaybackState> : Formatter<StringView> {
     ErrorOr<void> format(FormatBuilder& builder, Media::PlaybackState state)
     {
         return Formatter<StringView>::format(builder, Media::playback_state_to_string(state));

@@ -219,10 +219,10 @@ TEST_CASE(av1_configuration_record_reads_a_reduced_still_picture_sequence_header
 
     auto parameters = Media::Codecs::AV1::parse_configuration_record(record);
     EXPECT(parameters.has_value());
-    EXPECT(parameters->optional_fields.cicp.color_primaries() == Media::ColorPrimaries::BT2020);
-    EXPECT(parameters->optional_fields.cicp.transfer_characteristics() == Media::TransferCharacteristics::SMPTE2084);
-    EXPECT(parameters->optional_fields.cicp.matrix_coefficients() == Media::MatrixCoefficients::BT2020NonConstantLuminance);
-    EXPECT(parameters->optional_fields.cicp.video_full_range_flag() == Media::VideoFullRangeFlag::Studio);
+    EXPECT_EQ(parameters->optional_fields.cicp.color_primaries(), Media::ColorPrimaries::BT2020);
+    EXPECT_EQ(parameters->optional_fields.cicp.transfer_characteristics(), Media::TransferCharacteristics::SMPTE2084);
+    EXPECT_EQ(parameters->optional_fields.cicp.matrix_coefficients(), Media::MatrixCoefficients::BT2020NonConstantLuminance);
+    EXPECT_EQ(parameters->optional_fields.cicp.video_full_range_flag(), Media::VideoFullRangeFlag::Studio);
 }
 
 TEST_CASE(av1_configuration_record_without_configuration_obus_reports_unspecified_color)
@@ -235,9 +235,9 @@ TEST_CASE(av1_configuration_record_without_configuration_obus_reports_unspecifie
     EXPECT_EQ(parameters->level, 8);
     EXPECT_EQ(parameters->bit_depth, 8);
     EXPECT(parameters->optional_fields.subsampling == Media::Subsampling::yuv420());
-    EXPECT(parameters->optional_fields.cicp.color_primaries() == Media::ColorPrimaries::Unspecified);
-    EXPECT(parameters->optional_fields.cicp.transfer_characteristics() == Media::TransferCharacteristics::Unspecified);
-    EXPECT(parameters->optional_fields.cicp.matrix_coefficients() == Media::MatrixCoefficients::Unspecified);
+    EXPECT_EQ(parameters->optional_fields.cicp.color_primaries(), Media::ColorPrimaries::Unspecified);
+    EXPECT_EQ(parameters->optional_fields.cicp.transfer_characteristics(), Media::TransferCharacteristics::Unspecified);
+    EXPECT_EQ(parameters->optional_fields.cicp.matrix_coefficients(), Media::MatrixCoefficients::Unspecified);
 }
 
 TEST_CASE(av1_sequence_header_without_a_color_description_reports_unspecified_color)
@@ -250,9 +250,9 @@ TEST_CASE(av1_sequence_header_without_a_color_description_reports_unspecified_co
 
     auto parameters = Media::Codecs::AV1::parse_configuration_record(record);
     EXPECT(parameters.has_value());
-    EXPECT(parameters->optional_fields.cicp.color_primaries() == Media::ColorPrimaries::Unspecified);
-    EXPECT(parameters->optional_fields.cicp.transfer_characteristics() == Media::TransferCharacteristics::Unspecified);
-    EXPECT(parameters->optional_fields.cicp.matrix_coefficients() == Media::MatrixCoefficients::Unspecified);
+    EXPECT_EQ(parameters->optional_fields.cicp.color_primaries(), Media::ColorPrimaries::Unspecified);
+    EXPECT_EQ(parameters->optional_fields.cicp.transfer_characteristics(), Media::TransferCharacteristics::Unspecified);
+    EXPECT_EQ(parameters->optional_fields.cicp.matrix_coefficients(), Media::MatrixCoefficients::Unspecified);
 }
 
 TEST_CASE(av1_configuration_record_rejects_invalid_wrapper)

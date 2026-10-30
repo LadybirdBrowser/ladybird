@@ -1122,8 +1122,8 @@ TEST_CASE(track_entry_parses_its_codec_private_configuration_record)
     EXPECT_EQ(track_entry->parsed_codec()->av1_parameters()->level, 8);
 
     auto track = Media::Matroska::track_from_track_entry(*track_entry, true);
-    EXPECT(track.video_data().cicp.color_primaries() == Media::ColorPrimaries::BT2020);
-    EXPECT(track.video_data().cicp.transfer_characteristics() == Media::TransferCharacteristics::SMPTE2084);
+    EXPECT_EQ(track.video_data().cicp.color_primaries(), Media::ColorPrimaries::BT2020);
+    EXPECT_EQ(track.video_data().cicp.transfer_characteristics(), Media::TransferCharacteristics::SMPTE2084);
 }
 
 TEST_CASE(color_element_overrides_the_codec_private_configuration_record)
@@ -1134,8 +1134,8 @@ TEST_CASE(color_element_overrides_the_codec_private_configuration_record)
     auto track_entry = MUST(reader.track_for_track_number(1));
 
     auto track = Media::Matroska::track_from_track_entry(*track_entry, true);
-    EXPECT(track.video_data().cicp.color_primaries() == Media::ColorPrimaries::BT709);
-    EXPECT(track.video_data().cicp.transfer_characteristics() == Media::TransferCharacteristics::BT709);
+    EXPECT_EQ(track.video_data().cicp.color_primaries(), Media::ColorPrimaries::BT709);
+    EXPECT_EQ(track.video_data().cicp.transfer_characteristics(), Media::TransferCharacteristics::BT709);
 }
 
 TEST_CASE(simple_block_extending_past_the_representable_size_is_corrupted)

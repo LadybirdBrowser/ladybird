@@ -551,8 +551,8 @@ TEST_CASE(image_serializables_round_trip)
         EXPECT_EQ(bitmap.height(), 2u);
         auto const& color_space = bitmap.frame()->color_space().data();
         EXPECT(color_space.has<Gfx::ColorSpace::CICP>());
-        EXPECT(color_space.get<Gfx::ColorSpace::CICP>().color_primaries == Media::ColorPrimaries::SMPTE432);
-        EXPECT(color_space.get<Gfx::ColorSpace::CICP>().transfer_characteristics == Media::TransferCharacteristics::SRGB);
+        EXPECT_EQ(color_space.get<Gfx::ColorSpace::CICP>().color_primaries, Media::ColorPrimaries::SMPTE432);
+        EXPECT_EQ(color_space.get<Gfx::ColorSpace::CICP>().transfer_characteristics, Media::TransferCharacteristics::SRGB);
     }
 }
 

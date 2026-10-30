@@ -17,10 +17,10 @@ TEST_CASE(adopt_specified_values_ignores_reserved_and_unspecified_values)
     cicp.adopt_specified_values({ static_cast<Media::ColorPrimaries>(0), static_cast<Media::TransferCharacteristics>(0),
         Media::MatrixCoefficients::Unspecified, Media::VideoFullRangeFlag::Unspecified });
 
-    EXPECT(cicp.color_primaries() == Media::ColorPrimaries::BT709);
-    EXPECT(cicp.transfer_characteristics() == Media::TransferCharacteristics::BT709);
-    EXPECT(cicp.matrix_coefficients() == Media::MatrixCoefficients::BT709);
-    EXPECT(cicp.video_full_range_flag() == Media::VideoFullRangeFlag::Studio);
+    EXPECT_EQ(cicp.color_primaries(), Media::ColorPrimaries::BT709);
+    EXPECT_EQ(cicp.transfer_characteristics(), Media::TransferCharacteristics::BT709);
+    EXPECT_EQ(cicp.matrix_coefficients(), Media::MatrixCoefficients::BT709);
+    EXPECT_EQ(cicp.video_full_range_flag(), Media::VideoFullRangeFlag::Studio);
 }
 
 TEST_CASE(adopt_specified_values_adopts_valid_values)
@@ -33,8 +33,8 @@ TEST_CASE(adopt_specified_values_adopts_valid_values)
     cicp.adopt_specified_values({ Media::ColorPrimaries::BT2020, Media::TransferCharacteristics::SRGB,
         Media::MatrixCoefficients::BT601, Media::VideoFullRangeFlag::Full });
 
-    EXPECT(cicp.color_primaries() == Media::ColorPrimaries::BT2020);
-    EXPECT(cicp.transfer_characteristics() == Media::TransferCharacteristics::SRGB);
-    EXPECT(cicp.matrix_coefficients() == Media::MatrixCoefficients::BT601);
-    EXPECT(cicp.video_full_range_flag() == Media::VideoFullRangeFlag::Full);
+    EXPECT_EQ(cicp.color_primaries(), Media::ColorPrimaries::BT2020);
+    EXPECT_EQ(cicp.transfer_characteristics(), Media::TransferCharacteristics::SRGB);
+    EXPECT_EQ(cicp.matrix_coefficients(), Media::MatrixCoefficients::BT601);
+    EXPECT_EQ(cicp.video_full_range_flag(), Media::VideoFullRangeFlag::Full);
 }

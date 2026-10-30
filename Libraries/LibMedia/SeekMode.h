@@ -36,7 +36,7 @@ constexpr StringView seek_mode_to_string(SeekMode seek_mode)
 namespace AK {
 
 template<>
-struct Formatter<Media::SeekMode> final : Formatter<StringView> {
+struct Formatter<Media::SeekMode> : Formatter<StringView> {
     ErrorOr<void> format(FormatBuilder& builder, Media::SeekMode color_primaries)
     {
         return Formatter<StringView>::format(builder, Media::seek_mode_to_string(color_primaries));
