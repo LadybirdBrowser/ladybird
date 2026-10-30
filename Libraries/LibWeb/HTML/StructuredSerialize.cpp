@@ -41,7 +41,6 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/PredefinedColorSpace.h>
 #include <LibWeb/Bindings/QuotaExceededError.h>
-#include <LibWeb/Bindings/Serializable.h>
 #include <LibWeb/Bindings/Transferable.h>
 #include <LibWeb/Crypto/CryptoKey.h>
 #include <LibWeb/FileAPI/Blob.h>

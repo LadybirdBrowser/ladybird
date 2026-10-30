@@ -72,7 +72,6 @@ def write_structured_serialize_bindings_implementation(out: TextIO, interfaces: 
 #include <LibJS/HostClassBuilder.h>
 #include <LibWeb/Bindings/RustInterface.h>
 #include <LibWeb/Bindings/RustSerialization.h>
-#include <LibWeb/Bindings/Serializable.h>
 #include <LibWeb/Bindings/Transferable.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
@@ -84,8 +83,9 @@ def write_structured_serialize_bindings_implementation(out: TextIO, interfaces: 
     for interface in included_interfaces:
         out.write(f"#include <LibWeb/Bindings/{interface.implemented_name}.h>\n")
         # NB: The bindings find the cells of the objects of an interface implemented in Rust by the class of their
-        #     wrappers, which LibWeb/Bindings/<interface>.h declares, so they need no C++ class of the interface.
-        if not is_implemented_in_rust(interface):
+        #     wrappers, which LibWeb/Bindings/<interface>.h declares, so they need no C++ class of the interface. A
+        #     serializable interface implemented in C++ needs none either, as its steps run in Rust.
+        if interface in transferable and not is_implemented_in_rust(interface):
             out.write(f"#include <{implementation_header_for_interface(interface)}>\n")
 
     out.write(
@@ -199,7 +199,7 @@ Optional<SerializablePlatformObject> serializable_from_object(JS::Object& object
         return SerializablePlatformObject {{ .rust_object = cell, .interface_name = InterfaceName::{interface.name}, .realm = &object.shape().realm() }};
 """
         )
-    # NB: An object is a serializable object if its primary interface is [Serializable]. The steps of some interfaces
+    # NB: An object is a serializable object if its primary interface is [Serializable]. The steps of the interfaces
     #     implemented in C++ run in Rust, so their classes have no C++ steps.
     cpp_serializable = [interface for interface in serializable if not is_implemented_in_rust(interface)]
     out.write(
@@ -215,8 +215,8 @@ Optional<SerializablePlatformObject> serializable_from_object(JS::Object& object
         out.write(f"    case InterfaceName::{interface.name}:\n")
     if cpp_serializable:
         out.write(
-            "        return SerializablePlatformObject { .serializable = as_if<Serializable>(*wrappable), "
-            ".interface_name = wrappable->interface_name(), .realm = &object.shape().realm() };\n"
+            "        return SerializablePlatformObject { .interface_name = wrappable->interface_name(), "
+            ".realm = &object.shape().realm() };\n"
         )
     out.write(
         """    default:
@@ -226,9 +226,6 @@ Optional<SerializablePlatformObject> serializable_from_object(JS::Object& object
 
 WebIDL::ExceptionOr<void> SerializablePlatformObject::serialization_steps(HTML::StructuredSerializeWriter& serialized, bool for_storage, HTML::SerializationMemory& memory) const
 {
-    if (serializable)
-        return serializable->serialization_steps(serialized, for_storage, memory);
-
     [[maybe_unused]] RustSerializationWriter writer { .realm = *realm, .serialized = serialized, .for_storage = for_storage, .memory = memory };
     switch (interface_name) {
 """
@@ -277,28 +274,6 @@ WebIDL::ExceptionOr<GC::Ref<JS::HostObject>> deserialize_rust_platform_object(In
         )
     out.write(
         """    default:
-        VERIFY_NOT_REACHED();
-    }
-}
-
-GC::Ref<JS::HostObject> create_serialized_platform_object(InterfaceName serialize_type, JS::Realm& realm)
-{
-    auto& wrapper_world = Bindings::host_defined_wrapper_world(realm);
-
-    switch (serialize_type) {
-"""
-    )
-    for interface in serializable:
-        if is_implemented_in_rust(interface):
-            continue
-        out.write(f"    case InterfaceName::{interface.name}:\n")
-        out.write(
-            f"        return Bindings::wrap(wrapper_world, realm, {fully_qualified_name_for_interface(interface)}::create());\n"
-        )
-
-    out.write(
-        """    case InterfaceName::Unknown:
-    default:
         VERIFY_NOT_REACHED();
     }
 }

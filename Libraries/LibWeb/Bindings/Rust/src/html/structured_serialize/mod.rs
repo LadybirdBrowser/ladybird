@@ -32,13 +32,12 @@ use crate::crypto::crypto_key;
 use crate::html::structured_serialize::cpp::{
     DeserializationMemory, OwnedDeserializationMemory, OwnedSerializedTransferRecord, OwnedStructuredSerializeWriter,
     SerializableSteps, SerializationMemory, SerializationType, SerializedTransferRecord, StructuredSerializeReader,
-    StructuredSerializeWriter, TransferDataDecoder, TransferDataHolder, create_serialized_platform_object,
-    create_transferred_platform_object, current_settings_object_agent_cluster,
-    current_settings_object_cross_origin_isolated_capability, data_clone_error_from_serialization_error,
-    deserialization_steps, deserialize_rust_platform_object, is_exposed, is_platform_object, is_transferable,
-    is_transferable_interface_exposed, realm_agent_cluster, serializable_interface_name, serializable_payload_version,
-    serializable_steps, serialization_steps, transfer_steps, transferable_is_detached, transferable_primary_interface,
-    transferable_set_detached,
+    StructuredSerializeWriter, TransferDataDecoder, TransferDataHolder, create_transferred_platform_object,
+    current_settings_object_agent_cluster, current_settings_object_cross_origin_isolated_capability,
+    data_clone_error_from_serialization_error, deserialize_rust_platform_object, is_exposed, is_platform_object,
+    is_transferable, is_transferable_interface_exposed, realm_agent_cluster, serializable_interface_name,
+    serializable_payload_version, serializable_steps, serialization_steps, transfer_steps, transferable_is_detached,
+    transferable_primary_interface, transferable_set_detached,
 };
 use crate::webidl::dom_exception::{self, DOMExceptionFields};
 use crate::webidl::quota_exceeded_error::{self, QuotaExceededErrorFields};
@@ -854,7 +853,7 @@ impl Serializer<'_> {
                         quota_exceeded_error::serialization_steps(&QuotaExceededErrorFields::of(object), serialized);
                     }
                     SerializableSteps::CryptoKey => crypto_key::serialization_steps(object, serialized),
-                    SerializableSteps::Rust | SerializableSteps::Cpp => {
+                    SerializableSteps::Rust => {
                         let realm = self.realm.unwrap_or_else(|| object.shape().realm());
                         serialization_steps(
                             &CallContext::new(vm, realm),
@@ -1370,40 +1369,6 @@ impl Deserializer<'_, '_> {
                     return Err(data_clone_error("Unsupported type"));
                 }
 
-                // NB: The deserialization steps of an interface implemented in Rust, and those that run here for
-                //     DOMException, QuotaExceededError and CryptoKey, create the new instance from what they read, so
-                //     they run here, at the position in memory that the instance has.
-                let steps = serializable_steps(interface_name);
-                if steps != SerializableSteps::Cpp {
-                    if version.is_some_and(|version| version != serializable_payload_version()) {
-                        return Err(data_clone_error_from_serialization_error(
-                            realm,
-                            "Unsupported serializable payload version",
-                        ));
-                    }
-                    let memory_index = self.memory.size();
-                    self.memory.append(Value::UNDEFINED);
-                    let value = match steps {
-                        SerializableSteps::DOMException => {
-                            let fields = dom_exception::deserialization_steps(self.serialized)?;
-                            Value::from_object(dom_exception::create(realm, &fields))
-                        }
-                        SerializableSteps::QuotaExceededError => {
-                            let fields = quota_exceeded_error::deserialization_steps(self.serialized)?;
-                            Value::from_object(quota_exceeded_error::create(realm, &fields))
-                        }
-                        SerializableSteps::CryptoKey => {
-                            Value::from_object(crypto_key::deserialization_steps(realm, self.serialized)?)
-                        }
-                        _ => deserialize_rust_platform_object(interface_name, self.serialized, self.memory)?,
-                    };
-                    self.memory.set(memory_index, value);
-                    return Ok(value);
-                }
-
-                // 3. Set value to a new instance of the interface identified by interfaceName, created in targetRealm.
-                value = Value::from_object(create_serialized_platform_object(interface_name, realm));
-
                 if version.is_some_and(|version| version != serializable_payload_version()) {
                     return Err(data_clone_error_from_serialization_error(
                         realm,
@@ -1411,8 +1376,31 @@ impl Deserializer<'_, '_> {
                     ));
                 }
 
+                // 3. Set value to a new instance of the interface identified by interfaceName, created in targetRealm.
                 // 4. Set deep to true.
-                deep = true;
+                // NB: The deserialization steps of an interface implemented in Rust, and those that run here for
+                //     DOMException, QuotaExceededError and CryptoKey, create the new instance from what they read, so
+                //     they run here, at the position in memory that the instance has, rather than in step 25.4.
+                let memory_index = self.memory.size();
+                self.memory.append(Value::UNDEFINED);
+                let value = match serializable_steps(interface_name) {
+                    SerializableSteps::DOMException => {
+                        let fields = dom_exception::deserialization_steps(self.serialized)?;
+                        Value::from_object(dom_exception::create(realm, &fields))
+                    }
+                    SerializableSteps::QuotaExceededError => {
+                        let fields = quota_exceeded_error::deserialization_steps(self.serialized)?;
+                        Value::from_object(quota_exceeded_error::create(realm, &fields))
+                    }
+                    SerializableSteps::CryptoKey => {
+                        Value::from_object(crypto_key::deserialization_steps(realm, self.serialized)?)
+                    }
+                    SerializableSteps::Rust => {
+                        deserialize_rust_platform_object(interface_name, self.serialized, self.memory)?
+                    }
+                };
+                self.memory.set(memory_index, value);
+                return Ok(value);
             }
         }
 
@@ -1490,10 +1478,8 @@ impl Deserializer<'_, '_> {
                 }
             }
             // 4. Otherwise:
-            else {
-                // 1. Perform the appropriate deserialization steps for the interface identified by serialized.[[Type]], given serialized, value, and targetRealm.
-                deserialization_steps(value.as_object(), self.serialized, self.memory)?;
-            }
+            //    1. Perform the appropriate deserialization steps for the interface identified by serialized.[[Type]], given serialized, value, and targetRealm.
+            // NB: Step 23 runs the deserialization steps of a platform object.
         }
 
         // 26. Return value.

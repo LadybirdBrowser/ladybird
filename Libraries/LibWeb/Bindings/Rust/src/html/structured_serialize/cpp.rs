@@ -173,16 +173,6 @@ unsafe extern "C" {
         reader: *mut c_void,
         memory: *mut c_void,
     ) -> RawNativeFunctionResult;
-    fn web_structured_serialize_create_serialized_platform_object(
-        interface_name: u16,
-        realm: *mut c_void,
-    ) -> *mut c_void;
-    fn web_structured_serialize_deserialization_steps(
-        realm: *mut c_void,
-        object: *mut c_void,
-        reader: *mut c_void,
-        memory: *mut c_void,
-    ) -> RawNativeFunctionResult;
 
     fn web_structured_serialize_is_transferable(object: *mut c_void) -> bool;
     fn web_structured_serialize_transferable_is_detached(object: *mut c_void) -> bool;
@@ -888,8 +878,6 @@ pub(crate) enum SerializableSteps {
     QuotaExceededError,
     /// The steps of CryptoKey, which run in crate::crypto::crypto_key.
     CryptoKey,
-    /// The steps of an interface implemented in C++, which C++ runs.
-    Cpp,
 }
 
 pub(crate) fn serializable_steps(interface_name: u16) -> SerializableSteps {
@@ -899,7 +887,6 @@ pub(crate) fn serializable_steps(interface_name: u16) -> SerializableSteps {
         1 => SerializableSteps::DOMException,
         2 => SerializableSteps::QuotaExceededError,
         3 => SerializableSteps::CryptoKey,
-        4 => SerializableSteps::Cpp,
         steps => unreachable!("LibWeb names no serializable steps {steps}"),
     }
 }
@@ -919,36 +906,6 @@ pub(crate) fn deserialize_rust_platform_object(
             memory.as_raw(),
         )
     })
-}
-
-/// A new instance of the interface implemented in C++, created in the realm, which its deserialization steps fill in.
-pub(crate) fn create_serialized_platform_object(interface_name: u16, realm: Gc<Realm>) -> Gc<Object> {
-    // SAFETY: The realm is live, and LibWeb returns a live object.
-    unsafe {
-        object_from_abi(web_structured_serialize_create_serialized_platform_object(
-            interface_name,
-            realm.as_ptr().cast(),
-        ))
-    }
-    .expect("LibWeb creates the instance")
-}
-
-/// The deserialization steps of the interface of the instance, given the record and the realm.
-pub(crate) fn deserialization_steps(
-    object: Gc<Object>,
-    serialized: StructuredSerializeReader,
-    memory: DeserializationMemory,
-) -> WebIdlResult<()> {
-    // SAFETY: The realm and the object are live, and the reader and the memory are lent.
-    completion(unsafe {
-        web_structured_serialize_deserialization_steps(
-            serialized.realm_raw(),
-            object_into_abi(object),
-            serialized.as_raw(),
-            memory.as_raw(),
-        )
-    })?;
-    Ok(())
 }
 
 /// Whether the object is a platform object that is a transferable object, which has a [[Detached]] internal slot.

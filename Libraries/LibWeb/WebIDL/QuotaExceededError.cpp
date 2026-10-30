@@ -15,11 +15,6 @@ namespace Web::WebIDL {
 
 GC_DEFINE_ALLOCATOR(QuotaExceededError);
 
-QuotaExceededError::QuotaExceededError()
-    : DOMException()
-{
-}
-
 QuotaExceededError::QuotaExceededError(Utf16String const& message)
     : DOMException("QuotaExceededError"_fly_string, message)
 {
@@ -30,11 +25,6 @@ QuotaExceededError::QuotaExceededError(Utf16FlyString name, Utf16String const& m
     , m_quota(quota)
     , m_requested(requested)
 {
-}
-
-GC::Ref<QuotaExceededError> QuotaExceededError::create()
-{
-    return GC::Heap::the().allocate<QuotaExceededError>();
 }
 
 GC::Ref<QuotaExceededError> QuotaExceededError::create(Utf16String const& message)

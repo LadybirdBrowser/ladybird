@@ -131,20 +131,9 @@ GC::Ref<CryptoKey> CryptoKey::create(InternalKeyData key_data)
     return GC::Heap::the().allocate<CryptoKey>(move(key_data));
 }
 
-GC::Ref<CryptoKey> CryptoKey::create()
-{
-    return GC::Heap::the().allocate<CryptoKey>();
-}
-
 CryptoKey::CryptoKey(InternalKeyData key_data)
     : m_algorithm(KeyAlgorithmData {})
     , m_key_data(move(key_data))
-{
-}
-
-CryptoKey::CryptoKey()
-    : m_algorithm(KeyAlgorithmData {})
-    , m_key_data(MUST(ByteBuffer::create_uninitialized(0)))
 {
 }
 

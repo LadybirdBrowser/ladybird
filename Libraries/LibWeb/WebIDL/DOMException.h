@@ -102,7 +102,6 @@ class WEB_API DOMException : public Bindings::GCAllocatedWrappable {
 public:
     static GC::Ref<DOMException> create(FlyString name, Utf16String const& message);
     static GC::Ref<DOMException> create(Utf16FlyString name, Utf16String const& message);
-    static GC::Ref<DOMException> create();
     static GC::Ref<DOMException> create_for_constructor(Utf16String const& message, Utf16String const& name) { return create(Utf16FlyString::from_utf16(name.utf16_view()), message); }
 
     virtual ~DOMException() override;
@@ -117,7 +116,6 @@ public:
 protected:
     DOMException(FlyString name, Utf16String const& message);
     DOMException(Utf16FlyString name, Utf16String const& message);
-    DOMException();
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
