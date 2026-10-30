@@ -131,6 +131,8 @@ bool web_bindings_object_implements_interface(JSObject* object, u16 interface_na
 JSObject* web_bindings_create_dom_exception(void* realm, ReadonlyBytes name, FlatPtr message);
 bool web_bindings_extract_an_origin(JSObject* object, void* ctx, void (*on_origin)(void*, URL::FFI::FfiOrigin const*));
 JSCompletion web_bindings_serialize_value(RustSerializationWriter*, JSValue);
+void web_bindings_serialize_u8(RustSerializationWriter*, u8);
+void web_bindings_serialize_i32(RustSerializationWriter*, i32);
 void web_bindings_serialize_u32(RustSerializationWriter*, u32);
 void web_bindings_serialize_u64(RustSerializationWriter*, u64);
 void web_bindings_serialize_f64(RustSerializationWriter*, double);
@@ -140,6 +142,9 @@ void web_bindings_serialize_optional_u64(RustSerializationWriter*, bool has_valu
 void web_bindings_serialize_utf16_string(RustSerializationWriter*, FlatPtr string);
 void web_bindings_serialize_bytes(RustSerializationWriter*, ReadonlyBytes);
 JSCompletion web_bindings_deserialize_value(RustSerializationReader*);
+bool web_bindings_deserialize_is_for_storage(RustSerializationReader*);
+JSCompletion web_bindings_deserialize_u8(RustSerializationReader*, u8* out_value);
+JSCompletion web_bindings_deserialize_i32(RustSerializationReader*, i32* out_value);
 JSCompletion web_bindings_deserialize_u32(RustSerializationReader*, u32* out_value);
 JSCompletion web_bindings_deserialize_u64(RustSerializationReader*, u64* out_value);
 JSCompletion web_bindings_deserialize_f64(RustSerializationReader*, double* out_value);
@@ -246,6 +251,16 @@ JSCompletion web_bindings_serialize_value(RustSerializationWriter* writer, JSVal
     return completion_to_abi(writer->realm, JS::js_undefined());
 }
 
+void web_bindings_serialize_u8(RustSerializationWriter* writer, u8 value)
+{
+    writer->serialized.encode(value);
+}
+
+void web_bindings_serialize_i32(RustSerializationWriter* writer, i32 value)
+{
+    writer->serialized.encode(value);
+}
+
 void web_bindings_serialize_u32(RustSerializationWriter* writer, u32 value)
 {
     writer->serialized.encode(value);
@@ -290,6 +305,21 @@ void web_bindings_serialize_bytes(RustSerializationWriter* writer, ReadonlyBytes
 JSCompletion web_bindings_deserialize_value(RustSerializationReader* reader)
 {
     return completion_to_abi(reader->realm, HTML::structured_deserialize_internal(reader->realm->vm(), reader->serialized, reader->realm, reader->memory));
+}
+
+bool web_bindings_deserialize_is_for_storage(RustSerializationReader* reader)
+{
+    return reader->serialized.type() == HTML::SerializationType::Storage;
+}
+
+JSCompletion web_bindings_deserialize_u8(RustSerializationReader* reader, u8* out_value)
+{
+    return deserialize_plain_value(reader, out_value);
+}
+
+JSCompletion web_bindings_deserialize_i32(RustSerializationReader* reader, i32* out_value)
+{
+    return deserialize_plain_value(reader, out_value);
 }
 
 JSCompletion web_bindings_deserialize_u32(RustSerializationReader* reader, u32* out_value)
