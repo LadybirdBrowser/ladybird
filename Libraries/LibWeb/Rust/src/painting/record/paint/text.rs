@@ -758,7 +758,7 @@ pub(crate) fn paint_cursor<O: Observer>(
     let Some(caret) = recorder.inputs.caret else {
         return;
     };
-    if caret.target != (CaretTarget::InBlock { block, owner }) {
+    if caret.target != (CaretTarget::InBlock { block, owner }) || !recorder.window_is_focused() {
         return;
     }
     let color = caret.color;

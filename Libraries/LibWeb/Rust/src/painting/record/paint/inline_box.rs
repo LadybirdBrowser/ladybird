@@ -175,6 +175,7 @@ fn paint_pieces<O: Observer>(
         if facts.is_visible
             && let Some(caret) = recorder.inputs.caret
             && caret.target == crate::painting::record::inputs::CaretTarget::EmptyInline(paintable)
+            && recorder.window_is_focused()
         {
             let color = caret.color;
             if color.alpha() != 0 {

@@ -155,6 +155,9 @@ pub(crate) struct OutputSize {
     // Recorded again every frame: scroll-offset-dependent content and resources without
     // retained output. A scope is live when any child is.
     pub live: bool,
+    // Recorded again when the window gains or loses focus. A scope reads the window focus when
+    // any child does.
+    pub reads_window_focus: bool,
 }
 
 impl OutputSize {
@@ -163,6 +166,7 @@ impl OutputSize {
         self.hits += other.hits;
         self.blocking_wheel_event_regions += other.blocking_wheel_event_regions;
         self.live |= other.live;
+        self.reads_window_focus |= other.reads_window_focus;
     }
 }
 
@@ -185,6 +189,7 @@ const _: () = assert!(std::mem::size_of::<ChildEntry>() == 16);
 
 const SCOPE_KEY_BIT: u32 = 1 << 31;
 const META_LIVE: u32 = 1;
+const META_READS_WINDOW_FOCUS: u32 = 2;
 const META_BLOCKING_REGIONS_SHIFT: u32 = 8;
 
 impl ChildEntry {
@@ -199,7 +204,12 @@ impl ChildEntry {
 
     fn with_key(key: u32, output: OutputSize) -> Self {
         let meta = (output.blocking_wheel_event_regions << META_BLOCKING_REGIONS_SHIFT)
-            | if output.live { META_LIVE } else { 0 };
+            | if output.live { META_LIVE } else { 0 }
+            | if output.reads_window_focus {
+                META_READS_WINDOW_FOCUS
+            } else {
+                0
+            };
         Self {
             key,
             bytes: output.bytes,
@@ -222,11 +232,16 @@ impl ChildEntry {
             hits: self.hits,
             blocking_wheel_event_regions: self.meta >> META_BLOCKING_REGIONS_SHIFT,
             live: self.meta & META_LIVE != 0,
+            reads_window_focus: self.reads_window_focus(),
         }
     }
 
     pub(crate) fn is_live(&self) -> bool {
         self.meta & META_LIVE != 0
+    }
+
+    pub(crate) fn reads_window_focus(&self) -> bool {
+        self.meta & META_READS_WINDOW_FOCUS != 0
     }
 }
 

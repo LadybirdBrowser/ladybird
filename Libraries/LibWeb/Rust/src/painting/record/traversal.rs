@@ -94,6 +94,9 @@ fn record_display_list_impl<O: Observer>(
     } else {
         (None, None)
     };
+    let window_focus_changed = source_recording
+        .as_ref()
+        .is_some_and(|frame| frame.window_is_focused != inputs.window_is_focused);
     let force_dark_settings = inputs.force_dark_enabled.then_some(inputs.force_dark_settings);
     let mut recorder = PaintRecorder {
         source,
@@ -106,6 +109,7 @@ fn record_display_list_impl<O: Observer>(
         source_recording,
         source_items,
         live_producer: false,
+        producer_reads_window_focus: std::cell::Cell::new(false),
         line_root_positions: None,
         moved_expansion: FastSet::default(),
         blocking_wheel_event_region_count: 0,
@@ -135,7 +139,7 @@ fn record_display_list_impl<O: Observer>(
         .as_ref()
         .zip(recorder.source_items.as_ref())
         .filter(|(frame, _)| {
-            frame_is_unchanged(tree, !source.frame().damage().is_empty())
+            frame_is_unchanged(tree, !source.frame().damage().is_empty(), window_focus_changed)
                 && !has_inspector_overlays
                 && frame.prologue_bytes == prologue_bytes
                 && recorder.recorder.bytes() == &frame.display_list.bytes[..prologue_bytes as usize]
@@ -152,8 +156,14 @@ fn record_display_list_impl<O: Observer>(
         }
         None => {
             let source_prologue_bytes = recorder.source_recording.as_ref().map(|frame| frame.prologue_bytes);
-            Assembler::new(&mut recorder, tree, source_prologue_bytes, inputs.publishes_recording)
-                .assemble_root(root_scope);
+            Assembler::new(
+                &mut recorder,
+                tree,
+                source_prologue_bytes,
+                inputs.publishes_recording,
+                window_focus_changed,
+            )
+            .assemble_root(root_scope);
             if has_inspector_overlays {
                 recorder.trace_paint(
                     Operation::Named(None, "inspector-overlays"),
@@ -175,6 +185,7 @@ fn record_display_list_impl<O: Observer>(
         has_blocking_wheel_event_listeners: recorder.blocking_wheel_event_region_count > 0,
         wheel_event_listener_state_generation: inputs.wheel_event_listener_state_generation,
         is_identical_to_published_recording: false,
+        window_is_focused: inputs.window_is_focused,
         capture_log: recorder.observer.finish(),
         vector_image_display_lists: Vec::new(),
     };

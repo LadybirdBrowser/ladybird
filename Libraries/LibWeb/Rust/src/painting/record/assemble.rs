@@ -54,6 +54,8 @@ fn producer_kinds(producer: PaintProducer) -> SmallVec<[ProducerKind; 5]> {
 pub(crate) struct ProducerOutcome {
     // Recorded again every frame; the entry and every scope above it stay live.
     pub live: bool,
+    // Recorded again when the window gains or loses focus.
+    pub reads_window_focus: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -130,9 +132,10 @@ struct PendingCopy {
 }
 
 /// Whether the published recording can be returned as it is: nothing was pushed, nothing in it is
-/// recorded every frame, and there is a published tree at all.
-pub(crate) fn frame_is_unchanged(tree: &PaintOrderTree, has_damage: bool) -> bool {
-    !tree.root().is_none() && !has_damage && !tree.root_entry().is_live()
+/// recorded every frame or read a window focus that changed, and there is a published tree at all.
+pub(crate) fn frame_is_unchanged(tree: &PaintOrderTree, has_damage: bool, window_focus_changed: bool) -> bool {
+    let root = tree.root_entry();
+    !tree.root().is_none() && !has_damage && !root.is_live() && !(window_focus_changed && root.reads_window_focus())
 }
 
 pub(crate) struct Assembler<'a, H: AssemblyHost> {
@@ -143,6 +146,8 @@ pub(crate) struct Assembler<'a, H: AssemblyHost> {
     // Off for a frame that publishes nothing: it still marks damaged paths, but the tree's
     // structure keeps describing the published recording.
     rewrites_tree: bool,
+    // The published recording was made in the other window focus state.
+    window_focus_changed: bool,
     pending_copy: Option<PendingCopy>,
 }
 
@@ -152,14 +157,22 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
         tree: &'a mut PaintOrderTree,
         source_prologue_bytes: Option<u32>,
         rewrites_tree: bool,
+        window_focus_changed: bool,
     ) -> Self {
         Self {
             host,
             tree,
             source_prologue_bytes,
             rewrites_tree,
+            window_focus_changed,
             pending_copy: None,
         }
+    }
+
+    // Copying an entry would keep output that is recorded every frame, or that read the window
+    // focus before it changed.
+    fn records_again(&self, entry: &ChildEntry) -> bool {
+        entry.is_live() || (self.window_focus_changed && entry.reads_window_focus())
     }
 
     /// Records the frame's root scope after the prologue and returns its output. A frame that
@@ -227,7 +240,7 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
             let published_output = entry.output();
             let assembled = match entry.key() {
                 ChildKey::Scope(child) => {
-                    if self.tree.is_on_damaged_path(child) || entry.is_live() {
+                    if self.tree.is_on_damaged_path(child) || self.records_again(&entry) {
                         self.assemble_scope(child, child_cursor)
                     } else {
                         self.copy(child_cursor, published_output);
@@ -265,7 +278,7 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
         entry: &ChildEntry,
     ) -> bool {
         damage.intersects(kind.damage())
-            || entry.is_live()
+            || self.records_again(entry)
             || (damage.contains(PaintDamage::DESCENDANT_READERS) && self.host.producer_reads_descendants(owner, kind))
     }
 
@@ -335,7 +348,7 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
                     let assembled = match found {
                         Some((child, index)) => {
                             matched[index] = true;
-                            if self.tree.is_on_damaged_path(child) || published[index].is_live() {
+                            if self.tree.is_on_damaged_path(child) || self.records_again(&published[index]) {
                                 self.assemble_scope(child, published_cursors[index])
                             } else {
                                 self.copy(published_cursors[index], published[index].output());
@@ -452,6 +465,7 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
             hits: after.hits - before.hits,
             blocking_wheel_event_regions: after.blocking_wheel_event_regions - before.blocking_wheel_event_regions,
             live: outcome.live,
+            reads_window_focus: outcome.reads_window_focus,
         };
         ChildEntry::producer(kind, output)
     }
@@ -642,7 +656,7 @@ mod tests {
 
         fn record_producer(&mut self, owner: NodeSlotId, kind: ProducerKind) -> ProducerOutcome {
             let Some(content) = self.contents.get(&(owner, kind)).copied() else {
-                return ProducerOutcome { live: false };
+                return ProducerOutcome::default();
             };
             self.recorded.push((owner, kind));
             let output = &mut self.output;
@@ -685,7 +699,10 @@ mod tests {
                 });
             }
             output.blocking_wheel_event_region_count += content.blocking;
-            ProducerOutcome { live: content.live }
+            ProducerOutcome {
+                live: content.live,
+                ..Default::default()
+            }
         }
 
         fn output_position(&self) -> OutputPosition {
@@ -753,7 +770,7 @@ mod tests {
         let prologue_bytes = host.output.recorder.byte_size() as u32;
         let source_prologue_bytes = host.source.as_ref().map(|frame| frame.prologue_bytes);
         let root_output =
-            Assembler::new(host, tree, source_prologue_bytes, rewrites_tree).assemble_root(context(row(0)));
+            Assembler::new(host, tree, source_prologue_bytes, rewrites_tree, false).assemble_root(context(row(0)));
         let output = std::mem::replace(&mut host.output, new_output());
         let hit_test_items = std::sync::Arc::try_unwrap(output.hit_test_list.items).expect("items are unshared");
         Frame {
@@ -841,7 +858,7 @@ mod tests {
     fn a_quiet_frame_is_unchanged_and_a_fresh_frame_records_everything() {
         let mut host = cards_host();
         let mut tree = PaintOrderTree::default();
-        assert!(!frame_is_unchanged(&tree, false));
+        assert!(!frame_is_unchanged(&tree, false, false));
 
         let frame = record_frame(&mut host, &mut tree);
 
@@ -852,8 +869,8 @@ mod tests {
             frame.root_output.bytes as usize,
             frame.display_list.bytes.len() - frame.prologue_bytes as usize
         );
-        assert!(frame_is_unchanged(&tree, false));
-        assert!(!frame_is_unchanged(&tree, true));
+        assert!(frame_is_unchanged(&tree, false, false));
+        assert!(!frame_is_unchanged(&tree, true, false));
     }
 
     #[test]
@@ -1187,7 +1204,7 @@ mod tests {
         let first = record_frame(&mut host, &mut tree);
         host.source = Some(first);
         host.clear_damage();
-        assert!(!frame_is_unchanged(&tree, false));
+        assert!(!frame_is_unchanged(&tree, false, false));
 
         let second = record_next_frame(&mut host, &mut tree);
 

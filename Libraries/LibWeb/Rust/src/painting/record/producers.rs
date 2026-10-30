@@ -182,9 +182,10 @@ impl<O: Observer> AssemblyHost for PaintRecorder<'_, O> {
         if self.producer_is_skipped(owner, kind) {
             self.observer
                 .observe(|log| log.leaf(Operation::Producer(owner, kind), Action::Skip, true));
-            return ProducerOutcome { live: false };
+            return ProducerOutcome::default();
         }
         self.live_producer = false;
+        self.producer_reads_window_focus.set(false);
         let start = self.output_position();
         self.observer
             .observe(|log| log.begin(Operation::Producer(owner, kind), Action::Record));
@@ -224,6 +225,7 @@ impl<O: Observer> AssemblyHost for PaintRecorder<'_, O> {
         );
         ProducerOutcome {
             live: self.live_producer,
+            reads_window_focus: self.producer_reads_window_focus.get(),
         }
     }
 

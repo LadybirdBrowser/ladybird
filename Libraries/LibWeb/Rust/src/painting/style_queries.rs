@@ -526,12 +526,12 @@ pub(crate) fn auto_outline_data(auto_outline_color: u32) -> OutlineData {
 pub(crate) fn outline_data(
     arena: &impl PaintRead,
     node: NodeSlotId,
-    window_is_focused: bool,
+    window_is_focused: impl FnOnce() -> bool,
     auto_outline_color: u32,
 ) -> Option<OutlineData> {
     let style = arena.node_style_if_live(node)?;
     let is_auto = style.misc_reset().outline_style == outline_style::AUTO;
-    if is_auto && !window_is_focused {
+    if is_auto && !window_is_focused() {
         return None;
     }
     let geometry = outline_geometry(style)?;

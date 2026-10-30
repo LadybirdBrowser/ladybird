@@ -1,0 +1,81 @@
+<!doctype html>
+<html id="html">
+<script src="../include.js"></script>
+<script src="recording-test.js"></script>
+<style>
+    body { margin: 0; font: 16px/20px monospace; }
+    #editor, #plain { width: 200px; height: 20px; }
+    #editor { outline: none; }
+</style>
+<body id="body">
+<div id="editor" contenteditable>Editable</div><div id="plain">Plain</div>
+<script>
+// The caret paints only while the window is focused, so a focus change records the block that paints it
+// again and copies everything else.
+const focusChangeTrace = `
+    damage: rows=0 moved=0 order=0 eligibility=0 all=false
+    @canvas RECORD (empty)
+    @viewport ASSEMBLE
+      @viewport/preamble COPY
+      @viewport/background/hit-test COPY
+      @viewport/scroll-metadata COPY
+      @viewport/background COPY
+      @viewport/border COPY
+      BlockContainer<HTML>#html/descendants(background-and-borders) COPY
+      @viewport/foreground/hit-test COPY
+      @viewport/foreground COPY
+      BlockContainer<HTML>#html/descendants(foreground) COPY
+      BlockContainer<HTML>#html ASSEMBLE
+        BlockContainer<HTML>#html/preamble COPY
+        BlockContainer<HTML>#html/background/hit-test COPY
+        BlockContainer<HTML>#html/scroll-metadata COPY
+        BlockContainer<HTML>#html/background COPY
+        BlockContainer<HTML>#html/border COPY
+        BlockContainer<BODY>#body/descendants(background-and-borders) COPY
+        BlockContainer<HTML>#html/foreground/hit-test COPY
+        BlockContainer<HTML>#html/foreground COPY
+        BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
+          BlockContainer<BODY>#body/foreground/hit-test COPY
+          BlockContainer<BODY>#body/foreground COPY
+          BlockContainer<DIV>#editor/descendants(foreground) ASSEMBLE
+            BlockContainer<DIV>#editor/foreground/hit-test COPY
+            BlockContainer<DIV>#editor/foreground RECORD
+            BlockContainer<DIV>#editor/outline COPY
+            BlockContainer<DIV>#editor/overlay/hit-test COPY
+            BlockContainer<DIV>#editor/overlay COPY
+          BlockContainer<DIV>#plain/descendants(foreground) COPY
+          BlockContainer<BODY>#body/outline COPY
+          BlockContainer<BODY>#body/overlay/hit-test COPY
+          BlockContainer<BODY>#body/overlay COPY
+        BlockContainer<HTML>#html/outline COPY
+      @viewport/outline COPY
+`;
+displayListTest({
+    setup: () => {
+        removeBodyWhitespace();
+        editor.focus();
+        getSelection().collapse(editor.firstChild, 3);
+    },
+    steps: [
+        {
+            name: "quiet before focus changes",
+            expect: `
+                damage: rows=0 moved=0 order=0 eligibility=0 all=false
+                @canvas RECORD (empty)
+                @viewport COPY
+            `,
+        },
+        {
+            name: "window loses focus",
+            mutate: () => internals.setPageFocus(false),
+            expect: focusChangeTrace,
+        },
+        {
+            name: "window regains focus",
+            mutate: () => internals.setPageFocus(true),
+            expect: focusChangeTrace,
+        },
+    ],
+    cleanup: () => internals.setPageFocus(true),
+});
+</script>
