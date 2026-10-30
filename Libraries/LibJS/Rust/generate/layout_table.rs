@@ -490,14 +490,14 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     field!(w, "DIRECT_GETTER_FUNCTION_WEAK_IMPL_VALUE_WORD_OFFSET", "DirectGetterFunction.weak_impl_value_word_offset", "u32", DirectGetterFunction, weak_impl_value_word_offset, 4, "nullable", "scalar");
 
     w.section("ECMAScriptFunctionObject layout");
-    field!(w, "ECMASCRIPT_FUNCTION_OBJECT_SHARED_DATA", "ECMAScriptFunctionObject.shared_data", "SharedFunctionInstanceData", EcmascriptFunctionObject, shared_data, 8, "nonnull", "cell");
-    field!(w, "ECMASCRIPT_FUNCTION_OBJECT_ENVIRONMENT", "ECMAScriptFunctionObject.environment", "Environment", EcmascriptFunctionObject, environment, 8, "nullable", "cell", "environment_state");
-    field!(w, "ECMASCRIPT_FUNCTION_OBJECT_PRIVATE_ENVIRONMENT", "ECMAScriptFunctionObject.private_environment", "PrivateEnvironment", EcmascriptFunctionObject, private_environment, 8, "nullable", "cell", "environment_state");
+    field!(w, "ECMASCRIPT_FUNCTION_OBJECT_SHARED_DATA", "ECMAScriptFunctionObject.shared_data", "SharedFunctionInstanceData", FunctionObject, ecmascript_shared_data, 4, "nonnull", "compressed");
+    field!(w, "ECMASCRIPT_FUNCTION_OBJECT_ENVIRONMENT", "ECMAScriptFunctionObject.environment", "Environment", EcmascriptFunctionObject, environment, 4, "nullable", "compressed");
+    field!(w, "ECMASCRIPT_FUNCTION_OBJECT_PRIVATE_ENVIRONMENT", "ECMAScriptFunctionObject.private_environment", "PrivateEnvironment", EcmascriptFunctionObject, private_environment, 4, "nullable", "compressed");
     field!(w, "ECMASCRIPT_FUNCTION_OBJECT_SCRIPT_OR_MODULE", "ECMAScriptFunctionObject.script_or_module", "ScriptOrModule", EcmascriptFunctionObject, script_or_module, 16, "nullable", "scalar");
 
     w.section("SharedFunctionInstanceData layout");
-    field!(w, "SHARED_FUNCTION_INSTANCE_DATA_EXECUTABLE", "SharedFunctionInstanceData.executable", "Executable", SharedFunctionInstanceData, executable, 8, "nullable", "cell", "call_data");
-    field!(w, "SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA", "SharedFunctionInstanceData.asm_call_metadata", "u64", SharedFunctionInstanceData, asm_call_metadata, 8, "nullable", "scalar", "call_data");
+    field!(w, "SHARED_FUNCTION_INSTANCE_DATA_EXECUTABLE", "SharedFunctionInstanceData.executable", "Executable", SharedFunctionInstanceData, executable, 4, "nullable", "compressed");
+    field!(w, "SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA", "SharedFunctionInstanceData.asm_call_metadata", "u64", SharedFunctionInstanceData, asm_call_metadata, 8, "nullable", "scalar");
     offset!(w, "SHARED_FUNCTION_INSTANCE_DATA_FORMAL_PARAMETER_COUNT", SharedFunctionInstanceData, formal_parameter_count);
     offset!(w, "SHARED_FUNCTION_INSTANCE_DATA_STRICT", SharedFunctionInstanceData, strict);
     offset!(w, "SHARED_FUNCTION_INSTANCE_DATA_FUNCTION_ENVIRONMENT_NEEDED", SharedFunctionInstanceData, function_environment_needed);

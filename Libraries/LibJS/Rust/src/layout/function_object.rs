@@ -10,6 +10,7 @@ use super::cell::{CellHeader, Gc};
 use super::environment::{DeclarativeEnvironment, Environment, PrivateEnvironment};
 use super::executable::ExecutableHead;
 use super::execution_context::ScriptOrModule;
+use super::member::NullableMember;
 use super::object::Object;
 use super::realm::Realm;
 use crate::layout_forward::{
@@ -25,6 +26,9 @@ pub struct FunctionObject {
     /// Flags of the classes extending FunctionObject, in what would otherwise be padding (see
     /// ecmascript_function_flags).
     pub flags: Cell<u8>,
+    /// The shared data of an ECMAScript function object, in what would otherwise be padding (null for other
+    /// functions). See EcmascriptFunctionObject::shared_data().
+    pub ecmascript_shared_data: NullableMember<SharedFunctionInstanceData>,
 }
 
 const _: () = assert!(size_of::<FunctionObject>() == 80);
@@ -75,10 +79,9 @@ pub struct NativeFunctionTableEntry {
 #[repr(C)]
 pub struct EcmascriptFunctionObject {
     pub base: FunctionObject,
-    pub shared_data: Cell<Gc<SharedFunctionInstanceData>>,
+    pub environment: NullableMember<Environment>,
+    pub private_environment: NullableMember<PrivateEnvironment>,
     pub name: FlyStringSlot,
-    pub environment: Cell<Option<Gc<Environment>>>,
-    pub private_environment: Cell<Option<Gc<PrivateEnvironment>>>,
     pub script_or_module: Cell<ScriptOrModule>,
     pub storage: EcmascriptFunctionObjectStorage,
 }
@@ -100,7 +103,7 @@ pub mod asm_call_metadata {
 #[repr(C)]
 pub struct SharedFunctionInstanceData {
     pub header: CellHeader,
-    pub executable: Cell<Option<Gc<ExecutableHead>>>,
+    pub executable: NullableMember<ExecutableHead>,
     pub asm_call_metadata: Cell<u64>,
     pub formal_parameter_count: Cell<u32>,
     pub strict: Cell<bool>,
@@ -108,7 +111,7 @@ pub struct SharedFunctionInstanceData {
     pub uses_this: Cell<bool>,
     pub can_inline_call: Cell<bool>,
     /// How JIT code allocates the function environments of calls of the functions, once the runtime made one.
-    pub call_environment_template: Cell<Option<Gc<CallEnvironmentTemplate>>>,
+    pub call_environment_template: NullableMember<CallEnvironmentTemplate>,
     pub storage: SharedFunctionInstanceDataStorage,
 }
 

@@ -15,6 +15,7 @@ use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 pub use crate::layout::function_object::FunctionObject;
+use crate::layout::member::NullableMember;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::runtime::class_field_definition::ClassElementName;
@@ -95,6 +96,7 @@ impl FunctionObject {
             builtin: Cell::new(0),
             has_builtin: Cell::new(false),
             flags: Cell::new(0),
+            ecmascript_shared_data: NullableMember::null(),
         }
     }
 

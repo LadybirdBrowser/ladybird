@@ -25,6 +25,7 @@ use crate::layout::environment::{Environment, PrivateEnvironment};
 use crate::layout::execution_context::{ExecutionContext, ScriptOrModule};
 pub use crate::layout::function_object::EcmascriptFunctionObject;
 use crate::layout::function_object::ecmascript_function_flags;
+use crate::layout::member::NullableMember;
 use crate::layout::object::{IndexedStorageKind, Object};
 use crate::layout::value::Value;
 use crate::layout_forward::FlyStringSlot;
@@ -75,7 +76,7 @@ pub struct EcmascriptFunctionObjectStorage {
 }
 
 // NB: Every ECMAScript function has these bytes, so keep what only some functions need in the rare data.
-const _: () = assert!(size_of::<EcmascriptFunctionObject>() == 136);
+const _: () = assert!(size_of::<EcmascriptFunctionObject>() == 120);
 
 // SAFETY: Visits the cells of the rare data, if there is any.
 unsafe impl Trace for EcmascriptFunctionObjectStorage {
@@ -118,7 +119,7 @@ unsafe impl Trace for EcmascriptFunctionObject {
         self.base.trace(visitor);
         self.environment.trace(visitor);
         self.private_environment.trace(visitor);
-        self.shared_data.trace(visitor);
+        visitor.visit_nullable_member(&self.base.ecmascript_shared_data);
         self.storage.trace(visitor);
         match self.script_or_module.get() {
             ScriptOrModule::Empty => {}
@@ -216,6 +217,7 @@ impl EcmascriptFunctionObject {
         let base =
             FunctionObject::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No);
         base.set_is_ecmascript_function_object();
+        base.ecmascript_shared_data.set(Some(shared_data));
 
         // OPTIMIZATION: Start from a premade shape that already has this function kind's own properties in spec order.
         //               Arrow functions use the same shape as other functions of their kind, but never get a lazy prototype.
@@ -239,10 +241,9 @@ impl EcmascriptFunctionObject {
 
         Self {
             base,
-            shared_data: Cell::new(shared_data),
+            environment: NullableMember::new(parent_environment),
+            private_environment: NullableMember::new(private_environment),
             name: FlyStringSlot::new(None),
-            environment: Cell::new(parent_environment),
-            private_environment: Cell::new(private_environment),
             script_or_module: Cell::new(script_or_module),
             storage: EcmascriptFunctionObjectStorage::default(),
         }
@@ -800,7 +801,8 @@ impl EcmascriptFunctionObject {
     }
 
     pub fn shared_data(&self) -> Gc<SharedFunctionInstanceData> {
-        self.shared_data.get()
+        // SAFETY: An ECMAScript function object gets its shared data when it is created, and keeps it.
+        unsafe { self.base.ecmascript_shared_data.get_unchecked() }
     }
 
     pub fn is_module_wrapper(&self) -> bool {

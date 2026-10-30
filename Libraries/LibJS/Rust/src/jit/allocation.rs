@@ -268,8 +268,7 @@ impl FunctionEnvironmentFreeLists {
 /// of it, if they have none yet and JIT code can allocate them itself.
 pub fn make_call_environment_template(vm: &Vm, function: Gc<EcmascriptFunctionObject>, environment: Gc<Environment>) {
     let shared_data = function.shared_data();
-    // SAFETY: Nothing else refers to the template while this looks at whether there is one.
-    if unsafe { &*shared_data.call_environment_template.as_ptr() }.is_some() {
+    if !shared_data.call_environment_template.is_null() {
         return;
     }
     let Some(environment) = environment.downcast::<FunctionEnvironment>() else {
@@ -555,7 +554,7 @@ pub extern "C" fn libjs_jit_clone_function(
     let closure = EcmascriptFunctionObject::create_from_function_data_with_prototype(
         vm,
         realm,
-        sample.shared_data.get(),
+        sample.shared_data(),
         environment,
         private_environment,
         realm.function_prototype(),

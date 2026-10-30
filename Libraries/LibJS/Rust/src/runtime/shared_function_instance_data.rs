@@ -143,7 +143,7 @@ pub struct SharedFunctionInstanceDataStorage {
 }
 
 // NB: Every function has these bytes.
-const _: () = assert!(size_of::<SharedFunctionInstanceData>() == 280);
+const _: () = assert!(size_of::<SharedFunctionInstanceData>() == 272);
 
 /// The most properties that constructions make room for ahead (the largest inline capacity of plain objects).
 const MAX_CONSTRUCT_RESERVE: u32 = 16;
@@ -223,14 +223,14 @@ impl SharedFunctionInstanceData {
 
         Self {
             header: CellHeader::for_class(Self::CLASS),
-            executable: Cell::new(None),
+            executable: NullableMember::null(),
             asm_call_metadata: Cell::new(0),
             formal_parameter_count: Cell::new(formal_parameter_count),
             strict: Cell::new(strict),
             function_environment_needed: Cell::new(false),
             uses_this: Cell::new(false),
             can_inline_call: Cell::new(false),
-            call_environment_template: Cell::new(None),
+            call_environment_template: NullableMember::null(),
             storage: SharedFunctionInstanceDataStorage {
                 name,
                 source_code: RefCell::new(None),
