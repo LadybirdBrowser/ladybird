@@ -25,6 +25,7 @@ if (APPLE OR LINUX)
     list(APPEND TEST_SOURCES
         TestLibCoreFutex.cpp
         TestLibCoreProcess.cpp
+        TestLibCoreStandardPaths.cpp
     )
 endif()
 
