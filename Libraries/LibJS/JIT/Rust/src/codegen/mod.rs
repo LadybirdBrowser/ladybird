@@ -1645,17 +1645,15 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                 let exit = self.exit_site(node_id);
                 let output = self.output(node_id);
                 let field = self.emit_load_accessor(node_id, output, *offset, *part, exit)?;
-                self.masm.load64(output, &field);
-                self.masm.branch_test64(Condition::Zero, output, u64::MAX, exit);
+                self.emit_load_compressed_cell_or_branch(output, &field, exit);
                 self.box_object(output);
             }
             Op::CheckAccessorFunction { offset, part, function } => {
                 let exit = self.exit_site(node_id);
                 let accessor = Gpr(self.allocation.node(node_id).temps[0]);
                 let field = self.emit_load_accessor(node_id, accessor, *offset, *part, exit)?;
-                let scratch = self.pinned.scratch;
-                self.masm.move_imm64(scratch, function.0);
-                self.masm.branch64_memory(Condition::NotEqual, &field, scratch, exit);
+                self.masm
+                    .branch32_memory_imm(Condition::NotEqual, &field, function.compressed() as i32, exit);
             }
             Op::LoadNamed { offset, holds_data } => {
                 let exit = (!holds_data).then(|| self.exit_site(node_id));
@@ -1885,9 +1883,11 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             exit,
         );
         self.emit_load_compressed_cell(object, &Address::new(object, offsets.object_shape as i32));
-        self.masm
-            .load64(object, &Address::new(object, layout.shape_prototype as i32));
-        self.masm.branch_test64(Condition::Zero, object, u64::MAX, not_found);
+        self.emit_load_compressed_cell_or_branch(
+            object,
+            &Address::new(object, layout.shape_prototype as i32),
+            not_found,
+        );
         self.emit_unbox_cell(output, prototype);
         self.masm.branch64(Condition::Equal, object, output, found);
         self.masm.jump(walk);

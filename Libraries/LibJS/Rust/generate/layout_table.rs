@@ -182,7 +182,7 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     size!(w, "OBJECT_SIZE", Object);
 
     w.section("Accessor layout");
-    field!(w, "ACCESSOR_GETTER", "Accessor.getter", "FunctionObject", Accessor, getter, 8, "nullable", "cell");
+    field!(w, "ACCESSOR_GETTER", "Accessor.getter", "FunctionObject", Accessor, getter, 4, "nullable", "compressed");
 
     w.section("Object flags");
     field!(w, "OBJECT_FLAGS", "Object.flags", "u16", Object, flags, 2, "nullable", "scalar");
@@ -198,7 +198,7 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     w.constant("OBJECT_FLAG_IS_HTMLDDA", object_flag::IS_HTMLDDA);
 
     w.section("Shape layout");
-    field!(w, "SHAPE_REALM", "Shape.realm", "Realm", Shape, realm, 8, "nonnull", "cell");
+    field!(w, "SHAPE_REALM", "Shape.realm", "Realm", Shape, realm, 4, "nonnull", "compressed");
     offset!(w, "SHAPE_PROTOTYPE", Shape, prototype);
     field!(w, "SHAPE_DICTIONARY_GENERATION", "Shape.dictionary_generation", "u32", Shape, dictionary_generation, 4, "nullable", "scalar");
     w.constant("SHAPE_SIZE", size_of::<Shape>());

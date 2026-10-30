@@ -2491,7 +2491,7 @@ mod property_access {
     /// `Array.prototype.push` against fake arrays: `[shape, flags, named
     /// property storage, elements, storage kind (byte 0) and size (bytes
     /// 4-7), length writable (byte 0) and proxy target (byte 1)]`, with
-    /// shapes `[dictionary generation, prototype]`.
+    /// shapes `[dictionary generation, compressed prototype]`.
     mod array_push {
         use super::*;
         use crate::snapshot::Intrinsic;
@@ -2509,11 +2509,11 @@ mod property_access {
             value::int32(99)
         }
 
-        struct FakeObject(Box<[u64; 6]>);
+        struct FakeObject(&'static mut [u64]);
 
         impl FakeObject {
             fn new(shape: &Cell, flags: u64, elements: &[u64], size: u32) -> Self {
-                Self(Box::new([
+                Self(fake_heap::low_cell(&[
                     fake_heap::low_compressed(shape.address()),
                     flags,
                     0,
@@ -2547,9 +2547,9 @@ mod property_access {
             fn new() -> Self {
                 let object_prototype_shape = Cell::new([0, 0, 0]);
                 let object_prototype = FakeObject::new(&object_prototype_shape, EXTENSIBLE, &[], 0);
-                let array_prototype_shape = Cell::new([0, object_prototype.address(), 0]);
-                let mut array_prototype = FakeObject::new(&array_prototype_shape, EXTENSIBLE, &[], 0);
-                let array_shape = Cell::new([0, array_prototype.address(), 0]);
+                let array_prototype_shape = Cell::new([0, fake_heap::low_compressed(object_prototype.address()), 0]);
+                let array_prototype = FakeObject::new(&array_prototype_shape, EXTENSIBLE, &[], 0);
+                let array_shape = Cell::new([0, fake_heap::low_compressed(array_prototype.address()), 0]);
                 let push = Cell::new([0; 3]);
                 let methods = vec![(u64::from(value::OBJECT_TAG) << 48) | push.address()].into_boxed_slice();
                 array_prototype.0[2] = methods.as_ptr() as u64;
@@ -2644,7 +2644,7 @@ mod property_access {
             assert_eq!(grown.0[4] >> 32, 2);
 
             // Arrays without indexed properties yet.
-            let mut empty = array(&world, &buffer(0, 0), 0);
+            let empty = array(&world, &buffer(0, 0), 0);
             empty.0[3] = 0;
             empty.0[4] = 0;
             assert_eq!(world.push(&empty), (returned(value::int32(99)), vec![]));
@@ -2653,7 +2653,7 @@ mod property_access {
 
         #[test]
         fn pushes_exit_for_arrays_they_cannot_append_to_unobservably() {
-            let mut world = World::new();
+            let world = World::new();
             let elements = buffer(1, 4);
             let exits = |world: &World, change: &dyn Fn(&mut FakeObject)| {
                 let mut pushed = array(world, &elements, 1);
@@ -3723,6 +3723,8 @@ mod direct_calls {
             callee: Callee,
             function: &'static mut [u64],
             shape: &'static mut [u64],
+            /// The realm of the shape, a cell in the region.
+            realm: u64,
             shared_data: &'static mut [u64],
         }
 
@@ -3740,7 +3742,8 @@ mod direct_calls {
             fn new(formal_parameter_count: u64, flags: u64) -> Self {
                 let callee = Callee::new();
                 callee.executable[EXECUTABLE_ARGUMENTS_BASE_WORD] = 9;
-                let shape = fake_heap::cell(&[REALM]);
+                let realm = fake_heap::cell(&[0]).as_ptr() as u64;
+                let shape = fake_heap::cell(&[fake_heap::compressed(realm)]);
                 let shared_data = fake_heap::cell(&[
                     fake_heap::compressed(callee.executable.as_ptr() as u64),
                     formal_parameter_count | flags,
@@ -3757,6 +3760,7 @@ mod direct_calls {
                     callee,
                     function,
                     shape,
+                    realm,
                     shared_data,
                 }
             }
@@ -3842,7 +3846,7 @@ mod direct_calls {
             let half = |offset: usize| (frame[offset / 8] >> (8 * (offset % 8))) as u32;
             let byte = |offset: usize| (frame[offset / 8] >> (8 * (offset % 8))) as u8;
             assert_eq!(word(64), callee.function.as_ptr() as u64, "function");
-            assert_eq!(word(72), REALM);
+            assert_eq!(word(72), callee.realm);
             assert_eq!((word(80), word(88)), (FUNCTION_WORDS[2], FUNCTION_WORDS[3]));
             assert_eq!(
                 (word(8), word(96), word(16)),
@@ -4211,7 +4215,8 @@ mod direct_calls {
             const RAW_NATIVE_FLAG: u16 = 1 << 7;
             for through_call in [false, true] {
                 let mut callee = DynamicCallee::new(0, 0);
-                let shape = fake_heap::cell(&[REALM]);
+                let realm = fake_heap::cell(&[0]).as_ptr() as u64;
+                let shape = fake_heap::cell(&[fake_heap::compressed(realm)]);
                 // Native function index 1, with a bit above the table's index mask that the call stub drops.
                 let native = fake_heap::cell(&[
                     fake_heap::compressed(shape.as_ptr() as u64),
@@ -4258,7 +4263,7 @@ mod direct_calls {
                 assert_eq!(state.generic_calls, 0);
                 let frame = &state.direct.callee_frames[0];
                 assert_eq!(frame[64 / 8], native.as_ptr() as u64, "function");
-                assert_eq!(frame[72 / 8], REALM);
+                assert_eq!(frame[72 / 8], realm);
                 assert_eq!(frame[32 / 8], 0, "no executable");
                 assert_eq!(machine.vm[0], machine.frame.as_ptr() as u64);
                 assert_eq!(machine.vm[3], stack);

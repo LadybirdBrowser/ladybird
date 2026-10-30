@@ -13,6 +13,7 @@
 #include <AK/Vector.h>
 #include <AK/Weakable.h>
 #include <AK/kmalloc.h>
+#include <LibGC/CompressedPointer.h>
 #include <LibGC/Weak.h>
 #include <LibGC/WeakInlines.h>
 #include <LibJS/Embedding/Layout.h>
@@ -30,14 +31,14 @@ namespace JS {
 // are fields of the runtime's shape.
 class JS_API Shape final : public EngineCell {
 public:
-    Realm& realm() const { return *field_at<Realm*>(JS_LAYOUT_SHAPE_REALM_OFFSET); }
+    Realm& realm() const { return *reinterpret_cast<Realm*>(GC::decompress_nonnull(field_at<u32>(JS_LAYOUT_SHAPE_REALM_OFFSET))); }
 
-    Object* prototype() { return field_at<Object*>(JS_LAYOUT_SHAPE_PROTOTYPE_OFFSET); }
-    Object const* prototype() const { return field_at<Object*>(JS_LAYOUT_SHAPE_PROTOTYPE_OFFSET); }
+    Object* prototype() { return reinterpret_cast<Object*>(GC::decompress(field_at<u32>(JS_LAYOUT_SHAPE_PROTOTYPE_OFFSET))); }
+    Object const* prototype() const { return reinterpret_cast<Object const*>(GC::decompress(field_at<u32>(JS_LAYOUT_SHAPE_PROTOTYPE_OFFSET))); }
 
 private:
-    static_assert(JS_LAYOUT_SHAPE_REALM_SIZE == sizeof(void*));
-    static_assert(JS_LAYOUT_SHAPE_PROTOTYPE_SIZE == sizeof(void*));
+    static_assert(JS_LAYOUT_SHAPE_REALM_SIZE == sizeof(u32));
+    static_assert(JS_LAYOUT_SHAPE_PROTOTYPE_SIZE == sizeof(u32));
 
     template<typename Field>
     Field field_at(size_t offset) const
