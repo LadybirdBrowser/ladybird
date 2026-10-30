@@ -63,8 +63,7 @@ static void report_a_violation_of_a_remote_client(Page& page, Fetch::Infrastruct
     // NB: Request's policy container is a copy of the client's, which lists the policies in the same order.
     auto const& policies = request.policy_container().get<NonnullRefPtr<HTML::PolicyContainer const>>()->csp_list.policies();
     auto policy_index = policies.find_first_index_if([&](auto const& candidate) { return candidate.ptr() == &policy; });
-    if (!policy_index.has_value())
-        return;
+    VERIFY(policy_index.has_value());
 
     if (auto const& navigation = request.remote_client_navigation(); navigation.has_value()) {
         // NB: The UI process checks a navigation's report against the directives the navigation can violate, and
