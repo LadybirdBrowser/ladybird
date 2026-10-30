@@ -222,9 +222,18 @@ void Page::focused_navigable_changed_in_another_page(HTML::CrossProcessId id)
 void Page::update_focused_navigable(GC::Ptr<HTML::Navigable> navigable)
 {
     invalidate_compositor_keyboard_scroll_state();
+    GC::Ptr<HTML::Navigable> previously_focused_navigable = m_focused_navigable.ptr();
     m_focused_navigable = navigable;
     for (auto const& root : local_roots())
         root->set_needs_repaint();
+
+    // A navigable below the top-level traversable paints its focus ring, caret and selection as focused only while it
+    // is the focused navigable, so the two navigables focus moved between record again.
+    for (auto navigable_whose_focus_changed : { previously_focused_navigable, navigable }) {
+        auto* local_navigable = navigable_whose_focus_changed ? as_if<HTML::LocalNavigable>(*navigable_whose_focus_changed) : nullptr;
+        if (auto document = local_navigable ? local_navigable->active_document() : nullptr)
+            Painting::request_document_repaint(*document, InvalidateDisplayList::PaintCommands);
+    }
 }
 
 void Page::navigable_document_destroyed(Badge<DOM::Document>, HTML::LocalNavigable& navigable)
