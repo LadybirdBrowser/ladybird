@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Notification constructor (basic) on a non-secure connection</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script>
+async_test(function (t) {
+  const notification = new Notification("Sup.");
+  notification.onerror = t.step_func_done(e => {
+    assert_equals(e.type, "error");
+  });
+}, "new Notification calls onerror in non-secure contexts")
+</script>

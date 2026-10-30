@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Notification.onshow (basic)</title>
+<link rel="author" title="Intel" href="http://www.intel.com/">
+<link rel="author" title="Xin Liu" href="mailto:xinx.liu@intel.com">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+<script>
+promise_setup(() => {
+    return test_driver.set_permission({ name: "notifications" }, "granted")
+})
+
+promise_test(async t => {
+    const notification = new Notification("New Email Received")
+    const event = await new Promise(resolve => {
+        notification.onshow = resolve;
+    })
+    notification.close()
+    assert_equals(Object.prototype.toString.call(event), "[object Event]")
+    assert_equals(event.type, "show", "Checked the event type.")
+}, "Invoked the onshow event handler.")
+</script>
