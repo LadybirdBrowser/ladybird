@@ -142,6 +142,8 @@ private:
 };
 
 struct SerializedTransferRecord {
+    AK_ALLOC_WITH_KMALLOC;
+
     IPCSerializationRecord serialized;
     Vector<TransferDataEncoder> transfer_data_holders;
     // AD-HOC: Cross-process shared memory backing serialized SharedArrayBuffers — referenced by index from the main

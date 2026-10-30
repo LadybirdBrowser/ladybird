@@ -29,15 +29,15 @@ use libjs_rust::api::{
 
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::html::structured_serialize::cpp::{
-    DeserializationMemory, OwnedDeserializationMemory, SerializationMemory, SerializationType,
-    SerializedTransferRecord, StructuredSerializeReader, StructuredSerializeWriter, TransferDataDecoder,
-    TransferDataHolder, TransferredValues, create_serialized_platform_object, create_transferred_platform_object,
-    current_settings_object_agent_cluster, current_settings_object_cross_origin_isolated_capability,
-    data_clone_error_from_serialization_error, deserialization_steps, deserialize_rust_platform_object, is_exposed,
-    is_platform_object, is_transferable, is_transferable_interface_exposed, realm_agent_cluster,
-    serializable_interface_is_implemented_in_rust, serializable_interface_name, serializable_payload_version,
-    serialization_steps, transfer_steps, transferable_is_detached, transferable_primary_interface,
-    transferable_set_detached,
+    DeserializationMemory, OwnedDeserializationMemory, OwnedSerializedTransferRecord, OwnedStructuredSerializeWriter,
+    SerializationMemory, SerializationType, SerializedTransferRecord, StructuredSerializeReader,
+    StructuredSerializeWriter, TransferDataDecoder, TransferDataHolder, create_serialized_platform_object,
+    create_transferred_platform_object, current_settings_object_agent_cluster,
+    current_settings_object_cross_origin_isolated_capability, data_clone_error_from_serialization_error,
+    deserialization_steps, deserialize_rust_platform_object, is_exposed, is_platform_object, is_transferable,
+    is_transferable_interface_exposed, realm_agent_cluster, serializable_interface_is_implemented_in_rust,
+    serializable_interface_name, serializable_payload_version, serialization_steps, transfer_steps,
+    transferable_is_detached, transferable_primary_interface, transferable_set_detached,
 };
 
 /// HTML::ValueTag, the tags of the values of a record, which are part of the stable storage serialization format.
@@ -1475,15 +1475,12 @@ impl Deserializer<'_, '_> {
 // https://html.spec.whatwg.org/multipage/structured-data.html#structuredserializewithtransfer
 pub(crate) fn structured_serialize_with_transfer(
     cx: &CallContext,
-    serialized_writer: StructuredSerializeWriter,
-    record: SerializedTransferRecord,
     value: Value,
     transfer_list: &[Gc<Object>],
-) -> WebIdlResult<()> {
+) -> WebIdlResult<OwnedSerializedTransferRecord> {
     let vm = cx.vm();
 
     // 1. Let memory be an empty map.
-    // NB: C++ creates the writer, and makes the record of what this returns.
     let memory = cpp::OwnedSerializationMemory::new();
 
     // 2. For each transferable of transferList:
@@ -1513,10 +1510,13 @@ pub(crate) fn structured_serialize_with_transfer(
     }
 
     // 3. Let serialized be ? StructuredSerializeInternal(value, false, memory).
+    // NB: The record may cross a process boundary, so it is an IPC record, with the memory of its SharedArrayBuffers
+    //     shared on the side.
+    let serialized = OwnedStructuredSerializeWriter::new_for_transfer();
     structured_serialize_internal(
         vm,
         Some(cx.realm()),
-        serialized_writer,
+        serialized.writer(),
         value,
         false,
         memory.memory(),
@@ -1525,10 +1525,11 @@ pub(crate) fn structured_serialize_with_transfer(
 
     // AD-HOC: Gather the pixels of the transferred ImageBitmaps in one buffer of shared memory. Without it, as when there
     //         is not enough memory for it, the pixels travel inline.
-    let image_bitmap_pixels = serialized_writer.gather_image_bitmap_pixels(transfer_list);
+    let image_bitmap_pixels = serialized.writer().gather_image_bitmap_pixels(transfer_list);
 
     // 4. Let transferDataHolders be a new empty List.
-    // NB: The data holders are appended to the record that C++ returns.
+    // NB: The record of the result holds the list.
+    let result = OwnedSerializedTransferRecord::new();
 
     // 5. For each transferable of transferList:
     for transferable in transfer_list {
@@ -1601,23 +1602,34 @@ pub(crate) fn structured_serialize_with_transfer(
         }
 
         // 6. Append dataHolder to transferDataHolders.
-        record.append_data_holder(data_holder);
+        result.record().append_data_holder(data_holder);
     }
 
     // 6. Let result be { [[Serialized]]: serialized, [[TransferDataHolders]]: transferDataHolders, [[InterfaceNames]]: an empty ordered set, [[AgentCluster]]: null }.
+    result.record().set_serialized(serialized.writer());
+
     // FIXME: 7. For each object → record of memory:
     //     1. If object is a platform object, then append record.[[Type]] to result.[[InterfaceNames]].
     //     2. If record.[[AgentCluster]] is not null, then restrict result to the same agent cluster.
+
     // 8. Return result.
-    Ok(())
+    Ok(result)
+}
+
+/// The record that StructuredDeserializeWithTransfer returns,
+/// https://html.spec.whatwg.org/multipage/structured-data.html#structureddeserializewithtransfer
+pub(crate) struct DeserializedTransferRecord<'vm> {
+    /// [[Deserialized]], the deserialized value.
+    pub(crate) deserialized: Value,
+    /// [[TransferredValues]], the transferred objects in the order of their data holders.
+    pub(crate) transferred_values: MarkedVec<'vm, Gc<Object>>,
 }
 
 // https://html.spec.whatwg.org/multipage/structured-data.html#structureddeserializewithtransfer
-pub(crate) fn structured_deserialize_with_transfer(
-    cx: &CallContext,
+pub(crate) fn structured_deserialize_with_transfer<'vm>(
+    cx: &CallContext<'vm>,
     serialize_with_transfer_result: SerializedTransferRecord,
-    transferred_values: TransferredValues,
-) -> WebIdlResult<Value> {
+) -> WebIdlResult<DeserializedTransferRecord<'vm>> {
     let target_realm = cx.realm();
 
     // 1. Let memory be an empty map.
@@ -1628,7 +1640,7 @@ pub(crate) fn structured_deserialize_with_transfer(
     //     1. If the interface identified by interfaceName is not exposed in targetRealm, then throw a "DataCloneError" DOMException.
 
     // 4. Let transferredValues be a new empty List.
-    // NB: C++ lends the list that it returns.
+    let transferred_values = MarkedVec::new(cx.vm());
 
     // 5. For each transferDataHolder of serializeWithTransferResult.[[TransferDataHolders]]:
     for index in 0..serialize_with_transfer_result.data_holder_count() {
@@ -1643,7 +1655,7 @@ pub(crate) fn structured_deserialize_with_transfer(
         memory.memory().append(value);
 
         // 6. Append value to transferredValues.
-        transferred_values.append(value.as_object());
+        transferred_values.push(value.as_object());
     }
 
     // 6. Let deserialized be ? StructuredDeserialize(serializeWithTransferResult.[[Serialized]], targetRealm, memory).
@@ -1654,7 +1666,10 @@ pub(crate) fn structured_deserialize_with_transfer(
     serialize_with_transfer_result.clear_shared_buffers();
 
     // 7. Return { [[Deserialized]]: deserialized, [[TransferredValues]]: transferredValues }.
-    Ok(deserialized)
+    Ok(DeserializedTransferRecord {
+        deserialized,
+        transferred_values,
+    })
 }
 
 // AD-HOC: This non-standard overload is meant to extract just one transferrable value from a serialized transfer record.

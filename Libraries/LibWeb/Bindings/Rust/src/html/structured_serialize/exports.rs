@@ -104,34 +104,25 @@ pub unsafe extern "C" fn web_rust_structured_deserialize_internal(
     completion(&cx, result)
 }
 
-/// StructuredSerializeWithTransfer in the realm, which writes [[Serialized]] with the writer, and appends
-/// [[TransferDataHolders]] to the record.
+/// StructuredSerializeWithTransfer in the realm, whose record the caller owns.
 ///
 /// # Safety
 ///
-/// The pointers must be the VM, a live realm, a writer and a record that C++ lends, and `count` live objects. The
-/// value must be live.
+/// The pointers must be the VM, a live realm, and `count` live objects. The value must be live.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_structured_serialize_with_transfer(
     vm: *mut c_void,
     realm: *mut c_void,
-    serialized: *mut c_void,
-    record: *mut c_void,
     value: u64,
     transfer_list: *const *mut c_void,
     count: usize,
+    out_record: &mut *mut c_void,
 ) -> RawNativeFunctionResult {
     // SAFETY: The caller passes the VM and a live realm.
     let (vm, realm) = unsafe { realm_arguments(vm, realm) };
     let cx = CallContext::new(vm, realm);
-    // SAFETY: The caller lends the writer and the record, and passes a live value.
-    let (serialized, record, value) = unsafe {
-        (
-            StructuredSerializeWriter::from_raw(serialized),
-            SerializedTransferRecord::from_raw(record),
-            Value::from_raw(value),
-        )
-    };
+    // SAFETY: The caller passes a live value.
+    let value = unsafe { Value::from_raw(value) };
     let transfer_list_values = MarkedVec::with_capacity(vm, count);
     for index in 0..count {
         // SAFETY: The caller passes `count` live objects.
@@ -139,8 +130,14 @@ pub unsafe extern "C" fn web_rust_structured_serialize_with_transfer(
             Gc::from_non_null(NonNull::new((*transfer_list.add(index)).cast::<Object>()).expect("C++ passes objects"))
         });
     }
-    let result = structured_serialize_with_transfer(&cx, serialized, record, value, &transfer_list_values.values());
-    completion(&cx, result.map(|()| Value::UNDEFINED))
+    let result = structured_serialize_with_transfer(&cx, value, &transfer_list_values.values());
+    completion(
+        &cx,
+        result.map(|record| {
+            *out_record = record.into_raw();
+            Value::UNDEFINED
+        }),
+    )
 }
 
 /// StructuredDeserializeWithTransfer in the realm, which returns [[Deserialized]], and appends [[TransferredValues]] to
@@ -166,8 +163,16 @@ pub unsafe extern "C" fn web_rust_structured_deserialize_with_transfer(
             TransferredValues::from_raw(transferred_values),
         )
     };
-    let result = structured_deserialize_with_transfer(&cx, record, transferred_values);
-    completion(&cx, result)
+    let result = structured_deserialize_with_transfer(&cx, record);
+    completion(
+        &cx,
+        result.map(|deserialize_record| {
+            for value in deserialize_record.transferred_values.values().iter() {
+                transferred_values.append(*value);
+            }
+            deserialize_record.deserialized
+        }),
+    )
 }
 
 /// The value that one data holder of a transfer holds, in the realm.

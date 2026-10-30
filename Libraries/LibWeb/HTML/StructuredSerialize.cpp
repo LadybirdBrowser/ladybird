@@ -1105,7 +1105,7 @@ WebIDL::Exception data_clone_error_from_serialization_error(JS::Realm& realm, AK
 extern "C" {
 JSCompletion web_rust_structured_serialize_internal(JSVM*, StructuredSerializeWriter*, JSValue, bool for_storage, SerializationMemory*, u8 allow_shared_array_buffers);
 JSCompletion web_rust_structured_deserialize_internal(JSVM*, void* target_realm, StructuredSerializeReader*, DeserializationMemory*, bool check_fully_consumed);
-JSCompletion web_rust_structured_serialize_with_transfer(JSVM*, void* realm, StructuredSerializeWriter*, SerializedTransferRecord*, JSValue, JSObject* const* transfer_list, size_t count);
+JSCompletion web_rust_structured_serialize_with_transfer(JSVM*, void* realm, JSValue, JSObject* const* transfer_list, size_t count, SerializedTransferRecord** out_record);
 JSCompletion web_rust_structured_deserialize_with_transfer(JSVM*, void* target_realm, SerializedTransferRecord*, Vector<GC::Root<JS::Object>>* transferred_values);
 JSCompletion web_rust_structured_deserialize_with_transfer_internal(JSVM*, void* target_realm, TransferDataDecoder*);
 }
@@ -1113,20 +1113,16 @@ JSCompletion web_rust_structured_deserialize_with_transfer_internal(JSVM*, void*
 // https://html.spec.whatwg.org/multipage/structured-data.html#structuredserializewithtransfer
 WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer(JS::Realm& realm, JS::Value value, ReadonlySpan<GC::Ref<JS::Object>> transfer_list)
 {
-    auto serialized_writer = StructuredSerializeWriter::create_ipc();
-    serialized_writer.enable_shared_buffers();
-    SerializedTransferRecord record;
-
     Vector<JSObject*> transfer_list_abi;
     transfer_list_abi.ensure_capacity(transfer_list.size());
     for (auto const& transferable : transfer_list)
         transfer_list_abi.unchecked_append(JS::HostABI::object_to_abi(transferable.ptr()));
 
-    TRY(JS::HostABI::completion_from_abi<JS::Value>(web_rust_structured_serialize_with_transfer(JS::HostABI::vm_to_abi(realm.vm()), &realm, &serialized_writer, &record, JS::HostABI::value_to_abi(value), transfer_list_abi.data(), transfer_list_abi.size())));
-
-    record.serialized = serialized_writer.take_ipc_record();
-    record.shared_buffers = serialized_writer.take_shared_buffers();
-    return record;
+    // NB: Rust creates the record, and hands it over with the result.
+    SerializedTransferRecord* record = nullptr;
+    TRY(JS::HostABI::completion_from_abi<JS::Value>(web_rust_structured_serialize_with_transfer(JS::HostABI::vm_to_abi(realm.vm()), &realm, JS::HostABI::value_to_abi(value), transfer_list_abi.data(), transfer_list_abi.size(), &record)));
+    auto owned_record = adopt_own(*record);
+    return move(*owned_record);
 }
 
 // https://html.spec.whatwg.org/multipage/structured-data.html#structureddeserializewithtransfer

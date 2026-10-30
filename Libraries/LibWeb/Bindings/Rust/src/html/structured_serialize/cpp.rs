@@ -19,6 +19,8 @@ use libjs_rust::api::{ArrayBuffer, ArrayBufferShared, Gc, Object, RawNativeFunct
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 
 unsafe extern "C" {
+    fn web_structured_serialize_writer_create_for_transfer() -> *mut c_void;
+    fn web_structured_serialize_writer_destroy(writer: *mut c_void);
     fn web_structured_serialize_writer_type(writer: *mut c_void) -> u8;
     fn web_structured_serialize_writer_encode_u8(writer: *mut c_void, value: u8);
     fn web_structured_serialize_writer_encode_bool(writer: *mut c_void, value: bool);
@@ -203,6 +205,9 @@ unsafe extern "C" {
     fn web_structured_serialize_transfer_data_holder_encode_bytes(data_holder: *mut c_void, bytes: ak::Span<'_, u8>);
     fn web_structured_serialize_transfer_data_holder_encode_size(data_holder: *mut c_void, value: usize);
     fn web_structured_serialize_transfer_data_holder_destroy(data_holder: *mut c_void);
+    fn web_structured_serialize_transfer_record_create() -> *mut c_void;
+    fn web_structured_serialize_transfer_record_destroy(record: *mut c_void);
+    fn web_structured_serialize_transfer_record_set_serialized(record: *mut c_void, writer: *mut c_void);
     fn web_structured_serialize_transfer_record_append_data_holder(record: *mut c_void, data_holder: *mut c_void);
     fn web_structured_serialize_transfer_record_data_holder_count(record: *mut c_void) -> usize;
     fn web_structured_serialize_transfer_record_take_data_holder(record: *mut c_void, index: usize) -> *mut c_void;
@@ -420,6 +425,28 @@ impl StructuredSerializeWriter {
                 transfer_list.len(),
             )
         }))
+    }
+}
+
+/// A writer that this owns, of the [[Serialized]] of a transfer: an IPC record, since the transfer may cross a process
+/// boundary, with the shared memory of its SharedArrayBuffers on the side.
+pub(crate) struct OwnedStructuredSerializeWriter(StructuredSerializeWriter);
+
+impl OwnedStructuredSerializeWriter {
+    pub(crate) fn new_for_transfer() -> Self {
+        // SAFETY: LibWeb returns a new writer, which this owns.
+        Self(unsafe { StructuredSerializeWriter::from_raw(web_structured_serialize_writer_create_for_transfer()) })
+    }
+
+    pub(crate) fn writer(&self) -> StructuredSerializeWriter {
+        self.0
+    }
+}
+
+impl Drop for OwnedStructuredSerializeWriter {
+    fn drop(&mut self) {
+        // SAFETY: This owns the writer.
+        unsafe { web_structured_serialize_writer_destroy(self.0.as_raw()) };
     }
 }
 
@@ -987,6 +1014,13 @@ impl SerializedTransferRecord {
         Self(NonNull::new(record).expect("C++ lends a record"))
     }
 
+    /// Sets the record's [[Serialized]] to what the writer wrote, with the shared memory of the SharedArrayBuffers it
+    /// shared.
+    pub(crate) fn set_serialized(self, writer: StructuredSerializeWriter) {
+        // SAFETY: The record and the writer are lent.
+        unsafe { web_structured_serialize_transfer_record_set_serialized(self.0.as_ptr(), writer.as_raw()) };
+    }
+
     /// Appends the data holder to the record's [[TransferDataHolders]].
     pub(crate) fn append_data_holder(self, data_holder: TransferDataHolder) {
         let data_holder = core::mem::ManuallyDrop::new(data_holder);
@@ -1021,6 +1055,33 @@ impl SerializedTransferRecord {
     pub(crate) fn clear_shared_buffers(self) {
         // SAFETY: The record is lent.
         unsafe { web_structured_serialize_transfer_record_clear_shared_buffers(self.0.as_ptr()) };
+    }
+}
+
+/// A record of a structured serialization with transfer that this owns.
+pub(crate) struct OwnedSerializedTransferRecord(SerializedTransferRecord);
+
+impl OwnedSerializedTransferRecord {
+    pub(crate) fn new() -> Self {
+        // SAFETY: LibWeb returns a new record, which this owns.
+        Self(unsafe { SerializedTransferRecord::from_raw(web_structured_serialize_transfer_record_create()) })
+    }
+
+    pub(crate) fn record(&self) -> SerializedTransferRecord {
+        self.0
+    }
+
+    /// Hands the record over to LibWeb's C++ code, which owns it from then on.
+    pub(crate) fn into_raw(self) -> *mut c_void {
+        let record = ManuallyDrop::new(self);
+        record.0.0.as_ptr()
+    }
+}
+
+impl Drop for OwnedSerializedTransferRecord {
+    fn drop(&mut self) {
+        // SAFETY: This owns the record.
+        unsafe { web_structured_serialize_transfer_record_destroy(self.0.0.as_ptr()) };
     }
 }
 
