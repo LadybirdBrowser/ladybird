@@ -74,7 +74,7 @@ TEST_CASE(buffering_at_the_download_head_holds_until_data_arrives)
     auto transitions_when_buffering_began = states.size();
     spin_until(loop, [] { return false; }, AK::Duration::from_milliseconds(300));
     EXPECT_EQ(states.size(), transitions_when_buffering_began);
-    EXPECT(manager->state() == Media::PlaybackState::Buffering);
+    EXPECT_EQ(manager->state(), Media::PlaybackState::Buffering);
 
     stream->add_chunk_at(served_size, file_data.bytes().slice(served_size));
     stream->close();

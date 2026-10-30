@@ -83,31 +83,31 @@ TEST_CASE(vp9_codec_parameters)
     EXPECT_EQ(parameters.level, 10);
     EXPECT_EQ(parameters.bit_depth, 10);
     EXPECT(parameters.color_parameters.subsampling == Media::Subsampling::yuv420());
-    EXPECT(parameters.color_parameters.cicp.color_primaries() == Media::ColorPrimaries::BT2020);
-    EXPECT(parameters.color_parameters.cicp.transfer_characteristics() == Media::TransferCharacteristics::SMPTE2084);
-    EXPECT(parameters.color_parameters.cicp.matrix_coefficients() == Media::MatrixCoefficients::BT2020NonConstantLuminance);
-    EXPECT(parameters.color_parameters.cicp.video_full_range_flag() == Media::VideoFullRangeFlag::Full);
+    EXPECT_EQ(parameters.color_parameters.cicp.color_primaries(), Media::ColorPrimaries::BT2020);
+    EXPECT_EQ(parameters.color_parameters.cicp.transfer_characteristics(), Media::TransferCharacteristics::SMPTE2084);
+    EXPECT_EQ(parameters.color_parameters.cicp.matrix_coefficients(), Media::MatrixCoefficients::BT2020NonConstantLuminance);
+    EXPECT_EQ(parameters.color_parameters.cicp.video_full_range_flag(), Media::VideoFullRangeFlag::Full);
 
     codec = Media::parse_codec_parameters_string("vp09.00.41.08"sv);
     EXPECT(codec.has_value());
     EXPECT(codec->vp9_parameters()->color_parameters.subsampling == Media::Subsampling::yuv420());
-    EXPECT(codec->vp9_parameters()->color_parameters.cicp.color_primaries() == Media::ColorPrimaries::BT709);
-    EXPECT(codec->vp9_parameters()->color_parameters.cicp.transfer_characteristics() == Media::TransferCharacteristics::BT709);
-    EXPECT(codec->vp9_parameters()->color_parameters.cicp.matrix_coefficients() == Media::MatrixCoefficients::BT709);
-    EXPECT(codec->vp9_parameters()->color_parameters.cicp.video_full_range_flag() == Media::VideoFullRangeFlag::Studio);
+    EXPECT_EQ(codec->vp9_parameters()->color_parameters.cicp.color_primaries(), Media::ColorPrimaries::BT709);
+    EXPECT_EQ(codec->vp9_parameters()->color_parameters.cicp.transfer_characteristics(), Media::TransferCharacteristics::BT709);
+    EXPECT_EQ(codec->vp9_parameters()->color_parameters.cicp.matrix_coefficients(), Media::MatrixCoefficients::BT709);
+    EXPECT_EQ(codec->vp9_parameters()->color_parameters.cicp.video_full_range_flag(), Media::VideoFullRangeFlag::Studio);
 
     // A string may state Unspecified, which is preserved rather than resolved to the omitted-field defaults.
     codec = Media::parse_codec_parameters_string("vp09.00.41.08.01.02.02.02.00"sv);
     EXPECT(codec.has_value());
-    EXPECT(codec->vp9_parameters()->color_parameters.cicp.color_primaries() == Media::ColorPrimaries::Unspecified);
-    EXPECT(codec->vp9_parameters()->color_parameters.cicp.transfer_characteristics() == Media::TransferCharacteristics::Unspecified);
-    EXPECT(codec->vp9_parameters()->color_parameters.cicp.matrix_coefficients() == Media::MatrixCoefficients::Unspecified);
+    EXPECT_EQ(codec->vp9_parameters()->color_parameters.cicp.color_primaries(), Media::ColorPrimaries::Unspecified);
+    EXPECT_EQ(codec->vp9_parameters()->color_parameters.cicp.transfer_characteristics(), Media::TransferCharacteristics::Unspecified);
+    EXPECT_EQ(codec->vp9_parameters()->color_parameters.cicp.matrix_coefficients(), Media::MatrixCoefficients::Unspecified);
 
     codec = Media::parse_codec_parameters_string("vp09.01.41.08.03.22.18.14.00"sv);
     EXPECT(codec.has_value());
-    EXPECT(codec->vp9_parameters()->color_parameters.cicp.color_primaries() == Media::ColorPrimaries::EBU3213);
-    EXPECT(codec->vp9_parameters()->color_parameters.cicp.transfer_characteristics() == Media::TransferCharacteristics::HLG);
-    EXPECT(codec->vp9_parameters()->color_parameters.cicp.matrix_coefficients() == Media::MatrixCoefficients::ICtCp);
+    EXPECT_EQ(codec->vp9_parameters()->color_parameters.cicp.color_primaries(), Media::ColorPrimaries::EBU3213);
+    EXPECT_EQ(codec->vp9_parameters()->color_parameters.cicp.transfer_characteristics(), Media::TransferCharacteristics::HLG);
+    EXPECT_EQ(codec->vp9_parameters()->color_parameters.cicp.matrix_coefficients(), Media::MatrixCoefficients::ICtCp);
 }
 
 TEST_CASE(invalid_vp9_codec_parameters)
@@ -142,10 +142,10 @@ TEST_CASE(av1_codec_parameters)
     EXPECT(!parameters.optional_fields.monochrome);
     EXPECT(parameters.optional_fields.subsampling == Media::Subsampling::yuv420());
     EXPECT_EQ(parameters.optional_fields.chroma_sample_position, 0);
-    EXPECT(parameters.optional_fields.cicp.color_primaries() == Media::ColorPrimaries::BT709);
-    EXPECT(parameters.optional_fields.cicp.transfer_characteristics() == Media::TransferCharacteristics::BT709);
-    EXPECT(parameters.optional_fields.cicp.matrix_coefficients() == Media::MatrixCoefficients::BT709);
-    EXPECT(parameters.optional_fields.cicp.video_full_range_flag() == Media::VideoFullRangeFlag::Studio);
+    EXPECT_EQ(parameters.optional_fields.cicp.color_primaries(), Media::ColorPrimaries::BT709);
+    EXPECT_EQ(parameters.optional_fields.cicp.transfer_characteristics(), Media::TransferCharacteristics::BT709);
+    EXPECT_EQ(parameters.optional_fields.cicp.matrix_coefficients(), Media::MatrixCoefficients::BT709);
+    EXPECT_EQ(parameters.optional_fields.cicp.video_full_range_flag(), Media::VideoFullRangeFlag::Studio);
 
     codec = Media::parse_codec_parameters_string("av01.0.08M.10.0.110.09.16.09.0"sv);
     EXPECT(codec.has_value());
@@ -153,17 +153,17 @@ TEST_CASE(av1_codec_parameters)
     EXPECT(!optional_fields.monochrome);
     EXPECT(optional_fields.subsampling == Media::Subsampling::yuv420());
     EXPECT_EQ(optional_fields.chroma_sample_position, 0);
-    EXPECT(optional_fields.cicp.color_primaries() == Media::ColorPrimaries::BT2020);
-    EXPECT(optional_fields.cicp.transfer_characteristics() == Media::TransferCharacteristics::SMPTE2084);
-    EXPECT(optional_fields.cicp.matrix_coefficients() == Media::MatrixCoefficients::BT2020NonConstantLuminance);
-    EXPECT(optional_fields.cicp.video_full_range_flag() == Media::VideoFullRangeFlag::Studio);
+    EXPECT_EQ(optional_fields.cicp.color_primaries(), Media::ColorPrimaries::BT2020);
+    EXPECT_EQ(optional_fields.cicp.transfer_characteristics(), Media::TransferCharacteristics::SMPTE2084);
+    EXPECT_EQ(optional_fields.cicp.matrix_coefficients(), Media::MatrixCoefficients::BT2020NonConstantLuminance);
+    EXPECT_EQ(optional_fields.cicp.video_full_range_flag(), Media::VideoFullRangeFlag::Studio);
 
     // A string may state Unspecified, which is preserved rather than resolved to the omitted-field defaults.
     codec = Media::parse_codec_parameters_string("av01.0.05M.08.0.110.02.02.02.0"sv);
     EXPECT(codec.has_value());
-    EXPECT(codec->av1_parameters()->optional_fields.cicp.color_primaries() == Media::ColorPrimaries::Unspecified);
-    EXPECT(codec->av1_parameters()->optional_fields.cicp.transfer_characteristics() == Media::TransferCharacteristics::Unspecified);
-    EXPECT(codec->av1_parameters()->optional_fields.cicp.matrix_coefficients() == Media::MatrixCoefficients::Unspecified);
+    EXPECT_EQ(codec->av1_parameters()->optional_fields.cicp.color_primaries(), Media::ColorPrimaries::Unspecified);
+    EXPECT_EQ(codec->av1_parameters()->optional_fields.cicp.transfer_characteristics(), Media::TransferCharacteristics::Unspecified);
+    EXPECT_EQ(codec->av1_parameters()->optional_fields.cicp.matrix_coefficients(), Media::MatrixCoefficients::Unspecified);
 
     EXPECT(Media::parse_codec_parameters_string("av01.0.05M.08garbage"sv).has_value());
     EXPECT(Media::parse_codec_parameters_string("av01.0.08M.10.0.110.09.16.09.0garbage"sv).has_value());
