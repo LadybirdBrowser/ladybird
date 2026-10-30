@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes recolor {
+        from { color: rgb(0, 0, 255); }
+        to { color: rgb(0, 128, 0); }
+    }
+    #input::placeholder, #details::details-content, #control {
+        animation: recolor 100s linear -50s paused;
+    }
+    #input.moved::placeholder {
+        background-color: rgb(1, 2, 3);
+    }
+    #input.stopped::placeholder {
+        animation-name: none;
+    }
+    @property --shade {
+        syntax: "<color>";
+        inherits: true;
+        initial-value: rgb(255, 0, 0);
+    }
+    @keyframes reshade {
+        from { --shade: rgb(0, 0, 255); }
+        to { --shade: rgb(0, 128, 0); }
+    }
+    #shaded::details-content {
+        color: var(--shade);
+    }
+    #shaded.started::details-content {
+        animation: reshade 100s linear -50s paused;
+    }
+</style>
+<input id="input" placeholder="Placeholder">
+<details id="details" open><summary>Summary</summary><p id="content">Content</p></details>
+<details id="shaded" open><summary>Summary</summary><p>Content</p></details>
+<input id="late" placeholder="Placeholder">
+<div id="control"></div>
+<script>
+    promiseTest(async () => {
+        const events = [];
+        for (const type of ["animationstart", "animationend", "animationcancel"])
+            document.addEventListener(type, event => events.push(`${type} on ${event.target.id}`), true);
+
+        const placeholderStyle = getComputedStyle(input, "::placeholder");
+        println(`::placeholder: ${placeholderStyle.color}`);
+        println(`::details-content: ${getComputedStyle(details, "::details-content").color}`);
+        println(`::details-content child: ${getComputedStyle(content).color}`);
+
+        shaded.classList.add("started");
+        println(`::details-content after animating a custom property: ${getComputedStyle(shaded, "::details-content").color}, child ${getComputedStyle(shaded.querySelector("p")).color}`);
+
+        input.classList.add("moved");
+        println(`::placeholder after host restyle: ${placeholderStyle.color}, ${placeholderStyle.backgroundColor}`);
+
+        const lateStyle = getComputedStyle(late, "::placeholder");
+        println(`late rule, before: ${lateStyle.animationName}, ${lateStyle.color}`);
+        const style = document.createElement("style");
+        style.textContent = "#late::placeholder { animation: recolor 100s linear -50s paused; }";
+        document.head.appendChild(style);
+        println(`late rule, after: ${lateStyle.animationName}, ${lateStyle.color}`);
+
+        await animationFrame();
+        const describe = animation => animation.effect.target.id;
+        println(`document.getAnimations(): ${document.getAnimations().map(describe).join(", ")}`);
+        println(`getAnimations({ subtree: true }): ${input.getAnimations({ subtree: true }).length}, ${details.getAnimations({ subtree: true }).length}`);
+        println(`events: ${events.join(", ")}`);
+
+        input.value = "Value";
+        await animationFrame();
+        println(`::placeholder with a value: ${placeholderStyle.display}, ${placeholderStyle.color}`);
+        input.value = "";
+        println(`::placeholder without a value: ${placeholderStyle.display}, ${placeholderStyle.color}`);
+
+        input.classList.add("stopped");
+        println(`::placeholder after animation-name: none: ${placeholderStyle.animationName}, ${placeholderStyle.color}`);
+    });
+</script>

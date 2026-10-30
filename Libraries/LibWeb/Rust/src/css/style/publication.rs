@@ -3290,19 +3290,38 @@ impl RetainedState {
         self.filter_non_generating_pseudo_kinds(node, pseudo_kinds, marker_is_live) != 0
     }
 
+    pub(super) fn element_record_winner_state(&self, node: StyleNodeID) -> Option<CascadeStateID> {
+        if self.backed_host_pseudo_element(node).is_some() {
+            return self
+                .computed_group_sets
+                .cascade_state(computed::ComputedStyleTarget::new(node, u8::MAX))
+                .map(|(_, state)| state);
+        }
+        match self
+            .current_winner_groups()
+            .token_for(WinnerGroupKey::current(node, self.program.version()))
+        {
+            Lookup::Known((_, state)) => Some(state),
+            Lookup::KnownAbsent | Lookup::Missing(_) => None,
+        }
+    }
+
     /// Whether ordinary properties may need to compute against changed custom properties.
     /// Missing winners or values prevent ruling out substitution.
     fn ordinary_properties_may_need_substitution(&self, node: StyleNodeID, pseudo: Option<u8>) -> bool {
-        let key = match pseudo {
-            Some(kind) => WinnerGroupKey::current_pseudo(
+        let state = match pseudo {
+            Some(kind) => match self.current_winner_groups().token_for(WinnerGroupKey::current_pseudo(
                 node,
                 tree::PseudoElementTarget::new(tree::PseudoElementKind(u16::from(kind))),
                 self.program.version(),
-            ),
-            None => WinnerGroupKey::current(node, self.program.version()),
+            )) {
+                Lookup::Known((_, state)) => Some(state),
+                Lookup::KnownAbsent | Lookup::Missing(_) => None,
+            },
+            None => self.element_record_winner_state(node),
         };
 
-        let Lookup::Known((_, state)) = self.current_winner_groups().token_for(key) else {
+        let Some(state) = state else {
             return true;
         };
 
@@ -4009,6 +4028,9 @@ impl RetainedState {
     /// nothing inherited moves, and no custom property does, so a descendant's engine-computed
     /// record stays exact even though this ancestor changes in the same batch.
     pub(super) fn winner_delta_is_engine_confined(&self, node: StyleNodeID) -> bool {
+        if self.backed_host_pseudo_element(node).is_some() {
+            return false;
+        }
         let target = computed::ComputedStyleTarget::new(node, u8::MAX);
         let Lookup::Known((generation, state)) = self
             .current_winner_groups()

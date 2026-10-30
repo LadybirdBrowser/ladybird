@@ -954,12 +954,9 @@ impl RetainedState {
         use bridge::element_adjustment_fact as fact;
         let facts = self.computed_group_sets.adjustment_facts(node);
         // The host samples the element's animations over the record it installs, as it does for
-        // any element, and a record demand installs none of its own. A CSS animation needs a plan,
-        // which this drive does not decide.
+        // any element, and a record demand installs none of its own.
         let animates = facts & fact::HAS_ANIMATIONS != 0;
-        if animates
-            && (!scratch.host_applies_animation_plans || self.css_defined_animations.node_runs_a_css_animation(node))
-        {
+        if animates && !scratch.host_applies_animation_plans {
             self.counters.bump(Counter::EngineComputedRecordBailWinnerElement);
             return Err(Unanswered::Refused);
         }
@@ -1180,22 +1177,23 @@ impl RetainedState {
             .bind_cascade_state(computed::ComputedStyleTarget::new(node, u8::MAX), (generation, state));
         let old_record = old_record.unwrap_or(computed::FinalStyleRecordID::NONE);
         let owes_a_transition_step = owes_a_transition_step && old_record != record;
-        if owes_a_transition_step || detached_composition.is_some() {
-            self.engine_computed_records_pending
-                .entry(node)
-                .or_default()
-                .push(PendingEngineComputedRecord {
-                    node,
-                    pseudo_kind: u8::MAX,
-                    old_style_record: old_record,
-                    new_style_record: record,
-                    replaced: Some(replaced),
-                    cascade_state: None,
-                    longhand_evaluations: 0,
-                    owes_a_transition_step,
-                    detached_composition,
-                });
-        }
+        let cascade_state = (generation, state);
+        self.computed_group_sets
+            .set_pending_cascade_state(computed::ComputedStyleTarget::new(node, u8::MAX), cascade_state);
+        self.engine_computed_records_pending
+            .entry(node)
+            .or_default()
+            .push(PendingEngineComputedRecord {
+                node,
+                pseudo_kind: u8::MAX,
+                old_style_record: old_record,
+                new_style_record: record,
+                replaced: Some(replaced),
+                cascade_state: Some(cascade_state),
+                longhand_evaluations: 0,
+                owes_a_transition_step,
+                detached_composition,
+            });
         Ok((old_record, record))
     }
 
