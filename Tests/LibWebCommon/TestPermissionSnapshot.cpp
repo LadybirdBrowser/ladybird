@@ -39,6 +39,7 @@ TEST_CASE(snapshot_round_trips_through_ipc)
     snapshot.revision = 42;
     snapshot.geolocation_default = EffectiveState::Denied;
     snapshot.microphone_default = EffectiveState::Prompt;
+    snapshot.notifications_default = EffectiveState::Denied;
     snapshot.entries.append({ origin_of("https://maps.example.com/"sv), PermissionName::Geolocation, EffectiveState::Granted });
     snapshot.entries.append({ origin_of("https://talk.example.org/"sv), PermissionName::Microphone, EffectiveState::Denied });
 
@@ -47,6 +48,7 @@ TEST_CASE(snapshot_round_trips_through_ipc)
     EXPECT_EQ(decoded.revision, 42u);
     EXPECT(decoded.geolocation_default == EffectiveState::Denied);
     EXPECT(decoded.microphone_default == EffectiveState::Prompt);
+    EXPECT(decoded.notifications_default == EffectiveState::Denied);
     VERIFY(decoded.entries.size() == 2);
     EXPECT(decoded.entries[0].top_level_origin.is_same_origin(origin_of("https://maps.example.com/"sv)));
     EXPECT(decoded.entries[0].name == PermissionName::Geolocation);
@@ -63,5 +65,6 @@ TEST_CASE(permission_names_round_trip)
     EXPECT(permission_name_from_string("geolocation"sv) == PermissionName::Geolocation);
     EXPECT(permission_name_from_string("microphone"sv) == PermissionName::Microphone);
     EXPECT(!permission_name_from_string("camera"sv).has_value());
-    EXPECT(!permission_name_from_string("notifications"sv).has_value());
+    EXPECT(to_string(PermissionName::Notifications) == "notifications"sv);
+    EXPECT(permission_name_from_string("notifications"sv) == PermissionName::Notifications);
 }

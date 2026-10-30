@@ -229,7 +229,7 @@ JsonObject SettingsUI::serialize_settings() const
 
     // The sites the user allowed or blocked, for each permission.
     JsonObject site_permissions;
-    for (auto name : { Web::Permissions::PermissionName::Geolocation, Web::Permissions::PermissionName::Microphone }) {
+    for (auto name : { Web::Permissions::PermissionName::Geolocation, Web::Permissions::PermissionName::Microphone, Web::Permissions::PermissionName::Notifications }) {
         JsonArray sites;
         for (auto const& site : Application::the().default_session().permission_manager->site_decisions(name)) {
             JsonObject entry;

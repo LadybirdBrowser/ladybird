@@ -42,6 +42,8 @@ static QString feature_text(Web::Permissions::PermissionName name)
         return QStringLiteral("know your location");
     case Web::Permissions::PermissionName::Microphone:
         return QStringLiteral("use your microphone");
+    case Web::Permissions::PermissionName::Notifications:
+        return QStringLiteral("send you notifications");
     }
     VERIFY_NOT_REACHED();
 }
@@ -53,6 +55,8 @@ static ChromeIcon feature_icon(Web::Permissions::PermissionName name)
         return ChromeIcon::Location;
     case Web::Permissions::PermissionName::Microphone:
         return ChromeIcon::Microphone;
+    case Web::Permissions::PermissionName::Notifications:
+        return ChromeIcon::Notifications;
     }
     VERIFY_NOT_REACHED();
 }

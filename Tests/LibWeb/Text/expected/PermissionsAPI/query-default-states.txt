@@ -1,5 +1,5 @@
 geolocation: prompt
 microphone: prompt
 camera: TypeError
-notifications: TypeError
+notifications: prompt
 frame without the features: geolocation denied, microphone denied
