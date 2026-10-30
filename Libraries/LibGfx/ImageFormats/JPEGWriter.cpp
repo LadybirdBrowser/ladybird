@@ -61,6 +61,13 @@ ErrorOr<void> JPEGWriter::encode_impl(Stream& stream, auto const& bitmap, Option
     //     that calls setjmp() have indeterminate values after the longjmp().
     Vector<u8> buffer;
     MemoryDestinationManager dest_manager(buffer);
+
+    // NB: We store CMYK data inverted, as Photoshop does. This is the convention our decoder (and every browser)
+    //     expects from CMYK JPEGs with an Adobe marker, which libjpeg writes for YCCK.
+    Vector<JSAMPLE> inverted_row;
+    if (color_space == ColorSpace::CMYK)
+        TRY(inverted_row.try_resize(bitmap.size().width() * 4));
+
     struct JPEGErrorManager jerr;
 
     struct jpeg_compress_struct cinfo {};
@@ -99,7 +106,8 @@ ErrorOr<void> JPEGWriter::encode_impl(Stream& stream, auto const& bitmap, Option
         }
 
         jpeg_set_defaults(&cinfo);
-        jpeg_set_colorspace(&cinfo, JCS_YCbCr);
+        // NB: libjpeg can only convert CMYK input to YCCK, not to YCbCr.
+        jpeg_set_colorspace(&cinfo, color_space == ColorSpace::CMYK ? JCS_YCCK : JCS_YCbCr);
         jpeg_set_quality(&cinfo, options.quality, TRUE);
 
         jpeg_start_compress(&cinfo, TRUE);
@@ -111,6 +119,11 @@ ErrorOr<void> JPEGWriter::encode_impl(Stream& stream, auto const& bitmap, Option
         while (cinfo.next_scanline < cinfo.image_height) {
             auto const* row_ptr = reinterpret_cast<u8 const*>(bitmap.scanline(cinfo.next_scanline));
             JSAMPROW row_pointer = const_cast<JSAMPROW>(row_ptr);
+            if (color_space == ColorSpace::CMYK) {
+                for (size_t i = 0; i < inverted_row.size(); ++i)
+                    inverted_row[i] = 255 - row_ptr[i];
+                row_pointer = inverted_row.data();
+            }
             jpeg_write_scanlines(&cinfo, &row_pointer, 1);
         }
 
