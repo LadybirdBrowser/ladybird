@@ -606,7 +606,7 @@ void PlaybackManager::enable_an_audio_track(Track const& track, ResumeEndedPlayb
 {
     auto& track_data = get_audio_data_for_track(track);
     VERIFY(!track_data.enabled);
-    m_audio_sink_status = PipelineStatus::HaveData;
+    m_audio_sink_status = m_audio_sink != nullptr ? PipelineStatus::Pending : PipelineStatus::HaveData;
     if (m_audio_mixer) {
         MUST(m_audio_mixer->connect_input(track_data.producer));
         m_audio_sink->reseek_input_keeping_clock();
@@ -621,7 +621,7 @@ void PlaybackManager::disable_an_audio_track(Track const& track)
 {
     auto& track_data = get_audio_data_for_track(track);
     VERIFY(track_data.enabled);
-    m_audio_sink_status = PipelineStatus::HaveData;
+    m_audio_sink_status = m_audio_sink != nullptr ? PipelineStatus::Pending : PipelineStatus::HaveData;
     if (m_audio_mixer) {
         m_audio_mixer->disconnect_input(track_data.producer);
         m_audio_sink->reseek_input_keeping_clock();

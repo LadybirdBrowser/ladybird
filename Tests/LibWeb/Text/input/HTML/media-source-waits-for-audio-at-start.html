@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
+<video id="video" muted></video>
+<script src="../include.js"></script>
+<script src="HTMLMediaElement-include.js"></script>
+<script>
+    // When the audio SourceBuffer has nothing at the start, playback must wait for it, even though the video
+    // SourceBuffer does.
+    asyncTest(async done => {
+        const video = document.getElementById("video");
+        const mediaSource = new MediaSource();
+        video.src = URL.createObjectURL(mediaSource);
+        await new Promise(resolve => mediaSource.addEventListener("sourceopen", resolve, { once: true }));
+        const audioSourceBuffer = mediaSource.addSourceBuffer('audio/webm;codecs="vorbis"');
+        const videoSourceBuffer = mediaSource.addSourceBuffer('video/webm;codecs="vp8"');
+        const audio = await (await fetch("../wpt-import/media-source/webm/test-a-128k-44100Hz-1ch.webm")).arrayBuffer();
+        const videoData = await (await fetch("../wpt-import/media-source/webm/test-v-128k-320x240-30fps-10kfr.webm")).arrayBuffer();
+
+        async function append(sourceBuffer, data, timestampOffset) {
+            sourceBuffer.timestampOffset = timestampOffset;
+            sourceBuffer.appendBuffer(data);
+            await new Promise(resolve => sourceBuffer.addEventListener("updateend", resolve, { once: true }));
+        }
+
+        await append(audioSourceBuffer, audio, 3);
+        await append(videoSourceBuffer, videoData, 0);
+        println(`audio buffered: ${timeRangesToString(audioSourceBuffer.buffered)}`);
+        println(`video buffered: ${timeRangesToString(videoSourceBuffer.buffered)}`);
+
+        let playingFired = false;
+        const playing = new Promise(resolve => video.addEventListener("playing", () => {
+            playingFired = true;
+            resolve();
+        }, { once: true }));
+        video.play();
+        await new Promise(resolve => setTimeout(resolve, 500));
+        println(`without audio at the start: playing fired: ${playingFired}, readyState=${readyStateName(video.readyState)}`);
+
+        await append(audioSourceBuffer, audio, 0);
+        await playing;
+        println(`with audio at the start: playing fired: ${playingFired}`);
+        done();
+    });
+</script>

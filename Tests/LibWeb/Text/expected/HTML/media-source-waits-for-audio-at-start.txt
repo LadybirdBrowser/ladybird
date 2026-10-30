@@ -1,0 +1,4 @@
+audio buffered: [3-5.022902494]
+video buffered: [0-2.000333333]
+without audio at the start: playing fired: false, readyState=HAVE_METADATA
+with audio at the start: playing fired: true
