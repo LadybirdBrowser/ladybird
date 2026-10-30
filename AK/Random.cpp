@@ -9,8 +9,6 @@
 #include <AK/Platform.h>
 #include <AK/Random.h>
 #include <AK/String.h>
-#include <AK/UFixedBigInt.h>
-#include <AK/UFixedBigIntDivision.h>
 
 #if defined(AK_OS_LINUX)
 #    include <sys/random.h>
@@ -61,13 +59,13 @@ void fill_with_random(Bytes bytes)
 u32 get_random_uniform(u32 max_bounds)
 {
     // If we try to divide all 2**32 numbers into groups of "max_bounds" numbers, we may end up
-    // with a group around 2**32-1 that is a bit too small. For this reason, the implementation
-    // `arc4random() % max_bounds` would be insufficient. Here we compute the last number of the
-    // last "full group". Note that if max_bounds is a divisor of UINT32_MAX,
-    // then we end up with UINT32_MAX:
-    u32 const max_usable = UINT32_MAX - (static_cast<u64>(UINT32_MAX) + 1) % max_bounds;
+    // with one group that is a bit too small. For this reason, the implementation
+    // `arc4random() % max_bounds` would be insufficient. Here we compute the first number of
+    // the first "full group" as 2**32 % max_bounds, and rely on the equivalence
+    // `2**32 % x == (2**32 - x) % x` to keep calculations in u32 domain:
+    u32 const threshold = static_cast<u32>(-max_bounds) % max_bounds;
     auto random_value = get_random<u32>();
-    for (int i = 0; i < 20 && random_value > max_usable; ++i) {
+    for (int i = 0; i < 20 && random_value < threshold; ++i) {
         // By chance we picked a value from the incomplete group. Note that this group has size at
         // most 2**31-1, so picking this group has a chance of less than 50%.
         // In practice, this means that for the worst possible input, there is still only a
@@ -81,10 +79,10 @@ u32 get_random_uniform(u32 max_bounds)
 u64 get_random_uniform_64(u64 max_bounds)
 {
     // Uses the same algorithm as `get_random_uniform`,
-    // by replacing u64 with u128 and u32 with u64.
-    u64 const max_usable = UINT64_MAX - static_cast<u64>((static_cast<u128>(UINT64_MAX) + 1) % max_bounds);
+    // by replacing u32 with u64.
+    u64 const threshold = static_cast<u64>(-max_bounds) % max_bounds;
     auto random_value = get_random<u64>();
-    for (int i = 0; i < 20 && random_value > max_usable; ++i) {
+    for (int i = 0; i < 20 && random_value < threshold; ++i) {
         random_value = get_random<u64>();
     }
     return random_value % max_bounds;
