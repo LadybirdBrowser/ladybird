@@ -102,19 +102,44 @@ struct ContentInlineSizeAnswer {
     dependencies: IntrinsicMeasurementDependencies,
 }
 
-impl ContentInlineSizeAnswer {
-    fn from_cache(cached: IntrinsicInlineSizeMeasurement, kind: IntrinsicSizeCacheKind) -> Self {
-        let (size, first_line_max_content) = match kind {
-            IntrinsicSizeCacheKind::MinContentInline => (cached.min_content_inline_size, None),
-            IntrinsicSizeCacheKind::MaxContentInline => {
-                (cached.max_content_inline_size, Some(cached.first_line_max_content))
-            }
-            _ => unreachable!("inline measurement cache kind must use the inline axis"),
-        };
+/// Both content inline sizes of a box from one measurement of its content.
+#[derive(Clone, Copy)]
+struct ContentInlineSizeAnswers {
+    min: ContentInlineSizeAnswer,
+    max: ContentInlineSizeAnswer,
+}
+
+impl ContentInlineSizeAnswers {
+    fn from_measurement(measurement: IntrinsicInlineSizeMeasurement) -> Self {
+        let dependencies = measurement.dependencies();
         Self {
-            size,
-            first_line_max_content,
-            dependencies: cached.dependencies(),
+            min: ContentInlineSizeAnswer {
+                size: measurement.min_content_inline_size,
+                first_line_max_content: None,
+                dependencies,
+            },
+            max: ContentInlineSizeAnswer {
+                size: measurement.max_content_inline_size,
+                first_line_max_content: Some(measurement.first_line_max_content),
+                dependencies,
+            },
+        }
+    }
+
+    fn of_both(answer: ContentInlineSizeAnswer) -> Self {
+        Self {
+            min: answer,
+            max: answer,
+        }
+    }
+
+    fn of_kind(self, kind: IntrinsicSizeCacheKind) -> ContentInlineSizeAnswer {
+        match kind {
+            IntrinsicSizeCacheKind::MinContentInline => self.min,
+            IntrinsicSizeCacheKind::MaxContentInline => self.max,
+            IntrinsicSizeCacheKind::MaxContentBlock => {
+                unreachable!("content inline size kind must use the inline axis")
+            }
         }
     }
 }
@@ -1873,6 +1898,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
                     Some(other_axis_size),
                     IntrinsicSizeCacheKind::MinContentInline,
                 )
+                .min
                 .size;
         }
         // NB: Percentages inside resolve against the transferred block size, which is definite.
@@ -2668,8 +2694,19 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         block_size: Option<CssPixels>,
     ) -> ContentInlineSizes {
         let node = sized.node;
-        let min = self.content_inline_size(sized, constraints, block_size, IntrinsicSizeCacheKind::MinContentInline);
-        let max = self.content_inline_size(sized, constraints, block_size, IntrinsicSizeCacheKind::MaxContentInline);
+        let mut measured_content = None;
+        let mut content_inline_size = |kind| {
+            let answer = self
+                .content_inline_size_answered_without_measuring_content(sized, constraints, block_size, kind)
+                .unwrap_or_else(|| {
+                    measured_content
+                        .get_or_insert_with(|| self.measure_intrinsic_inline_size(node, constraints, block_size, kind))
+                        .of_kind(kind)
+                });
+            self.with_transferred_limits(sized, answer, kind, constraints)
+        };
+        let min = content_inline_size(IntrinsicSizeCacheKind::MinContentInline);
+        let max = content_inline_size(IntrinsicSizeCacheKind::MaxContentInline);
         let sizes = ContentInlineSizes {
             sizes: ContentSizes {
                 min: min.size,
@@ -2771,16 +2808,48 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         block_size: Option<CssPixels>,
         kind: IntrinsicSizeCacheKind,
     ) -> ContentInlineSizeAnswer {
-        let (answer, available) = match kind {
-            IntrinsicSizeCacheKind::MinContentInline => (
-                self.min_content_inline_size_before_transferred_limits(sized, constraints, block_size),
-                AvailableSize::MinContent,
-            ),
-            IntrinsicSizeCacheKind::MaxContentInline => (
-                self.max_content_inline_size_before_transferred_limits(sized, constraints, block_size),
-                AvailableSize::MaxContent,
-            ),
-            _ => unreachable!("content inline size kind must use the inline axis"),
+        let answer = self
+            .content_inline_size_answered_without_measuring_content(sized, constraints, block_size, kind)
+            .unwrap_or_else(|| {
+                self.measure_intrinsic_inline_size(sized.node, constraints, block_size, kind)
+                    .of_kind(kind)
+            });
+        self.with_transferred_limits(sized, answer, kind, constraints)
+    }
+
+    fn content_inline_size_answered_without_measuring_content(
+        &self,
+        sized: SizedBox<'_>,
+        constraints: ContainingBlockConstraints,
+        block_size: Option<CssPixels>,
+        kind: IntrinsicSizeCacheKind,
+    ) -> Option<ContentInlineSizeAnswer> {
+        match kind {
+            IntrinsicSizeCacheKind::MinContentInline => {
+                self.min_content_inline_size_answered_without_measuring_content(sized, constraints, block_size)
+            }
+            IntrinsicSizeCacheKind::MaxContentInline => {
+                self.max_content_inline_size_answered_without_measuring_content(sized, constraints, block_size)
+            }
+            IntrinsicSizeCacheKind::MaxContentBlock => {
+                unreachable!("content inline size kind must use the inline axis")
+            }
+        }
+    }
+
+    fn with_transferred_limits(
+        &self,
+        sized: SizedBox<'_>,
+        answer: ContentInlineSizeAnswer,
+        kind: IntrinsicSizeCacheKind,
+        constraints: ContainingBlockConstraints,
+    ) -> ContentInlineSizeAnswer {
+        let available = match kind {
+            IntrinsicSizeCacheKind::MinContentInline => AvailableSize::MinContent,
+            IntrinsicSizeCacheKind::MaxContentInline => AvailableSize::MaxContent,
+            IntrinsicSizeCacheKind::MaxContentBlock => {
+                unreachable!("content inline size kind must use the inline axis")
+            }
         };
         ContentInlineSizeAnswer {
             size: self.apply_transferred_limits_to_intrinsic_inline_size(sized, answer.size, available, constraints),
@@ -2851,16 +2920,16 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             .map_or(inline_size, |limits| limits.clamp(inline_size))
     }
 
-    fn min_content_inline_size_before_transferred_limits(
+    fn min_content_inline_size_answered_without_measuring_content(
         &self,
         sized: SizedBox<'_>,
         constraints: ContainingBlockConstraints,
         block_size: Option<CssPixels>,
-    ) -> ContentInlineSizeAnswer {
+    ) -> Option<ContentInlineSizeAnswer> {
         let node = sized.node;
         let facts = self.facts(node);
         let style = self.style(node);
-        let answered_from_style = |size| self.content_inline_size_answered_from_style(node, block_size, size);
+        let answered_from_style = |size| Some(self.content_inline_size_answered_from_style(node, block_size, size));
         // https://drafts.csswg.org/css-sizing-3/#min-content-zero
         // input with any type that is not "button-like"; this can vary depending on the UA.
         // NB: Text entry inputs are compressible even when their layout boxes are not replaced boxes.
@@ -2910,19 +2979,19 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         {
             return answered_from_style(fallback);
         }
-        self.measure_intrinsic_inline_size(node, constraints, block_size, IntrinsicSizeCacheKind::MinContentInline)
+        None
     }
 
-    fn max_content_inline_size_before_transferred_limits(
+    fn max_content_inline_size_answered_without_measuring_content(
         &self,
         sized: SizedBox<'_>,
         constraints: ContainingBlockConstraints,
         block_size: Option<CssPixels>,
-    ) -> ContentInlineSizeAnswer {
+    ) -> Option<ContentInlineSizeAnswer> {
         let node = sized.node;
         let facts = self.facts(node);
         let style = self.style(node);
-        let answered_from_style = |size| self.content_inline_size_answered_from_style(node, block_size, size);
+        let answered_from_style = |size| Some(self.content_inline_size_answered_from_style(node, block_size, size));
         let mut auto_size = self.auto_content_size(node);
         if let Some(transferred) = self.calculate_transferred_inline_size_for_replaced_element(sized, constraints) {
             return answered_from_style(transferred);
@@ -3078,25 +3147,25 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
                 return answered_from_style(max_content_inline_size);
             }
         }
-        self.measure_intrinsic_inline_size(node, constraints, block_size, IntrinsicSizeCacheKind::MaxContentInline)
+        None
     }
 
     // Answers from the measurement cache or from the first source that sizes `node`'s content, caching both of its
-    // content inline sizes.
+    // content inline sizes. `kind` names the size the caller asked for first, which the trace reports.
     fn measure_intrinsic_inline_size(
         &self,
         node: Node,
         constraints: ContainingBlockConstraints,
         block_size: Option<CssPixels>,
         kind: IntrinsicSizeCacheKind,
-    ) -> ContentInlineSizeAnswer {
+    ) -> ContentInlineSizeAnswers {
         if let Some(answer) = self.content_inline_size_ignoring_content(node) {
-            return answer;
+            return ContentInlineSizeAnswers::of_both(answer);
         }
         let key = self.intrinsic_size_cache_key(block_size, constraints);
         if let Some(cached) = self.intrinsic_inline_measurement_cache_get(node, key) {
             self.callbacks.layout_trace().intrinsic_size_hit(node, kind);
-            return ContentInlineSizeAnswer::from_cache(cached, kind);
+            return ContentInlineSizeAnswers::from_measurement(cached);
         }
 
         let trace = self.callbacks.layout_trace().intrinsic_size_miss(node, kind);
@@ -3182,16 +3251,15 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             trace.append(" FROM ");
             trace.append(source);
         }
-        self.cache_content_inline_sizes(node, kind, key, sizes)
+        self.cache_content_inline_sizes(node, key, sizes)
     }
 
     fn cache_content_inline_sizes(
         &self,
         node: Node,
-        kind: IntrinsicSizeCacheKind,
         key: IntrinsicSizeCacheKey,
         sizes: ContentInlineSizes,
-    ) -> ContentInlineSizeAnswer {
+    ) -> ContentInlineSizeAnswers {
         self.charge_measurement_dependency_to_measured_box_and_containing_block(
             node,
             sizes.dependencies.percentage_block_size,
@@ -3215,7 +3283,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             depends_on_block_size: sizes.dependencies.block_size,
         };
         self.intrinsic_inline_measurement_cache_put(node, key, measurement);
-        ContentInlineSizeAnswer::from_cache(measurement, kind)
+        ContentInlineSizeAnswers::from_measurement(measurement)
     }
 
     // Measures the max-content block size of `node`, which does not establish an orthogonal flow, at `inline_size`,
