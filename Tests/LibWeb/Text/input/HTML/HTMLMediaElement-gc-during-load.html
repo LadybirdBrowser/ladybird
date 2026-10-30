@@ -1,22 +1,31 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    asyncTest(done => {
-        {
-            let video = document.createElement("video");
-            video.src = "file:///nonexistent-media-file.webm";
-            video.addEventListener("error", () => {
-                println("error event fired");
-                done();
-            });
-        }
+    // A media element that nothing else references must stay alive while its fetch is ongoing, so that it can still fire
+    // the events of its load.
 
-        // Queue a task to GC after all pending tasks have run.
-        // If the element is not kept alive by the ongoing fetch of its
-        // src, then the error event will never fire, and this test will
-        // time out.
-        requestIdleCallback(() => {
-            internals.gc();
+    // This is not done in the async test function, whose suspended frame could keep the element alive.
+    function startLoadingUnreferencedVideo(url, onError) {
+        const video = document.createElement("video");
+        video.src = url;
+        video.addEventListener("error", onError);
+    }
+
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const token = `gc-during-load-${crypto.randomUUID()}`;
+        const mediaURL = await server.createEcho("GET", `/${token}.webm`, { status: 404, wait_for_unblock: token });
+        const unblockURL = new URL(`/unblock/${token}`, mediaURL);
+        unblockURL.hostname = uniqueLocalhostHostname("gc-during-load-unblock");
+
+        startLoadingUnreferencedVideo(mediaURL, () => {
+            println("error event fired");
+            done();
         });
+
+        // Collect garbage while the response is held back, so that only the fetch can keep the element alive.
+        await server.waitForRequest(mediaURL);
+        await internals.gcAsync();
+        await fetch(unblockURL);
     });
 </script>
