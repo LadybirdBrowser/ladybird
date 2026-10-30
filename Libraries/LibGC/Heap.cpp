@@ -29,6 +29,7 @@
 #include <LibCore/Timer.h>
 #include <LibGC/BlockAllocator.h>
 #include <LibGC/CellAllocator.h>
+#include <LibGC/CompressedPointer.h>
 #include <LibGC/Heap.h>
 #include <LibGC/HeapAccess.h>
 #include <LibGC/HeapBlock.h>
@@ -440,34 +441,79 @@ void Heap::update_gc_bytes_threshold(size_t live_cell_bytes, size_t live_externa
     m_gc_bytes_threshold = max(next_gc_bytes_threshold.value(), GC_MIN_BYTES_THRESHOLD);
 }
 
-static void add_possible_value(HashMap<FlatPtr, HeapRoot>& possible_pointers, FlatPtr data, HeapRoot origin, FlatPtr heap_region_start, FlatPtr heap_region_end)
+// The part of the heap region that can hold cells, read once per scan.
+struct PossiblePointerBounds {
+    static PossiblePointerBounds current()
+    {
+        return { BlockAllocator::heap_region_start(), BlockAllocator::heap_region_committed_end() };
+    }
+
+    FlatPtr heap_region_start { 0 };
+    FlatPtr cells_end { 0 };
+};
+
+struct PossiblePointers {
+    // Addresses taken from whole words, as a raw pointer or as a NaN-boxed cell value. They may point into a cell.
+    HashMap<FlatPtr, HeapRoot> pointers;
+    // Addresses decoded from either 32-bit half of a word, as a compressed cell pointer. Compressed pointers only ever
+    // point at the start of a cell, so these do too.
+    HashMap<FlatPtr, HeapRoot> compressed_pointers;
+};
+
+static ALWAYS_INLINE void add_possible_compressed_pointer(PossiblePointers& possible_pointers, u32 compressed, HeapRoot const& origin, PossiblePointerBounds const& bounds)
 {
+    // OPTIMIZATION: Most halves are small integers, either half of a pointer, or either half of a NaN-boxed value. Those
+    //               decode into the low guard or above everything committed, so two compares reject them before any
+    //               hashing.
+    if (compressed < MIN_COMPRESSED_CELL_POINTER)
+        return;
+    auto possible_pointer = decompress_nonnull(compressed, bounds.heap_region_start);
+    if (possible_pointer >= bounds.cells_end)
+        return;
+    possible_pointers.compressed_pointers.set(possible_pointer, origin);
+}
+
+static void add_possible_value(PossiblePointers& possible_pointers, FlatPtr data, HeapRoot origin, PossiblePointerBounds const& bounds)
+{
+    // A compiler may keep only a compressed cell pointer alive across a collection, in a register or in a spill slot that
+    // shares a word with other data, so either half of a word may be one.
+    add_possible_compressed_pointer(possible_pointers, static_cast<u32>(data), origin, bounds);
+    add_possible_compressed_pointer(possible_pointers, static_cast<u32>(data >> 32), origin, bounds);
+
     // Because NanBoxedValue stores heap offsets in the payload, decode
     // pointer-backed values relative to the heap region before checking the
     // resulting address.
     FlatPtr possible_pointer;
     if ((data & SHIFTED_IS_CELL_PATTERN) == SHIFTED_IS_CELL_PATTERN)
-        possible_pointer = heap_region_start + (data & HEAP_REGION_OFFSET_MASK);
+        possible_pointer = bounds.heap_region_start + (data & HEAP_REGION_OFFSET_MASK);
     else
         possible_pointer = data;
-    if (possible_pointer < heap_region_start || possible_pointer >= heap_region_end)
+    if (possible_pointer < bounds.heap_region_start || possible_pointer >= bounds.cells_end)
         return;
-    possible_pointers.set(possible_pointer, move(origin));
+    possible_pointers.pointers.set(possible_pointer, move(origin));
 }
 
 template<typename Callback>
-static void for_each_cell_among_possible_pointers(HashTable<HeapBlock*> const& all_live_heap_blocks, HashMap<FlatPtr, HeapRoot>& possible_pointers, Callback callback)
+static void for_each_cell_among_possible_pointers(HashTable<HeapBlock*> const& all_live_heap_blocks, PossiblePointers& possible_pointers, Callback callback)
 {
-    for (auto possible_pointer : possible_pointers.keys()) {
-        if (!possible_pointer)
-            continue;
-        auto* possible_heap_block = HeapBlock::from_cell(reinterpret_cast<Cell const*>(possible_pointer));
-        if (!all_live_heap_blocks.contains(possible_heap_block))
-            continue;
-        if (auto* cell = possible_heap_block->cell_from_possible_pointer(possible_pointer)) {
-            callback(cell, possible_pointer);
+    auto visit = [&](HashMap<FlatPtr, HeapRoot>& candidates, bool must_be_cell_start) {
+        for (auto possible_pointer : candidates.keys()) {
+            if (!possible_pointer)
+                continue;
+            auto* possible_heap_block = HeapBlock::from_cell(reinterpret_cast<Cell const*>(possible_pointer));
+            if (!all_live_heap_blocks.contains(possible_heap_block))
+                continue;
+            auto* cell = possible_heap_block->cell_from_possible_pointer(possible_pointer);
+            if (!cell)
+                continue;
+            if (must_be_cell_start && reinterpret_cast<FlatPtr>(cell) != possible_pointer)
+                continue;
+            callback(cell, candidates, possible_pointer);
         }
-    }
+    };
+    // NB: The whole-word candidates go last, so a cell that both find is attributed to the whole word.
+    visit(possible_pointers.compressed_pointers, true);
+    visit(possible_pointers.pointers, false);
 }
 
 class GraphConstructorVisitor final : public Cell::Visitor {
@@ -475,8 +521,7 @@ public:
     explicit GraphConstructorVisitor(Heap& heap, HashMap<Cell*, HeapRoot> const& roots)
         : m_heap(heap)
     {
-        m_heap_region_start = BlockAllocator::heap_region_start();
-        m_heap_region_end = BlockAllocator::heap_region_end();
+        m_possible_pointer_bounds = PossiblePointerBounds::current();
         m_work_queue.ensure_capacity(roots.size());
 
         for (auto& [root, root_origin] : roots) {
@@ -507,13 +552,13 @@ public:
 
     virtual void visit_possible_values(ReadonlyBytes bytes) override
     {
-        HashMap<FlatPtr, HeapRoot> possible_pointers;
+        PossiblePointers possible_pointers;
 
         auto* raw_pointer_sized_values = reinterpret_cast<FlatPtr const*>(bytes.data());
         for (size_t i = 0; i < (bytes.size() / sizeof(FlatPtr)); ++i)
-            add_possible_value(possible_pointers, raw_pointer_sized_values[i], HeapRoot { .type = HeapRoot::Type::HeapFunctionCapturedPointer }, m_heap_region_start, m_heap_region_end);
+            add_possible_value(possible_pointers, raw_pointer_sized_values[i], HeapRoot { .type = HeapRoot::Type::HeapFunctionCapturedPointer }, m_possible_pointer_bounds);
 
-        for_each_cell_among_possible_pointers(m_heap.m_live_heap_blocks, possible_pointers, [&](Cell* cell, FlatPtr) {
+        for_each_cell_among_possible_pointers(m_heap.m_live_heap_blocks, possible_pointers, [&](Cell* cell, auto&, FlatPtr) {
             if (cell->state() != Cell::State::Live)
                 return;
 
@@ -615,8 +660,7 @@ private:
     HashMap<FlatPtr, GraphNode> m_graph;
 
     Heap& m_heap;
-    FlatPtr m_heap_region_start;
-    FlatPtr m_heap_region_end;
+    PossiblePointerBounds m_possible_pointer_bounds;
 };
 
 NO_SANITIZE_ADDRESS AK::JsonObject Heap::dump_graph()
@@ -1080,7 +1124,7 @@ void Heap::gather_roots(ConservativeScanOrigin const& origin, HashMap<Cell*, Hea
 }
 
 #ifdef HAS_ADDRESS_SANITIZER
-NO_SANITIZE_ADDRESS void Heap::gather_asan_fake_stack_roots(HashMap<FlatPtr, HeapRoot>& possible_pointers, FlatPtr addr, FlatPtr heap_region_start, FlatPtr heap_region_end, FlatPtr stack_reference, FlatPtr stack_top)
+NO_SANITIZE_ADDRESS static void gather_asan_fake_stack_roots(PossiblePointers& possible_pointers, FlatPtr addr, PossiblePointerBounds const& bounds, FlatPtr stack_reference, FlatPtr stack_top)
 {
     void* begin = nullptr;
     void* end = nullptr;
@@ -1099,11 +1143,11 @@ NO_SANITIZE_ADDRESS void Heap::gather_asan_fake_stack_roots(HashMap<FlatPtr, Hea
         void const* real_address = *real_stack_addr;
         if (real_address == nullptr)
             continue;
-        add_possible_value(possible_pointers, reinterpret_cast<FlatPtr>(real_address), HeapRoot { .type = HeapRoot::Type::StackPointer }, heap_region_start, heap_region_end);
+        add_possible_value(possible_pointers, reinterpret_cast<FlatPtr>(real_address), HeapRoot { .type = HeapRoot::Type::StackPointer }, bounds);
     }
 }
 #else
-void Heap::gather_asan_fake_stack_roots(HashMap<FlatPtr, HeapRoot>&, FlatPtr, FlatPtr, FlatPtr, FlatPtr, FlatPtr)
+static void gather_asan_fake_stack_roots(PossiblePointers&, FlatPtr, PossiblePointerBounds const&, FlatPtr, FlatPtr)
 {
 }
 #endif
@@ -1112,10 +1156,8 @@ NO_SANITIZE_ADDRESS void Heap::gather_conservative_roots(ConservativeScanOrigin 
 {
     dbgln_if(HEAP_DEBUG, "gather_conservative_roots:");
 
-    HashMap<FlatPtr, HeapRoot> possible_pointers;
-
-    auto heap_region_start = BlockAllocator::heap_region_start();
-    auto heap_region_end = BlockAllocator::heap_region_end();
+    PossiblePointers possible_pointers;
+    auto bounds = PossiblePointerBounds::current();
 
     // The scan covers the entry point's frame and its callers; the collection's own frames below the floor are left out.
     FlatPtr own_frame;
@@ -1132,8 +1174,8 @@ NO_SANITIZE_ADDRESS void Heap::gather_conservative_roots(ConservativeScanOrigin 
     {
         ScopedPhaseTimer timer { g_recording_phase_timings, g_phase_timings.conservative_register_scan_us };
         for (auto register_value : origin.callee_saved_registers) {
-            add_possible_value(possible_pointers, register_value, HeapRoot { .type = HeapRoot::Type::RegisterPointer }, heap_region_start, heap_region_end);
-            gather_asan_fake_stack_roots(possible_pointers, register_value, heap_region_start, heap_region_end, stack_reference, stack_top);
+            add_possible_value(possible_pointers, register_value, HeapRoot { .type = HeapRoot::Type::RegisterPointer }, bounds);
+            gather_asan_fake_stack_roots(possible_pointers, register_value, bounds, stack_reference, stack_top);
         }
     }
 
@@ -1236,8 +1278,8 @@ NO_SANITIZE_ADDRESS void Heap::gather_conservative_roots(ConservativeScanOrigin 
                 continue;
             }
             auto data = *reinterpret_cast<FlatPtr*>(stack_address);
-            add_possible_value(possible_pointers, data, HeapRoot { .type = HeapRoot::Type::StackPointer, .stack_frame_index = frame_index_for_stack_address(stack_address) }, heap_region_start, heap_region_end);
-            gather_asan_fake_stack_roots(possible_pointers, data, heap_region_start, heap_region_end, stack_reference, stack_top);
+            add_possible_value(possible_pointers, data, HeapRoot { .type = HeapRoot::Type::StackPointer, .stack_frame_index = frame_index_for_stack_address(stack_address) }, bounds);
+            gather_asan_fake_stack_roots(possible_pointers, data, bounds, stack_reference, stack_top);
         }
     }
 
@@ -1245,36 +1287,36 @@ NO_SANITIZE_ADDRESS void Heap::gather_conservative_roots(ConservativeScanOrigin 
         ScopedPhaseTimer timer { g_recording_phase_timings, g_phase_timings.conservative_vector_scan_us };
         for (auto& vector : m_conservative_vectors) {
             for (auto possible_value : vector.possible_values()) {
-                add_possible_value(possible_pointers, possible_value, HeapRoot { .type = HeapRoot::Type::ConservativeVector }, heap_region_start, heap_region_end);
+                add_possible_value(possible_pointers, possible_value, HeapRoot { .type = HeapRoot::Type::ConservativeVector }, bounds);
             }
         }
 
         for (auto& provider : m_conservative_range_providers) {
             provider.for_each_conservative_range([&](ReadonlySpan<FlatPtr> range) {
                 for (auto possible_value : range)
-                    add_possible_value(possible_pointers, possible_value, HeapRoot { .type = HeapRoot::Type::ConservativeVector }, heap_region_start, heap_region_end);
+                    add_possible_value(possible_pointers, possible_value, HeapRoot { .type = HeapRoot::Type::ConservativeVector }, bounds);
             });
         }
     }
 
     for (auto& hash_map : m_conservative_hash_maps) {
         hash_map.for_each_possible_value([&](FlatPtr possible_value) {
-            add_possible_value(possible_pointers, possible_value, HeapRoot { .type = HeapRoot::Type::ConservativeHashMap }, heap_region_start, heap_region_end);
+            add_possible_value(possible_pointers, possible_value, HeapRoot { .type = HeapRoot::Type::ConservativeHashMap }, bounds);
         });
     }
 
     for (auto& hash_table : m_conservative_hash_tables) {
         hash_table.for_each_possible_value([&](FlatPtr possible_value) {
-            add_possible_value(possible_pointers, possible_value, HeapRoot { .type = HeapRoot::Type::ConservativeHashTable }, heap_region_start, heap_region_end);
+            add_possible_value(possible_pointers, possible_value, HeapRoot { .type = HeapRoot::Type::ConservativeHashTable }, bounds);
         });
     }
 
     {
         ScopedPhaseTimer timer { g_recording_phase_timings, g_phase_timings.conservative_cell_lookup_us };
-        for_each_cell_among_possible_pointers(m_live_heap_blocks, possible_pointers, [&](Cell* cell, FlatPtr possible_pointer) {
+        for_each_cell_among_possible_pointers(m_live_heap_blocks, possible_pointers, [&](Cell* cell, HashMap<FlatPtr, HeapRoot>& candidates, FlatPtr possible_pointer) {
             if (cell->state() == Cell::State::Live) {
                 dbgln_if(HEAP_DEBUG, "  ?-> {}", (void const*)cell);
-                roots.set(cell, *possible_pointers.get(possible_pointer));
+                roots.set(cell, *candidates.get(possible_pointer));
             } else {
                 dbgln_if(HEAP_DEBUG, "  #-> {}", (void const*)cell);
             }
@@ -1288,8 +1330,7 @@ public:
     explicit MarkingVisitor(ReadonlySpan<Heap* const> domain, HashMap<Cell*, HeapRoot> const& roots)
         : m_domain(domain)
     {
-        m_heap_region_start = BlockAllocator::heap_region_start();
-        m_heap_region_end = BlockAllocator::heap_region_end();
+        m_possible_pointer_bounds = PossiblePointerBounds::current();
         for (auto* root : roots.keys()) {
             visit(root);
         }
@@ -1340,14 +1381,14 @@ public:
 
     virtual void visit_possible_values(ReadonlyBytes bytes) override
     {
-        HashMap<FlatPtr, HeapRoot> possible_pointers;
+        PossiblePointers possible_pointers;
 
         auto* raw_pointer_sized_values = reinterpret_cast<FlatPtr const*>(bytes.data());
         for (size_t i = 0; i < (bytes.size() / sizeof(FlatPtr)); ++i)
-            add_possible_value(possible_pointers, raw_pointer_sized_values[i], HeapRoot { .type = HeapRoot::Type::HeapFunctionCapturedPointer }, m_heap_region_start, m_heap_region_end);
+            add_possible_value(possible_pointers, raw_pointer_sized_values[i], HeapRoot { .type = HeapRoot::Type::HeapFunctionCapturedPointer }, m_possible_pointer_bounds);
 
         for (auto* heap : m_domain) {
-            for_each_cell_among_possible_pointers(heap->m_live_heap_blocks, possible_pointers, [&](Cell* cell, FlatPtr) {
+            for_each_cell_among_possible_pointers(heap->m_live_heap_blocks, possible_pointers, [&](Cell* cell, auto&, FlatPtr) {
                 if (cell->is_marked())
                     return;
                 if (cell->state() != Cell::State::Live)
@@ -1403,8 +1444,7 @@ private:
     ReadonlySpan<Heap* const> m_domain;
     Vector<Ref<Cell>> m_work_queue;
     Vector<Ephemeron> m_pending_ephemerons;
-    FlatPtr m_heap_region_start;
-    FlatPtr m_heap_region_end;
+    PossiblePointerBounds m_possible_pointer_bounds;
 };
 
 void Heap::mark_live_cells(HashMap<Cell*, HeapRoot>& roots)
