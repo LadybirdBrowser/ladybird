@@ -344,6 +344,8 @@ pub(crate) enum LayoutWrite<'a> {
     AdoptDerivedNodeStyle { node: NodeSlotId, record: u64 },
     /// The anonymous rows below the row inherit its style again.
     ReinheritAnonymousDescendants { node: NodeSlotId },
+    /// The anonymous boxes that give the text of a `display: contents` element its style take it again.
+    ReinheritDisplayContentsText { element: StyleNodeID },
     /// The viewport and the boxes of the root element and its body take the styles viewport propagation gives them.
     PropagateRootStylesToViewport,
     /// Prepares every row of the subtree the row heads for leaving the layout tree.
@@ -395,6 +397,10 @@ impl LayoutWrite<'_> {
             }
             Self::ReinheritAnonymousDescendants { node } => {
                 arena.reinherit_anonymous_descendants(host_calls, node);
+                false
+            }
+            Self::ReinheritDisplayContentsText { element } => {
+                arena.reinherit_display_contents_text(host_calls, element);
                 false
             }
             Self::PropagateRootStylesToViewport => {

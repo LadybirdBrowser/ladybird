@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/display-contents-text-takes-element-style-ref.html">
+<div id="host" style="color: red">Sample text</div>
+<div><span id="contents" style="display: contents; color: red">Sample text</span></div>
+<div id="block-slot-host"><span id="slotted-contents" style="display: contents; color: red">Sample text</span></div>
+<script>
+    document.getElementById("host").attachShadow({ mode: "open" }).innerHTML = `<slot style="color: green"></slot>`;
+    document.getElementById("block-slot-host").attachShadow({ mode: "open" }).innerHTML = `<slot style="display: block"></slot>`;
+    const nextFrame = () => new Promise(resolve => requestAnimationFrame(resolve));
+    (async () => {
+        await nextFrame();
+        await nextFrame();
+        document.getElementById("host").style.color = "blue";
+        document.getElementById("contents").style.color = "green";
+        document.getElementById("slotted-contents").style.color = "green";
+        document.documentElement.classList.remove("reftest-wait");
+    })();
+</script>
+</html>

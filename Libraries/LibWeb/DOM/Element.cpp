@@ -2004,6 +2004,14 @@ bool Element::apply_box_presence_change_in_place(Layout::BegunRead const& read, 
     return true;
 }
 
+static void apply_display_contents_style_to_text_boxes(Element& element, CSS::RequiredInvalidationAfterStyleChange const& invalidation)
+{
+    if (invalidation.is_none())
+        return;
+    if (auto* arena = element.document().layout_node_arena_if_created())
+        Layout::RustFFI::render_state_reinherit_display_contents_text(arena->host(), element.style_node_id().value());
+}
+
 void Element::apply_computed_style_to_layout_node_if_needed(Layout::BegunRead const& read, CSS::RequiredInvalidationAfterStyleChange const& invalidation)
 {
     auto* layout_node = unsafe_layout_node(read);
@@ -2013,6 +2021,8 @@ void Element::apply_computed_style_to_layout_node_if_needed(Layout::BegunRead co
         return;
 
     if (!layout_node) {
+        if (auto style = computed_style(); style && style->display().is_contents())
+            apply_display_contents_style_to_text_boxes(*this, invalidation);
         apply_computed_pseudo_element_styles_to_layout_nodes_if_needed(read, invalidation);
         return;
     }

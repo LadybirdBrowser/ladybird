@@ -2535,6 +2535,9 @@ fn construct_principal_layout_node(
                     NodeKind::InlineNode,
                 );
                 let wrapper_slot = wrapper.slot();
+                if let Some(text) = update.style_node {
+                    host.arena_mut().note_display_contents_text_wrapper(wrapper_slot, text);
+                }
                 host.set_children_are_inline(wrapper_slot, true);
                 host.attach_child(wrapper_slot, host.created(text_layout_node), NodeSlotId::INVALID);
                 layout_node = wrapper_slot;

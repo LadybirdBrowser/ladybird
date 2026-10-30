@@ -40,6 +40,11 @@ enum OwedHostCall {
         row: NodeSlotId,
         attach_resources: bool,
     },
+    /// A kept box, whose row took a style the arena derived.
+    ShellStyleDamaged {
+        row: NodeSlotId,
+        damage: u32,
+    },
 }
 
 /// What a tree build or a layout write owes the host, gathered while it runs and resolved as it ends (see
@@ -79,6 +84,13 @@ impl OwedHostWork {
                             attach_resources,
                         }
                     }
+                    OwedHostCall::ShellStyleDamaged { row, damage } => DueHostCall::ShellStyleDamaged {
+                        facts: crate::layout::host_tables::ShellFacts {
+                            id: row,
+                            kind: arena.node_kind_if_live(row)?,
+                        },
+                        damage,
+                    },
                 })
             })
             .collect();
@@ -102,6 +114,10 @@ enum DueHostCall {
         payloads: crate::layout::node_data::StylePayloadsRef,
         derived: bool,
         attach_resources: bool,
+    },
+    ShellStyleDamaged {
+        facts: crate::layout::host_tables::ShellFacts,
+        damage: u32,
     },
 }
 
@@ -138,6 +154,9 @@ impl HostWorkDue {
                     derived,
                     attach_resources,
                 } => tell_shell_of_style_change(main_thread, facts, record, payloads, derived, attach_resources),
+                DueHostCall::ShellStyleDamaged { facts, damage } => {
+                    tell_shell_of_style_damage(main_thread, facts, damage);
+                }
             }
         }
     }
@@ -155,7 +174,7 @@ fn tell_shell_of_style_change(
     let Some(host_tables) = main_thread.host_tables() else {
         return;
     };
-    let Some((context, shell_style_changed)) = host_tables.shell_style_changed_host.get() else {
+    let Some(callbacks) = host_tables.style_record_host.get() else {
         return;
     };
     // A row owed its style resources gets its shell now: the shell is what loads them, and a shell made later by the
@@ -174,8 +193,8 @@ fn tell_shell_of_style_change(
     // SAFETY: The engine and shell remain live. Native style-store mutation has finished before the host can reenter
     // Rust through its resource consumers.
     unsafe {
-        shell_style_changed(
-            context,
+        (callbacks.shell_style_changed)(
+            callbacks.context,
             shell.as_ptr(),
             record,
             payloads.as_ptr().cast(),
@@ -183,6 +202,25 @@ fn tell_shell_of_style_change(
             attach_resources,
         );
     };
+}
+
+/// Tells the layout node of the row `facts` describes, made now if nothing made one, what the move of the row to its
+/// style damages.
+fn tell_shell_of_style_damage(main_thread: &MainThread, facts: crate::layout::host_tables::ShellFacts, damage: u32) {
+    if facts.kind == NodeKind::Unset {
+        return;
+    }
+    let Some(host_tables) = main_thread.host_tables() else {
+        return;
+    };
+    let Some(callbacks) = host_tables.style_record_host.get() else {
+        return;
+    };
+    let Some(shell) = std::ptr::NonNull::new(host_tables.shell_of(facts)) else {
+        return;
+    };
+    // SAFETY: The engine and shell remain live, and the host has its job back.
+    unsafe { (callbacks.shell_style_damaged)(callbacks.context, shell.as_ptr(), damage) };
 }
 
 impl HostCalls<'_> {
@@ -205,6 +243,10 @@ impl HostCalls<'_> {
     /// Owes the layout node of a row whose style changed, if something made one, its new style.
     pub(crate) fn shell_style_changed(self, row: NodeSlotId, attach_resources: bool) {
         self.0.owe(OwedHostCall::ShellStyleChanged { row, attach_resources });
+    }
+
+    pub(crate) fn shell_style_damaged(self, row: NodeSlotId, damage: u32) {
+        self.0.owe(OwedHostCall::ShellStyleDamaged { row, damage });
     }
 }
 

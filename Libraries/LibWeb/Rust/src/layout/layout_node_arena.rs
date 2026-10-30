@@ -725,14 +725,8 @@ pub const BOX_PRESENCE_HAS_COMMITTED_BOX: u8 = 1 << 1;
 pub struct FfiStyleRecordHostCallbacks {
     pub context: *mut c_void,
     pub shell_style_changed: unsafe extern "C" fn(*mut c_void, *mut c_void, u64, *const c_void, bool, bool),
+    pub shell_style_damaged: unsafe extern "C" fn(*mut c_void, *mut c_void, u32),
 }
-
-/// How the host learns that a shell's row took a new style: the shell, its new record and
-/// payloads, whether the arena derived the record, and whether the shell should attach the style's resources.
-pub(crate) type ShellStyleChangedHost = (
-    *mut c_void,
-    unsafe extern "C" fn(*mut c_void, *mut c_void, u64, *const c_void, bool, bool),
-);
 
 /// Whether `a` and `b` hold equal payloads in the inherited groups, which are all an anonymous box inherits.
 fn style_payloads_equal_in_inherited_groups(a: StylePayloadsRef, b: StylePayloadsRef) -> bool {
@@ -1302,6 +1296,8 @@ pub(crate) struct LayoutNodeArena {
     image_resources_owed_to_host: Vec<(NodeSlotId, OwedImageResources)>,
     /// The image boxes among the rows that own the provider of the image they show.
     owned_image_providers: HashMap<NodeSlotId, OwnedImageProvider>,
+    /// The text node that each `display: contents` text wrapper box wraps.
+    display_contents_text_wrappers: HashMap<NodeSlotId, StyleNodeID>,
     /// Whether a row has ever been given a style with `content-visibility: auto`.
     may_have_auto_content_visibility: bool,
     /// Whether a row has ever been given a style with a scroll snap type.
@@ -1399,6 +1395,7 @@ impl LayoutNodeArena {
             built_scroll_containers: Default::default(),
             image_resources_owed_to_host: Default::default(),
             owned_image_providers: Default::default(),
+            display_contents_text_wrappers: Default::default(),
             may_have_auto_content_visibility: false,
             may_have_scroll_snap_areas: false,
             nodes_enrolled_for_replaced_content_facts_sync: Vec::new(),
@@ -1762,6 +1759,7 @@ impl LayoutNodeArena {
         }
         self.owned_image_natural_sizes.remove(&id);
         self.owned_image_providers.remove(&id);
+        self.display_contents_text_wrappers.remove(&id);
         self.memo_invalidations.note_slot_freed(index);
         self.remove_layout_update_flag_node(id);
         self.math_layout_kinds.remove(&id);
@@ -3771,6 +3769,12 @@ impl LayoutNodeArena {
                             AnonymousStyleKind::WritingSuggestion,
                             AnonymousStyleOverrides::default(),
                         )
+                    } else if let Some(style_record) = self.display_contents_text_style_record(child) {
+                        self.derive_anonymous_style_record(
+                            style_record,
+                            AnonymousStyleKind::InlineStyleWrapper,
+                            AnonymousStyleOverrides::default(),
+                        )
                     } else {
                         let column_source = self
                             .anonymous_box_column_source(child)
@@ -3794,7 +3798,7 @@ impl LayoutNodeArena {
         host_calls: HostCalls<'_>,
         slot: NodeSlotId,
         derived: DerivedStyleRecord,
-    ) {
+    ) -> bool {
         let previous_payloads = self.data(slot).style.get();
         let changes_layout_affecting_style =
             !self.style_move_keeps_layout_inputs(slot, previous_payloads, derived.payloads);
@@ -3804,6 +3808,7 @@ impl LayoutNodeArena {
             self.reset_cached_intrinsic_sizes_of_self_and_ancestors(slot);
         }
         self.notify_shell_of_style_change(host_calls, slot, false);
+        changes_layout_affecting_style
     }
 
     fn notify_shell_of_style_change(&self, host_calls: HostCalls<'_>, slot: NodeSlotId, attach_resources: bool) {
@@ -5528,6 +5533,55 @@ impl LayoutNodeArena {
             .is_some_and(|state| state.precedes_writing_suggestion)
     }
 
+    pub(crate) fn note_display_contents_text_wrapper(&mut self, wrapper: NodeSlotId, text: StyleNodeID) {
+        self.display_contents_text_wrappers.insert(wrapper, text);
+    }
+
+    pub(crate) fn reinherit_display_contents_text(&mut self, host_calls: HostCalls<'_>, element: StyleNodeID) {
+        let assigned_node_count = self.assigned_node_count(Some(element));
+        let children: smallvec::SmallVec<[StyleNodeID; 4]> = if assigned_node_count != 0 {
+            (0..assigned_node_count)
+                .map(|index| self.assigned_node_at(element, index))
+                .collect()
+        } else {
+            self.with_style_store(|engine| engine.tree().dom_children(element).collect())
+        };
+        for child in children {
+            let row = self.bound_row(child);
+            if row.is_invalid() {
+                continue;
+            }
+            let wrapper = self.data(row).parent.get();
+            if wrapper.is_invalid() {
+                continue;
+            }
+            let Some(style_record) = self.display_contents_text_style_record(wrapper) else {
+                continue;
+            };
+            let derived = self.derive_anonymous_style_record(
+                style_record,
+                AnonymousStyleKind::InlineStyleWrapper,
+                AnonymousStyleOverrides::default(),
+            );
+            let shown_record = self.node_style_record(wrapper);
+            let damage = self
+                .with_style_engine(|engine| engine.element_record_damage(element, true, shown_record, derived.record));
+            if self.apply_reinherited_style_record(host_calls, wrapper, derived) {
+                self.set_needs_layout_update(wrapper, true);
+            }
+            self.reinherit_anonymous_children(host_calls, wrapper, derived.record);
+            if damage & crate::css::style::bridge::FfiStyleInvalidationField::LevelMask as u32 != 0 {
+                host_calls.shell_style_damaged(wrapper, damage);
+            }
+        }
+    }
+
+    fn display_contents_text_style_record(&self, wrapper: NodeSlotId) -> Option<u64> {
+        let text = self.display_contents_text_wrappers.get(&wrapper).copied()?;
+        let style_record = self.text_style_parent_facts(Some(text)).style_record;
+        (style_record != 0).then_some(style_record)
+    }
+
     /// Whether a box is the inline box that renders a writing suggestion, i.e. the one right after the text slice in
     /// front of the suggestion.
     fn is_writing_suggestion_box(&self, id: NodeSlotId) -> bool {
@@ -6257,9 +6311,7 @@ pub unsafe extern "C" fn document_host_set_style_record_host_callbacks(
     host: &DocumentHost,
     callbacks: FfiStyleRecordHostCallbacks,
 ) {
-    host.host_tables()
-        .shell_style_changed_host
-        .set(Some((callbacks.context, callbacks.shell_style_changed)));
+    host.host_tables().style_record_host.set(Some(callbacks));
 }
 
 #[unsafe(no_mangle)]
