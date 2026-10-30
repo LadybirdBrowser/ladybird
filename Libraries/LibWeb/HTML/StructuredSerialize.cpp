@@ -265,31 +265,6 @@ static ErrorOr<Gfx::AlphaType> storage_identifier_to_alpha_type(StringView ident
     return Error::from_string_literal("Unknown structured serialize alpha type");
 }
 
-class StructuredSerializeDataEncoder {
-public:
-    AK_ALLOC_WITH_KMALLOC;
-
-    virtual ~StructuredSerializeDataEncoder() = default;
-
-    virtual SerializationType type() const = 0;
-
-    virtual void encode(bool) = 0;
-    virtual void encode(u8) = 0;
-    virtual void encode(u16) = 0;
-    virtual void encode(i32) = 0;
-    virtual void encode(u32) = 0;
-    virtual void encode(i64) = 0;
-    virtual void encode(u64) = 0;
-    virtual void encode(double) = 0;
-    virtual void encode(Utf16String const&) = 0;
-    virtual void encode(ByteBuffer const&) = 0;
-    virtual void encode(ReadonlyBytes) = 0;
-
-    virtual void append(IPCSerializationRecord&&) { VERIFY_NOT_REACHED(); }
-    virtual IPCSerializationRecord take_ipc_record() { VERIFY_NOT_REACHED(); }
-    virtual StorageSerializationRecord take_storage_record() { VERIFY_NOT_REACHED(); }
-};
-
 class StructuredSerializeDataDecoder {
 public:
     AK_ALLOC_WITH_KMALLOC;
@@ -311,36 +286,6 @@ public:
     virtual ErrorOr<void> decode(double&) = 0;
     virtual ErrorOr<void> decode(Utf16String&) = 0;
     virtual ErrorOr<void> decode(ByteBuffer&) = 0;
-};
-
-class IPCStructuredSerializeDataEncoder final : public StructuredSerializeDataEncoder {
-public:
-    virtual SerializationType type() const override { return SerializationType::IPC; }
-
-    virtual void encode(bool value) override { MUST(m_encoder.encode(value)); }
-    virtual void encode(u8 value) override { MUST(m_encoder.encode(value)); }
-    virtual void encode(u16 value) override { MUST(m_encoder.encode(value)); }
-    virtual void encode(i32 value) override { MUST(m_encoder.encode(value)); }
-    virtual void encode(u32 value) override { MUST(m_encoder.encode(value)); }
-    virtual void encode(i64 value) override { MUST(m_encoder.encode(value)); }
-    virtual void encode(u64 value) override { MUST(m_encoder.encode(value)); }
-    virtual void encode(double value) override { MUST(m_encoder.encode(value)); }
-    virtual void encode(Utf16String const& value) override { MUST(m_encoder.encode(value)); }
-    virtual void encode(ByteBuffer const& value) override { MUST(m_encoder.encode(value)); }
-    virtual void encode(ReadonlyBytes value) override { MUST(m_encoder.encode(value)); }
-
-    virtual void append(IPCSerializationRecord&& record) override
-    {
-        m_encoder.append(move(record));
-    }
-
-    virtual IPCSerializationRecord take_ipc_record() override
-    {
-        return IPCSerializationRecord { m_encoder.take_buffer().take_data() };
-    }
-
-private:
-    TransferDataEncoder m_encoder;
 };
 
 class IPCStructuredSerializeDataDecoder final : public StructuredSerializeDataDecoder {
@@ -381,79 +326,6 @@ private:
     }
 
     TransferDataDecoder m_decoder;
-};
-
-class StorageStructuredSerializeDataEncoder final : public StructuredSerializeDataEncoder {
-public:
-    StorageStructuredSerializeDataEncoder()
-    {
-        append_storage_format_prologue(m_data);
-    }
-
-    virtual SerializationType type() const override { return SerializationType::Storage; }
-
-    virtual void encode(bool value) override { encode(static_cast<u8>(value ? 1 : 0)); }
-
-    virtual void encode(u8 value) override { m_data.append(value); }
-
-    virtual void encode(u16 value) override { append_leb128(value); }
-
-    virtual void encode(u32 value) override { append_leb128(value); }
-
-    virtual void encode(i32 value) override { append_leb128(value); }
-
-    virtual void encode(u64 value) override { append_leb128(value); }
-
-    virtual void encode(i64 value) override { append_leb128(value); }
-
-    virtual void encode(double value) override { append_little_endian(bit_cast<u64>(value)); }
-
-    virtual void encode(Utf16String const& string) override
-    {
-        auto view = string.utf16_view();
-        auto length = view.length_in_code_units();
-        encode((static_cast<u64>(length) << 1) | (view.has_ascii_storage() ? 1u : 0u));
-        if (view.has_ascii_storage()) {
-            m_data.append(view.bytes());
-        } else if constexpr (AK::HostIsLittleEndian) {
-            m_data.append(reinterpret_cast<u8 const*>(view.utf16_span().data()), length * sizeof(char16_t));
-        } else {
-            for (char16_t code_unit : view.utf16_span())
-                append_little_endian(static_cast<u16>(code_unit));
-        }
-    }
-
-    virtual void encode(ByteBuffer const& buffer) override
-    {
-        encode(buffer.bytes());
-    }
-
-    virtual void encode(ReadonlyBytes bytes) override
-    {
-        encode(static_cast<u64>(bytes.size()));
-        m_data.append(bytes.data(), bytes.size());
-    }
-
-    virtual StorageSerializationRecord take_storage_record() override
-    {
-        return StorageSerializationRecord { move(m_data) };
-    }
-
-private:
-    template<typename T>
-    void append_leb128(T value)
-    {
-        LEB128<T>::append_to(m_data, value);
-    }
-
-    template<typename T>
-    void append_little_endian(T value)
-    {
-        AK::LittleEndian<T> const little_endian { value };
-        m_data.append(reinterpret_cast<u8 const*>(&little_endian), sizeof(little_endian));
-    }
-
-    ByteBuffer m_data;
 };
 
 class StorageStructuredSerializeDataDecoder final : public StructuredSerializeDataDecoder {
@@ -620,141 +492,6 @@ private:
     Optional<AK::Error> m_error;
 };
 
-StructuredSerializeWriter StructuredSerializeWriter::create_ipc()
-{
-    return StructuredSerializeWriter { make<IPCStructuredSerializeDataEncoder>() };
-}
-
-StructuredSerializeWriter StructuredSerializeWriter::create_storage()
-{
-    return StructuredSerializeWriter { make<StorageStructuredSerializeDataEncoder>() };
-}
-
-StructuredSerializeWriter::StructuredSerializeWriter(NonnullOwnPtr<StructuredSerializeDataEncoder> encoder)
-    : m_encoder(move(encoder))
-{
-}
-
-StructuredSerializeWriter::~StructuredSerializeWriter() = default;
-
-SerializationType StructuredSerializeWriter::type() const
-{
-    return m_encoder->type();
-}
-
-template<typename T>
-static void encode_value(StructuredSerializeDataEncoder& encoder, T const& value)
-requires requires { encoder.encode(value); }
-{
-    encoder.encode(value);
-}
-
-static void encode_value(StructuredSerializeDataEncoder& encoder, int value)
-{
-    VERIFY(AK::is_within_range<i32>(value));
-    encoder.encode(static_cast<i32>(value));
-}
-
-static void encode_value(StructuredSerializeDataEncoder& encoder, long value)
-{
-    encoder.encode(static_cast<i64>(value));
-}
-
-static void encode_value(StructuredSerializeDataEncoder& encoder, long long value)
-{
-    encoder.encode(static_cast<i64>(value));
-}
-
-static void encode_value(StructuredSerializeDataEncoder& encoder, unsigned long value)
-{
-    encoder.encode(static_cast<u64>(value));
-}
-
-static void encode_value(StructuredSerializeDataEncoder& encoder, unsigned long long value)
-{
-    encoder.encode(static_cast<u64>(value));
-}
-
-static void encode_value(StructuredSerializeDataEncoder& encoder, Bindings::InterfaceName value)
-{
-    if (encoder.type() == SerializationType::IPC)
-        encoder.encode(to_underlying(value));
-    else
-        encoder.encode(Utf16String::from_utf8(MUST(serializable_interface_name_to_storage_identifier(value))));
-}
-
-[[maybe_unused]] static void encode_value(StructuredSerializeDataEncoder& encoder, Bindings::KeyType value)
-{
-    auto identifier = MUST(key_type_to_storage_identifier(value));
-    if (encoder.type() == SerializationType::IPC)
-        encoder.encode(to_underlying(value));
-    else
-        encoder.encode(Utf16String::from_utf8(identifier));
-}
-
-[[maybe_unused]] static void encode_value(StructuredSerializeDataEncoder& encoder, Bindings::KeyUsage value)
-{
-    auto identifier = MUST(key_usage_to_storage_identifier(value));
-    if (encoder.type() == SerializationType::IPC)
-        encoder.encode(to_underlying(value));
-    else
-        encoder.encode(Utf16String::from_utf8(identifier));
-}
-
-static void encode_value(StructuredSerializeDataEncoder& encoder, Crypto::KeyType value)
-{
-    encoder.encode(to_underlying(value));
-}
-
-[[maybe_unused]] static void encode_value(StructuredSerializeDataEncoder& encoder, Bindings::PredefinedColorSpace value)
-{
-    auto identifier = MUST(color_space_to_storage_identifier(value));
-    if (encoder.type() == SerializationType::IPC)
-        encoder.encode(to_underlying(value));
-    else
-        encoder.encode(Utf16String::from_utf8(identifier));
-}
-
-[[maybe_unused]] static void encode_value(StructuredSerializeDataEncoder& encoder, Gfx::BitmapFormat value)
-{
-    auto identifier = MUST(bitmap_format_to_storage_identifier(value));
-    if (encoder.type() == SerializationType::IPC)
-        encoder.encode(to_underlying(value));
-    else
-        encoder.encode(Utf16String::from_utf8(identifier));
-}
-
-[[maybe_unused]] static void encode_value(StructuredSerializeDataEncoder& encoder, Gfx::AlphaType value)
-{
-    auto identifier = MUST(alpha_type_to_storage_identifier(value));
-    if (encoder.type() == SerializationType::IPC)
-        encoder.encode(to_underlying(value));
-    else
-        encoder.encode(Utf16String::from_utf8(identifier));
-}
-
-template<typename T, size_t inline_capacity>
-static void encode_value(StructuredSerializeDataEncoder& encoder, Vector<T, inline_capacity> const& value)
-{
-    encoder.encode(static_cast<u64>(value.size()));
-    for (auto const& element : value)
-        encode_value(encoder, element);
-}
-
-template<typename T>
-static void encode_value(StructuredSerializeDataEncoder& encoder, Optional<T> const& value)
-{
-    encoder.encode(value.has_value());
-    if (value.has_value())
-        encode_value(encoder, value.value());
-}
-
-template<typename T>
-void StructuredSerializeWriter::encode(T const& value)
-{
-    encode_value(*m_encoder, value);
-}
-
 // The same-process SharedArrayBuffer aliases of an IPCSerializationRecord. Only this file creates side tables, so the
 // reader can rely on a record's side table being one of these.
 class SharedArrayBufferSideTable final : public SameProcessSerializationSideTable {
@@ -770,32 +507,13 @@ private:
     Vector<GC::Root<JS::ArrayBuffer>> m_array_buffers;
 };
 
-void StructuredSerializeWriter::append(IPCSerializationRecord&& record)
+IPCSerializationRecord create_ipc_serialization_record(ReadonlyBytes data, Vector<GC::Root<JS::ArrayBuffer>> shared_array_buffers)
 {
-    // TransferDataEncoder only appends record.data. Silently accepting a side table here would
-    // produce a record whose SharedArrayBuffer references cannot be decoded.
-    VERIFY(!record.same_process_side_table);
-    m_encoder->append(move(record));
-}
-
-u32 StructuredSerializeWriter::add_shared_array_buffer(JS::ArrayBuffer& array_buffer)
-{
-    VERIFY(m_shared_array_buffers.size() < NumericLimits<u32>::max());
-    m_shared_array_buffers.append(GC::make_root(array_buffer));
-    return static_cast<u32>(m_shared_array_buffers.size() - 1);
-}
-
-IPCSerializationRecord StructuredSerializeWriter::take_ipc_record()
-{
-    auto record = m_encoder->take_ipc_record();
-    if (!m_shared_array_buffers.is_empty())
-        record.same_process_side_table = adopt_ref(*new SharedArrayBufferSideTable(move(m_shared_array_buffers)));
+    IPCSerializationRecord record;
+    record.data.append(data.data(), data.size());
+    if (!shared_array_buffers.is_empty())
+        record.same_process_side_table = adopt_ref(*new SharedArrayBufferSideTable(move(shared_array_buffers)));
     return record;
-}
-
-StorageSerializationRecord StructuredSerializeWriter::take_storage_record()
-{
-    return m_encoder->take_storage_record();
 }
 
 ReadonlySpan<GC::Root<JS::ArrayBuffer>> same_process_shared_array_buffers(IPCSerializationRecord const& record)
@@ -1037,37 +755,9 @@ ErrorOr<T> StructuredSerializeReader::decode()
     return value;
 }
 
-// These templates are declared in the public header but their implementation
-// uses the private encode_value/decode_value overload set above. Explicitly
-// instantiate the concrete wire types used by LibWeb so users of the header do
-// not end up with unresolved template symbols at link time.
-template WEB_API void StructuredSerializeWriter::encode(ByteBuffer const&);
-template WEB_API void StructuredSerializeWriter::encode(Optional<::Crypto::ASN1::ObjectIdentifier> const&);
-template WEB_API void StructuredSerializeWriter::encode(Optional<double> const&);
-template WEB_API void StructuredSerializeWriter::encode(Span<u8 const> const&);
-template WEB_API void StructuredSerializeWriter::encode(Bindings::InterfaceName const&);
-template WEB_API void StructuredSerializeWriter::encode(Bindings::KeyType const&);
-template WEB_API void StructuredSerializeWriter::encode(Vector<Bindings::KeyUsage> const&);
-template WEB_API void StructuredSerializeWriter::encode(Bindings::KeyUsage const&);
-template WEB_API void StructuredSerializeWriter::encode(Gfx::AlphaType const&);
-template WEB_API void StructuredSerializeWriter::encode(Gfx::BitmapFormat const&);
-template WEB_API void StructuredSerializeWriter::encode(Bindings::PredefinedColorSpace const&);
-template WEB_API void StructuredSerializeWriter::encode(Crypto::KeyType const&);
-template WEB_API void StructuredSerializeWriter::encode(bool const&);
-template WEB_API void StructuredSerializeWriter::encode(double const&);
-template WEB_API void StructuredSerializeWriter::encode(int const&);
-template WEB_API void StructuredSerializeWriter::encode(Utf16String const&);
-template WEB_API void StructuredSerializeWriter::encode(Optional<Utf16String> const&);
-template WEB_API void StructuredSerializeWriter::encode(Optional<bool> const&);
-template WEB_API void StructuredSerializeWriter::encode(Optional<u64> const&);
-template WEB_API void StructuredSerializeWriter::encode(long const&);
-template WEB_API void StructuredSerializeWriter::encode(long long const&);
-template WEB_API void StructuredSerializeWriter::encode(unsigned long const&);
-template WEB_API void StructuredSerializeWriter::encode(unsigned long long const&);
-template WEB_API void StructuredSerializeWriter::encode(u8 const&);
-template WEB_API void StructuredSerializeWriter::encode(u32 const&);
-template WEB_API void StructuredSerializeWriter::encode(u16 const&);
-
+// This template is declared in the public header but its implementation uses the private decode_value overload set
+// above. Explicitly instantiate the concrete wire types used by LibWeb so users of the header do not end up with
+// unresolved template symbols at link time.
 template WEB_API ErrorOr<ByteBuffer> StructuredSerializeReader::decode();
 template WEB_API ErrorOr<int> StructuredSerializeReader::decode();
 template WEB_API ErrorOr<Optional<::Crypto::ASN1::ObjectIdentifier>> StructuredSerializeReader::decode();
@@ -1102,7 +792,8 @@ WebIDL::Exception data_clone_error_from_serialization_error(JS::Realm& realm, AK
 
 // The algorithms of structured serialization, which Libraries/LibWeb/Bindings/Rust/src/html/structured_serialize runs.
 extern "C" {
-JSCompletion web_rust_structured_serialize_internal(JSVM*, StructuredSerializeWriter*, JSValue, bool for_storage, SerializationMemory*, u8 allow_shared_array_buffers);
+JSCompletion web_rust_structured_serialize(JSVM*, JSValue, u8 allow_shared_array_buffers, Vector<Core::AnonymousBuffer>* shared_buffers, IPCSerializationRecord*);
+JSCompletion web_rust_structured_serialize_for_storage(JSVM*, JSValue, StorageSerializationRecord*);
 JSCompletion web_rust_structured_deserialize_internal(JSVM*, void* target_realm, StructuredSerializeReader*, DeserializationMemory*, bool check_fully_consumed);
 JSCompletion web_rust_structured_serialize_with_transfer(JSVM*, void* realm, JSValue, JSObject* const* transfer_list, size_t count, SerializedTransferRecord** out_record);
 JSCompletion web_rust_structured_deserialize_with_transfer(JSVM*, void* target_realm, SerializedTransferRecord*, Vector<GC::Root<JS::Object>>* transferred_values);
@@ -1149,9 +840,9 @@ WebIDL::ExceptionOr<IPCSerializationRecord> structured_serialize(JS::VM& vm, JS:
 WebIDL::ExceptionOr<IPCSerializationRecord> structured_serialize(JS::VM& vm, JS::Value value, AllowSharedArrayBuffers allow_shared_array_buffers)
 {
     // 1. Return ? StructuredSerializeInternal(value, false).
-    auto serialized = StructuredSerializeWriter::create_ipc();
-    TRY(structured_serialize_internal(vm, serialized, value, false, nullptr, allow_shared_array_buffers));
-    return serialized.take_ipc_record();
+    IPCSerializationRecord serialized;
+    TRY(JS::HostABI::completion_from_abi<JS::Value>(web_rust_structured_serialize(JS::HostABI::vm_to_abi(vm), JS::HostABI::value_to_abi(value), to_underlying(allow_shared_array_buffers), nullptr, &serialized)));
+    return serialized;
 }
 
 // https://html.spec.whatwg.org/multipage/structured-data.html#structuredserialize
@@ -1161,20 +852,20 @@ WebIDL::ExceptionOr<IPCSerializationRecord> structured_serialize(JS::VM& vm, JS:
 WebIDL::ExceptionOr<IPCSerializationRecord> structured_serialize(JS::VM& vm, JS::Value value, Vector<Core::AnonymousBuffer>& shared_buffers)
 {
     // 1. Return ? StructuredSerializeInternal(value, false).
-    auto serialized = StructuredSerializeWriter::create_ipc();
-    serialized.enable_shared_buffers();
-    TRY(structured_serialize_internal(vm, serialized, value, false));
-    shared_buffers = serialized.take_shared_buffers();
-    return serialized.take_ipc_record();
+    IPCSerializationRecord serialized;
+    Vector<Core::AnonymousBuffer> serialized_shared_buffers;
+    TRY(JS::HostABI::completion_from_abi<JS::Value>(web_rust_structured_serialize(JS::HostABI::vm_to_abi(vm), JS::HostABI::value_to_abi(value), to_underlying(AllowSharedArrayBuffers::CrossOriginIsolatedOnly), &serialized_shared_buffers, &serialized)));
+    shared_buffers = move(serialized_shared_buffers);
+    return serialized;
 }
 
 // https://html.spec.whatwg.org/multipage/structured-data.html#structuredserializeforstorage
 WebIDL::ExceptionOr<StorageSerializationRecord> structured_serialize_for_storage(JS::VM& vm, JS::Value value)
 {
     // 1. Return ? StructuredSerializeInternal(value, true).
-    auto serialized = StructuredSerializeWriter::create_storage();
-    TRY(structured_serialize_internal(vm, serialized, value, true));
-    return serialized.take_storage_record();
+    StorageSerializationRecord serialized;
+    TRY(JS::HostABI::completion_from_abi<JS::Value>(web_rust_structured_serialize_for_storage(JS::HostABI::vm_to_abi(vm), JS::HostABI::value_to_abi(value), &serialized)));
+    return serialized;
 }
 
 // https://html.spec.whatwg.org/multipage/structured-data.html#structuredserializeforstorage
@@ -1183,13 +874,6 @@ StorageSerializationRecord structured_serialize_undefined_or_null_for_storage(JS
 {
     VERIFY(value.is_undefined() || value.is_null());
     return value.is_undefined() ? storage_serialization_record_for_undefined() : storage_serialization_record_for_null();
-}
-
-// https://html.spec.whatwg.org/multipage/structured-data.html#structuredserializeinternal
-WebIDL::ExceptionOr<void> structured_serialize_internal(JS::VM& vm, StructuredSerializeWriter& serialized, JS::Value value, bool for_storage, SerializationMemory* memory, AllowSharedArrayBuffers allow_shared_array_buffers)
-{
-    TRY(JS::HostABI::completion_from_abi<JS::Value>(web_rust_structured_serialize_internal(JS::HostABI::vm_to_abi(vm), &serialized, JS::HostABI::value_to_abi(value), for_storage, memory, to_underlying(allow_shared_array_buffers))));
-    return {};
 }
 
 // https://html.spec.whatwg.org/multipage/structured-data.html#structureddeserialize
@@ -1246,14 +930,6 @@ WebIDL::ExceptionOr<::Crypto::UnsignedBigInteger> TransferDataDecoder::decode_un
 {
     auto buffer = TRY(decode_buffer());
     return ::Crypto::UnsignedBigInteger::import_data(buffer);
-}
-
-void encode_signed_big_integer(StructuredSerializeWriter& writer, ::Crypto::SignedBigInteger const& value)
-{
-    auto buffer = MUST(ByteBuffer::create_zeroed(value.byte_length()));
-    auto written = value.export_data(buffer.bytes());
-    VERIFY(written.size() == buffer.size());
-    writer.encode(buffer);
 }
 
 WebIDL::ExceptionOr<::Crypto::SignedBigInteger> decode_signed_big_integer(StructuredSerializeReader& reader, JS::Realm& realm)

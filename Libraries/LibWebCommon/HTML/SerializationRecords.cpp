@@ -65,12 +65,6 @@ IPC::MessageBuffer TransferDataEncoder::take_buffer() const
     return move(m_buffer);
 }
 
-void TransferDataEncoder::append(IPCSerializationRecord&& record)
-{
-    VERIFY(!m_buffer_has_been_taken);
-    MUST(m_buffer.append_data(record.data.data(), record.data.size()));
-}
-
 void TransferDataEncoder::encode_unsigned_big_integer(::Crypto::UnsignedBigInteger const& value)
 {
     auto buffer = MUST(ByteBuffer::create_zeroed(value.byte_length()));

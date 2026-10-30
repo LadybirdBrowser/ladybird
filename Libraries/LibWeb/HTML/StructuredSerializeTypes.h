@@ -16,9 +16,8 @@
 
 namespace Web::HTML {
 
-// The memories of a structured serialization and deserialization, which the Rust implementation keeps, and which C++
-// only passes on to the serializations of the values that the serialization steps of a platform object hold.
-struct SerializationMemory;
+// The memory of a structured deserialization, which the Rust implementation keeps, and which C++ only passes on to the
+// deserializations of the values that the deserialization steps of a platform object hold.
 struct DeserializationMemory;
 
 enum class SerializationType : u8 {

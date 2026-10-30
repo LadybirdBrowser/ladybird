@@ -135,7 +135,6 @@ public:
         return m_encoder.encode_size(size);
     }
 
-    void append(IPCSerializationRecord&&);
     void extend(Vector<TransferDataEncoder>);
     void encode_unsigned_big_integer(::Crypto::UnsignedBigInteger const&);
 

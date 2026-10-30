@@ -5,9 +5,9 @@
  */
 
 //! What structured serialization asks of LibWeb's C++ code, which implements it in
-//! Libraries/LibWeb/HTML/StructuredSerializeRustIntegration.cpp: the records that the serializations write and read,
-//! which the serialization steps of the interfaces implemented in C++ write and read as well, the memories of the
-//! serializations, the platform objects, and the side tables that SharedArrayBuffers are shared through.
+//! Libraries/LibWeb/HTML/StructuredSerializeRustIntegration.cpp: the C++ records that the serializations hand their
+//! bytes over to, the records that the deserializations read, the platform objects, and the side tables that
+//! SharedArrayBuffers are shared through.
 
 use core::ffi::c_void;
 use core::mem::ManuallyDrop;
@@ -15,37 +15,29 @@ use core::ptr::NonNull;
 
 use ak::Utf16String;
 use libjs_rust::api::{ArrayBuffer, ArrayBufferShared, Gc, Object, RawNativeFunctionResult, Realm, Value};
+use libwebcommon_rust::html::serialization_records::SerializationType;
 
+use crate::bindings::structured_data::SerializationWriter;
 use crate::bindings::{CallContext, Exception, WebIdlResult};
-use crate::html::structured_serialize::memory::{DeserializationMemory, SerializationMemory};
+use crate::html::structured_serialize::memory::DeserializationMemory;
 
 unsafe extern "C" {
-    fn web_structured_serialize_writer_create_for_transfer() -> *mut c_void;
-    fn web_structured_serialize_writer_destroy(writer: *mut c_void);
-    fn web_structured_serialize_writer_type(writer: *mut c_void) -> u8;
-    fn web_structured_serialize_writer_encode_u8(writer: *mut c_void, value: u8);
-    fn web_structured_serialize_writer_encode_bool(writer: *mut c_void, value: bool);
-    fn web_structured_serialize_writer_encode_i32(writer: *mut c_void, value: i32);
-    fn web_structured_serialize_writer_encode_u16(writer: *mut c_void, value: u16);
-    fn web_structured_serialize_writer_encode_u32(writer: *mut c_void, value: u32);
-    fn web_structured_serialize_writer_encode_u64(writer: *mut c_void, value: u64);
-    fn web_structured_serialize_writer_encode_f64(writer: *mut c_void, value: f64);
-    fn web_structured_serialize_writer_encode_utf16_string(writer: *mut c_void, string: usize);
-    fn web_structured_serialize_writer_encode_optional_utf16_string(
-        writer: *mut c_void,
-        has_value: bool,
-        string: usize,
+    fn web_structured_serialize_set_ipc_record(
+        record: *mut c_void,
+        data: ak::Span<'_, u8>,
+        shared_array_buffers: *const *mut c_void,
+        count: usize,
     );
-    fn web_structured_serialize_writer_encode_bytes(writer: *mut c_void, bytes: ak::Span<'_, u8>);
-    fn web_structured_serialize_writer_encode_interface_name(writer: *mut c_void, interface_name: u16);
-    fn web_structured_serialize_writer_encode_big_int(writer: *mut c_void, big_int: u64);
-    fn web_structured_serialize_writer_add_shared_array_buffer(writer: *mut c_void, array_buffer: *mut c_void) -> u32;
-    fn web_structured_serialize_writer_can_share_array_buffer_memory(
-        writer: *mut c_void,
+    fn web_structured_serialize_set_storage_record(record: *mut c_void, data: ak::Span<'_, u8>);
+    fn web_structured_serialize_interface_storage_identifier(
+        interface_name: u16,
+        identifier: &mut ak::Span<'static, u8>,
+    );
+    fn web_structured_serialize_shared_buffers_append_shared_memory(
+        shared_buffers: *mut c_void,
         array_buffer: *mut c_void,
+        index: &mut u32,
     ) -> bool;
-    fn web_structured_serialize_writer_shared_buffer_count(writer: *mut c_void) -> u32;
-    fn web_structured_serialize_writer_append_shared_buffer(writer: *mut c_void, array_buffer: *mut c_void);
 
     fn web_structured_serialize_reader_type(reader: *mut c_void) -> u8;
     fn web_structured_serialize_reader_is_at_end(reader: *mut c_void) -> bool;
@@ -151,9 +143,8 @@ unsafe extern "C" {
     fn web_structured_serialize_serialization_steps(
         realm: *mut c_void,
         object: *mut c_void,
-        writer: *mut c_void,
+        serialized: *mut c_void,
         for_storage: bool,
-        memory: *mut c_void,
     ) -> RawNativeFunctionResult;
     fn web_structured_serialize_is_exposed(interface_name: u16, realm: *mut c_void) -> bool;
     fn web_structured_serialize_serializable_steps(interface_name: u16) -> u8;
@@ -181,7 +172,7 @@ unsafe extern "C" {
         decoder: *mut c_void,
     ) -> RawNativeFunctionResult;
     fn web_structured_serialize_gather_image_bitmap_pixels(
-        writer: *mut c_void,
+        shared_buffers: *mut c_void,
         transfer_list: *const *mut c_void,
         count: usize,
     ) -> *mut c_void;
@@ -194,7 +185,13 @@ unsafe extern "C" {
     fn web_structured_serialize_transfer_data_holder_destroy(data_holder: *mut c_void);
     fn web_structured_serialize_transfer_record_create() -> *mut c_void;
     fn web_structured_serialize_transfer_record_destroy(record: *mut c_void);
-    fn web_structured_serialize_transfer_record_set_serialized(record: *mut c_void, writer: *mut c_void);
+    fn web_structured_serialize_transfer_record_set_serialized(
+        record: *mut c_void,
+        data: ak::Span<'_, u8>,
+        shared_array_buffers: *const *mut c_void,
+        count: usize,
+    );
+    fn web_structured_serialize_transfer_record_shared_buffers(record: *mut c_void) -> *mut c_void;
     fn web_structured_serialize_transfer_record_append_data_holder(record: *mut c_void, data_holder: *mut c_void);
     fn web_structured_serialize_transfer_record_data_holder_count(record: *mut c_void) -> usize;
     fn web_structured_serialize_transfer_record_take_data_holder(record: *mut c_void, index: usize) -> *mut c_void;
@@ -223,20 +220,11 @@ unsafe extern "C" {
     fn web_structured_serialize_transfer_data_decoder_destroy(decoder: *mut c_void);
 }
 
-/// HTML::SerializationType.
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub(crate) enum SerializationType {
-    Ipc,
-    Storage,
-}
-
-impl SerializationType {
-    fn from_abi(value: u8) -> Self {
-        match value {
-            0 => Self::Ipc,
-            1 => Self::Storage,
-            _ => unreachable!("LibWeb has no other serialization type"),
-        }
+fn serialization_type_from_abi(value: u8) -> SerializationType {
+    match value {
+        0 => SerializationType::Ipc,
+        1 => SerializationType::Storage,
+        _ => unreachable!("LibWeb has no other serialization type"),
     }
 }
 
@@ -296,162 +284,102 @@ impl Drop for DecodedBytes {
     }
 }
 
-/// The record that a structured serialization writes: an HTML::StructuredSerializeWriter that C++ lends.
-#[derive(Clone, Copy)]
-pub(crate) struct StructuredSerializeWriter(NonNull<c_void>);
+/// The values of an array of objects, as the C ABI takes them.
+fn objects_into_abi<T>(objects: &[Gc<T>]) -> Vec<*mut c_void> {
+    objects.iter().map(|object| object_into_abi(*object)).collect()
+}
 
-impl StructuredSerializeWriter {
+/// An HTML::IPCSerializationRecord that C++ lends for a serialization to set.
+pub(crate) struct IPCSerializationRecord(NonNull<c_void>);
+
+impl IPCSerializationRecord {
     /// # Safety
     ///
-    /// `writer` must be a writer that C++ lends while this is used.
-    pub(crate) unsafe fn from_raw(writer: *mut c_void) -> Self {
-        Self(NonNull::new(writer).expect("C++ lends a writer"))
+    /// `record` must be a record that C++ lends while this is used.
+    pub(crate) unsafe fn from_raw(record: *mut c_void) -> Self {
+        Self(NonNull::new(record).expect("C++ lends a record"))
     }
 
-    pub(crate) fn as_raw(self) -> *mut c_void {
-        self.0.as_ptr()
-    }
-
-    pub(crate) fn serialization_type(self) -> SerializationType {
-        // SAFETY: The writer is lent.
-        SerializationType::from_abi(unsafe { web_structured_serialize_writer_type(self.as_raw()) })
-    }
-
-    pub(crate) fn encode_u8(self, value: u8) {
-        // SAFETY: The writer is lent.
-        unsafe { web_structured_serialize_writer_encode_u8(self.as_raw(), value) };
-    }
-
-    pub(crate) fn encode_bool(self, value: bool) {
-        // SAFETY: The writer is lent.
-        unsafe { web_structured_serialize_writer_encode_bool(self.as_raw(), value) };
-    }
-
-    pub(crate) fn encode_i32(self, value: i32) {
-        // SAFETY: The writer is lent.
-        unsafe { web_structured_serialize_writer_encode_i32(self.as_raw(), value) };
-    }
-
-    pub(crate) fn encode_u16(self, value: u16) {
-        // SAFETY: The writer is lent.
-        unsafe { web_structured_serialize_writer_encode_u16(self.as_raw(), value) };
-    }
-
-    pub(crate) fn encode_u32(self, value: u32) {
-        // SAFETY: The writer is lent.
-        unsafe { web_structured_serialize_writer_encode_u32(self.as_raw(), value) };
-    }
-
-    pub(crate) fn encode_u64(self, value: u64) {
-        // SAFETY: The writer is lent.
-        unsafe { web_structured_serialize_writer_encode_u64(self.as_raw(), value) };
-    }
-
-    pub(crate) fn encode_f64(self, value: f64) {
-        // SAFETY: The writer is lent.
-        unsafe { web_structured_serialize_writer_encode_f64(self.as_raw(), value) };
-    }
-
-    /// An Optional<double>, as HTML::StructuredSerializeWriter encodes one: whether it has a value, then the value.
-    pub(crate) fn encode_optional_f64(self, value: Option<f64>) {
-        self.encode_bool(value.is_some());
-        if let Some(value) = value {
-            self.encode_f64(value);
-        }
-    }
-
-    pub(crate) fn encode_utf16_string(self, string: &Utf16String) {
-        // SAFETY: The writer is lent, and the call borrows the string.
-        unsafe { web_structured_serialize_writer_encode_utf16_string(self.as_raw(), string.raw_identity()) };
-    }
-
-    pub(crate) fn encode_optional_utf16_string(self, string: Option<&Utf16String>) {
-        // SAFETY: The writer is lent, and the call borrows the string.
+    /// Sets the record to the bytes, with the SharedArrayBuffers of its same-process side table.
+    pub(crate) fn set(self, data: &[u8], shared_array_buffers: &[Gc<ArrayBuffer>]) {
+        let shared_array_buffers = objects_into_abi(shared_array_buffers);
+        // SAFETY: The record is lent, the call borrows the bytes, and the buffers are live.
         unsafe {
-            web_structured_serialize_writer_encode_optional_utf16_string(
-                self.as_raw(),
-                string.is_some(),
-                string.map_or(0, Utf16String::raw_identity),
+            web_structured_serialize_set_ipc_record(
+                self.0.as_ptr(),
+                ak::Span::new(data),
+                shared_array_buffers.as_ptr(),
+                shared_array_buffers.len(),
             );
         }
     }
+}
 
-    pub(crate) fn encode_bytes(self, bytes: &[u8]) {
-        // SAFETY: The writer is lent, and the call borrows the bytes.
-        unsafe { web_structured_serialize_writer_encode_bytes(self.as_raw(), ak::Span::new(bytes)) };
+/// An HTML::StorageSerializationRecord that C++ lends for a serialization to set.
+pub(crate) struct StorageSerializationRecord(NonNull<c_void>);
+
+impl StorageSerializationRecord {
+    /// # Safety
+    ///
+    /// `record` must be a record that C++ lends while this is used.
+    pub(crate) unsafe fn from_raw(record: *mut c_void) -> Self {
+        Self(NonNull::new(record).expect("C++ lends a record"))
     }
 
-    /// Bindings::InterfaceName, which a storage record holds as the identifier of the interface.
-    pub(crate) fn encode_interface_name(self, interface_name: u16) {
-        // SAFETY: The writer is lent.
-        unsafe { web_structured_serialize_writer_encode_interface_name(self.as_raw(), interface_name) };
+    pub(crate) fn set(self, data: &[u8]) {
+        // SAFETY: The record is lent, and the call borrows the bytes.
+        unsafe { web_structured_serialize_set_storage_record(self.0.as_ptr(), ak::Span::new(data)) };
+    }
+}
+
+/// The identifier of the serializable interface that a storage record holds, from LibWeb's registry of them.
+pub(crate) fn serializable_interface_storage_identifier(interface_name: u16) -> &'static [u8] {
+    let mut identifier = ak::Span::default();
+    // SAFETY: The call writes a span of static storage to the local.
+    unsafe { web_structured_serialize_interface_storage_identifier(interface_name, &mut identifier) };
+    identifier.as_slice()
+}
+
+/// The side list of the cross-process shared memory that a record on the messaging path shares its SharedArrayBuffers
+/// through: a Vector<Core::AnonymousBuffer> that C++ lends.
+#[derive(Clone, Copy)]
+pub(crate) struct SharedBuffers(NonNull<c_void>);
+
+impl SharedBuffers {
+    /// # Safety
+    ///
+    /// `shared_buffers` must be a list that C++ lends while this is used.
+    pub(crate) unsafe fn from_raw(shared_buffers: *mut c_void) -> Self {
+        Self(NonNull::new(shared_buffers).expect("C++ lends a list"))
     }
 
-    /// The value of a BigInt, as encode_signed_big_integer() writes it.
-    pub(crate) fn encode_big_int(self, big_int: Value) {
-        // SAFETY: The writer is lent, and the BigInt is live.
-        unsafe { web_structured_serialize_writer_encode_big_int(self.as_raw(), big_int.to_raw()) };
-    }
-
-    /// Puts the SharedArrayBuffer in the record's same-process side table, and returns its index there.
-    pub(crate) fn add_shared_array_buffer(self, array_buffer: Gc<ArrayBuffer>) -> u32 {
-        // SAFETY: The writer is lent, and the buffer is live.
-        unsafe { web_structured_serialize_writer_add_shared_array_buffer(self.as_raw(), object_into_abi(array_buffer)) }
-    }
-
-    /// Whether the SharedArrayBuffer is backed by cross-process shared memory, and the writer has a side list for it.
-    pub(crate) fn can_share_array_buffer_memory(self, array_buffer: Gc<ArrayBuffer>) -> bool {
-        // SAFETY: The writer is lent, and the buffer is live.
+    /// Appends the cross-process shared memory of the SharedArrayBuffer to the list, and returns its index there, if
+    /// the buffer is backed by some.
+    pub(crate) fn append_shared_memory_of(self, array_buffer: Gc<ArrayBuffer>) -> Option<u32> {
+        let mut index = 0;
+        // SAFETY: The list is lent, and the buffer is live.
         unsafe {
-            web_structured_serialize_writer_can_share_array_buffer_memory(self.as_raw(), object_into_abi(array_buffer))
+            web_structured_serialize_shared_buffers_append_shared_memory(
+                self.0.as_ptr(),
+                object_into_abi(array_buffer),
+                &mut index,
+            )
         }
+        .then_some(index)
     }
 
-    pub(crate) fn shared_buffer_count(self) -> u32 {
-        // SAFETY: The writer is lent.
-        unsafe { web_structured_serialize_writer_shared_buffer_count(self.as_raw()) }
-    }
-
-    /// Appends the cross-process shared memory of the SharedArrayBuffer to the writer's side list.
-    pub(crate) fn append_shared_buffer(self, array_buffer: Gc<ArrayBuffer>) {
-        // SAFETY: The writer is lent, and the buffer is live.
-        unsafe { web_structured_serialize_writer_append_shared_buffer(self.as_raw(), object_into_abi(array_buffer)) };
-    }
-
-    /// Gathers the pixels of the ImageBitmaps of the transfer list in one buffer of shared memory, which the writer's
-    /// side list holds.
+    /// Gathers the pixels of the ImageBitmaps of the transfer list in one buffer of shared memory, which the list
+    /// holds.
     pub(crate) fn gather_image_bitmap_pixels(self, transfer_list: &[Gc<Object>]) -> ImageBitmapSharedPixels {
-        let transfer_list: Vec<*mut c_void> = transfer_list.iter().map(|object| object_into_abi(*object)).collect();
-        // SAFETY: The writer is lent, and the objects are live.
+        let transfer_list = objects_into_abi(transfer_list);
+        // SAFETY: The list is lent, and the objects are live.
         ImageBitmapSharedPixels(NonNull::new(unsafe {
             web_structured_serialize_gather_image_bitmap_pixels(
-                self.as_raw(),
+                self.0.as_ptr(),
                 transfer_list.as_ptr(),
                 transfer_list.len(),
             )
         }))
-    }
-}
-
-/// A writer that this owns, of the [[Serialized]] of a transfer: an IPC record, since the transfer may cross a process
-/// boundary, with the shared memory of its SharedArrayBuffers on the side.
-pub(crate) struct OwnedStructuredSerializeWriter(StructuredSerializeWriter);
-
-impl OwnedStructuredSerializeWriter {
-    pub(crate) fn new_for_transfer() -> Self {
-        // SAFETY: LibWeb returns a new writer, which this owns.
-        Self(unsafe { StructuredSerializeWriter::from_raw(web_structured_serialize_writer_create_for_transfer()) })
-    }
-
-    pub(crate) fn writer(&self) -> StructuredSerializeWriter {
-        self.0
-    }
-}
-
-impl Drop for OwnedStructuredSerializeWriter {
-    fn drop(&mut self) {
-        // SAFETY: This owns the writer.
-        unsafe { web_structured_serialize_writer_destroy(self.0.as_raw()) };
     }
 }
 
@@ -484,7 +412,7 @@ impl StructuredSerializeReader {
 
     pub(crate) fn serialization_type(self) -> SerializationType {
         // SAFETY: The reader is lent.
-        SerializationType::from_abi(unsafe { web_structured_serialize_reader_type(self.as_raw()) })
+        serialization_type_from_abi(unsafe { web_structured_serialize_reader_type(self.as_raw()) })
     }
 
     pub(crate) fn is_at_end(self) -> bool {
@@ -712,22 +640,21 @@ pub(crate) fn serializable_interface_name(object: Gc<Object>) -> Option<u16> {
         .then_some(interface_name)
 }
 
-/// The serialization steps of the primary interface of the serializable platform object.
+/// The serialization steps of the primary interface of the serializable platform object, which C++ runs through the
+/// bindings of the interface, given the writer, which it passes on.
 pub(crate) fn serialization_steps(
     cx: &CallContext,
     object: Gc<Object>,
-    serialized: StructuredSerializeWriter,
+    serialized: &mut SerializationWriter,
     for_storage: bool,
-    memory: &SerializationMemory,
 ) -> WebIdlResult<()> {
-    // SAFETY: The realm and the object are live, and the writer and the memory are lent.
+    // SAFETY: The realm and the object are live, and the writer is lent for the call.
     completion(unsafe {
         web_structured_serialize_serialization_steps(
             cx.realm().as_ptr().cast(),
             object_into_abi(object),
-            serialized.as_raw(),
+            core::ptr::from_mut(serialized).cast(),
             for_storage,
-            memory.as_abi(),
         )
     })?;
     Ok(())
@@ -908,11 +835,25 @@ impl SerializedTransferRecord {
         self.0.as_ptr()
     }
 
-    /// Sets the record's [[Serialized]] to what the writer wrote, with the shared memory of the SharedArrayBuffers it
-    /// shared.
-    pub(crate) fn set_serialized(self, writer: StructuredSerializeWriter) {
-        // SAFETY: The record and the writer are lent.
-        unsafe { web_structured_serialize_transfer_record_set_serialized(self.0.as_ptr(), writer.as_raw()) };
+    /// Sets the record's [[Serialized]] to the bytes, with the SharedArrayBuffers of its same-process side table.
+    pub(crate) fn set_serialized(self, data: &[u8], shared_array_buffers: &[Gc<ArrayBuffer>]) {
+        let shared_array_buffers = objects_into_abi(shared_array_buffers);
+        // SAFETY: The record is lent, the call borrows the bytes, and the buffers are live.
+        unsafe {
+            web_structured_serialize_transfer_record_set_serialized(
+                self.0.as_ptr(),
+                ak::Span::new(data),
+                shared_array_buffers.as_ptr(),
+                shared_array_buffers.len(),
+            );
+        }
+    }
+
+    /// The cross-process shared memory of the record, which its [[Serialized]] and its data holders share
+    /// SharedArrayBuffers and the pixels of ImageBitmaps through.
+    pub(crate) fn shared_buffers(self) -> SharedBuffers {
+        // SAFETY: The record is lent, and so is its list.
+        unsafe { SharedBuffers::from_raw(web_structured_serialize_transfer_record_shared_buffers(self.0.as_ptr())) }
     }
 
     /// Appends the data holder to the record's [[TransferDataHolders]].

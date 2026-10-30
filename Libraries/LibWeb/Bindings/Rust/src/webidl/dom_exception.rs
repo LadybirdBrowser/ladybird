@@ -15,7 +15,8 @@ use ak::Utf16String;
 use libjs_rust::api::{Gc, Object, Realm};
 
 use crate::bindings::WebIdlResult;
-use crate::html::structured_serialize::cpp::{StructuredSerializeReader, StructuredSerializeWriter};
+use crate::html::structured_serialize::cpp::StructuredSerializeReader;
+use crate::html::structured_serialize::writer::StructuredSerializeWriter;
 
 unsafe extern "C" {
     fn web_dom_exception_name_and_message(exception: *mut c_void, name: &mut usize, message: &mut usize);
@@ -59,7 +60,7 @@ pub(crate) fn create(realm: Gc<Realm>, fields: &DOMExceptionFields) -> Gc<Object
 }
 
 // https://webidl.spec.whatwg.org/#idl-DOMException
-pub(crate) fn serialization_steps(value: &DOMExceptionFields, serialized: StructuredSerializeWriter) {
+pub(crate) fn serialization_steps(value: &DOMExceptionFields, serialized: &StructuredSerializeWriter) {
     // 1. Set serialized.[[Name]] to value’s name.
     serialized.encode_utf16_string(&value.name);
 

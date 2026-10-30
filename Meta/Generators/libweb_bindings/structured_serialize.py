@@ -34,7 +34,7 @@ def write_rust_entry_point_declarations(
         out.write(
             f"""
 // The serialization steps and the deserialization steps of {interface.name}.
-JSCompletion {rust_entry_point_name(interface, "serialization_steps")}(JSVM*, void* realm, void* cell, RustSerializationWriter*, bool for_storage);
+JSCompletion {rust_entry_point_name(interface, "serialization_steps")}(JSVM*, void* realm, void* cell, void* serialized, bool for_storage);
 JSCompletion {rust_entry_point_name(interface, "deserialization_steps")}(JSVM*, void* realm, RustSerializationReader*);
 """
         )
@@ -224,16 +224,15 @@ Optional<SerializablePlatformObject> serializable_from_object(JS::Object& object
     }
 }
 
-WebIDL::ExceptionOr<void> SerializablePlatformObject::serialization_steps(HTML::StructuredSerializeWriter& serialized, bool for_storage, HTML::SerializationMemory* memory) const
+WebIDL::ExceptionOr<void> SerializablePlatformObject::serialization_steps([[maybe_unused]] void* serialized, [[maybe_unused]] bool for_storage) const
 {
-    [[maybe_unused]] RustSerializationWriter writer { .realm = *realm, .serialized = serialized, .for_storage = for_storage, .memory = memory };
     switch (interface_name) {
 """
     )
     for interface in rust_serializable:
         out.write(
             f"""    case InterfaceName::{interface.name}:
-        TRY(JS::HostABI::completion_from_abi<void>({rust_entry_point_name(interface, "serialization_steps")}(JS::HostABI::vm_to_abi(realm->vm()), realm.ptr(), rust_object.ptr(), &writer, for_storage)));
+        TRY(JS::HostABI::completion_from_abi<void>({rust_entry_point_name(interface, "serialization_steps")}(JS::HostABI::vm_to_abi(realm->vm()), realm.ptr(), rust_object.ptr(), serialized, for_storage)));
         return {{}};
 """
         )
