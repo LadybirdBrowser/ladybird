@@ -207,6 +207,8 @@ describe("errors", () => {
             const iterator = Iterator.prototype.chunks.call(source, 1);
             if (started) iterator.next();
             expect(() => iterator.return()).toThrowWithMessage(Error, "close failed");
+            expect(iterator.next()).toEqual({ value: undefined, done: true });
+            expect(iterator.return()).toEqual({ value: undefined, done: true });
         }
     });
 

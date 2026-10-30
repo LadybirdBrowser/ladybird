@@ -74,6 +74,22 @@ describe("errors", () => {
             Iterator.zipKeyed({ a: [0], b: [2, 3] }, { mode: "strict" }).toArray();
         }).toThrowWithMessage(TypeError, "Not enough iterator results in 'strict' mode");
     });
+
+    test("iterator completes when the underlying return method throws", () => {
+        function* source() {
+            try {
+                yield 1;
+            } finally {
+                throw new Error("close failed");
+            }
+        }
+
+        const iterator = Iterator.zipKeyed({ source: source() });
+        expect(iterator.next().done).toBeFalse();
+        expect(() => iterator.return()).toThrowWithMessage(Error, "close failed");
+        expect(iterator.next()).toEqual({ value: undefined, done: true });
+        expect(iterator.return()).toEqual({ value: undefined, done: true });
+    });
 });
 
 describe("normal behavior", () => {

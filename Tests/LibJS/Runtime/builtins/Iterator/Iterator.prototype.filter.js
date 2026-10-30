@@ -74,10 +74,13 @@ describe("errors", () => {
             }
         }
 
-        expect(() => {
+        for (const started of [false, true]) {
             const iterator = new TestIterator().filter(() => true);
-            iterator.return();
-        }).toThrow(TestError);
+            if (started) iterator.next();
+            expect(() => iterator.return()).toThrow(TestError);
+            expect(iterator.next()).toEqual({ value: undefined, done: true });
+            expect(iterator.return()).toEqual({ value: undefined, done: true });
+        }
     });
 
     test("predicate function throws", () => {
