@@ -961,7 +961,8 @@ impl SnapshotBuilder<'_> {
                 let bytes = |word_offset: u32| word_offset * size_of::<u64>() as u32;
                 DirectGetterFields {
                     wrapper_implementation: bytes(getter.wrapper_implementation_word_offset.get()),
-                    implementation_value: bytes(getter.implementation_value_word_offset.get()),
+                    implementation_value: getter.implementation_value_offset.get(),
+                    implementation_value_is_compressed: getter.implementation_value_is_compressed.get() != 0,
                     main_world_wrapper: bytes(getter.main_world_wrapper_word_offset.get()),
                     weak_impl_value: bytes(getter.weak_impl_value_word_offset.get()),
                 }

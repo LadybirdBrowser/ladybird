@@ -615,11 +615,14 @@ pub struct NativeCallTarget {
 /// wrapper, the field of the implementation the attribute returns, the weak
 /// reference of an implementation to its main world wrapper, and the cell of
 /// that weak reference. The getter returns the main world wrapper of the
-/// field's implementation, or null for a null field.
+/// field's implementation, or null for a null field. The field holds a
+/// compressed cell pointer if `implementation_value_is_compressed`, and a
+/// full one otherwise.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct DirectGetterFields {
     pub wrapper_implementation: u32,
     pub implementation_value: u32,
+    pub implementation_value_is_compressed: bool,
     pub main_world_wrapper: u32,
     pub weak_impl_value: u32,
 }

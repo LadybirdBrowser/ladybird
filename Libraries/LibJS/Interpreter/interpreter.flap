@@ -51,6 +51,19 @@ inline fn box_object(object: Object) -> Value<Object> {
     value
 }
 
+# The field a direct getter returns is a compressed cell pointer for a GC::Member, and a full one otherwise.
+inline fn load_direct_getter_implementation_value(address: u64, is_compressed: u32) -> u64 {
+    if is_compressed != 0 {
+        let mut value: u64;
+        load_compressed_cell_ptr(value, [address]);
+        value
+    } else {
+        let mut value: u64;
+        load64(value, [address]);
+        value
+    }
+}
+
 inline fn load_direct_getter_value(
     function: Object,
     receiver_object: Object,
@@ -73,7 +86,11 @@ inline fn load_direct_getter_value(
     let receiver_pointer: u64 = alias(receiver_object);
     guard cached_receiver == receiver_pointer else failure;
 
-    let result_implementation = implementation_words[direct_getter.implementation_value_word_offset];
+    let result_implementation_address: u64 = implementation + alias(direct_getter.implementation_value_offset);
+    let result_implementation = load_direct_getter_implementation_value(
+        result_implementation_address,
+        direct_getter.implementation_value_is_compressed
+    );
     if result_implementation == 0 {
         let mut null_value: Value;
         mov(null_value, NULL_VALUE);

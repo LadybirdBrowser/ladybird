@@ -13726,8 +13726,19 @@ asm_handler_GetById_cold:
     mov r8, QWORD PTR [r8 + rdi * 8]
     cmp r8, rsi
     jne .Lasm_GetById.ssa_block_3
-    mov ecx, DWORD PTR [rcx + 100]
-    mov rax, QWORD PTR [rax + rcx * 8]
+    mov esi, DWORD PTR [rcx + 100]
+    mov ecx, DWORD PTR [rcx + 112]
+    add rax, rsi
+    test ecx, ecx
+    jz .Lasm_GetById.ssa_block_56
+    mov eax, DWORD PTR [rax]
+    lea r11, [r15 + rax * 8]
+    test eax, eax
+    cmovnz rax, r11
+    jmp .Lasm_GetById.ssa_block_57
+.Lasm_GetById.ssa_block_56:
+    mov rax, QWORD PTR [rax]
+.Lasm_GetById.ssa_block_57:
     test rax, rax
     jnz .Lasm_GetById.ssa_block_50
     movabs rax, 9223090561878065152
