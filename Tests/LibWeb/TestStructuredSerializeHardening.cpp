@@ -180,6 +180,36 @@ TEST_CASE(storage_reader_rejects_an_object_reference_past_the_memory)
     EXPECT(storage_deserialize(storage_record_with_value(value)).is_error());
 }
 
+TEST_CASE(storage_reader_rejects_a_resizable_array_buffer_longer_than_its_max_byte_length)
+{
+    auto resizable_array_buffer_record = [](u32 byte_length, u32 max_byte_length) {
+        Vector<u8> value { to_underlying(ValueTag::ResizeableArrayBuffer) };
+        append_storage_leb128(value, byte_length);
+        value.resize(value.size() + byte_length);
+        append_storage_leb128(value, max_byte_length);
+        return storage_record_with_value(value);
+    };
+
+    EXPECT(storage_deserialize(resizable_array_buffer_record(8, 4)).is_error());
+    EXPECT(!storage_deserialize(resizable_array_buffer_record(8, 8)).is_error());
+}
+
+TEST_CASE(transfer_receiver_rejects_a_resizable_array_buffer_longer_than_its_max_byte_length)
+{
+    auto& realm = test_realm();
+    auto receive = [&](size_t byte_length, size_t max_byte_length) {
+        Web::HTML::TransferDataEncoder holder;
+        MUST(holder.encode(to_underlying(Web::HTML::TransferType::ResizableArrayBuffer)));
+        MUST(holder.encode(MUST(ByteBuffer::create_zeroed(byte_length))));
+        MUST(holder.encode(max_byte_length));
+        Web::HTML::TransferDataDecoder decoder { move(holder) };
+        return Web::HTML::structured_deserialize_with_transfer_internal(decoder, realm);
+    };
+
+    EXPECT(receive(8, 4).is_error());
+    EXPECT(!receive(8, 8).is_error());
+}
+
 TEST_CASE(transfer_receiver_rejects_an_unknown_transfer_type)
 {
     auto& realm = test_realm();
