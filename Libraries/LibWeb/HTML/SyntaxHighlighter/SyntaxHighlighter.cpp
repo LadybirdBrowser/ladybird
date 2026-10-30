@@ -63,6 +63,13 @@ void SyntaxHighlighter::rehighlight(Palette const& palette)
                 state = State::CSS;
                 // The end position points to the '>' character, but we need the position after it
                 substring_start_position = { token->end_position().line, token->end_position().column + 1 };
+            } else if (token->tag_name().is_one_of(u"textarea"sv, u"title"sv)) {
+                // NB: Like the tree builder, treat the contents of these elements as text, not markup.
+                tokenizer.switch_to(HTMLTokenizer::State::RCDATA);
+            } else if (token->tag_name().is_one_of(u"iframe"sv, u"noembed"sv, u"noframes"sv, u"xmp"sv)) {
+                tokenizer.switch_to(HTMLTokenizer::State::RAWTEXT);
+            } else if (token->tag_name() == u"plaintext"sv) {
+                tokenizer.switch_to(HTMLTokenizer::State::PLAINTEXT);
             }
         } else if (token->is_end_tag()) {
             if (token->tag_name().is_one_of(u"script"sv, u"style"sv)) {
