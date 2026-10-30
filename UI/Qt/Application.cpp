@@ -29,6 +29,10 @@
 #    include <UI/Qt/ScrollbarPreferencesMac.h>
 #endif
 
+#if defined(AK_OS_LINUX)
+#    include <UI/Qt/X11Window.h>
+#endif
+
 #include <QAction>
 #include <QClipboard>
 #include <QDesktopServices>
@@ -629,6 +633,7 @@ Core::EventLoop& Application::create_platform_event_loop()
         m_application = make<LadybirdQApplication>(arguments());
 #if defined(AK_OS_LINUX)
         QGuiApplication::setDesktopFileName(QStringLiteral("org.ladybird.Ladybird"));
+        Ladybird::clip_translucent_windows_that_cannot_blend();
 #endif
 #if !defined(Q_OS_MACOS) && !defined(Q_OS_WIN)
         install_orca_scripts();

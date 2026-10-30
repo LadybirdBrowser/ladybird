@@ -86,11 +86,12 @@ public:
 protected:
     virtual void paintEvent(QPaintEvent*) override
     {
+        auto opaque_pixels_only = ChromeStyle::shows_opaque_pixels_only(*this);
         QPainter painter(this);
-        painter.setRenderHint(QPainter::Antialiasing, true);
+        painter.setRenderHint(QPainter::Antialiasing, !opaque_pixels_only);
         auto const& panel = Theme::panel();
         painter.setBrush(panel.surface);
-        painter.setPen(QPen(panel.edge, 1));
+        painter.setPen(QPen(opaque_pixels_only ? ChromeStyle::opaque_panel_edge() : panel.edge, 1));
         painter.drawRoundedRect(QRectF(rect()).adjusted(0.5, 0.5, -0.5, -0.5), POPUP_CORNER_RADIUS, POPUP_CORNER_RADIUS);
     }
 };

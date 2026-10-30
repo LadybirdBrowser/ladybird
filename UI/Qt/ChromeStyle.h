@@ -72,6 +72,14 @@ QColor chrome_muted_text(QPalette const&);
 QFont chrome_title_font(QFont);
 
 QString style_sheet_color(QColor const&);
+
+// The panel outline painted over the panel, for a panel that cannot be partly clear.
+QColor opaque_panel_edge();
+
+// Whether the widget's window shows only the pixels it paints opaque, so that its edges are painted opaque and without
+// antialiasing.
+bool shows_opaque_pixels_only(QWidget const&);
+
 QString application_style_sheet(QPalette const&);
 QString toolbar_container_style_sheet(QPalette const&);
 QString menu_bar_style_sheet(QPalette const&);
