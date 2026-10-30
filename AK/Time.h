@@ -32,7 +32,6 @@ namespace AK {
 
 constexpr inline double ms_per_day = 86'400'000;
 constexpr inline double seconds_per_day = 86'400;
-constexpr inline double seconds_per_year = 60.0 * 60.0 * 24.0 * 365.2425;
 constexpr inline auto seconds_per_hour = 3'600;
 constexpr inline auto seconds_per_minute = 60;
 
@@ -138,21 +137,6 @@ constexpr i64 years_to_days_since_epoch(int year)
 constexpr i64 days_since_epoch(int year, int month, int day)
 {
     return years_to_days_since_epoch(year) + day_of_year(year, month, day);
-}
-
-constexpr i64 seconds_since_epoch_to_year(i64 seconds)
-{
-    // NOTE: We are not using floor() from <math.h> to avoid LibC / DynamicLoader dependency issues.
-    auto round_down = [](double value) -> i64 {
-        auto as_i64 = static_cast<i64>(value);
-
-        if ((value == as_i64) || (as_i64 >= 0))
-            return as_i64;
-        return as_i64 - 1;
-    };
-
-    auto years_since_epoch = static_cast<double>(seconds) / seconds_per_year;
-    return 1970 + round_down(years_since_epoch);
 }
 
 // Represents a duration in a "safe" way.
@@ -708,7 +692,6 @@ using AK::days_since_epoch;
 using AK::is_leap_year;
 using AK::iso8061_weeks_in_year;
 using AK::MonotonicTime;
-using AK::seconds_since_epoch_to_year;
 using AK::timespec_add;
 using AK::timespec_add_timeval;
 using AK::timespec_sub;
