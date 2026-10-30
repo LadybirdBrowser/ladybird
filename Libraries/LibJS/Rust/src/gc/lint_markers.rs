@@ -10,7 +10,7 @@
 
 use super::defer_gc::{DeferGc, Deferred};
 use super::gc_ref_cell::GcRefCell;
-use super::root::{MarkedVec, Root};
+use super::root::{CellRoot, MarkedVec, Root};
 use super::sweep::Sweep;
 use super::visitor::Trace;
 use crate::interpreter::vm::Vm;
@@ -26,6 +26,8 @@ pub unsafe trait KeepsAlive {}
 unsafe impl<T: Trace + 'static> KeepsAlive for Root<'_, T> {}
 // SAFETY: The values are held by a Root.
 unsafe impl<T: Trace + Clone + 'static> KeepsAlive for MarkedVec<'_, T> {}
+// SAFETY: The cell is a root of LibGC while the CellRoot lives.
+unsafe impl<T> KeepsAlive for CellRoot<T> {}
 // SAFETY: The value cannot outlive the deferral it is tied to, while which nothing is collected.
 unsafe impl<T> KeepsAlive for Deferred<'_, T> {}
 // SAFETY: The VM is the root set: the heap traces it through gather_roots() wherever it is held.
