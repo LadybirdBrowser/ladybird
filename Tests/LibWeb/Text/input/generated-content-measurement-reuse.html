@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; font: 16px/20px monospace; }
+    .container { width: 600px; }
+    .line { position: relative; padding-left: 24px; }
+    .line::before { content: "+ "; position: absolute; left: 4px; top: 1px; }
+    .indented::before { content: "indented"; display: block; text-indent: 50%; }
+    .sized::before { content: "sized"; position: absolute; left: 0; width: 10%; }
+</style>
+<div class="container" id="container"></div>
+<script>
+    // A generated box with only text inside resolves no percentages for its content against its containing block, so
+    // measuring it is reused when only that containing block's width changes.
+    test(() => {
+        let lines = "";
+        for (let index = 0; index < 20; ++index)
+            lines += `<div class="line">line ${index}</div>`;
+        container.innerHTML = `${lines}<div class="indented">text</div><div class="line sized">sized</div>`;
+        document.body.offsetHeight;
+
+        internals.beginLayoutTrace();
+        container.style.width = "700px";
+        document.body.offsetHeight;
+        const misses = internals.takeLayoutTrace().split("\n").filter(line => line.includes("(anonymous) MEASURE max-content inline (cache=miss)"));
+        println(`generated box measurements missed: ${misses.length}`);
+
+        const fresh = container.cloneNode(true);
+        fresh.id = "";
+        document.body.appendChild(fresh);
+        const geometry = root => {
+            const rootRect = root.getBoundingClientRect();
+            const rects = [];
+            for (const element of root.children) {
+                const range = document.createRange();
+                range.selectNodeContents(element);
+                for (const rect of [element.getBoundingClientRect(), ...range.getClientRects()])
+                    rects.push(`${rect.left - rootRect.left},${rect.top - rootRect.top},${rect.width},${rect.height}`);
+            }
+            return rects.join(" ");
+        };
+        println(`geometry matches a fresh layout: ${geometry(container) === geometry(fresh)}`);
+    });
+</script>
