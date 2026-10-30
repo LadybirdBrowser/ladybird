@@ -1435,6 +1435,9 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         if facts.is_anonymous() || facts.is_replaced_box() || facts.has_auto_content_box_size() {
             return true;
         }
+        if facts.is_table_cell() {
+            return Self::box_edges_contain_percentage(self.style(node));
+        }
         Self::own_box_resolves_percentage_against_inline_basis(self.style(node))
     }
 
