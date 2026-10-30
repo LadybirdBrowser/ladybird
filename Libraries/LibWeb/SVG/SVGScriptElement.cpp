@@ -13,6 +13,9 @@
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/ResponseView.h>
+#include <LibWeb/HTML/AttributeNames.h>
+#include <LibWeb/HTML/CORSSettingAttribute.h>
+#include <LibWeb/HTML/PotentialCORSRequest.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/Namespace.h>
@@ -109,13 +112,17 @@ void SVGScriptElement::process_the_script_element()
         }
         auto script_url = maybe_script_url.release_value();
 
-        auto request = Fetch::Infrastructure::Request::create();
-        request->set_url(script_url);
-        request->set_destination(Fetch::Infrastructure::Request::Destination::Script);
-        // FIXME: Use CORS state specified by the ‘crossorigin’ attribute.
-        request->set_mode(Fetch::Infrastructure::Request::Mode::NoCORS);
-        request->set_credentials_mode(Fetch::Infrastructure::Request::CredentialsMode::SameOrigin);
+        // https://html.spec.whatwg.org/multipage/webappapis.html#fetch-a-classic-script
+        // 1. Let request be the result of creating a potential-CORS request given url, "script", and CORS setting.
+        auto crossorigin = get_attribute(HTML::AttributeNames::crossorigin);
+        auto cors_setting = HTML::cors_setting_attribute_from_keyword(crossorigin.map([](auto const& value) { return value.utf16_view(); }));
+        auto request = HTML::create_potential_CORS_request(script_url, Fetch::Infrastructure::Request::Destination::Script, cors_setting);
+
+        // 2. Set request's client to settings object.
         request->set_client(document().relevant_settings_object().address());
+
+        // FIXME: 3. Set request's initiator type to "script".
+        // FIXME: 4. Set up the classic script request given request and options.
         request->set_parser_metadata(m_parser_inserted
                 ? Fetch::Infrastructure::Request::ParserMetadata::ParserInserted
                 : Fetch::Infrastructure::Request::ParserMetadata::NotParserInserted);
