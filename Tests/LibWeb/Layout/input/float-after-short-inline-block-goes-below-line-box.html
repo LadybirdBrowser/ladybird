@@ -2,6 +2,26 @@
 <style>
 body { margin: 0; width: 400px; }
 .short { display: inline-block; margin-left: 20px; width: 200px; height: 1px; background: blue; }
+.margin { margin-top: 30px; height: 0; }
+.tall { height: 30px; }
+.narrow { width: 50px; }
+.middle { vertical-align: middle; }
+.text-top { vertical-align: text-top; }
+.text-bottom { vertical-align: text-bottom; }
+.super { vertical-align: super; }
+.sub { vertical-align: sub; }
+.top { vertical-align: top; }
+.raised { vertical-align: 15px; }
+.big { font-size: 40px; }
+div:not([class]) { display: flow-root; }
 .wide { float: left; width: 300px; height: 10px; background: orange; }
 </style>
-<div class="short"></div><div class="wide"></div>
+<div><div class="short"></div><div class="wide"></div></div>
+<div><div class="short margin"></div><div class="wide"></div></div>
+<div>gjpqy<div class="short tall"></div><div class="wide"></div></div>
+<div>gjpqy<div class="short tall middle"></div><div class="wide"></div></div>
+<div>gjpqy<div class="short tall narrow text-top"></div><div class="short tall narrow text-bottom"></div><div class="wide"></div></div>
+<div>gjpqy<div class="short tall narrow super"></div><div class="short tall narrow sub"></div><div class="wide"></div></div>
+<div>gjpqy<div class="short tall narrow top"></div><div class="short tall narrow middle"></div><div class="wide"></div></div>
+<div>gjpqygjpqygjpqy<span class="raised">gjpqy</span><div class="wide"></div></div>
+<div>gjpqygjpqy<span class="big">X</span><span class="sub">gjpqy</span><div class="wide"></div></div>

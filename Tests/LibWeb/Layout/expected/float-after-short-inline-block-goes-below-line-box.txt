@@ -1,10 +1,95 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [0,0] [0+0+0 400 0+0+400] [0+0+0 16 0+0+0] children: inline
-      frag 0 from BlockContainer start: 0, length: 0, rect: [320,11 200x1] baseline: 1
-      BlockContainer <div.short> at [320,11] inline-block [20+0+0 200 0+0+0] [0+0+0 1 0+0+0] [BFC] children: not-inline
-      BlockContainer <div.wide> at [0,1] floating [0+0+0 300 0+0+0] [0+0+0 10 0+0+0] [BFC] children: not-inline
-      TextNode <#text> (not painted)
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 386.40625 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [0,0] [0+0+0 400 0+0+400] [0+0+0 386.40625 0+0+0] children: not-inline
+      BlockContainer <div> at [0,0] [0+0+0 400 0+0+0] [0+0+0 26 0+0+0] [BFC] children: inline
+        frag 0 from BlockContainer start: 0, length: 0, rect: [20,11 200x1] baseline: 1
+        BlockContainer <div.short> at [20,11] inline-block [20+0+0 200 0+0+0] [0+0+0 1 0+0+0] [BFC] children: not-inline
+        BlockContainer <div.wide> at [0,16] floating [0+0+0 300 0+0+0] [0+0+0 10 0+0+0] [BFC] children: not-inline
+      BlockContainer <(anonymous)> at [0,26] [0+0+0 400 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [0,26] [0+0+0 400 0+0+0] [0+0+0 43.203125 0+0+0] [BFC] children: inline
+        frag 0 from BlockContainer start: 0, length: 0, rect: [20,56 200x0] baseline: 30
+        BlockContainer <div.short.margin> at [20,56] inline-block [20+0+0 200 0+0+0] [30+0+0 0 0+0+0] [BFC] children: not-inline
+        BlockContainer <div.wide> at [0,59.203125] floating [0+0+0 300 0+0+0] [0+0+0 10 0+0+0] [BFC] children: not-inline
+      BlockContainer <(anonymous)> at [0,69.203125] [0+0+0 400 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [0,69.203125] [0+0+0 400 0+0+0] [0+0+0 43.203125 0+0+0] [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 5, rect: [0,86.203125 41.671875x16] baseline: 12.796875
+            "gjpqy"
+        frag 1 from BlockContainer start: 0, length: 0, rect: [61.671875,69.203125 200x30] baseline: 30
+        TextNode <#text> (not painted)
+        BlockContainer <div.short.tall> at [61.671875,69.203125] inline-block [20+0+0 200 0+0+0] [0+0+0 30 0+0+0] [BFC] children: not-inline
+        BlockContainer <div.wide> at [0,102.40625] floating [0+0+0 300 0+0+0] [0+0+0 10 0+0+0] [BFC] children: not-inline
+      BlockContainer <(anonymous)> at [0,112.40625] [0+0+0 400 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [0,112.40625] [0+0+0 400 0+0+0] [0+0+0 40 0+0+0] [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 5, rect: [0,118.40625 41.671875x16] baseline: 12.796875
+            "gjpqy"
+        frag 1 from BlockContainer start: 0, length: 0, rect: [61.671875,112.40625 200x30] baseline: 19.296875
+        TextNode <#text> (not painted)
+        BlockContainer <div.short.tall.middle> at [61.671875,112.40625] inline-block [20+0+0 200 0+0+0] [0+0+0 30 0+0+0] [BFC] children: not-inline
+        BlockContainer <div.wide> at [0,142.40625] floating [0+0+0 300 0+0+0] [0+0+0 10 0+0+0] [BFC] children: not-inline
+      BlockContainer <(anonymous)> at [0,152.40625] [0+0+0 400 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [0,152.40625] [0+0+0 400 0+0+0] [0+0+0 54 0+0+0] [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 5, rect: [0,166.40625 41.671875x16] baseline: 12.796875
+            "gjpqy"
+        frag 1 from BlockContainer start: 0, length: 0, rect: [61.671875,166.40625 50x30] baseline: 16
+        frag 2 from BlockContainer start: 0, length: 0, rect: [131.671875,152.40625 50x30] baseline: 26.796875
+        TextNode <#text> (not painted)
+        BlockContainer <div.short.tall.narrow.text-top> at [61.671875,166.40625] inline-block [20+0+0 50 0+0+0] [0+0+0 30 0+0+0] [BFC] children: not-inline
+        BlockContainer <div.short.tall.narrow.text-bottom> at [131.671875,152.40625] inline-block [20+0+0 50 0+0+0] [0+0+0 30 0+0+0] [BFC] children: not-inline
+        BlockContainer <div.wide> at [0,196.40625] floating [0+0+0 300 0+0+0] [0+0+0 10 0+0+0] [BFC] children: not-inline
+      BlockContainer <(anonymous)> at [0,206.40625] [0+0+0 400 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [0,206.40625] [0+0+0 400 0+0+0] [0+0+0 49 0+0+0] [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 5, rect: [0,223.40625 41.671875x16] baseline: 12.796875
+            "gjpqy"
+        frag 1 from BlockContainer start: 0, length: 0, rect: [61.671875,200.40625 50x30] baseline: 30
+        frag 2 from BlockContainer start: 0, length: 0, rect: [131.671875,209.40625 50x30] baseline: 30
+        TextNode <#text> (not painted)
+        BlockContainer <div.short.tall.narrow.super> at [61.671875,200.40625] inline-block [20+0+0 50 0+0+0] [0+0+0 30 0+0+0] [BFC] children: not-inline
+        BlockContainer <div.short.tall.narrow.sub> at [131.671875,209.40625] inline-block [20+0+0 50 0+0+0] [0+0+0 30 0+0+0] [BFC] children: not-inline
+        BlockContainer <div.wide> at [0,245.40625] floating [0+0+0 300 0+0+0] [0+0+0 10 0+0+0] [BFC] children: not-inline
+      BlockContainer <(anonymous)> at [0,255.40625] [0+0+0 400 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [0,255.40625] [0+0+0 400 0+0+0] [0+0+0 40 0+0+0] [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 5, rect: [0,261.40625 41.671875x16] baseline: 12.796875
+            "gjpqy"
+        frag 1 from BlockContainer start: 0, length: 0, rect: [61.671875,255.40625 50x30] baseline: 0
+        frag 2 from BlockContainer start: 0, length: 0, rect: [131.671875,255.40625 50x30] baseline: 19.296875
+        TextNode <#text> (not painted)
+        BlockContainer <div.short.tall.narrow.top> at [61.671875,255.40625] inline-block [20+0+0 50 0+0+0] [0+0+0 30 0+0+0] [BFC] children: not-inline
+        BlockContainer <div.short.tall.narrow.middle> at [131.671875,255.40625] inline-block [20+0+0 50 0+0+0] [0+0+0 30 0+0+0] [BFC] children: not-inline
+        BlockContainer <div.wide> at [0,285.40625] floating [0+0+0 300 0+0+0] [0+0+0 10 0+0+0] [BFC] children: not-inline
+      BlockContainer <(anonymous)> at [0,295.40625] [0+0+0 400 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [0,295.40625] [0+0+0 400 0+0+0] [0+0+0 41 0+0+0] [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 15, rect: [0,310.40625 125.015625x16] baseline: 12.796875
+            "gjpqygjpqygjpqy"
+        TextNode <#text> (not painted)
+        InlineNode <span.raised> at [125.015625,295.40625] [0+0+0 41.671875 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from TextNode start: 0, length: 5, rect: [125.015625,295.40625 41.671875x16] baseline: 12.796875
+              "gjpqy"
+          TextNode <#text> (not painted)
+        BlockContainer <div.wide> at [0,326.40625] floating [0+0+0 300 0+0+0] [0+0+0 10 0+0+0] [BFC] children: not-inline
+      BlockContainer <(anonymous)> at [0,336.40625] [0+0+0 400 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [0,336.40625] [0+0+0 400 0+0+0] [0+0+0 50 0+0+0] [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 10, rect: [0,355.40625 83.34375x16] baseline: 12.796875
+            "gjpqygjpqy"
+        TextNode <#text> (not painted)
+        InlineNode <span.big> at [83.34375,336.40625] [0+0+0 28.90625 0+0+0] [0+0+0 40 0+0+0]
+          frag 0 from TextNode start: 0, length: 1, rect: [83.34375,336.40625 28.90625x40] baseline: 32
+              "X"
+          TextNode <#text> (not painted)
+        InlineNode <span.sub> at [112.25,358.40625] [0+0+0 41.671875 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from TextNode start: 0, length: 5, rect: [112.25,358.40625 41.671875x16] baseline: 12.796875
+              "gjpqy"
+          TextNode <#text> (not painted)
+        BlockContainer <div.wide> at [0,376.40625] floating [0+0+0 300 0+0+0] [0+0+0 10 0+0+0] [BFC] children: not-inline
+      BlockContainer <(anonymous)> at [0,386.40625] [0+0+0 400 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x16] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x386.40625] (z-index: auto)
