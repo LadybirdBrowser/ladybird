@@ -837,8 +837,12 @@ pub(crate) struct FfiPartialRelayoutHostFacts {
 mod tests {
     use super::FfiPartialRelayoutHostFacts;
     use crate::css::style::tree::StyleNodeID;
-    use crate::layout::layout_node_arena::{LayoutNodeArena, NodeAllocation};
+    use crate::layout::CssPixels;
+    use crate::layout::layout_node_arena::{
+        FirstLineMaxContent, IntrinsicInlineSizeMeasurement, IntrinsicSizeCacheKey, LayoutNodeArena, NodeAllocation,
+    };
     use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
+    use crate::layout::run_state::LayoutScratch;
 
     fn allocate_box_with_a_dummy_shell(arena: &mut LayoutNodeArena) -> NodeAllocation {
         let allocation = arena.allocate_for_test();
@@ -905,23 +909,49 @@ mod tests {
         arena.data(allocation.slot).flags.get() & NodeFlag::NeedsLayoutUpdate as u32 != 0
     }
 
-    fn intrinsic_cache_epoch(arena: &LayoutNodeArena, allocation: &NodeAllocation) -> u16 {
-        arena.data(allocation.slot).intrinsic_cache_epoch
+    fn store_intrinsic_sizes(scratch: &LayoutScratch, allocations: &[&NodeAllocation]) {
+        for allocation in allocations {
+            scratch
+                .intrinsic_size_caches
+                .intrinsic_inline_size_measurement_cache_put(
+                    allocation.slot,
+                    IntrinsicSizeCacheKey::default(),
+                    IntrinsicInlineSizeMeasurement {
+                        min_content_inline_size: CssPixels::from_raw(10),
+                        max_content_inline_size: CssPixels::from_raw(20),
+                        first_line_max_content: FirstLineMaxContent::default(),
+                        depends_on_percentage_block_size: false,
+                        depends_on_percentage_inline_basis: false,
+                        depends_on_block_size: false,
+                    },
+                );
+        }
+    }
+
+    fn intrinsic_sizes_are_kept(scratch: &LayoutScratch, allocation: &NodeAllocation) -> bool {
+        scratch
+            .intrinsic_size_caches
+            .intrinsic_inline_size_measurement_cache_get(allocation.slot, IntrinsicSizeCacheKey::default())
+            .is_some()
     }
 
     #[test]
-    fn marking_a_node_marks_clean_ancestors_and_bumps_their_intrinsic_epochs() {
+    fn marking_a_node_marks_clean_ancestors_and_drops_their_intrinsic_sizes() {
         let mut arena = LayoutNodeArena::new();
+        let scratch = LayoutScratch::default();
         let parent = allocate_box_with_a_dummy_shell(&mut arena);
         let child = allocate_box_with_a_dummy_shell(&mut arena);
         arena.insert_child(parent.slot, child.slot, NodeSlotId::INVALID);
+        scratch.apply_memo_invalidations(&mut arena);
+        store_intrinsic_sizes(&scratch, &[&parent, &child]);
 
         arena.set_needs_layout_update(child.slot, true);
+        scratch.apply_memo_invalidations(&mut arena);
 
         assert!(node_is_dirty(&arena, &child));
         assert!(node_is_dirty(&arena, &parent));
-        assert_eq!(intrinsic_cache_epoch(&arena, &child), 1);
-        assert_eq!(intrinsic_cache_epoch(&arena, &parent), 1);
+        assert!(!intrinsic_sizes_are_kept(&scratch, &child));
+        assert!(!intrinsic_sizes_are_kept(&scratch, &parent));
         free_node(&mut arena, &parent);
     }
 
@@ -945,15 +975,19 @@ mod tests {
     #[test]
     fn remarking_a_dirty_non_boundary_node_leaves_its_parent_clean() {
         let mut arena = LayoutNodeArena::new();
+        let scratch = LayoutScratch::default();
         let parent = allocate_box_with_a_dummy_shell(&mut arena);
         let child = allocate_box_with_a_dummy_shell(&mut arena);
         arena.insert_child(parent.slot, child.slot, NodeSlotId::INVALID);
         arena.set_node_flag(child.slot, NodeFlag::NeedsLayoutUpdate, true);
+        scratch.apply_memo_invalidations(&mut arena);
+        store_intrinsic_sizes(&scratch, &[&parent]);
 
         arena.set_needs_layout_update(child.slot, true);
+        scratch.apply_memo_invalidations(&mut arena);
 
         assert!(!node_is_dirty(&arena, &parent));
-        assert_eq!(intrinsic_cache_epoch(&arena, &parent), 0);
+        assert!(intrinsic_sizes_are_kept(&scratch, &parent));
         free_node(&mut arena, &parent);
     }
 

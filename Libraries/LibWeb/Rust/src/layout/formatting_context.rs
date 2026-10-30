@@ -3633,7 +3633,8 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
 }
 
 /// Brings the arena up to date for a stage before the stage borrows it: derives the facts its runs read, marks the
-/// flex and grid items of the nodes marked for layout, and drops the cached intrinsic sizes of released slots.
+/// flex and grid items of the nodes marked for layout, and applies the arena's memo invalidations to the stage's
+/// memos.
 fn prepare_layout_stage(state: &mut super::ArenaHandle, kind: LayoutStageKind, root: NodeSlotId) {
     let (arena, scratch) = state.arena_mut_and_layout_scratch();
     match kind {
@@ -3657,22 +3658,9 @@ fn prepare_layout_stage(state: &mut super::ArenaHandle, kind: LayoutStageKind, r
             arena.derive_facts_in_subtree(root);
         }
     }
-    drop_intrinsic_size_cache_entries_of_released_slots(arena, scratch);
     scratch.apply_memo_invalidations(arena);
     scratch.layout_trace.take_over_from(&mut arena.layout_trace);
     arena.begin_active_layout_pass();
-}
-
-/// Drops the intrinsic size cache entries of the slots the arena let go of, or whose cache epoch wrapped, since the
-/// last stage, before any run of this one reads a cache.
-fn drop_intrinsic_size_cache_entries_of_released_slots(
-    arena: &mut LayoutNodeArena,
-    scratch: &super::run_state::LayoutScratch,
-) {
-    let drops = arena.take_intrinsic_size_cache_drops();
-    if !drops.is_empty() {
-        scratch.intrinsic_size_caches.drop_slots(drops);
-    }
 }
 
 fn finish_entry_pass(
