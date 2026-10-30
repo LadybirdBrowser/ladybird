@@ -154,6 +154,16 @@ impl<'vm> StructuredSerializeWriter<'vm> {
         record.set(self.encoder.borrow().bytes(), &self.shared_array_buffers.values());
     }
 
+    /// The bytes of the storage record that the writer wrote, for Rust code that keeps them, as IndexedDB does.
+    pub(crate) fn into_storage_bytes(self) -> Vec<u8> {
+        assert_eq!(self.serialization_type(), SerializationType::Storage);
+        assert!(
+            self.shared_array_buffers.is_empty(),
+            "a storage record shares no SharedArrayBuffer"
+        );
+        self.encoder.into_inner().into_bytes()
+    }
+
     /// Sets the storage record that C++ lends to what the writer wrote.
     pub(crate) fn finish_storage_record(self, record: StorageSerializationRecord) {
         assert_eq!(self.serialization_type(), SerializationType::Storage);

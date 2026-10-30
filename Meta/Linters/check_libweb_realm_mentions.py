@@ -58,9 +58,8 @@ ALLOWED_REALM_MENTIONS = {
     ),
     "IndexedDB": (
         4,
-        14,
-        "the C++ glue of the Rust IndexedDB creates the factory in a global's realm and serializes, deserializes, "
-        "and wraps values in a given realm",
+        12,
+        "the C++ glue of the Rust IndexedDB creates the factory in a global's realm and wraps values in a given realm",
     ),
     "Infra": (2, 13, "JSON parse/serialization helpers still expose JS values in selected realms"),
     "Internals": (3, 3, "test-only internals still expose JS-facing helper objects and promises"),

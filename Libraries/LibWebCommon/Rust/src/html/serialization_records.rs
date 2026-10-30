@@ -91,6 +91,10 @@ impl RecordEncoder {
         &self.data
     }
 
+    pub fn into_bytes(self) -> Vec<u8> {
+        self.data
+    }
+
     pub fn encode_u8(&mut self, value: u8) {
         self.data.push(value);
     }
