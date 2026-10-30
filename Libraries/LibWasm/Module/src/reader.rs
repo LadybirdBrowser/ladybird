@@ -193,6 +193,20 @@ impl<'a> Reader<'a> {
         }
         Ok(length)
     }
+
+    /// A vector of elements, each read by `read_element`. Its storage is reserved up front, and a length whose storage
+    /// cannot be allocated is an error rather than an abort.
+    pub fn read_vector<T>(&mut self, mut read_element: impl FnMut(&mut Self) -> Result<T>) -> Result<Vec<T>> {
+        let length = self.read_vector_length()?;
+        let mut elements = Vec::new();
+        elements
+            .try_reserve_exact(length as usize)
+            .map_err(|_| Error::malformed("vector too large"))?;
+        for _ in 0..length {
+            elements.push(read_element(self)?);
+        }
+        Ok(elements)
+    }
 }
 
 #[cfg(test)]

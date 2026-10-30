@@ -226,11 +226,7 @@ fn parse_sub_type(reader: &mut Reader<'_>) -> Result<SubType> {
     let (is_final, supertypes) = match reader.peek_u8()? {
         byte @ (0x50 | 0x4f) => {
             reader.read_u8()?;
-            let count = reader.read_vector_length()?;
-            let mut supertypes = Vec::with_capacity(count as usize);
-            for _ in 0..count {
-                supertypes.push(reader.read_u32()?);
-            }
+            let supertypes = reader.read_vector(Reader::read_u32)?;
             (byte == 0x4f, supertypes)
         }
         _ => (true, Vec::new()),
@@ -241,14 +237,7 @@ fn parse_sub_type(reader: &mut Reader<'_>) -> Result<SubType> {
             let results = parse_value_types(reader)?;
             CompositeType::Func(FuncType { params, results })
         }
-        0x5f => {
-            let count = reader.read_vector_length()?;
-            let mut fields = Vec::with_capacity(count as usize);
-            for _ in 0..count {
-                fields.push(parse_field_type(reader)?);
-            }
-            CompositeType::Struct(fields)
-        }
+        0x5f => CompositeType::Struct(reader.read_vector(parse_field_type)?),
         0x5e => CompositeType::Array(parse_field_type(reader)?),
         _ => return Err(Error::malformed("integer representation too long")),
     };
@@ -280,12 +269,7 @@ fn parse_field_type(reader: &mut Reader<'_>) -> Result<FieldType> {
 }
 
 fn parse_value_types(reader: &mut Reader<'_>) -> Result<Vec<ValType>> {
-    let count = reader.read_vector_length()?;
-    let mut types = Vec::with_capacity(count as usize);
-    for _ in 0..count {
-        types.push(parse_value_type(reader)?);
-    }
-    Ok(types)
+    reader.read_vector(parse_value_type)
 }
 
 /// The abstract heap type a single byte encodes, both as a shorthand reference type (nullable) and as a heap type.
@@ -533,21 +517,13 @@ pub fn parse_constant_expression(reader: &mut Reader<'_>) -> Result<ConstantExpr
 }
 
 fn parse_function_indices(reader: &mut Reader<'_>) -> Result<ElementItems> {
-    let count = reader.read_vector_length()?;
-    let mut functions = Vec::with_capacity(count as usize);
-    for _ in 0..count {
-        functions.push(reader.read_u32()?);
-    }
-    Ok(ElementItems::Functions(functions))
+    Ok(ElementItems::Functions(reader.read_vector(Reader::read_u32)?))
 }
 
 fn parse_element_expressions(reader: &mut Reader<'_>) -> Result<ElementItems> {
-    let count = reader.read_vector_length()?;
-    let mut expressions = Vec::with_capacity(count as usize);
-    for _ in 0..count {
-        expressions.push(parse_constant_expression(reader)?);
-    }
-    Ok(ElementItems::Expressions(expressions))
+    Ok(ElementItems::Expressions(
+        reader.read_vector(parse_constant_expression)?,
+    ))
 }
 
 /// Segments of function indices hold non-null function references.
