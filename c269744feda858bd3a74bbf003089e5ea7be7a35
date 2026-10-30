@@ -1,0 +1,9 @@
+Ladybird’s CoreLocation provider now keeps a request waiting while
+the authorization is still “not determined”. All three engines do
+the same: Chromium’s LocationManagerDelegate returns early from
+didChangeAuthorizationStatus: for kCLAuthorizationStatusNotDetermined
+(location_manager_delegate.mm), WebKit’s CoreLocationGeolocationProvider
+asks for authorization again and keeps waiting
+(locationManagerDidChangeAuthorization:), and Gecko’s
+CoreLocationLocationProvider only logs the change. None of them fails a
+request until the authorization is denied or restricted.
