@@ -260,6 +260,7 @@ Each entry has the following properties:
 
 | Field                | Required                   | Default        | Description                                                                                                                                                            |
 |----------------------|----------------------------|----------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `accepts-animations` | No                         | `true`         | Whether the transition and animation properties apply to this pseudo-element, whatever its `property-whitelist` says.                                                  |
 | `alias-for`          | No                         | Nothing        | Use to specify that this should be treated as an alias for the named pseudo-element.                                                                                   |
 | `function-syntax`    | No                         | Nothing        | Syntax for the function arguments if this is a function-type pseudo-element. Copied directly from the spec.                                                            |
 | `implementation`     | Unless `type` is "function | Nothing        | How this pseudo-element is implemented, either `"synthetic"` or `"element-reference"` - see below.                                                                     |
@@ -284,7 +285,7 @@ The generated code provides:
 This is an array of strings. Properties can be named directly ("color"), or categories of properties with a leading `#`
 ("#font-properties"), as the specs often says a group is allowed instead of listing the properties exactly.
 Any properties we don't support yet can be prefixed with "FIXME:" and will be ignored.
-The property groups and the properties that always apply are defined in
+The property groups and the transition and animation properties are defined in
 `PseudoElementPropertyGroups.txt` and generated into the Rust cascade tables.
 
 The following categories are supported:

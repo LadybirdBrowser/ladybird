@@ -76,6 +76,7 @@
       "float",
       "#custom-properties"
     ],
+    "accepts-animations": false,
     "implementation": "synthetic"
   },
   "first-line": {
@@ -91,12 +92,14 @@
       "FIXME: ruby-position",
       "#inline-layout-properties"
     ],
+    "accepts-animations": false,
     "implementation": "synthetic"
   },
   "highlight": {
     "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-highlight",
     "type": "function",
-    "function-syntax": "<highlight-name-selector>"
+    "function-syntax": "<highlight-name-selector>",
+    "accepts-animations": false
   },
   "marker": {
     "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-marker",
@@ -136,6 +139,7 @@
       "stroke-width",
       "#custom-properties"
     ],
+    "accepts-animations": false,
     "implementation": "synthetic"
   },
   "search-text-current": {
@@ -151,6 +155,7 @@
       "stroke-width",
       "#custom-properties"
     ],
+    "accepts-animations": false,
     "implementation": "synthetic"
   },
   "selection": {
@@ -165,6 +170,7 @@
       "stroke-width",
       "#custom-properties"
     ],
+    "accepts-animations": false,
     "implementation": "synthetic"
   },
   "slider-fill": {
@@ -198,6 +204,7 @@
       "stroke-width",
       "#custom-properties"
     ],
+    "accepts-animations": false,
     "implementation": "synthetic"
   },
   "view-transition": {
