@@ -150,54 +150,29 @@ TEST_CASE(storage_writer_stores_int32_range_numbers_as_a_signed_varint_tag)
     EXPECT_EQ(value_bytes(JS::Value(-0.0))[0], to_underlying(ValueTag::NumberPrimitive));
 }
 
+// A storage record names the value of an enumeration by a stable identifier, which deserializing the record reads and
+// serializing the value it creates writes back.
+static void expect_identifiers_round_trip(Web::HTML::StorageSerializationRecord const& record, bool needs_principal_realm = false)
+{
+    auto value = MUST(needs_principal_realm ? principal_storage_deserialize(record) : storage_deserialize(record));
+    EXPECT_EQ(storage_serialize(GC::Ref { value.as_object() }).data.span(), record.data.span());
+}
+
 TEST_CASE(storage_writer_encodes_enum_like_values_as_stable_identifiers)
 {
-    expect_storage_identifier_encoding(Web::Bindings::KeyType::Public, "public"sv);
-    expect_storage_identifier_encoding(Web::Bindings::KeyType::Private, "private"sv);
-    expect_storage_identifier_encoding(Web::Bindings::KeyType::Secret, "secret"sv);
+    auto handle = handle_byte_buffer("0123456789abcdef"sv.bytes());
+    for (auto type : { "public"sv, "private"sv, "secret"sv })
+        expect_identifiers_round_trip(crypto_key_full_record(type, "deriveKey"sv, alg_key_algorithm("HKDF"sv), handle), true);
+    for (auto usage : { "encrypt"sv, "decrypt"sv, "sign"sv, "verify"sv, "deriveKey"sv, "deriveBits"sv, "wrapKey"sv, "unwrapKey"sv, "encapsulateKey"sv, "encapsulateBits"sv, "decapsulateKey"sv, "decapsulateBits"sv })
+        expect_identifiers_round_trip(crypto_key_full_record("secret"sv, usage, alg_key_algorithm("HKDF"sv), handle), true);
 
-    expect_storage_identifier_encoding(Web::Bindings::KeyUsage::Encrypt, "encrypt"sv);
-    expect_storage_identifier_encoding(Web::Bindings::KeyUsage::Decrypt, "decrypt"sv);
-    expect_storage_identifier_encoding(Web::Bindings::KeyUsage::Sign, "sign"sv);
-    expect_storage_identifier_encoding(Web::Bindings::KeyUsage::Verify, "verify"sv);
-    expect_storage_identifier_encoding(Web::Bindings::KeyUsage::DeriveKey, "deriveKey"sv);
-    expect_storage_identifier_encoding(Web::Bindings::KeyUsage::DeriveBits, "deriveBits"sv);
-    expect_storage_identifier_encoding(Web::Bindings::KeyUsage::WrapKey, "wrapKey"sv);
-    expect_storage_identifier_encoding(Web::Bindings::KeyUsage::UnwrapKey, "unwrapKey"sv);
-    expect_storage_identifier_encoding(Web::Bindings::KeyUsage::EncapsulateKey, "encapsulateKey"sv);
-    expect_storage_identifier_encoding(Web::Bindings::KeyUsage::EncapsulateBits, "encapsulateBits"sv);
-    expect_storage_identifier_encoding(Web::Bindings::KeyUsage::DecapsulateKey, "decapsulateKey"sv);
-    expect_storage_identifier_encoding(Web::Bindings::KeyUsage::DecapsulateBits, "decapsulateBits"sv);
-
-    expect_storage_identifier_encoding(Web::Bindings::PredefinedColorSpace::Srgb, "srgb"sv);
-    expect_storage_identifier_encoding(Web::Bindings::PredefinedColorSpace::SrgbLinear, "srgb-linear"sv);
-    expect_storage_identifier_encoding(Web::Bindings::PredefinedColorSpace::DisplayP3, "display-p3"sv);
-    expect_storage_identifier_encoding(Web::Bindings::PredefinedColorSpace::DisplayP3Linear, "display-p3-linear"sv);
-
-    expect_storage_identifier_encoding(Gfx::BitmapFormat::BGRx8888, "BGRx8888"sv);
-    expect_storage_identifier_encoding(Gfx::BitmapFormat::BGRA8888, "BGRA8888"sv);
-    expect_storage_identifier_encoding(Gfx::BitmapFormat::RGBx8888, "RGBx8888"sv);
-    expect_storage_identifier_encoding(Gfx::BitmapFormat::RGBA8888, "RGBA8888"sv);
-
-    expect_storage_identifier_encoding(Gfx::AlphaType::Premultiplied, "premultiplied"sv);
-    expect_storage_identifier_encoding(Gfx::AlphaType::Unpremultiplied, "unpremultiplied"sv);
-
-    expect_storage_identifier_encoding(Web::Bindings::InterfaceName::Blob, "Blob"sv);
-    expect_storage_identifier_encoding(Web::Bindings::InterfaceName::File, "File"sv);
-    expect_storage_identifier_encoding(Web::Bindings::InterfaceName::FileList, "FileList"sv);
-    expect_storage_identifier_encoding(Web::Bindings::InterfaceName::DOMException, "DOMException"sv);
-    expect_storage_identifier_encoding(Web::Bindings::InterfaceName::DOMMatrixReadOnly, "DOMMatrixReadOnly"sv);
-    expect_storage_identifier_encoding(Web::Bindings::InterfaceName::DOMMatrix, "DOMMatrix"sv);
-    expect_storage_identifier_encoding(Web::Bindings::InterfaceName::DOMPointReadOnly, "DOMPointReadOnly"sv);
-    expect_storage_identifier_encoding(Web::Bindings::InterfaceName::DOMPoint, "DOMPoint"sv);
-    expect_storage_identifier_encoding(Web::Bindings::InterfaceName::DOMRectReadOnly, "DOMRectReadOnly"sv);
-    expect_storage_identifier_encoding(Web::Bindings::InterfaceName::DOMRect, "DOMRect"sv);
-    expect_storage_identifier_encoding(Web::Bindings::InterfaceName::CryptoKey, "CryptoKey"sv);
-    expect_storage_identifier_encoding(Web::Bindings::InterfaceName::DOMQuad, "DOMQuad"sv);
-    expect_storage_identifier_encoding(Web::Bindings::InterfaceName::ImageData, "ImageData"sv);
-    expect_storage_identifier_encoding(Web::Bindings::InterfaceName::ImageBitmap, "ImageBitmap"sv);
-    expect_storage_identifier_encoding(Web::Bindings::InterfaceName::Module, "Module"sv);
-    expect_storage_identifier_encoding(Web::Bindings::InterfaceName::QuotaExceededError, "QuotaExceededError"sv);
+    Array<u8, 4> pixels { 1, 2, 3, 255 };
+    for (auto color_space : { "srgb"sv, "srgb-linear"sv, "display-p3"sv, "display-p3-linear"sv })
+        expect_identifiers_round_trip(frozen_image_data_record(pixels.span(), 1, 1, color_space));
+    for (auto format : { "BGRx8888"sv, "BGRA8888"sv, "RGBx8888"sv, "RGBA8888"sv }) {
+        for (auto alpha_type : { "premultiplied"sv, "unpremultiplied"sv })
+            expect_identifiers_round_trip(image_bitmap_record(1, 1, 4, format, alpha_type, pixels.span()));
+    }
 }
 
 TEST_CASE(all_public_writer_reader_types_round_trip_through_ipc_and_storage)
@@ -290,25 +265,24 @@ TEST_CASE(all_public_writer_reader_types_round_trip_through_ipc_and_storage)
 
 TEST_CASE(storage_writer_encodes_js_strings_as_utf16_code_units)
 {
+    auto& vm = test_realm().vm();
     Array<char16_t, 3> code_units {
         u'A',
         static_cast<char16_t>(0xd800),
         u'B',
     };
-    auto value = Utf16String::from_utf16({ code_units.data(), code_units.size() });
+    auto value = JS::PrimitiveString::create(vm, Utf16String::from_utf16({ code_units.data(), code_units.size() }));
 
-    auto writer = Web::HTML::StructuredSerializeWriter::create_storage();
-    writer.encode(value);
+    auto record = MUST(Web::HTML::structured_serialize_for_storage(vm, value));
 
-    auto record = writer.take_storage_record();
-
-    Array<u8, 13> expected {
+    Array<u8, 14> expected {
         'L',
         'B',
         'S',
         'C',
         0x01, // version
         0x00, // flags
+        to_underlying(ValueTag::StringPrimitive),
         0x06, // string header: (3 << 1) | utf16
         0x41,
         0x00, // 'A'
@@ -319,8 +293,7 @@ TEST_CASE(storage_writer_encodes_js_strings_as_utf16_code_units)
     };
     EXPECT_EQ(record.data.span(), expected);
 
-    Web::HTML::StructuredSerializeReader reader { record };
-    auto decoded = MUST(reader.decode<Utf16String>());
+    auto decoded = MUST(storage_deserialize(record)).as_string().utf16_string();
     auto view = decoded.utf16_view();
     EXPECT_EQ(view.length_in_code_units(), 3u);
     EXPECT_EQ(view.code_unit_at(0), u'A');
@@ -330,68 +303,69 @@ TEST_CASE(storage_writer_encodes_js_strings_as_utf16_code_units)
 
 TEST_CASE(storage_writer_encodes_ascii_strings_as_one_byte_per_code_unit)
 {
+    auto& vm = test_realm().vm();
     auto value = Utf16String::from_utf8("AB"sv);
     EXPECT(value.utf16_view().has_ascii_storage());
 
-    auto writer = Web::HTML::StructuredSerializeWriter::create_storage();
-    writer.encode(value);
+    auto record = MUST(Web::HTML::structured_serialize_for_storage(vm, JS::PrimitiveString::create(vm, value)));
 
-    auto record = writer.take_storage_record();
-
-    Array<u8, 9> expected {
+    Array<u8, 10> expected {
         'L',
         'B',
         'S',
         'C',
         0x01, // version
         0x00, // flags
+        to_underlying(ValueTag::StringPrimitive),
         0x05, // string header: (2 << 1) | ascii
         'A',
         'B',
     };
     EXPECT_EQ(record.data.span(), expected);
 
-    Web::HTML::StructuredSerializeReader reader { record };
-    auto decoded = MUST(reader.decode<Utf16String>());
+    auto decoded = MUST(storage_deserialize(record)).as_string().utf16_string();
     EXPECT_EQ(decoded, value);
     EXPECT(decoded.utf16_view().has_ascii_storage());
 }
 
 TEST_CASE(storage_writer_encodes_the_string_length_as_a_leb128_varint)
 {
-    // Pin both sides of the folded-header LEB128 width boundary.
+    auto& vm = test_realm().vm();
+
+    // Pin both sides of the folded-header LEB128 width boundary. The string header follows the 6-byte record header
+    // and the value tag.
     {
         auto value = Utf16String::repeated('a', 63);
-        auto writer = Web::HTML::StructuredSerializeWriter::create_storage();
-        writer.encode(value);
-        auto record = writer.take_storage_record();
+        auto record = MUST(Web::HTML::structured_serialize_for_storage(vm, JS::PrimitiveString::create(vm, value)));
 
         Array<u8, 1> expected_framing { 0x7F };
-        EXPECT_EQ(record.data.span().slice(6, expected_framing.size()), expected_framing);
+        EXPECT_EQ(record.data.span().slice(7, expected_framing.size()), expected_framing);
 
-        Web::HTML::StructuredSerializeReader reader { record };
-        EXPECT_EQ(MUST(reader.decode<Utf16String>()), value);
+        EXPECT_EQ(MUST(storage_deserialize(record)).as_string().utf16_string(), value);
     }
 
     {
         auto value = Utf16String::repeated('a', 64);
-        auto writer = Web::HTML::StructuredSerializeWriter::create_storage();
-        writer.encode(value);
-        auto record = writer.take_storage_record();
+        auto record = MUST(Web::HTML::structured_serialize_for_storage(vm, JS::PrimitiveString::create(vm, value)));
 
         Array<u8, 2> expected_framing { 0x81, 0x01 };
-        EXPECT_EQ(record.data.span().slice(6, expected_framing.size()), expected_framing);
+        EXPECT_EQ(record.data.span().slice(7, expected_framing.size()), expected_framing);
 
-        Web::HTML::StructuredSerializeReader reader { record };
-        EXPECT_EQ(MUST(reader.decode<Utf16String>()), value);
+        EXPECT_EQ(MUST(storage_deserialize(record)).as_string().utf16_string(), value);
     }
 }
 
 TEST_CASE(empty_strings_round_trip)
 {
-    auto empty_utf16 = Utf16String {};
-    expect_utf16_equals(structured_ipc_round_trip(empty_utf16), empty_utf16);
-    expect_utf16_equals(structured_storage_round_trip(empty_utf16), empty_utf16);
+    auto& realm = test_realm();
+    auto& vm = realm.vm();
+    auto value = JS::PrimitiveString::create(vm, Utf16String {});
+
+    auto ipc_clone = MUST(Web::HTML::structured_deserialize(vm, MUST(Web::HTML::structured_serialize(vm, value)), realm));
+    EXPECT(ipc_clone.as_string().utf16_string().is_empty());
+
+    auto storage_clone = MUST(storage_deserialize(MUST(Web::HTML::structured_serialize_for_storage(vm, value))));
+    EXPECT(storage_clone.as_string().utf16_string().is_empty());
 }
 
 TEST_CASE(record_wrappers_round_trip_through_ipc)
@@ -453,14 +427,15 @@ TEST_CASE(ipc_serializable_object_has_no_version_framing)
     auto point = Web::Geometry::DOMPoint::create(1.0, 2.0, 3.0, 4.0);
 
     auto record = structured_serialize(test_realm().vm(), point);
-    Web::HTML::StructuredSerializeReader reader { record };
 
-    EXPECT_EQ(MUST(reader.decode<u8>()), to_underlying(ValueTag::SerializableObject));
-    EXPECT_EQ(MUST(reader.decode<Web::Bindings::InterfaceName>()), Web::Bindings::InterfaceName::DOMPoint);
-    EXPECT_EQ(MUST(reader.decode<double>()), 1.0);
-    EXPECT_EQ(MUST(reader.decode<double>()), 2.0);
-    EXPECT_EQ(MUST(reader.decode<double>()), 3.0);
-    EXPECT_EQ(MUST(reader.decode<double>()), 4.0);
+    Vector<u8> expected;
+    expected.append(to_underlying(ValueTag::SerializableObject));
+    append_little_endian_u16(expected, to_underlying(Web::Bindings::InterfaceName::DOMPoint));
+    append_little_endian_double(expected, 1.0);
+    append_little_endian_double(expected, 2.0);
+    append_little_endian_double(expected, 3.0);
+    append_little_endian_double(expected, 4.0);
+    EXPECT_EQ(record.data.span(), expected.span());
 }
 
 TEST_CASE(webassembly_module_encodes_to_frozen_ipc_bytes)
@@ -481,12 +456,16 @@ TEST_CASE(webassembly_module_encodes_to_frozen_ipc_bytes)
     while (vm.execution_context_stack().size() > depth)
         vm.pop_execution_context();
 
-    Web::HTML::StructuredSerializeReader reader { record };
-
-    EXPECT_EQ(MUST(reader.decode<u8>()), to_underlying(ValueTag::SerializableObject));
-    EXPECT_EQ(MUST(reader.decode<Web::Bindings::InterfaceName>()), Web::Bindings::InterfaceName::Module);
-    EXPECT_EQ(MUST(reader.decode<ByteBuffer>()).span(), module_bytes.span());
-    EXPECT_EQ(MUST(reader.decode<Optional<u64>>()), settings.agent_cluster_id());
+    Vector<u8> expected;
+    expected.append(to_underlying(ValueTag::SerializableObject));
+    append_little_endian_u16(expected, to_underlying(Web::Bindings::InterfaceName::Module));
+    append_little_endian_u32(expected, module_bytes.size());
+    expected.append(module_bytes.data(), module_bytes.size());
+    auto agent_cluster_id = settings.agent_cluster_id();
+    expected.append(agent_cluster_id.has_value() ? 1 : 0);
+    if (agent_cluster_id.has_value())
+        append_little_endian_u64(expected, *agent_cluster_id);
+    EXPECT_EQ(record.data.span(), expected.span());
 }
 
 TEST_CASE(realm_helpers_share_vm_initialization)

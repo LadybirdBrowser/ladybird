@@ -184,15 +184,6 @@ inline void expect_storage_identifier_encoding(T const& value, StringView identi
     EXPECT_EQ(MUST(reader.decode<T>()), value);
 }
 
-template<typename T>
-inline ErrorOr<T> decode_unknown_storage_identifier(StringView identifier)
-{
-    auto storage_record_bytes = expected_storage_identifier_record(identifier);
-    Web::HTML::StorageSerializationRecord record { MUST(ByteBuffer::copy(storage_record_bytes.span())) };
-    Web::HTML::StructuredSerializeReader reader { record };
-    return reader.decode<T>();
-}
-
 // CryptoKey needs the principal realm below because it is [SecureContext].
 inline JS::Realm& test_realm()
 {
@@ -266,8 +257,7 @@ inline double number_property(JS::Value object, StringView name)
 inline Web::WebIDL::ExceptionOr<JS::Value> storage_deserialize(Web::HTML::StorageSerializationRecord const& record)
 {
     auto& realm = test_realm();
-    Web::HTML::StructuredSerializeReader reader { record };
-    return Web::HTML::structured_deserialize_internal(realm.vm(), reader, realm, nullptr, Web::HTML::CheckFullyConsumed::Yes);
+    return Web::HTML::structured_deserialize(realm.vm(), record, realm);
 }
 
 inline void append_little_endian_double(Vector<u8>& bytes, double value)
@@ -455,8 +445,7 @@ inline Web::WebIDL::ExceptionOr<JS::Value> principal_storage_deserialize(Web::HT
     auto depth = vm.execution_context_stack().size();
     vm.push_execution_context(settings.realm_execution_context());
 
-    Web::HTML::StructuredSerializeReader reader { record };
-    auto result = Web::HTML::structured_deserialize_internal(vm, reader, realm, nullptr, Web::HTML::CheckFullyConsumed::Yes);
+    auto result = Web::HTML::structured_deserialize(vm, record, realm);
 
     while (vm.execution_context_stack().size() > depth)
         vm.pop_execution_context();
