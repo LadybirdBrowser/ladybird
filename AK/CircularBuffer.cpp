@@ -82,7 +82,6 @@ void CircularBuffer::clear()
 {
     m_reading_head = 0;
     m_used_space = 0;
-    m_seekback_limit = 0;
 }
 
 Bytes CircularBuffer::next_write_span()
@@ -108,17 +107,6 @@ ReadonlyBytes CircularBuffer::next_read_span(size_t offset) const
     return m_buffer.span().slice(reading_head, min(capacity() - reading_head, used_space));
 }
 
-ReadonlyBytes CircularBuffer::next_seekback_span(size_t distance) const
-{
-    VERIFY(m_seekback_limit <= capacity());
-    VERIFY(distance <= m_seekback_limit);
-
-    // Note: We are adding the capacity once here to ensure that we can wrap around the negative space by using modulo.
-    auto read_offset = (capacity() + m_reading_head + m_used_space - distance) % capacity();
-
-    return m_buffer.span().slice(read_offset, min(capacity() - read_offset, distance));
-}
-
 size_t CircularBuffer::write(ReadonlyBytes bytes)
 {
     auto remaining = bytes.size();
@@ -131,10 +119,6 @@ size_t CircularBuffer::write(ReadonlyBytes bytes)
         auto const written_bytes = bytes.slice(bytes.size() - remaining).copy_trimmed_to(next_span);
 
         m_used_space += written_bytes;
-
-        m_seekback_limit += written_bytes;
-        if (m_seekback_limit > capacity())
-            m_seekback_limit = capacity();
 
         remaining -= written_bytes;
     }
@@ -165,27 +149,6 @@ Bytes CircularBuffer::read(Bytes bytes)
     return bytes.trim(bytes.size() - remaining);
 }
 
-ErrorOr<Bytes> CircularBuffer::read_with_seekback(Bytes bytes, size_t distance) const
-{
-    if (distance > m_seekback_limit)
-        return Error::from_string_literal("Tried a seekback read beyond the seekback limit");
-
-    auto remaining = bytes.size();
-
-    while (remaining > 0) {
-        auto const next_span = next_seekback_span(distance);
-        if (next_span.size() == 0)
-            break;
-
-        auto written_bytes = next_span.copy_trimmed_to(bytes.slice(bytes.size() - remaining));
-
-        distance -= written_bytes;
-        remaining -= written_bytes;
-    }
-
-    return bytes.trim(bytes.size() - remaining);
-}
-
 ErrorOr<void> CircularBuffer::discard(size_t discarding_size)
 {
     if (m_used_space < discarding_size)
@@ -205,10 +168,6 @@ ErrorOr<size_t> CircularBuffer::fill_from_stream(Stream& stream)
     auto bytes = TRY(stream.read_some(next_span));
     m_used_space += bytes.size();
 
-    m_seekback_limit += bytes.size();
-    if (m_seekback_limit > capacity())
-        m_seekback_limit = capacity();
-
     return bytes.size();
 }
 
@@ -227,32 +186,6 @@ ErrorOr<size_t> CircularBuffer::flush_to_stream(Stream& stream)
         m_reading_head -= capacity();
 
     return written_bytes;
-}
-
-ErrorOr<size_t> CircularBuffer::copy_from_seekback(size_t distance, size_t length)
-{
-    if (distance > m_seekback_limit)
-        return Error::from_string_literal("Tried a seekback copy beyond the seekback limit");
-
-    auto remaining_length = length;
-    while (remaining_length > 0) {
-        if (empty_space() == 0)
-            break;
-
-        auto next_span = next_seekback_span(distance);
-        if (next_span.size() == 0)
-            break;
-
-        auto length_written = write(next_span.trim(remaining_length));
-        remaining_length -= length_written;
-
-        // If we copied right from the end of the seekback area (i.e. our length is larger than the distance)
-        // and the last copy was one complete "chunk", we can now double the distance to copy twice as much data in one go.
-        if (remaining_length > distance && length_written == distance)
-            distance *= 2;
-    }
-
-    return length - remaining_length;
 }
 
 }
