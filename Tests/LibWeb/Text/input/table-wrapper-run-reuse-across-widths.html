@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; font: 16px/20px monospace; }
+    .container { width: 600px; }
+    .line { padding-left: 20px; }
+    .code { display: table-cell; }
+    .centered { margin: 0 auto; }
+    .percentage-padding td { padding: 0 5%; }
+</style>
+<div class="container" id="container"></div>
+<script>
+    // A table wrapper whose inline size its block parent resolved lays out its table in that size, so its run is reused
+    // when only the space around it changes, unless the table resolves percentages against the wrapper's containing
+    // block. Only the table with percentage cell padding is laid out again here.
+    test(() => {
+        let lines = "";
+        for (let index = 0; index < 20; ++index)
+            lines += `<div class="line"><span class="code">let value_${index} = ${index};</span></div>`;
+        container.innerHTML = `${lines}
+            <table class="centered" id="centered"><tr><td>centered</td></tr></table>
+            <table class="percentage-padding" id="padded"><tr><td>padded</td></tr></table>
+            <table id="captioned"><caption>caption</caption><tr><td>captioned</td></tr></table>`;
+        document.body.offsetHeight;
+
+        internals.beginLayoutTrace();
+        container.style.width = "700px";
+        document.body.offsetHeight;
+        const wrapperRuns = internals.takeLayoutTrace().split("\n").filter(line => line.includes("TableWrapper(anonymous)/block RUN"));
+        println(`table wrapper runs after the width change: ${wrapperRuns.length}`);
+
+        const fresh = container.cloneNode(true);
+        fresh.id = "";
+        document.body.appendChild(fresh);
+        const geometry = root => {
+            const rootRect = root.getBoundingClientRect();
+            return Array.from(root.querySelectorAll("div, span, table, caption, td")).map(element => {
+                const rect = element.getBoundingClientRect();
+                return `${rect.left - rootRect.left},${rect.top - rootRect.top},${rect.width},${rect.height}`;
+            }).join(" ");
+        };
+        println(`geometry matches a fresh layout: ${geometry(container) === geometry(fresh)}`);
+        const centered = document.getElementById("centered").getBoundingClientRect();
+        println(`centered table is centered: ${Math.abs(centered.left - (700 - centered.right)) < 1}`);
+    });
+</script>

@@ -1,0 +1,3 @@
+table wrapper runs after the width change: 1
+geometry matches a fresh layout: true
+centered table is centered: true

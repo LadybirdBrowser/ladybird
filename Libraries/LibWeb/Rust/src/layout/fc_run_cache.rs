@@ -26,6 +26,7 @@ pub(crate) struct RunInputsTheStoredRunNeverObserved {
     pub(super) definite_available_inline_sizes_at_or_above: Option<CssPixels>,
     pub(super) percentage_inline_basis: bool,
     pub(super) own_block_size: formatting_context::OwnBlockSizeObservation,
+    pub(super) inline_space_around_root: bool,
 }
 
 impl RunInputsTheStoredRunNeverObserved {
@@ -34,6 +35,7 @@ impl RunInputsTheStoredRunNeverObserved {
             definite_available_inline_sizes_at_or_above: None,
             percentage_inline_basis: false,
             own_block_size: formatting_context::OwnBlockSizeObservation::Observed,
+            inline_space_around_root: false,
             ..self
         }
     }
@@ -44,11 +46,13 @@ impl RunInputsTheStoredRunNeverObserved {
             definite_available_inline_sizes_at_or_above,
             percentage_inline_basis,
             own_block_size,
+            inline_space_around_root,
         } = self;
         percentage_block_basis_and_block_size_definiteness
             || definite_available_inline_sizes_at_or_above.is_some()
             || percentage_inline_basis
             || own_block_size != formatting_context::OwnBlockSizeObservation::Observed
+            || inline_space_around_root
     }
 
     fn available_block_size_definiteness(self) -> bool {
@@ -57,11 +61,25 @@ impl RunInputsTheStoredRunNeverObserved {
     }
 }
 
-fn root_input_cells_match_ignoring_unobserved_own_block_size_and_block_margins(
+fn root_input_cells_match_ignoring_unobserved(
     stored: used_values::RootInputCells,
     probe: used_values::RootInputCells,
     own_block_size: formatting_context::OwnBlockSizeObservation,
+    inline_space_around_root_unobserved: bool,
 ) -> bool {
+    let without_unobserved_inline_space = |cells: used_values::RootInputCells| {
+        if !inline_space_around_root_unobserved {
+            return cells;
+        }
+        used_values::RootInputCells {
+            content_inline_size: CssPixels::default(),
+            margin_left: CssPixels::default(),
+            margin_right: CssPixels::default(),
+            ..cells
+        }
+    };
+    let stored = without_unobserved_inline_space(stored);
+    let probe = without_unobserved_inline_space(probe);
     match own_block_size {
         formatting_context::OwnBlockSizeObservation::Observed => stored == probe,
         formatting_context::OwnBlockSizeObservation::Unobserved => {
@@ -129,10 +147,11 @@ impl FcRunCacheKey {
             return false;
         }
         self.fc_type == probe.fc_type
-            && root_input_cells_match_ignoring_unobserved_own_block_size_and_block_margins(
+            && root_input_cells_match_ignoring_unobserved(
                 self.root_cells,
                 probe.root_cells,
                 unobserved.own_block_size,
+                unobserved.inline_space_around_root,
             )
             && layout_inputs_match_ignoring_unobserved(&self.input, &probe.input, unobserved)
     }
@@ -164,6 +183,7 @@ fn layout_inputs_match_ignoring_unobserved(
         return false;
     }
     let available_inline_sizes_match = available_space.inline_size == b.available_space.inline_size
+        || unobserved.inline_space_around_root
         || match (
             unobserved.definite_available_inline_sizes_at_or_above,
             available_space.inline_size,
@@ -191,6 +211,7 @@ fn layout_inputs_match_ignoring_unobserved(
             &sizing,
             &b.sizing,
             unobserved.available_block_size_definiteness(),
+            unobserved.inline_space_around_root,
         )
 }
 
@@ -198,6 +219,7 @@ fn sizing_directives_match_ignoring_unobserved(
     a: &RootSizingDirectives,
     b: &RootSizingDirectives,
     block_size_definiteness_unobserved: bool,
+    float_avoidance_inline_size_unobserved: bool,
 ) -> bool {
     let RootSizingDirectives {
         forced_content_inline_size,
@@ -227,7 +249,7 @@ fn sizing_directives_match_ignoring_unobserved(
         && adopt_automatic_content_block_size == b.adopt_automatic_content_block_size
         && finds_automatic_line_clamp_lines == b.finds_automatic_line_clamp_lines
         && content_block_size_after_inside_layout == b.content_block_size_after_inside_layout
-        && float_avoidance_inline_size == b.float_avoidance_inline_size
+        && (float_avoidance_inline_size == b.float_avoidance_inline_size || float_avoidance_inline_size_unobserved)
         && outer_float_intrusion_before_list_item_children == b.outer_float_intrusion_before_list_item_children
         && treat_block_axis_percentage_insets_as_auto_beyond_root
             == b.treat_block_axis_percentage_insets_as_auto_beyond_root
