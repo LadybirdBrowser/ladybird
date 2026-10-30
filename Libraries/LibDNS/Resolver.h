@@ -11,6 +11,7 @@
 #include <AK/HashTable.h>
 #include <AK/MaybeOwned.h>
 #include <AK/MemoryStream.h>
+#include <AK/QuickSort.h>
 #include <AK/RWLockProtected.h>
 #include <AK/Random.h>
 #include <AK/StringView.h>
@@ -199,10 +200,18 @@ public:
     using ResultPromise = Core::Promise<NonnullRefPtr<LookupResult const>>;
     using MessagePromise = Core::Promise<Messages::Message>;
 
+    // Stand-ins for the system resolver and the network it reaches, for tests. Each one left empty is the real one.
+    struct SystemResolverForTesting {
+        // Resolves a name to the addresses of one family. It runs on a thread pool worker.
+        Function<ErrorOr<Vector<Variant<IPv4Address, IPv6Address>>>(ByteString const&, Core::Socket::AddressFamily)> resolve_host;
+        Function<bool()> is_ipv6_globally_reachable;
+    };
+
     // An empty result means no server is configured and the system resolver should be used instead.
-    Resolver(Function<ErrorOr<Optional<SocketResult>>()> create_socket)
+    Resolver(Function<ErrorOr<Optional<SocketResult>>()> create_socket, SystemResolverForTesting system_resolver_for_testing = {})
         : m_receive_buffer(MUST(ByteBuffer::create_uninitialized(NumericLimits<u16>::max())))
         , m_create_socket(move(create_socket))
+        , m_system_resolver_for_testing(move(system_resolver_for_testing))
         , m_validator([this](Messages::DomainName const& name, Messages::ResourceType type) {
             return query(name, type, Messages::Class::IN, true);
         })
@@ -412,8 +421,23 @@ public:
         // 224.0.0.251 (or its IPv6 equivalent FF02::FB).
         // The system resolver takes care of that, so these never go to the configured server.
         auto is_link_local_name = is_within_domain(name, "local"sv);
+        auto uses_system_resolver = is_link_local_name || !has_connection();
 
-        if (auto result = lookup_in_cache(name, class_, desired_types)) {
+        // NB: IPv6 addresses are no use to a host that cannot reach the IPv6 internet, so the system resolver skips
+        //     the AAAA side there. Link-local IPv6 addresses work without that, so ".local" names keep the AAAA side,
+        //     as they do in Firefox, WebKitGTK (glibc's AI_ADDRCONFIG counts link-local addresses) and on Apple
+        //     platforms (mDNSResponder never suppresses multicast queries). Like Chromium's host cache, which keys a
+        //     lookup without AAAA apart from one with it, a cached result without AAAA only serves while IPv6 stays
+        //     unreachable.
+        auto skips_aaaa = uses_system_resolver && !is_link_local_name
+            && desired_types.contains_slow(Messages::ResourceType::A)
+            && desired_types.contains_slow(Messages::ResourceType::AAAA)
+            && !is_ipv6_globally_reachable();
+        auto queried_types = desired_types;
+        if (skips_aaaa)
+            queried_types.remove_first_matching([](auto type) { return type == Messages::ResourceType::AAAA; });
+
+        if (auto result = lookup_in_cache(name, class_, queried_types)) {
             dbgln_if(DNS_DEBUG, "DNS: Resolving {} from cache...", name);
             if (!options.validate_dnssec_locally || result->was_dnssec_validated()) {
                 dbgln_if(DNS_DEBUG, "DNS: Resolved {} from cache", name);
@@ -424,7 +448,7 @@ public:
             dbgln_if(DNS_DEBUG, "DNS: Cache entry for {} is not DNSSEC validated (and we expect that), re-resolving", name);
         }
 
-        if (is_link_local_name || !has_connection()) {
+        if (uses_system_resolver) {
             if (!is_link_local_name && !m_use_system_resolver) {
                 promise->reject(Error::from_string_literal("No connection to the configured DNS server"));
                 lookup_path = "no-conn-rejected"sv;
@@ -441,11 +465,21 @@ public:
             //        PendingSystemResolution for why we split into two parallel workers.
             dbgln_if(DNS_DEBUG, "Not ready to resolve, dispatching system resolver to ThreadPool for {}", name);
 
+            // NB: A resolution only serves callers that query the same types, so that a caller wanting AAAA never
+            //     joins one that skips it, and one that skips AAAA never joins one that went ahead without A.
+            auto sorted_queried_types = queried_types;
+            quick_sort(sorted_queried_types, [](auto a, auto b) { return to_underlying(a) < to_underlying(b); });
+            StringBuilder pending_key_builder;
+            pending_key_builder.append(name);
+            for (auto type : sorted_queried_types)
+                pending_key_builder.appendff("|{}", to_underlying(type));
+            auto pending_key = pending_key_builder.to_byte_string();
+
             RefPtr<PendingSystemResolution> our_state;
             RefPtr<LookupResult> already_finalized_result;
             m_pending_system_resolutions.with_write_locked(
                 [&](auto& pending) {
-                    if (auto it = pending.find(name); it != pending.end()) {
+                    if (auto it = pending.find(pending_key); it != pending.end()) {
                         auto& existing = *it->value;
                         // Grace timer may have already finalized the resolution while AAAA is still in
                         // flight; serve the join-pending caller from the existing result. We resolve the
@@ -459,11 +493,11 @@ public:
                         return;
                     }
                     auto result = make_ref_counted<LookupResult>(domain_name);
-                    for (auto const& type : desired_types)
+                    for (auto const& type : queried_types)
                         result->will_add_record_of_type(type);
                     auto state = adopt_ref(*new PendingSystemResolution(result));
                     state->waiting_promises.append(promise);
-                    pending.set(name, state);
+                    pending.set(pending_key, state);
                     our_state = state;
                 });
 
@@ -487,10 +521,12 @@ public:
 
             auto submit_worker = [&, this](Core::Socket::AddressFamily family) {
                 Threading::ThreadPool::the().submit(
-                    [this, name, state = our_state, family,
+                    [this, name, pending_key, state = our_state, family,
                         &main_thread_event_loop]() mutable {
                         auto worker_started_at = MonotonicTime::now();
-                        auto record_or_error = Core::Socket::resolve_host(name, Core::Socket::SocketType::Stream, family);
+                        auto record_or_error = m_system_resolver_for_testing.resolve_host
+                            ? m_system_resolver_for_testing.resolve_host(name, family)
+                            : Core::Socket::resolve_host(name, Core::Socket::SocketType::Stream, family);
                         auto worker_finished_at = MonotonicTime::now();
                         PendingSystemResolution::SideTiming timing {
                             .queue_ms = (worker_started_at - state->dispatched_at).to_milliseconds(),
@@ -498,16 +534,20 @@ public:
                         };
 
                         main_thread_event_loop.deferred_invoke(
-                            [this, name, state, family,
+                            [this, name, pending_key, state, family,
                                 record_or_error = move(record_or_error),
                                 timing]() mutable {
-                                handle_system_resolver_completion(name, *state, family, move(record_or_error), timing);
+                                handle_system_resolver_completion(name, pending_key, *state, family, move(record_or_error), timing);
                             });
                     });
             };
 
+            if (skips_aaaa)
+                our_state->aaaa = PendingSystemResolution::SideTiming {};
+
             submit_worker(Core::Socket::AddressFamily::IPv4Only);
-            submit_worker(Core::Socket::AddressFamily::IPv6Only);
+            if (!skips_aaaa)
+                submit_worker(Core::Socket::AddressFamily::IPv6Only);
 
             return promise;
         }
@@ -813,15 +853,34 @@ private:
         return result;
     }
 
+    // Whether the host can reach the IPv6 internet, checked again at most once a second.
+    bool is_ipv6_globally_reachable()
+    {
+        static constexpr auto IPV6_REACHABILITY_CHECK_INTERVAL = AK::Duration::from_seconds(1);
+        auto now = MonotonicTime::now();
+        if (!m_ipv6_reachability_checked_at.has_value() || now - *m_ipv6_reachability_checked_at >= IPV6_REACHABILITY_CHECK_INTERVAL) {
+            m_ipv6_is_globally_reachable = m_system_resolver_for_testing.is_ipv6_globally_reachable
+                ? m_system_resolver_for_testing.is_ipv6_globally_reachable()
+                : Core::Socket::is_ipv6_globally_reachable();
+            m_ipv6_reachability_checked_at = now;
+        }
+        return m_ipv6_is_globally_reachable;
+    }
+
     // Per-name state for an in-flight system-resolver lookup. We split the
     // single AF_UNSPEC `getaddrinfo` call into two parallel calls (AF_INET +
     // AF_INET6) so that buggy stub resolvers (notably systemd-resolved under
-    // load) can't drop the AAAA half of a coupled query and stall us on it.
-    // The promise resolves as soon as one side returns records, with a small
-    // 50 ms grace window for the other side (Happy Eyeballs v2's Resolution
-    // Delay, RFC 8305) so curl can prefer IPv6 when both are available. The
-    // slower side keeps running and merges its records into the cached
-    // LookupResult so subsequent lookups see the full set.
+    // load) can't drop one half of a coupled query and stall us on it. The
+    // AAAA half is only made for ".local" names or when the host can reach the
+    // IPv6 internet.
+    // When the A side returns records first, the promise resolves after a small
+    // 50 ms grace window for the AAAA side (Happy Eyeballs v2's Resolution
+    // Delay, RFC 8305) so curl can prefer IPv6 when both are available. When
+    // the AAAA side returns first, the A side gets a longer 1 s window: curl
+    // only connects to the addresses it is given, so IPv4 records that come
+    // later never reach a request that went ahead with IPv6 alone. The slower
+    // side keeps running and merges its records into the cached LookupResult
+    // so subsequent lookups see the full set.
     //
     // `waiting_promises` holds one Promise per `lookup()` caller that joined
     // this resolution. Each caller MUST get their own Promise — Core::Promise
@@ -875,6 +934,7 @@ private:
     // Runs on the main thread (deferred-invoked from a ThreadPool worker).
     void handle_system_resolver_completion(
         ByteString const& name,
+        ByteString const& pending_key,
         PendingSystemResolution& state,
         Core::Socket::AddressFamily family,
         ErrorOr<Vector<Variant<IPv4Address, IPv6Address>>> record_or_error,
@@ -909,7 +969,7 @@ private:
                 cache.set(name, state.result);
             });
             m_pending_system_resolutions.with_write_locked([&](auto& pending) {
-                pending.remove(name);
+                pending.remove(pending_key);
             });
 
             auto total_ms = (MonotonicTime::now() - state.dispatched_at).to_milliseconds();
@@ -930,13 +990,16 @@ private:
         if (!got_records_this_side)
             return;
 
-        // First side has records. Wait briefly so the other side gets a chance to add its records too
-        // (RFC 8305 Resolution Delay, 50 ms).
+        // First side has records. Wait so the other side gets a chance to add its records too: briefly for the AAAA
+        // side (RFC 8305 Resolution Delay, 50 ms), and longer for the A side, since curl never learns of IPv4 records
+        // that come after it went ahead with IPv6 records that turn out to be unreachable.
         if (state.grace_timer)
             return;
-        constexpr int RESOLUTION_DELAY_MS = 50;
+        constexpr int IPV6_RESOLUTION_DELAY_MS = 50;
+        constexpr int IPV4_RESOLUTION_DELAY_MS = 1000;
+        auto resolution_delay_ms = family == Core::Socket::AddressFamily::IPv4Only ? IPV6_RESOLUTION_DELAY_MS : IPV4_RESOLUTION_DELAY_MS;
         auto weak_state = state.make_weak_ptr();
-        state.grace_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(RESOLUTION_DELAY_MS), [weak_state] {
+        state.grace_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(resolution_delay_ms), [weak_state] {
             if (auto state = weak_state.strong_ref())
                 try_finalize_pending_system_resolution(*state);
         });
@@ -1179,6 +1242,9 @@ private:
     Function<ErrorOr<Optional<SocketResult>>()> m_create_socket;
     bool m_attempting_restart { false };
     bool m_use_system_resolver { false };
+    SystemResolverForTesting m_system_resolver_for_testing;
+    Optional<MonotonicTime> m_ipv6_reachability_checked_at;
+    bool m_ipv6_is_globally_reachable { false };
     Vector<ByteString> m_loopback_domains;
     ConnectionMode m_mode { ConnectionMode::UDP };
     Vector<NonnullRefPtr<Core::Promise<Empty>>> m_socket_ready_promises;
