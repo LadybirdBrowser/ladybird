@@ -446,7 +446,7 @@ def rust_type(idl_type: IDLType, context: GenerationContext, what: str, is_resul
         return "CppInterface"
     dictionary = resolved_dictionary(idl_type, context)
     if dictionary is not None:
-        return rust_dictionary_path(dictionary, context)
+        return rust_dictionary_type(dictionary, context)
     enumeration = context.enumeration(idl_type)
     if enumeration is not None:
         return rust_enumeration_path(enumeration, context)
@@ -512,6 +512,21 @@ def is_sequence_of_cells(idl_type: IDLType, context: GenerationContext) -> bool:
         and not idl_type.nullable
         and holds_cells(idl_type.parameters[0], context)
     )
+
+
+def dictionary_holds_sequence_of_cells(dictionary: Dictionary, context: GenerationContext) -> bool:
+    """Whether a member of the dictionary is a sequence of values that are or can hold cells, which the struct of the
+    dictionary keeps alive in a MarkedVec, for as long as the reference to the VM that it was converted with lives."""
+    return any(is_sequence_of_cells(member.type, context) for member in dictionary.members)
+
+
+def rust_dictionary_type(dictionary: Dictionary, context: GenerationContext) -> str:
+    """The Rust type of the struct of a dictionary: its path, with the lifetime of the reference to the VM when the
+    dictionary holds a sequence of values that are or can hold cells."""
+    path = rust_dictionary_path(dictionary, context)
+    if dictionary_holds_sequence_of_cells(dictionary, context):
+        return f"{path}<'_>"
+    return path
 
 
 def rust_parameter_type(parameter: OperationParameter, context: GenerationContext, what: str) -> str:

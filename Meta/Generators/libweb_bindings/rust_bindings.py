@@ -530,7 +530,7 @@ def write_parameter_conversions(
             parameter.name,
             context,
             parameter_what,
-            is_parameter=True,
+            keeps_cells_alive=True,
         )
         out.write(f"        let argument{index} = vm.argument({index});\n")
         if parameter.optional and parameter.default_value is not None:
@@ -1804,8 +1804,8 @@ pub(crate) mod definitions {
 
     use ak::Utf16String;
     use libjs_rust::api::{
-        ErrorKind, ErrorType, Gc, Object, PropertyKey, ThrowCompletionOr, TypedArrayBase, TypedArrayKind, Value, Vm,
-        is_host_instance_of,
+        ErrorKind, ErrorType, Gc, MarkedVec, Object, PropertyKey, ThrowCompletionOr, TypedArrayBase, TypedArrayKind,
+        Value, Vm, is_host_instance_of,
     };
 
     use crate::bindings::CallContext;
