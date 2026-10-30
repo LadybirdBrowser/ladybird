@@ -26,6 +26,10 @@
 #include <QStyleOption>
 #include <QWidget>
 
+#if defined(AK_OS_LINUX)
+#    include <UI/Qt/X11Window.h>
+#endif
+
 namespace Ladybird::ChromeStyle {
 
 bool is_dark(QPalette const& palette)
@@ -50,6 +54,22 @@ QColor mix(QColor const& from, QColor const& to, double amount)
 static QColor over(QColor const& color, QColor const& background)
 {
     return mix(background, color, static_cast<double>(color.alphaF()));
+}
+
+QColor opaque_panel_edge()
+{
+    auto const& panel = Theme::panel();
+    return over(panel.edge, panel.surface);
+}
+
+bool shows_opaque_pixels_only(QWidget const& widget)
+{
+#if defined(AK_OS_LINUX)
+    return is_clipped_to_its_opaque_pixels(*widget.window());
+#else
+    (void)widget;
+    return false;
+#endif
 }
 
 WindowActivity window_activity(QWidget const& widget)
@@ -1892,7 +1912,7 @@ public:
         if (element == PE_PanelMenu) {
             auto const& panel = Theme::panel();
             painter->save();
-            painter->setRenderHint(QPainter::Antialiasing, true);
+            painter->setRenderHint(QPainter::Antialiasing, !widget || !shows_opaque_pixels_only(*widget));
             painter->setPen(QPen(over(panel.edge, panel.surface), 1));
             painter->setBrush(panel.surface);
             painter->drawRoundedRect(QRectF(option->rect).adjusted(0.5, 0.5, -0.5, -0.5), MENU_RADIUS - 0.5, MENU_RADIUS - 0.5);

@@ -105,7 +105,11 @@ if (LINUX)
         "${LADYBIRD_SOURCE_DIR}/UI/Qt/JavaScriptDialog.cpp"
         "${LADYBIRD_SOURCE_DIR}/UI/Qt/PermissionPromptPopover.cpp"
         "${LADYBIRD_SOURCE_DIR}/UI/Qt/WindowCloseCoordinator.cpp"
+        "${LADYBIRD_SOURCE_DIR}/UI/Qt/X11Window.cpp"
     )
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(XCB_ICCCM REQUIRED IMPORTED_TARGET xcb-icccm)
+    target_link_libraries(TestUIQt PRIVATE PkgConfig::XCB_ICCCM)
 endif()
 
 target_sources(TestUIQt PRIVATE ${TEST_SOURCES})
