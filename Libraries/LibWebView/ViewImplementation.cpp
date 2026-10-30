@@ -202,6 +202,7 @@ void ViewImplementation::did_update_url()
 {
     update_bookmark_action();
     update_report_website_issue_action();
+    Application::the().update_force_dark_action();
     if (auto page = traversable().display_page(); page && page->routed_connection())
         page->routed_connection()->update_audio_capture_permission();
     update_displayed_url();
@@ -4354,6 +4355,30 @@ Optional<String> ViewImplementation::crash_report_website() const
     if (serialized_url.bytes().size() > CrashReportReview::maximum_url_bytes)
         return {};
     return serialized_url;
+}
+
+String ViewImplementation::force_dark_host() const
+{
+    auto url = this->url();
+    if (!url.host().has_value())
+        return {};
+    return current_host_for_settings();
+}
+
+bool ViewImplementation::force_dark_enabled() const
+{
+    return Application::settings().force_dark_for_host(force_dark_host());
+}
+
+bool ViewImplementation::can_set_force_dark() const
+{
+    return m_is_private == IsPrivate::No && !force_dark_host().is_empty();
+}
+
+void ViewImplementation::set_force_dark_enabled(bool enabled)
+{
+    if (can_set_force_dark())
+        Application::settings().set_force_dark_for_host(force_dark_host(), enabled);
 }
 
 String ViewImplementation::current_host_for_settings() const
