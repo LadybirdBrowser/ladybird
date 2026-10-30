@@ -2,9 +2,8 @@ Harness status: OK
 
 Found 4 tests
 
-3 Pass
-1 Fail
+4 Pass
 Pass	Check that min-height is honored when sizing auto rows.
 Pass	Check that min-height is honored when sizing auto rows and spanning grid items.
-Fail	Check the interactions between height and min-height and auto tracks.
+Pass	Check the interactions between height and min-height and auto tracks.
 Pass	Check that borders and paddings are considering when computing min sizes.

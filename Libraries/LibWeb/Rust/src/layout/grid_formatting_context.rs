@@ -2731,7 +2731,7 @@ impl<'pass> GridFormattingContext<'pass> {
                 self.track_sizing_constraints(),
             )
         };
-        self.add_outer_size(item, axis, content).min(maximum)
+        self.clamp_contribution(item, axis, content, maximum)
     }
 
     fn max_content_contribution(&self, item: GridItem, axis: Axis) -> CssPixels {
@@ -2773,7 +2773,41 @@ impl<'pass> GridFormattingContext<'pass> {
                 self.track_sizing_constraints(),
             )
         };
-        self.add_outer_size(item, axis, content).min(maximum)
+        self.clamp_contribution(item, axis, content, maximum)
+    }
+
+    // https://drafts.csswg.org/css-sizing-3/#intrinsic-contribution
+    // A box's min-content contribution/max-content contribution in each axis is the size of the content box of a
+    // hypothetical auto-sized float that contains only that box, if that hypothetical float's containing block is
+    // zero-sized/infinitely-sized.
+    // NB: The box in that float has its min and max sizes applied, and its min size wins over its max size.
+    fn clamp_contribution(&self, item: GridItem, axis: Axis, content: CssPixels, maximum: CssPixels) -> CssPixels {
+        let contribution = self.add_outer_size(item, axis, content).min(maximum);
+        if !self.minimum_size(item, axis).is_length_percentage() {
+            return contribution;
+        }
+        // https://drafts.csswg.org/css-sizing-3/#cyclic-percentage-contribution
+        // For the min size properties, as well as for margins and paddings (and gutters), a cyclic percentage is
+        // resolved against zero for determining intrinsic size contributions.
+        // NB: Percentages resolve against the available size in the axis as well as the percentage basis, so both are
+        //     zero here.
+        let mut available_space = self.item_available_space(item);
+        let mut constraints = self.track_sizing_constraints();
+        if axis.is_column() {
+            available_space.inline_size = AvailableSize::definite(CssPixels::default());
+            constraints.percentage_basis_inline_size = Some(CssPixels::default());
+        } else {
+            available_space.block_size = AvailableSize::definite(CssPixels::default());
+            constraints.percentage_basis_block_size = Some(CssPixels::default());
+        }
+        let minimum = self.sizing().calculate_inner_size_for_property(
+            sizing_context::SizedBox::new(item.box_, &self.cells_of(item)),
+            axis.sizing_axis(),
+            axis.select(SizingProperty::MinWidth, SizingProperty::MinHeight),
+            available_space,
+            constraints,
+        );
+        contribution.max(self.add_outer_size(item, axis, minimum))
     }
 
     fn content_size_suggestion(&self, item: GridItem, axis: Axis) -> CssPixels {

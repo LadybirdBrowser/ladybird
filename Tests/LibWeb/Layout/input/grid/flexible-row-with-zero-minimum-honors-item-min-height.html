@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<style>
+    .grid { display: grid; grid-auto-rows: minmax(0, 1fr); width: 200px; margin-bottom: 10px; }
+    .grid > div { background: lightblue; }
+</style>
+<div class="grid"><div style="min-height: 100px"></div></div>
+<div class="grid"><div style="min-height: 100px">text</div></div>
+<div class="grid" style="grid-template-rows: minmax(0, 1fr) auto"><div style="min-height: 100px"></div><div>after</div></div>
+<div class="grid"><div style="min-height: 100px; max-height: 50px"></div></div>
+<div class="grid"><div style="min-height: 50%"></div></div>
+<div class="grid"><div style="min-height: calc(100px + 50%)"></div></div>
+<div class="grid"><div style="height: 100px; min-height: 200%"></div></div>
+<div class="grid" style="grid-auto-columns: minmax(0, 1fr); grid-auto-flow: column; width: max-content"><div style="min-width: 80px; height: 20px"></div></div>
