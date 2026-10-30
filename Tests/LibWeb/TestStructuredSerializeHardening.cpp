@@ -8,12 +8,22 @@
 
 TEST_CASE(storage_reader_rejects_unknown_enum_like_identifiers)
 {
-    EXPECT(decode_unknown_storage_identifier<Web::Bindings::KeyType>("future-key-type"sv).is_error());
-    EXPECT(decode_unknown_storage_identifier<Web::Bindings::KeyUsage>("future-key-usage"sv).is_error());
-    EXPECT(decode_unknown_storage_identifier<Web::Bindings::PredefinedColorSpace>("future-color-space"sv).is_error());
-    EXPECT(decode_unknown_storage_identifier<Gfx::BitmapFormat>("FutureBitmapFormat"sv).is_error());
-    EXPECT(decode_unknown_storage_identifier<Gfx::AlphaType>("future-alpha-type"sv).is_error());
-    EXPECT(decode_unknown_storage_identifier<Web::Bindings::InterfaceName>("FutureSerializableInterface"sv).is_error());
+    auto crypto_key = [](StringView type, StringView usage) {
+        return principal_storage_deserialize(crypto_key_full_record(type, usage, alg_key_algorithm("HKDF"sv), handle_byte_buffer("0123456789abcdef"sv.bytes())));
+    };
+    EXPECT(!crypto_key("secret"sv, "deriveKey"sv).is_error());
+    EXPECT(crypto_key("future-key-type"sv, "deriveKey"sv).is_error());
+    EXPECT(crypto_key("secret"sv, "future-key-usage"sv).is_error());
+
+    Array<u8, 4> pixels { 1, 2, 3, 255 };
+    EXPECT(!storage_deserialize(frozen_image_data_record(pixels.span(), 1, 1, "srgb"sv)).is_error());
+    EXPECT(storage_deserialize(frozen_image_data_record(pixels.span(), 1, 1, "future-color-space"sv)).is_error());
+
+    EXPECT(!storage_deserialize(image_bitmap_record(1, 1, 4, "BGRA8888"sv, "premultiplied"sv, pixels.span())).is_error());
+    EXPECT(storage_deserialize(image_bitmap_record(1, 1, 4, "FutureBitmapFormat"sv, "premultiplied"sv, pixels.span())).is_error());
+    EXPECT(storage_deserialize(image_bitmap_record(1, 1, 4, "BGRA8888"sv, "future-alpha-type"sv, pixels.span())).is_error());
+
+    EXPECT(storage_deserialize(serializable_storage_record("FutureSerializableInterface"sv, 1)).is_error());
 }
 
 TEST_CASE(storage_reader_rejects_unknown_and_reserved_serializable_versions)
@@ -474,11 +484,13 @@ TEST_CASE(storage_reader_rejects_end_object_tag_where_a_value_is_expected)
 
 TEST_CASE(storage_reader_does_not_overallocate_on_huge_vector_count)
 {
-    Vector<u8> value;
-    append_storage_leb128(value, NumericLimits<u64>::max());
-    auto record = storage_record_with_value(value);
-    Web::HTML::StructuredSerializeReader reader { record };
-    EXPECT(reader.decode<Vector<Web::Bindings::KeyUsage>>().is_error());
+    Vector<u8> body;
+    append_storage_string(body, "secret"sv);
+    body.append(0); // [[extractable]] = false
+    auto algorithm = alg_key_algorithm("HKDF"sv);
+    body.append(algorithm.data(), algorithm.size());
+    append_storage_leb128(body, NumericLimits<u64>::max()); // [[usages]] count
+    EXPECT(principal_storage_deserialize(serializable_storage_record("CryptoKey"sv, 1, body)).is_error());
 }
 
 TEST_CASE(crypto_key_with_truncated_handle_is_rejected)
