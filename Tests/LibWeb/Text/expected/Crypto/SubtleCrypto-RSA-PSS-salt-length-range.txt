@@ -2,11 +2,11 @@ verify saltLength 32: true
 verify saltLength 31: false
 verify saltLength 1000: false
 verify saltLength 2147483647: false
-verify saltLength 2147483648: OperationError
-verify saltLength 4294967292: true
-verify saltLength 4294967294: true
-verify saltLength 4294967295: true
+verify saltLength 2147483648: false
+verify saltLength 4294967292: false
+verify saltLength 4294967294: false
+verify saltLength 4294967295: false
 sign saltLength 1000: OperationError
 sign saltLength 2147483648: OperationError
-sign saltLength 4294967294: ok
-sign saltLength 4294967295: ok
+sign saltLength 4294967294: OperationError
+sign saltLength 4294967295: OperationError
