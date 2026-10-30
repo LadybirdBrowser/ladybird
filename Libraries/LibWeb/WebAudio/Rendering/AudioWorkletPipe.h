@@ -22,8 +22,8 @@
 namespace Web::WebAudio::Rendering {
 
 // A lock-free bridge between the realtime render node and the main-thread processor. Two SPSC rings share a
-// preallocated arena; underruns render silence and a full input ring drops quanta. Its acquire/release head-tail
-// discipline follows AK/SingleProducerCircularQueue.h, but the slot stride is configured at run time.
+// preallocated arena; underruns render silence and a full input ring drops quanta. Each ring uses acquire/release
+// head-tail discipline, and the slot stride is configured at run time.
 //
 // Per-slot layout; strides are rounded up to 64 bytes so slots start cache-line-aligned relative to the arena:
 //

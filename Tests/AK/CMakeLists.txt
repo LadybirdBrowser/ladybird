@@ -65,7 +65,6 @@ set(AK_TEST_SOURCES
     TestSeqLock.cpp
     TestSetUnion.cpp
     TestSharedMemoryValue.cpp
-    TestSingleProducerCircularQueue.cpp
     TestSinglyLinkedList.cpp
     TestSourceGenerator.cpp
     TestSourceLocation.cpp
