@@ -110,7 +110,8 @@ FetchByteChannel::WriteResult FetchByteChannel::write_bytes(Variant<Core::Immuta
         if (m_transport_ended) {
             notifications.append(Misbehaved { "The transport delivered after ending the body"sv });
         } else if (!m_state.has<Open>()) {
-            // The consumer cancelled and the transport has not heard yet.
+            // Before the transport ends the body, a write after a cancellation or a transfer is rejected without a
+            // misbehaved() report.
         } else if (size > m_outstanding_transport_credit) {
             notifications.append(Misbehaved { "The transport delivered more than it was granted"sv });
         } else {
