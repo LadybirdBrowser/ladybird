@@ -45,3 +45,15 @@ test("reviver context has no source for forward-modified values", () => {
     });
     expect(result).toEqual([1, { injected: true }]);
 });
+
+test("reviver that inserts a deeply nested value throws instead of exhausting the stack", () => {
+    let replacement = {};
+    for (let i = 0; i < 1000000; ++i) replacement = { child: replacement };
+
+    expect(() => {
+        JSON.parse("[0, 0]", function (key, value) {
+            if (key === "0") this[1] = replacement;
+            return value;
+        });
+    }).toThrowWithMessage(InternalError, "Call stack size limit exceeded");
+});
