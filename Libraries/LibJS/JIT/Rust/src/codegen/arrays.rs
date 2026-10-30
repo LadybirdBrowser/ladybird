@@ -16,6 +16,7 @@ use crate::asm::Label;
 use crate::asm::PortableMacroAssembler;
 use crate::asm::Scale;
 use crate::ir::NodeId;
+use crate::snapshot::CellId;
 
 impl<M: PortableMacroAssembler> Codegen<'_, M> {
     /// Calls the splice helper with the inserted values on the native
@@ -161,12 +162,10 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             fail,
         );
         self.emit_load_compressed_cell(shape, &Address::new(object, offsets.object_shape as i32));
-        self.masm
-            .load64(scratch, &Address::new(shape, layout.shape_prototype as i32));
-        self.masm.branch64_imm(
+        self.masm.branch32_memory_imm(
             Condition::NotEqual,
-            scratch,
-            self.runtime.array_prototype.0 as i64,
+            &Address::new(shape, layout.shape_prototype as i32),
+            self.runtime.array_prototype.compressed() as i32,
             fail,
         );
         self.masm
@@ -225,10 +224,13 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         let offsets = self.runtime.offsets;
         let layout = self.runtime.layout;
         self.emit_load_compressed_cell(scratch, &Address::new(object, offsets.object_shape as i32));
-        self.masm
-            .load64(scratch, &Address::new(scratch, layout.shape_prototype as i32));
+        self.masm.branch32_memory_imm(
+            Condition::NotEqual,
+            &Address::new(scratch, layout.shape_prototype as i32),
+            CellId(expected).compressed() as i32,
+            fail,
+        );
         self.masm.move_imm64(dst, expected);
-        self.masm.branch64(Condition::NotEqual, scratch, dst, fail);
         self.masm.load32(
             scratch,
             &Address::new(dst, layout.object_indexed_array_like_size as i32),

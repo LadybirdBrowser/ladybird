@@ -20,7 +20,7 @@ use crate::gc::weak::GcWeak;
 use crate::interpreter::vm::Vm;
 use crate::jit::dependencies::{CellId, Dependency};
 use crate::layout::cell::{CellHeader, Gc};
-use crate::layout::member::NullableMember;
+use crate::layout::member::{Member, NullableMember};
 use crate::layout::object::Object;
 use crate::layout::property_lookup_cache::ObjectPropertyIteratorCacheData;
 pub use crate::layout::shape::Shape;
@@ -149,7 +149,7 @@ pub struct ShapeStorage {
 }
 
 // NB: Every shape has these bytes.
-const _: () = assert!(size_of::<Shape>() == 128);
+const _: () = assert!(size_of::<Shape>() == 120);
 
 impl ShapeStorage {
     fn new(_: &DeferGc<'_>) -> Self {
@@ -324,8 +324,8 @@ impl Shape {
         Self {
             header: CellHeader::for_class(Self::CLASS),
             flags: Cell::new(0),
-            realm: Cell::new(realm),
-            prototype: Cell::new(None),
+            realm: Member::new(realm),
+            prototype: NullableMember::null(),
             prototype_chain_validity: NullableMember::null(),
             property_iterator_cache: NullableMember::null(),
             previous: NullableMember::null(),

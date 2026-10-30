@@ -6,8 +6,8 @@
 
 use core::cell::Cell;
 
-use super::cell::{CellHeader, Gc};
-use super::member::NullableMember;
+use super::cell::CellHeader;
+use super::member::{Member, NullableMember};
 use super::object::Object;
 use super::property_lookup_cache::ObjectPropertyIteratorCacheData;
 use super::realm::Realm;
@@ -17,9 +17,8 @@ use crate::layout_forward::{ShapeStorage, SpecialPropertyCache, WatchpointSetSto
 pub struct Shape {
     pub header: CellHeader,
     pub flags: Cell<u8>,
-    pub realm: Cell<Gc<Realm>>,
-    pub prototype: Cell<Option<Gc<Object>>>,
-    // NB: The interpreter does not read these four, which fill the word pair before the fields it reads after them.
+    pub realm: Member<Realm>,
+    pub prototype: NullableMember<Object>,
     pub prototype_chain_validity: NullableMember<WatchpointSet>,
     pub property_iterator_cache: NullableMember<ObjectPropertyIteratorCacheData>,
     /// The shape this one transitioned from, unless it changed the prototype. Transition caches only hold their

@@ -281,7 +281,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         // Entries without a prototype chain validity are for shapes without
         // a prototype.
         self.emit_load_compressed_cell(shape, &Address::new(object, offsets.object_shape as i32));
-        self.masm.branch64_memory_imm(
+        self.masm.branch32_memory_imm(
             Condition::NotEqual,
             &Address::new(shape, layout.shape_prototype as i32),
             0,
