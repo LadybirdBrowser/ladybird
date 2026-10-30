@@ -128,6 +128,13 @@ public:
         return m_encoder.encode(value);
     }
 
+    // The size of a list, as the encoding of a Vector begins.
+    ErrorOr<void> encode_size(size_t size)
+    {
+        VERIFY(!m_buffer_has_been_taken);
+        return m_encoder.encode_size(size);
+    }
+
     void append(IPCSerializationRecord&&);
     void extend(Vector<TransferDataEncoder>);
     void encode_unsigned_big_integer(::Crypto::UnsignedBigInteger const&);

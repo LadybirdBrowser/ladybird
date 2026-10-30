@@ -25,6 +25,8 @@ class TransportHandle {
     AK_MAKE_NONCOPYABLE(TransportHandle);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     TransportHandle() = default;
     TransportHandle(TransportHandle&&) = default;
     TransportHandle& operator=(TransportHandle&&) = default;

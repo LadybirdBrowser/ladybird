@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibIPC/TransportHandle.h>
 #include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/HostObject.h>
 #include <LibJS/Runtime/Realm.h>
@@ -87,6 +88,27 @@ static JSCompletion deserialize_plain_value(RustSerializationReader* reader, T* 
     return completion_to_abi(reader->realm, JS::js_undefined());
 }
 
+// A value that the data holder of a transferred object holds, which its transfer steps write.
+template<typename T>
+static JSCompletion encode_transfer_data(RustTransferDataWriter* writer, T const& value)
+{
+    auto result = HTML::encode_or_throw_data_clone_error(writer->realm, writer->data_holder, value);
+    if (result.is_exception())
+        return completion_to_abi(writer->realm, result.exception());
+    return completion_to_abi(writer->realm, JS::js_undefined());
+}
+
+// A value of the type that the data holder of a received object holds next, which its transfer-receiving steps read.
+template<typename T>
+static JSCompletion decode_transfer_data(RustTransferDataReader* reader, T* out_value)
+{
+    auto value = HTML::decode_or_throw_data_clone_error<T>(reader->realm, reader->data_holder);
+    if (value.is_exception())
+        return completion_to_abi(reader->realm, value.exception());
+    *out_value = value.release_value();
+    return completion_to_abi(reader->realm, JS::js_undefined());
+}
+
 extern "C" {
 
 void* web_bindings_wrapper_world(void* realm, bool* is_main_world);
@@ -125,6 +147,15 @@ JSCompletion web_bindings_deserialize_bytes(RustSerializationReader*, void* byte
 JSCompletion web_bindings_deserialize_utf16_string(RustSerializationReader*, FlatPtr* out_string);
 void web_bindings_serialize_inline_object_header(RustSerializationWriter*, u16 interface_name);
 JSCompletion web_bindings_deserialize_inline_object_header(RustSerializationReader*, u16 interface_name);
+JSCompletion web_bindings_transfer_data_encode_bool(RustTransferDataWriter*, bool);
+JSCompletion web_bindings_transfer_data_encode_records(RustTransferDataWriter*, HTML::SerializedTransferRecord const* const*, size_t count);
+JSCompletion web_bindings_transfer_data_encode_transport_handle(RustTransferDataWriter*, IPC::TransportHandle const*);
+void web_bindings_transfer_data_extend(RustTransferDataWriter*, HTML::SerializedTransferRecord*);
+JSCompletion web_bindings_transfer_data_decode_bool(RustTransferDataReader*, bool* out_value);
+JSCompletion web_bindings_transfer_data_decode_records(RustTransferDataReader*, void* records, void (*append)(void*, HTML::SerializedTransferRecord*));
+JSCompletion web_bindings_transfer_data_decode_transport_handle(RustTransferDataReader*, IPC::TransportHandle** out_handle);
+HTML::TransferDataDecoder* web_bindings_transfer_data_decoder(RustTransferDataReader*);
+void web_bindings_transport_handle_destroy(IPC::TransportHandle*);
 
 void* web_bindings_wrapper_world(void* realm, bool* is_main_world)
 {
@@ -316,6 +347,71 @@ JSCompletion web_bindings_deserialize_inline_object_header(RustSerializationRead
         return JS::js_undefined();
     }();
     return completion_to_abi(reader->realm, move(result));
+}
+
+JSCompletion web_bindings_transfer_data_encode_bool(RustTransferDataWriter* writer, bool value)
+{
+    return encode_transfer_data(writer, value);
+}
+
+// Writes the records as a Vector of them is encoded, which web_bindings_transfer_data_decode_records() and C++ read.
+JSCompletion web_bindings_transfer_data_encode_records(RustTransferDataWriter* writer, HTML::SerializedTransferRecord const* const* records, size_t count)
+{
+    auto result = [&]() -> WebIDL::ExceptionOr<JS::Value> {
+        if (auto encoded = writer->data_holder.encode_size(count); encoded.is_error())
+            return HTML::data_clone_error_from_serialization_error(writer->realm, encoded.release_error());
+        for (size_t i = 0; i < count; ++i)
+            TRY(HTML::encode_or_throw_data_clone_error(writer->realm, writer->data_holder, *records[i]));
+        return JS::js_undefined();
+    }();
+    return completion_to_abi(writer->realm, move(result));
+}
+
+JSCompletion web_bindings_transfer_data_encode_transport_handle(RustTransferDataWriter* writer, IPC::TransportHandle const* handle)
+{
+    return encode_transfer_data(writer, *handle);
+}
+
+void web_bindings_transfer_data_extend(RustTransferDataWriter* writer, HTML::SerializedTransferRecord* record)
+{
+    writer->data_holder.extend(move(record->transfer_data_holders));
+}
+
+JSCompletion web_bindings_transfer_data_decode_bool(RustTransferDataReader* reader, bool* out_value)
+{
+    return decode_transfer_data(reader, out_value);
+}
+
+// Reads what web_bindings_transfer_data_encode_records() writes, and hands each record over.
+JSCompletion web_bindings_transfer_data_decode_records(RustTransferDataReader* reader, void* records, void (*append)(void*, HTML::SerializedTransferRecord*))
+{
+    auto decoded = HTML::decode_or_throw_data_clone_error<Vector<HTML::SerializedTransferRecord>>(reader->realm, reader->data_holder);
+    if (decoded.is_exception())
+        return completion_to_abi(reader->realm, decoded.exception());
+    for (auto& record : decoded.value())
+        append(records, new HTML::SerializedTransferRecord(move(record)));
+    return completion_to_abi(reader->realm, JS::js_undefined());
+}
+
+// Reads a transport handle, and hands it over.
+JSCompletion web_bindings_transfer_data_decode_transport_handle(RustTransferDataReader* reader, IPC::TransportHandle** out_handle)
+{
+    auto handle = HTML::decode_or_throw_data_clone_error<IPC::TransportHandle>(reader->realm, reader->data_holder);
+    if (handle.is_exception())
+        return completion_to_abi(reader->realm, handle.exception());
+    *out_handle = new IPC::TransportHandle(handle.release_value());
+    return completion_to_abi(reader->realm, JS::js_undefined());
+}
+
+// The decoder of the data holder, for what the transfer-receiving steps read through structured deserialization.
+HTML::TransferDataDecoder* web_bindings_transfer_data_decoder(RustTransferDataReader* reader)
+{
+    return &reader->data_holder;
+}
+
+void web_bindings_transport_handle_destroy(IPC::TransportHandle* handle)
+{
+    delete handle;
 }
 
 JSObject* web_bindings_rejected_promise(void* current_realm, JSValue this_value, JSValue reason)
