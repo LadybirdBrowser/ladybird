@@ -44,6 +44,7 @@ enum class SerializableSteps : u8 {
     Rust,
     DOMException,
     QuotaExceededError,
+    CryptoKey,
     Cpp,
 };
 
@@ -55,6 +56,7 @@ u8 web_structured_serialize_writer_type(StructuredSerializeWriter*);
 void web_structured_serialize_writer_encode_u8(StructuredSerializeWriter*, u8);
 void web_structured_serialize_writer_encode_bool(StructuredSerializeWriter*, bool);
 void web_structured_serialize_writer_encode_i32(StructuredSerializeWriter*, i32);
+void web_structured_serialize_writer_encode_u16(StructuredSerializeWriter*, u16);
 void web_structured_serialize_writer_encode_u32(StructuredSerializeWriter*, u32);
 void web_structured_serialize_writer_encode_u64(StructuredSerializeWriter*, u64);
 void web_structured_serialize_writer_encode_f64(StructuredSerializeWriter*, double);
@@ -73,6 +75,7 @@ bool web_structured_serialize_reader_is_at_end(StructuredSerializeReader*);
 JSCompletion web_structured_serialize_reader_decode_u8(StructuredSerializeReader*, void* realm, u8*);
 JSCompletion web_structured_serialize_reader_decode_bool(StructuredSerializeReader*, void* realm, bool*);
 JSCompletion web_structured_serialize_reader_decode_i32(StructuredSerializeReader*, void* realm, i32*);
+JSCompletion web_structured_serialize_reader_decode_u16(StructuredSerializeReader*, void* realm, u16*);
 JSCompletion web_structured_serialize_reader_decode_u32(StructuredSerializeReader*, void* realm, u32*);
 JSCompletion web_structured_serialize_reader_decode_u64(StructuredSerializeReader*, void* realm, u64*);
 JSCompletion web_structured_serialize_reader_decode_size(StructuredSerializeReader*, void* realm, size_t*);
@@ -80,6 +83,7 @@ JSCompletion web_structured_serialize_reader_decode_f64(StructuredSerializeReade
 JSCompletion web_structured_serialize_reader_decode_utf16_string(StructuredSerializeReader*, void* realm, FlatPtr*);
 JSCompletion web_structured_serialize_reader_decode_optional_utf16_string(StructuredSerializeReader*, void* realm, bool* has_value, FlatPtr*);
 JSCompletion web_structured_serialize_reader_decode_byte_buffer(StructuredSerializeReader*, void* realm, ByteBuffer** buffer);
+u8 const* web_structured_serialize_byte_buffer_data(ByteBuffer*);
 size_t web_structured_serialize_byte_buffer_size(ByteBuffer*);
 JSObject* web_structured_serialize_array_buffer_from_byte_buffer(void* realm, ByteBuffer*, bool shared);
 void web_structured_serialize_byte_buffer_destroy(ByteBuffer*);
@@ -216,6 +220,11 @@ void web_structured_serialize_writer_encode_i32(StructuredSerializeWriter* write
     writer->encode(static_cast<int>(value));
 }
 
+void web_structured_serialize_writer_encode_u16(StructuredSerializeWriter* writer, u16 value)
+{
+    writer->encode(value);
+}
+
 void web_structured_serialize_writer_encode_u32(StructuredSerializeWriter* writer, u32 value)
 {
     writer->encode(value);
@@ -304,6 +313,11 @@ JSCompletion web_structured_serialize_reader_decode_i32(StructuredSerializeReade
     return completion;
 }
 
+JSCompletion web_structured_serialize_reader_decode_u16(StructuredSerializeReader* reader, void* realm, u16* value)
+{
+    return decode_into(realm_from_abi(realm), *reader, *value);
+}
+
 JSCompletion web_structured_serialize_reader_decode_u32(StructuredSerializeReader* reader, void* realm, u32* value)
 {
     return decode_into(realm_from_abi(realm), *reader, *value);
@@ -353,6 +367,11 @@ JSCompletion web_structured_serialize_reader_decode_byte_buffer(StructuredSerial
         return Bindings::completion_to_abi(js_realm, WebIDL::ExceptionOr<JS::Value> { decoded.release_error() });
     *buffer = new ByteBuffer(decoded.release_value());
     return JS::HostABI::completion_to_abi(JS::ThrowCompletionOr<JS::Value> { JS::js_undefined() });
+}
+
+u8 const* web_structured_serialize_byte_buffer_data(ByteBuffer* buffer)
+{
+    return buffer->data();
 }
 
 size_t web_structured_serialize_byte_buffer_size(ByteBuffer* buffer)
@@ -572,6 +591,8 @@ u8 web_structured_serialize_serializable_steps(u16 interface_name)
         return to_underlying(SerializableSteps::DOMException);
     case Bindings::InterfaceName::QuotaExceededError:
         return to_underlying(SerializableSteps::QuotaExceededError);
+    case Bindings::InterfaceName::CryptoKey:
+        return to_underlying(SerializableSteps::CryptoKey);
     default:
         if (Bindings::serializable_interface_is_implemented_in_rust(static_cast<Bindings::InterfaceName>(interface_name)))
             return to_underlying(SerializableSteps::Rust);

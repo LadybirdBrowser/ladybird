@@ -1252,20 +1252,6 @@ WebIDL::ExceptionOr<ByteBuffer> TransferDataDecoder::decode_buffer()
     return buffer.release_value();
 }
 
-void encode_unsigned_big_integer(StructuredSerializeWriter& writer, ::Crypto::UnsignedBigInteger const& value)
-{
-    auto buffer = MUST(ByteBuffer::create_zeroed(value.byte_length()));
-    auto written = value.export_data(buffer.bytes());
-    VERIFY(written.size() == buffer.size());
-    writer.encode(buffer);
-}
-
-WebIDL::ExceptionOr<::Crypto::UnsignedBigInteger> decode_unsigned_big_integer(StructuredSerializeReader& reader, JS::Realm& realm)
-{
-    auto buffer = TRY(decode_or_throw_data_clone_error<ByteBuffer>(realm, reader));
-    return ::Crypto::UnsignedBigInteger::import_data(buffer);
-}
-
 WebIDL::ExceptionOr<::Crypto::UnsignedBigInteger> TransferDataDecoder::decode_unsigned_big_integer()
 {
     auto buffer = TRY(decode_buffer());

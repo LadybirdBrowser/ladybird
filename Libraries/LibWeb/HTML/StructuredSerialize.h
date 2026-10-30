@@ -168,9 +168,6 @@ WEB_API WebIDL::ExceptionOr<JS::Value> structured_deserialize_internal(JS::VM&, 
 
 WEB_API WebIDL::Exception data_clone_error_from_serialization_error(JS::Realm&, AK::Error const&);
 
-void encode_unsigned_big_integer(StructuredSerializeWriter&, ::Crypto::UnsignedBigInteger const&);
-WebIDL::ExceptionOr<::Crypto::UnsignedBigInteger> decode_unsigned_big_integer(StructuredSerializeReader&, JS::Realm&);
-
 void encode_signed_big_integer(StructuredSerializeWriter&, ::Crypto::SignedBigInteger const&);
 WebIDL::ExceptionOr<::Crypto::SignedBigInteger> decode_signed_big_integer(StructuredSerializeReader&, JS::Realm&);
 

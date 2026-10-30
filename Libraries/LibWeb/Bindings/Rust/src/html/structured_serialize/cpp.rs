@@ -25,6 +25,7 @@ unsafe extern "C" {
     fn web_structured_serialize_writer_encode_u8(writer: *mut c_void, value: u8);
     fn web_structured_serialize_writer_encode_bool(writer: *mut c_void, value: bool);
     fn web_structured_serialize_writer_encode_i32(writer: *mut c_void, value: i32);
+    fn web_structured_serialize_writer_encode_u16(writer: *mut c_void, value: u16);
     fn web_structured_serialize_writer_encode_u32(writer: *mut c_void, value: u32);
     fn web_structured_serialize_writer_encode_u64(writer: *mut c_void, value: u64);
     fn web_structured_serialize_writer_encode_f64(writer: *mut c_void, value: f64);
@@ -62,6 +63,11 @@ unsafe extern "C" {
         realm: *mut c_void,
         value: &mut i32,
     ) -> RawNativeFunctionResult;
+    fn web_structured_serialize_reader_decode_u16(
+        reader: *mut c_void,
+        realm: *mut c_void,
+        value: &mut u16,
+    ) -> RawNativeFunctionResult;
     fn web_structured_serialize_reader_decode_u32(
         reader: *mut c_void,
         realm: *mut c_void,
@@ -98,6 +104,7 @@ unsafe extern "C" {
         realm: *mut c_void,
         buffer: &mut *mut c_void,
     ) -> RawNativeFunctionResult;
+    fn web_structured_serialize_byte_buffer_data(buffer: *mut c_void) -> *const u8;
     fn web_structured_serialize_byte_buffer_size(buffer: *mut c_void) -> usize;
     fn web_structured_serialize_array_buffer_from_byte_buffer(
         realm: *mut c_void,
@@ -278,6 +285,11 @@ impl DecodedBytes {
         unsafe { web_structured_serialize_byte_buffer_size(self.0.as_ptr()) }
     }
 
+    pub(crate) fn bytes(&self) -> &[u8] {
+        // SAFETY: This owns the buffer, whose bytes live as long as it does.
+        unsafe { ak::slice_from_raw_parts(web_structured_serialize_byte_buffer_data(self.0.as_ptr()), self.len()) }
+    }
+
     /// A new ArrayBuffer in the realm, which takes over the bytes.
     pub(crate) fn into_array_buffer(self, realm: Gc<Realm>, is_shared: ArrayBufferShared) -> Gc<ArrayBuffer> {
         let buffer = ManuallyDrop::new(self);
@@ -338,6 +350,11 @@ impl StructuredSerializeWriter {
     pub(crate) fn encode_i32(self, value: i32) {
         // SAFETY: The writer is lent.
         unsafe { web_structured_serialize_writer_encode_i32(self.as_raw(), value) };
+    }
+
+    pub(crate) fn encode_u16(self, value: u16) {
+        // SAFETY: The writer is lent.
+        unsafe { web_structured_serialize_writer_encode_u16(self.as_raw(), value) };
     }
 
     pub(crate) fn encode_u32(self, value: u32) {
@@ -515,6 +532,13 @@ impl StructuredSerializeReader {
         let mut value = 0;
         // SAFETY: The reader is lent, and the realm is live.
         completion(unsafe { web_structured_serialize_reader_decode_i32(self.as_raw(), self.realm_raw(), &mut value) })?;
+        Ok(value)
+    }
+
+    pub(crate) fn decode_u16(self) -> WebIdlResult<u16> {
+        let mut value = 0;
+        // SAFETY: The reader is lent, and the realm is live.
+        completion(unsafe { web_structured_serialize_reader_decode_u16(self.as_raw(), self.realm_raw(), &mut value) })?;
         Ok(value)
     }
 
@@ -862,6 +886,8 @@ pub(crate) enum SerializableSteps {
     DOMException,
     /// The steps of QuotaExceededError, which run in crate::webidl::quota_exceeded_error.
     QuotaExceededError,
+    /// The steps of CryptoKey, which run in crate::crypto::crypto_key.
+    CryptoKey,
     /// The steps of an interface implemented in C++, which C++ runs.
     Cpp,
 }
@@ -872,7 +898,8 @@ pub(crate) fn serializable_steps(interface_name: u16) -> SerializableSteps {
         0 => SerializableSteps::Rust,
         1 => SerializableSteps::DOMException,
         2 => SerializableSteps::QuotaExceededError,
-        3 => SerializableSteps::Cpp,
+        3 => SerializableSteps::CryptoKey,
+        4 => SerializableSteps::Cpp,
         steps => unreachable!("LibWeb names no serializable steps {steps}"),
     }
 }
