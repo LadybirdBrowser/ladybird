@@ -72,7 +72,7 @@ static MutationObserverOptions to_dom_options(Bindings::MutationObserverInit con
 static void invoke_mutation_observer_callback(MutationObserver& mutation_observer, Vector<GC::Root<MutationRecord>>& records)
 {
     auto& callback = mutation_observer.callback();
-    auto& settings = callback.callback_context;
+    GC::Ref<HTML::EnvironmentSettingsObject> settings = callback.callback_context;
 
     auto wrapped_records = MUST(JS::Array::create(settings->realm(), 0));
     auto& wrapper_world = Bindings::host_defined_wrapper_world(settings->realm());

@@ -1089,11 +1089,9 @@ private:
 
     OwnPtr<AttributeList> m_attributes;
     u64 m_subtree_attribute_name_filter { 0 };
-    GC::Ptr<CSS::CSSStyleProperties> m_inline_style;
-    // NB: The declarations of a style attribute, until something asks for their CSSOM object, which takes them over.
-    //     At most one of the two is set.
+    // NB: The declarations of a style attribute, until something asks for their CSSOM object (m_inline_style), which
+    //     takes them over. At most one of the two is set.
     CSS::Parser::ValueParserFFI::DeclarationBlock* m_inline_declarations { nullptr };
-    GC::Ptr<ShadowRoot> m_shadow_root;
 
     // A consumer handle mirroring StyleEngine's authoritative style-record column. C++ consumers
     // borrow the record-owned computed-values view rather than retaining one complete style per
@@ -1137,16 +1135,20 @@ private:
     // Policy blocks it is decided when the element is inserted.
     bool m_style_attribute_awaits_content_security_policy_check : 1 { false };
 
+    // https://dom.spec.whatwg.org/#concept-element-custom-element-state
+    CustomElementState m_custom_element_state { CustomElementState::Undefined };
+
     // The child indices the element remembers, or zero for those not counted yet, and the generation of its parent's
     // child list they were counted in; zero for none.
     mutable u32 m_parent_child_index_generation { 0 };
     mutable u32 m_child_index { 0 };
     mutable u32 m_child_index_of_type { 0 };
 
-    mutable Optional<Utf16String> m_lang_value;
+    // NB: These are declared next to the u32s above, so that they pack without padding.
+    GC::Member<CSS::CSSStyleProperties> m_inline_style;
+    GC::Member<ShadowRoot> m_shadow_root;
 
-    // https://dom.spec.whatwg.org/#concept-element-custom-element-state
-    CustomElementState m_custom_element_state { CustomElementState::Undefined };
+    mutable Optional<Utf16String> m_lang_value;
 };
 
 template<>

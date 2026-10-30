@@ -24,17 +24,18 @@ public:
     DOMEventListener();
     ~DOMEventListener();
 
+    // NB: The capture flag and the callback come first, so that they fill the padding at the end of the cell header.
+    // capture (a boolean, initially false)
+    bool capture { false };
+
+    // callback (null or an EventListener object)
+    GC::Member<IDLEventListener> callback;
+
     // type (a string)
     Utf16FlyString type;
 
-    // callback (null or an EventListener object)
-    GC::Ptr<IDLEventListener> callback;
-
     // signal (null or an AbortSignal object)
-    GC::Ptr<DOM::AbortSignal> signal;
-
-    // capture (a boolean, initially false)
-    bool capture { false };
+    GC::Member<DOM::AbortSignal> signal;
 
     // passive (null or a boolean, initially null)
     Optional<bool> passive;

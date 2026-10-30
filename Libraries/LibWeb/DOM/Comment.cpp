@@ -11,6 +11,10 @@
 
 namespace Web::DOM {
 
+#if ARCH(X86_64) && !defined(AK_OS_WINDOWS)
+static_assert(sizeof(Comment) == 112);
+#endif
+
 GC_DEFINE_ALLOCATOR(Comment);
 
 Comment::Comment(Document& document, Utf16String data)

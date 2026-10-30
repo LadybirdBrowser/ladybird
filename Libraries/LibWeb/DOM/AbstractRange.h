@@ -26,8 +26,8 @@ class WEB_API AbstractRange : public Bindings::GCAllocatedWrappable {
     WEB_WRAPPABLE(AbstractRange, Bindings::GCAllocatedWrappable);
 
 public:
-    static constexpr size_t start_container_offset() { return offsetof(AbstractRange, m_start_container); }
-    static constexpr size_t end_container_offset() { return offsetof(AbstractRange, m_end_container); }
+    static constexpr GC::MemberOffset start_container_offset() { return GC_FIELD_OFFSET(AbstractRange, m_start_container); }
+    static constexpr GC::MemberOffset end_container_offset() { return GC_FIELD_OFFSET(AbstractRange, m_end_container); }
     virtual ~AbstractRange() override;
 
     BoundaryPoint start() const { return { m_start_container, m_start_offset }; }
@@ -58,10 +58,10 @@ protected:
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
-    GC::Ref<Node> m_start_container;
+    GC::NonnullMember<Node> m_start_container;
     WebIDL::UnsignedLong m_start_offset;
 
-    GC::Ref<Node> m_end_container;
+    GC::NonnullMember<Node> m_end_container;
     WebIDL::UnsignedLong m_end_offset;
 };
 

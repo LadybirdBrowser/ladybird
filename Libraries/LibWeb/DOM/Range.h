@@ -180,8 +180,8 @@ private:
 
     void update_owner_document();
 
-    GC::Ptr<Selection::Selection> m_associated_selection;
-    GC::Ptr<Document> m_owner_document;
+    GC::Member<Selection::Selection> m_associated_selection;
+    GC::Member<Document> m_owner_document;
 
     IntrusiveListNode<Range> m_live_range_list_node;
 

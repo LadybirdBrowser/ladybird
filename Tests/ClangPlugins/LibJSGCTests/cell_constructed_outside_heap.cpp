@@ -16,6 +16,10 @@ class TestCell : public GC::Cell {
 
 public:
     TestCell() = default;
+
+private:
+    // A cell must be at least as large as a free cell.
+    FlatPtr m_payload { 0 };
 };
 
 GC_DEFINE_ALLOCATOR(TestCell);

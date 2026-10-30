@@ -131,7 +131,7 @@ JSValue web_bindings_event_handler_attribute(RustEventTarget* event_target, Read
     auto* callback = event_target->event_handler_attribute(Utf16FlyString::from_utf8_without_validation(name));
     if (!callback)
         return JS::HostABI::value_to_abi(JS::js_null());
-    return JS::HostABI::value_to_abi(callback->callback);
+    return JS::HostABI::value_to_abi(callback->callback.ptr());
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#event-handler-idl-attributes

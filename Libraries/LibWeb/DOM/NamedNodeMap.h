@@ -67,7 +67,7 @@ private:
     GC::Ptr<Attr> find_attribute_node(QualifiedName const&) const;
     GC::Ref<Attr> ensure_attribute_node(QualifiedName const&) const;
 
-    GC::Ref<DOM::Element> m_element;
+    GC::NonnullMember<DOM::Element> m_element;
     mutable Vector<GC::Ref<Attr>> m_attribute_nodes;
 };
 

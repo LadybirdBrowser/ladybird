@@ -116,6 +116,10 @@
 
 namespace Web::DOM {
 
+#if ARCH(X86_64) && !defined(AK_OS_WINDOWS)
+static_assert(sizeof(Node) == 104);
+#endif
+
 static bool final_direct_list_item_does_not_renumber_existing_content(Element const& list_item)
 {
     auto list_owner = list_item.parent_element();

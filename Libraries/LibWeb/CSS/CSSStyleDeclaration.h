@@ -51,11 +51,16 @@ public:
     // https://drafts.csswg.org/cssom/#cssstyledeclaration-parent-css-rule
     GC::Ptr<CSSRule> parent_rule() const { return m_parent_rule; }
     void set_parent_rule(GC::Ptr<CSSRule> parent) { m_parent_rule = parent; }
-    static constexpr size_t parent_rule_offset() { return offsetof(CSSStyleDeclaration, m_parent_rule); }
+    static constexpr GC::MemberOffset parent_rule_offset() { return GC_FIELD_OFFSET(CSSStyleDeclaration, m_parent_rule); }
 
     // https://drafts.csswg.org/cssom/#cssstyledeclaration-owner-node
-    Optional<DOM::AbstractElement> owner_node() const { return m_owner_node; }
-    void set_owner_node(Optional<DOM::AbstractElement> owner_node) { m_owner_node = move(owner_node); }
+    Optional<DOM::AbstractElement> owner_node() const
+    {
+        if (!m_owner_element)
+            return {};
+        return DOM::AbstractElement { m_owner_element.as_nonnull(), m_owner_pseudo_element };
+    }
+    void set_owner_node(Optional<DOM::AbstractElement>);
 
     // https://drafts.csswg.org/cssom/#cssstyledeclaration-updating-flag
     [[nodiscard]] bool is_updating() const { return m_updating; }
@@ -82,11 +87,7 @@ protected:
     void update_style_attribute();
 
 private:
-    // https://drafts.csswg.org/cssom/#cssstyledeclaration-parent-css-rule
-    GC::Ptr<CSSRule> m_parent_rule { nullptr };
-
-    // https://drafts.csswg.org/cssom/#cssstyledeclaration-owner-node
-    Optional<DOM::AbstractElement> m_owner_node {};
+    // NB: The flags come first, so that they fill the padding at the end of the wrappable's fields.
 
     // https://drafts.csswg.org/cssom/#cssstyledeclaration-computed-flag
     bool m_computed { false };
@@ -96,6 +97,15 @@ private:
 
     // https://drafts.csswg.org/cssom/#cssstyledeclaration-updating-flag
     bool m_updating { false };
+
+    // https://drafts.csswg.org/cssom/#cssstyledeclaration-parent-css-rule
+    GC::Member<CSSRule> m_parent_rule;
+
+    // https://drafts.csswg.org/cssom/#cssstyledeclaration-owner-node
+    // NB: The owner node is stored as the parts of an AbstractElement, with a null element for none, which keeps the
+    //     element compressed.
+    GC::Member<DOM::Element> m_owner_element;
+    Optional<PseudoElement> m_owner_pseudo_element;
 };
 
 }

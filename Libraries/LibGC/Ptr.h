@@ -139,6 +139,15 @@ public:
         return *this;
     }
 
+    // NB: A member converts to a reference, a Ref and a Ptr, so assigning one would be ambiguous without this.
+    template<typename U>
+    Ref& operator=(NonnullMember<U> const& other)
+    requires(IsConvertible<U*, T*>)
+    {
+        m_ptr = static_cast<T*>(other.ptr());
+        return *this;
+    }
+
     template<typename U>
     Ref& operator=(Ref<U> const& foreign_cell)
     requires(IsForeignCellConvertibleToCell<U, T>)
@@ -284,6 +293,23 @@ public:
     requires(IsConvertible<U*, T*>)
     {
         m_ptr = static_cast<T*>(other);
+        return *this;
+    }
+
+    // NB: A member converts to a reference, a Ref and a Ptr, so assigning one would be ambiguous without these.
+    template<typename U>
+    Ptr& operator=(NonnullMember<U> const& other)
+    requires(IsConvertible<U*, T*>)
+    {
+        m_ptr = static_cast<T*>(other.ptr());
+        return *this;
+    }
+
+    template<typename U>
+    Ptr& operator=(Member<U> const& other)
+    requires(IsConvertible<U*, T*>)
+    {
+        m_ptr = static_cast<T*>(other.ptr());
         return *this;
     }
 
