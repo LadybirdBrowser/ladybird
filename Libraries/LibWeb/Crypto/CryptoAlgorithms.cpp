@@ -8555,6 +8555,17 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> MLDSA::generate_
     return Variant<GC::Ref<CryptoKey>, CryptoKeyPair> { result };
 }
 
+static ErrorOr<::Crypto::PK::MLDSA::KeyPairType> generate_mldsa_key_pair_from_seed(Utf16String const& name, ByteBuffer const& seed)
+{
+    if (name == "ML-DSA-44"sv)
+        return ::Crypto::PK::MLDSA::generate_key_pair(::Crypto::PK::MLDSA44, seed);
+    if (name == "ML-DSA-65"sv)
+        return ::Crypto::PK::MLDSA::generate_key_pair(::Crypto::PK::MLDSA65, seed);
+    if (name == "ML-DSA-87"sv)
+        return ::Crypto::PK::MLDSA::generate_key_pair(::Crypto::PK::MLDSA87, seed);
+    VERIFY_NOT_REACHED();
+}
+
 // https://wicg.github.io/webcrypto-modern-algos/#ml-dsa-operations-import-key
 WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLDSA::import_key(JS::Realm& realm, AlgorithmParams const& params, KeyFormat key_format, CryptoKey::ImportKeyData key_data, bool extractable, Vector<KeyUsage> const& usages)
 {
@@ -8721,15 +8732,10 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLDSA::import_key(JS::Realm& realm, Algo
 
         // 4. Let privateKey be the result of performing the ML-DSA.KeyGen_internal function described in Section 6.1
         //    of [FIPS-204] with the parameter set indicated by the name member of normalizedAlgorithm, using data as ξ.
-        auto const [_, private_key] = [&] {
-            if (params.name == "ML-DSA-44"sv)
-                return MUST(::Crypto::PK::MLDSA::generate_key_pair(::Crypto::PK::MLDSA44, data));
-            if (params.name == "ML-DSA-65"sv)
-                return MUST(::Crypto::PK::MLDSA::generate_key_pair(::Crypto::PK::MLDSA65, data));
-            if (params.name == "ML-DSA-87"sv)
-                return MUST(::Crypto::PK::MLDSA::generate_key_pair(::Crypto::PK::MLDSA87, data));
-            VERIFY_NOT_REACHED();
-        }();
+        auto maybe_key_pair = generate_mldsa_key_pair_from_seed(params.name, data);
+        if (maybe_key_pair.is_error())
+            return WebIDL::OperationError::create(Utf16String::formatted("Key generation failed: {}", maybe_key_pair.release_error()));
+        auto const private_key = maybe_key_pair.release_value().private_key;
 
         // 5. Let key be a new CryptoKey that represents the ML-DSA private key identified by privateKey.
         key = CryptoKey::create(private_key);
@@ -8785,18 +8791,15 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLDSA::import_key(JS::Realm& realm, Algo
             // 1. If the priv attribute of jwk does not contain a valid base64url encoded seed
             //    representing an ML-DSA private key, then throw a DataError.
             auto const seed = TRY(base64_url_bytes_decode(realm, jwk->priv.value()));
+            if (seed.size() * 8 != 256)
+                return WebIDL::DataError::create("Seed must be 256 bits long"_utf16);
 
             // 2. Let key be a new CryptoKey object that represents the ML-DSA private key
             //    identified by interpreting the priv attribute of jwk as a base64url encoded seed.
-            auto const [public_key, private_key] = [&] {
-                if (params.name == "ML-DSA-44"sv)
-                    return MUST(::Crypto::PK::MLDSA::generate_key_pair(::Crypto::PK::MLDSA44, seed));
-                if (params.name == "ML-DSA-65"sv)
-                    return MUST(::Crypto::PK::MLDSA::generate_key_pair(::Crypto::PK::MLDSA65, seed));
-                if (params.name == "ML-DSA-87"sv)
-                    return MUST(::Crypto::PK::MLDSA::generate_key_pair(::Crypto::PK::MLDSA87, seed));
-                VERIFY_NOT_REACHED();
-            }();
+            auto maybe_key_pair = generate_mldsa_key_pair_from_seed(params.name, seed);
+            if (maybe_key_pair.is_error())
+                return WebIDL::DataError::create(Utf16String::formatted("Invalid seed: {}", maybe_key_pair.release_error()));
+            auto const [public_key, private_key] = maybe_key_pair.release_value();
             key = CryptoKey::create(private_key);
 
             // 3. Set the [[type]] internal slot of key to "private".

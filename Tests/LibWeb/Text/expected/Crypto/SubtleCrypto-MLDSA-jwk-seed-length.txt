@@ -1,0 +1,4 @@
+valid seed: ok
+empty seed: DataError
+5-byte seed: DataError
+33-byte seed: DataError

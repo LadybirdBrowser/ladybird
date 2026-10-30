@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const algorithm = { name: "ML-DSA-44" };
+        const { privateKey } = await crypto.subtle.generateKey(algorithm, true, ["sign", "verify"]);
+        const jwk = await crypto.subtle.exportKey("jwk", privateKey);
+
+        const variants = [
+            ["valid seed", jwk.priv],
+            ["empty seed", ""],
+            ["5-byte seed", "AAAAAAA"],
+            ["33-byte seed", jwk.priv + "A"],
+        ];
+
+        for (const [label, priv] of variants) {
+            try {
+                await crypto.subtle.importKey("jwk", { ...jwk, priv }, algorithm, true, ["sign"]);
+                println(`${label}: ok`);
+            } catch (error) {
+                println(`${label}: ${error.name}`);
+            }
+        }
+    });
+</script>
