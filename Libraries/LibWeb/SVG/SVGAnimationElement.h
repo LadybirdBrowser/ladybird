@@ -38,6 +38,8 @@ public:
     void end_element();
     void end_element_at(float offset);
 
+    void queue_time_events_if_necessary();
+
 protected:
     SVGAnimationElement(DOM::Document&, DOM::QualifiedName);
 
@@ -73,6 +75,7 @@ private:
     Optional<double> interval_begin_time() const;
     Optional<double> interval_end_time() const;
     bool is_active_at(double time) const;
+    void queue_time_event(Utf16FlyString const& type, i32 detail = 0);
 
     GC::Ptr<SMILAnimation> m_animation;
 
@@ -80,6 +83,12 @@ private:
     //     fragment.
     Optional<double> m_begin_instance_time_from_dom;
     Optional<double> m_end_instance_time_from_dom;
+
+    // NB: What the time events that were last queued said about the interval, and when they were queued.
+    bool m_time_events_reported_active { false };
+    Optional<double> m_time_events_begin_time;
+    double m_time_events_iteration { 0 };
+    Optional<double> m_time_events_last_checked_time;
 };
 
 }

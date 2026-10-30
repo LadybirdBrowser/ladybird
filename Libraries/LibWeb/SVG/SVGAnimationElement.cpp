@@ -13,12 +13,15 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/Window.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/AttributeParsing.h>
 #include <LibWeb/SVG/SMILAnimation.h>
 #include <LibWeb/SVG/SMILTimeContainer.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
+#include <LibWeb/SVG/TimeEvent.h>
 #include <LibWeb/WebIDL/DOMException.h>
 
 namespace Web::SVG {
@@ -320,6 +323,10 @@ void SVGAnimationElement::update_animation()
     animation->set_effect(effect);
     time_container->add_animation(animation);
     m_animation = animation;
+
+    // NB: Time events are raised for intervals that begin from now on.
+    if (!m_time_events_last_checked_time.has_value())
+        m_time_events_last_checked_time = current_presentation_time();
 }
 
 // https://svgwg.org/specs/animations/#__svg__SVGAnimationElement__onbegin
@@ -475,6 +482,81 @@ void SVGAnimationElement::end_element_at(float offset)
     // the time of the DOM method call, plus or minus the specified offset.
     m_end_instance_time_from_dom = current_presentation_time() + static_cast<double>(offset) * 1000.;
     update_animation();
+}
+
+void SVGAnimationElement::queue_time_event(Utf16FlyString const& type, i32 detail)
+{
+    // NB: Time events are dispatched along with the other animation events of the document.
+    auto& document = this->document();
+    auto event = TimeEvent::create(type, document.window() ? document.window()->window().ptr() : nullptr, detail,
+        HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*this)));
+    event->set_is_trusted(true);
+
+    auto timeline = m_animation->timeline();
+    document.append_pending_animation_event({
+        .event = event,
+        .animation = *m_animation,
+        .target = *this,
+        .scheduled_event_time = timeline && timeline->can_convert_a_timeline_time_to_an_origin_relative_time()
+            ? timeline->convert_a_timeline_time_to_an_origin_relative_time(timeline->current_time())
+            : Optional<double> {},
+    });
+}
+
+// https://svgwg.org/specs/animations/#InterfaceTimeEvent
+void SVGAnimationElement::queue_time_events_if_necessary()
+{
+    // FIXME: Raise time events for an animation element without a target or animated property too.
+    auto time_container = is_connected() ? this->time_container() : nullptr;
+    if (!m_animation || !time_container || !time_container->has_begun())
+        return;
+
+    auto current_time = time_container->current_time_in_milliseconds();
+    auto last_checked_time = exchange(m_time_events_last_checked_time, current_time);
+    auto begin_time = interval_begin_time();
+    auto is_active = is_active_at(current_time);
+
+    // endEvent
+    //     This event is raised at the active end of the element. Note that this event is not raised at the simple end
+    //     of each repeat.
+    //     Note that if an element is restarted while it is currently playing, the element will raise an end event and
+    //     another begin event, as the element restarts.
+    if (m_time_events_reported_active && (!is_active || begin_time != m_time_events_begin_time)) {
+        m_time_events_reported_active = false;
+        queue_time_event(HTML::EventNames::endEvent);
+    }
+
+    // beginEvent
+    //     This event is raised when the element local timeline begins to play. It will be raised each time the element
+    //     begins the active duration (i.e. when it restarts, but not when it repeats).
+    if (is_active && !m_time_events_reported_active) {
+        m_time_events_reported_active = true;
+        m_time_events_begin_time = begin_time;
+        m_time_events_iteration = isinf(simple_duration()) ? 0 : floor((current_time - *begin_time) / simple_duration());
+        queue_time_event(HTML::EventNames::beginEvent);
+        return;
+    }
+
+    // NB: An interval that began and ended since the time events were last checked raises both events.
+    if (!is_active && begin_time.has_value() && begin_time != m_time_events_begin_time && last_checked_time.has_value()
+        && *begin_time >= *last_checked_time && *begin_time <= current_time) {
+        m_time_events_begin_time = begin_time;
+        queue_time_event(HTML::EventNames::beginEvent);
+        queue_time_event(HTML::EventNames::endEvent);
+        return;
+    }
+
+    // repeatEvent
+    //     This event is raised when an element local timeline repeats. It will be raised each time the element
+    //     repeats, after the first iteration. The event provides a numerical indication of which repeat iteration is
+    //     beginning. The value is a 0-based integer, but the repeat event is not raised for the first iteration and
+    //     so the observed values of the detail attribute will be >= 1.
+    if (is_active && !isinf(simple_duration())) {
+        auto iteration = floor((current_time - *begin_time) / simple_duration());
+        auto previous_iteration = exchange(m_time_events_iteration, iteration);
+        if (iteration > previous_iteration)
+            queue_time_event(HTML::EventNames::repeatEvent, static_cast<i32>(min(iteration, static_cast<double>(NumericLimits<i32>::max()))));
+    }
 }
 
 }

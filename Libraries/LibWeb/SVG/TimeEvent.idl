@@ -1,0 +1,8 @@
+// https://svgwg.org/specs/animations/#InterfaceTimeEvent
+[Exposed=Window]
+interface TimeEvent : Event {
+    readonly attribute WindowProxy? view;
+    readonly attribute long detail;
+
+    [ImplementedAs=init_time_event] undefined initTimeEvent([FlyString] DOMString typeArg, optional WindowProxy? viewArg = null, optional long detailArg = 0);
+};

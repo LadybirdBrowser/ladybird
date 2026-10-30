@@ -1157,6 +1157,7 @@ class SVGSymbolElement;
 class SVGTitleElement;
 class SVGTransformList;
 class SVGViewElement;
+class TimeEvent;
 
 }
 

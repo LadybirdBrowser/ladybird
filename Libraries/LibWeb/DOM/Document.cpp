@@ -247,6 +247,7 @@
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/ResizeObserver/ResizeObserver.h>
 #include <LibWeb/ResizeObserver/ResizeObserverEntry.h>
+#include <LibWeb/SVG/SMILAnimation.h>
 #include <LibWeb/SVG/SMILTimeContainer.h>
 #include <LibWeb/SVG/SVGAnimateMotionElement.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
@@ -4664,6 +4665,11 @@ void Document::dispatch_events_for_transition(GC::Ref<CSS::CSSTransition> transi
 // https://www.w3.org/TR/css-animations-2/#event-dispatch
 void Document::dispatch_events_for_animation_if_necessary(GC::Ref<Animations::Animation> animation)
 {
+    if (animation->is_smil_animation()) {
+        as<SVG::SMILAnimation>(*animation).animation_element().queue_time_events_if_necessary();
+        return;
+    }
+
     if (animation->is_css_transition()) {
         dispatch_events_for_transition(as<CSS::CSSTransition>(*animation));
         return;

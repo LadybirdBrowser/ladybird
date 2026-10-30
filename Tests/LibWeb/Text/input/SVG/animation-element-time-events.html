@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg id="svg" width="100" height="100">
+    <rect width="10" height="10">
+        <animate id="repeating" attributeName="opacity" from="0" to="1" begin="indefinite" dur="1s" repeatCount="3"/>
+    </rect>
+    <rect width="10" height="10">
+        <animate id="short" attributeName="opacity" from="0" to="1" begin="indefinite" dur="1ms"/>
+    </rect>
+</svg>
+<script>
+    asyncTest(async done => {
+        const nextFrame = () => new Promise(requestAnimationFrame);
+        for (const animation of document.querySelectorAll("animate")) {
+            for (const type of ["beginEvent", "repeatEvent", "endEvent"]) {
+                animation.addEventListener(type, event => {
+                    println(`  ${animation.id}: ${event.type} (${event.constructor.name}, detail ${event.detail}, bubbles ${event.bubbles}, cancelable ${event.cancelable}, trusted ${event.isTrusted}, view is window ${event.view === window})`);
+                });
+            }
+        }
+        repeating.onrepeat = () => println(`  repeating: onrepeat`);
+        const step = async (label, action) => {
+            println(label);
+            action();
+            await nextFrame();
+            await nextFrame();
+        };
+
+        await new Promise(resolve => window.addEventListener("load", resolve));
+        await nextFrame();
+        svg.pauseAnimations();
+        svg.setCurrentTime(1);
+
+        await step("beginElement()", () => repeating.beginElement());
+        await step("seek into the second iteration", () => svg.setCurrentTime(2.5));
+        await step("seek into the third iteration", () => svg.setCurrentTime(3.5));
+        await step("seek back into the first iteration", () => svg.setCurrentTime(1.5));
+        await step("seek into the second iteration again", () => svg.setCurrentTime(2.5));
+        await step("restart while active", () => repeating.beginElement());
+        await step("endElement()", () => repeating.endElement());
+        await step("begin again", () => repeating.beginElement());
+        await step("seek past the active end", () => svg.setCurrentTime(10));
+        await step("interval that begins and ends between frames", () => {
+            short.beginElement();
+            svg.setCurrentTime(11);
+        });
+        done();
+    });
+</script>
