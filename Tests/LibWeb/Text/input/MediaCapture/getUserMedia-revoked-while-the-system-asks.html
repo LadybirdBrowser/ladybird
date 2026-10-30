@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // The user blocks a site while the system is still asking about its request. The popup stays allowed, so this process
+    // may go on capturing and the AudioServer opens the device, but the blocked site gets no stream of it.
+    promiseTest(async () => {
+        internals.setTestTimeout(30_000);
+        await internals.setPermission("microphone", "granted");
+
+        const url = new URL(
+            await httpTestServer().createEcho("GET", "/getUserMedia-revoked-while-the-system-asks", {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>
+                    internals.setPermission("microphone", "granted").then(() => opener.postMessage("allowed", "*"));
+                <\/script>`,
+            })
+        );
+        // Another origin of this site, which shares this process.
+        url.hostname = `popup.${location.hostname}`;
+
+        const allowed = new Promise(resolve => addEventListener("message", resolve, { once: true }));
+        const popup = window.open(url.href);
+        await allowed;
+
+        internals.setSystemMicrophoneAuthorization("not-determined", "authorized", true);
+        window.focus();
+        const request = navigator.mediaDevices.getUserMedia({ audio: true });
+        await waitForCondition(() => JSON.parse(internals.microphoneState()).systemRequests === 1);
+
+        await internals.setPermission("microphone", "denied");
+        internals.releaseSystemMicrophoneAnswer();
+        println(`the request settles with: ${await request.then(stream => "a live stream", error => error.name)}`);
+        popup.close();
+    });
+</script>

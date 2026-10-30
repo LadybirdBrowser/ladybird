@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        await internals.setPermission("microphone", "granted");
+        internals.setSystemMicrophoneAuthorization("denied");
+        try {
+            await navigator.mediaDevices.getUserMedia({ audio: true });
+            println("resolved");
+        } catch (error) {
+            println(error.name);
+        }
+        done();
+    });
+</script>

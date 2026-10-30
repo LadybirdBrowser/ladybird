@@ -19,6 +19,7 @@
 #include <AK/Utf16String.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
+#include <LibGC/Function.h>
 #include <LibGC/Weak.h>
 #include <LibWeb/Bindings/MediaStreamConstraints.h>
 #include <LibWeb/Bindings/MediaStreamTrack.h>
@@ -70,10 +71,8 @@ struct AudioFrameSink final : public AtomicRefCounted<AudioFrameSink> {
 // Atomically ref-counted because backend callbacks may outlive the GC-managed track.
 class AudioFrameFanout final : public AtomicRefCounted<AudioFrameFanout> {
 public:
-    // Returns true when this was the first sink to register.
-    bool add_sink(NonnullRefPtr<AudioFrameSink>);
-    // Returns true when the last sink was removed.
-    bool remove_sink(AudioFrameSink const&);
+    void add_sink(NonnullRefPtr<AudioFrameSink>);
+    void remove_sink(AudioFrameSink const&);
 
     // While a track is muted or disabled it must render silence rather than nothing, so
     // consumers keep observing the track's timing and format.
@@ -112,8 +111,9 @@ public:
 
     MediaStreamTrackState track_ready_state() const { return m_state; }
 
-    // The tab's permission to capture is gone; whoever tied the track's source ends it.
-    Function<void()> on_audio_capture_revoked;
+    // A device-backed track captures from its device from here until it ends, whether or not anything consumes it.
+    // Without on_started, a device that won't open ends the track.
+    void start_audio_capture(GC::Ptr<GC::Function<void(ErrorOr<void>)>> on_started = {});
 
     void stop();
     void end();
@@ -138,7 +138,6 @@ public:
 
     u64 provider_id() const { return m_provider_id; }
 
-    // The first sink starts device capture; removing the last stops it.
     void add_audio_sink(NonnullRefPtr<AudioFrameSink>);
     void remove_audio_sink(AudioFrameSink const&);
 
@@ -151,8 +150,8 @@ private:
 
     void apply_constraints_impl(Optional<MediaTrackConstraints> constraints);
 
-    void ensure_audio_capture_started();
     void stop_audio_capture();
+    void audio_source_ended();
     void update_audio_silence_state() { m_audio_fanout->set_silenced(!m_enabled || m_muted || m_state == MediaStreamTrackState::Ended); }
 
     static Atomic<u64> s_next_provider_id;

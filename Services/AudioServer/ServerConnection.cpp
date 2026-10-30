@@ -6,6 +6,7 @@
 
 #include <AK/Atomic.h>
 #include <AudioServer/ServerConnection.h>
+#include <LibAudio/RecordStreamFailure.h>
 #include <math.h>
 
 namespace Audio {
@@ -286,7 +287,7 @@ void ServerConnection::capture_permission_decided(u64 stream_id, ByteString cons
         return;
     if (!allowed) {
         m_record_streams.remove(stream_id);
-        async_record_stream_creation_failed(stream_id);
+        async_record_stream_creation_failed(stream_id, RecordStreamFailure::Refused);
         return;
     }
 
@@ -310,7 +311,7 @@ void ServerConnection::capture_device_ready(u64 stream_id, CaptureSubscriberId s
     auto fail = [&] {
         m_capture_devices->unsubscribe(subscriber_id);
         m_record_streams.remove(stream_id);
-        async_record_stream_creation_failed(stream_id);
+        async_record_stream_creation_failed(stream_id, RecordStreamFailure::DeviceUnavailable);
     };
     if (result.is_error()) {
         fail();

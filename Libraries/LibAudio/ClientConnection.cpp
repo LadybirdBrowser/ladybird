@@ -180,7 +180,7 @@ void ClientConnection::record_stream_created(u64 stream_id, SharedAudioFrameRing
     // FIXME: Support channel layouts beyond mono and stereo.
     if (ring.channel_count() == 0 || ring.channel_count() > 2) {
         async_destroy_record_stream(stream_id);
-        record_stream_creation_failed(stream_id);
+        record_stream_creation_failed(stream_id, RecordStreamFailure::DeviceUnavailable);
         return;
     }
     SampleSpecification specification(ring.sample_rate(), ring.channel_count() == 1 ? ChannelMap::mono() : ChannelMap::stereo());
@@ -200,13 +200,14 @@ void ClientConnection::record_stream_created(u64 stream_id, SharedAudioFrameRing
         pending_stream.promise->resolve(adopt_ref(*new RemoteRecordStream(*this, stream_id, specification, move(pending_stream.callback))));
 }
 
-void ClientConnection::record_stream_creation_failed(u64 stream_id)
+void ClientConnection::record_stream_creation_failed(u64 stream_id, RecordStreamFailure failure)
 {
     auto source = m_capture_sources.take(stream_id);
     if (!source.has_value())
         return;
+    auto error_code = failure == RecordStreamFailure::Refused ? EPERM : EIO;
     for (auto& pending_stream : source->pending)
-        pending_stream.promise->reject(Error::from_string_literal("Audio server could not open the capture device"));
+        pending_stream.promise->reject(Error::from_errno(error_code));
 }
 
 void ClientConnection::record_stream_closed(u64 stream_id)

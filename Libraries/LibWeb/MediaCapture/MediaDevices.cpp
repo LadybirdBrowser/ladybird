@@ -393,6 +393,17 @@ GC::RootVector<GC::Ref<MediaDeviceInfo>> MediaDevices::create_list_of_device_inf
     return result_list;
 }
 
+static GC::Ref<WebIDL::DOMException> device_access_failure(Error const& error)
+{
+    // AD-HOC: The Browser refuses a capture only once the permission, or the system's consent for the browser, is gone,
+    //         which is a failure of permission rather than of the device.
+    if (error.is_errno() && error.code() == EPERM)
+        return WebIDL::NotAllowedError::create("Permission denied"_utf16);
+    if (error.is_errno() && error.code() == EIO)
+        return WebIDL::NotReadableError::create("The audio input device could not be opened"_utf16);
+    return WebIDL::AbortError::create("The audio input device could not be accessed"_utf16);
+}
+
 // https://w3c.github.io/mediacapture-main/#dom-mediadevices-getusermedia
 void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, Optional<DeviceIdConstraint> device_id_constraint)
 {
@@ -535,16 +546,20 @@ void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, O
                     return;
                 }
 
-                // 11.9.2 The result of the request is "granted".
-                // 11.9.3 Let grantedDevice be finalCandidate's source device.
+                // 11.9.2 The result of the request is "granted". If a hardware error such as an OS/program/webpage lock
+                //        prevents access, remove the corresponding candidate from finalSet. If finalSet has no candidates
+                //        of type kind, reject p with a new DOMException object whose name attribute has the value
+                //        "NotReadableError" and abort these steps. Otherwise, restart these sub steps with the updated
+                //        finalSet.
+                //        If device access fails for any reason other than those listed above, remove the corresponding
+                //        candidate from finalSet. If finalSet has no candidates of type kind, reject p with a new
+                //        DOMException object whose name attribute has the value "AbortError" and abort these steps.
+                //        Otherwise, restart these sub steps with the updated finalSet.
+                // AD-HOC: The device is accessed through the capture stream of the track it feeds, so the track is created
+                //         first, and the page sees it only once access succeeds.
+                // FIXME: Restart these sub steps with the rest of finalSet when the device fails.
                 Audio::AudioDeviceInfo const& granted_device = final_candidate.value();
-
-                // 11.9.4 Using grantedDevice's deviceId, deviceId, set mediaDevices.[[devicesLiveMap]][deviceId] to true, if it isn't already true, and set mediaDevices.[[devicesAccessibleMap]][deviceId] to true, if it isn't already true.
                 auto granted_device_id = Utf16String::from_utf8_with_replacement_character(granted_device.dom_device_id.view());
-                media_devices->m_devices_live_map.set(granted_device_id, true);
-                media_devices->m_devices_accessible_map.set(granted_device_id, true);
-
-                // 11.9.5 Let track be the result of creating a MediaStreamTrack with grantedDevice and mediaDevices. The source of the MediaStreamTrack MUST NOT change.
                 GC::Ref<MediaStreamTrack> track = MediaStreamTrack::create(
                     MediaStreamTrackKind::Audio,
                     Utf16String::from_utf8_with_replacement_character(granted_device.label.view()));
@@ -554,25 +569,53 @@ void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, O
                 settings.sample_rate = granted_device.sample_rate_hz;
                 settings.channel_count = granted_device.channel_count;
                 track->set_settings(move(settings));
-
-                // 11.9.6 Add track to stream's track set.
-                stream->append_track(track);
-
-                // FIXME: 11.10 Run the ApplyConstraints algorithm on all tracks in stream with the appropriate constraints.
-
-                // 11.11 For each track in stream, tie track source to MediaDevices with track.[[Source]] and mediaDevices.
-                media_devices->m_media_stream_track_sources.append(track);
                 track->set_media_devices({}, *media_devices);
-                track->on_audio_capture_revoked = [media_devices = GC::Weak<MediaDevices>(media_devices), track = GC::Weak<MediaStreamTrack>(track)] {
-                    if (!media_devices.ptr() || !track.ptr())
-                        return;
-                    GC::RootVector<GC::Ref<MediaStreamTrack>> tracks;
-                    tracks.append(*track.ptr());
-                    media_devices->end_tracks(move(tracks));
-                };
 
-                // 11.12 Resolve p with stream and abort these steps.
-                resolve_media_stream_promise(*promise, stream);
+                track->start_audio_capture(GC::create_function(GC::Heap::the(), [promise, media_devices, stream, track, granted_device_id](ErrorOr<void> access) {
+                    auto& realm = WebIDL::promise_realm(*promise);
+                    HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+
+                    if (access.is_error()) {
+                        WebIDL::reject_promise(*promise, device_access_failure(access.error()));
+                        return;
+                    }
+
+                    // AD-HOC: The user may have left the document while the device opened, and capture does not go on
+                    //         for one they have left.
+                    if (!media_devices->m_window->associated_document().is_fully_active()) {
+                        track->stop();
+                        WebIDL::reject_promise(*promise, WebIDL::InvalidStateError::create("Document is not fully active"_utf16));
+                        return;
+                    }
+
+                    // AD-HOC: The user may have taken the permission away while the device opened, which ended no track of
+                    //         this request since none is tied to mediaDevices yet. Another page can keep the process
+                    //         allowed to capture, so the device opening says nothing of this document.
+                    if (PermissionsAPI::permission_state(PermissionsAPI::PermissionDescriptor { "microphone"_utf16 }, HTML::relevant_settings_object(*media_devices->m_window)) != PermissionsAPI::PermissionState::Granted) {
+                        track->stop();
+                        WebIDL::reject_promise(*promise, WebIDL::NotAllowedError::create("Permission denied"_utf16));
+                        return;
+                    }
+
+                    // 11.9.3 Let grantedDevice be finalCandidate's source device.
+                    // 11.9.4 Using grantedDevice's deviceId, deviceId, set mediaDevices.[[devicesLiveMap]][deviceId] to true, if it isn't already true, and set mediaDevices.[[devicesAccessibleMap]][deviceId] to true, if it isn't already true.
+                    media_devices->m_devices_live_map.set(granted_device_id, true);
+                    media_devices->m_devices_accessible_map.set(granted_device_id, true);
+
+                    // 11.9.5 Let track be the result of creating a MediaStreamTrack with grantedDevice and mediaDevices. The source of the MediaStreamTrack MUST NOT change.
+                    // NB: The track was created to access the device.
+
+                    // 11.9.6 Add track to stream's track set.
+                    stream->append_track(track);
+
+                    // FIXME: 11.10 Run the ApplyConstraints algorithm on all tracks in stream with the appropriate constraints.
+
+                    // 11.11 For each track in stream, tie track source to MediaDevices with track.[[Source]] and mediaDevices.
+                    media_devices->m_media_stream_track_sources.append(track);
+
+                    // 11.12 Resolve p with stream and abort these steps.
+                    resolve_media_stream_promise(*promise, stream);
+                }));
             }));
         }));
     }));
@@ -870,6 +913,13 @@ void MediaDevices::track_was_cloned(Badge<MediaStreamTrack>, MediaStreamTrack& c
         return;
     }
     m_media_stream_track_sources.append(clone);
+}
+
+void MediaDevices::track_source_ended(Badge<MediaStreamTrack>, MediaStreamTrack& track)
+{
+    GC::RootVector<GC::Ref<MediaStreamTrack>> tracks_to_end;
+    tracks_to_end.append(track);
+    end_tracks(move(tracks_to_end));
 }
 
 void MediaDevices::end_tracks(GC::RootVector<GC::Ref<MediaStreamTrack>> tracks_to_end)

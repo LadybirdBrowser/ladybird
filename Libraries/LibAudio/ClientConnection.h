@@ -21,6 +21,7 @@
 #include <LibAudio/PlaybackGroupId.h>
 #include <LibAudio/PlaybackStream.h>
 #include <LibAudio/RecordStream.h>
+#include <LibAudio/RecordStreamFailure.h>
 #include <LibAudio/SharedAudioFrameRing.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Promise.h>
@@ -95,7 +96,7 @@ private:
     virtual void stream_request_completed(u64 stream_id, u64 request_id) override;
     virtual void devices_changed(Vector<AudioDeviceInfo> inputs, Vector<AudioDeviceInfo> outputs) override;
     virtual void record_stream_created(u64 stream_id, SharedAudioFrameRing ring) override;
-    virtual void record_stream_creation_failed(u64 stream_id) override;
+    virtual void record_stream_creation_failed(u64 stream_id, RecordStreamFailure) override;
     virtual void record_stream_closed(u64 stream_id) override;
 
     void pump_thread_main();
