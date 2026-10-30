@@ -28,13 +28,14 @@ public:
     GC::Ref<HTML::MessagePort> port() const { return m_port; }
 
 private:
-    explicit AudioWorkletProcessor(GC::Ref<HTML::MessagePort>);
+    AudioWorkletProcessor(GC::Ref<AudioWorkletGlobalScope>, GC::Ref<HTML::MessagePort>);
 
     // Ensures wrappers for this processor are created in the worklet realm, not the page realm.
     virtual GC::Ptr<Bindings::Wrappable> relevant_global_impl() const override;
 
     virtual void visit_edges(Cell::Visitor&) override;
 
+    GC::Ref<AudioWorkletGlobalScope> m_global_scope;
     GC::Ref<HTML::MessagePort> m_port;
 };
 

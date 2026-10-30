@@ -736,9 +736,9 @@ TEST_CASE(any_number_of_transferred_image_bitmaps_share_one_attachment)
         values.append(wrapper);
     }
     auto buffer = MUST(JS::ArrayBuffer::create(realm, 1));
-    auto port = Web::HTML::MessagePort::create(Web::DOM::EventTarget::create());
+    auto port = Web::HTML::MessagePort::create(realm);
     transfer.append(buffer);
-    transfer.append(Web::Bindings::message_port(realm, port));
+    transfer.append(Web::Bindings::wrap(Web::Bindings::host_defined_wrapper_world(realm), realm, port));
 
 #if !defined(AK_OS_WINDOWS)
     // Receiving the batch must not retain one descriptor per bitmap, even with a small descriptor limit.
@@ -781,9 +781,7 @@ TEST_CASE(image_bitmap_with_padded_rows_transfers_its_pixels)
 TEST_CASE(image_bitmaps_queued_on_a_transferred_message_port_keep_their_pixels)
 {
     auto& realm = test_realm();
-    auto* window = Web::HTML::window_from_global_object(realm.global_object());
-    VERIFY(window);
-    auto port = Web::HTML::MessagePort::create(*window);
+    auto port = Web::HTML::MessagePort::create(realm);
     static constexpr size_t count = IPC::MAX_MESSAGE_FD_COUNT + 1;
     auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, { 1, 1 }));
     bitmap->set_pixel(0, 0, Gfx::Color::Blue);
@@ -797,7 +795,7 @@ TEST_CASE(image_bitmaps_queued_on_a_transferred_message_port_keep_their_pixels)
     MUST(port->post_message(realm, JS::Array::create_from(realm, values), transfer));
     EXPECT_EQ(port->pending_outgoing_message_count(), 1u);
 
-    auto port_wrapper = Web::Bindings::message_port(realm, port);
+    auto port_wrapper = Web::Bindings::wrap(Web::Bindings::host_defined_wrapper_world(realm), realm, port);
     Array<GC::Ref<JS::Object>, 1> port_transfer { port_wrapper };
     auto record = MUST(Web::HTML::structured_serialize_with_transfer(realm, port_wrapper, port_transfer));
     EXPECT(port->is_detached());

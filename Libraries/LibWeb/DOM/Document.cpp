@@ -6580,26 +6580,21 @@ void Document::destroy()
     // 3. Set document's salvageable state to false.
     m_salvageable = false;
 
-    // 4. Let ports be the list of MessagePorts whose relevant global object's associated Document is document.
-    // 5. For each port in ports, disentangle port.
-    HTML::MessagePort::for_each_message_port([&](HTML::MessagePort& port) {
-        auto& global = port.relevant_global_object();
-        auto* window = HTML::window_from_global_object(global);
-        if (!window)
-            return;
+    // AD-HOC: Disentangle the ports of the window's realm, which closes the transports of the channels that document
+    //         took part in, so that the ports at their other ends learn that nothing arrives any more. A window that
+    //         was reused for another document keeps its ports. The specification once did this here, as steps of
+    //         destroying a document, and no longer does.
+    if (auto window = this->window(); window && &window->associated_document() == this)
+        HTML::MessagePort::disentangle_ports_of_realm(HTML::relevant_realm(*window));
 
-        if (&window->associated_document() == this)
-            port.disentangle();
-    });
-
-    // 6. Run any unloading document cleanup steps for document that are defined by this specification and other applicable specifications.
+    // 4. Run any unloading document cleanup steps for document that are defined by this specification and other applicable specifications.
     run_unloading_cleanup_steps();
 
     // AD-HOC: Destruction does not go through did_stop_being_active_document_in_navigable().
     //         Tear the layout tree down now instead of holding it until finalization.
     tear_down_layout_tree();
 
-    // 7. Remove any tasks whose document is document from any task queue (without running those tasks).
+    // 5. Remove any tasks whose document is document from any task queue (without running those tasks).
     HTML::main_thread_event_loop().task_queue().remove_tasks_matching([this](auto& task) {
         return task.document() == this;
     });
@@ -6614,7 +6609,7 @@ void Document::destroy()
     }
     m_resize_observers.clear();
 
-    // 8. Set document's browsing context to null.
+    // 6. Set document's browsing context to null.
     m_browsing_context = nullptr;
 
     // Not in the spec:
@@ -6632,7 +6627,7 @@ void Document::destroy()
         }
     }
 
-    // 9. Set document's node navigable's active session history entry's document state's document to null.
+    // 7. Set document's node navigable's active session history entry's document state's document to null.
     if (auto navigable = this->navigable()) {
         navigable->set_active_document(nullptr);
 
@@ -6641,10 +6636,10 @@ void Document::destroy()
         page().navigable_document_destroyed({}, *navigable);
     }
 
-    // 10. Remove document from the owner set of each WorkerGlobalScope object whose set contains document.
+    // 8. Remove document from the owner set of each WorkerGlobalScope object whose set contains document.
     HTML::relevant_settings_object(*this).release_owned_worker_agents();
 
-    // FIXME: 11. For each workletGlobalScope in document's worklet global scopes, terminate workletGlobalScope.
+    // FIXME: 9. For each workletGlobalScope in document's worklet global scopes, terminate workletGlobalScope.
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#make-document-unsalvageable

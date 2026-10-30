@@ -15,8 +15,12 @@ use crate::bindings::conversions::to_unrestricted_double;
 use crate::bindings::interface::{Ref, wrap};
 use crate::bindings::promise::{WebIdlPromise, create_rejected_promise, create_resolved_promise};
 use crate::bindings::{CallContext, WebIdlResult};
+use crate::html::message_port::MessagePort;
 use crate::streams::cpp::{CppPromiseAlgorithm, CppPromiseAlgorithmWithArgument};
-use crate::streams::cross_realm_transform::{CrossRealmTransformPort, CrossRealmWritableState};
+use crate::streams::cross_realm_transform::{
+    CrossRealmWritableState, cross_realm_transform_abort_algorithm, cross_realm_transform_cancel_algorithm,
+    cross_realm_transform_close_algorithm, cross_realm_transform_pull_algorithm,
+};
 use crate::streams::generic_transform_stream::RustTransformSteps;
 use crate::streams::readable_stream::{
     ReadableStream, readable_stream_from_iterable_cancel_algorithm, readable_stream_from_iterable_pull_algorithm,
@@ -95,7 +99,7 @@ pub(crate) enum PullAlgorithm {
     /// The pullAlgorithm of InitializeTransformStream.
     TransformStream(Ref<TransformStream>),
     /// The pullAlgorithm of SetUpCrossRealmTransformReadable.
-    CrossRealm(CrossRealmTransformPort),
+    CrossRealm(Ref<MessagePort>),
     /// The pullAlgorithmWrapper of setting up a ReadableStream with byte reading support, given the pullAlgorithm that
     /// C++ set the stream up with, if any.
     WithByteReadingSupport(Option<CppPromiseAlgorithm>),
@@ -124,7 +128,7 @@ impl PullAlgorithm {
                 }
             }
             Self::TransformStream(stream) => transform_stream_default_source_pull_algorithm(cx, *stream),
-            Self::CrossRealm(port) => port.pull_algorithm(cx),
+            Self::CrossRealm(port) => cross_realm_transform_pull_algorithm(cx, *port),
             Self::WithByteReadingSupport(pull_algorithm) => {
                 // 1. Let result be the result of running pullAlgorithm, if pullAlgorithm was given, or null otherwise.
                 //    If this throws an exception e, return a promise rejected with e.
@@ -168,7 +172,7 @@ pub(crate) enum CancelAlgorithm {
     /// The cancelAlgorithm of InitializeTransformStream.
     TransformStream(Ref<TransformStream>),
     /// The cancelAlgorithm of SetUpCrossRealmTransformReadable.
-    CrossRealm(CrossRealmTransformPort),
+    CrossRealm(Ref<MessagePort>),
     /// The cancelAlgorithmWrapper of setting up a ReadableStream with byte reading support or a TransformStream, given
     /// the cancelAlgorithm that C++ set the stream up with, if any.
     Wrapper(Option<CppPromiseAlgorithmWithArgument>),
@@ -198,7 +202,7 @@ impl CancelAlgorithm {
                 }
             }
             Self::TransformStream(stream) => transform_stream_default_source_cancel_algorithm(cx, *stream, reason),
-            Self::CrossRealm(port) => port.cancel_algorithm(cx, reason),
+            Self::CrossRealm(port) => cross_realm_transform_cancel_algorithm(cx, *port, reason),
             Self::Wrapper(cancel_algorithm) => {
                 // 1. Let result be the result of running cancelAlgorithm given reason, if cancelAlgorithm was given,
                 //    or null otherwise. If this throws an exception e, return a promise rejected with e.
@@ -289,7 +293,7 @@ pub(crate) enum CloseAlgorithm {
     /// The closeAlgorithm of InitializeTransformStream.
     TransformStream(Ref<TransformStream>),
     /// The closeAlgorithm of SetUpCrossRealmTransformWritable.
-    CrossRealm(CrossRealmTransformPort),
+    CrossRealm(Ref<MessagePort>),
 }
 
 impl CloseAlgorithm {
@@ -299,7 +303,7 @@ impl CloseAlgorithm {
             Self::ReturnsResolvedUndefined => resolved_with_undefined(cx),
             Self::Callback { close, underlying_sink } => close.invoke(Some(*underlying_sink), &[]),
             Self::TransformStream(stream) => transform_stream_default_sink_close_algorithm(cx, *stream),
-            Self::CrossRealm(port) => port.close_algorithm(cx),
+            Self::CrossRealm(port) => cross_realm_transform_close_algorithm(cx, *port),
         }
     }
 }
@@ -319,7 +323,7 @@ pub(crate) enum AbortAlgorithm {
     /// The abortAlgorithm of InitializeTransformStream.
     TransformStream(Ref<TransformStream>),
     /// The abortAlgorithm of SetUpCrossRealmTransformWritable.
-    CrossRealm(CrossRealmTransformPort),
+    CrossRealm(Ref<MessagePort>),
 }
 
 impl AbortAlgorithm {
@@ -329,7 +333,7 @@ impl AbortAlgorithm {
             Self::ReturnsResolvedUndefined => resolved_with_undefined(cx),
             Self::Callback { abort, underlying_sink } => abort.invoke(Some(*underlying_sink), &[reason]),
             Self::TransformStream(stream) => transform_stream_default_sink_abort_algorithm(cx, *stream, reason),
-            Self::CrossRealm(port) => port.abort_algorithm(cx, reason),
+            Self::CrossRealm(port) => cross_realm_transform_abort_algorithm(cx, *port, reason),
         }
     }
 }

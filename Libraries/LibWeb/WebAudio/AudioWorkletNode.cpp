@@ -68,7 +68,7 @@ WebIDL::ExceptionOr<GC::Ref<AudioWorkletNode>> AudioWorkletNode::construct_impl(
 
     // 2. Let node be this value; initialize node's AudioNode base with context and options.
     auto parameter_map = AudioParamMap::create();
-    auto node_port = HTML::MessagePort::create(context->relevant_global_event_target());
+    auto node_port = HTML::MessagePort::create(HTML::relevant_realm(context->relevant_global_object()));
     auto node = GC::Heap::the().allocate<AudioWorkletNode>(context, name, options.number_of_inputs, options.number_of_outputs, parameter_map, node_port);
 
     AudioNodeDefaultOptions default_options;
@@ -93,7 +93,7 @@ WebIDL::ExceptionOr<GC::Ref<AudioWorkletNode>> AudioWorkletNode::construct_impl(
     //    disabled until the processor constructor has returned, so messages posted before (or during)
     //    construction are queued and delivered to listeners the constructor registered — even ones added
     //    with addEventListener() and no explicit start().
-    auto processor_port = HTML::MessagePort::create(worklet_scope);
+    auto processor_port = HTML::MessagePort::create(worklet_scope.realm());
     node_port->entangle_with(*processor_port);
     node_port->enable();
 
