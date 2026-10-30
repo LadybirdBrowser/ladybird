@@ -1,0 +1,15 @@
+Ladybird asks the DevTools client to inspect an element by sending an
+inspectObject event from its console actor, with a grip that carries a
+contentDomReference. Gecko’s WebConsoleActor.inspectObject() sends the
+same event for the inspect() function that WebExtensions get in
+devtools.inspectedWindow.eval(), and the client’s Toolbox handles it in
+inspectObjectActor() and viewElementInInspector(), resolving the
+reference with the walker’s getNodeActorFromContentDomReference request.
+Gecko’s own Inspect context-menu item doesn’t go through the protocol:
+DevToolsShim.inspectNode() calls gDevTools.inspectNode() in the parent
+process, which resolves its ContentDOMReference itself.
+
+The event’s inspectFromAnnotation is browser-context-menu, the reason
+gDevTools.inspectNode() gives for a selection from that menu. It’s kept
+exact because the client compares it: The markup view scrolls to a node
+selected for that reason, and highlights it briefly.
