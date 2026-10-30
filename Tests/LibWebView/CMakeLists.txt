@@ -91,6 +91,12 @@ if (BUILD_TESTING AND NOT WIN32)
     set_tests_properties(TestWebDriverLocationPolicy PROPERTIES TIMEOUT 120)
 
     add_test(
+        NAME TestWebDriverNotificationsPolicy
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-notifications-policy.py $<TARGET_FILE:WebDriver>
+    )
+    set_tests_properties(TestWebDriverNotificationsPolicy PROPERTIES TIMEOUT 120)
+
+    add_test(
         NAME TestWebDriverPermissionsSettings
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-permissions-settings.py $<TARGET_FILE:WebDriver>
     )
