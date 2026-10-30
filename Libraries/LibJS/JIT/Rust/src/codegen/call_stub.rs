@@ -505,8 +505,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.masm
             .store64(&field(offsets.execution_context_variable_environment), scratch);
         self.masm.bind(prepared_environment);
-        self.masm
-            .load64(scratch, &Address::new(function_register, offsets.object_shape as i32));
+        self.emit_load_compressed_cell(scratch, &Address::new(function_register, offsets.object_shape as i32));
         self.masm
             .load64(scratch, &Address::new(scratch, layout.shape_realm as i32));
         self.masm.store64(&field(offsets.execution_context_realm), scratch);
@@ -792,8 +791,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.masm.store64(&field(offsets.execution_context_caller_frame), frame);
         self.masm
             .store64(&field(offsets.execution_context_function), function_register);
-        self.masm
-            .load64(temp, &Address::new(function_register, offsets.object_shape as i32));
+        self.emit_load_compressed_cell(temp, &Address::new(function_register, offsets.object_shape as i32));
         self.masm.load64(temp, &Address::new(temp, layout.shape_realm as i32));
         self.masm.store64(&field(offsets.execution_context_realm), temp);
         self.masm.store32(&field(offsets.execution_context_slot_count), count);

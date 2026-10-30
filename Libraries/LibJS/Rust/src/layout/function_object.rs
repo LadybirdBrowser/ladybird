@@ -31,7 +31,7 @@ pub struct FunctionObject {
     pub ecmascript_shared_data: NullableMember<SharedFunctionInstanceData>,
 }
 
-const _: () = assert!(size_of::<FunctionObject>() == 80);
+const _: () = assert!(size_of::<FunctionObject>() == 72);
 
 #[repr(C)]
 pub struct NativeFunction {

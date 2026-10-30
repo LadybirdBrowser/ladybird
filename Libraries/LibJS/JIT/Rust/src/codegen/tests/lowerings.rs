@@ -1373,6 +1373,18 @@ impl FakeArray {
     }
 }
 
+/// A fake shape with `words`, in the low fake heap so that objects can have
+/// it as their compressed shape.
+fn fake_shape(words: &[u64]) -> &'static mut [u64] {
+    super::fake_heap::low_cell(words)
+}
+
+/// The shape word of an object with the fake shape `shape`: its compressed
+/// pointer.
+fn shape_word(shape: &[u64]) -> u64 {
+    super::fake_heap::low_compressed(shape.as_ptr() as u64)
+}
+
 /// A typed array of `kind` over `data`.
 fn fake_typed_array(kind: u8, data: &[u8], length: u32) -> Vec<u64> {
     let mut object = vec![0; 8];
@@ -1773,9 +1785,9 @@ fn property_iterator_next(receiver: u64, keys: u64, cursor: u64) -> (u64, u64, u
 
 #[test]
 fn property_iterator_next_reads_key_snapshots() {
-    let shape = vec![0u64; 12];
+    let shape = fake_shape(&[0; 12]);
     let mut object = FakeArray::new(0, PACKED, 2, &[], 2);
-    object.object[6] = shape.as_ptr() as u64;
+    object.object[6] = shape_word(shape);
     let keys = [value::int32(100), value::int32(101)];
     let named = FakeKeySnapshot::new(1, &shape, &keys);
     let empty = value::EMPTY;
@@ -1794,8 +1806,8 @@ fn property_iterator_next_reads_key_snapshots() {
         (empty, value::TRUE, value::int32(2), 0)
     );
     // Other shapes, cursors and receivers are slow.
-    let other_shape = vec![0u64; 12];
-    let other = FakeKeySnapshot::new(1, &other_shape, &keys);
+    let other_shape = fake_shape(&[0; 12]);
+    let other = FakeKeySnapshot::new(1, other_shape, &keys);
     assert_eq!(
         property_iterator_next(object.value(), other.value(), value::int32(0)).3,
         1
@@ -2158,7 +2170,7 @@ struct FakeGlobals {
     realm: Vec<u64>,
     object: Vec<u64>,
     named_properties: Vec<u64>,
-    shape: Vec<u64>,
+    shape: &'static mut [u64],
     environment: Box<FakeEnvironment>,
     executable: Vec<u64>,
     caches: Vec<u64>,
@@ -2170,7 +2182,7 @@ impl FakeGlobals {
             realm: vec![0; 8],
             object: vec![0; 8],
             named_properties: vec![value::int32(10), u64::from(0xFFFC_u16) << 48 | 0x1000, value::int32(12)],
-            shape: vec![0; 12],
+            shape: fake_shape(&[0; 12]),
             environment: FakeEnvironment::new(
                 &[value::int32(20), value::EMPTY, value::int32(22)],
                 &[BINDING_MUTABLE, BINDING_MUTABLE, 0],
@@ -2180,7 +2192,7 @@ impl FakeGlobals {
             executable: vec![0; 4],
             caches: vec![0; 16],
         });
-        globals.object[6] = globals.shape.as_ptr() as u64;
+        globals.object[6] = shape_word(globals.shape);
         globals.object[7] = globals.named_properties.as_ptr() as u64;
         globals.shape[10] = 7 << 32;
         globals.environment.words[8] = 99;
@@ -2448,17 +2460,17 @@ fn instance_of_global_functions_walks_prototype_chains() {
     // `shape_prototype`, 0), with named properties.
     struct Fake {
         object: Vec<u64>,
-        shape: Vec<u64>,
+        shape: &'static mut [u64],
         properties: Vec<u64>,
     }
     let fake = |class: &[u64], prototype: Option<&Fake>, properties: Vec<u64>| {
         let mut fake = Box::new(Fake {
             object: vec![0; 8],
-            shape: vec![prototype.map_or(0, |prototype| prototype.object.as_ptr() as u64)],
+            shape: fake_shape(&[prototype.map_or(0, |prototype| prototype.object.as_ptr() as u64)]),
             properties,
         });
         fake.object[0] = class.as_ptr() as u64;
-        fake.object[6] = fake.shape.as_ptr() as u64;
+        fake.object[6] = shape_word(fake.shape);
         fake.object[7] = fake.properties.as_ptr() as u64;
         fake
     };
@@ -2473,7 +2485,7 @@ fn instance_of_global_functions_walks_prototype_chains() {
         None,
         vec![value::int32(1), object_value(&prototype.object)],
     );
-    let (function_value, function_shape) = (object_value(&function.object), function.object[6]);
+    let (function_value, function_shape) = (object_value(&function.object), function.shape.as_ptr() as u64);
 
     let program = assemble(|_| {
         vec![
@@ -2830,7 +2842,7 @@ struct PrimitivePrototypes {
 struct FakeCachedObject {
     object: Vec<u64>,
     properties: Vec<u64>,
-    shape: Vec<u64>,
+    shape: &'static mut [u64],
     entry: Vec<u64>,
     caches: Vec<u64>,
     executable: Vec<u64>,
@@ -2851,7 +2863,7 @@ impl FakeCachedObject {
                 .into_iter()
                 .chain(properties.iter().copied())
                 .collect(),
-            shape: vec![0; 12],
+            shape: fake_shape(&[0; 12]),
             entry: vec![0; 6],
             caches: vec![0; 2],
             executable: vec![0; 4],
@@ -2860,7 +2872,7 @@ impl FakeCachedObject {
             keyed_store_cache: std::cell::Cell::new(0),
         });
         fake.object[5] = 2;
-        fake.object[6] = fake.shape.as_ptr() as u64;
+        fake.object[6] = shape_word(fake.shape);
         fake.object[7] = fake.properties[1..].as_ptr() as u64;
         fake.shape[10] = 5 << 32;
         fake.caches[1] = fake.entry.as_ptr() as u64 | 1;
@@ -3206,17 +3218,17 @@ fn put_by_id_calls_native_setters_of_prototypes() {
 #[test]
 fn put_by_id_adds_properties_through_property_caches() {
     let mut fake = FakeCachedObject::new(&[value::int32(10), value::int32(11), value::EMPTY]);
-    let old_shape = fake.shape.as_ptr() as u64;
+    let old_shape = shape_word(fake.shape);
     // A shape with three properties, and dictionary generation 5.
-    let mut new_shape = vec![0u64; 12];
+    let new_shape = fake_shape(&[0; 12]);
     new_shape[10] = 3 | 5 << 32;
-    let new_shape_address = new_shape.as_ptr() as u64;
-    fake.set_add_entry(&new_shape, 2);
+    let new_shape_word = shape_word(new_shape);
+    fake.set_add_entry(new_shape, 2);
     let add = |fake: &mut FakeCachedObject, flags: u16| {
         fake.object[1] = u64::from(flags);
         fake.object[6] = old_shape;
         let slow_paths = fake.put(fake.value(), value::TRUE);
-        assert_eq!(fake.object[6] == new_shape_address, slow_paths == 0);
+        assert_eq!(fake.object[6] == new_shape_word, slow_paths == 0);
         slow_paths
     };
     assert_eq!(add(&mut fake, FLAG_IS_EXTENSIBLE), 0);
@@ -4335,23 +4347,23 @@ fn keyed_accesses_of_missing_and_added_properties_through_property_caches() {
     assert_eq!(fake.properties[2], value::NULL);
 
     // Additions, from the shape the entry adds a property to.
-    let mut new_shape = vec![0u64; 12];
+    let new_shape = fake_shape(&[0; 12]);
     new_shape[10] = 3 | 5 << 32;
     let new_shape_address = new_shape.as_ptr() as u64;
     set_entry(&mut data, 1, 2, new_shape_address, shape);
     assert_eq!(put(&fake, other_key, value::TRUE), 1);
     assert_eq!(put(&fake, key, value::TRUE), 0);
-    assert_eq!(fake.object[6], new_shape_address);
+    assert_eq!(fake.object[6], shape_word(new_shape));
     assert_eq!(fake.properties[3], value::TRUE);
     // Objects that already have the new shape take the slow path.
     assert_eq!(put(&fake, key, value::FALSE), 1);
     assert_eq!(fake.properties[3], value::TRUE);
     // So do objects that may not cache additions.
-    fake.object[6] = shape;
+    fake.object[6] = shape_word(fake.shape);
     fake.object[1] = u64::from(FLAG_IS_EXTENSIBLE | FLAG_HAS_MAGICAL_LENGTH);
     assert_eq!(put(&fake, key, value::FALSE), 1);
-    assert_eq!(fake.object[6], shape);
-    std::hint::black_box((&data, &new_shape));
+    assert_eq!(fake.object[6], shape_word(fake.shape));
+    std::hint::black_box(&data);
 }
 
 #[test]

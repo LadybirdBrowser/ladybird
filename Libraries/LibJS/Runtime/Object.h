@@ -12,6 +12,7 @@
 #include <AK/Function.h>
 #include <AK/StringView.h>
 #include <LibGC/CellAllocator.h>
+#include <LibGC/CompressedPointer.h>
 #include <LibGC/RootVector.h>
 #include <LibJS/Embedding/Layout.h>
 #include <LibJS/Export.h>
@@ -184,8 +185,8 @@ public:
     // Removes the first element, which must exist, and shifts the others down.
     void indexed_take_first();
 
-    Shape& shape() { return *engine_field<Shape*>(JS_LAYOUT_OBJECT_SHAPE_OFFSET); }
-    Shape const& shape() const { return *engine_field<Shape*>(JS_LAYOUT_OBJECT_SHAPE_OFFSET); }
+    Shape& shape() { return *reinterpret_cast<Shape*>(GC::decompress_nonnull(engine_field<u32>(JS_LAYOUT_OBJECT_SHAPE_OFFSET))); }
+    Shape const& shape() const { return *reinterpret_cast<Shape const*>(GC::decompress_nonnull(engine_field<u32>(JS_LAYOUT_OBJECT_SHAPE_OFFSET))); }
 
     void convert_to_prototype_if_needed();
     void invalidate_property_lookup_caches();
@@ -239,7 +240,7 @@ protected:
     }
 
 private:
-    static_assert(JS_LAYOUT_OBJECT_SHAPE_SIZE == sizeof(void*));
+    static_assert(JS_LAYOUT_OBJECT_SHAPE_SIZE == sizeof(u32));
     static_assert(JS_LAYOUT_CELL_CLASS_SIZE == sizeof(void*));
     static_assert(JS_LAYOUT_CLASS_ID_SIZE == sizeof(u16));
     static_assert(JS_LAYOUT_CLASS_PARENT_SIZE == sizeof(void*));

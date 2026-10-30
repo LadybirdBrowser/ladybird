@@ -1684,7 +1684,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             Op::AddNamed { offset, shape, .. } => self.emit_add_named(node_id, *offset, *shape)?,
             Op::ShapeSwitch { cases } => {
                 let exit = self.exit_site(node_id);
-                self.emit_load_shape_of(node_id, self.pinned.scratch, 1);
+                self.emit_load_compressed_shape_of(node_id, self.pinned.scratch, 1);
                 for (shape, block) in cases {
                     let label = self.label(*block);
                     self.emit_branch_on_shape(*shape, label, exit);
@@ -1884,8 +1884,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             0,
             exit,
         );
-        self.masm
-            .load64(object, &Address::new(object, offsets.object_shape as i32));
+        self.emit_load_compressed_cell(object, &Address::new(object, offsets.object_shape as i32));
         self.masm
             .load64(object, &Address::new(object, layout.shape_prototype as i32));
         self.masm.branch_test64(Condition::Zero, object, u64::MAX, not_found);
@@ -1938,12 +1937,19 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         temp
     }
 
-    /// `dst` = the shape of the object in input 0 of `node`, whose
-    /// `CellAddress` may be input `address_input`.
-    fn emit_load_shape_of(&mut self, node: NodeId, dst: Gpr, address_input: usize) {
-        let cell = self.cell_address_of(node, dst, address_input);
-        let shape = Address::new(cell, self.runtime.offsets.object_shape as i32);
-        self.masm.load64(dst, &shape);
+    /// `dst` = the compressed shape of the object in input 0 of `node`,
+    /// whose `CellAddress` may be input `address_input`.
+    fn emit_load_compressed_shape_of(&mut self, node: NodeId, dst: Gpr, address_input: usize) {
+        let shape = self.shape_field_of(node, dst, address_input);
+        self.masm.load32(dst, &shape);
+    }
+
+    /// The address of the shape field of the object in input 0 of `node`,
+    /// whose `CellAddress` may be input `address_input`, or else is decoded
+    /// into `temp`.
+    fn shape_field_of(&mut self, node: NodeId, temp: Gpr, address_input: usize) -> Address {
+        let cell = self.cell_address_of(node, temp, address_input);
+        Address::new(cell, self.runtime.offsets.object_shape as i32)
     }
     /// `StoreSlot`: writes input 0, boxed if it is unboxed, to frame slot
     /// `slot`.
@@ -1998,13 +2004,18 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
     /// `CheckShape`: exits unless the object has one of `shapes`.
     fn emit_check_shape(&mut self, node_id: NodeId, shapes: &[ShapeCheck]) {
         let exit = self.exit_site(node_id);
-        self.emit_load_shape_of(node_id, self.pinned.scratch, 1);
+        // OPTIMIZATION: An object has a shape exactly when its compressed
+        //               shape is the shape's compressed pointer, so shapes
+        //               are compared without decoding, against 32-bit
+        //               immediates.
         match shapes {
             [shape] if shape.dictionary_generation.is_none() => {
+                let field = self.shape_field_of(node_id, self.pinned.scratch, 1);
                 self.masm
-                    .branch64_imm(Condition::NotEqual, self.pinned.scratch, shape.shape.0 as i64, exit);
+                    .branch32_memory_imm(Condition::NotEqual, &field, shape.shape.compressed() as i32, exit);
             }
             _ => {
+                self.emit_load_compressed_shape_of(node_id, self.pinned.scratch, 1);
                 let matched = self.masm.new_label();
                 for shape in shapes {
                     self.emit_branch_on_shape(*shape, matched, exit);
@@ -2023,9 +2034,8 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         let storage = Gpr(self.allocation.node(node_id).temps[0]);
         let cell = self.cell_address_of(node_id, storage, 2);
         let offsets = self.runtime.offsets;
-        self.masm.move_imm64(self.pinned.scratch, shape.0);
         self.masm
-            .store64(&Address::new(cell, offsets.object_shape as i32), self.pinned.scratch);
+            .store_imm32(&Address::new(cell, offsets.object_shape as i32), shape.compressed());
         self.masm
             .load64(storage, &Address::new(cell, offsets.object_named_properties as i32));
         let slot = self.named_property_address(storage, offset)?;
@@ -2033,19 +2043,21 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         Ok(())
     }
 
-    /// Branches to `matched` if the shape in the scratch register is
-    /// `shape`, or to `exit` if it is `shape` but its dictionary generation
-    /// changed. Clobbers the scratch register only in the latter case.
+    /// Branches to `matched` if the compressed shape in the scratch register
+    /// is that of `shape`, or to `exit` if it is `shape` but its dictionary
+    /// generation changed. Clobbers the scratch register only in the latter
+    /// case.
     fn emit_branch_on_shape(&mut self, shape: ShapeCheck, matched: Label, exit: Label) {
         let scratch = self.pinned.scratch;
+        let compressed = shape.shape.compressed() as i32;
         let Some(generation) = shape.dictionary_generation else {
-            self.masm
-                .branch64_imm(Condition::Equal, scratch, shape.shape.0 as i64, matched);
+            self.masm.branch32_imm(Condition::Equal, scratch, compressed, matched);
             return;
         };
         let other_shape = self.masm.new_label();
         self.masm
-            .branch64_imm(Condition::NotEqual, scratch, shape.shape.0 as i64, other_shape);
+            .branch32_imm(Condition::NotEqual, scratch, compressed, other_shape);
+        self.emit_decompress_cell(scratch);
         let generation_address = Address::new(scratch, self.runtime.offsets.shape_dictionary_generation as i32);
         self.masm.load32(scratch, &generation_address);
         self.masm

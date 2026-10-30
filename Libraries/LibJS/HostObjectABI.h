@@ -32,12 +32,12 @@ enum {
 
 // Layout of every host object of kind JS_HOST_CLASS_OBJECT. Direct getter functions read the wrappable slot without
 // checking what it holds, so it only ever holds the embedder's wrapped implementation object. Any other per-object state
-// belongs in the host data slot.
+// belongs in the host data slot. The host object's own fields follow the engine's object, which is 64 bytes.
 enum {
-    JS_HOST_OBJECT_HOST_CLASS_OFFSET = 72,
-    JS_HOST_OBJECT_WRAPPABLE_OFFSET = 80,
-    JS_HOST_OBJECT_HOST_DATA_OFFSET = 88,
-    JS_HOST_OBJECT_SIZE = 96,
+    JS_HOST_OBJECT_HOST_CLASS_OFFSET = 64,
+    JS_HOST_OBJECT_WRAPPABLE_OFFSET = JS_HOST_OBJECT_HOST_CLASS_OFFSET + 8,
+    JS_HOST_OBJECT_HOST_DATA_OFFSET = JS_HOST_OBJECT_WRAPPABLE_OFFSET + 8,
+    JS_HOST_OBJECT_SIZE = JS_HOST_OBJECT_HOST_DATA_OFFSET + 8,
 };
 
 typedef uint64_t JSValue;
