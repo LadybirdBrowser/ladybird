@@ -55,6 +55,10 @@ public:
     // Non-null for the backend tests install, which keeps what it was shown.
     virtual RecordingNotificationBackend* as_recording_backend() { return nullptr; }
 
+    // True while the operating system hasn't yet been asked whether this browser may show notifications at all, so
+    // the system will ask the user right after the browser does.
+    virtual bool os_authorization_is_undetermined() const { return false; }
+
     Function<void(u64 id)> on_shown;
     Function<void(u64 id)> on_failed;
     Function<void(u64 id)> on_clicked;
