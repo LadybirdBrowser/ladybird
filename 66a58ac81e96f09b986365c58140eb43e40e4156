@@ -1,0 +1,21 @@
+Ladybird completes console input the way Gecko’s console does in its
+WebConsoleActor and jsPropertyProvider(), with the same case rule
+(getMatchedPropsImpl() matches without regard to case only when the
+typed name starts in lowercase), the same order (lowercase names first,
+then the typed name itself, then the rest), array indices left out,
+reserved words offered only where no period precedes the name, and
+limits of 1500 matches and 100000 properties examined.
+
+Gecko also reads along the chain without running page script: Its
+DevToolsUtils.getProperty() calls only a getter that hasSafeGetter()
+accepts (a native getter of a web platform object), and isUnsafeGetter()
+stops completion at every other getter. But WebKit evaluates the whole
+expression before the period, in JavaScriptRuntimeCompletionProvider,
+so a getter in it runs, and it orders properties like __proto__ last.
+Blink evaluates that expression too, in the evaluateExpression() of its
+javascriptCompletionSource, but with throwOnSideEffect, which gives up
+on anything with a side effect, and it matches with regard to case.
+
+Gecko’s client also asks to run a getter defined in script once the user
+agrees; Ladybird doesn’t offer that, nor completion inside a paused
+frame or after a bracket.
