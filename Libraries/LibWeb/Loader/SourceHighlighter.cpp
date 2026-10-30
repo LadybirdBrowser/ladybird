@@ -272,9 +272,34 @@ String SourceHighlighterClient::to_html_string(Optional<URL::URL> const& url, UR
 <body>
 <pre class=\"html\">)~~~"sv);
 
-    static constexpr auto href = "href"sv;
-    static constexpr auto src = "src"sv;
+    // NB: Which attribute holds a URL on the start tag whose attributes we are drawing. End tags have no attributes
+    //     that matter.
+    enum class URLAttribute : u8 {
+        None,
+        Href,
+        Src,
+    };
+    auto url_attribute_for_tag = [](StringView tag_name) {
+        if (tag_name.is_one_of_ignoring_ascii_case("a"sv, "area"sv, "base"sv, "link"sv))
+            return URLAttribute::Href;
+        if (tag_name.is_one_of_ignoring_ascii_case("audio"sv, "embed"sv, "frame"sv, "iframe"sv, "img"sv, "input"sv, "script"sv, "source"sv, "track"sv, "video"sv))
+            return URLAttribute::Src;
+        return URLAttribute::None;
+    };
+    URLAttribute current_tag_url_attribute = URLAttribute::None;
     bool linkify_attribute = false;
+
+    auto is_url_attribute = [&](StringView attribute_name) {
+        switch (current_tag_url_attribute) {
+        case URLAttribute::None:
+            return false;
+        case URLAttribute::Href:
+            return attribute_name.equals_ignoring_ascii_case("href"sv);
+        case URLAttribute::Src:
+            return attribute_name.equals_ignoring_ascii_case("src"sv);
+        }
+        VERIFY_NOT_REACHED();
+    };
 
     auto resolve_url_for_attribute = [&](Utf8View const& attribute_value) -> Optional<URL::URL> {
         if (!linkify_attribute)
@@ -312,8 +337,14 @@ String SourceHighlighterClient::to_html_string(Optional<URL::URL> const& url, UR
             if (span.has_value()) {
                 bool append_anchor_close = false;
 
-                if (span->data == to_underlying(Web::HTML::AugmentedTokenKind::AttributeName)) {
-                    linkify_attribute = text.as_string() == href || text.as_string() == src;
+                if (span->data == to_underlying(Web::HTML::AugmentedTokenKind::OpenTag)) {
+                    current_tag_url_attribute = url_attribute_for_tag(text.as_string());
+                    linkify_attribute = false;
+                } else if (span->data == to_underlying(Web::HTML::AugmentedTokenKind::CloseTag)) {
+                    current_tag_url_attribute = URLAttribute::None;
+                    linkify_attribute = false;
+                } else if (span->data == to_underlying(Web::HTML::AugmentedTokenKind::AttributeName)) {
+                    linkify_attribute = is_url_attribute(text.as_string());
                 } else if (span->data == to_underlying(Web::HTML::AugmentedTokenKind::AttributeValue)) {
                     if (auto href = resolve_url_for_attribute(text); href.has_value()) {
                         builder.appendff("<a href=\"{}\">", escape_html_entities(href->serialize()));
