@@ -493,6 +493,28 @@ static void add_possible_value(PossiblePointers& possible_pointers, FlatPtr data
     possible_pointers.pointers.set(possible_pointer, move(origin));
 }
 
+// Adds the possible values in the captures of a GC::Function. Its captures start 8-byte aligned, but may end with a
+// lone compressed cell pointer, as a capture of nothing but one member does. That one is no half of a whole word, so it
+// is added on its own. A member elsewhere in the captures is either half of one of the whole words.
+static void add_possible_captured_values(PossiblePointers& possible_pointers, ReadonlyBytes bytes, PossiblePointerBounds const& bounds)
+{
+    HeapRoot const origin { .type = HeapRoot::Type::HeapFunctionCapturedPointer };
+    ASSERT(reinterpret_cast<FlatPtr>(bytes.data()) % alignof(FlatPtr) == 0);
+    auto const* words = reinterpret_cast<FlatPtr const*>(bytes.data());
+    auto word_count = bytes.size() / sizeof(FlatPtr);
+    for (size_t i = 0; i < word_count; ++i)
+        add_possible_value(possible_pointers, words[i], origin, bounds);
+
+    // NB: Anything shorter than 4 bytes past the last whole word is too short to be a member, and anything that is a
+    //     member is 4-byte aligned.
+    auto tail = bytes.slice(word_count * sizeof(FlatPtr));
+    if (tail.size() >= sizeof(u32)) {
+        u32 compressed;
+        memcpy(&compressed, tail.data(), sizeof(compressed));
+        add_possible_compressed_pointer(possible_pointers, compressed, origin, bounds);
+    }
+}
+
 template<typename Callback>
 static void for_each_cell_among_possible_pointers(HashTable<HeapBlock*> const& all_live_heap_blocks, PossiblePointers& possible_pointers, Callback callback)
 {
@@ -554,9 +576,7 @@ public:
     {
         PossiblePointers possible_pointers;
 
-        auto* raw_pointer_sized_values = reinterpret_cast<FlatPtr const*>(bytes.data());
-        for (size_t i = 0; i < (bytes.size() / sizeof(FlatPtr)); ++i)
-            add_possible_value(possible_pointers, raw_pointer_sized_values[i], HeapRoot { .type = HeapRoot::Type::HeapFunctionCapturedPointer }, m_possible_pointer_bounds);
+        add_possible_captured_values(possible_pointers, bytes, m_possible_pointer_bounds);
 
         for_each_cell_among_possible_pointers(m_heap.m_live_heap_blocks, possible_pointers, [&](Cell* cell, auto&, FlatPtr) {
             if (cell->state() != Cell::State::Live)
@@ -1383,9 +1403,7 @@ public:
     {
         PossiblePointers possible_pointers;
 
-        auto* raw_pointer_sized_values = reinterpret_cast<FlatPtr const*>(bytes.data());
-        for (size_t i = 0; i < (bytes.size() / sizeof(FlatPtr)); ++i)
-            add_possible_value(possible_pointers, raw_pointer_sized_values[i], HeapRoot { .type = HeapRoot::Type::HeapFunctionCapturedPointer }, m_possible_pointer_bounds);
+        add_possible_captured_values(possible_pointers, bytes, m_possible_pointer_bounds);
 
         for (auto* heap : m_domain) {
             for_each_cell_among_possible_pointers(heap->m_live_heap_blocks, possible_pointers, [&](Cell* cell, auto&, FlatPtr) {

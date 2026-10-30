@@ -44,9 +44,19 @@ class Ref;
 template<class T>
 class Ptr;
 
-// Precisely traceable pointers belong in RootVector rather than conservative storage.
+template<class T>
+class Member;
+
+template<class T>
+class NonnullMember;
+
+// The cell pointers that are traced precisely. Ptr and Ref belong in RootVector rather than conservative storage, and
+// members only in cells.
+template<typename T>
+concept IsPreciselyTracedCellPointer = IsSpecializationOf<RemoveCVReference<T>, Ptr> || IsSpecializationOf<RemoveCVReference<T>, Ref> || IsSpecializationOf<RemoveCVReference<T>, Member> || IsSpecializationOf<RemoveCVReference<T>, NonnullMember>;
+
 template<class T, size_t inline_capacity = 0>
-requires(!IsSpecializationOf<RemoveCVReference<T>, Ptr> && !IsSpecializationOf<RemoveCVReference<T>, Ref>) class ConservativeVector;
+requires(!IsPreciselyTracedCellPointer<T>) class ConservativeVector;
 
 template<typename K, typename V, typename KeyTraits, typename ValueTraits, bool IsOrdered>
 class ConservativeHashMap;

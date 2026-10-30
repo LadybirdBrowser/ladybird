@@ -62,13 +62,13 @@ public:
     static FlatPtr encode_pointer_bits(void const* pointer)
     {
         auto pointer_bits = reinterpret_cast<FlatPtr>(pointer);
-        ASSERT((pointer_bits & ~HEAP_REGION_OFFSET_MASK) == js_heap_region_base);
+        ASSERT((pointer_bits & ~HEAP_REGION_OFFSET_MASK) == heap_region_base());
         return pointer_bits & HEAP_REGION_OFFSET_MASK;
     }
 
     static FlatPtr extract_pointer_bits(u64 encoded)
     {
-        return js_heap_region_base + (encoded & HEAP_REGION_OFFSET_MASK);
+        return heap_region_base() + (encoded & HEAP_REGION_OFFSET_MASK);
     }
 
     template<typename PointerType>

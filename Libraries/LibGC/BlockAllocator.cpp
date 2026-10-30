@@ -84,7 +84,15 @@ public:
 
         m_base = reinterpret_cast<u8*>(aligned_start);
         VERIFY(reinterpret_cast<FlatPtr>(m_base) % size == 0);
-        js_heap_region_base = reinterpret_cast<FlatPtr>(m_base);
+        publish_base(reinterpret_cast<FlatPtr>(m_base));
+    }
+
+    static void register_base_copy(HeapRegionBaseCopyRegistration& registration)
+    {
+        MutexLocker locker(base_copies_mutex());
+        registration.m_next = exchange(s_base_copies, &registration);
+        if (js_heap_region_base)
+            *registration.m_copy = js_heap_region_base;
     }
 
     // This process-global region is shared by every Heap. GC block allocation is single-threaded per process, but the
@@ -133,6 +141,24 @@ public:
 
 private:
     static void request_prepared_chunk();
+
+    static void publish_base(FlatPtr base)
+    {
+        MutexLocker locker(base_copies_mutex());
+        js_heap_region_base = base;
+        for (auto* registration = s_base_copies; registration; registration = registration->m_next)
+            *registration->m_copy = base;
+    }
+
+    // NB: Static initialization registers copies, possibly before that of this file has run, so the list starts out
+    //     constant-initialized and its mutex is set up on first use.
+    static Mutex& base_copies_mutex()
+    {
+        static AK::NeverDestroyed<Mutex> mutex;
+        return *mutex;
+    }
+
+    static constinit inline HeapRegionBaseCopyRegistration* s_base_copies { nullptr };
 
     // The guards at either end of the region are never committed.
     static constexpr size_t FIRST_CHUNK_OFFSET = HEAP_REGION_LOW_GUARD_SIZE;
@@ -392,6 +418,12 @@ size_t BlockAllocator::block_count()
 {
     MutexLocker locker(m_mutex);
     return m_blocks.size();
+}
+
+HeapRegionBaseCopyRegistration::HeapRegionBaseCopyRegistration(FlatPtr& copy)
+    : m_copy(&copy)
+{
+    HeapRegion::register_base_copy(*this);
 }
 
 FlatPtr BlockAllocator::heap_region_start()

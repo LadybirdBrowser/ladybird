@@ -11,6 +11,7 @@ set(TEST_SOURCES
     TestGCIdleCollection.cpp
     TestGCIncrementalSweep.cpp
     TestGCVisitor.cpp
+    TestMember.cpp
     TestNanBoxedValue.cpp
     TestPrimitiveStorage.cpp
 )

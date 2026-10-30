@@ -331,8 +331,7 @@ impl<T: GcCell> crate::layout::cell::Gc<T> {
 
 /// Whether `address` is in the region LibGC allocates every cell in, which has no cells before it is set up.
 pub(crate) fn is_in_heap_region(address: usize) -> bool {
-    // SAFETY: LibGC sets the base once, when it sets up the region, before any cell exists.
-    let base = unsafe { super::capi::js_heap_region_base };
+    let base = crate::layout_forward::heap_region_base();
     base != 0 && address.wrapping_sub(base) as u64 <= crate::build_configuration::HEAP_REGION_OFFSET_MASK
 }
 
