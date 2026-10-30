@@ -33,6 +33,8 @@ use crate::html::structured_serialize::{
 
 unsafe extern "C" {
     fn web_bindings_serialize_value(serialized: *mut c_void, value: u64) -> RawNativeFunctionResult;
+    fn web_bindings_serialize_u8(serialized: *mut c_void, value: u8);
+    fn web_bindings_serialize_i32(serialized: *mut c_void, value: i32);
     fn web_bindings_serialize_u32(serialized: *mut c_void, value: u32);
     fn web_bindings_serialize_u64(serialized: *mut c_void, value: u64);
     fn web_bindings_serialize_f64(serialized: *mut c_void, value: f64);
@@ -42,6 +44,9 @@ unsafe extern "C" {
     fn web_bindings_serialize_utf16_string(serialized: *mut c_void, string: usize);
     fn web_bindings_serialize_bytes(serialized: *mut c_void, bytes: ak::Span<'_, u8>);
     fn web_bindings_deserialize_value(serialized: *mut c_void) -> RawNativeFunctionResult;
+    fn web_bindings_deserialize_is_for_storage(serialized: *mut c_void) -> bool;
+    fn web_bindings_deserialize_u8(serialized: *mut c_void, out_value: &mut u8) -> RawNativeFunctionResult;
+    fn web_bindings_deserialize_i32(serialized: *mut c_void, out_value: &mut i32) -> RawNativeFunctionResult;
     fn web_bindings_deserialize_u32(serialized: *mut c_void, out_value: &mut u32) -> RawNativeFunctionResult;
     fn web_bindings_deserialize_u64(serialized: *mut c_void, out_value: &mut u64) -> RawNativeFunctionResult;
     fn web_bindings_deserialize_f64(serialized: *mut c_void, out_value: &mut f64) -> RawNativeFunctionResult;
@@ -112,6 +117,16 @@ impl SerializationWriter<'_> {
         // SAFETY: The writer is lent for the steps, and the value is live while they run.
         unsafe { web_bindings_serialize_value(self.raw.as_ptr(), value.to_raw()) }.into_completion()?;
         Ok(())
+    }
+
+    pub(crate) fn write_u8(&mut self, value: u8) {
+        // SAFETY: The writer is lent for the steps.
+        unsafe { web_bindings_serialize_u8(self.raw.as_ptr(), value) };
+    }
+
+    pub(crate) fn write_i32(&mut self, value: i32) {
+        // SAFETY: The writer is lent for the steps.
+        unsafe { web_bindings_serialize_i32(self.raw.as_ptr(), value) };
     }
 
     pub(crate) fn write_u32(&mut self, value: u32) {
@@ -188,6 +203,26 @@ impl SerializationReader<'_> {
     pub(crate) fn read_value(&mut self) -> WebIdlResult<Value> {
         // SAFETY: The reader is lent for the steps.
         Ok(unsafe { web_bindings_deserialize_value(self.raw.as_ptr()) }.into_completion()?)
+    }
+
+    /// Whether the record is one for storage, rather than for IPC.
+    pub(crate) fn is_for_storage(&mut self) -> bool {
+        // SAFETY: The reader is lent for the steps.
+        unsafe { web_bindings_deserialize_is_for_storage(self.raw.as_ptr()) }
+    }
+
+    pub(crate) fn read_u8(&mut self) -> WebIdlResult<u8> {
+        let mut value = 0;
+        // SAFETY: The reader is lent for the steps.
+        unsafe { web_bindings_deserialize_u8(self.raw.as_ptr(), &mut value) }.into_completion()?;
+        Ok(value)
+    }
+
+    pub(crate) fn read_i32(&mut self) -> WebIdlResult<i32> {
+        let mut value = 0;
+        // SAFETY: The reader is lent for the steps.
+        unsafe { web_bindings_deserialize_i32(self.raw.as_ptr(), &mut value) }.into_completion()?;
+        Ok(value)
     }
 
     pub(crate) fn read_u32(&mut self) -> WebIdlResult<u32> {

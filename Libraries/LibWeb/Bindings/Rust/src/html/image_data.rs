@@ -6,30 +6,19 @@
 
 //! https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#imagedata
 
-use core::ffi::c_void;
 use core::ptr::NonNull;
 
 use ak::Utf16String;
 use libjs_rust::api::{
-    ArrayBuffer, ArrayBufferOrder, ArrayBufferShared, Gc, RawNativeFunctionResult, Trace, TypedArrayBase,
-    TypedArrayKind, Value, create_typed_array_on_buffer, is_typed_array_out_of_bounds,
-    make_typed_array_with_buffer_witness_record, typed_array_byte_length,
+    ArrayBuffer, ArrayBufferOrder, ArrayBufferShared, Gc, Trace, TypedArrayBase, TypedArrayKind, Value,
+    create_typed_array_on_buffer, is_typed_array_out_of_bounds, make_typed_array_with_buffer_witness_record,
+    typed_array_byte_length,
 };
 
 use super::predefined_color_space::PredefinedColorSpace;
 use crate::bindings::interface::{Ref, Wrappable, allocate};
 use crate::bindings::structured_data::{Serializable, SerializationReader, SerializationWriter};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
-
-unsafe extern "C" {
-    // Defined in Libraries/LibWeb/HTML/ImageData.cpp, which encodes the color space as StructuredSerialize encodes a
-    // Web::Bindings::PredefinedColorSpace.
-    fn web_image_data_serialize_color_space(serialized: *mut c_void, color_space: PredefinedColorSpace);
-    fn web_image_data_deserialize_color_space(
-        serialized: *mut c_void,
-        out_color_space: &mut u8,
-    ) -> RawNativeFunctionResult;
-}
 
 /// https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#imagedatasettings
 #[derive(Clone, Copy, Debug, Default)]
@@ -267,13 +256,56 @@ fn invalid_state_error(message: &[u8]) -> Exception {
     Exception::Dom("InvalidStateError", Utf16String::from_ascii(message))
 }
 
+/// The identifier by which a storage record holds a color space.
+fn color_space_storage_identifier(color_space: PredefinedColorSpace) -> &'static [u8] {
+    match color_space {
+        PredefinedColorSpace::Srgb => b"srgb",
+        PredefinedColorSpace::SrgbLinear => b"srgb-linear",
+        PredefinedColorSpace::DisplayP3 => b"display-p3",
+        PredefinedColorSpace::DisplayP3Linear => b"display-p3-linear",
+    }
+}
+
+/// Writes the color space as a record holds one: by its identifier in a storage record, and by its underlying value in
+/// one for IPC.
+fn serialize_color_space(serialized: &mut SerializationWriter, color_space: PredefinedColorSpace, for_storage: bool) {
+    if for_storage {
+        serialized.write_utf16_string(&Utf16String::from_ascii(color_space_storage_identifier(color_space)));
+    } else {
+        serialized.write_u8(color_space as u8);
+    }
+}
+
+/// Reads what serialize_color_space() writes.
+fn deserialize_color_space(serialized: &mut SerializationReader) -> WebIdlResult<PredefinedColorSpace> {
+    let color_space = if serialized.is_for_storage() {
+        let identifier = serialized.read_utf16_string()?;
+        [
+            PredefinedColorSpace::Srgb,
+            PredefinedColorSpace::SrgbLinear,
+            PredefinedColorSpace::DisplayP3,
+            PredefinedColorSpace::DisplayP3Linear,
+        ]
+        .into_iter()
+        .find(|&color_space| identifier == Utf16String::from_ascii(color_space_storage_identifier(color_space)))
+    } else {
+        PredefinedColorSpace::from_u8(serialized.read_u8()?)
+    };
+    color_space.ok_or_else(|| {
+        Exception::Dom(
+            "DataCloneError",
+            Utf16String::from_ascii(b"Unknown structured serialize color space"),
+        )
+    })
+}
+
 impl Serializable for ImageData {
     /// https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#the-imagedata-interface:serialization-steps
     fn serialization_steps(
         &self,
         _: &mut CallContext,
         serialized: &mut SerializationWriter,
-        _for_storage: bool,
+        for_storage: bool,
     ) -> WebIdlResult<()> {
         // 1. Set serialized.[[Data]] to the sub-serialization of the value of value's data attribute.
         serialized.write_value(Value::from_object(self.data))?;
@@ -285,8 +317,7 @@ impl Serializable for ImageData {
         serialized.write_u32(self.height);
 
         // 4. Set serialized.[[ColorSpace]] to the value of value's colorSpace attribute.
-        // SAFETY: The writer is lent for the steps.
-        unsafe { web_image_data_serialize_color_space(serialized.as_raw(), self.color_space) };
+        serialize_color_space(serialized, self.color_space, for_storage);
 
         // FIXME: 5. Set serialized.[[PixelFormat]] to the value of value's pixelFormat attribute.
 
@@ -316,10 +347,7 @@ impl Serializable for ImageData {
         let height = serialized.read_u32()?;
 
         // 4. Initialize value's colorSpace attribute to serialized.[[ColorSpace]].
-        let mut color_space = 0;
-        // SAFETY: The reader is lent for the steps.
-        unsafe { web_image_data_deserialize_color_space(serialized.as_raw(), &mut color_space) }.into_completion()?;
-        let color_space = PredefinedColorSpace::from_u8(color_space).expect("C++ decodes a color space");
+        let color_space = deserialize_color_space(serialized)?;
 
         // FIXME: 5. Initialize value's pixelFormat attribute to serialized.[[PixelFormat]].
 
