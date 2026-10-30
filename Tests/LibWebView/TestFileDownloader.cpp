@@ -72,6 +72,8 @@ public:
 
         MUST(Core::System::bind(m_socket, reinterpret_cast<sockaddr*>(&address), sizeof(address)));
         MUST(Core::System::listen(m_socket, 16));
+        // accept() must not block when a connection that poll() reported is gone by then.
+        MUST(Core::System::fcntl(m_socket, F_SETFL, O_NONBLOCK));
 
         socklen_t address_size = sizeof(address);
         VERIFY(::getsockname(m_socket, reinterpret_cast<sockaddr*>(&address), &address_size) == 0);
@@ -87,7 +89,6 @@ public:
     ~TestHttpServer()
     {
         m_shutting_down.store(true);
-        wake_server();
         (void)m_thread->join();
         for (auto& thread : m_stalled_connection_threads)
             (void)thread->join();
@@ -115,31 +116,29 @@ public:
     }
 
 private:
+    // A connection made to wake accept() can be lost to a signal, so poll and recheck for shutdown instead.
     void run()
     {
         while (!m_shutting_down.load()) {
-            auto client = ::accept(m_socket, nullptr, nullptr);
-            if (client < 0)
+            pollfd poll_fd { .fd = m_socket, .events = POLLIN, .revents = 0 };
+            auto ready = Core::System::poll({ &poll_fd, 1 }, 100);
+            if (ready.is_error() && ready.error().code() != EINTR)
                 return;
+            if (ready.is_error() || ready.value() == 0)
+                continue;
+
+            auto client = ::accept(m_socket, nullptr, nullptr);
+            if (client < 0) {
+                if (errno == EAGAIN || errno == ECONNABORTED)
+                    continue;
+                return;
+            }
+            // Accepted sockets inherit O_NONBLOCK on some platforms.
+            MUST(Core::System::fcntl(client, F_SETFL, 0));
 
             if (handle_connection(client))
                 (void)Core::System::close(client);
         }
-    }
-
-    void wake_server()
-    {
-        auto socket = Core::System::socket(AF_INET, SOCK_STREAM, 0);
-        if (socket.is_error())
-            return;
-
-        sockaddr_in address {};
-        address.sin_family = AF_INET;
-        address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-        address.sin_port = htons(m_port);
-
-        (void)::connect(socket.value(), reinterpret_cast<sockaddr*>(&address), sizeof(address));
-        (void)Core::System::close(socket.value());
     }
 
     // Returns whether the caller still owns the client socket and should close it.
