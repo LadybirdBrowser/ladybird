@@ -138,6 +138,7 @@ class ReloadServer(http.server.ThreadingHTTPServer):
         self.release_document: threading.Event = threading.Event()
         self.preflight_received: threading.Event = threading.Event()
         self.release_preflight: threading.Event = threading.Event()
+        self.preflight_requests = []
         self.document_body: bytes = (
             b"<!doctype html><title>Adopted document</title><p>" + b"BiDi adopted document\n" * 128
         )
@@ -347,6 +348,10 @@ class ReloadHandler(http.server.BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         server = self.server
         assert isinstance(server, ReloadServer)
+        with server.interception_lock:
+            server.preflight_requests.append(
+                {"path": self.path, "method": self.headers.get("Access-Control-Request-Method")}
+            )
         server.preflight_received.set()
         if not server.release_preflight.wait(30):
             raise TimeoutError("The test did not release the preflight response")
@@ -1751,6 +1756,99 @@ def check_network_abort_before_transport(bidi, context, server):
             bidi.command("session.unsubscribe", {"subscriptions": [subscription]})
 
 
+def check_network_subresource_events(bidi, context, server):
+    # A subresource request's events name the frame that made it and use that frame's time origin, in a same-site
+    # child and in a cross-site child that another process hosts.
+    port = server.server_port
+    body = "x" * 1000
+    all_methods = ["network.beforeRequestSent", "network.responseStarted", "network.responseCompleted"]
+    bidi.command(
+        "browsingContext.navigate", {"context": context, "url": f"http://127.0.0.1:{port}/reload", "wait": "complete"}
+    )
+    # Each child starts loading at least 10 ms after the parent has loaded.
+    for host in ["127.0.0.1", "localhost"]:
+        bidi.evaluate(
+            context,
+            "new Promise(resolve => setTimeout(() => { const frame = document.createElement('iframe'); "
+            f"frame.src = 'http://{host}:{port}/reload?subresource-child'; "
+            "frame.onload = resolve; document.body.append(frame); }, 10))",
+            awaitPromise=True,
+        )
+    tree = bidi.command("browsingContext.getTree", {"root": context})["contexts"][0]
+    children = {urllib.parse.urlsplit(child["url"]).hostname: child["context"] for child in tree["children"]}
+    assert sorted(children) == ["127.0.0.1", "localhost"], tree
+    # The same-process child's time origin is further from the parent's than the timeOrigin margin below.
+    parent_time_origin = bidi.evaluate(context, "performance.timeOrigin")["result"]["value"]
+    child_time_origin = bidi.evaluate(children["127.0.0.1"], "performance.timeOrigin")["result"]["value"]
+    assert child_time_origin - parent_time_origin > 1, (parent_time_origin, child_time_origin)
+    server.release_preflight.set()
+    with server.interception_lock:
+        server.interception_requests.clear()
+        server.preflight_requests.clear()
+    subscription = bidi.command("session.subscribe", {"events": all_methods})["subscription"]
+
+    def is_our_event(event):
+        return "/subresource-" in event["params"].get("request", {}).get("url", "")
+
+    def next_event(method, url, request_method):
+        while True:
+            for index, event in enumerate(bidi.events):
+                request = event["params"].get("request", {})
+                if event["method"] == method and request.get("url") == url and request.get("method") == request_method:
+                    return bidi.events.pop(index)["params"]
+            bidi.read_message()
+
+    try:
+        for host, child in children.items():
+            other_host = "localhost" if host == "127.0.0.1" else "127.0.0.1"
+            direct = f"http://{host}:{port}/network-interception/subresource-{host}"
+            redirect = f"http://{host}:{port}/network-interception/echo-redirect/subresource-{host}-307"
+            preflighted = f"http://{other_host}:{port}/network-interception/cors/subresource-{host}"
+            post = {"method": "POST", "body": body}
+            preflighted_put = {"method": "PUT", "body": body, "headers": {"X-BiDi": "1"}}
+            cases = [
+                (direct, post, [(direct, "POST", 0, all_methods)]),
+                (
+                    redirect,
+                    post,
+                    [
+                        (redirect, "POST", 0, ["network.beforeRequestSent"]),
+                        (redirect.replace("/echo-redirect/", "/echo-final/"), "POST", 1, all_methods),
+                    ],
+                ),
+                (preflighted, preflighted_put, [(preflighted, "PUT", 0, all_methods)]),
+            ]
+            time_origin = bidi.evaluate(child, "performance.timeOrigin")["result"]["value"]
+            for url, options, hops in cases:
+                fetch_records(bidi, send_fetch(bidi, child, url, options))
+                now = bidi.evaluate(child, "performance.now()")["result"]["value"]
+                request_id = None
+                for hop_url, hop_method, redirect_count, methods in hops:
+                    for event_method in methods:
+                        params = next_event(event_method, hop_url, hop_method)
+                        request = params["request"]
+                        request_id = request_id or request["request"]
+                        assert params["context"] == child, (host, params)
+                        assert request["request"] == request_id, (host, params)
+                        assert params["redirectCount"] == redirect_count, (host, params)
+                        assert request["bodySize"] == len(body), (host, params)
+                        timings = request["timings"]
+                        assert abs(timings["timeOrigin"] - time_origin) < 1, (host, time_origin, timings)
+                        assert 0 <= timings["requestTime"] <= now, (host, now, timings)
+                if url == preflighted:
+                    # A preflight for this PUT reached the server.
+                    with server.interception_lock:
+                        preflights = list(server.preflight_requests)
+                    assert {"path": urllib.parse.urlsplit(url).path, "method": "PUT"} in preflights, (host, preflights)
+    finally:
+        if sys.exc_info()[0] is None:
+            bidi.command("session.unsubscribe", {"subscriptions": [subscription]})
+            bidi.events = [
+                event for event in bidi.events if not event["method"].startswith("network.") or not is_our_event(event)
+            ]
+            bidi.evaluate(context, "document.querySelectorAll('iframe').forEach(frame => frame.remove()); 0")
+
+
 def check_screenshot_handles(bidi, context):
     bidi.command("browsingContext.activate", {"context": context})
     element = bidi.evaluate(context, "document.body.style.height = '20px'; document.body")["result"]
@@ -2430,6 +2528,7 @@ def run_test(
             check_network_download_events(bidi, context, server, downloads)
             check_network_adopted_navigation_events(bidi, context, server)
             check_network_abort_before_transport(bidi, context, server)
+            check_network_subresource_events(bidi, context, server)
             check_screenshot_handles(bidi, context)
             check_input_handles(bidi, context)
             check_input_queue(bidi, context)
