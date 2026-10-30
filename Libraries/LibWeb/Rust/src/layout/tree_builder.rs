@@ -1094,9 +1094,7 @@ impl ChildListInsertionReuse<'_, '_> {
                 && child_facts.position != positioning::FIXED
                 && child_facts.float_ == float::NONE;
             if parent_lays_out_flex_or_grid_children {
-                if has_pending_collapsing_whitespace
-                    && (child_facts.position != positioning::STATIC || child_facts.float_ != float::NONE)
-                {
+                if has_pending_collapsing_whitespace && !child_is_in_flow {
                     return false;
                 }
                 has_pending_collapsing_whitespace = false;
@@ -1107,9 +1105,7 @@ impl ChildListInsertionReuse<'_, '_> {
                 continue;
             }
             if parent_lays_out_block_children && child_display.is_block_outside() {
-                if has_pending_collapsing_whitespace
-                    && (child_facts.position != positioning::STATIC || child_facts.float_ != float::NONE)
-                {
+                if has_pending_collapsing_whitespace && !child_is_in_flow {
                     return false;
                 }
                 has_pending_collapsing_whitespace = false;
