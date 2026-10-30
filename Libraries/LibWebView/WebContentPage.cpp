@@ -1661,6 +1661,15 @@ void WebContentPage::for_each_navigable_with_a_hosted_active_document(Function<I
     });
 }
 
+// Notifications has no policy-controlled feature, so the frame check is ours: only a document whose origin is the
+// top-level origin, the site the user sees in the location bar, gets to ask for it or to show one.
+static bool permission_reaches_document(Web::Permissions::PermissionName name, CanonicalDocument const& document, URL::Origin const& top_level_origin)
+{
+    if (name != Web::Permissions::PermissionName::Notifications)
+        return true;
+    return document.origin().is_same_origin(top_level_origin);
+}
+
 bool WebContentPage::document_may_use(Web::HTML::CrossProcessId document_id, Web::Permissions::PermissionName name) const
 {
     auto document = hosted_document_with_id(document_id);
@@ -1670,6 +1679,8 @@ bool WebContentPage::document_may_use(Web::HTML::CrossProcessId document_id, Web
     if (!top_level_origin.has_value())
         return false;
     if (auto feature = policy_controlled_feature_for(name); feature.has_value() && Web::PermissionsPolicy::check_permissions_policy(document->permissions_policy(), *feature, document->origin(), document->origin()) != Web::PermissionsPolicy::FeatureValue::Enabled)
+        return false;
+    if (!permission_reaches_document(name, *document, *top_level_origin))
         return false;
     if (top_level_origin->is_opaque())
         return m_file_permission_grants.find_first_index_if([&](auto const& grant) { return grant.document_id == document_id && grant.name == name; }).has_value();
@@ -1742,6 +1753,10 @@ void WebContentPage::did_request_permission(u64 request_id, Web::HTML::CrossProc
             return;
         }
     }
+    if (!permission_reaches_document(*permission_name, *document, *top_level_origin)) {
+        deny();
+        return;
+    }
 
     // A file: page has an opaque origin, and it's the only one that gets to ask. Its answer lasts as long as the page.
     auto is_file = top_level_origin->is_opaque() && view().url().scheme() == "file"sv;
@@ -1761,6 +1776,13 @@ void WebContentPage::did_request_permission(u64 request_id, Web::HTML::CrossProc
             async_permission_request_completed(request_id, state);
             return;
         }
+    }
+
+    // A page asks for notifications only from a gesture, and the UI process holds it to the activation it delivered
+    // itself, consuming it as the renderer does: a renderer that skipped its own check gets no prompt.
+    if (*permission_name == Web::Permissions::PermissionName::Notifications && !consume_transient_user_activation()) {
+        deny();
+        return;
     }
 
     auto generation_when_asked = manager.decision_generation(*permission_name, *top_level_origin);
@@ -1858,12 +1880,21 @@ Web::Permissions::PermissionSnapshot WebContentPage::advance_permission_clock_fo
     return manager.snapshot_for(client().permission_origins());
 }
 
-void WebContentPage::did_request_show_notification(u64 notification_id, Web::NotificationsAPI::NotificationData data, Optional<Gfx::ShareableBitmap> icon)
+void WebContentPage::did_request_show_notification(u64 notification_id, Web::HTML::CrossProcessId document_id, Web::NotificationsAPI::NotificationData data, Optional<Gfx::ShareableBitmap> icon)
 {
+    // The UI process shows a notification only for a document it knows the user let notify, read from its own store
+    // as the notification arrives: A decision made while the page was still fetching the icon counts, and a renderer
+    // that skipped its own check gets nothing.
+    auto document = hosted_document_with_id(document_id);
+    if (!document || !document_may_use(document_id, Web::Permissions::PermissionName::Notifications)) {
+        async_notification_show_failed(notification_id);
+        return;
+    }
+
     RefPtr<Gfx::Bitmap const> icon_bitmap;
     if (icon.has_value() && icon->is_valid())
         icon_bitmap = icon->bitmap();
-    NotificationManager::the().show(*this, notification_id, move(data), move(icon_bitmap));
+    NotificationManager::the().show(*this, notification_id, *document->top_level_origin(), move(data), move(icon_bitmap));
 }
 
 void WebContentPage::did_request_close_notification(u64 notification_id)

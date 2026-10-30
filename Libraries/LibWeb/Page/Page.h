@@ -904,7 +904,7 @@ public:
     virtual void page_did_set_next_permission_prompt_outcome_for_testing([[maybe_unused]] String const& name, [[maybe_unused]] String const& outcome, [[maybe_unused]] bool held) { }
     virtual void page_did_release_held_permission_prompt_for_testing([[maybe_unused]] u32 waiters) { }
     virtual Optional<Web::Permissions::PermissionSnapshot> page_did_advance_permission_clock_for_testing([[maybe_unused]] u64 milliseconds) { return {}; }
-    virtual void page_did_request_show_notification([[maybe_unused]] u64 notification_id, [[maybe_unused]] NotificationsAPI::NotificationData const&, [[maybe_unused]] RefPtr<Gfx::Bitmap const> icon) { }
+    virtual void page_did_request_show_notification([[maybe_unused]] u64 notification_id, [[maybe_unused]] HTML::CrossProcessId document_id, [[maybe_unused]] NotificationsAPI::NotificationData const&, [[maybe_unused]] RefPtr<Gfx::Bitmap const> icon) { }
     virtual void page_did_request_close_notification([[maybe_unused]] u64 notification_id) { }
     virtual void page_did_abandon_notification([[maybe_unused]] u64 notification_id) { }
     virtual void page_did_handle_notification_click([[maybe_unused]] u64 notification_id, [[maybe_unused]] bool into_focus) { }

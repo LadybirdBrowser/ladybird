@@ -359,7 +359,7 @@ private:
     virtual void page_did_set_next_permission_prompt_outcome_for_testing(String const& name, String const& outcome, bool held) override;
     virtual void page_did_release_held_permission_prompt_for_testing(u32 waiters) override;
     virtual Optional<Web::Permissions::PermissionSnapshot> page_did_advance_permission_clock_for_testing(u64 milliseconds) override;
-    virtual void page_did_request_show_notification(u64 notification_id, Web::NotificationsAPI::NotificationData const&, RefPtr<Gfx::Bitmap const> icon) override;
+    virtual void page_did_request_show_notification(u64 notification_id, Web::HTML::CrossProcessId document_id, Web::NotificationsAPI::NotificationData const&, RefPtr<Gfx::Bitmap const> icon) override;
     virtual void page_did_request_close_notification(u64 notification_id) override;
     virtual void page_did_abandon_notification(u64 notification_id) override;
     virtual void page_did_handle_notification_click(u64 notification_id, bool into_focus) override;
