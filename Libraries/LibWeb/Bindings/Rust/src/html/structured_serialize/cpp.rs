@@ -159,7 +159,7 @@ unsafe extern "C" {
         memory: *mut c_void,
     ) -> RawNativeFunctionResult;
     fn web_structured_serialize_is_exposed(interface_name: u16, realm: *mut c_void) -> bool;
-    fn web_structured_serialize_serializable_interface_is_implemented_in_rust(interface_name: u16) -> bool;
+    fn web_structured_serialize_serializable_steps(interface_name: u16) -> u8;
     fn web_structured_serialize_deserialize_rust_platform_object(
         interface_name: u16,
         realm: *mut c_void,
@@ -355,6 +355,14 @@ impl StructuredSerializeWriter {
         unsafe { web_structured_serialize_writer_encode_f64(self.as_raw(), value) };
     }
 
+    /// An Optional<double>, as HTML::StructuredSerializeWriter encodes one: whether it has a value, then the value.
+    pub(crate) fn encode_optional_f64(self, value: Option<f64>) {
+        self.encode_bool(value.is_some());
+        if let Some(value) = value {
+            self.encode_f64(value);
+        }
+    }
+
     pub(crate) fn encode_utf16_string(self, string: &Utf16String) {
         // SAFETY: The writer is lent, and the call borrows the string.
         unsafe { web_structured_serialize_writer_encode_utf16_string(self.as_raw(), string.raw_identity()) };
@@ -538,6 +546,13 @@ impl StructuredSerializeReader {
         // SAFETY: The reader is lent, and the realm is live.
         completion(unsafe { web_structured_serialize_reader_decode_f64(self.as_raw(), self.realm_raw(), &mut value) })?;
         Ok(value)
+    }
+
+    pub(crate) fn decode_optional_f64(self) -> WebIdlResult<Option<f64>> {
+        if !self.decode_bool()? {
+            return Ok(None);
+        }
+        Ok(Some(self.decode_f64()?))
     }
 
     pub(crate) fn decode_utf16_string(self) -> WebIdlResult<Utf16String> {
@@ -838,9 +853,28 @@ pub(crate) fn is_exposed(interface_name: u16, realm: Gc<Realm>) -> bool {
     unsafe { web_structured_serialize_is_exposed(interface_name, realm.as_ptr().cast()) }
 }
 
-pub(crate) fn serializable_interface_is_implemented_in_rust(interface_name: u16) -> bool {
+/// Whose steps serialize and deserialize the objects of a serializable interface.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SerializableSteps {
+    /// The steps of an interface implemented in Rust, which its bindings run.
+    Rust,
+    /// The steps of DOMException, which run in crate::webidl::dom_exception.
+    DOMException,
+    /// The steps of QuotaExceededError, which run in crate::webidl::quota_exceeded_error.
+    QuotaExceededError,
+    /// The steps of an interface implemented in C++, which C++ runs.
+    Cpp,
+}
+
+pub(crate) fn serializable_steps(interface_name: u16) -> SerializableSteps {
     // SAFETY: The call takes a value.
-    unsafe { web_structured_serialize_serializable_interface_is_implemented_in_rust(interface_name) }
+    match unsafe { web_structured_serialize_serializable_steps(interface_name) } {
+        0 => SerializableSteps::Rust,
+        1 => SerializableSteps::DOMException,
+        2 => SerializableSteps::QuotaExceededError,
+        3 => SerializableSteps::Cpp,
+        steps => unreachable!("LibWeb names no serializable steps {steps}"),
+    }
 }
 
 /// The deserialization steps of an interface implemented in Rust, which create the new instance from what they read.

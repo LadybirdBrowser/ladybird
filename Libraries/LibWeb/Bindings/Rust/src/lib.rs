@@ -143,6 +143,8 @@ pub(crate) mod web_assembly;
     reason = "the bindings call every attribute and operation as one that can throw"
 )]
 pub(crate) mod web_gl;
+#[cfg(not(test))]
+pub(crate) mod webidl;
 
 // The generators of the build script, whose tests run with those of the crate.
 #[cfg(test)]

@@ -199,17 +199,29 @@ Optional<SerializablePlatformObject> serializable_from_object(JS::Object& object
         return SerializablePlatformObject {{ .rust_object = cell, .interface_name = InterfaceName::{interface.name}, .realm = &object.shape().realm() }};
 """
         )
+    # NB: An object is a serializable object if its primary interface is [Serializable]. The steps of some interfaces
+    #     implemented in C++ run in Rust, so their classes have no C++ steps.
+    cpp_serializable = [interface for interface in serializable if not is_implemented_in_rust(interface)]
     out.write(
         """
     auto* wrappable = Bindings::wrappable_impl_from(&object);
     if (!wrappable)
         return {};
 
-    auto* serializable = as_if<Serializable>(*wrappable);
-    if (!serializable)
+    switch (wrappable->interface_name()) {
+"""
+    )
+    for interface in cpp_serializable:
+        out.write(f"    case InterfaceName::{interface.name}:\n")
+    if cpp_serializable:
+        out.write(
+            "        return SerializablePlatformObject { .serializable = as_if<Serializable>(*wrappable), "
+            ".interface_name = wrappable->interface_name(), .realm = &object.shape().realm() };\n"
+        )
+    out.write(
+        """    default:
         return {};
-
-    return SerializablePlatformObject { .serializable = serializable, .interface_name = wrappable->interface_name(), .realm = &object.shape().realm() };
+    }
 }
 
 WebIDL::ExceptionOr<void> SerializablePlatformObject::serialization_steps(HTML::StructuredSerializeWriter& serialized, bool for_storage, HTML::SerializationMemory& memory) const

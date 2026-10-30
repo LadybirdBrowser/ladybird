@@ -12,7 +12,6 @@
 #include <AK/Utf16String.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/ErrorData.h>
-#include <LibWeb/Bindings/Serializable.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
@@ -96,9 +95,7 @@ static u16 get_legacy_code_for_name(Utf16FlyString const& name)
 }
 
 // https://webidl.spec.whatwg.org/#idl-DOMException
-class WEB_API DOMException
-    : public Bindings::GCAllocatedWrappable
-    , public Bindings::Serializable {
+class WEB_API DOMException : public Bindings::GCAllocatedWrappable {
     WEB_WRAPPABLE(DOMException, Bindings::GCAllocatedWrappable);
     GC_DECLARE_ALLOCATOR(DOMException);
 
@@ -116,9 +113,6 @@ public:
 
     JS::ErrorDataCell& error_data() { return *m_error_data; }
     JS::ErrorDataCell const& error_data() const { return *m_error_data; }
-
-    virtual WebIDL::ExceptionOr<void> serialization_steps(HTML::StructuredSerializeWriter&, bool for_storage, HTML::SerializationMemory&) override;
-    virtual WebIDL::ExceptionOr<void> deserialization_steps(JS::Realm&, HTML::StructuredSerializeReader&, HTML::DeserializationMemory&) override;
 
 protected:
     DOMException(FlyString name, Utf16String const& message);
