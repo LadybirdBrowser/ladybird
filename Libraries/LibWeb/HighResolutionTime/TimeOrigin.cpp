@@ -18,18 +18,22 @@ DOMHighResTimeStamp estimated_monotonic_time_of_the_unix_epoch()
     // Each group of environment settings objects that could possibly communicate in any way
     // has an estimated monotonic time of the Unix epoch, a moment on the monotonic clock,
     // whose value is initialized by the following steps:
+    // AD-HOC: The estimate is initialized once per process, since nothing shares it between processes, though
+    //         environment settings objects in different processes can communicate.
+    static DOMHighResTimeStamp const estimated_monotonic_time = [] {
+        // 1. Let wall time be the wall clock's unsafe current time.
+        auto wall_time = wall_clock_unsafe_current_time();
 
-    // 1. Let wall time be the wall clock's unsafe current time.
-    auto wall_time = wall_clock_unsafe_current_time();
+        // 2. Let monotonic time be the monotonic clock's unsafe current time.
+        auto monotonic_time = unsafe_shared_current_time();
 
-    // 2. Let monotonic time be the monotonic clock's unsafe current time.
-    auto monotonic_time = unsafe_shared_current_time();
+        // 3. Let epoch time be monotonic time - (wall time - Unix epoch)
+        auto epoch_time = monotonic_time - (wall_time - 0);
 
-    // 3. Let epoch time be monotonic time - (wall time - Unix epoch)
-    auto epoch_time = monotonic_time - (wall_time - 0);
-
-    // 4. Initialize the estimated monotonic time of the Unix epoch to the result of calling coarsen time with epoch time
-    auto estimated_monotonic_time = coarsen_time(epoch_time);
+        // 4. Initialize the estimated monotonic time of the Unix epoch to the result of calling coarsen time with
+        //    epoch time
+        return coarsen_time(epoch_time);
+    }();
     return estimated_monotonic_time;
 }
 
