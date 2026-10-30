@@ -603,11 +603,13 @@ def merge_wptreports(args, parts, target):
             report = wptreport_from_raw(args, os.path.join(os.path.dirname(part), raw_log_name(args)))
             if report is None:
                 continue
+        if "time_start" not in report:
+            continue
         if merged is None:
             merged = report
             continue
         merged["results"].extend(report.get("results", []))
-        merged["time_start"] = min(merged.get("time_start", 0), report.get("time_start", 0))
+        merged["time_start"] = min(merged["time_start"], report["time_start"])
         merged["time_end"] = max(merged.get("time_end", 0), report.get("time_end", 0))
     if merged:
         latest = {}
