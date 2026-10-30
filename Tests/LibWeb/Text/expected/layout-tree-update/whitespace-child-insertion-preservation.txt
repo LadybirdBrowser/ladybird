@@ -100,6 +100,18 @@ PASS: insert adjacent whitespace nodes between grid items | rebuild when extendi
 PASS: insert whitespace interleaved with hidden nodes | rebuild for interleaved batch | rebuild
 PASS: insert whitespace interleaved with hidden nodes | rebuild for interleaved batch | layout tree builds=1
 PASS: insert whitespace interleaved with hidden nodes | rebuild for interleaved batch | incremental tree matches full rebuild
+PASS: append whitespace runs separated by boxless siblings | append whitespace, hidden element and whitespace | preserve
+PASS: append whitespace runs separated by boxless siblings | append whitespace, hidden element and whitespace | layout tree builds=1
+PASS: append whitespace runs separated by boxless siblings | append whitespace, hidden element and whitespace | incremental tree matches full rebuild
+PASS: append whitespace runs separated by boxless siblings | append whitespace, script, whitespace and block | preserve
+PASS: append whitespace runs separated by boxless siblings | append whitespace, script, whitespace and block | layout tree builds=1
+PASS: append whitespace runs separated by boxless siblings | append whitespace, script, whitespace and block | incremental tree matches full rebuild
+PASS: append whitespace runs separated by boxless siblings | append adjacent whitespace nodes | preserve
+PASS: append whitespace runs separated by boxless siblings | append adjacent whitespace nodes | layout tree builds=1
+PASS: append whitespace runs separated by boxless siblings | append adjacent whitespace nodes | incremental tree matches full rebuild
+PASS: append whitespace runs separated by boxless siblings to flex items | append whitespace, hidden element, whitespace and item | preserve
+PASS: append whitespace runs separated by boxless siblings to flex items | append whitespace, hidden element, whitespace and item | layout tree builds=1
+PASS: append whitespace runs separated by boxless siblings to flex items | append whitespace, hidden element, whitespace and item | incremental tree matches full rebuild
 PASS: trailing inline run changes block insertion | create trailing run | preserve
 PASS: trailing inline run changes block insertion | create trailing run | layout tree builds=1
 PASS: trailing inline run changes block insertion | create trailing run | incremental tree matches full rebuild
