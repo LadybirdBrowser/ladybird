@@ -2582,6 +2582,10 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         key: IntrinsicSizeCacheKey,
         value: IntrinsicBlockSizeMeasurement,
     ) {
+        self.charge_measurement_dependency_to_measured_box_and_containing_block(
+            node,
+            value.depends_on_percentage_block_size,
+        );
         self.callbacks
             .intrinsic_size_caches()
             .max_content_block_size_cache_put(node, key, value);
@@ -2609,6 +2613,10 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         key: IntrinsicSizeCacheKey,
         value: IntrinsicInlineSizeMeasurement,
     ) {
+        self.charge_measurement_dependency_to_measured_box_and_containing_block(
+            node,
+            value.depends_on_percentage_block_size,
+        );
         self.callbacks
             .intrinsic_size_caches()
             .intrinsic_inline_size_measurement_cache_put(node, key, value);
@@ -3260,10 +3268,6 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         key: IntrinsicSizeCacheKey,
         sizes: ContentInlineSizes,
     ) -> ContentInlineSizeAnswers {
-        self.charge_measurement_dependency_to_measured_box_and_containing_block(
-            node,
-            sizes.dependencies.percentage_block_size,
-        );
         let measurement = IntrinsicInlineSizeMeasurement {
             min_content_inline_size: clamp_to_max_dimension_value(sizes.sizes.min),
             max_content_inline_size: clamp_to_max_dimension_value(sizes.sizes.max),
@@ -3311,10 +3315,6 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             self.measure_block_size_with_normal_layout(node, inline_size, constraints)
         };
         let value = clamp_to_max_dimension_value(result.automatic_content_block_size);
-        self.charge_measurement_dependency_to_measured_box_and_containing_block(
-            node,
-            result.depends_on_percentage_block_size,
-        );
         self.max_content_block_size_cache_put(
             node,
             key,
