@@ -1585,13 +1585,13 @@ PASS: text-transform lowercase -> capitalize on table-row-group in table-footer-
 PRESERVED: content "replacement" -> normal on table-row-group in block flex | fixture ancestor
 PRESERVED: content "replacement" -> normal on table-row-group in block flex | distant sibling
 PRESERVED: content "replacement" -> normal on table-row-group in block flex | distant sibling descendant
-RECREATED: content "replacement" -> normal on table-row-group in block flex | DOM parent
-RECREATED: content "replacement" -> normal on table-row-group in block flex | preceding sibling
-RECREATED: content "replacement" -> normal on table-row-group in block flex | preceding sibling descendant
+PRESERVED: content "replacement" -> normal on table-row-group in block flex | DOM parent
+PRESERVED: content "replacement" -> normal on table-row-group in block flex | preceding sibling
+PRESERVED: content "replacement" -> normal on table-row-group in block flex | preceding sibling descendant
 RECREATED: content "replacement" -> normal on table-row-group in block flex | target
 RECREATED: content "replacement" -> normal on table-row-group in block flex | target descendant
-RECREATED: content "replacement" -> normal on table-row-group in block flex | following sibling
-RECREATED: content "replacement" -> normal on table-row-group in block flex | following sibling descendant
+PRESERVED: content "replacement" -> normal on table-row-group in block flex | following sibling
+PRESERVED: content "replacement" -> normal on table-row-group in block flex | following sibling descendant
 STATS: content "replacement" -> normal on table-row-group in block flex | rebuilt subtree roots=1, escaped=false
 PASS: content "replacement" -> normal on table-row-group in block flex | incremental tree matches full rebuild
 RECREATED: content-visibility hidden -> visible on table-header-group in inline | fixture ancestor
@@ -1657,13 +1657,13 @@ PASS: overflow-y auto -> clip on table-header-group in run-in | incremental tree
 PRESERVED: text-transform lowercase -> capitalize on table-header-group in -webkit-box | fixture ancestor
 PRESERVED: text-transform lowercase -> capitalize on table-header-group in -webkit-box | distant sibling
 PRESERVED: text-transform lowercase -> capitalize on table-header-group in -webkit-box | distant sibling descendant
-RECREATED: text-transform lowercase -> capitalize on table-header-group in -webkit-box | DOM parent
-RECREATED: text-transform lowercase -> capitalize on table-header-group in -webkit-box | preceding sibling
-RECREATED: text-transform lowercase -> capitalize on table-header-group in -webkit-box | preceding sibling descendant
+PRESERVED: text-transform lowercase -> capitalize on table-header-group in -webkit-box | DOM parent
+PRESERVED: text-transform lowercase -> capitalize on table-header-group in -webkit-box | preceding sibling
+PRESERVED: text-transform lowercase -> capitalize on table-header-group in -webkit-box | preceding sibling descendant
 RECREATED: text-transform lowercase -> capitalize on table-header-group in -webkit-box | target
 RECREATED: text-transform lowercase -> capitalize on table-header-group in -webkit-box | target descendant
-RECREATED: text-transform lowercase -> capitalize on table-header-group in -webkit-box | following sibling
-RECREATED: text-transform lowercase -> capitalize on table-header-group in -webkit-box | following sibling descendant
+PRESERVED: text-transform lowercase -> capitalize on table-header-group in -webkit-box | following sibling
+PRESERVED: text-transform lowercase -> capitalize on table-header-group in -webkit-box | following sibling descendant
 STATS: text-transform lowercase -> capitalize on table-header-group in -webkit-box | rebuilt subtree roots=1, escaped=false
 PASS: text-transform lowercase -> capitalize on table-header-group in -webkit-box | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> normal on table-header-group in block flow | fixture ancestor
@@ -1738,16 +1738,16 @@ PRESERVED: overflow-y auto -> clip on table-footer-group in block | following si
 PRESERVED: overflow-y auto -> clip on table-footer-group in block | following sibling descendant
 STATS: overflow-y auto -> clip on table-footer-group in block | no layout tree build
 PASS: overflow-y auto -> clip on table-footer-group in block | incremental tree matches full rebuild
-RECREATED: text-transform lowercase -> capitalize on table-footer-group in inline-grid | fixture ancestor
-RECREATED: text-transform lowercase -> capitalize on table-footer-group in inline-grid | distant sibling
-RECREATED: text-transform lowercase -> capitalize on table-footer-group in inline-grid | distant sibling descendant
-RECREATED: text-transform lowercase -> capitalize on table-footer-group in inline-grid | DOM parent
-RECREATED: text-transform lowercase -> capitalize on table-footer-group in inline-grid | preceding sibling
-RECREATED: text-transform lowercase -> capitalize on table-footer-group in inline-grid | preceding sibling descendant
+PRESERVED: text-transform lowercase -> capitalize on table-footer-group in inline-grid | fixture ancestor
+PRESERVED: text-transform lowercase -> capitalize on table-footer-group in inline-grid | distant sibling
+PRESERVED: text-transform lowercase -> capitalize on table-footer-group in inline-grid | distant sibling descendant
+PRESERVED: text-transform lowercase -> capitalize on table-footer-group in inline-grid | DOM parent
+PRESERVED: text-transform lowercase -> capitalize on table-footer-group in inline-grid | preceding sibling
+PRESERVED: text-transform lowercase -> capitalize on table-footer-group in inline-grid | preceding sibling descendant
 RECREATED: text-transform lowercase -> capitalize on table-footer-group in inline-grid | target
 RECREATED: text-transform lowercase -> capitalize on table-footer-group in inline-grid | target descendant
-RECREATED: text-transform lowercase -> capitalize on table-footer-group in inline-grid | following sibling
-RECREATED: text-transform lowercase -> capitalize on table-footer-group in inline-grid | following sibling descendant
+PRESERVED: text-transform lowercase -> capitalize on table-footer-group in inline-grid | following sibling
+PRESERVED: text-transform lowercase -> capitalize on table-footer-group in inline-grid | following sibling descendant
 STATS: text-transform lowercase -> capitalize on table-footer-group in inline-grid | rebuilt subtree roots=1, escaped=false
 PASS: text-transform lowercase -> capitalize on table-footer-group in inline-grid | incremental tree matches full rebuild
 RECREATED: content "replacement" -> normal on table-footer-group in table-cell | fixture ancestor
@@ -2002,16 +2002,16 @@ RECREATED: text-transform lowercase -> capitalize on table-column-group in inlin
 RECREATED: text-transform lowercase -> capitalize on table-column-group in inline flow list-item | following sibling descendant
 STATS: text-transform lowercase -> capitalize on table-column-group in inline flow list-item | rebuilt subtree roots=1, escaped=false
 PASS: text-transform lowercase -> capitalize on table-column-group in inline flow list-item | incremental tree matches full rebuild
-RECREATED: content "replacement" -> normal on table-column-group in inline-flex | fixture ancestor
-RECREATED: content "replacement" -> normal on table-column-group in inline-flex | distant sibling
-RECREATED: content "replacement" -> normal on table-column-group in inline-flex | distant sibling descendant
-RECREATED: content "replacement" -> normal on table-column-group in inline-flex | DOM parent
-RECREATED: content "replacement" -> normal on table-column-group in inline-flex | preceding sibling
-RECREATED: content "replacement" -> normal on table-column-group in inline-flex | preceding sibling descendant
+PRESERVED: content "replacement" -> normal on table-column-group in inline-flex | fixture ancestor
+PRESERVED: content "replacement" -> normal on table-column-group in inline-flex | distant sibling
+PRESERVED: content "replacement" -> normal on table-column-group in inline-flex | distant sibling descendant
+PRESERVED: content "replacement" -> normal on table-column-group in inline-flex | DOM parent
+PRESERVED: content "replacement" -> normal on table-column-group in inline-flex | preceding sibling
+PRESERVED: content "replacement" -> normal on table-column-group in inline-flex | preceding sibling descendant
 RECREATED: content "replacement" -> normal on table-column-group in inline-flex | target
 RECREATED: content "replacement" -> normal on table-column-group in inline-flex | target descendant
-RECREATED: content "replacement" -> normal on table-column-group in inline-flex | following sibling
-RECREATED: content "replacement" -> normal on table-column-group in inline-flex | following sibling descendant
+PRESERVED: content "replacement" -> normal on table-column-group in inline-flex | following sibling
+PRESERVED: content "replacement" -> normal on table-column-group in inline-flex | following sibling descendant
 STATS: content "replacement" -> normal on table-column-group in inline-flex | rebuilt subtree roots=1, escaped=false
 PASS: content "replacement" -> normal on table-column-group in inline-flex | incremental tree matches full rebuild
 RECREATED: content-visibility hidden -> visible on table-column in table-footer-group | fixture ancestor
@@ -2101,13 +2101,13 @@ PASS: content "replacement" -> normal on table-column in run-in | incremental tr
 PRESERVED: content-visibility hidden -> visible on table-caption in -webkit-box | fixture ancestor
 PRESERVED: content-visibility hidden -> visible on table-caption in -webkit-box | distant sibling
 PRESERVED: content-visibility hidden -> visible on table-caption in -webkit-box | distant sibling descendant
-RECREATED: content-visibility hidden -> visible on table-caption in -webkit-box | DOM parent
-RECREATED: content-visibility hidden -> visible on table-caption in -webkit-box | preceding sibling
-RECREATED: content-visibility hidden -> visible on table-caption in -webkit-box | preceding sibling descendant
+PRESERVED: content-visibility hidden -> visible on table-caption in -webkit-box | DOM parent
+PRESERVED: content-visibility hidden -> visible on table-caption in -webkit-box | preceding sibling
+PRESERVED: content-visibility hidden -> visible on table-caption in -webkit-box | preceding sibling descendant
 RECREATED: content-visibility hidden -> visible on table-caption in -webkit-box | target
 CREATED: content-visibility hidden -> visible on table-caption in -webkit-box | target descendant
-RECREATED: content-visibility hidden -> visible on table-caption in -webkit-box | following sibling
-RECREATED: content-visibility hidden -> visible on table-caption in -webkit-box | following sibling descendant
+PRESERVED: content-visibility hidden -> visible on table-caption in -webkit-box | following sibling
+PRESERVED: content-visibility hidden -> visible on table-caption in -webkit-box | following sibling descendant
 STATS: content-visibility hidden -> visible on table-caption in -webkit-box | rebuilt subtree roots=1, escaped=false
 PASS: content-visibility hidden -> visible on table-caption in -webkit-box | incremental tree matches full rebuild
 PRESERVED: overflow-x clip -> visible on table-caption in block flow | fixture ancestor

@@ -1378,16 +1378,16 @@ RECREATED: ::before change display block on table-row-group in table-row | follo
 RECREATED: ::before change display block on table-row-group in table-row | following sibling descendant
 STATS: ::before change display block on table-row-group in table-row | rebuilt subtree roots=1, escaped=false
 PASS: ::before change display block on table-row-group in table-row | incremental tree matches full rebuild
-RECREATED: ::before change display inline-table on table-row-group in inline grid | fixture ancestor
-RECREATED: ::before change display inline-table on table-row-group in inline grid | distant sibling
-RECREATED: ::before change display inline-table on table-row-group in inline grid | distant sibling descendant
-RECREATED: ::before change display inline-table on table-row-group in inline grid | DOM parent
-RECREATED: ::before change display inline-table on table-row-group in inline grid | preceding sibling
-RECREATED: ::before change display inline-table on table-row-group in inline grid | preceding sibling descendant
+PRESERVED: ::before change display inline-table on table-row-group in inline grid | fixture ancestor
+PRESERVED: ::before change display inline-table on table-row-group in inline grid | distant sibling
+PRESERVED: ::before change display inline-table on table-row-group in inline grid | distant sibling descendant
+PRESERVED: ::before change display inline-table on table-row-group in inline grid | DOM parent
+PRESERVED: ::before change display inline-table on table-row-group in inline grid | preceding sibling
+PRESERVED: ::before change display inline-table on table-row-group in inline grid | preceding sibling descendant
 RECREATED: ::before change display inline-table on table-row-group in inline grid | target
 RECREATED: ::before change display inline-table on table-row-group in inline grid | target descendant
-RECREATED: ::before change display inline-table on table-row-group in inline grid | following sibling
-RECREATED: ::before change display inline-table on table-row-group in inline grid | following sibling descendant
+PRESERVED: ::before change display inline-table on table-row-group in inline grid | following sibling
+PRESERVED: ::before change display inline-table on table-row-group in inline grid | following sibling descendant
 STATS: ::before change display inline-table on table-row-group in inline grid | rebuilt subtree roots=1, escaped=false
 PASS: ::before change display inline-table on table-row-group in inline grid | incremental tree matches full rebuild
 RECREATED: ::before change display block flow on table-row-group in inline list-item | fixture ancestor
@@ -1417,14 +1417,14 @@ PASS: ::after remove none on table-row-group in table-footer-group | incremental
 PRESERVED: ::after remove inline-grid on table-row-group in block grid | fixture ancestor
 PRESERVED: ::after remove inline-grid on table-row-group in block grid | distant sibling
 PRESERVED: ::after remove inline-grid on table-row-group in block grid | distant sibling descendant
-RECREATED: ::after remove inline-grid on table-row-group in block grid | DOM parent
-RECREATED: ::after remove inline-grid on table-row-group in block grid | preceding sibling
-RECREATED: ::after remove inline-grid on table-row-group in block grid | preceding sibling descendant
-RECREATED: ::after remove inline-grid on table-row-group in block grid | target
-RECREATED: ::after remove inline-grid on table-row-group in block grid | target descendant
-RECREATED: ::after remove inline-grid on table-row-group in block grid | following sibling
-RECREATED: ::after remove inline-grid on table-row-group in block grid | following sibling descendant
-STATS: ::after remove inline-grid on table-row-group in block grid | rebuilt subtree roots=1, escaped=false
+PRESERVED: ::after remove inline-grid on table-row-group in block grid | DOM parent
+PRESERVED: ::after remove inline-grid on table-row-group in block grid | preceding sibling
+PRESERVED: ::after remove inline-grid on table-row-group in block grid | preceding sibling descendant
+PRESERVED: ::after remove inline-grid on table-row-group in block grid | target
+PRESERVED: ::after remove inline-grid on table-row-group in block grid | target descendant
+PRESERVED: ::after remove inline-grid on table-row-group in block grid | following sibling
+PRESERVED: ::after remove inline-grid on table-row-group in block grid | following sibling descendant
+STATS: ::after remove inline-grid on table-row-group in block grid | rebuilt subtree roots=0, escaped=false
 PASS: ::after remove inline-grid on table-row-group in block grid | incremental tree matches full rebuild
 PRESERVED: ::after remove table-column on table-row-group in list-item | fixture ancestor
 PRESERVED: ::after remove table-column on table-row-group in list-item | distant sibling

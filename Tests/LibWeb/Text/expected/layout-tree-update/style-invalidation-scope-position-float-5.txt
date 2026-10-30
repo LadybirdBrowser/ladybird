@@ -2101,13 +2101,13 @@ PASS: static none -> absolute left on table-column in inline | incremental tree 
 PRESERVED: position relative -> static on table-caption in block flex | fixture ancestor
 PRESERVED: position relative -> static on table-caption in block flex | distant sibling
 PRESERVED: position relative -> static on table-caption in block flex | distant sibling descendant
-RECREATED: position relative -> static on table-caption in block flex | DOM parent
-RECREATED: position relative -> static on table-caption in block flex | preceding sibling
-RECREATED: position relative -> static on table-caption in block flex | preceding sibling descendant
+PRESERVED: position relative -> static on table-caption in block flex | DOM parent
+PRESERVED: position relative -> static on table-caption in block flex | preceding sibling
+PRESERVED: position relative -> static on table-caption in block flex | preceding sibling descendant
 RECREATED: position relative -> static on table-caption in block flex | target
 RECREATED: position relative -> static on table-caption in block flex | target descendant
-RECREATED: position relative -> static on table-caption in block flex | following sibling
-RECREATED: position relative -> static on table-caption in block flex | following sibling descendant
+PRESERVED: position relative -> static on table-caption in block flex | following sibling
+PRESERVED: position relative -> static on table-caption in block flex | following sibling descendant
 STATS: position relative -> static on table-caption in block flex | rebuilt subtree roots=1, escaped=false
 PASS: position relative -> static on table-caption in block flex | incremental tree matches full rebuild
 RECREATED: position fixed -> static on table-caption in contents | fixture ancestor

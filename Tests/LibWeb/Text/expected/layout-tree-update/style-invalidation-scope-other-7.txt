@@ -1558,16 +1558,16 @@ PRESERVED: overflow-y clip -> scroll on table-row-group in block | following sib
 PRESERVED: overflow-y clip -> scroll on table-row-group in block | following sibling descendant
 STATS: overflow-y clip -> scroll on table-row-group in block | no layout tree build
 PASS: overflow-y clip -> scroll on table-row-group in block | incremental tree matches full rebuild
-RECREATED: text-transform none -> uppercase on table-row-group in inline-grid | fixture ancestor
-RECREATED: text-transform none -> uppercase on table-row-group in inline-grid | distant sibling
-RECREATED: text-transform none -> uppercase on table-row-group in inline-grid | distant sibling descendant
-RECREATED: text-transform none -> uppercase on table-row-group in inline-grid | DOM parent
-RECREATED: text-transform none -> uppercase on table-row-group in inline-grid | preceding sibling
-RECREATED: text-transform none -> uppercase on table-row-group in inline-grid | preceding sibling descendant
+PRESERVED: text-transform none -> uppercase on table-row-group in inline-grid | fixture ancestor
+PRESERVED: text-transform none -> uppercase on table-row-group in inline-grid | distant sibling
+PRESERVED: text-transform none -> uppercase on table-row-group in inline-grid | distant sibling descendant
+PRESERVED: text-transform none -> uppercase on table-row-group in inline-grid | DOM parent
+PRESERVED: text-transform none -> uppercase on table-row-group in inline-grid | preceding sibling
+PRESERVED: text-transform none -> uppercase on table-row-group in inline-grid | preceding sibling descendant
 RECREATED: text-transform none -> uppercase on table-row-group in inline-grid | target
 RECREATED: text-transform none -> uppercase on table-row-group in inline-grid | target descendant
-RECREATED: text-transform none -> uppercase on table-row-group in inline-grid | following sibling
-RECREATED: text-transform none -> uppercase on table-row-group in inline-grid | following sibling descendant
+PRESERVED: text-transform none -> uppercase on table-row-group in inline-grid | following sibling
+PRESERVED: text-transform none -> uppercase on table-row-group in inline-grid | following sibling descendant
 STATS: text-transform none -> uppercase on table-row-group in inline-grid | rebuilt subtree roots=1, escaped=false
 PASS: text-transform none -> uppercase on table-row-group in inline-grid | incremental tree matches full rebuild
 RECREATED: text-transform capitalize -> uppercase on table-row-group in table-cell | fixture ancestor
@@ -1585,13 +1585,13 @@ PASS: text-transform capitalize -> uppercase on table-row-group in table-cell | 
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-row-group in block grid | fixture ancestor
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-row-group in block grid | distant sibling
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-row-group in block grid | distant sibling descendant
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on table-row-group in block grid | DOM parent
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on table-row-group in block grid | preceding sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on table-row-group in block grid | preceding sibling descendant
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-row-group in block grid | DOM parent
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-row-group in block grid | preceding sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-row-group in block grid | preceding sibling descendant
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on table-row-group in block grid | target
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on table-row-group in block grid | target descendant
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on table-row-group in block grid | following sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on table-row-group in block grid | following sibling descendant
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-row-group in block grid | following sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-row-group in block grid | following sibling descendant
 STATS: content "replacement" -> open-quote "replacement" close-quote on table-row-group in block grid | rebuilt subtree roots=1, escaped=false
 PASS: content "replacement" -> open-quote "replacement" close-quote on table-row-group in block grid | incremental tree matches full rebuild
 PRESERVED: overflow-x visible -> hidden on table-header-group in inline-block | fixture ancestor
@@ -2002,16 +2002,16 @@ RECREATED: text-transform capitalize -> uppercase on table-column-group in block
 RECREATED: text-transform capitalize -> uppercase on table-column-group in block | following sibling descendant
 STATS: text-transform capitalize -> uppercase on table-column-group in block | rebuilt subtree roots=1, escaped=false
 PASS: text-transform capitalize -> uppercase on table-column-group in block | incremental tree matches full rebuild
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on table-column-group in inline-grid | fixture ancestor
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on table-column-group in inline-grid | distant sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on table-column-group in inline-grid | distant sibling descendant
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on table-column-group in inline-grid | DOM parent
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on table-column-group in inline-grid | preceding sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on table-column-group in inline-grid | preceding sibling descendant
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-column-group in inline-grid | fixture ancestor
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-column-group in inline-grid | distant sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-column-group in inline-grid | distant sibling descendant
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-column-group in inline-grid | DOM parent
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-column-group in inline-grid | preceding sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-column-group in inline-grid | preceding sibling descendant
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on table-column-group in inline-grid | target
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on table-column-group in inline-grid | target descendant
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on table-column-group in inline-grid | following sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on table-column-group in inline-grid | following sibling descendant
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-column-group in inline-grid | following sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-column-group in inline-grid | following sibling descendant
 STATS: content "replacement" -> open-quote "replacement" close-quote on table-column-group in inline-grid | rebuilt subtree roots=1, escaped=false
 PASS: content "replacement" -> open-quote "replacement" close-quote on table-column-group in inline-grid | incremental tree matches full rebuild
 PRESERVED: overflow-x visible -> hidden on table-column in table-cell | fixture ancestor
@@ -2158,16 +2158,16 @@ RECREATED: text-transform none -> uppercase on table-caption in table-row | foll
 RECREATED: text-transform none -> uppercase on table-caption in table-row | following sibling descendant
 STATS: text-transform none -> uppercase on table-caption in table-row | rebuilt subtree roots=1, escaped=false
 PASS: text-transform none -> uppercase on table-caption in table-row | incremental tree matches full rebuild
-RECREATED: text-transform capitalize -> uppercase on table-caption in inline flex | fixture ancestor
-RECREATED: text-transform capitalize -> uppercase on table-caption in inline flex | distant sibling
-RECREATED: text-transform capitalize -> uppercase on table-caption in inline flex | distant sibling descendant
-RECREATED: text-transform capitalize -> uppercase on table-caption in inline flex | DOM parent
-RECREATED: text-transform capitalize -> uppercase on table-caption in inline flex | preceding sibling
-RECREATED: text-transform capitalize -> uppercase on table-caption in inline flex | preceding sibling descendant
+PRESERVED: text-transform capitalize -> uppercase on table-caption in inline flex | fixture ancestor
+PRESERVED: text-transform capitalize -> uppercase on table-caption in inline flex | distant sibling
+PRESERVED: text-transform capitalize -> uppercase on table-caption in inline flex | distant sibling descendant
+PRESERVED: text-transform capitalize -> uppercase on table-caption in inline flex | DOM parent
+PRESERVED: text-transform capitalize -> uppercase on table-caption in inline flex | preceding sibling
+PRESERVED: text-transform capitalize -> uppercase on table-caption in inline flex | preceding sibling descendant
 RECREATED: text-transform capitalize -> uppercase on table-caption in inline flex | target
 RECREATED: text-transform capitalize -> uppercase on table-caption in inline flex | target descendant
-RECREATED: text-transform capitalize -> uppercase on table-caption in inline flex | following sibling
-RECREATED: text-transform capitalize -> uppercase on table-caption in inline flex | following sibling descendant
+PRESERVED: text-transform capitalize -> uppercase on table-caption in inline flex | following sibling
+PRESERVED: text-transform capitalize -> uppercase on table-caption in inline flex | following sibling descendant
 STATS: text-transform capitalize -> uppercase on table-caption in inline flex | rebuilt subtree roots=1, escaped=false
 PASS: text-transform capitalize -> uppercase on table-caption in inline flex | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-caption in flow-root | fixture ancestor

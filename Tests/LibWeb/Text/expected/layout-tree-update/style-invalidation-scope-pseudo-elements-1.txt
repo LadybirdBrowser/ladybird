@@ -1378,17 +1378,17 @@ RECREATED: ::before create none on table-row-group in table-header-group | follo
 RECREATED: ::before create none on table-row-group in table-header-group | following sibling descendant
 STATS: ::before create none on table-row-group in table-header-group | rebuilt subtree roots=1, escaped=false
 PASS: ::before create none on table-row-group in table-header-group | incremental tree matches full rebuild
-RECREATED: ::before create inline-grid on table-row-group in inline flex | fixture ancestor
-RECREATED: ::before create inline-grid on table-row-group in inline flex | distant sibling
-RECREATED: ::before create inline-grid on table-row-group in inline flex | distant sibling descendant
-RECREATED: ::before create inline-grid on table-row-group in inline flex | DOM parent
-RECREATED: ::before create inline-grid on table-row-group in inline flex | preceding sibling
-RECREATED: ::before create inline-grid on table-row-group in inline flex | preceding sibling descendant
-RECREATED: ::before create inline-grid on table-row-group in inline flex | target
-RECREATED: ::before create inline-grid on table-row-group in inline flex | target descendant
-RECREATED: ::before create inline-grid on table-row-group in inline flex | following sibling
-RECREATED: ::before create inline-grid on table-row-group in inline flex | following sibling descendant
-STATS: ::before create inline-grid on table-row-group in inline flex | rebuilt subtree roots=1, escaped=false
+PRESERVED: ::before create inline-grid on table-row-group in inline flex | fixture ancestor
+PRESERVED: ::before create inline-grid on table-row-group in inline flex | distant sibling
+PRESERVED: ::before create inline-grid on table-row-group in inline flex | distant sibling descendant
+PRESERVED: ::before create inline-grid on table-row-group in inline flex | DOM parent
+PRESERVED: ::before create inline-grid on table-row-group in inline flex | preceding sibling
+PRESERVED: ::before create inline-grid on table-row-group in inline flex | preceding sibling descendant
+PRESERVED: ::before create inline-grid on table-row-group in inline flex | target
+PRESERVED: ::before create inline-grid on table-row-group in inline flex | target descendant
+PRESERVED: ::before create inline-grid on table-row-group in inline flex | following sibling
+PRESERVED: ::before create inline-grid on table-row-group in inline flex | following sibling descendant
+STATS: ::before create inline-grid on table-row-group in inline flex | rebuilt subtree roots=0, escaped=false
 PASS: ::before create inline-grid on table-row-group in inline flex | incremental tree matches full rebuild
 PRESERVED: ::before create table-column on table-row-group in run-in | fixture ancestor
 PRESERVED: ::before create table-column on table-row-group in run-in | distant sibling
@@ -1546,16 +1546,16 @@ RECREATED: ::before create -webkit-box on table-footer-group in inline flow list
 RECREATED: ::before create -webkit-box on table-footer-group in inline flow list-item | following sibling descendant
 STATS: ::before create -webkit-box on table-footer-group in inline flow list-item | rebuilt subtree roots=1, escaped=false
 PASS: ::before create -webkit-box on table-footer-group in inline flow list-item | incremental tree matches full rebuild
-RECREATED: ::before create block flow-root on table-footer-group in inline-grid | fixture ancestor
-RECREATED: ::before create block flow-root on table-footer-group in inline-grid | distant sibling
-RECREATED: ::before create block flow-root on table-footer-group in inline-grid | distant sibling descendant
-RECREATED: ::before create block flow-root on table-footer-group in inline-grid | DOM parent
-RECREATED: ::before create block flow-root on table-footer-group in inline-grid | preceding sibling
-RECREATED: ::before create block flow-root on table-footer-group in inline-grid | preceding sibling descendant
+PRESERVED: ::before create block flow-root on table-footer-group in inline-grid | fixture ancestor
+PRESERVED: ::before create block flow-root on table-footer-group in inline-grid | distant sibling
+PRESERVED: ::before create block flow-root on table-footer-group in inline-grid | distant sibling descendant
+PRESERVED: ::before create block flow-root on table-footer-group in inline-grid | DOM parent
+PRESERVED: ::before create block flow-root on table-footer-group in inline-grid | preceding sibling
+PRESERVED: ::before create block flow-root on table-footer-group in inline-grid | preceding sibling descendant
 RECREATED: ::before create block flow-root on table-footer-group in inline-grid | target
 RECREATED: ::before create block flow-root on table-footer-group in inline-grid | target descendant
-RECREATED: ::before create block flow-root on table-footer-group in inline-grid | following sibling
-RECREATED: ::before create block flow-root on table-footer-group in inline-grid | following sibling descendant
+PRESERVED: ::before create block flow-root on table-footer-group in inline-grid | following sibling
+PRESERVED: ::before create block flow-root on table-footer-group in inline-grid | following sibling descendant
 STATS: ::before create block flow-root on table-footer-group in inline-grid | rebuilt subtree roots=1, escaped=false
 PASS: ::before create block flow-root on table-footer-group in inline-grid | incremental tree matches full rebuild
 RECREATED: ::after change position block on table-footer-group in table-column | fixture ancestor

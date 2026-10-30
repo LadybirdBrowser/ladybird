@@ -1933,14 +1933,14 @@ PASS: ::before change display inline flex on table-caption in table-footer-group
 PRESERVED: ::after remove inline-block on table-caption in block grid | fixture ancestor
 PRESERVED: ::after remove inline-block on table-caption in block grid | distant sibling
 PRESERVED: ::after remove inline-block on table-caption in block grid | distant sibling descendant
-RECREATED: ::after remove inline-block on table-caption in block grid | DOM parent
-RECREATED: ::after remove inline-block on table-caption in block grid | preceding sibling
-RECREATED: ::after remove inline-block on table-caption in block grid | preceding sibling descendant
-RECREATED: ::after remove inline-block on table-caption in block grid | target
-RECREATED: ::after remove inline-block on table-caption in block grid | target descendant
-RECREATED: ::after remove inline-block on table-caption in block grid | following sibling
-RECREATED: ::after remove inline-block on table-caption in block grid | following sibling descendant
-STATS: ::after remove inline-block on table-caption in block grid | rebuilt subtree roots=1, escaped=false
+PRESERVED: ::after remove inline-block on table-caption in block grid | DOM parent
+PRESERVED: ::after remove inline-block on table-caption in block grid | preceding sibling
+PRESERVED: ::after remove inline-block on table-caption in block grid | preceding sibling descendant
+PRESERVED: ::after remove inline-block on table-caption in block grid | target
+PRESERVED: ::after remove inline-block on table-caption in block grid | target descendant
+PRESERVED: ::after remove inline-block on table-caption in block grid | following sibling
+PRESERVED: ::after remove inline-block on table-caption in block grid | following sibling descendant
+STATS: ::after remove inline-block on table-caption in block grid | rebuilt subtree roots=0, escaped=false
 PASS: ::after remove inline-block on table-caption in block grid | incremental tree matches full rebuild
 PRESERVED: ::after remove -webkit-inline-box on table-caption in list-item | fixture ancestor
 PRESERVED: ::after remove -webkit-inline-box on table-caption in list-item | distant sibling

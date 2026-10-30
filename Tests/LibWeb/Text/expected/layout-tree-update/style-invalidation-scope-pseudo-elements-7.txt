@@ -1390,16 +1390,16 @@ RECREATED: ::before create table-row-group on table-row-group in inline flow lis
 RECREATED: ::before create table-row-group on table-row-group in inline flow list-item | following sibling descendant
 STATS: ::before create table-row-group on table-row-group in inline flow list-item | rebuilt subtree roots=1, escaped=false
 PASS: ::before create table-row-group on table-row-group in inline flow list-item | incremental tree matches full rebuild
-RECREATED: ::before create block flex on table-row-group in inline-grid | fixture ancestor
-RECREATED: ::before create block flex on table-row-group in inline-grid | distant sibling
-RECREATED: ::before create block flex on table-row-group in inline-grid | distant sibling descendant
-RECREATED: ::before create block flex on table-row-group in inline-grid | DOM parent
-RECREATED: ::before create block flex on table-row-group in inline-grid | preceding sibling
-RECREATED: ::before create block flex on table-row-group in inline-grid | preceding sibling descendant
+PRESERVED: ::before create block flex on table-row-group in inline-grid | fixture ancestor
+PRESERVED: ::before create block flex on table-row-group in inline-grid | distant sibling
+PRESERVED: ::before create block flex on table-row-group in inline-grid | distant sibling descendant
+PRESERVED: ::before create block flex on table-row-group in inline-grid | DOM parent
+PRESERVED: ::before create block flex on table-row-group in inline-grid | preceding sibling
+PRESERVED: ::before create block flex on table-row-group in inline-grid | preceding sibling descendant
 RECREATED: ::before create block flex on table-row-group in inline-grid | target
 RECREATED: ::before create block flex on table-row-group in inline-grid | target descendant
-RECREATED: ::before create block flex on table-row-group in inline-grid | following sibling
-RECREATED: ::before create block flex on table-row-group in inline-grid | following sibling descendant
+PRESERVED: ::before create block flex on table-row-group in inline-grid | following sibling
+PRESERVED: ::before create block flex on table-row-group in inline-grid | following sibling descendant
 STATS: ::before create block flex on table-row-group in inline-grid | rebuilt subtree roots=1, escaped=false
 PASS: ::before create block flex on table-row-group in inline-grid | incremental tree matches full rebuild
 RECREATED: ::after change position flow-root on table-row-group in table-column | fixture ancestor
@@ -1522,17 +1522,17 @@ RECREATED: ::after change display block flow list-item on table-header-group in 
 RECREATED: ::after change display block flow list-item on table-header-group in table-footer-group | following sibling descendant
 STATS: ::after change display block flow list-item on table-header-group in table-footer-group | rebuilt subtree roots=1, escaped=false
 PASS: ::after change display block flow list-item on table-header-group in table-footer-group | incremental tree matches full rebuild
-RECREATED: ::before create inline-flex on table-footer-group in inline flex | fixture ancestor
-RECREATED: ::before create inline-flex on table-footer-group in inline flex | distant sibling
-RECREATED: ::before create inline-flex on table-footer-group in inline flex | distant sibling descendant
-RECREATED: ::before create inline-flex on table-footer-group in inline flex | DOM parent
-RECREATED: ::before create inline-flex on table-footer-group in inline flex | preceding sibling
-RECREATED: ::before create inline-flex on table-footer-group in inline flex | preceding sibling descendant
-RECREATED: ::before create inline-flex on table-footer-group in inline flex | target
-RECREATED: ::before create inline-flex on table-footer-group in inline flex | target descendant
-RECREATED: ::before create inline-flex on table-footer-group in inline flex | following sibling
-RECREATED: ::before create inline-flex on table-footer-group in inline flex | following sibling descendant
-STATS: ::before create inline-flex on table-footer-group in inline flex | rebuilt subtree roots=1, escaped=false
+PRESERVED: ::before create inline-flex on table-footer-group in inline flex | fixture ancestor
+PRESERVED: ::before create inline-flex on table-footer-group in inline flex | distant sibling
+PRESERVED: ::before create inline-flex on table-footer-group in inline flex | distant sibling descendant
+PRESERVED: ::before create inline-flex on table-footer-group in inline flex | DOM parent
+PRESERVED: ::before create inline-flex on table-footer-group in inline flex | preceding sibling
+PRESERVED: ::before create inline-flex on table-footer-group in inline flex | preceding sibling descendant
+PRESERVED: ::before create inline-flex on table-footer-group in inline flex | target
+PRESERVED: ::before create inline-flex on table-footer-group in inline flex | target descendant
+PRESERVED: ::before create inline-flex on table-footer-group in inline flex | following sibling
+PRESERVED: ::before create inline-flex on table-footer-group in inline flex | following sibling descendant
+STATS: ::before create inline-flex on table-footer-group in inline flex | rebuilt subtree roots=0, escaped=false
 PASS: ::before create inline-flex on table-footer-group in inline flex | incremental tree matches full rebuild
 PRESERVED: ::before create table-cell on table-footer-group in run-in | fixture ancestor
 PRESERVED: ::before create table-cell on table-footer-group in run-in | distant sibling

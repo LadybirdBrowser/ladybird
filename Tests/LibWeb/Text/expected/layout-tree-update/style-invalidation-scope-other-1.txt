@@ -1573,13 +1573,13 @@ PASS: overflow-y scroll -> clip on table-row-group in run-in | incremental tree 
 PRESERVED: text-transform uppercase -> lowercase on table-row-group in -webkit-box | fixture ancestor
 PRESERVED: text-transform uppercase -> lowercase on table-row-group in -webkit-box | distant sibling
 PRESERVED: text-transform uppercase -> lowercase on table-row-group in -webkit-box | distant sibling descendant
-RECREATED: text-transform uppercase -> lowercase on table-row-group in -webkit-box | DOM parent
-RECREATED: text-transform uppercase -> lowercase on table-row-group in -webkit-box | preceding sibling
-RECREATED: text-transform uppercase -> lowercase on table-row-group in -webkit-box | preceding sibling descendant
+PRESERVED: text-transform uppercase -> lowercase on table-row-group in -webkit-box | DOM parent
+PRESERVED: text-transform uppercase -> lowercase on table-row-group in -webkit-box | preceding sibling
+PRESERVED: text-transform uppercase -> lowercase on table-row-group in -webkit-box | preceding sibling descendant
 RECREATED: text-transform uppercase -> lowercase on table-row-group in -webkit-box | target
 RECREATED: text-transform uppercase -> lowercase on table-row-group in -webkit-box | target descendant
-RECREATED: text-transform uppercase -> lowercase on table-row-group in -webkit-box | following sibling
-RECREATED: text-transform uppercase -> lowercase on table-row-group in -webkit-box | following sibling descendant
+PRESERVED: text-transform uppercase -> lowercase on table-row-group in -webkit-box | following sibling
+PRESERVED: text-transform uppercase -> lowercase on table-row-group in -webkit-box | following sibling descendant
 STATS: text-transform uppercase -> lowercase on table-row-group in -webkit-box | rebuilt subtree roots=1, escaped=false
 PASS: text-transform uppercase -> lowercase on table-row-group in -webkit-box | incremental tree matches full rebuild
 PRESERVED: content normal -> open-quote "replacement" close-quote on table-row-group in block flow | fixture ancestor
@@ -1654,16 +1654,16 @@ PRESERVED: overflow-y scroll -> clip on table-header-group in block | following 
 PRESERVED: overflow-y scroll -> clip on table-header-group in block | following sibling descendant
 STATS: overflow-y scroll -> clip on table-header-group in block | no layout tree build
 PASS: overflow-y scroll -> clip on table-header-group in block | incremental tree matches full rebuild
-RECREATED: text-transform uppercase -> lowercase on table-header-group in inline-grid | fixture ancestor
-RECREATED: text-transform uppercase -> lowercase on table-header-group in inline-grid | distant sibling
-RECREATED: text-transform uppercase -> lowercase on table-header-group in inline-grid | distant sibling descendant
-RECREATED: text-transform uppercase -> lowercase on table-header-group in inline-grid | DOM parent
-RECREATED: text-transform uppercase -> lowercase on table-header-group in inline-grid | preceding sibling
-RECREATED: text-transform uppercase -> lowercase on table-header-group in inline-grid | preceding sibling descendant
+PRESERVED: text-transform uppercase -> lowercase on table-header-group in inline-grid | fixture ancestor
+PRESERVED: text-transform uppercase -> lowercase on table-header-group in inline-grid | distant sibling
+PRESERVED: text-transform uppercase -> lowercase on table-header-group in inline-grid | distant sibling descendant
+PRESERVED: text-transform uppercase -> lowercase on table-header-group in inline-grid | DOM parent
+PRESERVED: text-transform uppercase -> lowercase on table-header-group in inline-grid | preceding sibling
+PRESERVED: text-transform uppercase -> lowercase on table-header-group in inline-grid | preceding sibling descendant
 RECREATED: text-transform uppercase -> lowercase on table-header-group in inline-grid | target
 RECREATED: text-transform uppercase -> lowercase on table-header-group in inline-grid | target descendant
-RECREATED: text-transform uppercase -> lowercase on table-header-group in inline-grid | following sibling
-RECREATED: text-transform uppercase -> lowercase on table-header-group in inline-grid | following sibling descendant
+PRESERVED: text-transform uppercase -> lowercase on table-header-group in inline-grid | following sibling
+PRESERVED: text-transform uppercase -> lowercase on table-header-group in inline-grid | following sibling descendant
 STATS: text-transform uppercase -> lowercase on table-header-group in inline-grid | rebuilt subtree roots=1, escaped=false
 PASS: text-transform uppercase -> lowercase on table-header-group in inline-grid | incremental tree matches full rebuild
 RECREATED: content normal -> open-quote "replacement" close-quote on table-header-group in table-cell | fixture ancestor
@@ -1681,13 +1681,13 @@ PASS: content normal -> open-quote "replacement" close-quote on table-header-gro
 PRESERVED: content-visibility visible -> auto on table-footer-group in block grid | fixture ancestor
 PRESERVED: content-visibility visible -> auto on table-footer-group in block grid | distant sibling
 PRESERVED: content-visibility visible -> auto on table-footer-group in block grid | distant sibling descendant
-RECREATED: content-visibility visible -> auto on table-footer-group in block grid | DOM parent
-RECREATED: content-visibility visible -> auto on table-footer-group in block grid | preceding sibling
-RECREATED: content-visibility visible -> auto on table-footer-group in block grid | preceding sibling descendant
+PRESERVED: content-visibility visible -> auto on table-footer-group in block grid | DOM parent
+PRESERVED: content-visibility visible -> auto on table-footer-group in block grid | preceding sibling
+PRESERVED: content-visibility visible -> auto on table-footer-group in block grid | preceding sibling descendant
 RECREATED: content-visibility visible -> auto on table-footer-group in block grid | target
 RECREATED: content-visibility visible -> auto on table-footer-group in block grid | target descendant
-RECREATED: content-visibility visible -> auto on table-footer-group in block grid | following sibling
-RECREATED: content-visibility visible -> auto on table-footer-group in block grid | following sibling descendant
+PRESERVED: content-visibility visible -> auto on table-footer-group in block grid | following sibling
+PRESERVED: content-visibility visible -> auto on table-footer-group in block grid | following sibling descendant
 STATS: content-visibility visible -> auto on table-footer-group in block grid | rebuilt subtree roots=1, escaped=false
 PASS: content-visibility visible -> auto on table-footer-group in block grid | incremental tree matches full rebuild
 PRESERVED: overflow-x hidden -> visible on table-footer-group in inline-block | fixture ancestor
@@ -1990,16 +1990,16 @@ ABSENT: overflow-y scroll -> clip on table-column-group in table-column-group | 
 ABSENT: overflow-y scroll -> clip on table-column-group in table-column-group | following sibling descendant
 STATS: overflow-y scroll -> clip on table-column-group in table-column-group | no layout tree build
 PASS: overflow-y scroll -> clip on table-column-group in table-column-group | incremental tree matches full rebuild
-RECREATED: text-transform uppercase -> lowercase on table-column-group in inline grid | fixture ancestor
-RECREATED: text-transform uppercase -> lowercase on table-column-group in inline grid | distant sibling
-RECREATED: text-transform uppercase -> lowercase on table-column-group in inline grid | distant sibling descendant
-RECREATED: text-transform uppercase -> lowercase on table-column-group in inline grid | DOM parent
-RECREATED: text-transform uppercase -> lowercase on table-column-group in inline grid | preceding sibling
-RECREATED: text-transform uppercase -> lowercase on table-column-group in inline grid | preceding sibling descendant
+PRESERVED: text-transform uppercase -> lowercase on table-column-group in inline grid | fixture ancestor
+PRESERVED: text-transform uppercase -> lowercase on table-column-group in inline grid | distant sibling
+PRESERVED: text-transform uppercase -> lowercase on table-column-group in inline grid | distant sibling descendant
+PRESERVED: text-transform uppercase -> lowercase on table-column-group in inline grid | DOM parent
+PRESERVED: text-transform uppercase -> lowercase on table-column-group in inline grid | preceding sibling
+PRESERVED: text-transform uppercase -> lowercase on table-column-group in inline grid | preceding sibling descendant
 RECREATED: text-transform uppercase -> lowercase on table-column-group in inline grid | target
 RECREATED: text-transform uppercase -> lowercase on table-column-group in inline grid | target descendant
-RECREATED: text-transform uppercase -> lowercase on table-column-group in inline grid | following sibling
-RECREATED: text-transform uppercase -> lowercase on table-column-group in inline grid | following sibling descendant
+PRESERVED: text-transform uppercase -> lowercase on table-column-group in inline grid | following sibling
+PRESERVED: text-transform uppercase -> lowercase on table-column-group in inline grid | following sibling descendant
 STATS: text-transform uppercase -> lowercase on table-column-group in inline grid | rebuilt subtree roots=1, escaped=false
 PASS: text-transform uppercase -> lowercase on table-column-group in inline grid | incremental tree matches full rebuild
 PRESERVED: content normal -> open-quote "replacement" close-quote on table-column-group in run-in | fixture ancestor
@@ -2098,16 +2098,16 @@ RECREATED: content normal -> open-quote "replacement" close-quote on table-colum
 RECREATED: content normal -> open-quote "replacement" close-quote on table-column in block | following sibling descendant
 STATS: content normal -> open-quote "replacement" close-quote on table-column in block | rebuilt subtree roots=1, escaped=false
 PASS: content normal -> open-quote "replacement" close-quote on table-column in block | incremental tree matches full rebuild
-RECREATED: content-visibility visible -> auto on table-caption in inline-grid | fixture ancestor
-RECREATED: content-visibility visible -> auto on table-caption in inline-grid | distant sibling
-RECREATED: content-visibility visible -> auto on table-caption in inline-grid | distant sibling descendant
-RECREATED: content-visibility visible -> auto on table-caption in inline-grid | DOM parent
-RECREATED: content-visibility visible -> auto on table-caption in inline-grid | preceding sibling
-RECREATED: content-visibility visible -> auto on table-caption in inline-grid | preceding sibling descendant
+PRESERVED: content-visibility visible -> auto on table-caption in inline-grid | fixture ancestor
+PRESERVED: content-visibility visible -> auto on table-caption in inline-grid | distant sibling
+PRESERVED: content-visibility visible -> auto on table-caption in inline-grid | distant sibling descendant
+PRESERVED: content-visibility visible -> auto on table-caption in inline-grid | DOM parent
+PRESERVED: content-visibility visible -> auto on table-caption in inline-grid | preceding sibling
+PRESERVED: content-visibility visible -> auto on table-caption in inline-grid | preceding sibling descendant
 RECREATED: content-visibility visible -> auto on table-caption in inline-grid | target
 RECREATED: content-visibility visible -> auto on table-caption in inline-grid | target descendant
-RECREATED: content-visibility visible -> auto on table-caption in inline-grid | following sibling
-RECREATED: content-visibility visible -> auto on table-caption in inline-grid | following sibling descendant
+PRESERVED: content-visibility visible -> auto on table-caption in inline-grid | following sibling
+PRESERVED: content-visibility visible -> auto on table-caption in inline-grid | following sibling descendant
 STATS: content-visibility visible -> auto on table-caption in inline-grid | rebuilt subtree roots=1, escaped=false
 PASS: content-visibility visible -> auto on table-caption in inline-grid | incremental tree matches full rebuild
 PRESERVED: overflow-x hidden -> visible on table-caption in table-cell | fixture ancestor

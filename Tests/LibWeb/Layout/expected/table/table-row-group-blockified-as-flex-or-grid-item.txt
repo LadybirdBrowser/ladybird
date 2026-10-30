@@ -1,0 +1,39 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 64 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 48 0+0+8] children: not-inline
+      Box <table> at [8,8] flex-container(row) [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline
+        BlockContainer <tbody> at [8,8] flex-item [0+0+0 161.78125 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
+          TableWrapper <(anonymous)> at [8,8] [0+0+0 161.78125 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
+            Box <(anonymous)> at [8,8] table-box [0+0+0 161.78125 0+0+0] [0+0+0 16 0+0+0] [TFC] children: not-inline
+              Box <tr> at [8,8] table-row [0+0+0 161.78125 0+0+0] [0+0+0 16 0+0+0] children: not-inline
+                BlockContainer <td> at [8,8] table-cell [0+0+0 161.78125 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+                  frag 0 from TextNode start: 0, length: 19, rect: [8,8 161.78125x16] baseline: 12.796875
+                      "flex item row group"
+                  TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,24] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      Box <table> at [8,24] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] [GFC] children: not-inline
+        BlockContainer <tbody> at [8,24] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
+          TableWrapper <(anonymous)> at [8,24] [0+0+0 161.5 0+0+622.5] [0+0+0 16 0+0+0] [BFC] children: not-inline
+            Box <(anonymous)> at [8,24] table-box [0+0+0 161.5 0+0+0] [0+0+0 16 0+0+0] [TFC] children: not-inline
+              Box <tr> at [8,24] table-row [0+0+0 161.5 0+0+0] [0+0+0 16 0+0+0] children: not-inline
+                BlockContainer <td> at [8,24] table-cell [0+0+0 161.5 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+                  frag 0 from TextNode start: 0, length: 19, rect: [8,24 161.5x16] baseline: 12.796875
+                      "grid item row group"
+                  TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,40] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      Box <div> at [8,40] flex-container(row) [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline
+        BlockContainer <div> at [8,40] flex-item [0+0+0 184.140625 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
+          TableWrapper <(anonymous)> at [8,40] [0+0+0 184.140625 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
+            Box <(anonymous)> at [8,40] table-box [0+0+0 184.140625 0+0+0] [0+0+0 16 0+0+0] [TFC] children: not-inline
+              Box <div> at [8,40] table-row [0+0+0 184.140625 0+0+0] [0+0+0 16 0+0+0] children: not-inline
+                BlockContainer <div> at [8,40] table-cell [0+0+0 184.140625 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+                  frag 0 from TextNode start: 0, length: 22, rect: [8,40 184.140625x16] baseline: 12.796875
+                      "flex item header group"
+                  TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,56] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x64] (z-index: auto)
