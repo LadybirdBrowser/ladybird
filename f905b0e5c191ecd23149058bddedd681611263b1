@@ -1,0 +1,8 @@
+Ladybird decides a permission request in the UI process, from the
+document it knows made it, and shows one prompt for identical pending
+requests. Chrome does the same in its browser process: Its
+PermissionRequestManager answers a request that duplicates a pending
+one along with that one (PermissionRequest::IsDuplicateOf()). Neither
+stores anything for a prompt the user dismisses or ignores; both only
+count it toward the embargo. Gecko and WebKit, too, decide these
+prompts in their parent and UI processes rather than in the renderer.
