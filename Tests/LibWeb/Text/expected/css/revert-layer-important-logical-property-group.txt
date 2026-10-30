@@ -1,0 +1,3 @@
+inline-start: margin-left=5px
+left: margin-left=5px
+plain: margin-left=0px
