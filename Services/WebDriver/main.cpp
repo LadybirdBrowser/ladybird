@@ -242,7 +242,10 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     };
 
     TRY(server->listen(ipv4_address.value(), port, Core::TCPServer::AllowAddressReuse::Yes));
-    outln("Listening on {}:{}", ipv4_address.value(), port);
+
+    // Tests start WebDriver on port 0 and read the chosen port from this line.
+    outln("Listening on {}:{}", ipv4_address.value(), server->local_port().value());
+    (void)fflush(stdout);
 
     auto result = loop.exec();
     WebDriver::Session::close_all();
