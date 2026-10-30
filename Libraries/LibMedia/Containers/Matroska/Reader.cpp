@@ -1289,9 +1289,18 @@ Vector<BufferedRangesScan> Reader::buffered_time_ranges_by_track(NonnullRefPtr<M
 
         VERIFY(cached_range.has_value());
 
-        // If the current range is an exact match to the byte range, we can just update the end byte and advance.
+        // If the current range's start matches, just update the end and advance. If it shrunk, clear the scan.
         if (byte_range.start == cached_range->start) {
-            cached_range->end = byte_range.end;
+            if (byte_range.end >= cached_range->end) {
+                cached_range->end = byte_range.end;
+            } else {
+                *cached_range = {
+                    .start = byte_range.start,
+                    .end = byte_range.end,
+                    .iterator = create_iterator(byte_range.start),
+                    .track_intervals = {},
+                };
+            }
             cached_range_index++;
             byte_range_index++;
             continue;
