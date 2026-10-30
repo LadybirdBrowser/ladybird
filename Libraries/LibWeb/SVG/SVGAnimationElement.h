@@ -47,11 +47,12 @@ protected:
     static Animations::BaseKeyframe keyframe(double offset, CSS::PropertyID, CSS::StyleValue const&);
     static void set_keyframe_property(Animations::BaseKeyframe&, CSS::PropertyID, CSS::StyleValue const&);
 
+    double simple_duration() const;
+
     void update_animation();
 
 private:
     GC::Ptr<SMILTimeContainer> time_container();
-    double simple_duration() const;
     double repeat_count() const;
     Bindings::FillMode fill_mode() const;
 

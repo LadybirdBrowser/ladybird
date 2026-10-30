@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg id="svg" width="100" height="100">
+    <rect id="from-to" width="10" height="10" opacity="1">
+        <animate attributeName="opacity" from="0" to="1" dur="4s"/>
+    </rect>
+    <rect id="to" width="10" height="10" opacity="0">
+        <animate attributeName="opacity" to="1" dur="4s"/>
+    </rect>
+    <rect id="values" width="10" height="10" opacity="1">
+        <animate attributeName="opacity" values="0; 1; 0.5;" dur="4s"/>
+    </rect>
+    <rect id="key-times" width="10" height="10" opacity="1">
+        <animate attributeName="opacity" values="0;1;0.5" keyTimes="0;0.75;1" dur="4s"/>
+    </rect>
+    <rect id="discrete" width="10" height="10" opacity="1">
+        <animate attributeName="opacity" values="0;0.5;1;0.25" calcMode="discrete" dur="4s"/>
+    </rect>
+    <rect id="discrete-key-times" width="10" height="10" opacity="1">
+        <animate attributeName="opacity" values="0;0.5" keyTimes="0;0.75" calcMode="discrete" dur="4s"/>
+    </rect>
+    <rect id="spline" width="10" height="10" opacity="1">
+        <animate attributeName="opacity" values="0;1" keyTimes="0;1" keySplines="0 1 0 1" calcMode="spline" dur="4s"/>
+    </rect>
+    <rect id="spline-without-key-splines" width="10" height="10" opacity="1">
+        <animate attributeName="opacity" values="0;1" calcMode="spline" dur="4s"/>
+    </rect>
+    <rect id="bad-key-times" width="10" height="10" opacity="1">
+        <animate attributeName="opacity" values="0;1" keyTimes="0;0.5" dur="4s"/>
+    </rect>
+    <rect id="bad-value" width="10" height="10" opacity="1">
+        <animate attributeName="opacity" values="0;bogus" dur="4s"/>
+    </rect>
+    <path id="path" d="M0,0 L10,0">
+        <animate attributeName="d" values="M0,0 L10,0;M0,0 L30,40" dur="4s"/>
+    </path>
+</svg>
+<script>
+    asyncTest(async done => {
+        await new Promise(resolve => window.addEventListener("load", resolve));
+        await new Promise(requestAnimationFrame);
+        println(`interface: ${Object.getPrototypeOf(document.querySelector("animate")).constructor.name}`);
+        svg.pauseAnimations();
+        for (const time of [0, 1, 2, 3, 3.5, 4]) {
+            svg.setCurrentTime(time);
+            println(`t=${time}`);
+            for (const rect of document.querySelectorAll("rect"))
+                println(`  ${rect.id}: ${Number(getComputedStyle(rect).opacity).toFixed(3)}`);
+            println(`  path: ${getComputedStyle(path).d}`);
+        }
+        done();
+    });
+</script>

@@ -1104,6 +1104,7 @@ class SVGAnimatedLengthList;
 class SVGAnimatedNumber;
 class SVGAnimatedNumberList;
 class SVGAnimatedRect;
+class SVGAnimateElement;
 class SVGAnimateMotionElement;
 class SVGAnimationElement;
 class SVGCircleElement;

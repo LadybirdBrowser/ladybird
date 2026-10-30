@@ -410,6 +410,7 @@ ResizeObserverSize
 Response
 SVGAElement
 SVGAngle
+SVGAnimateElement
 SVGAnimateMotionElement
 SVGAnimatedAngle
 SVGAnimatedBoolean
