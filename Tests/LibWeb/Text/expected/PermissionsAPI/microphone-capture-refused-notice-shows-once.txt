@@ -1,3 +1,5 @@
+getUserMedia: NotAllowedError
+getUserMedia: NotAllowedError
 capture decisions: 2
 capture refusals: 2
 notices shown: 1

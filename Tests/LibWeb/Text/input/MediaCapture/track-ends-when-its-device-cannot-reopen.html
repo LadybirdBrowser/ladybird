@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const track = stream.getTracks()[0];
+        const clone = stream.clone().getTracks()[0];
+        const ended = Promise.all([track, clone].map(t => new Promise(resolve => t.addEventListener("ended", resolve))));
+
+        internals.setSystemMicrophoneAuthorization("denied");
+        internals.disconnectAudioServer();
+        await ended;
+        println(`track: ${track.readyState}`);
+        println(`clone: ${clone.readyState}`);
+        done();
+    });
+</script>

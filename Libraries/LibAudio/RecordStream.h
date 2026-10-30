@@ -31,6 +31,7 @@ public:
     // passed to the callback is authoritative. A process with no server to reach is refused,
     // since only the AudioServer opens devices. The device id is a dom_device_id produced by
     // AudioDevices, or an empty string to capture from the default input device.
+    // A stream the Browser refused is rejected with EPERM, and one whose device would not open with EIO.
     static NonnullRefPtr<CreatePromise> create(StringView device_id, RecordCallback);
 
     virtual ~RecordStream() = default;
