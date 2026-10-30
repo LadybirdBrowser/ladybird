@@ -1786,8 +1786,18 @@ void WebContentPage::did_request_permission(u64 request_id, Web::HTML::CrossProc
     }
 
     auto generation_when_asked = manager.decision_generation(*permission_name, *top_level_origin);
-    // When the system hasn't yet let the browser find the user's location either, the prompt says the system will ask next.
-    auto show_os_hint = *permission_name == Web::Permissions::PermissionName::Geolocation && Application::the().geolocation_authorization() == Core::GeolocationAuthorization::NotDetermined;
+    // When the system hasn't yet let the browser use the feature either, the prompt says the system will ask next.
+    auto show_os_hint = [&] {
+        switch (*permission_name) {
+        case Web::Permissions::PermissionName::Geolocation:
+            return Application::the().geolocation_authorization() == Core::GeolocationAuthorization::NotDetermined;
+        case Web::Permissions::PermissionName::Notifications:
+            return NotificationManager::the().backend().os_authorization_is_undetermined();
+        case Web::Permissions::PermissionName::Microphone:
+            return false;
+        }
+        VERIFY_NOT_REACHED();
+    }();
     PermissionPromptRequest request { *permission_name, *top_level_origin, is_file, show_os_hint };
 
     view().request_permission_prompt(move(request), [page = NonnullRefPtr(*this), request_id, document_id, permission_name = *permission_name, top_level_origin = *top_level_origin, is_file, generation_when_asked](Web::Permissions::PromptOutcome outcome) {

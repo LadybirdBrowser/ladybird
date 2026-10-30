@@ -34,6 +34,7 @@ public:
 
     virtual void show(PlatformNotification const&) override;
     virtual void close(u64 id) override;
+    virtual bool os_authorization_is_undetermined() const override { return m_authorization == Authorization::Unknown; }
 
     // What the notification center's delegate reports: the user activated or dismissed a request.
     void did_activate(String const& identifier);
